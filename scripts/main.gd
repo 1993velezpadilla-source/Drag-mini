@@ -238,7 +238,7 @@ func _process(delta: float) -> void:
     queue_redraw()
 
 func _end_race() -> void:
-    var winning := player["finish_time"] <= rival["finish_time"]
+    var winning: bool = float(player["finish_time"]) <= float(rival["finish_time"])
     finish_text = "YOU WIN!" if winning else "RIVAL WINS"
     title_label.text = finish_text
     detail_label.text = "YOUR TIME: %.2fs\nRIVAL TIME: %.2fs" % [player["finish_time"], rival["finish_time"]]
@@ -273,7 +273,7 @@ func _draw() -> void:
         var start_x := sz.x * 0.02
         var course_w := sz.x * 0.42
         for p in [0.25, 0.50, 0.75, 1.0]:
-            var x := start_x + course_w * p
+            var x: float = start_x + course_w * float(p)
             draw_line(Vector2(x, sz.y * 0.29), Vector2(x, sz.y * 0.70), Color("86919c", 0.6), 2)
         draw_line(Vector2(0, sz.y * 0.495), Vector2(sz.x, sz.y * 0.495), Color("f1e5bb"), 3)
         var car_w := sz.x * 0.43
