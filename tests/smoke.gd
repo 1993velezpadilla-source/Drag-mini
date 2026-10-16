@@ -21,7 +21,6 @@ func _run_smoke() -> void:
         _fail("main scene instantiate failed")
         return
     root.add_child(game)
-    await process_frame
     if game.images.size() != 4:
         _fail("could not import all 4 sprites")
         return

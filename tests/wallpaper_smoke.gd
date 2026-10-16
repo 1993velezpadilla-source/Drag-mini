@@ -14,7 +14,6 @@ func _run_tests() -> void:
         return
     var bridge = load("res://scripts/wallpaper_bridge.gd").new()
     root.add_child(bridge)
-    await process_frame
     if bridge.is_wallpaper:
         printerr("Wrong wallpaper detection in desktop CI")
         quit(1)
@@ -30,7 +29,6 @@ func _run_tests() -> void:
         return
     var game = scene.instantiate()
     root.add_child(game)
-    await process_frame
     if game.wallpaper_mode or game.images.size() != 4:
         printerr("Unexpected default wallpaper mode or missing cars")
         quit(1)
