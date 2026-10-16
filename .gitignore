@@ -2,3 +2,6 @@
 *.apk
 *.aab
 .DS_Store
+
+# Pinned upstream Android plugin binaries installed locally/CI.
+addons/Android/LiveWallpaper/

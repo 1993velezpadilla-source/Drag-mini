@@ -15,4 +15,7 @@ jobs:
       - name: Import resources
         run: godot --headless --path . --editor --import --quit
       - name: Verify scene and sprites
-        run: godot --headless --path . --script res://tests/smoke.gd
+        run: |
+          set -o pipefail
+          timeout 60s godot --headless --path . --script res://tests/smoke.gd 2>&1 | tee /tmp/dragmini-smoke.log
+          grep -Fq 'DRAG MINI SMOKE: PASS' /tmp/dragmini-smoke.log

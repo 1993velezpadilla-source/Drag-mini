@@ -20,3 +20,19 @@ Online races, persistent garage, paid slots, mods/tuning, animated wheel layers,
 Work in feature branches. Review PRs before merge. Invite Félix under GitHub Settings → Collaborators. Never add private keys or secrets to Git.
 
 Before publishing, vet names, vehicle likenesses and intellectual-property rights.
+
+## Wallpaper plugin — TheOathMan
+We use **TheOathMan/Godot-Android-Live-Wallpaper v1.5.1**, MIT licensed.
+Pinned official release: `0bfc928515cf1ba8f7127754a2d28e995f508145aadd35d7a5ebdf8f2153a6b2` SHA-256.
+This third-party binary is **not checked into the repository**. Install it before opening in the editor:
+
+```sh
+python3 scripts/install_wallpaper_plugin.py
+```
+
+Project settings enable the `LiveWallpaper` editor plugin. Use **Godot 4.6, GL Compatibility**, install **Android Build Template**, and **Use Gradle Build** in the Android export preset.
+The home screen wallpaper integration displays the selected car on a quiet track and suppresses race controls; wallpaper mode caps the frame rate and pauses rendering when the system reports it hidden. The normal Android app displays a `WALLPAPER` button to open the system wallpaper picker. Selection persists in `user://garage.cfg`. Nothing takes over another application's UI: that requires a separate **Android overlay** implementation.
+
+**Caution:** Release v1.5.1 was built against Godot 4.5.0, and compatibility with the Godot 4.6 *Android binary export* is unproven. The GitHub CI checks only import and script behavior on Linux; physical Android verification is required (including lock screen, Android 14+ behavior, launchers, battery). Samsung launchers may not report home-screen offsets correctly. Wallpaper is not an unrestricted interactive overlay.
+
+Upstream: https://github.com/TheOathMan/Godot-Android-Live-Wallpaper — MIT © 2024 Othman Alzhrani.
