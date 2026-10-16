@@ -1,0 +1,33 @@
+name: Android wallpaper plugin smoke
+on:
+  push:
+    paths:
+      - 'scripts/wallpaper_bridge.gd'
+      - 'scripts/main.gd'
+      - 'scripts/install_wallpaper_plugin.py'
+      - 'tests/wallpaper_smoke.gd'
+      - 'project.godot'
+      - '.github/workflows/live-wallpaper.yml'
+  pull_request:
+jobs:
+  plugin:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Godot 4.6
+        uses: chickensoft-games/setup-godot@v2
+        with:
+          version: 4.6.0
+          use-dotnet: false
+      - name: Install pinned upstream Android plugin
+        run: python3 scripts/install_wallpaper_plugin.py
+      - name: Verify plugin archive layout and AAR binaries
+        run: |
+          test -f addons/Android/LiveWallpaper/plugin.cfg
+          test -s addons/Android/LiveWallpaper/bin/LiveWallpaper-debug.aar
+          test -s addons/Android/LiveWallpaper/bin/LiveWallpaper-release.aar
+      - name: Godot import including plugin
+        run: timeout 90s godot --headless --path . --editor --import --quit
+      - name: Desktop-mode wallpaper safety checks
+        run: timeout 60s godot --headless --path . --script res://tests/wallpaper_smoke.gd

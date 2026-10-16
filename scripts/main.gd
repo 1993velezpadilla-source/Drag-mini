@@ -35,8 +35,14 @@ var throttle_button: Button
 var shift_button: Button
 var retry_button: Button
 var garage_button: Button
+var wallpaper_button: Button
+var wallpaper_bridge
+var wallpaper_mode := false
 
 func _ready() -> void:
+    _load_garage()
+    wallpaper_bridge = preload("res://scripts/wallpaper_bridge.gd").new()
+    add_child(wallpaper_bridge)
     for path in CAR_PATHS:
         var tex := load(path) as Texture2D
         if tex == null:
@@ -44,6 +50,8 @@ func _ready() -> void:
         images.append(tex)
     _make_ui()
     _show_garage()
+    if wallpaper_bridge.is_wallpaper:
+        _enter_wallpaper_mode()
 
 func _style_button(button: Button, accent := false) -> void:
     button.add_theme_font_size_override("font_size", 26)
@@ -98,6 +106,10 @@ func _make_ui() -> void:
     next_button = _button(">", 0.80, 0.78, 0.96, 0.86)
     mode_button = _button("MANUAL", 0.21, 0.78, 0.79, 0.86)
     race_button = _button("RACE 1/4 MILE", 0.07, 0.88, 0.93, 0.97, true)
+    wallpaper_button = _button("WALLPAPER", 0.56, 0.88, 0.94, 0.97)
+    wallpaper_button.visible = OS.get_name() == "Android"
+    if wallpaper_button.visible:
+        race_button.anchor_right = 0.56
     throttle_button = _button("HOLD GAS", 0.05, 0.83, 0.53, 0.97, true)
     shift_button = _button("SHIFT +", 0.55, 0.83, 0.95, 0.97)
     retry_button = _button("RETRY", 0.05, 0.83, 0.47, 0.97, true)
@@ -111,6 +123,7 @@ func _make_ui() -> void:
     shift_button.pressed.connect(_player_shift)
     retry_button.pressed.connect(_start_race)
     garage_button.pressed.connect(_show_garage)
+    wallpaper_button.pressed.connect(_request_wallpaper)
 
 func _show_garage() -> void:
     screen = "garage"
@@ -124,15 +137,18 @@ func _show_garage() -> void:
         btn.visible = true
     for btn in [throttle_button, shift_button, retry_button, garage_button]:
         btn.visible = false
+    wallpaper_button.visible = OS.get_name() == "Android"
     _update_garage()
     queue_redraw()
 
 func _select_car(step: int) -> void:
     selected = posmod(selected + step, CARS.size())
+    _save_garage()
     _update_garage()
 
 func _toggle_mode() -> void:
     auto_shift = not auto_shift
+    _save_garage()
     _update_garage()
 
 func _update_garage() -> void:
@@ -161,7 +177,7 @@ func _start_race() -> void:
     telemetry_label.visible = true
     detail_label.visible = true
     message_label.visible = false
-    for btn in [prev_button, next_button, mode_button, race_button, retry_button, garage_button]:
+    for btn in [prev_button, next_button, mode_button, race_button, retry_button, garage_button, wallpaper_button]:
         btn.visible = false
     throttle_button.visible = not auto_shift
     shift_button.visible = not auto_shift
@@ -206,6 +222,8 @@ func _advance_car(driver: Dictionary, delta: float, gas: bool, shift_auto: bool)
         driver["finish_time"] = elapsed
 
 func _process(delta: float) -> void:
+    if wallpaper_mode:
+        return
     if screen != "race":
         return
     if player["finished"] and rival["finished"]:
@@ -238,6 +256,9 @@ func _update_hud() -> void:
 
 func _draw() -> void:
     var sz := size
+    if wallpaper_mode:
+        _draw_wallpaper(sz)
+        return
     draw_rect(Rect2(Vector2.ZERO, sz), Color("0c1421"))
     draw_rect(Rect2(0, sz.y * 0.28, sz.x, sz.y * 0.30), Color("162b3d"))
     draw_line(Vector2(0, sz.y * 0.28), Vector2(sz.x, sz.y * 0.28), Color("ef7d2e"), 4)
@@ -262,3 +283,44 @@ func _draw() -> void:
         if images[rival["car_id"]] != null:
             var rx: float = start_x + course_w * (rival["distance"] / QUARTER_MILE_M)
             draw_texture_rect(images[rival["car_id"]], Rect2(rx, sz.y * 0.52, car_w, car_w * 54.0 / 128.0), false)
+
+# Live-wallpaper mode: no garage, race logic, multiplayer, HUD or high-rate updates.
+# All wallpaper-native calls live in wallpaper_bridge.gd, guarded by Android checks.
+func _enter_wallpaper_mode() -> void:
+    wallpaper_mode = true
+    screen = "wallpaper"
+    throttle_held = false
+    Engine.max_fps = 20
+    for child in get_children():
+        if child is Button or child is Label:
+            child.visible = false
+    queue_redraw()
+
+func _draw_wallpaper(sz: Vector2) -> void:
+    draw_rect(Rect2(Vector2.ZERO, sz), Color("08101d"))
+    draw_rect(Rect2(0, sz.y * 0.68, sz.x, sz.y * 0.32), Color("203341"))
+    draw_rect(Rect2(0, sz.y * 0.79, sz.x, sz.y * 0.03), Color("445968"))
+    draw_line(Vector2(0, sz.y * 0.81), Vector2(sz.x, sz.y * 0.81), Color("e6c88b"), 3)
+    if images.is_empty() or images[selected] == null:
+        return
+    var w := sz.x * 0.82
+    draw_texture_rect(images[selected], Rect2(sz.x * 0.09, sz.y * 0.64, w, w * 54.0 / 128.0), false)
+
+func _request_wallpaper() -> void:
+    if not wallpaper_bridge.start_live_wallpaper():
+        message_label.visible = true
+        message_label.text = "Wallpaper plugin unavailable; install v1.5.1 and use Android Gradle export."
+
+func _load_garage() -> void:
+    var config := ConfigFile.new()
+    if config.load("user://garage.cfg") == OK:
+        selected = clampi(int(config.get_value("garage", "selected", 0)), 0, CARS.size() - 1)
+        auto_shift = bool(config.get_value("garage", "auto_shift", false))
+
+func _save_garage() -> void:
+    var config := ConfigFile.new()
+    config.set_value("garage", "selected", selected)
+    config.set_value("garage", "auto_shift", auto_shift)
+    var result := config.save("user://garage.cfg")
+    if result != OK:
+        push_warning("Could not persist selected car.")
