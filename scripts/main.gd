@@ -27,6 +27,9 @@ var rival := {}
 var elapsed := 0.0
 var finish_text := ""
 var throttle_held := false
+var countdown := 0.0
+var false_start := false
+var countdown_label: Label
 var title_label: Label
 var detail_label: Label
 var telemetry_label: Label
@@ -108,6 +111,8 @@ func _make_ui() -> void:
     detail_label = _label("", 0.63, 0.74, 27)
     telemetry_label = _label("", 0.16, 0.27, 28)
     message_label = _label("", 0.72, 0.80, 24)
+    countdown_label = _label("", 0.275, 0.35, 42)
+    countdown_label.visible = false
     prev_button = _button("<", 0.04, 0.78, 0.20, 0.86)
     next_button = _button(">", 0.80, 0.78, 0.96, 0.86)
     mode_button = _button("MANUAL", 0.21, 0.78, 0.79, 0.86)
@@ -124,7 +129,7 @@ func _make_ui() -> void:
     next_button.pressed.connect(func(): _select_car(1))
     mode_button.pressed.connect(_toggle_mode)
     race_button.pressed.connect(_start_race)
-    throttle_button.button_down.connect(func(): throttle_held = true)
+    throttle_button.button_down.connect(_on_gas_down)
     throttle_button.button_up.connect(func(): throttle_held = false)
     shift_button.pressed.connect(_player_shift)
     retry_button.pressed.connect(_start_race)
@@ -144,6 +149,7 @@ func _show_garage() -> void:
     for btn in [throttle_button, shift_button, retry_button, garage_button]:
         btn.visible = false
     wallpaper_button.visible = OS.get_name() == "Android"
+    countdown_label.visible = false
     _update_garage()
     queue_redraw()
 
@@ -176,6 +182,8 @@ func _start_race() -> void:
     elapsed = 0.0
     finish_text = ""
     throttle_held = false
+    false_start = false
+    countdown = 3.8
     player = _make_driver(selected)
     rival = _make_driver((selected + 1) % CARS.size())
     title_label.text = "1/4 MILE DRAG"
@@ -183,12 +191,29 @@ func _start_race() -> void:
     telemetry_label.visible = true
     detail_label.visible = true
     message_label.visible = false
+    countdown_label.visible = true
+    countdown_label.text = "3"
     for btn in [prev_button, next_button, mode_button, race_button, retry_button, garage_button, wallpaper_button]:
         btn.visible = false
-    throttle_button.visible = not auto_shift
+    throttle_button.visible = true
     shift_button.visible = not auto_shift
     _update_hud()
     queue_redraw()
+
+func _on_gas_down() -> void:
+    if screen != "race" or false_start:
+        return
+    if countdown > 0.0:
+        false_start = true
+        finish_text = "FALSE START — DISQUALIFIED"
+        title_label.text = "DISQUALIFIED"
+        countdown_label.text = "RED LIGHT"
+        throttle_button.visible = false
+        shift_button.visible = false
+        retry_button.visible = true
+        garage_button.visible = true
+        return
+    throttle_held = true
 
 func _player_shift() -> void:
     if screen == "race" and not auto_shift and not player["finished"]:
@@ -238,11 +263,20 @@ func _process(delta: float) -> void:
         return
     if screen != "race":
         return
+    if false_start:
+        return
+    if countdown > 0.0:
+        countdown = maxf(0.0, countdown - delta)
+        countdown_label.text = "3" if countdown > 2.8 else ("2" if countdown > 1.8 else ("1" if countdown > 0.8 else ("GO!" if countdown > 0.0 else "")))
+        if countdown <= 0.0:
+            countdown_label.text = "GO!"
+        queue_redraw()
+        return
     if player["finished"] and rival["finished"]:
         return
     var tick := minf(delta, 1.0 / 30.0)
     elapsed += tick
-    _advance_car(player, tick, auto_shift or throttle_held, auto_shift)
+    _advance_car(player, tick, throttle_held, auto_shift)
     _advance_car(rival, tick, true, true)
     if player["finished"] and rival["finished"]:
         _end_race()
@@ -258,6 +292,7 @@ func _end_race() -> void:
     shift_button.visible = false
     retry_button.visible = true
     garage_button.visible = true
+    countdown_label.visible = false
 
 func _update_hud() -> void:
     telemetry_label.text = "TIME %.2f s   |   DIST %.0f m\n%d km/h   |   GEAR %d   |   %.0f RPM" % [
