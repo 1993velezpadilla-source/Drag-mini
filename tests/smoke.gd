@@ -66,6 +66,11 @@ func _run_smoke() -> void:
     if float(game.rival["wheel_angle"]) <= 0.0:
         _fail("CPU car wheels did not move")
         return
+    var initial_gear: int = int(game.player["gear"])
+    game._player_shift()
+    if int(game.player["gear"]) != initial_gear + 1 or not game.throttle_held:
+        _fail("power shift must increase gear while GAS stays held")
+        return
     game._show_garage()
     if game.screen != "garage":
         _fail("garage return failed")
