@@ -300,7 +300,7 @@ func _process(delta: float) -> void:
             countdown_label.text = "GO!"
             shift_button.text = "SHIFT +"
             shift_button.visible = not auto_shift
-            _update_hud()
+        _update_hud()
         queue_redraw()
         return
     green_timer += delta
