@@ -64,5 +64,7 @@ for TYPE in debug release; do
   test -s "$SOURCE_AAR"
   cp "$SOURCE_AAR" "$BIN/LiveWallpaper-$TYPE.aar"
   echo "REBUILT WALLPAPER GODOT 4.6: $TYPE"
+  unzip -p "$BIN/LiveWallpaper-$TYPE.aar" classes.jar > "$WORK/native-$TYPE.jar"
+  javap -public -classpath "$WORK/native-$TYPE.jar" org.godotengine.plugin.android.LiveWallpaper.LiveWallpaper | grep -F 'int startWallpaperService();'
   sha256sum "$BIN/LiveWallpaper-$TYPE.aar"
 done
