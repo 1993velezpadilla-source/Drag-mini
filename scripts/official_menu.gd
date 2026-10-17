@@ -10,7 +10,7 @@ const HOTSPOTS := {
     "settings": Rect2(884, 676, 204, 148),
     "start": Rect2(1098, 671, 415, 155)
 }
-const MENU_ASSET := "res://assets/ui/official_main_menu.png"
+const MENU_ASSET := "res://assets/ui/official_main_menu.jpg"
 
 func _ready() -> void:
     set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -24,7 +24,7 @@ func _ready() -> void:
     if ResourceLoader.exists(MENU_ASSET):
         image.texture = load(MENU_ASSET) as Texture2D
     else:
-        push_warning("OFFICIAL DRAG MINI MENU PNG NOT INSTALLED: " + MENU_ASSET)
+        push_warning("OFFICIAL DRAG MINI MENU SOURCE IMAGE NOT INSTALLED: " + MENU_ASSET)
     add_child(image)
     if image.texture == null:
         var missing := Label.new()

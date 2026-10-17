@@ -1,7 +1,7 @@
 extends RefCounted
 ## Draws only the user's uploaded official pixel-art track; middle is streamed
 ## by crop/scrolling, finish sector appears near actual race end.
-const TRACK_PATH := "res://assets/tracks/official_drag_strip.png"
+const TRACK_PATH := "res://assets/tracks/official_drag_strip.jpg"
 const SOURCE_WIDTH := 1536.0
 const SOURCE_HEIGHT := 512.0
 

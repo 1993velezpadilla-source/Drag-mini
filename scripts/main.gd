@@ -74,7 +74,7 @@ func _ready() -> void:
     if ResourceLoader.exists(OfficialTrack.TRACK_PATH):
         track_image = load(OfficialTrack.TRACK_PATH) as Texture2D
     else:
-        push_warning("OFFICIAL TRACK PNG MISSING: " + OfficialTrack.TRACK_PATH)
+        push_warning("OFFICIAL TRACK SOURCE IMAGE MISSING: " + OfficialTrack.TRACK_PATH)
     _make_ui()
     menu_overlay = OfficialMenu.new()
     menu_overlay.name = "OfficialMenuClickable"
