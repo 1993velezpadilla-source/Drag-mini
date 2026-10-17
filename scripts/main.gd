@@ -561,7 +561,7 @@ func _draw_wallpaper(sz: Vector2) -> void:
         # Use the SAME ORIGINAL TRACK photograph in portrait wallpaper mode.
         # Crop rather than squish the full 1536x512 panorama to phone shape.
         var crop_width: float = clampf(512.0 * sz.x / maxf(sz.y, 1.0), 180.0, 850.0)
-        var crop_x: float = 180.0 + fposmod(wallpaper_road_offset * 1.6, 820.0 - crop_width)
+        var crop_x: float = 180.0 + fposmod(wallpaper_road_offset * 1.6, maxf(1.0, 820.0 - crop_width))
         draw_texture_rect_region(track_image, Rect2(Vector2.ZERO, sz),
             Rect2(crop_x, 0, crop_width, 512.0))
     else:
