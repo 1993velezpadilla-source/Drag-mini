@@ -33,7 +33,7 @@ func _check_frame(label: String) -> bool:
 
 func _start() -> void:
     DisplayServer.window_set_size(Vector2i(1280, 720))
-    var game := load("res://scenes/main.tscn").instantiate()
+    var game = load("res://scenes/main.tscn").instantiate()
     root.add_child(game)
     for i in range(8):
         await process_frame
