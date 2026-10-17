@@ -35,7 +35,9 @@ func _run_smoke() -> void:
     if game.screen != "race":
         _fail("race start failed")
         return
-    # The wheels must advance as the car moves (not a static PNG sliding).
+    # Simulate an actual touchscreen throttle press in MANUAL mode.
+    # Without gas, the car (correctly) remains parked.
+    game.throttle_held = true
     game._process(1.0 / 60.0)
     if float(game.player["speed"]) <= 0.0 or float(game.player["wheel_angle"]) <= 0.0:
         _fail("player wheels did not move with acceleration")
