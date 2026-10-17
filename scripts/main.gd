@@ -30,6 +30,7 @@ var throttle_held := false
 var countdown := 0.0
 var false_start := false
 var launch_rpm := 1050.0
+var green_timer := 0.0
 var countdown_label: Label
 var title_label: Label
 var detail_label: Label
@@ -185,7 +186,8 @@ func _start_race() -> void:
     throttle_held = false
     false_start = false
     launch_rpm = 1050.0
-    countdown = 3.8
+    countdown = 3.0
+    green_timer = 0.0
     player = _make_driver(selected)
     rival = _make_driver((selected + 1) % CARS.size())
     title_label.text = "1/4 MILE DRAG"
@@ -198,7 +200,8 @@ func _start_race() -> void:
     for btn in [prev_button, next_button, mode_button, race_button, retry_button, garage_button, wallpaper_button]:
         btn.visible = false
     throttle_button.visible = true
-    shift_button.visible = not auto_shift
+    shift_button.visible = true
+    shift_button.text = "LAUNCH"
     _update_hud()
     queue_redraw()
 
@@ -206,7 +209,9 @@ func _on_gas_down() -> void:
     if screen != "race" or false_start:
         return
     if countdown > 0.0:
-        false_start = true
+        throttle_held = true
+        return
+    if false_start:
         throttle_held = false
         countdown_label.text = "FALSE START!"
         title_label.text = "DISQUALIFIED"
@@ -220,8 +225,23 @@ func _on_gas_down() -> void:
     throttle_held = true
 
 func _player_shift() -> void:
-    if screen == "race" and countdown <= 0.0 and not false_start and not auto_shift and not player["finished"]:
+    if screen != "race" or false_start or player["finished"]:
+        return
+    if countdown > 0.0:
+        _false_start()
+    elif not auto_shift:
         _shift(player)
+
+func _false_start() -> void:
+    false_start = true
+    throttle_held = false
+    title_label.text = "DISQUALIFIED"
+    countdown_label.text = "RED LIGHT"
+    detail_label.text = "LAUNCH BEFORE GO"
+    shift_button.visible = false
+    throttle_button.visible = false
+    retry_button.visible = true
+    garage_button.visible = true
 
 func _shift(driver: Dictionary) -> void:
     if driver["shift_timer"] > 0.0 or driver["gear"] >= RATIOS.size() - 1:
@@ -278,9 +298,14 @@ func _process(delta: float) -> void:
         countdown_label.text = "3" if countdown > 2.8 else ("2" if countdown > 1.8 else ("1" if countdown > 0.8 else ("GO!" if countdown > 0.0 else "")))
         if countdown <= 0.0:
             countdown_label.text = "GO!"
+            shift_button.text = "SHIFT +"
+            shift_button.visible = not auto_shift
             _update_hud()
         queue_redraw()
         return
+    green_timer += delta
+    if green_timer > 0.8:
+        countdown_label.visible = false
     if player["finished"] and rival["finished"]:
         return
     var tick := minf(delta, 1.0 / 30.0)
@@ -308,7 +333,7 @@ func _update_hud() -> void:
         elapsed, player["distance"], roundi(player["speed"] * 3.6),
         player["gear"] + 1, player["rpm"]]
     if countdown > 0.0:
-        telemetry_label.text = "STAGING • %.0f RPM\nWAIT FOR GO! • EARLY GAS = DQ" % launch_rpm
+        telemetry_label.text = "STAGING • %.0f RPM\nHOLD GAS TO REV • EARLY LAUNCH = DQ" % launch_rpm
     if finish_text.is_empty():
         detail_label.text = "YOU: %.0f m   •   RIVAL: %.0f m" % [player["distance"], rival["distance"]]
 
