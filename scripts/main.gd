@@ -29,6 +29,7 @@ var finish_text := ""
 var throttle_held := false
 var countdown := 0.0
 var false_start := false
+var launch_rpm := 1050.0
 var countdown_label: Label
 var title_label: Label
 var detail_label: Label
@@ -183,6 +184,7 @@ func _start_race() -> void:
     finish_text = ""
     throttle_held = false
     false_start = false
+    launch_rpm = 1050.0
     countdown = 3.8
     player = _make_driver(selected)
     rival = _make_driver((selected + 1) % CARS.size())
@@ -203,16 +205,7 @@ func _start_race() -> void:
 func _on_gas_down() -> void:
     if screen != "race" or false_start:
         return
-    if countdown > 0.0:
-        false_start = true
-        finish_text = "FALSE START — DISQUALIFIED"
-        title_label.text = "DISQUALIFIED"
-        countdown_label.text = "RED LIGHT"
-        throttle_button.visible = false
-        shift_button.visible = false
-        retry_button.visible = true
-        garage_button.visible = true
-        return
+    # Staging allows revving before green; no vehicle movement until GO.
     throttle_held = true
 
 func _player_shift() -> void:
@@ -266,6 +259,10 @@ func _process(delta: float) -> void:
     if false_start:
         return
     if countdown > 0.0:
+        var redline: float = float(CARS[selected]["redline"])
+        var target_rpm: float = minf(redline * 0.92, 5200.0) if throttle_held else 1050.0
+        launch_rpm = move_toward(launch_rpm, target_rpm, delta * (4200.0 if throttle_held else 5200.0))
+        player["rpm"] = launch_rpm
         countdown = maxf(0.0, countdown - delta)
         countdown_label.text = "3" if countdown > 2.8 else ("2" if countdown > 1.8 else ("1" if countdown > 0.8 else ("GO!" if countdown > 0.0 else "")))
         if countdown <= 0.0:
@@ -298,6 +295,8 @@ func _update_hud() -> void:
     telemetry_label.text = "TIME %.2f s   |   DIST %.0f m\n%d km/h   |   GEAR %d   |   %.0f RPM" % [
         elapsed, player["distance"], roundi(player["speed"] * 3.6),
         player["gear"] + 1, player["rpm"]]
+    if countdown > 0.0:
+        telemetry_label.text = "STAGING • %.0f RPM\nHOLD GAS TO REV • LAUNCH ON GO" % launch_rpm
     if finish_text.is_empty():
         detail_label.text = "YOU: %.0f m   •   RIVAL: %.0f m" % [player["distance"], rival["distance"]]
 
