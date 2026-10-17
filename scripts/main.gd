@@ -197,7 +197,7 @@ func _start_race() -> void:
     mouse_gas = false
     false_start = false
     launch_rpm = 1050.0
-    countdown = 3.0
+    countdown = 4.0
     green_timer = 0.0
     player = _make_driver(selected)
     rival = _make_driver((selected + 1) % CARS.size())
@@ -207,7 +207,7 @@ func _start_race() -> void:
     detail_label.visible = true
     message_label.visible = false
     countdown_label.visible = true
-    countdown_label.text = "3"
+    countdown_label.text = "READY"
     for btn in [prev_button, next_button, mode_button, race_button, retry_button, garage_button, wallpaper_button]:
         btn.visible = false
     throttle_button.visible = true
@@ -349,7 +349,7 @@ func _process(delta: float) -> void:
         launch_rpm = move_toward(launch_rpm, target_rpm, delta * (4200.0 if throttle_held else 5200.0))
         player["rpm"] = launch_rpm
         countdown = maxf(0.0, countdown - delta)
-        countdown_label.text = "3" if countdown > 2.8 else ("2" if countdown > 1.8 else ("1" if countdown > 0.8 else ("GO!" if countdown > 0.0 else "")))
+        countdown_label.text = "READY" if countdown > 3.0 else ("3" if countdown > 2.0 else ("2" if countdown > 1.0 else ("1" if countdown > 0.0 else "GO!"))
         if countdown <= 0.0:
             countdown_label.text = "GO!"
             shift_button.text = "SHIFT +"
