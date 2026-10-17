@@ -11,6 +11,7 @@ const HOTSPOTS := {
     "start": Rect2(1098, 671, 415, 155)
 }
 const MENU_ASSET := "res://assets/ui/official_main_menu.jpg"
+var _tap_locked := false
 
 func _ready() -> void:
     set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -57,11 +58,17 @@ func _add_hotspot(action: String, source: Rect2) -> void:
     add_child(b)
 
 func _activate(action: String, button: Button) -> void:
-    # Touch: light up the existing painted icon and give physical feedback.
+    if _tap_locked:
+        return
+    _tap_locked = true
+    # Play touch feedback BEFORE transitioning. Old version switched instantly.
     var tween := create_tween()
     button.pivot_offset = button.size * 0.5
     tween.tween_property(button, "scale", Vector2(0.975, 0.975), 0.07)
     tween.tween_property(button, "scale", Vector2.ONE, 0.11)
     if OS.get_name() == "Android":
         Input.vibrate_handheld(27)
-    action_selected.emit(action)
+    tween.tween_callback(func():
+        _tap_locked = false
+        action_selected.emit(action)
+    )
