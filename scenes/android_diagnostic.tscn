@@ -1,0 +1,58 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Texture2D" path="res://assets/ui/official_main_menu.jpg" id="1"]
+[ext_resource type="Script" path="res://scripts/android_diagnostic_button.gd" id="2"]
+
+[node name="DragMiniDisplayDiagnostic" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="NeonPinkFrame" type="ColorRect" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(1, 0.06, 0.47, 1)
+
+[node name="OfficialMenuPhoto" type="TextureRect" parent="."]
+layout_mode = 1
+anchor_left = 0.04
+anchor_top = 0.14
+anchor_right = 0.96
+anchor_bottom = 0.79
+grow_horizontal = 2
+grow_vertical = 2
+texture = ExtResource("1")
+expand_mode = 1
+stretch_mode = 0
+
+[node name="DiagnosticHeading" type="Label" parent="."]
+layout_mode = 1
+anchor_left = 0.025
+anchor_right = 0.975
+anchor_bottom = 0.12
+grow_horizontal = 2
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_font_sizes/font_size = 38
+text = "DRAG MINI 0.6 DIAGNOSTIC  •  PINK SCREEN = GODOT DISPLAY OK"
+horizontal_alignment = 1
+vertical_alignment = 1
+autowrap_mode = 3
+
+[node name="DiagnosticAction" type="Button" parent="."]
+layout_mode = 1
+anchor_left = 0.25
+anchor_top = 0.815
+anchor_right = 0.75
+anchor_bottom = 0.96
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_font_sizes/font_size = 32
+text = "OPEN FULL GAME"
+script = ExtResource("2")

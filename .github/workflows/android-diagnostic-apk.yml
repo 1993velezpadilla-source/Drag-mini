@@ -1,0 +1,106 @@
+name: Drag Mini V0.6 Android gray-screen isolated diagnostic APK
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - diagnostic/android-gray-screen-isolation-v06
+  pull_request:
+    paths:
+      - 'scenes/android_diagnostic.tscn'
+      - 'scripts/android_diagnostic_button.gd'
+      - 'tests/android_display_diagnostic_smoke.gd'
+      - '.github/workflows/android-diagnostic-apk.yml'
+permissions:
+  contents: read
+
+jobs:
+  isolated-first-frame:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      GODOT_ANDROID_KEYSTORE_DEBUG_USER: androiddebugkey
+      GODOT_ANDROID_KEYSTORE_DEBUG_PASSWORD: android
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: android-actions/setup-android@v3
+        with:
+          packages: platform-tools
+      - uses: chickensoft-games/setup-godot@v2
+        with:
+          version: 4.6.0
+          use-dotnet: false
+          include-templates: true
+      - name: Install Godot Android build prerequisites
+        run: |
+          set -euo pipefail
+          yes | sdkmanager --licenses >/dev/null || true
+          sdkmanager "platform-tools" "platforms;android-35" "build-tools;35.0.1" "ndk;28.1.13356709"
+          echo "ANDROID_HOME=${ANDROID_HOME:-$ANDROID_SDK_ROOT}" >> "$GITHUB_ENV"
+      - name: Prepare separate diagnostic package without Android wallpaper plugin
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          project = Path('project.godot')
+          p = project.read_text()
+          assert 'run/main_scene="res://scenes/main.tscn"' in p
+          p = p.replace('run/main_scene="res://scenes/main.tscn"',
+                        'run/main_scene="res://scenes/android_diagnostic.tscn"')
+          p = p.replace('config/name="Drag Mini"', 'config/name="Drag Mini DIAG V0.6"')
+          p = p.replace('enabled=PackedStringArray("res://addons/Android/LiveWallpaper/plugin.cfg")',
+                        'enabled=PackedStringArray()')
+          project.write_text(p)
+          export = Path('export_presets.cfg')
+          e = export.read_text()
+          assert 'package/unique_name="com.dragmini.pixelstreet"' in e
+          e = e.replace('package/unique_name="com.dragmini.pixelstreet"',
+                        'package/unique_name="com.dragmini.pixelstreet.diag"')
+          e = e.replace('package/name="Drag Mini"', 'package/name="Drag Mini DIAG V0.6"')
+          e = e.replace('version/code=5', 'version/code=6')
+          e = e.replace('version/name="0.5-dev"', 'version/name="0.6-diag"')
+          e = e.replace('build/DragMini-v0.5-debug.apk', 'build/DragMini-DIAG-v0.6.apk')
+          export.write_text(e)
+          assert 'package/unique_name="com.dragmini.pixelstreet.diag"' in export.read_text()
+          PY
+          grep -F 'run/main_scene="res://scenes/android_diagnostic.tscn"' project.godot
+          ! test -d addons/Android/LiveWallpaper
+      - name: Create isolated debug keystore
+        run: |
+          keytool -genkeypair -keystore "$RUNNER_TEMP/diag-debug.keystore" -storepass android -keypass android -alias androiddebugkey -keyalg RSA -keysize 2048 -validity 365 -dname "CN=Drag Mini DIAG Debug, OU=Development, O=DragMini, C=US"
+          echo "GODOT_ANDROID_KEYSTORE_DEBUG_PATH=$RUNNER_TEMP/diag-debug.keystore" >> "$GITHUB_ENV"
+      - name: Import resources + check diagnostic controls
+        run: |
+          set -euo pipefail
+          timeout 120s godot --headless --path . --editor --import --quit
+          timeout 60s godot --headless --path . --script res://tests/android_display_diagnostic_smoke.gd 2>&1 | tee /tmp/dragmini-display-diagnostic.log
+          grep -Fq 'DRAG MINI DIAG PASS' /tmp/dragmini-display-diagnostic.log
+      - name: Export independent Android ARM64 diagnostic APK
+        run: |
+          set -euo pipefail
+          mkdir -p build
+          godot --headless --path . --install-android-build-template --export-debug Android build/DragMini-DIAG-v0.6.apk 2>&1 | tee build/diag-export.log
+          test -s build/DragMini-DIAG-v0.6.apk
+      - name: Verify package is distinct and signed
+        run: |
+          set -euo pipefail
+          unzip -t build/DragMini-DIAG-v0.6.apk | tail -1
+          unzip -Z1 build/DragMini-DIAG-v0.6.apk | grep -E 'lib/arm64-v8a/libgodot_android.so'
+          "$ANDROID_HOME/build-tools/35.0.1/apksigner" verify --verbose build/DragMini-DIAG-v0.6.apk
+          "$ANDROID_HOME/build-tools/35.0.1/aapt" dump badging build/DragMini-DIAG-v0.6.apk | tee build/diag-package-audit.txt
+          grep -Fq "package: name='com.dragmini.pixelstreet.diag'" build/diag-package-audit.txt
+          unzip -Z1 build/DragMini-DIAG-v0.6.apk | grep -E '^assets/' | head -20
+          sha256sum build/DragMini-DIAG-v0.6.apk | tee build/diag-sha256.txt
+      - name: Upload distinct diagnostic APK for Pixel Fold
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: DragMini-DIAG-v0.6-PixelFold-ARM64
+          path: |
+            build/DragMini-DIAG-v0.6.apk
+            build/diag-package-audit.txt
+            build/diag-sha256.txt
+          retention-days: 14
+          if-no-files-found: error
