@@ -35,6 +35,13 @@ func _start() -> void:
     DisplayServer.window_set_size(Vector2i(1280, 720))
     var game = load("res://scenes/main.tscn").instantiate()
     root.add_child(game)
+    var fallback = game.get_node_or_null("StartupFallback")
+    if fallback == null:
+        _fail("Static startup fallback scene not installed")
+        return
+    if not game.get_meta("dragmini_boot_complete", false) or fallback.visible:
+        _fail("Game did not finish startup or static fallback incorrectly covers menu")
+        return
     for i in range(8):
         await process_frame
     if not _check_frame("official-menu"):
