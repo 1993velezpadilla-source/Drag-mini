@@ -27,6 +27,10 @@ var rival := {}
 var elapsed := 0.0
 var finish_text := ""
 var throttle_held := false
+var gas_finger := -1
+var mouse_gas := false
+var start_light_color := Color("303a44")
+var build_label: Label
 var countdown := 0.0
 var false_start := false
 var launch_rpm := 1050.0
@@ -51,6 +55,7 @@ var wallpaper_mode := false
 func _ready() -> void:
     _load_garage()
     wallpaper_bridge = preload("res://scripts/wallpaper_bridge.gd").new()
+    wallpaper_bridge.plugin_ready.connect(_on_wallpaper_plugin_ready)
     add_child(wallpaper_bridge)
     for path in CAR_PATHS:
         var tex := load(path) as Texture2D
@@ -110,10 +115,11 @@ func _label(text_value: String, top: float, bottom: float, font_size: int) -> La
 
 func _make_ui() -> void:
     title_label = _label("DRAG MINI", 0.04, 0.14, 57)
+    build_label = _label("V0.4 • TOUCH FIX", 0.008, 0.048, 17)
     detail_label = _label("", 0.63, 0.74, 27)
     telemetry_label = _label("", 0.125, 0.185, 24)
     message_label = _label("", 0.72, 0.80, 24)
-    countdown_label = _label("", 0.275, 0.35, 42)
+    countdown_label = _label("", 0.275, 0.355, 48)
     countdown_label.visible = false
     prev_button = _button("<", 0.04, 0.78, 0.20, 0.86)
     next_button = _button(">", 0.80, 0.78, 0.96, 0.86)
@@ -125,15 +131,16 @@ func _make_ui() -> void:
         race_button.anchor_right = 0.56
     throttle_button = _button("HOLD GAS", 0.05, 0.83, 0.53, 0.97, true)
     shift_button = _button("SHIFT +", 0.55, 0.83, 0.95, 0.97)
+    # A GUI Button uses mouse emulation, losing held GAS on second touch.
+    # UI remains decorative; the per-finger touch router below is authoritative.
+    throttle_button.mouse_filter = Control.MOUSE_FILTER_IGNORE
+    shift_button.mouse_filter = Control.MOUSE_FILTER_IGNORE
     retry_button = _button("RETRY", 0.05, 0.83, 0.47, 0.97, true)
     garage_button = _button("GARAGE", 0.53, 0.83, 0.95, 0.97)
     prev_button.pressed.connect(func(): _select_car(-1))
     next_button.pressed.connect(func(): _select_car(1))
     mode_button.pressed.connect(_toggle_mode)
     race_button.pressed.connect(_start_race)
-    throttle_button.button_down.connect(_on_gas_down)
-    throttle_button.button_up.connect(func(): throttle_held = false)
-    shift_button.pressed.connect(_player_shift)
     retry_button.pressed.connect(_start_race)
     garage_button.pressed.connect(_show_garage)
     wallpaper_button.pressed.connect(_request_wallpaper)
@@ -141,6 +148,8 @@ func _make_ui() -> void:
 func _show_garage() -> void:
     screen = "garage"
     throttle_held = false
+    gas_finger = -1
+    mouse_gas = false
     title_label.text = "DRAG MINI"
     title_label.visible = true
     telemetry_label.visible = false
@@ -184,9 +193,11 @@ func _start_race() -> void:
     elapsed = 0.0
     finish_text = ""
     throttle_held = false
+    gas_finger = -1
+    mouse_gas = false
     false_start = false
     launch_rpm = 1050.0
-    countdown = 3.0
+    countdown = 4.0
     green_timer = 0.0
     player = _make_driver(selected)
     rival = _make_driver((selected + 1) % CARS.size())
@@ -196,7 +207,7 @@ func _start_race() -> void:
     detail_label.visible = true
     message_label.visible = false
     countdown_label.visible = true
-    countdown_label.text = "3"
+    countdown_label.text = "READY"
     for btn in [prev_button, next_button, mode_button, race_button, retry_button, garage_button, wallpaper_button]:
         btn.visible = false
     throttle_button.visible = true
@@ -204,6 +215,48 @@ func _start_race() -> void:
     shift_button.text = "LAUNCH"
     _update_hud()
     queue_redraw()
+
+func _input(event: InputEvent) -> void:
+    # Two real Android fingers: finger A holds GAS while finger B taps SHIFT.
+    if screen != "race" or false_start:
+        return
+    if event is InputEventScreenTouch:
+        var touch := event as InputEventScreenTouch
+        _route_touch(touch.index, touch.position, touch.pressed)
+        get_viewport().set_input_as_handled()
+    elif event is InputEventMouseButton and OS.get_name() != "Android":
+        # Desktop mouse fallback only; mobile emulated mouse must not steal GAS finger.
+        var mouse := event as InputEventMouseButton
+        if mouse.button_index == MOUSE_BUTTON_LEFT:
+            _route_mouse(mouse.position, mouse.pressed)
+
+func _route_touch(finger: int, position: Vector2, pressed: bool) -> void:
+    if pressed:
+        if throttle_button.visible and throttle_button.get_global_rect().has_point(position):
+            if gas_finger == -1:
+                gas_finger = finger
+                _on_gas_down()
+        elif shift_button.visible and shift_button.get_global_rect().has_point(position):
+            _player_shift()
+    elif finger == gas_finger:
+        gas_finger = -1
+        throttle_held = mouse_gas
+    _refresh_pedal_color()
+
+func _route_mouse(position: Vector2, pressed: bool) -> void:
+    if pressed and throttle_button.visible and throttle_button.get_global_rect().has_point(position):
+        mouse_gas = true
+        _on_gas_down()
+    elif not pressed and mouse_gas:
+        mouse_gas = false
+        throttle_held = gas_finger != -1
+    elif pressed and shift_button.visible and shift_button.get_global_rect().has_point(position):
+        _player_shift()
+    _refresh_pedal_color()
+
+func _refresh_pedal_color() -> void:
+    if is_instance_valid(throttle_button):
+        throttle_button.modulate = Color("ffddaf") if throttle_held else Color.WHITE
 
 func _on_gas_down() -> void:
     if screen != "race" or false_start:
@@ -235,6 +288,8 @@ func _player_shift() -> void:
 func _false_start() -> void:
     false_start = true
     throttle_held = false
+    gas_finger = -1
+    mouse_gas = false
     title_label.text = "DISQUALIFIED"
     countdown_label.text = "RED LIGHT"
     detail_label.text = "LAUNCH BEFORE GO"
@@ -295,7 +350,7 @@ func _process(delta: float) -> void:
         launch_rpm = move_toward(launch_rpm, target_rpm, delta * (4200.0 if throttle_held else 5200.0))
         player["rpm"] = launch_rpm
         countdown = maxf(0.0, countdown - delta)
-        countdown_label.text = "3" if countdown > 2.8 else ("2" if countdown > 1.8 else ("1" if countdown > 0.8 else ("GO!" if countdown > 0.0 else "")))
+        countdown_label.text = "READY" if countdown > 3.0 else ("3" if countdown > 2.0 else ("2" if countdown > 1.0 else ("1" if countdown > 0.0 else "GO!")))
         if countdown <= 0.0:
             countdown_label.text = "GO!"
             shift_button.text = "SHIFT +"
@@ -345,6 +400,7 @@ func _draw() -> void:
     draw_rect(Rect2(Vector2.ZERO, sz), Color("0c1421"))
     if screen == "race":
         _draw_rpm_meter(sz)
+        _draw_race_lights(sz)
     draw_rect(Rect2(0, sz.y * 0.28, sz.x, sz.y * 0.30), Color("162b3d"))
     draw_line(Vector2(0, sz.y * 0.28), Vector2(sz.x, sz.y * 0.28), Color("ef7d2e"), 4)
     draw_line(Vector2(0, sz.y * 0.58), Vector2(sz.x, sz.y * 0.58), Color("ef7d2e"), 4)
@@ -383,6 +439,20 @@ func _enter_wallpaper_mode() -> void:
             child.visible = false
     queue_redraw()
 
+func _draw_race_lights(sz: Vector2) -> void:
+    # Racing Christmas tree: persistent, readable on the phone.
+    var x: float = sz.x * 0.50
+    var top: float = sz.y * 0.283
+    var r: float = minf(sz.x * 0.025, 18.0)
+    for i in range(3):
+        var is_on: bool = countdown > 0.0 and countdown <= 3.0 - float(i)
+        draw_circle(Vector2(x + (float(i) - 1.0) * (r * 3.0), top), r,
+            Color("ffbb36") if is_on else Color("374251"))
+    draw_circle(Vector2(x, top + r * 2.6), r,
+        Color("4fe28b") if countdown <= 0.0 and not false_start else Color("263e35"))
+    if false_start:
+        draw_circle(Vector2(x, top + r * 2.6), r, Color("ff3636"))
+
 func _draw_rpm_meter(sz: Vector2) -> void:
     var c := Vector2(sz.x * 0.50, sz.y * 0.23)
     var rad: float = minf(sz.x * 0.14, sz.y * 0.044)
@@ -415,10 +485,14 @@ func _draw_wallpaper(sz: Vector2) -> void:
     var w := sz.x * 0.82
     WheelLayers.draw_car(self, visual_cars[selected], Rect2(sz.x * 0.09, sz.y * 0.64, w, w * 54.0 / 128.0), wallpaper_wheel_angle)
 
+func _on_wallpaper_plugin_ready(running_as_wallpaper: bool) -> void:
+    if running_as_wallpaper and not wallpaper_mode and is_node_ready():
+        _enter_wallpaper_mode()
+
 func _request_wallpaper() -> void:
     if not wallpaper_bridge.start_live_wallpaper():
         message_label.visible = true
-        message_label.text = "Wallpaper plugin unavailable; install v1.5.1 and use Android Gradle export."
+        message_label.text = wallpaper_bridge.diagnostic + "\nBUILD V0.4 | Android plugin registration needs device validation."
 
 func _load_garage() -> void:
     var config := ConfigFile.new()

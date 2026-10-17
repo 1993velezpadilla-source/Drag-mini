@@ -19,3 +19,8 @@ jobs:
           set -o pipefail
           timeout 60s godot --headless --path . --script res://tests/smoke.gd 2>&1 | tee /tmp/dragmini-smoke.log
           grep -Fq 'DRAG MINI SMOKE: PASS' /tmp/dragmini-smoke.log
+      - name: Verify independent Android GAS+SHIFT touches
+        run: |
+          set -o pipefail
+          timeout 60s godot --headless --path . --script res://tests/touch_smoke.gd 2>&1 | tee /tmp/dragmini-touch.log
+          grep -Fq 'DRAG MINI TOUCH PASS' /tmp/dragmini-touch.log

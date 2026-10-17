@@ -55,7 +55,7 @@ func _run_smoke() -> void:
         return
     game._start_race()
     game._on_gas_down()
-    for i in range(105):
+    for i in range(145):
         game._process(1.0 / 30.0)
     if game.false_start or game.countdown > 0.0:
         _fail("legal launch was blocked")
