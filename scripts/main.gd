@@ -55,6 +55,7 @@ var wallpaper_mode := false
 func _ready() -> void:
     _load_garage()
     wallpaper_bridge = preload("res://scripts/wallpaper_bridge.gd").new()
+    wallpaper_bridge.plugin_ready.connect(_on_wallpaper_plugin_ready)
     add_child(wallpaper_bridge)
     for path in CAR_PATHS:
         var tex := load(path) as Texture2D
@@ -483,10 +484,14 @@ func _draw_wallpaper(sz: Vector2) -> void:
     var w := sz.x * 0.82
     WheelLayers.draw_car(self, visual_cars[selected], Rect2(sz.x * 0.09, sz.y * 0.64, w, w * 54.0 / 128.0), wallpaper_wheel_angle)
 
+func _on_wallpaper_plugin_ready(running_as_wallpaper: bool) -> void:
+    if running_as_wallpaper and not wallpaper_mode and is_node_ready():
+        _enter_wallpaper_mode()
+
 func _request_wallpaper() -> void:
     if not wallpaper_bridge.start_live_wallpaper():
         message_label.visible = true
-        message_label.text = "Wallpaper plugin unavailable; install v1.5.1 and use Android Gradle export."
+        message_label.text = wallpaper_bridge.diagnostic + "\nBUILD V0.4 | Android plugin registration needs device validation."
 
 func _load_garage() -> void:
     var config := ConfigFile.new()
