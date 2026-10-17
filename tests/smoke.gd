@@ -42,15 +42,34 @@ func _run_smoke() -> void:
     if game.screen != "race":
         _fail("race start failed")
         return
-    # Simulate an actual touchscreen throttle press in MANUAL mode.
-    # Without gas, the car (correctly) remains parked.
-    game.throttle_held = true
-    game._process(1.0 / 60.0)
+    # GAS can rev during the tree, but cannot move until GO.
+    game._on_gas_down()
+    game._process(0.5)
+    if game.false_start or float(game.player["speed"]) != 0.0 or game.launch_rpm <= 1050.0:
+        _fail("staging revs must be legal and stationary")
+        return
+    # LAUNCH is the clutch release: releasing before GO is a red light.
+    game._player_shift()
+    if not game.false_start:
+        _fail("premature clutch release must disqualify")
+        return
+    game._start_race()
+    game._on_gas_down()
+    for i in range(105):
+        game._process(1.0 / 30.0)
+    if game.false_start or game.countdown > 0.0:
+        _fail("legal launch was blocked")
+        return
     if float(game.player["speed"]) <= 0.0 or float(game.player["wheel_angle"]) <= 0.0:
         _fail("player wheels did not move with acceleration")
         return
     if float(game.rival["wheel_angle"]) <= 0.0:
         _fail("CPU car wheels did not move")
+        return
+    var initial_gear: int = int(game.player["gear"])
+    game._player_shift()
+    if int(game.player["gear"]) != initial_gear + 1 or not game.throttle_held:
+        _fail("power shift must increase gear while GAS stays held")
         return
     game._show_garage()
     if game.screen != "garage":
