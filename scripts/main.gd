@@ -224,7 +224,8 @@ func _input(event: InputEvent) -> void:
         var touch := event as InputEventScreenTouch
         _route_touch(touch.index, touch.position, touch.pressed)
         get_viewport().set_input_as_handled()
-    elif event is InputEventMouseButton:
+    elif event is InputEventMouseButton and OS.get_name() != "Android":
+        # Desktop mouse fallback only; mobile emulated mouse must not steal GAS finger.
         var mouse := event as InputEventMouseButton
         if mouse.button_index == MOUSE_BUTTON_LEFT:
             _route_mouse(mouse.position, mouse.pressed)
