@@ -8,8 +8,8 @@ trap 'rm -rf "$WORK"' EXIT
 git clone --quiet https://github.com/TheOathMan/Godot-Android-Live-Wallpaper.git "$WORK/source"
 git -C "$WORK/source" checkout --quiet "$UPSTREAM_COMMIT"
 ORIGINAL="$WORK/source/plugin/build.gradle.kts"
-grep -q 'org.godotengine:godot:4.5.0.stable' "$ORIGINAL"
-sed -i 's/org.godotengine:godot:4.5.0.stable/org.godotengine:godot:4.6.0.stable/g' "$ORIGINAL"
+grep -Fq 'api(project(":GD4_5"))' "$ORIGINAL"
+sed -i 's/api(project(":GD4_5"))/implementation("org.godotengine:godot:4.6.0.stable")/' "$ORIGINAL"
 chmod +x "$WORK/source/gradlew"
 (
   cd "$WORK/source"
