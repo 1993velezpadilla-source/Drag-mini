@@ -88,6 +88,13 @@ func _ready() -> void:
     _show_main_menu()
     if wallpaper_bridge.is_wallpaper:
         _enter_wallpaper_mode()
+    # Keep a static fallback photo in the scene until all initialization ends.
+    # On Android _ready failure, the fallback stays on-screen and displays an
+    # error instead of showing a uniform gray Godot clear color.
+    set_meta("dragmini_boot_complete", true)
+    var startup_guard := get_node_or_null("StartupFallback") as Control
+    if startup_guard != null:
+        startup_guard.hide()
 
 func _style_button(button: Button, accent := false) -> void:
     button.add_theme_font_size_override("font_size", 26)
