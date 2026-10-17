@@ -4,6 +4,10 @@ const QUARTER_MILE_M := 402.336
 const WheelLayers = preload("res://scripts/wheel_layers.gd")
 const OfficialMenu = preload("res://scripts/official_menu.gd")
 const OfficialTrack = preload("res://scripts/official_track.gd")
+# Preload the ORIGINAL owner-supplied photo into the scene's dependency graph.
+# Menu must always render from its parent CanvasItem, not a child whose
+# Control rect may be zero on Android during the first frame.
+const OFFICIAL_MENU_IMAGE: Texture2D = preload("res://assets/ui/official_main_menu.jpg")
 const CAR_PATHS := [
     "res://assets/cars/civic_hatch_game.png",
     "res://assets/cars/supra_mk4_game.png",
@@ -80,6 +84,7 @@ func _ready() -> void:
     menu_overlay.name = "OfficialMenuClickable"
     menu_overlay.action_selected.connect(_menu_action)
     add_child(menu_overlay)
+    menu_overlay.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
     _show_main_menu()
     if wallpaper_bridge.is_wallpaper:
         _enter_wallpaper_mode()
@@ -130,7 +135,7 @@ func _label(text_value: String, top: float, bottom: float, font_size: int) -> La
 
 func _make_ui() -> void:
     title_label = _label("DRAG MINI", 0.04, 0.14, 57)
-    build_label = _label("V0.5 • OFFICIAL PHOTO BUILD", 0.008, 0.048, 17)
+    build_label = _label("V0.6 • MENU RENDER FIX", 0.008, 0.048, 17)
     detail_label = _label("", 0.63, 0.74, 27)
     telemetry_label = _label("", 0.125, 0.185, 24)
     message_label = _label("", 0.72, 0.80, 24)
@@ -188,6 +193,7 @@ func _show_main_menu() -> void:
             node.visible = false
     if menu_overlay != null:
         menu_overlay.visible = true
+        menu_overlay.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
     queue_redraw()
 
 func _show_garage() -> void:
@@ -464,7 +470,15 @@ func _draw() -> void:
         _draw_wallpaper(sz)
         return
     if screen == "menu":
-        return # The exact owner's photo is drawn by official_menu.gd child.
+        # Fix reported Android V0.5 uniform grey screen.
+        # Rendering the owner's image in the root canvas is reliable even when
+        # a transparent Control child is invisible or not laid out yet.
+        if OFFICIAL_MENU_IMAGE != null:
+            draw_texture_rect(OFFICIAL_MENU_IMAGE, Rect2(Vector2.ZERO, sz), false)
+        else:
+            draw_rect(Rect2(Vector2.ZERO, sz), Color("0d1730"))
+            push_error("Missing user official_main_menu.jpg — no silent blank screen")
+        return
     draw_rect(Rect2(Vector2.ZERO, sz), Color("0c1421"))
     if screen == "race":
         _draw_rpm_meter(sz)

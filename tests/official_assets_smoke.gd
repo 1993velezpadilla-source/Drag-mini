@@ -35,6 +35,15 @@ func _run() -> void:
     if game.menu_overlay == null or game.menu_overlay.get_node_or_null("StartTouch") == null:
         _bad("START hotspot missing from actual photo menu")
         return
+    # Android V0.5 showed a blank grey background despite passing old tests.
+    # Assert that rendering is now performed in the parent CanvasItem and its
+    # touch target has an actual nonzero Control rect.
+    if game.OFFICIAL_MENU_IMAGE == null:
+        _bad("Root has no official image to render")
+        return
+    if game.menu_overlay.size.x < 640.0 or game.menu_overlay.size.y < 360.0:
+        _bad("Menu touch overlay has zero/small bounds (grey-screen layout regression)")
+        return
     for hotspot in ["RaceTouch", "GarageTouch", "WallpaperTouch", "UpgradesTouch", "SettingsTouch", "StartTouch"]:
         if game.menu_overlay.get_node_or_null(hotspot) == null:
             _bad("Clickable main menu hotspot missing: " + hotspot)

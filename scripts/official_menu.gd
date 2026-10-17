@@ -16,24 +16,9 @@ var _tap_locked := false
 func _ready() -> void:
     set_anchors_preset(Control.PRESET_FULL_RECT)
     mouse_filter = Control.MOUSE_FILTER_PASS
-    var image := TextureRect.new()
-    image.name = "OfficialMenuPhoto"
-    image.set_anchors_preset(Control.PRESET_FULL_RECT)
-    image.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-    image.stretch_mode = TextureRect.STRETCH_SCALE
-    image.mouse_filter = Control.MOUSE_FILTER_IGNORE
-    if ResourceLoader.exists(MENU_ASSET):
-        image.texture = load(MENU_ASSET) as Texture2D
-    else:
-        push_warning("OFFICIAL DRAG MINI MENU SOURCE IMAGE NOT INSTALLED: " + MENU_ASSET)
-    add_child(image)
-    if image.texture == null:
-        var missing := Label.new()
-        missing.text = "OFFICIAL MENU IMAGE NOT INSTALLED"
-        missing.set_anchors_preset(Control.PRESET_CENTER)
-        missing.position = Vector2(24, 24)
-        missing.add_theme_font_size_override("font_size", 23)
-        add_child(missing)
+    # The official photo is drawn directly by the root Control (main.gd).
+    # This transparent child handles touches ONLY and cannot hide the image.
+    set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
     for action: String in HOTSPOTS:
         _add_hotspot(action, HOTSPOTS[action])
 
