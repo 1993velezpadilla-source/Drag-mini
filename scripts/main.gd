@@ -515,6 +515,8 @@ func _enter_wallpaper_mode() -> void:
     screen = "wallpaper"
     throttle_held = false
     Engine.max_fps = 20
+    if OS.get_name() == "Android":
+        DisplayServer.screen_set_orientation(DisplayServer.SCREEN_PORTRAIT)
     for child in get_children():
         if child is Button or child is Label:
             child.visible = false
@@ -555,17 +557,23 @@ func _draw_rpm_meter(sz: Vector2) -> void:
 
 func _draw_wallpaper(sz: Vector2) -> void:
     draw_rect(Rect2(Vector2.ZERO, sz), Color("08101d"))
-    draw_rect(Rect2(0, sz.y * 0.68, sz.x, sz.y * 0.32), Color("203341"))
-    draw_rect(Rect2(0, sz.y * 0.79, sz.x, sz.y * 0.03), Color("445968"))
-    draw_line(Vector2(0, sz.y * 0.81), Vector2(sz.x, sz.y * 0.81), Color("e6c88b"), 3)
-    # Scrolling road dashes provide motion context for a right-facing car.
-    for i in range(-1, 7):
-        var dash_x: float = float(i) * 160.0 - wallpaper_road_offset
-        draw_rect(Rect2(dash_x, sz.y * 0.90, 64, 5), Color("e6c88b"))
+    if track_image != null:
+        # Use the SAME ORIGINAL TRACK photograph in portrait wallpaper mode.
+        # Crop rather than squish the full 1536x512 panorama to phone shape.
+        var crop_width: float = clampf(512.0 * sz.x / maxf(sz.y, 1.0), 180.0, 850.0)
+        var crop_x: float = 180.0 + fposmod(wallpaper_road_offset * 1.6, 820.0 - crop_width)
+        draw_texture_rect_region(track_image, Rect2(Vector2.ZERO, sz),
+            Rect2(crop_x, 0, crop_width, 512.0))
+    else:
+        draw_rect(Rect2(0, sz.y * 0.68, sz.x, sz.y * 0.32), Color("203341"))
+        for i in range(-1, 7):
+            var dash_x: float = float(i) * 160.0 - wallpaper_road_offset
+            draw_rect(Rect2(dash_x, sz.y * 0.90, 64, 5), Color("e6c88b"))
     if selected >= visual_cars.size():
         return
     var w := sz.x * 0.82
-    WheelLayers.draw_car(self, visual_cars[selected], Rect2(sz.x * 0.09, sz.y * 0.64, w, w * 54.0 / 128.0), wallpaper_wheel_angle)
+    WheelLayers.draw_car(self, visual_cars[selected],
+        Rect2(sz.x * 0.09, sz.y * 0.61, w, w * 54.0 / 128.0), wallpaper_wheel_angle)
 
 func _on_wallpaper_plugin_ready(running_as_wallpaper: bool) -> void:
     if running_as_wallpaper and not wallpaper_mode and is_node_ready():
