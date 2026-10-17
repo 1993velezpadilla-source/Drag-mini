@@ -37,6 +37,21 @@ methods = """    override fun blockingExitRenderer(timeout: Long): Boolean {
 source = source.replace(marker, methods + marker, 1)
 path.write_text(source)
 PY_COMPAT
+# Godot 4.6 only exposes publicly annotated Android methods.
+# Screenshot V0.4: singleton exists, but startWallpaperService is not visible.
+LW="$WORK/source/plugin/src/main/java/org/godotengine/plugin/android/LiveWallpaper/LiveWallpaper.kt"
+python3 - "$LW" <<'PY_WALLPAPER_API'
+from pathlib import Path
+import sys
+p=Path(sys.argv[1])
+text=p.read_text()
+old="    private fun startWallpaperService(): Int {"
+if text.count(old) != 1:
+    raise SystemExit("Upstream @UsedByGodot startWallpaperService signature changed")
+text=text.replace(old,"    fun startWallpaperService(): Int {")
+text=text.replace("    private fun IsPreview():Boolean{","    fun IsPreview():Boolean{")
+p.write_text(text)
+PY_WALLPAPER_API
 chmod +x "$WORK/source/gradlew"
 (
   cd "$WORK/source"
@@ -49,5 +64,7 @@ for TYPE in debug release; do
   test -s "$SOURCE_AAR"
   cp "$SOURCE_AAR" "$BIN/LiveWallpaper-$TYPE.aar"
   echo "REBUILT WALLPAPER GODOT 4.6: $TYPE"
+  unzip -p "$BIN/LiveWallpaper-$TYPE.aar" classes.jar > "$WORK/native-$TYPE.jar"
+  javap -public -classpath "$WORK/native-$TYPE.jar" org.godotengine.plugin.android.LiveWallpaper.LiveWallpaper | grep -F 'int startWallpaperService();'
   sha256sum "$BIN/LiveWallpaper-$TYPE.aar"
 done
