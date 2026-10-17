@@ -21,17 +21,40 @@ func _run_smoke() -> void:
         _fail("main scene instantiate failed")
         return
     root.add_child(game)
-    if game.images.size() != 4:
-        _fail("could not import all 4 sprites")
+    if game.images.size() != 4 or game.visual_cars.size() != 4:
+        _fail("could not prepare all 4 sprites / wheel layers")
         return
+    for car_id in range(4):
+        var car: Dictionary = game.visual_cars[car_id]
+        if not car.has("body") or not car.has("wheel") or not car.has("front") or not car.has("rear"):
+            _fail("car %d has incomplete front/rear wheel layers" % car_id)
+            return
+        if car["wheel"].get_width() < 20:
+            _fail("car %d has no proper wheel texture" % car_id)
+            return
+        # Certify EVERY car, not only the selected Civic and the CPU Supra.
+        var driver: Dictionary = game._make_driver(car_id)
+        game._advance_car(driver, 0.08, true, true)
+        if float(driver["speed"]) <= 0.0 or float(driver["wheel_angle"]) <= 0.0:
+            _fail("car %d did not advance tire angle under throttle" % car_id)
+            return
     game._start_race()
     if game.screen != "race":
         _fail("race start failed")
         return
+    # Simulate an actual touchscreen throttle press in MANUAL mode.
+    # Without gas, the car (correctly) remains parked.
+    game.throttle_held = true
     game._process(1.0 / 60.0)
+    if float(game.player["speed"]) <= 0.0 or float(game.player["wheel_angle"]) <= 0.0:
+        _fail("player wheels did not move with acceleration")
+        return
+    if float(game.rival["wheel_angle"]) <= 0.0:
+        _fail("CPU car wheels did not move")
+        return
     game._show_garage()
     if game.screen != "garage":
         _fail("garage return failed")
         return
-    print("DRAG MINI SMOKE: PASS (start, sprites, race, garage)")
+    print("DRAG MINI SMOKE: PASS (4 independent wheel layers, speed-coupled tire animation, race, garage)")
     quit(0)

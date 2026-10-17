@@ -34,6 +34,12 @@ func _run_tests() -> void:
         quit(1)
         return
     game._enter_wallpaper_mode()
+    var first_angle: float = game.wallpaper_wheel_angle
+    game._process(0.125)
+    if game.wallpaper_wheel_angle <= first_angle:
+        printerr("Wallpaper tires failed to animate")
+        quit(1)
+        return
     if not game.wallpaper_mode:
         printerr("Failed to enter wallpaper presentation mode")
         quit(1)
