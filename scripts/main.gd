@@ -205,11 +205,22 @@ func _start_race() -> void:
 func _on_gas_down() -> void:
     if screen != "race" or false_start:
         return
-    # Staging allows revving before green; no vehicle movement until GO.
+    if countdown > 0.0:
+        false_start = true
+        throttle_held = false
+        countdown_label.text = "FALSE START!"
+        title_label.text = "DISQUALIFIED"
+        detail_label.text = "Gas pressed before GO!\nTap RETRY to race again."
+        throttle_button.visible = false
+        shift_button.visible = false
+        retry_button.visible = true
+        garage_button.visible = true
+        queue_redraw()
+        return
     throttle_held = true
 
 func _player_shift() -> void:
-    if screen == "race" and not auto_shift and not player["finished"]:
+    if screen == "race" and countdown <= 0.0 and not false_start and not auto_shift and not player["finished"]:
         _shift(player)
 
 func _shift(driver: Dictionary) -> void:
@@ -267,6 +278,7 @@ func _process(delta: float) -> void:
         countdown_label.text = "3" if countdown > 2.8 else ("2" if countdown > 1.8 else ("1" if countdown > 0.8 else ("GO!" if countdown > 0.0 else "")))
         if countdown <= 0.0:
             countdown_label.text = "GO!"
+            _update_hud()
         queue_redraw()
         return
     if player["finished"] and rival["finished"]:
@@ -296,7 +308,7 @@ func _update_hud() -> void:
         elapsed, player["distance"], roundi(player["speed"] * 3.6),
         player["gear"] + 1, player["rpm"]]
     if countdown > 0.0:
-        telemetry_label.text = "STAGING • %.0f RPM\nHOLD GAS TO REV • LAUNCH ON GO" % launch_rpm
+        telemetry_label.text = "STAGING • %.0f RPM\nWAIT FOR GO! • EARLY GAS = DQ" % launch_rpm
     if finish_text.is_empty():
         detail_label.text = "YOU: %.0f m   •   RIVAL: %.0f m" % [player["distance"], rival["distance"]]
 
