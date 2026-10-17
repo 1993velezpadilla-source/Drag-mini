@@ -63,6 +63,15 @@ jobs:
           unzip -Z1 build/DragMini-v0.2-debug.apk | grep -E 'lib/arm64-v8a/.*\.so$'
           "$ANDROID_HOME/build-tools/35.0.1/apksigner" verify --verbose build/DragMini-v0.2-debug.apk
           sha256sum build/DragMini-v0.2-debug.apk | tee build/sha256.txt
+      - name: Inspect Android wallpaper registration
+        run: |
+          set -euo pipefail
+          "$ANDROID_HOME/build-tools/35.0.1/aapt" dump xmltree build/DragMini-v0.2-debug.apk AndroidManifest.xml > build/android-manifest-audit.txt
+          grep -iE -C 5 'LiveWallpaper|WallpaperService|plugin.v2' build/android-manifest-audit.txt || true
+          if ! grep -q 'plugin.v2.LiveWallpaper' build/android-manifest-audit.txt; then
+            echo "ERROR: Native LiveWallpaper plugin registration missing from Android manifest"
+            exit 1
+          fi
       - name: Upload test APK for phone / Felix
         if: success()
         uses: actions/upload-artifact@v4
