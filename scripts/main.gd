@@ -111,7 +111,7 @@ func _label(text_value: String, top: float, bottom: float, font_size: int) -> La
 func _make_ui() -> void:
     title_label = _label("DRAG MINI", 0.04, 0.14, 57)
     detail_label = _label("", 0.63, 0.74, 27)
-    telemetry_label = _label("", 0.16, 0.27, 28)
+    telemetry_label = _label("", 0.125, 0.185, 24)
     message_label = _label("", 0.72, 0.80, 24)
     countdown_label = _label("", 0.275, 0.35, 42)
     countdown_label.visible = false
@@ -343,6 +343,8 @@ func _draw() -> void:
         _draw_wallpaper(sz)
         return
     draw_rect(Rect2(Vector2.ZERO, sz), Color("0c1421"))
+    if screen == "race":
+        _draw_rpm_meter(sz)
     draw_rect(Rect2(0, sz.y * 0.28, sz.x, sz.y * 0.30), Color("162b3d"))
     draw_line(Vector2(0, sz.y * 0.28), Vector2(sz.x, sz.y * 0.28), Color("ef7d2e"), 4)
     draw_line(Vector2(0, sz.y * 0.58), Vector2(sz.x, sz.y * 0.58), Color("ef7d2e"), 4)
@@ -380,6 +382,24 @@ func _enter_wallpaper_mode() -> void:
         if child is Button or child is Label:
             child.visible = false
     queue_redraw()
+
+func _draw_rpm_meter(sz: Vector2) -> void:
+    var c := Vector2(sz.x * 0.50, sz.y * 0.23)
+    var rad: float = minf(sz.x * 0.14, sz.y * 0.044)
+    var redline: float = float(CARS[selected]["redline"])
+    var ratio: float = clampf(float(player.get("rpm", 1050.0)) / redline, 0.0, 1.0)
+    var start_angle := deg_to_rad(145.0)
+    var end_angle := deg_to_rad(395.0)
+    draw_arc(c, rad, start_angle, end_angle, 48, Color("65768a"), 8.0, false)
+    draw_arc(c, rad, lerpf(start_angle, end_angle, 0.85), end_angle, 15, Color("d8443a"), 8.0, false)
+    draw_arc(c, rad, start_angle, lerpf(start_angle, end_angle, ratio), 36, Color("55d8a4"), 5.0, false)
+    var angle: float = lerpf(start_angle, end_angle, ratio)
+    draw_line(c, c + Vector2(cos(angle), sin(angle)) * rad * 0.84, Color("fff1d7"), 4.0)
+    draw_circle(c, 5.0, Color("fff1d7"))
+    for i in range(8):
+        var lamp := Vector2(sz.x * (0.265 + 0.067 * float(i)), sz.y * 0.18)
+        var lit: bool = ratio >= float(i + 1) / 8.0
+        draw_circle(lamp, 7.0, (Color("ee4941") if i >= 6 else Color("52de9f")) if lit else Color("263549"))
 
 func _draw_wallpaper(sz: Vector2) -> void:
     draw_rect(Rect2(Vector2.ZERO, sz), Color("08101d"))
