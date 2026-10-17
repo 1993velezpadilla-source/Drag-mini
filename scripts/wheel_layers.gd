@@ -66,7 +66,7 @@ static func _wheel_texture(style: int) -> Texture2D:
             elif r >= 2.0:
                 # Rotating spoke pattern with brake-dark cavities in between.
                 var theta: float = atan2(vec.y, vec.x)
-                var angular_distance: float = absf(sinf(theta * float(spokes) * 0.5)) * r
+                var angular_distance: float = absf(sin(theta * float(spokes) * 0.5)) * r
                 if angular_distance < 1.1:
                     col = rim_light
                 else:
