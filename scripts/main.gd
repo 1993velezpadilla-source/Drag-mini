@@ -11,10 +11,10 @@ const CAR_PATHS := [
     "res://assets/cars/trueno_ae86_game.png"
 ]
 const CARS := [
-    {"name":"YELLOW HATCH", "mass":1110.0, "torque":155.0, "redline":7600.0, "final":4.40, "grip":0.98},
-    {"name":"WHITE COUPE", "mass":1500.0, "torque":365.0, "redline":7100.0, "final":3.40, "grip":1.04},
-    {"name":"RED TARGA", "mass":1130.0, "torque":170.0, "redline":7500.0, "final":4.10, "grip":0.97},
-    {"name":"PANDA 86", "mass":1000.0, "torque":150.0, "redline":7600.0, "final":4.30, "grip":1.02}
+    {"name":"HONDA CIVIC HATCH", "mass":1110.0, "torque":155.0, "redline":7600.0, "final":4.40, "grip":0.98},
+    {"name":"TOYOTA SUPRA MK4", "mass":1500.0, "torque":365.0, "redline":7100.0, "final":3.40, "grip":1.04},
+    {"name":"HONDA DEL SOL", "mass":1130.0, "torque":170.0, "redline":7500.0, "final":4.10, "grip":0.97},
+    {"name":"TOYOTA TRUENO AE86", "mass":1000.0, "torque":150.0, "redline":7600.0, "final":4.30, "grip":1.02}
 ]
 const RATIOS := [3.10, 2.05, 1.46, 1.10, 0.85]
 var images: Array[Texture2D] = []
