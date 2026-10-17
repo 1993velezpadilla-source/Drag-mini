@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - feature/android-debug-apk-first-build
+      - feature/wallpaper-godot46-native
   pull_request:
     paths:
       - 'scripts/**'
@@ -48,6 +49,8 @@ jobs:
           echo "GODOT_ANDROID_KEYSTORE_DEBUG_PATH=$RUNNER_TEMP/dragmini-debug.keystore" >> "$GITHUB_ENV"
       - name: Install verified TheOathMan v1.5.1 live wallpaper plugin
         run: python3 scripts/install_wallpaper_plugin.py
+      - name: Recompile native wallpaper plugin against Godot Android 4.6
+        run: bash scripts/build_live_wallpaper_46.sh
       - name: Import Godot project
         run: timeout 120s godot --headless --path . --editor --import --quit
       - name: Generate Godot Android Gradle template and export installable APK
@@ -80,5 +83,6 @@ jobs:
           path: |
             build/DragMini-v0.3-debug.apk
             build/sha256.txt
+            build/android-manifest-audit.txt
           retention-days: 14
           if-no-files-found: error
