@@ -62,6 +62,6 @@ func _activate(action: String, button: Button) -> void:
     button.pivot_offset = button.size * 0.5
     tween.tween_property(button, "scale", Vector2(0.975, 0.975), 0.07)
     tween.tween_property(button, "scale", Vector2.ONE, 0.11)
-    if Input.get_current_cursor_shape() >= 0:
+    if OS.get_name() == "Android":
         Input.vibrate_handheld(27)
     action_selected.emit(action)

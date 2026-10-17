@@ -2,6 +2,8 @@ extends Control
 ## DRAG MINI v0.1: local offline race. Values are arcade balancing, not specs.
 const QUARTER_MILE_M := 402.336
 const WheelLayers = preload("res://scripts/wheel_layers.gd")
+const OfficialMenu = preload("res://scripts/official_menu.gd")
+const OfficialTrack = preload("res://scripts/official_track.gd")
 const CAR_PATHS := [
     "res://assets/cars/civic_hatch_game.png",
     "res://assets/cars/supra_mk4_game.png",
@@ -21,11 +23,16 @@ var wallpaper_wheel_angle := 0.0
 var wallpaper_road_offset := 0.0
 var selected := 0
 var auto_shift := false
-var screen := "garage"
+var screen := "menu"
 var player := {}
 var rival := {}
 var elapsed := 0.0
 var finish_text := ""
+var shift_feedback_until := 0.0
+var shift_feedback := ""
+var shift_feedback_label: Label
+var track_image: Texture2D
+var menu_overlay: Control
 var throttle_held := false
 var gas_finger := -1
 var mouse_gas := false
@@ -64,8 +71,16 @@ func _ready() -> void:
         images.append(tex)
         if tex != null:
             visual_cars.append(WheelLayers.build(tex, visual_cars.size()))
+    if ResourceLoader.exists(OfficialTrack.TRACK_PATH):
+        track_image = load(OfficialTrack.TRACK_PATH) as Texture2D
+    else:
+        push_warning("OFFICIAL TRACK PNG MISSING: " + OfficialTrack.TRACK_PATH)
     _make_ui()
-    _show_garage()
+    menu_overlay = OfficialMenu.new()
+    menu_overlay.name = "OfficialMenuClickable"
+    menu_overlay.action_selected.connect(_menu_action)
+    add_child(menu_overlay)
+    _show_main_menu()
     if wallpaper_bridge.is_wallpaper:
         _enter_wallpaper_mode()
 
@@ -115,10 +130,12 @@ func _label(text_value: String, top: float, bottom: float, font_size: int) -> La
 
 func _make_ui() -> void:
     title_label = _label("DRAG MINI", 0.04, 0.14, 57)
-    build_label = _label("V0.4 • TOUCH FIX", 0.008, 0.048, 17)
+    build_label = _label("V0.5 • OFFICIAL PHOTO BUILD", 0.008, 0.048, 17)
     detail_label = _label("", 0.63, 0.74, 27)
     telemetry_label = _label("", 0.125, 0.185, 24)
     message_label = _label("", 0.72, 0.80, 24)
+    shift_feedback_label = _label("", 0.35, 0.42, 42)
+    shift_feedback_label.visible = false
     countdown_label = _label("", 0.275, 0.355, 48)
     countdown_label.visible = false
     prev_button = _button("<", 0.04, 0.78, 0.20, 0.86)
@@ -142,11 +159,44 @@ func _make_ui() -> void:
     mode_button.pressed.connect(_toggle_mode)
     race_button.pressed.connect(_start_race)
     retry_button.pressed.connect(_start_race)
-    garage_button.pressed.connect(_show_garage)
+    garage_button.pressed.connect(_show_main_menu)
     wallpaper_button.pressed.connect(_request_wallpaper)
+
+func _menu_action(action: String) -> void:
+    match action:
+        "race", "start":
+            _start_race()
+        "garage":
+            _show_garage()
+        "wallpaper":
+            # No false positive: communicate actual error if Android plugin fails.
+            _show_garage()
+            _request_wallpaper()
+        "upgrades", "settings":
+            _show_garage()
+            message_label.text = action.to_upper() + " — COMING SOON"
+        _:
+            push_warning("Unknown menu action: " + action)
+
+func _show_main_menu() -> void:
+    screen = "menu"
+    throttle_held = false
+    gas_finger = -1
+    mouse_gas = false
+    for node in get_children():
+        if node is Button or node is Label:
+            node.visible = false
+    if menu_overlay != null:
+        menu_overlay.visible = true
+    queue_redraw()
 
 func _show_garage() -> void:
     screen = "garage"
+    if menu_overlay != null:
+        menu_overlay.visible = false
+    build_label.visible = true
+    detail_label.visible = true
+    shift_feedback_label.visible = false
     throttle_held = false
     gas_finger = -1
     mouse_gas = false
@@ -190,6 +240,11 @@ func _make_driver(car_id: int) -> Dictionary:
 
 func _start_race() -> void:
     screen = "race"
+    if menu_overlay != null:
+        menu_overlay.visible = false
+    build_label.visible = true
+    shift_feedback_until = 0.0
+    shift_feedback_label.visible = false
     elapsed = 0.0
     finish_text = ""
     throttle_held = false
@@ -282,7 +337,14 @@ func _player_shift() -> void:
         return
     if countdown > 0.0:
         _false_start()
-    elif not auto_shift:
+    elif not auto_shift and float(player["shift_timer"]) <= 0.0 and int(player["gear"]) < RATIOS.size() - 1:
+        # Single shift feedback, calculated at the instant the button is tapped.
+        var ratio: float = float(player["rpm"]) / float(CARS[selected]["redline"])
+        shift_feedback = "EARLY" if ratio < 0.87 else ("PERFECT" if ratio <= 0.965 else "LATE")
+        shift_feedback_label.text = shift_feedback
+        shift_feedback_label.add_theme_color_override("font_color", Color("ffd34c") if shift_feedback == "EARLY" else (Color("4dff83") if shift_feedback == "PERFECT" else Color("ff5353")))
+        shift_feedback_label.visible = true
+        shift_feedback_until = 0.95
         _shift(player)
 
 func _false_start() -> void:
@@ -342,6 +404,10 @@ func _process(delta: float) -> void:
         return
     if screen != "race":
         return
+    if shift_feedback_until > 0.0:
+        shift_feedback_until = maxf(0.0, shift_feedback_until - delta)
+        if shift_feedback_until <= 0.0:
+            shift_feedback_label.visible = false
     if false_start:
         return
     if countdown > 0.0:
@@ -397,13 +463,23 @@ func _draw() -> void:
     if wallpaper_mode:
         _draw_wallpaper(sz)
         return
+    if screen == "menu":
+        return # The exact owner's photo is drawn by official_menu.gd child.
     draw_rect(Rect2(Vector2.ZERO, sz), Color("0c1421"))
     if screen == "race":
         _draw_rpm_meter(sz)
         _draw_race_lights(sz)
-    draw_rect(Rect2(0, sz.y * 0.28, sz.x, sz.y * 0.30), Color("162b3d"))
-    draw_line(Vector2(0, sz.y * 0.28), Vector2(sz.x, sz.y * 0.28), Color("ef7d2e"), 4)
-    draw_line(Vector2(0, sz.y * 0.58), Vector2(sz.x, sz.y * 0.58), Color("ef7d2e"), 4)
+    var track_rect := Rect2(0, sz.y * 0.275, sz.x, sz.y * 0.50)
+    if screen == "race" and track_image != null:
+        var progress: float = clampf(maxf(float(player.get("distance", 0.0)), float(rival.get("distance", 0.0))) / QUARTER_MILE_M, 0.0, 1.0)
+        var launch_visible: bool = OfficialTrack.draw(self, track_image, track_rect, progress)
+        if launch_visible:
+            OfficialTrack.draw_map_tree(self, track_rect, countdown, false_start)
+    else:
+        draw_rect(Rect2(0, sz.y * 0.28, sz.x, sz.y * 0.30), Color("162b3d"))
+    if screen != "race" or track_image == null:
+        draw_line(Vector2(0, sz.y * 0.28), Vector2(sz.x, sz.y * 0.28), Color("ef7d2e"), 4)
+        draw_line(Vector2(0, sz.y * 0.58), Vector2(sz.x, sz.y * 0.58), Color("ef7d2e"), 4)
     if images.is_empty():
         return
     if screen == "garage":
@@ -413,19 +489,24 @@ func _draw() -> void:
     else:
         var start_x := sz.x * 0.02
         var course_w := sz.x * 0.42
-        for p in [0.25, 0.50, 0.75, 1.0]:
+        for p in [0.25, 0.50, 0.75, 1.0] if track_image == null else []:
             var x: float = start_x + course_w * float(p)
             draw_line(Vector2(x, sz.y * 0.29), Vector2(x, sz.y * 0.70), Color("86919c", 0.6), 2)
-        draw_line(Vector2(0, sz.y * 0.495), Vector2(sz.x, sz.y * 0.495), Color("f1e5bb"), 3)
-        var car_w := sz.x * 0.43
+        if track_image == null:
+            draw_line(Vector2(0, sz.y * 0.495), Vector2(sz.x, sz.y * 0.495), Color("f1e5bb"), 3)
+        var car_w := sz.x * (0.20 if track_image != null else 0.43)
         var player_id: int = int(player["car_id"])
         if player_id < visual_cars.size():
             var px: float = start_x + course_w * (player["distance"] / QUARTER_MILE_M)
-            WheelLayers.draw_car(self, visual_cars[player_id], Rect2(px, sz.y * 0.35, car_w, car_w * 54.0 / 128.0), float(player["wheel_angle"]))
+            if track_image != null:
+                px = clampf(sz.x * 0.26 + (float(player["distance"]) - float(rival["distance"])) * 2.0, -car_w * 0.5, sz.x * 0.72)
+            WheelLayers.draw_car(self, visual_cars[player_id], Rect2(px, sz.y * (0.48 if track_image != null else 0.35), car_w, car_w * 54.0 / 128.0), float(player["wheel_angle"]))
         var rival_id: int = int(rival["car_id"])
         if rival_id < visual_cars.size():
             var rx: float = start_x + course_w * (rival["distance"] / QUARTER_MILE_M)
-            WheelLayers.draw_car(self, visual_cars[rival_id], Rect2(rx, sz.y * 0.52, car_w, car_w * 54.0 / 128.0), float(rival["wheel_angle"]))
+            if track_image != null:
+                rx = clampf(sz.x * 0.26 + (float(rival["distance"]) - float(player["distance"])) * 2.0, -car_w * 0.5, sz.x * 0.72)
+            WheelLayers.draw_car(self, visual_cars[rival_id], Rect2(rx, sz.y * (0.59 if track_image != null else 0.52), car_w, car_w * 54.0 / 128.0), float(rival["wheel_angle"]))
 
 # Live-wallpaper mode: no garage, race logic, multiplayer, HUD or high-rate updates.
 # All wallpaper-native calls live in wallpaper_bridge.gd, guarded by Android checks.
@@ -466,10 +547,11 @@ func _draw_rpm_meter(sz: Vector2) -> void:
     var angle: float = lerpf(start_angle, end_angle, ratio)
     draw_line(c, c + Vector2(cos(angle), sin(angle)) * rad * 0.84, Color("fff1d7"), 4.0)
     draw_circle(c, 5.0, Color("fff1d7"))
-    for i in range(8):
-        var lamp := Vector2(sz.x * (0.265 + 0.067 * float(i)), sz.y * 0.18)
-        var lit: bool = ratio >= float(i + 1) / 8.0
-        draw_circle(lamp, 7.0, (Color("ee4941") if i >= 6 else Color("52de9f")) if lit else Color("263549"))
+    # Exactly ONE shifting light. Display follows RPM, text follows SHIFT press.
+    var shift_color := Color("ffd34c") if ratio < 0.87 else (Color("48ff86") if ratio <= 0.965 else Color("ff4242"))
+    var lamp := Vector2(sz.x * 0.50, sz.y * 0.18)
+    draw_circle(lamp, 19.0, Color(shift_color.r, shift_color.g, shift_color.b, 0.20))
+    draw_circle(lamp, 10.0, shift_color)
 
 func _draw_wallpaper(sz: Vector2) -> void:
     draw_rect(Rect2(Vector2.ZERO, sz), Color("08101d"))
