@@ -87,6 +87,11 @@ jobs:
             echo "ERROR: Native LiveWallpaper plugin registration missing from Android manifest"
             exit 1
           fi
+      - name: Package full editable Godot source with ORIGINAL owner photos
+        run: |
+          git archive --format=zip -o build/DragMini-v0.5-Godot-source.zip HEAD
+          unzip -Z1 build/DragMini-v0.5-Godot-source.zip | grep -Fx 'assets/ui/official_main_menu.jpg'
+          unzip -Z1 build/DragMini-v0.5-Godot-source.zip | grep -Fx 'assets/tracks/official_drag_strip.jpg'
       - name: Upload test APK for phone / Felix
         if: success()
         uses: actions/upload-artifact@v4
@@ -94,6 +99,7 @@ jobs:
           name: DragMini-v0.5-Android-ARM64-debug
           path: |
             build/DragMini-v0.5-debug.apk
+            build/DragMini-v0.5-Godot-source.zip
             build/sha256.txt
             build/android-manifest-audit.txt
           retention-days: 14
