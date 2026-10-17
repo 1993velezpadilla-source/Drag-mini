@@ -60,6 +60,7 @@ var wallpaper_bridge
 var wallpaper_mode := false
 
 func _ready() -> void:
+    print("DRAG MINI BOOT: entering main scene, Android=", OS.get_name() == "Android")
     _load_garage()
     wallpaper_bridge = preload("res://scripts/wallpaper_bridge.gd").new()
     wallpaper_bridge.plugin_ready.connect(_on_wallpaper_plugin_ready)
@@ -83,6 +84,13 @@ func _ready() -> void:
     _show_main_menu()
     if wallpaper_bridge.is_wallpaper:
         _enter_wallpaper_mode()
+    # The static official photo stays visible if Android aborts _ready() earlier.
+    set_meta("dragmini_boot_complete", true)
+    var startup_fallback := get_node_or_null("StartupFallback") as Control
+    if startup_fallback != null:
+        startup_fallback.hide()
+    print("DRAG MINI BOOT: complete — menu=", screen == "menu",
+        " photo=", menu_overlay != null, " cars=", visual_cars.size())
 
 func _style_button(button: Button, accent := false) -> void:
     button.add_theme_font_size_override("font_size", 26)
