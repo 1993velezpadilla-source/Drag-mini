@@ -29,3 +29,17 @@ jobs:
           set -o pipefail
           timeout 60s godot --headless --path . --script res://tests/official_assets_smoke.gd 2>&1 | tee /tmp/dragmini-official-art.log
           grep -Fq 'DRAG MINI OFFICIAL ART + SHIFT PASS' /tmp/dragmini-official-art.log
+      - name: Render real OpenGL menu and track screenshots, reject grey frames
+        run: |
+          set -eo pipefail
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq xvfb libgl1-mesa-dri
+          xvfb-run -a -s "-screen 0 1280x720x24" timeout 90s godot --path . --rendering-method gl_compatibility --script res://tests/visual_menu_smoke.gd 2>&1 | tee /tmp/dragmini-visual.log
+          grep -Fq 'DRAG MINI VISUAL PASS' /tmp/dragmini-visual.log
+      - name: Upload actual rendered menu and track screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: DragMini-V0.6-Real-Render-Screenshots
+          path: build/visual-*.png
+          if-no-files-found: warn
