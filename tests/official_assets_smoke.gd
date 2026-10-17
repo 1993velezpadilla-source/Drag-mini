@@ -29,6 +29,17 @@ func _run() -> void:
 
     var game = load("res://scenes/main.tscn").instantiate()
     root.add_child(game)
+    var fallback := game.get_node_or_null("StartupFallback") as Control
+    if fallback == null:
+        _bad("Android gray-screen failsafe absent from main scene")
+        return
+    var static_menu := fallback.get_node_or_null("OriginalMainMenu") as TextureRect
+    if static_menu == null or static_menu.texture == null:
+        _bad("Official photo not embedded in startup scene")
+        return
+    if not game.get_meta("dragmini_boot_complete", false) or fallback.visible:
+        _bad("Startup guard not disabled after successful main-menu initialization")
+        return
     if game.screen != "menu":
         _bad("Official clickable menu must be the initial screen")
         return
