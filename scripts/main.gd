@@ -1,6 +1,7 @@
 extends Control
 ## DRAG MINI v0.1: local offline race. Values are arcade balancing, not specs.
 const QUARTER_MILE_M := 402.336
+const WheelLayers = preload("res://scripts/wheel_layers.gd")
 const CAR_PATHS := [
     "res://assets/cars/civic_hatch_game.png",
     "res://assets/cars/supra_mk4_game.png",
@@ -15,6 +16,9 @@ const CARS := [
 ]
 const RATIOS := [3.10, 2.05, 1.46, 1.10, 0.85]
 var images: Array[Texture2D] = []
+var visual_cars: Array[Dictionary] = []
+var wallpaper_wheel_angle := 0.0
+var wallpaper_road_offset := 0.0
 var selected := 0
 var auto_shift := false
 var screen := "garage"
@@ -48,6 +52,8 @@ func _ready() -> void:
         if tex == null:
             push_error("Missing PNG game sprite: " + path)
         images.append(tex)
+        if tex != null:
+            visual_cars.append(WheelLayers.build(tex, visual_cars.size()))
     _make_ui()
     _show_garage()
     if wallpaper_bridge.is_wallpaper:
@@ -163,7 +169,7 @@ func _update_garage() -> void:
 func _make_driver(car_id: int) -> Dictionary:
     return {"car_id":car_id, "speed":0.0, "distance":0.0,
         "rpm":1050.0, "gear":0, "shift_timer":0.0,
-        "finished":false, "finish_time":0.0}
+        "finished":false, "finish_time":0.0, "wheel_angle":0.0}
 
 func _start_race() -> void:
     screen = "race"
@@ -216,6 +222,8 @@ func _advance_car(driver: Dictionary, delta: float, gas: bool, shift_auto: bool)
     var net: float = minf(wheel_force, max_traction) - resistance
     driver["speed"] = maxf(0.0, driver["speed"] + (net / model["mass"]) * delta)
     driver["distance"] += driver["speed"] * delta
+    # Tire rotation follows *actual* car velocity, including manual coasting.
+    driver["wheel_angle"] = fposmod(float(driver["wheel_angle"]) + float(driver["speed"]) * delta / wheel_radius, TAU)
     if driver["distance"] >= QUARTER_MILE_M:
         driver["distance"] = QUARTER_MILE_M
         driver["finished"] = true
@@ -223,6 +231,10 @@ func _advance_car(driver: Dictionary, delta: float, gas: bool, shift_auto: bool)
 
 func _process(delta: float) -> void:
     if wallpaper_mode:
+        # Wallpaper has its own inexpensive visual loop, even with racing paused.
+        wallpaper_wheel_angle = fposmod(wallpaper_wheel_angle + delta * 3.8, TAU)
+        wallpaper_road_offset = fposmod(wallpaper_road_offset + delta * 80.0, 160.0)
+        queue_redraw()
         return
     if screen != "race":
         return
@@ -266,9 +278,9 @@ func _draw() -> void:
     if images.is_empty():
         return
     if screen == "garage":
-        if images[selected] != null:
+        if selected < visual_cars.size():
             var w := sz.x * 0.91
-            draw_texture_rect(images[selected], Rect2(sz.x * 0.045, sz.y * 0.325, w, w * 54.0 / 128.0), false)
+            WheelLayers.draw_car(self, visual_cars[selected], Rect2(sz.x * 0.045, sz.y * 0.325, w, w * 54.0 / 128.0), 0.0)
     else:
         var start_x := sz.x * 0.02
         var course_w := sz.x * 0.42
@@ -277,12 +289,14 @@ func _draw() -> void:
             draw_line(Vector2(x, sz.y * 0.29), Vector2(x, sz.y * 0.70), Color("86919c", 0.6), 2)
         draw_line(Vector2(0, sz.y * 0.495), Vector2(sz.x, sz.y * 0.495), Color("f1e5bb"), 3)
         var car_w := sz.x * 0.43
-        if images[player["car_id"]] != null:
+        var player_id: int = int(player["car_id"])
+        if player_id < visual_cars.size():
             var px: float = start_x + course_w * (player["distance"] / QUARTER_MILE_M)
-            draw_texture_rect(images[player["car_id"]], Rect2(px, sz.y * 0.35, car_w, car_w * 54.0 / 128.0), false)
-        if images[rival["car_id"]] != null:
+            WheelLayers.draw_car(self, visual_cars[player_id], Rect2(px, sz.y * 0.35, car_w, car_w * 54.0 / 128.0), float(player["wheel_angle"]))
+        var rival_id: int = int(rival["car_id"])
+        if rival_id < visual_cars.size():
             var rx: float = start_x + course_w * (rival["distance"] / QUARTER_MILE_M)
-            draw_texture_rect(images[rival["car_id"]], Rect2(rx, sz.y * 0.52, car_w, car_w * 54.0 / 128.0), false)
+            WheelLayers.draw_car(self, visual_cars[rival_id], Rect2(rx, sz.y * 0.52, car_w, car_w * 54.0 / 128.0), float(rival["wheel_angle"]))
 
 # Live-wallpaper mode: no garage, race logic, multiplayer, HUD or high-rate updates.
 # All wallpaper-native calls live in wallpaper_bridge.gd, guarded by Android checks.
@@ -301,10 +315,14 @@ func _draw_wallpaper(sz: Vector2) -> void:
     draw_rect(Rect2(0, sz.y * 0.68, sz.x, sz.y * 0.32), Color("203341"))
     draw_rect(Rect2(0, sz.y * 0.79, sz.x, sz.y * 0.03), Color("445968"))
     draw_line(Vector2(0, sz.y * 0.81), Vector2(sz.x, sz.y * 0.81), Color("e6c88b"), 3)
-    if images.is_empty() or images[selected] == null:
+    # Scrolling road dashes provide motion context for a right-facing car.
+    for i in range(-1, 7):
+        var dash_x: float = float(i) * 160.0 - wallpaper_road_offset
+        draw_rect(Rect2(dash_x, sz.y * 0.90, 64, 5), Color("e6c88b"))
+    if selected >= visual_cars.size():
         return
     var w := sz.x * 0.82
-    draw_texture_rect(images[selected], Rect2(sz.x * 0.09, sz.y * 0.64, w, w * 54.0 / 128.0), false)
+    WheelLayers.draw_car(self, visual_cars[selected], Rect2(sz.x * 0.09, sz.y * 0.64, w, w * 54.0 / 128.0), wallpaper_wheel_angle)
 
 func _request_wallpaper() -> void:
     if not wallpaper_bridge.start_live_wallpaper():
