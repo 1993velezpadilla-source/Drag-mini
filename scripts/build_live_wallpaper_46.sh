@@ -10,6 +10,33 @@ git -C "$WORK/source" checkout --quiet "$UPSTREAM_COMMIT"
 ORIGINAL="$WORK/source/plugin/build.gradle.kts"
 grep -Fq 'api(project(":GD4_5"))' "$ORIGINAL"
 sed -i 's/api(project(":GD4_5"))/implementation("org.godotengine:godot:4.6.0.stable")/' "$ORIGINAL"
+# Godot 4.6 added two GodotRenderView members and renamed lifecycle hooks.
+VIEW="$WORK/source/plugin/src/main/java/org/godotengine/plugin/android/LiveWallpaper/GodotGLRenderViewWP.kt"
+python3 - "$VIEW" <<'PY_COMPAT'
+from pathlib import Path
+import sys
+path = Path(sys.argv[1])
+source = path.read_text()
+old = "    override fun onActivityDestroyed() {"
+if old not in source:
+    raise SystemExit("Unexpected upstream GodotRenderView lifecycle source")
+source = source.replace(old, "    fun onActivityDestroyed() {", 1)
+marker = "    override fun onActivityResumed() {"
+if marker not in source:
+    raise SystemExit("Unexpected render view source")
+methods = """    override fun blockingExitRenderer(timeout: Long): Boolean {
+        requestRenderThreadExitAndWait()
+        return true
+    }
+
+    override fun canCapturePointer(): Boolean {
+        return android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O
+    }
+
+"""
+source = source.replace(marker, methods + marker, 1)
+path.write_text(source)
+PY_COMPAT
 chmod +x "$WORK/source/gradlew"
 (
   cd "$WORK/source"
