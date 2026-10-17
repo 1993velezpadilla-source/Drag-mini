@@ -349,7 +349,7 @@ func _process(delta: float) -> void:
         launch_rpm = move_toward(launch_rpm, target_rpm, delta * (4200.0 if throttle_held else 5200.0))
         player["rpm"] = launch_rpm
         countdown = maxf(0.0, countdown - delta)
-        countdown_label.text = "READY" if countdown > 3.0 else ("3" if countdown > 2.0 else ("2" if countdown > 1.0 else ("1" if countdown > 0.0 else "GO!"))
+        countdown_label.text = "READY" if countdown > 3.0 else ("3" if countdown > 2.0 else ("2" if countdown > 1.0 else ("1" if countdown > 0.0 else "GO!")))
         if countdown <= 0.0:
             countdown_label.text = "GO!"
             shift_button.text = "SHIFT +"
