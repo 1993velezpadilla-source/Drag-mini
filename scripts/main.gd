@@ -2,12 +2,10 @@ extends Control
 ## DRAG MINI v0.1: local offline race. Values are arcade balancing, not specs.
 const QUARTER_MILE_M := 402.336
 const WheelLayers = preload("res://scripts/wheel_layers.gd")
-const OfficialMenu = preload("res://scripts/official_menu.gd")
+const OfficialMenu = preload("res://scripts/native_main_menu.gd")
 const OfficialTrack = preload("res://scripts/official_track.gd")
-# Preload the ORIGINAL owner-supplied photo into the scene's dependency graph.
-# Menu must always render from its parent CanvasItem, not a child whose
-# Control rect may be zero on Android during the first frame.
-const OFFICIAL_MENU_IMAGE: Texture2D = preload("res://assets/ui/official_main_menu.jpg")
+# Menu background and controls are built by native_main_menu.gd.
+# The old composite menu image is deliberately NOT loaded at runtime.
 const CAR_PATHS := [
     "res://assets/cars/civic_hatch_game.png",
     "res://assets/cars/supra_mk4_game.png",
@@ -81,16 +79,14 @@ func _ready() -> void:
         push_warning("OFFICIAL TRACK SOURCE IMAGE MISSING: " + OfficialTrack.TRACK_PATH)
     _make_ui()
     menu_overlay = OfficialMenu.new()
-    menu_overlay.name = "OfficialMenuClickable"
+    menu_overlay.name = "NativeMainMenu"
     menu_overlay.action_selected.connect(_menu_action)
     add_child(menu_overlay)
     menu_overlay.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
     _show_main_menu()
     if wallpaper_bridge.is_wallpaper:
         _enter_wallpaper_mode()
-    # Keep a static fallback photo in the scene until all initialization ends.
-    # On Android _ready failure, the fallback stays on-screen and displays an
-    # error instead of showing a uniform gray Godot clear color.
+    # Keep a colored startup diagnostic until native Godot controls initialize.
     set_meta("dragmini_boot_complete", true)
     var startup_guard := get_node_or_null("StartupFallback") as Control
     if startup_guard != null:
@@ -477,14 +473,7 @@ func _draw() -> void:
         _draw_wallpaper(sz)
         return
     if screen == "menu":
-        # Fix reported Android V0.5 uniform grey screen.
-        # Rendering the owner's image in the root canvas is reliable even when
-        # a transparent Control child is invisible or not laid out yet.
-        if OFFICIAL_MENU_IMAGE != null:
-            draw_texture_rect(OFFICIAL_MENU_IMAGE, Rect2(Vector2.ZERO, sz), false)
-        else:
-            draw_rect(Rect2(Vector2.ZERO, sz), Color("0d1730"))
-            push_error("Missing user official_main_menu.jpg — no silent blank screen")
+        # The menu child paints native neon scene, separate PNG cars and buttons.
         return
     draw_rect(Rect2(Vector2.ZERO, sz), Color("0c1421"))
     if screen == "race":
