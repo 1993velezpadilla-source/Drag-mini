@@ -33,14 +33,27 @@ func _run() -> void:
         _bad("Official clickable menu must be the initial screen")
         return
     if game.menu_overlay == null or game.menu_overlay.get_node_or_null("StartTouch") == null:
-        _bad("START hotspot missing from actual photo menu")
+        _bad("START native button missing from menu")
         return
-    # Android V0.5 showed a blank grey background despite passing old tests.
-    # Assert that rendering is now performed in the parent CanvasItem and its
-    # touch target has an actual nonzero Control rect.
-    if game.OFFICIAL_MENU_IMAGE == null:
-        _bad("Root has no official image to render")
+    if game.menu_overlay.get_script().resource_path != "res://scripts/native_main_menu.gd":
+        _bad("Menu must be constructed with native Godot layers, not photo")
         return
+    if game.get_node_or_null("StartupFallback/OriginalMainMenu") != null:
+        _bad("Flattened menu image still exists in runtime startup scene")
+        return
+    var expected_sprites := [
+        "res://assets/cars/supra_mk4_game.png",
+        "res://assets/cars/del_sol_game.png",
+        "res://assets/cars/civic_hatch_game.png",
+        "res://assets/cars/trueno_ae86_game.png"
+    ]
+    if game.menu_overlay._cars.size() != 4:
+        _bad("All four independent car PNGs must be loaded")
+        return
+    for idx in range(4):
+        if game.menu_overlay._cars[idx] == null or game.menu_overlay.CAR_ART[idx] != expected_sprites[idx]:
+            _bad("Native menu car texture/order incorrect at index " + str(idx))
+            return
     if game.menu_overlay.size.x < 640.0 or game.menu_overlay.size.y < 360.0:
         _bad("Menu touch overlay has zero/small bounds (grey-screen layout regression)")
         return
@@ -50,7 +63,7 @@ func _run() -> void:
             return
     game._menu_action("race")
     if game.screen != "race":
-        _bad("Photo menu RACE tap did not begin game")
+        _bad("Native menu RACE tap did not begin game")
         return
     if game.track_image == null:
         _bad("Race is not using official strip texture")
@@ -80,5 +93,5 @@ func _run() -> void:
     if game.shift_feedback != "LATE":
         _bad("Late shift window wrong")
         return
-    print("DRAG MINI OFFICIAL ART + SHIFT PASS: original image hashes, menu hotspots, shifting verdicts")
+    print("DRAG MINI OFFICIAL ART + SHIFT PASS: native UI and car PNGs, original track, shifting verdicts")
     quit(0)
