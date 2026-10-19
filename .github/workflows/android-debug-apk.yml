@@ -110,55 +110,19 @@ jobs:
             echo "ERROR: Native LiveWallpaper plugin registration missing from Android manifest"
             exit 1
           fi
-      - name: Verify new JNI picker is INSIDE APK DEX (not only build AAR)
+      - name: Verify native wallpaper picker is packaged in APK DEX
         run: |
           set -euo pipefail
           APK="build/DragMini-v1.1-portrait-debug.apk"
           mkdir -p build
-          unzip -Z1 "$APK" | grep -Eq '^classes[0-9]*\\.dex
-        run: |
-          git archive --format=zip -o build/DragMini-v1.1-Godot-source.zip HEAD
-          unzip -Z1 build/DragMini-v1.1-Godot-source.zip | grep -Fx 'assets/ui/official_main_menu.jpg'
-          unzip -Z1 build/DragMini-v1.1-Godot-source.zip | grep -Fx 'native/track_generator.cpp'
-      - name: Upload test APK for phone / Felix
-        if: success()
-        uses: actions/upload-artifact@v4
-        with:
-          name: DragMini-v1.1-Android-ARM64-debug
-          path: |
-            build/DragMini-v1.1-portrait-debug.apk
-            build/DragMini-v1.1-Godot-source.zip
-            build/sha256.txt
-            build/android-manifest-audit.txt
-            build/wallpaper-native-check.txt
-          retention-days: 14
-          if-no-files-found: error
-
           FOUND=0
           while IFS= read -r DEX; do
-            if unzip -p "$APK" "$DEX" | strings | grep -Fq 'openWallpaperPicker'; then
+            if unzip -p "$APK" "$DEX" | strings | grep -Fq "openWallpaperPicker"; then
               FOUND=1
             fi
-          done < <(unzip -Z1 "$APK" | grep -E '^classes[0-9]*\\.dex
-        run: |
-          git archive --format=zip -o build/DragMini-v1.1-Godot-source.zip HEAD
-          unzip -Z1 build/DragMini-v1.1-Godot-source.zip | grep -Fx 'assets/ui/official_main_menu.jpg'
-          unzip -Z1 build/DragMini-v1.1-Godot-source.zip | grep -Fx 'native/track_generator.cpp'
-      - name: Upload test APK for phone / Felix
-        if: success()
-        uses: actions/upload-artifact@v4
-        with:
-          name: DragMini-v1.1-Android-ARM64-debug
-          path: |
-            build/DragMini-v1.1-portrait-debug.apk
-            build/DragMini-v1.1-Godot-source.zip
-            build/sha256.txt
-            build/android-manifest-audit.txt
-          retention-days: 14
-          if-no-files-found: error
-)
-          test "$FOUND" -eq 1 || { echo "Missing picker method from APK: stale AAR or Gradle plugin"; exit 1; }
-          echo "ANDROID JNI PICKER IN APK DEX: PASS" | tee build/wallpaper-native-check.txt
+          done < <(unzip -Z1 "$APK" | grep -E '^classes[0-9]*\.dex$')
+          test "$FOUND" -eq 1 || { echo "Missing native wallpaper method from DEX"; exit 1; }
+          echo "ANDROID JNI PICKER IN APK DEX: PASS" > build/wallpaper-native-check.txt
       - name: Package full editable Godot source with C++ procedural world
         run: |
           git archive --format=zip -o build/DragMini-v1.1-Godot-source.zip HEAD
@@ -174,5 +138,6 @@ jobs:
             build/DragMini-v1.1-Godot-source.zip
             build/sha256.txt
             build/android-manifest-audit.txt
+            build/wallpaper-native-check.txt
           retention-days: 14
           if-no-files-found: error
