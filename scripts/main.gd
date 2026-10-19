@@ -2,6 +2,7 @@ extends Control
 ## DRAG MINI v0.1: local offline race. Values are arcade balancing, not specs.
 const QUARTER_MILE_M := 402.336
 const Progression = preload("res://scripts/progression.gd")
+const RaceAudio = preload("res://scripts/race_audio.gd")
 const WheelLayers = preload("res://scripts/wheel_layers.gd")
 const PortraitShell = preload("res://scripts/portrait_shell.gd")
 const ProceduralTrack = preload("res://scripts/procedural_track.gd")
@@ -35,6 +36,7 @@ var shift_feedback_until := 0.0
 var shift_feedback := ""
 var shift_feedback_label: Label
 var progress: RefCounted
+var race_audio: Node
 var race_distance_m := QUARTER_MILE_M
 var career_race := false
 var race_paid := false
@@ -79,6 +81,8 @@ var wallpaper_mode := false
 func _ready() -> void:
     progress = Progression.new()
     progress.load_game()
+    race_audio = RaceAudio.new()
+    add_child(race_audio)
     get_tree().auto_accept_quit = false
     selected = progress.selected
     auto_shift = progress.auto_shift
@@ -206,6 +210,7 @@ func _state() -> Dictionary:
         "distance_choice":progress.distance_choice,
         "auto_shift":progress.auto_shift, "kmh":progress.show_kmh,
         "vibration":progress.vibrations, "dynamic":progress.dynamic_time,
+        "audio":progress.audio_enabled,
         "wallpaper_interactive":progress.wallpaper_interactive,
         "parts":part_states, "notice":notice
     }
@@ -281,6 +286,10 @@ func _menu_action(action: String) -> void:
             _present("settings")
         "toggle_time":
             progress.dynamic_time = not progress.dynamic_time
+            progress.save_game()
+            _present("settings")
+        "toggle_audio":
+            progress.audio_enabled = not progress.audio_enabled
             progress.save_game()
             _present("settings")
         "toggle_wallpaper_touch":
@@ -592,6 +601,9 @@ func _advance_car(driver: Dictionary, delta: float, gas: bool, shift_auto: bool)
         driver["finish_time"] = elapsed
 
 func _process(delta: float) -> void:
+    race_audio.set_engine(float(player.get("rpm", 1050.0)),
+        throttle_held, screen == "race" and not false_start and not wallpaper_mode,
+        progress.audio_enabled)
     if wallpaper_mode:
         # Wallpaper has its own inexpensive visual loop, even with racing paused.
         wallpaper_boost = maxf(0.0, wallpaper_boost - delta)
