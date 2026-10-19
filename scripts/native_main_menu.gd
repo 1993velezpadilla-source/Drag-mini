@@ -337,11 +337,13 @@ func _draw_car_lineup() -> void:
             bounds.end.y - 21.0, bounds.size.x * 0.47)
         draw_texture_rect(tex, bounds, false)
         # Short translucent inverted reflection, using independent texture.
-        draw_set_transform(Vector2(bounds.position.x, bounds.end.y + 2.0), 0.0,
-            Vector2(1.0, -0.30))
-        draw_texture_rect(tex, Rect2(0, -45, bounds.size.x, bounds.size.y), false,
+        var display_scale := Vector2(size.x / DESIGN.x, size.y / DESIGN.y)
+        draw_set_transform(
+            Vector2(bounds.position.x * display_scale.x, (bounds.end.y + 2.0) * display_scale.y),
+            0.0, Vector2(display_scale.x, -display_scale.y * 0.30))
+        draw_texture_rect(tex, Rect2(0, -bounds.size.y, bounds.size.x, bounds.size.y), false,
             Color(0.45, 0.50, 0.8, 0.11))
-        draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
+        draw_set_transform(Vector2.ZERO, 0.0, display_scale)
 
 func draw_ellipse_shadow(cx: float, cy: float, radius: float) -> void:
     # CanvasItem has no ellipse primitive, so horizontal layered soft shadows.
