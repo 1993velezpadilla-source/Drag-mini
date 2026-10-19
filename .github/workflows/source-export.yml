@@ -1,4 +1,4 @@
-name: Drag Mini editable Godot source V1.0
+name: Drag Mini editable Godot source V1.1
 on:
   push:
     branches:
@@ -29,9 +29,9 @@ jobs:
         run: |
           test "$(sha256sum assets/ui/official_main_menu.jpg | cut -d' ' -f1)" = "927fd4a3ff7bd29408454e767c580512500d30b77c11fc97e172c2ea96529060"
       - name: Create Godot source ZIP
-        run: git archive HEAD --format zip --output DragMini-v1.0-Portrait-Godot-Project.zip
+        run: git archive HEAD --format zip --output DragMini-v1.1-Portrait-Godot-Project.zip
       - uses: actions/upload-artifact@v4
         with:
-          name: DragMini-v1.0-Editable-Godot-Source
-          path: DragMini-v1.0-Portrait-Godot-Project.zip
+          name: DragMini-v1.1-Editable-Godot-Source
+          path: DragMini-v1.1-Portrait-Godot-Project.zip
           retention-days: 14
