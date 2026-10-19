@@ -1,9 +1,10 @@
 extends Control
 ## DRAG MINI v0.1: local offline race. Values are arcade balancing, not specs.
 const QUARTER_MILE_M := 402.336
+const Progression = preload("res://scripts/progression.gd")
 const WheelLayers = preload("res://scripts/wheel_layers.gd")
-const OfficialMenu = preload("res://scripts/native_main_menu.gd")
-const OfficialTrack = preload("res://scripts/official_track.gd")
+const PortraitShell = preload("res://scripts/portrait_shell.gd")
+const ProceduralTrack = preload("res://scripts/procedural_track.gd")
 # Menu background and controls are built by native_main_menu.gd.
 # The old composite menu image is deliberately NOT loaded at runtime.
 const CAR_PATHS := [
@@ -33,7 +34,14 @@ var finish_text := ""
 var shift_feedback_until := 0.0
 var shift_feedback := ""
 var shift_feedback_label: Label
-var track_image: Texture2D
+var progress: RefCounted
+var race_distance_m := QUARTER_MILE_M
+var career_race := false
+var race_paid := false
+var nitrous_button: Button
+var notice := ""
+var wallpaper_touch_down := Vector2.ZERO
+var wallpaper_boost := 0.0
 var menu_overlay: Control
 var throttle_held := false
 var gas_finger := -1
@@ -62,7 +70,12 @@ var wallpaper_bridge
 var wallpaper_mode := false
 
 func _ready() -> void:
-    _load_garage()
+    progress = Progression.new()
+    progress.load_game()
+    selected = progress.selected
+    auto_shift = progress.auto_shift
+    if OS.get_name() == "Android":
+        DisplayServer.screen_set_orientation(DisplayServer.SCREEN_PORTRAIT)
     wallpaper_bridge = preload("res://scripts/wallpaper_bridge.gd").new()
     wallpaper_bridge.plugin_ready.connect(_on_wallpaper_plugin_ready)
     add_child(wallpaper_bridge)
@@ -73,13 +86,10 @@ func _ready() -> void:
         images.append(tex)
         if tex != null:
             visual_cars.append(WheelLayers.build(tex, visual_cars.size()))
-    if ResourceLoader.exists(OfficialTrack.TRACK_PATH):
-        track_image = load(OfficialTrack.TRACK_PATH) as Texture2D
-    else:
-        push_warning("OFFICIAL TRACK SOURCE IMAGE MISSING: " + OfficialTrack.TRACK_PATH)
+    ProceduralTrack.load_world()
     _make_ui()
-    menu_overlay = OfficialMenu.new()
-    menu_overlay.name = "NativeMainMenu"
+    menu_overlay = PortraitShell.new()
+    menu_overlay.name = "PortraitMenu"
     menu_overlay.action_selected.connect(_menu_action)
     add_child(menu_overlay)
     menu_overlay.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
@@ -137,31 +147,28 @@ func _label(text_value: String, top: float, bottom: float, font_size: int) -> La
     return label
 
 func _make_ui() -> void:
-    title_label = _label("DRAG MINI", 0.04, 0.14, 57)
-    build_label = _label("V0.6 • MENU RENDER FIX", 0.008, 0.048, 17)
-    detail_label = _label("", 0.63, 0.74, 27)
-    telemetry_label = _label("", 0.125, 0.185, 24)
-    message_label = _label("", 0.72, 0.80, 24)
-    shift_feedback_label = _label("", 0.35, 0.42, 42)
+    title_label = _label("DRAG MINI", 0.035, 0.108, 36)
+    build_label = _label("DRAG MINI • STREET RACING", 0.007, 0.041, 13)
+    detail_label = _label("", 0.26, 0.328, 19)
+    telemetry_label = _label("", 0.108, 0.179, 19)
+    message_label = _label("", 0.765, 0.82, 17)
+    shift_feedback_label = _label("", 0.365, 0.427, 34)
     shift_feedback_label.visible = false
-    countdown_label = _label("", 0.275, 0.355, 48)
+    countdown_label = _label("", 0.333, 0.401, 43)
     countdown_label.visible = false
-    prev_button = _button("<", 0.04, 0.78, 0.20, 0.86)
-    next_button = _button(">", 0.80, 0.78, 0.96, 0.86)
-    mode_button = _button("MANUAL", 0.21, 0.78, 0.79, 0.86)
-    race_button = _button("RACE 1/4 MILE", 0.07, 0.88, 0.93, 0.97, true)
-    wallpaper_button = _button("WALLPAPER", 0.56, 0.88, 0.94, 0.97)
-    wallpaper_button.visible = OS.get_name() == "Android"
-    if wallpaper_button.visible:
-        race_button.anchor_right = 0.56
-    throttle_button = _button("HOLD GAS", 0.05, 0.83, 0.53, 0.97, true)
-    shift_button = _button("SHIFT +", 0.55, 0.83, 0.95, 0.97)
-    # A GUI Button uses mouse emulation, losing held GAS on second touch.
-    # UI remains decorative; the per-finger touch router below is authoritative.
+    prev_button = _button("<", 0.04, 0.70, 0.2, 0.77)
+    next_button = _button(">", 0.8, 0.70, 0.96, 0.77)
+    mode_button = _button("MANUAL", 0.21, 0.70, 0.79, 0.77)
+    race_button = _button("RACE", 0.07, 0.86, 0.93, 0.97, true)
+    wallpaper_button = _button("WALLPAPER", 0.55, 0.86, 0.94, 0.97)
+    throttle_button = _button("HOLD GAS", 0.035, 0.832, 0.52, 0.969, true)
+    shift_button = _button("LAUNCH", 0.54, 0.832, 0.965, 0.969)
+    nitrous_button = _button("N2O BOOST", 0.62, 0.764, 0.965, 0.830)
     throttle_button.mouse_filter = Control.MOUSE_FILTER_IGNORE
     shift_button.mouse_filter = Control.MOUSE_FILTER_IGNORE
-    retry_button = _button("RETRY", 0.05, 0.83, 0.47, 0.97, true)
-    garage_button = _button("GARAGE", 0.53, 0.83, 0.95, 0.97)
+    nitrous_button.mouse_filter = Control.MOUSE_FILTER_IGNORE
+    retry_button = _button("RETRY", 0.035, 0.837, 0.485, 0.969, true)
+    garage_button = _button("HOME", 0.515, 0.837, 0.965, 0.969)
     prev_button.pressed.connect(func(): _select_car(-1))
     next_button.pressed.connect(func(): _select_car(1))
     mode_button.pressed.connect(_toggle_mode)
@@ -170,77 +177,135 @@ func _make_ui() -> void:
     garage_button.pressed.connect(_show_main_menu)
     wallpaper_button.pressed.connect(_request_wallpaper)
 
+func _state() -> Dictionary:
+    var model: Dictionary = CARS[selected]
+    var tuning: Dictionary = progress.performance(selected)
+    var part_states: Array = []
+    for part in Progression.PARTS:
+        part_states.append({"id":part["id"], "name":part["title"],
+            "level":progress.level(selected, part["id"]),
+            "cost":progress.price(selected, part["id"])})
+    var story: Dictionary = Progression.STORY[progress.stage]
+    return {
+        "car":selected, "car_name":model["name"],
+        "power":float(model["torque"]) * float(tuning["torque"]) * 1.38,
+        "cash":progress.cash, "wins":progress.wins,
+        "level":1 + int(progress.xp / 350),
+        "stage":progress.stage, "story":story["title"],
+        "story_prize":story["reward"],
+        "story_distance":_distance_name(float(story["distance"])),
+        "distance_choice":progress.distance_choice,
+        "auto_shift":progress.auto_shift, "kmh":progress.show_kmh,
+        "vibration":progress.vibrations, "dynamic":progress.dynamic_time,
+        "wallpaper_interactive":progress.wallpaper_interactive,
+        "parts":part_states, "notice":notice
+    }
+
+func _distance_name(meters: float) -> String:
+    if meters < 300.0:
+        return "1/8 MILE"
+    if meters < 600.0:
+        return "1/4 MILE"
+    if meters < 1100.0:
+        return "1/2 MILE"
+    return "1 MILE"
+
+func _present(page: String) -> void:
+    for child in get_children():
+        if child is Button or child is Label:
+            child.visible = false
+    screen = page
+    menu_overlay.visible = true
+    menu_overlay.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+    menu_overlay.present(page, _state())
+    queue_redraw()
+
 func _menu_action(action: String) -> void:
+    if action.begins_with("upgrade:"):
+        var part_id := action.trim_prefix("upgrade:")
+        if progress.purchase(selected, part_id):
+            notice = part_id.to_upper() + " UPGRADED!"
+            if OS.get_name() == "Android" and progress.vibrations:
+                Input.vibrate_handheld(35)
+        else:
+            var cost: int = progress.price(selected, part_id)
+            notice = "MAX LEVEL" if cost == 0 else "NEED $%d MORE" % maxi(0, cost - progress.cash)
+        _present("upgrades")
+        return
+    if action.begins_with("distance:"):
+        progress.distance_choice = clampi(int(action.trim_prefix("distance:")), 0, 3)
+        progress.save_game()
+        _present("race_select")
+        return
     match action:
-        "race", "start":
+        "start":
+            career_race = false
+            race_distance_m = float(Progression.DISTANCES[progress.distance_choice])
             _start_race()
-        "garage":
-            _show_garage()
-        "wallpaper":
-            # No false positive: communicate actual error if Android plugin fails.
-            _show_garage()
+        "career_start":
+            career_race = true
+            race_distance_m = float(Progression.STORY[progress.stage]["distance"])
+            _start_race()
+        "menu": _show_main_menu()
+        "garage": _show_garage()
+        "race", "race_select": _present("race_select")
+        "career": _present("career")
+        "upgrades": _present("upgrades")
+        "settings": _present("settings")
+        "wallpaper": _present("wallpaper")
+        "wallpaper_apply":
             _request_wallpaper()
-        "upgrades", "settings":
-            _show_garage()
-            message_label.text = action.to_upper() + " — COMING SOON"
+            _present("wallpaper")
+        "wallpaper_preview": _enter_wallpaper_mode(false)
+        "car_prev": _select_car(-1)
+        "car_next": _select_car(1)
+        "toggle_shift":
+            _toggle_mode()
+            _present("settings")
+        "toggle_units":
+            progress.show_kmh = not progress.show_kmh
+            progress.save_game()
+            _present("settings")
+        "toggle_vibration":
+            progress.vibrations = not progress.vibrations
+            progress.save_game()
+            _present("settings")
+        "toggle_time":
+            progress.dynamic_time = not progress.dynamic_time
+            progress.save_game()
+            _present("settings")
+        "toggle_wallpaper_touch":
+            progress.wallpaper_interactive = not progress.wallpaper_interactive
+            progress.save_game()
+            _present("settings")
         _:
             push_warning("Unknown menu action: " + action)
 
 func _show_main_menu() -> void:
-    screen = "menu"
+    wallpaper_mode = false
+    Engine.max_fps = 60
     throttle_held = false
     gas_finger = -1
     mouse_gas = false
-    for node in get_children():
-        if node is Button or node is Label:
-            node.visible = false
-    if menu_overlay != null:
-        menu_overlay.visible = true
-        menu_overlay.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-    queue_redraw()
+    _present("menu")
 
 func _show_garage() -> void:
-    screen = "garage"
-    if menu_overlay != null:
-        menu_overlay.visible = false
-    build_label.visible = true
-    detail_label.visible = true
-    shift_feedback_label.visible = false
-    throttle_held = false
-    gas_finger = -1
-    mouse_gas = false
-    title_label.text = "DRAG MINI"
-    title_label.visible = true
-    telemetry_label.visible = false
-    message_label.visible = true
-    message_label.text = "4 starter cars · 6 free garage slots"
-    for btn in [prev_button, next_button, mode_button, race_button]:
-        btn.visible = true
-    for btn in [throttle_button, shift_button, retry_button, garage_button]:
-        btn.visible = false
-    wallpaper_button.visible = OS.get_name() == "Android"
-    countdown_label.visible = false
-    _update_garage()
-    queue_redraw()
+    notice = "Choose your ride. Every car has its own tuning."
+    _present("garage")
 
 func _select_car(step: int) -> void:
     selected = posmod(selected + step, CARS.size())
-    _save_garage()
-    _update_garage()
+    progress.selected = selected
+    progress.save_game()
+    _present(screen)
 
 func _toggle_mode() -> void:
     auto_shift = not auto_shift
-    _save_garage()
-    _update_garage()
+    progress.auto_shift = auto_shift
+    progress.save_game()
 
 func _update_garage() -> void:
-    mode_button.text = "AUTO SHIFT" if auto_shift else "MANUAL SHIFT"
-    detail_label.text = "%s  (%d/4)\n%s · ARCADE ENGINE\n%s" % [
-        CARS[selected]["name"], selected + 1,
-        "AUTOMATIC" if auto_shift else "MANUAL",
-        "Choose your ride and start a race"
-    ]
-    queue_redraw()
+    _present("garage")
 
 func _make_driver(car_id: int) -> Dictionary:
     return {"car_id":car_id, "speed":0.0, "distance":0.0,
