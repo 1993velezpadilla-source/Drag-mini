@@ -1,41 +1,46 @@
-# DRAG MINI 🏁
+# DRAG MINI — portrait street-racing rebuild
 
-Godot 4.6 · Android-first · Pixel drag racing — **prototype v0.1**.
+**Godot 4.6 · C++17 track authoring · Android ARM64 · single-player offline**
 
-This repo contains a **first offline quarter-mile prototype**, not a published game. Choose from four starter cars, toggle automatic/manual shifting, and race a CPU rival. Powertrain parameters are fictional **arcade balancing** values.
+This branch replaces the broken landscape photo-based prototype with an interactive native portrait UI. All four original owner-provided vehicle sprites are preserved as independent transparent textures with chassis/wheel separation. The environment is no longer a stretched race-strip JPEG.
 
-## How to run
-1. Install Godot 4.6 and import `project.godot`.
-2. Hit Play. Select a car in the garage; choose AUTO/MANUAL and then `RACE 1/4 MILE`.
-3. In manual mode **hold gas** and **shift +** near redline. Auto mode accelerates and shifts itself.
-4. Headless smoke: `godot --headless --path . --script res://tests/smoke.gd`.
+## What's playable
 
-## Included
-Four transparent pixel PNGs from project-owner images, downscaled as 128×54 game sprites for the first mobile prototype: yellow hatch, white coupe, red targa and panda 86. Larger master sprites are packaged separately for the team.
+- **Portrait mobile UI:** HOME, RACE, GARAGE, UPGRADES, SETTINGS, CAREER and WALLPAPER each have their own native touch controls. Quick Start launches a race; RACE opens distance selection.
+- **Distances:** 1/8 mile (201.168m), 1/4 mile (402.336m), 1/2 mile (804.672m), full mile (1609.344m), with a real world-space finish line.
+- **C++17 race environment:** `native/track_generator.cpp` emits reproducible 1800m scenery to `assets/tracks/track_geometry.json`. `scripts/procedural_track.gd` renders road, dashes, Christmas tree, finish line, world props and repeating parallax skyline in Godot's CanvasItem. Scroll/culling is position-based. Supports day, dawn, dusk and night.
+- **Driving:** multi-finger gas + launch/shift, single shift timing lamp, EARLY/PERFECT/LATE feedback shown only when tapping shift, false starts, CPU rivals, manual/auto shifting, physics-coupled independently spinning wheels, optional nitrous.
+- **Career:** 12 named rival stages with intro lines, escalating challenge distances, one-time result processing and offline progression.
+- **Tuning:** 7 parts (engine, turbo, transmission, tires/grip, weight reduction, ECU and nitrous), five levels each, purchases use saved credits, installed parts influence physics (arcade balancing, not real OEM specifications).
+- **Persistent preferences:** player cash, XP, story chapter, wins/losses, best times, car choice, tuning, selected distance, auto/manual shift, km/h/mph, haptics, night-vs-device-time and wallpaper touch toggle in `user://drag_mini_v1.cfg`.
+- **Wallpaper path:** Godot 4.6 Android live wallpaper plugin integration plus preview inside the app. A swipe/tap on wallpaper responds when the launcher/plugin delivers a touch. The Android picker is opened by the native bridge; not an unrestricted draw-over-other-apps service.
 
-## Not implemented yet
-Online races, persistent garage, paid slots, mods/tuning, animated wheel layers, actual Android wallpaper service, system overlay, Android APK, authoritative server, real licensed car audio. **Six free garage slots** is a planned product rule, not real save data yet. Wallpaper/overlay will require a native Android plugin and operating-system permission handling.
+## Build in Godot
 
-## Collaboration
-Work in feature branches. Review PRs before merge. Invite Félix under GitHub Settings → Collaborators. Never add private keys or secrets to Git.
+1. Install Godot **4.6** and open `project.godot`; game viewport is 432×960 and mobile orientation is portrait.
+2. Compile the optional deterministic C++ asset generator from the project root:
+   ```sh
+   mkdir -p build
+   c++ -std=c++17 -O2 native/track_generator.cpp -o build/track_generator
+   build/track_generator build/track_geometry.json
+   ```
+   The committed `assets/tracks/track_geometry.json` is generated from the same source and compared byte-logically in CI; the game also has a deterministic built-in fallback if it is absent.
+3. For an Android wallpaper-capable APK, run `python3 scripts/install_wallpaper_plugin.py`, then `bash scripts/build_live_wallpaper_46.sh`. The workflow installs/compiles the pinned third-party MIT plugin against Godot 4.6, exports a signed **debug APK** and verifies the manifest.
+4. Run `godot --headless --path . --editor --import --quit`, then the smoke tests:
+   ```sh
+   godot --headless --path . --script res://tests/smoke.gd
+   godot --headless --path . --script res://tests/touch_smoke.gd
+   godot --headless --path . --script res://tests/official_assets_smoke.gd
+   godot --headless --path . --script res://tests/gauntlet_v1.gd
+   ```
+   GitHub Actions also rasterizes **portrait screens** using Xvfb, checks C++ generator output and tests menu/career/transactions/shift timing.
 
-Before publishing, vet names, vehicle likenesses and intellectual-property rights.
+## Limitations and release gate
 
-## Wallpaper plugin — TheOathMan
-We use **TheOathMan/Godot-Android-Live-Wallpaper v1.5.1**, MIT licensed.
-Pinned official release: `0bfc928515cf1ba8f7127754a2d28e995f508145aadd35d7a5ebdf8f2153a6b2` SHA-256.
-This third-party binary is **not checked into the repository**. Install it before opening in the editor:
+This is **an Android-focused playable rebuild, not a final commercial release**. The Android live wallpaper plugin must still be checked on a physical phone (including lock screen and launchers) after a signed APK builds. Interactions with other apps are *not* implemented: Android requires a separate overlay implementation, permissions and launcher-dependent capabilities; ordinary wallpapers cannot freely control apps or intercept their touch events. There is no online multiplayer, cloud sync, purchased/licensed car sound pack, original in-app music, or store listing. Digital currency is in-game only; no real-money purchases.
 
-```sh
-python3 scripts/install_wallpaper_plugin.py
-```
+The game's car sprites originate from the owner's art; the deprecated JPEG reference `assets/ui/official_main_menu.jpg` is not part of runtime UI nor included in the APK. The previous flat race-strip photo was removed. Verify vehicle branding and asset licensing before publishing.
 
-Project settings enable the `LiveWallpaper` editor plugin. Use **Godot 4.6, GL Compatibility**, install **Android Build Template**, and **Use Gradle Build** in the Android export preset.
-The home screen wallpaper integration displays the selected car on a quiet track and suppresses race controls; wallpaper mode caps the frame rate and pauses rendering when the system reports it hidden. The normal Android app displays a `WALLPAPER` button to open the system wallpaper picker. Selection persists in `user://garage.cfg`. Nothing takes over another application's UI: that requires a separate **Android overlay** implementation.
+## Contribution
 
-**Caution:** Release v1.5.1 was built against Godot 4.5.0, and compatibility with the Godot 4.6 *Android binary export* is unproven. The GitHub CI checks only import and script behavior on Linux; physical Android verification is required (including lock screen, Android 14+ behavior, launchers, battery). Samsung launchers may not report home-screen offsets correctly. Wallpaper is not an unrestricted interactive overlay.
-
-Upstream: https://github.com/TheOathMan/Godot-Android-Live-Wallpaper — MIT © 2024 Othman Alzhrani.
-
-## Independently animated wheels — four vehicles
-The original 128×54 car textures are preserved untouched. `scripts/wheel_layers.gd` builds an independent **chassis texture** and two freely rotating **wheel layers** for each car at startup. For Civic/AE86 the baked centers are masked; for Supra/Del Sol their transparent wheel wells are filled by unique arcade-style wheel patterns. Wheel movement follows in-game velocity and tracks manual shifts or coasting; rival wheels rotate independently. In wallpaper mode the selected car's wheels animate while the street scrolls, capped by the existing battery-aware wallpaper FPS policy. CI smoke checks check each wheel layer and animation increment. No claims of simulated tire spin/traction or measured real vehicle wheel dimensions.
+Prefer PRs to `main`; every screen and mechanic should pass **Master Orchestrator / Adversarial Critic** tests, Android APK checks, real 432×960 screen raster tests, and phone input testing before calling it complete. No credentials/secrets committed.
