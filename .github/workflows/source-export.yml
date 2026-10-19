@@ -2,6 +2,7 @@ name: Drag Mini editable Godot source V1.0
 on:
   push:
     branches:
+      - main
       - feature/v05-official-menu-track-shift-lamp
       - fix/v06-android-grey-screen-visible-menu
       - feature/v07-native-main-menu
