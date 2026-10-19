@@ -525,7 +525,7 @@ func _launch_car() -> void:
     var rpm_factor := launch_rpm / float(CARS[selected]["redline"])
     var sweet_spot := 0.54
     var error := absf(rpm_factor - sweet_spot)
-    var delay_penalty := clampf(reaction_seconds / 1.1, 0.0, 0.48)
+    var delay_penalty := clampf(reaction_seconds / 3.0, 0.0, 0.48)
     var quality := clampf(1.18 - error * 0.95 - delay_penalty, 0.62, 1.18)
     player["launch_force"] = quality
     launch_grade = "PERFECT LAUNCH" if quality > 1.08 else ("GOOD LAUNCH" if quality > 0.92 else "WHEELSPIN / SLOW")
