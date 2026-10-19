@@ -48,6 +48,11 @@ jobs:
           set -o pipefail
           timeout 80s godot --headless --path . --script res://tests/gauntlet_v1.gd 2>&1 | tee /tmp/dragmini-gauntlet.log
           grep -Fq 'DRAG MINI GAUNTLET PASS' /tmp/dragmini-gauntlet.log
+      - name: Adversarial real-race endurance (1/8, 1/4, 1/2, full mile)
+        run: |
+          set -o pipefail
+          timeout 120s godot --headless --path . --script res://tests/physics_endurance.gd 2>&1 | tee /tmp/dragmini-endurance.log
+          grep -Fq 'DRAG MINI ENDURANCE PASS' /tmp/dragmini-endurance.log
       - name: Render real OpenGL menu and track screenshots, reject grey frames
         env:
           GODOT_AUDIO_DRIVER: Dummy
