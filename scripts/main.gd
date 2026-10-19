@@ -523,6 +523,9 @@ func _draw() -> void:
 func _enter_wallpaper_mode() -> void:
     wallpaper_mode = true
     screen = "wallpaper"
+    # The Godot-native full-screen main menu must not cover Android wallpaper.
+    if menu_overlay != null:
+        menu_overlay.visible = false
     throttle_held = false
     Engine.max_fps = 20
     if OS.get_name() == "Android":
