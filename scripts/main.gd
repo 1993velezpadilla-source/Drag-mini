@@ -38,6 +38,13 @@ var progress: RefCounted
 var race_distance_m := QUARTER_MILE_M
 var career_race := false
 var race_paid := false
+var launched := false
+var reaction_seconds := 0.0
+var launch_grade := ""
+var shift_combo := 0
+var skill_points := 0
+var race_flash := 0.0
+var camera_shake := 0.0
 var nitrous_button: Button
 var notice := ""
 var wallpaper_touch_down := Vector2.ZERO
@@ -314,7 +321,7 @@ func _make_driver(car_id: int) -> Dictionary:
         "rpm":1050.0, "gear":0, "shift_timer":0.0,
         "finished":false, "finish_time":0.0, "wheel_angle":0.0,
         "tuning":progress.performance(car_id), "nitrous_left":float(progress.level(car_id, "nitrous")) * 2.0,
-        "nitrous_active":0.0}
+        "nitrous_active":0.0, "launch_force":1.0, "shift_power":0.0}
 
 func _start_race() -> void:
     screen = "race"
@@ -333,6 +340,13 @@ func _start_race() -> void:
     countdown = 4.0
     green_timer = 0.0
     race_paid = false
+    launched = false
+    reaction_seconds = 0.0
+    launch_grade = ""
+    shift_combo = 0
+    skill_points = 0
+    race_flash = 0.0
+    camera_shake = 0.0
     wallpaper_mode = false
     player = _make_driver(selected)
     rival = _make_driver(int(Progression.STORY[progress.stage]["rival"]) if career_race else (selected + 1) % CARS.size())
@@ -465,15 +479,56 @@ func _player_shift() -> void:
         return
     if countdown > 0.0:
         _false_start()
-    elif not auto_shift and float(player["shift_timer"]) <= 0.0 and int(player["gear"]) < RATIOS.size() - 1:
-        # Single shift feedback, calculated at the instant the button is tapped.
-        var ratio: float = float(player["rpm"]) / float(CARS[selected]["redline"])
-        shift_feedback = "EARLY" if ratio < 0.87 else ("PERFECT" if ratio <= 0.965 else "LATE")
-        shift_feedback_label.text = shift_feedback
-        shift_feedback_label.add_theme_color_override("font_color", Color("ffd34c") if shift_feedback == "EARLY" else (Color("4dff83") if shift_feedback == "PERFECT" else Color("ff5353")))
-        shift_feedback_label.visible = true
-        shift_feedback_until = 0.95
-        _shift(player)
+        return
+    if not launched:
+        _launch_car()
+        return
+    if auto_shift or float(player["shift_timer"]) > 0.0 or int(player["gear"]) >= RATIOS.size() - 1:
+        return
+    # Only one shift light. Color anticipates timing; text appears on shift press.
+    var ratio: float = float(player["rpm"]) / float(CARS[selected]["redline"])
+    shift_feedback = "EARLY" if ratio < 0.87 else ("PERFECT" if ratio <= 0.965 else "LATE")
+    shift_combo = shift_combo + 1 if shift_feedback == "PERFECT" else 0
+    if shift_feedback == "PERFECT":
+        skill_points += 120 * maxi(1, shift_combo)
+        player["shift_power"] = 0.65
+        race_flash = 0.35
+        camera_shake = 5.0
+    shift_feedback_label.text = shift_feedback + ("  x%d" % shift_combo if shift_combo > 1 else "")
+    shift_feedback_label.add_theme_color_override("font_color", Color("ffd34c") if shift_feedback == "EARLY" else (Color("4dff83") if shift_feedback == "PERFECT" else Color("ff5353")))
+    shift_feedback_label.visible = true
+    shift_feedback_until = 0.70
+    _shift(player)
+    if shift_feedback == "PERFECT":
+        player["shift_timer"] = float(player["shift_timer"]) * 0.52
+    elif shift_feedback == "LATE":
+        player["shift_timer"] = float(player["shift_timer"]) * 1.35
+    if progress.vibrations and OS.get_name() == "Android":
+        Input.vibrate_handheld(12 if shift_feedback == "PERFECT" else 28)
+
+func _launch_car() -> void:
+    if launched or countdown > 0.0 or false_start:
+        return
+    launched = true
+    # The clutch release is a real decision: delayed reaction and wheelspin hurt ET.
+    var rpm_factor := launch_rpm / float(CARS[selected]["redline"])
+    var sweet_spot := 0.54
+    var error := absf(rpm_factor - sweet_spot)
+    var delay_penalty := clampf(reaction_seconds / 1.1, 0.0, 0.48)
+    var quality := clampf(1.18 - error * 0.95 - delay_penalty, 0.62, 1.18)
+    player["launch_force"] = quality
+    launch_grade = "PERFECT LAUNCH" if quality > 1.08 else ("GOOD LAUNCH" if quality > 0.92 else "WHEELSPIN / SLOW")
+    skill_points += 200 if quality > 1.08 else (90 if quality > 0.92 else 0)
+    shift_feedback_label.text = launch_grade
+    shift_feedback_label.add_theme_color_override("font_color", Color("57ffb0") if quality > 0.92 else Color("ffbb63"))
+    shift_feedback_until = 0.90
+    shift_feedback_label.visible = true
+    shift_button.text = "SHIFT +"
+    shift_button.visible = not auto_shift
+    race_flash = 0.30
+    camera_shake = 7.0 if quality <= 0.92 else 3.0
+    if progress.vibrations and OS.get_name() == "Android":
+        Input.vibrate_handheld(32)
 
 func _false_start() -> void:
     false_start = true
@@ -499,6 +554,7 @@ func _advance_car(driver: Dictionary, delta: float, gas: bool, shift_auto: bool)
         return
     var model: Dictionary = CARS[driver["car_id"]]
     driver["shift_timer"] = maxf(0.0, driver["shift_timer"] - delta)
+    driver["shift_power"] = maxf(0.0, float(driver["shift_power"]) - delta)
     var tuning: Dictionary = driver["tuning"]
     var gear_ratio: float = RATIOS[driver["gear"]] * model["final"]
     var wheel_radius := 0.305
@@ -517,6 +573,10 @@ func _advance_car(driver: Dictionary, delta: float, gas: bool, shift_auto: bool)
         driver["nitrous_active"] = nitrous_seconds
         driver["nitrous_left"] = maxf(0.0, float(driver["nitrous_left"]) - delta)
     var force_boost := 1.5 if nitrous_seconds > 0.0 else 1.0
+    if float(driver["distance"]) < 36.0:
+        force_boost *= float(driver["launch_force"])
+    if float(driver["shift_power"]) > 0.0:
+        force_boost *= 1.11
     var wheel_force: float = throttle * model["torque"] * float(tuning["torque"]) * force_boost * curve * gear_ratio * 0.82 / wheel_radius
     var effective_mass: float = model["mass"] * float(tuning["mass"])
     var max_traction: float = effective_mass * 9.81 * model["grip"] * float(tuning["grip"]) * 0.63
@@ -543,6 +603,8 @@ func _process(delta: float) -> void:
         return
     if screen != "race":
         return
+    race_flash = maxf(0.0, race_flash - delta)
+    camera_shake = maxf(0.0, camera_shake - delta * 16.0)
     if shift_feedback_until > 0.0:
         shift_feedback_until = maxf(0.0, shift_feedback_until - delta)
         if shift_feedback_until <= 0.0:
@@ -559,20 +621,28 @@ func _process(delta: float) -> void:
         if countdown <= 0.0:
             message_label.visible = false
             countdown_label.text = "GO!"
-            shift_button.text = "SHIFT +"
+            race_flash = 0.48
+            shift_button.text = "LAUNCH"
             shift_button.visible = not auto_shift
+            if auto_shift:
+                _launch_car()
         _update_hud()
         queue_redraw()
         return
     green_timer += delta
+    if not launched:
+        reaction_seconds += minf(delta, 0.1)
     if green_timer > 0.8:
         countdown_label.visible = false
     if player["finished"] and rival["finished"]:
         return
     var tick := minf(delta, 1.0 / 30.0)
     elapsed += tick
-    _advance_car(player, tick, throttle_held, auto_shift)
-    _advance_car(rival, tick, true, true)
+    if launched:
+        _advance_car(player, tick, throttle_held, auto_shift)
+    # Slight human-like CPU reaction makes staging meaningful.
+    if green_timer > 0.20 + float(progress.stage if career_race else 0) * 0.004:
+        _advance_car(rival, tick, true, true)
     if player["finished"] and rival["finished"]:
         _end_race()
     _update_hud()
@@ -583,7 +653,10 @@ func _end_race() -> void:
     finish_text = "YOU WIN!" if winning else "RIVAL WINS"
     if not race_paid:
         var earned: int = progress.complete_race(winning, float(player["finish_time"]), career_race, race_distance_m)
-        notice = "EARNED $%d   •   TOTAL $%d" % [earned, progress.cash]
+        var skill_cash: int = skill_points / 8 if winning else skill_points / 20
+        progress.cash += skill_cash
+        progress.save_game()
+        notice = "EARNED $%d  + SKILL $%d  •  TOTAL $%d" % [earned, skill_cash, progress.cash]
         race_paid = true
     title_label.text = finish_text
     detail_label.text = "YOUR TIME: %.2fs\nRIVAL TIME: %.2fs" % [player["finish_time"], rival["finish_time"]]
@@ -603,9 +676,11 @@ func _update_hud() -> void:
         "KM/H" if progress.show_kmh else "MPH", int(player.get("gear", 0)) + 1,
         float(player.get("rpm", 1050.0))]
     if countdown > 0.0:
-        telemetry_label.text = "STAGING  •  %.0f RPM\nHOLD GAS TO REV • EARLY LAUNCH = RED" % launch_rpm
+        telemetry_label.text = "STAGE RPM  %.0f  •  AIM FOR 4000\nHOLD GAS  /  TAP LAUNCH ON GREEN" % launch_rpm
+    elif not launched:
+        telemetry_label.text = "GREEN! TAP LAUNCH  •  %.2f s" % reaction_seconds
     if finish_text.is_empty():
-        detail_label.text = "YOU %.0fm   •   RIVAL %.0fm" % [player.get("distance", 0.0), rival.get("distance", 0.0)]
+        detail_label.text = "YOU %.0fm  |  RIVAL %.0fm  •  SKILL %d" % [player.get("distance", 0.0), rival.get("distance", 0.0), skill_points]
 
 func _draw() -> void:
     var sz := size
@@ -622,10 +697,12 @@ func _draw() -> void:
         race_distance_m, hour, countdown, false_start)
     if visual_cars.is_empty():
         return
-    var car_w := sz.x * 0.56
+    # Both racers remain legible and anchored to their lane, not floating over UI.
+    var car_w := sz.x * 0.45
     var difference: float = float(player["distance"]) - float(rival["distance"])
-    var player_x := sz.x * 0.05 + clampf(difference * 0.55, -sz.x * 0.18, sz.x * 0.21)
-    var rival_x := sz.x * 0.05 + clampf(-difference * 0.55, -sz.x * 0.18, sz.x * 0.21)
+    var shake_x := sin(elapsed * 61.0) * camera_shake
+    var player_x := sz.x * 0.15 + clampf(difference * 0.46, -sz.x * 0.11, sz.x * 0.23) + shake_x
+    var rival_x := sz.x * 0.15 + clampf(-difference * 0.46, -sz.x * 0.11, sz.x * 0.23)
     var player_id: int = int(player["car_id"])
     var rival_id: int = int(rival["car_id"])
     if rival_id < visual_cars.size():
@@ -635,8 +712,22 @@ func _draw() -> void:
         WheelLayers.draw_car(self, visual_cars[player_id], Rect2(player_x, sz.y * 0.534,
             car_w, car_w * 54.0 / 128.0), float(player["wheel_angle"]))
     if float(player.get("nitrous_active", 0.0)) > 0.0:
-        draw_line(Vector2(player_x, sz.y * 0.615),
-            Vector2(player_x - sz.x * 0.11, sz.y * 0.617), Color("55eaff"), 8.0)
+        for i in range(6):
+            var yy := sz.y * (0.562 + float(i) * 0.014)
+            var length := sz.x * (0.13 + float(i % 3) * 0.035)
+            draw_line(Vector2(player_x - 3, yy),
+                Vector2(player_x - 3 - length, yy), Color("4edaff", 0.78), 2.0 + float(i % 2))
+    # Speed lines sell motion without expensive image filters.
+    if launched and float(player.get("speed", 0.0)) > 12.0:
+        var intensity: float = clampf(float(player["speed"]) / 62.0, 0.15, 1.0)
+        for i in range(12):
+            var y := sz.y * (0.48 + fposmod(float(i) * 0.071, 0.24))
+            var x := fposmod(float(i * 111) - float(player["distance"]) * (5.0 + float(i % 4)), sz.x + 100.0) - 40.0
+            draw_line(Vector2(x, y), Vector2(x - 45.0 * intensity, y),
+                Color(0.65, 0.81, 0.97, 0.10 + intensity * 0.20), 1.0)
+    if race_flash > 0.0:
+        draw_rect(Rect2(0, sz.y * 0.31, sz.x, sz.y * 0.465),
+            Color(0.44, 0.88, 1.0, race_flash * 0.13))
 
 # Live-wallpaper mode: no garage, race logic, multiplayer, HUD or high-rate updates.
 # All wallpaper-native calls live in wallpaper_bridge.gd, guarded by Android checks.
