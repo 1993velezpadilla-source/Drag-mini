@@ -12,7 +12,7 @@ const CYAN := Color("37dafa")
 const PINK := Color("ff3d91")
 const GOLD := Color("ffc55f")
 const BG := Color("081020")
-const MAX_FONTSIZE := 28
+const MAX_FONTSIZE := 64
 var section := "menu"
 var data: Dictionary = {}
 var _cars: Array[Texture2D] = []
@@ -39,6 +39,10 @@ func _ui_label(txt: String, x1: float, y1: float, x2: float, y2: float, font_sca
     l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
     l.add_theme_font_size_override("font_size", clampi(int(size.x * font_scale), 12, MAX_FONTSIZE))
     l.add_theme_color_override("font_color", color)
+    if font_scale >= 0.090:
+        l.add_theme_constant_override("outline_size", 4)
+        l.add_theme_color_override("font_outline_color", Color("050618"))
+        l.add_theme_color_override("font_shadow_color", Color(0.0, 0.0, 0.0, 0.60))
     l.mouse_filter = Control.MOUSE_FILTER_IGNORE
     add_child(l)
     return l
