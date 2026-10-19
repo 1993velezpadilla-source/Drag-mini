@@ -2,6 +2,9 @@ name: Godot smoke check
 on:
   push:
   pull_request:
+concurrency:
+  group: drag-mini-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 jobs:
   smoke:
     runs-on: ubuntu-latest
