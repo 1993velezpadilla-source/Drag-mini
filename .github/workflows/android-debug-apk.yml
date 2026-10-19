@@ -92,19 +92,19 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p build
-          godot --headless --path . --install-android-build-template --export-debug Android "build/DragMini-v1.0-portrait-debug.apk" 2>&1 | tee build/export.log
-          test -s build/DragMini-v1.0-portrait-debug.apk
+          godot --headless --path . --install-android-build-template --export-debug Android "build/DragMini-v1.1-portrait-debug.apk" 2>&1 | tee build/export.log
+          test -s build/DragMini-v1.1-portrait-debug.apk
       - name: Verify APK signature and Android ARM64 contents
         run: |
           set -euo pipefail
-          unzip -t build/DragMini-v1.0-portrait-debug.apk | tail -1
-          unzip -Z1 build/DragMini-v1.0-portrait-debug.apk | grep -E 'lib/arm64-v8a/.*\.so$'
-          "$ANDROID_HOME/build-tools/35.0.1/apksigner" verify --verbose build/DragMini-v1.0-portrait-debug.apk
-          sha256sum build/DragMini-v1.0-portrait-debug.apk | tee build/sha256.txt
+          unzip -t build/DragMini-v1.1-portrait-debug.apk | tail -1
+          unzip -Z1 build/DragMini-v1.1-portrait-debug.apk | grep -E 'lib/arm64-v8a/.*\.so$'
+          "$ANDROID_HOME/build-tools/35.0.1/apksigner" verify --verbose build/DragMini-v1.1-portrait-debug.apk
+          sha256sum build/DragMini-v1.1-portrait-debug.apk | tee build/sha256.txt
       - name: Inspect Android wallpaper registration
         run: |
           set -euo pipefail
-          "$ANDROID_HOME/build-tools/35.0.1/aapt" dump xmltree build/DragMini-v1.0-portrait-debug.apk AndroidManifest.xml > build/android-manifest-audit.txt
+          "$ANDROID_HOME/build-tools/35.0.1/aapt" dump xmltree build/DragMini-v1.1-portrait-debug.apk AndroidManifest.xml > build/android-manifest-audit.txt
           grep -iE -C 5 'LiveWallpaper|WallpaperService|plugin.v2' build/android-manifest-audit.txt || true
           if ! grep -q 'plugin.v2.LiveWallpaper' build/android-manifest-audit.txt; then
             echo "ERROR: Native LiveWallpaper plugin registration missing from Android manifest"
@@ -112,17 +112,17 @@ jobs:
           fi
       - name: Package full editable Godot source with C++ procedural world
         run: |
-          git archive --format=zip -o build/DragMini-v1.0-Godot-source.zip HEAD
-          unzip -Z1 build/DragMini-v1.0-Godot-source.zip | grep -Fx 'assets/ui/official_main_menu.jpg'
-          unzip -Z1 build/DragMini-v1.0-Godot-source.zip | grep -Fx 'native/track_generator.cpp'
+          git archive --format=zip -o build/DragMini-v1.1-Godot-source.zip HEAD
+          unzip -Z1 build/DragMini-v1.1-Godot-source.zip | grep -Fx 'assets/ui/official_main_menu.jpg'
+          unzip -Z1 build/DragMini-v1.1-Godot-source.zip | grep -Fx 'native/track_generator.cpp'
       - name: Upload test APK for phone / Felix
         if: success()
         uses: actions/upload-artifact@v4
         with:
-          name: DragMini-v1.0-Android-ARM64-debug
+          name: DragMini-v1.1-Android-ARM64-debug
           path: |
-            build/DragMini-v1.0-portrait-debug.apk
-            build/DragMini-v1.0-Godot-source.zip
+            build/DragMini-v1.1-portrait-debug.apk
+            build/DragMini-v1.1-Godot-source.zip
             build/sha256.txt
             build/android-manifest-audit.txt
           retention-days: 14
