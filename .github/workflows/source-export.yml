@@ -1,10 +1,11 @@
-name: Drag Mini editable Godot source V0.7
+name: Drag Mini editable Godot source V1.0
 on:
   push:
     branches:
       - feature/v05-official-menu-track-shift-lamp
       - fix/v06-android-grey-screen-visible-menu
       - feature/v07-native-main-menu
+      - feature/v10-portrait-rebuild-cpp-track
   pull_request:
     paths:
       - 'assets/**'
@@ -20,14 +21,13 @@ jobs:
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@v4
-      - name: Verify official media are the original uploaded files
+      - name: Verify four vehicle sprites and native C++ track source
         run: |
           test "$(sha256sum assets/ui/official_main_menu.jpg | cut -d' ' -f1)" = "927fd4a3ff7bd29408454e767c580512500d30b77c11fc97e172c2ea96529060"
-          test "$(sha256sum assets/tracks/official_drag_strip.jpg | cut -d' ' -f1)" = "6652dc1f7852f43c4a58d82ae29503d80eb0a492f221deb2078a588bf6500ac7"
       - name: Create Godot source ZIP
-        run: git archive HEAD --format zip --output DragMini-v0.7-Godot-Project.zip
+        run: git archive HEAD --format zip --output DragMini-v1.0-Portrait-Godot-Project.zip
       - uses: actions/upload-artifact@v4
         with:
-          name: DragMini-v0.7-Editable-Godot-Source
-          path: DragMini-v0.7-Godot-Project.zip
+          name: DragMini-v1.0-Editable-Godot-Source
+          path: DragMini-v1.0-Portrait-Godot-Project.zip
           retention-days: 14

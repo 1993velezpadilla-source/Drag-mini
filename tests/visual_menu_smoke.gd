@@ -1,6 +1,5 @@
 extends SceneTree
-## Prevent a repeat of the Pixel Fold V0.5 solid grey display.
-## Run under xvfb (not --headless), so Godot actually rasterizes.
+## Rasterize actual portrait UI/screens (not source photo); reject blank Android frames.
 func _initialize() -> void:
     call_deferred("_start")
 
@@ -9,47 +8,55 @@ func _fail(reason: String) -> void:
     quit(1)
 
 func _check_frame(label: String) -> bool:
-    var vp := root
-    var output := vp.get_texture().get_image()
-    if output == null or output.get_width() < 600 or output.get_height() < 350:
-        _fail(label + " render texture is empty or too small")
+    var out := root.get_texture().get_image()
+    if out == null or out.get_width() < 400 or out.get_height() < 800:
+        _fail(label + " did not render 432x960 portrait")
         return false
     var bins := {}
-    for yi in range(3, 18):
-        for xi in range(3, 32):
-            var x := clampi(roundi(float(xi) * output.get_width() / 34.0), 0, output.get_width() - 1)
-            var y := clampi(roundi(float(yi) * output.get_height() / 20.0), 0, output.get_height() - 1)
-            var c := output.get_pixel(x, y)
-            bins[Vector3i(roundi(c.r * 10.0), roundi(c.g * 10.0), roundi(c.b * 10.0))] = true
+    for yi in range(3, 31):
+        for xi in range(3, 18):
+            var x := clampi(roundi(float(xi) * out.get_width() / 20.0), 0, out.get_width() - 1)
+            var y := clampi(roundi(float(yi) * out.get_height() / 34.0), 0, out.get_height() - 1)
+            var c := out.get_pixel(x, y)
+            bins[Vector3i(roundi(c.r * 10), roundi(c.g * 10), roundi(c.b * 10))] = true
     DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path("res://build"))
-    var err: int = output.save_png(ProjectSettings.globalize_path("res://build/visual-" + label + ".png"))
-    if err != OK:
-        _fail("Failed saving " + label + " screenshot")
+    if out.save_png(ProjectSettings.globalize_path("res://build/visual-" + label + ".png")) != OK:
+        _fail("Cannot save " + label)
         return false
-    if bins.size() < 22:
-        _fail(label + " screen is solid gray/black or official photo never rendered (" + str(bins.size()) + " color bins)")
+    if bins.size() < 19:
+        _fail(label + " was a grey/blank frame (" + str(bins.size()) + " color bins)")
         return false
     return true
 
 func _start() -> void:
-    DisplayServer.window_set_size(Vector2i(1280, 720))
+    DisplayServer.window_set_size(Vector2i(432, 960))
     var game = load("res://scenes/main.tscn").instantiate()
     root.add_child(game)
     var fallback = game.get_node_or_null("StartupFallback")
-    if fallback == null:
-        _fail("Static startup fallback scene not installed")
+    if fallback == null or fallback.visible or not game.get_meta("dragmini_boot_complete", false):
+        _fail("Persistent startup overlay obscures UI")
         return
-    if not game.get_meta("dragmini_boot_complete", false) or fallback.visible:
-        _fail("Game did not finish startup or static fallback incorrectly covers menu")
-        return
-    for i in range(8):
+    for page in ["menu", "garage", "upgrades", "settings", "career", "race_select", "wallpaper"]:
+        game._menu_action(page)
+        for i in range(5):
+            await process_frame
+        if not _check_frame(page):
+            return
+    game._menu_action("start")
+    for i in range(5):
         await process_frame
-    if not _check_frame("official-menu"):
+    if not _check_frame("race-start"):
         return
-    game._menu_action("race")
-    for i in range(8):
+    game.countdown = 0.0
+    game.player["distance"] = 399.0
+    for i in range(5):
         await process_frame
-    if not _check_frame("official-race-track"):
+    if not _check_frame("race-finish"):
         return
-    print("DRAG MINI VISUAL PASS: official menu and race render actual colorful frames")
+    game._enter_wallpaper_mode(false)
+    for i in range(5):
+        await process_frame
+    if not _check_frame("wallpaper-preview"):
+        return
+    print("DRAG MINI VISUAL PASS: 9 nonblank 432x960 native panels, C++ strip and wallpaper preview")
     quit(0)

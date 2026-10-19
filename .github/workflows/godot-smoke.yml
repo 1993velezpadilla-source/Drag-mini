@@ -12,6 +12,20 @@ jobs:
         with:
           version: 4.6.0
           use-dotnet: false
+      - name: Build native C++17 procedural world (and check committed generated data)
+        run: |
+          mkdir -p build
+          c++ -std=c++17 -O2 -Wall -Wextra -Werror native/track_generator.cpp -o build/drag_track_generator
+          build/drag_track_generator build/track_generated.json
+          python3 - <<'PY_NATIVE'
+          import json
+          from pathlib import Path
+          generated = json.loads(Path("build/track_generated.json").read_text())
+          shipped = json.loads(Path("assets/tracks/track_geometry.json").read_text())
+          assert generated == shipped, "C++ track geometry is stale. Regenerate committed JSON."
+          assert len(shipped["props"]) >= 70 and shipped["length_m"] >= 1610
+          print("CPP TRACK WORLD PASS")
+          PY_NATIVE
       - name: Import resources
         run: godot --headless --path . --editor --import --quit
       - name: Verify scene and sprites
@@ -24,22 +38,27 @@ jobs:
           set -o pipefail
           timeout 60s godot --headless --path . --script res://tests/touch_smoke.gd 2>&1 | tee /tmp/dragmini-touch.log
           grep -Fq 'DRAG MINI TOUCH PASS' /tmp/dragmini-touch.log
-      - name: Verify official owner images, interactive menu and shift-light feedback
+      - name: Verify independent portrait actions, native cars and shift feedback
         run: |
           set -o pipefail
           timeout 60s godot --headless --path . --script res://tests/official_assets_smoke.gd 2>&1 | tee /tmp/dragmini-official-art.log
-          grep -Fq 'DRAG MINI OFFICIAL ART + SHIFT PASS' /tmp/dragmini-official-art.log
+          grep -Fq 'DRAG MINI PORTRAIT + SHIFT PASS' /tmp/dragmini-official-art.log
+      - name: Master Orchestrator + Adversarial Critic gauntlet
+        run: |
+          set -o pipefail
+          timeout 80s godot --headless --path . --script res://tests/gauntlet_v1.gd 2>&1 | tee /tmp/dragmini-gauntlet.log
+          grep -Fq 'DRAG MINI GAUNTLET PASS' /tmp/dragmini-gauntlet.log
       - name: Render real OpenGL menu and track screenshots, reject grey frames
         run: |
           set -eo pipefail
           sudo apt-get update -qq
           sudo apt-get install -y -qq xvfb libgl1-mesa-dri
-          xvfb-run -a -s "-screen 0 1280x720x24" timeout 90s godot --path . --rendering-method gl_compatibility --script res://tests/visual_menu_smoke.gd 2>&1 | tee /tmp/dragmini-visual.log
+          xvfb-run -a -s "-screen 0 432x960x24" timeout 90s godot --path . --rendering-method gl_compatibility --script res://tests/visual_menu_smoke.gd 2>&1 | tee /tmp/dragmini-visual.log
           grep -Fq 'DRAG MINI VISUAL PASS' /tmp/dragmini-visual.log
       - name: Upload actual rendered menu and track screenshots
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: DragMini-V0.6-Real-Render-Screenshots
+          name: DragMini-v1.0-Portrait-Render-Screenshots
           path: build/visual-*.png
           if-no-files-found: warn
