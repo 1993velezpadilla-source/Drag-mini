@@ -115,17 +115,26 @@ func _ready() -> void:
         startup_guard.hide()
 
 func _style_button(button: Button, accent := false) -> void:
-    button.add_theme_font_size_override("font_size", 26)
-    button.add_theme_color_override("font_color", Color("ffffff"))
-    var normal := StyleBoxFlat.new()
-    normal.bg_color = Color("c33e28") if accent else Color("263548")
-    normal.set_corner_radius_all(18)
-    normal.set_content_margin_all(10)
-    button.add_theme_stylebox_override("normal", normal)
-    var down := StyleBoxFlat.new()
-    down.bg_color = Color("f57d34") if accent else Color("426382")
-    down.set_corner_radius_all(18)
-    button.add_theme_stylebox_override("pressed", down)
+    # One-handed racing cockpit: broad touch targets with tactile luminous edges.
+    button.add_theme_font_size_override("font_size", 25)
+    button.add_theme_color_override("font_color", Color("edfff8") if accent else Color("e7f4ff"))
+    button.add_theme_constant_override("outline_size", 1)
+    button.add_theme_color_override("font_outline_color", Color("040b17"))
+    for mode in ["normal", "hover", "pressed", "disabled"]:
+        var box := StyleBoxFlat.new()
+        box.bg_color = Color("15433b") if accent else Color("152b43")
+        if mode == "pressed":
+            box.bg_color = Color("167d59") if accent else Color("2467ad")
+        elif mode == "hover":
+            box.bg_color = Color("205c49") if accent else Color("274a67")
+        var rim := Color("52ffc6") if accent else Color("50bcff")
+        box.border_color = Color(rim.r, rim.g, rim.b, 0.94)
+        box.set_border_width_all(3)
+        box.set_corner_radius_all(23)
+        box.set_content_margin_all(10)
+        box.shadow_size = 5
+        box.shadow_color = Color(rim.r, rim.g, rim.b, 0.22)
+        button.add_theme_stylebox_override(mode, box)
 
 func _button(label_text: String, left: float, top: float, right: float, bottom: float, accent := false) -> Button:
     var btn := Button.new()
@@ -547,6 +556,8 @@ func _false_start() -> void:
     gas_finger = -1
     mouse_gas = false
     title_label.text = "DISQUALIFIED"
+    if progress.vibrations and OS.get_name() == "Android":
+        Input.vibrate_handheld(120)
     countdown_label.text = "RED LIGHT"
     detail_label.text = "LAUNCH BEFORE GO"
     shift_button.visible = false
@@ -673,6 +684,8 @@ func _end_race() -> void:
         notice = "EARNED $%d  + SKILL $%d  •  TOTAL $%d" % [earned, skill_cash, progress.cash]
         race_paid = true
     title_label.text = finish_text
+    if progress.vibrations and OS.get_name() == "Android":
+        Input.vibrate_handheld(65 if winning else 30)
     detail_label.text = "YOUR TIME: %.2fs\nRIVAL TIME: %.2fs" % [player["finish_time"], rival["finish_time"]]
     throttle_button.visible = false
     shift_button.visible = false
