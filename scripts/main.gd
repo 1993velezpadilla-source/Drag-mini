@@ -310,7 +310,9 @@ func _update_garage() -> void:
 func _make_driver(car_id: int) -> Dictionary:
     return {"car_id":car_id, "speed":0.0, "distance":0.0,
         "rpm":1050.0, "gear":0, "shift_timer":0.0,
-        "finished":false, "finish_time":0.0, "wheel_angle":0.0}
+        "finished":false, "finish_time":0.0, "wheel_angle":0.0,
+        "tuning":progress.performance(car_id), "nitrous_left":float(progress.level(car_id, "nitrous")) * 2.0,
+        "nitrous_active":0.0}
 
 func _start_race() -> void:
     screen = "race"
@@ -328,25 +330,42 @@ func _start_race() -> void:
     launch_rpm = 1050.0
     countdown = 4.0
     green_timer = 0.0
+    race_paid = false
+    wallpaper_mode = false
     player = _make_driver(selected)
-    rival = _make_driver((selected + 1) % CARS.size())
-    title_label.text = "1/4 MILE DRAG"
+    rival = _make_driver(int(Progression.STORY[progress.stage]["rival"]) if career_race else (selected + 1) % CARS.size())
+    title_label.text = _distance_name(race_distance_m) + " DRAG"
     title_label.visible = true
     telemetry_label.visible = true
     detail_label.visible = true
     message_label.visible = false
     countdown_label.visible = true
     countdown_label.text = "READY"
-    for btn in [prev_button, next_button, mode_button, race_button, retry_button, garage_button, wallpaper_button]:
+    for btn in [prev_button, next_button, mode_button, race_button, retry_button, garage_button, wallpaper_button, nitrous_button]:
         btn.visible = false
     throttle_button.visible = true
     shift_button.visible = true
     shift_button.text = "LAUNCH"
+    nitrous_button.visible = progress.level(selected, "nitrous") > 0
     _update_hud()
     queue_redraw()
 
 func _input(event: InputEvent) -> void:
     # Two real Android fingers: finger A holds GAS while finger B taps SHIFT.
+    if wallpaper_mode:
+        if progress.wallpaper_interactive and event is InputEventScreenTouch:
+            var touch_wall := event as InputEventScreenTouch
+            if touch_wall.pressed:
+                wallpaper_touch_down = touch_wall.position
+                wallpaper_boost = 2.0
+            elif absf(touch_wall.position.x - wallpaper_touch_down.x) > 60.0:
+                selected = posmod(selected + (1 if touch_wall.position.x < wallpaper_touch_down.x else -1), CARS.size())
+                progress.selected = selected
+                progress.save_game()
+            get_viewport().set_input_as_handled()
+        if not wallpaper_bridge.is_wallpaper and event is InputEventKey and event.pressed:
+            _show_main_menu()
+        return
     if screen != "race" or false_start:
         return
     if event is InputEventScreenTouch:
@@ -365,6 +384,8 @@ func _route_touch(finger: int, position: Vector2, pressed: bool) -> void:
             if gas_finger == -1:
                 gas_finger = finger
                 _on_gas_down()
+        elif nitrous_button.visible and nitrous_button.get_global_rect().has_point(position):
+            _activate_nitrous()
         elif shift_button.visible and shift_button.get_global_rect().has_point(position):
             _player_shift()
     elif finger == gas_finger:
@@ -379,6 +400,8 @@ func _route_mouse(position: Vector2, pressed: bool) -> void:
     elif not pressed and mouse_gas:
         mouse_gas = false
         throttle_held = gas_finger != -1
+    elif pressed and nitrous_button.visible and nitrous_button.get_global_rect().has_point(position):
+        _activate_nitrous()
     elif pressed and shift_button.visible and shift_button.get_global_rect().has_point(position):
         _player_shift()
     _refresh_pedal_color()
@@ -386,6 +409,16 @@ func _route_mouse(position: Vector2, pressed: bool) -> void:
 func _refresh_pedal_color() -> void:
     if is_instance_valid(throttle_button):
         throttle_button.modulate = Color("ffddaf") if throttle_held else Color.WHITE
+
+func _activate_nitrous() -> void:
+    if screen != "race" or countdown > 0.0 or false_start:
+        return
+    if float(player.get("nitrous_left", 0.0)) <= 0.0:
+        return
+    player["nitrous_active"] = 2.0
+    nitrous_button.visible = false
+    if progress.vibrations and OS.get_name() == "Android":
+        Input.vibrate_handheld(60)
 
 func _on_gas_down() -> void:
     if screen != "race" or false_start:
@@ -438,13 +471,14 @@ func _shift(driver: Dictionary) -> void:
     if driver["shift_timer"] > 0.0 or driver["gear"] >= RATIOS.size() - 1:
         return
     driver["gear"] += 1
-    driver["shift_timer"] = 0.23
+    driver["shift_timer"] = 0.23 * float(driver["tuning"]["shift"])
 
 func _advance_car(driver: Dictionary, delta: float, gas: bool, shift_auto: bool) -> void:
     if driver["finished"]:
         return
     var model: Dictionary = CARS[driver["car_id"]]
     driver["shift_timer"] = maxf(0.0, driver["shift_timer"] - delta)
+    var tuning: Dictionary = driver["tuning"]
     var gear_ratio: float = RATIOS[driver["gear"]] * model["final"]
     var wheel_radius := 0.305
     var coupled_rpm: float = driver["speed"] * gear_ratio * 60.0 / (TAU * wheel_radius)
@@ -456,23 +490,31 @@ func _advance_car(driver: Dictionary, delta: float, gas: bool, shift_auto: bool)
     var curve := clampf(1.08 - absf(normalized - 0.65) * 0.63, 0.25, 1.0)
     if driver["rpm"] > model["redline"]:
         curve *= 0.08
-    var wheel_force: float = throttle * model["torque"] * curve * gear_ratio * 0.82 / wheel_radius
-    var max_traction: float = model["mass"] * 9.81 * model["grip"] * 0.63
+    var nitrous_seconds: float = float(driver["nitrous_active"])
+    if nitrous_seconds > 0.0:
+        nitrous_seconds = maxf(0.0, nitrous_seconds - delta)
+        driver["nitrous_active"] = nitrous_seconds
+        driver["nitrous_left"] = maxf(0.0, float(driver["nitrous_left"]) - delta)
+    var force_boost := 1.5 if nitrous_seconds > 0.0 else 1.0
+    var wheel_force: float = throttle * model["torque"] * float(tuning["torque"]) * force_boost * curve * gear_ratio * 0.82 / wheel_radius
+    var effective_mass: float = model["mass"] * float(tuning["mass"])
+    var max_traction: float = effective_mass * 9.81 * model["grip"] * float(tuning["grip"]) * 0.63
     var resistance: float = 0.45 * driver["speed"] * driver["speed"] + 125.0
     var net: float = minf(wheel_force, max_traction) - resistance
-    driver["speed"] = maxf(0.0, driver["speed"] + (net / model["mass"]) * delta)
+    driver["speed"] = maxf(0.0, driver["speed"] + (net / effective_mass) * delta)
     driver["distance"] += driver["speed"] * delta
     # Tire rotation follows *actual* car velocity, including manual coasting.
     driver["wheel_angle"] = fposmod(float(driver["wheel_angle"]) + float(driver["speed"]) * delta / wheel_radius, TAU)
-    if driver["distance"] >= QUARTER_MILE_M:
-        driver["distance"] = QUARTER_MILE_M
+    if driver["distance"] >= race_distance_m:
+        driver["distance"] = race_distance_m
         driver["finished"] = true
         driver["finish_time"] = elapsed
 
 func _process(delta: float) -> void:
     if wallpaper_mode:
         # Wallpaper has its own inexpensive visual loop, even with racing paused.
-        wallpaper_wheel_angle = fposmod(wallpaper_wheel_angle + delta * 3.8, TAU)
+        wallpaper_boost = maxf(0.0, wallpaper_boost - delta)
+        wallpaper_wheel_angle = fposmod(wallpaper_wheel_angle + delta * (9.0 if wallpaper_boost > 0.0 else 3.8), TAU)
         wallpaper_road_offset = fposmod(wallpaper_road_offset + delta * 80.0, 160.0)
         queue_redraw()
         return
@@ -515,12 +557,19 @@ func _process(delta: float) -> void:
 func _end_race() -> void:
     var winning: bool = float(player["finish_time"]) <= float(rival["finish_time"])
     finish_text = "YOU WIN!" if winning else "RIVAL WINS"
+    if not race_paid:
+        var earned: int = progress.complete_race(winning, float(player["finish_time"]), career_race, race_distance_m)
+        notice = "EARNED $%d   •   TOTAL $%d" % [earned, progress.cash]
+        race_paid = true
     title_label.text = finish_text
     detail_label.text = "YOUR TIME: %.2fs\nRIVAL TIME: %.2fs" % [player["finish_time"], rival["finish_time"]]
     throttle_button.visible = false
     shift_button.visible = false
     retry_button.visible = true
     garage_button.visible = true
+    nitrous_button.visible = false
+    message_label.text = notice
+    message_label.visible = true
     countdown_label.visible = false
 
 func _update_hud() -> void:
