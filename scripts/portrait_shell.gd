@@ -18,6 +18,13 @@ var data: Dictionary = {}
 var _cars: Array[Texture2D] = []
 var _car_parts: Array[Dictionary] = []
 var _font: Font
+var _motion := 0.0
+
+func _process(delta: float) -> void:
+    if section == "menu":
+        _motion = fposmod(_motion + delta, 1000.0)
+        queue_redraw()
+
 
 func _ready() -> void:
     mouse_filter = Control.MOUSE_FILTER_STOP
@@ -70,6 +77,7 @@ func _button(txt: String, x1: float, y1: float, x2: float, y2: float, action: St
 
 func present(target: String, state: Dictionary) -> void:
     section = target
+    set_process(target == "menu")
     data = state.duplicate(true)
     for child in get_children():
         child.hide()
@@ -150,16 +158,18 @@ func _settings() -> void:
         0.055, 0.64, 0.945, 0.715, "toggle_time", PINK)
     _button("WALLPAPER TOUCH: " + ("ON" if bool(data.get("wallpaper_interactive", true)) else "OFF"),
         0.055, 0.73, 0.945, 0.805, "toggle_wallpaper_touch", GOLD)
-    _ui_label("Your settings and upgrades save locally.", 0.07, 0.84, 0.93, 0.90, 0.043, Color("c3cbdc"))
+    _button("ENGINE SOUND: " + ("ON" if bool(data.get("audio", true)) else "OFF"),
+        0.055, 0.815, 0.945, 0.875, "toggle_audio", PINK)
+    _ui_label("Preferences and tuning save locally.", 0.07, 0.891, 0.93, 0.945, 0.040, Color("c3cbdc"))
 
 func _career() -> void:
-    _ui_label("STREET STORY", 0.04, 0.288, 0.96, 0.349, 0.071, PINK)
-    _ui_label("CHAPTER %d / 12" % (int(data.get("stage", 0)) + 1), 0.06, 0.375, 0.94, 0.419, 0.052, GOLD)
-    _ui_label(str(data.get("story", "")), 0.055, 0.435, 0.945, 0.511, 0.074)
-    _ui_label(str(data.get("story_distance", "1/4 MILE")), 0.08, 0.529, 0.92, 0.586, 0.058, CYAN)
-    _ui_label("RIVAL: " + str(data.get("rival_name", "?")), 0.06, 0.618, 0.94, 0.665, 0.051, GOLD)
-    _ui_label(str(data.get("dialogue", "")), 0.07, 0.662, 0.93, 0.741, 0.041, Color("bac7d8"))
-    _ui_label("STAGE PRIZE   $%d" % int(data.get("story_prize", 0)), 0.07, 0.73, 0.93, 0.78, 0.055, GOLD)
+    _ui_label("STREET STORY", 0.04, 0.281, 0.96, 0.341, 0.069, PINK)
+    _ui_label("CHAPTER %d / 12" % (int(data.get("stage", 0)) + 1), 0.06, 0.357, 0.94, 0.399, 0.052, GOLD)
+    _ui_label(str(data.get("story", "")), 0.055, 0.409, 0.945, 0.477, 0.069)
+    _ui_label(str(data.get("story_distance", "1/4 MILE")), 0.08, 0.483, 0.92, 0.535, 0.058, CYAN)
+    _ui_label("RIVAL: " + str(data.get("rival_name", "?")), 0.06, 0.547, 0.94, 0.595, 0.049, GOLD)
+    _ui_label(str(data.get("dialogue", "")), 0.07, 0.607, 0.93, 0.678, 0.039, Color("d3e1f3"))
+    _ui_label("STAGE PRIZE   $%d" % int(data.get("story_prize", 0)), 0.07, 0.692, 0.93, 0.742, 0.053, GOLD)
     _button("▶  CHALLENGE RIVAL", 0.05, 0.866, 0.95, 0.969, "career_start", Color("52f48a"))
 
 func _race_select() -> void:
@@ -173,9 +183,9 @@ func _race_select() -> void:
 
 func _wallpaper() -> void:
     _ui_label("LIVE WALLPAPER", 0.04, 0.29, 0.96, 0.36, 0.068, PINK)
-    _ui_label("YOUR GARAGE. YOUR HOME SCREEN.", 0.07, 0.39, 0.93, 0.45, 0.05, CYAN)
-    _ui_label("Drive the scene with your chosen ride.\nInteractive touches depend on your launcher.",
-        0.07, 0.49, 0.93, 0.62, 0.048, Color("c9d9e9"))
+    _ui_label("YOUR GARAGE. YOUR HOME SCREEN.", 0.07, 0.387, 0.93, 0.443, 0.05, CYAN)
+    _ui_label("Swipe to switch your car. Tap to rev.\nYour launcher may restrict wallpaper touch.",
+        0.07, 0.456, 0.93, 0.554, 0.044, Color("d1e2f1"))
     _button("SET LIVE WALLPAPER", 0.07, 0.685, 0.93, 0.773, "wallpaper_apply", Color("57ff8a"))
     _button("PREVIEW WALLPAPER", 0.07, 0.795, 0.93, 0.879, "wallpaper_preview")
     _ui_label(str(data.get("notice", "")), 0.06, 0.893, 0.94, 0.973, 0.037, GOLD)
@@ -199,26 +209,36 @@ func _draw() -> void:
             draw_rect(Rect2(px + 5.0, h * 0.55 - ht + 14 + j * 13, 3.0, 4.0), CYAN if i % 2 else PINK)
     draw_rect(Rect2(0, h * 0.547, w, h * 0.1), Color("0b1425"))
     draw_line(Vector2(0, h * 0.645), Vector2(w, h * 0.645), PINK, 2.0)
+    if section in ["career", "wallpaper", "settings", "upgrades"]:
+        # Fixed high-contrast reading panels; skyline cannot collide with text.
+        draw_rect(Rect2(w * 0.035, h * 0.278, w * 0.93, h * 0.485),
+            Color("060e22", 0.91))
+        draw_rect(Rect2(w * 0.035, h * 0.278, w * 0.93, h * 0.485),
+            Color("377c98", 0.30), false, 2.0)
     if _cars.size() < 4:
         return
     var index := clampi(int(data.get("car", 0)), 0, 3)
     if section == "menu":
         # All 4 owner car art files are independent, correct-aspect textures.
-        _car(_cars[index], Rect2(w * 0.08, h * 0.295, w * 0.84, w * 0.84 * 54.0 / 128.0))
+        _car(_cars[index], Rect2(w * 0.08 + sin(_motion * 1.7) * 2.0, h * 0.295, w * 0.84, w * 0.84 * 54.0 / 128.0), sin(_motion * 2.0) * 0.02)
         for i in range(4):
             var sx := w * (0.025 + i * 0.244)
             _car(_cars[i], Rect2(sx, h * 0.535, w * 0.23, w * 0.23 * 54.0 / 128.0))
     elif section == "garage":
         _car(_cars[index], Rect2(w * 0.05, h * 0.385, w * 0.90, w * 0.90 * 54.0 / 128.0))
-    elif section in ["career", "race_select", "wallpaper", "wallpaper_preview"]:
-        _car(_cars[index], Rect2(w * 0.16, h * 0.56, w * 0.68, w * 0.68 * 54.0 / 128.0))
+    elif section == "career":
+        _car(_cars[index], Rect2(w * 0.24, h * 0.764, w * 0.52, w * 0.52 * 54.0 / 128.0))
+    elif section in ["wallpaper", "wallpaper_preview"]:
+        _car(_cars[index], Rect2(w * 0.16, h * 0.573, w * 0.68, w * 0.68 * 54.0 / 128.0))
+    elif section == "race_select":
+        _car(_cars[index], Rect2(w * 0.225, h * 0.794, w * 0.55, w * 0.55 * 54.0 / 128.0))
 
-func _car(texture: Texture2D, r: Rect2) -> void:
+func _car(texture: Texture2D, r: Rect2, angle: float = 0.0) -> void:
     if texture == null:
         return
     draw_rect(Rect2(r.position.x + 8, r.end.y - 10, r.size.x - 16, 12), Color(0.0, 0.0, 0.0, 0.37))
     var idx := _cars.find(texture)
     if idx >= 0 and idx < _car_parts.size():
-        Wheels.draw_car(self, _car_parts[idx], r, 0.0)
+        Wheels.draw_car(self, _car_parts[idx], r, angle)
     else:
         draw_texture_rect(texture, r, false)

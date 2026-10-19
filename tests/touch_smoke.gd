@@ -38,6 +38,15 @@ func _run() -> void:
     if game.countdown > 0.0 or game.false_start:
         _fail("GO should release the car")
         return
+    if game.launched or float(game.player["distance"]) != 0.0:
+        _fail("Clutch launched automatically before manual LAUNCH tap")
+        return
+    shift = game.shift_button.get_global_rect().get_center()
+    game._route_touch(8, shift, true)
+    if not game.launched or int(game.player["gear"]) != 0:
+        _fail("LAUNCH must engage first gear on second finger")
+        return
+    game._route_touch(8, shift, false)
     for i in range(20):
         game._process(0.05)
     if float(game.player["distance"]) <= 0.0 or not game.throttle_held:

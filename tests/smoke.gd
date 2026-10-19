@@ -60,6 +60,15 @@ func _run_smoke() -> void:
     if game.false_start or game.countdown > 0.0:
         _fail("legal launch was blocked")
         return
+    if float(game.player["distance"]) != 0.0:
+        _fail("Manual clutch must not move before launch tap")
+        return
+    game._player_shift()
+    if not game.launched or int(game.player["gear"]) != 0:
+        _fail("First green tap must release clutch, not accidentally select gear two")
+        return
+    for i in range(60):
+        game._process(1.0 / 30.0)
     if float(game.player["speed"]) <= 0.0 or float(game.player["wheel_angle"]) <= 0.0:
         _fail("player wheels did not move with acceleration")
         return

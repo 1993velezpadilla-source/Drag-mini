@@ -20,6 +20,7 @@ func _run() -> void:
         game.countdown = 0.0
         game.countdown_label.text = "GO!"
         game.throttle_held = true
+        game._launch_car()
         var max_ticks: int = 24000
         var prev_m: float = 0.0
         var reached: bool = false

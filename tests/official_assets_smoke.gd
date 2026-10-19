@@ -35,6 +35,7 @@ func _run() -> void:
     game.countdown = 0.0
     game.auto_shift = false
     game.throttle_held = true
+    game._launch_car()
     game.player["rpm"] = float(game.CARS[game.selected]["redline"]) * 0.90
     game.player["shift_timer"] = 0.0
     game._player_shift()
