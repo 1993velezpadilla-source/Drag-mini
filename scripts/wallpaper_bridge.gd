@@ -58,15 +58,27 @@ func start_live_wallpaper() -> bool:
     if _native == null:
         diagnostic = "PLUGIN UNAVAILABLE: no native Android singleton (check APK plugin registration)"
         return false
-    if not _native.has_method("startWallpaperService"):
-        diagnostic = "PLUGIN ERROR: startWallpaperService missing from native API"
-        return false
-    var result: int = int(_native.call("startWallpaperService"))
-    if result != 1:
-        diagnostic = "Android reports live wallpapers unavailable"
-        return false
-    diagnostic = "Opened Android wallpaper selector"
-    return true
+    # Godot 4.6 exposes only Java/Kotlin @UsedByGodot methods.
+    # New distinct public endpoint first; legacy endpoint second.
+    var supported := ["openWallpaperPicker", "startWallpaperService"]
+    var tried := false
+    for name in supported:
+        if _native.has_method(name):
+            tried = true
+            var result: int = int(_native.call(name))
+            if result == 1:
+                diagnostic = "Android wallpaper picker opened"
+                return true
+    if tried:
+        diagnostic = "WALLPAPER PICKER FAILED: Android rejected the launch. Check device live-wallpaper support."
+    else:
+        var exported := PackedStringArray()
+        for method in _native.get_method_list():
+            var method_name := str(method.get("name", ""))
+            if method_name.to_lower().contains("wallpaper"):
+                exported.append(method_name)
+        diagnostic = "PLUGIN API NOT EXPORTED: Reinstall the new ARM64 APK. Native methods: " + ", ".join(exported)
+    return false
 
 func _on_visibility(visible: bool) -> void:
     if not is_wallpaper:
