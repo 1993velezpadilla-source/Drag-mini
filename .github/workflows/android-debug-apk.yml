@@ -3,6 +3,7 @@ on:
   workflow_dispatch:
   push:
     branches:
+      - main
       - feature/android-debug-apk-first-build
       - feature/wallpaper-godot46-native
       - feature/v04-real-touch-start-wallpaper-diagnostics
