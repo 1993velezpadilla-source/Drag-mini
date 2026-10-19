@@ -89,7 +89,7 @@ static func draw_world(c: CanvasItem, b: Rect2, camera_m: float, finish_m: float
     var bridge_base := x + w * 0.51 - bridge_scroll
     _line(c, bridge_base - w * 0.48, y + h * 0.455, bridge_base + w * 0.48, y + h * 0.455, Color("a3afb8", 0.7), 3.5)
     for tower in [-w * 0.23, w * 0.23]:
-        var tx := bridge_base + tower
+        var tx: float = bridge_base + float(tower)
         _line(c, tx, y + h * 0.46, tx, y + h * 0.30, Color("94bbd0", 0.65), 4.0)
         for cable in range(5):
             _line(c, tx, y + h * 0.312, tx + (float(cable) - 2.0) * w * 0.065,
