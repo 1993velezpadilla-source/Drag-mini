@@ -158,7 +158,9 @@ func _settings() -> void:
         0.055, 0.64, 0.945, 0.715, "toggle_time", PINK)
     _button("WALLPAPER TOUCH: " + ("ON" if bool(data.get("wallpaper_interactive", true)) else "OFF"),
         0.055, 0.73, 0.945, 0.805, "toggle_wallpaper_touch", GOLD)
-    _ui_label("Your settings and upgrades save locally.", 0.07, 0.84, 0.93, 0.90, 0.043, Color("c3cbdc"))
+    _button("ENGINE SOUND: " + ("ON" if bool(data.get("audio", true)) else "OFF"),
+        0.055, 0.815, 0.945, 0.875, "toggle_audio", PINK)
+    _ui_label("Preferences and tuning save locally.", 0.07, 0.891, 0.93, 0.945, 0.040, Color("c3cbdc"))
 
 func _career() -> void:
     _ui_label("STREET STORY", 0.04, 0.281, 0.96, 0.341, 0.069, PINK)
