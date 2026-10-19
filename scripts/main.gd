@@ -161,10 +161,12 @@ func _label(text_value: String, top: float, bottom: float, font_size: int) -> La
 func _make_ui() -> void:
     title_label = _label("DRAG MINI", 0.035, 0.108, 36)
     build_label = _label("DRAG MINI • STREET RACING", 0.007, 0.041, 13)
-    detail_label = _label("", 0.26, 0.328, 19)
+    detail_label = _label("", 0.276, 0.327, 18)
     telemetry_label = _label("", 0.108, 0.179, 19)
     message_label = _label("", 0.765, 0.82, 17)
-    shift_feedback_label = _label("", 0.365, 0.427, 34)
+    shift_feedback_label = _label("", 0.440, 0.495, 31)
+    shift_feedback_label.add_theme_constant_override("outline_size", 4)
+    shift_feedback_label.add_theme_color_override("font_outline_color", Color("060d19"))
     shift_feedback_label.visible = false
     countdown_label = _label("", 0.333, 0.401, 43)
     countdown_label.visible = false
@@ -702,11 +704,23 @@ func _draw() -> void:
     if screen != "race":
         return
     draw_rect(Rect2(Vector2.ZERO, sz), Color("081020"))
+    # Dedicated low-clutter HUD instead of text floating on the race world.
+    draw_rect(Rect2(0, 0, sz.x, sz.y * 0.313), Color("071021"))
+    draw_rect(Rect2(sz.x * 0.028, sz.y * 0.087, sz.x * 0.944, sz.y * 0.106), Color("101d30"))
+    draw_rect(Rect2(sz.x * 0.028, sz.y * 0.087, sz.x * 0.944, sz.y * 0.106), Color("396583", 0.5), false, 1.5)
+    draw_line(Vector2(sz.x * 0.03, sz.y * 0.263), Vector2(sz.x * 0.97, sz.y * 0.263), Color("16364b"), 2.0)
     _draw_rpm_meter(sz)
     var bounds := Rect2(0, sz.y * 0.31, sz.x, sz.y * 0.465)
     var hour: int = int(Time.get_datetime_dict_from_system().get("hour", 21)) if progress.dynamic_time else 22
     ProceduralTrack.draw_world(self, bounds, float(player.get("distance", 0.0)),
         race_distance_m, hour, countdown, false_start)
+    # Split lane progress shows the pursuit even when cars are off-camera.
+    var track_progress_a := clampf(float(player.get("distance", 0.0)) / race_distance_m, 0.0, 1.0)
+    var track_progress_b := clampf(float(rival.get("distance", 0.0)) / race_distance_m, 0.0, 1.0)
+    draw_rect(Rect2(sz.x * 0.06, sz.y * 0.775, sz.x * 0.88, 5), Color("25374b"))
+    draw_rect(Rect2(sz.x * 0.06, sz.y * 0.775, sz.x * 0.88 * track_progress_a, 3), Color("56ffd0"))
+    draw_circle(Vector2(sz.x * (0.06 + track_progress_a * 0.88), sz.y * 0.775), 5, Color("56ffd0"))
+    draw_circle(Vector2(sz.x * (0.06 + track_progress_b * 0.88), sz.y * 0.775), 3.5, Color("ff6e85"))
     if visual_cars.is_empty():
         return
     # Both racers remain legible and anchored to their lane, not floating over UI.
@@ -773,7 +787,7 @@ func _draw_race_lights(sz: Vector2) -> void:
         draw_circle(Vector2(x, top + r * 2.6), r, Color("ff3636"))
 
 func _draw_rpm_meter(sz: Vector2) -> void:
-    var c := Vector2(sz.x * 0.50, sz.y * 0.23)
+    var c := Vector2(sz.x * 0.50, sz.y * 0.230)
     var rad: float = minf(sz.x * 0.14, sz.y * 0.044)
     var redline: float = float(CARS[selected]["redline"])
     var ratio: float = clampf(float(player.get("rpm", 1050.0)) / redline, 0.0, 1.0)
@@ -790,6 +804,9 @@ func _draw_rpm_meter(sz: Vector2) -> void:
     var lamp := Vector2(sz.x * 0.50, sz.y * 0.18)
     draw_circle(lamp, 19.0, Color(shift_color.r, shift_color.g, shift_color.b, 0.20))
     draw_circle(lamp, 10.0, shift_color)
+    var amp: float = 0.65 + 0.35 * sin(elapsed * 9.0)
+    if ratio >= 0.87 and ratio <= 0.965 and launched:
+        draw_arc(lamp, 19.0 + amp * 2.0, 0.0, TAU, 24, Color("56ffa4", 0.7), 2.0)
 
 func _draw_wallpaper(sz: Vector2) -> void:
     draw_rect(Rect2(Vector2.ZERO, sz), Color("081020"))
