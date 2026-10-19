@@ -32,6 +32,19 @@ func _start() -> void:
     DisplayServer.window_set_size(Vector2i(432, 960))
     var game = load("res://scenes/main.tscn").instantiate()
     root.add_child(game)
+    # Visual snapshots must represent a clean install, not credit-rich test saves.
+    game.progress.cash = 2500
+    game.progress.xp = 0
+    game.progress.wins = 0
+    game.progress.losses = 0
+    game.progress.stage = 0
+    game.progress.upgrades = {}
+    game.selected = 0
+    game.progress.selected = 0
+    game.progress.distance_choice = 1
+    game.auto_shift = false
+    game.progress.auto_shift = false
+    game._show_main_menu()
     var fallback = game.get_node_or_null("StartupFallback")
     if fallback == null or fallback.visible or not game.get_meta("dragmini_boot_complete", false):
         _fail("Persistent startup overlay obscures UI")

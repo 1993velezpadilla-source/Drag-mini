@@ -164,7 +164,7 @@ func _make_ui() -> void:
     wallpaper_button = _button("WALLPAPER", 0.55, 0.86, 0.94, 0.97)
     throttle_button = _button("HOLD GAS", 0.035, 0.832, 0.52, 0.969, true)
     shift_button = _button("LAUNCH", 0.54, 0.832, 0.965, 0.969)
-    nitrous_button = _button("N2O BOOST", 0.62, 0.764, 0.965, 0.830)
+    nitrous_button = _button("NITRO", 0.62, 0.764, 0.965, 0.830)
     throttle_button.mouse_filter = Control.MOUSE_FILTER_IGNORE
     shift_button.mouse_filter = Control.MOUSE_FILTER_IGNORE
     nitrous_button.mouse_filter = Control.MOUSE_FILTER_IGNORE
