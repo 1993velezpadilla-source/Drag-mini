@@ -52,7 +52,7 @@ text=text.replace(old,"    fun startWallpaperService(): Int {")
 text=text.replace("    private fun IsPreview():Boolean{","    fun IsPreview():Boolean{")
 # A distinctly named, public Godot API to bypass old method registration errors.
 # Keep the legacy API as compatibility fallback, but prefer this new picker method.
-needle="    @UsedByGodot\n    private fun startWallpaperService(): Int {"
+needle="    @UsedByGodot\n    fun startWallpaperService(): Int {"
 if needle not in text:
     raise SystemExit("Cannot find native @UsedByGodot wallpaper method")
 injection="""    @UsedByGodot
