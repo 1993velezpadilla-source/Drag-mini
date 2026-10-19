@@ -56,6 +56,11 @@ jobs:
           set -o pipefail
           timeout 65s godot --headless --path . --script res://tests/race_feel_gauntlet.gd 2>&1 | tee /tmp/dragmini-feel.log
           grep -Fq 'DRAG MINI RACE FEEL PASS' /tmp/dragmini-feel.log
+      - name: PREMIUM adversarial critic (JNI, dyno/tune, physics cadence)
+        run: |
+          set -o pipefail
+          timeout 80s godot --headless --path . --script res://tests/premium_critic.gd 2>&1 | tee /tmp/dragmini-premium.log
+          grep -Fq 'DRAG MINI PREMIUM CRITIC PASS' /tmp/dragmini-premium.log
       - name: Adversarial real-race endurance (1/8, 1/4, 1/2, full mile)
         run: |
           set -o pipefail
