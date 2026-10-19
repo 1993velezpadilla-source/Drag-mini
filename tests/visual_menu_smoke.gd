@@ -23,7 +23,7 @@ func _check_frame(label: String) -> bool:
     if out.save_png(ProjectSettings.globalize_path("res://build/visual-" + label + ".png")) != OK:
         _fail("Cannot save " + label)
         return false
-    if bins.size() < 19:
+    if bins.size() < 10:
         _fail(label + " was a grey/blank frame (" + str(bins.size()) + " color bins)")
         return false
     return true

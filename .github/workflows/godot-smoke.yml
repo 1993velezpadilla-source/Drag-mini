@@ -49,6 +49,8 @@ jobs:
           timeout 80s godot --headless --path . --script res://tests/gauntlet_v1.gd 2>&1 | tee /tmp/dragmini-gauntlet.log
           grep -Fq 'DRAG MINI GAUNTLET PASS' /tmp/dragmini-gauntlet.log
       - name: Render real OpenGL menu and track screenshots, reject grey frames
+        env:
+          GODOT_AUDIO_DRIVER: Dummy
         run: |
           set -eo pipefail
           sudo apt-get update -qq

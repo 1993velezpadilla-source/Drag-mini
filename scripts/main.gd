@@ -72,6 +72,7 @@ var wallpaper_mode := false
 func _ready() -> void:
     progress = Progression.new()
     progress.load_game()
+    get_tree().auto_accept_quit = false
     selected = progress.selected
     auto_shift = progress.auto_shift
     if OS.get_name() == "Android":
@@ -353,6 +354,12 @@ func _start_race() -> void:
 func _input(event: InputEvent) -> void:
     # Two real Android fingers: finger A holds GAS while finger B taps SHIFT.
     if wallpaper_mode:
+        if event is InputEventScreenTouch and not wallpaper_bridge.is_wallpaper:
+            var preview_touch := event as InputEventScreenTouch
+            if preview_touch.pressed and preview_touch.position.y < size.y * 0.18:
+                _show_main_menu()
+                get_viewport().set_input_as_handled()
+                return
         if progress.wallpaper_interactive and event is InputEventScreenTouch:
             var touch_wall := event as InputEventScreenTouch
             if touch_wall.pressed:
@@ -515,7 +522,9 @@ func _process(delta: float) -> void:
         # Wallpaper has its own inexpensive visual loop, even with racing paused.
         wallpaper_boost = maxf(0.0, wallpaper_boost - delta)
         wallpaper_wheel_angle = fposmod(wallpaper_wheel_angle + delta * (9.0 if wallpaper_boost > 0.0 else 3.8), TAU)
-        wallpaper_road_offset = fposmod(wallpaper_road_offset + delta * 80.0, 160.0)
+        wallpaper_road_offset += delta * (95.0 if wallpaper_boost > 0.0 else 12.0)
+        if wallpaper_road_offset > 1200.0:
+            wallpaper_road_offset = 0.0
         queue_redraw()
         return
     if screen != "race":
@@ -688,3 +697,10 @@ func _request_wallpaper() -> void:
     else:
         notice = wallpaper_bridge.diagnostic
 
+
+func _notification(what: int) -> void:
+    if what == NOTIFICATION_WM_GO_BACK_REQUEST:
+        if screen != "menu" and not wallpaper_bridge.is_wallpaper:
+            _show_main_menu()
+        else:
+            get_tree().quit()
