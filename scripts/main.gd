@@ -31,6 +31,10 @@ var screen := "menu"
 var player := {}
 var rival := {}
 var elapsed := 0.0
+var _sim_left := 0.0
+var race_split_60 := -1.0
+var race_split_330 := -1.0
+var race_trap_mph := 0.0
 var finish_text := ""
 var shift_feedback_until := 0.0
 var shift_feedback := ""
@@ -223,7 +227,7 @@ func _state() -> Dictionary:
         "vibration":progress.vibrations, "dynamic":progress.dynamic_time,
         "audio":progress.audio_enabled,
         "wallpaper_interactive":progress.wallpaper_interactive,
-        "parts":part_states, "notice":notice
+        "parts":part_states, "tune":progress.tune(selected).duplicate(true), "notice":notice
     }
 
 func _distance_name(meters: float) -> String:
@@ -246,6 +250,13 @@ func _present(page: String) -> void:
     queue_redraw()
 
 func _menu_action(action: String) -> void:
+    if action.begins_with("tune:"):
+        var details := action.split(":")
+        if details.size() == 3 and details[1] in Progression.TUNE_IDS:
+            if progress.tune_adjust(selected, details[1], int(details[2])):
+                notice = "TUNE SAVED  /  " + details[1].to_upper()
+            _present("tune")
+        return
     if action.begins_with("upgrade:"):
         var part_id := action.trim_prefix("upgrade:")
         if progress.purchase(selected, part_id):
@@ -276,6 +287,7 @@ func _menu_action(action: String) -> void:
         "race", "race_select": _present("race_select")
         "career": _present("career")
         "upgrades": _present("upgrades")
+        "tune": _present("tune")
         "settings": _present("settings")
         "wallpaper": _present("wallpaper")
         "wallpaper_apply":
@@ -341,7 +353,7 @@ func _make_driver(car_id: int) -> Dictionary:
         "rpm":1050.0, "gear":0, "shift_timer":0.0,
         "finished":false, "finish_time":0.0, "wheel_angle":0.0,
         "tuning":progress.performance(car_id), "nitrous_left":float(progress.level(car_id, "nitrous")) * 2.0,
-        "nitrous_active":0.0, "launch_force":1.0, "shift_power":0.0}
+        "nitrous_active":0.0, "launch_force":1.0, "shift_power":0.0, "wheel_slip":0.0}
 
 func _start_race() -> void:
     screen = "race"
@@ -351,6 +363,10 @@ func _start_race() -> void:
     shift_feedback_until = 0.0
     shift_feedback_label.visible = false
     elapsed = 0.0
+    _sim_left = 0.0
+    race_split_60 = -1.0
+    race_split_330 = -1.0
+    race_trap_mph = 0.0
     finish_text = ""
     throttle_held = false
     gas_finger = -1
@@ -378,7 +394,11 @@ func _start_race() -> void:
         "mass":1.0,
         "grip":1.0 + (0.017 * float(progress.stage + 1) if career_race else 0.0),
         "shift":maxf(0.82, 1.0 - (0.014 * float(progress.stage + 1) if career_race else 0.0)),
-        "nitrous":0
+        "nitrous":0,
+        "final_drive":1.0,
+        "shift_target":0.91,
+        "launch_rpm":4000.0,
+        "tire_pressure":28.0
     }
     rival["nitrous_left"] = 0.0
     title_label.text = _distance_name(race_distance_m) + " DRAG"
@@ -532,7 +552,7 @@ func _launch_car() -> void:
     launched = true
     # The clutch release is a real decision: delayed reaction and wheelspin hurt ET.
     var rpm_factor := launch_rpm / float(CARS[selected]["redline"])
-    var sweet_spot := 0.54
+    var sweet_spot := float(player["tuning"].get("launch_rpm", 4000.0)) / float(CARS[selected]["redline"])
     var error := absf(rpm_factor - sweet_spot)
     var delay_penalty := clampf(reaction_seconds / 3.0, 0.0, 0.48)
     var quality := clampf(1.18 - error * 0.95 - delay_penalty, 0.62, 1.18)
@@ -578,11 +598,11 @@ func _advance_car(driver: Dictionary, delta: float, gas: bool, shift_auto: bool)
     driver["shift_timer"] = maxf(0.0, driver["shift_timer"] - delta)
     driver["shift_power"] = maxf(0.0, float(driver["shift_power"]) - delta)
     var tuning: Dictionary = driver["tuning"]
-    var gear_ratio: float = RATIOS[driver["gear"]] * model["final"]
+    var gear_ratio: float = RATIOS[driver["gear"]] * model["final"] * float(tuning.get("final_drive", 1.0))
     var wheel_radius := 0.305
     var coupled_rpm: float = driver["speed"] * gear_ratio * 60.0 / (TAU * wheel_radius)
     driver["rpm"] = clampf(maxf(maxf(1050.0, coupled_rpm), 2700.0 if gas and driver["speed"] < 3.0 else 0.0), 850.0, 8300.0)
-    if shift_auto and driver["rpm"] >= model["redline"] * 0.91:
+    if shift_auto and driver["rpm"] >= model["redline"] * float(tuning.get("shift_target", 0.91)):
         _shift(driver)
     var throttle := 1.0 if gas and driver["shift_timer"] <= 0.0 else 0.0
     var normalized: float = driver["rpm"] / model["redline"]
@@ -601,7 +621,12 @@ func _advance_car(driver: Dictionary, delta: float, gas: bool, shift_auto: bool)
         force_boost *= 1.11
     var wheel_force: float = throttle * model["torque"] * float(tuning["torque"]) * force_boost * curve * gear_ratio * 0.82 / wheel_radius
     var effective_mass: float = model["mass"] * float(tuning["mass"])
-    var max_traction: float = effective_mass * 9.81 * model["grip"] * float(tuning["grip"]) * 0.63
+    # Tire pressure changes contact patch. Too little or too much loses traction.
+    var pressure: float = float(tuning.get("tire_pressure", 28.0))
+    var patch := clampf(1.0 - absf(pressure - 27.5) * 0.017, 0.74, 1.01)
+    var max_traction: float = effective_mass * 9.81 * model["grip"] * float(tuning["grip"]) * patch * 0.63
+    var slip_ratio := clampf((wheel_force - max_traction) / maxf(1.0, max_traction), 0.0, 2.0)
+    driver["wheel_slip"] = move_toward(float(driver.get("wheel_slip", 0.0)), slip_ratio, delta * 4.5)
     var resistance: float = 0.45 * driver["speed"] * driver["speed"] + 125.0
     var net: float = minf(wheel_force, max_traction) - resistance
     driver["speed"] = maxf(0.0, driver["speed"] + (net / effective_mass) * delta)
@@ -661,15 +686,26 @@ func _process(delta: float) -> void:
         countdown_label.visible = false
     if player["finished"] and rival["finished"]:
         return
-    var tick := minf(delta, 1.0 / 30.0)
-    elapsed += tick
-    if launched:
-        _advance_car(player, tick, throttle_held, auto_shift)
-    # Slight human-like CPU reaction makes staging meaningful.
-    if green_timer > 0.20 + float(progress.stage if career_race else 0) * 0.004:
-        _advance_car(rival, tick, true, true)
-    if player["finished"] and rival["finished"]:
-        _end_race()
+    # Stable 120Hz substeps: frame-rate independent acceleration and ET,
+    # capped after process stalls to avoid infinite catch-up on mobile.
+    const DT := 1.0 / 120.0
+    _sim_left = minf(_sim_left + minf(delta, 0.10), 0.12)
+    var loops := 0
+    while _sim_left >= DT and loops < 15:
+        _sim_left -= DT
+        loops += 1
+        elapsed += DT
+        if launched:
+            _advance_car(player, DT, throttle_held, auto_shift)
+        if green_timer > 0.20 + float(progress.stage if career_race else 0) * 0.004:
+            _advance_car(rival, DT, true, true)
+        if race_split_60 < 0.0 and float(player["distance"]) >= 18.288:
+            race_split_60 = elapsed
+        if race_split_330 < 0.0 and float(player["distance"]) >= 100.584:
+            race_split_330 = elapsed
+        if player["finished"] and rival["finished"]:
+            _end_race()
+            break
     _update_hud()
     queue_redraw()
 
@@ -686,7 +722,9 @@ func _end_race() -> void:
     title_label.text = finish_text
     if progress.vibrations and OS.get_name() == "Android":
         Input.vibrate_handheld(65 if winning else 30)
-    detail_label.text = "YOUR TIME: %.2fs\nRIVAL TIME: %.2fs" % [player["finish_time"], rival["finish_time"]]
+    race_trap_mph = float(player.get("speed", 0.0)) * 2.2369363
+    detail_label.text = "ET %.3fs   •   TRAP %.0f MPH\nRIVAL %.3fs   •   60 FT %.3fs" % [
+        player["finish_time"], race_trap_mph, rival["finish_time"], maxf(0.0, race_split_60)]
     throttle_button.visible = false
     shift_button.visible = false
     retry_button.visible = true
@@ -750,6 +788,14 @@ func _draw() -> void:
     if player_id < visual_cars.size():
         WheelLayers.draw_car(self, visual_cars[player_id], Rect2(player_x, sz.y * 0.534,
             car_w, car_w * 54.0 / 128.0), float(player["wheel_angle"]))
+    # Tire smoke follows modeled wheel slip rather than random particles.
+    var slip := float(player.get("wheel_slip", 0.0))
+    if launched and slip > 0.22 and float(player.get("speed", 0.0)) < 20.0:
+        for i in range(7):
+            var center := Vector2(player_x + sz.x * (0.09 - float(i) * 0.025),
+                sz.y * (0.620 - float(i % 3) * 0.014))
+            draw_circle(center, (6.0 + float(i) * 2.5) * minf(slip, 1.6),
+                Color(0.75, 0.84, 0.90, 0.10 + 0.07 * (6 - i) / 6.0))
     if float(player.get("nitrous_active", 0.0)) > 0.0:
         for i in range(6):
             var yy := sz.y * (0.562 + float(i) * 0.014)

@@ -38,6 +38,8 @@ var vibrations := true
 var audio_enabled := true
 var dynamic_time := true
 var upgrades: Dictionary = {}
+var tunes: Dictionary = {}
+var total_races := 0
 var best_times: Dictionary = {}
 var wallpaper_interactive := true
 
@@ -75,9 +77,13 @@ func load_game() -> void:
     dynamic_time = bool(file.get_value("settings", "dynamic_time", true))
     wallpaper_interactive = bool(file.get_value("settings", "wallpaper_interactive", true))
     upgrades = file.get_value("garage", "upgrades", {})
+    tunes = file.get_value("garage", "tunes", {})
+    total_races = maxi(0, int(file.get_value("career", "total_races", 0)))
     best_times = file.get_value("career", "best_times", {})
     if not upgrades is Dictionary:
         upgrades = {}
+    if not tunes is Dictionary:
+        tunes = {}
     if not best_times is Dictionary:
         best_times = {}
     for car in range(4):
@@ -95,6 +101,8 @@ func save_game() -> bool:
     f.set_value("garage", "auto_shift", auto_shift)
     f.set_value("garage", "distance_choice", distance_choice)
     f.set_value("garage", "upgrades", upgrades)
+    f.set_value("garage", "tunes", tunes)
+    f.set_value("career", "total_races", total_races)
     for key in ["show_kmh", "vibrations", "dynamic_time", "wallpaper_interactive", "audio_enabled"]:
         f.set_value("settings", key, get(key))
     return f.save("user://drag_mini_v1.cfg") == OK
@@ -120,13 +128,50 @@ func purchase(car: int, id: String) -> bool:
     save_game()
     return true
 
+## Street tuning inspired by real drag controls; values are arcade limits.
+## No hidden currency costs: tuning the car is a hands-on skill.
+const TUNE_IDS := ["final_drive", "tire_pressure", "shift_target", "launch_rpm"]
+const TUNE_DEFAULTS := {"final_drive":1.0, "tire_pressure":28.0, "shift_target":0.91, "launch_rpm":4000.0}
+const TUNE_LIMITS := {
+    "final_drive":Vector3(0.82, 1.20, 0.02),
+    "tire_pressure":Vector3(20.0, 38.0, 1.0),
+    "shift_target":Vector3(0.84, 0.985, 0.005),
+    "launch_rpm":Vector3(2700.0, 5700.0, 100.0)
+}
+
+func tune(car: int) -> Dictionary:
+    var key := str(clampi(car, 0, 3))
+    if not tunes.has(key) or not tunes[key] is Dictionary:
+        tunes[key] = TUNE_DEFAULTS.duplicate(true)
+    var t: Dictionary = tunes[key]
+    for field in TUNE_IDS:
+        var rule: Vector3 = TUNE_LIMITS[field]
+        t[field] = clampf(float(t.get(field, TUNE_DEFAULTS[field])), rule.x, rule.y)
+    return t
+
+func tune_adjust(car: int, field: String, direction: int) -> bool:
+    if not TUNE_LIMITS.has(field) or direction == 0:
+        return false
+    var t := tune(car)
+    var rule: Vector3 = TUNE_LIMITS[field]
+    var prev: float = float(t[field])
+    t[field] = snappedf(clampf(prev + rule.z * float(signi(direction)), rule.x, rule.y), rule.z)
+    if is_equal_approx(prev, float(t[field])):
+        return false
+    save_game()
+    return true
+
 func performance(car: int) -> Dictionary:
     return {
         "torque":1.0 + 0.09 * level(car, "engine") + 0.105 * level(car, "turbo") + 0.035 * level(car, "ecu"),
         "mass":1.0 - 0.035 * level(car, "weight"),
         "grip":1.0 + 0.075 * level(car, "tires"),
         "shift":1.0 - 0.08 * level(car, "transmission"),
-        "nitrous":level(car, "nitrous")
+        "nitrous":level(car, "nitrous"),
+        "final_drive":float(tune(car)["final_drive"]),
+        "shift_target":float(tune(car)["shift_target"]),
+        "launch_rpm":float(tune(car)["launch_rpm"]),
+        "tire_pressure":float(tune(car)["tire_pressure"])
     }
 
 func complete_race(won: bool, seconds: float, career: bool, distance_m: float) -> int:
@@ -136,6 +181,7 @@ func complete_race(won: bool, seconds: float, career: bool, distance_m: float) -
         if stage < STORY.size() - 1:
             stage += 1
     cash += reward
+    total_races += 1
     xp += 90 if won else 25
     if won:
         wins += 1

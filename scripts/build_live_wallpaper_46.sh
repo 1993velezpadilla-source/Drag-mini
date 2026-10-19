@@ -76,6 +76,23 @@ injection="""    @UsedByGodot
 text=text.replace(needle,injection+needle,1)
 p.write_text(text)
 PY_WALLPAPER_API
+# Wallpaper touch events are opt-in at Android service level, independent
+# of Godot's touchscreen input settings; launchers may still withhold events.
+SERVICE="$WORK/source/plugin/src/main/java/org/godotengine/plugin/android/LiveWallpaper/LiveWallpaper.kt"
+python3 - "$SERVICE" <<'PY_TOUCH'
+from pathlib import Path
+import sys
+p=Path(sys.argv[1])
+s=p.read_text()
+needle='''        override fun onCreate(surfaceHolder: SurfaceHolder) {
+            Logwp("[Engine$EngineRun] onCreate")
+
+            super.onCreate(surfaceHolder)'''
+if needle not in s:
+    raise SystemExit("LiveWallpaper engine onCreate contract changed upstream")
+s=s.replace(needle,needle+"\n            setTouchEventsEnabled(true)",1)
+p.write_text(s)
+PY_TOUCH
 chmod +x "$WORK/source/gradlew"
 (
   cd "$WORK/source"
