@@ -50,6 +50,30 @@ if text.count(old) != 1:
     raise SystemExit("Upstream @UsedByGodot startWallpaperService signature changed")
 text=text.replace(old,"    fun startWallpaperService(): Int {")
 text=text.replace("    private fun IsPreview():Boolean{","    fun IsPreview():Boolean{")
+# A distinctly named, public Godot API to bypass old method registration errors.
+# Keep the legacy API as compatibility fallback, but prefer this new picker method.
+needle="    @UsedByGodot\n    private fun startWallpaperService(): Int {"
+if needle not in text:
+    raise SystemExit("Cannot find native @UsedByGodot wallpaper method")
+injection="""    @UsedByGodot
+    fun openWallpaperPicker(): Int {
+        val context = activity ?: return 0
+        if (!context.packageManager.hasSystemFeature(PackageManager.FEATURE_LIVE_WALLPAPER)) return 0
+        return try {
+            val intent = Intent(WallpaperManager.ACTION_CHANGE_LIVE_WALLPAPER).apply {
+                putExtra(WallpaperManager.EXTRA_LIVE_WALLPAPER_COMPONENT,
+                    ComponentName(context, LiveWallpaperService::class.java))
+            }
+            context.startActivity(intent)
+            1
+        } catch (ex: Exception) {
+            android.util.Log.e("DragMiniWallpaper", "Picker failed", ex)
+            0
+        }
+    }
+
+"""
+text=text.replace(needle,injection+needle,1)
 p.write_text(text)
 PY_WALLPAPER_API
 chmod +x "$WORK/source/gradlew"
@@ -66,5 +90,7 @@ for TYPE in debug release; do
   echo "REBUILT WALLPAPER GODOT 4.6: $TYPE"
   unzip -p "$BIN/LiveWallpaper-$TYPE.aar" classes.jar > "$WORK/native-$TYPE.jar"
   javap -public -classpath "$WORK/native-$TYPE.jar" org.godotengine.plugin.android.LiveWallpaper.LiveWallpaper | grep -F 'int startWallpaperService();'
+  javap -public -classpath "$WORK/native-$TYPE.jar" org.godotengine.plugin.android.LiveWallpaper.LiveWallpaper | grep -F 'int openWallpaperPicker();'
+  javap -v -classpath "$WORK/native-$TYPE.jar" org.godotengine.plugin.android.LiveWallpaper.LiveWallpaper | grep -Fq 'UsedByGodot'
   sha256sum "$BIN/LiveWallpaper-$TYPE.aar"
 done
