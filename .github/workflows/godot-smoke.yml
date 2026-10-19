@@ -1,0 +1,74 @@
+name: Godot smoke check
+on:
+  push:
+  pull_request:
+concurrency:
+  group: drag-mini-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Godot 4.6
+        uses: chickensoft-games/setup-godot@v2
+        with:
+          version: 4.6.0
+          use-dotnet: false
+      - name: Build native C++17 procedural world (and check committed generated data)
+        run: |
+          mkdir -p build
+          c++ -std=c++17 -O2 -Wall -Wextra -Werror native/track_generator.cpp -o build/drag_track_generator
+          build/drag_track_generator build/track_generated.json
+          python3 - <<'PY_NATIVE'
+          import json
+          from pathlib import Path
+          generated = json.loads(Path("build/track_generated.json").read_text())
+          shipped = json.loads(Path("assets/tracks/track_geometry.json").read_text())
+          assert generated == shipped, "C++ track geometry is stale. Regenerate committed JSON."
+          assert len(shipped["props"]) >= 70 and shipped["length_m"] >= 1610
+          print("CPP TRACK WORLD PASS")
+          PY_NATIVE
+      - name: Import resources
+        run: godot --headless --path . --editor --import --quit
+      - name: Verify scene and sprites
+        run: |
+          set -o pipefail
+          timeout 60s godot --headless --path . --script res://tests/smoke.gd 2>&1 | tee /tmp/dragmini-smoke.log
+          grep -Fq 'DRAG MINI SMOKE: PASS' /tmp/dragmini-smoke.log
+      - name: Verify independent Android GAS+SHIFT touches
+        run: |
+          set -o pipefail
+          timeout 60s godot --headless --path . --script res://tests/touch_smoke.gd 2>&1 | tee /tmp/dragmini-touch.log
+          grep -Fq 'DRAG MINI TOUCH PASS' /tmp/dragmini-touch.log
+      - name: Verify independent portrait actions, native cars and shift feedback
+        run: |
+          set -o pipefail
+          timeout 60s godot --headless --path . --script res://tests/official_assets_smoke.gd 2>&1 | tee /tmp/dragmini-official-art.log
+          grep -Fq 'DRAG MINI PORTRAIT + SHIFT PASS' /tmp/dragmini-official-art.log
+      - name: Master Orchestrator + Adversarial Critic gauntlet
+        run: |
+          set -o pipefail
+          timeout 80s godot --headless --path . --script res://tests/gauntlet_v1.gd 2>&1 | tee /tmp/dragmini-gauntlet.log
+          grep -Fq 'DRAG MINI GAUNTLET PASS' /tmp/dragmini-gauntlet.log
+      - name: Adversarial real-race endurance (1/8, 1/4, 1/2, full mile)
+        run: |
+          set -o pipefail
+          timeout 120s godot --headless --path . --script res://tests/physics_endurance.gd 2>&1 | tee /tmp/dragmini-endurance.log
+          grep -Fq 'DRAG MINI ENDURANCE PASS' /tmp/dragmini-endurance.log
+      - name: Render real OpenGL menu and track screenshots, reject grey frames
+        env:
+          GODOT_AUDIO_DRIVER: Dummy
+        run: |
+          set -eo pipefail
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq xvfb libgl1-mesa-dri
+          xvfb-run -a -s "-screen 0 432x960x24" timeout 90s godot --path . --rendering-method gl_compatibility --script res://tests/visual_menu_smoke.gd 2>&1 | tee /tmp/dragmini-visual.log
+          grep -Fq 'DRAG MINI VISUAL PASS' /tmp/dragmini-visual.log
+      - name: Upload actual rendered menu and track screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: DragMini-v1.0-Portrait-Render-Screenshots
+          path: build/visual-*.png
+          if-no-files-found: warn

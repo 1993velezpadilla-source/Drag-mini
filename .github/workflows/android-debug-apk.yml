@@ -1,0 +1,128 @@
+name: Drag Mini Android ARM64 APK (Debug)
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - feature/android-debug-apk-first-build
+      - feature/wallpaper-godot46-native
+      - feature/v04-real-touch-start-wallpaper-diagnostics
+      - feature/v05-official-menu-track-shift-lamp
+      - fix/v06-android-grey-screen-visible-menu
+      - feature/v07-native-main-menu
+      - feature/v10-portrait-rebuild-cpp-track
+  pull_request:
+    paths:
+      - 'scripts/**'
+      - 'scenes/**'
+      - 'project.godot'
+      - 'export_presets.cfg'
+      - 'assets/**'
+      - '.github/workflows/android-debug-apk.yml'
+concurrency:
+  group: drag-mini-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+permissions:
+  contents: read
+jobs:
+  android-debug:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      GODOT_ANDROID_KEYSTORE_DEBUG_USER: androiddebugkey
+      GODOT_ANDROID_KEYSTORE_DEBUG_PASSWORD: android
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: android-actions/setup-android@v3
+        with:
+          packages: platform-tools
+      - uses: chickensoft-games/setup-godot@v2
+        with:
+          version: 4.6.0
+          use-dotnet: false
+          include-templates: true
+      - name: Install Godot 4.6 Android SDK packages
+        run: |
+          set -euo pipefail
+          yes | sdkmanager --licenses >/dev/null || true
+          sdkmanager "platform-tools" "platforms;android-35" "build-tools;35.0.1" "cmake;3.10.2.4988404" "ndk;28.1.13356709"
+          echo "ANDROID_HOME=${ANDROID_HOME:-$ANDROID_SDK_ROOT}" >> "$GITHUB_ENV"
+          echo "Android SDK: ${ANDROID_HOME:-$ANDROID_SDK_ROOT}"
+      - name: Generate ephemeral debug signing certificate
+        run: |
+          keytool -genkeypair -keystore "$RUNNER_TEMP/dragmini-debug.keystore" -storepass android -keypass android -alias androiddebugkey -keyalg RSA -keysize 2048 -validity 365 -dname "CN=Drag Mini Debug, OU=Development, O=DragMini, C=US"
+          echo "GODOT_ANDROID_KEYSTORE_DEBUG_PATH=$RUNNER_TEMP/dragmini-debug.keystore" >> "$GITHUB_ENV"
+      - name: Install verified TheOathMan v1.5.1 live wallpaper plugin
+        run: python3 scripts/install_wallpaper_plugin.py
+      - name: Recompile native wallpaper plugin against Godot Android 4.6
+        run: bash scripts/build_live_wallpaper_46.sh
+      - name: Compile native C++ track world (no race-strip PNG)
+        run: |
+          mkdir -p build
+          c++ -std=c++17 -O2 -Wall -Wextra -Werror native/track_generator.cpp -o build/drag_track_generator
+          build/drag_track_generator build/track_generated.json
+          python3 - <<'PY_NATIVE'
+          import json
+          from pathlib import Path
+          assert json.loads(Path("build/track_generated.json").read_text()) == json.loads(Path("assets/tracks/track_geometry.json").read_text())
+          print("CPP TRACK WORLD PASS")
+          PY_NATIVE
+      - name: Import Godot project
+        run: timeout 120s godot --headless --path . --editor --import --quit
+      - name: Verify portrait buttons, car layers and single shift light
+        run: |
+          set -o pipefail
+          timeout 60s godot --headless --path . --script res://tests/official_assets_smoke.gd 2>&1 | tee official-assets-test.log
+          grep -Fq 'DRAG MINI PORTRAIT + SHIFT PASS' official-assets-test.log
+      - name: Android touch and launch regression test
+        run: |
+          set -o pipefail
+          timeout 60s godot --headless --path . --script res://tests/touch_smoke.gd 2>&1 | tee touch-test.log
+          grep -Fq 'DRAG MINI TOUCH PASS' touch-test.log
+      - name: Master Orchestrator + Adversarial Critic regression gauntlet
+        run: |
+          set -o pipefail
+          timeout 80s godot --headless --path . --script res://tests/gauntlet_v1.gd 2>&1 | tee gauntlet-test.log
+          grep -Fq 'DRAG MINI GAUNTLET PASS' gauntlet-test.log
+      - name: Generate Godot Android Gradle template and export installable APK
+        run: |
+          set -euo pipefail
+          mkdir -p build
+          godot --headless --path . --install-android-build-template --export-debug Android "build/DragMini-v1.0-portrait-debug.apk" 2>&1 | tee build/export.log
+          test -s build/DragMini-v1.0-portrait-debug.apk
+      - name: Verify APK signature and Android ARM64 contents
+        run: |
+          set -euo pipefail
+          unzip -t build/DragMini-v1.0-portrait-debug.apk | tail -1
+          unzip -Z1 build/DragMini-v1.0-portrait-debug.apk | grep -E 'lib/arm64-v8a/.*\.so$'
+          "$ANDROID_HOME/build-tools/35.0.1/apksigner" verify --verbose build/DragMini-v1.0-portrait-debug.apk
+          sha256sum build/DragMini-v1.0-portrait-debug.apk | tee build/sha256.txt
+      - name: Inspect Android wallpaper registration
+        run: |
+          set -euo pipefail
+          "$ANDROID_HOME/build-tools/35.0.1/aapt" dump xmltree build/DragMini-v1.0-portrait-debug.apk AndroidManifest.xml > build/android-manifest-audit.txt
+          grep -iE -C 5 'LiveWallpaper|WallpaperService|plugin.v2' build/android-manifest-audit.txt || true
+          if ! grep -q 'plugin.v2.LiveWallpaper' build/android-manifest-audit.txt; then
+            echo "ERROR: Native LiveWallpaper plugin registration missing from Android manifest"
+            exit 1
+          fi
+      - name: Package full editable Godot source with C++ procedural world
+        run: |
+          git archive --format=zip -o build/DragMini-v1.0-Godot-source.zip HEAD
+          unzip -Z1 build/DragMini-v1.0-Godot-source.zip | grep -Fx 'assets/ui/official_main_menu.jpg'
+          unzip -Z1 build/DragMini-v1.0-Godot-source.zip | grep -Fx 'native/track_generator.cpp'
+      - name: Upload test APK for phone / Felix
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: DragMini-v1.0-Android-ARM64-debug
+          path: |
+            build/DragMini-v1.0-portrait-debug.apk
+            build/DragMini-v1.0-Godot-source.zip
+            build/sha256.txt
+            build/android-manifest-audit.txt
+          retention-days: 14
+          if-no-files-found: error
