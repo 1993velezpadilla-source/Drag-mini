@@ -573,70 +573,52 @@ func _end_race() -> void:
     countdown_label.visible = false
 
 func _update_hud() -> void:
-    telemetry_label.text = "TIME %.2f s   |   DIST %.0f m\n%d km/h   |   GEAR %d   |   %.0f RPM" % [
-        elapsed, player["distance"], roundi(player["speed"] * 3.6),
-        player["gear"] + 1, player["rpm"]]
+    var speed_value: float = float(player.get("speed", 0.0)) * (3.6 if progress.show_kmh else 2.2369363)
+    telemetry_label.text = "%.2fs   •   %.0f / %.0fm\n%.0f %s  |  GEAR %d  |  %.0f RPM" % [
+        elapsed, player.get("distance", 0.0), race_distance_m, speed_value,
+        "KM/H" if progress.show_kmh else "MPH", int(player.get("gear", 0)) + 1,
+        float(player.get("rpm", 1050.0))]
     if countdown > 0.0:
-        telemetry_label.text = "STAGING • %.0f RPM\nHOLD GAS TO REV • EARLY LAUNCH = DQ" % launch_rpm
+        telemetry_label.text = "STAGING  •  %.0f RPM\nHOLD GAS TO REV • EARLY LAUNCH = RED" % launch_rpm
     if finish_text.is_empty():
-        detail_label.text = "YOU: %.0f m   •   RIVAL: %.0f m" % [player["distance"], rival["distance"]]
+        detail_label.text = "YOU %.0fm   •   RIVAL %.0fm" % [player.get("distance", 0.0), rival.get("distance", 0.0)]
 
 func _draw() -> void:
     var sz := size
     if wallpaper_mode:
         _draw_wallpaper(sz)
         return
-    if screen == "menu":
-        # The menu child paints native neon scene, separate PNG cars and buttons.
+    if screen != "race":
         return
-    draw_rect(Rect2(Vector2.ZERO, sz), Color("0c1421"))
-    if screen == "race":
-        _draw_rpm_meter(sz)
-        _draw_race_lights(sz)
-    var track_rect := Rect2(0, sz.y * 0.275, sz.x, sz.y * 0.50)
-    if screen == "race" and track_image != null:
-        var progress: float = clampf(maxf(float(player.get("distance", 0.0)), float(rival.get("distance", 0.0))) / QUARTER_MILE_M, 0.0, 1.0)
-        var launch_visible: bool = OfficialTrack.draw(self, track_image, track_rect, progress)
-        if launch_visible:
-            OfficialTrack.draw_map_tree(self, track_rect, countdown, false_start)
-    else:
-        draw_rect(Rect2(0, sz.y * 0.28, sz.x, sz.y * 0.30), Color("162b3d"))
-    if screen != "race" or track_image == null:
-        draw_line(Vector2(0, sz.y * 0.28), Vector2(sz.x, sz.y * 0.28), Color("ef7d2e"), 4)
-        draw_line(Vector2(0, sz.y * 0.58), Vector2(sz.x, sz.y * 0.58), Color("ef7d2e"), 4)
-    if images.is_empty():
+    draw_rect(Rect2(Vector2.ZERO, sz), Color("081020"))
+    _draw_rpm_meter(sz)
+    var bounds := Rect2(0, sz.y * 0.31, sz.x, sz.y * 0.465)
+    var hour: int = int(Time.get_datetime_dict_from_system().get("hour", 21)) if progress.dynamic_time else 22
+    ProceduralTrack.draw_world(self, bounds, float(player.get("distance", 0.0)),
+        race_distance_m, hour, countdown, false_start)
+    if visual_cars.is_empty():
         return
-    if screen == "garage":
-        if selected < visual_cars.size():
-            var w := sz.x * 0.91
-            WheelLayers.draw_car(self, visual_cars[selected], Rect2(sz.x * 0.045, sz.y * 0.325, w, w * 54.0 / 128.0), 0.0)
-    else:
-        var start_x := sz.x * 0.02
-        var course_w := sz.x * 0.42
-        for p in [0.25, 0.50, 0.75, 1.0] if track_image == null else []:
-            var x: float = start_x + course_w * float(p)
-            draw_line(Vector2(x, sz.y * 0.29), Vector2(x, sz.y * 0.70), Color("86919c", 0.6), 2)
-        if track_image == null:
-            draw_line(Vector2(0, sz.y * 0.495), Vector2(sz.x, sz.y * 0.495), Color("f1e5bb"), 3)
-        var car_w := sz.x * (0.20 if track_image != null else 0.43)
-        var player_id: int = int(player["car_id"])
-        if player_id < visual_cars.size():
-            var px: float = start_x + course_w * (player["distance"] / QUARTER_MILE_M)
-            if track_image != null:
-                px = clampf(sz.x * 0.26 + (float(player["distance"]) - float(rival["distance"])) * 2.0, -car_w * 0.5, sz.x * 0.72)
-            WheelLayers.draw_car(self, visual_cars[player_id], Rect2(px, sz.y * (0.48 if track_image != null else 0.35), car_w, car_w * 54.0 / 128.0), float(player["wheel_angle"]))
-        var rival_id: int = int(rival["car_id"])
-        if rival_id < visual_cars.size():
-            var rx: float = start_x + course_w * (rival["distance"] / QUARTER_MILE_M)
-            if track_image != null:
-                rx = clampf(sz.x * 0.26 + (float(rival["distance"]) - float(player["distance"])) * 2.0, -car_w * 0.5, sz.x * 0.72)
-            WheelLayers.draw_car(self, visual_cars[rival_id], Rect2(rx, sz.y * (0.59 if track_image != null else 0.52), car_w, car_w * 54.0 / 128.0), float(rival["wheel_angle"]))
+    var car_w := sz.x * 0.56
+    var difference: float = float(player["distance"]) - float(rival["distance"])
+    var player_x := sz.x * 0.05 + clampf(difference * 0.55, -sz.x * 0.18, sz.x * 0.21)
+    var rival_x := sz.x * 0.05 + clampf(-difference * 0.55, -sz.x * 0.18, sz.x * 0.21)
+    var player_id: int = int(player["car_id"])
+    var rival_id: int = int(rival["car_id"])
+    if rival_id < visual_cars.size():
+        WheelLayers.draw_car(self, visual_cars[rival_id], Rect2(rival_x, sz.y * 0.656,
+            car_w, car_w * 54.0 / 128.0), float(rival["wheel_angle"]))
+    if player_id < visual_cars.size():
+        WheelLayers.draw_car(self, visual_cars[player_id], Rect2(player_x, sz.y * 0.534,
+            car_w, car_w * 54.0 / 128.0), float(player["wheel_angle"]))
+    if float(player.get("nitrous_active", 0.0)) > 0.0:
+        draw_line(Vector2(player_x, sz.y * 0.615),
+            Vector2(player_x - sz.x * 0.11, sz.y * 0.617), Color("55eaff"), 8.0)
 
 # Live-wallpaper mode: no garage, race logic, multiplayer, HUD or high-rate updates.
 # All wallpaper-native calls live in wallpaper_bridge.gd, guarded by Android checks.
-func _enter_wallpaper_mode() -> void:
+func _enter_wallpaper_mode(actual_wallpaper: bool = true) -> void:
     wallpaper_mode = true
-    screen = "wallpaper"
+    screen = "wallpaper" if actual_wallpaper else "wallpaper_preview"
     # The Godot-native full-screen main menu must not cover Android wallpaper.
     if menu_overlay != null:
         menu_overlay.visible = false
@@ -683,44 +665,26 @@ func _draw_rpm_meter(sz: Vector2) -> void:
     draw_circle(lamp, 10.0, shift_color)
 
 func _draw_wallpaper(sz: Vector2) -> void:
-    draw_rect(Rect2(Vector2.ZERO, sz), Color("08101d"))
-    if track_image != null:
-        # Use the SAME ORIGINAL TRACK photograph in portrait wallpaper mode.
-        # Crop rather than squish the full 1536x512 panorama to phone shape.
-        var crop_width: float = clampf(512.0 * sz.x / maxf(sz.y, 1.0), 180.0, 850.0)
-        var crop_x: float = 180.0 + fposmod(wallpaper_road_offset * 1.6, maxf(1.0, 820.0 - crop_width))
-        draw_texture_rect_region(track_image, Rect2(Vector2.ZERO, sz),
-            Rect2(crop_x, 0, crop_width, 512.0))
-    else:
-        draw_rect(Rect2(0, sz.y * 0.68, sz.x, sz.y * 0.32), Color("203341"))
-        for i in range(-1, 7):
-            var dash_x: float = float(i) * 160.0 - wallpaper_road_offset
-            draw_rect(Rect2(dash_x, sz.y * 0.90, 64, 5), Color("e6c88b"))
-    if selected >= visual_cars.size():
-        return
-    var w := sz.x * 0.82
-    WheelLayers.draw_car(self, visual_cars[selected],
-        Rect2(sz.x * 0.09, sz.y * 0.61, w, w * 54.0 / 128.0), wallpaper_wheel_angle)
+    draw_rect(Rect2(Vector2.ZERO, sz), Color("081020"))
+    var hour: int = int(Time.get_datetime_dict_from_system().get("hour", 21)) if progress.dynamic_time else 22
+    ProceduralTrack.draw_world(self, Rect2(Vector2.ZERO, sz),
+        150.0 + wallpaper_road_offset * 0.7, 1800.0, hour)
+    if selected < visual_cars.size():
+        var w := sz.x * 0.89
+        WheelLayers.draw_car(self, visual_cars[selected],
+            Rect2(sz.x * 0.055, sz.y * 0.535, w, w * 54.0 / 128.0), wallpaper_wheel_angle)
+    if not wallpaper_bridge.is_wallpaper:
+        draw_string(ThemeDB.fallback_font, Vector2(sz.x * 0.07, sz.y * 0.12),
+            "WALLPAPER PREVIEW  •  BACK TO EXIT", HORIZONTAL_ALIGNMENT_LEFT,
+            -1, clampi(int(sz.x * 0.040), 12, 25), Color("f8d989"))
 
 func _on_wallpaper_plugin_ready(running_as_wallpaper: bool) -> void:
     if running_as_wallpaper and not wallpaper_mode and is_node_ready():
         _enter_wallpaper_mode()
 
 func _request_wallpaper() -> void:
-    if not wallpaper_bridge.start_live_wallpaper():
-        message_label.visible = true
-        message_label.text = wallpaper_bridge.diagnostic + "\nBUILD V0.4 | Android plugin registration needs device validation."
+    if wallpaper_bridge.start_live_wallpaper():
+        notice = "ANDROID WALLPAPER PICKER OPENED"
+    else:
+        notice = wallpaper_bridge.diagnostic
 
-func _load_garage() -> void:
-    var config := ConfigFile.new()
-    if config.load("user://garage.cfg") == OK:
-        selected = clampi(int(config.get_value("garage", "selected", 0)), 0, CARS.size() - 1)
-        auto_shift = bool(config.get_value("garage", "auto_shift", false))
-
-func _save_garage() -> void:
-    var config := ConfigFile.new()
-    config.set_value("garage", "selected", selected)
-    config.set_value("garage", "auto_shift", auto_shift)
-    var result := config.save("user://garage.cfg")
-    if result != OK:
-        push_warning("Could not persist selected car.")
