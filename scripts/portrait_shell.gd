@@ -1,6 +1,7 @@
 extends Control
 ## Mobile portrait UI. Each scene is native, separately tappable and responsive.
 signal action_selected(action: String)
+const Wheels = preload("res://scripts/wheel_layers.gd")
 const CARS := [
     "res://assets/cars/civic_hatch_game.png",
     "res://assets/cars/supra_mk4_game.png",
@@ -15,14 +16,18 @@ const MAX_FONTSIZE := 28
 var section := "menu"
 var data: Dictionary = {}
 var _cars: Array[Texture2D] = []
+var _car_parts: Array[Dictionary] = []
 var _font: Font
 
 func _ready() -> void:
     mouse_filter = Control.MOUSE_FILTER_STOP
     set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
     _font = ThemeDB.fallback_font
-    for path in CARS:
-        _cars.append(load(path) as Texture2D)
+    for idx in range(CARS.size()):
+        var texture := load(CARS[idx]) as Texture2D
+        _cars.append(texture)
+        if texture != null:
+            _car_parts.append(Wheels.build(texture, idx))
 
 func _ui_label(txt: String, x1: float, y1: float, x2: float, y2: float, font_scale: float = 0.048, color: Color = Color.WHITE, align: int = HORIZONTAL_ALIGNMENT_CENTER) -> Label:
     var l := Label.new()
@@ -207,4 +212,8 @@ func _car(texture: Texture2D, r: Rect2) -> void:
     if texture == null:
         return
     draw_rect(Rect2(r.position.x + 8, r.end.y - 10, r.size.x - 16, 12), Color(0.0, 0.0, 0.0, 0.37))
-    draw_texture_rect(texture, r, false)
+    var idx := _cars.find(texture)
+    if idx >= 0 and idx < _car_parts.size():
+        Wheels.draw_car(self, _car_parts[idx], r, 0.0)
+    else:
+        draw_texture_rect(texture, r, false)
