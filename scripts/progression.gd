@@ -12,18 +12,18 @@ const PARTS := [
 const MAX_LEVEL := 5
 const DISTANCES := [201.168, 402.336, 804.672, 1609.344]
 const STORY := [
-    {"title":"Backstreet Rookie", "distance":201.168, "reward":900, "rival":0},
-    {"title":"Harbor Lights", "distance":402.336, "reward":1150, "rival":2},
-    {"title":"Midnight Traffic", "distance":201.168, "reward":1350, "rival":3},
-    {"title":"Industrial Heat", "distance":402.336, "reward":1600, "rival":0},
-    {"title":"Cityline Duel", "distance":804.672, "reward":1850, "rival":1},
-    {"title":"Neon Boulevard", "distance":402.336, "reward":2050, "rival":2},
-    {"title":"The Expressway", "distance":804.672, "reward":2500, "rival":3},
-    {"title":"Highway Legend", "distance":1609.344, "reward":3200, "rival":1},
-    {"title":"Tarmac Revenge", "distance":402.336, "reward":3800, "rival":0},
-    {"title":"Ghost at Dawn", "distance":804.672, "reward":4400, "rival":2},
-    {"title":"King of the Mile", "distance":1609.344, "reward":5200, "rival":3},
-    {"title":"Drag Mini Champion", "distance":1609.344, "reward":8500, "rival":1}
+    {"title":"Backstreet Rookie", "distance":201.168, "reward":900, "rival":0, "rival_name":"Mika", "dialogue":"New racer? These streets don't forgive mistakes."},
+    {"title":"Harbor Lights", "distance":402.336, "reward":1150, "rival":2, "rival_name":"Rex", "dialogue":"My docks. My rules. Try to keep up."},
+    {"title":"Midnight Traffic", "distance":201.168, "reward":1350, "rival":3, "rival_name":"Nova", "dialogue":"Midnight belongs to whoever shifts perfectly."},
+    {"title":"Industrial Heat", "distance":402.336, "reward":1600, "rival":0, "rival_name":"Torque", "dialogue":"The factory run will expose your weak engine."},
+    {"title":"Cityline Duel", "distance":804.672, "reward":1850, "rival":1, "rival_name":"Sable", "dialogue":"Cross the bridge. Don't look at the skyline."},
+    {"title":"Neon Boulevard", "distance":402.336, "reward":2050, "rival":2, "rival_name":"Ghost", "dialogue":"This neon street has broken faster cars than yours."},
+    {"title":"The Expressway", "distance":804.672, "reward":2500, "rival":3, "rival_name":"Juno", "dialogue":"No shortcuts. Half a mile, full power."},
+    {"title":"Highway Legend", "distance":1609.344, "reward":3200, "rival":1, "rival_name":"Drift King", "dialogue":"They call this stretch the legend breaker."},
+    {"title":"Tarmac Revenge", "distance":402.336, "reward":3800, "rival":0, "rival_name":"Torque", "dialogue":"You came back? This time there are no excuses."},
+    {"title":"Ghost at Dawn", "distance":804.672, "reward":4400, "rival":2, "rival_name":"Mika", "dialogue":"We started here. Now race me like a champion."},
+    {"title":"King of the Mile", "distance":1609.344, "reward":5200, "rival":3, "rival_name":"Sable", "dialogue":"The full mile. Everything you built comes down to this."},
+    {"title":"Drag Mini Champion", "distance":1609.344, "reward":8500, "rival":1, "rival_name":"The King", "dialogue":"Beat me and the city's crown is yours."}
 ]
 var cash := 2500
 var xp := 0

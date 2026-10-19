@@ -153,7 +153,8 @@ func _career() -> void:
     _ui_label("CHAPTER %d / 12" % (int(data.get("stage", 0)) + 1), 0.06, 0.375, 0.94, 0.419, 0.052, GOLD)
     _ui_label(str(data.get("story", "")), 0.055, 0.435, 0.945, 0.511, 0.074)
     _ui_label(str(data.get("story_distance", "1/4 MILE")), 0.08, 0.529, 0.92, 0.586, 0.058, CYAN)
-    _ui_label("WIN TO UNLOCK THE NEXT CHAPTER", 0.05, 0.64, 0.95, 0.698, 0.044, Color("bac7d8"))
+    _ui_label("RIVAL: " + str(data.get("rival_name", "?")), 0.06, 0.618, 0.94, 0.665, 0.051, GOLD)
+    _ui_label(str(data.get("dialogue", "")), 0.07, 0.662, 0.93, 0.741, 0.041, Color("bac7d8"))
     _ui_label("STAGE PRIZE   $%d" % int(data.get("story_prize", 0)), 0.07, 0.73, 0.93, 0.78, 0.055, GOLD)
     _button("▶  CHALLENGE RIVAL", 0.05, 0.866, 0.95, 0.969, "career_start", Color("52f48a"))
 

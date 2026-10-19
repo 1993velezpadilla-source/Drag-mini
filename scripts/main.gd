@@ -193,6 +193,7 @@ func _state() -> Dictionary:
         "cash":progress.cash, "wins":progress.wins,
         "level":1 + int(progress.xp / 350),
         "stage":progress.stage, "story":story["title"],
+        "rival_name":story["rival_name"], "dialogue":story["dialogue"],
         "story_prize":story["reward"],
         "story_distance":_distance_name(float(story["distance"])),
         "distance_choice":progress.distance_choice,
@@ -339,7 +340,9 @@ func _start_race() -> void:
     title_label.visible = true
     telemetry_label.visible = true
     detail_label.visible = true
-    message_label.visible = false
+    message_label.visible = career_race
+    if career_race:
+        message_label.text = "VS " + str(Progression.STORY[progress.stage]["rival_name"])
     countdown_label.visible = true
     countdown_label.text = "READY"
     for btn in [prev_button, next_button, mode_button, race_button, retry_button, garage_button, wallpaper_button, nitrous_button]:
@@ -543,6 +546,7 @@ func _process(delta: float) -> void:
         countdown = maxf(0.0, countdown - delta)
         countdown_label.text = "READY" if countdown > 3.0 else ("3" if countdown > 2.0 else ("2" if countdown > 1.0 else ("1" if countdown > 0.0 else "GO!")))
         if countdown <= 0.0:
+            message_label.visible = false
             countdown_label.text = "GO!"
             shift_button.text = "SHIFT +"
             shift_button.visible = not auto_shift
