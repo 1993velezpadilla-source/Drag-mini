@@ -30,7 +30,7 @@ func _run() -> void:
     if game.menu_overlay._car_parts.size() != 4:
         fail_test("Cut-out chassis and independent wheels not rebuilt for four cars")
         return
-    var initial := game.selected
+    var initial: int = int(game.selected)
     game._menu_action("garage")
     game._menu_action("car_next")
     if game.selected == initial or game.progress.selected != game.selected:
@@ -75,8 +75,8 @@ func _run() -> void:
     if not game.career_race or game.race_distance_m != float(game.Progression.STORY[game.progress.stage]["distance"]):
         fail_test("Story stage distance is not applied")
         return
-    var cpu := game._make_driver((game.selected + 1) % 4)
-    var player := game._make_driver(game.selected)
+    var cpu: Dictionary = game._make_driver((game.selected + 1) % 4)
+    var player: Dictionary = game._make_driver(game.selected)
     game._advance_car(cpu, 0.12, true, true)
     game._advance_car(player, 0.12, true, true)
     if float(player["speed"]) <= 0.0 or float(cpu["speed"]) <= 0.0:
@@ -94,7 +94,7 @@ func _run() -> void:
     if game.progress._levels(game.selected)["engine"] == 0:
         fail_test("Installed upgrades lost after changing screens")
         return
-    var race_cash := game.progress.cash
+    var race_cash: int = int(game.progress.cash)
     game.player["finished"] = true
     game.rival["finished"] = true
     game.player["finish_time"] = 12.3
@@ -103,7 +103,7 @@ func _run() -> void:
     if not game.race_paid or game.progress.cash <= race_cash:
         fail_test("Race reward wasn't added to player's save")
         return
-    var after_cash := game.progress.cash
+    var after_cash: int = int(game.progress.cash)
     game._end_race()
     if game.progress.cash != after_cash:
         fail_test("Exploit: duplicate rewards by calling result twice")
