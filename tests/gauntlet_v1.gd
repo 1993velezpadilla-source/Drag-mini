@@ -17,6 +17,37 @@ func _run() -> void:
     if game.screen != "menu" or game.menu_overlay == null or not game.menu_overlay.visible:
         fail_test("Startup menu did not appear")
         return
+    # Regress the user's original bug: every main-menu button used to start a race.
+    # Press the actual Button signal, not merely the controller's route method.
+    var main_buttons := {
+        "RACE":"race_select", "CAREER":"career", "GARAGE":"garage",
+        "UPGRADES":"upgrades", "WALLPAPER":"wallpaper", "SETTINGS":"settings"
+    }
+    for title in main_buttons.keys():
+        game._show_main_menu()
+        var tapped := false
+        for widget in game.menu_overlay.get_children():
+            if widget is Button and widget.visible and widget.text == title:
+                if widget.get_global_rect().size.x < 35.0 or widget.get_global_rect().size.y < 32.0:
+                    fail_test("Main screen " + title + " has a too-small tap zone")
+                    return
+                widget.pressed.emit()
+                tapped = true
+                break
+        if not tapped or game.screen != main_buttons[title]:
+            fail_test("Button " + title + " was missing or incorrectly routed to race")
+            return
+    game._show_main_menu()
+    var quick_start := false
+    for widget in game.menu_overlay.get_children():
+        if widget is Button and widget.visible and widget.text.contains("QUICK START"):
+            widget.pressed.emit()
+            quick_start = true
+            break
+    if not quick_start or game.screen != "race":
+        fail_test("Quick START must be the ONLY home shortcut that immediately launches a race")
+        return
+    game._show_main_menu()
     var all_views := ["race_select", "garage", "upgrades", "settings", "career", "wallpaper"]
     for page in all_views:
         game._menu_action(page)
