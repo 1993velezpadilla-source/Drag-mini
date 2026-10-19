@@ -56,7 +56,7 @@ func _run() -> void:
     game._menu_action("tune:shift_target:1")
     game._menu_action("tune:tire_pressure:-1")
     game._menu_action("tune:launch_rpm:1")
-    var state := game._state()
+    var state: Dictionary = game._state()
     var t: Dictionary = state["tune"]
     if float(t["shift_target"]) <= 0.91 or float(t["tire_pressure"]) >= 28.0 or float(t["launch_rpm"]) <= 4000.0:
         _fail("Advanced tuning not saved/reflected in UI")
@@ -74,8 +74,8 @@ func _run() -> void:
     for n in range(25):
         game.progress.tune_adjust(game.selected, "final_drive", -1)
     # Frame pacing comparison: 30fps and 120fps must move same distance.
-    var thirty := game._make_driver(game.selected)
-    var onetwenty := game._make_driver(game.selected)
+    var thirty: Dictionary = game._make_driver(game.selected)
+    var onetwenty: Dictionary = game._make_driver(game.selected)
     for i in range(300):
         for subframe in range(4):
             game._advance_car(onetwenty, 1.0/120.0, true, true)
