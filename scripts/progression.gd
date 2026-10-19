@@ -35,6 +35,7 @@ var auto_shift := false
 var distance_choice := 1
 var show_kmh := true
 var vibrations := true
+var audio_enabled := true
 var dynamic_time := true
 var upgrades: Dictionary = {}
 var best_times: Dictionary = {}
@@ -70,6 +71,7 @@ func load_game() -> void:
     distance_choice = clampi(int(file.get_value("garage", "distance_choice", 1)), 0, DISTANCES.size() - 1)
     show_kmh = bool(file.get_value("settings", "show_kmh", true))
     vibrations = bool(file.get_value("settings", "vibrations", true))
+    audio_enabled = bool(file.get_value("settings", "audio_enabled", true))
     dynamic_time = bool(file.get_value("settings", "dynamic_time", true))
     wallpaper_interactive = bool(file.get_value("settings", "wallpaper_interactive", true))
     upgrades = file.get_value("garage", "upgrades", {})
@@ -93,7 +95,7 @@ func save_game() -> bool:
     f.set_value("garage", "auto_shift", auto_shift)
     f.set_value("garage", "distance_choice", distance_choice)
     f.set_value("garage", "upgrades", upgrades)
-    for key in ["show_kmh", "vibrations", "dynamic_time", "wallpaper_interactive"]:
+    for key in ["show_kmh", "vibrations", "dynamic_time", "wallpaper_interactive", "audio_enabled"]:
         f.set_value("settings", key, get(key))
     return f.save("user://drag_mini_v1.cfg") == OK
 
