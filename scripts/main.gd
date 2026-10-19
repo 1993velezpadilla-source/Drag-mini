@@ -336,6 +336,17 @@ func _start_race() -> void:
     wallpaper_mode = false
     player = _make_driver(selected)
     rival = _make_driver(int(Progression.STORY[progress.stage]["rival"]) if career_race else (selected + 1) % CARS.size())
+    # CPU rivals are independent vehicles, NOT secretly using the player's garage mods
+    # when the storyline happens to select the same chassis.
+    var opponent_power := 1.0 + (0.045 * float(progress.stage + 1) if career_race else 0.0)
+    rival["tuning"] = {
+        "torque":opponent_power,
+        "mass":1.0,
+        "grip":1.0 + (0.017 * float(progress.stage + 1) if career_race else 0.0),
+        "shift":maxf(0.82, 1.0 - (0.014 * float(progress.stage + 1) if career_race else 0.0)),
+        "nitrous":0
+    }
+    rival["nitrous_left"] = 0.0
     title_label.text = _distance_name(race_distance_m) + " DRAG"
     title_label.visible = true
     telemetry_label.visible = true
