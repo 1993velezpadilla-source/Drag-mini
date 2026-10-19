@@ -41,7 +41,7 @@ func _try_connect() -> void:
         return
     _native = Engine.get_singleton("LiveWallpaper")
     diagnostic = "LiveWallpaper singleton registered"
-    if _native.has_method("IsLiveWallpaper"):
+    if _java_method_exists(_native, "IsLiveWallpaper"):
         is_wallpaper = bool(_native.call("IsLiveWallpaper"))
     if _native.has_signal("VisibilityChanged"):
         _native.connect("VisibilityChanged", _on_visibility)
@@ -58,27 +58,33 @@ func start_live_wallpaper() -> bool:
     if _native == null:
         diagnostic = "PLUGIN UNAVAILABLE: no native Android singleton (check APK plugin registration)"
         return false
-    # Godot 4.6 exposes only Java/Kotlin @UsedByGodot methods.
-    # New distinct public endpoint first; legacy endpoint second.
-    var supported := ["openWallpaperPicker", "startWallpaperService"]
-    var tried := false
-    for name in supported:
-        if _native.has_method(name):
-            tried = true
+    # CRITICAL: Android JNISingleton's Java methods are NOT listed by
+    # Object.has_method() / get_method_list(). Use has_java_method()!
+    # Godot 4.6 JNISingleton API (verified official class documentation).
+    var options := ["openWallpaperPicker", "startWallpaperService"]
+    var exported: Array[String] = []
+    for name in options:
+        if _java_method_exists(_native, name):
+            exported.append(name)
             var result: int = int(_native.call(name))
             if result == 1:
-                diagnostic = "Android wallpaper picker opened"
+                diagnostic = "Android live-wallpaper picker opened"
                 return true
-    if tried:
-        diagnostic = "WALLPAPER PICKER FAILED: Android rejected the launch. Check device live-wallpaper support."
-    else:
-        var exported := PackedStringArray()
-        for method in _native.get_method_list():
-            var method_name := str(method.get("name", ""))
-            if method_name.to_lower().contains("wallpaper"):
-                exported.append(method_name)
-        diagnostic = "PLUGIN API NOT EXPORTED: Reinstall the new ARM64 APK. Native methods: " + ", ".join(exported)
+    diagnostic = "ANDROID WALLPAPER ERROR: " + (
+        "No @UsedByGodot picker method in APK; native bridge absent"
+        if exported.is_empty()
+        else "Picker declined by device (" + ", ".join(exported) + ")"
+    )
+    push_warning(diagnostic)
     return false
+
+static func _java_method_exists(instance: Object, method_name: String) -> bool:
+    if instance == null:
+        return false
+    if instance.has_method("has_java_method"):
+        return bool(instance.call("has_java_method", method_name))
+    # For mock bridges in unit tests, not for actual Android JNI.
+    return instance.has_method(method_name)
 
 func _on_visibility(visible: bool) -> void:
     if not is_wallpaper:
