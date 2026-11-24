@@ -1,0 +1,948 @@
+{
+  "schema_version": 1,
+  "owner_feedback_date": "2026-11-24",
+  "owner_feedback": "All cars are horrible and do not stand out like the orange Lamborghini.",
+  "visual_gold_standard": {
+    "id": "curated_midengine_supercar",
+    "path": "res://assets/curated_rigged/curated_midengine_supercar.glb",
+    "sha256": "45cdbfd70dc4e6c64b6bbbe5e24a2107044e2008928ab01c27fa8fbb91a25bd7",
+    "owner_approved": true
+  },
+  "review_policy": "A passing Blender/Godot import, polygon count, paint variant or screenshot generator never constitutes art acceptance. Every replacement requires independent multi-angle actual-engine comparison, wheel/roof/window/seam/interior/bodywork inspection and rigged doors/hood/trunk, and direct owner acceptance. Never auto-promote.",
+  "current_owner_approved_vehicle_count": 1,
+  "visually_rejected_vehicle_count": 103,
+  "groups": {
+    "procedural_car": 59,
+    "procedural_mobility": 26,
+    "third_party_author_source": 18
+  },
+  "vehicle_reviews": {
+    "exotic_supercar__rossa_v": {
+      "source": "procedural_car",
+      "reference": "2025 Ferrari SF90 proportions",
+      "art_status": "REJECTED_VISUAL_QUALITY_2026_11_24",
+      "approved_for_gameplay": false,
+      "meets_orange_lamborghini_quality": false,
+      "needs_rebuild_or_replacement": true,
+      "geometry_provenance_only": true
+    },
+    "exotic_supercar__aerion": {
+      "source": "procedural_car",
+      "reference": "2025 McLaren 750S proportions",
+      "art_status": "REJECTED_VISUAL_QUALITY_2026_11_24",
+      "approved_for_gameplay": false,
+      "meets_orange_lamborghini_quality": false,
+      "needs_rebuild_or_replacement": true,
+      "geometry_provenance_only": true
+    },
+    "exotic_supercar__volta": {
+      "source": "procedural_car",
+      "reference": "2025 Porsche 911 GT3 RS proportions",
+      "art_status": "REJECTED_VISUAL_QUALITY_2026_11_24",
+      "approved_for_gameplay": false,
+      "meets_orange_lamborghini_quality": false,
+      "needs_rebuild_or_replacement": true,
+      "geometry_provenance_only": true
+    },
+    "exotic_supercar__vortex": {
+      "source": "procedural_car",
+      "reference": "2025 Aston Martin Valkyrie proportions",
+      "art_status": "REJECTED_VISUAL_QUALITY_2026_11_24",
+      "approved_for_gameplay": false,
+      "meets_orange_lamborghini_quality": false,
+      "needs_rebuild_or_replacement": true,
+      "geometry_provenance_only": true
+    },
+    "exotic_coupe__roma": {
+      "source": "procedural_car",
+      "reference": "2025 Ferrari Roma proportions",
+      "art_status": "REJECTED_VISUAL_QUALITY_2026_11_24",
+      "approved_for_gameplay": false,
+      "meets_orange_lamborghini_quality": false,
+      "needs_rebuild_or_replacement": true,
+      "geometry_provenance_only": true
+    },
+    "exotic_coupe__tempest": {
+      "source": "procedural_car",
+      "reference": "2025 Mercedes AMG GT proportions",
+      "art_status": "REJECTED_VISUAL_QUALITY_2026_11_24",
+      "approved_for_gameplay": false,
+      "meets_orange_lamborghini_quality": false,
+      "needs_rebuild_or_replacement": true,
+      "geometry_provenance_only": true
+    },
+    "exotic_coupe__grandtour": {
+      "source": "procedural_car",
+      "reference": "2025 Bentley Continental GT proportions",
+      "art_status": "REJECTED_VISUAL_QUALITY_2026_11_24",
+      "approved_for_gameplay": false,
+      "meets_orange_lamborghini_quality": false,
+      "needs_rebuild_or_replacement": true,
+      "geometry_provenance_only": true
+    },
+    "exotic_coupe__astro": {
+      "source": "procedural_car",
+      "reference": "2025 Aston Martin DB12 proportions",
+      "art_status": "REJECTED_VISUAL_QUALITY_2026_11_24",
+      "approved_for_gameplay": false,
+      "meets_orange_lamborghini_quality": false,
+      "needs_rebuild_or_replacement": true,
+      "geometry_provenance_only": true
+    },
+    "exotic_coupe__spectra": {
+      "source": "procedural_car",
+      "reference": "2025 Lexus LC500 proportions",
+      "art_status": "REJECTED_VISUAL_QUALITY_2026_11_24",
+      "approved_for_gameplay": false,
+      "meets_orange_lamborghini_quality": false,
+      "needs_rebuild_or_replacement": true,
+      "geometry_provenance_only": true
+    },
+    "flagship__imperial": {
+      "source": "procedural_car",
+      "reference": "2025 Rolls Royce Phantom proportions",
+      "art_status": "REJECTED_VISUAL_QUALITY_2026_11_24",
+      "approved_for_gameplay": false,
+      "meets_orange_lamborghini_quality": false,
+      "needs_rebuild_or_replacement": true,
+      "geometry_provenance_only": true
+    },
+    "flagship__regent": {
+      "source": "procedural_car",
+      "reference": "2025 Rolls Royce Ghost proportions",
+      "art_status": "REJECTED_VISUAL_QUALITY_2026_11_24",
+      "approved_for_gameplay": false,
+      "meets_orange_lamborghini_quality": false,
+      "needs_rebuild_or_replacement": true,
+      "geometry_provenance_only": true
+    },
+    "flagship__sovereign": {
+      "source": "procedural_car",
+      "reference": "2025 Bentley Flying Spur proportions",
+      "art_status": "REJECTED_VISUAL_QUALITY_2026_11_24",
+      "approved_for_gameplay": false,
+      "meets_orange_lamborghini_quality": false,
+      "needs_rebuild_or_replacement": true,
+      "geometry_provenance_only": true
+    },
+    "flagship__celestial": {
+      "source": "procedural_car",
+      "reference": "2025 Mercedes Maybach S-Class proportions",
+      "art_status": "REJECTED_VISUAL_QUALITY_2026_11_24",
+      "approved_for_gameplay": false,
+      "meets_orange_lamborghini_quality": false,
+      "needs_rebuild_or_replacement": true,
+      "geometry_provenance_only": true
+    },
+    "flagship__monarch": {
+      "source": "procedural_car",
+      "reference": "2025 BMW 7 Series proportions",
+      "art_status": "REJECTED_VISUAL_QUALITY_2026_11_24",
+      "approved_for_gameplay": false,
+      "meets_orange_lamborghini_quality": false,
+      "needs_rebuild_or_replacement": true,
+      "geometry_provenance_only": true
+    },
+    "german_sedan__falcon": {
+      "source": "procedural_car",
+      "reference": "2025 BMW M5 proportions",
+      "art_status": "REJECTED_VISUAL_QUALITY_2026_11_24",
+      "approved_for_gameplay": false,
+      "meets_orange_lamborghini_quality": false,
+      "needs_rebuild_or_replacement": true,
+      "geometry_provenance_only": true
+    },
+    "german_sedan__quattro": {
+      "source": "procedural_car",
+      "reference": "2025 Audi A6 proportions",
+      "art_status": "REJECTED_VISUAL_QUALITY_2026_11_24",
+      "approved_for_gameplay": false,
+      "meets_orange_lamborghini_quality": false,
+      "needs_rebuild_or_replacement": true,
+      "geometry_provenance_only": true
+    },
+    "german_sedan__e_class": {
+      "source": "procedural_car",
+      "reference": "2025 Mercedes E Class proportions",
+      "art_status": "REJECTED_VISUAL_QUALITY_2026_11_24",
+      "approved_for_gameplay": false,
+      "meets_orange_lamborghini_quality": false,
+      "needs_rebuild_or_replacement": true,
+      "geometry_provenance_only": true
+    },
+    "german_sedan__panamera": {
+      "source": "procedural_car",
+      "reference": "2025 Porsche Panamera proportions",
+      "art_status": "REJECTED_VISUAL_QUALITY_2026_11_24",
+      "approved_for_gameplay": false,
+      "meets_orange_lamborghini_quality": false,
+      "needs_rebuild_or_replacement": true,
+      "geometry_provenance_only": true
+    },
+    "german_sedan__rs_fastback": {
+      "source": "procedural_car",
+      "reference": "2025 Audi RS7 proportions",
+      "art_status": "REJECTED_VISUAL_QUALITY_2026_11_24",
+      "approved_for_gameplay": false,
+      "meets_orange_lamborghini_quality": false,
+      "needs_rebuild_or_replacement": true,
+      "geometry_provenance_only": true
+    },
+    "luxury_suv__summit": {
+      "source": "procedural_car",
+      "reference": "2025 BMW X5 proportions",
+      "art_status": "REJECTED_VISUAL_QUALITY_2026_11_24",
+      "approved_for_gameplay": false,
+      "meets_orange_lamborghini_quality": false,
+      "needs_rebuild_or_replacement": true,
+      "geometry_provenance_only": true
+    },
+    "luxury_suv__glide": {
+      "source": "procedural_car",
+      "reference": "2025 Mercedes GLE proportions",
+      "art_status": "REJECTED_VISUAL_QUALITY_2026_11_24",
+      "approved_for_gameplay": false,
+      "meets_orange_lamborghini_quality": false,
+      "needs_rebuild_or_replacement": true,
+      "geometry_provenance_only": true
+    },
+    "luxury_suv__royale": {
+      "source": "procedural_car",
+      "reference": "2025 Rolls Royce Cullinan proportions",
+      "art_status": "REJECTED_VISUAL_QUALITY_2026_11_24",
+      "approved_for_gameplay": false,
+      "meets_orange_lamborghini_quality": false,
+      "needs_rebuild_or_replacement": true,
+      "geometry_provenance_only": true
+    },
+    "luxury_suv__range": {
+      "source": "procedural_car",
+      "reference": "2025 Range Rover proportions",
+      "art_status": "REJECTED_VISUAL_QUALITY_2026_11_24",
+      "approved_for_gameplay": false,
+      "meets_orange_lamborghini_quality": false,
+      "needs_rebuild_or_replacement": true,
+      "geometry_provenance_only": true
+    },
+    "luxury_suv__cayenne": {
+      "source": "procedural_car",
+      "reference": "2025 Porsche Cayenne proportions",
+      "art_status": "REJECTED_VISUAL_QUALITY_2026_11_24",
+      "approved_for_gameplay": false,
+      "meets_orange_lamborghini_quality": false,
+      "needs_rebuild_or_replacement": true,
+      "geometry_provenance_only": true
+    },
+    "compact_sedan__compact_c": {
+      "source": "procedural_car",
+      "reference": "2022 Honda Civic Sedan photographic and factory dimensions, original fictional City Zero body",
+      "art_status": "REJECTED_VISUAL_QUALITY_2026_11_24",
+      "approved_for_gameplay": false,
+      "meets_orange_lamborghini_quality": false,
+      "needs_rebuild_or_replacement": true,
+      "geometry_provenance_only": true
+    },
+    "compact_sedan__civic": {
+      "source": "procedural_car",
+      "reference": "2025 Honda Civic proportions",
+      "art_status": "REJECTED_VISUAL_QUALITY_2026_11_24",
+      "approved_for_gameplay": false,
+      "meets_orange_lamborghini_quality": false,
+      "needs_rebuild_or_replacement": true,
+      "geometry_provenance_only": true
+    },
+    "compact_sedan__elan": {
+      "source": "procedural_car",
+      "reference": "2025 Hyundai Elantra proportions",
+      "art_status": "REJECTED_VISUAL_QUALITY_2026_11_24",
+      "approved_for_gameplay": false,
+      "meets_orange_lamborghini_quality": false,
+      "needs_rebuild_or_replacement": true,
+      "geometry_provenance_only": true
+    },
+    "compact_sedan__sentra": {
+      "source": "procedural_car",
+      "reference": "2025 Nissan Sentra proportions",
+      "art_status": "REJECTED_VISUAL_QUALITY_2026_11_24",
+      "approved_for_gameplay": false,
+      "meets_orange_lamborghini_quality": false,
+      "needs_rebuild_or_replacement": true,
+      "geometry_provenance_only": true
+    },
+    "compact_sedan__k_four": {
+      "source": "procedural_car",
+      "reference": "2025 Kia K4 proportions",
+      "art_status": "REJECTED_VISUAL_QUALITY_2026_11_24",
+      "approved_for_gameplay": false,
+      "meets_orange_lamborghini_quality": false,
+      "needs_rebuild_or_replacement": true,
+      "geometry_provenance_only": true
+    },
+    "hatchback__gti": {
+      "source": "procedural_car",
+      "reference": "2025 Volkswagen Golf GTI proportions",
+      "art_status": "REJECTED_VISUAL_QUALITY_2026_11_24",
+      "approved_for_gameplay": false,
+      "meets_orange_lamborghini_quality": false,
+      "needs_rebuild_or_replacement": true,
+      "geometry_provenance_only": true
+    },
+    "hatchback__mazda": {
+      "source": "procedural_car",
+      "reference": "2025 Mazda3 Hatch proportions",
+      "art_status": "REJECTED_VISUAL_QUALITY_2026_11_24",
+      "approved_for_gameplay": false,
+      "meets_orange_lamborghini_quality": false,
+      "needs_rebuild_or_replacement": true,
+      "geometry_provenance_only": true
+    },
+    "hatchback__corolla_h": {
+      "source": "procedural_car",
+      "reference": "2025 Toyota Corolla Hatch proportions",
+      "art_status": "REJECTED_VISUAL_QUALITY_2026_11_24",
+      "approved_for_gameplay": false,
+      "meets_orange_lamborghini_quality": false,
+      "needs_rebuild_or_replacement": true,
+      "geometry_provenance_only": true
+    },
+    "hatchback__civic_h": {
+      "source": "procedural_car",
+      "reference": "2025 Honda Civic Hatch proportions",
+      "art_status": "REJECTED_VISUAL_QUALITY_2026_11_24",
+      "approved_for_gameplay": false,
+      "meets_orange_lamborghini_quality": false,
+      "needs_rebuild_or_replacement": true,
+      "geometry_provenance_only": true
+    },
+    "hatchback__i_thirty": {
+      "source": "procedural_car",
+      "reference": "2025 Hyundai i30 N proportions",
+      "art_status": "REJECTED_VISUAL_QUALITY_2026_11_24",
+      "approved_for_gameplay": false,
+      "meets_orange_lamborghini_quality": false,
+      "needs_rebuild_or_replacement": true,
+      "geometry_provenance_only": true
+    },
+    "tuner_coupe__turbo_sup": {
+      "source": "procedural_car",
+      "reference": "1998 Toyota Supra MK4 proportions",
+      "art_status": "REJECTED_VISUAL_QUALITY_2026_11_24",
+      "approved_for_gameplay": false,
+      "meets_orange_lamborghini_quality": false,
+      "needs_rebuild_or_replacement": true,
+      "geometry_provenance_only": true
+    },
+    "tuner_coupe__eclipse_g": {
+      "source": "procedural_car",
+      "reference": "1999 Mitsubishi Eclipse GSX proportions",
+      "art_status": "REJECTED_VISUAL_QUALITY_2026_11_24",
+      "approved_for_gameplay": false,
+      "meets_orange_lamborghini_quality": false,
+      "needs_rebuild_or_replacement": true,
+      "geometry_provenance_only": true
+    },
+    "tuner_coupe__spyder": {
+      "source": "procedural_car",
+      "reference": "2003 Mitsubishi Eclipse Spyder proportions",
+      "art_status": "REJECTED_VISUAL_QUALITY_2026_11_24",
+      "approved_for_gameplay": false,
+      "meets_orange_lamborghini_quality": false,
+      "needs_rebuild_or_replacement": true,
+      "geometry_provenance_only": true
+    },
+    "tuner_coupe__evolution": {
+      "source": "procedural_car",
+      "reference": "2005 Mitsubishi Lancer Evo VIII proportions",
+      "art_status": "REJECTED_VISUAL_QUALITY_2026_11_24",
+      "approved_for_gameplay": false,
+      "meets_orange_lamborghini_quality": false,
+      "needs_rebuild_or_replacement": true,
+      "geometry_provenance_only": true
+    },
+    "tuner_coupe__r_skyline": {
+      "source": "procedural_car",
+      "reference": "1999 Nissan Skyline R34 GTR proportions",
+      "art_status": "REJECTED_VISUAL_QUALITY_2026_11_24",
+      "approved_for_gameplay": false,
+      "meets_orange_lamborghini_quality": false,
+      "needs_rebuild_or_replacement": true,
+      "geometry_provenance_only": true
+    },
+    "japanese_sport__gr_supra": {
+      "source": "procedural_car",
+      "reference": "2025 Toyota GR Supra proportions",
+      "art_status": "REJECTED_VISUAL_QUALITY_2026_11_24",
+      "approved_for_gameplay": false,
+      "meets_orange_lamborghini_quality": false,
+      "needs_rebuild_or_replacement": true,
+      "geometry_provenance_only": true
+    },
+    "japanese_sport__zen": {
+      "source": "procedural_car",
+      "reference": "2025 Nissan Z proportions",
+      "art_status": "REJECTED_VISUAL_QUALITY_2026_11_24",
+      "approved_for_gameplay": false,
+      "meets_orange_lamborghini_quality": false,
+      "needs_rebuild_or_replacement": true,
+      "geometry_provenance_only": true
+    },
+    "japanese_sport__gtr": {
+      "source": "procedural_car",
+      "reference": "2025 Nissan GT-R proportions",
+      "art_status": "REJECTED_VISUAL_QUALITY_2026_11_24",
+      "approved_for_gameplay": false,
+      "meets_orange_lamborghini_quality": false,
+      "needs_rebuild_or_replacement": true,
+      "geometry_provenance_only": true
+    },
+    "japanese_sport__eighty_six": {
+      "source": "procedural_car",
+      "reference": "2025 Toyota GR86 proportions",
+      "art_status": "REJECTED_VISUAL_QUALITY_2026_11_24",
+      "approved_for_gameplay": false,
+      "meets_orange_lamborghini_quality": false,
+      "needs_rebuild_or_replacement": true,
+      "geometry_provenance_only": true
+    },
+    "japanese_sport__rc_v": {
+      "source": "procedural_car",
+      "reference": "2025 Lexus RC F proportions",
+      "art_status": "REJECTED_VISUAL_QUALITY_2026_11_24",
+      "approved_for_gameplay": false,
+      "meets_orange_lamborghini_quality": false,
+      "needs_rebuild_or_replacement": true,
+      "geometry_provenance_only": true
+    },
+    "basic_pickup__workhorse": {
+      "source": "procedural_car",
+      "reference": "2021 Ford F-150 SuperCrew short bed photographic and factory dimensions, original fictional City Zero body",
+      "art_status": "REJECTED_VISUAL_QUALITY_2026_11_24",
+      "approved_for_gameplay": false,
+      "meets_orange_lamborghini_quality": false,
+      "needs_rebuild_or_replacement": true,
+      "geometry_provenance_only": true
+    },
+    "basic_pickup__southwest": {
+      "source": "procedural_car",
+      "reference": "2025 Chevrolet Silverado WT dimensions",
+      "art_status": "REJECTED_VISUAL_QUALITY_2026_11_24",
+      "approved_for_gameplay": false,
+      "meets_orange_lamborghini_quality": false,
+      "needs_rebuild_or_replacement": true,
+      "geometry_provenance_only": true
+    },
+    "basic_pickup__ranger": {
+      "source": "procedural_car",
+      "reference": "2025 Toyota Tacoma SR dimensions",
+      "art_status": "REJECTED_VISUAL_QUALITY_2026_11_24",
+      "approved_for_gameplay": false,
+      "meets_orange_lamborghini_quality": false,
+      "needs_rebuild_or_replacement": true,
+      "geometry_provenance_only": true
+    },
+    "basic_pickup__citybed": {
+      "source": "procedural_car",
+      "reference": "2025 Ford Maverick XLT dimensions",
+      "art_status": "REJECTED_VISUAL_QUALITY_2026_11_24",
+      "approved_for_gameplay": false,
+      "meets_orange_lamborghini_quality": false,
+      "needs_rebuild_or_replacement": true,
+      "geometry_provenance_only": true
+    },
+    "basic_pickup__frontier": {
+      "source": "procedural_car",
+      "reference": "2025 Nissan Frontier S dimensions",
+      "art_status": "REJECTED_VISUAL_QUALITY_2026_11_24",
+      "approved_for_gameplay": false,
+      "meets_orange_lamborghini_quality": false,
+      "needs_rebuild_or_replacement": true,
+      "geometry_provenance_only": true
+    },
+    "luxury_pickup__platinum": {
+      "source": "procedural_car",
+      "reference": "2025 Ford F-150 Platinum dimensions",
+      "art_status": "REJECTED_VISUAL_QUALITY_2026_11_24",
+      "approved_for_gameplay": false,
+      "meets_orange_lamborghini_quality": false,
+      "needs_rebuild_or_replacement": true,
+      "geometry_provenance_only": true
+    },
+    "luxury_pickup__denali": {
+      "source": "procedural_car",
+      "reference": "2025 GMC Sierra Denali Ultimate dimensions",
+      "art_status": "REJECTED_VISUAL_QUALITY_2026_11_24",
+      "approved_for_gameplay": false,
+      "meets_orange_lamborghini_quality": false,
+      "needs_rebuild_or_replacement": true,
+      "geometry_provenance_only": true
+    },
+    "luxury_pickup__tungsten": {
+      "source": "procedural_car",
+      "reference": "2025 Ram 1500 Tungsten dimensions",
+      "art_status": "REJECTED_VISUAL_QUALITY_2026_11_24",
+      "approved_for_gameplay": false,
+      "meets_orange_lamborghini_quality": false,
+      "needs_rebuild_or_replacement": true,
+      "geometry_provenance_only": true
+    },
+    "luxury_pickup__capstone": {
+      "source": "procedural_car",
+      "reference": "2025 Toyota Tundra Capstone dimensions",
+      "art_status": "REJECTED_VISUAL_QUALITY_2026_11_24",
+      "approved_for_gameplay": false,
+      "meets_orange_lamborghini_quality": false,
+      "needs_rebuild_or_replacement": true,
+      "geometry_provenance_only": true
+    },
+    "luxury_pickup__highcountry": {
+      "source": "procedural_car",
+      "reference": "2025 Silverado High Country dimensions",
+      "art_status": "REJECTED_VISUAL_QUALITY_2026_11_24",
+      "approved_for_gameplay": false,
+      "meets_orange_lamborghini_quality": false,
+      "needs_rebuild_or_replacement": true,
+      "geometry_provenance_only": true
+    },
+    "electric_future__volt_s": {
+      "source": "procedural_car",
+      "reference": "2025 Tesla Model S proportions",
+      "art_status": "REJECTED_VISUAL_QUALITY_2026_11_24",
+      "approved_for_gameplay": false,
+      "meets_orange_lamborghini_quality": false,
+      "needs_rebuild_or_replacement": true,
+      "geometry_provenance_only": true
+    },
+    "electric_future__volt_3": {
+      "source": "procedural_car",
+      "reference": "2025 Tesla Model 3 proportions",
+      "art_status": "REJECTED_VISUAL_QUALITY_2026_11_24",
+      "approved_for_gameplay": false,
+      "meets_orange_lamborghini_quality": false,
+      "needs_rebuild_or_replacement": true,
+      "geometry_provenance_only": true
+    },
+    "electric_future__volt_y": {
+      "source": "procedural_car",
+      "reference": "2025 Tesla Model Y proportions",
+      "art_status": "REJECTED_VISUAL_QUALITY_2026_11_24",
+      "approved_for_gameplay": false,
+      "meets_orange_lamborghini_quality": false,
+      "needs_rebuild_or_replacement": true,
+      "geometry_provenance_only": true
+    },
+    "electric_future__volt_x": {
+      "source": "procedural_car",
+      "reference": "2025 Tesla Model X proportions",
+      "art_status": "REJECTED_VISUAL_QUALITY_2026_11_24",
+      "approved_for_gameplay": false,
+      "meets_orange_lamborghini_quality": false,
+      "needs_rebuild_or_replacement": true,
+      "geometry_provenance_only": true
+    },
+    "electric_future__cyber_wedge": {
+      "source": "procedural_car",
+      "reference": "2024 Tesla Cybertruck photographic and factory dimensions, original fictional City Zero body",
+      "art_status": "REJECTED_VISUAL_QUALITY_2026_11_24",
+      "approved_for_gameplay": false,
+      "meets_orange_lamborghini_quality": false,
+      "needs_rebuild_or_replacement": true,
+      "geometry_provenance_only": true
+    },
+    "hypersport__falcon_1340": {
+      "source": "procedural_mobility",
+      "reference": "hypersport",
+      "art_status": "REJECTED_VISUAL_QUALITY_2026_11_24",
+      "approved_for_gameplay": false,
+      "meets_orange_lamborghini_quality": false,
+      "needs_rebuild_or_replacement": true,
+      "geometry_provenance_only": true
+    },
+    "hypersport__neon_h2": {
+      "source": "procedural_mobility",
+      "reference": "hypersport",
+      "art_status": "REJECTED_VISUAL_QUALITY_2026_11_24",
+      "approved_for_gameplay": false,
+      "meets_orange_lamborghini_quality": false,
+      "needs_rebuild_or_replacement": true,
+      "geometry_provenance_only": true
+    },
+    "hypersport__viper_1000": {
+      "source": "procedural_mobility",
+      "reference": "hypersport",
+      "art_status": "REJECTED_VISUAL_QUALITY_2026_11_24",
+      "approved_for_gameplay": false,
+      "meets_orange_lamborghini_quality": false,
+      "needs_rebuild_or_replacement": true,
+      "geometry_provenance_only": true
+    },
+    "supermoto__smc_700": {
+      "source": "procedural_mobility",
+      "reference": "supermoto",
+      "art_status": "REJECTED_VISUAL_QUALITY_2026_11_24",
+      "approved_for_gameplay": false,
+      "meets_orange_lamborghini_quality": false,
+      "needs_rebuild_or_replacement": true,
+      "geometry_provenance_only": true
+    },
+    "supermoto__urban_450": {
+      "source": "procedural_mobility",
+      "reference": "supermoto",
+      "art_status": "REJECTED_VISUAL_QUALITY_2026_11_24",
+      "approved_for_gameplay": false,
+      "meets_orange_lamborghini_quality": false,
+      "needs_rebuild_or_replacement": true,
+      "geometry_provenance_only": true
+    },
+    "dirtbike__trail_450": {
+      "source": "procedural_mobility",
+      "reference": "dirtbike",
+      "art_status": "REJECTED_VISUAL_QUALITY_2026_11_24",
+      "approved_for_gameplay": false,
+      "meets_orange_lamborghini_quality": false,
+      "needs_rebuild_or_replacement": true,
+      "geometry_provenance_only": true
+    },
+    "dirtbike__mx_250": {
+      "source": "procedural_mobility",
+      "reference": "dirtbike",
+      "art_status": "REJECTED_VISUAL_QUALITY_2026_11_24",
+      "approved_for_gameplay": false,
+      "meets_orange_lamborghini_quality": false,
+      "needs_rebuild_or_replacement": true,
+      "geometry_provenance_only": true
+    },
+    "moped__metro_125": {
+      "source": "procedural_mobility",
+      "reference": "moped",
+      "art_status": "REJECTED_VISUAL_QUALITY_2026_11_24",
+      "approved_for_gameplay": false,
+      "meets_orange_lamborghini_quality": false,
+      "needs_rebuild_or_replacement": true,
+      "geometry_provenance_only": true
+    },
+    "moped__neo_155": {
+      "source": "procedural_mobility",
+      "reference": "moped",
+      "art_status": "REJECTED_VISUAL_QUALITY_2026_11_24",
+      "approved_for_gameplay": false,
+      "meets_orange_lamborghini_quality": false,
+      "needs_rebuild_or_replacement": true,
+      "geometry_provenance_only": true
+    },
+    "escooter__commute_x": {
+      "source": "procedural_mobility",
+      "reference": "escooter",
+      "art_status": "REJECTED_VISUAL_QUALITY_2026_11_24",
+      "approved_for_gameplay": false,
+      "meets_orange_lamborghini_quality": false,
+      "needs_rebuild_or_replacement": true,
+      "geometry_provenance_only": true
+    },
+    "escooter__urban_dual": {
+      "source": "procedural_mobility",
+      "reference": "escooter",
+      "art_status": "REJECTED_VISUAL_QUALITY_2026_11_24",
+      "approved_for_gameplay": false,
+      "meets_orange_lamborghini_quality": false,
+      "needs_rebuild_or_replacement": true,
+      "geometry_provenance_only": true
+    },
+    "ebike__cargo_city": {
+      "source": "procedural_mobility",
+      "reference": "ebike",
+      "art_status": "REJECTED_VISUAL_QUALITY_2026_11_24",
+      "approved_for_gameplay": false,
+      "meets_orange_lamborghini_quality": false,
+      "needs_rebuild_or_replacement": true,
+      "geometry_provenance_only": true
+    },
+    "ebike__mountain_e": {
+      "source": "procedural_mobility",
+      "reference": "ebike",
+      "art_status": "REJECTED_VISUAL_QUALITY_2026_11_24",
+      "approved_for_gameplay": false,
+      "meets_orange_lamborghini_quality": false,
+      "needs_rebuild_or_replacement": true,
+      "geometry_provenance_only": true
+    },
+    "buggy__dune_4x4": {
+      "source": "procedural_mobility",
+      "reference": "buggy",
+      "art_status": "REJECTED_VISUAL_QUALITY_2026_11_24",
+      "approved_for_gameplay": false,
+      "meets_orange_lamborghini_quality": false,
+      "needs_rebuild_or_replacement": true,
+      "geometry_provenance_only": true
+    },
+    "buggy__sand_runner": {
+      "source": "procedural_mobility",
+      "reference": "buggy",
+      "art_status": "REJECTED_VISUAL_QUALITY_2026_11_24",
+      "approved_for_gameplay": false,
+      "meets_orange_lamborghini_quality": false,
+      "needs_rebuild_or_replacement": true,
+      "geometry_provenance_only": true
+    },
+    "watercraft__jet_runner": {
+      "source": "procedural_mobility",
+      "reference": "watercraft",
+      "art_status": "REJECTED_VISUAL_QUALITY_2026_11_24",
+      "approved_for_gameplay": false,
+      "meets_orange_lamborghini_quality": false,
+      "needs_rebuild_or_replacement": true,
+      "geometry_provenance_only": true
+    },
+    "watercraft__coastal_rib": {
+      "source": "procedural_mobility",
+      "reference": "watercraft",
+      "art_status": "REJECTED_VISUAL_QUALITY_2026_11_24",
+      "approved_for_gameplay": false,
+      "meets_orange_lamborghini_quality": false,
+      "needs_rebuild_or_replacement": true,
+      "geometry_provenance_only": true
+    },
+    "watercraft__marina_cruiser": {
+      "source": "procedural_mobility",
+      "reference": "watercraft",
+      "art_status": "REJECTED_VISUAL_QUALITY_2026_11_24",
+      "approved_for_gameplay": false,
+      "meets_orange_lamborghini_quality": false,
+      "needs_rebuild_or_replacement": true,
+      "geometry_provenance_only": true
+    },
+    "helicopter__sky_lift": {
+      "source": "procedural_mobility",
+      "reference": "helicopter",
+      "art_status": "REJECTED_VISUAL_QUALITY_2026_11_24",
+      "approved_for_gameplay": false,
+      "meets_orange_lamborghini_quality": false,
+      "needs_rebuild_or_replacement": true,
+      "geometry_provenance_only": true
+    },
+    "helicopter__city_air": {
+      "source": "procedural_mobility",
+      "reference": "helicopter",
+      "art_status": "REJECTED_VISUAL_QUALITY_2026_11_24",
+      "approved_for_gameplay": false,
+      "meets_orange_lamborghini_quality": false,
+      "needs_rebuild_or_replacement": true,
+      "geometry_provenance_only": true
+    },
+    "helicopter__med_evac": {
+      "source": "procedural_mobility",
+      "reference": "helicopter",
+      "art_status": "REJECTED_VISUAL_QUALITY_2026_11_24",
+      "approved_for_gameplay": false,
+      "meets_orange_lamborghini_quality": false,
+      "needs_rebuild_or_replacement": true,
+      "geometry_provenance_only": true
+    },
+    "airplane__sky_train": {
+      "source": "procedural_mobility",
+      "reference": "airplane",
+      "art_status": "REJECTED_VISUAL_QUALITY_2026_11_24",
+      "approved_for_gameplay": false,
+      "meets_orange_lamborghini_quality": false,
+      "needs_rebuild_or_replacement": true,
+      "geometry_provenance_only": true
+    },
+    "airplane__sky_express": {
+      "source": "procedural_mobility",
+      "reference": "airplane",
+      "art_status": "REJECTED_VISUAL_QUALITY_2026_11_24",
+      "approved_for_gameplay": false,
+      "meets_orange_lamborghini_quality": false,
+      "needs_rebuild_or_replacement": true,
+      "geometry_provenance_only": true
+    },
+    "rail__city_tram": {
+      "source": "procedural_mobility",
+      "reference": "rail",
+      "art_status": "REJECTED_VISUAL_QUALITY_2026_11_24",
+      "approved_for_gameplay": false,
+      "meets_orange_lamborghini_quality": false,
+      "needs_rebuild_or_replacement": true,
+      "geometry_provenance_only": true
+    },
+    "rail__metro_train": {
+      "source": "procedural_mobility",
+      "reference": "rail",
+      "art_status": "REJECTED_VISUAL_QUALITY_2026_11_24",
+      "approved_for_gameplay": false,
+      "meets_orange_lamborghini_quality": false,
+      "needs_rebuild_or_replacement": true,
+      "geometry_provenance_only": true
+    },
+    "rail__regional_train": {
+      "source": "procedural_mobility",
+      "reference": "rail",
+      "art_status": "REJECTED_VISUAL_QUALITY_2026_11_24",
+      "approved_for_gameplay": false,
+      "meets_orange_lamborghini_quality": false,
+      "needs_rebuild_or_replacement": true,
+      "geometry_provenance_only": true
+    },
+    "bmw_m3_g80_2025": {
+      "source": "third_party_author_source",
+      "reference": "BMW M3 G80 2025",
+      "art_status": "REJECTED_VISUAL_QUALITY_2026_11_24",
+      "approved_for_gameplay": false,
+      "meets_orange_lamborghini_quality": false,
+      "needs_rebuild_or_replacement": true,
+      "geometry_provenance_only": true
+    },
+    "ferrari_roma_2020": {
+      "source": "third_party_author_source",
+      "reference": "Ferrari Roma 2020",
+      "art_status": "REJECTED_VISUAL_QUALITY_2026_11_24",
+      "approved_for_gameplay": false,
+      "meets_orange_lamborghini_quality": false,
+      "needs_rebuild_or_replacement": true,
+      "geometry_provenance_only": true
+    },
+    "ferrari_sf90_xx_2023": {
+      "source": "third_party_author_source",
+      "reference": "Ferrari SF90 XX Stradale 2023",
+      "art_status": "REJECTED_VISUAL_QUALITY_2026_11_24",
+      "approved_for_gameplay": false,
+      "meets_orange_lamborghini_quality": false,
+      "needs_rebuild_or_replacement": true,
+      "geometry_provenance_only": true
+    },
+    "lamborghini_aventador_interior": {
+      "source": "third_party_author_source",
+      "reference": "Lamborghini Aventador with Interior",
+      "art_status": "REJECTED_VISUAL_QUALITY_2026_11_24",
+      "approved_for_gameplay": false,
+      "meets_orange_lamborghini_quality": false,
+      "needs_rebuild_or_replacement": true,
+      "geometry_provenance_only": true
+    },
+    "lamborghini_huracan_evo_2019": {
+      "source": "third_party_author_source",
+      "reference": "Lamborghini Huracan EVO 2019",
+      "art_status": "REJECTED_VISUAL_QUALITY_2026_11_24",
+      "approved_for_gameplay": false,
+      "meets_orange_lamborghini_quality": false,
+      "needs_rebuild_or_replacement": true,
+      "geometry_provenance_only": true
+    },
+    "mclaren_570s_2016": {
+      "source": "third_party_author_source",
+      "reference": "McLaren 570S 2016",
+      "art_status": "REJECTED_VISUAL_QUALITY_2026_11_24",
+      "approved_for_gameplay": false,
+      "meets_orange_lamborghini_quality": false,
+      "needs_rebuild_or_replacement": true,
+      "geometry_provenance_only": true
+    },
+    "bmw_m2_coupe_2023": {
+      "source": "third_party_author_source",
+      "reference": "BMW M2 Coupe 2023",
+      "art_status": "REJECTED_VISUAL_QUALITY_2026_11_24",
+      "approved_for_gameplay": false,
+      "meets_orange_lamborghini_quality": false,
+      "needs_rebuild_or_replacement": true,
+      "geometry_provenance_only": true
+    },
+    "bmw_m4_competition": {
+      "source": "third_party_author_source",
+      "reference": "BMW M4 Competition",
+      "art_status": "REJECTED_VISUAL_QUALITY_2026_11_24",
+      "approved_for_gameplay": false,
+      "meets_orange_lamborghini_quality": false,
+      "needs_rebuild_or_replacement": true,
+      "geometry_provenance_only": true
+    },
+    "bmw_m5_f90": {
+      "source": "third_party_author_source",
+      "reference": "BMW M5 F90",
+      "art_status": "REJECTED_VISUAL_QUALITY_2026_11_24",
+      "approved_for_gameplay": false,
+      "meets_orange_lamborghini_quality": false,
+      "needs_rebuild_or_replacement": true,
+      "geometry_provenance_only": true
+    },
+    "ferrari_f430_2005": {
+      "source": "third_party_author_source",
+      "reference": "Ferrari F430 2005",
+      "art_status": "REJECTED_VISUAL_QUALITY_2026_11_24",
+      "approved_for_gameplay": false,
+      "meets_orange_lamborghini_quality": false,
+      "needs_rebuild_or_replacement": true,
+      "geometry_provenance_only": true
+    },
+    "ferrari_488_pista_spider_2019": {
+      "source": "third_party_author_source",
+      "reference": "Ferrari 488 Pista Spider 2019",
+      "art_status": "REJECTED_VISUAL_QUALITY_2026_11_24",
+      "approved_for_gameplay": false,
+      "meets_orange_lamborghini_quality": false,
+      "needs_rebuild_or_replacement": true,
+      "geometry_provenance_only": true
+    },
+    "ferrari_812_superfast": {
+      "source": "third_party_author_source",
+      "reference": "Ferrari 812 Superfast",
+      "art_status": "REJECTED_VISUAL_QUALITY_2026_11_24",
+      "approved_for_gameplay": false,
+      "meets_orange_lamborghini_quality": false,
+      "needs_rebuild_or_replacement": true,
+      "geometry_provenance_only": true
+    },
+    "lamborghini_gallardo_2010": {
+      "source": "third_party_author_source",
+      "reference": "Lamborghini Gallardo 2010",
+      "art_status": "REJECTED_VISUAL_QUALITY_2026_11_24",
+      "approved_for_gameplay": false,
+      "meets_orange_lamborghini_quality": false,
+      "needs_rebuild_or_replacement": true,
+      "geometry_provenance_only": true
+    },
+    "lamborghini_revuelto_2024": {
+      "source": "third_party_author_source",
+      "reference": "Lamborghini Revuelto 2024",
+      "art_status": "REJECTED_VISUAL_QUALITY_2026_11_24",
+      "approved_for_gameplay": false,
+      "meets_orange_lamborghini_quality": false,
+      "needs_rebuild_or_replacement": true,
+      "geometry_provenance_only": true
+    },
+    "lamborghini_temerario_2025": {
+      "source": "third_party_author_source",
+      "reference": "Lamborghini Temerario 2025",
+      "art_status": "REJECTED_VISUAL_QUALITY_2026_11_24",
+      "approved_for_gameplay": false,
+      "meets_orange_lamborghini_quality": false,
+      "needs_rebuild_or_replacement": true,
+      "geometry_provenance_only": true
+    },
+    "lamborghini_urus_se_2025": {
+      "source": "third_party_author_source",
+      "reference": "Lamborghini Urus SE 2025",
+      "art_status": "REJECTED_VISUAL_QUALITY_2026_11_24",
+      "approved_for_gameplay": false,
+      "meets_orange_lamborghini_quality": false,
+      "needs_rebuild_or_replacement": true,
+      "geometry_provenance_only": true
+    },
+    "mclaren_artura_2023": {
+      "source": "third_party_author_source",
+      "reference": "McLaren Artura 2023",
+      "art_status": "REJECTED_VISUAL_QUALITY_2026_11_24",
+      "approved_for_gameplay": false,
+      "meets_orange_lamborghini_quality": false,
+      "needs_rebuild_or_replacement": true,
+      "geometry_provenance_only": true
+    },
+    "mclaren_gt_2020": {
+      "source": "third_party_author_source",
+      "reference": "McLaren GT 2020",
+      "art_status": "REJECTED_VISUAL_QUALITY_2026_11_24",
+      "approved_for_gameplay": false,
+      "meets_orange_lamborghini_quality": false,
+      "needs_rebuild_or_replacement": true,
+      "geometry_provenance_only": true
+    }
+  }
+}
