@@ -1,0 +1,43 @@
+name: City Zero - 16 authentic branded car asset intake and legal gates
+on:
+  push:
+    branches: [forever-frequency-native]
+    paths:
+      - '.github/workflows/city-zero-real-car-candidate-intake.yml'
+      - 'forever-frequency-native/data/high_fidelity_real_car_candidates.json'
+      - 'forever-frequency-native/tools/audit_real_high_fidelity_car_intake.py'
+      - 'forever-frequency-native/assets/pending_real_cars/**'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  real-author-licensed-car-intake:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate actual 3D source catalog and reject unlicensed or nonexistent game-ready claims
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m py_compile forever-frequency-native/tools/audit_real_high_fidelity_car_intake.py
+          python3 forever-frequency-native/tools/audit_real_high_fidelity_car_intake.py
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          path=Path('forever-frequency-native/artifacts/high_fidelity_car_intake/intake_report.json')
+          obj=json.loads(path.read_text())
+          assert obj['candidate_count']==16
+          assert obj['game_ready_count']==0
+          assert all(not x['art_approved'] and not x['godot_approved'] for x in obj['vehicles'])
+          # Honest evidence: source discovery and actual imported GLB are different statuses.
+          print('16 REAL SOURCE PAGES RECORDED, NO IMPROPER CLAIM OF IMPORT OR SHIPPABLE CAR')
+          PY
+      - name: Archive real car intake report, attribution and missing source status
+        uses: actions/upload-artifact@v4
+        with:
+          name: CityZero-16-Authentic-Cars-Source-And-Import-Status
+          retention-days: 90
+          path: |
+            forever-frequency-native/data/high_fidelity_real_car_candidates.json
+            forever-frequency-native/artifacts/high_fidelity_car_intake/intake_report.json
