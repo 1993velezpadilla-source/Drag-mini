@@ -171,6 +171,44 @@ def _model_parts(root: Path, car: str, is_shared: bool = False) -> dict:
             "shared_family": car if is_shared else None}
 
 
+def _verified_vinyl_previews(raw: object, root: Path) -> dict:
+    """Retain exact per-car texture identities; do not invent a body-skin composite."""
+    if not isinstance(raw, dict):
+        return {"count": 0, "vinyls": []}
+    rows = []
+    for entry in raw.get("vinyls", []):
+        if not isinstance(entry, dict):
+            continue
+        rec = {k: v for k, v in entry.items() if k != "private_png"}
+        file_str = entry.get("private_png")
+        if file_str:
+            try:
+                file_path = Path(str(file_str))
+                if file_path.is_absolute():
+                    file_path = file_path.resolve()
+                    if not file_path.is_relative_to(root.resolve()):
+                        raise ValueError("Vinyl PNG outside private import root")
+                else:
+                    file_path = private_path(root, str(file_path))
+                if file_path.is_file() and file_path.suffix.lower() == ".png":
+                    rec["verified_preview_png"] = file_path.relative_to(root).as_posix()
+                    rec["preview_status"] = "source_png_available"
+                else:
+                    rec["preview_status"] = "source_png_missing"
+            except (ValueError, OSError):
+                rec["preview_status"] = "unsafe_or_invalid_source_path"
+        else:
+            rec["preview_status"] = "source_texture_not_decoded"
+        rows.append(rec)
+    return {
+        "count": int(raw.get("count", len(rows))),
+        "vinyls": rows,
+        "decoded_previews": sum(x.get("preview_status") == "source_png_available" for x in rows),
+        "applied_to_body": False,
+        "reason": "The original game composites up to four vinyl layers and doorline masks into a 512x512 DUMMY_SKIN; a raw VINYLS.BIN PNG is not a complete mapped paint material.",
+    }
+
+
 def build_library(batch: dict, output_root: Path) -> dict:
     if not isinstance(batch.get("cars"), dict):
         raise ValueError("Batch manifest must contain car records")
@@ -222,7 +260,7 @@ def build_library(batch: dict, output_root: Path) -> dict:
                 if "factory_physics" in info.get("physics", {})
                 else "original_data_not_available"
             ),
-            "vinyls": info.get("vinyls", {}),
+            "vinyls": _verified_vinyl_previews(info.get("vinyls", {}), output_root),
             "animation": info.get("animation", {"status": "not_available"}),
         }
     vehicles = list(result["vehicles"].values())
@@ -235,6 +273,7 @@ def build_library(batch: dict, output_root: Path) -> dict:
         "glb_part_exports_valid": sum(len(v["model_assets"]["parts"]) for v in vehicles),
         "shared_families_seen": len(shared),
         "shared_generic_parts_valid": sum(len(v["parts"]) for v in shared),
+        "verified_vinyl_previews": sum(v["vinyls"]["decoded_previews"] for v in vehicles),
         "car_sound_stages_with_source": sum(s["status"] == "source_mapped"
             for v in vehicles for s in v["sound_stages"].values()),
         "missing_or_invalid_model_files": sum(len(v["model_assets"]["errors"])
