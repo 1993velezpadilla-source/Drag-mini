@@ -1,0 +1,80 @@
+{
+  "schema_version": 1,
+  "discovery_date": "2026-11-24",
+  "state": "ORIGINAL_ARTIST_CC0_SOURCE_PAGES_ONLY_NOT_DOWNLOADED",
+  "disclaimer": "These are creator-uploaded CC0 Blender models for legitimate download through BlendSwap accounts/MCP, not yet integrated into City Zero. Never substitute AI renders, commercial game rips or unlicensed reuploads. Logos/brands may still require commercial-trademark review.",
+  "download_method": "Official BlendSwap https://blendswap.com/3d-mcp-api/docs - requires user-provisioned API key, 7 free downloads/day; credential never committed to GitHub.",
+  "sources": [
+    {
+      "id": "ferrari_599_gto_cc0",
+      "name": "Ferrari 599 GTO",
+      "author": "irokrhus",
+      "url": "https://blendswap.com/blend/7638",
+      "asset_id": 7638,
+      "site_license": "CC0",
+      "blender_format": "2.6x .blend",
+      "site_description": "~300k polygons, uploaded by purported author",
+      "downloaded": false,
+      "blender_verified": false,
+      "godot_verified": false,
+      "game_ready": false
+    },
+    {
+      "id": "bentley_continental_gt_cc0",
+      "name": "Bentley Continental GT",
+      "author": "StephanTitanyan",
+      "url": "https://blendswap.com/blend/26853",
+      "asset_id": 26853,
+      "site_license": "CC0",
+      "blender_format": "2.8x .blend",
+      "site_description": "Detailed exterior and wheels",
+      "downloaded": false,
+      "blender_verified": false,
+      "godot_verified": false,
+      "game_ready": false
+    },
+    {
+      "id": "audi_r8_lms_cc0",
+      "name": "Audi R8 LMS race car",
+      "author": "See original BlendSwap upload",
+      "url": "https://blendswap.com/blend/21185",
+      "asset_id": 21185,
+      "site_license": "CC0",
+      "blender_format": ".blend",
+      "site_description": "Creator states personally modeled Audi race car",
+      "downloaded": false,
+      "blender_verified": false,
+      "godot_verified": false,
+      "game_ready": false
+    },
+    {
+      "id": "lotus_seven_cc0",
+      "name": "Lotus Seven classic sports car",
+      "author": "Britdawgmasterfunk",
+      "url": "https://blendswap.com/blend/31343",
+      "asset_id": 31343,
+      "site_license": "CC0",
+      "blender_format": "3.0 .blend",
+      "site_description": "Lotus 7 CC0 as displayed on public BlendSwap page",
+      "downloaded": false,
+      "blender_verified": false,
+      "godot_verified": false,
+      "game_ready": false
+    },
+    {
+      "id": "dodge_challenger_1970_cc0",
+      "name": "Dodge Challenger R/T 1970",
+      "author": "BlendSwap original ID 4046, adapted by Paweł Budziszewski",
+      "url": "https://blendswap.com/blend/4046",
+      "asset_id": 4046,
+      "site_license": "CC0",
+      "blender_format": "Source downloadable as Fbx adaptation in Apache licensed O3DE repo",
+      "downloaded": false,
+      "blender_verified": false,
+      "godot_verified": false,
+      "game_ready": false,
+      "secondary_source": "https://github.com/pawelbudziszewski/o3de-sample-vehicle-assets",
+      "build_workflow": ".github/workflows/city-zero-authentic-cc0-challenger.yml"
+    }
+  ]
+}
