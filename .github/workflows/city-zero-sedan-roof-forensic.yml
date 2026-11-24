@@ -1,0 +1,60 @@
+name: City Zero - Genuine sedan black upper-frame forensic screenshots
+on:
+  push:
+    branches: [forever-frequency-native]
+    paths:
+      - '.github/workflows/city-zero-sedan-roof-forensic.yml'
+      - 'forever-frequency-native/tools/debug_real_sedan_roof_black_triangles.py'
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  isolate-original-glb-meshes:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download genuine polished sedan Blender file from last GREEN build
+        uses: actions/download-artifact@v4
+        with:
+          run-id: 45344079284
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          name: CityZero-SEDAN-V2-REAL-BodyFix-PBR-Closed-Open-GLB-Blender
+          path: forever-frequency-native
+      - name: Verify original sourced car file and script
+        run: |
+          set -euo pipefail
+          test -s forever-frequency-native/assets/curated_rigged_polished/curated_family_sedan.blend
+          python3 -m py_compile forever-frequency-native/tools/debug_real_sedan_roof_black_triangles.py
+      - name: Start actual Blender 4.5
+        run: docker pull ghcr.io/blenderkit/headless-blender:blender-4.5-stable
+      - name: Isolate upper windows, original pillar mesh, roof trim and door frames
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd forever-frequency-native
+          timeout 200s docker run --rm -v "$PWD:$PWD" -w "$PWD" --entrypoint /home/headless/blender/blender ghcr.io/blenderkit/headless-blender:blender-4.5-stable -b -t 2 --python tools/debug_real_sedan_roof_black_triangles.py 2>&1 | tee REAL_ROOF_FORENSIC.log
+          grep -q 'REAL SEDAN ROOF TRIANGLE SOURCE DIAGNOSTIC SIX FRAMES COMPLETE' REAL_ROOF_FORENSIC.log
+      - name: Prove six genuine Blender frames exist
+        run: |
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          d=Path('forever-frequency-native/real_sedan_roof_forensics')
+          data=json.loads((d/'roof_triangle_isolation_report.json').read_text())
+          assert len(data)==6
+          assert all((d/x['path']).stat().st_size>20000 for x in data)
+          assert len(list(d.glob('*.png')))==6
+          print('BLACK ROOF TRIANGLE ACTUAL-MESH ISOLATION IMAGES GREEN')
+          PY
+      - name: Upload untouched source-derived forensic screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: CityZero-GENUINE-Sedan-Broken-Window-Frame-Mesh-Forensics
+          retention-days: 30
+          path: |
+            forever-frequency-native/real_sedan_roof_forensics/*
+            forever-frequency-native/REAL_ROOF_FORENSIC.log
+          if-no-files-found: warn
