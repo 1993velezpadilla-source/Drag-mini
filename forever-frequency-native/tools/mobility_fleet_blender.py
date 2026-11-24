@@ -207,9 +207,21 @@ def watercraft(rec,paint):
             block("Hardtop cabin roof",0,L*.14,H*.84,W*.59,L*.34,.15,paint,.08)
             block("Side passenger glazing",W*.27,L*.16,H*.61,.035,L*.24,.39,glass,.02)
         else:
-            # Distinct RIB rescue tubes on either side of hull.
+            # RIB hull must include recognizable REAL geometry: inflatable
+            # segmented tubes, pilot/crew hardware, passenger restraints and
+            # usable outboard. Previously 9 plain meshes was rejected by CI.
             for sign in (-1,1):
                 tube("Inflatable rescue tube",[(sign*W*.48,y,.29) for y,_ in rings],.12,dark)
+                tube("Upper rigid rub-rail",[(sign*W*.44,y,.39) for y,_ in rings],.025,alloy)
+                block("Bow mooring cleat",sign*W*.31,-L*.35,.43,
+                      .10,.15,.04,alloy,.016)
+                block("Aft passenger handrail",sign*W*.29,L*.27,.65,
+                      .035,L*.26,.035,alloy,.012)
+            block("Marine instrument panel",0,-L*.16,.91,W*.31,.065,.13,dark,.027)
+            block("Glass GPS navigation display",0,-L*.171,.93,W*.20,.016,.07,glass,.008)
+            block("Outboard engine cowling",0,L*.47,.27,W*.25,L*.115,.43,dark,.09)
+            block("Outboard propeller guard",0,L*.535,-.20,W*.30,.052,.20,alloy,.045)
+            block("RIB nonslip bow step",0,-L*.35,.40,W*.49,L*.13,.045,seat,.015)
     for sign in (-1,1):
         ball("Nav sidelight",sign*W*.36,-L*.25,.47,.045,white if sign>0 else red)
 def helicopter(rec,paint):
