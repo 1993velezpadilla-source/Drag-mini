@@ -9,6 +9,9 @@ on:
       - 'forever-frequency-native/tools/render_cc0_real_open_doors_pbr.py'
       - 'forever-frequency-native/tests/curated_cc0_door_gauntlet.gd'
   workflow_dispatch:
+concurrency:
+  group: cityzero-sedan-source-roof-fix
+  cancel-in-progress: true
 permissions:
   actions: read
   contents: read
