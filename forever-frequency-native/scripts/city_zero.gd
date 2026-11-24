@@ -6,6 +6,8 @@ const GameState = preload("res://scripts/game_state.gd")
 const MobileInput = preload("res://scripts/mobile_input.gd")
 const CarDoorController = preload("res://scripts/vehicle_door_controller.gd")
 const LAMBORGHINI_ORANGE_MODEL = "res://assets/curated_rigged/curated_midengine_supercar.glb"
+# Ferrari source has separate author attribution; shown only in opt-in dev QA.
+const FERRARI_ROMA_REVIEW_MODEL = "res://assets/review_only/ferrari_roma_2020_REAL_AUTHOR_BODY_DOORS_HOOD_TRUNK.glb"
 const CityLife = preload("res://scripts/city_life.gd")
 const BEAT: Array[int] = [0, 2, 1, 3, 1, 0, 3, 2]
 const LANDMARKS := {
@@ -54,6 +56,10 @@ var mouse_captured := false
 var car: Node3D
 var lamborghini_orange_car: Node3D
 var lamborghini_orange_doors
+var ferrari_roma_review_car: Node3D
+var ferrari_roma_review_door_controller
+var ferrari_roma_review_hood: Node3D
+var ferrari_roma_review_trunk: Node3D
 var citizens: Array[Dictionary] = []
 var audio_player: AudioStreamPlayer
 var road_material: StandardMaterial3D
@@ -66,6 +72,11 @@ func _ready() -> void:
     _create_ground_and_streets()
     _create_city()
     _spawn_approved_lamborghini_orange_in_city()
+    # Does NOT distribute or spawn visually rejected assets in the player game.
+    # Only a development QA run with the original source asset explicitly
+    # injected and opt-in flag sees the unreleased Ferrari candidate.
+    if OS.get_environment("CITYZERO_DEV_FERRARI_ROMA") == "1":
+        _spawn_unapproved_ferrari_roma_preview()
     # Full Blender-batched city dressing; editable separately, not another greybox.
     if ResourceLoader.exists("res://assets/urban_life_district.glb"):
         var district: PackedScene = load("res://assets/urban_life_district.glb")
@@ -413,6 +424,45 @@ func _create_city() -> void:
             _box(stage_visual,Vector3(0,0.9,1),Vector3(6,0.5,3),Color("677184"))
     else:
         _add_stage_fx()
+
+func _spawn_unapproved_ferrari_roma_preview() -> void:
+    # Evaluator-only: source-verified Ferrari Roma has independent real
+    # artist-authored doors/body glass plus hood and trunk mechanics.
+    # This GLB must NEVER be included by default in the Android release.
+    var raw: String = ProjectSettings.globalize_path(FERRARI_ROMA_REVIEW_MODEL)
+    if not FileAccess.file_exists(raw):
+        push_error("CITYZERO_FERRARI_DEVELOPMENT_ASSET_NOT_PROVIDED: "+raw)
+        return
+    var original_doc := GLTFDocument.new()
+    var original_state := GLTFState.new()
+    var result: Error = original_doc.append_from_file(raw,original_state)
+    if result != OK:
+        push_error("CITYZERO_FERRARI_ROMA_REVIEW_ORIGINAL_MESH_IMPORT_FAILED "+str(result))
+        return
+    ferrari_roma_review_car = original_doc.generate_scene(original_state) as Node3D
+    if ferrari_roma_review_car == null:
+        push_error("CITYZERO_FERRARI_ROMA_REVIEW_MISSING_NATIVE_MESH_ROOT")
+        return
+    ferrari_roma_review_car.name = "CityZero_UNAPPROVED_FerrariRoma_Real_Hinges_DevQA"
+    ferrari_roma_review_car.position = Vector3(7.7,0.08,-25.0)
+    ferrari_roma_review_car.rotation.y = PI
+    add_child(ferrari_roma_review_car)
+    ferrari_roma_review_door_controller = CarDoorController.new()
+    ferrari_roma_review_door_controller.name = "QA_Only_Real_Ferrari_Door_Leaf_Controller"
+    ferrari_roma_review_car.add_child(ferrari_roma_review_door_controller)
+    var door_ids: Array[String] = ferrari_roma_review_door_controller.available_doors()
+    ferrari_roma_review_hood = ferrari_roma_review_car.find_child("HOOD_FRONT_HINGE",true,false) as Node3D
+    ferrari_roma_review_trunk = ferrari_roma_review_car.find_child("TRUNK_REAR_HINGE",true,false) as Node3D
+    if door_ids.size() != 2 or ferrari_roma_review_hood == null or ferrari_roma_review_trunk == null:
+        push_error("CITYZERO_FERRARI_REVIEW_FOUR_TRUE_AUTHOR_PIVOTS_MISSING")
+        ferrari_roma_review_car.queue_free()
+        ferrari_roma_review_car = null
+        ferrari_roma_review_door_controller = null
+        ferrari_roma_review_hood = null
+        ferrari_roma_review_trunk = null
+        return
+    print("CITYZERO_FERRARI_ROMA_REAL_GAME_MAIN_SCENE_DEV_REVIEW_ONLY: 2 original doors, true hood, true trunk; NOT ART APPROVED")
+
 
 func _spawn_approved_lamborghini_orange_in_city() -> void:
     # The already-approved original CC0 curated midengine supercar: real authored
