@@ -5,6 +5,7 @@ on:
     paths:
       - '.github/workflows/city-zero-authentic-cc0-challenger.yml'
       - 'forever-frequency-native/tools/import_real_cc0_dodge_challenger.py'
+      - 'forever-frequency-native/tests/challenger_real_godot_capture.gd'
   workflow_dispatch:
 concurrency:
   group: cityzero-original-cc0-dodge-challenger
@@ -13,7 +14,7 @@ permissions:
   contents: read
 jobs:
   actual-authored-cc0-mesh:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-22.04
     timeout-minutes: 24
     steps:
       - uses: actions/checkout@v4
@@ -94,4 +95,81 @@ jobs:
             forever-frequency-native/real_cc0_challenger_blender_proof/*
             forever-frequency-native/assets/licensed_cc0_challenger_source/PROVENANCE.txt
             forever-frequency-native/CC0_DODGE_1970_REAL_BLENDER.log
+          if-no-files-found: warn
+
+  authentic-godot-3-view-proof:
+    needs: actual-authored-cc0-mesh
+    runs-on: ubuntu-22.04
+    timeout-minutes: 14
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download EXACT original Blender-authored CC0 GLB from preceding job
+        uses: actions/download-artifact@v4
+        with:
+          name: CityZero-REAL-CC0-Dodge-Challenger-1970-Blender-GLB-Four-Views
+          path: genuine-source
+      - name: Verify source GLB and set up isolated native Godot project
+        shell: bash
+        run: |
+          set -euo pipefail
+          file=genuine-source/assets/licensed_cc0_automobiles/dodge_challenger_1970_rt_original_cc0.glb
+          test -s "$file"
+          test "$(head -c 4 "$file")" = glTF
+          mkdir -p isolated/assets/licensed_cc0_automobiles isolated/tests
+          cp "$file" isolated/assets/licensed_cc0_automobiles/
+          cp forever-frequency-native/tests/challenger_real_godot_capture.gd isolated/tests/
+          cat > isolated/project.godot <<'GODOT'
+          config_version=5
+          [application]
+          config/name="City Zero REAL 1970 CC0 Dodge evidence"
+          [display]
+          window/size/viewport_width=1280
+          window/size/viewport_height=800
+          [rendering]
+          renderer/rendering_method="gl_compatibility"
+          renderer/rendering_method.mobile="gl_compatibility"
+          GODOT
+      - uses: solarlabyrinth/action-setup-godot@v3
+        with:
+          version: 4.4.1-stable
+          export-templates: false
+      - name: Install REAL software OpenGL window renderer
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq xvfb libgl1 libgl1-mesa-dri libegl1 mesa-utils
+      - name: Godot 4 imports real non-procedural Blender GLB
+        shell: bash
+        run: |
+          set -o pipefail
+          xvfb-run -a -s '-screen 0 1600x900x24' timeout 180s godot --path isolated --editor --import --quit 2>&1 | tee challenger-godot-import.log
+      - name: Save three actual Godot screenshots and hide-mesh difference proofs
+        shell: bash
+        env:
+          LIBGL_ALWAYS_SOFTWARE: '1'
+          MESA_GL_VERSION_OVERRIDE: '3.3'
+        run: |
+          set -euo pipefail
+          mkdir -p "$PWD/challenger-in-game-evidence"
+          export CITYZERO_CHALLENGER_SCREENSHOTS="$PWD/challenger-in-game-evidence"
+          xvfb-run -a -s '-screen 0 1600x900x24' timeout 200s godot --path isolated --script res://tests/challenger_real_godot_capture.gd 2>&1 | tee challenger-in-game-evidence/godot-capture.log
+          grep -q 'CITYZERO_REAL_CHALLENGER_3_GODOT_FRAMES_GREEN' challenger-in-game-evidence/godot-capture.log
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          root=Path('challenger-in-game-evidence')
+          report=json.loads((root/'real_challenger_godot_proof.json').read_text())
+          assert report['genuine_rendered_triangles']>25000
+          assert len(report['shots'])==3
+          assert all(x['actual_mesh_pixel_samples']>175 for x in report['shots'])
+          assert all(Path(x['image']).stat().st_size>25000 for x in report['shots'])
+          assert report['game_ready'] is False
+          print('THREE AUTHENTIC CHALLENGER GODOT FRAMES, NOT AI-GENERATED')
+          PY
+      - name: Deliver authentic game screenshots, Blender source and Godot proof
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: CityZero-Dodge-1970-REAL-3-Godot-Game-Images-and-Proof
+          retention-days: 90
+          path: |
+            challenger-in-game-evidence/
+            challenger-godot-import.log
           if-no-files-found: warn
