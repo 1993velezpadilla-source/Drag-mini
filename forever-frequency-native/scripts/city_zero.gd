@@ -4,6 +4,7 @@ extends Node3D
 
 const GameState = preload("res://scripts/game_state.gd")
 const MobileInput = preload("res://scripts/mobile_input.gd")
+const CityLife = preload("res://scripts/city_life.gd")
 const BEAT: Array[int] = [0, 2, 1, 3, 1, 0, 3, 2]
 const LANDMARKS := {
     "La Caldera Records": Vector3(-13, 0, -12),
@@ -68,6 +69,10 @@ func _ready() -> void:
         add_child(runtime_streetscape)
     _create_citizens()
     _create_player()
+    if ResourceLoader.exists("res://assets/car_2026_ev_sedan.glb") and ResourceLoader.exists("res://assets/citizen_00.glb"):
+        var living_city := CityLife.new()
+        living_city.name = "City_Life_Motion_and_Street_Systems"
+        add_child(living_city)
     _create_mobile_ui()
     _create_music_audio()
     _update_hud()
@@ -382,14 +387,16 @@ func _create_city() -> void:
         _lamp(Vector3(5.3,0,i*6.2),i%2==0)
     for i in range(-3,4):
         _lamp(Vector3(i*7,0,5.3),i%2==1)
-    for p in [Vector3(2,0,-17), Vector3(-3,0,17), Vector3(29,0,-4)]:
-        _parked_car(p)
+    if not ResourceLoader.exists("res://assets/car_2026_ev_sedan.glb"):
+        for p in [Vector3(2,0,-17), Vector3(-3,0,17), Vector3(29,0,-4)]:
+            _parked_car(p)
     for pos in [Vector3(-2.1,0,-7.9),Vector3(-22,0,4),Vector3(5.5,0,16),Vector3(18,0,21)]:
         _spawn_blender_prop("res://assets/city_bench.glb",pos,Vector3.ONE)
-    car = Node3D.new()
-    car.position = Vector3(-3,0,1)
-    add_child(car)
-    _car_mesh(car,Color("e09b7d"))
+    if not ResourceLoader.exists("res://assets/car_2026_ev_sedan.glb"):
+        car = Node3D.new()
+        car.position = Vector3(-3,0,1)
+        add_child(car)
+        _car_mesh(car,Color("e09b7d"))
     if not game.stage_built:
         if not ResourceLoader.exists("res://assets/nova_stage.glb"):
             _box(stage_visual,Vector3(0,0.9,1),Vector3(6,0.5,3),Color("677184"))
@@ -431,6 +438,9 @@ func _parked_car(p: Vector3) -> void:
     _car_mesh(root,Color("7c98bb") if p.x < 0 else Color("d1b5a4"))
 
 func _create_citizens() -> void:
+    # Prefer distinct Blender character models over identical avatar recolors.
+    if ResourceLoader.exists("res://assets/citizen_00.glb"):
+        return
     for i in range(12):
         var citizen := Node3D.new()
         add_child(citizen)
