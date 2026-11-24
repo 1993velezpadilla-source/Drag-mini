@@ -75,7 +75,8 @@ if tris<body_tris+500:
 tex_dir=SRC/'textures'
 fixed_images=0
 for image in bpy.data.images:
-    src_name=Path(bpy.path.abspath(image.filepath)).name
+    # FBX authored on Windows: normalize backslashes BEFORE Path(...).
+    src_name=Path(bpy.path.abspath(image.filepath).replace('\\','/')).name
     matches=list(tex_dir.rglob(src_name)) if tex_dir.exists() else []
     if matches:
         image.filepath=str(matches[0])
