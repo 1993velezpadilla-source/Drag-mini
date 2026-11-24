@@ -26,3 +26,5 @@ jobs:
         run: godot --headless --path . --editor --import --quit
       - name: Smoke test modular vehicle panels/attachments
         run: godot --headless --path . --script res://city_zero/vehicle_runtime/test_modular_vehicle.gd
+      - name: Smoke test real 3D trunk audio bus and bass speaker lifecycle
+        run: godot --headless --path . --script res://city_zero/vehicle_runtime/test_trunk_audio.gd
