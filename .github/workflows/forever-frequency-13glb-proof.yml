@@ -1,0 +1,78 @@
+name: Forever Frequency - approved 13 GLB Godot visual proof
+on:
+  push:
+    branches: [forever-frequency-native]
+    paths:
+      - '.github/workflows/forever-frequency-13glb-proof.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  proof:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 18
+    container:
+      image: barichello/godot-ci:4.4
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download exact 13 GLB Blender package that passed its own gauntlet
+        uses: actions/download-artifact@v4
+        with:
+          name: Premium-Forever-Frequency-13-GLB-Blender-Kit
+          repository: 1993velezpadilla-source/Drag-mini
+          run-id: 45322388388
+          github-token: ${{ github.token }}
+          path: forever-frequency-native/assets
+      - name: Keep runtime models only, verify 13 assets
+        shell: bash
+        run: |
+          set -euo pipefail
+          find forever-frequency-native/assets -maxdepth 1 -name '*.blend' -delete
+          rm -f forever-frequency-native/assets/studio_entrance.glb forever-frequency-native/assets/street_kiosk.glb
+          ls -lh forever-frequency-native/assets/*.glb
+          test "$(find forever-frequency-native/assets -maxdepth 1 -name '*.glb' | wc -l)" -eq 13
+          test -s forever-frequency-native/assets/urban_life_district.glb
+      - name: Install headless framebuffer and independent image critic
+        run: apt-get update -qq && apt-get install -y -qq xvfb libgl1-mesa-dri libgl1 python3 python3-pil
+      - name: Import actual Blender models into Godot
+        shell: bash
+        run: |
+          set -o pipefail
+          timeout 420s godot --headless --path forever-frequency-native --editor --import --quit 2>&1 | tee godot_import.log
+          if grep -E 'SCRIPT ERROR|Parse Error|Failed loading resource' godot_import.log; then exit 1; fi
+      - name: Prove actual models instantiate and gameplay works
+        shell: bash
+        env:
+          FOREVER_REQUIRE_MODELS: '1'
+        run: |
+          set -o pipefail
+          timeout 100s godot --headless --path forever-frequency-native --script res://tests/gauntlet.gd 2>&1 | tee game_gauntlet.log
+          grep 'GAUNTLET GREEN' game_gauntlet.log
+      - name: Render four independent unedited Godot screenshots
+        shell: bash
+        run: |
+          set -o pipefail
+          timeout 180s xvfb-run -a -s '-screen 0 1280x720x24' godot --path forever-frequency-native --rendering-method gl_compatibility --script res://tests/capture.gd 2>&1 | tee capture.log
+          for f in preview_real_godot.png preview_city_aerial.png preview_market_street.png preview_studio_closeup.png; do
+            test -s "forever-frequency-native/$f"
+          done
+      - name: Adversarial four-camera photographic image inspection
+        shell: bash
+        run: |
+          set -o pipefail
+          python3 forever-frequency-native/tools/visual_critic.py 2>&1 | tee critic.log
+          grep 'VISUAL GAUNTLET GREEN' critic.log
+      - name: Always publish screenshots AND failures, not fake success
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: Forever-Frequency-Actual-Premium-Godot-Frames-4x
+          path: |
+            forever-frequency-native/preview_*.png
+            forever-frequency-native/visual_critic_report.json
+            godot_import.log
+            game_gauntlet.log
+            capture.log
+            critic.log
+          if-no-files-found: warn
