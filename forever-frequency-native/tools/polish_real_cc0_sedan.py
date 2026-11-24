@@ -357,7 +357,13 @@ def remove_sourced_roof_gap_spikes(body):
             -.33<center.y<1.10 and
             1.18<center.z<1.42):
             to_delete.append(face)
-            deleted_area+=face.calc_area()
+            # Object was exported with a real source transform, so local
+            # calc_area() severely under-reports world m2 (0.049 vs 0.29).
+            # Measure the real GLB world-space surface, never the FBX local.
+            points=[body.matrix_world@v.co for v in face.verts]
+            for tri_i in range(1,len(points)-1):
+                deleted_area+=.5*((points[tri_i]-points[0]).cross(
+                    points[tri_i+1]-points[0])).length
     if not 145<=len(to_delete)<=225 or not .20<=deleted_area<=.40:
         bm.free()
         raise RuntimeError("Measured source roof-gap faces differ from diagnosed "
