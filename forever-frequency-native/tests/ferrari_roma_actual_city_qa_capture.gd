@@ -17,6 +17,23 @@ func _photo(vp: Viewport) -> Image:
     await RenderingServer.frame_post_draw
     return vp.get_texture().get_image()
 
+func _real_mesh_extents(node: Node, points: Array[Vector3]) -> void:
+    if node is MeshInstance3D and (node as MeshInstance3D).mesh != null:
+        var obj := node as MeshInstance3D
+        for corner in range(8):
+            points.append(obj.global_transform * obj.mesh.get_aabb().get_endpoint(corner))
+    for child in node.get_children():
+        _real_mesh_extents(child, points)
+
+func _on_screen_extents(cam: Camera3D, points: Array[Vector3]) -> Rect2:
+    var low := Vector2(INF, INF)
+    var high := Vector2(-INF, -INF)
+    for position in points:
+        var projected := cam.unproject_position(position)
+        low = low.min(projected)
+        high = high.max(projected)
+    return Rect2(low, high - low)
+
 func _capture_in_real_game() -> void:
     if OS.get_environment("CITYZERO_DEV_FERRARI_ROMA")!="1":
         _red("Ferrari scene must be a development-only opt-in, never a production car")
@@ -65,16 +82,47 @@ func _capture_in_real_game() -> void:
     city.set_process(false)
     city.set_physics_process(false)
     var target := car.global_position+Vector3(0,.75,0)
-    # CAMERA FORENSIC 2026-11-24: previous (4.85,2.3,5.15) placed
-    # the actual world camera beside the eastern roadside tree (x=6.7,
-    # z≈-21.6), whose huge canopy obscured the Ferrari's front and hood.
-    # Capture the real car from the free front road lane instead; keep the
-    # full native City Zero scene, trees and UI unchanged.
-    cam.global_position=target+Vector3(0.0,3.05,-6.0)
-    cam.look_at(target,Vector3.UP)
-    cam.fov=46.0
+    # HONEST REVIEW CAMERA: inspect artist source mesh against the ACTUAL
+    # playable City Zero environment, but put it in 3/4 view close enough to
+    # distinguish roof, rims, authentic side-body, glass and panel alignment.
+    # Prior front camera left car occupying only 22% of horizontal viewport.
+    # Face Ferrari from lower road segment, avoiding canopy near (6.7,-21.6).
+    var original_mesh_corners: Array[Vector3] = []
+    _real_mesh_extents(car, original_mesh_corners)
+    if original_mesh_corners.size() < 80:
+        _red("Actual original Ferrari artist geometry too sparse to frame")
+        return
+    var screen := root.get_viewport().get_visible_rect().size
+    var camera_axis := Vector3(3.2,1.6,-3.5)
+    var scale := 1.0
+    cam.fov=45.0
     cam.current=true
-    await _wait_frames(40)
+    for step in range(9):
+        cam.global_position=target+camera_axis*scale
+        cam.look_at(target,Vector3.UP)
+        await _wait_frames(3)
+        var projected := _on_screen_extents(cam,original_mesh_corners)
+        var width_fraction := projected.size.x/screen.x
+        var height_fraction := projected.size.y/screen.y
+        if not is_finite(width_fraction) or not is_finite(height_fraction):
+            _red("Original Ferrari 3D source camera projection is broken")
+            return
+        var factor := maxf(width_fraction/.66,height_fraction/.63)
+        if absf(factor-1.0)<.035:
+            break
+        scale *= clampf(factor,.70,1.45)
+        scale=clampf(scale,.50,4.0)
+    await _wait_frames(30)
+    var final_rect := _on_screen_extents(cam,original_mesh_corners)
+    var fill_horizontal := final_rect.size.x/screen.x
+    var fill_vertical := final_rect.size.y/screen.y
+    if fill_horizontal<.54 or maxf(fill_horizontal,fill_vertical)<.60:
+        _red("REJECTED SMALL GENERIC FERRARI 3D shot: visible source body fills only "+str([fill_horizontal,fill_vertical]))
+        return
+    if final_rect.position.x<25 or final_rect.position.y<30 or final_rect.end.x>screen.x-25 or final_rect.end.y>screen.y-25:
+        _red("Original Ferrari cropped by dishonest reviewer camera "+str(final_rect))
+        return
+    print("REAL_CAR_3D_FERRARI_MAIN_CITY_SOURCE_FRAME_FRACTIONS ", fill_horizontal, " ", fill_vertical)
 
     var closed: Image=await _photo(root.get_viewport())
     if closed==null or closed.is_empty():
@@ -130,6 +178,9 @@ func _capture_in_real_game() -> void:
         "physically_hinged_creator_body_parts":["door_left","door_right","hood","trunk"],
         "image_model_replaced_with_generated_ai":false,
         "actual_scene_changed_pixel_samples":differing,
+        "original_source_body_screen_width_fraction":fill_horizontal,
+        "original_source_body_screen_height_fraction":fill_vertical,
+        "anti_toy_car_camera_frustum_passed":true,
         "actual_game_images":[closed_name,opened_name],
         "artist":"Ddiaz Design",
         "source_original_triangle_count":238791,
