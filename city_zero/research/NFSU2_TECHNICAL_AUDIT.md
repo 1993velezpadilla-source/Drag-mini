@@ -116,3 +116,33 @@ https://github.com/kateusz/OpenUG2-R36S/blob/main/docs/VEHICLE_CUSTOMIZATION.md 
 - https://github.com/pauliquib/nfsu2-addcars
 - https://github.com/chrystianfarias/NFSU2Unity
 - https://nfsmodderscorner.blogspot.com/p/need-for-speed-underground-2.html
+
+
+## 10. Struct-level original render data (verified source, not live-site dump)
+
+The public [NFSU2Unlimiter CarRenderInfo.h](https://github.com/nlgxzef/NFSU2Unlimiter/blob/master/CarRenderInfo.h) retains an offset-checked original 32-bit render structure. High-value fields for an interoperable architecture:
+
+| NFSU2 render field | Original relative offset | Implication for City Zero |
+|---|---:|---|
+| \`mCarPartModels[63][2][4]\` | \`0x17A8\` | Many independent named part slots, each with multiple pieces and up to four LODs; treat parts as separate mesh resources |
+| \`TrunkAudioModels[2][4]\` | \`0x21B4\` | Base trunk layout has distinct model pieces and LODs |
+| \`TrunkAudioCompModels[12][2][4]\` | \`0x2274\` | Twelve speaker/amplifier component attachment slots with distinct pieces and LODs |
+| \`TrunkAudioEmptyModels[3][2]\` | \`0x2B74\` | Multiple appearance/empty configurations; don't permanently bake a single box into trunk mesh |
+| \`LightMaterial_Audio\` | \`0x039C\` | Trunk audio has separately material-controlled surface and color |
+| \`TrunkNeonColour\` | \`0x0374\` | Trunk neon has independent color state |
+| \`TrunkNeonMarkers\` | \`0x2CF8\` | Dedicated lighting marker chain, independent of underglow and cabin neon |
+| \`WheelYRenderOffset[4][2]\` | \`0x0400\` | Separate wheel position compensation for normal vs widebody |
+| \`WheelWidths[4]\` | \`0x0420\` | Wheel fit is a per-wheel dimension, not body-wide scaling |
+| \`TheCarPartCuller\` | \`0x2D60\` | Part visibility/culling is explicit; interior/undersides require state-aware rendering |
+
+The original engine's byte offsets are **documentation only** and must NOT be hard-coded into the Godot replacement. City Zero's representation is a typed scene tree and compatibility catalog. This evidence confirms that speaker layouts are structured 3D resources, not an “audio decal.” A model naming convention doesn't provide the licensed component mesh itself.
+
+## 11. Implemented City Zero source files (status: committed, not blanket runtime-certified)
+
+- \`city_zero/vehicle_runtime/CityZeroModularVehicle.gd\`: hood/trunk/door articulated pivots, stock reset, compatible part scenes, speaker sockets, state IDs.
+- \`city_zero/vehicle_runtime/CityZeroTrunkAudio.gd\`: independent per-car 3D audio stream bus, spectrum analyser, subtle speaker-cone motion, no bundled copyrighted music.
+- \`city_zero/vehicle_runtime/CityZeroShowroom.gd\`: 3D garage with actual imported licensed GLB and original animation-clip controls, touch orbit and two-finger pinch zoom.
+- \`city_zero/scenes/vehicle_showroom.tscn\`: launchable Godot scene, external CC0 GLB must first be obtained via the CI workflow.
+- \`city_zero/vehicle_runtime/test_modular_vehicle.gd\`, \`test_trunk_audio.gd\`, \`test_cc0_model.gd\`: headless and rendering probes.
+- \`.github/workflows/cityzero-real-car-reference.yml\`: downloads CC0 asset, validates glTF binary and node geometry, imports in Godot and attempts a real PNG capture.
+- All code is to be treated as **candidate implementation** until exact GitHub Actions tests, visual screenshots and actual Android play tests pass. The game is not yet a finished online vehicle system.
