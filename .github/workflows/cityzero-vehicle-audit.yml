@@ -1,0 +1,42 @@
+name: City Zero vehicle fidelity audit
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - forever-frequency-native
+    paths:
+      - tools/cityzero_vehicle_inventory.py
+      - tools/tests/test_cityzero_vehicle_inventory.py
+      - .github/workflows/cityzero-vehicle-audit.yml
+      - city_zero/research/**
+
+permissions:
+  contents: read
+
+jobs:
+  synthetic-vehicle-gauntlet:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Syntax and synthetic car mesh/part checks
+        run: |
+          python -m py_compile tools/cityzero_vehicle_inventory.py
+          python -m unittest discover -s tools/tests -p 'test_cityzero_vehicle_inventory.py' -v
+      - name: Validate roster and documented format
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          roster = json.loads(Path('city_zero/research/nfsu2mod_car_roster.json').read_text())
+          assert roster['stock_car_count'] == len(roster['stock']) == 31
+          assert roster['observed_addon_count'] == len(roster['addons']) >= 39
+          assert roster['observed_traffic_count'] == len(roster['traffic']) >= 15
+          ids = [x['xname'] for group in ('stock','addons','traffic') for x in roster[group]]
+          assert len(ids) == len(set(ids)), 'car xnames must be unique'
+          print('Car roster validated:', len(ids), 'distinct car identifiers')
+          PY
