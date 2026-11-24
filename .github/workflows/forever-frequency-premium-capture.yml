@@ -1,0 +1,104 @@
+name: Forever Frequency Premium — Visual Critic + ARM64
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: ff-premium-capture-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  validate-godot-and-apk:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    container:
+      image: barichello/godot-ci:4.4
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download the new Blender 4.5 premium urban district
+        uses: actions/download-artifact@v4
+        with:
+          name: Premium-Forever-Frequency-13-GLB-Blender-Kit
+          repository: 1993velezpadilla-source/Drag-mini
+          run-id: 45322388388
+          github-token: ${{ github.token }}
+          path: forever-frequency-native/assets
+      - name: Restore the verified CC0 mobile road and sidewalk PBR maps
+        uses: actions/download-artifact@v4
+        with:
+          name: forever-frequency-blender-source
+          repository: 1993velezpadilla-source/Drag-mini
+          run-id: 45320104305
+          github-token: ${{ github.token }}
+          path: /tmp/ff-baseline-assets
+      - name: Prepare pristine runtime assets (no Blender source imported)
+        shell: bash
+        run: |
+          cp /tmp/ff-baseline-assets/road_asphalt.jpg forever-frequency-native/assets/
+          cp /tmp/ff-baseline-assets/sidewalk_concrete.jpg forever-frequency-native/assets/
+          rm -f forever-frequency-native/assets/*.blend
+          rm -f forever-frequency-native/assets/studio_entrance.glb forever-frequency-native/assets/street_kiosk.glb
+          count="$(find forever-frequency-native/assets -maxdepth 1 -name '*.glb' | wc -l)"
+          echo "PACKED PREMIUM RUNTIME GLBS: $count"
+          test "$count" -eq 13
+          test -s forever-frequency-native/assets/urban_life_district.glb
+      - name: Install virtual display and image critic
+        shell: bash
+        run: |
+          apt-get update -qq
+          apt-get install -y -qq xvfb libgl1-mesa-dri libgl1 python3 python3-pil
+      - name: Import Godot 3D project with all original models
+        shell: bash
+        run: |
+          timeout 220s godot --headless --path forever-frequency-native --editor --import --quit 2>&1 | tee import.log
+          if grep -E 'SCRIPT ERROR|Parse Error|Failed loading resource' import.log; then exit 1; fi
+          python3 forever-frequency-native/tools/adversarial_audit.py | tee source_critic.log
+      - name: Real engine mechanics and premium models gauntlet
+        shell: bash
+        env:
+          FOREVER_REQUIRE_MODELS: '1'
+        run: |
+          godot --headless --path forever-frequency-native --script res://tests/gauntlet.gd 2>&1 | tee gameplay_gauntlet.log
+          grep 'GAUNTLET GREEN' gameplay_gauntlet.log
+          ! grep -E 'SCRIPT ERROR|GAUNTLET RED|Parse Error' gameplay_gauntlet.log
+      - name: Four authentic Godot screenshots and visual critic gate
+        shell: bash
+        run: |
+          timeout 180s xvfb-run -a -s '-screen 0 1280x720x24' godot --path forever-frequency-native --rendering-method gl_compatibility --script res://tests/capture.gd 2>&1 | tee capture.log
+          grep 'REAL GODOT FOUR-ANGLE VISUAL GAUNTLET GREEN' capture.log
+          python3 forever-frequency-native/tools/visual_critic.py | tee visual_critic.log
+          grep 'VISUAL GAUNTLET GREEN' visual_critic.log
+      - name: Enable Godot Android 34 SDK and debug signing
+        shell: bash
+        run: |
+          mkdir -p "$HOME/.local/share/godot/export_templates" "$HOME/.config/godot" /root/.android
+          cp -a /root/.local/share/godot/export_templates/. "$HOME/.local/share/godot/export_templates/"
+          cp -a /root/.config/godot/. "$HOME/.config/godot/"
+          export ANDROID_HOME=/usr/lib/android-sdk
+          printf 'y\ny\ny\n' | sdkmanager --sdk_root="$ANDROID_HOME" 'build-tools;34.0.0' 'platforms;android-34' 'platform-tools'
+          keytool -genkeypair -keystore /root/.android/debug.keystore -alias androiddebugkey -storepass android -keypass android -keyalg RSA -keysize 2048 -validity 9000 -dname 'CN=Android Debug,O=Forever Frequency,C=US'
+      - name: Export real native Godot ARM64 APK
+        shell: bash
+        env:
+          GODOT_ANDROID_KEYSTORE_DEBUG_PATH: /root/.android/debug.keystore
+          GODOT_ANDROID_KEYSTORE_DEBUG_USER: androiddebugkey
+          GODOT_ANDROID_KEYSTORE_DEBUG_PASSWORD: android
+        run: |
+          mkdir -p out
+          godot --headless --path forever-frequency-native --export-debug Android "$PWD/out/Forever_Frequency_Premium_ARM64.apk" 2>&1 | tee export.log
+          test -s out/Forever_Frequency_Premium_ARM64.apk
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: FF-Premium-Four-Godot-Screenshots-and-Adversarial-Logs
+          path: |
+            forever-frequency-native/preview_*.png
+            forever-frequency-native/visual_critic_report.json
+            *.log
+          if-no-files-found: warn
+      - uses: actions/upload-artifact@v4
+        if: success()
+        with:
+          name: FF-Premium-Validated-ARM64-APK
+          path: out/*.apk
+          if-no-files-found: error
