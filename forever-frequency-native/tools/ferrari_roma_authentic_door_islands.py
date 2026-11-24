@@ -213,6 +213,8 @@ scene.render.resolution_y=900
 scene.render.resolution_percentage=100
 scene.render.image_settings.file_format="PNG"
 scene.display.shading.background_type="WORLD"
+if scene.world is None:
+    scene.world=bpy.data.worlds.new("CITY_ZERO_REAL_FERRARI_DOOR_WORKBENCH_BACKDROP")
 scene.world.color=(.45,.51,.60)
 camera_data=bpy.data.cameras.new("ORIGINAL_ARTIST_REAL_DOOR_PROOF_CAMERA")
 camera_data.type="ORTHO"
