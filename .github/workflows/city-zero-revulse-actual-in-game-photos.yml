@@ -106,7 +106,10 @@ jobs:
           git add "$folder" forever-frequency-native/assets/premium_fleet/exotic_supercar__revulse.glb
           git commit -m "Ship playable REVULSE model and actual Godot in-game door photos [skip ci]"
           for attempt in 1 2 3; do
-            git pull --rebase origin forever-frequency-native
+            # Generated model/import steps may leave modified tracked project files.
+            # Rebase only our committed verified PNG/GLB payload, autostashing
+            # local renderer byproducts rather than failing with dirty worktree.
+            git -c rebase.autoStash=true pull --rebase origin forever-frequency-native
             if git push origin HEAD:forever-frequency-native; then
               echo 'GODOT_REAL_PHOTOS_PUBLISHED_TO_GITHUB'
               break
