@@ -118,6 +118,17 @@ func _build_ui() -> void:
     audio.pressed.connect(_try_sound)
     edit_row.add_child(audio)
 
+    var stats_row := HBoxContainer.new()
+    root_ui.add_child(stats_row)
+    var engine_stats := Button.new()
+    engine_stats.text = "ENGINE / RPM / TORQUE"
+    engine_stats.pressed.connect(_show_engine_stats)
+    stats_row.add_child(engine_stats)
+    var vinyl_count := Button.new()
+    vinyl_count.text = "VINYL CATALOG"
+    vinyl_count.pressed.connect(_show_vinyl_count)
+    stats_row.add_child(vinyl_count)
+
     _dialog = FileDialog.new()
     _dialog.title = "Select cityzero_godot_library.json"
     _dialog.access = FileDialog.ACCESS_FILESYSTEM
@@ -193,6 +204,33 @@ func _try_sound() -> void:
                     _status.text = "Playing genuine decoded source: " + str(name)
                     return
     _status.text = "No decoded source WAV available in this private import."
+
+
+func _show_engine_stats() -> void:
+    var original := _garage.original_physics_record()
+    var factory: Dictionary = original.get("factory_physics", {})
+    if factory.is_empty():
+        _status.text = "Original GLOBALB.BUN physics unavailable for this car."
+        return
+    var rpm: Array = factory.get("engine_idle_redline_max_rpm", [])
+    var torque: Array = factory.get("torque_curve_kNm", [])
+    if rpm.size() != 3 or torque.is_empty():
+        _status.text = "Original engine data incomplete."
+        return
+    var max_torque := 0.0
+    for value in torque:
+        max_torque = maxf(max_torque, float(value))
+    _status.text = "Original %s: idle %.0f · redline %.0f · max %.0f RPM · peak %.0f Nm (stock)" % [
+        _garage.installed_car(), float(rpm[0]), float(rpm[1]), float(rpm[2]),
+        max_torque * 1000.0
+    ]
+
+
+func _show_vinyl_count() -> void:
+    var vinyls := _garage.vinyl_records()
+    _status.text = "%s: %s authentic vinyl texture records (not yet mapped to material)" % [
+        _garage.installed_car(), str(vinyls.get("count", 0))
+    ]
 
 
 func _spin_car() -> void:
