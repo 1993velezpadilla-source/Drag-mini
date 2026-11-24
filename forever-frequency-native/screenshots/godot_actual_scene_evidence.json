@@ -1,0 +1,18 @@
+{
+  "captured_resolution": [
+    1280,
+    720
+  ],
+  "changed_grid_pixels": 198,
+  "closed": "/home/runner/work/Drag-mini/Drag-mini/revulse-in-game-evidence/REVULSE_CITY_ZERO_IN_GAME_DOORS_CLOSED.png",
+  "hinges": [
+    "DOOR_LEFT_FRONT_HINGE",
+    "DOOR_RIGHT_FRONT_HINGE"
+  ],
+  "in_city_world": true,
+  "model": "exotic_supercar__revulse.glb",
+  "open": "/home/runner/work/Drag-mini/Drag-mini/revulse-in-game-evidence/REVULSE_CITY_ZERO_IN_GAME_DOORS_OPEN.png",
+  "real_glb": true,
+  "sample_count": 24192,
+  "source": "Godot 4.4 actual City Zero main scene viewport"
+}
