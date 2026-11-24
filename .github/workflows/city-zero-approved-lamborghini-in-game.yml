@@ -70,6 +70,7 @@ jobs:
           cp forever-frequency-native/tests/approved_lamborghini_in_game_capture.gd approved-isolated/tests/
           # Keep the approved GLB out of the editor cache scan. Its binary
           # imports directly at runtime via GLTFDocument, without .glb.import.
+          mkdir -p forever-frequency-native/assets/curated_rigged
           cp "$RUNNER_TEMP/approved_original_source/assets/curated_rigged/curated_midengine_supercar.glb" \
             forever-frequency-native/assets/curated_rigged/curated_midengine_supercar.glb
           echo '45cdbfd70dc4e6c64b6bbbe5e24a2107044e2008928ab01c27fa8fbb91a25bd7  forever-frequency-native/assets/curated_rigged/curated_midengine_supercar.glb' | sha256sum --check
