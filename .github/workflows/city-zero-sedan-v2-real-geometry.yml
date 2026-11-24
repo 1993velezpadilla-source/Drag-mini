@@ -54,8 +54,8 @@ jobs:
           car={item['id']:item for item in data}
           sedan=car['curated_family_sedan']
           lamb=car['curated_midengine_supercar']
-          assert sedan['triangles']==60300 and sedan['hinges']==4
-          assert lamb['triangles']==44632 and lamb['hinges']==2 and lamb['sedan_polish'] is None
+          assert sedan['source_triangles']==60300 and 60300<sedan['triangles']<65000 and sedan['hinges']==4
+          assert lamb['source_triangles']==44632 and lamb['triangles']==44632 and lamb['hinges']==2 and lamb['sedan_polish'] is None
           repair=sedan['sedan_polish']
           assert repair['repair_version']==2
           assert repair['rear_headrest_peak_after_m']<=1.14
@@ -63,6 +63,11 @@ jobs:
           assert repair['rear_pillar_vertices_feathered']>=50
           assert repair['rear_quarter_vertices_feathered']>=350
           assert len(repair['upper_window_trim_vertices_feathered'])==2
+          glass=repair['original_rear_glass_reprofile']
+          assert glass['glass_vertices_corrected']>=12
+          assert glass['maximum_old_roof_protrusion_m']>=.012
+          assert glass['maximum_new_roof_protrusion_m']<=.002
+          assert glass['retessellated_glass_faces']>glass['original_glass_faces']*2
           assert len(repair['door_hinges_preserved'])==4
           assert len(sedan['measured_door_movement'])==4
           assert len(lamb['measured_door_movement'])==2
