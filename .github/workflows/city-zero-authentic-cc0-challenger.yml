@@ -1,0 +1,84 @@
+name: City Zero - REAL licensed CC0 Dodge Challenger 1970 Blender asset
+on:
+  push:
+    branches: [forever-frequency-native]
+    paths:
+      - '.github/workflows/city-zero-authentic-cc0-challenger.yml'
+      - 'forever-frequency-native/tools/import_real_cc0_dodge_challenger.py'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  actual-authored-cc0-mesh:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 24
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download genuine CC0 original O3DE vehicle FBX and prefab from pinned GitHub commit
+        shell: bash
+        run: |
+          set -euo pipefail
+          base='https://raw.githubusercontent.com/pawelbudziszewski/o3de-sample-vehicle-assets/6047f2b431708202c37b196ee7cced94ff2fc302/Assets/Vehicles/Dodge_Challenger_1970_rt'
+          target=forever-frequency-native/assets/licensed_cc0_challenger_source
+          mkdir -p "$target/textures"
+          for src in dodge-challenger-1970-r-t_body.fbx dodge-challenger-1970-r-t_wheel.fbx dodge-challenger-1970-r-t_steering_wheel.fbx; do
+            curl -fL --retry 4 --connect-timeout 20 --max-time 220 -o "$target/$src" "$base/Models/$src"
+            test -s "$target/$src"
+          done
+          curl -fL --retry 4 --connect-timeout 20 -o "$target/Dodge_Challenger_1970_RT.prefab" "$base/Dodge_Challenger_1970_RT.prefab"
+          test "$(wc -c < "$target/dodge-challenger-1970-r-t_body.fbx")" -gt 40000000
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          d=Path('forever-frequency-native/assets/licensed_cc0_challenger_source')
+          p=json.loads((d/'Dodge_Challenger_1970_RT.prefab').read_text())
+          assert sum(x.get('Name','') in ('Wheel FL','Wheel FR','Wheel RL','Wheel RR') for x in p['Entities'].values())==4
+          print('GENUINE PINNED O3DE CC0 ORIGINAL FBX DOWNLOADED WITH ALL FOUR ACTUAL WHEEL ANCHORS')
+          PY
+          python3 -m py_compile forever-frequency-native/tools/import_real_cc0_dodge_challenger.py
+      - name: Original source and permission declaration
+        run: |
+          printf '%s\n' \
+            'Artist original: https://blendswap.com/blend/4046' \
+            'Artist source licensing displayed: CC0' \
+            'O3DE adaptation: https://github.com/pawelbudziszewski/o3de-sample-vehicle-assets' \
+            'Pinned adaptation revision: 6047f2b431708202c37b196ee7cced94ff2fc302' \
+            'DO NOT CALL SHIP-READY before screenshot/door/mobility review' \
+            > forever-frequency-native/assets/licensed_cc0_challenger_source/PROVENANCE.txt
+      - name: Download Blender 4.5
+        run: docker pull ghcr.io/blenderkit/headless-blender:blender-4.5-stable
+      - name: Import original CC0 Dodge into Blender and prove actual source geometry and wheels
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd forever-frequency-native
+          timeout 600s docker run --rm --entrypoint /home/headless/blender/blender -v "$PWD:$PWD" -w "$PWD" ghcr.io/blenderkit/headless-blender:blender-4.5-stable -b -t 2 --python tools/import_real_cc0_dodge_challenger.py 2>&1 | tee CC0_DODGE_1970_REAL_BLENDER.log
+          grep -q 'GENUINE CC0 DODGE CHALLENGER SOURCE BLENDER FOUR VIEW GATE COMPLETE' CC0_DODGE_1970_REAL_BLENDER.log
+      - name: Validate actual car four-view evidence, not AI
+        run: |
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          root=Path('forever-frequency-native')
+          d=root/'real_cc0_challenger_blender_proof'
+          j=json.loads((d/'original_cc0_import_report.json').read_text())
+          assert j['body_source_triangles']>25000
+          assert len(j['wheels'])==4
+          assert j['game_ready']==False
+          assert 'CC0' in j['original_source_license']
+          assert (root/'assets/licensed_cc0_automobiles/dodge_challenger_1970_rt_original_cc0.glb').stat().st_size>300000
+          assert len(list(d.glob('*.png')))==4
+          print('GENUINE LICENSED CLASSIC CHALLENGER GEOMETRY/BLENDER FOUR VIEWS GREEN, NOT GAME READY')
+          PY
+      - name: Upload actual downloadable CC0 Dodge GLB, Blender, source credits and screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: CityZero-REAL-CC0-Dodge-Challenger-1970-Blender-GLB-Four-Views
+          retention-days: 90
+          path: |
+            forever-frequency-native/assets/licensed_cc0_automobiles/*
+            forever-frequency-native/real_cc0_challenger_blender_proof/*
+            forever-frequency-native/assets/licensed_cc0_challenger_source/PROVENANCE.txt
+            forever-frequency-native/CC0_DODGE_1970_REAL_BLENDER.log
+          if-no-files-found: warn
