@@ -64,12 +64,20 @@ for rec in records:
     # Do not claim hinges animate simply because a mesh is named door_FL.
     # Geometry parity + animation must be independently verified in Godot.
     camera_data.ortho_scale=length*1.36
+    # Never assume that imported glTF bodies are longitudinal X.
+    # Both current real CC0 models have longitudinal Y; the old code
+    # mislabeled their profile views as "front" and vice versa.
+    longitudinal=Vector((1.0,0.0,0.0)) if dim.x>=dim.y else Vector((0.0,1.0,0.0))
+    lateral=Vector((0.0,1.0,0.0)) if dim.x>=dim.y else Vector((1.0,0.0,0.0))
+    up=Vector((0.0,0.0,1.0))
     views={
-        "side":Vector((length*.05,-length*1.90,length*.28)),
-        "front":Vector((length*1.75,0,length*.30)),
-        "rear":Vector((-length*1.75,0,length*.30)),
-        "three_quarter":Vector((length*1.22,-length*1.36,length*.72))
+        "side":-lateral*length*1.90+longitudinal*length*.05+up*length*.28,
+        "front":-longitudinal*length*1.75+up*length*.30,
+        "rear":longitudinal*length*1.75+up*length*.30,
+        "three_quarter":-longitudinal*length*1.22-lateral*length*1.36+up*length*.72
     }
+    assert abs(views["front"].dot(longitudinal)) > abs(views["front"].dot(lateral))
+    assert abs(views["side"].dot(lateral)) > abs(views["side"].dot(longitudinal))
     images={}
     for angle,delta in views.items():
         camera.location=center+delta
@@ -86,6 +94,8 @@ for rec in records:
               expected_doors=rec["expected_doors"],
               found_named_doors=len(named),
               node_names=nodes[:180],renders=images,
+              longitudinal_axis="X" if dim.x>=dim.y else "Y",
+              front_direction="NEGATIVE_LONGITUDINAL_AXIS_PENDING_NOSE_VERIFICATION",
               status="PENDING_ADVERSARIAL_VISUAL_REVIEW",
               actionable="Do not ship without Godot mechanical opening/closing tests")
     results.append(item)
