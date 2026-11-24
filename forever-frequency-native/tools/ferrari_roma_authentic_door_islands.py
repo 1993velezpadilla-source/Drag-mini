@@ -106,10 +106,15 @@ def chosen_regions(obj,side,kind):
                     -.25<lo.y<-.01 and -.05<hi.y<.10)
             valid=body or mirror
         elif kind=="glass":
+            # This original Sketchfab glTF applies +0.11m Y (up) and a
+            # 0.3-degree X rotation ONLY to the glazing mesh. The artist's
+            # side panes are still exactly 77/77/48 real source triangles
+            # per side; evaluate their inherited WORLD placement, not
+            # zero-transformed local bounds from a glTF geometry viewer.
             valid=(38<=triangles<=90 and
                    .12<ext.x<.24 and .72<ext.y<1.10 and
-                   .16<ext.z<.40 and .76<lo.z<.93 and
-                   1.00<hi.z<1.16 and -.3<lo.y<.05 and .65<hi.y<.94)
+                   .16<ext.z<.40 and .85<lo.z<1.06 and
+                   1.10<hi.z<1.30 and -.3<lo.y<.05 and .65<hi.y<.94)
         else:
             raise RuntimeError("Unknown original source material shell group")
         if valid:out.append(island)
