@@ -31,7 +31,7 @@ jobs:
         run: |
           set -euo pipefail
           cd forever-frequency-native
-          docker run --rm -e FF_CAR_IDS=exotic_supercar__revulse,compact_sedan__compact_c,basic_pickup__workhorse,electric_future__cyber_wedge --entrypoint /home/headless/blender/blender -v "$PWD:$PWD" -w "$PWD" ghcr.io/blenderkit/headless-blender:blender-4.5-stable -b -t 2 --python tools/premium_vehicle_fleet_blender.py 2>&1 | tee door_build.log
+          docker run --rm -e FF_CAR_IDS=exotic_supercar__rossa_v,compact_sedan__compact_c,basic_pickup__workhorse,electric_future__cyber_wedge --entrypoint /home/headless/blender/blender -v "$PWD:$PWD" -w "$PWD" ghcr.io/blenderkit/headless-blender:blender-4.5-stable -b -t 2 --python tools/premium_vehicle_fleet_blender.py 2>&1 | tee door_build.log
           grep -q 'PROTOTYPE ONLY' door_build.log
           python3 - <<'PY'
           from pathlib import Path
