@@ -1,0 +1,39 @@
+name: City Zero - Owner Visual Quality Gate - only EXACT orange Lamborghini approved
+on:
+  workflow_dispatch:
+  push:
+    branches: [forever-frequency-native]
+    paths:
+      - '.github/workflows/city-zero-owner-visual-approval-gate.yml'
+      - '.github/workflows/forever-frequency-android.yml'
+      - 'forever-frequency-native/tools/check_owner_visual_quality_gate.py'
+      - 'forever-frequency-native/data/owner_rejected_vehicle_art_2026_11_24.json'
+      - 'forever-frequency-native/data/approved_lamborghini_gold_standard.json'
+      - 'forever-frequency-native/data/fleet_visual_review.json'
+      - 'forever-frequency-native/scripts/city_life.gd'
+permissions:
+  contents: read
+jobs:
+  prohibit-ugly-car-release:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Compile owner visual approval gate (no models generated)
+        run: python3 -m py_compile forever-frequency-native/tools/check_owner_visual_quality_gate.py
+      - name: Hold all 103 rejected vehicles, SHA pin exact original orange Lamborghini
+        run: python3 forever-frequency-native/tools/check_owner_visual_quality_gate.py --shipping
+      - name: Reject placeholder vehicle traffic while allowing city life and pedestrians
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          source=Path('forever-frequency-native/scripts/city_life.gd').read_text()
+          assert 'const ALLOW_REJECTED_PLACEHOLDER_TRAFFIC = false' in source
+          assert '    if ALLOW_REJECTED_PLACEHOLDER_TRAFFIC:\n        _spawn_traffic()' in source
+          assert '    _spawn_pedestrians()' in source
+          city=Path('forever-frequency-native/scripts/city_zero.gd').read_text()
+          assert 'const LAMBORGHINI_ORANGE_MODEL = "res://assets/curated_rigged/curated_midengine_supercar.glb"' in city
+          assert '_spawn_approved_lamborghini_orange_in_city()' in city
+          print('CITY_ZERO_ORANGE_LAMBO_ONLY_AND_PEDESTRIAN_CITY_TRAFFIC_VISUAL_HOLD_GREEN')
+          PY
