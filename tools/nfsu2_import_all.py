@@ -17,6 +17,7 @@ from pathlib import Path
 from nfsu2_parts_animation import inspect as inspect_animation
 from nfsu2_physics_catalog import catalog as read_original_physics
 from nfsu2_prepare_godot_library import build_library as build_godot_private_library
+from nfsu2_blender_export_all import SHARED_FAMILIES
 import struct
 
 PART_RULES = (
@@ -249,8 +250,17 @@ def export_models(game, converter, output, selected, blender, all_lods):
             cmd.append("--every-lod")
         try:
             run = subprocess.run(cmd, capture_output=True, text=True, timeout=3600, check=False)
-            verified = (run.returncode == 0 and (dest / "stock.glb").is_file()
-                        and (dest / "models.json").is_file())
+            shared = folder.name.upper() in SHARED_FAMILIES
+            manifest = dest / "models.json"
+            exported = {}
+            if manifest.is_file():
+                try:
+                    exported = json.loads(manifest.read_text(encoding="utf-8"))
+                except (ValueError, OSError):
+                    pass
+            verified = (run.returncode == 0 and manifest.is_file()
+                        and (shared or (dest / "stock.glb").is_file())
+                        and (not shared or len(exported.get("parts", [])) > 0))
             results.append({"car": folder.name, "status": "exported" if verified else "failed",
                             "exit_code": run.returncode, "log_tail": (run.stderr + run.stdout)[-1000:]})
         except subprocess.TimeoutExpired:
