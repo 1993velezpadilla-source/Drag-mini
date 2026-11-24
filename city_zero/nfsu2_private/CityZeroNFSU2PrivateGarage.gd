@@ -355,6 +355,28 @@ func vinyl_records() -> Dictionary:
     return _catalog["vehicles"][_current_id].get("vinyls", {}).duplicate(true)
 
 
+func load_original_vinyl_preview(index: int) -> Texture2D:
+    # Preview only: the game's 512x512 composite skin requires doorline masks,
+    # tint, four vinyl layers and verified UV packing. A raw PNG is not safe
+    # to apply to every mesh surface or substitute for a material.
+    if _current_id.is_empty():
+        return null
+    var catalog: Dictionary = vinyl_records()
+    var rows: Array = catalog.get("vinyls", [])
+    if index < 0 or index >= rows.size():
+        return null
+    var record: Dictionary = rows[index]
+    if record.get("preview_status", "") != "source_png_available":
+        return null
+    var file := _private_file(str(record.get("verified_preview_png", "")))
+    if file.is_empty() or not file.to_lower().ends_with(".png"):
+        return null
+    var preview := Image.new()
+    if preview.load(file) != OK or preview.is_empty():
+        return null
+    return ImageTexture.create_from_image(preview)
+
+
 func play_bank_preview(stage: String, bank_name: String, stream_index: int = 0) -> bool:
     ## Auditions an original decoded stream. This is NOT RPM-synthesized engine
     ## audio (GIN sweep timing + ABK layering need the full sound engine).
