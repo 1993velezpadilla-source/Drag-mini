@@ -74,6 +74,7 @@ jobs:
           upper=repair['real_moving_upper_door_frames_reprofiled']
           assert len(upper)==4
           assert all(c['upper_vertices_reprofiled']>=4 for c in upper.values())
+          assert all(c['sourced_door_glass_tint'].startswith('dark safety glass') for c in upper.values())
           assert all(c['maximum_coordinate_change_m']<=.0295 for c in upper.values())
           assert len(set(c['original_hinge'] for c in upper.values()))==4
           assert all(c['source_faces_untouched']>0 for c in upper.values())
