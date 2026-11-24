@@ -10,7 +10,7 @@ from mathutils import Vector
 R=Path(__file__).resolve().parents[1]
 OUT=R/"door_proof"
 OUT.mkdir(exist_ok=True)
-names=["exotic_supercar__revulse","compact_sedan__compact_c",
+names=["exotic_supercar__rossa_v","compact_sedan__compact_c",
        "basic_pickup__workhorse","electric_future__cyber_wedge"]
 # A fresh Blender background launch includes its default 2-metre cube.
 # Never let that cube obscure the imported vehicle: clean-review geometry only.
