@@ -12,7 +12,7 @@ import nfsu2_prepare_godot_library as source
 
 def write_glb(path: Path):
     path.parent.mkdir(parents=True, exist_ok=True)
-    body = b'{"asset":{"version":"2.0"}}'
+    body = json.dumps({"asset": {"version": "2.0"}, "nodes": [{"name": "SyntheticMesh", "mesh": 0}], "meshes": [{"primitives": [{"attributes": {"POSITION": 0}}]}], "accessors": [{"count": 3}]}).encode("utf-8")
     body += b' ' * (-len(body) % 4)
     path.write_bytes(struct.pack("<4sIII4s", b"glTF", 2, len(body) + 20,
                                  len(body), b"JSON") + body)
@@ -62,6 +62,17 @@ class PrivateGodotLibraryTests(unittest.TestCase):
                              "source_not_found")
             self.assertEqual(a["sound_stages"]["street"]["status"], "unmapped")
             self.assertTrue(a["model_assets"]["stock"]["glb"].endswith("/stock.glb"))
+
+    def test_blank_or_unreadable_glb_rejected_before_godot(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            fake = root / "blank.glb"
+            body = b'{"asset":{"version":"2.0"}}'
+            body += b" " * (-len(body) % 4)
+            fake.write_bytes(struct.pack("<4sIII4s", b"glTF", 2, len(body) + 20,
+                                         len(body), b"JSON") + body)
+            with self.assertRaisesRegex(ValueError, "no renderable mesh"):
+                source.glb_facts(fake)
 
     def test_rejects_absolute_and_traversal_paths(self):
         with tempfile.TemporaryDirectory() as directory:
