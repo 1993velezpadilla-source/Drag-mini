@@ -65,9 +65,14 @@ func _capture_in_real_game() -> void:
     city.set_process(false)
     city.set_physics_process(false)
     var target := car.global_position+Vector3(0,.75,0)
-    cam.global_position=target+Vector3(4.85,2.3,5.15)
+    # CAMERA FORENSIC 2026-11-24: previous (4.85,2.3,5.15) placed
+    # the actual world camera beside the eastern roadside tree (x=6.7,
+    # z≈-21.6), whose huge canopy obscured the Ferrari's front and hood.
+    # Capture the real car from the free front road lane instead; keep the
+    # full native City Zero scene, trees and UI unchanged.
+    cam.global_position=target+Vector3(0.0,3.05,-6.0)
     cam.look_at(target,Vector3.UP)
-    cam.fov=49.0
+    cam.fov=46.0
     cam.current=true
     await _wait_frames(40)
 
