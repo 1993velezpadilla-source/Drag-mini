@@ -1,0 +1,410 @@
+{
+  "schema": "cityzero.nfsu2mod.public-roster.v1",
+  "observed_source": "https://github.com/DJSN4KE/nfsu2mod-tools/blob/main/revert-core.js",
+  "subject": "Author-associated save conversion tool list; not verified as current live server inventory",
+  "stock_car_count": 31,
+  "observed_addon_count": 39,
+  "observed_traffic_count": 15,
+  "advertised_later_addons": 47,
+  "caveat": "A separate contemporary third-party report advertises 47. The source snapshot names only 39 add-on vehicle identifiers. Missing vehicles must not be invented.",
+  "stock": [
+    {
+      "xname": "PEUGOT",
+      "name": "Peugeot 206"
+    },
+    {
+      "xname": "FOCUS",
+      "name": "Ford Focus"
+    },
+    {
+      "xname": "COROLLA",
+      "name": "Toyota Corolla"
+    },
+    {
+      "xname": "240SX",
+      "name": "Nissan 240SX"
+    },
+    {
+      "xname": "MIATA",
+      "name": "Mazda Miata"
+    },
+    {
+      "xname": "CIVIC",
+      "name": "Honda Civic"
+    },
+    {
+      "xname": "PEUGOT106",
+      "name": "Peugeot 106"
+    },
+    {
+      "xname": "CORSA",
+      "name": "Vauxhall Corsa"
+    },
+    {
+      "xname": "HUMMER",
+      "name": "Hummer H2"
+    },
+    {
+      "xname": "NAVIGATOR",
+      "name": "Lincoln Navigator"
+    },
+    {
+      "xname": "ESCALADE",
+      "name": "Cadillac Escalade"
+    },
+    {
+      "xname": "TIBURON",
+      "name": "Hyundai Tiburon"
+    },
+    {
+      "xname": "SENTRA",
+      "name": "Nissan Sentra"
+    },
+    {
+      "xname": "CELICA",
+      "name": "Toyota Celica"
+    },
+    {
+      "xname": "IS300",
+      "name": "Lexus IS300"
+    },
+    {
+      "xname": "SUPRA",
+      "name": "Toyota Supra"
+    },
+    {
+      "xname": "GOLF",
+      "name": "Volkswagen Golf"
+    },
+    {
+      "xname": "A3",
+      "name": "Audi A3"
+    },
+    {
+      "xname": "RSX",
+      "name": "Acura RSX"
+    },
+    {
+      "xname": "ECLIPSE",
+      "name": "Mitsubishi Eclipse"
+    },
+    {
+      "xname": "TT",
+      "name": "Audi TT"
+    },
+    {
+      "xname": "RX8",
+      "name": "Mazda RX-8"
+    },
+    {
+      "xname": "350Z",
+      "name": "Nissan 350Z"
+    },
+    {
+      "xname": "G35",
+      "name": "Infiniti G35"
+    },
+    {
+      "xname": "3000GT",
+      "name": "Mitsubishi 3000GT"
+    },
+    {
+      "xname": "GTO",
+      "name": "Pontiac GTO"
+    },
+    {
+      "xname": "MUSTANGGT",
+      "name": "Ford Mustang GT"
+    },
+    {
+      "xname": "SKYLINE",
+      "name": "Nissan Skyline GT-R (R34)"
+    },
+    {
+      "xname": "LANCEREVO8",
+      "name": "Mitsubishi Lancer Evolution VIII"
+    },
+    {
+      "xname": "RX7",
+      "name": "Mazda RX-7"
+    },
+    {
+      "xname": "IMPREZAWRX",
+      "name": "Subaru Impreza WRX STi"
+    }
+  ],
+  "addons": [
+    {
+      "xname": "SILVIA",
+      "name": "Nissan Silvia",
+      "stock_fallback": "240SX"
+    },
+    {
+      "xname": "M3GTR",
+      "name": "BMW M3 GTR",
+      "stock_fallback": "350Z"
+    },
+    {
+      "xname": "IMPREZA",
+      "name": "Subaru Impreza",
+      "stock_fallback": "IMPREZAWRX"
+    },
+    {
+      "xname": "INTEGRA",
+      "name": "Acura Integra",
+      "stock_fallback": "RSX"
+    },
+    {
+      "xname": "LANCER",
+      "name": "Mitsubishi Lancer",
+      "stock_fallback": "LANCEREVO8"
+    },
+    {
+      "xname": "NEONC",
+      "name": "Dodge Neon",
+      "stock_fallback": "FOCUS"
+    },
+    {
+      "xname": "NSX",
+      "name": "Acura NSX",
+      "stock_fallback": "350Z"
+    },
+    {
+      "xname": "S2000",
+      "name": "Honda S2000",
+      "stock_fallback": "MIATA"
+    },
+    {
+      "xname": "CHARGER",
+      "name": "Dodge Charger",
+      "stock_fallback": "GTO"
+    },
+    {
+      "xname": "GS300",
+      "name": "Lexus GS300",
+      "stock_fallback": "IS300"
+    },
+    {
+      "xname": "CIVICEG",
+      "name": "Honda Civic (EG)",
+      "stock_fallback": "CIVIC"
+    },
+    {
+      "xname": "INFIFX45",
+      "name": "Infiniti FX45",
+      "stock_fallback": "ESCALADE"
+    },
+    {
+      "xname": "CORVETTEC5",
+      "name": "Chevrolet Corvette C5",
+      "stock_fallback": "GTO"
+    },
+    {
+      "xname": "MRS",
+      "name": "Toyota MR-S",
+      "stock_fallback": "MIATA"
+    },
+    {
+      "xname": "NSX91",
+      "name": "Honda NSX (NA1)",
+      "stock_fallback": "350Z"
+    },
+    {
+      "xname": "R33",
+      "name": "Nissan Skyline GT-R (R33)",
+      "stock_fallback": "SKYLINE"
+    },
+    {
+      "xname": "996",
+      "name": "Porsche 911 (996)",
+      "stock_fallback": "350Z"
+    },
+    {
+      "xname": "LANCEREVO4",
+      "name": "Mitsubishi Lancer Evolution IV",
+      "stock_fallback": "LANCEREVO8"
+    },
+    {
+      "xname": "LFA",
+      "name": "Lexus LFA",
+      "stock_fallback": "SUPRA"
+    },
+    {
+      "xname": "E36",
+      "name": "BMW M3 (E36)",
+      "stock_fallback": "IS300"
+    },
+    {
+      "xname": "EVO9IX",
+      "name": "Mitsubishi Lancer Evolution IX",
+      "stock_fallback": "LANCEREVO8"
+    },
+    {
+      "xname": "CELICAT205",
+      "name": "Toyota Celica GT-Four",
+      "stock_fallback": "CELICA"
+    },
+    {
+      "xname": "COBRA",
+      "name": "Ford Mustang Cobra",
+      "stock_fallback": "MUSTANGGT"
+    },
+    {
+      "xname": "200SXS14A",
+      "name": "Nissan 200SX (S14a)",
+      "stock_fallback": "240SX"
+    },
+    {
+      "xname": "G55",
+      "name": "Mercedes-Benz G55 AMG",
+      "stock_fallback": "HUMMER"
+    },
+    {
+      "xname": "CIVICEK9",
+      "name": "Honda Civic Type R (EK9)",
+      "stock_fallback": "CIVIC"
+    },
+    {
+      "xname": "ESCORT",
+      "name": "Ford Escort RS Cosworth",
+      "stock_fallback": "FOCUS"
+    },
+    {
+      "xname": "300ZX",
+      "name": "Nissan 300ZX",
+      "stock_fallback": "350Z"
+    },
+    {
+      "xname": "BB6",
+      "name": "Honda Prelude",
+      "stock_fallback": "RSX"
+    },
+    {
+      "xname": "ELISE",
+      "name": "Lotus Elise",
+      "stock_fallback": "MIATA"
+    },
+    {
+      "xname": "SAVANNA",
+      "name": "Mazda Savanna RX-7 (FC)",
+      "stock_fallback": "RX7"
+    },
+    {
+      "xname": "IF",
+      "name": "Lexus IS F",
+      "stock_fallback": "IS300"
+    },
+    {
+      "xname": "MR2AW1",
+      "name": "Toyota MR2 (AW11)",
+      "stock_fallback": "MIATA"
+    },
+    {
+      "xname": "IMPALA",
+      "name": "Chevrolet Impala SS",
+      "stock_fallback": "GTO"
+    },
+    {
+      "xname": "SC300Z30",
+      "name": "Lexus SC300",
+      "stock_fallback": "SUPRA"
+    },
+    {
+      "xname": "ECLIPSE03",
+      "name": "Mitsubishi Eclipse GTS",
+      "stock_fallback": "ECLIPSE"
+    },
+    {
+      "xname": "VIPER",
+      "name": "Dodge Viper SRT-10",
+      "stock_fallback": "MUSTANGGT"
+    },
+    {
+      "xname": "LEONCP",
+      "name": "Seat Leon Cupra",
+      "stock_fallback": "GOLF"
+    },
+    {
+      "xname": "GT86ZN",
+      "name": "Toyota GT86",
+      "stock_fallback": "240SX"
+    }
+  ],
+  "traffic": [
+    {
+      "xname": "TAXI",
+      "name": "Taxi (traffic)",
+      "stock_fallback": "SENTRA"
+    },
+    {
+      "xname": "4DR_SEDAN02",
+      "name": "Sedan (traffic)",
+      "stock_fallback": "SENTRA"
+    },
+    {
+      "xname": "AMBULANCE",
+      "name": "Ambulance (traffic)",
+      "stock_fallback": "ESCALADE"
+    },
+    {
+      "xname": "TAXI02",
+      "name": "Taxi (traffic)",
+      "stock_fallback": "SENTRA"
+    },
+    {
+      "xname": "PANELVAN",
+      "name": "Panel van (traffic)",
+      "stock_fallback": "NAVIGATOR"
+    },
+    {
+      "xname": "COUPE",
+      "name": "Coupe (traffic)",
+      "stock_fallback": "CELICA"
+    },
+    {
+      "xname": "FIRETRUCK",
+      "name": "Fire truck (traffic)",
+      "stock_fallback": "HUMMER"
+    },
+    {
+      "xname": "PARCELVAN",
+      "name": "Parcel van (traffic)",
+      "stock_fallback": "NAVIGATOR"
+    },
+    {
+      "xname": "PICKUP",
+      "name": "Pickup (traffic)",
+      "stock_fallback": "HUMMER"
+    },
+    {
+      "xname": "4DR_SEDAN",
+      "name": "Sedan (traffic)",
+      "stock_fallback": "SENTRA"
+    },
+    {
+      "xname": "BUS",
+      "name": "Bus (traffic)",
+      "stock_fallback": "HUMMER"
+    },
+    {
+      "xname": "SUV",
+      "name": "SUV (traffic)",
+      "stock_fallback": "ESCALADE"
+    },
+    {
+      "xname": "MINIVAN",
+      "name": "Minivan (traffic)",
+      "stock_fallback": "NAVIGATOR"
+    },
+    {
+      "xname": "HATCHBACK",
+      "name": "Hatchback (traffic)",
+      "stock_fallback": "GOLF"
+    },
+    {
+      "xname": "HATCHBACK02",
+      "name": "Hatchback (traffic)",
+      "stock_fallback": "GOLF"
+    }
+  ]
+}
