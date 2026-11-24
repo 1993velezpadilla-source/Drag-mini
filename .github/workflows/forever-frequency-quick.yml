@@ -1,0 +1,57 @@
+name: Forever Frequency - Quick Native Android
+on:
+  push:
+    branches: [forever-frequency-native]
+    paths:
+      - '.github/workflows/forever-frequency-quick.yml'
+      - 'forever-frequency-native/scripts/**'
+      - 'forever-frequency-native/scenes/**'
+      - 'forever-frequency-native/tests/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  quick-apk:
+    runs-on: ubuntu-24.04
+    container:
+      image: barichello/godot-ci:4.4
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Inspect Godot installation
+        run: godot --version
+      - name: Run headless import
+        shell: bash
+        run: |
+          godot --headless --path forever-frequency-native --editor --import --quit 2>&1 | tee import.log
+          if grep -E 'SCRIPT ERROR|Parse Error|Failed loading resource' import.log; then exit 1; fi
+      - name: Play-state regression suite
+        shell: bash
+        run: |
+          godot --headless --path forever-frequency-native --script res://tests/gauntlet.gd 2>&1 | tee gauntlet.log
+          grep 'GAUNTLET GREEN' gauntlet.log
+      - name: Debug-sign and export ARM64 APK
+        shell: bash
+        env:
+          GODOT_ANDROID_KEYSTORE_DEBUG_PATH: /root/.android/debug.keystore
+          GODOT_ANDROID_KEYSTORE_DEBUG_USER: androiddebugkey
+          GODOT_ANDROID_KEYSTORE_DEBUG_PASSWORD: android
+        run: |
+          mkdir -p /root/.android
+          keytool -genkeypair -keystore /root/.android/debug.keystore -alias androiddebugkey -storepass android -keypass android -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Android Debug,O=Forever Frequency,C=US"
+          mkdir -p out
+          godot --headless --path forever-frequency-native --export-debug Android "$PWD/out/Forever_Frequency_Quick_ARM64.apk" 2>&1 | tee export.log
+          test -s out/Forever_Frequency_Quick_ARM64.apk
+      - name: APK and diagnostic logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: Forever-Frequency-Quick-ARM64-APK-and-logs
+          path: |
+            out/*.apk
+            import.log
+            gauntlet.log
+            export.log
+          if-no-files-found: ignore
