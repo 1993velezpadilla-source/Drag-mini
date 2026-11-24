@@ -320,6 +320,64 @@ def repair_original_door_upper_frames():
         raise RuntimeError("Did not repair all four genuine upper door frames")
     return results
 
+def remove_sourced_roof_gap_spikes(body):
+    """Remove physically wrong DARK source triangles protruding into windows.
+
+    Forensic proof: real Blender with/without pillar_lining did not change
+    the ragged roof; the ORIGINAL body 'panel_gap_body' primitive contains
+    about 0.29 m2 of black geometry projected across the upper windshield/
+    passenger door aperture. It is not a window-frame top: the separate
+    window_trim_L/R originals provide the proper roofline seal.
+
+    Delete ONLY panel_gap_body faces within the actual upper side aperture.
+    Leave body paint/chrome, A/B/C hard pillars, actual door frames, hinge
+    transforms, front/rear glass, and roof itself untouched. No synthetic
+    replacement geometry, no blacking out a screenshot, no hidden objects.
+    """
+    material_index=next((i for i,m in enumerate(body.data.materials)
+                         if m and m.name=="panel_gap_body"),None)
+    if material_index is None:
+        raise RuntimeError("Source sedan body roof-gap material missing")
+    before=len(body.data.polygons)
+    before_materials=tuple(m.name for m in body.data.materials)
+    bm=bmesh.new()
+    bm.from_mesh(body.data)
+    bm.faces.ensure_lookup_table()
+    to_delete=[]
+    deleted_area=0.0
+    for face in bm.faces:
+        if face.material_index!=material_index:
+            continue
+        center=body.matrix_world@face.calc_center_median()
+        # Transcribed from original licensed geometry:
+        # X = left/right, Y = nose-to-trunk, Z = height.
+        # Restrict to the strip *inside* the curved door-roof aperture.
+        # Keep the surrounding roof steel, lower door slots and pillars.
+        if (.55<abs(center.x)<.79 and
+            -.33<center.y<1.10 and
+            1.18<center.z<1.42):
+            to_delete.append(face)
+            deleted_area+=face.calc_area()
+    if not 145<=len(to_delete)<=225 or not .20<=deleted_area<=.40:
+        bm.free()
+        raise RuntimeError("Measured source roof-gap faces differ from diagnosed "
+                           "black serrations: "+str((len(to_delete),deleted_area)))
+    bmesh.ops.delete(bm,geom=to_delete,context='FACES')
+    bm.to_mesh(body.data)
+    bm.free()
+    body.data.update()
+    after=len(body.data.polygons)
+    if before-after!=len(to_delete):
+        raise RuntimeError("Removed unexpected source geometry from sedan")
+    if tuple(m.name for m in body.data.materials)!=before_materials:
+        raise RuntimeError("Material changed during surgical roof repair")
+    return {"source_material":"panel_gap_body",
+            "upper_window_black_intruding_faces_removed":len(to_delete),
+            "measured_intrusion_area_m2":round(deleted_area,4),
+            "original_source_body_faces":before,
+            "result_body_faces":after,
+            "source_windshield_and_doors_unchanged":True}
+
 def polish_loaded_sedan():
     bpy.context.view_layer.update()
     body=bpy.data.objects.get("body")
@@ -427,6 +485,7 @@ def polish_loaded_sedan():
             .14,2,12)
 
     door_frame_fix=repair_original_door_upper_frames()
+    roof_dark_triangle_fix=remove_sourced_roof_gap_spikes(body)
     rear_glass_fix=repair_original_rear_windscreen(body)
     bpy.context.view_layer.update()
     for name,original in initial_hinges.items():
@@ -449,6 +508,7 @@ def polish_loaded_sedan():
         "upper_window_trim_vertices_feathered":trims,
         "real_moving_upper_door_frames_reprofiled":door_frame_fix,
         "original_rear_glass_reprofile":rear_glass_fix,
+        "real_body_black_roof_intrusion_removed":roof_dark_triangle_fix,
         "door_hinges_preserved":sorted(hinge_names),
         "verification":"PENDING_AUTHENTIC_BLENDER_PBR_VISUAL_COMPARISON"
     }
