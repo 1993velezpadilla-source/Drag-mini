@@ -12,7 +12,7 @@ OUT=ROOT/"fleet_review"
 OUT.mkdir(exist_ok=True)
 choices=[
  ("premium_fleet","compact_sedan__compact_c","01-economy-compact.png"),
- ("premium_fleet","exotic_supercar__revulse","02-modern-exotic.png"),
+ ("premium_fleet","exotic_supercar__rossa_v","02-modern-exotic.png"),
  ("premium_fleet","basic_pickup__ranger","03-work-pickup.png"),
  ("premium_fleet","luxury_pickup__denali","04-luxury-pickup.png"),
  ("premium_fleet","electric_future__cyber_wedge","05-angular-electric-truck.png"),
