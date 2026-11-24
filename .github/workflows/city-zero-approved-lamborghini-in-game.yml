@@ -68,10 +68,11 @@ jobs:
             cp "forever-frequency-native/scripts/$script.gd" approved-isolated/scripts/
           done
           cp forever-frequency-native/tests/approved_lamborghini_in_game_capture.gd approved-isolated/tests/
-          cp "$RUNNER_TEMP/approved_original_source/assets/curated_rigged/curated_midengine_supercar.glb" approved-isolated/assets/curated_rigged/
-          cp approved-isolated/assets/curated_rigged/curated_midengine_supercar.glb \
+          # Keep the approved GLB out of the editor cache scan. Its binary
+          # imports directly at runtime via GLTFDocument, without .glb.import.
+          cp "$RUNNER_TEMP/approved_original_source/assets/curated_rigged/curated_midengine_supercar.glb" \
             forever-frequency-native/assets/curated_rigged/curated_midengine_supercar.glb
-          echo '45cdbfd70dc4e6c64b6bbbe5e24a2107044e2008928ab01c27fa8fbb91a25bd7  approved-isolated/assets/curated_rigged/curated_midengine_supercar.glb' | sha256sum --check
+          echo '45cdbfd70dc4e6c64b6bbbe5e24a2107044e2008928ab01c27fa8fbb91a25bd7  forever-frequency-native/assets/curated_rigged/curated_midengine_supercar.glb' | sha256sum --check
           cat > approved-isolated/project.godot <<'GODOT'
           config_version=5
           [application]
@@ -97,6 +98,14 @@ jobs:
             godot --rendering-driver opengl3 --path approved-isolated --editor --import --quit \
               2>&1 | tee /tmp/orange_lamborghini_class_scan.log
           echo 'ORIGINAL_ORANGE_LAMBORGHINI_CLASS_SCAN_COMPLETE'
+      - name: Copy original orange Lamborghini only after Godot registered game classes
+        shell: bash
+        run: |
+          set -euo pipefail
+          cp forever-frequency-native/assets/curated_rigged/curated_midengine_supercar.glb \
+            approved-isolated/assets/curated_rigged/curated_midengine_supercar.glb
+          test -s approved-isolated/assets/curated_rigged/curated_midengine_supercar.glb
+          echo 'APPROVED_ORIGINAL_ORANGE_LAMBO_STAGED_FOR_GAME'
       - name: Capture actual playable city viewport two original Lamborghini door states
         shell: bash
         env:
