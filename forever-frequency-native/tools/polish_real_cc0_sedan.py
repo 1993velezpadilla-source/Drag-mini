@@ -182,6 +182,117 @@ def repair_original_rear_windscreen(body):
             "rear_quarter_windows_consistent_tint":quarter_count,
             "rear_gasket_and_quarter_seals_matte":material_changes}
 
+def repair_original_door_upper_frames():
+    """Reprofile ALL FOUR physical door-window frames to the original roof rail.
+
+    The old 'upper window trim' fix only smoothed the chrome roof trim. It
+    never touched the door's actual chrome-and-glass frame mesh, leaving its
+    top corners disconnected/bent. Operate on those original hinge children.
+    """
+    results={}
+    for side in ("L","R"):
+        roof=bpy.data.objects.get("window_trim_"+side)
+        if roof is None or roof.type!="MESH":
+            raise RuntimeError("Source sedan roofline surround missing "+side)
+        roof_points=[roof.matrix_world@v.co for v in roof.data.vertices]
+        roof_points=[p for p in roof_points if p.z>1.22]
+        if len(roof_points)<80:
+            raise RuntimeError("Insufficient original roofline sample "+side)
+        # The upper crown of this real authored trim is our reference curve;
+        # this uses no imagined/new car design and leaves A/C pillars fixed.
+        def roof_height(y):
+            samples=[p.z for p in roof_points if abs(p.y-y)<.092]
+            if len(samples)<3:
+                # nearest source trim stations
+                nearest=sorted(roof_points,key=lambda p:abs(p.y-y))[:8]
+                samples=[p.z for p in nearest]
+            return max(samples)
+
+        for location,token in (("FRONT","F"),("REAR","R")):
+            name="door_"+token+side+"_glass_side_"+side
+            obj=bpy.data.objects.get(name)
+            if obj is None or obj.type!="MESH":
+                raise RuntimeError("Source moving upper door frame missing "+name)
+            hinges=[]
+            parent=obj.parent
+            while parent is not None:
+                if parent.name.startswith("DOOR_") and parent.name.endswith("_HINGE"):
+                    hinges.append(parent.name)
+                parent=parent.parent
+            if len(hinges)!=1:
+                raise RuntimeError("Upper door frame not parented to original hinge "+name)
+            old_count=len(obj.data.vertices)
+            old_faces=len(obj.data.polygons)
+            material_names=[m.name for m in obj.data.materials]
+            if not ("trim_gloss" in material_names and "glass" in material_names):
+                raise RuntimeError("Original door frame is missing trim and glass "+name)
+            vertices=[(v,obj.matrix_world@v.co) for v in obj.data.vertices]
+            # Group sparse original top frame stations, not the vertical B-post
+            # and not the bottom horizontal weatherstrip.
+            adjusted=0
+            max_shift=0.0
+            inverse=obj.matrix_world.inverted_safe()
+            for vert,p in vertices:
+                if p.z<1.19 or abs(p.x)<.58:
+                    continue
+                nearby=[q.z for _,q in vertices if abs(q.y-p.y)<.13 and q.z>1.19]
+                if not nearby:
+                    continue
+                top=max(nearby)
+                intended=roof_height(p.y)-.024
+                correction=max(-.029,min(.028,intended-top))
+                weight=smoothstep(top-.086,top-.009,p.z)
+                dz=weight*correction
+                if abs(dz)>.00005:
+                    updated=p.copy()
+                    updated.z+=dz
+                    vert.co=inverse@updated
+                    adjusted+=1
+                    max_shift=max(max_shift,abs(dz))
+            obj.data.update()
+            if len(obj.data.vertices)!=old_count or len(obj.data.polygons)!=old_faces:
+                raise RuntimeError("Upper door repair must not replace source mesh "+name)
+            if adjusted<4 or max_shift>.0295:
+                raise RuntimeError("Upper door curve repair failed "+name+" "+str((adjusted,max_shift)))
+
+            # The original oversized silver roof-edge chrome read like a
+            # broken wire above the door. Keep the physical metal edge,
+            # give it realistic dark satin trim without changing glass.
+            original=obj.data.materials[material_names.index("trim_gloss")]
+            material=original.copy()
+            material.name="CITYZERO_SEDAN_"+name+"_SATIN_WINDOW_FRAME"
+            shader=material.node_tree.nodes.get("Principled BSDF") if material.use_nodes else None
+            if shader is None:
+                raise RuntimeError("Original sourced trim shader missing "+name)
+            shader.inputs["Base Color"].default_value=(.041,.051,.064,1)
+            shader.inputs["Metallic"].default_value=.48
+            shader.inputs["Roughness"].default_value=.34
+            obj.data.materials[material_names.index("trim_gloss")]=material
+            results[name]={"upper_vertices_reprofiled":adjusted,
+                           "maximum_coordinate_change_m":round(max_shift,5),
+                           "source_faces_untouched":old_faces,
+                           "original_hinge":hinges[0]}
+
+        # Roofline must also match dark door-frame edge; do not turn ALL
+        # chrome on the car black, only the two original upper window rails.
+        original_chrome=next((m for m in roof.data.materials if m and m.name.startswith("chrome")),None)
+        if original_chrome is None:
+            raise RuntimeError("Actual upper roof trim chromium missing "+side)
+        roof_mat=original_chrome.copy()
+        roof_mat.name="CITYZERO_SEDAN_"+side+"_SATIN_ROOFLINE_EDGE"
+        shader=roof_mat.node_tree.nodes.get("Principled BSDF") if roof_mat.use_nodes else None
+        if shader is None:
+            raise RuntimeError("Actual upper rail shader missing "+side)
+        shader.inputs["Base Color"].default_value=(.052,.063,.077,1)
+        shader.inputs["Metallic"].default_value=.53
+        shader.inputs["Roughness"].default_value=.39
+        for i,material in enumerate(roof.data.materials):
+            if material==original_chrome:
+                roof.data.materials[i]=roof_mat
+    if len(results)!=4:
+        raise RuntimeError("Did not repair all four genuine upper door frames")
+    return results
+
 def polish_loaded_sedan():
     bpy.context.view_layer.update()
     body=bpy.data.objects.get("body")
@@ -288,6 +399,7 @@ def polish_loaded_sedan():
                       (1-smoothstep(.87,1.16,p.y))),
             .14,2,12)
 
+    door_frame_fix=repair_original_door_upper_frames()
     rear_glass_fix=repair_original_rear_windscreen(body)
     bpy.context.view_layer.update()
     for name,original in initial_hinges.items():
@@ -308,6 +420,7 @@ def polish_loaded_sedan():
         "body_faces_preserved":body_fix["faces"],
         "rear_pillar_vertices_feathered":pillar_fix["selected"],
         "upper_window_trim_vertices_feathered":trims,
+        "real_moving_upper_door_frames_reprofiled":door_frame_fix,
         "original_rear_glass_reprofile":rear_glass_fix,
         "door_hinges_preserved":sorted(hinge_names),
         "verification":"PENDING_AUTHENTIC_BLENDER_PBR_VISUAL_COMPARISON"
