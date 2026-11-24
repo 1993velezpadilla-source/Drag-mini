@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "description": "60 independent original AURA base vehicles, 12 categories x 5 models, eight paint swatches per vehicle. OEM references only for visual proportion research. No logos or imported OEM meshes.",
+  "description": "59 original AURA base vehicles remaining after permanently removing the rejected REVULSE prototype. User-approved orange Lamborghini is imported from curated_midengine_supercar.glb, never regenerated. Eight paint swatches per remaining vehicle.",
   "references": [
     "2025 Kelley Blue Book US car sales",
     "2025 Car and Driver US luxury bestsellers",
@@ -81,42 +81,6 @@
     "Storm Grey"
   ],
   "models": [
-    {
-      "id": "exotic_supercar__revulse",
-      "category": "exotic_supercar",
-      "category_label": "Exotic Supercars",
-      "reference_design": "2015 Lamborghini Aventador LP700-4 photographic and factory dimensions, original fictional City Zero body",
-      "original_game_brand": "AURA",
-      "name": "REVULSE",
-      "length_m": 4.78,
-      "width_m": 2.03,
-      "height_m": 1.136,
-      "wheel_radius_m": 0.34,
-      "wheelbase_ratio": 0.564854,
-      "front_hood_ratio": 0.26,
-      "rear_deck_ratio": 0.23,
-      "roof_span_ratio": 0.86,
-      "cabin_rake": 0.88,
-      "arch_profile": 1.53,
-      "signature_light_style": 1,
-      "spoiler": false,
-      "body_style": 0,
-      "game_price": 360000,
-      "colors": [
-        "Obsidian Black",
-        "Pearl White",
-        "Graphite Silver",
-        "Midnight Blue",
-        "Caldera Red",
-        "Emerald Teal",
-        "Sunset Copper",
-        "Champagne Gold"
-      ],
-      "color_default_index": 0,
-      "year_hint": 2025,
-      "photo_reference_file": "data/real_vehicle_photo_references.json",
-      "reference_mode": "PHOTO_GUIDED_UNAPPROVED"
-    },
     {
       "id": "exotic_supercar__rossa_v",
       "category": "exotic_supercar",
