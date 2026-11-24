@@ -58,9 +58,16 @@ func _run() -> void:
             check(hinge.quaternion.angle_to(closed_rotation) > 0.18, door_name + " rotates relative to original closed glTF quaternion")
             check(movable.global_position.distance_to(start_pos) > 0.05, door_name + " moves its actual mesh")
             check(animator.toggle_door(door_name), door_name + " can be closed")
-            for i in range(65):
-                await process_frame
+            # Headless CI can run frames much faster than 60 FPS. Waiting for
+            # 65 process_frame signals does NOT mean 65/60 seconds elapsed.
+            # Advance the controller with fixed simulation deltas instead,
+            # and verify the actual hinge settled before comparing transforms.
+            for i in range(90):
+                animator._process(1.0 / 60.0)
+            await process_frame
             check(not animator.is_door_open(door_name), door_name + " reports shut")
+            check(absf(float(animator.current_angle[door_name])) < 0.001,
+                door_name + " physically reaches the exact closed angle")
             check(hinge.quaternion.angle_to(closed_rotation) < 0.035, door_name + " returns exactly to original imported closed quaternion")
             check(movable.global_position.distance_to(start_pos) < 0.07, door_name + " restores door mesh to its original world position")
         car.queue_free()
