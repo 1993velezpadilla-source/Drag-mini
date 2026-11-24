@@ -430,7 +430,8 @@ func _spawn_original_revulse_in_city() -> void:
         push_error("CITY_ZERO_REVULSE_INVALID_GLTF_ROOT")
         return
     revulse_car.name = "CityZero_REVULSE_Aventador_Reference"
-    revulse_car.position = Vector3(-2.3, 0.08, -18.0)
+    # Keep clear of the generic traffic car at (2, 0, -17).
+    revulse_car.position = Vector3(-2.3, 0.08, -25.0)
     revulse_car.rotation.y = PI
     add_child(revulse_car)
     revulse_doors = CarDoorController.new()
