@@ -1,0 +1,101 @@
+name: City Zero — 4 car adversarial hinged-door proof
+on:
+  push:
+    branches: [forever-frequency-native]
+    paths:
+      - '.github/workflows/city-zero-door-critic.yml'
+      - 'forever-frequency-native/tools/premium_vehicle_fleet_blender.py'
+      - 'forever-frequency-native/tools/door_visual_proof_blender.py'
+      - 'forever-frequency-native/scripts/vehicle_door_controller.gd'
+      - 'forever-frequency-native/tests/vehicle_door_gauntlet.gd'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: city-zero-door-critic-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  blender-real-doors:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify editable source compiles
+        run: |
+          python3 -m py_compile forever-frequency-native/tools/premium_vehicle_fleet_blender.py forever-frequency-native/tools/door_visual_proof_blender.py
+      - name: Pull actual Blender 4.5
+        run: docker pull ghcr.io/blenderkit/headless-blender:blender-4.5-stable
+      - name: Model and exercise the exotic, compact, pickup and angular electric doors
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd forever-frequency-native
+          docker run --rm -e FF_CAR_IDS=exotic_supercar__revulse,compact_sedan__compact_c,basic_pickup__workhorse,electric_future__cyber_wedge --entrypoint /home/headless/blender/blender -v "$PWD:$PWD" -w "$PWD" ghcr.io/blenderkit/headless-blender:blender-4.5-stable -b -t 2 --python tools/premium_vehicle_fleet_blender.py 2>&1 | tee door_build.log
+          grep -q 'PROTOTYPE ONLY' door_build.log
+          python3 - <<'PY'
+          from pathlib import Path
+          import json
+          d=Path('assets/premium_fleet')
+          r=json.loads((d/'fleet_metrics.json').read_text())
+          assert [c['door_count'] for c in r['vehicles']]==[2,4,4,4]
+          assert len(list(d.glob('*.glb')))==4
+          assert all(len(c['functional_door_hinges'])==c['door_count'] for c in r['vehicles'])
+          print('BLENDER HINGED-DOOR MECHANICS VERIFIED')
+          PY
+      - name: Render four actual GLBs closed and open from a reviewer camera
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd forever-frequency-native
+          docker run --rm --entrypoint /home/headless/blender/blender -v "$PWD:$PWD" -w "$PWD" ghcr.io/blenderkit/headless-blender:blender-4.5-stable -b -t 2 --python tools/door_visual_proof_blender.py 2>&1 | tee door_photos.log
+          grep -q 'REAL BLENDER FOUR CAR DOOR PHOTO GATE GREEN' door_photos.log
+          test "$(find door_proof -maxdepth 1 -name '*.png' | wc -l)" -eq 8
+      - name: Publish genuine geometry and actual door visual inspection views
+        uses: actions/upload-artifact@v4
+        with:
+          name: City-Zero-Four-Mechanical-Door-Models-and-8-Real-Blender-Frames
+          path: |
+            forever-frequency-native/assets/premium_fleet/*.glb
+            forever-frequency-native/assets/premium_fleet/fleet_metrics.json
+            forever-frequency-native/door_proof/*.png
+            forever-frequency-native/door_proof/hinge_visual_report.json
+            forever-frequency-native/door_build.log
+            forever-frequency-native/door_photos.log
+          if-no-files-found: error
+  godot-import-and-animate:
+    needs: blender-real-doors
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    container:
+      image: barichello/godot-ci:4.4
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: City-Zero-Four-Mechanical-Door-Models-and-8-Real-Blender-Frames
+          path: forever-frequency-native
+      - name: Locate actual GLB files from artifact
+        shell: bash
+        run: |
+          find forever-frequency-native -name '*.glb' | head -25
+          test -s forever-frequency-native/assets/premium_fleet/compact_sedan__compact_c.glb
+      - name: Import Blender GLBs into Godot
+        shell: bash
+        run: |
+          set -o pipefail
+          timeout 240s godot --headless --path forever-frequency-native --editor --import --quit 2>&1 | tee godot_door_import.log
+      - name: Test every door opens and closes, moves its meshes and resets in real Godot
+        shell: bash
+        run: |
+          set -o pipefail
+          timeout 160s godot --headless --path forever-frequency-native --script res://tests/vehicle_door_gauntlet.gd 2>&1 | tee godot_door_proof.log
+          grep 'REAL GODOT DOOR KINEMATICS GAUNTLET GREEN' godot_door_proof.log
+      - name: Keep failure logs for adversarial review
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: City-Zero-Godot-Real-Door-Kinematics-Logs
+          path: |
+            godot_door_import.log
+            godot_door_proof.log
+          if-no-files-found: warn
