@@ -9,9 +9,14 @@
     "door_cutout_fit": 4,
     "modern_light_details": 4,
     "closed_open_motion": 4,
-    "max_grade": 5
+    "max_grade": 5,
+    "true_1_to_1_model_silhouette_and_class": 5,
+    "interior_upholstery_dashboard": 4,
+    "body_surface_aerodynamics": 5,
+    "materials_and_pbr_reflections": 4,
+    "engine_and_hinged_parts": 4
   },
-  "state": "GOLD_STANDARD_EXACT_ORANGE_APPROVED; PROCEDURAL_CAR_FLEET_REJECTED_AS_FINAL; THIRD_PARTY_ARTIST_FLEET_VISUAL_QA_PENDING",
+  "state": "OWNER_REJECTED_ALL_103_OTHER_CAR_MOBILITY_MODELS_ONLY_EXACT_ORANGE_LAMBORGHINI_APPROVED",
   "models": {
     "exotic_supercar__revulse": {
       "status": "REJECTED",
@@ -46,11 +51,12 @@
       ]
     },
     "curated_family_sedan": {
-      "status": "PENDING_REAL_VISUAL_REVIEW_NOT_SHIPPABLE",
+      "status": "REJECTED_VISUAL_QUALITY_OWNER",
       "reasons": [
         "Original visual rejection invalid: Blender startup cube overlapped the true CC0 sedan and was incorrectly described as a grey model panel.",
         "Clean Blender 4.5 front/side/rear/three-quarter captures produced in Actions run 45335269424; model displays true door seams, glazing, grille and wheels.",
-        "Promising substitute body reference for primitive City Zero procedurals, but Godot door rig, materials, visuals and owner approval remain pending."
+        "Promising substitute body reference for primitive City Zero procedurals, but Godot door rig, materials, visuals and owner approval remain pending.",
+        "Owner rejected the rest of the cars for failing to look as carefully crafted and premium as original orange Lamborghini."
       ],
       "evidence": "GitHub Actions run 45331615024: eight actual Workbench Blender screenshots; not accepted for City Zero",
       "clean_evidence": "https://github.com/1993velezpadilla-source/Drag-mini/actions/runs/45335269424",
@@ -79,5 +85,25 @@
   "next_candidates": [
     "Specialist reference-to-mirrored-quad-cage Blender vehicle workflow, MIT zstack/skills/vehicle",
     "Independent CC0 sports-car asset Spectral GT RS with real animation clips, pending visual and rights review"
-  ]
+  ],
+  "owner_direct_feedback_2026_11_24": "All cars are horrible bro they do not stand out like the orange lambo.",
+  "rejected_model_register": "res://data/owner_rejected_vehicle_art_2026_11_24.json",
+  "production_release_gate": "tools/check_owner_visual_quality_gate.py --shipping",
+  "model_fleet_groups": {
+    "procedural_car": {
+      "count": 59,
+      "status": "OWNER_REJECTED_VISUAL_QUALITY",
+      "production_allowed": false
+    },
+    "procedural_mobility": {
+      "count": 26,
+      "status": "OWNER_REJECTED_VISUAL_QUALITY",
+      "production_allowed": false
+    },
+    "third_party_artist_intake": {
+      "count": 18,
+      "status": "OWNER_REJECTED_VISUAL_QUALITY",
+      "production_allowed": false
+    }
+  }
 }
