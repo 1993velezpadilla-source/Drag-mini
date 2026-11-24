@@ -16,5 +16,8 @@
   "source_artifact_inner_path": "assets/curated_rigged/curated_midengine_supercar.glb",
   "references": "User's 3 GLB Viewer orange Lamborghini screenshots and file browser screenshot identifying curated_midengine_supercar.glb",
   "quality_gate": "Do not mark any other vehicle finished merely because it has a valid GLB or render. Require real visual review against approved orange Lamborghini, correct wheel locations, body geometry, hinged parts and native Godot screenshots.",
-  "note": "The user identified the exact file by its archived path. The source GLB was recovered and SHA256-audited; verified full-game integration awaits the Godot CI run."
+  "note": "Owner's exact archived GLB hash is pinned. Actual Godot city-level doors closed/open proof completed in GitHub Actions run 45366497436; do not substitute procedurally generated REVULSE or other generic vehicle geometry.",
+  "verified_godot_city_capture_run": 45366497436,
+  "only_owner_approved_vehicle": true,
+  "rejected_vehicle_register": "res://data/owner_rejected_vehicle_art_2026_11_24.json"
 }
