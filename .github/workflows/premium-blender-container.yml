@@ -22,10 +22,10 @@ jobs:
         run: |
           set -euo pipefail
           cd forever-frequency-native
-          docker run --rm --entrypoint blender -v "$PWD:$PWD" -w "$PWD" ghcr.io/blenderkit/headless-blender:blender-4.5-stable --version
-          docker run --rm --entrypoint blender -v "$PWD:$PWD" -w "$PWD" ghcr.io/blenderkit/headless-blender:blender-4.5-stable -b -t 2 --python tools/build_assets_blender.py | tee /tmp/build.log
+          docker run --rm --entrypoint /home/headless/blender/blender -v "$PWD:$PWD" -w "$PWD" ghcr.io/blenderkit/headless-blender:blender-4.5-stable --version
+          docker run --rm --entrypoint /home/headless/blender/blender -v "$PWD:$PWD" -w "$PWD" ghcr.io/blenderkit/headless-blender:blender-4.5-stable -b -t 2 --python tools/build_assets_blender.py | tee /tmp/build.log
           grep 'LA CALDERA ASSET KIT GREEN' /tmp/build.log
-          docker run --rm --entrypoint blender -v "$PWD:$PWD" -w "$PWD" ghcr.io/blenderkit/headless-blender:blender-4.5-stable -b -t 2 --python tools/premium_art_pass.py | tee /tmp/premium.log
+          docker run --rm --entrypoint /home/headless/blender/blender -v "$PWD:$PWD" -w "$PWD" ghcr.io/blenderkit/headless-blender:blender-4.5-stable -b -t 2 --python tools/premium_art_pass.py | tee /tmp/premium.log
           grep 'PREMIUM BLENDER ART PASS GREEN' /tmp/premium.log
       - name: Download source textures and CC0 vegetation
         shell: bash
@@ -50,9 +50,9 @@ jobs:
         run: |
           set -euo pipefail
           cd forever-frequency-native
-          docker run --rm --entrypoint blender -v "$PWD:$PWD" -w "$PWD" ghcr.io/blenderkit/headless-blender:blender-4.5-stable -b -t 2 --python tools/pbr_upgrade.py | tee /tmp/pbr.log
+          docker run --rm --entrypoint /home/headless/blender/blender -v "$PWD:$PWD" -w "$PWD" ghcr.io/blenderkit/headless-blender:blender-4.5-stable -b -t 2 --python tools/pbr_upgrade.py | tee /tmp/pbr.log
           grep 'PBR-GAUNTLET GREEN' /tmp/pbr.log
-          docker run --rm --entrypoint blender -v "$PWD:$PWD" -w "$PWD" ghcr.io/blenderkit/headless-blender:blender-4.5-stable -b -t 2 --python tools/urban_life_district.py | tee /tmp/urban.log
+          docker run --rm --entrypoint /home/headless/blender/blender -v "$PWD:$PWD" -w "$PWD" ghcr.io/blenderkit/headless-blender:blender-4.5-stable -b -t 2 --python tools/urban_life_district.py | tee /tmp/urban.log
           grep 'URBAN PREMIUM GAUNTLET GREEN' /tmp/urban.log
           python3 - <<'PY'
           import json
