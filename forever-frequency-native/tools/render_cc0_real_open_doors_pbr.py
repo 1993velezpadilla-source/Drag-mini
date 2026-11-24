@@ -19,7 +19,7 @@ for name,doors in [('curated_midengine_supercar',2),('curated_family_sedan',4)]:
     assert len(hinges)==doors,(name,len(hinges))
     for h in hinges:
         h.rotation_mode='XYZ'
-        h.rotation_euler.z+=math.radians(66 if '_LEFT_' in h.name else -66)
+        h.rotation_euler.z+=math.radians(-66 if '_LEFT_' in h.name else 66)
     bpy.context.view_layer.update()
     scene=bpy.context.scene
     scene.render.engine='CYCLES'
