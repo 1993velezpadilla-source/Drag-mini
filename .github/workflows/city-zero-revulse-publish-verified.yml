@@ -1,15 +1,15 @@
 name: City Zero REVULSE publish verified Godot screenshots and GLB
+# RETIRED: This prototype REVULSE is NOT the Lamborghini the user approved.
+# Retained only as historical test code. Never run or publish it automatically.
+# The user's approved vehicle is curated_midengine_supercar.glb.
 on:
   workflow_dispatch:
-  push:
-    branches: [forever-frequency-native]
-    paths:
-      - '.github/workflows/city-zero-revulse-publish-verified.yml'
 permissions:
   contents: write
   actions: read
 jobs:
   publish-authentic-captured-artifact:
+    if: ${{ false }} # Original REVULSE rejected; never overwrite approved asset
     runs-on: ubuntu-22.04
     timeout-minutes: 10
     steps:
