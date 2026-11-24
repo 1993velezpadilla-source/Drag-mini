@@ -260,14 +260,14 @@ def helicopter(rec,paint):
     for i in range(blade_count):
         a=math.tau*i/blade_count
         o=block("Main rotor articulated blade",
-                (math.cos(a)*L*.21,-L*.15+math.sin(a)*L*.21,H*.98),
-                (L*.45,.13,.034),dark,.028)
+                math.cos(a)*L*.21,-L*.15+math.sin(a)*L*.21,H*.98,
+                L*.45,.13,.034,dark,.028)
         o.rotation_euler.z=a
     # Tail antitorque rotor, visually separate plane from main mast
     for i in range(3):
         a=i*math.tau/3
-        o=block("Tail anti torque rotor",(.07,L*.40,H*.70),
-                (.02,.12,L*.18),dark,.02)
+        o=block("Tail anti torque rotor",.07,L*.40,H*.70,
+                .02,.12,L*.18,dark,.02)
         o.rotation_euler.x=a
     ball("Medical or patrol light",0,-L*.48,H*.40,.09,white)
 def airplane(rec,paint):
