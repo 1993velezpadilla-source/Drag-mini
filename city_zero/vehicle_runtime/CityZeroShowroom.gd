@@ -10,6 +10,8 @@ var _pitch := 0.25
 var _distance := 9.0
 var _label: Label
 var _animations: Dictionary = {}
+var _controls: HBoxContainer
+var _fingers: Dictionary = {}
 var _opened: Dictionary = {}
 
 func _ready() -> void:
@@ -115,6 +117,7 @@ func _setup_interface() -> void:
     var controls := HBoxContainer.new()
     controls.name = "Controls"
     top.add_child(controls)
+    _controls = controls
 
 func _collect_animations(node: Node) -> void:
     if node is AnimationPlayer:
@@ -125,7 +128,8 @@ func _collect_animations(node: Node) -> void:
         _collect_animations(child)
 
 func _build_animation_controls() -> void:
-    var parent: Node = get_node("CanvasLayer/Control/PanelContainer/VBoxContainer/Controls")
+    if _controls == null:
+        return
     for item in ["Hood_Service_PingPong", "Doors_PingPong", "Doors_PingPong.001", "Steering_Input_PingPong"]:
         if not _animations.has(item):
             continue
@@ -133,7 +137,7 @@ func _build_animation_controls() -> void:
         button.text = item.replace("_PingPong", "").replace("_", " ").replace(".001", " R")
         button.custom_minimum_size = Vector2(110, 46)
         button.pressed.connect(_toggle_animation.bind(item))
-        parent.add_child(button)
+        _controls.add_child(button)
 
 func _toggle_animation(key: String) -> void:
     if not _animations.has(key):
@@ -148,12 +152,31 @@ func _toggle_animation(key: String) -> void:
     else:
         player.play_backwards(name)
 
+func _finger_span() -> float:
+    if _fingers.size() < 2:
+        return 0.0
+    var positions := _fingers.values()
+    return (Vector2(positions[0]) - Vector2(positions[1])).length()
+
 func _unhandled_input(event: InputEvent) -> void:
-    if event is InputEventScreenDrag:
-        _yaw -= event.relative.x * 0.008
-        _pitch += event.relative.y * 0.006
+    if event is InputEventScreenTouch:
+        if event.pressed:
+            _fingers[event.index] = event.position
+        else:
+            _fingers.erase(event.index)
+    elif event is InputEventScreenDrag:
+        if _fingers.size() >= 2:
+            var previous_span := _finger_span()
+            _fingers[event.index] = event.position
+            var current_span := _finger_span()
+            if previous_span > 5.0 and current_span > 5.0:
+                _distance *= previous_span / current_span
+        else:
+            _fingers[event.index] = event.position
+            _yaw -= event.relative.x * 0.008
+            _pitch += event.relative.y * 0.006
         _update_camera()
-    elif event is InputEventMouseMotion and Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT):
+    elif event is InputEventMouseMotion and _fingers.is_empty() and Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT):
         _yaw -= event.relative.x * 0.008
         _pitch += event.relative.y * 0.006
         _update_camera()
