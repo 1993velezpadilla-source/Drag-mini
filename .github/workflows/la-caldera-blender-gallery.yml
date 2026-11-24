@@ -1,0 +1,113 @@
+name: La Caldera — actual Blender asset gallery
+on:
+  push:
+    branches: [forever-frequency-native]
+    paths: ['.github/workflows/la-caldera-blender-gallery.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  gallery:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Blender
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq blender
+      - name: Get real Blender model kit
+        uses: actions/download-artifact@v4
+        with:
+          name: forever-frequency-blender-source
+          run-id: 45306538871
+          repository: 1993velezpadilla-source/Drag-mini
+          github-token: ${{ github.token }}
+          path: render_assets
+      - name: Render actual meshes from four different buildings
+        shell: bash
+        run: |
+          cat > /tmp/render_gallery.py <<'PY'
+          import bpy, math, os
+          from mathutils import Vector
+          source = os.path.abspath("render_assets/city_zero_modular.blend")
+          bpy.ops.wm.open_mainfile(filepath=source)
+          scene = bpy.context.scene
+          scene.render.engine = "BLENDER_EEVEE"
+          scene.eevee.use_gtao = True
+          scene.eevee.gtao_distance = 4
+          scene.eevee.use_soft_shadows = True
+          scene.render.resolution_x = 1280
+          scene.render.resolution_y = 720
+          scene.render.resolution_percentage = 85
+          scene.render.image_settings.file_format = "PNG"
+          scene.view_settings.view_transform = "Standard"
+          scene.view_settings.look = "Medium High Contrast"
+          scene.render.film_transparent = False
+          world=bpy.data.worlds.new("Dusk studio backdrop")
+          scene.world=world
+          world.use_nodes=True
+          bg=world.node_tree.nodes.get('Background')
+          bg.inputs['Color'].default_value=(0.16,0.19,0.33,1.0)
+          bg.inputs['Strength'].default_value=0.85
+          cam_data=bpy.data.cameras.new('Documentation camera')
+          camera=bpy.data.objects.new('Documentation camera',cam_data)
+          scene.collection.objects.link(camera)
+          scene.camera=camera
+          cam_data.type='ORTHO'
+          def area(name, loc, energy, size, color):
+              data=bpy.data.lights.new(name,'AREA')
+              data.energy=energy
+              data.shape='DISK'
+              data.size=size
+              data.color=color
+              obj=bpy.data.objects.new(name,data)
+              scene.collection.objects.link(obj)
+              obj.location=loc
+              return obj
+          key=area('Warm key', (0,-16,24),1800,12,(1,.84,.72))
+          fill=area('Cool fill',(0,12,15),1400,15,(.55,.8,1))
+          bpy.ops.mesh.primitive_plane_add(size=2, location=(0,0,-0.10))
+          floor=bpy.context.object
+          floor.name='Gallery matte platform'
+          floor_mat=bpy.data.materials.new('Ground slate')
+          floor_mat.diffuse_color=(0.10,0.14,0.19,1)
+          floor.data.materials.append(floor_mat)
+          output=os.path.abspath('rendered_gallery')
+          os.makedirs(output,exist_ok=True)
+          items=[('la_caldera_records','01-La-Caldera-Records.png'),
+                 ('moon_market','02-Moon-Market.png'),
+                 ('forever_home','03-Forever-Home.png'),
+                 ('nova_stage','04-Nova-Stage.png')]
+          for coll_name, filename in items:
+              coll=bpy.data.collections.get(coll_name)
+              if coll is None: raise RuntimeError('Missing original Blender collection '+coll_name)
+              for other in bpy.data.collections:
+                  if other != coll and other.name != "Collection": other.hide_render=True
+              coll.hide_render=False
+              obs=list(coll.objects)
+              corners=[ob.matrix_world @ Vector(corner) for ob in obs if ob.type=='MESH' for corner in ob.bound_box]
+              xs=[p.x for p in corners];ys=[p.y for p in corners];zs=[p.z for p in corners]
+              center=Vector(((min(xs)+max(xs))/2,(min(ys)+max(ys))/2,(min(zs)+max(zs))/2))
+              span=max(max(xs)-min(xs),max(ys)-min(ys),max(zs)-min(zs))
+              camera.location=center+Vector((span*1.5,-span*2.0,span*1.15))
+              direction=center-camera.location
+              camera.rotation_euler=direction.to_track_quat('-Z','Y').to_euler()
+              cam_data.ortho_scale=span*1.95
+              floor.location=(center.x,center.y,min(zs)-0.18)
+              floor.scale=(span*1.9,span*1.9,1)
+              key.location=center+Vector((-span, -span*1.6,span*2))
+              fill.location=center+Vector((span,span,span*1.5))
+              scene.render.filepath=os.path.join(output,filename)
+              bpy.ops.render.render(write_still=True)
+              assert os.stat(scene.render.filepath).st_size>3000
+              print('ACTUAL BLENDER MODEL IMAGE',scene.render.filepath,flush=True)
+          PY
+          blender -b -t 2 --python /tmp/render_gallery.py
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: La-Caldera-Real-Blender-Model-Gallery
+          path: rendered_gallery/*.png
+          if-no-files-found: warn
