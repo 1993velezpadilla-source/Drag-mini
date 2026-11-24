@@ -85,14 +85,14 @@
       "id": "exotic_supercar__revulse",
       "category": "exotic_supercar",
       "category_label": "Exotic Supercars",
-      "reference_design": "2025 Lamborghini Revuelto proportions",
+      "reference_design": "2015 Lamborghini Aventador LP700-4 photographic and factory dimensions, original fictional City Zero body",
       "original_game_brand": "AURA",
       "name": "REVULSE",
-      "length_m": 4.95,
-      "width_m": 2.1,
-      "height_m": 1.15,
-      "wheel_radius_m": 0.339,
-      "wheelbase_ratio": 0.67,
+      "length_m": 4.78,
+      "width_m": 2.03,
+      "height_m": 1.136,
+      "wheel_radius_m": 0.34,
+      "wheelbase_ratio": 0.564854,
       "front_hood_ratio": 0.26,
       "rear_deck_ratio": 0.23,
       "roof_span_ratio": 0.86,
@@ -113,7 +113,9 @@
         "Champagne Gold"
       ],
       "color_default_index": 0,
-      "year_hint": 2025
+      "year_hint": 2025,
+      "photo_reference_file": "data/real_vehicle_photo_references.json",
+      "reference_mode": "PHOTO_GUIDED_UNAPPROVED"
     },
     {
       "id": "exotic_supercar__rossa_v",
@@ -935,14 +937,14 @@
       "id": "compact_sedan__compact_c",
       "category": "compact_sedan",
       "category_label": "Affordable Compact Sedans",
-      "reference_design": "2025 Toyota Corolla proportions",
+      "reference_design": "2022 Honda Civic Sedan photographic and factory dimensions, original fictional City Zero body",
       "original_game_brand": "AURA",
       "name": "COMPACT C",
-      "length_m": 4.64,
-      "width_m": 1.78,
-      "height_m": 1.44,
-      "wheel_radius_m": 0.41,
-      "wheelbase_ratio": 0.62,
+      "length_m": 4.674,
+      "width_m": 1.801,
+      "height_m": 1.415,
+      "wheel_radius_m": 0.326,
+      "wheelbase_ratio": 0.585366,
       "front_hood_ratio": 0.23,
       "rear_deck_ratio": 0.21,
       "roof_span_ratio": 0.77,
@@ -963,7 +965,9 @@
         "Champagne Gold"
       ],
       "color_default_index": 1,
-      "year_hint": 2025
+      "year_hint": 2025,
+      "photo_reference_file": "data/real_vehicle_photo_references.json",
+      "reference_mode": "PHOTO_GUIDED_UNAPPROVED"
     },
     {
       "id": "compact_sedan__civic",
@@ -1615,14 +1619,14 @@
       "id": "basic_pickup__workhorse",
       "category": "basic_pickup",
       "category_label": "Everyday Pickups",
-      "reference_design": "2025 Ford F-150 XL dimensions",
+      "reference_design": "2021 Ford F-150 SuperCrew short bed photographic and factory dimensions, original fictional City Zero body",
       "original_game_brand": "AURA",
       "name": "WORKHORSE",
-      "length_m": 5.9,
+      "length_m": 5.885,
       "width_m": 2.03,
-      "height_m": 1.92,
-      "wheel_radius_m": 0.48,
-      "wheelbase_ratio": 0.6,
+      "height_m": 1.96,
+      "wheel_radius_m": 0.41,
+      "wheelbase_ratio": 0.627528,
       "front_hood_ratio": 0.31,
       "rear_deck_ratio": 0.32,
       "roof_span_ratio": 0.62,
@@ -1643,7 +1647,9 @@
         "Champagne Gold"
       ],
       "color_default_index": 4,
-      "year_hint": 2025
+      "year_hint": 2025,
+      "photo_reference_file": "data/real_vehicle_photo_references.json",
+      "reference_mode": "PHOTO_GUIDED_UNAPPROVED"
     },
     {
       "id": "basic_pickup__southwest",
@@ -2091,14 +2097,14 @@
       "id": "electric_future__cyber_wedge",
       "category": "electric_future",
       "category_label": "Premium Electric Vehicles",
-      "reference_design": "Tesla Cybertruck dimensions angular EV pickup reference",
+      "reference_design": "2024 Tesla Cybertruck photographic and factory dimensions, original fictional City Zero body",
       "original_game_brand": "AURA",
       "name": "CYBER WEDGE",
-      "length_m": 5.68,
-      "width_m": 2.2,
+      "length_m": 5.683,
+      "width_m": 2.032,
       "height_m": 1.79,
       "wheel_radius_m": 0.448,
-      "wheelbase_ratio": 0.64,
+      "wheelbase_ratio": 0.639627,
       "front_hood_ratio": 0.38,
       "rear_deck_ratio": 0.35,
       "roof_span_ratio": 0.82,
@@ -2119,7 +2125,9 @@
         "Champagne Gold"
       ],
       "color_default_index": 7,
-      "year_hint": 2025
+      "year_hint": 2025,
+      "photo_reference_file": "data/real_vehicle_photo_references.json",
+      "reference_mode": "PHOTO_GUIDED_UNAPPROVED"
     }
   ]
 }
