@@ -1,0 +1,89 @@
+name: City Zero - Real Car Photographs to Blender Geometry Audit
+on:
+  push:
+    branches: [forever-frequency-native]
+    paths:
+      - '.github/workflows/city-zero-real-photo-car-qa.yml'
+      - 'forever-frequency-native/data/real_vehicle_photo_references.json'
+      - 'forever-frequency-native/data/vehicle_fleet_catalog.json'
+      - 'forever-frequency-native/tools/download_real_car_references.py'
+      - 'forever-frequency-native/tools/render_real_car_reference_comparison.py'
+      - 'forever-frequency-native/tools/build_real_car_photo_comparisons.py'
+      - 'forever-frequency-native/tools/premium_vehicle_fleet_blender.py'
+      - 'forever-frequency-native/tools/vehicle_finish_detail.py'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: city-zero-photo-reference-qa-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  real-photo-automotive-shape:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 26
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install photographic verification dependencies
+        run: |
+          set -euo pipefail
+          python3 -m pip install --user --quiet requests pillow
+          python3 -m py_compile forever-frequency-native/tools/{download_real_car_references,render_real_car_reference_comparison,build_real_car_photo_comparisons,premium_vehicle_fleet_blender,vehicle_finish_detail}.py
+      - name: SAVE twelve real Wikimedia car photos, source licenses and contact sheets
+        run: |
+          set -euo pipefail
+          python3 forever-frequency-native/tools/download_real_car_references.py 2>&1 | tee real_photos.log
+          grep -q '12 AUTHENTIC LICENSED AUTOMOTIVE PHOTOGRAPHS SAVED' real_photos.log
+      - name: Run authentic Blender 4.5
+        run: docker pull ghcr.io/blenderkit/headless-blender:blender-4.5-stable
+      - name: Rebuild four ORIGINAL game cars from factory body measurements
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd forever-frequency-native
+          timeout 360s docker run --rm \
+            -e FF_CAR_IDS=compact_sedan__compact_c,exotic_supercar__revulse,basic_pickup__workhorse,electric_future__cyber_wedge \
+            -v "$PWD:$PWD" -w "$PWD" \
+            --entrypoint /home/headless/blender/blender \
+            ghcr.io/blenderkit/headless-blender:blender-4.5-stable \
+            -b -t 2 --python tools/premium_vehicle_fleet_blender.py 2>&1 | tee photo_car_build.log
+          grep -q 'PROTOTYPE ONLY' photo_car_build.log
+      - name: Import actual GLBs and make photographic comparison frames in Blender
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd forever-frequency-native
+          timeout 250s docker run --rm -v "$PWD:$PWD" -w "$PWD" \
+            --entrypoint /home/headless/blender/blender \
+            ghcr.io/blenderkit/headless-blender:blender-4.5-stable \
+            -b -t 2 --python tools/render_real_car_reference_comparison.py 2>&1 | tee real_car_camera_log.txt
+          grep -q 'REAL AUTOMOTIVE PHOTO REFERENCED BLENDER FRAMES COMPLETE' real_car_camera_log.txt
+      - name: Export literal side-by-side photograph versus game-model evidence
+        run: |
+          set -euo pipefail
+          python3 forever-frequency-native/tools/build_real_car_photo_comparisons.py
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          root=Path("forever-frequency-native")
+          checks=json.loads((root/"real_car_comparison/factory_geometry_checks.json").read_text())
+          assert len(checks)==4
+          assert all(c["visual_approval"]=="REJECTED_PENDING_REVIEW" for c in checks.values())
+          assert len(list((root/"real_car_comparison").glob("*-real-vs-blender.jpg")))==4
+          assert len(list((root/"real_car_photo_references").glob("*/*.jpg")))==16
+          print("PHOTO-TO-CAR EVIDENCE COMPLETE; SHAPE ACCEPTANCE IS STILL HUMAN REVIEW")
+          PY
+      - name: SAVE authentic car photographs and geometry with full credit records
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: CityZero-Real-Automobile-Photographs-Versus-Original-Blender-Models
+          retention-days: 90
+          path: |
+            forever-frequency-native/real_car_photo_references/
+            forever-frequency-native/real_car_comparison/
+            forever-frequency-native/assets/premium_fleet/*.glb
+            forever-frequency-native/assets/premium_fleet/fleet_metrics.json
+            forever-frequency-native/photo_car_build.log
+            forever-frequency-native/real_car_camera_log.txt
+            real_photos.log
+          if-no-files-found: warn
