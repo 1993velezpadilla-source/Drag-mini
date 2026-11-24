@@ -35,7 +35,19 @@
           "author": "Elise240SX",
           "license": "CC BY-SA 4.0"
         }
-      ]
+      ],
+      "photo_traced_profile": {
+        "front_glass": 0.3,
+        "roof_front": 0.4,
+        "roof_rear": 0.69,
+        "rear_glass": 0.8,
+        "door_front": 0.3,
+        "door_rear": 0.75,
+        "note": "First-pass visual transcription of photographed Civic greenhouse; compare to licensed 3/4 photos",
+        "units": "fraction_of_actual_front_to_rear_body_length",
+        "status": "DRAFT_PHOTO_GUIDED_REQUIRES_VISUAL_ALIGNMENT",
+        "photo_source": "Honda Civic 1.5 VTEC (2022) (54727772424).jpg"
+      }
     },
     {
       "id": "exotic_supercar__revulse",
@@ -69,7 +81,19 @@
           "author": "Vauxford",
           "license": "CC BY-SA 4.0"
         }
-      ]
+      ],
+      "photo_traced_profile": {
+        "front_glass": 0.28,
+        "roof_front": 0.4,
+        "roof_rear": 0.63,
+        "rear_glass": 0.74,
+        "door_front": 0.3,
+        "door_rear": 0.73,
+        "note": "First-pass proportions from Vauxford literal side photograph; re-check against comparison screenshot",
+        "units": "fraction_of_actual_front_to_rear_body_length",
+        "status": "DRAFT_PHOTO_GUIDED_REQUIRES_VISUAL_ALIGNMENT",
+        "photo_source": "2015 Lamborghini Aventador LP700-4 Pirelli Edition 6.5 Side.jpg"
+      }
     },
     {
       "id": "basic_pickup__workhorse",
@@ -103,7 +127,19 @@
           "author": "Kevauto",
           "license": "CC BY-SA 4.0"
         }
-      ]
+      ],
+      "photo_traced_profile": {
+        "front_glass": 0.28,
+        "roof_front": 0.34,
+        "roof_rear": 0.64,
+        "rear_glass": 0.69,
+        "door_front": 0.3,
+        "door_rear": 0.67,
+        "note": "SuperCrew 5.5-foot bed: rear cab break near 69% of car length, cargo bed begins near 71%",
+        "units": "fraction_of_actual_front_to_rear_body_length",
+        "status": "DRAFT_PHOTO_GUIDED_REQUIRES_VISUAL_ALIGNMENT",
+        "photo_source": "'21 Ford F-150 XLT Crew Cab.jpg"
+      }
     },
     {
       "id": "electric_future__cyber_wedge",
@@ -137,7 +173,19 @@
           "author": "Cutlass",
           "license": "public domain"
         }
-      ]
+      ],
+      "photo_traced_profile": {
+        "front_glass": 0.14,
+        "roof_front": 0.42,
+        "roof_rear": 0.6,
+        "rear_glass": 0.73,
+        "door_front": 0.29,
+        "door_rear": 0.7,
+        "note": "First-pass distinctive ascending Cybertruck windscreen and angular cab profile from exact side photo",
+        "units": "fraction_of_actual_front_to_rear_body_length",
+        "status": "DRAFT_PHOTO_GUIDED_REQUIRES_VISUAL_ALIGNMENT",
+        "photo_source": "IMG Tesla Cybertruck - AUTO ATHINA 2024 - Side.jpg"
+      }
     }
   ]
 }
