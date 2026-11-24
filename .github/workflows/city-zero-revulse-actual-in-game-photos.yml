@@ -1,12 +1,9 @@
 name: City Zero REVULSE REAL in-game doors closed open
+# RETIRED: This prototype REVULSE is NOT the Lamborghini the user approved.
+# Retained only as historical test code. Never run or publish it automatically.
+# The user's approved vehicle is curated_midengine_supercar.glb.
 on:
   workflow_dispatch:
-  push:
-    branches: [forever-frequency-native]
-    paths:
-      - 'forever-frequency-native/scripts/city_zero.gd'
-      - 'forever-frequency-native/tests/revulse_in_game_capture.gd'
-      - '.github/workflows/city-zero-revulse-actual-in-game-photos.yml'
 permissions:
   contents: write
 concurrency:
@@ -14,6 +11,7 @@ concurrency:
   cancel-in-progress: true
 jobs:
   actual-godot-photos:
+    if: ${{ false }} # Original REVULSE rejected; never overwrite approved asset
     # Use alternate 22.04 pool: 24.04 has a substantial queued workload.
     runs-on: ubuntu-22.04
     timeout-minutes: 24
