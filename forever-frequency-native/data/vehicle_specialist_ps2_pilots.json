@@ -1,0 +1,89 @@
+{
+  "status": "BLUEPRINT_SPECS_ONLY_NO_MODELS_APPROVED",
+  "method": "Pinned MIT vehicle-specialist reference-to-quad-cage Blender workflow, multi-angle contour audit, independent panel geometry, physical hinges, GLB reimport proof. No text-to-3D blob meshes.",
+  "upstream_tool": "https://github.com/duolahypercho/zstack/tree/74f7786e9931b9ced858a0e2df880f23e4c2430e/skills/vehicle",
+  "upstream_sha": "74f7786e9931b9ced858a0e2df880f23e4c2430e",
+  "references_policy": "No OEM model meshes ripped from games, no proprietary logos, no manufacturer photos copied into public repo. Specs from published manufacturer brochures; silhouette reference imagery private or separately licensed.",
+  "visual_reference_games": [
+    "Need for Speed Underground (2003)",
+    "Need for Speed Underground 2 (2004)",
+    "Gran Turismo 4 (PlayStation 2, 2004)"
+  ],
+  "target_direction": "PS2 era readable and exact silhouette, clean headlights/roofline/panels, solid good textures instead of hyper-realistic expensive geometry. Tight fitting door, bonnet, glass, bumpers, wheels. Grown-up non-toy wheels, body proportions unique to each reference.",
+  "reviews_required": [
+    "side orthographic",
+    "front orthographic",
+    "rear orthographic",
+    "three-quarter front",
+    "three-quarter rear",
+    "door fully opened and closed",
+    "Godot GLB actual import"
+  ],
+  "pilots": [
+    {
+      "id": "aura_nightfall_spyder_2003",
+      "class": "2000s-tuner-convertible",
+      "based_on": "2003 Mitsubishi Eclipse Spyder",
+      "length_m": 4.491,
+      "width_m": 1.75,
+      "height_m": 1.341,
+      "wheelbase_m": 2.56,
+      "front_track_m": 1.509,
+      "rear_track_m": 1.509,
+      "number_of_doors": 2,
+      "door_type": "conventional",
+      "roof_type": "foldable cloth convertible",
+      "source": "https://autocatalogarchive.com/wp-content/uploads/2018/02/Mitsubishi-Eclipse-2003-USA.pdf",
+      "approval": "REJECTED_NO_REFERENCE_SILHOUETTE_PROOF",
+      "distinctive_features": [
+        "low sloping windshield",
+        "rounded 2000s wedge headlights",
+        "curving roof when closed",
+        "two long doors, curved quarter panels",
+        "convertible folding roof mechanism"
+      ]
+    },
+    {
+      "id": "aura_city_c_2025",
+      "class": "economy-modern-sedan",
+      "based_on": "2025 Toyota Corolla Sedan",
+      "length_m": 4.636,
+      "width_m": 1.781,
+      "height_m": 1.435,
+      "wheelbase_m": 2.7,
+      "number_of_doors": 4,
+      "door_type": "conventional",
+      "roof_type": "sedan",
+      "source": "https://www.toyota.com/content/dam/toyota/brochures/pdf/2025/corolla_ebrochure.pdf",
+      "approval": "REJECTED_NO_REFERENCE_SILHOUETTE_PROOF",
+      "distinctive_features": [
+        "practical four-door cabin",
+        "modern compact sedan roofline",
+        "short overhangs compared to wheelbase",
+        "real side windows and B-pillars",
+        "no tall generic cartoon body"
+      ]
+    },
+    {
+      "id": "aura_gr_coupe_2025",
+      "class": "modern-japanese-sport-coupe",
+      "based_on": "2025 Toyota GR Supra",
+      "length_m": 4.382,
+      "width_m": 1.854,
+      "height_m": 1.293,
+      "wheelbase_m": 2.469,
+      "number_of_doors": 2,
+      "door_type": "conventional",
+      "roof_type": "double-bubble coupe",
+      "source": "https://www.toyota.com/content/dam/toyota/brochures/pdf/2025/grsupra_ebrochure.pdf",
+      "approval": "REJECTED_NO_REFERENCE_SILHOUETTE_PROOF",
+      "distinctive_features": [
+        "long sculpted nose",
+        "short cabin and rear",
+        "double bubble coupe roof silhouette",
+        "broad rear haunches",
+        "distinct rounded lamp shapes"
+      ]
+    }
+  ]
+}
