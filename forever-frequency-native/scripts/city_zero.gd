@@ -149,11 +149,17 @@ func _create_environment() -> void:
     var env := Environment.new()
     var sky := Sky.new()
     var dusk := ProceduralSkyMaterial.new()
-    dusk.sky_top_color = Color("172942")
-    dusk.sky_horizon_color = Color("bc6b72")
-    dusk.ground_horizon_color = Color("554f68")
-    dusk.ground_bottom_color = Color("151e2a")
-    dusk.sky_curve = 0.19
+    # The 2026 district targets a vivid lavender-blue sky and warm pink dusk.
+    # A separate original equirectangular alpha-cloud map breaks up flat horizons.
+    dusk.sky_top_color = Color("#4c74ad")
+    dusk.sky_horizon_color = Color("#d48aa5")
+    dusk.ground_horizon_color = Color("#8a6c82")
+    dusk.ground_bottom_color = Color("#243349")
+    dusk.sky_curve = 0.22
+    dusk.use_debanding = true
+    if ResourceLoader.exists("res://assets/cloud_cover.png"):
+        dusk.sky_cover = load("res://assets/cloud_cover.png")
+        dusk.sky_cover_modulate = Color(1.0,0.87,0.93,0.67)
     sky.sky_material = dusk
     env.background_mode = Environment.BG_SKY
     env.sky = sky
