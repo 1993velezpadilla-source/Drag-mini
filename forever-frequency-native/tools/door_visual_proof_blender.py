@@ -54,14 +54,18 @@ for n in names:
         scene.render.filepath=str(target)
         bpy.ops.render.render(write_still=True)
         assert target.stat().st_size>20000,target
-    from PIL import Image, ImageChops
-    pic_a=Image.open(OUT/(n+"-closed.png")).convert("RGB")
-    pic_b=Image.open(OUT/(n+"-open.png")).convert("RGB")
-    diff=ImageChops.difference(pic_a,pic_b)
-    if diff.getbbox() is None:
-        raise RuntimeError("VISUAL CRITIC RED: door closed/open screenshots are identical for "+n)
-    changed_pixels=sum(1 for pixel in diff.resize((160,90)).getdata() if max(pixel)>35)
-    if changed_pixels < 75:
+    # Use Blender's own image pixels; external PIL is not part of Blender images.
+    import numpy as np
+    img_a=bpy.data.images.load(str(OUT/(n+"-closed.png")),check_existing=False)
+    img_b=bpy.data.images.load(str(OUT/(n+"-open.png")),check_existing=False)
+    arr_a=np.empty(len(img_a.pixels),dtype=np.float32)
+    arr_b=np.empty(len(img_b.pixels),dtype=np.float32)
+    img_a.pixels.foreach_get(arr_a)
+    img_b.pixels.foreach_get(arr_b)
+    bpy.data.images.remove(img_a)
+    bpy.data.images.remove(img_b)
+    changed_pixels=int(np.count_nonzero(np.max(np.abs(arr_a.reshape((-1,4))[:,:3]-arr_b.reshape((-1,4))[:,:3]),axis=1)>.13))
+    if changed_pixels < 500:
         raise RuntimeError("VISUAL CRITIC RED: model has fake or nearly invisible door movement "+n+" "+str(changed_pixels))
     print("TRUE VISUAL DOOR CHANGE",n,changed_pixels,flush=True)
     report.append({"id":n,"hinges":len(hinges),"screenshots":2,
