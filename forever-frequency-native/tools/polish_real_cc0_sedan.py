@@ -122,19 +122,37 @@ def repair_original_rear_windscreen(body):
     shader=rear_glass.node_tree.nodes.get("Principled BSDF") if rear_glass.use_nodes else None
     if shader is None:
         raise RuntimeError("Native Blender rear PBR shader missing")
-    shader.inputs["Base Color"].default_value=(.055,.072,.098,1)
-    shader.inputs["Roughness"].default_value=.085
+    # Avoid the huge silver/milky reflection across the rear roof. Give
+    # only rear/quarter glass a realistic dark privacy tint; front door and
+    # windshield glass retain the original material and transparency.
+    shader.inputs["Base Color"].default_value=(.021,.029,.043,1)
+    shader.inputs["Roughness"].default_value=.19
     transmission=shader.inputs.get("Transmission Weight")
     if transmission is not None:
-        transmission.default_value=.30
+        transmission.default_value=.08
+    specular=shader.inputs.get("Specular IOR Level")
+    if specular is not None:
+        specular.default_value=.16
     slots[glass_indices[0]]=rear_glass
+    quarter_count=0
+    for side in ("L","R"):
+        quarter=bpy.data.objects.get("glass_side_"+side)
+        if quarter is None or quarter.type!="MESH":
+            raise RuntimeError("Source fixed quarter window missing "+side)
+        for i,mat in enumerate(quarter.data.materials):
+            if mat and mat.name=="glass":
+                quarter.data.materials[i]=rear_glass
+                quarter_count+=1
+    if quarter_count!=2:
+        raise RuntimeError("Could not match both real sedan fixed quarter windows")
     return {"original_glass_faces":before_faces,
             "retessellated_glass_faces":after_faces,
             "glass_vertices_corrected":corrected,
             "maximum_old_roof_protrusion_m":round(old_excess,4),
             "maximum_new_roof_protrusion_m":round(new_excess,4),
             "roof_station_count":len(roof_stations),
-            "rear_privacy_glass_material_only":rear_glass.name}
+            "rear_privacy_glass_material_only":rear_glass.name,
+            "rear_quarter_windows_consistent_tint":quarter_count}
 
 def polish_loaded_sedan():
     bpy.context.view_layer.update()
