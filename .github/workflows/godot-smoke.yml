@@ -1,7 +1,27 @@
 name: Godot smoke check
 on:
+  # This is the Drag-mini racing-game smoke suite. Do not consume another
+  # Godot runner for unrelated City Zero / Blender fleet model commits.
   push:
+    paths:
+      - 'native/**'
+      - 'assets/**'
+      - 'scenes/**'
+      - 'scripts/**'
+      - 'tests/**'
+      - 'project.godot'
+      - 'export_presets.cfg'
+      - '.github/workflows/godot-smoke.yml'
   pull_request:
+    paths:
+      - 'native/**'
+      - 'assets/**'
+      - 'scenes/**'
+      - 'scripts/**'
+      - 'tests/**'
+      - 'project.godot'
+      - 'export_presets.cfg'
+      - '.github/workflows/godot-smoke.yml'
 concurrency:
   group: drag-mini-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
