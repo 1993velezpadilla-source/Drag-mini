@@ -43,7 +43,7 @@ func toggle_door(id: String) -> bool:
     if not hinges.has(id):
         return false
     var opening: float = deg_to_rad(opening_angle_degrees)
-    var sign: float = 1.0 if id.contains("_LEFT_") else -1.0
+    var sign: float = -1.0 if id.contains("_LEFT_") else 1.0
     target_angle[id] = 0.0 if absf(float(target_angle[id])) > 0.1 else sign * opening
     return true
 
