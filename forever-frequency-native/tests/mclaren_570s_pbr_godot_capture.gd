@@ -30,7 +30,7 @@ func _photo(vp: SubViewport) -> Image:
     return vp.get_texture().get_image()
 
 func _run() -> void:
-    var target_folder := OS.get_environment("CITY_ZERO_FERRARI_GODOT_SHOTS")
+    var target_folder := OS.get_environment("CITY_ZERO_MCLAREN_GODOT_SHOTS")
     if target_folder.is_empty():
         target_folder = ProjectSettings.globalize_path("user://original-mclaren-570s-pbr")
     DirAccess.make_dir_recursive_absolute(target_folder)
