@@ -1,4 +1,4 @@
-name: City Zero approved Lamborghini-style REAL in-game closed and open photos
+name: City Zero - ORIGINAL ORANGE Lamborghini true Godot city screenshots
 on:
   workflow_dispatch:
   push:
@@ -11,110 +11,121 @@ permissions:
   actions: read
   contents: write
 concurrency:
-  group: city-zero-approved-lambo-render
+  group: cityzero-actual-orange-lamborghini
   cancel-in-progress: true
 jobs:
-  godot-real-approved-car-capture:
+  approved-orange-lamborghini-godot:
     runs-on: ubuntu-22.04
     timeout-minutes: 18
     steps:
       - uses: actions/checkout@v4
-      - name: Download user's exact previously approved CC0 Lamborghini-shaped Blender GLB
+        with:
+          ref: forever-frequency-native
+          fetch-depth: 0
+      - name: Retrieve the SAME original orange CC0 midengine GLB the user selected
         uses: actions/download-artifact@v4
         with:
           run-id: 45336166368
           name: CityZero-CC0-GT4-Car-Research-Visual-Proof
           github-token: ${{ secrets.GITHUB_TOKEN }}
-          path: forever-frequency-native
-      - name: Confirm approved model GLB is genuine 3D and has both actual door hinges
+          path: ${{ runner.temp }}/approved_original_source
+      - name: Validate user-approved GLB and original twin mechanical hinges
         shell: bash
         run: |
           set -euo pipefail
           python3 - <<'PY'
-          import json,struct
+          import json,struct,os
           from pathlib import Path
-          model=Path('forever-frequency-native/assets/curated_rigged/curated_midengine_supercar.glb')
-          d=model.read_bytes()
-          assert d[:4]==b'glTF' and len(d)>1000000
-          magic,version,total=struct.unpack_from('<4sII',d)
-          assert magic==b'glTF' and version==2 and total==len(d)
-          length,kind=struct.unpack_from('<I4s',d,12)
-          assert kind==b'JSON'
-          src=json.loads(d[20:20+length])
-          names={x.get('name') for x in src.get('nodes',[])}
-          assert {'DOOR_LEFT_FRONT_HINGE','DOOR_RIGHT_FRONT_HINGE'}<=names
-          assert len(src.get('meshes',[]))>=20
-          print('APPROVED_LAMBORGHINI_GLB_ORIGINAL_HINGES_VERIFIED',len(d))
+          source=Path(os.environ['RUNNER_TEMP'])/'approved_original_source/assets/curated_rigged/curated_midengine_supercar.glb'
+          b=source.read_bytes()
+          assert b[:4]==b'glTF' and len(b)>3000000, source
+          assert struct.unpack_from('<I',b,8)[0]==len(b)
+          length,chunk=struct.unpack_from('<I4s',b,12)
+          assert chunk==b'JSON'
+          metadata=json.loads(b[20:20+length])
+          nodes={n.get('name',''):n for n in metadata.get('nodes',[])}
+          assert 'DOOR_LEFT_FRONT_HINGE' in nodes and 'DOOR_RIGHT_FRONT_HINGE' in nodes
+          assert len(metadata.get('meshes',[]))>=20
+          assert 'exotic_supercar__revulse' not in str(source).lower()
+          print('APPROVED_ORANGE_LAMBORGHINI_ORIGINAL_GLB_PASS',len(b),'bytes',len(nodes),'nodes')
           PY
       - uses: solarlabyrinth/action-setup-godot@v3
         with:
           version: 4.4.1-stable
           export-templates: false
-      - name: Install software GL renderer
+      - name: Install actual Godot software OpenGL display
         run: sudo apt-get update -qq && sudo apt-get install -y -qq xvfb libgl1 libgl1-mesa-dri libegl1 libgles2 mesa-utils
-      - name: Stage isolated City Zero playable world using ONLY the exact winning GLB
-        shell: bash
-        run: |
-          set -euo pipefail
-          mkdir -p isolated/scenes isolated/scripts isolated/tests isolated/assets/curated_rigged
-          cp forever-frequency-native/project.godot isolated/
-          cp forever-frequency-native/scenes/main.tscn isolated/scenes/
-          cp forever-frequency-native/scripts/*.gd isolated/scripts/
-          cp forever-frequency-native/tests/approved_lamborghini_in_game_capture.gd isolated/tests/
-          cp forever-frequency-native/assets/curated_rigged/curated_midengine_supercar.glb isolated/assets/curated_rigged/
-          test -s isolated/assets/curated_rigged/curated_midengine_supercar.glb
-          # No procedural substitute REVULSE / generic premium_fleet GLB allowed.
-          test ! -e isolated/assets/premium_fleet/exotic_supercar__revulse.glb
-          echo 'EXACT_USER_WINNING_LAMBORGHINI_GLB_STAGED_IN_REAL_CITY_SCENE'
-      - name: Register City Zero GDScript classes in editor (model loads directly as GLB)
+      - name: Register City Zero native game classes BEFORE placing source GLB into project
         shell: bash
         env:
+          GODOT_AUDIO_DRIVER: Dummy
           LIBGL_ALWAYS_SOFTWARE: '1'
           MESA_GL_VERSION_OVERRIDE: '3.3'
-          GODOT_AUDIO_DRIVER: Dummy
         run: |
           set -euo pipefail
-          # Initial editor scan of the entire legacy city timed out after 180s.
-          # In an isolated but genuine main scene it only imports ONE verified
-          # winning GLB and registers the original production GDScript classes.
-          xvfb-run -a -s '-screen 0 1920x1080x24' timeout 120s godot --rendering-driver opengl3 --rendering-method gl_compatibility --path isolated --editor --import --quit 2>&1 | tee /tmp/approved_lambo_editor.log
-          echo 'CITYZERO_WINNING_LAMBO_CLASSES_READY'
-      - name: Capture actual City Zero Godot gameplay with exact approved car, doors closed and open
+          # Godot's editor import of the original curated .blend + .glb previously
+          # stalled for 180s. Keep this GLB OUT of the editor scan entirely.
+          test ! -f forever-frequency-native/assets/curated_rigged/curated_midengine_supercar.glb
+          xvfb-run -a -s '-screen 0 1920x1080x24' timeout 120s \
+            godot --rendering-method gl_compatibility --path forever-frequency-native \
+              --editor --import --quit 2>&1 | tee /tmp/orange_lamborghini_class_scan.log
+          echo 'ORIGINAL_ORANGE_LAMBORGHINI_CLASS_SCAN_COMPLETE'
+      - name: Load the original approved binary as the only Lamborghini in City Zero
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p forever-frequency-native/assets/curated_rigged
+          cp "$RUNNER_TEMP/approved_original_source/assets/curated_rigged/curated_midengine_supercar.glb" \
+            forever-frequency-native/assets/curated_rigged/curated_midengine_supercar.glb
+          test ! -e forever-frequency-native/assets/premium_fleet/exotic_supercar__revulse.glb
+          test -s forever-frequency-native/assets/curated_rigged/curated_midengine_supercar.glb
+      - name: Capture actual playable city viewport two original Lamborghini door states
         shell: bash
         env:
+          GODOT_AUDIO_DRIVER: Dummy
           LIBGL_ALWAYS_SOFTWARE: '1'
           MESA_GL_VERSION_OVERRIDE: '3.3'
-          GODOT_AUDIO_DRIVER: Dummy
         run: |
           set -euo pipefail
-          mkdir -p "$PWD/approved-lamborghini-godot-evidence"
-          export CITYZERO_REVULSE_SCREENSHOTS="$PWD/approved-lamborghini-godot-evidence"
-          xvfb-run -a -s '-screen 0 1920x1080x24' timeout 240s godot --path isolated --script res://tests/approved_lamborghini_in_game_capture.gd 2>&1 | tee approved-lamborghini-godot-evidence/godot_runtime.log
+          mkdir -p approved-lamborghini-godot-evidence
+          export CITYZERO_LAMBORGHINI_SCREENSHOTS="$PWD/approved-lamborghini-godot-evidence"
+          xvfb-run -a -s '-screen 0 1920x1080x24' timeout 240s \
+            godot --rendering-method gl_compatibility --path forever-frequency-native \
+              --script res://tests/approved_lamborghini_in_game_capture.gd \
+            2>&1 | tee approved-lamborghini-godot-evidence/godot_runtime.log
           grep -q 'CITY_ZERO_APPROVED_LAMBORGHINI_ACTUAL_IN_GAME_SCREENSHOTS_GREEN' approved-lamborghini-godot-evidence/godot_runtime.log
           test -s approved-lamborghini-godot-evidence/LAMBORGHINI_CITY_ZERO_IN_GAME_DOORS_CLOSED.png
           test -s approved-lamborghini-godot-evidence/LAMBORGHINI_CITY_ZERO_IN_GAME_DOORS_OPEN.png
-      - name: Publish approved car GLB and two verified Godot image frames to game repository
+      - name: Publish original GLB and two Godot photos to City Zero branch
         shell: bash
         run: |
           set -euo pipefail
           mkdir -p forever-frequency-native/screenshots
           cp approved-lamborghini-godot-evidence/LAMBORGHINI_CITY_ZERO_IN_GAME_DOORS_CLOSED.png forever-frequency-native/screenshots/
           cp approved-lamborghini-godot-evidence/LAMBORGHINI_CITY_ZERO_IN_GAME_DOORS_OPEN.png forever-frequency-native/screenshots/
-          cp approved-lamborghini-godot-evidence/godot_actual_scene_evidence.json forever-frequency-native/screenshots/approved_lamborghini_godot_evidence.json
-          git config user.name "City Zero Godot Original Car Capture"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          cp approved-lamborghini-godot-evidence/godot_actual_scene_evidence.json forever-frequency-native/screenshots/original_orange_lamborghini_evidence.json
+          git config user.name 'City Zero Real Godot Photo Capture'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add forever-frequency-native/assets/curated_rigged/curated_midengine_supercar.glb
-          git add forever-frequency-native/screenshots/LAMBORGHINI_CITY_ZERO_IN_GAME_DOORS_CLOSED.png forever-frequency-native/screenshots/LAMBORGHINI_CITY_ZERO_IN_GAME_DOORS_OPEN.png
-          git add forever-frequency-native/screenshots/approved_lamborghini_godot_evidence.json
-          git commit -m "Ship user's approved Lamborghini-style CC0 model and real in-game door frames [skip ci]"
-          git reset --hard HEAD
-          git pull --rebase --autostash origin forever-frequency-native
-          git push origin HEAD:forever-frequency-native
-      - name: Preserve exact CC0 car and Godot-verified screenshots even on publishing failure
+          git add forever-frequency-native/screenshots/LAMBORGHINI_CITY_ZERO_IN_GAME_DOORS_CLOSED.png
+          git add forever-frequency-native/screenshots/LAMBORGHINI_CITY_ZERO_IN_GAME_DOORS_OPEN.png
+          git add forever-frequency-native/screenshots/original_orange_lamborghini_evidence.json
+          git commit -m "Ship user's orange Lamborghini original GLB and actual City Zero Godot photos [skip ci]"
+          for attempt in 1 2 3 4 5; do
+            git pull --rebase origin forever-frequency-native
+            if git push origin HEAD:forever-frequency-native; then
+              echo 'APPROVED_ORANGE_LAMBORGHINI_PUBLISHED_IN_GAME'
+              exit 0
+            fi
+            sleep 2
+          done
+          echo 'Permanent push failed; photos and GLB are retained in verified Actions artifact'
+          exit 1
+      - name: Upload exact GLB and TWO genuine Godot in-game frames, even if commit fails
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: CityZero-Approved-Lamborghini-Original-GLB-And-Real-Game-Captures
+          name: CityZero-Original-Orange-Lamborghini-Actual-Godot-Closed-Open
           path: |
             forever-frequency-native/assets/curated_rigged/curated_midengine_supercar.glb
             approved-lamborghini-godot-evidence/
