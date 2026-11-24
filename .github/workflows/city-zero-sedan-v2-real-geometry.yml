@@ -71,6 +71,12 @@ jobs:
           assert glass['rear_gasket_and_quarter_seals_matte']==3
           assert glass['retessellated_glass_faces']>glass['original_glass_faces']*2
           assert len(repair['door_hinges_preserved'])==4
+          upper=repair['real_moving_upper_door_frames_reprofiled']
+          assert len(upper)==4
+          assert all(c['upper_vertices_reprofiled']>=4 for c in upper.values())
+          assert all(c['maximum_coordinate_change_m']<=.0295 for c in upper.values())
+          assert len(set(c['original_hinge'] for c in upper.values()))==4
+          assert all(c['source_faces_untouched']>0 for c in upper.values())
           assert len(sedan['measured_door_movement'])==4
           assert len(lamb['measured_door_movement'])==2
           assert all(x>.13 for x in sedan['measured_door_movement'].values())
