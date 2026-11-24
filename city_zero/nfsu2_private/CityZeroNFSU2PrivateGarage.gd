@@ -23,6 +23,9 @@ var _current_id: String = ""
 var _vehicle_root: Node3D
 var _stock_hidden: Dictionary = {}
 var _installed_part_roots: Dictionary = {}
+var _stock_wheel_nodes: Array[MeshInstance3D] = []
+var _wheel_anchor_transforms: Array[Transform3D] = []
+var _wheel_markers: Dictionary = {}
 var _audio_player: AudioStreamPlayer3D
 
 func _ready() -> void:
@@ -106,6 +109,9 @@ func _clear_previous() -> void:
     _vehicle_root = null
     _installed_part_roots.clear()
     _stock_hidden.clear()
+    _stock_wheel_nodes.clear()
+    _wheel_anchor_transforms.clear()
+    _wheel_markers.clear()
     _current_id = ""
 
 
@@ -127,12 +133,52 @@ func open_car(xname: String) -> bool:
     _vehicle_root = candidate
     _vehicle_root.name = "NFSU2_" + xname
     add_child(_vehicle_root)
+    _remember_stock_wheel_anchors()
     _current_id = xname
     _audio_player = AudioStreamPlayer3D.new()
     _audio_player.name = "AuthenticAudioPreview"
     _vehicle_root.add_child(_audio_player)
     car_loaded.emit(xname)
     return true
+
+
+func _scan_stock_wheel_nodes(node: Node, candidates: Dictionary) -> void:
+    if node is MeshInstance3D:
+        var name := str(node.name).to_upper()
+        if name.contains("WHEEL") or name.contains("_RIM"):
+            var expression := RegEx.new()
+            expression.compile("[._]W([0-3])$")
+            var found := expression.search(name)
+            if found != null:
+                var index := int(found.get_string(1))
+                if not candidates.has(index):
+                    candidates[index] = node
+    for child in node.get_children():
+        _scan_stock_wheel_nodes(child, candidates)
+
+
+func _remember_stock_wheel_anchors() -> void:
+    _stock_wheel_nodes.clear()
+    _wheel_anchor_transforms.clear()
+    _wheel_markers.clear()
+    if _vehicle_root == null:
+        return
+    var candidates: Dictionary = {}
+    _scan_stock_wheel_nodes(_vehicle_root, candidates)
+    # Do not guess missing wheel coordinates; the original source has 4 axle
+    # transforms, and all must be present before a shared rim can be fitted.
+    if candidates.size() != 4:
+        return
+    var inverse_car := _vehicle_root.global_transform.affine_inverse()
+    for index in range(4):
+        if not candidates.has(index):
+            _stock_wheel_nodes.clear()
+            _wheel_anchor_transforms.clear()
+            return
+        var wheel: MeshInstance3D = candidates[index]
+        _stock_wheel_nodes.append(wheel)
+        _wheel_anchor_transforms.append(inverse_car * wheel.global_transform)
+        _wheel_markers[index] = wheel.name
 
 
 func installed_car() -> String:
@@ -143,9 +189,16 @@ func available_part_variants(family: String = "") -> Array:
     if _current_id.is_empty():
         return []
     var car: Dictionary = _catalog["vehicles"][_current_id]
-    var rows: Array = car.get("model_assets", {}).get("parts", [])
+    var rows: Array = car.get("model_assets", {}).get("parts", []).duplicate(true)
+    var allowed: Array = car.get("compatible_shared_families", [])
+    var shared: Dictionary = _catalog.get("shared_families", {})
+    for family_name in allowed:
+        var extras: Dictionary = shared.get(str(family_name), {})
+        for part in extras.get("parts", []):
+            if part is Dictionary:
+                rows.append(part.duplicate(true))
     if family.is_empty():
-        return rows.duplicate(true)
+        return rows
     var found: Array = []
     for row in rows:
         if str(row.get("family", "")).to_upper() == family.to_upper():
@@ -169,16 +222,66 @@ func _collect_stock_family(node: Node, normalized_family: String, out: Array) ->
         _collect_stock_family(child, normalized_family, out)
 
 
+func _remove_previous_part(part: Variant) -> void:
+    if part is Array:
+        for entry in part:
+            if entry is Node and is_instance_valid(entry):
+                entry.get_parent().remove_child(entry)
+                entry.free()
+    elif part is Node and is_instance_valid(part):
+        part.get_parent().remove_child(part)
+        part.free()
+
+
+func _install_real_wheel_set(row: Dictionary) -> bool:
+    if _vehicle_root == null or _stock_wheel_nodes.size() != 4:
+        import_failed.emit("All four genuine wheel anchor transforms are required")
+        return false
+    if str(row.get("mount_space", "")) != "wheel_local":
+        import_failed.emit("Selected wheel GLB has not been exported in wheel-local space")
+        return false
+    # Stage four genuine GLB instances before hiding the factory wheels.
+    var staged: Array[Node3D] = []
+    for index in range(4):
+        var wheel := _instantiate_glb(str(row.get("glb", "")))
+        if wheel == null:
+            for temp in staged:
+                _remove_previous_part(temp)
+            return false
+        wheel.name = "AuthenticRim_%d_%s" % [index, str(row.get("part_hash", ""))]
+        _vehicle_root.add_child(wheel)
+        wheel.transform = _wheel_anchor_transforms[index]
+        staged.append(wheel)
+    if _installed_part_roots.has("WHEEL"):
+        _remove_previous_part(_installed_part_roots["WHEEL"])
+    else:
+        var hidden: Array = []
+        for factory_wheel in _stock_wheel_nodes:
+            hidden.append(factory_wheel)
+            factory_wheel.visible = false
+        _stock_hidden["WHEEL"] = hidden
+    _installed_part_roots["WHEEL"] = staged
+    part_changed.emit("WHEEL", str(row.get("kit", "BASE")))
+    return true
+
+
 func install_variant(source_hash: String) -> bool:
     if _current_id.is_empty():
         return false
     var match_data: Dictionary = {}
     for row in available_part_variants():
-        if str(row.get("part_hash", "")) == source_hash:
+        if str(row.get("part_key", "")) == source_hash or (
+                str(row.get("part_hash", "")) == source_hash):
             match_data = row
             break
     if match_data.is_empty():
         import_failed.emit("Unknown part hash for this car: " + source_hash)
+        return false
+    var slot := str(match_data.get("slot", "other"))
+    if slot == "wheel":
+        return _install_real_wheel_set(match_data)
+    if slot in ["brake", "audio", "spinner"]:
+        import_failed.emit("Genuine %s mount marker required; refusing to place part at car origin" % slot)
         return false
     var candidate := _instantiate_glb(str(match_data.get("glb", "")))
     if candidate == null:
@@ -189,10 +292,7 @@ func install_variant(source_hash: String) -> bool:
         return false
     var key := family.to_upper()
     if _installed_part_roots.has(key):
-        var old: Node3D = _installed_part_roots[key]
-        if is_instance_valid(old):
-            old.get_parent().remove_child(old)
-            old.free()
+        _remove_previous_part(_installed_part_roots[key])
     else:
         var hidden: Array = []
         _collect_stock_family(_vehicle_root, _normalize_family(family), hidden)
@@ -209,12 +309,11 @@ func install_variant(source_hash: String) -> bool:
 
 func reset_to_stock(family: String) -> bool:
     var key := family.to_upper()
+    if key.contains("WHEEL") or key.contains("_RIM"):
+        key = "WHEEL"
     if not _installed_part_roots.has(key):
         return false
-    var part: Node3D = _installed_part_roots[key]
-    if is_instance_valid(part):
-        part.get_parent().remove_child(part)
-        part.free()
+    _remove_previous_part(_installed_part_roots[key])
     _installed_part_roots.erase(key)
     for mesh in _stock_hidden.get(key, []):
         if is_instance_valid(mesh):
