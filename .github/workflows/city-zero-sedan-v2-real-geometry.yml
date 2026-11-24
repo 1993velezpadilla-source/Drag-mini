@@ -70,6 +70,11 @@ jobs:
           assert glass['rear_quarter_windows_consistent_tint']==2
           assert glass['rear_gasket_and_quarter_seals_matte']==3
           assert glass['retessellated_glass_faces']>glass['original_glass_faces']*2
+          black=repair['real_body_black_roof_intrusion_removed']
+          assert black['source_material']=='panel_gap_body'
+          assert 145<=black['upper_window_black_intruding_faces_removed']<=225
+          assert .20<=black['measured_intrusion_area_m2']<=.40
+          assert black['result_body_faces']==black['original_source_body_faces']-black['upper_window_black_intruding_faces_removed']
           assert len(repair['door_hinges_preserved'])==4
           upper=repair['real_moving_upper_door_frames_reprofiled']
           assert len(upper)==4
