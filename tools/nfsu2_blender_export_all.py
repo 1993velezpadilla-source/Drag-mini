@@ -24,6 +24,32 @@ def best_variants(parts, every_lod=False):
             best[group] = p
     return sorted(best.values(), key=lambda p: (str(p.kit), str(p.family), p.name))
 
+# Source-based NFSU2 shared family folders from the original car part database.
+# These hold interchangeable accessories, not a driveable stock car body.
+SHARED_FAMILIES = frozenset({
+    "WHEELS", "BRAKES", "SPOILER", "SPOILER_HATCH", "SPOILER_SUV",
+    "EXHAUST", "AUDIO", "SPINNER", "PLATES",
+    "MIRRORS_POST", "MIRRORS_BODY", "MIRRORS_HUMMER", "MIRRORS_SUV"
+})
+
+def part_slot(name):
+    upper = name.upper()
+    if "WHEEL" in upper or "_RIM" in upper:
+        return "wheel"
+    if "BRAKE" in upper:
+        return "brake"
+    if "TRUNK_AUDIO" in upper or "AUDIO" in upper:
+        return "audio"
+    if "SPINNER" in upper:
+        return "spinner"
+    if "SPOILER" in upper:
+        return "spoiler"
+    if "EXHAUST" in upper:
+        return "exhaust"
+    if "MIRROR" in upper:
+        return "mirror"
+    return "other"
+
 def safe_name(s):
     return re.sub(r"[^a-zA-Z0-9._-]+", "_", s).strip("._")[:90] or "part"
 
@@ -50,13 +76,16 @@ def main():
     importer.clear_scene()
     geometry_path, texture_path, folder = cars.car_files(a.car)
     global_dir = cars.default_global_dir(folder)
-    car_importer.import_car(str(a.car), kit=a.kit, lod=a.lod,
-                            global_dir=str(global_dir) if global_dir else None,
-                            textures=True)
+    shared = folder.name.upper() in SHARED_FAMILIES
     model = cars.CarGeometry.open(geometry_path)
-    stock = a.out / "stock.glb"
-    bpy.ops.export_scene.gltf(filepath=str(stock), export_format="GLB",
-                              export_extras=True, use_selection=False)
+    stock = None
+    if not shared:
+        car_importer.import_car(str(a.car), kit=a.kit, lod=a.lod,
+                                global_dir=str(global_dir) if global_dir else None,
+                                textures=True)
+        stock = a.out / "stock.glb"
+        bpy.ops.export_scene.gltf(filepath=str(stock), export_format="GLB",
+                                  export_extras=True, use_selection=False)
 
     lib = None
     if texture_path:
@@ -71,6 +100,7 @@ def main():
     parts = best_variants(model.parts, a.every_lod)
     if a.max_parts:
         parts = parts[:max(0, a.max_parts)]
+    from mathutils import Matrix
     for idx, part in enumerate(parts, start=1):
         kit = safe_name(part.kit or "BASE")
         family = safe_name(part.family)
@@ -80,7 +110,12 @@ def main():
         mesh = car_importer._build_car_mesh(part, lib, (0.75, 0.06, 0.07, 1.0), material_cache)
         obj = bpy.data.objects.new(part.name, mesh)
         bpy.context.scene.collection.objects.link(obj)
-        obj.matrix_basis = car_importer._part_basis(part)
+        slot = part_slot(part.family + "_" + part.name)
+        # A rim in GEOMETRY.BIN is authored in wheel-local coordinates.
+        # Stock uses GLOBALB axle positioning; the Godot loader duplicates it
+        # at all four original wheel nodes. Never bake a one-wheel location.
+        obj.matrix_basis = (Matrix.Identity(4) if slot == "wheel"
+                            else car_importer._part_basis(part))
         obj["nfs_hash"] = f"{part.hash:08X}"
         obj["nfs_kit"] = part.kit or "BASE"
         obj["nfs_family"] = part.family
@@ -93,11 +128,15 @@ def main():
                                   export_extras=True, use_selection=True)
         rows.append({"name": part.name, "kit": part.kit, "family": part.family,
                      "lod": part.lod, "hash": f"{part.hash:08X}", "triangles": part.nfaces,
+                     "slot": slot,
+                     "mount_space": "wheel_local" if slot == "wheel" else "car_local",
                      "glb": destination.relative_to(a.out).as_posix()})
         bpy.data.objects.remove(obj, do_unlink=True)
         if idx % 50 == 0:
             print(f"[City Zero] {model.name}: {idx}/{len(parts)} physical parts exported")
-    report = {"car": model.name, "stock": "stock.glb", "parts": rows,
+    report = {"car": model.name, "stock": "stock.glb" if stock else None,
+              "shared_family": folder.name.upper() if shared else None,
+              "parts": rows,
               "source_path": str(a.car), "private_use_only": True,
               "animation_limitation": "PARTS_ANIMATIONS.BIN keyframes not yet imported"}
     (a.out / "models.json").write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
