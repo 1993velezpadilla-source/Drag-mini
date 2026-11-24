@@ -1,0 +1,51 @@
+name: Forever Frequency — Blender scene snapshot
+on:
+  push:
+    branches: [forever-frequency-native]
+    paths:
+      - '.github/workflows/forever-frequency-model-snapshot.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  capture:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    container:
+      image: barichello/godot-ci:4.4
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download verified Blender models
+        uses: actions/download-artifact@v4
+        with:
+          name: forever-frequency-blender-source
+          run-id: 45306538871
+          repository: 1993velezpadilla-source/Drag-mini
+          github-token: ${{ github.token }}
+          path: forever-frequency-native/assets
+      - name: Virtual graphics display
+        shell: bash
+        run: |
+          apt-get update -qq
+          apt-get install -y -qq xvfb libgl1-mesa-dri libgl1
+      - name: Import models with a hard timeout
+        shell: bash
+        run: |
+          timeout 180s godot --headless --path forever-frequency-native --editor --import --quit 2>&1 | tee model_import.log
+          test -z "$(grep -E 'SCRIPT ERROR|Parse Error' model_import.log || true)"
+      - name: Capture actual rendered city
+        shell: bash
+        run: |
+          timeout 180s xvfb-run -a -s '-screen 0 1280x720x24' godot --path forever-frequency-native --rendering-method gl_compatibility --script res://tests/capture.gd 2>&1 | tee model_capture.log
+          test -s forever-frequency-native/preview_real_godot.png
+      - name: Upload unedited screenshot and logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: La-Caldera-Actual-Godot-3D-Screenshot
+          path: |
+            forever-frequency-native/preview_real_godot.png
+            model_import.log
+            model_capture.log
+          if-no-files-found: warn
