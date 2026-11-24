@@ -6,6 +6,9 @@ on:
       - '.github/workflows/city-zero-authentic-cc0-challenger.yml'
       - 'forever-frequency-native/tools/import_real_cc0_dodge_challenger.py'
   workflow_dispatch:
+concurrency:
+  group: cityzero-original-cc0-dodge-challenger
+  cancel-in-progress: true
 permissions:
   contents: read
 jobs:
