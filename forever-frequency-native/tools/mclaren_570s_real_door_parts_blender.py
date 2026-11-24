@@ -8,7 +8,7 @@ brand/author rights remain unreviewed.
 """
 import bpy,hashlib,json,math,re
 from pathlib import Path
-from mathutils import Vector
+from mathutils import Vector, Matrix
 
 ROOT=Path(__file__).resolve().parents[1]
 SOURCE=ROOT/"assets/mclaren_570s_review/mclaren_570s_2016_ORIGINAL_Author_DeepBlue_PBR.glb"
@@ -35,6 +35,19 @@ hi=Vector(max(p[i] for p in bounds) for i in range(3))
 mid=(lo+hi)*.5
 span=max(hi-lo)
 if not 4.48<span<4.58:raise RuntimeError("McLaren 4.53m source vehicle proportions damaged")
+
+# Every ORIGINAL source GLB vertex-bounding corner must remain at EXACTLY the
+# same world-space position when the new door hinges are closed.
+# A previous prototype incorrectly added pivot translation to every panel and
+# yielded detached floating doors. Explicitly fail closed on ANY displacement.
+original_source_corners={
+    obj.name:[(obj.matrix_world @ Vector(v)).copy() for v in obj.bound_box]
+    for obj in real_meshes
+}
+original_source_world_matrices={
+    obj.name:obj.matrix_world.copy() for obj in real_meshes
+}
+
 
 # Real source topology for artist authored McLaren 570S 2016:
 # separated original exterior door panels, glass and mirror nodes. These
@@ -102,15 +115,38 @@ for side,source_items in items.items():
     bpy.context.scene.collection.objects.link(pivot)
     pivot.empty_display_type="ARROWS"
     pivot.location=(sign*.89,-1.0,.60)
+    # Update before applying inverse. Otherwise a stale pivot world-matrix
+    # causes a (x,y,z) offset exactly equal to the Empty's location.
+    bpy.context.view_layer.update()
     pivots[side]=pivot
     for ob,category,number,faces in source_items:
-        transform=ob.matrix_world.copy()
+        old_world=original_source_world_matrices[ob.name]
         ob.parent=pivot
-        ob.matrix_world=transform
+        ob.matrix_parent_inverse=Matrix.Identity(4)
+        # Exact matrix equation: child_world = parent_world @ local_matrix.
+        # Thus set local_matrix = inverse(parent_world) @ ORIGINAL world.
+        # Do NOT merely assign matrix_world after parent; Blender/glTF may
+        # reevaluate parent transforms and add the pivot translation.
+        ob.matrix_basis=pivot.matrix_world.inverted() @ old_world
+        bpy.context.view_layer.update()
+        if max((ob.matrix_world @ Vector(v) - original_source_corners[ob.name][i]).length
+               for i,v in enumerate(ob.bound_box)) > .001:
+            raise RuntimeError("REJECT FLOATING McLAREN door parts: newly parented "+
+                               ob.name+" moved from exact artist original source")
         ob["source_original_artist_mesh_id"]=number
         ob["source_piece_type"]=category
         ob["original_face_count"]=faces
 bpy.context.view_layer.update()
+max_original_closed_error = max(
+    (obj.matrix_world @ Vector(v)-original_source_corners[obj.name][i]).length
+    for obj in real_meshes for i,v in enumerate(obj.bound_box)
+)
+if max_original_closed_error>.001:
+    raise RuntimeError("CRITICAL: closed McLaren original body/glass placement "+
+                       "DOES NOT MATCH SOURCE; floating model detected "+
+                       str(max_original_closed_error))
+print("MCLAREN_570S_EXACT_CLOSED_ARTIST_GEOMETRY_PLACEMENT_QA_GREEN",
+      round(max_original_closed_error,7),flush=True)
 if len(real_meshes)!=80:raise RuntimeError("No original geometry may be deleted")
 after_tris=sum(len(f.vertices)-2 for o in real_meshes for f in o.data.polygons)
 if after_tris!=original_tris:raise RuntimeError("McLaren source triangles lost during real door rig")
@@ -190,6 +226,8 @@ report={
  "original_source_tris":original_tris,"after_source_rig_tris":after_tris,
  "source_artist_mesh_count":len(real_meshes),
  "true_original_car_geometry_replaced":False,
+ "closed_all_original_meshes_max_displacement_m":round(float(max_original_closed_error),8),
+ "all_80_author_objects_tested_exact_original_closed_positions":True,
  "real_separate_original_panel_mesh_ids":{side:{cat:list(refs) for cat,refs in cats.items()} for side,cats in DOORS.items()},
  "hinges":["DOOR_LEFT_FRONT_HINGE","DOOR_RIGHT_FRONT_HINGE"],
  "original_doors_body_glass_mirror_following_two_pivots":True,
