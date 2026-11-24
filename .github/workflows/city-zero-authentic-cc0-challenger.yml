@@ -29,7 +29,7 @@ jobs:
           # Preserve authentic source lighting/metal/paint/wheel/normal maps,
           # not placeholder colors! All 30 files are original upstream maps.
           curl -fsSL --retry 4 "https://api.github.com/repos/pawelbudziszewski/o3de-sample-vehicle-assets/git/trees/6047f2b431708202c37b196ee7cced94ff2fc302?recursive=1" |
-            python3 -c 'import json,sys; d=json.load(sys.stdin); p="Assets/Vehicles/Dodge_Challenger_1970_rt/Materials/textures/"; x=[v["path"][len(p):] for v in d["tree"] if v["path"].startswith(p) and v["type"]=="blob"]; assert len(x)==30; print("\\n".join(x))' > "$target/original_texture_names.txt"
+            python3 -c 'import json,sys; d=json.load(sys.stdin); p="Assets/Vehicles/Dodge_Challenger_1970_rt/Materials/textures/"; x=[v["path"][len(p):] for v in d["tree"] if v["path"].startswith(p) and v["type"]=="blob"]; assert len(x)==30; print("\n".join(x))' > "$target/original_texture_names.txt"
           while IFS= read -r filename; do
             test -n "$filename" || continue
             curl -fsSL --retry 4 --connect-timeout 20 --max-time 90 -o "$target/textures/$filename" "$base/Materials/textures/$filename"
