@@ -1,0 +1,28 @@
+name: City Zero modular vehicle Godot 3D smoke
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [forever-frequency-native]
+    paths:
+      - city_zero/vehicle_runtime/**
+      - .github/workflows/cityzero-godot-vehicle.yml
+
+permissions:
+  contents: read
+
+jobs:
+  godot-vehicle:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Godot 4.6
+        uses: solarlabyrinth/action-setup-godot@v3
+        with:
+          version: 4.6.1-stable
+          export-templates: false
+      - name: Import project
+        run: godot --headless --path . --editor --import --quit
+      - name: Smoke test modular vehicle panels/attachments
+        run: godot --headless --path . --script res://city_zero/vehicle_runtime/test_modular_vehicle.gd
