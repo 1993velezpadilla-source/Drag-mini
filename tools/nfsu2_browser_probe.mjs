@@ -36,7 +36,7 @@ const evaluate=async expression=>{
   return r.result?.result?.value;
 };
 async function snapshot(label){
-  const info=await evaluate("JSON.stringify({title:document.title,url:location.href,state:document.readyState,text:(document.body?.innerText||'').slice(0,2500),canvases:document.querySelectorAll('canvas').length})");
+  const info=await evaluate("JSON.stringify({title:document.title,url:location.href,state:document.readyState,text:(document.body?.innerText||'').slice(0,2500),canvases:Array.from(document.querySelectorAll('canvas')).map(c=>({width:c.width,height:c.height,cssWidth:Math.round(c.getBoundingClientRect().width),cssHeight:Math.round(c.getBoundingClientRect().height)})),controls:Array.from(document.querySelectorAll('button,input[type=button],[role=button]')).slice(0,35).map(x=>({text:(x.innerText||x.value||x.getAttribute('aria-label')||'').trim().slice(0,80),disabled:!!x.disabled})),featureWords:Object.fromEntries(['garage','body shop','trunk audio','hood','bonnet','multiplayer','free roam'].map(x=>[x,(document.body?.innerText||'').toLowerCase().includes(x)]))})");
   try{report[label]=JSON.parse(info)}catch{report[label]={raw:info}}
   const shot=await command('Page.captureScreenshot',{format:'png'});
   writeFileSync(join(out,label+'.png'),Buffer.from(shot.result.data,'base64'));
@@ -73,18 +73,19 @@ try{
   });
   for(const name of ['Page.enable','Runtime.enable','Network.enable'])await command(name);
   if(selfTest){
-    await evaluate("document.title='CityZeroSmoke';document.body.innerHTML='<h1>CityZeroReady</h1><button>Play</button>';true");
+    await evaluate("document.title='CityZeroSmoke';document.body.innerHTML='<h1>CityZeroReady</h1><button onclick=\\\"this.textContent=\\\'Started\\\';let c=document.createElement(\\\'canvas\\\');c.width=640;c.height=360;document.body.appendChild(c);c.getContext(\\\'2d\\\').fillRect(0,0,640,360)\\\">Play</button>';true");
   }else{
     const r=await command('Page.navigate',{url});
     if(r.result?.errorText)report.errors.push({type:'navigation',message:r.result.errorText});
     await pause(wait);
   }
   await snapshot('landing');
-  if(opts['click-play']&&!selfTest){
+  if(opts['click-play']){
     const clicked=await evaluate("(()=>{const b=Array.from(document.querySelectorAll('button,input[type=button],[role=button]')).find(x=>/^play$/i.test((x.innerText||x.value||x.getAttribute('aria-label')||'').trim())&&!x.disabled);if(!b)return false;b.click();return true})()");
     report.clicked_play=Boolean(clicked);
-    if(clicked){await pause(12000);await snapshot('after_play')}
+    if(clicked){await pause(selfTest?300:5000);await snapshot('after_play');if(!selfTest){await pause(12000);await snapshot('after_play_17s');}}
   }
+  report.summary={capturedFrames:report.screenshots.length,canvasDetected:report.screenshots.some((name)=>Array.isArray(report[name.replace('.png','')]?.canvases)&&report[name.replace('.png','')].canvases.length>0),wasmRequests:report.requests.filter(x=>/\\.wasm(?:$|\\?)/i.test(x.url)).map(x=>({url:x.url,status:x.status})),requestCount:report.requests.length,playButtonClicked:!!report.clicked_play};
   report.status=report.errors.some(x=>x.type==='navigation')?'navigation_error':'captured';
 }catch(e){report.status='error';report.errors.push({type:'probe',message:String(e)})}
 finally{
