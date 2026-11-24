@@ -1,0 +1,143 @@
+{
+  "schema_version": 1,
+  "purpose": "City Zero real automobile photograph guides for original in-game designs; NOT finished vehicle approvals",
+  "policy": "These images stay in offline/CI reference artifacts, never in the distributed APK. Maintain photo attribution; manufacturer marks/trademarks are not exported to game meshes. Perspective photos are visual guides, not orthographic ground truth.",
+  "vehicle_references": [
+    {
+      "id": "compact_sedan__compact_c",
+      "real_reference": "2022 Honda Civic Sedan (11th gen)",
+      "oem_dimensions_m": {
+        "length": 4.674,
+        "width": 1.801,
+        "height": 1.415,
+        "wheelbase": 2.736
+      },
+      "wheel_radius_m": 0.326,
+      "sources": [
+        "https://hondanews.com/en-US/honda-automobiles/releases/release-53541be6030b25a47a2899aba12a8f7a-2022-civic-sedan-specifications-features"
+      ],
+      "photos": [
+        {
+          "view": "three_quarter",
+          "file": "Honda Civic 1.5 VTEC (2022) (54727772424).jpg",
+          "author": "Charles / usf1fan2",
+          "license": "CC0"
+        },
+        {
+          "view": "front_three_quarter",
+          "file": "2022 Honda Civic LX Sedan, front right, 11-02-2022.jpg",
+          "author": "MercurySable99",
+          "license": "CC BY-SA 4.0"
+        },
+        {
+          "view": "rear_three_quarter",
+          "file": "2022 Honda Civic LX in Platinum White Pearl, Rear Right, 08-14-2022.jpg",
+          "author": "Elise240SX",
+          "license": "CC BY-SA 4.0"
+        }
+      ]
+    },
+    {
+      "id": "exotic_supercar__revulse",
+      "real_reference": "2015 Lamborghini Aventador LP700-4",
+      "oem_dimensions_m": {
+        "length": 4.78,
+        "width": 2.03,
+        "height": 1.136,
+        "wheelbase": 2.7
+      },
+      "wheel_radius_m": 0.34,
+      "sources": [
+        "https://www.lamborghiniregistry.com/lamborghini-models/aventador-lp-700-4/tech-specs"
+      ],
+      "photos": [
+        {
+          "view": "side",
+          "file": "2015 Lamborghini Aventador LP700-4 Pirelli Edition 6.5 Side.jpg",
+          "author": "Vauxford",
+          "license": "CC BY-SA 4.0"
+        },
+        {
+          "view": "front",
+          "file": "2015 Lamborghini Aventador LP700-4 Pirelli Edition 6.5 Front.jpg",
+          "author": "Vauxford",
+          "license": "CC BY-SA 4.0"
+        },
+        {
+          "view": "rear",
+          "file": "2015 Lamborghini Aventador LP700-4 Pirelli Edition 6.5 Rear.jpg",
+          "author": "Vauxford",
+          "license": "CC BY-SA 4.0"
+        }
+      ]
+    },
+    {
+      "id": "basic_pickup__workhorse",
+      "real_reference": "2021 Ford F-150 SuperCrew 5.5-foot bed",
+      "oem_dimensions_m": {
+        "length": 5.885,
+        "width": 2.03,
+        "height": 1.96,
+        "wheelbase": 3.693
+      },
+      "wheel_radius_m": 0.41,
+      "sources": [
+        "https://media.ford.com/content/dam/fordmedia/North%20America/US/product/2021/f150/pdfs/2021-F-150-Technical-Specs.pdf"
+      ],
+      "photos": [
+        {
+          "view": "three_quarter",
+          "file": "'21 Ford F-150 XLT Crew Cab.jpg",
+          "author": "Bull-Doser",
+          "license": "public domain"
+        },
+        {
+          "view": "front_three_quarter",
+          "file": "2021 Ford F-150 SuperCrew, front 4.28.21.jpg",
+          "author": "Kevauto",
+          "license": "CC BY-SA 4.0"
+        },
+        {
+          "view": "rear_three_quarter",
+          "file": "2021 Ford F-150 SuperCrew, rear 4.28.21.jpg",
+          "author": "Kevauto",
+          "license": "CC BY-SA 4.0"
+        }
+      ]
+    },
+    {
+      "id": "electric_future__cyber_wedge",
+      "real_reference": "2024 Tesla Cybertruck",
+      "oem_dimensions_m": {
+        "length": 5.683,
+        "width": 2.032,
+        "height": 1.79,
+        "wheelbase": 3.635
+      },
+      "wheel_radius_m": 0.448,
+      "sources": [
+        "https://www.tesla.com/ownersmanual/cybertruck/en_us/GUID-12A976DD-EB60-431B-AFF1-5A37E95006DB.html"
+      ],
+      "photos": [
+        {
+          "view": "side",
+          "file": "IMG Tesla Cybertruck - AUTO ATHINA 2024 - Side.jpg",
+          "author": "Mpelas199",
+          "license": "CC0"
+        },
+        {
+          "view": "front",
+          "file": "Tesla Cybertruck - AUTO ATHINA 2024 - Front.jpg",
+          "author": "Mpelas199",
+          "license": "CC0"
+        },
+        {
+          "view": "rear_three_quarter",
+          "file": "2024 Tesla Cybertruck, rear left, 07-27-2024.jpg",
+          "author": "Cutlass",
+          "license": "public domain"
+        }
+      ]
+    }
+  ]
+}
