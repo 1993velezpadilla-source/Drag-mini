@@ -12,6 +12,7 @@ on:
       - '.github/workflows/city-zero-real-artist-premium-6-cars.yml'
       - 'forever-frequency-native/data/pinned_artist_licensed_premium_car_sources.json'
       - 'forever-frequency-native/tools/import_pinned_artist_premium_cars.py'
+      - 'forever-frequency-native/tools/blender_import_artist_premium_batch.py'
 permissions:
   contents: read
 concurrency:
@@ -29,7 +30,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          python3 -m py_compile forever-frequency-native/tools/import_pinned_artist_premium_cars.py forever-frequency-native/tools/blender_import_real_cc0_vehicle_batch.py
+          python3 -m py_compile forever-frequency-native/tools/import_pinned_artist_premium_cars.py forever-frequency-native/tools/blender_import_artist_premium_batch.py
           python3 - <<'PY'
           import json
           from pathlib import Path
@@ -58,7 +59,7 @@ jobs:
             --entrypoint /home/headless/blender/blender \
             -v "$PWD:$PWD" -w "$PWD" \
             ghcr.io/blenderkit/headless-blender:blender-4.5-stable \
-            -b -t 2 --python tools/blender_import_real_cc0_vehicle_batch.py \
+            -b -t 2 --python tools/blender_import_artist_premium_batch.py \
             2>&1 | tee PREMIUM_ARTIST_REAL_BLENDER.log
           grep -q 'CITY_ZERO_AUTHENTIC_SOURCE_BLENDER_BATCH_GREEN' PREMIUM_ARTIST_REAL_BLENDER.log
       - name: Fail on fake cars, duplicate model IDs or incomplete Blender original proof
@@ -81,6 +82,10 @@ jobs:
               assert not m['user_approved'] and not m['game_ready']
               assert 'CC BY 4.0' in m['license']
               assert out['actual_imported_blender_triangles']>=15000
+              assert out['uniform_real_source_scale']>0.0
+              assert abs(max(out['actual_blender_bounds_m'])-m['target_longest_extent_m']) < .12
+              assert out['geometry_generated_or_replaced'] is False
+              assert out['commercial_rights_verified'] is False
               assert out['visual_comparison_to_approved_lamborghini_pending']
               assert len(out['authentic_blender_photos'])==4
               assert (root/'assets/tevy_cc0_blender_vehicles'/out['editable_blend']).stat().st_size>100000
