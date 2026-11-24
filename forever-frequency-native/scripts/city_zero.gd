@@ -51,6 +51,8 @@ var mouse_captured := false
 var car: Node3D
 var citizens: Array[Dictionary] = []
 var audio_player: AudioStreamPlayer
+var road_material: StandardMaterial3D
+var sidewalk_material: StandardMaterial3D
 
 func _ready() -> void:
     game = GameState.new()
@@ -166,16 +168,32 @@ func _create_environment() -> void:
     ambient.light_color = Color("697bba")
     add_child(ambient)
 
+
+func _city_surface(path: String, fallback: Color, tile: float) -> StandardMaterial3D:
+    var mat := _make_material(fallback)
+    mat.roughness = 0.90
+    if ResourceLoader.exists(path):
+        var tex: Texture2D = load(path)
+        if tex != null:
+            mat.albedo_texture = tex
+            mat.albedo_color = Color(0.86,0.88,0.90,1.0)
+            mat.uv1_triplanar = true
+            mat.uv1_world_triplanar = true
+            mat.uv1_scale = Vector3(tile,tile,tile)
+    return mat
+
 func _create_ground_and_streets() -> void:
+    road_material = _city_surface("res://assets/road_asphalt.jpg",COLORS.road,0.23)
+    sidewalk_material = _city_surface("res://assets/sidewalk_concrete.jpg",COLORS.sidewalk,0.42)
     _solid(self, Vector3(0,-0.42,0), Vector3(94,0.8,94), COLORS.park)
     # Long thoroughfares create a walkable street grid, not an isometric board.
     for p in [-30.0, 0.0, 30.0]:
-        _box(self, Vector3(p,0.022,0), Vector3(8.7,0.06,94), COLORS.road)
-        _box(self, Vector3(0,0.024,p), Vector3(94,0.055,8.7), COLORS.road)
-        _box(self, Vector3(p - 5.7,0.08,0), Vector3(2.4,0.15,94), COLORS.sidewalk)
-        _box(self, Vector3(p + 5.7,0.08,0), Vector3(2.4,0.15,94), COLORS.sidewalk)
-        _box(self, Vector3(0,0.09,p - 5.7), Vector3(94,0.15,2.4), COLORS.sidewalk)
-        _box(self, Vector3(0,0.09,p + 5.7), Vector3(94,0.15,2.4), COLORS.sidewalk)
+        _box(self, Vector3(p,0.022,0), Vector3(8.7,0.06,94), COLORS.road).material_override = road_material
+        _box(self, Vector3(0,0.024,p), Vector3(94,0.055,8.7), COLORS.road).material_override = road_material
+        _box(self, Vector3(p - 5.7,0.08,0), Vector3(2.4,0.15,94), COLORS.sidewalk).material_override = sidewalk_material
+        _box(self, Vector3(p + 5.7,0.08,0), Vector3(2.4,0.15,94), COLORS.sidewalk).material_override = sidewalk_material
+        _box(self, Vector3(0,0.09,p - 5.7), Vector3(94,0.15,2.4), COLORS.sidewalk).material_override = sidewalk_material
+        _box(self, Vector3(0,0.09,p + 5.7), Vector3(94,0.15,2.4), COLORS.sidewalk).material_override = sidewalk_material
         for i in range(-8,9):
             var q := i * 5.0
             _box(self, Vector3(p,0.061,q), Vector3(0.10,0.03,1.6), COLORS.stripe)
