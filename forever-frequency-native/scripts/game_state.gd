@@ -75,7 +75,7 @@ func publish_track(pattern: Array[int]) -> Dictionary:
     coins += earned_coins
     companion_bond = mini(100, companion_bond + 4)
     level = 1 + int((fans + harvests * 10) / 180.0)
-    tracks.append({"name":"Echo Session %02d" % records,"pattern":pattern,"fans": earned_fans})
+    tracks.append({"name":"La Caldera Session %02d" % records,"pattern":pattern,"fans": earned_fans})
     if tracks.size() > 32:
         tracks.pop_front()
     save_game()
