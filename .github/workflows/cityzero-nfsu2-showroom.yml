@@ -1,0 +1,28 @@
+name: City Zero NFSU2 Private 3D Showroom Godot Test
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [forever-frequency-native]
+    paths:
+      - city_zero/nfsu2_private/**
+      - .github/workflows/cityzero-nfsu2-showroom.yml
+
+permissions:
+  contents: read
+
+jobs:
+  godot-3d-showroom:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Godot 4.6
+        uses: solarlabyrinth/action-setup-godot@v3
+        with:
+          version: 4.6.1-stable
+          export-templates: false
+      - name: Import 3D showroom scripts and scene
+        run: godot --headless --path . --editor --import --quit
+      - name: Headless user-owned NFSU2 library and no-fake-model smoke
+        run: godot --headless --path . --script res://city_zero/nfsu2_private/test_showroom.gd
