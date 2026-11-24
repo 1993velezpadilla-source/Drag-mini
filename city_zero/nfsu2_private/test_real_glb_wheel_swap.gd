@@ -19,10 +19,11 @@ func _export_fixture(path: String, with_wheels: bool) -> bool:
     else:
         var rim := MeshInstance3D.new()
         rim.name = "WHEELS_RIM_01_A"
-        rim.mesh = CylinderMesh.new()
-        rim.mesh.top_radius = 0.42
-        rim.mesh.bottom_radius = 0.42
-        rim.mesh.height = 0.22
+        var cylinder := CylinderMesh.new()
+        cylinder.top_radius = 0.42
+        cylinder.bottom_radius = 0.42
+        cylinder.height = 0.22
+        rim.mesh = cylinder
         root.add_child(rim)
     var gltf := GLTFDocument.new()
     var state := GLTFState.new()
