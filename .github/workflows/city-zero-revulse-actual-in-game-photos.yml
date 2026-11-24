@@ -64,6 +64,19 @@ jobs:
           assert len(metadata.get('meshes',[]))>=55, len(metadata.get('meshes',[]))
           print('REVULSE_REAL_GLB_VALIDATED_FOR_GODOT_RUNTIME',p.stat().st_size,hinges)
           PY
+      - name: Register City Zero GDScript class names in Godot without depending on GLB import cache
+        shell: bash
+        env:
+          LIBGL_ALWAYS_SOFTWARE: '1'
+          MESA_GL_VERSION_OVERRIDE: '3.3'
+          GODOT_AUDIO_DRIVER: Dummy
+        run: |
+          set -euo pipefail
+          # The playable city depends on global class_name registration for
+          # ForeverGameState and CityMobileInput. Editor scan is required even
+          # though REVULSE itself is loaded directly through GLTFDocument.
+          xvfb-run -a -s '-screen 0 1920x1080x24' timeout 240s godot --rendering-method gl_compatibility --path forever-frequency-native --editor --import --quit 2>&1 | tee forever-frequency-native/revulse_godot_import.log
+          echo 'CITYZERO_CITY_SCRIPTS_SCANNED_FOR_GODOT'
       - name: Take actual Godot game screenshots CLOSED and OPEN
         shell: bash
         env:
