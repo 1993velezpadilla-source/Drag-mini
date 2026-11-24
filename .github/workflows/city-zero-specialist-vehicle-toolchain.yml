@@ -1,0 +1,78 @@
+name: City Zero — specialized automotive Blender toolchain
+on:
+  push:
+    branches: [forever-frequency-native]
+    paths:
+      - ".github/workflows/city-zero-specialist-vehicle-toolchain.yml"
+      - "forever-frequency-native/tools/vehicle_specialist_gate.py"
+      - "forever-frequency-native/data/vehicle_specialist_ps2_pilots.json"
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: city-zero-specialist-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  inspect-specialist-tool:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    steps:
+      - name: User's City Zero source
+        uses: actions/checkout@v4
+      - name: Fetch MIT specialist VEHICLE agent (pinned audited source)
+        uses: actions/checkout@v4
+        with:
+          repository: duolahypercho/zstack
+          ref: 74f7786e9931b9ced858a0e2df880f23e4c2430e
+          path: .vehicle_tool
+          persist-credentials: false
+      - name: Validate real specialist components and ethical input contracts
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -s .vehicle_tool/LICENSE
+          test -s .vehicle_tool/skills/vehicle/blender/door_check.py
+          test -s .vehicle_tool/skills/vehicle/blender/body.py
+          test -s .vehicle_tool/skills/vehicle/blender/build.py
+          test -s .vehicle_tool/skills/vehicle/scripts/critique.py
+          test -s .vehicle_tool/skills/vehicle/scripts/calibrate.py
+          test -s .vehicle_tool/skills/vehicle/templates/spec.json
+          python3 -m py_compile .vehicle_tool/skills/vehicle/blender/{build,body,door_check,export}.py
+          python3 -m py_compile .vehicle_tool/skills/vehicle/scripts/{critique,calibrate}.py
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          j=json.loads(Path("forever-frequency-native/data/vehicle_specialist_ps2_pilots.json").read_text())
+          assert len(j["pilots"])==3
+          assert j["upstream_sha"]=="74f7786e9931b9ced858a0e2df880f23e4c2430e"
+          assert all(p["approval"].startswith("REJECTED") for p in j["pilots"])
+          assert all(p["length_m"]>p["wheelbase_m"]>2 for p in j["pilots"])
+          assert j["status"].startswith("BLUEPRINT_")
+          print("SPECIALIST VEHICLE TOOLCHAIN VERIFIED: original MIT source; 3 unapproved 1:1 pilots")
+          PY
+      - name: Prove the new shape critic rejects missing or mismatched visual evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m pip install --quiet --user pillow
+          python3 forever-frequency-native/tools/vehicle_specialist_gate.py --self-test
+          mkdir -p specialist_quality_log/empty
+          if python3 forever-frequency-native/tools/vehicle_specialist_gate.py --run specialist_quality_log/empty --refs specialist_quality_log/empty; then
+            echo "FAIL: a no-reference vehicle was approved"
+            exit 1
+          fi
+          test -s specialist_quality_log/empty/checks/ps2_vehicle_quality_gate.json
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          d=json.loads(Path("specialist_quality_log/empty/checks/ps2_vehicle_quality_gate.json").read_text())
+          assert d["status"]=="REJECTED" and not d["is_shippable"]
+          assert len(d["missing_or_failed_gates"])>5
+          print("NEGATIVE QUALITY AUDIT GREEN: tool refuses unreferenced cars")
+          PY
+      - name: Save specialist verification log (not fake vehicle output)
+        uses: actions/upload-artifact@v4
+        with:
+          name: CityZero-Specialist-Tool-Integration-Not-Finished-Car
+          path: specialist_quality_log/empty/checks/ps2_vehicle_quality_gate.json
+          if-no-files-found: error
