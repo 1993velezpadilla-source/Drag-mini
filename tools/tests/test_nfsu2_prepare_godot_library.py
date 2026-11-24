@@ -100,6 +100,43 @@ class PrivateGodotLibraryTests(unittest.TestCase):
             self.assertEqual(report["vehicles"]["GTO"]["model_assets"]["status"],
                              "no_model_exports")
 
+    def test_shared_wheel_family_has_no_fake_stock_car(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            wheels = root / "local_assets/models/WHEELS"
+            write_glb(wheels / "parts/BASE/real_rim.glb")
+            (wheels / "models.json").write_text(json.dumps({
+                "stock": None, "shared_family": "WHEELS",
+                "parts": [{
+                    "name": "WHEELS_RIM_01_A", "hash": "00AA0001",
+                    "family": "WHEEL", "kit": "BASE",
+                    "slot": "wheel", "mount_space": "wheel_local",
+                    "triangles": 1200,
+                    "glb": "parts/BASE/real_rim.glb"
+                }]
+            }))
+            result = source.build_library({
+                "cars": {"WHEELS": {}, "SUPRA": {}, "HUMMER": {}},
+                "audio_files": []
+            }, root)
+            self.assertEqual(result["summary"]["cars_seen"], 2)
+            self.assertNotIn("WHEELS", result["vehicles"])
+            self.assertEqual(result["summary"]["shared_generic_parts_valid"], 1)
+            self.assertEqual(result["shared_families"]["WHEELS"]["status"], "usable")
+            wheel = result["shared_families"]["WHEELS"]["parts"][0]
+            self.assertEqual(wheel["mount_space"], "wheel_local")
+            self.assertEqual(wheel["part_key"], "WHEELS:00AA0001")
+            self.assertIn("WHEELS", result["vehicles"]["SUPRA"]["compatible_shared_families"])
+            self.assertIn("SPOILER_SUV", result["vehicles"]["HUMMER"]["compatible_shared_families"])
+            self.assertIn("MIRRORS_BODY", result["vehicles"]["SUPRA"]["compatible_shared_families"])
+
+    def test_source_compatibility_and_family_mirroring(self):
+        self.assertIn("SPOILER_HATCH", source.compatible_shared_families("PEUGOT"))
+        self.assertIn("SPOILER", source.compatible_shared_families("RX7"))
+        self.assertIn("MIRRORS_HUMMER", source.compatible_shared_families("HUMMER"))
+        self.assertIn("MIRRORS_SUV", source.compatible_shared_families("ESCALADE"))
+        self.assertNotIn("SPOILER_SUV", source.compatible_shared_families("PEUGOT"))
+
     def test_non_object_manifest_rejected(self):
         with self.assertRaises(ValueError):
             source.build_library({"cars": []}, Path("/tmp"))
