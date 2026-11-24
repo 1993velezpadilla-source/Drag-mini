@@ -56,7 +56,7 @@ def load_real_car(model):
     if not path.is_file() or path.stat().st_size < 300000 or path.read_bytes()[:4] != b"glTF":
         raise RuntimeError("Missing verified ORIGINAL licensed GLB: " + str(path))
     import hashlib
-    digest = hashlib.file_digest(open(path, "rb"), "sha256").hexdigest()
+    with path.open("rb") as source_handle:\n        digest = hashlib.file_digest(source_handle, "sha256").hexdigest()
     if digest != sha:
         raise RuntimeError("ORIGINAL CC-BY SOURCE SHA-256 mismatch " + identifier)
 
@@ -136,7 +136,7 @@ def load_real_car(model):
     scene.render.engine = "CYCLES"
     scene.cycles.device = "CPU"
     scene.cycles.samples = 12
-    scene.cycles.use_denoising = True
+    # Cycles denoising moved to ViewLayer in recent Blender releases.\n    if hasattr(bpy.context.view_layer, "cycles"):\n        bpy.context.view_layer.cycles.use_denoising = True
     frame_car(scene, center, span, (1.25, -1.5, 0.65), cam)
     pbr = PROOF / (identifier + "_REAL_native_cycles_textured.png")
     scene.render.filepath = str(pbr)
