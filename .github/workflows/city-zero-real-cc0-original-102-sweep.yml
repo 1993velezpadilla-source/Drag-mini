@@ -1,0 +1,239 @@
+name: City Zero - 60 more genuine CC0 source vehicles 102 total Blender Godot proof
+# Source count verified from batch 5 original catalog: 131 distinct CC0 vehicles.
+# Builds only batch indexes 7 through 16; 0..6 are separate native Blender/Godot runs.
+# Distinct original models, not painted duplicates, NOT owner art-approved.
+on:
+  workflow_dispatch:
+  push:
+    branches: [forever-frequency-native]
+    paths:
+      - '.github/workflows/city-zero-real-cc0-original-102-sweep.yml'
+permissions:
+  contents: read
+concurrency:
+  group: cityzero-original-cc0-102-vehicle-sweep
+  cancel-in-progress: false
+jobs:
+  download-and-blender-real-source:
+    strategy:
+      fail-fast: false
+      max-parallel: 2
+      matrix:
+        batch: [7, 8, 9, 10, 11, 12, 13, 14, 15, 16]
+    runs-on: ubuntu-22.04
+    timeout-minutes: 34
+    env:
+      CITYZERO_CC0_BATCH_INDEX: ${{ matrix.batch }}
+      CITYZERO_CC0_BATCH_SIZE: '6'
+    steps:
+      - uses: actions/checkout@v4
+      - name: Statically compile real-source import programs, NO model-generation substitutions
+        run: |
+          set -euo pipefail
+          python3 -m py_compile forever-frequency-native/tools/import_cc0_2026_vehicle_batch.py \
+            forever-frequency-native/tools/blender_import_real_cc0_vehicle_batch.py
+      - name: Download six REAL original CC0 car boat aircraft motorcycle GLBs with source SHA256
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 forever-frequency-native/tools/import_cc0_2026_vehicle_batch.py 2>&1 | tee cc0_original_source_download.log
+          grep -q 'REAL_CC0_SOURCE_BATCH_HASH_VERIFIED_GREEN' cc0_original_source_download.log
+      - name: Decode meshopt losslessly for Blender without changing original GLBs
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm install --prefix "$RUNNER_TEMP/cityzero-gltf" --no-audit --no-fund @gltf-transform/core@4.2.1 @gltf-transform/extensions@4.2.1 meshoptimizer@0.23.0
+          cd forever-frequency-native
+          mkdir -p assets/tevy_cc0_decoded_sources
+          cat > "$RUNNER_TEMP/cityzero-gltf/decode.mjs" <<'JS'
+          import { NodeIO } from '@gltf-transform/core';
+          import { ALL_EXTENSIONS } from '@gltf-transform/extensions';
+          import { MeshoptDecoder } from 'meshoptimizer';
+          import { readdir } from 'node:fs/promises';
+          import path from 'node:path';
+          await MeshoptDecoder.ready;
+          const io = new NodeIO().registerExtensions(ALL_EXTENSIONS)
+            .registerDependencies({'meshopt.decoder': MeshoptDecoder});
+          const source = 'assets/tevy_cc0_original_sources';
+          for (const name of (await readdir(source)).filter(n => n.endsWith('.glb')).sort()) {
+            const doc = await io.read(path.join(source, name));
+            for (const ext of doc.getRoot().listExtensionsUsed()) {
+              if (ext.extensionName === 'EXT_meshopt_compression') ext.dispose();
+            }
+            await io.write(path.join('assets/tevy_cc0_decoded_sources', name), doc);
+            console.log('MESHOPT_DECODED', name);
+          }
+          JS
+          node "$RUNNER_TEMP/cityzero-gltf/decode.mjs"
+          python3 - <<'PY'
+          import hashlib,json,struct
+          from pathlib import Path
+          root=Path('assets')
+          def doc(p):
+              b=p.read_bytes()
+              n=struct.unpack_from('<I',b,12)[0]
+              return json.loads(b[20:20+n])
+          report=[]
+          for p in sorted((root/'tevy_cc0_original_sources').glob('*.glb')):
+              q=root/'tevy_cc0_decoded_sources'/p.name
+              a,b=doc(p),doc(q)
+              assert 'EXT_meshopt_compression' not in b.get('extensionsRequired',[])
+              def counts(d):
+                  return sorted((d['accessors'][v['attributes']['POSITION']]['count'],d['accessors'][v['indices']]['count'] if 'indices' in v else 0) for m in d['meshes'] for v in m['primitives'])
+              assert counts(a)==counts(b),p.name
+              report.append(dict(id=p.stem,source_sha256=hashlib.sha256(p.read_bytes()).hexdigest(),decoded_sha256=hashlib.sha256(q.read_bytes()).hexdigest()))
+          Path('real_cc0_source_vehicle_audit/meshopt_decode_report.json').write_text(json.dumps(report,indent=2))
+          PY
+      - name: Transcode Basis Universal textures for Blender
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl -fL --retry 3 https://github.com/KhronosGroup/KTX-Software/releases/download/v4.4.0/KTX-Software-4.4.0-Linux-x86_64.tar.bz2 -o "$RUNNER_TEMP/ktx.tar.bz2"
+          mkdir -p "$RUNNER_TEMP/ktx"
+          tar -xf "$RUNNER_TEMP/ktx.tar.bz2" -C "$RUNNER_TEMP/ktx"
+          export PATH="$(dirname "$(find "$RUNNER_TEMP/ktx" -type f -name ktx | head -1)"):$PATH"
+          ktx --version
+          python3 forever-frequency-native/tools/decode_cc0_basis_textures.py
+      - name: Run actual Blender 4.5 in headless image
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker pull ghcr.io/blenderkit/headless-blender:blender-4.5-stable
+          cd forever-frequency-native
+          timeout 1250s docker run --rm \
+            --entrypoint /home/headless/blender/blender \
+            -v "$PWD:$PWD" -w "$PWD" \
+            ghcr.io/blenderkit/headless-blender:blender-4.5-stable \
+            -b -t 2 --python tools/blender_import_real_cc0_vehicle_batch.py \
+            2>&1 | tee CC0_ORIGINAL_BLENDER_REAL_VIEWS.log
+          grep -q 'CITY_ZERO_AUTHENTIC_SOURCE_BLENDER_BATCH_GREEN' CC0_ORIGINAL_BLENDER_REAL_VIEWS.log
+      - name: Adversarial source identity, material, scale and authentic PNG verification
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import hashlib,json
+          from pathlib import Path
+          root=Path('forever-frequency-native')
+          audit=root/'real_cc0_source_vehicle_audit'
+          src=root/'assets/tevy_cc0_original_sources'
+          out=root/'assets/tevy_cc0_blender_vehicles'
+          ph=root/'real_cc0_blender_vehicle_photos'
+          d=json.loads((audit/'downloaded_original_cc0_vehicle_batch.json').read_text())
+          reports=json.loads((audit/'batch_real_blender_results.json').read_text())
+          assert 1<=len(d['models'])<=6
+          assert len(reports)==len(d['models'])
+          assert {r['id'] for r in reports}=={r['id'] for r in d['models']}
+          for spec in d['models']:
+              name=spec['id']
+              source=src/(name+'.glb')
+              assert source.stat().st_size==spec['bytes']
+              assert hashlib.sha256(source.read_bytes()).hexdigest()==spec['sha256']
+              r=next(x for x in reports if x['id']==name)
+              assert r['actual_imported_blender_triangles']>=6000
+              assert not r['game_ready'] and r['visual_comparison_to_approved_lamborghini_pending']
+              assert (out/r['editable_blend']).stat().st_size>50000
+              assert (out/r['actual_exported_glb']).stat().st_size>50000
+              assert len(r['authentic_blender_photos'])==4
+              assert all((ph/p).stat().st_size>16000 for p in r['authentic_blender_photos'])
+          print('AUTHENTIC_CC0_SOURCE_SHA256_BLENDER_4_NATIVE_PHOTOS_EACH_GREEN')
+          PY
+      - name: Preserve real original source GLBs, Blender masters and four views for each
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: CityZero-Real-CC0-Original-Vehicle-Batch-${{ matrix.batch }}
+          retention-days: 90
+          path: |
+            forever-frequency-native/assets/tevy_cc0_original_sources/*.glb
+            forever-frequency-native/assets/tevy_cc0_blender_vehicles/*.glb
+            forever-frequency-native/assets/tevy_cc0_blender_vehicles/*.blend
+            forever-frequency-native/real_cc0_blender_vehicle_photos/*.png
+            forever-frequency-native/real_cc0_source_vehicle_audit/*.json
+            forever-frequency-native/CC0_ORIGINAL_BLENDER_REAL_VIEWS.log
+            cc0_original_source_download.log
+          if-no-files-found: warn
+  verify-real-godot-glb:
+    needs: download-and-blender-real-source
+    strategy:
+      fail-fast: false
+      max-parallel: 2
+      matrix:
+        batch: [7, 8, 9, 10, 11, 12, 13, 14, 15, 16]
+    runs-on: ubuntu-22.04
+    timeout-minutes: 18
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: CityZero-Real-CC0-Original-Vehicle-Batch-${{ matrix.batch }}
+          path: source
+      - name: Isolate original Blender GLBs inside real native Godot 4 software renderer
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p isolated/assets/tevy_cc0_blender_vehicles isolated/real_cc0_source_vehicle_audit isolated/tests
+          cp source/forever-frequency-native/assets/tevy_cc0_blender_vehicles/*.glb isolated/assets/tevy_cc0_blender_vehicles/
+          cp source/forever-frequency-native/real_cc0_source_vehicle_audit/downloaded_original_cc0_vehicle_batch.json isolated/real_cc0_source_vehicle_audit/
+          cp forever-frequency-native/tests/tevy_original_vehicle_godot_qa.gd isolated/tests/
+          cat > isolated/project.godot <<'GODOT'
+          config_version=5
+          [application]
+          config/name="City Zero native engine proof original licensed vehicles"
+          [display]
+          window/size/viewport_width=1200
+          window/size/viewport_height=800
+          [rendering]
+          renderer/rendering_method="gl_compatibility"
+          renderer/rendering_method.mobile="gl_compatibility"
+          GODOT
+      - uses: solarlabyrinth/action-setup-godot@v3
+        with:
+          version: 4.4.1-stable
+          export-templates: false
+      - name: Install actual software OpenGL display
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq xvfb libgl1 libgl1-mesa-dri libegl1 mesa-utils
+      - name: Import all real original CC0 source Blender GLBs into Godot native engine
+        shell: bash
+        run: |
+          set -euo pipefail
+          LIBGL_ALWAYS_SOFTWARE=1 MESA_GL_VERSION_OVERRIDE=3.3 \
+            xvfb-run -a -s '-screen 0 1600x900x24' timeout 190s \
+            godot --rendering-driver opengl3 --path isolated --editor --import --quit \
+            2>&1 | tee cc0_GODOT_REAL_GLTF_IMPORT.log
+      - name: Prove visible actual car aircraft boat pixels in real Godot frames
+        shell: bash
+        env:
+          LIBGL_ALWAYS_SOFTWARE: '6'
+          MESA_GL_VERSION_OVERRIDE: '3.3'
+          GODOT_AUDIO_DRIVER: Dummy
+        run: |
+          set -euo pipefail
+          mkdir -p "$PWD/cc0-original-godot-photos"
+          export CITYZERO_REAL_CC0_GODOT_SHOTS="$PWD/cc0-original-godot-photos"
+          xvfb-run -a -s '-screen 0 1600x900x24' timeout 290s \
+            godot --rendering-driver opengl3 --path isolated --script res://tests/tevy_original_vehicle_godot_qa.gd \
+            2>&1 | tee cc0-original-godot-photos/godot-real-proof.log
+          grep -q 'CITY_ZERO_ORIGINAL_CC0_GODOT_BATCH_GREEN' cc0-original-godot-photos/godot-real-proof.log
+          python3 - <<'PY'
+          from pathlib import Path
+          import json
+          d=Path('cc0-original-godot-photos')
+          source=json.loads(Path('isolated/real_cc0_source_vehicle_audit/downloaded_original_cc0_vehicle_batch.json').read_text())
+          reports=json.loads((d/'real_cc0_godot_batch_report.json').read_text())
+          assert len(reports)==len(source['models'])
+          assert all(x['native_godot_triangles']>=6000 and x['verified_car_visible_pixel_samples']>=120 for x in reports)
+          assert all(not x['game_ready'] for x in reports)
+          assert all(Path(x['godot_png']).stat().st_size>15000 for x in reports)
+          print('REAL_CC0_SOURCE_VEHICLE_BATCH_GODOT_ACTUAL_FRAMES_VERIFIED')
+          PY
+      - name: Publish ACTUAL native Godot screenshots not AI-generated mockups
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: CityZero-Real-CC0-GODOT-Pixel-Proof-Batch-${{ matrix.batch }}
+          retention-days: 90
+          path: |
+            cc0-original-godot-photos/
+            cc0_GODOT_REAL_GLTF_IMPORT.log
+          if-no-files-found: warn
