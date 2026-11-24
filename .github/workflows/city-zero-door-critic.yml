@@ -5,6 +5,7 @@ on:
     paths:
       - '.github/workflows/city-zero-door-critic.yml'
       - 'forever-frequency-native/tools/premium_vehicle_fleet_blender.py'
+      - 'forever-frequency-native/tools/vehicle_finish_detail.py'
       - 'forever-frequency-native/tools/door_visual_proof_blender.py'
       - 'forever-frequency-native/scripts/vehicle_door_controller.gd'
       - 'forever-frequency-native/tests/vehicle_door_gauntlet.gd'
@@ -22,7 +23,7 @@ jobs:
       - uses: actions/checkout@v4
       - name: Verify editable source compiles
         run: |
-          python3 -m py_compile forever-frequency-native/tools/premium_vehicle_fleet_blender.py forever-frequency-native/tools/door_visual_proof_blender.py
+          python3 -m py_compile forever-frequency-native/tools/premium_vehicle_fleet_blender.py forever-frequency-native/tools/vehicle_finish_detail.py forever-frequency-native/tools/door_visual_proof_blender.py
       - name: Pull actual Blender 4.5
         run: docker pull ghcr.io/blenderkit/headless-blender:blender-4.5-stable
       - name: Model and exercise the exotic, compact, pickup and angular electric doors
@@ -40,6 +41,9 @@ jobs:
           assert [c['door_count'] for c in r['vehicles']]==[2,4,4,4]
           assert len(list(d.glob('*.glb')))==4
           assert all(len(c['functional_door_hinges'])==c['door_count'] for c in r['vehicles'])
+          assert all(c['finish_detail_version']>=2 and c['finish_meshes']>=65 for c in r['vehicles'])
+          assert all(c['movable_trim_parts']==c['door_count']*3 for c in r['vehicles'])
+          assert all(c['triangles']<45000 for c in r['vehicles'])
           print('BLENDER HINGED-DOOR MECHANICS VERIFIED')
           PY
       - name: Render four actual GLBs closed and open from a reviewer camera
