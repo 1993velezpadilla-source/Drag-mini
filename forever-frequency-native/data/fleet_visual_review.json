@@ -1,0 +1,49 @@
+{
+  "schema_version": 1,
+  "policy": "No game/car screenshot sent and no vehicle released as approved without human inspection of real Blender GLB front/side/three-quarter views, door-open/shut comparison and Godot kinematics.",
+  "reference_direction": "2026 premium stylized modern auto design with recognizable body class and credible manufacturer-era proportions; original brands and no copied logos",
+  "quality_threshold": {
+    "front_side_rear_silhouette": 4,
+    "roof_and_glass": 4,
+    "wheels_and_stance": 4,
+    "door_cutout_fit": 4,
+    "modern_light_details": 4,
+    "closed_open_motion": 4,
+    "max_grade": 5
+  },
+  "state": "REJECTED_NOT_READY_FOR_USER_PHOTOS",
+  "models": {
+    "exotic_supercar__revulse": {
+      "status": "REJECTED",
+      "reasons": [
+        "Body too long and generic vs low modern V12 hypercar",
+        "Flat roof panel and simple black-hole grille",
+        "Door/window profile too rectangular"
+      ]
+    },
+    "compact_sedan__compact_c": {
+      "status": "REJECTED",
+      "reasons": [
+        "Body looks like a raised rectangular mockup",
+        "Hood and rear proportions do not match modern compact sedan",
+        "Doors are oversimplified flat rectangles"
+      ]
+    },
+    "basic_pickup__workhorse": {
+      "status": "REJECTED",
+      "reasons": [
+        "Pickup cab and bed require real modern truck sculpting",
+        "Door/quarter panel needs physically sensible gaps",
+        "Lights and bumper lack current truck design detail"
+      ]
+    },
+    "electric_future__cyber_wedge": {
+      "status": "REJECTED",
+      "reasons": [
+        "Angular side silhouette and front/rear clip not close enough to target category",
+        "Needs distinct geometric tailgate and proper cabin glazing",
+        "No verified high-quality 3-angle review"
+      ]
+    }
+  }
+}
