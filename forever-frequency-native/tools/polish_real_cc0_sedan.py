@@ -9,6 +9,7 @@ Z=height. Inspected against actual exported LOD1 glTF bounds in 2026-11.
 """
 import math
 import bpy
+import bmesh
 from mathutils import Vector
 
 def smoothstep(a,b,value):
@@ -51,6 +52,89 @@ def local_smooth(obj,label,weight_fn,factor,iterations,minimum):
     if tuple(mat.name for mat in obj.data.materials)!=original_materials:
         raise RuntimeError(label+" unexpectedly changed materials")
     return {"selected":number,"faces":initial}
+
+def repair_original_rear_windscreen(body):
+    """Fit original rear glass to the ACTUAL body roofline, not a guessed car.
+
+    Source CC0 rear glass uses very large quads; sparse high points reflect
+    like a detached bubble. Subdivide that mesh with its own materials/UVs
+    and keep its upper vertices just below the sampled original roofline.
+    """
+    glass=bpy.data.objects.get("glass_rear")
+    if glass is None or glass.type!="MESH":
+        raise RuntimeError("Original rear windscreen mesh missing")
+    before_faces=len(glass.data.polygons)
+    roof_vertices=[body.matrix_world@v.co for v in body.data.vertices]
+    roof_stations=[]
+    for i in range(11):
+        y=.75+i*.10
+        samples=[p.z for p in roof_vertices if abs(p.y-y)<.12
+                 and abs(p.x)<.76 and p.z>1.06]
+        if len(samples)<10:
+            raise RuntimeError("Cannot derive real sedan roofline "+str(y))
+        roof_stations.append((y,max(samples)))
+
+    def roof_limit(y):
+        if y<=roof_stations[0][0]:
+            return roof_stations[0][1]-.008
+        for i in range(len(roof_stations)-1):
+            y0,z0=roof_stations[i]
+            y1,z1=roof_stations[i+1]
+            if y<=y1:
+                t=(y-y0)/(y1-y0)
+                return z0*(1-t)+z1*t-.008
+        return roof_stations[-1][1]-.008
+
+    bm=bmesh.new()
+    bm.from_mesh(glass.data)
+    bmesh.ops.subdivide_edges(bm,edges=list(bm.edges),cuts=1,use_grid_fill=True)
+    bm.to_mesh(glass.data)
+    bm.free()
+    glass.data.update()
+    after_faces=len(glass.data.polygons)
+    if after_faces<before_faces*2:
+        raise RuntimeError("Did not retessellate rear windscreen")
+    inv=glass.matrix_world.inverted_safe()
+    corrected=0
+    old_excess=0.0
+    new_excess=0.0
+    for vertex in glass.data.vertices:
+        p=glass.matrix_world@vertex.co
+        cap=roof_limit(p.y)
+        extra=p.z-cap
+        old_excess=max(old_excess,extra)
+        if extra>0:
+            p.z=cap
+            vertex.co=inv@p
+            corrected+=1
+        new_excess=max(new_excess,p.z-cap)
+    glass.data.update()
+    if corrected<12 or old_excess<.012 or new_excess>.002:
+        raise RuntimeError("Rear glass still passes through roof: "+
+                           str((corrected,old_excess,new_excess)))
+
+    slots=glass.data.materials
+    glass_indices=[i for i,m in enumerate(slots) if m and m.name=="glass"]
+    if len(glass_indices)!=1:
+        raise RuntimeError("Source sedan glass material not uniquely identifiable")
+    rear_glass=slots[glass_indices[0]].copy()
+    rear_glass.name="CITYZERO_SEDAN_REAR_PRIVACY_GLASS"
+    shader=rear_glass.node_tree.nodes.get("Principled BSDF") if rear_glass.use_nodes else None
+    if shader is None:
+        raise RuntimeError("Native Blender rear PBR shader missing")
+    shader.inputs["Base Color"].default_value=(.055,.072,.098,1)
+    shader.inputs["Roughness"].default_value=.085
+    transmission=shader.inputs.get("Transmission Weight")
+    if transmission is not None:
+        transmission.default_value=.30
+    slots[glass_indices[0]]=rear_glass
+    return {"original_glass_faces":before_faces,
+            "retessellated_glass_faces":after_faces,
+            "glass_vertices_corrected":corrected,
+            "maximum_old_roof_protrusion_m":round(old_excess,4),
+            "maximum_new_roof_protrusion_m":round(new_excess,4),
+            "roof_station_count":len(roof_stations),
+            "rear_privacy_glass_material_only":rear_glass.name}
 
 def polish_loaded_sedan():
     bpy.context.view_layer.update()
@@ -158,6 +242,7 @@ def polish_loaded_sedan():
                       (1-smoothstep(.87,1.16,p.y))),
             .14,2,12)
 
+    rear_glass_fix=repair_original_rear_windscreen(body)
     bpy.context.view_layer.update()
     for name,original in initial_hinges.items():
         current=bpy.data.objects[name].matrix_world
@@ -177,6 +262,7 @@ def polish_loaded_sedan():
         "body_faces_preserved":body_fix["faces"],
         "rear_pillar_vertices_feathered":pillar_fix["selected"],
         "upper_window_trim_vertices_feathered":trims,
+        "original_rear_glass_reprofile":rear_glass_fix,
         "door_hinges_preserved":sorted(hinge_names),
         "verification":"PENDING_AUTHENTIC_BLENDER_PBR_VISUAL_COMPARISON"
     }
