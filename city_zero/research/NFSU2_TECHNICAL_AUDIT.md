@@ -146,3 +146,7 @@ The original engine's byte offsets are **documentation only** and must NOT be ha
 - \`city_zero/vehicle_runtime/test_modular_vehicle.gd\`, \`test_trunk_audio.gd\`, \`test_cc0_model.gd\`: headless and rendering probes.
 - \`.github/workflows/cityzero-real-car-reference.yml\`: downloads CC0 asset, validates glTF binary and node geometry, imports in Godot and attempts a real PNG capture.
 - All code is to be treated as **candidate implementation** until exact GitHub Actions tests, visual screenshots and actual Android play tests pass. The game is not yet a finished online vehicle system.
+
+
+### 2026-11-24 animation inventory
+Source: https://github.com/TVasya/PartAnimatorulator (MIT), PackingUnpacking.py, PivotNames.py, FrameTools.py, EulerHexTools.py. Read-only independent parser preserves 21 named 64-byte pivot matrices and little-endian XYZW quaternion frames. Strict layout checks deliberately reject unsupported variants. Frame rate, translation channels, source-to-Godot basis and real-file parity remain unverified; no animation playback claim. Synthetic tests only. No EA files committed.
