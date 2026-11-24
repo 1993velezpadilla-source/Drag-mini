@@ -19,7 +19,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: '22'
+          node-version: '24'
       - name: Find Chromium
         run: |
           if command -v google-chrome >/dev/null; then
@@ -52,6 +52,21 @@ jobs:
           node tools/nfsu2_browser_probe.mjs \
             --url=https://nfsu2mod.xyz/ \
             --out=artifacts/nfsu2-public --click-play --wait=15000
+      - name: REA static reconnaissance of public NFSU2 browser source
+        continue-on-error: true
+        timeout-minutes: 4
+        shell: bash
+        run: |
+          mkdir -p artifacts/rea
+          git clone --quiet --depth=1 https://github.com/th0mk/nfsu2-web.git /tmp/nfsu2-web-public
+          set +e
+          npx --yes rea-agents@latest analyze-javascript-application /tmp/nfsu2-web-public/web/src --json \
+            > artifacts/rea/frontend-analysis.json 2> artifacts/rea/rea-errors.txt
+          code=$?
+          printf '%s\n' "$code" > artifacts/rea/exit-code.txt
+          echo "REA CLI exit code: $code"
+          if [ -s artifacts/rea/rea-errors.txt ]; then head -n 25 artifacts/rea/rea-errors.txt; fi
+          exit "$code"
       - name: Save screenshots and technical report
         if: always()
         uses: actions/upload-artifact@v4
