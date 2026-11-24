@@ -176,6 +176,8 @@ jobs:
           test -x "$ANDROID_HOME/build-tools/34.0.0/aapt2"
           test -f "$ANDROID_HOME/platforms/android-34/android.jar"
           python3 --version
+      - name: Enforce original orange Lamborghini and reject all 103 unapproved vehicles in Android export
+        run: python3 forever-frequency-native/tools/check_owner_visual_quality_gate.py --shipping
       - name: Source-level adversarial audit
         run: python3 forever-frequency-native/tools/adversarial_audit.py
       - name: Check engine and export templates
