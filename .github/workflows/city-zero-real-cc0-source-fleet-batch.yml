@@ -84,6 +84,16 @@ jobs:
               report.append(dict(id=p.stem,source_sha256=hashlib.sha256(p.read_bytes()).hexdigest(),decoded_sha256=hashlib.sha256(q.read_bytes()).hexdigest()))
           Path('real_cc0_source_vehicle_audit/meshopt_decode_report.json').write_text(json.dumps(report,indent=2))
           PY
+      - name: Transcode Basis Universal textures for Blender
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl -fL --retry 3 https://github.com/KhronosGroup/KTX-Software/releases/download/v4.4.0/KTX-Software-4.4.0-Linux-x86_64.tar.bz2 -o "$RUNNER_TEMP/ktx.tar.bz2"
+          mkdir -p "$RUNNER_TEMP/ktx"
+          tar -xf "$RUNNER_TEMP/ktx.tar.bz2" -C "$RUNNER_TEMP/ktx"
+          export PATH="$(dirname "$(find "$RUNNER_TEMP/ktx" -type f -name ktx | head -1)"):$PATH"
+          ktx --version
+          python3 forever-frequency-native/tools/decode_cc0_basis_textures.py
       - name: Run actual Blender 4.5 in headless image
         shell: bash
         run: |
