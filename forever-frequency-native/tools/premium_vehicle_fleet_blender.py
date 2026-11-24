@@ -15,6 +15,8 @@ CAR_DIR=ROOT/'assets'/'premium_fleet'
 CAR_DIR.mkdir(parents=True,exist_ok=True)
 catalog=json.loads((ROOT/'data'/'vehicle_fleet_catalog.json').read_text())
 models=catalog['models']
+PHOTO_SOURCES=json.loads((ROOT/'data'/'real_vehicle_photo_references.json').read_text())['vehicle_references']
+PHOTO_PROFILES={r['id']:r['photo_traced_profile'] for r in PHOTO_SOURCES}
 assert len(models)==60 and len({m['id'] for m in models})==60
 palette={
 'Obsidian Black':(.028,.035,.048),'Pearl White':(.85,.88,.88),
@@ -104,6 +106,14 @@ def door_plan(car,front_ax,rear_ax,r,L):
     # Most real cars have 4 doors except sporty 2-door roadsters.
     start=front_ax+r*1.19+.08
     end=rear_ax-r*1.14-.06
+    # For individually photographed cars, front/rear door panel breaks come
+    # from the saved real-car reference sheet, not generic wheelbase guessing.
+    p=PHOTO_PROFILES.get(car['id'])
+    if p:
+        start=-L*.5+L*p['door_front']
+        end=-L*.5+L*p['door_rear']
+        if not (-L*.5<start<end<L*.5):
+            raise ValueError('Invalid photo-traced panel cut '+car['id'])
     # Long-wheelbase vehicles keep a useful entry corridor.
     if end-start<.90:
         start=-L*.16;end=L*.16
@@ -232,6 +242,12 @@ def build_car(car):
    cockpit_front=front+L*.27;cockpit_rear=rear+.1
   elif style==6:
    cockpit_front=front+L*.19;cockpit_rear=rear+.1
+  # Never leave the generic roof/bonnet split for the photographed cars.
+  guide=PHOTO_PROFILES.get(name)
+  if guide:
+   cockpit_front=front+L*guide['front_glass']
+   if style not in (4,5,6):
+    cockpit_rear=front+L*guide['rear_glass']
   if cockpit_front<center_y<cockpit_rear:continue
   for i in range(4):faces.append((q+i,q+i+1,q+i+6,q+i+5))
  geom('Gently curved bonnet rear deck',vertices,faces,[paint])
@@ -254,6 +270,16 @@ def build_car(car):
   front_window=front+L*.19;front_roof=front+L*.42
   rear_roof=front+L*.59;rear_window=front+L*.76
   roof_w=half*.86
+ # The exact greenhouse key stations are derived from saved reference-photo
+ # briefs. Their visual fit is deliberately unapproved until comparison.
+ guide=PHOTO_PROFILES.get(name)
+ if guide:
+  front_window=front+L*guide['front_glass']
+  front_roof=front+L*guide['roof_front']
+  rear_roof=front+L*guide['roof_rear']
+  rear_window=front+L*guide['rear_glass']
+  if not front_window<front_roof<rear_roof<rear_window:
+   raise ValueError('Photo greenhouse station ordering invalid '+name)
  cab=[(-roof_w,front_roof,roof),(roof_w,front_roof,roof),
       (roof_w,rear_roof,roof),(-roof_w,rear_roof,roof)]
  pane('Painted manufactured roof panel',cab,paint)
@@ -413,7 +439,9 @@ def build_car(car):
    'finish_detail_version':finishing['detail_version'],
    'finish_meshes':finishing['finish_meshes'],
    'movable_trim_parts':finishing['movable_trim_parts'],
-   'finish_features':finishing['features']}
+   'finish_features':finishing['features'],
+   'photo_profile_reference':PHOTO_PROFILES.get(name,{}).get('photo_source',''),
+   'photo_traced_body_prototype':name in PHOTO_PROFILES}
 selected_ids=[v.strip() for v in os.environ.get('FF_CAR_IDS','').split(',') if v.strip()]
 if selected_ids:
  assert len(selected_ids)==len(set(selected_ids))
