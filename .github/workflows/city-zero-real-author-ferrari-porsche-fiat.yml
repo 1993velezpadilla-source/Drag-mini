@@ -1,0 +1,103 @@
+name: City Zero REAL Ferrari F40 Porsche 911 Fiat Punto Blender artists
+on:
+  workflow_dispatch:
+  push:
+    branches: [forever-frequency-native]
+    paths:
+      - '.github/workflows/city-zero-real-author-ferrari-porsche-fiat.yml'
+      - 'forever-frequency-native/tools/import_artist_ccby_real_car_fleet.py'
+concurrency:
+  group: cityzero-real-original-f40-porsche-punto-source
+  cancel-in-progress: true
+permissions:
+  contents: read
+jobs:
+  authentic-original-artist-blender:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 36
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download REAL artist-authored licensed GLBs (not NFS game rips or AI photos)
+        shell: bash
+        run: |
+          set -euo pipefail
+          target=forever-frequency-native/assets/original_artist_ccby_sources
+          mkdir -p "$target"
+          base=https://github.com/sceneview/sceneview/releases/download/assets-v1
+          while IFS=' ' read -r checksum filename; do
+            curl -fL --retry 4 --connect-timeout 30 --max-time 300 -o "$target/$filename" "$base/$filename"
+            test -s "$target/$filename"
+            test "$(head -c 4 "$target/$filename")" = glTF
+            test "$(sha256sum "$target/$filename" | cut -d' ' -f1)" = "$checksum"
+          done <<'PINNED_ORIGINAL_ARTIST_GLBS'
+          a1ec281f1c219c049ecd07e4ef20c69d26c233b6270614743ca015a7f5713674 ferrari_f40.glb
+          e1d7de07dda7d42aa9d87da33af4d4b05ed344e9c0222d571dce19e3658436ac porsche_911.glb
+          903a94662e6a170fdf1a1323b7ebc2cbbda9185623ec9e814cfc91437902173f fiat_punto.glb
+          PINNED_ORIGINAL_ARTIST_GLBS
+          cat > "$target/AUTHORSHIP_AND_LICENSE_NOTICE.txt" <<'NOTICE'
+          These GLBs originate from the open-license models redistributed by
+          https://github.com/sceneview/sceneview/releases/tag/assets-v1
+          Each model is separately licensed by its own artist under CC BY 4.0,
+          NOT under SceneView's Apache 2.0 repository license.
+          Ferrari F40: Black Snow, source
+          https://sketchfab.com/3d-models/ferrari-f40-52a66c41cfcd4f999fb1b1c49bf24d70
+          Porsche 911 930 Turbo: Karol Miklas, source
+          https://sketchfab.com/3d-models/free-1975-porsche-911-930-turbo-8568d9d14a994b9cae59499f0dbed21e
+          Fiat Punto GT: Karol Miklas, source
+          https://sketchfab.com/3d-models/free-1995-fiat-punto-gt-48db6facb4b64e99b60f36b8c01185e1
+          License: https://creativecommons.org/licenses/by/4.0/
+          Model names/trademarks not cleared for commercial car-brand promotion.
+          This is a source geometry and Blender import proof only, not complete gameplay
+          vehicle setup, moving doors, trunk, hood, tuned car systems, or mobile approval.
+          NOTICE
+          python3 -m py_compile forever-frequency-native/tools/import_artist_ccby_real_car_fleet.py
+      - name: Pull official native Blender 4.5 LTS headless renderer
+        run: docker pull ghcr.io/blenderkit/headless-blender:blender-4.5-stable
+      - name: Real Blender imports, editable masters and native Cycles source textures
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd forever-frequency-native
+          timeout 1600s docker run --rm --entrypoint /home/headless/blender/blender \
+            -v "$PWD:$PWD" -w "$PWD" \
+            ghcr.io/blenderkit/headless-blender:blender-4.5-stable \
+            -b -t 2 --python tools/import_artist_ccby_real_car_fleet.py \
+            2>&1 | tee REAL_FERRARI_PORSCHE_FIAT_BLENDER.log
+          grep -q 'THREE REAL ARTIST-AUTHORED CC-BY BLENDER CARS FIVE VIEWS EACH GREEN' REAL_FERRARI_PORSCHE_FIAT_BLENDER.log
+      - name: Fail closed if a vehicle lacks REAL geometry, edited Blender or original-source photos
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          root=Path('forever-frequency-native')
+          out=root/'assets/licensed_ccby_car_fleet'
+          proof=root/'artist_ccby_real_car_blender_proof'
+          data=json.loads((proof/'licensed_artist_fleet_report.json').read_text())
+          assert len(data)==3
+          assert {item['id'] for item in data}=={'ferrari_f40','porsche_911','fiat_punto'}
+          assert len(list(proof.glob('*.png')))==15
+          for item in data:
+              ident=item['id']
+              assert item['blender_source_triangles']>1500
+              assert item['source_material_count']>=1
+              assert len(item['native_blender_photos'])==5
+              assert not item['game_ready'] and not item['doors_hinges_approved']
+              assert (out/item['editable_blend']).stat().st_size>100000
+              assert (out/item['blender_exported_glb']).stat().st_size>300000
+              for photo in item['native_blender_photos']:
+                  assert (proof/photo).stat().st_size>16000, photo
+          print('REAL ARTIST-AUTHORED THREE CAR ORIGINAL BLENDER SOURCES GREEN (STILL NEED GODOT QA)')
+          PY
+      - name: Publish ACTUAL Blender editable files, THREE GLBs and FIFTEEN real screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: CityZero-REAL-FerrariF40-Porsche911-FiatPunto-Artist-Blender-GLB-Fifteen-Photos
+          retention-days: 90
+          path: |
+            forever-frequency-native/assets/licensed_ccby_car_fleet/*
+            forever-frequency-native/assets/original_artist_ccby_sources/AUTHORSHIP_AND_LICENSE_NOTICE.txt
+            forever-frequency-native/artist_ccby_real_car_blender_proof/*
+            forever-frequency-native/REAL_FERRARI_PORSCHE_FIAT_BLENDER.log
+          if-no-files-found: warn
