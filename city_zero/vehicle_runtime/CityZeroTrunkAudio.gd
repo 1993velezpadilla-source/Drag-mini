@@ -32,7 +32,9 @@ func _ready() -> void:
     _player.volume_db = configured_volume_db
     _player.max_distance = speaker_3d_range_m
     _player.attenuation_model = AudioStreamPlayer3D.ATTENUATION_INVERSE_DISTANCE
-    var anchor := get_node_or_null(source_anchor) as Node3D
+    var anchor: Node3D = null
+    if not source_anchor.is_empty():
+        anchor = get_node_or_null(source_anchor) as Node3D
     if anchor != null:
         anchor.add_child(_player)
     else:
