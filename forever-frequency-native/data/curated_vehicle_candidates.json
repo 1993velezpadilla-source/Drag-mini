@@ -1,0 +1,45 @@
+{
+  "version": 1,
+  "license": "CC0-1.0 (verify upstream file hashes before commercial integration)",
+  "upstream": "https://tevy.dev/models.json",
+  "approval_status": "PENDING_ASSET_AUDITION_NOT_USER_APPROVED",
+  "candidate_models": [
+    {
+      "id": "curated_family_sedan",
+      "source_slug": "family-sedan",
+      "source_url": "https://tevy.dev/models/family-sedan/v1/lod1.glb",
+      "sha256": "888340c9d14c2076639f40a339c4fe10913bd6afa5897538cdb6f6d58c314681",
+      "triangles": 60300,
+      "bytes": 1006584,
+      "expected_doors": 4,
+      "expected_doornames": [
+        "door_FL",
+        "door_FR",
+        "door_RL",
+        "door_RR"
+      ],
+      "label": "modern 4-door family sedan"
+    },
+    {
+      "id": "curated_midengine_supercar",
+      "source_slug": "supercar",
+      "source_url": "https://tevy.dev/models/supercar/v2/lod1.glb",
+      "sha256": "7c43eb11cbd921c9c23b6767c0b0d94f7084dff76680479bec94c7cb0bde5dd9",
+      "triangles": 44632,
+      "bytes": 2015316,
+      "expected_doors": 2,
+      "expected_doornames": [
+        "door_L",
+        "door_R"
+      ],
+      "label": "2026-style mid-engine exotic"
+    }
+  ],
+  "requirements": [
+    "Actual Blender front/side/3-quarter renders showing true body geometry",
+    "Moving, separately named door components",
+    "Cycle to exact closed position, 0.01m local tolerance",
+    "No brand trademarks",
+    "Android LOD budget <=65000 tris per near camera"
+  ]
+}
