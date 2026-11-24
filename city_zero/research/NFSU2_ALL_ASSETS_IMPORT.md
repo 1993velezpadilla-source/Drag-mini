@@ -6,18 +6,18 @@
 
 Prerequisites: Blender 4.2+; Python 3.10+; a legally obtained installed PC copy of NFSU2; optional vgmstream-cli for audio decoding.
 
-\`\`\`bash
+```bash
 git clone https://github.com/mininxd/NFSU2-World-Editor.git NFSU2-World-Editor
 python3 tools/nfsu2_import_all.py \
   --game-root "/path/to/Need for Speed Underground 2" \
   --converter-dir "./NFSU2-World-Editor" \
   --out "/private/CityZeroNFSU2Imported" \
   --export-all
-\`\`\`
+```
 
 The importer visits every CARS/<XNAME>/GEOMETRY.BIN, uses the open-source parser to inventory all real body-kit, bumper, skirt, hood, trunk, engine, exhaust, spoiler, headlight, rim/wheel and trunk audio part meshes and LODs, and writes a JSON catalogue with authentic original part names/hashes. Blender exports the real stock car to a GLB and independent kit/part variants to separate GLBs using original geometry, UVs and texture classes. VINYLS.BIN is catalogued and can be extracted into all decodable private PNG files. It also scans SOUND/ and decodes all vgmstream-supported subsongs in ABK/GIN banks when vgmstream-cli is available, while tracking the CarSoundData stock/street/pro/extreme engine/shift/turbo mappings and Unlimiter settings where installed.
 
-For a quick proof before all cars: add \`--cars SUPRA\`. For A/B/C/D low-LOD variants too: add \`--every-lod\`. To run only the catalogue, omit \`--export-all\`.
+For a quick proof before all cars: add `--cars SUPRA`. For A/B/C/D low-LOD variants too: add `--every-lod`. To run only the catalogue, omit `--export-all`.
 
 ## Critical accuracy notes
 
@@ -30,8 +30,8 @@ For a quick proof before all cars: add \`--cars SUPRA\`. For A/B/C/D low-LOD var
 
 ## Verify
 
-\`\`\`bash
+```bash
 python3 -m unittest discover -v -s tools/tests -p test_nfsu2_import_all.py
-\`\`\`
+```
 
 GitHub CI: [Importer Tests](../../.github/workflows/cityzero-nfsu2-importer.yml). The CI uses synthetic fixtures only and cannot prove game import success without your local original game data and real Blender rendering.
