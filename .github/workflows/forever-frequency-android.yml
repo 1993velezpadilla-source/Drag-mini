@@ -53,6 +53,14 @@ jobs:
         with:
           name: forever-frequency-blender-source
           path: forever-frequency-native/assets
+      - name: Keep Blender editables outside Godot import tree
+        shell: bash
+        run: |
+          # .blend is only a SOURCE asset, not a Godot runtime asset.
+          # Godot's native Blender importer can hang in CI when it auto-scans it.
+          find forever-frequency-native/assets -maxdepth 1 -name '*.blend' -print -delete
+          rm -f forever-frequency-native/assets/studio_entrance.glb forever-frequency-native/assets/street_kiosk.glb
+          test "$(find forever-frequency-native/assets -maxdepth 1 -name '*.glb' | wc -l)" -eq 12
       - name: Mount Godot's preinstalled Android export templates and editor settings
         shell: bash
         run: |
@@ -138,6 +146,14 @@ jobs:
         with:
           name: forever-frequency-blender-source
           path: forever-frequency-native/assets
+      - name: Keep Blender editables outside Godot import tree
+        shell: bash
+        run: |
+          # .blend is only a SOURCE asset, not a Godot runtime asset.
+          # Godot's native Blender importer can hang in CI when it auto-scans it.
+          find forever-frequency-native/assets -maxdepth 1 -name '*.blend' -print -delete
+          rm -f forever-frequency-native/assets/studio_entrance.glb forever-frequency-native/assets/street_kiosk.glb
+          test "$(find forever-frequency-native/assets -maxdepth 1 -name '*.glb' | wc -l)" -eq 12
       - name: Mount Godot's preinstalled Android export templates and editor settings
         shell: bash
         run: |
