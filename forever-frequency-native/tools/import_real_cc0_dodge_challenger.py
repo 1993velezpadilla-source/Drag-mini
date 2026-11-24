@@ -37,6 +37,21 @@ if len(body_meshes)<1:raise RuntimeError('Authentic Dodge FBX body mesh not foun
 body_tris=sum(sum(len(p.vertices)-2 for p in o.data.polygons) for o in body_meshes)
 if body_tris<25000:raise RuntimeError('Not sufficient real Dodge body detail '+str(body_tris))
 
+# Exact imported source-body geometry establishes the chassis' real Z floor.
+# O3DE prefab wheel transforms are in vehicle-native coordinates while FBX
+# import can apply a different up-axis/bind transform. Their raw 1.101m Z
+# values CANNOT be treated as final Blender world-wheel heights.
+def source_world_bounds(objects):
+    corners=[obj.matrix_world@Vector(corner) for obj in objects for corner in obj.bound_box]
+    return ([min(p[i] for p in corners) for i in range(3)],
+            [max(p[i] for p in corners) for i in range(3)])
+
+body_low,body_high=source_world_bounds(body_meshes)
+body_height=body_high[2]-body_low[2]
+if not .8<body_height<5.0:
+    raise RuntimeError('Unexpected original source body vertical bounds '+str((body_low,body_high)))
+
+
 # Bring one genuine tire/wheel FBX at each of the four exact engine prefab
 # anchor transforms. No guessed wheelbase/tire sizes/proportions whatsoever.
 prefab=json.loads(prefab_path.read_text())
@@ -63,7 +78,36 @@ for name,pos in anchors.items():
         original=o.matrix_world.copy()
         o.parent=holder
         o.matrix_world=holder.matrix_world @ original
-    wheel_report[name]={'source_anchor_o3de':pos,'mesh_count':len(wheels)}
+    # Align tire centers to the actual CC0 BODY bottom, using ORIGINAL
+    # imported tire radius. Never move the body or invent tire geometry.
+    # This corrects the prior wheels-floating-over-roof artifact in the
+    # four original photos and native Godot screenshot.
+    bpy.context.view_layer.update()
+    wheel_low,wheel_high=source_world_bounds(wheels)
+    tire_radius_z=(wheel_high[2]-wheel_low[2])*0.5
+    if not .15<tire_radius_z<1.0:
+        raise RuntimeError('Real original tire Z radius implausible '+name+': '+str(tire_radius_z))
+    before_center_z=(wheel_low[2]+wheel_high[2])*0.5
+    ground_clearance=max(.008,body_height*.01)
+    true_center_z=body_low[2]+tire_radius_z+ground_clearance
+    holder.location.z+=true_center_z-before_center_z
+    bpy.context.view_layer.update()
+    corrected_low,corrected_high=source_world_bounds(wheels)
+    new_center_z=(corrected_low[2]+corrected_high[2])*0.5
+    if abs(new_center_z-true_center_z)>.012:
+        raise RuntimeError('Original CC0 wheel Z calibration did not apply '+name)
+    if new_center_z>=body_high[2]-tire_radius_z*.10:
+        raise RuntimeError('Unacceptable source wheel above the roof '+name)
+    wheel_report[name]={
+        'source_anchor_o3de':pos, 'mesh_count':len(wheels),
+        'source_tire_radius_z_m':round(tire_radius_z,5),
+        'before_calibration_center_z_m':round(before_center_z,5),
+        'after_calibration_center_z_m':round(new_center_z,5),
+        'original_source_body_low_z_m':round(body_low[2],5),
+        'original_source_body_high_z_m':round(body_high[2],5),
+        'corrected_vertical_offset_m':round(true_center_z-before_center_z,5),
+        'wheel_below_original_roof_verified':True
+    }
 steer_meshes,_=do_import(steer_path)
 all_meshes=[o for o in bpy.data.objects if o.type=='MESH']
 tris=sum(sum(len(p.vertices)-2 for p in o.data.polygons) for o in all_meshes)
@@ -116,10 +160,10 @@ cam=bpy.data.objects.new('CC0_CHALLENGER_REAL_REFERENCE_CAMERA',camdata)
 scene.collection.objects.link(cam)
 scene.camera=cam
 for view,d in {
-    'side':(2.0,0,.35),
-    'front':(0,-2.0,.45),
-    'rear':(0,2.0,.45),
-    'three_quarter':(1.35,-1.5,.68)}.items():
+    'side':(0,-2.0,.35),
+    'front':(-2.0,0,.45),
+    'rear':(2.0,0,.45),
+    'three_quarter':(-1.35,-1.5,.68)}.items():
     cam.location=center+Vector(d)*size
     cam.rotation_euler=(center-cam.location).to_track_quat('-Z','Y').to_euler()
     file=PROOF/(BASENAME+'-'+view+'.png')
@@ -133,6 +177,7 @@ metrics={'model_id':BASENAME,'original_source_license':'CC0 per BlendSwap model 
     'source_body_mesh_count':len(body_meshes),'all_rendered_meshes':len(all_meshes),
     'wheels':wheel_report,'recovered_original_image_paths':fixed_images,
     'original_source_bounds_m':[round(float(v),4) for v in high-low],
+    'wheel_height_visual_defect_corrected_from_source_geometry':True,
     'real_sourced_blender_gltf_file':glb.name,
     'status':'GENUINE_CC0_SOURCE_IMPORTED_PENDING_HUMAN_VISUAL_MATERIAL_AND_ANDROID_LOD_QA',
     'game_ready':False}
