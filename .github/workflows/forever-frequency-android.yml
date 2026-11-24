@@ -11,6 +11,12 @@ on:
 permissions:
   contents: read
 
+# Each new adversarial revision supersedes the previous build.
+# Stop flooding Blender/Apt runners with stale renders while reviewing latest.
+concurrency:
+  group: forever-frequency-premium-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   model-assets:
     name: Blender original 3D assets
