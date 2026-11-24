@@ -271,7 +271,28 @@ def repair_original_door_upper_frames():
             if specular is not None:
                 specular.default_value=.08
             obj.data.materials[material_names.index("trim_gloss")]=material
+
+            # The sourced window panels are fully transmissive (1.0):
+            # against Blender's white studio, they look like large white
+            # rectangles hanging above an open door. Retain REAL glass
+            # geometry but use physically tinted privacy-safety glazing.
+            original_glass=obj.data.materials[material_names.index("glass")]
+            door_glass=original_glass.copy()
+            door_glass.name="CITYZERO_SEDAN_"+name+"_SMOKED_SIDE_GLASS"
+            glass_bs=door_glass.node_tree.nodes.get("Principled BSDF") if door_glass.use_nodes else None
+            if glass_bs is None:
+                raise RuntimeError("Original moving glass shader missing "+name)
+            glass_bs.inputs["Base Color"].default_value=(.025,.038,.055,1)
+            glass_bs.inputs["Roughness"].default_value=.13
+            transmission=glass_bs.inputs.get("Transmission Weight")
+            if transmission is not None:
+                transmission.default_value=.30
+            specular=glass_bs.inputs.get("Specular IOR Level")
+            if specular is not None:
+                specular.default_value=.16
+            obj.data.materials[material_names.index("glass")]=door_glass
             results[name]={"upper_vertices_reprofiled":adjusted,
+                           "sourced_door_glass_tint":"dark safety glass, original geometry",
                            "maximum_coordinate_change_m":round(max_shift,5),
                            "source_faces_untouched":old_faces,
                            "original_hinge":hinges[0]}
