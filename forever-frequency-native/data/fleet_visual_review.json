@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "policy": "No game/car screenshot sent and no vehicle released as approved without human inspection of real Blender GLB front/side/three-quarter views, door-open/shut comparison and Godot kinematics.",
+  "policy": "Do not release any vehicle as art approved without human inspection of actual clean Blender GLB front/side/three-quarter views and Godot door-open/shut tests. Clearly labelled raw QA screenshots may be shared for reviewer inspection.",
   "reference_direction": "2026 premium stylized modern auto design with recognizable body class and credible manufacturer-era proportions; original brands and no copied logos",
   "quality_threshold": {
     "front_side_rear_silhouette": 4,
@@ -11,7 +11,7 @@
     "closed_open_motion": 4,
     "max_grade": 5
   },
-  "state": "REJECTED_CURRENT_CAR_BASES_DO_NOT_MEET_NFS_U_GT4_TARGET",
+  "state": "PROCEDURAL_VEHICLES_REJECTED_CURATED_CC0_CLEAN_VISUAL_REVIEW_PENDING_RIG",
   "models": {
     "exotic_supercar__revulse": {
       "status": "REJECTED",
@@ -46,22 +46,26 @@
       ]
     },
     "curated_family_sedan": {
-      "status": "REJECTED",
+      "status": "PENDING_REAL_VISUAL_REVIEW_NOT_SHIPPABLE",
       "reasons": [
-        "Blender 4.5 import renders reveal enormous flat light-grey panels cutting across a supposedly completed vehicle",
-        "Doors, cabin and side silhouette are visually obscured",
-        "Technical mesh/LOD and CC0 license checks passed, but appearance does NOT pass user GT4 quality target"
+        "Original visual rejection invalid: Blender startup cube overlapped the true CC0 sedan and was incorrectly described as a grey model panel.",
+        "Clean Blender 4.5 front/side/rear/three-quarter captures produced in Actions run 45335269424; model displays true door seams, glazing, grille and wheels.",
+        "Promising substitute body reference for primitive City Zero procedurals, but Godot door rig, materials, visuals and owner approval remain pending."
       ],
-      "evidence": "GitHub Actions run 45331615024: eight actual Workbench Blender screenshots; not accepted for City Zero"
+      "evidence": "GitHub Actions run 45331615024: eight actual Workbench Blender screenshots; not accepted for City Zero",
+      "clean_evidence": "https://github.com/1993velezpadilla-source/Drag-mini/actions/runs/45335269424",
+      "previous_evidence_invalidated_by": "https://github.com/1993velezpadilla-source/Drag-mini/commit/696810e435c4136d4819cbcade8c03f198dbd10f"
     },
     "curated_midengine_supercar": {
-      "status": "REJECTED",
+      "status": "PENDING_REAL_VISUAL_REVIEW_NOT_SHIPPABLE",
       "reasons": [
-        "Imported CC0 mesh shows giant grey door/cabin slab jutting across exotic side profile",
-        "Poor panel fit and distorted open-door detail relative to PS2 automotive reference",
-        "Not fit for screenshots or game distribution despite successful technical import"
+        "Original visual rejection invalid: Blender startup cube hid the original CC0 supercar flank and was not part of the downloaded GLB.",
+        "Clean Blender 4.5 front/side/rear/three-quarter captures produced in Actions run 45335269424; model displays original full-body profile, wheel positioning and lighting.",
+        "Still pending imported mechanical door rig, mobile runtime, original brand treatment and explicit owner approval."
       ],
-      "evidence": "GitHub Actions run 45331615024: eight actual Workbench Blender screenshots; not accepted for City Zero"
+      "evidence": "GitHub Actions run 45331615024: eight actual Workbench Blender screenshots; not accepted for City Zero",
+      "clean_evidence": "https://github.com/1993velezpadilla-source/Drag-mini/actions/runs/45335269424",
+      "previous_evidence_invalidated_by": "https://github.com/1993velezpadilla-source/Drag-mini/commit/696810e435c4136d4819cbcade8c03f198dbd10f"
     }
   },
   "next_candidates": [
