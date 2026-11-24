@@ -55,9 +55,14 @@ jobs:
               src=root/'assets/curated_cars'/(m['id']+'.glb')
               dst=src.with_name(m['id']+'.decoded.glb')
               subprocess.run(['gltf-transform','copy',str(src),str(dst)],check=True)
-              assert dst.stat().st_size>80000,(m['id'],dst.stat().st_size)
-              dst.replace(src)
-              print('MESHOPT DECODE GREEN',m['id'],src.stat().st_size,flush=True)
+              # Blender 4.5 also cannot read KHR_texture_basisu KTX2.
+              # Decode KTX to standard PNG/JPEG material images, preserve nodes.
+              uncompressed=src.with_name(m['id']+'.blender.glb')
+              subprocess.run(['gltf-transform','ktxdecompress',str(dst),str(uncompressed)],check=True)
+              assert uncompressed.stat().st_size>80000,(m['id'],uncompressed.stat().st_size)
+              uncompressed.replace(src)
+              dst.unlink(missing_ok=True)
+              print('MESHOPT + BASISU DECODE GREEN',m['id'],src.stat().st_size,flush=True)
           PY
       - name: Use preinstalled Blender 4.5 without buying a license
         shell: bash
