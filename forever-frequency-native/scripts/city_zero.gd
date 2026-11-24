@@ -5,7 +5,7 @@ extends Node3D
 const GameState = preload("res://scripts/game_state.gd")
 const MobileInput = preload("res://scripts/mobile_input.gd")
 const CarDoorController = preload("res://scripts/vehicle_door_controller.gd")
-const REVULSE_MODEL = "res://assets/curated_rigged/curated_midengine_supercar.glb"
+const LAMBORGHINI_ORANGE_MODEL = "res://assets/curated_rigged/curated_midengine_supercar.glb"
 const CityLife = preload("res://scripts/city_life.gd")
 const BEAT: Array[int] = [0, 2, 1, 3, 1, 0, 3, 2]
 const LANDMARKS := {
@@ -52,8 +52,8 @@ var ui_refresh := 0.0
 var status_until := 0.0
 var mouse_captured := false
 var car: Node3D
-var revulse_car: Node3D
-var revulse_doors
+var lamborghini_orange_car: Node3D
+var lamborghini_orange_doors
 var citizens: Array[Dictionary] = []
 var audio_player: AudioStreamPlayer
 var road_material: StandardMaterial3D
@@ -65,7 +65,7 @@ func _ready() -> void:
     _create_environment()
     _create_ground_and_streets()
     _create_city()
-    _spawn_original_revulse_in_city()
+    _spawn_approved_lamborghini_orange_in_city()
     # Full Blender-batched city dressing; editable separately, not another greybox.
     if ResourceLoader.exists("res://assets/urban_life_district.glb"):
         var district: PackedScene = load("res://assets/urban_life_district.glb")
@@ -414,59 +414,59 @@ func _create_city() -> void:
     else:
         _add_stage_fx()
 
-func _spawn_original_revulse_in_city() -> void:
+func _spawn_approved_lamborghini_orange_in_city() -> void:
     # The already-approved original CC0 curated midengine supercar: real authored
     # GLB from the prior CityZero car audit, two fully rigged door hinges.
     # Only the real exported GLB is accepted. Missing model => no fake car.
     # Godot's editor .glb.import file may fail to materialize in CI even
     # though Blender exported the genuine GLB successfully. Read that exact
     # original binary at runtime instead of depending on editor ResourceLoader.
-    var actual_glb := ProjectSettings.globalize_path(REVULSE_MODEL)
+    var actual_glb := ProjectSettings.globalize_path(LAMBORGHINI_ORANGE_MODEL)
     if not FileAccess.file_exists(actual_glb):
-        push_warning("CITY_ZERO_REVULSE_ASSET_MISSING: " + actual_glb)
+        push_warning("CITY_ZERO_LAMBORGHINI_ORANGE_ASSET_MISSING: " + actual_glb)
         return
     var gltf_doc := GLTFDocument.new()
     var gltf_state := GLTFState.new()
     var import_status := gltf_doc.append_from_file(actual_glb, gltf_state)
     if import_status != OK:
-        push_error("CITY_ZERO_REVULSE_ORIGINAL_GLB_LOAD_FAILED: " + str(import_status))
+        push_error("CITY_ZERO_LAMBORGHINI_ORANGE_ORIGINAL_GLB_LOAD_FAILED: " + str(import_status))
         return
-    revulse_car = gltf_doc.generate_scene(gltf_state) as Node3D
-    if revulse_car == null:
-        push_error("CITY_ZERO_REVULSE_INVALID_GLTF_ROOT")
+    lamborghini_orange_car = gltf_doc.generate_scene(gltf_state) as Node3D
+    if lamborghini_orange_car == null:
+        push_error("CITY_ZERO_LAMBORGHINI_ORANGE_INVALID_GLTF_ROOT")
         return
-    revulse_car.name = "CityZero_Approved_Lamborghini_Styled_Supercar"
+    lamborghini_orange_car.name = "CityZero_Approved_Orange_Lamborghini"
     # Keep clear of the generic traffic car at (2, 0, -17).
-    revulse_car.position = Vector3(-2.3, 0.08, -25.0)
-    revulse_car.rotation.y = PI
-    add_child(revulse_car)
-    revulse_doors = CarDoorController.new()
-    revulse_doors.name = "Mechanical_Pair_Of_Doors"
-    revulse_car.add_child(revulse_doors)
-    var names: Array[String] = revulse_doors.available_doors()
+    lamborghini_orange_car.position = Vector3(-2.3, 0.08, -25.0)
+    lamborghini_orange_car.rotation.y = PI
+    add_child(lamborghini_orange_car)
+    lamborghini_orange_doors = CarDoorController.new()
+    lamborghini_orange_doors.name = "Mechanical_Pair_Of_Doors"
+    lamborghini_orange_car.add_child(lamborghini_orange_doors)
+    var names: Array[String] = lamborghini_orange_doors.available_doors()
     if names.size() != 2:
-        push_error("REVULSE expected two real mechanical door hinges, got " + str(names))
-        revulse_car.queue_free()
-        revulse_car = null
-        revulse_doors = null
+        push_error("LAMBORGHINI_ORANGE requires two real mechanical door hinges, got " + str(names))
+        lamborghini_orange_car.queue_free()
+        lamborghini_orange_car = null
+        lamborghini_orange_doors = null
         return
-    print("CITY_ZERO_REVULSE_IN_CITY_OK: ", revulse_car.global_position, " doors=", names)
+    print("CITY_ZERO_LAMBORGHINI_ORANGE_IN_CITY_OK: ", lamborghini_orange_car.global_position, " doors=", names)
 
 
-func toggle_revulse_doors() -> bool:
-    if revulse_car == null or revulse_doors == null:
+func toggle_lamborghini_orange_doors() -> bool:
+    if lamborghini_orange_car == null or lamborghini_orange_doors == null:
         return false
     # A parked car may be opened from the street; never open random traffic.
-    if hero != null and hero.global_position.distance_to(revulse_car.global_position) > 10.0:
+    if hero != null and hero.global_position.distance_to(lamborghini_orange_car.global_position) > 10.0:
         _message("Approach the Lamborghini-style supercar to open its doors.", 2.5)
         return false
-    var names: Array[String] = revulse_doors.available_doors()
+    var names: Array[String] = lamborghini_orange_doors.available_doors()
     if names.size() != 2:
         return false
-    var opening: bool = not revulse_doors.is_door_open(names[0])
+    var opening: bool = not lamborghini_orange_doors.is_door_open(names[0])
     for door_name in names:
-        if revulse_doors.is_door_open(door_name) != opening:
-            revulse_doors.toggle_door(door_name)
+        if lamborghini_orange_doors.is_door_open(door_name) != opening:
+            lamborghini_orange_doors.toggle_door(door_name)
     _message("LAMBORGHINI • DOORS OPEN" if opening else "LAMBORGHINI • DOORS CLOSED", 2.6)
     return true
 
@@ -675,7 +675,7 @@ func _unhandled_input(event: InputEvent) -> void:
         if event.keycode == KEY_E or event.keycode == KEY_SPACE:
             _interact()
         elif event.keycode == KEY_O:
-            toggle_revulse_doors()
+            toggle_lamborghini_orange_doors()
         elif event.keycode == KEY_ESCAPE:
             _hide_panel()
 
@@ -977,9 +977,9 @@ func _create_mobile_ui() -> void:
     door_button.offset_right = -18
     door_button.offset_top = -162
     door_button.offset_bottom = -99
-    door_button.pressed.connect(toggle_revulse_doors)
+    door_button.pressed.connect(toggle_lamborghini_orange_doors)
     root.add_child(door_button)
-    door_button.visible = revulse_car != null
+    door_button.visible = lamborghini_orange_car != null
     var label := _ui_label("WASD · move    Drag · look    E · enter    O · Lamborghini doors",12,Color("ddeeff"))
     label.anchor_top = 1
     label.anchor_bottom = 1
