@@ -6,6 +6,7 @@ and geometry/provenance audit for distinct vehicles; not fake concept images.
 Only mark game-ready after separate source/visual/rig/Android/Godot gates.
 """
 import bpy
+import hashlib
 import json
 from pathlib import Path
 from mathutils import Vector
@@ -26,7 +27,12 @@ for spec in batch["models"]:
     if not source_file.exists() or source_file.stat().st_size != spec["bytes"]:
         raise RuntimeError("Missing REAL verified original source: " + name)
     bpy.ops.wm.read_factory_settings(use_empty=True)
-    bpy.ops.import_scene.gltf(filepath=str(source_file))
+    if hashlib.sha256(source_file.read_bytes()).hexdigest() != spec["sha256"]:
+        raise RuntimeError("Original source SHA changed: " + name)
+    decoded = ROOT / "assets" / "tevy_cc0_decoded_sources" / source_file.name
+    if not decoded.is_file():
+        raise RuntimeError("Missing decoded source: " + name)
+    bpy.ops.import_scene.gltf(filepath=str(decoded))
     meshes = [obj for obj in bpy.data.objects if obj.type == "MESH"]
     if not meshes:
         raise RuntimeError("Authentic CC0 GLB imported no real mesh " + name)
