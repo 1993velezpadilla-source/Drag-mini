@@ -5,7 +5,7 @@ extends Node3D
 const GameState = preload("res://scripts/game_state.gd")
 const MobileInput = preload("res://scripts/mobile_input.gd")
 const CarDoorController = preload("res://scripts/vehicle_door_controller.gd")
-const REVULSE_MODEL = "res://assets/premium_fleet/exotic_supercar__revulse.glb"
+const REVULSE_MODEL = "res://assets/curated_rigged/curated_midengine_supercar.glb"
 const CityLife = preload("res://scripts/city_life.gd")
 const BEAT: Array[int] = [0, 2, 1, 3, 1, 0, 3, 2]
 const LANDMARKS := {
@@ -415,8 +415,8 @@ func _create_city() -> void:
         _add_stage_fx()
 
 func _spawn_original_revulse_in_city() -> void:
-    # This is the exact original Blender-authored Lamborghini Aventador-inspired
-    # REVULSE (two independently animated door hinges), not a substitute mesh.
+    # The already-approved original CC0 curated midengine supercar: real authored
+    # GLB from the prior CityZero car audit, two fully rigged door hinges.
     # Only the real exported GLB is accepted. Missing model => no fake car.
     # Godot's editor .glb.import file may fail to materialize in CI even
     # though Blender exported the genuine GLB successfully. Read that exact
@@ -435,7 +435,7 @@ func _spawn_original_revulse_in_city() -> void:
     if revulse_car == null:
         push_error("CITY_ZERO_REVULSE_INVALID_GLTF_ROOT")
         return
-    revulse_car.name = "CityZero_REVULSE_Aventador_Reference"
+    revulse_car.name = "CityZero_Approved_Lamborghini_Styled_Supercar"
     # Keep clear of the generic traffic car at (2, 0, -17).
     revulse_car.position = Vector3(-2.3, 0.08, -25.0)
     revulse_car.rotation.y = PI
@@ -458,7 +458,7 @@ func toggle_revulse_doors() -> bool:
         return false
     # A parked car may be opened from the street; never open random traffic.
     if hero != null and hero.global_position.distance_to(revulse_car.global_position) > 10.0:
-        _message("Approach the REVULSE to open its doors.", 2.5)
+        _message("Approach the Lamborghini-style supercar to open its doors.", 2.5)
         return false
     var names: Array[String] = revulse_doors.available_doors()
     if names.size() != 2:
@@ -467,7 +467,7 @@ func toggle_revulse_doors() -> bool:
     for door_name in names:
         if revulse_doors.is_door_open(door_name) != opening:
             revulse_doors.toggle_door(door_name)
-    _message("REVULSE • DOORS OPEN" if opening else "REVULSE • DOORS CLOSED", 2.6)
+    _message("LAMBORGHINI • DOORS OPEN" if opening else "LAMBORGHINI • DOORS CLOSED", 2.6)
     return true
 
 
@@ -968,7 +968,7 @@ func _create_mobile_ui() -> void:
     action.offset_bottom = -26
     action.pressed.connect(_interact)
     root.add_child(action)
-    var door_button := _styled_button("REVULSE  •  DOORS", COLORS.cyan)
+    var door_button := _styled_button("LAMBORGHINI  •  DOORS", COLORS.cyan)
     door_button.anchor_left = 1
     door_button.anchor_right = 1
     door_button.anchor_top = 1
@@ -980,7 +980,7 @@ func _create_mobile_ui() -> void:
     door_button.pressed.connect(toggle_revulse_doors)
     root.add_child(door_button)
     door_button.visible = revulse_car != null
-    var label := _ui_label("WASD · move    Drag · look    E · enter    O · REVULSE doors",12,Color("ddeeff"))
+    var label := _ui_label("WASD · move    Drag · look    E · enter    O · Lamborghini doors",12,Color("ddeeff"))
     label.anchor_top = 1
     label.anchor_bottom = 1
     label.offset_left = 22
