@@ -16,7 +16,7 @@ func _initialize() -> void:
 
 func _run() -> void:
     var cars := [
-        {"id":"exotic_supercar__revulse", "doors":2},
+        {"id":"exotic_supercar__rossa_v", "doors":2},
         {"id":"compact_sedan__compact_c", "doors":4},
         {"id":"basic_pickup__workhorse", "doors":4},
         {"id":"electric_future__cyber_wedge", "doors":4}
