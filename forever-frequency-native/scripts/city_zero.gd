@@ -474,7 +474,7 @@ func _create_player() -> void:
         for x in [-0.22,0.22]:
             _box(hero_mesh,Vector3(x,0.38,0),Vector3(0.26,0.75,0.3),Color("262c44"))
             _box(hero_mesh,Vector3(x,0.10,-0.10),Vector3(0.35,0.22,0.6),Color("f0ebe9"))
-    _nameplate(hero_mesh,"YOU",Vector3(0,2.85,0),COLORS.cyan)
+    # Hero identity belongs in the HUD, not a floating debug label.
     companion = Node3D.new()
     companion.name = "Companion"
     companion.position = Vector3(1.4,0,-6.4)
@@ -482,7 +482,7 @@ func _create_player() -> void:
     _pet_mesh()
     camera = Camera3D.new()
     camera.current = true
-    camera.fov = 67.0
+    camera.fov = 63.0
     camera.near = 0.08
     camera.far = 120.0
     add_child(camera)
@@ -505,7 +505,7 @@ func _pet_mesh() -> void:
         _sphere(companion,Vector3(-0.14,0.42,-0.35),0.055,Color("293047"))
         _sphere(companion,Vector3(0.14,0.42,-0.35),0.055,Color("293047"))
         _sphere(companion,Vector3(0,0.3,-0.40),0.05,COLORS.neon,true)
-    _nameplate(companion,game.companion,Vector3(0,1.65,0),Color("f9e8fa"))
+    # Companion identified through the in-game UI; keep the 3D silhouette unobstructed.
 
 func _physics_process(dt: float) -> void:
     if hero == null or mobile == null:
