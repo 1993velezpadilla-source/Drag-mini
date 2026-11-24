@@ -58,11 +58,11 @@ func _capture() -> void:
         var high := Vector3(-INF, -INF, -INF)
         var tri_count := 0
         for obj in meshes:
-            var mesh := obj.mesh
+            var mesh: Mesh = obj.mesh
             for surface in range(mesh.get_surface_count()):
                 if mesh.surface_get_primitive_type(surface) != Mesh.PRIMITIVE_TRIANGLES:
                     continue
-                var idx := mesh.surface_get_array_index_len(surface)
+                var idx: int = mesh.surface_get_array_index_len(surface)
                 tri_count += int((idx if idx > 0 else mesh.surface_get_array_len(surface)) / 3)
             for corner in range(8):
                 var point := obj.global_transform * mesh.get_aabb().get_endpoint(corner)
