@@ -66,7 +66,7 @@ func _run() -> void:
         for panel in panels:
             for i in range(panel.mesh.get_surface_count()):
                 var m: Mesh = panel.mesh
-                var ni := m.surface_get_array_index_len(i)
+                var ni: int = m.surface_get_array_index_len(i)
                 panel_triangles += int((ni if ni>0 else m.surface_get_array_len(i))/3)
         if panel_triangles < 2500:
             _fail("Hinge is only a fake transform, not true original artist door geometry "+name)
