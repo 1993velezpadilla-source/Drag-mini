@@ -54,12 +54,12 @@ func _run() -> void:
     var high := Vector3(-INF, -INF, -INF)
     var triangles := 0
     for mesh_node in mesh_instances:
-        var mesh := mesh_node.mesh
+        var mesh: Mesh = mesh_node.mesh
         for surface in range(mesh.get_surface_count()):
             if mesh.surface_get_primitive_type(surface) != Mesh.PRIMITIVE_TRIANGLES:
                 continue
-            var indices := mesh.surface_get_array_index_len(surface)
-            var vertices := mesh.surface_get_array_len(surface)
+            var indices: int = mesh.surface_get_array_index_len(surface)
+            var vertices: int = mesh.surface_get_array_len(surface)
             triangles += int((indices if indices > 0 else vertices) / 3)
         for corner in range(8):
             var point := mesh_node.global_transform * mesh.get_aabb().get_endpoint(corner)
