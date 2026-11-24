@@ -3,6 +3,10 @@ extends Node3D
 ## glTF coordinate-basis rotations. Local Y opens the hinged door.
 @export var opening_speed_degrees: float = 105.0
 @export var opening_angle_degrees: float = 65.0
+## Certain source models are authored with mirror-inverted hinge axes.
+## Opt in ONLY for a rig with visual clockwise/outward-door verification.
+## Keeping this false preserves user-approved original orange Lamborghini.
+@export var invert_opening_direction: bool = false
 var hinges: Dictionary = {}
 var closed_quaternions: Dictionary = {}
 var current_angle: Dictionary = {}
@@ -44,6 +48,8 @@ func toggle_door(id: String) -> bool:
         return false
     var opening: float = deg_to_rad(opening_angle_degrees)
     var sign: float = -1.0 if id.contains("_LEFT_") else 1.0
+    if invert_opening_direction:
+        sign = -sign
     target_angle[id] = 0.0 if absf(float(target_angle[id])) > 0.1 else sign * opening
     return true
 
