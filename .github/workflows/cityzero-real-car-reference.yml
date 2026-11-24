@@ -6,6 +6,8 @@ on:
     branches: [forever-frequency-native]
     paths:
       - city_zero/vehicle_runtime/test_cc0_model.gd
+      - city_zero/vehicle_runtime/CityZeroShowroom.gd
+      - city_zero/scenes/vehicle_showroom.tscn
       - city_zero/research/SPECTRAL_CC0_REFERENCE.md
       - .github/workflows/cityzero-real-car-reference.yml
 
@@ -63,6 +65,8 @@ jobs:
           export-templates: false
       - name: Import actual authored car into Godot
         run: godot --headless --path . --editor --import --quit
+      - name: Boot interactive 3D showroom with the actual imported model
+        run: godot --headless --path . --quit-after 20 res://city_zero/scenes/vehicle_showroom.tscn
       - name: Render 1280x720 screenshot of actual model in virtual display
         shell: bash
         continue-on-error: true
