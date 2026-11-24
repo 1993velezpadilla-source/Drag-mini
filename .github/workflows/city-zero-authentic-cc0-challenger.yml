@@ -139,7 +139,9 @@ jobs:
         shell: bash
         run: |
           set -o pipefail
-          xvfb-run -a -s '-screen 0 1600x900x24' timeout 180s godot --path isolated --editor --import --quit 2>&1 | tee challenger-godot-import.log
+          timeout 180s godot --headless --path isolated --editor --import --quit 2>&1 | tee challenger-godot-import.log
+          test -s isolated/assets/licensed_cc0_automobiles/dodge_challenger_1970_rt_original_cc0.glb.import
+          grep -q '\[remap\]' isolated/assets/licensed_cc0_automobiles/dodge_challenger_1970_rt_original_cc0.glb.import
       - name: Save three actual Godot screenshots and hide-mesh difference proofs
         shell: bash
         env:
