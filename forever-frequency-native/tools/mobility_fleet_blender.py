@@ -189,6 +189,16 @@ def watercraft(rec,paint):
         block("Jet runner nose cowling",0,-L*.27,.47,W*.65,L*.22,.30,paint,.10)
         tube("Watercraft steering bars",[(-W*.19,-L*.09,.94),(W*.19,-L*.09,.94)],.031,alloy)
         block("Rear jet exhaust vent",0,L*.42,.05,W*.26,.07,.19,alloy,.035)
+        # Real molded watersport details: handlebar console, boarding grips and
+        # spray deflectors -- formerly an unacceptable eight-mesh placeholder.
+        block("Jet gauge cluster",0,-L*.08,.95,.31,.19,.14,dark,.045)
+        block("Jet instrument face",0,-L*.10,1.025,.22,.15,.018,glass,.01)
+        for sign in (-1,1):
+            tube("Polymer side splash rail",[(sign*W*.37,-L*.30,.30),
+                 (sign*W*.43,-L*.04,.32),(sign*W*.35,L*.32,.28)],.033,alloy)
+            block("Rear boarding hand grip",sign*W*.29,L*.34,.50,
+                  .065,.25,.05,dark,.025)
+        block("Textured rear swim footrest",0,L*.34,.37,W*.55,L*.15,.04,seat,.02)
     else:
         block("Helm windshield",0,-L*.15,1.11,W*.62,.075,.64,glass,.06)
         block("Navigation console",0,-L*.14,.74,W*.39,L*.15,.38,paint,.07)
