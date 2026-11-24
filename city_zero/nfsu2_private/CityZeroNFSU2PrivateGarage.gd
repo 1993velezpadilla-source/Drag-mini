@@ -44,12 +44,16 @@ func open_library(path: String) -> bool:
     if data.get("schema", "") != "cityzero.nfsu2.private-godot-library.v1":
         import_failed.emit("Unsupported private library schema")
         return false
-    if not data.get("vehicles", null) is Dictionary:
+    if typeof(data.get("vehicles", null)) != TYPE_DICTIONARY:
         import_failed.emit("Library has no vehicles dictionary")
         return false
     _private_root = str(data.get("root", "")).simplify_path()
+    # When the library is copied from desktop to Android, the desktop absolute
+    # path is stale. Use the actual location of the JSON file instead.
     if _private_root.is_empty() or not DirAccess.dir_exists_absolute(_private_root):
-        import_failed.emit("Original private import directory no longer exists")
+        _private_root = path.get_base_dir().simplify_path()
+    if _private_root.is_empty() or not DirAccess.dir_exists_absolute(_private_root):
+        import_failed.emit("Private import directory is missing")
         return false
     _catalog = data
     library_opened.emit(_catalog["vehicles"].size())
