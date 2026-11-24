@@ -1,0 +1,89 @@
+name: City Zero — 86 vehicle Blender adversarial gauntlet
+on:
+  push:
+    branches: [forever-frequency-native]
+    paths:
+      - '.github/workflows/city-zero-vehicle-86-gauntlet.yml'
+      - 'forever-frequency-native/data/vehicle_fleet_catalog.json'
+      - 'forever-frequency-native/data/mobility_fleet_catalog.json'
+      - 'forever-frequency-native/tools/premium_vehicle_fleet_blender.py'
+      - 'forever-frequency-native/tools/mobility_fleet_blender.py'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: city-zero-86fleet-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  sculpt:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check all 86 source briefs and compile both Blender scripts
+        run: |
+          set -euo pipefail
+          python3 -m py_compile forever-frequency-native/tools/premium_vehicle_fleet_blender.py forever-frequency-native/tools/mobility_fleet_blender.py
+          python3 - <<'PY'
+          from pathlib import Path
+          import json
+          d=Path('forever-frequency-native/data')
+          a=json.loads((d/'vehicle_fleet_catalog.json').read_text())
+          b=json.loads((d/'mobility_fleet_catalog.json').read_text())
+          assert len(a['models'])==60 and len(b['models'])==26
+          assert len(set(x['id'] for x in a['models']+b['models']))==86
+          assert all(len(x['colors'])==8 for x in a['models'])
+          print('CATALOG GREEN: 86 unique models, 23 categories')
+          PY
+      - name: Pull native Blender 4.5 image
+        run: |
+          docker pull ghcr.io/blenderkit/headless-blender:blender-4.5-stable
+          docker run --rm --entrypoint /home/headless/blender/blender ghcr.io/blenderkit/headless-blender:blender-4.5-stable --version
+      - name: Sculpt 60 unique cars (with 8 paint presets per model)
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd forever-frequency-native
+          timeout 750s docker run --rm --entrypoint /home/headless/blender/blender -v "$PWD:$PWD" -w "$PWD" ghcr.io/blenderkit/headless-blender:blender-4.5-stable -b -t 2 --python tools/premium_vehicle_fleet_blender.py 2>&1 | tee car.log
+          grep -q 'PREMIUM FLEET GEOMETRY GAUNTLET GREEN' car.log
+      - name: Sculpt 26 unique motorbike, scooter, water, air and rail assets
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd forever-frequency-native
+          timeout 550s docker run --rm --entrypoint /home/headless/blender/blender -v "$PWD:$PWD" -w "$PWD" ghcr.io/blenderkit/headless-blender:blender-4.5-stable -b -t 2 --python tools/mobility_fleet_blender.py 2>&1 | tee mobility.log
+          grep -q 'MOBILITY BLENDER GAUNTLET GREEN' mobility.log
+      - name: Reject missing or toy-placeholder models
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import json
+          base=Path('forever-frequency-native/assets')
+          a=base/'premium_fleet'
+          b=base/'mobility_fleet'
+          cars=json.loads((a/'fleet_metrics.json').read_text())['vehicles']
+          mobility=json.loads((b/'metrics.json').read_text())
+          assert len(cars)==60 and len(mobility)==26
+          assert len(list(a.glob('*.glb')))==60
+          assert len(list(b.glob('*.glb')))==26
+          assert all(x['meshes']>=55 and x['paint_options']>=8 for x in cars)
+          assert all(x['meshes']>=12 and x['triangles']<90000 for x in mobility)
+          assert sum(x['open_truck_bed'] for x in cars)==10
+          assert sum(x['angular_future_electric'] for x in cars)==1
+          assert len({x['category'] for x in mobility})==11
+          print('86-VEHICLE GLB GAUNTLET GREEN')
+          PY
+      - name: Publish real GLB output and failure logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: CityZero-86-Native-Blender-Vehicles-And-Metrics
+          path: |
+            forever-frequency-native/assets/premium_fleet/*.glb
+            forever-frequency-native/assets/premium_fleet/fleet_metrics.json
+            forever-frequency-native/assets/mobility_fleet/*.glb
+            forever-frequency-native/assets/mobility_fleet/metrics.json
+            forever-frequency-native/car.log
+            forever-frequency-native/mobility.log
+          if-no-files-found: warn
