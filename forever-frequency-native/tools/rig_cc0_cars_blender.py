@@ -70,7 +70,7 @@ for rec in models:
         bpy.context.view_layer.update()
         checkpoints=moved_vertices(group)
         initial=[o.matrix_world@v for o,v in checkpoints]
-        hinge.rotation_euler.z=original_angle+math.radians(65 if side=='LEFT' else -65)
+        hinge.rotation_euler.z=original_angle+math.radians(-65 if side=='LEFT' else 65)
         bpy.context.view_layer.update()
         opened=[o.matrix_world@v for o,v in checkpoints]
         displacement=max((a-b).length for a,b in zip(initial,opened))
