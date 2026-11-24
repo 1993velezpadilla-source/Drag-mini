@@ -1,0 +1,64 @@
+{
+  "schema_version": 1,
+  "batch_policy": "Six real artist-made CC-BY vehicles per CI run, import & inspect only. Requires independent creator provenance and visual approval before commercial gameplay.",
+  "repository": "supercar3d/supercar_3D_asssets",
+  "pinned_commit": "5948d1307f673e98aedae591c0d78c834f184713",
+  "source_license": "Creator-provided per-vehicle CC BY 4.0 notices in source repo. May conflict with broader author restrictions; independent commercial rights clearance remains pending.",
+  "production_approved": false,
+  "records": [
+    {
+      "id": "bmw_m3_g80_2025",
+      "label": "BMW M3 G80 2025",
+      "path": "basic/bmw/m3/m3.glb",
+      "git_blob_sha1": "09656a7e9c064ea44129fe0b64ef1b934278500d",
+      "license": "basic/bmw/m3/license.txt",
+      "artist": "Drifter Models",
+      "expected_min_triangles": 15000
+    },
+    {
+      "id": "ferrari_roma_2020",
+      "label": "Ferrari Roma 2020",
+      "path": "basic/ferrari/roma-2020/roma-2020.glb",
+      "git_blob_sha1": "1549fbeecf60e888490779d1d33b1e3ad0ac2696",
+      "license": "basic/ferrari/roma-2020/license.txt",
+      "artist": "Ddiaz Design",
+      "expected_min_triangles": 15000
+    },
+    {
+      "id": "ferrari_sf90_xx_2023",
+      "label": "Ferrari SF90 XX Stradale 2023",
+      "path": "basic/ferrari/sf90/sf90.glb",
+      "git_blob_sha1": "d1e3de606845f99ada18e1a9837b83f554568695",
+      "license": "basic/ferrari/sf90/license.txt",
+      "artist": "Ddiaz Design",
+      "expected_min_triangles": 15000
+    },
+    {
+      "id": "lamborghini_aventador_interior",
+      "label": "Lamborghini Aventador with Interior",
+      "path": "basic/lamborghini/aventador/aventador.glb",
+      "git_blob_sha1": "0a3ec230fe56998103055508734de8f240f3164b",
+      "license": "basic/lamborghini/aventador/license.txt",
+      "artist": "BlackCube",
+      "expected_min_triangles": 15000
+    },
+    {
+      "id": "lamborghini_huracan_evo_2019",
+      "label": "Lamborghini Huracan EVO 2019",
+      "path": "basic/lamborghini/huracan/huracan.glb",
+      "git_blob_sha1": "b4ea1f630ba83f84fad043e21b4043d9fbaf8d0a",
+      "license": "basic/lamborghini/huracan/license.txt",
+      "artist": "Galaxy Car Showroom",
+      "expected_min_triangles": 15000
+    },
+    {
+      "id": "mclaren_570s_2016",
+      "label": "McLaren 570S 2016",
+      "path": "basic/mclaren/570s-2016/570S-2016.glb",
+      "git_blob_sha1": "57e30deba9becfa8db426c926fccb7f8845f7536",
+      "license": "basic/mclaren/570s-2016/license.txt",
+      "artist": "Ddiaz Design",
+      "expected_min_triangles": 15000
+    }
+  ]
+}
