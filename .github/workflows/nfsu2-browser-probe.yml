@@ -1,0 +1,58 @@
+name: City Zero NFSU2 browser gauntlet
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [forever-frequency-native]
+    paths:
+      - tools/nfsu2_browser_probe.mjs
+      - .github/workflows/nfsu2-browser-probe.yml
+
+permissions:
+  contents: read
+
+jobs:
+  browser-probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Find Chromium
+        run: |
+          if command -v google-chrome >/dev/null; then
+            echo "CHROME_PATH=$(command -v google-chrome)" >> "$GITHUB_ENV"
+          elif command -v chromium >/dev/null; then
+            echo "CHROME_PATH=$(command -v chromium)" >> "$GITHUB_ENV"
+          else
+            sudo apt-get update -qq
+            sudo apt-get install -y chromium
+            echo "CHROME_PATH=$(command -v chromium)" >> "$GITHUB_ENV"
+          fi
+      - name: Browser self-test (offline)
+        run: |
+          node tools/nfsu2_browser_probe.mjs --self-test --out=artifacts/smoke
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          result = json.loads(Path('artifacts/smoke/report.json').read_text())
+          assert result['status'] == 'captured', result
+          assert result['landing']['title'] == 'CityZeroSmoke', result
+          assert Path('artifacts/smoke/landing.png').stat().st_size > 1000
+          PY
+      - name: Inspect public NFSU2 modded web game
+        continue-on-error: true
+        run: |
+          node tools/nfsu2_browser_probe.mjs \
+            --url=https://nfsu2mod.xyz/ \
+            --out=artifacts/nfsu2-public --click-play --wait=15000
+      - name: Save screenshots and technical report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cityzero-nfsu2-browser-evidence
+          path: artifacts/
+          retention-days: 7
+          if-no-files-found: warn
