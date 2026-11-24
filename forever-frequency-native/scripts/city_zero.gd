@@ -53,7 +53,7 @@ var status_until := 0.0
 var mouse_captured := false
 var car: Node3D
 var revulse_car: Node3D
-var revulse_doors: Node3D
+var revulse_doors
 var citizens: Array[Dictionary] = []
 var audio_player: AudioStreamPlayer
 var road_material: StandardMaterial3D
