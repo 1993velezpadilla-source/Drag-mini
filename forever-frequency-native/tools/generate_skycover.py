@@ -12,7 +12,7 @@ random.seed(20261124)
 def layer(w,h,scale):
     im=Image.new('L',(w,h))
     im.putdata([random.randrange(256) for _ in range(w*h)])
-    return im.resize((W,H),Image.Resampling.BICUBIC).filter(ImageFilter.GaussianBlur(scale))
+    return im.resize((W,H),Image.BICUBIC).filter(ImageFilter.GaussianBlur(scale))
 rough=layer(18,9,7)
 detail=layer(64,32,3)
 fine=layer(152,76,1)
