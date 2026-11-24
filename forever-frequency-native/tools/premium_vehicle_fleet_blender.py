@@ -9,6 +9,8 @@ import bpy, json, math, random, os, sys
 from pathlib import Path
 from mathutils import Vector
 ROOT=Path(__file__).resolve().parents[1]
+sys.path.insert(0,str(Path(__file__).resolve().parent))
+from vehicle_finish_detail import sculpt_door_skin, wheel_finish, finish_car
 CAR_DIR=ROOT/'assets'/'premium_fleet'
 CAR_DIR.mkdir(parents=True,exist_ok=True)
 catalog=json.loads((ROOT/'data'/'vehicle_fleet_catalog.json').read_text())
@@ -91,6 +93,7 @@ def wheel(cx,y,r,mount,style):
    (cx+sign*.193,y+math.cos(a)*radius,r+math.sin(a)*radius),
    (.032,r*.33,r*.078),trim,.007)
   blade.rotation_euler.x=a
+ wheel_finish(cx,y,r,style,alloy,rubber,trim,disk,box)
 def line_light(n,y,z,hw,material):
  box(n,(0,y,z),(hw*2,.056,.045),material,.012)
 def pane(n,coords,m):
@@ -130,9 +133,7 @@ def make_working_door(name,side,index,ystart,yend,half,belt,roof,roof_w,
     zlow=.29
     panel_top=belt*.975
     # Outer door, nonzero thickness. This moves INSTEAD of the cut-out shell.
-    attach(box("DOOR_%s_%s_SKIN"%("LEFT" if side<0 else "RIGHT",index),
-        (x,(ya+yb)*.5,(zlow+panel_top)*.5),
-        (.080,yb-ya,panel_top-zlow),paint,.025))
+    attach(sculpt_door_skin(name,side,index,ya,yb,half,zlow,panel_top,paint,accent,geom))
     attach(box("DOOR_%s_%s_INNER"%("LEFT" if side<0 else "RIGHT",index),
         (x-side*.075,(ya+yb)*.5,(zlow+panel_top)*.5),
         (.055,yb-ya-.035,panel_top-zlow-.07),accent,.02))
@@ -222,6 +223,16 @@ def build_car(car):
  faces=[]
  for k in range(segments):
   q=k*5
+  # Only real bonnets/decks are metal: do not skin over the passenger cabin
+  # or cover the visibly hollow pickup bed with a solid slab.
+  center_y=(yy[k]+yy[k+1])*.5
+  cockpit_front=front+L*(.24 if sport else .25)
+  cockpit_rear=rear-L*(.24 if sport else .22)
+  if style in (4,5):
+   cockpit_front=front+L*.27;cockpit_rear=rear+.1
+  elif style==6:
+   cockpit_front=front+L*.19;cockpit_rear=rear+.1
+  if cockpit_front<center_y<cockpit_rear:continue
   for i in range(4):faces.append((q+i,q+i+1,q+i+6,q+i+5))
  geom('Gently curved bonnet rear deck',vertices,faces,[paint])
  # A proper glass cabin with sloped front windshield, actual roof
@@ -354,6 +365,14 @@ def build_car(car):
  for x in (-half*.98,half*.98):
   for yy_w in (front_ax,rear_ax):
    wheel(x,yy_w,wheel_radius,half,int(car['signature_light_style'])+(0 if x>0 else 2))
+ # The detailing pass adds real geometry and parents chrome/body reveals to the
+ # SAME moving hinges; this is not a material-only or screenshot-only upgrade.
+ finishing=finish_car(car,length=L,width=W,height=H,half=half,
+  front=front,rear=rear,belt=belt,roof=roof,front_window=front_window,
+  rear_window=rear_window,roof_width=roof_w,front_axle=front_ax,
+  rear_axle=rear_ax,wheel_radius=wheel_radius,hinges=hinges,paint=paint,
+  accent=accent,alloy=alloy,trim=trim,glass=glass,dark=dark,
+  headlamp=headlamp,tail_lamp=tail_lamp,box=box,tube=tube,disk=disk,geom=geom)
  # Rigid door-kinematics adversarial proof: opening pivots must move panel vertices.
  for node_name in hinges:
   h=bpy.data.objects[node_name]
@@ -385,7 +404,11 @@ def build_car(car):
    'open_truck_bed':style in (4,5),
    'functional_door_hinges':hinges,'door_count':len(hinges),
    'angular_future_electric':style==6,'paint_material':'FF_BODY_PAINT',
-   'paint_options':len(car['colors']),'cost':car['game_price']}
+   'paint_options':len(car['colors']),'cost':car['game_price'],
+   'finish_detail_version':finishing['detail_version'],
+   'finish_meshes':finishing['finish_meshes'],
+   'movable_trim_parts':finishing['movable_trim_parts'],
+   'finish_features':finishing['features']}
 selected_ids=[v.strip() for v in os.environ.get('FF_CAR_IDS','').split(',') if v.strip()]
 if selected_ids:
  assert len(selected_ids)==len(set(selected_ids))
