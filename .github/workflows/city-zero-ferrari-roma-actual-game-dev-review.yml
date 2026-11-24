@@ -1,0 +1,107 @@
+name: City Zero Ferrari original 4 hinges in ACTUAL playable game DEV QA
+on:
+  workflow_dispatch:
+  push:
+    branches: [forever-frequency-native]
+    paths:
+      - '.github/workflows/city-zero-ferrari-roma-actual-game-dev-review.yml'
+      - 'forever-frequency-native/scripts/city_zero.gd'
+      - 'forever-frequency-native/tests/ferrari_roma_actual_city_qa_capture.gd'
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: cityzero-original-Ferrari-vs-orange-in-game-proof
+  cancel-in-progress: true
+jobs:
+  actual-city-3d-scene:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Retrieve authentic user-rejected-until-approved Ferrari source with four actual mechanical hinges
+        uses: actions/download-artifact@v4
+        with:
+          run-id: 45477105875
+          name: CityZero-Ferrari-Roma-ORIGINAL-Artist-Doors-Hood-Trunk-FULL-Blender-GLB
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: source-art
+      - name: Only DEV-inject exact author 238791 triangle 4-hinge Ferrari; preserve original orange GLB
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p forever-frequency-native/assets/review_only
+          find source-art -name 'ferrari_roma_2020_REAL_AUTHOR_BODY_DOORS_HOOD_TRUNK.glb' -type f -exec cp '{}' forever-frequency-native/assets/review_only/ ';'
+          python3 - <<'PY'
+          import hashlib,json,struct
+          from pathlib import Path
+          f=Path('forever-frequency-native/assets/review_only/ferrari_roma_2020_REAL_AUTHOR_BODY_DOORS_HOOD_TRUNK.glb')
+          raw=f.read_bytes()
+          assert len(raw)==11632372
+          assert hashlib.sha256(raw).hexdigest()=='1d978d7cfea1f42489faedfda6ae17b8bae600b402d72d08529492e1944538bb'
+          doc=json.loads(raw[20:20+struct.unpack_from('<I',raw,12)[0]])
+          ids={n.get('name') for n in doc['nodes']}
+          assert {'DOOR_LEFT_FRONT_HINGE','DOOR_RIGHT_FRONT_HINGE','HOOD_FRONT_HINGE','TRUNK_REAR_HINGE'}<=ids
+          tris=sum((doc['accessors'][p['indices']]['count'] if 'indices' in p else doc['accessors'][p['attributes']['POSITION']]['count'])//3 for mesh in doc['meshes'] for p in mesh['primitives'] if p.get('mode',4)==4)
+          assert tris==238791
+          orange=Path('forever-frequency-native/assets/curated_rigged/curated_midengine_supercar.glb').read_bytes()
+          assert hashlib.sha256(orange).hexdigest()=='45cdbfd70dc4e6c64b6bbbe5e24a2107044e2008928ab01c27fa8fbb91a25bd7'
+          assert 'CITYZERO_DEV_FERRARI_ROMA' in Path('forever-frequency-native/scripts/city_zero.gd').read_text()
+          print('ACTUAL_FERRARI_CAR_GLTF_4_SOURCE_HINGES_AND_UNTOUCHED_ORANGE_SHA_GREEN')
+          PY
+      - uses: solarlabyrinth/action-setup-godot@v3
+        with:
+          version: 4.4.1-stable
+          export-templates: false
+      - name: Install native OpenGL Mesa Godot render backend
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq xvfb libgl1 libgl1-mesa-dri libegl1 mesa-utils
+      - name: Import ORIGINAL Ferrari DEV ONLY into ACTUAL playable City Zero Godot 4 project
+        shell: bash
+        env:
+          LIBGL_ALWAYS_SOFTWARE: '1'
+          MESA_GL_VERSION_OVERRIDE: '3.3'
+          GODOT_AUDIO_DRIVER: Dummy
+        run: |
+          set -euo pipefail
+          xvfb-run -a -s '-screen 0 1600x900x24' timeout 210s \
+            godot --rendering-driver opengl3 --path forever-frequency-native --editor --import --quit \
+            2>&1 | tee REAL_GAME_FERRARI_SOURCE_IMPORT.log
+          if grep -E 'SCRIPT ERROR|Parse Error' REAL_GAME_FERRARI_SOURCE_IMPORT.log; then exit 1; fi
+      - name: Capture genuine REAL playable main city scene images with original Ferrari doors/hood/trunk CLOSED and OPEN
+        shell: bash
+        env:
+          LIBGL_ALWAYS_SOFTWARE: '1'
+          MESA_GL_VERSION_OVERRIDE: '3.3'
+          GODOT_AUDIO_DRIVER: Dummy
+          CITYZERO_DEV_FERRARI_ROMA: '1'
+        run: |
+          set -euo pipefail
+          mkdir -p "$PWD/ferrari-in-real-city-godot"
+          export CITYZERO_FERRARI_ACTUAL_CITY_GAME_PHOTOS="$PWD/ferrari-in-real-city-godot"
+          xvfb-run -a -s '-screen 0 1600x900x24' timeout 365s \
+            godot --rendering-driver opengl3 --path forever-frequency-native \
+            --script res://tests/ferrari_roma_actual_city_qa_capture.gd \
+            2>&1 | tee ferrari-in-real-city-godot/GODOT_ACTUAL_GAME_FERRARI_SOURCE.log
+          grep -q 'CITYZERO_FERRARI_ROMA_ACTUAL_GAME_MAIN_CITY_4_SOURCE_HINGES_SCREENSHOTS_GREEN' \
+            ferrari-in-real-city-godot/GODOT_ACTUAL_GAME_FERRARI_SOURCE.log
+          python3 - <<'PY'
+          from pathlib import Path
+          import json
+          d=Path('ferrari-in-real-city-godot')
+          r=json.loads((d/'ferrari_true_source_in_actual_city_dev_report.json').read_text())
+          assert r['gold_original_lamborghini_unmodified_present']
+          assert not r['ferrari_approved_by_owner'] and not r['ferrari_shipped_in_android_apk']
+          assert r['actual_scene_changed_pixel_samples']>280
+          assert len(list(d.glob('*.png')))==2
+          print('FERRARI_ORIGINAL_4_HINGES_ACTUAL_CITY_GAME_GODOT_GREEN_DEV_ONLY')
+          PY
+      - name: Store authentic actual-game Ferrari GLB source engine proof; never ship unapproved art
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: CityZero-Ferrari-ROMA-REAL-4-Hinges-ACTUAL-Game-Orange-Supercar-Proof
+          retention-days: 90
+          path: |
+            ferrari-in-real-city-godot/
+            REAL_GAME_FERRARI_SOURCE_IMPORT.log
+          if-no-files-found: warn
