@@ -17,7 +17,8 @@ catalog=json.loads((ROOT/'data'/'vehicle_fleet_catalog.json').read_text())
 models=catalog['models']
 PHOTO_SOURCES=json.loads((ROOT/'data'/'real_vehicle_photo_references.json').read_text())['vehicle_references']
 PHOTO_PROFILES={r['id']:r['photo_traced_profile'] for r in PHOTO_SOURCES}
-assert len(models)==60 and len({m['id'] for m in models})==60
+assert len(models)==59 and len({m['id'] for m in models})==59
+assert not any('REVULSE' in (m['id']+' '+m.get('name','')).upper() for m in models), 'Rejected prototype must never be exported'
 palette={
 'Obsidian Black':(.028,.035,.048),'Pearl White':(.85,.88,.88),
 'Graphite Silver':(.34,.40,.44),'Midnight Blue':(.045,.095,.20),
@@ -456,13 +457,13 @@ for idx,rec in enumerate(selected_models):
  print('FLEET 3D',idx+1,lim,rec['id'],data['triangles'],'triangles',flush=True)
 summary={'count':len(results),'available_paints':8,'vehicles':results}
 (CAR_DIR/'fleet_metrics.json').write_text(json.dumps(summary,indent=2))
-if lim==60:
+if lim==59:
  assert len({r['category'] for r in results})==12
  assert all(r['meshes']>=55 and r['paint_options']>=8 for r in results)
  assert all(r['door_count'] in (2,4) for r in results)
- assert sum(r['door_count'] for r in results)>=180
+ assert sum(r['door_count'] for r in results)>=178
  assert sum(r['open_truck_bed'] for r in results)==10
  assert sum(r['angular_future_electric'] for r in results)==1
- print('PREMIUM FLEET GEOMETRY GAUNTLET GREEN: 60 distinct source-backed GLBs / 480 playable colorways',flush=True)
+ print('PREMIUM FLEET GEOMETRY GAUNTLET GREEN: 59 distinct authored GLBs / 472 playable colorways; rejected REVULSE excluded',flush=True)
 else:
  print('PROTOTYPE ONLY — NOT FULL FLEET APPROVAL',len(results),flush=True)
