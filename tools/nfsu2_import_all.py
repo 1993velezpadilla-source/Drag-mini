@@ -14,6 +14,7 @@ import subprocess
 import sys
 from collections import Counter
 from pathlib import Path
+from nfsu2_parts_animation import inspect as inspect_animation
 
 PART_RULES = (
     ("trunk_audio", ("TRUNK_AUDIO",)),
@@ -294,6 +295,7 @@ def main(argv=None):
                  ("GEOMETRY.BIN", "TEXTURES.BIN", "VINYLS.BIN", "PARTS_ANIMATIONS.BIN")}
         item = {"sources": {name: bool(path) for name, path in files.items()},
                 "animation_file": str(files["PARTS_ANIMATIONS.BIN"] or ""),
+                "animation": inspect_animation(files["PARTS_ANIMATIONS.BIN"]),
                 "sound": sound_mapping(sound_data, folder.name),
                 "unlimiter": unlimiter_config(game, folder.name)}
         try:
