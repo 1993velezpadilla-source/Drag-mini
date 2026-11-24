@@ -6,6 +6,8 @@ on:
       - '.github/workflows/forever-frequency-quick.yml'
       - 'forever-frequency-native/scripts/**'
       - 'forever-frequency-native/scenes/**'
+      - 'forever-frequency-native/project.godot'
+      - 'forever-frequency-native/export_presets.cfg'
       - 'forever-frequency-native/tests/**'
   workflow_dispatch:
 
