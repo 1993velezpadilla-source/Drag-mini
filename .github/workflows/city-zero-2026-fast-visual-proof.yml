@@ -1,0 +1,94 @@
+name: City Zero 2026 - Fast Godot 33 GLB Visual Proof
+on:
+  push:
+    branches: [forever-frequency-native]
+    paths: ['.github/workflows/city-zero-2026-fast-visual-proof.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  inspect:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 18
+    container:
+      image: barichello/godot-ci:4.4
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download approved 13 building/prop GLBs
+        uses: actions/download-artifact@v4
+        with:
+          name: Premium-Forever-Frequency-13-GLB-Blender-Kit
+          repository: 1993velezpadilla-source/Drag-mini
+          run-id: 45322388388
+          github-token: ${{ github.token }}
+          path: forever-frequency-native/assets
+      - name: Download approved 20 city-life GLBs
+        uses: actions/download-artifact@v4
+        with:
+          name: FF-City-Life-2026-Blender-20-GLB
+          repository: 1993velezpadilla-source/Drag-mini
+          run-id: 45325843870
+          github-token: ${{ github.token }}
+          path: forever-frequency-native/assets
+      - name: Fix nested artifact paths and verify every source asset
+        shell: bash
+        run: |
+          set -euo pipefail
+          if test -d forever-frequency-native/assets/assets; then
+            find forever-frequency-native/assets/assets -maxdepth 1 -type f -exec mv -t forever-frequency-native/assets/ {} +
+            rmdir forever-frequency-native/assets/assets
+          fi
+          find forever-frequency-native/assets -maxdepth 1 -name '*.blend' -delete
+          rm -f forever-frequency-native/assets/studio_entrance.glb forever-frequency-native/assets/street_kiosk.glb
+          echo 'Actual GLB count:'
+          find forever-frequency-native/assets -maxdepth 1 -name '*.glb' | sort
+          test "$(find forever-frequency-native/assets -maxdepth 1 -name '*.glb' | wc -l)" -eq 33
+          test -s forever-frequency-native/assets/urban_life_district.glb
+          test -s forever-frequency-native/assets/citizen_07.glb
+          test -s forever-frequency-native/assets/skyline_dusk.glb
+      - name: Install framebuffer / Pillow / numpy for visual critic
+        run: apt-get update -qq && apt-get install -y -qq xvfb libgl1-mesa-dri libgl1 python3 python3-pil python3-numpy
+      - name: Generate original dusk cloud map
+        run: python3 forever-frequency-native/tools/generate_skycover.py
+      - name: Real Godot GLB import and parser validation
+        shell: bash
+        run: |
+          set -o pipefail
+          timeout 420s godot --headless --path forever-frequency-native --editor --import --quit 2>&1 | tee import.log
+          if grep -E 'SCRIPT ERROR|Parse Error|Failed loading resource' import.log; then exit 1; fi
+      - name: Run gameplay regression gauntlet
+        shell: bash
+        env:
+          FOREVER_REQUIRE_MODELS: '1'
+        run: |
+          set -o pipefail
+          timeout 120s godot --headless --path forever-frequency-native --script res://tests/gauntlet.gd 2>&1 | tee gameplay.log
+          grep 'GAUNTLET GREEN' gameplay.log
+      - name: Capture actual 2026 street life from four positions
+        shell: bash
+        run: |
+          set -o pipefail
+          timeout 180s xvfb-run -a -s '-screen 0 1280x720x24' godot --path forever-frequency-native --rendering-method gl_compatibility --script res://tests/capture.gd 2>&1 | tee capture.log
+          grep 'CITY LIFE ACTIVE' capture.log
+          grep 'REAL GODOT FOUR-ANGLE VISUAL GAUNTLET GREEN' capture.log
+      - name: Strict visual and art-direction critics
+        shell: bash
+        run: |
+          set -o pipefail
+          python3 forever-frequency-native/tools/visual_critic.py 2>&1 | tee visual.log
+          python3 forever-frequency-native/tools/art_direction_gauntlet.py 2>&1 | tee art_direction.log
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: City-Zero-2026-Four-Real-Godot-Screenshots
+          path: |
+            forever-frequency-native/preview_*.png
+            forever-frequency-native/visual_critic_report.json
+            forever-frequency-native/art_direction_report.json
+            import.log
+            gameplay.log
+            capture.log
+            visual.log
+            art_direction.log
+          if-no-files-found: warn
