@@ -41,6 +41,15 @@ jobs:
                   entry['id'],entry['sha256'],actual)
               print('LICENSED GLB SOURCE PIN GREEN',entry['id'],len(blob),actual,flush=True)
           PY
+      - name: Install exact Khronos KTX CLI 4.4.2 for BasisU decompression
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl -fLsS --retry 3 --max-time 60 \
+            https://github.com/KhronosGroup/KTX-Software/releases/download/v4.4.2/KTX-Software-4.4.2-Linux-x86_64.deb \
+            -o /tmp/ktx.deb
+          sudo apt-get install -y /tmp/ktx.deb
+          command -v ktx
       - name: Decode EXT_meshopt_compression to neutral GLB for Blender
         shell: bash
         run: |
