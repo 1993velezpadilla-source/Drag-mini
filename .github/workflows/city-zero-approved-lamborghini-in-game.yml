@@ -116,7 +116,7 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p approved-lamborghini-godot-evidence
-          export CITYZERO_LAMBORGHINI_SCREENSHOTS="$PWD/approved-lamborghini-godot-evidence"
+          export CITYZERO_APPROVED_ORANGE_LAMBORGHINI_SCREENSHOTS="$PWD/approved-lamborghini-godot-evidence"
           xvfb-run -a -s '-screen 0 1920x1080x24' timeout 240s \
             godot --rendering-driver opengl3 --path approved-isolated \
               --script res://tests/approved_lamborghini_in_game_capture.gd \
@@ -138,6 +138,10 @@ jobs:
           git add forever-frequency-native/screenshots/LAMBORGHINI_CITY_ZERO_IN_GAME_DOORS_CLOSED.png
           git add forever-frequency-native/screenshots/LAMBORGHINI_CITY_ZERO_IN_GAME_DOORS_OPEN.png
           git add forever-frequency-native/screenshots/original_orange_lamborghini_evidence.json
+          if git diff --cached --quiet; then
+            echo 'Verified photos already published'
+            exit 0
+          fi
           git commit -m "Ship user's orange Lamborghini original GLB and actual City Zero Godot photos [skip ci]"
           git reset --hard HEAD
           for attempt in 1 2 3 4 5; do
