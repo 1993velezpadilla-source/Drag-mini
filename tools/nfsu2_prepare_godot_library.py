@@ -55,16 +55,40 @@ def private_path(root: Path, name: str) -> Path:
 
 
 def glb_facts(path: Path) -> dict:
+    """Fail closed for empty, truncated or malformed mesh-only GLB exports."""
     with path.open("rb") as f:
         data = f.read(20)
-    if len(data) != 20:
-        raise ValueError("Incomplete GLB header")
-    magic, ver, length, json_length, chunk = struct.unpack("<4sIII4s", data)
-    if magic != b"glTF" or ver != 2 or chunk != b"JSON":
-        raise ValueError("Not a glTF 2.0 binary")
-    if length != path.stat().st_size or json_length > length - 20:
-        raise ValueError("GLB length mismatch")
-    return {"bytes": length, "glb_version": 2}
+        if len(data) != 20:
+            raise ValueError("Incomplete GLB header")
+        magic, ver, length, json_length, chunk = struct.unpack("<4sIII4s", data)
+        if magic != b"glTF" or ver != 2 or chunk != b"JSON":
+            raise ValueError("Not a glTF 2.0 binary")
+        if length != path.stat().st_size or json_length > length - 20 or json_length > 64_000_000:
+            raise ValueError("GLB length mismatch")
+        payload = f.read(json_length)
+        if len(payload) != json_length:
+            raise ValueError("Truncated glTF JSON")
+    try:
+        doc = json.loads(payload)
+    except (ValueError, UnicodeDecodeError) as e:
+        raise ValueError("Invalid glTF JSON: " + str(e)) from e
+    if not isinstance(doc, dict) or doc.get("asset", {}).get("version") != "2.0":
+        raise ValueError("Not a valid glTF 2.0 scene")
+    nodes = doc.get("nodes", [])
+    meshes = doc.get("meshes", [])
+    if not isinstance(nodes, list) or not isinstance(meshes, list):
+        raise ValueError("Missing glTF nodes or meshes")
+    visible = 0
+    for node in nodes:
+        mesh_id = node.get("mesh") if isinstance(node, dict) else None
+        if isinstance(mesh_id, int) and 0 <= mesh_id < len(meshes):
+            mesh = meshes[mesh_id]
+            if isinstance(mesh, dict) and mesh.get("primitives"):
+                visible += 1
+    if visible < 1:
+        raise ValueError("GLB has no renderable mesh node; reject blank export")
+    return {"bytes": length, "glb_version": 2,
+            "mesh_definitions": len(meshes), "renderable_mesh_nodes": visible}
 
 
 def _sound_index(records: list[dict]) -> dict[str, list[dict]]:
