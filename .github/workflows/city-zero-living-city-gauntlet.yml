@@ -53,7 +53,7 @@ jobs:
           for p in ['traffic_signal','stop_sign','bus_shelter','fire_hydrant','street_bin','skyline_dusk']:
               assert p in civic,p
           assert len(list(a.glob('*.glb')))==20, list(a.glob('*.glb'))
-          assert all(v['mesh_count']>=36 for v in cars.values()),cars
+          assert all(v['meshes']>=36 for v in cars.values()),cars
           print('STRICT CITY LIFE BLENDER GAUNTLET GREEN — 6 vehicles, 8 actors, 6 civic assets')
           PY
       - uses: actions/upload-artifact@v4
