@@ -418,14 +418,20 @@ func _spawn_original_revulse_in_city() -> void:
     # This is the exact original Blender-authored Lamborghini Aventador-inspired
     # REVULSE (two independently animated door hinges), not a substitute mesh.
     # Only the real exported GLB is accepted. Missing model => no fake car.
-    if not ResourceLoader.exists(REVULSE_MODEL):
-        push_warning("CITY_ZERO_REVULSE_ASSET_MISSING: Build the authored GLB first")
+    # Godot's editor .glb.import file may fail to materialize in CI even
+    # though Blender exported the genuine GLB successfully. Read that exact
+    # original binary at runtime instead of depending on editor ResourceLoader.
+    var actual_glb := ProjectSettings.globalize_path(REVULSE_MODEL)
+    if not FileAccess.file_exists(actual_glb):
+        push_warning("CITY_ZERO_REVULSE_ASSET_MISSING: " + actual_glb)
         return
-    var source: PackedScene = load(REVULSE_MODEL)
-    if source == null:
-        push_error("CITY_ZERO_REVULSE_SOURCE_LOAD_FAILED")
+    var gltf_doc := GLTFDocument.new()
+    var gltf_state := GLTFState.new()
+    var import_status := gltf_doc.append_from_file(actual_glb, gltf_state)
+    if import_status != OK:
+        push_error("CITY_ZERO_REVULSE_ORIGINAL_GLB_LOAD_FAILED: " + str(import_status))
         return
-    revulse_car = source.instantiate() as Node3D
+    revulse_car = gltf_doc.generate_scene(gltf_state) as Node3D
     if revulse_car == null:
         push_error("CITY_ZERO_REVULSE_INVALID_GLTF_ROOT")
         return
