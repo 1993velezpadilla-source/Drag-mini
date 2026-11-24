@@ -61,6 +61,16 @@ jobs:
           cp -a /root/.config/godot/. "$HOME/.config/godot/"
           test -s "$HOME/.local/share/godot/export_templates/4.4.stable/android_debug.apk"
           grep 'export/android/java_sdk_path' "$HOME/.config/godot/editor_settings-4.4.tres"
+      - name: Install Python and Godot 4.4 Android SDK requirements
+        shell: bash
+        run: |
+          apt-get update -qq
+          apt-get install -y -qq python3
+          export ANDROID_HOME=/usr/lib/android-sdk
+          printf 'y\ny\ny\ny\n' | sdkmanager --sdk_root="$ANDROID_HOME" 'build-tools;34.0.0' 'platforms;android-34' 'platform-tools'
+          test -x "$ANDROID_HOME/build-tools/34.0.0/aapt2"
+          test -f "$ANDROID_HOME/platforms/android-34/android.jar"
+          python3 --version
       - name: Source-level adversarial audit
         run: python3 forever-frequency-native/tools/adversarial_audit.py
       - name: Check engine and export templates
