@@ -1,0 +1,104 @@
+name: City Zero - Ferrari Roma real Godot close-up hinged door body and glass final QA
+on:
+  workflow_dispatch:
+  push:
+    branches: [forever-frequency-native]
+    paths:
+      - '.github/workflows/city-zero-ferrari-roma-godot-tight-close-open.yml'
+      - 'forever-frequency-native/tests/ferrari_roma_real_doors_godot_qa.gd'
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: cityzero-Ferrari-Roma-doors-only-native-Godot-fullframe
+  cancel-in-progress: true
+jobs:
+  actual-godot-both-real-door-shells-open:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          run-id: 45475420802
+          name: CityZero-TRUE-ORIGINAL-Ferrari-Roma-Art-Body-Glass-Door-Hinges-Blender
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: ferrari-author-native-rig
+      - name: Install genuine source Ferrari Roma rigged GLB in isolated Godot 4
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p isolated/assets/ferrari_roma_review isolated/tests isolated/scripts
+          find ferrari-author-native-rig -name 'ferrari_roma_2020_real_artist_island_DOOR_HINGES.glb' -type f \
+            -exec cp '{}' isolated/assets/ferrari_roma_review/ ';'
+          test -s isolated/assets/ferrari_roma_review/ferrari_roma_2020_real_artist_island_DOOR_HINGES.glb
+          cp forever-frequency-native/tests/ferrari_roma_real_doors_godot_qa.gd isolated/tests/
+          cp forever-frequency-native/scripts/vehicle_door_controller.gd isolated/scripts/
+          cat > isolated/project.godot <<'GODOT'
+          config_version=5
+          [application]
+          config/name="City Zero Ferrari Roma 2020 ORIGINAL source body and glass mechanical hinges; not yet art approved"
+          [display]
+          window/size/viewport_width=1600
+          window/size/viewport_height=1000
+          [rendering]
+          renderer/rendering_method="gl_compatibility"
+          renderer/rendering_method.mobile="gl_compatibility"
+          GODOT
+      - uses: solarlabyrinth/action-setup-godot@v3
+        with:
+          version: 4.4.1-stable
+          export-templates: false
+      - name: Install Mesa actual OpenGL native software frame renderer
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq xvfb libgl1 libgl1-mesa-dri libegl1 mesa-utils
+      - name: Load 3D original Ferrari artist car, door bodies, side glasses and 2 true hinges
+        shell: bash
+        env:
+          LIBGL_ALWAYS_SOFTWARE: '1'
+          MESA_GL_VERSION_OVERRIDE: '3.3'
+          GODOT_AUDIO_DRIVER: Dummy
+        run: |
+          set -euo pipefail
+          xvfb-run -a -s '-screen 0 1800x1200x24' timeout 200s \
+            godot --rendering-driver opengl3 --path isolated --editor --import --quit \
+            2>&1 | tee REAL_FERRARI_BODY_GLASS_GODOT_GLTF_IMPORT.log
+          if grep -E 'SCRIPT ERROR|Parse Error' REAL_FERRARI_BODY_GLASS_GODOT_GLTF_IMPORT.log; then exit 1; fi
+      - name: Genuine Godot 4 renderer photograph both REAL original author door sides closed AND opened
+        shell: bash
+        env:
+          LIBGL_ALWAYS_SOFTWARE: '1'
+          MESA_GL_VERSION_OVERRIDE: '3.3'
+          GODOT_AUDIO_DRIVER: Dummy
+        run: |
+          set -euo pipefail
+          mkdir -p "$PWD/real-ferrari-roma-mechanical-godot-frames"
+          export CITYZERO_FERRARI_TRUE_HINGES_GODOT="$PWD/real-ferrari-roma-mechanical-godot-frames"
+          xvfb-run -a -s '-screen 0 1800x1200x24' timeout 380s \
+            godot --rendering-driver opengl3 --path isolated \
+            --script res://tests/ferrari_roma_real_doors_godot_qa.gd \
+            2>&1 | tee real-ferrari-roma-mechanical-godot-frames/REAL_FERRARI_SOURCE_DOOR_OPEN_CLOSE.log
+          grep -q 'REAL_FERRARI_ROMA_SOURCE_DOOR_SHELLS_GODOT_CLOSED_AND_OPENED_TRUE_ENGINE_PASS' \
+            real-ferrari-roma-mechanical-godot-frames/REAL_FERRARI_SOURCE_DOOR_OPEN_CLOSE.log
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          d=Path('real-ferrari-roma-mechanical-godot-frames')
+          r=json.loads((d/'ferrari_roma_true_rig_real_godot_report.json').read_text())
+          assert r['two_author_body_panels_hinged'] and r['both_original_glass_panel_groups_follow_hinge']
+          assert r['original_source_geometry_replaced'] is False
+          assert r['true_rendered_changed_pixels']>300
+          assert r['doors_reached_real_open_angles']
+          assert not r['owner_art_approved'] and not r['licensing_rights_review_pending'] is False
+          assert len(list(d.glob('*.png')))==2
+          print('REAL_FERRARI_AUTHOR_BODY_GLASS_HINGED_DOORS_TRUE_CLOSED_OPEN_NATIVE_GODOT_PIXEL_GREEN')
+          PY
+      - name: Upload genuine Ferrari Godot screenshot proofs and technical report (NOT owner approved)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: CityZero-TRUE-Ferrari-Roma-Native-Godot-Actual-Full-Frame-Doors
+          retention-days: 90
+          path: |
+            real-ferrari-roma-mechanical-godot-frames/
+            REAL_FERRARI_BODY_GLASS_GODOT_GLTF_IMPORT.log
+          if-no-files-found: warn
