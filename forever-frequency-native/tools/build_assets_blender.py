@@ -61,7 +61,7 @@ def cube(name, loc, scale, mat, bevel=0):
     ob.data.materials.append(mat)
     if bevel>0:
         m=ob.modifiers.new('Soft manufactured edges','BEVEL');m.width=bevel;m.segments=2
-        ob.modifiers.new('Normal smoothing','WEIGHTED_NORMAL')
+        # Avoid weighted-normal auto-smooth warnings on stock Blender 4.0.
     return ob
 
 def cyl(name, loc, radius, depth, mat, verts=12, rotation=(0,0,0)):

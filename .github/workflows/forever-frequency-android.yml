@@ -21,8 +21,9 @@ jobs:
       - name: Blender package
         run: |
           sudo apt-get update -qq
-          sudo apt-get install -y -qq blender
+          sudo apt-get install -y -qq blender python3-numpy python3-pil python3-requests
           blender --version
+          blender -b -t 2 --python-expr 'import numpy; print("NUMPY IMPORT GREEN", numpy.__version__)'
       - name: Generate editable Blender models + GLB
         run: |
           cd forever-frequency-native
@@ -74,6 +75,8 @@ jobs:
           if grep -E 'SCRIPT ERROR|Parse Error|Failed loading resource' import.log; then exit 1; fi
       - name: Core-gameplay gauntlet
         shell: bash
+        env:
+          FOREVER_REQUIRE_MODELS: '1'
         run: |
           godot --headless --path forever-frequency-native --script res://tests/gauntlet.gd 2>&1 | tee gauntlet.log
           if grep -E 'SCRIPT ERROR|Parse Error|GAUNTLET RED' gauntlet.log; then exit 1; fi
