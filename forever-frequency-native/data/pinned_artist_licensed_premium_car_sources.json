@@ -13,7 +13,10 @@
       "git_blob_sha1": "09656a7e9c064ea44129fe0b64ef1b934278500d",
       "license": "basic/bmw/m3/license.txt",
       "artist": "Drifter Models",
-      "expected_min_triangles": 15000
+      "expected_min_triangles": 15000,
+      "expected_longest_extent_m": 4.794,
+      "length_source": "https://www.bmw.co.uk/en/all-models/m-series/m3-sedan/2024/bmw-3-series-sedan-m-models-technical-data.html",
+      "scale_is_manufacturer_length_estimate": true
     },
     {
       "id": "ferrari_roma_2020",
@@ -22,7 +25,10 @@
       "git_blob_sha1": "1549fbeecf60e888490779d1d33b1e3ad0ac2696",
       "license": "basic/ferrari/roma-2020/license.txt",
       "artist": "Ddiaz Design",
-      "expected_min_triangles": 15000
+      "expected_min_triangles": 15000,
+      "expected_longest_extent_m": 4.656,
+      "length_source": "https://www.ferrari.com/en-EN/auto/ferrari-roma",
+      "scale_is_manufacturer_length_estimate": true
     },
     {
       "id": "ferrari_sf90_xx_2023",
@@ -31,7 +37,10 @@
       "git_blob_sha1": "d1e3de606845f99ada18e1a9837b83f554568695",
       "license": "basic/ferrari/sf90/license.txt",
       "artist": "Ddiaz Design",
-      "expected_min_triangles": 15000
+      "expected_min_triangles": 15000,
+      "expected_longest_extent_m": 4.85,
+      "length_source": "https://www.ferrari.com/en-EN/auto/sf90-xx-stradale",
+      "scale_is_manufacturer_length_estimate": true
     },
     {
       "id": "lamborghini_aventador_interior",
@@ -40,7 +49,10 @@
       "git_blob_sha1": "0a3ec230fe56998103055508734de8f240f3164b",
       "license": "basic/lamborghini/aventador/license.txt",
       "artist": "BlackCube",
-      "expected_min_triangles": 15000
+      "expected_min_triangles": 15000,
+      "expected_longest_extent_m": 4.78,
+      "length_source": "https://www.lamborghini.com/en-en/history/aventador-lp-700-4",
+      "scale_is_manufacturer_length_estimate": true
     },
     {
       "id": "lamborghini_huracan_evo_2019",
@@ -49,7 +61,10 @@
       "git_blob_sha1": "b4ea1f630ba83f84fad043e21b4043d9fbaf8d0a",
       "license": "basic/lamborghini/huracan/license.txt",
       "artist": "Galaxy Car Showroom",
-      "expected_min_triangles": 15000
+      "expected_min_triangles": 15000,
+      "expected_longest_extent_m": 4.52,
+      "length_source": "https://www.lamborghini.com/en-en/models/huracan",
+      "scale_is_manufacturer_length_estimate": true
     },
     {
       "id": "mclaren_570s_2016",
@@ -58,7 +73,11 @@
       "git_blob_sha1": "57e30deba9becfa8db426c926fccb7f8845f7536",
       "license": "basic/mclaren/570s-2016/license.txt",
       "artist": "Ddiaz Design",
-      "expected_min_triangles": 15000
+      "expected_min_triangles": 15000,
+      "expected_longest_extent_m": 4.53,
+      "length_source": "https://cars.mclaren.com/en/sports-series/570s",
+      "scale_is_manufacturer_length_estimate": true
     }
-  ]
+  ],
+  "policy_for_scale": "Imported GLB author units may be centimetres/metres; ONLY uniform scaling of true original mesh hierarchy is permitted. Preserve original source GLB bytes; stop if factor out of range. Manufacturing catalog lengths are references, not independent verification of derivative source geometry."
 }
