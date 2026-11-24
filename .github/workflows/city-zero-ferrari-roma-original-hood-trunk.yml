@@ -1,0 +1,186 @@
+name: City Zero - Ferrari Roma original authentic HOOD TRUNK doors Blender Godot proof
+on:
+  workflow_dispatch:
+  push:
+    branches: [forever-frequency-native]
+    paths:
+      - '.github/workflows/city-zero-ferrari-roma-original-hood-trunk.yml'
+      - 'forever-frequency-native/tools/ferrari_roma_original_hood_trunk_islands.py'
+      - 'forever-frequency-native/tests/ferrari_roma_original_hood_trunk_godot_qa.gd'
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: cityzero-actual-ferrari-roma-real-hood-trunk-author-mesh
+  cancel-in-progress: true
+jobs:
+  real-authored-hood-trunk-blender-sculpt:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download rigorously provenance verified original 2020 Ferrari with TWO existing body-and-glass door hinges
+        uses: actions/download-artifact@v4
+        with:
+          run-id: 45475420802
+          name: CityZero-TRUE-ORIGINAL-Ferrari-Roma-Art-Body-Glass-Door-Hinges-Blender
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: authenticated-ferrari-glb
+      - name: Confirm ORIGINAL exact GLB SHA, author mesh triangles and no substitute meshes
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m py_compile forever-frequency-native/tools/ferrari_roma_original_hood_trunk_islands.py
+          mkdir -p forever-frequency-native/assets/ferrari_roma_review
+          find authenticated-ferrari-glb -name ferrari_roma_2020_real_artist_island_DOOR_HINGES.glb -type f \
+            -exec cp '{}' forever-frequency-native/assets/ferrari_roma_review/ ';'
+          python3 - <<'PY'
+          from pathlib import Path
+          import hashlib,json,struct
+          f=Path('forever-frequency-native/assets/ferrari_roma_review/ferrari_roma_2020_real_artist_island_DOOR_HINGES.glb')
+          b=f.read_bytes()
+          assert len(b)==11630052
+          assert hashlib.sha256(b).hexdigest()=='0620ad40472c2816d9b3cabf13c4f7a94d7ab420b3f36fca4c2b048ea7e73a2c'
+          assert b[:4]==b'glTF'
+          raw=json.loads(b[20:20+struct.unpack_from('<I',b,12)[0]])
+          tris=sum((raw['accessors'][p['indices']]['count'] if 'indices' in p else raw['accessors'][p['attributes']['POSITION']]['count'])//3 for m in raw['meshes'] for p in m['primitives'] if p.get('mode',4)==4)
+          assert tris==238791
+          names={n.get('name') for n in raw.get('nodes',[])}
+          assert {'DOOR_LEFT_FRONT_HINGE','DOOR_RIGHT_FRONT_HINGE'}<=names
+          print('EXACT_REAL_FERRARI_ARTIST_238791_FACES_DOORS_SHA256_LOCKED_GREEN')
+          PY
+      - name: Native Blender 4.5 LTS sculpt-only original disconnected Ferrari hood + trunk factory mesh components
+        run: docker pull ghcr.io/blenderkit/headless-blender:blender-4.5-stable
+      - name: ACTUALLY attach original artist hood and trunk geometry to real opening pivots, render 4 true Blender angle frames
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd forever-frequency-native
+          timeout 1100s docker run --rm \
+            --entrypoint /home/headless/blender/blender \
+            -v "$PWD:$PWD" -w "$PWD" \
+            ghcr.io/blenderkit/headless-blender:blender-4.5-stable \
+            -b -t 2 --python tools/ferrari_roma_original_hood_trunk_islands.py \
+            2>&1 | tee ORIGINAL_FERRARI_HOOD_TRUNK_BLENDER.log
+          grep -q 'FERRARI_ROMA_ORIGINAL_SOURCE_HOOD_TRUNK_BOTH_REAL_GEOMETRY_HINGES_GREEN' ORIGINAL_FERRARI_HOOD_TRUNK_BLENDER.log
+      - name: Adversarial physical real original body source triangle and movement audits
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          import json
+          root=Path('forever-frequency-native/ferrari_roma_real_hood_trunk_review')
+          d=json.loads((root/'ferrari_roma_true_author_hood_trunk_audit.json').read_text())
+          assert d['original_artist_triangles']==d['source_triangles_after_all_splits']==238791
+          assert sorted(d['hood']['source_component_faces'])==[1836,3256]
+          assert sorted(d['trunk']['source_component_faces'])==[1154,1240]
+          assert d['hood']['detached_original_faces']==5092
+          assert d['trunk']['detached_original_faces']==2394
+          assert d['movement_m']['hood']>.55 and d['movement_m']['trunk']>.20
+          assert len(d['original_door_hinge_nodes'])==2
+          assert d['bodywork_added_or_generated'] is False
+          assert d['original_source_mesh_material_uv_retained']
+          assert not d['owner_art_approved']
+          assert len(list(root.glob('*_REAL_ORIGINAL_ARTIST_FERRARI_3D_BLENDER.png')))==4
+          assert all((root/x).stat().st_size>45000 for x in d['four_authentic_blender_images'])
+          assert (root/'ferrari_roma_2020_REAL_AUTHOR_BODY_DOORS_HOOD_TRUNK.glb').stat().st_size>8500000
+          assert (root/'ferrari_roma_2020_REAL_ALL_FOUR_SOURCE_HINGES.blend').stat().st_size>2000000
+          print('TRUE_FERRARI_SOURCE_HOOD_TRUNK_BOTH_ARTIST_HINGES_BLENDER_GREEN_NOT_ART_APPROVED')
+          PY
+      - name: Preserve original artist four functional Ferrari hinges, full GLB, editable blend and 4 native Blender screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: CityZero-Ferrari-Roma-ORIGINAL-Artist-Doors-Hood-Trunk-FULL-Blender-GLB
+          retention-days: 90
+          path: |
+            forever-frequency-native/ferrari_roma_real_hood_trunk_review/
+            forever-frequency-native/ORIGINAL_FERRARI_HOOD_TRUNK_BLENDER.log
+          if-no-files-found: warn
+  four-native-godot-real-source-hood-trunk-photos:
+    needs: real-authored-hood-trunk-blender-sculpt
+    runs-on: ubuntu-22.04
+    timeout-minutes: 22
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: CityZero-Ferrari-Roma-ORIGINAL-Artist-Doors-Hood-Trunk-FULL-Blender-GLB
+          path: original-author
+      - name: Import only original Ferrari author GLB with physical hood trunk doors into isolated Godot 4
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p isolated/assets/ferrari_roma_review isolated/tests
+          find original-author -name ferrari_roma_2020_REAL_AUTHOR_BODY_DOORS_HOOD_TRUNK.glb -type f \
+            -exec cp '{}' isolated/assets/ferrari_roma_review/ ';'
+          test -s isolated/assets/ferrari_roma_review/ferrari_roma_2020_REAL_AUTHOR_BODY_DOORS_HOOD_TRUNK.glb
+          cp forever-frequency-native/tests/ferrari_roma_original_hood_trunk_godot_qa.gd isolated/tests/
+          cat > isolated/project.godot <<'GODOT'
+          config_version=5
+          [application]
+          config/name="City Zero original 2020 Ferrari Roma creator-authored hood + trunk + doors real hinges QA"
+          [display]
+          window/size/viewport_width=1600
+          window/size/viewport_height=1000
+          [rendering]
+          renderer/rendering_method="gl_compatibility"
+          renderer/rendering_method.mobile="gl_compatibility"
+          GODOT
+      - uses: solarlabyrinth/action-setup-godot@v3
+        with:
+          version: 4.4.1-stable
+          export-templates: false
+      - name: Real Mesa OpenGL software rasterizer for exact native Godot geometry proof
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq xvfb libgl1 libgl1-mesa-dri libegl1 mesa-utils
+      - name: Godot editor imports actual authored 3D Ferrari original GLB data and PBR surfaces
+        shell: bash
+        env:
+          LIBGL_ALWAYS_SOFTWARE: '1'
+          MESA_GL_VERSION_OVERRIDE: '3.3'
+          GODOT_AUDIO_DRIVER: Dummy
+        run: |
+          set -euo pipefail
+          xvfb-run -a -s '-screen 0 1800x1200x24' timeout 210s \
+            godot --rendering-driver opengl3 --path isolated --editor --import --quit \
+            2>&1 | tee FERRARI_ORIGINAL_HOOD_TRUNK_GODOT_IMPORT.log
+          if grep -E 'SCRIPT ERROR|Parse Error' FERRARI_ORIGINAL_HOOD_TRUNK_GODOT_IMPORT.log; then exit 1; fi
+      - name: Actual Godot hinged bonnet + trunk CLOSED OPENED screenshots (2 views each, no image generation)
+        shell: bash
+        env:
+          LIBGL_ALWAYS_SOFTWARE: '1'
+          MESA_GL_VERSION_OVERRIDE: '3.3'
+          GODOT_AUDIO_DRIVER: Dummy
+        run: |
+          set -euo pipefail
+          mkdir -p "$PWD/ferrari-author-real-hood-trunk-godot"
+          export CITYZERO_FERRARI_HOOD_TRUNK_GODOT_FRAMES="$PWD/ferrari-author-real-hood-trunk-godot"
+          xvfb-run -a -s '-screen 0 1800x1200x24' timeout 390s \
+            godot --rendering-driver opengl3 --path isolated \
+            --script res://tests/ferrari_roma_original_hood_trunk_godot_qa.gd \
+            2>&1 | tee ferrari-author-real-hood-trunk-godot/REAL_SOURCE_HOOD_TRUNK_GODOT.log
+          grep -q 'FERRARI_ROMA_ORIGINAL_ARTIST_HOOD_TRUNK_REAL_GODOT_4_VIEWS_GREEN' ferrari-author-real-hood-trunk-godot/REAL_SOURCE_HOOD_TRUNK_GODOT.log
+          python3 - <<'PY'
+          from pathlib import Path
+          import json
+          folder=Path('ferrari-author-real-hood-trunk-godot')
+          report=json.loads((folder/'ferrari_roma_original_hood_trunk_engine_report.json').read_text())
+          assert report['original_artist_triangles']==238791
+          assert report['bonnet_and_trunk_not_fake_meshes'] is True
+          assert report['native_godot_screenshots']==4
+          assert len(list(folder.glob('*.png')))==4
+          assert all(x['actual_changed_pixel_samples']>200 for x in report['source_panel_tests'])
+          assert report['user_approved'] is False
+          print('FERRARI_ROMA_FULL_REAL_4_HINGE_SOURCE_GODOT_FRAMES_GREEN_NOT_USER_APPROVED')
+          PY
+      - name: Publish 4 TRUE native Godot screenshots for Ferrari original independently rigged hood/trunk
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: CityZero-Ferrari-Roma-ORIGINAL-Godot-4-Real-Hood-Trunk-Images
+          retention-days: 90
+          path: |
+            ferrari-author-real-hood-trunk-godot/
+            FERRARI_ORIGINAL_HOOD_TRUNK_GODOT_IMPORT.log
+          if-no-files-found: warn
