@@ -45,6 +45,26 @@ jobs:
               test "$(stat -c %s "forever-frequency-native/pbr_sources/${file}")" -gt 10000
             done
           done
+      - name: Prepare mobile PBR street textures
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p forever-frequency-native/assets
+          curl --fail --location --retry 3 --max-time 90 \
+            'https://raw.githubusercontent.com/petroulacl/fps-buildings-env-kit/main/environment/ground-textures/ambientcg/Asphalt021_2K-JPG/Asphalt021_2K-JPG_Color.jpg' \
+            -o /tmp/asphalt.jpg
+          python3 - <<'PY'
+          from PIL import Image
+          from pathlib import Path
+          target=Path('forever-frequency-native/assets')
+          source={'road_asphalt.jpg':'/tmp/asphalt.jpg',
+                  'sidewalk_concrete.jpg':'forever-frequency-native/pbr_sources/Concrete012_2K-JPG_Color.jpg'}
+          for dst,src in source.items():
+              with Image.open(src) as im:
+                  im.convert('RGB').resize((1024,1024),Image.Resampling.LANCZOS).save(target/dst,'JPEG',quality=80,optimize=True)
+              assert (target/dst).stat().st_size>50000, dst
+              print('MOBILE PBR TEXTURE READY',dst,(target/dst).stat().st_size)
+          PY
       - name: PBR material upgrade and mesh batching in Blender
         shell: bash
         run: |
@@ -67,6 +87,7 @@ jobs:
             forever-frequency-native/assets/*.glb
             forever-frequency-native/assets/*.blend
             forever-frequency-native/assets/mesh_metrics.json
+            forever-frequency-native/assets/*.jpg
           if-no-files-found: error
 
   android:
