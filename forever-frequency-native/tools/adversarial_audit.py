@@ -28,6 +28,8 @@ check('MAX_OFFLINE_SECONDS := 8 * 3600' in state, 'Offline business exploit capp
 check('JSON.parse_string' in state and 'FileAccess.open' in state, 'Persistent local save')
 check('export_scene.gltf' in blender and 'save_as_mainfile' in blender, 'Blender-generated editable 3D assets')
 check('LA CALDERA RECORDS' in world and 'ECHO STUDIO' not in world, 'Rebrand fully to La Caldera Records')
+check("res://assets/urban_life_district.glb" in world, 'Visual: actual playable city loads the additional Blender district')
+check((R/'tools/premium_art_pass.py').is_file() and (R/'tools/urban_life_district.py').is_file(), 'Two separate Blender architecture + urban detail passes')
 check("'la_caldera_records.glb'" in blender and 'res://assets/la_caldera_records.glb' in world, 'Blender hero studio is loaded in Godot')
 check('def build_market()' in blender and 'def build_home()' in blender and 'def build_stage()' in blender, 'Custom architectural assets replace dull box landmarks')
 check('def build_artist()' in blender and 'def build_pet()' in blender, 'Original 3D avatar and companion')
@@ -43,7 +45,13 @@ assets=R/'assets'
 if assets.is_dir() and any(assets.glob('*.glb')):
     check(not any(assets.glob('*.blend')), 'No Blender source files in Godot import folder')
     check(not (assets/'studio_entrance.glb').exists() and not (assets/'street_kiosk.glb').exists(), 'No duplicate legacy GLB imports')
-    check(len(list(assets.glob('*.glb'))) == 12, 'Exactly 12 game-ready GLBs, no duplicate meshes')
+    check(len(list(assets.glob('*.glb'))) == 13, 'Exactly 13 optimized GLBs including premium living district')
+    check((assets/'urban_life_district.glb').is_file(), 'Premium district GLB included, not a procedural placeholder')
+    urban_metrics=assets/'urban_metrics.json'
+    check(urban_metrics.exists(), 'Independent geometry/draw-call metrics exist')
+    if urban_metrics.exists():
+        u=json.loads(urban_metrics.read_text())
+        check(u['original_meshes']>=600 and u['runtime_batches']<20 and u['district_facades']>=9, 'Detailed city art exceeds toy-greybox baseline and stays batched')
     metrics=assets/'mesh_metrics.json'
     if metrics.exists():
         data=json.loads(metrics.read_text())
