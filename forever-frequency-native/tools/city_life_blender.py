@@ -25,6 +25,7 @@ white=mat("High retroreflective white",(.94,.93,.84),0,.39)
 amber=mat("Amber traffic lamp",(.93,.53,.048),0,.22,1.1)
 green=mat("Green traffic lamp",(.06,.72,.26),0,.22,1.1)
 night=mat("Urban midnight blue",(.084,.13,.21),.1,.64)
+glass=mat("Reflective skyline glass",(.12,.21,.29),.28,.25)
 windows=mat("Window warm amber",(.80,.53,.26),0,.36,.9)
 def clear():
     bpy.ops.object.select_all(action='SELECT');bpy.ops.object.delete(use_global=False)
@@ -183,6 +184,24 @@ for idx in range(58):
             zz=(floor+.4)*2.6
             yy=z+(col-1)*dep*.26
             b('Warm lit skyline glazing',(xx,yy,zz),(.065,dep*.12,1.05),windows if floor%3 else glass,.01)
+# Batch skyline windows by material: no thousands of imported Godot nodes.
+# Save the fully separate Blender authoring scene first for future modding.
+bpy.ops.wm.save_as_mainfile(filepath=str(O/'skyline_dusk_editable.blend'))
+from collections import defaultdict
+grouped=defaultdict(list)
+for ob in list(bpy.context.scene.objects):
+    if ob.type != 'MESH': continue
+    # Material identity, with consistent geometry transforms applied.
+    grouped[tuple(m.name for m in ob.data.materials if m)].append(ob)
+for signature,objects in grouped.items():
+    if len(objects)<2: continue
+    bpy.ops.object.select_all(action='DESELECT')
+    for ob in objects: ob.select_set(True)
+    bpy.context.view_layer.objects.active=objects[0]
+    bpy.ops.object.join()
+skyline_batches=len([ob for ob in bpy.context.scene.objects if ob.type=='MESH'])
+assert skyline_batches<=12,skyline_batches
+print('SKYLINE BATCHING GREEN',skyline_batches,flush=True)
 report['skyline_dusk']=export('skyline_dusk')
 ( O/'city_life_asset_metrics.json').write_text(json.dumps(report,indent=2))
 print('CITY LIFE BLENDER GAUNTLET GREEN',len(report),'original modular city props/NPCs/skyline',flush=True)
