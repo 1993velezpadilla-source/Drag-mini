@@ -2,7 +2,11 @@ name: City Zero 2026 - Fast Godot 33 GLB Visual Proof
 on:
   push:
     branches: [forever-frequency-native]
-    paths: ['.github/workflows/city-zero-2026-fast-visual-proof.yml']
+    paths:
+      - '.github/workflows/city-zero-2026-fast-visual-proof.yml'
+      - 'forever-frequency-native/tools/generate_skycover.py'
+      - 'forever-frequency-native/scripts/**'
+      - 'forever-frequency-native/tools/art_direction_gauntlet.py'
   workflow_dispatch:
 permissions:
   contents: read
