@@ -26,3 +26,5 @@ jobs:
         run: godot --headless --path . --editor --import --quit
       - name: Headless user-owned NFSU2 library and no-fake-model smoke
         run: godot --headless --path . --script res://city_zero/nfsu2_private/test_showroom.gd
+      - name: Export and reload synthetic GLB wheel fixture through real Godot importer
+        run: godot --headless --path . --script res://city_zero/nfsu2_private/test_real_glb_wheel_swap.gd
