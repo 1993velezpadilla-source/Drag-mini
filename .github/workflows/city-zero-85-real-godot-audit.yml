@@ -1,0 +1,120 @@
+name: City Zero - 85 REAL native Godot car moto boat helicopter vehicle visual QA
+on:
+  workflow_dispatch:
+  push:
+    branches: [forever-frequency-native]
+    paths:
+      - '.github/workflows/city-zero-85-real-godot-audit.yml'
+      - 'forever-frequency-native/tests/prototype_85_real_godot_visual_audit.gd'
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: cityzero-85-prototypes-actual-Godot-review
+  cancel-in-progress: true
+jobs:
+  audit-every-3d-export-and-render-12-real-frames:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 22
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download ACTUAL 85 Blender-generated 3D assets from green source gauntlet
+        uses: actions/download-artifact@v4
+        with:
+          run-id: 45458869763
+          name: CityZero-85-Blender-Prototypes-And-Geometry-Audit
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: original-blender-models
+      - name: Set up isolated Godot 4 proof with actual GLBs
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p isolated/assets/premium_fleet isolated/assets/mobility_fleet isolated/tests
+          cp original-blender-models/assets/premium_fleet/*.glb isolated/assets/premium_fleet/
+          cp original-blender-models/assets/premium_fleet/fleet_metrics.json isolated/assets/premium_fleet/
+          cp original-blender-models/assets/mobility_fleet/*.glb isolated/assets/mobility_fleet/
+          cp original-blender-models/assets/mobility_fleet/metrics.json isolated/assets/mobility_fleet/
+          cp forever-frequency-native/tests/prototype_85_real_godot_visual_audit.gd isolated/tests/
+          test "$(find isolated/assets/premium_fleet -name '*.glb' | wc -l)" -eq 59
+          test "$(find isolated/assets/mobility_fleet -name '*.glb' | wc -l)" -eq 26
+          test ! -e isolated/assets/premium_fleet/exotic_supercar__revulse.glb
+          cat > isolated/project.godot <<'GODOT'
+          config_version=5
+          [application]
+          config/name="City Zero 85 actual Blender prototype geometry native Godot review - NOT APPROVED"
+          [display]
+          window/size/viewport_width=1280
+          window/size/viewport_height=800
+          [rendering]
+          renderer/rendering_method="gl_compatibility"
+          renderer/rendering_method.mobile="gl_compatibility"
+          GODOT
+          python3 - <<'PY'
+          from pathlib import Path
+          import json
+          root=Path('isolated/assets')
+          cars=json.loads((root/'premium_fleet/fleet_metrics.json').read_text())['vehicles']
+          mobility=json.loads((root/'mobility_fleet/metrics.json').read_text())
+          assert len(cars)==59 and len(mobility)==26
+          assert len({x['id'] for x in cars+mobility})==85
+          assert all(not x.get('user_approved',False) for x in cars+mobility)
+          assert all((root/('premium_fleet' if x in cars else 'mobility_fleet')/(x['id']+'.glb')).stat().st_size>10000 for x in cars+mobility)
+          print('85 DISTINCT ACTUAL BLENDER EXPORTS SELECTED FOR NATIVE GODOT PROOF, NOT QUALITY APPROVED')
+          PY
+      - uses: solarlabyrinth/action-setup-godot@v3
+        with:
+          version: 4.4.1-stable
+          export-templates: false
+      - name: Enable native Mesa OpenGL graphics for actual screenshots
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq xvfb libgl1 libgl1-mesa-dri libegl1 mesa-utils
+      - name: Verify every original Blender GLB imports into Godot 4 real engine
+        shell: bash
+        env:
+          LIBGL_ALWAYS_SOFTWARE: '1'
+          MESA_GL_VERSION_OVERRIDE: '3.3'
+          GODOT_AUDIO_DRIVER: Dummy
+        run: |
+          set -euo pipefail
+          xvfb-run -a -s '-screen 0 1600x900x24' timeout 260s \
+            godot --rendering-driver opengl3 --path isolated --editor --import --quit \
+            2>&1 | tee CITYZERO_85_GODOT_GLTF_IMPORT.log
+      - name: Check 85 native Godot MeshInstance geometry and capture 12 real images
+        shell: bash
+        env:
+          LIBGL_ALWAYS_SOFTWARE: '1'
+          MESA_GL_VERSION_OVERRIDE: '3.3'
+          GODOT_AUDIO_DRIVER: Dummy
+        run: |
+          set -euo pipefail
+          mkdir -p "$PWD/85-prototype-actual-godot-images"
+          export CITYZERO_85_ACTUAL_GODOT_PHOTOS="$PWD/85-prototype-actual-godot-images"
+          xvfb-run -a -s '-screen 0 1600x900x24' timeout 340s \
+            godot --rendering-driver opengl3 --path isolated \
+            --script res://tests/prototype_85_real_godot_visual_audit.gd \
+            2>&1 | tee 85-prototype-actual-godot-images/GODOT_85_PROTOTYPE_AUDIT.log
+          grep -q 'CITYZERO_85_REAL_GODOT_IMPORTS_AND_12_TRUE_RENDERED_VIEWS_GREEN' 85-prototype-actual-godot-images/GODOT_85_PROTOTYPE_AUDIT.log
+          python3 - <<'PY'
+          from pathlib import Path
+          import json
+          folder=Path('85-prototype-actual-godot-images')
+          report=json.loads((folder/'godot_85_real_vehicle_audit.json').read_text())
+          assert report['original_blender_exports_loaded']==85
+          assert len({x['id'] for x in report['asset_audit']})==85
+          assert report['real_godot_contact_images']==12
+          assert report['final_gold_standard_approved']==0
+          assert len(list(folder.glob('*.png')))==12
+          assert all(x['actual_mesh_pixel_sample_count']>=120 for x in report['photographic_proofs'])
+          assert all(Path(x['image']).stat().st_size>20000 for x in report['photographic_proofs'])
+          assert not any(x['art_approved'] or x['gameplay_ready'] for x in report['asset_audit'])
+          print('85 BLENDER PROTOTYPES ACTUALLY LOADED IN GODOT, 12 AUTHENTIC ENGINE PNGS, 0 USER-APPROVED')
+          PY
+      - name: Publish unedited Godot actual images and imported GLB QA
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: CityZero-85-Prototypes-Genuine-Godot-12-Image-Technical-Review
+          retention-days: 90
+          path: |
+            85-prototype-actual-godot-images/
+            CITYZERO_85_GODOT_GLTF_IMPORT.log
+          if-no-files-found: warn
