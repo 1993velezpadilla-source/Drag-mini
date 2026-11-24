@@ -375,6 +375,20 @@ def remove_sourced_roof_gap_spikes(body):
     after=len(body.data.polygons)
     if before-after!=len(to_delete):
         raise RuntimeError("Removed unexpected source geometry from sedan")
+
+    # Adversarial postcondition: ZERO remaining jagged dark source faces
+    # in the real upper-door clear aperture, not merely "removed N".
+    survivors=[]
+    for face in body.data.polygons:
+        if face.material_index!=material_index:
+            continue
+        center=body.matrix_world@face.center
+        if (.55<abs(center.x)<.79 and -.33<center.y<1.10
+                and 1.18<center.z<1.42):
+            survivors.append(face.index)
+    if survivors:
+        raise RuntimeError('Original black upper-window serrations remain: '
+                           +str(survivors[:30]))
     if tuple(m.name for m in body.data.materials)!=before_materials:
         raise RuntimeError("Material changed during surgical roof repair")
     return {"source_material":"panel_gap_body",
