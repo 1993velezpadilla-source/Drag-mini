@@ -91,7 +91,7 @@ def polish_loaded_sedan():
             p=seat.matrix_world@v.co
             if p.y < .32 or p.z < .985:
                 continue
-            rear=smoothstep(.32,.58,p.y)
+            rear=smoothstep(.22,.36,p.y)
             original=p.copy()
             highest_before=max(highest_before,p.z)
             outer_before=max(outer_before,abs(p.x))
