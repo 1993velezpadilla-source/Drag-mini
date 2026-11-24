@@ -60,6 +60,12 @@ func _ready() -> void:
     _create_environment()
     _create_ground_and_streets()
     _create_city()
+    # Full Blender-batched city dressing; editable separately, not another greybox.
+    if ResourceLoader.exists("res://assets/urban_life_district.glb"):
+        var district: PackedScene = load("res://assets/urban_life_district.glb")
+        var runtime_streetscape := district.instantiate()
+        runtime_streetscape.name = "Blender_Premium_Urban_District"
+        add_child(runtime_streetscape)
     _create_citizens()
     _create_player()
     _create_mobile_ui()
