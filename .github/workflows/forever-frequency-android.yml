@@ -1,0 +1,132 @@
+name: Forever Frequency - Blender to Android gauntlet
+
+on:
+  push:
+    branches: [forever-frequency-native]
+    paths:
+      - 'forever-frequency-native/**'
+      - '.github/workflows/forever-frequency-android.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  model-assets:
+    name: Blender original 3D assets
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - name: Blender package
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq blender
+          blender --version
+      - name: Generate editable Blender models + GLB
+        run: |
+          cd forever-frequency-native
+          blender -b -t 2 --python tools/build_assets_blender.py
+          test -s assets/studio_entrance.glb
+          test -s assets/street_kiosk.glb
+          test -s assets/city_zero_modular.blend
+      - name: Upload model kit
+        uses: actions/upload-artifact@v4
+        with:
+          name: forever-frequency-blender-source
+          path: |
+            forever-frequency-native/assets/*.glb
+            forever-frequency-native/assets/*.blend
+          if-no-files-found: error
+
+  android:
+    name: Native Godot ARM64 — adversarial gauntlet & APK
+    needs: model-assets
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    container:
+      image: barichello/godot-ci:4.4
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: forever-frequency-blender-source
+          path: forever-frequency-native/assets
+      - name: Source-level adversarial audit
+        run: python3 forever-frequency-native/tools/adversarial_audit.py
+      - name: Check engine and export templates
+        shell: bash
+        run: |
+          godot --version
+          ls -lah /root/.local/share/godot/export_templates/ || true
+      - name: Import Godot project and validate scripts
+        shell: bash
+        run: |
+          godot --headless --path forever-frequency-native --editor --import --quit 2>&1 | tee import.log
+          if grep -E 'SCRIPT ERROR|Parse Error|Failed loading resource' import.log; then exit 1; fi
+      - name: Core-gameplay gauntlet
+        shell: bash
+        run: |
+          godot --headless --path forever-frequency-native --script res://tests/gauntlet.gd 2>&1 | tee gauntlet.log
+          if grep -E 'SCRIPT ERROR|Parse Error|GAUNTLET RED' gauntlet.log; then exit 1; fi
+          grep 'GAUNTLET GREEN' gauntlet.log
+      - name: Generate temporary Android debug signing certificate
+        shell: bash
+        run: |
+          mkdir -p /root/.android
+          keytool -genkeypair -v -keystore /root/.android/debug.keystore -alias androiddebugkey -keypass android -storepass android -keyalg RSA -keysize 2048 -validity 9000 -dname 'CN=Android Debug,O=Forever Frequency,C=US'
+      - name: Build ARM64 test APK
+        shell: bash
+        env:
+          GODOT_ANDROID_KEYSTORE_DEBUG_PATH: /root/.android/debug.keystore
+          GODOT_ANDROID_KEYSTORE_DEBUG_USER: androiddebugkey
+          GODOT_ANDROID_KEYSTORE_DEBUG_PASSWORD: android
+        run: |
+          mkdir -p out
+          godot --headless --path forever-frequency-native --export-debug 'Android' "$PWD/out/Forever_Frequency_City_Zero_ARM64.apk" 2>&1 | tee export.log
+          test -s out/Forever_Frequency_City_Zero_ARM64.apk
+          ls -lh out/Forever_Frequency_City_Zero_ARM64.apk
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: Forever-Frequency-City-Zero-Native-Android-ARM64
+          path: out/Forever_Frequency_City_Zero_ARM64.apk
+          if-no-files-found: error
+      - name: Upload logs (adversarial audit evidence)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: Forever-Frequency-Gauntlet-Logs
+          path: |
+            import.log
+            gauntlet.log
+            export.log
+          if-no-files-found: ignore
+
+  capture:
+    name: Actual Godot gameplay screenshot (not concept art)
+    needs: model-assets
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    container:
+      image: barichello/godot-ci:4.4
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: forever-frequency-blender-source
+          path: forever-frequency-native/assets
+      - name: Install X virtual display
+        run: apt-get update -qq && apt-get install -y -qq xvfb libgl1-mesa-dri libgl1
+      - name: Import and run real 3D render
+        shell: bash
+        run: |
+          godot --headless --path forever-frequency-native --editor --import --quit
+          xvfb-run -a -s '-screen 0 1280x720x24' godot --path forever-frequency-native --rendering-method gl_compatibility --script res://tests/capture.gd
+          test -s forever-frequency-native/preview_real_godot.png
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Forever-Frequency-Actual-Godot-Gameplay-Screenshot
+          path: forever-frequency-native/preview_real_godot.png
+          if-no-files-found: error
