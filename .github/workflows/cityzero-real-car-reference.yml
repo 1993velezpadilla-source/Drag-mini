@@ -1,0 +1,86 @@
+name: City Zero verified CC0 car 3D reference capture
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [forever-frequency-native]
+    paths:
+      - city_zero/vehicle_runtime/test_cc0_model.gd
+      - city_zero/research/SPECTRAL_CC0_REFERENCE.md
+      - .github/workflows/cityzero-real-car-reference.yml
+
+permissions:
+  contents: read
+
+jobs:
+  import-and-render-real-car:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      CAR_FILE: city_zero/assets/reference_cc0/spectral_gt_rs_game_ready.glb
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Fetch real CC0 model from author, not from NFSU2 game
+        shell: bash
+        run: |
+          mkdir -p "$(dirname "$CAR_FILE")" artifacts/real-car
+          curl --fail --show-error --silent --location --retry 3 \
+            https://raw.githubusercontent.com/JaronKBragg7337/spectral-gt-rs/main/spectral_gt_rs_game_ready.glb \
+            --output "$CAR_FILE"
+          python3 - <<'PY'
+          import hashlib, os
+          from pathlib import Path
+          f=Path(os.environ['CAR_FILE'])
+          b=f.read_bytes()
+          assert len(b) > 1000000, f'Incomplete reference model: {len(b)} bytes'
+          assert b[:4] == b'glTF', 'Not a real glTF binary asset'
+          print('Reference GLB downloaded:', len(b), 'bytes; SHA256:', hashlib.sha256(b).hexdigest())
+          Path('artifacts/real-car/sha256.txt').write_text(hashlib.sha256(b).hexdigest()+'  '+str(f)+'\n')
+          PY
+      - name: Audit actual GLB geometry, materials and part nodes
+        run: |
+          python3 tools/cityzero_vehicle_inventory.py \
+            --glb-root city_zero/assets/reference_cc0 \
+            --out artifacts/real-car/actual-glb-inventory.json
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          a=json.loads(Path('artifacts/real-car/actual-glb-inventory.json').read_text())
+          m=a['exported_models']
+          assert len(m)==1, m
+          assert 'error' not in m[0], m
+          assert m[0]['mesh_nodes'] >= 50, m[0]
+          assert m[0]['estimated_triangles'] > 10000, m[0]
+          print('Real mesh nodes:',m[0]['mesh_nodes'],'triangles:',m[0]['estimated_triangles'])
+          PY
+      - name: Install Godot 4.6
+        uses: solarlabyrinth/action-setup-godot@v3
+        with:
+          version: 4.6.1-stable
+          export-templates: false
+      - name: Import actual authored car into Godot
+        run: godot --headless --path . --editor --import --quit
+      - name: Render 1280x720 screenshot of actual model in virtual display
+        shell: bash
+        continue-on-error: true
+        env:
+          LIBGL_ALWAYS_SOFTWARE: '1'
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq xvfb libgl1-mesa-dri
+          export CITYZERO_SCREENSHOT="$PWD/artifacts/real-car/actual-godot-render.png"
+          xvfb-run -a -s '-screen 0 1920x1080x24' \
+            godot --path . --script res://city_zero/vehicle_runtime/test_cc0_model.gd \
+            2>&1 | tee artifacts/real-car/godot-visual-probe.log
+          test -s artifacts/real-car/actual-godot-render.png
+      - name: Save real model reports, logs and screenshot if produced
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cityzero-actual-cc0-car-3d-render
+          path: artifacts/real-car/
+          retention-days: 14
+          if-no-files-found: warn
