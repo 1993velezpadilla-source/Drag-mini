@@ -66,7 +66,7 @@ func _run() -> void:
     for m in all:
         var original: Mesh = m.mesh
         for surf in range(original.get_surface_count()):
-            var mode := original.surface_get_primitive_type(surf)
+            var mode: int = original.surface_get_primitive_type(surf)
             if mode != Mesh.PRIMITIVE_TRIANGLES:
                 continue
             surfaces += 1
@@ -171,7 +171,7 @@ func _run() -> void:
         if diff_count < 550:
             _red("Car-shaped pixels NOT backed by true source geometry "+title+" "+str(diff_count))
             return
-        var name := title+"_REAL_FERRARI_ROMA_PBR_GODOT_NO_AI.png"
+        var name: String = str(title)+"_REAL_FERRARI_ROMA_PBR_GODOT_NO_AI.png"
         var imagefile := target_folder.path_join(name)
         if picture.save_png(imagefile) != OK:
             _red("Could not save actual native Godot image " + title)
