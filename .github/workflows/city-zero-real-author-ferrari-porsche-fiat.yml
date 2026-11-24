@@ -6,6 +6,7 @@ on:
     paths:
       - '.github/workflows/city-zero-real-author-ferrari-porsche-fiat.yml'
       - 'forever-frequency-native/tools/import_artist_ccby_real_car_fleet.py'
+      - 'forever-frequency-native/tests/real_artist_fleet_godot_capture.gd'
 concurrency:
   group: cityzero-real-original-f40-porsche-punto-source
   cancel-in-progress: true
@@ -100,4 +101,88 @@ jobs:
             forever-frequency-native/assets/original_artist_ccby_sources/AUTHORSHIP_AND_LICENSE_NOTICE.txt
             forever-frequency-native/artist_ccby_real_car_blender_proof/*
             forever-frequency-native/REAL_FERRARI_PORSCHE_FIAT_BLENDER.log
+          if-no-files-found: warn
+
+  genuine-godot-glb-showroom:
+    needs: authentic-original-artist-blender
+    runs-on: ubuntu-22.04
+    timeout-minutes: 14
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download artist-authored Blender exported GLBs, not placeholders
+        uses: actions/download-artifact@v4
+        with:
+          name: CityZero-REAL-FerrariF40-Porsche911-FiatPunto-Artist-Blender-GLB-Fifteen-Photos
+          path: genuine-source
+      - name: Prepare isolated Godot engine import validation for real cars
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p isolated/assets/licensed_ccby_car_fleet isolated/tests
+          for name in ferrari_f40 porsche_911 fiat_punto; do
+            file="genuine-source/assets/licensed_ccby_car_fleet/"$name"_blender_import.glb"
+            test -s "$file"
+            test "$(head -c 4 "$file")" = glTF
+            cp "$file" isolated/assets/licensed_ccby_car_fleet/
+          done
+          cp forever-frequency-native/tests/real_artist_fleet_godot_capture.gd isolated/tests/
+          cat > isolated/project.godot <<'GODOT'
+          config_version=5
+          [application]
+          config/name="City Zero artist CC BY car showroom Godot import QA"
+          [display]
+          window/size/viewport_width=1280
+          window/size/viewport_height=800
+          [rendering]
+          renderer/rendering_method="gl_compatibility"
+          renderer/rendering_method.mobile="gl_compatibility"
+          GODOT
+      - uses: solarlabyrinth/action-setup-godot@v3
+        with:
+          version: 4.4.1-stable
+          export-templates: false
+      - name: Install real offscreen window OpenGL libraries
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq xvfb libgl1 libgl1-mesa-dri libegl1 mesa-utils
+      - name: Godot engine imports the three REAL Blender GLB assets
+        shell: bash
+        run: |
+          set -o pipefail
+          xvfb-run -a -s '-screen 0 1600x900x24' timeout 190s godot --path isolated --editor --import --quit 2>&1 | tee ARTIST_CARS_GODOT_IMPORT.log
+      - name: Six screenshot real Godot car mesh versus hidden-mesh pixel controls
+        shell: bash
+        env:
+          LIBGL_ALWAYS_SOFTWARE: '1'
+          MESA_GL_VERSION_OVERRIDE: '3.3'
+        run: |
+          set -euo pipefail
+          mkdir -p "$PWD/artist-3-car-godot-evidence"
+          export CITYZERO_ARTIST_GODOT_PHOTOS="$PWD/artist-3-car-godot-evidence"
+          xvfb-run -a -s '-screen 0 1600x900x24' timeout 230s godot --path isolated --script res://tests/real_artist_fleet_godot_capture.gd 2>&1 | tee artist-3-car-godot-evidence/GODOT_ACTUAL_IMAGES.log
+          grep -q 'CITYZERO_THREE_ARTIST_CARS_SIX_ACTUAL_GODOT_IMAGES_GREEN' artist-3-car-godot-evidence/GODOT_ACTUAL_IMAGES.log
+          python3 - <<'PY'
+          from pathlib import Path
+          import json
+          d=Path("artist-3-car-godot-evidence")
+          report=json.loads((d/"artist_fleet_REAL_GODOT_report.json").read_text())
+          assert report['artist_car_count']==3
+          assert report['real_native_godot_photos']==6
+          assert len(list(d.glob('*.png')))==6
+          assert {x['id'] for x in report['vehicles']}=={'ferrari_f40','porsche_911','fiat_punto'}
+          for car in report['vehicles']:
+              assert car['real_godot_triangles']>1500
+              assert not car['gameplay_ready']
+              assert len(car['photographs'])==2
+              assert all(x['actual_mesh_sampled_pixels']>120 for x in car['photographs'])
+              assert all(Path(x['png']).stat().st_size>20000 for x in car['photographs'])
+          print('THREE AUTHENTIC ORIGINAL ARTIST VEHICLES, SIX REAL GODOT CAPTURES GREEN')
+          PY
+      - name: Upload six real non-AI Godot screenshots and evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: CityZero-REAL-F40-Porsche911-FiatPunto-SIX-Godot-Engine-Photos
+          retention-days: 90
+          path: |
+            artist-3-car-godot-evidence/
+            ARTIST_CARS_GODOT_IMPORT.log
           if-no-files-found: warn
