@@ -12,7 +12,7 @@ permissions:
   actions: read
 concurrency:
   group: cityzero-mclaren570s-source-body-glass-doors-one-by-one
-  cancel-in-progress: false
+  cancel-in-progress: true
 jobs:
   original-artist-model-with-true-movable-panel-hinges:
     runs-on: ubuntu-22.04
@@ -106,6 +106,38 @@ jobs:
           assert (p/'mclaren_570s_2016_REAL_SOURCE_BODY_GLASS_HINGES.glb').stat().st_size>3500000
           assert (p/'mclaren_570s_2016_real_source_ARTIST_HINGES_EDITABLE.blend').stat().st_size>5000000
           print('REAL_ORIGINAL_MCLAREN_TWO_DOORS_RIGGED_57K_FACE_PRESERVE_BLENDER_GREEN_NO_ART_APPROVAL')
+          PY
+      - name: Independently reject any closed GLB with FLOATING door parts against original artist 3D source
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m pip -q install --user numpy trimesh
+          python3 - <<'PY'
+          from pathlib import Path
+          import json,numpy as np,trimesh
+          a=Path('forever-frequency-native/assets/mclaren_570s_review/mclaren_570s_2016_ORIGINAL_Author_DeepBlue_PBR.glb')
+          b=Path('forever-frequency-native/mclaren_570s_real_original_door_rig/mclaren_570s_2016_REAL_SOURCE_BODY_GLASS_HINGES.glb')
+          original=trimesh.load(a,force='scene',process=False)
+          rigged=trimesh.load(b,force='scene',process=False)
+          source_names=set(original.graph.nodes_geometry)
+          rigged_names=set(rigged.graph.nodes_geometry)
+          assert source_names==rigged_names,(len(source_names),len(rigged_names),'DO NOT silently replace original McLaren 3D geometry')
+          max_error=0.0
+          for node in sorted(source_names):
+              old_matrix,old_geo=original.graph[node]
+              new_matrix,new_geo=rigged.graph[node]
+              old_vertices=trimesh.transform_points(original.geometry[old_geo].vertices,old_matrix)
+              new_vertices=trimesh.transform_points(rigged.geometry[new_geo].vertices,new_matrix)
+              old_box=np.stack((old_vertices.min(0),old_vertices.max(0)))
+              new_box=np.stack((new_vertices.min(0),new_vertices.max(0)))
+              distance=float(np.max(np.abs(old_box-new_box)))
+              max_error=max(max_error,distance)
+              assert distance<.005,('REJECTED FLOATING ARTIST SOURCE MESH',node,distance)
+          assert max_error<.005
+          r=json.loads(Path('forever-frequency-native/mclaren_570s_real_original_door_rig/mclaren_source_author_true_hinges_forensics.json').read_text())
+          assert r['closed_all_original_meshes_max_displacement_m']<.001
+          assert r['all_80_author_objects_tested_exact_original_closed_positions']
+          print('MCLAREN_SOURCE_ALL_REAL_CLOSED_3D_VERTEX_BOUNDS_PRESERVED_IN_GLB_QA_GREEN',len(source_names),max_error)
           PY
       - name: Preserve true source original author McLaren mesh rigged GLB Blender and native open closed photos
         if: always()
