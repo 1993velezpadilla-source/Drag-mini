@@ -27,7 +27,7 @@ def mask_iou(reference,render):
     from PIL import Image
     a=Image.open(reference).convert("L")
     b=Image.open(render).convert("L")
-    if a.size!=b.size or min(a.size)<(128,128):
+    if a.size!=b.size or min(a.size)<128:
         raise ValueError("Reference and Blender mask must have identical >=128px dimensions")
     pa=list(a.getdata())
     pb=list(b.getdata())
