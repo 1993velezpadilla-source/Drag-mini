@@ -4,6 +4,8 @@ extends Node3D
 
 const GameState = preload("res://scripts/game_state.gd")
 const MobileInput = preload("res://scripts/mobile_input.gd")
+const CarDoorController = preload("res://scripts/vehicle_door_controller.gd")
+const REVULSE_MODEL = "res://assets/premium_fleet/exotic_supercar__revulse.glb"
 const CityLife = preload("res://scripts/city_life.gd")
 const BEAT: Array[int] = [0, 2, 1, 3, 1, 0, 3, 2]
 const LANDMARKS := {
@@ -50,6 +52,8 @@ var ui_refresh := 0.0
 var status_until := 0.0
 var mouse_captured := false
 var car: Node3D
+var revulse_car: Node3D
+var revulse_doors: Node3D
 var citizens: Array[Dictionary] = []
 var audio_player: AudioStreamPlayer
 var road_material: StandardMaterial3D
@@ -61,6 +65,7 @@ func _ready() -> void:
     _create_environment()
     _create_ground_and_streets()
     _create_city()
+    _spawn_original_revulse_in_city()
     # Full Blender-batched city dressing; editable separately, not another greybox.
     if ResourceLoader.exists("res://assets/urban_life_district.glb"):
         var district: PackedScene = load("res://assets/urban_life_district.glb")
@@ -409,6 +414,56 @@ func _create_city() -> void:
     else:
         _add_stage_fx()
 
+func _spawn_original_revulse_in_city() -> void:
+    # This is the exact original Blender-authored Lamborghini Aventador-inspired
+    # REVULSE (two independently animated door hinges), not a substitute mesh.
+    # Only the real exported GLB is accepted. Missing model => no fake car.
+    if not ResourceLoader.exists(REVULSE_MODEL):
+        push_warning("CITY_ZERO_REVULSE_ASSET_MISSING: Build the authored GLB first")
+        return
+    var source: PackedScene = load(REVULSE_MODEL)
+    if source == null:
+        push_error("CITY_ZERO_REVULSE_SOURCE_LOAD_FAILED")
+        return
+    revulse_car = source.instantiate() as Node3D
+    if revulse_car == null:
+        push_error("CITY_ZERO_REVULSE_INVALID_GLTF_ROOT")
+        return
+    revulse_car.name = "CityZero_REVULSE_Aventador_Reference"
+    revulse_car.position = Vector3(-2.3, 0.08, -18.0)
+    revulse_car.rotation.y = PI
+    add_child(revulse_car)
+    revulse_doors = CarDoorController.new()
+    revulse_doors.name = "Mechanical_Pair_Of_Doors"
+    revulse_car.add_child(revulse_doors)
+    var names: Array[String] = revulse_doors.available_doors()
+    if names.size() != 2:
+        push_error("REVULSE expected two real mechanical door hinges, got " + str(names))
+        revulse_car.queue_free()
+        revulse_car = null
+        revulse_doors = null
+        return
+    print("CITY_ZERO_REVULSE_IN_CITY_OK: ", revulse_car.global_position, " doors=", names)
+
+
+func toggle_revulse_doors() -> bool:
+    if revulse_car == null or revulse_doors == null:
+        return false
+    # A parked car may be opened from the street; never open random traffic.
+    if hero != null and hero.global_position.distance_to(revulse_car.global_position) > 10.0:
+        _message("Approach the REVULSE to open its doors.", 2.5)
+        return false
+    var names: Array[String] = revulse_doors.available_doors()
+    if names.size() != 2:
+        return false
+    var opening: bool = not revulse_doors.is_door_open(names[0])
+    for door_name in names:
+        if revulse_doors.is_door_open(door_name) != opening:
+            revulse_doors.toggle_door(door_name)
+    _message("REVULSE • DOORS OPEN" if opening else "REVULSE • DOORS CLOSED", 2.6)
+    return true
+
+
 func _spawn_blender_prop(path: String, pos: Vector3, scl: Vector3) -> void:
     if not ResourceLoader.exists(path):
         return
@@ -612,6 +667,8 @@ func _unhandled_input(event: InputEvent) -> void:
     if event is InputEventKey and event.pressed and not event.echo:
         if event.keycode == KEY_E or event.keycode == KEY_SPACE:
             _interact()
+        elif event.keycode == KEY_O:
+            toggle_revulse_doors()
         elif event.keycode == KEY_ESCAPE:
             _hide_panel()
 
@@ -904,7 +961,19 @@ func _create_mobile_ui() -> void:
     action.offset_bottom = -26
     action.pressed.connect(_interact)
     root.add_child(action)
-    var label := _ui_label("WASD · move    Drag · look    E · enter",12,Color("ddeeff"))
+    var door_button := _styled_button("REVULSE  •  DOORS", COLORS.cyan)
+    door_button.anchor_left = 1
+    door_button.anchor_right = 1
+    door_button.anchor_top = 1
+    door_button.anchor_bottom = 1
+    door_button.offset_left = -230
+    door_button.offset_right = -18
+    door_button.offset_top = -162
+    door_button.offset_bottom = -99
+    door_button.pressed.connect(toggle_revulse_doors)
+    root.add_child(door_button)
+    door_button.visible = revulse_car != null
+    var label := _ui_label("WASD · move    Drag · look    E · enter    O · REVULSE doors",12,Color("ddeeff"))
     label.anchor_top = 1
     label.anchor_bottom = 1
     label.offset_left = 22
