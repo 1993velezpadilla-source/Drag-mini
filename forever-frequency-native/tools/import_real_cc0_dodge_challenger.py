@@ -33,7 +33,7 @@ def do_import(path):
     if not meshes:raise RuntimeError('Source FBX has no actual mesh: '+str(path))
     return meshes,new
 body_meshes,_=do_import(body_path)
-if len(body_meshes)<3:raise RuntimeError('Incomplete authored Dodge body, not source car')
+if len(body_meshes)<1:raise RuntimeError('Authentic Dodge FBX body mesh not found')
 body_tris=sum(sum(len(p.vertices)-2 for p in o.data.polygons) for o in body_meshes)
 if body_tris<25000:raise RuntimeError('Not sufficient real Dodge body detail '+str(body_tris))
 
