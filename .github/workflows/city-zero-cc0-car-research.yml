@@ -5,6 +5,9 @@ on:
     paths:
       - '.github/workflows/city-zero-cc0-car-research.yml'
       - 'forever-frequency-native/tools/curated_vehicle_qa_blender.py'
+      - 'forever-frequency-native/tools/rig_cc0_cars_blender.py'
+      - 'forever-frequency-native/tests/curated_cc0_door_gauntlet.gd'
+      - 'forever-frequency-native/scripts/vehicle_door_controller.gd'
       - 'forever-frequency-native/data/curated_vehicle_candidates.json'
   workflow_dispatch:
 permissions:
@@ -88,6 +91,25 @@ jobs:
             --python tools/curated_vehicle_qa_blender.py 2>&1 | tee curated_qa.log
           grep -q 'CURATED REAL 3D SOURCE AUDITION COMPLETE' curated_qa.log
           test "$(find vehicle_quality_audition -name '*.png' | wc -l)" -eq 8
+      - name: Rig ACTUAL CC0 source door meshes instead of drawing dummy car bodies
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd forever-frequency-native
+          timeout 240s docker run --rm -v "$PWD:$PWD" -w "$PWD"             --entrypoint /home/headless/blender/blender             ghcr.io/blenderkit/headless-blender:blender-4.5-stable -b -t 2             --python tools/rig_cc0_cars_blender.py 2>&1 | tee curated_rig.log
+          grep -q 'REAL CC0 RIGGED CAR BLENDER PROTOTYPES COMPLETE' curated_rig.log
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          d=Path('assets/curated_rigged')
+          records=json.loads((d/'rig_metrics.json').read_text())
+          assert len(records)==2
+          assert sorted(x['expected_doors'] for x in records)==[2,4]
+          assert all(len(x['functional_door_hinges'])==x['expected_doors'] for x in records)
+          assert all(x['triangles']<=65000 for x in records)
+          assert len(list(d.glob('*.glb')))==2
+          print('REAL CC0 BLENDER MECHANICAL RIGS GREEN - PENDING GODOT')
+          PY
       - name: Save actual candidate models and unmodified camera photos even if rejected
         if: always()
         uses: actions/upload-artifact@v4
@@ -98,4 +120,46 @@ jobs:
             forever-frequency-native/vehicle_quality_audition/*.png
             forever-frequency-native/vehicle_quality_audition/*.json
             forever-frequency-native/curated_qa.log
+            forever-frequency-native/curated_rig.log
+            forever-frequency-native/assets/curated_rigged/*.glb
+            forever-frequency-native/assets/curated_rigged/*.blend
+            forever-frequency-native/assets/curated_rigged/rig_metrics.json
+          if-no-files-found: warn
+
+  godot-real-cc0-car-doors:
+    needs: model-authenticity
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    container:
+      image: barichello/godot-ci:4.4
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: CityZero-CC0-GT4-Car-Research-Visual-Proof
+          path: forever-frequency-native
+      - name: Verify original CC0 rigged GLBs actually arrived
+        run: |
+          set -e
+          test -s forever-frequency-native/assets/curated_rigged/curated_family_sedan.glb
+          test -s forever-frequency-native/assets/curated_rigged/curated_midengine_supercar.glb
+      - name: Real Godot glTF import
+        shell: bash
+        run: |
+          set -o pipefail
+          timeout 240s godot --headless --path forever-frequency-native --editor --import --quit 2>&1 | tee curated_godot_import.log
+      - name: Test true source CC0 hinged doors in Godot
+        shell: bash
+        run: |
+          set -o pipefail
+          timeout 180s godot --headless --path forever-frequency-native --script res://tests/curated_cc0_door_gauntlet.gd 2>&1 | tee curated_godot_doors.log
+          grep -q 'REAL CC0 CARS BLENDER RIG + GODOT KINEMATICS GREEN' curated_godot_doors.log
+      - name: Publish original-source Godot hinge integration logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: CityZero-CC0-Actual-Body-Real-Godot-Door-Integration
+          path: |
+            curated_godot_import.log
+            curated_godot_doors.log
           if-no-files-found: warn
