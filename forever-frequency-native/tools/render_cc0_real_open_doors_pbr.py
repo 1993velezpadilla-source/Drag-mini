@@ -17,9 +17,10 @@ for name,doors in [('curated_midengine_supercar',2),('curated_family_sedan',4)]:
     assert tris in (44632,60300)
     hinges=[o for o in bpy.data.objects if o.name.startswith('DOOR_') and o.name.endswith('_HINGE')]
     assert len(hinges)==doors,(name,len(hinges))
+    initial_rotations={}
     for h in hinges:
         h.rotation_mode='XYZ'
-        h.rotation_euler.z+=math.radians(-66 if '_LEFT_' in h.name else 66)
+        initial_rotations[h.name]=h.rotation_euler.copy()
     bpy.context.view_layer.update()
     scene=bpy.context.scene
     scene.render.engine='CYCLES'
@@ -62,28 +63,38 @@ for name,doors in [('curated_midengine_supercar',2),('curated_family_sedan',4)]:
     area('Wide softbox front left',(4,-5,7),1800,7)
     area('Wide softbox right',(-4,-1,5),1050,6)
     area('Rear roof stripbox',(0,5,6),1350,5)
-    points=[o.matrix_world@Vector(c) for o in source_meshes for c in o.bound_box]
-    lo=Vector(tuple(min(p[k] for p in points) for k in range(3)))
-    hi=Vector(tuple(max(p[k] for p in points) for k in range(3)))
-    center=(lo+hi)*.5
-    L=max(hi-lo)
     data=bpy.data.cameras.new('REAL_CAR_PBR_CAMERA')
     data.type='ORTHO'
-    data.ortho_scale=L*1.43
     cam=bpy.data.objects.new('REAL_CAR_PBR_CAMERA',data)
     scene.collection.objects.link(cam)
     scene.camera=cam
-    for view,loc in [('three_quarter',Vector((1.27,-1.45,.69))),('side',Vector((2.02,-.07,.42)))]:
-        cam.location=center+loc*L
-        cam.rotation_euler=(center-cam.location).to_track_quat('-Z','Y').to_euler()
-        file=OUT/(name+'-REAL-open-'+view+'.png')
-        scene.render.filepath=str(file)
-        bpy.ops.render.render(write_still=True)
-        assert file.stat().st_size>35000,(file,file.stat().st_size)
-        report.append({'model':name,'view':view,'file':file.name,'bytes':file.stat().st_size,
-                       'triangles':tris,'actual_moving_hinges':len(hinges),
-                       'render_engine':'Blender Cycles CPU native PBR NOT AI'})
-        print('REAL BLENDER CYCLES PBR DOORS OPEN',file,flush=True)
+    # For the problem sedan, review the full CAR BOTH closed and open. This
+    # exposes floating rear seats, odd window frames and detached panels.
+    modes=('closed','open') if name=='curated_family_sedan' else ('open',)
+    for mode in modes:
+        for h in hinges:
+            h.rotation_euler=initial_rotations[h.name].copy()
+            if mode=='open':
+                h.rotation_euler.z+=math.radians(-66 if '_LEFT_' in h.name else 66)
+        bpy.context.view_layer.update()
+        points=[o.matrix_world@Vector(c) for o in source_meshes for c in o.bound_box]
+        lo=Vector(tuple(min(p[k] for p in points) for k in range(3)))
+        hi=Vector(tuple(max(p[k] for p in points) for k in range(3)))
+        center=(lo+hi)*.5
+        L=max(hi-lo)
+        data.ortho_scale=L*1.43
+        for view,loc in [('three_quarter',Vector((1.27,-1.45,.69))),('side',Vector((2.02,-.07,.42)))]:
+            cam.location=center+loc*L
+            cam.rotation_euler=(center-cam.location).to_track_quat('-Z','Y').to_euler()
+            file=OUT/(name+'-REAL-'+mode+'-'+view+'.png')
+            scene.render.filepath=str(file)
+            bpy.ops.render.render(write_still=True)
+            assert file.stat().st_size>35000,(file,file.stat().st_size)
+            report.append({'model':name,'view':view,'mode':mode,'file':file.name,
+                           'bytes':file.stat().st_size,'triangles':tris,
+                           'actual_moving_hinges':len(hinges),
+                           'render_engine':'Blender Cycles CPU native PBR NOT AI'})
+            print('REAL BLENDER CYCLES PBR',name,mode,view,file,flush=True)
 (OUT/'real_pbr_render_evidence.json').write_text(json.dumps(report,indent=2)+'\n')
-assert len(report)==4
-print('REAL CC0 BLENDER CYCLES OPEN DOOR PBR PHOTO PROOF GREEN',flush=True)
+assert len(report)==6
+print('REAL CC0 BLENDER CYCLES SEDAN V2 CLOSE/OPEN PBR PROOF GREEN',flush=True)
