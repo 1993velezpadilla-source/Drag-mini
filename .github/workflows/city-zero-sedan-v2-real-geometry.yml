@@ -67,6 +67,7 @@ jobs:
           assert glass['glass_vertices_corrected']>=12
           assert glass['maximum_old_roof_protrusion_m']>=.012
           assert glass['maximum_new_roof_protrusion_m']<=.002
+          assert glass['rear_quarter_windows_consistent_tint']==2
           assert glass['retessellated_glass_faces']>glass['original_glass_faces']*2
           assert len(repair['door_hinges_preserved'])==4
           assert len(sedan['measured_door_movement'])==4
