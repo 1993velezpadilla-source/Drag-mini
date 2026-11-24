@@ -1,0 +1,116 @@
+name: City Zero - REAL McLaren 570S five close Godot frames FAST verified source
+on:
+  workflow_dispatch:
+  push:
+    branches: [forever-frequency-native]
+    paths:
+      - '.github/workflows/city-zero-mclaren-570s-real-godot-five-fast.yml'
+      - 'forever-frequency-native/tests/mclaren_570s_pbr_godot_capture.gd'
+permissions:
+  contents: read
+  actions: read
+jobs:
+  five-actual-godot-images-from-same-original-blender-body:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 18
+    steps:
+      - uses: actions/checkout@v4
+      - name: Fetch EXACT original source McLaren PBR from prior successful Blender technical source audit
+        uses: actions/download-artifact@v4
+        with:
+          run-id: 45485299794
+          name: CityZero-REAL-McLaren-570S-5-Native-Blender-Cycles-Views-and-GLB
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: exact-original-pbr
+      - name: Create independent real native Godot 4 source-car quality scene
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p isolated/assets/mclaren_570s_review isolated/tests
+          find exact-original-pbr -name 'mclaren_570s_2016_ORIGINAL_Author_DeepBlue_PBR.glb' -type f \
+            -exec cp '{}' isolated/assets/mclaren_570s_review/ ';'
+          cp forever-frequency-native/tests/mclaren_570s_pbr_godot_capture.gd isolated/tests/
+          python3 - <<'PY'
+          import hashlib,struct,json
+          from pathlib import Path
+          p=Path('isolated/assets/mclaren_570s_review/mclaren_570s_2016_ORIGINAL_Author_DeepBlue_PBR.glb')
+          b=p.read_bytes()
+          assert len(b)==4656340
+          assert hashlib.sha256(b).hexdigest()=='aff443ccdef427d222ad32d8ca014661dd64ef8cccc58c41fb38667b13045ef1'
+          assert b[:4]==b'glTF'
+          n=struct.unpack_from('<I',b,12)[0]
+          g=json.loads(b[20:20+n])
+          assert len(g['meshes'])==80 and len(g['materials'])>=39
+          script=Path('isolated/tests/mclaren_570s_pbr_godot_capture.gd').read_text()
+          assert 'CITY_ZERO_MCLAREN_GODOT_SHOTS' in script and 'CITY_ZERO_FERRARI_GODOT_SHOTS' not in script
+          print('MCLAREN_REAL_AUTHOR_80_3D_MESHES_SHA_AND_OUTPUT_PATH_GREEN')
+          PY
+          cat > isolated/project.godot <<'GODOT'
+          config_version=5
+          [application]
+          config/name="Original McLaren 570S actual source 3D Godot 5-views; art not owner approved"
+          [display]
+          window/size/viewport_width=1600
+          window/size/viewport_height=1000
+          [rendering]
+          renderer/rendering_method="gl_compatibility"
+          renderer/rendering_method.mobile="gl_compatibility"
+          GODOT
+      - uses: solarlabyrinth/action-setup-godot@v3
+        with:
+          version: 4.4.1-stable
+          export-templates: false
+      - name: Install native OpenGL real renderer libraries
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq xvfb libgl1 libgl1-mesa-dri libegl1 mesa-utils
+      - name: Import exact original author mesh via Godot glTF importer
+        shell: bash
+        env:
+          LIBGL_ALWAYS_SOFTWARE: '1'
+          MESA_GL_VERSION_OVERRIDE: '3.3'
+          GODOT_AUDIO_DRIVER: Dummy
+        run: |
+          set -euo pipefail
+          xvfb-run -a -s '-screen 0 1800x1200x24' timeout 200s \
+            godot --rendering-driver opengl3 --path isolated --editor --import --quit \
+            2>&1 | tee MCLAREN_FAST_REAL_SOURCE_GODOT_IMPORT.log
+      - name: Render five AUTHENTIC PBR source-backed McLaren frames with source-hidden pixel proof
+        shell: bash
+        env:
+          LIBGL_ALWAYS_SOFTWARE: '1'
+          MESA_GL_VERSION_OVERRIDE: '3.3'
+          GODOT_AUDIO_DRIVER: Dummy
+        run: |
+          set -euo pipefail
+          mkdir -p "$PWD/real-mclaren-godot-five-frames"
+          export CITY_ZERO_MCLAREN_GODOT_SHOTS="$PWD/real-mclaren-godot-five-frames"
+          xvfb-run -a -s '-screen 0 1800x1200x24' timeout 240s \
+            godot --rendering-driver opengl3 --path isolated \
+            --script res://tests/mclaren_570s_pbr_godot_capture.gd \
+            2>&1 | tee real-mclaren-godot-five-frames/GODOT_TRUE_ORIGINAL_MCLAREN_5_PBR.log
+          grep -q 'MCLAREN_570S_GODOT_5_TRUE_CLOSEUP_ENGINE_VIEWS_GREEN_NOT_ART_APPROVED' \
+            real-mclaren-godot-five-frames/GODOT_TRUE_ORIGINAL_MCLAREN_5_PBR.log
+          python3 - <<'PY'
+          from pathlib import Path
+          import json
+          p=Path('real-mclaren-godot-five-frames')
+          r=json.loads((p/'real_mclaren_570s_5views_godot_report.json').read_text())
+          assert r['source_triangles']>57000
+          assert r['actual_source_mesh_instances']>=78
+          assert r['material_surfaces']>=25
+          assert len(r['native_godot_real_pngs'])==5
+          assert all(v['actual_car_pixels']>=550 for v in r['native_godot_real_pngs'])
+          assert all(v['width_fraction']>.5 for v in r['native_godot_real_pngs'])
+          assert not r['owner_art_approved'] and r['source_original_body_preserved']
+          assert len(list(p.glob('*.png')))==5
+          print('FIVE_TRUE_ACTUAL_MCLAREN_GODOT_PHOTOS_GREEN_CAR_ART_STILL_NOT_OWNER_APPROVED')
+          PY
+      - name: Publish actual engine PBR pictures and 3D triangle evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: CityZero-McLaren570S-FIVE-Genuine-Godot-Original-PBR-Frames
+          retention-days: 90
+          path: |
+            real-mclaren-godot-five-frames/
+            MCLAREN_FAST_REAL_SOURCE_GODOT_IMPORT.log
+          if-no-files-found: warn
