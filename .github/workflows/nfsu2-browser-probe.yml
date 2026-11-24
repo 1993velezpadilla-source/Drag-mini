@@ -33,14 +33,18 @@ jobs:
           fi
       - name: Browser self-test (offline)
         run: |
-          node tools/nfsu2_browser_probe.mjs --self-test --out=artifacts/smoke
+          node --check tools/nfsu2_browser_probe.mjs
+          node tools/nfsu2_browser_probe.mjs --self-test --click-play --out=artifacts/smoke
           python3 - <<'PY'
           import json
           from pathlib import Path
           result = json.loads(Path('artifacts/smoke/report.json').read_text())
           assert result['status'] == 'captured', result
           assert result['landing']['title'] == 'CityZeroSmoke', result
+          assert result['clicked_play'] is True, result
+          assert result['after_play']['canvases'][0]['width'] == 640, result
           assert Path('artifacts/smoke/landing.png').stat().st_size > 1000
+          assert Path('artifacts/smoke/after_play.png').stat().st_size > 1000
           PY
       - name: Inspect public NFSU2 modded web game
         continue-on-error: true
