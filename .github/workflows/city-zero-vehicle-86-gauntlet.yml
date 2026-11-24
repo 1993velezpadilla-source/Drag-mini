@@ -76,7 +76,8 @@ jobs:
           assert sum(x['open_truck_bed'] for x in cars)==10
           assert sum(x['angular_future_electric'] for x in cars)==1
           assert len({x['category'] for x in mobility})==11
-          assert not any(x.get('user_approved',False) for x in cars+mobility)\n          print('85 SOURCE PROTOTYPE GLB OUTPUT GREEN - NO GOLD STANDARD VISUAL APPROVAL')
+          assert not any(x.get('user_approved',False) for x in cars+mobility)
+          print('85 SOURCE PROTOTYPE GLB OUTPUT GREEN - NO GOLD STANDARD VISUAL APPROVAL')
           PY
       - name: Publish real GLB output and failure logs
         if: always()
