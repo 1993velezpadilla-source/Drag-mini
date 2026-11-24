@@ -130,6 +130,27 @@ class PrivateGodotLibraryTests(unittest.TestCase):
             self.assertIn("SPOILER_SUV", result["vehicles"]["HUMMER"]["compatible_shared_families"])
             self.assertIn("MIRRORS_BODY", result["vehicles"]["SUPRA"]["compatible_shared_families"])
 
+    def test_only_source_derived_vinyl_previews_are_exposed(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            own = root / "local_assets/SUPRA/vinyls/SUPRA_SET1.png"
+            own.parent.mkdir(parents=True)
+            own.write_bytes(b"\x89PNG\r\n\x1a\n" + b"mock")
+            data = source._verified_vinyl_previews({
+                "count": 3, "vinyls": [
+                    {"name": "SUPRA_SET1", "hash": "00010000", "private_png": str(own)},
+                    {"name": "bad", "private_png": "/not/the/source.png"},
+                    {"name": "not decoded"}
+                ]
+            }, root)
+            self.assertEqual(data["decoded_previews"], 1)
+            self.assertEqual(data["vinyls"][0]["preview_status"], "source_png_available")
+            self.assertEqual(data["vinyls"][1]["preview_status"], "unsafe_or_invalid_source_path")
+            self.assertEqual(data["vinyls"][2]["preview_status"], "source_texture_not_decoded")
+            self.assertEqual(data["vinyls"][0]["verified_preview_png"],
+                             "local_assets/SUPRA/vinyls/SUPRA_SET1.png")
+            self.assertFalse(data["applied_to_body"])
+
     def test_source_compatibility_and_family_mirroring(self):
         self.assertIn("SPOILER_HATCH", source.compatible_shared_families("PEUGOT"))
         self.assertIn("SPOILER", source.compatible_shared_families("RX7"))
