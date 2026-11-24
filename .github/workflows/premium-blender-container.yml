@@ -1,0 +1,74 @@
+name: Premium Blender cached container — independent Gauntlet
+on:
+  push:
+    branches: [forever-frequency-native]
+    paths: ['.github/workflows/premium-blender-container.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: premium-blender-container-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  blender-fast:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 18
+    steps:
+      - uses: actions/checkout@v4
+      - name: Pull Blender 4.5 preinstalled container
+        run: docker pull ghcr.io/blenderkit/headless-blender:blender-4.5-stable
+      - name: Source original editable 3D assets from preinstalled Blender
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd forever-frequency-native
+          docker run --rm --entrypoint blender -v "$PWD:$PWD" -w "$PWD" ghcr.io/blenderkit/headless-blender:blender-4.5-stable --version
+          docker run --rm --entrypoint blender -v "$PWD:$PWD" -w "$PWD" ghcr.io/blenderkit/headless-blender:blender-4.5-stable -b -t 2 --python tools/build_assets_blender.py | tee /tmp/build.log
+          grep 'LA CALDERA ASSET KIT GREEN' /tmp/build.log
+          docker run --rm --entrypoint blender -v "$PWD:$PWD" -w "$PWD" ghcr.io/blenderkit/headless-blender:blender-4.5-stable -b -t 2 --python tools/premium_art_pass.py | tee /tmp/premium.log
+          grep 'PREMIUM BLENDER ART PASS GREEN' /tmp/premium.log
+      - name: Download source textures and CC0 vegetation
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p forever-frequency-native/pbr_sources/nature
+          for asset in Tree Bush; do
+            curl --fail --location --retry 3 --max-time 60 \
+              "https://raw.githubusercontent.com/petroulacl/fps-buildings-env-kit/main/environment/vegetation/polypizza-stylized-nature-gltf/${asset}.glb" \
+              -o "forever-frequency-native/pbr_sources/nature/${asset}.glb"
+          done
+          for mat in Bricks066 Concrete012; do
+            for map in Color Roughness NormalGL; do
+              name="${mat}_2K-JPG_${map}.jpg"
+              curl --fail --location --retry 3 --max-time 80 \
+                "https://raw.githubusercontent.com/petroulacl/fps-buildings-env-kit/main/environment/ground-textures/ambientcg/${mat}_2K-JPG/${name}" \
+                -o "forever-frequency-native/pbr_sources/${name}"
+            done
+          done
+      - name: Optimize GLBs and create premium urban backdrop
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd forever-frequency-native
+          docker run --rm --entrypoint blender -v "$PWD:$PWD" -w "$PWD" ghcr.io/blenderkit/headless-blender:blender-4.5-stable -b -t 2 --python tools/pbr_upgrade.py | tee /tmp/pbr.log
+          grep 'PBR-GAUNTLET GREEN' /tmp/pbr.log
+          docker run --rm --entrypoint blender -v "$PWD:$PWD" -w "$PWD" ghcr.io/blenderkit/headless-blender:blender-4.5-stable -b -t 2 --python tools/urban_life_district.py | tee /tmp/urban.log
+          grep 'URBAN PREMIUM GAUNTLET GREEN' /tmp/urban.log
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          a=Path('assets')
+          assert (a/'urban_life_district.glb').stat().st_size>30000
+          urban=json.loads((a/'urban_metrics.json').read_text())
+          assert urban['district_facades']>=9 and urban['runtime_batches']<20
+          assert len(list(a.glob('*.glb')))>=13
+          print('CACHED BLENDER FAST GAUNTLET GREEN',urban)
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Premium-Forever-Frequency-13-GLB-Blender-Kit
+          path: |
+            forever-frequency-native/assets/*.glb
+            forever-frequency-native/assets/*.blend
+            forever-frequency-native/assets/*metrics.json
+          if-no-files-found: error
