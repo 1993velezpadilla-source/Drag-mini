@@ -2,6 +2,10 @@ extends Node3D
 ## City Zero life simulation — separate moddable GDScript node.
 ## Modern car GLBs, diverse stylized pedestrians, transit, traffic and street scale.
 ## All routes are deterministic and offline: no network or proprietary assets.
+# OWNER REJECTED THESE VISUAL ASSETS (Nov 24 2026). Keep road traffic
+# simulation code but DO NOT spawn substandard placeholders in the actual city.
+# Re-enable only after individual visual approval against the exact orange GLB.
+const ALLOW_REJECTED_PLACEHOLDER_TRAFFIC = false
 const VEHICLES := [
     "car_2026_ev_sedan", "car_2026_crossover", "car_2026_hatchback",
     "car_2026_sportback", "car_2026_pickup", "car_2026_delivery"
@@ -20,11 +24,14 @@ func _ready() -> void:
     observer = get_parent().get_node_or_null("Player") as Node3D
     _build_road_intersections()
     _build_street_furniture()
-    _spawn_traffic()
+    if ALLOW_REJECTED_PLACEHOLDER_TRAFFIC:
+        _spawn_traffic()
+    else:
+        print("CITY_ZERO_TRAFFIC_VISUAL_QUALITY_HOLD: owner rejected low-quality placeholder vehicle GLBs; streets and pedestrians remain")
     _spawn_pedestrians()
     if ResourceLoader.exists("res://assets/skyline_dusk.glb"):
         _asset("skyline_dusk", Vector3.ZERO, 0.0, Vector3.ONE)
-    print("CITY LIFE ACTIVE: 6 vehicle classes, %d moving cars, %d citizens, signal phases" % [vehicles.size(), pedestrians.size()])
+    print("CITY LIFE ACTIVE: %d moving vehicles, %d citizens, signals active; unapproved traffic art blocked" % [vehicles.size(), pedestrians.size()])
 
 func _asset(name: String, pos: Vector3, yaw: float = 0.0, scl: Vector3 = Vector3.ONE) -> Node3D:
     var container := Node3D.new()
