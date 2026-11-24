@@ -43,11 +43,11 @@ jobs:
           export-templates: false
       - name: Install real window + OpenGL software renderer
         run: sudo apt-get update -qq && sudo apt-get install -y -qq xvfb libgl1 libgl1-mesa-dri libegl1 libgles2 mesa-utils
-      - name: Import actual REVULSE GLB HEADLESS before graphics preview
+      - name: Import actual REVULSE GLB with real Mesa OpenGL3 before graphics preview
         shell: bash
         run: |
           set -euo pipefail
-          timeout 240s godot --headless --path forever-frequency-native --editor --import --quit 2>&1 | tee forever-frequency-native/revulse_godot_import.log
+          LIBGL_ALWAYS_SOFTWARE=1 MESA_GL_VERSION_OVERRIDE=3.3 xvfb-run -a -s '-screen 0 1920x1080x24' timeout 240s godot --rendering-driver opengl3 --rendering-method gl_compatibility --path forever-frequency-native --editor --import --quit 2>&1 | tee forever-frequency-native/revulse_godot_import.log
           # The previous windowed editor import emitted Vulkan errors but
           # exited zero, leaving Godot without a usable .glb.import file.
           # Do not proceed to fake/blank screenshots in that state.
