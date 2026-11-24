@@ -1,0 +1,161 @@
+name: City Zero - SEDAN V2 real mesh, roofline, rear seats, door QA
+on:
+  push:
+    branches: [forever-frequency-native]
+    paths:
+      - '.github/workflows/city-zero-sedan-v2-real-geometry.yml'
+      - 'forever-frequency-native/tools/polish_real_cc0_sedan.py'
+      - 'forever-frequency-native/tools/render_real_cc0_open_doors.py'
+      - 'forever-frequency-native/tools/render_cc0_real_open_doors_pbr.py'
+      - 'forever-frequency-native/tests/curated_cc0_door_gauntlet.gd'
+  workflow_dispatch:
+permissions:
+  actions: read
+  contents: read
+jobs:
+  fix-and-render-real-sedan:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 24
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download REAL original editable Blender sedan and untouched supercar
+        uses: actions/download-artifact@v4
+        with:
+          run-id: 45336166368
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          name: CityZero-CC0-GT4-Car-Research-Visual-Proof
+          path: forever-frequency-native
+      - name: Confirm original geometry and scripts
+        run: |
+          set -euo pipefail
+          for name in curated_family_sedan curated_midengine_supercar; do
+            test -s "forever-frequency-native/assets/curated_rigged/${name}.blend"
+            test -s "forever-frequency-native/assets/curated_rigged/${name}.glb"
+          done
+          python3 -m py_compile forever-frequency-native/tools/polish_real_cc0_sedan.py forever-frequency-native/tools/render_real_cc0_open_doors.py forever-frequency-native/tools/render_cc0_real_open_doors_pbr.py
+      - name: Pull real Blender 4.5 with native Cycles renderer
+        run: docker pull ghcr.io/blenderkit/headless-blender:blender-4.5-stable
+      - name: Fix REAL sedan rear-seat geometries, C-pillar and original upper door trim
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd forever-frequency-native
+          timeout 420s docker run --rm -v "$PWD:$PWD" -w "$PWD" --entrypoint /home/headless/blender/blender ghcr.io/blenderkit/headless-blender:blender-4.5-stable -b -t 2 --python tools/render_real_cc0_open_doors.py 2>&1 | tee REAL_SEDAN_V2_BUILD.log
+          grep -q 'REAL BLENDER SOURCED CC0 CAR OPEN-DOOR CAPTURES COMPLETE' REAL_SEDAN_V2_BUILD.log
+      - name: Adversarial sanity of real meshes and Lamborghini unchanged
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          import json
+          root=Path('forever-frequency-native')
+          data=json.loads((root/'real_cc0_open_door_proof/actual_geometry_door_report.json').read_text())
+          assert len(data)==2
+          car={item['id']:item for item in data}
+          sedan=car['curated_family_sedan']
+          lamb=car['curated_midengine_supercar']
+          assert sedan['triangles']==60300 and sedan['hinges']==4
+          assert lamb['triangles']==44632 and lamb['hinges']==2 and lamb['sedan_polish'] is None
+          repair=sedan['sedan_polish']
+          assert repair['repair_version']==2
+          assert repair['rear_headrest_peak_after_m']<=1.14
+          assert repair['rear_seat_vertices_moved']>=150
+          assert repair['rear_pillar_vertices_feathered']>=50
+          assert repair['rear_quarter_vertices_feathered']>=350
+          assert len(repair['upper_window_trim_vertices_feathered'])==2
+          assert len(repair['door_hinges_preserved'])==4
+          assert len(sedan['measured_door_movement'])==4
+          assert len(lamb['measured_door_movement'])==2
+          assert all(x>.13 for x in sedan['measured_door_movement'].values())
+          assert len(list((root/'real_cc0_open_door_proof').glob('*.png')))==8
+          assert all((root/'assets/curated_rigged_polished'/(id+'.glb')).stat().st_size>100000 for id in car)
+          print('CITY ZERO V2 TRUE BODY/SEAT/TRIM/DOOR GEOMETRY PASS')
+          PY
+      - name: Render six real native Cycles PBR photos - sedan closed AND open
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd forever-frequency-native
+          timeout 810s docker run --rm -v "$PWD:$PWD" -w "$PWD" --entrypoint /home/headless/blender/blender ghcr.io/blenderkit/headless-blender:blender-4.5-stable -b -t 2 --python tools/render_cc0_real_open_doors_pbr.py 2>&1 | tee REAL_SEDAN_V2_PBR.log
+          grep -q 'REAL CC0 BLENDER CYCLES SEDAN V2 CLOSE/OPEN PBR PROOF GREEN' REAL_SEDAN_V2_PBR.log
+      - name: Validate actual open versus closed pixel evidence
+        run: |
+          set -euo pipefail
+          python3 -m pip install --user --quiet pillow
+          python3 - <<'PY'
+          from pathlib import Path
+          import json
+          from PIL import Image,ImageChops
+          base=Path('forever-frequency-native/real_cc0_open_door_pbr')
+          data=json.loads((base/'real_pbr_render_evidence.json').read_text())
+          assert len(data)==6
+          for shot in data:
+              assert (base/shot['file']).stat().st_size>35000
+              assert shot['render_engine']=='Blender Cycles CPU native PBR NOT AI'
+          for angle in ('side','three_quarter'):
+              a=Image.open(base/('curated_family_sedan-REAL-closed-'+angle+'.png')).convert('RGB')
+              b=Image.open(base/('curated_family_sedan-REAL-open-'+angle+'.png')).convert('RGB')
+              assert a.size==b.size==(1280,840)
+              diff=ImageChops.difference(a,b).convert('L')
+              assert diff.getbbox() is not None
+              assert sum(px>24 for px in diff.getdata())>8000
+          print('CITY ZERO V2 REAL RENDERED OPEN/CLOSED PIXEL PROOF PASS')
+          PY
+      - name: Deliver 3D models, real Blender and PBR files, no AI mockups
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: CityZero-SEDAN-V2-REAL-BodyFix-PBR-Closed-Open-GLB-Blender
+          retention-days: 90
+          path: |
+            forever-frequency-native/assets/curated_rigged_polished/*.blend
+            forever-frequency-native/assets/curated_rigged_polished/*.glb
+            forever-frequency-native/real_cc0_open_door_proof/*.png
+            forever-frequency-native/real_cc0_open_door_proof/*.json
+            forever-frequency-native/real_cc0_open_door_pbr/*.png
+            forever-frequency-native/real_cc0_open_door_pbr/*.json
+            forever-frequency-native/REAL_SEDAN_V2_BUILD.log
+            forever-frequency-native/REAL_SEDAN_V2_PBR.log
+          if-no-files-found: warn
+  isolated-godot-doors:
+    needs: fix-and-render-real-sedan
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    container:
+      image: barichello/godot-ci:4.4
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: CityZero-SEDAN-V2-REAL-BodyFix-PBR-Closed-Open-GLB-Blender
+          path: source
+      - name: Isolate sourced sedan and Lamborghini instead of importing the whole city
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p isolated/assets/curated_rigged isolated/scripts isolated/tests
+          cp source/assets/curated_rigged_polished/curated_family_sedan.glb isolated/assets/curated_rigged/
+          cp source/assets/curated_rigged_polished/curated_midengine_supercar.glb isolated/assets/curated_rigged/
+          cp forever-frequency-native/scripts/vehicle_door_controller.gd isolated/scripts/
+          cp forever-frequency-native/tests/curated_cc0_door_gauntlet.gd isolated/tests/
+          printf '%s\n' 'config_version=5' '[application]' 'config/name="CityZero Sedan V2 Real Door Gate"' > isolated/project.godot
+      - name: Import real Blender GLB files using Godot
+        shell: bash
+        run: |
+          set -o pipefail
+          timeout 160s godot --headless --path isolated --editor --import --quit 2>&1 | tee SEDAN_V2_GODOT_IMPORT.log
+      - name: Verify six physically outward and resettable door hinges
+        shell: bash
+        run: |
+          set -o pipefail
+          timeout 120s godot --headless --path isolated --script res://tests/curated_cc0_door_gauntlet.gd 2>&1 | tee SEDAN_V2_GODOT_DOORS.log
+          grep -q 'REAL CC0 CARS BLENDER RIG + GODOT KINEMATICS GREEN' SEDAN_V2_GODOT_DOORS.log
+      - name: Upload genuine Godot kinematic evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: CityZero-SEDAN-V2-REAL-Godot-Door-Test
+          path: |
+            SEDAN_V2_GODOT_IMPORT.log
+            SEDAN_V2_GODOT_DOORS.log
+          if-no-files-found: warn
