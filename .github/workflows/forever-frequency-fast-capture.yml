@@ -1,0 +1,36 @@
+name: Forever Frequency — direct Godot 3D frame capture
+
+on:
+  push:
+    branches: [forever-frequency-native]
+    paths: ['.github/workflows/forever-frequency-fast-capture.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  screenshot:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    container:
+      image: barichello/godot-ci:4.4
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install display and Mesa
+        run: apt-get update -qq && apt-get install -y -qq xvfb libgl1-mesa-dri libgl1
+      - name: Import source
+        run: godot --headless --path forever-frequency-native --editor --import --quit
+      - name: Screenshot actual Godot scene
+        shell: bash
+        run: |
+          xvfb-run -a -s '-screen 0 1280x720x24' godot --path forever-frequency-native --rendering-method gl_compatibility --script res://tests/capture.gd 2>&1 | tee capture.log
+          test -s forever-frequency-native/preview_real_godot.png
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: Forever-Frequency-Godot-3D-Capture-Fast
+          path: |
+            forever-frequency-native/preview_real_godot.png
+            capture.log
+          if-no-files-found: warn
