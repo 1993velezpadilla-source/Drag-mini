@@ -5,6 +5,8 @@ on:
   push:
     branches: [forever-frequency-native]
     paths:
+      - tools/nfsu2_parts_animation.py
+      - tools/tests/test_nfsu2_parts_animation.py
       - tools/nfsu2_import_all.py
       - tools/nfsu2_blender_export_all.py
       - tools/tests/test_nfsu2_import_all.py
@@ -27,7 +29,7 @@ jobs:
           python3 -m py_compile tools/nfsu2_import_all.py
           python3 -m py_compile tools/nfsu2_blender_export_all.py
       - name: Run source-compatible synthetic tests (no EA game files)
-        run: python3 -m unittest discover -v -s tools/tests -p 'test_nfsu2_import_all.py'
+        run: python3 -m unittest discover -v -s tools/tests -p 'test_nfsu2_*.py'
       - name: Ensure no proprietary asset media accidentally added
         shell: bash
         run: |
