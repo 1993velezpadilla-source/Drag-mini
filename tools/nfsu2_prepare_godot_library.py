@@ -181,7 +181,12 @@ def build_library(batch: dict, output_root: Path) -> dict:
             "sound_stages": stages,
             "sound_source_status": sound.get("status", "not_mapped"),
             "performance_categories": perf,
-            "performance_numeric_status": "not_decoded_from_original_game",
+            "original_physics": info.get("physics", {"status": "not_available"}),
+            "performance_numeric_status": (
+                "original_targets_extracted_packages_not_applied"
+                if "factory_physics" in info.get("physics", {})
+                else "original_data_not_available"
+            ),
             "vinyls": info.get("vinyls", {}),
             "animation": info.get("animation", {"status": "not_available"}),
         }
