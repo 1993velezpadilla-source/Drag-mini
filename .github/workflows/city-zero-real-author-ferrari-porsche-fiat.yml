@@ -147,7 +147,7 @@ jobs:
         shell: bash
         run: |
           set -o pipefail
-          timeout 190s godot --headless --path isolated --editor --import --quit 2>&1 | tee ARTIST_CARS_GODOT_IMPORT.log
+          LIBGL_ALWAYS_SOFTWARE=1 MESA_GL_VERSION_OVERRIDE=3.3 xvfb-run -a -s '-screen 0 1600x900x24' timeout 190s godot --rendering-driver opengl3 --rendering-method gl_compatibility --path isolated --editor --import --quit 2>&1 | tee ARTIST_CARS_GODOT_IMPORT.log
           for name in ferrari_f40 porsche_911 fiat_punto; do
             test -s "isolated/assets/licensed_ccby_car_fleet/"$name"_blender_import.glb.import"
             grep -q '\[remap\]' "isolated/assets/licensed_ccby_car_fleet/"$name"_blender_import.glb.import"
