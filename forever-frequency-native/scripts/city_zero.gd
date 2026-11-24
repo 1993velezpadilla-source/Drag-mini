@@ -437,8 +437,10 @@ func _create_citizens() -> void:
         var tone := Color.from_hsv(float(i%6)/10.0 + 0.05,0.38,0.86)
         if ResourceLoader.exists("res://assets/artist_avatar.glb"):
             var citizen_model: PackedScene = load("res://assets/artist_avatar.glb")
-            citizen.add_child(citizen_model.instantiate())
-            citizen.scale = Vector3.ONE * (0.86 + 0.035 * float(i % 4))
+            var citizen_visual: Node3D = citizen_model.instantiate()
+            citizen.add_child(citizen_visual)
+            _dress_citizen_avatar(citizen_visual, i)
+            citizen.scale = Vector3.ONE * (0.84 + 0.028 * float(i % 7))
         else:
             _sphere(citizen,Vector3(0,1.9,0),0.30,Color("d5b49c"))
             _box(citizen,Vector3(0,1.12,0),Vector3(0.48,1.0,0.35),tone)
@@ -448,6 +450,49 @@ func _create_citizens() -> void:
         var pz := -5.8 if i%2==0 else 5.8
         citizen.position = Vector3(px,0,pz)
         citizens.append({"node":citizen,"phase":float(i)*1.6,"axis":i%2,"start":citizen.position})
+
+func _dress_citizen_avatar(actor: Node3D, style: int) -> void:
+    # Adversarial visual gate: a city with 12 exact clones is NOT an inhabited city.
+    # Keep the single lightweight Blender mesh but create per-citizen clothing,
+    # hair, skin and accessory palettes. Never tint the full character.
+    var jackets: Array[Color] = [
+        Color("8d4559"), Color("597284"), Color("b78554"), Color("637b5a"),
+        Color("76638d"), Color("c6a88b"), Color("3c7674"), Color("b97168")
+    ]
+    var trousers: Array[Color] = [
+        Color("292f43"), Color("3e4259"), Color("715c50"), Color("354947"),
+        Color("41415a"), Color("5f514a"), Color("273b40"), Color("48425a")
+    ]
+    var skins: Array[Color] = [
+        Color("a8775b"), Color("d3a58a"), Color("916449"), Color("b88d72"),
+        Color("ddba9c"), Color("825640"), Color("bb9277"), Color("9f7257")
+    ]
+    for node in actor.find_children("*", "MeshInstance3D", true, false):
+        var part := node as MeshInstance3D
+        if part == null or part.mesh == null:
+            continue
+        var item := part.name.to_lower()
+        if (style % 4 == 0) and ("headphone" in item or "headphone halo" in item):
+            part.visible = false
+        if (style % 5 == 0) and "producer messenger bag" in item:
+            part.visible = false
+        var chosen := Color.TRANSPARENT
+        if "hoodie oversized torso" in item:
+            chosen = jackets[style % jackets.size()]
+        elif "jogger trouser leg" in item:
+            chosen = trousers[style % trousers.size()]
+        elif "hands" in item:
+            chosen = skins[style % skins.size()]
+        elif "sideburns" in item:
+            chosen = Color("2b252b") if style % 2 == 0 else Color("604331")
+        elif "training sneakers" in item:
+            chosen = Color("e7dbc5") if style % 3 == 0 else Color("313c52")
+        if chosen.a > 0.0:
+            var source_mat := part.mesh.surface_get_material(0)
+            if source_mat is BaseMaterial3D:
+                var instance_mat := (source_mat as BaseMaterial3D).duplicate() as BaseMaterial3D
+                instance_mat.albedo_color = chosen
+                part.material_override = instance_mat
 
 func _create_player() -> void:
     hero = CharacterBody3D.new()
@@ -784,11 +829,18 @@ func _create_mobile_ui() -> void:
     titlepanel.add_theme_stylebox_override("panel",_panel_style(Color("12172bdc"),COLORS.cyan))
     titlepanel.offset_left = 16
     titlepanel.offset_top = 14
-    titlepanel.offset_right = 333
-    titlepanel.offset_bottom = 73
+    titlepanel.offset_right = 348
+    titlepanel.offset_bottom = 105
     root.add_child(titlepanel)
-    var title := _ui_label("◉  FOREVER FREQUENCY\n     LA CALDERA · CITY ZERO",18,Color("e5f8ff"))
-    titlepanel.add_child(title)
+    var meta := VBoxContainer.new()
+    meta.add_theme_constant_override("separation",1)
+    titlepanel.add_child(meta)
+    var title := _ui_label("◉ FOREVER FREQUENCY",17,Color("e5f8ff"))
+    meta.add_child(title)
+    meta.add_child(_ui_label("LA CALDERA  ·  CITY ZERO",13,Color("8bdbe0")))
+    world_time_label = _ui_label("",11,Color("f5d8af"))
+    world_time_label.autowrap_mode = TextServer.AUTOWRAP_OFF
+    meta.add_child(world_time_label)
     var stats := PanelContainer.new()
     stats.add_theme_stylebox_override("panel",_panel_style(Color("12172bdb"),Color("5d789f")))
     stats.anchor_left = 1
@@ -804,12 +856,12 @@ func _create_mobile_ui() -> void:
     missionpanel.add_theme_stylebox_override("panel",_panel_style(Color("111728d8"),Color("7b5aa3")))
     missionpanel.anchor_left = 1
     missionpanel.anchor_right = 1
-    missionpanel.offset_left = -305
+    missionpanel.offset_left = -270
     missionpanel.offset_right = -14
     missionpanel.offset_top = 88
-    missionpanel.offset_bottom = 205
+    missionpanel.offset_bottom = 184
     root.add_child(missionpanel)
-    mission = _ui_label("",14,Color("e5d9ff"))
+    mission = _ui_label("",13,Color("e5d9ff"))
     missionpanel.add_child(mission)
     var hintpanel := PanelContainer.new()
     hintpanel.add_theme_stylebox_override("panel",_panel_style(Color("12172bdc"),COLORS.cyan))
@@ -844,12 +896,6 @@ func _create_mobile_ui() -> void:
     label.offset_top = -38
     label.offset_bottom = -11
     root.add_child(label)
-    world_time_label = _ui_label("",13,Color("ffe6d2"))
-    world_time_label.position = Vector2(22,81)
-    world_time_label.custom_minimum_size = Vector2(330,23)
-    world_time_label.size = Vector2(330,23)
-    world_time_label.autowrap_mode = TextServer.AUTOWRAP_OFF
-    root.add_child(world_time_label)
 
 func _update_hud() -> void:
     if currency == null:
