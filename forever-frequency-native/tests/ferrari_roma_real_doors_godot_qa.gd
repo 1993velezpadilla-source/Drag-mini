@@ -28,6 +28,27 @@ func _frame(vp: SubViewport) -> Image:
     await RenderingServer.frame_post_draw
     return vp.get_texture().get_image()
 
+func _mesh_frame_bounds(cam: Camera3D, nodes: Array[MeshInstance3D]) -> Rect2:
+    # The input is genuine GLTF artist geometry, not a generated photo.
+    var left_top := Vector2(INF,INF)
+    var right_bottom := Vector2(-INF,-INF)
+    for part in nodes:
+        var source: Mesh = part.mesh
+        for corner in range(8):
+            var point: Vector3 = part.global_transform * source.get_aabb().get_endpoint(corner)
+            var projected: Vector2 = cam.unproject_position(point)
+            left_top = left_top.min(projected)
+            right_bottom = right_bottom.max(projected)
+    return Rect2(left_top, right_bottom-left_top)
+
+func _check_close_frontal_view(cam: Camera3D, nodes: Array[MeshInstance3D], tag: String) -> bool:
+    var rect: Rect2 = _mesh_frame_bounds(cam,nodes)
+    var width: float = rect.size.x/1600.0
+    var height: float = rect.size.y/1000.0
+    var safe: bool = rect.position.x>=25.0 and rect.position.y>=25.0 and rect.end.x<=1575.0 and rect.end.y<=975.0
+    print("REAL_FERRARI_ROMA_NATIVE_CLOSEUP_FRAME ",tag," actual mesh width fraction=",width," height=",height," no_crop=",safe)
+    return width>=.58 and maxf(width,height)>=.64 and safe
+
 func _run() -> void:
     var folder := OS.get_environment("CITYZERO_FERRARI_TRUE_HINGES_GODOT")
     if folder.is_empty():
@@ -108,13 +129,18 @@ func _run() -> void:
     vp.add_child(light)
     var cam := Camera3D.new()
     cam.projection = Camera3D.PROJECTION_ORTHOGONAL
-    cam.size=span*1.13
+    # Close physical automotive review camera: make real Ferrari fill frame;
+    # previous 1.13*span framing made it look like a tiny toy in 1600x1000.
+    cam.size=span*.78
     vp.add_child(cam)
     cam.position=mid+Vector3(1.35,.62,1.5)*span
     cam.look_at(mid,Vector3.UP)
     cam.current=true
     for i in range(20):
         await process_frame
+    if not _check_close_frontal_view(cam,all_meshes,"CLOSED"):
+        _fail("Actual source Ferrari car is too small or cropped with doors CLOSED")
+        return
     var closed := await _frame(vp)
     if closed==null or closed.is_empty():
         _fail("Could not photograph closed REAL Ferrari Roma door panels in Godot")
@@ -129,6 +155,9 @@ func _run() -> void:
         if not animation.is_door_open(id) or absf(float(animation.current_angle[id])) < .93:
             _fail("Original body + glass hinge did not actually animate "+id)
             return
+    if not _check_close_frontal_view(cam,all_meshes,"OPEN"):
+        _fail("Real original Ferrari body and door windows are cropped or tiny when OPEN")
+        return
     var opened := await _frame(vp)
     if opened==null or opened.is_empty():
         _fail("Could not photograph two physically opened original doors")
