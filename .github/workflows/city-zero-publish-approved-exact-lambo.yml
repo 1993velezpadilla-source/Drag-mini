@@ -1,0 +1,97 @@
+name: City Zero - Publish EXACT approved orange Lamborghini GLB
+on:
+  workflow_dispatch:
+  push:
+    branches: [forever-frequency-native]
+    paths:
+      - '.github/workflows/city-zero-publish-approved-exact-lambo.yml'
+permissions:
+  contents: write
+  actions: read
+concurrency:
+  group: city-zero-exact-approved-lamborghini-publisher
+  cancel-in-progress: false
+jobs:
+  publish-original-user-approved-glb:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: forever-frequency-native
+      - name: Retrieve original approved GLB, not procedural REVULSE
+        uses: actions/download-artifact@v4
+        with:
+          run-id: 45336166368
+          name: CityZero-CC0-GT4-Car-Research-Visual-Proof
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: original_approved_source
+      - name: Verify byte-for-byte orange car with door hinges and PBR materials
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import hashlib,json,struct
+          from pathlib import Path
+          file=Path('original_approved_source/assets/curated_rigged/curated_midengine_supercar.glb')
+          raw=file.read_bytes()
+          assert len(raw)==3689788,('wrong length',len(raw))
+          assert hashlib.sha256(raw).hexdigest()=='45cdbfd70dc4e6c64b6bbbe5e24a2107044e2008928ab01c27fa8fbb91a25bd7','NOT THE APPROVED ORANGE LAMBO'
+          assert raw[:4]==b'glTF' and struct.unpack_from('<I',raw,8)[0]==len(raw)
+          ln,typ=struct.unpack_from('<I4s',raw,12)
+          assert typ==b'JSON'
+          gltf=json.loads(raw[20:20+ln])
+          assert len(gltf.get('meshes',[]))==23 and len(gltf.get('materials',[]))==34
+          nodes={n.get('name') for n in gltf.get('nodes',[])}
+          assert {'DOOR_LEFT_FRONT_HINGE','DOOR_RIGHT_FRONT_HINGE','bonnet','boot','glass_deck'}<=nodes
+          print('EXACT_USER_APPROVED_ORANGE_LAMBORGHINI_SHA256_GREEN')
+          PY
+      - name: Commit original approved GLB into City Zero project
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p forever-frequency-native/assets/curated_rigged forever-frequency-native/data
+          cp original_approved_source/assets/curated_rigged/curated_midengine_supercar.glb forever-frequency-native/assets/curated_rigged/curated_midengine_supercar.glb
+          cat > forever-frequency-native/data/approved_lamborghini_source.json <<'JSON'
+          {
+            "id": "curated_midengine_supercar",
+            "original_run_id": 45336166368,
+            "original_artifact": "CityZero-CC0-GT4-Car-Research-Visual-Proof",
+            "path": "res://assets/curated_rigged/curated_midengine_supercar.glb",
+            "sha256": "45cdbfd70dc4e6c64b6bbbe5e24a2107044e2008928ab01c27fa8fbb91a25bd7",
+            "bytes": 3689788,
+            "meshes": 23,
+            "materials": 34,
+            "hinges": 2,
+            "do_not_substitute": "exotic_supercar__revulse.glb",
+            "status": "EXACT_USER_APPROVED_ORANGE_SUPERCAR_IDENTITY_LOCKED"
+          }
+          JSON
+          git config user.name "City Zero exact Lamborghini"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add forever-frequency-native/assets/curated_rigged/curated_midengine_supercar.glb forever-frequency-native/data/approved_lamborghini_source.json
+          if git diff --cached --quiet; then
+            echo 'EXACT_APPROVED_ORANGE_LAMBO_ALREADY_PRESENT'
+            exit 0
+          fi
+          git commit -m "Ship exact approved orange Lamborghini GLB to playable City Zero [skip ci]"
+          git reset --hard HEAD
+          for attempt in 1 2 3 4; do
+            git fetch origin forever-frequency-native
+            git rebase origin/forever-frequency-native
+            if git push origin HEAD:forever-frequency-native; then
+              echo 'EXACT_USER_APPROVED_LAMBORGHINI_PUBLISHED_TO_GAME'
+              exit 0
+            fi
+            sleep 2
+          done
+          exit 1
+      - name: Preserve exact asset if publishing fails
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: CityZero-EXACT-APPROVED-Orange-Lamborghini-GLB
+          path: |
+            forever-frequency-native/assets/curated_rigged/curated_midengine_supercar.glb
+            forever-frequency-native/data/approved_lamborghini_source.json
+          if-no-files-found: warn
