@@ -16,7 +16,7 @@ jobs:
       - name: Install Blender
         run: |
           sudo apt-get update -qq
-          sudo apt-get install -y -qq blender
+          sudo apt-get install -y -qq blender libegl1 libgl1 libxrender1 libxi6 libxrandr2 libxxf86vm1
       - name: Get real Blender model kit
         uses: actions/download-artifact@v4
         with:
