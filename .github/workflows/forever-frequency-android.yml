@@ -31,6 +31,34 @@ jobs:
           test -s assets/studio_entrance.glb
           test -s assets/street_kiosk.glb
           test -s assets/city_zero_modular.blend
+      - name: Download verified CC0 PBR material maps
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p forever-frequency-native/pbr_sources
+          for mat in Bricks066 Concrete012; do
+            for map in Color Roughness NormalGL; do
+              file="${mat}_2K-JPG_${map}.jpg"
+              curl --fail --location --retry 3 --connect-timeout 15 --max-time 90 \
+                "https://raw.githubusercontent.com/petroulacl/fps-buildings-env-kit/main/environment/ground-textures/ambientcg/${mat}_2K-JPG/${file}" \
+                -o "forever-frequency-native/pbr_sources/${file}"
+              test "$(stat -c %s "forever-frequency-native/pbr_sources/${file}")" -gt 10000
+            done
+          done
+      - name: PBR material upgrade and mesh batching in Blender
+        shell: bash
+        run: |
+          cd forever-frequency-native
+          blender -b -t 2 --python tools/pbr_upgrade.py | tee pbr_gauntlet.log
+          grep 'PBR-GAUNTLET GREEN' pbr_gauntlet.log
+          python3 - <<'PY'
+          import json
+          j=json.load(open('assets/mesh_metrics.json'))
+          assert len(j)==12
+          for k,v in j.items():
+              assert v['export_nodes'] < v['source_meshes'], (k,v)
+          print('ASSET METRICS PASS',sum(v['source_meshes'] for v in j.values()),'to',sum(v['export_nodes'] for v in j.values()),'nodes')
+          PY
       - name: Upload model kit
         uses: actions/upload-artifact@v4
         with:
@@ -38,6 +66,7 @@ jobs:
           path: |
             forever-frequency-native/assets/*.glb
             forever-frequency-native/assets/*.blend
+            forever-frequency-native/assets/mesh_metrics.json
           if-no-files-found: error
 
   android:
