@@ -5,3 +5,10 @@
 
 # Pinned upstream Android plugin binaries installed locally/CI.
 addons/Android/LiveWallpaper/
+
+# Never accidentally push proprietary NFSU2 game files, sound banks, or converted assets.
+city_zero/assets/nfsu2_imports/
+city_zero/assets/nfsu2_private/
+CityZeroNFSU2Imported/
+local_assets/
+private_nfsu2_import/
