@@ -206,6 +206,25 @@ def watercraft(rec,paint):
         if "cruiser" in rec["id"]:
             block("Hardtop cabin roof",0,L*.14,H*.84,W*.59,L*.34,.15,paint,.08)
             block("Side passenger glazing",W*.27,L*.16,H*.61,.035,L*.24,.39,glass,.02)
+            # A proper marina cruiser needs independently modeled marine
+            # fittings, not a nine-mesh box hull disguised as a yacht.
+            for sign in (-1,1):
+                block("Stainless hull porthole",sign*W*.465,L*.20,.50,
+                      .022,L*.135,.15,glass,.018)
+                tube("Cruiser raised stainless grab rail",[
+                    (sign*W*.31,-L*.26,H*.76),
+                    (sign*W*.39,0,H*.78),
+                    (sign*W*.31,L*.28,H*.76)],.031,alloy)
+                tube("Full length hull fender rub-rail",[
+                    (sign*W*.45,-L*.39,.43),
+                    (sign*W*.47,L*.05,.44),
+                    (sign*W*.42,L*.40,.40)],.039,dark)
+            block("Radar navigation enclosure",0,L*.12,H*.95,
+                  W*.25,L*.09,.16,alloy,.055)
+            block("Marine deck skylight",0,L*.04,H*.87,
+                  W*.28,L*.16,.036,glass,.025)
+            block("Aftboarding swim platform",0,L*.445,.32,
+                  W*.66,L*.15,.055,seat,.018)
         else:
             # RIB hull must include recognizable REAL geometry: inflatable
             # segmented tubes, pilot/crew hardware, passenger restraints and
