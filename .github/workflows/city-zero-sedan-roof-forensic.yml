@@ -35,7 +35,7 @@ jobs:
           set -euo pipefail
           cd forever-frequency-native
           timeout 200s docker run --rm -v "$PWD:$PWD" -w "$PWD" --entrypoint /home/headless/blender/blender ghcr.io/blenderkit/headless-blender:blender-4.5-stable -b -t 2 --python tools/debug_real_sedan_roof_black_triangles.py 2>&1 | tee REAL_ROOF_FORENSIC.log
-          grep -q 'REAL SEDAN ROOF TRIANGLE SOURCE DIAGNOSTIC SIX FRAMES COMPLETE' REAL_ROOF_FORENSIC.log
+          grep -q 'REAL SEDAN ROOF TRIANGLE SOURCE DIAGNOSTIC TEN FRAMES COMPLETE' REAL_ROOF_FORENSIC.log
       - name: Prove six genuine Blender frames exist
         run: |
           python3 - <<'PY'
@@ -43,9 +43,9 @@ jobs:
           from pathlib import Path
           d=Path('forever-frequency-native/real_sedan_roof_forensics')
           data=json.loads((d/'roof_triangle_isolation_report.json').read_text())
-          assert len(data)==6
+          assert len(data)==10
           assert all((d/x['path']).stat().st_size>20000 for x in data)
-          assert len(list(d.glob('*.png')))==6
+          assert len(list(d.glob('*.png')))==10
           print('BLACK ROOF TRIANGLE ACTUAL-MESH ISOLATION IMAGES GREEN')
           PY
       - name: Upload untouched source-derived forensic screenshots
