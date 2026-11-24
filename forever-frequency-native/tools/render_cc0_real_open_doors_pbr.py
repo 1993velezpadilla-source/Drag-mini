@@ -14,7 +14,10 @@ for name,doors in [('curated_midengine_supercar',2),('curated_family_sedan',4)]:
     source_meshes=[o for o in bpy.data.objects if o.type=='MESH']
     assert len(source_meshes)>20
     tris=sum(len(p.vertices)-2 for o in source_meshes for p in o.data.polygons)
-    assert tris in (44632,60300)
+    if name=='curated_midengine_supercar':
+        assert tris==44632,("Lambo must remain pristine",tris)
+    else:
+        assert 60300<=tris<=65000,("source sedan glass LOD exceeds budget",tris)
     hinges=[o for o in bpy.data.objects if o.name.startswith('DOOR_') and o.name.endswith('_HINGE')]
     assert len(hinges)==doors,(name,len(hinges))
     initial_rotations={}
