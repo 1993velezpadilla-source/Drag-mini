@@ -108,5 +108,43 @@ class NFSU2ImportTests(unittest.TestCase):
         self.assertEqual(len(blender.best_variants(entries, True)), 4)
         self.assertEqual(blender.best_variants(entries)[0].name, "high")
 
+
+    def test_all_vgmstream_subsongs_are_kept(self):
+        from unittest.mock import patch
+        from types import SimpleNamespace
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory) / "wavs"
+            rows = [{"path": "SOUND/ENGINE/BANK.ABK", "extension": ".abk"}]
+            def produce(cmd, **kw):
+                self.assertEqual(cmd[cmd.index("-S") + 1], "0")
+                target = cmd[cmd.index("-o") + 1]
+                for i in (1, 2, 3):
+                    Path(target.replace("?04s", f"{i:04d}")).write_bytes(
+                        b"RIFF" + b"\0" * 4 + b"WAVE" + b"\0" * 64)
+                return SimpleNamespace(returncode=0, stderr="", stdout="")
+            with patch.object(src.shutil, "which", return_value="/usr/bin/vgmstream-cli"), patch.object(
+                    src.subprocess, "run", side_effect=produce):
+                result = src.decode_sound_banks(Path(directory), rows, output, "vgmstream-cli")
+            self.assertEqual(result["decoded_streams"], 3)
+            self.assertEqual(len(rows[0]["private_wavs"]), 3)
+            self.assertTrue(all(Path(p).is_file() for p in rows[0]["private_wavs"]))
+
+    def test_stale_or_invalid_audio_never_counts_as_decoded(self):
+        from unittest.mock import patch
+        from types import SimpleNamespace
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory) / "wavs"
+            output.mkdir()
+            (output / "stale.wav").write_bytes(
+                b"RIFF" + b"\0" * 4 + b"WAVE" + b"\0" * 60)
+            rows = [{"path": "SOUND/ENGINE/BANK.ABK", "extension": ".abk"}]
+            with patch.object(src.shutil, "which", return_value="/usr/bin/vgmstream-cli"), patch.object(
+                    src.subprocess, "run", return_value=SimpleNamespace(
+                        returncode=1, stderr="decoder failure", stdout="")):
+                result = src.decode_sound_banks(Path(directory), rows, output, "vgmstream-cli")
+            self.assertEqual(result["decoded_streams"], 0)
+            self.assertNotIn("private_wavs", rows[0])
+            self.assertEqual(rows[0]["decode_status"], "failed")
+
 if __name__ == "__main__":
     unittest.main()
