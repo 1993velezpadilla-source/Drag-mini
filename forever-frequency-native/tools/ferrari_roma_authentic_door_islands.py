@@ -238,14 +238,16 @@ if len(moving)!=4:
     raise RuntimeError("Must have exactly original left/right shell+glass moving meshes")
 moved_points=[]
 for door in moving:
-    group="LEFT" if "_LEFT_" in door.name else "RIGHT"
-    world_point=door.matrix_world @ Vector(door.bound_box[0])
-    moved_points.append((group,world_point))
+    # Use the TRUE rearward-most author panel corner, never the hinge-nearest
+    # corner, which might move only a few centimeters despite a full open door.
+    rear_corner=max(range(8),key=lambda i:(door.matrix_world @ Vector(door.bound_box[i])).y)
+    world_point=door.matrix_world @ Vector(door.bound_box[rear_corner])
+    moved_points.append((rear_corner,world_point))
 for p in hinges.values():p.rotation_euler.z=0.0
 bpy.context.view_layer.update()
 displacements=[]
-for door,(group,before) in zip(moving,moved_points):
-    after=door.matrix_world @ Vector(door.bound_box[0])
+for door,(rear_corner,before) in zip(moving,moved_points):
+    after=door.matrix_world @ Vector(door.bound_box[rear_corner])
     displacements.append(float((after-before).length))
 if min(displacements)<.12:
     raise RuntimeError("Door pivot does not move actual attached source body+glass panels")
