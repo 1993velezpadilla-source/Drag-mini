@@ -128,7 +128,7 @@ scene.render.resolution_percentage = 100
 scene.render.image_settings.file_format = "PNG"
 scene.render.film_transparent = False
 scene.view_settings.view_transform = "AgX"
-scene.view_settings.look = "Medium High Contrast"
+scene.view_settings.look = "AgX - Medium High Contrast"
 # Neutral studio backdrop and soft true physical surface reflections.
 world = bpy.data.worlds.new("CITY_ZERO_NEUTRAL_PHOTOGRAPHIC_BACKDROP")
 scene.world = world
