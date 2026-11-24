@@ -42,12 +42,29 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          npm install --prefix "$RUNNER_TEMP/cityzero-gltf" --no-audit --no-fund @gltf-transform/cli@4.2.1
+          npm install --prefix "$RUNNER_TEMP/cityzero-gltf" --no-audit --no-fund @gltf-transform/core@4.2.1 @gltf-transform/extensions@4.2.1 meshoptimizer@0.23.0
           cd forever-frequency-native
           mkdir -p assets/tevy_cc0_decoded_sources
-          for src in assets/tevy_cc0_original_sources/*.glb; do
-            "$RUNNER_TEMP/cityzero-gltf/node_modules/.bin/gltf-transform" decompress "$src" "assets/tevy_cc0_decoded_sources/$(basename "$src")"
-          done
+          cat > "$RUNNER_TEMP/cityzero-gltf/decode.mjs" <<'JS'
+          import { NodeIO } from '@gltf-transform/core';
+          import { ALL_EXTENSIONS } from '@gltf-transform/extensions';
+          import { MeshoptDecoder } from 'meshoptimizer';
+          import { readdir } from 'node:fs/promises';
+          import path from 'node:path';
+          await MeshoptDecoder.ready;
+          const io = new NodeIO().registerExtensions(ALL_EXTENSIONS)
+            .registerDependencies({'meshopt.decoder': MeshoptDecoder});
+          const source = 'assets/tevy_cc0_original_sources';
+          for (const name of (await readdir(source)).filter(n => n.endsWith('.glb')).sort()) {
+            const doc = await io.read(path.join(source, name));
+            for (const ext of doc.getRoot().listExtensionsUsed()) {
+              if (ext.extensionName === 'EXT_meshopt_compression') ext.dispose();
+            }
+            await io.write(path.join('assets/tevy_cc0_decoded_sources', name), doc);
+            console.log('MESHOPT_DECODED', name);
+          }
+          JS
+          node "$RUNNER_TEMP/cityzero-gltf/decode.mjs"
           python3 - <<'PY'
           import hashlib,json,struct
           from pathlib import Path
