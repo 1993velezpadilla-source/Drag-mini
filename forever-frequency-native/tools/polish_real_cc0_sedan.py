@@ -264,9 +264,12 @@ def repair_original_door_upper_frames():
             shader=material.node_tree.nodes.get("Principled BSDF") if material.use_nodes else None
             if shader is None:
                 raise RuntimeError("Original sourced trim shader missing "+name)
-            shader.inputs["Base Color"].default_value=(.041,.051,.064,1)
-            shader.inputs["Metallic"].default_value=.48
-            shader.inputs["Roughness"].default_value=.34
+            shader.inputs["Base Color"].default_value=(.011,.014,.020,1)
+            shader.inputs["Metallic"].default_value=0.0
+            shader.inputs["Roughness"].default_value=.67
+            specular=shader.inputs.get("Specular IOR Level")
+            if specular is not None:
+                specular.default_value=.08
             obj.data.materials[material_names.index("trim_gloss")]=material
             results[name]={"upper_vertices_reprofiled":adjusted,
                            "maximum_coordinate_change_m":round(max_shift,5),
@@ -283,9 +286,12 @@ def repair_original_door_upper_frames():
         shader=roof_mat.node_tree.nodes.get("Principled BSDF") if roof_mat.use_nodes else None
         if shader is None:
             raise RuntimeError("Actual upper rail shader missing "+side)
-        shader.inputs["Base Color"].default_value=(.052,.063,.077,1)
-        shader.inputs["Metallic"].default_value=.53
-        shader.inputs["Roughness"].default_value=.39
+        shader.inputs["Base Color"].default_value=(.015,.020,.027,1)
+        shader.inputs["Metallic"].default_value=0.08
+        shader.inputs["Roughness"].default_value=.61
+        specular=shader.inputs.get("Specular IOR Level")
+        if specular is not None:
+            specular.default_value=.09
         for i,material in enumerate(roof.data.materials):
             if material==original_chrome:
                 roof.data.materials[i]=roof_mat
