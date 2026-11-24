@@ -1,0 +1,78 @@
+name: City Zero - REAL CC0 GLB car doors open photos
+on:
+  push:
+    branches: [forever-frequency-native]
+    paths:
+      - '.github/workflows/city-zero-real-glb-open-doors.yml'
+      - 'forever-frequency-native/tools/render_real_cc0_open_doors.py'
+      - 'forever-frequency-native/tools/polish_real_cc0_sedan.py'
+  workflow_dispatch:
+permissions:
+  actions: read
+  contents: read
+concurrency:
+  group: cityzero-real-cc0-door-photos
+  cancel-in-progress: true
+jobs:
+  render-real-source-meshes:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 18
+    steps:
+      - uses: actions/checkout@v4
+      - name: Get actual original CC0 Blender masters, not generated images
+        uses: actions/download-artifact@v4
+        with:
+          run-id: 45336166368
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          name: CityZero-CC0-GT4-Car-Research-Visual-Proof
+          path: forever-frequency-native
+      - name: Verify exact .blend real source rigs and compile
+        run: |
+          set -euo pipefail
+          test -s forever-frequency-native/assets/curated_rigged/curated_family_sedan.blend
+          test -s forever-frequency-native/assets/curated_rigged/curated_midengine_supercar.blend
+          python3 -m py_compile forever-frequency-native/tools/render_real_cc0_open_doors.py forever-frequency-native/tools/polish_real_cc0_sedan.py
+      - name: Pull native Blender 4.5
+        run: docker pull ghcr.io/blenderkit/headless-blender:blender-4.5-stable
+      - name: Polish actual sedan mesh and capture its doors open alongside exotic
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd forever-frequency-native
+          timeout 500s docker run --rm --entrypoint /home/headless/blender/blender -v "$PWD:$PWD" -w "$PWD" ghcr.io/blenderkit/headless-blender:blender-4.5-stable -b -t 2 --python tools/render_real_cc0_open_doors.py 2>&1 | tee REAL_BLENDER_OPEN_DOORS.log
+          grep -q 'REAL BLENDER SOURCED CC0 CAR OPEN-DOOR CAPTURES COMPLETE' REAL_BLENDER_OPEN_DOORS.log
+      - name: Validate moving original source geometry and eight real Blender PNGs
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          root=Path("forever-frequency-native")
+          q=root/"real_cc0_open_door_proof"
+          items=json.loads((q/"actual_geometry_door_report.json").read_text())
+          assert len(items)==2
+          for item in items:
+              assert len(item["measured_door_movement"])==item["hinges"]
+              assert all(delta>.13 for delta in item["measured_door_movement"].values())
+              assert len(item["screenshots"])==4
+              for shot in item["screenshots"]:
+                  assert (q/shot["png"]).stat().st_size>15000
+          sedan=next(x for x in items if x["id"]=="curated_family_sedan")
+          assert sedan["sedan_polish"]["rear_seat_vertices_moved"]>=12
+          assert sedan["sedan_polish"]["rear_headrest_peak_after_m"]<=1.25
+          assert len(list(q.glob("*.png")))==8
+          print("REAL SOURCE BLENDER OPEN AND CLOSED DOOR IMAGES VERIFIED")
+          PY
+      - name: Upload ONLY real Blender screenshots, GLB and editable .blend
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: CityZero-REAL-CC0-Cars-Open-Doors-Blender-PNG-GLB
+          retention-days: 90
+          path: |
+            forever-frequency-native/real_cc0_open_door_proof/*.png
+            forever-frequency-native/real_cc0_open_door_proof/*.json
+            forever-frequency-native/assets/curated_rigged_polished/*.blend
+            forever-frequency-native/assets/curated_rigged_polished/*.glb
+            forever-frequency-native/REAL_BLENDER_OPEN_DOORS.log
+          if-no-files-found: warn
