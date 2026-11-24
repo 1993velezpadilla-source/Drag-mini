@@ -1,0 +1,63 @@
+name: City Zero - Real CC0 cars open doors Cycles PBR
+on:
+  push:
+    branches: [forever-frequency-native]
+    paths:
+      - '.github/workflows/city-zero-real-cc0-open-pbr.yml'
+      - 'forever-frequency-native/tools/render_cc0_real_open_doors_pbr.py'
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  render-authentic-3d:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download successful REAL Blender source models with physically opened doors
+        uses: actions/download-artifact@v4
+        with:
+          run-id: 45337756572
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          name: CityZero-REAL-CC0-Cars-Open-Doors-Blender-PNG-GLB
+          path: forever-frequency-native
+      - name: Verify real editable Blender sources and compile render
+        run: |
+          test -s forever-frequency-native/assets/curated_rigged_polished/curated_family_sedan.blend
+          test -s forever-frequency-native/assets/curated_rigged_polished/curated_midengine_supercar.blend
+          python3 -m py_compile forever-frequency-native/tools/render_cc0_real_open_doors_pbr.py
+      - name: Pull Blender with actual native Cycles renderer
+        run: docker pull ghcr.io/blenderkit/headless-blender:blender-4.5-stable
+      - name: Render real textured sourced models - four open-door angles
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd forever-frequency-native
+          timeout 750s docker run --rm --entrypoint /home/headless/blender/blender -v "$PWD:$PWD" -w "$PWD" ghcr.io/blenderkit/headless-blender:blender-4.5-stable -b -t 2 --python tools/render_cc0_real_open_doors_pbr.py 2>&1 | tee REAL_CC0_CYCLES.log
+          grep -q 'REAL CC0 BLENDER CYCLES OPEN DOOR PBR PHOTO PROOF GREEN' REAL_CC0_CYCLES.log
+      - name: Verify four actual Blender Cycles screenshots
+        run: |
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          root=Path('forever-frequency-native/real_cc0_open_door_pbr')
+          data=json.loads((root/'real_pbr_render_evidence.json').read_text())
+          assert len(data)==4
+          for d in data:
+              assert (root/d['file']).stat().st_size>35000
+              assert d['render_engine']=='Blender Cycles CPU native PBR NOT AI'
+              assert d['actual_moving_hinges'] in (2,4)
+          print('FOUR REAL TEXTURED BLENDER SOURCED CARS OPEN DOOR PHOTOS GREEN')
+          PY
+      - name: Upload actual real Blender source car open-door renders
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: CityZero-REAL-BLENDER-Cycles-PBR-Orange-Supercar-Blue-Sedan-Open-Doors
+          retention-days: 90
+          path: |
+            forever-frequency-native/real_cc0_open_door_pbr/*.png
+            forever-frequency-native/real_cc0_open_door_pbr/*.json
+            forever-frequency-native/REAL_CC0_CYCLES.log
+          if-no-files-found: warn
