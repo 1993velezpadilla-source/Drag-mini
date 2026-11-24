@@ -39,46 +39,52 @@ for rec in models:
     meshes=[o for o in bpy.data.objects if o.type=='MESH']
     assert meshes,len(meshes)
     baseline_bounds=world_bounds(meshes)
+    # These assets ALREADY contain genuine parent door pivot nodes: door_FL,
+    # door_FR, door_RL, door_RR, door_L and door_R. Do not invent pivots.
+    def descendant_meshes(parent):
+        children=[]
+        for child in parent.children:
+            if child.type=='MESH':children.append(child)
+            children.extend(descendant_meshes(child))
+        return children
+
     hinges=[];used=set()
     for token,location in DOOR_MAP[name]:
-        needle='door_'+token.lower()+'_'
-        group=[o for o in meshes if o.name.lower().startswith(needle)]
-        if not group:raise RuntimeError('NO REAL SOURCE DOOR '+name+' '+needle)
-        if any(o in used for o in group):raise RuntimeError('DUPLICATED DOOR MESH')
+        native_name='door_'+token
+        hinge=next((o for o in bpy.data.objects if o.name.lower()==native_name.lower()),None)
+        if hinge is None:raise RuntimeError('MISSING ORIGINAL SOURCE HINGE '+name+' '+native_name)
+        group=descendant_meshes(hinge)
+        if not group:raise RuntimeError('SOURCE HINGE OWNS NO REAL MESH '+native_name)
+        if any(o in used for o in group):raise RuntimeError('DUPLICATE SOURCE HINGE GEOMETRY')
         used.update(group)
-        low,high=world_bounds(group)
-        mid=(low+high)*.5
-        side='LEFT' if mid.x<0 else 'RIGHT'
+        side='LEFT' if token in ('FL','RL','L') else 'RIGHT'
         door_id='DOOR_'+side+'_'+location+'_HINGE'
-        if any(h['hinge']==door_id for h in hinges):
-            raise RuntimeError('DUPLICATE HINGE '+door_id)
-        bpy.ops.object.empty_add(type='PLAIN_AXES',location=(mid.x,low.y+.014,mid.z))
-        hinge=bpy.context.object;hinge.name=door_id
+        if any(h['hinge']==door_id for h in hinges):raise RuntimeError('DUPLICATE HINGE '+door_id)
+        original_pivot=hinge.matrix_world.translation.copy()
+        hinge.name=door_id
+        hinge['original_source_node']=native_name
+        hinge['original_source_pivot_reused']=True
         hinge['origin_model_id']=name
-        hinge['source_door_token']=token
-        for o in group:
-            transform=o.matrix_world.copy()
-            o.parent=hinge
-            o.matrix_world=transform
+        hinge.rotation_mode='XYZ'
+        original_angle=hinge.rotation_euler.z
         bpy.context.view_layer.update()
         checkpoints=moved_vertices(group)
         initial=[o.matrix_world@v for o,v in checkpoints]
-        angle=math.radians(65 if side=='LEFT' else -65)
-        hinge.rotation_euler.z=angle
+        hinge.rotation_euler.z=original_angle+math.radians(65 if side=='LEFT' else -65)
         bpy.context.view_layer.update()
         opened=[o.matrix_world@v for o,v in checkpoints]
         displacement=max((a-b).length for a,b in zip(initial,opened))
         if displacement<.12:
-            raise RuntimeError('DOOR PIVOT DOES NOT MOVE GEOMETRY '+door_id+' '+str(displacement))
-        hinge.rotation_euler.z=0
+            raise RuntimeError('NATIVE DOOR PIVOT NOT MOVING REAL MESH '+door_id+' '+str(displacement))
+        hinge.rotation_euler.z=original_angle
         bpy.context.view_layer.update()
         restored=[o.matrix_world@v for o,v in checkpoints]
         close_error=max((a-b).length for a,b in zip(initial,restored))
-        if close_error>.005:raise RuntimeError('DOOR CANNOT RETURN CLOSED '+door_id)
-        hinges.append({'hinge':door_id,'mesh_count':len(group),
-                       'open_motion_m':round(displacement,4),
+        if close_error>.005:raise RuntimeError('NATIVE HINGE CANNOT RESET '+door_id)
+        hinges.append({'hinge':door_id,'source_node':native_name,'source_pivot_preserved':True,
+                       'mesh_count':len(group),'open_motion_m':round(displacement,4),
                        'close_error_m':round(close_error,6),
-                       'pivot_m':[round(float(v),3) for v in hinge.location]})
+                       'pivot_m':[round(float(v),3) for v in original_pivot]})
     if len(hinges)!=rec['expected_doors']:raise RuntimeError('INVALID DOOR COUNT '+name)
     assert len([o for o in bpy.data.objects if o.type=='MESH'])==len(meshes)
     assert all(h['mesh_count']>=1 for h in hinges)
