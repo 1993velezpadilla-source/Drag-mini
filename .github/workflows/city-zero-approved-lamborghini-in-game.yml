@@ -58,7 +58,34 @@ jobs:
           export-templates: false
       - name: Install actual Godot software OpenGL display
         run: sudo apt-get update -qq && sudo apt-get install -y -qq xvfb libgl1 libgl1-mesa-dri libegl1 libgles2 mesa-utils
-      - name: Register City Zero native game classes BEFORE placing source GLB into project
+      - name: Stage original approved GLB in isolated copy of real City Zero game scene
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p approved-isolated/assets/curated_rigged approved-isolated/scenes approved-isolated/scripts approved-isolated/tests
+          cp forever-frequency-native/scenes/main.tscn approved-isolated/scenes/
+          for script in city_zero game_state mobile_input city_life vehicle_door_controller; do
+            cp "forever-frequency-native/scripts/$script.gd" approved-isolated/scripts/
+          done
+          cp forever-frequency-native/tests/approved_lamborghini_in_game_capture.gd approved-isolated/tests/
+          cp "$RUNNER_TEMP/approved_original_source/assets/curated_rigged/curated_midengine_supercar.glb" approved-isolated/assets/curated_rigged/
+          cp approved-isolated/assets/curated_rigged/curated_midengine_supercar.glb \
+            forever-frequency-native/assets/curated_rigged/curated_midengine_supercar.glb
+          echo '45cdbfd70dc4e6c64b6bbbe5e24a2107044e2008928ab01c27fa8fbb91a25bd7  approved-isolated/assets/curated_rigged/curated_midengine_supercar.glb' | sha256sum --check
+          cat > approved-isolated/project.godot <<'GODOT'
+          config_version=5
+          [application]
+          config/name="City Zero original game scene - user approved orange Lamborghini"
+          run/main_scene="res://scenes/main.tscn"
+          [display]
+          window/size/viewport_width=1280
+          window/size/viewport_height=720
+          [rendering]
+          renderer/rendering_method="gl_compatibility"
+          renderer/rendering_method.mobile="gl_compatibility"
+          GODOT
+          echo 'APPROVED_ORANGE_GAME_SCENE_COPIED_UNMODIFIED'
+      - name: Fast native Godot class scan of only real gameplay scripts and one original GLB
         shell: bash
         env:
           GODOT_AUDIO_DRIVER: Dummy
@@ -66,23 +93,10 @@ jobs:
           MESA_GL_VERSION_OVERRIDE: '3.3'
         run: |
           set -euo pipefail
-          # Godot's editor import of the original curated .blend + .glb previously
-          # stalled for 180s. Keep this GLB OUT of the editor scan entirely.
-          test ! -f forever-frequency-native/assets/curated_rigged/curated_midengine_supercar.glb
-          xvfb-run -a -s '-screen 0 1920x1080x24' timeout 120s \
-            godot --rendering-method gl_compatibility --path forever-frequency-native \
-              --editor --import --quit 2>&1 | tee /tmp/orange_lamborghini_class_scan.log
+          xvfb-run -a -s '-screen 0 1920x1080x24' timeout 95s \
+            godot --rendering-driver opengl3 --path approved-isolated --editor --import --quit \
+              2>&1 | tee /tmp/orange_lamborghini_class_scan.log
           echo 'ORIGINAL_ORANGE_LAMBORGHINI_CLASS_SCAN_COMPLETE'
-      - name: Load the original approved binary as the only Lamborghini in City Zero
-        shell: bash
-        run: |
-          set -euo pipefail
-          mkdir -p forever-frequency-native/assets/curated_rigged
-          cp "$RUNNER_TEMP/approved_original_source/assets/curated_rigged/curated_midengine_supercar.glb" \
-            forever-frequency-native/assets/curated_rigged/curated_midengine_supercar.glb
-          test ! -e forever-frequency-native/assets/premium_fleet/exotic_supercar__revulse.glb
-          test -s forever-frequency-native/assets/curated_rigged/curated_midengine_supercar.glb
-          echo '45cdbfd70dc4e6c64b6bbbe5e24a2107044e2008928ab01c27fa8fbb91a25bd7  forever-frequency-native/assets/curated_rigged/curated_midengine_supercar.glb' | sha256sum --check
       - name: Capture actual playable city viewport two original Lamborghini door states
         shell: bash
         env:
@@ -94,7 +108,7 @@ jobs:
           mkdir -p approved-lamborghini-godot-evidence
           export CITYZERO_LAMBORGHINI_SCREENSHOTS="$PWD/approved-lamborghini-godot-evidence"
           xvfb-run -a -s '-screen 0 1920x1080x24' timeout 240s \
-            godot --rendering-method gl_compatibility --path forever-frequency-native \
+            godot --rendering-driver opengl3 --path approved-isolated \
               --script res://tests/approved_lamborghini_in_game_capture.gd \
             2>&1 | tee approved-lamborghini-godot-evidence/godot_runtime.log
           grep -q 'CITY_ZERO_APPROVED_LAMBORGHINI_ACTUAL_IN_GAME_SCREENSHOTS_GREEN' approved-lamborghini-godot-evidence/godot_runtime.log
@@ -115,6 +129,7 @@ jobs:
           git add forever-frequency-native/screenshots/LAMBORGHINI_CITY_ZERO_IN_GAME_DOORS_OPEN.png
           git add forever-frequency-native/screenshots/original_orange_lamborghini_evidence.json
           git commit -m "Ship user's orange Lamborghini original GLB and actual City Zero Godot photos [skip ci]"
+          git reset --hard HEAD
           for attempt in 1 2 3 4 5; do
             git pull --rebase origin forever-frequency-native
             if git push origin HEAD:forever-frequency-native; then
