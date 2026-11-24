@@ -93,6 +93,21 @@ jobs:
               assert v['export_nodes'] < v['source_meshes'], (k,v)
           print('ASSET METRICS PASS',sum(v['source_meshes'] for v in j.values()),'to',sum(v['export_nodes'] for v in j.values()),'nodes')
           PY
+      - name: Blender-crafted living city district and performance gate
+        shell: bash
+        run: |
+          cd forever-frequency-native
+          blender -b -t 2 --python tools/urban_life_district.py 2>&1 | tee premium_district.log
+          grep 'URBAN PREMIUM GAUNTLET GREEN' premium_district.log
+          python3 - <<'PY'
+          import json
+          j=json.load(open('assets/urban_metrics.json'))
+          assert j['original_meshes'] >= 600,j
+          assert j['runtime_batches'] < 20,j
+          assert j['district_facades'] >= 9,j
+          assert j['size_bytes'] < 35000000,j
+          print('BLENDER DISTRICT GATE GREEN',j)
+          PY
       - name: Upload model kit
         uses: actions/upload-artifact@v4
         with:
@@ -101,6 +116,8 @@ jobs:
             forever-frequency-native/assets/*.glb
             forever-frequency-native/assets/*.blend
             forever-frequency-native/assets/mesh_metrics.json
+            forever-frequency-native/assets/urban_metrics.json
+            forever-frequency-native/assets/premium_detail_metrics.json
             forever-frequency-native/assets/*.jpg
           if-no-files-found: error
 
@@ -124,7 +141,7 @@ jobs:
           # Godot's native Blender importer can hang in CI when it auto-scans it.
           find forever-frequency-native/assets -maxdepth 1 -name '*.blend' -print -delete
           rm -f forever-frequency-native/assets/studio_entrance.glb forever-frequency-native/assets/street_kiosk.glb
-          test "$(find forever-frequency-native/assets -maxdepth 1 -name '*.glb' | wc -l)" -eq 12
+          test "$(find forever-frequency-native/assets -maxdepth 1 -name '*.glb' | wc -l)" -eq 13
       - name: Mount Godot's preinstalled Android export templates and editor settings
         shell: bash
         run: |
@@ -217,7 +234,7 @@ jobs:
           # Godot's native Blender importer can hang in CI when it auto-scans it.
           find forever-frequency-native/assets -maxdepth 1 -name '*.blend' -print -delete
           rm -f forever-frequency-native/assets/studio_entrance.glb forever-frequency-native/assets/street_kiosk.glb
-          test "$(find forever-frequency-native/assets -maxdepth 1 -name '*.glb' | wc -l)" -eq 12
+          test "$(find forever-frequency-native/assets -maxdepth 1 -name '*.glb' | wc -l)" -eq 13
       - name: Mount Godot's preinstalled Android export templates and editor settings
         shell: bash
         run: |
