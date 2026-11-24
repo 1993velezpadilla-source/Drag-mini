@@ -50,18 +50,18 @@ func _run() -> void:
             if not mesh_found:
                 continue
             var start_pos: Vector3 = movable.global_position
-            var closed_rotation: float = hinge.rotation.y
+            var closed_rotation: Quaternion = hinge.quaternion
             check(animator.toggle_door(door_name), door_name + " can be opened")
             animator._process(0.70)
             await process_frame
             check(animator.is_door_open(door_name), door_name + " reports open")
-            check(absf(hinge.rotation.y-closed_rotation) > 0.18, door_name + " rotates relative to original closed GLTF basis")
+            check(hinge.quaternion.angle_to(closed_rotation) > 0.18, door_name + " rotates relative to original closed glTF quaternion")
             check(movable.global_position.distance_to(start_pos) > 0.05, door_name + " moves its actual mesh")
             check(animator.toggle_door(door_name), door_name + " can be closed")
             for i in range(65):
                 await process_frame
             check(not animator.is_door_open(door_name), door_name + " reports shut")
-            check(absf(hinge.rotation.y-closed_rotation) < 0.12, door_name + " returns to original imported closed transform")
+            check(hinge.quaternion.angle_to(closed_rotation) < 0.035, door_name + " returns exactly to original imported closed quaternion")
             check(movable.global_position.distance_to(start_pos) < 0.07, door_name + " restores door mesh to its original world position")
         car.queue_free()
         await process_frame
