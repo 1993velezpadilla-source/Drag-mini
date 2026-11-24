@@ -1,0 +1,42 @@
+name: City Zero NFSU2 Authentic Assets Importer Tests
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [forever-frequency-native]
+    paths:
+      - tools/nfsu2_import_all.py
+      - tools/nfsu2_blender_export_all.py
+      - tools/tests/test_nfsu2_import_all.py
+      - .github/workflows/cityzero-nfsu2-importer.yml
+
+permissions:
+  contents: read
+
+jobs:
+  importer-syntax-and-fixtures:
+    runs-on: ubuntu-latest
+    timeout-minutes: 7
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Compile both importer modules
+        run: |
+          python3 -m py_compile tools/nfsu2_import_all.py
+          python3 -m py_compile tools/nfsu2_blender_export_all.py
+      - name: Run source-compatible synthetic tests (no EA game files)
+        run: python3 -m unittest discover -v -s tools/tests -p 'test_nfsu2_import_all.py'
+      - name: Ensure no proprietary asset media accidentally added
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import subprocess
+          files=subprocess.check_output(['git','ls-files','-z']).decode().split('\0')
+          bad=[f for f in files if
+               f.startswith(('CityZeroNFSU2Imported/','city_zero/assets/nfsu2_imports/','city_zero/assets/nfsu2_private/'))
+               or ('nfsu2_private' in f.lower() and f.lower().endswith(('.glb','.bin','.abk','.gin','.wav')))]
+          if bad: raise SystemExit('Original NFSU2 media was accidentally committed: '+str(bad))
+          print('PASS: no original copyrighted NFSU2 audio/models in committed import folders')
+          PY
