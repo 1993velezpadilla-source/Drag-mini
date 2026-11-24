@@ -237,6 +237,18 @@ func available_performance_categories() -> Dictionary:
     return _catalog["vehicles"][_current_id].get("performance_categories", {}).duplicate(true)
 
 
+func original_physics_record() -> Dictionary:
+    if _current_id.is_empty():
+        return {}
+    # The reader copies only original source values. It NEVER applies upgrade
+    # packages, invents power gains or reuses a different vehicle's physics.
+    return _catalog["vehicles"][_current_id].get("original_physics", {}).duplicate(true)
+
+
+func original_upgrade_targets() -> Dictionary:
+    return original_physics_record().get("upgrade_source_targets", {}).duplicate(true)
+
+
 func vinyl_records() -> Dictionary:
     if _current_id.is_empty():
         return {}
