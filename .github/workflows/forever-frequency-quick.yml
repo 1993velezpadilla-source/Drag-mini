@@ -20,6 +20,14 @@ jobs:
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
+      - name: Mount Godot's preinstalled Android export templates and editor settings
+        shell: bash
+        run: |
+          mkdir -p "$HOME/.local/share/godot/export_templates" "$HOME/.config/godot"
+          cp -a /root/.local/share/godot/export_templates/. "$HOME/.local/share/godot/export_templates/"
+          cp -a /root/.config/godot/. "$HOME/.config/godot/"
+          test -s "$HOME/.local/share/godot/export_templates/4.4.stable/android_debug.apk"
+          grep 'export/android/java_sdk_path' "$HOME/.config/godot/editor_settings-4.4.tres"
       - name: Inspect Godot installation
         run: godot --version
       - name: Run headless import
