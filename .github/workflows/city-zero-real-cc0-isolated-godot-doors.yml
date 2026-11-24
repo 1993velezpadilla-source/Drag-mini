@@ -1,0 +1,59 @@
+name: City Zero - isolated real CC0 car GLB Godot door mechanics
+on:
+  push:
+    branches: [forever-frequency-native]
+    paths:
+      - '.github/workflows/city-zero-real-cc0-isolated-godot-doors.yml'
+      - 'forever-frequency-native/tests/curated_cc0_door_gauntlet.gd'
+      - 'forever-frequency-native/scripts/vehicle_door_controller.gd'
+  workflow_dispatch:
+permissions:
+  actions: read
+  contents: read
+jobs:
+  real-cc0-door-kinematics:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    container:
+      image: barichello/godot-ci:4.4
+    steps:
+      - uses: actions/checkout@v4
+      - name: Fetch actual sourced car GLBs after Blender geometry adjustments
+        uses: actions/download-artifact@v4
+        with:
+          run-id: 45337756572
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          name: CityZero-REAL-CC0-Cars-Open-Doors-Blender-PNG-GLB
+          path: input
+      - name: Create minimal Godot project containing ONLY two real CC0 GLBs
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p isolated_cc0_project/assets/curated_rigged isolated_cc0_project/scripts isolated_cc0_project/tests
+          cp input/assets/curated_rigged_polished/curated_family_sedan.glb isolated_cc0_project/assets/curated_rigged/
+          cp input/assets/curated_rigged_polished/curated_midengine_supercar.glb isolated_cc0_project/assets/curated_rigged/
+          cp forever-frequency-native/scripts/vehicle_door_controller.gd isolated_cc0_project/scripts/
+          cp forever-frequency-native/tests/curated_cc0_door_gauntlet.gd isolated_cc0_project/tests/
+          printf '%s\n' 'config_version=5' '[application]' 'config/name="City Zero real CC0 mechanical proof"' > isolated_cc0_project/project.godot
+          test -s isolated_cc0_project/assets/curated_rigged/curated_family_sedan.glb
+          test -s isolated_cc0_project/assets/curated_rigged/curated_midengine_supercar.glb
+      - name: Import ONLY real car models without Godot's enormous full-world import
+        shell: bash
+        run: |
+          set -o pipefail
+          timeout 150s godot --headless --path isolated_cc0_project --editor --import --quit 2>&1 | tee source_cc0_import.log
+      - name: Animate and physically measure all 6 original source door meshes
+        shell: bash
+        run: |
+          set -o pipefail
+          timeout 120s godot --headless --path isolated_cc0_project --script res://tests/curated_cc0_door_gauntlet.gd 2>&1 | tee source_cc0_doors.log
+          grep -q 'REAL CC0 CARS BLENDER RIG + GODOT KINEMATICS GREEN' source_cc0_doors.log
+      - name: Publish actual Godot import and door-motion logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: CityZero-REAL-CC0-Door-Motion-Godot-Verification
+          path: |
+            source_cc0_import.log
+            source_cc0_doors.log
+          if-no-files-found: warn
