@@ -41,6 +41,24 @@ jobs:
                   entry['id'],entry['sha256'],actual)
               print('LICENSED GLB SOURCE PIN GREEN',entry['id'],len(blob),actual,flush=True)
           PY
+      - name: Decode EXT_meshopt_compression to neutral GLB for Blender
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm install --global @gltf-transform/cli@4
+          python3 - <<'PY'
+          from pathlib import Path
+          import json, subprocess
+          root=Path('forever-frequency-native')
+          models=json.loads((root/'data/curated_vehicle_candidates.json').read_text())['candidate_models']
+          for m in models:
+              src=root/'assets/curated_cars'/(m['id']+'.glb')
+              dst=src.with_name(m['id']+'.decoded.glb')
+              subprocess.run(['gltf-transform','copy',str(src),str(dst)],check=True)
+              assert dst.stat().st_size>80000,(m['id'],dst.stat().st_size)
+              dst.replace(src)
+              print('MESHOPT DECODE GREEN',m['id'],src.stat().st_size,flush=True)
+          PY
       - name: Use preinstalled Blender 4.5 without buying a license
         shell: bash
         run: |
