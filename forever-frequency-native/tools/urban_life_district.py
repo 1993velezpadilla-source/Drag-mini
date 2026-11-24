@@ -205,6 +205,41 @@ def branching_tree(x,z,variation):
             orb('Individually articulated leaf mass',tip[0]+.44*math.cos(th),tip[1]+.34*math.sin(th),tip[2]+.26*math.sin(k*2.3),.33,leaf if k%2 else green,1)
 for i,(x,z) in enumerate([(-27,-24),(-25,-4),(-5,-23),(25,-23),(25,21),(-25,24)]):
     branching_tree(x,z,i)
+# CC0 Quaternius foliage through Blender's real glTF importer. Preserve their
+# textured authored geometry rather than redrawing everything as primitive blobs.
+from mathutils import Matrix
+nature_dir=R/'pbr_sources'/'nature'
+def bring_nature(filename,placements,target_height):
+    f=nature_dir/filename
+    if not f.is_file():
+        raise FileNotFoundError('Required sculpted CC0 vegetation missing: '+str(f))
+    before=set(bpy.data.objects)
+    bpy.ops.import_scene.gltf(filepath=str(f))
+    imported=list(set(bpy.data.objects)-before)
+    models=[o for o in imported if o.type=='MESH']
+    assert models, 'No real geometry in '+filename
+    corners=[o.matrix_world @ Vector(v) for o in models for v in o.bound_box]
+    minz=min(v.z for v in corners);maxz=max(v.z for v in corners)
+    cx=(min(v.x for v in corners)+max(v.x for v in corners))*.5
+    cy=(min(v.y for v in corners)+max(v.y for v in corners))*.5
+    model_height=max(.01,maxz-minz)
+    for x,z in placements:
+        scale=target_height/model_height
+        to_world=Matrix.Translation(Vector((x,-z,0))) @ Matrix.Scale(scale,4) @ Matrix.Translation(Vector((-cx,-cy,-minz)))
+        for source in models:
+            o=source.copy()
+            o.data=source.data.copy()
+            bpy.context.scene.collection.objects.link(o)
+            o.parent=None
+            o.matrix_world=to_world @ source.matrix_world
+            o.name='SCULPTED CC0 '+filename
+    for o in imported:
+        if o.name in bpy.data.objects:bpy.data.objects.remove(o,do_unlink=True)
+    print('QUATERNIUS SCULPTED GLTF NATURE PASS',filename,len(models),'meshes',len(placements),'placements',flush=True)
+
+bring_nature('Tree.glb',[(-27,-4.9),(-23,-22.5),(24,-8.5),(22,22)],5.4)
+bring_nature('Bush.glb',[(-20,-5.9),(-16,-5.9),(-9,-5.9),(20,-7.9),(25,-7.9)],1.3)
+
 # Sort by material, apply evaluated bevels, collapse static geometry into a handful of GPU batches.
 original_meshes=[o for o in bpy.data.objects if o.type=='MESH']
 for o in original_meshes:
