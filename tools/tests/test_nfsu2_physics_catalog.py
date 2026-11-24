@@ -30,7 +30,7 @@ class PhysicsReadTests(unittest.TestCase):
         self.assertEqual(d["xname"], "SUPRA")
         self.assertEqual(d["factory_physics"]["engine_idle_redline_max_rpm"],
                          [750.0, 6500.0, 7000.0])
-        self.assertEqual(d["factory_physics"]["mass_tonnes"], 1.43)
+        self.assertAlmostEqual(d["factory_physics"]["mass_tonnes"], 1.43, places=5)
         self.assertAlmostEqual(d["factory_physics"]["torque_curve_kNm"][0], 0.3)
         self.assertEqual(d["upgrade_source_targets"]["ecu"]["rpm_level_3_add"],
                          [0.0, 1500.0, 1500.0])
