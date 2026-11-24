@@ -1,0 +1,196 @@
+name: City Zero - REAL Ferrari Roma one-car luxury PBR Blender and Godot GOLD review
+on:
+  workflow_dispatch:
+  push:
+    branches: [forever-frequency-native]
+    paths:
+      - '.github/workflows/city-zero-ferrari-roma-single-car-gold-gauntlet.yml'
+      - 'forever-frequency-native/tools/ferrari_roma_gold_standard_studio.py'
+      - 'forever-frequency-native/tests/ferrari_roma_pbr_godot_capture.gd'
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: cityzero-actual-Ferrari-Roma-only-blender-godot
+  cancel-in-progress: false
+jobs:
+  preserve-source-and-remaster-real-ferrari-pbr:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 48
+    steps:
+      - uses: actions/checkout@v4
+      - name: Retrieve exact previously authenticated REAL original Ferrari Roma artist geometry
+        uses: actions/download-artifact@v4
+        with:
+          run-id: 45457323067
+          name: CityZero-SIX-REAL-Artist-Premium-Cars-Blender-Originals
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: archived-authentic-artist
+      - name: Install exact original editable Ferrari Roma source and verify SHA-256
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m py_compile forever-frequency-native/tools/ferrari_roma_gold_standard_studio.py
+          mkdir -p forever-frequency-native/assets/tevy_cc0_blender_vehicles
+          cp archived-authentic-artist/forever-frequency-native/assets/tevy_cc0_blender_vehicles/ferrari_roma_2020_real_import.glb \
+             forever-frequency-native/assets/tevy_cc0_blender_vehicles/
+          cp archived-authentic-artist/forever-frequency-native/real_cc0_source_vehicle_audit/ferrari_roma_2020_origin_license.txt \
+             forever-frequency-native/assets/tevy_cc0_blender_vehicles/FERRARI_ROMA_CREATOR_ATTRIBUTION.txt
+          python3 - <<'PY'
+          import hashlib,struct,json
+          from pathlib import Path
+          orig=Path('forever-frequency-native/assets/tevy_cc0_blender_vehicles/ferrari_roma_2020_real_import.glb')
+          b=orig.read_bytes()
+          assert hashlib.sha256(b).hexdigest()=='c37724315266153beb7bc4964488c1e3362df24c40d12cfce6951fa359b27c23'
+          assert len(b)>10000000
+          assert b[:4]==b'glTF'
+          n=int.from_bytes(b[12:16],'little')
+          data=json.loads(b[20:20+n])
+          assert len(data['materials'])==23
+          assert len(data['meshes'])>=13
+          nodes={x.get('name','').lower() for x in data['nodes']}
+          assert not any(x.startswith('door_left') or x.startswith('door_right') for x in nodes)
+          print('FERRARI_ROMA_EXACT_ARTIST_SOURCE_23_PBR_MATERIALS_SHA256_GREEN')
+          PY
+      - name: Use REAL Blender 4.5 LTS Cycles CPU materials and high-fidelity model
+        run: docker pull ghcr.io/blenderkit/headless-blender:blender-4.5-stable
+      - name: Actually sculpt nothing fake; restore original paint, glass and 5 FULL-FRAME real 3D Cycles images
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd forever-frequency-native
+          timeout 2250s docker run --rm \
+            --entrypoint /home/headless/blender/blender \
+            -v "$PWD:$PWD" -w "$PWD" \
+            ghcr.io/blenderkit/headless-blender:blender-4.5-stable \
+            -b -t 2 --python tools/ferrari_roma_gold_standard_studio.py \
+            2>&1 | tee FERRARI_ROMA_PBR_NATIVE_BLENDER.log
+          grep -q 'FERRARI_ROMA_AUTHENTIC_HIGH_DETAIL_BODY_5_CLOSE_PBR_VIEWS_READY_NOT_APPROVED' FERRARI_ROMA_PBR_NATIVE_BLENDER.log
+      - name: Strict adversarial real author geometry + image quality framing + fake door check
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          import json,hashlib
+          root=Path('forever-frequency-native')
+          d=root/'ferrari_roma_gold_review'
+          r=json.loads((d/'ferrari_roma_pbr_adversarial_report.json').read_text())
+          assert r['preserved_blender_import_sha256']=='c37724315266153beb7bc4964488c1e3362df24c40d12cfce6951fa359b27c23'
+          assert r['original_source_triangles']==r['final_source_triangles']>=180000
+          assert r['real_mesh_object_count']>=12
+          assert r['geometry_generated_or_replaced'] is False
+          assert r['roof_and_window_geometry_preserved']
+          assert r['original_interior_preserved']
+          assert r['wheel_geometry_preserved']
+          assert r['mechanical_doors_ready'] is False
+          assert r['owner_art_approved'] is False
+          assert r['commercial_rights_verified'] is False
+          assert len(r['native_cycles_views'])==5
+          assert {x['file'].split('_ACTUAL_Blend_')[0] for x in r['native_cycles_views']}=={
+            '01_front_three_quarter','02_true_side','03_true_front','04_true_rear','05_rear_three_quarter'}
+          assert all(x['frame_width']>=.55 and max(x['frame_width'],x['frame_height'])>=.75 for x in r['native_cycles_views'])
+          assert all((d/x['file']).stat().st_size>50000 for x in r['native_cycles_views'])
+          assert (d/'ferrari_roma_2020_true_artist_body_PBR.blend').stat().st_size>2000000
+          assert (d/'ferrari_roma_2020_artist_geometry_pbr_material_review.glb').stat().st_size>8500000
+          print('STRICT_FERRARI_ROMA_ACTUAL_AUTHOR_GEOMETRY_PBR_FIVE_CLOSEUP_BLENDER_IMAGES_GREEN_NOT_ART_APPROVED')
+          PY
+      - name: Preserve new REAL Blender GLB, editable blend, close PBR shots and creator attribution
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: CityZero-ONE-REAL-Ferrari-Roma-PBR-5-closeup-Blender-views
+          retention-days: 90
+          path: |
+            forever-frequency-native/ferrari_roma_gold_review/
+            forever-frequency-native/assets/tevy_cc0_blender_vehicles/FERRARI_ROMA_CREATOR_ATTRIBUTION.txt
+            forever-frequency-native/FERRARI_ROMA_PBR_NATIVE_BLENDER.log
+          if-no-files-found: warn
+  native-godot-real-closeup-photo-negative-control:
+    needs: preserve-source-and-remaster-real-ferrari-pbr
+    runs-on: ubuntu-22.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: CityZero-ONE-REAL-Ferrari-Roma-PBR-5-closeup-Blender-views
+          path: original-ferrari-PBR-from-Blender
+      - name: Create ISOLATED actual Godot 4 project from exact Blender-exported 3D source
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p isolated/assets/ferrari_roma_review isolated/tests
+          find original-ferrari-PBR-from-Blender -name 'ferrari_roma_2020_artist_geometry_pbr_material_review.glb' -type f -exec cp '{}' isolated/assets/ferrari_roma_review/ ';'
+          test -s isolated/assets/ferrari_roma_review/ferrari_roma_2020_artist_geometry_pbr_material_review.glb
+          cp forever-frequency-native/tests/ferrari_roma_pbr_godot_capture.gd isolated/tests/
+          cat > isolated/project.godot <<'GODOT'
+          config_version=5
+          [application]
+          config/name="City Zero source-authentic Ferrari Roma quality evaluation only"
+          [display]
+          window/size/viewport_width=1600
+          window/size/viewport_height=1000
+          [rendering]
+          renderer/rendering_method="gl_compatibility"
+          renderer/rendering_method.mobile="gl_compatibility"
+          GODOT
+      - uses: solarlabyrinth/action-setup-godot@v3
+        with:
+          version: 4.4.1-stable
+          export-templates: false
+      - name: Install Mesa OpenGL viewport for actual Godot real-3D screenshots
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq xvfb libgl1 libgl1-mesa-dri libegl1 mesa-utils
+      - name: Import preserved author original Ferrari geometry into native Godot engine
+        shell: bash
+        env:
+          LIBGL_ALWAYS_SOFTWARE: '1'
+          MESA_GL_VERSION_OVERRIDE: '3.3'
+          GODOT_AUDIO_DRIVER: Dummy
+        run: |
+          set -euo pipefail
+          xvfb-run -a -s '-screen 0 1800x1200x24' timeout 220s \
+            godot --rendering-driver opengl3 --path isolated --editor --import --quit \
+            2>&1 | tee FERRARI_ROMA_PBR_GODOT_GLTF_IMPORT.log
+          if grep -E 'SCRIPT ERROR|Parse Error' FERRARI_ROMA_PBR_GODOT_GLTF_IMPORT.log; then exit 1; fi
+      - name: Render original Ferrari 5 close real Godot views with mesh-invisible pixel control
+        shell: bash
+        env:
+          LIBGL_ALWAYS_SOFTWARE: '1'
+          MESA_GL_VERSION_OVERRIDE: '3.3'
+          GODOT_AUDIO_DRIVER: Dummy
+        run: |
+          set -euo pipefail
+          mkdir -p "$PWD/ferrari-roma-real-Godot-shots"
+          export CITY_ZERO_FERRARI_GODOT_SHOTS="$PWD/ferrari-roma-real-Godot-shots"
+          xvfb-run -a -s '-screen 0 1800x1200x24' timeout 380s \
+            godot --rendering-driver opengl3 --path isolated \
+            --script res://tests/ferrari_roma_pbr_godot_capture.gd \
+            2>&1 | tee ferrari-roma-real-Godot-shots/GODOT_ACTUAL_PBR_FERRARI.log
+          grep -q 'FERRARI_ROMA_GODOT_5_TRUE_CLOSEUP_ENGINE_VIEWS_GREEN_NOT_ART_APPROVED' ferrari-roma-real-Godot-shots/GODOT_ACTUAL_PBR_FERRARI.log
+          python3 - <<'PY'
+          from pathlib import Path
+          import json
+          d=Path('ferrari-roma-real-Godot-shots')
+          j=json.loads((d/'real_ferrari_roma_5views_godot_report.json').read_text())
+          assert j['source_triangles']>160000
+          assert j['material_surfaces']>=12
+          assert j['source_original_body_preserved']
+          assert j['cameras_fill_viewport']
+          assert j['owner_art_approved'] is False
+          assert j['source_doors_mechanically_separated'] is False
+          assert len(j['native_godot_real_pngs'])==5
+          assert all(v['actual_car_pixels']>550 and v['width_fraction']>.50 for v in j['native_godot_real_pngs'])
+          assert len(list(d.glob('*.png')))==5
+          print('FERRARI_ROMA_TRUE_NATIVE_GODOT_FIVE_CLOSE_REAL_3D_PHOTOS_GREEN_NO_AI')
+          PY
+      - name: Preserve five genuine high-detail Godot close-up Ferrari Roma views
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: CityZero-ONE-REAL-Ferrari-Roma-PBR-5-closeup-Godot-views
+          retention-days: 90
+          path: |
+            ferrari-roma-real-Godot-shots/
+            FERRARI_ROMA_PBR_GODOT_GLTF_IMPORT.log
+          if-no-files-found: warn
