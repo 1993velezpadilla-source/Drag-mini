@@ -16,6 +16,7 @@ from collections import Counter
 from pathlib import Path
 from nfsu2_parts_animation import inspect as inspect_animation
 from nfsu2_physics_catalog import catalog as read_original_physics
+from nfsu2_prepare_godot_library import build_library as build_godot_private_library
 import struct
 
 PART_RULES = (
@@ -336,12 +337,20 @@ def main(argv=None):
     out.mkdir(parents=True, exist_ok=True)
     path = out / "nfsu2_all_manifest.json"
     path.write_text(json.dumps(report, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+    # Complete handoff in the SAME command: original GLBs + exact per-car
+    # car sound stages + unmodified physics source metadata for Godot.
+    registry = build_godot_private_library(report, out)
+    registry_path = out / "cityzero_godot_library.json"
+    registry_path.write_text(json.dumps(registry, indent=2, ensure_ascii=False) + "\n",
+                             encoding="utf-8")
     count = Counter()
     for car in report["cars"].values():
         count.update(car.get("geometry", {}).get("slots", {}))
     print(json.dumps({"cars": len(report["cars"]), "parts": sum(count.values()),
                       "vinyls": sum(car.get("vinyls", {}).get("count", 0) for car in report["cars"].values()),
                       "source_sound_files": len(report["audio_files"]), "manifest": str(path),
+                      "godot_private_library": str(registry_path),
+                      "verified_stock_models": registry["summary"]["cars_with_valid_stock_glb"],
                       "private_assets_only": True}, indent=2))
 
 if __name__ == "__main__":
