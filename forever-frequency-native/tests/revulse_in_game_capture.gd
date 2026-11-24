@@ -46,7 +46,7 @@ func _capture() -> void:
     root.add_child(city)
     await _wait_frames(8)
     var car: Node3D = city.get("revulse_car")
-    var animator: Node3D = city.get("revulse_doors")
+    var animator = city.get("revulse_doors")
     if car == null or animator == null:
         _fail("Original REVULSE GLB did not spawn IN the City Zero game")
         return
