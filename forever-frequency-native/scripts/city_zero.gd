@@ -6,7 +6,7 @@ const GameState = preload("res://scripts/game_state.gd")
 const MobileInput = preload("res://scripts/mobile_input.gd")
 const BEAT: Array[int] = [0, 2, 1, 3, 1, 0, 3, 2]
 const LANDMARKS := {
-    "Echo Studio": Vector3(-13, 0, -12),
+    "La Caldera Records": Vector3(-13, 0, -12),
     "Moon Market": Vector3(12, 0, -12),
     "Forever Home": Vector3(-13, 0, 12),
     "Pixel Garden": Vector3(12, 0, 12),
@@ -15,9 +15,9 @@ const LANDMARKS := {
     "Available Lot": Vector3(22, 0, -12),
 }
 const COLORS := {
-    "road": Color("30384b"), "stripe": Color("aeb5c5"),
-    "sidewalk": Color("8d919d"), "park": Color("497f6c"),
-    "studio": Color("3c4769"), "glass": Color("4babc0"),
+    "road": Color("2a3038"), "stripe": Color("ddd0bb"),
+    "sidewalk": Color("a99f93"), "park": Color("41664e"),
+    "studio": Color("5a2831"), "glass": Color("548595"),
     "market": Color("a37d86"), "home": Color("adb6ad"),
     "neon": Color("e15dcb"), "cyan": Color("46dbe0"),
     "warm": Color("ffc185"), "soil": Color("80674f")
@@ -30,7 +30,7 @@ var companion: Node3D
 var camera: Camera3D
 var mobile: CityMobileInput
 var ui_root: Control
-var camera_yaw := 0.38
+var camera_yaw := 0.45
 var camera_pitch := 0.35
 var speed := 7.1
 var camera_distance := 8.0
@@ -66,7 +66,7 @@ func _ready() -> void:
     if game.offline_income > 0:
         _message("City Zero earned %d coins while you were away!" % game.offline_income, 5.0)
     else:
-        _message("Welcome to City Zero • Walk to Echo Studio, press E", 5.0)
+        _message("Welcome to City Zero • Walk to La Caldera Records, press E", 5.0)
 
 func _exit_tree() -> void:
     if game != null:
@@ -135,27 +135,27 @@ func _create_environment() -> void:
     var world := WorldEnvironment.new()
     var env := Environment.new()
     env.background_mode = Environment.BG_COLOR
-    env.background_color = Color("5b668d")
+    env.background_color = Color("383e55")
     env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
-    env.ambient_light_color = Color("a5b3e1")
-    env.ambient_light_energy = 0.72
+    env.ambient_light_color = Color("9c8fa0")
+    env.ambient_light_energy = 0.43
     env.tonemap_mode = Environment.TONE_MAPPER_FILMIC
     env.fog_enabled = true
-    env.fog_light_color = Color("757eab")
-    env.fog_density = 0.006
+    env.fog_light_color = Color("655e77")
+    env.fog_density = 0.004
     world.environment = env
     add_child(world)
     var sunlight := DirectionalLight3D.new()
     sunlight.rotation_degrees = Vector3(-33, -42, 0)
-    sunlight.light_color = Color("ffcaac")
-    sunlight.light_energy = 1.35
+    sunlight.light_color = Color("ffb68a")
+    sunlight.light_energy = 0.84
     sunlight.shadow_enabled = true
     sunlight.directional_shadow_max_distance = 70
     add_child(sunlight)
     var ambient := DirectionalLight3D.new()
     ambient.rotation_degrees = Vector3(-55, 132, 0)
-    ambient.light_energy = 0.32
-    ambient.light_color = Color("739ce0")
+    ambient.light_energy = 0.19
+    ambient.light_color = Color("697bba")
     add_child(ambient)
 
 func _create_ground_and_streets() -> void:
@@ -176,17 +176,32 @@ func _create_ground_and_streets() -> void:
         for z in [-30.0, 0.0, 30.0]:
             for a in range(-4,5):
                 _box(self, Vector3(x + a * 0.65,0.07,z + 5.8), Vector3(0.34,0.02,2.6), Color("e2dfd7"))
+    # Framed intersections and planted medians make the block feel inhabited.
+    for ii in [-1, 1]:
+        for iz in [-1, 1]:
+            _box(self,Vector3(ii*6.4,0.12,iz*6.4),Vector3(0.18,0.06,7.5),Color("d2c6b8"))
+            _box(self,Vector3(ii*6.4,0.12,iz*6.4),Vector3(7.5,0.06,0.18),Color("d2c6b8"))
     # Perimeter park and a pedestrian waterfront promenade.
     _box(self, Vector3(-40,0.04,0), Vector3(3,0.10,86), Color("b1a58d"))
     _box(self, Vector3(-43,0.035,0), Vector3(3,0.07,86), Color("368d9b"))
     for i in range(-9,10):
         _tree(Vector3(-37,0,i*4.4), 0.8)
 
-func _make_building(name: String, center: Vector3, size: Vector3, wall: Color, glass: Color, accent: Color) -> Node3D:
+func _make_building(name: String, center: Vector3, size: Vector3, wall: Color, glass: Color, accent: Color, primitive_visual: bool = true) -> Node3D:
     var group := Node3D.new()
     group.name = name.replace(" ", "_")
     group.position = center
     add_child(group)
+    if not primitive_visual:
+        var body := StaticBody3D.new()
+        group.add_child(body)
+        var collision := CollisionShape3D.new()
+        var shape := BoxShape3D.new()
+        shape.size = size
+        collision.position.y = size.y / 2.0
+        collision.shape = shape
+        body.add_child(collision)
+        return group
     _solid(group, Vector3(0,size.y/2,0), size, wall)
     _box(group, Vector3(0,size.y+0.2,0), Vector3(size.x+0.7,0.35,size.z+0.7), Color("242d44"))
     _box(group, Vector3(0,0.12,size.z/2+0.5), Vector3(size.x+2,0.18,1.5), Color("c2bdc3"))
@@ -240,6 +255,10 @@ func _tree(pos: Vector3, scale_factor: float = 1.0) -> void:
     root.position = pos
     root.scale = Vector3.ONE * scale_factor
     add_child(root)
+    if ResourceLoader.exists("res://assets/street_tree.glb"):
+        var tree_scene: PackedScene = load("res://assets/street_tree.glb")
+        root.add_child(tree_scene.instantiate())
+        return
     _box(root,Vector3(0,1.0,0), Vector3(0.36,2.0,0.36), Color("6b4c40"))
     _sphere(root,Vector3(0,2.9,0),1.25,Color("347e63"))
     _sphere(root,Vector3(-0.6,2.7,0.3),0.82,Color("4b9a76"))
@@ -249,6 +268,10 @@ func _lamp(pos: Vector3, pink: bool = false) -> void:
     var group := Node3D.new()
     group.position = pos
     add_child(group)
+    if ResourceLoader.exists("res://assets/street_lamp.glb"):
+        var lamp_scene: PackedScene = load("res://assets/street_lamp.glb")
+        group.add_child(lamp_scene.instantiate())
+        return
     _box(group,Vector3(0,2,0),Vector3(0.16,4,0.16),Color("282e42"))
     _box(group,Vector3(0.65,4,0),Vector3(1.3,0.15,0.17),Color("282e42"))
     _sphere(group,Vector3(1.18,3.8,0),0.25,COLORS.neon if pink else COLORS.warm,true)
@@ -261,53 +284,66 @@ func _lamp(pos: Vector3, pink: bool = false) -> void:
     group.add_child(light)
 
 func _create_city() -> void:
-    var studio := _make_building("ECHO STUDIO",Vector3(-14,0,-14),Vector3(12,10,10),COLORS.studio,COLORS.glass,COLORS.neon)
-    _box(studio,Vector3(0,5.5,5.33),Vector3(10.1,3.2,0.3),Color("335e7d"))
-    _box(studio,Vector3(0,5.5,5.54),Vector3(9.5,2.5,0.08),COLORS.glass,true)
-    _nameplate(studio,"RECORD YOUR FIRST TRACK",Vector3(0,8,5.68),Color("d8f9f9"))
-    _box(studio,Vector3(-4,10.8,-3),Vector3(2.0,1.1,2.0),Color("283047"))
-    _box(studio,Vector3(4,10.8,-3),Vector3(1.3,1.1,1.4),Color("283047"))
-    _spawn_blender_prop("res://assets/studio_entrance.glb",Vector3(-14,0,-8.58),Vector3.ONE)
-    var market := _make_building("MOON MARKET",Vector3(13,0,-13),Vector3(11,6.5,10),COLORS.market,COLORS.warm,Color("ff827e"))
-    _box(market,Vector3(0,3,5.8),Vector3(10.9,0.5,2.2),Color("d86d83"))
-    for i in range(7):
-        _box(market,Vector3(-4.5+i*1.5,2.55,6.55),Vector3(0.48,0.25,0.5),Color("ffe6cb"))
-    _make_building("FOREVER HOME",Vector3(-14,0,13),Vector3(11,8.5,11),COLORS.home,Color("8fd7ed"),Color("fd8fca"))
-    _box(self,Vector3(-14,8.8,13),Vector3(9,0.3,7),Color("708277"))
+    var has_studio := ResourceLoader.exists("res://assets/la_caldera_records.glb")
+    var studio := _make_building("LA CALDERA RECORDS",Vector3(-14,0,-14),Vector3(12,10,10),COLORS.studio,COLORS.glass,COLORS.neon,not has_studio)
+    if has_studio:
+        _spawn_blender_prop("res://assets/la_caldera_records.glb",Vector3(-14,0,-14),Vector3.ONE)
+    else:
+        _box(studio,Vector3(0,5.5,5.33),Vector3(10.1,3.2,0.3),Color("335e7d"))
+        _nameplate(studio,"LA CALDERA  /  RECORDS",Vector3(0,8,5.68),Color("f4e1c2"))
+    var market_asset := ResourceLoader.exists("res://assets/moon_market.glb")
+    var market := _make_building("MOON MARKET",Vector3(13,0,-13),Vector3(11,6.5,10),COLORS.market,COLORS.warm,Color("ff827e"),not market_asset)
+    if market_asset:
+        _spawn_blender_prop("res://assets/moon_market.glb",Vector3(13,0,-13),Vector3.ONE)
+    else:
+        _box(market,Vector3(0,3,5.8),Vector3(10.9,0.5,2.2),Color("d86d83"))
+    var home_asset := ResourceLoader.exists("res://assets/forever_home.glb")
+    _make_building("FOREVER HOME",Vector3(-14,0,13),Vector3(11,8.5,11),COLORS.home,Color("8fd7ed"),Color("fd8fca"),not home_asset)
+    if home_asset:
+        _spawn_blender_prop("res://assets/forever_home.glb",Vector3(-14,0,13),Vector3.ONE)
     for i in range(3):
         _tree(Vector3(-20+i*3.0,0,20),0.75)
     var garden := Node3D.new()
     garden.name = "Pixel_Garden"
     garden.position = Vector3(12,0,13)
     add_child(garden)
-    _box(garden,Vector3(0,0.35,0),Vector3(11,0.7,11),Color("bda98b"))
-    for i in range(4):
-        for j in range(3):
-            _box(garden,Vector3(-4+i*2.4,0.75,-3+j*3),Vector3(1.7,0.35,2.2),COLORS.soil)
-            _sphere(garden,Vector3(-4+i*2.4,1.0,-3+j*3),0.42,Color("65c384"))
-    _nameplate(garden,"PIXEL GARDEN",Vector3(0,3,0),Color("d2fabe"))
-    _box(self,Vector3(23,0.23,13),Vector3(9,0.45,10),Color("9098a4"))
+    if ResourceLoader.exists("res://assets/pixel_garden.glb"):
+        var scene: PackedScene = load("res://assets/pixel_garden.glb")
+        garden.add_child(scene.instantiate())
+    else:
+        _box(garden,Vector3(0,0.35,0),Vector3(11,0.7,11),Color("bda98b"))
+        for i in range(4):
+            for j in range(3):
+                _box(garden,Vector3(-4+i*2.4,0.75,-3+j*3),Vector3(1.7,0.35,2.2),COLORS.soil)
+                _sphere(garden,Vector3(-4+i*2.4,1.0,-3+j*3),0.42,Color("65c384"))
+        _nameplate(garden,"PIXEL GARDEN",Vector3(0,3,0),Color("d2fabe"))
     var radio := Node3D.new()
     radio.position = Vector3(23,0,13)
     add_child(radio)
-    _box(radio,Vector3(0,2,0),Vector3(5.6,4,5.6),Color("53617c"))
-    for h in range(4):
-        _box(radio,Vector3(0,5+h*2.2,0),Vector3(0.45,2.2,0.45),Color("bdc6ce"))
-        _box(radio,Vector3(0,5+h*2.2,0),Vector3(3.2-h*0.35,0.16,0.16),COLORS.cyan,true)
-    _sphere(radio,Vector3(0,13.8,0),0.5,COLORS.neon,true)
-    _nameplate(radio,"RADIO ONE",Vector3(0,6,3),COLORS.cyan)
+    if ResourceLoader.exists("res://assets/radio_one.glb"):
+        var scene: PackedScene = load("res://assets/radio_one.glb")
+        radio.add_child(scene.instantiate())
+    else:
+        _box(radio,Vector3(0,2,0),Vector3(5.6,4,5.6),Color("53617c"))
+        for h in range(4):
+            _box(radio,Vector3(0,5+h*2.2,0),Vector3(0.45,2.2,0.45),Color("bdc6ce"))
+            _box(radio,Vector3(0,5+h*2.2,0),Vector3(3.2-h*0.35,0.16,0.16),COLORS.cyan,true)
+        _nameplate(radio,"RADIO ONE",Vector3(0,6,3),COLORS.cyan)
     stage_visual = Node3D.new()
     stage_visual.name = "Nova_Stage"
     stage_visual.position = Vector3(0,0,23)
     add_child(stage_visual)
-    _box(stage_visual,Vector3(0,0.5,0),Vector3(13,1,8),Color("272c48"))
-    _box(stage_visual,Vector3(0,5,-3.4),Vector3(13.5,0.4,0.35),COLORS.neon,true)
-    for p in [-6.0,6.0]:
-        _box(stage_visual,Vector3(p,3,-3.4),Vector3(0.3,6,0.3),Color("829ab2"))
-        _sphere(stage_visual,Vector3(p,4.7,-3),0.4,COLORS.cyan,true)
-    _nameplate(stage_visual,"NOVA STAGE",Vector3(0,6.3,-3),Color("ffdcf9"))
-    _box(self,Vector3(23,0.10,-13),Vector3(12,0.2,12),Color("7a777d"))
-    _nameplate(self,"AVAILABLE LOT",Vector3(23,1.8,-13),COLORS.warm)
+    if ResourceLoader.exists("res://assets/nova_stage.glb"):
+        var scene: PackedScene = load("res://assets/nova_stage.glb")
+        stage_visual.add_child(scene.instantiate())
+    else:
+        _box(stage_visual,Vector3(0,0.5,0),Vector3(13,1,8),Color("272c48"))
+        _box(stage_visual,Vector3(0,5,-3.4),Vector3(13.5,0.4,0.35),COLORS.neon,true)
+        for p in [-6.0,6.0]:
+            _box(stage_visual,Vector3(p,3,-3.4),Vector3(0.3,6,0.3),Color("829ab2"))
+        _nameplate(stage_visual,"NOVA STAGE",Vector3(0,6.3,-3),Color("ffdcf9"))
+    _box(self,Vector3(23,0.10,-13),Vector3(12,0.2,12),Color("b29b84"))
+    _nameplate(self,"FUTURE DISTRICT",Vector3(23,1.8,-13),COLORS.warm)
     for i in range(-3,4):
         _tree(Vector3(-23,0,i*5.6),0.76)
         _tree(Vector3(6.7,0,i*7.2),0.67)
@@ -316,12 +352,15 @@ func _create_city() -> void:
         _lamp(Vector3(i*7,0,5.3),i%2==1)
     for p in [Vector3(2,0,-17), Vector3(-3,0,17), Vector3(29,0,-4)]:
         _parked_car(p)
+    for pos in [Vector3(-2.1,0,-7.9),Vector3(-22,0,4),Vector3(5.5,0,16),Vector3(18,0,21)]:
+        _spawn_blender_prop("res://assets/city_bench.glb",pos,Vector3.ONE)
     car = Node3D.new()
     car.position = Vector3(-3,0,1)
     add_child(car)
     _car_mesh(car,Color("e09b7d"))
     if not game.stage_built:
-        _box(stage_visual,Vector3(0,0.9,1),Vector3(6,0.5,3),Color("677184"))
+        if not ResourceLoader.exists("res://assets/nova_stage.glb"):
+            _box(stage_visual,Vector3(0,0.9,1),Vector3(6,0.5,3),Color("677184"))
     else:
         _add_stage_fx()
 
@@ -340,6 +379,10 @@ func _add_stage_fx() -> void:
         _box(stage_visual,Vector3(-5+i*2.0,1.8,-3.1),Vector3(0.8,0.6,0.3),COLORS.cyan if i%2==0 else COLORS.neon,true)
 
 func _car_mesh(root: Node3D, color: Color) -> void:
+    if ResourceLoader.exists("res://assets/city_car.glb"):
+        var scene: PackedScene = load("res://assets/city_car.glb")
+        root.add_child(scene.instantiate())
+        return
     _box(root,Vector3(0,0.55,0),Vector3(2.0,0.8,3.8),color)
     _box(root,Vector3(0,1.15,-0.2),Vector3(1.7,0.7,1.9),Color("7197ab"))
     for x in [-0.96,0.96]:
@@ -360,10 +403,15 @@ func _create_citizens() -> void:
         var citizen := Node3D.new()
         add_child(citizen)
         var tone := Color.from_hsv(float(i%6)/10.0 + 0.05,0.38,0.86)
-        _sphere(citizen,Vector3(0,1.9,0),0.30,Color("d5b49c"))
-        _box(citizen,Vector3(0,1.12,0),Vector3(0.48,1.0,0.35),tone)
-        for x in [-0.15,0.15]:
-            _box(citizen,Vector3(x,0.38,0),Vector3(0.17,0.74,0.20),Color("2e354a"))
+        if ResourceLoader.exists("res://assets/artist_avatar.glb"):
+            var citizen_model: PackedScene = load("res://assets/artist_avatar.glb")
+            citizen.add_child(citizen_model.instantiate())
+            citizen.scale = Vector3.ONE * (0.86 + 0.035 * float(i % 4))
+        else:
+            _sphere(citizen,Vector3(0,1.9,0),0.30,Color("d5b49c"))
+            _box(citizen,Vector3(0,1.12,0),Vector3(0.48,1.0,0.35),tone)
+            for x in [-0.15,0.15]:
+                _box(citizen,Vector3(x,0.38,0),Vector3(0.17,0.74,0.20),Color("2e354a"))
         var px := -22.0+float(i%6)*8
         var pz := -5.8 if i%2==0 else 5.8
         citizen.position = Vector3(px,0,pz)
@@ -372,7 +420,7 @@ func _create_citizens() -> void:
 func _create_player() -> void:
     hero = CharacterBody3D.new()
     hero.name = "Player"
-    hero.position = Vector3(0,0.1,-5.0)
+    hero.position = Vector3(-8.5,0.1,-2.2)
     add_child(hero)
     var collider := CollisionShape3D.new()
     var capsule := CapsuleShape3D.new()
@@ -383,14 +431,18 @@ func _create_player() -> void:
     hero.add_child(collider)
     hero_mesh = Node3D.new()
     hero.add_child(hero_mesh)
-    _box(hero_mesh, Vector3(0,1.12,0),Vector3(0.68,0.98,0.42), Color("25345d"))
-    _sphere(hero_mesh,Vector3(0,1.92,0),0.39,Color("d1a68f"))
-    _sphere(hero_mesh,Vector3(0,2.18,-0.08),0.38,Color("24263c"))
-    _box(hero_mesh, Vector3(0,1.02,-0.24),Vector3(0.54,0.16,0.12),COLORS.neon,true)
-    for x in [-0.22,0.22]:
-        _box(hero_mesh,Vector3(x,0.38,0),Vector3(0.26,0.75,0.3),Color("262c44"))
-        _box(hero_mesh,Vector3(x,0.10,-0.10),Vector3(0.35,0.22,0.6),Color("f0ebe9"))
-    _nameplate(hero_mesh,"YOU",Vector3(0,3.0,0),COLORS.cyan)
+    if ResourceLoader.exists("res://assets/artist_avatar.glb"):
+        var artist_scene: PackedScene = load("res://assets/artist_avatar.glb")
+        hero_mesh.add_child(artist_scene.instantiate())
+    else:
+        _box(hero_mesh, Vector3(0,1.12,0),Vector3(0.68,0.98,0.42), Color("25345d"))
+        _sphere(hero_mesh,Vector3(0,1.92,0),0.39,Color("d1a68f"))
+        _sphere(hero_mesh,Vector3(0,2.18,-0.08),0.38,Color("24263c"))
+        _box(hero_mesh, Vector3(0,1.02,-0.24),Vector3(0.54,0.16,0.12),COLORS.neon,true)
+        for x in [-0.22,0.22]:
+            _box(hero_mesh,Vector3(x,0.38,0),Vector3(0.26,0.75,0.3),Color("262c44"))
+            _box(hero_mesh,Vector3(x,0.10,-0.10),Vector3(0.35,0.22,0.6),Color("f0ebe9"))
+    _nameplate(hero_mesh,"YOU",Vector3(0,2.85,0),COLORS.cyan)
     companion = Node3D.new()
     companion.name = "Companion"
     companion.position = Vector3(1.4,0,-6.4)
@@ -411,13 +463,17 @@ func _pet_mesh() -> void:
     var col := Color("b2eff0")
     if game.companion == "LUMEN": col = Color("f9b1e9")
     elif game.companion == "SOLAR": col = Color("f6e5a0")
-    _sphere(companion,Vector3(0,0.40,0),0.43,col)
-    _sphere(companion,Vector3(-0.28,0.72,-0.08),0.2,col)
-    _sphere(companion,Vector3(0.28,0.72,-0.08),0.2,col)
-    _sphere(companion,Vector3(-0.14,0.42,-0.35),0.055,Color("293047"))
-    _sphere(companion,Vector3(0.14,0.42,-0.35),0.055,Color("293047"))
-    _sphere(companion,Vector3(0,0.3,-0.40),0.05,COLORS.neon,true)
-    _nameplate(companion,game.companion,Vector3(0,1.18,0),Color("f9e8fa"))
+    if ResourceLoader.exists("res://assets/companion_nova.glb"):
+        var pet_scene: PackedScene = load("res://assets/companion_nova.glb")
+        companion.add_child(pet_scene.instantiate())
+    else:
+        _sphere(companion,Vector3(0,0.40,0),0.43,col)
+        _sphere(companion,Vector3(-0.28,0.72,-0.08),0.2,col)
+        _sphere(companion,Vector3(0.28,0.72,-0.08),0.2,col)
+        _sphere(companion,Vector3(-0.14,0.42,-0.35),0.055,Color("293047"))
+        _sphere(companion,Vector3(0.14,0.42,-0.35),0.055,Color("293047"))
+        _sphere(companion,Vector3(0,0.3,-0.40),0.05,COLORS.neon,true)
+    _nameplate(companion,game.companion,Vector3(0,1.65,0),Color("f9e8fa"))
 
 func _physics_process(dt: float) -> void:
     if hero == null or mobile == null:
@@ -433,6 +489,9 @@ func _physics_process(dt: float) -> void:
     var move_dir := right * axis.x + forward * axis.y
     if move_dir.length_squared() > 0.01:
         hero_mesh.rotation.y = lerp_angle(hero_mesh.rotation.y,atan2(move_dir.x,move_dir.z),dt*11)
+        hero_mesh.position.y = lerpf(hero_mesh.position.y,abs(sin(Time.get_ticks_msec()*0.012))*0.09,dt*8.0)
+    else:
+        hero_mesh.position.y = lerpf(hero_mesh.position.y,0.0,dt*8.0)
     hero.velocity.x = move_dir.x * speed
     hero.velocity.z = move_dir.z * speed
     if hero.is_on_floor():
@@ -501,7 +560,7 @@ func _interact() -> void:
         return
     var place := _nearest_place()
     match place:
-        "Echo Studio": _open_studio()
+        "La Caldera Records": _open_studio()
         "Pixel Garden": _visit_garden()
         "Moon Market": _visit_market()
         "Forever Home": _visit_home()
@@ -534,7 +593,7 @@ func _visit_home() -> void:
 
 func _visit_radio() -> void:
     if game.tracks.is_empty():
-        _message("Radio One needs a track. Record something at Echo Studio!",4.0)
+        _message("Radio One needs a track. Record something at La Caldera Records!",4.0)
         return
     game.fans += 9 + game.records * 2
     game.coins += 8
@@ -583,7 +642,7 @@ func _open_studio() -> void:
     var v := VBoxContainer.new()
     v.add_theme_constant_override("separation",20)
     panel.add_child(v)
-    var title := _ui_label("ECHO STUDIO   /   MAKE A BEAT", 31,Color("ffffff"))
+    var title := _ui_label("LA CALDERA RECORDS  /  MAKE A BEAT", 31,Color("ffffff"))
     v.add_child(title)
     v.add_child(_ui_label("Play the eight-pad pattern shown below to publish your track.",18,Color("c0d6ea")))
     v.add_child(_ui_label("PATTERN:  1  -  3  -  2  -  4  -  2  -  1  -  4  -  3",22,COLORS.cyan))
@@ -696,7 +755,7 @@ func _create_mobile_ui() -> void:
     titlepanel.offset_right = 380
     titlepanel.offset_bottom = 86
     root.add_child(titlepanel)
-    var title := _ui_label("◉  FOREVER FREQUENCY\n       CITY ZERO  /  NATIVE 3D",24,Color("e5f8ff"))
+    var title := _ui_label("◉  FOREVER FREQUENCY\n     CITY ZERO  /  LA CALDERA",22,Color("e5f8ff"))
     titlepanel.add_child(title)
     var stats := PanelContainer.new()
     stats.add_theme_stylebox_override("panel",_panel_style(Color("12172bdb"),Color("5d789f")))
@@ -716,9 +775,9 @@ func _create_mobile_ui() -> void:
     missionpanel.offset_left = -338
     missionpanel.offset_right = -16
     missionpanel.offset_top = 112
-    missionpanel.offset_bottom = 238
+    missionpanel.offset_bottom = 250
     root.add_child(missionpanel)
-    mission = _ui_label("",17,Color("e5d9ff"))
+    mission = _ui_label("",16,Color("e5d9ff"))
     missionpanel.add_child(mission)
     var hintpanel := PanelContainer.new()
     hintpanel.add_theme_stylebox_override("panel",_panel_style(Color("12172bdc"),COLORS.cyan))
@@ -728,8 +787,8 @@ func _create_mobile_ui() -> void:
     hintpanel.anchor_right = 0.5
     hintpanel.offset_left = -330
     hintpanel.offset_right = 330
-    hintpanel.offset_top = -80
-    hintpanel.offset_bottom = -21
+    hintpanel.offset_top = -102
+    hintpanel.offset_bottom = -43
     root.add_child(hintpanel)
     hint = _ui_label("",18,Color("e5f8ff"))
     hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -745,24 +804,27 @@ func _create_mobile_ui() -> void:
     action.offset_bottom = -25
     action.pressed.connect(_interact)
     root.add_child(action)
-    var label := _ui_label("LEFT: MOVE   •   RIGHT: LOOK   •   E: INTERACT",16,Color("ddeeff"))
+    var label := _ui_label("MOVE: WASD   •   LOOK: DRAG   •   E: ENTER",14,Color("ddeeff"))
     label.anchor_top = 1
     label.anchor_bottom = 1
     label.offset_left = 22
-    label.offset_right = 540
+    label.offset_right = 510
     label.offset_top = -45
     label.offset_bottom = -12
     root.add_child(label)
     world_time_label = _ui_label("",17,Color("fff1cb"))
-    world_time_label.position = Vector2(20,90)
+    world_time_label.position = Vector2(23,95)
+    world_time_label.custom_minimum_size = Vector2(450,28)
+    world_time_label.size = Vector2(450,28)
+    world_time_label.autowrap_mode = TextServer.AUTOWRAP_OFF
     root.add_child(world_time_label)
 
 func _update_hud() -> void:
     if currency == null:
         return
     currency.text = "◉ %d COINS    ♫ %d FANS    ★ LV %d" % [game.coins,game.fans,game.level]
-    world_time_label.text = "CITY TIME %02d:%02d  •  %s" % [int(town_clock),int((town_clock-int(town_clock))*60),game.companion]
-    mission.text = "✦ FIRST STORY\n\nRecord at ECHO STUDIO\nBuild your music career\nGrow your neighborhood"
+    world_time_label.text = "CITY TIME  %02d:%02d  ·  NOVA  /  %s" % [int(town_clock),int((town_clock-int(town_clock))*60),game.companion]
+    mission.text = "✦ YOUR FIRST RELEASE\n\nEnter La Caldera Records\nPublish a song to earn fans\nBring your neighborhood to life"
     var place := _nearest_place()
     if Time.get_ticks_msec()/1000.0 < status_until:
         return

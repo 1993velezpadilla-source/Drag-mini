@@ -37,8 +37,15 @@ func _run() -> void:
     s.companion_bond = 30
     assert_that(s.evolve_pet() and s.companion == "LUMEN","pet evolution changes species")
     assert_that(Main != null,"native scene parses")
+    var loaded_world: Node3D = Main.instantiate()
+    assert_that(loaded_world != null,"real 3D world instantiates")
+    assert_that(ResourceLoader.exists("res://assets/la_caldera_records.glb"),"custom La Caldera Records Blender GLB imports")
+    assert_that(ResourceLoader.exists("res://assets/artist_avatar.glb"),"original Blender artist character imports")
+    assert_that(ResourceLoader.exists("res://assets/companion_nova.glb"),"original Blender companion imports")
+    assert_that(ResourceLoader.exists("res://assets/moon_market.glb"),"custom market model imports")
+    loaded_world.free()
     if failures.is_empty():
-        print("GAUNTLET GREEN — 13 core checks")
+        print("GAUNTLET GREEN — 18 core checks")
         quit(0)
     else:
         print("GAUNTLET RED — ",failures)
