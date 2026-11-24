@@ -185,7 +185,7 @@ func _update_signal_lenses() -> void:
     for traffic_info in signals:
         var bulbs: Array = traffic_info["bulbs"]
         var greens := phase < 8.0 if int(traffic_info["axis"]) == 0 else phase >= 9.0 and phase < 17.5
-        var yellow := (phase >= 8.0 and phase < 9.0) if int(signal["axis"]) == 0 else (phase >= 17.5 and phase < 19.0)
+        var yellow := (phase >= 8.0 and phase < 9.0) if int(traffic_info["axis"]) == 0 else (phase >= 17.5 and phase < 19.0)
         (bulbs[0] as MeshInstance3D).visible = not greens and not yellow
         (bulbs[1] as MeshInstance3D).visible = yellow
         (bulbs[2] as MeshInstance3D).visible = greens
