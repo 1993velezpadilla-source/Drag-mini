@@ -76,7 +76,25 @@ func _build_road_intersections() -> void:
                 for sz in [-1.0,1.0]:
                     var pos := Vector3(x+sx*6.9,0,z+sz*6.9)
                     var light := _asset("traffic_signal",pos,atan2(-sx,-sz))
-                    signals.append({"node":light,"grid_x":x,"grid_z":z,"phase_offset":int(abs(x)+abs(z))%2})
+                    var bulbs: Array[MeshInstance3D] = []
+                    for color in [Color("#f44346"),Color("#f2b940"),Color("#23e38a")]:
+                        var lens := MeshInstance3D.new()
+                        var sphere := SphereMesh.new()
+                        sphere.radius = .137
+                        sphere.height = .13
+                        lens.mesh = sphere
+                        var mat := StandardMaterial3D.new()
+                        mat.albedo_color = color
+                        mat.emission_enabled = true
+                        mat.emission = color
+                        mat.emission_energy_multiplier = 2.5
+                        mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+                        lens.material_override = mat
+                        light.add_child(lens)
+                        lens.position = Vector3(0,4.92-.53*float(bulbs.size()),1.34)
+                        lens.visible = false
+                        bulbs.append(lens)
+                    signals.append({"node":light,"bulbs":bulbs,"axis":int((sx*sz)>0),"phase_offset":int(abs(x)+abs(z))%2})
     # Urban street lane separators and no-parking curb zones
     for p in [-30.0,0.0,30.0]:
         for t in range(-8,9):
@@ -162,8 +180,22 @@ func _near_red_light(p: Vector3, target: Vector3) -> bool:
                 return true
     return false
 
+func _update_signal_lenses() -> void:
+    var phase := fposmod(time_elapsed,20.0)
+    for signal in signals:
+        var bulbs: Array = signal["bulbs"]
+        var greens := phase < 8.0 if int(signal["axis"]) == 0 else phase >= 9.0 and phase < 17.5
+        var yellow := (phase >= 8.0 and phase < 9.0) if int(signal["axis"]) == 0 else (phase >= 17.5 and phase < 19.0)
+        (bulbs[0] as MeshInstance3D).visible = not greens and not yellow
+        (bulbs[1] as MeshInstance3D).visible = yellow
+        (bulbs[2] as MeshInstance3D).visible = greens
+
 func _process(delta: float) -> void:
     time_elapsed += delta
+    update_accum += delta
+    if update_accum >= .18:
+        update_accum = 0.0
+        _update_signal_lenses()
     # There is no expensive scene reconstruction per frame. Only actor transforms.
     for i in range(vehicles.size()):
         var car_data: Dictionary = vehicles[i]
