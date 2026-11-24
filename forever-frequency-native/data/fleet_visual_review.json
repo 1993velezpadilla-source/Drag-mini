@@ -11,7 +11,7 @@
     "closed_open_motion": 4,
     "max_grade": 5
   },
-  "state": "PROCEDURAL_VEHICLES_REJECTED_CURATED_CC0_CLEAN_VISUAL_REVIEW_PENDING_RIG",
+  "state": "GOLD_STANDARD_EXACT_ORANGE_APPROVED; PROCEDURAL_CAR_FLEET_REJECTED_AS_FINAL; THIRD_PARTY_ARTIST_FLEET_VISUAL_QA_PENDING",
   "models": {
     "exotic_supercar__revulse": {
       "status": "REJECTED",
@@ -57,15 +57,23 @@
       "previous_evidence_invalidated_by": "https://github.com/1993velezpadilla-source/Drag-mini/commit/696810e435c4136d4819cbcade8c03f198dbd10f"
     },
     "curated_midengine_supercar": {
-      "status": "PENDING_REAL_VISUAL_REVIEW_NOT_SHIPPABLE",
+      "status": "USER_APPROVED_EXACT_ORANGE_LAMBORGHINI_GLTF_GOLD_STANDARD",
       "reasons": [
-        "Original visual rejection invalid: Blender startup cube hid the original CC0 supercar flank and was not part of the downloaded GLB.",
-        "Clean Blender 4.5 front/side/rear/three-quarter captures produced in Actions run 45335269424; model displays original full-body profile, wheel positioning and lighting.",
-        "Still pending imported mechanical door rig, mobile runtime, original brand treatment and explicit owner approval."
+        "Owner explicitly selected the 3.52MiB original orange Lamborghini in a GLB viewer, supplying 3 photographs and the exact archived filename.",
+        "Exact GLB 3,689,788 bytes SHA256 45cdbfd70dc4e6c64b6bbbe5e24a2107044e2008928ab01c27fa8fbb91a25bd7 permanently restored in City Zero, never replace with procedural REVULSE.",
+        "Original Godot City Zero world closed/open door capture GREEN in GitHub run 45366497436; two actual hinges verified.",
+        "Approval is for the exact user's visual model, not a blanket commercial brand license or approval of other vehicles."
       ],
       "evidence": "GitHub Actions run 45331615024: eight actual Workbench Blender screenshots; not accepted for City Zero",
-      "clean_evidence": "https://github.com/1993velezpadilla-source/Drag-mini/actions/runs/45335269424",
-      "previous_evidence_invalidated_by": "https://github.com/1993velezpadilla-source/Drag-mini/commit/696810e435c4136d4819cbcade8c03f198dbd10f"
+      "clean_evidence": "https://github.com/1993velezpadilla-source/Drag-mini/actions/runs/45366497436",
+      "previous_evidence_invalidated_by": "https://github.com/1993velezpadilla-source/Drag-mini/commit/696810e435c4136d4819cbcade8c03f198dbd10f",
+      "model_sha256": "45cdbfd70dc4e6c64b6bbbe5e24a2107044e2008928ab01c27fa8fbb91a25bd7",
+      "canonical_path": "res://assets/curated_rigged/curated_midengine_supercar.glb",
+      "gold_standard_reference": {
+        "3d_model_source_run": 45336166368,
+        "godot_actual_in_game_capture_run": 45366497436,
+        "user_approved": true
+      }
     }
   },
   "next_candidates": [
