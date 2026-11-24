@@ -145,6 +145,33 @@ def repair_original_rear_windscreen(body):
                 quarter_count+=1
     if quarter_count!=2:
         raise RuntimeError("Could not match both real sedan fixed quarter windows")
+
+    # Distinct source material: most of the silver 'bubble' is not glass,
+    # but the broad glass_rear trim_gloss primitive (~0.88 m2 in the
+    # exported original). Give the existing gasket a real low-glare rubber
+    # finish rather than changing its mesh or painting over a screenshot.
+    trim_source=next((m for m in glass.data.materials
+                      if m and m.name=="trim_gloss"),None)
+    if trim_source is None:
+        raise RuntimeError("Original oversized rear-glass gloss frame missing")
+    rubber=trim_source.copy()
+    rubber.name="CITYZERO_SEDAN_REAR_WINDOW_BLACK_GASKET"
+    rubber_bs=rubber.node_tree.nodes.get("Principled BSDF") if rubber.use_nodes else None
+    if rubber_bs is None:
+        raise RuntimeError("Cannot adjust actual rear frame PBR material")
+    rubber_bs.inputs["Base Color"].default_value=(.012,.014,.018,1)
+    rubber_bs.inputs["Roughness"].default_value=.57
+    specular=rubber_bs.inputs.get("Specular IOR Level")
+    if specular is not None:
+        specular.default_value=.065
+    material_changes=0
+    for obj in (glass,bpy.data.objects["glass_side_L"],bpy.data.objects["glass_side_R"]):
+        for i,m in enumerate(obj.data.materials):
+            if m and m.name=="trim_gloss":
+                obj.data.materials[i]=rubber
+                material_changes+=1
+    if material_changes!=3:
+        raise RuntimeError("Failed to update actual rear window gasket/quarter seals")
     return {"original_glass_faces":before_faces,
             "retessellated_glass_faces":after_faces,
             "glass_vertices_corrected":corrected,
@@ -152,7 +179,8 @@ def repair_original_rear_windscreen(body):
             "maximum_new_roof_protrusion_m":round(new_excess,4),
             "roof_station_count":len(roof_stations),
             "rear_privacy_glass_material_only":rear_glass.name,
-            "rear_quarter_windows_consistent_tint":quarter_count}
+            "rear_quarter_windows_consistent_tint":quarter_count,
+            "rear_gasket_and_quarter_seals_matte":material_changes}
 
 def polish_loaded_sedan():
     bpy.context.view_layer.update()
