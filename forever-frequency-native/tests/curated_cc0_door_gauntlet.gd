@@ -20,6 +20,20 @@ func find_actual_mesh(node: Node) -> MeshInstance3D:
             return found
     return null
 
+## Real outward-swing gate: a door may move a metre yet clip through
+## the passenger cabin if the hinge rotation sign is reversed.
+func farthest_lateral_point(node: Node, side_sign: float) -> float:
+    var farthest := -INF
+    if node is MeshInstance3D:
+        var mesh_node: MeshInstance3D = node
+        if mesh_node.mesh != null:
+            var shape: AABB = mesh_node.mesh.get_aabb()
+            for corner in range(8):
+                farthest = maxf(farthest, side_sign * mesh_node.to_global(shape.get_endpoint(corner)).x)
+    for child in node.get_children():
+        farthest = maxf(farthest, farthest_lateral_point(child, side_sign))
+    return farthest
+
 func _initialize() -> void:
     call_deferred("_run")
 
@@ -52,6 +66,8 @@ func _run() -> void:
                 continue
             var sample: Vector3 = movable.mesh.get_aabb().end
             var before: Vector3 = movable.to_global(sample)
+            var side_sign: float = 1.0 if door_name.contains("_LEFT_") else -1.0
+            var before_outboard: float = farthest_lateral_point(hinge, side_sign)
             var closed: Quaternion = hinge.quaternion
             report(animator.toggle_door(door_name), door_name + " opens")
             for i in range(95):
@@ -61,6 +77,8 @@ func _run() -> void:
             report(hinge.quaternion.angle_to(closed) > 0.18, door_name + " rotates real glTF hinge")
             report(movable.to_global(sample).distance_to(before) > 0.07,
                 door_name + " moves imported source mesh")
+            report(farthest_lateral_point(hinge, side_sign) > before_outboard + 0.08,
+                door_name + " swings OUTWARD instead of clipping into cabin")
             report(animator.toggle_door(door_name), door_name + " closes")
             for i in range(95):
                 animator._process(1.0 / 60.0)
