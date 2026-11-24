@@ -25,7 +25,7 @@ func _run() -> void:
     assert_that(s.records == 1,"record publishes")
     assert_that(s.fans >= 20 and earned["fans"] > 0,"music unlocks fans")
     var first_business_cost := 120
-    var previous_coins := s.coins
+    var previous_coins: int = s.coins
     assert_that(s.open_shop(),"buy first business")
     assert_that(s.coins == previous_coins - first_business_cost,"one-time business cost")
     assert_that(s.businesses == 1,"business persists")
@@ -38,7 +38,7 @@ func _run() -> void:
     assert_that(s.evolve_pet() and s.companion == "LUMEN","pet evolution changes species")
     assert_that(Main != null,"native scene parses")
     if failures.is_empty():
-        print("GAUNTLET GREEN — 12 core checks")
+        print("GAUNTLET GREEN — 13 core checks")
         quit(0)
     else:
         print("GAUNTLET RED — ",failures)
