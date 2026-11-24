@@ -1,0 +1,69 @@
+name: City Zero — CC0 automotive mesh research audition
+on:
+  push:
+    branches: [forever-frequency-native]
+    paths:
+      - '.github/workflows/city-zero-cc0-car-research.yml'
+      - 'forever-frequency-native/tools/curated_vehicle_qa_blender.py'
+      - 'forever-frequency-native/data/curated_vehicle_candidates.json'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: cc0-car-research-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  model-authenticity:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 17
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download pinned 2026-style CC0 complete vehicle base models
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          import hashlib, json, subprocess
+          root=Path('forever-frequency-native')
+          d=json.loads((root/'data/curated_vehicle_candidates.json').read_text())
+          out=root/'assets/curated_cars'
+          out.mkdir(parents=True,exist_ok=True)
+          for entry in d['candidate_models']:
+              file=out/(entry['id']+'.glb')
+              subprocess.run(['curl','-fL','--retry','3','--connect-timeout','15',
+                  '--max-time','90',entry['source_url'],'-o',str(file)],check=True)
+              blob=file.read_bytes()
+              actual=hashlib.sha256(blob).hexdigest()
+              assert len(blob)>80000,(entry['id'],len(blob))
+              assert actual==entry['sha256'],(
+                  "REJECT: upstream file hash is not pinned expected; inspect metadata before release",
+                  entry['id'],entry['sha256'],actual)
+              print('LICENSED GLB SOURCE PIN GREEN',entry['id'],len(blob),actual,flush=True)
+          PY
+      - name: Use preinstalled Blender 4.5 without buying a license
+        shell: bash
+        run: |
+          docker pull ghcr.io/blenderkit/headless-blender:blender-4.5-stable
+          docker run --rm --entrypoint /home/headless/blender/blender ghcr.io/blenderkit/headless-blender:blender-4.5-stable --version
+      - name: Examine true meshes and render four original Blender images per car
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd forever-frequency-native
+          timeout 400s docker run --rm -v "$PWD:$PWD" -w "$PWD" --entrypoint /home/headless/blender/blender \
+            ghcr.io/blenderkit/headless-blender:blender-4.5-stable -b -t 2 \
+            --python tools/curated_vehicle_qa_blender.py 2>&1 | tee curated_qa.log
+          grep -q 'CURATED REAL 3D SOURCE AUDITION COMPLETE' curated_qa.log
+          test "$(find vehicle_quality_audition -name '*.png' | wc -l)" -eq 8
+      - name: Save actual candidate models and unmodified camera photos even if rejected
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: CityZero-CC0-GT4-Car-Research-Visual-Proof
+          path: |
+            forever-frequency-native/assets/curated_cars/*.glb
+            forever-frequency-native/vehicle_quality_audition/*.png
+            forever-frequency-native/vehicle_quality_audition/*.json
+            forever-frequency-native/curated_qa.log
+          if-no-files-found: warn
