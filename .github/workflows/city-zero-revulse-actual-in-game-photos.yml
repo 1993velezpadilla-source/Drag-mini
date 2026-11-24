@@ -8,7 +8,10 @@ on:
       - 'forever-frequency-native/tests/revulse_in_game_capture.gd'
       - '.github/workflows/city-zero-revulse-actual-in-game-photos.yml'
 permissions:
-  contents: read
+  contents: write
+concurrency:
+  group: cityzero-revulse-frame-capture
+  cancel-in-progress: true
 jobs:
   actual-godot-photos:
     runs-on: ubuntu-24.04
@@ -57,6 +60,31 @@ jobs:
           grep -q 'CITY_ZERO_REVULSE_TWO_ACTUAL_IN_GAME_SCREENSHOTS_GREEN' revulse-in-game-evidence/godot_capture.log
           test -s revulse-in-game-evidence/REVULSE_CITY_ZERO_IN_GAME_DOORS_CLOSED.png
           test -s revulse-in-game-evidence/REVULSE_CITY_ZERO_IN_GAME_DOORS_OPEN.png
+      - name: Publish both VERIFIED real in-game screenshot PNG files in repository
+        shell: bash
+        run: |
+          set -euo pipefail
+          folder=forever-frequency-native/screenshots
+          mkdir -p "$folder"
+          cp revulse-in-game-evidence/REVULSE_CITY_ZERO_IN_GAME_DOORS_CLOSED.png "$folder/"
+          cp revulse-in-game-evidence/REVULSE_CITY_ZERO_IN_GAME_DOORS_OPEN.png "$folder/"
+          cp revulse-in-game-evidence/godot_actual_scene_evidence.json "$folder/"
+          git config user.name "CityZero Visual Capture Bot"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add "$folder"
+          git commit -m "Capture real in-game REVULSE Lamborghini-inspired doors closed and open [skip ci]"
+          for attempt in 1 2 3; do
+            git pull --rebase origin forever-frequency-native
+            if git push origin HEAD:forever-frequency-native; then
+              echo 'GODOT_REAL_PHOTOS_PUBLISHED_TO_GITHUB'
+              break
+            fi
+            if [ "$attempt" -eq 3 ]; then
+              echo 'Git push unavailable; original screenshots remain in Actions artifact'
+              exit 1
+            fi
+            sleep 3
+          done
       - name: Preserve only genuine model and image evidence
         if: always()
         uses: actions/upload-artifact@v4
