@@ -1,0 +1,583 @@
+{
+  "version": 1,
+  "design_principle": "Original Blender geometry. Named vehicles are visual scale/proportion references only. Commercial release excludes their logos and manufacturer meshes.",
+  "categories": [
+    {
+      "id": "hypersport",
+      "label": "Hyperbikes",
+      "count": 3
+    },
+    {
+      "id": "supermoto",
+      "label": "Supermotos",
+      "count": 2
+    },
+    {
+      "id": "dirtbike",
+      "label": "Offroad Dirt Bikes",
+      "count": 2
+    },
+    {
+      "id": "moped",
+      "label": "Commuter Mopeds",
+      "count": 2
+    },
+    {
+      "id": "escooter",
+      "label": "Electric Stand-Up Scooters",
+      "count": 2
+    },
+    {
+      "id": "ebike",
+      "label": "Electric Bicycles",
+      "count": 2
+    },
+    {
+      "id": "buggy",
+      "label": "Offroad Buggies",
+      "count": 2
+    },
+    {
+      "id": "watercraft",
+      "label": "Watercraft & Boats",
+      "count": 3
+    },
+    {
+      "id": "helicopter",
+      "label": "Helicopters",
+      "count": 3
+    },
+    {
+      "id": "airplane",
+      "label": "Airplanes",
+      "count": 2
+    },
+    {
+      "id": "rail",
+      "label": "Trains & Trams",
+      "count": 3
+    }
+  ],
+  "models": [
+    {
+      "id": "hypersport__falcon_1340",
+      "category": "hypersport",
+      "category_label": "Hyperbikes",
+      "reference_design": "2026 Suzuki Hayabusa aerodynamic silhouette",
+      "length_m": 2.18,
+      "width_m": 0.74,
+      "height_m": 1.16,
+      "visual_ratio": 0.88,
+      "game_price": 22000,
+      "original_game_brand": "AURA",
+      "colorways": [
+        "Graphite",
+        "Pearl",
+        "Crimson",
+        "Midnight",
+        "Teal",
+        "Copper"
+      ]
+    },
+    {
+      "id": "hypersport__neon_h2",
+      "category": "hypersport",
+      "category_label": "Hyperbikes",
+      "reference_design": "2026 Kawasaki Ninja H2 sport fairing silhouette",
+      "length_m": 2.09,
+      "width_m": 0.78,
+      "height_m": 1.12,
+      "visual_ratio": 0.86,
+      "game_price": 28000,
+      "original_game_brand": "AURA",
+      "colorways": [
+        "Graphite",
+        "Pearl",
+        "Crimson",
+        "Midnight",
+        "Teal",
+        "Copper"
+      ]
+    },
+    {
+      "id": "hypersport__viper_1000",
+      "category": "hypersport",
+      "category_label": "Hyperbikes",
+      "reference_design": "2026 Honda CBR1000RR-R superbike silhouette",
+      "length_m": 2.12,
+      "width_m": 0.75,
+      "height_m": 1.14,
+      "visual_ratio": 0.89,
+      "game_price": 20000,
+      "original_game_brand": "AURA",
+      "colorways": [
+        "Graphite",
+        "Pearl",
+        "Crimson",
+        "Midnight",
+        "Teal",
+        "Copper"
+      ]
+    },
+    {
+      "id": "supermoto__smc_700",
+      "category": "supermoto",
+      "category_label": "Supermotos",
+      "reference_design": "2026 KTM 690 SMC R stance",
+      "length_m": 2.18,
+      "width_m": 0.83,
+      "height_m": 1.17,
+      "visual_ratio": 0.91,
+      "game_price": 12500,
+      "original_game_brand": "AURA",
+      "colorways": [
+        "Graphite",
+        "Pearl",
+        "Crimson",
+        "Midnight",
+        "Teal",
+        "Copper"
+      ]
+    },
+    {
+      "id": "supermoto__urban_450",
+      "category": "supermoto",
+      "category_label": "Supermotos",
+      "reference_design": "2026 Husqvarna 701 Supermoto stance",
+      "length_m": 2.18,
+      "width_m": 0.81,
+      "height_m": 1.18,
+      "visual_ratio": 0.91,
+      "game_price": 11200,
+      "original_game_brand": "AURA",
+      "colorways": [
+        "Graphite",
+        "Pearl",
+        "Crimson",
+        "Midnight",
+        "Teal",
+        "Copper"
+      ]
+    },
+    {
+      "id": "dirtbike__trail_450",
+      "category": "dirtbike",
+      "category_label": "Offroad Dirt Bikes",
+      "reference_design": "2026 Honda CRF450RL chassis stance",
+      "length_m": 2.17,
+      "width_m": 0.83,
+      "height_m": 1.26,
+      "visual_ratio": 0.93,
+      "game_price": 11000,
+      "original_game_brand": "AURA",
+      "colorways": [
+        "Graphite",
+        "Pearl",
+        "Crimson",
+        "Midnight",
+        "Teal",
+        "Copper"
+      ]
+    },
+    {
+      "id": "dirtbike__mx_250",
+      "category": "dirtbike",
+      "category_label": "Offroad Dirt Bikes",
+      "reference_design": "2026 Yamaha YZ250F offroad geometry",
+      "length_m": 2.17,
+      "width_m": 0.82,
+      "height_m": 1.27,
+      "visual_ratio": 0.93,
+      "game_price": 9600,
+      "original_game_brand": "AURA",
+      "colorways": [
+        "Graphite",
+        "Pearl",
+        "Crimson",
+        "Midnight",
+        "Teal",
+        "Copper"
+      ]
+    },
+    {
+      "id": "moped__metro_125",
+      "category": "moped",
+      "category_label": "Commuter Mopeds",
+      "reference_design": "Honda Super Cub 125 proportions",
+      "length_m": 1.93,
+      "width_m": 0.73,
+      "height_m": 1.1,
+      "visual_ratio": 0.86,
+      "game_price": 2600,
+      "original_game_brand": "AURA",
+      "colorways": [
+        "Graphite",
+        "Pearl",
+        "Crimson",
+        "Midnight",
+        "Teal",
+        "Copper"
+      ]
+    },
+    {
+      "id": "moped__neo_155",
+      "category": "moped",
+      "category_label": "Commuter Mopeds",
+      "reference_design": "Yamaha NMAX 155 proportions",
+      "length_m": 1.94,
+      "width_m": 0.75,
+      "height_m": 1.17,
+      "visual_ratio": 0.82,
+      "game_price": 3900,
+      "original_game_brand": "AURA",
+      "colorways": [
+        "Graphite",
+        "Pearl",
+        "Crimson",
+        "Midnight",
+        "Teal",
+        "Copper"
+      ]
+    },
+    {
+      "id": "escooter__commute_x",
+      "category": "escooter",
+      "category_label": "Electric Stand-Up Scooters",
+      "reference_design": "Segway Ninebot MAX G2 design family",
+      "length_m": 1.25,
+      "width_m": 0.62,
+      "height_m": 1.18,
+      "visual_ratio": 0.63,
+      "game_price": 850,
+      "original_game_brand": "AURA",
+      "colorways": [
+        "Graphite",
+        "Pearl",
+        "Crimson",
+        "Midnight",
+        "Teal",
+        "Copper"
+      ]
+    },
+    {
+      "id": "escooter__urban_dual",
+      "category": "escooter",
+      "category_label": "Electric Stand-Up Scooters",
+      "reference_design": "Dual-motor rugged offroad electric scooter design",
+      "length_m": 1.35,
+      "width_m": 0.67,
+      "height_m": 1.18,
+      "visual_ratio": 0.66,
+      "game_price": 1250,
+      "original_game_brand": "AURA",
+      "colorways": [
+        "Graphite",
+        "Pearl",
+        "Crimson",
+        "Midnight",
+        "Teal",
+        "Copper"
+      ]
+    },
+    {
+      "id": "ebike__cargo_city",
+      "category": "ebike",
+      "category_label": "Electric Bicycles",
+      "reference_design": "Tern electric cargo bicycle proportions",
+      "length_m": 1.87,
+      "width_m": 0.7,
+      "height_m": 1.12,
+      "visual_ratio": 0.9,
+      "game_price": 2100,
+      "original_game_brand": "AURA",
+      "colorways": [
+        "Graphite",
+        "Pearl",
+        "Crimson",
+        "Midnight",
+        "Teal",
+        "Copper"
+      ]
+    },
+    {
+      "id": "ebike__mountain_e",
+      "category": "ebike",
+      "category_label": "Electric Bicycles",
+      "reference_design": "Modern full suspension eMTB silhouette",
+      "length_m": 1.86,
+      "width_m": 0.72,
+      "height_m": 1.08,
+      "visual_ratio": 0.88,
+      "game_price": 4300,
+      "original_game_brand": "AURA",
+      "colorways": [
+        "Graphite",
+        "Pearl",
+        "Crimson",
+        "Midnight",
+        "Teal",
+        "Copper"
+      ]
+    },
+    {
+      "id": "buggy__dune_4x4",
+      "category": "buggy",
+      "category_label": "Offroad Buggies",
+      "reference_design": "Polaris RZR Pro R dune buggy silhouette",
+      "length_m": 3.15,
+      "width_m": 1.96,
+      "height_m": 1.82,
+      "visual_ratio": 0.79,
+      "game_price": 22000,
+      "original_game_brand": "AURA",
+      "colorways": [
+        "Graphite",
+        "Pearl",
+        "Crimson",
+        "Midnight",
+        "Teal",
+        "Copper"
+      ]
+    },
+    {
+      "id": "buggy__sand_runner",
+      "category": "buggy",
+      "category_label": "Offroad Buggies",
+      "reference_design": "Can-Am Maverick X3 side-by-side buggy proportions",
+      "length_m": 3.36,
+      "width_m": 1.84,
+      "height_m": 1.75,
+      "visual_ratio": 0.82,
+      "game_price": 31000,
+      "original_game_brand": "AURA",
+      "colorways": [
+        "Graphite",
+        "Pearl",
+        "Crimson",
+        "Midnight",
+        "Teal",
+        "Copper"
+      ]
+    },
+    {
+      "id": "watercraft__jet_runner",
+      "category": "watercraft",
+      "category_label": "Watercraft & Boats",
+      "reference_design": "Personal watercraft sporty jet ski",
+      "length_m": 3.15,
+      "width_m": 1.16,
+      "height_m": 1.15,
+      "visual_ratio": 0.78,
+      "game_price": 11000,
+      "original_game_brand": "AURA",
+      "colorways": [
+        "Graphite",
+        "Pearl",
+        "Crimson",
+        "Midnight",
+        "Teal",
+        "Copper"
+      ]
+    },
+    {
+      "id": "watercraft__coastal_rib",
+      "category": "watercraft",
+      "category_label": "Watercraft & Boats",
+      "reference_design": "Rigid inflatable rescue/RIB boat",
+      "length_m": 6.8,
+      "width_m": 2.65,
+      "height_m": 1.72,
+      "visual_ratio": 0.78,
+      "game_price": 49000,
+      "original_game_brand": "AURA",
+      "colorways": [
+        "Graphite",
+        "Pearl",
+        "Crimson",
+        "Midnight",
+        "Teal",
+        "Copper"
+      ]
+    },
+    {
+      "id": "watercraft__marina_cruiser",
+      "category": "watercraft",
+      "category_label": "Watercraft & Boats",
+      "reference_design": "Modern cabin speedboat 28ft",
+      "length_m": 8.5,
+      "width_m": 2.75,
+      "height_m": 2.85,
+      "visual_ratio": 0.76,
+      "game_price": 120000,
+      "original_game_brand": "AURA",
+      "colorways": [
+        "Graphite",
+        "Pearl",
+        "Crimson",
+        "Midnight",
+        "Teal",
+        "Copper"
+      ]
+    },
+    {
+      "id": "helicopter__sky_lift",
+      "category": "helicopter",
+      "category_label": "Helicopters",
+      "reference_design": "Airbus H125 civilian single-rotor proportion reference",
+      "length_m": 10.5,
+      "width_m": 2,
+      "height_m": 3.1,
+      "visual_ratio": 0.72,
+      "game_price": 700000,
+      "original_game_brand": "AURA",
+      "colorways": [
+        "Graphite",
+        "Pearl",
+        "Crimson",
+        "Midnight",
+        "Teal",
+        "Copper"
+      ]
+    },
+    {
+      "id": "helicopter__city_air",
+      "category": "helicopter",
+      "category_label": "Helicopters",
+      "reference_design": "Police surveillance light helicopter",
+      "length_m": 9.7,
+      "width_m": 2.25,
+      "height_m": 3.1,
+      "visual_ratio": 0.74,
+      "game_price": 950000,
+      "original_game_brand": "AURA",
+      "colorways": [
+        "Graphite",
+        "Pearl",
+        "Crimson",
+        "Midnight",
+        "Teal",
+        "Copper"
+      ]
+    },
+    {
+      "id": "helicopter__med_evac",
+      "category": "helicopter",
+      "category_label": "Helicopters",
+      "reference_design": "EMS twin engine helicopter family",
+      "length_m": 12.1,
+      "width_m": 2.35,
+      "height_m": 3.5,
+      "visual_ratio": 0.77,
+      "game_price": 1800000,
+      "original_game_brand": "AURA",
+      "colorways": [
+        "Graphite",
+        "Pearl",
+        "Crimson",
+        "Midnight",
+        "Teal",
+        "Copper"
+      ]
+    },
+    {
+      "id": "airplane__sky_train",
+      "category": "airplane",
+      "category_label": "Airplanes",
+      "reference_design": "Cessna 172 Skyhawk high-wing profile",
+      "length_m": 8.27,
+      "width_m": 11,
+      "height_m": 2.72,
+      "visual_ratio": 0.71,
+      "game_price": 240000,
+      "original_game_brand": "AURA",
+      "colorways": [
+        "Graphite",
+        "Pearl",
+        "Crimson",
+        "Midnight",
+        "Teal",
+        "Copper"
+      ]
+    },
+    {
+      "id": "airplane__sky_express",
+      "category": "airplane",
+      "category_label": "Airplanes",
+      "reference_design": "Modern business twin turboprop silhouette",
+      "length_m": 13,
+      "width_m": 15.9,
+      "height_m": 4.3,
+      "visual_ratio": 0.72,
+      "game_price": 2600000,
+      "original_game_brand": "AURA",
+      "colorways": [
+        "Graphite",
+        "Pearl",
+        "Crimson",
+        "Midnight",
+        "Teal",
+        "Copper"
+      ]
+    },
+    {
+      "id": "rail__city_tram",
+      "category": "rail",
+      "category_label": "Trains & Trams",
+      "reference_design": "Modern low-floor tram vehicle",
+      "length_m": 16.5,
+      "width_m": 2.55,
+      "height_m": 3.4,
+      "visual_ratio": 0.68,
+      "game_price": 1800000,
+      "original_game_brand": "AURA",
+      "colorways": [
+        "Graphite",
+        "Pearl",
+        "Crimson",
+        "Midnight",
+        "Teal",
+        "Copper"
+      ]
+    },
+    {
+      "id": "rail__metro_train",
+      "category": "rail",
+      "category_label": "Trains & Trams",
+      "reference_design": "Modern metro/subway railcar",
+      "length_m": 20.5,
+      "width_m": 2.75,
+      "height_m": 3.6,
+      "visual_ratio": 0.72,
+      "game_price": 3500000,
+      "original_game_brand": "AURA",
+      "colorways": [
+        "Graphite",
+        "Pearl",
+        "Crimson",
+        "Midnight",
+        "Teal",
+        "Copper"
+      ]
+    },
+    {
+      "id": "rail__regional_train",
+      "category": "rail",
+      "category_label": "Trains & Trams",
+      "reference_design": "Commuter regional train locomotive/cab car",
+      "length_m": 24,
+      "width_m": 3.05,
+      "height_m": 4.1,
+      "visual_ratio": 0.74,
+      "game_price": 5000000,
+      "original_game_brand": "AURA",
+      "colorways": [
+        "Graphite",
+        "Pearl",
+        "Crimson",
+        "Midnight",
+        "Teal",
+        "Copper"
+      ]
+    }
+  ]
+}
