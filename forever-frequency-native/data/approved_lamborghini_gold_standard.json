@@ -1,0 +1,20 @@
+{
+  "approval": "USER_IDENTIFIED_EXACT_FILE_2026_11_24",
+  "model": "Lamborghini naranja ganador",
+  "canonical_file": "assets/curated_rigged/curated_midengine_supercar.glb",
+  "prohibited_replacement": "assets/premium_fleet/exotic_supercar__revulse.glb",
+  "expected_sha256": "45cdbfd70dc4e6c64b6bbbe5e24a2107044e2008928ab01c27fa8fbb91a25bd7",
+  "bytes": 3689788,
+  "glb_format": "glTF 2.0",
+  "mesh_count": 23,
+  "required_hinges": [
+    "DOOR_LEFT_FRONT_HINGE",
+    "DOOR_RIGHT_FRONT_HINGE"
+  ],
+  "audited_source_workflow_run": 45336166368,
+  "source_artifact": "CityZero-CC0-GT4-Car-Research-Visual-Proof",
+  "source_artifact_inner_path": "assets/curated_rigged/curated_midengine_supercar.glb",
+  "references": "User's 3 GLB Viewer orange Lamborghini screenshots and file browser screenshot identifying curated_midengine_supercar.glb",
+  "quality_gate": "Do not mark any other vehicle finished merely because it has a valid GLB or render. Require real visual review against approved orange Lamborghini, correct wheel locations, body geometry, hinged parts and native Godot screenshots.",
+  "note": "The user identified the exact file by its archived path. The source GLB was recovered and SHA256-audited; verified full-game integration awaits the Godot CI run."
+}
