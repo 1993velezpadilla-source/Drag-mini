@@ -386,9 +386,16 @@ def build_car(car):
    'functional_door_hinges':hinges,'door_count':len(hinges),
    'angular_future_electric':style==6,'paint_material':'FF_BODY_PAINT',
    'paint_options':len(car['colors']),'cost':car['game_price']}
-lim=int(os.environ.get('FF_CAR_LIMIT',str(len(models))))
+selected_ids=[v.strip() for v in os.environ.get('FF_CAR_IDS','').split(',') if v.strip()]
+if selected_ids:
+ assert len(selected_ids)==len(set(selected_ids))
+ assert all(any(x['id']==n for x in models) for n in selected_ids)
+ selected_models=[next(x for x in models if x['id']==n) for n in selected_ids]
+else:
+ selected_models=models[:int(os.environ.get('FF_CAR_LIMIT',str(len(models))))]
+lim=len(selected_models)
 results=[]
-for idx,rec in enumerate(models[:lim]):
+for idx,rec in enumerate(selected_models):
  data=build_car(rec);results.append(data)
  print('FLEET 3D',idx+1,lim,rec['id'],data['triangles'],'triangles',flush=True)
 summary={'count':len(results),'available_paints':8,'vehicles':results}
