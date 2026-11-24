@@ -1,0 +1,72 @@
+name: City Zero REVULSE REAL in-game doors closed open
+on:
+  workflow_dispatch:
+  push:
+    branches: [forever-frequency-native]
+    paths:
+      - 'forever-frequency-native/scripts/city_zero.gd'
+      - 'forever-frequency-native/tests/revulse_in_game_capture.gd'
+      - '.github/workflows/city-zero-revulse-actual-in-game-photos.yml'
+permissions:
+  contents: read
+jobs:
+  actual-godot-photos:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 24
+    steps:
+      - uses: actions/checkout@v4
+      - name: Create original author-made REVULSE in Blender 4.5
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd forever-frequency-native
+          docker run --rm -e FF_CAR_IDS=exotic_supercar__revulse --entrypoint /home/headless/blender/blender -v "$PWD:$PWD" -w "$PWD" ghcr.io/blenderkit/headless-blender:blender-4.5-stable -b -t 2 --python tools/premium_vehicle_fleet_blender.py 2>&1 | tee revulse_blender_log.txt
+          test -s assets/premium_fleet/exotic_supercar__revulse.glb
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          report=json.loads(Path('assets/premium_fleet/fleet_metrics.json').read_text())
+          assert report['count']==1
+          car=report['vehicles'][0]
+          assert car['id']=='exotic_supercar__revulse'
+          assert car['door_count']==2 and len(car['functional_door_hinges'])==2
+          assert Path('assets/premium_fleet/exotic_supercar__revulse.glb').read_bytes()[:4]==b'glTF'
+          print('ORIGINAL LAMBORGHINI-INSPIRED REVULSE MODEL READY')
+          PY
+      - uses: solarlabyrinth/action-setup-godot@v3
+        with:
+          version: 4.4.1-stable
+          export-templates: false
+      - name: Install real window + OpenGL software renderer
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq xvfb libgl1 libgl1-mesa-dri libegl1 libgles2 mesa-utils
+      - name: Import actual REVULSE GLB inside original City Zero game
+        shell: bash
+        run: |
+          set -o pipefail
+          xvfb-run -a -s '-screen 0 1920x1080x24' timeout 240s godot --path forever-frequency-native --editor --import --quit 2>&1 | tee forever-frequency-native/revulse_godot_import.log
+      - name: Take actual Godot game screenshots CLOSED and OPEN
+        shell: bash
+        env:
+          LIBGL_ALWAYS_SOFTWARE: '1'
+          MESA_GL_VERSION_OVERRIDE: '3.3'
+        run: |
+          set -euo pipefail
+          mkdir -p "$PWD/revulse-in-game-evidence"
+          export CITYZERO_REVULSE_SCREENSHOTS="$PWD/revulse-in-game-evidence"
+          xvfb-run -a -s '-screen 0 1920x1080x24' timeout 240s godot --path forever-frequency-native --script res://tests/revulse_in_game_capture.gd 2>&1 | tee revulse-in-game-evidence/godot_capture.log
+          grep -q 'CITY_ZERO_REVULSE_TWO_ACTUAL_IN_GAME_SCREENSHOTS_GREEN' revulse-in-game-evidence/godot_capture.log
+          test -s revulse-in-game-evidence/REVULSE_CITY_ZERO_IN_GAME_DOORS_CLOSED.png
+          test -s revulse-in-game-evidence/REVULSE_CITY_ZERO_IN_GAME_DOORS_OPEN.png
+      - name: Preserve only genuine model and image evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: City-Zero-Actual-Game-Lamborghini-REVULSE-Closed-and-Open
+          path: |
+            revulse-in-game-evidence/
+            forever-frequency-native/assets/premium_fleet/exotic_supercar__revulse.glb
+            forever-frequency-native/assets/premium_fleet/fleet_metrics.json
+            forever-frequency-native/revulse_blender_log.txt
+            forever-frequency-native/revulse_godot_import.log
+          retention-days: 30
+          if-no-files-found: warn
