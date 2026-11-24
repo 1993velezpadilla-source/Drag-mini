@@ -15,6 +15,8 @@ import sys
 from collections import Counter
 from pathlib import Path
 from nfsu2_parts_animation import inspect as inspect_animation
+from nfsu2_physics_catalog import catalog as read_original_physics
+import struct
 
 PART_RULES = (
     ("trunk_audio", ("TRUNK_AUDIO",)),
@@ -285,6 +287,19 @@ def main(argv=None):
               "performance": {"status": "source_identified_numeric_upgrade_effects_not_yet_ported",
                               "categories": list(UPGRADES)},
               "cars": {}, "audio_files": sound_files(game)}
+    original_physics = {}
+    original_globalb = file_ci(global_dir, "GLOBALB.BUN")
+    if original_globalb is not None:
+        try:
+            parsed_physics = read_original_physics(original_globalb.read_bytes())
+            original_physics = parsed_physics["cars"]
+            report["performance"]["status"] = "original_factory_and_upgrade_targets_extracted"
+            report["performance"]["cars_decoded"] = parsed_physics["parsed"]
+            report["performance"]["car_records_rejected"] = parsed_physics["rejected"]
+        except (OSError, ValueError, struct.error) as err:
+            report["performance"]["source_error"] = str(err)
+    else:
+        report["performance"]["source_error"] = "Original uncompressed GLOBALB.BUN not available"
     for folder in sorted(game_cars.iterdir()):
         if not folder.is_dir() or (chosen and folder.name.upper() not in chosen):
             continue
@@ -297,7 +312,9 @@ def main(argv=None):
                 "animation_file": str(files["PARTS_ANIMATIONS.BIN"] or ""),
                 "animation": inspect_animation(files["PARTS_ANIMATIONS.BIN"]),
                 "sound": sound_mapping(sound_data, folder.name),
-                "unlimiter": unlimiter_config(game, folder.name)}
+                "unlimiter": unlimiter_config(game, folder.name),
+                "physics": original_physics.get(folder.name.upper(),
+                    {"status": "original_car_physics_not_available_for_this_vehicle"})}
         try:
             item["geometry"] = collect_geometry(cars, geo, global_dir)
         except (ValueError, OSError, IndexError) as err:
