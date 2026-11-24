@@ -31,9 +31,9 @@ var camera: Camera3D
 var mobile: CityMobileInput
 var ui_root: Control
 var camera_yaw := 0.45
-var camera_pitch := 0.35
+var camera_pitch := 0.42
 var speed := 7.1
-var camera_distance := 8.0
+var camera_distance := 10.25
 var touch_interact := false
 var panel: PanelContainer
 var hint: Label
@@ -134,27 +134,35 @@ func _nameplate(parent: Node3D, caption: String, pos: Vector3, c: Color = Color.
 func _create_environment() -> void:
     var world := WorldEnvironment.new()
     var env := Environment.new()
-    env.background_mode = Environment.BG_COLOR
-    env.background_color = Color("383e55")
+    var sky := Sky.new()
+    var dusk := ProceduralSkyMaterial.new()
+    dusk.sky_top_color = Color("172942")
+    dusk.sky_horizon_color = Color("bc6b72")
+    dusk.ground_horizon_color = Color("554f68")
+    dusk.ground_bottom_color = Color("151e2a")
+    dusk.sky_curve = 0.19
+    sky.sky_material = dusk
+    env.background_mode = Environment.BG_SKY
+    env.sky = sky
     env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
-    env.ambient_light_color = Color("9c8fa0")
-    env.ambient_light_energy = 0.43
+    env.ambient_light_color = Color("aaa6ba")
+    env.ambient_light_energy = 0.31
     env.tonemap_mode = Environment.TONE_MAPPER_FILMIC
     env.fog_enabled = true
-    env.fog_light_color = Color("655e77")
-    env.fog_density = 0.004
+    env.fog_light_color = Color("43536c")
+    env.fog_density = 0.002
     world.environment = env
     add_child(world)
     var sunlight := DirectionalLight3D.new()
     sunlight.rotation_degrees = Vector3(-33, -42, 0)
     sunlight.light_color = Color("ffb68a")
-    sunlight.light_energy = 0.84
+    sunlight.light_energy = 0.71
     sunlight.shadow_enabled = true
     sunlight.directional_shadow_max_distance = 70
     add_child(sunlight)
     var ambient := DirectionalLight3D.new()
     ambient.rotation_degrees = Vector3(-55, 132, 0)
-    ambient.light_energy = 0.19
+    ambient.light_energy = 0.13
     ambient.light_color = Color("697bba")
     add_child(ambient)
 
@@ -750,34 +758,34 @@ func _create_mobile_ui() -> void:
     root.add_child(mobile)
     var titlepanel := PanelContainer.new()
     titlepanel.add_theme_stylebox_override("panel",_panel_style(Color("12172bdc"),COLORS.cyan))
-    titlepanel.offset_left = 18
-    titlepanel.offset_top = 17
-    titlepanel.offset_right = 380
-    titlepanel.offset_bottom = 86
+    titlepanel.offset_left = 16
+    titlepanel.offset_top = 14
+    titlepanel.offset_right = 333
+    titlepanel.offset_bottom = 73
     root.add_child(titlepanel)
-    var title := _ui_label("◉  FOREVER FREQUENCY\n     CITY ZERO  /  LA CALDERA",22,Color("e5f8ff"))
+    var title := _ui_label("◉  FOREVER FREQUENCY\n     LA CALDERA · CITY ZERO",18,Color("e5f8ff"))
     titlepanel.add_child(title)
     var stats := PanelContainer.new()
     stats.add_theme_stylebox_override("panel",_panel_style(Color("12172bdb"),Color("5d789f")))
     stats.anchor_left = 1
     stats.anchor_right = 1
-    stats.offset_left = -440
-    stats.offset_right = -16
-    stats.offset_top = 16
-    stats.offset_bottom = 78
+    stats.offset_left = -385
+    stats.offset_right = -14
+    stats.offset_top = 14
+    stats.offset_bottom = 65
     root.add_child(stats)
-    currency = _ui_label("",20,Color("f6efda"))
+    currency = _ui_label("",17,Color("f6efda"))
     stats.add_child(currency)
     var missionpanel := PanelContainer.new()
     missionpanel.add_theme_stylebox_override("panel",_panel_style(Color("111728d8"),Color("7b5aa3")))
     missionpanel.anchor_left = 1
     missionpanel.anchor_right = 1
-    missionpanel.offset_left = -338
-    missionpanel.offset_right = -16
-    missionpanel.offset_top = 112
-    missionpanel.offset_bottom = 250
+    missionpanel.offset_left = -305
+    missionpanel.offset_right = -14
+    missionpanel.offset_top = 88
+    missionpanel.offset_bottom = 205
     root.add_child(missionpanel)
-    mission = _ui_label("",16,Color("e5d9ff"))
+    mission = _ui_label("",14,Color("e5d9ff"))
     missionpanel.add_child(mission)
     var hintpanel := PanelContainer.new()
     hintpanel.add_theme_stylebox_override("panel",_panel_style(Color("12172bdc"),COLORS.cyan))
@@ -785,12 +793,12 @@ func _create_mobile_ui() -> void:
     hintpanel.anchor_bottom = 1
     hintpanel.anchor_left = 0.5
     hintpanel.anchor_right = 0.5
-    hintpanel.offset_left = -330
-    hintpanel.offset_right = 330
-    hintpanel.offset_top = -102
-    hintpanel.offset_bottom = -43
+    hintpanel.offset_left = -285
+    hintpanel.offset_right = 285
+    hintpanel.offset_top = -80
+    hintpanel.offset_bottom = -29
     root.add_child(hintpanel)
-    hint = _ui_label("",18,Color("e5f8ff"))
+    hint = _ui_label("",16,Color("e5f8ff"))
     hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
     hintpanel.add_child(hint)
     var action := _styled_button("INTERACT   ✦",COLORS.neon)
@@ -798,24 +806,24 @@ func _create_mobile_ui() -> void:
     action.anchor_right = 1
     action.anchor_top = 1
     action.anchor_bottom = 1
-    action.offset_left = -220
-    action.offset_right = -20
-    action.offset_top = -105
-    action.offset_bottom = -25
+    action.offset_left = -184
+    action.offset_right = -18
+    action.offset_top = -89
+    action.offset_bottom = -26
     action.pressed.connect(_interact)
     root.add_child(action)
-    var label := _ui_label("MOVE: WASD   •   LOOK: DRAG   •   E: ENTER",14,Color("ddeeff"))
+    var label := _ui_label("WASD · move    Drag · look    E · enter",12,Color("ddeeff"))
     label.anchor_top = 1
     label.anchor_bottom = 1
     label.offset_left = 22
     label.offset_right = 510
-    label.offset_top = -45
-    label.offset_bottom = -12
+    label.offset_top = -38
+    label.offset_bottom = -11
     root.add_child(label)
-    world_time_label = _ui_label("",17,Color("fff1cb"))
-    world_time_label.position = Vector2(23,95)
-    world_time_label.custom_minimum_size = Vector2(450,28)
-    world_time_label.size = Vector2(450,28)
+    world_time_label = _ui_label("",13,Color("ffe6d2"))
+    world_time_label.position = Vector2(22,81)
+    world_time_label.custom_minimum_size = Vector2(330,23)
+    world_time_label.size = Vector2(330,23)
     world_time_label.autowrap_mode = TextServer.AUTOWRAP_OFF
     root.add_child(world_time_label)
 
@@ -824,7 +832,7 @@ func _update_hud() -> void:
         return
     currency.text = "◉ %d COINS    ♫ %d FANS    ★ LV %d" % [game.coins,game.fans,game.level]
     world_time_label.text = "CITY TIME  %02d:%02d  ·  NOVA  /  %s" % [int(town_clock),int((town_clock-int(town_clock))*60),game.companion]
-    mission.text = "✦ YOUR FIRST RELEASE\n\nEnter La Caldera Records\nPublish a song to earn fans\nBring your neighborhood to life"
+    mission.text = "✦ YOUR FIRST RELEASE\nEnter La Caldera Records\nPublish a song · earn fans"
     var place := _nearest_place()
     if Time.get_ticks_msec()/1000.0 < status_until:
         return
