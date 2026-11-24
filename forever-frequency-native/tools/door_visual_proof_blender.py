@@ -12,6 +12,11 @@ OUT=R/"door_proof"
 OUT.mkdir(exist_ok=True)
 names=["exotic_supercar__revulse","compact_sedan__compact_c",
        "basic_pickup__workhorse","electric_future__cyber_wedge"]
+# A fresh Blender background launch includes its default 2-metre cube.
+# Never let that cube obscure the imported vehicle: clean-review geometry only.
+bpy.ops.object.select_all(action="SELECT")
+bpy.ops.object.delete(use_global=False)
+assert not bpy.context.scene.objects, "Default Blender cube contaminated photo review"
 scene=bpy.context.scene
 scene.render.engine="BLENDER_WORKBENCH"
 scene.display.shading.light="STUDIO"

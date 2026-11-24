@@ -12,6 +12,11 @@ R=Path(__file__).resolve().parents[1]
 records=json.loads((R/"data"/"curated_vehicle_candidates.json").read_text())["candidate_models"]
 OUT=R/"vehicle_quality_audition"
 OUT.mkdir(parents=True,exist_ok=True)
+# A fresh Blender background launch includes its default 2-metre cube.
+# Never let that cube obscure the imported vehicle: clean-review geometry only.
+bpy.ops.object.select_all(action="SELECT")
+bpy.ops.object.delete(use_global=False)
+assert not bpy.context.scene.objects, "Default Blender cube contaminated photo review"
 scene=bpy.context.scene
 scene.render.engine="BLENDER_WORKBENCH"
 scene.display.shading.light="STUDIO"

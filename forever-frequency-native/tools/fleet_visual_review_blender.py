@@ -25,6 +25,11 @@ choices=[
  ("mobility_fleet","rail__city_tram","12-modern-tram.png")
 ]
 # Workbench gives honest visible geometry and avoids fake cinematic promotion.
+# A fresh Blender background launch includes its default 2-metre cube.
+# Never let that cube obscure the imported vehicle: clean-review geometry only.
+bpy.ops.object.select_all(action="SELECT")
+bpy.ops.object.delete(use_global=False)
+assert not bpy.context.scene.objects, "Default Blender cube contaminated photo review"
 scene=bpy.context.scene
 scene.render.engine="BLENDER_WORKBENCH"
 scene.display.shading.light="STUDIO"
