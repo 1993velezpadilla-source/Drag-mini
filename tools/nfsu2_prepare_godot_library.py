@@ -12,6 +12,25 @@ import json
 import struct
 from collections import defaultdict
 from pathlib import Path
+from nfsu2_blender_export_all import SHARED_FAMILIES, part_slot
+
+# Exact type overrides from the NFSU2 GLOBALB CarPartDatabase 0x34607 table.
+# https://github.com/chrystianfarias/NFSU2Unity/blob/main/docs/re/car-parts.md
+HATCH_SPOILER = frozenset(("PEUGOT", "FOCUS", "PEUGOT106", "CORSA", "GOLF", "A3"))
+SUV_SPOILER = frozenset(("HUMMER", "NAVIGATOR", "ESCALADE"))
+BODY_MIRRORS = frozenset(("MIATA", "TIBURON", "SUPRA", "TT", "3000GT", "RX7"))
+SUV_MIRRORS = frozenset(("NAVIGATOR", "ESCALADE"))
+
+
+def compatible_shared_families(xname: str) -> list[str]:
+    name = xname.upper()
+    families = ["WHEELS", "BRAKES", "AUDIO", "SPINNER", "PLATES", "EXHAUST"]
+    families.append("SPOILER_HATCH" if name in HATCH_SPOILER else
+                    "SPOILER_SUV" if name in SUV_SPOILER else "SPOILER")
+    families.append("MIRRORS_HUMMER" if name == "HUMMER" else
+                    "MIRRORS_SUV" if name in SUV_MIRRORS else
+                    "MIRRORS_BODY" if name in BODY_MIRRORS else "MIRRORS_POST")
+    return families
 
 STAGES = ("stock", "street", "pro", "extreme")
 SOUND_EXT = {".abk", ".gin", ".wav", ".ogg", ".ast", ".asf", ".sns", ".sng"}
@@ -104,21 +123,24 @@ def _audio_refs(stage: dict, index: dict[str, list[dict]], root: Path) -> dict:
     return result
 
 
-def _model_parts(root: Path, car: str) -> dict:
+def _model_parts(root: Path, car: str, is_shared: bool = False) -> dict:
     car_folder = private_path(root, f"local_assets/models/{car}")
     manifest_path = car_folder / "models.json"
     if not manifest_path.is_file():
         return {"status": "no_model_exports", "stock": None, "parts": [], "errors": []}
     src = read_json(manifest_path)
     errors = []
-    stock_rel = str(src.get("stock", "stock.glb"))
     stock = None
-    try:
-        p = private_path(car_folder, stock_rel)
-        facts = glb_facts(p)
-        stock = {"glb": p.relative_to(root).as_posix(), **facts}
-    except (OSError, ValueError) as e:
-        errors.append("stock: " + str(e))
+    stock_rel = src.get("stock")
+    if stock_rel:
+        try:
+            p = private_path(car_folder, str(stock_rel))
+            facts = glb_facts(p)
+            stock = {"glb": p.relative_to(root).as_posix(), **facts}
+        except (OSError, ValueError) as e:
+            errors.append("stock: " + str(e))
+    elif not is_shared:
+        errors.append("stock: no original car body exported")
     parts = []
     for entry in src.get("parts", []):
         try:
@@ -130,6 +152,11 @@ def _model_parts(root: Path, car: str) -> dict:
                 "source_name": str(entry["name"]),
                 "part_hash": str(entry["hash"]),
                 "family": str(entry.get("family", "")),
+                "slot": str(entry.get("slot") or part_slot(
+                    str(entry.get("family", "")) + "_" + str(entry["name"]))),
+                "mount_space": str(entry.get("mount_space") or "car_local"),
+                "owner_xname": car,
+                "part_key": car + ":" + str(entry["hash"]),
                 "kit": str(entry.get("kit", "BASE")),
                 "lod": entry.get("lod"),
                 "triangles_reported": int(entry.get("triangles", 0)),
@@ -138,8 +165,10 @@ def _model_parts(root: Path, car: str) -> dict:
             })
         except (KeyError, ValueError, OSError, TypeError) as e:
             errors.append("part: " + str(e))
-    return {"status": "usable" if stock and not errors else "incomplete",
-            "stock": stock, "parts": parts, "errors": errors}
+    ready = (is_shared and len(parts) > 0 or stock is not None) and not errors
+    return {"status": "usable" if ready else "incomplete",
+            "stock": stock, "parts": parts, "errors": errors,
+            "shared_family": car if is_shared else None}
 
 
 def build_library(batch: dict, output_root: Path) -> dict:
@@ -152,9 +181,14 @@ def build_library(batch: dict, output_root: Path) -> dict:
         "ready_for_public_distribution": False,
         "root": str(output_root.resolve()),
         "vehicles": {},
+        "shared_families": {},
         "summary": {},
     }
     for xname, info in sorted(batch["cars"].items()):
+        if xname.upper() in SHARED_FAMILIES:
+            model = _model_parts(output_root, xname, is_shared=True)
+            result["shared_families"][xname.upper()] = model
+            continue
         model = _model_parts(output_root, xname)
         sound = info.get("sound", {})
         stage_mapping = sound.get("stages", {})
@@ -178,6 +212,7 @@ def build_library(batch: dict, output_root: Path) -> dict:
             "wheel_layout": geometry.get("wheel_layout"),
             "wheel_layout_source": geometry.get("wheel_layout_source", "unavailable"),
             "model_assets": model,
+            "compatible_shared_families": compatible_shared_families(xname),
             "sound_stages": stages,
             "sound_source_status": sound.get("status", "not_mapped"),
             "performance_categories": perf,
@@ -191,12 +226,15 @@ def build_library(batch: dict, output_root: Path) -> dict:
             "animation": info.get("animation", {"status": "not_available"}),
         }
     vehicles = list(result["vehicles"].values())
+    shared = list(result["shared_families"].values())
     result["summary"] = {
         "cars_seen": len(vehicles),
         "cars_with_valid_stock_glb": sum(v["model_assets"]["stock"] is not None for v in vehicles),
         "cars_with_all_model_files_valid": sum(v["model_assets"]["status"] == "usable" for v in vehicles),
         "source_part_variants": sum(v["source_part_count"] for v in vehicles),
         "glb_part_exports_valid": sum(len(v["model_assets"]["parts"]) for v in vehicles),
+        "shared_families_seen": len(shared),
+        "shared_generic_parts_valid": sum(len(v["parts"]) for v in shared),
         "car_sound_stages_with_source": sum(s["status"] == "source_mapped"
             for v in vehicles for s in v["sound_stages"].values()),
         "missing_or_invalid_model_files": sum(len(v["model_assets"]["errors"])
