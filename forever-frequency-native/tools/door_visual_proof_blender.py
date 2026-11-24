@@ -45,12 +45,25 @@ for n in names:
     cam.rotation_euler=(center-cam.location).to_track_quat("-Z","Y").to_euler()
     for opened in (False,True):
         for h in hinges:
+            # Blender's GLTF importer restores hinges as QUATERNION objects.
+            # Writing Euler without switching mode previously did NOTHING.
+            h.rotation_mode='XYZ'
             h.rotation_euler.z=math.radians((65 if "LEFT" in h.name else -65) if opened else 0)
         bpy.context.view_layer.update()
         target=OUT/(n+("-open.png" if opened else "-closed.png"))
         scene.render.filepath=str(target)
         bpy.ops.render.render(write_still=True)
         assert target.stat().st_size>20000,target
+    from PIL import Image, ImageChops
+    pic_a=Image.open(OUT/(n+"-closed.png")).convert("RGB")
+    pic_b=Image.open(OUT/(n+"-open.png")).convert("RGB")
+    diff=ImageChops.difference(pic_a,pic_b)
+    if diff.getbbox() is None:
+        raise RuntimeError("VISUAL CRITIC RED: door closed/open screenshots are identical for "+n)
+    changed_pixels=sum(1 for pixel in diff.resize((160,90)).getdata() if max(pixel)>35)
+    if changed_pixels < 75:
+        raise RuntimeError("VISUAL CRITIC RED: model has fake or nearly invisible door movement "+n+" "+str(changed_pixels))
+    print("TRUE VISUAL DOOR CHANGE",n,changed_pixels,flush=True)
     report.append({"id":n,"hinges":len(hinges),"screenshots":2,
                    "body_meshes":len(meshes),"bounds_m":[round(float(v),2) for v in hi-lo]})
     for o in imported:bpy.data.objects.remove(o,do_unlink=True)
