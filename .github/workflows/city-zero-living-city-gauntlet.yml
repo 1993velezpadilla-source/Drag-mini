@@ -99,7 +99,13 @@ jobs:
           test -s forever-frequency-native/assets/car_2026_sportback.glb
           test -s forever-frequency-native/assets/citizen_07.glb
       - name: Install framebuffer and image critic
-        run: apt-get update -qq && apt-get install -y -qq xvfb libgl1-mesa-dri libgl1 python3 python3-pil
+        run: apt-get update -qq && apt-get install -y -qq xvfb libgl1-mesa-dri libgl1 python3 python3-pil python3-numpy
+      - name: Generate original equirectangular cloud texture and test it
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 forever-frequency-native/tools/generate_skycover.py
+          test -s forever-frequency-native/assets/cloud_cover.png
       - name: Import all source-backed models
         shell: bash
         run: |
@@ -120,11 +126,14 @@ jobs:
           set -o pipefail
           timeout 180s xvfb-run -a -s '-screen 0 1280x720x24' godot --path forever-frequency-native --rendering-method gl_compatibility --script res://tests/capture.gd 2>&1 | tee capture.log
           grep 'REAL GODOT FOUR-ANGLE VISUAL GAUNTLET GREEN' capture.log
-      - name: Strict image-quality gate
+      - name: Strict image and adversarial art-direction comparison
         shell: bash
         run: |
+          set -o pipefail
           python3 forever-frequency-native/tools/visual_critic.py 2>&1 | tee visual_critic.log
           grep 'VISUAL GAUNTLET GREEN' visual_critic.log
+          python3 forever-frequency-native/tools/art_direction_gauntlet.py 2>&1 | tee art_direction.log
+          grep 'ART DIRECTION GAUNTLET GREEN' art_direction.log
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -132,6 +141,8 @@ jobs:
           path: |
             forever-frequency-native/preview_*.png
             forever-frequency-native/visual_critic_report.json
+            forever-frequency-native/art_direction_report.json
+            art_direction.log
             import.log
             gameplay.log
             capture.log
