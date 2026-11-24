@@ -69,6 +69,11 @@ for name,number in (("curated_midengine_supercar",2),("curated_family_sedan",4))
     if tris<25000 or tris>65000:
         raise RuntimeError("Not actual LOD1 car topology "+name+" "+str(tris))
     polish=polish_loaded_sedan() if name=="curated_family_sedan" else None
+    updated_tris=sum(len(p.vertices)-2 for m in meshes for p in m.data.polygons)
+    if not 25000<updated_tris<=65000:
+        raise RuntimeError("Polished source GLB above 65k mobile budget")
+    if name=="curated_midengine_supercar" and updated_tris!=tris:
+        raise RuntimeError("Lamborghini 3D topology changed")
     hinge_list=sorted([o for o in bpy.data.objects if
         o.name.startswith("DOOR_") and o.name.endswith("_HINGE")],key=lambda o:o.name)
     if len(hinge_list)!=number:
@@ -106,7 +111,7 @@ for name,number in (("curated_midengine_supercar",2),("curated_family_sedan",4))
     scene.camera=camera
 
     result={"id":name,"original_model":"pinned third-party CC0 GLB",
-            "triangles":tris,"hinges":number,"actual_model":str(POLISHED/(name+".glb")),
+            "source_triangles":tris,"triangles":updated_tris,"hinges":number,"actual_model":str(POLISHED/(name+".glb")),
             "screenshots":[],"measured_door_movement":{},
             "sedan_polish":polish}
     for mode in ("closed","open"):
