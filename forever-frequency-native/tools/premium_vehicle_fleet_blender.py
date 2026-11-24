@@ -95,6 +95,74 @@ def line_light(n,y,z,hw,material):
  box(n,(0,y,z),(hw*2,.056,.045),material,.012)
 def pane(n,coords,m):
  geom(n,coords,[(0,1,2,3)],[m])
+def door_plan(car,front_ax,rear_ax,r,L):
+    """Independent movable entry apertures, no static shell behind any door."""
+    count=4 if car['category'] in ('flagship','german_sedan','luxury_suv','compact_sedan','hatchback','basic_pickup','luxury_pickup','electric_future') else 2
+    # Most real cars have 4 doors except sporty 2-door roadsters.
+    start=front_ax+r*1.19+.08
+    end=rear_ax-r*1.14-.06
+    # Long-wheelbase vehicles keep a useful entry corridor.
+    if end-start<.90:
+        start=-L*.16;end=L*.16
+    if count==4:
+        mid=(start+end)*.5
+        return [("FRONT",start,mid-.032),("REAR",mid+.032,end)],count
+    return [("FRONT",start,end)],count
+
+def make_working_door(name,side,index,ystart,yend,half,belt,roof,roof_w,
+                      front_window,rear_window,front_roof,rear_roof,paint,accent):
+    """Export a real Blender Empty hinge and its rigid door mesh, window,
+    physical frame, handle and interior surface. Godot animates hinge.rotation.y.
+    Blender local positive Z maps to Godot positive Y."""
+    hinge_name="DOOR_%s_%s_HINGE"%("LEFT" if side<0 else "RIGHT",index)
+    bpy.ops.object.empty_add(type='PLAIN_AXES',location=(side*half*.99,ystart,0))
+    hinge=bpy.context.object;hinge.name=hinge_name
+    def attach(obj):
+        matrix=obj.matrix_world.copy()
+        obj.parent=hinge
+        obj.matrix_world=matrix
+        return obj
+    gap=.026
+    ya=ystart+gap
+    yb=yend-gap
+    if yb-ya<.23: raise ValueError("Unusable passenger entry "+name+" "+str(yb-ya))
+    x=side*(half+.004)
+    zlow=.29
+    panel_top=belt*.975
+    # Outer door, nonzero thickness. This moves INSTEAD of the cut-out shell.
+    attach(box("DOOR_%s_%s_SKIN"%("LEFT" if side<0 else "RIGHT",index),
+        (x,(ya+yb)*.5,(zlow+panel_top)*.5),
+        (.080,yb-ya,panel_top-zlow),paint,.025))
+    attach(box("DOOR_%s_%s_INNER"%("LEFT" if side<0 else "RIGHT",index),
+        (x-side*.075,(ya+yb)*.5,(zlow+panel_top)*.5),
+        (.055,yb-ya-.035,panel_top-zlow-.07),accent,.02))
+    attach(box("DOOR_%s_%s_HANDLE"%("LEFT" if side<0 else "RIGHT",index),
+        (side*(half+.072),yb-.14,belt*.85),(.022,.15,.042),alloy,.012))
+    attach(box("DOOR_%s_%s_LOWER_TRIM"%("LEFT" if side<0 else "RIGHT",index),
+        (side*(half+.049),(ya+yb)*.5,zlow+.070),
+        (.018,yb-ya-.08,.024),accent,.006))
+    # Glass is fixed TO THE OPENING DOOR, not left hanging in space.
+    # Upper window stays strictly inside cabin and inside door extents.
+    window_low=belt+.018
+    window_top=roof-.080
+    window_mid=(ya+yb)*.5
+    if window_top>window_low+.12:
+        y_win0=max(ya+.08,front_roof)
+        y_win1=min(yb-.07,rear_roof)
+        if y_win1-y_win0>.17:
+            attach(box("DOOR_%s_%s_MOVING_GLASS"%("LEFT" if side<0 else "RIGHT",index),
+                (side*roof_w*.995,(y_win0+y_win1)*.5,(window_low+window_top)*.5),
+                (.035,y_win1-y_win0,window_top-window_low),glass,.019))
+            for y_edge in (y_win0,y_win1):
+                attach(tube("DOOR_WINDOW_RIGID_FRAME",[
+                     (side*half*.95,y_edge,window_low),
+                     (side*roof_w,y_edge,window_top)],.016,accent))
+    hinge["door_side"]= "LEFT" if side<0 else "RIGHT"
+    hinge["door_location"]=index
+    hinge["door_open_degrees"]=float(65 if side<0 else -65)
+    hinge["interactive"]=True
+    return hinge_name
+
 def build_car(car):
  bpy.ops.object.select_all(action='SELECT');bpy.ops.object.delete(use_global=False)
  name=car['id'];seed=sum(ord(c)*i for i,c in enumerate(name,1))
@@ -117,6 +185,10 @@ def build_car(car):
  segments=48
  yy=[front+(rear-front)*i/segments for i in range(segments+1)]
  widths=[half*(.80+.20*math.sin(i/segments*math.pi)**.50) for i in range(segments+1)]
+ # Doors are separated into actual mechanical meshes and hinges.
+ door_intervals,number_of_doors=door_plan(car,front_ax,rear_ax,wheel_radius,L)
+ # Each movable panel replaces the exact side-shell band beneath it.
+ door_ranges=[(a,b) for _,a,b in door_intervals]
  # side body with real wheel openings
  for sign in (-1,1):
   vertices=[]
@@ -128,17 +200,17 @@ def build_car(car):
   faces=[]
   for k in range(segments):
    q=k*3
+   ycenter=(yy[k]+yy[k+1])*.5
+   if any(a<=ycenter<=b for a,b in door_ranges):
+    continue
    faces.extend([(q,q+1,q+4,q+3),(q+1,q+2,q+5,q+4)])
-  geom('CURVED metal door and fender shell',vertices,faces,[paint])
+  geom('FIXED metal fenders NO DOOR SHELL OVERLAY',vertices,faces,[paint])
   for axle_y in (front_ax,rear_ax):
    arch=[(sign*(half+.014),axle_y-wheel_radius*1.09*math.cos(i*math.pi/32),
      wheel_radius+wheel_radius*.94*math.sin(i*math.pi/32)) for i in range(33)]
    tube('Wheel arch moulding',arch,.015,accent)
-  for i in (1,2):
-   y=front+L*(.25+i*.18)
-   tube('Door panel shut line',[(sign*half,y,.36),(sign*half,y,belt*.94)],.011,accent)
-  box('Flush chrome door pull',(sign*(half+.012),front+L*.52,belt*.83),
-     (.022,.19,.045),alloy,.01)
+  # The door panels and handles are moved independently by their hinge nodes.
+  # No fake static shut lines or repeated handles in fixed architecture.
   box('Side skirt',(sign*(half*.96),0,.29),(.07,L*.61,.08),accent,.02)
  # Upper bonnet and boot — sculpted dual shoulder profile.
  vertices=[]
@@ -182,11 +254,8 @@ def build_car(car):
   (-roof_w,rear_roof,roof),(roof_w,rear_roof,roof),
   (half*.91,rear_window,belt),( -half*.91,rear_window,belt)],glass)
  for sign in (-1,1):
-  pane('Rear passenger side glass',[
-   (sign*half*.91,front_window,belt),
-   (sign*roof_w,front_roof,roof),
-   (sign*roof_w,rear_roof,roof),
-   (sign*half*.91,rear_window,belt)],glass)
+  # Side glazing is created as a child of each moving door hinge.
+  # Never leave a flat window behind after someone opens the door.
   tube('Front A pillar',[(sign*half*.91,front_window,belt),
        (sign*roof_w,front_roof,roof)],.027,accent)
   tube('Rear C pillar',[(sign*roof_w,rear_roof,roof),
@@ -198,6 +267,13 @@ def build_car(car):
       (.20,.22,.085),paint,.034)
   box('Mirror glass inset',(sign*(half+.215),front_window+.12,belt+.016),
       (.014,.13,.052),glass,.005)
+ # Fabricate all independently animated doors AFTER cabin dimensions exist.
+ hinges=[]
+ for side in (-1,1):
+  for index,ya,yb in door_intervals:
+   hinges.append(make_working_door(name,side,index,ya,yb,half,belt,roof,roof_w,
+       front_window,rear_window,front_roof,rear_roof,paint,accent))
+ assert len(hinges)==number_of_doors and len(set(hinges))==number_of_doors
  # seating visible through windows
  for i in (-1,1):
   box('Front contoured driver/passenger seats',
@@ -278,6 +354,20 @@ def build_car(car):
  for x in (-half*.98,half*.98):
   for yy_w in (front_ax,rear_ax):
    wheel(x,yy_w,wheel_radius,half,int(car['signature_light_style'])+(0 if x>0 else 2))
+ # Rigid door-kinematics adversarial proof: opening pivots must move panel vertices.
+ for node_name in hinges:
+  h=bpy.data.objects[node_name]
+  children=[o for o in h.children if o.type=='MESH']
+  if len(children)<4:raise ValueError(name+' door has too few movable pieces '+node_name)
+  before=children[0].matrix_world @ children[0].data.vertices[0].co
+  original=h.rotation_euler.z
+  h.rotation_euler.z+=math.radians(h.get('door_open_degrees',0))
+  bpy.context.view_layer.update()
+  after=children[0].matrix_world @ children[0].data.vertices[0].co
+  actual_delta=(after-before).length
+  if actual_delta<.13:raise ValueError(name+' door does not physically articulate '+node_name)
+  h.rotation_euler.z=original
+  bpy.context.view_layer.update()
  # Geometry quality metrics — used as build gate, not visual proof.
  total_meshes=len([o for o in bpy.data.objects if o.type=='MESH'])
  triangles=sum(len(p.vertices)-2 for o in bpy.data.objects if o.type=='MESH' for p in o.data.polygons)
@@ -293,6 +383,7 @@ def build_car(car):
    'length_m':L,'width_m':W,'height_m':H,
    'wheel_arches_cut':True,'separate_glass_panes':True,
    'open_truck_bed':style in (4,5),
+   'functional_door_hinges':hinges,'door_count':len(hinges),
    'angular_future_electric':style==6,'paint_material':'FF_BODY_PAINT',
    'paint_options':len(car['colors']),'cost':car['game_price']}
 lim=int(os.environ.get('FF_CAR_LIMIT',str(len(models))))
@@ -305,6 +396,8 @@ summary={'count':len(results),'available_paints':8,'vehicles':results}
 if lim==60:
  assert len({r['category'] for r in results})==12
  assert all(r['meshes']>=55 and r['paint_options']>=8 for r in results)
+ assert all(r['door_count'] in (2,4) for r in results)
+ assert sum(r['door_count'] for r in results)>=180
  assert sum(r['open_truck_bed'] for r in results)==10
  assert sum(r['angular_future_electric'] for r in results)==1
  print('PREMIUM FLEET GEOMETRY GAUNTLET GREEN: 60 distinct source-backed GLBs / 480 playable colorways',flush=True)
