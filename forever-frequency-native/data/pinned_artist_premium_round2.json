@@ -33,7 +33,7 @@
       "id": "bmw_m5_f90",
       "label": "BMW M5 F90",
       "path": "basic/bmw/m5/m5.glb",
-      "git_blob_sha1": "68ced4e8eabf8cdfbef34951a3d5f52fe6848b7",
+      "git_blob_sha1": "68ced4e8eabf8cdfbef34951a3d5f52fe6848b7d",
       "license": "basic/bmw/m5/license.txt",
       "artist": "RES1N",
       "expected_min_triangles": 15000,
