@@ -40,7 +40,7 @@ func _run() -> void:
     var loaded_world: Node3D = Main.instantiate()
     assert_that(loaded_world != null,"real 3D world instantiates")
     var require_models := OS.get_environment("FOREVER_REQUIRE_MODELS") == "1"
-    for path in ["res://assets/la_caldera_records.glb","res://assets/artist_avatar.glb","res://assets/companion_nova.glb","res://assets/moon_market.glb"]:
+    for path in ["res://assets/la_caldera_records.glb","res://assets/artist_avatar.glb","res://assets/companion_nova.glb","res://assets/moon_market.glb","res://assets/urban_life_district.glb"]:
         if require_models:
             assert_that(ResourceLoader.exists(path),"Blender GLB imports: "+path)
         elif ResourceLoader.exists(path):
@@ -49,7 +49,7 @@ func _run() -> void:
             print("SKIP: optional Blender GLB not yet built: "+path)
     loaded_world.free()
     if failures.is_empty():
-        print("GAUNTLET GREEN — 18 core checks")
+        print("GAUNTLET GREEN — core mechanics plus premium Blender city import checks")
         quit(0)
     else:
         print("GAUNTLET RED — ",failures)
