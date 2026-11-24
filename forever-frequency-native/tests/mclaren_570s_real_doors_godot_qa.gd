@@ -95,6 +95,9 @@ func _run() -> void:
 
     var animation := DoorController.new()
     animation.name="SOURCE_PANEL_DOOR_HINGE_CONTROLLER"
+    # Source 570S rearward doors require opposite local hinge sign from the
+    # earlier orange car. This opt-in preserves the winner's default rotation.
+    animation.invert_opening_direction = true
     car.add_child(animation)
     await process_frame
     if animation.available_doors().size() != 2:
@@ -141,6 +144,20 @@ func _run() -> void:
     if not _check_close_frontal_view(cam,all_meshes,"CLOSED"):
         _fail("Actual source McLaren car is too small or cropped with doors CLOSED")
         return
+    var original_panel_x: Dictionary = {}
+    var verified_panels: Dictionary = {}
+    for panel in all_meshes:
+        var mesh_name := str(panel.name)
+        if mesh_name.begins_with("polySurface1463"):
+            verified_panels["RIGHT"]=panel
+        elif mesh_name.begins_with("polySurface1552"):
+            verified_panels["LEFT"]=panel
+    if verified_panels.size()!=2:
+        _fail("Both actual original artist main source door-body panels must exist")
+        return
+    for side in verified_panels:
+        var original_door_mesh: MeshInstance3D = verified_panels[side]
+        original_panel_x[side]=(original_door_mesh.global_transform * original_door_mesh.mesh.get_aabb().get_center()).x
     var closed := await _frame(vp)
     if closed==null or closed.is_empty():
         _fail("Could not photograph closed REAL McLaren 570S door panels in Godot")
@@ -154,6 +171,18 @@ func _run() -> void:
     for id in animation.available_doors():
         if not animation.is_door_open(id) or absf(float(animation.current_angle[id])) < .93:
             _fail("Original body + glass hinge did not actually animate "+id)
+            return
+    var outward_panel_displacements: Dictionary = {}
+    for side in verified_panels:
+        var original_door_mesh: MeshInstance3D = verified_panels[side]
+        var now_x: float=(original_door_mesh.global_transform * original_door_mesh.mesh.get_aabb().get_center()).x
+        var movement: float=now_x-float(original_panel_x[side])
+        outward_panel_displacements[side]=movement
+        if side=="RIGHT" and movement<.08:
+            _fail("RIGHT real author door did not open OUTWARD in Godot: "+str(movement))
+            return
+        if side=="LEFT" and movement>-.08:
+            _fail("LEFT real author door did not open OUTWARD in Godot: "+str(movement))
             return
     if not _check_close_frontal_view(cam,all_meshes,"OPEN"):
         _fail("Real original McLaren body and door windows are cropped or tiny when OPEN")
@@ -191,6 +220,8 @@ func _run() -> void:
         "actual_imported_mesh_count":all_meshes.size(),
         "hinge_ids":animation.available_doors(),
         "doors_reached_real_open_angles":true,
+        "original_artist_body_panel_moves_outward_x_m":outward_panel_displacements,
+        "source_specific_inverted_hinge_direction_enabled":true,
         "true_rendered_changed_pixels":distinct,
         "sampled_pixels":sample_total,
         "photos":[path_closed,path_opened],
