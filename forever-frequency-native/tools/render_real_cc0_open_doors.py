@@ -113,7 +113,7 @@ for name,number in (("curated_midengine_supercar",2),("curated_family_sedan",4))
         if mode=="open":
             for h in hinge_list:
                 h.rotation_euler.z=initial[h.name].z+math.radians(
-                    66 if "_LEFT_" in h.name else -66)
+                    -66 if "_LEFT_" in h.name else 66)
             bpy.context.view_layer.update()
             for h in hinge_list:
                 points=sample(h)
@@ -122,7 +122,7 @@ for name,number in (("curated_midengine_supercar",2),("curated_family_sedan",4))
                 bpy.context.view_layer.update()
                 before=positions(points)
                 h.rotation_euler.z=initial[h.name].z+math.radians(
-                    66 if "_LEFT_" in h.name else -66)
+                    -66 if "_LEFT_" in h.name else 66)
                 bpy.context.view_layer.update()
                 after=positions(points)
                 motion=max((a-b).length for a,b in zip(before,after))
