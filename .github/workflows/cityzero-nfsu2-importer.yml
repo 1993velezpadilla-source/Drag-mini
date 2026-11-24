@@ -10,6 +10,8 @@ on:
       - tools/nfsu2_import_all.py
       - tools/nfsu2_blender_export_all.py
       - tools/nfsu2_prepare_godot_library.py
+      - tools/nfsu2_physics_catalog.py
+      - tools/tests/test_nfsu2_physics_catalog.py
       - tools/tests/test_nfsu2_prepare_godot_library.py
       - tools/tests/test_nfsu2_import_all.py
       - .github/workflows/cityzero-nfsu2-importer.yml
@@ -31,6 +33,7 @@ jobs:
           python3 -m py_compile tools/nfsu2_import_all.py
           python3 -m py_compile tools/nfsu2_blender_export_all.py
           python3 -m py_compile tools/nfsu2_prepare_godot_library.py
+          python3 -m py_compile tools/nfsu2_physics_catalog.py
       - name: Run source-compatible synthetic tests (no EA game files)
         run: python3 -m unittest discover -v -s tools/tests -p 'test_nfsu2_*.py'
       - name: Ensure no proprietary asset media accidentally added
