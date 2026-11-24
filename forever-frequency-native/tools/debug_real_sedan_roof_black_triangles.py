@@ -67,6 +67,45 @@ for case,hide in tests.items():
     print('GENUINE BLENDER ROOF FORENSIC',case,hide,outfile,flush=True)
 for o in real_meshes:o.hide_render=False
 bpy.context.view_layer.update()
+# SOURCE-PRIMITIVE TEST: Body is a multi-material glTF source mesh.
+# This separation happens ONLY in a disposable forensic scene.
+body=bpy.data.objects.get('body')
+if body is None or body.type!='MESH':raise RuntimeError("Source sedan body missing")
+bpy.ops.object.select_all(action='DESELECT')
+body.select_set(True)
+bpy.context.view_layer.objects.active=body
+bpy.ops.object.mode_set(mode='EDIT')
+bpy.ops.mesh.select_all(action='SELECT')
+bpy.ops.mesh.separate(type='MATERIAL')
+bpy.ops.object.mode_set(mode='OBJECT')
+body_parts={}
+for obj in bpy.data.objects:
+    if obj.type!='MESH' or not (obj.name=='body' or obj.name.startswith('body.')):
+        continue
+    if not obj.data.polygons:continue
+    idx=obj.data.polygons[0].material_index
+    if idx>=len(obj.data.materials):continue
+    mat=obj.data.materials[idx]
+    if mat:body_parts.setdefault(mat.name,[]).append(obj)
+print('SOURCE BODY MATERIAL PRIMITIVES', {k:[o.name for o in v] for k,v in body_parts.items()},flush=True)
+for label,kind in (
+        ('hide_body_panel_gap_material','panel_gap'),
+        ('hide_body_trim_gloss_material','trim_gloss'),
+        ('hide_body_paint_material','paint_body'),
+        ('hide_body_matte_material','trim_matte')):
+    hidden=[obj for material,objs in body_parts.items()
+            if material.startswith(kind) for obj in objs]
+    if not hidden:raise RuntimeError("No sourced material "+kind)
+    for obj in hidden:obj.hide_render=True
+    bpy.context.view_layer.update()
+    outfile=OUT/(label+'.png')
+    scene.render.filepath=str(outfile)
+    bpy.ops.render.render(write_still=True)
+    assert outfile.stat().st_size>20000
+    evidence.append({'case':label,'hidden_actual_meshes':[o.name for o in hidden],
+                     'source_material':kind,'path':outfile.name,
+                     'file_bytes':outfile.stat().st_size})
+    for obj in hidden:obj.hide_render=False
 (OUT/'roof_triangle_isolation_report.json').write_text(json.dumps(evidence,indent=2)+'\n')
-assert len(evidence)==6
-print('REAL SEDAN ROOF TRIANGLE SOURCE DIAGNOSTIC SIX FRAMES COMPLETE',flush=True)
+assert len(evidence)==10
+print('REAL SEDAN ROOF TRIANGLE SOURCE DIAGNOSTIC TEN FRAMES COMPLETE',flush=True)
