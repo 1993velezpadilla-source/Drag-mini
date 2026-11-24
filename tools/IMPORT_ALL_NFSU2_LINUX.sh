@@ -15,7 +15,7 @@ done
 if [[ ! -f "$UPSTREAM/nfsu2_world_editor/core/cars.py" ]]; then
     git clone --depth 1 https://github.com/mininxd/NFSU2-World-Editor.git "$UPSTREAM"
 fi
-GAME="$1"
+GAME="${1:-}"
 if [[ -z "$GAME" ]]; then read -r -p 'Full path to installed NFSU2 directory: ' GAME; fi
 if [[ ! -d "$GAME/CARS" ]]; then
     echo "ERROR: No original CARS directory at '$GAME' — no assets were invented." >&2
