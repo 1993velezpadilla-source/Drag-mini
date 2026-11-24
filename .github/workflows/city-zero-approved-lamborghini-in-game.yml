@@ -38,6 +38,9 @@ jobs:
           from pathlib import Path
           source=Path(os.environ['RUNNER_TEMP'])/'approved_original_source/assets/curated_rigged/curated_midengine_supercar.glb'
           b=source.read_bytes()
+          import hashlib
+          assert len(b)==3689788, 'Wrong orange Lamborghini GLB length'
+          assert hashlib.sha256(b).hexdigest()=='45cdbfd70dc4e6c64b6bbbe5e24a2107044e2008928ab01c27fa8fbb91a25bd7', 'Wrong Lamborghini: exact approved binary replaced'
           assert b[:4]==b'glTF' and len(b)>3000000, source
           assert struct.unpack_from('<I',b,8)[0]==len(b)
           length,chunk=struct.unpack_from('<I4s',b,12)
@@ -79,6 +82,7 @@ jobs:
             forever-frequency-native/assets/curated_rigged/curated_midengine_supercar.glb
           test ! -e forever-frequency-native/assets/premium_fleet/exotic_supercar__revulse.glb
           test -s forever-frequency-native/assets/curated_rigged/curated_midengine_supercar.glb
+          echo '45cdbfd70dc4e6c64b6bbbe5e24a2107044e2008928ab01c27fa8fbb91a25bd7  forever-frequency-native/assets/curated_rigged/curated_midengine_supercar.glb' | sha256sum --check
       - name: Capture actual playable city viewport two original Lamborghini door states
         shell: bash
         env:
