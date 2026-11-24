@@ -1,0 +1,139 @@
+name: City Zero 2026 - 20 Asset City Life Visual Gauntlet
+on:
+  push:
+    branches: [forever-frequency-native]
+    paths:
+      - 'forever-frequency-native/tools/modern_vehicles_blender.py'
+      - 'forever-frequency-native/tools/city_life_blender.py'
+      - 'forever-frequency-native/scripts/city_life.gd'
+      - 'forever-frequency-native/scripts/city_zero.gd'
+      - 'forever-frequency-native/tests/**'
+      - '.github/workflows/city-zero-living-city-gauntlet.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: city-zero-2026-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  original-blender-art:
+    name: Blender 4.5 - six new cars, unique people and real road infrastructure
+    runs-on: ubuntu-24.04
+    timeout-minutes: 19
+    steps:
+      - uses: actions/checkout@v4
+      - name: Preinstalled Blender 4.5
+        run: docker pull ghcr.io/blenderkit/headless-blender:blender-4.5-stable
+      - name: Model 2026 vehicles in Blender
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd forever-frequency-native
+          timeout 420s docker run --rm --entrypoint /home/headless/blender/blender -v "$PWD:$PWD" -w "$PWD" ghcr.io/blenderkit/headless-blender:blender-4.5-stable -b -t 2 --python tools/modern_vehicles_blender.py | tee vehicle_design.log
+          grep 'MODERN VEHICLE GAUNTLET GREEN' vehicle_design.log
+      - name: Model NPC diversity, traffic lights, bus shelter, hydrants and skyline
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd forever-frequency-native
+          timeout 420s docker run --rm --entrypoint /home/headless/blender/blender -v "$PWD:$PWD" -w "$PWD" ghcr.io/blenderkit/headless-blender:blender-4.5-stable -b -t 2 --python tools/city_life_blender.py | tee city_design.log
+          grep 'CITY LIFE BLENDER GAUNTLET GREEN' city_design.log
+      - name: Adversarial geometry and originality gates
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          a=Path('forever-frequency-native/assets')
+          cars=json.loads((a/'modern_vehicle_metrics.json').read_text())
+          civic=json.loads((a/'city_life_asset_metrics.json').read_text())
+          assert len(cars)==6 and len({v['type'] for v in cars.values()})==6
+          assert sum(n.startswith('citizen_') for n in civic)==8
+          for p in ['traffic_signal','stop_sign','bus_shelter','fire_hydrant','street_bin','skyline_dusk']:
+              assert p in civic,p
+          assert len(list(a.glob('*.glb')))==20, list(a.glob('*.glb'))
+          assert all(v['mesh_count']>=36 for v in cars.values()),cars
+          print('STRICT CITY LIFE BLENDER GAUNTLET GREEN — 6 vehicles, 8 actors, 6 civic assets')
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: FF-City-Life-2026-Blender-20-GLB
+          path: |
+            forever-frequency-native/assets/*.glb
+            forever-frequency-native/assets/*metrics.json
+            forever-frequency-native/vehicle_design.log
+            forever-frequency-native/city_design.log
+          if-no-files-found: error
+
+  four-angle-godot-proof:
+    name: Godot - 33 GLBs + four real camera captures
+    needs: original-blender-art
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    container:
+      image: barichello/godot-ci:4.4
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download approved original 13-GLB Blender art
+        uses: actions/download-artifact@v4
+        with:
+          name: Premium-Forever-Frequency-13-GLB-Blender-Kit
+          repository: 1993velezpadilla-source/Drag-mini
+          run-id: 45322388388
+          github-token: ${{ github.token }}
+          path: forever-frequency-native/assets
+      - name: Download fresh 2026 living-city models
+        uses: actions/download-artifact@v4
+        with:
+          name: FF-City-Life-2026-Blender-20-GLB
+          path: forever-frequency-native/assets
+      - name: Strip editables and validate 33 distinct runtime models
+        shell: bash
+        run: |
+          set -euo pipefail
+          find forever-frequency-native/assets -maxdepth 1 -name '*.blend' -delete
+          rm -f forever-frequency-native/assets/studio_entrance.glb forever-frequency-native/assets/street_kiosk.glb
+          test "$(find forever-frequency-native/assets -maxdepth 1 -name '*.glb' | wc -l)" -eq 33
+          test -s forever-frequency-native/assets/urban_life_district.glb
+          test -s forever-frequency-native/assets/car_2026_sportback.glb
+          test -s forever-frequency-native/assets/citizen_07.glb
+      - name: Install framebuffer and image critic
+        run: apt-get update -qq && apt-get install -y -qq xvfb libgl1-mesa-dri libgl1 python3 python3-pil
+      - name: Import all source-backed models
+        shell: bash
+        run: |
+          set -o pipefail
+          timeout 420s godot --headless --path forever-frequency-native --editor --import --quit 2>&1 | tee import.log
+          if grep -E 'SCRIPT ERROR|Parse Error|Failed loading resource' import.log; then exit 1; fi
+      - name: Core mechanics and asset validation
+        shell: bash
+        env:
+          FOREVER_REQUIRE_MODELS: '1'
+        run: |
+          set -o pipefail
+          timeout 120s godot --headless --path forever-frequency-native --script res://tests/gauntlet.gd 2>&1 | tee gameplay.log
+          grep 'GAUNTLET GREEN' gameplay.log
+      - name: Capture four actual game views
+        shell: bash
+        run: |
+          set -o pipefail
+          timeout 180s xvfb-run -a -s '-screen 0 1280x720x24' godot --path forever-frequency-native --rendering-method gl_compatibility --script res://tests/capture.gd 2>&1 | tee capture.log
+          grep 'REAL GODOT FOUR-ANGLE VISUAL GAUNTLET GREEN' capture.log
+      - name: Strict image-quality gate
+        shell: bash
+        run: |
+          python3 forever-frequency-native/tools/visual_critic.py 2>&1 | tee visual_critic.log
+          grep 'VISUAL GAUNTLET GREEN' visual_critic.log
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: FF-CityZero-2026-Real-Godot-Screenshots-And-Gauntlet
+          path: |
+            forever-frequency-native/preview_*.png
+            forever-frequency-native/visual_critic_report.json
+            import.log
+            gameplay.log
+            capture.log
+            visual_critic.log
+          if-no-files-found: warn
