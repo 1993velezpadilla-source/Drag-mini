@@ -60,8 +60,11 @@ def polish_loaded_sedan():
         raise RuntimeError("Original sedan body/pillar-lining mesh missing")
     seat_meshes=[o for o in bpy.data.objects if o.type=="MESH" and
                  o.name.startswith("belts_headrests")]
-    if len(seat_meshes)<2:
-        raise RuntimeError("Expected multiple REAL sourced rear-seat/headrest meshes")
+    # Blender retains one authored object with multiple material primitives.
+    # Its exported glTF splits those into three MeshInstance3D nodes. Do not
+    # confuse glTF primitive count with actual Blender object count.
+    if not seat_meshes:
+        raise RuntimeError("Actual authored rear-seat/headrest mesh missing")
     hinge_names=[o.name for o in bpy.data.objects if
                  o.name.startswith('DOOR_') and o.name.endswith('_HINGE')]
     if len(hinge_names)!=4:
