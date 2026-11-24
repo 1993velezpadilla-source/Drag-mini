@@ -177,7 +177,7 @@ func _run() -> void:
                 actual_photos.append({"id":identity,"image":target,"actual_mesh_pixel_sample_count":actual_car_pixels,
                                       "fake_generated_images":false,"source_scene":file,"approved":false})
                 photo_count += 1
-                print("CITYZERO_85_PROTOTYPE_ACTUAL_NATIVE_GODOT_SCREENSHOT",identity,actual_car_pixels,flush=true)
+                print("CITYZERO_85_PROTOTYPE_ACTUAL_NATIVE_GODOT_SCREENSHOT ", identity, " ", actual_car_pixels)
             viewport.queue_free()
             await process_frame
     if seen.size() != 85 or audited.size() != 85 or photo_count != PORTFOLIO.size():
