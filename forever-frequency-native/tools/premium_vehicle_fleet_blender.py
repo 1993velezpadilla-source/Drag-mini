@@ -378,13 +378,18 @@ def build_car(car):
   h=bpy.data.objects[node_name]
   children=[o for o in h.children if o.type=='MESH']
   if len(children)<4:raise ValueError(name+' door has too few movable pieces '+node_name)
-  before=children[0].matrix_world @ children[0].data.vertices[0].co
+  # The first vertex of a sculpted skin is next to the hinge, so it can
+  # barely move even when the opposite door edge opens fully. Check ALL
+  # actual moving mesh corners and require an outer-edge displacement.
+  reference_points=[(child,tuple(v.co)) for child in children
+                    for v in child.data.vertices]
+  before=[obj.matrix_world @ Vector(co) for obj,co in reference_points]
   original=h.rotation_euler.z
   h.rotation_euler.z+=math.radians(h.get('door_open_degrees',0))
   bpy.context.view_layer.update()
-  after=children[0].matrix_world @ children[0].data.vertices[0].co
-  actual_delta=(after-before).length
-  if actual_delta<.13:raise ValueError(name+' door does not physically articulate '+node_name)
+  after=[obj.matrix_world @ Vector(co) for obj,co in reference_points]
+  actual_delta=max((post-pre).length for pre,post in zip(before,after))
+  if actual_delta<.13:raise ValueError(name+' door outer edge does not physically articulate '+node_name+' '+str(actual_delta))
   h.rotation_euler.z=original
   bpy.context.view_layer.update()
  # Geometry quality metrics — used as build gate, not visual proof.
