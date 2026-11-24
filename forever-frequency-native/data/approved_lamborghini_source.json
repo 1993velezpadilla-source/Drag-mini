@@ -1,0 +1,13 @@
+{
+  "id": "curated_midengine_supercar",
+  "original_run_id": 45336166368,
+  "original_artifact": "CityZero-CC0-GT4-Car-Research-Visual-Proof",
+  "path": "res://assets/curated_rigged/curated_midengine_supercar.glb",
+  "sha256": "45cdbfd70dc4e6c64b6bbbe5e24a2107044e2008928ab01c27fa8fbb91a25bd7",
+  "bytes": 3689788,
+  "meshes": 23,
+  "materials": 34,
+  "hinges": 2,
+  "do_not_substitute": "exotic_supercar__revulse.glb",
+  "status": "EXACT_USER_APPROVED_ORANGE_SUPERCAR_IDENTITY_LOCKED"
+}
