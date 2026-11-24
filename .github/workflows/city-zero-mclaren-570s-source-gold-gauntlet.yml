@@ -1,0 +1,188 @@
+name: City Zero - McLaren 570S REAL artist cobalt PBR Blender plus Godot closeup QA
+on:
+  workflow_dispatch:
+  push:
+    branches: [forever-frequency-native]
+    paths:
+      - '.github/workflows/city-zero-mclaren-570s-source-gold-gauntlet.yml'
+      - 'forever-frequency-native/tools/mclaren_570s_real_premium_studio.py'
+      - 'forever-frequency-native/tests/mclaren_570s_pbr_godot_capture.gd'
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: cityzero-McLaren-570S-single-real-artist-car-Blender-Godot
+  cancel-in-progress: false
+jobs:
+  remaster-original-mclaren-and-render-five-native-blender-views:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 38
+    steps:
+      - uses: actions/checkout@v4
+      - name: Retrieve exact original licensed artist McLaren 570S from independently hash-verified source batch
+        uses: actions/download-artifact@v4
+        with:
+          run-id: 45457323067
+          name: CityZero-SIX-REAL-Artist-Premium-Cars-Blender-Originals
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: original-verified-artist-source
+      - name: Source SHA256, actual glTF high-detail mesh, wheel, glass and interior checks
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m py_compile forever-frequency-native/tools/mclaren_570s_real_premium_studio.py
+          mkdir -p forever-frequency-native/assets/tevy_cc0_blender_vehicles
+          find original-verified-artist-source -name 'mclaren_570s_2016_real_import.glb' -type f -exec cp '{}' forever-frequency-native/assets/tevy_cc0_blender_vehicles/ ';'
+          find original-verified-artist-source -name 'mclaren_570s_2016_origin_license.txt' -type f -exec cp '{}' forever-frequency-native/assets/tevy_cc0_blender_vehicles/ ';'
+          python3 - <<'PY'
+          import hashlib,json,struct
+          from pathlib import Path
+          file=Path('forever-frequency-native/assets/tevy_cc0_blender_vehicles/mclaren_570s_2016_real_import.glb')
+          raw=file.read_bytes()
+          assert len(raw)==4655832
+          assert hashlib.sha256(raw).hexdigest()=='61a9b74c50be614d38121df8e7166462452bb95f4371215202c7658e87568639'
+          assert raw[:4]==b'glTF'
+          size,kind=struct.unpack_from('<I4s',raw,12)
+          assert kind==b'JSON'
+          source=json.loads(raw[20:20+size])
+          assert len(source.get('meshes',[]))==80
+          assert len(source.get('materials',[]))==39
+          originals={m.get('name','') for m in source['materials']}
+          assert {'fullM_CarPaint_Max1','fullM_Glass_WindowFront_Low1','fullM_Rim_Main_Max1','fullM_Interior_Max_002'}<=originals
+          assert Path('forever-frequency-native/assets/tevy_cc0_blender_vehicles/mclaren_570s_2016_origin_license.txt').is_file()
+          print('CITYZERO_ORIGINAL_ARTIST_MCLAREN_570S_80_SOURCE_MESHES_39_MATERIALS_GREEN')
+          PY
+      - name: Install native Blender 4.5 Cycles renderer
+        shell: bash
+        run: docker pull ghcr.io/blenderkit/headless-blender:blender-4.5-stable
+      - name: True original McLaren high-gloss cobalt, graphite wheels, glass PBR and five real close-up images
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd forever-frequency-native
+          timeout 1700s docker run --rm --entrypoint /home/headless/blender/blender \
+            -v "$PWD:$PWD" -w "$PWD" \
+            ghcr.io/blenderkit/headless-blender:blender-4.5-stable \
+            -b -t 2 --python tools/mclaren_570s_real_premium_studio.py \
+            2>&1 | tee MCLAREN_REAL_AUTHOR_BLENDER_CYCLES.log
+          grep -q 'CITYZERO_MCLAREN570S_REAL_AUTHOR_SOURCE_PBR_FIVE_CLOSEUP_BLENDER_GREEN_NO_ART_APPROVAL' MCLAREN_REAL_AUTHOR_BLENDER_CYCLES.log
+      - name: Strict 57,933 original triangles, five close-ups, original source not replaced, art NOT approved
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          import json
+          p=Path('forever-frequency-native/mclaren_570s_visual_quality_review')
+          d=json.loads((p/'mclaren_real_materials_geometry_visual_forensic_report.json').read_text())
+          assert d['source_original_triangles']==d['after_pbr_triangles']==57933
+          assert d['original_mesh_objects']>=78 and d['original_materials']>=38
+          assert not d['source_geometry_replaced'] and d['original_mesh_UVs_preserved']
+          assert not d['owner_art_approved'] and not d['android_runtime_included']
+          assert d['commercial_rights_review_pending']
+          assert not d['source_has_genuine_hinged_doors']
+          assert len(d['visual_reference_frames'])==5
+          assert all(x['fraction_of_image_width']>=.49 and max(x['fraction_of_image_width'],x['fraction_of_image_height'])>=.71 for x in d['visual_reference_frames'])
+          assert all((p/x['filename']).stat().st_size>50000 for x in d['visual_reference_frames'])
+          assert (p/'mclaren_570s_2016_ORIGINAL_Author_DeepBlue_PBR.glb').stat().st_size>3500000
+          assert (p/'mclaren_570s_2016_original_artist_EDITABLE_PBR.blend').stat().st_size>5000000
+          print('MC_LAREN_570S_SOURCE_UNTOUCHED_GEOMETRY_5_TRUE_BLENDER_IMAGES_GREEN_NO_OWNER_ART_APPROVAL')
+          PY
+      - name: Preserve genuine editable McLaren, real Cycles screenshots and original creator attribution
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: CityZero-REAL-McLaren-570S-5-Native-Blender-Cycles-Views-and-GLB
+          retention-days: 90
+          path: |
+            forever-frequency-native/mclaren_570s_visual_quality_review/
+            forever-frequency-native/assets/tevy_cc0_blender_vehicles/mclaren_570s_2016_origin_license.txt
+            forever-frequency-native/MCLAREN_REAL_AUTHOR_BLENDER_CYCLES.log
+          if-no-files-found: warn
+  five-original-mclaren-camera-framed-real-godot-shots:
+    needs: remaster-original-mclaren-and-render-five-native-blender-views
+    runs-on: ubuntu-22.04
+    timeout-minutes: 22
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: CityZero-REAL-McLaren-570S-5-Native-Blender-Cycles-Views-and-GLB
+          path: actual-artist-mclaren
+      - name: Install exact source-PBR McLaren in isolated Godot audit (never ship as approved)
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p isolated/assets/mclaren_570s_review isolated/tests
+          find actual-artist-mclaren -name 'mclaren_570s_2016_ORIGINAL_Author_DeepBlue_PBR.glb' -type f -exec cp '{}' isolated/assets/mclaren_570s_review/ ';'
+          test -s isolated/assets/mclaren_570s_review/mclaren_570s_2016_ORIGINAL_Author_DeepBlue_PBR.glb
+          cp forever-frequency-native/tests/mclaren_570s_pbr_godot_capture.gd isolated/tests/
+          cat > isolated/project.godot <<'GODOT'
+          config_version=5
+          [application]
+          config/name="City Zero actual original McLaren 570S source PBR quality review ONLY"
+          [display]
+          window/size/viewport_width=1600
+          window/size/viewport_height=1000
+          [rendering]
+          renderer/rendering_method="gl_compatibility"
+          renderer/rendering_method.mobile="gl_compatibility"
+          GODOT
+      - uses: solarlabyrinth/action-setup-godot@v3
+        with:
+          version: 4.4.1-stable
+          export-templates: false
+      - name: Mesa for authentic native GLTF viewport
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq xvfb libgl1 libgl1-mesa-dri libegl1 mesa-utils
+      - name: Godot imports actual author source meshes, no dummy/headless renderer
+        shell: bash
+        env:
+          LIBGL_ALWAYS_SOFTWARE: '1'
+          MESA_GL_VERSION_OVERRIDE: '3.3'
+          GODOT_AUDIO_DRIVER: Dummy
+        run: |
+          set -euo pipefail
+          xvfb-run -a -s '-screen 0 1800x1200x24' timeout 190s \
+            godot --rendering-driver opengl3 --path isolated --editor --import --quit \
+            2>&1 | tee REAL_MCLAREN_SOURCE_GODOT_IMPORT.log
+          if grep -E 'SCRIPT ERROR|Parse Error' REAL_MCLAREN_SOURCE_GODOT_IMPORT.log; then exit 1; fi
+      - name: Five REAL Godot McLaren camera views with invisible-source-mesh pixel control
+        shell: bash
+        env:
+          LIBGL_ALWAYS_SOFTWARE: '1'
+          MESA_GL_VERSION_OVERRIDE: '3.3'
+          GODOT_AUDIO_DRIVER: Dummy
+        run: |
+          set -euo pipefail
+          mkdir -p "$PWD/mclaren-570s-real-godot-frames"
+          export CITY_ZERO_MCLAREN_GODOT_SHOTS="$PWD/mclaren-570s-real-godot-frames"
+          xvfb-run -a -s '-screen 0 1800x1200x24' timeout 300s \
+            godot --rendering-driver opengl3 --path isolated \
+            --script res://tests/mclaren_570s_pbr_godot_capture.gd \
+            2>&1 | tee mclaren-570s-real-godot-frames/REAL_MCLAREN_GODOT_3D.log
+          grep -q 'MCLAREN_570S_GODOT_5_TRUE_CLOSEUP_ENGINE_VIEWS_GREEN_NOT_ART_APPROVED' mclaren-570s-real-godot-frames/REAL_MCLAREN_GODOT_3D.log
+          python3 - <<'PY'
+          from pathlib import Path
+          import json
+          p=Path('mclaren-570s-real-godot-frames')
+          d=json.loads((p/'real_mclaren_570s_5views_godot_report.json').read_text())
+          assert d['source_triangles']>57000
+          assert d['actual_source_mesh_instances']>=78
+          assert d['material_surfaces']>=25
+          assert d['cameras_fill_viewport'] and d['source_original_body_preserved']
+          assert not d['owner_art_approved']
+          assert len(d['native_godot_real_pngs'])==5
+          assert all(x['actual_car_pixels']>550 for x in d['native_godot_real_pngs'])
+          assert len(list(p.glob('*.png')))==5
+          print('REAL_MCLAREN_570S_SOURCE_GODOT_5_UNEDITED_CAR_3D_FRAMES_GREEN_NOT_ART_APPROVED')
+          PY
+      - name: Save original source-backed Godot views for strict visual inspection
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: CityZero-REAL-McLaren-570S-5-Native-Godot-Views-and-QA
+          retention-days: 90
+          path: |
+            mclaren-570s-real-godot-frames/
+            REAL_MCLAREN_SOURCE_GODOT_IMPORT.log
+          if-no-files-found: warn
