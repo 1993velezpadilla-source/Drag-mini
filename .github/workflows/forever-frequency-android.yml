@@ -65,6 +65,20 @@ jobs:
               assert (target/dst).stat().st_size>50000, dst
               print('MOBILE PBR TEXTURE READY',dst,(target/dst).stat().st_size)
           PY
+      - name: Premium architecture geometry pass (strict Blender gate)
+        shell: bash
+        run: |
+          cd forever-frequency-native
+          blender -b -t 2 --python tools/premium_art_pass.py 2>&1 | tee premium_art.log
+          grep 'PREMIUM BLENDER ART PASS GREEN' premium_art.log
+          python3 - <<'PY'
+          import json
+          report=json.load(open('assets/premium_detail_metrics.json'))
+          assert len(report)==4,report
+          assert report['la_caldera_records'] >= 30,report
+          assert sum(report.values()) > 120,report
+          print('ARCHITECTURAL DETAIL GATE GREEN',report)
+          PY
       - name: PBR material upgrade and mesh batching in Blender
         shell: bash
         run: |
