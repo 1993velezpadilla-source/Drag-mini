@@ -243,16 +243,24 @@ jobs:
           cp -a /root/.config/godot/. "$HOME/.config/godot/"
           test -s "$HOME/.local/share/godot/export_templates/4.4.stable/android_debug.apk"
           grep 'export/android/java_sdk_path' "$HOME/.config/godot/editor_settings-4.4.tres"
-      - name: Install X virtual display
-        run: apt-get update -qq && apt-get install -y -qq xvfb libgl1-mesa-dri libgl1
+      - name: Install X virtual display and real image critic
+        run: apt-get update -qq && apt-get install -y -qq xvfb libgl1-mesa-dri libgl1 python3 python3-pil
       - name: Import and run real 3D render
         shell: bash
         run: |
           godot --headless --path forever-frequency-native --editor --import --quit
           xvfb-run -a -s '-screen 0 1280x720x24' godot --path forever-frequency-native --rendering-method gl_compatibility --script res://tests/capture.gd
           test -s forever-frequency-native/preview_real_godot.png
+          test -s forever-frequency-native/preview_city_aerial.png
+          test -s forever-frequency-native/preview_market_street.png
+          test -s forever-frequency-native/preview_studio_closeup.png
+          python3 forever-frequency-native/tools/visual_critic.py | tee visual_critic.log
+          grep 'VISUAL GAUNTLET GREEN' visual_critic.log
       - uses: actions/upload-artifact@v4
         with:
           name: Forever-Frequency-Actual-Godot-Gameplay-Screenshot
-          path: forever-frequency-native/preview_real_godot.png
+          path: |
+            forever-frequency-native/preview_*.png
+            forever-frequency-native/visual_critic_report.json
+            visual_critic.log
           if-no-files-found: error
