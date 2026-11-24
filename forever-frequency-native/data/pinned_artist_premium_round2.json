@@ -1,0 +1,153 @@
+{
+  "schema_version": 1,
+  "repository": "supercar3d/supercar_3D_asssets",
+  "pinned_commit": "5948d1307f673e98aedae591c0d78c834f184713",
+  "production_approved": false,
+  "batch_policy": "Second source batch from the original licensed artist's actual GLBs with original LICENSE.txt. Two groups of six; preserve original bytes, import in Blender, verify in Godot, no invented bodies. Check current primary artist copyright and brand permissions before distributing a commercial game.",
+  "records": [
+    {
+      "id": "bmw_m2_coupe_2023",
+      "label": "BMW M2 Coupe 2023",
+      "path": "basic/bmw/m2/m2.glb",
+      "git_blob_sha1": "1877f9f72a15504e8172621ae5b7f3777b8c0bfc",
+      "license": "basic/bmw/m2/license.txt",
+      "artist": "RES1N",
+      "expected_min_triangles": 15000,
+      "expected_longest_extent_m": 4.58,
+      "length_source": "https://www.carsguide.com.au/bmw/m-models/car-dimensions/2024",
+      "scale_is_manufacturer_length_estimate": true
+    },
+    {
+      "id": "bmw_m4_competition",
+      "label": "BMW M4 Competition",
+      "path": "basic/bmw/m4/m4.glb",
+      "git_blob_sha1": "eb28a581895e31b81aca0c66c397340fec241a60",
+      "license": "basic/bmw/m4/license.txt",
+      "artist": "RES1N",
+      "expected_min_triangles": 15000,
+      "expected_longest_extent_m": 4.801,
+      "length_source": "https://www.press.bmwgroup.com/global/article/attachment/T0439308EN/611692",
+      "scale_is_manufacturer_length_estimate": true
+    },
+    {
+      "id": "bmw_m5_f90",
+      "label": "BMW M5 F90",
+      "path": "basic/bmw/m5/m5.glb",
+      "git_blob_sha1": "68ced4e8eabf8cdfbef34951a3d5f52fe6848b7",
+      "license": "basic/bmw/m5/license.txt",
+      "artist": "RES1N",
+      "expected_min_triangles": 15000,
+      "expected_longest_extent_m": 4.983,
+      "length_source": "https://www.press.bmwgroup.com/global/article/attachment/T0314287EN/457877",
+      "scale_is_manufacturer_length_estimate": true
+    },
+    {
+      "id": "ferrari_f430_2005",
+      "label": "Ferrari F430 2005",
+      "path": "basic/ferrari/f430/f430.glb",
+      "git_blob_sha1": "e3f4f98b4debd6c9e80854f7d134004a5ee1815c",
+      "license": "basic/ferrari/f430/license.txt",
+      "artist": "Ddiaz Design",
+      "expected_min_triangles": 15000,
+      "expected_longest_extent_m": 4.512,
+      "length_source": "https://autofiles.com/dimensions/ferrari/",
+      "scale_is_manufacturer_length_estimate": true
+    },
+    {
+      "id": "ferrari_488_pista_spider_2019",
+      "label": "Ferrari 488 Pista Spider 2019",
+      "path": "basic/ferrari/f488/f488.glb",
+      "git_blob_sha1": "9e17c368b65a85ef637b2d4981efe3d49cc5fbcb",
+      "license": "basic/ferrari/f488/license.txt",
+      "artist": "Ddiaz Design",
+      "expected_min_triangles": 15000,
+      "expected_longest_extent_m": 4.605,
+      "length_source": "https://cdn.ferrari.com/cms/network/media/pdf/cs_ferrari_488_pista_spider_gbr.pdf",
+      "scale_is_manufacturer_length_estimate": true
+    },
+    {
+      "id": "ferrari_812_superfast",
+      "label": "Ferrari 812 Superfast",
+      "path": "basic/ferrari/f812/f812.glb",
+      "git_blob_sha1": "175b08417b885b859a578196b0e5bd7eba5f3a51",
+      "license": "basic/ferrari/f812/license.txt",
+      "artist": "Galaxy Car Showroom",
+      "expected_min_triangles": 15000,
+      "expected_longest_extent_m": 4.657,
+      "length_source": "https://www.ferrari.com/content/dam/ferrari-fcom/old/pdf/cs_ferrari_812_superfast_gbr.pdf",
+      "scale_is_manufacturer_length_estimate": true
+    },
+    {
+      "id": "lamborghini_gallardo_2010",
+      "label": "Lamborghini Gallardo 2010",
+      "path": "basic/lamborghini/gallardo/gallardo.glb",
+      "git_blob_sha1": "2d226b119180b0d9755f982a29ed1200a59d6d2f",
+      "license": "basic/lamborghini/gallardo/license.txt",
+      "artist": "Artem P",
+      "expected_min_triangles": 15000,
+      "expected_longest_extent_m": 4.345,
+      "length_source": "https://www.carsguide.com.au/lamborghini/gallardo/car-dimensions/2010?id=JBTMXN1S",
+      "scale_is_manufacturer_length_estimate": true
+    },
+    {
+      "id": "lamborghini_revuelto_2024",
+      "label": "Lamborghini Revuelto 2024",
+      "path": "basic/lamborghini/revuelto/revuelto.glb",
+      "git_blob_sha1": "2ab04fa548283e533ce82c211d2b81d549654190",
+      "license": "basic/lamborghini/revuelto/license.txt",
+      "artist": "Ddiaz Design",
+      "expected_min_triangles": 15000,
+      "expected_longest_extent_m": 4.947,
+      "length_source": "https://www.automobiledimension.com/lamborghini-car-dimensions.html",
+      "scale_is_manufacturer_length_estimate": true
+    },
+    {
+      "id": "lamborghini_temerario_2025",
+      "label": "Lamborghini Temerario 2025",
+      "path": "basic/lamborghini/temerario/temerario.glb",
+      "git_blob_sha1": "2b69f22b5976dbf8f31dc03562c0f05d4393f321",
+      "license": "basic/lamborghini/temerario/license.txt",
+      "artist": "Harsh Palan",
+      "expected_min_triangles": 15000,
+      "expected_longest_extent_m": 4.706,
+      "length_source": "https://www.automobiledimension.com/lamborghini-car-dimensions.html",
+      "scale_is_manufacturer_length_estimate": true
+    },
+    {
+      "id": "lamborghini_urus_se_2025",
+      "label": "Lamborghini Urus SE 2025",
+      "path": "basic/lamborghini/urus-2025/urus-2025.glb",
+      "git_blob_sha1": "5367ca9c8ee119be9c87400c54afdaec9790707d",
+      "license": "basic/lamborghini/urus-2025/license.txt",
+      "artist": "Ddiaz Design",
+      "expected_min_triangles": 15000,
+      "expected_longest_extent_m": 5.123,
+      "length_source": "https://lamborghinimontreal.com/en/models/urus/urus-se",
+      "scale_is_manufacturer_length_estimate": true
+    },
+    {
+      "id": "mclaren_artura_2023",
+      "label": "McLaren Artura 2023",
+      "path": "basic/mclaren/artura-2023/artura-2023.glb",
+      "git_blob_sha1": "5f7359182ab08fa790296d816f0d7a580a9bbab8",
+      "license": "basic/mclaren/artura-2023/license.txt",
+      "artist": "Ddiaz Design",
+      "expected_min_triangles": 15000,
+      "expected_longest_extent_m": 4.539,
+      "length_source": "https://beijing.mclarencars.cn/content/dam/mclaren-automotive/models/p16/pdp/files/product-brochure/Artura%20Product%20Brochure%202021_EN.pdf",
+      "scale_is_manufacturer_length_estimate": true
+    },
+    {
+      "id": "mclaren_gt_2020",
+      "label": "McLaren GT 2020",
+      "path": "basic/mclaren/gt-2020/gt-2020.glb",
+      "git_blob_sha1": "9b8f6187b876ceb8606b176648d9d555c7f9b67b",
+      "license": "basic/mclaren/gt-2020/license.txt",
+      "artist": "Ddiaz Design",
+      "expected_min_triangles": 15000,
+      "expected_longest_extent_m": 4.683,
+      "length_source": "https://www.automobiledimension.com/mclaren-car-dimensions.html",
+      "scale_is_manufacturer_length_estimate": true
+    }
+  ]
+}
