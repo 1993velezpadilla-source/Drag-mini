@@ -31,11 +31,26 @@ check('LA CALDERA RECORDS' in world and 'ECHO STUDIO' not in world, 'Rebrand ful
 check("'la_caldera_records.glb'" in blender and 'res://assets/la_caldera_records.glb' in world, 'Blender hero studio is loaded in Godot')
 check('def build_market()' in blender and 'def build_home()' in blender and 'def build_stage()' in blender, 'Custom architectural assets replace dull box landmarks')
 check('def build_artist()' in blender and 'def build_pet()' in blender, 'Original 3D avatar and companion')
-check('world_time_label.custom_minimum_size = Vector2(450,28)' in world, 'Clock label has real width, no vertical text overflow')
+check('world_time_label.custom_minimum_size = Vector2(330,23)' in world and 'world_time_label.position = Vector2(22,81)' in world, 'Clock label has width and unobtrusive position')
 check('var studio := _make_building' in world and 'not has_studio' in world, 'Visuals not occluded by old primitive boxes')
-check('env.ambient_light_energy = 0.43' in world and 'sunlight.light_energy = 0.84' in world, 'No washed-out double-brightness lighting')
+check('env.ambient_light_energy = 0.31' in world and 'sunlight.light_energy = 0.71' in world and 'ProceduralSkyMaterial' in world, 'Adversarial visual: reduced washout, atmospheric sky')
 check('android' in (R/'export_presets.cfg').read_text().lower(), 'Android export preset exists')
 check('window/handheld/orientation=6' in (R/'project.godot').read_text(), 'Mobile orientation specified')
 check(not any(p.suffix.lower() == '.html' for p in R.rglob('*')), 'No HTML game')
-print(f'{len(problems)} failures among 22 audit checks')
+# Production GLBs are runtime-only; the Blender source must not be imported by Godot.
+import json
+assets=R/'assets'
+if assets.is_dir() and any(assets.glob('*.glb')):
+    check(not any(assets.glob('*.blend')), 'No Blender source files in Godot import folder')
+    check(not (assets/'studio_entrance.glb').exists() and not (assets/'street_kiosk.glb').exists(), 'No duplicate legacy GLB imports')
+    check(len(list(assets.glob('*.glb'))) == 12, 'Exactly 12 game-ready GLBs, no duplicate meshes')
+    metrics=assets/'mesh_metrics.json'
+    if metrics.exists():
+        data=json.loads(metrics.read_text())
+        check(len(data)==12 and all(x['export_nodes']<x['source_meshes'] for x in data.values()), 'All GLBs reduced scene node count')
+        check(data['la_caldera_records']['export_nodes']*2<data['la_caldera_records']['source_meshes'], 'La Caldera meshes batched at least 2:1')
+    else:
+        check(False, 'Missing Blender optimization metrics')
+check('tools/pbr_upgrade.py' not in world, 'Game runs without Blender/Python runtime dependency')
+print(f'{len(problems)} failures among {20+(5 if assets.is_dir() and any(assets.glob("*.glb")) else 0)} audit checks')
 sys.exit(1 if problems else 0)
