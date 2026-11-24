@@ -9,6 +9,10 @@ var _status: Label
 var _dialog: FileDialog
 var _part_rows: Array = []
 var _dragging := false
+var _vinyl_popup: AcceptDialog
+var _vinyl_selector: OptionButton
+var _vinyl_image: TextureRect
+var _vinyl_rows: Array = []
 
 func _ready() -> void:
     _build_ui()
@@ -137,6 +141,25 @@ func _build_ui() -> void:
     _dialog.file_selected.connect(_file_chosen)
     add_child(_dialog)
 
+    _vinyl_popup = AcceptDialog.new()
+    _vinyl_popup.title = "Original car-specific NFSU2 vinyl previews"
+    add_child(_vinyl_popup)
+    var vinyl_column := VBoxContainer.new()
+    vinyl_column.custom_minimum_size = Vector2(320, 375)
+    _vinyl_popup.add_child(vinyl_column)
+    var note := Label.new()
+    note.text = "Original decoded texture preview. Applying the vinyl to the body requires the source's composite-skin masks."
+    note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+    vinyl_column.add_child(note)
+    _vinyl_selector = OptionButton.new()
+    _vinyl_selector.item_selected.connect(_preview_vinyl)
+    vinyl_column.add_child(_vinyl_selector)
+    _vinyl_image = TextureRect.new()
+    _vinyl_image.custom_minimum_size = Vector2(280, 280)
+    _vinyl_image.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+    _vinyl_image.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+    vinyl_column.add_child(_vinyl_image)
+
 
 func _choose_file() -> void:
     _dialog.popup_centered_ratio(0.95)
@@ -163,10 +186,16 @@ func _select_car(index: int) -> void:
 
 
 func _on_car_loaded(xname: String) -> void:
+    _vinyl_selector.clear()
+    _vinyl_image.texture = null
+    _vinyl_rows = _garage.vinyl_records().get("vinyls", [])
+    for vinyl in _vinyl_rows:
+        _vinyl_selector.add_item(str(vinyl.get("name", "VINYL")))
     _parts.clear()
     _part_rows = _garage.available_part_variants()
     for part in _part_rows:
-        _parts.add_item("%s | %s" % [
+        _parts.add_item("%s | %s | %s" % [
+            str(part.get("owner_xname", xname)),
             str(part.get("kit", "BASE")),
             str(part.get("family", "PART"))
         ])
@@ -180,7 +209,7 @@ func _install_part() -> void:
     if selected < 0 or selected >= _part_rows.size():
         return
     var part: Dictionary = _part_rows[selected]
-    if _garage.install_variant(str(part.get("part_hash", ""))):
+    if _garage.install_variant(str(part.get("part_key", part.get("part_hash", "")))):
         _status.text = "Installed real part: " + str(part.get("source_name", ""))
 
 
@@ -228,9 +257,21 @@ func _show_engine_stats() -> void:
 
 func _show_vinyl_count() -> void:
     var vinyls := _garage.vinyl_records()
-    _status.text = "%s: %s authentic vinyl texture records (not yet mapped to material)" % [
-        _garage.installed_car(), str(vinyls.get("count", 0))
+    if _vinyl_selector.item_count > 0:
+        _vinyl_selector.select(0)
+        _preview_vinyl(0)
+    _vinyl_popup.popup_centered_ratio(0.88)
+    _status.text = "%s: %d source vinyl textures, %d decoded PNG previews" % [
+        _garage.installed_car(), int(vinyls.get("count", 0)),
+        int(vinyls.get("decoded_previews", 0))
     ]
+
+
+func _preview_vinyl(index: int) -> void:
+    if index < 0 or index >= _vinyl_rows.size():
+        _vinyl_image.texture = null
+        return
+    _vinyl_image.texture = _garage.load_original_vinyl_preview(index)
 
 
 func _spin_car() -> void:
