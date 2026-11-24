@@ -1,0 +1,207 @@
+name: City Zero - McLaren 570S real authored panels glass mirror door hinges Blender Godot
+on:
+  workflow_dispatch:
+  push:
+    branches: [forever-frequency-native]
+    paths:
+      - '.github/workflows/city-zero-mclaren-570s-actual-source-doors.yml'
+      - 'forever-frequency-native/tools/mclaren_570s_real_door_parts_blender.py'
+      - 'forever-frequency-native/tests/mclaren_570s_real_doors_godot_qa.gd'
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: cityzero-mclaren570s-source-body-glass-doors-one-by-one
+  cancel-in-progress: false
+jobs:
+  original-artist-model-with-true-movable-panel-hinges:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - name: Wait only for VERIFIED original McLaren PBR Blender output; NEVER substitute fake car
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          python3 -m py_compile forever-frequency-native/tools/mclaren_570s_real_door_parts_blender.py
+          for attempt in $(seq 1 88); do
+            result="$(curl -fsSL --retry 2 --max-time 12 \
+               -H "Authorization: Bearer $GH_TOKEN" \
+               -H 'Accept: application/vnd.github+json' \
+               'https://api.github.com/repos/1993velezpadilla-source/Drag-mini/actions/runs/45485299794/artifacts?per_page=100')"
+            count="$(printf '%s' "$result" | python3 -c \
+              'import sys,json; a=json.load(sys.stdin).get("artifacts",[]);print(sum(x["name"]=="CityZero-REAL-McLaren-570S-5-Native-Blender-Cycles-Views-and-GLB" for x in a))')"
+            if [ "$count" = '1' ]; then
+              echo 'CITYZERO_HASHED_TRUE_MCLAREN_ARTIST_PBR_SOURCE_READY'
+              exit 0
+            fi
+            sleep 15
+          done
+          echo 'No genuine author GLB. Refusing to use a procedural imitation.' >&2
+          exit 1
+      - name: Download exact prior SHA-verified original blue PBR McLaren GLB, NEVER an invented mockup
+        uses: actions/download-artifact@v4
+        with:
+          run-id: 45485299794
+          name: CityZero-REAL-McLaren-570S-5-Native-Blender-Cycles-Views-and-GLB
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: original-mclaren-cobalt-source
+      - name: Verify 57,933 ORIGINAL mesh triangles and no previous misleading ready status
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p forever-frequency-native/assets/mclaren_570s_review
+          SRC="$(find original-mclaren-cobalt-source -name 'mclaren_570s_2016_ORIGINAL_Author_DeepBlue_PBR.glb' -type f | head -1)"
+          AUDIT="$(find original-mclaren-cobalt-source -name 'mclaren_real_materials_geometry_visual_forensic_report.json' -type f | head -1)"
+          test -n "$SRC" && test -n "$AUDIT"
+          cp "$SRC" "$AUDIT" forever-frequency-native/assets/mclaren_570s_review/
+          python3 - <<'PY'
+          from pathlib import Path
+          import json,struct
+          p=Path('forever-frequency-native/assets/mclaren_570s_review')
+          data=json.loads((p/'mclaren_real_materials_geometry_visual_forensic_report.json').read_text())
+          assert data['source_original_triangles']==data['after_pbr_triangles']==57933
+          assert data['original_mesh_objects']==80 and data['original_materials']==39
+          assert not data['source_geometry_replaced'] and not data['owner_art_approved']
+          assert not data['source_has_genuine_hinged_doors']
+          b=(p/'mclaren_570s_2016_ORIGINAL_Author_DeepBlue_PBR.glb').read_bytes()
+          assert b[:4]==b'glTF' and len(b)>3500000
+          n=struct.unpack_from('<I',b,12)[0]
+          doc=json.loads(b[20:20+n])
+          assert len(doc['meshes'])>=80 and len(doc['materials'])>=38
+          print('ORIGINAL_MCLAREN_REAL_ARTIST_DOOR_GEOMETRY_UNTOUCHED_SOURCE_GREEN')
+          PY
+      - name: Blender 4.5 LTS native DCC to rig only REAL separate author geometry
+        run: docker pull ghcr.io/blenderkit/headless-blender:blender-4.5-stable
+      - name: Blender mechanically attaches real original McLaren outer doors, windows and mirrors to two real pivots
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd forever-frequency-native
+          timeout 1100s docker run --rm --entrypoint /home/headless/blender/blender \
+            -v "$PWD:$PWD" -w "$PWD" \
+            ghcr.io/blenderkit/headless-blender:blender-4.5-stable \
+            -b -t 2 --python tools/mclaren_570s_real_door_parts_blender.py \
+            2>&1 | tee MCLAREN_REAL_ARTIST_BODY_GLASS_HINGES_BLENDER.log
+          grep -q 'CITYZERO_REAL_MCLAREN570S_AUTHOR_BODY_GLASS_MIRRORS_RIGGED_TWO_TRUE_BLENDER_HINGES_GREEN_NOT_APPROVED' MCLAREN_REAL_ARTIST_BODY_GLASS_HINGES_BLENDER.log
+      - name: Reject lost triangles, fake doors, missing actual native photographs
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          import json
+          p=Path('forever-frequency-native/mclaren_570s_real_original_door_rig')
+          r=json.loads((p/'mclaren_source_author_true_hinges_forensics.json').read_text())
+          assert r['original_source_tris']==r['after_source_rig_tris']==57933
+          assert r['source_artist_mesh_count']==80
+          assert not r['true_original_car_geometry_replaced'] and not r['owner_visual_approved']
+          assert r['creator_trademark_license_pending']
+          assert set(r['real_separate_original_panel_mesh_ids'])=={'LEFT','RIGHT'}
+          assert len(r['hinges'])==2 and len(r['real_blender_closed_open_pictures'])==2
+          assert min(r['source_moving_body_panel_meters'].values())>.25
+          assert len(list(p.glob('*.png')))==2
+          assert (p/'mclaren_570s_2016_REAL_SOURCE_BODY_GLASS_HINGES.glb').stat().st_size>3500000
+          assert (p/'mclaren_570s_2016_real_source_ARTIST_HINGES_EDITABLE.blend').stat().st_size>5000000
+          print('REAL_ORIGINAL_MCLAREN_TWO_DOORS_RIGGED_57K_FACE_PRESERVE_BLENDER_GREEN_NO_ART_APPROVAL')
+          PY
+      - name: Preserve true source original author McLaren mesh rigged GLB Blender and native open closed photos
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: CityZero-REAL-Original-McLaren-570S-Two-Artist-Body-Glass-Mirror-Door-Hinges-Blender
+          retention-days: 90
+          path: |
+            forever-frequency-native/mclaren_570s_real_original_door_rig/
+            forever-frequency-native/MCLAREN_REAL_ARTIST_BODY_GLASS_HINGES_BLENDER.log
+          if-no-files-found: warn
+  godot-real-source-mechanical-two-hinges-capture:
+    needs: original-artist-model-with-true-movable-panel-hinges
+    runs-on: ubuntu-22.04
+    timeout-minutes: 22
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: CityZero-REAL-Original-McLaren-570S-Two-Artist-Body-Glass-Mirror-Door-Hinges-Blender
+          path: original-hinged-mclaren
+      - name: Install EXACT real McLaren GLB and existing City Zero hinge controller in native Godot
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p isolated/assets/mclaren_570s_review isolated/tests isolated/scripts
+          find original-hinged-mclaren -name 'mclaren_570s_2016_REAL_SOURCE_BODY_GLASS_HINGES.glb' -type f \
+            -exec cp '{}' isolated/assets/mclaren_570s_review/ ';'
+          cp forever-frequency-native/tests/mclaren_570s_real_doors_godot_qa.gd isolated/tests/
+          cp forever-frequency-native/scripts/vehicle_door_controller.gd isolated/scripts/
+          test -s isolated/assets/mclaren_570s_review/mclaren_570s_2016_REAL_SOURCE_BODY_GLASS_HINGES.glb
+          cat > isolated/project.godot <<'GODOT'
+          config_version=5
+          [application]
+          config/name="City Zero REAL source McLaren 570S body glass mirror hinges QA ONLY"
+          [display]
+          window/size/viewport_width=1600
+          window/size/viewport_height=1000
+          [rendering]
+          renderer/rendering_method="gl_compatibility"
+          renderer/rendering_method.mobile="gl_compatibility"
+          GODOT
+      - uses: solarlabyrinth/action-setup-godot@v3
+        with:
+          version: 4.4.1-stable
+          export-templates: false
+      - name: Prepare real Mesa OpenGL render backend
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq xvfb libgl1 libgl1-mesa-dri libegl1 mesa-utils
+      - name: Import TRUE artist-authored door+glass mesh rig into native Godot 4
+        shell: bash
+        env:
+          LIBGL_ALWAYS_SOFTWARE: '1'
+          MESA_GL_VERSION_OVERRIDE: '3.3'
+          GODOT_AUDIO_DRIVER: Dummy
+        run: |
+          set -euo pipefail
+          xvfb-run -a -s '-screen 0 1800x1200x24' timeout 200s \
+            godot --rendering-driver opengl3 --path isolated --editor --import --quit \
+            2>&1 | tee MCLAREN_REAL_HINGED_AUTHOR_GLTF_GODOT_IMPORT.log
+          if grep -E 'SCRIPT ERROR|Parse Error' MCLAREN_REAL_HINGED_AUTHOR_GLTF_GODOT_IMPORT.log; then exit 1; fi
+      - name: Photograph TWO actual authored original source McLaren door assemblies closed & opened
+        shell: bash
+        env:
+          LIBGL_ALWAYS_SOFTWARE: '1'
+          MESA_GL_VERSION_OVERRIDE: '3.3'
+          GODOT_AUDIO_DRIVER: Dummy
+        run: |
+          set -euo pipefail
+          mkdir -p "$PWD/mclaren-570s-real-godot-doors"
+          export CITYZERO_MCLAREN_TRUE_HINGES_GODOT="$PWD/mclaren-570s-real-godot-doors"
+          xvfb-run -a -s '-screen 0 1800x1200x24' timeout 300s \
+            godot --rendering-driver opengl3 --path isolated \
+            --script res://tests/mclaren_570s_real_doors_godot_qa.gd \
+            2>&1 | tee mclaren-570s-real-godot-doors/MCLAREN_REAL_SOURCE_NATIVE_GODOT_OPEN_CLOSED.log
+          grep -q 'REAL_MCLAREN_570S_SOURCE_DOOR_SHELLS_GODOT_CLOSED_AND_OPENED_TRUE_ENGINE_PASS' \
+            mclaren-570s-real-godot-doors/MCLAREN_REAL_SOURCE_NATIVE_GODOT_OPEN_CLOSED.log
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          p=Path('mclaren-570s-real-godot-doors')
+          r=json.loads((p/'mclaren_570s_true_rig_real_godot_report.json').read_text())
+          assert r['two_author_body_panels_hinged'] and r['original_glass_and_mirrors_follow_actual_hinges']
+          assert not r['original_source_geometry_replaced']
+          assert r['true_rendered_changed_pixels']>=300
+          assert r['doors_reached_real_open_angles']
+          assert not r['owner_art_approved'] and r['licensing_rights_review_pending']
+          assert len(list(p.glob('*.png')))==2
+          print('REAL_MCLAREN570S_ORIGINAL_3D_NATIVE_GODOT_HINGED_CLOSED_OPEN_GREEN_NO_OWNER_APPROVAL')
+          PY
+      - name: Save two actual native Godot 3D screenshots (not generated images)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: CityZero-Real-McLaren-570S-Original-Body-And-Glass-Godot-Closed-Opened-Photos
+          retention-days: 90
+          path: |
+            mclaren-570s-real-godot-doors/
+            MCLAREN_REAL_HINGED_AUTHOR_GLTF_GODOT_IMPORT.log
+          if-no-files-found: warn
