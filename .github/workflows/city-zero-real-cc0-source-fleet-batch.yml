@@ -38,6 +38,35 @@ jobs:
           set -euo pipefail
           python3 forever-frequency-native/tools/import_cc0_2026_vehicle_batch.py 2>&1 | tee cc0_original_source_download.log
           grep -q 'REAL_CC0_SOURCE_BATCH_HASH_VERIFIED_GREEN' cc0_original_source_download.log
+      - name: Decode meshopt losslessly for Blender without changing original GLBs
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm install --prefix "$RUNNER_TEMP/cityzero-gltf" --no-audit --no-fund @gltf-transform/cli@4.2.1
+          cd forever-frequency-native
+          mkdir -p assets/tevy_cc0_decoded_sources
+          for src in assets/tevy_cc0_original_sources/*.glb; do
+            "$RUNNER_TEMP/cityzero-gltf/node_modules/.bin/gltf-transform" decompress "$src" "assets/tevy_cc0_decoded_sources/$(basename "$src")"
+          done
+          python3 - <<'PY'
+          import hashlib,json,struct
+          from pathlib import Path
+          root=Path('assets')
+          def doc(p):
+              b=p.read_bytes()
+              n=struct.unpack_from('<I',b,12)[0]
+              return json.loads(b[20:20+n])
+          report=[]
+          for p in sorted((root/'tevy_cc0_original_sources').glob('*.glb')):
+              q=root/'tevy_cc0_decoded_sources'/p.name
+              a,b=doc(p),doc(q)
+              assert 'EXT_meshopt_compression' not in b.get('extensionsRequired',[])
+              def counts(d):
+                  return sorted((d['accessors'][v['attributes']['POSITION']]['count'],d['accessors'][v['indices']]['count'] if 'indices' in v else 0) for m in d['meshes'] for v in m['primitives'])
+              assert counts(a)==counts(b),p.name
+              report.append(dict(id=p.stem,source_sha256=hashlib.sha256(p.read_bytes()).hexdigest(),decoded_sha256=hashlib.sha256(q.read_bytes()).hexdigest()))
+          Path('real_cc0_source_vehicle_audit/meshopt_decode_report.json').write_text(json.dumps(report,indent=2))
+          PY
       - name: Run actual Blender 4.5 in headless image
         shell: bash
         run: |
@@ -112,8 +141,8 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p isolated/assets/tevy_cc0_blender_vehicles isolated/real_cc0_source_vehicle_audit isolated/tests
-          cp source/assets/tevy_cc0_blender_vehicles/*.glb isolated/assets/tevy_cc0_blender_vehicles/
-          cp source/real_cc0_source_vehicle_audit/downloaded_original_cc0_vehicle_batch.json isolated/real_cc0_source_vehicle_audit/
+          cp source/forever-frequency-native/assets/tevy_cc0_blender_vehicles/*.glb isolated/assets/tevy_cc0_blender_vehicles/
+          cp source/forever-frequency-native/real_cc0_source_vehicle_audit/downloaded_original_cc0_vehicle_batch.json isolated/real_cc0_source_vehicle_audit/
           cp forever-frequency-native/tests/tevy_original_vehicle_godot_qa.gd isolated/tests/
           cat > isolated/project.godot <<'GODOT'
           config_version=5
