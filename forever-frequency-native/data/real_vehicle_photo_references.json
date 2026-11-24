@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "purpose": "City Zero real automobile photograph guides for original in-game designs; NOT finished vehicle approvals",
+  "purpose": "Photo research references for the remaining original vehicle roster; rejected REVULSE excluded permanently.",
   "policy": "These images stay in offline/CI reference artifacts, never in the distributed APK. Maintain photo attribution; manufacturer marks/trademarks are not exported to game meshes. Perspective photos are visual guides, not orthographic ground truth.",
   "vehicle_references": [
     {
@@ -47,52 +47,6 @@
         "units": "fraction_of_actual_front_to_rear_body_length",
         "status": "DRAFT_PHOTO_GUIDED_REQUIRES_VISUAL_ALIGNMENT",
         "photo_source": "Honda Civic 1.5 VTEC (2022) (54727772424).jpg"
-      }
-    },
-    {
-      "id": "exotic_supercar__revulse",
-      "real_reference": "2015 Lamborghini Aventador LP700-4",
-      "oem_dimensions_m": {
-        "length": 4.78,
-        "width": 2.03,
-        "height": 1.136,
-        "wheelbase": 2.7
-      },
-      "wheel_radius_m": 0.34,
-      "sources": [
-        "https://www.lamborghiniregistry.com/lamborghini-models/aventador-lp-700-4/tech-specs"
-      ],
-      "photos": [
-        {
-          "view": "side",
-          "file": "2015 Lamborghini Aventador LP700-4 Pirelli Edition 6.5 Side.jpg",
-          "author": "Vauxford",
-          "license": "CC BY-SA 4.0"
-        },
-        {
-          "view": "front",
-          "file": "2015 Lamborghini Aventador LP700-4 Pirelli Edition 6.5 Front.jpg",
-          "author": "Vauxford",
-          "license": "CC BY-SA 4.0"
-        },
-        {
-          "view": "rear",
-          "file": "2015 Lamborghini Aventador LP700-4 Pirelli Edition 6.5 Rear.jpg",
-          "author": "Vauxford",
-          "license": "CC BY-SA 4.0"
-        }
-      ],
-      "photo_traced_profile": {
-        "front_glass": 0.28,
-        "roof_front": 0.4,
-        "roof_rear": 0.63,
-        "rear_glass": 0.74,
-        "door_front": 0.3,
-        "door_rear": 0.73,
-        "note": "First-pass proportions from Vauxford literal side photograph; re-check against comparison screenshot",
-        "units": "fraction_of_actual_front_to_rear_body_length",
-        "status": "DRAFT_PHOTO_GUIDED_REQUIRES_VISUAL_ALIGNMENT",
-        "photo_source": "2015 Lamborghini Aventador LP700-4 Pirelli Edition 6.5 Side.jpg"
       }
     },
     {
