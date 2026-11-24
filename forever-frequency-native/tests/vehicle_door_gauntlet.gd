@@ -32,7 +32,7 @@ func _run() -> void:
             continue
         var car: Node3D = packed.instantiate()
         root.add_child(car)
-        var animator: Node3D = DoorController.new()
+        var animator = DoorController.new()
         car.add_child(animator)
         await process_frame
         var door_names: Array[String] = animator.available_doors()
@@ -51,8 +51,8 @@ func _run() -> void:
                 continue
             var start_pos: Vector3 = movable.global_position
             check(animator.toggle_door(door_name), door_name + " can be opened")
-            for i in range(65):
-                await process_frame
+            animator._process(0.70)
+            await process_frame
             check(animator.is_door_open(door_name), door_name + " reports open")
             check(absf(hinge.rotation.y) > 0.18, door_name + " rotates in engine")
             check(movable.global_position.distance_to(start_pos) > 0.05, door_name + " moves its actual mesh")
