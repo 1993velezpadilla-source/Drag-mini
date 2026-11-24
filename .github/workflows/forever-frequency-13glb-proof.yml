@@ -4,6 +4,9 @@ on:
     branches: [forever-frequency-native]
     paths:
       - '.github/workflows/forever-frequency-13glb-proof.yml'
+      - 'forever-frequency-native/scripts/**'
+      - 'forever-frequency-native/tests/**'
+      - 'forever-frequency-native/tools/adversarial_audit.py'
   workflow_dispatch:
 permissions:
   contents: read
@@ -35,6 +38,9 @@ jobs:
           test -s forever-frequency-native/assets/urban_life_district.glb
       - name: Install headless framebuffer and independent image critic
         run: apt-get update -qq && apt-get install -y -qq xvfb libgl1-mesa-dri libgl1 python3 python3-pil
+      - name: Inspect latest script and visual design against adversarial source rules
+        shell: bash
+        run: python3 forever-frequency-native/tools/adversarial_audit.py
       - name: Import actual Blender models into Godot
         shell: bash
         run: |
