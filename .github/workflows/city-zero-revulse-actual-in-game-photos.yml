@@ -71,8 +71,10 @@ jobs:
           cp revulse-in-game-evidence/godot_actual_scene_evidence.json "$folder/"
           git config user.name "CityZero Visual Capture Bot"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add "$folder"
-          git commit -m "Capture real in-game REVULSE Lamborghini-inspired doors closed and open [skip ci]"
+          # Commit the ORIGINAL authored GLB as a permanent game asset, not
+          # just a temporary screenshot or documentation-only model.
+          git add "$folder" forever-frequency-native/assets/premium_fleet/exotic_supercar__revulse.glb
+          git commit -m "Ship playable REVULSE model and actual Godot in-game door photos [skip ci]"
           for attempt in 1 2 3; do
             git pull --rebase origin forever-frequency-native
             if git push origin HEAD:forever-frequency-native; then
