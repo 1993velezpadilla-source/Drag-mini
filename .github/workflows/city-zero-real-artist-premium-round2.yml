@@ -1,0 +1,190 @@
+name: City Zero - 12 more ORIGINAL artist premium vehicles Blender Godot proof (6 per batch)
+on:
+  workflow_dispatch:
+    inputs:
+      batch_index:
+        description: 'Index in pinned real artist-authored source manifest'
+        required: false
+        default: '0'
+  push:
+    branches: [forever-frequency-native]
+    paths:
+      - '.github/workflows/city-zero-real-artist-premium-round2.yml'
+      - 'forever-frequency-native/data/pinned_artist_premium_round2.json'
+      - 'forever-frequency-native/tools/import_pinned_artist_premium_cars.py'
+      - 'forever-frequency-native/tools/blender_import_artist_premium_batch.py'
+permissions:
+  contents: read
+concurrency:
+  group: cityzero-original-premium-round2-six-blender-godot-${{ github.event.inputs.batch_index || '0' }}
+  cancel-in-progress: false
+jobs:
+  original-artist-sources-and-native-blender:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 36
+    env:
+      CITYZERO_ARTIST_PREMIUM_BATCH_INDEX: ${{ github.event.inputs.batch_index || '0' }}
+      CITYZERO_PREMIUM_SOURCE_MANIFEST: pinned_artist_premium_round2.json
+    steps:
+      - uses: actions/checkout@v4
+      - name: Compile original source, check all independently attributed CC-BY entries
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m py_compile forever-frequency-native/tools/import_pinned_artist_premium_cars.py forever-frequency-native/tools/blender_import_artist_premium_batch.py
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          file=Path('forever-frequency-native/data/pinned_artist_premium_round2.json')
+          data=json.loads(file.read_text())
+          assert data['production_approved'] is False
+          assert len(data['records'])>=6
+          assert len(set(x['id'] for x in data['records']))==len(data['records'])
+          print('PREMIUM ORIGINAL ARTIST PREVIEW ONLY - NO COMMERCIAL APPROVAL')
+          PY
+      - name: Download exact 6 artist-built car originals by Git blob ID and actual per-model license
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 forever-frequency-native/tools/import_pinned_artist_premium_cars.py 2>&1 | tee PREMIUM_REAL_CARS_SOURCE_DOWNLOAD.log
+          grep -q 'CITYZERO_SIX_AUTHENTIC_PREMIUM_ARTIST_CAR_SOURCES_GREEN' PREMIUM_REAL_CARS_SOURCE_DOWNLOAD.log
+      - name: Pull Blender 4.5 LTS original 3D importer renderer
+        shell: bash
+        run: docker pull ghcr.io/blenderkit/headless-blender:blender-4.5-stable
+      - name: Import six REAL distinct high-detail models and export editable Blender + 24 native views
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd forever-frequency-native
+          timeout 1300s docker run --rm \
+            --entrypoint /home/headless/blender/blender \
+            -v "$PWD:$PWD" -w "$PWD" \
+            ghcr.io/blenderkit/headless-blender:blender-4.5-stable \
+            -b -t 2 --python tools/blender_import_artist_premium_batch.py \
+            2>&1 | tee PREMIUM_ARTIST_REAL_BLENDER.log
+          grep -q 'CITY_ZERO_AUTHENTIC_SOURCE_BLENDER_BATCH_GREEN' PREMIUM_ARTIST_REAL_BLENDER.log
+      - name: Fail on fake cars, duplicate model IDs or incomplete Blender original proof
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          import json
+          root=Path('forever-frequency-native')
+          src=root/'real_cc0_source_vehicle_audit'
+          d=json.loads((src/'downloaded_original_cc0_vehicle_batch.json').read_text())
+          b=json.loads((src/'batch_real_blender_results.json').read_text())
+          assert len(d['models'])==6 and len(b)==6
+          assert len({m['id'] for m in d['models']})==6
+          assert len(list((root/'real_cc0_blender_vehicle_photos').glob('*.png')))==24
+          for m in d['models']:
+              out=next(x for x in b if x['id']==m['id'])
+              assert m['source_identity_verified']
+              assert not m['user_approved'] and not m['game_ready']
+              assert 'CC BY 4.0' in m['license']
+              assert out['actual_imported_blender_triangles']>=15000
+              assert out['uniform_real_source_scale']>0.0
+              assert abs(max(out['actual_blender_bounds_m'])-m['target_longest_extent_m']) < .12
+              assert out['geometry_generated_or_replaced'] is False
+              assert out['commercial_rights_verified'] is False
+              assert out['visual_comparison_to_approved_lamborghini_pending']
+              assert len(out['authentic_blender_photos'])==4
+              assert (root/'assets/tevy_cc0_blender_vehicles'/out['editable_blend']).stat().st_size>100000
+              assert (root/'assets/tevy_cc0_blender_vehicles'/out['actual_exported_glb']).stat().st_size>50000
+          print('SIX REAL ARTIST CAR ORIGINALS PASS BLENDER IMPORT; GAMEPLAY QUALITY NOT APPROVED')
+          PY
+      - name: Preserve source licenses, editable cars, GLBs, 24 real Blender photos and audit
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: CityZero-SECOND-ARTIST-BATCH-${{ github.event.inputs.batch_index || '0' }}-Blender-Originals
+          retention-days: 90
+          path: |
+            forever-frequency-native/assets/tevy_cc0_original_sources/*.glb
+            forever-frequency-native/assets/tevy_cc0_blender_vehicles/*.blend
+            forever-frequency-native/assets/tevy_cc0_blender_vehicles/*.glb
+            forever-frequency-native/real_cc0_blender_vehicle_photos/*.png
+            forever-frequency-native/real_cc0_source_vehicle_audit/*.json
+            forever-frequency-native/real_cc0_source_vehicle_audit/*.txt
+            forever-frequency-native/PREMIUM_ARTIST_REAL_BLENDER.log
+            PREMIUM_REAL_CARS_SOURCE_DOWNLOAD.log
+          if-no-files-found: warn
+  actual-godot-original-3d-pixel-proof:
+    needs: original-artist-sources-and-native-blender
+    runs-on: ubuntu-22.04
+    timeout-minutes: 18
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: CityZero-SECOND-ARTIST-BATCH-${{ github.event.inputs.batch_index || '0' }}-Blender-Originals
+          path: original_artist
+      - name: Install six Blender-exported original cars into ISOLATED Godot 4 audit scene
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p isolated/assets/tevy_cc0_blender_vehicles isolated/real_cc0_source_vehicle_audit isolated/tests
+          cp original_artist/forever-frequency-native/assets/tevy_cc0_blender_vehicles/*.glb isolated/assets/tevy_cc0_blender_vehicles/
+          cp original_artist/forever-frequency-native/real_cc0_source_vehicle_audit/downloaded_original_cc0_vehicle_batch.json isolated/real_cc0_source_vehicle_audit/
+          cp forever-frequency-native/tests/tevy_original_vehicle_godot_qa.gd isolated/tests/
+          cat > isolated/project.godot <<'GODOT'
+          config_version=5
+          [application]
+          config/name="City Zero 6 ORIGINAL artist CC BY car GLB QA; NOT commercially approved"
+          [display]
+          window/size/viewport_width=1200
+          window/size/viewport_height=800
+          [rendering]
+          renderer/rendering_method="gl_compatibility"
+          renderer/rendering_method.mobile="gl_compatibility"
+          GODOT
+      - uses: solarlabyrinth/action-setup-godot@v3
+        with:
+          version: 4.4.1-stable
+          export-templates: false
+      - name: Install Mesa OpenGL software viewport
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq xvfb libgl1 libgl1-mesa-dri libegl1 mesa-utils
+      - name: Godot 4 imports the SIX actual artist meshes and material data
+        shell: bash
+        run: |
+          set -euo pipefail
+          LIBGL_ALWAYS_SOFTWARE=1 MESA_GL_VERSION_OVERRIDE=3.3 \
+            xvfb-run -a -s '-screen 0 1600x900x24' timeout 190s \
+            godot --rendering-driver opengl3 --path isolated --editor --import --quit \
+            2>&1 | tee ARTIST_PREMIUM_CARS_GODOT_GLTF_IMPORT.log
+      - name: Render six actual Godot screenshots against hidden-mesh pixel control
+        shell: bash
+        env:
+          LIBGL_ALWAYS_SOFTWARE: '1'
+          MESA_GL_VERSION_OVERRIDE: '3.3'
+          GODOT_AUDIO_DRIVER: Dummy
+        run: |
+          set -euo pipefail
+          mkdir -p "$PWD/premium-artist-real-godot-photos"
+          export CITYZERO_REAL_CC0_GODOT_SHOTS="$PWD/premium-artist-real-godot-photos"
+          xvfb-run -a -s '-screen 0 1600x900x24' timeout 290s \
+            godot --rendering-driver opengl3 --path isolated --script res://tests/tevy_original_vehicle_godot_qa.gd \
+            2>&1 | tee premium-artist-real-godot-photos/GODOT_ACTUAL_GALLERY.log
+          grep -q 'CITY_ZERO_ORIGINAL_CC0_GODOT_BATCH_GREEN' premium-artist-real-godot-photos/GODOT_ACTUAL_GALLERY.log
+          python3 - <<'PY'
+          from pathlib import Path
+          import json
+          d=Path('premium-artist-real-godot-photos')
+          report=json.loads((d/'real_cc0_godot_batch_report.json').read_text())
+          assert len(report)==6 and len({x['id'] for x in report})==6
+          assert all(x['verified_car_visible_pixel_samples']>=120 for x in report)
+          assert all(x['native_godot_triangles']>=15000 for x in report)
+          assert all(not x['game_ready'] for x in report)
+          assert len(list(d.glob('*.png')))==6
+          print('SIX ORIGINAL ARTIST-MADE PREMIUM CARS RENDERED IN REAL GODOT, NOT YET GAME-READY')
+          PY
+      - name: Publish genuine Godot car proof PNGs; do NOT auto-approve commercial release
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: CityZero-SECOND-ARTIST-BATCH-${{ github.event.inputs.batch_index || '0' }}-Godot-Photos
+          retention-days: 90
+          path: |
+            premium-artist-real-godot-photos/
+            ARTIST_PREMIUM_CARS_GODOT_GLTF_IMPORT.log
+          if-no-files-found: warn
