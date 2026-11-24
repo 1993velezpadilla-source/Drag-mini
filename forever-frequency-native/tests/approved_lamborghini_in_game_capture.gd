@@ -1,5 +1,5 @@
 extends SceneTree
-## Captures ACTUAL Godot frames of the already-authored REVULSE in City's
+## Captures real Godot frames of the user-approved orange Lamborghini model in City's
 ## playable main scene, with both door hinges closed and fully open.
 ## No illustration generation. Fail on missing GLB, missing hinges or no visible
 ## frame difference. PNG output is available as a GitHub Actions artifact.
@@ -30,9 +30,9 @@ func _save_frame(viewport: Viewport, target: String) -> Image:
     return picture
 
 func _capture() -> void:
-    var dir := OS.get_environment("CITYZERO_REVULSE_SCREENSHOTS")
+    var dir := OS.get_environment("CITYZERO_APPROVED_ORANGE_LAMBORGHINI_SCREENSHOTS")
     if dir.is_empty():
-        dir = ProjectSettings.globalize_path("user://revulse-in-game")
+        dir = ProjectSettings.globalize_path("user://approved-orange-lamborghini-in-game")
     DirAccess.make_dir_recursive_absolute(dir)
 
     var world_scene := load("res://scenes/main.tscn") as PackedScene
@@ -45,8 +45,8 @@ func _capture() -> void:
         return
     root.add_child(city)
     await _wait_frames(8)
-    var car: Node3D = city.get("revulse_car")
-    var animator = city.get("revulse_doors")
+    var car: Node3D = city.get("lamborghini_orange_car")
+    var animator = city.get("lamborghini_orange_doors")
     if car == null or animator == null:
         _fail("Previously approved supercar rig did not spawn IN the real City Zero game")
         return
