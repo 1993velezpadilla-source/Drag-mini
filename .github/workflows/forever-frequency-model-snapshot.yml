@@ -24,6 +24,14 @@ jobs:
           repository: 1993velezpadilla-source/Drag-mini
           github-token: ${{ github.token }}
           path: forever-frequency-native/assets
+      - name: Strip Blender authoring files and duplicate GLBs before Godot scan
+        shell: bash
+        run: |
+          find forever-frequency-native/assets -maxdepth 1 -name '*.blend' -print -delete
+          rm -f forever-frequency-native/assets/studio_entrance.glb forever-frequency-native/assets/street_kiosk.glb
+          echo 'GLB import inventory:'
+          ls -lah forever-frequency-native/assets/*.glb
+          test "$(find forever-frequency-native/assets -maxdepth 1 -name '*.glb' | wc -l)" -eq 12
       - name: Virtual graphics display
         shell: bash
         run: |
