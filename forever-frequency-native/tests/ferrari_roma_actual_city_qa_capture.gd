@@ -51,7 +51,7 @@ func _capture_in_real_game() -> void:
     if gold.name!="CityZero_Approved_Orange_Lamborghini":
         _red("Do not replace original orange gold Lamborghini model")
         return
-    if car.position.distance_to(gold.position)<6.0:
+    if car.position.distance_to(gold.position)<3.8:
         _red("Unapproved Ferrari is overlapping approved orange car")
         return
     if door_controller.available_doors().size()!=2:
