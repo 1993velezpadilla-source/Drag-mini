@@ -444,7 +444,7 @@ func _spawn_unapproved_ferrari_roma_preview() -> void:
         push_error("CITYZERO_FERRARI_ROMA_REVIEW_MISSING_NATIVE_MESH_ROOT")
         return
     ferrari_roma_review_car.name = "CityZero_UNAPPROVED_FerrariRoma_Real_Hinges_DevQA"
-    ferrari_roma_review_car.position = Vector3(7.7,0.08,-25.0)
+    ferrari_roma_review_car.position = Vector3(2.3,0.08,-25.0)
     ferrari_roma_review_car.rotation.y = PI
     add_child(ferrari_roma_review_car)
     ferrari_roma_review_door_controller = CarDoorController.new()
