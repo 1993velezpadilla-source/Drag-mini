@@ -200,34 +200,79 @@ def sound_files(game):
              "extension": p.suffix.lower(), "category": sound_category(p.relative_to(root))}
             for p in sorted(root.rglob("*")) if p.is_file() and p.suffix.lower() in AUDIO_EXT]
 
+def _valid_decoded_wave(path):
+    """Require an actual RIFF/WAVE header, not stale or incomplete outputs."""
+    try:
+        if path.stat().st_size <= 44:
+            return False
+        with path.open("rb") as handle:
+            header = handle.read(12)
+        return header[:4] in (b"RIFF", b"RF64") and header[8:12] == b"WAVE"
+    except OSError:
+        return False
+
+
 def decode_sound_banks(game, rows, output, decoder):
+    """Extract ALL vgmstream subsongs into collision-free private WAV files.
+
+    vgmstream -S 0 exports every available subsong; ?04s ensures unique output.
+    A temporary bank directory prevents older successful output from falsely
+    marking a failed decoder as successful.
+    Official CLI: https://github.com/vgmstream/vgmstream/blob/master/doc/USAGE.md
+    """
     exe = shutil.which(decoder)
     if not exe:
         return {"status": "not_run", "reason": f"Decoder missing: {decoder}"}
+    import hashlib
+    import tempfile
     output.mkdir(parents=True, exist_ok=True)
-    success = failure = 0
+    success = failure = skipped = 0
     for entry in rows:
         if entry["extension"] not in (".gin", ".abk", ".asf", ".sns", ".sng"):
             continue
-        prefix = safe_name(entry["path"])
-        target = output / (prefix + "_?s.wav")
-        try:
-            proc = subprocess.run([exe, "-i", "-s", "1", "-S", "0", "-o", str(target),
-                                   str(game / entry["path"])],
-                                  capture_output=True, text=True, timeout=300, check=False)
-            written = sorted(p for p in output.glob(prefix + "_*.wav") if p.stat().st_size > 44)
-            if written:
-                entry["private_wavs"] = [str(p) for p in written]
-                entry["decode_status"] = "complete_by_decoder" if proc.returncode == 0 else "partial"
-                success += len(written)
-            else:
+        # Preserve any existing user data but never treat it as verification
+        # of this decoder attempt.
+        unique = hashlib.sha256(entry["path"].encode("utf-8")).hexdigest()[:10]
+        prefix = safe_name(entry["path"]) + "_" + unique
+        if shutil.disk_usage(output).free < 512 * 1024 * 1024:
+            entry["decode_status"] = "skipped_disk_space"
+            skipped += 1
+            continue
+        with tempfile.TemporaryDirectory(prefix="cityzero_bank_", dir=output) as temporary:
+            temp = Path(temporary)
+            target = temp / (prefix + "_?04s.wav")
+            try:
+                proc = subprocess.run(
+                    [exe, "-i", "-s", "1", "-S", "0", "-o", str(target),
+                     str(game / entry["path"])],
+                    capture_output=True, text=True, timeout=300, check=False)
+            except subprocess.TimeoutExpired:
+                entry["decoder_error"] = "Timeout; this bank was not confirmed"
+                failure += 1
+                continue
+            fresh = sorted(p for p in temp.glob(prefix + "_*.wav")
+                           if _valid_decoded_wave(p))
+            if not fresh:
+                entry["decode_status"] = "failed"
                 entry["decoder_error"] = (proc.stderr or proc.stdout)[-400:]
                 failure += 1
-        except subprocess.TimeoutExpired:
-            entry["decoder_error"] = "Timeout"
-            failure += 1
-    return {"status": "attempted", "decoded_streams": success, "failed_files": failure,
-            "note": "WAV extraction is NOT the original interactive RPM-dependent Ginsu mixing engine."}
+                continue
+            imported = []
+            for src in fresh:
+                dest = output / src.name
+                src.replace(dest)
+                imported.append(str(dest))
+            entry["private_wavs"] = imported
+            entry["decode_status"] = (
+                "complete_by_decoder" if proc.returncode == 0 else "partial"
+            )
+            success += len(imported)
+            if proc.returncode:
+                failure += 1
+    return {"status": "attempted", "decoded_streams": success,
+            "failed_files": failure, "skipped_low_disk": skipped,
+            "note": "Decodes all source subsongs. WAVs do not yet recreate original RPM-layered Ginsu playback."}
+
 
 def export_models(game, converter, output, selected, blender, all_lods):
     executable = shutil.which(blender)
