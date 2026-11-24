@@ -15,7 +15,10 @@ import struct
 from urllib.request import Request, urlopen
 
 ROOT=Path(__file__).resolve().parents[1]
-META=ROOT/"data"/"pinned_artist_licensed_premium_car_sources.json"
+MANIFEST_FILENAME=os.getenv("CITYZERO_PREMIUM_SOURCE_MANIFEST","pinned_artist_licensed_premium_car_sources.json")
+if not re.fullmatch(r"[a-z0-9_]+\.json",MANIFEST_FILENAME):
+    raise RuntimeError("Untrusted premium car source catalog name")
+META=ROOT/"data"/MANIFEST_FILENAME
 SRC=ROOT/"assets"/"tevy_cc0_original_sources"
 DECODED=ROOT/"assets"/"tevy_cc0_decoded_sources"
 AUDIT=ROOT/"real_cc0_source_vehicle_audit"
