@@ -36,6 +36,26 @@ tap_text "@clock"
 assert_text "Real-time routine"
 shot routine
 tap_text "Disable auto sleep"
+tap_text "Rooms"
+tap_text "Kitchen"
+shot kitchen
+tap_text "Rooms"
+tap_text "Bathroom"
+assert_text "Hygiene"
+shot bathroom
+tap_text "Rooms"
+tap_text "Bedroom"
+shot bedroom
+tap_text "Rooms"
+tap_text "Playroom"
+shot playroom
+tap_text "Rooms"
+tap_text "Garden"
+shot garden
+tap_text "Rooms"
+tap_text "Potion lab"
+shot potion-lab
+tap_text "Back"
 tap_text "Arcade"
 tap_text "Flappy Pet"
 shot flappy

@@ -122,6 +122,7 @@ final class PetArt {
   if(effect>0){for(int i=0;i<5;i++)star(48+i*16,68-(int)((tick/80+i*4)%17),effect==2?0xffd8ffff:0xffffdf91);}
   r(0,0,160,19,0xff353052);t(titles[room],80,13,9,0xffffeddf);present(out);
  }
+ void drawDraggedFood(Canvas out,float x,float y,int food){float z=Math.min(out.getWidth()/160f,out.getHeight()/192f);float ox=(out.getWidth()-160*z)/2,oy=(out.getHeight()-192*z)/2;out.save();out.translate(ox+x*z,oy+y*z);out.scale(z,z);p.setColor(0xff353052);out.drawOval(-9,-7,9,7,p);p.setColor(food==0?0xfff8d9a3:0xffe68da4);out.drawOval(-7,-5,7,5,p);p.setColor(food==0?0xffbd8c60:0xff75aa83);out.drawRect(-2,-7,2,-3,p);out.restore();}
  private void present(Canvas out){out.drawColor(0xff171b39);float z=Math.min(out.getWidth()/160f,out.getHeight()/192f);float x=(out.getWidth()-160*z)/2,y=(out.getHeight()-192*z)/2;blit.setFilterBitmap(false);destinationRect.set(x,y,x+160*z,y+192*z);out.drawBitmap(buffer,null,destinationRect,blit);}
  void draw(Canvas out,PetState s,int zoom,boolean wall,long tick){
   p.setAntiAlias(false);c.drawColor(0xff20264d);
