@@ -311,4 +311,30 @@ cyl((0,1.10,0),.37,.04,.40,gemmat)
 cyl((0,.70,0),.04,.37,.40,gemmat)
 ring((0,.90,0),.45,.035,gold)
 export('gem',6000)
+# Rescue creature: a tiny blue-winged original sky pet, also used as a temporary companion.
+clear()
+rescueblue=mat('sky pet blue',(.08,.45,.78),0,.27)
+ball((0,.48,0),(.77,.72,.66),rescueblue)
+for side in [-1,1]:
+ ball((side*.31,.78,0),(.25,.44,.22),cream)
+ ball((side*.39,.47,-.03),(.36,.37,.18),white)
+ ball((side*.16,.54,.28),(.13,.18,.06),dark)
+ ball((side*.16-.025,.59,.31),(.045,.055,.025),white)
+ball((0,.42,.32),(.14,.10,.05),pink)
+ball((0,.40,-.32),(.20,.20,.20),cream)
+export('rescue',14000)
+clear()
+# Three-charge impact power, recognizable gold star in a purple shell.
+star=mat('impact gold',(.99,.55,.04),.25,.24)
+verts=[];faces=[]
+for z in [-.10,.10]:
+ for i in range(10):
+  a=pi/2+i*pi/5;r=.46 if i%2==0 else .23
+  verts.append(v((r*math.cos(a),.94+r*math.sin(a),z)))
+faces.append(tuple(range(9,-1,-1)));faces.append(tuple(range(10,20)))
+for i in range(10): faces.append((i,(i+1)%10,(i+1)%10+10,i+10))
+me=bpy.data.meshes.new('impact star');me.from_pydata(verts,[],faces);me.update()
+o=bpy.data.objects.new('impact star',me);bpy.context.collection.objects.link(o);o.data.materials.append(star)
+ring((0,.94,0),.56,.055,violet)
+export('smash',4000)
 with open(os.path.join(OUT,'mesh-metrics.json'),'w') as out: json.dump(stats,out,indent=2)

@@ -19,6 +19,15 @@ const TIME_ORB := 11
 const SPRING := 12
 const SKY_RING := 13
 const GEM := 14
+const RESCUE := 15
+const SMASH := 16
+var rescued := 0
+var rescue_time := 0.0
+var rescue_buddy: Node3D
+var smash_charges := 0
+var smash_time := 0.0
+var smashed := 0
+var perfect_dodges := 0
 var slow_time := 0.0
 var spring_time := 0.0
 var air_jump_used := false
@@ -76,7 +85,7 @@ var player_shape: CollisionShape3D
 var camera: Camera3D
 var chunks: Array[Node3D] = []
 var entities: Array[Area3D] = []
-var pools: Array = [[],[],[],[],[],[],[],[],[],[],[],[],[],[],[]]
+var pools: Array = [[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[]]
 var created_entities := 0
 var reused_entities := 0
 var previous_safe_lane := 1
@@ -177,7 +186,7 @@ func asset(parent: Node3D, name: String, pos: Vector3) -> Node3D:
 		for child in n.find_children("*","MeshInstance3D",true,false):
 			(child as MeshInstance3D).lod_bias=0.65
 	# Tiny collectibles and distant islands do not need expensive shadow passes.
-	if name in ["coin","snack","magnet","shield","double","boost","island","airship","rainbow"]:
+	if name in ["coin","snack","magnet","shield","double","boost","island","airship","rainbow","time_orb","spring","sky_ring","gem","rescue","smash"]:
 		for child in n.find_children("*","MeshInstance3D",true,false):
 			(child as MeshInstance3D).cast_shadow=GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	parent.add_child(n)
@@ -249,6 +258,11 @@ func _ready() -> void:
 	camera.look_at(Vector3(0, 1.1, -12))
 	make_cloudscape()
 	make_effects()
+	rescue_buddy=asset(self,"rescue",Vector3(0,0,1.55))
+	if rescue_buddy!=null:
+		rescue_buddy.scale=Vector3.ONE*0.64
+		rescue_buddy.rotation.y=PI
+		rescue_buddy.hide()
 	audio=preload("res://dash_audio.gd").new()
 	add_child(audio)
 	load_best()
@@ -598,7 +612,7 @@ func rebase_track() -> void:
 	rebase_count+=1
 
 func is_pickup(kind:int) -> bool:
-	return (kind>=PICKUP and kind<=BOOST) or (kind>=TIME_ORB and kind<=GEM)
+	return (kind>=PICKUP and kind<=BOOST) or (kind>=TIME_ORB and kind<=SMASH)
 
 func hazard_for(tier:int) -> int:
 	if tier==0: return rng.randi_range(0,1)
@@ -638,6 +652,7 @@ func fill_track() -> void:
 			var power:=MAGNET+rng.randi_range(0,3)
 			if tier>=1 and pattern_count%15==2: power=TIME_ORB
 			elif tier>=1 and pattern_count%15==7: power=SPRING
+			elif tier>=2 and pattern_count%15==12: power=SMASH
 			make_entity(free_lane,power,spawn_at+5.1)
 		elif rng.randf()<0.60:
 			make_entity(free_lane,SNACK,spawn_at+4.8)
@@ -646,6 +661,8 @@ func fill_track() -> void:
 			make_entity(free_lane,SKY_RING,spawn_at)
 		if tier>=1 and action<0 and pattern_count%11==8:
 			make_entity(free_lane,GEM,spawn_at+6.7)
+		if tier>=1 and action<0 and pattern_count%12==9:
+			make_entity(free_lane,RESCUE,spawn_at+7.8)
 		if review_driver: safe_rows.append(Vector3(spawn_at,float(free_lane),float(action)))
 		previous_safe_lane=free_lane
 		pattern_count+=1
@@ -671,6 +688,7 @@ func make_entity(which_lane: int, kind: int, at: float) -> void:
 	a.set_meta("resolved",false)
 	a.set_meta("cart_shift",0.0)
 	a.set_meta("skill_clear",false)
+	a.set_meta("dodge_candidate",false)
 	entities.append(a)
 	if recycled:
 		if a.get_child_count()>0:
@@ -678,7 +696,7 @@ func make_entity(which_lane: int, kind: int, at: float) -> void:
 			visual.rotation.y=0
 			visual.position.y=0
 		return
-	if using_blender and asset(a,["crate","barrier","coin","snack","magnet","shield","double","boost","cart","tall","low_bar","time_orb","spring","sky_ring","gem"][kind],Vector3.ZERO)!=null:
+	if using_blender and asset(a,["crate","barrier","coin","snack","magnet","shield","double","boost","cart","tall","low_bar","time_orb","spring","sky_ring","gem","rescue","smash"][kind],Vector3.ZERO)!=null:
 		if is_pickup(kind) and kind!=BOOST and kind!=SKY_RING:
 			ground_shadow(a,0.75 if kind==PICKUP else 1.10,0.52 if kind==PICKUP else 0.75)
 		return
@@ -894,6 +912,9 @@ func _physics_process(dt: float) -> void:
 	boost_time=maxf(0,boost_time-dt)
 	slow_time=maxf(0,slow_time-dt)
 	spring_time=maxf(0,spring_time-dt)
+	rescue_time=maxf(0,rescue_time-dt)
+	smash_time=maxf(0,smash_time-dt)
+	if smash_time<=0: smash_charges=0
 	combo_timer=maxf(0,combo_timer-dt)
 	if combo_timer<=0: combo=0
 	var base_speed:=minf(25.0,9.0+total_distance()*0.024)
@@ -952,6 +973,9 @@ func _physics_process(dt: float) -> void:
 		var attraction := kind==PICKUP and magnet_time>0 and absf(a.position.z)<5.0
 		if attraction: a.position.x=move_toward(a.position.x,player.position.x,dt*19)
 		var lateral:=absf(a.position.x-player.position.x)
+		# A near dodge requires actual prior alignment shortly before contact.
+		if not is_pickup(kind) and a.position.z<-depth and a.position.z>=-depth-speed*0.35 and lateral<0.55:
+			a.set_meta("dodge_candidate",true)
 		if (contact or attraction) and not bool(a.get_meta("resolved")) and lateral<(0.92 if is_pickup(kind) else 1.05):
 			if is_pickup(kind):
 				if pickup_reachable(kind,player.position.y,attraction):
@@ -959,7 +983,15 @@ func _physics_process(dt: float) -> void:
 					a.set_meta("resolved",true)
 					a.hide()
 			elif hazard_hit(kind,player.position.y,slide>0 or air_slide_pending,lateral):
-				if shield_time>0 or boost_time>0:
+				if smash_time>0 and smash_charges>0:
+					smash_charges-=1
+					smashed+=1
+					skill_points+=150
+					a.set_meta("resolved",true)
+					a.hide()
+					show_skill("SMASH  +150")
+					audio.call("play_fx","smash")
+				elif shield_time>0 or boost_time>0:
 					if boost_time<=0: shield_time=0
 					a.set_meta("resolved",true)
 					a.hide()
@@ -976,6 +1008,12 @@ func _physics_process(dt: float) -> void:
 			if a.position.z>=depth:
 				a.set_meta("skill_clear",true)
 				award_skill_clear()
+		if not is_pickup(kind) and not bool(a.get_meta("resolved")) and not bool(a.get_meta("skill_clear")) and bool(a.get_meta("dodge_candidate")) and a.position.z>=depth and old_z<depth and lateral>=1.05:
+			a.set_meta("skill_clear",true)
+			perfect_dodges+=1
+			skill_points+=125
+			show_skill("PERFECT DODGE  +125")
+			audio.call("play_fx","skill")
 		if a.position.z>2.5:
 			a.hide()
 			pools[kind].append(a)
@@ -991,14 +1029,14 @@ func _physics_process(dt: float) -> void:
 		update_hud()
 
 func challenge_goal() -> int:
-	return [15,3,2][challenge_index%3]+mini(3,int(challenge_index/3.0))
+	return [15,3,2,1][challenge_index%4]+mini(3,int(challenge_index/4.0))
 func challenge_name() -> String:
-	return ["Collect coins","Clear obstacles","Collect snacks"][challenge_index%3]
+	return ["Collect coins","Clear obstacles","Collect snacks","Rescue pets"][challenge_index%4]
 func show_skill(message:String) -> void:
 	skill_feedback.text=message
 	skill_flash=1.10
 func challenge_event(event:int) -> void:
-	if event!=challenge_index%3: return
+	if event!=challenge_index%4: return
 	challenge_progress+=1
 	if challenge_progress>=challenge_goal():
 		skill_points+=500
@@ -1058,8 +1096,18 @@ func collect_kind(kind: int) -> void:
 				show_skill("GEM SET  +1000")
 				audio.call("play_fx","challenge")
 			else: show_skill("SKY GEM  %d/3"%gems)
-	if kind>=MAGNET and kind<=BOOST or kind==TIME_ORB or kind==SPRING:
-		pickup_feedback.text={MAGNET:"MAGNET",SHIELD:"SHIELD",DOUBLE:"DOUBLE COINS",BOOST:"TURBO",TIME_ORB:"TIME BUBBLE",SPRING:"DOUBLE JUMP"}[kind]
+		RESCUE:
+			rescued+=1
+			rescue_time=8.0
+			skill_points+=300
+			show_skill("PET RESCUED  +300")
+			challenge_event(3)
+			audio.call("play_fx","rescue")
+		SMASH:
+			smash_charges=3
+			smash_time=12.0
+	if kind>=MAGNET and kind<=BOOST or kind==TIME_ORB or kind==SPRING or kind==SMASH:
+		pickup_feedback.text={MAGNET:"MAGNET",SHIELD:"SHIELD",DOUBLE:"DOUBLE COINS",BOOST:"TURBO",TIME_ORB:"TIME BUBBLE",SPRING:"DOUBLE JUMP",SMASH:"SMASH MODE"}[kind]
 		pickup_flash=1.0
 		audio.call("play_fx","power")
 
@@ -1106,7 +1154,13 @@ func make_effects() -> void:
 		speed_lines.append(line)
 
 func update_effects(dt:float) -> void:
-	aura.visible=shield_time>0 or boost_time>0
+	aura.visible=shield_time>0 or boost_time>0 or smash_charges>0
+	if rescue_buddy!=null:
+		rescue_buddy.visible=rescue_time>0
+		if rescue_buddy.visible:
+			rescue_buddy.position.x=lerpf(rescue_buddy.position.x,player.position.x+0.57,minf(1,dt*6))
+			rescue_buddy.position.y=0.10+absf(sin(clock*12))*0.18+player.position.y*0.35
+			rescue_buddy.position.z=1.50+sin(clock*5)*0.13
 	power_ring.visible=magnet_time>0 or boost_time>0 or shield_time>0
 	power_ring.rotation.y=clock*2.0
 	power_ring.scale=Vector3.ONE*(1.0+sin(clock*7)*0.08)
@@ -1162,12 +1216,13 @@ func update_hud() -> void:
 	if boost_time>0: active_powers.append("BOOST %ds"%ceili(boost_time))
 	if slow_time>0: active_powers.append("TIME %ds"%ceili(slow_time))
 	if spring_time>0: active_powers.append("SPRING %ds"%ceili(spring_time))
+	if smash_charges>0: active_powers.append("SMASH ×%d"%smash_charges)
 	var powers: String="  •  ".join(active_powers)
 	var power_text := powers if not powers.is_empty() else "Collect power-ups to extend your run"
 	if power_text!=last_power_hud:
 		last_power_hud=power_text
 		power_label.text=power_text
-	var challenge_text:="%s  %d/%d  •  Combo %d  •  Gems %d/3"%[challenge_name(),challenge_progress,challenge_goal(),combo,gems]
+	var challenge_text:="%s %d/%d  •  Combo %d  •  Gems %d/3  •  Pets %d"%[challenge_name(),challenge_progress,challenge_goal(),combo,gems,rescued]
 	if challenge_text!=last_challenge_hud:
 		last_challenge_hud=challenge_text
 		challenge_label.text=challenge_text
@@ -1345,6 +1400,12 @@ func test_run() -> void:
 	make_entity(1,0,distance+1.0)
 	for i in range(20): await get_tree().physics_frame
 	assert(not ended and shield_time==0)
+	collect_kind(SMASH)
+	make_entity(1,0,distance+1.0)
+	for i in range(20): await get_tree().physics_frame
+	assert(not ended and smash_charges==2 and smashed==1)
+	smash_charges=0
+	smash_time=0
 	collect_kind(BOOST)
 	assert(boost_time>0)
 	boost_time=0
@@ -1369,6 +1430,10 @@ func test_run() -> void:
 	challenge_event(0)
 	assert(challenge_index==1 and challenge_progress==0)
 	assert(skill_points==before_bonus+1750)
+	collect_kind(RESCUE)
+	assert(rescued==1 and rescue_time==8 and skill_points==before_bonus+2050)
+	collect_kind(SMASH)
+	assert(smash_charges==3 and smash_time==12)
 	assert(not claim_result().is_empty() and claim_result().is_empty())
 	# Exercise explicit retirement without adding a distance-based end condition.
 	ended=false
@@ -1430,7 +1495,7 @@ func soak_review() -> void:
 	assert(coins>20)
 	var result:=FileAccess.open("/tmp/pet-dash-soak.json",FileAccess.WRITE)
 	assert(result!=null)
-	result.store_string(JSON.stringify({"distance":total_distance(),"local_distance":distance,"rebases":rebase_count,"chunk_recycles":chunk_recycles,"steps":steps,"coins":coins,"snacks":snacks,"rows":pattern_count,"mandatory_rows":mandatory_rows,"moving_rows":moving_rows,"allocated":created_entities,"reused":reused_entities,"peak_active":peak_active,"scope":"deterministic headless endless physics; 3200m checkpoint plus continued gameplay, not physical-device FPS"}))
+	result.store_string(JSON.stringify({"distance":total_distance(),"local_distance":distance,"rebases":rebase_count,"chunk_recycles":chunk_recycles,"steps":steps,"coins":coins,"snacks":snacks,"rescued":rescued,"smashed":smashed,"perfect_dodges":perfect_dodges,"rows":pattern_count,"mandatory_rows":mandatory_rows,"moving_rows":moving_rows,"allocated":created_entities,"reused":reused_entities,"peak_active":peak_active,"scope":"deterministic headless endless physics; 3200m checkpoint plus continued gameplay, not physical-device FPS"}))
 	result.close()
 	print("PET_DASH_SOAK_PASS")
 	get_tree().quit(0)
