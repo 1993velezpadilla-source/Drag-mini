@@ -19,9 +19,6 @@ jobs:
         with:
           distribution: temurin
           java-version: '17'
-      - uses: gradle/actions/setup-gradle@v4
-        with:
-          gradle-version: '8.9'
       - name: Verify standalone simulation
         run: |
           mkdir -p /tmp/pet-test
@@ -32,7 +29,8 @@ jobs:
           SDK="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
           yes | "$SDK" --licenses >/dev/null || true
           "$SDK" 'platforms;android-35' 'build-tools;35.0.0'
-      - run: gradle :app:assembleDebug
+      - name: Build standalone APK using Android SDK only
+        run: bash build-sdk.sh
       - name: Verify APK standalone
         run: |
           APK=app/build/outputs/apk/debug/app-debug.apk
