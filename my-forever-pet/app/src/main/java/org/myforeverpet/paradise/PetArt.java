@@ -16,7 +16,7 @@ final class PetArt {
   int bob=(int)(Math.sin(tick/300.0)*2);c.translate(0,bob);
   int[] col={0xff9be5ac,0xfff4b6da,0xffffca89,0xffa3dcef,0xff85dbea,0xfff49cbd,0xffb8acfc,0xffe8b994,0xffb1a4fa,0xfff5c3e7,0xffffce79,0xffa4d8fa};
   int body=col[s.species()%col.length];int hi=0xfff9f2ff;
-  o(0,19,22,4,0x334a3a77);
+  o(0,19,22,4,0x334a3a77);if(s.stage>=1){int stride=(int)(tick/180)%2; r(-8,17+stride,4,2,ink);r(6,18-stride,4,2,ink);}
   if(s.stage==0){o(0,0,17,23,ink);o(0,-1,15,21,0xfffff4d3);o(-6,-10,5,4,0xffdab2ee);o(6,4,6,4,0xff9bd7dc);o(-4,13,4,4,0xfff2adc9);c.restore();return;}
   int shape=s.stage==1?s.field*4:s.species();int kind=shape%4;
   if(s.stage>=2&&s.color>0){int tint=col[(s.color+shape)%col.length];body=tint;}
@@ -33,6 +33,20 @@ final class PetArt {
   if(s.sick)star(21,-21,0xffb95a9b);c.restore();
  }
  private void prop(PetState s){if(s.installation==0)return;int x=124,y=135;if(s.installation==4){r(x-14,y-8,28,15,ink);r(x-12,y-6,24,10,0xffe8f9ff);r(x-10,y-4,20,5,0xff72cde6);}else if(s.installation==5){r(x-14,y-12,28,18,ink);r(x-12,y-10,24,14,0xffc5a2ef);r(x-10,y-10,9,7,0xffffeafa);}else{r(x-2,y-3,4,15,0xff78688b);r(x-10,y+10,20,3,ink);for(int i=0;i<5;i++)star(x-10+i*5,y-9+(i%2)*4,0xffff90b8);}}
+ Bitmap itemIcon(int i){Bitmap b=Bitmap.createBitmap(48,48,Bitmap.Config.ARGB_8888);Canvas out=new Canvas(b);Paint q=new Paint();q.setAntiAlias(false);q.setColor(0xff353052);out.drawRoundRect(5,12,43,37,5,5,q);int[] colors={0xffffcf67,0xffe97db7,0xffffd98a,0xff7ddce9,0xffbca2ed,0xffed92b1};q.setColor(colors[i]);if(i==0){out.drawRect(13,7,35,25,q);out.drawRect(7,25,41,30,q);}else if(i==1){out.drawRect(8,13,21,33,q);out.drawRect(27,13,40,33,q);out.drawRect(21,20,27,27,q);}else if(i==2){out.drawOval(7,12,41,34,q);q.setColor(0xff353052);out.drawOval(13,17,35,29,q);}else if(i==3){out.drawRect(8,19,40,34,q);q.setColor(0xffe9ffff);out.drawRect(10,19,38,22,q);}else if(i==4){out.drawRect(8,16,40,34,q);q.setColor(0xfffff1fe);out.drawRect(10,17,20,25,q);}else{out.drawRect(21,20,27,39,q);for(int n=0;n<3;n++)out.drawOval(7+n*10,6+(n%2)*5,21+n*10,23+(n%2)*5,q);}return b;}
+ Bitmap creatureIcon(PetState state){c.drawColor(Color.TRANSPARENT,PorterDuff.Mode.CLEAR);sprite(state,80,96,1000,1);return Bitmap.createBitmap(buffer,48,60,64,64);}
+ void drawArcade(Canvas out,PetState s,Arcade game,long tick){
+  c.drawColor(0xff9fdde1);for(int i=0;i<5;i++)cloud((i*41+12)%160,27+i%3*49,0xffe5f7f3);
+  if(game.mode==Arcade.FLY){for(int i=0;i<5;i++){int x=(int)game.px[i],y=(int)game.py[i],gap=(int)Math.max(25,37-game.score*.4f);r(x-9,0,18,y-gap,ink);r(x-7,0,14,y-gap-2,0xff74b895);r(x-9,y+gap,18,192-y-gap,ink);r(x-7,y+gap+2,14,192-y-gap-2,0xff74b895);}}
+  else if(game.mode==Arcade.JUMP){for(int i=0;i<5;i++){int x=(int)game.px[i],y=(int)game.py[i];r(x-15,y,30,5,ink);r(x-14,y,28,3,0xff91c98b);}}
+  else{star((int)game.targetX,(int)game.targetY,0xffffbd52);}
+  if(game.mode!=Arcade.STAR){c.save();c.translate(game.x,game.y);c.scale(.36f,.36f);sprite(s,0,0,tick,1);c.restore();}
+  else {c.save();c.translate(20,170);c.scale(.48f,.48f);sprite(s,0,0,tick,1);c.restore();}
+  r(0,0,160,17,0xff353052);t("SCORE "+game.score,80,12,9,0xffffebbd);
+  if(!game.started||game.over){r(13,71,134,42,0xff353052);t(game.over?"GAME OVER":game.mode==Arcade.FLY?"TAP TO FLY":game.mode==Arcade.JUMP?"TOUCH TO STEER":"TAP THE STARS",80,88,9,0xffffffff);t(game.over?"COLLECT REWARD":"READY?",80,103,8,0xffffd98a);}
+  present(out);
+ }
+ private void present(Canvas out){out.drawColor(0xff171b39);float z=Math.min(out.getWidth()/160f,out.getHeight()/192f);float x=(out.getWidth()-160*z)/2,y=(out.getHeight()-192*z)/2;blit.setFilterBitmap(false);out.drawBitmap(buffer,null,new RectF(x,y,x+160*z,y+192*z),blit);}
  void draw(Canvas out,PetState s,int zoom,boolean wall,long tick){
   p.setAntiAlias(false);c.drawColor(0xff20264d);
   if(zoom==0){for(int i=0;i<48;i++){int x=(i*73+19)%160,y=(i*61+7)%192;if(i%7==0)star(x,y,0xffc8b6f7);else r(x,y,1,1,0xffa8b1db);}o(80,95,49,49,0xff4b427e);o(80,95,46,46,0xff55b9db);o(67,76,23,17,0xff91d4a6);o(96,109,22,17,0xff96d2ab);o(62,112,12,8,0xff82c69d);o(66,59,10,4,0xffd4f6fb);o(117,68,4,4,0xffeac5ff);t("MY PLANET",80,17,9,0xfff4edff);t("BIOFUEL "+s.fuel,80,178,9,0xffeddfac);}
@@ -46,7 +60,7 @@ final class PetArt {
    o(127,31,13,13,0xffffe9a5);cloud(32,27,0xffe9f8f9);cloud(92,43,0xffe5e9fa);cloud(147,57,0xffdcf3f4);
    if(water){o(19,130,50,48,0xff4e9ba9);o(142,142,65,52,0xff539cab);r(0,140,160,52,0xff68bec2);for(int i=0;i<12;i++){int x=(i*37+5)%160,y=145+i%4*12;r(x,y,10,1,0xffa3e9df);r(x+2,y+1,4,1,0xff80d6d6);}for(int i=0;i<5;i++){int x=10+i*35;for(int j=0;j<3;j++)r(x+j%2*3,180-j*5,3,6,0xff4c9c9a);}}
    else{ o(14,134,62,50,0xff89c6aa);o(137,129,70,47,0xff91c9ac);r(0,143,160,49,0xff9ed7b1);for(int i=0;i<9;i++){int x=(i*29+6)%160,y=150+i%4*10;r(x,y,1,5,0xff5a9c8a);star(x,y,0xffffe3a9);} }
-   prop(s);sprite(s,80,111,tick,zoom==1?1:2);
+   prop(s);int walk=(int)(Math.sin(tick/2400.0)*13);sprite(s,80+walk,111,tick,zoom==1?1:2);
    for(int i=0;i<s.waste;i++){int x=10+i*24;o(x,172,6,3,ink);o(x,170,4,4,0xffae805b);}
    if(!wall)t(zoom==1?s.fieldName().toUpperCase():s.creature().toUpperCase(),80,14,9,ink);
   }

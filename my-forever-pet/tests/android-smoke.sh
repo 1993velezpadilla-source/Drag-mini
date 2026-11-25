@@ -30,6 +30,18 @@ shot egg
 tap_text "Hatch egg"
 assert_text "Baby"
 shot baby
+tap_text "Mini game"
+tap_text "Flappy Pet"
+shot flappy
+adb shell input tap 300 500
+sleep 2
+tap_text "Finish"
+tap_text "Mini game"
+tap_text "Cloud Jump"
+shot cloud-jump
+adb shell input tap 300 500
+sleep 2
+tap_text "Finish"
 tap_text "Feed"
 tap_text "Fish"
 tap_text "Cell"

@@ -37,7 +37,7 @@ public final class PetState {
  public boolean inspectCell(){if(stage==BABY&&cells[field]>=4){stage=KID;age=0;body=field;return true;}return false;}
  public void feed(int food){if(stage==EGG)return;food=clamp(food,0,3);hunger=clamp(hunger+1,0,5);foods[food]++;if(hunger>0&&happy>0)careClock=0;}
  public void play(){if(stage!=EGG){happy=clamp(happy+2,0,10);if(hunger>0&&happy>0)careClock=0;}}
- public void clean(){if(stage!=EGG){fuel=Math.min(9999,fuel+waste);waste=0;wasteClock=0;}}
+ public void clean(){if(stage!=EGG&&waste>0){coins=Math.min(999999,coins+waste*2);fuel=Math.min(9999,fuel+waste);waste=0;wasteClock=0;}}
  public void treat(){if(stage!=EGG&&sick){if(germs>0)germs--;if(germs==0){sick=false;}}}
  public int species(){return field*4+body;}
  public static final String[] SPECIES={"Mosskit","Bunberry","Dewfox","Pebblepup","Bubblefin","Coralhop","Moonray","Shellotter","Starbat","Cloudhare","Cometbird","Puffowl"};
@@ -49,7 +49,9 @@ public final class PetState {
  public boolean travel(){if(fuel<4)return false;fuel-=4;coins=Math.min(999999,coins+10);return true;}
  public long nextCell(){return stage==BABY&&cells[field]<4?Math.max(1,(15*MIN-cellClock+999)/1000):0;}
  public void changeField(int f){if(stage==EGG||stage==BABY)field=clamp(f,0,2);}
- public void reward(int hits){if(stage!=EGG){coins=Math.min(999999,coins+Math.max(0,hits)*5);play();}}
+ public void reward(int hits){grant((int)Math.min(100,Math.max(0L,(long)hits)*5));}
+ public void grant(int amount){if(stage!=EGG&&amount>0){coins=Math.min(999999,coins+Math.min(100,amount));play();}}
+ public boolean purchaseFood(int food){if(stage==EGG||food<0||food>3||hunger>=5||coins<Economy.foodPrice(food))return false;coins-=Economy.foodPrice(food);feed(food);return true;}
  /** Rank-based playdate rules from GMMan; local partner is a prototype feature. */
  public int rank(){return stage<ADULT?0:Math.max(1,4-Math.min(3,mistakes));}
  public int playdate(int partnerRank,int partnerHunger,int partnerHappy,boolean partnerLove){

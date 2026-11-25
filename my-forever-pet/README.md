@@ -13,3 +13,6 @@ Build: Gradle 8.9, Java 17, SDK 35. Run javac -d /tmp/pet-test app/src/main/java
 
 ## 0.4 visual and interaction pass
 Original pixel art, 12 adult species identifiers and three field-specific families, styled touch controls, actionable cell treatment and timer, Lab shop and inventory with six original items, saved accessory/installation, compendium, waste-to-fuel travel. Sources: official Paradise how-to and FAQ (https://tamagotchi-official.com/gb/series/paradise/howto/ and https://tamagotchi-official.com/gb/series/paradise/faq/), Royal Lab event https://tamagotchi-official.com/gb/news/01_1719/. Anniversary link https://tamagotchi-official.com/gb/news/01_1858/ is Uni, not Paradise. Prices, fuel exchange, disease count and creature designs are original tuning, not extracted mechanics. No official images copied. More distinctive animation, sleeping, expanded fields and additional minigames remain pending.
+
+## 0.5 arcade/economy
+Original pixel-art Flappy Pet and Cloud Jump with current creature, fixed-step simulation, collision, score, capped single claim; Star Catch retained. Free grain, priced premium foods, waste recycling coin rewards, inventory-only owned items, illustrated shop cards and creature collection. Existing save schema preserved. Gameplay rules and pricing are original tuning. No physical-device validation yet.
