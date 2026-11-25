@@ -76,6 +76,10 @@ var shadow_chunks: Dictionary = {}
 var shadow_state: Dictionary = {}
 var shadow_transitions := 0
 const SURF_LIFT := 0.90
+const SURF_SLIDE_LIFT := 0.30
+const EXPERT_RAMP_START := 300.0
+const EXPERT_RAMP_END := 960.0
+const EXPERT_ROW_SECONDS := 0.52
 const WORLD_NAMES := ["Sky Kingdom","Crystal Gardens","Moonlight Isles"]
 var surf_time := 0.0
 var surf_board: Node3D
@@ -785,8 +789,11 @@ func time_orb_eligible(at:float) -> bool:
 	return at>=next_time_orb_at and base_run_speed(at)>=TIME_ORB_MIN_SPEED
 
 func row_spacing(at:float,tier:int) -> float:
-	# Time-based spacing keeps the route readable as top speed rises.
-	return maxf(9.5,base_run_speed(at)*(0.84-0.035*tier))
+	# Preserve the approved opening; compress encounter time as the run gets faster.
+	# At the speed cap, rows are 18.72m apart rather than 26.46m.
+	var expert:=smoothstep(EXPERT_RAMP_START,EXPERT_RAMP_END,at)
+	var seconds:=lerpf(0.84-0.035*tier,EXPERT_ROW_SECONDS,expert)
+	return maxf(9.5,base_run_speed(at)*seconds)
 
 func fill_track() -> void:
 	while spawn_at<distance+95:
@@ -802,7 +809,8 @@ func fill_track() -> void:
 		var action:=-1
 		var treasure_row:=tier>=1 and pattern_count%12==4
 		# Action gates have recovery rows on either side; all three lanes are occupied.
-		var required:=pattern_count>=2 and not treasure_row and (pattern_count==2 or (pattern_count-last_required_row>=2 and (pattern_count-last_required_row>=3 or rng.randf()<0.80)))
+		var expert:=smoothstep(EXPERT_RAMP_START,EXPERT_RAMP_END,distance_offset+spawn_at)
+		var required:=pattern_count>=2 and not treasure_row and (pattern_count==2 or (pattern_count-last_required_row>=2 and (pattern_count-last_required_row>=3 or rng.randf()<lerpf(0.80,1.0,expert))))
 		if required:
 			action=1-last_required_action
 			last_required_action=action
@@ -972,8 +980,7 @@ func gesture(delta: Vector2) -> void:
 			jump_buffer=0.14
 	elif delta.y > 22:
 		if jet_time>0 or jet_lift>0.5: return
-		# Down immediately dismounts surf so the ordinary roll still fits under beams.
-		surf_time=0
+		# Duck on the board instead of dismounting; collision and visuals lower together.
 		jump_buffer=0
 		if player.is_on_floor() and player.velocity.y<=0:
 			slide=SLIDE_SECONDS
@@ -1094,6 +1101,10 @@ func contact_depth(kind:int) -> float:
 	if kind==BOOST: return 0.92
 	return 0.64
 
+func surf_lift() -> float:
+	if surf_time<=0.0: return 0.0
+	return SURF_SLIDE_LIFT if slide>0.0 or air_slide_pending else SURF_LIFT
+
 func pickup_reachable(kind:int,feet_y:float,attracted:bool) -> bool:
 	if kind==PORTAL: return true
 	if kind==AIR_COIN: return jet_time>0 and jet_lift>2.7
@@ -1190,18 +1201,18 @@ func _physics_process(dt: float) -> void:
 	mascot.rotation.z=lerpf(mascot.rotation.z,clampf(player.velocity.x*0.025+lane_impulse*0.09,-0.29,0.29),minf(1,dt*12))
 	mascot.rotation.x=lerpf(mascot.rotation.x,-0.32 if air_slide_pending or slide>0 else clampf(player.velocity.y*0.018,-0.16,0.16),minf(1,dt*15))
 	var running_pose:=player.is_on_floor() and slide<=0 and surf_time<=0 and jet_lift<0.1
-	mascot.position.y=(0.035*(1+sin(clock*32)) if running_pose else 0.0)+(SURF_LIFT+0.04*sin(clock*10) if surf_time>0 else 0.0)+jet_lift
+	mascot.position.y=(0.035*(1+sin(clock*32)) if running_pose else 0.0)+(surf_lift()+0.025*sin(clock*10) if surf_time>0 else 0.0)+jet_lift
 	if surf_board!=null:
 		surf_board.visible=surf_time>0
 		surf_board.rotation.z=clampf(player.velocity.x*0.025,-0.25,0.25)
 		mascot.rotation.z=surf_board.rotation.z if surf_time>0 else mascot.rotation.z
-		surf_board.position.y=0.04*sin(clock*10)
+		surf_board.position.y=surf_lift()-SURF_LIFT+0.025*sin(clock*10)
 	if running_pose and clock>=next_step:
 		next_step=clock+0.19
 		audio.call("play_fx","step")
 	update_effects(dt)
 	player_shadow.position.x=player.position.x
-	var shadow_scale:=1.0/(1.0+maxf(0,player.position.y+(SURF_LIFT if surf_time>0 else 0.0))*0.30)
+	var shadow_scale:=1.0/(1.0+maxf(0,player.position.y+surf_lift())*0.30)
 	player_shadow.scale=Vector3(1.8*shadow_scale,1.3*shadow_scale,1)
 	pickup_flash=maxf(0,pickup_flash-dt)
 	skill_flash=maxf(0,skill_flash-dt)
@@ -1266,7 +1277,7 @@ func _physics_process(dt: float) -> void:
 						reward_burst(Vector3(player.position.x,player.position.y+0.9,0),Color("#ffe69a") if kind==PICKUP or kind==CARD else Color("#9fefff"),kind!=PICKUP)
 					a.set_meta("resolved",true)
 					a.hide()
-			elif jet_time<=0 and jet_lift<0.5 and jet_grace<=0 and hazard_hit(kind,player.position.y+(SURF_LIFT if surf_time>0 else 0.0),slide>0 or air_slide_pending,lateral):
+			elif jet_time<=0 and jet_lift<0.5 and jet_grace<=0 and hazard_hit(kind,player.position.y+surf_lift(),slide>0 or air_slide_pending,lateral):
 				if surf_time>0:
 					surf_time=0
 					surf_grace=0.65
@@ -1308,7 +1319,7 @@ func _physics_process(dt: float) -> void:
 					audio.call("play_fx","crash")
 					audio.call("stop_music")
 					break
-		if jet_time<=0 and jet_lift<0.5 and jet_grace<=0 and not is_pickup(kind) and not bool(a.get_meta("resolved")) and not bool(a.get_meta("skill_clear")) and contact and lateral<0.34 and not hazard_hit(kind,player.position.y+(SURF_LIFT if surf_time>0 else 0.0),slide>0 or air_slide_pending,lateral):
+		if jet_time<=0 and jet_lift<0.5 and jet_grace<=0 and not is_pickup(kind) and not bool(a.get_meta("resolved")) and not bool(a.get_meta("skill_clear")) and contact and lateral<0.34 and not hazard_hit(kind,player.position.y+surf_lift(),slide>0 or air_slide_pending,lateral):
 			# Award once only after the trailing edge clears, not on approach.
 			if a.position.z>=depth:
 				a.set_meta("skill_clear",true)
@@ -1579,7 +1590,7 @@ func update_effects(dt:float) -> void:
 	for i in range(surf_trails.size()):
 		var trail:=surf_trails[i]
 		trail.visible=surf_time>0
-		trail.position=Vector3(player.position.x+(-0.42 if i==0 else 0.42),player.position.y+0.70,1.65)
+		trail.position=Vector3(player.position.x+(-0.42 if i==0 else 0.42),player.position.y+surf_lift()-0.20,1.65)
 		trail.rotation.z=mascot.rotation.z
 		trail.scale.z=1.0+0.12*sin(clock*18+i)
 	var intensity:=clampf((speed-12.0)/13.0,0,1)
@@ -1715,6 +1726,9 @@ func test_run() -> void:
 	assert(base_run_speed(0.0)==START_SPEED and START_SPEED>9.0 and MAX_SPEED==base_run_speed(2000.0))
 	assert(not time_orb_eligible(100.0) and not time_orb_eligible(next_time_orb_at-1.0) and time_orb_eligible(next_time_orb_at))
 	assert(time_orbs_spawned==0 and row_spacing(0.0,0)<12.0)
+	assert(is_equal_approx(row_spacing(100.0,1),base_run_speed(100.0)*0.805))
+	assert(is_equal_approx(row_spacing(960.0,3),MAX_SPEED*EXPERT_ROW_SECONDS))
+	assert(row_spacing(3200.0,3)<19.0 and row_spacing(3200.0,3)>18.0)
 	for entity in entities: assert(int(entity.get_meta("kind"))!=TIME_ORB)
 	assert(power_cards.size()==11 and jet_model!=null)
 	assert(scenery_visibility_updates>0 and not chunks[SEGMENTS-1].visible)
@@ -1836,15 +1850,31 @@ func test_run() -> void:
 	boost_time=0
 	for i in range(3): await get_tree().physics_frame
 	assert(speed>=normal_speed)
-	# Actual board lift clears a low obstacle; down input dismounts.
+	# Surf stays equipped through empty gestures, real jump/duck obstacles and landing.
 	collect_kind(SURF)
+	for i in range(3): await get_tree().physics_frame
 	make_entity(1,LOW_BAR,distance+speed*0.35)
 	for i in range(42): await get_tree().physics_frame
 	assert(not ended and surf_board.visible and surf_time>0)
+	var before_surf:=surf_time
+	gesture(Vector2(0,-80))
+	for i in range(12): await get_tree().physics_frame
+	assert(player.position.y>0.5 and surf_board.visible and surf_time>0 and surf_time<before_surf)
 	gesture(Vector2(0,80))
-	assert(surf_time==0 and slide>0)
+	assert(air_slide_pending and surf_time>0)
+	for i in range(15): await get_tree().physics_frame
+	assert(player.is_on_floor() and slide>0 and surf_board.visible and surf_time>0)
 	for i in range(45): await get_tree().physics_frame
-	assert(not surf_board.visible)
+	assert(slide==0 and surf_time>0)
+	make_entity(1,0,distance+speed*0.34)
+	gesture(Vector2(0,-80))
+	for i in range(60): await get_tree().physics_frame
+	assert(not ended and surf_time>0 and surf_board.visible and player.is_on_floor())
+	make_entity(1,1,distance+speed*0.27)
+	gesture(Vector2(0,80))
+	assert(surf_time>0 and slide>0 and not hazard_hit(1,surf_lift(),true))
+	for i in range(45): await get_tree().physics_frame
+	assert(not ended and surf_board.visible and surf_time>0 and surf_saves==0)
 	collect_kind(SURF)
 	for i in range(3): await get_tree().physics_frame
 	assert(speed>=normal_speed+SURF_SPEED_BONUS-0.5)
@@ -2017,6 +2047,7 @@ func unassisted_test() -> void:
 		ticks+=1
 	assert(not ended and total_distance()>=3200.0,"legal route must work without power-ups; seed %d at %.1f m"%[unassisted_seed,total_distance()])
 	assert(speed>=MAX_SPEED-0.1 and jet_runs==0 and surf_saves==0 and mixed_rows>40)
+	assert(pattern_count>150,"expert run must sustain denser rows at the speed cap")
 	print("PET_DASH_UNASSISTED_PASS seed=",unassisted_seed," distance=",total_distance()," speed=",speed," gates=",mixed_rows)
 	get_tree().quit(0)
 
