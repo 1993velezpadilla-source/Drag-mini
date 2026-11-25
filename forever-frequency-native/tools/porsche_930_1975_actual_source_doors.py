@@ -48,6 +48,12 @@ def bounds(objects):
     return (Vector(min(p[i] for p in coords) for i in range(3)),
             Vector(max(p[i] for p in coords) for i in range(3)))
 car_lo,car_hi=bounds(source_meshes)
+# Cache true 125k-face BODY shell bounds BEFORE splitting the source paint
+# and coat into original moving panels. Those shells lose face counts once
+# correctly separated; camera framing must never rely on post-split counts.
+review_shell_lo,review_shell_hi=bounds([paint,coat,window_trim])
+review_mid=(review_shell_lo+review_shell_hi)*.5
+review_span=max(review_shell_hi-review_shell_lo)
 span=max(car_hi-car_lo)
 if not 4.20<span<4.65:raise RuntimeError("Incorrect original Porsche source length before door extraction")
 
@@ -158,7 +164,10 @@ for side in (-1,1):
     key="LEFT" if side<0 else "RIGHT"
     main=next(r for r in plan[key]["paint"] if r["faces"]==1136)
     world_center=(main["low"]+main["high"])*.5
-    base_positions[key]=world_center
+    # Base motion origin is measured from the actual DETACHED original
+    # artist door body after extraction and parent matrix preservation.
+    # Do not compare an all-panel centroid to just the largest face island.
+    # This avoids reporting fake motion from a mismatched reference point.
     # Hinge at genuine original FRONT door panel edge on car, not hood.
     pivot=bpy.data.objects.new("DOOR_"+key+"_FRONT_HINGE",None)
     bpy.context.scene.collection.objects.link(pivot)
@@ -176,6 +185,10 @@ for side in (-1,1):
         bpy.context.view_layer.update()
         if (actual.matrix_world.translation-matrix.translation).length>.001:
             raise RuntimeError("REJECT FLOATING Porsche original author face groups "+actual.name)
+        if kind=="paint":
+            base_positions[key]=actual.matrix_world @ Vector(
+                sum((Vector(vertex) for vertex in actual.bound_box),Vector())/8.0
+            )
         source_parts[key].append({
             "name":actual.name,"kind":kind,"original_source_triangle_count":tri(actual),
             "component_triangle_counts":sorted(r["faces"] for r in regions),
@@ -231,10 +244,8 @@ camera=bpy.data.objects.new("True artist Porsche mechanic real 3D reviewer",cam_
 scene.collection.objects.link(camera)
 scene.camera=camera
 # True main body view from global source meshes, skip noncar plinth
-shells=[ob for ob in actual_meshes if tri(ob) in (42738,43713,38854)]
-lo,hi=bounds(shells)
-mid=(lo+hi)*.5
-span=max(hi-lo)
+mid=review_mid
+span=review_span
 cam_data.ortho_scale=span*1.25
 camera.location=mid+Vector((1.3,-1.6,.60))*span
 camera.rotation_euler=(mid-camera.location).to_track_quat("-Z","Y").to_euler()
