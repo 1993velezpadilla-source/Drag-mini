@@ -24,6 +24,13 @@ var aura: MeshInstance3D
 var audio: Node
 var audio_button: Button
 var next_step := 0.0
+var shadow_mesh: QuadMesh
+var shadow_material: ShaderMaterial
+var player_shadow: MeshInstance3D
+var pickup_flash := 0.0
+var pickup_feedback: Label
+var best_score := 0
+var best_saved := false
 var rng := RandomNumberGenerator.new()
 var player: CharacterBody3D
 var mascot: Node3D
@@ -169,6 +176,8 @@ func _ready() -> void:
 		make_chunk(chunk, i)
 	update_scenery_visibility()
 	make_player()
+	make_ground_shadow_resources()
+	player_shadow=ground_shadow(self,1.8,1.3)
 	camera = Camera3D.new()
 	camera.position = Vector3(0, 4.25, 7.1)
 	camera.fov = 58
@@ -179,6 +188,7 @@ func _ready() -> void:
 	make_effects()
 	audio=preload("res://dash_audio.gd").new()
 	add_child(audio)
+	load_best()
 	make_hud()
 	fill_track()
 	if OS.get_cmdline_user_args().has("--test"):
@@ -392,6 +402,20 @@ func make_hud() -> void:
 	footer.offset_bottom=-12
 	footer.mouse_filter=Control.MOUSE_FILTER_IGNORE
 	footer.add_theme_stylebox_override("panel",panel_style(Color("#202647eb"),Color("#b9aaff"),18))
+	pickup_feedback=Label.new()
+	ui.add_child(pickup_feedback)
+	pickup_feedback.set_anchors_and_offsets_preset(Control.PRESET_CENTER_BOTTOM)
+	pickup_feedback.offset_left=-150
+	pickup_feedback.offset_right=150
+	pickup_feedback.offset_top=-205
+	pickup_feedback.offset_bottom=-160
+	pickup_feedback.horizontal_alignment=HORIZONTAL_ALIGNMENT_CENTER
+	pickup_feedback.add_theme_font_size_override("font_size",25)
+	pickup_feedback.add_theme_color_override("font_color",Color("#ffe18a"))
+	pickup_feedback.add_theme_color_override("font_outline_color",Color("#253458"))
+	pickup_feedback.add_theme_constant_override("outline_size",6)
+	pickup_feedback.mouse_filter=Control.MOUSE_FILTER_IGNORE
+	pickup_feedback.hide()
 	var bottom := HBoxContainer.new()
 	bottom.mouse_filter=Control.MOUSE_FILTER_IGNORE
 	footer.add_child(bottom)
@@ -474,9 +498,14 @@ func make_entity(which_lane: int, kind: int, at: float) -> void:
 	a.set_meta("resolved",false)
 	entities.append(a)
 	if recycled:
-		if a.get_child_count()>0: (a.get_child(0) as Node3D).rotation.y=0
+		if a.get_child_count()>0:
+			var visual:=a.get_child(0) as Node3D
+			visual.rotation.y=0
+			visual.position.y=0
 		return
 	if using_blender and asset(a,["crate","barrier","coin","snack","magnet","shield","double","boost"][kind],Vector3.ZERO)!=null:
+		if kind>=PICKUP and kind!=BOOST:
+			ground_shadow(a,0.75 if kind==PICKUP else 1.10,0.52 if kind==PICKUP else 0.75)
 		return
 	if kind==0:
 		box(a,Vector3(0,0.45,0),Vector3(1.30,0.90,0.9),Color("#9c5b37"))
@@ -559,6 +588,53 @@ func _unhandled_input(event: InputEvent) -> void:
 			KEY_DOWN: gesture(Vector2(0,80))
 			KEY_P: toggle_pause()
 
+func make_ground_shadow_resources() -> void:
+	shadow_mesh=QuadMesh.new()
+	shadow_mesh.size=Vector2.ONE
+	var shader:=Shader.new()
+	shader.code="shader_type spatial; render_mode unshaded, cull_disabled, depth_draw_never, shadows_disabled; void fragment(){float d=length((UV-vec2(0.5))*2.0); ALBEDO=vec3(0.075,0.045,0.09); ALPHA=(1.0-smoothstep(0.18,1.0,d))*0.38;}"
+	shadow_material=ShaderMaterial.new()
+	shadow_material.shader=shader
+
+func ground_shadow(parent:Node3D,w:float,h:float) -> MeshInstance3D:
+	var n:=MeshInstance3D.new()
+	n.mesh=shadow_mesh
+	n.material_override=shadow_material
+	n.cast_shadow=GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	n.rotation.x=-PI/2
+	n.position.y=0.085
+	n.scale=Vector3(w,h,1)
+	parent.add_child(n)
+	return n
+
+func run_score() -> int:
+	return int(distance*10)+coins*25+snacks*50
+
+func load_best() -> void:
+	if OS.get_cmdline_user_args().has("--test") or OS.get_cmdline_user_args().has("--capture"): return
+	var config:=ConfigFile.new()
+	if config.load("user://dash-record.cfg")==OK:
+		best_score=maxi(0,int(config.get_value("records","best",0)))
+
+func save_best() -> void:
+	if best_saved: return
+	best_saved=true
+	best_score=maxi(best_score,run_score())
+	if OS.get_cmdline_user_args().has("--test") or OS.get_cmdline_user_args().has("--capture"): return
+	var config:=ConfigFile.new()
+	config.set_value("records","best",best_score)
+	config.save("user://dash-record.cfg")
+
+func contact_depth(kind:int) -> float:
+	# Forgiving capsule plus the actual half-depth of each obstacle.
+	if kind==0: return 0.72
+	if kind==1: return 0.49
+	if kind==BOOST: return 0.92
+	return 0.64
+
+func pickup_reachable(kind:int,feet_y:float,attracted:bool) -> bool:
+	return attracted or (feet_y<0.95 if kind!=BOOST else feet_y<0.42)
+
 func _physics_process(dt: float) -> void:
 	if ended or paused_run:
 		return
@@ -592,6 +668,13 @@ func _physics_process(dt: float) -> void:
 		next_step=clock+0.19
 		audio.call("play_fx","step")
 	update_effects(dt)
+	player_shadow.position.x=player.position.x
+	var shadow_scale:=1.0/(1.0+maxf(0,player.position.y)*0.30)
+	player_shadow.scale=Vector3(1.8*shadow_scale,1.3*shadow_scale,1)
+	pickup_flash=maxf(0,pickup_flash-dt)
+	pickup_feedback.visible=pickup_flash>0
+	if pickup_flash>0:
+		pickup_feedback.modulate.a=minf(1,pickup_flash*4)
 	for i in range(feet.size()):
 		feet[i].position.z=0.16+sin(clock*16+i*PI)*0.25 if player.is_on_floor() and slide<=0 else 0.16
 		feet[i].position.y=0.20+maxf(0,sin(clock*16+i*PI))*0.18 if player.is_on_floor() and slide<=0 else 0.20
@@ -607,14 +690,17 @@ func _physics_process(dt: float) -> void:
 		a.position.z=float(a.get_meta("at"))*-1+distance
 		var kind:=int(a.get_meta("kind"))
 		if kind>=PICKUP and kind!=BOOST and a.visible and a.position.z > -45.0 and a.get_child_count()>0:
-			(a.get_child(0) as Node3D).rotation.y+=dt*2.5
+			var visual:=a.get_child(0) as Node3D
+			visual.rotation.y+=dt*2.5
+			visual.position.y=sin(clock*4+float(a.get_meta("at"))*0.38)*0.07
 		# Test the full swept depth interval, with the same world sizes as the meshes.
-		var contact := maxf(old_z,a.position.z)>=-0.80 and minf(old_z,a.position.z)<=0.80
+		var depth:=contact_depth(kind)
+		var contact := maxf(old_z,a.position.z)>=-depth and minf(old_z,a.position.z)<=depth
 		var attraction := kind==PICKUP and magnet_time>0 and absf(a.position.z)<5.0
 		if attraction: a.position.x=move_toward(a.position.x,player.position.x,dt*19)
 		if (contact or attraction) and not bool(a.get_meta("resolved")) and absf(a.position.x-player.position.x)<0.92:
 			if kind>=PICKUP:
-				if player.position.y<1.1 or attraction:
+				if pickup_reachable(kind,player.position.y,attraction):
 					collect_kind(kind)
 					a.set_meta("resolved",true)
 					a.hide()
@@ -640,9 +726,13 @@ func collect_kind(kind: int) -> void:
 	match kind:
 		PICKUP:
 			coins+=2 if double_time>0 else 1
+			pickup_feedback.text="+2 coins" if double_time>0 else "+1 coin"
+			pickup_flash=0.55
 			audio.call("play_fx","coin")
 		SNACK:
 			snacks+=1
+			pickup_feedback.text="+1 snack"
+			pickup_flash=0.8
 			audio.call("play_fx","snack")
 		MAGNET:
 			magnet_time=12.0
@@ -652,7 +742,10 @@ func collect_kind(kind: int) -> void:
 			double_time=12.0
 		BOOST:
 			boost_time=6.0
-	if kind>=MAGNET: audio.call("play_fx","power")
+	if kind>=MAGNET:
+		pickup_feedback.text=["MAGNET","SHIELD","DOUBLE COINS","TURBO"][kind-MAGNET]
+		pickup_flash=1.0
+		audio.call("play_fx","power")
 
 func make_effects() -> void:
 	fx=Node3D.new()
@@ -710,7 +803,7 @@ func update_hud() -> void:
 	var key := str(int(distance))+":"+str(coins)+":"+str(snacks)+":"+str(ended)+":"+str(paused_run)+":"+str(started)
 	if key==last_hud: return
 	last_hud=key
-	points_label.text="%d pts"%(int(distance*10)+coins*25+snacks*50)
+	points_label.text="%d pts"%run_score()
 	score_label.text="%d m"%int(distance)
 	coin_label.text="%d coins"%coins
 	snack_label.text="%d snacks"%snacks
@@ -718,7 +811,8 @@ func update_hud() -> void:
 	pause_button.disabled=ended
 	result_panel.visible=ended or paused_run
 	if ended:
-		result_text.text="RUN COMPLETE\n%d m  •  %d coins\n%d snacks collected"%[int(distance),coins,snacks]
+		save_best()
+		result_text.text="RUN COMPLETE\n%d pts  •  Best %d\n%d m  •  %d coins  •  %d snacks"%[run_score(),best_score,int(distance),coins,snacks]
 		result_button.text="Run again"
 	elif paused_run:
 		result_text.text="PAUSED"
@@ -748,6 +842,10 @@ func test_run() -> void:
 	spawn_at=distance+1000
 	assert(hazard_hit(0,0,false) and not hazard_hit(0,1.1,false))
 	assert(hazard_hit(1,0,false) and not hazard_hit(1,0,true))
+	assert(contact_depth(1)<contact_depth(0))
+	assert(not pickup_reachable(PICKUP,1.5,false) and pickup_reachable(PICKUP,1.5,true))
+	assert(not pickup_reachable(BOOST,0.7,false) and pickup_reachable(BOOST,0,false))
+	assert(player_shadow.mesh==shadow_mesh)
 	gesture(Vector2(0,-80))
 	for i in range(15): await get_tree().physics_frame
 	assert(player.position.y>0.9)
@@ -793,6 +891,7 @@ func test_run() -> void:
 	make_entity(1,0,distance+1.0)
 	for i in range(20): await get_tree().physics_frame
 	assert(ended and result_panel.visible)
+	assert(best_saved and best_score>=run_score())
 	assert(not claim_result().is_empty() and claim_result().is_empty())
 	print("PET_DASH_3D_SMOKE_PASS")
 	get_tree().quit(0)

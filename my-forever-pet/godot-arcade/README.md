@@ -6,3 +6,5 @@ Second pass: Blender GLB generation with material batching, actual rendered view
 Android lab export: separate package org.myforeverpet.dashlab, ARM64 debug signing only. Does not overwrite native pet app or grant shared currency. Swipe triggers during drag rather than waiting for release; synthetic mouse events ignored. Device gameplay and performance still require physical testing.
 
 0.2 lab: compact interactive HUD, pause/results panel, finish/retry, five-coin trails and varied safe-lane obstacle patterns, recycled entities and jump buffering/fast fall. These are still isolated lab rewards. Automated smoke now checks reuse and repeated coin pickup. Physical performance and final reference-quality art are not yet verified.
+
+0.5 lab: per-type pickup/contact depths, grounded boost trigger, reusable radial contact shadows, floating pickup feedback, and local best score. CI tests do not modify a player's records. These are not shared native app rewards. Physical device performance and visual parity remain open.
