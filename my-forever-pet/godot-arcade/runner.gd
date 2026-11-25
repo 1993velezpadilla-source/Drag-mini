@@ -59,6 +59,8 @@ var snacks := 0
 var speed := 9.0
 var started := false
 var ended := false
+var retired_run := false
+var retire_button: Button
 var paused_run := false
 var touch_start := Vector2.ZERO
 var touch_active := false
@@ -407,7 +409,7 @@ func make_hud() -> void:
 	score_label=hud_label(stats,"0 m",18,Color("#f0f1ff"))
 	coin_label=hud_label(stats,"0 coins",18,Color("#ffd775"))
 	snack_label=hud_label(stats,"0 snacks",18,Color("#a9e2bd"))
-	hud_label(column,"LITTLE MOSSKIT  •  SKY BRIDGE",16,Color("#cbd9ff"))
+	hud_label(column,"LITTLE MOSSKIT  •  ENDLESS RUN",16,Color("#cbd9ff"))
 	power_label=hud_label(column,"MAGNET  •  SHIELD  •  ×2  •  BOOST",15,Color("#e9d5ff"))
 	var footer := PanelContainer.new()
 	ui.add_child(footer)
@@ -453,12 +455,6 @@ func make_hud() -> void:
 		var delta:=Vector2(0,-80 if action=="↑ Jump" else 80)
 		button.button_down.connect(func(): gesture(delta))
 		actions.add_child(button)
-	var exit := Button.new()
-	exit.text="Exit & collect"
-	exit.custom_minimum_size=Vector2(148,48)
-	style_button(exit,true)
-	exit.pressed.connect(finish_run)
-	bottom.add_child(exit)
 	result_panel=PanelContainer.new()
 	ui.add_child(result_panel)
 	result_panel.set_anchors_and_offsets_preset(Control.PRESET_CENTER)
@@ -480,11 +476,20 @@ func make_hud() -> void:
 		else:
 			toggle_pause())
 	result_box.add_child(result_button)
+	retire_button=Button.new()
+	retire_button.text="End run & collect"
+	retire_button.custom_minimum_size.y=48
+	style_button(retire_button,true)
+	retire_button.pressed.connect(retire_run)
+	result_box.add_child(retire_button)
+	retire_button.hide()
 	result_panel.hide()
 	update_hud()
 
-func finish_run() -> void:
-	if not ended:
+func retire_run() -> void:
+	# Only a deliberate choice from Pause may end a non-crashed endless run.
+	if not ended and paused_run:
+		retired_run=true
 		ended=true
 		paused_run=false
 		update_hud()
@@ -926,12 +931,13 @@ func update_hud() -> void:
 	score_label.text="%d m"%int(distance)
 	coin_label.text="%d coins"%coins
 	snack_label.text="%d snacks"%snacks
-	hint.text="Run complete" if ended else "Paused" if paused_run else "Swipe left / right" if started else "Swipe to start"
+	hint.text=("Run ended" if retired_run else "Game over") if ended else "Paused" if paused_run else "Swipe left / right" if started else "Swipe to start"
 	pause_button.disabled=ended
 	result_panel.visible=ended or paused_run
+	retire_button.visible=paused_run and not ended
 	if ended:
 		save_best()
-		result_text.text="RUN COMPLETE\n%d pts  •  Best %d\n%d m  •  %d coins  •  %d snacks"%[run_score(),best_score,int(distance),coins,snacks]
+		result_text.text="%s\n%d pts  •  Best %d\n%d m  •  %d coins  •  %d snacks"%["RUN ENDED" if retired_run else "GAME OVER",run_score(),best_score,int(distance),coins,snacks]
 		result_button.text="Run again"
 	elif paused_run:
 		result_text.text="PAUSED"
@@ -1013,7 +1019,10 @@ func test_run() -> void:
 	for i in range(20):
 		await get_tree().physics_frame
 	assert(distance>old_distance)
+	retire_run()
+	assert(not ended,"cannot end a live run without pausing")
 	toggle_pause()
+	assert(retire_button.visible)
 	var frozen:=distance
 	for i in range(3):
 		await get_tree().physics_frame
@@ -1044,9 +1053,14 @@ func test_run() -> void:
 	boost_time=0
 	make_entity(1,0,distance+1.0)
 	for i in range(20): await get_tree().physics_frame
-	assert(ended and result_panel.visible)
+	assert(ended and result_panel.visible and not retired_run and not retire_button.visible)
 	assert(best_saved and best_score>=run_score())
 	assert(not claim_result().is_empty() and claim_result().is_empty())
+	# Exercise explicit retirement without adding a distance-based end condition.
+	ended=false
+	paused_run=true
+	retire_run()
+	assert(ended and retired_run and not paused_run)
 	print("PET_DASH_3D_SMOKE_PASS")
 	get_tree().quit(0)
 
@@ -1088,16 +1102,19 @@ func soak_review() -> void:
 	await get_tree().physics_frame
 	started=true
 	var steps:=0
-	while distance<900.0 and not ended and steps<7200:
+	while distance<3000.0 and not ended and steps<16000:
 		await get_tree().physics_frame
 		steps+=1
-	assert(not ended and distance>=900.0,"reachable generated route failed")
+	assert(not ended and distance>=3000.0,"endless route stopped unexpectedly")
+	var checkpoint:=distance
+	for i in range(180): await get_tree().physics_frame
+	assert(not ended and distance>checkpoint+30.0,"run must continue past the test checkpoint")
 	assert(pattern_count>35 and reused_entities>100 and mandatory_rows>3)
 	assert(created_entities<180 and peak_active<130)
 	assert(coins>20)
 	var result:=FileAccess.open("/tmp/pet-dash-soak.json",FileAccess.WRITE)
 	assert(result!=null)
-	result.store_string(JSON.stringify({"distance":distance,"steps":steps,"coins":coins,"snacks":snacks,"rows":pattern_count,"mandatory_rows":mandatory_rows,"allocated":created_entities,"reused":reused_entities,"peak_active":peak_active,"scope":"deterministic headless physics; not physical-device FPS"}))
+	result.store_string(JSON.stringify({"distance":distance,"steps":steps,"coins":coins,"snacks":snacks,"rows":pattern_count,"mandatory_rows":mandatory_rows,"allocated":created_entities,"reused":reused_entities,"peak_active":peak_active,"scope":"deterministic headless endless physics; 3000m checkpoint plus continued gameplay, not physical-device FPS"}))
 	result.close()
 	print("PET_DASH_SOAK_PASS")
 	get_tree().quit(0)

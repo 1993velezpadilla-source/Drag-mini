@@ -54,7 +54,7 @@ jobs:
         run: |
           set -euo pipefail
           G=/tmp/godot/Godot_v4.4.1-stable_linux.x86_64
-          timeout 60 "$G" --headless --fixed-fps 60 --path my-forever-pet/godot-arcade -- --soak 2>&1 | tee /tmp/dash-soak.log
+          timeout 120 "$G" --headless --fixed-fps 60 --path my-forever-pet/godot-arcade -- --soak 2>&1 | tee /tmp/dash-soak.log
           grep -F PET_DASH_SOAK_PASS /tmp/dash-soak.log
           ! grep -E 'SCRIPT ERROR|Parse Error' /tmp/dash-soak.log
           cat /tmp/pet-dash-soak.json
