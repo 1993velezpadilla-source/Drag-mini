@@ -920,17 +920,20 @@ func capture_review() -> void:
 	started=true
 	# Capture during the initial safe stretch rather than after a slow render
 	# benchmark might have let the uncontrolled player crash.
-	while distance<7.0:
+	print("DASH_CAPTURE_BEGIN")
+	while distance<3.0 and not ended:
 		await get_tree().physics_frame
+	print("DASH_CAPTURE_DISTANCE ",distance)
 	await RenderingServer.frame_post_draw
 	var review:=get_viewport().get_texture().get_image()
 	assert(review.save_png("/tmp/pet-dash-review.png")==OK)
+	print("DASH_CAPTURE_IMAGE_SAVED")
 	var frame_ms: Array[float]=[]
 	var last_us:=Time.get_ticks_usec()
-	for i in range(45):
+	for i in range(15):
 		await RenderingServer.frame_post_draw
 		var now:=Time.get_ticks_usec()
-		if i>=5: frame_ms.append(float(now-last_us)/1000.0)
+		if i>=3: frame_ms.append(float(now-last_us)/1000.0)
 		last_us=now
 	frame_ms.sort()
 	assert(not ended,"capture driver crashed during timing")

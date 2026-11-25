@@ -56,15 +56,18 @@ jobs:
           ! grep -E 'SCRIPT ERROR|Parse Error' /tmp/dash-soak.log
           cat /tmp/pet-dash-soak.json
       - name: Capture actual 3D viewport
+        id: visual
+        continue-on-error: true
         run: |
           set -euo pipefail
-          xvfb-run -a timeout 180 /tmp/godot/Godot_v4.4.1-stable_linux.x86_64 --path my-forever-pet/godot-arcade --rendering-method gl_compatibility --resolution 540x960 -- --capture
+          xvfb-run -a timeout 180 /tmp/godot/Godot_v4.4.1-stable_linux.x86_64 --path my-forever-pet/godot-arcade --rendering-method gl_compatibility --audio-driver Dummy --resolution 540x960 -- --capture
           test -s /tmp/pet-dash-review.png
           test -s /tmp/pet-dash-render-metrics.json
           cat /tmp/pet-dash-render-metrics.json
           python3 my-forever-pet/godot-arcade/review_frame.py /tmp/pet-dash-review.png /tmp/pet-dash-visual-metrics.json
           cat /tmp/pet-dash-visual-metrics.json
       - uses: actions/upload-artifact@v4
+        if: always()
         with:
           name: Pet-Dash-3D-real-game-review
           path: |
@@ -111,3 +114,6 @@ jobs:
           name: Pet-Dash-3D-Lab-Android-ARM64-debug
           path: /tmp/Pet-Dash-3D-Lab-arm64.apk
           if-no-files-found: error
+      - name: Require visual verification independently of APK packaging
+        if: always()
+        run: test "${{ steps.visual.outcome }}" = success
