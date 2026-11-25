@@ -642,4 +642,22 @@ for k in range(11):
 ring((0,2.46,.17),.20,.035,gold)
 paw((0,2.43,.22),treasure_glow,.65)
 export('treasure_gate',14000)
+# Original wearable twin-engine jetpack, compact readable silhouette.
+clear()
+jetblue=mat('jetpack cobalt enamel',(.07,.23,.55),.34,.26)
+jetcream=mat('jetpack ivory shell',(.79,.86,.93),.18,.28)
+jetflame=mat('jetpack ion flame',(.12,.83,1),.12,.22)
+jbs=jetflame.node_tree.nodes.get('Principled BSDF')
+jbs.inputs['Emission Color'].default_value=(.12,.83,1,1)
+jbs.inputs['Emission Strength'].default_value=1.8
+box((0,.16,0),(.66,.64,.23),jetblue,.07)
+for x in [-.39,.39]:
+ ball((x,.19,-.06),(.35,.82,.36),jetcream)
+ cyl((x,-.07,-.06),.18,.18,.14,gold)
+ cyl((x,-.24,-.06),.13,.18,.18,jetblue)
+ ball((x,-.43,-.06),(.19,.44,.19),jetflame)
+ ball((x,.60,-.06),(.20,.15,.21),gold)
+box((0,.19,-.16),(.34,.28,.09),gold,.04)
+ball((0,.19,-.23),(.16,.16,.08),jetflame)
+export('jetpack',12000)
 with open(os.path.join(OUT,'mesh-metrics.json'),'w') as out: json.dump(stats,out,indent=2)

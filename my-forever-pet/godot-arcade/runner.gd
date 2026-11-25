@@ -6,10 +6,10 @@ const SEGMENTS := 8
 const GRAVITY := 25.0
 const JUMP_SPEED := 10.5
 const PLAYER_Z := 0.0
-const START_SPEED := 11.5
-const MAX_SPEED := 27.0
+const START_SPEED := 13.0
+const MAX_SPEED := 30.0
 const SPEED_GAIN := 0.024
-const TIME_ORB_MIN_SPEED := 25.0
+const TIME_ORB_MIN_SPEED := 28.0
 const TIME_ORB_DURATION := 6.5
 const TIME_ORB_FACTOR := 0.70
 const TIME_ORB_RECOVERY := 0.65
@@ -37,6 +37,21 @@ const COURIER := 19
 const ROLLER := 20
 const CARD := 21
 const TREASURE := 22
+const JETPACK := 23
+const AIR_COIN := 24
+const JET_DURATION := 8.0
+const JET_HEIGHT := 4.4
+const SURF_DURATION := 14.0
+var jet_time := 0.0
+var jet_lift := 0.0
+var jet_grace := 0.0
+var jet_model: Node3D
+var jet_coin_at := 0.0
+var jet_coins := 0
+var jet_runs := 0
+var mixed_rows := 0
+var last_required_row := -4
+var safe_lane_streak := 0
 var treasure_routes := 0
 var treasure_opened := 0
 var treasure_time := 0.0
@@ -134,7 +149,7 @@ var player_shape: CollisionShape3D
 var camera: Camera3D
 var chunks: Array[Node3D] = []
 var entities: Array[Area3D] = []
-var pools: Array = [[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[]]
+var pools: Array = [[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[]]
 var created_entities := 0
 var reused_entities := 0
 var previous_safe_lane := 1
@@ -331,6 +346,8 @@ func _ready() -> void:
 	make_effects()
 	surf_board=asset(player,"surf_board",Vector3.ZERO)
 	if surf_board!=null: surf_board.hide()
+	jet_model=asset(mascot,"jetpack",Vector3(0,0.85,-0.58))
+	if jet_model!=null: jet_model.hide()
 	rescue_buddy=asset(self,"rescue",Vector3(0,0,1.55))
 	if rescue_buddy!=null:
 		rescue_buddy.scale=Vector3.ONE*0.64
@@ -551,9 +568,9 @@ func make_hud() -> void:
 	panel.offset_left=10
 	panel.offset_right=-10
 	panel.offset_top=10
-	panel.offset_bottom=112
+	panel.offset_bottom=72
 	panel.mouse_filter=Control.MOUSE_FILTER_IGNORE
-	panel.add_theme_stylebox_override("panel",panel_style(Color("#122748e8"),Color("#92c6ff"),16))
+	panel.add_theme_stylebox_override("panel",panel_style(Color("#101b2b99"),Color("#ffffff26"),12))
 	var column := VBoxContainer.new()
 	column.mouse_filter=Control.MOUSE_FILTER_IGNORE
 	column.add_theme_constant_override("separation",2)
@@ -561,7 +578,7 @@ func make_hud() -> void:
 	var header := HBoxContainer.new()
 	header.mouse_filter=Control.MOUSE_FILTER_IGNORE
 	column.add_child(header)
-	var brand:=hud_label(header,"PET DASH",27,Color("#ffcf61"))
+	var brand:=hud_label(header,"PET DASH",16,Color("#fff0b5"))
 	brand.add_theme_color_override("font_outline_color",Color("#38203f"))
 	brand.add_theme_constant_override("outline_size",4)
 	status=brand
@@ -585,23 +602,29 @@ func make_hud() -> void:
 	score_label=hud_label(stats,"0 m",18,Color("#f0f1ff"))
 	coin_label=hud_label(stats,"0 coins",18,Color("#ffd775"))
 	snack_label=hud_label(stats,"0 snacks",18,Color("#a9e2bd"))
-	world_label=hud_label(column,"SKY KINGDOM  •  ENDLESS RUN",12,Color("#cbd9ff"))
+	world_label=hud_label(column,"SKY KINGDOM",10,Color("#cbd9ff"))
+	world_label.hide()
 	power_label=hud_label(column,"Find power-ups and secret sky gems",12,Color("#e9d5ff"))
-	power_label.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART
+	power_label.hide()
 	power_grid=GridContainer.new()
 	power_grid.columns=3
 	power_grid.mouse_filter=Control.MOUSE_FILTER_IGNORE
 	power_grid.add_theme_constant_override("h_separation",8)
 	power_grid.add_theme_constant_override("v_separation",3)
-	column.add_child(power_grid)
-	for entry in [["MAGNET",12.0,"#70e8ff"],["SHIELD",15.0,"#8ee5a5"],["×2 COINS",12.0,"#ffcf61"],["TURBO",6.0,"#ff8b59"],["TIME BUBBLE",TIME_ORB_DURATION,"#b7a0ff"],["DOUBLE JUMP",10.0,"#83dcff"],["SMASH",12.0,"#ffac78"],["SKY SURF",10.0,"#8af0f5"],["TREASURE",5.0,"#ffdf87"],["RESCUE",8.0,"#f4a4cf"]]:
+	ui.add_child(power_grid)
+	power_grid.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_LEFT)
+	power_grid.offset_left=12
+	power_grid.offset_top=-175
+	power_grid.offset_right=12
+	power_grid.offset_bottom=-175
+	for entry in [["MAGNET",12.0,"#70e8ff"],["SHIELD",15.0,"#8ee5a5"],["×2 COINS",12.0,"#ffcf61"],["TURBO",6.0,"#ff8b59"],["TIME BUBBLE",TIME_ORB_DURATION,"#b7a0ff"],["DOUBLE JUMP",10.0,"#83dcff"],["SMASH",12.0,"#ffac78"],["SKY SURF",SURF_DURATION,"#8af0f5"],["JETPACK",JET_DURATION,"#ffbd77"],["TREASURE",5.0,"#ffdf87"],["RESCUE",8.0,"#f4a4cf"]]:
 		make_power_card(str(entry[0]),float(entry[1]),Color(str(entry[2])))
 	power_grid.hide()
-	challenge_label=hud_label(column,"Collect 15 coins",13,Color("#ffe5a4"))
+	challenge_label=hud_label(column,"Collect 15 coins",11,Color("#ffe5a4"))
 	challenge_label.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART
 	challenge_bar=ProgressBar.new()
 	challenge_bar.show_percentage=false
-	challenge_bar.custom_minimum_size.y=4
+	challenge_bar.custom_minimum_size.y=3
 	challenge_bar.add_theme_stylebox_override("background",panel_style(Color("#15213c"),Color("#354b73"),4))
 	challenge_bar.add_theme_stylebox_override("fill",panel_style(Color("#e8b64e"),Color("#f9db89"),4))
 	challenge_bar.mouse_filter=Control.MOUSE_FILTER_IGNORE
@@ -623,7 +646,7 @@ func make_hud() -> void:
 	pickup_feedback.offset_top=-205
 	pickup_feedback.offset_bottom=-160
 	pickup_feedback.horizontal_alignment=HORIZONTAL_ALIGNMENT_CENTER
-	pickup_feedback.add_theme_font_size_override("font_size",25)
+	pickup_feedback.add_theme_font_size_override("font_size",17)
 	pickup_feedback.add_theme_color_override("font_color",Color("#ffe18a"))
 	pickup_feedback.add_theme_color_override("font_outline_color",Color("#253458"))
 	pickup_feedback.add_theme_constant_override("outline_size",6)
@@ -634,10 +657,10 @@ func make_hud() -> void:
 	skill_feedback.set_anchors_and_offsets_preset(Control.PRESET_CENTER)
 	skill_feedback.offset_left=-230
 	skill_feedback.offset_right=230
-	skill_feedback.offset_top=-105
-	skill_feedback.offset_bottom=-60
+	skill_feedback.offset_top=-278
+	skill_feedback.offset_bottom=-242
 	skill_feedback.horizontal_alignment=HORIZONTAL_ALIGNMENT_CENTER
-	skill_feedback.add_theme_font_size_override("font_size",28)
+	skill_feedback.add_theme_font_size_override("font_size",19)
 	skill_feedback.add_theme_color_override("font_color",Color("#ffe297"))
 	skill_feedback.add_theme_color_override("font_outline_color",Color("#252655"))
 	skill_feedback.add_theme_constant_override("outline_size",6)
@@ -721,16 +744,17 @@ func rebase_track() -> void:
 	distance-=shift
 	distance_offset+=shift
 	spawn_at-=shift
+	jet_coin_at-=shift
 	for a in entities: a.set_meta("at",float(a.get_meta("at"))-shift)
 	for i in range(safe_rows.size()): safe_rows[i].x-=shift
 	driver_action_at-=shift
 	rebase_count+=1
 
 func is_pickup(kind:int) -> bool:
-	return (kind>=PICKUP and kind<=BOOST) or (kind>=TIME_ORB and kind<=PORTAL) or kind==CARD or kind==TREASURE
+	return (kind>=PICKUP and kind<=BOOST) or (kind>=TIME_ORB and kind<=PORTAL) or kind==CARD or kind==TREASURE or kind==JETPACK or kind==AIR_COIN
 
 func hazard_for(tier:int) -> int:
-	if tier==0: return rng.randi_range(0,1)
+	if tier==0: return [0,1,CART,LOW_BAR][rng.randi_range(0,3)]
 	var choices:Array[int]=[0,1,LOW_BAR,CART]
 	if tier>=2:
 		choices.append(TALL)
@@ -746,71 +770,72 @@ func time_orb_eligible(at:float) -> bool:
 
 func row_spacing(at:float,tier:int) -> float:
 	# Time-based spacing keeps the route readable as top speed rises.
-	return maxf(12.0,base_run_speed(at)*(1.10-0.045*tier))
+	return maxf(9.5,base_run_speed(at)*(0.88-0.035*tier))
 
 func fill_track() -> void:
 	while spawn_at<distance+95:
+		var tier:=mini(3,int((distance_offset+spawn_at)/60.0))
 		var free_lane:=clampi(previous_safe_lane+rng.randi_range(-1,1),0,2)
+		if safe_lane_streak>=1 and free_lane==previous_safe_lane:
+			free_lane=previous_safe_lane+(-1 if previous_safe_lane==2 else 1)
+		safe_lane_streak=safe_lane_streak+1 if free_lane==previous_safe_lane else 0
 		var blocked_lanes:Array[int]=[]
 		for i in range(3):
 			if i!=free_lane: blocked_lanes.append(i)
-		var tier:=mini(3,int((distance_offset+spawn_at)/70.0))
-		var first:=rng.randi_range(0,1)
 		var action:=-1
-		# Every 12th qualifying row opens a second, optional reward lane.
-		# It never replaces the guaranteed ordinary route.
-		var treasure_row:=tier>=1 and pattern_count%12==4 and pattern_count%7!=5
-		var alternate_lane:=-1
-		if treasure_row:
-			alternate_lane=free_lane+(-1 if free_lane==2 else 1)
-			var closed_lane:=3-free_lane-alternate_lane
-			make_entity(closed_lane,TALL,spawn_at)
-			make_entity(alternate_lane,TREASURE,spawn_at)
-			for offset in [2.0,3.5,5.0]: make_entity(alternate_lane,PICKUP,spawn_at+offset)
-			treasure_routes+=1
-		# After the warm-up, occasional full-width obstacle rows require a
-		# vertical action. The recommended lane stays reachable laterally.
-		if tier>=1 and pattern_count%7==5:
-			action=0 if pattern_count%2==1 else 1
-			for i in range(3): make_entity(i,action,spawn_at)
+		var treasure_row:=tier>=1 and pattern_count%12==4
+		# Action gates have recovery rows on either side; all three lanes are occupied.
+		var required:=pattern_count>=2 and pattern_count-last_required_row>=3 and not treasure_row and rng.randf()<(0.72 if tier>=1 else 0.50)
+		if required:
+			action=0 if rng.randf()<0.5 else 1
+			make_entity(free_lane,action,spawn_at)
+			for blocked in blocked_lanes: make_entity(blocked,TALL,spawn_at)
+			last_required_row=pattern_count
 			mandatory_rows+=1
-		elif not treasure_row:
-			var kind:=hazard_for(tier)
-			make_entity(blocked_lanes[first],kind,spawn_at)
-			if kind==CART or kind==COURIER or kind==ROLLER: moving_rows+=1
-			if tier>=1 or (pattern_count>=1 and pattern_count%2==1):
-				var second:=hazard_for(tier)
-				make_entity(blocked_lanes[1-first],second,spawn_at)
-				if second==CART or second==COURIER or second==ROLLER: moving_rows+=1
-		# Keep collectible trails clear of the mandatory hazard itself.
-		if action<0:
-			for i in range(5): make_entity(free_lane,PICKUP,spawn_at-3.2+i*1.5)
+			mixed_rows+=1
+		elif treasure_row:
+			var alternate_lane:=free_lane+(-1 if free_lane==2 else 1)
+			make_entity(3-free_lane-alternate_lane,TALL,spawn_at)
+			make_entity(alternate_lane,TREASURE,spawn_at)
+			treasure_routes+=1
 		else:
-			for offset in [-3.2,-1.8,1.8,3.2]: make_entity(free_lane,PICKUP,spawn_at+offset)
-		if pattern_count%5==2:
+			for blocked in blocked_lanes:
+				var kind:=hazard_for(tier)
+				make_entity(blocked,kind,spawn_at)
+				if kind==CART or kind==COURIER or kind==ROLLER: moving_rows+=1
+		# Coin trails no longer paint a continuous guaranteed safe lane.
+		# Some lead to jumpable hazards; the mandatory route is still reachable.
+		var coin_lane:=free_lane
+		if action<0 and not treasure_row and pattern_count%3==1: coin_lane=blocked_lanes[0]
+		if action==0:
+			for offset in [-2.0,0.0,2.0]:
+				make_entity(free_lane,SKY_RING if offset==0.0 and pattern_count%5==0 else PICKUP,spawn_at+offset)
+				if offset!=0.0 or pattern_count%5!=0:
+					entities.back().set_meta("height",1.6)
+					entities.back().position.y=1.6
+		elif action==1:
+			for offset in [-2.4,2.4]: make_entity(free_lane,PICKUP,spawn_at+offset)
+		else:
+			for offset in [-2.4,-1.2,0.0,1.2]: make_entity(coin_lane,PICKUP,spawn_at+offset)
+		if pattern_count%7==2:
 			var power:=MAGNET+rng.randi_range(0,3)
-			var pickup_at:=distance_offset+spawn_at+5.1
+			var pickup_at:=distance_offset+spawn_at+3.6
+			var slot:=int(pattern_count/7.0)%6
 			if time_orb_eligible(pickup_at):
 				power=TIME_ORB
 				time_orbs_spawned+=1
 				next_time_orb_at=pickup_at+bubble_rng.randf_range(650.0,1000.0)
-			elif tier>=1 and pattern_count%15==7: power=SPRING
-			elif tier>=2 and pattern_count%30==12: power=SMASH
-			elif tier>=2 and pattern_count%30==27: power=SURF
-			make_entity(free_lane,power,spawn_at+5.1)
-		elif rng.randf()<0.60:
-			make_entity(free_lane,SNACK,spawn_at+4.8)
-		if tier>=1 and action<0 and pattern_count%9==3:
-			# Optional airborne route; ground coins remain available.
-			make_entity(free_lane,SKY_RING,spawn_at)
-		if tier>=1 and action<0 and pattern_count%11==8:
-			make_entity(free_lane,GEM,spawn_at+6.7)
-		if tier>=1 and action<0 and pattern_count%12==9:
-			make_entity(free_lane,RESCUE,spawn_at+7.8)
-		if tier>=1 and action<0 and pattern_count%10==6:
-			make_entity(free_lane,CARD,spawn_at+8.0)
-		if tier>=1 and pattern_count%18==10:
-			make_entity(1,PORTAL,spawn_at+9.0)
+			elif slot==1: power=SPRING
+			elif slot==2: power=SURF
+			elif slot==3: power=JETPACK
+			elif slot==4: power=SMASH
+			make_entity(free_lane,power,spawn_at+3.6)
+		elif action<0 and rng.randf()<0.34:
+			make_entity(free_lane,SNACK,spawn_at+3.6)
+		if tier>=1 and action<0 and pattern_count%11==8: make_entity(free_lane,GEM,spawn_at+4.8)
+		if tier>=1 and action<0 and pattern_count%12==9: make_entity(free_lane,RESCUE,spawn_at+4.8)
+		if tier>=1 and action<0 and pattern_count%10==6: make_entity(free_lane,CARD,spawn_at+4.8)
+		if tier>=1 and pattern_count%18==10: make_entity(1,PORTAL,spawn_at+5.5)
 		if review_driver: safe_rows.append(Vector3(spawn_at,float(free_lane),float(action)))
 		previous_safe_lane=free_lane
 		pattern_count+=1
@@ -836,10 +861,11 @@ func make_entity(which_lane: int, kind: int, at: float) -> void:
 		a=Area3D.new()
 		created_entities+=1
 		add_child(a)
-	a.position=Vector3(LANES[which_lane],0,(distance-at)*approach_factor(kind))
+	a.position=Vector3(LANES[which_lane],JET_HEIGHT if kind==AIR_COIN else 0.0,(distance-at)*approach_factor(kind))
 	a.monitoring=false
 	a.monitorable=false
 	a.set_meta("kind",kind)
+	a.set_meta("height",JET_HEIGHT if kind==AIR_COIN else 0.0)
 	a.set_meta("at",at)
 	a.set_meta("resolved",false)
 	a.set_meta("warned",false)
@@ -854,8 +880,8 @@ func make_entity(which_lane: int, kind: int, at: float) -> void:
 			visual.position=Vector3.ZERO
 		if a.has_meta("halo"): (a.get_meta("halo") as MeshInstance3D).hide()
 		return
-	if using_blender and asset(a,["crate","barrier","coin","snack","magnet","shield","double","boost","cart","tall","low_bar","time_orb","spring","sky_ring","gem","rescue","smash","surf_pickup","portal","courier","roller","story_card","treasure_gate"][kind],Vector3.ZERO)!=null:
-		if is_pickup(kind) and kind!=BOOST and kind!=SKY_RING and kind!=PORTAL and kind!=TREASURE:
+	if using_blender and asset(a,["crate","barrier","coin","snack","magnet","shield","double","boost","cart","tall","low_bar","time_orb","spring","sky_ring","gem","rescue","smash","surf_pickup","portal","courier","roller","story_card","treasure_gate","jetpack","coin"][kind],Vector3.ZERO)!=null:
+		if is_pickup(kind) and kind!=BOOST and kind!=SKY_RING and kind!=PORTAL and kind!=TREASURE and kind!=AIR_COIN:
 			ground_shadow(a,0.75 if kind==PICKUP else 1.10,0.52 if kind==PICKUP else 0.75)
 		add_pickup_glow(a,kind)
 		return
@@ -908,6 +934,7 @@ func gesture(delta: Vector2) -> void:
 			lane=target_lane
 			audio.call("play_fx","swoosh")
 	elif delta.y < -22:
+		if jet_time>0 or jet_lift>0.5: return
 		if player.is_on_floor() and player.velocity.y<=0:
 			slide=0
 			air_slide_pending=false
@@ -921,6 +948,7 @@ func gesture(delta: Vector2) -> void:
 		else:
 			jump_buffer=0.14
 	elif delta.y > 22:
+		if jet_time>0 or jet_lift>0.5: return
 		# Down immediately dismounts surf so the ordinary roll still fits under beams.
 		surf_time=0
 		jump_buffer=0
@@ -1044,7 +1072,10 @@ func contact_depth(kind:int) -> float:
 	return 0.64
 
 func pickup_reachable(kind:int,feet_y:float,attracted:bool) -> bool:
-	if kind==PORTAL or kind==TREASURE: return true
+	if kind==PORTAL: return true
+	if kind==AIR_COIN: return jet_time>0 and jet_lift>2.7
+	if jet_time>0 or jet_lift>1.0: return false
+	if kind==TREASURE: return true
 	if kind==SKY_RING: return feet_y>0.85 and feet_y<3.5
 	return attracted or (feet_y<0.95 if kind!=BOOST else feet_y<0.42)
 
@@ -1071,7 +1102,7 @@ func _physics_process(dt: float) -> void:
 		if not safe_rows.is_empty():
 			var row:=safe_rows[0]
 			lane=int(row.y)
-			var lead:=speed*(0.33 if int(row.z)==0 else 0.18)
+			var lead:=speed*(0.34 if int(row.z)==0 else 0.20)
 			if row.z>=0 and row.x!=driver_action_at and row.x-distance<=lead:
 				driver_action_at=row.x
 				gesture(Vector2(0,-80 if int(row.z)==0 else 80))
@@ -1103,6 +1134,16 @@ func _physics_process(dt: float) -> void:
 	spring_time=maxf(0,spring_time-dt)
 	rescue_time=maxf(0,rescue_time-dt)
 	surf_time=maxf(0,surf_time-dt)
+	var was_flying:=jet_time>0.0
+	jet_time=maxf(0.0,jet_time-dt)
+	if was_flying and jet_time<=0.0: jet_grace=1.1
+	jet_grace=maxf(0.0,jet_grace-dt)
+	jet_lift=move_toward(jet_lift,JET_HEIGHT if jet_time>0.0 else 0.0,dt*10.0)
+	if jet_model!=null: jet_model.visible=jet_time>0.0 or jet_lift>0.5
+	if jet_time>0.9:
+		while jet_coin_at<distance+30.0:
+			make_entity(int(floorf((jet_coin_at+distance_offset)/9.0))%3,AIR_COIN,jet_coin_at)
+			jet_coin_at+=2.4
 	treasure_time=maxf(0,treasure_time-dt)
 	surf_grace=maxf(0,surf_grace-dt)
 	surf_exit_flash=maxf(0,surf_exit_flash-dt)
@@ -1113,7 +1154,7 @@ func _physics_process(dt: float) -> void:
 	if smash_time<=0: smash_charges=0
 	combo_timer=maxf(0,combo_timer-dt)
 	if combo_timer<=0: combo=0
-	var full_speed:=base_run_speed(total_distance())+(4.0 if boost_time>0 else 0.0)+(3.0 if surf_time>0 else 0.0)
+	var full_speed:=base_run_speed(total_distance())+(4.0 if boost_time>0 else 0.0)+(3.0 if surf_time>0 else 0.0)+(2.0 if jet_time>0 else 0.0)
 	# Bubble wins over simultaneous turbo/surf speed; controls remain real-time.
 	# Last 650ms eases directly back to the current full run speed.
 	speed=full_speed*lerpf(1.0,TIME_ORB_FACTOR,clampf(slow_time/TIME_ORB_RECOVERY,0.0,1.0))
@@ -1125,8 +1166,8 @@ func _physics_process(dt: float) -> void:
 	lane_impulse=move_toward(lane_impulse,0,dt*3.5)
 	mascot.rotation.z=lerpf(mascot.rotation.z,clampf(player.velocity.x*0.025+lane_impulse*0.09,-0.29,0.29),minf(1,dt*12))
 	mascot.rotation.x=lerpf(mascot.rotation.x,-0.32 if air_slide_pending or slide>0 else clampf(player.velocity.y*0.018,-0.16,0.16),minf(1,dt*15))
-	var running_pose:=player.is_on_floor() and slide<=0 and surf_time<=0
-	mascot.position.y=(0.035*(1+sin(clock*32)) if running_pose else 0.0)+(SURF_LIFT+0.04*sin(clock*10) if surf_time>0 else 0.0)
+	var running_pose:=player.is_on_floor() and slide<=0 and surf_time<=0 and jet_lift<0.1
+	mascot.position.y=(0.035*(1+sin(clock*32)) if running_pose else 0.0)+(SURF_LIFT+0.04*sin(clock*10) if surf_time>0 else 0.0)+jet_lift
 	if surf_board!=null:
 		surf_board.visible=surf_time>0
 		surf_board.rotation.z=clampf(player.velocity.x*0.025,-0.25,0.25)
@@ -1166,6 +1207,7 @@ func _physics_process(dt: float) -> void:
 		# designed encounter distance while approaching at 1.55–1.95x road speed.
 		var factor:=approach_factor(kind)
 		a.position.z=base_z*factor
+		a.position.y=float(a.get_meta("height"))
 		if factor>1.0 and a.visible and not bool(a.get_meta("warned")) and a.position.z>-speed*factor*1.15 and a.position.z<0 and absf(a.position.x-player.position.x)<1.05:
 			a.set_meta("warned",true)
 			audio.call("play_fx","incoming")
@@ -1187,7 +1229,7 @@ func _physics_process(dt: float) -> void:
 		# Test the full swept depth interval, with the same world sizes as the meshes.
 		var depth:=contact_depth(kind)
 		var contact := maxf(old_z,a.position.z)>=-depth and minf(old_z,a.position.z)<=depth
-		var attraction := kind==PICKUP and magnet_time>0 and absf(a.position.z)<5.0
+		var attraction := kind==PICKUP and float(a.get_meta("height"))==0.0 and magnet_time>0 and absf(a.position.z)<4.0 and jet_lift<0.5
 		if attraction: a.position.x=move_toward(a.position.x,player.position.x,dt*19)
 		var lateral:=absf(a.position.x-player.position.x)
 		# A near dodge requires actual prior alignment shortly before contact.
@@ -1195,13 +1237,13 @@ func _physics_process(dt: float) -> void:
 			a.set_meta("dodge_candidate",true)
 		if (contact or attraction) and not bool(a.get_meta("resolved")) and (kind==PORTAL or lateral<(0.92 if is_pickup(kind) else 1.05)):
 			if is_pickup(kind):
-				if pickup_reachable(kind,player.position.y,attraction):
+				if (kind==PICKUP and float(a.get_meta("height"))>0.0 and player.position.y>0.8 and jet_lift<0.5) or (not (kind==PICKUP and float(a.get_meta("height"))>0.0) and pickup_reachable(kind,player.position.y,attraction)):
 					collect_kind(kind)
 					if kind!=PICKUP or combo%3==0:
 						reward_burst(Vector3(player.position.x,player.position.y+0.9,0),Color("#ffe69a") if kind==PICKUP or kind==CARD else Color("#9fefff"),kind!=PICKUP)
 					a.set_meta("resolved",true)
 					a.hide()
-			elif hazard_hit(kind,player.position.y+(SURF_LIFT if surf_time>0 else 0.0),slide>0 or air_slide_pending,lateral):
+			elif jet_time<=0 and jet_lift<0.5 and jet_grace<=0 and hazard_hit(kind,player.position.y+(SURF_LIFT if surf_time>0 else 0.0),slide>0 or air_slide_pending,lateral):
 				if surf_time>0:
 					surf_time=0
 					surf_grace=0.65
@@ -1227,8 +1269,8 @@ func _physics_process(dt: float) -> void:
 					reward_burst(Vector3(a.position.x,0.9,a.position.z),Color("#ffba63"),true)
 					show_skill("SMASH  +150")
 					audio.call("play_fx","smash")
-				elif shield_time>0 or boost_time>0:
-					if boost_time<=0: shield_time=0
+				elif shield_time>0:
+					shield_time=0
 					a.set_meta("resolved",true)
 					a.hide()
 					audio.call("play_fx","shield")
@@ -1261,7 +1303,7 @@ func _physics_process(dt: float) -> void:
 	fill_track()
 	peak_active=maxi(peak_active,entities.size())
 	camera.position.x=lerpf(camera.position.x,player.position.x*0.30+sin(clock*55)*surf_exit_flash*0.24,minf(1,dt*7))
-	camera.position.y=lerpf(camera.position.y,4.55+clampf(player.position.y*0.13,0,0.25),minf(1,dt*5))
+	camera.position.y=lerpf(camera.position.y,4.55+clampf(player.position.y*0.13,0,0.25)+jet_lift*0.83,minf(1,dt*5))
 	camera.fov=lerpf(camera.fov,58.0+minf(5.0,(speed-START_SPEED)*0.28),minf(1,dt*3))
 	hud_refresh+=dt
 	if ended or hud_refresh>=0.075:
@@ -1306,14 +1348,18 @@ func enter_next_world() -> void:
 
 func collect_kind(kind: int) -> void:
 	match kind:
-		PICKUP:
+		PICKUP,AIR_COIN:
 			var value:=2 if double_time>0 else 1
+			if kind==AIR_COIN:
+				value+=1
+				jet_coins+=1
+			if surf_time>0: value+=1
 			if treasure_time>0: value+=1
 			coins+=value
 			combo+=1
 			best_combo=maxi(best_combo,combo)
-			combo_timer=2.2
-			if combo%5==0:
+			combo_timer=1.05
+			if combo%10==0:
 				skill_points+=50*mini(int(combo/5.0),5)
 				show_skill("COIN COMBO ×%d"%combo)
 				audio.call("play_fx","skill")
@@ -1363,9 +1409,17 @@ func collect_kind(kind: int) -> void:
 			smash_charges=3
 			smash_time=12.0
 		SURF:
-			surf_time=10.0
+			surf_time=SURF_DURATION
 			slide=0
 			air_slide_pending=false
+		JETPACK:
+			jet_time=JET_DURATION
+			jet_runs+=1
+			jet_coin_at=distance+12.0
+			surf_time=0.0
+			slide=0.0
+			air_slide_pending=false
+			show_skill("SKY FLIGHT — COLLECT AIR COINS")
 		PORTAL:
 			enter_next_world()
 		TREASURE:
@@ -1385,8 +1439,8 @@ func collect_kind(kind: int) -> void:
 			else:
 				show_skill("SKY CHRONICLE %d/3"%cards)
 				audio.call("play_fx","card")
-	if kind>=MAGNET and kind<=BOOST or kind==TIME_ORB or kind==SPRING or kind==SMASH or kind==SURF:
-		pickup_feedback.text={MAGNET:"MAGNET",SHIELD:"SHIELD",DOUBLE:"DOUBLE COINS",BOOST:"TURBO",TIME_ORB:"TIME BUBBLE",SPRING:"DOUBLE JUMP",SMASH:"SMASH MODE",SURF:"SKY SURF"}[kind]
+	if kind>=MAGNET and kind<=BOOST or kind==TIME_ORB or kind==SPRING or kind==SMASH or kind==SURF or kind==JETPACK:
+		pickup_feedback.text={MAGNET:"MAGNET",SHIELD:"SHIELD",DOUBLE:"DOUBLE COINS",BOOST:"TURBO",TIME_ORB:"TIME BUBBLE",SPRING:"DOUBLE JUMP",SMASH:"SMASH MODE",SURF:"SKY SURF",JETPACK:"JETPACK"}[kind]
 		pickup_flash=1.0
 		audio.call("play_fx","power")
 
@@ -1509,10 +1563,10 @@ func update_effects(dt:float) -> void:
 	speed_line_mat.albedo_color=Color(0.65,0.88,1.0,0.12+intensity*0.30)
 	for i in range(speed_lines.size()):
 		var line:=speed_lines[i]
-		line.visible=intensity>0.15 or boost_time>0 or surf_time>0
+		line.visible=intensity>0.15 or boost_time>0 or surf_time>0 or jet_time>0
 		line.position=Vector3((-1.0 if i%2==0 else 1.0)*(2.5+float(i%3)*0.20),0.10,fposmod(clock*(8+speed*0.5)+float(i)*4.3,35.0)-29.0)
 		line.scale.z=1.0+intensity*2.4
-	if player.is_on_floor() and slide<=0 and surf_time<=0 and int(clock*15)!=int((clock-dt)*15):
+	if player.is_on_floor() and slide<=0 and surf_time<=0 and jet_lift<0.1 and int(clock*15)!=int((clock-dt)*15):
 		for i in range(dust.size()):
 			if dust_ages[i]<0:
 				dust[i].position=Vector3(player.position.x+sin(clock*17)*0.25,0.12,0.65)
@@ -1548,16 +1602,19 @@ func hazard_hit(kind: int, feet_y: float, sliding: bool, lateral:float=0.0) -> b
 
 func make_power_card(name_text:String, duration:float, accent:Color) -> void:
 	var card:=VBoxContainer.new()
+	card.custom_minimum_size.x=106
 	card.size_flags_horizontal=Control.SIZE_EXPAND_FILL
 	card.mouse_filter=Control.MOUSE_FILTER_IGNORE
 	card.add_theme_constant_override("separation",1)
 	power_grid.add_child(card)
-	var name_label:=hud_label(card,name_text,12,accent)
+	var name_label:=hud_label(card,name_text,10,accent)
+	name_label.add_theme_color_override("font_outline_color",Color("#101827"))
+	name_label.add_theme_constant_override("outline_size",5)
 	var bar:=ProgressBar.new()
 	bar.max_value=duration
 	bar.step=0.0
 	bar.show_percentage=false
-	bar.custom_minimum_size=Vector2(120,6)
+	bar.custom_minimum_size=Vector2(100,5)
 	bar.mouse_filter=Control.MOUSE_FILTER_IGNORE
 	var bg:=StyleBoxFlat.new()
 	bg.bg_color=Color("#253753")
@@ -1586,11 +1643,11 @@ func set_power_card(name_text:String,remaining:float,suffix:String="") -> bool:
 
 func update_hud() -> void:
 	var active_count:=0
-	for active in [set_power_card("MAGNET",magnet_time),set_power_card("SHIELD",shield_time),set_power_card("×2 COINS",double_time),set_power_card("TURBO",boost_time),set_power_card("TIME BUBBLE",slow_time),set_power_card("DOUBLE JUMP",spring_time),set_power_card("SMASH",smash_time if smash_charges>0 else 0.0," ×%d"%smash_charges),set_power_card("SKY SURF",surf_time),set_power_card("TREASURE",treasure_time),set_power_card("RESCUE",rescue_time)]:
+	for active in [set_power_card("MAGNET",magnet_time),set_power_card("SHIELD",shield_time),set_power_card("×2 COINS",double_time),set_power_card("TURBO",boost_time),set_power_card("TIME BUBBLE",slow_time),set_power_card("DOUBLE JUMP",spring_time),set_power_card("SMASH",smash_time if smash_charges>0 else 0.0," ×%d"%smash_charges),set_power_card("SKY SURF",surf_time),set_power_card("JETPACK",jet_time),set_power_card("TREASURE",treasure_time),set_power_card("RESCUE",rescue_time)]:
 		if active: active_count+=1
 	power_grid.visible=active_count>0
-	power_label.visible=active_count==0 and not ended
-	var challenge_text:="%s %d/%d  •  Combo %d  •  Gems %d/3  •  Pets %d  •  Cards %d/3"%[challenge_name(),challenge_progress,challenge_goal(),combo,gems,rescued,cards]
+	power_label.hide()
+	var challenge_text:="%s %d/%d  ·  Gems %d/3  ·  Cards %d/3"%[challenge_name(),challenge_progress,challenge_goal(),gems,cards]
 	if challenge_text!=last_challenge_hud:
 		last_challenge_hud=challenge_text
 		challenge_label.text=challenge_text
@@ -1634,9 +1691,9 @@ func test_run() -> void:
 	assert(chunks.size()==SEGMENTS and entities.size()>10)
 	assert(base_run_speed(0.0)==START_SPEED and START_SPEED>9.0 and MAX_SPEED==base_run_speed(2000.0))
 	assert(not time_orb_eligible(100.0) and not time_orb_eligible(next_time_orb_at-1.0) and time_orb_eligible(next_time_orb_at))
-	assert(time_orbs_spawned==0 and row_spacing(0.0,0)>=12.0)
+	assert(time_orbs_spawned==0 and row_spacing(0.0,0)<12.0)
 	for entity in entities: assert(int(entity.get_meta("kind"))!=TIME_ORB)
-	assert(power_cards.size()==10)
+	assert(power_cards.size()==11 and jet_model!=null)
 	assert(scenery_visibility_updates>0 and not chunks[SEGMENTS-1].visible)
 	assert((mascot.transform.basis*Vector3.BACK).z < -0.99,"mascot must face away")
 	assert(using_blender and loaded_assets>20,"Blender assets missing or not instantiated")
@@ -1777,6 +1834,18 @@ func test_run() -> void:
 	assert(burst_pool.size()==4 and burst_count>0 and not surf_trails[0].visible)
 	for i in range(50): await get_tree().physics_frame
 	assert(surf_grace==0 and not ended)
+	# Jetpack really lifts the player presentation, avoids ground collisions, and collects sky coins.
+	collect_kind(JETPACK)
+	make_entity(1,TALL,distance+4.0)
+	for i in range(45): await get_tree().physics_frame
+	assert(not ended and jet_lift>4.0 and jet_model.visible)
+	make_entity(1,AIR_COIN,distance+0.8)
+	var air_before:=jet_coins
+	for i in range(15): await get_tree().physics_frame
+	assert(jet_coins>air_before)
+	jet_time=0.01
+	for i in range(80): await get_tree().physics_frame
+	assert(jet_lift==0.0 and not jet_model.visible and not ended)
 	# Full-width portal activates even when runner is in an outer lane.
 	gesture(Vector2(-80,0))
 	make_entity(1,PORTAL,distance+speed*0.30)
@@ -1797,6 +1866,7 @@ func test_run() -> void:
 		await get_tree().physics_frame
 	assert(distance==frozen)
 	toggle_pause()
+	coins=0
 	make_entity(1,PICKUP,distance+0.6)
 	for i in range(30): await get_tree().physics_frame
 	assert(coins==1 and not ended)
@@ -1934,14 +2004,15 @@ func soak_review() -> void:
 	assert(world_visits>=3,"portals must recur in endless run")
 	assert(treasure_routes>=5,"optional treasure routes must recur")
 	assert(time_orbs_spawned>=2 and time_orbs_spawned<=5,"rare late-run bubbles only")
-	assert(created_entities<180 and peak_active<130)
+	assert(created_entities<240 and peak_active<160)
+	assert(mixed_rows>20,"dense action gates must recur")
 	assert(burst_pool.size()==4 and surf_trails.size()==2 and burst_count>20)
 	assert(shadow_chunks.size()==SEGMENTS and shadow_transitions>20)
 	assert(glow_materials.size()==12)
 	assert(coins>20)
 	var result:=FileAccess.open("/tmp/pet-dash-soak.json",FileAccess.WRITE)
 	assert(result!=null)
-	result.store_string(JSON.stringify({"distance":total_distance(),"local_distance":distance,"rebases":rebase_count,"chunk_recycles":chunk_recycles,"steps":steps,"coins":coins,"snacks":snacks,"rescued":rescued,"smashed":smashed,"perfect_dodges":perfect_dodges,"world_visits":world_visits,"treasure_routes":treasure_routes,"treasure_opened":treasure_opened,"reward_bursts":burst_count,"burst_pool":burst_pool.size(),"shadow_transitions":shadow_transitions,"rows":pattern_count,"time_orbs_spawned":time_orbs_spawned,"mandatory_rows":mandatory_rows,"moving_rows":moving_rows,"allocated":created_entities,"reused":reused_entities,"peak_active":peak_active,"scope":"deterministic headless endless physics; 3200m checkpoint plus continued gameplay, not physical-device FPS"}))
+	result.store_string(JSON.stringify({"distance":total_distance(),"local_distance":distance,"rebases":rebase_count,"chunk_recycles":chunk_recycles,"steps":steps,"coins":coins,"snacks":snacks,"rescued":rescued,"smashed":smashed,"perfect_dodges":perfect_dodges,"world_visits":world_visits,"treasure_routes":treasure_routes,"treasure_opened":treasure_opened,"reward_bursts":burst_count,"burst_pool":burst_pool.size(),"shadow_transitions":shadow_transitions,"rows":pattern_count,"mixed_rows":mixed_rows,"jet_runs":jet_runs,"jet_coins":jet_coins,"time_orbs_spawned":time_orbs_spawned,"mandatory_rows":mandatory_rows,"moving_rows":moving_rows,"allocated":created_entities,"reused":reused_entities,"peak_active":peak_active,"scope":"deterministic headless endless physics; 3200m checkpoint plus continued gameplay, not physical-device FPS"}))
 	result.close()
 	print("PET_DASH_SOAK_PASS")
 	get_tree().quit(0)
