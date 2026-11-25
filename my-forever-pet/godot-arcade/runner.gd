@@ -30,6 +30,8 @@ var ended := false
 var paused_run := false
 var touch_start := Vector2.ZERO
 var touch_active := false
+var gesture_sent := false
+var touch_id := -1
 var spawn_at := 20.0
 var status: Label
 var hint: Label
@@ -328,13 +330,20 @@ func gesture(delta: Vector2) -> void:
 
 func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventScreenTouch:
-		if event.pressed:
+		if event.pressed and not touch_active:
 			touch_start=event.position
 			touch_active=true
-		elif touch_active:
+			gesture_sent=false
+			touch_id=event.index
+		elif not event.pressed and event.index==touch_id:
 			touch_active=false
+			if not gesture_sent: gesture(event.position-touch_start)
+			touch_id=-1
+	elif event is InputEventScreenDrag and touch_active and event.index==touch_id:
+		if not gesture_sent and (event.position-touch_start).length()>=24:
+			gesture_sent=true
 			gesture(event.position-touch_start)
-	elif event is InputEventMouseButton and event.button_index==MOUSE_BUTTON_LEFT:
+	elif event is InputEventMouseButton and event.button_index==MOUSE_BUTTON_LEFT and event.device!=InputEvent.DEVICE_ID_EMULATION:
 		if event.pressed:
 			touch_start=event.position
 			touch_active=true
@@ -423,6 +432,10 @@ func test_run() -> void:
 	assert(lane==1)
 	assert(chunks.size()==SEGMENTS and entities.size()>10)
 	assert(using_blender and loaded_assets>20)
+	# Isolate control tests from randomly spawned obstacles.
+	for entity in entities: entity.queue_free()
+	entities.clear()
+	spawn_at=distance+1000
 	assert(hazard_hit(0,0,false) and not hazard_hit(0,1.1,false))
 	assert(hazard_hit(1,0,false) and not hazard_hit(1,0,true))
 	gesture(Vector2(0,-80))
@@ -444,7 +457,12 @@ func test_run() -> void:
 		await get_tree().physics_frame
 	assert(distance==frozen)
 	toggle_pause()
-	ended=true
+	make_entity(1,PICKUP,distance+0.6)
+	for i in range(12): await get_tree().physics_frame
+	assert(coins==1 and not ended)
+	make_entity(1,0,distance+1.0)
+	for i in range(20): await get_tree().physics_frame
+	assert(ended)
 	assert(not claim_result().is_empty() and claim_result().is_empty())
 	print("PET_DASH_3D_SMOKE_PASS")
 	get_tree().quit(0)

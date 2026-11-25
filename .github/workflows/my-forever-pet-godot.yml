@@ -9,7 +9,7 @@ permissions:
 jobs:
   godot-smoke:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
       - name: Download pinned Godot editor
@@ -40,4 +40,41 @@ jobs:
           path: |
             /tmp/pet-dash-review.png
             my-forever-pet/godot-arcade/assets/*.glb
+          if-no-files-found: error
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Export isolated Android ARM64 test APK
+        run: |
+          set -euo pipefail
+          SDK="$ANDROID_HOME"
+          "$SDK/cmdline-tools/latest/bin/sdkmanager" 'platforms;android-34' 'build-tools;34.0.0'
+          mkdir -p "$HOME/.local/share/godot/export_templates/4.4.1.stable" "$HOME/.config/godot" "$HOME/.android"
+          curl -fL --retry 3 -o /tmp/templates.tpz https://github.com/godotengine/godot/releases/download/4.4.1-stable/Godot_v4.4.1-stable_export_templates.tpz
+          unzip -q /tmp/templates.tpz templates/android_debug.apk templates/android_release.apk -d /tmp/godot-templates
+          cp /tmp/godot-templates/templates/android_*.apk "$HOME/.local/share/godot/export_templates/4.4.1.stable/"
+          keytool -genkeypair -keystore "$HOME/.android/petdash-debug.keystore" -storepass android -keypass android -alias androiddebugkey -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Pet Dash Debug"
+          cat > "$HOME/.config/godot/editor_settings-4.4.tres" <<EOF
+          [gd_resource type="EditorSettings" format=3]
+          [resource]
+          export/android/android_sdk_path = "$SDK"
+          export/android/java_sdk_path = "$JAVA_HOME"
+          export/android/debug_keystore = "$HOME/.android/petdash-debug.keystore"
+          export/android/debug_keystore_user = "androiddebugkey"
+          export/android/debug_keystore_pass = "android"
+          EOF
+          export GODOT_ANDROID_KEYSTORE_DEBUG_PATH="$HOME/.android/petdash-debug.keystore"
+          export GODOT_ANDROID_KEYSTORE_DEBUG_USER=androiddebugkey
+          export GODOT_ANDROID_KEYSTORE_DEBUG_PASSWORD=android
+          G=/tmp/godot/Godot_v4.4.1-stable_linux.x86_64
+          "$G" --headless --path my-forever-pet/godot-arcade --export-debug "Android Lab" /tmp/Pet-Dash-3D-Lab-arm64.apk
+          test -s /tmp/Pet-Dash-3D-Lab-arm64.apk
+          "$SDK/build-tools/34.0.0/apksigner" verify /tmp/Pet-Dash-3D-Lab-arm64.apk
+          "$SDK/build-tools/34.0.0/aapt" dump badging /tmp/Pet-Dash-3D-Lab-arm64.apk | grep -F "org.myforeverpet.dashlab"
+          unzip -l /tmp/Pet-Dash-3D-Lab-arm64.apk | grep -F lib/arm64-v8a/libgodot_android.so
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Pet-Dash-3D-Lab-Android-ARM64-debug
+          path: /tmp/Pet-Dash-3D-Lab-arm64.apk
           if-no-files-found: error
