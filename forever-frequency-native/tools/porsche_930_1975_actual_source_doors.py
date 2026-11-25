@@ -339,6 +339,67 @@ for mode in ("CLOSED","OPENED"):
 for pivot in hinges.values():pivot.rotation_euler.z=0.0
 bpy.context.view_layer.update()
 
+
+# Separate diagnostic pictures only: color original candidate islands on the
+# actual assembled source car. The exported GLB and editable master above
+# retain original materials, and no candidate gets a speculative hinge.
+diagnostic_views=[]
+diagnostic_materials=[]
+original_material_indices={}
+def mark_island(obj,count,region,color):
+    matches=[c for c in islands(obj) if c["faces"]==count and
+             ((region=="front" and c["low"].y<-2.1 and c["high"].y<-.9) or
+              (region=="rear" and c["low"].y>1.2 and c["high"].y<1.85))]
+    if len(matches)!=1:
+        raise RuntimeError("Ambiguous source candidate for diagnostic render "+str((obj.name,count,region,len(matches))))
+    c=matches[0]
+    if obj not in original_material_indices:
+        original_material_indices[obj]=([p.material_index for p in obj.data.polygons],len(obj.data.materials))
+    mat=bpy.data.materials.new("DIAGNOSTIC_ONLY_"+region+"_"+str(count)+"_"+obj.name)
+    mat.diffuse_color=(*color,1.)
+    diagnostic_materials.append(mat)
+    obj.data.materials.append(mat)
+    slot=len(obj.data.materials)-1
+    for idx in c["indices"]:
+        obj.data.polygons[idx].material_index=slot
+    obj.data.update()
+
+try:
+    # Yellow = isolated front coat, cyan = rear upper pair, magenta = rear
+    # lower pair. These are only candidate identification colors, not paint.
+    mark_island(coat,1274,"front",(1.,.80,.025))
+    mark_island(paint,3020,"rear",(.025,.85,1.))
+    mark_island(coat,3022,"rear",(.025,.85,1.))
+    mark_island(paint,1356,"rear",(1.,.025,.55))
+    mark_island(coat,1356,"rear",(1.,.025,.55))
+    for name,offset in (("FRONT",Vector((.55,-1.65,1.40))),
+                        ("REAR",Vector((.55,1.65,1.40))),
+                        ("TOP",Vector((.08,-.10,2.0)))):
+        camera.location=mid+offset*span
+        camera.rotation_euler=(mid-camera.location).to_track_quat("-Z","Y").to_euler()
+        bpy.context.view_layer.update()
+        file=OUT/("PORSCHE930_CANDIDATE_TOPOLOGY_DIAGNOSTIC_"+name+"_BLENDER.png")
+        scene.render.filepath=str(file)
+        bpy.ops.render.render(write_still=True)
+        if not file.is_file() or file.stat().st_size<45000:
+            raise RuntimeError("Candidate geometry diagnostic image missing: "+name)
+        diagnostic_views.append(file.name)
+finally:
+    for obj,(indices,slots) in original_material_indices.items():
+        for poly,index in zip(obj.data.polygons,indices):
+            poly.material_index=index
+        while len(obj.data.materials)>slots:
+            obj.data.materials.pop(index=len(obj.data.materials)-1)
+        obj.data.update()
+    for mat in diagnostic_materials:
+        bpy.data.materials.remove(mat)
+assert sum(tri(o) for o in actual_meshes)==original_faces
+panel_discovery["native_blender_candidate_diagnostic_views"]=diagnostic_views
+panel_discovery["diagnostic_colors"]={"front_clearcoat_only":"yellow","rear_upper_pair":"cyan","rear_lower_pair":"magenta"}
+panel_discovery["diagnostic_colors_excluded_from_exported_blend_and_glb"]=True
+(OUT/"porsche_930_original_luggage_engine_cover_topology.json").write_text(json.dumps(panel_discovery,indent=2)+"\n")
+print("PORSCHE930_NATIVE_SOURCE_LID_CANDIDATE_DIAGNOSTIC_IMAGES_READY_NOT_HINGE_APPROVAL",flush=True)
+
 report={
     "car":"1975 Porsche 911 (930) Turbo","artist":"Karol Miklas",
     "source_original_artist_glb_sha256":qa["artist_original_sha256"],
@@ -358,6 +419,7 @@ report={
     "brand_commercial_rights_cleared":False,
     "approved_orange_lamborghini_sha256":"45cdbfd70dc4e6c64b6bbbe5e24a2107044e2008928ab01c27fa8fbb91a25bd7",
     "real_native_blender_source_closed_open_images":screens,
+    "native_candidate_diagnostic_images":diagnostic_views,
     "status":"SOURCE_ORIGINAL_PORSCHE_930_TWO_REAL_HINGED_BODY_GLASS_MIRROR_FRAMES_NOT_YET_APPROVED"
 }
 (OUT/"porsche_930_real_artist_polygon_hinge_forensics.json").write_text(json.dumps(report,indent=2)+"\n")
