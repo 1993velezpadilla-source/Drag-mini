@@ -8,7 +8,7 @@ brand/author rights remain unreviewed.
 """
 import bpy,hashlib,json,math,re
 from pathlib import Path
-from mathutils import Vector, Matrix
+from mathutils import Vector, Matrix, Quaternion
 
 ROOT=Path(__file__).resolve().parents[1]
 SOURCE=ROOT/"assets/mclaren_570s_review/mclaren_570s_2016_ORIGINAL_Author_DeepBlue_PBR.glb"
@@ -114,6 +114,7 @@ for side,source_items in items.items():
     pivot=bpy.data.objects.new("DOOR_"+side+"_FRONT_HINGE",None)
     bpy.context.scene.collection.objects.link(pivot)
     pivot.empty_display_type="ARROWS"
+    pivot.rotation_mode="QUATERNION"
     pivot.location=(sign*.89,-1.0,.60)
     # Update before applying inverse. Otherwise a stale pivot world-matrix
     # causes a (x,y,z) offset exactly equal to the Empty's location.
@@ -160,16 +161,40 @@ for side,source_items in items.items():
     pts=[body.matrix_world@Vector(v) for v in body.bound_box]
     index=max(range(8),key=lambda i:(pts[i]-pivot.matrix_world.translation).length)
     closed_points[side]=(body,index,pts[index])
+# McLaren 570S uses real dihedral UP+OUT doors, not ordinary lateral yaw.
+# Source is Blender X side / Y longitudinal / Z up. Every open pivot rotates
+# around a TILTED axis; ZERO angle remains identity and the exact source car.
+def place_mclaren_dihedral(side,pivot,opened):
+    if not opened:
+        pivot.rotation_quaternion=Quaternion((1,0,0,0))
+        return
+    sign=1 if side=="RIGHT" else -1
+    tilt=.65
+    axis=Vector((-sign*tilt,0.0,math.sqrt(1.0-tilt*tilt))).normalized()
+    pivot.rotation_quaternion=Quaternion(axis,math.radians(-sign*65))
+closed_centers={
+    side:(actual[0][0].matrix_world @ Vector(
+        sum((Vector(c) for c in actual[0][0].bound_box),Vector())/8.0
+    )).copy()
+    for side,actual in items.items()
+}
 for side,p in pivots.items():
-    p.rotation_euler.z=math.radians(-58 if side=="RIGHT" else 58)
+    place_mclaren_dihedral(side,p,True)
 bpy.context.view_layer.update()
 motion={}
+upward_rise={}
 for side,(body,index,before) in closed_points.items():
     moved=body.matrix_world@Vector(body.bound_box[index])
     motion[side]=round(float((moved-before).length),5)
-    if motion[side]<.25:
-        raise RuntimeError("Original McLaren source door body did not PHYSICALLY open "+str(motion))
-for pivot in pivots.values():pivot.rotation_euler.z=0.0
+    center=body.matrix_world @ Vector(
+        sum((Vector(c) for c in body.bound_box),Vector())/8.0
+    )
+    upward_rise[side]=round(float(center.z-closed_centers[side].z),5)
+    if motion[side]<.25 or upward_rise[side]<.27:
+        raise RuntimeError("Reject sideways or floating McLaren 570S original body; dihedral UP+OUT required "+
+                           str({"motion":motion,"rise":upward_rise}))
+for side,p in pivots.items():
+    place_mclaren_dihedral(side,p,False)
 bpy.context.view_layer.update()
 
 bpy.ops.object.select_all(action="DESELECT")
@@ -209,14 +234,15 @@ camera.rotation_euler=(mid-camera.location).to_track_quat("-Z","Y").to_euler()
 photos=[]
 for mode in ("CLOSED","OPENED"):
     for side,p in pivots.items():
-        p.rotation_euler.z=math.radians(-58 if side=="RIGHT" else 58) if mode=="OPENED" else 0
+        place_mclaren_dihedral(side,p,mode=="OPENED")
     bpy.context.view_layer.update()
     png=DEST/("MCLAREN570S_REAL_SOURCE_DOOR_BODY_AND_GLASS_"+mode+"_BLENDER.png")
     scene.render.filepath=str(png)
     bpy.ops.render.render(write_still=True)
     if png.stat().st_size<45000:raise RuntimeError("Actual Blender car view missing "+mode)
     photos.append(png.name)
-for p in pivots.values():p.rotation_euler.z=0.0
+for side,p in pivots.items():
+    place_mclaren_dihedral(side,p,False)
 bpy.context.view_layer.update()
 
 report={
@@ -232,6 +258,9 @@ report={
  "hinges":["DOOR_LEFT_FRONT_HINGE","DOOR_RIGHT_FRONT_HINGE"],
  "original_doors_body_glass_mirror_following_two_pivots":True,
  "source_moving_body_panel_meters":motion,
+ "source_original_dihedral_door_vertical_rise_m":upward_rise,
+ "mclaren_570s_dihedral_upward_and_outward":True,
+ "regular_sideways_yaw_doors_rejected":True,
  "creator_trademark_license_pending":True,
  "owner_visual_approved":False,
  "original_orange_lamborghini_unchanged_sha256":"45cdbfd70dc4e6c64b6bbbe5e24a2107044e2008928ab01c27fa8fbb91a25bd7",
