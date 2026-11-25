@@ -105,6 +105,7 @@ for side in [-1,1]:
    cyl((side*3.67,.41,z),.32,.44,.56,stone)
    for k in range(5):
     a=k*2*pi/5;ball((side*3.67+.24*math.cos(a),.90,z+.24*math.sin(a)),(.58,.58,.58),leaf if k%2 else green)
+   for k in range(3):flower((side*3.67+.22*math.cos(k*2.1),1.05+.08*(k%2),z+.28*math.sin(k*2.1)+.15),.95)
 export('bridge',110000)
 clear()
 for side in [-1,1]:
@@ -222,6 +223,9 @@ signal=mat('signal amber',(.98,.49,.045),.1,.20)
 bs=signal.node_tree.nodes.get('Principled BSDF')
 bs.inputs['Emission Color'].default_value=(1,.42,.035,1)
 bs.inputs['Emission Strength'].default_value=.65
+# Warm lantern glass and jewel-like pickups retain visible highlights.
+for m, strength in [(amber,.28),(gold,.12),(water,.12)]:
+ b=m.node_tree.nodes.get('Principled BSDF');b.inputs['Emission Color'].default_value=m.diffuse_color;b.inputs['Emission Strength'].default_value=strength
 def fittings(h,depth):
  for x in [-.67,.67]:
   for y in [.14,h-.13]:
@@ -256,4 +260,30 @@ for x in [-.48,-.12,.24,.55]:
  o=box((x,.57,.18),(.20,.31,.035),white,.008);o.rotation_euler.y=.45
 for x in [-.61,.61]:ball((x,.76,0),(.16,.13,.18),signal)
 export('low_bar',12000)
+# Fantasy sky decorations are separate, lightweight geometry.
+clear()
+ball((0,0,0),(3.6,1.45,1.50),cream)
+for x in [-1.18,-.58,0,.58,1.18]:
+ s=math.sqrt(max(.1,1-(x/1.8)**2))
+ ball((x,0,0),(.28,1.50*s,1.54*s),gold if abs(x)>.1 else violet)
+box((0,-.94,0),(1.6,.48,.70),wood2,.12)
+for x in [-.58,.58]:
+ box((x,-.52,.26),(.055,.78,.055),gold,.012)
+ box((x,-.52,-.26),(.055,.78,.055),gold,.012)
+box((1.48,.05,0),(.64,.82,.13),violet,.08)
+paw((0,-.05,.79),violet,1.5)
+export('airship',18000)
+clear()
+# Broad multicolour sky arch, seven continuous low-poly ribbons.
+for j,c in enumerate([(1,.14,.16),(1,.48,.10),(1,.82,.16),(.20,.83,.31),(.12,.68,1),(.22,.30,.88),(.56,.23,.83)]):
+ m=mat('rainbow band '+str(j),c,0,.7)
+ b=m.node_tree.nodes.get('Principled BSDF');b.inputs['Emission Color'].default_value=(*c,1);b.inputs['Emission Strength'].default_value=.18
+ r=12-j*.21;verts=[];faces=[]
+ for k in range(49):
+  a=pi*k/48
+  for rr in [r,r-.20]:verts.append(v((rr*math.cos(a),rr*math.sin(a),0)))
+ for k in range(48):faces.append((k*2,k*2+1,k*2+3,k*2+2))
+ me=bpy.data.meshes.new('rainbow ribbon');me.from_pydata(verts,[],faces);me.update()
+ o=bpy.data.objects.new('rainbow ribbon',me);bpy.context.collection.objects.link(o);o.data.materials.append(m)
+export('rainbow',1800)
 with open(os.path.join(OUT,'mesh-metrics.json'),'w') as out: json.dump(stats,out,indent=2)

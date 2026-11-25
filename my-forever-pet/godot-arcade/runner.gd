@@ -19,6 +19,8 @@ var crash_remaining := 0.0
 var crash_origin := Vector3.ZERO
 var music_button: Button
 var moving_rows := 0
+var sky_ship:Node3D
+var ship_origin:=Vector3.ZERO
 var magnet_time := 0.0
 var shield_time := 0.0
 var double_time := 0.0
@@ -154,7 +156,7 @@ func asset(parent: Node3D, name: String, pos: Vector3) -> Node3D:
 		for child in n.find_children("*","MeshInstance3D",true,false):
 			(child as MeshInstance3D).lod_bias=0.65
 	# Tiny collectibles and distant islands do not need expensive shadow passes.
-	if name in ["coin","snack","magnet","shield","double","boost","island"]:
+	if name in ["coin","snack","magnet","shield","double","boost","island","airship","rainbow"]:
 		for child in n.find_children("*","MeshInstance3D",true,false):
 			(child as MeshInstance3D).cast_shadow=GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	parent.add_child(n)
@@ -239,6 +241,13 @@ func _ready() -> void:
 		call_deferred("soak_review")
 
 func make_cloudscape() -> void:
+	# Actual animated 3D airship and sky arch, not a screenshot overlay.
+	sky_ship=asset(self,"airship",Vector3(-12.0,12.0,-40.0))
+	if sky_ship!=null:
+		ship_origin=sky_ship.position
+		sky_ship.scale=Vector3.ONE*1.5
+	var rainbow:=asset(self,"rainbow",Vector3(0,1.5,-72.0))
+	if rainbow!=null: rainbow.scale=Vector3.ONE*2.2
 	# Panorama supplies clouds; real distant GLB islands add silhouettes and depth.
 	# Fixed world backdrop avoids spawning high-cost scenery per track row.
 	for i in range(6):
@@ -979,6 +988,9 @@ func update_effects(dt:float) -> void:
 	power_ring.scale=Vector3.ONE*(1.0+sin(clock*7)*0.08)
 	for i in range(scene_anim.size()):
 		scene_anim[i].position.y=scene_anim_origins[i].y+sin(clock*0.35+float(i))*0.32
+	if sky_ship!=null:
+		sky_ship.position=ship_origin+Vector3(sin(clock*0.18)*5.0,sin(clock*0.42)*0.75,0)
+		sky_ship.rotation.z=sin(clock*0.35)*0.04
 	var intensity:=clampf((speed-12.0)/13.0,0,1)
 	speed_line_mat.albedo_color=Color(0.65,0.88,1.0,0.12+intensity*0.30)
 	for i in range(speed_lines.size()):
@@ -1014,7 +1026,8 @@ func hazard_hit(kind: int, feet_y: float, sliding: bool, lateral:float=0.0) -> b
 				return feet_y<1.94
 			return lateral<0.98 and feet_y<1.66 and top>1.18
 		LOW_BAR: return feet_y<0.74 and lateral<0.98
-		CART,TALL: return feet_y<3.0 and lateral<1.03
+		CART: return feet_y<2.76 and lateral<1.03
+		TALL: return feet_y<3.10 and lateral<1.03
 	return false
 
 func update_hud() -> void:

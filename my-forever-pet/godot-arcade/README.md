@@ -22,3 +22,5 @@ Android lab export: separate package org.myforeverpet.dashlab, ARM64 debug signi
 Endless hardening: rebase track-local coordinates every 1024m while keeping total distance/score, so long runs do not accumulate world-position precision error. Recycled chunks vary castle-island position, size and rotation using a separate seeded RNG, without allocating new scenery. Soak reports rebases and chunk recycle count.
 
 0.10: moving lane carts, tall lane-blockers, low jump bars, correct red beam vertical overlap and post geometry, crash animation before game-over, original looping music and independent music setting, sky seam blending. Visual reference is still an artistic target; no equivalence claim. Smoke includes vertical clearance and tall obstacle checks; soak includes moving carts.
+
+0.10 visual follow-up: original airborne ship with motion, rainbow geometry, planter flowers, warmer emissive lantern/pickup materials, and exact cart versus tall-block heights. Sky decorations are separate meshes with shadows disabled. Artistic review remains pending.

@@ -28,7 +28,7 @@ func _ready() -> void:
 		var stream:=load("res://assets/skyway-music.wav") as AudioStreamWAV
 		stream.loop_mode=AudioStreamWAV.LOOP_FORWARD
 		stream.loop_begin=0
-		stream.loop_end=stream.data.size()/2
+		stream.loop_end=int(stream.data.size()/2.0)
 		music.stream=stream
 func tone(start: float, end: float, duration: float, gain: float) -> AudioStreamWAV:
 	var data:=PackedByteArray()
