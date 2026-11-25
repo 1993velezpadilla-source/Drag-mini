@@ -7,6 +7,12 @@ var portrait:TextureRect
 var bg:TextureRect
 var actions:VBoxContainer
 var section="Home"
+var current_room=""
+var rendered_stage=-1
+var egg_visual:Label
+var face:Label
+var room_tag:Label
+var outfit_label:Label
 var stats:Array[ProgressBar]=[]
 var notice:Label
 var clock_label:Label
@@ -52,6 +58,10 @@ func make_ui():
 	bg=TextureRect.new(); bg.set_anchors_and_offsets_preset(PRESET_FULL_RECT); bg.expand_mode=TextureRect.EXPAND_IGNORE_SIZE; bg.stretch_mode=TextureRect.STRETCH_KEEP_ASPECT_COVERED; visual.add_child(bg)
 	var fallback=ColorRect.new(); fallback.color=Color("#436c6b"); fallback.set_anchors_and_offsets_preset(PRESET_FULL_RECT); visual.add_child(fallback); visual.move_child(fallback,0)
 	portrait=TextureRect.new(); portrait.set_anchors_and_offsets_preset(PRESET_CENTER); portrait.offset_left=-105; portrait.offset_right=105; portrait.offset_top=-95; portrait.offset_bottom=115; portrait.expand_mode=TextureRect.EXPAND_IGNORE_SIZE; portrait.stretch_mode=TextureRect.STRETCH_KEEP_ASPECT_CENTERED; visual.add_child(portrait)
+	egg_visual=Label.new(); egg_visual.text="◉"; egg_visual.add_theme_font_size_override("font_size",120); egg_visual.add_theme_color_override("font_color",Color("#ffe8b9")); egg_visual.set_anchors_and_offsets_preset(PRESET_CENTER); egg_visual.offset_left=-65; egg_visual.offset_top=-90; visual.add_child(egg_visual)
+	face=Label.new(); face.text="• ᴗ •"; face.add_theme_font_size_override("font_size",29); face.add_theme_color_override("font_color",Color("#28202c")); face.set_anchors_and_offsets_preset(PRESET_CENTER); face.offset_left=-39; face.offset_top=-7; visual.add_child(face)
+	room_tag=Label.new(); room_tag.add_theme_font_size_override("font_size",18); room_tag.position=Vector2(12,9); visual.add_child(room_tag)
+	outfit_label=Label.new(); outfit_label.add_theme_font_size_override("font_size",14); outfit_label.set_anchors_and_offsets_preset(PRESET_BOTTOM_WIDE); outfit_label.offset_top=-31; outfit_label.offset_bottom=-3; outfit_label.horizontal_alignment=HORIZONTAL_ALIGNMENT_CENTER; visual.add_child(outfit_label)
 	var touch=Button.new(); touch.flat=true; touch.set_anchors_and_offsets_preset(PRESET_FULL_RECT); touch.pressed.connect(func(): perform("hatch" if store.s.stage==0 else "bond")); visual.add_child(touch)
 	var meters=panel(layout)
 	for name in ["Food","Mood","Energy","Bond"]:
@@ -69,9 +79,11 @@ func make_ui():
 func perform(id:String,i:int=0):
 	notice.text="Done!" if store.action(id,i) else "Unavailable — check needs, cost or requirements."
 	refresh()
+	if section=="Shop": select("Shop")
 func add_action(name:String,id:String,i:int=0): button(actions,name,func(): perform(id,i))
 func select(tab:String):
 	section=tab
+	current_room=""
 	for child in actions.get_children(): actions.remove_child(child); child.queue_free()
 	label(actions,tab.to_upper(),18)
 	var s:Dictionary=store.s
@@ -110,6 +122,7 @@ func select(tab:String):
 		"Cell":
 			label(actions,"Inspect growth cells and treat illness.",17); add_action("Treat one sick cell","cell")
 func room(name:String):
+	current_room=name
 	for child in actions.get_children(): actions.remove_child(child); child.queue_free()
 	label(actions,name,22)
 	match name:
@@ -141,15 +154,27 @@ func refresh():
 	info.text="%s / %s  •  %d coins  •  %d crystals  •  %d materials"%[store.STAGES[int(s.stage)],store.FIELDS[int(s.field)],s.coins,s.crystals,s.materials]
 	clock_label.text=Time.get_time_string_from_system().substr(0,5)
 	for i in range(4): stats[i].value=[s.hunger*20,s.happy*10,s.energy,s.bond][i]
-	var night=store.asleep(store.now())
+	var hour=int(Time.get_datetime_dict_from_system().hour)
+	var night=hour<5 or hour>=19
 	var path="res://assets/home_night.jpg" if night else "res://assets/home_day.jpg"
+	room_tag.text=current_room if not current_room.is_empty() else "Your home"
+	bg.modulate=[Color.WHITE,Color("#c2dcff"),Color("#d3c1ff")][int(s.theme)]
+	var outfit_names:Array[String]=[]
+	for item in s.worn:
+		if item>0: outfit_names.append(store.CLOTHES[int(item)-1])
+	outfit_label.text=" · ".join(outfit_names)
 	if ResourceLoader.exists(path): bg.texture=load(path)
 	var pp="res://assets/pet_%d.png"%(store.species()%12)
 	if ResourceLoader.exists(pp): portrait.texture=load(pp)
 	portrait.modulate=Color("#d7c5ff") if s.variant==1 else Color.WHITE
 	portrait.scale=Vector2.ONE*(0.64 if s.stage<2 else 0.85 if s.stage==2 else 1.0)
-	if s.stage==0: portrait.hide()
-	else: portrait.show()
+	portrait.visible=s.stage>0
+	face.visible=s.stage>0
+	egg_visual.visible=s.stage==0
+	face.text="– ᴗ –" if store.asleep(store.now()) else "• ︿ •" if s.germs>0 or s.hunger<=1 else "• ᴗ •"
+	if rendered_stage!=int(s.stage):
+		rendered_stage=int(s.stage)
+		if section=="Home": select("Home")
 	if section=="Cell": notice.text="Cells %d/4 • Sick cells %d • Age %dh"%[s.cells[int(s.field)],s.germs,int(s.age/3600)]
 func test_home():
 	store.s=store.defaults(); store.s.auto_sleep=false
@@ -159,5 +184,20 @@ func test_home():
 	assert(store.begin_arcade(0)); assert(store.finish_arcade(5,5.0)==10); assert(store.finish_arcade(5,5.0)==0)
 	make_ui(); refresh()
 	for tab in ["Care","Rooms","Arcade","Shop","Journal","World","Cell","Home"]: select(tab)
+	# Boot each actual arcade scene and run its first physics step in-process.
+	for mode in range(4):
+		assert(store.begin_arcade(mode))
+		var game=load("res://pet_arcade.tscn").instantiate()
+		add_child(game)
+		game.set_physics_process(false)
+		game.size=Vector2(540,960)
+		game.started=true
+		game._physics_process(1.0/60.0)
+		assert(game.elapsed>0.0 and not game.over)
+		if mode==1: assert(game.pipes.size()==4)
+		if mode==2: assert(game.platforms.size()==7)
+		if mode==3: assert(game.crowd.size()==72)
+		store.finish_arcade(0,0.0)
+		remove_child(game); game.free()
 	print("FOREVER_PET_HUB_PASS")
 	get_tree().quit()

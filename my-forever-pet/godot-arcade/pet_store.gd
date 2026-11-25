@@ -61,6 +61,8 @@ func advance(at:float):
 		for boundary in [s.sleep_until,s.awake_until,trip]:
 			if boundary>cursor: dt=minf(dt,boundary-cursor)
 		var sleeping=asleep(cursor)
+		var old_waste=int(s.waste)
+		var old_mistakes=int(s.mistakes)
 		cursor+=dt
 		s.age+=dt
 		if sleeping:
@@ -78,7 +80,7 @@ func advance(at:float):
 				s.mistakes=mini(6,int(s.mistakes)+int(s.care_clock/900))
 				s.care_clock=fposmod(s.care_clock,900)
 			else: s.care_clock=0.0
-		if s.germs==0 and (s.waste>=6 or s.mistakes>=3): s.germs=3
+		if s.germs==0 and ((old_waste<6 and s.waste>=6) or (old_mistakes<3 and s.mistakes>=3)): s.germs=3
 		if s.stage==1:
 			s.cell_clock+=dt
 			s.cells[int(s.field)]=mini(4,int(s.cells[int(s.field)])+int(s.cell_clock/900))

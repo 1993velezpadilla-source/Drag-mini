@@ -195,7 +195,12 @@ func finish():
 	store.finish_arcade(score,elapsed)
 	get_tree().change_scene_to_file("res://hub.tscn")
 func draw_pet(center:Vector2,diameter:float,texture:Texture2D,tint:Color=Color.WHITE):
-	if texture!=null: draw_texture_rect(texture,Rect2(center-Vector2.ONE*diameter/2,Vector2.ONE*diameter),false,tint)
+	if texture!=null:
+		draw_texture_rect(texture,Rect2(center-Vector2.ONE*diameter/2,Vector2.ONE*diameter),false,tint)
+		for side in [-1,1]:
+			draw_circle(center+Vector2(side*diameter*.11,-diameter*.035),diameter*.031,Color("#273044"))
+			draw_circle(center+Vector2(side*diameter*.11-1,-diameter*.052),diameter*.012,Color.WHITE)
+		draw_arc(center+Vector2(0,diameter*.035),diameter*.045,0,PI,10,Color("#273044"),maxf(1,diameter*.016),true)
 	else:
 		draw_circle(center,diameter*0.34,Color("#92c97e")*tint)
 		draw_circle(center+Vector2(-diameter*.13,-diameter*.05),diameter*.035,Color("#162b38"))
