@@ -1,9 +1,9 @@
 """Import REAL third-party artist-authored car geometry into Blender 4.5.
 
-Input is a verified Objaverse distribution of wallon's CC BY 4.0 Audi R8; source receipt pins downloaded bytes.
+Input is an attributed Audi R8 archive candidate; source receipt pins downloaded bytes.
 Never generate approximation OEM silhouettes, never download game rips.
 Exports editable .blend, original-based Blender GLB, 4 true Blender views,
-one real native Cycles textured image, and an audit JSON per source.
+one real native Cycles source-material image, and an audit JSON per source.
 These are unmodified source car BODY models, not approved rigged cars:
 doors, hood, trunk, wheels, collisions, mobile budget remain for inspection.
 """
@@ -12,6 +12,8 @@ import json
 import math
 from pathlib import Path
 from mathutils import Vector
+from bpy_extras.object_utils import world_to_camera_view
+from collections import Counter
 
 ROOT = Path(__file__).resolve().parents[1]
 SOURCE = ROOT / "assets" / "original_artist_ccby_sources"
@@ -26,11 +28,22 @@ assert receipt["source_uid"] in {"e17e438f076f4427a58d93aa779edaed","2dee503c05f
 assert receipt["license"] == "CC BY 4.0" and receipt["artist"]
 MODELS = (("audi_r8", "Audi R8", receipt["artist"], receipt["source_url"], receipt["sha256"]),)
 
-def frame_car(scene, center, span, direction, camera):
+def frame_car(scene, center, span, direction, camera, points):
     camera.location = center + Vector(direction) * span
     camera.rotation_euler = (center - camera.location).to_track_quat("-Z", "Y").to_euler()
     camera.data.ortho_scale = span * 1.30
+    camera.data.clip_end = max(1000., span * 20)
+    camera.data.clip_start = max(.0001, span * .0001)
     scene.camera = camera
+    bpy.context.view_layer.update()
+    uv = [world_to_camera_view(scene, camera, p) for p in points]
+    max_x = max(abs(p.x-.5) for p in uv)
+    max_y = max(abs(p.y-.5) for p in uv)
+    camera.data.ortho_scale *= max(max_x/.41, max_y/.40)
+    bpy.context.view_layer.update()
+    uv = [world_to_camera_view(scene, camera, p) for p in points]
+    assert all(.05 <= p.x <= .95 and .05 <= p.y <= .95 for p in uv), "Source geometry clipped"
+    return [max(p.x for p in uv)-min(p.x for p in uv), max(p.y for p in uv)-min(p.y for p in uv)]
 
 def make_area_light(name, center, span, delta, watts, size):
     data = bpy.data.lights.new(name, "AREA")
@@ -73,6 +86,23 @@ def load_real_car(model):
     if span < 0.03 or span > 1000:
         raise RuntimeError("Invalid real GLB extent " + identifier + " " + repr(dims))
 
+    # Record every real artist mesh and material assignment before editing.
+    # Bounds and names are clues, not evidence of a functioning hinge.
+    topology=[]
+    for obj in meshes:
+        pts=[obj.matrix_world @ Vector(c) for c in obj.bound_box]
+        a=Vector(min(p[i] for p in pts) for i in range(3))
+        b=Vector(max(p[i] for p in pts) for i in range(3))
+        face_counts=Counter()
+        for poly in obj.data.polygons:
+            face_counts[poly.material_index]+=len(poly.vertices)-2
+        topology.append({"name":obj.name,"triangles":sum(face_counts.values()),
+                         "bounds_low":[float(x) for x in a],"bounds_high":[float(x) for x in b],
+                         "material_triangles":[{"material":obj.data.materials[k].name if k<len(obj.data.materials) and obj.data.materials[k] else None,"triangles":v} for k,v in sorted(face_counts.items())]})
+    assert sum(o["triangles"] for o in topology)==triangle_count==receipt["source_triangles"]
+    (PROOF/"audi_r8_source_mesh_panel_inventory.json").write_text(json.dumps({"source_sha256":digest,"source_meshes":topology,"door_hood_trunk_independent_geometry_verified":False,"interior_verified":False},indent=2)+"\n")
+    print("AUDI_R8_SOURCE_MESH_PANEL_INVENTORY",json.dumps({"mesh_count":len(topology),"largest_meshes":sorted(topology,key=lambda o:-o["triangles"])[:12]}),flush=True)
+
     # Save EDITABLE genuine imported master, without studio stand-ins.
     bpy.ops.file.pack_all()
     blend = OUTPUT / (identifier + "_artist_original_import.blend")
@@ -110,8 +140,9 @@ def load_real_car(model):
         ("rear_three_quarter", (-1.35, 1.45, 0.6)),
     )
     photo_files = []
+    frame_metrics = {}
     for angle, position in camera_angles:
-        frame_car(scene, center, span, position, cam)
+        frame_metrics[angle] = frame_car(scene, center, span, position, cam, bounds_points)
         scene.render.filepath = str(PROOF / (identifier + "_real_blender_" + angle + ".png"))
         bpy.ops.render.render(write_still=True)
         photo_files.append(scene.render.filepath)
@@ -134,8 +165,8 @@ def load_real_car(model):
     # Cycles denoising moved to ViewLayer in recent Blender releases.
     if hasattr(bpy.context.view_layer, "cycles"):
         bpy.context.view_layer.cycles.use_denoising = True
-    frame_car(scene, center, span, (1.25, -1.5, 0.65), cam)
-    pbr = PROOF / (identifier + "_REAL_native_cycles_textured.png")
+    frame_metrics["cycles_source_materials"] = frame_car(scene, center, span, (1.25, -1.5, 0.65), cam, bounds_points)
+    pbr = PROOF / (identifier + "_REAL_native_cycles_source_materials.png")
     scene.render.filepath = str(pbr)
     bpy.ops.render.render(write_still=True)
     if pbr.stat().st_size < 20000:
@@ -158,6 +189,12 @@ def load_real_car(model):
         "source_dimensions_blender_units": [round(float(v), 5) for v in dims],
         "editable_blend": blend.name, "blender_exported_glb": exported.name,
         "native_blender_photos": [Path(n).name for n in photo_files],
+        "source_material_audit": receipt["source_material_audit"],
+        "source_has_embedded_images": bool(receipt["source_material_audit"]["embedded_images"]),
+        "camera_bounds_frame_fractions": frame_metrics,
+        "source_mesh_panel_inventory": "audi_r8_source_mesh_panel_inventory.json",
+        "mobile_lod_required": True,
+        "owner_art_approved": False,
         "game_ready": False, "doors_hinges_approved": False,
         "trunk_hood_animation_approved": False,
         "visual_inspection_pending": True,
