@@ -1875,6 +1875,25 @@ func test_run() -> void:
 	assert(surf_time>0 and slide>0 and not hazard_hit(1,surf_lift(),true))
 	for i in range(45): await get_tree().physics_frame
 	assert(not ended and surf_board.visible and surf_time>0 and surf_saves==0)
+	# Repeat real collisions at the actual maximum speed plus board bonus.
+	var original_offset:=distance_offset
+	distance_offset=2000.0
+	collect_kind(SURF)
+	for i in range(3): await get_tree().physics_frame
+	assert(is_equal_approx(speed,MAX_SPEED+SURF_SPEED_BONUS))
+	make_entity(1,0,distance+speed*0.34)
+	gesture(Vector2(0,-80))
+	for i in range(60): await get_tree().physics_frame
+	assert(not ended and player.is_on_floor() and surf_board.visible and surf_saves==0)
+	make_entity(1,1,distance+speed*0.27)
+	gesture(Vector2(0,80))
+	for i in range(45): await get_tree().physics_frame
+	assert(not ended and surf_board.visible and surf_time>0 and surf_saves==0)
+	# Timer expiry still removes the board normally without consuming a crash save.
+	surf_time=0.01
+	for i in range(3): await get_tree().physics_frame
+	assert(surf_time==0.0 and not surf_board.visible and not ended and surf_saves==0)
+	distance_offset=original_offset
 	collect_kind(SURF)
 	for i in range(3): await get_tree().physics_frame
 	assert(speed>=normal_speed+SURF_SPEED_BONUS-0.5)
@@ -2048,7 +2067,18 @@ func unassisted_test() -> void:
 	assert(not ended and total_distance()>=3200.0,"legal route must work without power-ups; seed %d at %.1f m"%[unassisted_seed,total_distance()])
 	assert(speed>=MAX_SPEED-0.1 and jet_runs==0 and surf_saves==0 and mixed_rows>40)
 	assert(pattern_count>150,"expert run must sustain denser rows at the speed cap")
-	print("PET_DASH_UNASSISTED_PASS seed=",unassisted_seed," distance=",total_distance()," speed=",speed," gates=",mixed_rows)
+	# The same legal-route driver must lose at the cap if it stops jumping/ducking.
+	# Keep its exact lane knowledge and disable only vertical gestures.
+	var expert_checkpoint:=total_distance()
+	var expert_gates:=mixed_rows
+	lane_only_review=true
+	var late_ticks:=0
+	while not ended and total_distance()<expert_checkpoint+120.0 and late_ticks<300:
+		await get_tree().physics_frame
+		late_ticks+=1
+	assert(ended,"lane-only play must fail at max speed even with perfect lane knowledge")
+	print("PET_DASH_EXPERT_LANE_ONLY_FAILS seed=",unassisted_seed," after_m=",total_distance()-expert_checkpoint)
+	print("PET_DASH_UNASSISTED_PASS seed=",unassisted_seed," distance=",expert_checkpoint," speed=",speed," gates=",expert_gates)
 	get_tree().quit(0)
 
 func lane_only_test() -> void:
