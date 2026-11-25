@@ -2,8 +2,8 @@ package org.myforeverpet.paradise;
 import android.graphics.*;
 /** Original low resolution sprites rendered nearest-neighbor; no official assets. */
 final class PetArt {
- private final Bitmap buffer=Bitmap.createBitmap(160,192,Bitmap.Config.ARGB_8888);
- private final Canvas c=new Canvas(buffer);private final Paint p=new Paint();private final Paint blit=new Paint();
+ private final Bitmap buffer=Bitmap.createBitmap(320,384,Bitmap.Config.ARGB_8888);
+ private final Canvas c=new Canvas(buffer);{c.scale(2f,2f);}private final Paint p=new Paint();private final Paint blit=new Paint();
  private int ink=0xff353052;private final PetState[] crowd=new PetState[Arcade.CROWD];private Arcade crowdGame;private int crowdRound=-1;private final RectF destinationRect=new RectF();private final Typeface pixelFont=Typeface.create("monospace",Typeface.BOLD);
  private void r(int x,int y,int w,int h,int color){p.setColor(color);c.drawRect(x,y,x+w,y+h,p);}
  private void o(int x,int y,int rx,int ry,int color){p.setColor(color);c.drawOval(x-rx,y-ry,x+rx+1,y+ry+1,p);}
@@ -53,7 +53,7 @@ final class PetArt {
   int bob=asleep?(int)(Math.sin(tick/1000.0)):(int)(Math.sin(tick/300.0)*2);c.translate(0,bob);if(asleep){c.translate(0,5);c.scale(1.05f,.78f);}
   int[] col={0xff9be5ac,0xfff4b6da,0xffffca89,0xffa3dcef,0xff85dbea,0xfff49cbd,0xffb8acfc,0xffe8b994,0xffb1a4fa,0xfff5c3e7,0xffffce79,0xffa4d8fa};
   int body=col[s.species()%col.length];int hi=0xfff9f2ff;
-  o(0,19,22,4,0x334a3a77);if(s.stage>=1){int stride=asleep?0:(int)(tick/180)%2; r(-8,17+stride,4,2,ink);r(6,18-stride,4,2,ink);}
+  o(0,19,22,4,0x334a3a77);
   if(s.stage==0){o(0,0,17,23,ink);o(0,-1,15,21,0xfffff4d3);o(-6,-10,5,4,0xffdab2ee);o(6,4,6,4,0xff9bd7dc);o(-4,13,4,4,0xfff2adc9);c.restore();return;}
   int shape=s.stage==1?s.field*4:s.species()%12;int palette=col[(s.species()+s.variant*5+s.color)%col.length];if(s.sick)palette=mix(palette,0xffa4a5bc,.5f);
   float size=s.stage==1?.8f:s.stage==2?.86f:s.stage==3?.94f:1f;c.scale(size,size);family(shape,palette,hi,tick,asleep||tick%3200<180,s.eyes);
@@ -66,14 +66,14 @@ final class PetArt {
  }
  private void prop(PetState s){if(s.installation==0)return;int x=124,y=135;if(s.installation==4){r(x-14,y-8,28,15,ink);r(x-12,y-6,24,10,0xffe8f9ff);r(x-10,y-4,20,5,0xff72cde6);}else if(s.installation==5){r(x-21,y-17,6,24,ink);r(x+16,y-6,6,13,ink);r(x-19,y-13,40,16,ink);r(x-16,y-11,34,11,0xfff1e5fc);r(x-15,y-10,11,8,0xfffff9ff);r(x-3,y-9,21,10,0xff9e83d7);r(x-3,y-9,21,2,0xffd2bdf4);r(x-19,y+1,40,4,0xff8e6fae);r(x-17,y+5,4,4,ink);r(x+15,y+5,4,4,ink);}else{r(x-2,y-3,4,15,0xff78688b);r(x-10,y+10,20,3,ink);for(int i=0;i<5;i++)star(x-10+i*5,y-9+(i%2)*4,0xffff90b8);}}
  Bitmap itemIcon(int i){Bitmap b=Bitmap.createBitmap(48,48,Bitmap.Config.ARGB_8888);Canvas out=new Canvas(b);Paint q=new Paint();q.setAntiAlias(false);q.setColor(0xff353052);out.drawRoundRect(5,12,43,37,5,5,q);int[] colors={0xffffcf67,0xffe97db7,0xffffd98a,0xff7ddce9,0xffbca2ed,0xffed92b1};q.setColor(colors[i]);if(i==0){out.drawRect(13,7,35,25,q);out.drawRect(7,25,41,30,q);}else if(i==1){out.drawRect(8,13,21,33,q);out.drawRect(27,13,40,33,q);out.drawRect(21,20,27,27,q);}else if(i==2){out.drawOval(7,12,41,34,q);q.setColor(0xff353052);out.drawOval(13,17,35,29,q);}else if(i==3){out.drawRect(8,19,40,34,q);q.setColor(0xffe9ffff);out.drawRect(10,19,38,22,q);}else if(i==4){out.drawRect(7,11,12,36,q);out.drawRect(8,17,41,33,q);q.setColor(0xfffff1fe);out.drawRect(12,18,23,26,q);q.setColor(0xff9871c9);out.drawRect(24,18,39,30,q);out.drawRect(8,34,13,39,q);out.drawRect(35,34,40,39,q);}else{out.drawRect(21,20,27,39,q);for(int n=0;n<3;n++)out.drawOval(7+n*10,6+(n%2)*5,21+n*10,23+(n%2)*5,q);}return b;}
- Bitmap silhouette(PetState state){Bitmap im=creatureIcon(state);Bitmap out=Bitmap.createBitmap(64,64,Bitmap.Config.ARGB_8888);Canvas cv=new Canvas(out);Paint q=new Paint();q.setColorFilter(new PorterDuffColorFilter(0xff6e7294,PorterDuff.Mode.SRC_IN));cv.drawBitmap(im,0,0,q);im.recycle();return out;}
- Bitmap creatureIcon(PetState state){c.drawColor(Color.TRANSPARENT,PorterDuff.Mode.CLEAR);sprite(state,80,96,1000,1);return Bitmap.createBitmap(buffer,48,60,64,64);}
+ Bitmap silhouette(PetState state){Bitmap im=creatureIcon(state);Bitmap out=Bitmap.createBitmap(128,128,Bitmap.Config.ARGB_8888);Canvas cv=new Canvas(out);Paint q=new Paint();q.setColorFilter(new PorterDuffColorFilter(0xff6e7294,PorterDuff.Mode.SRC_IN));cv.drawBitmap(im,0,0,q);im.recycle();return out;}
+ Bitmap creatureIcon(PetState state){c.drawColor(Color.TRANSPARENT,PorterDuff.Mode.CLEAR);sprite(state,80,96,1000,1);return Bitmap.createBitmap(buffer,96,120,128,128);}
  void drawArcade(Canvas out,PetState s,Arcade game,long tick){
   c.drawColor(0xff9fdde1);for(int i=0;i<5;i++)cloud((i*41+12)%160,27+i%3*49,0xffe5f7f3);
   if(game.mode==Arcade.FIND){boolean refreshCrowd=crowdGame!=game||crowdRound!=game.round;crowdGame=game;crowdRound=game.round;int[] ground={0xffb8ddc0,0xffebd5a5,0xffcbbbe7,0xffb0d9e4};c.drawColor(ground[game.theme]);c.save();c.clipRect(0,28,160,192);c.scale(game.searchZoom,game.searchZoom);c.translate(-game.cameraX,-game.cameraY);
    for(int i=0;i<game.props.length;i++){int px=(int)game.propX[i],py=(int)game.propY[i];switch(game.props[i]){case 0:r(px-2,py,4,12,0xff8f745c);o(px,py-5,10,12,0xff699d80);o(px-3,py-8,6,7,0xff8eb799);break;case 1:r(px-11,py-8,22,16,0xff917a91);r(px-13,py-12,26,6,0xffe38e9e);for(int k=0;k<3;k++)r(px-11+k*8,py-12,3,6,0xfff8e6bc);break;case 2:star(px,py,0xfff5bd68);break;case 3:r(px-6,py-5,12,10,0xffc28c62);r(px-4,py-3,8,6,0xffe8c096);break;default:o(px,py,9,4,0xff8ab7d1);}}
-   for(int i=0;i<Arcade.CROWD;i++){PetState d=s;if(i!=game.hidden){if(refreshCrowd||crowd[i]==null){d=new PetState();d.stage=s.stage;d.field=game.faces[i]%12/4;d.body=game.faces[i]%4;d.variant=game.faces[i]/12;d.eyes=(i+1)%4;if(d.field==s.field){d.color=1+(s.color+2)%14;d.equipped=(s.equipped+1)%4;}crowd[i]=d;}else d=crowd[i];}c.save();c.translate(game.cx[i],game.cy[i]);c.scale(.58f,.58f);sprite(d,0,0,1000,1);c.restore();}c.restore();r(0,17,160,11,0xff353052);t("FIND "+game.wrong+"/5   "+Math.max(0,(3600-game.ticks+59)/60)+"s",80,25,7,0xffffebbd);}
-  else if(game.mode==Arcade.DASH){c.drawColor(0xffa9dbd0);poly(0xffd9b992,60,32,100,32,160,192,0,192);for(int i=0;i<2;i++)line(73+i*14,32,53+i*54,192,0xfff5e7c2);for(int i=0;i<8;i++){float d=game.depth[i];if(d<0||d>1)continue;float near=1-d;int yy=32+(int)(near*near*150),xx=80+(int)((game.obstacleLane[i]-1)*(12+near*42));int size=3+(int)(near*10);if(game.obstacleKind[i]==2){o(xx,yy,size,size,0xffffd06a);o(xx,yy,Math.max(1,size-3),Math.max(1,size-3),0xffe5a54f);}else if(game.obstacleKind[i]==0){r(xx-size,yy-size,size*2,size,ink);r(xx-size+2,yy-size+2,size*2-4,size-3,0xffb47c58);}else{r(xx-size,yy-size*2,3,size*2,ink);r(xx+size-3,yy-size*2,3,size*2,ink);r(xx-size,yy-size*2,size*2,5,0xffd97b9c);}}c.save();c.translate(80+(game.lane-1)*52,166-(game.jumpTicks>0?(int)(Math.sin(game.jumpTicks*Math.PI/32)*28):0));c.scale(.48f,game.slideTicks>0?.25f:.48f);sprite(s,0,0,tick,1);c.restore();}
+   for(int i=0;i<Arcade.CROWD;i++){PetState d=s;if(i!=game.hidden){if(refreshCrowd||crowd[i]==null){d=new PetState();d.stage=s.stage;d.field=game.faces[i]%12/4;d.body=game.faces[i]%4;d.variant=game.faces[i]/12;d.eyes=(i+1)%4;if(d.field==s.field){d.color=1+(s.color+2)%14;d.equipped=(s.equipped+1)%4;}if(i%3==0){d.stage=PetState.ADULT;d.body=(i/3)%4;if(d.field==s.field&&d.body==s.body)d.body=(d.body+1)%4;}crowd[i]=d;}else d=crowd[i];}c.save();c.translate(game.cx[i],game.cy[i]);c.scale(.87f,.87f);sprite(d,0,0,1000,1);c.restore();}c.restore();r(0,17,160,11,0xff353052);t("FIND "+game.wrong+"/5   "+Math.max(0,(3600-game.ticks+59)/60)+"s",80,25,7,0xffffebbd);c.save();c.translate(14,13);c.scale(.34f,.34f);sprite(s,0,0,1000,1);c.restore();}
+  else if(game.mode==Arcade.DASH){dash(s,game,tick);}
   else if(game.mode==Arcade.FLY){for(int i=0;i<5;i++){int x=(int)game.px[i],y=(int)game.py[i],gap=(int)Math.max(25,37-game.score*.4f);r(x-9,0,18,y-gap,ink);r(x-7,0,14,y-gap-2,0xff74b895);r(x-9,y+gap,18,192-y-gap,ink);r(x-7,y+gap+2,14,192-y-gap-2,0xff74b895);}}
   else if(game.mode==Arcade.JUMP){for(int i=0;i<5;i++){int x=(int)game.px[i],y=(int)game.py[i];r(x-15,y,30,5,ink);r(x-14,y,28,3,0xff91c98b);}}
   else{star((int)game.targetX,(int)game.targetY,0xffffbd52);}
@@ -82,6 +82,30 @@ final class PetArt {
   r(0,0,160,17,0xff353052);t("SCORE "+game.score,80,12,9,0xffffebbd);
   if(!game.started||game.over){r(13,71,134,42,0xff353052);t(game.over?"GAME OVER":game.mode==Arcade.FLY?"TAP TO FLY":game.mode==Arcade.JUMP?"TOUCH TO STEER":game.mode==Arcade.FIND?"FIND YOUR PET":game.mode==Arcade.DASH?"SWIPE TO DASH":"TAP THE STARS",80,88,9,0xffffffff);t(game.over?"COLLECT REWARD":"READY?",80,103,8,0xffffd98a);}
   present(out);
+ }
+ private int roadX(float lane,float depth){return 80+(int)(lane*(9+(1-depth)*48));}
+ private int roadY(float depth){float n=1-depth;return 42+(int)(n*n*145);}
+ private void dash(PetState s,Arcade g,long tick){
+  int theme=s.field;int sky=theme==0?0xff9ddcd5:theme==1?0xff8ed1df:0xffb8b3ed;
+  int ground=theme==0?0xff74b493:theme==1?0xff569fb6:0xff9b90cc;
+  int road=theme==0?0xffd4b590:theme==1?0xffc9a58e:0xffe6cce9;
+  c.drawColor(sky);o(125,23,13,13,0xffffe5a3);cloud(24,28,0xffecf7f0);cloud(109,33,0xffe7f2fc);
+  for(int i=0;i<6;i++)o(i*34-8,57,27,23,i%2==0?0xff84b8ae:0xff9ecac2);
+  r(0,52,160,140,ground);poly(0xff354d63,62,42,98,42,160,192,0,192);poly(road,65,42,95,42,156,192,4,192);
+  float phase=(g.distance%1f);
+  for(int i=0;i<12;i++){float d=1-(i+phase)/12f;if(d<0||d>1)continue;int yy=roadY(d),l=roadX(-1.55f,d),rr=roadX(1.55f,d);r(l,yy,Math.max(1,rr-l),1,theme==2?0xffbda5d2:0xffbfa080);for(int lane=-1;lane<=1;lane++){int xx=roadX(lane,d);r(xx-1,yy,2,2,0xfff5e0af);}}
+  for(int i=0;i<9;i++){float d=1-(i+phase)/9f;if(d<0||d>1)continue;float n=1-d;int y=roadY(d),sz=4+(int)(n*14);for(int side=-1;side<=1;side+=2){int x=roadX(side*1.8f,d);if(theme==0){r(x-2,y-sz,4,sz,0xff735e63);o(x,y-sz,sz/2+1,sz,0xff376e70);o(x-2,y-sz-2,Math.max(2,sz/2),sz-2,0xff589b83);}else if(theme==1){r(x-1,y-sz,3,sz,0xff805f73);r(x-sz/2,y-sz,sz,3,0xffe2c2a5);o(x,y+3,sz/2,2,0xffc0ece4);}else{cloud(x,y,0xffe6dff8);star(x,y-sz,0xffffdfa1);}}}
+  // Render farther obstacles first, so perspective and overlap match collision.
+  for(int i=0;i<g.drawOrder.length;i++){int j=g.drawOrder[i];float d=g.depth[j];if(d<0||d>1)continue;float n=1-d;int yy=roadY(d),xx=roadX(g.obstacleLane[j]-1,d),sz=3+(int)(n*11);int kind=g.obstacleKind[j];
+   o(xx,yy+2,sz+2,Math.max(1,sz/3),0x44394353);
+   if(kind==2){o(xx,yy-sz,sz,sz,0xffa76c53);o(xx,yy-sz,Math.max(1,sz-1),Math.max(1,sz-1),0xffffce62);r(xx-1,yy-sz-2,2,5,0xfffff4b5);}
+   else if(kind==0){r(xx-sz,yy-sz,sz*2,sz,ink);r(xx-sz+1,yy-sz+1,sz*2-2,sz-2,0xffa2735d);r(xx-sz+2,yy-sz+2,sz*2-4,2,0xffe0bb88);line(xx-sz+2,yy-sz+2,xx+sz-2,yy-2,0xffe0bb88);}
+   else{int h=sz*2+3;r(xx-sz,yy-h,3,h,ink);r(xx+sz-3,yy-h,3,h,ink);r(xx-sz,yy-h,sz*2,5,0xffe0879d);for(int k=0;k<sz*2-2;k+=4)r(xx-sz+1+k,yy-h+1,2,3,0xfff8e3a8);}
+  }
+  int px=roadX(g.visualLane-1,.12f),py=roadY(.12f)-13;int lift=g.jumpTicks>0?(int)(Math.sin(g.jumpTicks*Math.PI/32)*28):0;
+  o(px,py+15,12,4,0x55313b52);c.save();c.translate(px,py-lift);c.scale(.85f,g.slideTicks>0?.42f:.85f);sprite(s,0,0,tick,1);c.restore();
+  if(g.coinFlash>0){star(px-14,py-16,0xfffff0ae);star(px+14,py-23,0xffffdc78);}
+  r(0,17,160,12,0xff283451);t((theme==0?"FOREST TRAIL":theme==1?"CORAL BOARDWALK":"CLOUD BRIDGE")+"   "+g.coinsFound+"c",80,25,7,0xffe8dfbc);
  }
  private void present(Canvas out){out.drawColor(0xff171b39);float z=Math.min(out.getWidth()/160f,out.getHeight()/192f);float x=(out.getWidth()-160*z)/2,y=(out.getHeight()-192*z)/2;blit.setFilterBitmap(false);destinationRect.set(x,y,x+160*z,y+192*z);out.drawBitmap(buffer,null,destinationRect,blit);}
  void draw(Canvas out,PetState s,int zoom,boolean wall,long tick){
@@ -102,7 +126,7 @@ final class PetArt {
    else{ o(14,134,62,50,0xff89c6aa);o(137,129,70,47,0xff91c9ac);r(0,143,160,49,0xff9ed7b1);for(int i=0;i<9;i++){int x=(i*29+6)%160,y=150+i%4*10;r(x,y,1,5,0xff5a9c8a);star(x,y,0xffffe3a9);} }
    if(dark>0)r(0,90,160,102,((int)(dark*90)<<24)|0x172342);prop(s);if(s.sleeping()){int bx=80,by=141;r(bx-38,by-9,76,16,ink);r(bx-36,by-8,72,12,0xffb7a2dc);r(bx-32,by-10,23,10,0xfff4e6f0);}int walk=s.sleeping()?0:(int)(Math.sin(tick/2400.0)*13);sprite(s,80+walk,111,tick,zoom==1?1:2);
    for(int i=0;i<s.waste;i++){int x=10+i*24;o(x,172,6,3,ink);o(x,170,4,4,0xffae805b);}
-   if(!wall)t(zoom==1?s.fieldName().toUpperCase():s.creature().toUpperCase(),80,14,9,night?0xfff5e9fa:ink);else if(!wallClock.isEmpty()){r(52,181,56,11,0xff353052);t(wallClock,80,189,7,0xffffebbd);}
+   if(!wall&&zoom==1)t(s.fieldName().toUpperCase(),80,14,9,night?0xfff5e9fa:ink);else if(wall&&!wallClock.isEmpty()){r(52,181,56,11,0xff353052);t(wallClock,80,189,7,0xffffebbd);}
   }
   out.drawColor(0xff171b39);float z=Math.min(out.getWidth()/160f,out.getHeight()/192f);float x=(out.getWidth()-160*z)/2,y=(out.getHeight()-192*z)/2;blit.setFilterBitmap(false);destinationRect.set(x,y,x+160*z,y+192*z);out.drawBitmap(buffer,null,destinationRect,blit);
  }
