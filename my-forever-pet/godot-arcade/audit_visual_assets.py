@@ -27,7 +27,8 @@ assert len(report)==29
 for i in range(24):
  p=root/('pet_%d.png'%i)
  im=Image.open(p).convert('RGBA');a=im.getchannel('A');b=a.getbbox()
- assert b and b[0]>0 and b[1]>0 and b[2]<im.width and b[3]<im.height,(p,b)
+ margin=round(min(im.width,im.height)*.05)
+ assert b and b[0]>=margin and b[1]>=margin and b[2]<=im.width-margin and b[3]<=im.height-margin,(p,b)
  assert (b[2]-b[0])>=im.width*.25 and (b[3]-b[1])>=im.height*.25,(p,b)
  report[p.name]={'alpha_bounds':b}
 (root/'visual-asset-audit.json').write_text(json.dumps(report,indent=2))

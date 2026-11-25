@@ -244,13 +244,32 @@ for species in range(24):
  sc.render.resolution_x=384;sc.render.resolution_y=384;sc.render.resolution_percentage=100
  sc.render.film_transparent=True;sc.render.image_settings.file_format='PNG';sc.render.image_settings.color_mode='RGBA'
  sc.world.color=(.30,.33,.44)
- bpy.ops.object.camera_add(location=(0,-6.8,2.1));cam=bpy.context.object
- cam.rotation_euler=(Vector((0,0,.95))-cam.location).to_track_quat('-Z','Y').to_euler()
- cam.data.type='ORTHO';cam.data.ortho_scale=3.1;sc.camera=cam
+ # Frame actual evaluated imported geometry, including tails, wings and ears.
+ bpy.context.view_layer.update()
+ deps=bpy.context.evaluated_depsgraph_get()
+ points=[ob.matrix_world@Vector(corner) for original in sc.objects if original.type=='MESH' for ob in [original.evaluated_get(deps)] for corner in ob.bound_box]
+ assert points,('empty creature',species)
+ lower=Vector(tuple(min(v[k] for v in points) for k in range(3)))
+ upper=Vector(tuple(max(v[k] for v in points) for k in range(3)))
+ center=(lower+upper)*.5
+ direction=Vector((0,-6.8,1.15)).normalized()
+ bpy.ops.object.camera_add(location=center+direction*8);cam=bpy.context.object
+ cam.rotation_euler=(-direction).to_track_quat('-Z','Y').to_euler()
+ bpy.context.view_layer.update()
+ local=[cam.matrix_world.inverted()@v for v in points]
+ xmin,xmax=min(v.x for v in local),max(v.x for v in local)
+ ymin,ymax=min(v.y for v in local),max(v.y for v in local)
+ cam.location+=cam.matrix_world.to_3x3()@Vector(((xmin+xmax)*.5,(ymin+ymax)*.5,0))
+ cam.data.type='ORTHO';cam.data.ortho_scale=max(xmax-xmin,ymax-ymin)/.80;sc.camera=cam
+ bpy.context.view_layer.update()
+ from bpy_extras.object_utils import world_to_camera_view
+ projected=[world_to_camera_view(sc,cam,v) for v in points]
+ assert all(.085<=v.x<=.915 and .085<=v.y<=.915 for v in projected),('portrait framing',species)
+ print('PORTRAIT_FRAME_OK',species,round(cam.data.ortho_scale,3),flush=True)
  for loc,power,col in [((-3,-4,5),550,(1,.85,.70)),((3,-3,2),300,(.65,.82,1)),((2,3,4),650,(.65,.80,1))]:
   d=bpy.data.lights.new('studio','AREA');d.energy=power;d.color=col;d.shape='DISK';d.size=4
   ob=bpy.data.objects.new('studio',d);sc.collection.objects.link(ob);ob.location=loc
-  ob.rotation_euler=(Vector((0,0,.8))-ob.location).to_track_quat('-Z','Y').to_euler()
+  ob.rotation_euler=(center-ob.location).to_track_quat('-Z','Y').to_euler()
  sc.render.filepath=os.path.join(ROOT,'pet_%d.png'%species)
  bpy.ops.render.render(write_still=True)
  print('DASH_STYLE_PORTRAIT_OK',species,flush=True)
