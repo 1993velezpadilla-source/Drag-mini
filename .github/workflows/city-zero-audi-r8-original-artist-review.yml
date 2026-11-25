@@ -67,8 +67,8 @@ jobs:
                   continue
               g=json.loads(raw[20:20+size])
               triangles=sum((g['accessors'][p['indices']]['count'] if 'indices' in p else g['accessors'][p['attributes']['POSITION']]['count'])//3 for m in g.get('meshes',[]) for p in m['primitives'] if p.get('mode',4)==4)
-              if not 300000<=triangles<=650000 or len(g.get('materials',[]))<3 or not g.get('images'):
-                  attempts.append([uid,'rejected detail/material floor',triangles])
+              if not 300000<=triangles<=1000000 or len(g.get('materials',[]))<3 or not g.get('images') or len(raw)>250_000_000:
+                  attempts.append([uid,'rejected master geometry/material/size budget',triangles,len(g.get('materials',[])),len(g.get('images',[])),len(raw)])
                   continue
               page='https://sketchfab.com/3d-models/'+slug+'-'+uid
               chosen=uid
@@ -86,9 +86,9 @@ jobs:
           assert kind==b'JSON'
           g=json.loads(raw[20:20+size])
           triangles=sum((g['accessors'][p['indices']]['count'] if 'indices' in p else g['accessors'][p['attributes']['POSITION']]['count'])//3 for m in g['meshes'] for p in m['primitives'] if p.get('mode',4)==4)
-          assert 300000<=triangles<=650000,triangles
+          assert 300000<=triangles<=1000000,triangles
           assert len(g.get('materials',[]))>=3 and g.get('images')
-          receipt={'source_uid':uid,'source_url':page,'artist':artist,'license':'CC BY 4.0','source_dataset':'allenai/objaverse','sha256':hashlib.sha256(raw).hexdigest(),'source_triangles':triangles,'source_bytes':len(raw),'source_metadata':metadata,'rejected_source_attempts':attempts,'owner_approved':False,'commercial_brand_rights_cleared':False}
+          receipt={'source_uid':uid,'source_url':page,'artist':artist,'license':'CC BY 4.0','source_dataset':'allenai/objaverse','sha256':hashlib.sha256(raw).hexdigest(),'source_triangles':triangles,'source_bytes':len(raw),'source_metadata':metadata,'rejected_source_attempts':attempts,'owner_approved':False,'commercial_brand_rights_cleared':False,'master_only_requires_mobile_lod':True}
           (out/'audi_r8_source_receipt.json').write_text(json.dumps(receipt,indent=2)+'\n')
           print('AUDI_R8_PERMITTED_SOURCE_INTAKE',json.dumps({k:v for k,v in receipt.items() if k!='source_metadata'}))
           PY
