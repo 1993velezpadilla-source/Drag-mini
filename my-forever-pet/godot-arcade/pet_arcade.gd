@@ -33,10 +33,28 @@ var playfield:Control
 var combo=0
 var best_combo=0
 var last_target_at=0.0
-var last_input_touch=0
+var last_input_touch=-1000
+var timer_bar:ProgressBar
+var best_label:Label
+var preview:TextureRect
+var result_label:Label
+var feedback=0.0
+var feedback_pos=Vector2.ZERO
+var feedback_text=""
+var height_score=0.0
+var platform_highest=0.0
+var platform_serial=0
+var platform_ids:Array[int]=[]
+var scored_platforms:Dictionary={}
+var last_label_key=""
 var stage_texture:Texture2D
 var prop_textures:Dictionary={}
 
+func gap_height()->float: return maxf(84,126-score*1.6)
+func pipe_speed()->float: return 185+minf(125,score*5)
+func round_limit()->float: return 20.0 if mode==0 else 60.0 if mode==3 else 0.0
+func flash(at:Vector2,message:String):
+	feedback_pos=at; feedback_text=message; feedback=0.65
 func _ready():
 	store=get_node("/root/PetStore")
 	if store.arcade_mode<0 or store.arcade_mode>3:
@@ -63,8 +81,12 @@ func _ready():
 	add_child(bar)
 	title=Label.new(); title.add_theme_font_size_override("font_size",22); title.size_flags_horizontal=SIZE_EXPAND_FILL; bar.add_child(title)
 	var exit=Button.new(); exit.text="Collect / exit"; exit.custom_minimum_size=Vector2(140,50); exit.pressed.connect(finish); bar.add_child(exit)
+	best_label=Label.new(); best_label.set_anchors_and_offsets_preset(PRESET_BOTTOM_LEFT); best_label.position=Vector2(15,size.y-39); best_label.text="BEST "+str(store.s.best[mode]); best_label.modulate=Color("#a8d8d4"); add_child(best_label)
+	timer_bar=ProgressBar.new(); timer_bar.set_anchors_and_offsets_preset(PRESET_TOP_WIDE); timer_bar.offset_left=14; timer_bar.offset_right=-14; timer_bar.offset_top=65; timer_bar.offset_bottom=72; timer_bar.show_percentage=false; timer_bar.max_value=maxf(1,round_limit()); timer_bar.value=round_limit(); timer_bar.visible=round_limit()>0; add_child(timer_bar)
+	preview=TextureRect.new(); preview.texture=pet_texture; preview.expand_mode=TextureRect.EXPAND_IGNORE_SIZE; preview.stretch_mode=TextureRect.STRETCH_KEEP_ASPECT_CENTERED; preview.set_anchors_and_offsets_preset(PRESET_BOTTOM_RIGHT); preview.offset_left=-68; preview.offset_right=-8; preview.offset_top=-74; preview.offset_bottom=-14; preview.mouse_filter=MOUSE_FILTER_IGNORE; preview.visible=mode==3; add_child(preview)
 	hint=Label.new(); hint.set_anchors_and_offsets_preset(PRESET_BOTTOM_WIDE); hint.offset_top=-85; hint.offset_bottom=-40; hint.horizontal_alignment=HORIZONTAL_ALIGNMENT_CENTER; hint.add_theme_font_size_override("font_size",17); add_child(hint)
 	zoom_button=Button.new(); zoom_button.text="Zoom / overview"; zoom_button.set_anchors_and_offsets_preset(PRESET_CENTER_BOTTOM); zoom_button.offset_left=-95; zoom_button.offset_right=95; zoom_button.offset_top=-43; zoom_button.offset_bottom=-5; zoom_button.pressed.connect(toggle_zoom); zoom_button.visible=mode==3; add_child(zoom_button)
+	result_label=Label.new(); result_label.set_anchors_and_offsets_preset(PRESET_CENTER); result_label.offset_left=-205; result_label.offset_right=205; result_label.offset_top=-85; result_label.offset_bottom=5; result_label.horizontal_alignment=HORIZONTAL_ALIGNMENT_CENTER; result_label.add_theme_font_size_override("font_size",24); result_label.hide(); add_child(result_label)
 	done=Button.new(); done.text="Collect & return"; done.set_anchors_and_offsets_preset(PRESET_CENTER); done.offset_left=-125; done.offset_right=125; done.offset_top=15; done.offset_bottom=72; done.pressed.connect(finish); done.hide(); add_child(done)
 	update_labels()
 func reset_round():
@@ -75,7 +97,11 @@ func reset_round():
 			for i in range(4): pipes.append(Vector3(540+i*230,rng.randf_range(185,535),0))
 		2:
 			pos=Vector2(240,560); velocity.y=-540
-			for i in range(7): platforms.append(Vector2(240 if i==0 else rng.randf_range(65,415),600-i*92))
+			var x=240.0
+			for i in range(7):
+				if i>0: x=clampf(x+rng.randf_range(-145,145),65,415)
+				platforms.append(Vector2(x,600-i*92)); platform_ids.append(i)
+			platform_serial=7
 		3: shuffle_crowd()
 func new_target():
 	target=Vector2(rng.randf_range(45,435),rng.randf_range(55,665))
@@ -114,7 +140,9 @@ func begin_press(p:Vector2):
 	match mode:
 		0:
 			if press_at.distance_to(target)<48:
-				score+=1; combo+=1; best_combo=maxi(combo,best_combo); new_target()
+				combo+=1; best_combo=maxi(combo,best_combo)
+				var points=1+mini(3,int(combo/5))
+				score+=points; flash(target,"+"+str(points)); new_target()
 			else: combo=0
 		1: velocity.y=-370
 		2: steer=clampf((press_at.x-pos.x)/55,-1,1)
@@ -139,11 +167,11 @@ func end_press(p:Vector2):
 		if dist<best: best=dist; nearest=i
 	if nearest<0: return
 	if nearest==target_index:
-		score+=1
+		score+=1; flash(crowd_point(crowd[nearest]),"FOUND!")
 		if score>=8: over=true
 		else: shuffle_crowd()
 	else:
-		wrong+=1
+		wrong+=1; flash(point,"TRY AGAIN")
 		if wrong>=5: over=true
 func toggle_zoom():
 	zoomed=not zoomed; camera_offset=Vector2(35,35) if zoomed else Vector2.ZERO
@@ -151,6 +179,7 @@ func toggle_zoom():
 func crowd_point(v:Vector3)->Vector2:
 	return Vector2(v.x,v.y)*(1.12 if zoomed else 0.88)-camera_offset+Vector2(5,25)
 func _physics_process(dt:float):
+	feedback=maxf(0,feedback-dt)
 	if started and not over:
 		elapsed+=dt
 		match mode:
@@ -159,13 +188,13 @@ func _physics_process(dt:float):
 				if elapsed>=20: over=true
 			1:
 				velocity.y+=920*dt; pos.y+=velocity.y*dt
-				var gap=maxf(77,123-score*2)
-				var speed=170+minf(100,score*6)
+				var gap=gap_height()
+				var speed=pipe_speed()
 				for i in range(pipes.size()):
 					pipes[i].x-=speed*dt
 					var p=pipes[i]
 					if absf(p.x-pos.x)<57 and (pos.y-20<p.y-gap or pos.y+20>p.y+gap): over=true
-					if p.x+35<pos.x-20 and p.z==0 and not over: score+=1; pipes[i].z=1
+					if p.x+35<pos.x-20 and p.z==0 and not over: score+=1; pipes[i].z=1; flash(pos,"+1")
 					if p.x< -65:
 						var far=0.0
 						for pipe in pipes: far=maxf(far,pipe.x)
@@ -178,28 +207,41 @@ func _physics_process(dt:float):
 				var old_y=pos.y
 				pos.x=fposmod(pos.x+steer*310*dt,WORLD.x)
 				velocity.y+=850*dt; pos.y+=velocity.y*dt
-				for p in platforms:
+				for i in range(platforms.size()):
+					var p=platforms[i]
 					if velocity.y>0 and old_y+23<=p.y and pos.y+23>=p.y and absf(pos.x-p.x)<62:
-						pos.y=p.y-23; velocity.y=-570; score+=1; break
+						pos.y=p.y-23; velocity.y=-570
+						if not scored_platforms.has(platform_ids[i]):
+							scored_platforms[platform_ids[i]]=true; score+=1; flash(pos,"+1")
+						break
 				if pos.y<285:
-					var shift=285-pos.y; pos.y=285
+					var shift=285-pos.y; pos.y=285; height_score+=shift
 					for i in range(platforms.size()):
 						platforms[i].y+=shift
 						if platforms[i].y>750:
-							var high=720.0
-							for p in platforms: high=minf(high,p.y)
-							platforms[i]=Vector2(rng.randf_range(65,415),high-92)
+							var high=720.0; var x=240.0
+							for p in platforms:
+								if p.y<high: high=p.y; x=p.x
+							platforms[i]=Vector2(clampf(x+rng.randf_range(-150,150),65,415),high-92-minf(40,score*1.5))
+							scored_platforms.erase(platform_ids[i]); platform_ids[i]=platform_serial; platform_serial+=1
 				if pos.y>760: over=true
 			3:
 				if elapsed>=60: over=true
-		if mode!=0 and elapsed>=60: over=true
+		# Flappy and Cloud Jump are endless skill runs; only timed modes have a limit.
 	if is_instance_valid(title): update_labels()
 	queue_redraw()
 func update_labels():
+	var key="%d:%d:%d:%d:%s:%s"%[score,combo,wrong,ceili(elapsed),started,over]
+	if key==last_label_key: return
+	last_label_key=key
 	title.text=NAMES[mode]+"  •  "+str(score)
+	timer_bar.value=maxf(0,round_limit()-elapsed)
 	hint.text="Tap stars • Combo ×%d • %ds"%[combo,ceili(maxf(0,20-elapsed))] if mode==0 else "Tap to flap" if mode==1 else "Hold left / right to steer" if mode==2 else "Find your pet • %d/5 misses • %ds"%[wrong,ceili(maxf(0,60-elapsed))]
 	if not started: hint.text="Tap the game to start"
-	if over: hint.text="Round complete • Score "+str(score); done.show()
+	if over:
+		hint.text="Round complete • Score "+str(score); done.show()
+		var reward=mini(100,score*[2,6,4,10][mode]) if elapsed>=1.0 else 0
+		result_label.text="ROUND COMPLETE\n%d points  •  +%d coins"%[score,reward]; result_label.show()
 func finish():
 	if claimed: return
 	claimed=true
@@ -239,13 +281,18 @@ func _draw():
 			else: draw_colored_polygon(points,Color("#ffda80"))
 			draw_pet(Vector2(240,660),90,pet_texture)
 		1:
-			var gap=maxf(77,123-score*2)
+			var gap=gap_height()
 			for pipe in pipes:
 				var x=pipe.x
-				draw_rect(Rect2(x-35,0,70,maxf(0,pipe.y-gap)),Color("#87bc97"))
-				draw_rect(Rect2(x-35,pipe.y+gap,70,maxf(0,720-pipe.y-gap)),Color("#87bc97"))
-				draw_rect(Rect2(x-43,pipe.y-gap-15,86,15),Color("#b9e2b5"))
-				draw_rect(Rect2(x-43,pipe.y+gap,86,15),Color("#b9e2b5"))
+				var upper=Rect2(x-35,0,70,maxf(0,pipe.y-gap))
+				var lower=Rect2(x-35,pipe.y+gap,70,maxf(0,720-pipe.y-gap))
+				if prop_textures.has("pipe"):
+					var texture:Texture2D=prop_textures.pipe
+					var region=Rect2(Vector2.ZERO,texture.get_size())
+					draw_texture_rect_region(texture,upper,region)
+					draw_texture_rect_region(texture,lower,region)
+				else:
+					draw_rect(upper,Color("#87bc97")); draw_rect(lower,Color("#87bc97"))
 			draw_pet(pos,80,pet_texture)
 		2:
 			for p in platforms:
@@ -259,5 +306,15 @@ func _draw():
 				var v=crowd[i]; var p=crowd_point(v)
 				if p.x<25 or p.x>455 or p.y<25 or p.y>695: continue
 				draw_pet(p,58 if zoomed else 47,pet_texture if i==target_index else other_textures[int(v.z)])
+	if feedback>0:
+		var p=feedback_pos-Vector2(0,(1-feedback/0.65)*36)
+		draw_string(ThemeDB.fallback_font,p,feedback_text,HORIZONTAL_ALIGNMENT_CENTER,-1,24,Color(1,.90,.55,feedback/0.65))
 	draw_set_transform(Vector2.ZERO)
+	# Mask the off-board geometry while retaining a crisp playfield.
+	var ink=Color("#102332")
+	draw_rect(Rect2(0,0,size.x,r.position.y),ink)
+	draw_rect(Rect2(0,r.end.y,size.x,maxf(0,size.y-r.end.y)),ink)
+	draw_rect(Rect2(0,r.position.y,r.position.x,r.size.y),ink)
+	draw_rect(Rect2(r.end.x,r.position.y,maxf(0,size.x-r.end.x),r.size.y),ink)
+	draw_rect(r,Color("#93c6c2"),false,2)
 	if over: draw_rect(r,Color("#102332a0"))

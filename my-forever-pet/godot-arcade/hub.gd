@@ -341,9 +341,29 @@ func test_home():
 		game.started=true
 		game._physics_process(1.0/60.0)
 		assert(game.elapsed>0.0 and not game.over)
-		if mode==1: assert(game.pipes.size()==4)
-		if mode==2: assert(game.platforms.size()==7)
-		if mode==3: assert(game.crowd.size()==72)
+		if mode==0:
+			var p=game.board_rect().position+game.target*game.board_rect().size/game.WORLD
+			game.begin_press(p); game.end_press(p)
+			assert(game.score==1 and game.combo==1)
+		if mode==1:
+			assert(game.pipes.size()==4 and game.round_limit()==0)
+			game.elapsed=61; game.pos.y=340; game.velocity.y=0; game._physics_process(1.0/60)
+			assert(not game.over)
+		if mode==2:
+			assert(game.platforms.size()==7 and game.round_limit()==0)
+			game.pos=Vector2(game.platforms[0].x,game.platforms[0].y-24)
+			game.velocity.y=100; game._physics_process(1.0/60)
+			var first_score=game.score
+			assert(first_score==1)
+			game.pos=Vector2(game.platforms[0].x,game.platforms[0].y-24)
+			game.velocity.y=100; game._physics_process(1.0/60)
+			assert(game.score==first_score)
+		if mode==3:
+			assert(game.crowd.size()==72)
+			var target=game.crowd_point(game.crowd[game.target_index])
+			var p=game.board_rect().position+target*game.board_rect().size/game.WORLD
+			game.begin_press(p); game.end_press(p)
+			assert(game.score==1 and game.wrong==0)
 		store.finish_arcade(0,0.0)
 		remove_child(game); game.free()
 	print("FOREVER_PET_HUB_PASS")
