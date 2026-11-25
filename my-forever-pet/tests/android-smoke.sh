@@ -13,7 +13,7 @@ tap_text() {
  coords=$(python3 - "$1" <<'PY'
 import sys,re,xml.etree.ElementTree as ET
 for n in ET.parse('/tmp/pet.xml').iter('node'):
-    if n.get('text')==sys.argv[1] or (sys.argv[1]=='@clock' and re.search(r' • (Night|Dawn|Day|Sunset)
+    if (n.get('text') or '').casefold()==sys.argv[1].casefold() or (sys.argv[1]=='@clock' and re.search(r' • (Night|Dawn|Day|Sunset)
         v=list(map(int,re.findall(r'\d+',n.get('bounds'))))
         print((v[0]+v[2])//2,(v[1]+v[3])//2)
         break
