@@ -54,6 +54,8 @@ var mixed_rows := 0
 var last_required_row := -4
 var last_required_action := 1
 var lane_only_review := false
+var unassisted_review := false
+var unassisted_seed := 7319
 var forced_lane_changes := 0
 var safe_lane_streak := 0
 var treasure_routes := 0
@@ -265,8 +267,13 @@ func asset(parent: Node3D, name: String, pos: Vector3) -> Node3D:
 func _ready() -> void:
 	using_blender=ResourceLoader.exists("res://assets/bridge.glb")
 	lane_only_review=OS.get_cmdline_user_args().has("--lane-only")
-	review_driver=OS.get_cmdline_user_args().has("--soak") or OS.get_cmdline_user_args().has("--capture") or lane_only_review
+	unassisted_review=OS.get_cmdline_user_args().has("--unassisted")
+	review_driver=OS.get_cmdline_user_args().has("--soak") or OS.get_cmdline_user_args().has("--capture") or lane_only_review or unassisted_review
 	rng.seed = 7319 if OS.get_cmdline_user_args().has("--test") or review_driver else Time.get_ticks_usec()
+	if unassisted_review:
+		for arg in OS.get_cmdline_user_args():
+			if arg.begins_with("--seed="): unassisted_seed=int(arg.trim_prefix("--seed="))
+		rng.seed=unassisted_seed
 	scenery_rng.seed=uint64_seed(rng.seed)
 	bubble_rng.seed=uint64_seed(rng.seed+109)
 	next_time_orb_at=bubble_rng.randf_range(850.0,1050.0)
@@ -371,6 +378,8 @@ func _ready() -> void:
 		call_deferred("soak_review")
 	elif lane_only_review:
 		call_deferred("lane_only_test")
+	elif unassisted_review:
+		call_deferred("unassisted_test")
 
 func make_cloudscape() -> void:
 	# Actual animated 3D airship and sky arch, not a screenshot overlay.
@@ -842,7 +851,8 @@ func fill_track() -> void:
 			elif slot==2: power=SURF
 			elif slot==3: power=JETPACK
 			elif slot==4: power=SMASH
-			make_entity(free_lane,power,spawn_at+3.6)
+			# CI can test the exact generated hazards without any speed/shield assist.
+			if not unassisted_review: make_entity(free_lane,power,spawn_at+3.6)
 		elif action<0 and rng.randf()<0.34:
 			make_entity(free_lane,SNACK,spawn_at+3.6)
 		if tier>=1 and action<0 and pattern_count%11==8: make_entity(free_lane,GEM,spawn_at+4.8)
@@ -1996,6 +2006,18 @@ func capture_review() -> void:
 		var frame:=get_viewport().get_texture().get_image()
 		assert(frame.save_png("/tmp/pet-dash-biome-%d.png"%biome)==OK)
 	print("PET_DASH_RENDER_CAPTURE_OK")
+	get_tree().quit(0)
+
+func unassisted_test() -> void:
+	await get_tree().physics_frame
+	started=true
+	var ticks:=0
+	while not ended and total_distance()<3200.0 and ticks<20000:
+		await get_tree().physics_frame
+		ticks+=1
+	assert(not ended and total_distance()>=3200.0,"legal route must work without power-ups; seed %d at %.1f m"%[unassisted_seed,total_distance()])
+	assert(speed>=MAX_SPEED-0.1 and jet_runs==0 and surf_saves==0 and mixed_rows>40)
+	print("PET_DASH_UNASSISTED_PASS seed=",unassisted_seed," distance=",total_distance()," speed=",speed," gates=",mixed_rows)
 	get_tree().quit(0)
 
 func lane_only_test() -> void:
