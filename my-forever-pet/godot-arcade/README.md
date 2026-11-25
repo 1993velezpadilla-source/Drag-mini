@@ -18,3 +18,5 @@ Android lab export: separate package org.myforeverpet.dashlab, ARM64 debug signi
 0.8: continuous-touch direction chaining, quicker lane transitions, jump/roll body pitch, dynamic camera height, floating island motion, power-up rings and speed trails, decorated arches and irregular castle-island silhouettes. Mobile perf and visual parity remain unverified.
 
 0.9 Endless: no destination, finish line or distance-based game-over. Distance only controls difficulty and score. Track chunks and entities recycle indefinitely; collision ends a run unless protected, and deliberate retirement is accessible only through Pause. CI now tests passage through 3000m and an additional 180 physics frames with continued gameplay; this checkpoint is not a production limit. Lab rewards remain local.
+
+Endless hardening: rebase track-local coordinates every 1024m while keeping total distance/score, so long runs do not accumulate world-position precision error. Recycled chunks vary castle-island position, size and rotation using a separate seeded RNG, without allocating new scenery. Soak reports rebases and chunk recycle count.

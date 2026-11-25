@@ -54,6 +54,11 @@ var pattern_count := 0
 var lane := 1
 var slide := 0.0
 var distance := 0.0
+var distance_offset := 0.0
+const REBASE_INTERVAL := 1024.0
+var rebase_count := 0
+var chunk_recycles := 0
+var scenery_rng := RandomNumberGenerator.new()
 var coins := 0
 var snacks := 0
 var speed := 9.0
@@ -154,6 +159,7 @@ func _ready() -> void:
 	using_blender=ResourceLoader.exists("res://assets/bridge.glb")
 	review_driver=OS.get_cmdline_user_args().has("--soak") or OS.get_cmdline_user_args().has("--capture")
 	rng.seed = 7319 if OS.get_cmdline_user_args().has("--test") or review_driver else Time.get_ticks_usec()
+	scenery_rng.seed=uint64_seed(rng.seed)
 	var env := WorldEnvironment.new()
 	var e := Environment.new()
 	e.background_mode = Environment.BG_COLOR
@@ -237,13 +243,28 @@ func make_cloudscape() -> void:
 			scene_anim.append(island)
 			scene_anim_origins.append(island.position)
 
+func uint64_seed(value:int) -> int:
+	return value ^ 0x51CEB00C
+
+func refresh_chunk_decor(chunk:Node3D) -> void:
+	for child in chunk.get_children():
+		if not child.has_meta("scenery_island"): continue
+		var island:=child as Node3D
+		var side:float=float(island.get_meta("scenery_island"))
+		island.position.x=side*scenery_rng.randf_range(8.0,10.8)
+		island.position.y=scenery_rng.randf_range(-0.3,2.0)
+		island.rotation.y=scenery_rng.randf_range(-0.35,0.35)
+		island.scale=Vector3.ONE*scenery_rng.randf_range(0.95,1.30)
+
 func make_chunk(chunk: Node3D, index: int) -> void:
 	if using_blender and asset(chunk,"bridge",Vector3.ZERO)!=null:
 		if index%2==1: asset(chunk,"arch",Vector3(0,0,-4))
 		if index%2==0:
 			for side in [-1,1]:
 				var island:=asset(chunk,"island",Vector3(side*(8.0+float(index%3)),float(index%3)*1.3,-4))
-				if island!=null: island.scale=Vector3.ONE*(1.0+float(index%3)*0.12)
+				if island!=null:
+					island.set_meta("scenery_island",side)
+					island.scale=Vector3.ONE*(1.0+float(index%3)*0.12)
 		return
 	box(chunk, Vector3(0,-0.22,0), Vector3(6.6,0.42,SEGMENT), Color("#815541"))
 	for i in range(9):
@@ -494,13 +515,27 @@ func retire_run() -> void:
 		paused_run=false
 		update_hud()
 
+func total_distance() -> float:
+	return distance_offset+distance
+
+func rebase_track() -> void:
+	if distance<REBASE_INTERVAL: return
+	var shift:=floorf(distance/REBASE_INTERVAL)*REBASE_INTERVAL
+	distance-=shift
+	distance_offset+=shift
+	spawn_at-=shift
+	for a in entities: a.set_meta("at",float(a.get_meta("at"))-shift)
+	for i in range(safe_rows.size()): safe_rows[i].x-=shift
+	driver_action_at-=shift
+	rebase_count+=1
+
 func fill_track() -> void:
 	while spawn_at<distance+95:
 		var free_lane:=clampi(previous_safe_lane+rng.randi_range(-1,1),0,2)
 		var blocked_lanes:Array[int]=[]
 		for i in range(3):
 			if i!=free_lane: blocked_lanes.append(i)
-		var tier:=mini(3,int(spawn_at/85.0))
+		var tier:=mini(3,int((distance_offset+spawn_at)/85.0))
 		var first:=rng.randi_range(0,1)
 		var action:=-1
 		# After the warm-up, occasional full-width obstacle rows require a
@@ -525,7 +560,7 @@ func fill_track() -> void:
 		if review_driver: safe_rows.append(Vector3(spawn_at,float(free_lane),float(action)))
 		previous_safe_lane=free_lane
 		pattern_count+=1
-		var projected_speed:=minf(25.0,9.0+spawn_at*0.024)
+		var projected_speed:=minf(25.0,9.0+(distance_offset+spawn_at)*0.024)
 		spawn_at+=maxf(10.5,projected_speed*(1.24-0.07*tier))
 
 func make_entity(which_lane: int, kind: int, at: float) -> void:
@@ -674,7 +709,7 @@ func ground_shadow(parent:Node3D,w:float,h:float) -> MeshInstance3D:
 	return n
 
 func run_score() -> int:
-	return int(distance*10)+coins*25+snacks*50
+	return int(total_distance()*10)+coins*25+snacks*50
 
 func load_best() -> void:
 	if OS.get_cmdline_user_args().has("--test") or review_driver: return
@@ -737,8 +772,9 @@ func _physics_process(dt: float) -> void:
 	shield_time=maxf(0,shield_time-dt)
 	double_time=maxf(0,double_time-dt)
 	boost_time=maxf(0,boost_time-dt)
-	speed=minf(25.0,9.0+distance*0.024)+(4.0 if boost_time>0 else 0.0)
+	speed=minf(25.0,9.0+total_distance()*0.024)+(4.0 if boost_time>0 else 0.0)
 	distance+=speed*dt
+	rebase_track()
 	slide=maxf(0,slide-dt)
 	mascot.scale.y=lerpf(mascot.scale.y,0.48 if slide>0 or air_slide_pending else 1.0, minf(1,dt*16))
 	mascot.rotation.y=PI+clampf(player.velocity.x*0.023,-0.24,0.24)
@@ -765,6 +801,8 @@ func _physics_process(dt: float) -> void:
 		chunk.position.z+=speed*dt
 		if chunk.position.z>SEGMENT*1.5:
 			chunk.position.z-=SEGMENTS*SEGMENT
+			chunk_recycles+=1
+			refresh_chunk_decor(chunk)
 	update_scenery_visibility()
 	for i in range(entities.size()-1,-1,-1):
 		var a:=entities[i]
@@ -924,11 +962,11 @@ func update_hud() -> void:
 	if power_text!=last_power_hud:
 		last_power_hud=power_text
 		power_label.text=power_text
-	var key := str(int(distance))+":"+str(coins)+":"+str(snacks)+":"+str(ended)+":"+str(paused_run)+":"+str(started)
+	var key := str(int(total_distance()))+":"+str(coins)+":"+str(snacks)+":"+str(ended)+":"+str(paused_run)+":"+str(started)
 	if key==last_hud: return
 	last_hud=key
 	points_label.text="%d pts"%run_score()
-	score_label.text="%d m"%int(distance)
+	score_label.text="%d m"%int(total_distance())
 	coin_label.text="%d coins"%coins
 	snack_label.text="%d snacks"%snacks
 	hint.text=("Run ended" if retired_run else "Game over") if ended else "Paused" if paused_run else "Swipe left / right" if started else "Swipe to start"
@@ -937,7 +975,7 @@ func update_hud() -> void:
 	retire_button.visible=paused_run and not ended
 	if ended:
 		save_best()
-		result_text.text="%s\n%d pts  •  Best %d\n%d m  •  %d coins  •  %d snacks"%["RUN ENDED" if retired_run else "GAME OVER",run_score(),best_score,int(distance),coins,snacks]
+		result_text.text="%s\n%d pts  •  Best %d\n%d m  •  %d coins  •  %d snacks"%["RUN ENDED" if retired_run else "GAME OVER",run_score(),best_score,int(total_distance()),coins,snacks]
 		result_button.text="Run again"
 	elif paused_run:
 		result_text.text="PAUSED"
@@ -947,7 +985,7 @@ func claim_result() -> Dictionary:
 	if session_claimed or not ended:
 		return {}
 	session_claimed=true
-	return {"distance":int(distance),"coins":coins,"snacks":snacks}
+	return {"distance":int(total_distance()),"coins":coins,"snacks":snacks}
 
 func test_run() -> void:
 	# Deterministic headless scene boot + input, track generation and reward idempotence.
@@ -1102,19 +1140,21 @@ func soak_review() -> void:
 	await get_tree().physics_frame
 	started=true
 	var steps:=0
-	while distance<3000.0 and not ended and steps<16000:
+	while total_distance()<3000.0 and not ended and steps<16000:
 		await get_tree().physics_frame
 		steps+=1
-	assert(not ended and distance>=3000.0,"endless route stopped unexpectedly")
-	var checkpoint:=distance
+	assert(not ended and total_distance()>=3000.0,"endless route stopped unexpectedly")
+	var checkpoint:=total_distance()
 	for i in range(180): await get_tree().physics_frame
-	assert(not ended and distance>checkpoint+30.0,"run must continue past the test checkpoint")
+	assert(not ended and total_distance()>checkpoint+30.0,"run must continue past the test checkpoint")
+	assert(rebase_count>=3 and distance<REBASE_INTERVAL)
+	assert(chunk_recycles>100 and chunks.size()==SEGMENTS)
 	assert(pattern_count>35 and reused_entities>100 and mandatory_rows>3)
 	assert(created_entities<180 and peak_active<130)
 	assert(coins>20)
 	var result:=FileAccess.open("/tmp/pet-dash-soak.json",FileAccess.WRITE)
 	assert(result!=null)
-	result.store_string(JSON.stringify({"distance":distance,"steps":steps,"coins":coins,"snacks":snacks,"rows":pattern_count,"mandatory_rows":mandatory_rows,"allocated":created_entities,"reused":reused_entities,"peak_active":peak_active,"scope":"deterministic headless endless physics; 3000m checkpoint plus continued gameplay, not physical-device FPS"}))
+	result.store_string(JSON.stringify({"distance":total_distance(),"local_distance":distance,"rebases":rebase_count,"chunk_recycles":chunk_recycles,"steps":steps,"coins":coins,"snacks":snacks,"rows":pattern_count,"mandatory_rows":mandatory_rows,"allocated":created_entities,"reused":reused_entities,"peak_active":peak_active,"scope":"deterministic headless endless physics; 3000m checkpoint plus continued gameplay, not physical-device FPS"}))
 	result.close()
 	print("PET_DASH_SOAK_PASS")
 	get_tree().quit(0)
