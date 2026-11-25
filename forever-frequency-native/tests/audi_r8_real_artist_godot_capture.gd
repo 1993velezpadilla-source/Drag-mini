@@ -1,6 +1,5 @@
 extends SceneTree
-## Isolated Godot 4 screenshot proof for THREE genuine external CC BY 4.0
-## authored vehicle GLBs. No procedurally generated bodies, no AI images.
+## Isolated Godot 4 screenshot proof for one external Audi R8 author model. No procedurally generated bodies, no AI images.
 ## Car pixels must disappear in a mesh-visibility control frame.
 const CAR_MODELS := [{"id": "audi_r8", "author": "wallon"}]
 
@@ -52,6 +51,7 @@ func _capture() -> void:
             return
         var low := Vector3(INF, INF, INF)
         var high := Vector3(-INF, -INF, -INF)
+        var corners: Array[Vector3] = []
         var tri_count := 0
         for obj in meshes:
             var mesh: Mesh = obj.mesh
@@ -62,6 +62,7 @@ func _capture() -> void:
                 tri_count += int((idx if idx > 0 else mesh.surface_get_array_len(surface)) / 3)
             for corner in range(8):
                 var point := obj.global_transform * mesh.get_aabb().get_endpoint(corner)
+                corners.append(point)
                 low = low.min(point)
                 high = high.max(point)
         if tri_count < 300000:
@@ -103,6 +104,18 @@ func _capture() -> void:
             var direction: Vector3 = viewpoints[view]
             camera.global_position = center + direction * span
             camera.look_at(center, Vector3.UP)
+            camera.size = span * 1.9
+            for i in range(3):
+                await process_frame
+            var screen_center := Vector2(stage.size) * 0.5
+            var half_extent := Vector2.ZERO
+            for corner in corners:
+                half_extent = half_extent.max((camera.unproject_position(corner) - screen_center).abs())
+            var scale := maxf(half_extent.x / (screen_center.x * .84), half_extent.y / (screen_center.y * .82))
+            if scale <= .01 or scale > 3.0:
+                _fail("Invalid true geometry camera framing")
+                return
+            camera.size *= scale
             for i in range(16):
                 await process_frame
             var shot := await _image(stage)
@@ -120,20 +133,28 @@ func _capture() -> void:
                 _fail("Missing negative control image " + name)
                 return
             var changed := 0
-            for y in range(80, 720, 5):
-                for x in range(100, 1180, 5):
+            var pixel_low := Vector2i(stage.size.x, stage.size.y)
+            var pixel_high := Vector2i.ZERO
+            for y in range(0, stage.size.y, 4):
+                for x in range(0, stage.size.x, 4):
                     var a := shot.get_pixel(x, y)
                     var b := negative.get_pixel(x, y)
                     if absf(a.r - b.r) + absf(a.g - b.g) + absf(a.b - b.b) > 0.16:
                         changed += 1
-            if changed < 550:
-                _fail("Car not visible: insufficient actual mesh pixels " + name + " " + str(view))
+                        pixel_low = pixel_low.min(Vector2i(x, y))
+                        pixel_high = pixel_high.max(Vector2i(x, y))
+            var fill := Vector2(pixel_high - pixel_low) / Vector2(stage.size)
+            if changed < 550 or fill.x < .48 or maxf(fill.x, fill.y) < .65:
+                _fail("Actual car is too small in frame: " + str([view, changed, fill]))
+                return
+            if pixel_low.x < 12 or pixel_low.y < 12 or pixel_high.x > stage.size.x - 12 or pixel_high.y > stage.size.y - 12:
+                _fail("Actual car pixels touch image border: " + str(view))
                 return
             var file := output.path_join(name + "_REAL_GODOT_" + str(view) + ".png")
             if shot.save_png(file) != OK:
                 _fail("Failed native Godot PNG save " + file)
                 return
-            photos.append({"angle": view, "png": file, "actual_mesh_sampled_pixels": changed})
+            photos.append({"angle": view, "png": file, "actual_mesh_sampled_pixels": changed, "actual_width_fraction": fill.x, "actual_height_fraction": fill.y})
         records.append({
             "id": name, "author": car["author"], "license": "CC-BY-4.0",
             "source_type": "Artist original GLB imported with Blender 4.5",
