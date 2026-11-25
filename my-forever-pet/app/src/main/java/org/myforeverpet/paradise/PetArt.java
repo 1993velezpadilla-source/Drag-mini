@@ -9,11 +9,14 @@ final class PetArt {
  private void o(int x,int y,int rx,int ry,int color){p.setColor(color);c.drawOval(x-rx,y-ry,x+rx+1,y+ry+1,p);}
  private void line(int x,int y,int x2,int y2,int col){p.setColor(col);p.setStrokeWidth(1);c.drawLine(x,y,x2,y2,p);}
  private void t(String s,int x,int y,int size,int col){p.setColor(col);p.setTypeface(pixelFont);p.setTextSize(size);p.setTextAlign(Paint.Align.CENTER);c.drawText(s,x,y,p);}
+ private int mix(int a,int b,float f){f=Math.max(0,Math.min(1,f));return Color.rgb((int)(Color.red(a)*(1-f)+Color.red(b)*f),(int)(Color.green(a)*(1-f)+Color.green(b)*f),(int)(Color.blue(a)*(1-f)+Color.blue(b)*f));}
+ private String wallClock="";
+ void setWallClock(String value){wallClock=value;}
  private void star(int x,int y,int col){r(x-1,y-3,3,7,col);r(x-3,y-1,7,3,col);}
  private void cloud(int x,int y,int col){o(x,y,14,6,col);o(x-5,y-4,7,7,col);o(x+5,y-2,9,7,col);}
  private void sprite(PetState s,int x,int y,long tick,int scale){
   c.save();c.translate(x,y);c.scale(scale,scale);
-  int bob=s.sleeping()?0:(int)(Math.sin(tick/300.0)*2);c.translate(0,bob);
+  int bob=s.sleeping()?(int)(Math.sin(tick/1000.0)):(int)(Math.sin(tick/300.0)*2);c.translate(0,bob);if(s.sleeping()){c.translate(0,5);c.scale(1.05f,.78f);}
   int[] col={0xff9be5ac,0xfff4b6da,0xffffca89,0xffa3dcef,0xff85dbea,0xfff49cbd,0xffb8acfc,0xffe8b994,0xffb1a4fa,0xfff5c3e7,0xffffce79,0xffa4d8fa};
   int body=col[s.species()%col.length];int hi=0xfff9f2ff;
   o(0,19,22,4,0x334a3a77);if(s.stage>=1){int stride=(int)(tick/180)%2; r(-8,17+stride,4,2,ink);r(6,18-stride,4,2,ink);}
@@ -31,7 +34,7 @@ final class PetArt {
   if(s.equipped==1){r(-12,-20,24,4,ink);r(-8,-26,16,7,0xfff9ce63);star(0,-26,0xfffffae8);}
   if(s.equipped==2){r(-17,-14,9,6,0xffe661a0);r(-8,-12,4,3,ink);r(-4,-14,9,6,0xffe661a0);}
   if(s.equipped==3){o(0,-25,13,3,0xffffd65c);o(0,-25,9,1,0xff6459a5);}
-  if(s.sick)star(21,-21,0xffb95a9b);if(s.sleeping())t("zZ",18,-23,7,ink);else if(s.last-s.interactionAt<2500&&s.interactionAt>0){star(-22,-18,0xffee8fa7);star(22,-24,0xffffd566);}c.restore();
+  if(s.sick)star(21,-21,0xffb95a9b);if(s.sleeping()){t("zZ",18,-23,7,0xfff7e6b7);}else if(s.last-s.interactionAt<2500&&s.interactionAt>0){star(-22,-18,0xffee8fa7);star(22,-24,0xffffd566);}c.restore();
  }
  private void prop(PetState s){if(s.installation==0)return;int x=124,y=135;if(s.installation==4){r(x-14,y-8,28,15,ink);r(x-12,y-6,24,10,0xffe8f9ff);r(x-10,y-4,20,5,0xff72cde6);}else if(s.installation==5){r(x-14,y-12,28,18,ink);r(x-12,y-10,24,14,0xffc5a2ef);r(x-10,y-10,9,7,0xffffeafa);}else{r(x-2,y-3,4,15,0xff78688b);r(x-10,y+10,20,3,ink);for(int i=0;i<5;i++)star(x-10+i*5,y-9+(i%2)*4,0xffff90b8);}}
  Bitmap itemIcon(int i){Bitmap b=Bitmap.createBitmap(48,48,Bitmap.Config.ARGB_8888);Canvas out=new Canvas(b);Paint q=new Paint();q.setAntiAlias(false);q.setColor(0xff353052);out.drawRoundRect(5,12,43,37,5,5,q);int[] colors={0xffffcf67,0xffe97db7,0xffffd98a,0xff7ddce9,0xffbca2ed,0xffed92b1};q.setColor(colors[i]);if(i==0){out.drawRect(13,7,35,25,q);out.drawRect(7,25,41,30,q);}else if(i==1){out.drawRect(8,13,21,33,q);out.drawRect(27,13,40,33,q);out.drawRect(21,20,27,27,q);}else if(i==2){out.drawOval(7,12,41,34,q);q.setColor(0xff353052);out.drawOval(13,17,35,29,q);}else if(i==3){out.drawRect(8,19,40,34,q);q.setColor(0xffe9ffff);out.drawRect(10,19,38,22,q);}else if(i==4){out.drawRect(8,16,40,34,q);q.setColor(0xfffff1fe);out.drawRect(10,17,20,25,q);}else{out.drawRect(21,20,27,39,q);for(int n=0;n<3;n++)out.drawOval(7+n*10,6+(n%2)*5,21+n*10,23+(n%2)*5,q);}return b;}
@@ -58,13 +61,16 @@ final class PetArt {
    t(s.sick?"TAP TO TREAT":s.stage==1?"FIELD CELLS "+s.cells[s.field]+"/4":"CARE RECORD",80,133,8,ink);t("FOOD "+s.hunger+"/5  JOY "+s.happy+"/10",80,157,8,0xffffe7f5);t("MISSES "+s.mistakes+"  DIET "+s.foods[0]+"/"+s.foods[1]+"/"+s.foods[2]+"/"+s.foods[3],80,173,7,0xffffe7f5);
   }else{
    boolean water=s.field==1,sky=s.field==2;int top=water?0xff3d87bd:sky?0xff8278ca:0xff79bddd, bottom=water?0xff74cbd0:sky?0xffd9b9ec:0xffbcf0c5;
-   long hour=Math.floorMod(Math.floorDiv(s.last+java.util.TimeZone.getDefault().getOffset(s.last),3600000L),24);boolean night=s.sleeping()||hour<6||hour>=22;if(night){top=0xff35416f;bottom=0xff7775a2;}for(int y=0;y<192;y++){float f=y/191f;int rr=(int)(Color.red(top)*(1-f)+Color.red(bottom)*f),g=(int)(Color.green(top)*(1-f)+Color.green(bottom)*f),b=(int)(Color.blue(top)*(1-f)+Color.blue(bottom)*f);r(0,y,160,1,Color.rgb(rr,g,b));}
-   if(night){o(127,31,11,11,0xfff7eddb);o(131,27,9,9,0xff35416f);for(int i=0;i<9;i++)star((i*37+14)%160,12+i%3*15,0xffe7d6fa);}else o(127,31,13,13,0xffffe9a5);cloud(32,27,0xffe9f8f9);cloud(92,43,0xffe5e9fa);cloud(147,57,0xffdcf3f4);
+   int minute=PetState.localMinute(System.currentTimeMillis(),java.util.TimeZone.getDefault());boolean night=minute<300||minute>=1140;
+   float dark=night?1f:minute<420?(420-minute)/120f:minute>=1020?(minute-1020)/120f:0f;
+   float twilight=(minute>=300&&minute<420)||(minute>=1020&&minute<1140)?(1f-Math.abs(dark*2f-1f)):0f;
+   top=mix(mix(top,0xff202849,dark),0xffd18aa3,twilight*.8f);bottom=mix(mix(bottom,0xff495479,dark),0xffffcf9c,twilight*.85f);for(int y=0;y<192;y++){float f=y/191f;int rr=(int)(Color.red(top)*(1-f)+Color.red(bottom)*f),g=(int)(Color.green(top)*(1-f)+Color.green(bottom)*f),b=(int)(Color.blue(top)*(1-f)+Color.blue(bottom)*f);r(0,y,160,1,Color.rgb(rr,g,b));}
+   if(night){o(127,31,11,11,0xfff7eddb);o(131,27,9,9,0xff35416f);for(int i=0;i<9;i++)star((i*37+14)%160,12+i%3*15,0xffe7d6fa);}else{float daylight=Math.max(0,Math.min(1,(minute-300)/840f));o(15+(int)(130*daylight),65-(int)(40*Math.sin(Math.PI*daylight)),13,13,0xffffe9a5);}cloud(32,27,mix(0xffe9f8f9,0xff657098,dark));cloud(92,43,mix(0xffe5e9fa,0xff626b93,dark));cloud(147,57,mix(0xffdcf3f4,0xff566486,dark));
    if(water){o(19,130,50,48,0xff4e9ba9);o(142,142,65,52,0xff539cab);r(0,140,160,52,0xff68bec2);for(int i=0;i<12;i++){int x=(i*37+5)%160,y=145+i%4*12;r(x,y,10,1,0xffa3e9df);r(x+2,y+1,4,1,0xff80d6d6);}for(int i=0;i<5;i++){int x=10+i*35;for(int j=0;j<3;j++)r(x+j%2*3,180-j*5,3,6,0xff4c9c9a);}}
    else{ o(14,134,62,50,0xff89c6aa);o(137,129,70,47,0xff91c9ac);r(0,143,160,49,0xff9ed7b1);for(int i=0;i<9;i++){int x=(i*29+6)%160,y=150+i%4*10;r(x,y,1,5,0xff5a9c8a);star(x,y,0xffffe3a9);} }
-   prop(s);int walk=s.sleeping()?0:(int)(Math.sin(tick/2400.0)*13);sprite(s,80+walk,111,tick,zoom==1?1:2);
+   if(dark>0)r(0,90,160,102,((int)(dark*90)<<24)|0x172342);prop(s);if(s.sleeping()){int bx=80,by=141;r(bx-38,by-9,76,16,ink);r(bx-36,by-8,72,12,0xffb7a2dc);r(bx-32,by-10,23,10,0xfff4e6f0);}int walk=s.sleeping()?0:(int)(Math.sin(tick/2400.0)*13);sprite(s,80+walk,111,tick,zoom==1?1:2);
    for(int i=0;i<s.waste;i++){int x=10+i*24;o(x,172,6,3,ink);o(x,170,4,4,0xffae805b);}
-   if(!wall)t(zoom==1?s.fieldName().toUpperCase():s.creature().toUpperCase(),80,14,9,ink);
+   if(!wall)t(zoom==1?s.fieldName().toUpperCase():s.creature().toUpperCase(),80,14,9,night?0xfff5e9fa:ink);else if(!wallClock.isEmpty()){r(52,181,56,11,0xff353052);t(wallClock,80,189,7,0xffffebbd);}
   }
   out.drawColor(0xff171b39);float z=Math.min(out.getWidth()/160f,out.getHeight()/192f);float x=(out.getWidth()-160*z)/2,y=(out.getHeight()-192*z)/2;blit.setFilterBitmap(false);destinationRect.set(x,y,x+160*z,y+192*z);out.drawBitmap(buffer,null,destinationRect,blit);
  }
