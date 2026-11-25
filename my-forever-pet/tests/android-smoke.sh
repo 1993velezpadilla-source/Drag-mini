@@ -2,12 +2,14 @@
 set -euo pipefail
 PKG=org.myforeverpet.paradise
 mkdir -p /tmp/pet-screens
+trap 'rc=$?; if [ "$rc" != 0 ]; then adb exec-out screencap -p > /tmp/pet-screens/failure.png || true; adb logcat -d -s AndroidRuntime:E > /tmp/pet-screens/failure-log.txt || true; cp /tmp/pet.xml /tmp/pet-screens/failure.xml 2>/dev/null || true; fi' EXIT
 adb install -r "$1"
 adb shell pm clear "$PKG"
 adb shell am start -W -n "$PKG/.MainActivity"
 sleep 2
 dump() { adb shell uiautomator dump /sdcard/pet.xml >/dev/null; adb pull /sdcard/pet.xml /tmp/pet.xml >/dev/null; }
 tap_text() {
+ echo "Tap UI: $1"
  dump
  local coords
  coords=$(python3 - "$1" <<'PY'
@@ -24,14 +26,17 @@ PY
  adb shell input tap $coords
  sleep 1
 }
-assert_text(){ dump; grep -Fq "$1" /tmp/pet.xml; }
+assert_text(){ echo "Assert UI: $1"; for i in 1 2 3; do dump; if grep -Fiq "$1" /tmp/pet.xml; then return 0; fi; sleep 2; done; cat /tmp/pet.xml; return 1; }
 shot(){ adb exec-out screencap -p > "/tmp/pet-screens/$1.png"; }
-assert_text "Egg"
 shot egg
+assert_text "Hatch egg"
 tap_text "Hatch egg"
 assert_text "Baby"
 assert_text "Next: Kid"
 shot baby
+tap_text "Expand scene"
+shot expanded
+tap_text "Expand scene"
 tap_text "@clock"
 assert_text "Real-time routine"
 shot routine

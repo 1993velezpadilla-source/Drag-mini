@@ -142,6 +142,32 @@ plant(-4.15,-2.75,0,1.8)
 # Camera: stage backdrop only, with an open floor in the middle for a live pet.
 bpy.ops.object.camera_add(location=(0,-13.2,6.9));cam=bpy.context.object;cam.rotation_euler=(Vector((0,.1,2.6))-cam.location).to_track_quat('-Z','Y').to_euler();cam.data.type='ORTHO';cam.data.ortho_scale=9.4;scene.camera=cam
 key=light('warm window key',(-3,-4,6),850,(1,.72,.48),5,(0,1,1));fill=light('soft blue fill',(4,-1,5),550,(.40,.59,1),4,(0,1,2));top=light('ceiling bounce',(0,2,6.6),430,(.75,.6,1),4,(0,0,0))
+# Export the same camera projection used for the background. Bounds use evaluated mesh geometry.
+from bpy_extras.object_utils import world_to_camera_view
+bpy.context.view_layer.update()
+deps=bpy.context.evaluated_depsgraph_get()
+def point(v):
+    q=world_to_camera_view(scene,cam,Vector(v))
+    return (max(0,min(160,q.x*160)),max(0,min(192,(1-q.y)*192)))
+def bounds(prefixes):
+    coords=[]
+    for ob in scene.objects:
+        if ob.type=='MESH' and any(ob.name.startswith(n) for n in prefixes):
+            ev=ob.evaluated_get(deps)
+            coords.extend(point(ev.matrix_world@Vector(v)) for v in ev.bound_box)
+    if not coords: raise RuntimeError('Missing hit target '+str(prefixes))
+    return (min(x for x,y in coords),min(y for x,y in coords),max(x for x,y in coords),max(y for x,y in coords))
+layout={'rug':point((0,-1.65,.10)),'bed_anchor':point((-2.85,1.13,1.16)),
+        'bed':bounds(('bed base','headboard','cat ear','mattress','star duvet','duvet drop')),
+        'bowl':bounds(('food bowl','bowl lip','kibble surface')),
+        'ball':bounds(('toy ball','yellow ball stripe')),
+        'lab':bounds(('faceted crystal','crystal pedestal','monitor')),
+        'console':bounds(('handheld console','console screen'))}
+with open(os.path.join(OUT,'home_layout.properties'),'w') as output:
+    for k,v in layout.items():
+        if len(v)==4 and (v[2]-v[0]<2 or v[3]-v[1]<2):raise RuntimeError('Invisible target '+k)
+        output.write(k+'='+','.join('%.3f'%n for n in v)+'\n')
+        print('HOME_HIT_TARGET',k,v)
 scene.render.filepath=os.path.join(OUT,'home_day.jpg');bpy.ops.render.render(write_still=True)
 window.data.materials[0]=nightSky;sun.hide_render=True
 for o in clouds:o.hide_render=True
