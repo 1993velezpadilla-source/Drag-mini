@@ -1,7 +1,7 @@
 extends SceneTree
 ## Isolated Godot 4 screenshot proof for one external Audi R8 author model. No procedurally generated bodies, no AI images.
 ## Car pixels must disappear in a mesh-visibility control frame.
-const CAR_MODELS := [{"id": "audi_r8", "author": "wallon"}]
+const CAR_MODELS := [{"id": "audi_r8"}]
 
 func _initialize() -> void:
     call_deferred("_run")
@@ -25,6 +25,10 @@ func _capture() -> void:
     if output.is_empty():
         output = ProjectSettings.globalize_path("user://real-artist-car-godot")
     DirAccess.make_dir_recursive_absolute(output)
+    var author := OS.get_environment("CITYZERO_AUDI_SOURCE_AUTHOR")
+    if author.is_empty():
+        _fail("Verified Audi source author missing from receipt")
+        return
     var records: Array[Dictionary] = []
     for car in CAR_MODELS:
         var name: String = car["id"]
@@ -156,7 +160,7 @@ func _capture() -> void:
                 return
             photos.append({"angle": view, "png": file, "actual_mesh_sampled_pixels": changed, "actual_width_fraction": fill.x, "actual_height_fraction": fill.y})
         records.append({
-            "id": name, "author": car["author"], "license": "CC-BY-4.0",
+            "id": name, "author": author, "license": "CC-BY-4.0",
             "source_type": "Artist original GLB imported with Blender 4.5",
             "real_godot_mesh_instances": meshes.size(),
             "real_godot_triangles": tri_count,
