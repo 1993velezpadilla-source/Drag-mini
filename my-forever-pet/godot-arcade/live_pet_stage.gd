@@ -5,6 +5,7 @@ var world:Node3D
 var room_node:Node3D
 var avatar:Node3D
 var camera:Camera3D
+var pet_fit=1.0
 var feet:Array[Node3D]=[]
 var wardrobe_nodes:Array[Node3D]=[]
 var equipped_key=""
@@ -61,11 +62,11 @@ func _ready():
 	var rim=OmniLight3D.new(); rim.position=Vector3(3.5,2.9,-1.7); rim.light_color=Color("#ae81ff"); rim.light_energy=1.1; rim.omni_range=5.5; world.add_child(rim)
 	camera=Camera3D.new()
 	world.add_child(camera)
-	camera.position=Vector3(0,3.8,10.0)
-	camera.look_at(Vector3(0,2.25,-0.55))
+	camera.position=Vector3(0,3.25,8.8)
+	camera.look_at(Vector3(0,2.35,0.0))
 	camera.projection=Camera3D.PROJECTION_PERSPECTIVE
 	camera.fov=56
-	camera.keep_aspect=Camera3D.KEEP_WIDTH
+	camera.keep_aspect=Camera3D.KEEP_HEIGHT
 	camera.size=11.6
 	camera.current=true
 	resized.connect(update_camera)
@@ -77,7 +78,7 @@ func update_render_state():
 func update_camera():
 	if not is_instance_valid(camera) or size.x<2 or size.y<2: return
 	# Keep the room composition inside both portrait and landscape-shaped panels.
-	camera.fov=clampf(50.0+maxf(0.0,1.0-size.x/size.y)*5.0,50.0,57.0)
+	camera.fov=clampf(53.0+maxf(0.0,1.0-size.x/size.y)*8.0,53.0,61.0)
 func set_night(night:bool):
 	if night==night_state: return
 	night_state=night
@@ -125,9 +126,20 @@ func set_pet(species:int,stage:int):
 	else:
 		mesh(avatar,"res://assets/creatures/species_%02d.glb"%species,Vector3.ZERO)
 	sole_offset=mesh_bottom(avatar,Transform3D.IDENTITY)
+	var bounds=mesh_bounds(avatar,Transform3D.IDENTITY)
+	pet_fit=minf(1.0,2.3/maxf(0.1,maxf(bounds.size.x,bounds.size.y))) if species!=0 else 1.0
 	var base=0.70 if stage==1 else 0.88 if stage==2 else 1.0
-	avatar.scale=Vector3.ONE*base*1.65
+	avatar.scale=Vector3.ONE*base*1.65*pet_fit
 	avatar.position.y=ground.y-sole_offset*avatar.scale.y
+func mesh_bounds(node:Node,relative:Transform3D)->AABB:
+	var result=AABB()
+	var t=relative
+	if node is Node3D and node!=avatar: t=relative*node.transform
+	if node is MeshInstance3D and node.mesh!=null: result=t*node.get_aabb()
+	for child in node.get_children():
+		var b=mesh_bounds(child,t)
+		if b.has_volume(): result=b if not result.has_volume() else result.merge(b)
+	return result
 func mesh_bottom(node:Node,relative:Transform3D)->float:
 	var result=INF
 	var t=relative
@@ -205,7 +217,7 @@ func _process(dt:float):
 	touch_bounce=maxf(0,touch_bounce-dt)
 	avatar.rotation.y=lerpf(avatar.rotation.y,target_yaw+sin(elapsed*0.9)*0.055,minf(1,dt*5))
 	var bounce=sin(touch_bounce/0.30*PI)*0.10
-	var base=(0.70 if active_stage==1 else 0.88 if active_stage==2 else 1.0)*1.65
+	var base=(0.70 if active_stage==1 else 0.88 if active_stage==2 else 1.0)*1.65*pet_fit
 	var breathe=1.0+sin(elapsed*(1.7 if sleeping else 2.6))*0.014
 	var chew=sin(reaction_time*24)*0.045 if reaction_time>0 and reaction_kind in ["food","cook","snack"] else 0.0
 	avatar.scale=Vector3(base/breathe*(1+chew),base*breathe*(0.85 if sleeping else 1.0)*(1-chew),base/breathe)
