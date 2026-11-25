@@ -35,3 +35,5 @@ Voice echo: explicitly confirmed 3-second RAM-only microphone recording, three s
 
 ## 0.11 Deluxe visual direction
 Reference: user-approved cozy bedroom concept. Original smooth shaded mascot renderer shared by collection, wallpaper, rooms and arcade; cached room backdrop; touchable bed, food bowl, ball and potion shelf; illustrated buttons, portrait, stat labels and currency indicators. Native vector art rather than Blender; no claim of pixel-identical reference. Old room/arcade scenery remains separately rendered. No save-schema change.
+
+Deluxe room pass: all six interactive room backgrounds now share the shaded art direction and cached 800x960 rendering, with unchanged touch coordinates. Home avatar keeps aspect ratio. Scene cache only stores the currently selected room and home, not every possible room.

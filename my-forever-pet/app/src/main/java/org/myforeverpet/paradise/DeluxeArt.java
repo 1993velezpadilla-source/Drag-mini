@@ -5,7 +5,7 @@ final class DeluxeArt {
  private final Paint p=new Paint(Paint.ANTI_ALIAS_FLAG|Paint.FILTER_BITMAP_FLAG);
  private final RectF rect=new RectF();private final Path path=new Path();
  private final int ink=0xff252447;
- private Bitmap background;private int bgKey=-1;
+ private Bitmap background,roomBackground;private int bgKey=-1,roomKey=-1;
  private static final int[] BODY={0xff9fee62,0xffefa5cf,0xffe9b16d,0xff76d4b2,0xff75d8f3,0xffa4df7c,0xffd8c9ff,0xfff2a38b,0xffffcf72,0xffe5b3fb,0xffa1e7da,0xffa0b5e9};
  private static int mix(int a,int b,float k){return Color.rgb((int)(Color.red(a)*(1-k)+Color.red(b)*k),(int)(Color.green(a)*(1-k)+Color.green(b)*k),(int)(Color.blue(a)*(1-k)+Color.blue(b)*k));}
  private void solid(int color){p.setShader(null);p.setColor(color);p.setStyle(Paint.Style.FILL);}
@@ -72,6 +72,29 @@ final class DeluxeArt {
   if(!s.sleeping()&&s.stage>0){float bx=111,by=82+(float)Math.sin(tick/700.0)*1.5f;oval(out,bx,by,11,9,0xfff8eefb);poly(out,0xfff8eefb,bx-4,by+5,bx-7,by+13,bx+1,by+7);heart(out,bx,by,5,s.hunger<=2?0xffe8ae66:0xffed85b2);}
   if(s.waste>0){for(int i=0;i<Math.min(s.waste,6);i++){float px=44+i*14;oval(out,px,179,4,2,0xff76535f);oval(out,px,177,3,3,0xffa87964);}}
   if(wall){text(out,s.displayName()+(clock.isEmpty()?"":" · "+clock),80,187,7,0xfff3e7ff);}out.restore();
+ }
+ private void bowl(Canvas c,float x,float y,int color){oval(c,x,y+3,19,5,0x44302a46);gradient(c,x-16,y-4,32,12,5,mix(color,0xffffffff,.3f),mix(color,0xff403059,.4f));oval(c,x,y-3,16,6,0xff49334d);for(int i=0;i<8;i++)oval(c,x-10+i%4*6,y-5+i/4*3,3,2,0xffdca16a);}
+ private void cabinet(Canvas c,float x,float y,float w,float h,int color){round(c,x,y,w,h,4,0xff513d63);gradient(c,x+2,y+2,w-4,h-4,3,mix(color,0xffffffff,.2f),mix(color,0xff4a3a68,.36f));line(c,x+3,y+h/2,x+w-3,y+h/2,.9f,0xff6e5473);line(c,x+w*.25f,y+h*.37f,x+w*.42f,y+h*.37f,1.8f,0xfff8d6a4);line(c,x+w*.25f,y+h*.73f,x+w*.42f,y+h*.73f,1.8f,0xfff8d6a4);}
+ private void buildOtherRoom(int room,int theme,boolean night){if(roomBackground==null)roomBackground=Bitmap.createBitmap(800,960,Bitmap.Config.ARGB_8888);Canvas c=new Canvas(roomBackground);c.scale(5,5);
+  int[] walls={0xffce9c97,0xff729faf,0xff8b79b3,0xff947cb7,0xff97c4bc,0xff8273b7};int wall=mix(walls[room],theme==1?0xff6ca5b6:theme==2?0xff8877d3:walls[room],.25f);
+  gradient(c,0,0,160,192,0,night?mix(wall,0xff272347,.5f):wall,0xff61547d);gradient(c,0,115,160,77,0,0xffcda58e,0xff8a698b);
+  for(int i=-4;i<=4;i++)line(c,80+i*14,115,80+i*42,192,.9f,0x88745164);for(int i=0;i<6;i++)line(c,0,116+i*i*3,160,116+i*i*3,1,0x66745164);round(c,0,110,160,6,1,0xff685274);window(c,night);
+  if(room==0){cabinet(c,7,71,43,43,0xffdda899);cabinet(c,107,31,43,84,0xffdbc6a7);round(c,4,66,49,7,2,0xfff1d2b2);plant(c,17,62,.7f);round(c,0,146,160,46,6,0xff78556b);gradient(c,0,144,160,48,6,0xffe4bb92,0xffa67d83);bowl(c,31,163,0xffe89dc6);form(c,129,161,10,9,0xffe88aa5);line(c,129,154,132,148,2,0xff5a946c);oval(c,135,151,5,2,0xff87ca91);}
+  else if(room==1){for(int i=0;i<8;i++){line(c,i*22,24,i*22,115,.8f,0x5583d9e6);line(c,0,25+i*13,160,25+i*13,.8f,0x5583d9e6);}round(c,20,108,100,40,10,0xff4b587b);gradient(c,22,108,96,36,9,0xfff2f9fa,0xff91b5d0);oval(c,70,111,47,9,0xff619cc4);oval(c,70,110,42,6,0xffb8e8ed);line(c,27,111,27,94,3,0xffd1e4f0);line(c,27,94,36,94,3,0xffd1e4f0);cabinet(c,125,62,27,35,0xffe6eff2);oval(c,137,101,14,10,0xff4b587b);oval(c,137,99,12,8,0xfff0f7fa);oval(c,137,99,8,4,0xff88bad1);gradient(c,18,151,28,15,6,0xffffcae5,0xffca73a9);gradient(c,122,148,19,22,5,0xffc0f2ff,0xff70a5d2);round(c,125,144,13,5,2,0xffefeaff);}
+  else if(room==2){bed(c);cabinet(c,116,86,32,29,0xffb88fae);line(c,134,64,134,86,3,0xff78617f);poly(c,0xff513e63,122,51,146,51,152,72,116,72);poly(c,night?0xff9a83aa:0xffffd898,124,53,144,53,148,69,120,69);if(!night){solid(-1);p.setShader(new RadialGradient(134,66,24,new int[]{0x66ffeab2,0x00ffeab2},null,Shader.TileMode.CLAMP));c.drawCircle(134,66,24,p);p.setShader(null);}starLamp(c,46,29,29);starLamp(c,110,24,24);oval(c,85,151,49,19,0xff837eac);oval(c,85,151,43,14,0xffc2aed7);}
+  else if(room==3){cabinet(c,7,67,42,44,0xffc49ac1);gradient(c,111,43,36,28,5,0xff797bc9,0xff413967);heart(c,129,56,6,0xffa6d7ff);plant(c,18,62,.75f);oval(c,80,146,35,12,0xff49365e);oval(c,80,143,33,9,0xff8170bd);oval(c,80,142,27,6,0xffd1a8ec);for(int i=0;i<4;i++)line(c,57+i*15,149,57+i*15,155,2,0xff634b73);form(c,26,161,10,10,0xff85b7df);c.save();c.rotate(-32,26,161);gradient(c,23,151,6,20,3,0xfff9d478,0xffdfa057);c.restore();cabinet(c,120,151,29,25,0xffe4a8cd);sparkle(c,135,159,6,0xffffe4a3);}
+  else if(room==4){gradient(c,0,0,160,192,0,night?0xff3c4f78:0xff9bd9de,night?0xff536e89:0xffc6e5c5);for(int i=0;i<5;i++)oval(c,i*43,111,36,43,night?0xff526e78:0xff77af8e);gradient(c,0,119,160,73,0,0xff9ed6a3,0xff689b8d);for(int i=0;i<8;i++){float x=5+i*22;line(c,x,104,x,129,3,0xff9a7c75);}line(c,0,111,160,111,3,0xffbd9784);line(c,0,121,160,121,3,0xffbd9784);round(c,15,139,130,38,6,0xff715460);gradient(c,18,142,124,32,5,0xffac8068,0xff8b6567);for(int i=0;i<14;i++)oval(c,23+(i*13)%112,150+(i*7)%19,1.5f,.7f,0xffcb9c81);plant(c,8,133,.7f);plant(c,150,133,.7f);}
+  else {for(int j=0;j<2;j++){gradient(c,7,52+j*27,145,5,2,0xffb49ac6,0xff695b8f);for(int i=0;i<6;i++){float x=19+i*24,y=43+j*27;form(c,x,y,5,8,new int[]{0xffa5e1d2,0xffdcb0ef,0xffeebba6}[i%3]);round(c,x-3,y-9,6,4,1,0xffead9bc);}}gradient(c,0,144,160,48,6,0xffbaa4db,0xff6b598f);gradient(c,30,150,20,25,5,0xffdcf4df,0xff80bca6);round(c,38,154,4,17,1,0xfff8f5ed);round(c,32,160,16,4,1,0xfff8f5ed);cabinet(c,111,150,30,25,0xffe0b1b6);}
+  if(night&&room!=4)round(c,0,19,160,173,0,0x221c2146);roomKey=room+theme*8+(night?32:0);
+ }
+ void room(Canvas out,PetState s,int room,long tick,int effect){boolean night=s.sleeping();int key=room+s.roomTheme*8+(night?32:0);if(roomBackground==null||key!=roomKey)buildOtherRoom(room,s.roomTheme,night);
+  out.drawColor(0xff282343);float z=Math.min(out.getWidth()/160f,out.getHeight()/192f);out.save();out.translate((out.getWidth()-160*z)/2,(out.getHeight()-192*z)/2);out.scale(z,z);solid(-1);rect.set(0,0,160,192);out.drawBitmap(roomBackground,null,rect,p);
+  float x=80,y=room==4?93:104;if(room==2&&s.sleeping()){x=36;y=83;}float lift=effect==4?(float)Math.abs(Math.sin(tick/120.0))*15:0;pet(out,s,x,y-lift,1.32f,tick);
+  if(room==1&&s.soap>0){for(int i=0;i<s.soap*6;i++){float px=51+(i*17)%58,py=72+(i*11)%48;oval(out,px,py,3+i%3,3+i%3,0xffd9f9ff);oval(out,px-1,py-1,1.3f,1.3f,0xffffffff);}}
+  if(room==4&&s.gardenAt>0){for(int i=0;i<5;i++){float px=31+i*24;line(out,px,156,px,145,2,0xff5e956b);oval(out,px-3,147,5,2,0xff79c887);oval(out,px+3,144,5,2,0xff88ce92);if(s.clockNow>=s.gardenAt)form(out,px,142,4,4,0xffe08aa7);}}
+  if(effect>0)for(int i=0;i<5;i++)sparkle(out,48+i*16,65-(tick/100+i*5)%18,2.4f,effect==2?0xffdbfbff:0xffffe19f);
+  String[] names={"Kitchen","Bathroom","Bedroom","Playroom","Garden","Potion lab"};gradient(out,37,3,86,14,6,0xff5f5086,0xff352b5c);text(out,names[room],80,12.5f,8,0xffffebd6);
+  if(room==0){text(out,"FOOD",31,185,7,0xfffff1e4);text(out,"SNACK",130,185,7,0xfffff1e4);}else if(room==1){text(out,"SOAP",32,182,7,0xfffaf0ff);text(out,"RINSE",132,182,7,0xfffaf0ff);text(out,"WC",137,119,6,0xfffaf0ff);}else if(room==3){text(out,"BALL",26,186,7,0xfffaf0ff);text(out,"TOY",135,186,7,0xfffaf0ff);}else if(room==4){text(out,s.gardenAt==0?"PLANT":s.clockNow>=s.gardenAt?"HARVEST":"GROWING",80,185,7,0xfffff1d8);}else if(room==5){text(out,"CURE",40,185,7,0xfffaf0ff);text(out,"BUY",125,185,7,0xfffaf0ff);}out.restore();
  }
  Bitmap icon(PetState s){Bitmap b=Bitmap.createBitmap(192,192,Bitmap.Config.ARGB_8888);Canvas c=new Canvas(b);c.translate(96,99);c.scale(3,3);pet(c,s,0,0,1,1000);return b;}
 }

@@ -94,21 +94,7 @@ final class PetArt {
   if(g.coinFlash>0){star(px-14,py-16,0xfffff0ae);star(px+14,py-23,0xffffdc78);}
   r(0,17,160,12,0xff283451);t((theme==0?"FOREST TRAIL":theme==1?"CORAL BOARDWALK":"CLOUD BRIDGE")+"   "+g.coinsFound+"c",80,25,7,0xffe8dfbc);
  }
- void drawRoom(Canvas out,PetState s,int room,long tick,int effect){
-  int[] wall={0xffefcfbf,0xffb6dce0,0xffc9b9e5};int base=wall[s.roomTheme];c.drawColor(base);r(0,112,160,80,0xffb48f93);r(0,109,160,5,0xff826a83);
-  for(int i=0;i<8;i++){line(i*23,114,i*23-12,192,0xffa27f8d);r(0,124+i*10,160,1,0xffc4a0a0);}
-  r(12,28,42,43,ink);r(15,31,36,37,0xff90cddc);r(32,31,2,37,0xfff6e3da);r(15,49,36,2,0xfff6e3da);o(24,40,6,6,0xffffe3a2);
-  int y=104;String[] titles={"KITCHEN","BATHROOM","BEDROOM","PLAYROOM","GARDEN","POTION LAB"};
-  if(room==0){r(99,35,43,73,ink);r(102,38,37,67,0xfff1dfcb);r(102,63,37,2,0xff9a8795);r(108,48,3,11,0xff8e7790);r(108,76,3,12,0xff8e7790);r(0,149,160,43,0xffbc936f);o(31,163,21,9,ink);o(31,161,18,6,0xfffff1cf);o(31,160,9,4,0xffd59a67);o(130,160,8,8,0xffd5708f);r(129,149,3,5,0xff638e73);t("FOOD",31,185,7,ink);t("SNACK",130,185,7,ink);}
-  else if(room==1){for(int i=0;i<7;i++){r(i*24,25,1,88,0xff8abcc5);r(0,30+i*12,160,1,0xff8abcc5);}r(20,111,100,33,ink);r(23,114,94,26,0xffe4f4f4);r(25,114,90,10,0xff8ad6e4);r(126,62,24,35,ink);r(129,65,18,29,0xfff1ffff);o(136,101,13,9,ink);o(136,99,10,6,0xffe7faff);r(22,153,20,12,ink);r(24,155,16,8,0xfff4a5c7);r(125,151,15,18,ink);r(127,153,11,14,0xff88c6df);t("SOAP",32,181,7,ink);t("RINSE",132,181,7,ink);t("WC",136,116,7,ink);}
-  else if(room==2){r(25,109,108,35,ink);r(27,111,104,28,0xffdbc7f0);r(29,113,35,20,0xfffff3f2);r(66,113,62,22,0xff927ab7);r(27,143,5,8,ink);r(126,143,5,8,ink);r(134,77,4,31,ink);poly(ink,124,63,146,63,151,84,119,84);poly(0xffffda8b,126,65,144,65,148,82,122,82);if(s.sleeping()){r(0,20,160,172,0x55263252);y=109;}else y=96;}
-  else if(room==3){o(80,147,45,12,ink);o(80,144,42,8,0xff8e91cf);r(10,154,30,25,ink);r(12,156,26,21,0xffc38d66);o(26,159,8,8,0xffe79f83);r(123,151,24,28,ink);r(125,153,20,24,0xffe9b8d5);star(135,165,0xffffe6a0);t("BALL",26,187,7,ink);t("BOUNCE",80,178,7,ink);t("TOY",135,187,7,ink);}
-  else if(room==4){c.drawColor(0xff9bd5d1);o(30,109,69,60,0xff79b99c);o(145,110,65,53,0xff8cc4a4);r(0,121,160,71,0xffa8d6a1);r(18,143,124,33,ink);r(21,146,118,27,0xffa47b63);for(int i=0;i<5;i++){int x=30+i*25;r(x,147,2,13,0xff6e9e65);if(s.gardenAt>0){o(x,146,6,4,0xff65a576);if(s.clockNow>=s.gardenAt)o(x,143,4,5,0xffdc7998);}}t(s.gardenAt==0?"PLANT":s.clockNow>=s.gardenAt?"HARVEST":"GROWING",80,187,7,ink);y=92;}
-  else {r(15,40,130,8,ink);for(int i=0;i<5;i++){int x=25+i*26;r(x,23,9,17,ink);r(x+2,25,5,13,i%2==0?0xffb2e4cf:0xffe5a8d0);}r(0,144,160,48,0xff8876a8);r(32,150,17,25,ink);r(34,152,13,21,0xffa9e5bd);r(38,155,5,12,0xfffff5dc);r(34,159,13,4,0xfffff5dc);r(112,150,26,25,ink);r(114,152,22,21,0xffd9b0a3);t("CURE",40,186,7,0xffffe7c8);t("BUY",125,186,7,0xffffe7c8);}
-  int lift=effect==4?(int)(Math.abs(Math.sin(tick/110.0))*20):0;sprite(s,80,y-lift,tick,2);if(room==1&&s.soap>0){for(int i=0;i<s.soap*6;i++){int x=53+(i*17)%55,by=77+(i*11)%44;o(x,by,3+i%3,3+i%3,0xffd8ffff);o(x-1,by-1,1,1,0xffffffff);}}
-  if(effect>0){for(int i=0;i<5;i++)star(48+i*16,68-(int)((tick/80+i*4)%17),effect==2?0xffd8ffff:0xffffdf91);}
-  r(0,0,160,19,0xff353052);t(titles[room],80,13,9,0xffffeddf);present(out);
- }
+ void drawRoom(Canvas out,PetState s,int room,long tick,int effect){deluxe.room(out,s,room,tick,effect);}
  void drawDraggedFood(Canvas out,float x,float y,int food){float z=Math.min(out.getWidth()/160f,out.getHeight()/192f);float ox=(out.getWidth()-160*z)/2,oy=(out.getHeight()-192*z)/2;out.save();out.translate(ox+x*z,oy+y*z);out.scale(z,z);p.setColor(0xff353052);out.drawOval(-9,-7,9,7,p);p.setColor(food==0?0xfff8d9a3:0xffe68da4);out.drawOval(-7,-5,7,5,p);p.setColor(food==0?0xffbd8c60:0xff75aa83);out.drawRect(-2,-7,2,-3,p);out.restore();}
  private void present(Canvas out){out.drawColor(0xff171b39);float z=Math.min(out.getWidth()/160f,out.getHeight()/192f);float x=(out.getWidth()-160*z)/2,y=(out.getHeight()-192*z)/2;blit.setFilterBitmap(false);destinationRect.set(x,y,x+160*z,y+192*z);out.drawBitmap(buffer,null,destinationRect,blit);}
  void draw(Canvas out,PetState s,int zoom,boolean wall,long tick){
