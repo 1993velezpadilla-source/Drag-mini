@@ -7,14 +7,15 @@ const GRAVITY := 25.0
 const JUMP_SPEED := 10.5
 const PLAYER_Z := 0.0
 const START_SPEED := 13.0
-const MAX_SPEED := 30.0
+const MAX_SPEED := 36.0
+const SURF_SPEED_BONUS := 8.0
 const SPEED_GAIN := 0.024
-const TIME_ORB_MIN_SPEED := 28.0
+const TIME_ORB_MIN_SPEED := 33.0
 const TIME_ORB_DURATION := 6.5
 const TIME_ORB_FACTOR := 0.70
 const TIME_ORB_RECOVERY := 0.65
 var bubble_rng := RandomNumberGenerator.new()
-var next_time_orb_at := 650.0
+var next_time_orb_at := 850.0
 var time_orbs_spawned := 0
 const PICKUP := 2
 const SNACK := 3
@@ -264,7 +265,7 @@ func _ready() -> void:
 	rng.seed = 7319 if OS.get_cmdline_user_args().has("--test") or review_driver else Time.get_ticks_usec()
 	scenery_rng.seed=uint64_seed(rng.seed)
 	bubble_rng.seed=uint64_seed(rng.seed+109)
-	next_time_orb_at=bubble_rng.randf_range(650.0,850.0)
+	next_time_orb_at=bubble_rng.randf_range(850.0,1050.0)
 	var env := WorldEnvironment.new()
 	var e := Environment.new()
 	e.background_mode = Environment.BG_COLOR
@@ -1114,7 +1115,7 @@ func _physics_process(dt: float) -> void:
 	var capsule := player_shape.shape as CapsuleShape3D
 	capsule.height=0.96 if slide>0 or air_slide_pending else 1.35
 	player_shape.position.y=capsule.height*0.5
-	var lane_speed:=23.0 if surf_time>0 else 19.0
+	var lane_speed:=28.0 if surf_time>0 else 19.0
 	player.velocity.x=clampf((LANES[lane]-player.position.x)*lane_speed,-lane_speed,lane_speed)
 	player.move_and_slide()
 	player.position.z=PLAYER_Z
@@ -1158,7 +1159,7 @@ func _physics_process(dt: float) -> void:
 	if smash_time<=0: smash_charges=0
 	combo_timer=maxf(0,combo_timer-dt)
 	if combo_timer<=0: combo=0
-	var full_speed:=base_run_speed(total_distance())+(4.0 if boost_time>0 else 0.0)+(3.0 if surf_time>0 else 0.0)+(2.0 if jet_time>0 else 0.0)
+	var full_speed:=base_run_speed(total_distance())+(4.0 if boost_time>0 else 0.0)+(SURF_SPEED_BONUS if surf_time>0 else 0.0)+(2.0 if jet_time>0 else 0.0)
 	# Bubble wins over simultaneous turbo/surf speed; controls remain real-time.
 	# Last 650ms eases directly back to the current full run speed.
 	speed=full_speed*lerpf(1.0,TIME_ORB_FACTOR,clampf(slow_time/TIME_ORB_RECOVERY,0.0,1.0))
@@ -1308,7 +1309,7 @@ func _physics_process(dt: float) -> void:
 	peak_active=maxi(peak_active,entities.size())
 	camera.position.x=lerpf(camera.position.x,player.position.x*0.30+sin(clock*55)*surf_exit_flash*0.24,minf(1,dt*7))
 	camera.position.y=lerpf(camera.position.y,4.55+clampf(player.position.y*0.13,0,0.25)+jet_lift*0.83,minf(1,dt*5))
-	camera.fov=lerpf(camera.fov,58.0+minf(5.0,(speed-START_SPEED)*0.28),minf(1,dt*3))
+	camera.fov=lerpf(camera.fov,58.0+minf(8.0,(speed-START_SPEED)*0.28),minf(1,dt*3))
 	hud_refresh+=dt
 	if ended or hud_refresh>=0.075:
 		hud_refresh=0
@@ -1828,7 +1829,7 @@ func test_run() -> void:
 	assert(not surf_board.visible)
 	collect_kind(SURF)
 	for i in range(3): await get_tree().physics_frame
-	assert(speed>=normal_speed+2.5)
+	assert(speed>=normal_speed+SURF_SPEED_BONUS-0.5)
 	var planted:=feet[0].position
 	for i in range(10): await get_tree().physics_frame
 	assert(feet[0].position.is_equal_approx(planted),"surf feet must stay planted")
