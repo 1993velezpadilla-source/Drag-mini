@@ -160,6 +160,7 @@ jobs:
         run: |
           set -euo pipefail
           export CITYZERO_ARTIST_GODOT_PHOTOS="$PWD/audi-r8-native-photos"
+          export CITYZERO_AUDI_SOURCE_AUTHOR="$(python3 -c 'import json; from pathlib import Path; print(json.loads(next(Path("source").rglob("audi_r8_source_receipt.json")).read_text())["artist"])')"
           mkdir -p "$CITYZERO_ARTIST_GODOT_PHOTOS"
           xvfb-run -a timeout 240s godot --rendering-driver opengl3 --path isolated --editor --import --quit 2>&1 | tee audi-r8-native-photos/import.log
           if grep -E 'SCRIPT ERROR|Parse Error' audi-r8-native-photos/import.log; then exit 1; fi
@@ -172,6 +173,7 @@ jobs:
           proof=json.loads((root/'artist_fleet_REAL_GODOT_report.json').read_text())
           src=json.loads(next(Path('source').rglob('audi_r8_source_receipt.json')).read_text())
           assert proof['vehicles'][0]['real_godot_triangles']==src['source_triangles']
+          assert proof['vehicles'][0]['author']==src['artist']
           assert len(list(root.glob('*.png')))==5
           assert not proof['vehicles'][0]['gameplay_ready']
           PY
