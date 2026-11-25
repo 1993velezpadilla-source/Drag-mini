@@ -50,6 +50,7 @@ final class PetArt {
   if(id!=8&&id!=11){r(-2,ey+9,5,1,dark);r(-12,ey+7,3,2,pink);r(9,ey+7,3,2,pink);}
  }
  private void sprite(PetState s,int x,int y,long tick,int scale){deluxe.pet(c,s,x,y,scale,tick);}
+ Bitmap clothesIcon(int i){return deluxe.clothesIcon(i);}
  void init(android.content.Context context){deluxe.init(context);}
  int homeHit(PetState s,float x,float y,int w,int h){return deluxe.homeHit(s,x,y,w,h);}
  void drawHome(Canvas out,PetState s,long tick,boolean wall){deluxe.home(out,s,tick,wall,wallClock);}
