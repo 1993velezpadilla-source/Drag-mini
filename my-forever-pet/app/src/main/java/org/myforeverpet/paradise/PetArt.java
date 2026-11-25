@@ -14,6 +14,40 @@ final class PetArt {
  void setWallClock(String value){wallClock=value;}
  private void star(int x,int y,int col){r(x-1,y-3,3,7,col);r(x-3,y-1,7,3,col);}
  private void cloud(int x,int y,int col){o(x,y,14,6,col);o(x-5,y-4,7,7,col);o(x+5,y-2,9,7,col);}
+ private final Path shapePath=new Path();
+ private void poly(int color,int... xy){shapePath.reset();shapePath.moveTo(xy[0],xy[1]);for(int i=2;i<xy.length;i+=2)shapePath.lineTo(xy[i],xy[i+1]);shapePath.close();p.setColor(color);c.drawPath(shapePath,p);}
+ private void family(int id,int body,int hi,long tick,boolean blink,int eyes){
+  int dark=ink,accent=0xffffd18c,pink=0xffee8fa7,wing=(int)(tick/170)%2;
+  switch(id){
+  case 0:
+   r(-15,-20,7,12,dark);r(8,-20,7,12,dark);r(-13,-18,4,8,body);r(10,-18,4,8,body);o(-9,15,7,5,dark);o(9,15,7,5,dark);o(-9,15,5,3,body);o(9,15,5,3,body);o(0,-1,19,17,dark);o(0,-1,17,15,body);break;
+  case 1: // cat
+   o(17,12,10,5,dark);o(17,11,7,3,body);poly(dark,-20,-5,-20,-24,-6,-15,7,-15,20,-24,20,7,14,17,-14,17);poly(body,-17,-6,-17,-19,-6,-12,7,-12,17,-19,17,6,12,14,-12,14);r(-20,5,6,1,dark);r(15,5,6,1,dark);break;
+  case 2: // dog
+   o(0,11,14,12,dark);o(0,11,11,9,body);o(-16,-6,7,16,dark);o(16,-6,7,16,dark);o(-16,-6,5,13,0xffb77c64);o(16,-6,5,13,0xffb77c64);o(0,-5,16,15,dark);o(0,-5,14,13,body);o(0,8,9,6,hi);o(0,5,4,2,dark);break;
+  case 3: // dragon
+   poly(dark,-10,4,-27,-12,-24,14,-11,17,10,17,25,13,28,-12,9,4);poly(0xff8c9ede,-12,5,-24,-7,-22,12,-10,14,10,14,22,10,25,-7,12,5);o(12,13,11,5,dark);o(12,13,8,3,body);poly(dark,-13,-11,-17,-26,-5,-16,5,-16,17,-26,13,-11);poly(accent,-13,-15,-15,-22,-8,-15,8,-15,15,-22,13,-15);o(0,0,15,17,dark);o(0,0,13,15,body);o(0,12,7,8,accent);break;
+  case 4: // fish
+   poly(dark,10,0,25,-14,25,14);poly(accent,13,0,22,-9,22,9);o(-3,0,20,13,dark);o(-3,0,17,11,body);o(-2,-12,6,4,dark);o(-2,-12,4,2,accent);r(-13,11,4,5,body);break;
+  case 5: // alien
+   o(0,13,9,10,dark);o(0,13,7,8,body);o(0,-7,20,17,dark);o(0,-7,17,14,body);line(-10,-19,-17,-27,dark);line(10,-19,17,-27,dark);o(-17,-27,4,4,dark);o(17,-27,4,4,dark);o(-17,-27,2,2,pink);o(17,-27,2,2,pink);break;
+  case 6: // ghost
+   poly(dark,-19,-4,-16,-18,-8,-24,8,-24,17,-17,19,3,22,18,12,14,5,21,-4,15,-13,21,-21,15);poly(body,-16,-4,-13,-16,-7,-21,7,-21,14,-15,16,3,18,14,12,11,5,17,-4,11,-13,17,-17,13);break;
+  case 7: // octopus
+   for(int i=0;i<4;i++){o(-16+i*10,13+(i%2)*3,7,8,dark);o(-16+i*10,13+(i%2)*3,5,6,body);}o(0,-4,18,17,dark);o(0,-4,16,15,body);break;
+  case 8: // rooster
+   o(18,5,11,13,dark);o(18,5,8,10,0xff79ae9a);o(0,9,15,14,dark);o(0,9,13,12,body);o(-4,-7,13,13,dark);o(-4,-7,11,11,hi);for(int i=0;i<3;i++)o(-11+i*7,-21+(i%2)*2,5,6,0xffd95d77);poly(dark,-4,0,-17,4,-4,8);poly(accent,-5,2,-14,4,-5,6);r(-9,20,3,5,accent);r(5,20,3,5,accent);break;
+  case 9: // fairy
+   o(-14,-1-wing,11,15,dark);o(14,-1-wing,11,15,dark);o(-14,-1-wing,9,12,0xffc2eaff);o(14,-1-wing,9,12,0xffc2eaff);poly(dark,-11,8,11,8,17,24,-17,24);poly(body,-8,9,8,9,13,21,-13,21);o(0,-8,12,13,dark);o(0,-8,10,11,hi);o(0,-17,12,5,body);star(20,-20,accent);break;
+  case 10: // pixie
+   poly(dark,-15,-12,-25,-16,-15,2,15,2,25,-16,15,-12);poly(body,-15,-10,-21,-13,-14,-1,14,-1,21,-13,15,-10);o(0,-8,14,14,dark);o(0,-8,12,12,hi);poly(dark,-17,-15,2,-29,17,-15);poly(body,-12,-16,2,-25,12,-16);poly(dark,-9,5,9,5,13,18,0,24,-13,18);poly(body,-7,7,7,7,10,17,0,21,-10,17);break;
+  default: // owl
+   poly(dark,-18,-11,-18,-24,-7,-16,7,-16,18,-24,18,-11,21,8,13,23,-13,23,-21,8);poly(body,-15,-11,-15,-19,-7,-13,7,-13,15,-19,15,-11,18,8,11,20,-11,20,-18,8);o(-7,-3,9,10,hi);o(7,-3,9,10,hi);o(0,11,8,8,hi);poly(accent,-3,4,3,4,0,9);break;
+  }
+  int ey=id==5?-9:(id==9||id==10||id==8?-7:-3),spread=id==5?9:7;
+  for(int ex:new int[]{-spread,spread}){if(blink)r(ex-3,ey,6,1,dark);else{o(ex,ey,id==5?5:3,eyes==1?3:5,dark);r(ex-1,ey-3,2,2,hi);}}
+  if(id!=8&&id!=11){r(-2,ey+9,5,1,dark);r(-12,ey+7,3,2,pink);r(9,ey+7,3,2,pink);}
+ }
  private void sprite(PetState s,int x,int y,long tick,int scale){
   boolean asleep=s.sleeping();c.save();c.translate(x,y);c.scale(scale,scale);
   int bob=asleep?(int)(Math.sin(tick/1000.0)):(int)(Math.sin(tick/300.0)*2);c.translate(0,bob);if(asleep){c.translate(0,5);c.scale(1.05f,.78f);}
@@ -21,16 +55,10 @@ final class PetArt {
   int body=col[s.species()%col.length];int hi=0xfff9f2ff;
   o(0,19,22,4,0x334a3a77);if(s.stage>=1){int stride=asleep?0:(int)(tick/180)%2; r(-8,17+stride,4,2,ink);r(6,18-stride,4,2,ink);}
   if(s.stage==0){o(0,0,17,23,ink);o(0,-1,15,21,0xfffff4d3);o(-6,-10,5,4,0xffdab2ee);o(6,4,6,4,0xff9bd7dc);o(-4,13,4,4,0xfff2adc9);c.restore();return;}
-  int shape=s.stage==1?s.field*4:s.species();int kind=shape%4;
-  if(s.variant==1){body=col[(shape+5)%col.length];star(-15,-23,0xffffde81);star(15,-23,0xffffde81);}
-  if(s.stage>=2&&s.color>0){int tint=col[(s.color+shape)%col.length];body=tint;}
-  if(s.field==0){if(kind==3){o(-15,-12,6,12,ink);o(15,-12,6,12,ink);o(-15,-12,4,10,0xffae906e);o(15,-12,4,10,0xffae906e);}else if(kind==2){r(-18,-23,8,16,ink);r(11,-23,8,16,ink);r(-16,-21,5,10,0xffffeee0);r(13,-21,5,10,0xffffeee0);}else if(kind==1){o(-9,-21,5,14,ink);o(9,-21,5,14,ink);o(-9,-22,3,11,body);o(9,-22,3,11,body);}else{r(-15,-20,7,12,ink);r(8,-20,7,12,ink);r(-13,-18,4,8,body);r(10,-18,4,8,body);}}
-  if(s.field==1){o(-20,2,8,5,ink);o(20,2,8,5,ink);o(-20,2,6,3,body);o(20,2,6,3,body);if(kind==2){o(0,-19,7,7,ink);o(0,-19,5,5,body);}else if(kind==1){for(int i=0;i<3;i++){r(-10+i*8,-24+(i%2)*3,4,10,ink);r(-9+i*8,-23+(i%2)*3,2,8,0xffffa1c8);}}else if(kind==3){o(-12,-15,6,6,ink);o(12,-15,6,6,ink);o(-12,-15,4,4,body);o(12,-15,4,4,body);}}
-  if(s.field==2){o(-18,-1,10,8,ink);o(18,-1,10,8,ink);o(-18,-1,8,6,body);o(18,-1,8,6,body);if(kind==0){r(-9,-23,3,10,ink);r(7,-23,3,10,ink);star(-8,-24,0xffffd566);star(8,-24,0xffffd566);}else if(kind==1){o(-9,-22,5,12,ink);o(9,-22,5,12,ink);o(-9,-23,3,9,body);o(9,-23,3,9,body);}else if(kind==2){r(-2,-28,4,12,ink);r(-8,-25,8,5,0xffffc25d);r(1,-25,8,5,0xffffdf87);}else{r(-16,-19,7,10,ink);r(9,-19,7,10,ink);r(-14,-17,4,7,body);r(11,-17,4,7,body);}}
-  o(-9,15,7,5,ink);o(9,15,7,5,ink);o(-9,15,5,3,body);o(9,15,5,3,body);
-  o(0,-1,19,17,ink);o(0,-1,17,15,body);o(-8,-10,7,3,hi);
-  boolean blink=asleep||tick%3200<180;for(int x1:new int[]{-7,7}){if(blink)r(x1-3,-3,6,1,ink);else{if(s.eyes==1){o(x1,-3,4,4,ink);}else if(s.eyes==2){r(x1-3,-5,6,5,ink);}else if(s.eyes==3){star(x1,-3,ink);}else{o(x1,-3,3,5,ink);}r(x1-1,-6,2,2,hi);}}
-  r(-12,4,4,2,0xffee8fa7);r(8,4,4,2,0xffee8fa7);r(-2,6,5,1,ink);r(-1,7,3,1,ink);
+  int shape=s.stage==1?s.field*4:s.species()%12;int palette=col[(s.species()+s.variant*5+s.color)%col.length];if(s.sick)palette=mix(palette,0xffa4a5bc,.5f);
+  float size=s.stage==1?.8f:s.stage==2?.86f:s.stage==3?.94f:1f;c.scale(size,size);family(shape,palette,hi,tick,asleep||tick%3200<180,s.eyes);
+  if(s.variant==1){star(-21,-22,0xffffde81);star(21,-22,0xffffde81);r(-10,24,20,2,0xffffde81);}
+  if(!asleep&&s.hunger<=2)t("!",0,-28,8,0xffe26d78);
   if(s.equipped==1){r(-12,-20,24,4,ink);r(-8,-26,16,7,0xfff9ce63);star(0,-26,0xfffffae8);}
   if(s.equipped==2){r(-17,-14,9,6,0xffe661a0);r(-8,-12,4,3,ink);r(-4,-14,9,6,0xffe661a0);}
   if(s.equipped==3){o(0,-25,13,3,0xffffd65c);o(0,-25,9,1,0xff6459a5);}

@@ -80,7 +80,7 @@ public final class PetState {
  public void clean(){if(stage!=EGG&&waste>0){coins=Math.min(999999,coins+waste*2);fuel=Math.min(9999,fuel+waste);waste=0;wasteClock=0;quests|=2;}}
  public void treat(){if(stage!=EGG&&sick){if(germs>0)germs--;if(germs==0){sick=false;}}}
  public int species(){return field*4+body+12*variant;}
- public static final String[] SPECIES={"Mosskit","Bunberry","Dewfox","Pebblepup","Bubblefin","Coralhop","Moonray","Shellotter","Starbat","Cloudhare","Cometbird","Puffowl","Fernhorn","Roseling","Emberfox","Cloverpup","Pearlfin","Reefling","Lunamanta","Riverotter","NovaBat","Aurorahare","Sunphoenix","Dreamowl"};
+ public static final String[] SPECIES={"Mosskit","Mewmew","Barkle","Dracoon","Bubblefin","Neblito","Wispurr","Octoboo","Roostik","Fayli","Pixsy","Puffowl","Fernhorn","Moonmew","Cloverbark","Emberdrake","Pearlfin","NovaNeb","Lunawisp","Reefboo","Suncrest","Aurorafay","Stardust Pixsy","Dreamowl"};
  public String creature(){return stage<2?stageName():SPECIES[species()];}
  public static final String[] ITEMS={"Star cap","Berry ribbon","Moon halo","Garden bath","Cloud bed","Flower stand"};
  public static final int[] PRICES={40,50,75,80,100,60};
