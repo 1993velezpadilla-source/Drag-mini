@@ -25,6 +25,20 @@ def timber_texture():
   copy.pixels.foreach_set([v*tint[i%4] if i%4!=3 else 1.0 for i,v in enumerate(pixels)])
   copy.pack();node.image=copy
 timber_texture()
+def stone_texture(m,tint,seed):
+ import random
+ rng=random.Random(seed);size=128
+ im=bpy.data.images.new(m.name+' patina',width=size,height=size)
+ pixels=[]
+ for y in range(size):
+  for x in range(size):
+   v=.84+.047*math.sin(x*.18+y*.11)+.042*math.sin(x*.51-y*.23)+rng.uniform(-.025,.025)
+   pixels.extend((tint[0]*v,tint[1]*v,tint[2]*v,1))
+ im.pixels.foreach_set(pixels);im.pack()
+ node=m.node_tree.nodes.new('ShaderNodeTexImage');node.image=im
+ m.node_tree.links.new(node.outputs['Color'],m.node_tree.nodes.get('Principled BSDF').inputs['Base Color'])
+stone_texture(stone,(.57,.63,.71),91)
+stone_texture(cream,(.84,.72,.53),93)
 stats={}
 def clear():
  bpy.ops.object.select_all(action='SELECT');bpy.ops.object.delete(use_global=False)
@@ -87,6 +101,11 @@ for side in [-1,1]:
  box((side,.055,0),(.065,.03,18),cream,.01)
  box((side*3.37,.12,0),(.38,.50,18),stone)
  box((side*3.5,1.26,0),(.20,.18,18),wood2)
+ box((side*3.37,.41,0),(.43,.085,18),cream,.015)
+ box((side*3.48,1.36,0),(.23,.045,18),gold,.008)
+ for z in [-8,-4,0,4,8]:
+  box((side*3.50,.76,z),(.14,1.03,.16),blue,.02)
+  ball((side*3.50,.77,z+.10),(.22,.22,.06),gold)
  for j in range(3):
   z=-6+j*6;box((side*3.5,.73,z),(.39,1.46,.39),stone,.065);box((side*3.5,1.46,z),(.52,.17,.52),wood2)
   if j%2==0:
@@ -95,6 +114,9 @@ for side in [-1,1]:
    for dx in [-.18,.18]:
     for dz in [-.18,.18]:box((side*3.5+dx,2.68,z+dz),(.045,.49,.045),blue,.012)
    cyl((side*3.5,3.02,z),.34,.05,.24,blue)
+   cyl((side*3.5,2.44,z),.28,.28,.07,gold)
+   cyl((side*3.5,2.92,z),.29,.29,.07,gold)
+   ball((side*3.5,3.17,z),(.14,.20,.14),gold)
    box((side*3.5,1.7,z-.35),(.08,.85,.48),blue)
    box((side*3.5,1.31,z-.35),(.095,.065,.51),gold)
    for dz in [-.20,.20]:box((side*3.5,1.7,z-.35+dz),(.095,.80,.035),gold)
@@ -111,6 +133,9 @@ clear()
 for side in [-1,1]:
  box((side*3.3,2,0),(.72,4,.78),stone,.10)
  for y in [.25,1.1,2.0,2.9,3.8]:box((side*3.3,y,0),(.83,.12,.89),cream,.025)
+ for y in [.52,3.48]:box((side*3.3,y,.46),(.69,.12,.085),gold,.015)
+ box((side*3.3,2.15,.41),(.35,1.55,.11),blue,.055)
+ paw((side*3.3,2.55,.49),gold,.87)
 for j in range(13):
  a=j*pi/12;o=box((3.3*math.cos(a),3.8+3.3*math.sin(a),0),(.76,.91,.89),cream,.035);o.rotation_euler.y=-a
  if j%2==0:
@@ -165,6 +190,13 @@ for side in [-1,1]:
  ball((side*.47,.78,.46),(.22,.12,.09),pink)
 ball((0,.72,.61),(.29,.25,.10),dark);ball((0,.65,.66),(.17,.085,.055),pink)
 ball((0,.66,-.65),(.36,.36,.34),lime)
+# Signature leafy ears/back tufts, subtle green gradient patches, and plush tail tip.
+softlime=mat("Mosskit leaf highlights",(.32,.67,.07),0,.44)
+for side in [-1,1]:
+ o=ball((side*.39,1.34,-.44),(.29,.32,.16),softlime);o.rotation_euler.y=side*.30
+ ball((side*.16,.47,-.55),(.18,.23,.08),softlime)
+ball((0,.73,-.77),(.25,.25,.13),softlime)
+ball((0,1.62,-.09),(.25,.38,.24),softlime)
 export('mosskit',26000)
 clear();ball((0,0,0),(.68,.40,.67),lime);paw((0,-.08,.30),pink,.64);export('foot',7000)
 clear();box((0,.45,0),(1.3,.9,.9),wood,.07)
@@ -413,4 +445,36 @@ for i in range(5):
  x=1.91*math.cos(a);z=1.91*math.sin(a)
  box((x,.34,z),(.28,.55,.28),portalstone,.035);ball((x,.65,z),(.30,.30,.30),surflight)
 export('moon_island',18000)
+# Distant palace landmark: pointed turrets, layered terraces, windows, flying flags.
+clear()
+cyl((0,-1.65,0),.70,4.1,3.7,stone)
+cyl((0,.12,0),4.04,4.04,.38,green)
+box((0,.45,0),(5.9,.48,4.8),cream,.12)
+box((0,1.50,0),(3.2,2.05,2.60),cream,.08)
+box((0,2.63,0),(3.44,.28,2.84),gold,.04)
+cyl((0,3.55,0),1.73,.06,1.75,blue)
+for side in [-1,1]:
+ for z in [-1.65,1.65]:
+  x=side*2.18
+  cyl((x,1.91,z),.72,.65,3.2,cream)
+  cyl((x,3.58,z),.81,.81,.19,gold)
+  cyl((x,4.38,z),.92,.04,1.55,blue)
+  ball((x,5.20,z),(.16,.21,.16),gold)
+  box((x,2.35,z+.66),(.21,.55,.07),blue,.04)
+ for y in [1.12,1.78,2.32]:
+  box((side*.62,y,1.32),(.29,.37,.06),blue,.035)
+  box((side*.62,y-.24,1.36),(.34,.07,.09),gold,.012)
+box((0,.94,1.34),(.65,1.08,.08),blue,.075)
+for x in [-2.8,2.8]:
+ ball((x,.62,2.1),(.68,.72,.68),leaf)
+ box((x,1.45,2.12),(.065,1.0,.065),gold,.01)
+ box((x+.30,1.74,2.12),(.56,.32,.035),violet,.02)
+export('palace',35000)
+# Soft low-poly cloud islands add layered motion against baked distant sky.
+clear()
+cloudwhite=mat('cloud cream',(.92,.94,1),0,.87)
+cloudshade=mat('cloud blue shadow',(.67,.78,.94),0,.87)
+for x,y,z,s in [(-1.7,0,0,1.2),(-.65,.24,0,1.45),(.45,.45,-.1,1.75),(1.55,.12,.12,1.3),(2.1,-.05,0,.85),(-.2,-.29,.05,1.7)]:
+ ball((x,y,z),(s*1.4,s*.88,s),cloudwhite if y>=0 else cloudshade)
+export('cloud_bank',6000)
 with open(os.path.join(OUT,'mesh-metrics.json'),'w') as out: json.dump(stats,out,indent=2)

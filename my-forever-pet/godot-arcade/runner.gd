@@ -31,6 +31,9 @@ var world_index := 0
 var world_visits := 0
 var world_label: Label
 var world_environment: Environment
+var biome_skies: Array[Texture2D] = []
+var sky_panorama: PanoramaSkyMaterial
+var backdrop_nodes: Array[Node3D] = []
 var world_sun: DirectionalLight3D
 var portal_flash := 0.0
 var portal_overlay: ColorRect
@@ -195,11 +198,11 @@ func asset(parent: Node3D, name: String, pos: Vector3) -> Node3D:
 		models[name]=load(path)
 	var n: Node3D=models[name].instantiate()
 	# Let imported mesh LODs transition earlier for distant scenery, not the player.
-	if name in ["bridge","arch","island","crystal_island","moon_island"]:
+	if name in ["bridge","arch","island","crystal_island","moon_island","palace","cloud_bank"]:
 		for child in n.find_children("*","MeshInstance3D",true,false):
 			(child as MeshInstance3D).lod_bias=0.65
 	# Tiny collectibles and distant islands do not need expensive shadow passes.
-	if name in ["coin","snack","magnet","shield","double","boost","island","airship","rainbow","time_orb","spring","sky_ring","gem","rescue","smash","surf_pickup","surf_board","portal","crystal_island","moon_island"]:
+	if name in ["coin","snack","magnet","shield","double","boost","island","airship","rainbow","time_orb","spring","sky_ring","gem","rescue","smash","surf_pickup","surf_board","portal","crystal_island","moon_island","palace","cloud_bank"]:
 		for child in n.find_children("*","MeshInstance3D",true,false):
 			(child as MeshInstance3D).cast_shadow=GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	parent.add_child(n)
@@ -223,15 +226,18 @@ func _ready() -> void:
 	sky_mat.ground_horizon_color=Color("#c8e7ff")
 	sky_mat.ground_bottom_color=Color("#7495ca")
 	if ResourceLoader.exists("res://assets/sky-panorama.png"):
-		var panorama:=PanoramaSkyMaterial.new()
-		panorama.panorama=load("res://assets/sky-panorama.png")
-		sky.sky_material=panorama
+		sky_panorama=PanoramaSkyMaterial.new()
+		for file in ["sky-panorama.png","sky-crystal.png","sky-moon.png"]:
+			var texture:=load("res://assets/"+file) as Texture2D if ResourceLoader.exists("res://assets/"+file) else load("res://assets/sky-panorama.png") as Texture2D
+			biome_skies.append(texture)
+		sky_panorama.panorama=biome_skies[0]
+		sky.sky_material=sky_panorama
 	else: sky.sky_material=sky_mat
 	e.sky=sky
 	e.background_mode=Environment.BG_SKY
 	e.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
 	e.ambient_light_color = Color("#c5d9ee")
-	e.ambient_light_energy = 0.28
+	e.ambient_light_energy = 0.34
 	e.tonemap_mode = Environment.TONE_MAPPER_FILMIC
 	env.environment = e
 	world_environment=e
@@ -239,14 +245,22 @@ func _ready() -> void:
 	var sun := DirectionalLight3D.new()
 	sun.rotation_degrees = Vector3(-48, -28, 0)
 	sun.light_color = Color("#ffdfb0")
-	sun.light_energy = 0.66
-	sun.light_specular=0.3
+	sun.light_energy = 0.77
+	sun.light_specular=0.42
 	sun.directional_shadow_max_distance=30.0
 	sun.shadow_bias=0.07
 	sun.shadow_normal_bias=0.55
 	sun.shadow_enabled = true
 	add_child(sun)
 	world_sun=sun
+	# Soft cool rim illumination, with no second shadow pass.
+	var rim:=DirectionalLight3D.new()
+	rim.rotation_degrees=Vector3(-20,145,0)
+	rim.light_color=Color("#a5d7ff")
+	rim.light_energy=0.18
+	rim.light_specular=0.18
+	rim.shadow_enabled=false
+	add_child(rim)
 	var floor_body := StaticBody3D.new()
 	add_child(floor_body)
 	var floor_shape := CollisionShape3D.new()
@@ -300,6 +314,17 @@ func make_cloudscape() -> void:
 		sky_ship.scale=Vector3.ONE*1.5
 	var rainbow:=asset(self,"rainbow",Vector3(0,1.5,-72.0))
 	if rainbow!=null: rainbow.scale=Vector3.ONE*2.2
+	var palace:=asset(self,"palace",Vector3(0,2.0,-105.0))
+	if palace!=null:
+		palace.scale=Vector3.ONE*3.1
+		palace.set_meta("biome",0)
+		backdrop_nodes.append(palace)
+	for i in range(4):
+		var bank:=asset(self,"cloud_bank",Vector3((-1.0 if i%2==0 else 1.0)*(12.0+float(i)*5),-4.0+float(i%2)*3,-22.0-float(i)*19))
+		if bank!=null:
+			bank.scale=Vector3.ONE*(2.0+float(i)*0.40)
+			scene_anim.append(bank)
+			scene_anim_origins.append(bank.position)
 	# Panorama supplies clouds; real distant GLB islands add silhouettes and depth.
 	# Fixed world backdrop avoids spawning high-cost scenery per track row.
 	for i in range(6):
@@ -508,8 +533,10 @@ func make_hud() -> void:
 	coin_label=hud_label(stats,"0 coins",18,Color("#ffd775"))
 	snack_label=hud_label(stats,"0 snacks",18,Color("#a9e2bd"))
 	world_label=hud_label(column,"SKY KINGDOM  •  ENDLESS RUN",16,Color("#cbd9ff"))
-	power_label=hud_label(column,"MAGNET  •  SHIELD  •  ×2  •  BOOST",15,Color("#e9d5ff"))
-	challenge_label=hud_label(column,"Collect 15 coins",14,Color("#ffe5a4"))
+	power_label=hud_label(column,"MAGNET  •  SHIELD  •  ×2  •  BOOST",14,Color("#e9d5ff"))
+	power_label.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART
+	challenge_label=hud_label(column,"Collect 15 coins",13,Color("#ffe5a4"))
+	challenge_label.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART
 	challenge_bar=ProgressBar.new()
 	challenge_bar.show_percentage=false
 	challenge_bar.custom_minimum_size.y=6
@@ -1100,7 +1127,9 @@ func enter_next_world() -> void:
 	# Existing foreground chunks are retained; upcoming recycled scenery changes.
 	world_sun.light_color=[Color("#ffdfb0"),Color("#c2f4ff"),Color("#d4b5ff")][world_index]
 	world_environment.ambient_light_color=[Color("#c5d9ee"),Color("#bbf1ff"),Color("#b9b9ff")][world_index]
-	world_environment.ambient_light_energy=[0.28,0.38,0.40][world_index]
+	world_environment.ambient_light_energy=[0.34,0.38,0.40][world_index]
+	if sky_panorama!=null and biome_skies.size()==3: sky_panorama.panorama=biome_skies[world_index]
+	for backdrop in backdrop_nodes: backdrop.visible=int(backdrop.get_meta("biome"))==world_index
 	show_skill(WORLD_NAMES[world_index].to_upper())
 	audio.call("play_fx","portal")
 
@@ -1279,7 +1308,7 @@ func update_hud() -> void:
 	if smash_charges>0: active_powers.append("SMASH ×%d"%smash_charges)
 	if surf_time>0: active_powers.append("SURF %ds"%ceili(surf_time))
 	var powers: String="  •  ".join(active_powers)
-	var power_text := powers if not powers.is_empty() else "Collect power-ups to extend your run"
+	var power_text := powers if not powers.is_empty() else "Find power-ups and secret sky gems"
 	if power_text!=last_power_hud:
 		last_power_hud=power_text
 		power_label.text=power_text
