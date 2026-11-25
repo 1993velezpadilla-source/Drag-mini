@@ -6,7 +6,7 @@ public class PetWallpaper extends WallpaperService{
   private final Handler h=new Handler(Looper.getMainLooper());private final PetRuntime pet=PetRuntime.get();private final PetArt art=new PetArt();private boolean visible,surface;private long tapAt,cachedAt;private PetState cached;private final Runnable draw=()->render();
   public void onCreate(SurfaceHolder holder){super.onCreate(holder);setTouchEventsEnabled(true);}
   private void render(){h.removeCallbacks(draw);if(!visible||!surface)return;Canvas c=null;try{c=getSurfaceHolder().lockCanvas();if(c!=null){long n=SystemClock.elapsedRealtime();if(cached==null||n-cachedAt>=1000){cached=pet.snapshot();cachedAt=n;}art.draw(c,cached,2,true,n);}}catch(RuntimeException ignored){}finally{if(c!=null)try{getSurfaceHolder().unlockCanvasAndPost(c);}catch(RuntimeException ignored){}}h.postDelayed(draw,cached!=null&&cached.sleeping()?250:100);}
-  public void onVisibilityChanged(boolean v){visible=v;h.removeCallbacks(draw);if(v)render();else pet.flush();}
+  public void onVisibilityChanged(boolean v){visible=v;cached=null;tapAt=0;h.removeCallbacks(draw);if(v)render();else pet.flush();}
   public void onSurfaceCreated(SurfaceHolder s){super.onSurfaceCreated(s);surface=true;render();}
   public void onSurfaceChanged(SurfaceHolder s,int f,int w,int h){super.onSurfaceChanged(s,f,w,h);render();}
   public void onSurfaceDestroyed(SurfaceHolder s){surface=false;h.removeCallbacks(draw);pet.flush();super.onSurfaceDestroyed(s);}
