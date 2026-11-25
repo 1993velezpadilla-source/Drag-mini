@@ -172,9 +172,57 @@ for a in paint_rear:
         if err<=.004:
             rear_pairs.append({"paint":describe(a),"coat":describe(b),
                                "max_world_bounds_delta_m":round(err,6)})
+# Search ALL original artist mesh objects for the missing front paint surface.
+# An AABB intersection alone cannot identify a thin curved shell. Compare
+# actual surface samples and normal alignment in world coordinates.
+from mathutils.bvhtree import BVHTree
+front_samples=[]
+for index in sorted(front["indices"]):
+    poly=coat.data.polygons[index]
+    world=coat.matrix_world
+    p=world@poly.center
+    n=(world.to_3x3().inverted().transposed()@poly.normal).normalized()
+    front_samples.append((p,n))
+front_surface_matches=[]
+for obj in source_meshes:
+    if obj==coat or not obj.data.polygons: continue
+    lo,hi=bounds([obj])
+    if any(hi[i]<front["low"][i]-.02 or lo[i]>front["high"][i]+.02 for i in range(3)):
+        continue
+    coords=[obj.matrix_world@v.co for v in obj.data.vertices]
+    polygons=[tuple(p.vertices) for p in obj.data.polygons]
+    tree=BVHTree.FromPolygons(coords,polygons,all_triangles=all(len(p)==3 for p in polygons))
+    close_faces=set()
+    close_1mm=0
+    close_3mm=0
+    distances=[]
+    for point,normal in front_samples:
+        hit,other_normal,idx,dist=tree.find_nearest(point,.02)
+        if idx is None:continue
+        if abs(normal.dot(other_normal))<.90:continue
+        distances.append(float(dist))
+        if dist<=.001:close_1mm+=1
+        if dist<=.003:
+            close_3mm+=1
+            close_faces.add(idx)
+    if not close_3mm:continue
+    matched_islands=[]
+    for component in islands(obj):
+        hits=len(close_faces.intersection(component["indices"]))
+        if hits:
+            matched_islands.append(dict(describe(component),matched_faces=hits,
+                matched_island_fraction=round(hits/component["faces"],5)))
+    front_surface_matches.append({"object":obj.name,"object_triangles":tri(obj),
+        "sample_count":len(front_samples),"aligned_samples_within_1mm":close_1mm,
+        "aligned_samples_within_3mm":close_3mm,
+        "matched_original_islands":sorted(matched_islands,key=lambda c:-c["matched_faces"])})
+front_surface_matches.sort(key=lambda c:-c["aligned_samples_within_3mm"])
+print("PORSCHE930_FRONT_COAT_ALL_SOURCE_SURFACE_MATCHES",json.dumps(front_surface_matches),flush=True)
 panel_discovery={"source_sha256":source_hash,"front_axis":"negative_blender_y",
     "source_real_triangle_count":original_faces,"candidate_islands":central_candidates,
     "front_clearcoat_candidate":describe(front),"all_overlapping_front_paint_islands":front_paint_overlap,
+    "all_source_front_surface_matches":front_surface_matches,
+    "surface_match_is_diagnostic_not_panel_approval":True,
     "rear_paint_clearcoat_matching_candidate_pairs":rear_pairs,
     "candidate_aabb_overlap_is_not_proof_of_actual_panel_seam":True,
     "lid_hinges_verified":False,"requires_source_geometry_visual_review":True}
