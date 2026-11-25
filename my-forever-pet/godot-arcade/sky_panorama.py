@@ -14,16 +14,16 @@ def noise(cols,rows):
  return np.asarray(Image.fromarray(np.uint8(a*255)).resize((w+max(1,w//cols),h),Image.Resampling.BICUBIC),dtype=np.float32)[:,:w]/255
 n=.52*noise(48,24)+.30*noise(110,55)+.18*noise(240,120)
 cloud=np.zeros((h,w),np.float32)
-for i in range(35):
- cx=rng.uniform(-np.pi,np.pi);cy=rng.uniform(-.22,.62)
- sx=rng.uniform(.11,.36);sy=rng.uniform(.055,.16)
- for j in range(4):
+for i in range(52):
+ cx=rng.uniform(-np.pi,np.pi);cy=rng.uniform(-.48,.69)
+ sx=rng.uniform(.10,.30);sy=rng.uniform(.055,.16)
+ for j in range(5):
   dx=wrap(lon-cx-(j-1.5)*sx*.38)
   dy=lat-cy-rng.uniform(-.05,.06)
   q=(dx/sx)**2+(dy/sy)**2
   cloud=np.maximum(cloud,np.clip((1-q)*2.5,0,1))
-cloud=np.clip(cloud+(n-.48)*.72,0,1)*np.clip(cloud*4,0,1)
-shade=np.clip(.58+lat*.24+(n-.45)*.75,0,1)
+cloud=np.clip(cloud+(n-.48)*1.2,0,1)*np.clip(cloud*5,0,1)
+shade=np.clip(.61+lat*.40+(n-.45)*1.2,0,1)
 def make(name,top,horizon,below,light,dark,night=False):
  t=np.clip(lat/(np.pi/2),0,1)**.65
  rgb=np.broadcast_to(np.array(horizon)+(np.array(top)-horizon)*t[...,None],(h,w,3)).copy()
@@ -50,6 +50,6 @@ def make(name,top,horizon,below,light,dark,night=False):
   rgb[:,-1-i]=rgb[:,-1-i]*(1-blend)+avg*blend
  Image.fromarray(np.uint8(np.clip(rgb,0,255))).save(name)
 p=Path(sys.argv[1])
-make(p,[23,95,208],[124,195,249],[148,181,221],[255,249,227],[141,177,219])
+make(p,[13,75,191],[57,157,232],[103,165,226],[255,251,239],[130,165,211])
 make(p.with_name('sky-crystal.png'),[43,75,163],[109,221,224],[99,133,181],[221,255,250],[112,158,206])
 make(p.with_name('sky-moon.png'),[14,19,65],[85,76,139],[53,51,100],[218,228,255],[72,87,151],True)

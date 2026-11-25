@@ -38,3 +38,5 @@ Endless hardening: rebase track-local coordinates every 1024m while keeping tota
 Visual review includes staged actual Godot viewport frames of Crystal Gardens and Moonlight Isles after the active run benchmark. These are not AI images and do not certify visual parity.
 
 0.14 art pass: distinct original day/crystal/night panoramas with shaped cumulus banks, moon and stars; sky switches per biome. Two new Blender meshes (palace landmark and cloud bank), textured sandstone, gold rail details, brass lantern accents, Mosskit back/ear markings, shadow-free rim light and compact wrapping HUD. Pending real capture and Android verification; not a claim of AAA art parity.
+
+0.15 visual diversity: new royal gate, garden pavilion and windmill floating islands exported as original Blender GLBs, alternate skyline silhouettes and gate shapes, denser shaped clouds near and below horizon, compact HUD and softer key-to-fill contrast. Existing lane geometry and mechanics retained. Visual parity and device performance remain unverified.

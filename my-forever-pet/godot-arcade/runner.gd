@@ -198,11 +198,11 @@ func asset(parent: Node3D, name: String, pos: Vector3) -> Node3D:
 		models[name]=load(path)
 	var n: Node3D=models[name].instantiate()
 	# Let imported mesh LODs transition earlier for distant scenery, not the player.
-	if name in ["bridge","arch","island","crystal_island","moon_island","palace","cloud_bank"]:
+	if name in ["bridge","arch","island","crystal_island","moon_island","palace","cloud_bank","garden_island","royal_gate","windmill_island"]:
 		for child in n.find_children("*","MeshInstance3D",true,false):
 			(child as MeshInstance3D).lod_bias=0.65
 	# Tiny collectibles and distant islands do not need expensive shadow passes.
-	if name in ["coin","snack","magnet","shield","double","boost","island","airship","rainbow","time_orb","spring","sky_ring","gem","rescue","smash","surf_pickup","surf_board","portal","crystal_island","moon_island","palace","cloud_bank"]:
+	if name in ["coin","snack","magnet","shield","double","boost","island","airship","rainbow","time_orb","spring","sky_ring","gem","rescue","smash","surf_pickup","surf_board","portal","crystal_island","moon_island","palace","cloud_bank","garden_island","windmill_island"]:
 		for child in n.find_children("*","MeshInstance3D",true,false):
 			(child as MeshInstance3D).cast_shadow=GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	parent.add_child(n)
@@ -237,7 +237,7 @@ func _ready() -> void:
 	e.background_mode=Environment.BG_SKY
 	e.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
 	e.ambient_light_color = Color("#c5d9ee")
-	e.ambient_light_energy = 0.34
+	e.ambient_light_energy = 0.42
 	e.tonemap_mode = Environment.TONE_MAPPER_FILMIC
 	env.environment = e
 	world_environment=e
@@ -245,11 +245,12 @@ func _ready() -> void:
 	var sun := DirectionalLight3D.new()
 	sun.rotation_degrees = Vector3(-48, -28, 0)
 	sun.light_color = Color("#ffdfb0")
-	sun.light_energy = 0.77
+	sun.light_energy = 0.66
 	sun.light_specular=0.42
 	sun.directional_shadow_max_distance=30.0
 	sun.shadow_bias=0.07
-	sun.shadow_normal_bias=0.55
+	sun.shadow_normal_bias=0.45
+	sun.directional_shadow_blend_splits=true
 	sun.shadow_enabled = true
 	add_child(sun)
 	world_sun=sun
@@ -320,16 +321,16 @@ func make_cloudscape() -> void:
 		palace.set_meta("biome",0)
 		backdrop_nodes.append(palace)
 	for i in range(4):
-		var bank:=asset(self,"cloud_bank",Vector3((-1.0 if i%2==0 else 1.0)*(12.0+float(i)*5),-4.0+float(i%2)*3,-22.0-float(i)*19))
+		var bank:=asset(self,"cloud_bank",Vector3((-1.0 if i%2==0 else 1.0)*(8.0+float(i)*3),-2.0+float(i%2)*6,-21.0-float(i)*13))
 		if bank!=null:
-			bank.scale=Vector3.ONE*(2.0+float(i)*0.40)
+			bank.scale=Vector3.ONE*(2.6+float(i)*0.55)
 			scene_anim.append(bank)
 			scene_anim_origins.append(bank.position)
 	# Panorama supplies clouds; real distant GLB islands add silhouettes and depth.
 	# Fixed world backdrop avoids spawning high-cost scenery per track row.
 	for i in range(6):
 		var side:float=-1.0 if i%2==0 else 1.0
-		var island:=asset(self,"island",Vector3(side*(17.0+float(i%3)*7),5.0+float(i%3)*4,-39.0-float(i)*11))
+		var island:=asset(self,["palace","garden_island","windmill_island"][i%3],Vector3(side*(13.0+float(i%3)*6),4.0+float(i%3)*5,-39.0-float(i)*11))
 		if island!=null:
 			island.scale=Vector3.ONE*(1.5+float(i%3)*0.22)
 			island.rotation.y=float(i)*0.8
@@ -352,11 +353,13 @@ func refresh_chunk_decor(chunk:Node3D) -> void:
 
 func make_chunk(chunk: Node3D, index: int) -> void:
 	if using_blender and asset(chunk,"bridge",Vector3.ZERO)!=null:
-		if index%2==1: asset(chunk,"arch",Vector3(0,0,-4))
+		if index%2==1: asset(chunk,"royal_gate" if index%4==3 else "arch",Vector3(0,0,-4))
 		if index%2==0:
 			for side in [-1,1]:
 				for biome in range(3):
-					var island:=asset(chunk,["island","crystal_island","moon_island"][biome],Vector3(side*(8.0+float(index%3)),float(index%3)*1.3,-4))
+					var name:String=["island","crystal_island","moon_island"][biome]
+					if biome==0: name=["garden_island","windmill_island","island"][(int(index/2.0)+int(side>0))%3]
+					var island:=asset(chunk,name,Vector3(side*(8.0+float(index%3)),float(index%3)*1.3,-4))
 					if island!=null:
 						island.set_meta("scenery_island",side)
 						island.set_meta("biome",biome)
@@ -461,8 +464,8 @@ func panel_style(bg: Color, border: Color, radius: int) -> StyleBoxFlat:
 	style.set_corner_radius_all(radius)
 	style.content_margin_left=12
 	style.content_margin_right=12
-	style.content_margin_top=7
-	style.content_margin_bottom=7
+	style.content_margin_top=4
+	style.content_margin_bottom=4
 	return style
 
 func hud_label(parent: Control, value: String, size: int, color: Color) -> Label:
@@ -500,18 +503,20 @@ func make_hud() -> void:
 	panel.offset_left=10
 	panel.offset_right=-10
 	panel.offset_top=10
-	panel.offset_bottom=145
+	panel.offset_bottom=112
 	panel.mouse_filter=Control.MOUSE_FILTER_IGNORE
-	panel.add_theme_stylebox_override("panel",panel_style(Color("#182344ef"),Color("#91baff"),18))
+	panel.add_theme_stylebox_override("panel",panel_style(Color("#122748e8"),Color("#92c6ff"),16))
 	var column := VBoxContainer.new()
 	column.mouse_filter=Control.MOUSE_FILTER_IGNORE
-	column.add_theme_constant_override("separation",5)
+	column.add_theme_constant_override("separation",2)
 	panel.add_child(column)
 	var header := HBoxContainer.new()
 	header.mouse_filter=Control.MOUSE_FILTER_IGNORE
 	column.add_child(header)
-	hud_label(header,"FOREVER\nPET",14,Color("#c1d9ff"))
-	status=hud_label(header,"PET DASH",29,Color("#ffdc87"))
+	var brand:=hud_label(header,"PET DASH",27,Color("#ffcf61"))
+	brand.add_theme_color_override("font_outline_color",Color("#38203f"))
+	brand.add_theme_constant_override("outline_size",4)
+	status=brand
 	audio_button=Button.new()
 	audio_button.text="SFX"
 	style_button(audio_button)
@@ -521,7 +526,7 @@ func make_hud() -> void:
 	header.add_child(audio_button)
 	pause_button=Button.new()
 	pause_button.text="Ⅱ"
-	pause_button.custom_minimum_size=Vector2(52,40)
+	pause_button.custom_minimum_size=Vector2(45,32)
 	style_button(pause_button)
 	pause_button.pressed.connect(toggle_pause)
 	header.add_child(pause_button)
@@ -532,14 +537,14 @@ func make_hud() -> void:
 	score_label=hud_label(stats,"0 m",18,Color("#f0f1ff"))
 	coin_label=hud_label(stats,"0 coins",18,Color("#ffd775"))
 	snack_label=hud_label(stats,"0 snacks",18,Color("#a9e2bd"))
-	world_label=hud_label(column,"SKY KINGDOM  •  ENDLESS RUN",16,Color("#cbd9ff"))
+	world_label=hud_label(column,"SKY KINGDOM  •  ENDLESS RUN",12,Color("#cbd9ff"))
 	power_label=hud_label(column,"MAGNET  •  SHIELD  •  ×2  •  BOOST",14,Color("#e9d5ff"))
 	power_label.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART
 	challenge_label=hud_label(column,"Collect 15 coins",13,Color("#ffe5a4"))
 	challenge_label.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART
 	challenge_bar=ProgressBar.new()
 	challenge_bar.show_percentage=false
-	challenge_bar.custom_minimum_size.y=6
+	challenge_bar.custom_minimum_size.y=4
 	challenge_bar.add_theme_stylebox_override("background",panel_style(Color("#15213c"),Color("#354b73"),4))
 	challenge_bar.add_theme_stylebox_override("fill",panel_style(Color("#e8b64e"),Color("#f9db89"),4))
 	challenge_bar.mouse_filter=Control.MOUSE_FILTER_IGNORE
@@ -549,10 +554,10 @@ func make_hud() -> void:
 	footer.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_WIDE)
 	footer.offset_left=12
 	footer.offset_right=-12
-	footer.offset_top=-103
+	footer.offset_top=-72
 	footer.offset_bottom=-12
 	footer.mouse_filter=Control.MOUSE_FILTER_IGNORE
-	footer.add_theme_stylebox_override("panel",panel_style(Color("#202647eb"),Color("#b9aaff"),18))
+	footer.add_theme_stylebox_override("panel",panel_style(Color("#17274bc9"),Color("#d5b46b"),16))
 	pickup_feedback=Label.new()
 	ui.add_child(pickup_feedback)
 	pickup_feedback.set_anchors_and_offsets_preset(Control.PRESET_CENTER_BOTTOM)
@@ -588,7 +593,7 @@ func make_hud() -> void:
 	controls.size_flags_horizontal=Control.SIZE_EXPAND_FILL
 	controls.mouse_filter=Control.MOUSE_FILTER_IGNORE
 	bottom.add_child(controls)
-	hint=hud_label(controls,"Swipe left / right",14,Color("#f1ebff"))
+	hint=hud_label(controls,"Swipe left / right",12,Color("#f1ebff"))
 	var actions:=HBoxContainer.new()
 	actions.mouse_filter=Control.MOUSE_FILTER_IGNORE
 	controls.add_child(actions)
@@ -596,7 +601,7 @@ func make_hud() -> void:
 		var button:=Button.new()
 		button.text=action
 		button.size_flags_horizontal=Control.SIZE_EXPAND_FILL
-		button.custom_minimum_size.y=38
+		button.custom_minimum_size.y=32
 		style_button(button)
 		button.add_theme_font_size_override("font_size",16)
 		var delta:=Vector2(0,-80 if action=="↑ Jump" else 80)
@@ -1127,7 +1132,7 @@ func enter_next_world() -> void:
 	# Existing foreground chunks are retained; upcoming recycled scenery changes.
 	world_sun.light_color=[Color("#ffdfb0"),Color("#c2f4ff"),Color("#d4b5ff")][world_index]
 	world_environment.ambient_light_color=[Color("#c5d9ee"),Color("#bbf1ff"),Color("#b9b9ff")][world_index]
-	world_environment.ambient_light_energy=[0.34,0.38,0.40][world_index]
+	world_environment.ambient_light_energy=[0.42,0.44,0.40][world_index]
 	if sky_panorama!=null and biome_skies.size()==3: sky_panorama.panorama=biome_skies[world_index]
 	for backdrop in backdrop_nodes: backdrop.visible=int(backdrop.get_meta("biome"))==world_index
 	show_skill(WORLD_NAMES[world_index].to_upper())

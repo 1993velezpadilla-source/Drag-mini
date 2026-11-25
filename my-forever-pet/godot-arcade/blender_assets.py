@@ -477,4 +477,84 @@ cloudshade=mat('cloud blue shadow',(.67,.78,.94),0,.87)
 for x,y,z,s in [(-1.7,0,0,1.2),(-.65,.24,0,1.45),(.45,.45,-.1,1.75),(1.55,.12,.12,1.3),(2.1,-.05,0,.85),(-.2,-.29,.05,1.7)]:
  ball((x,y,z),(s*1.4,s*.88,s),cloudwhite if y>=0 else cloudshade)
 export('cloud_bank',6000)
+# Distinct silhouettes: royal gate, botanical island and floating windmill.
+jade=mat('jade enamel',(.045,.31,.25),.12,.34)
+rose=mat('petal rose',(.89,.20,.43),0,.48)
+terracotta=mat('warm terracotta',(.66,.27,.13),0,.46)
+def leaf_mesh(p,scale,angle,m):
+ # Folded pointed leaf: broad midsection, central ridge, tapered ends.
+ pts=[(0,-.5,0),(-.28,-.15,0),(-.35,.16,0),(0,.58,0),(.35,.16,0),(.28,-.15,0),(0,.08,.13)]
+ ca,sa=math.cos(angle),math.sin(angle)
+ verts=[v((p[0]+scale*(x*ca-y*sa),p[1]+scale*(x*sa+y*ca),p[2]+scale*z)) for x,y,z in pts]
+ faces=[(i,(i+1)%6,6) for i in range(6)]
+ me=bpy.data.meshes.new('folded foliage');me.from_pydata(verts,[],faces);me.update()
+ o=bpy.data.objects.new('folded foliage',me);bpy.context.collection.objects.link(o);o.data.materials.append(m)
+ return o
+clear()
+# Taller but open central raceway; decorative side towers stay outside lanes.
+for side in [-1,1]:
+ x=side*3.65
+ box((x,.24,0),(.96,.48,1.10),stone,.06)
+ cyl((x,2.0,0),.43,.36,3.2,cream)
+ for y in [.62,1.15,3.15,3.62]:cyl((x,y,0),.49,.49,.11,gold)
+ box((x,2.1,.39),(.32,1.55,.08),blue,.04)
+ paw((x,2.4,.45),gold,.8)
+ cyl((x,4.10,0),.76,.04,1.22,blue)
+ ball((x,4.76,0),(.13,.22,.13),gold)
+ for j in range(7):
+  leaf_mesh((x+side*.17,.78+j*.33,.50),.61,side*(.65 if j%2 else -.7),leaf if j%2 else green)
+for k in range(15):
+ a=pi*k/14
+ x=3.60*math.cos(a);y=3.70+2.55*math.sin(a)
+ o=box((x,y,0),(.77,.73,.78),cream,.07);o.rotation_euler.y=-a
+ if k%2==0:
+  for j in range(3):leaf_mesh((x+.19*(j-1),y+.18,.48),.64,(j-1)*.85,leaf if j%2 else green)
+  flower((x,y+.10,.66),1.2)
+cyl((0,6.24,.47),.55,.55,.18,blue,True)
+ring((0,6.24,.58),.48,.048,gold);paw((0,6.15,.63),gold,1.45)
+export('royal_gate',32000)
+clear()
+cyl((0,-1.55,0),.40,2.85,3.3,stone)
+cyl((0,.10,0),2.8,2.8,.30,jade)
+# garden pavilion with fluted columns and blue glass roof.
+cyl((0,.35,0),1.58,1.58,.28,cream)
+for i in range(6):
+ a=i*pi/3;x=1.26*math.cos(a);z=1.26*math.sin(a)
+ cyl((x,1.18,z),.13,.12,1.48,cream)
+ cyl((x,.49,z),.21,.21,.16,gold)
+ cyl((x,1.86,z),.21,.21,.15,gold)
+cyl((0,2.06,0),1.59,1.59,.20,cream)
+ball((0,2.48,0),(2.89,1.21,2.89),blue)
+ball((0,3.13,0),(.20,.30,.20),gold)
+for j in range(8):
+ a=j*pi/4;x=2.05*math.cos(a);z=2.05*math.sin(a)
+ ball((x,.42,z),(.66,.58,.68),green)
+ for k in range(3):
+  leaf_mesh((x+.14*(k-1),.70,z+.29),.54,(k-1)*.83,leaf)
+ flower((x,.80,z+.35),1.35)
+for j in range(3):
+ x=-.54+j*.54
+ ball((x,-1.5,2.55),(.28,3.0,.22),water)
+export('garden_island',30000)
+clear()
+cyl((0,-1.55,0),.46,2.60,3.3,stone)
+cyl((0,.10,0),2.55,2.55,.34,green)
+cyl((0,1.44,0),.85,.61,2.65,cream)
+cyl((0,3.16,0),1.03,.06,1.25,terracotta)
+box((0,.75,.82),(.53,.87,.085),wood2,.055)
+for x in [-.41,.41]:
+ box((x,1.67,.68),(.20,.48,.10),blue,.035)
+cyl((0,2.55,.79),.27,.27,.30,gold,True)
+for j in range(4):
+ a=j*pi/2+.40
+ x=math.cos(a);y=2.55+math.sin(a)
+ o=box((x,y,1.02),(.36,1.61,.12),wood2,.03);o.rotation_euler.y=pi/2-a
+ for k in range(3):
+  xx=(.63+.39*k)*math.cos(a);yy=2.55+(.63+.39*k)*math.sin(a)
+  o=box((xx,yy,1.10),(.27,.31,.06),cream,.025);o.rotation_euler.y=pi/2-a
+for j in range(5):
+ a=j*2*pi/5;x=1.85*math.cos(a);z=1.85*math.sin(a)
+ ball((x,.55,z),(.75,.84,.75),leaf if j%2 else green)
+ flower((x,.72,z+.40),1.0)
+export('windmill_island',28000)
 with open(os.path.join(OUT,'mesh-metrics.json'),'w') as out: json.dump(stats,out,indent=2)
