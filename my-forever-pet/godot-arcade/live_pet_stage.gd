@@ -6,6 +6,8 @@ var room_node:Node3D
 var avatar:Node3D
 var camera:Camera3D
 var feet:Array[Node3D]=[]
+var wardrobe_nodes:Array[Node3D]=[]
+var equipped_key=""
 var active_room=""
 var active_species=-1
 var active_stage=-1
@@ -75,6 +77,8 @@ func set_pet(species:int,stage:int):
 	avatar=Node3D.new()
 	world.add_child(avatar)
 	feet.clear()
+	wardrobe_nodes.clear()
+	equipped_key=""
 	avatar.position=ground
 	if stage==0:
 		avatar.hide()
@@ -91,10 +95,38 @@ func set_pet(species:int,stage:int):
 		mesh(avatar,"res://assets/creatures/species_%02d.glb"%species,Vector3.ZERO)
 	var base=0.70 if stage==1 else 0.88 if stage==2 else 1.0
 	avatar.scale=Vector3.ONE*base*1.28
+func dress(worn:Array,equipped:int):
+	if not is_instance_valid(avatar): return
+	var key=str(worn)+":"+str(equipped)
+	if key==equipped_key: return
+	equipped_key=key
+	for ob in wardrobe_nodes:
+		if is_instance_valid(ob):
+			avatar.remove_child(ob)
+			ob.queue_free()
+	wardrobe_nodes.clear()
+	if active_stage==0: return
+	var anchors=[Vector3(0,1.66,0),Vector3(0,1.03,0.68),Vector3(0,0.52,0.38),Vector3(0,0.17,0.21)]
+	var scales=[0.66,0.44,0.58,0.42]
+	for slot in range(4):
+		var id=int(worn[slot])
+		if id<=0: continue
+		var ob=mesh(avatar,"res://assets/wardrobe/clothes_%d.glb"%(id-1),anchors[slot])
+		if ob!=null:
+			ob.scale=Vector3.ONE*scales[slot]
+			wardrobe_nodes.append(ob)
+	if equipped>0:
+		var anchor=Vector3(0,1.72,0) if equipped==1 else Vector3(0.60,1.40,0.26) if equipped==2 else Vector3(0,2.05,0)
+		var ob=mesh(avatar,"res://assets/wardrobe/item_%d.glb"%(equipped-1),anchor)
+		if ob!=null:
+			ob.scale=Vector3.ONE*0.57
+			if equipped==3: ob.rotation.x=PI/2
+			wardrobe_nodes.append(ob)
 func tap():
 	touch_bounce=0.30
 	target_yaw=randf_range(-0.20,0.20)
 func screen_point(world_point:Vector3)->Vector2:
+	if view.size.x<=1 or view.size.y<=1: return size*0.5
 	var p=camera.unproject_position(world_point)
 	return p*size/Vector2(view.size)
 func _process(dt:float):

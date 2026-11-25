@@ -65,8 +65,8 @@ jobs:
           for game in star flappy cloud find; do test -s "my-forever-pet/godot-arcade/assets/arcade_$game.jpg"; done
           test -s my-forever-pet/godot-arcade/assets/room_layout.json
           blender -b -t 4 --python-exit-code 1 -P my-forever-pet/art/render_wardrobe.py -- my-forever-pet/godot-arcade/assets
-          for i in $(seq 0 7); do test -s "my-forever-pet/godot-arcade/assets/clothes_$i.png"; done
-          for i in $(seq 0 5); do test -s "my-forever-pet/godot-arcade/assets/item_$i.png"; done
+          for i in $(seq 0 7); do test -s "my-forever-pet/godot-arcade/assets/clothes_$i.png"; test -s "my-forever-pet/godot-arcade/assets/wardrobe/clothes_$i.glb"; done
+          for i in $(seq 0 5); do test -s "my-forever-pet/godot-arcade/assets/item_$i.png"; test -s "my-forever-pet/godot-arcade/assets/wardrobe/item_$i.glb"; done
       - name: Import and run deterministic scene smoke
         run: |
           set -euo pipefail

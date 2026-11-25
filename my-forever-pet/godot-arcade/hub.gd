@@ -174,9 +174,16 @@ func select(tab:String):
 	section=tab
 	for key in nav_buttons:
 		nav_buttons[key].add_theme_stylebox_override("normal",style(Color("#496e99") if key==tab else Color("#263b64"),Color("#ffe2a0") if key==tab else Color("#8e7652"),12))
-	if is_instance_valid(section_scroll): section_scroll.scroll_vertical=0
+	if is_instance_valid(section_scroll):
+		section_scroll.scroll_vertical=0
+		var full_menu=tab in ["Shop","Arcade","Journal","World"]
+		visual.visible=not full_menu
+		section_scroll.size_flags_vertical=SIZE_EXPAND_FILL if full_menu else SIZE_FILL
 	current_room=""
-	if is_instance_valid(hotspot_layer): update_room_scene()
+	if is_instance_valid(hotspot_layer):
+		update_room_scene()
+		room_tag.text="Your home"
+		live_stage.set_room("room_bedroom")
 	for child in actions.get_children(): actions.remove_child(child); child.queue_free()
 	label(actions,tab.to_upper(),18)
 	var s:Dictionary=store.s
@@ -289,6 +296,8 @@ func refresh():
 	sync_wearables()
 	live_stage.set_room(str(ROOMS.get(current_room,"room_bedroom")))
 	live_stage.set_pet(store.species(),int(s.stage))
+	live_stage.dress(s.worn,int(s.equipped))
+	position_hotspots()
 	face.visible=false
 	egg_visual.visible=s.stage==0 and egg_art.texture==null
 	egg_art.visible=s.stage==0 and egg_art.texture!=null
@@ -305,10 +314,13 @@ func update_room_scene():
 	if room_key.is_empty() or not room_layout.has(room_key): return
 	var data:Dictionary=room_layout[room_key]
 	for key in data:
-		if key=="pet" or key=="world_pet": continue
+		if key in ["pet","world_pet","world_targets"]: continue
 		var b=Button.new(); b.text=str(key).capitalize(); b.custom_minimum_size=Vector2(64,30); b.add_theme_font_size_override("font_size",12)
 		b.add_theme_stylebox_override("normal",style(Color("#172b3bd9"),Color("#ffd591"),12))
 		b.set_meta("point",Vector2(float(data[key][0]),float(data[key][1])))
+		if data.has("world_targets") and data.world_targets.has(key):
+			var p:Array=data.world_targets[key]
+			b.set_meta("world_point",Vector3(float(p[0]),float(p[1]),float(p[2])))
 		b.pressed.connect(func():
 			if key=="arcade": select("Arcade")
 			elif key=="food": select("Care")
@@ -319,7 +331,9 @@ func position_hotspots():
 	if not is_instance_valid(hotspot_layer): return
 	for child in hotspot_layer.get_children():
 		var point:Vector2=child.get_meta("point")
-		child.position=visual.size*point-child.custom_minimum_size/2
+		var center=visual.size*point
+		if child.has_meta("world_point") and is_instance_valid(live_stage): center=live_stage.screen_point(child.get_meta("world_point"))
+		child.position=(center-child.custom_minimum_size/2).clamp(Vector2.ZERO,(visual.size-child.custom_minimum_size).max(Vector2.ZERO))
 func test_home():
 	store.s=store.defaults(); store.s.auto_sleep=false
 	assert(store.action("hatch")); assert(store.s.coins==100)
@@ -342,13 +356,14 @@ func test_home():
 	store.s.coins=500
 	assert(store.action("clothes",0))
 	refresh()
-	assert(wear_layers[0].visible and wear_layers[0].texture!=null)
+	assert(wear_layers[0].visible and wear_layers[0].texture!=null and live_stage.wardrobe_nodes.size()==1)
 	assert(store.action("wear",0))
 	refresh()
-	assert(not wear_layers[0].visible)
+	assert(not wear_layers[0].visible and live_stage.wardrobe_nodes.is_empty())
 	assert(store.action("buy",0) and store.action("use",0))
 	refresh()
-	assert(wear_layers[4].visible and wear_layers[4].texture!=null)
+	assert(wear_layers[4].visible and wear_layers[4].texture!=null and live_stage.wardrobe_nodes.size()==1)
+	assert(live_stage.feet.size()==2 and live_stage.avatar.get_child_count()>=3)
 	for tab in ["Care","Rooms","Arcade","Shop","Journal","World","Cell","Home"]: select(tab)
 	for name in ROOMS:
 		room(name)

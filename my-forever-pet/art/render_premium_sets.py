@@ -158,6 +158,7 @@ def camera_render(key,anchors,pet=(0,-1.7,.18),night=False):
         assert .03<p[0]<.97 and .03<p[1]<.97,(key,n,p)
     layout[key]=points
     layout[key]['world_pet']=[pet[0],pet[2],-pet[1]]
+    layout[key]['world_targets']={n:[p[0],p[2],-p[1]] for n,p in anchors.items()}
     # Export actual room geometry for Godot; no camera-facing flat background.
     path=os.path.join(OUT,'rooms');os.makedirs(path,exist_ok=True)
     bpy.ops.object.select_all(action='DESELECT')

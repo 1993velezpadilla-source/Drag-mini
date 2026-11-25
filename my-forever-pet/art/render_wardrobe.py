@@ -41,6 +41,14 @@ static=set(bpy.data.objects)
 def clear():
  for o in list(bpy.data.objects):
   if o not in static:bpy.data.objects.remove(o,do_unlink=True)
+def export_wear(name):
+ folder=os.path.join(OUT,'wardrobe');os.makedirs(folder,exist_ok=True)
+ bpy.ops.object.select_all(action='DESELECT')
+ for ob in sc.objects:
+  if ob.type=='MESH':ob.select_set(True)
+ result=bpy.ops.export_scene.gltf(filepath=os.path.join(folder,name+'.glb'),export_format='GLB',use_selection=True)
+ assert 'FINISHED' in result
+
 def render(name,transparent=True,w=256,h=256):
  sc.render.resolution_x=w;sc.render.resolution_y=h;sc.render.resolution_percentage=100;sc.render.film_transparent=transparent
  sc.render.image_settings.file_format='PNG' if transparent else 'JPEG';sc.render.image_settings.color_mode='RGBA' if transparent else 'RGB';sc.render.filepath=os.path.join(OUT,name);bpy.ops.render.render(write_still=True)
@@ -74,6 +82,7 @@ for i in range(8):
    for z in [.07,.19,.31]:box('lace',(x,-.50,z),(.49,.065,.055),cream,.02)
  else:
   ell('knit cap',(0,0,.15),(.99,.53,.78),teal);box('cuff',(0,-.05,-.29),(1.9,.92,.34),navy,.13);ell('pom',(0,0,.92),(.21,.22,.23),cream)
+ export_wear('clothes_%d'%i)
  render('clothes_%d.png'%i,w=320,h=240)
 
 for i in range(6):
@@ -89,5 +98,6 @@ for i in range(6):
   cyl('planter',(0,0,-.7),.44,.7,wood,r2=.57)
   for j in range(5):
    a=j*2*pi/5;ell('leaf',(.45*math.cos(a),.45*math.sin(a),.30),(.30,.28,.48),green)
+ export_wear('item_%d'%i)
  render('item_%d.png'%i,True,192,192)
 print('WARDROBE_RENDER_OK',flush=True)
