@@ -20,7 +20,8 @@ manifest=manifest.replace('<manifest ',f'<manifest package="{pkg}" android:versi
 pathlib.Path(sys.argv[1]).write_text(manifest)
 PY
 "$BT/aapt2" compile --dir app/src/main/res -o "$WORK/res.zip"
-"$BT/aapt2" link -I "$ANDROID_JAR" --manifest "$WORK/AndroidManifest.xml" --min-sdk-version 26 --target-sdk-version 34 --debug-mode -o "$WORK/unsigned.apk" "$WORK/res.zip"
+ASSET_ARGS=(); if [ -d app/src/main/assets ]; then ASSET_ARGS=(-A app/src/main/assets); fi
+"$BT/aapt2" link "${ASSET_ARGS[@]}" -I "$ANDROID_JAR" --manifest "$WORK/AndroidManifest.xml" --min-sdk-version 26 --target-sdk-version 34 --debug-mode -o "$WORK/unsigned.apk" "$WORK/res.zip"
 find app/src/main/java -name '*.java' -print > "$WORK/sources"
 javac --release 8 -classpath "$ANDROID_JAR" -d "$WORK/classes" @"$WORK/sources"
 jar cf "$WORK/classes.jar" -C "$WORK/classes" .
