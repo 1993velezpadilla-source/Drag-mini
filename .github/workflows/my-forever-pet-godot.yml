@@ -107,7 +107,7 @@ jobs:
           python3 my-forever-pet/godot-arcade/review_frame.py /tmp/pet-dash-review.png /tmp/pet-dash-visual-metrics.json
           cat /tmp/pet-dash-visual-metrics.json
       - uses: actions/upload-artifact@v4
-        if: always()
+        if: always() && steps.visual.outcome != 'skipped'
         with:
           name: Pet-Dash-3D-real-game-review
           path: |

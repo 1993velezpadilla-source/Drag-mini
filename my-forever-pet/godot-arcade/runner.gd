@@ -80,7 +80,6 @@ var last_power_hud := ""
 var scenery_visibility_updates := 0
 var jump_buffer := 0.0
 var air_slide_pending := false
-var last_lane := 1
 var lane_impulse := 0.0
 var scene_anim: Array[Node3D] = []
 var scene_anim_origins: Array[Vector3] = []
@@ -625,8 +624,8 @@ func _unhandled_input(event: InputEvent) -> void:
 			if not gesture_sent: gesture(event.position-touch_start)
 			touch_id=-1
 	elif event is InputEventScreenDrag and touch_active and event.index==touch_id:
-		var delta:=event.position-touch_start
-		var threshold:=maxf(20.0,get_viewport().get_visible_rect().size.x*0.045)
+		var delta:Vector2=event.position-touch_start
+		var threshold:=maxf(24.0,get_viewport().get_visible_rect().size.x*0.045)
 		if delta.length()>=threshold:
 			var direction:=Vector2(signf(delta.x),0) if absf(delta.x)>absf(delta.y) else Vector2(0,signf(delta.y))
 			# A fresh direction can be chained during one continuous touch.
@@ -881,7 +880,7 @@ func update_effects(dt:float) -> void:
 	for i in range(scene_anim.size()):
 		scene_anim[i].position.y=scene_anim_origins[i].y+sin(clock*0.35+float(i))*0.32
 	var intensity:=clampf((speed-12.0)/13.0,0,1)
-	speed_line_mat.albedo_color.a=0.12+intensity*0.30
+	speed_line_mat.albedo_color=Color(0.65,0.88,1.0,0.12+intensity*0.30)
 	for i in range(speed_lines.size()):
 		var line:=speed_lines[i]
 		line.visible=intensity>0.15 or boost_time>0
@@ -984,10 +983,27 @@ func test_run() -> void:
 	for i in range(15): await get_tree().physics_frame
 	assert(player.is_on_floor() and not air_slide_pending and slide>0.40)
 	assert(not hazard_hit(1,player.position.y,true))
-	# Chained lane commands remain responsive while the landing roll is active.
-	gesture(Vector2(-80,0))
-	gesture(Vector2(80,0))
+	# Exercise real touch-event handler, including direction changes without lifting.
+	var press:=InputEventScreenTouch.new()
+	press.index=3
+	press.pressed=true
+	press.position=Vector2(270,480)
+	_unhandled_input(press)
+	var drag:=InputEventScreenDrag.new()
+	drag.index=3
+	drag.position=Vector2(180,480)
+	_unhandled_input(drag)
+	assert(lane==0 and slide>0)
+	drag.position=Vector2(90,480)
+	_unhandled_input(drag)
+	assert(lane==0)
+	drag.position=Vector2(180,480)
+	_unhandled_input(drag)
 	assert(lane==1 and slide>0)
+	press.pressed=false
+	press.position=drag.position
+	_unhandled_input(press)
+	assert(not touch_active and lane==1)
 	# Up from a slide starts a new jump immediately.
 	gesture(Vector2(0,-80))
 	assert(slide==0 and player.velocity.y==JUMP_SPEED)
