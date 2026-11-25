@@ -13,15 +13,18 @@
     "status": "GODOT_DEV_VALIDATED",
     "source_license": "CC BY 4.0, Karol Miklas; brand rights pending",
     "source_sha256": "e1d7de07dda7d42aa9d87da33af4d4b05ed344e9c0222d571dce19e3658436ac",
-    "blender_run": 45547424872,
-    "godot_run": 45547424872,
-    "editable_artifact": 14992520653,
-    "native_capture_artifact": 14991604982,
-    "mechanical_validation": "two independent doors passed; front and rear lid topology candidates only",
+    "blender_run": 45549859498,
+    "godot_run": 45549859498,
+    "editable_artifact": 14992179019,
+    "native_capture_artifact": 14993370871,
+    "mechanical_validation": "two independent doors passed; rear paired paint/coat candidates confirmed by bounds within 0.3 mm, front clearcoat candidate lacks verified matching paint island; no lid hinge claimed",
     "android_performance": null,
     "artist_review": null,
     "owner_approved": false,
-    "shipping_approved": false
+    "shipping_approved": false,
+    "pbr_five_view_run": 45549800194,
+    "pbr_editable_artifact": 14992214452,
+    "pbr_native_capture_artifact": 14992179668
   },
   "vehicles": [
     {
