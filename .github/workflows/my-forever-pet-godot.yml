@@ -105,6 +105,8 @@ jobs:
           xvfb-run -a -s "-screen 0 720x1280x24" timeout 180 /tmp/godot/Godot_v4.4.1-stable_linux.x86_64 --path my-forever-pet/godot-arcade --rendering-method gl_compatibility --audio-driver Dummy --resolution 540x960 -- --capture
           test -s /tmp/pet-dash-review.png
           test -s /tmp/pet-dash-render-metrics.json
+          test -s /tmp/pet-dash-biome-1.png
+          test -s /tmp/pet-dash-biome-2.png
           cat /tmp/pet-dash-render-metrics.json
           python3 my-forever-pet/godot-arcade/review_frame.py /tmp/pet-dash-review.png /tmp/pet-dash-visual-metrics.json
           cat /tmp/pet-dash-visual-metrics.json
@@ -114,6 +116,8 @@ jobs:
           name: Pet-Dash-3D-real-game-review
           path: |
             /tmp/pet-dash-review.png
+            /tmp/pet-dash-biome-1.png
+            /tmp/pet-dash-biome-2.png
             /tmp/pet-dash-render-metrics.json
             /tmp/pet-dash-visual-metrics.json
             /tmp/pet-dash-soak.json

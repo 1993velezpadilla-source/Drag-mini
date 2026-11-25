@@ -1548,7 +1548,18 @@ func capture_review() -> void:
 	var metrics:=FileAccess.open("/tmp/pet-dash-render-metrics.json",FileAccess.WRITE)
 	metrics.store_string(JSON.stringify({"renderer":RenderingServer.get_current_rendering_method(),"samples":frame_ms.size(),"median_ms":frame_ms[int(frame_ms.size()/2.0)],"p95_ms":p95,"draw_calls":RenderingServer.get_rendering_info(RenderingServer.RENDERING_INFO_TOTAL_DRAW_CALLS_IN_FRAME),"primitives":RenderingServer.get_rendering_info(RenderingServer.RENDERING_INFO_TOTAL_PRIMITIVES_IN_FRAME),"scope":"desktop virtual display; not Android"}))
 	metrics.close()
-	await RenderingServer.frame_post_draw
+	# Staged real viewport captures of the world assets, not concept images.
+	# Stop physics after the active benchmark; preserve gameplay timing metrics.
+	set_physics_process(false)
+	for biome in [1,2]:
+		enter_next_world()
+		for chunk in chunks: refresh_chunk_decor(chunk)
+		portal_overlay.color.a=0.0
+		skill_feedback.hide()
+		await RenderingServer.frame_post_draw
+		await RenderingServer.frame_post_draw
+		var frame:=get_viewport().get_texture().get_image()
+		assert(frame.save_png("/tmp/pet-dash-biome-%d.png"%biome)==OK)
 	print("PET_DASH_RENDER_CAPTURE_OK")
 	get_tree().quit(0)
 
