@@ -48,3 +48,5 @@ Visual review includes staged actual Godot viewport frames of Crystal Gardens an
 0.17 feedback pass: shared original Blender spark mesh, four bounded CPU particle emitters for pickups/impact/board break, two surf trail strips, rising coin pitch during combos. Smoke verifies board-loss effects and fixed pool size, soak verifies reuse. No artistic or device approval implied.
 
 0.18 visual/readability pass: shared shader pickup halos (near only, no extra point lights), bounded coin oscillation to keep coin faces readable, cached near-only chunk shadow casters, independent shadow transition metrics. GOLD renderer now selects an actually supported color transform rather than assuming Filmic. Pending CI; actual GPU reduction must be measured rather than assumed.
+
+0.19 Treasure Routes: periodic optional second traversable lane with original jade-and-gold Blender gateway, distinct coin trail, fixed +350 score and five-second +1 coin per pickup bonus. Ordinary guaranteed route remains available. Tests verify reward accounting and recurring forks. No paid/random reward. Pending CI.

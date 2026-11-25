@@ -26,6 +26,10 @@ const PORTAL := 18
 const COURIER := 19
 const ROLLER := 20
 const CARD := 21
+const TREASURE := 22
+var treasure_routes := 0
+var treasure_opened := 0
+var treasure_time := 0.0
 var cards := 0
 var card_sets := 0
 var surf_saves := 0
@@ -118,7 +122,7 @@ var player_shape: CollisionShape3D
 var camera: Camera3D
 var chunks: Array[Node3D] = []
 var entities: Array[Area3D] = []
-var pools: Array = [[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[]]
+var pools: Array = [[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[]]
 var created_entities := 0
 var reused_entities := 0
 var previous_safe_lane := 1
@@ -219,7 +223,7 @@ func asset(parent: Node3D, name: String, pos: Vector3) -> Node3D:
 		for child in n.find_children("*","MeshInstance3D",true,false):
 			(child as MeshInstance3D).lod_bias=0.65
 	# Tiny collectibles and distant islands do not need expensive shadow passes.
-	if name in ["coin","snack","magnet","shield","double","boost","island","airship","rainbow","time_orb","spring","sky_ring","gem","rescue","smash","surf_pickup","surf_board","portal","crystal_island","moon_island","palace","cloud_bank","garden_island","windmill_island","story_card"]:
+	if name in ["coin","snack","magnet","shield","double","boost","island","airship","rainbow","time_orb","spring","sky_ring","gem","rescue","smash","surf_pickup","surf_board","portal","crystal_island","moon_island","palace","cloud_bank","garden_island","windmill_island","story_card","treasure_gate"]:
 		for child in n.find_children("*","MeshInstance3D",true,false):
 			(child as MeshInstance3D).cast_shadow=GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	parent.add_child(n)
@@ -700,7 +704,7 @@ func rebase_track() -> void:
 	rebase_count+=1
 
 func is_pickup(kind:int) -> bool:
-	return (kind>=PICKUP and kind<=BOOST) or (kind>=TIME_ORB and kind<=PORTAL) or kind==CARD
+	return (kind>=PICKUP and kind<=BOOST) or (kind>=TIME_ORB and kind<=PORTAL) or kind==CARD or kind==TREASURE
 
 func hazard_for(tier:int) -> int:
 	if tier==0: return rng.randi_range(0,1)
@@ -720,13 +724,24 @@ func fill_track() -> void:
 		var tier:=mini(3,int((distance_offset+spawn_at)/85.0))
 		var first:=rng.randi_range(0,1)
 		var action:=-1
+		# Every 12th qualifying row opens a second, optional reward lane.
+		# It never replaces the guaranteed ordinary route.
+		var treasure_row:=tier>=1 and pattern_count%12==4 and pattern_count%7!=5
+		var alternate_lane:=-1
+		if treasure_row:
+			alternate_lane=free_lane+(-1 if free_lane==2 else 1)
+			var closed_lane:=3-free_lane-alternate_lane
+			make_entity(closed_lane,TALL,spawn_at)
+			make_entity(alternate_lane,TREASURE,spawn_at)
+			for offset in [2.0,3.5,5.0]: make_entity(alternate_lane,PICKUP,spawn_at+offset)
+			treasure_routes+=1
 		# After the warm-up, occasional full-width obstacle rows require a
 		# vertical action. The recommended lane stays reachable laterally.
 		if tier>=1 and pattern_count%7==5:
 			action=0 if pattern_count%2==1 else 1
 			for i in range(3): make_entity(i,action,spawn_at)
 			mandatory_rows+=1
-		elif tier>=2 or pattern_count%5!=4:
+		elif not treasure_row and (tier>=2 or pattern_count%5!=4):
 			var kind:=hazard_for(tier)
 			make_entity(blocked_lanes[first],kind,spawn_at)
 			if kind==CART or kind==COURIER or kind==ROLLER: moving_rows+=1
@@ -793,8 +808,8 @@ func make_entity(which_lane: int, kind: int, at: float) -> void:
 			visual.position=Vector3.ZERO
 		if a.has_meta("halo"): (a.get_meta("halo") as MeshInstance3D).hide()
 		return
-	if using_blender and asset(a,["crate","barrier","coin","snack","magnet","shield","double","boost","cart","tall","low_bar","time_orb","spring","sky_ring","gem","rescue","smash","surf_pickup","portal","courier","roller","story_card"][kind],Vector3.ZERO)!=null:
-		if is_pickup(kind) and kind!=BOOST and kind!=SKY_RING and kind!=PORTAL:
+	if using_blender and asset(a,["crate","barrier","coin","snack","magnet","shield","double","boost","cart","tall","low_bar","time_orb","spring","sky_ring","gem","rescue","smash","surf_pickup","portal","courier","roller","story_card","treasure_gate"][kind],Vector3.ZERO)!=null:
+		if is_pickup(kind) and kind!=BOOST and kind!=SKY_RING and kind!=PORTAL and kind!=TREASURE:
 			ground_shadow(a,0.75 if kind==PICKUP else 1.10,0.52 if kind==PICKUP else 0.75)
 		add_pickup_glow(a,kind)
 		return
@@ -983,7 +998,7 @@ func contact_depth(kind:int) -> float:
 	return 0.64
 
 func pickup_reachable(kind:int,feet_y:float,attracted:bool) -> bool:
-	if kind==PORTAL: return true
+	if kind==PORTAL or kind==TREASURE: return true
 	if kind==SKY_RING: return feet_y>0.85 and feet_y<3.5
 	return attracted or (feet_y<0.95 if kind!=BOOST else feet_y<0.42)
 
@@ -1042,6 +1057,7 @@ func _physics_process(dt: float) -> void:
 	spring_time=maxf(0,spring_time-dt)
 	rescue_time=maxf(0,rescue_time-dt)
 	surf_time=maxf(0,surf_time-dt)
+	treasure_time=maxf(0,treasure_time-dt)
 	surf_grace=maxf(0,surf_grace-dt)
 	surf_exit_flash=maxf(0,surf_exit_flash-dt)
 	portal_flash=maxf(0,portal_flash-dt)
@@ -1107,7 +1123,7 @@ func _physics_process(dt: float) -> void:
 			var angle:=-(base_z+shift)*1.45
 			wheel.rotation.x=angle
 			wheel.position=Vector3(0,0.65,0)-Basis(Vector3.RIGHT,angle)*Vector3(0,0.65,0)
-		if is_pickup(kind) and kind!=BOOST and kind!=SKY_RING and kind!=PORTAL and a.visible and a.position.z > -45.0 and a.get_child_count()>0:
+		if is_pickup(kind) and kind!=BOOST and kind!=SKY_RING and kind!=PORTAL and kind!=TREASURE and a.visible and a.position.z > -45.0 and a.get_child_count()>0:
 			var visual:=a.get_child(0) as Node3D
 			visual.rotation.y=sin(clock*3.8+float(a.get_meta("at"))*0.13)*0.65 if kind==PICKUP else visual.rotation.y+dt*2.5
 			visual.position.y=sin(clock*4+float(a.get_meta("at"))*0.38)*0.07
@@ -1239,7 +1255,9 @@ func enter_next_world() -> void:
 func collect_kind(kind: int) -> void:
 	match kind:
 		PICKUP:
-			coins+=2 if double_time>0 else 1
+			var value:=2 if double_time>0 else 1
+			if treasure_time>0: value+=1
+			coins+=value
 			combo+=1
 			best_combo=maxi(best_combo,combo)
 			combo_timer=2.2
@@ -1248,7 +1266,7 @@ func collect_kind(kind: int) -> void:
 				show_skill("COIN COMBO ×%d"%combo)
 				audio.call("play_fx","skill")
 			challenge_event(0)
-			pickup_feedback.text="+2 coins" if double_time>0 else "+1 coin"
+			pickup_feedback.text="+%d coins"%value if value>1 else "+1 coin"
 			pickup_flash=0.55
 			audio.call("play_fx","coin",1.0+0.035*float(mini(combo%10,9)))
 		SNACK:
@@ -1298,6 +1316,12 @@ func collect_kind(kind: int) -> void:
 			air_slide_pending=false
 		PORTAL:
 			enter_next_world()
+		TREASURE:
+			treasure_opened+=1
+			treasure_time=5.0
+			skill_points+=350
+			show_skill("TREASURE ROUTE +350")
+			audio.call("play_fx","treasure")
 		CARD:
 			cards+=1
 			if cards==3:
@@ -1480,6 +1504,7 @@ func update_hud() -> void:
 	if spring_time>0: active_powers.append("SPRING %ds"%ceili(spring_time))
 	if smash_charges>0: active_powers.append("SMASH ×%d"%smash_charges)
 	if surf_time>0: active_powers.append("SURF %ds"%ceili(surf_time))
+	if treasure_time>0: active_powers.append("TREASURE +1 %ds"%ceili(treasure_time))
 	var powers: String="  •  ".join(active_powers)
 	var power_text := powers if not powers.is_empty() else "Find power-ups and secret sky gems"
 	if power_text!=last_power_hud:
@@ -1732,6 +1757,13 @@ func test_run() -> void:
 	collect_kind(CARD)
 	collect_kind(CARD)
 	assert(cards==0 and card_sets==1 and skill_points==card_score+750)
+	var treasure_score:=skill_points
+	collect_kind(TREASURE)
+	assert(treasure_opened==1 and treasure_time==5.0 and skill_points==treasure_score+350)
+	var before_coins:=coins
+	double_time=0
+	collect_kind(PICKUP)
+	assert(coins==before_coins+2)
 	assert(not claim_result().is_empty() and claim_result().is_empty())
 	# Exercise explicit retirement without adding a distance-based end condition.
 	ended=false
@@ -1801,6 +1833,7 @@ func soak_review() -> void:
 	assert(chunk_recycles>100 and chunks.size()==SEGMENTS)
 	assert(pattern_count>35 and reused_entities>100 and mandatory_rows>3 and moving_rows>3)
 	assert(world_visits>=3,"portals must recur in endless run")
+	assert(treasure_routes>=5,"optional treasure routes must recur")
 	assert(created_entities<180 and peak_active<130)
 	assert(burst_pool.size()==4 and surf_trails.size()==2 and burst_count>20)
 	assert(shadow_chunks.size()==SEGMENTS and shadow_transitions>20)
@@ -1808,7 +1841,7 @@ func soak_review() -> void:
 	assert(coins>20)
 	var result:=FileAccess.open("/tmp/pet-dash-soak.json",FileAccess.WRITE)
 	assert(result!=null)
-	result.store_string(JSON.stringify({"distance":total_distance(),"local_distance":distance,"rebases":rebase_count,"chunk_recycles":chunk_recycles,"steps":steps,"coins":coins,"snacks":snacks,"rescued":rescued,"smashed":smashed,"perfect_dodges":perfect_dodges,"world_visits":world_visits,"reward_bursts":burst_count,"burst_pool":burst_pool.size(),"shadow_transitions":shadow_transitions,"rows":pattern_count,"mandatory_rows":mandatory_rows,"moving_rows":moving_rows,"allocated":created_entities,"reused":reused_entities,"peak_active":peak_active,"scope":"deterministic headless endless physics; 3200m checkpoint plus continued gameplay, not physical-device FPS"}))
+	result.store_string(JSON.stringify({"distance":total_distance(),"local_distance":distance,"rebases":rebase_count,"chunk_recycles":chunk_recycles,"steps":steps,"coins":coins,"snacks":snacks,"rescued":rescued,"smashed":smashed,"perfect_dodges":perfect_dodges,"world_visits":world_visits,"treasure_routes":treasure_routes,"treasure_opened":treasure_opened,"reward_bursts":burst_count,"burst_pool":burst_pool.size(),"shadow_transitions":shadow_transitions,"rows":pattern_count,"mandatory_rows":mandatory_rows,"moving_rows":moving_rows,"allocated":created_entities,"reused":reused_entities,"peak_active":peak_active,"scope":"deterministic headless endless physics; 3200m checkpoint plus continued gameplay, not physical-device FPS"}))
 	result.close()
 	print("PET_DASH_SOAK_PASS")
 	get_tree().quit(0)

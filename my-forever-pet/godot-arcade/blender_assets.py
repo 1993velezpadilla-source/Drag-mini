@@ -616,4 +616,24 @@ for i in range(8):faces.append((i,(i+1)%8,(i+1)%8+8,i+8))
 me=bpy.data.meshes.new('faceted reward spark');me.from_pydata(pts,[],faces);me.update()
 o=bpy.data.objects.new('faceted reward spark',me);bpy.context.collection.objects.link(o);o.data.materials.append(sparkmat)
 export('reward_spark',500)
+# Optional treasure lane: readable gold-and-jade arch, open center, ornate crown.
+clear()
+treasure_jade=mat('treasure jade',(.04,.38,.25),.28,.25)
+treasure_glow=mat('treasure lantern',(.99,.71,.13),.12,.21)
+bs=treasure_glow.node_tree.nodes.get('Principled BSDF')
+bs.inputs['Emission Color'].default_value=(1,.59,.08,1);bs.inputs['Emission Strength'].default_value=.5
+for side in [-1,1]:
+ x=side*.77
+ box((x,.11,0),(.24,.22,.46),gold,.035)
+ cyl((x,.98,0),.12,.10,1.62,treasure_jade)
+ for y in [.30,.88,1.62]:cyl((x,y,0),.16,.16,.10,gold)
+ ball((x,1.83,0),(.24,.32,.24),treasure_glow)
+for k in range(11):
+ a=k*pi/10
+ x=.78*math.cos(a);y=1.77+.64*math.sin(a)
+ o=box((x,y,0),(.25,.22,.26),treasure_jade,.04);o.rotation_euler.y=-a
+ if k%2==0:ball((x,y,.16),(.11,.11,.09),gold)
+ring((0,2.46,.17),.20,.035,gold)
+paw((0,2.43,.22),treasure_glow,.65)
+export('treasure_gate',14000)
 with open(os.path.join(OUT,'mesh-metrics.json'),'w') as out: json.dump(stats,out,indent=2)
