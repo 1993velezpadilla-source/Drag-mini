@@ -181,7 +181,7 @@ jobs:
           xvfb-run -a -s "-screen 0 720x1280x24" timeout 120 /tmp/godot/Godot_v4.4.1-stable_linux.x86_64 --path my-forever-pet/godot-arcade --rendering-method gl_compatibility --audio-driver Dummy --resolution 540x960 -- --home-capture 2>&1 | tee /tmp/forever-capture.log
           grep -F FOREVER_PET_CAPTURE_PASS /tmp/forever-capture.log
           ! grep -E "SCRIPT ERROR|Parse Error" /tmp/forever-capture.log
-          test "$(find /tmp -maxdepth 1 -name 'forever-*.png' | wc -l)" -eq 14
+          test "$(find /tmp -maxdepth 1 -name 'forever-*.png' | wc -l)" -eq 38
       - uses: actions/upload-artifact@v4
         with:
           name: Forever-Pet-real-game-viewports

@@ -15,6 +15,10 @@ var elapsed=0.0
 var target_yaw=0.0
 var touch_bounce=0.0
 var ground=Vector3(0,0.09,1.7)
+var sole_offset=0.0
+var environment:Environment
+var night_state=false
+var contact_mesh:MeshInstance3D
 var light_key:DirectionalLight3D
 func _ready():
 	stretch=true
@@ -28,6 +32,7 @@ func _ready():
 	view.add_child(world)
 	var env=WorldEnvironment.new()
 	env.environment=Environment.new()
+	environment=env.environment
 	env.environment.background_mode=Environment.BG_COLOR
 	env.environment.background_color=Color("#192a49")
 	env.environment.ambient_light_source=Environment.AMBIENT_SOURCE_COLOR
@@ -54,6 +59,22 @@ func _ready():
 	camera.keep_aspect=Camera3D.KEEP_WIDTH
 	camera.size=11.6
 	camera.current=true
+	resized.connect(update_camera)
+	visibility_changed.connect(update_render_state)
+	update_camera()
+func update_render_state():
+	if not is_instance_valid(view): return
+	view.render_target_update_mode=SubViewport.UPDATE_WHEN_VISIBLE if is_visible_in_tree() else SubViewport.UPDATE_DISABLED
+func update_camera():
+	if not is_instance_valid(camera) or size.x<2 or size.y<2: return
+	# Keep the room composition inside both portrait and landscape-shaped panels.
+	camera.size=maxf(10.6,7.4*size.x/size.y)
+func set_night(night:bool):
+	if night==night_state: return
+	night_state=night
+	light_key.light_energy=0.48 if night else 0.92
+	light_key.light_color=Color("#b9caff") if night else Color("#ffe3ba")
+	environment.ambient_light_energy=0.40 if night else 0.56
 func mesh(parent:Node3D,path:String,p:Vector3)->Node3D:
 	if not ResourceLoader.exists(path): return null
 	var packed=load(path) as PackedScene
@@ -80,6 +101,7 @@ func set_pet(species:int,stage:int):
 	wardrobe_nodes.clear()
 	equipped_key=""
 	avatar.position=ground
+	sole_offset=0.0
 	if stage==0:
 		avatar.hide()
 		return
@@ -93,8 +115,22 @@ func set_pet(species:int,stage:int):
 				feet.append(foot)
 	else:
 		mesh(avatar,"res://assets/creatures/species_%02d.glb"%species,Vector3.ZERO)
+	sole_offset=mesh_bottom(avatar,Transform3D.IDENTITY)
 	var base=0.70 if stage==1 else 0.88 if stage==2 else 1.0
 	avatar.scale=Vector3.ONE*base*1.28
+	avatar.position.y=ground.y-sole_offset*avatar.scale.y
+func mesh_bottom(node:Node,relative:Transform3D)->float:
+	var result=INF
+	var t=relative
+	if node is Node3D and node!=avatar: t=relative*node.transform
+	if node is MeshInstance3D and node.mesh!=null:
+		var a:AABB=node.get_aabb()
+		for i in range(8): result=minf(result,(t*a.get_endpoint(i)).y)
+	for child in node.get_children(): result=minf(result,mesh_bottom(child,t))
+	return result
+func grounded_error()->float:
+	if not is_instance_valid(avatar) or active_stage==0: return 0.0
+	return absf(avatar.position.y+sole_offset*avatar.scale.y-ground.y)
 func dress(worn:Array,equipped:int):
 	if not is_instance_valid(avatar): return
 	var key=str(worn)+":"+str(equipped)
@@ -135,7 +171,7 @@ func _process(dt:float):
 	touch_bounce=maxf(0,touch_bounce-dt)
 	avatar.rotation.y=lerpf(avatar.rotation.y,target_yaw+sin(elapsed*0.9)*0.055,minf(1,dt*5))
 	var bounce=sin(touch_bounce/0.30*PI)*0.10
-	avatar.position=ground+Vector3(0,bounce,0)
 	var base=(0.70 if active_stage==1 else 0.88 if active_stage==2 else 1.0)*1.28
 	var breathe=1.0+sin(elapsed*2.6)*0.014
 	avatar.scale=Vector3(base/breathe,base*breathe,base/breathe)
+	avatar.position=ground+Vector3(0,bounce-sole_offset*avatar.scale.y,0)

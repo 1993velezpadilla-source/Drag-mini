@@ -10,6 +10,8 @@ var section_scroll:ScrollContainer
 var status_values:Array[Label]=[]
 var stage_title:Label
 var action_grid:GridContainer
+var last_menu_width=0.0
+const NAV_ART={"Home":"item_4.png","Care":"premium_snack.png","Rooms":"item_3.png","Arcade":"premium_star.png","Shop":"premium_coin.png","Journal":"premium_crystal.png","World":"pet_8.png","Cell":"premium_medicine.png"}
 var wear_layers:Array[TextureRect]=[]
 var last_wear_key=""
 var wardrobe_card:Button
@@ -75,7 +77,7 @@ func make_ui():
 	var margin=MarginContainer.new(); margin.set_anchors_and_offsets_preset(PRESET_FULL_RECT); margin.add_theme_constant_override("margin_left",15); margin.add_theme_constant_override("margin_right",15); margin.add_theme_constant_override("margin_top",12); margin.add_theme_constant_override("margin_bottom",12); add_child(margin)
 	var layout=VBoxContainer.new(); layout.add_theme_constant_override("separation",9); margin.add_child(layout)
 	var head=row(layout); label(head,"FOREVER PET",22).size_flags_horizontal=Control.SIZE_EXPAND_FILL; clock_label=label(head,"00:00",15); clock_label.custom_minimum_size.x=58; clock_label.horizontal_alignment=HORIZONTAL_ALIGNMENT_RIGHT
-	var identity=row(layout); title_label=label(identity,"",24); title_label.size_flags_horizontal=SIZE_EXPAND_FILL; info=label(identity,"",14); info.horizontal_alignment=HORIZONTAL_ALIGNMENT_RIGHT
+	var identity=row(layout); title_label=label(identity,"",24); title_label.size_flags_horizontal=SIZE_EXPAND_FILL; title_label.clip_text=true; info=label(identity,"",14); info.horizontal_alignment=HORIZONTAL_ALIGNMENT_RIGHT
 	visual=Control.new(); visual.custom_minimum_size.y=348; visual.size_flags_vertical=SIZE_EXPAND_FILL; layout.add_child(visual)
 	visual.resized.connect(position_hotspots)
 	if FileAccess.file_exists("res://assets/room_layout.json"):
@@ -97,7 +99,7 @@ func make_ui():
 	face=Label.new(); face.text="• ᴗ •"; face.add_theme_font_size_override("font_size",29); face.add_theme_color_override("font_color",Color("#28202c")); face.set_anchors_and_offsets_preset(PRESET_CENTER); face.offset_left=-39; face.offset_top=-7; visual.add_child(face)
 	room_tag=Label.new(); room_tag.add_theme_font_size_override("font_size",18); room_tag.position=Vector2(12,9); visual.add_child(room_tag)
 	outfit_label=Label.new(); outfit_label.add_theme_font_size_override("font_size",14); outfit_label.set_anchors_and_offsets_preset(PRESET_BOTTOM_WIDE); outfit_label.offset_top=-31; outfit_label.offset_bottom=-3; outfit_label.horizontal_alignment=HORIZONTAL_ALIGNMENT_CENTER; visual.add_child(outfit_label)
-	var touch=Button.new(); touch.flat=true; touch.set_anchors_and_offsets_preset(PRESET_FULL_RECT); touch.pressed.connect(func(): live_stage.tap(); perform("hatch" if store.s.stage==0 else "bond")); visual.add_child(touch)
+	var touch=Button.new(); touch.flat=true; touch.focus_mode=FOCUS_NONE; touch.set_anchors_and_offsets_preset(PRESET_FULL_RECT); touch.pressed.connect(func(): live_stage.tap(); perform("hatch" if store.s.stage==0 else "bond")); visual.add_child(touch)
 	egg_art=TextureRect.new(); egg_art.texture=tex("res://assets/premium_egg.png"); egg_art.expand_mode=TextureRect.EXPAND_IGNORE_SIZE; egg_art.stretch_mode=TextureRect.STRETCH_KEEP_ASPECT_CENTERED; egg_art.set_anchors_and_offsets_preset(PRESET_CENTER); egg_art.offset_left=-75; egg_art.offset_right=75; egg_art.offset_top=-80; egg_art.offset_bottom=70; egg_art.mouse_filter=MOUSE_FILTER_IGNORE; visual.add_child(egg_art)
 	hotspot_layer=Control.new(); hotspot_layer.set_anchors_and_offsets_preset(PRESET_FULL_RECT); hotspot_layer.mouse_filter=MOUSE_FILTER_IGNORE; visual.add_child(hotspot_layer)
 	var meter_shell=panel(layout)
@@ -117,17 +119,41 @@ func make_ui():
 	body=VBoxContainer.new(); body.size_flags_horizontal=SIZE_EXPAND_FILL; section_scroll.add_child(body)
 	actions=body
 	var n=row(layout)
-	for tab in ["Home","Care","Rooms","Arcade"]:
-		var b=button(n,tab,func(): select(tab)); nav_buttons[tab]=b; b.custom_minimum_size.y=45
+	for tab in ["Home","Care","Rooms","Arcade"]: nav_tile(n,tab)
 	var n2=row(layout)
-	for tab in ["Shop","Journal","World","Cell"]:
-		var b=button(n2,tab,func(): select(tab)); nav_buttons[tab]=b; b.custom_minimum_size.y=42
+	for tab in ["Shop","Journal","World","Cell"]: nav_tile(n2,tab)
 	select("Home")
+func nav_tile(parent:Node,tab:String):
+	var b=button(parent,tab,func(): select(tab))
+	b.custom_minimum_size.y=51
+	b.add_theme_font_size_override("font_size",13)
+	b.icon=tex("res://assets/"+NAV_ART[tab])
+	b.expand_icon=true
+	b.add_theme_constant_override("icon_max_width",24)
+	b.add_theme_constant_override("h_separation",3)
+	b.focus_mode=FOCUS_NONE
+	nav_buttons[tab]=b
 func perform(id:String,i:int=0):
 	notice.text="Done!" if store.action(id,i) else "Unavailable — check needs, cost or requirements."
 	refresh()
 	if section=="Shop": select("Shop")
 func add_action(name:String,id:String,i:int=0): button(actions,name,func(): perform(id,i))
+func showcase_card(name:String,detail:String,path:String,fn:Callable):
+	var shell=panel(actions)
+	var h=row(shell)
+	var image=TextureRect.new()
+	image.texture=tex(path)
+	image.expand_mode=TextureRect.EXPAND_IGNORE_SIZE
+	image.stretch_mode=TextureRect.STRETCH_KEEP_ASPECT_COVERED
+	image.custom_minimum_size=Vector2(122,86)
+	h.add_child(image)
+	var copy=VBoxContainer.new()
+	copy.size_flags_horizontal=SIZE_EXPAND_FILL
+	h.add_child(copy)
+	var title=label(copy,name,19); title.clip_text=true
+	var caption=label(copy,detail,14); caption.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART
+	caption.modulate=Color("#c6d4ee")
+	var play=button(copy,"ENTER  ›",fn); play.custom_minimum_size.y=42
 func product_card(name:String,detail:String,asset_path:String,action_text:String,fn:Callable,enabled:bool=true):
 	var shell=panel(actions)
 	var h=row(shell)
@@ -176,7 +202,7 @@ func select(tab:String):
 		nav_buttons[key].add_theme_stylebox_override("normal",style(Color("#496e99") if key==tab else Color("#263b64"),Color("#ffe2a0") if key==tab else Color("#8e7652"),12))
 	if is_instance_valid(section_scroll):
 		section_scroll.scroll_vertical=0
-		var full_menu=tab in ["Shop","Arcade","Journal","World"]
+		var full_menu=tab in ["Shop","Arcade","Journal","World","Rooms"]
 		visual.visible=not full_menu
 		section_scroll.size_flags_vertical=SIZE_EXPAND_FILL if full_menu else SIZE_FILL
 	current_room=""
@@ -200,9 +226,13 @@ func select(tab:String):
 			for i in range(4): add_action(store.FOODS[i]+" • "+str(store.FOOD_COST[i])+" coins","food",i)
 			for a in [["Pet / cuddle","bond"],["Play","play"],["Train","train"],["Praise","praise"],["Clean habitat","clean"],["Nap / wake","sleep"],["Toggle auto sleep","auto"],["Cook • 2 materials","cook"],["Bath","bath"],["Snack","snack"],["Medicine","medicine"]]: add_action(a[0],a[1])
 		"Rooms":
-			for room_name in ["Kitchen","Bathroom","Bedroom","Toy room","Garden","Potion lab"]: button(actions,room_name,func(): room(room_name))
+			for room_name in ROOMS:
+				showcase_card(room_name,"Enter room","res://assets/"+ROOMS[room_name]+".jpg",func(): room(room_name))
 		"Arcade":
-			for i in range(5): button(actions,GAMES[i]+"   ›",func(): launch_game(i))
+			for i in range(5):
+				var image="res://assets/arcade_"+["star","flappy","cloud","find","star"][i]+".jpg"
+				if i==4: image="res://assets/sky-panorama.png"
+				showcase_card(GAMES[i],["Build a combo","Fly through gates","Climb the sky","Spot your companion","Run the sky kingdom"][i],image,func(): launch_game(i))
 		"Shop":
 			label(actions,"Furniture & accessories",20)
 			for i in range(store.ITEMS.size()):
@@ -231,6 +261,8 @@ func select(tab:String):
 		"Cell":
 			label(actions,"Inspect growth cells and treat illness.",17); add_action("Treat one sick cell","cell")
 func room(name:String):
+	visual.show()
+	section_scroll.size_flags_vertical=SIZE_FILL
 	current_room=name
 	refresh()
 	for child in actions.get_children(): actions.remove_child(child); child.queue_free()
@@ -296,6 +328,7 @@ func refresh():
 	sync_wearables()
 	live_stage.set_room(str(ROOMS.get(current_room,"room_bedroom")))
 	live_stage.set_pet(store.species(),int(s.stage))
+	live_stage.set_night(night)
 	live_stage.dress(s.worn,int(s.equipped))
 	position_hotspots()
 	face.visible=false
@@ -329,11 +362,25 @@ func update_room_scene():
 	position_hotspots()
 func position_hotspots():
 	if not is_instance_valid(hotspot_layer): return
+	var occupied:Array[Rect2]=[]
 	for child in hotspot_layer.get_children():
 		var point:Vector2=child.get_meta("point")
 		var center=visual.size*point
 		if child.has_meta("world_point") and is_instance_valid(live_stage): center=live_stage.screen_point(child.get_meta("world_point"))
-		child.position=(center-child.custom_minimum_size/2).clamp(Vector2.ZERO,(visual.size-child.custom_minimum_size).max(Vector2.ZERO))
+		var dims:Vector2=child.get_combined_minimum_size().max(child.custom_minimum_size)
+		child.size=dims
+		var limit=(visual.size-dims).max(Vector2.ZERO)
+		var at=(center-dims/2).clamp(Vector2.ZERO,limit)
+		for attempt in range(8):
+			var candidate=Rect2(at,dims).grow(3)
+			var overlap=false
+			for taken in occupied:
+				if candidate.intersects(taken): overlap=true; break
+			if not overlap: break
+			at.y=clampf(at.y+dims.y+8,0,limit.y)
+			if attempt==3: at.x=clampf(at.x+dims.x+8,0,limit.x); at.y=clampf(center.y-dims.y/2,0,limit.y)
+		child.position=at
+		occupied.append(Rect2(at,dims).grow(3))
 func test_home():
 	store.s=store.defaults(); store.s.auto_sleep=false
 	assert(store.action("hatch")); assert(store.s.coins==100)
@@ -364,6 +411,12 @@ func test_home():
 	refresh()
 	assert(wear_layers[4].visible and wear_layers[4].texture!=null and live_stage.wardrobe_nodes.size()==1)
 	assert(live_stage.feet.size()==2 and live_stage.avatar.get_child_count()>=3)
+	assert(is_finite(live_stage.sole_offset) and live_stage.grounded_error()<0.001)
+	for species in range(24):
+		live_stage.set_pet(species,4)
+		assert(live_stage.avatar.get_child_count()>0 and is_finite(live_stage.sole_offset))
+		assert(live_stage.grounded_error()<0.001)
+	live_stage.set_pet(0,4)
 	for tab in ["Care","Rooms","Arcade","Shop","Journal","World","Cell","Home"]: select(tab)
 	for name in ROOMS:
 		room(name)
@@ -417,6 +470,10 @@ func capture_home():
 	store.s.stage=4; store.s.coins=250; store.s.name="Mosskit"
 	make_ui(); refresh()
 	await capture_frame("/tmp/forever-home.png")
+	for species in range(24):
+		live_stage.set_pet(species,4)
+		await capture_frame("/tmp/forever-species-%02d.png"%species)
+	live_stage.set_pet(0,4)
 	for name in ROOMS:
 		select("Rooms")
 		room(name)
