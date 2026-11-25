@@ -60,6 +60,7 @@ func _run() -> void:
         _red("Two actual creator-based Porsche door hinges did not survive GLB import")
         return
     var real_door_panels := {}
+    var original_groups := {}
     for side in ["LEFT","RIGHT"]:
         var id: String="DOOR_"+side+"_FRONT_HINGE"
         var source_nodes: Array[MeshInstance3D]=[]
@@ -77,6 +78,7 @@ func _run() -> void:
             _red("Cannot verify REAL author door skin, glass and frame on "+id)
             return
         real_door_panels[side]=categories["PAINT"]
+        original_groups[side]=source_nodes
 
     var original_tris := 0
     var low := Vector3(INF,INF,INF)
@@ -135,6 +137,13 @@ func _run() -> void:
     if animation.available_doors().size()!=2:
         _red("City Zero hinge controller failed to register 1975 Porsche source doors")
         return
+    var closed_transforms := {}
+    for piece in pieces:
+        closed_transforms[piece]=piece.global_transform
+    var closed_hinge_transforms := {}
+    for side in ["LEFT","RIGHT"]:
+        var hinge: Node3D=hinges["DOOR_"+side+"_FRONT_HINGE"]
+        closed_hinge_transforms[side]=hinge.global_transform
     var closed_x := {}
     for side in real_door_panels:
         var panel: MeshInstance3D=real_door_panels[side]
@@ -161,6 +170,16 @@ func _run() -> void:
         if absf(float(animation.current_angle[id]))<.90 or not animation.is_door_open(id):
             _red("Porsche author door shell does not really reach open position")
             return
+    # Every paint/coat/glass/trim mesh must follow exactly its own hinge.
+    for side in ["LEFT","RIGHT"]:
+        var hinge: Node3D=hinges["DOOR_"+side+"_FRONT_HINGE"]
+        var base: Transform3D=closed_hinge_transforms[side]
+        var rigid_delta: Transform3D=hinge.global_transform * base.affine_inverse()
+        for group in original_groups[side]:
+            var expected: Transform3D=rigid_delta * closed_transforms[group]
+            if not group.global_transform.is_equal_approx(expected):
+                _red("Detached or drifting original Porsche door trim: "+str(group.name))
+                return
     var opened := await _capture(viewport)
     if opened==null or opened.is_empty():
         _red("Actual Porsche original source open photo blank")
@@ -180,7 +199,44 @@ func _run() -> void:
     if closed.save_png(closedfile)!=OK or opened.save_png(openedfile)!=OK:
         _red("Could not save genuine Porsche author source rendered Godot images")
         return
+    # Verify a full round trip, then each independent door, using the real controller.
+    # Fixed explicit time advance avoids dependence on runner FPS.
+    animation.set_process(false)
+    animation.close_every_door()
+    animation._process(1.0)
+    for piece in pieces:
+        if not piece.global_transform.is_equal_approx(closed_transforms[piece]):
+            _red("Original Porsche mesh failed exact closed return: "+str(piece.name))
+            return
+    for side in ["LEFT","RIGHT"]:
+        var id: String="DOOR_"+side+"_FRONT_HINGE"
+        if not animation.toggle_door(id):
+            _red("Independent Porsche door command failed: "+id)
+            return
+        animation._process(1.0)
+        var selected_groups: Array=original_groups[side]
+        var selected_panel: MeshInstance3D=real_door_panels[side]
+        var selected_base: Transform3D=closed_transforms[selected_panel]
+        var selected_center: Vector3=selected_panel.mesh.get_aabb().get_center()
+        if (selected_panel.global_transform * selected_center).distance_to(selected_base * selected_center)<.15:
+            _red("Independent Porsche door did not visibly move: "+id)
+            return
+        for piece in pieces:
+            if not selected_groups.has(piece) and not piece.global_transform.is_equal_approx(closed_transforms[piece]):
+                _red("Opening "+id+" moved unrelated original body mesh "+str(piece.name))
+                return
+        if not animation.toggle_door(id):
+            _red("Independent Porsche closing command failed: "+id)
+            return
+        animation._process(1.0)
+        for piece in pieces:
+            if not piece.global_transform.is_equal_approx(closed_transforms[piece]):
+                _red("Independent Porsche close failed to restore "+str(piece.name))
+                return
     var report := {
+        "independent_left_and_right_door_round_trips":true,
+        "all_original_meshes_return_to_closed_transform":true,
+        "all_four_original_groups_follow_each_hinge_rigidly":true,
         "source":"1975 Porsche 911 Turbo 930 by original artist Karol Miklas",
         "native_engine":"Godot 4 rendered real 3D glTF mesh scene",
         "original_creator_triangles_intact":original_tris,
