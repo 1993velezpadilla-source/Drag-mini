@@ -5,7 +5,7 @@ final class DeluxeArt {
  private final Paint p=new Paint(Paint.ANTI_ALIAS_FLAG|Paint.FILTER_BITMAP_FLAG);
  private final RectF rect=new RectF();private final Path path=new Path();
  private final int ink=0xff252447;
- private android.content.res.AssetManager assets;private Bitmap background,roomBackground,renderedDay,renderedNight;private boolean attemptedDay,attemptedNight;private int bgKey=-1,roomKey=-1;
+ private android.content.res.AssetManager assets;private final Bitmap[] modelBases=new Bitmap[12];private final boolean[] modelTried=new boolean[12];private final android.util.LruCache<Long,Bitmap> models=new android.util.LruCache<>(32);private Bitmap background,roomBackground,renderedDay,renderedNight;private boolean attemptedDay,attemptedNight;private int bgKey=-1,roomKey=-1;
  private static final int[] BODY={0xff9fee62,0xffefa5cf,0xffe9b16d,0xff76d4b2,0xff75d8f3,0xffa4df7c,0xffd8c9ff,0xfff2a38b,0xffffcf72,0xffe5b3fb,0xffa1e7da,0xffa0b5e9};
  private static int mix(int a,int b,float k){return Color.rgb((int)(Color.red(a)*(1-k)+Color.red(b)*k),(int)(Color.green(a)*(1-k)+Color.green(b)*k),(int)(Color.blue(a)*(1-k)+Color.blue(b)*k));}
  private void solid(int color){p.setShader(null);p.setColor(color);p.setStyle(Paint.Style.FILL);}
@@ -18,13 +18,17 @@ final class DeluxeArt {
  private void sparkle(Canvas c,float x,float y,float s,int color){poly(c,color,x,y-s,x+s*.23f,y-s*.22f,x+s,y,x+s*.22f,y+s*.23f,x,y+s,x-s*.23f,y+s*.22f,x-s,y,x-s*.22f,y-s*.22f);}
  private void heart(Canvas c,float x,float y,float sz,int color){solid(color);path.reset();path.moveTo(x,y+sz*.7f);path.cubicTo(x-sz*1.7f,y-sz*.3f,x-sz*.55f,y-sz*1.2f,x,y-sz*.45f);path.cubicTo(x+sz*.55f,y-sz*1.2f,x+sz*1.7f,y-sz*.3f,x,y+sz*.7f);c.drawPath(path,p);}
  private void ear(Canvas c,float x,float y,int color,boolean point){if(point){poly(c,ink,x-8,y+10,x-7,y-13,x+9,y+3);poly(c,color,x-5,y+6,x-4,y-8,x+6,y+3);poly(c,0xffedb3d0,x-3,y+3,x-3,y-4,x+2,y+2);}else form(c,x,y,6,12,color);}
+ private Bitmap model(int id,int tint){if(assets==null)return null;long key=((long)id<<32)|(tint&0xffffffffL);Bitmap result=models.get(key);if(result!=null)return result;if(!modelTried[id]){modelTried[id]=true;try(java.io.InputStream in=assets.open("art/pet_"+id+".png")){modelBases[id]=BitmapFactory.decodeStream(in);}catch(java.io.IOException ignored){}}Bitmap src=modelBases[id];if(src==null)return null;int w=src.getWidth(),h=src.getHeight();int[] rgba=new int[w*h],out=new int[w*h];src.getPixels(rgba,0,w,0,0,w,h);int tr=Color.red(tint),tg=Color.green(tint),tb=Color.blue(tint);for(int i=0;i<rgba.length;i++){int p=rgba[i],a=Color.alpha(p),r=Color.red(p),g=Color.green(p),b=Color.blue(p);if(a>0&&g>r*1.10f&&g>b*1.12f){float k=Math.max(.14f,Math.min(1.18f,g/210f)),white=Math.max(0,(g-224)/80f);p=Color.argb(a,Math.min(255,(int)(tr*k+white*(255-tr))),Math.min(255,(int)(tg*k+white*(255-tg))),Math.min(255,(int)(tb*k+white*(255-tb))));}out[i]=p;}
+ // A small alpha dilation produces the illustrated border without extra per-frame drawing.
+ for(int yy=1;yy<h-1;yy++)for(int xx=1;xx<w-1;xx++){int i=yy*w+xx;if(Color.alpha(out[i])<15){int max=0;for(int dy=-1;dy<=1;dy++)for(int dx=-1;dx<=1;dx++)max=Math.max(max,Color.alpha(rgba[(yy+dy)*w+xx+dx]));if(max>0)out[i]=(Math.min(230,max)<<24)|0x252447;}}
+ result=Bitmap.createBitmap(out,w,h,Bitmap.Config.ARGB_8888);models.put(key,result);return result;}
  void pet(Canvas c,PetState s,float x,float y,float scale,long tick){
   int id=s.stage==PetState.BABY?s.field*4:s.species()%12;int color=BODY[(id+s.color+s.variant*5)%BODY.length];if(s.sick)color=mix(color,0xffa9a3bb,.45f);boolean asleep=s.sleeping();float bob=asleep?0:(float)Math.sin(tick/420.0)*1.3f;
   c.save();c.translate(x,y);c.scale(scale,scale);oval(c,0,23,25,5,0x48302854);c.translate(0,bob);if(asleep){c.translate(0,5);c.scale(1.04f,.82f);}
   if(s.stage==PetState.EGG){form(c,0,-1,17,23,0xffffe5b4);oval(c,-6,-8,5,4,0xffba98e5);oval(c,6,4,5,4,0xff84d9d1);oval(c,-4,12,4,3,0xffed95c4);c.restore();return;}
   float growth=s.stage==1?.88f:s.stage==2?.94f:s.stage==3?1f:1.06f;c.scale(growth,growth);
-  float ey=-3,spread=8,rx=19,ry=19,cy=0;
-  switch(id){
+  float ey=-3,spread=8,rx=19,ry=19,cy=0;Bitmap mesh=model(id,color);
+  if(mesh==null){switch(id){
    case 0:ear(c,-12,-18,color,true);c.save();c.scale(-1,1);ear(c,-12,-18,color,true);c.restore();form(c,-10,19,8,5,color);form(c,10,19,8,5,color);break;
    case 1:form(c,20,13,11,5,color);ear(c,-14,-17,color,true);c.save();c.scale(-1,1);ear(c,-14,-17,color,true);c.restore();form(c,-10,19,6,5,color);form(c,10,19,6,5,color);rx=20;ry=17;break;
    case 2:form(c,0,14,13,11,color);form(c,-9,22,6,4,color);form(c,9,22,6,4,color);form(c,-18,-3,7,15,0xffa77662);form(c,18,-3,7,15,0xffa77662);rx=17;ry=16;cy=-3;ey=-5;break;
@@ -39,9 +43,9 @@ final class DeluxeArt {
    case 11:ear(c,-13,-18,color,true);c.save();c.scale(-1,1);ear(c,-13,-18,color,true);c.restore();form(c,-10,21,6,4,0xffffbd70);form(c,10,21,6,4,0xffffbd70);rx=20;ry=20;break;
   }
   form(c,0,cy,rx,ry,color);
-  oval(c,-rx*.42f,cy-ry*.53f,rx*.23f,ry*.105f,0x88ffffff);
-  if(id==2)oval(c,0,7,9,6,0xffffead6);
-  if(id==11){oval(c,-8,-2,8,10,0xffffe9cc);oval(c,8,-2,8,10,0xffffe9cc);}
+  oval(c,-rx*.42f,cy-ry*.53f,rx*.23f,ry*.105f,0x88ffffff);}else{switch(id){case 2:ey=-5;break;case 4:ey=-2;break;case 5:ey=-8;spread=9;break;case 8:ey=-6;break;case 9:ey=-9;spread=6;break;case 10:ey=-8;spread=6;break;default:break;}solid(-1);rect.set(-34,-34,34,34);c.drawBitmap(mesh,null,rect,p);}
+  if(id==2&&mesh==null)oval(c,0,7,9,6,0xffffead6);
+  if(id==11&&mesh==null){oval(c,-8,-2,8,10,0xffffe9cc);oval(c,8,-2,8,10,0xffffe9cc);}
   boolean blink=asleep||tick%3700<130;float erx=s.eyes==2?5.4f:4.8f,ery=s.eyes==1?5.8f:id==5?7.5f:7;for(int i=-1;i<=1;i+=2){float ex=i*spread;if(blink){line(c,ex-3,ey,ex+3,ey,1.5f,ink);}else if(s.eyes==3){line(c,ex-3,ey-2,ex,ey+1,2,ink);line(c,ex,ey+1,ex+3,ey-2,2,ink);}else{oval(c,ex,ey,erx,ery,ink);oval(c,ex+.3f,ey+2,erx*.79f,ery*.58f,0xff403060);oval(c,ex-1.5f,ey-2.8f,1.9f,2.3f,0xfffffcff);oval(c,ex+2,ey+3,0.85f,1.1f,0xffb5a3dc);}}
   if(id==8||id==11){poly(c,ink,-4,3,4,3,0,10);poly(c,0xffffbf68,-3,4,3,4,0,8);}else if(id==2){oval(c,0,4,3,2,ink);line(c,0,5,0,8,1,ink);}else if(!asleep&&s.happy>=6){float mouth=s.interactionAt>0&&s.last-s.interactionAt<1800?4.6f:3.5f;oval(c,0,9,4.4f,mouth,ink);oval(c,0,11,2.8f,1.2f,0xffed83a2);}else if(!asleep&&s.happy<=3){line(c,-3,10,0,8,1.2f,ink);line(c,0,8,3,10,1.2f,ink);}else line(c,-2,9,2,9,1.2f,ink);
   if(id==1){for(int j=0;j<2;j++){line(c,-14,5+j*3,-22,3+j*4,.8f,ink);line(c,14,5+j*3,22,3+j*4,.8f,ink);}}

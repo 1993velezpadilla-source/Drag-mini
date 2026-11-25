@@ -40,3 +40,5 @@ Deluxe room pass: all six interactive room backgrounds now share the shaded art 
 
 ## 0.12 reference layout and Blender art pipeline
 Original procedural Blender scene produces independently rendered day/night backgrounds. A build requires both images in the APK; vector art remains fallback for local builds and alternate themes. No concept screenshot is used as gameplay art. Pet, UI, and simulation remain independently interactive. Actual render and screen verification required before declaring visual target met.
+
+Original 12 Blender mascot body meshes, transparent renders, runtime palette and silhouette border, independent eye/mouth/accessory layers. All twelve body assets are required in CI packaging; local vector fallback remains. No pre-rendered face prevents loss of inherited eyes or live mood expression.

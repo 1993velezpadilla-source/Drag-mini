@@ -15,9 +15,13 @@ jobs:
       - name: Install Blender
         run: sudo apt-get update -qq && sudo apt-get install -y blender
       - name: Render original 3D room assets
-        run: blender -b -t 4 -P my-forever-pet/art/render_home.py -- /tmp/pet-art
+        run: |
+          blender -b -t 4 -P my-forever-pet/art/render_home.py -- /tmp/pet-art
+          blender -b -t 4 -P my-forever-pet/art/render_pets.py -- /tmp/pet-art
       - name: Verify generated backgrounds
-        run: test -s /tmp/pet-art/home_day.jpg && test -s /tmp/pet-art/home_night.jpg
+        run: |
+          test -s /tmp/pet-art/home_day.jpg && test -s /tmp/pet-art/home_night.jpg
+          for i in $(seq 0 11); do test -s "/tmp/pet-art/pet_$i.png"; done
       - uses: actions/upload-artifact@v4
         with:
           name: ForeverPet-Blender-room-art
@@ -58,6 +62,7 @@ jobs:
           test -s "$APK"
           unzip -l "$APK" | grep -F assets/art/home_day.jpg
           unzip -l "$APK" | grep -F assets/art/home_night.jpg
+          for i in $(seq 0 11); do unzip -l "$APK" | grep -F "assets/art/pet_$i.png"; done
           if unzip -l "$APK" | grep -E 'libforever_pet.so|\.tamasave|firmware\.bin'; then exit 1; fi
           "$ANDROID_HOME/build-tools/35.0.0/aapt" dump badging "$APK"
       - uses: actions/upload-artifact@v4
