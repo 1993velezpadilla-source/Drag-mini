@@ -15,6 +15,7 @@ public final class PetState {
  public long awakeUntil=0,restClock=0;
  transient long clockNow=0;transient String nickname="";
  public String displayName(){return nickname.isEmpty()?creature():nickname;}
+ public int growthPercent(){if(stage==EGG)return 0;if(stage==ADULT)return 100;long elapsed=stage==BABY?cells[field]*15*MIN+cellClock:age;return clamp((int)(100*elapsed/(stage==BABY?HOUR:24*HOUR)),0,100);}
  public String growth(){if(stage==EGG)return "Ready to hatch";if(stage==ADULT)return "Adult • secret evolution";long ms=stage==BABY?Math.max(0,(4-cells[field])*15*MIN-cellClock):Math.max(0,24*HOUR-age);long m=(ms+MIN-1)/MIN;return "Next: "+(stage==BABY?"Kid":stage==KID?"Young":"Adult")+" in "+m/60+"h "+m%60+"m";}
  public String needs(){return sick?"Needs medicine":hunger<=2?"Hungry — feed me!":energy<=25?"Tired — time for a nap":waste>=3?"Please clean my home":happy<=4?"I want to play!":"Feeling good";}
  public static int localMinute(long at,java.util.TimeZone zone){return (int)Math.floorMod(Math.floorDiv(at+zone.getOffset(at),MIN),1440L);}
