@@ -76,10 +76,14 @@ var shadow_chunks: Dictionary = {}
 var shadow_state: Dictionary = {}
 var shadow_transitions := 0
 const SURF_LIFT := 0.90
-const SURF_SLIDE_LIFT := 0.30
+const SURF_SLIDE_LIFT := 0.40
 const EXPERT_RAMP_START := 300.0
 const EXPERT_RAMP_END := 960.0
-const EXPERT_ROW_SECONDS := 0.52
+const EXPERT_ROW_SECONDS := 0.46
+const EXPERT_DENSE_AT := 960.0
+var expert_rows := 0
+var expert_action_rows := 0
+var expert_chain_rows := 0
 const WORLD_NAMES := ["Sky Kingdom","Crystal Gardens","Moonlight Isles"]
 var surf_time := 0.0
 var surf_board: Node3D
@@ -790,7 +794,7 @@ func time_orb_eligible(at:float) -> bool:
 
 func row_spacing(at:float,tier:int) -> float:
 	# Preserve the approved opening; compress encounter time as the run gets faster.
-	# At the speed cap, rows are 18.72m apart rather than 26.46m.
+	# At the speed cap, rows are 16.56m apart rather than 26.46m.
 	var expert:=smoothstep(EXPERT_RAMP_START,EXPERT_RAMP_END,at)
 	var seconds:=lerpf(0.84-0.035*tier,EXPERT_ROW_SECONDS,expert)
 	return maxf(9.5,base_run_speed(at)*seconds)
@@ -811,6 +815,14 @@ func fill_track() -> void:
 		# Action gates have recovery rows on either side; all three lanes are occupied.
 		var expert:=smoothstep(EXPERT_RAMP_START,EXPERT_RAMP_END,distance_offset+spawn_at)
 		var required:=pattern_count>=2 and not treasure_row and (pattern_count==2 or (pattern_count-last_required_row>=2 and (pattern_count-last_required_row>=3 or rng.randf()<lerpf(0.80,1.0,expert))))
+		if distance_offset+spawn_at>=EXPERT_DENSE_AT:
+			# Three consecutive alternating action gates, then one recovery row.
+			# Treasure branches occupy recovery rows, never replace a required gate.
+			required=pattern_count%4!=0
+			expert_rows+=1
+			if required:
+				expert_action_rows+=1
+				if last_required_row==pattern_count-1: expert_chain_rows+=1
 		if required:
 			action=1-last_required_action
 			last_required_action=action
@@ -827,12 +839,13 @@ func fill_track() -> void:
 		else:
 			for blocked in blocked_lanes:
 				var kind:=0 if pattern_count%3==1 and blocked==blocked_lanes[0] else hazard_for(tier)
+				if distance_offset+spawn_at>=EXPERT_DENSE_AT: kind=CART if blocked==blocked_lanes[0] else COURIER
 				make_entity(blocked,kind,spawn_at)
 				if kind==CART or kind==COURIER or kind==ROLLER: moving_rows+=1
 		# Coin trails no longer paint a continuous guaranteed safe lane.
 		# Some lead to jumpable hazards; the mandatory route is still reachable.
 		var coin_lane:=free_lane
-		if action<0 and not treasure_row and pattern_count%3==1: coin_lane=blocked_lanes[0]
+		if action<0 and not treasure_row and pattern_count%3==1 and distance_offset+spawn_at<EXPERT_DENSE_AT: coin_lane=blocked_lanes[0]
 		if action==0:
 			for offset in [-2.0,0.0,2.0]:
 				make_entity(free_lane,SKY_RING if offset==0.0 and pattern_count%5==0 else PICKUP,spawn_at+offset)
@@ -1206,7 +1219,8 @@ func _physics_process(dt: float) -> void:
 		surf_board.visible=surf_time>0
 		surf_board.rotation.z=clampf(player.velocity.x*0.025,-0.25,0.25)
 		mascot.rotation.z=surf_board.rotation.z if surf_time>0 else mascot.rotation.z
-		surf_board.position.y=surf_lift()-SURF_LIFT+0.025*sin(clock*10)
+		# Keep the entire board above the deck even when banked and crouching.
+		surf_board.position.y=surf_lift()-SURF_LIFT+0.025*sin(clock*10)+jet_lift
 	if running_pose and clock>=next_step:
 		next_step=clock+0.19
 		audio.call("play_fx","step")
@@ -1443,14 +1457,13 @@ func collect_kind(kind: int) -> void:
 			smash_charges=3
 			smash_time=12.0
 		SURF:
+			# Picking up a board mid-duck or mid-fast-fall must not cancel the action.
 			surf_time=SURF_DURATION
-			slide=0
-			air_slide_pending=false
 		JETPACK:
 			jet_time=JET_DURATION
 			jet_runs+=1
 			jet_coin_at=distance+12.0
-			surf_time=0.0
+			# Jetpack and board can coexist. Neither pickup silently destroys the other.
 			slide=0.0
 			air_slide_pending=false
 			show_skill("SKY FLIGHT — COLLECT AIR COINS")
@@ -1590,7 +1603,7 @@ func update_effects(dt:float) -> void:
 	for i in range(surf_trails.size()):
 		var trail:=surf_trails[i]
 		trail.visible=surf_time>0
-		trail.position=Vector3(player.position.x+(-0.42 if i==0 else 0.42),player.position.y+surf_lift()-0.20,1.65)
+		trail.position=Vector3(player.position.x+(-0.42 if i==0 else 0.42),player.position.y+surf_lift()-0.20+jet_lift,1.65)
 		trail.rotation.z=mascot.rotation.z
 		trail.scale.z=1.0+0.12*sin(clock*18+i)
 	var intensity:=clampf((speed-12.0)/13.0,0,1)
@@ -1728,7 +1741,7 @@ func test_run() -> void:
 	assert(time_orbs_spawned==0 and row_spacing(0.0,0)<12.0)
 	assert(is_equal_approx(row_spacing(100.0,1),base_run_speed(100.0)*0.805))
 	assert(is_equal_approx(row_spacing(960.0,3),MAX_SPEED*EXPERT_ROW_SECONDS))
-	assert(row_spacing(3200.0,3)<19.0 and row_spacing(3200.0,3)>18.0)
+	assert(row_spacing(3200.0,3)<17.0 and row_spacing(3200.0,3)>16.0)
 	for entity in entities: assert(int(entity.get_meta("kind"))!=TIME_ORB)
 	assert(power_cards.size()==11 and jet_model!=null)
 	assert(scenery_visibility_updates>0 and not chunks[SEGMENTS-1].visible)
@@ -1875,6 +1888,12 @@ func test_run() -> void:
 	assert(surf_time>0 and slide>0 and not hazard_hit(1,surf_lift(),true))
 	for i in range(45): await get_tree().physics_frame
 	assert(not ended and surf_board.visible and surf_time>0 and surf_saves==0)
+	# A board pickup while sliding must preserve the slide, even on the pickup frame.
+	gesture(Vector2(0,80))
+	var old_slide:=slide
+	collect_kind(SURF)
+	assert(slide==old_slide and surf_time==SURF_DURATION)
+	for i in range(45): await get_tree().physics_frame
 	# Repeat real collisions at the actual maximum speed plus board bonus.
 	var original_offset:=distance_offset
 	distance_offset=2000.0
@@ -1907,7 +1926,9 @@ func test_run() -> void:
 	for i in range(50): await get_tree().physics_frame
 	assert(surf_grace==0 and not ended)
 	# Jetpack really lifts the player presentation, avoids ground collisions, and collects sky coins.
+	collect_kind(SURF)
 	collect_kind(JETPACK)
+	assert(surf_time==SURF_DURATION,"jetpack pickup cannot silently destroy surfboard")
 	make_entity(1,TALL,distance+4.0)
 	for i in range(45): await get_tree().physics_frame
 	assert(not ended and jet_lift>4.0 and jet_model.visible)
@@ -1917,7 +1938,9 @@ func test_run() -> void:
 	assert(jet_coins>air_before)
 	jet_time=0.01
 	for i in range(80): await get_tree().physics_frame
-	assert(jet_lift==0.0 and not jet_model.visible and not ended)
+	assert(jet_lift==0.0 and not jet_model.visible and not ended and surf_time>0 and surf_board.visible)
+	surf_time=0.01
+	for i in range(3): await get_tree().physics_frame
 	# Full-width portal activates even when runner is in an outer lane.
 	gesture(Vector2(-80,0))
 	make_entity(1,PORTAL,distance+speed*0.30)
@@ -2067,6 +2090,7 @@ func unassisted_test() -> void:
 	assert(not ended and total_distance()>=3200.0,"legal route must work without power-ups; seed %d at %.1f m"%[unassisted_seed,total_distance()])
 	assert(speed>=MAX_SPEED-0.1 and jet_runs==0 and surf_saves==0 and mixed_rows>40)
 	assert(pattern_count>150,"expert run must sustain denser rows at the speed cap")
+	assert(expert_rows>100 and expert_action_rows*4>=expert_rows*3-4 and expert_chain_rows>50,"expert obstacle chains must occupy three of every four rows")
 	# The same legal-route driver must lose at the cap if it stops jumping/ducking.
 	# Keep its exact lane knowledge and disable only vertical gestures.
 	var expert_checkpoint:=total_distance()
