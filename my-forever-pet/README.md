@@ -30,3 +30,5 @@ Phone-local time/date in HUD and clock on wallpaper; respects Android 12/24-hour
 
 ## 0.10 interactive home
 Behavioral references: Pou official https://play.google.com/store/apps/details?id=me.pou.app ; My Talking Tom https://play.google.com/store/apps/details?id=com.outfit7.mytalkingtomfree ; My Talking Tom 2 https://apps.apple.com/us/app/my-talking-tom-2/id1337578317 ; community feedback on food and care in Pou listing. Independently implemented kitchen, bathroom (soap/rinse and toilet), bedroom lamp, toy room, timed garden, potion lab, consumable supplies and room themes. Independent awake hygiene/toilet decay, 67-field schema, migration from previous saves. No original APK binary inspection or asset extraction. Voice mimic, friends online and advanced furniture editing pending.
+
+Voice echo: explicitly confirmed 3-second RAM-only microphone recording, three species-linked playback pitches, optional runtime permission, cancellation on Activity stop, no audio file or network. Actual microphone and speaker validation still pending.
