@@ -98,6 +98,9 @@ func _run() -> void:
     # Source 570S rearward doors require opposite local hinge sign from the
     # earlier orange car. This opt-in preserves the winner's default rotation.
     animation.invert_opening_direction = true
+    # McLaren 570S owner-quality check: REAL dihedral doors rise up+out.
+    # Original orange Lamborghini keeps the controller default false.
+    animation.mclaren_570s_dihedral_mode = true
     car.add_child(animation)
     await process_frame
     if animation.available_doors().size() != 2:
@@ -145,6 +148,7 @@ func _run() -> void:
         _fail("Actual source McLaren car is too small or cropped with doors CLOSED")
         return
     var original_panel_x: Dictionary = {}
+    var original_panel_y: Dictionary = {}
     var verified_panels: Dictionary = {}
     for panel in all_meshes:
         var mesh_name := str(panel.name)
@@ -157,7 +161,9 @@ func _run() -> void:
         return
     for side in verified_panels:
         var original_door_mesh: MeshInstance3D = verified_panels[side]
-        original_panel_x[side]=(original_door_mesh.global_transform * original_door_mesh.mesh.get_aabb().get_center()).x
+        var source_center: Vector3=original_door_mesh.global_transform * original_door_mesh.mesh.get_aabb().get_center()
+        original_panel_x[side]=source_center.x
+        original_panel_y[side]=source_center.y
     var closed := await _frame(vp)
     if closed==null or closed.is_empty():
         _fail("Could not photograph closed REAL McLaren 570S door panels in Godot")
@@ -173,11 +179,18 @@ func _run() -> void:
             _fail("Original body + glass hinge did not actually animate "+id)
             return
     var outward_panel_displacements: Dictionary = {}
+    var upward_dihedral_panel_lift_m: Dictionary = {}
     for side in verified_panels:
         var original_door_mesh: MeshInstance3D = verified_panels[side]
         var now_x: float=(original_door_mesh.global_transform * original_door_mesh.mesh.get_aabb().get_center()).x
         var movement: float=now_x-float(original_panel_x[side])
         outward_panel_displacements[side]=movement
+        var moved_y: float=(original_door_mesh.global_transform * original_door_mesh.mesh.get_aabb().get_center()).y
+        var rise: float=moved_y-float(original_panel_y[side])
+        upward_dihedral_panel_lift_m[side]=rise
+        if rise<.27:
+            _fail("REJECTED SIDEWAYS DOOR: real McLaren needs upward dihedral lift "+side+" "+str(rise))
+            return
         if side=="RIGHT" and movement<.08:
             _fail("RIGHT real author door did not open OUTWARD in Godot: "+str(movement))
             return
@@ -221,6 +234,9 @@ func _run() -> void:
         "hinge_ids":animation.available_doors(),
         "doors_reached_real_open_angles":true,
         "original_artist_body_panel_moves_outward_x_m":outward_panel_displacements,
+        "actual_original_source_dihedral_door_rise_m":upward_dihedral_panel_lift_m,
+        "mclaren_570s_upward_and_outward_dihedral_mode":true,
+        "original_approved_lamborghini_default_door_axis_unchanged":true,
         "source_specific_inverted_hinge_direction_enabled":true,
         "true_rendered_changed_pixels":distinct,
         "sampled_pixels":sample_total,
