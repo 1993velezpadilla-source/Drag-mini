@@ -1,0 +1,13 @@
+/upstream/
+/native/src/emulator/
+/native/src/touches.rs
+/native/assets/
+/native/target/
+/app/src/main/jniLibs/
+/app/src/main/assets/CAPYBARA-LICENSE.txt
+/.gradle/
+/app/build/
+/build/
+*.bin
+*.tamasave
+*.tamastate

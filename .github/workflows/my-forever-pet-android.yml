@@ -1,0 +1,39 @@
+name: My Forever Pet Android
+on:
+  push:
+    branches: [feature/my-forever-pet-paradise]
+    paths: ['my-forever-pet/**', '.github/workflows/my-forever-pet-android.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    defaults:
+      run:
+        working-directory: my-forever-pet
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+      - uses: android-actions/setup-android@v3
+      - run: sdkmanager 'platforms;android-35' 'build-tools;35.0.0' 'ndk;27.2.12479018'
+      - run: rustup target add aarch64-linux-android && cargo install cargo-ndk --locked
+      - run: bash prepare-upstream.sh
+      - run: cargo ndk -t arm64-v8a -o ../app/src/main/jniLibs build --release
+        working-directory: my-forever-pet/native
+        env:
+          ANDROID_NDK_HOME: /usr/local/lib/android/sdk/ndk/27.2.12479018
+      - run: gradle :app:assembleDebug
+      - run: unzip -l app/build/outputs/apk/debug/app-debug.apk | grep 'lib/arm64-v8a/libforever_pet.so'
+      - uses: actions/upload-artifact@v4
+        with:
+          name: My-Forever-Pet-ARM64-debug
+          path: my-forever-pet/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
