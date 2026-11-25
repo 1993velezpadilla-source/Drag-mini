@@ -21,6 +21,9 @@ func _ready() -> void:
 	sounds["shield"]=tone(520,220,0.24,0.26)
 	sounds["crash"]=tone(110,28,0.33,0.42)
 	sounds["swoosh"]=tone(360,95,0.13,0.18)
+	sounds["skill"]=tone(780,1730,0.20,0.25)
+	sounds["challenge"]=tone(530,1850,0.48,0.30)
+	sounds["spring"]=tone(190,930,0.24,0.25)
 	music=AudioStreamPlayer.new()
 	music.volume_db=-17
 	add_child(music)

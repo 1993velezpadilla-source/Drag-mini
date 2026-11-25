@@ -15,6 +15,27 @@ const BOOST := 7
 const CART := 8
 const TALL := 9
 const LOW_BAR := 10
+const TIME_ORB := 11
+const SPRING := 12
+const SKY_RING := 13
+const GEM := 14
+var slow_time := 0.0
+var spring_time := 0.0
+var air_jump_used := false
+var combo := 0
+var best_combo := 0
+var combo_timer := 0.0
+var skill_points := 0
+var skill_clears := 0
+var sky_rings := 0
+var gems := 0
+var challenge_index := 0
+var challenge_progress := 0
+var challenge_label: Label
+var challenge_bar: ProgressBar
+var last_challenge_hud := ""
+var skill_flash := 0.0
+var skill_feedback: Label
 var crash_remaining := 0.0
 var crash_player_y := 0.0
 var music_button: Button
@@ -55,7 +76,7 @@ var player_shape: CollisionShape3D
 var camera: Camera3D
 var chunks: Array[Node3D] = []
 var entities: Array[Area3D] = []
-var pools: Array = [[],[],[],[],[],[],[],[],[],[],[]]
+var pools: Array = [[],[],[],[],[],[],[],[],[],[],[],[],[],[],[]]
 var created_entities := 0
 var reused_entities := 0
 var previous_safe_lane := 1
@@ -448,6 +469,14 @@ func make_hud() -> void:
 	snack_label=hud_label(stats,"0 snacks",18,Color("#a9e2bd"))
 	hud_label(column,"LITTLE MOSSKIT  •  ENDLESS RUN",16,Color("#cbd9ff"))
 	power_label=hud_label(column,"MAGNET  •  SHIELD  •  ×2  •  BOOST",15,Color("#e9d5ff"))
+	challenge_label=hud_label(column,"Collect 15 coins",14,Color("#ffe5a4"))
+	challenge_bar=ProgressBar.new()
+	challenge_bar.show_percentage=false
+	challenge_bar.custom_minimum_size.y=6
+	challenge_bar.add_theme_stylebox_override("background",panel_style(Color("#15213c"),Color("#354b73"),4))
+	challenge_bar.add_theme_stylebox_override("fill",panel_style(Color("#e8b64e"),Color("#f9db89"),4))
+	challenge_bar.mouse_filter=Control.MOUSE_FILTER_IGNORE
+	column.add_child(challenge_bar)
 	var footer := PanelContainer.new()
 	ui.add_child(footer)
 	footer.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_WIDE)
@@ -471,6 +500,20 @@ func make_hud() -> void:
 	pickup_feedback.add_theme_constant_override("outline_size",6)
 	pickup_feedback.mouse_filter=Control.MOUSE_FILTER_IGNORE
 	pickup_feedback.hide()
+	skill_feedback=Label.new()
+	ui.add_child(skill_feedback)
+	skill_feedback.set_anchors_and_offsets_preset(Control.PRESET_CENTER)
+	skill_feedback.offset_left=-230
+	skill_feedback.offset_right=230
+	skill_feedback.offset_top=-105
+	skill_feedback.offset_bottom=-60
+	skill_feedback.horizontal_alignment=HORIZONTAL_ALIGNMENT_CENTER
+	skill_feedback.add_theme_font_size_override("font_size",28)
+	skill_feedback.add_theme_color_override("font_color",Color("#ffe297"))
+	skill_feedback.add_theme_color_override("font_outline_color",Color("#252655"))
+	skill_feedback.add_theme_constant_override("outline_size",6)
+	skill_feedback.mouse_filter=Control.MOUSE_FILTER_IGNORE
+	skill_feedback.hide()
 	var bottom := HBoxContainer.new()
 	bottom.mouse_filter=Control.MOUSE_FILTER_IGNORE
 	footer.add_child(bottom)
@@ -555,7 +598,7 @@ func rebase_track() -> void:
 	rebase_count+=1
 
 func is_pickup(kind:int) -> bool:
-	return kind>=PICKUP and kind<=BOOST
+	return (kind>=PICKUP and kind<=BOOST) or (kind>=TIME_ORB and kind<=GEM)
 
 func hazard_for(tier:int) -> int:
 	if tier==0: return rng.randi_range(0,1)
@@ -592,9 +635,17 @@ func fill_track() -> void:
 		else:
 			for offset in [-3.2,-1.8,1.8,3.2]: make_entity(free_lane,PICKUP,spawn_at+offset)
 		if pattern_count%5==2:
-			make_entity(free_lane,MAGNET+rng.randi_range(0,3),spawn_at+5.1)
+			var power:=MAGNET+rng.randi_range(0,3)
+			if tier>=1 and pattern_count%15==2: power=TIME_ORB
+			elif tier>=1 and pattern_count%15==7: power=SPRING
+			make_entity(free_lane,power,spawn_at+5.1)
 		elif rng.randf()<0.60:
 			make_entity(free_lane,SNACK,spawn_at+4.8)
+		if tier>=1 and action<0 and pattern_count%9==3:
+			# Optional airborne route; ground coins remain available.
+			make_entity(free_lane,SKY_RING,spawn_at)
+		if tier>=1 and action<0 and pattern_count%11==8:
+			make_entity(free_lane,GEM,spawn_at+6.7)
 		if review_driver: safe_rows.append(Vector3(spawn_at,float(free_lane),float(action)))
 		previous_safe_lane=free_lane
 		pattern_count+=1
@@ -619,6 +670,7 @@ func make_entity(which_lane: int, kind: int, at: float) -> void:
 	a.set_meta("at",at)
 	a.set_meta("resolved",false)
 	a.set_meta("cart_shift",0.0)
+	a.set_meta("skill_clear",false)
 	entities.append(a)
 	if recycled:
 		if a.get_child_count()>0:
@@ -626,8 +678,8 @@ func make_entity(which_lane: int, kind: int, at: float) -> void:
 			visual.rotation.y=0
 			visual.position.y=0
 		return
-	if using_blender and asset(a,["crate","barrier","coin","snack","magnet","shield","double","boost","cart","tall","low_bar"][kind],Vector3.ZERO)!=null:
-		if is_pickup(kind) and kind!=BOOST:
+	if using_blender and asset(a,["crate","barrier","coin","snack","magnet","shield","double","boost","cart","tall","low_bar","time_orb","spring","sky_ring","gem"][kind],Vector3.ZERO)!=null:
+		if is_pickup(kind) and kind!=BOOST and kind!=SKY_RING:
 			ground_shadow(a,0.75 if kind==PICKUP else 1.10,0.52 if kind==PICKUP else 0.75)
 		return
 	if kind==0:
@@ -655,6 +707,8 @@ func make_entity(which_lane: int, kind: int, at: float) -> void:
 		orb(a,Vector3(0,0.75,0),Vector3(0.68,0.45,0.68),Color("#607fbc"))
 		for i in range(5):
 			orb(a,Vector3(cos(i*1.26)*0.19,0.99,sin(i*1.26)*0.19),Vector3(0.16,0.13,0.16),Color("#e1ae5a"))
+	elif kind>=TIME_ORB:
+		orb(a,Vector3(0,2.05 if kind==SKY_RING else 0.85,0),Vector3.ONE*0.75,Color("#9f8cff"))
 	else:
 		orb(a,Vector3(0,0.85,0),Vector3(0.85,0.85,0.85),[Color.RED,Color.CYAN,Color.GOLD,Color.DEEP_SKY_BLUE][kind-MAGNET])
 
@@ -683,6 +737,10 @@ func gesture(delta: Vector2) -> void:
 			player.velocity.y=JUMP_SPEED
 			audio.call("play_fx","jump")
 			audio.call("start_music")
+		elif spring_time>0 and not air_jump_used and not air_slide_pending:
+			air_jump_used=true
+			player.velocity.y=JUMP_SPEED*0.82
+			audio.call("play_fx","spring")
 		else:
 			jump_buffer=0.14
 	elif delta.y > 22:
@@ -754,7 +812,7 @@ func ground_shadow(parent:Node3D,w:float,h:float) -> MeshInstance3D:
 	return n
 
 func run_score() -> int:
-	return int(total_distance()*10)+coins*25+snacks*50
+	return int(total_distance()*10)+coins*25+snacks*50+skill_points
 
 func load_best() -> void:
 	if OS.get_cmdline_user_args().has("--test") or review_driver: return
@@ -782,6 +840,7 @@ func contact_depth(kind:int) -> float:
 	return 0.64
 
 func pickup_reachable(kind:int,feet_y:float,attracted:bool) -> bool:
+	if kind==SKY_RING: return feet_y>0.85 and feet_y<3.5
 	return attracted or (feet_y<0.95 if kind!=BOOST else feet_y<0.42)
 
 func _physics_process(dt: float) -> void:
@@ -817,6 +876,7 @@ func _physics_process(dt: float) -> void:
 	player.velocity.x=clampf((LANES[lane]-player.position.x)*19,-19,19)
 	player.move_and_slide()
 	player.position.z=PLAYER_Z
+	if player.is_on_floor(): air_jump_used=false
 	if air_slide_pending and player.is_on_floor():
 		air_slide_pending=false
 		slide=SLIDE_SECONDS
@@ -832,7 +892,12 @@ func _physics_process(dt: float) -> void:
 	shield_time=maxf(0,shield_time-dt)
 	double_time=maxf(0,double_time-dt)
 	boost_time=maxf(0,boost_time-dt)
-	speed=minf(25.0,9.0+total_distance()*0.024)+(4.0 if boost_time>0 else 0.0)
+	slow_time=maxf(0,slow_time-dt)
+	spring_time=maxf(0,spring_time-dt)
+	combo_timer=maxf(0,combo_timer-dt)
+	if combo_timer<=0: combo=0
+	var base_speed:=minf(25.0,9.0+total_distance()*0.024)
+	speed=(base_speed+4.0 if boost_time>0 else base_speed*0.68 if slow_time>0 else base_speed)
 	distance+=speed*dt
 	rebase_track()
 	slide=maxf(0,slide-dt)
@@ -850,6 +915,9 @@ func _physics_process(dt: float) -> void:
 	var shadow_scale:=1.0/(1.0+maxf(0,player.position.y)*0.30)
 	player_shadow.scale=Vector3(1.8*shadow_scale,1.3*shadow_scale,1)
 	pickup_flash=maxf(0,pickup_flash-dt)
+	skill_flash=maxf(0,skill_flash-dt)
+	skill_feedback.visible=skill_flash>0
+	skill_feedback.modulate.a=minf(1,skill_flash*3)
 	pickup_feedback.visible=pickup_flash>0
 	if pickup_flash>0:
 		pickup_feedback.modulate.a=minf(1,pickup_flash*4)
@@ -874,7 +942,7 @@ func _physics_process(dt: float) -> void:
 		var shift:=clampf((base_z+24.0)*0.16,0.0,3.2) if kind==CART else 0.0
 		a.position.z=base_z+shift
 		a.set_meta("cart_shift",shift)
-		if is_pickup(kind) and kind!=BOOST and a.visible and a.position.z > -45.0 and a.get_child_count()>0:
+		if is_pickup(kind) and kind!=BOOST and kind!=SKY_RING and a.visible and a.position.z > -45.0 and a.get_child_count()>0:
 			var visual:=a.get_child(0) as Node3D
 			visual.rotation.y+=dt*2.5
 			visual.position.y=sin(clock*4+float(a.get_meta("at"))*0.38)*0.07
@@ -903,6 +971,11 @@ func _physics_process(dt: float) -> void:
 					audio.call("play_fx","crash")
 					audio.call("stop_music")
 					break
+		if not is_pickup(kind) and not bool(a.get_meta("resolved")) and not bool(a.get_meta("skill_clear")) and contact and lateral<0.34 and not hazard_hit(kind,player.position.y,slide>0 or air_slide_pending,lateral):
+			# Award once only after the trailing edge clears, not on approach.
+			if a.position.z>=depth:
+				a.set_meta("skill_clear",true)
+				award_skill_clear()
 		if a.position.z>2.5:
 			a.hide()
 			pools[kind].append(a)
@@ -917,15 +990,46 @@ func _physics_process(dt: float) -> void:
 		hud_refresh=0
 		update_hud()
 
+func challenge_goal() -> int:
+	return [15,3,2][challenge_index%3]+mini(3,int(challenge_index/3.0))
+func challenge_name() -> String:
+	return ["Collect coins","Clear obstacles","Collect snacks"][challenge_index%3]
+func show_skill(message:String) -> void:
+	skill_feedback.text=message
+	skill_flash=1.10
+func challenge_event(event:int) -> void:
+	if event!=challenge_index%3: return
+	challenge_progress+=1
+	if challenge_progress>=challenge_goal():
+		skill_points+=500
+		challenge_index+=1
+		challenge_progress=0
+		show_skill("CHALLENGE COMPLETE  +500")
+		audio.call("play_fx","challenge")
+func award_skill_clear() -> void:
+	skill_clears+=1
+	skill_points+=100
+	show_skill("CLEAN MOVE  +100")
+	audio.call("play_fx","skill")
+	challenge_event(1)
 func collect_kind(kind: int) -> void:
 	match kind:
 		PICKUP:
 			coins+=2 if double_time>0 else 1
+			combo+=1
+			best_combo=maxi(best_combo,combo)
+			combo_timer=2.2
+			if combo%5==0:
+				skill_points+=50*mini(int(combo/5.0),5)
+				show_skill("COIN COMBO ×%d"%combo)
+				audio.call("play_fx","skill")
+			challenge_event(0)
 			pickup_feedback.text="+2 coins" if double_time>0 else "+1 coin"
 			pickup_flash=0.55
 			audio.call("play_fx","coin")
 		SNACK:
 			snacks+=1
+			challenge_event(2)
 			pickup_feedback.text="+1 snack"
 			pickup_flash=0.8
 			audio.call("play_fx","snack")
@@ -937,8 +1041,25 @@ func collect_kind(kind: int) -> void:
 			double_time=12.0
 		BOOST:
 			boost_time=6.0
-	if kind>=MAGNET:
-		pickup_feedback.text=["MAGNET","SHIELD","DOUBLE COINS","TURBO"][kind-MAGNET]
+		TIME_ORB:
+			slow_time=8.0
+		SPRING:
+			spring_time=10.0
+		SKY_RING:
+			sky_rings+=1
+			skill_points+=250
+			show_skill("SKY TRICK  +250")
+			audio.call("play_fx","skill")
+		GEM:
+			gems+=1
+			if gems>=3:
+				gems=0
+				skill_points+=1000
+				show_skill("GEM SET  +1000")
+				audio.call("play_fx","challenge")
+			else: show_skill("SKY GEM  %d/3"%gems)
+	if kind>=MAGNET and kind<=BOOST or kind==TIME_ORB or kind==SPRING:
+		pickup_feedback.text={MAGNET:"MAGNET",SHIELD:"SHIELD",DOUBLE:"DOUBLE COINS",BOOST:"TURBO",TIME_ORB:"TIME BUBBLE",SPRING:"DOUBLE JUMP"}[kind]
 		pickup_flash=1.0
 		audio.call("play_fx","power")
 
@@ -1039,12 +1160,20 @@ func update_hud() -> void:
 	if shield_time>0: active_powers.append("SHIELD %ds"%ceili(shield_time))
 	if double_time>0: active_powers.append("×2 %ds"%ceili(double_time))
 	if boost_time>0: active_powers.append("BOOST %ds"%ceili(boost_time))
+	if slow_time>0: active_powers.append("TIME %ds"%ceili(slow_time))
+	if spring_time>0: active_powers.append("SPRING %ds"%ceili(spring_time))
 	var powers: String="  •  ".join(active_powers)
 	var power_text := powers if not powers.is_empty() else "Collect power-ups to extend your run"
 	if power_text!=last_power_hud:
 		last_power_hud=power_text
 		power_label.text=power_text
-	var key := str(int(total_distance()))+":"+str(coins)+":"+str(snacks)+":"+str(ended)+":"+str(paused_run)+":"+str(started)
+	var challenge_text:="%s  %d/%d  •  Combo %d  •  Gems %d/3"%[challenge_name(),challenge_progress,challenge_goal(),combo,gems]
+	if challenge_text!=last_challenge_hud:
+		last_challenge_hud=challenge_text
+		challenge_label.text=challenge_text
+		challenge_bar.max_value=challenge_goal()
+		challenge_bar.value=challenge_progress
+	var key := str(int(total_distance()))+":"+str(coins)+":"+str(snacks)+":"+str(ended)+":"+str(paused_run)+":"+str(started)+":"+str(skill_points)
 	if key==last_hud: return
 	last_hud=key
 	points_label.text="%d pts"%run_score()
@@ -1204,6 +1333,22 @@ func test_run() -> void:
 	assert(ended and result_panel.visible and not retired_run and not retire_button.visible)
 	assert(crash_remaining==0 and player.position.y<0.1)
 	assert(best_saved and best_score>=run_score())
+	var before_bonus:=skill_points
+	collect_kind(GEM)
+	collect_kind(GEM)
+	collect_kind(GEM)
+	assert(gems==0 and skill_points==before_bonus+1000)
+	collect_kind(SKY_RING)
+	assert(sky_rings==1 and skill_points==before_bonus+1250)
+	assert(pickup_reachable(SKY_RING,1.2,false) and not pickup_reachable(SKY_RING,0,false))
+	collect_kind(TIME_ORB)
+	collect_kind(SPRING)
+	assert(slow_time==8 and spring_time==10)
+	challenge_index=0
+	challenge_progress=14
+	challenge_event(0)
+	assert(challenge_index==1 and challenge_progress==0)
+	assert(skill_points==before_bonus+1750)
 	assert(not claim_result().is_empty() and claim_result().is_empty())
 	# Exercise explicit retirement without adding a distance-based end condition.
 	ended=false
