@@ -18,15 +18,18 @@ var dirty=false
 func defaults()->Dictionary:
 	return {"stage":0,"field":0,"body":0,"eyes":0,"color":0,"variant":0,"generation":1,"friendship":0,"inherited_eyes":-1,"name":"","hunger":5,"happy":10,"energy":100,"bond":0,"xp":0,"waste":0,"mistakes":0,"germs":0,"hygiene":100,"toilet":100,"coins":0,"crystals":0,"materials":0,"fuel":0,"snacks":0,"medicine":0,"soap":0,"cells":[0,0,0],"foods":[0,0,0,0],"collection":0,"owned":0,"equipped":0,"installation":0,"wardrobe":0,"worn":[0,0,0,0],"theme":0,"training":0,"age":0.0,"last":0.0,"food_clock":0.0,"mood_clock":0.0,"energy_clock":0.0,"waste_clock":0.0,"cell_clock":0.0,"care_clock":0.0,"hygiene_clock":0.0,"toilet_clock":0.0,"rest_clock":0.0,"sleep_until":0.0,"awake_until":0.0,"auto_sleep":true,"trip_end":0.0,"destination":0,"journeys":0,"pending":[0,0,0],"daily_day":"","quest_day":"","quests":0,"claimed":0,"garden_at":0.0,"harvests":0,"interaction_at":0.0,"best":[0,0,0,0,0]}
 func _ready():
-	test_mode=OS.get_cmdline_user_args().size()>0
+	test_mode=false
+	for flag in ["--test","--soak","--capture","--lane-only","--unassisted","--home-test","--home-capture"]:
+		if OS.get_cmdline_user_args().has(flag): test_mode=true
 	s=defaults()
 	if not test_mode:
-		var source=SAVE if FileAccess.file_exists(SAVE) else SAVE+".bak"
-		if FileAccess.file_exists(source):
+		for source in [SAVE,SAVE+".bak"]:
+			if not FileAccess.file_exists(source): continue
 			var data=JSON.parse_string(FileAccess.get_file_as_string(source))
 			if data is Dictionary:
 				for key in s:
-					if data.has(key): s[key]=data[key]
+					if data.has(key) and (typeof(data[key])==typeof(s[key]) or (typeof(s[key]) in [TYPE_INT,TYPE_FLOAT] and typeof(data[key]) in [TYPE_INT,TYPE_FLOAT])): s[key]=data[key]
+				break
 	advance(now())
 	save_game()
 	var timer=Timer.new()
@@ -229,14 +232,16 @@ func action(id:String,i:int=0)->bool:
 		save_game()
 	return ok
 func begin_arcade(mode:int)->bool:
-	if not available() or s.energy<5 or arcade_mode!=-1: return false
+	if mode<0 or mode>=5 or not available() or s.energy<5 or arcade_mode!=-1: return false
 	arcade_mode=mode
 	return true
 func finish_arcade(score:int,seconds:float,snacks:int=0)->int:
 	if arcade_mode<0: return 0
 	var mode=arcade_mode
 	arcade_mode=-1
-	var reward=mini(100,maxi(0,score)*[2,6,4,10,3][mode]) if seconds>=1.0 else 0
+	if not is_finite(seconds) or seconds<1.0: return 0
+	score=clampi(score,0,1000000)
+	var reward=mini(100,score*[2,6,4,10,3][mode])
 	s.best[mode]=maxi(int(s.best[mode]),score)
 	s.coins=mini(999999,int(s.coins)+reward); s.snacks=mini(99,int(s.snacks)+clampi(snacks,0,20))
 	if reward>0: s.energy=maxi(0,int(s.energy)-3); s.happy=mini(10,int(s.happy)+2); s.food_clock+=300; earn(mini(10,int(reward/5)))

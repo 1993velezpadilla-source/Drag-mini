@@ -225,7 +225,19 @@ func test_home():
 	assert(store.action("hatch")); assert(store.s.coins==100)
 	store.s.hunger=3; assert(store.action("food",3)); assert(store.s.hunger==4)
 	assert(store.action("daily")); assert(not store.action("daily"))
+	assert(not store.begin_arcade(-1)); assert(not store.begin_arcade(5))
 	assert(store.begin_arcade(0)); assert(store.finish_arcade(5,5.0)==10); assert(store.finish_arcade(5,5.0)==0)
+	var wallet=store.s.coins
+	assert(store.begin_arcade(4)); assert(store.finish_arcade(999,0.1,20)==0)
+	assert(store.s.coins==wallet and store.s.snacks==0)
+	assert(store.begin_arcade(4)); assert(store.finish_arcade(10,5.0)==30)
+	assert(store.finish_arcade(10,5.0)==0)
+	for variant in range(2):
+		for field in range(3):
+			for body in range(4):
+				store.s.variant=variant; store.s.field=field; store.s.body=body
+				assert(store.species()==variant*12+field*4+body)
+	store.s.variant=0; store.s.field=0; store.s.body=0
 	make_ui(); refresh()
 	for tab in ["Care","Rooms","Arcade","Shop","Journal","World","Cell","Home"]: select(tab)
 	for name in ROOMS:
