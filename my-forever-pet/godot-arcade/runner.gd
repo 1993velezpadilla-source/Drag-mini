@@ -23,6 +23,14 @@ const RESCUE := 15
 const SMASH := 16
 const SURF := 17
 const PORTAL := 18
+const COURIER := 19
+const ROLLER := 20
+const CARD := 21
+var cards := 0
+var card_sets := 0
+var surf_saves := 0
+var surf_grace := 0.0
+var surf_exit_flash := 0.0
 const SURF_LIFT := 0.90
 const WORLD_NAMES := ["Sky Kingdom","Crystal Gardens","Moonlight Isles"]
 var surf_time := 0.0
@@ -101,7 +109,7 @@ var player_shape: CollisionShape3D
 var camera: Camera3D
 var chunks: Array[Node3D] = []
 var entities: Array[Area3D] = []
-var pools: Array = [[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[]]
+var pools: Array = [[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[]]
 var created_entities := 0
 var reused_entities := 0
 var previous_safe_lane := 1
@@ -670,12 +678,12 @@ func rebase_track() -> void:
 	rebase_count+=1
 
 func is_pickup(kind:int) -> bool:
-	return (kind>=PICKUP and kind<=BOOST) or (kind>=TIME_ORB and kind<=PORTAL)
+	return (kind>=PICKUP and kind<=BOOST) or (kind>=TIME_ORB and kind<=PORTAL) or kind==CARD
 
 func hazard_for(tier:int) -> int:
 	if tier==0: return rng.randi_range(0,1)
 	var choices:Array[int]=[0,1,LOW_BAR,CART]
-	if tier>=2: choices.append(TALL)
+	if tier>=2: choices.append_array([TALL,COURIER,ROLLER])
 	return choices[rng.randi_range(0,choices.size()-1)]
 
 func fill_track() -> void:
@@ -696,11 +704,11 @@ func fill_track() -> void:
 		elif tier>=2 or pattern_count%5!=4:
 			var kind:=hazard_for(tier)
 			make_entity(blocked_lanes[first],kind,spawn_at)
-			if kind==CART: moving_rows+=1
+			if kind==CART or kind==COURIER or kind==ROLLER: moving_rows+=1
 			if tier>=2 or (pattern_count>=3 and pattern_count%3==0):
 				var second:=hazard_for(tier)
 				make_entity(blocked_lanes[1-first],second,spawn_at)
-				if second==CART: moving_rows+=1
+				if second==CART or second==COURIER or second==ROLLER: moving_rows+=1
 		# Keep collectible trails clear of the mandatory hazard itself.
 		if action<0:
 			for i in range(5): make_entity(free_lane,PICKUP,spawn_at-3.2+i*1.5)
@@ -722,6 +730,8 @@ func fill_track() -> void:
 			make_entity(free_lane,GEM,spawn_at+6.7)
 		if tier>=1 and action<0 and pattern_count%12==9:
 			make_entity(free_lane,RESCUE,spawn_at+7.8)
+		if tier>=1 and action<0 and pattern_count%10==6:
+			make_entity(free_lane,CARD,spawn_at+8.0)
 		if tier>=1 and pattern_count%18==10:
 			make_entity(1,PORTAL,spawn_at+9.0)
 		if review_driver: safe_rows.append(Vector3(spawn_at,float(free_lane),float(action)))
@@ -754,10 +764,10 @@ func make_entity(which_lane: int, kind: int, at: float) -> void:
 	if recycled:
 		if a.get_child_count()>0:
 			var visual:=a.get_child(0) as Node3D
-			visual.rotation.y=0
-			visual.position.y=0
+			visual.rotation=Vector3.ZERO
+			visual.position=Vector3.ZERO
 		return
-	if using_blender and asset(a,["crate","barrier","coin","snack","magnet","shield","double","boost","cart","tall","low_bar","time_orb","spring","sky_ring","gem","rescue","smash","surf_pickup","portal"][kind],Vector3.ZERO)!=null:
+	if using_blender and asset(a,["crate","barrier","coin","snack","magnet","shield","double","boost","cart","tall","low_bar","time_orb","spring","sky_ring","gem","rescue","smash","surf_pickup","portal","courier","roller","story_card"][kind],Vector3.ZERO)!=null:
 		if is_pickup(kind) and kind!=BOOST and kind!=SKY_RING and kind!=PORTAL:
 			ground_shadow(a,0.75 if kind==PICKUP else 1.10,0.52 if kind==PICKUP else 0.75)
 		return
@@ -779,8 +789,8 @@ func make_entity(which_lane: int, kind: int, at: float) -> void:
 		ring.height=0.12
 		var coin := mesh(a,ring,Vector3(0,0.75,0),Color("#ffd05a"),0.55)
 		coin.rotation.x=PI/2
-	elif kind==CART or kind==TALL or kind==LOW_BAR:
-		var height:=3.15 if kind!=LOW_BAR else 0.72
+	elif kind==CART or kind==TALL or kind==LOW_BAR or kind==COURIER or kind==ROLLER:
+		var height:=3.15 if kind!=LOW_BAR and kind!=ROLLER else 0.72 if kind==LOW_BAR else 1.30
 		box(a,Vector3(0,height*0.5,0),Vector3(1.5,height,1.5 if kind==CART else 0.5),Color("#b44c2f"))
 	elif kind==SNACK:
 		orb(a,Vector3(0,0.75,0),Vector3(0.68,0.45,0.68),Color("#607fbc"))
@@ -915,7 +925,8 @@ func contact_depth(kind:int) -> float:
 	if kind==0: return 0.72
 	if kind==1: return 0.39
 	if kind==LOW_BAR: return 0.43
-	if kind==CART: return 1.15
+	if kind==CART or kind==COURIER: return 1.15
+	if kind==ROLLER: return 0.83
 	if kind==TALL: return 0.68
 	if kind==BOOST: return 0.92
 	return 0.64
@@ -937,6 +948,7 @@ func _physics_process(dt: float) -> void:
 			camera.position.x=player.position.x*0.30+sin(t*PI*12)*0.09*(1-t)
 			if crash_remaining<=0:
 				last_hud=""
+				audio.call("play_fx","game_over")
 				update_hud()
 		return
 	if paused_run: return
@@ -979,6 +991,8 @@ func _physics_process(dt: float) -> void:
 	spring_time=maxf(0,spring_time-dt)
 	rescue_time=maxf(0,rescue_time-dt)
 	surf_time=maxf(0,surf_time-dt)
+	surf_grace=maxf(0,surf_grace-dt)
+	surf_exit_flash=maxf(0,surf_exit_flash-dt)
 	portal_flash=maxf(0,portal_flash-dt)
 	portal_overlay.color=Color(0.66,0.91,1.0,portal_flash*0.48)
 	smash_time=maxf(0,smash_time-dt)
@@ -986,7 +1000,7 @@ func _physics_process(dt: float) -> void:
 	combo_timer=maxf(0,combo_timer-dt)
 	if combo_timer<=0: combo=0
 	var base_speed:=minf(25.0,9.0+total_distance()*0.024)
-	speed=(base_speed+4.0 if boost_time>0 else base_speed*0.68 if slow_time>0 else base_speed)
+	speed=(base_speed+4.0 if boost_time>0 else base_speed*0.68 if slow_time>0 else base_speed)+(3.0 if surf_time>0 else 0.0)
 	distance+=speed*dt
 	rebase_track()
 	slide=maxf(0,slide-dt)
@@ -995,12 +1009,14 @@ func _physics_process(dt: float) -> void:
 	lane_impulse=move_toward(lane_impulse,0,dt*3.5)
 	mascot.rotation.z=lerpf(mascot.rotation.z,clampf(player.velocity.x*0.025+lane_impulse*0.09,-0.29,0.29),minf(1,dt*12))
 	mascot.rotation.x=lerpf(mascot.rotation.x,-0.32 if air_slide_pending or slide>0 else clampf(player.velocity.y*0.018,-0.16,0.16),minf(1,dt*15))
-	mascot.position.y=(0.035*(1+sin(clock*32)) if player.is_on_floor() and slide<=0 else 0.0)+(SURF_LIFT if surf_time>0 else 0.0)
+	var running_pose:=player.is_on_floor() and slide<=0 and surf_time<=0
+	mascot.position.y=(0.035*(1+sin(clock*32)) if running_pose else 0.0)+(SURF_LIFT+0.04*sin(clock*10) if surf_time>0 else 0.0)
 	if surf_board!=null:
 		surf_board.visible=surf_time>0
 		surf_board.rotation.z=clampf(player.velocity.x*0.025,-0.25,0.25)
+		mascot.rotation.z=surf_board.rotation.z if surf_time>0 else mascot.rotation.z
 		surf_board.position.y=0.04*sin(clock*10)
-	if player.is_on_floor() and slide<=0 and clock>=next_step:
+	if running_pose and clock>=next_step:
 		next_step=clock+0.19
 		audio.call("play_fx","step")
 	update_effects(dt)
@@ -1015,9 +1031,9 @@ func _physics_process(dt: float) -> void:
 	if pickup_flash>0:
 		pickup_feedback.modulate.a=minf(1,pickup_flash*4)
 	for i in range(feet.size()):
-		feet[i].position.z=0.16+sin(clock*16+i*PI)*0.25 if player.is_on_floor() and slide<=0 else 0.16
-		feet[i].position.y=0.20+maxf(0,sin(clock*16+i*PI))*0.18 if player.is_on_floor() and slide<=0 else 0.20
-		feet[i].rotation.x=sin(clock*16+i*PI)*0.45 if player.is_on_floor() and slide<=0 else -0.14
+		feet[i].position.z=(0.13 if i==0 else -0.13) if surf_time>0 else (0.16+sin(clock*16+i*PI)*0.25 if running_pose else 0.16)
+		feet[i].position.y=0.20+maxf(0,sin(clock*16+i*PI))*0.18 if running_pose else 0.20
+		feet[i].rotation.x=sin(clock*16+i*PI)*0.45 if running_pose else (0.0 if surf_time>0 else -0.14)
 	for chunk in chunks:
 		chunk.position.z+=speed*dt
 		if chunk.position.z>SEGMENT*1.5:
@@ -1032,9 +1048,14 @@ func _physics_process(dt: float) -> void:
 		var base_z:=distance-float(a.get_meta("at"))
 		# The cart moves toward the runner in its own lane; displacement is
 		# bounded to leave the adjacent generated safe route reachable.
-		var shift:=clampf((base_z+24.0)*0.16,0.0,3.2) if kind==CART else 0.0
+		var shift:=clampf((base_z+24.0)*0.16,0.0,3.2) if kind==CART or kind==COURIER else (clampf((base_z+20.0)*0.11,0.0,2.2) if kind==ROLLER else 0.0)
 		a.position.z=base_z+shift
 		a.set_meta("cart_shift",shift)
+		if kind==ROLLER and a.visible and a.position.z>-40 and a.get_child_count()>0:
+			var wheel:=a.get_child(0) as Node3D
+			var angle:=-(base_z+shift)*1.45
+			wheel.rotation.x=angle
+			wheel.position=Vector3(0,0.65,0)-Basis(Vector3.RIGHT,angle)*Vector3(0,0.65,0)
 		if is_pickup(kind) and kind!=BOOST and kind!=SKY_RING and kind!=PORTAL and a.visible and a.position.z > -45.0 and a.get_child_count()>0:
 			var visual:=a.get_child(0) as Node3D
 			visual.rotation.y+=dt*2.5
@@ -1055,7 +1076,21 @@ func _physics_process(dt: float) -> void:
 					a.set_meta("resolved",true)
 					a.hide()
 			elif hazard_hit(kind,player.position.y+(SURF_LIFT if surf_time>0 else 0.0),slide>0 or air_slide_pending,lateral):
-				if smash_time>0 and smash_charges>0:
+				if surf_time>0:
+					surf_time=0
+					surf_grace=0.65
+					surf_exit_flash=0.35
+					surf_saves+=1
+					if surf_board!=null: surf_board.hide()
+					mascot.position.y=0
+					a.set_meta("resolved",true)
+					a.hide()
+					show_skill("BOARD BROKEN — KEEP RUNNING")
+					audio.call("play_fx","board_break")
+				elif surf_grace>0:
+					a.set_meta("resolved",true)
+					a.hide()
+				elif smash_time>0 and smash_charges>0:
 					smash_charges-=1
 					smashed+=1
 					skill_points+=150
@@ -1094,7 +1129,7 @@ func _physics_process(dt: float) -> void:
 			entities.remove_at(i)
 	fill_track()
 	peak_active=maxi(peak_active,entities.size())
-	camera.position.x=lerpf(camera.position.x,player.position.x*0.30,minf(1,dt*7))
+	camera.position.x=lerpf(camera.position.x,player.position.x*0.30+sin(clock*55)*surf_exit_flash*0.24,minf(1,dt*7))
 	camera.position.y=lerpf(camera.position.y,4.55+clampf(player.position.y*0.13,0,0.25),minf(1,dt*5))
 	camera.fov=lerpf(camera.fov,58.0+minf(5.0,(speed-9.0)*0.28),minf(1,dt*3))
 	hud_refresh+=dt
@@ -1200,6 +1235,17 @@ func collect_kind(kind: int) -> void:
 			air_slide_pending=false
 		PORTAL:
 			enter_next_world()
+		CARD:
+			cards+=1
+			if cards==3:
+				cards=0
+				card_sets+=1
+				skill_points+=750
+				show_skill("SKY CHRONICLE COMPLETE +750")
+				audio.call("play_fx","challenge")
+			else:
+				show_skill("SKY CHRONICLE %d/3"%cards)
+				audio.call("play_fx","card")
 	if kind>=MAGNET and kind<=BOOST or kind==TIME_ORB or kind==SPRING or kind==SMASH or kind==SURF:
 		pickup_feedback.text={MAGNET:"MAGNET",SHIELD:"SHIELD",DOUBLE:"DOUBLE COINS",BOOST:"TURBO",TIME_ORB:"TIME BUBBLE",SPRING:"DOUBLE JUMP",SMASH:"SMASH MODE",SURF:"SKY SURF"}[kind]
 		pickup_flash=1.0
@@ -1248,7 +1294,7 @@ func make_effects() -> void:
 		speed_lines.append(line)
 
 func update_effects(dt:float) -> void:
-	aura.visible=shield_time>0 or boost_time>0 or smash_charges>0
+	aura.visible=shield_time>0 or boost_time>0 or smash_charges>0 or surf_grace>0
 	if rescue_buddy!=null:
 		rescue_buddy.visible=rescue_time>0
 		if rescue_buddy.visible:
@@ -1267,10 +1313,10 @@ func update_effects(dt:float) -> void:
 	speed_line_mat.albedo_color=Color(0.65,0.88,1.0,0.12+intensity*0.30)
 	for i in range(speed_lines.size()):
 		var line:=speed_lines[i]
-		line.visible=intensity>0.15 or boost_time>0
+		line.visible=intensity>0.15 or boost_time>0 or surf_time>0
 		line.position=Vector3((-1.0 if i%2==0 else 1.0)*(2.5+float(i%3)*0.20),0.10,fposmod(clock*(8+speed*0.5)+float(i)*4.3,35.0)-29.0)
 		line.scale.z=1.0+intensity*2.4
-	if player.is_on_floor() and slide<=0 and int(clock*15)!=int((clock-dt)*15):
+	if player.is_on_floor() and slide<=0 and surf_time<=0 and int(clock*15)!=int((clock-dt)*15):
 		for i in range(dust.size()):
 			if dust_ages[i]<0:
 				dust[i].position=Vector3(player.position.x+sin(clock*17)*0.25,0.12,0.65)
@@ -1298,7 +1344,8 @@ func hazard_hit(kind: int, feet_y: float, sliding: bool, lateral:float=0.0) -> b
 				return feet_y<1.94
 			return lateral<0.98 and feet_y<1.66 and top>1.18
 		LOW_BAR: return feet_y<0.74 and lateral<0.98
-		CART: return feet_y<2.76 and lateral<1.03
+		CART,COURIER: return feet_y<2.76 and lateral<1.03
+		ROLLER: return feet_y<1.30 and lateral<0.98
 		TALL: return feet_y<3.10 and lateral<1.03
 	return false
 
@@ -1317,7 +1364,7 @@ func update_hud() -> void:
 	if power_text!=last_power_hud:
 		last_power_hud=power_text
 		power_label.text=power_text
-	var challenge_text:="%s %d/%d  •  Combo %d  •  Gems %d/3  •  Pets %d"%[challenge_name(),challenge_progress,challenge_goal(),combo,gems,rescued]
+	var challenge_text:="%s %d/%d  •  Combo %d  •  Gems %d/3  •  Pets %d  •  Cards %d/3"%[challenge_name(),challenge_progress,challenge_goal(),combo,gems,rescued,cards]
 	if challenge_text!=last_challenge_hud:
 		last_challenge_hud=challenge_text
 		challenge_label.text=challenge_text
@@ -1471,6 +1518,17 @@ func test_run() -> void:
 	assert(surf_time==0 and slide>0)
 	for i in range(45): await get_tree().physics_frame
 	assert(not surf_board.visible)
+	collect_kind(SURF)
+	for i in range(3): await get_tree().physics_frame
+	assert(speed>=normal_speed+2.5)
+	var planted:=feet[0].position
+	for i in range(10): await get_tree().physics_frame
+	assert(feet[0].position.is_equal_approx(planted),"surf feet must stay planted")
+	make_entity(1,TALL,distance+1.5)
+	for i in range(22): await get_tree().physics_frame
+	assert(not ended and surf_time==0 and surf_saves==1 and not surf_board.visible)
+	for i in range(50): await get_tree().physics_frame
+	assert(surf_grace==0 and not ended)
 	# Full-width portal activates even when runner is in an outer lane.
 	gesture(Vector2(-80,0))
 	make_entity(1,PORTAL,distance+speed*0.30)
@@ -1545,6 +1603,11 @@ func test_run() -> void:
 	assert(rescued==1 and rescue_time==8 and skill_points==before_bonus+2050)
 	collect_kind(SMASH)
 	assert(smash_charges==3 and smash_time==12)
+	var card_score:=skill_points
+	collect_kind(CARD)
+	collect_kind(CARD)
+	collect_kind(CARD)
+	assert(cards==0 and card_sets==1 and skill_points==card_score+750)
 	assert(not claim_result().is_empty() and claim_result().is_empty())
 	# Exercise explicit retirement without adding a distance-based end condition.
 	ended=false

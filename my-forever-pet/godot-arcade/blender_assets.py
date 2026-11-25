@@ -244,9 +244,15 @@ for side in [-1,1]:
 export('double',9000)
 clear()
 box((0,.13,0),(1.34,.26,1.55),blue,.12)
+# Actual chevron vertices: point toward Godot -Z (away from player).
 for z in [-.30,.30]:
- for side in [-1,1]:
-  o=box((side*.19,.29,z),(.50,.045,.14),cyan,.02);o.rotation_euler.z=side*.65
+ pts=[(-.48,z+.16),(0,z-.28),(.48,z+.16),(.35,z+.26),(0,z-.06),(-.35,z+.26)]
+ me=bpy.data.meshes.new('forward turbo chevron')
+ me.from_pydata([v((x,.29,zz)) for x,zz in pts],[],[(0,1,2,3,4,5)])
+ me.update();o=bpy.data.objects.new('forward turbo chevron',me);bpy.context.collection.objects.link(o);o.data.materials.append(cyan)
+ # Ensure upward-facing normals even after coordinate conversion.
+ bpy.context.view_layer.objects.active=o
+ if me.polygons[0].normal.z<0: me.polygons[0].flip()
 export('boost',6000)
 
 # Premium obstacle silhouettes, shared palette and explicit dimensions.
@@ -557,4 +563,42 @@ for j in range(5):
  ball((x,.55,z),(.75,.84,.75),leaf if j%2 else green)
  flower((x,.72,z+.40),1.0)
 export('windmill_island',28000)
+# Courier vehicle, separate canopy, payload, chassis, wheel hubs, luminous lamps.
+clear()
+courierpaint=mat('courier turquoise enamel',(.035,.29,.33),.24,.27)
+courierglass=mat('courier sapphire glass',(.035,.095,.19),.32,.15)
+box((0,.37,0),(1.46,.44,1.78),steel,.12)
+box((0,1.04,-.37),(1.34,.92,.94),courierpaint,.13)
+box((0,1.70,-.40),(1.22,.62,.77),courierglass,.10)
+box((0,2.13,-.40),(1.42,.17,.91),gold,.05)
+box((0,1.32,.47),(1.34,1.65,.68),courierpaint,.12)
+box((0,1.37,.83),(1.16,1.22,.08),wood,.06)
+for x in [-.59,.59]:
+ for z in [-.59,.59]:
+  wheel=cyl((x,.36,z),.32,.32,.21,dark);wheel.rotation_euler.y=pi/2
+  hub=cyl((x+(.12 if x>0 else -.12),.36,z),.18,.18,.065,gold);hub.rotation_euler.y=pi/2
+ ball((x,.60,.90),(.22,.19,.10),signal)
+box((0,.36,.94),(1.45,.19,.14),gold,.045)
+paw((0,1.35,.90),cream,1.65)
+export('courier',20000)
+# Rotating obstacle: centered mesh around its axle so rotation never changes its height.
+clear()
+barrelwood=mat('barrel burnt oak',(.30,.12,.05),.08,.43)
+# exported origin is at ground; runner rotates visual around axle via separate offset
+for j in range(12):
+ a=j*2*pi/12
+ o=box((0,.65+.51*math.cos(a),.51*math.sin(a)),(1.25,.23,.18),barrelwood,.025);o.rotation_euler.x=-a
+for x in [-.52,.52]:
+ o=cyl((x,.65,0),.64,.64,.16,steel);o.rotation_euler.y=pi/2
+ o=cyl((x+(.095 if x>0 else -.095),.65,0),.42,.42,.055,gold);o.rotation_euler.y=pi/2
+ o=cyl((x+(.13 if x>0 else -.13),.65,0),.14,.14,.045,signal);o.rotation_euler.y=pi/2
+export('roller',13000)
+clear()
+cardmat=mat('chronicle sapphire',(.055,.16,.46),.28,.32)
+box((0,.92,0),(.72,.94,.09),gold,.055)
+box((0,.92,.055),(.62,.82,.045),cardmat,.035)
+ring((0,1.04,.085),.21,.026,gold)
+paw((0,1.02,.11),cream,.8)
+for y in [.65,.73]:box((0,y,.09),(.33,.025,.022),gold,.006)
+export('story_card',6500)
 with open(os.path.join(OUT,'mesh-metrics.json'),'w') as out: json.dump(stats,out,indent=2)
