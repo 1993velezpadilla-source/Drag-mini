@@ -11,7 +11,11 @@ const SNACK := 3
 var rng := RandomNumberGenerator.new()
 var player: CharacterBody3D
 var mascot: Node3D
-var feet: Array[MeshInstance3D] = []
+var feet: Array[Node3D] = []
+var models := {}
+var using_blender := false
+var loaded_assets := 0
+var player_shape: CollisionShape3D
 var camera: Camera3D
 var chunks: Array[Node3D] = []
 var entities: Array[Area3D] = []
@@ -66,12 +70,34 @@ func orb(parent: Node3D, pos: Vector3, size: Vector3, color: Color) -> MeshInsta
 	n.scale = size
 	return n
 
+func asset(parent: Node3D, name: String, pos: Vector3) -> Node3D:
+	if not models.has(name):
+		var path := "res://assets/"+name+".glb"
+		if not ResourceLoader.exists(path):
+			return null
+		models[name]=load(path)
+	var n: Node3D=models[name].instantiate()
+	parent.add_child(n)
+	n.position=pos
+	loaded_assets+=1
+	return n
+
 func _ready() -> void:
+	using_blender=ResourceLoader.exists("res://assets/bridge.glb")
 	rng.seed = 7319 if OS.get_cmdline_user_args().has("--test") else Time.get_ticks_usec()
 	var env := WorldEnvironment.new()
 	var e := Environment.new()
 	e.background_mode = Environment.BG_COLOR
-	e.background_color = Color("#83b9ed")
+	e.background_color = Color("#72b8f0")
+	var sky := Sky.new()
+	var sky_mat := ProceduralSkyMaterial.new()
+	sky_mat.sky_top_color=Color("#377dd5")
+	sky_mat.sky_horizon_color=Color("#b7e0ff")
+	sky_mat.ground_horizon_color=Color("#c8e7ff")
+	sky_mat.ground_bottom_color=Color("#7495ca")
+	sky.sky_material=sky_mat
+	e.sky=sky
+	e.background_mode=Environment.BG_SKY
 	e.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
 	e.ambient_light_color = Color("#b9d7ff")
 	e.ambient_light_energy = 0.65
@@ -100,16 +126,23 @@ func _ready() -> void:
 		make_chunk(chunk, i)
 	make_player()
 	camera = Camera3D.new()
-	camera.position = Vector3(0, 5.1, 8.8)
+	camera.position = Vector3(0, 4.15, 7.7)
 	camera.fov = 63
 	add_child(camera)
-	camera.look_at(Vector3(0, 1.25, -14))
+	camera.look_at(Vector3(0, 1.8, -15))
 	make_hud()
 	fill_track()
 	if OS.get_cmdline_user_args().has("--test"):
 		call_deferred("test_run")
+	elif OS.get_cmdline_user_args().has("--capture"):
+		call_deferred("capture_review")
 
 func make_chunk(chunk: Node3D, index: int) -> void:
+	if using_blender and asset(chunk,"bridge",Vector3.ZERO)!=null:
+		if index%3==1: asset(chunk,"arch",Vector3(0,0,-4))
+		if index%2==0:
+			for side in [-1,1]: asset(chunk,"island",Vector3(side*8,0,-4))
+		return
 	box(chunk, Vector3(0,-0.22,0), Vector3(6.6,0.42,SEGMENT), Color("#815541"))
 	for i in range(9):
 		box(chunk, Vector3(0,0.005,-8+i*2), Vector3(6.35,0.06,1.96), Color("#b77b50") if i%2==0 else Color("#bd855e"))
@@ -169,8 +202,14 @@ func make_player() -> void:
 	collision.shape=capsule
 	collision.position.y=0.68
 	player.add_child(collision)
+	player_shape=collision
 	mascot=Node3D.new()
 	player.add_child(mascot)
+	if using_blender and asset(mascot,"mosskit",Vector3.ZERO)!=null:
+		for side in [-1,1]:
+			var foot := asset(mascot,"foot",Vector3(side*0.37,0.20,0.16))
+			if foot!=null: feet.append(foot)
+		return
 	orb(mascot,Vector3(0,0.85,0),Vector3(1.48,1.52,1.2),Color("#8bdc42"))
 	for side in [-1,1]:
 		var ear := orb(mascot,Vector3(side*0.48,1.60,0),Vector3(0.43,0.77,0.35),Color("#91de47"))
@@ -243,8 +282,11 @@ func make_entity(which_lane: int, kind: int, at: float) -> void:
 	a.monitorable=false
 	a.set_meta("kind",kind)
 	a.set_meta("at",at)
+	a.set_meta("resolved",false)
 	add_child(a)
 	entities.append(a)
+	if using_blender and asset(a,["crate","barrier","coin","snack"][kind],Vector3.ZERO)!=null:
+		return
 	if kind==0:
 		box(a,Vector3(0,0.45,0),Vector3(1.30,0.90,0.9),Color("#9c5b37"))
 		for side in [-1,1]:
@@ -311,6 +353,9 @@ func _physics_process(dt: float) -> void:
 	if ended or paused_run:
 		return
 	player.velocity.y-=GRAVITY*dt
+	var capsule := player_shape.shape as CapsuleShape3D
+	capsule.height=0.96 if slide>0 else 1.35
+	player_shape.position.y=capsule.height*0.5
 	player.velocity.x=clampf((LANES[lane]-player.position.x)*14,-15,15)
 	player.move_and_slide()
 	player.position.z=PLAYER_Z
@@ -322,7 +367,8 @@ func _physics_process(dt: float) -> void:
 	slide=maxf(0,slide-dt)
 	mascot.scale.y=lerpf(mascot.scale.y,0.48 if slide>0 else 1.0, minf(1,dt*16))
 	for i in range(feet.size()):
-		feet[i].position.z=0.16+sin(clock*16+i*PI)*0.21 if player.is_on_floor() and slide<=0 else 0.16
+		feet[i].position.z=0.16+sin(clock*16+i*PI)*0.25 if player.is_on_floor() and slide<=0 else 0.16
+		feet[i].position.y=0.20+maxf(0,sin(clock*16+i*PI))*0.18 if player.is_on_floor() and slide<=0 else 0.20
 	for chunk in chunks:
 		chunk.position.z+=speed*dt
 		if chunk.position.z>SEGMENT*1.5:
@@ -332,23 +378,30 @@ func _physics_process(dt: float) -> void:
 		var old_z:=a.position.z
 		a.position.z=float(a.get_meta("at"))*-1+distance
 		var kind:=int(a.get_meta("kind"))
-		if kind==PICKUP:
-			a.rotate_y(dt*2.5)
-		if old_z<0 and a.position.z>=0:
-			if absf(a.position.x-player.position.x)<0.82:
-				if kind==PICKUP:
-					if player.position.y<1.1: coins+=1
-				elif kind==SNACK:
-					if player.position.y<1.1: snacks+=1
-				elif kind==0 and player.position.y<0.94:
-					ended=true
-				elif kind==1 and player.position.y+(0.78 if slide>0 else 1.58)>1.20:
-					ended=true
+		if kind==PICKUP and a.get_child_count()>0:
+			(a.get_child(0) as Node3D).rotation.y+=dt*2.5
+		# Test the full swept depth interval, with the same world sizes as the meshes.
+		var contact := maxf(old_z,a.position.z)>=-0.80 and minf(old_z,a.position.z)<=0.80
+		if contact and not bool(a.get_meta("resolved")) and absf(a.position.x-player.position.x)<0.92:
+			if kind>=PICKUP:
+				if player.position.y<1.1:
+					if kind==PICKUP: coins+=1
+					else: snacks+=1
+					a.set_meta("resolved",true)
+					a.hide()
+			elif hazard_hit(kind,player.position.y,slide>0):
+				ended=true
+		if a.position.z>2.5:
 			a.queue_free()
 			entities.remove_at(i)
 	fill_track()
 	camera.position.x=lerpf(camera.position.x,player.position.x*0.18,minf(1,dt*6))
 	update_hud()
+
+func hazard_hit(kind: int, feet_y: float, sliding: bool) -> bool:
+	if kind==0: return feet_y<0.90
+	if kind==1: return feet_y+(0.74 if sliding else 1.55)>1.16
+	return false
 
 func update_hud() -> void:
 	status.text="PET DASH   %d m   •   %d coins   •   %d snacks"%[int(distance),coins,snacks]
@@ -369,6 +422,18 @@ func test_run() -> void:
 	gesture(Vector2(80,0))
 	assert(lane==1)
 	assert(chunks.size()==SEGMENTS and entities.size()>10)
+	assert(using_blender and loaded_assets>20)
+	assert(hazard_hit(0,0,false) and not hazard_hit(0,1.1,false))
+	assert(hazard_hit(1,0,false) and not hazard_hit(1,0,true))
+	gesture(Vector2(0,-80))
+	for i in range(15): await get_tree().physics_frame
+	assert(player.position.y>0.9)
+	for i in range(55): await get_tree().physics_frame
+	assert(player.is_on_floor())
+	gesture(Vector2(0,80))
+	assert(slide>0)
+	for i in range(45): await get_tree().physics_frame
+	assert(slide==0)
 	var old_distance:=distance
 	for i in range(20):
 		await get_tree().physics_frame
@@ -382,4 +447,16 @@ func test_run() -> void:
 	ended=true
 	assert(not claim_result().is_empty() and claim_result().is_empty())
 	print("PET_DASH_3D_SMOKE_PASS")
+	get_tree().quit(0)
+
+func capture_review() -> void:
+	# Actual rendered game frame, not a mockup. Show the first playable section.
+	await get_tree().process_frame
+	started=true
+	for i in range(45): await get_tree().physics_frame
+	await RenderingServer.frame_post_draw
+	var image := get_viewport().get_texture().get_image()
+	var result := image.save_png("/tmp/pet-dash-review.png")
+	assert(result==OK)
+	print("PET_DASH_RENDER_CAPTURE_OK")
 	get_tree().quit(0)
