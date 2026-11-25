@@ -15,11 +15,11 @@ final class PetArt {
  private void star(int x,int y,int col){r(x-1,y-3,3,7,col);r(x-3,y-1,7,3,col);}
  private void cloud(int x,int y,int col){o(x,y,14,6,col);o(x-5,y-4,7,7,col);o(x+5,y-2,9,7,col);}
  private void sprite(PetState s,int x,int y,long tick,int scale){
-  c.save();c.translate(x,y);c.scale(scale,scale);
-  int bob=s.sleeping()?(int)(Math.sin(tick/1000.0)):(int)(Math.sin(tick/300.0)*2);c.translate(0,bob);if(s.sleeping()){c.translate(0,5);c.scale(1.05f,.78f);}
+  boolean asleep=s.sleeping();c.save();c.translate(x,y);c.scale(scale,scale);
+  int bob=asleep?(int)(Math.sin(tick/1000.0)):(int)(Math.sin(tick/300.0)*2);c.translate(0,bob);if(asleep){c.translate(0,5);c.scale(1.05f,.78f);}
   int[] col={0xff9be5ac,0xfff4b6da,0xffffca89,0xffa3dcef,0xff85dbea,0xfff49cbd,0xffb8acfc,0xffe8b994,0xffb1a4fa,0xfff5c3e7,0xffffce79,0xffa4d8fa};
   int body=col[s.species()%col.length];int hi=0xfff9f2ff;
-  o(0,19,22,4,0x334a3a77);if(s.stage>=1){int stride=(int)(tick/180)%2; r(-8,17+stride,4,2,ink);r(6,18-stride,4,2,ink);}
+  o(0,19,22,4,0x334a3a77);if(s.stage>=1){int stride=asleep?0:(int)(tick/180)%2; r(-8,17+stride,4,2,ink);r(6,18-stride,4,2,ink);}
   if(s.stage==0){o(0,0,17,23,ink);o(0,-1,15,21,0xfffff4d3);o(-6,-10,5,4,0xffdab2ee);o(6,4,6,4,0xff9bd7dc);o(-4,13,4,4,0xfff2adc9);c.restore();return;}
   int shape=s.stage==1?s.field*4:s.species();int kind=shape%4;
   if(s.variant==1){body=col[(shape+5)%col.length];star(-15,-23,0xffffde81);star(15,-23,0xffffde81);}
@@ -29,12 +29,12 @@ final class PetArt {
   if(s.field==2){o(-18,-1,10,8,ink);o(18,-1,10,8,ink);o(-18,-1,8,6,body);o(18,-1,8,6,body);if(kind==0){r(-9,-23,3,10,ink);r(7,-23,3,10,ink);star(-8,-24,0xffffd566);star(8,-24,0xffffd566);}else if(kind==1){o(-9,-22,5,12,ink);o(9,-22,5,12,ink);o(-9,-23,3,9,body);o(9,-23,3,9,body);}else if(kind==2){r(-2,-28,4,12,ink);r(-8,-25,8,5,0xffffc25d);r(1,-25,8,5,0xffffdf87);}else{r(-16,-19,7,10,ink);r(9,-19,7,10,ink);r(-14,-17,4,7,body);r(11,-17,4,7,body);}}
   o(-9,15,7,5,ink);o(9,15,7,5,ink);o(-9,15,5,3,body);o(9,15,5,3,body);
   o(0,-1,19,17,ink);o(0,-1,17,15,body);o(-8,-10,7,3,hi);
-  boolean blink=s.sleeping()||tick%3200<180;for(int x1:new int[]{-7,7}){if(blink)r(x1-3,-3,6,1,ink);else{if(s.eyes==1){o(x1,-3,4,4,ink);}else if(s.eyes==2){r(x1-3,-5,6,5,ink);}else if(s.eyes==3){star(x1,-3,ink);}else{o(x1,-3,3,5,ink);}r(x1-1,-6,2,2,hi);}}
+  boolean blink=asleep||tick%3200<180;for(int x1:new int[]{-7,7}){if(blink)r(x1-3,-3,6,1,ink);else{if(s.eyes==1){o(x1,-3,4,4,ink);}else if(s.eyes==2){r(x1-3,-5,6,5,ink);}else if(s.eyes==3){star(x1,-3,ink);}else{o(x1,-3,3,5,ink);}r(x1-1,-6,2,2,hi);}}
   r(-12,4,4,2,0xffee8fa7);r(8,4,4,2,0xffee8fa7);r(-2,6,5,1,ink);r(-1,7,3,1,ink);
   if(s.equipped==1){r(-12,-20,24,4,ink);r(-8,-26,16,7,0xfff9ce63);star(0,-26,0xfffffae8);}
   if(s.equipped==2){r(-17,-14,9,6,0xffe661a0);r(-8,-12,4,3,ink);r(-4,-14,9,6,0xffe661a0);}
   if(s.equipped==3){o(0,-25,13,3,0xffffd65c);o(0,-25,9,1,0xff6459a5);}
-  if(s.sick)star(21,-21,0xffb95a9b);if(s.sleeping()){t("zZ",18,-23,7,0xfff7e6b7);}else if(s.last-s.interactionAt<2500&&s.interactionAt>0){star(-22,-18,0xffee8fa7);star(22,-24,0xffffd566);}c.restore();
+  if(s.sick)star(21,-21,0xffb95a9b);if(asleep){t("zZ",18,-23,7,0xfff7e6b7);}else if(s.last-s.interactionAt<2500&&s.interactionAt>0){star(-22,-18,0xffee8fa7);star(22,-24,0xffffd566);}c.restore();
  }
  private void prop(PetState s){if(s.installation==0)return;int x=124,y=135;if(s.installation==4){r(x-14,y-8,28,15,ink);r(x-12,y-6,24,10,0xffe8f9ff);r(x-10,y-4,20,5,0xff72cde6);}else if(s.installation==5){r(x-14,y-12,28,18,ink);r(x-12,y-10,24,14,0xffc5a2ef);r(x-10,y-10,9,7,0xffffeafa);}else{r(x-2,y-3,4,15,0xff78688b);r(x-10,y+10,20,3,ink);for(int i=0;i<5;i++)star(x-10+i*5,y-9+(i%2)*4,0xffff90b8);}}
  Bitmap itemIcon(int i){Bitmap b=Bitmap.createBitmap(48,48,Bitmap.Config.ARGB_8888);Canvas out=new Canvas(b);Paint q=new Paint();q.setAntiAlias(false);q.setColor(0xff353052);out.drawRoundRect(5,12,43,37,5,5,q);int[] colors={0xffffcf67,0xffe97db7,0xffffd98a,0xff7ddce9,0xffbca2ed,0xffed92b1};q.setColor(colors[i]);if(i==0){out.drawRect(13,7,35,25,q);out.drawRect(7,25,41,30,q);}else if(i==1){out.drawRect(8,13,21,33,q);out.drawRect(27,13,40,33,q);out.drawRect(21,20,27,27,q);}else if(i==2){out.drawOval(7,12,41,34,q);q.setColor(0xff353052);out.drawOval(13,17,35,29,q);}else if(i==3){out.drawRect(8,19,40,34,q);q.setColor(0xffe9ffff);out.drawRect(10,19,38,22,q);}else if(i==4){out.drawRect(8,16,40,34,q);q.setColor(0xfffff1fe);out.drawRect(10,17,20,25,q);}else{out.drawRect(21,20,27,39,q);for(int n=0;n<3;n++)out.drawOval(7+n*10,6+(n%2)*5,21+n*10,23+(n%2)*5,q);}return b;}

@@ -19,7 +19,7 @@ public final class PetState {
  public static boolean bedtime(int minute){return minute>=21*60||minute<7*60;}
  public static String dayPhase(int minute){return minute<5*60||minute>=19*60?"Night":minute<7*60?"Dawn":minute<17*60?"Day":"Sunset";}
  private long clock(){return clockNow==0?last:clockNow;}
- private boolean asleepAt(long at,java.util.TimeZone zone,long tripEnd){return stage!=EGG&&!(tripEnd>at)&&(sleepUntil>at||(autoSleep&&at>=awakeUntil&&bedtime(localMinute(at,zone))));}
+ private boolean asleepAt(long at,java.util.TimeZone zone,long tripEnd){return at>0&&stage!=EGG&&!(tripEnd>at)&&(sleepUntil>at||(autoSleep&&at>=awakeUntil&&bedtime(localMinute(at,zone))));}
  public int level(){return 1+xp/100;}
  public String personality(){return training>=15?"Adventurous":bond>=30?"Affectionate":journeys>=3?"Curious":mistakes>=3?"Shy":"Playful";}
  public boolean cook(){if(stage==EGG||sleeping()||exploring()||materials<2||hunger>=5)return false;materials-=2;feed(3);if(hunger<5)feed(3);play();earn(5);return true;}
@@ -41,7 +41,7 @@ public final class PetState {
  public void hatch(long now){if(stage!=EGG)return;stage=BABY;last=now;clockNow=now;age=0;}
  public void advance(long now){
   clockNow=now;if(last==0){last=now;return;} if(now<=last)return;
-  long previous=last;long left=now-last;last=now;
+  long left=now-last;last=now;
   if(stage==EGG)return;
   java.util.TimeZone zone=java.util.TimeZone.getDefault();long today=localDay(now,zone);if(today>questDay){questDay=today;quests=claimedQuests=0;}
   long tripEnd=expeditionEnd;
