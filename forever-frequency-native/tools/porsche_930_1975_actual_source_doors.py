@@ -448,6 +448,93 @@ panel_discovery["diagnostic_colors_excluded_from_exported_blend_and_glb"]=True
 (OUT/"porsche_930_original_luggage_engine_cover_topology.json").write_text(json.dumps(panel_discovery,indent=2)+"\n")
 print("PORSCHE930_NATIVE_SOURCE_LID_CANDIDATE_DIAGNOSTIC_IMAGES_READY_NOT_HINGE_APPROVAL",flush=True)
 
+
+# Experimental rear paired source surfaces only. This runs AFTER the
+# previously validated door-only GLB and editable master were written.
+# Do not ship this test: the original vent, trim and engine cavity are not
+# yet identified, and the two paired surfaces might be spoiler components.
+experimental_dir=OUT/"UNAPPROVED_REAR_CANDIDATE_EXPERIMENT"
+experimental_dir.mkdir(exist_ok=True)
+rear_pivot=bpy.data.objects.new("EXPERIMENTAL_REAR_PAIRED_SURFACES_PIVOT",None)
+bpy.context.scene.collection.objects.link(rear_pivot)
+rear_pivot.location=(0.,1.23649,.945)
+rear_pivot.empty_display_type="ARROWS"
+bpy.context.view_layer.update()
+def extract_rear_candidates(obj,counts,kind):
+    regions=[c for c in islands(obj) if c["faces"] in counts and
+             c["low"].y>1.2 and c["high"].y<1.85 and c["low"].x<-.4 and c["high"].x>.4]
+    if len(regions)!=len(counts) or {c["faces"] for c in regions}!=counts:
+        raise RuntimeError("Rear experiment original source candidate topology changed")
+    mask={i for c in regions for i in c["indices"]}
+    before=set(bpy.data.objects)
+    bpy.ops.object.select_all(action="DESELECT")
+    obj.select_set(True)
+    bpy.context.view_layer.objects.active=obj
+    bpy.ops.object.mode_set(mode="EDIT")
+    bpy.ops.mesh.select_all(action="DESELECT")
+    bpy.ops.object.mode_set(mode="OBJECT")
+    for face in obj.data.polygons:face.select=face.index in mask
+    bpy.ops.object.mode_set(mode="EDIT")
+    bpy.ops.mesh.separate(type="SELECTED")
+    bpy.ops.object.mode_set(mode="OBJECT")
+    found=[o for o in bpy.data.objects if o not in before and o.type=="MESH"]
+    if len(found)!=1:raise RuntimeError("Rear original candidate separation failed")
+    panel=found[0]
+    panel.name="UNAPPROVED_REAR_SOURCE_"+kind
+    assert tri(panel)==sum(counts)
+    matrix=panel.matrix_world.copy()
+    panel.parent=rear_pivot
+    panel.matrix_parent_inverse=Matrix.Identity(4)
+    panel.matrix_basis=rear_pivot.matrix_world.inverted()@matrix
+    bpy.context.view_layer.update()
+    low,high=bounds([panel])
+    error=max(abs(float(p[i]-expected[i])) for p,expected in
+        ((low,Vector(min(c["low"][i] for c in regions) for i in range(3))),
+         (high,Vector(max(c["high"][i] for c in regions) for i in range(3))))
+        for i in range(3))
+    if error>.004:raise RuntimeError("Rear candidate closed source position changed")
+    return panel,error
+rear_paint,paint_err=extract_rear_candidates(paint,{3020,1356},"PAINT")
+rear_coat,coat_err=extract_rear_candidates(coat,{3022,1356},"COAT")
+rear_meshes=[o for o in bpy.data.objects if o.type=="MESH"]
+assert sum(tri(o) for o in rear_meshes)==241258
+closed_matrices={o:o.matrix_world.copy() for o in rear_meshes}
+centers={o:sum((Vector(c) for c in o.bound_box),Vector())/8. for o in (rear_paint,rear_coat)}
+def capture_experiment(mode):
+    camera.location=mid+Vector((.70,1.55,.95))*span
+    camera.rotation_euler=(mid-camera.location).to_track_quat("-Z","Y").to_euler()
+    image=experimental_dir/("UNAPPROVED_REAR_SOURCE_CANDIDATE_"+mode+".png")
+    scene.render.filepath=str(image)
+    bpy.ops.render.render(write_still=True)
+    if not image.is_file() or image.stat().st_size<45000:
+        raise RuntimeError("Rear candidate real Blender screenshot missing")
+    return image.name
+rear_closed=capture_experiment("CLOSED")
+rear_pivot.rotation_euler.x=math.radians(55)
+bpy.context.view_layer.update()
+lifts={o.name:float((o.matrix_world@centers[o]).z-(closed_matrices[o]@centers[o]).z)
+       for o in (rear_paint,rear_coat)}
+if min(lifts.values())<.12:raise RuntimeError("Rear candidate did not lift")
+def matrix_error(a,b):
+    return max(abs(float(a[i][j]-b[i][j])) for i in range(4) for j in range(4))
+for o in rear_meshes:
+    if o not in centers and matrix_error(o.matrix_world,closed_matrices[o])>1e-5:
+        raise RuntimeError("Rear candidate opening moved unrelated original mesh: "+o.name)
+rear_open=capture_experiment("OPEN")
+rear_pivot.rotation_euler.x=0
+bpy.context.view_layer.update()
+assert all(matrix_error(o.matrix_world,closed_matrices[o])<1e-5 for o in rear_meshes)
+experimental_blend=experimental_dir/"UNAPPROVED_PORSCHE930_REAR_SOURCE_CANDIDATE.blend"
+bpy.ops.wm.save_as_mainfile(filepath=str(experimental_blend))
+rear_experiment={"original_triangles":241258,"candidate_paint_triangles":tri(rear_paint),
+    "candidate_coat_triangles":tri(rear_coat),"closed_error_m":[paint_err,coat_err],
+    "candidate_lift_m":lifts,"closed_round_trip_all_meshes":True,
+    "unrelated_source_meshes_stationary":True,"images":[rear_closed,rear_open],
+    "candidate_editable_blend":experimental_blend.name,
+    "not_validated_engine_lid":True,"not_for_game_or_shipping":True}
+(experimental_dir/"rear_candidate_experiment.json").write_text(json.dumps(rear_experiment,indent=2)+"\n")
+print("PORSCHE930_REAR_PAIRED_SURFACE_EXPERIMENT_NOT_APPROVED",json.dumps(rear_experiment),flush=True)
+
 report={
     "car":"1975 Porsche 911 (930) Turbo","artist":"Karol Miklas",
     "source_original_artist_glb_sha256":qa["artist_original_sha256"],
