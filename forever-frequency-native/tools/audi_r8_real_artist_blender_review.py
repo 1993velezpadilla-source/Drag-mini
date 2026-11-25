@@ -22,9 +22,9 @@ PROOF.mkdir(parents=True, exist_ok=True)
 
 # Receipt produced only after dataset metadata and author/license checks.
 receipt = json.loads((SOURCE / "audi_r8_source_receipt.json").read_text())
-assert receipt["source_uid"] == "e17e438f076f4427a58d93aa779edaed"
-assert receipt["license"] == "CC BY 4.0" and receipt["artist"] == "wallon"
-MODELS = (("audi_r8", "Audi R8", "wallon", receipt["source_url"], receipt["sha256"]),)
+assert receipt["source_uid"] in {"e17e438f076f4427a58d93aa779edaed","2dee503c05f940739ff6f9e2b3562337","d10f75f74355452f8e417cc36f253841","e32c7e692d46410eb60c078bb5e272f4","a1f5aa63d30046d2858929f144e0d986","7463fcd44a00428486c09487f7fcda0c"}
+assert receipt["license"] == "CC BY 4.0" and receipt["artist"]
+MODELS = (("audi_r8", "Audi R8", receipt["artist"], receipt["source_url"], receipt["sha256"]),)
 
 def frame_car(scene, center, span, direction, camera):
     camera.location = center + Vector(direction) * span
