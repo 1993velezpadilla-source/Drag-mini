@@ -24,3 +24,5 @@ Endless hardening: rebase track-local coordinates every 1024m while keeping tota
 0.10: moving lane carts, tall lane-blockers, low jump bars, correct red beam vertical overlap and post geometry, crash animation before game-over, original looping music and independent music setting, sky seam blending. Visual reference is still an artistic target; no equivalence claim. Smoke includes vertical clearance and tall obstacle checks; soak includes moving carts.
 
 0.10 visual follow-up: original airborne ship with motion, rainbow geometry, planter flowers, warmer emissive lantern/pickup materials, and exact cart versus tall-block heights. Sky decorations are separate meshes with shadows disabled. Artistic review remains pending.
+
+0.10 corrective pass: typed obstacle choices use explicit append, integration smoke exercises actual red-beam jump/slide, moving cart displacement and adjacent lane safety, and crash animation lands at the road instead of floating after a midair collision. These checks are pending CI.

@@ -16,7 +16,7 @@ const CART := 8
 const TALL := 9
 const LOW_BAR := 10
 var crash_remaining := 0.0
-var crash_origin := Vector3.ZERO
+var crash_player_y := 0.0
 var music_button: Button
 var moving_rows := 0
 var sky_ship:Node3D
@@ -534,6 +534,7 @@ func make_hud() -> void:
 func retire_run() -> void:
 	# Only a deliberate choice from Pause may end a non-crashed endless run.
 	if not ended and paused_run:
+		audio.call("stop_music")
 		retired_run=true
 		ended=true
 		paused_run=false
@@ -558,7 +559,8 @@ func is_pickup(kind:int) -> bool:
 
 func hazard_for(tier:int) -> int:
 	if tier==0: return rng.randi_range(0,1)
-	var choices:Array[int]=[0,1,LOW_BAR,CART,TALL] if tier>=2 else [0,1,LOW_BAR,CART]
+	var choices:Array[int]=[0,1,LOW_BAR,CART]
+	if tier>=2: choices.append(TALL)
 	return choices[rng.randi_range(0,choices.size()-1)]
 
 func fill_track() -> void:
@@ -789,7 +791,8 @@ func _physics_process(dt: float) -> void:
 			var t:=1.0-crash_remaining/0.58
 			mascot.rotation.x=lerpf(-0.12,-1.5,sin(t*PI*0.5))
 			mascot.rotation.z=sin(t*PI*2.0)*0.35
-			mascot.position.y=maxf(0.05,crash_origin.y*(1-t)+sin(t*PI)*0.42)
+			player.position.y=lerpf(crash_player_y,0.0,t)
+			mascot.position.y=0.05+sin(t*PI)*0.42
 			camera.position.x=player.position.x*0.30+sin(t*PI*12)*0.09*(1-t)
 			if crash_remaining<=0:
 				last_hud=""
@@ -895,7 +898,7 @@ func _physics_process(dt: float) -> void:
 					audio.call("play_fx","shield")
 				else:
 					ended=true
-					crash_origin=Vector3(0,player.position.y,0)
+					crash_player_y=player.position.y
 					crash_remaining=0.58
 					audio.call("play_fx","crash")
 					audio.call("stop_music")
@@ -1090,6 +1093,11 @@ func test_run() -> void:
 	assert(hazard_hit(1,1.5,false) and hazard_hit(1,0,true,0.65))
 	assert(not hazard_hit(LOW_BAR,1.0,false) and hazard_hit(LOW_BAR,0,true))
 	assert(hazard_hit(TALL,2.2,false) and hazard_hit(CART,2.2,false))
+	var kinds:Dictionary={}
+	var saved_seed:=rng.state
+	for i in range(80): kinds[hazard_for(3)]=true
+	rng.state=saved_seed
+	assert(kinds.has(CART) and kinds.has(TALL) and kinds.has(LOW_BAR))
 	assert(contact_depth(1)<contact_depth(0))
 	assert(not pickup_reachable(PICKUP,1.5,false) and pickup_reachable(PICKUP,1.5,true))
 	assert(not pickup_reachable(BOOST,0.7,false) and pickup_reachable(BOOST,0,false))
@@ -1138,6 +1146,23 @@ func test_run() -> void:
 	assert(slide==0 and player.velocity.y==JUMP_SPEED)
 	for i in range(65): await get_tree().physics_frame
 	assert(player.is_on_floor())
+	# Exercise actual moving collision loop: jump over and slide under the same beam.
+	make_entity(1,1,distance+speed*0.40)
+	gesture(Vector2(0,-80))
+	for i in range(60): await get_tree().physics_frame
+	assert(not ended and player.is_on_floor(),"jump must clear actual red beam")
+	make_entity(1,1,distance+speed*0.28)
+	gesture(Vector2(0,80))
+	for i in range(48): await get_tree().physics_frame
+	assert(not ended and slide==0,"slide must clear actual red beam")
+	make_entity(0,CART,distance+8.0)
+	var cart:=entities.back() as Area3D
+	var cart_z:=cart.position.z
+	var start_distance:=distance
+	for i in range(12): await get_tree().physics_frame
+	assert(not ended and cart.position.z-cart_z>distance-start_distance+0.1,"cart approaches independently")
+	for i in range(60): await get_tree().physics_frame
+	assert(not ended,"adjacent cart must not hit runner")
 	var old_distance:=distance
 	for i in range(20):
 		await get_tree().physics_frame
@@ -1177,6 +1202,7 @@ func test_run() -> void:
 	make_entity(1,0,distance+1.0)
 	for i in range(50): await get_tree().physics_frame
 	assert(ended and result_panel.visible and not retired_run and not retire_button.visible)
+	assert(crash_remaining==0 and player.position.y<0.1)
 	assert(best_saved and best_score>=run_score())
 	assert(not claim_result().is_empty() and claim_result().is_empty())
 	# Exercise explicit retirement without adding a distance-based end condition.
