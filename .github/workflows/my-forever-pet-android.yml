@@ -44,3 +44,34 @@ jobs:
           name: My-Forever-Pet-Standalone-0.3-debug
           path: my-forever-pet/app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
+
+  android-smoke:
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: My-Forever-Pet-Standalone-0.3-debug
+          path: /tmp/pet-apk
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 34
+          arch: x86_64
+          target: google_apis
+          profile: pixel_6
+          disable-animations: true
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
+          script: bash my-forever-pet/tests/android-smoke.sh /tmp/pet-apk/app-debug.apk
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: My-Forever-Pet-real-Android-screens
+          path: /tmp/pet-screens
+          if-no-files-found: warn
