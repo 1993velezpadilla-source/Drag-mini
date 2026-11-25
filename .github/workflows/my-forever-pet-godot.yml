@@ -80,7 +80,7 @@ jobs:
           export GODOT_ANDROID_KEYSTORE_DEBUG_USER=androiddebugkey
           export GODOT_ANDROID_KEYSTORE_DEBUG_PASSWORD=android
           G=/tmp/godot/Godot_v4.4.1-stable_linux.x86_64
-          "$G" --headless --path my-forever-pet/godot-arcade --export-debug "Android Lab" /tmp/Pet-Dash-3D-Lab-arm64.apk
+          "$G" --verbose --headless --path my-forever-pet/godot-arcade --export-debug "Android Lab" /tmp/Pet-Dash-3D-Lab-arm64.apk
           test -s /tmp/Pet-Dash-3D-Lab-arm64.apk
           "$SDK/build-tools/34.0.0/apksigner" verify /tmp/Pet-Dash-3D-Lab-arm64.apk
           "$SDK/build-tools/34.0.0/aapt" dump badging /tmp/Pet-Dash-3D-Lab-arm64.apk | grep -F "org.myforeverpet.dashlab"
