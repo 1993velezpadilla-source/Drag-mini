@@ -49,10 +49,13 @@ func _ready():
 		var pp="res://assets/premium_"+key+".png"
 		if ResourceLoader.exists(pp): prop_textures[key]=load(pp)
 	rng.randomize()
-	for i in range(12):
+	for i in range(24):
 		var path="res://assets/pet_%d.png"%i
 		other_textures.append(load(path) if ResourceLoader.exists(path) else null)
-	pet_texture=other_textures[store.species()%12]
+	pet_texture=other_textures[store.species()]
+	if store.s.stage==1 or store.s.stage==2:
+		var growth_path="res://assets/growth_%d_%d.png"%[store.s.field,store.s.stage]
+		if ResourceLoader.exists(growth_path): pet_texture=load(growth_path)
 	reset_round()
 	var bar=HBoxContainer.new()
 	bar.set_anchors_and_offsets_preset(PRESET_TOP_WIDE)
@@ -80,8 +83,8 @@ func new_target():
 func shuffle_crowd():
 	crowd.clear(); target_index=rng.randi_range(0,71)
 	for i in range(72):
-		var id=rng.randi_range(0,10)
-		if id>=store.species()%12: id+=1
+		var id=rng.randi_range(0,22)
+		if id>=store.species(): id+=1
 		crowd.append(Vector3(35+(i%8)*65+rng.randf_range(-9,9),50+int(i/8)*75+rng.randf_range(-10,10),-1 if i==target_index else id))
 	zoomed=false; camera_offset=Vector2.ZERO
 func board_rect()->Rect2:
@@ -205,10 +208,6 @@ func finish():
 func draw_pet(center:Vector2,diameter:float,texture:Texture2D,tint:Color=Color.WHITE):
 	if texture!=null:
 		draw_texture_rect(texture,Rect2(center-Vector2.ONE*diameter/2,Vector2.ONE*diameter),false,tint)
-		for side in [-1,1]:
-			draw_circle(center+Vector2(side*diameter*.11,-diameter*.035),diameter*.031,Color("#273044"))
-			draw_circle(center+Vector2(side*diameter*.11-1,-diameter*.052),diameter*.012,Color.WHITE)
-		draw_arc(center+Vector2(0,diameter*.035),diameter*.045,0,PI,10,Color("#273044"),maxf(1,diameter*.016),true)
 	else:
 		draw_circle(center,diameter*0.34,Color("#92c97e")*tint)
 		draw_circle(center+Vector2(-diameter*.13,-diameter*.05),diameter*.035,Color("#162b38"))

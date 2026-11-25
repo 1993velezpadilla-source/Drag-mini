@@ -37,6 +37,9 @@ func _ready():
 	if args.has("--home-test"):
 		call_deferred("test_home")
 		return
+	if args.has("--home-capture"):
+		call_deferred("capture_home")
+		return
 	make_ui()
 	refresh()
 	var t=Timer.new(); t.wait_time=1; t.timeout.connect(refresh); add_child(t); t.start()
@@ -184,12 +187,13 @@ func refresh():
 	if not current_room.is_empty(): path="res://assets/"+str(ROOMS.get(current_room,"room_bedroom"))+".jpg"
 	bg.texture=tex(path)
 	update_room_scene()
-	var pp="res://assets/pet_%d.png"%(store.species()%12)
+	var pp="res://assets/pet_%d.png"%store.species()
+	if s.stage==1 or s.stage==2: pp="res://assets/growth_%d_%d.png"%[s.field,s.stage]
 	portrait.texture=tex(pp)
-	portrait.modulate=Color("#d7c5ff") if s.variant==1 else Color.WHITE
+	portrait.modulate=Color("#9ba9c7") if store.asleep(store.now()) else Color.WHITE
 	portrait.scale=Vector2.ONE*(0.64 if s.stage<2 else 0.85 if s.stage==2 else 1.0)
 	portrait.visible=s.stage>0
-	face.visible=s.stage>0
+	face.visible=false
 	egg_visual.visible=s.stage==0 and egg_art.texture==null
 	egg_art.visible=s.stage==0 and egg_art.texture!=null
 	face.text="– ᴗ –" if store.asleep(store.now()) else "• ︿ •" if s.germs>0 or s.hunger<=1 else "• ᴗ •"
@@ -260,4 +264,32 @@ func test_home():
 		store.finish_arcade(0,0.0)
 		remove_child(game); game.free()
 	print("FOREVER_PET_HUB_PASS")
+	get_tree().quit()
+
+func capture_frame(path:String):
+	await get_tree().process_frame
+	await RenderingServer.frame_post_draw
+	var image=get_viewport().get_texture().get_image()
+	assert(image.save_png(path)==OK)
+func capture_home():
+	store.s=store.defaults(); store.s.auto_sleep=false
+	store.s.stage=4; store.s.coins=250; store.s.name="Mosskit"
+	make_ui(); refresh()
+	await capture_frame("/tmp/forever-home.png")
+	for name in ROOMS:
+		select("Rooms")
+		room(name)
+		await capture_frame("/tmp/forever-"+ROOMS[name]+".png")
+	select("Arcade")
+	await capture_frame("/tmp/forever-arcade-menu.png")
+	for i in range(4):
+		assert(store.begin_arcade(i))
+		var game=load("res://pet_arcade.tscn").instantiate()
+		add_child(game)
+		game.set_anchors_and_offsets_preset(PRESET_FULL_RECT)
+		game.set_physics_process(false)
+		await capture_frame("/tmp/forever-game-%d.png"%i)
+		store.finish_arcade(0,0)
+		remove_child(game); game.free()
+	print("FOREVER_PET_CAPTURE_PASS")
 	get_tree().quit()
