@@ -97,132 +97,164 @@ def export(name,maxtri):
 # New species use the exact same proportions, material shader and mesh primitives.
 ROOT=OUT
 OUT=os.path.join(ROOT,'creatures');os.makedirs(OUT,exist_ok=True)
-accent_ink=mat('warm soft markings',(.18,.08,.07),0,.55)
-palette=[(.13,.46,.024),(.65,.22,.36),(.47,.23,.075),(.07,.30,.54),(.055,.45,.68),(.23,.12,.52),(.37,.58,.66),(.67,.13,.31),(.80,.39,.075),(.15,.46,.23),(.30,.13,.63),(.42,.25,.13)]
-def face(i):
+# Anatomy is authored directly in Godot coordinates. NEVER read stale matrix_world
+# after assigning a scale: that was the cause of giant unscaled face-blocking spheres.
+from mathutils import Vector
+fur=mat('warm ivory fur',(.95,.79,.63),0,.66)
+tooth=mat('ivory teeth',(.99,.92,.79),0,.35)
+eye_iris=mat('deep violet iris',(.10,.045,.22),0,.19)
+palettes=[(.35,.69,.12),(.63,.58,.68),(.65,.36,.15),(.78,.16,.085),(.08,.52,.68),(.29,.64,.75),(.27,.55,.13),(.44,.21,.65),(.12,.36,.76),(.73,.35,.50),(.88,.71,.65),(.34,.22,.15)]
+families=['sprout','cat','dog','dragon','fish','alien','dinosaur','jelly','bird','fairy','rabbit','owl']
+def shape(name,p,size,material):
+ o=ball(p,size,material);o.name=name
+ # Bake transforms before another operator or matrix read.
+ bpy.ops.object.transform_apply(location=False,rotation=False,scale=True)
+ return o
+def limb(name,a,b,w,material):
+ a,b=Vector(a),Vector(b);d=b-a
+ o=shape(name,(a+b)*.5,(w,d.length+w*.50,w),material)
+ o.rotation_euler=Vector(v(d)).to_track_quat('Z','Y').to_euler()
+ return o
+def tip(name,p,h,r,material,tilt=0):
+ o=cyl(p,r,.012,h,material);o.name=name;o.rotation_euler.y=tilt
+ return o
+def face(x,y,z,spread,scale=1,beak=False):
+ # Eye whites and highlights remain in front of the head; named landmarks are
+ # checked with actual geometry rays before material merging.
+ eyes=[]
  for side in [-1,1]:
-  ball((side*.29,1.02,.54),(.33,.48,.16),dark)
-  ball((side*.29-.05,1.13,.62),(.115,.14,.055),white)
-  ball((side*.47,.78,.46),(.22,.12,.09),pink)
- if i==2:
-  ball((0,.73,.60),(.51,.34,.25),cream)
-  ball((0,.81,.735),(.18,.13,.08),dark)
-  ball((0,.68,.735),(.15,.075,.045),dark)
- elif i in (8,11):
-  o=cyl((0,.77,.65),.13,.025,.24,gold,True)
+  xx=x+side*spread
+  eye=shape('eye_%s'%side,(xx,y,z),(.35*scale,.45*scale,.15*scale),eye_iris)
+  shape('pupil_%s'%side,(xx,y,z+.064*scale),(.24*scale,.32*scale,.055*scale),dark)
+  shape('catchlight_%s'%side,(xx-.05*scale,y+.095*scale,z+.098*scale),(.10*scale,.12*scale,.045*scale),white)
+  shape('blush',(xx+side*.16*scale,y-.22*scale,z-.05*scale),(.19*scale,.10*scale,.055*scale),pink)
+  eyes.append((xx,y,z))
+ if beak:
+  shape('beak',(x,y-.20*scale,z+.025*scale),(.34*scale,.23*scale,.28*scale),gold)
+  shape('beak line',(x,y-.23*scale,z+.15*scale),(.22*scale,.035*scale,.035*scale),dark)
  else:
-  ball((0,.72,.61),(.29,.25,.10),dark);ball((0,.65,.66),(.17,.085,.055),pink)
- if i in (1,11):
-  for side in [-1,1]:
-   for k in range(3):
-    o=ball((side*(.51+k*.025),.72-k*.055,.48),(.20,.024,.035),accent_ink)
-    o.rotation_euler.y=side*(.10+k*.13)
-def paws(m):
+  shape('mouth',(x,y-.28*scale,z+.025*scale),(.28*scale,.20*scale,.10*scale),dark)
+  shape('tongue',(x,y-.32*scale,z+.072*scale),(.15*scale,.07*scale,.035*scale),pink)
+ return eyes
+def feet(m,y=.18,front=.22,spread=.35,sz=.56):
  for side in [-1,1]:
-  ball((side*.37,.20,.16),(.68,.40,.67),m)
-  ball((side*.37,.24,.43),(.24,.16,.07),pink)
-def ear(side,m):
- o=ball((side*.48,1.58,0),(.42,.72,.35),m);o.rotation_euler.y=side*.38
- o=ball((side*.48,1.60,.12),(.25,.49,.15),pink);o.rotation_euler.y=side*.38
+  shape('paw',(side*spread,y,front),(sz,.36,.58),m)
+  for j in [-1,0,1]:shape('toe',(side*spread+j*.12,y-.015,front+.27),(.10,.11,.075),fur)
+def ears(m,head_y,front,kind):
+ for side in [-1,1]:
+  if kind=='cat':
+   tip('pointed ear',(side*.48,head_y+.52,front),.62,.30,m,side*.23)
+   tip('inner ear',(side*.48,head_y+.53,front+.13),.40,.17,pink,side*.23)
+  elif kind=='dog':
+   limb('floppy ear',(side*.61,head_y+.20,front),(side*.76,head_y-.42,front+.12),.40,m)
+  else:
+   limb('long rabbit ear',(side*.36,head_y+.32,front),(side*.52,head_y+1.04,front-.08),.34,m)
+   limb('inner rabbit ear',(side*.38,head_y+.39,front+.16),(side*.50,head_y+.91,front+.09),.19,pink)
+def tail(m,points,w):
+ for a,b in zip(points,points[1:]):limb('tail',a,b,w,m)
+def wing(side,m,accent,y=.95):
+ # Sculpted wing with separate membrane and fingers; extends outward and backward.
+ shape('wing membrane',(side*.90,y+.12,-.35),(.83,.87,.19),accent)
+ for j in range(3):
+  limb('wing finger',(side*.53,y,-.28),(side*(1.10+j*.12),y+.45-j*.32,-.44),.12,m)
+def validate_eyes(eyes,species):
+ bpy.context.view_layer.update()
+ scene=bpy.context.scene;deps=bpy.context.evaluated_depsgraph_get()
+ for x,y,z in eyes:
+  origin=Vector(v((x,y,z+4)))
+  hit,loc,n,index,obj,matrix=scene.ray_cast(deps,origin,Vector((0,1,0)),distance=8)
+  assert hit and obj.name.startswith(('eye_','pupil_','catchlight_')),('occluded eye',species,obj.name if hit else 'no hit')
+ print('FACE_VISIBILITY_OK',species,flush=True)
 for species in range(1,24):
  clear()
- i=species%12; secret=species>=12
- rgb=palette[i]
- if secret:rgb=tuple(min(1,c*.75+.09) for c in rgb)
- m=mat('plush body %d'%species,rgb,0,.34)
- accent=mat('plush highlight %d'%species,tuple(min(1,c*1.3+.06) for c in rgb),0,.44)
- ball((0,.85,0),(1.48,1.52,1.2),m)
- face(i)
- if i in [0,1,2,3,8,10,11]:paws(m)
- if i in [0,1,11]:
-  for side in [-1,1]:ear(side,m)
-  ball((0,.66,-.65),(.36,.36,.34),accent)
- elif i==2:
+ i=species%12;secret=species>=12
+ family=families[i];rgb=palettes[i]
+ if secret:rgb=tuple(min(1,c*.65+.14) for c in rgb)
+ m=mat('skin_%02d'%species,rgb,0,.44)
+ a=mat('accent_%02d'%species,tuple(min(1,c*.68+.28) for c in rgb),0,.53)
+ if family in ('cat','dog','rabbit'):
+  shape('torso',(0,.65,-.18),(1.05,1.12,1.12),m)
+  shape('chest',(0,.67,.32),(.70,.79,.30),fur)
+  shape('head',(0,1.41,.16),(1.42,1.22,1.15),m)
+  ears(a,1.48,.15,family)
+  feet(m,.19,.45,.35,.55)
+  for side in [-1,1]:shape('haunch',(side*.50,.47,-.22),(.56,.61,.67),m)
+  tail(a,[(0,.42,-.66),(.48,.54,-.78),(.80,.88,-.78),(.75,1.12,-.73)],.27 if family!='rabbit' else .20)
+  eyes=face(0,1.50,.72,.29,.85)
+  shape('muzzle',(0,1.16,.72),(.45,.25,.22),fur)
+  shape('nose',(0,1.26,.86),(.18,.10,.09),dark)
+  shape('smile',(0,1.11,.86),(.19,.07,.06),pink)
+ elif family in ('dragon','dinosaur'):
+  shape('body',(0,.69,-.18),(1.07,1.22,1.24),m)
+  shape('belly',(0,.70,.37),(.66,.89,.33),fur)
+  shape('head',(0,1.50,.20),(1.36,1.16,1.12),m)
+  shape('snout',(0,1.27,.70),(.78,.43,.62),a)
+  shape('jaw',(0,1.09,.72),(.69,.20,.48),fur)
+  shape('grin',(0,1.17,.95),(.48,.10,.07),dark)
   for side in [-1,1]:
-   o=ball((side*.69,1.20,-.03),(.40,.83,.40),accent);o.rotation_euler.y=side*.22
- elif i==3:
+   shape('nostril',(side*.18,1.37,.98),(.075,.055,.04),dark)
+   shape('fang',(side*.22,1.14,.99),(.075,.13,.05),tooth)
+   limb('arm',(side*.43,.90,.20),(side*.53,.56,.43),.25,m)
+   if family=='dragon':
+    tip('horn',(side*.46,2.16,.10),.55,.17,gold,side*.25)
+    wing(side,m,a,1.02)
+  feet(m,.20,.45,.38,.61)
+  tail(m,[(0,.50,-.65),(.35,.38,-1.0),(.82,.46,-1.17),(1.12,.70,-1.13)],.33)
+  for j in range(5):tip('dorsal spike',(0,1.63-j*.22,-.48-j*.13),.23,.12,gold)
+  eyes=face(0,1.64,.72,.34,.77)
+ elif family=='fish':
+  shape('fish body',(0,.97,0),(1.40,1.30,1.34),m)
+  shape('fish belly',(0,.65,.43),(.86,.63,.39),fur)
   for side in [-1,1]:
-   o=cyl((side*.42,1.64,-.05),.17,.02,.50,gold);o.rotation_euler.y=side*.25
-   o=ball((side*.80,.89,-.43),(.70,1.02,.23),blue);o.rotation_euler.y=side*.40
-  ball((0,.50,-.71),(.36,.31,.70),accent)
- elif i==4:
-  for side in [-1,1]:ball((side*.73,.81,-.16),(.55,.48,.21),gold)
-  ball((0,.81,-.70),(.58,.75,.24),accent)
- elif i==5:
+   limb('pectoral fin',(side*.58,.91,-.04),(side*.97,.60,-.25),.32,a)
+   limb('tail lobe',(0,.98,-.65),(side*.43,1.25,-1.04),.36,a)
+  shape('dorsal fin',(0,1.64,-.21),(.19,.52,.64),a)
+  eyes=face(0,1.12,.65,.30,.88)
+ elif family=='alien':
+  shape('alien torso',(0,.52,-.04),(.85,.88,.78),m)
+  shape('oversize head',(0,1.30,.07),(1.53,1.17,1.14),a)
   for side in [-1,1]:
-   o=ball((side*.42,1.66,0),(.13,.43,.13),accent);o.rotation_euler.y=side*.35
-   ball((side*.52,1.86,0),(.23,.23,.23),pink)
- elif i==6:
-  for side in [-1,0,1]:ball((side*.41,.20,0),(.48,.49,.59),accent)
- elif i==7:
-  for k in range(8):
-   a=k*pi/4
-   ball((.57*math.cos(a),.18,.44*math.sin(a)),(.44,.34,.44),accent)
- elif i==8:
-  for k in range(3):ball(((k-1)*.17,1.65-.09*abs(k-1),.03),(.24,.37,.24),pink)
-  for side in [-1,1]:ball((side*.68,.77,-.15),(.32,.68,.43),gold)
- elif i==9:
+   limb('antenna',(side*.35,1.75,-.03),(side*.57,2.14,-.06),.12,m)
+   shape('antenna tip',(side*.57,2.14,-.06),(.22,.22,.22),gold)
+   limb('alien arm',(side*.35,.75,0),(side*.61,.44,.15),.23,m)
+  feet(m,.16,.30,.25,.43)
+  shape('chest crystal',(0,.61,.39),(.25,.30,.12),water)
+  eyes=face(0,1.39,.61,.32,1.05)
+ elif family=='jelly':
+  shape('jelly dome',(0,1.32,0),(1.65,1.08,1.35),a)
+  shape('jelly rim',(0,.92,0),(1.52,.25,1.20),m)
+  for j in range(8):
+   angle=j*pi/4;x=.52*math.cos(angle);z=.40*math.sin(angle)
+   limb('tentacle',(x,.92,z),(x*1.15,.50,z*1.15),.20,m)
+   limb('tentacle curl',(x*1.15,.50,z*1.15),(x*1.45,.18,z*1.45),.16,a)
+  eyes=face(0,1.32,.67,.31,.85)
+ elif family in ('bird','owl'):
+  shape('feathered torso',(0,.76,-.10),(1.08,1.24,1.02),m)
+  shape('chest plumage',(0,.75,.42),(.81,.83,.32),fur)
+  shape('head',(0,1.42,.14),(1.22,1.08,1.00),m)
   for side in [-1,1]:
-   o=ball((side*.82,1.05,-.38),(.70,1.15,.16),white);o.rotation_euler.y=side*.43
-   ball((side*.78,.55,-.33),(.54,.62,.16),water)
- elif i==10:
+   shape('folded wing',(side*.56,.83,-.09),(.46,.85,.50),a)
+   for j in range(3):limb('primary feather',(side*.55,.88,-.06),(side*(.70+j*.13),.45,-.27),.19,a)
+   for j in range(3):shape('bird toe',(side*.28+j*.12,.10,.42),(.14,.18,.32),gold)
+   if family=='owl':tip('owl tuft',(side*.40,1.94,.05),.35,.19,a,side*.20)
+  if family=='bird':
+   for j in range(3):limb('crest',(0,1.76,-.07),((j-1)*.18,2.10,-.20),.16,gold)
+  eyes=face(0,1.50,.64,.28,.82,True)
+ else:
+  shape('mystic body',(0,.71,-.09),(1.00,1.18,1.04),m)
+  shape('mystic head',(0,1.43,.10),(1.31,1.15,1.07),a)
+  feet(m,.18,.31,.31,.51)
   for side in [-1,1]:
-   o=ball((side*.79,1.12,0),(.64,.33,.26),accent);o.rotation_euler.y=side*.35
- # Distinct anatomical features and silhouette, not just recolors of one sphere.
- if i==1:
-  for k in range(5):
-   a=k*.48
-   ball((.55+.33*math.sin(a),.30+.29*(1-math.cos(a)),-.50-k*.06),(.26,.26,.28),accent)
- elif i==2:
-  ball((0,.43,.30),(.70,.55,.34),cream)
-  for side in [-1,1]:ball((side*.58,.46,.09),(.34,.43,.40),m)
- elif i==3:
-  for k in range(4):cyl((0,1.52-k*.23,-.57-k*.025),.13,.015,.25,gold)
-  for side in [-1,1]:
-   for k in range(3):ball((side*(.75+k*.13),.91-k*.19,-.48),(.29,.40,.15),accent)
- elif i==4:
-  for side in [-1,1]:
-   for k in range(3):ball((side*(.56-k*.10),.53+k*.19,.39),(.12,.17,.055),accent)
-  ball((0,1.40,-.04),(.25,.40,.52),gold)
- elif i==6:
-  for side in [-1,1]:ball((side*.60,.55,.03),(.43,.40,.32),accent)
- elif i==7:
-  for k in range(8):
-   a=k*pi/4
-   for j in range(2):ball(((.58+j*.09)*math.cos(a),.19,.48*math.sin(a)+j*.05),(.12,.10,.12),pink)
- elif i==8:
-  for k in range(5):
-   o=ball(((k-2)*.18,.96+abs(k-2)*.08,-.64),(.30,.70,.23),[gold,accent,blue][k%3])
-   o.rotation_euler.y=(k-2)*.22
- elif i==9:
-  for side in [-1,1]:
-   for j in range(3):ball((side*(.75+j*.12),1.30-j*.15,-.30),(.18,.20,.08),gold)
-  flower((0,1.48,.31),1.8)
- elif i==10:
-  for side in [-1,1]:flower((side*.43,1.46,.29),1.1)
- elif i==11:
-  for side in [-1,1]:
-   for j in range(3):ball((side*(.60-j*.10),.42+j*.19,.30),(.24,.24,.10),accent)
+   wing(side,m,fur,1.0)
+   limb('petal ear',(side*.45,1.68,.06),(side*.76,1.98,-.06),.27,a)
+  flower((0,1.97,.34),1.3)
+  eyes=face(0,1.50,.63,.28,.85)
+ # Secret forms are intentional accessories behind the face, never a sphere over it.
  if secret:
-  if i in (0,2,3,8):
-   for side in [-1,1]:
-    o=cyl((side*.43,1.71,-.06),.14,.025,.59,gold);o.rotation_euler.y=side*.33
-    if i==0:ball((side*.63,1.88,-.04),(.33,.24,.20),accent)
-  elif i in (4,7):
-   for side in [-1,1]:
-    for k in range(3):ball((side*(.63+k*.12),1.21-k*.16,-.32),(.30,.36,.17),gold)
-  else:
-   for side in [-1,1]:
-    o=ball((side*.82,1.15,-.42),(.65,.95,.20),accent);o.rotation_euler.y=side*.30
-    ball((side*.88,1.38,-.35),(.22,.30,.08),gold)
-  ball((0,1.38,.47),(.20,.25,.10),gold)
- # Apply species-specific proportions to the complete sculpt, keeping features aligned.
- profiles=[(1,1,1),(1.05,.94,.91),(.94,1.04,1.08),(1.04,1.12,1.12),(1.22,.78,1.02),(.90,1.17,.92),(.94,1.12,.92),(1.18,.82,1.08),(.94,1.13,1.05),(.91,1.17,.86),(.87,1.19,.94),(1.06,1.02,1.02)]
- from mathutils import Matrix
- sx,sy,sz=profiles[i]
- deform=Matrix.Diagonal((sx,sz,sy,1))
- for ob in list(bpy.context.scene.objects):
-  if ob.type=='MESH':ob.matrix_world=deform@ob.matrix_world
+  for side in [-1,1]:
+   shape('secret shoulder gem',(side*.47,.87,.32),(.19,.26,.14),gold)
+  shape('secret chest gem',(0,.65,.53),(.18,.23,.12),gold)
+ validate_eyes(eyes,species)
  export('species_%02d'%species,42000)
 with open(os.path.join(OUT,'creature-metrics.json'),'w') as f:json.dump(stats,f,indent=2)
 # Render the actual approved GLB plus feet, and each new mesh, for 2D arcade and Petpedia.
