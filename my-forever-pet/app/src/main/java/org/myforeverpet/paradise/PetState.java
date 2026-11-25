@@ -92,7 +92,7 @@ public final class PetState {
  /** Rank-based playdate rules from GMMan; local partner is a prototype feature. */
  public int rank(){return stage<ADULT?0:Math.max(1,4-Math.min(3,mistakes));}
  public int playdate(int partnerRank,int partnerHunger,int partnerHappy,boolean partnerLove){
-  if(stage==EGG)return -1;
+  if(stage==EGG||sleeping()||exploring())return -1;
   if(friendship==0)friendship=PlaydateRules.base(rank(),partnerRank);
   if(PlaydateRules.fight(hunger,happy,partnerHunger,partnerHappy))return 0;
   friendship=PlaydateRules.after(friendship,happy==10,partnerLove);
