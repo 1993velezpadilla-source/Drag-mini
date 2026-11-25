@@ -23,7 +23,7 @@ qa=json.loads(QA.read_text())
 assert qa["original_author_porsche_body_triangles"]==qa["exported_true_car_triangles"]==241258
 assert qa["original_source_triangles_with_showroom_floor"]==241260
 assert qa["excluded_only_authored_noncar_floor_faces"]==2
-assert qa["original_artist_original_sha256"] if "original_artist_original_sha256" in qa else True
+assert qa["artist_original_sha256"]=="e1d7de07dda7d42aa9d87da33af4d4b05ed344e9c0222d571dce19e3658436ac"
 assert not qa["owner_approved"] and not qa["geometry_generated_or_replaced"]
 source_hash=hashlib.sha256(SRC.read_bytes()).hexdigest()
 bpy.ops.wm.read_factory_settings(use_empty=True)
@@ -183,8 +183,18 @@ for side in (-1,1):
         actual.matrix_parent_inverse=Matrix.Identity(4)
         actual.matrix_basis=pivot.matrix_world.inverted()@matrix
         bpy.context.view_layer.update()
-        if (actual.matrix_world.translation-matrix.translation).length>.001:
-            raise RuntimeError("REJECT FLOATING Porsche original author face groups "+actual.name)
+        # All eight original bounding corners are evaluated in TRUE world
+        # coordinates against BMesh provenance bounds before the source faces
+        # were separated. Check the complete panel/glass placement, not only
+        # the Blender object origin (which can stay fixed while pieces float).
+        expected_low=Vector(min(r["low"][i] for r in regions) for i in range(3))
+        expected_high=Vector(max(r["high"][i] for r in regions) for i in range(3))
+        post_low,post_high=bounds([actual])
+        error=max(abs(float(post_low[i]-expected_low[i])) for i in range(3))
+        error=max(error,max(abs(float(post_high[i]-expected_high[i])) for i in range(3)))
+        if error>.004:
+            raise RuntimeError("REJECT FLOATING Porsche creator-side door/glass/mirror mesh "+
+                               actual.name+" discrepancy="+str(error))
         if kind=="paint":
             base_positions[key]=actual.matrix_world @ Vector(
                 sum((Vector(vertex) for vertex in actual.bound_box),Vector())/8.0
