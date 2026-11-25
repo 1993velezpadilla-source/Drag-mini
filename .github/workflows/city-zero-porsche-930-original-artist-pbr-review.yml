@@ -174,9 +174,12 @@ jobs:
           folder=Path('porsche-930-true-original-godot-shots')
           q=json.loads((folder/'real_porsche_930_true_artist_godot_5view_report.json').read_text())
           assert q['source_triangles']>=241000
+          assert abs(q['verified_original_125k_face_body_shell_length_m']-4.291)<.06
+          assert sorted(q['original_artist_125k_body_shell_triangle_counts'])==[38854,42738,43713]
+          assert q['camera_calibrated_on_real_original_body_shell_not_photo_plinth']
           assert q['actual_source_mesh_instances']>=70
           assert q['material_surfaces']>=12
-          assert q['source_original_body_preserved'] and q['source_shrub_showroom_floor_removed']
+          assert q['source_original_body_preserved'] and q['source_2_triangle_showroom_photo_plinth_removed']
           assert q['gold_orange_lamborghini_unmodified']
           assert q['cameras_fill_viewport'] and not q['owner_art_approved']
           assert len(q['native_godot_real_pngs'])==5 and len(list(folder.glob('*.png')))==5
