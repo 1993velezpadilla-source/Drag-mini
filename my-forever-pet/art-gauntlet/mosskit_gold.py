@@ -101,7 +101,7 @@ def render_views(label, m):
  scene.render.resolution_x=960;scene.render.resolution_y=960;scene.render.resolution_percentage=100
  scene.render.film_transparent=True;scene.render.image_settings.file_format='PNG'
  scene.world.color=(.25,.25,.25)
- scene.view_settings.view_transform='AgX'
+ scene.view_settings.view_transform='AgX' if bpy.app.version >= (4,0,0) else 'Filmic'
  def light(name,pos,power,size,color):
   d=bpy.data.lights.new(name,'AREA');d.energy=power;d.shape='DISK';d.size=size;d.color=color
   o=bpy.data.objects.new(name,d);scene.collection.objects.link(o);o.location=pos;o.rotation_euler=(Vector((0,0,.9))-o.location).to_track_quat('-Z','Y').to_euler()
