@@ -22,6 +22,13 @@ final class GameIcon extends Drawable{
  case 9:poly(c,dark,29,1,5,26,20,26,15,47,43,16,27,16);poly(c,0xffffd47d,28,5,9,24,23,24,19,40,39,18,25,18);break;
  case 10:poly(c,dark,24,1,30,17,47,24,30,31,24,47,17,31,1,24,17,17);poly(c,0xffc7a1f9,24,6,28,19,42,24,28,29,24,42,20,29,6,24,20,19);break;
  case 11:o(c,24,24,23,23,0xff292746);o(c,24,24,21,21,0xff9276df);o(c,24,25,17,17,0xffb59ff0);o(c,24,29,9,7,0xfff6e7ff);for(int i=0;i<4;i++)o(c,11+i*9,17+(i==0||i==3?3:0),4,5,0xfff6e7ff);break;
+ case 12:rr(c,6,7,36,36,5,dark);grad(c,8,9,32,32,4,0xfff0eaff,0xffbba5df);rr(c,8,9,32,8,2,0xffdf8ab7);rr(c,13,3,4,10,2,0xfff5dfc8);rr(c,31,3,4,10,2,0xfff5dfc8);poly(c,0xff6a66ac,13,25,19,31,32,19,35,22,19,37,10,28);break;
+ case 13:rr(c,3,10,42,29,5,dark);grad(c,5,12,38,25,4,0xffedeaff,0xffb9b3ee);poly(c,0xff7771b6,5,13,24,28,43,13,24,24);break;
+ case 14:o(c,24,17,15,15,dark);o(c,24,17,12,12,0xfff8c76d);rr(c,20,28,8,9,2,0xffdfa151);rr(c,11,36,26,7,2,0xfff6d386);o(c,24,15,6,5,0xffffe6a5);break;
+ case 15:poly(c,dark,2,7,12,7,17,31,40,31,46,12,13,12,9,4,2,4);poly(c,0xffe8e6ff,14,15,42,15,38,27,17,27);o(c,19,38,5,5,0xffb5bdf2);o(c,36,38,5,5,0xffb5bdf2);break;
+ case 16:rr(c,3,13,42,29,6,dark);grad(c,5,15,38,25,5,0xfff1edff,0xffa8b7ea);rr(c,12,7,13,8,3,0xffe0d5f8);o(c,25,27,12,12,dark);o(c,25,27,8,8,0xff7dc9f5);o(c,22,24,3,3,0xffe4faff);break;
+ case 17:for(int i=0;i<8;i++){c.save();c.rotate(i*45,24,24);rr(c,20,3,8,12,2,0xffe6e1ff);c.restore();}o(c,24,24,16,16,0xffd0c8f5);o(c,24,24,8,8,dark);break;
+ case 18:for(int i=0;i<4;i++){c.save();c.rotate(i*90,24,24);poly(c,0xffede9ff,5,5,21,5,21,9,11,9,11,21,5,21);c.restore();}break;
  default:o(c,24,24,22,22,dark);o(c,24,24,19,19,0xff69b9ee);poly(c,0xff92d79e,10,13,20,8,28,12,26,20,17,22,16,33,10,29,7,22);poly(c,0xff8ed696,32,19,41,20,37,31,30,39,26,29);o(c,17,12,4,2,0x88ffffff);
  }c.restore();}
  @Override public void setAlpha(int a){}@Override public void setColorFilter(ColorFilter f){}@Override public int getOpacity(){return PixelFormat.TRANSLUCENT;}

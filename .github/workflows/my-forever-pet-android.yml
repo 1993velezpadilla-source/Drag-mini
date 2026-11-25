@@ -39,7 +39,7 @@ jobs:
           "$ANDROID_HOME/build-tools/35.0.0/aapt" dump badging "$APK"
       - uses: actions/upload-artifact@v4
         with:
-          name: My-Forever-Pet-Standalone-0.11-debug
+          name: My-Forever-Pet-Standalone-0.12-debug
           path: my-forever-pet/app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
 
@@ -51,7 +51,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/download-artifact@v4
         with:
-          name: My-Forever-Pet-Standalone-0.11-debug
+          name: My-Forever-Pet-Standalone-0.12-debug
           path: /tmp/pet-apk
       - name: Enable KVM
         run: |
@@ -69,19 +69,13 @@ jobs:
           script: bash my-forever-pet/tests/android-smoke.sh /tmp/pet-apk/app-debug.apk
       - name: Visual review contact sheet
         if: always()
+        continue-on-error: true
         run: |
           python3 - <<'PY'
           import base64, pathlib, subprocess
           p=pathlib.Path("/tmp/pet-screens/baby.png")
           if p.is_file():
-              try:
-                  from PIL import Image
-                  import io
-                  im=Image.open(p).convert("RGB"); im.thumbnail((420,840)); buf=io.BytesIO(); im.save(buf,format="JPEG",quality=78)
-                  data=buf.getvalue()
-              except ImportError:
-                  data=subprocess.check_output(["convert",str(p),"-resize","420x840","-quality","78","jpg:-"])
-              encoded=base64.b64encode(data).decode("ascii")
+              encoded=base64.b64encode(p.read_bytes()).decode("ascii")
               for i in range(0,len(encoded),3000): print("PET_SCREEN_CHUNK:"+encoded[i:i+3000])
           PY
       - uses: actions/upload-artifact@v4

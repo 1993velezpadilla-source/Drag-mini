@@ -88,8 +88,8 @@ final class DeluxeArt {
   if(night&&room!=4)round(c,0,19,160,173,0,0x221c2146);roomKey=room+theme*8+(night?32:0);
  }
  void room(Canvas out,PetState s,int room,long tick,int effect){boolean night=s.sleeping();int key=room+s.roomTheme*8+(night?32:0);if(roomBackground==null||key!=roomKey)buildOtherRoom(room,s.roomTheme,night);
-  out.drawColor(0xff282343);float z=Math.min(out.getWidth()/160f,out.getHeight()/192f);out.save();out.translate((out.getWidth()-160*z)/2,(out.getHeight()-192*z)/2);out.scale(z,z);solid(-1);rect.set(0,0,160,192);out.drawBitmap(roomBackground,null,rect,p);
-  float x=80,y=room==4?93:104;if(room==2&&s.sleeping()){x=36;y=83;}float lift=effect==4?(float)Math.abs(Math.sin(tick/120.0))*15:0;pet(out,s,x,y-lift,1.32f,tick);
+  out.drawColor(0xff282343);float sx=out.getWidth()/160f,sy=out.getHeight()/192f;out.save();out.scale(sx,sy);solid(-1);rect.set(0,0,160,192);out.drawBitmap(roomBackground,null,rect,p);
+  float x=80,y=room==4?93:104;if(room==2&&s.sleeping()){x=36;y=83;}float lift=effect==4?(float)Math.abs(Math.sin(tick/120.0))*15:0;out.save();out.translate(x,y-lift);float z=Math.min(sx,sy);out.scale(z/sx,z/sy);pet(out,s,0,0,1.5f,tick);out.restore();
   if(room==1&&s.soap>0){for(int i=0;i<s.soap*6;i++){float px=51+(i*17)%58,py=72+(i*11)%48;oval(out,px,py,3+i%3,3+i%3,0xffd9f9ff);oval(out,px-1,py-1,1.3f,1.3f,0xffffffff);}}
   if(room==4&&s.gardenAt>0){for(int i=0;i<5;i++){float px=31+i*24;line(out,px,156,px,145,2,0xff5e956b);oval(out,px-3,147,5,2,0xff79c887);oval(out,px+3,144,5,2,0xff88ce92);if(s.clockNow>=s.gardenAt)form(out,px,142,4,4,0xffe08aa7);}}
   if(effect>0)for(int i=0;i<5;i++)sparkle(out,48+i*16,65-(tick/100+i*5)%18,2.4f,effect==2?0xffdbfbff:0xffffe19f);
