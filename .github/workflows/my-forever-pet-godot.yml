@@ -46,6 +46,13 @@ jobs:
         run: python3 my-forever-pet/godot-arcade/sky_panorama.py my-forever-pet/godot-arcade/assets/sky-panorama.png
       - name: Bake original runner music
         run: python3 my-forever-pet/godot-arcade/bake_music.py my-forever-pet/godot-arcade/assets/skyway-music.wav
+      - name: Render original Forever Pet home and species assets
+        run: |
+          set -euo pipefail
+          blender -b -t 4 --python-exit-code 1 -P my-forever-pet/art/render_home.py -- my-forever-pet/godot-arcade/assets
+          blender -b -t 4 --python-exit-code 1 -P my-forever-pet/art/render_pets.py -- my-forever-pet/godot-arcade/assets
+          for i in $(seq 0 11); do test -s "my-forever-pet/godot-arcade/assets/pet_$i.png"; done
+          test -s my-forever-pet/godot-arcade/assets/home_day.jpg
       - name: Import and run deterministic scene smoke
         run: |
           set -euo pipefail
@@ -54,6 +61,13 @@ jobs:
           timeout 60 "$G" --headless --path my-forever-pet/godot-arcade -- --test 2>&1 | tee /tmp/godot-smoke.log
           grep -F PET_DASH_3D_SMOKE_PASS /tmp/godot-smoke.log
           ! grep -E 'SCRIPT ERROR|Parse Error' /tmp/godot-smoke.log
+      - name: Verify integrated Forever Pet hub and wallet
+        run: |
+          set -euo pipefail
+          G=/tmp/godot/Godot_v4.4.1-stable_linux.x86_64
+          timeout 60 "$G" --headless --path my-forever-pet/godot-arcade -- --home-test 2>&1 | tee /tmp/pet-home.log
+          grep -F FOREVER_PET_HUB_PASS /tmp/pet-home.log
+          ! grep -E "SCRIPT ERROR|Parse Error" /tmp/pet-home.log
       - name: Prove lane-only play loses the opening action gate
         run: |
           set -euo pipefail
@@ -105,15 +119,15 @@ jobs:
           export GODOT_ANDROID_KEYSTORE_DEBUG_USER=androiddebugkey
           export GODOT_ANDROID_KEYSTORE_DEBUG_PASSWORD=android
           G=/tmp/godot/Godot_v4.4.1-stable_linux.x86_64
-          "$G" --verbose --headless --path my-forever-pet/godot-arcade --export-debug "Android Lab" /tmp/Pet-Dash-3D-Lab-arm64.apk
-          test -s /tmp/Pet-Dash-3D-Lab-arm64.apk
-          "$SDK/build-tools/34.0.0/apksigner" verify /tmp/Pet-Dash-3D-Lab-arm64.apk
-          "$SDK/build-tools/34.0.0/aapt" dump badging /tmp/Pet-Dash-3D-Lab-arm64.apk | grep -F "org.myforeverpet.dashlab"
-          unzip -l /tmp/Pet-Dash-3D-Lab-arm64.apk | grep -F lib/arm64-v8a/libgodot_android.so
+          "$G" --verbose --headless --path my-forever-pet/godot-arcade --export-debug "Android Lab" /tmp/My-Forever-Pet-Godot-arm64.apk
+          test -s /tmp/My-Forever-Pet-Godot-arm64.apk
+          "$SDK/build-tools/34.0.0/apksigner" verify /tmp/My-Forever-Pet-Godot-arm64.apk
+          "$SDK/build-tools/34.0.0/aapt" dump badging /tmp/My-Forever-Pet-Godot-arm64.apk | grep -F "org.myforeverpet.godot"
+          unzip -l /tmp/My-Forever-Pet-Godot-arm64.apk | grep -F lib/arm64-v8a/libgodot_android.so
       - uses: actions/upload-artifact@v4
         with:
-          name: Pet-Dash-3D-Lab-Android-ARM64-debug
-          path: /tmp/Pet-Dash-3D-Lab-arm64.apk
+          name: My-Forever-Pet-Godot-Android-ARM64-debug
+          path: /tmp/My-Forever-Pet-Godot-arm64.apk
           if-no-files-found: error
       - name: Capture actual 3D viewport
         id: visual
