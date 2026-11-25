@@ -4,6 +4,10 @@ var store:Node
 var title_label:Label
 var info:Label
 var portrait:TextureRect
+var wear_layers:Array[TextureRect]=[]
+var last_wear_key=""
+var wardrobe_card:Button
+var pet_bob_time=0.0
 var bg:TextureRect
 var actions:VBoxContainer
 var section="Home"
@@ -75,6 +79,14 @@ func make_ui():
 	bg=TextureRect.new(); bg.set_anchors_and_offsets_preset(PRESET_FULL_RECT); bg.expand_mode=TextureRect.EXPAND_IGNORE_SIZE; bg.stretch_mode=TextureRect.STRETCH_SCALE; visual.add_child(bg)
 	var fallback=ColorRect.new(); fallback.color=Color("#436c6b"); fallback.set_anchors_and_offsets_preset(PRESET_FULL_RECT); visual.add_child(fallback); visual.move_child(fallback,0)
 	portrait=TextureRect.new(); portrait.set_anchors_and_offsets_preset(PRESET_CENTER); portrait.offset_left=-105; portrait.offset_right=105; portrait.offset_top=-95; portrait.offset_bottom=115; portrait.expand_mode=TextureRect.EXPAND_IGNORE_SIZE; portrait.stretch_mode=TextureRect.STRETCH_KEEP_ASPECT_CENTERED; visual.add_child(portrait)
+	portrait.mouse_filter=MOUSE_FILTER_IGNORE
+	for slot in range(5):
+		var layer=TextureRect.new()
+		layer.expand_mode=TextureRect.EXPAND_IGNORE_SIZE
+		layer.stretch_mode=TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		layer.mouse_filter=MOUSE_FILTER_IGNORE
+		portrait.add_child(layer)
+		wear_layers.append(layer)
 	egg_visual=Label.new(); egg_visual.text="◉"; egg_visual.add_theme_font_size_override("font_size",120); egg_visual.add_theme_color_override("font_color",Color("#ffe8b9")); egg_visual.set_anchors_and_offsets_preset(PRESET_CENTER); egg_visual.offset_left=-65; egg_visual.offset_top=-90; visual.add_child(egg_visual)
 	face=Label.new(); face.text="• ᴗ •"; face.add_theme_font_size_override("font_size",29); face.add_theme_color_override("font_color",Color("#28202c")); face.set_anchors_and_offsets_preset(PRESET_CENTER); face.offset_left=-39; face.offset_top=-7; visual.add_child(face)
 	room_tag=Label.new(); room_tag.add_theme_font_size_override("font_size",18); room_tag.position=Vector2(12,9); visual.add_child(room_tag)
@@ -100,6 +112,48 @@ func perform(id:String,i:int=0):
 	refresh()
 	if section=="Shop": select("Shop")
 func add_action(name:String,id:String,i:int=0): button(actions,name,func(): perform(id,i))
+func product_card(name:String,detail:String,asset_path:String,action_text:String,fn:Callable,enabled:bool=true):
+	var shell=panel(actions)
+	var h=row(shell)
+	var thumb=TextureRect.new()
+	thumb.texture=tex(asset_path)
+	thumb.custom_minimum_size=Vector2(72,72)
+	thumb.expand_mode=TextureRect.EXPAND_IGNORE_SIZE
+	thumb.stretch_mode=TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	h.add_child(thumb)
+	var copy=VBoxContainer.new()
+	copy.size_flags_horizontal=SIZE_EXPAND_FILL
+	h.add_child(copy)
+	label(copy,name,18)
+	var d=label(copy,detail,13)
+	d.modulate=Color("#c9d9d4")
+	var b=button(h,action_text,fn)
+	b.size_flags_horizontal=SIZE_SHRINK_CENTER
+	b.custom_minimum_size.x=100
+	b.disabled=not enabled
+	return b
+func sync_wearables():
+	var s:Dictionary=store.s
+	var key=str(s.stage)+":"+str(s.worn)+":"+str(s.equipped)+":"+str(store.species())
+	if key==last_wear_key: return
+	last_wear_key=key
+	var rectangles=[Rect2(50,-15,110,78),Rect2(62,63,86,48),Rect2(48,112,114,85),Rect2(55,168,100,55),Rect2(69,-12,72,53)]
+	for i in range(5):
+		var layer=wear_layers[i]
+		var item=int(s.worn[i]) if i<4 else int(s.equipped)
+		layer.visible=s.stage>0 and item>0
+		layer.texture=tex("res://assets/"+("clothes_" if i<4 else "item_")+str(item-1)+".png") if item>0 else null
+		layer.position=rectangles[i].position
+		layer.size=rectangles[i].size
+		if i==4 and item==2: layer.position=Vector2(116,32)
+func _process(delta:float):
+	if not is_instance_valid(portrait) or not portrait.visible: return
+	pet_bob_time+=delta
+	portrait.pivot_offset=portrait.size*0.5
+	portrait.rotation=sin(pet_bob_time*1.8)*0.014
+	var base_scale=0.78 if store.s.stage==1 else 0.91 if store.s.stage==2 else 1.0
+	var breathe=1.0+sin(pet_bob_time*2.5)*0.018
+	portrait.scale=Vector2(base_scale/breathe,base_scale*breathe)
 func select(tab:String):
 	section=tab
 	current_room=""
@@ -124,10 +178,19 @@ func select(tab:String):
 		"Arcade":
 			for i in range(5): button(actions,GAMES[i]+"   ›",func(): launch_game(i))
 		"Shop":
+			label(actions,"Furniture & accessories",20)
 			for i in range(store.ITEMS.size()):
-				add_action(store.ITEMS[i]+" • "+str(store.PRICES[i])+" coins" if (int(s.owned)&(1<<i))==0 else store.ITEMS[i]+" • Equip / remove","buy" if (int(s.owned)&(1<<i))==0 else "use",i)
-			for i in range(store.CLOTHES.size()): add_action(store.CLOTHES[i]+" • "+str(store.COST[i])+" coins" if (int(s.wardrobe)&(1<<i))==0 else store.CLOTHES[i]+" • Wear / remove","clothes" if (int(s.wardrobe)&(1<<i))==0 else "wear",i)
-			add_action("Medicine • 12 coins","supply",0); add_action("Snack • 5 coins","supply",1)
+				var owned=(int(s.owned)&(1<<i))!=0
+				var active=s.equipped==i+1 or s.installation==i+1
+				product_card(store.ITEMS[i],"Equipped" if active else "Owned" if owned else "%d coins"%store.PRICES[i],"res://assets/item_%d.png"%i,"Remove" if active else "Use" if owned else "Buy",func(): perform("use" if owned else "buy",i),owned or s.coins>=store.PRICES[i])
+			label(actions,"Wardrobe",20)
+			for i in range(store.CLOTHES.size()):
+				var owned=(int(s.wardrobe)&(1<<i))!=0
+				var active=s.worn.has(i+1)
+				product_card(store.CLOTHES[i],"Wearing" if active else "Owned" if owned else "%d coins"%store.COST[i],"res://assets/clothes_%d.png"%i,"Remove" if active else "Wear" if owned else "Buy",func(): perform("wear" if owned else "clothes",i),owned or s.coins>=store.COST[i])
+			label(actions,"Supplies",20)
+			product_card("Medicine","12 coins • %d owned"%s.medicine,"res://assets/premium_medicine.png","Buy",func(): perform("supply",0),s.coins>=12)
+			product_card("Snack","5 coins • %d owned"%s.snacks,"res://assets/premium_snack.png","Buy",func(): perform("supply",1),s.coins>=5)
 		"Journal":
 			add_action("Daily gift","daily")
 			for i in range(3): add_action(["Bond quest","Clean quest","Expedition quest"][i]+" • 15 coins","quest",i)
@@ -163,7 +226,16 @@ func show_collection():
 	label(actions,"PETPEDIA",22)
 	for i in range(24):
 		var known=(int(store.s.collection)&(1<<i))!=0
-		label(actions,store.SPECIES[i] if known else "??? • "+store.FIELDS[int((i%12)/4)]+" / "+store.FOODS[i%4]+(" / secret" if i>=12 else ""),16)
+		var card=panel(actions)
+		var h=row(card)
+		var icon=TextureRect.new()
+		icon.texture=tex("res://assets/pet_%d.png"%i)
+		icon.expand_mode=TextureRect.EXPAND_IGNORE_SIZE
+		icon.stretch_mode=TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		icon.custom_minimum_size=Vector2(64,64)
+		icon.modulate=Color.WHITE if known else Color("#142331")
+		h.add_child(icon)
+		label(h,store.SPECIES[i] if known else "??? • "+store.FIELDS[int((i%12)/4)]+" / "+store.FOODS[i%4]+(" / secret" if i>=12 else ""),16)
 	button(actions,"Back",func(): select("Journal"))
 func launch_game(i:int):
 	if not store.begin_arcade(i): notice.text="Your pet needs rest or is busy."; return
@@ -193,6 +265,7 @@ func refresh():
 	portrait.modulate=Color("#9ba9c7") if store.asleep(store.now()) else Color.WHITE
 	portrait.scale=Vector2.ONE*(0.64 if s.stage<2 else 0.85 if s.stage==2 else 1.0)
 	portrait.visible=s.stage>0
+	sync_wearables()
 	face.visible=false
 	egg_visual.visible=s.stage==0 and egg_art.texture==null
 	egg_art.visible=s.stage==0 and egg_art.texture!=null
@@ -243,6 +316,16 @@ func test_home():
 				assert(store.species()==variant*12+field*4+body)
 	store.s.variant=0; store.s.field=0; store.s.body=0
 	make_ui(); refresh()
+	store.s.coins=500
+	assert(store.action("clothes",0))
+	refresh()
+	assert(wear_layers[0].visible and wear_layers[0].texture!=null)
+	assert(store.action("wear",0))
+	refresh()
+	assert(not wear_layers[0].visible)
+	assert(store.action("buy",0) and store.action("use",0))
+	refresh()
+	assert(wear_layers[4].visible and wear_layers[4].texture!=null)
 	for tab in ["Care","Rooms","Arcade","Shop","Journal","World","Cell","Home"]: select(tab)
 	for name in ROOMS:
 		room(name)
@@ -280,6 +363,11 @@ func capture_home():
 		select("Rooms")
 		room(name)
 		await capture_frame("/tmp/forever-"+ROOMS[name]+".png")
+	select("Shop")
+	await capture_frame("/tmp/forever-shop.png")
+	store.s.wardrobe=255; store.s.worn=[1,2,3,5]; refresh()
+	select("Home")
+	await capture_frame("/tmp/forever-wardrobe.png")
 	select("Arcade")
 	await capture_frame("/tmp/forever-arcade-menu.png")
 	for i in range(4):

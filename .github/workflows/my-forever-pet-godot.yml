@@ -9,7 +9,7 @@ permissions:
 jobs:
   godot-smoke:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
       - name: Download pinned Godot editor
@@ -62,6 +62,9 @@ jobs:
           for room in kitchen bathroom bedroom toy garden lab; do test -s "my-forever-pet/godot-arcade/assets/room_$room.jpg"; done
           for game in star flappy cloud find; do test -s "my-forever-pet/godot-arcade/assets/arcade_$game.jpg"; done
           test -s my-forever-pet/godot-arcade/assets/room_layout.json
+          blender -b -t 4 --python-exit-code 1 -P my-forever-pet/art/render_wardrobe.py -- my-forever-pet/godot-arcade/assets
+          for i in $(seq 0 7); do test -s "my-forever-pet/godot-arcade/assets/clothes_$i.png"; done
+          for i in $(seq 0 5); do test -s "my-forever-pet/godot-arcade/assets/item_$i.png"; done
       - name: Import and run deterministic scene smoke
         run: |
           set -euo pipefail
@@ -176,7 +179,7 @@ jobs:
           xvfb-run -a -s "-screen 0 720x1280x24" timeout 120 /tmp/godot/Godot_v4.4.1-stable_linux.x86_64 --path my-forever-pet/godot-arcade --rendering-method gl_compatibility --audio-driver Dummy --resolution 540x960 -- --home-capture 2>&1 | tee /tmp/forever-capture.log
           grep -F FOREVER_PET_CAPTURE_PASS /tmp/forever-capture.log
           ! grep -E "SCRIPT ERROR|Parse Error" /tmp/forever-capture.log
-          test "$(find /tmp -maxdepth 1 -name 'forever-*.png' | wc -l)" -eq 12
+          test "$(find /tmp -maxdepth 1 -name 'forever-*.png' | wc -l)" -eq 14
       - uses: actions/upload-artifact@v4
         with:
           name: Forever-Pet-real-game-viewports
