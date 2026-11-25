@@ -12,3 +12,5 @@ Android lab export: separate package org.myforeverpet.dashlab, ARM64 debug signi
 0.5 follow-up: deterministic 900m procedural route soak with real collision, scoring and pool limits; capture timing follows the generated safe route instead of benchmarking a crashed/paused screen. HUD updates capped near 13 Hz and camera FOV increases with speed. The headless test is not an Android performance claim.
 
 0.6: screen-size-aware capture environment, APK packaging before visual verification, size-adaptive geometry for small Blender details, earlier imported scenery LODs, shorter shadow range and per-mesh triangle/material/byte reports. No visual-quality or Android FPS claim until verified.
+
+0.7: original baked cloud panorama and distant castle geometry, wooden material texture and crate fittings, explicit Jump/Slide buttons, midair down-swipe fast fall with full landing slide, slide-to-jump cancel, progressive mandatory jump/slide rows and 25m/s top base speed. Deterministic test driver performs required actions rather than bypassing collision. Await verified captures and Android testing.

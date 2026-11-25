@@ -40,6 +40,8 @@ jobs:
               assert len(data)>1000 and struct.unpack("<4sII",data[:12])==(b"glTF",2,len(data)),name
               print("GLB_VALID",name,len(data))
           PY
+      - name: Bake panoramic cloudscape
+        run: python3 my-forever-pet/godot-arcade/sky_panorama.py my-forever-pet/godot-arcade/assets/sky-panorama.png
       - name: Import and run deterministic scene smoke
         run: |
           set -euo pipefail
@@ -115,6 +117,7 @@ jobs:
             /tmp/pet-dash-soak.json
             my-forever-pet/godot-arcade/assets/*.glb
             my-forever-pet/godot-arcade/assets/mesh-metrics.json
+            my-forever-pet/godot-arcade/assets/sky-panorama.png
           if-no-files-found: error
       - name: Require visual verification independently of APK packaging
         if: always()

@@ -32,7 +32,7 @@ var pickup_feedback: Label
 var best_score := 0
 var best_saved := false
 var review_driver := false
-var safe_rows: Array[Vector2] = []
+var safe_rows: Array[Vector3] = []
 var peak_active := 0
 var hud_refresh := 0.0
 var rng := RandomNumberGenerator.new()
@@ -64,7 +64,7 @@ var touch_start := Vector2.ZERO
 var touch_active := false
 var gesture_sent := false
 var touch_id := -1
-var spawn_at := 20.0
+var spawn_at := 15.0
 var status: Label
 var hint: Label
 var score_label: Label
@@ -79,6 +79,11 @@ var last_hud := ""
 var last_power_hud := ""
 var scenery_visibility_updates := 0
 var jump_buffer := 0.0
+var air_slide_pending := false
+const SLIDE_SECONDS := 0.70
+const FAST_FALL := 22.0
+var mandatory_rows := 0
+var driver_action_at := -1.0
 var material_cache := {}
 var session_claimed := false
 var clock := 0.0
@@ -150,7 +155,11 @@ func _ready() -> void:
 	sky_mat.sky_horizon_color=Color("#b7e0ff")
 	sky_mat.ground_horizon_color=Color("#c8e7ff")
 	sky_mat.ground_bottom_color=Color("#7495ca")
-	sky.sky_material=sky_mat
+	if ResourceLoader.exists("res://assets/sky-panorama.png"):
+		var panorama:=PanoramaSkyMaterial.new()
+		panorama.panorama=load("res://assets/sky-panorama.png")
+		sky.sky_material=panorama
+	else: sky.sky_material=sky_mat
 	e.sky=sky
 	e.background_mode=Environment.BG_SKY
 	e.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
@@ -188,11 +197,11 @@ func _ready() -> void:
 	make_ground_shadow_resources()
 	player_shadow=ground_shadow(self,1.8,1.3)
 	camera = Camera3D.new()
-	camera.position = Vector3(0, 4.25, 7.1)
+	camera.position = Vector3(0, 4.55, 7.8)
 	camera.fov = 58
 	camera.far=140
 	add_child(camera)
-	camera.look_at(Vector3(0, 0.25, -10))
+	camera.look_at(Vector3(0, 1.1, -12))
 	make_cloudscape()
 	make_effects()
 	audio=preload("res://dash_audio.gd").new()
@@ -208,27 +217,14 @@ func _ready() -> void:
 		call_deferred("soak_review")
 
 func make_cloudscape() -> void:
-	# Fixed distant clouds, not extra moving track chunks. Shared low-poly mesh and
-	# unlit material keep the silhouette legible on Compatibility/mobile.
-	var cloud_mesh := SphereMesh.new()
-	cloud_mesh.radius=0.5
-	cloud_mesh.height=1.0
-	cloud_mesh.radial_segments=12
-	cloud_mesh.rings=6
-	var cloud_mat:=StandardMaterial3D.new()
-	cloud_mat.albedo_color=Color("#dceeff")
-	cloud_mat.shading_mode=BaseMaterial3D.SHADING_MODE_UNSHADED
-	for i in range(8):
-		var side: float=-1.0 if i%2==0 else 1.0
-		var center:=Vector3(side*(12.0+float(i%3)*6),3.0+float(i%4)*2.7,-30.0-float(i)*7)
-		for j in range(3):
-			var puff:=MeshInstance3D.new()
-			puff.mesh=cloud_mesh
-			puff.material_override=cloud_mat
-			puff.cast_shadow=GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-			puff.position=center+Vector3(float(j-1)*2.0,0.4 if j==1 else 0.0,0)
-			puff.scale=Vector3(4.6,2.0 if j==1 else 1.4,2.5)
-			add_child(puff)
+	# Panorama supplies clouds; real distant GLB islands add silhouettes and depth.
+	# Fixed world backdrop avoids spawning high-cost scenery per track row.
+	for i in range(6):
+		var side:float=-1.0 if i%2==0 else 1.0
+		var island:=asset(self,"island",Vector3(side*(17.0+float(i%3)*7),5.0+float(i%3)*4,-39.0-float(i)*11))
+		if island!=null:
+			island.scale=Vector3.ONE*(1.5+float(i%3)*0.22)
+			island.rotation.y=float(i)*0.8
 
 func make_chunk(chunk: Node3D, index: int) -> void:
 	if using_blender and asset(chunk,"bridge",Vector3.ZERO)!=null:
@@ -402,14 +398,14 @@ func make_hud() -> void:
 	score_label=hud_label(stats,"0 m",18,Color("#f0f1ff"))
 	coin_label=hud_label(stats,"0 coins",18,Color("#ffd775"))
 	snack_label=hud_label(stats,"0 snacks",18,Color("#a9e2bd"))
-	hud_label(column,"SKY BRIDGE  •  Collect snacks for your pet!",16,Color("#cbd9ff"))
+	hud_label(column,"LITTLE MOSSKIT  •  SKY BRIDGE",16,Color("#cbd9ff"))
 	power_label=hud_label(column,"MAGNET  •  SHIELD  •  ×2  •  BOOST",15,Color("#e9d5ff"))
 	var footer := PanelContainer.new()
 	ui.add_child(footer)
 	footer.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_WIDE)
 	footer.offset_left=12
 	footer.offset_right=-12
-	footer.offset_top=-84
+	footer.offset_top=-103
 	footer.offset_bottom=-12
 	footer.mouse_filter=Control.MOUSE_FILTER_IGNORE
 	footer.add_theme_stylebox_override("panel",panel_style(Color("#202647eb"),Color("#b9aaff"),18))
@@ -430,7 +426,24 @@ func make_hud() -> void:
 	var bottom := HBoxContainer.new()
 	bottom.mouse_filter=Control.MOUSE_FILTER_IGNORE
 	footer.add_child(bottom)
-	hint=hud_label(bottom,"Swipe to start",17,Color("#f1ebff"))
+	var controls:=VBoxContainer.new()
+	controls.size_flags_horizontal=Control.SIZE_EXPAND_FILL
+	controls.mouse_filter=Control.MOUSE_FILTER_IGNORE
+	bottom.add_child(controls)
+	hint=hud_label(controls,"Swipe left / right",14,Color("#f1ebff"))
+	var actions:=HBoxContainer.new()
+	actions.mouse_filter=Control.MOUSE_FILTER_IGNORE
+	controls.add_child(actions)
+	for action in ["↑ Jump","↓ Slide"]:
+		var button:=Button.new()
+		button.text=action
+		button.size_flags_horizontal=Control.SIZE_EXPAND_FILL
+		button.custom_minimum_size.y=38
+		style_button(button)
+		button.add_theme_font_size_override("font_size",16)
+		var delta:=Vector2(0,-80 if action=="↑ Jump" else 80)
+		button.button_down.connect(func(): gesture(delta))
+		actions.add_child(button)
 	var exit := Button.new()
 	exit.text="Exit & collect"
 	exit.custom_minimum_size=Vector2(148,48)
@@ -469,27 +482,37 @@ func finish_run() -> void:
 
 func fill_track() -> void:
 	while spawn_at<distance+95:
-		# Every obstacle row has at least one reachable lane; adjacent safe lanes
-		# change by at most one lane at a time. Alternate rows and clear runs.
-		var free_lane := clampi(previous_safe_lane+rng.randi_range(-1,1),0,2)
-		var blocked_lanes: Array[int] = []
+		var free_lane:=clampi(previous_safe_lane+rng.randi_range(-1,1),0,2)
+		var blocked_lanes:Array[int]=[]
 		for i in range(3):
 			if i!=free_lane: blocked_lanes.append(i)
-		var first := rng.randi_range(0,1)
-		if pattern_count%5!=4:
+		var tier:=mini(3,int(spawn_at/85.0))
+		var first:=rng.randi_range(0,1)
+		var action:=-1
+		# After the warm-up, occasional full-width obstacle rows require a
+		# vertical action. The recommended lane stays reachable laterally.
+		if tier>=1 and pattern_count%7==5:
+			action=0 if pattern_count%2==1 else 1
+			for i in range(3): make_entity(i,action,spawn_at)
+			mandatory_rows+=1
+		elif tier>=2 or pattern_count%5!=4:
 			make_entity(blocked_lanes[first],rng.randi_range(0,1),spawn_at)
-			if pattern_count>=3 and pattern_count%3==0:
+			if tier>=2 or (pattern_count>=3 and pattern_count%3==0):
 				make_entity(blocked_lanes[1-first],rng.randi_range(0,1),spawn_at)
-		for i in range(5):
-			make_entity(free_lane,PICKUP,spawn_at-3.2+i*1.5)
-		if rng.randf()<0.55:
+		# Keep collectible trails clear of the mandatory hazard itself.
+		if action<0:
+			for i in range(5): make_entity(free_lane,PICKUP,spawn_at-3.2+i*1.5)
+		else:
+			for offset in [-3.2,-1.8,1.8,3.2]: make_entity(free_lane,PICKUP,spawn_at+offset)
+		if pattern_count%5==2:
+			make_entity(free_lane,MAGNET+rng.randi_range(0,3),spawn_at+5.1)
+		elif rng.randf()<0.60:
 			make_entity(free_lane,SNACK,spawn_at+4.8)
-		if pattern_count%4==2:
-			make_entity(free_lane,MAGNET+rng.randi_range(0,3),spawn_at+7.4)
-		if review_driver: safe_rows.append(Vector2(spawn_at,float(free_lane)))
+		if review_driver: safe_rows.append(Vector3(spawn_at,float(free_lane),float(action)))
 		previous_safe_lane=free_lane
 		pattern_count+=1
-		spawn_at+=maxf(12.0,speed*1.22)
+		var projected_speed:=minf(25.0,9.0+spawn_at*0.024)
+		spawn_at+=maxf(10.5,projected_speed*(1.24-0.07*tier))
 
 func make_entity(which_lane: int, kind: int, at: float) -> void:
 	var a: Area3D
@@ -558,17 +581,23 @@ func gesture(delta: Vector2) -> void:
 	if absf(delta.x)>absf(delta.y) and absf(delta.x)>22:
 		lane=clampi(lane+(1 if delta.x>0 else -1),0,2)
 	elif delta.y < -22:
-		if player.is_on_floor() and slide<=0:
+		if player.is_on_floor() and player.velocity.y<=0:
+			slide=0
+			air_slide_pending=false
 			player.velocity.y=JUMP_SPEED
 			audio.call("play_fx","jump")
 		else:
 			jump_buffer=0.14
 	elif delta.y > 22:
 		jump_buffer=0
-		if player.is_on_floor():
-			slide=0.65
-			audio.call("play_fx","slide")
-		else: player.velocity.y=minf(player.velocity.y,-13)
+		if player.is_on_floor() and player.velocity.y<=0:
+			slide=SLIDE_SECONDS
+			air_slide_pending=false
+		else:
+			# Cancel upward motion now and retain the full roll on landing.
+			air_slide_pending=true
+			player.velocity.y=-FAST_FALL
+		audio.call("play_fx","slide")
 
 func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventScreenTouch:
@@ -654,14 +683,23 @@ func _physics_process(dt: float) -> void:
 		# CI only: follow the procedurally generated reachable route; never bypass collision.
 		while not safe_rows.is_empty() and distance>safe_rows[0].x+1.0:
 			safe_rows.pop_front()
-		if not safe_rows.is_empty(): lane=int(safe_rows[0].y)
+		if not safe_rows.is_empty():
+			var row:=safe_rows[0]
+			lane=int(row.y)
+			var lead:=speed*(0.33 if int(row.z)==0 else 0.18)
+			if row.z>=0 and row.x!=driver_action_at and row.x-distance<=lead:
+				driver_action_at=row.x
+				gesture(Vector2(0,-80 if int(row.z)==0 else 80))
 	player.velocity.y-=GRAVITY*dt
 	var capsule := player_shape.shape as CapsuleShape3D
-	capsule.height=0.96 if slide>0 else 1.35
+	capsule.height=0.96 if slide>0 or air_slide_pending else 1.35
 	player_shape.position.y=capsule.height*0.5
 	player.velocity.x=clampf((LANES[lane]-player.position.x)*14,-15,15)
 	player.move_and_slide()
 	player.position.z=PLAYER_Z
+	if air_slide_pending and player.is_on_floor():
+		air_slide_pending=false
+		slide=SLIDE_SECONDS
 	if jump_buffer>0:
 		if player.is_on_floor() and slide<=0:
 			player.velocity.y=JUMP_SPEED
@@ -674,10 +712,10 @@ func _physics_process(dt: float) -> void:
 	shield_time=maxf(0,shield_time-dt)
 	double_time=maxf(0,double_time-dt)
 	boost_time=maxf(0,boost_time-dt)
-	speed=minf(20.0,9.0+distance*0.018)+(4.0 if boost_time>0 else 0.0)
+	speed=minf(25.0,9.0+distance*0.024)+(4.0 if boost_time>0 else 0.0)
 	distance+=speed*dt
 	slide=maxf(0,slide-dt)
-	mascot.scale.y=lerpf(mascot.scale.y,0.48 if slide>0 else 1.0, minf(1,dt*16))
+	mascot.scale.y=lerpf(mascot.scale.y,0.48 if slide>0 or air_slide_pending else 1.0, minf(1,dt*16))
 	mascot.rotation.y=PI+clampf(player.velocity.x*0.023,-0.24,0.24)
 	mascot.rotation.z=lerpf(mascot.rotation.z,clampf(player.velocity.x*0.025,-0.24,0.24),dt*8)
 	mascot.position.y=0.035*(1+sin(clock*32)) if player.is_on_floor() and slide<=0 else 0.0
@@ -721,7 +759,7 @@ func _physics_process(dt: float) -> void:
 					collect_kind(kind)
 					a.set_meta("resolved",true)
 					a.hide()
-			elif hazard_hit(kind,player.position.y,slide>0):
+			elif hazard_hit(kind,player.position.y,slide>0 or air_slide_pending):
 				if shield_time>0 or boost_time>0:
 					if boost_time<=0: shield_time=0
 					a.set_meta("resolved",true)
@@ -829,7 +867,7 @@ func update_hud() -> void:
 	score_label.text="%d m"%int(distance)
 	coin_label.text="%d coins"%coins
 	snack_label.text="%d snacks"%snacks
-	hint.text="Run complete" if ended else "Paused" if paused_run else "← →  lanes  •  ↑ jump  •  ↓ slide" if started else "Swipe to start"
+	hint.text="Run complete" if ended else "Paused" if paused_run else "Swipe left / right" if started else "Swipe to start"
 	pause_button.disabled=ended
 	result_panel.visible=ended or paused_run
 	if ended:
@@ -877,6 +915,20 @@ func test_run() -> void:
 	assert(slide>0)
 	for i in range(45): await get_tree().physics_frame
 	assert(slide==0)
+	# Airborne down swipe must cancel ascent and start a full landing slide.
+	gesture(Vector2(0,-80))
+	for i in range(12): await get_tree().physics_frame
+	assert(player.position.y>0.5 and not player.is_on_floor())
+	gesture(Vector2(0,80))
+	assert(air_slide_pending and player.velocity.y<=-FAST_FALL)
+	for i in range(15): await get_tree().physics_frame
+	assert(player.is_on_floor() and not air_slide_pending and slide>0.40)
+	assert(not hazard_hit(1,player.position.y,true))
+	# Up from a slide starts a new jump immediately.
+	gesture(Vector2(0,-80))
+	assert(slide==0 and player.velocity.y==JUMP_SPEED)
+	for i in range(65): await get_tree().physics_frame
+	assert(player.is_on_floor())
 	var old_distance:=distance
 	for i in range(20):
 		await get_tree().physics_frame
@@ -960,12 +1012,12 @@ func soak_review() -> void:
 		await get_tree().physics_frame
 		steps+=1
 	assert(not ended and distance>=900.0,"reachable generated route failed")
-	assert(pattern_count>35 and reused_entities>100)
+	assert(pattern_count>35 and reused_entities>100 and mandatory_rows>3)
 	assert(created_entities<180 and peak_active<130)
 	assert(coins>20)
 	var result:=FileAccess.open("/tmp/pet-dash-soak.json",FileAccess.WRITE)
 	assert(result!=null)
-	result.store_string(JSON.stringify({"distance":distance,"steps":steps,"coins":coins,"snacks":snacks,"rows":pattern_count,"allocated":created_entities,"reused":reused_entities,"peak_active":peak_active,"scope":"deterministic headless physics; not physical-device FPS"}))
+	result.store_string(JSON.stringify({"distance":distance,"steps":steps,"coins":coins,"snacks":snacks,"rows":pattern_count,"mandatory_rows":mandatory_rows,"allocated":created_entities,"reused":reused_entities,"peak_active":peak_active,"scope":"deterministic headless physics; not physical-device FPS"}))
 	result.close()
 	print("PET_DASH_SOAK_PASS")
 	get_tree().quit(0)

@@ -3,7 +3,28 @@ from math import pi
 OUT=os.path.abspath(sys.argv[sys.argv.index('--')+1]);os.makedirs(OUT,exist_ok=True)
 def mat(name,rgb,metal=0,rough=.42):
  m=bpy.data.materials.new(name);m.diffuse_color=(*rgb,1);m.use_nodes=True;b=m.node_tree.nodes.get('Principled BSDF');b.inputs['Base Color'].default_value=(*rgb,1);b.inputs['Metallic'].default_value=metal;b.inputs['Roughness'].default_value=rough;return m
-wood=mat('warm oak',(.23,.087,.032));wood2=mat('light oak',(.33,.145,.057));stone=mat('blue grey stone',(.35,.41,.49));cream=mat('ivory',(.88,.77,.59));gold=mat('gold',(.98,.57,.07),.5,.26);green=mat('foliage',(.085,.36,.12));leaf=mat('leaf tips',(.30,.57,.12));blue=mat('navy blue',(.06,.13,.34));violet=mat('banner violet',(.25,.14,.52));amber=mat('amber',(.98,.51,.13));lime=mat('Mosskit body',(.13,.46,.024),0,.34);pink=mat('ear rose',(.95,.35,.49));dark=mat('deep plum',(.038,.024,.075),0,.20);white=mat('eye shine',(.97,.97,1));water=mat('water',(.13,.64,.89),.15,.21)
+wood=mat('warm oak',(.25,.105,.045));wood2=mat('light oak',(.34,.163,.075));stone=mat('blue grey stone',(.35,.41,.49));cream=mat('sandstone',(.67,.54,.40));gold=mat('gold',(.98,.57,.07),.5,.26);green=mat('foliage',(.085,.36,.12));leaf=mat('leaf tips',(.30,.57,.12));blue=mat('navy blue',(.06,.13,.34));violet=mat('banner violet',(.25,.14,.52));amber=mat('amber',(.98,.51,.13));lime=mat('Mosskit body',(.13,.46,.024),0,.34);pink=mat('ear rose',(.95,.35,.49));dark=mat('deep plum',(.038,.024,.075),0,.20);white=mat('eye shine',(.97,.97,1));water=mat('water',(.13,.64,.89),.15,.21)
+# Original wood texture baked into the GLB, not a painted screen.
+def timber_texture():
+ import random
+ rng=random.Random(317)
+ size=128
+ im=bpy.data.images.new('Oak grain',width=size,height=size)
+ pixels=[]
+ for y in range(size):
+  for x in range(size):
+   g=.70+.095*math.sin(x*.47+2.0*math.sin(y*.12))+.065*math.sin(x*1.19+y*.018)+rng.uniform(-.025,.025)
+   pixels.extend((g,g*.91,g*.79,1.0))
+ im.pixels.foreach_set(pixels);im.pack()
+ for m,tint in [(wood,(.52,.29,.13,1)),(wood2,(.65,.39,.19,1))]:
+  # glTF base color texture supports direct Image Texture connections.
+  node=m.node_tree.nodes.new('ShaderNodeTexImage');node.image=im
+  m.node_tree.links.new(node.outputs['Color'],m.node_tree.nodes.get('Principled BSDF').inputs['Base Color'])
+  # Keep materials distinct via separate tinted texture copies.
+  copy=im.copy();copy.name=m.name+' baked grain'
+  copy.pixels.foreach_set([v*tint[i%4] if i%4!=3 else 1.0 for i,v in enumerate(pixels)])
+  copy.pack();node.image=copy
+timber_texture()
 stats={}
 def clear():
  bpy.ops.object.select_all(action='SELECT');bpy.ops.object.delete(use_global=False)
@@ -86,9 +107,11 @@ for side in [-1,1]:
     a=k*2*pi/5;ball((side*3.67+.24*math.cos(a),.90,z+.24*math.sin(a)),(.58,.58,.58),leaf if k%2 else green)
 export('bridge',110000)
 clear()
-for side in [-1,1]:box((side*3.3,2,0),(.72,4,.78),stone,.10)
+for side in [-1,1]:
+ box((side*3.3,2,0),(.72,4,.78),stone,.10)
+ for y in [.25,1.1,2.0,2.9,3.8]:box((side*3.3,y,0),(.83,.12,.89),cream,.025)
 for j in range(13):
- a=j*pi/12;o=box((3.3*math.cos(a),3.8+3.3*math.sin(a),0),(.82,.72,.85),cream,.075);o.rotation_euler.y=-a
+ a=j*pi/12;o=box((3.3*math.cos(a),3.8+3.3*math.sin(a),0),(.76,.91,.89),cream,.035);o.rotation_euler.y=-a
  if j%2==0:
   for k in range(3):ball((3.3*math.cos(a)+.22*(k-1),4.03+3.3*math.sin(a),.25),(.60,.42,.61),green if k%2 else leaf)
 cyl((0,7.15,.48),.43,.43,.14,violet,True);paw((0,7.13,.59),gold,.95)
@@ -129,12 +152,17 @@ clear();ball((0,0,0),(.68,.40,.67),lime);paw((0,-.08,.30),pink,.64);export('foot
 clear();box((0,.45,0),(1.3,.9,.9),wood,.07)
 for x in [-.55,.55]:box((x,.45,.47),(.14,.86,.07),wood2)
 for y in [.10,.80]:box((0,y,.47),(1.25,.12,.08),wood2)
-paw((0,.43,.52),cream,.8);export('crate',10000)
+for x in [-.57,.57]:
+ for y in [.12,.78]:
+  box((x,y,.525),(.19,.16,.045),stone,.025)
+  ball((x,y,.555),(.055,.055,.025),gold)
+for y in [.29,.60]:box((0,y,.468),(1.10,.018,.018),wood2,.005)
+paw((0,.43,.52),cream,.8);export('crate',14000)
 clear()
 for x in [-.65,.65]:
  box((x,.75,0),(.2,1.5,.30),blue,.045);ball((x,1.82,0),(.24,.27,.24),gold)
-box((0,1.42,0),(1.52,.48,.32),violet,.06)
-for x in [-.50,.50]:
+box((0,1.42,0),(1.52,.48,.32),red if 'red' in globals() else mat('hazard red',(.58,.035,.055)),.06)
+for x in [-.53,-.18,.18,.53]:
  o=box((x,1.42,.175),(.23,.43,.04),cream,.012);o.rotation_euler.y=.45
 paw((0,1.37,.20),gold,.57);export('barrier',14000)
 clear();cyl((0,.75,0),.31,.31,.12,gold,True);ring((0,.75,.075),.26,.025,gold);paw((0,.74,.10),cream,.55);export('coin',7000)
