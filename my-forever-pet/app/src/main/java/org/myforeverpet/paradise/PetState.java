@@ -36,7 +36,7 @@ public final class PetState {
  public boolean toy(int kind,long now){if(!available()||energy<3||now-interactionAt<1500||kind<0||kind>2)return false;interactionAt=now;energy-=3;happy=Math.min(10,happy+3);bond=Math.min(100,bond+2);earn(4);return true;}
  public boolean decorate(int theme){if(theme<0||theme>2||theme>0&&level()<theme+1||roomTheme==theme)return false;roomTheme=theme;return true;}
  public boolean lamp(long now){if(stage==EGG||exploring())return false;if(sleeping())return wake();sleepUntil=now+30*MIN;return true;}
- transient long clockNow=0;transient String nickname="";
+ transient int expression=0;transient long clockNow=0;transient String nickname="";
  public String displayName(){return nickname.isEmpty()?creature():nickname;}
  public int growthPercent(){if(stage==EGG)return 0;if(stage==ADULT)return 100;long elapsed=stage==BABY?cells[field]*15*MIN+cellClock:age;return clamp((int)(100*elapsed/(stage==BABY?HOUR:24*HOUR)),0,100);}
  public String growth(){if(stage==EGG)return "Ready to hatch";if(stage==ADULT)return "Adult • secret evolution";long ms=stage==BABY?Math.max(0,(4-cells[field])*15*MIN-cellClock):Math.max(0,24*HOUR-age);long m=(ms+MIN-1)/MIN;return "Next: "+(stage==BABY?"Kid":stage==KID?"Young":"Adult")+" in "+m/60+"h "+m%60+"m";}

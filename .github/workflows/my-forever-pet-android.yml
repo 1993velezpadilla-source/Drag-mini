@@ -7,6 +7,20 @@ on:
 permissions:
   contents: read
 jobs:
+  simulation-fast:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Test simulation before renders finish
+        working-directory: my-forever-pet
+        run: |
+          mkdir -p /tmp/pet-test
+          javac -d /tmp/pet-test app/src/main/java/org/myforeverpet/paradise/{PetState,PlaydateRules,Arcade,Economy,HomeLayout}.java tests/PetStateTest.java
+          java -cp /tmp/pet-test org.myforeverpet.paradise.PetStateTest
   render-art:
     runs-on: ubuntu-latest
     timeout-minutes: 55
@@ -25,13 +39,15 @@ jobs:
           for i in $(seq 0 11); do test -s "/tmp/pet-art/pet_$i.png"; done
           for i in $(seq 0 7); do test -s "/tmp/pet-art/clothes_$i.png"; done
           for f in dash_bridge.jpg dash_crate.png dash_barrier.png dash_coin.png dash_snack.png; do test -s "/tmp/pet-art/$f"; done
+          for i in $(seq 0 6); do test -s "/tmp/pet-art/prop_$i.png"; done
+          for i in $(seq 0 5); do test -s "/tmp/pet-art/item_$i.png"; done
       - uses: actions/upload-artifact@v4
         with:
           name: ForeverPet-Blender-room-art
           path: /tmp/pet-art
           if-no-files-found: error
   build:
-    needs: render-art
+    needs: [render-art, simulation-fast]
     runs-on: ubuntu-latest
     timeout-minutes: 20
     defaults:
@@ -69,6 +85,8 @@ jobs:
           for i in $(seq 0 11); do unzip -l "$APK" | grep -F "assets/art/pet_$i.png"; done
           for i in $(seq 0 7); do unzip -l "$APK" | grep -F "assets/art/clothes_$i.png"; done
           for f in dash_bridge.jpg dash_crate.png dash_barrier.png dash_coin.png dash_snack.png; do unzip -l "$APK" | grep -F "assets/art/$f"; done
+          for i in $(seq 0 6); do unzip -l "$APK" | grep -F "assets/art/prop_$i.png"; done
+          for i in $(seq 0 5); do unzip -l "$APK" | grep -F "assets/art/item_$i.png"; done
           if unzip -l "$APK" | grep -E 'libforever_pet.so|\.tamasave|firmware\.bin'; then exit 1; fi
           "$ANDROID_HOME/build-tools/35.0.0/aapt" dump badging "$APK"
       - uses: actions/upload-artifact@v4

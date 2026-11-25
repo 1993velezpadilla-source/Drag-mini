@@ -91,10 +91,17 @@ tap_text "Clean field"
 shot field
 tap_text "World"
 tap_text "Space"
+assert_text "Space exploration"
 shot space
+ tap_text "Close"
 tap_text "Lab"
 tap_text "Shop"
 shot shop
+ tap_text "Close"
+tap_text "Lab"
+tap_text "Wardrobe"
+assert_text "Explorer cap"
+shot wardrobe
 adb shell input keyevent 4
 sleep 1
 adb shell am force-stop "$PKG"

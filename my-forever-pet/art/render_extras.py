@@ -65,7 +65,7 @@ for i in range(8):
   ell('cap dome',(0,0,.22),(1.04,.57,.65),blue);box('bill',(0,-.63,-.23),(1.8,.76,.14),navy,.065);paw(0,-.55,.31,cream)
  elif i in [1,5]:
   for x in [-.65,.65]:
-   tor('rim',(x,0,0),.55,.085,black if i==1 else gold,rot=(pi/2,0,0),scale=(1,.82,1));ell('lens',(x,.025,0),(.47,.08,.39),glass);box('temple',(x*1.85,.23,.09),(.13,.55,.13),black,.04)
+   tor('rim',(x,0,0),.55,.085,black if i==1 else gold,rot=(pi/2,0,0),scale=(1,.82,1));box('temple',(x*1.85,.23,.09),(.13,.55,.13),black,.04)
   box('bridge',(0,0,.03),(.32,.13,.12),black,.04)
  elif i in [2,3,7]:shirt(i==3,i==7)
  elif i==4:
@@ -120,4 +120,40 @@ for i in range(7):
  cyl('roof',(x,y,4.05),1.05,1.0,blue,r2=.15)
  for k in range(3):ell('cloud',(x+k*.8,y-2,-.5+i%2),(.9,.7,.38),cream)
 render('dash_bridge.jpg',False,760,912)
+# Reusable 3D props for all the other arcades and furniture inventory.
+cam.location=(0,-8,2.0);cam.rotation_euler=(-cam.location).to_track_quat('-Z','Y').to_euler();cam.data.type='ORTHO';cam.data.ortho_scale=3.5
+for i in range(7):
+ clear()
+ if i==0:
+  cyl('trunk',(0,0,-.5),.20,1.5,wood)
+  for j in range(5):
+   a=j*2*pi/5;ell('tree canopy',(.47*math.cos(a),.47*math.sin(a),.48),(.60,.49,.66),green)
+ elif i==1:
+  box('stall counter',(0,0,-.5),(2.1,.9,.83),wood,.08)
+  for x in [-.85,.85]:box('stall post',(x,0,.25),(.12,.12,1.3),wood,.025)
+  box('awning',(0,-.1,.98),(2.3,1.15,.23),blue,.07)
+  for j in range(3):box('stripe',(-.74+j*.74,-.10,1.11),(.28,1.12,.035),cream,.01)
+ elif i==2:
+  pts=[((1 if k%2==0 else .44)*math.cos(pi/2+k*pi/5),0,(1 if k%2==0 else .44)*math.sin(pi/2+k*pi/5)) for k in range(10)]
+  me=bpy.data.meshes.new('star');me.from_pydata(pts,[],[list(range(10))]);me.update();o=bpy.data.objects.new('star',me);sc.collection.objects.link(o);o.data.materials.append(gold);q=o.modifiers.new('depth','SOLIDIFY');q.thickness=.25;q=o.modifiers.new('round','BEVEL');q.width=.08;q.segments=3
+ elif i==3:box('treasure chest',(0,0,-.1),(1.8,1.1,1.3),wood,.18);box('lock',(0,-.58,.13),(.42,.1,.40),gold,.06)
+ elif i==4:ell('pond',(0,0,-.48),(1.4,.85,.17),teal);ell('rock',(.8,.1,-.35),(.36,.3,.23),stone)
+ elif i==5:cyl('pillar',(0,0,0),.74,2.8,teal);cyl('pillar rim',(0,0,1.12),.85,.32,cream);cyl('pillar rim',(0,0,-1.12),.85,.32,cream)
+ else:
+  for j in range(5):ell('cloud',(-.9+j*.45,0,0),(.54,.45,.36+.1*(j%2)),cream)
+ render('prop_%d.png'%i,True,192,192)
+for i in range(6):
+ clear()
+ if i==0:ell('cap',(0,0,.18),(.88,.55,.65),gold);box('brim',(0,-.52,-.22),(1.8,.66,.15),navy,.07)
+ elif i==1:
+  for x in [-.43,.43]:ell('bow',(x,0,0),(.49,.20,.32),red)
+  ell('knot',(0,-.16,0),(.19,.15,.19),gold)
+ elif i==2:tor('halo',(0,0,0),.85,.12,gold,(pi/2,0,0),scale=(1,.70,1))
+ elif i==3:cyl('bath',(0,0,-.25),1,.65,blue,r2=1.19);tor('rim',(0,0,.11),1.1,.09,cream);ell('water',(0,0,.12),(.92,.92,.06),teal)
+ elif i==4:box('bed frame',(0,0,-.45),(2.1,1.6,.50),wood,.13);box('blanket',(0,0,-.10),(1.98,1.52,.35),blue,.16);ell('pillow',(0,.52,.12),(.72,.35,.19),cream);box('headboard',(0,.78,.25),(2.1,.2,1.14),wood,.13)
+ else:
+  cyl('planter',(0,0,-.7),.44,.7,wood,r2=.57)
+  for j in range(5):
+   a=j*2*pi/5;ell('leaf',(.45*math.cos(a),.45*math.sin(a),.30),(.30,.28,.48),green)
+ render('item_%d.png'%i,True,192,192)
 print('EXTRAS_RENDER_OK')
