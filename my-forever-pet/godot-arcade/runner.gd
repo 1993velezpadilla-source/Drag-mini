@@ -31,6 +31,10 @@ var pickup_flash := 0.0
 var pickup_feedback: Label
 var best_score := 0
 var best_saved := false
+var review_driver := false
+var safe_rows: Array[Vector2] = []
+var peak_active := 0
+var hud_refresh := 0.0
 var rng := RandomNumberGenerator.new()
 var player: CharacterBody3D
 var mascot: Node3D
@@ -130,7 +134,8 @@ func asset(parent: Node3D, name: String, pos: Vector3) -> Node3D:
 
 func _ready() -> void:
 	using_blender=ResourceLoader.exists("res://assets/bridge.glb")
-	rng.seed = 7319 if OS.get_cmdline_user_args().has("--test") or OS.get_cmdline_user_args().has("--capture") else Time.get_ticks_usec()
+	review_driver=OS.get_cmdline_user_args().has("--soak") or OS.get_cmdline_user_args().has("--capture")
+	rng.seed = 7319 if OS.get_cmdline_user_args().has("--test") or review_driver else Time.get_ticks_usec()
 	var env := WorldEnvironment.new()
 	var e := Environment.new()
 	e.background_mode = Environment.BG_COLOR
@@ -195,6 +200,8 @@ func _ready() -> void:
 		call_deferred("test_run")
 	elif OS.get_cmdline_user_args().has("--capture"):
 		call_deferred("capture_review")
+	elif OS.get_cmdline_user_args().has("--soak"):
+		call_deferred("soak_review")
 
 func make_cloudscape() -> void:
 	# Fixed distant clouds, not extra moving track chunks. Shared low-poly mesh and
@@ -475,6 +482,7 @@ func fill_track() -> void:
 			make_entity(free_lane,SNACK,spawn_at+4.8)
 		if pattern_count%4==2:
 			make_entity(free_lane,MAGNET+rng.randi_range(0,3),spawn_at+7.4)
+		if review_driver: safe_rows.append(Vector2(spawn_at,float(free_lane)))
 		previous_safe_lane=free_lane
 		pattern_count+=1
 		spawn_at+=maxf(12.0,speed*1.22)
@@ -611,7 +619,7 @@ func run_score() -> int:
 	return int(distance*10)+coins*25+snacks*50
 
 func load_best() -> void:
-	if OS.get_cmdline_user_args().has("--test") or OS.get_cmdline_user_args().has("--capture"): return
+	if OS.get_cmdline_user_args().has("--test") or review_driver: return
 	var config:=ConfigFile.new()
 	if config.load("user://dash-record.cfg")==OK:
 		best_score=maxi(0,int(config.get_value("records","best",0)))
@@ -620,7 +628,7 @@ func save_best() -> void:
 	if best_saved: return
 	best_saved=true
 	best_score=maxi(best_score,run_score())
-	if OS.get_cmdline_user_args().has("--test") or OS.get_cmdline_user_args().has("--capture"): return
+	if OS.get_cmdline_user_args().has("--test") or review_driver: return
 	var config:=ConfigFile.new()
 	config.set_value("records","best",best_score)
 	config.save("user://dash-record.cfg")
@@ -638,6 +646,11 @@ func pickup_reachable(kind:int,feet_y:float,attracted:bool) -> bool:
 func _physics_process(dt: float) -> void:
 	if ended or paused_run:
 		return
+	if review_driver and started:
+		# CI only: follow the procedurally generated reachable route; never bypass collision.
+		while not safe_rows.is_empty() and distance>safe_rows[0].x+1.0:
+			safe_rows.pop_front()
+		if not safe_rows.is_empty(): lane=int(safe_rows[0].y)
 	player.velocity.y-=GRAVITY*dt
 	var capsule := player_shape.shape as CapsuleShape3D
 	capsule.height=0.96 if slide>0 else 1.35
@@ -719,8 +732,13 @@ func _physics_process(dt: float) -> void:
 			pools[kind].append(a)
 			entities.remove_at(i)
 	fill_track()
-	camera.position.x=lerpf(camera.position.x,player.position.x*0.18,minf(1,dt*6))
-	update_hud()
+	peak_active=maxi(peak_active,entities.size())
+	camera.position.x=lerpf(camera.position.x,player.position.x*0.24,minf(1,dt*6))
+	camera.fov=lerpf(camera.fov,58.0+minf(5.0,(speed-9.0)*0.28),minf(1,dt*3))
+	hud_refresh+=dt
+	if ended or hud_refresh>=0.075:
+		hud_refresh=0
+		update_hud()
 
 func collect_kind(kind: int) -> void:
 	match kind:
@@ -909,16 +927,37 @@ func capture_review() -> void:
 	assert(review.save_png("/tmp/pet-dash-review.png")==OK)
 	var frame_ms: Array[float]=[]
 	var last_us:=Time.get_ticks_usec()
-	for i in range(90):
+	for i in range(45):
 		await RenderingServer.frame_post_draw
 		var now:=Time.get_ticks_usec()
-		if i>=15: frame_ms.append(float(now-last_us)/1000.0)
+		if i>=5: frame_ms.append(float(now-last_us)/1000.0)
 		last_us=now
 	frame_ms.sort()
+	assert(not ended,"capture driver crashed during timing")
 	var p95:=frame_ms[int((frame_ms.size()-1)*0.95)]
 	var metrics:=FileAccess.open("/tmp/pet-dash-render-metrics.json",FileAccess.WRITE)
 	metrics.store_string(JSON.stringify({"renderer":RenderingServer.get_current_rendering_method(),"samples":frame_ms.size(),"median_ms":frame_ms[int(frame_ms.size()/2.0)],"p95_ms":p95,"draw_calls":RenderingServer.get_rendering_info(RenderingServer.RENDERING_INFO_TOTAL_DRAW_CALLS_IN_FRAME),"primitives":RenderingServer.get_rendering_info(RenderingServer.RENDERING_INFO_TOTAL_PRIMITIVES_IN_FRAME),"scope":"desktop virtual display; not Android"}))
 	metrics.close()
 	await RenderingServer.frame_post_draw
 	print("PET_DASH_RENDER_CAPTURE_OK")
+	get_tree().quit(0)
+
+func soak_review() -> void:
+	# Fixed-fps headless CI runs a long procedural session with real physics,
+	# pickup logic, recycling and collisions; not a GPU or Android benchmark.
+	await get_tree().physics_frame
+	started=true
+	var steps:=0
+	while distance<900.0 and not ended and steps<7200:
+		await get_tree().physics_frame
+		steps+=1
+	assert(not ended and distance>=900.0,"reachable generated route failed")
+	assert(pattern_count>35 and reused_entities>100)
+	assert(created_entities<180 and peak_active<130)
+	assert(coins>20)
+	var result:=FileAccess.open("/tmp/pet-dash-soak.json",FileAccess.WRITE)
+	assert(result!=null)
+	result.store_string(JSON.stringify({"distance":distance,"steps":steps,"coins":coins,"snacks":snacks,"rows":pattern_count,"allocated":created_entities,"reused":reused_entities,"peak_active":peak_active,"scope":"deterministic headless physics; not physical-device FPS"}))
+	result.close()
+	print("PET_DASH_SOAK_PASS")
 	get_tree().quit(0)

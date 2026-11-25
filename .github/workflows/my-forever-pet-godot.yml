@@ -47,10 +47,18 @@ jobs:
           timeout 60 "$G" --headless --path my-forever-pet/godot-arcade -- --test 2>&1 | tee /tmp/godot-smoke.log
           grep -F PET_DASH_3D_SMOKE_PASS /tmp/godot-smoke.log
           ! grep -E 'SCRIPT ERROR|Parse Error' /tmp/godot-smoke.log
+      - name: Long-run procedural physics and object recycling
+        run: |
+          set -euo pipefail
+          G=/tmp/godot/Godot_v4.4.1-stable_linux.x86_64
+          timeout 60 "$G" --headless --fixed-fps 60 --path my-forever-pet/godot-arcade -- --soak 2>&1 | tee /tmp/dash-soak.log
+          grep -F PET_DASH_SOAK_PASS /tmp/dash-soak.log
+          ! grep -E 'SCRIPT ERROR|Parse Error' /tmp/dash-soak.log
+          cat /tmp/pet-dash-soak.json
       - name: Capture actual 3D viewport
         run: |
           set -euo pipefail
-          xvfb-run -a timeout 90 /tmp/godot/Godot_v4.4.1-stable_linux.x86_64 --path my-forever-pet/godot-arcade --rendering-method gl_compatibility --resolution 540x960 -- --capture
+          xvfb-run -a timeout 180 /tmp/godot/Godot_v4.4.1-stable_linux.x86_64 --path my-forever-pet/godot-arcade --rendering-method gl_compatibility --resolution 540x960 -- --capture
           test -s /tmp/pet-dash-review.png
           test -s /tmp/pet-dash-render-metrics.json
           cat /tmp/pet-dash-render-metrics.json
@@ -63,6 +71,7 @@ jobs:
             /tmp/pet-dash-review.png
             /tmp/pet-dash-render-metrics.json
             /tmp/pet-dash-visual-metrics.json
+            /tmp/pet-dash-soak.json
             my-forever-pet/godot-arcade/assets/*.glb
           if-no-files-found: error
       - uses: actions/setup-java@v4

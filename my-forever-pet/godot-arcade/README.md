@@ -8,3 +8,5 @@ Android lab export: separate package org.myforeverpet.dashlab, ARM64 debug signi
 0.2 lab: compact interactive HUD, pause/results panel, finish/retry, five-coin trails and varied safe-lane obstacle patterns, recycled entities and jump buffering/fast fall. These are still isolated lab rewards. Automated smoke now checks reuse and repeated coin pickup. Physical performance and final reference-quality art are not yet verified.
 
 0.5 lab: per-type pickup/contact depths, grounded boost trigger, reusable radial contact shadows, floating pickup feedback, and local best score. CI tests do not modify a player's records. These are not shared native app rewards. Physical device performance and visual parity remain open.
+
+0.5 follow-up: deterministic 900m procedural route soak with real collision, scoring and pool limits; capture timing follows the generated safe route instead of benchmarking a crashed/paused screen. HUD updates capped near 13 Hz and camera FOV increases with speed. The headless test is not an Android performance claim.
