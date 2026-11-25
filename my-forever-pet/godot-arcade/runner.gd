@@ -86,6 +86,9 @@ var expert_action_rows := 0
 var expert_chain_rows := 0
 const WORLD_NAMES := ["Sky Kingdom","Crystal Gardens","Moonlight Isles"]
 var surf_time := 0.0
+var surf_end_reason := ""
+var surf_end_count := 0
+const DASH_BUILD := "SURF FIX 21"
 var surf_board: Node3D
 var world_index := 0
 var world_visits := 0
@@ -602,7 +605,7 @@ func make_hud() -> void:
 	var header := HBoxContainer.new()
 	header.mouse_filter=Control.MOUSE_FILTER_IGNORE
 	column.add_child(header)
-	var brand:=hud_label(header,"PET DASH",16,Color("#fff0b5"))
+	var brand:=hud_label(header,"PET DASH · 21",16,Color("#fff0b5"))
 	brand.add_theme_color_override("font_outline_color",Color("#38203f"))
 	brand.add_theme_constant_override("outline_size",4)
 	status=brand
@@ -1114,6 +1117,26 @@ func contact_depth(kind:int) -> float:
 	if kind==BOOST: return 0.92
 	return 0.64
 
+func end_surf(reason:String) -> void:
+	if surf_time<=0.0: return
+	surf_time=0.0
+	surf_end_reason=reason
+	surf_end_count+=1
+	if surf_board!=null: surf_board.hide()
+	for trail in surf_trails: trail.hide()
+	print("SURF_END ",reason," distance=",total_distance()," slide=",slide," air_slide=",air_slide_pending)
+	if reason=="TIME EXPIRED": show_skill("BOARD TIME UP")
+
+func runner_hazard_hit(kind:int,lateral:float) -> bool:
+	var duck:=slide>0.0 or air_slide_pending
+	var feet_y:=player.position.y+surf_lift()
+	# Surf crouch clearance is based on ground-relative body posture, not the
+	# hover offset. The old summed height falsely clipped the beam on landing.
+	# Side posts and every other actual obstacle still use normal collision.
+	if surf_time>0.0 and duck and kind==1 and lateral<=0.38:
+		feet_y=player.position.y
+	return hazard_hit(kind,feet_y,duck,lateral)
+
 func surf_lift() -> float:
 	if surf_time<=0.0: return 0.0
 	return SURF_SLIDE_LIFT if slide>0.0 or air_slide_pending else SURF_LIFT
@@ -1180,7 +1203,9 @@ func _physics_process(dt: float) -> void:
 	slow_time=maxf(0,slow_time-dt)
 	spring_time=maxf(0,spring_time-dt)
 	rescue_time=maxf(0,rescue_time-dt)
-	surf_time=maxf(0,surf_time-dt)
+	if surf_time>0.0:
+		if surf_time<=dt: end_surf("TIME EXPIRED")
+		else: surf_time-=dt
 	var was_flying:=jet_time>0.0
 	jet_time=maxf(0.0,jet_time-dt)
 	if was_flying and jet_time<=0.0: jet_grace=1.1
@@ -1291,9 +1316,9 @@ func _physics_process(dt: float) -> void:
 						reward_burst(Vector3(player.position.x,player.position.y+0.9,0),Color("#ffe69a") if kind==PICKUP or kind==CARD else Color("#9fefff"),kind!=PICKUP)
 					a.set_meta("resolved",true)
 					a.hide()
-			elif jet_time<=0 and jet_lift<0.5 and jet_grace<=0 and hazard_hit(kind,player.position.y+surf_lift(),slide>0 or air_slide_pending,lateral):
+			elif jet_time<=0 and jet_lift<0.5 and jet_grace<=0 and runner_hazard_hit(kind,lateral):
 				if surf_time>0:
-					surf_time=0
+					end_surf("IMPACT %d"%kind)
 					surf_grace=0.65
 					surf_exit_flash=0.35
 					surf_saves+=1
@@ -1303,7 +1328,7 @@ func _physics_process(dt: float) -> void:
 					a.hide()
 					for trail in surf_trails: trail.hide()
 					reward_burst(Vector3(player.position.x,player.position.y+0.7,0),Color("#9aeaff"),true)
-					show_skill("BOARD BROKEN — KEEP RUNNING")
+					show_skill("BOARD HIT — KEEP RUNNING")
 					audio.call("play_fx","board_break")
 				elif surf_grace>0:
 					a.set_meta("resolved",true)
@@ -1324,7 +1349,7 @@ func _physics_process(dt: float) -> void:
 					audio.call("play_fx","shield")
 				else:
 					ended=true
-					surf_time=0
+					end_surf("RUN ENDED")
 					if surf_board!=null: surf_board.hide()
 					crash_player_y=player.position.y
 					crash_remaining=0.58
@@ -1333,7 +1358,7 @@ func _physics_process(dt: float) -> void:
 					audio.call("play_fx","crash")
 					audio.call("stop_music")
 					break
-		if jet_time<=0 and jet_lift<0.5 and jet_grace<=0 and not is_pickup(kind) and not bool(a.get_meta("resolved")) and not bool(a.get_meta("skill_clear")) and contact and lateral<0.34 and not hazard_hit(kind,player.position.y+surf_lift(),slide>0 or air_slide_pending,lateral):
+		if jet_time<=0 and jet_lift<0.5 and jet_grace<=0 and not is_pickup(kind) and not bool(a.get_meta("resolved")) and not bool(a.get_meta("skill_clear")) and contact and lateral<0.34 and not runner_hazard_hit(kind,lateral):
 			# Award once only after the trailing edge clears, not on approach.
 			if a.position.z>=depth:
 				a.set_meta("skill_clear",true)
@@ -1459,6 +1484,7 @@ func collect_kind(kind: int) -> void:
 		SURF:
 			# Picking up a board mid-duck or mid-fast-fall must not cancel the action.
 			surf_time=SURF_DURATION
+			surf_end_reason=""
 		JETPACK:
 			jet_time=JET_DURATION
 			jet_runs+=1
@@ -1888,6 +1914,30 @@ func test_run() -> void:
 	assert(surf_time>0 and slide>0 and not hazard_hit(1,surf_lift(),true))
 	for i in range(45): await get_tree().physics_frame
 	assert(not ended and surf_board.visible and surf_time>0 and surf_saves==0)
+	# Exercise the actual mobile swipe path and footer button repeatedly on empty track.
+	collect_kind(SURF)
+	var prior_ends:=surf_end_count
+	var before_swipes:=surf_time
+	for i in range(4):
+		var down:=InputEventScreenTouch.new()
+		down.index=5
+		down.pressed=true
+		down.position=Vector2(200,300)
+		_unhandled_input(down)
+		var swipe:=InputEventScreenDrag.new()
+		swipe.index=5
+		swipe.position=Vector2(200,420)
+		_unhandled_input(swipe)
+		down.pressed=false
+		down.position=swipe.position
+		_unhandled_input(down)
+		for tick in range(12): await get_tree().physics_frame
+		update_hud()
+		assert(surf_time>0 and surf_end_count==prior_ends and surf_board.visible and slide>0)
+		assert((power_cards["SKY SURF"]["bar"] as ProgressBar).is_visible_in_tree())
+		assert(speed>=base_run_speed(total_distance())+SURF_SPEED_BONUS-0.1)
+	assert(surf_time<before_swipes and surf_time>before_swipes-2.0)
+	for tick in range(45): await get_tree().physics_frame
 	# A board pickup while sliding must preserve the slide, even on the pickup frame.
 	gesture(Vector2(0,80))
 	var old_slide:=slide
@@ -1911,7 +1961,7 @@ func test_run() -> void:
 	# Timer expiry still removes the board normally without consuming a crash save.
 	surf_time=0.01
 	for i in range(3): await get_tree().physics_frame
-	assert(surf_time==0.0 and not surf_board.visible and not ended and surf_saves==0)
+	assert(surf_time==0.0 and not surf_board.visible and not ended and surf_saves==0 and surf_end_reason=="TIME EXPIRED")
 	distance_offset=original_offset
 	collect_kind(SURF)
 	for i in range(3): await get_tree().physics_frame
@@ -1921,7 +1971,7 @@ func test_run() -> void:
 	assert(feet[0].position.is_equal_approx(planted),"surf feet must stay planted")
 	make_entity(1,TALL,distance+1.5)
 	for i in range(22): await get_tree().physics_frame
-	assert(not ended and surf_time==0 and surf_saves==1 and not surf_board.visible)
+	assert(not ended and surf_time==0 and surf_saves==1 and not surf_board.visible and surf_end_reason=="IMPACT %d"%TALL)
 	assert(burst_pool.size()==4 and burst_count>0 and not surf_trails[0].visible)
 	for i in range(50): await get_tree().physics_frame
 	assert(surf_grace==0 and not ended)
