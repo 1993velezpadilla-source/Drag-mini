@@ -1,0 +1,66 @@
+name: My Forever Pet - individual gold asset gauntlet
+on:
+  workflow_dispatch:
+  push:
+    branches: [feature/my-forever-pet-paradise]
+    paths:
+      - 'my-forever-pet/art-gauntlet/**'
+      - '.github/workflows/my-forever-pet-gold-gauntlet.yml'
+permissions:
+  contents: read
+jobs:
+  mosskit-master-mobile-blender:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Blender and image validator
+        run: sudo apt-get update -qq && sudo apt-get install -y blender python3-pil
+      - name: Sculpt candidate and render five actual views per LOD
+        run: |
+          set -euo pipefail
+          mkdir -p gold
+          blender -b -t 4 --python-exit-code 1 -P my-forever-pet/art-gauntlet/mosskit_gold.py -- "$PWD/gold" 2>&1 | tee gold/blender.log
+          grep -F MOSSKit_MASTER_MOBILE_TECHNICAL_PASS_NOT_ART_APPROVED gold/blender.log
+          python3 my-forever-pet/art-gauntlet/asset_gate.py gold
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: Mosskit-GOLD-candidate-BLEND-GLB-10-real-Blender-views
+          path: gold/
+          if-no-files-found: error
+  isolated-native-godot:
+    needs: mosskit-master-mobile-blender
+    runs-on: ubuntu-22.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: Mosskit-GOLD-candidate-BLEND-GLB-10-real-Blender-views
+          path: gold
+      - name: Install pinned Godot and Mesa virtual display
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y xvfb libgl1 libgl1-mesa-dri python3-pil
+          curl -fL --retry 3 -o /tmp/godot.zip https://github.com/godotengine/godot/releases/download/4.4.1-stable/Godot_v4.4.1-stable_linux.x86_64.zip
+          unzip -q /tmp/godot.zip -d /tmp/godot
+      - name: Verify original mobile GLB in isolated real engine and test foot articulation
+        run: |
+          set -euo pipefail
+          mkdir -p isolated
+          cp gold/mosskit-mobile.glb isolated/
+          cp my-forever-pet/art-gauntlet/gold_review.gd isolated/
+          printf '%s\n' 'config_version=5' '[display]' 'window/size/viewport_width=960' 'window/size/viewport_height=960' '[rendering]' 'renderer/rendering_method="gl_compatibility"' > isolated/project.godot
+          G=/tmp/godot/Godot_v4.4.1-stable_linux.x86_64
+          "$G" --headless --path isolated --editor --import --quit
+          export PET_GOLD_OUT="$PWD/gold"
+          xvfb-run -a -s "-screen 0 1100x1100x24" timeout 180 "$G" --path isolated --rendering-method gl_compatibility --audio-driver Dummy --script res://gold_review.gd 2>&1 | tee gold/godot.log
+          grep -F MOSSKit_NATIVE_GODOT_FIVE_VIEWS_PASS_NOT_ART_APPROVED gold/godot.log
+          ! grep -E 'SCRIPT ERROR|Parse Error' gold/godot.log
+          python3 my-forever-pet/art-gauntlet/asset_gate.py gold
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: Mosskit-GOLD-candidate-native-Godot-review
+          path: gold/
+          if-no-files-found: error
