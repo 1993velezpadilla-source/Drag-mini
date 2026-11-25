@@ -122,9 +122,20 @@ for side in [-1,1]:
   if j%3==0:flower((side*3.25,yy,.64),1.05)
 for j in range(1,13,2):
  a=j*pi/12;flower((3.3*math.cos(a),4.08+3.3*math.sin(a),.48),1.1)
+ # Small golden hanging pennants below the arch, clear of the runner.
+for side in [-1,1]:
+ x=side*1.93
+ box((x,5.62,.12),(.65,.88,.08),blue,.03)
+ box((x,5.20,.18),(.70,.06,.04),gold,.01)
+ paw((x,5.52,.18),gold,.72)
 export('arch',85000)
 clear()
 cyl((0,-1.9,0),.50,2.7,3.8,stone);cyl((0,.05,0),2.69,2.69,.35,green)
+# Irregular rock silhouettes and a raised sandstone terrace.
+for j in range(8):
+ a=j*pi/4
+ ball((math.cos(a)*2.13,-.65-((j%3)*.18),math.sin(a)*2.13),(.95,1.75,.84),stone)
+box((0,.28,-.30),(3.15,.32,2.30),cream,.09)
 cyl((0,1.7,0),.92,.85,3.4,cream);cyl((0,3.88,0),1.16,.05,1.4,blue)
 for i in range(4):
  a=i*pi/2;box((.89*math.cos(a),2.4,.89*math.sin(a)),(.22,.62,.22),gold)
@@ -137,7 +148,13 @@ for side in [-1,1]:
  cyl((side*1.15,2.34,-.65),.68,.04,.85,blue)
  box((side*1.15,1.40,-.13),(.13,.35,.055),gold,.02)
 for i in range(3):ball((-1.8+i*.8,-1.1,1.5), (1.7,.56,1.1),white)
-export('island',50000)
+for side in [-1,1]:
+ for j in range(3):
+  x=side*(1.55+j*.18);z=.67-j*.63
+  cyl((x,.61,z),.065,.045,.78,wood)
+  ball((x,1.16,z),(.64,.90,.65),green if j%2 else leaf)
+  if j==1:flower((x,.49,z+.18),1.1)
+export('island',55000)
 clear()
 ball((0,.85,0),(1.48,1.52,1.2),lime)
 for side in [-1,1]:

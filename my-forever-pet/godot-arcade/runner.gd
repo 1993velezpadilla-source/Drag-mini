@@ -80,6 +80,14 @@ var last_power_hud := ""
 var scenery_visibility_updates := 0
 var jump_buffer := 0.0
 var air_slide_pending := false
+var last_lane := 1
+var lane_impulse := 0.0
+var scene_anim: Array[Node3D] = []
+var scene_anim_origins: Array[Vector3] = []
+var speed_lines: Array[MeshInstance3D] = []
+var speed_line_mat: StandardMaterial3D
+var power_ring: MeshInstance3D
+var last_input_dir := Vector2.ZERO
 const SLIDE_SECONDS := 0.70
 const FAST_FALL := 22.0
 var mandatory_rows := 0
@@ -225,6 +233,8 @@ func make_cloudscape() -> void:
 		if island!=null:
 			island.scale=Vector3.ONE*(1.5+float(i%3)*0.22)
 			island.rotation.y=float(i)*0.8
+			scene_anim.append(island)
+			scene_anim_origins.append(island.position)
 
 func make_chunk(chunk: Node3D, index: int) -> void:
 	if using_blender and asset(chunk,"bridge",Vector3.ZERO)!=null:
@@ -579,7 +589,10 @@ func gesture(delta: Vector2) -> void:
 		return
 	started=true
 	if absf(delta.x)>absf(delta.y) and absf(delta.x)>22:
-		lane=clampi(lane+(1 if delta.x>0 else -1),0,2)
+		var target_lane:=clampi(lane+(1 if delta.x>0 else -1),0,2)
+		if target_lane!=lane:
+			lane_impulse=float(target_lane-lane)
+			lane=target_lane
 	elif delta.y < -22:
 		if player.is_on_floor() and player.velocity.y<=0:
 			slide=0
@@ -605,15 +618,23 @@ func _unhandled_input(event: InputEvent) -> void:
 			touch_start=event.position
 			touch_active=true
 			gesture_sent=false
+			last_input_dir=Vector2.ZERO
 			touch_id=event.index
 		elif not event.pressed and event.index==touch_id:
 			touch_active=false
 			if not gesture_sent: gesture(event.position-touch_start)
 			touch_id=-1
 	elif event is InputEventScreenDrag and touch_active and event.index==touch_id:
-		if not gesture_sent and (event.position-touch_start).length()>=24:
-			gesture_sent=true
-			gesture(event.position-touch_start)
+		var delta:=event.position-touch_start
+		var threshold:=maxf(20.0,get_viewport().get_visible_rect().size.x*0.045)
+		if delta.length()>=threshold:
+			var direction:=Vector2(signf(delta.x),0) if absf(delta.x)>absf(delta.y) else Vector2(0,signf(delta.y))
+			# A fresh direction can be chained during one continuous touch.
+			if not gesture_sent or direction!=last_input_dir:
+				gesture_sent=true
+				last_input_dir=direction
+				gesture(delta)
+			touch_start=event.position
 	elif event is InputEventMouseButton and event.button_index==MOUSE_BUTTON_LEFT and event.device!=InputEvent.DEVICE_ID_EMULATION:
 		if event.pressed:
 			touch_start=event.position
@@ -694,7 +715,7 @@ func _physics_process(dt: float) -> void:
 	var capsule := player_shape.shape as CapsuleShape3D
 	capsule.height=0.96 if slide>0 or air_slide_pending else 1.35
 	player_shape.position.y=capsule.height*0.5
-	player.velocity.x=clampf((LANES[lane]-player.position.x)*14,-15,15)
+	player.velocity.x=clampf((LANES[lane]-player.position.x)*19,-19,19)
 	player.move_and_slide()
 	player.position.z=PLAYER_Z
 	if air_slide_pending and player.is_on_floor():
@@ -717,7 +738,9 @@ func _physics_process(dt: float) -> void:
 	slide=maxf(0,slide-dt)
 	mascot.scale.y=lerpf(mascot.scale.y,0.48 if slide>0 or air_slide_pending else 1.0, minf(1,dt*16))
 	mascot.rotation.y=PI+clampf(player.velocity.x*0.023,-0.24,0.24)
-	mascot.rotation.z=lerpf(mascot.rotation.z,clampf(player.velocity.x*0.025,-0.24,0.24),dt*8)
+	lane_impulse=move_toward(lane_impulse,0,dt*3.5)
+	mascot.rotation.z=lerpf(mascot.rotation.z,clampf(player.velocity.x*0.025+lane_impulse*0.09,-0.29,0.29),minf(1,dt*12))
+	mascot.rotation.x=lerpf(mascot.rotation.x,-0.32 if air_slide_pending or slide>0 else clampf(player.velocity.y*0.018,-0.16,0.16),minf(1,dt*15))
 	mascot.position.y=0.035*(1+sin(clock*32)) if player.is_on_floor() and slide<=0 else 0.0
 	if player.is_on_floor() and slide<=0 and clock>=next_step:
 		next_step=clock+0.19
@@ -775,7 +798,8 @@ func _physics_process(dt: float) -> void:
 			entities.remove_at(i)
 	fill_track()
 	peak_active=maxi(peak_active,entities.size())
-	camera.position.x=lerpf(camera.position.x,player.position.x*0.24,minf(1,dt*6))
+	camera.position.x=lerpf(camera.position.x,player.position.x*0.30,minf(1,dt*7))
+	camera.position.y=lerpf(camera.position.y,4.55+clampf(player.position.y*0.13,0,0.25),minf(1,dt*5))
 	camera.fov=lerpf(camera.fov,58.0+minf(5.0,(speed-9.0)*0.28),minf(1,dt*3))
 	hud_refresh+=dt
 	if ended or hud_refresh>=0.075:
@@ -824,9 +848,45 @@ func make_effects() -> void:
 	aura.material_override=m
 	aura.cast_shadow=GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	aura.hide()
+	var torus:=TorusMesh.new()
+	torus.inner_radius=0.87
+	torus.outer_radius=0.95
+	torus.rings=24
+	torus.ring_segments=6
+	power_ring=mesh(player,torus,Vector3(0,0.16,0),Color("#68e2ff"))
+	power_ring.cast_shadow=GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	var ring_mat:=StandardMaterial3D.new()
+	ring_mat.shading_mode=BaseMaterial3D.SHADING_MODE_UNSHADED
+	ring_mat.albedo_color=Color("#8cecff")
+	power_ring.material_override=ring_mat
+	power_ring.hide()
+	speed_line_mat=StandardMaterial3D.new()
+	speed_line_mat.shading_mode=BaseMaterial3D.SHADING_MODE_UNSHADED
+	speed_line_mat.transparency=BaseMaterial3D.TRANSPARENCY_ALPHA
+	speed_line_mat.albedo_color=Color(0.65,0.88,1,0.28)
+	var strip:=BoxMesh.new()
+	strip.size=Vector3(0.025,0.025,1.0)
+	for i in range(10):
+		var line:=mesh(fx,strip,Vector3.ZERO,Color.WHITE)
+		line.material_override=speed_line_mat
+		line.cast_shadow=GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		line.hide()
+		speed_lines.append(line)
 
 func update_effects(dt:float) -> void:
 	aura.visible=shield_time>0 or boost_time>0
+	power_ring.visible=magnet_time>0 or boost_time>0 or shield_time>0
+	power_ring.rotation.y=clock*2.0
+	power_ring.scale=Vector3.ONE*(1.0+sin(clock*7)*0.08)
+	for i in range(scene_anim.size()):
+		scene_anim[i].position.y=scene_anim_origins[i].y+sin(clock*0.35+float(i))*0.32
+	var intensity:=clampf((speed-12.0)/13.0,0,1)
+	speed_line_mat.albedo_color.a=0.12+intensity*0.30
+	for i in range(speed_lines.size()):
+		var line:=speed_lines[i]
+		line.visible=intensity>0.15 or boost_time>0
+		line.position=Vector3((-1.0 if i%2==0 else 1.0)*(2.5+float(i%3)*0.20),0.10,fposmod(clock*(8+speed*0.5)+float(i)*4.3,35.0)-29.0)
+		line.scale.z=1.0+intensity*2.4
 	if player.is_on_floor() and slide<=0 and int(clock*15)!=int((clock-dt)*15):
 		for i in range(dust.size()):
 			if dust_ages[i]<0:
@@ -924,6 +984,10 @@ func test_run() -> void:
 	for i in range(15): await get_tree().physics_frame
 	assert(player.is_on_floor() and not air_slide_pending and slide>0.40)
 	assert(not hazard_hit(1,player.position.y,true))
+	# Chained lane commands remain responsive while the landing roll is active.
+	gesture(Vector2(-80,0))
+	gesture(Vector2(80,0))
+	assert(lane==1 and slide>0)
 	# Up from a slide starts a new jump immediately.
 	gesture(Vector2(0,-80))
 	assert(slide==0 and player.velocity.y==JUMP_SPEED)
