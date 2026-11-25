@@ -1292,6 +1292,26 @@ func test_run() -> void:
 	assert(not ended and cart.position.z-cart_z>distance-start_distance+0.1,"cart approaches independently")
 	for i in range(60): await get_tree().physics_frame
 	assert(not ended,"adjacent cart must not hit runner")
+	# New power-ups must change movement, not just display a timer.
+	collect_kind(SPRING)
+	gesture(Vector2(0,-80))
+	for i in range(16): await get_tree().physics_frame
+	gesture(Vector2(0,-80))
+	assert(air_jump_used and player.velocity.y>8.0)
+	var second_jump_velocity:=player.velocity.y
+	gesture(Vector2(0,-80))
+	assert(player.velocity.y==second_jump_velocity,"only one extra jump per takeoff")
+	jump_buffer=0
+	for i in range(100): await get_tree().physics_frame
+	assert(player.is_on_floor() and not air_jump_used)
+	spring_time=0
+	var normal_speed:=speed
+	collect_kind(TIME_ORB)
+	for i in range(3): await get_tree().physics_frame
+	assert(speed<normal_speed*0.75 and slow_time>0)
+	slow_time=0
+	for i in range(3): await get_tree().physics_frame
+	assert(speed>=normal_speed)
 	var old_distance:=distance
 	for i in range(20):
 		await get_tree().physics_frame
@@ -1396,10 +1416,10 @@ func soak_review() -> void:
 	await get_tree().physics_frame
 	started=true
 	var steps:=0
-	while total_distance()<3000.0 and not ended and steps<16000:
+	while total_distance()<3200.0 and not ended and steps<20000:
 		await get_tree().physics_frame
 		steps+=1
-	assert(not ended and total_distance()>=3000.0,"endless route stopped unexpectedly")
+	assert(not ended and total_distance()>=3200.0,"endless route stopped unexpectedly")
 	var checkpoint:=total_distance()
 	for i in range(180): await get_tree().physics_frame
 	assert(not ended and total_distance()>checkpoint+30.0,"run must continue past the test checkpoint")
@@ -1410,7 +1430,7 @@ func soak_review() -> void:
 	assert(coins>20)
 	var result:=FileAccess.open("/tmp/pet-dash-soak.json",FileAccess.WRITE)
 	assert(result!=null)
-	result.store_string(JSON.stringify({"distance":total_distance(),"local_distance":distance,"rebases":rebase_count,"chunk_recycles":chunk_recycles,"steps":steps,"coins":coins,"snacks":snacks,"rows":pattern_count,"mandatory_rows":mandatory_rows,"moving_rows":moving_rows,"allocated":created_entities,"reused":reused_entities,"peak_active":peak_active,"scope":"deterministic headless endless physics; 3000m checkpoint plus continued gameplay, not physical-device FPS"}))
+	result.store_string(JSON.stringify({"distance":total_distance(),"local_distance":distance,"rebases":rebase_count,"chunk_recycles":chunk_recycles,"steps":steps,"coins":coins,"snacks":snacks,"rows":pattern_count,"mandatory_rows":mandatory_rows,"moving_rows":moving_rows,"allocated":created_entities,"reused":reused_entities,"peak_active":peak_active,"scope":"deterministic headless endless physics; 3200m checkpoint plus continued gameplay, not physical-device FPS"}))
 	result.close()
 	print("PET_DASH_SOAK_PASS")
 	get_tree().quit(0)

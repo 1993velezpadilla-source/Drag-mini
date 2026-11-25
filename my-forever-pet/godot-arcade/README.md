@@ -28,3 +28,5 @@ Endless hardening: rebase track-local coordinates every 1024m while keeping tota
 0.10 corrective pass: typed obstacle choices use explicit append, integration smoke exercises actual red-beam jump/slide, moving cart displacement and adjacent lane safety, and crash animation lands at the road instead of floating after a midair collision. These checks are pending CI.
 
 0.11 skill expansion: Time Bubble slows the road for eight seconds, Spring gives one additional airborne jump per takeoff for ten seconds, optional airborne Sky Rings award points, sets of three gems yield a fixed bonus, coin combos award capped skill points, clean obstacle clear rewards and sequential in-run challenges with progress HUD. No purchase or random paid reward is involved. All new assets are Blender originals; validation pending.
+
+0.11 follow-up: exercise actual second jump with one-use limit and landing reset; verify Time Bubble changes speed and expires/reset restores normal progression. Soak checkpoint increased to 3200m to guarantee three rebases even when time-slow power is active. Pending CI.
