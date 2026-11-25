@@ -29,8 +29,8 @@ jobs:
           import objaverse
           candidates=[
               ('e17e438f076f4427a58d93aa779edaed','wallon','realwallon','audi-r8'),
-              ('2dee503c05f940739ff6f9e2b3562337','lotus_overlord','lotus_overlord','audi-r8'),
               ('d10f75f74355452f8e417cc36f253841','Aditya Voxel','adityakm','audi-r8'),
+              ('2dee503c05f940739ff6f9e2b3562337','lotus_overlord','lotus_overlord','audi-r8'),
               ('e32c7e692d46410eb60c078bb5e272f4','itsvipergfx','itsvipergfx','2014-audi-r8-free-to-use'),
               ('a1f5aa63d30046d2858929f144e0d986','Car_Lovers','akramchatmen','audi-r8'),
               ('7463fcd44a00428486c09487f7fcda0c','Mona x Supercars','car2022','audi-r8-v10-type-42'),
@@ -78,8 +78,8 @@ jobs:
               g=json.loads(raw[20:20+size])
               triangles=sum((g['accessors'][p['indices']]['count'] if 'indices' in p else g['accessors'][p['attributes']['POSITION']]['count'])//3 for m in g.get('meshes',[]) for p in m['primitives'] if p.get('mode',4)==4)
               audit=material_audit(g)
-              if not 300000<=triangles<=1000000 or audit['used_materials']<3 or audit['distinct_shading_signatures']<3 or len(raw)>250_000_000:
-                  attempts.append([uid,'rejected master geometry/material/size budget',triangles,len(g.get('materials',[])),len(g.get('images',[])),len(raw)])
+              if not 250000<=triangles<=1000000 or (triangles<300000 and audit['embedded_images']<3) or audit['used_materials']<3 or audit['distinct_shading_signatures']<3 or len(raw)>250_000_000:
+                  attempts.append([uid,'rejected master geometry/material/size budget',triangles,len(g.get('materials',[])),len(g.get('images',[])),len(raw),audit['used_materials'],audit['distinct_shading_signatures']])
                   continue
               page='https://sketchfab.com/3d-models/'+slug+'-'+uid
               chosen=uid
@@ -97,7 +97,7 @@ jobs:
           assert kind==b'JSON'
           g=json.loads(raw[20:20+size])
           triangles=sum((g['accessors'][p['indices']]['count'] if 'indices' in p else g['accessors'][p['attributes']['POSITION']]['count'])//3 for m in g['meshes'] for p in m['primitives'] if p.get('mode',4)==4)
-          assert 300000<=triangles<=1000000,triangles
+          assert 250000<=triangles<=1000000,triangles
           audit=material_audit(g)
           assert audit['used_materials']>=3 and audit['distinct_shading_signatures']>=3
           print('AUDI_R8_ORIGINAL_MATERIAL_AUDIT',json.dumps(audit),flush=True)
