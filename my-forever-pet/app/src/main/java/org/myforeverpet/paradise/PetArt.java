@@ -9,7 +9,7 @@ final class PetArt {
  private void text(Canvas c,String s,float x,float y,float size,int col){color(col);p.setTextSize(size);p.setTypeface(Typeface.create("sans-serif-medium",0));p.setTextAlign(Paint.Align.CENTER);c.drawText(s,x,y,p);}
  private void star(Canvas c,float x,float y,float size,int col){color(col);Path a=new Path();for(int i=0;i<10;i++){double ang=-Math.PI/2+i*Math.PI/5;float r=i%2==0?size:size*.42f;float xx=x+(float)Math.cos(ang)*r,yy=y+(float)Math.sin(ang)*r;if(i==0)a.moveTo(xx,yy);else a.lineTo(xx,yy);}a.close();c.drawPath(a,p);}
  void draw(Canvas canvas,PetState s,int zoom,boolean wallpaper,long tick){
-  canvas.save();float w=canvas.getWidth(),h=canvas.getHeight();canvas.scale(w/360f,h/480f);
+  canvas.save();float w=canvas.getWidth(),h=canvas.getHeight();canvas.drawColor(0xffa1e4d5);float scaleToFit=Math.min(w/360f,h/480f);canvas.translate((w-360f*scaleToFit)/2f,(h-480f*scaleToFit)/2f);canvas.scale(scaleToFit,scaleToFit);
   Canvas c=canvas;float bob=(float)Math.sin(tick/550.0)*3;
   int sky=s.field==1?0xff5ac9d9:s.field==2?0xff8aa8ee:0xffa1e4d5;
   int land=s.field==1?0xff318ca9:s.field==2?0xffb9c8fa:0xff76bb86;

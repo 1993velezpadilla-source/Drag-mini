@@ -25,7 +25,7 @@ jobs:
       - name: Verify standalone simulation
         run: |
           mkdir -p /tmp/pet-test
-          javac -d /tmp/pet-test app/src/main/java/org/myforeverpet/paradise/PetState.java tests/PetStateTest.java
+          javac -d /tmp/pet-test app/src/main/java/org/myforeverpet/paradise/PetState.java app/src/main/java/org/myforeverpet/paradise/PlaydateRules.java tests/PetStateTest.java
           java -cp /tmp/pet-test org.myforeverpet.paradise.PetStateTest
       - name: Install Android SDK
         run: |
@@ -41,6 +41,6 @@ jobs:
           "$ANDROID_HOME/build-tools/35.0.0/aapt" dump badging "$APK"
       - uses: actions/upload-artifact@v4
         with:
-          name: My-Forever-Pet-Standalone-0.2-debug
+          name: My-Forever-Pet-Standalone-0.3-debug
           path: my-forever-pet/app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error

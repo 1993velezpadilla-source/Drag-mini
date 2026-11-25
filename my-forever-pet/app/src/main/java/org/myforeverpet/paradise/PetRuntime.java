@@ -10,5 +10,5 @@ final class PetRuntime {
  private void save(){prefs.edit().putString("state",state.encode()).apply();savedAt=System.currentTimeMillis();}
  synchronized void flush(){if(state!=null){state.advance(System.currentTimeMillis());save();}}
  synchronized PetState snapshot(){state.advance(System.currentTimeMillis());if(System.currentTimeMillis()-savedAt>=10000)save();return PetState.decode(state.encode());}
- synchronized void action(int a,int value){state.advance(System.currentTimeMillis());switch(a){case 0:state.hatch(System.currentTimeMillis());break;case 1:state.feed(value);break;case 2:state.play();break;case 3:state.clean();break;case 4:state.treat();break;case 5:state.inspectCell();break;case 6:state.changeField(value);break;case 7:state.reward(value);break;}save();}
+ synchronized void action(int a,int value){state.advance(System.currentTimeMillis());switch(a){case 0:state.hatch(System.currentTimeMillis());break;case 1:state.feed(value);break;case 2:state.play();break;case 3:state.clean();break;case 4:state.treat();break;case 5:state.inspectCell();break;case 6:state.changeField(value);break;case 7:state.reward(value);break;case 8:state.playdate(3,5,10,true);break;case 9:state.breed(3,2,1,System.currentTimeMillis());break;}save();}
 }

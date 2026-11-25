@@ -7,6 +7,8 @@ public class PetStateTest {
   s.advance(t+25*PetState.HOUR);eq(s.stage==3&&s.body==2,"young food branch");s.advance(t+49*PetState.HOUR);eq(s.stage==4,"adult");eq(s.sick,"illness");s.treat();eq(!s.sick,"treat");s.reward(5);eq(s.coins==25,"minigame reward");
   eq(PetState.decode(s.encode()).encode().equals(s.encode()),"save round trip");String before=s.encode();s.advance(t+48*PetState.HOUR);eq(before.equals(s.encode()),"backwards clock");
   PetState p=new PetState();p.hatch(t);p.advance(t+30*PetState.MIN);p.changeField(2);p.advance(t+60*PetState.MIN);eq(!p.inspectCell(),"matching field requirement");p.advance(t+90*PetState.MIN);eq(p.inspectCell(),"second field completed");
+  eq(PlaydateRules.base(2,3)==3,"rank difference");eq(PlaydateRules.base(5,0)==4,"secret priority");eq(PlaydateRules.fight(2,9,5,5),"fight mixed conditions");eq(!PlaydateRules.fight(2,9,5,10),"no fight if one side well");eq(!PlaydateRules.canBreed(false,true,4,false,false),"adult gate");eq(!PlaydateRules.canBreed(true,true,4,true,false),"unbreedable gate");
+  eq(!s.breed(3,2,1,t+49*PetState.HOUR),"friendship gate");s.playdate(3,5,10,true);s.playdate(3,5,10,true);eq(s.friendship==4,"friendship cap");eq(s.breed(3,2,1,t+49*PetState.HOUR)&&s.stage==0&&s.generation==2&&s.inheritedEyes==2&&s.coins==25,"offspring state and retained coins");eq(PetState.decode(s.encode()).generation==2,"generation persistence");s.hatch(t+49*PetState.HOUR);s.advance(t+50*PetState.HOUR);s.inspectCell();s.advance(t+98*PetState.HOUR);eq(s.eyes==2,"inherited eyes");
   System.out.println("PASS: egg, cell growth, food, cleaning, adulthood, illness, rewards, save, clock, field matching");
  }
 }

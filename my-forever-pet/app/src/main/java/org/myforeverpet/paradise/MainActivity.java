@@ -2,7 +2,7 @@ package org.myforeverpet.paradise;
 import android.app.*;import android.content.*;import android.graphics.*;import android.os.*;import android.view.*;import android.widget.*;
 public class MainActivity extends Activity{
  private final PetRuntime pet=PetRuntime.get();private final PetArt art=new PetArt();private final Handler h=new Handler(Looper.getMainLooper());
- private int zoom=2,hits=0,remaining=0;private boolean playing=false,active=false;private long gameEnd;private float targetX=.5f,targetY=.5f;
+ private int zoom=2,hits=0,remaining=0,displayedStage=-1;private boolean playing=false,active=false;private long gameEnd;private float targetX=.5f,targetY=.5f;
  private TextView status,caption;private LinearLayout actions;private View scene;
  private final Runnable refresh=new Runnable(){public void run(){if(!active)return;if(playing&&SystemClock.elapsedRealtime()>=gameEnd)finishGame();update();h.postDelayed(this,100);}};
  private int dp(float x){return (int)(x*getResources().getDisplayMetrics().density+.5f);}
@@ -19,14 +19,15 @@ public class MainActivity extends Activity{
  LinearLayout footer=new LinearLayout(this);button(footer,"Live wallpaper",()->{Intent i=new Intent(WallpaperManager.ACTION_CHANGE_LIVE_WALLPAPER);i.putExtra(WallpaperManager.EXTRA_LIVE_WALLPAPER_COMPONENT,new ComponentName(this,PetWallpaper.class));try{startActivity(i);}catch(ActivityNotFoundException e){Toast.makeText(this,"Wallpaper picker unavailable",0).show();}});root.addView(footer);setContentView(root);rebuild();}
  private void button(LinearLayout row,String label,Runnable run){Button b=new Button(this);b.setAllCaps(false);b.setText(label);b.setTextSize(12);b.setMinWidth(0);b.setPadding(dp(3),0,dp(3),0);b.setOnClickListener(v->run.run());row.addView(b,new LinearLayout.LayoutParams(0,dp(48),1));}
  private void act(int a,int v){pet.action(a,v);update();}
- private void rebuild(){actions.removeAllViews();LinearLayout r=new LinearLayout(this);actions.addView(r);PetState s=pet.snapshot();if(playing){button(r,"Finish",()->finishGame());}
+ private void rebuild(){actions.removeAllViews();LinearLayout r=new LinearLayout(this);actions.addView(r);PetState s=pet.snapshot();displayedStage=s.stage;if(playing){button(r,"Finish",()->finishGame());}
  else if(s.stage==0){button(r,"Hatch egg",()->{pet.action(0,0);rebuild();});button(r,"Land",()->act(6,0));button(r,"Water",()->act(6,1));button(r,"Sky",()->act(6,2));}
  else if(zoom==0){button(r,"Visit field",()->{zoom=1;rebuild();});}
  else if(zoom==1){button(r,"Clean field",()->act(3,0));button(r,"Land",()->act(6,0));button(r,"Water",()->act(6,1));button(r,"Sky",()->act(6,2));}
- else if(zoom==2){button(r,"Feed",()->new AlertDialog.Builder(this).setTitle("Choose food").setItems(new String[]{"Meat","Carrot","Fish","Grain"},(d,i)->act(1,i)).show());button(r,"Play",()->act(2,0));button(r,"Mini game",()->{hits=0;playing=true;gameEnd=SystemClock.elapsedRealtime()+15000;rebuild();});}
+ else if(zoom==2){button(r,"Feed",()->new AlertDialog.Builder(this).setTitle("Choose food").setItems(new String[]{"Meat","Carrot","Fish","Grain"},(d,i)->act(1,i)).show());button(r,"Play",()->act(2,0));button(r,"Mini game",()->{hits=0;playing=true;gameEnd=SystemClock.elapsedRealtime()+15000;rebuild();});
+ if(s.stage==PetState.ADULT){LinearLayout social=new LinearLayout(this);actions.addView(social);button(social,"Playdate",()->{act(8,0);rebuild();});button(social,"Breed",()->{PetState p=pet.snapshot();if(p.friendship<4){Toast.makeText(this,"Friendship must reach 4",0).show();return;}new AlertDialog.Builder(this).setTitle("Start a new generation?").setMessage("Your pet's next egg inherits the local partner's eye and color traits.").setNegativeButton("Cancel",null).setPositiveButton("Accept",(d,i)->{pet.action(9,0);rebuild();}).show();});}}
  else {button(r,"Inspect cells",()->{act(5,0);rebuild();});button(r,"Treat",()->act(4,0));}update();}
  private void finishGame(){if(!playing)return;playing=false;pet.action(7,hits);rebuild();}
- private void update(){PetState s=pet.snapshot();status.setText(s.stageName()+"  •  "+s.fieldName()+"  •  "+s.coins+" coins\nFood "+s.hunger+"/5     Happy "+s.happy+"/10     Care "+s.mistakes);caption.setText(playing?"Time: "+Math.max(0,(gameEnd-SystemClock.elapsedRealtime()+999)/1000)+"s":s.stage==0?"Tap your egg to begin":zoom==3?"Inspect cells to trigger growth":s.sick?"Your pet needs treatment in Cell":"Your pet lives even while the app is closed");scene.invalidate();}
+ private void update(){PetState s=pet.snapshot();if(!playing&&s.stage!=displayedStage){rebuild();return;}status.setText(s.stageName()+"  •  Gen "+s.generation+"  •  "+s.fieldName()+"  •  "+s.coins+" coins\nFood "+s.hunger+"/5     Happy "+s.happy+"/10     Care "+s.mistakes);caption.setText(playing?"Time: "+Math.max(0,(gameEnd-SystemClock.elapsedRealtime()+999)/1000)+"s":s.stage==0?"Tap your egg to begin":zoom==3?"Inspect cells to trigger growth":s.sick?"Your pet needs treatment in Cell":s.stage==PetState.ADULT?"Local playdate friendship: "+s.friendship+"/4":"Your pet lives even while the app is closed");scene.invalidate();}
  @Override protected void onStart(){super.onStart();active=true;h.post(refresh);}
  @Override protected void onStop(){active=false;h.removeCallbacks(refresh);if(playing)finishGame();pet.flush();super.onStop();}
 }
