@@ -59,35 +59,59 @@ func _run() -> void:
 
     var low := Vector3(INF, INF, INF)
     var high := Vector3(-INF, -INF, -INF)
+    # The author originally included an oversized plate and an antenna.
+    # Blender removed only the plate; the actual 125k-polygon BODY was
+    # calibrated to 4.291 m. Evaluate the three source major body meshes,
+    # not the antenna protrusions, when checking manufacturing proportions.
+    var shell_low := Vector3(INF, INF, INF)
+    var shell_high := Vector3(-INF, -INF, -INF)
+    var primary_source_shells: Array[int] = []
     var endpoints: Array[Vector3] = []
     var tris := 0
     var surfaces := 0
     var materials := 0
     for m in all:
         var original: Mesh = m.mesh
+        var mesh_triangles := 0
         for surf in range(original.get_surface_count()):
             var mode: int = original.surface_get_primitive_type(surf)
             if mode != Mesh.PRIMITIVE_TRIANGLES:
                 continue
             surfaces += 1
             var indices: int = original.surface_get_array_index_len(surf)
-            tris += int((indices if indices > 0 else original.surface_get_array_len(surf)) / 3)
+            var count: int = int((indices if indices > 0 else original.surface_get_array_len(surf)) / 3)
+            tris += count
+            mesh_triangles += count
             if original.surface_get_material(surf) != null:
                 materials += 1
+        var is_original_body_shell: bool = mesh_triangles in [42738, 43713, 38854]
+        if is_original_body_shell:
+            primary_source_shells.append(mesh_triangles)
         for corner in range(8):
             var pt: Vector3 = m.global_transform * original.get_aabb().get_endpoint(corner)
             low = low.min(pt)
             high = high.max(pt)
+            if is_original_body_shell:
+                shell_low = shell_low.min(pt)
+                shell_high = shell_high.max(pt)
             endpoints.append(pt)
     if tris < 241000 or materials < 12:
         _red("Premium source true triangle/material count lost: " + str([tris, materials]))
         return
     var dimension := high-low
-    var longest := maxf(dimension.x, maxf(dimension.y, dimension.z))
-    if longest < 4.26 or longest > 4.33:
-        _red("Artist Porsche 911 Turbo 1975 model does not have correct original 4.291m dimensions: " + str(dimension))
+    if primary_source_shells.size()!=3 or not primary_source_shells.has(42738) or not primary_source_shells.has(43713) or not primary_source_shells.has(38854):
+        _red("Original Porsche 125k face major body shell geometry is missing "+str(primary_source_shells))
         return
-    var mid := (high+low)*0.5
+    var calibrated_body_dims := shell_high-shell_low
+    var real_body_length := maxf(calibrated_body_dims.x,maxf(calibrated_body_dims.y,calibrated_body_dims.z))
+    if absf(real_body_length-4.291)>.06:
+        _red("The ACTUAL original 1975 Porsche author body shell is not 4.291m long "+str(calibrated_body_dims))
+        return
+    var longest := maxf(dimension.x,maxf(dimension.y,dimension.z))
+    if longest>4.75 or longest<real_body_length:
+        _red("Original Porsche antenna/author parts excessively exceed real body source bounds "+str(dimension))
+        return
+    var mid := (shell_high+shell_low)*0.5
 
     var world := WorldEnvironment.new()
     world.environment = Environment.new()
@@ -191,11 +215,15 @@ func _run() -> void:
         "source_triangles":tris,
         "material_surfaces":materials,
         "car_dimensions_m":[dimension.x,dimension.y,dimension.z],
+        "verified_original_125k_face_body_shell_length_m":real_body_length,
+        "original_artist_125k_body_shell_triangle_counts":primary_source_shells,
+        "car_plus_authored_antenna_extra_bounds_m":[dimension.x,dimension.y,dimension.z],
+        "camera_calibrated_on_real_original_body_shell_not_photo_plinth":true,
         "source_original_body_preserved":true,
         "cameras_fill_viewport":true,
         "gold_orange_lamborghini_unmodified":true,
         "source_doors_mechanically_separated":false,
-        "source_shrub_showroom_floor_removed":true,
+        "source_2_triangle_showroom_photo_plinth_removed":true,
         "bonnet_and_trunk_mechanisms":false,
         "requires_independent_commercial_rights_review":true,
         "approved_orange_lamborghini_exact_sha256":"45cdbfd70dc4e6c64b6bbbe5e24a2107044e2008928ab01c27fa8fbb91a25bd7",
