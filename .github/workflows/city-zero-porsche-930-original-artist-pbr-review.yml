@@ -1,0 +1,195 @@
+name: City Zero - Porsche 911 Turbo 1975 original artist 241k PBR Blender Godot QA
+on:
+  workflow_dispatch:
+  push:
+    branches: [forever-frequency-native]
+    paths:
+      - '.github/workflows/city-zero-porsche-930-original-artist-pbr-review.yml'
+      - 'forever-frequency-native/tools/porsche_930_1975_real_gold_review.py'
+      - 'forever-frequency-native/tests/porsche_930_1975_real_pbr_godot_capture.gd'
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: cityzero-original-Porsche-930-1975-PBR-review
+  cancel-in-progress: false
+jobs:
+  real-artist-porsche-blender-5-closeups:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 38
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download artist-licensed authentic 1975 Porsche 911 Turbo 3D archive (NOT game rip)
+        uses: actions/download-artifact@v4
+        with:
+          run-id: 45351359545
+          name: CityZero-REAL-FerrariF40-Porsche911-FiatPunto-Artist-Blender-GLB-Fifteen-Photos
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: original-artist-source
+      - name: Verify source identity, original Karol Miklas author, legitimate CC BY notice and model metrics
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m py_compile forever-frequency-native/tools/porsche_930_1975_real_gold_review.py
+          mkdir -p forever-frequency-native/assets/licensed_ccby_car_fleet
+          cp original-artist-source/assets/licensed_ccby_car_fleet/porsche_911_blender_import.glb \
+             forever-frequency-native/assets/licensed_ccby_car_fleet/
+          cp original-artist-source/assets/original_artist_ccby_sources/AUTHORSHIP_AND_LICENSE_NOTICE.txt \
+             forever-frequency-native/assets/licensed_ccby_car_fleet/ORIGINAL_SOURCE_ARTIST_CC_BY_LICENSE_NOTICE.txt
+          python3 - <<'PY'
+          from pathlib import Path
+          import json,struct,hashlib
+          root=Path('forever-frequency-native/assets/licensed_ccby_car_fleet')
+          b=(root/'porsche_911_blender_import.glb').read_bytes()
+          assert len(b)==20047848
+          assert hashlib.sha256(b).hexdigest()=='c2f989537740772c3e7478f7d0f3349023406b828c48d05a1c83ff22c936074e'
+          assert b[:4]==b'glTF'
+          size,typ=struct.unpack_from('<I4s',b,12)
+          assert typ==b'JSON'
+          g=json.loads(b[20:20+size])
+          assert len(g['meshes'])==75 and len(g['materials'])==14
+          tris=sum((g['accessors'][p['indices']]['count'] if 'indices' in p else g['accessors'][p['attributes']['POSITION']]['count'])//3 for m in g['meshes'] for p in m['primitives'])
+          assert tris==241260
+          original_stand=[m for m in g['meshes'] if sum((g['accessors'][p['indices']]['count'] if 'indices' in p else g['accessors'][p['attributes']['POSITION']]['count'])//3 for p in m['primitives'])==2]
+          assert len(original_stand)==1, 'Original showroom stand unique source must be isolated'
+          license=(root/'ORIGINAL_SOURCE_ARTIST_CC_BY_LICENSE_NOTICE.txt').read_text()
+          assert 'Karol Miklas' in license and 'CC BY 4.0' in license
+          print('TRUE_PORSCHE_930_1975_241260_ARTIST_MESH_TRIS_ORIGINAL_SOURCE_HASH_GREEN')
+          PY
+      - name: Pull real Blender 4.5 LTS Cycles headless renderer
+        run: docker pull ghcr.io/blenderkit/headless-blender:blender-4.5-stable
+      - name: Original Porsche artist body 241258 triangles; exclude two-triangle stand, uniform real length and 5 real red PBR Cycles closeups
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd forever-frequency-native
+          timeout 1740s docker run --rm \
+            --entrypoint /home/headless/blender/blender \
+            -v "$PWD:$PWD" -w "$PWD" \
+            ghcr.io/blenderkit/headless-blender:blender-4.5-stable \
+            -b -t 2 --python tools/porsche_930_1975_real_gold_review.py \
+            2>&1 | tee PORSCHE_930_ORIGINAL_REAL_BLENDER.log
+          grep -q 'CITYZERO_PORSCHE_930_REAL_SOURCE_241258_CAR_TRIS_5_CYCLES_IMAGES_GREEN_NOT_ART_APPROVED' PORSCHE_930_ORIGINAL_REAL_BLENDER.log
+      - name: Verify no fake source body, no lost car triangles and all 5 well-framed true Blender screenshots
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          root=Path('forever-frequency-native/porsche_930_original_gold_review')
+          q=json.loads((root/'porsche_930_original_source_adversarial_report.json').read_text())
+          assert q['pinned_blender_source_sha256']=='c2f989537740772c3e7478f7d0f3349023406b828c48d05a1c83ff22c936074e'
+          assert q['artist_original_sha256']=='e1d7de07dda7d42aa9d87da33af4d4b05ed344e9c0222d571dce19e3658436ac'
+          assert q['original_source_triangles_with_showroom_floor']==241260
+          assert q['excluded_only_authored_noncar_floor_faces']==2
+          assert q['original_author_porsche_body_triangles']==q['exported_true_car_triangles']==241258
+          assert q['real_car_mesh_objects']==74
+          assert not q['geometry_generated_or_replaced'] and not q['owner_approved']
+          assert q['original_source_embedded_textures_preserved']
+          assert not q['commercial_brand_rights_cleared'] and q['not_gameplay_or_android_approved']
+          assert len(q['five_actual_native_cyles_renders'])==5
+          assert all(x['frame_fill_width']>=.48 and max(x['frame_fill_width'],x['frame_fill_height'])>=.74 for x in q['five_actual_native_cyles_renders'])
+          assert all((root/x['file']).stat().st_size>60000 for x in q['five_actual_native_cyles_renders'])
+          assert (root/'porsche_911_930_1975_SOURCE_REAL_Artist_ClassicRed_PBR.glb').stat().st_size>14000000
+          assert (root/'porsche_911_930_1975_SOURCE_Artist_Editable.blend').stat().st_size>16000000
+          print('CITY_ZERO_ORIGINAL_ARTIST_PORSCHE_930_5_ACTUAL_BLENDER_QUALITY_VIEWS_PASS__ART_APPROVAL_PENDING')
+          PY
+      - name: Publish unchanged Porsche body and original creator attribution in editable Blender GLB plus 5 actual Cycles images
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: CityZero-REAL-Porsche-930-1975-5-Blender-PBR-Views-GLB-BLEND
+          retention-days: 90
+          path: |
+            forever-frequency-native/porsche_930_original_gold_review/
+            forever-frequency-native/assets/licensed_ccby_car_fleet/ORIGINAL_SOURCE_ARTIST_CC_BY_LICENSE_NOTICE.txt
+            forever-frequency-native/PORSCHE_930_ORIGINAL_REAL_BLENDER.log
+          if-no-files-found: warn
+  five-actual-porsche-original-source-godot-views:
+    needs: real-artist-porsche-blender-5-closeups
+    runs-on: ubuntu-22.04
+    timeout-minutes: 22
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: CityZero-REAL-Porsche-930-1975-5-Blender-PBR-Views-GLB-BLEND
+          path: original-artist-porsche
+      - name: Isolate five real-authored Porsche GLTF screenshots from user-approved Lamborghini City build
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p isolated/assets/porsche_930_review isolated/tests
+          find original-artist-porsche -name 'porsche_911_930_1975_SOURCE_REAL_Artist_ClassicRed_PBR.glb' -type f -exec cp '{}' isolated/assets/porsche_930_review/ ';'
+          test -s isolated/assets/porsche_930_review/porsche_911_930_1975_SOURCE_REAL_Artist_ClassicRed_PBR.glb
+          cp forever-frequency-native/tests/porsche_930_1975_real_pbr_godot_capture.gd isolated/tests/
+          cat > isolated/project.godot <<'GODOT'
+          config_version=5
+          [application]
+          config/name="City Zero real original Porsche 930 Turbo art review ONLY, no commercial rights or gameplay approval"
+          [display]
+          window/size/viewport_width=1600
+          window/size/viewport_height=1000
+          [rendering]
+          renderer/rendering_method="gl_compatibility"
+          renderer/rendering_method.mobile="gl_compatibility"
+          GODOT
+      - uses: solarlabyrinth/action-setup-godot@v3
+        with:
+          version: 4.4.1-stable
+          export-templates: false
+      - name: Install genuine Godot 4 OpenGL/Mesa viewport
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq xvfb libgl1 libgl1-mesa-dri libegl1 mesa-utils
+      - name: Import author original 3D Porsche mesh and textures into Godot
+        shell: bash
+        env:
+          LIBGL_ALWAYS_SOFTWARE: '1'
+          MESA_GL_VERSION_OVERRIDE: '3.3'
+          GODOT_AUDIO_DRIVER: Dummy
+        run: |
+          set -euo pipefail
+          xvfb-run -a -s '-screen 0 1800x1200x24' timeout 195s \
+            godot --rendering-driver opengl3 --path isolated --editor --import --quit \
+            2>&1 | tee PORSCHE_930_TRUE_GODOT_GLTF_IMPORT.log
+          if grep -E 'SCRIPT ERROR|Parse Error' PORSCHE_930_TRUE_GODOT_GLTF_IMPORT.log; then exit 1; fi
+      - name: Capture Porsche original source 241258 polygons in 5 real Godot close-up frames, controlled hide-mesh proof
+        shell: bash
+        env:
+          LIBGL_ALWAYS_SOFTWARE: '1'
+          MESA_GL_VERSION_OVERRIDE: '3.3'
+          GODOT_AUDIO_DRIVER: Dummy
+        run: |
+          set -euo pipefail
+          mkdir -p "$PWD/porsche-930-true-original-godot-shots"
+          export CITY_ZERO_PORSCHE_GODOT_SHOTS="$PWD/porsche-930-true-original-godot-shots"
+          xvfb-run -a -s '-screen 0 1800x1200x24' timeout 320s \
+            godot --rendering-driver opengl3 --path isolated \
+            --script res://tests/porsche_930_1975_real_pbr_godot_capture.gd \
+            2>&1 | tee porsche-930-true-original-godot-shots/PORSCHE_930_GODOT_3D_ACTUAL_IMAGES.log
+          grep -q 'PORSCHE_930_GODOT_5_TRUE_CLOSEUP_ENGINE_VIEWS_GREEN_NOT_ART_APPROVED' porsche-930-true-original-godot-shots/PORSCHE_930_GODOT_3D_ACTUAL_IMAGES.log
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          folder=Path('porsche-930-true-original-godot-shots')
+          q=json.loads((folder/'real_porsche_930_true_artist_godot_5view_report.json').read_text())
+          assert q['source_triangles']>=241000
+          assert q['actual_source_mesh_instances']>=70
+          assert q['material_surfaces']>=12
+          assert q['source_original_body_preserved'] and q['source_shrub_showroom_floor_removed']
+          assert q['gold_orange_lamborghini_unmodified']
+          assert q['cameras_fill_viewport'] and not q['owner_art_approved']
+          assert len(q['native_godot_real_pngs'])==5 and len(list(folder.glob('*.png')))==5
+          assert all(x['actual_car_pixels']>550 and x['width_fraction']>.50 for x in q['native_godot_real_pngs'])
+          print('PORSCHE_930_1975_TRUE_AUTHOR_MESH_FIVE_ACTUAL_GODOT_PHOTOS_GREEN_NOT_ART_APPROVED')
+          PY
+      - name: Preserve Porsche real Godot source PBR rendered images
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: CityZero-Porsche-930-Original-5-Native-Godot-Real-Photos
+          retention-days: 90
+          path: |
+            porsche-930-true-original-godot-shots/
+            PORSCHE_930_TRUE_GODOT_GLTF_IMPORT.log
+          if-no-files-found: warn
