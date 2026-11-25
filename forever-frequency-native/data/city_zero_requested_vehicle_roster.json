@@ -13,18 +13,19 @@
     "status": "GODOT_DEV_VALIDATED",
     "source_license": "CC BY 4.0, Karol Miklas; brand rights pending",
     "source_sha256": "e1d7de07dda7d42aa9d87da33af4d4b05ed344e9c0222d571dce19e3658436ac",
-    "blender_run": 45549859498,
-    "godot_run": 45549859498,
-    "editable_artifact": 14992179019,
-    "native_capture_artifact": 14993370871,
-    "mechanical_validation": "two independent doors passed; rear paired paint/coat candidates confirmed by bounds within 0.3 mm, front clearcoat candidate lacks verified matching paint island; no lid hinge claimed",
+    "blender_run": 45615738079,
+    "godot_run": 45615738079,
+    "editable_artifact": 15021834653,
+    "native_capture_artifact": 15023240794,
+    "mechanical_validation": "two independent doors passed; front and rear original paired surface experimental motions passed native Blender and Godot, visual trim and cavity review still pending; not approved for release",
     "android_performance": null,
     "artist_review": null,
     "owner_approved": false,
     "shipping_approved": false,
     "pbr_five_view_run": 45549800194,
     "pbr_editable_artifact": 14992214452,
-    "pbr_native_capture_artifact": 14992179668
+    "pbr_native_capture_artifact": 14992179668,
+    "experimental_lid_native_capture_artifact": 15022049671
   },
   "vehicles": [
     {
@@ -218,8 +219,8 @@
       "id": "audi-r8",
       "name": "Audi R8",
       "category": "supercars",
-      "status": "EVIDENCE_PENDING",
-      "source_license": null,
+      "status": "SRC_FOUND",
+      "source_license": "CC BY 4.0 per creator page; independent provenance and brand rights review pending",
       "source_sha256": null,
       "blender_run": null,
       "godot_run": null,
@@ -229,7 +230,11 @@
       "android_performance": null,
       "artist_review": null,
       "owner_approved": false,
-      "shipping_approved": false
+      "shipping_approved": false,
+      "source_url": "https://sketchfab.com/3d-models/audi-r8-e17e438f076f4427a58d93aa779edaed",
+      "source_artist": "wallon",
+      "source_uid": "e17e438f076f4427a58d93aa779edaed",
+      "source_archive_verification": "pending CI"
     },
     {
       "id": "lotus-emira",
