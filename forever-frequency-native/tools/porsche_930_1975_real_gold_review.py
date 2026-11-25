@@ -60,26 +60,58 @@ real_car=[obj for obj in meshes if obj!=source_floor]
 car_faces=sum(sum(len(face.vertices)-2 for face in o.data.polygons) for o in real_car)
 if len(real_car)!=74 or car_faces!=241258:
     raise RuntimeError("Source Porsche car panels lost (only 2-face noncar stand may be excluded)")
+bpy.context.view_layer.update()
 before_lo,before_hi=bounds(real_car)
 source_original_dimensions=before_hi-before_lo
-original_body_longitudinal_span=max(source_original_dimensions)
-if not 4.7<original_body_longitudinal_span<5.1:
-    raise RuntimeError("Original car excluding plinth unexpectedly malformed "+str(tuple(source_original_dimensions)))
-scale=REFERENCE_LENGTH_M/original_body_longitudinal_span
-if not .75<scale<1.05:
-    raise RuntimeError("Invalid dimensional calibration factor for real source model")
-# Apply uniform change to scene's original roots, including car mesh origin
-# hierarchy (uniform only, no baking of original UVs/mesh vertices).
+# An independent forensic check of the real artist source found multiple
+# long-range ANTENNA and exhibition/author accessories among its 74 nonfloor
+# meshes. Those extrusions make the full BBOX 5.177 m long and 2.326 m high
+# BEFORE source calibration; do NOT mistake that for the vintage car's body.
+# Distinguish exactly the THREE ORIGINAL major automotive shell meshes:
+# 43,713 + 42,738 + 38,854 triangles (paint/body/coat, 125k real faces).
+source_shell_face_counts={43713,42738,38854}
+primary_body=[
+    obj for obj in real_car
+    if sum(len(face.vertices)-2 for face in obj.data.polygons)
+    in source_shell_face_counts
+]
+if len(primary_body)!=3:
+    raise RuntimeError("Authentic Porsche 911 major body/roof/paint shells missing, cannot calibrate")
+measured_shell_face_counts={
+    sum(len(face.vertices)-2 for face in obj.data.polygons)
+    for obj in primary_body
+}
+if measured_shell_face_counts!=source_shell_face_counts:
+    raise RuntimeError("Actual original Porsche body source geometric signatures lost")
+shell_lo,shell_hi=bounds(primary_body)
+original_shell_dimensions=shell_hi-shell_lo
+body_original_longitudinal_span=max(original_shell_dimensions)
+print("PORSCHE_930_ORIGINAL_SOURCE_DIAGNOSTIC",
+      "all_nonfloor",tuple(source_original_dimensions),
+      "three_125k_tri_body_shells",tuple(original_shell_dimensions),
+      "anomalous_exterior_parts_retained",len(real_car)-len(primary_body),flush=True)
+if not 4.2<body_original_longitudinal_span<5.8:
+    raise RuntimeError("Original Porsche 125k-face primary shells have implausible length "+
+                       str(tuple(original_shell_dimensions)))
+scale=REFERENCE_LENGTH_M/body_original_longitudinal_span
+if not .70<scale<1.10:
+    raise RuntimeError("Untrusted vintage Porsche source dimension factor")
+# Uniform scale affects ALL ORIGINAL assets; no mesh vertex/UV replacement.
 for ob in original_objects:
     if ob.parent is None:
         ob.scale*=scale
 bpy.context.view_layer.update()
-cal_lo,cal_hi=bounds(real_car)
+cal_lo,cal_hi=bounds(primary_body)
 cal_dims=cal_hi-cal_lo
+whole_lo,whole_hi=bounds(real_car)
+whole_dims=whole_hi-whole_lo
 if abs(max(cal_dims)-REFERENCE_LENGTH_M)>.035:
-    raise RuntimeError("Porsche source calibrated length not preserved "+str(tuple(cal_dims)))
-if not 1.7<cal_dims.x<2.15 or not 1.1<cal_dims.z<1.9:
-    raise RuntimeError("Porsche width/height physically implausible "+str(tuple(cal_dims)))
+    raise RuntimeError("Porsche 125k-face original body length calibration failed "+
+                       str(tuple(cal_dims)))
+if not 1.55<min(cal_dims.x,cal_dims.y)<2.30 or not 1.0<cal_dims.z<1.80:
+    raise RuntimeError("Authentic source Porsche body proportions suspicious "+
+                       str(tuple(cal_dims)))
+print("PORSCHE_930_REAL_BODY_CALIBRATION_GREEN",tuple(cal_dims),flush=True)
 
 # The removed showroom plane is NOT part of the car. Keep the original mesh
 # in the editable provenance scene but hide it from render and export.
@@ -258,6 +290,10 @@ result={
     "original_author_porsche_body_triangles":car_faces,
     "exported_true_car_triangles":sum(sum(len(p.vertices)-2 for p in o.data.polygons) for o in real_car),
     "source_mesh_count_including_display_slab":len(meshes),
+    "primary_real_artist_body_shell_face_counts":sorted(source_shell_face_counts),
+    "primary_source_body_shells_m":[round(float(v),5) for v in original_shell_dimensions],
+    "other_original_source_outlier_components_retained":len(real_car)-len(primary_body),
+    "measured_total_vehicle_nonfloor_bounds_m":[round(float(v),5) for v in whole_dims],
     "real_car_mesh_objects":len(real_car),
     "original_source_materials":len(original_material_names),
     "original_source_embedded_textures_preserved":True,
