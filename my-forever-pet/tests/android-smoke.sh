@@ -13,71 +13,8 @@ tap_text() {
  coords=$(python3 - "$1" <<'PY'
 import sys,re,xml.etree.ElementTree as ET
 for n in ET.parse('/tmp/pet.xml').iter('node'):
-    if (n.get('text') or '').casefold()==sys.argv[1].casefold() or (sys.argv[1]=='@clock' and re.search(r' • (Night|Dawn|Day|Sunset)        v=list(map(int,re.findall(r'\d+',n.get('bounds'))))
-        print((v[0]+v[2])//2,(v[1]+v[3])//2)
-        break
-else: raise SystemExit('Missing button: '+sys.argv[1])
-PY
-)
- adb shell input tap $coords
- sleep 1
-}
-assert_text(){ dump; grep -Fq "$1" /tmp/pet.xml; }
-shot(){ adb exec-out screencap -p > "/tmp/pet-screens/$1.png"; }
-assert_text "Egg"
-shot egg
-tap_text "Hatch egg"
-assert_text "Baby"
-shot baby
-tap_text "@clock"
-assert_text "Real-time routine"
-shot routine
-tap_text "Disable auto sleep"
-tap_text "Arcade"
-tap_text "Flappy Pet"
-shot flappy
-adb shell input tap 300 500
-sleep 2
-tap_text "Exit & collect"
-tap_text "Arcade"
-tap_text "Cloud Jump"
-shot cloud-jump
-adb shell input tap 300 500
-sleep 2
-tap_text "Exit & collect"
-tap_text "Arcade"
-tap_text "Find My Pet"
-shot find-my-pet
-adb shell input tap 300 500
-sleep 1
-tap_text "Exit & collect"
-tap_text "Feed"
-tap_text "Fish"
-tap_text "◉ Cell"
-assert_text "Inspect cells"
-shot cell
-tap_text "♧ Field"
-tap_text "Clean field"
-shot field
-tap_text "✦ Space"
-shot space
-tap_text "▦ Lab"
-shot lab
-tap_text "Shop"
-shot shop
-adb shell input keyevent 4
-sleep 1
-adb shell am force-stop "$PKG"
-adb shell am start -W -n "$PKG/.MainActivity"
-sleep 2
-assert_text "Baby"
-shot restored
-tap_text "Wallpaper"
-shot wallpaper-picker
-adb shell dumpsys package "$PKG" | grep -F 'PetWallpaper'
-adb logcat -d -s AndroidRuntime:E > /tmp/pet-screens/android-runtime.txt
-if grep -Fq "Process: $PKG" /tmp/pet-screens/android-runtime.txt; then exit 1; fi
-, n.get('text',''))):
+    label=n.get('text') or ''
+    if label.casefold()==sys.argv[1].casefold() or (sys.argv[1]=='@clock' and label.split(' • ')[-1] in ('Night','Dawn','Day','Sunset')):
         v=list(map(int,re.findall(r'\d+',n.get('bounds'))))
         print((v[0]+v[2])//2,(v[1]+v[3])//2)
         break
@@ -93,6 +30,7 @@ assert_text "Egg"
 shot egg
 tap_text "Hatch egg"
 assert_text "Baby"
+assert_text "Next: Kid"
 shot baby
 tap_text "@clock"
 assert_text "Real-time routine"
@@ -107,27 +45,23 @@ tap_text "Exit & collect"
 tap_text "Arcade"
 tap_text "Cloud Jump"
 shot cloud-jump
-adb shell input tap 300 500
-sleep 2
 tap_text "Exit & collect"
 tap_text "Arcade"
 tap_text "Find My Pet"
 shot find-my-pet
-adb shell input tap 300 500
-sleep 1
 tap_text "Exit & collect"
-tap_text "Feed"
-tap_text "Fish"
-tap_text "◉ Cell"
+tap_text "World"
+tap_text "Cell"
 assert_text "Inspect cells"
 shot cell
-tap_text "♧ Field"
+tap_text "World"
+tap_text "Field"
 tap_text "Clean field"
 shot field
-tap_text "✦ Space"
+tap_text "World"
+tap_text "Space"
 shot space
-tap_text "▦ Lab"
-shot lab
+tap_text "Lab"
 tap_text "Shop"
 shot shop
 adb shell input keyevent 4
@@ -137,6 +71,7 @@ adb shell am start -W -n "$PKG/.MainActivity"
 sleep 2
 assert_text "Baby"
 shot restored
+tap_text "World"
 tap_text "Wallpaper"
 shot wallpaper-picker
 adb shell dumpsys package "$PKG" | grep -F 'PetWallpaper'

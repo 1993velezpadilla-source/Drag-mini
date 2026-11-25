@@ -13,7 +13,10 @@ public final class PetState {
  public long sleepUntil=0,energyClock=0,interactionAt=0,expeditionEnd=0,dailyDay=-1,questDay=-1;
  public boolean autoSleep=true;
  public long awakeUntil=0,restClock=0;
- transient long clockNow=0;
+ transient long clockNow=0;transient String nickname="";
+ public String displayName(){return nickname.isEmpty()?creature():nickname;}
+ public String growth(){if(stage==EGG)return "Ready to hatch";if(stage==ADULT)return "Adult • secret evolution";long ms=stage==BABY?Math.max(0,(4-cells[field])*15*MIN-cellClock):Math.max(0,24*HOUR-age);long m=(ms+MIN-1)/MIN;return "Next: "+(stage==BABY?"Kid":stage==KID?"Young":"Adult")+" in "+m/60+"h "+m%60+"m";}
+ public String needs(){return sick?"Needs medicine":hunger<=2?"Hungry — feed me!":energy<=25?"Tired — time for a nap":waste>=3?"Please clean my home":happy<=4?"I want to play!":"Feeling good";}
  public static int localMinute(long at,java.util.TimeZone zone){return (int)Math.floorMod(Math.floorDiv(at+zone.getOffset(at),MIN),1440L);}
  public static long localDay(long at,java.util.TimeZone zone){return Math.floorDiv(at+zone.getOffset(at),24*HOUR);}
  public static boolean bedtime(int minute){return minute>=21*60||minute<7*60;}
@@ -27,7 +30,7 @@ public final class PetState {
  public boolean sleeping(){return asleepAt(clock(),java.util.TimeZone.getDefault(),expeditionEnd);}
  public boolean exploring(){return expeditionEnd>last;}
  private void earn(int n){xp=Math.min(999900,xp+Math.max(0,n));}
- public boolean interact(int kind,long now){if(stage==EGG||sleeping()||exploring()||now-interactionAt<1500)return false;interactionAt=now;bond=Math.min(100,bond+1);if(kind==2){training=Math.min(100,training+1);earn(4);}else{play();earn(2);}quests|=1;return true;}
+ public boolean interact(int kind,long now){if(stage==EGG||sleeping()||exploring()||now-interactionAt<1500)return false;interactionAt=now;bond=Math.min(100,bond+1);if(kind==2){if(energy>=4){energy-=4;training=Math.min(100,training+1);earn(4);}}else if(kind==1){if(energy>=3){energy-=3;play();earn(3);}}else if(kind==3){happy=Math.min(10,happy+1);earn(2);}else{play();earn(2);}quests|=1;return true;}
  public boolean rest(long now){if(stage==EGG||exploring()||sleeping()||energy>=100)return false;sleepUntil=now+30*MIN;return true;}
  public boolean wake(){if(!sleeping())return false;sleepUntil=0;awakeUntil=clock()+15*MIN;return true;}
  public boolean expedition(int region,long now){if(stage<KID||sick||hunger<2||energy<25||sleeping()||expeditionEnd!=0||pendingCoins>0||region<0||region>2||level()<1+region*2)return false;if(region>0&&fuel<region)return false;fuel-=region;energy-=25;destination=region;expeditionEnd=now+(10+region*10)*MIN;return true;}
@@ -55,12 +58,12 @@ public final class PetState {
    if(tripEnd>cursor)dt=Math.min(dt,tripEnd-cursor);
    boolean asleep=asleepAt(cursor,zone,tripEnd);cursor+=dt;left-=dt;age+=dt;
    if(asleep){restClock+=dt;energy=clamp(energy+(int)(restClock/MIN),0,100);restClock%=MIN;}
-   else{energyClock+=dt;energy=clamp(energy-(int)(energyClock/(15*MIN)),0,100);energyClock%=15*MIN;hungerClock+=dt;happyClock+=dt;wasteClock+=dt;}
-   long ht=stage==BABY?15*MIN:90*MIN, ha=stage==BABY?25*MIN:120*MIN;
+   else{energyClock+=dt;energy=clamp(energy-(int)(energyClock/(5*MIN)),0,100);energyClock%=5*MIN;hungerClock+=dt;happyClock+=dt;wasteClock+=dt;}
+   long ht=stage==BABY?15*MIN:45*MIN, ha=stage==BABY?25*MIN:60*MIN;
    while(hungerClock>=ht){hungerClock-=ht;hunger=Math.max(0,hunger-1);}
    while(happyClock>=ha){happyClock-=ha;happy=Math.max(0,happy-1);}
    while(wasteClock>=45*MIN){wasteClock-=45*MIN;waste=Math.min(6,waste+1);}
-   if(stage==BABY){cellClock+=dt;while(cellClock>=15*MIN){cellClock-=15*MIN;cells[field]=Math.min(4,cells[field]+1);}}
+   if(stage==BABY){cellClock+=dt;while(cellClock>=15*MIN){cellClock-=15*MIN;cells[field]=Math.min(4,cells[field]+1);}if(cells[field]>=4){stage=KID;age=0;body=field;}}
    if(!asleep&&stage>=KID&&(hunger==0||happy==0)){careClock+=dt;while(careClock>=15*MIN){careClock-=15*MIN;mistakes=Math.min(6,mistakes+1);}}
    else if(!asleep)careClock=0;
    if(!sick&&((oldWaste<6&&waste>=6)||(oldMistakes<3&&mistakes>=3))&&germs==0){sick=true;germs=3;}
@@ -72,7 +75,7 @@ public final class PetState {
  }
  private int dominantFood(){int best=0;for(int i=1;i<foods.length;i++)if(foods[i]>foods[best])best=i;return best;}
  public boolean inspectCell(){if(stage==BABY&&cells[field]>=4){stage=KID;age=0;body=field;return true;}return false;}
- public void feed(int food){if(stage==EGG)return;food=clamp(food,0,3);hunger=clamp(hunger+1,0,5);foods[food]++;if(hunger>0&&happy>0)careClock=0;}
+ public void feed(int food){if(stage==EGG)return;food=clamp(food,0,3);hunger=clamp(hunger+1,0,5);foods[food]++;if(food==species()%4){happy=Math.min(10,happy+1);bond=Math.min(100,bond+1);}if(hunger>0&&happy>0)careClock=0;}
  public void play(){if(stage!=EGG){happy=clamp(happy+2,0,10);if(hunger>0&&happy>0)careClock=0;}}
  public void clean(){if(stage!=EGG&&waste>0){coins=Math.min(999999,coins+waste*2);fuel=Math.min(9999,fuel+waste);waste=0;wasteClock=0;quests|=2;}}
  public void treat(){if(stage!=EGG&&sick){if(germs>0)germs--;if(germs==0){sick=false;}}}
@@ -82,12 +85,12 @@ public final class PetState {
  public static final String[] ITEMS={"Star cap","Berry ribbon","Moon halo","Garden bath","Cloud bed","Flower stand"};
  public static final int[] PRICES={40,50,75,80,100,60};
  public boolean buy(int i){if(i<0||i>=ITEMS.length||(owned&(1<<i))!=0||coins<PRICES[i])return false;coins-=PRICES[i];owned|=1<<i;return true;}
- public boolean useItem(int i){if(i<0||i>=ITEMS.length||(owned&(1<<i))==0)return false;if(i<3)equipped=equipped==i+1?0:i+1;else{installation=i+1;play();}return true;}
+ public boolean useItem(int i){if(i<0||i>=ITEMS.length||(owned&(1<<i))==0)return false;if(i<3)equipped=equipped==i+1?0:i+1;else{installation=installation==i+1?0:i+1;}return true;}
  public boolean travel(){if(fuel<4)return false;fuel-=4;coins=Math.min(999999,coins+10);return true;}
  public long nextCell(){return stage==BABY&&cells[field]<4?Math.max(1,(15*MIN-cellClock+999)/1000):0;}
  public void changeField(int f){if(stage==EGG||stage==BABY)field=clamp(f,0,2);}
  public void reward(int hits){grant((int)Math.min(100,Math.max(0L,(long)hits)*5));}
- public void grant(int amount){if(stage!=EGG&&amount>0){coins=Math.min(999999,coins+Math.min(100,amount));play();}}
+ public void grant(int amount){if(stage!=EGG&&amount>0){coins=Math.min(999999,coins+Math.min(100,amount));play();energy=Math.max(0,energy-3);earn(Math.min(10,amount/5));}}
  public boolean purchaseFood(int food){if(sleeping()||exploring()||stage==EGG||food<0||food>3||hunger>=5||coins<Economy.foodPrice(food))return false;coins-=Economy.foodPrice(food);feed(food);return true;}
  /** Rank-based playdate rules from GMMan; local partner is a prototype feature. */
  public int rank(){return stage<ADULT?0:Math.max(1,4-Math.min(3,mistakes));}
