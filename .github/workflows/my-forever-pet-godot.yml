@@ -17,8 +17,14 @@ jobs:
           curl -fL --retry 3 -o /tmp/godot.zip https://github.com/godotengine/godot/releases/download/4.4.1-stable/Godot_v4.4.1-stable_linux.x86_64.zip
           unzip -q /tmp/godot.zip -d /tmp/godot
           chmod +x /tmp/godot/Godot_v4.4.1-stable_linux.x86_64
+      - name: Fail fast on GDScript parser errors
+        run: |
+          set -euo pipefail
+          G=/tmp/godot/Godot_v4.4.1-stable_linux.x86_64
+          "$G" --headless --path my-forever-pet/godot-arcade --check-only --script res://runner.gd 2>&1 | tee /tmp/dash-parse.log
+          ! grep -E "SCRIPT ERROR|Parse Error" /tmp/dash-parse.log
       - name: Install Blender and virtual display
-        run: sudo apt-get update -qq && sudo apt-get install -y blender xvfb python3-numpy
+        run: sudo apt-get update -qq && sudo apt-get install -y blender xvfb python3-numpy python3-pil
       - name: Export original GLB game meshes
         run: |
           set -euo pipefail
@@ -43,17 +49,20 @@ jobs:
           ! grep -E 'SCRIPT ERROR|Parse Error' /tmp/godot-smoke.log
       - name: Capture actual 3D viewport
         run: |
-          set -o pipefail
+          set -euo pipefail
           xvfb-run -a timeout 90 /tmp/godot/Godot_v4.4.1-stable_linux.x86_64 --path my-forever-pet/godot-arcade --rendering-method gl_compatibility --resolution 540x960 -- --capture
           test -s /tmp/pet-dash-review.png
           test -s /tmp/pet-dash-render-metrics.json
           cat /tmp/pet-dash-render-metrics.json
+          python3 my-forever-pet/godot-arcade/review_frame.py /tmp/pet-dash-review.png /tmp/pet-dash-visual-metrics.json
+          cat /tmp/pet-dash-visual-metrics.json
       - uses: actions/upload-artifact@v4
         with:
           name: Pet-Dash-3D-real-game-review
           path: |
             /tmp/pet-dash-review.png
             /tmp/pet-dash-render-metrics.json
+            /tmp/pet-dash-visual-metrics.json
             my-forever-pet/godot-arcade/assets/*.glb
           if-no-files-found: error
       - uses: actions/setup-java@v4

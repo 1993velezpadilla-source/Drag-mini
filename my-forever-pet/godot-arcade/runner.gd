@@ -57,6 +57,7 @@ var spawn_at := 20.0
 var status: Label
 var hint: Label
 var score_label: Label
+var points_label: Label
 var coin_label: Label
 var snack_label: Label
 var pause_button: Button
@@ -139,7 +140,6 @@ func _ready() -> void:
 	e.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
 	e.ambient_light_color = Color("#c5d9ee")
 	e.ambient_light_energy = 0.28
-	e.reflected_light_source = Environment.REFLECTED_SOURCE_DISABLED
 	e.tonemap_mode = Environment.TONE_MAPPER_FILMIC
 	env.environment = e
 	add_child(env)
@@ -175,6 +175,7 @@ func _ready() -> void:
 	camera.far=140
 	add_child(camera)
 	camera.look_at(Vector3(0, 0.25, -10))
+	make_cloudscape()
 	make_effects()
 	audio=preload("res://dash_audio.gd").new()
 	add_child(audio)
@@ -185,11 +186,36 @@ func _ready() -> void:
 	elif OS.get_cmdline_user_args().has("--capture"):
 		call_deferred("capture_review")
 
+func make_cloudscape() -> void:
+	# Fixed distant clouds, not extra moving track chunks. Shared low-poly mesh and
+	# unlit material keep the silhouette legible on Compatibility/mobile.
+	var cloud_mesh := SphereMesh.new()
+	cloud_mesh.radius=0.5
+	cloud_mesh.height=1.0
+	cloud_mesh.radial_segments=12
+	cloud_mesh.rings=6
+	var cloud_mat:=StandardMaterial3D.new()
+	cloud_mat.albedo_color=Color("#dceeff")
+	cloud_mat.shading_mode=BaseMaterial3D.SHADING_MODE_UNSHADED
+	for i in range(8):
+		var side: float=-1.0 if i%2==0 else 1.0
+		var center:=Vector3(side*(12.0+float(i%3)*6),3.0+float(i%4)*2.7,-30.0-float(i)*7)
+		for j in range(3):
+			var puff:=MeshInstance3D.new()
+			puff.mesh=cloud_mesh
+			puff.material_override=cloud_mat
+			puff.cast_shadow=GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+			puff.position=center+Vector3(float(j-1)*2.0,0.4 if j==1 else 0.0,0)
+			puff.scale=Vector3(4.6,2.0 if j==1 else 1.4,2.5)
+			add_child(puff)
+
 func make_chunk(chunk: Node3D, index: int) -> void:
 	if using_blender and asset(chunk,"bridge",Vector3.ZERO)!=null:
-		if index%3==1: asset(chunk,"arch",Vector3(0,0,-4))
+		if index%2==1: asset(chunk,"arch",Vector3(0,0,-4))
 		if index%2==0:
-			for side in [-1,1]: asset(chunk,"island",Vector3(side*8,0,-4))
+			for side in [-1,1]:
+				var island:=asset(chunk,"island",Vector3(side*(8.0+float(index%3)),float(index%3)*1.3,-4))
+				if island!=null: island.scale=Vector3.ONE*(1.0+float(index%3)*0.12)
 		return
 	box(chunk, Vector3(0,-0.22,0), Vector3(6.6,0.42,SEGMENT), Color("#815541"))
 	for i in range(9):
@@ -351,9 +377,10 @@ func make_hud() -> void:
 	var stats := HBoxContainer.new()
 	stats.mouse_filter=Control.MOUSE_FILTER_IGNORE
 	column.add_child(stats)
-	score_label=hud_label(stats,"0 m",20,Color("#f0f1ff"))
-	coin_label=hud_label(stats,"0 coins",20,Color("#ffd775"))
-	snack_label=hud_label(stats,"0 snacks",20,Color("#a9e2bd"))
+	points_label=hud_label(stats,"0 pts",18,Color("#ffdc87"))
+	score_label=hud_label(stats,"0 m",18,Color("#f0f1ff"))
+	coin_label=hud_label(stats,"0 coins",18,Color("#ffd775"))
+	snack_label=hud_label(stats,"0 snacks",18,Color("#a9e2bd"))
 	hud_label(column,"SKY BRIDGE  •  Collect snacks for your pet!",16,Color("#cbd9ff"))
 	power_label=hud_label(column,"MAGNET  •  SHIELD  •  ×2  •  BOOST",15,Color("#e9d5ff"))
 	var footer := PanelContainer.new()
@@ -568,6 +595,7 @@ func _physics_process(dt: float) -> void:
 	for i in range(feet.size()):
 		feet[i].position.z=0.16+sin(clock*16+i*PI)*0.25 if player.is_on_floor() and slide<=0 else 0.16
 		feet[i].position.y=0.20+maxf(0,sin(clock*16+i*PI))*0.18 if player.is_on_floor() and slide<=0 else 0.20
+		feet[i].rotation.x=sin(clock*16+i*PI)*0.45 if player.is_on_floor() and slide<=0 else -0.14
 	for chunk in chunks:
 		chunk.position.z+=speed*dt
 		if chunk.position.z>SEGMENT*1.5:
@@ -578,7 +606,7 @@ func _physics_process(dt: float) -> void:
 		var old_z:=a.position.z
 		a.position.z=float(a.get_meta("at"))*-1+distance
 		var kind:=int(a.get_meta("kind"))
-		if kind>=PICKUP and a.visible and a.position.z > -45.0 and a.get_child_count()>0:
+		if kind>=PICKUP and kind!=BOOST and a.visible and a.position.z > -45.0 and a.get_child_count()>0:
 			(a.get_child(0) as Node3D).rotation.y+=dt*2.5
 		# Test the full swept depth interval, with the same world sizes as the meshes.
 		var contact := maxf(old_z,a.position.z)>=-0.80 and minf(old_z,a.position.z)<=0.80
@@ -682,6 +710,7 @@ func update_hud() -> void:
 	var key := str(int(distance))+":"+str(coins)+":"+str(snacks)+":"+str(ended)+":"+str(paused_run)+":"+str(started)
 	if key==last_hud: return
 	last_hud=key
+	points_label.text="%d pts"%(int(distance*10)+coins*25+snacks*50)
 	score_label.text="%d m"%int(distance)
 	coin_label.text="%d coins"%coins
 	snack_label.text="%d snacks"%snacks
@@ -772,6 +801,13 @@ func capture_review() -> void:
 	# Actual rendered game frame, not a mockup. Show the first playable section.
 	await get_tree().process_frame
 	started=true
+	# Capture during the initial safe stretch rather than after a slow render
+	# benchmark might have let the uncontrolled player crash.
+	while distance<7.0:
+		await get_tree().physics_frame
+	await RenderingServer.frame_post_draw
+	var review:=get_viewport().get_texture().get_image()
+	assert(review.save_png("/tmp/pet-dash-review.png")==OK)
 	var frame_ms: Array[float]=[]
 	var last_us:=Time.get_ticks_usec()
 	for i in range(90):
@@ -785,8 +821,5 @@ func capture_review() -> void:
 	metrics.store_string(JSON.stringify({"renderer":RenderingServer.get_current_rendering_method(),"samples":frame_ms.size(),"median_ms":frame_ms[int(frame_ms.size()/2.0)],"p95_ms":p95,"draw_calls":RenderingServer.get_rendering_info(RenderingServer.RENDERING_INFO_TOTAL_DRAW_CALLS_IN_FRAME),"primitives":RenderingServer.get_rendering_info(RenderingServer.RENDERING_INFO_TOTAL_PRIMITIVES_IN_FRAME),"scope":"desktop virtual display; not Android"}))
 	metrics.close()
 	await RenderingServer.frame_post_draw
-	var image := get_viewport().get_texture().get_image()
-	var result := image.save_png("/tmp/pet-dash-review.png")
-	assert(result==OK)
 	print("PET_DASH_RENDER_CAPTURE_OK")
 	get_tree().quit(0)

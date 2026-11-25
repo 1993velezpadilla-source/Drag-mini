@@ -27,6 +27,12 @@ def ring(p,r,minor,m):
 def paw(p,m,s=1):
  x,y,z=p;ball((x,y,z),(.31*s,.24*s,.05*s),m)
  for i in range(4):ball((x+(i-1.5)*.11*s,y+.19*s+(.03*s if i in (1,2) else 0),z),(.095*s,.125*s,.05*s),m)
+def flower(p,s=1):
+ x,y,z=p
+ for k in range(5):
+  a=k*2*pi/5
+  ball((x+.095*s*math.cos(a),y+.095*s*math.sin(a),z),(.14*s,.14*s,.055*s),white)
+ ball((x,y,z+.032*s),(.115*s,.115*s,.065*s),gold)
 def export(name,maxtri):
  bpy.ops.object.select_all(action='SELECT');bpy.ops.object.convert(target='MESH')
  groups={}
@@ -60,15 +66,21 @@ for side in [-1,1]:
   z=-6+j*6;box((side*3.5,.73,z),(.39,1.46,.39),stone,.065);box((side*3.5,1.46,z),(.52,.17,.52),wood2)
   if j%2==0:
    box((side*3.5,1.92,z),(.12,1.0,.12),blue);box((side*3.5,2.40,z),(.43,.13,.43),blue)
-   ball((side*3.5,2.70,z),(.46,.55,.46),gold);box((side*3.5,3,z),(.48,.13,.48),blue)
+   cyl((side*3.5,2.68,z),.21,.29,.48,amber)
+   for dx in [-.18,.18]:
+    for dz in [-.18,.18]:box((side*3.5+dx,2.68,z+dz),(.045,.49,.045),blue,.012)
+   cyl((side*3.5,3.02,z),.34,.05,.24,blue)
    box((side*3.5,1.7,z-.35),(.08,.85,.48),blue)
    box((side*3.5,1.31,z-.35),(.095,.065,.51),gold)
    for dz in [-.20,.20]:box((side*3.5,1.7,z-.35+dz),(.095,.80,.035),gold)
+   # A front-facing pennant badge reads from the gameplay camera.
+   box((side*3.5,1.92,z+.16),(.44,.62,.035),blue,.025)
+   paw((side*3.5,1.87,z+.19),gold,.55)
   else:
    cyl((side*3.67,.41,z),.32,.44,.56,stone)
    for k in range(5):
     a=k*2*pi/5;ball((side*3.67+.24*math.cos(a),.90,z+.24*math.sin(a)),(.58,.58,.58),leaf if k%2 else green)
-export('bridge',95000)
+export('bridge',110000)
 clear()
 for side in [-1,1]:box((side*3.3,2,0),(.72,4,.78),stone,.10)
 for j in range(13):
@@ -80,8 +92,10 @@ for side in [-1,1]:
  for j in range(8):
   yy=.5+j*.45
   ball((side*(3.25+.10*math.sin(j)),yy,.46),(.34,.22,.28),leaf if j%2 else green)
-  if j%3==0:ball((side*3.25,yy,.63),(.16,.16,.10),white)
-export('arch',55000)
+  if j%3==0:flower((side*3.25,yy,.64),1.05)
+for j in range(1,13,2):
+ a=j*pi/12;flower((3.3*math.cos(a),4.08+3.3*math.sin(a),.48),1.1)
+export('arch',85000)
 clear()
 cyl((0,-1.9,0),.50,2.7,3.8,stone);cyl((0,.05,0),2.69,2.69,.35,green)
 cyl((0,1.7,0),.92,.85,3.4,cream);cyl((0,3.88,0),1.16,.05,1.4,blue)
@@ -89,9 +103,14 @@ for i in range(4):
  a=i*pi/2;box((.89*math.cos(a),2.4,.89*math.sin(a)),(.22,.62,.22),gold)
 for k in range(6):
  a=k*pi/3;ball((1.88*math.cos(a),.56,1.88*math.sin(a)),(.94,.83,.94),green if k%2 else leaf)
-for i in range(3):ball((1.5+i*.12,-1.7-i*.58,.74),(.50,1.2,.24),water)
+for i in range(3):
+ x=1.2+i*.24;ball((x,-1.7,2.24-i*.19),(.31,3.1,.23),water)
+for side in [-1,1]:
+ cyl((side*1.15,1.02,-.65),.53,.48,2.0,cream)
+ cyl((side*1.15,2.34,-.65),.68,.04,.85,blue)
+ box((side*1.15,1.40,-.13),(.13,.35,.055),gold,.02)
 for i in range(3):ball((-1.8+i*.8,-1.1,1.5), (1.7,.56,1.1),white)
-export('island',40000)
+export('island',50000)
 clear()
 ball((0,.85,0),(1.48,1.52,1.2),lime)
 for side in [-1,1]:
