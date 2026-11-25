@@ -1,15 +1,16 @@
-import bpy, math, os, sys
+import bpy, math, os, sys, json
 from math import pi
 OUT=os.path.abspath(sys.argv[sys.argv.index('--')+1]);os.makedirs(OUT,exist_ok=True)
 def mat(name,rgb,metal=0,rough=.42):
  m=bpy.data.materials.new(name);m.diffuse_color=(*rgb,1);m.use_nodes=True;b=m.node_tree.nodes.get('Principled BSDF');b.inputs['Base Color'].default_value=(*rgb,1);b.inputs['Metallic'].default_value=metal;b.inputs['Roughness'].default_value=rough;return m
 wood=mat('warm oak',(.23,.087,.032));wood2=mat('light oak',(.33,.145,.057));stone=mat('blue grey stone',(.35,.41,.49));cream=mat('ivory',(.88,.77,.59));gold=mat('gold',(.98,.57,.07),.5,.26);green=mat('foliage',(.085,.36,.12));leaf=mat('leaf tips',(.30,.57,.12));blue=mat('navy blue',(.06,.13,.34));violet=mat('banner violet',(.25,.14,.52));amber=mat('amber',(.98,.51,.13));lime=mat('Mosskit body',(.13,.46,.024),0,.34);pink=mat('ear rose',(.95,.35,.49));dark=mat('deep plum',(.038,.024,.075),0,.20);white=mat('eye shine',(.97,.97,1));water=mat('water',(.13,.64,.89),.15,.21)
+stats={}
 def clear():
  bpy.ops.object.select_all(action='SELECT');bpy.ops.object.delete(use_global=False)
 def finish(o,m,b=0):
  o.data.materials.append(m)
  if b:
-  q=o.modifiers.new('bevel','BEVEL');q.width=b;q.segments=2;q=o.modifiers.new('normals','WEIGHTED_NORMAL')
+  q=o.modifiers.new('bevel','BEVEL');q.width=b;q.segments=1 if b<=.025 else 2;q=o.modifiers.new('normals','WEIGHTED_NORMAL')
  for p in o.data.polygons:p.use_smooth=True
  return o
 # input coordinates use Godot's x,y,z; convert to Blender x,-z,y.
@@ -17,7 +18,9 @@ def v(p):return (p[0],-p[2],p[1])
 def box(p,size,m,b=.035):
  bpy.ops.mesh.primitive_cube_add(size=1,location=v(p));o=bpy.context.object;o.dimensions=(size[0],size[2],size[1]);bpy.ops.object.transform_apply(location=False,rotation=False,scale=True);return finish(o,m,b)
 def ball(p,size,m):
- bpy.ops.mesh.primitive_uv_sphere_add(segments=20,ring_count=12,location=v(p));o=bpy.context.object;o.scale=(size[0]/2,size[2]/2,size[1]/2);return finish(o,m)
+ detail=max(size)
+ segments,rings=(10,6) if detail<.24 else (14,8) if detail<.65 else (20,12)
+ bpy.ops.mesh.primitive_uv_sphere_add(segments=segments,ring_count=rings,location=v(p));o=bpy.context.object;o.scale=(size[0]/2,size[2]/2,size[1]/2);return finish(o,m)
 def cyl(p,r1,r2,h,m,front=False):
  bpy.ops.mesh.primitive_cone_add(vertices=32,radius1=r1,radius2=r2,depth=h,location=v(p));o=bpy.context.object
  if front:o.rotation_euler.x=pi/2
@@ -52,6 +55,7 @@ def export(name,maxtri):
  path=os.path.join(OUT,name+'.glb')
  result=bpy.ops.export_scene.gltf(filepath=path,export_format='GLB',export_yup=True)
  assert 'FINISHED' in result and os.path.getsize(path)>1000,(name,result)
+ stats[name]={'triangles':total,'materials':len(groups),'bytes':os.path.getsize(path)}
  print('GLB_OK',name,total,len(groups))
 clear()
 box((0,-.23,0),(6.65,.45,18),wood)
@@ -166,3 +170,5 @@ for z in [-.30,.30]:
  for side in [-1,1]:
   o=box((side*.19,.29,z),(.50,.045,.14),cyan,.02);o.rotation_euler.z=side*.65
 export('boost',6000)
+
+with open(os.path.join(OUT,'mesh-metrics.json'),'w') as out: json.dump(stats,out,indent=2)

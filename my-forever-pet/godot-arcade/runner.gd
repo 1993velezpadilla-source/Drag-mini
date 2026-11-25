@@ -123,6 +123,10 @@ func asset(parent: Node3D, name: String, pos: Vector3) -> Node3D:
 			return null
 		models[name]=load(path)
 	var n: Node3D=models[name].instantiate()
+	# Let imported mesh LODs transition earlier for distant scenery, not the player.
+	if name in ["bridge","arch","island"]:
+		for child in n.find_children("*","MeshInstance3D",true,false):
+			(child as MeshInstance3D).lod_bias=0.65
 	# Tiny collectibles and distant islands do not need expensive shadow passes.
 	if name in ["coin","snack","magnet","shield","double","boost","island"]:
 		for child in n.find_children("*","MeshInstance3D",true,false):
@@ -160,7 +164,7 @@ func _ready() -> void:
 	sun.light_color = Color("#ffdfb0")
 	sun.light_energy = 0.66
 	sun.light_specular=0.3
-	sun.directional_shadow_max_distance=44.0
+	sun.directional_shadow_max_distance=30.0
 	sun.shadow_bias=0.07
 	sun.shadow_normal_bias=0.55
 	sun.shadow_enabled = true
@@ -915,7 +919,8 @@ func test_run() -> void:
 	get_tree().quit(0)
 
 func capture_review() -> void:
-	# Actual rendered game frame, not a mockup. Show the first playable section.
+	# Real game frame; capture first, then run the desktop timing sample.
+	print("DASH_CAPTURE_READY")
 	await get_tree().process_frame
 	started=true
 	# Capture during the initial safe stretch rather than after a slow render
@@ -930,10 +935,10 @@ func capture_review() -> void:
 	print("DASH_CAPTURE_IMAGE_SAVED")
 	var frame_ms: Array[float]=[]
 	var last_us:=Time.get_ticks_usec()
-	for i in range(15):
+	for i in range(10):
 		await RenderingServer.frame_post_draw
 		var now:=Time.get_ticks_usec()
-		if i>=3: frame_ms.append(float(now-last_us)/1000.0)
+		if i>=2: frame_ms.append(float(now-last_us)/1000.0)
 		last_us=now
 	frame_ms.sort()
 	assert(not ended,"capture driver crashed during timing")

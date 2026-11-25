@@ -10,3 +10,5 @@ Android lab export: separate package org.myforeverpet.dashlab, ARM64 debug signi
 0.5 lab: per-type pickup/contact depths, grounded boost trigger, reusable radial contact shadows, floating pickup feedback, and local best score. CI tests do not modify a player's records. These are not shared native app rewards. Physical device performance and visual parity remain open.
 
 0.5 follow-up: deterministic 900m procedural route soak with real collision, scoring and pool limits; capture timing follows the generated safe route instead of benchmarking a crashed/paused screen. HUD updates capped near 13 Hz and camera FOV increases with speed. The headless test is not an Android performance claim.
+
+0.6: screen-size-aware capture environment, APK packaging before visual verification, size-adaptive geometry for small Blender details, earlier imported scenery LODs, shorter shadow range and per-mesh triangle/material/byte reports. No visual-quality or Android FPS claim until verified.
