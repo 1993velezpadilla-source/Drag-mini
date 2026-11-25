@@ -7,6 +7,7 @@ on:
       - '.github/workflows/city-zero-mclaren-570s-actual-source-doors.yml'
       - 'forever-frequency-native/tools/mclaren_570s_real_door_parts_blender.py'
       - 'forever-frequency-native/tests/mclaren_570s_real_doors_godot_qa.gd'
+      - 'forever-frequency-native/scripts/vehicle_door_controller.gd'
 permissions:
   contents: read
   actions: read
@@ -102,6 +103,8 @@ jobs:
           assert set(r['real_separate_original_panel_mesh_ids'])=={'LEFT','RIGHT'}
           assert len(r['hinges'])==2 and len(r['real_blender_closed_open_pictures'])==2
           assert min(r['source_moving_body_panel_meters'].values())>.25
+          assert r['mclaren_570s_dihedral_upward_and_outward'] and r['regular_sideways_yaw_doors_rejected']
+          assert min(r['source_original_dihedral_door_vertical_rise_m'].values())>.27
           assert len(list(p.glob('*.png')))==2
           assert (p/'mclaren_570s_2016_REAL_SOURCE_BODY_GLASS_HINGES.glb').stat().st_size>3500000
           assert (p/'mclaren_570s_2016_real_source_ARTIST_HINGES_EDITABLE.blend').stat().st_size>5000000
@@ -240,6 +243,11 @@ jobs:
           assert not r['original_source_geometry_replaced']
           assert r['true_rendered_changed_pixels']>=300
           assert r['doors_reached_real_open_angles']
+          assert r['mclaren_570s_upward_and_outward_dihedral_mode']
+          assert r['original_approved_lamborghini_default_door_axis_unchanged']
+          assert min(r['actual_original_source_dihedral_door_rise_m'].values())>.27
+          assert r['original_artist_body_panel_moves_outward_x_m']['RIGHT']>.08
+          assert r['original_artist_body_panel_moves_outward_x_m']['LEFT']<-.08
           assert not r['owner_art_approved'] and r['licensing_rights_review_pending']
           assert len(list(p.glob('*.png')))==2
           print('REAL_MCLAREN570S_ORIGINAL_3D_NATIVE_GODOT_HINGED_CLOSED_OPEN_GREEN_NO_OWNER_APPROVAL')
