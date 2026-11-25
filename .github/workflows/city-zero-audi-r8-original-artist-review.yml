@@ -1,0 +1,152 @@
+name: City Zero - Audi R8 original artist source Blender Godot review
+on:
+  workflow_dispatch:
+  push:
+    branches: [forever-frequency-native]
+    paths:
+      - '.github/workflows/city-zero-audi-r8-original-artist-review.yml'
+      - 'forever-frequency-native/tools/audi_r8_real_artist_blender_review.py'
+      - 'forever-frequency-native/tests/audi_r8_real_artist_godot_capture.gd'
+permissions:
+  contents: read
+concurrency:
+  group: cityzero-audi-r8-source-review
+  cancel-in-progress: false
+jobs:
+  audi-r8-source-blender:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - name: Locate permitted archive and validate source artist and per-model license
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m pip install --quiet objaverse==0.1.7
+          python3 - <<'PY'
+          import hashlib,json,struct,shutil
+          from pathlib import Path
+          import objaverse
+          uid='e17e438f076f4427a58d93aa779edaed'
+          page='https://sketchfab.com/3d-models/audi-r8-'+uid
+          metadata=objaverse.load_annotations(uids=[uid]).get(uid)
+          if not metadata:
+              raise RuntimeError('Artist source absent in Objaverse 1.0; no substitute model allowed')
+          user=metadata.get('user') or {}
+          assert user.get('username','').lower() in ('realwallon','wallon') or user.get('displayName','').lower()=='wallon',user
+          assert metadata.get('name','').strip().lower()=='audi r8',metadata.get('name')
+          license=metadata.get('license') or {}
+          if isinstance(license,dict):
+              label=str(license.get('label','')).lower()
+              url=str(license.get('url','')).lower()
+              assert 'creativecommons.org/licenses/by/4.0' in url or label in ('cc by 4.0','cc attribution','creative commons attribution'),license
+              assert not any(x in label+' '+url for x in ('noncommercial','non-commercial','by-nc','by-sa','by-nd')),license
+          else:
+              assert str(license).lower() in ('by','cc-by','cc by 4.0','https://creativecommons.org/licenses/by/4.0/'),license
+          file=objaverse.load_objects(uids=[uid],download_processes=1).get(uid)
+          if not file: raise RuntimeError('Permitted archive source not downloadable')
+          out=Path('forever-frequency-native/assets/original_artist_ccby_sources')
+          out.mkdir(parents=True,exist_ok=True)
+          glb=out/'audi_r8.glb'
+          shutil.copyfile(file,glb)
+          raw=glb.read_bytes()
+          assert raw[:4]==b'glTF' and struct.unpack_from('<II',raw,4)==(2,len(raw))
+          size,kind=struct.unpack_from('<I4s',raw,12)
+          assert kind==b'JSON'
+          g=json.loads(raw[20:20+size])
+          triangles=sum((g['accessors'][p['indices']]['count'] if 'indices' in p else g['accessors'][p['attributes']['POSITION']]['count'])//3 for m in g['meshes'] for p in m['primitives'] if p.get('mode',4)==4)
+          assert 300000<=triangles<=650000,triangles
+          assert len(g.get('materials',[]))>=3 and g.get('images')
+          receipt={'source_uid':uid,'source_url':page,'artist':'wallon','license':'CC BY 4.0','source_dataset':'allenai/objaverse','sha256':hashlib.sha256(raw).hexdigest(),'source_triangles':triangles,'source_bytes':len(raw),'source_metadata':metadata,'owner_approved':False,'commercial_brand_rights_cleared':False}
+          (out/'audi_r8_source_receipt.json').write_text(json.dumps(receipt,indent=2)+'\n')
+          print('AUDI_R8_PERMITTED_SOURCE_INTAKE',json.dumps({k:v for k,v in receipt.items() if k!='source_metadata'}))
+          PY
+      - name: Real Blender review with editable master and five native photographs
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd forever-frequency-native
+          python3 -m py_compile tools/audi_r8_real_artist_blender_review.py
+          docker pull ghcr.io/blenderkit/headless-blender:blender-4.5-stable
+          timeout 1800s docker run --rm --entrypoint /home/headless/blender/blender -v "$PWD:$PWD" -w "$PWD" ghcr.io/blenderkit/headless-blender:blender-4.5-stable -b -t 2 --python tools/audi_r8_real_artist_blender_review.py 2>&1 | tee AUDI_R8_BLENDER.log
+          grep -q 'AUDI_R8_REAL_ARTIST_BLENDER_FIVE_VIEWS_NOT_APPROVED' AUDI_R8_BLENDER.log
+          python3 - <<'PY'
+          from pathlib import Path
+          import json
+          root=Path('.')
+          src=json.loads((root/'assets/original_artist_ccby_sources/audi_r8_source_receipt.json').read_text())
+          proof=root/'artist_ccby_real_car_blender_proof'
+          qa=json.loads((proof/'audi_r8_REAL_original_source_audit.json').read_text())
+          assert qa['blender_source_triangles']==src['source_triangles']
+          assert len(list(proof.glob('audi_r8*.png')))==5
+          assert not qa['game_ready'] and not qa['doors_hinges_approved']
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: CityZero-AudiR8-Original-Artist-Blender-Review
+          path: |
+            forever-frequency-native/assets/original_artist_ccby_sources/audi_r8_source_receipt.json
+            forever-frequency-native/assets/licensed_ccby_car_fleet/
+            forever-frequency-native/artist_ccby_real_car_blender_proof/
+            forever-frequency-native/AUDI_R8_BLENDER.log
+          retention-days: 90
+  audi-r8-native-godot:
+    needs: audi-r8-source-blender
+    runs-on: ubuntu-22.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: CityZero-AudiR8-Original-Artist-Blender-Review
+          path: source
+      - name: Prepare isolated engine review
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p isolated/assets/licensed_ccby_car_fleet isolated/tests
+          find source -type f -name 'audi_r8_blender_import.glb' -exec cp '{}' isolated/assets/licensed_ccby_car_fleet/ ';'
+          test -s isolated/assets/licensed_ccby_car_fleet/audi_r8_blender_import.glb
+          cp forever-frequency-native/tests/audi_r8_real_artist_godot_capture.gd isolated/tests/
+          cat > isolated/project.godot <<'GODOT'
+          config_version=5
+          [application]
+          config/name="City Zero Audi R8 source review - no shipping approval"
+          [rendering]
+          renderer/rendering_method="gl_compatibility"
+          renderer/rendering_method.mobile="gl_compatibility"
+          GODOT
+      - uses: solarlabyrinth/action-setup-godot@v3
+        with:
+          version: 4.4.1-stable
+          export-templates: false
+      - run: sudo apt-get update -qq && sudo apt-get install -y -qq xvfb libgl1 libgl1-mesa-dri libegl1
+      - name: Capture actual Godot geometry and mesh-hidden negative controls
+        shell: bash
+        env:
+          LIBGL_ALWAYS_SOFTWARE: '1'
+          MESA_GL_VERSION_OVERRIDE: '3.3'
+        run: |
+          set -euo pipefail
+          export CITYZERO_ARTIST_GODOT_PHOTOS="$PWD/audi-r8-native-photos"
+          mkdir -p "$CITYZERO_ARTIST_GODOT_PHOTOS"
+          xvfb-run -a timeout 240s godot --rendering-driver opengl3 --path isolated --editor --import --quit 2>&1 | tee audi-r8-native-photos/import.log
+          if grep -E 'SCRIPT ERROR|Parse Error' audi-r8-native-photos/import.log; then exit 1; fi
+          xvfb-run -a timeout 240s godot --rendering-driver opengl3 --path isolated --script res://tests/audi_r8_real_artist_godot_capture.gd 2>&1 | tee audi-r8-native-photos/run.log
+          grep -q 'AUDI_R8_REAL_GODOT_FIVE_VIEWS_NOT_APPROVED' audi-r8-native-photos/run.log
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          root=Path('audi-r8-native-photos')
+          proof=json.loads((root/'artist_fleet_REAL_GODOT_report.json').read_text())
+          src=json.loads(next(Path('source').rglob('audi_r8_source_receipt.json')).read_text())
+          assert proof['vehicles'][0]['real_godot_triangles']==src['source_triangles']
+          assert len(list(root.glob('*.png')))==5
+          assert not proof['vehicles'][0]['gameplay_ready']
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: CityZero-AudiR8-Five-Real-Godot-Views
+          path: audi-r8-native-photos/
+          retention-days: 90
