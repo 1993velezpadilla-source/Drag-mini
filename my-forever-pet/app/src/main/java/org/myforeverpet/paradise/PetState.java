@@ -19,7 +19,7 @@ public final class PetState {
   // Bounded per minute simulation; longer absence does not overflow timers.
   left=Math.min(left,30L*24*HOUR);
   while(left>0){
-   long dt=Math.min(left,MIN);left-=dt;age+=dt;
+   int oldWaste=waste,oldMistakes=mistakes;long dt=Math.min(left,MIN);left-=dt;age+=dt;
    hungerClock+=dt;happyClock+=dt;wasteClock+=dt;
    long ht=stage==BABY?15*MIN:90*MIN, ha=stage==BABY?25*MIN:120*MIN;
    while(hungerClock>=ht){hungerClock-=ht;hunger=Math.max(0,hunger-1);}
@@ -28,7 +28,7 @@ public final class PetState {
    if(stage==BABY){cellClock+=dt;while(cellClock>=15*MIN){cellClock-=15*MIN;cells[field]=Math.min(4,cells[field]+1);}}
    if(stage>=KID&&(hunger==0||happy==0)){careClock+=dt;while(careClock>=15*MIN){careClock-=15*MIN;mistakes=Math.min(6,mistakes+1);}}
    else careClock=0;
-   if(!sick&&(waste>=6||mistakes>=3)&&germs==0){sick=true;germs=3;}
+   if(!sick&&((oldWaste<6&&waste>=6)||(oldMistakes<3&&mistakes>=3))&&germs==0){sick=true;germs=3;}
    if(stage==KID&&age>=24*HOUR){stage=YOUNG;age-=24*HOUR;body=dominantFood();}
    else if(stage==YOUNG&&age>=24*HOUR){stage=ADULT;age-=24*HOUR;eyes=inheritedEyes>=0?inheritedEyes:Math.min(3,mistakes/2);collection|=1<<species();}
   }
@@ -38,7 +38,7 @@ public final class PetState {
  public void feed(int food){if(stage==EGG)return;food=clamp(food,0,3);hunger=clamp(hunger+1,0,5);foods[food]++;if(hunger>0&&happy>0)careClock=0;}
  public void play(){if(stage!=EGG){happy=clamp(happy+2,0,10);if(hunger>0&&happy>0)careClock=0;}}
  public void clean(){if(stage!=EGG){fuel=Math.min(9999,fuel+waste);waste=0;wasteClock=0;}}
- public void treat(){if(stage!=EGG){if(germs>0)germs--;if(germs==0){sick=false;mistakes=Math.min(mistakes,2);waste=Math.min(waste,5);}}}
+ public void treat(){if(stage!=EGG&&sick){if(germs>0)germs--;if(germs==0){sick=false;}}}
  public int species(){return field*4+body;}
  public static final String[] SPECIES={"Mosskit","Bunberry","Dewfox","Pebblepup","Bubblefin","Coralhop","Moonray","Shellotter","Starbat","Cloudhare","Cometbird","Puffowl"};
  public String creature(){return stage<2?stageName():SPECIES[species()];}
@@ -68,5 +68,5 @@ public final class PetState {
  public String stageName(){return new String[]{"Egg","Baby","Kid","Young","Adult"}[stage];}
  public String fieldName(){return new String[]{"Land","Water","Sky"}[field];}
  public String encode(){return stage+","+field+","+hunger+","+happy+","+waste+","+mistakes+","+coins+","+body+","+eyes+","+color+","+(sick?1:0)+","+age+","+last+","+hungerClock+","+happyClock+","+wasteClock+","+careClock+","+cellClock+","+cells[0]+","+cells[1]+","+cells[2]+","+foods[0]+","+foods[1]+","+foods[2]+","+foods[3]+","+generation+","+friendship+","+inheritedEyes+","+owned+","+equipped+","+installation+","+fuel+","+collection+","+germs;}
- public static PetState decode(String raw){PetState s=new PetState();if(raw==null)return s;try{String[] v=raw.split(",");if(v.length!=25&&v.length!=28&&v.length!=34)return s;long[] a=new long[v.length];for(int i=0;i<a.length;i++)a[i]=Long.parseLong(v[i]);s.stage=clamp((int)a[0],0,4);s.field=clamp((int)a[1],0,2);s.hunger=clamp((int)a[2],0,5);s.happy=clamp((int)a[3],0,10);s.waste=clamp((int)a[4],0,6);s.mistakes=clamp((int)a[5],0,6);s.coins=Math.max(0,(int)a[6]);s.body=clamp((int)a[7],0,3);s.eyes=clamp((int)a[8],0,3);s.color=clamp((int)a[9],0,15);s.sick=a[10]!=0;s.age=Math.max(0,a[11]);s.last=Math.max(0,a[12]);s.hungerClock=Math.max(0,a[13]);s.happyClock=Math.max(0,a[14]);s.wasteClock=Math.max(0,a[15]);s.careClock=Math.max(0,a[16]);s.cellClock=Math.max(0,a[17]);for(int i=0;i<3;i++)s.cells[i]=clamp((int)a[18+i],0,4);for(int i=0;i<4;i++)s.foods[i]=Math.max(0,(int)a[21+i]);if(a.length>=28){s.generation=Math.max(1,(int)a[25]);s.friendship=clamp((int)a[26],0,4);s.inheritedEyes=clamp((int)a[27],-1,3);}if(a.length==34){s.owned=clamp((int)a[28],0,63);s.equipped=clamp((int)a[29],0,3);s.installation=clamp((int)a[30],0,6);s.fuel=clamp((int)a[31],0,9999);s.collection=clamp((int)a[32],0,4095);s.germs=clamp((int)a[33],0,3);}else if(s.sick)s.germs=3;return s;}catch(RuntimeException e){return new PetState();}}
+ public static PetState decode(String raw){PetState s=new PetState();if(raw==null)return s;try{String[] v=raw.split(",");if(v.length!=25&&v.length!=28&&v.length!=34)return s;long[] a=new long[v.length];for(int i=0;i<a.length;i++)a[i]=Long.parseLong(v[i]);s.stage=clamp((int)a[0],0,4);s.field=clamp((int)a[1],0,2);s.hunger=clamp((int)a[2],0,5);s.happy=clamp((int)a[3],0,10);s.waste=clamp((int)a[4],0,6);s.mistakes=clamp((int)a[5],0,6);s.coins=Math.max(0,(int)a[6]);s.body=clamp((int)a[7],0,3);s.eyes=clamp((int)a[8],0,3);s.color=clamp((int)a[9],0,15);s.sick=a[10]!=0;s.age=Math.max(0,a[11]);s.last=Math.max(0,a[12]);s.hungerClock=Math.max(0,a[13]);s.happyClock=Math.max(0,a[14]);s.wasteClock=Math.max(0,a[15]);s.careClock=Math.max(0,a[16]);s.cellClock=Math.max(0,a[17]);for(int i=0;i<3;i++)s.cells[i]=clamp((int)a[18+i],0,4);for(int i=0;i<4;i++)s.foods[i]=Math.max(0,(int)a[21+i]);if(a.length>=28){s.generation=Math.max(1,(int)a[25]);s.friendship=clamp((int)a[26],0,4);s.inheritedEyes=clamp((int)a[27],-1,3);}if(a.length==34){s.owned=clamp((int)a[28],0,63);s.equipped=clamp((int)a[29],0,3);s.installation=clamp((int)a[30],0,6);s.fuel=clamp((int)a[31],0,9999);s.collection=clamp((int)a[32],0,4095);s.germs=clamp((int)a[33],0,3);}else if(s.sick)s.germs=3;if(s.stage==ADULT)s.collection|=1<<s.species();return s;}catch(RuntimeException e){return new PetState();}}
 }

@@ -19,12 +19,13 @@ final class PetArt {
   o(0,19,22,4,0x334a3a77);
   if(s.stage==0){o(0,0,17,23,ink);o(0,-1,15,21,0xfffff4d3);o(-6,-10,5,4,0xffdab2ee);o(6,4,6,4,0xff9bd7dc);o(-4,13,4,4,0xfff2adc9);c.restore();return;}
   int shape=s.stage==1?s.field*4:s.species();int kind=shape%4;
-  if(s.field==0){if(kind==1){o(-9,-21,5,14,ink);o(9,-21,5,14,ink);o(-9,-22,3,11,body);o(9,-22,3,11,body);}else{r(-15,-20,7,12,ink);r(8,-20,7,12,ink);r(-13,-18,4,8,body);r(10,-18,4,8,body);}}
-  if(s.field==1){o(-20,2,8,5,ink);o(20,2,8,5,ink);o(-20,2,6,3,body);o(20,2,6,3,body);if(kind==2){o(0,-19,7,7,ink);o(0,-19,5,5,body);}}
-  if(s.field==2){o(-18,-1,10,8,ink);o(18,-1,10,8,ink);o(-18,-1,8,6,body);o(18,-1,8,6,body);r(-9,-23,3,10,ink);r(7,-23,3,10,ink);star(-8,-24,0xffffd566);star(8,-24,0xffffd566);}
+  if(s.stage>=2&&s.color>0){int tint=col[(s.color+shape)%col.length];body=tint;}
+  if(s.field==0){if(kind==3){o(-15,-12,6,12,ink);o(15,-12,6,12,ink);o(-15,-12,4,10,0xffae906e);o(15,-12,4,10,0xffae906e);}else if(kind==2){r(-18,-23,8,16,ink);r(11,-23,8,16,ink);r(-16,-21,5,10,0xffffeee0);r(13,-21,5,10,0xffffeee0);}else if(kind==1){o(-9,-21,5,14,ink);o(9,-21,5,14,ink);o(-9,-22,3,11,body);o(9,-22,3,11,body);}else{r(-15,-20,7,12,ink);r(8,-20,7,12,ink);r(-13,-18,4,8,body);r(10,-18,4,8,body);}}
+  if(s.field==1){o(-20,2,8,5,ink);o(20,2,8,5,ink);o(-20,2,6,3,body);o(20,2,6,3,body);if(kind==2){o(0,-19,7,7,ink);o(0,-19,5,5,body);}else if(kind==1){for(int i=0;i<3;i++){r(-10+i*8,-24+(i%2)*3,4,10,ink);r(-9+i*8,-23+(i%2)*3,2,8,0xffffa1c8);}}else if(kind==3){o(-12,-15,6,6,ink);o(12,-15,6,6,ink);o(-12,-15,4,4,body);o(12,-15,4,4,body);}}
+  if(s.field==2){o(-18,-1,10,8,ink);o(18,-1,10,8,ink);o(-18,-1,8,6,body);o(18,-1,8,6,body);if(kind==0){r(-9,-23,3,10,ink);r(7,-23,3,10,ink);star(-8,-24,0xffffd566);star(8,-24,0xffffd566);}else if(kind==1){o(-9,-22,5,12,ink);o(9,-22,5,12,ink);o(-9,-23,3,9,body);o(9,-23,3,9,body);}else if(kind==2){r(-2,-28,4,12,ink);r(-8,-25,8,5,0xffffc25d);r(1,-25,8,5,0xffffdf87);}else{r(-16,-19,7,10,ink);r(9,-19,7,10,ink);r(-14,-17,4,7,body);r(11,-17,4,7,body);}}
   o(-9,15,7,5,ink);o(9,15,7,5,ink);o(-9,15,5,3,body);o(9,15,5,3,body);
   o(0,-1,19,17,ink);o(0,-1,17,15,body);o(-8,-10,7,3,hi);
-  boolean blink=tick%3200<180;for(int x1:new int[]{-7,7}){if(blink)r(x1-3,-3,6,1,ink);else{o(x1,-3,3,5,ink);r(x1-1,-6,2,2,hi);}}
+  boolean blink=tick%3200<180;for(int x1:new int[]{-7,7}){if(blink)r(x1-3,-3,6,1,ink);else{if(s.eyes==1){o(x1,-3,4,4,ink);}else if(s.eyes==2){r(x1-3,-5,6,5,ink);}else if(s.eyes==3){star(x1,-3,ink);}else{o(x1,-3,3,5,ink);}r(x1-1,-6,2,2,hi);}}
   r(-12,4,4,2,0xffee8fa7);r(8,4,4,2,0xffee8fa7);r(-2,6,5,1,ink);r(-1,7,3,1,ink);
   if(s.equipped==1){r(-12,-20,24,4,ink);r(-8,-26,16,7,0xfff9ce63);star(0,-26,0xfffffae8);}
   if(s.equipped==2){r(-17,-14,9,6,0xffe661a0);r(-8,-12,4,3,ink);r(-4,-14,9,6,0xffe661a0);}
