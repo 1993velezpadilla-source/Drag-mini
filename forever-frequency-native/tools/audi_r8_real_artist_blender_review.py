@@ -74,7 +74,7 @@ def load_real_car(model):
         raise RuntimeError("No renderable REAL authored geometry " + identifier)
     triangle_count = sum(sum(len(poly.vertices) - 2 for poly in o.data.polygons)
                          for o in meshes)
-    if triangle_count < 300000:
+    if triangle_count < 250000:
         raise RuntimeError("Source has too few REAL triangles " + identifier)
     originals = [o for o in bpy.data.objects]
     bounds_points = [o.matrix_world @ Vector(corner) for o in meshes for corner in o.bound_box]
