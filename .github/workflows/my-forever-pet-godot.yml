@@ -18,12 +18,24 @@ jobs:
           unzip -q /tmp/godot.zip -d /tmp/godot
           chmod +x /tmp/godot/Godot_v4.4.1-stable_linux.x86_64
       - name: Install Blender and virtual display
-        run: sudo apt-get update -qq && sudo apt-get install -y blender xvfb
+        run: sudo apt-get update -qq && sudo apt-get install -y blender xvfb python3-numpy
       - name: Export original GLB game meshes
-        run: blender -b -t 4 -P my-forever-pet/godot-arcade/blender_assets.py -- my-forever-pet/godot-arcade/assets
+        run: |
+          set -euo pipefail
+          blender -b --python-exit-code 1 --python-expr "import numpy; print(numpy.__version__)"
+          blender -b -t 4 --python-exit-code 1 -P my-forever-pet/godot-arcade/blender_assets.py -- my-forever-pet/godot-arcade/assets
+          python3 - <<'PY'
+          import pathlib, struct
+          root=pathlib.Path("my-forever-pet/godot-arcade/assets")
+          for name in ("bridge","arch","island","mosskit","foot","crate","barrier","coin","snack"):
+              p=root/(name+".glb")
+              data=p.read_bytes()
+              assert len(data)>1000 and struct.unpack("<4sII",data[:12])==(b"glTF",2,len(data)),name
+              print("GLB_VALID",name,len(data))
+          PY
       - name: Import and run deterministic scene smoke
         run: |
-          set -o pipefail
+          set -euo pipefail
           G=/tmp/godot/Godot_v4.4.1-stable_linux.x86_64
           "$G" --headless --path my-forever-pet/godot-arcade --editor --import --quit
           timeout 60 "$G" --headless --path my-forever-pet/godot-arcade -- --test 2>&1 | tee /tmp/godot-smoke.log

@@ -43,7 +43,9 @@ def export(name,maxtri):
   if o.type=='MESH':
    o.data.calc_loop_triangles();total+=len(o.data.loop_triangles)
  assert 0<total<=maxtri,(name,total,maxtri)
- bpy.ops.export_scene.gltf(filepath=os.path.join(OUT,name+'.glb'),export_format='GLB',export_yup=True)
+ path=os.path.join(OUT,name+'.glb')
+ result=bpy.ops.export_scene.gltf(filepath=path,export_format='GLB',export_yup=True)
+ assert 'FINISHED' in result and os.path.getsize(path)>1000,(name,result)
  print('GLB_OK',name,total,len(groups))
 clear()
 box((0,-.23,0),(6.65,.45,18),wood)

@@ -431,7 +431,7 @@ func test_run() -> void:
 	gesture(Vector2(80,0))
 	assert(lane==1)
 	assert(chunks.size()==SEGMENTS and entities.size()>10)
-	assert(using_blender and loaded_assets>20)
+	assert(using_blender and loaded_assets>20,"Blender assets missing or not instantiated")
 	# Isolate control tests from randomly spawned obstacles.
 	for entity in entities: entity.queue_free()
 	entities.clear()
