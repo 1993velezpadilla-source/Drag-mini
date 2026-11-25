@@ -8,7 +8,7 @@ bpy.ops.object.select_all(action='SELECT')
 bpy.ops.object.delete(use_global=False)
 scene=bpy.context.scene
 scene.render.engine='CYCLES'
-scene.cycles.samples=24
+scene.cycles.samples=64
 scene.cycles.use_denoising=True
 scene.cycles.max_bounces=5
 scene.render.resolution_x=760
@@ -27,7 +27,7 @@ def material(name,rgb,rough=.5,metal=0,emit=0):
         strength=b.inputs.get('Emission Strength')
         if strength is not None: strength.default_value=emit
     return m
-wall=material('mulberry plaster',(.26,.14,.42)); wood=material('warm wood',(.53,.24,.115),.39); dark=material('walnut',(.18,.075,.10)); blue=material('royal blue velvet',(.105,.16,.65),.67); cream=material('cream cotton',(.92,.82,.68),.75); lilac=material('lilac velvet',(.44,.34,.73),.73); gold=material('star gold',(1,.57,.10),.27,.15); pink=material('rose enamel',(.85,.25,.53),.3); green=material('leaf green',(.11,.43,.18)); leaf2=material('lime leaves',(.34,.63,.19)); purple=material('violet ceramic',(.36,.13,.65),.23); navy=material('deep blue',(.035,.04,.12),.26); glow=material('amber lamp',(1,.60,.13),.3,0,2.0); crystal=material('amethyst',(.63,.17,1),.22,.15,.8); screen=material('blue screen',(.04,.45,1),.3,0,1.3); sky=material('day window',(.10,.52,.90),.6,0,.65); nightSky=material('night window',(.028,.055,.20),.5,0,.35)
+wall=material('mulberry plaster',(.095,.17,.24)); wood=material('warm wood',(.53,.24,.115),.39); dark=material('walnut',(.18,.075,.10)); blue=material('royal blue velvet',(.105,.16,.65),.67); cream=material('cream cotton',(.92,.82,.68),.75); lilac=material('lilac velvet',(.24,.35,.48),.73); gold=material('star gold',(1,.57,.10),.27,.15); pink=material('rose enamel',(.85,.25,.53),.3); green=material('leaf green',(.11,.43,.18)); leaf2=material('lime leaves',(.34,.63,.19)); purple=material('violet ceramic',(.36,.13,.65),.23); navy=material('deep blue',(.035,.04,.12),.26); glow=material('amber lamp',(1,.60,.13),.3,0,2.0); crystal=material('amethyst',(.63,.17,1),.22,.15,.8); screen=material('blue screen',(.04,.45,1),.3,0,1.3); sky=material('day window',(.10,.52,.90),.6,0,.65); nightSky=material('night window',(.028,.055,.20),.5,0,.35)
 def assign(o,m):o.data.materials.append(m);return o
 def box(name,loc,dim,m,b=.07,rot=None):
     bpy.ops.mesh.primitive_cube_add(size=1,location=loc);o=bpy.context.object;o.name=name;o.dimensions=dim

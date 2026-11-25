@@ -9,7 +9,7 @@ permissions:
 jobs:
   render-art:
     runs-on: ubuntu-latest
-    timeout-minutes: 35
+    timeout-minutes: 55
     steps:
       - uses: actions/checkout@v4
       - name: Install Blender
@@ -18,10 +18,13 @@ jobs:
         run: |
           blender -b -t 4 -P my-forever-pet/art/render_home.py -- /tmp/pet-art
           blender -b -t 4 -P my-forever-pet/art/render_pets.py -- /tmp/pet-art
+          blender -b -t 4 -P my-forever-pet/art/render_extras.py -- /tmp/pet-art
       - name: Verify generated backgrounds
         run: |
           test -s /tmp/pet-art/home_day.jpg && test -s /tmp/pet-art/home_night.jpg && test -s /tmp/pet-art/home_layout.properties
           for i in $(seq 0 11); do test -s "/tmp/pet-art/pet_$i.png"; done
+          for i in $(seq 0 7); do test -s "/tmp/pet-art/clothes_$i.png"; done
+          for f in dash_bridge.jpg dash_crate.png dash_barrier.png dash_coin.png dash_snack.png; do test -s "/tmp/pet-art/$f"; done
       - uses: actions/upload-artifact@v4
         with:
           name: ForeverPet-Blender-room-art
@@ -64,11 +67,13 @@ jobs:
           unzip -l "$APK" | grep -F assets/art/home_night.jpg
           unzip -l "$APK" | grep -F assets/art/home_layout.properties
           for i in $(seq 0 11); do unzip -l "$APK" | grep -F "assets/art/pet_$i.png"; done
+          for i in $(seq 0 7); do unzip -l "$APK" | grep -F "assets/art/clothes_$i.png"; done
+          for f in dash_bridge.jpg dash_crate.png dash_barrier.png dash_coin.png dash_snack.png; do unzip -l "$APK" | grep -F "assets/art/$f"; done
           if unzip -l "$APK" | grep -E 'libforever_pet.so|\.tamasave|firmware\.bin'; then exit 1; fi
           "$ANDROID_HOME/build-tools/35.0.0/aapt" dump badging "$APK"
       - uses: actions/upload-artifact@v4
         with:
-          name: My-Forever-Pet-Standalone-0.12-debug
+          name: My-Forever-Pet-Standalone-0.13-debug
           path: my-forever-pet/app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
 
@@ -80,7 +85,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/download-artifact@v4
         with:
-          name: My-Forever-Pet-Standalone-0.12-debug
+          name: My-Forever-Pet-Standalone-0.13-debug
           path: /tmp/pet-apk
       - name: Enable KVM
         run: |

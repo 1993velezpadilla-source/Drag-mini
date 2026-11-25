@@ -75,7 +75,7 @@ final class PetArt {
  }
  private int roadX(float lane,float depth){return 80+(int)(lane*(9+(1-depth)*48));}
  private int roadY(float depth){float n=1-depth;return 42+(int)(n*n*145);}
- private void dash(PetState s,Arcade g,long tick){
+ private void dash(PetState s,Arcade g,long tick){if(deluxe.runner(c,s,g,tick))return;
   int theme=s.field;int sky=theme==0?0xff9ddcd5:theme==1?0xff8ed1df:0xffb8b3ed;
   int ground=theme==0?0xff74b493:theme==1?0xff569fb6:0xff9b90cc;
   int road=theme==0?0xffd4b590:theme==1?0xffc9a58e:0xffe6cce9;
@@ -99,7 +99,7 @@ final class PetArt {
  }
  void drawRoom(Canvas out,PetState s,int room,long tick,int effect){deluxe.room(out,s,room,tick,effect);}
  void drawDraggedFood(Canvas out,float x,float y,int food){float sx=out.getWidth()/160f,sy=out.getHeight()/192f;out.save();out.translate(x*sx,y*sy);float z=Math.min(sx,sy);out.scale(z,z);p.setColor(0xff353052);out.drawOval(-9,-7,9,7,p);p.setColor(food==0?0xfff8d9a3:0xffe68da4);out.drawOval(-7,-5,7,5,p);p.setColor(food==0?0xffbd8c60:0xff75aa83);out.drawRect(-2,-7,2,-3,p);out.restore();}
- private void present(Canvas out){out.drawColor(0xff171b39);float z=Math.min(out.getWidth()/160f,out.getHeight()/192f);float x=(out.getWidth()-160*z)/2,y=(out.getHeight()-192*z)/2;blit.setFilterBitmap(false);destinationRect.set(x,y,x+160*z,y+192*z);out.drawBitmap(buffer,null,destinationRect,blit);}
+ private void present(Canvas out){out.drawColor(0xff171b39);float z=Math.min(out.getWidth()/160f,out.getHeight()/192f);float x=(out.getWidth()-160*z)/2,y=(out.getHeight()-192*z)/2;blit.setFilterBitmap(true);destinationRect.set(x,y,x+160*z,y+192*z);out.drawBitmap(buffer,null,destinationRect,blit);}
  void draw(Canvas out,PetState s,int zoom,boolean wall,long tick){
   p.setAntiAlias(false);c.drawColor(0xff20264d);
   if(zoom==0){for(int i=0;i<48;i++){int x=(i*73+19)%160,y=(i*61+7)%192;if(i%7==0)star(x,y,0xffc8b6f7);else r(x,y,1,1,0xffa8b1db);}o(80,95,49,49,0xff4b427e);o(80,95,46,46,0xff55b9db);o(67,76,23,17,0xff91d4a6);o(96,109,22,17,0xff96d2ab);o(62,112,12,8,0xff82c69d);o(66,59,10,4,0xffd4f6fb);o(117,68,4,4,0xffeac5ff);t("MY PLANET",80,17,9,0xfff4edff);t("BIOFUEL "+s.fuel,80,178,9,0xffeddfac);}

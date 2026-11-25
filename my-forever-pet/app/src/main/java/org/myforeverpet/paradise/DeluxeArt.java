@@ -4,7 +4,7 @@ import android.graphics.*;
 final class DeluxeArt {
  private final Paint p=new Paint(Paint.ANTI_ALIAS_FLAG|Paint.FILTER_BITMAP_FLAG);
  private final RectF rect=new RectF();private final Path path=new Path();
- private final Bitmap[] clothes=new Bitmap[8];private final boolean[] clothesTried=new boolean[8];private final int ink=0xff252447;
+ private final Bitmap[] dashAssets=new Bitmap[5];private boolean dashTried;private final Bitmap[] clothes=new Bitmap[8];private final boolean[] clothesTried=new boolean[8];private final int ink=0xff252447;
  private android.content.res.AssetManager assets;private final HomeLayout fallbackLayout=new HomeLayout();private HomeLayout renderedLayout;private final Bitmap[] modelBases=new Bitmap[12];private final boolean[] modelTried=new boolean[12];private final android.util.LruCache<Long,Bitmap> models=new android.util.LruCache<>(32);private Bitmap background,roomBackground,renderedDay,renderedNight;private boolean attemptedDay,attemptedNight;private int bgKey=-1,roomKey=-1;
  private static final int[] BODY={0xff9fee62,0xffefa5cf,0xffe9b16d,0xff76d4b2,0xff75d8f3,0xffa4df7c,0xffd8c9ff,0xfff2a38b,0xffffcf72,0xffe5b3fb,0xffa1e7da,0xffa0b5e9};
  private static int mix(int a,int b,float k){return Color.rgb((int)(Color.red(a)*(1-k)+Color.red(b)*k),(int)(Color.green(a)*(1-k)+Color.green(b)*k),(int)(Color.blue(a)*(1-k)+Color.blue(b)*k));}
@@ -21,6 +21,17 @@ final class DeluxeArt {
  private Bitmap model(int id,int tint){if(assets==null)return null;long key=((long)id<<32)|(tint&0xffffffffL);Bitmap result=models.get(key);if(result!=null)return result;if(!modelTried[id]){modelTried[id]=true;try(java.io.InputStream in=assets.open("art/pet_"+id+".png")){modelBases[id]=BitmapFactory.decodeStream(in);}catch(java.io.IOException ignored){}}Bitmap src=modelBases[id];if(src==null)return null;int w=src.getWidth(),h=src.getHeight();int[] rgba=new int[w*h],out=new int[w*h];src.getPixels(rgba,0,w,0,0,w,h);int tr=Color.red(tint),tg=Color.green(tint),tb=Color.blue(tint);for(int i=0;i<rgba.length;i++){int p=rgba[i],a=Color.alpha(p),r=Color.red(p),g=Color.green(p),b=Color.blue(p);if(a>0&&g>r*1.10f&&g>b*1.12f){float k=Math.max(.14f,Math.min(1.18f,g/210f)),white=Math.max(0,(g-224)/80f);p=Color.argb(a,Math.min(255,(int)(tr*k+white*(255-tr))),Math.min(255,(int)(tg*k+white*(255-tg))),Math.min(255,(int)(tb*k+white*(255-tb))));}out[i]=p;}
  // Retain Blender antialiased alpha; dilation created a visible fuzzy halo.
  result=Bitmap.createBitmap(out,w,h,Bitmap.Config.ARGB_8888);models.put(key,result);return result;}
+ private boolean loadDash(){if(!dashTried){dashTried=true;String[] names={"dash_bridge.jpg","dash_crate.png","dash_barrier.png","dash_coin.png","dash_snack.png"};for(int i=0;i<names.length;i++){if(assets!=null)try(java.io.InputStream in=assets.open("art/"+names[i])){dashAssets[i]=BitmapFactory.decodeStream(in);}catch(java.io.IOException ignored){}}}return dashAssets[0]!=null&&dashAssets[1]!=null&&dashAssets[2]!=null&&dashAssets[3]!=null;}
+ private void drawAsset(Canvas c,Bitmap b,float x,float y,float w,float h){if(b==null)return;solid(-1);rect.set(x,y,x+w,y+h);c.drawBitmap(b,null,rect,p);}
+ private float dashX(float lane,float d){return 80+lane*(5+(1-d)*48);}
+ private float dashY(float d){float n=1-d;return 43+n*n*145;}
+ boolean runner(Canvas c,PetState s,Arcade g,long tick){if(!loadDash())return false;drawAsset(c,dashAssets[0],0,0,160,192);
+  for(int i=0;i<12;i++){float d=1-(i+g.distance%1)/12f;if(d<0||d>1)continue;float yy=dashY(d),sz=1+(1-d)*5;for(int side=-1;side<=1;side+=2)line(c,dashX(side*.52f,d),yy,dashX(side*.52f,d),yy+sz,Math.max(.6f,sz*.2f),0xaaffead0);}
+  for(int i=0;i<g.drawOrder.length;i++){int j=g.drawOrder[i];float d=g.depth[j];if(d<0||d>1)continue;float near=1-d,x=dashX(g.obstacleLane[j]-1,d),y=dashY(d),sz=5+near*25;int kind=g.obstacleKind[j];oval(c,x,y,sz*.45f,sz*.12f,0x55302547);Bitmap im=dashAssets[kind==0?1:kind==1?2:kind==2?3:4];if(im!=null){float h=kind==1?sz*1.25f:sz;drawAsset(c,im,x-sz/2,y-h,sz,h);}}
+  float x=dashX(g.visualLane-1,.12f),y=dashY(.12f)-15,lift=g.jumpTicks>0?(float)Math.sin(g.jumpTicks*Math.PI/32)*28:0;
+  oval(c,x,y+18,15,4,0x66302a47);c.save();c.translate(x,y-lift);c.scale(.93f,g.slideTicks>0?.46f:1.05f);pet(c,s,0,0,1,tick);c.restore();
+  if(g.started&&!g.over&&g.jumpTicks==0&&g.slideTicks==0){for(int i=0;i<3;i++){float p=(tick/90f+i*2)%6;oval(c,x-5+i*5,y+20+p,1.3f+p*.3f,1+p*.2f,0x88fff1d8);}}
+  if(g.coinFlash>0){sparkle(c,x-15,y-18,4,0xffffe08a);sparkle(c,x+15,y-23,3,0xfffff1ba);}round(c,0,17,160,12,0,0xdd202944);text(c,"SKY BRIDGE  •  "+g.coinsFound+" coins  •  "+g.snacksFound+" snacks",80,25,7,0xfff7e6b5);return true;}
  Bitmap clothesIcon(int i){if(i<0||i>=8)return null;if(!clothesTried[i]){clothesTried[i]=true;if(assets!=null)try(java.io.InputStream in=assets.open("art/clothes_"+i+".png")){clothes[i]=BitmapFactory.decodeStream(in);}catch(java.io.IOException ignored){}}return clothes[i];}
  private void garment(Canvas c,int value,float x,float y,float w,float h){Bitmap b=clothesIcon(value-1);if(b==null)return;solid(-1);rect.set(x-w/2,y-h/2,x+w/2,y+h/2);c.drawBitmap(b,null,rect,p);}
  void pet(Canvas c,PetState s,float x,float y,float scale,long tick){
