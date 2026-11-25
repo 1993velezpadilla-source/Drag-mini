@@ -7,6 +7,14 @@ extends Node3D
 ## Opt in ONLY for a rig with visual clockwise/outward-door verification.
 ## Keeping this false preserves user-approved original orange Lamborghini.
 @export var invert_opening_direction: bool = false
+## Opt-in ONLY for actual McLaren 570S original hinged door geometry.
+## The 570S uses dihedral, UPWARD + OUTWARD opening, not ordinary car doors.
+## Never enable this on the approved orange Lamborghini or Ferrari.
+@export var mclaren_570s_dihedral_mode: bool = false
+## Axis study on actual 57,933-triangle, 108-primitive artist source:
+## hinge pivot (side .89, height .60, nose 1.0), door centroid
+## (side .867, height .727, longitudinal .318), choose 0.65 lateral axis.
+@export_range(0.30,0.85,0.01) var dihedral_lateral_axis_fraction: float = 0.65
 var hinges: Dictionary = {}
 var closed_quaternions: Dictionary = {}
 var current_angle: Dictionary = {}
@@ -71,4 +79,17 @@ func _process(delta: float) -> void:
         )
         current_angle[id] = next_angle
         var imported_closed: Quaternion = closed_quaternions[id]
-        hinge.quaternion = imported_closed * Quaternion(Vector3.UP, next_angle)
+        var local_rotation_axis := Vector3.UP
+        if mclaren_570s_dihedral_mode:
+            # Both door skin + side glass + mirror physically rise instead of
+            # rotating sideways only. Axis mirrors with each side and stays
+            # exactly at the source-authored hinge pivot. At zero degrees
+            # this is the IDENTITY, preserving all original closed positions.
+            var lateral_sign: float = 1.0 if str(id).contains("_RIGHT_") else -1.0
+            var tilt: float = clampf(dihedral_lateral_axis_fraction,0.30,0.85)
+            local_rotation_axis = Vector3(
+                -lateral_sign * tilt,
+                sqrt(1.0 - tilt * tilt),
+                0.0
+            )
+        hinge.quaternion = imported_closed * Quaternion(local_rotation_axis, next_angle)
