@@ -7,6 +7,7 @@ on:
       - '.github/workflows/city-zero-porsche-930-real-source-door-hinges.yml'
       - 'forever-frequency-native/tools/porsche_930_1975_actual_source_doors.py'
       - 'forever-frequency-native/tests/porsche_930_1975_original_doors_godot_qa.gd'
+      - 'forever-frequency-native/tests/porsche_930_candidate_lids_godot_qa.gd'
 permissions:
   contents: read
   actions: read
@@ -196,3 +197,56 @@ jobs:
             porsche-930-native-true-door-frames/
             PORSCHE_930_TRUE_DOORS_GODOT_NATIVE_IMPORT.log
           if-no-files-found: warn
+
+  porsche-experimental-source-lids-native-godot:
+    needs: mechanical-source-real-artist-porsche-blender
+    runs-on: ubuntu-22.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: CityZero-Porsche930-Original-Artist-Hinged-Doors-GLB-Blend-Native-Captures
+          path: candidate-source
+      - name: Isolate experimental source candidates from release project
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p lid-qa/assets lid-qa/tests
+          find candidate-source -type f -name 'UNAPPROVED_PORSCHE930_FRONT_REAR_SOURCE_CANDIDATES.glb' -exec cp '{}' lid-qa/assets/ ';'
+          test -s lid-qa/assets/UNAPPROVED_PORSCHE930_FRONT_REAR_SOURCE_CANDIDATES.glb
+          cp forever-frequency-native/tests/porsche_930_candidate_lids_godot_qa.gd lid-qa/tests/
+          cat > lid-qa/project.godot <<'GODOT'
+          config_version=5
+          [application]
+          config/name="City Zero experimental Porsche source panels - not for shipping"
+          [rendering]
+          renderer/rendering_method="gl_compatibility"
+          renderer/rendering_method.mobile="gl_compatibility"
+          GODOT
+      - uses: solarlabyrinth/action-setup-godot@v3
+        with:
+          version: 4.4.1-stable
+          export-templates: false
+      - run: sudo apt-get update -qq && sudo apt-get install -y -qq xvfb libgl1 libgl1-mesa-dri libegl1
+      - name: Native Godot candidate closed and open evidence
+        shell: bash
+        env:
+          LIBGL_ALWAYS_SOFTWARE: '1'
+          MESA_GL_VERSION_OVERRIDE: '3.3'
+        run: |
+          set -euo pipefail
+          export CITYZERO_PORSCHE_CANDIDATE_LID_SHOTS="$PWD/lid-candidate-photos"
+          mkdir -p "$CITYZERO_PORSCHE_CANDIDATE_LID_SHOTS"
+          xvfb-run -a timeout 180s godot --rendering-driver opengl3 --path lid-qa --editor --import --quit 2>&1 | tee lid-candidate-photos/import.log
+          if grep -E 'SCRIPT ERROR|Parse Error' lid-candidate-photos/import.log; then exit 1; fi
+          xvfb-run -a timeout 220s godot --rendering-driver opengl3 --path lid-qa --script res://tests/porsche_930_candidate_lids_godot_qa.gd 2>&1 | tee lid-candidate-photos/run.log
+          grep -q 'PORSCHE930_EXPERIMENTAL_SOURCE_LIDS_GODOT_MOTION_PASS_NOT_APPROVED' lid-candidate-photos/run.log
+          test -s lid-candidate-photos/UNAPPROVED_CANDIDATE_REPORT.json
+          test "$(find lid-candidate-photos -name '*.png' | wc -l)" -eq 4
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: CityZero-Porsche930-UNAPPROVED-Experimental-Lids-Native-Godot
+          path: lid-candidate-photos/
+          retention-days: 90
