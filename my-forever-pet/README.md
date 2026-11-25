@@ -16,3 +16,6 @@ Original pixel art, 12 adult species identifiers and three field-specific famili
 
 ## 0.5 arcade/economy
 Original pixel-art Flappy Pet and Cloud Jump with current creature, fixed-step simulation, collision, score, capped single claim; Star Catch retained. Free grain, priced premium foods, waste recycling coin rewards, inventory-only owned items, illustrated shop cards and creature collection. Existing save schema preserved. Gameplay rules and pricing are original tuning. No physical-device validation yet.
+
+## 0.6 care & adventure pass
+Sources: https://tamagotchi-official.com/us/series/original/faq/ ; https://tamagotchi-official.com/us/series/connection/howto/ ; https://tamagotchi-official.com/us/series/uni/howtoplay/ ; https://tamagotchi-official.com/us/series/paradise/howto/ ; https://wallpapergame.com/ . Independent tuning, no proprietary assets. Adds 12 secret forms, bond/training, rest, timed expeditions, gated regions, single claim, daily gifts, care quests, crystal crafting, Find My Pet, dark buttons, arcade-only UI, cached rendering and double-tap wallpaper interaction. Pending: cloud/network, custom sprites, full habitat editor, richer sprites and sound, physical-device validation. Old 25/28/34-field saves accepted; new 53-field schema.
