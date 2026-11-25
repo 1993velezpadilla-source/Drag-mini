@@ -9,7 +9,7 @@ permissions:
 jobs:
   godot-smoke:
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
       - name: Download pinned Godot editor
@@ -23,7 +23,7 @@ jobs:
           G=/tmp/godot/Godot_v4.4.1-stable_linux.x86_64
           "$G" --headless --path my-forever-pet/godot-arcade --check-only --script res://runner.gd 2>&1 | tee /tmp/dash-parse.log
           ! grep -E "SCRIPT ERROR|Parse Error" /tmp/dash-parse.log
-          for script in pet_store.gd hub.gd pet_arcade.gd; do
+          for script in pet_store.gd hub.gd pet_arcade.gd live_pet_stage.gd; do
             "$G" --headless --path my-forever-pet/godot-arcade --check-only --script "res://$script" 2>&1 | tee "/tmp/$script.log"
             ! grep -E "SCRIPT ERROR|Parse Error" "/tmp/$script.log"
           done
@@ -59,7 +59,9 @@ jobs:
           for field in 0 1 2; do for stage in 1 2; do test -s "my-forever-pet/godot-arcade/assets/growth_${field}_${stage}.png"; done; done
           test -s my-forever-pet/godot-arcade/assets/home_day.jpg
           blender -b -t 4 --python-exit-code 1 -P my-forever-pet/art/render_premium_sets.py -- my-forever-pet/godot-arcade/assets
-          for room in kitchen bathroom bedroom toy garden lab; do test -s "my-forever-pet/godot-arcade/assets/room_$room.jpg"; done
+          for room in kitchen bathroom bedroom toy garden lab; do test -s "my-forever-pet/godot-arcade/assets/room_$room.jpg"; test -s "my-forever-pet/godot-arcade/assets/rooms/room_$room.glb"; done
+          blender -b -t 4 --python-exit-code 1 -P my-forever-pet/art/render_dash_creatures.py -- my-forever-pet/godot-arcade/assets
+          for i in $(seq -w 1 23); do test -s "my-forever-pet/godot-arcade/assets/creatures/species_$i.glb"; done
           for game in star flappy cloud find; do test -s "my-forever-pet/godot-arcade/assets/arcade_$game.jpg"; done
           test -s my-forever-pet/godot-arcade/assets/room_layout.json
           blender -b -t 4 --python-exit-code 1 -P my-forever-pet/art/render_wardrobe.py -- my-forever-pet/godot-arcade/assets

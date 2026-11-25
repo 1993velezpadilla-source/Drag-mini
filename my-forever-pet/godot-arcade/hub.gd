@@ -4,6 +4,12 @@ var store:Node
 var title_label:Label
 var info:Label
 var portrait:TextureRect
+var live_stage:SubViewportContainer
+var nav_buttons:Dictionary={}
+var section_scroll:ScrollContainer
+var status_values:Array[Label]=[]
+var stage_title:Label
+var action_grid:GridContainer
 var wear_layers:Array[TextureRect]=[]
 var last_wear_key=""
 var wardrobe_card:Button
@@ -48,36 +54,36 @@ func _ready():
 	refresh()
 	var t=Timer.new(); t.wait_time=1; t.timeout.connect(refresh); add_child(t); t.start()
 func style(color:Color,border:Color,r:int=16)->StyleBoxFlat:
-	var b=StyleBoxFlat.new(); b.bg_color=color; b.border_color=border; b.set_border_width_all(1); b.set_corner_radius_all(r)
+	var b=StyleBoxFlat.new(); b.bg_color=color; b.border_color=border; b.set_border_width_all(2); b.set_corner_radius_all(r); b.shadow_color=Color("#09132980"); b.shadow_size=3
 	b.content_margin_left=12; b.content_margin_right=12; b.content_margin_top=8; b.content_margin_bottom=8
 	return b
 func label(parent:Node,value:String,sz:int=18)->Label:
-	var l=Label.new(); l.text=value; l.add_theme_font_size_override("font_size",sz); l.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART; parent.add_child(l); return l
+	var l=Label.new(); l.text=value; l.add_theme_font_size_override("font_size",sz); l.autowrap_mode=TextServer.AUTOWRAP_OFF; parent.add_child(l); return l
 func button(parent:Node,value:String,fn:Callable)->Button:
 	var b=Button.new(); b.text=value; b.custom_minimum_size=Vector2(0,48); b.size_flags_horizontal=Control.SIZE_EXPAND_FILL
 	b.add_theme_font_size_override("font_size",18)
-	b.add_theme_stylebox_override("normal",style(Color("#283c50"),Color("#516b79")))
-	b.add_theme_stylebox_override("pressed",style(Color("#537d75"),Color("#bde3ae")))
+	b.add_theme_stylebox_override("normal",style(Color("#263b64"),Color("#c29852")))
+	b.add_theme_stylebox_override("pressed",style(Color("#426d90"),Color("#ffe2a0")))
 	b.pressed.connect(fn); parent.add_child(b); return b
 func row(parent:Node)->HBoxContainer:
 	var h=HBoxContainer.new(); h.add_theme_constant_override("separation",8); parent.add_child(h); return h
 func panel(parent:Node)->VBoxContainer:
-	var p=PanelContainer.new(); p.add_theme_stylebox_override("panel",style(Color("#172b3b"),Color("#405c69"))); parent.add_child(p)
+	var p=PanelContainer.new(); p.add_theme_stylebox_override("panel",style(Color("#162747"),Color("#5876a1"))); parent.add_child(p)
 	var v=VBoxContainer.new(); v.add_theme_constant_override("separation",7); p.add_child(v); return v
 func make_ui():
-	var backdrop=ColorRect.new(); backdrop.color=Color("#0e202b"); backdrop.set_anchors_and_offsets_preset(PRESET_FULL_RECT); add_child(backdrop)
+	var backdrop=ColorRect.new(); backdrop.color=Color("#0c1832"); backdrop.set_anchors_and_offsets_preset(PRESET_FULL_RECT); add_child(backdrop)
 	var margin=MarginContainer.new(); margin.set_anchors_and_offsets_preset(PRESET_FULL_RECT); margin.add_theme_constant_override("margin_left",15); margin.add_theme_constant_override("margin_right",15); margin.add_theme_constant_override("margin_top",12); margin.add_theme_constant_override("margin_bottom",12); add_child(margin)
 	var layout=VBoxContainer.new(); layout.add_theme_constant_override("separation",9); margin.add_child(layout)
-	var head=row(layout); label(head,"MY FOREVER PET",23).size_flags_horizontal=Control.SIZE_EXPAND_FILL; clock_label=label(head,"",14)
-	title_label=label(layout,"",24)
-	info=label(layout,"",15)
-	visual=Control.new(); visual.custom_minimum_size.y=340; layout.add_child(visual)
+	var head=row(layout); label(head,"FOREVER PET",22).size_flags_horizontal=Control.SIZE_EXPAND_FILL; clock_label=label(head,"00:00",15); clock_label.custom_minimum_size.x=58; clock_label.horizontal_alignment=HORIZONTAL_ALIGNMENT_RIGHT
+	var identity=row(layout); title_label=label(identity,"",24); title_label.size_flags_horizontal=SIZE_EXPAND_FILL; info=label(identity,"",14); info.horizontal_alignment=HORIZONTAL_ALIGNMENT_RIGHT
+	visual=Control.new(); visual.custom_minimum_size.y=348; visual.size_flags_vertical=SIZE_EXPAND_FILL; layout.add_child(visual)
 	visual.resized.connect(position_hotspots)
 	if FileAccess.file_exists("res://assets/room_layout.json"):
 		var raw=JSON.parse_string(FileAccess.get_file_as_string("res://assets/room_layout.json"))
 		if raw is Dictionary: room_layout=raw
 	bg=TextureRect.new(); bg.set_anchors_and_offsets_preset(PRESET_FULL_RECT); bg.expand_mode=TextureRect.EXPAND_IGNORE_SIZE; bg.stretch_mode=TextureRect.STRETCH_SCALE; visual.add_child(bg)
 	var fallback=ColorRect.new(); fallback.color=Color("#436c6b"); fallback.set_anchors_and_offsets_preset(PRESET_FULL_RECT); visual.add_child(fallback); visual.move_child(fallback,0)
+	live_stage=preload("res://live_pet_stage.gd").new(); live_stage.set_anchors_and_offsets_preset(PRESET_FULL_RECT); visual.add_child(live_stage)
 	portrait=TextureRect.new(); portrait.set_anchors_and_offsets_preset(PRESET_CENTER); portrait.offset_left=-105; portrait.offset_right=105; portrait.offset_top=-95; portrait.offset_bottom=115; portrait.expand_mode=TextureRect.EXPAND_IGNORE_SIZE; portrait.stretch_mode=TextureRect.STRETCH_KEEP_ASPECT_CENTERED; visual.add_child(portrait)
 	portrait.mouse_filter=MOUSE_FILTER_IGNORE
 	for slot in range(5):
@@ -91,21 +97,31 @@ func make_ui():
 	face=Label.new(); face.text="• ᴗ •"; face.add_theme_font_size_override("font_size",29); face.add_theme_color_override("font_color",Color("#28202c")); face.set_anchors_and_offsets_preset(PRESET_CENTER); face.offset_left=-39; face.offset_top=-7; visual.add_child(face)
 	room_tag=Label.new(); room_tag.add_theme_font_size_override("font_size",18); room_tag.position=Vector2(12,9); visual.add_child(room_tag)
 	outfit_label=Label.new(); outfit_label.add_theme_font_size_override("font_size",14); outfit_label.set_anchors_and_offsets_preset(PRESET_BOTTOM_WIDE); outfit_label.offset_top=-31; outfit_label.offset_bottom=-3; outfit_label.horizontal_alignment=HORIZONTAL_ALIGNMENT_CENTER; visual.add_child(outfit_label)
-	var touch=Button.new(); touch.flat=true; touch.set_anchors_and_offsets_preset(PRESET_FULL_RECT); touch.pressed.connect(func(): perform("hatch" if store.s.stage==0 else "bond")); visual.add_child(touch)
+	var touch=Button.new(); touch.flat=true; touch.set_anchors_and_offsets_preset(PRESET_FULL_RECT); touch.pressed.connect(func(): live_stage.tap(); perform("hatch" if store.s.stage==0 else "bond")); visual.add_child(touch)
 	egg_art=TextureRect.new(); egg_art.texture=tex("res://assets/premium_egg.png"); egg_art.expand_mode=TextureRect.EXPAND_IGNORE_SIZE; egg_art.stretch_mode=TextureRect.STRETCH_KEEP_ASPECT_CENTERED; egg_art.set_anchors_and_offsets_preset(PRESET_CENTER); egg_art.offset_left=-75; egg_art.offset_right=75; egg_art.offset_top=-80; egg_art.offset_bottom=70; egg_art.mouse_filter=MOUSE_FILTER_IGNORE; visual.add_child(egg_art)
 	hotspot_layer=Control.new(); hotspot_layer.set_anchors_and_offsets_preset(PRESET_FULL_RECT); hotspot_layer.mouse_filter=MOUSE_FILTER_IGNORE; visual.add_child(hotspot_layer)
-	var meters=panel(layout)
-	for name in ["Food","Mood","Energy","Bond"]:
-		var h=row(meters); var l=label(h,name,15); l.custom_minimum_size.x=78
-		var p=ProgressBar.new(); p.custom_minimum_size.y=13; p.size_flags_horizontal=Control.SIZE_EXPAND_FILL; p.show_percentage=false; p.add_theme_stylebox_override("background",style(Color("#0c1b25"),Color("#344a52"),7)); p.add_theme_stylebox_override("fill",style(Color("#8ec8a2"),Color("#8ec8a2"),7)); h.add_child(p); stats.append(p)
-	notice=label(layout,"Choose an activity",14)
-	var scroll=ScrollContainer.new(); scroll.size_flags_vertical=Control.SIZE_EXPAND_FILL; layout.add_child(scroll)
-	body=VBoxContainer.new(); body.size_flags_horizontal=Control.SIZE_EXPAND_FILL; scroll.add_child(body)
+	var meter_shell=panel(layout)
+	var meters=row(meter_shell)
+	var colors=[Color("#e9ad53"),Color("#ed83b3"),Color("#6fcbd3"),Color("#ac9ceb")]
+	for i in range(4):
+		var column=VBoxContainer.new(); column.size_flags_horizontal=SIZE_EXPAND_FILL; meters.add_child(column)
+		var name=label(column,["FOOD","MOOD","ENERGY","BOND"][i],12); name.horizontal_alignment=HORIZONTAL_ALIGNMENT_CENTER
+		var value=label(column,"100%",16); value.horizontal_alignment=HORIZONTAL_ALIGNMENT_CENTER; status_values.append(value)
+		var p=ProgressBar.new(); p.custom_minimum_size.y=9; p.show_percentage=false
+		p.add_theme_stylebox_override("background",style(Color("#0a1530"),Color("#4e6181"),5))
+		var fill_style=StyleBoxFlat.new(); fill_style.bg_color=colors[i]; fill_style.set_corner_radius_all(5)
+		p.add_theme_stylebox_override("fill",fill_style); column.add_child(p); stats.append(p)
+	notice=label(layout,"Tap your pet or an object",13)
+	notice.clip_text=true
+	section_scroll=ScrollContainer.new(); section_scroll.custom_minimum_size.y=172; section_scroll.horizontal_scroll_mode=ScrollContainer.SCROLL_MODE_DISABLED; layout.add_child(section_scroll)
+	body=VBoxContainer.new(); body.size_flags_horizontal=SIZE_EXPAND_FILL; section_scroll.add_child(body)
 	actions=body
 	var n=row(layout)
-	for tab in ["Home","Care","Rooms","Arcade"]: button(n,tab,func(): select(tab))
+	for tab in ["Home","Care","Rooms","Arcade"]:
+		var b=button(n,tab,func(): select(tab)); nav_buttons[tab]=b; b.custom_minimum_size.y=45
 	var n2=row(layout)
-	for tab in ["Shop","Journal","World","Cell"]: button(n2,tab,func(): select(tab))
+	for tab in ["Shop","Journal","World","Cell"]:
+		var b=button(n2,tab,func(): select(tab)); nav_buttons[tab]=b; b.custom_minimum_size.y=42
 	select("Home")
 func perform(id:String,i:int=0):
 	notice.text="Done!" if store.action(id,i) else "Unavailable — check needs, cost or requirements."
@@ -156,6 +172,9 @@ func _process(delta:float):
 	portrait.scale=Vector2(base_scale/breathe,base_scale*breathe)
 func select(tab:String):
 	section=tab
+	for key in nav_buttons:
+		nav_buttons[key].add_theme_stylebox_override("normal",style(Color("#496e99") if key==tab else Color("#263b64"),Color("#ffe2a0") if key==tab else Color("#8e7652"),12))
+	if is_instance_valid(section_scroll): section_scroll.scroll_vertical=0
 	current_room=""
 	if is_instance_valid(hotspot_layer): update_room_scene()
 	for child in actions.get_children(): actions.remove_child(child); child.queue_free()
@@ -244,9 +263,11 @@ func refresh():
 	store.advance(store.now())
 	var s:Dictionary=store.s
 	title_label.text=store.pet_name()+"  ·  Lv "+str(store.level())
-	info.text="%s / %s  •  %d coins  •  %d crystals  •  %d materials"%[store.STAGES[int(s.stage)],store.FIELDS[int(s.field)],s.coins,s.crystals,s.materials]
+	info.text="%d coins  |  %d gems"%[s.coins,s.crystals]
 	clock_label.text=Time.get_time_string_from_system().substr(0,5)
-	for i in range(4): stats[i].value=[s.hunger*20,s.happy*10,s.energy,s.bond][i]
+	for i in range(4):
+		stats[i].value=[s.hunger*20,s.happy*10,s.energy,s.bond][i]
+		status_values[i].text="%d%%"%int(stats[i].value)
 	var hour=int(Time.get_datetime_dict_from_system().hour)
 	var night=hour<5 or hour>=19
 	var path="res://assets/home_night.jpg" if night else "res://assets/home_day.jpg"
@@ -264,8 +285,10 @@ func refresh():
 	portrait.texture=tex(pp)
 	portrait.modulate=Color("#9ba9c7") if store.asleep(store.now()) else Color.WHITE
 	portrait.scale=Vector2.ONE*(0.64 if s.stage<2 else 0.85 if s.stage==2 else 1.0)
-	portrait.visible=s.stage>0
+	portrait.visible=false
 	sync_wearables()
+	live_stage.set_room(str(ROOMS.get(current_room,"room_bedroom")))
+	live_stage.set_pet(store.species(),int(s.stage))
 	face.visible=false
 	egg_visual.visible=s.stage==0 and egg_art.texture==null
 	egg_art.visible=s.stage==0 and egg_art.texture!=null
@@ -282,8 +305,8 @@ func update_room_scene():
 	if room_key.is_empty() or not room_layout.has(room_key): return
 	var data:Dictionary=room_layout[room_key]
 	for key in data:
-		if key=="pet": continue
-		var b=Button.new(); b.text=str(key).capitalize(); b.custom_minimum_size=Vector2(82,36); b.add_theme_font_size_override("font_size",13)
+		if key=="pet" or key=="world_pet": continue
+		var b=Button.new(); b.text=str(key).capitalize(); b.custom_minimum_size=Vector2(64,30); b.add_theme_font_size_override("font_size",12)
 		b.add_theme_stylebox_override("normal",style(Color("#172b3bd9"),Color("#ffd591"),12))
 		b.set_meta("point",Vector2(float(data[key][0]),float(data[key][1])))
 		b.pressed.connect(func():
@@ -329,7 +352,7 @@ func test_home():
 	for tab in ["Care","Rooms","Arcade","Shop","Journal","World","Cell","Home"]: select(tab)
 	for name in ROOMS:
 		room(name)
-		assert(bg.texture!=null and hotspot_layer.get_child_count()>=2,"room art/hotspots missing: "+name)
+		assert(bg.texture!=null and live_stage.room_node!=null and hotspot_layer.get_child_count()>=2,"room art/hotspots missing: "+name)
 	select("Home")
 	# Boot each actual arcade scene and run its first physics step in-process.
 	for mode in range(4):

@@ -94,6 +94,17 @@ def room_base(tint):
     box('plaster',(0,3.5,2.8),(12,.24,5.8),tint,.05)
     for x in range(-5,6):box('wall inset',(x,3.33,2.8),(.06,.1,5.5),dark,.014)
     box('baseboard',(0,3.29,.19),(12,.17,.25),wood,.03)
+    for side in [-1,1]:
+        x=side*5.25
+        box('architectural column',(x,3.04,2.75),(.48,.52,5.5),cream,.08)
+        for z in [.35,2.8,5.18]:box('gold column trim',(x,2.99,z),(.61,.62,.13),gold,.035)
+    box('ceiling cornice',(0,3.04,5.22),(11.2,.52,.25),wood,.07)
+    for side in [-1,1]:
+        x=side*2.7
+        box('lantern bracket',(x,3.04,4.55),(.12,.45,.12),gold)
+        cylinder('lantern shade',(x,2.82,4.28),.23,.38,glow,r2=.32)
+        cylinder('lantern cap',(x,2.82,4.51),.35,.08,gold)
+        cylinder('lantern base',(x,2.82,4.03),.26,.08,gold)
     for i in range(15):
         box('floor plank',(-5.6+i*.8,-.6,-.10),(.79,9,.18),wood if i%3 else dark,.012)
     cylinder('window',(0,3.30,3.75),1.22,.12,sky,rot=(pi/2,0,0))
@@ -146,6 +157,29 @@ def camera_render(key,anchors,pet=(0,-1.7,.18),night=False):
     for n,p in points.items():
         assert .03<p[0]<.97 and .03<p[1]<.97,(key,n,p)
     layout[key]=points
+    layout[key]['world_pet']=[pet[0],pet[2],-pet[1]]
+    # Export actual room geometry for Godot; no camera-facing flat background.
+    path=os.path.join(OUT,'rooms');os.makedirs(path,exist_ok=True)
+    bpy.ops.object.select_all(action='DESELECT')
+    for ob in scene.objects:
+        if ob.type=='MESH': ob.select_set(True)
+    # Material batching keeps live room draw calls bounded.
+    bpy.context.view_layer.objects.active=next(ob for ob in scene.objects if ob.type=='MESH')
+    bpy.ops.object.convert(target='MESH')
+    groups={}
+    for ob in list(scene.objects):
+        if ob.type=='MESH':groups.setdefault(ob.data.materials[0].name,[]).append(ob)
+    for group in groups.values():
+        bpy.ops.object.select_all(action='DESELECT')
+        for ob in group:ob.select_set(True)
+        bpy.context.view_layer.objects.active=group[0]
+        if len(group)>1:bpy.ops.object.join()
+        bpy.ops.object.transform_apply(location=True,rotation=True,scale=True)
+    bpy.ops.object.select_all(action='DESELECT')
+    for ob in scene.objects:
+        if ob.type=='MESH':ob.select_set(True)
+    result=bpy.ops.export_scene.gltf(filepath=os.path.join(path,key+'.glb'),export_format='GLB',use_selection=True)
+    assert 'FINISHED' in result
     scene.render.filepath=os.path.join(OUT,key+'.jpg');bpy.ops.render.render(write_still=True)
     print('PREMIUM_SET_RENDER_OK',key,points,flush=True)
 # Kitchen
@@ -191,6 +225,15 @@ ball('play ball',(-2.75,-1,.55),(.54,.54,.54),blue);torus('ball stripe',(-2.75,-
 camera_render('room_toy',{'toy':(-2.75,-1,.55),'arcade':(3,1.2,2.15)})
 # Garden
 clear_set();room_base(moss)
+# Garden gets real stone terraces, trellis and flowering foliage rather than empty wall.
+for side in [-1,1]:
+    x=side*3.7
+    box('trellis upright',(x,2.8,2.4),(.16,.23,4.8),wood)
+    for z in [1.5,2.2,2.9,3.6,4.3]:
+        box('trellis rung',(x,2.8,z),(1.65,.14,.10),wood)
+        for j in range(3):
+            ball('vine leaf',(x-.6+j*.55,2.69,z+.10),(.22,.11,.18),leaf2,16)
+            if j==1:ball('vine blossom',(x,2.56,z),(.13,.09,.13),rose,16)
 for side in [-1,1]:
     x=side*3.1
     box('raised planter',(x,1,.45),(2.8,2.3,.86),wood,.12)
