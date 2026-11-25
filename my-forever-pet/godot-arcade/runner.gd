@@ -19,6 +19,11 @@ var player_shape: CollisionShape3D
 var camera: Camera3D
 var chunks: Array[Node3D] = []
 var entities: Array[Area3D] = []
+var pools: Array = [[],[],[],[]]
+var created_entities := 0
+var reused_entities := 0
+var previous_safe_lane := 1
+var pattern_count := 0
 var lane := 1
 var slide := 0.0
 var distance := 0.0
@@ -35,6 +40,15 @@ var touch_id := -1
 var spawn_at := 20.0
 var status: Label
 var hint: Label
+var score_label: Label
+var coin_label: Label
+var snack_label: Label
+var pause_button: Button
+var result_panel: PanelContainer
+var result_text: Label
+var result_button: Button
+var last_hud := ""
+var jump_buffer := 0.0
 var material_cache := {}
 var session_claimed := false
 var clock := 0.0
@@ -225,68 +239,163 @@ func make_player() -> void:
 	orb(mascot,Vector3(0,0.72,0.61),Vector3(0.28,0.25,0.09),Color("#4b253e"))
 	orb(mascot,Vector3(0,0.65,0.66),Vector3(0.17,0.085,0.04),Color("#ee7296"))
 
+func panel_style(bg: Color, border: Color, radius: int) -> StyleBoxFlat:
+	var style := StyleBoxFlat.new()
+	style.bg_color=bg
+	style.border_color=border
+	style.set_border_width_all(2)
+	style.set_corner_radius_all(radius)
+	style.content_margin_left=12
+	style.content_margin_right=12
+	style.content_margin_top=7
+	style.content_margin_bottom=7
+	return style
+
+func hud_label(parent: Control, value: String, size: int, color: Color) -> Label:
+	var label := Label.new()
+	label.text=value
+	label.add_theme_font_size_override("font_size",size)
+	label.add_theme_color_override("font_color",color)
+	label.horizontal_alignment=HORIZONTAL_ALIGNMENT_CENTER
+	label.size_flags_horizontal=Control.SIZE_EXPAND_FILL
+	label.mouse_filter=Control.MOUSE_FILTER_IGNORE
+	parent.add_child(label)
+	return label
+
+func style_button(button: Button, gold := false) -> void:
+	button.add_theme_stylebox_override("normal",panel_style(Color("#b76b25") if gold else Color("#303567"),Color("#ffd997") if gold else Color("#a6c9ff"),13))
+	button.add_theme_stylebox_override("pressed",panel_style(Color("#81501f") if gold else Color("#4e5291"),Color("#fff1bd"),13))
+	button.add_theme_font_size_override("font_size",20)
+	button.add_theme_color_override("font_color",Color("#fff5df"))
+
 func make_hud() -> void:
 	var layer := CanvasLayer.new()
 	add_child(layer)
+	var ui := Control.new()
+	layer.add_child(ui)
+	ui.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	ui.mouse_filter=Control.MOUSE_FILTER_IGNORE
 	var panel := PanelContainer.new()
+	ui.add_child(panel)
 	panel.set_anchors_and_offsets_preset(Control.PRESET_TOP_WIDE)
-	panel.offset_bottom=80
-	var style := StyleBoxFlat.new()
-	style.bg_color=Color("#17213de8")
-	style.border_color=Color("#83bdfb")
-	style.set_border_width_all(2)
-	style.set_corner_radius_all(15)
-	panel.add_theme_stylebox_override("panel",style)
-	layer.add_child(panel)
-	var row := HBoxContainer.new()
-	panel.add_child(row)
-	status=Label.new()
-	status.size_flags_horizontal=Control.SIZE_EXPAND_FILL
-	status.add_theme_font_size_override("font_size",24)
-	row.add_child(status)
-	var pause_btn := Button.new()
-	pause_btn.text="Pause"
-	pause_btn.custom_minimum_size=Vector2(95,64)
-	pause_btn.pressed.connect(toggle_pause)
-	row.add_child(pause_btn)
-	hint=Label.new()
-	hint.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_WIDE)
-	hint.offset_top=-110
-	hint.offset_bottom=-45
-	hint.horizontal_alignment=HORIZONTAL_ALIGNMENT_CENTER
-	hint.add_theme_font_size_override("font_size",20)
-	layer.add_child(hint)
-	var retry := Button.new()
-	retry.text="Restart"
-	retry.set_anchors_and_offsets_preset(Control.PRESET_CENTER_BOTTOM)
-	retry.offset_left=-80
-	retry.offset_right=80
-	retry.offset_top=-48
-	retry.pressed.connect(func(): get_tree().reload_current_scene())
-	layer.add_child(retry)
+	panel.offset_left=10
+	panel.offset_right=-10
+	panel.offset_top=10
+	panel.offset_bottom=145
+	panel.mouse_filter=Control.MOUSE_FILTER_IGNORE
+	panel.add_theme_stylebox_override("panel",panel_style(Color("#182344ef"),Color("#91baff"),18))
+	var column := VBoxContainer.new()
+	column.mouse_filter=Control.MOUSE_FILTER_IGNORE
+	column.add_theme_constant_override("separation",5)
+	panel.add_child(column)
+	var header := HBoxContainer.new()
+	header.mouse_filter=Control.MOUSE_FILTER_IGNORE
+	column.add_child(header)
+	status=hud_label(header,"PET DASH",29,Color("#ffdc87"))
+	pause_button=Button.new()
+	pause_button.text="Ⅱ"
+	pause_button.custom_minimum_size=Vector2(52,40)
+	style_button(pause_button)
+	pause_button.pressed.connect(toggle_pause)
+	header.add_child(pause_button)
+	var stats := HBoxContainer.new()
+	stats.mouse_filter=Control.MOUSE_FILTER_IGNORE
+	column.add_child(stats)
+	score_label=hud_label(stats,"0 m",20,Color("#f0f1ff"))
+	coin_label=hud_label(stats,"0 coins",20,Color("#ffd775"))
+	snack_label=hud_label(stats,"0 snacks",20,Color("#a9e2bd"))
+	hud_label(column,"SKY BRIDGE  •  Collect food for your pet",16,Color("#cbd9ff"))
+	var footer := PanelContainer.new()
+	ui.add_child(footer)
+	footer.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_WIDE)
+	footer.offset_left=12
+	footer.offset_right=-12
+	footer.offset_top=-84
+	footer.offset_bottom=-12
+	footer.mouse_filter=Control.MOUSE_FILTER_IGNORE
+	footer.add_theme_stylebox_override("panel",panel_style(Color("#202647eb"),Color("#b9aaff"),18))
+	var bottom := HBoxContainer.new()
+	bottom.mouse_filter=Control.MOUSE_FILTER_IGNORE
+	footer.add_child(bottom)
+	hint=hud_label(bottom,"Swipe to start",17,Color("#f1ebff"))
+	var exit := Button.new()
+	exit.text="Finish"
+	exit.custom_minimum_size=Vector2(96,48)
+	style_button(exit,true)
+	exit.pressed.connect(finish_run)
+	bottom.add_child(exit)
+	result_panel=PanelContainer.new()
+	ui.add_child(result_panel)
+	result_panel.set_anchors_and_offsets_preset(Control.PRESET_CENTER)
+	result_panel.offset_left=-195
+	result_panel.offset_right=195
+	result_panel.offset_top=-120
+	result_panel.offset_bottom=120
+	result_panel.add_theme_stylebox_override("panel",panel_style(Color("#202b4b"),Color("#a9c8ff"),20))
+	var result_box := VBoxContainer.new()
+	result_box.add_theme_constant_override("separation",12)
+	result_panel.add_child(result_box)
+	result_text=hud_label(result_box,"",24,Color("#f9e4b4"))
+	result_button=Button.new()
+	result_button.custom_minimum_size=Vector2(0,52)
+	style_button(result_button,true)
+	result_button.pressed.connect(func():
+		if ended:
+			get_tree().reload_current_scene()
+		else:
+			toggle_pause())
+	result_box.add_child(result_button)
+	result_panel.hide()
 	update_hud()
+
+func finish_run() -> void:
+	if not ended:
+		ended=true
+		paused_run=false
+		update_hud()
 
 func fill_track() -> void:
 	while spawn_at<distance+95:
-		var free_lane := rng.randi_range(0,2)
-		var blocked := (free_lane+1+rng.randi_range(0,1))%3
-		make_entity(blocked,rng.randi_range(0,1),spawn_at)
-		for i in range(4):
-			make_entity(free_lane,PICKUP,spawn_at-3.0+i*1.5)
-		if rng.randf()<0.45:
-			make_entity(free_lane,SNACK,spawn_at+3.8)
-		spawn_at+=maxf(10.0,speed*1.35)
+		# Every obstacle row has at least one reachable lane; adjacent safe lanes
+		# change by at most one lane at a time. Alternate rows and clear runs.
+		var free_lane := clampi(previous_safe_lane+rng.randi_range(-1,1),0,2)
+		var blocked_lanes: Array[int] = []
+		for i in range(3):
+			if i!=free_lane: blocked_lanes.append(i)
+		var first := rng.randi_range(0,1)
+		if pattern_count%5!=4:
+			make_entity(blocked_lanes[first],rng.randi_range(0,1),spawn_at)
+			if pattern_count>=3 and pattern_count%3==0:
+				make_entity(blocked_lanes[1-first],rng.randi_range(0,1),spawn_at)
+		for i in range(5):
+			make_entity(free_lane,PICKUP,spawn_at-3.2+i*1.5)
+		if rng.randf()<0.55:
+			make_entity(free_lane,SNACK,spawn_at+4.8)
+		previous_safe_lane=free_lane
+		pattern_count+=1
+		spawn_at+=maxf(12.0,speed*1.22)
 
 func make_entity(which_lane: int, kind: int, at: float) -> void:
-	var a := Area3D.new()
+	var a: Area3D
+	var recycled: bool = not pools[kind].is_empty()
+	if recycled:
+		a=pools[kind].pop_back()
+		a.show()
+		reused_entities+=1
+	else:
+		a=Area3D.new()
+		created_entities+=1
+		add_child(a)
 	a.position=Vector3(LANES[which_lane],0,-(at-distance))
 	a.monitoring=false
 	a.monitorable=false
 	a.set_meta("kind",kind)
 	a.set_meta("at",at)
 	a.set_meta("resolved",false)
-	add_child(a)
 	entities.append(a)
+	if recycled:
+		if a.get_child_count()>0: (a.get_child(0) as Node3D).rotation.y=0
+		return
 	if using_blender and asset(a,["crate","barrier","coin","snack"][kind],Vector3.ZERO)!=null:
 		return
 	if kind==0:
@@ -315,6 +424,8 @@ func make_entity(which_lane: int, kind: int, at: float) -> void:
 func toggle_pause() -> void:
 	if not ended:
 		paused_run=not paused_run
+		touch_active=false
+		touch_id=-1
 		update_hud()
 
 func gesture(delta: Vector2) -> void:
@@ -323,10 +434,15 @@ func gesture(delta: Vector2) -> void:
 	started=true
 	if absf(delta.x)>absf(delta.y) and absf(delta.x)>22:
 		lane=clampi(lane+(1 if delta.x>0 else -1),0,2)
-	elif delta.y < -22 and player.is_on_floor() and slide<=0:
-		player.velocity.y=JUMP_SPEED
-	elif delta.y > 22 and player.is_on_floor():
-		slide=0.65
+	elif delta.y < -22:
+		if player.is_on_floor() and slide<=0:
+			player.velocity.y=JUMP_SPEED
+		else:
+			jump_buffer=0.14
+	elif delta.y > 22:
+		jump_buffer=0
+		if player.is_on_floor(): slide=0.65
+		else: player.velocity.y=minf(player.velocity.y,-13)
 
 func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventScreenTouch:
@@ -368,6 +484,11 @@ func _physics_process(dt: float) -> void:
 	player.velocity.x=clampf((LANES[lane]-player.position.x)*14,-15,15)
 	player.move_and_slide()
 	player.position.z=PLAYER_Z
+	if jump_buffer>0:
+		if player.is_on_floor() and slide<=0:
+			player.velocity.y=JUMP_SPEED
+			jump_buffer=0
+		else: jump_buffer=maxf(0,jump_buffer-dt)
 	if not started:
 		return
 	clock+=dt
@@ -401,7 +522,8 @@ func _physics_process(dt: float) -> void:
 			elif hazard_hit(kind,player.position.y,slide>0):
 				ended=true
 		if a.position.z>2.5:
-			a.queue_free()
+			a.hide()
+			pools[kind].append(a)
 			entities.remove_at(i)
 	fill_track()
 	camera.position.x=lerpf(camera.position.x,player.position.x*0.18,minf(1,dt*6))
@@ -413,8 +535,21 @@ func hazard_hit(kind: int, feet_y: float, sliding: bool) -> bool:
 	return false
 
 func update_hud() -> void:
-	status.text="PET DASH   %d m   •   %d coins   •   %d snacks"%[int(distance),coins,snacks]
-	hint.text="RUN COMPLETE" if ended else "PAUSED" if paused_run else "Swipe lanes  •  Up: jump  •  Down: slide"
+	var key := str(int(distance))+":"+str(coins)+":"+str(snacks)+":"+str(ended)+":"+str(paused_run)+":"+str(started)
+	if key==last_hud: return
+	last_hud=key
+	score_label.text="%d m"%int(distance)
+	coin_label.text="%d coins"%coins
+	snack_label.text="%d snacks"%snacks
+	hint.text="Run complete" if ended else "Paused" if paused_run else "← →  lanes  •  ↑ jump  •  ↓ slide" if started else "Swipe to start"
+	pause_button.disabled=ended
+	result_panel.visible=ended or paused_run
+	if ended:
+		result_text.text="RUN COMPLETE\n%d m  •  %d coins\n%d snacks collected"%[int(distance),coins,snacks]
+		result_button.text="Run again"
+	elif paused_run:
+		result_text.text="PAUSED"
+		result_button.text="Resume"
 
 func claim_result() -> Dictionary:
 	if session_claimed or not ended:
@@ -458,11 +593,17 @@ func test_run() -> void:
 	assert(distance==frozen)
 	toggle_pause()
 	make_entity(1,PICKUP,distance+0.6)
-	for i in range(12): await get_tree().physics_frame
+	for i in range(30): await get_tree().physics_frame
 	assert(coins==1 and not ended)
+	assert(not pools[PICKUP].is_empty())
+	var count_before:=created_entities
+	make_entity(1,PICKUP,distance+0.6)
+	assert(created_entities==count_before and reused_entities>0)
+	for i in range(30): await get_tree().physics_frame
+	assert(coins==2 and not ended)
 	make_entity(1,0,distance+1.0)
 	for i in range(20): await get_tree().physics_frame
-	assert(ended)
+	assert(ended and result_panel.visible)
 	assert(not claim_result().is_empty() and claim_result().is_empty())
 	print("PET_DASH_3D_SMOKE_PASS")
 	get_tree().quit(0)
