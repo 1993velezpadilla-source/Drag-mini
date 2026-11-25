@@ -117,6 +117,30 @@ def selected(obj,side,kind):
                                 "got":sorted(c["faces"] for c in matches)}))
     return matches
 
+# Non-destructive discovery of actual front luggage lid and rear engine cover.
+# Never claim a mechanical hinge merely because a connected island exists.
+central_candidates={}
+for kind in ("paint","coat","glass_window_frame"):
+    found=[]
+    for c in islands(objs[kind]):
+        lo,hi,ex=c["low"],c["high"],c["extent"]
+        if not (lo.x<-.20 and hi.x>.20 and ex.x>.40 and ex.y>.18):
+            continue
+        if hi.z<.35 or c["faces"]<16:
+            continue
+        fraction=((lo.y+hi.y)*.5-review_shell_lo.y)/(review_shell_hi.y-review_shell_lo.y)
+        region="front_luggage_lid_candidate" if fraction<.38 else ("rear_engine_cover_candidate" if fraction>.62 else "central_roof_or_shell")
+        found.append({"region":region,"faces":c["faces"],
+                      "world_low_m":[round(float(v),5) for v in lo],
+                      "world_high_m":[round(float(v),5) for v in hi],
+                      "center_longitudinal_fraction":round(float(fraction),5)})
+    central_candidates[kind]=sorted(found,key=lambda c:(c["region"],-c["faces"]))
+panel_discovery={"source_sha256":source_hash,"front_axis":"negative_blender_y",
+    "source_real_triangle_count":original_faces,"candidate_islands":central_candidates,
+    "lid_hinges_verified":False,"requires_source_geometry_visual_review":True}
+(OUT/"porsche_930_original_luggage_engine_cover_topology.json").write_text(json.dumps(panel_discovery,indent=2)+"\n")
+print("PORSCHE930_REAL_CENTRAL_PANEL_TOPOLOGY_RECORDED",json.dumps(central_candidates),flush=True)
+
 # Fail BEFORE mutation unless every left/right original side source island
 # matches exact recorded face counts, materials and physical car location.
 plan={}
