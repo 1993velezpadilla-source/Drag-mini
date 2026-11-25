@@ -12,6 +12,13 @@ const MAGNET := 4
 const SHIELD := 5
 const DOUBLE := 6
 const BOOST := 7
+const CART := 8
+const TALL := 9
+const LOW_BAR := 10
+var crash_remaining := 0.0
+var crash_origin := Vector3.ZERO
+var music_button: Button
+var moving_rows := 0
 var magnet_time := 0.0
 var shield_time := 0.0
 var double_time := 0.0
@@ -46,7 +53,7 @@ var player_shape: CollisionShape3D
 var camera: Camera3D
 var chunks: Array[Node3D] = []
 var entities: Array[Area3D] = []
-var pools: Array = [[],[],[],[],[],[],[],[]]
+var pools: Array = [[],[],[],[],[],[],[],[],[],[],[]]
 var created_entities := 0
 var reused_entities := 0
 var previous_safe_lane := 1
@@ -504,6 +511,14 @@ func make_hud() -> void:
 	retire_button.pressed.connect(retire_run)
 	result_box.add_child(retire_button)
 	retire_button.hide()
+	music_button=Button.new()
+	music_button.text="Music: ON"
+	style_button(music_button)
+	music_button.pressed.connect(func():
+		audio.call("toggle_music")
+		music_button.text="Music: ON" if audio.get("music_enabled") else "Music: OFF")
+	result_box.add_child(music_button)
+	music_button.hide()
 	result_panel.hide()
 	update_hud()
 
@@ -529,6 +544,14 @@ func rebase_track() -> void:
 	driver_action_at-=shift
 	rebase_count+=1
 
+func is_pickup(kind:int) -> bool:
+	return kind>=PICKUP and kind<=BOOST
+
+func hazard_for(tier:int) -> int:
+	if tier==0: return rng.randi_range(0,1)
+	var choices:Array[int]=[0,1,LOW_BAR,CART,TALL] if tier>=2 else [0,1,LOW_BAR,CART]
+	return choices[rng.randi_range(0,choices.size()-1)]
+
 func fill_track() -> void:
 	while spawn_at<distance+95:
 		var free_lane:=clampi(previous_safe_lane+rng.randi_range(-1,1),0,2)
@@ -545,9 +568,13 @@ func fill_track() -> void:
 			for i in range(3): make_entity(i,action,spawn_at)
 			mandatory_rows+=1
 		elif tier>=2 or pattern_count%5!=4:
-			make_entity(blocked_lanes[first],rng.randi_range(0,1),spawn_at)
+			var kind:=hazard_for(tier)
+			make_entity(blocked_lanes[first],kind,spawn_at)
+			if kind==CART: moving_rows+=1
 			if tier>=2 or (pattern_count>=3 and pattern_count%3==0):
-				make_entity(blocked_lanes[1-first],rng.randi_range(0,1),spawn_at)
+				var second:=hazard_for(tier)
+				make_entity(blocked_lanes[1-first],second,spawn_at)
+				if second==CART: moving_rows+=1
 		# Keep collectible trails clear of the mandatory hazard itself.
 		if action<0:
 			for i in range(5): make_entity(free_lane,PICKUP,spawn_at-3.2+i*1.5)
@@ -580,6 +607,7 @@ func make_entity(which_lane: int, kind: int, at: float) -> void:
 	a.set_meta("kind",kind)
 	a.set_meta("at",at)
 	a.set_meta("resolved",false)
+	a.set_meta("cart_shift",0.0)
 	entities.append(a)
 	if recycled:
 		if a.get_child_count()>0:
@@ -587,8 +615,8 @@ func make_entity(which_lane: int, kind: int, at: float) -> void:
 			visual.rotation.y=0
 			visual.position.y=0
 		return
-	if using_blender and asset(a,["crate","barrier","coin","snack","magnet","shield","double","boost"][kind],Vector3.ZERO)!=null:
-		if kind>=PICKUP and kind!=BOOST:
+	if using_blender and asset(a,["crate","barrier","coin","snack","magnet","shield","double","boost","cart","tall","low_bar"][kind],Vector3.ZERO)!=null:
+		if is_pickup(kind) and kind!=BOOST:
 			ground_shadow(a,0.75 if kind==PICKUP else 1.10,0.52 if kind==PICKUP else 0.75)
 		return
 	if kind==0:
@@ -609,6 +637,9 @@ func make_entity(which_lane: int, kind: int, at: float) -> void:
 		ring.height=0.12
 		var coin := mesh(a,ring,Vector3(0,0.75,0),Color("#ffd05a"),0.55)
 		coin.rotation.x=PI/2
+	elif kind==CART or kind==TALL or kind==LOW_BAR:
+		var height:=3.15 if kind!=LOW_BAR else 0.72
+		box(a,Vector3(0,height*0.5,0),Vector3(1.5,height,1.5 if kind==CART else 0.5),Color("#b44c2f"))
 	elif kind==SNACK:
 		orb(a,Vector3(0,0.75,0),Vector3(0.68,0.45,0.68),Color("#607fbc"))
 		for i in range(5):
@@ -627,17 +658,20 @@ func gesture(delta: Vector2) -> void:
 	if ended or paused_run:
 		return
 	started=true
+	audio.call("start_music")
 	if absf(delta.x)>absf(delta.y) and absf(delta.x)>22:
 		var target_lane:=clampi(lane+(1 if delta.x>0 else -1),0,2)
 		if target_lane!=lane:
 			lane_impulse=float(target_lane-lane)
 			lane=target_lane
+			audio.call("play_fx","swoosh")
 	elif delta.y < -22:
 		if player.is_on_floor() and player.velocity.y<=0:
 			slide=0
 			air_slide_pending=false
 			player.velocity.y=JUMP_SPEED
 			audio.call("play_fx","jump")
+			audio.call("start_music")
 		else:
 			jump_buffer=0.14
 	elif delta.y > 22:
@@ -729,7 +763,10 @@ func save_best() -> void:
 func contact_depth(kind:int) -> float:
 	# Forgiving capsule plus the actual half-depth of each obstacle.
 	if kind==0: return 0.72
-	if kind==1: return 0.49
+	if kind==1: return 0.39
+	if kind==LOW_BAR: return 0.43
+	if kind==CART: return 1.15
+	if kind==TALL: return 0.68
 	if kind==BOOST: return 0.92
 	return 0.64
 
@@ -737,8 +774,19 @@ func pickup_reachable(kind:int,feet_y:float,attracted:bool) -> bool:
 	return attracted or (feet_y<0.95 if kind!=BOOST else feet_y<0.42)
 
 func _physics_process(dt: float) -> void:
-	if ended or paused_run:
+	if ended:
+		if crash_remaining>0:
+			crash_remaining=maxf(0,crash_remaining-dt)
+			var t:=1.0-crash_remaining/0.58
+			mascot.rotation.x=lerpf(-0.12,-1.5,sin(t*PI*0.5))
+			mascot.rotation.z=sin(t*PI*2.0)*0.35
+			mascot.position.y=maxf(0.05,crash_origin.y*(1-t)+sin(t*PI)*0.42)
+			camera.position.x=player.position.x*0.30+sin(t*PI*12)*0.09*(1-t)
+			if crash_remaining<=0:
+				last_hud=""
+				update_hud()
 		return
+	if paused_run: return
 	if review_driver and started:
 		# CI only: follow the procedurally generated reachable route; never bypass collision.
 		while not safe_rows.is_empty() and distance>safe_rows[0].x+1.0:
@@ -807,9 +855,14 @@ func _physics_process(dt: float) -> void:
 	for i in range(entities.size()-1,-1,-1):
 		var a:=entities[i]
 		var old_z:=a.position.z
-		a.position.z=float(a.get_meta("at"))*-1+distance
 		var kind:=int(a.get_meta("kind"))
-		if kind>=PICKUP and kind!=BOOST and a.visible and a.position.z > -45.0 and a.get_child_count()>0:
+		var base_z:=distance-float(a.get_meta("at"))
+		# The cart moves toward the runner in its own lane; displacement is
+		# bounded to leave the adjacent generated safe route reachable.
+		var shift:=clampf((base_z+24.0)*0.16,0.0,3.2) if kind==CART else 0.0
+		a.position.z=base_z+shift
+		a.set_meta("cart_shift",shift)
+		if is_pickup(kind) and kind!=BOOST and a.visible and a.position.z > -45.0 and a.get_child_count()>0:
 			var visual:=a.get_child(0) as Node3D
 			visual.rotation.y+=dt*2.5
 			visual.position.y=sin(clock*4+float(a.get_meta("at"))*0.38)*0.07
@@ -818,13 +871,14 @@ func _physics_process(dt: float) -> void:
 		var contact := maxf(old_z,a.position.z)>=-depth and minf(old_z,a.position.z)<=depth
 		var attraction := kind==PICKUP and magnet_time>0 and absf(a.position.z)<5.0
 		if attraction: a.position.x=move_toward(a.position.x,player.position.x,dt*19)
-		if (contact or attraction) and not bool(a.get_meta("resolved")) and absf(a.position.x-player.position.x)<0.92:
-			if kind>=PICKUP:
+		var lateral:=absf(a.position.x-player.position.x)
+		if (contact or attraction) and not bool(a.get_meta("resolved")) and lateral<(0.92 if is_pickup(kind) else 1.05):
+			if is_pickup(kind):
 				if pickup_reachable(kind,player.position.y,attraction):
 					collect_kind(kind)
 					a.set_meta("resolved",true)
 					a.hide()
-			elif hazard_hit(kind,player.position.y,slide>0 or air_slide_pending):
+			elif hazard_hit(kind,player.position.y,slide>0 or air_slide_pending,lateral):
 				if shield_time>0 or boost_time>0:
 					if boost_time<=0: shield_time=0
 					a.set_meta("resolved",true)
@@ -832,7 +886,10 @@ func _physics_process(dt: float) -> void:
 					audio.call("play_fx","shield")
 				else:
 					ended=true
+					crash_origin=Vector3(0,player.position.y,0)
+					crash_remaining=0.58
 					audio.call("play_fx","crash")
+					audio.call("stop_music")
 					break
 		if a.position.z>2.5:
 			a.hide()
@@ -946,9 +1003,18 @@ func update_effects(dt:float) -> void:
 			dust[i].hide()
 			dust_ages[i]=-1
 
-func hazard_hit(kind: int, feet_y: float, sliding: bool) -> bool:
-	if kind==0: return feet_y<0.90
-	if kind==1: return feet_y+(0.74 if sliding else 1.55)>1.16
+func hazard_hit(kind: int, feet_y: float, sliding: bool, lateral:float=0.0) -> bool:
+	# Real vertical overlap: clearing the top OR fitting below the beam is
+	# safe. Posts/lamps only collide near their actual lateral position.
+	var top:=feet_y+(0.74 if sliding else 1.55)
+	match kind:
+		0: return feet_y<0.86 and lateral<0.93
+		1:
+			if lateral>0.38 and lateral<1.0:
+				return feet_y<1.94
+			return lateral<0.98 and feet_y<1.66 and top>1.18
+		LOW_BAR: return feet_y<0.74 and lateral<0.98
+		CART,TALL: return feet_y<3.0 and lateral<1.03
 	return false
 
 func update_hud() -> void:
@@ -971,8 +1037,10 @@ func update_hud() -> void:
 	snack_label.text="%d snacks"%snacks
 	hint.text=("Run ended" if retired_run else "Game over") if ended else "Paused" if paused_run else "Swipe left / right" if started else "Swipe to start"
 	pause_button.disabled=ended
-	result_panel.visible=ended or paused_run
+	result_panel.visible=(ended and crash_remaining<=0) or paused_run
 	retire_button.visible=paused_run and not ended
+	music_button.visible=paused_run and not ended
+	audio.call("set_music_paused",paused_run or ended)
 	if ended:
 		save_best()
 		result_text.text="%s\n%d pts  •  Best %d\n%d m  •  %d coins  •  %d snacks"%["RUN ENDED" if retired_run else "GAME OVER",run_score(),best_score,int(total_distance()),coins,snacks]
@@ -1005,6 +1073,10 @@ func test_run() -> void:
 	spawn_at=distance+1000
 	assert(hazard_hit(0,0,false) and not hazard_hit(0,1.1,false))
 	assert(hazard_hit(1,0,false) and not hazard_hit(1,0,true))
+	assert(not hazard_hit(1,1.80,false),"clear above red beam")
+	assert(hazard_hit(1,1.5,false) and hazard_hit(1,0,true,0.65))
+	assert(not hazard_hit(LOW_BAR,1.0,false) and hazard_hit(LOW_BAR,0,true))
+	assert(hazard_hit(TALL,2.2,false) and hazard_hit(CART,2.2,false))
 	assert(contact_depth(1)<contact_depth(0))
 	assert(not pickup_reachable(PICKUP,1.5,false) and pickup_reachable(PICKUP,1.5,true))
 	assert(not pickup_reachable(BOOST,0.7,false) and pickup_reachable(BOOST,0,false))
@@ -1090,7 +1162,7 @@ func test_run() -> void:
 	assert(boost_time>0)
 	boost_time=0
 	make_entity(1,0,distance+1.0)
-	for i in range(20): await get_tree().physics_frame
+	for i in range(50): await get_tree().physics_frame
 	assert(ended and result_panel.visible and not retired_run and not retire_button.visible)
 	assert(best_saved and best_score>=run_score())
 	assert(not claim_result().is_empty() and claim_result().is_empty())
@@ -1149,12 +1221,12 @@ func soak_review() -> void:
 	assert(not ended and total_distance()>checkpoint+30.0,"run must continue past the test checkpoint")
 	assert(rebase_count>=3 and distance<REBASE_INTERVAL)
 	assert(chunk_recycles>100 and chunks.size()==SEGMENTS)
-	assert(pattern_count>35 and reused_entities>100 and mandatory_rows>3)
+	assert(pattern_count>35 and reused_entities>100 and mandatory_rows>3 and moving_rows>3)
 	assert(created_entities<180 and peak_active<130)
 	assert(coins>20)
 	var result:=FileAccess.open("/tmp/pet-dash-soak.json",FileAccess.WRITE)
 	assert(result!=null)
-	result.store_string(JSON.stringify({"distance":total_distance(),"local_distance":distance,"rebases":rebase_count,"chunk_recycles":chunk_recycles,"steps":steps,"coins":coins,"snacks":snacks,"rows":pattern_count,"mandatory_rows":mandatory_rows,"allocated":created_entities,"reused":reused_entities,"peak_active":peak_active,"scope":"deterministic headless endless physics; 3000m checkpoint plus continued gameplay, not physical-device FPS"}))
+	result.store_string(JSON.stringify({"distance":total_distance(),"local_distance":distance,"rebases":rebase_count,"chunk_recycles":chunk_recycles,"steps":steps,"coins":coins,"snacks":snacks,"rows":pattern_count,"mandatory_rows":mandatory_rows,"moving_rows":moving_rows,"allocated":created_entities,"reused":reused_entities,"peak_active":peak_active,"scope":"deterministic headless endless physics; 3000m checkpoint plus continued gameplay, not physical-device FPS"}))
 	result.close()
 	print("PET_DASH_SOAK_PASS")
 	get_tree().quit(0)

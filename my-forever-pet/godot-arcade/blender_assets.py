@@ -216,4 +216,44 @@ for z in [-.30,.30]:
   o=box((side*.19,.29,z),(.50,.045,.14),cyan,.02);o.rotation_euler.z=side*.65
 export('boost',6000)
 
+# Premium obstacle silhouettes, shared palette and explicit dimensions.
+steel=mat('brushed gunmetal',(.105,.15,.22),.65,.29)
+signal=mat('signal amber',(.98,.49,.045),.1,.20)
+bs=signal.node_tree.nodes.get('Principled BSDF')
+bs.inputs['Emission Color'].default_value=(1,.42,.035,1)
+bs.inputs['Emission Strength'].default_value=.65
+def fittings(h,depth):
+ for x in [-.67,.67]:
+  for y in [.14,h-.13]:
+   box((x,y,depth),(.18,.16,.06),steel,.025)
+   ball((x,y,depth+.035),(.07,.07,.04),gold)
+clear()
+box((0,1.38,0),(1.48,2.76,1.72),steel,.08)
+box((0,1.40,.89),(1.25,2.20,.06),wood,.04)
+for y in [.43,.82,1.20,1.58,1.96,2.34]:
+ box((0,y,.93),(1.15,.035,.035),wood2,.008)
+for x in [-.56,.56]:
+ for z in [-.57,.57]:cyl((x,.26,z),.26,.26,.24,dark)
+ box((x,.53,.95),(.24,.20,.10),signal,.04)
+box((0,.18,.98),(1.5,.20,.16),gold,.035)
+paw((0,1.35,.97),cream,1.8)
+fittings(2.76,.94)
+export('cart',18000)
+clear()
+box((0,1.55,0),(1.52,3.10,.84),steel,.10)
+box((0,1.55,.45),(1.24,2.72,.07),wood,.035)
+for angle in [-.75,.75]:
+ o=box((0,1.62,.51),(.24,1.46,.10),gold,.035);o.rotation_euler.y=angle
+fittings(3.1,.49)
+for x in [-.60,.60]:ball((x,2.98,.48),(.18,.18,.10),signal)
+export('tall',15000)
+clear()
+for x in [-.65,.65]:
+ box((x,.29,0),(.22,.58,.30),steel,.035)
+ box((x,.08,0),(.34,.16,.46),steel,.035)
+box((0,.57,0),(1.50,.32,.31),red,.055)
+for x in [-.48,-.12,.24,.55]:
+ o=box((x,.57,.18),(.20,.31,.035),white,.008);o.rotation_euler.y=.45
+for x in [-.61,.61]:ball((x,.76,0),(.16,.13,.18),signal)
+export('low_bar',12000)
 with open(os.path.join(OUT,'mesh-metrics.json'),'w') as out: json.dump(stats,out,indent=2)

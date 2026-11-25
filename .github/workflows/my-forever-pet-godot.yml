@@ -34,7 +34,7 @@ jobs:
           python3 - <<'PY'
           import pathlib, struct
           root=pathlib.Path("my-forever-pet/godot-arcade/assets")
-          for name in ("bridge","arch","island","mosskit","foot","crate","barrier","coin","snack","magnet","shield","double","boost"):
+          for name in ("bridge","arch","island","mosskit","foot","crate","barrier","coin","snack","magnet","shield","double","boost","cart","tall","low_bar"):
               p=root/(name+".glb")
               data=p.read_bytes()
               assert len(data)>1000 and struct.unpack("<4sII",data[:12])==(b"glTF",2,len(data)),name
@@ -42,6 +42,8 @@ jobs:
           PY
       - name: Bake panoramic cloudscape
         run: python3 my-forever-pet/godot-arcade/sky_panorama.py my-forever-pet/godot-arcade/assets/sky-panorama.png
+      - name: Bake original runner music
+        run: python3 my-forever-pet/godot-arcade/bake_music.py my-forever-pet/godot-arcade/assets/skyway-music.wav
       - name: Import and run deterministic scene smoke
         run: |
           set -euo pipefail
@@ -118,6 +120,7 @@ jobs:
             my-forever-pet/godot-arcade/assets/*.glb
             my-forever-pet/godot-arcade/assets/mesh-metrics.json
             my-forever-pet/godot-arcade/assets/sky-panorama.png
+            my-forever-pet/godot-arcade/assets/skyway-music.wav
           if-no-files-found: error
       - name: Require visual verification independently of APK packaging
         if: always()
