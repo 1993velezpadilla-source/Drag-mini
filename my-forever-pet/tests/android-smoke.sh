@@ -49,6 +49,12 @@ tap_text "Exit & collect"
 tap_text "Arcade"
 tap_text "Find My Pet"
 shot find-my-pet
+tap_text "Zoom / overview"
+shot find-zoom
+tap_text "Exit & collect"
+tap_text "Arcade"
+tap_text "Pet Dash"
+shot pet-dash
 tap_text "Exit & collect"
 tap_text "World"
 tap_text "Cell"
