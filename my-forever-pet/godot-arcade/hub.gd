@@ -1,0 +1,163 @@
+extends Control
+const GAMES=["Star Catch","Flappy Pet","Cloud Jump","Find My Pet","Pet Dash 3D"]
+var store:Node
+var title_label:Label
+var info:Label
+var portrait:TextureRect
+var bg:TextureRect
+var actions:VBoxContainer
+var section="Home"
+var stats:Array[ProgressBar]=[]
+var notice:Label
+var clock_label:Label
+var body:VBoxContainer
+func _ready():
+	var args=OS.get_cmdline_user_args()
+	for flag in ["--test","--soak","--capture","--lane-only","--unassisted"]:
+		if args.has(flag):
+			get_tree().call_deferred("change_scene_to_file","res://main.tscn")
+			return
+	store=get_node("/root/PetStore")
+	if args.has("--home-test"):
+		call_deferred("test_home")
+		return
+	make_ui()
+	refresh()
+	var t=Timer.new(); t.wait_time=1; t.timeout.connect(refresh); add_child(t); t.start()
+func style(color:Color,border:Color,r:int=16)->StyleBoxFlat:
+	var b=StyleBoxFlat.new(); b.bg_color=color; b.border_color=border; b.set_border_width_all(1); b.set_corner_radius_all(r)
+	b.content_margin_left=12; b.content_margin_right=12; b.content_margin_top=8; b.content_margin_bottom=8
+	return b
+func label(parent:Node,value:String,sz:int=18)->Label:
+	var l=Label.new(); l.text=value; l.add_theme_font_size_override("font_size",sz); l.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART; parent.add_child(l); return l
+func button(parent:Node,value:String,fn:Callable)->Button:
+	var b=Button.new(); b.text=value; b.custom_minimum_size=Vector2(0,48); b.size_flags_horizontal=Control.SIZE_EXPAND_FILL
+	b.add_theme_font_size_override("font_size",18)
+	b.add_theme_stylebox_override("normal",style(Color("#283c50"),Color("#516b79")))
+	b.add_theme_stylebox_override("pressed",style(Color("#537d75"),Color("#bde3ae")))
+	b.pressed.connect(fn); parent.add_child(b); return b
+func row(parent:Node)->HBoxContainer:
+	var h=HBoxContainer.new(); h.add_theme_constant_override("separation",8); parent.add_child(h); return h
+func panel(parent:Node)->VBoxContainer:
+	var p=PanelContainer.new(); p.add_theme_stylebox_override("panel",style(Color("#172b3b"),Color("#405c69"))); parent.add_child(p)
+	var v=VBoxContainer.new(); v.add_theme_constant_override("separation",7); p.add_child(v); return v
+func make_ui():
+	var backdrop=ColorRect.new(); backdrop.color=Color("#0e202b"); backdrop.set_anchors_and_offsets_preset(PRESET_FULL_RECT); add_child(backdrop)
+	var margin=MarginContainer.new(); margin.set_anchors_and_offsets_preset(PRESET_FULL_RECT); margin.add_theme_constant_override("margin_left",15); margin.add_theme_constant_override("margin_right",15); margin.add_theme_constant_override("margin_top",12); margin.add_theme_constant_override("margin_bottom",12); add_child(margin)
+	var layout=VBoxContainer.new(); layout.add_theme_constant_override("separation",9); margin.add_child(layout)
+	var head=row(layout); label(head,"MY FOREVER PET",23).size_flags_horizontal=Control.SIZE_EXPAND_FILL; clock_label=label(head,"",14)
+	title_label=label(layout,"",24)
+	info=label(layout,"",15)
+	var visual=Control.new(); visual.custom_minimum_size.y=310; layout.add_child(visual)
+	bg=TextureRect.new(); bg.set_anchors_and_offsets_preset(PRESET_FULL_RECT); bg.expand_mode=TextureRect.EXPAND_IGNORE_SIZE; bg.stretch_mode=TextureRect.STRETCH_KEEP_ASPECT_COVERED; visual.add_child(bg)
+	var fallback=ColorRect.new(); fallback.color=Color("#436c6b"); fallback.set_anchors_and_offsets_preset(PRESET_FULL_RECT); visual.add_child(fallback); visual.move_child(fallback,0)
+	portrait=TextureRect.new(); portrait.set_anchors_and_offsets_preset(PRESET_CENTER); portrait.offset_left=-105; portrait.offset_right=105; portrait.offset_top=-95; portrait.offset_bottom=115; portrait.expand_mode=TextureRect.EXPAND_IGNORE_SIZE; portrait.stretch_mode=TextureRect.STRETCH_KEEP_ASPECT_CENTERED; visual.add_child(portrait)
+	var touch=Button.new(); touch.flat=true; touch.set_anchors_and_offsets_preset(PRESET_FULL_RECT); touch.pressed.connect(func(): perform("hatch" if store.s.stage==0 else "bond")); visual.add_child(touch)
+	var meters=panel(layout)
+	for name in ["Food","Mood","Energy","Bond"]:
+		var h=row(meters); var l=label(h,name,15); l.custom_minimum_size.x=78
+		var p=ProgressBar.new(); p.custom_minimum_size.y=13; p.size_flags_horizontal=Control.SIZE_EXPAND_FILL; p.show_percentage=false; p.add_theme_stylebox_override("background",style(Color("#0c1b25"),Color("#344a52"),7)); p.add_theme_stylebox_override("fill",style(Color("#8ec8a2"),Color("#8ec8a2"),7)); h.add_child(p); stats.append(p)
+	notice=label(layout,"Choose an activity",14)
+	var scroll=ScrollContainer.new(); scroll.size_flags_vertical=Control.SIZE_EXPAND_FILL; layout.add_child(scroll)
+	body=VBoxContainer.new(); body.size_flags_horizontal=Control.SIZE_EXPAND_FILL; scroll.add_child(body)
+	actions=body
+	var n=row(layout)
+	for tab in ["Home","Care","Rooms","Arcade"]: button(n,tab,func(): select(tab))
+	var n2=row(layout)
+	for tab in ["Shop","Journal","World","Cell"]: button(n2,tab,func(): select(tab))
+	select("Home")
+func perform(id:String,i:int=0):
+	notice.text="Done!" if store.action(id,i) else "Unavailable — check needs, cost or requirements."
+	refresh()
+func add_action(name:String,id:String,i:int=0): button(actions,name,func(): perform(id,i))
+func select(tab:String):
+	section=tab
+	for child in actions.get_children(): actions.remove_child(child); child.queue_free()
+	label(actions,tab.to_upper(),18)
+	var s:Dictionary=store.s
+	match tab:
+		"Home":
+			if s.stage==0:
+				add_action("Hatch egg","hatch")
+				for i in range(3): add_action(store.FIELDS[i],"field",i)
+			else:
+				add_action("Pet / cuddle","bond"); add_action("Feed free grain","food",3); add_action("Daily gift • 20 coins","daily")
+				var edit=LineEdit.new(); edit.placeholder_text="Name your pet"; edit.text=s.name; edit.max_length=24; actions.add_child(edit)
+				button(actions,"Save name",func(): store.s.name=edit.text.strip_edges(); store.save_game(); refresh())
+		"Care":
+			for i in range(4): add_action(store.FOODS[i]+" • "+str(store.FOOD_COST[i])+" coins","food",i)
+			for a in [["Pet / cuddle","bond"],["Play","play"],["Train","train"],["Praise","praise"],["Clean habitat","clean"],["Nap / wake","sleep"],["Toggle auto sleep","auto"],["Cook • 2 materials","cook"],["Bath","bath"],["Snack","snack"],["Medicine","medicine"]]: add_action(a[0],a[1])
+		"Rooms":
+			for room_name in ["Kitchen","Bathroom","Bedroom","Toy room","Garden","Potion lab"]: button(actions,room_name,func(): room(room_name))
+		"Arcade":
+			for i in range(5): button(actions,GAMES[i]+"   ›",func(): launch_game(i))
+		"Shop":
+			for i in range(store.ITEMS.size()):
+				add_action(store.ITEMS[i]+" • "+str(store.PRICES[i])+" coins" if (int(s.owned)&(1<<i))==0 else store.ITEMS[i]+" • Equip / remove","buy" if (int(s.owned)&(1<<i))==0 else "use",i)
+			for i in range(store.CLOTHES.size()): add_action(store.CLOTHES[i]+" • "+str(store.COST[i])+" coins" if (int(s.wardrobe)&(1<<i))==0 else store.CLOTHES[i]+" • Wear / remove","clothes" if (int(s.wardrobe)&(1<<i))==0 else "wear",i)
+			add_action("Medicine • 12 coins","supply",0); add_action("Snack • 5 coins","supply",1)
+		"Journal":
+			add_action("Daily gift","daily")
+			for i in range(3): add_action(["Bond quest","Clean quest","Expedition quest"][i]+" • 15 coins","quest",i)
+			add_action("Craft crystal • 3 materials","craft"); add_action("Secret evolution","secret")
+			button(actions,"Petpedia • 24 forms",show_collection)
+		"World":
+			for i in range(3): add_action("Habitat: "+store.FIELDS[i],"field",i)
+			for i in range(3): add_action(["Meadow • 10 min","Coral ruins • 20 min","Starlight islands • 30 min"][i],"trip",i)
+			add_action("Collect expedition rewards","loot"); add_action("Playdate (local)","friend")
+			button(actions,"Start next generation",func():
+				var confirm=ConfirmationDialog.new(); confirm.dialog_text="Begin a new egg generation?"; add_child(confirm); confirm.confirmed.connect(func(): perform("breed")); confirm.popup_centered())
+		"Cell":
+			label(actions,"Inspect growth cells and treat illness.",17); add_action("Treat one sick cell","cell")
+func room(name:String):
+	for child in actions.get_children(): actions.remove_child(child); child.queue_free()
+	label(actions,name,22)
+	match name:
+		"Kitchen":
+			for i in range(4): add_action(store.FOODS[i],"food",i)
+			add_action("Cook","cook"); add_action("Snack","snack")
+		"Bathroom": add_action("Soap","soap"); add_action("Rinse","rinse"); add_action("Toilet","toilet")
+		"Bedroom":
+			add_action("Lamp / sleep","lamp")
+			for i in range(3): add_action(["Cozy","Ocean","Starlight"][i],"theme",i)
+		"Toy room": add_action("Play with toys","toy"); button(actions,"Arcade",func(): select("Arcade"))
+		"Garden": add_action("Plant • 5 coins","plant"); add_action("Harvest","harvest")
+		"Potion lab": add_action("Medicine","medicine"); add_action("Craft crystal","craft")
+	button(actions,"Back to rooms",func(): select("Rooms"))
+func show_collection():
+	for child in actions.get_children(): actions.remove_child(child); child.queue_free()
+	label(actions,"PETPEDIA",22)
+	for i in range(24):
+		var known=(int(store.s.collection)&(1<<i))!=0
+		label(actions,store.SPECIES[i] if known else "??? • "+store.FIELDS[int((i%12)/4)]+" / "+store.FOODS[i%4]+(" / secret" if i>=12 else ""),16)
+	button(actions,"Back",func(): select("Journal"))
+func launch_game(i:int):
+	if not store.begin_arcade(i): notice.text="Your pet needs rest or is busy."; return
+	get_tree().change_scene_to_file("res://main.tscn" if i==4 else "res://pet_arcade.tscn")
+func refresh():
+	store.advance(store.now())
+	var s:Dictionary=store.s
+	title_label.text=store.pet_name()+"  ·  Lv "+str(store.level())
+	info.text="%s / %s  •  %d coins  •  %d crystals  •  %d materials"%[store.STAGES[int(s.stage)],store.FIELDS[int(s.field)],s.coins,s.crystals,s.materials]
+	clock_label.text=Time.get_time_string_from_system().substr(0,5)
+	for i in range(4): stats[i].value=[s.hunger*20,s.happy*10,s.energy,s.bond][i]
+	var night=store.asleep(store.now())
+	var path="res://assets/home_night.jpg" if night else "res://assets/home_day.jpg"
+	if ResourceLoader.exists(path): bg.texture=load(path)
+	var pp="res://assets/pet_%d.png"%(store.species()%12)
+	if ResourceLoader.exists(pp): portrait.texture=load(pp)
+	portrait.modulate=Color("#d7c5ff") if s.variant==1 else Color.WHITE
+	portrait.scale=Vector2.ONE*(0.64 if s.stage<2 else 0.85 if s.stage==2 else 1.0)
+	if s.stage==0: portrait.hide()
+	else: portrait.show()
+	if section=="Cell": notice.text="Cells %d/4 • Sick cells %d • Age %dh"%[s.cells[int(s.field)],s.germs,int(s.age/3600)]
+func test_home():
+	store.s=store.defaults(); store.s.auto_sleep=false
+	assert(store.action("hatch")); assert(store.s.coins==100)
+	store.s.hunger=3; assert(store.action("food",3)); assert(store.s.hunger==4)
+	assert(store.action("daily")); assert(not store.action("daily"))
+	assert(store.begin_arcade(0)); assert(store.finish_arcade(5,5.0)==10); assert(store.finish_arcade(5,5.0)==0)
+	make_ui(); refresh()
+	for tab in ["Care","Rooms","Arcade","Shop","Journal","World","Cell","Home"]: select(tab)
+	print("FOREVER_PET_HUB_PASS")
+	get_tree().quit()

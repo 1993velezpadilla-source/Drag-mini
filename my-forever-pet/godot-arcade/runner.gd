@@ -731,7 +731,12 @@ func make_hud() -> void:
 	style_button(result_button,true)
 	result_button.pressed.connect(func():
 		if ended:
-			get_tree().reload_current_scene()
+			var store=get_node_or_null("/root/PetStore")
+			if store!=null and store.arcade_mode==4:
+				var result=claim_result()
+				if not result.is_empty(): store.finish_arcade(int(result.coins),clock,int(result.snacks))
+				get_tree().change_scene_to_file("res://hub.tscn")
+			else: get_tree().reload_current_scene()
 		else:
 			toggle_pause())
 	result_box.add_child(result_button)
@@ -1742,7 +1747,8 @@ func update_hud() -> void:
 	if ended:
 		save_best()
 		result_text.text="%s\n%d pts  •  Best %d\n%d m  •  %d coins  •  %d snacks"%["RUN ENDED" if retired_run else "GAME OVER",run_score(),best_score,int(total_distance()),coins,snacks]
-		result_button.text="Run again"
+		var store=get_node_or_null("/root/PetStore")
+		result_button.text="Collect & return" if store!=null and store.arcade_mode==4 else "Run again"
 	elif paused_run:
 		result_text.text="PAUSED"
 		result_button.text="Resume"
