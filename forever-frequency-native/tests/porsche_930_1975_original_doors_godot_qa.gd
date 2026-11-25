@@ -71,7 +71,7 @@ func _run() -> void:
         for node in source_nodes:
             var s: String=str(node.name)
             for group in ["PAINT","COAT","GLASS","GLASS_WINDOW_FRAME"]:
-                if s.contains("_"+group+"_"):
+                if s.contains("_"+group+"_AUTHOR_PANELS"):
                     categories[group]=node
         if categories.size()!=4:
             _red("Cannot verify REAL author door skin, glass and frame on "+id)
