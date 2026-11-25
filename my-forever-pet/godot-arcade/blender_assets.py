@@ -337,4 +337,80 @@ me=bpy.data.meshes.new('impact star');me.from_pydata(verts,[],faces);me.update()
 o=bpy.data.objects.new('impact star',me);bpy.context.collection.objects.link(o);o.data.materials.append(star)
 ring((0,.94,0),.56,.055,violet)
 export('smash',4000)
+# Original premium world-expansion models. All scenery remains real mesh geometry.
+clear()
+surfmetal=mat('surf midnight alloy',(.07,.13,.29),.48,.26)
+surflight=mat('surf ion rails',(.035,.75,.98),.18,.21)
+b=surflight.node_tree.nodes.get('Principled BSDF');b.inputs['Emission Color'].default_value=(.035,.75,.98,1);b.inputs['Emission Strength'].default_value=.8
+def deck(y):
+ ball((0,y,0),(1.18,.20,2.35),surfmetal)
+ box((0,y+.10,0),(.73,.07,1.45),blue,.035)
+ for x in [-.48,.48]:
+  ball((x,y,-.05),(.10,.13,1.84),surflight)
+ for z in [-.84,.84]:
+  ball((0,y-.06,z),(.52,.10,.40),surflight)
+ for z in [-.37,.05,.47]:
+  for side in [-1,1]:
+   o=box((side*.13,y+.15,z),(.30,.025,.07),gold,.008);o.rotation_euler.z=side*.55
+deck(.69);export('surf_board',12000)
+clear();deck(.85)
+ring((0,.88,.12),.73,.045,surflight)
+export('surf_pickup',15000)
+clear()
+portalstone=mat('portal blue stone',(.18,.22,.38),.12,.32)
+for side in [-1,1]:
+ x=side*3.48
+ box((x,1.2,0),(.66,2.4,.8),portalstone,.07)
+ for yy in [.22,1.15,2.18]:box((x,yy,0),(.83,.18,.93),gold,.035)
+for k in range(17):
+ a=pi*k/16
+ x=3.48*math.cos(a);y=2.35+3.48*math.sin(a)
+ o=box((x,y,0),(.74,.70,.74),portalstone,.065);o.rotation_euler.y=-a
+ ball((x,y,.40),(.35,.35,.14),surflight)
+# Inner continuous glowing half-ring (open path underneath).
+verts=[];faces=[]
+for k in range(65):
+ a=pi*k/64
+ for r in [3.08,3.19]:verts.append(v((r*math.cos(a),2.35+r*math.sin(a),.46)))
+for k in range(64):faces.append((k*2,k*2+1,k*2+3,k*2+2))
+me=bpy.data.meshes.new('portal ribbon');me.from_pydata(verts,[],faces);me.update()
+o=bpy.data.objects.new('portal ribbon',me);bpy.context.collection.objects.link(o);o.data.materials.append(surflight)
+paw((0,5.88,.45),gold,1.4)
+export('portal',20000)
+# Biome A: floating crystal gardens, faceted quartz and blue vegetation.
+clear()
+crystal=mat('quartz amethyst',(.43,.14,.78),.24,.23)
+mint=mat('crystal garden mint',(.12,.52,.43))
+cyl((0,-1.25,0),.42,2.55,2.8,portalstone)
+cyl((0,.08,0),2.48,2.48,.24,mint)
+for i in range(7):
+ a=i*2.399
+ x=math.cos(a)*(1.4 if i else 0);z=math.sin(a)*(1.4 if i else 0)
+ h=2.9 if i==0 else 1.05+(i%3)*.4
+ bpy.ops.mesh.primitive_cone_add(vertices=6,radius1=.38 if i else .72,radius2=.27 if i else .47,depth=h,location=v((x,h*.5+.2,z)))
+ finish(bpy.context.object,crystal if i%2 else surflight)
+ bpy.ops.mesh.primitive_cone_add(vertices=6,radius1=.27 if i else .47,radius2=0,depth=.55,location=v((x,h+.47,z)))
+ finish(bpy.context.object,crystal if i%2 else surflight)
+for i in range(5):
+ a=i*2*pi/5
+ ball((2.06*math.cos(a),.29,2.06*math.sin(a)),(.55,.38,.55),leaf)
+export('crystal_island',17000)
+# Biome B: floating moon observatory with golden crescent and telescope.
+clear()
+moonrock=mat('moon slate',(.16,.19,.34))
+moonroof=mat('observatory violet',(.26,.12,.46),.18,.25)
+cyl((0,-1.35,0),.48,2.6,3.0,moonrock)
+cyl((0,.08,0),2.51,2.51,.32,stone)
+cyl((0,1.05,0),1.16,1.16,1.8,cream)
+ball((0,2.0,0),(2.32,1.55,2.32),moonroof)
+box((0,1.10,1.12),(.58,.91,.12),blue,.06)
+for x in [-.77,.77]:box((x,1.23,.84),(.20,.40,.07),surflight,.025)
+for k in range(13):
+ a=-pi*.65+k*pi*1.3/12
+ ball((.72*math.cos(a),3.03+.72*math.sin(a),0),(.28,.28,.22),gold)
+for i in range(5):
+ a=i*2*pi/5
+ x=1.91*math.cos(a);z=1.91*math.sin(a)
+ box((x,.34,z),(.28,.55,.28),portalstone,.035);ball((x,.65,z),(.30,.30,.30),surflight)
+export('moon_island',18000)
 with open(os.path.join(OUT,'mesh-metrics.json'),'w') as out: json.dump(stats,out,indent=2)

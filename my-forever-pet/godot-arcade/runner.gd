@@ -21,6 +21,19 @@ const SKY_RING := 13
 const GEM := 14
 const RESCUE := 15
 const SMASH := 16
+const SURF := 17
+const PORTAL := 18
+const SURF_LIFT := 0.90
+const WORLD_NAMES := ["Sky Kingdom","Crystal Gardens","Moonlight Isles"]
+var surf_time := 0.0
+var surf_board: Node3D
+var world_index := 0
+var world_visits := 0
+var world_label: Label
+var world_environment: Environment
+var world_sun: DirectionalLight3D
+var portal_flash := 0.0
+var portal_overlay: ColorRect
 var rescued := 0
 var rescue_time := 0.0
 var rescue_buddy: Node3D
@@ -85,7 +98,7 @@ var player_shape: CollisionShape3D
 var camera: Camera3D
 var chunks: Array[Node3D] = []
 var entities: Array[Area3D] = []
-var pools: Array = [[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[]]
+var pools: Array = [[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[]]
 var created_entities := 0
 var reused_entities := 0
 var previous_safe_lane := 1
@@ -182,11 +195,11 @@ func asset(parent: Node3D, name: String, pos: Vector3) -> Node3D:
 		models[name]=load(path)
 	var n: Node3D=models[name].instantiate()
 	# Let imported mesh LODs transition earlier for distant scenery, not the player.
-	if name in ["bridge","arch","island"]:
+	if name in ["bridge","arch","island","crystal_island","moon_island"]:
 		for child in n.find_children("*","MeshInstance3D",true,false):
 			(child as MeshInstance3D).lod_bias=0.65
 	# Tiny collectibles and distant islands do not need expensive shadow passes.
-	if name in ["coin","snack","magnet","shield","double","boost","island","airship","rainbow","time_orb","spring","sky_ring","gem","rescue","smash"]:
+	if name in ["coin","snack","magnet","shield","double","boost","island","airship","rainbow","time_orb","spring","sky_ring","gem","rescue","smash","surf_pickup","surf_board","portal","crystal_island","moon_island"]:
 		for child in n.find_children("*","MeshInstance3D",true,false):
 			(child as MeshInstance3D).cast_shadow=GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	parent.add_child(n)
@@ -221,6 +234,7 @@ func _ready() -> void:
 	e.ambient_light_energy = 0.28
 	e.tonemap_mode = Environment.TONE_MAPPER_FILMIC
 	env.environment = e
+	world_environment=e
 	add_child(env)
 	var sun := DirectionalLight3D.new()
 	sun.rotation_degrees = Vector3(-48, -28, 0)
@@ -232,6 +246,7 @@ func _ready() -> void:
 	sun.shadow_normal_bias=0.55
 	sun.shadow_enabled = true
 	add_child(sun)
+	world_sun=sun
 	var floor_body := StaticBody3D.new()
 	add_child(floor_body)
 	var floor_shape := CollisionShape3D.new()
@@ -258,6 +273,8 @@ func _ready() -> void:
 	camera.look_at(Vector3(0, 1.1, -12))
 	make_cloudscape()
 	make_effects()
+	surf_board=asset(player,"surf_board",Vector3.ZERO)
+	if surf_board!=null: surf_board.hide()
 	rescue_buddy=asset(self,"rescue",Vector3(0,0,1.55))
 	if rescue_buddy!=null:
 		rescue_buddy.scale=Vector3.ONE*0.64
@@ -302,6 +319,7 @@ func refresh_chunk_decor(chunk:Node3D) -> void:
 		if not child.has_meta("scenery_island"): continue
 		var island:=child as Node3D
 		var side:float=float(island.get_meta("scenery_island"))
+		island.visible=int(island.get_meta("biome",0))==world_index
 		island.position.x=side*scenery_rng.randf_range(8.0,10.8)
 		island.position.y=scenery_rng.randf_range(-0.3,2.0)
 		island.rotation.y=scenery_rng.randf_range(-0.35,0.35)
@@ -312,10 +330,13 @@ func make_chunk(chunk: Node3D, index: int) -> void:
 		if index%2==1: asset(chunk,"arch",Vector3(0,0,-4))
 		if index%2==0:
 			for side in [-1,1]:
-				var island:=asset(chunk,"island",Vector3(side*(8.0+float(index%3)),float(index%3)*1.3,-4))
-				if island!=null:
-					island.set_meta("scenery_island",side)
-					island.scale=Vector3.ONE*(1.0+float(index%3)*0.12)
+				for biome in range(3):
+					var island:=asset(chunk,["island","crystal_island","moon_island"][biome],Vector3(side*(8.0+float(index%3)),float(index%3)*1.3,-4))
+					if island!=null:
+						island.set_meta("scenery_island",side)
+						island.set_meta("biome",biome)
+						island.scale=Vector3.ONE*(1.0+float(index%3)*0.12)
+						island.visible=biome==world_index
 		return
 	box(chunk, Vector3(0,-0.22,0), Vector3(6.6,0.42,SEGMENT), Color("#815541"))
 	for i in range(9):
@@ -443,6 +464,11 @@ func make_hud() -> void:
 	layer.add_child(ui)
 	ui.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	ui.mouse_filter=Control.MOUSE_FILTER_IGNORE
+	portal_overlay=ColorRect.new()
+	portal_overlay.color=Color(0.66,0.91,1.0,0)
+	portal_overlay.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	portal_overlay.mouse_filter=Control.MOUSE_FILTER_IGNORE
+	ui.add_child(portal_overlay)
 	var panel := PanelContainer.new()
 	ui.add_child(panel)
 	panel.set_anchors_and_offsets_preset(Control.PRESET_TOP_WIDE)
@@ -481,7 +507,7 @@ func make_hud() -> void:
 	score_label=hud_label(stats,"0 m",18,Color("#f0f1ff"))
 	coin_label=hud_label(stats,"0 coins",18,Color("#ffd775"))
 	snack_label=hud_label(stats,"0 snacks",18,Color("#a9e2bd"))
-	hud_label(column,"LITTLE MOSSKIT  •  ENDLESS RUN",16,Color("#cbd9ff"))
+	world_label=hud_label(column,"SKY KINGDOM  •  ENDLESS RUN",16,Color("#cbd9ff"))
 	power_label=hud_label(column,"MAGNET  •  SHIELD  •  ×2  •  BOOST",15,Color("#e9d5ff"))
 	challenge_label=hud_label(column,"Collect 15 coins",14,Color("#ffe5a4"))
 	challenge_bar=ProgressBar.new()
@@ -612,7 +638,7 @@ func rebase_track() -> void:
 	rebase_count+=1
 
 func is_pickup(kind:int) -> bool:
-	return (kind>=PICKUP and kind<=BOOST) or (kind>=TIME_ORB and kind<=SMASH)
+	return (kind>=PICKUP and kind<=BOOST) or (kind>=TIME_ORB and kind<=PORTAL)
 
 func hazard_for(tier:int) -> int:
 	if tier==0: return rng.randi_range(0,1)
@@ -652,7 +678,8 @@ func fill_track() -> void:
 			var power:=MAGNET+rng.randi_range(0,3)
 			if tier>=1 and pattern_count%15==2: power=TIME_ORB
 			elif tier>=1 and pattern_count%15==7: power=SPRING
-			elif tier>=2 and pattern_count%15==12: power=SMASH
+			elif tier>=2 and pattern_count%30==12: power=SMASH
+			elif tier>=2 and pattern_count%30==27: power=SURF
 			make_entity(free_lane,power,spawn_at+5.1)
 		elif rng.randf()<0.60:
 			make_entity(free_lane,SNACK,spawn_at+4.8)
@@ -663,6 +690,8 @@ func fill_track() -> void:
 			make_entity(free_lane,GEM,spawn_at+6.7)
 		if tier>=1 and action<0 and pattern_count%12==9:
 			make_entity(free_lane,RESCUE,spawn_at+7.8)
+		if tier>=1 and pattern_count%18==10:
+			make_entity(1,PORTAL,spawn_at+9.0)
 		if review_driver: safe_rows.append(Vector3(spawn_at,float(free_lane),float(action)))
 		previous_safe_lane=free_lane
 		pattern_count+=1
@@ -696,8 +725,8 @@ func make_entity(which_lane: int, kind: int, at: float) -> void:
 			visual.rotation.y=0
 			visual.position.y=0
 		return
-	if using_blender and asset(a,["crate","barrier","coin","snack","magnet","shield","double","boost","cart","tall","low_bar","time_orb","spring","sky_ring","gem","rescue","smash"][kind],Vector3.ZERO)!=null:
-		if is_pickup(kind) and kind!=BOOST and kind!=SKY_RING:
+	if using_blender and asset(a,["crate","barrier","coin","snack","magnet","shield","double","boost","cart","tall","low_bar","time_orb","spring","sky_ring","gem","rescue","smash","surf_pickup","portal"][kind],Vector3.ZERO)!=null:
+		if is_pickup(kind) and kind!=BOOST and kind!=SKY_RING and kind!=PORTAL:
 			ground_shadow(a,0.75 if kind==PICKUP else 1.10,0.52 if kind==PICKUP else 0.75)
 		return
 	if kind==0:
@@ -762,6 +791,8 @@ func gesture(delta: Vector2) -> void:
 		else:
 			jump_buffer=0.14
 	elif delta.y > 22:
+		# Down immediately dismounts surf so the ordinary roll still fits under beams.
+		surf_time=0
 		jump_buffer=0
 		if player.is_on_floor() and player.velocity.y<=0:
 			slide=SLIDE_SECONDS
@@ -858,6 +889,7 @@ func contact_depth(kind:int) -> float:
 	return 0.64
 
 func pickup_reachable(kind:int,feet_y:float,attracted:bool) -> bool:
+	if kind==PORTAL: return true
 	if kind==SKY_RING: return feet_y>0.85 and feet_y<3.5
 	return attracted or (feet_y<0.95 if kind!=BOOST else feet_y<0.42)
 
@@ -891,7 +923,8 @@ func _physics_process(dt: float) -> void:
 	var capsule := player_shape.shape as CapsuleShape3D
 	capsule.height=0.96 if slide>0 or air_slide_pending else 1.35
 	player_shape.position.y=capsule.height*0.5
-	player.velocity.x=clampf((LANES[lane]-player.position.x)*19,-19,19)
+	var lane_speed:=23.0 if surf_time>0 else 19.0
+	player.velocity.x=clampf((LANES[lane]-player.position.x)*lane_speed,-lane_speed,lane_speed)
 	player.move_and_slide()
 	player.position.z=PLAYER_Z
 	if player.is_on_floor(): air_jump_used=false
@@ -913,6 +946,9 @@ func _physics_process(dt: float) -> void:
 	slow_time=maxf(0,slow_time-dt)
 	spring_time=maxf(0,spring_time-dt)
 	rescue_time=maxf(0,rescue_time-dt)
+	surf_time=maxf(0,surf_time-dt)
+	portal_flash=maxf(0,portal_flash-dt)
+	portal_overlay.color=Color(0.66,0.91,1.0,portal_flash*0.48)
 	smash_time=maxf(0,smash_time-dt)
 	if smash_time<=0: smash_charges=0
 	combo_timer=maxf(0,combo_timer-dt)
@@ -927,7 +963,11 @@ func _physics_process(dt: float) -> void:
 	lane_impulse=move_toward(lane_impulse,0,dt*3.5)
 	mascot.rotation.z=lerpf(mascot.rotation.z,clampf(player.velocity.x*0.025+lane_impulse*0.09,-0.29,0.29),minf(1,dt*12))
 	mascot.rotation.x=lerpf(mascot.rotation.x,-0.32 if air_slide_pending or slide>0 else clampf(player.velocity.y*0.018,-0.16,0.16),minf(1,dt*15))
-	mascot.position.y=0.035*(1+sin(clock*32)) if player.is_on_floor() and slide<=0 else 0.0
+	mascot.position.y=(0.035*(1+sin(clock*32)) if player.is_on_floor() and slide<=0 else 0.0)+(SURF_LIFT if surf_time>0 else 0.0)
+	if surf_board!=null:
+		surf_board.visible=surf_time>0
+		surf_board.rotation.z=clampf(player.velocity.x*0.025,-0.25,0.25)
+		surf_board.position.y=0.04*sin(clock*10)
 	if player.is_on_floor() and slide<=0 and clock>=next_step:
 		next_step=clock+0.19
 		audio.call("play_fx","step")
@@ -963,7 +1003,7 @@ func _physics_process(dt: float) -> void:
 		var shift:=clampf((base_z+24.0)*0.16,0.0,3.2) if kind==CART else 0.0
 		a.position.z=base_z+shift
 		a.set_meta("cart_shift",shift)
-		if is_pickup(kind) and kind!=BOOST and kind!=SKY_RING and a.visible and a.position.z > -45.0 and a.get_child_count()>0:
+		if is_pickup(kind) and kind!=BOOST and kind!=SKY_RING and kind!=PORTAL and a.visible and a.position.z > -45.0 and a.get_child_count()>0:
 			var visual:=a.get_child(0) as Node3D
 			visual.rotation.y+=dt*2.5
 			visual.position.y=sin(clock*4+float(a.get_meta("at"))*0.38)*0.07
@@ -976,13 +1016,13 @@ func _physics_process(dt: float) -> void:
 		# A near dodge requires actual prior alignment shortly before contact.
 		if not is_pickup(kind) and a.position.z<-depth and a.position.z>=-depth-speed*0.35 and lateral<0.55:
 			a.set_meta("dodge_candidate",true)
-		if (contact or attraction) and not bool(a.get_meta("resolved")) and lateral<(0.92 if is_pickup(kind) else 1.05):
+		if (contact or attraction) and not bool(a.get_meta("resolved")) and (kind==PORTAL or lateral<(0.92 if is_pickup(kind) else 1.05)):
 			if is_pickup(kind):
 				if pickup_reachable(kind,player.position.y,attraction):
 					collect_kind(kind)
 					a.set_meta("resolved",true)
 					a.hide()
-			elif hazard_hit(kind,player.position.y,slide>0 or air_slide_pending,lateral):
+			elif hazard_hit(kind,player.position.y+(SURF_LIFT if surf_time>0 else 0.0),slide>0 or air_slide_pending,lateral):
 				if smash_time>0 and smash_charges>0:
 					smash_charges-=1
 					smashed+=1
@@ -998,12 +1038,14 @@ func _physics_process(dt: float) -> void:
 					audio.call("play_fx","shield")
 				else:
 					ended=true
+					surf_time=0
+					if surf_board!=null: surf_board.hide()
 					crash_player_y=player.position.y
 					crash_remaining=0.58
 					audio.call("play_fx","crash")
 					audio.call("stop_music")
 					break
-		if not is_pickup(kind) and not bool(a.get_meta("resolved")) and not bool(a.get_meta("skill_clear")) and contact and lateral<0.34 and not hazard_hit(kind,player.position.y,slide>0 or air_slide_pending,lateral):
+		if not is_pickup(kind) and not bool(a.get_meta("resolved")) and not bool(a.get_meta("skill_clear")) and contact and lateral<0.34 and not hazard_hit(kind,player.position.y+(SURF_LIFT if surf_time>0 else 0.0),slide>0 or air_slide_pending,lateral):
 			# Award once only after the trailing edge clears, not on approach.
 			if a.position.z>=depth:
 				a.set_meta("skill_clear",true)
@@ -1050,6 +1092,18 @@ func award_skill_clear() -> void:
 	show_skill("CLEAN MOVE  +100")
 	audio.call("play_fx","skill")
 	challenge_event(1)
+func enter_next_world() -> void:
+	world_index=(world_index+1)%WORLD_NAMES.size()
+	world_visits+=1
+	portal_flash=0.85
+	world_label.text=WORLD_NAMES[world_index].to_upper()+"  •  ENDLESS RUN"
+	# Existing foreground chunks are retained; upcoming recycled scenery changes.
+	world_sun.light_color=[Color("#ffdfb0"),Color("#c2f4ff"),Color("#d4b5ff")][world_index]
+	world_environment.ambient_light_color=[Color("#c5d9ee"),Color("#bbf1ff"),Color("#b9b9ff")][world_index]
+	world_environment.ambient_light_energy=[0.28,0.38,0.40][world_index]
+	show_skill(WORLD_NAMES[world_index].to_upper())
+	audio.call("play_fx","portal")
+
 func collect_kind(kind: int) -> void:
 	match kind:
 		PICKUP:
@@ -1106,8 +1160,14 @@ func collect_kind(kind: int) -> void:
 		SMASH:
 			smash_charges=3
 			smash_time=12.0
-	if kind>=MAGNET and kind<=BOOST or kind==TIME_ORB or kind==SPRING or kind==SMASH:
-		pickup_feedback.text={MAGNET:"MAGNET",SHIELD:"SHIELD",DOUBLE:"DOUBLE COINS",BOOST:"TURBO",TIME_ORB:"TIME BUBBLE",SPRING:"DOUBLE JUMP",SMASH:"SMASH MODE"}[kind]
+		SURF:
+			surf_time=10.0
+			slide=0
+			air_slide_pending=false
+		PORTAL:
+			enter_next_world()
+	if kind>=MAGNET and kind<=BOOST or kind==TIME_ORB or kind==SPRING or kind==SMASH or kind==SURF:
+		pickup_feedback.text={MAGNET:"MAGNET",SHIELD:"SHIELD",DOUBLE:"DOUBLE COINS",BOOST:"TURBO",TIME_ORB:"TIME BUBBLE",SPRING:"DOUBLE JUMP",SMASH:"SMASH MODE",SURF:"SKY SURF"}[kind]
 		pickup_flash=1.0
 		audio.call("play_fx","power")
 
@@ -1217,6 +1277,7 @@ func update_hud() -> void:
 	if slow_time>0: active_powers.append("TIME %ds"%ceili(slow_time))
 	if spring_time>0: active_powers.append("SPRING %ds"%ceili(spring_time))
 	if smash_charges>0: active_powers.append("SMASH ×%d"%smash_charges)
+	if surf_time>0: active_powers.append("SURF %ds"%ceili(surf_time))
 	var powers: String="  •  ".join(active_powers)
 	var power_text := powers if not powers.is_empty() else "Collect power-ups to extend your run"
 	if power_text!=last_power_hud:
@@ -1367,6 +1428,22 @@ func test_run() -> void:
 	slow_time=0
 	for i in range(3): await get_tree().physics_frame
 	assert(speed>=normal_speed)
+	# Actual board lift clears a low obstacle; down input dismounts.
+	collect_kind(SURF)
+	make_entity(1,LOW_BAR,distance+speed*0.35)
+	for i in range(42): await get_tree().physics_frame
+	assert(not ended and surf_board.visible and surf_time>0)
+	gesture(Vector2(0,80))
+	assert(surf_time==0 and slide>0)
+	for i in range(45): await get_tree().physics_frame
+	assert(not surf_board.visible)
+	# Full-width portal activates even when runner is in an outer lane.
+	gesture(Vector2(-80,0))
+	make_entity(1,PORTAL,distance+speed*0.30)
+	for i in range(45): await get_tree().physics_frame
+	assert(world_index==1 and world_visits==1 and not ended)
+	gesture(Vector2(80,0))
+	for i in range(30): await get_tree().physics_frame
 	var old_distance:=distance
 	for i in range(20):
 		await get_tree().physics_frame
@@ -1491,11 +1568,12 @@ func soak_review() -> void:
 	assert(rebase_count>=3 and distance<REBASE_INTERVAL)
 	assert(chunk_recycles>100 and chunks.size()==SEGMENTS)
 	assert(pattern_count>35 and reused_entities>100 and mandatory_rows>3 and moving_rows>3)
+	assert(world_visits>=3,"portals must recur in endless run")
 	assert(created_entities<180 and peak_active<130)
 	assert(coins>20)
 	var result:=FileAccess.open("/tmp/pet-dash-soak.json",FileAccess.WRITE)
 	assert(result!=null)
-	result.store_string(JSON.stringify({"distance":total_distance(),"local_distance":distance,"rebases":rebase_count,"chunk_recycles":chunk_recycles,"steps":steps,"coins":coins,"snacks":snacks,"rescued":rescued,"smashed":smashed,"perfect_dodges":perfect_dodges,"rows":pattern_count,"mandatory_rows":mandatory_rows,"moving_rows":moving_rows,"allocated":created_entities,"reused":reused_entities,"peak_active":peak_active,"scope":"deterministic headless endless physics; 3200m checkpoint plus continued gameplay, not physical-device FPS"}))
+	result.store_string(JSON.stringify({"distance":total_distance(),"local_distance":distance,"rebases":rebase_count,"chunk_recycles":chunk_recycles,"steps":steps,"coins":coins,"snacks":snacks,"rescued":rescued,"smashed":smashed,"perfect_dodges":perfect_dodges,"world_visits":world_visits,"rows":pattern_count,"mandatory_rows":mandatory_rows,"moving_rows":moving_rows,"allocated":created_entities,"reused":reused_entities,"peak_active":peak_active,"scope":"deterministic headless endless physics; 3200m checkpoint plus continued gameplay, not physical-device FPS"}))
 	result.close()
 	print("PET_DASH_SOAK_PASS")
 	get_tree().quit(0)
