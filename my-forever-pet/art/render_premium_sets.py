@@ -87,11 +87,19 @@ terra=material('terracotta',(.59,.20,.10),.45)
 water=material('bath water',(.10,.55,.78),.2,.15)
 rose=material('rose upholstery',(.68,.21,.32),.48)
 moss=material('garden moss',(.10,.30,.085),.67)
+neon=material('rose neon',(.86,.055,.35),.35,0,2.2)
+neonblue=material('blue neon',(.09,.35,.95),.35,0,1.6)
+velvet=material('midnight plum textile',(.13,.065,.21),.82)
+richwood=material('dark warm oak',(.18,.072,.032),.54)
+cityglass=material('night skyline',(.016,.035,.105),.36,0,.4)
+citylight=material('lit windows',(.95,.52,.22),.45,0,1.6)
 layout={}
 def clear_set():
     bpy.ops.object.select_all(action='SELECT');bpy.ops.object.delete(use_global=False)
 def room_base(tint):
-    box('plaster',(0,3.5,2.8),(12,.24,5.8),tint,.05)
+    box('plaster',(0,3.5,3.7),(12,.24,7.6),tint,.05)
+    for side in [-1,1]:box('side wall',(side*5.92,.1,3.7),(.22,7.1,7.6),tint,.045)
+    box('floor foundation',(0,-1.9,-.20),(12,11.6,.25),dark,.02)
     for x in range(-5,6):box('wall inset',(x,3.33,2.8),(.06,.1,5.5),dark,.014)
     box('baseboard',(0,3.29,.19),(12,.17,.25),wood,.03)
     for side in [-1,1]:
@@ -106,7 +114,7 @@ def room_base(tint):
         cylinder('lantern cap',(x,2.82,4.51),.35,.08,gold)
         cylinder('lantern base',(x,2.82,4.03),.26,.08,gold)
     for i in range(15):
-        box('floor plank',(-5.6+i*.8,-.6,-.10),(.79,9,.18),wood if i%3 else dark,.012)
+        box('floor plank',(-5.6+i*.8,-1.8,-.10),(.79,11.3,.18),richwood if i%3 else dark,.012)
     cylinder('window',(0,3.30,3.75),1.22,.12,sky,rot=(pi/2,0,0))
     torus('brass window rim',(0,3.19,3.75),1.25,.10,gold,rot=(pi/2,0,0))
     for x in [-.65,.65]:ball('cloud',(x,3.20,3.93),(.40,.02,.15),cream)
@@ -232,14 +240,50 @@ torus('toilet seat',(3.35,-.9,.9),.43,.07,navy,scale=(1,1.18,1))
 box('cistern',(3.35,-.35,1.20),(.95,.35,.72),ivory,.13)
 camera_render('room_bathroom',{'soap':(-1.6,.45,1.28),'rinse':(-2.9,1.0,1.2),'toilet':(3.35,-.9,.94)})
 # Bedroom
-clear_set();room_base(wall);bed();banner(-3.3,3.95,blue);banner(3.3,4.1,purple)
+clear_set();room_base(velvet);bed()
+# Bedroom: a furnished night loft, not a recycled generic wall.
+for ob in list(scene.objects):
+    if ob.name.startswith(('window','brass window rim','cloud','wall inset')):bpy.data.objects.remove(ob,do_unlink=True)
+box('panoramic window',(0,3.29,3.75),(4.3,.16,3.55),cityglass,.10)
+for i in range(13):
+    x=-1.93+i*.32;h=.40+(i*7%9)*.18
+    box('skyline tower',(x,3.16,2.15+h/2),(.26,.06,h),navy,.018)
+    for z in range(1,int(h/.23)+1):
+        for dx in [-.065,.065]:box('lit apartment',(x+dx,3.105,2.16+z*.21),(.065,.025,.09),citylight,.005)
+ball('moon',(1.36,3.13,4.75),(.37,.025,.37),cream,24)
+for i in range(18):star('night star',(-1.8+(i*13%19)*.20,3.12,3.95+(i*7%11)*.12),.045,glow)
+for x in [-2.15,0,2.15]:box('window mullion',(x,3.04,3.75),(.10,.18,3.55),richwood,.035)
+for z in [2.0,3.75,5.5]:box('window rail',(0,3.03,z),(4.4,.18,.12),richwood,.035)
+for side in [-1,1]:
+    for i in range(6):
+        x=side*(2.13+i*.11)
+        ball('curtain fold',(x,2.89,3.76),(.14,.18,1.78),purple,16)
+    box('curtain tie',(side*2.45,2.65,3.12),(.68,.12,.12),gold,.04)
+    box('indirect strip',(side*4.65,3.02,.42),(.10,.12,.45),neonblue,.02)
+# Neon paw sign, upholstered bench and plush room accessories.
+for x,z in [(-3.95,3.65),(3.95,4.45)]:
+    ball('paw neon palm',(x,2.98,z),(.30,.06,.22),neon)
+    for i in range(4):ball('paw neon toe',(x+(i-1.5)*.17,2.98,z+.33+(.06 if i in [1,2] else 0)),(.10,.05,.13),neon)
+box('desk',(3.15,1.63,1.38),(2.75,1.3,.20),richwood,.09)
+for x in [2,4.3]:box('desk leg',(x,1.63,.66),(.17,.17,1.30),richwood,.04)
+box('monitor casing',(3.32,2.07,2.05),(1.58,.20,.98),navy,.10)
+box('monitor screen',(3.32,1.94,2.05),(1.40,.06,.80),neonblue,.065)
+box('keyboard',(3.32,1.35,1.54),(1.15,.40,.08),navy,.04)
+for i in range(10):box('keyboard key',(2.86+i*.10,1.31,1.59),(.075,.16,.04),neon,.01)
+box('chair seat',(3.2,.36,.72),(.92,.82,.23),velvet,.12)
+box('chair back',(3.2,-.05,1.28),(.95,.22,1.16),velvet,.15)
+cylinder('chair foot',(3.2,.36,.28),.36,.55,navy)
+for i in range(12):star('rug stitch',(-1.30+i*.24,-1.65,.075),.065,gold,(0,0,0))
+torus('rug light trim',(0,-1.65,.07),1.55,.035,neon,scale=(1,.65,1))
+star('bedside star lamp',(-1.55,1.15,.63),.40,glow)
+banner(-4.35,4.95,blue);banner(4.35,5.25,purple)
 for i in range(7):star('ceiling constellation',(-2.4+i*.8,3.06,4.85-.23*(i%2)),.12,gold)
-cabinet(3.05,1.8,2.0)
-cylinder('lamp stem',(3.05,1.8,1.82),.09,.75,gold)
-cylinder('lamp shade',(3.05,1.8,2.29),.53,.53,glow,r2=.25)
-shelf(3,3.1)
+cabinet(4.55,2.48,1.1)
+cylinder('lamp stem',(4.55,2.48,1.82),.09,.75,gold)
+cylinder('lamp shade',(4.55,2.48,2.29),.45,.53,glow,r2=.25)
+shelf(3.85,3.1,1.8)
 for i in range(6):box('book',(2.24+i*.24,2.9,3.43),(.18,.36,.48),[blue,rose,gold,mint][i%4],.03)
-camera_render('room_bedroom',{'lamp':(3.05,1.8,2.29),'sleep':(-2.95,1.05,1.24)})
+camera_render('room_bedroom',{'lamp':(4.55,2.48,2.29),'sleep':(-2.95,1.05,1.24)})
 # Toy room
 clear_set();room_base(rose)
 for x in [-3.0,3.0]:banner(x,3.9,blue if x<0 else purple)

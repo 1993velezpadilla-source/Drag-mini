@@ -37,12 +37,12 @@ func _ready():
 	env.environment.background_color=Color("#192a49")
 	env.environment.ambient_light_source=Environment.AMBIENT_SOURCE_COLOR
 	env.environment.ambient_light_color=Color("#c5d9ee")
-	env.environment.ambient_light_energy=0.56
+	env.environment.ambient_light_energy=0.33
 	world.add_child(env)
 	light_key=DirectionalLight3D.new()
 	light_key.rotation_degrees=Vector3(-55,-35,0)
 	light_key.light_color=Color("#ffe3ba")
-	light_key.light_energy=0.92
+	light_key.light_energy=0.72
 	light_key.shadow_enabled=true
 	light_key.directional_shadow_max_distance=22
 	world.add_child(light_key)
@@ -51,11 +51,14 @@ func _ready():
 	fill.light_color=Color("#a5c7ff")
 	fill.light_energy=0.38
 	world.add_child(fill)
+	var practical=OmniLight3D.new(); practical.position=Vector3(-3.4,2.8,-1.5); practical.light_color=Color("#ffb278"); practical.light_energy=1.25; practical.omni_range=6.0; world.add_child(practical)
+	var rim=OmniLight3D.new(); rim.position=Vector3(3.5,2.9,-1.7); rim.light_color=Color("#ae81ff"); rim.light_energy=1.1; rim.omni_range=5.5; world.add_child(rim)
 	camera=Camera3D.new()
 	world.add_child(camera)
-	camera.position=Vector3(0,7.8,12.7)
-	camera.look_at(Vector3(0,2.1,-0.35))
-	camera.projection=Camera3D.PROJECTION_ORTHOGONAL
+	camera.position=Vector3(0,4.65,11.5)
+	camera.look_at(Vector3(0,1.9,-0.35))
+	camera.projection=Camera3D.PROJECTION_PERSPECTIVE
+	camera.fov=56
 	camera.keep_aspect=Camera3D.KEEP_WIDTH
 	camera.size=11.6
 	camera.current=true
@@ -68,13 +71,13 @@ func update_render_state():
 func update_camera():
 	if not is_instance_valid(camera) or size.x<2 or size.y<2: return
 	# Keep the room composition inside both portrait and landscape-shaped panels.
-	camera.size=maxf(10.6,7.4*size.x/size.y)
+	camera.fov=clampf(55.0+maxf(0.0,1.0-size.x/size.y)*5.0,55.0,62.0)
 func set_night(night:bool):
 	if night==night_state: return
 	night_state=night
-	light_key.light_energy=0.48 if night else 0.92
+	light_key.light_energy=0.38 if night else 0.72
 	light_key.light_color=Color("#b9caff") if night else Color("#ffe3ba")
-	environment.ambient_light_energy=0.40 if night else 0.56
+	environment.ambient_light_energy=0.23 if night else 0.33
 func mesh(parent:Node3D,path:String,p:Vector3)->Node3D:
 	if not ResourceLoader.exists(path): return null
 	var packed=load(path) as PackedScene
@@ -117,7 +120,7 @@ func set_pet(species:int,stage:int):
 		mesh(avatar,"res://assets/creatures/species_%02d.glb"%species,Vector3.ZERO)
 	sole_offset=mesh_bottom(avatar,Transform3D.IDENTITY)
 	var base=0.70 if stage==1 else 0.88 if stage==2 else 1.0
-	avatar.scale=Vector3.ONE*base*1.28
+	avatar.scale=Vector3.ONE*base*1.65
 	avatar.position.y=ground.y-sole_offset*avatar.scale.y
 func mesh_bottom(node:Node,relative:Transform3D)->float:
 	var result=INF
@@ -171,7 +174,7 @@ func _process(dt:float):
 	touch_bounce=maxf(0,touch_bounce-dt)
 	avatar.rotation.y=lerpf(avatar.rotation.y,target_yaw+sin(elapsed*0.9)*0.055,minf(1,dt*5))
 	var bounce=sin(touch_bounce/0.30*PI)*0.10
-	var base=(0.70 if active_stage==1 else 0.88 if active_stage==2 else 1.0)*1.28
+	var base=(0.70 if active_stage==1 else 0.88 if active_stage==2 else 1.0)*1.65
 	var breathe=1.0+sin(elapsed*2.6)*0.014
 	avatar.scale=Vector3(base/breathe,base*breathe,base/breathe)
 	avatar.position=ground+Vector3(0,bounce-sole_offset*avatar.scale.y,0)
