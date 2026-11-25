@@ -271,7 +271,7 @@ func show_feedback(message:String,id:String):
 	p.offset_left=-170; p.offset_right=170; p.offset_top=40; p.offset_bottom=80
 	feedback_layer.add_child(p)
 	var l=label(p,message,16); l.horizontal_alignment=HORIZONTAL_ALIGNMENT_CENTER; l.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART; l.mouse_filter=MOUSE_FILTER_IGNORE
-	var tw=create_tween()
+	var tw=p.create_tween()
 	tw.tween_interval(0.9)
 	tw.tween_property(p,"modulate:a",0.0,0.35)
 	tw.tween_callback(p.queue_free)
@@ -428,6 +428,9 @@ func select(tab:String):
 			add_action("Treat one sick cell","cell")
 	update_context()
 func room(name:String):
+	for key in nav_buttons:
+		nav_buttons[key].add_theme_stylebox_override("normal",skin(Color("#3d5e87") if key=="Rooms" else Color("#222b56"),Color("#aee9ff") if key=="Rooms" else Color("#777fd0")))
+	section_scroll.scroll_vertical=0
 	visual.show()
 	room_scroll.show()
 	meter_panel.show()
@@ -651,7 +654,17 @@ func test_home():
 	for name in ROOMS:
 		room(name)
 		assert(bg.texture!=null and live_stage.room_node!=null and hotspot_layer.get_child_count()>=2,"room art/hotspots missing: "+name)
+		assert(room_scroll.visible and meter_panel.visible and visual.visible)
+		assert(action_grid.get_child_count()>=3)
 	select("Home")
+	store.s.interaction_at=0.0
+	var before_bond:int=store.s.bond
+	var cuddle:Button=action_grid.get_child(0)
+	cuddle.pressed.emit()
+	assert(store.s.bond==before_bond+1 and live_stage.fx_nodes.size()==5)
+	live_stage.touch_bounce=0.0
+	live_stage.react("food",false)
+	assert(live_stage.fx_nodes.size()==5 and live_stage.reaction_kind=="food")
 	# Boot each actual arcade scene and run its first physics step in-process.
 	for mode in range(4):
 		assert(store.begin_arcade(mode))
@@ -691,8 +704,13 @@ func test_home():
 	get_tree().quit()
 
 func capture_frame(path:String):
-	await get_tree().process_frame
-	await RenderingServer.frame_post_draw
+	# Wait for container sizing and a complete SubViewport render, not a stale frame.
+	for frame in range(3):
+		await get_tree().process_frame
+		await RenderingServer.frame_post_draw
+	if visual.visible:
+		position_hotspots()
+		await RenderingServer.frame_post_draw
 	var image=get_viewport().get_texture().get_image()
 	assert(image.save_png(path)==OK)
 func capture_home():

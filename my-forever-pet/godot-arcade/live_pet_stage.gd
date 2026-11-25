@@ -177,7 +177,7 @@ func react(kind:String,asleep:bool):
 	for child in fx_root.get_children(): fx_root.remove_child(child); child.queue_free()
 	fx_nodes.clear()
 	if kind not in ["food","cook","snack","bond","play","toy","praise","daily","soap","rinse","harvest","craft"]: return
-	var asset="coin" if kind in ["daily","harvest"] else "star"
+	var asset="coin" if kind in ["daily","harvest"] else "reward_spark"
 	for i in range(5):
 		var ob=mesh(fx_root,"res://assets/"+asset+".glb",ground+Vector3(0,1.2,0))
 		if ob!=null:
