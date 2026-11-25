@@ -93,6 +93,15 @@ func skin(tint:Color,edge:Color,pressed:bool=false)->StyleBoxTexture:
 		s.set_content_margin(side,7)
 	skin_cache[key]=s
 	return s
+func bar_skin(tint:Color,edge:Color)->StyleBoxTexture:
+	var key="bar"+str(tint)+str(edge)
+	if skin_cache.has(key): return skin_cache[key]
+	var b=skin(tint,edge).duplicate() as StyleBoxTexture
+	for side in [SIDE_LEFT,SIDE_TOP,SIDE_RIGHT,SIDE_BOTTOM]:
+		b.set_texture_margin(side,4)
+		b.set_content_margin(side,0)
+	skin_cache[key]=b
+	return b
 func button(parent:Node,value:String,fn:Callable)->Button:
 	var b=Button.new(); b.text=value; b.custom_minimum_size=Vector2(0,48); b.size_flags_horizontal=Control.SIZE_EXPAND_FILL
 	b.add_theme_font_size_override("font_size",18)
@@ -116,8 +125,8 @@ func make_ui():
 	var identity=VBoxContainer.new(); identity.size_flags_horizontal=SIZE_EXPAND_FILL; identity.add_theme_constant_override("separation",2); head.add_child(identity)
 	title_label=label(identity,"Mosskit",21); title_label.clip_text=true
 	xp_bar=ProgressBar.new(); xp_bar.show_percentage=false; xp_bar.custom_minimum_size.y=8; xp_bar.max_value=100
-	xp_bar.add_theme_stylebox_override("background",skin(Color("#101530"),Color("#5e6caa")))
-	xp_bar.add_theme_stylebox_override("fill",skin(Color("#9465e5"),Color("#c9a7ff")))
+	xp_bar.add_theme_stylebox_override("background",bar_skin(Color("#101530"),Color("#5e6caa")))
+	xp_bar.add_theme_stylebox_override("fill",bar_skin(Color("#9465e5"),Color("#c9a7ff")))
 	identity.add_child(xp_bar)
 	var currency=VBoxContainer.new(); currency.add_theme_constant_override("separation",2); head.add_child(currency)
 	info=label(currency,"0 coins | 0 gems",15); info.horizontal_alignment=HORIZONTAL_ALIGNMENT_RIGHT
@@ -155,9 +164,9 @@ func make_ui():
 		var column=VBoxContainer.new(); column.size_flags_horizontal=SIZE_EXPAND_FILL; meters.add_child(column)
 		var name=label(column,["FOOD","MOOD","ENERGY","BOND"][i],12); name.horizontal_alignment=HORIZONTAL_ALIGNMENT_CENTER
 		var value=label(column,"100%",16); value.horizontal_alignment=HORIZONTAL_ALIGNMENT_CENTER; status_values.append(value)
-		var p=ProgressBar.new(); p.custom_minimum_size.y=9; p.show_percentage=false
-		p.add_theme_stylebox_override("background",style(Color("#0a1530"),Color("#4e6181"),5))
-		p.add_theme_stylebox_override("fill",skin(colors[i].darkened(0.18),colors[i].lightened(0.35))); column.add_child(p); stats.append(p)
+		var p=ProgressBar.new(); p.custom_minimum_size.y=13; p.show_percentage=false
+		p.add_theme_stylebox_override("background",bar_skin(Color("#0a1530"),Color("#4e6181")))
+		p.add_theme_stylebox_override("fill",bar_skin(colors[i].darkened(0.18),colors[i].lightened(0.35))); column.add_child(p); stats.append(p)
 	notice=label(layout,"Tap your pet or an object",13)
 	notice.clip_text=true
 	section_scroll=ScrollContainer.new(); section_scroll.custom_minimum_size.y=144; section_scroll.horizontal_scroll_mode=ScrollContainer.SCROLL_MODE_DISABLED; layout.add_child(section_scroll)

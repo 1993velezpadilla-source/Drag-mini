@@ -54,7 +54,7 @@ def box(p,size,m,b=.035):
  bpy.ops.mesh.primitive_cube_add(size=1,location=v(p));o=bpy.context.object;o.dimensions=(size[0],size[2],size[1]);bpy.ops.object.transform_apply(location=False,rotation=False,scale=True);return finish(o,m,b)
 def ball(p,size,m):
  detail=max(size)
- segments,rings=(10,6) if detail<.24 else (14,8) if detail<.65 else (20,12)
+ segments,rings=(12,8) if detail<.24 else (20,12) if detail<.65 else (28,18)
  bpy.ops.mesh.primitive_uv_sphere_add(segments=segments,ring_count=rings,location=v(p));o=bpy.context.object;o.scale=(size[0]/2,size[2]/2,size[1]/2);return finish(o,m)
 def cyl(p,r1,r2,h,m,front=False):
  bpy.ops.mesh.primitive_cone_add(vertices=32,radius1=r1,radius2=r2,depth=h,location=v(p));o=bpy.context.object

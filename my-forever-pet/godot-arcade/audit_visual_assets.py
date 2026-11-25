@@ -14,8 +14,10 @@ def inspect(path):
    tris+=doc['accessors'][prim['indices']]['count']//3
  return {'bytes':len(data),'triangles':tris,'materials':len(doc.get('materials',[]))}
 report={}
+# Use the approved 3980-triangle Mosskit as the actual mobile baseline.
+reference=inspect(root/'mosskit.glb')
 for p in sorted((root/'creatures').glob('*.glb')):
- m=inspect(p);assert 5000<=m['triangles']<=42000,(p,m);assert m['materials']>=3,(p,m)
+ m=inspect(p);assert reference['triangles']*.5<=m['triangles']<=42000,(p,m);assert m['materials']>=3,(p,m)
  report[p.name]=m
 assert len(report)==23
 for p in sorted((root/'rooms').glob('*.glb')):
