@@ -149,6 +149,9 @@ def bed():
     for x in [-3.57,-2.34]:ball('pillow',(x,1.97,1.02),(.50,.37,.18),lilac)
     box('duvet',(-2.95,.82,1.0),(2.73,1.40,.28),blue,.15)
     for i in range(8):star('embroidered star',(-4.0+(i%4)*.68,.36+(i//4)*.65,1.16),.17,gold,(0,0,0))
+def remove_parts(prefixes):
+    for ob in list(scene.objects):
+        if ob.name.startswith(prefixes):bpy.data.objects.remove(ob,do_unlink=True)
 def tiled_floor(m1,m2):
     for ob in list(scene.objects):
         if ob.name.startswith('floor plank'):bpy.data.objects.remove(ob,do_unlink=True)
@@ -221,6 +224,10 @@ bowl(3.15,-.85,.06)
 camera_render('room_kitchen',{'food':(3.15,-.85,.48),'cook':(-3.65,1.65,1.85),'snack':(3,2,1.9)})
 # Bathroom
 clear_set();room_base(lilac)
+remove_parts(('window','brass window rim','cloud','wall inset'))
+box('spa mirror',(0,3.13,3.60),(2.35,.12,2.45),water,.18)
+for x in [-1.25,1.25]:box('mirror light',(x,3.01,3.60),(.10,.13,2.35),neonblue,.035)
+for i in range(6):box('spa mosaic',(-2.25+i*.9,3.22,4.95),(.83,.09,.48),mint if i%2 else ivory,.025)
 tiled_floor(ivory,water)
 for x in [-3.0,3.0]:
     for i in range(4):
@@ -286,6 +293,9 @@ for i in range(6):box('book',(2.24+i*.24,2.9,3.43),(.18,.36,.48),[blue,rose,gold
 camera_render('room_bedroom',{'lamp':(4.55,2.48,2.29),'sleep':(-2.95,1.05,1.24)})
 # Toy room
 clear_set();room_base(rose)
+remove_parts(('window','brass window rim','cloud'))
+box('arcade wall marquee',(0,3.14,3.93),(3.3,.22,1.38),navy,.16)
+for i in range(7):star('arcade marquee star',(-1.2+i*.4,2.99,4.0),.14,neon if i%2 else glow)
 for x in [-3.0,3.0]:banner(x,3.9,blue if x<0 else purple)
 for i in range(4):
     box('toy train carriage',(-3.9+i*.48,-2.1,.24),(.44,.52,.38),[blue,gold,mint,rose][i],.07)
@@ -300,6 +310,21 @@ ball('play ball',(-2.75,-1,.55),(.54,.54,.54),blue);torus('ball stripe',(-2.75,-
 camera_render('room_toy',{'toy':(-2.75,-1,.55),'arcade':(3,1.2,2.15)})
 # Garden
 clear_set();room_base(moss)
+# A real conservatory: glass arches, open sky and stone paths.
+remove_parts(('plaster','wall inset','window','brass window rim','cloud','ceiling cornice','floor plank','rug','architectural column','gold column trim','baseboard','lantern'))
+box('garden earth',(0,-1.8,-.07),(12,11.3,.16),moss,.025)
+for side in [-1,1]:
+    box('garden side hedge',(side*5.45,.1,.75),(.88,6.8,1.5),green,.18)
+for i in range(7):
+    y=-4.2+i*1.23
+    box('garden path',(0,y,.025),(2.8,1.12,.08),cream,.12)
+for i in range(9):
+    x=-5.2+i*1.3
+    box('greenhouse mullion',(x,3.31,3.1),(.13,.19,6.1),richwood,.025)
+    box('sky panel',(x,3.48,3.1),(1.21,.10,5.95),sky,.015)
+    if i%2==0:
+        for j in range(3):ball('distant treetop',(x+.27*(j-1),3.34,1.6+j*.32),(.43,.07,.48),leaf2,16)
+for z in [1.4,3.0,4.8,6.0]:box('greenhouse crossbeam',(0,3.25,z),(10.8,.22,.13),richwood,.02)
 # Garden gets real stone terraces, trellis and flowering foliage rather than empty wall.
 for side in [-1,1]:
     x=side*3.7

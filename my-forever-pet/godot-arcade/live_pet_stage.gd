@@ -19,6 +19,11 @@ var sole_offset=0.0
 var environment:Environment
 var night_state=false
 var contact_mesh:MeshInstance3D
+var reaction_time=0.0
+var reaction_kind=""
+var sleeping=false
+var fx_root:Node3D
+var fx_nodes:Array[Node3D]=[]
 var light_key:DirectionalLight3D
 func _ready():
 	stretch=true
@@ -30,6 +35,7 @@ func _ready():
 	add_child(view)
 	world=Node3D.new()
 	view.add_child(world)
+	fx_root=Node3D.new(); world.add_child(fx_root)
 	var env=WorldEnvironment.new()
 	env.environment=Environment.new()
 	environment=env.environment
@@ -161,6 +167,22 @@ func dress(worn:Array,equipped:int):
 			ob.scale=Vector3.ONE*0.57
 			if equipped==3: ob.rotation.x=PI/2
 			wardrobe_nodes.append(ob)
+func set_sleeping(value:bool):
+	sleeping=value
+func react(kind:String,asleep:bool):
+	sleeping=asleep
+	reaction_kind=kind
+	reaction_time=1.15
+	if kind in ["play","toy","bond","praise","train","daily","harvest"]: touch_bounce=0.30
+	for child in fx_root.get_children(): fx_root.remove_child(child); child.queue_free()
+	fx_nodes.clear()
+	if kind not in ["food","cook","snack","bond","play","toy","praise","daily","soap","rinse","harvest","craft"]: return
+	var asset="coin" if kind in ["daily","harvest"] else "star"
+	for i in range(5):
+		var ob=mesh(fx_root,"res://assets/"+asset+".glb",ground+Vector3(0,1.2,0))
+		if ob!=null:
+			ob.scale=Vector3.ONE*0.22
+			fx_nodes.append(ob)
 func tap():
 	touch_bounce=0.30
 	target_yaw=randf_range(-0.20,0.20)
@@ -171,10 +193,20 @@ func screen_point(world_point:Vector3)->Vector2:
 func _process(dt:float):
 	if not is_instance_valid(avatar): return
 	elapsed+=dt
+	reaction_time=maxf(0,reaction_time-dt)
+	for i in range(fx_nodes.size()):
+		var ob=fx_nodes[i]
+		if not is_instance_valid(ob): continue
+		var t=1.0-reaction_time/1.15
+		var a=float(i)*TAU/5+t*2.0
+		ob.position=ground+Vector3(cos(a)*(0.5+t*0.7),1.1+t*1.9,sin(a)*0.5)
+		ob.rotation.y+=dt*3
+		ob.visible=reaction_time>0
 	touch_bounce=maxf(0,touch_bounce-dt)
 	avatar.rotation.y=lerpf(avatar.rotation.y,target_yaw+sin(elapsed*0.9)*0.055,minf(1,dt*5))
 	var bounce=sin(touch_bounce/0.30*PI)*0.10
 	var base=(0.70 if active_stage==1 else 0.88 if active_stage==2 else 1.0)*1.65
-	var breathe=1.0+sin(elapsed*2.6)*0.014
-	avatar.scale=Vector3(base/breathe,base*breathe,base/breathe)
+	var breathe=1.0+sin(elapsed*(1.7 if sleeping else 2.6))*0.014
+	var chew=sin(reaction_time*24)*0.045 if reaction_time>0 and reaction_kind in ["food","cook","snack"] else 0.0
+	avatar.scale=Vector3(base/breathe*(1+chew),base*breathe*(0.85 if sleeping else 1.0)*(1-chew),base/breathe)
 	avatar.position=ground+Vector3(0,bounce-sole_offset*avatar.scale.y,0)

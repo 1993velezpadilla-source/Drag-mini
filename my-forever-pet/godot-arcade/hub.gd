@@ -18,6 +18,9 @@ var xp_bar:ProgressBar
 var menu_dock:HBoxContainer
 var skin_cache:Dictionary={}
 var room_tiles:Dictionary={}
+var feedback_layer:Control
+var feedback_serial=0
+var room_scroll:ScrollContainer
 const ACTION_ART={"bond":"premium_egg.png","food":"premium_snack.png","daily":"premium_coin.png","clean":"item_3.png","play":"premium_star.png","sleep":"item_4.png","lamp":"item_4.png","hatch":"premium_egg.png","soap":"premium_medicine.png","rinse":"item_3.png","toilet":"item_3.png","cook":"premium_snack.png","snack":"premium_snack.png","plant":"item_5.png","harvest":"premium_crystal.png","toy":"premium_star.png","medicine":"premium_medicine.png","craft":"premium_crystal.png"}
 const NAV_ART={"Home":"item_4.png","Care":"premium_snack.png","Rooms":"item_3.png","Arcade":"premium_star.png","Shop":"premium_coin.png","Journal":"premium_crystal.png","World":"pet_8.png","Cell":"premium_medicine.png"}
 var wear_layers:Array[TextureRect]=[]
@@ -155,6 +158,7 @@ func make_ui():
 	var touch=Button.new(); touch.flat=true; touch.focus_mode=FOCUS_NONE; touch.set_anchors_and_offsets_preset(PRESET_FULL_RECT); touch.pressed.connect(func(): live_stage.tap(); perform("hatch" if store.s.stage==0 else "bond")); visual.add_child(touch)
 	egg_art=TextureRect.new(); egg_art.texture=tex("res://assets/premium_egg.png"); egg_art.expand_mode=TextureRect.EXPAND_IGNORE_SIZE; egg_art.stretch_mode=TextureRect.STRETCH_KEEP_ASPECT_CENTERED; egg_art.set_anchors_and_offsets_preset(PRESET_CENTER); egg_art.offset_left=-75; egg_art.offset_right=75; egg_art.offset_top=-80; egg_art.offset_bottom=70; egg_art.mouse_filter=MOUSE_FILTER_IGNORE; visual.add_child(egg_art)
 	hotspot_layer=Control.new(); hotspot_layer.set_anchors_and_offsets_preset(PRESET_FULL_RECT); hotspot_layer.mouse_filter=MOUSE_FILTER_IGNORE; visual.add_child(hotspot_layer)
+	feedback_layer=Control.new(); feedback_layer.set_anchors_and_offsets_preset(PRESET_FULL_RECT); feedback_layer.mouse_filter=MOUSE_FILTER_IGNORE; visual.add_child(feedback_layer)
 	var meter_shell=panel(layout)
 	meter_panel=meter_shell.get_parent()
 	layout.move_child(meter_panel,1)
@@ -172,10 +176,12 @@ func make_ui():
 	section_scroll=ScrollContainer.new(); section_scroll.custom_minimum_size.y=144; section_scroll.horizontal_scroll_mode=ScrollContainer.SCROLL_MODE_DISABLED; layout.add_child(section_scroll)
 	body=VBoxContainer.new(); body.size_flags_horizontal=SIZE_EXPAND_FILL; section_scroll.add_child(body)
 	actions=body
-	room_strip=row(layout)
-	room_strip.add_theme_constant_override("separation",4)
+	room_scroll=ScrollContainer.new(); room_scroll.custom_minimum_size.y=66; room_scroll.vertical_scroll_mode=ScrollContainer.SCROLL_MODE_DISABLED; room_scroll.horizontal_scroll_mode=ScrollContainer.SCROLL_MODE_AUTO; layout.add_child(room_scroll)
+	room_strip=row(room_scroll); room_strip.size_flags_horizontal=SIZE_EXPAND_FILL
+	room_strip.add_theme_constant_override("separation",5)
 	for name in ["Bedroom","Kitchen","Bathroom","Toy room","Garden","Potion lab"]:
 		var b=art_tile(room_strip,name,"res://assets/"+ROOMS[name]+".jpg",func(): room(name),61,12)
+		b.custom_minimum_size.x=80
 		room_tiles[name]=b
 	menu_dock=row(layout); menu_dock.add_theme_constant_override("separation",5)
 	for tab in ["Home","Rooms","Arcade","Shop","More"]: nav_tile(menu_dock,tab)
@@ -183,6 +189,8 @@ func make_ui():
 func art_tile(parent:Node,name:String,path:String,fn:Callable,h:int=66,font:int=13)->Button:
 	var b=button(parent,"",fn)
 	b.custom_minimum_size=Vector2(0,h)
+	b.size_flags_horizontal=SIZE_EXPAND_FILL
+	b.tooltip_text=name
 	var v=VBoxContainer.new(); v.set_anchors_and_offsets_preset(PRESET_FULL_RECT); v.offset_left=4; v.offset_right=-4; v.offset_top=4; v.offset_bottom=-4; v.mouse_filter=MOUSE_FILTER_IGNORE; v.add_theme_constant_override("separation",1); b.add_child(v)
 	var image=TextureRect.new(); image.texture=tex(path); image.expand_mode=TextureRect.EXPAND_IGNORE_SIZE; image.stretch_mode=TextureRect.STRETCH_KEEP_ASPECT_CENTERED; image.size_flags_vertical=SIZE_EXPAND_FILL; image.mouse_filter=MOUSE_FILTER_IGNORE; v.add_child(image)
 	var l=label(v,name,font); l.horizontal_alignment=HORIZONTAL_ALIGNMENT_CENTER; l.clip_text=true; l.mouse_filter=MOUSE_FILTER_IGNORE
@@ -204,9 +212,51 @@ func quick(name:String,id:String,i:int=0):
 	var path="res://assets/"+str(ACTION_ART.get(id,"premium_star.png"))
 	art_tile(action_grid,name,path,func(): perform(id,i),66,13)
 func perform(id:String,i:int=0):
-	notice.text="Done!" if store.action(id,i) else "Unavailable — check needs, cost or requirements."
+	var before:Dictionary=store.s.duplicate(true)
+	var ok:bool=store.action(id,i)
+	if ok:
+		var changes:Array[String]=[]
+		for key in ["coins","hunger","happy","energy","bond","xp","hygiene","materials","crystals"]:
+			var d=int(store.s[key])-int(before[key])
+			if d!=0: changes.append(("%+d "%d)+str({"hunger":"food","happy":"mood","xp":"XP"}.get(key,key)))
+		notice.text="  •  ".join(changes) if not changes.is_empty() else "Done!"
+	else:
+		notice.text=reason_for(id,i)
 	refresh()
+	if ok:
+		live_stage.react(id,store.asleep(store.now()))
+		if visual.visible: show_feedback(notice.text,id)
 	if section=="Shop": select("Shop")
+func reason_for(id:String,i:int)->String:
+	var s:Dictionary=store.s
+	if s.stage==0: return "Hatch your egg first"
+	if id=="daily": return "Daily gift already collected"
+	if id=="clean" and s.waste==0: return "Your room is already clean"
+	if id in ["food","cook"] and s.hunger>=5: return "Your pet is full"
+	if id=="food" and i>=0 and i<4 and s.coins<store.FOOD_COST[i]: return "Not enough coins"
+	if id=="plant" and s.garden_at>0: return "Your crop is growing"
+	if id=="harvest": return "The crop is not ready yet"
+	if id=="cell" and s.germs==0: return "All cells are healthy"
+	if id=="soap" and s.hygiene>=100: return "Your pet is already clean"
+	if id=="rinse" and s.soap==0: return "Apply soap first"
+	if store.asleep(store.now()): return "Your pet is resting"
+	if s.trip_end>store.now(): return "Your pet is on an expedition"
+	return "Check the activity requirements"
+func show_feedback(message:String,id:String):
+	if not is_instance_valid(feedback_layer): return
+	feedback_serial+=1
+	for child in feedback_layer.get_children(): child.queue_free()
+	var p=PanelContainer.new()
+	p.mouse_filter=MOUSE_FILTER_IGNORE
+	p.add_theme_stylebox_override("panel",skin(Color("#36265d"),Color("#c6acff")))
+	p.set_anchors_and_offsets_preset(PRESET_CENTER_TOP)
+	p.offset_left=-170; p.offset_right=170; p.offset_top=40; p.offset_bottom=80
+	feedback_layer.add_child(p)
+	var l=label(p,message,16); l.horizontal_alignment=HORIZONTAL_ALIGNMENT_CENTER; l.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART; l.mouse_filter=MOUSE_FILTER_IGNORE
+	var tw=create_tween()
+	tw.tween_interval(0.9)
+	tw.tween_property(p,"modulate:a",0.0,0.35)
+	tw.tween_callback(p.queue_free)
 func add_action(name:String,id:String,i:int=0):
 	if is_instance_valid(action_grid): quick(name,id,i)
 	else: button(actions,name,func(): perform(id,i))
@@ -276,7 +326,7 @@ func select(tab:String):
 		section_scroll.scroll_vertical=0
 		var full_menu=tab in ["Shop","Arcade","Journal","World","Rooms","More","Care","Cell"]
 		visual.visible=not full_menu
-		room_strip.visible=not full_menu
+		room_scroll.visible=not full_menu
 		meter_panel.visible=not full_menu
 		section_scroll.size_flags_vertical=SIZE_EXPAND_FILL if full_menu else SIZE_FILL
 	current_room=""
@@ -344,7 +394,7 @@ func select(tab:String):
 			label(actions,"Inspect growth cells and treat illness.",17); add_action("Treat one sick cell","cell")
 func room(name:String):
 	visual.show()
-	room_strip.show()
+	room_scroll.show()
 	meter_panel.show()
 	section_scroll.size_flags_vertical=SIZE_FILL
 	section="Rooms"
@@ -359,7 +409,7 @@ func room(name:String):
 		"Bedroom":
 			add_action("Lamp / sleep","lamp")
 			for i in range(3): add_action(["Cozy","Ocean","Starlight"][i],"theme",i)
-		"Toy room": add_action("Play with toys","toy"); button(actions,"Arcade",func(): select("Arcade"))
+		"Toy room": add_action("Play with toys","toy"); art_tile(action_grid,"Arcade","res://assets/premium_star.png",func(): select("Arcade"),66,13)
 		"Garden": add_action("Plant • 5 coins","plant"); add_action("Harvest","harvest")
 		"Potion lab": add_action("Medicine","medicine"); add_action("Craft crystal","craft")
 	art_tile(action_grid,"All rooms","res://assets/item_4.png",func(): select("Rooms"),66,13)
@@ -417,6 +467,7 @@ func refresh():
 	live_stage.set_room(str(ROOMS.get(current_room,"room_bedroom")))
 	live_stage.set_pet(store.species(),int(s.stage))
 	live_stage.set_night(night)
+	live_stage.set_sleeping(store.asleep(store.now()))
 	live_stage.dress(s.worn,int(s.equipped))
 	position_hotspots()
 	face.visible=false
