@@ -10,7 +10,7 @@ permissions:
   contents: read
 jobs:
   mosskit-master-mobile-blender:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-latest
     timeout-minutes: 35
     steps:
       - uses: actions/checkout@v4
@@ -20,6 +20,7 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p gold
+          blender -b --python-exit-code 1 --python-expr "import numpy; print(numpy.__version__)"
           blender -b -t 4 --python-exit-code 1 -P my-forever-pet/art-gauntlet/mosskit_gold.py -- "$PWD/gold" 2>&1 | tee gold/blender.log
           grep -F MOSSKit_MASTER_MOBILE_TECHNICAL_PASS_NOT_ART_APPROVED gold/blender.log
           python3 my-forever-pet/art-gauntlet/asset_gate.py gold

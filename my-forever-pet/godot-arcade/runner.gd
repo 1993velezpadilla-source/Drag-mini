@@ -35,6 +35,11 @@ var burst_pool: Array[CPUParticles3D] = []
 var burst_index := 0
 var surf_trails: Array[MeshInstance3D] = []
 var burst_count := 0
+var glow_mesh: QuadMesh
+var glow_materials: Dictionary = {}
+var shadow_chunks: Dictionary = {}
+var shadow_state: Dictionary = {}
+var shadow_transitions := 0
 const SURF_LIFT := 0.90
 const WORLD_NAMES := ["Sky Kingdom","Crystal Gardens","Moonlight Isles"]
 var surf_time := 0.0
@@ -288,9 +293,15 @@ func _ready() -> void:
 		chunk.position.z = 12.0 - i * SEGMENT
 		chunks.append(chunk)
 		make_chunk(chunk, i)
+		var casters:Array[MeshInstance3D]=[]
+		for child in chunk.find_children("*","MeshInstance3D",true,false):
+			var mi:=child as MeshInstance3D
+			if mi.cast_shadow!=GeometryInstance3D.SHADOW_CASTING_SETTING_OFF: casters.append(mi)
+		shadow_chunks[chunk]=casters
 	update_scenery_visibility()
 	make_player()
 	make_ground_shadow_resources()
+	make_glow_resources()
 	player_shadow=ground_shadow(self,1.8,1.3)
 	camera = Camera3D.new()
 	camera.position = Vector3(0, 4.55, 7.8)
@@ -429,6 +440,13 @@ func update_scenery_visibility() -> void:
 	# Chunks remain pooled. The far scenery is beyond the useful portrait view.
 	for chunk in chunks:
 		chunk.visible=chunk.position.z > -90.0 and chunk.position.z < 24.0
+		# Only the near road/arch participates in shadow passes. Cache changes.
+		var near_shadow:=chunk.visible and chunk.position.z>-24.0 and chunk.position.z<24.0
+		if shadow_state.get(chunk,null)!=near_shadow:
+			shadow_state[chunk]=near_shadow
+			for mi in shadow_chunks.get(chunk,[]):
+				mi.cast_shadow=GeometryInstance3D.SHADOW_CASTING_SETTING_ON if near_shadow else GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+			shadow_transitions+=1
 	scenery_visibility_updates+=1
 
 func make_player() -> void:
@@ -773,10 +791,12 @@ func make_entity(which_lane: int, kind: int, at: float) -> void:
 			var visual:=a.get_child(0) as Node3D
 			visual.rotation=Vector3.ZERO
 			visual.position=Vector3.ZERO
+		if a.has_meta("halo"): (a.get_meta("halo") as MeshInstance3D).hide()
 		return
 	if using_blender and asset(a,["crate","barrier","coin","snack","magnet","shield","double","boost","cart","tall","low_bar","time_orb","spring","sky_ring","gem","rescue","smash","surf_pickup","portal","courier","roller","story_card"][kind],Vector3.ZERO)!=null:
 		if is_pickup(kind) and kind!=BOOST and kind!=SKY_RING and kind!=PORTAL:
 			ground_shadow(a,0.75 if kind==PICKUP else 1.10,0.52 if kind==PICKUP else 0.75)
+		add_pickup_glow(a,kind)
 		return
 	if kind==0:
 		box(a,Vector3(0,0.45,0),Vector3(1.30,0.90,0.9),Color("#9c5b37"))
@@ -889,6 +909,30 @@ func _unhandled_input(event: InputEvent) -> void:
 			KEY_UP,KEY_SPACE: gesture(Vector2(0,-80))
 			KEY_DOWN: gesture(Vector2(0,80))
 			KEY_P: toggle_pause()
+
+func make_glow_resources() -> void:
+	glow_mesh=QuadMesh.new()
+	glow_mesh.size=Vector2(2.0,2.0)
+	var shader:=Shader.new()
+	shader.code="shader_type spatial; render_mode unshaded, blend_add, cull_disabled, depth_draw_never, shadows_disabled; uniform vec4 tint : source_color = vec4(1.0,0.7,0.2,1.0); void fragment(){float d=length(UV-vec2(0.5))*2.0; float ring=exp(-pow((d-0.56)*12.0,2.0)); float soft=pow(max(0.0,1.0-d),2.4); ALBEDO=tint.rgb; ALPHA=(ring*0.18+soft*0.30)*(1.0-smoothstep(0.78,1.0,d));}"
+	for kind in [SNACK,MAGNET,SHIELD,DOUBLE,TIME_ORB,SPRING,SKY_RING,GEM,RESCUE,SMASH,SURF,CARD]:
+		var material:=ShaderMaterial.new()
+		material.shader=shader
+		var tint:Color=Color("#ffcd63") if kind in [SNACK,DOUBLE,CARD,SKY_RING] else Color("#a9a0ff") if kind in [GEM,SPRING,SMASH] else Color("#64dfff")
+		material.set_shader_parameter("tint",tint)
+		glow_materials[kind]=material
+
+func add_pickup_glow(a:Area3D,kind:int) -> void:
+	if not glow_materials.has(kind): return
+	var halo:=MeshInstance3D.new()
+	halo.name="PickupHalo"
+	halo.mesh=glow_mesh
+	halo.material_override=glow_materials[kind]
+	halo.cast_shadow=GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	halo.position=Vector3(0,2.05 if kind==SKY_RING else 0.90,0.25)
+	halo.visible=false
+	a.add_child(halo)
+	a.set_meta("halo",halo)
 
 func make_ground_shadow_resources() -> void:
 	shadow_mesh=QuadMesh.new()
@@ -1065,8 +1109,13 @@ func _physics_process(dt: float) -> void:
 			wheel.position=Vector3(0,0.65,0)-Basis(Vector3.RIGHT,angle)*Vector3(0,0.65,0)
 		if is_pickup(kind) and kind!=BOOST and kind!=SKY_RING and kind!=PORTAL and a.visible and a.position.z > -45.0 and a.get_child_count()>0:
 			var visual:=a.get_child(0) as Node3D
-			visual.rotation.y+=dt*2.5
+			visual.rotation.y=sin(clock*3.8+float(a.get_meta("at"))*0.13)*0.65 if kind==PICKUP else visual.rotation.y+dt*2.5
 			visual.position.y=sin(clock*4+float(a.get_meta("at"))*0.38)*0.07
+		if a.has_meta("halo"):
+			var halo:=a.get_meta("halo") as MeshInstance3D
+			halo.visible=a.visible and a.position.z>-24.0 and a.position.z<0.5
+			if halo.visible:
+				halo.scale=Vector3.ONE*(1.0+0.07*sin(clock*6.0+float(kind)))
 		# Test the full swept depth interval, with the same world sizes as the meshes.
 		var depth:=contact_depth(kind)
 		var contact := maxf(old_z,a.position.z)>=-depth and minf(old_z,a.position.z)<=depth
@@ -1754,10 +1803,12 @@ func soak_review() -> void:
 	assert(world_visits>=3,"portals must recur in endless run")
 	assert(created_entities<180 and peak_active<130)
 	assert(burst_pool.size()==4 and surf_trails.size()==2 and burst_count>20)
+	assert(shadow_chunks.size()==SEGMENTS and shadow_transitions>20)
+	assert(glow_materials.size()==12)
 	assert(coins>20)
 	var result:=FileAccess.open("/tmp/pet-dash-soak.json",FileAccess.WRITE)
 	assert(result!=null)
-	result.store_string(JSON.stringify({"distance":total_distance(),"local_distance":distance,"rebases":rebase_count,"chunk_recycles":chunk_recycles,"steps":steps,"coins":coins,"snacks":snacks,"rescued":rescued,"smashed":smashed,"perfect_dodges":perfect_dodges,"world_visits":world_visits,"reward_bursts":burst_count,"burst_pool":burst_pool.size(),"rows":pattern_count,"mandatory_rows":mandatory_rows,"moving_rows":moving_rows,"allocated":created_entities,"reused":reused_entities,"peak_active":peak_active,"scope":"deterministic headless endless physics; 3200m checkpoint plus continued gameplay, not physical-device FPS"}))
+	result.store_string(JSON.stringify({"distance":total_distance(),"local_distance":distance,"rebases":rebase_count,"chunk_recycles":chunk_recycles,"steps":steps,"coins":coins,"snacks":snacks,"rescued":rescued,"smashed":smashed,"perfect_dodges":perfect_dodges,"world_visits":world_visits,"reward_bursts":burst_count,"burst_pool":burst_pool.size(),"shadow_transitions":shadow_transitions,"rows":pattern_count,"mandatory_rows":mandatory_rows,"moving_rows":moving_rows,"allocated":created_entities,"reused":reused_entities,"peak_active":peak_active,"scope":"deterministic headless endless physics; 3200m checkpoint plus continued gameplay, not physical-device FPS"}))
 	result.close()
 	print("PET_DASH_SOAK_PASS")
 	get_tree().quit(0)
