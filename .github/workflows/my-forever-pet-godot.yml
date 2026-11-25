@@ -64,6 +64,7 @@ jobs:
           for i in $(seq -w 1 23); do test -s "my-forever-pet/godot-arcade/assets/creatures/species_$i.glb"; done
           for game in star flappy cloud find; do test -s "my-forever-pet/godot-arcade/assets/arcade_$game.jpg"; done
           test -s my-forever-pet/godot-arcade/assets/room_layout.json
+          python3 my-forever-pet/godot-arcade/audit_visual_assets.py my-forever-pet/godot-arcade/assets
           blender -b -t 4 --python-exit-code 1 -P my-forever-pet/art/render_wardrobe.py -- my-forever-pet/godot-arcade/assets
           for i in $(seq 0 7); do test -s "my-forever-pet/godot-arcade/assets/clothes_$i.png"; test -s "my-forever-pet/godot-arcade/assets/wardrobe/clothes_$i.glb"; done
           for i in $(seq 0 5); do test -s "my-forever-pet/godot-arcade/assets/item_$i.png"; test -s "my-forever-pet/godot-arcade/assets/wardrobe/item_$i.glb"; done
@@ -185,7 +186,9 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: Forever-Pet-real-game-viewports
-          path: /tmp/forever-*.png
+          path: |
+            /tmp/forever-*.png
+            my-forever-pet/godot-arcade/assets/visual-asset-audit.json
           if-no-files-found: error
       - name: Require visual verification independently of APK packaging
         if: always()

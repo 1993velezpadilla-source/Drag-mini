@@ -141,6 +141,16 @@ def bed():
     for x in [-3.57,-2.34]:ball('pillow',(x,1.97,1.02),(.50,.37,.18),lilac)
     box('duvet',(-2.95,.82,1.0),(2.73,1.40,.28),blue,.15)
     for i in range(8):star('embroidered star',(-4.0+(i%4)*.68,.36+(i//4)*.65,1.16),.17,gold,(0,0,0))
+def tiled_floor(m1,m2):
+    for ob in list(scene.objects):
+        if ob.name.startswith('floor plank'):bpy.data.objects.remove(ob,do_unlink=True)
+    for i in range(12):
+        for j in range(8):
+            box('ceramic tile',(-5.5+i,-3.8+j,.0),(.97,.97,.12),m1 if (i+j)%2 else m2,.012)
+def banner(x,z,m):
+    box('banner cloth',(x,3.03,z),(.72,.09,1.45),m,.04)
+    box('banner brass rail',(x,2.97,z+.75),(.91,.14,.12),gold,.03)
+    star('banner badge',(x,2.94,z),.24,gold)
 def camera_render(key,anchors,pet=(0,-1.7,.18),night=False):
     bpy.ops.object.camera_add(location=(0,-12.7,7.8));cam=bpy.context.object
     cam.rotation_euler=(Vector((0,.35,2.1))-cam.location).to_track_quat('-Z','Y').to_euler()
@@ -185,6 +195,12 @@ def camera_render(key,anchors,pet=(0,-1.7,.18),night=False):
     print('PREMIUM_SET_RENDER_OK',key,points,flush=True)
 # Kitchen
 clear_set();room_base(mint)
+tiled_floor(cream,ivory)
+for x in [-3.4,3.4]:
+    box('kitchen upper cupboard',(x,3.12,4.15),(2.3,.58,1.02),mint,.10)
+    for dx in [-.54,.54]:
+        box('framed cupboard door',(x+dx,2.78,4.15),(.98,.12,.84),cream,.05)
+        ball('cupboard pull',(x+dx,2.69,4.05),(.07,.06,.07),gold)
 cabinet(-3.05,1.65,3.2);cabinet(3.05,1.65,2.8)
 box('oven',(-3.05,1.03,.73),(1.1,.2,.86),navy,.08)
 box('oven window',(-3.05,.9,.70),(.77,.06,.51),screen,.05)
@@ -197,6 +213,13 @@ bowl(3.15,-.85,.06)
 camera_render('room_kitchen',{'food':(3.15,-.85,.48),'cook':(-3.65,1.65,1.85),'snack':(3,2,1.9)})
 # Bathroom
 clear_set();room_base(lilac)
+tiled_floor(ivory,water)
+for x in [-3.0,3.0]:
+    for i in range(4):
+        for j in range(3):box('bath wall tile',(x-1.2+i*.75,3.12,1.0+j*.75),(.72,.08,.72),ivory if (i+j)%2 else mint,.025)
+for x in [-3.2,3.2]:
+    box('towel rail',(x,2.9,3.15),(1.2,.12,.12),gold)
+    box('folded towel',(x,2.79,2.87),(.85,.18,.70),blue if x<0 else rose,.08)
 box('tub outer',(-2.9,1.0,.65),(3.1,1.85,1.0),ivory,.27)
 box('tub inset',(-2.9,1.0,1.11),(2.65,1.44,.15),water,.22)
 for i in range(9):ball('bath bubbles',(-4+i*.27,1.05+random.uniform(-.3,.3),1.27),(.15,.15,.15),cream,12)
@@ -209,14 +232,21 @@ torus('toilet seat',(3.35,-.9,.9),.43,.07,navy,scale=(1,1.18,1))
 box('cistern',(3.35,-.35,1.20),(.95,.35,.72),ivory,.13)
 camera_render('room_bathroom',{'soap':(-1.6,.45,1.28),'rinse':(-2.9,1.0,1.2),'toilet':(3.35,-.9,.94)})
 # Bedroom
-clear_set();room_base(wall);bed();cabinet(3.05,1.8,2.0)
+clear_set();room_base(wall);bed();banner(-3.3,3.95,blue);banner(3.3,4.1,purple)
+for i in range(7):star('ceiling constellation',(-2.4+i*.8,3.06,4.85-.23*(i%2)),.12,gold)
+cabinet(3.05,1.8,2.0)
 cylinder('lamp stem',(3.05,1.8,1.82),.09,.75,gold)
 cylinder('lamp shade',(3.05,1.8,2.29),.53,.53,glow,r2=.25)
 shelf(3,3.1)
 for i in range(6):box('book',(2.24+i*.24,2.9,3.43),(.18,.36,.48),[blue,rose,gold,mint][i%4],.03)
 camera_render('room_bedroom',{'lamp':(3.05,1.8,2.29),'sleep':(-2.95,1.05,1.24)})
 # Toy room
-clear_set();room_base(rose);cabinet(-3,1.8,2.7);cabinet(3,1.8,2.7)
+clear_set();room_base(rose)
+for x in [-3.0,3.0]:banner(x,3.9,blue if x<0 else purple)
+for i in range(4):
+    box('toy train carriage',(-3.9+i*.48,-2.1,.24),(.44,.52,.38),[blue,gold,mint,rose][i],.07)
+    for side in [-1,1]:cylinder('train wheel',(-3.9+i*.48,-2.1+side*.27,.15),.13,.09,dark,rot=(pi/2,0,0))
+cabinet(-3,1.8,2.7);cabinet(3,1.8,2.7)
 box('arcade console',(3,1.6,2.15),(1.4,1.0,1.65),purple,.18)
 box('screen',(3,1.04,2.4),(1.06,.08,.82),screen,.08)
 for i in range(3):ball('buttons',(2.62+i*.30,1.0,1.84),(.10,.10,.08),gold)
@@ -248,7 +278,13 @@ cylinder('watering can',(-3.1,-1.2,.42),.36,.65,mint)
 torus('handle',(-3.1,-.92,.55),.32,.06,gold,rot=(pi/2,0,0))
 camera_render('room_garden',{'plant':(-3.1,1,1.2),'harvest':(3.1,1,1.2)})
 # Potion lab
-clear_set();room_base(purple);cabinet(-3,1.65,3.1);cabinet(3,1.65,3.1)
+clear_set();room_base(purple)
+for x in [-4.3,4.3]:
+    cylinder('alchemist column',(x,2.45,1.8),.27,3.4,navy)
+    for z in [.2,1.8,3.5]:cylinder('brass collar',(x,2.45,z),.36,.14,gold)
+    ball('glowing orb',(x,2.45,3.82),(.33,.33,.33),crystal)
+for i in range(5):star('arcane constellation',(-1.6+i*.8,3.0,4.85),.16,glow)
+cabinet(-3,1.65,3.1);cabinet(3,1.65,3.1)
 for x in [-3,3]:
     for z in [2.55,3.55]:
         shelf(x,z)
@@ -267,6 +303,20 @@ scene.render.resolution_x=540;scene.render.resolution_y=810
 for key,tint,accent in [('star',navy,gold),('flappy',sky,cream),('cloud',lilac,cream),('find',moss,leaf2)]:
     clear_set()
     box('stage', (0,3.8,3),(9,.15,9),tint,.03)
+    # Layered miniature sky kingdom and garden edges, leaving the playfield readable.
+    for side in [-1,1]:
+        for j in range(4):
+            x=side*(2.9+.23*(j%2));z=.2+j*1.9;y=3.20
+            if key in ('flappy','cloud'):
+                ball('floating island',(x,y,z),(.65,.25,.45),stone if 'stone' in globals() else dark,16)
+                ball('grassy crown',(x,y-.08,z+.21),(.65,.26,.18),green,16)
+                box('tiny tower',(x,y-.08,z+.52),(.29,.26,.56),cream,.045)
+                cylinder('tower roof',(x,y-.08,z+.92),.22,.27,blue,r2=.02)
+            elif key=='find':
+                for k in range(3):ball('border foliage',(x+.18*k,y,z),(.36,.18,.38),green,16)
+            else:
+                star('outer constellation',(x,y,z),.18,gold)
+                ball('distant jewel',(x,y,z+.27),(.08,.04,.08),crystal,12)
     for i in range(24):
         x=random.uniform(-4.2,4.2);z=random.uniform(-.6,6.4);y=3.35
         if key=='star':
@@ -293,8 +343,10 @@ for name in ['egg','star','platform','pipe','coin','snack','crystal','medicine']
         for x,z in [(-.3,.4),(.36,.05),(-.2,-.48)]:ball('shell speckle',(x,-.48,z),(.15,.055,.12),mint)
     elif name=='star':star('reward star',(0,0,0),.93,gold)
     elif name=='platform':
-        box('cloud platform',(0,0,0),(1.85,.5,.32),mint,.15)
-        for x in [-.64,0,.64]:ball('cloud edge',(x,-.1,.02),(.36,.25,.24),cream)
+        box('platform stone core',(0,0,-.08),(1.88,.55,.44),blue,.13)
+        box('platform brass band',(0,-.02,.03),(1.94,.58,.12),gold,.045)
+        box('platform landing surface',(0,0,.15),(1.85,.55,.20),mint,.075)
+        for x in [-.67,.67]:ball('platform jewel',(x,-.29,-.09),(.10,.05,.10),crystal)
     elif name=='pipe':
         cylinder('pipe body',(0,0,0),.54,1.8,mint)
         for z in [-.78,.78]:torus('brass end',(0,0,z),.55,.075,gold)
@@ -305,5 +357,6 @@ for name in ['egg','star','platform','pipe','coin','snack','crystal','medicine']
         bpy.ops.mesh.primitive_ico_sphere_add(subdivisions=1,radius=.78);o=bpy.context.object;o.scale=(.68,.68,1.2);assign(o,crystal)
     bpy.ops.object.camera_add(location=(0,-6,1.0));cam=bpy.context.object;cam.rotation_euler=(-cam.location).to_track_quat('-Z','Y').to_euler();cam.data.type='ORTHO';cam.data.ortho_scale=2.45;scene.camera=cam
     light('prop key',(-3,-4,4),400,(1,.83,.62),4,(0,0,0));light('prop fill',(3,-2,2),270,(.5,.7,1),3,(0,0,0))
+    if name=='platform':cam.location=(0,-6,2.6);cam.rotation_euler=(-cam.location).to_track_quat('-Z','Y').to_euler()
     scene.render.filepath=os.path.join(OUT,'premium_'+name+'.png');bpy.ops.render.render(write_still=True)
     print('PREMIUM_PROP_RENDER_OK',name,flush=True)

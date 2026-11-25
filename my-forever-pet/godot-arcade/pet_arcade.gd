@@ -296,7 +296,7 @@ func _draw():
 			draw_pet(pos,80,pet_texture)
 		2:
 			for p in platforms:
-				if prop_textures.has("platform"): draw_texture_rect(prop_textures.platform,Rect2(p.x-62,p.y-12,124,38),false)
+				if prop_textures.has("platform"): draw_texture_rect(prop_textures.platform,Rect2(p.x-60,p.y-15,120,60),false)
 				else:
 					draw_rect(Rect2(p.x-52,p.y,104,13),Color("#bce2cc"))
 					draw_rect(Rect2(p.x-48,p.y+13,96,8),Color("#65a6a4"))

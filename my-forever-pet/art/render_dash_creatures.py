@@ -97,13 +97,26 @@ def export(name,maxtri):
 # New species use the exact same proportions, material shader and mesh primitives.
 ROOT=OUT
 OUT=os.path.join(ROOT,'creatures');os.makedirs(OUT,exist_ok=True)
+accent_ink=mat('warm soft markings',(.18,.08,.07),0,.55)
 palette=[(.13,.46,.024),(.65,.22,.36),(.47,.23,.075),(.07,.30,.54),(.055,.45,.68),(.23,.12,.52),(.37,.58,.66),(.67,.13,.31),(.80,.39,.075),(.15,.46,.23),(.30,.13,.63),(.42,.25,.13)]
-def face():
+def face(i):
  for side in [-1,1]:
   ball((side*.29,1.02,.54),(.33,.48,.16),dark)
   ball((side*.29-.05,1.13,.62),(.115,.14,.055),white)
   ball((side*.47,.78,.46),(.22,.12,.09),pink)
- ball((0,.72,.61),(.29,.25,.10),dark);ball((0,.65,.66),(.17,.085,.055),pink)
+ if i==2:
+  ball((0,.73,.60),(.51,.34,.25),cream)
+  ball((0,.81,.735),(.18,.13,.08),dark)
+  ball((0,.68,.735),(.15,.075,.045),dark)
+ elif i in (8,11):
+  o=cyl((0,.77,.65),.13,.025,.24,gold,True)
+ else:
+  ball((0,.72,.61),(.29,.25,.10),dark);ball((0,.65,.66),(.17,.085,.055),pink)
+ if i in (1,11):
+  for side in [-1,1]:
+   for k in range(3):
+    o=ball((side*(.51+k*.025),.72-k*.055,.48),(.20,.024,.035),accent_ink)
+    o.rotation_euler.y=side*(.10+k*.13)
 def paws(m):
  for side in [-1,1]:
   ball((side*.37,.20,.16),(.68,.40,.67),m)
@@ -119,7 +132,7 @@ for species in range(1,24):
  m=mat('plush body %d'%species,rgb,0,.34)
  accent=mat('plush highlight %d'%species,tuple(min(1,c*1.3+.06) for c in rgb),0,.44)
  ball((0,.85,0),(1.48,1.52,1.2),m)
- face()
+ face(i)
  if i in [0,1,2,3,8,10,11]:paws(m)
  if i in [0,1,11]:
   for side in [-1,1]:ear(side,m)
@@ -155,12 +168,62 @@ for species in range(1,24):
  elif i==10:
   for side in [-1,1]:
    o=ball((side*.79,1.12,0),(.64,.33,.26),accent);o.rotation_euler.y=side*.35
- if secret:
+ # Distinct anatomical features and silhouette, not just recolors of one sphere.
+ if i==1:
+  for k in range(5):
+   a=k*.48
+   ball((.55+.33*math.sin(a),.30+.29*(1-math.cos(a)),-.50-k*.06),(.26,.26,.28),accent)
+ elif i==2:
+  ball((0,.43,.30),(.70,.55,.34),cream)
+  for side in [-1,1]:ball((side*.58,.46,.09),(.34,.43,.40),m)
+ elif i==3:
+  for k in range(4):cyl((0,1.52-k*.23,-.57-k*.025),.13,.015,.25,gold)
   for side in [-1,1]:
-   o=cyl((side*.43,1.71,-.06),.14,.025,.59,gold);o.rotation_euler.y=side*.33
-   ball((side*.78,1.08,-.38),(.56,.83,.20),accent)
+   for k in range(3):ball((side*(.75+k*.13),.91-k*.19,-.48),(.29,.40,.15),accent)
+ elif i==4:
+  for side in [-1,1]:
+   for k in range(3):ball((side*(.56-k*.10),.53+k*.19,.39),(.12,.17,.055),accent)
+  ball((0,1.40,-.04),(.25,.40,.52),gold)
+ elif i==6:
+  for side in [-1,1]:ball((side*.60,.55,.03),(.43,.40,.32),accent)
+ elif i==7:
+  for k in range(8):
+   a=k*pi/4
+   for j in range(2):ball(((.58+j*.09)*math.cos(a),.19,.48*math.sin(a)+j*.05),(.12,.10,.12),pink)
+ elif i==8:
+  for k in range(5):
+   o=ball(((k-2)*.18,.96+abs(k-2)*.08,-.64),(.30,.70,.23),[gold,accent,blue][k%3])
+   o.rotation_euler.y=(k-2)*.22
+ elif i==9:
+  for side in [-1,1]:
+   for j in range(3):ball((side*(.75+j*.12),1.30-j*.15,-.30),(.18,.20,.08),gold)
+  flower((0,1.48,.31),1.8)
+ elif i==10:
+  for side in [-1,1]:flower((side*.43,1.46,.29),1.1)
+ elif i==11:
+  for side in [-1,1]:
+   for j in range(3):ball((side*(.60-j*.10),.42+j*.19,.30),(.24,.24,.10),accent)
+ if secret:
+  if i in (0,2,3,8):
+   for side in [-1,1]:
+    o=cyl((side*.43,1.71,-.06),.14,.025,.59,gold);o.rotation_euler.y=side*.33
+    if i==0:ball((side*.63,1.88,-.04),(.33,.24,.20),accent)
+  elif i in (4,7):
+   for side in [-1,1]:
+    for k in range(3):ball((side*(.63+k*.12),1.21-k*.16,-.32),(.30,.36,.17),gold)
+  else:
+   for side in [-1,1]:
+    o=ball((side*.82,1.15,-.42),(.65,.95,.20),accent);o.rotation_euler.y=side*.30
+    ball((side*.88,1.38,-.35),(.22,.30,.08),gold)
   ball((0,1.38,.47),(.20,.25,.10),gold)
- export('species_%02d'%species,30000)
+ # Apply species-specific proportions to the complete sculpt, keeping features aligned.
+ profiles=[(1,1,1),(1.05,.94,.91),(.94,1.04,1.08),(1.04,1.12,1.12),(1.22,.78,1.02),(.90,1.17,.92),(.94,1.12,.92),(1.18,.82,1.08),(.94,1.13,1.05),(.91,1.17,.86),(.87,1.19,.94),(1.06,1.02,1.02)]
+ from mathutils import Matrix
+ sx,sy,sz=profiles[i]
+ deform=Matrix.Diagonal((sx,sz,sy,1))
+ for ob in list(bpy.context.scene.objects):
+  if ob.type=='MESH':ob.matrix_world=deform@ob.matrix_world
+ export('species_%02d'%species,42000)
 with open(os.path.join(OUT,'creature-metrics.json'),'w') as f:json.dump(stats,f,indent=2)
 # Render the actual approved GLB plus feet, and each new mesh, for 2D arcade and Petpedia.
 # Orthographic portrait is rendered from the GLB itself; no alternate Mosskit mesh.
