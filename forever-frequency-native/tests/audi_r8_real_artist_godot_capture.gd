@@ -120,6 +120,9 @@ func _capture() -> void:
                 _fail("Invalid true geometry camera framing")
                 return
             camera.size *= scale
+            # Axial views have loose projected mesh AABBs; tighten the lens, not the acceptance gate.
+            if view == "front" or view == "rear":
+                camera.size *= 0.76
             for i in range(16):
                 await process_frame
             var shot := await _image(stage)
