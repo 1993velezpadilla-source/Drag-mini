@@ -213,7 +213,12 @@ for x in [-.57,.57]:
   box((x,y,.525),(.19,.16,.045),stone,.025)
   ball((x,y,.555),(.055,.055,.025),gold)
 for y in [.29,.60]:box((0,y,.468),(1.10,.018,.018),wood2,.005)
-paw((0,.43,.52),cream,.8);export('crate',14000)
+paw((0,.43,.52),cream,.8)
+for obj in bpy.context.scene.objects:
+ if obj.type=='MESH':
+  obj.location.x*=1.10;obj.location.y*=1.22;obj.location.z*=1.17
+  obj.scale.x*=1.10;obj.scale.y*=1.22;obj.scale.z*=1.17
+export('crate',14000)
 clear()
 for x in [-.65,.65]:
  box((x,.75,0),(.2,1.5,.30),blue,.045);ball((x,1.82,0),(.24,.27,.24),gold)
@@ -303,6 +308,10 @@ box((0,.57,0),(1.50,.32,.31),red,.055)
 for x in [-.48,-.12,.24,.55]:
  o=box((x,.57,.18),(.20,.31,.035),white,.008);o.rotation_euler.y=.45
 for x in [-.61,.61]:ball((x,.76,0),(.16,.13,.18),signal)
+for obj in bpy.context.scene.objects:
+ if obj.type=='MESH':
+  obj.location.x*=1.08;obj.location.z*=1.13
+  obj.scale.x*=1.08;obj.scale.z*=1.13
 export('low_bar',12000)
 # Fantasy sky decorations are separate, lightweight geometry.
 clear()

@@ -800,7 +800,7 @@ func fill_track() -> void:
 			treasure_routes+=1
 		else:
 			for blocked in blocked_lanes:
-				var kind:=hazard_for(tier)
+				var kind:=0 if pattern_count%3==1 and blocked==blocked_lanes[0] else hazard_for(tier)
 				make_entity(blocked,kind,spawn_at)
 				if kind==CART or kind==COURIER or kind==ROLLER: moving_rows+=1
 		# Coin trails no longer paint a continuous guaranteed safe lane.
@@ -816,7 +816,11 @@ func fill_track() -> void:
 		elif action==1:
 			for offset in [-2.4,2.4]: make_entity(free_lane,PICKUP,spawn_at+offset)
 		else:
-			for offset in [-2.4,-1.2,0.0,1.2]: make_entity(coin_lane,PICKUP,spawn_at+offset)
+			for offset in [-2.4,-1.2,0.0,1.2]:
+				make_entity(coin_lane,PICKUP,spawn_at+offset)
+				if coin_lane!=free_lane:
+					entities.back().set_meta("height",1.55)
+					entities.back().position.y=1.55
 		if pattern_count%7==2:
 			var power:=MAGNET+rng.randi_range(0,3)
 			var pickup_at:=distance_offset+spawn_at+3.6
@@ -861,11 +865,11 @@ func make_entity(which_lane: int, kind: int, at: float) -> void:
 		a=Area3D.new()
 		created_entities+=1
 		add_child(a)
-	a.position=Vector3(LANES[which_lane],JET_HEIGHT if kind==AIR_COIN else 0.0,(distance-at)*approach_factor(kind))
+	a.position=Vector3(LANES[which_lane],JET_HEIGHT if kind==AIR_COIN else 0.65 if kind==JETPACK else 0.0,(distance-at)*approach_factor(kind))
 	a.monitoring=false
 	a.monitorable=false
 	a.set_meta("kind",kind)
-	a.set_meta("height",JET_HEIGHT if kind==AIR_COIN else 0.0)
+	a.set_meta("height",JET_HEIGHT if kind==AIR_COIN else 0.65 if kind==JETPACK else 0.0)
 	a.set_meta("at",at)
 	a.set_meta("resolved",false)
 	a.set_meta("warned",false)
@@ -1062,7 +1066,7 @@ func save_best() -> void:
 
 func contact_depth(kind:int) -> float:
 	# Forgiving capsule plus the actual half-depth of each obstacle.
-	if kind==0: return 0.72
+	if kind==0: return 0.85
 	if kind==1: return 0.39
 	if kind==LOW_BAR: return 0.43
 	if kind==CART or kind==COURIER: return 1.15
@@ -1285,7 +1289,7 @@ func _physics_process(dt: float) -> void:
 					audio.call("play_fx","crash")
 					audio.call("stop_music")
 					break
-		if not is_pickup(kind) and not bool(a.get_meta("resolved")) and not bool(a.get_meta("skill_clear")) and contact and lateral<0.34 and not hazard_hit(kind,player.position.y+(SURF_LIFT if surf_time>0 else 0.0),slide>0 or air_slide_pending,lateral):
+		if jet_time<=0 and jet_lift<0.5 and jet_grace<=0 and not is_pickup(kind) and not bool(a.get_meta("resolved")) and not bool(a.get_meta("skill_clear")) and contact and lateral<0.34 and not hazard_hit(kind,player.position.y+(SURF_LIFT if surf_time>0 else 0.0),slide>0 or air_slide_pending,lateral):
 			# Award once only after the trailing edge clears, not on approach.
 			if a.position.z>=depth:
 				a.set_meta("skill_clear",true)
@@ -1588,12 +1592,12 @@ func hazard_hit(kind: int, feet_y: float, sliding: bool, lateral:float=0.0) -> b
 	# safe. Posts/lamps only collide near their actual lateral position.
 	var top:=feet_y+(0.74 if sliding else 1.55)
 	match kind:
-		0: return feet_y<0.86 and lateral<0.93
+		0: return feet_y<1.04 and lateral<1.0
 		1:
 			if lateral>0.38 and lateral<1.0:
 				return feet_y<1.94
 			return lateral<0.98 and feet_y<1.66 and top>1.18
-		LOW_BAR: return feet_y<0.74 and lateral<0.98
+		LOW_BAR: return feet_y<0.84 and lateral<1.03
 		CART: return feet_y<2.76 and lateral<1.03
 		COURIER: return feet_y<2.22 and lateral<1.03
 		ROLLER: return feet_y<1.30 and lateral<0.98
@@ -1701,7 +1705,7 @@ func test_run() -> void:
 	for entity in entities: entity.queue_free()
 	entities.clear()
 	spawn_at=distance+1000
-	assert(hazard_hit(0,0,false) and not hazard_hit(0,1.1,false))
+	assert(hazard_hit(0,0,false) and hazard_hit(0,0.95,false) and not hazard_hit(0,1.1,false))
 	assert(hazard_hit(1,0,false) and not hazard_hit(1,0,true))
 	assert(not hazard_hit(1,1.80,false),"clear above red beam")
 	assert(hazard_hit(1,1.5,false) and hazard_hit(1,0,true,0.65))
