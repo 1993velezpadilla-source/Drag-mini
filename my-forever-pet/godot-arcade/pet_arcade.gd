@@ -16,7 +16,7 @@ var steer=0.0
 var pipes:Array[Vector3]=[]
 var platforms:Array[Vector2]=[]
 var crowd:Array[Vector3]=[]
-var hidden=0
+var target_index=0
 var wrong=0
 var zoomed=false
 var camera_offset=Vector2.ZERO
@@ -34,12 +34,20 @@ var combo=0
 var best_combo=0
 var last_target_at=0.0
 var last_input_touch=0
+var stage_texture:Texture2D
+var prop_textures:Dictionary={}
+
 func _ready():
 	store=get_node("/root/PetStore")
 	if store.arcade_mode<0 or store.arcade_mode>3:
 		get_tree().call_deferred("change_scene_to_file","res://hub.tscn")
 		return
 	mode=store.arcade_mode
+	var backdrop_path="res://assets/arcade_"+["star","flappy","cloud","find"][mode]+".jpg"
+	if ResourceLoader.exists(backdrop_path): stage_texture=load(backdrop_path)
+	for key in ["star","platform","pipe"]:
+		var pp="res://assets/premium_"+key+".png"
+		if ResourceLoader.exists(pp): prop_textures[key]=load(pp)
 	rng.randomize()
 	for i in range(12):
 		var path="res://assets/pet_%d.png"%i
@@ -70,11 +78,11 @@ func new_target():
 	target=Vector2(rng.randf_range(45,435),rng.randf_range(55,665))
 	last_target_at=elapsed
 func shuffle_crowd():
-	crowd.clear(); hidden=rng.randi_range(0,71)
+	crowd.clear(); target_index=rng.randi_range(0,71)
 	for i in range(72):
 		var id=rng.randi_range(0,10)
 		if id>=store.species()%12: id+=1
-		crowd.append(Vector3(35+(i%8)*65+rng.randf_range(-9,9),50+int(i/8)*75+rng.randf_range(-10,10),-1 if i==hidden else id))
+		crowd.append(Vector3(35+(i%8)*65+rng.randf_range(-9,9),50+int(i/8)*75+rng.randf_range(-10,10),-1 if i==target_index else id))
 	zoomed=false; camera_offset=Vector2.ZERO
 func board_rect()->Rect2:
 	var available_size=Vector2(size.x-24,size.y-155)
@@ -127,7 +135,7 @@ func end_press(p:Vector2):
 		var dist=point.distance_to(crowd_point(v))
 		if dist<best: best=dist; nearest=i
 	if nearest<0: return
-	if nearest==hidden:
+	if nearest==target_index:
 		score+=1
 		if score>=8: over=true
 		else: shuffle_crowd()
@@ -211,9 +219,11 @@ func _draw():
 	if r.size.x<=0 or r.size.y<=0: return
 	draw_rect(r,Color("#234f64"))
 	draw_set_transform(r.position,0,r.size/WORLD)
-	for i in range(9):
-		var y=i*82.0
-		draw_rect(Rect2(0,y,480,82),Color("#2d6279") if i%2==0 else Color("#305b72"))
+	if stage_texture!=null: draw_texture_rect(stage_texture,Rect2(Vector2.ZERO,WORLD),false)
+	else:
+		for i in range(9):
+			var y=i*82.0
+			draw_rect(Rect2(0,y,480,82),Color("#2d6279") if i%2==0 else Color("#305b72"))
 	for i in range(7):
 		var x=fposmod(i*113-elapsed*12,560)-40
 		var y=65+fposmod(i*137,620)
@@ -226,7 +236,8 @@ func _draw():
 			for i in range(10):
 				var angle=-PI/2+i*TAU/10
 				points.append(target+Vector2(cos(angle),sin(angle))*(38 if i%2==0 else 17))
-			draw_colored_polygon(points,Color("#ffda80"))
+			if prop_textures.has("star"): draw_texture_rect(prop_textures.star,Rect2(target-Vector2.ONE*52,Vector2.ONE*104),false)
+			else: draw_colored_polygon(points,Color("#ffda80"))
 			draw_pet(Vector2(240,660),90,pet_texture)
 		1:
 			var gap=maxf(77,123-score*2)
@@ -239,13 +250,15 @@ func _draw():
 			draw_pet(pos,80,pet_texture)
 		2:
 			for p in platforms:
-				draw_rect(Rect2(p.x-52,p.y,104,13),Color("#bce2cc"))
-				draw_rect(Rect2(p.x-48,p.y+13,96,8),Color("#65a6a4"))
+				if prop_textures.has("platform"): draw_texture_rect(prop_textures.platform,Rect2(p.x-62,p.y-12,124,38),false)
+				else:
+					draw_rect(Rect2(p.x-52,p.y,104,13),Color("#bce2cc"))
+					draw_rect(Rect2(p.x-48,p.y+13,96,8),Color("#65a6a4"))
 			draw_pet(pos,78,pet_texture)
 		3:
 			for i in range(crowd.size()):
 				var v=crowd[i]; var p=crowd_point(v)
 				if p.x<25 or p.x>455 or p.y<25 or p.y>695: continue
-				draw_pet(p,58 if zoomed else 47,pet_texture if i==hidden else other_textures[int(v.z)])
+				draw_pet(p,58 if zoomed else 47,pet_texture if i==target_index else other_textures[int(v.z)])
 	draw_set_transform(Vector2.ZERO)
 	if over: draw_rect(r,Color("#102332a0"))

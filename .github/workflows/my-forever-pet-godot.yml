@@ -57,6 +57,10 @@ jobs:
           blender -b -t 4 --python-exit-code 1 -P my-forever-pet/art/render_pets.py -- my-forever-pet/godot-arcade/assets
           for i in $(seq 0 11); do test -s "my-forever-pet/godot-arcade/assets/pet_$i.png"; done
           test -s my-forever-pet/godot-arcade/assets/home_day.jpg
+          blender -b -t 4 --python-exit-code 1 -P my-forever-pet/art/render_premium_sets.py -- my-forever-pet/godot-arcade/assets
+          for room in kitchen bathroom bedroom toy garden lab; do test -s "my-forever-pet/godot-arcade/assets/room_$room.jpg"; done
+          for game in star flappy cloud find; do test -s "my-forever-pet/godot-arcade/assets/arcade_$game.jpg"; done
+          test -s my-forever-pet/godot-arcade/assets/room_layout.json
       - name: Import and run deterministic scene smoke
         run: |
           set -euo pipefail

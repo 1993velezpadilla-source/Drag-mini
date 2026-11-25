@@ -13,6 +13,16 @@ var egg_visual:Label
 var face:Label
 var room_tag:Label
 var outfit_label:Label
+var egg_art:TextureRect
+var visual:Control
+var hotspot_layer:Control
+var room_layout:Dictionary={}
+var room_key=""
+var assets:Dictionary={}
+const ROOMS={"Kitchen":"room_kitchen","Bathroom":"room_bathroom","Bedroom":"room_bedroom","Toy room":"room_toy","Garden":"room_garden","Potion lab":"room_lab"}
+func tex(path:String)->Texture2D:
+	if not assets.has(path) and ResourceLoader.exists(path): assets[path]=load(path)
+	return assets.get(path) as Texture2D
 var stats:Array[ProgressBar]=[]
 var notice:Label
 var clock_label:Label
@@ -54,8 +64,12 @@ func make_ui():
 	var head=row(layout); label(head,"MY FOREVER PET",23).size_flags_horizontal=Control.SIZE_EXPAND_FILL; clock_label=label(head,"",14)
 	title_label=label(layout,"",24)
 	info=label(layout,"",15)
-	var visual=Control.new(); visual.custom_minimum_size.y=310; layout.add_child(visual)
-	bg=TextureRect.new(); bg.set_anchors_and_offsets_preset(PRESET_FULL_RECT); bg.expand_mode=TextureRect.EXPAND_IGNORE_SIZE; bg.stretch_mode=TextureRect.STRETCH_KEEP_ASPECT_COVERED; visual.add_child(bg)
+	visual=Control.new(); visual.custom_minimum_size.y=340; layout.add_child(visual)
+	visual.resized.connect(position_hotspots)
+	if FileAccess.file_exists("res://assets/room_layout.json"):
+		var raw=JSON.parse_string(FileAccess.get_file_as_string("res://assets/room_layout.json"))
+		if raw is Dictionary: room_layout=raw
+	bg=TextureRect.new(); bg.set_anchors_and_offsets_preset(PRESET_FULL_RECT); bg.expand_mode=TextureRect.EXPAND_IGNORE_SIZE; bg.stretch_mode=TextureRect.STRETCH_SCALE; visual.add_child(bg)
 	var fallback=ColorRect.new(); fallback.color=Color("#436c6b"); fallback.set_anchors_and_offsets_preset(PRESET_FULL_RECT); visual.add_child(fallback); visual.move_child(fallback,0)
 	portrait=TextureRect.new(); portrait.set_anchors_and_offsets_preset(PRESET_CENTER); portrait.offset_left=-105; portrait.offset_right=105; portrait.offset_top=-95; portrait.offset_bottom=115; portrait.expand_mode=TextureRect.EXPAND_IGNORE_SIZE; portrait.stretch_mode=TextureRect.STRETCH_KEEP_ASPECT_CENTERED; visual.add_child(portrait)
 	egg_visual=Label.new(); egg_visual.text="◉"; egg_visual.add_theme_font_size_override("font_size",120); egg_visual.add_theme_color_override("font_color",Color("#ffe8b9")); egg_visual.set_anchors_and_offsets_preset(PRESET_CENTER); egg_visual.offset_left=-65; egg_visual.offset_top=-90; visual.add_child(egg_visual)
@@ -63,6 +77,8 @@ func make_ui():
 	room_tag=Label.new(); room_tag.add_theme_font_size_override("font_size",18); room_tag.position=Vector2(12,9); visual.add_child(room_tag)
 	outfit_label=Label.new(); outfit_label.add_theme_font_size_override("font_size",14); outfit_label.set_anchors_and_offsets_preset(PRESET_BOTTOM_WIDE); outfit_label.offset_top=-31; outfit_label.offset_bottom=-3; outfit_label.horizontal_alignment=HORIZONTAL_ALIGNMENT_CENTER; visual.add_child(outfit_label)
 	var touch=Button.new(); touch.flat=true; touch.set_anchors_and_offsets_preset(PRESET_FULL_RECT); touch.pressed.connect(func(): perform("hatch" if store.s.stage==0 else "bond")); visual.add_child(touch)
+	egg_art=TextureRect.new(); egg_art.texture=tex("res://assets/premium_egg.png"); egg_art.expand_mode=TextureRect.EXPAND_IGNORE_SIZE; egg_art.stretch_mode=TextureRect.STRETCH_KEEP_ASPECT_CENTERED; egg_art.set_anchors_and_offsets_preset(PRESET_CENTER); egg_art.offset_left=-75; egg_art.offset_right=75; egg_art.offset_top=-80; egg_art.offset_bottom=70; egg_art.mouse_filter=MOUSE_FILTER_IGNORE; visual.add_child(egg_art)
+	hotspot_layer=Control.new(); hotspot_layer.set_anchors_and_offsets_preset(PRESET_FULL_RECT); hotspot_layer.mouse_filter=MOUSE_FILTER_IGNORE; visual.add_child(hotspot_layer)
 	var meters=panel(layout)
 	for name in ["Food","Mood","Energy","Bond"]:
 		var h=row(meters); var l=label(h,name,15); l.custom_minimum_size.x=78
@@ -84,6 +100,7 @@ func add_action(name:String,id:String,i:int=0): button(actions,name,func(): perf
 func select(tab:String):
 	section=tab
 	current_room=""
+	if is_instance_valid(hotspot_layer): update_room_scene()
 	for child in actions.get_children(): actions.remove_child(child); child.queue_free()
 	label(actions,tab.to_upper(),18)
 	var s:Dictionary=store.s
@@ -123,6 +140,7 @@ func select(tab:String):
 			label(actions,"Inspect growth cells and treat illness.",17); add_action("Treat one sick cell","cell")
 func room(name:String):
 	current_room=name
+	refresh()
 	for child in actions.get_children(): actions.remove_child(child); child.queue_free()
 	label(actions,name,22)
 	match name:
@@ -163,19 +181,45 @@ func refresh():
 	for item in s.worn:
 		if item>0: outfit_names.append(store.CLOTHES[int(item)-1])
 	outfit_label.text=" · ".join(outfit_names)
-	if ResourceLoader.exists(path): bg.texture=load(path)
+	if not current_room.is_empty(): path="res://assets/"+str(ROOMS.get(current_room,"room_bedroom"))+".jpg"
+	bg.texture=tex(path)
+	update_room_scene()
 	var pp="res://assets/pet_%d.png"%(store.species()%12)
-	if ResourceLoader.exists(pp): portrait.texture=load(pp)
+	portrait.texture=tex(pp)
 	portrait.modulate=Color("#d7c5ff") if s.variant==1 else Color.WHITE
 	portrait.scale=Vector2.ONE*(0.64 if s.stage<2 else 0.85 if s.stage==2 else 1.0)
 	portrait.visible=s.stage>0
 	face.visible=s.stage>0
-	egg_visual.visible=s.stage==0
+	egg_visual.visible=s.stage==0 and egg_art.texture==null
+	egg_art.visible=s.stage==0 and egg_art.texture!=null
 	face.text="– ᴗ –" if store.asleep(store.now()) else "• ︿ •" if s.germs>0 or s.hunger<=1 else "• ᴗ •"
 	if rendered_stage!=int(s.stage):
 		rendered_stage=int(s.stage)
 		if section=="Home": select("Home")
 	if section=="Cell": notice.text="Cells %d/4 • Sick cells %d • Age %dh"%[s.cells[int(s.field)],s.germs,int(s.age/3600)]
+func update_room_scene():
+	var next_key=str(ROOMS.get(current_room,""))
+	if next_key==room_key: return
+	room_key=next_key
+	for child in hotspot_layer.get_children(): hotspot_layer.remove_child(child); child.queue_free()
+	if room_key.is_empty() or not room_layout.has(room_key): return
+	var data:Dictionary=room_layout[room_key]
+	for key in data:
+		if key=="pet": continue
+		var b=Button.new(); b.text=str(key).capitalize(); b.custom_minimum_size=Vector2(82,36); b.add_theme_font_size_override("font_size",13)
+		b.add_theme_stylebox_override("normal",style(Color("#172b3bd9"),Color("#ffd591"),12))
+		b.set_meta("point",Vector2(float(data[key][0]),float(data[key][1])))
+		b.pressed.connect(func():
+			if key=="arcade": select("Arcade")
+			elif key=="food": select("Care")
+			else: perform(str(key)))
+		hotspot_layer.add_child(b)
+	position_hotspots()
+func position_hotspots():
+	if not is_instance_valid(hotspot_layer): return
+	for child in hotspot_layer.get_children():
+		var point:Vector2=child.get_meta("point")
+		child.position=visual.size*point-child.custom_minimum_size/2
 func test_home():
 	store.s=store.defaults(); store.s.auto_sleep=false
 	assert(store.action("hatch")); assert(store.s.coins==100)
@@ -184,6 +228,10 @@ func test_home():
 	assert(store.begin_arcade(0)); assert(store.finish_arcade(5,5.0)==10); assert(store.finish_arcade(5,5.0)==0)
 	make_ui(); refresh()
 	for tab in ["Care","Rooms","Arcade","Shop","Journal","World","Cell","Home"]: select(tab)
+	for name in ROOMS:
+		room(name)
+		assert(bg.texture!=null and hotspot_layer.get_child_count()>=2,"room art/hotspots missing: "+name)
+	select("Home")
 	# Boot each actual arcade scene and run its first physics step in-process.
 	for mode in range(4):
 		assert(store.begin_arcade(mode))
