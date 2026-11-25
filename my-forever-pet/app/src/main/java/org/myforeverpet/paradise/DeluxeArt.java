@@ -68,7 +68,7 @@ final class DeluxeArt {
   if(night){round(c,0,0,160,192,0,0x4421244b);}bgKey=theme+(night?4:0);
  }
  void home(Canvas out,PetState s,long tick,boolean wall,String clock){boolean night=s.sleeping()||PetState.localMinute(System.currentTimeMillis(),java.util.TimeZone.getDefault())>=19*60||PetState.localMinute(System.currentTimeMillis(),java.util.TimeZone.getDefault())<5*60;int key=s.roomTheme+(night?4:0);if(key!=bgKey||background==null)buildRoom(s.roomTheme,night);out.save();out.scale(out.getWidth()/160f,out.getHeight()/192f);solid(-1);rect.set(0,0,160,192);out.drawBitmap(background,null,rect,p);
-  float x=s.sleeping()?36:80,y=s.sleeping()?83:125;pet(out,s,x,y,s.sleeping()?1.05f:1.56f,tick);
+  float x=s.sleeping()?36:80,y=s.sleeping()?83:125;float sx=out.getWidth()/160f,sy=out.getHeight()/192f;out.save();out.translate(x,y);float uniform=Math.min(sx,sy);out.scale(uniform/sx,uniform/sy);pet(out,s,0,0,s.sleeping()?1.05f:1.56f,tick);out.restore();
   if(!s.sleeping()&&s.stage>0){float bx=111,by=82+(float)Math.sin(tick/700.0)*1.5f;oval(out,bx,by,11,9,0xfff8eefb);poly(out,0xfff8eefb,bx-4,by+5,bx-7,by+13,bx+1,by+7);heart(out,bx,by,5,s.hunger<=2?0xffe8ae66:0xffed85b2);}
   if(s.waste>0){for(int i=0;i<Math.min(s.waste,6);i++){float px=44+i*14;oval(out,px,179,4,2,0xff76535f);oval(out,px,177,3,3,0xffa87964);}}
   if(wall){text(out,s.displayName()+(clock.isEmpty()?"":" · "+clock),80,187,7,0xfff3e7ff);}out.restore();
