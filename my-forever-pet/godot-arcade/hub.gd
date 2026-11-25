@@ -21,6 +21,9 @@ var room_tiles:Dictionary={}
 var feedback_layer:Control
 var feedback_serial=0
 var room_scroll:ScrollContainer
+var context_labels:Dictionary={}
+var context_bars:Dictionary={}
+var cell_tiles:Array[Button]=[]
 const ACTION_ART={"bond":"premium_egg.png","food":"premium_snack.png","daily":"premium_coin.png","clean":"item_3.png","play":"premium_star.png","sleep":"item_4.png","lamp":"item_4.png","hatch":"premium_egg.png","soap":"premium_medicine.png","rinse":"item_3.png","toilet":"item_3.png","cook":"premium_snack.png","snack":"premium_snack.png","plant":"item_5.png","harvest":"premium_crystal.png","toy":"premium_star.png","medicine":"premium_medicine.png","craft":"premium_crystal.png"}
 const NAV_ART={"Home":"item_4.png","Care":"premium_snack.png","Rooms":"item_3.png","Arcade":"premium_star.png","Shop":"premium_coin.png","Journal":"premium_crystal.png","World":"pet_8.png","Cell":"premium_medicine.png"}
 var wear_layers:Array[TextureRect]=[]
@@ -200,6 +203,7 @@ func nav_tile(parent:Node,tab:String):
 	var b=art_tile(parent,tab,"res://assets/"+art,func(): select(tab),66,14)
 	nav_buttons[tab]=b
 func reset_actions(columns:int=0):
+	context_labels.clear(); context_bars.clear(); cell_tiles.clear()
 	for child in actions.get_children(): actions.remove_child(child); child.queue_free()
 	action_grid=null
 	if columns>0:
@@ -208,6 +212,20 @@ func reset_actions(columns:int=0):
 		action_grid.add_theme_constant_override("h_separation",6)
 		action_grid.add_theme_constant_override("v_separation",5)
 		actions.add_child(action_grid)
+func time_text(seconds:int)->String:
+	if seconds>=3600: return "%dh %02dm"%[int(seconds/3600),int(seconds/60)%60]
+	return "%02d:%02d"%[int(seconds/60),seconds%60]
+func context_card(key:String,title:String)->VBoxContainer:
+	var shell=panel(actions)
+	label(shell,title,20)
+	var value=label(shell,"",15); value.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART
+	context_labels[key]=value
+	return shell
+func context_meter(parent:Node,key:String,color:Color):
+	var p=ProgressBar.new(); p.custom_minimum_size.y=14; p.show_percentage=false
+	p.add_theme_stylebox_override("background",bar_skin(Color("#121a35"),Color("#65739c")))
+	p.add_theme_stylebox_override("fill",bar_skin(color.darkened(.15),color.lightened(.3)))
+	parent.add_child(p); context_bars[key]=p
 func quick(name:String,id:String,i:int=0):
 	var path="res://assets/"+str(ACTION_ART.get(id,"premium_star.png"))
 	art_tile(action_grid,name,path,func(): perform(id,i),66,13)
@@ -355,6 +373,9 @@ func select(tab:String):
 			var edit=LineEdit.new(); edit.placeholder_text="Name your pet"; edit.text=s.name; edit.max_length=24; actions.add_child(edit)
 			button(actions,"Save name",func(): store.s.name=edit.text.strip_edges(); store.save_game(); refresh())
 		"Care":
+			var care=context_card("care","Pet wellness")
+			context_meter(care,"hygiene",Color("#55c8d3"))
+			context_meter(care,"toilet",Color("#8ecb96"))
 			for i in range(4): add_action(store.FOODS[i]+" • "+str(store.FOOD_COST[i])+" coins","food",i)
 			for a in [["Pet / cuddle","bond"],["Play","play"],["Train","train"],["Praise","praise"],["Clean habitat","clean"],["Nap / wake","sleep"],["Toggle auto sleep","auto"],["Cook • 2 materials","cook"],["Bath","bath"],["Snack","snack"],["Medicine","medicine"]]: add_action(a[0],a[1])
 		"Rooms":
@@ -380,18 +401,32 @@ func select(tab:String):
 			product_card("Medicine","12 coins • %d owned"%s.medicine,"res://assets/premium_medicine.png","Buy",func(): perform("supply",0),s.coins>=12)
 			product_card("Snack","5 coins • %d owned"%s.snacks,"res://assets/premium_snack.png","Buy",func(): perform("supply",1),s.coins>=5)
 		"Journal":
+			var growth=context_card("growth","Growth journey")
+			context_meter(growth,"growth",Color("#b08bf0"))
+			context_card("quests","Daily quests")
 			add_action("Daily gift","daily")
 			for i in range(3): add_action(["Bond quest","Clean quest","Expedition quest"][i]+" • 15 coins","quest",i)
 			add_action("Craft crystal • 3 materials","craft"); add_action("Secret evolution","secret")
 			button(actions,"Petpedia • 24 forms",show_collection)
 		"World":
+			var expedition=context_card("expedition","Expedition status")
+			context_meter(expedition,"expedition",Color("#65b4ed"))
+			context_card("friend","Friendship & family")
 			for i in range(3): add_action("Habitat: "+store.FIELDS[i],"field",i)
 			for i in range(3): add_action(["Meadow • 10 min","Coral ruins • 20 min","Starlight islands • 30 min"][i],"trip",i)
 			add_action("Collect expedition rewards","loot"); add_action("Playdate (local)","friend")
 			button(actions,"Start next generation",func():
 				var confirm=ConfirmationDialog.new(); confirm.dialog_text="Begin a new egg generation?"; add_child(confirm); confirm.confirmed.connect(func(): perform("breed")); confirm.popup_centered())
 		"Cell":
-			label(actions,"Inspect growth cells and treat illness.",17); add_action("Treat one sick cell","cell")
+			var growth=context_card("growth","Cell development")
+			context_meter(growth,"growth",Color("#af8bff"))
+			context_card("cells","Health laboratory")
+			var grid=GridContainer.new(); grid.columns=3; actions.add_child(grid)
+			for i in range(6):
+				var cell=art_tile(grid,"Healthy","res://assets/premium_crystal.png",func(): perform("cell"),95,16)
+				cell_tiles.append(cell)
+			add_action("Treat one sick cell","cell")
+	update_context()
 func room(name:String):
 	visual.show()
 	room_scroll.show()
@@ -413,6 +448,10 @@ func room(name:String):
 		"Garden": add_action("Plant • 5 coins","plant"); add_action("Harvest","harvest")
 		"Potion lab": add_action("Medicine","medicine"); add_action("Craft crystal","craft")
 	art_tile(action_grid,"All rooms","res://assets/item_4.png",func(): select("Rooms"),66,13)
+	if name=="Garden":
+		var garden=context_card("garden","Garden crop")
+		context_meter(garden,"garden",Color("#90cb70"))
+	update_context()
 func show_collection():
 	reset_actions()
 	label(actions,"PETPEDIA",22)
@@ -477,7 +516,43 @@ func refresh():
 	if rendered_stage!=int(s.stage):
 		rendered_stage=int(s.stage)
 		if section=="Home": select("Home")
-	if section=="Cell": notice.text="Cells %d/4 • Sick cells %d • Age %dh"%[s.cells[int(s.field)],s.germs,int(s.age/3600)]
+	update_context()
+func set_context(key:String,message:String,progress:float=-1.0):
+	if context_labels.has(key) and is_instance_valid(context_labels[key]): context_labels[key].text=message
+	if progress>=0 and context_bars.has(key) and is_instance_valid(context_bars[key]): context_bars[key].value=clampf(progress,0,100)
+func update_context():
+	var s:Dictionary=store.s
+	var now:float=store.now()
+	set_context("care","%s\nHygiene %d%%  •  Bathroom %d%%  •  Waste %d/6  •  Medicine %d"%[store.care_priority(),s.hygiene,s.toilet,s.waste,s.medicine])
+	for key in ["hygiene","toilet"]:
+		if context_bars.has(key): context_bars[key].value=s[key]
+	var next="Fully evolved" if s.stage==4 else "Next: "+store.STAGES[mini(4,int(s.stage)+1)]+"  •  "+time_text(store.growth_remaining()) if s.stage>0 else "Choose a habitat and hatch"
+	set_context("growth",store.STAGES[int(s.stage)]+"  •  "+next,store.growth_progress()*100)
+	var quest_names=["Bond","Clean","Expedition"]
+	var lines:Array[String]=[]
+	for i in range(3):
+		var bit=1<<i
+		lines.append(quest_names[i]+": "+("Claimed" if (int(s.claimed)&bit)!=0 else "Ready +15 coins" if (int(s.quests)&bit)!=0 else "In progress"))
+	set_context("quests","\n".join(lines))
+	var remaining:int=store.expedition_remaining(now)
+	var duration=(10+int(s.destination)*10)*60
+	var msg="Ready to explore • Fuel %d"%s.fuel
+	if remaining>0: msg="Exploring • returns in "+time_text(remaining)
+	elif s.pending[0]>0: msg="Rewards ready • %d coins, %d materials, %d crystals"%[s.pending[0],s.pending[1],s.pending[2]]
+	set_context("expedition",msg,100*(1-float(remaining)/duration) if remaining>0 else 100 if s.pending[0]>0 else 0)
+	set_context("friend","Friendship %d/4 • Generation %d\nAdult + friendship 4 unlocks next generation."%[s.friendship,s.generation])
+	var garden_time:int=store.garden_remaining(now)
+	set_context("garden","Plant a seed for 5 coins" if s.garden_at==0 else "Ready to harvest!" if garden_time==0 else "Growing • "+time_text(garden_time),0 if s.garden_at==0 else 100*(1-float(garden_time)/1200))
+	set_context("cells","%s • %d sick cells • Growth %d/4"%[store.care_priority(),s.germs,s.cells[int(s.field)]])
+	for i in range(cell_tiles.size()):
+		var b=cell_tiles[i]
+		if not is_instance_valid(b): continue
+		var sick=i<int(s.germs)
+		b.disabled=not sick
+		b.modulate=Color("#ff9baa") if sick else Color("#9edcc1")
+		b.tooltip_text="Treat sick cell" if sick else "Healthy cell"
+		var v=b.get_child(0)
+		v.get_child(1).text="Treat" if sick else "Healthy"
 func update_room_scene():
 	var next_key=str(ROOMS.get(current_room,""))
 	if next_key==room_key: return
@@ -538,7 +613,22 @@ func test_home():
 				store.s.variant=variant; store.s.field=field; store.s.body=body
 				assert(store.species()==variant*12+field*4+body)
 	store.s.variant=0; store.s.field=0; store.s.body=0
+	var saved:Dictionary=store.s.duplicate(true)
+	store.s.stage=1; store.s.cells=[0,0,0]; store.s.cell_clock=0.0; store.s.last=store.now()-3601
+	store.advance(store.now()); assert(store.s.stage==2)
+	store.s.hygiene=20; assert(store.action("soap")); assert(store.action("rinse")); assert(store.s.hygiene==55)
+	assert(store.action("bath")); assert(not store.action("bath"))
+	store.s.germs=3; assert(store.action("cell")); assert(store.s.germs==2)
+	store.s.coins=500; assert(store.action("plant")); assert(not store.action("harvest"))
+	store.s.garden_at=store.now()-1; assert(store.action("harvest")); assert(not store.action("harvest"))
+	store.s.germs=0; store.s.hunger=5; store.s.energy=100; assert(store.action("trip",0)); assert(not store.available())
+	store.s.trip_end=store.now()-1; store.advance(store.now()+1); assert(store.s.pending[0]>0)
+	assert(store.action("loot")); assert(not store.action("loot"))
+	store.s=saved
 	make_ui(); refresh()
+	select("Cell"); store.s.germs=2; update_context(); assert(not cell_tiles[0].disabled and cell_tiles[2].disabled)
+	cell_tiles[0].pressed.emit(); assert(store.s.germs==1 and cell_tiles[1].disabled)
+	store.s.germs=0; select("Home")
 	store.s.coins=500
 	assert(store.action("clothes",0))
 	refresh()

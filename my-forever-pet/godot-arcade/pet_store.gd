@@ -45,6 +45,31 @@ func asleep(at:float)->bool:
 	var local=Time.get_datetime_dict_from_unix_time(int(at)+int(Time.get_time_zone_from_system().bias)*60)
 	return s.stage>0 and s.trip_end<=at and (s.sleep_until>at or (s.auto_sleep and s.awake_until<=at and (local.hour>=21 or local.hour<7)))
 func available()->bool: return s.stage>0 and not asleep(now()) and s.trip_end<=now()
+func growth_progress()->float:
+	match int(s.stage):
+		0: return 0.0
+		1: return clampf((float(s.cells[int(s.field)])*900+float(s.cell_clock))/3600,0,1)
+		2,3: return clampf(float(s.age)/86400,0,1)
+		_: return 1.0
+func growth_remaining()->int:
+	match int(s.stage):
+		1: return ceili(maxf(0,3600*(1-growth_progress())))
+		2,3: return ceili(maxf(0,86400-float(s.age)))
+		_: return 0
+func garden_remaining(at:float)->int: return ceili(maxf(0,float(s.garden_at)-at))
+func expedition_remaining(at:float)->int: return ceili(maxf(0,float(s.trip_end)-at))
+func care_priority()->String:
+	if s.stage==0: return "Hatch your egg to begin"
+	if s.trip_end>now(): return "Exploring the world"
+	if asleep(now()): return "Resting"
+	if s.germs>0: return "Needs medical care"
+	if s.hunger<=1: return "Hungry"
+	if s.toilet<=20: return "Needs the bathroom"
+	if s.hygiene<=35: return "Needs a bath"
+	if s.energy<=20: return "Needs rest"
+	if s.happy<=3: return "Needs playtime"
+	if s.waste>0: return "Clean the room"
+	return "Happy and healthy"
 func level()->int: return 1+int(s.xp/100)
 func species()->int: return int(s.field)*4+int(s.body)+12*int(s.variant)
 func pet_name()->String:
@@ -130,6 +155,7 @@ func action(id:String,i:int=0)->bool:
 		"cell":
 			if not ready or s.germs<=0: return false
 			s.germs-=1
+			if s.germs==0: earn(5)
 		"bond","play","train","praise","toy":
 			var cost=4 if id=="train" else 3 if id=="play" or id=="toy" else 0
 			if not ready or s.energy<cost or at-s.interaction_at<1.5: return false
@@ -160,7 +186,7 @@ func action(id:String,i:int=0)->bool:
 			if s.hunger<5: feed(3)
 			s.happy=mini(10,int(s.happy)+2); earn(5)
 		"bath":
-			if not ready: return false
+			if not ready or (s.hygiene>=100 and s.soap==0): return false
 			s.hygiene=100; s.soap=0; s.hygiene_clock=0; s.bond=mini(100,int(s.bond)+1)
 		"soap":
 			if not ready or s.soap>=3 or s.hygiene>=100: return false
@@ -174,7 +200,7 @@ func action(id:String,i:int=0)->bool:
 		"supply":
 			var key="medicine" if i==0 else "snacks"
 			var price=12 if i==0 else 5
-			if s.stage==0 or s.coins<price or s[key]>=99: return false
+			if i<0 or i>1 or s.stage==0 or s.coins<price or s[key]>=99: return false
 			s.coins-=price; s[key]+=1
 		"snack":
 			if not ready or s.snacks<=0 or (s.hunger>=5 and s.happy>=10): return false
