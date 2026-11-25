@@ -1,0 +1,198 @@
+name: City Zero - Porsche 930 original artist doors 241258 source tris Blender Godot
+on:
+  workflow_dispatch:
+  push:
+    branches: [forever-frequency-native]
+    paths:
+      - '.github/workflows/city-zero-porsche-930-real-source-door-hinges.yml'
+      - 'forever-frequency-native/tools/porsche_930_1975_actual_source_doors.py'
+      - 'forever-frequency-native/tests/porsche_930_1975_original_doors_godot_qa.gd'
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: cityzero-porsche930-original-author-door-shell-mechanics
+  cancel-in-progress: false
+jobs:
+  mechanical-source-real-artist-porsche-blender:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - name: Recover exact original licensed Karol Miklas Porsche PBR GLB and source forensic report
+        uses: actions/download-artifact@v4
+        with:
+          run-id: 45545047088
+          name: CityZero-REAL-Porsche-930-1975-5-Blender-PBR-Views-GLB-BLEND
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: original-1975-porsche-pbr-artist
+      - name: Check independent original source authorship and FULL car body before ANY door modification
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m py_compile forever-frequency-native/tools/porsche_930_1975_actual_source_doors.py
+          mkdir -p forever-frequency-native/assets/porsche_930_review
+          find original-1975-porsche-pbr-artist -name 'porsche_911_930_1975_SOURCE_REAL_Artist_ClassicRed_PBR.glb' -type f \
+            -exec cp '{}' forever-frequency-native/assets/porsche_930_review/ ';'
+          find original-1975-porsche-pbr-artist -name 'porsche_930_original_source_adversarial_report.json' -type f \
+            -exec cp '{}' forever-frequency-native/assets/porsche_930_review/ ';'
+          python3 - <<'PY'
+          from pathlib import Path
+          import json,struct,hashlib
+          p=Path('forever-frequency-native/assets/porsche_930_review')
+          original=p/'porsche_911_930_1975_SOURCE_REAL_Artist_ClassicRed_PBR.glb'
+          report=json.loads((p/'porsche_930_original_source_adversarial_report.json').read_text())
+          assert original.is_file() and original.stat().st_size>14000000
+          assert report['artist']=='Karol Miklas'
+          assert report['pinned_blender_source_sha256']=='c2f989537740772c3e7478f7d0f3349023406b828c48d05a1c83ff22c936074e'
+          assert report['original_author_porsche_body_triangles']==241258
+          assert report['excluded_only_authored_noncar_floor_faces']==2
+          assert not report['owner_approved'] and not report['geometry_generated_or_replaced']
+          b=original.read_bytes()
+          assert b[:4]==b'glTF' and struct.unpack_from('<I',b,8)[0]==len(b)
+          g=json.loads(b[20:20+struct.unpack_from('<I',b,12)[0]])
+          tris=sum((g['accessors'][part['indices']]['count'] if 'indices' in part else g['accessors'][part['attributes']['POSITION']]['count'])//3 for mesh in g['meshes'] for part in mesh['primitives'])
+          assert tris==241258
+          print('REAL_ARTIST_PORSCHE_930_241258_CAR_TRIS_SOURCE_RESTORED_FOR_ACTUAL_DOOR_MECHANICS')
+          PY
+      - name: Download genuine native Blender 4.5 LTS 3D sculpt program
+        run: docker pull ghcr.io/blenderkit/headless-blender:blender-4.5-stable
+      - name: Isolate 100% ORIGINAL Porsche disconnected door paint coat glass pillars and mirrors, real hinge pivots
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd forever-frequency-native
+          timeout 1300s docker run --rm --entrypoint /home/headless/blender/blender \
+            -v "$PWD:$PWD" -w "$PWD" \
+            ghcr.io/blenderkit/headless-blender:blender-4.5-stable \
+            -b -t 2 --python tools/porsche_930_1975_actual_source_doors.py \
+            2>&1 | tee PORSCHE930_REAL_SOURCE_MECHANICAL_DOOR_BLENDER.log
+          grep -q 'CITYZERO_PORSCHE930_AUTHOR_ORIGINAL_BODY_GLASS_WINDOW_FRAME_TWO_HINGES_BLENDER_GREEN_NOT_APPROVED' \
+            PORSCHE930_REAL_SOURCE_MECHANICAL_DOOR_BLENDER.log
+      - name: Adversarial check that source original artist Porsche shell and sides retain EXACT 241258 faces
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          import json
+          p=Path('forever-frequency-native/porsche_930_real_author_mechanical_doors')
+          r=json.loads((p/'porsche_930_real_artist_polygon_hinge_forensics.json').read_text())
+          assert r['original_true_car_triangles']==r['real_car_triangles_after_rig']==241258
+          assert r['two_actual_source_car_door_hinges']
+          assert r['original_body_mirror_glass_window_frame_move_together']
+          assert not r['original_author_geometry_regenerated'] and not r['owner_art_approved']
+          assert not r['brand_commercial_rights_cleared']
+          assert set(r['original_artist_detached_polygons_by_side'])=={'LEFT','RIGHT'}
+          for side in ('LEFT','RIGHT'):
+              parts=r['original_artist_detached_polygons_by_side'][side]
+              assert {x['kind'] for x in parts}=={'paint','coat','glass','glass_window_frame'}
+              assert sum(x['original_source_triangle_count'] for x in parts)>4000
+          assert r['actual_sideways_source_original_door_x_displacement_m']['LEFT']<-.17
+          assert r['actual_sideways_source_original_door_x_displacement_m']['RIGHT']>.17
+          assert len(list(p.glob('PORSCHE930_REAL_ARTIST_SOURCE_DOORS_*.png')))==2
+          assert (p/'porsche_930_1975_real_artist_BODY_GLASS_MIRRORS_DOOR_HINGES.glb').stat().st_size>13000000
+          assert (p/'porsche_930_1975_real_artist_DOOR_SOURCE_EDITABLE.blend').stat().st_size>14000000
+          print('PORSCHE_930_TRUE_AUTHOR_POLYGON_GEOMETRY_LEFT_RIGHT_HINGES_GREEN_NOT_OWNER_APPROVED')
+          PY
+      - name: Upload real editable Porsche 911 Turbo author door GLB+Blender+two native pictures
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: CityZero-Porsche930-Original-Artist-Hinged-Doors-GLB-Blend-Native-Captures
+          retention-days: 90
+          path: |
+            forever-frequency-native/porsche_930_real_author_mechanical_doors/
+            forever-frequency-native/PORSCHE930_REAL_SOURCE_MECHANICAL_DOOR_BLENDER.log
+          if-no-files-found: warn
+  porsche-actual-godot-nongenerated-original-door-pixel-proof:
+    needs: mechanical-source-real-artist-porsche-blender
+    runs-on: ubuntu-22.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: CityZero-Porsche930-Original-Artist-Hinged-Doors-GLB-Blend-Native-Captures
+          path: true-original-porsche
+      - name: Isolated Godot 4 genuine Porsche source mesh for hinge validation only, never Android release
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p isolated/assets/porsche_930_review isolated/tests isolated/scripts
+          find true-original-porsche -name 'porsche_930_1975_real_artist_BODY_GLASS_MIRRORS_DOOR_HINGES.glb' -type f \
+            -exec cp '{}' isolated/assets/porsche_930_review/ ';'
+          test -s isolated/assets/porsche_930_review/porsche_930_1975_real_artist_BODY_GLASS_MIRRORS_DOOR_HINGES.glb
+          cp forever-frequency-native/tests/porsche_930_1975_original_doors_godot_qa.gd isolated/tests/
+          cp forever-frequency-native/scripts/vehicle_door_controller.gd isolated/scripts/
+          cat > isolated/project.godot <<'GODOT'
+          config_version=5
+          [application]
+          config/name="City Zero Porsche 911 Turbo 1975 REAL source author movable panel verification only"
+          [display]
+          window/size/viewport_width=1600
+          window/size/viewport_height=1000
+          [rendering]
+          renderer/rendering_method="gl_compatibility"
+          renderer/rendering_method.mobile="gl_compatibility"
+          GODOT
+      - uses: solarlabyrinth/action-setup-godot@v3
+        with:
+          version: 4.4.1-stable
+          export-templates: false
+      - name: Install real OpenGL Mesa viewport not dummy image generator
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq xvfb libgl1 libgl1-mesa-dri libegl1 mesa-utils
+      - name: Import REAL Porsche original GLB geometry into Godot 4 native engine
+        shell: bash
+        env:
+          LIBGL_ALWAYS_SOFTWARE: '1'
+          MESA_GL_VERSION_OVERRIDE: '3.3'
+          GODOT_AUDIO_DRIVER: Dummy
+        run: |
+          set -euo pipefail
+          xvfb-run -a -s '-screen 0 1800x1200x24' timeout 200s \
+            godot --rendering-driver opengl3 --path isolated --editor --import --quit \
+            2>&1 | tee PORSCHE_930_TRUE_DOORS_GODOT_NATIVE_IMPORT.log
+          if grep -E 'SCRIPT ERROR|Parse Error' PORSCHE_930_TRUE_DOORS_GODOT_NATIVE_IMPORT.log; then exit 1; fi
+      - name: True source Porsche two door frames closed/open; require actual moving mesh pixel proof
+        shell: bash
+        env:
+          LIBGL_ALWAYS_SOFTWARE: '1'
+          MESA_GL_VERSION_OVERRIDE: '3.3'
+          GODOT_AUDIO_DRIVER: Dummy
+        run: |
+          set -euo pipefail
+          mkdir -p "$PWD/porsche-930-native-true-door-frames"
+          export CITYZERO_PORSCHE_DOORS_GODOT_PHOTOS="$PWD/porsche-930-native-true-door-frames"
+          xvfb-run -a -s '-screen 0 1800x1200x24' timeout 320s \
+            godot --rendering-driver opengl3 --path isolated \
+            --script res://tests/porsche_930_1975_original_doors_godot_qa.gd \
+            2>&1 | tee porsche-930-native-true-door-frames/PORSCHE_930_NATIVE_DOORS_GODOT.log
+          grep -q 'PORSCHE_930_1975_REAL_ARTIST_BODY_AND_GLASS_DOOR_HINGES_IN_GODOT_GREEN_NOT_ART_APPROVED' \
+            porsche-930-native-true-door-frames/PORSCHE_930_NATIVE_DOORS_GODOT.log
+          python3 - <<'PY'
+          from pathlib import Path
+          import json
+          p=Path('porsche-930-native-true-door-frames')
+          d=json.loads((p/'porsche_930_true_artist_hinges_godot_report.json').read_text())
+          assert d['original_creator_triangles_intact']==241258
+          assert d['two_actual_author_hinges']
+          assert d['both_doors_have_paint_coat_sideglass_windowframes']
+          assert d['original_door_body_x_movement']['LEFT']<-.15
+          assert d['original_door_body_x_movement']['RIGHT']>.15
+          assert d['rendered_changed_original_mesh_pixels']>=300
+          assert not d['owner_visual_approved'] and d['commercial_brand_rights_pending']
+          assert not d['source_porsche_geometry_reconstructed']
+          assert len(list(p.glob('*.png')))==2
+          print('ACTUAL_GODOT_ORIGINAL_KAROL_MIKLAS_PORSCHE_TRUE_TWO_DOORS_PIXEL_GREEN')
+          PY
+      - name: Save real Porsche Godot closed/open 3D source screens and QA report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: CityZero-Porsche930-Original-Source-True-Doors-Real-Godot-Photos
+          retention-days: 90
+          path: |
+            porsche-930-native-true-door-frames/
+            PORSCHE_930_TRUE_DOORS_GODOT_NATIVE_IMPORT.log
+          if-no-files-found: warn
