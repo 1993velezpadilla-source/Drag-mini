@@ -46,11 +46,14 @@ jobs:
           set -o pipefail
           xvfb-run -a timeout 90 /tmp/godot/Godot_v4.4.1-stable_linux.x86_64 --path my-forever-pet/godot-arcade --rendering-method gl_compatibility --resolution 540x960 -- --capture
           test -s /tmp/pet-dash-review.png
+          test -s /tmp/pet-dash-render-metrics.json
+          cat /tmp/pet-dash-render-metrics.json
       - uses: actions/upload-artifact@v4
         with:
           name: Pet-Dash-3D-real-game-review
           path: |
             /tmp/pet-dash-review.png
+            /tmp/pet-dash-render-metrics.json
             my-forever-pet/godot-arcade/assets/*.glb
           if-no-files-found: error
       - uses: actions/setup-java@v4

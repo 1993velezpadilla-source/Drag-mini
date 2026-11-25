@@ -64,6 +64,8 @@ var result_panel: PanelContainer
 var result_text: Label
 var result_button: Button
 var last_hud := ""
+var last_power_hud := ""
+var scenery_visibility_updates := 0
 var jump_buffer := 0.0
 var material_cache := {}
 var session_claimed := false
@@ -109,6 +111,10 @@ func asset(parent: Node3D, name: String, pos: Vector3) -> Node3D:
 			return null
 		models[name]=load(path)
 	var n: Node3D=models[name].instantiate()
+	# Tiny collectibles and distant islands do not need expensive shadow passes.
+	if name in ["coin","snack","magnet","shield","double","boost","island"]:
+		for child in n.find_children("*","MeshInstance3D",true,false):
+			(child as MeshInstance3D).cast_shadow=GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	parent.add_child(n)
 	n.position=pos
 	loaded_assets+=1
@@ -116,7 +122,7 @@ func asset(parent: Node3D, name: String, pos: Vector3) -> Node3D:
 
 func _ready() -> void:
 	using_blender=ResourceLoader.exists("res://assets/bridge.glb")
-	rng.seed = 7319 if OS.get_cmdline_user_args().has("--test") else Time.get_ticks_usec()
+	rng.seed = 7319 if OS.get_cmdline_user_args().has("--test") or OS.get_cmdline_user_args().has("--capture") else Time.get_ticks_usec()
 	var env := WorldEnvironment.new()
 	var e := Environment.new()
 	e.background_mode = Environment.BG_COLOR
@@ -161,6 +167,7 @@ func _ready() -> void:
 		chunk.position.z = 12.0 - i * SEGMENT
 		chunks.append(chunk)
 		make_chunk(chunk, i)
+	update_scenery_visibility()
 	make_player()
 	camera = Camera3D.new()
 	camera.position = Vector3(0, 4.25, 7.1)
@@ -230,6 +237,12 @@ func make_chunk(chunk: Node3D, index: int) -> void:
 			var angle := PI*i/12.0
 			var n := box(chunk,Vector3(cos(angle)*3.3,3.8+sin(angle)*3.3,-4),Vector3(0.8,0.7,0.8),Color("#b9ad9b"))
 			n.rotation.z=angle
+
+func update_scenery_visibility() -> void:
+	# Chunks remain pooled. The far scenery is beyond the useful portrait view.
+	for chunk in chunks:
+		chunk.visible=chunk.position.z > -90.0 and chunk.position.z < 24.0
+	scenery_visibility_updates+=1
 
 func make_player() -> void:
 	player = CharacterBody3D.new()
@@ -559,12 +572,13 @@ func _physics_process(dt: float) -> void:
 		chunk.position.z+=speed*dt
 		if chunk.position.z>SEGMENT*1.5:
 			chunk.position.z-=SEGMENTS*SEGMENT
+	update_scenery_visibility()
 	for i in range(entities.size()-1,-1,-1):
 		var a:=entities[i]
 		var old_z:=a.position.z
 		a.position.z=float(a.get_meta("at"))*-1+distance
 		var kind:=int(a.get_meta("kind"))
-		if kind>=PICKUP and a.get_child_count()>0:
+		if kind>=PICKUP and a.visible and a.position.z > -45.0 and a.get_child_count()>0:
 			(a.get_child(0) as Node3D).rotation.y+=dt*2.5
 		# Test the full swept depth interval, with the same world sizes as the meshes.
 		var contact := maxf(old_z,a.position.z)>=-0.80 and minf(old_z,a.position.z)<=0.80
@@ -661,7 +675,10 @@ func update_hud() -> void:
 	if double_time>0: active_powers.append("×2 %ds"%ceili(double_time))
 	if boost_time>0: active_powers.append("BOOST %ds"%ceili(boost_time))
 	var powers: String="  •  ".join(active_powers)
-	power_label.text=powers if not powers.is_empty() else "Collect power-ups to extend your run"
+	var power_text := powers if not powers.is_empty() else "Collect power-ups to extend your run"
+	if power_text!=last_power_hud:
+		last_power_hud=power_text
+		power_label.text=power_text
 	var key := str(int(distance))+":"+str(coins)+":"+str(snacks)+":"+str(ended)+":"+str(paused_run)+":"+str(started)
 	if key==last_hud: return
 	last_hud=key
@@ -693,6 +710,7 @@ func test_run() -> void:
 	gesture(Vector2(80,0))
 	assert(lane==1)
 	assert(chunks.size()==SEGMENTS and entities.size()>10)
+	assert(scenery_visibility_updates>0 and not chunks[SEGMENTS-1].visible)
 	assert((mascot.transform.basis*Vector3.BACK).z < -0.99,"mascot must face away")
 	assert(using_blender and loaded_assets>20,"Blender assets missing or not instantiated")
 	# Isolate control tests from randomly spawned obstacles.
@@ -754,7 +772,18 @@ func capture_review() -> void:
 	# Actual rendered game frame, not a mockup. Show the first playable section.
 	await get_tree().process_frame
 	started=true
-	for i in range(45): await get_tree().physics_frame
+	var frame_ms: Array[float]=[]
+	var last_us:=Time.get_ticks_usec()
+	for i in range(90):
+		await RenderingServer.frame_post_draw
+		var now:=Time.get_ticks_usec()
+		if i>=15: frame_ms.append(float(now-last_us)/1000.0)
+		last_us=now
+	frame_ms.sort()
+	var p95:=frame_ms[int((frame_ms.size()-1)*0.95)]
+	var metrics:=FileAccess.open("/tmp/pet-dash-render-metrics.json",FileAccess.WRITE)
+	metrics.store_string(JSON.stringify({"renderer":RenderingServer.get_current_rendering_method(),"samples":frame_ms.size(),"median_ms":frame_ms[int(frame_ms.size()/2.0)],"p95_ms":p95,"draw_calls":RenderingServer.get_rendering_info(RenderingServer.RENDERING_INFO_TOTAL_DRAW_CALLS_IN_FRAME),"primitives":RenderingServer.get_rendering_info(RenderingServer.RENDERING_INFO_TOTAL_PRIMITIVES_IN_FRAME),"scope":"desktop virtual display; not Android"}))
+	metrics.close()
 	await RenderingServer.frame_post_draw
 	var image := get_viewport().get_texture().get_image()
 	var result := image.save_png("/tmp/pet-dash-review.png")
