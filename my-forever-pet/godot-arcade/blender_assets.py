@@ -90,7 +90,7 @@ def export(name,maxtri):
  path=os.path.join(OUT,name+'.glb')
  result=bpy.ops.export_scene.gltf(filepath=path,export_format='GLB',export_yup=True)
  assert 'FINISHED' in result and os.path.getsize(path)>1000,(name,result)
- stats[name]={'triangles':total,'materials':len(groups),'bytes':os.path.getsize(path)}
+ stats[name]={'triangles':total,'materials':len(groups),'bytes':os.path.getsize(path),'triangle_cap':maxtri}
  print('GLB_OK',name,total,len(groups))
 clear()
 box((0,-.23,0),(6.65,.45,18),wood)

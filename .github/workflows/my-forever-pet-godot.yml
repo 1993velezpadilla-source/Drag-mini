@@ -40,6 +40,8 @@ jobs:
               assert len(data)>1000 and struct.unpack("<4sII",data[:12])==(b"glTF",2,len(data)),name
               print("GLB_VALID",name,len(data))
           PY
+      - name: Audit every game GLB independently of exporter
+        run: python3 my-forever-pet/godot-arcade/audit_catalog.py my-forever-pet/godot-arcade/assets
       - name: Bake panoramic cloudscape
         run: python3 my-forever-pet/godot-arcade/sky_panorama.py my-forever-pet/godot-arcade/assets/sky-panorama.png
       - name: Bake original runner music
@@ -123,6 +125,7 @@ jobs:
             /tmp/pet-dash-soak.json
             my-forever-pet/godot-arcade/assets/*.glb
             my-forever-pet/godot-arcade/assets/mesh-metrics.json
+            my-forever-pet/godot-arcade/assets/catalog-audit.json
             my-forever-pet/godot-arcade/assets/sky-panorama.png
             my-forever-pet/godot-arcade/assets/sky-crystal.png
             my-forever-pet/godot-arcade/assets/sky-moon.png

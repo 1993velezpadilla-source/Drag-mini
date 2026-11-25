@@ -210,7 +210,7 @@ func asset(parent: Node3D, name: String, pos: Vector3) -> Node3D:
 		for child in n.find_children("*","MeshInstance3D",true,false):
 			(child as MeshInstance3D).lod_bias=0.65
 	# Tiny collectibles and distant islands do not need expensive shadow passes.
-	if name in ["coin","snack","magnet","shield","double","boost","island","airship","rainbow","time_orb","spring","sky_ring","gem","rescue","smash","surf_pickup","surf_board","portal","crystal_island","moon_island","palace","cloud_bank","garden_island","windmill_island"]:
+	if name in ["coin","snack","magnet","shield","double","boost","island","airship","rainbow","time_orb","spring","sky_ring","gem","rescue","smash","surf_pickup","surf_board","portal","crystal_island","moon_island","palace","cloud_bank","garden_island","windmill_island","story_card"]:
 		for child in n.find_children("*","MeshInstance3D",true,false):
 			(child as MeshInstance3D).cast_shadow=GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	parent.add_child(n)
@@ -683,7 +683,10 @@ func is_pickup(kind:int) -> bool:
 func hazard_for(tier:int) -> int:
 	if tier==0: return rng.randi_range(0,1)
 	var choices:Array[int]=[0,1,LOW_BAR,CART]
-	if tier>=2: choices.append_array([TALL,COURIER,ROLLER])
+	if tier>=2:
+		choices.append(TALL)
+		choices.append(COURIER)
+		choices.append(ROLLER)
 	return choices[rng.randi_range(0,choices.size()-1)]
 
 func fill_track() -> void:
@@ -1021,7 +1024,7 @@ func _physics_process(dt: float) -> void:
 		audio.call("play_fx","step")
 	update_effects(dt)
 	player_shadow.position.x=player.position.x
-	var shadow_scale:=1.0/(1.0+maxf(0,player.position.y)*0.30)
+	var shadow_scale:=1.0/(1.0+maxf(0,player.position.y+(SURF_LIFT if surf_time>0 else 0.0))*0.30)
 	player_shadow.scale=Vector3(1.8*shadow_scale,1.3*shadow_scale,1)
 	pickup_flash=maxf(0,pickup_flash-dt)
 	skill_flash=maxf(0,skill_flash-dt)
@@ -1344,7 +1347,8 @@ func hazard_hit(kind: int, feet_y: float, sliding: bool, lateral:float=0.0) -> b
 				return feet_y<1.94
 			return lateral<0.98 and feet_y<1.66 and top>1.18
 		LOW_BAR: return feet_y<0.74 and lateral<0.98
-		CART,COURIER: return feet_y<2.76 and lateral<1.03
+		CART: return feet_y<2.76 and lateral<1.03
+		COURIER: return feet_y<2.22 and lateral<1.03
 		ROLLER: return feet_y<1.30 and lateral<0.98
 		TALL: return feet_y<3.10 and lateral<1.03
 	return false
@@ -1419,11 +1423,13 @@ func test_run() -> void:
 	assert(hazard_hit(1,1.5,false) and hazard_hit(1,0,true,0.65))
 	assert(not hazard_hit(LOW_BAR,1.0,false) and hazard_hit(LOW_BAR,0,true))
 	assert(hazard_hit(TALL,2.2,false) and hazard_hit(CART,2.2,false))
+	assert(hazard_hit(COURIER,2.1,false) and not hazard_hit(COURIER,2.3,false))
+	assert(hazard_hit(ROLLER,0,false) and not hazard_hit(ROLLER,1.4,false))
 	var kinds:Dictionary={}
 	var saved_seed:=rng.state
 	for i in range(80): kinds[hazard_for(3)]=true
 	rng.state=saved_seed
-	assert(kinds.has(CART) and kinds.has(TALL) and kinds.has(LOW_BAR))
+	assert(kinds.has(CART) and kinds.has(TALL) and kinds.has(LOW_BAR) and kinds.has(COURIER) and kinds.has(ROLLER))
 	assert(contact_depth(1)<contact_depth(0))
 	assert(not pickup_reachable(PICKUP,1.5,false) and pickup_reachable(PICKUP,1.5,true))
 	assert(not pickup_reachable(BOOST,0.7,false) and pickup_reachable(BOOST,0,false))
