@@ -61,8 +61,8 @@ func _ready():
 	var rim=OmniLight3D.new(); rim.position=Vector3(3.5,2.9,-1.7); rim.light_color=Color("#ae81ff"); rim.light_energy=1.1; rim.omni_range=5.5; world.add_child(rim)
 	camera=Camera3D.new()
 	world.add_child(camera)
-	camera.position=Vector3(0,4.65,11.5)
-	camera.look_at(Vector3(0,1.9,-0.35))
+	camera.position=Vector3(0,3.8,10.0)
+	camera.look_at(Vector3(0,2.25,-0.55))
 	camera.projection=Camera3D.PROJECTION_PERSPECTIVE
 	camera.fov=56
 	camera.keep_aspect=Camera3D.KEEP_WIDTH
@@ -77,7 +77,7 @@ func update_render_state():
 func update_camera():
 	if not is_instance_valid(camera) or size.x<2 or size.y<2: return
 	# Keep the room composition inside both portrait and landscape-shaped panels.
-	camera.fov=clampf(55.0+maxf(0.0,1.0-size.x/size.y)*5.0,55.0,62.0)
+	camera.fov=clampf(50.0+maxf(0.0,1.0-size.x/size.y)*5.0,50.0,57.0)
 func set_night(night:bool):
 	if night==night_state: return
 	night_state=night

@@ -1,5 +1,6 @@
 extends Control
 const GAMES=["Star Catch","Flappy Pet","Cloud Jump","Find My Pet","Pet Dash 3D"]
+const GameIcons=preload("res://game_icons.gd")
 var store:Node
 var title_label:Label
 var info:Label
@@ -171,9 +172,11 @@ func make_ui():
 		var column=VBoxContainer.new(); column.size_flags_horizontal=SIZE_EXPAND_FILL; meters.add_child(column)
 		var name=label(column,["FOOD","MOOD","ENERGY","BOND"][i],12); name.horizontal_alignment=HORIZONTAL_ALIGNMENT_CENTER
 		var value=label(column,"100%",16); value.horizontal_alignment=HORIZONTAL_ALIGNMENT_CENTER; status_values.append(value)
-		var p=ProgressBar.new(); p.custom_minimum_size.y=13; p.show_percentage=false
-		p.add_theme_stylebox_override("background",bar_skin(Color("#0a1530"),Color("#4e6181")))
-		p.add_theme_stylebox_override("fill",bar_skin(colors[i].darkened(0.18),colors[i].lightened(0.35))); column.add_child(p); stats.append(p)
+		var p=ProgressBar.new(); p.custom_minimum_size.y=15; p.show_percentage=false
+		var track=StyleBoxFlat.new(); track.bg_color=Color("#111a36"); track.border_color=Color("#5c6b9a"); track.set_border_width_all(1); track.set_corner_radius_all(6)
+		var filled=StyleBoxFlat.new(); filled.bg_color=colors[i]; filled.border_color=colors[i].lightened(.32); filled.set_border_width_all(1); filled.set_corner_radius_all(6)
+		p.add_theme_stylebox_override("background",track)
+		p.add_theme_stylebox_override("fill",filled); column.add_child(p); stats.append(p)
 	notice=label(layout,"Tap your pet or an object",13)
 	notice.clip_text=true
 	section_scroll=ScrollContainer.new(); section_scroll.custom_minimum_size.y=144; section_scroll.horizontal_scroll_mode=ScrollContainer.SCROLL_MODE_DISABLED; layout.add_child(section_scroll)
@@ -189,18 +192,20 @@ func make_ui():
 	menu_dock=row(layout); menu_dock.add_theme_constant_override("separation",5)
 	for tab in ["Home","Rooms","Arcade","Shop","More"]: nav_tile(menu_dock,tab)
 	select("Home")
-func art_tile(parent:Node,name:String,path:String,fn:Callable,h:int=66,font:int=13)->Button:
+func art_tile(parent:Node,name:String,path:String,fn:Callable,h:int=66,font:int=13,icon_key:String="")->Button:
 	var b=button(parent,"",fn)
 	b.custom_minimum_size=Vector2(0,h)
 	b.size_flags_horizontal=SIZE_EXPAND_FILL
 	b.tooltip_text=name
 	var v=VBoxContainer.new(); v.set_anchors_and_offsets_preset(PRESET_FULL_RECT); v.offset_left=4; v.offset_right=-4; v.offset_top=4; v.offset_bottom=-4; v.mouse_filter=MOUSE_FILTER_IGNORE; v.add_theme_constant_override("separation",1); b.add_child(v)
-	var image=TextureRect.new(); image.texture=tex(path); image.expand_mode=TextureRect.EXPAND_IGNORE_SIZE; image.stretch_mode=TextureRect.STRETCH_KEEP_ASPECT_CENTERED; image.size_flags_vertical=SIZE_EXPAND_FILL; image.mouse_filter=MOUSE_FILTER_IGNORE; v.add_child(image)
+	var image=TextureRect.new(); image.texture=GameIcons.texture(icon_key) if not icon_key.is_empty() else null
+	if image.texture==null: image.texture=tex(path)
+	image.expand_mode=TextureRect.EXPAND_IGNORE_SIZE; image.stretch_mode=TextureRect.STRETCH_KEEP_ASPECT_CENTERED; image.size_flags_vertical=SIZE_EXPAND_FILL; image.mouse_filter=MOUSE_FILTER_IGNORE; v.add_child(image)
 	var l=label(v,name,font); l.horizontal_alignment=HORIZONTAL_ALIGNMENT_CENTER; l.clip_text=true; l.mouse_filter=MOUSE_FILTER_IGNORE
 	return b
 func nav_tile(parent:Node,tab:String):
 	var art="premium_crystal.png" if tab=="More" else str(NAV_ART.get(tab,"premium_star.png"))
-	var b=art_tile(parent,tab,"res://assets/"+art,func(): select(tab),66,14)
+	var b=art_tile(parent,tab,"res://assets/"+art,func(): select(tab),66,14,tab)
 	nav_buttons[tab]=b
 func reset_actions(columns:int=0):
 	context_labels.clear(); context_bars.clear(); cell_tiles.clear()
@@ -228,7 +233,7 @@ func context_meter(parent:Node,key:String,color:Color):
 	parent.add_child(p); context_bars[key]=p
 func quick(name:String,id:String,i:int=0):
 	var path="res://assets/"+str(ACTION_ART.get(id,"premium_star.png"))
-	art_tile(action_grid,name,path,func(): perform(id,i),66,13)
+	art_tile(action_grid,name,path,func(): perform(id,i),66,13,id)
 func perform(id:String,i:int=0):
 	var before:Dictionary=store.s.duplicate(true)
 	var ok:bool=store.action(id,i)
@@ -362,7 +367,7 @@ func select(tab:String):
 				for i in range(3): add_action(store.FIELDS[i],"field",i)
 			else:
 				add_action("Cuddle","bond")
-				art_tile(action_grid,"Feed","res://assets/premium_snack.png",func(): select("Care"),66,13)
+				art_tile(action_grid,"Feed","res://assets/premium_snack.png",func(): select("Care"),66,13,"food")
 				add_action("Clean","clean")
 				add_action("Play","play")
 				add_action("Sleep","sleep")
@@ -447,10 +452,10 @@ func room(name:String):
 		"Bedroom":
 			add_action("Lamp / sleep","lamp")
 			for i in range(3): add_action(["Cozy","Ocean","Starlight"][i],"theme",i)
-		"Toy room": add_action("Play with toys","toy"); art_tile(action_grid,"Arcade","res://assets/premium_star.png",func(): select("Arcade"),66,13)
+		"Toy room": add_action("Play with toys","toy"); art_tile(action_grid,"Arcade","res://assets/premium_star.png",func(): select("Arcade"),66,13,"Arcade")
 		"Garden": add_action("Plant • 5 coins","plant"); add_action("Harvest","harvest")
 		"Potion lab": add_action("Medicine","medicine"); add_action("Craft crystal","craft")
-	art_tile(action_grid,"All rooms","res://assets/item_4.png",func(): select("Rooms"),66,13)
+	art_tile(action_grid,"All rooms","res://assets/item_4.png",func(): select("Rooms"),66,13,"Rooms")
 	if name=="Garden":
 		var garden=context_card("garden","Garden crop")
 		context_meter(garden,"garden",Color("#90cb70"))
