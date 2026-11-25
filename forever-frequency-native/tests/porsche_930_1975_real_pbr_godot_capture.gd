@@ -30,10 +30,13 @@ func _photo(vp: SubViewport) -> Image:
     return vp.get_texture().get_image()
 
 func _run() -> void:
-    var target_folder := OS.get_environment("CITY_ZERO_FERRARI_GODOT_SHOTS")
+    var target_folder := OS.get_environment("CITY_ZERO_PORSCHE_GODOT_SHOTS")
     if target_folder.is_empty():
         target_folder = ProjectSettings.globalize_path("user://original-porsche-930-pbr")
-    DirAccess.make_dir_recursive_absolute(target_folder)
+    if DirAccess.make_dir_recursive_absolute(target_folder) != OK:
+        _red("Cannot create Porsche native capture directory: " + target_folder)
+        return
+    print("PORSCHE_930_NATIVE_CAPTURE_DIRECTORY: ", target_folder)
 
     var scene_resource := load(SCENE_PATH) as PackedScene
     if scene_resource == null:
@@ -95,7 +98,7 @@ func _run() -> void:
                 shell_low = shell_low.min(pt)
                 shell_high = shell_high.max(pt)
             endpoints.append(pt)
-    if tris < 241000 or materials < 12:
+    if tris != 241258 or materials < 12:
         _red("Premium source true triangle/material count lost: " + str([tris, materials]))
         return
     var dimension := high-low
