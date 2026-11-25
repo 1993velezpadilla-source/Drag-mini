@@ -8,6 +8,22 @@ const JUMP_SPEED := 10.5
 const PLAYER_Z := 0.0
 const PICKUP := 2
 const SNACK := 3
+const MAGNET := 4
+const SHIELD := 5
+const DOUBLE := 6
+const BOOST := 7
+var magnet_time := 0.0
+var shield_time := 0.0
+var double_time := 0.0
+var boost_time := 0.0
+var power_label: Label
+var fx: Node3D
+var dust: Array[MeshInstance3D] = []
+var dust_ages: Array[float] = []
+var aura: MeshInstance3D
+var audio: Node
+var audio_button: Button
+var next_step := 0.0
 var rng := RandomNumberGenerator.new()
 var player: CharacterBody3D
 var mascot: Node3D
@@ -19,7 +35,7 @@ var player_shape: CollisionShape3D
 var camera: Camera3D
 var chunks: Array[Node3D] = []
 var entities: Array[Area3D] = []
-var pools: Array = [[],[],[],[]]
+var pools: Array = [[],[],[],[],[],[],[],[]]
 var created_entities := 0
 var reused_entities := 0
 var previous_safe_lane := 1
@@ -115,15 +131,20 @@ func _ready() -> void:
 	e.sky=sky
 	e.background_mode=Environment.BG_SKY
 	e.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
-	e.ambient_light_color = Color("#b9d7ff")
-	e.ambient_light_energy = 0.65
+	e.ambient_light_color = Color("#c5d9ee")
+	e.ambient_light_energy = 0.28
+	e.reflected_light_source = Environment.REFLECTED_SOURCE_DISABLED
 	e.tonemap_mode = Environment.TONE_MAPPER_FILMIC
 	env.environment = e
 	add_child(env)
 	var sun := DirectionalLight3D.new()
 	sun.rotation_degrees = Vector3(-48, -28, 0)
 	sun.light_color = Color("#ffdfb0")
-	sun.light_energy = 1.3
+	sun.light_energy = 0.66
+	sun.light_specular=0.3
+	sun.directional_shadow_max_distance=44.0
+	sun.shadow_bias=0.07
+	sun.shadow_normal_bias=0.55
 	sun.shadow_enabled = true
 	add_child(sun)
 	var floor_body := StaticBody3D.new()
@@ -142,10 +163,14 @@ func _ready() -> void:
 		make_chunk(chunk, i)
 	make_player()
 	camera = Camera3D.new()
-	camera.position = Vector3(0, 4.15, 7.7)
-	camera.fov = 63
+	camera.position = Vector3(0, 4.25, 7.1)
+	camera.fov = 58
+	camera.far=140
 	add_child(camera)
-	camera.look_at(Vector3(0, 1.8, -15))
+	camera.look_at(Vector3(0, 0.25, -10))
+	make_effects()
+	audio=preload("res://dash_audio.gd").new()
+	add_child(audio)
 	make_hud()
 	fill_track()
 	if OS.get_cmdline_user_args().has("--test"):
@@ -221,9 +246,11 @@ func make_player() -> void:
 	player_shape=collision
 	mascot=Node3D.new()
 	player.add_child(mascot)
+	mascot.rotation.y=PI
 	if using_blender and asset(mascot,"mosskit",Vector3.ZERO)!=null:
 		for side in [-1,1]:
 			var foot := asset(mascot,"foot",Vector3(side*0.37,0.20,0.16))
+			if foot!=null: foot.rotation.y=PI
 			if foot!=null: feet.append(foot)
 		return
 	orb(mascot,Vector3(0,0.85,0),Vector3(1.48,1.52,1.2),Color("#8bdc42"))
@@ -243,6 +270,8 @@ func panel_style(bg: Color, border: Color, radius: int) -> StyleBoxFlat:
 	var style := StyleBoxFlat.new()
 	style.bg_color=bg
 	style.border_color=border
+	style.shadow_color=Color(0.22,0.48,0.95,0.32)
+	style.shadow_size=4
 	style.set_border_width_all(2)
 	style.set_corner_radius_all(radius)
 	style.content_margin_left=12
@@ -291,7 +320,15 @@ func make_hud() -> void:
 	var header := HBoxContainer.new()
 	header.mouse_filter=Control.MOUSE_FILTER_IGNORE
 	column.add_child(header)
+	hud_label(header,"FOREVER\nPET",14,Color("#c1d9ff"))
 	status=hud_label(header,"PET DASH",29,Color("#ffdc87"))
+	audio_button=Button.new()
+	audio_button.text="SFX"
+	style_button(audio_button)
+	audio_button.pressed.connect(func():
+		audio.call("toggle")
+		audio_button.text="SFX" if audio.get("enabled") else "Mute")
+	header.add_child(audio_button)
 	pause_button=Button.new()
 	pause_button.text="Ⅱ"
 	pause_button.custom_minimum_size=Vector2(52,40)
@@ -304,7 +341,8 @@ func make_hud() -> void:
 	score_label=hud_label(stats,"0 m",20,Color("#f0f1ff"))
 	coin_label=hud_label(stats,"0 coins",20,Color("#ffd775"))
 	snack_label=hud_label(stats,"0 snacks",20,Color("#a9e2bd"))
-	hud_label(column,"SKY BRIDGE  •  Collect food for your pet",16,Color("#cbd9ff"))
+	hud_label(column,"SKY BRIDGE  •  Collect snacks for your pet!",16,Color("#cbd9ff"))
+	power_label=hud_label(column,"MAGNET  •  SHIELD  •  ×2  •  BOOST",15,Color("#e9d5ff"))
 	var footer := PanelContainer.new()
 	ui.add_child(footer)
 	footer.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_WIDE)
@@ -319,8 +357,8 @@ func make_hud() -> void:
 	footer.add_child(bottom)
 	hint=hud_label(bottom,"Swipe to start",17,Color("#f1ebff"))
 	var exit := Button.new()
-	exit.text="Finish"
-	exit.custom_minimum_size=Vector2(96,48)
+	exit.text="Exit & collect"
+	exit.custom_minimum_size=Vector2(148,48)
 	style_button(exit,true)
 	exit.pressed.connect(finish_run)
 	bottom.add_child(exit)
@@ -371,6 +409,8 @@ func fill_track() -> void:
 			make_entity(free_lane,PICKUP,spawn_at-3.2+i*1.5)
 		if rng.randf()<0.55:
 			make_entity(free_lane,SNACK,spawn_at+4.8)
+		if pattern_count%4==2:
+			make_entity(free_lane,MAGNET+rng.randi_range(0,3),spawn_at+7.4)
 		previous_safe_lane=free_lane
 		pattern_count+=1
 		spawn_at+=maxf(12.0,speed*1.22)
@@ -396,7 +436,7 @@ func make_entity(which_lane: int, kind: int, at: float) -> void:
 	if recycled:
 		if a.get_child_count()>0: (a.get_child(0) as Node3D).rotation.y=0
 		return
-	if using_blender and asset(a,["crate","barrier","coin","snack"][kind],Vector3.ZERO)!=null:
+	if using_blender and asset(a,["crate","barrier","coin","snack","magnet","shield","double","boost"][kind],Vector3.ZERO)!=null:
 		return
 	if kind==0:
 		box(a,Vector3(0,0.45,0),Vector3(1.30,0.90,0.9),Color("#9c5b37"))
@@ -416,10 +456,12 @@ func make_entity(which_lane: int, kind: int, at: float) -> void:
 		ring.height=0.12
 		var coin := mesh(a,ring,Vector3(0,0.75,0),Color("#ffd05a"),0.55)
 		coin.rotation.x=PI/2
-	else:
+	elif kind==SNACK:
 		orb(a,Vector3(0,0.75,0),Vector3(0.68,0.45,0.68),Color("#607fbc"))
 		for i in range(5):
 			orb(a,Vector3(cos(i*1.26)*0.19,0.99,sin(i*1.26)*0.19),Vector3(0.16,0.13,0.16),Color("#e1ae5a"))
+	else:
+		orb(a,Vector3(0,0.85,0),Vector3(0.85,0.85,0.85),[Color.RED,Color.CYAN,Color.GOLD,Color.DEEP_SKY_BLUE][kind-MAGNET])
 
 func toggle_pause() -> void:
 	if not ended:
@@ -437,11 +479,14 @@ func gesture(delta: Vector2) -> void:
 	elif delta.y < -22:
 		if player.is_on_floor() and slide<=0:
 			player.velocity.y=JUMP_SPEED
+			audio.call("play_fx","jump")
 		else:
 			jump_buffer=0.14
 	elif delta.y > 22:
 		jump_buffer=0
-		if player.is_on_floor(): slide=0.65
+		if player.is_on_floor():
+			slide=0.65
+			audio.call("play_fx","slide")
 		else: player.velocity.y=minf(player.velocity.y,-13)
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -492,10 +537,21 @@ func _physics_process(dt: float) -> void:
 	if not started:
 		return
 	clock+=dt
-	speed=minf(20.0,9.0+distance*0.018)
+	magnet_time=maxf(0,magnet_time-dt)
+	shield_time=maxf(0,shield_time-dt)
+	double_time=maxf(0,double_time-dt)
+	boost_time=maxf(0,boost_time-dt)
+	speed=minf(20.0,9.0+distance*0.018)+(4.0 if boost_time>0 else 0.0)
 	distance+=speed*dt
 	slide=maxf(0,slide-dt)
 	mascot.scale.y=lerpf(mascot.scale.y,0.48 if slide>0 else 1.0, minf(1,dt*16))
+	mascot.rotation.y=PI+clampf(player.velocity.x*0.023,-0.24,0.24)
+	mascot.rotation.z=lerpf(mascot.rotation.z,clampf(player.velocity.x*0.025,-0.24,0.24),dt*8)
+	mascot.position.y=0.035*(1+sin(clock*32)) if player.is_on_floor() and slide<=0 else 0.0
+	if player.is_on_floor() and slide<=0 and clock>=next_step:
+		next_step=clock+0.19
+		audio.call("play_fx","step")
+	update_effects(dt)
 	for i in range(feet.size()):
 		feet[i].position.z=0.16+sin(clock*16+i*PI)*0.25 if player.is_on_floor() and slide<=0 else 0.16
 		feet[i].position.y=0.20+maxf(0,sin(clock*16+i*PI))*0.18 if player.is_on_floor() and slide<=0 else 0.20
@@ -508,19 +564,28 @@ func _physics_process(dt: float) -> void:
 		var old_z:=a.position.z
 		a.position.z=float(a.get_meta("at"))*-1+distance
 		var kind:=int(a.get_meta("kind"))
-		if kind==PICKUP and a.get_child_count()>0:
+		if kind>=PICKUP and a.get_child_count()>0:
 			(a.get_child(0) as Node3D).rotation.y+=dt*2.5
 		# Test the full swept depth interval, with the same world sizes as the meshes.
 		var contact := maxf(old_z,a.position.z)>=-0.80 and minf(old_z,a.position.z)<=0.80
-		if contact and not bool(a.get_meta("resolved")) and absf(a.position.x-player.position.x)<0.92:
+		var attraction := kind==PICKUP and magnet_time>0 and absf(a.position.z)<5.0
+		if attraction: a.position.x=move_toward(a.position.x,player.position.x,dt*19)
+		if (contact or attraction) and not bool(a.get_meta("resolved")) and absf(a.position.x-player.position.x)<0.92:
 			if kind>=PICKUP:
-				if player.position.y<1.1:
-					if kind==PICKUP: coins+=1
-					else: snacks+=1
+				if player.position.y<1.1 or attraction:
+					collect_kind(kind)
 					a.set_meta("resolved",true)
 					a.hide()
 			elif hazard_hit(kind,player.position.y,slide>0):
-				ended=true
+				if shield_time>0 or boost_time>0:
+					if boost_time<=0: shield_time=0
+					a.set_meta("resolved",true)
+					a.hide()
+					audio.call("play_fx","shield")
+				else:
+					ended=true
+					audio.call("play_fx","crash")
+					break
 		if a.position.z>2.5:
 			a.hide()
 			pools[kind].append(a)
@@ -529,12 +594,74 @@ func _physics_process(dt: float) -> void:
 	camera.position.x=lerpf(camera.position.x,player.position.x*0.18,minf(1,dt*6))
 	update_hud()
 
+func collect_kind(kind: int) -> void:
+	match kind:
+		PICKUP:
+			coins+=2 if double_time>0 else 1
+			audio.call("play_fx","coin")
+		SNACK:
+			snacks+=1
+			audio.call("play_fx","snack")
+		MAGNET:
+			magnet_time=12.0
+		SHIELD:
+			shield_time=15.0
+		DOUBLE:
+			double_time=12.0
+		BOOST:
+			boost_time=6.0
+	if kind>=MAGNET: audio.call("play_fx","power")
+
+func make_effects() -> void:
+	fx=Node3D.new()
+	add_child(fx)
+	for i in range(12):
+		var p:=orb(fx,Vector3.ZERO,Vector3.ONE*0.14,Color("#f1dcc6"))
+		p.cast_shadow=GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		p.hide()
+		dust.append(p)
+		dust_ages.append(-1.0)
+	aura=orb(player,Vector3(0,0.9,0),Vector3(1.95,2.0,1.95),Color("#65d6ff"))
+	var m:=StandardMaterial3D.new()
+	m.albedo_color=Color(0.25,0.85,1.0,0.19)
+	m.transparency=BaseMaterial3D.TRANSPARENCY_ALPHA
+	m.shading_mode=BaseMaterial3D.SHADING_MODE_UNSHADED
+	aura.material_override=m
+	aura.cast_shadow=GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	aura.hide()
+
+func update_effects(dt:float) -> void:
+	aura.visible=shield_time>0 or boost_time>0
+	if player.is_on_floor() and slide<=0 and int(clock*15)!=int((clock-dt)*15):
+		for i in range(dust.size()):
+			if dust_ages[i]<0:
+				dust[i].position=Vector3(player.position.x+sin(clock*17)*0.25,0.12,0.65)
+				dust[i].show()
+				dust_ages[i]=0
+				break
+	for i in range(dust.size()):
+		if dust_ages[i]<0: continue
+		dust_ages[i]+=dt
+		dust[i].position.z+=speed*dt*0.7
+		dust[i].position.y+=dt*0.34
+		dust[i].scale=Vector3.ONE*(0.12+dust_ages[i]*0.33)
+		if dust_ages[i]>0.5:
+			dust[i].hide()
+			dust_ages[i]=-1
+
 func hazard_hit(kind: int, feet_y: float, sliding: bool) -> bool:
 	if kind==0: return feet_y<0.90
 	if kind==1: return feet_y+(0.74 if sliding else 1.55)>1.16
 	return false
 
 func update_hud() -> void:
+	var active_powers: Array[String]=[]
+	if magnet_time>0: active_powers.append("MAGNET %ds"%ceili(magnet_time))
+	if shield_time>0: active_powers.append("SHIELD %ds"%ceili(shield_time))
+	if double_time>0: active_powers.append("×2 %ds"%ceili(double_time))
+	if boost_time>0: active_powers.append("BOOST %ds"%ceili(boost_time))
+	var powers: String="  •  ".join(active_powers)
+	power_label.text=powers if not powers.is_empty() else "Collect power-ups to extend your run"
 	var key := str(int(distance))+":"+str(coins)+":"+str(snacks)+":"+str(ended)+":"+str(paused_run)+":"+str(started)
 	if key==last_hud: return
 	last_hud=key
@@ -566,6 +693,7 @@ func test_run() -> void:
 	gesture(Vector2(80,0))
 	assert(lane==1)
 	assert(chunks.size()==SEGMENTS and entities.size()>10)
+	assert((mascot.transform.basis*Vector3.BACK).z < -0.99,"mascot must face away")
 	assert(using_blender and loaded_assets>20,"Blender assets missing or not instantiated")
 	# Isolate control tests from randomly spawned obstacles.
 	for entity in entities: entity.queue_free()
@@ -601,6 +729,20 @@ func test_run() -> void:
 	assert(created_entities==count_before and reused_entities>0)
 	for i in range(30): await get_tree().physics_frame
 	assert(coins==2 and not ended)
+	collect_kind(DOUBLE)
+	collect_kind(PICKUP)
+	assert(coins==4 and double_time>0)
+	collect_kind(MAGNET)
+	make_entity(0,PICKUP,distance+3.0)
+	for i in range(35): await get_tree().physics_frame
+	assert(coins==6 and magnet_time>0)
+	collect_kind(SHIELD)
+	make_entity(1,0,distance+1.0)
+	for i in range(20): await get_tree().physics_frame
+	assert(not ended and shield_time==0)
+	collect_kind(BOOST)
+	assert(boost_time>0)
+	boost_time=0
 	make_entity(1,0,distance+1.0)
 	for i in range(20): await get_tree().physics_frame
 	assert(ended and result_panel.visible)

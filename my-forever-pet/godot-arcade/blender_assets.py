@@ -3,7 +3,7 @@ from math import pi
 OUT=os.path.abspath(sys.argv[sys.argv.index('--')+1]);os.makedirs(OUT,exist_ok=True)
 def mat(name,rgb,metal=0,rough=.42):
  m=bpy.data.materials.new(name);m.diffuse_color=(*rgb,1);m.use_nodes=True;b=m.node_tree.nodes.get('Principled BSDF');b.inputs['Base Color'].default_value=(*rgb,1);b.inputs['Metallic'].default_value=metal;b.inputs['Roughness'].default_value=rough;return m
-wood=mat('warm oak',(.42,.20,.095));wood2=mat('light oak',(.55,.29,.14));stone=mat('blue grey stone',(.35,.41,.49));cream=mat('ivory',(.88,.77,.59));gold=mat('gold',(.98,.57,.07),.5,.26);green=mat('foliage',(.085,.36,.12));leaf=mat('leaf tips',(.30,.57,.12));blue=mat('navy blue',(.06,.13,.34));violet=mat('banner violet',(.25,.14,.52));amber=mat('amber',(.98,.51,.13));lime=mat('Mosskit body',(.27,.78,.09),0,.28);pink=mat('ear rose',(.95,.35,.49));dark=mat('deep plum',(.038,.024,.075),0,.20);white=mat('eye shine',(.97,.97,1));water=mat('water',(.13,.64,.89),.15,.21)
+wood=mat('warm oak',(.23,.087,.032));wood2=mat('light oak',(.33,.145,.057));stone=mat('blue grey stone',(.35,.41,.49));cream=mat('ivory',(.88,.77,.59));gold=mat('gold',(.98,.57,.07),.5,.26);green=mat('foliage',(.085,.36,.12));leaf=mat('leaf tips',(.30,.57,.12));blue=mat('navy blue',(.06,.13,.34));violet=mat('banner violet',(.25,.14,.52));amber=mat('amber',(.98,.51,.13));lime=mat('Mosskit body',(.13,.46,.024),0,.34);pink=mat('ear rose',(.95,.35,.49));dark=mat('deep plum',(.038,.024,.075),0,.20);white=mat('eye shine',(.97,.97,1));water=mat('water',(.13,.64,.89),.15,.21)
 def clear():
  bpy.ops.object.select_all(action='SELECT');bpy.ops.object.delete(use_global=False)
 def finish(o,m,b=0):
@@ -49,7 +49,9 @@ def export(name,maxtri):
  print('GLB_OK',name,total,len(groups))
 clear()
 box((0,-.23,0),(6.65,.45,18),wood)
-for i in range(18):box((0,.005,-8.5+i),(6.36,.065,.985),wood if i%2 else wood2,.012)
+for i in range(18):
+ for j in range(3):
+  box(((j-1)*2.12,.005,-8.5+i),(2.11,.065,.985),wood if (i+j)%3==0 else wood2,.012)
 for side in [-1,1]:
  box((side,.055,0),(.065,.03,18),cream,.01)
  box((side*3.37,.12,0),(.38,.50,18),stone)
@@ -59,7 +61,9 @@ for side in [-1,1]:
   if j%2==0:
    box((side*3.5,1.92,z),(.12,1.0,.12),blue);box((side*3.5,2.40,z),(.43,.13,.43),blue)
    ball((side*3.5,2.70,z),(.46,.55,.46),gold);box((side*3.5,3,z),(.48,.13,.48),blue)
-   box((side*3.5,1.7,z-.35),(.08,.85,.48),violet)
+   box((side*3.5,1.7,z-.35),(.08,.85,.48),blue)
+   box((side*3.5,1.31,z-.35),(.095,.065,.51),gold)
+   for dz in [-.20,.20]:box((side*3.5,1.7,z-.35+dz),(.095,.80,.035),gold)
   else:
    cyl((side*3.67,.41,z),.32,.44,.56,stone)
    for k in range(5):
@@ -72,7 +76,12 @@ for j in range(13):
  if j%2==0:
   for k in range(3):ball((3.3*math.cos(a)+.22*(k-1),4.03+3.3*math.sin(a),.25),(.60,.42,.61),green if k%2 else leaf)
 cyl((0,7.15,.48),.43,.43,.14,violet,True);paw((0,7.13,.59),gold,.95)
-export('arch',35000)
+for side in [-1,1]:
+ for j in range(8):
+  yy=.5+j*.45
+  ball((side*(3.25+.10*math.sin(j)),yy,.46),(.34,.22,.28),leaf if j%2 else green)
+  if j%3==0:ball((side*3.25,yy,.63),(.16,.16,.10),white)
+export('arch',55000)
 clear()
 cyl((0,-1.9,0),.50,2.7,3.8,stone);cyl((0,.05,0),2.69,2.69,.35,green)
 cyl((0,1.7,0),.92,.85,3.4,cream);cyl((0,3.88,0),1.16,.05,1.4,blue)
@@ -91,7 +100,8 @@ for side in [-1,1]:
  ball((side*.29,1.02,.54),(.33,.48,.16),dark);ball((side*.29-.05,1.13,.62),(.115,.14,.055),white)
  ball((side*.47,.78,.46),(.22,.12,.09),pink)
 ball((0,.72,.61),(.29,.25,.10),dark);ball((0,.65,.66),(.17,.085,.055),pink)
-export('mosskit',22000)
+ball((0,.66,-.65),(.36,.36,.34),lime)
+export('mosskit',26000)
 clear();ball((0,0,0),(.68,.40,.67),lime);paw((0,-.08,.30),pink,.64);export('foot',7000)
 clear();box((0,.45,0),(1.3,.9,.9),wood,.07)
 for x in [-.55,.55]:box((x,.45,.47),(.14,.86,.07),wood2)
@@ -109,3 +119,31 @@ clear();cyl((0,.68,0),.30,.39,.28,violet);cyl((0,.83,0),.35,.35,.035,wood)
 for i in range(8):
  a=i*2.4;r=.24*math.sqrt((i+1)/8);ball((r*math.cos(a),.88,r*math.sin(a)),(.16,.11,.15),amber)
 export('snack',10000)
+
+# Distinct power-up silhouettes. No gameplay art baked into background.
+red=mat('magnet enamel',(.66,.035,.05),.1,.26)
+cyan=mat('shield crystal',(.035,.46,.75),.15,.25)
+clear()
+for i in range(11):
+ a=pi+i*pi/10
+ ball((.37*math.cos(a),.90+.37*math.sin(a),0),(.22,.24,.22),red)
+for side in [-1,1]:
+ box((side*.37,1.04,0),(.22,.28,.22),red,.035)
+ box((side*.37,1.22,0),(.24,.15,.24),cream,.035)
+export('magnet',18000)
+clear()
+ball((0,.9,0),(.91,1.04,.25),cyan)
+ring((0,.9,.12),.37,.045,gold)
+paw((0,.88,.16),cream,.8)
+export('shield',10000)
+clear()
+for side in [-1,1]:
+ cyl((side*.22,.85+side*.12,0),.32,.32,.12,gold,True)
+ ring((side*.22,.85+side*.12,.075),.26,.025,gold)
+export('double',9000)
+clear()
+box((0,.13,0),(1.34,.26,1.55),blue,.12)
+for z in [-.30,.30]:
+ for side in [-1,1]:
+  o=box((side*.19,.29,z),(.50,.045,.14),cyan,.02);o.rotation_euler.z=side*.65
+export('boost',6000)
