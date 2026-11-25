@@ -780,6 +780,15 @@ func fill_track() -> void:
 		var projected_speed:=minf(25.0,9.0+(distance_offset+spawn_at)*0.024)
 		spawn_at+=maxf(10.5,projected_speed*(1.24-0.07*tier))
 
+# Continuous oncoming travel relative to the road, anchored at the planned
+# encounter distance. The row generator retains its original escape lane.
+func approach_factor(kind:int) -> float:
+	match kind:
+		CART: return 1.75
+		COURIER: return 1.95
+		ROLLER: return 1.55
+	return 1.0
+
 func make_entity(which_lane: int, kind: int, at: float) -> void:
 	var a: Area3D
 	var recycled: bool = not pools[kind].is_empty()
@@ -791,13 +800,14 @@ func make_entity(which_lane: int, kind: int, at: float) -> void:
 		a=Area3D.new()
 		created_entities+=1
 		add_child(a)
-	a.position=Vector3(LANES[which_lane],0,-(at-distance))
+	a.position=Vector3(LANES[which_lane],0,(distance-at)*approach_factor(kind))
 	a.monitoring=false
 	a.monitorable=false
 	a.set_meta("kind",kind)
 	a.set_meta("at",at)
 	a.set_meta("resolved",false)
-	a.set_meta("cart_shift",0.0)
+	a.set_meta("warned",false)
+	a.set_meta("wheel_angle",0.0)
 	a.set_meta("skill_clear",false)
 	a.set_meta("dodge_candidate",false)
 	entities.append(a)
@@ -1113,14 +1123,17 @@ func _physics_process(dt: float) -> void:
 		var old_z:=a.position.z
 		var kind:=int(a.get_meta("kind"))
 		var base_z:=distance-float(a.get_meta("at"))
-		# The cart moves toward the runner in its own lane; displacement is
-		# bounded to leave the adjacent generated safe route reachable.
-		var shift:=clampf((base_z+24.0)*0.16,0.0,3.2) if kind==CART or kind==COURIER else (clampf((base_z+20.0)*0.11,0.0,2.2) if kind==ROLLER else 0.0)
-		a.position.z=base_z+shift
-		a.set_meta("cart_shift",shift)
+		# Never cap the oncoming motion. Spawn farther ahead and preserve the
+		# designed encounter distance while approaching at 1.55–1.95x road speed.
+		var factor:=approach_factor(kind)
+		a.position.z=base_z*factor
+		if factor>1.0 and a.visible and not bool(a.get_meta("warned")) and a.position.z>-speed*factor*1.15 and a.position.z<0 and absf(a.position.x-player.position.x)<1.05:
+			a.set_meta("warned",true)
+			audio.call("play_fx","incoming")
 		if kind==ROLLER and a.visible and a.position.z>-40 and a.get_child_count()>0:
 			var wheel:=a.get_child(0) as Node3D
-			var angle:=-(base_z+shift)*1.45
+			var angle:=float(a.get_meta("wheel_angle"))-(a.position.z-old_z)/0.65
+			a.set_meta("wheel_angle",angle)
 			wheel.rotation.x=angle
 			wheel.position=Vector3(0,0.65,0)-Basis(Vector3.RIGHT,angle)*Vector3(0,0.65,0)
 		if is_pickup(kind) and kind!=BOOST and kind!=SKY_RING and kind!=PORTAL and kind!=TREASURE and a.visible and a.position.z > -45.0 and a.get_child_count()>0:
@@ -1139,7 +1152,7 @@ func _physics_process(dt: float) -> void:
 		if attraction: a.position.x=move_toward(a.position.x,player.position.x,dt*19)
 		var lateral:=absf(a.position.x-player.position.x)
 		# A near dodge requires actual prior alignment shortly before contact.
-		if not is_pickup(kind) and a.position.z<-depth and a.position.z>=-depth-speed*0.35 and lateral<0.55:
+		if not is_pickup(kind) and a.position.z<-depth and a.position.z>=-depth-speed*factor*0.35 and lateral<0.55:
 			a.set_meta("dodge_candidate",true)
 		if (contact or attraction) and not bool(a.get_meta("resolved")) and (kind==PORTAL or lateral<(0.92 if is_pickup(kind) else 1.05)):
 			if is_pickup(kind):
@@ -1629,14 +1642,17 @@ func test_run() -> void:
 	gesture(Vector2(0,80))
 	for i in range(48): await get_tree().physics_frame
 	assert(not ended and slide==0,"slide must clear actual red beam")
-	make_entity(0,CART,distance+8.0)
-	var cart:=entities.back() as Area3D
-	var cart_z:=cart.position.z
-	var start_distance:=distance
-	for i in range(12): await get_tree().physics_frame
-	assert(not ended and cart.position.z-cart_z>distance-start_distance+0.1,"cart approaches independently")
-	for i in range(60): await get_tree().physics_frame
-	assert(not ended,"adjacent cart must not hit runner")
+	# Measure sustained travel at long range and at approach, not merely wheel spin.
+	for kind in [CART,COURIER,ROLLER]:
+		make_entity(0,kind,distance+20.0)
+		var cart:=entities.back() as Area3D
+		for sample in range(2):
+			var cart_z:=cart.position.z
+			var start_distance:=distance
+			for i in range(30): await get_tree().physics_frame
+			assert(not ended and is_equal_approx((cart.position.z-cart_z)/(distance-start_distance),approach_factor(kind)),"continuous oncoming speed")
+		for i in range(180): await get_tree().physics_frame
+		assert(not ended and not cart.visible,"oncoming vehicle must pass and recycle safely")
 	# New power-ups must change movement, not just display a timer.
 	collect_kind(SPRING)
 	gesture(Vector2(0,-80))

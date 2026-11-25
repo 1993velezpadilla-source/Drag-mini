@@ -1,5 +1,5 @@
 extends SceneTree
-const VIEWS = ["front","rear","side","front34","rear34"]
+const VIEWS = ["front","rear","side","front34","rear34","underside"]
 func _initialize() -> void:
 	call_deferred("review")
 func review() -> void:
@@ -16,6 +16,10 @@ func review() -> void:
 	assert(foot_l!=null and foot_r!=null)
 	var pad:=foot_l.find_child("paw_main_L",true,false) as Node3D
 	assert(pad!=null)
+	for foot in [foot_l,foot_r]:
+		for child in foot.get_children():
+			if str(child.name).begins_with("paw_"):
+				assert(child.position.y < -0.13 and absf(child.position.z)<0.20,"pad belongs on sole")
 	var before:=pad.global_position
 	var right_before:=foot_r.global_transform
 	foot_l.rotation.x=0.45
@@ -41,7 +45,7 @@ func review() -> void:
 	scene.add_child(camera)
 	camera.current=true
 	var center:=Vector3(0,1.0,0)
-	var directions:Array[Vector3]=[Vector3(0,0.12,5),Vector3(0,0.12,-5),Vector3(5,0.12,0),Vector3(3,1.25,5),Vector3(3,1.25,-5)]
+	var directions:Array[Vector3]=[Vector3(0,0.12,5),Vector3(0,0.12,-5),Vector3(5,0.12,0),Vector3(3,1.25,5),Vector3(3,1.25,-5),Vector3(0,-5,0.35)]
 	var path:=OS.get_environment("PET_GOLD_OUT")
 	assert(not path.is_empty())
 	for i in range(VIEWS.size()):

@@ -2,7 +2,7 @@
 import argparse,json,hashlib,struct,sys
 from pathlib import Path
 from PIL import Image
-VIEWS=('front','rear','side','front34','rear34')
+VIEWS=('front','rear','side','front34','rear34','underside')
 MARKS=('silhouette','surface_detail','materials','face_and_expression','rear_and_paws','art_style','animation_pivots','in_game_readability')
 def inspect(folder):
  report=json.loads((folder/'asset-report.json').read_text())
@@ -24,7 +24,7 @@ def inspect(folder):
    box=mask.getbbox();assert box is not None
    x0,y0,x1,y1=box
    assert x0>12 and y0>12 and x1<948 and y1<948,(tier,view,box)
-   assert (y1-y0)/960>.60 and (x1-x0)/960>.26,(tier,view,box)
+   assert (y1-y0)/960>(.30 if view=='underside' else .60) and (x1-x0)/960>.26,(tier,view,box)
    captures[tier+'-'+view]=[x0,y0,x1,y1]
  # Master/mobile silhouettes must remain consistent under the same calibrated cameras.
  for view in VIEWS:

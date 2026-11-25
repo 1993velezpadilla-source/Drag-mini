@@ -198,7 +198,13 @@ for side in [-1,1]:
 ball((0,.73,-.77),(.25,.25,.13),softlime)
 ball((0,1.62,-.09),(.25,.38,.24),softlime)
 export('mosskit',26000)
-clear();ball((0,0,0),(.68,.40,.67),lime);paw((0,-.08,.30),pink,.64);export('foot',7000)
+clear()
+ball((0,0,0),(.68,.40,.67),lime)
+# Pads are flattened along vertical Y, attached to the sole, not the heel.
+ball((0,-.182,.035),(.24,.050,.23),pink)
+for i in range(3):
+ ball(((i-1)*.103,-.157,-.145+(.025 if i!=1 else 0)),(.088,.045,.100),pink)
+export('foot',7000)
 clear();box((0,.45,0),(1.3,.9,.9),wood,.07)
 for x in [-.55,.55]:box((x,.45,.47),(.14,.86,.07),wood2)
 for y in [.10,.80]:box((0,y,.47),(1.25,.12,.08),wood2)

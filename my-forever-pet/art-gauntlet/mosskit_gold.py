@@ -62,9 +62,10 @@ def make(high):
   sculpt('blush_'+tag,(side*.46,-.51,.72),(.19,.055,.105),pink,small)
   sculpt('arm_'+tag,(side*.66,-.10,.57),(.29,.39,.50),lime,large,'ear',side*-.29)
   foot=sculpt('foot_'+tag,(side*.36,.01,.20),(.60,.66,.40),lime,large,'foot')
-  sculpt('paw_main_'+tag,(side*.36,.304,.15),(.27,.075,.21),pink,small)
+  # Sole contact patches: flattened in Z, toes point toward Blender -Y.
+  sculpt('paw_main_'+tag,(side*.36,.045,.012),(.27,.23,.045),pink,small)
   for i in range(3):
-   sculpt('paw_toe_'+tag+str(i),(side*.36+(i-1)*.108,.307,.26+(.035 if i==1 else 0)),(.09,.058,.093),pink,tiny)
+   sculpt('paw_toe_'+tag+str(i),(side*.36+(i-1)*.100,-.125+(.022 if i!=1 else 0),.041),(.088,.100,.042),pink,tiny)
  sculpt('nose',(0,-.619,.782),(.16,.075,.105),deep,small)
  sculpt('smile',(0,-.605,.675),(.20,.065,.082),deep,small)
  sculpt('tail',(0,.595,.68),(.43,.43,.43),lime,large)
@@ -77,6 +78,7 @@ def make(high):
   for o in list(bpy.context.scene.objects):
    if o.name.startswith('paw_') and ('_'+tag in o.name):
     m=o.matrix_world.copy();o.parent=foot;o.matrix_world=m
+    assert o.location.z < -.13 and abs(o.location.y)<.20, (o.name,tuple(o.location))
 def metrics():
  meshes=[o for o in bpy.context.scene.objects if o.type=='MESH']
  bpy.context.view_layer.update()
@@ -116,7 +118,7 @@ def render_views(label, m):
  cam_data=bpy.data.cameras.new('Gold review camera');cam_data.type='ORTHO';cam_data.ortho_scale=2.65
  cam=bpy.data.objects.new('Gold review camera',cam_data);scene.collection.objects.link(cam);scene.camera=cam
  center=Vector((0,0,(m['bounds'][0][2]+m['bounds'][1][2])*.5))
- for name,d in {'front':(0,-5,.12),'rear':(0,5,.12),'side':(5,0,.12),'front34':(3,-5,1.25),'rear34':(3,5,1.25)}.items():
+ for name,d in {'front':(0,-5,.12),'rear':(0,5,.12),'side':(5,0,.12),'front34':(3,-5,1.25),'rear34':(3,5,1.25),'underside':(0,-.35,-5)}.items():
   cam.location=center+Vector(d);cam.rotation_euler=(center-cam.location).to_track_quat('-Z','Y').to_euler()
   scene.render.filepath=str(out/(label+'-'+name+'.png'));bpy.ops.render.render(write_still=True)
 make(True);master=export('mosskit-master');render_views('mosskit-master',master)

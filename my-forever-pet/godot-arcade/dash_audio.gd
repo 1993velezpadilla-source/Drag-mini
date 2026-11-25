@@ -24,6 +24,7 @@ func _ready() -> void:
 	sounds["game_over"]=tone(440,98,0.72,0.34)
 	sounds["card"]=tone(1040,1660,0.19,0.25)
 	sounds["treasure"]=tone(420,1880,0.50,0.30)
+	sounds["incoming"]=tone(245,180,0.30,0.23)
 	sounds["swoosh"]=tone(360,95,0.13,0.18)
 	sounds["skill"]=tone(780,1730,0.20,0.25)
 	sounds["challenge"]=tone(530,1850,0.48,0.30)

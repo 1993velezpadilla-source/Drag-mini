@@ -9,3 +9,5 @@ Adapted from the actual City Zero specialist vehicle gate and the Porsche five-v
 5. Candidate is outside production assets. Current gameplay lab is unchanged. A future promotion must run the release gate with --require-release. Missing evidence rejects promotion. No candidate is declared AAA or shipped just because a workflow passes.
 
 First candidate: Mosskit, original source-authored parametric sculpt with separate feet, paws, facial parts, ears and tail. New mesh retains the green pet identity. Review before proceeding to bridge, arches, castle islands, props and moving hazards.
+
+Owner reported heel-mounted pads. Corrected both master and mobile geometry to the underside with flattened vertical profile, added per-pad placement assertions and underside native Blender/Godot renders. Prior visual approval remains invalid; new candidate hash must be reviewed. Technical validation pending.
