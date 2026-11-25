@@ -6,6 +6,16 @@ const SEGMENTS := 8
 const GRAVITY := 25.0
 const JUMP_SPEED := 10.5
 const PLAYER_Z := 0.0
+const START_SPEED := 11.5
+const MAX_SPEED := 27.0
+const SPEED_GAIN := 0.024
+const TIME_ORB_MIN_SPEED := 25.0
+const TIME_ORB_DURATION := 6.5
+const TIME_ORB_FACTOR := 0.70
+const TIME_ORB_RECOVERY := 0.65
+var bubble_rng := RandomNumberGenerator.new()
+var next_time_orb_at := 650.0
+var time_orbs_spawned := 0
 const PICKUP := 2
 const SNACK := 3
 const MAGNET := 4
@@ -93,6 +103,8 @@ var shield_time := 0.0
 var double_time := 0.0
 var boost_time := 0.0
 var power_label: Label
+var power_grid: GridContainer
+var power_cards: Dictionary = {}
 var fx: Node3D
 var dust: Array[MeshInstance3D] = []
 var dust_ages: Array[float] = []
@@ -137,7 +149,7 @@ var chunk_recycles := 0
 var scenery_rng := RandomNumberGenerator.new()
 var coins := 0
 var snacks := 0
-var speed := 9.0
+var speed := START_SPEED
 var started := false
 var ended := false
 var retired_run := false
@@ -236,6 +248,8 @@ func _ready() -> void:
 	review_driver=OS.get_cmdline_user_args().has("--soak") or OS.get_cmdline_user_args().has("--capture")
 	rng.seed = 7319 if OS.get_cmdline_user_args().has("--test") or review_driver else Time.get_ticks_usec()
 	scenery_rng.seed=uint64_seed(rng.seed)
+	bubble_rng.seed=uint64_seed(rng.seed+109)
+	next_time_orb_at=bubble_rng.randf_range(650.0,850.0)
 	var env := WorldEnvironment.new()
 	var e := Environment.new()
 	e.background_mode = Environment.BG_COLOR
@@ -572,8 +586,17 @@ func make_hud() -> void:
 	coin_label=hud_label(stats,"0 coins",18,Color("#ffd775"))
 	snack_label=hud_label(stats,"0 snacks",18,Color("#a9e2bd"))
 	world_label=hud_label(column,"SKY KINGDOM  •  ENDLESS RUN",12,Color("#cbd9ff"))
-	power_label=hud_label(column,"MAGNET  •  SHIELD  •  ×2  •  BOOST",14,Color("#e9d5ff"))
+	power_label=hud_label(column,"Find power-ups and secret sky gems",12,Color("#e9d5ff"))
 	power_label.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART
+	power_grid=GridContainer.new()
+	power_grid.columns=3
+	power_grid.mouse_filter=Control.MOUSE_FILTER_IGNORE
+	power_grid.add_theme_constant_override("h_separation",8)
+	power_grid.add_theme_constant_override("v_separation",3)
+	column.add_child(power_grid)
+	for entry in [["MAGNET",12.0,"#70e8ff"],["SHIELD",15.0,"#8ee5a5"],["×2 COINS",12.0,"#ffcf61"],["TURBO",6.0,"#ff8b59"],["TIME BUBBLE",TIME_ORB_DURATION,"#b7a0ff"],["DOUBLE JUMP",10.0,"#83dcff"],["SMASH",12.0,"#ffac78"],["SKY SURF",10.0,"#8af0f5"],["TREASURE",5.0,"#ffdf87"],["RESCUE",8.0,"#f4a4cf"]]:
+		make_power_card(str(entry[0]),float(entry[1]),Color(str(entry[2])))
+	power_grid.hide()
 	challenge_label=hud_label(column,"Collect 15 coins",13,Color("#ffe5a4"))
 	challenge_label.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART
 	challenge_bar=ProgressBar.new()
@@ -715,13 +738,23 @@ func hazard_for(tier:int) -> int:
 		choices.append(ROLLER)
 	return choices[rng.randi_range(0,choices.size()-1)]
 
+func base_run_speed(at:float) -> float:
+	return minf(MAX_SPEED,START_SPEED+maxf(0.0,at)*SPEED_GAIN)
+
+func time_orb_eligible(at:float) -> bool:
+	return at>=next_time_orb_at and base_run_speed(at)>=TIME_ORB_MIN_SPEED
+
+func row_spacing(at:float,tier:int) -> float:
+	# Time-based spacing keeps the route readable as top speed rises.
+	return maxf(12.0,base_run_speed(at)*(1.10-0.045*tier))
+
 func fill_track() -> void:
 	while spawn_at<distance+95:
 		var free_lane:=clampi(previous_safe_lane+rng.randi_range(-1,1),0,2)
 		var blocked_lanes:Array[int]=[]
 		for i in range(3):
 			if i!=free_lane: blocked_lanes.append(i)
-		var tier:=mini(3,int((distance_offset+spawn_at)/85.0))
+		var tier:=mini(3,int((distance_offset+spawn_at)/70.0))
 		var first:=rng.randi_range(0,1)
 		var action:=-1
 		# Every 12th qualifying row opens a second, optional reward lane.
@@ -741,11 +774,11 @@ func fill_track() -> void:
 			action=0 if pattern_count%2==1 else 1
 			for i in range(3): make_entity(i,action,spawn_at)
 			mandatory_rows+=1
-		elif not treasure_row and (tier>=2 or pattern_count%5!=4):
+		elif not treasure_row:
 			var kind:=hazard_for(tier)
 			make_entity(blocked_lanes[first],kind,spawn_at)
 			if kind==CART or kind==COURIER or kind==ROLLER: moving_rows+=1
-			if tier>=2 or (pattern_count>=3 and pattern_count%3==0):
+			if tier>=1 or (pattern_count>=1 and pattern_count%2==1):
 				var second:=hazard_for(tier)
 				make_entity(blocked_lanes[1-first],second,spawn_at)
 				if second==CART or second==COURIER or second==ROLLER: moving_rows+=1
@@ -756,7 +789,11 @@ func fill_track() -> void:
 			for offset in [-3.2,-1.8,1.8,3.2]: make_entity(free_lane,PICKUP,spawn_at+offset)
 		if pattern_count%5==2:
 			var power:=MAGNET+rng.randi_range(0,3)
-			if tier>=1 and pattern_count%15==2: power=TIME_ORB
+			var pickup_at:=distance_offset+spawn_at+5.1
+			if time_orb_eligible(pickup_at):
+				power=TIME_ORB
+				time_orbs_spawned+=1
+				next_time_orb_at=pickup_at+bubble_rng.randf_range(650.0,1000.0)
 			elif tier>=1 and pattern_count%15==7: power=SPRING
 			elif tier>=2 and pattern_count%30==12: power=SMASH
 			elif tier>=2 and pattern_count%30==27: power=SURF
@@ -777,8 +814,7 @@ func fill_track() -> void:
 		if review_driver: safe_rows.append(Vector3(spawn_at,float(free_lane),float(action)))
 		previous_safe_lane=free_lane
 		pattern_count+=1
-		var projected_speed:=minf(25.0,9.0+(distance_offset+spawn_at)*0.024)
-		spawn_at+=maxf(10.5,projected_speed*(1.24-0.07*tier))
+		spawn_at+=row_spacing(distance_offset+spawn_at,tier)
 
 # Continuous oncoming travel relative to the road, anchored at the planned
 # encounter distance. The row generator retains its original escape lane.
@@ -1071,13 +1107,16 @@ func _physics_process(dt: float) -> void:
 	surf_grace=maxf(0,surf_grace-dt)
 	surf_exit_flash=maxf(0,surf_exit_flash-dt)
 	portal_flash=maxf(0,portal_flash-dt)
-	portal_overlay.color=Color(0.66,0.91,1.0,portal_flash*0.48)
+	var bubble_tint:=0.08*clampf(slow_time/TIME_ORB_RECOVERY,0.0,1.0)
+	portal_overlay.color=Color(0.66,0.91,1.0,maxf(portal_flash*0.48,bubble_tint))
 	smash_time=maxf(0,smash_time-dt)
 	if smash_time<=0: smash_charges=0
 	combo_timer=maxf(0,combo_timer-dt)
 	if combo_timer<=0: combo=0
-	var base_speed:=minf(25.0,9.0+total_distance()*0.024)
-	speed=(base_speed+4.0 if boost_time>0 else base_speed*0.68 if slow_time>0 else base_speed)+(3.0 if surf_time>0 else 0.0)
+	var full_speed:=base_run_speed(total_distance())+(4.0 if boost_time>0 else 0.0)+(3.0 if surf_time>0 else 0.0)
+	# Bubble wins over simultaneous turbo/surf speed; controls remain real-time.
+	# Last 650ms eases directly back to the current full run speed.
+	speed=full_speed*lerpf(1.0,TIME_ORB_FACTOR,clampf(slow_time/TIME_ORB_RECOVERY,0.0,1.0))
 	distance+=speed*dt
 	rebase_track()
 	slide=maxf(0,slide-dt)
@@ -1223,7 +1262,7 @@ func _physics_process(dt: float) -> void:
 	peak_active=maxi(peak_active,entities.size())
 	camera.position.x=lerpf(camera.position.x,player.position.x*0.30+sin(clock*55)*surf_exit_flash*0.24,minf(1,dt*7))
 	camera.position.y=lerpf(camera.position.y,4.55+clampf(player.position.y*0.13,0,0.25),minf(1,dt*5))
-	camera.fov=lerpf(camera.fov,58.0+minf(5.0,(speed-9.0)*0.28),minf(1,dt*3))
+	camera.fov=lerpf(camera.fov,58.0+minf(5.0,(speed-START_SPEED)*0.28),minf(1,dt*3))
 	hud_refresh+=dt
 	if ended or hud_refresh>=0.075:
 		hud_refresh=0
@@ -1297,7 +1336,7 @@ func collect_kind(kind: int) -> void:
 		BOOST:
 			boost_time=6.0
 		TIME_ORB:
-			slow_time=8.0
+			slow_time=TIME_ORB_DURATION
 		SPRING:
 			spring_time=10.0
 		SKY_RING:
@@ -1452,7 +1491,7 @@ func update_effects(dt:float) -> void:
 			rescue_buddy.position.x=lerpf(rescue_buddy.position.x,player.position.x+0.57,minf(1,dt*6))
 			rescue_buddy.position.y=0.10+absf(sin(clock*12))*0.18+player.position.y*0.35
 			rescue_buddy.position.z=1.50+sin(clock*5)*0.13
-	power_ring.visible=magnet_time>0 or boost_time>0 or shield_time>0
+	power_ring.visible=magnet_time>0 or boost_time>0 or shield_time>0 or slow_time>0
 	power_ring.rotation.y=clock*2.0
 	power_ring.scale=Vector3.ONE*(1.0+sin(clock*7)*0.08)
 	for i in range(scene_anim.size()):
@@ -1507,22 +1546,50 @@ func hazard_hit(kind: int, feet_y: float, sliding: bool, lateral:float=0.0) -> b
 		TALL: return feet_y<3.10 and lateral<1.03
 	return false
 
+func make_power_card(name_text:String, duration:float, accent:Color) -> void:
+	var card:=VBoxContainer.new()
+	card.size_flags_horizontal=Control.SIZE_EXPAND_FILL
+	card.mouse_filter=Control.MOUSE_FILTER_IGNORE
+	card.add_theme_constant_override("separation",1)
+	power_grid.add_child(card)
+	var name_label:=hud_label(card,name_text,12,accent)
+	var bar:=ProgressBar.new()
+	bar.max_value=duration
+	bar.step=0.0
+	bar.show_percentage=false
+	bar.custom_minimum_size=Vector2(120,6)
+	bar.mouse_filter=Control.MOUSE_FILTER_IGNORE
+	var bg:=StyleBoxFlat.new()
+	bg.bg_color=Color("#253753")
+	bg.set_corner_radius_all(3)
+	var fill:=StyleBoxFlat.new()
+	fill.bg_color=accent
+	fill.set_corner_radius_all(3)
+	bar.add_theme_stylebox_override("background",bg)
+	bar.add_theme_stylebox_override("fill",fill)
+	card.add_child(bar)
+	power_cards[name_text]={"card":card,"label":name_label,"bar":bar}
+	card.hide()
+
+func set_power_card(name_text:String,remaining:float,suffix:String="") -> bool:
+	var item:Dictionary=power_cards[name_text]
+	var card:=item["card"] as VBoxContainer
+	var bar:=item["bar"] as ProgressBar
+	var name_label:=item["label"] as Label
+	var active:=remaining>0.0 and not ended
+	card.visible=active
+	bar.value=remaining if active else 0.0
+	if active:
+		var next_label:="%s %ds%s"%[name_text,ceili(remaining),suffix]
+		if name_label.text!=next_label: name_label.text=next_label
+	return active
+
 func update_hud() -> void:
-	var active_powers: Array[String]=[]
-	if magnet_time>0: active_powers.append("MAGNET %ds"%ceili(magnet_time))
-	if shield_time>0: active_powers.append("SHIELD %ds"%ceili(shield_time))
-	if double_time>0: active_powers.append("×2 %ds"%ceili(double_time))
-	if boost_time>0: active_powers.append("BOOST %ds"%ceili(boost_time))
-	if slow_time>0: active_powers.append("TIME %ds"%ceili(slow_time))
-	if spring_time>0: active_powers.append("SPRING %ds"%ceili(spring_time))
-	if smash_charges>0: active_powers.append("SMASH ×%d"%smash_charges)
-	if surf_time>0: active_powers.append("SURF %ds"%ceili(surf_time))
-	if treasure_time>0: active_powers.append("TREASURE +1 %ds"%ceili(treasure_time))
-	var powers: String="  •  ".join(active_powers)
-	var power_text := powers if not powers.is_empty() else "Find power-ups and secret sky gems"
-	if power_text!=last_power_hud:
-		last_power_hud=power_text
-		power_label.text=power_text
+	var active_count:=0
+	for active in [set_power_card("MAGNET",magnet_time),set_power_card("SHIELD",shield_time),set_power_card("×2 COINS",double_time),set_power_card("TURBO",boost_time),set_power_card("TIME BUBBLE",slow_time),set_power_card("DOUBLE JUMP",spring_time),set_power_card("SMASH",smash_time if smash_charges>0 else 0.0," ×%d"%smash_charges),set_power_card("SKY SURF",surf_time),set_power_card("TREASURE",treasure_time),set_power_card("RESCUE",rescue_time)]:
+		if active: active_count+=1
+	power_grid.visible=active_count>0
+	power_label.visible=active_count==0 and not ended
 	var challenge_text:="%s %d/%d  •  Combo %d  •  Gems %d/3  •  Pets %d  •  Cards %d/3"%[challenge_name(),challenge_progress,challenge_goal(),combo,gems,rescued,cards]
 	if challenge_text!=last_challenge_hud:
 		last_challenge_hud=challenge_text
@@ -1565,6 +1632,11 @@ func test_run() -> void:
 	gesture(Vector2(80,0))
 	assert(lane==1)
 	assert(chunks.size()==SEGMENTS and entities.size()>10)
+	assert(base_run_speed(0.0)==START_SPEED and START_SPEED>9.0 and MAX_SPEED==base_run_speed(2000.0))
+	assert(not time_orb_eligible(100.0) and not time_orb_eligible(next_time_orb_at-1.0) and time_orb_eligible(next_time_orb_at))
+	assert(time_orbs_spawned==0 and row_spacing(0.0,0)>=12.0)
+	for entity in entities: assert(int(entity.get_meta("kind"))!=TIME_ORB)
+	assert(power_cards.size()==10)
 	assert(scenery_visibility_updates>0 and not chunks[SEGMENTS-1].visible)
 	assert((mascot.transform.basis*Vector3.BACK).z < -0.99,"mascot must face away")
 	assert(using_blender and loaded_assets>20,"Blender assets missing or not instantiated")
@@ -1670,7 +1742,18 @@ func test_run() -> void:
 	collect_kind(TIME_ORB)
 	for i in range(3): await get_tree().physics_frame
 	assert(speed<normal_speed*0.75 and slow_time>0)
-	slow_time=0
+	update_hud()
+	var timer_bar:=power_cards["TIME BUBBLE"]["bar"] as ProgressBar
+	assert(timer_bar.is_visible_in_tree() and timer_bar.value>0.0 and timer_bar.value<timer_bar.max_value)
+	boost_time=2.0
+	for i in range(3): await get_tree().physics_frame
+	assert(speed<(base_run_speed(total_distance())+4.0)*0.75,"bubble must override turbo speed")
+	slow_time=0.10
+	for i in range(10): await get_tree().physics_frame
+	assert(slow_time==0.0 and speed>=normal_speed+3.9)
+	update_hud()
+	assert(not timer_bar.is_visible_in_tree() and timer_bar.value==0.0)
+	boost_time=0
 	for i in range(3): await get_tree().physics_frame
 	assert(speed>=normal_speed)
 	# Actual board lift clears a low obstacle; down input dismounts.
@@ -1758,7 +1841,7 @@ func test_run() -> void:
 	assert(pickup_reachable(SKY_RING,1.2,false) and not pickup_reachable(SKY_RING,0,false))
 	collect_kind(TIME_ORB)
 	collect_kind(SPRING)
-	assert(slow_time==8 and spring_time==10)
+	assert(slow_time==TIME_ORB_DURATION and spring_time==10)
 	challenge_index=0
 	challenge_progress=14
 	challenge_event(0)
@@ -1850,6 +1933,7 @@ func soak_review() -> void:
 	assert(pattern_count>35 and reused_entities>100 and mandatory_rows>3 and moving_rows>3)
 	assert(world_visits>=3,"portals must recur in endless run")
 	assert(treasure_routes>=5,"optional treasure routes must recur")
+	assert(time_orbs_spawned>=2 and time_orbs_spawned<=5,"rare late-run bubbles only")
 	assert(created_entities<180 and peak_active<130)
 	assert(burst_pool.size()==4 and surf_trails.size()==2 and burst_count>20)
 	assert(shadow_chunks.size()==SEGMENTS and shadow_transitions>20)
@@ -1857,7 +1941,7 @@ func soak_review() -> void:
 	assert(coins>20)
 	var result:=FileAccess.open("/tmp/pet-dash-soak.json",FileAccess.WRITE)
 	assert(result!=null)
-	result.store_string(JSON.stringify({"distance":total_distance(),"local_distance":distance,"rebases":rebase_count,"chunk_recycles":chunk_recycles,"steps":steps,"coins":coins,"snacks":snacks,"rescued":rescued,"smashed":smashed,"perfect_dodges":perfect_dodges,"world_visits":world_visits,"treasure_routes":treasure_routes,"treasure_opened":treasure_opened,"reward_bursts":burst_count,"burst_pool":burst_pool.size(),"shadow_transitions":shadow_transitions,"rows":pattern_count,"mandatory_rows":mandatory_rows,"moving_rows":moving_rows,"allocated":created_entities,"reused":reused_entities,"peak_active":peak_active,"scope":"deterministic headless endless physics; 3200m checkpoint plus continued gameplay, not physical-device FPS"}))
+	result.store_string(JSON.stringify({"distance":total_distance(),"local_distance":distance,"rebases":rebase_count,"chunk_recycles":chunk_recycles,"steps":steps,"coins":coins,"snacks":snacks,"rescued":rescued,"smashed":smashed,"perfect_dodges":perfect_dodges,"world_visits":world_visits,"treasure_routes":treasure_routes,"treasure_opened":treasure_opened,"reward_bursts":burst_count,"burst_pool":burst_pool.size(),"shadow_transitions":shadow_transitions,"rows":pattern_count,"time_orbs_spawned":time_orbs_spawned,"mandatory_rows":mandatory_rows,"moving_rows":moving_rows,"allocated":created_entities,"reused":reused_entities,"peak_active":peak_active,"scope":"deterministic headless endless physics; 3200m checkpoint plus continued gameplay, not physical-device FPS"}))
 	result.close()
 	print("PET_DASH_SOAK_PASS")
 	get_tree().quit(0)
