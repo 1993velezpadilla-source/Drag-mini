@@ -17,6 +17,11 @@ final class GameIcon extends Drawable{
  case 3:rr(c,10,21,28,22,4,dark);grad(c,12,21,24,20,3,0xffffe3ad,0xffbc91d7);poly(c,dark,2,22,24,3,46,22,42,27,24,11,6,27);poly(c,0xfff2a1c0,6,21,24,6,42,21,38,23,24,12,10,23);rr(c,20,29,8,12,3,0xff6c4e85);break;
  case 4:poly(c,dark,16,5,32,5,32,17,44,38,39,45,9,45,4,38,16,17);poly(c,0xffc7e5fc,19,8,29,8,29,19,40,37,37,42,11,42,8,37,19,19);poly(c,0xffb47cee,12,29,36,29,40,38,36,41,12,41,8,38);o(c,23,34,3,3,0xffeadaff);break;
  case 5:rr(c,3,7,42,34,5,dark);grad(c,5,9,38,30,4,0xffc397f0,0xff7255ac);rr(c,9,11,14,25,2,0xffffeed8);rr(c,25,11,14,25,2,0xfff7dfcb);for(int i=0;i<3;i++){rr(c,12,17+i*5,8,1,0,0xffaf9cc1);rr(c,28,17+i*5,8,1,0,0xffaf9cc1);}poly(c,0xffed82ab,29,10,35,10,35,24,32,21,29,24);break;
+ case 7:o(c,24,24,22,22,0xff6b4562);o(c,24,24,20,20,0xfff6c065);o(c,24,24,15,15,0xffdb8d3e);o(c,24,24,12,12,0xffffdc83);o(c,24,27,6,5,0xffbf733f);for(int i=0;i<4;i++)o(c,15+i*6,18+(i%2),2.5f,3.5f,0xffbf733f);o(c,14,13,4,2,0xfffff3c5);break;
+ case 8:poly(c,dark,24,2,43,20,24,46,5,20);poly(c,0xffb075e8,24,5,40,20,24,42,8,20);poly(c,0xffe6c4ff,24,5,17,20,8,20);poly(c,0xffd99cfb,24,5,40,20,30,20);poly(c,0xff7e56c1,17,20,24,42,8,20);poly(c,0xff9865d6,30,20,24,42,40,20);break;
+ case 9:poly(c,dark,29,1,5,26,20,26,15,47,43,16,27,16);poly(c,0xffffd47d,28,5,9,24,23,24,19,40,39,18,25,18);break;
+ case 10:poly(c,dark,24,1,30,17,47,24,30,31,24,47,17,31,1,24,17,17);poly(c,0xffc7a1f9,24,6,28,19,42,24,28,29,24,42,20,29,6,24,20,19);break;
+ case 11:o(c,24,24,23,23,0xff292746);o(c,24,24,21,21,0xff9276df);o(c,24,25,17,17,0xffb59ff0);o(c,24,29,9,7,0xfff6e7ff);for(int i=0;i<4;i++)o(c,11+i*9,17+(i==0||i==3?3:0),4,5,0xfff6e7ff);break;
  default:o(c,24,24,22,22,dark);o(c,24,24,19,19,0xff69b9ee);poly(c,0xff92d79e,10,13,20,8,28,12,26,20,17,22,16,33,10,29,7,22);poly(c,0xff8ed696,32,19,41,20,37,31,30,39,26,29);o(c,17,12,4,2,0x88ffffff);
  }c.restore();}
  @Override public void setAlpha(int a){}@Override public void setColorFilter(ColorFilter f){}@Override public int getOpacity(){return PixelFormat.TRANSLUCENT;}

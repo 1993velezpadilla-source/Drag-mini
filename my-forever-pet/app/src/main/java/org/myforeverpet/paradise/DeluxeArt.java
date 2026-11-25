@@ -42,8 +42,8 @@ final class DeluxeArt {
   oval(c,-rx*.42f,cy-ry*.53f,rx*.23f,ry*.105f,0x88ffffff);
   if(id==2)oval(c,0,7,9,6,0xffffead6);
   if(id==11){oval(c,-8,-2,8,10,0xffffe9cc);oval(c,8,-2,8,10,0xffffe9cc);}
-  boolean blink=asleep||tick%3700<130;for(int i=-1;i<=1;i+=2){float ex=i*spread;if(blink){line(c,ex-3,ey,ex+3,ey,1.5f,ink);}else{oval(c,ex,ey,4.8f,id==5?7.5f:7,ink);oval(c,ex+.3f,ey+2,3.8f,4.1f,0xff403060);oval(c,ex-1.5f,ey-2.8f,1.9f,2.3f,0xfffffcff);oval(c,ex+2,ey+3,0.85f,1.1f,0xffb5a3dc);}}
-  if(id==8||id==11){poly(c,ink,-4,3,4,3,0,10);poly(c,0xffffbf68,-3,4,3,4,0,8);}else if(id==2){oval(c,0,4,3,2,ink);line(c,0,5,0,8,1,ink);}else if(!asleep&&s.happy>=6){oval(c,0,9,4.4f,3.5f,ink);oval(c,0,11,2.8f,1.2f,0xffed83a2);}else line(c,-2,9,2,9,1.2f,ink);
+  boolean blink=asleep||tick%3700<130;float erx=s.eyes==2?5.4f:4.8f,ery=s.eyes==1?5.8f:id==5?7.5f:7;for(int i=-1;i<=1;i+=2){float ex=i*spread;if(blink){line(c,ex-3,ey,ex+3,ey,1.5f,ink);}else if(s.eyes==3){line(c,ex-3,ey-2,ex,ey+1,2,ink);line(c,ex,ey+1,ex+3,ey-2,2,ink);}else{oval(c,ex,ey,erx,ery,ink);oval(c,ex+.3f,ey+2,erx*.79f,ery*.58f,0xff403060);oval(c,ex-1.5f,ey-2.8f,1.9f,2.3f,0xfffffcff);oval(c,ex+2,ey+3,0.85f,1.1f,0xffb5a3dc);}}
+  if(id==8||id==11){poly(c,ink,-4,3,4,3,0,10);poly(c,0xffffbf68,-3,4,3,4,0,8);}else if(id==2){oval(c,0,4,3,2,ink);line(c,0,5,0,8,1,ink);}else if(!asleep&&s.happy>=6){float mouth=s.interactionAt>0&&s.last-s.interactionAt<1800?4.6f:3.5f;oval(c,0,9,4.4f,mouth,ink);oval(c,0,11,2.8f,1.2f,0xffed83a2);}else if(!asleep&&s.happy<=3){line(c,-3,10,0,8,1.2f,ink);line(c,0,8,3,10,1.2f,ink);}else line(c,-2,9,2,9,1.2f,ink);
   if(id==1){for(int j=0;j<2;j++){line(c,-14,5+j*3,-22,3+j*4,.8f,ink);line(c,14,5+j*3,22,3+j*4,.8f,ink);}}
   oval(c,-13,7,3.3f,1.8f,0xffef91ae);oval(c,13,7,3.3f,1.8f,0xffef91ae);
   if(id==10){poly(c,ink,-17,-17,1,-32,16,-17);poly(c,0xff64b68e,-13,-18,1,-29,12,-18);sparkle(c,14,-23,3,0xffffde87);}
@@ -69,7 +69,7 @@ final class DeluxeArt {
  }
  void home(Canvas out,PetState s,long tick,boolean wall,String clock){boolean night=s.sleeping()||PetState.localMinute(System.currentTimeMillis(),java.util.TimeZone.getDefault())>=19*60||PetState.localMinute(System.currentTimeMillis(),java.util.TimeZone.getDefault())<5*60;int key=s.roomTheme+(night?4:0);if(key!=bgKey||background==null)buildRoom(s.roomTheme,night);out.save();out.scale(out.getWidth()/160f,out.getHeight()/192f);solid(-1);rect.set(0,0,160,192);out.drawBitmap(background,null,rect,p);
   float x=s.sleeping()?36:80,y=s.sleeping()?83:125;float sx=out.getWidth()/160f,sy=out.getHeight()/192f;out.save();out.translate(x,y);float uniform=Math.min(sx,sy);out.scale(uniform/sx,uniform/sy);pet(out,s,0,0,s.sleeping()?1.05f:1.56f,tick);out.restore();
-  if(!s.sleeping()&&s.stage>0){float bx=111,by=82+(float)Math.sin(tick/700.0)*1.5f;oval(out,bx,by,11,9,0xfff8eefb);poly(out,0xfff8eefb,bx-4,by+5,bx-7,by+13,bx+1,by+7);heart(out,bx,by,5,s.hunger<=2?0xffe8ae66:0xffed85b2);}
+  if(!s.sleeping()&&s.stage>0){float bx=111,by=82+(float)Math.sin(tick/700.0)*1.5f;oval(out,bx,by,12,10,0xff57436d);oval(out,bx,by,11,9,0xfff8eefb);poly(out,0xfff8eefb,bx-4,by+5,bx-7,by+13,bx+1,by+7);if(s.sick){round(out,bx-2,by-6,4,12,1,0xffce7194);round(out,bx-6,by-2,12,4,1,0xffce7194);}else if(s.hunger<=2){oval(out,bx,by+1,6,4,0xffb8896a);oval(out,bx,by-1,6,3,0xffe3b275);}else if(s.energy<=25){poly(out,0xffe7aa5a,bx+2,by-6,bx-5,by+1,bx,by+1,bx-2,by+6,bx+5,by-2,bx,by-2);}else heart(out,bx,by,5,0xffed85b2);}
   if(s.waste>0){for(int i=0;i<Math.min(s.waste,6);i++){float px=44+i*14;oval(out,px,179,4,2,0xff76535f);oval(out,px,177,3,3,0xffa87964);}}
   if(wall){text(out,s.displayName()+(clock.isEmpty()?"":" · "+clock),80,187,7,0xfff3e7ff);}out.restore();
  }
