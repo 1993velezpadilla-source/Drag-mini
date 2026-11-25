@@ -44,3 +44,5 @@ Visual review includes staged actual Godot viewport frames of Crystal Gardens an
 0.16 surf upgrade: true planted stance with no footstep/dust loop, +3m/s speed, one-impact board protection and 0.65s recovery, distinct board break and game-over cues, forward turbo chevrons, moving courier and rolling barrel variants, three deterministic Chronicle cards yield +750 score. New GLBs remain prototype candidates; GOLD workflow fixed missing numpy. Physical Android and owner art approval remain outstanding.
 
 0.16 catalog gate: every GLB is independently parsed, hashed and checked for exact triangle parity, per-asset budget, valid PBR material assignments, finite bounds and embedded resource references. All entries explicitly remain art-approval pending. New courier/roller collision height checks match visual geometry.
+
+0.17 feedback pass: shared original Blender spark mesh, four bounded CPU particle emitters for pickups/impact/board break, two surf trail strips, rising coin pitch during combos. Smoke verifies board-loss effects and fixed pool size, soak verifies reuse. No artistic or device approval implied.

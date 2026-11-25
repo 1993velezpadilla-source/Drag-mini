@@ -31,6 +31,10 @@ var card_sets := 0
 var surf_saves := 0
 var surf_grace := 0.0
 var surf_exit_flash := 0.0
+var burst_pool: Array[CPUParticles3D] = []
+var burst_index := 0
+var surf_trails: Array[MeshInstance3D] = []
+var burst_count := 0
 const SURF_LIFT := 0.90
 const WORLD_NAMES := ["Sky Kingdom","Crystal Gardens","Moonlight Isles"]
 var surf_time := 0.0
@@ -1076,6 +1080,8 @@ func _physics_process(dt: float) -> void:
 			if is_pickup(kind):
 				if pickup_reachable(kind,player.position.y,attraction):
 					collect_kind(kind)
+					if kind!=PICKUP or combo%3==0:
+						reward_burst(Vector3(player.position.x,player.position.y+0.9,0),Color("#ffe69a") if kind==PICKUP or kind==CARD else Color("#9fefff"),kind!=PICKUP)
 					a.set_meta("resolved",true)
 					a.hide()
 			elif hazard_hit(kind,player.position.y+(SURF_LIFT if surf_time>0 else 0.0),slide>0 or air_slide_pending,lateral):
@@ -1088,6 +1094,8 @@ func _physics_process(dt: float) -> void:
 					mascot.position.y=0
 					a.set_meta("resolved",true)
 					a.hide()
+					for trail in surf_trails: trail.hide()
+					reward_burst(Vector3(player.position.x,player.position.y+0.7,0),Color("#9aeaff"),true)
 					show_skill("BOARD BROKEN — KEEP RUNNING")
 					audio.call("play_fx","board_break")
 				elif surf_grace>0:
@@ -1099,6 +1107,7 @@ func _physics_process(dt: float) -> void:
 					skill_points+=150
 					a.set_meta("resolved",true)
 					a.hide()
+					reward_burst(Vector3(a.position.x,0.9,a.position.z),Color("#ffba63"),true)
 					show_skill("SMASH  +150")
 					audio.call("play_fx","smash")
 				elif shield_time>0 or boost_time>0:
@@ -1112,6 +1121,8 @@ func _physics_process(dt: float) -> void:
 					if surf_board!=null: surf_board.hide()
 					crash_player_y=player.position.y
 					crash_remaining=0.58
+					for trail in surf_trails: trail.hide()
+					reward_burst(Vector3(player.position.x,player.position.y+0.7,0),Color("#ffc47a"),true)
 					audio.call("play_fx","crash")
 					audio.call("stop_music")
 					break
@@ -1190,7 +1201,7 @@ func collect_kind(kind: int) -> void:
 			challenge_event(0)
 			pickup_feedback.text="+2 coins" if double_time>0 else "+1 coin"
 			pickup_flash=0.55
-			audio.call("play_fx","coin")
+			audio.call("play_fx","coin",1.0+0.035*float(mini(combo%10,9)))
 		SNACK:
 			snacks+=1
 			challenge_event(2)
@@ -1254,9 +1265,51 @@ func collect_kind(kind: int) -> void:
 		pickup_flash=1.0
 		audio.call("play_fx","power")
 
+func make_burst_pool() -> void:
+	# One original Blender mesh, shared by four bounded one-shot emitters.
+	var source:=asset(fx,"reward_spark",Vector3.ZERO)
+	if source==null: return
+	var parts:=source.find_children("*","MeshInstance3D",true,false)
+	if parts.is_empty():
+		source.queue_free()
+		return
+	var shared_mesh:Mesh=(parts[0] as MeshInstance3D).mesh
+	source.hide()
+	source.queue_free()
+	for i in range(4):
+		var p:=CPUParticles3D.new()
+		p.emitting=false
+		p.one_shot=true
+		p.amount=12
+		p.lifetime=0.45
+		p.explosiveness=1.0
+		p.direction=Vector3(0,1,0)
+		p.spread=80
+		p.gravity=Vector3(0,-5,0)
+		p.initial_velocity_min=1.8
+		p.initial_velocity_max=4.2
+		p.scale_amount_min=0.6
+		p.scale_amount_max=1.3
+		p.mesh=shared_mesh
+		p.cast_shadow=GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		fx.add_child(p)
+		burst_pool.append(p)
+
+func reward_burst(position:Vector3, tint:Color, strong:=false) -> void:
+	if burst_pool.is_empty(): return
+	var p:=burst_pool[burst_index]
+	burst_index=(burst_index+1)%burst_pool.size()
+	p.position=position
+	p.color=tint
+	p.amount=12 if strong else 6
+	p.restart()
+	p.emitting=true
+	burst_count+=1
+
 func make_effects() -> void:
 	fx=Node3D.new()
 	add_child(fx)
+	make_burst_pool()
 	for i in range(12):
 		var p:=orb(fx,Vector3.ZERO,Vector3.ONE*0.14,Color("#f1dcc6"))
 		p.cast_shadow=GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
@@ -1295,6 +1348,15 @@ func make_effects() -> void:
 		line.cast_shadow=GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		line.hide()
 		speed_lines.append(line)
+	# Two shared emissive trail strips follow the board, never allocate mid-run.
+	var trail_mesh:=BoxMesh.new()
+	trail_mesh.size=Vector3(0.065,0.035,2.5)
+	for side in [-1,1]:
+		var trail:=mesh(fx,trail_mesh,Vector3.ZERO,Color.WHITE)
+		trail.material_override=speed_line_mat
+		trail.cast_shadow=GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		trail.hide()
+		surf_trails.append(trail)
 
 func update_effects(dt:float) -> void:
 	aura.visible=shield_time>0 or boost_time>0 or smash_charges>0 or surf_grace>0
@@ -1312,6 +1374,12 @@ func update_effects(dt:float) -> void:
 	if sky_ship!=null:
 		sky_ship.position=ship_origin+Vector3(sin(clock*0.18)*5.0,sin(clock*0.42)*0.75,0)
 		sky_ship.rotation.z=sin(clock*0.35)*0.04
+	for i in range(surf_trails.size()):
+		var trail:=surf_trails[i]
+		trail.visible=surf_time>0
+		trail.position=Vector3(player.position.x+(-0.42 if i==0 else 0.42),player.position.y+0.70,1.65)
+		trail.rotation.z=mascot.rotation.z
+		trail.scale.z=1.0+0.12*sin(clock*18+i)
 	var intensity:=clampf((speed-12.0)/13.0,0,1)
 	speed_line_mat.albedo_color=Color(0.65,0.88,1.0,0.12+intensity*0.30)
 	for i in range(speed_lines.size()):
@@ -1533,6 +1601,7 @@ func test_run() -> void:
 	make_entity(1,TALL,distance+1.5)
 	for i in range(22): await get_tree().physics_frame
 	assert(not ended and surf_time==0 and surf_saves==1 and not surf_board.visible)
+	assert(burst_pool.size()==4 and burst_count>0 and not surf_trails[0].visible)
 	for i in range(50): await get_tree().physics_frame
 	assert(surf_grace==0 and not ended)
 	# Full-width portal activates even when runner is in an outer lane.
@@ -1684,10 +1753,11 @@ func soak_review() -> void:
 	assert(pattern_count>35 and reused_entities>100 and mandatory_rows>3 and moving_rows>3)
 	assert(world_visits>=3,"portals must recur in endless run")
 	assert(created_entities<180 and peak_active<130)
+	assert(burst_pool.size()==4 and surf_trails.size()==2 and burst_count>20)
 	assert(coins>20)
 	var result:=FileAccess.open("/tmp/pet-dash-soak.json",FileAccess.WRITE)
 	assert(result!=null)
-	result.store_string(JSON.stringify({"distance":total_distance(),"local_distance":distance,"rebases":rebase_count,"chunk_recycles":chunk_recycles,"steps":steps,"coins":coins,"snacks":snacks,"rescued":rescued,"smashed":smashed,"perfect_dodges":perfect_dodges,"world_visits":world_visits,"rows":pattern_count,"mandatory_rows":mandatory_rows,"moving_rows":moving_rows,"allocated":created_entities,"reused":reused_entities,"peak_active":peak_active,"scope":"deterministic headless endless physics; 3200m checkpoint plus continued gameplay, not physical-device FPS"}))
+	result.store_string(JSON.stringify({"distance":total_distance(),"local_distance":distance,"rebases":rebase_count,"chunk_recycles":chunk_recycles,"steps":steps,"coins":coins,"snacks":snacks,"rescued":rescued,"smashed":smashed,"perfect_dodges":perfect_dodges,"world_visits":world_visits,"reward_bursts":burst_count,"burst_pool":burst_pool.size(),"rows":pattern_count,"mandatory_rows":mandatory_rows,"moving_rows":moving_rows,"allocated":created_entities,"reused":reused_entities,"peak_active":peak_active,"scope":"deterministic headless endless physics; 3200m checkpoint plus continued gameplay, not physical-device FPS"}))
 	result.close()
 	print("PET_DASH_SOAK_PASS")
 	get_tree().quit(0)

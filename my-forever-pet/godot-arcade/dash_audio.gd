@@ -59,11 +59,12 @@ func toggle() -> void:
 	enabled=not enabled
 	if not enabled:
 		for p in voices: p.stop()
-func play_fx(name: String) -> void:
+func play_fx(name: String,pitch:=1.0) -> void:
 	if not enabled or not sounds.has(name) or voices.is_empty(): return
 	var p:=voices[cursor]
 	cursor=(cursor+1)%voices.size()
 	p.stream=sounds[name]
+	p.pitch_scale=clampf(pitch,0.8,1.4)
 	p.play()
 
 func start_music() -> void:

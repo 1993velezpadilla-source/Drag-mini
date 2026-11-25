@@ -601,4 +601,19 @@ ring((0,1.04,.085),.21,.026,gold)
 paw((0,1.02,.11),cream,.8)
 for y in [.65,.73]:box((0,y,.09),(.33,.025,.022),gold,.006)
 export('story_card',6500)
+# Original faceted luminous reward spark, shared in bounded particle pools.
+clear()
+sparkmat=mat('spark warm light',(.95,.66,.15),0,.28)
+b=sparkmat.node_tree.nodes.get('Principled BSDF')
+b.inputs['Emission Color'].default_value=(1,.75,.25,1);b.inputs['Emission Strength'].default_value=.75
+pts=[]
+for z in [-.018,.018]:
+ for i in range(8):
+  a=pi/2+i*pi/4;r=.10 if i%2==0 else .035
+  pts.append(v((r*math.cos(a),r*math.sin(a),z)))
+faces=[tuple(range(7,-1,-1)),tuple(range(8,16))]
+for i in range(8):faces.append((i,(i+1)%8,(i+1)%8+8,i+8))
+me=bpy.data.meshes.new('faceted reward spark');me.from_pydata(pts,[],faces);me.update()
+o=bpy.data.objects.new('faceted reward spark',me);bpy.context.collection.objects.link(o);o.data.materials.append(sparkmat)
+export('reward_spark',500)
 with open(os.path.join(OUT,'mesh-metrics.json'),'w') as out: json.dump(stats,out,indent=2)
