@@ -135,11 +135,53 @@ for kind in ("paint","coat","glass_window_frame"):
                       "world_high_m":[round(float(v),5) for v in hi],
                       "center_longitudinal_fraction":round(float(fraction),5)})
     central_candidates[kind]=sorted(found,key=lambda c:(c["region"],-c["faces"]))
+# Compare the front clearcoat candidate to ALL paint islands, including
+# fragments previously filtered out by the broad center-region heuristic.
+# A coat-only panel must never be rigged while its paint remains on the car.
+front_coat=[c for c in islands(coat) if c["faces"]==1274 and
+            c["low"].y< -2.1 and c["high"].y< -.9 and c["low"].x<-.5 and c["high"].x>.5]
+if len(front_coat)!=1:
+    raise RuntimeError("Pinned original Porsche front coat candidate changed")
+front=front_coat[0]
+def overlap_volume_fraction(component,target):
+    low,high=component["low"],component["high"]
+    tl,th=target["low"],target["high"]
+    overlap=[max(0.,min(high[i],th[i])-max(low[i],tl[i])) for i in range(3)]
+    size=[max(1e-6,high[i]-low[i]) for i in range(3)]
+    return math.prod(overlap)/math.prod(size)
+def describe(c):
+    return {"faces":c["faces"],
+            "world_low_m":[round(float(v),5) for v in c["low"]],
+            "world_high_m":[round(float(v),5) for v in c["high"]]}
+front_paint_overlap=[]
+for c in islands(paint):
+    if c["faces"]<3: continue
+    fraction=overlap_volume_fraction(c,front)
+    if fraction<.01: continue
+    front_paint_overlap.append(dict(describe(c),
+        fraction_of_paint_island_aabb_in_front_coat=round(fraction,5)))
+front_paint_overlap.sort(key=lambda c:(-c["fraction_of_paint_island_aabb_in_front_coat"],-c["faces"]))
+# Rear bumper and full rear quarter shells were false-positive candidates;
+# pair only original paint and coat islands with close full world bounds.
+rear_pairs=[]
+paint_rear=[c for c in islands(paint) if c["faces"] in (3020,1356)]
+coat_rear=[c for c in islands(coat) if c["faces"] in (3022,1356)]
+for a in paint_rear:
+    for b in coat_rear:
+        err=max(abs(float(a[k][i]-b[k][i])) for k in ("low","high") for i in range(3))
+        if err<=.004:
+            rear_pairs.append({"paint":describe(a),"coat":describe(b),
+                               "max_world_bounds_delta_m":round(err,6)})
 panel_discovery={"source_sha256":source_hash,"front_axis":"negative_blender_y",
     "source_real_triangle_count":original_faces,"candidate_islands":central_candidates,
+    "front_clearcoat_candidate":describe(front),"all_overlapping_front_paint_islands":front_paint_overlap,
+    "rear_paint_clearcoat_matching_candidate_pairs":rear_pairs,
+    "candidate_aabb_overlap_is_not_proof_of_actual_panel_seam":True,
     "lid_hinges_verified":False,"requires_source_geometry_visual_review":True}
 (OUT/"porsche_930_original_luggage_engine_cover_topology.json").write_text(json.dumps(panel_discovery,indent=2)+"\n")
 print("PORSCHE930_REAL_CENTRAL_PANEL_TOPOLOGY_RECORDED",json.dumps(central_candidates),flush=True)
+print("PORSCHE930_FRONT_PAINT_COAT_OVERLAP_DIAGNOSTIC",json.dumps(front_paint_overlap),flush=True)
+print("PORSCHE930_REAR_PAIRED_CANDIDATE_BOUNDS",json.dumps(rear_pairs),flush=True)
 
 # Fail BEFORE mutation unless every left/right original side source island
 # matches exact recorded face counts, materials and physical car location.
