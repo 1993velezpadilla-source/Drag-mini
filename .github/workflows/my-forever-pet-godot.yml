@@ -54,6 +54,13 @@ jobs:
           timeout 60 "$G" --headless --path my-forever-pet/godot-arcade -- --test 2>&1 | tee /tmp/godot-smoke.log
           grep -F PET_DASH_3D_SMOKE_PASS /tmp/godot-smoke.log
           ! grep -E 'SCRIPT ERROR|Parse Error' /tmp/godot-smoke.log
+      - name: Prove lane-only play loses the opening action gate
+        run: |
+          set -euo pipefail
+          G=/tmp/godot/Godot_v4.4.1-stable_linux.x86_64
+          timeout 45 "$G" --headless --fixed-fps 60 --path my-forever-pet/godot-arcade -- --lane-only 2>&1 | tee /tmp/dash-lane-only.log
+          grep -F PET_DASH_LANE_ONLY_FAILS /tmp/dash-lane-only.log
+          ! grep -E 'SCRIPT ERROR|Parse Error' /tmp/dash-lane-only.log
       - name: Long-run procedural physics and object recycling
         run: |
           set -euo pipefail

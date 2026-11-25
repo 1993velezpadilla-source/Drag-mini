@@ -52,6 +52,9 @@ var jet_coins := 0
 var jet_runs := 0
 var mixed_rows := 0
 var last_required_row := -4
+var last_required_action := 1
+var lane_only_review := false
+var forced_lane_changes := 0
 var safe_lane_streak := 0
 var treasure_routes := 0
 var treasure_opened := 0
@@ -261,7 +264,8 @@ func asset(parent: Node3D, name: String, pos: Vector3) -> Node3D:
 
 func _ready() -> void:
 	using_blender=ResourceLoader.exists("res://assets/bridge.glb")
-	review_driver=OS.get_cmdline_user_args().has("--soak") or OS.get_cmdline_user_args().has("--capture")
+	lane_only_review=OS.get_cmdline_user_args().has("--lane-only")
+	review_driver=OS.get_cmdline_user_args().has("--soak") or OS.get_cmdline_user_args().has("--capture") or lane_only_review
 	rng.seed = 7319 if OS.get_cmdline_user_args().has("--test") or review_driver else Time.get_ticks_usec()
 	scenery_rng.seed=uint64_seed(rng.seed)
 	bubble_rng.seed=uint64_seed(rng.seed+109)
@@ -365,6 +369,8 @@ func _ready() -> void:
 		call_deferred("capture_review")
 	elif OS.get_cmdline_user_args().has("--soak"):
 		call_deferred("soak_review")
+	elif lane_only_review:
+		call_deferred("lane_only_test")
 
 func make_cloudscape() -> void:
 	# Actual animated 3D airship and sky arch, not a screenshot overlay.
@@ -771,14 +777,15 @@ func time_orb_eligible(at:float) -> bool:
 
 func row_spacing(at:float,tier:int) -> float:
 	# Time-based spacing keeps the route readable as top speed rises.
-	return maxf(9.5,base_run_speed(at)*(0.88-0.035*tier))
+	return maxf(9.5,base_run_speed(at)*(0.84-0.035*tier))
 
 func fill_track() -> void:
 	while spawn_at<distance+95:
 		var tier:=mini(3,int((distance_offset+spawn_at)/60.0))
 		var free_lane:=clampi(previous_safe_lane+rng.randi_range(-1,1),0,2)
-		if safe_lane_streak>=1 and free_lane==previous_safe_lane:
-			free_lane=previous_safe_lane+(-1 if previous_safe_lane==2 else 1)
+		if free_lane==previous_safe_lane:
+			free_lane=previous_safe_lane+(-1 if previous_safe_lane==2 or (previous_safe_lane==1 and rng.randf()<0.5) else 1)
+		if free_lane!=previous_safe_lane: forced_lane_changes+=1
 		safe_lane_streak=safe_lane_streak+1 if free_lane==previous_safe_lane else 0
 		var blocked_lanes:Array[int]=[]
 		for i in range(3):
@@ -786,9 +793,10 @@ func fill_track() -> void:
 		var action:=-1
 		var treasure_row:=tier>=1 and pattern_count%12==4
 		# Action gates have recovery rows on either side; all three lanes are occupied.
-		var required:=pattern_count>=2 and pattern_count-last_required_row>=3 and not treasure_row and rng.randf()<(0.72 if tier>=1 else 0.50)
+		var required:=pattern_count>=2 and not treasure_row and (pattern_count==2 or (pattern_count-last_required_row>=2 and (pattern_count-last_required_row>=3 or rng.randf()<0.80)))
 		if required:
-			action=0 if rng.randf()<0.5 else 1
+			action=1-last_required_action
+			last_required_action=action
 			make_entity(free_lane,action,spawn_at)
 			for blocked in blocked_lanes: make_entity(blocked,TALL,spawn_at)
 			last_required_row=pattern_count
@@ -1108,7 +1116,7 @@ func _physics_process(dt: float) -> void:
 			var row:=safe_rows[0]
 			lane=int(row.y)
 			var lead:=speed*(0.34 if int(row.z)==0 else 0.20)
-			if row.z>=0 and row.x!=driver_action_at and row.x-distance<=lead:
+			if not lane_only_review and row.z>=0 and row.x!=driver_action_at and row.x-distance<=lead:
 				driver_action_at=row.x
 				gesture(Vector2(0,-80 if int(row.z)==0 else 80))
 	player.velocity.y-=GRAVITY*dt
@@ -1990,6 +1998,18 @@ func capture_review() -> void:
 	print("PET_DASH_RENDER_CAPTURE_OK")
 	get_tree().quit(0)
 
+func lane_only_test() -> void:
+	# A bot that knows the safe lane, but never jumps or slides, must fail.
+	await get_tree().physics_frame
+	started=true
+	var ticks:=0
+	while not ended and ticks<600:
+		await get_tree().physics_frame
+		ticks+=1
+	assert(ended and total_distance()<65.0,"lane switching alone must not clear the opening action gate")
+	print("PET_DASH_LANE_ONLY_FAILS ",total_distance())
+	get_tree().quit(0)
+
 func soak_review() -> void:
 	# Fixed-fps headless CI runs a long procedural session with real physics,
 	# pickup logic, recycling and collisions; not a GPU or Android benchmark.
@@ -2010,14 +2030,15 @@ func soak_review() -> void:
 	assert(treasure_routes>=5,"optional treasure routes must recur")
 	assert(time_orbs_spawned>=2 and time_orbs_spawned<=5,"rare late-run bubbles only")
 	assert(created_entities<240 and peak_active<160)
-	assert(mixed_rows>20,"dense action gates must recur")
+	assert(mixed_rows>40,"dense alternating action gates must recur")
+	assert(forced_lane_changes==pattern_count,"safe lane must change at every row")
 	assert(burst_pool.size()==4 and surf_trails.size()==2 and burst_count>20)
 	assert(shadow_chunks.size()==SEGMENTS and shadow_transitions>20)
 	assert(glow_materials.size()==12)
 	assert(coins>20)
 	var result:=FileAccess.open("/tmp/pet-dash-soak.json",FileAccess.WRITE)
 	assert(result!=null)
-	result.store_string(JSON.stringify({"distance":total_distance(),"local_distance":distance,"rebases":rebase_count,"chunk_recycles":chunk_recycles,"steps":steps,"coins":coins,"snacks":snacks,"rescued":rescued,"smashed":smashed,"perfect_dodges":perfect_dodges,"world_visits":world_visits,"treasure_routes":treasure_routes,"treasure_opened":treasure_opened,"reward_bursts":burst_count,"burst_pool":burst_pool.size(),"shadow_transitions":shadow_transitions,"rows":pattern_count,"mixed_rows":mixed_rows,"jet_runs":jet_runs,"jet_coins":jet_coins,"time_orbs_spawned":time_orbs_spawned,"mandatory_rows":mandatory_rows,"moving_rows":moving_rows,"allocated":created_entities,"reused":reused_entities,"peak_active":peak_active,"scope":"deterministic headless endless physics; 3200m checkpoint plus continued gameplay, not physical-device FPS"}))
+	result.store_string(JSON.stringify({"distance":total_distance(),"local_distance":distance,"rebases":rebase_count,"chunk_recycles":chunk_recycles,"steps":steps,"coins":coins,"snacks":snacks,"rescued":rescued,"smashed":smashed,"perfect_dodges":perfect_dodges,"world_visits":world_visits,"treasure_routes":treasure_routes,"treasure_opened":treasure_opened,"reward_bursts":burst_count,"burst_pool":burst_pool.size(),"shadow_transitions":shadow_transitions,"rows":pattern_count,"mixed_rows":mixed_rows,"forced_lane_changes":forced_lane_changes,"jet_runs":jet_runs,"jet_coins":jet_coins,"time_orbs_spawned":time_orbs_spawned,"mandatory_rows":mandatory_rows,"moving_rows":moving_rows,"allocated":created_entities,"reused":reused_entities,"peak_active":peak_active,"scope":"deterministic headless endless physics; 3200m checkpoint plus continued gameplay, not physical-device FPS"}))
 	result.close()
 	print("PET_DASH_SOAK_PASS")
 	get_tree().quit(0)
