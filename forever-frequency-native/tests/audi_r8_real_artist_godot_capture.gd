@@ -69,7 +69,7 @@ func _capture() -> void:
                 corners.append(point)
                 low = low.min(point)
                 high = high.max(point)
-        if tri_count < 300000:
+        if tri_count < 250000:
             _fail("Too little actual artist geometry " + name)
             return
         var center := (low + high) * 0.5
