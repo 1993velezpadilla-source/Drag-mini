@@ -9,7 +9,7 @@ permissions:
 jobs:
   build:
     runs-on: ubuntu-latest
-    timeout-minutes: 35
+    timeout-minutes: 20
     defaults:
       run:
         working-directory: my-forever-pet
@@ -22,21 +22,25 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '8.9'
-      - name: Install Android SDK packages directly
+      - name: Verify standalone simulation
         run: |
-          SDK="${ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager"
-          test -x "$SDK"
+          mkdir -p /tmp/pet-test
+          javac -d /tmp/pet-test app/src/main/java/org/myforeverpet/paradise/PetState.java tests/PetStateTest.java
+          java -cp /tmp/pet-test org.myforeverpet.paradise.PetStateTest
+      - name: Install Android SDK
+        run: |
+          SDK="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
           yes | "$SDK" --licenses >/dev/null || true
-          "$SDK" 'platforms;android-35' 'build-tools;35.0.0' 'ndk;27.2.12479018'
-          echo "ANDROID_NDK_HOME=${ANDROID_HOME}/ndk/27.2.12479018" >> "$GITHUB_ENV"
-      - run: rustup target add aarch64-linux-android && cargo install cargo-ndk --locked
-      - run: bash prepare-upstream.sh
-      - run: cargo ndk -t arm64-v8a -o ../app/src/main/jniLibs build --release
-        working-directory: my-forever-pet/native
+          "$SDK" 'platforms;android-35' 'build-tools;35.0.0'
       - run: gradle :app:assembleDebug
-      - run: unzip -l app/build/outputs/apk/debug/app-debug.apk | grep 'lib/arm64-v8a/libforever_pet.so'
+      - name: Verify APK standalone
+        run: |
+          APK=app/build/outputs/apk/debug/app-debug.apk
+          test -s "$APK"
+          if unzip -l "$APK" | grep -E 'libforever_pet.so|\.tamasave|firmware\.bin'; then exit 1; fi
+          "$ANDROID_HOME/build-tools/35.0.0/aapt" dump badging "$APK"
       - uses: actions/upload-artifact@v4
         with:
-          name: My-Forever-Pet-ARM64-debug
+          name: My-Forever-Pet-Standalone-0.2-debug
           path: my-forever-pet/app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
