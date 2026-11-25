@@ -535,6 +535,117 @@ rear_experiment={"original_triangles":241258,"candidate_paint_triangles":tri(rea
 (experimental_dir/"rear_candidate_experiment.json").write_text(json.dumps(rear_experiment,indent=2)+"\n")
 print("PORSCHE930_REAR_PAIRED_SURFACE_EXPERIMENT_NOT_APPROVED",json.dumps(rear_experiment),flush=True)
 
+
+# Front luggage lid experiment, based on the successful BVH forensic run:
+# 1272/1274 coat samples match the separate 1354-triangle author mesh
+# Object_30 within 1 mm. Move only its confirmed 1274-face connected island;
+# the remaining 80 faces and possible badges/seals must be reviewed separately.
+# The validated door-only GLB remains untouched.
+front_dir=OUT/"UNAPPROVED_FRONT_REAR_CANDIDATE_EXPERIMENT"
+front_dir.mkdir(exist_ok=True)
+matches=[m for m in front_surface_matches if m["object_triangles"]==1354 and
+         m["aligned_samples_within_1mm"]>=1272 and
+         any(c["faces"]==1274 and c["matched_faces"]>=1272 for c in m["matched_original_islands"])]
+if len(matches)!=1:
+    raise RuntimeError("Verified matching front original surface not unique")
+front_original=bpy.data.objects.get(matches[0]["object"])
+if front_original is None or tri(front_original)!=1354:
+    raise RuntimeError("Front original source paint missing")
+front_pivot=bpy.data.objects.new("EXPERIMENTAL_FRONT_LUGGAGE_PIVOT",None)
+bpy.context.scene.collection.objects.link(front_pivot)
+# Front lid rear edge, close to windshield. In Blender -Y is nose;
+# negative X-axis rotation raises the forward edge.
+front_pivot.location=(0.,-.94037,.905)
+front_pivot.empty_display_type="ARROWS"
+bpy.context.view_layer.update()
+def extract_front_candidate(obj,kind):
+    regions=[c for c in islands(obj) if c["faces"]==1274 and
+             c["low"].y<-2.1 and c["high"].y<-.9 and c["low"].x<-.5 and c["high"].x>.5]
+    if len(regions)!=1:
+        raise RuntimeError("Front original source topology changed "+kind)
+    region=regions[0]
+    mask=set(region["indices"])
+    before=set(bpy.data.objects)
+    bpy.ops.object.select_all(action="DESELECT")
+    obj.select_set(True)
+    bpy.context.view_layer.objects.active=obj
+    bpy.ops.object.mode_set(mode="EDIT")
+    bpy.ops.mesh.select_all(action="DESELECT")
+    bpy.ops.object.mode_set(mode="OBJECT")
+    for face in obj.data.polygons:face.select=face.index in mask
+    bpy.ops.object.mode_set(mode="EDIT")
+    bpy.ops.mesh.separate(type="SELECTED")
+    bpy.ops.object.mode_set(mode="OBJECT")
+    found=[o for o in bpy.data.objects if o not in before and o.type=="MESH"]
+    if len(found)!=1 or tri(found[0])!=1274:
+        raise RuntimeError("Front original candidate separation failed "+kind)
+    panel=found[0]
+    panel.name="UNAPPROVED_FRONT_SOURCE_"+kind
+    matrix=panel.matrix_world.copy()
+    panel.parent=front_pivot
+    panel.matrix_parent_inverse=Matrix.Identity(4)
+    panel.matrix_basis=front_pivot.matrix_world.inverted()@matrix
+    bpy.context.view_layer.update()
+    low,high=bounds([panel])
+    error=max(abs(float(p[i]-expected[i])) for p,expected in
+              ((low,region["low"]),(high,region["high"])) for i in range(3))
+    if error>.004:raise RuntimeError("Front closed candidate source position changed")
+    return panel,error
+front_paint,front_paint_err=extract_front_candidate(front_original,"PAINT")
+front_coat_mesh,front_coat_err=extract_front_candidate(coat,"COAT")
+assert tri(front_original)==80
+all_candidate_meshes=[o for o in bpy.data.objects if o.type=="MESH"]
+assert sum(tri(o) for o in all_candidate_meshes)==241258
+candidate_closed={o:o.matrix_world.copy() for o in all_candidate_meshes}
+candidate_centers={o:sum((Vector(c) for c in o.bound_box),Vector())/8.
+                   for o in (front_paint,front_coat_mesh,rear_paint,rear_coat)}
+def capture_lid_candidate(label,offset):
+    camera.location=mid+Vector(offset)*span
+    camera.rotation_euler=(mid-camera.location).to_track_quat("-Z","Y").to_euler()
+    image=front_dir/("UNAPPROVED_PORSCHE930_"+label+".png")
+    scene.render.filepath=str(image)
+    bpy.ops.render.render(write_still=True)
+    if not image.is_file() or image.stat().st_size<45000:
+        raise RuntimeError("Front/rear actual candidate screenshot missing")
+    return image.name
+candidate_images=[]
+candidate_images.append(capture_lid_candidate("FRONT_CLOSED",(.7,-1.55,.95)))
+front_pivot.rotation_euler.x=math.radians(-55)
+bpy.context.view_layer.update()
+front_lifts={o.name:float((o.matrix_world@candidate_centers[o]).z-
+                    (candidate_closed[o]@candidate_centers[o]).z)
+             for o in (front_paint,front_coat_mesh)}
+if min(front_lifts.values())<.25:
+    raise RuntimeError("Front candidate failed to lift")
+for o in all_candidate_meshes:
+    if o not in (front_paint,front_coat_mesh) and matrix_error(o.matrix_world,candidate_closed[o])>1e-5:
+        raise RuntimeError("Front opening moved unrelated original source: "+o.name)
+candidate_images.append(capture_lid_candidate("FRONT_OPEN",(.7,-1.55,.95)))
+rear_pivot.rotation_euler.x=math.radians(55)
+bpy.context.view_layer.update()
+candidate_images.append(capture_lid_candidate("BOTH_OPEN",(.9,-.9,1.35)))
+front_pivot.rotation_euler.x=0
+rear_pivot.rotation_euler.x=0
+bpy.context.view_layer.update()
+assert all(matrix_error(o.matrix_world,candidate_closed[o])<1e-5 for o in all_candidate_meshes)
+candidate_blend=front_dir/"UNAPPROVED_PORSCHE930_FRONT_REAR_SOURCE_CANDIDATES.blend"
+bpy.ops.wm.save_as_mainfile(filepath=str(candidate_blend))
+bpy.ops.object.select_all(action="DESELECT")
+for o in bpy.data.objects:
+    if o.type in {"MESH","EMPTY"}:o.select_set(True)
+candidate_glb=front_dir/"UNAPPROVED_PORSCHE930_FRONT_REAR_SOURCE_CANDIDATES.glb"
+bpy.ops.export_scene.gltf(filepath=str(candidate_glb),export_format="GLB",use_selection=True,export_extras=True)
+assert candidate_glb.stat().st_size>13000000
+front_experiment={"original_triangles":241258,"front_original_source_paint_triangles":1274,
+    "front_original_source_coat_triangles":1274,"front_remaining_unclassified_source_faces":80,
+    "closed_error_m":[front_paint_err,front_coat_err],"front_candidate_lift_m":front_lifts,
+    "closed_round_trip_all_meshes":True,"unrelated_source_meshes_stationary":True,
+    "native_blender_images":candidate_images,"candidate_editable_blend":candidate_blend.name,
+    "candidate_glb":candidate_glb.name,"requires_visual_trim_cavity_review":True,
+    "not_for_game_or_shipping":True}
+(front_dir/"front_rear_candidate_experiment.json").write_text(json.dumps(front_experiment,indent=2)+"\n")
+print("PORSCHE930_FRONT_PAIRED_SURFACE_EXPERIMENT_NOT_APPROVED",json.dumps(front_experiment),flush=True)
+
 report={
     "car":"1975 Porsche 911 (930) Turbo","artist":"Karol Miklas",
     "source_original_artist_glb_sha256":qa["artist_original_sha256"],
