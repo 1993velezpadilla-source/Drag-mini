@@ -40,6 +40,12 @@ tap_text "Clean field"
 shot field
 tap_text "Space"
 shot space
+tap_text "Lab"
+shot lab
+tap_text "Shop"
+shot shop
+adb shell input keyevent 4
+sleep 1
 adb shell am force-stop "$PKG"
 adb shell am start -W -n "$PKG/.MainActivity"
 sleep 2
