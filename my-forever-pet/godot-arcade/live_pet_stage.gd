@@ -7,6 +7,9 @@ var avatar:Node3D
 var camera:Camera3D
 var pet_fit=1.0
 var bare_bounds=AABB()
+var framing_key=""
+var camera_safe=Rect2()
+var projected_pet=Rect2()
 var incompatible_wearables=0
 var feet:Array[Node3D]=[]
 var wardrobe_nodes:Array[Node3D]=[]
@@ -81,6 +84,51 @@ func update_camera():
 	if not is_instance_valid(camera) or size.x<2 or size.y<2: return
 	# Keep the room composition inside both portrait and landscape-shaped panels.
 	camera.fov=clampf(53.0+maxf(0.0,1.0-size.x/size.y)*8.0,53.0,61.0)
+	framing_key=""
+# Compose the actual 3D avatar inside the unoccluded screen rectangle.
+# Refit only when room, model, clothing or layout changes, not every frame.
+func frame_pet(safe:Rect2):
+	if not is_instance_valid(camera) or not is_instance_valid(avatar) or active_stage==0 or not bare_bounds.has_volume(): return
+	if safe.size.x<100 or safe.size.y<120 or view.size.x<2: return
+	camera_safe=safe
+	var key=str(safe)+str(size)+str(active_species)+str(active_stage)+equipped_key
+	if key==framing_key: return
+	camera.v_offset=0
+	update_camera()
+	framing_key=key
+	var bounds=bare_bounds
+	for ob in wardrobe_nodes:
+		if is_instance_valid(ob):
+			var b=mesh_bounds(ob,Transform3D.IDENTITY)
+			if b.has_volume(): bounds=bounds.merge(b)
+	# Avoid transient bounce, squash and yaw affecting composition.
+	var factor=(.70 if active_stage==1 else .88 if active_stage==2 else 1.0)*1.65*pet_fit
+	var anchor=ground-Vector3(0,sole_offset*factor,0)
+	var target=Rect2(safe.position+Vector2(10,8),safe.size-Vector2(20,16))
+	for attempt in range(7):
+		var r=project_bounds(bounds,anchor,factor)
+		if r.size.x<=0 or r.size.y<=0: break
+		var fit=minf(target.size.x*.88/r.size.x,target.size.y*.88/r.size.y)
+		if fit<.99 and camera.fov<77:
+			camera.fov=minf(77,rad_to_deg(2*atan(tan(deg_to_rad(camera.fov*.5))/maxf(.5,fit))))
+			continue
+		var desired_y=target.end.y-r.size.y*.5-8
+		var delta=desired_y-r.get_center().y
+		if absf(delta)<2: break
+		var original=camera.v_offset
+		camera.v_offset=original+.1
+		var slope=(project_bounds(bounds,anchor,factor).get_center().y-r.get_center().y)/.1
+		camera.v_offset=original
+		if absf(slope)<.1: break
+		camera.v_offset=clampf(original+delta/slope,-2.8,2.8)
+	projected_pet=project_bounds(bounds,anchor,factor)
+func project_bounds(bounds:AABB,anchor:Vector3,factor:float)->Rect2:
+	var lower=Vector2(INF,INF)
+	var upper=Vector2(-INF,-INF)
+	for i in range(8):
+		var p=screen_point(anchor+bounds.get_endpoint(i)*factor)
+		lower=lower.min(p); upper=upper.max(p)
+	return Rect2(lower,upper-lower)
 func set_night(night:bool):
 	if night==night_state: return
 	night_state=night
@@ -105,6 +153,7 @@ func set_room(id:String):
 func set_pet(species:int,stage:int):
 	if species==active_species and stage==active_stage: return
 	active_species=species; active_stage=stage
+	framing_key=""
 	if is_instance_valid(avatar):
 		world.remove_child(avatar); avatar.queue_free()
 	avatar=Node3D.new()

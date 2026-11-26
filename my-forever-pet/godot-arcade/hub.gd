@@ -59,6 +59,7 @@ func tex(path:String)->Texture2D:
 	return assets.get(path) as Texture2D
 var stats:Array[ProgressBar]=[]
 var notice:Label
+var last_stage_rect=Rect2()
 var clock_label:Label
 var body:VBoxContainer
 func _ready():
@@ -200,8 +201,9 @@ func make_ui():
 		var track=StyleBoxFlat.new(); track.bg_color=Color("#362c51"); track.set_corner_radius_all(4)
 		var filled=StyleBoxFlat.new(); filled.bg_color=colors[i]; filled.set_corner_radius_all(4)
 		p.add_theme_stylebox_override("background",track); p.add_theme_stylebox_override("fill",filled); column.add_child(p); stats.append(p)
-	notice=label(layout,"Tap your pet or an object",13)
+	notice=label(layout,"",13)
 	notice.clip_text=true
+	notice.hide()
 	section_scroll=ScrollContainer.new(); section_scroll.custom_minimum_size.y=88; section_scroll.horizontal_scroll_mode=ScrollContainer.SCROLL_MODE_DISABLED; layout.add_child(section_scroll)
 	body=VBoxContainer.new(); body.size_flags_horizontal=SIZE_EXPAND_FILL; section_scroll.add_child(body)
 	actions=body
@@ -277,9 +279,9 @@ func perform(id:String,i:int=0):
 	else:
 		notice.text=reason_for(id,i)
 	refresh()
-	if ok:
-		live_stage.react(id,store.asleep(store.now()))
-		if visual.visible: show_feedback(notice.text,id)
+	notice.visible=not visual.visible
+	if ok: live_stage.react(id,store.asleep(store.now()))
+	if visual.visible: show_feedback(notice.text,id)
 	if section=="Shop": select("Shop")
 func reason_for(id:String,i:int)->String:
 	var s:Dictionary=store.s
@@ -380,6 +382,8 @@ func select(tab:String):
 	if is_instance_valid(section_scroll):
 		section_scroll.scroll_vertical=0
 		var full_menu=tab!="Home"
+		notice.visible=full_menu and not notice.text.is_empty()
+		section_scroll.custom_minimum_size.y=88
 		visual.visible=not full_menu
 		stage_space.visible=not full_menu
 		daily_cta.visible=not full_menu
@@ -477,10 +481,12 @@ func room(name:String):
 	room_scroll.show()
 	meter_panel.show()
 	section_scroll.size_flags_vertical=SIZE_FILL
+	section_scroll.custom_minimum_size.y=128 if name in ["Kitchen","Bedroom","Garden"] else 72
+	notice.hide()
 	section="Rooms"
 	current_room=name
 	refresh()
-	reset_actions(3)
+	reset_actions(4 if name in ["Kitchen","Bedroom"] else 3)
 	match name:
 		"Kitchen":
 			for i in range(4): add_action(store.FOODS[i],"food",i)
@@ -668,6 +674,9 @@ func position_hotspots():
 	if is_instance_valid(stage_space) and stage_space.size.y>100:
 		safe=safe.intersection(Rect2(stage_space.global_position-visual.global_position+Vector2(8,8),stage_space.size-Vector2(16,16)))
 	if safe.size.x<80 or safe.size.y<80: return
+	if is_instance_valid(live_stage) and visual.visible:
+		live_stage.frame_pet(safe)
+		room_tag.position=Vector2(safe.position.x,safe.position.y+3)
 	var occupied:Array[Rect2]=[]
 	for child in hotspot_layer.get_children():
 		var point:Vector2=child.get_meta("point")
@@ -804,6 +813,10 @@ func capture_frame(path:String):
 	if visual.visible:
 		position_hotspots()
 		await RenderingServer.frame_post_draw
+		if live_stage.active_stage>0 and live_stage.camera_safe.has_area():
+			var r:Rect2=live_stage.projected_pet
+			var s:Rect2=live_stage.camera_safe.grow(4)
+			print("PET_FRAME ",path," pet=",r," safe=",s," enclosed=",s.encloses(r))
 	var image=get_viewport().get_texture().get_image()
 	assert(image.save_png(path)==OK)
 func capture_home():
