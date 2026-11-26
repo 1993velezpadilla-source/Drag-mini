@@ -35,7 +35,7 @@ static func mosskit(pose:String)->Image:
 		if pose in ["sleep","blink"]:
 			# Closed eyelid: small hand-placed stepped line.
 			for x in range(-4,5):
-				var y:=1-abs(x)/3 if pose=="sleep" else 0
+				var y:int=1-absi(x)/3 if pose=="sleep" else 0
 				im.set_pixel(int(p.x)+x,int(p.y)+int(y),eye)
 		else:
 			ellipse(im,p,Vector2(5,7),eye)
