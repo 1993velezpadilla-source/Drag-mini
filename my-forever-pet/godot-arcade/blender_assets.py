@@ -82,6 +82,15 @@ def export(name,maxtri):
   bpy.context.view_layer.objects.active=group[0]
   if len(group)>1:bpy.ops.object.join()
   bpy.ops.object.transform_apply(location=True,rotation=True,scale=True)
+ # Fit the four measured oversize woodland singles to their cell, preserving Z/Y silhouette.
+ if name=='dungeon_forest_wall' or name.startswith('dungeon_forest_rock_'):
+  extent=max(abs(vertex.co.x) for ob in bpy.context.scene.objects if ob.type=='MESH' for vertex in ob.data.vertices)
+  if extent>.70:
+   factor=.70/extent
+   for ob in bpy.context.scene.objects:
+    if ob.type=='MESH':
+     for vertex in ob.data.vertices:vertex.co.x*=factor
+     ob.data.update()
  total=0
  for o in bpy.context.scene.objects:
   if o.type=='MESH':

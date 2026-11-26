@@ -75,6 +75,22 @@ var reward_pool:Array[MeshInstance3D]=[]
 var scene_cache:Dictionary={}
 var rock_mesh_cache:Dictionary={}
 var floor_build_usec=0
+# Living-world FX are bounded, batched, independent of gameplay RNG.
+const AMBIENT_COUNT=24
+const MOTE_COUNT=12
+const TRAIL_COUNT=16
+var ambient_batches:Array[MultiMeshInstance3D]=[]
+var ambient_origins:Array[Vector3]=[]
+var ambient_ages:PackedFloat32Array=[]
+var ambient_rng=RandomNumberGenerator.new()
+var ambient_clock=0.0
+var trail_batch:MultiMeshInstance3D
+var trail_origins:Array[Vector3]=[]
+var trail_ages:PackedFloat32Array=[]
+var trail_angles:PackedFloat32Array=[]
+var trail_cursor=0
+var trail_emitted=0
+var caustic_overlay:MeshInstance3D
 func setup(r:int,id:int,step:int,finale:bool,patrol:bool,seed_id:int,companion:int):
 	region=r;companion_id=companion
 	run.setup(r,id,step,finale,patrol,seed_id,companion)
@@ -587,6 +603,125 @@ func build_walkable_surface(ground:Color):
 	var material=terrain_mat(ground).duplicate() as StandardMaterial3D
 	material.vertex_color_use_as_albedo=true
 	floor_surface.material_override=material;geometry.add_child(floor_surface)
+func ambient_material(c:Color)->StandardMaterial3D:
+	var m=StandardMaterial3D.new()
+	m.shading_mode=BaseMaterial3D.SHADING_MODE_UNSHADED
+	m.transparency=BaseMaterial3D.TRANSPARENCY_ALPHA
+	m.vertex_color_use_as_albedo=true
+	m.cull_mode=BaseMaterial3D.CULL_DISABLED
+	m.albedo_color=c
+	return m
+func ambient_leaf()->ArrayMesh:
+	# Lightweight curved particle geometry, not a static scenery asset.
+	var st=SurfaceTool.new();st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var points=[Vector3(-.5,0,0),Vector3(-.12,.09,-.27),Vector3(.5,0,0),Vector3(-.12,.09,.27),Vector3(0,.16,0)]
+	for i in [0,1,4,1,2,4,2,3,4,3,0,4]:
+		st.add_vertex(points[i])
+	st.generate_normals()
+	return st.commit()
+func ambient_batch(mesh_value:Mesh,count:int,material:Material)->MultiMeshInstance3D:
+	var mm=MultiMesh.new();mm.transform_format=MultiMesh.TRANSFORM_3D;mm.use_colors=true;mm.mesh=mesh_value;mm.instance_count=count
+	var inst=MultiMeshInstance3D.new();inst.multimesh=mm;inst.material_override=material
+	inst.cast_shadow=GeometryInstance3D.SHADOW_CASTING_SETTING_OFF;geometry.add_child(inst)
+	return inst
+func ambient_spawn(i:int,initial:bool=false):
+	var center=pos(run.player)
+	var spread=Vector3(ambient_rng.randf_range(-5.5,5.5),0,ambient_rng.randf_range(-6.0,5.0))
+	ambient_origins[i]=center+spread
+	ambient_ages[i]=ambient_rng.randf_range(0.0,4.5) if initial else 0.0
+func build_living_ambient():
+	ambient_batches.clear();ambient_origins.clear();ambient_ages.clear();ambient_clock=0.0
+	ambient_rng.seed=run.seed_value+run.floor_number*1709+region*101
+	ambient_origins.resize(AMBIENT_COUNT+MOTE_COUNT);ambient_ages.resize(AMBIENT_COUNT+MOTE_COUNT)
+	for i in range(ambient_origins.size()):ambient_spawn(i,true)
+	var primary:Mesh
+	if region==0:primary=ambient_leaf()
+	elif region==1:
+		var bubble=TorusMesh.new();bubble.inner_radius=.42;bubble.outer_radius=.50;bubble.rings=12;bubble.ring_segments=8;primary=bubble
+	else:
+		var crystal=PrismMesh.new();primary=crystal
+	var tint:Color=[Color("#d7b65b"),Color("#b5f3ff"),Color("#d6c4ff")][region]
+	ambient_batches.append(ambient_batch(primary,AMBIENT_COUNT,ambient_material(tint)))
+	var mote=SphereMesh.new();mote.radial_segments=8;mote.rings=4
+	ambient_batches.append(ambient_batch(mote,MOTE_COUNT,ambient_material([Color("#ffe38b"),Color("#a4e9ee"),Color("#e6d7ff")][region])))
+	var plane=PlaneMesh.new();plane.size=Vector2(.44,.44)
+	var trace_mat=ambient_material(Color.WHITE)
+	var svg=''
+	if region==1:
+		svg='<circle cx="32" cy="32" r="25" fill="none" stroke="#b8eced" stroke-opacity=".8" stroke-width="3"/><circle cx="32" cy="32" r="15" fill="none" stroke="#e4ffff" stroke-opacity=".5" stroke-width="2"/>'
+	else:
+		var ink='#69553b' if region==0 else '#d6b9fb'
+		svg='<g fill="'+ink+'"><ellipse cx="32" cy="39" rx="12" ry="10"/><ellipse cx="17" cy="24" rx="5" ry="7" transform="rotate(-20 17 24)"/><ellipse cx="27" cy="17" rx="5" ry="7"/><ellipse cx="39" cy="17" rx="5" ry="7"/><ellipse cx="49" cy="24" rx="5" ry="7" transform="rotate(20 49 24)"/></g>'
+	var image=Image.new();image.load_svg_from_string('<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">'+svg+'</svg>')
+	trace_mat.albedo_texture=ImageTexture.create_from_image(image)
+	trail_batch=ambient_batch(plane,TRAIL_COUNT,trace_mat)
+	trail_origins.clear();trail_ages.clear();trail_angles.clear();trail_cursor=0;trail_emitted=0
+	trail_origins.resize(TRAIL_COUNT);trail_ages.resize(TRAIL_COUNT);trail_angles.resize(TRAIL_COUNT)
+	trail_ages.fill(99.0)
+	caustic_overlay=null
+	if region==1:
+		var shader=Shader.new()
+		shader.code="""shader_type spatial;
+render_mode unshaded, blend_add, depth_draw_never, cull_disabled;
+varying vec2 world_xz;
+void vertex() { world_xz = (MODEL_MATRIX * vec4(VERTEX,1.0)).xz; }
+void fragment() {
+ vec2 p=world_xz*1.65;
+ float a=sin(p.x*2.1+p.y*1.4+sin(p.y*1.8+TIME*0.46)*1.3+TIME*0.62);
+ float b=sin(p.y*2.5-p.x*1.2+sin(p.x*1.4-TIME*0.37)*1.2);
+ float lines=pow(1.0-abs(a*b),12.0);
+ ALBEDO=vec3(0.30,0.62,0.68); ALPHA=lines*0.12;
+}"""
+		var sm=ShaderMaterial.new();sm.shader=shader
+		caustic_overlay=MeshInstance3D.new();caustic_overlay.mesh=floor_surface.mesh;caustic_overlay.material_override=sm
+		caustic_overlay.position.y=.022;caustic_overlay.cast_shadow=GeometryInstance3D.SHADOW_CASTING_SETTING_OFF;geometry.add_child(caustic_overlay)
+	update_living_ambient(0.0)
+func emit_trail(tile:Vector2i,dir:Vector2i):
+	if not run.cells.has(tile):return
+	var side=-1.0 if trail_cursor%2==0 else 1.0
+	trail_origins[trail_cursor]=pos(tile)+Vector3(-dir.y*side*.12,.035,dir.x*side*.12)
+	trail_angles[trail_cursor]=atan2(float(dir.x),float(dir.y))
+	trail_ages[trail_cursor]=0.0;trail_cursor=(trail_cursor+1)%TRAIL_COUNT;trail_emitted+=1
+func update_living_ambient(dt:float):
+	if ambient_batches.size()!=2 or not is_instance_valid(trail_batch):return
+	var delta=clampf(dt,0.0,.25)
+	ambient_clock+=delta
+	for i in range(ambient_origins.size()):
+		ambient_ages[i]+=delta
+		var mote=i>=AMBIENT_COUNT
+		var duration=5.5+float(i%5)*.37
+		if ambient_ages[i]>=duration or ambient_origins[i].distance_to(pos(run.player))>9.0:ambient_spawn(i)
+		var age=ambient_ages[i];var phase=age/duration;var seed=float(i)*2.399
+		var fade=minf(1.0,minf(phase*7.0,(1.0-phase)*6.0))
+		var offset=Vector3(sin(age*.71+seed)*.46,0,cos(age*.57+seed)*.36)
+		var size=.10+.035*float(i%4)
+		var basis:Basis
+		if mote:
+			offset.y=.55+.30*sin(age*.8+seed)+phase*.40
+			size=.035+.014*float(i%3);fade*=.48+.52*absf(sin(ambient_clock*1.4+seed))
+			basis=Basis.from_scale(Vector3.ONE*size)
+		elif region==0:
+			offset.y=3.3-phase*3.15
+			basis=Basis.from_euler(Vector3(age*.8+seed,age*.6,seed+sin(age)*.6)).scaled(Vector3.ONE*size*1.7)
+		elif region==1:
+			offset.y=.10+phase*3.0
+			basis=Basis(Vector3.RIGHT,PI*.30).scaled(Vector3.ONE*size*(.75+phase*.6))
+		else:
+			offset.y=.3+phase*2.6
+			basis=Basis.from_euler(Vector3(age*.4,seed+age*.6,age*.3)).scaled(Vector3(size*.4,size,size*.4))
+		var batch_index=1 if mote else 0
+		var index=i-AMBIENT_COUNT if mote else i
+		var mm=ambient_batches[batch_index].multimesh
+		mm.set_instance_transform(index,Transform3D(basis,ambient_origins[i]+offset))
+		mm.set_instance_color(index,Color(1,1,1,fade*.65))
+	var life=1.7 if region==1 else 3.2
+	for i in range(TRAIL_COUNT):
+		trail_ages[i]=minf(99.0,trail_ages[i]+delta)
+		var fade=clampf(1.0-trail_ages[i]/life,0.0,1.0)
+		var scale_value=(.55+trail_ages[i]*.28) if region==1 else .78
+		if fade<=0.0:scale_value=.001
+		trail_batch.multimesh.set_instance_transform(i,Transform3D(Basis(Vector3.UP,trail_angles[i]).scaled(Vector3.ONE*scale_value),trail_origins[i]))
+		trail_batch.multimesh.set_instance_color(i,Color(1,1,1,fade*.58))
 func build_floor():
 	var start_usec=Time.get_ticks_usec()
 	if is_instance_valid(geometry):geometry.hide();geometry.queue_free()
@@ -605,6 +740,7 @@ func build_floor():
 	var ground:Color=[Color("#8a9274"),Color("#76929a"),Color("#77709a")][region]
 	build_exterior_surface()
 	build_walkable_surface(ground)
+	build_living_ambient()
 	# Recess foundation below the walkable surface, so squared pedestals do not protrude around authored rocks.
 	var foundation:Array[Vector3]=[]
 	for p in walls:foundation.append(p-Vector3(0,.59,0))
@@ -789,6 +925,7 @@ func update_hud():
 func _process(dt:float):
 	if notified or not is_instance_valid(pet):return
 	elapsed+=dt;tick-=dt
+	update_living_ambient(dt)
 	if reward_age>0.0:
 		reward_age=maxf(0.0,reward_age-dt)
 		var progress=1.0-reward_age/.65
@@ -816,7 +953,9 @@ func _process(dt:float):
 		var before=run.player
 		var damage_before:int=run.hits
 		if run.move(next):
-			if before!=run.player:update_room_lights()
+			if before!=run.player:
+				emit_trail(before,run.player-before)
+				update_room_lights()
 			if before==run.player or run.hits>damage_before:path.clear()
 			sync()
 		else:path.clear()
@@ -829,6 +968,9 @@ func _process(dt:float):
 	var moving=pet.position.distance_to(target)>.06
 	pet_pose.position=Vector3(0,.09*absf(sin(elapsed*18.0)) if moving else .015*sin(elapsed*3.5),0)
 	pet_pose.rotation.z=sin(elapsed*20.0)*.07 if moving else 0.0
+	if region==1:
+		pet_pose.position.y=.10+.055*sin(elapsed*5.0)
+		pet_pose.rotation.z=sin(elapsed*7.0)*.045 if moving else 0.0
 	if attack_time>0.0:
 		var phase=sin(PI*attack_time/.28)
 		pet_pose.position+=pet.basis.inverse()*attack_direction*phase*.40

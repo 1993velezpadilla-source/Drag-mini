@@ -20,6 +20,12 @@ func run():
 		assert(dungeon.terrain_texture!=null and dungeon.terrain_normal!=null)
 		assert(dungeon.exterior_vertex_count>100 and dungeon.exterior_max_height<-.25,"exterior stays below playable floor")
 		assert(dungeon.floor_surface.mesh.get_surface_count()==1,"continuous indexed walkable terrain")
+		assert(dungeon.ambient_batches.size()==2 and dungeon.ambient_origins.size()==36)
+		assert(dungeon.trail_batch.multimesh.instance_count==16 and dungeon.trail_emitted==0)
+		assert((dungeon.caustic_overlay!=null)==(region==1))
+		var old_ambient:Vector3=dungeon.ambient_batches[0].multimesh.get_instance_transform(0).origin
+		dungeon.update_living_ambient(.2)
+		assert(dungeon.ambient_batches[0].multimesh.get_instance_transform(0).origin!=old_ambient,"living ambient moves")
 		assert(not surfaces.has(dungeon.floor_surface_signature),"biomes have different floor textures");surfaces[dungeon.floor_surface_signature]=true
 		if ResourceLoader.exists("res://assets/dungeon_forest_landmark.glb"):assert(dungeon.landmark_count>0,"production landmark placed")
 		if ResourceLoader.exists("res://assets/dungeon_forest_rock_0.glb"):
@@ -52,6 +58,9 @@ func run():
 		assert(not dungeon.path.is_empty(),"real viewport tap resolves pickup")
 		dungeon._process(.2)
 		assert(dungeon.run.coins==3 and not dungeon.run.loot.has(pickup),"pickup commits once")
+		assert(dungeon.trail_emitted==1 and dungeon.trail_ages[0]==0.0,"successful movement emits one pooled trail")
+		for k in range(16):dungeon.update_living_ambient(.25)
+		assert(dungeon.trail_ages[0]>=4.0,"trail expires without allocation")
 		assert(dungeon.reward_age>0.0 and dungeon.reward_pool.size()==12,"pooled pickup reward burst")
 		assert(not dungeon.stairs_button.visible,"irrelevant action does not occupy HUD")
 		var created:int=dungeon.actor_created
@@ -72,7 +81,9 @@ func run():
 			assert(not dungeon.stairs_button.disabled)
 			dungeon.stairs_button.pressed.emit()
 			await frames()
-			if floor_index==0:assert(dungeon.run.floor_number==2 and not dungeon.notified)
+			if floor_index==0:
+				assert(dungeon.run.floor_number==2 and not dungeon.notified)
+				assert(dungeon.trail_emitted==0 and dungeon.ambient_origins.size()==36,"floor rebuild resets ambient pools")
 		assert(dungeon.notified and completed==region+1)
 		dungeon.sync()
 		await frames()
