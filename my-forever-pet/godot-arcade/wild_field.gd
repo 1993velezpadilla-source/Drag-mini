@@ -29,6 +29,10 @@ var flow_arrows:Array[Node3D]=[]
 var mesh_cache:Dictionary={}
 var material_cache:Dictionary={}
 var pulse:Node3D
+var compass_arrow:Node3D
+var signal_sample=0.0
+var signal_sample_timer=0.0
+var signal_trend=""
 var destination_marker:Node3D
 var found_flash=0.0
 var camera_focus=Vector3.ZERO
@@ -154,6 +158,13 @@ func build_world(companion:int,id:int,finale:bool):
 	pulse=Node3D.new();world.add_child(pulse)
 	var scan_ring=TorusMesh.new();scan_ring.inner_radius=.94;scan_ring.outer_radius=1.0;scan_ring.rings=24;scan_ring.ring_segments=6;shape(scan_ring,Vector3(0,.09,0),Vector3.ONE,tint.lightened(.6),pulse,true)
 	pulse.hide()
+	compass_arrow=Node3D.new();world.add_child(compass_arrow)
+	var arrow_shaft=BoxMesh.new()
+	shape(arrow_shaft,Vector3(0,.18,.12),Vector3(.10,.08,.48),Color("#c8fbff"),compass_arrow,true)
+	var arrow_head=PrismMesh.new()
+	var tip=shape(arrow_head,Vector3(0,.18,.46),Vector3(.42,.09,.40),Color("#c8fbff"),compass_arrow,true)
+	tip.rotation.x=PI/2
+	compass_arrow.hide()
 	if finale:wild=model(id,world)
 	for i in range(2 if id<12 else 3):
 		var hazard=Node3D.new();world.add_child(hazard);hazards.append(hazard)
@@ -242,10 +253,21 @@ func _process(dt:float):
 	camera.position=camera_focus+Vector3(0,23,17);camera.look_at(camera_focus)
 	pulse.visible=run.scan_left>0;pulse.position=Vector3(run.player.x,0,run.player.y);pulse.scale=Vector3.ONE*(1.0+7.0*(1.0-run.scan_left/2.6))
 	if run.index!=last_index:
-		found_flash=1.0;last_index=run.index
+		found_flash=1.0;last_index=run.index;signal_sample=run.signal_strength();signal_trend=""
 		Input.vibrate_handheld(35)
 	found_flash=maxf(0,found_flash-dt)
 	var point=run.signal_position()
+	var bearing:Vector2=run.scan_vector()
+	compass_arrow.visible=bearing.length_squared()>.01
+	if compass_arrow.visible:
+		compass_arrow.position=Vector3(run.player.x+bearing.x*.95,.08,run.player.y+bearing.y*.95)
+		compass_arrow.rotation.y=atan2(bearing.x,bearing.y)
+	signal_sample_timer+=dt
+	if signal_sample_timer>=.45:
+		var strength:float=run.signal_strength()
+		var change=strength-signal_sample
+		signal_trend=" · Closer" if change>.025 else " · Farther" if change<-.025 else ""
+		signal_sample=strength;signal_sample_timer=0.0
 	trace.position=Vector3(point.x,.02,point.y)
 	trace.visible=run.trace_visible()
 	trace.scale=Vector3.ONE*(1.0+.14*sin(run.elapsed*8))
@@ -268,9 +290,10 @@ func update_hud():
 	inspect_button.text="Wait · alert" if run.alert_left()>0.0 else "Hold to befriend" if run.encounter else "Hold to collect"
 	inspect_button.modulate=Color("#a8ffd6") if run.inspect_ready() else Color("#82939c")
 	status.text="Tap to move · Use signal strength to search" if not run.started else "Signal: "+("HOT" if run.signal_strength()>.78 else "WARM" if run.signal_strength()>.4 else "COLD")
+	if run.started:status.text+=signal_trend
 	if run.started and region==1 and run.environmental_force.length()>.55:status.text+=" · Current"
 	if run.started and region==2 and run.environmental_force.length()>.7:status.text+=" · Wind gust"
-	if run.scan_left>0:status.text="SCAN · "+run.direction()
+	if run.scan_left>0:status.text="SCAN · "+run.direction()+" · Follow the arrow"
 	if run.inspect_ready():status.text="Hold the action button now!"
 	if run.alert_left()>0.0 and run.player.distance_to(run.signal_position())<5.5:
 		status.text="ALERT · Wait for the creature to calm down"

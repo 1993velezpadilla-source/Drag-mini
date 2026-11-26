@@ -34,6 +34,8 @@ var tier=0
 var reveal_radius=2.6
 var alert_period=5.0
 var alert_duration=1.0
+var route_pattern=0
+var hazard_phase=0.0
 func setup(r:int,id:int,n:int,finale:bool,is_patrol:bool,seed_id:int):
 	region=r;specimen=id;step=n;encounter=finale;patrol=is_patrol;seed_value=seed_id
 	var rng=RandomNumberGenerator.new();rng.seed=seed_id
@@ -46,6 +48,9 @@ func setup(r:int,id:int,n:int,finale:bool,is_patrol:bool,seed_id:int):
 	capture_time=(1.25+float(tier)*.15) if finale else [.65,.85,1.0][tier]
 	capture_radius=1.6 if finale else [.85,.75,.7][tier]
 	scans=[3,2,1][tier]
+	# As research advances, vary hazard routes without changing the reward rules.
+	route_pattern=posmod(step,3) if not patrol else 0
+	hazard_phase=float(posmod(seed_id,17))*.12 if route_pattern!=0 else 0.0
 	for i in range(required):
 		var p=Vector2(rng.randf_range(-7.0,7.0),rng.randf_range(-6.5,5.0))
 		for attempt in range(20):
@@ -90,11 +95,12 @@ func set_inspecting(value:bool):
 	inspecting=value
 	if not value:hold=0.0
 func hazard_at(i:int)->Vector2:
-	var offset=float(i)*2.3
+	var offset=float(i)*2.3+hazard_phase
+	var phase=elapsed*(1.0+float(route_pattern)*.09)
 	match region:
-		0:return Vector2(sin(elapsed*(.72+i*.14)+offset)*6.1,sin(elapsed*.43+offset)*5.8)
-		1:return Vector2(cos(elapsed*(.48+i*.12)+offset)*5.7,sin(elapsed*(.48+i*.12)+offset)*5.7)
-		_:return Vector2(sin(elapsed*(1.05+i*.10)+offset)*6.7,cos(elapsed*.57+offset)*5.8)
+		0:return Vector2(sin(phase*(.72+i*.14)+offset)*6.1,sin(phase*.43+offset)*5.8)
+		1:return Vector2(cos(phase*(.48+i*.12)+offset)*5.7,sin(phase*(.48+i*.12)+offset)*5.7)
+		_:return Vector2(sin(phase*(1.05+i*.10)+offset)*6.7,cos(phase*.57+offset)*5.8)
 func tick(delta:float):
 	if finished or not started:return
 	if delta<=0.0:return
@@ -137,6 +143,9 @@ func _tick_step(dt:float):
 		if index>=required:
 			finished=true;success=true;return
 	if time_left<=0:finished=true;success=false
+func scan_vector()->Vector2:
+	if scan_left<=0.0 or finished:return Vector2.ZERO
+	return (signal_position()-player).normalized()
 func direction()->String:
 	var v=signal_position()-player
 	if v.length()<1.5:return "VERY CLOSE"
