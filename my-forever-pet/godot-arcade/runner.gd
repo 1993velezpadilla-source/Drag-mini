@@ -572,7 +572,7 @@ func pixel_ellipse(img:Image, center:Vector2, radii:Vector2, tint:Color) -> void
 			if q.length_squared()<=1.0: img.set_pixel(x,y,tint)
 
 func mosskit_back_frame(step:int) -> Texture2D:
-	return ImageTexture.create_from_image(PixelArt.mosskit_back(step))
+	return PixelArt.adventure_frame(1,"idle" if step==0 else "walk",1 if step>0 else 3 if step<0 else 0)
 
 func make_pixel_runner() -> void:
 	var store=get_node_or_null("/root/PetStore")

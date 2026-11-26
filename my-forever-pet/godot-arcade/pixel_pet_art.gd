@@ -1,6 +1,12 @@
 extends RefCounted
 # Original pixel artwork with stable companion identity; no full-scene pixelation.
 static var cache:Dictionary={}
+# Editable skin contract: four direction rows, ten pose columns, 48px cells.
+const SKIN_PATH="res://assets/mosky/sprites.png"
+const CELL=48
+const POSE_COLUMNS=10
+static var skin_image:Image
+static var skin_checked=false
 static func ellipse(im:Image,center:Vector2,radii:Vector2,c:Color)->void:
 	for y in range(maxi(0,int(center.y-radii.y)),mini(im.get_height(),int(center.y+radii.y)+1)):
 		for x in range(maxi(0,int(center.x-radii.x)),mini(im.get_width(),int(center.x+radii.x)+1)):
@@ -79,9 +85,9 @@ static func mosskit_back(step:int)->Image:
 
 
 static func source_image(path:String)->Image:
-	if path=="res://assets/pet_rear_0.png": return mosskit_back(0)
-	if path=="res://assets/pet_0.png": return mosskit("idle")
-	if path=="res://assets/pet_sleep_0.png": return mosskit("sleep")
+	if path=="res://assets/pet_rear_0.png": return skin_cell(1,"idle",0)
+	if path=="res://assets/pet_0.png": return skin_cell(0,"idle",0)
+	if path=="res://assets/pet_sleep_0.png": return skin_cell(0,"sleep",0)
 	if not ResourceLoader.exists(path): return null
 	var src:=load(path) as Texture2D
 	if src==null: return null
@@ -101,7 +107,7 @@ static func source_image(path:String)->Image:
 static func portrait(path:String,trim:bool=false,pose:String="")->Texture2D:
 	var key:=path+":"+str(trim)+":"+pose
 	if cache.has(key): return cache[key] as Texture2D
-	var im:Image=mosskit(pose) if not pose.is_empty() and path=="res://assets/pet_0.png" else source_image(path)
+	var im:Image=skin_cell(0,pose,0) if not pose.is_empty() and path=="res://assets/pet_0.png" else source_image(path)
 	if im==null: return null
 	if trim:
 		var bounds:=im.get_used_rect()
@@ -156,9 +162,18 @@ static func direction_for(delta:Vector2,previous:int=0)->int:
 	if absf(delta.x)>absf(delta.y):return 3 if delta.x>0 else 2
 	return 0 if delta.y>0 else 1
 
-static func adventure_frame(dir:int,pose:String,frame:int=0)->Texture2D:
-	var key:="adventure:%d:%s:%d"%[dir,pose,frame]
-	if cache.has(key):return cache[key] as Texture2D
+# Animation logic is independent from character art. An artist can replace one
+# lossless PNG, without modifying movement, combat, navigation or camera code.
+static func pose_column(pose:String,frame:int)->int:
+	match pose:
+		"walk","burst":return 1+posmod(frame,4)
+		"attack":return 5+posmod(frame,2)
+		"blink":return 7
+		"sleep":return 8
+		"eat":return 9
+	return 0
+
+static func authored_cell(dir:int,pose:String,frame:int)->Image:
 	var stride:int=0
 	if pose in ["walk","burst"]:stride=[0,2,0,-2][posmod(frame,4)]
 	elif pose=="attack":stride=2 if frame%2==0 else -2
@@ -166,10 +181,39 @@ static func adventure_frame(dir:int,pose:String,frame:int=0)->Texture2D:
 	match dir:
 		1:im=mosskit_back(stride)
 		2,3:
-			im=mosskit_side(stride,pose=="blink",pose=="attack")
+			im=mosskit_side(stride,pose in ["blink","sleep"],pose in ["attack","eat"])
 			if dir==2:im.flip_x()
-		_:im=mosskit("blink" if pose=="blink" else "eat" if pose=="attack" else "idle",stride)
-	var tex:=ImageTexture.create_from_image(im)
+		_:im=mosskit("sleep" if pose=="sleep" else "blink" if pose=="blink" else "eat" if pose in ["attack","eat"] else "idle",stride)
+	return im
+
+static func skin_cell(dir:int,pose:String,frame:int)->Image:
+	if not skin_checked:
+		skin_checked=true
+		if ResourceLoader.exists(SKIN_PATH):
+			var tex:=load(SKIN_PATH) as Texture2D
+			if tex!=null:
+				var candidate:=tex.get_image()
+				if candidate!=null and (not candidate.is_compressed() or candidate.decompress()==OK) and candidate.get_size()==Vector2i(CELL*POSE_COLUMNS,CELL*4):
+					skin_image=candidate
+	if skin_image!=null:
+		return skin_image.get_region(Rect2i(pose_column(pose,frame)*CELL,clampi(dir,0,3)*CELL,CELL,CELL))
+	return authored_cell(dir,pose,frame)
+
+static func editable_atlas()->Image:
+	var sheet:=Image.create(CELL*POSE_COLUMNS,CELL*4,false,Image.FORMAT_RGBA8)
+	sheet.fill(Color.TRANSPARENT)
+	var poses=["idle","walk","walk","walk","walk","attack","attack","blink","sleep","eat"]
+	var frames=[0,0,1,2,3,0,1,0,0,0]
+	for dir in range(4):
+		for column in range(POSE_COLUMNS):
+			var cell:=skin_cell(dir,poses[column],frames[column])
+			sheet.blit_rect(cell,Rect2i(0,0,CELL,CELL),Vector2i(column*CELL,dir*CELL))
+	return sheet
+
+static func adventure_frame(dir:int,pose:String,frame:int=0)->Texture2D:
+	var key:="adventure:%d:%s:%d"%[dir,pose,frame]
+	if cache.has(key):return cache[key] as Texture2D
+	var tex:=ImageTexture.create_from_image(skin_cell(dir,pose,frame))
 	cache[key]=tex
 	return tex
 

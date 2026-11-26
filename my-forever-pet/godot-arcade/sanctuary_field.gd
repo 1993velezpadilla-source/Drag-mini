@@ -83,7 +83,7 @@ func _process(dt:float):
 	if locked:return
 	walk_time+=dt
 	shimmer=maxf(0,shimmer-dt)
-	var previous:=pos
+	var previous:Vector2=pos
 	var remaining:float=minf(dt,.05)*(.44 if region==1 else .58)
 	while remaining>0.00001 and not path.is_empty():
 		var next:Vector2=path[0]

@@ -164,6 +164,17 @@ jobs:
           name: My-Forever-Pet-Godot-Android-ARM64-debug
           path: /tmp/My-Forever-Pet-Godot-arm64.apk
           if-no-files-found: error
+      - name: Export editable Mosky sprite sheet
+        run: |
+          set -euo pipefail
+          /tmp/godot/Godot_v4.4.1-stable_linux.x86_64 --headless --path my-forever-pet/godot-arcade --script res://export_mosky_atlas.gd 2>&1 | tee /tmp/mosky-atlas.log
+          grep -F MOSKY_EDITABLE_ATLAS_PASS /tmp/mosky-atlas.log
+          test -s /tmp/mosky-sprite-atlas.png
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Mosky-editable-sprite-atlas
+          path: /tmp/mosky-sprite-atlas.png
+          if-no-files-found: error
       - name: Capture actual 3D viewport
         id: visual
         continue-on-error: true
