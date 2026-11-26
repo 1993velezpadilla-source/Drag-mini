@@ -1,0 +1,125 @@
+package org.myforeverpet.wallpaper;
+import android.service.wallpaper.WallpaperService;
+import android.content.*;
+import android.graphics.*;
+import android.os.*;
+import android.view.*;
+import android.util.AtomicFile;
+import java.io.*;
+import java.util.Calendar;
+import org.json.JSONObject;
+
+public final class ForeverWallpaperService extends WallpaperService {
+    static final Object ACTION_LOCK=new Object();
+    @Override public Engine onCreateEngine(){return new PetEngine();}
+    private final class PetEngine extends Engine {
+        final Handler handler=new Handler(Looper.getMainLooper());
+        final Paint paint=new Paint(Paint.ANTI_ALIAS_FLAG|Paint.FILTER_BITMAP_FLAG);
+        final RectF rect=new RectF();
+        final Runnable frame=this::drawFrame;
+        SharedPreferences prefs;
+        JSONObject state=new JSONObject();
+        Bitmap awake,sleep,room;
+        String awakeKey="",sleepKey="",roomKey="",snapshot="";
+        boolean shown,surface;
+        long loaded,lastTap,reaction,downAt;
+        float downX,downY,petX,petY,petRadius;
+        int finger=-1;
+        @Override public void onCreate(SurfaceHolder holder){
+            super.onCreate(holder);prefs=getSharedPreferences("forever_wallpaper",MODE_PRIVATE);setTouchEventsEnabled(true);
+        }
+        @Override public void onVisibilityChanged(boolean visible){shown=visible;handler.removeCallbacks(frame);if(visible){loaded=0;drawFrame();}}
+        @Override public void onSurfaceCreated(SurfaceHolder holder){super.onSurfaceCreated(holder);surface=true;drawFrame();}
+        @Override public void onSurfaceChanged(SurfaceHolder holder,int format,int width,int height){super.onSurfaceChanged(holder,format,width,height);drawFrame();}
+        @Override public void onSurfaceDestroyed(SurfaceHolder holder){surface=false;handler.removeCallbacks(frame);super.onSurfaceDestroyed(holder);}
+        @Override public void onDestroy(){shown=false;surface=false;handler.removeCallbacks(frame);recycle(awake);recycle(sleep);recycle(room);super.onDestroy();}
+        void recycle(Bitmap b){if(b!=null&&!b.isRecycled())b.recycle();}
+        Bitmap loadImage(String key){
+            if(!key.matches("(awake|sleep|room)_[0-9]{1,2}"))return null;
+            try(FileInputStream in=new AtomicFile(new File(new File(getFilesDir(),"forever_wallpaper"),key+".png")).openRead()){
+                return BitmapFactory.decodeStream(in);
+            }catch(IOException|RuntimeException e){return null;}
+        }
+        void refresh(long now){
+            if(prefs==null||now-loaded<1000)return;
+            loaded=now;
+            String next=prefs.getString("snapshot","");
+            if(!next.equals(snapshot)){
+                try{state=new JSONObject(next);snapshot=next;}catch(Exception ignored){}
+            }
+            int species=Math.max(0,Math.min(28,state.optInt("portrait",28)));
+            String a="awake_"+species,b="sleep_"+species,r="room_"+Math.max(0,Math.min(5,state.optInt("room",0)));
+            if(!a.equals(awakeKey)||awake==null){Bitmap image=loadImage(a);if(image!=null){recycle(awake);awake=image;awakeKey=a;}}
+            if(!b.equals(sleepKey)||sleep==null){Bitmap image=loadImage(b);if(image!=null){recycle(sleep);sleep=image;sleepKey=b;}}
+            if(!r.equals(roomKey)||room==null){Bitmap image=loadImage(r);if(image!=null){recycle(room);room=image;roomKey=r;}}
+        }
+        boolean asleep(){
+            long now=System.currentTimeMillis()/1000L;
+            int hour=Calendar.getInstance().get(Calendar.HOUR_OF_DAY);
+            return state.optInt("stage",0)>0&&state.optLong("trip_end")<=now&&
+                (state.optLong("sleep_until")>now||(state.optBoolean("auto_sleep",true)&&state.optLong("awake_until")<=now&&(hour>=21||hour<7)));
+        }
+        void drawFrame(){
+            handler.removeCallbacks(frame);if(!shown||!surface)return;
+            long now=SystemClock.elapsedRealtime();refresh(now);
+            Canvas c=null;try{c=getSurfaceHolder().lockCanvas();if(c!=null)draw(c,now);}catch(RuntimeException ignored){}
+            finally{if(c!=null)try{getSurfaceHolder().unlockCanvasAndPost(c);}catch(RuntimeException ignored){}}
+            if(shown&&surface)handler.postDelayed(frame,state.optBoolean("battery",false)?250:asleep()?125:67);
+        }
+        void draw(Canvas c,long now){
+            float w=c.getWidth(),h=c.getHeight(),u=Math.min(w,h);
+            boolean night=asleep(),minimal=state.optBoolean("minimal",false);
+            paint.setColor(Color.WHITE);paint.setAlpha(255);
+            paint.setShader(new LinearGradient(0,0,0,h,new int[]{0xff17132e,0xff50346b,0xff1a263b},null,Shader.TileMode.CLAMP));
+            c.drawRect(0,0,w,h,paint);paint.setShader(null);
+            if(!minimal&&room!=null){
+                float z=Math.max(w/room.getWidth(),h/room.getHeight()),dw=room.getWidth()*z,dh=room.getHeight()*z;
+                rect.set((w-dw)/2,(h-dh)/2,(w+dw)/2,(h+dh)/2);c.drawBitmap(room,null,rect,paint);
+                paint.setColor(night?0x770c1435:0x3323173a);c.drawRect(0,0,w,h,paint);
+            }
+            float t=now/1000f;
+            float pulse=now-reaction<850?(float)Math.sin(Math.PI*Math.max(0,now-reaction)/850f):0;
+            float size=u*(state.optInt("stage",0)<=1?.54f:.72f);
+            petX=w*.5f;petY=h*.68f;petRadius=size*.48f;
+            float bob=(float)Math.sin(t*(night?1.4:2.5))*u*.009f-pulse*u*.045f;
+            paint.setColor(0x55000000);rect.set(petX-size*.31f,petY+size*.31f,petX+size*.31f,petY+size*.39f);c.drawOval(rect,paint);
+            int portrait=state.optInt("portrait",28);
+            Bitmap b=night&&sleep!=null&&sleepKey.equals("sleep_"+portrait)?sleep:awakeKey.equals("awake_"+portrait)?awake:null;
+            if(b!=null){paint.setColor(Color.WHITE);float scale=1+pulse*.06f;
+                rect.set(petX-size*scale/2,petY-size*scale/2+bob,petX+size*scale/2,petY+size*scale/2+bob);c.drawBitmap(b,null,rect,paint);}
+            else{paint.setColor(0xffe9d8b5);rect.set(petX-size*.22f,petY-size*.29f,petX+size*.22f,petY+size*.29f);c.drawOval(rect,paint);}
+            if(night){paint.setColor(0xffd5c5ff);paint.setTextSize(u*.045f);c.drawText("z  z",petX+size*.28f,petY-size*.28f,paint);}
+            if(pulse>0){
+                paint.setColor(0xfff9a1d1);
+                for(int j=0;j<5;j++){double a=j*2*Math.PI/5;float x=petX+(float)Math.cos(a)*size*(.35f+pulse*.18f),y=petY+(float)Math.sin(a)*size*.39f-pulse*u*.05f;c.drawCircle(x,y,u*.012f*(1+pulse),paint);}
+            }
+            if(state.optBoolean("show_status",true)){
+                String msg=night?"Resting":state.optInt("germs")>0?"Needs care":state.optInt("hunger",5)<2?"Hungry":state.optInt("happy",10)<4?"Wants to play":state.optInt("waste")>0?"Time to clean":"Happy to see you";
+                if(prefs!=null&&!prefs.getString("request","").isEmpty()&&System.currentTimeMillis()-prefs.getLong("request_at",0)<900000)msg="Care queued • open game";
+                paint.setTextSize(u*.032f);paint.setTextAlign(Paint.Align.CENTER);paint.setColor(0xfff3e6ff);
+                paint.setShadowLayer(4,0,2,0xff120b25);c.drawText(state.optString("name","My Forever Pet"),w*.5f,h*.88f,paint);
+                paint.setTextSize(u*.026f);c.drawText(msg,w*.5f,h*.91f,paint);paint.clearShadowLayer();paint.setTextAlign(Paint.Align.LEFT);
+            }
+        }
+        void queue(String request){
+            if(prefs==null||isPreview())return;
+            synchronized(ACTION_LOCK){prefs.edit().putString("request",request).putLong("request_at",System.currentTimeMillis()).commit();}
+        }
+        @Override public void onTouchEvent(MotionEvent e){
+            if(!shown){super.onTouchEvent(e);return;}
+            int action=e.getActionMasked();
+            if(action==MotionEvent.ACTION_DOWN){finger=e.getPointerId(0);downX=e.getX();downY=e.getY();downAt=SystemClock.elapsedRealtime();}
+            else if(action==MotionEvent.ACTION_CANCEL||action==MotionEvent.ACTION_POINTER_DOWN){finger=-1;}
+            else if(action==MotionEvent.ACTION_UP&&finger==e.getPointerId(0)){
+                long now=SystemClock.elapsedRealtime();float dx=e.getX()-downX,dy=e.getY()-downY;
+                boolean hit=Math.hypot(downX-petX,downY-petY)<petRadius;
+                if(hit&&now-downAt<650&&!asleep()){
+                    if(dy<-petRadius*.65f&&Math.abs(dx)<petRadius*.35f){queue("feed");reaction=now;lastTap=0;}
+                    else if(Math.hypot(dx,dy)<petRadius*.14f){reaction=now;if(now-lastTap<350&&lastTap>0){queue("bond");lastTap=0;}else lastTap=now;}
+                }
+                finger=-1;
+            }
+            super.onTouchEvent(e);
+        }
+    }
+}

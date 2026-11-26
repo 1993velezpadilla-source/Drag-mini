@@ -62,7 +62,7 @@ jobs:
           for room in kitchen bathroom bedroom toy garden lab; do test -s "my-forever-pet/godot-arcade/assets/room_$room.jpg"; test -s "my-forever-pet/godot-arcade/assets/rooms/room_$room.glb"; done
           blender -b -t 4 --python-exit-code 1 -P my-forever-pet/art/render_dash_creatures.py -- my-forever-pet/godot-arcade/assets
           for i in $(seq -w 1 27); do test -s "my-forever-pet/godot-arcade/assets/creatures/species_$i.glb"; done
-          for i in $(seq 0 27); do test -s "my-forever-pet/godot-arcade/assets/pet_$i.png"; done
+          for i in $(seq 0 27); do test -s "my-forever-pet/godot-arcade/assets/pet_$i.png"; test -s "my-forever-pet/godot-arcade/assets/pet_sleep_$i.png"; done
           for game in star flappy cloud find; do test -s "my-forever-pet/godot-arcade/assets/arcade_$game.jpg"; done
           test -s my-forever-pet/godot-arcade/assets/room_layout.json
           python3 my-forever-pet/godot-arcade/audit_visual_assets.py my-forever-pet/godot-arcade/assets
@@ -122,10 +122,16 @@ jobs:
         run: |
           set -euo pipefail
           SDK="$ANDROID_HOME"
-          "$SDK/cmdline-tools/latest/bin/sdkmanager" 'platforms;android-34' 'build-tools;34.0.0'
+          "$SDK/cmdline-tools/latest/bin/sdkmanager" 'platforms;android-34' 'build-tools;34.0.0' 'ndk;23.2.8568313'
           mkdir -p "$HOME/.local/share/godot/export_templates/4.4.1.stable" "$HOME/.config/godot" "$HOME/.android"
           curl -fL --retry 3 -o /tmp/templates.tpz https://github.com/godotengine/godot/releases/download/4.4.1-stable/Godot_v4.4.1-stable_export_templates.tpz
-          unzip -q /tmp/templates.tpz templates/android_debug.apk templates/android_release.apk -d /tmp/godot-templates
+          unzip -q /tmp/templates.tpz templates/android_debug.apk templates/android_release.apk templates/android_source.zip -d /tmp/godot-templates
+          mkdir -p my-forever-pet/godot-arcade/android/build
+          unzip -q /tmp/godot-templates/templates/android_source.zip -d my-forever-pet/godot-arcade/android/build
+          python3 my-forever-pet/godot-arcade/android_wallpaper/install.py my-forever-pet/godot-arcade/android/build
+          touch my-forever-pet/godot-arcade/android/.gdignore
+          printf '4.4.1.stable' > my-forever-pet/godot-arcade/android/.build_version
+          chmod +x my-forever-pet/godot-arcade/android/build/gradlew
           cp /tmp/godot-templates/templates/android_*.apk "$HOME/.local/share/godot/export_templates/4.4.1.stable/"
           keytool -genkeypair -keystore "$HOME/.android/petdash-debug.keystore" -storepass android -keypass android -alias androiddebugkey -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Pet Dash Debug"
           cat > "$HOME/.config/godot/editor_settings-4.4.tres" <<EOF
@@ -146,6 +152,10 @@ jobs:
           "$SDK/build-tools/34.0.0/apksigner" verify /tmp/My-Forever-Pet-Godot-arm64.apk
           "$SDK/build-tools/34.0.0/aapt" dump badging /tmp/My-Forever-Pet-Godot-arm64.apk | grep -F "org.myforeverpet.godot"
           unzip -l /tmp/My-Forever-Pet-Godot-arm64.apk | grep -F lib/arm64-v8a/libgodot_android.so
+          "$SDK/build-tools/34.0.0/aapt" dump xmltree /tmp/My-Forever-Pet-Godot-arm64.apk AndroidManifest.xml > /tmp/wallpaper-manifest.log
+          grep -F org.myforeverpet.wallpaper.ForeverWallpaperService /tmp/wallpaper-manifest.log
+          grep -F org.godotengine.plugin.v2.ForeverWallpaper /tmp/wallpaper-manifest.log
+          grep -F android.permission.BIND_WALLPAPER /tmp/wallpaper-manifest.log
       - uses: actions/upload-artifact@v4
         with:
           name: My-Forever-Pet-Godot-Android-ARM64-debug

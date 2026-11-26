@@ -469,3 +469,20 @@ for species in range(28):
  sc.render.filepath=os.path.join(ROOT,'pet_%d.png'%species)
  bpy.ops.render.render(write_still=True)
  print('DASH_STYLE_PORTRAIT_OK',species,flush=True)
+ # Match the same camera and lighting for the closed-eye wallpaper portrait.
+ if species==0:
+  # Rebuild only the creature objects; leave camera and lights in place.
+  for ob in list(sc.objects):
+   if ob.type in ('MESH','EMPTY'):bpy.data.objects.remove(ob,do_unlink=True)
+  bpy.ops.import_scene.gltf(filepath=os.path.join(ROOT,'home_faces','mosskit_sleep.glb'))
+  for side in [-1,1]:
+   bpy.ops.import_scene.gltf(filepath=os.path.join(ROOT,'foot.glb'))
+   for ob in bpy.context.selected_objects:
+    if ob.parent is None:ob.location+=Vector((side*.37,-.16,.20))
+ else:
+  for ob in sc.objects:
+   if ob.name.startswith('awake_eye_'):ob.hide_render=True
+  bpy.ops.import_scene.gltf(filepath=os.path.join(ROOT,'home_faces','sleep_%02d.glb'%species))
+ sc.render.filepath=os.path.join(ROOT,'pet_sleep_%d.png'%species)
+ bpy.ops.render.render(write_still=True)
+ print('SLEEP_PORTRAIT_OK',species,flush=True)

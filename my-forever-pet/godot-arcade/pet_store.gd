@@ -15,8 +15,10 @@ var s:Dictionary={}
 var arcade_mode=-1
 var test_mode=false
 var dirty=false
+var wallpaper_keys:Dictionary={}
+const WALL_ROOMS=["room_bedroom","room_kitchen","room_bathroom","room_toy","room_garden","room_lab"]
 func defaults()->Dictionary:
-	return {"stage":0,"field":0,"habitat":0,"body":0,"eyes":0,"color":0,"variant":0,"generation":1,"friendship":0,"inherited_eyes":-1,"name":"","hunger":5,"happy":10,"energy":100,"bond":0,"xp":0,"waste":0,"mistakes":0,"germs":0,"hygiene":100,"toilet":100,"coins":0,"crystals":0,"materials":0,"fuel":0,"snacks":0,"medicine":0,"soap":0,"cells":[0,0,0],"foods":[0,0,0,0],"collection":0,"favorites":0,"care_day":"","care_mask":0,"care_claims":0,"care_claimed":false,"form":-1,"owned":0,"equipped":0,"installation":0,"wardrobe":0,"worn":[0,0,0,0],"theme":0,"training":0,"age":0.0,"last":0.0,"food_clock":0.0,"mood_clock":0.0,"energy_clock":0.0,"waste_clock":0.0,"cell_clock":0.0,"care_clock":0.0,"hygiene_clock":0.0,"toilet_clock":0.0,"rest_clock":0.0,"sleep_until":0.0,"awake_until":0.0,"auto_sleep":true,"trip_end":0.0,"destination":0,"trip_bonus":0,"journeys":0,"pending":[0,0,0],"daily_day":"","quest_day":"","quests":0,"claimed":0,"garden_at":0.0,"harvests":0,"interaction_at":0.0,"best":[0,0,0,0,0]}
+	return {"wallpaper_room":0,"wallpaper_minimal":false,"wallpaper_battery":false,"wallpaper_status":true,"stage":0,"field":0,"habitat":0,"body":0,"eyes":0,"color":0,"variant":0,"generation":1,"friendship":0,"inherited_eyes":-1,"name":"","hunger":5,"happy":10,"energy":100,"bond":0,"xp":0,"waste":0,"mistakes":0,"germs":0,"hygiene":100,"toilet":100,"coins":0,"crystals":0,"materials":0,"fuel":0,"snacks":0,"medicine":0,"soap":0,"cells":[0,0,0],"foods":[0,0,0,0],"collection":0,"favorites":0,"care_day":"","care_mask":0,"care_claims":0,"care_claimed":false,"form":-1,"owned":0,"equipped":0,"installation":0,"wardrobe":0,"worn":[0,0,0,0],"theme":0,"training":0,"age":0.0,"last":0.0,"food_clock":0.0,"mood_clock":0.0,"energy_clock":0.0,"waste_clock":0.0,"cell_clock":0.0,"care_clock":0.0,"hygiene_clock":0.0,"toilet_clock":0.0,"rest_clock":0.0,"sleep_until":0.0,"awake_until":0.0,"auto_sleep":true,"trip_end":0.0,"destination":0,"trip_bonus":0,"journeys":0,"pending":[0,0,0],"daily_day":"","quest_day":"","quests":0,"claimed":0,"garden_at":0.0,"harvests":0,"interaction_at":0.0,"best":[0,0,0,0,0]}
 func _ready():
 	test_mode=false
 	for flag in ["--test","--soak","--capture","--lane-only","--unassisted","--home-test","--home-capture","--home-touch-test"]:
@@ -44,7 +46,7 @@ func _ready():
 	save_game()
 	var timer=Timer.new()
 	timer.wait_time=10.0
-	timer.timeout.connect(func(): advance(now()); save_game())
+	timer.timeout.connect(func(): advance(now()); consume_wallpaper_action(); save_game())
 	add_child(timer)
 	timer.start()
 func now()->float: return Time.get_unix_time_from_system()
@@ -169,6 +171,50 @@ func save_game():
 	if FileAccess.file_exists(SAVE) and JSON.parse_string(FileAccess.get_file_as_string(SAVE)) is Dictionary:
 		DirAccess.copy_absolute(ProjectSettings.globalize_path(SAVE),ProjectSettings.globalize_path(SAVE+".bak"))
 	DirAccess.rename_absolute(ProjectSettings.globalize_path(SAVE+".tmp"),ProjectSettings.globalize_path(SAVE))
+	wallpaper_sync()
+func wallpaper_plugin()->Object:
+	return Engine.get_singleton("ForeverWallpaper") if Engine.has_singleton("ForeverWallpaper") else null
+func wallpaper_image(plugin:Object,key:String,path:String)->bool:
+	if wallpaper_keys.has(key): return true
+	if not ResourceLoader.exists(path): return false
+	var texture=load(path) as Texture2D
+	if texture==null: return false
+	var img=texture.get_image()
+	if img==null: return false
+	if img.is_compressed() and img.decompress()!=OK: return false
+	var bytes=img.save_png_to_buffer()
+	if bytes.is_empty(): return false
+	var ok=bool(plugin.putImage(key,bytes))
+	if ok: wallpaper_keys[key]=true
+	return ok
+func wallpaper_sync()->bool:
+	if test_mode: return false
+	var plugin=wallpaper_plugin()
+	if plugin==null: return false
+	var i:int=28 if s.stage==0 else species()
+	var room:int=clampi(int(s.wallpaper_room),0,WALL_ROOMS.size()-1)
+	var path="res://assets/premium_egg.png" if i==28 else "res://assets/pet_%d.png"%i
+	var awake_ok=wallpaper_image(plugin,"awake_%d"%i,path)
+	var sleep_ok=wallpaper_image(plugin,"sleep_%d"%i,path if i==28 else "res://assets/pet_sleep_%d.png"%i)
+	var room_ok=wallpaper_image(plugin,"room_%d"%room,"res://assets/"+WALL_ROOMS[room]+".jpg")
+	if not (awake_ok and sleep_ok and room_ok): return false
+	var snapshot=s.duplicate()
+	snapshot["portrait"]=i; snapshot["name"]=pet_name(); snapshot["room"]=room
+	snapshot["minimal"]=s.wallpaper_minimal; snapshot["battery"]=s.wallpaper_battery; snapshot["show_status"]=s.wallpaper_status
+	plugin.syncState(JSON.stringify(snapshot))
+	return true
+func consume_wallpaper_action():
+	if test_mode: return
+	var plugin=wallpaper_plugin()
+	if plugin==null: return
+	var request=str(plugin.consumeAction())
+	if request=="bond": action("bond")
+	elif request=="feed": action("food",3)
+func _notification(what:int):
+	if what==NOTIFICATION_APPLICATION_RESUMED and not s.is_empty():
+		advance(now())
+		consume_wallpaper_action()
+		save_game()
 func feed(i:int):
 	s.hunger=mini(5,int(s.hunger)+1); s.foods[i]+=1; s.toilet=maxi(0,int(s.toilet)-3)
 	if i==species()%4: s.happy=mini(10,int(s.happy)+1); s.bond=mini(100,int(s.bond)+1)
@@ -368,7 +414,7 @@ func action(id:String,i:int=0)->bool:
 			if not ready or s.stage!=4 or s.friendship<4 or s.pending[0]>0: return false
 			var old=s.duplicate(true)
 			s=defaults()
-			for key in ["coins","crystals","materials","fuel","snacks","medicine","collection","favorites","care_day","care_mask","care_claims","care_claimed","owned","equipped","installation","wardrobe","worn","theme","garden_at","harvests","best","daily_day","quest_day","quests","claimed","journeys","auto_sleep"]: s[key]=old[key]
+			for key in ["wallpaper_room","wallpaper_minimal","wallpaper_battery","wallpaper_status","coins","crystals","materials","fuel","snacks","medicine","collection","favorites","care_day","care_mask","care_claims","care_claimed","owned","equipped","installation","wardrobe","worn","theme","garden_at","harvests","best","daily_day","quest_day","quests","claimed","journeys","auto_sleep"]: s[key]=old[key]
 			s.generation=old.generation+1; s.habitat=int(old.habitat); s.field=int(old.habitat); s.inherited_eyes=2; s.eyes=2; s.color=1; s.last=at
 		_: ok=false
 	if ok:

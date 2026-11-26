@@ -548,6 +548,9 @@ func select(tab:String):
 			var edit=LineEdit.new(); edit.placeholder_text="Name your pet"; edit.text=s.name; edit.max_length=24; profile.add_child(edit)
 			button(profile,"Save name",func(): store.s.name=edit.text.strip_edges(); store.save_game(); refresh())
 			action_card(actions,"Auto sleep","Rest automatically at night.","sleep","auto",0,"Toggle")
+			showcase_card("Live wallpaper","Keep your companion on your Android home screen.","res://assets/room_bedroom.jpg",func(): select("Wallpaper"))
+		"Wallpaper":
+			build_wallpaper()
 		"Care":
 			build_care(false)
 		"Rooms":
@@ -574,6 +577,34 @@ func select(tab:String):
 			build_care(true)
 
 	update_context()
+func build_wallpaper():
+	section_heading(actions,"Your pet, everywhere","A living companion on your phone's home screen.")
+	var s:Dictionary=store.s
+	var room_index=clampi(int(s.wallpaper_room),0,5)
+	var card=panel(actions)
+	var preview=Control.new(); preview.custom_minimum_size.y=260; preview.clip_contents=true; card.add_child(preview)
+	var back=TextureRect.new(); back.texture=tex("res://assets/"+store.WALL_ROOMS[room_index]+".jpg"); back.expand_mode=TextureRect.EXPAND_IGNORE_SIZE; back.stretch_mode=TextureRect.STRETCH_KEEP_ASPECT_COVERED; back.set_anchors_and_offsets_preset(PRESET_FULL_RECT); preview.add_child(back)
+	if s.wallpaper_minimal: back.hide()
+	var pet=TextureRect.new(); pet.texture=tex("res://assets/premium_egg.png" if s.stage==0 else ("res://assets/pet_sleep_%d.png" if store.asleep(store.now()) else "res://assets/pet_%d.png")%store.species()); pet.expand_mode=TextureRect.EXPAND_IGNORE_SIZE; pet.stretch_mode=TextureRect.STRETCH_KEEP_ASPECT_CENTERED; pet.set_anchors_and_offsets_preset(PRESET_CENTER); pet.offset_left=-96; pet.offset_right=96; pet.offset_top=-55; pet.offset_bottom=137; preview.add_child(pet)
+	var title=label(card,store.pet_name()+" • Live wallpaper",19)
+	var plugin=store.wallpaper_plugin()
+	var available=plugin!=null
+	var status=label(card,"Active on your home screen" if available and plugin.isActive() else "Ready to set" if available else "Available in the Android wallpaper build",14); status.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART
+	var apply=button(card,"Set live wallpaper ›",func():
+		if store.wallpaper_sync() and plugin.openPicker(): status.text="Choose Apply in the Android wallpaper preview."
+		else: status.text="Wallpaper preview could not open. Check Android wallpaper support."))
+	apply.disabled=not available
+	apply.add_theme_stylebox_override("normal",menu_skin(Color("#7950ad"),Color("#e9c5ff")))
+	section_heading(actions,"Personalize","Settings apply to the live wallpaper as well as this preview.")
+	var rooms=GridContainer.new(); rooms.columns=3; actions.add_child(rooms)
+	for j in range(6):
+		var b=art_tile(rooms,["Bedroom","Kitchen","Bathroom","Toy room","Garden","Potion lab"][j]+(" ✓" if j==room_index else ""),"res://assets/"+store.WALL_ROOMS[j]+".jpg",func(): s.wallpaper_room=j; store.save_game(); select("Wallpaper"),74,13)
+	for entry in [["wallpaper_minimal","Minimal background"],["wallpaper_battery","Battery saver"],["wallpaper_status","Show pet status"]]:
+		var key:String=entry[0]
+		button(actions,entry[1]+(": ON" if s[key] else ": OFF"),func(): s[key]=not s[key]; store.save_game(); select("Wallpaper"))
+	var help=panel(actions)
+	label(help,"How to interact",20)
+	var desc=label(help,"Tap your pet for a reaction. Double-tap queues a cuddle; swipe up on the pet queues a free grain meal. Queued care is applied once when you return to the game, if your pet needs it. Android launchers may intercept some gestures.",14); desc.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART
 func build_care_quest():
 	var quest=context_card("care_quest","Daily care adventure")
 	context_meter(quest,"care_quest",Color("#e6aa65"))
