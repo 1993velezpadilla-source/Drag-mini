@@ -7,6 +7,49 @@ func frames():
 	for i in range(4):
 		await process_frame
 		await RenderingServer.frame_post_draw
+func exterior_review(dungeon,region:int,floor_index:int):
+	# Measure actual visible pixel contribution, not just node count or frustum overlap.
+	# Render the exact same gameplay camera twice, with and without the exterior GLBs.
+	var prefix="res://assets/dungeon_"+["forest","reef","star"][region]
+	if not ResourceLoader.exists(prefix+"_exterior.glb"):return
+	var meshes:Array[Mesh]=[]
+	for part in dungeon.rock_parts(prefix+"_exterior.glb"):meshes.append(part.mesh)
+	var layers:Array[Node3D]=[]
+	for child in dungeon.geometry.get_children():
+		if child is MultiMeshInstance3D and child.multimesh!=null and meshes.has(child.multimesh.mesh):
+			layers.append(child)
+	for child in dungeon.exterior_life:
+		if not layers.has(child):layers.append(child)
+	assert(not layers.is_empty(),"real exterior render layers found")
+	await frames()
+	var full:Image=dungeon.viewport.get_texture().get_image()
+	for layer in layers:layer.hide()
+	await frames()
+	var empty:Image=dungeon.viewport.get_texture().get_image()
+	for layer in layers:layer.show()
+	await frames()
+	assert(full.get_size()==empty.get_size())
+	var changed=0;var samples=0
+	var difference=Image.create(full.get_width(),full.get_height(),false,Image.FORMAT_RGB8)
+	difference.fill(Color.BLACK)
+	# Sample every other pixel, using an explicit color delta rather than a file hash.
+	for y in range(0,full.get_height(),2):
+		for x in range(0,full.get_width(),2):
+			var a=full.get_pixel(x,y);var b=empty.get_pixel(x,y)
+			var delta=maxf(absf(a.r-b.r),maxf(absf(a.g-b.g),absf(a.b-b.b)))
+			if delta>.045:
+				changed+=1
+				difference.fill_rect(Rect2i(x,y,mini(2,full.get_width()-x),mini(2,full.get_height()-y)),Color(1,.65,.15))
+			samples+=1
+	var coverage=100.0*float(changed)/maxi(samples,1)
+	print("DUNGEON_EXTERIOR_VISIBILITY region=",region," floor=",floor_index," pixel_percent=",coverage," groups=",dungeon.exterior_groups.size()," animated=",dungeon.exterior_life_centers.size())
+	# Diagnostic mask shows exactly where the new models contribute to gameplay.
+	var path="/tmp/dungeon-real-%d-floor%d-exterior-"%[region,floor_index]
+	assert(full.save_png(path+"on.png")==OK)
+	assert(empty.save_png(path+"off.png")==OK)
+	assert(difference.save_png(path+"mask.png")==OK)
+	if coverage<1.0:push_warning("Exterior composition rejected: less than 1 percent visible contribution from new assets")
+	# Coverage is not aesthetic approval. A large ugly mesh can also score highly.
 func run():
 	for region in range(3):
 		var dungeon=Field.new();root.add_child(dungeon)
@@ -49,6 +92,7 @@ func run():
 		dungeon.floor_banner.hide()
 		await frames()
 		assert(root.get_texture().get_image().save_png("/tmp/dungeon-real-%d-entry.png"%region)==OK)
+		await exterior_review(dungeon,region,1)
 		if ResourceLoader.exists("res://assets/dungeon_forest_threshold.glb"):
 			assert(dungeon.threshold_count>0,"authored passage entrances")
 			for q in dungeon.threshold_cells:assert(dungeon.run.cells.has(q),"entrances remain walkable")
@@ -92,6 +136,7 @@ func run():
 			if floor_index==0:
 				assert(dungeon.run.floor_number==2 and not dungeon.notified)
 				assert(dungeon.trail_emitted==0 and dungeon.ambient_origins.size()==36,"floor rebuild resets ambient pools")
+				await exterior_review(dungeon,region,2)
 		assert(dungeon.notified and completed==region+1)
 		dungeon.sync()
 		await frames()
