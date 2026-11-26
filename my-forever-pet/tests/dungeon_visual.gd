@@ -33,6 +33,10 @@ func run():
 		dungeon.floor_banner.hide()
 		await frames()
 		assert(root.get_texture().get_image().save_png("/tmp/dungeon-real-%d-entry.png"%region)==OK)
+		if ResourceLoader.exists("res://assets/dungeon_forest_threshold.glb"):
+			assert(dungeon.threshold_count>0,"authored passage entrances")
+			for q in dungeon.threshold_cells:assert(dungeon.run.cells.has(q),"entrances remain walkable")
+		assert(dungeon.room_lights.size()==2,"bounded room light budget")
 		assert(root.get_visible_rect().encloses(dungeon.heal_button.get_global_rect()))
 		assert(dungeon.attack_button.icon!=null and dungeon.power_button.icon!=null and dungeon.heal_button.icon!=null)
 		dungeon.run.enemies.clear()

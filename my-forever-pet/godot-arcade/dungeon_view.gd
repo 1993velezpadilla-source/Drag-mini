@@ -60,6 +60,9 @@ var detail_count=0
 var span_count=0
 var corner_count=0
 var terrace_count=0
+var threshold_count=0
+var threshold_cells:Dictionary={}
+var room_lights:Array[OmniLight3D]=[]
 var floor_detail_count=0
 var terrace_cells:Dictionary={}
 var reward_fx:Node3D
@@ -125,9 +128,9 @@ func build_ui():
 	var holder=SubViewportContainer.new();holder.stretch=true;holder.stretch_shrink=1;holder.mouse_filter=MOUSE_FILTER_IGNORE;area.add_child(holder);holder.set_anchors_and_offsets_preset(PRESET_FULL_RECT)
 	viewport=SubViewport.new();viewport.own_world_3d=true;viewport.render_target_update_mode=SubViewport.UPDATE_ALWAYS;holder.add_child(viewport)
 	world=Node3D.new();viewport.add_child(world)
-	var env=WorldEnvironment.new();env.environment=Environment.new();env.environment.background_mode=Environment.BG_COLOR;env.environment.background_color=palette[2].darkened(.55);env.environment.ambient_light_source=Environment.AMBIENT_SOURCE_COLOR;env.environment.ambient_light_color=Color("#e0edff");env.environment.ambient_light_energy=.38;world.add_child(env)
-	var sun=DirectionalLight3D.new();sun.rotation_degrees=Vector3(-48,-35,0);sun.light_color=[Color("#fff2d4"),Color("#c0eaff"),Color("#d9d2ff")][region];sun.light_energy=.78;sun.shadow_enabled=true;world.add_child(sun)
-	var fill=DirectionalLight3D.new();fill.rotation_degrees=Vector3(-35,145,0);fill.light_color=palette[3];fill.light_energy=.18;fill.shadow_enabled=false;world.add_child(fill)
+	var env=WorldEnvironment.new();env.environment=Environment.new();env.environment.background_mode=Environment.BG_COLOR;env.environment.background_color=palette[2].darkened(.55);env.environment.ambient_light_source=Environment.AMBIENT_SOURCE_COLOR;env.environment.ambient_light_color=[Color("#c7d4bc"),Color("#a0cbdc"),Color("#b4afd9")][region];env.environment.ambient_light_energy=.32;world.add_child(env)
+	var sun=DirectionalLight3D.new();sun.rotation_degrees=Vector3(-48,-35,0);sun.light_color=[Color("#fff2d4"),Color("#c0eaff"),Color("#d9d2ff")][region];sun.light_energy=.89;sun.shadow_enabled=true;world.add_child(sun)
+	var fill=DirectionalLight3D.new();fill.rotation_degrees=Vector3(-35,145,0);fill.light_color=palette[3];fill.light_energy=.23;fill.shadow_enabled=false;world.add_child(fill)
 	camera=Camera3D.new();camera.projection=Camera3D.PROJECTION_ORTHOGONAL;camera.keep_aspect=Camera3D.KEEP_WIDTH;camera.size=8.2;world.add_child(camera);camera.current=true
 	var input=Control.new();area.add_child(input);input.set_anchors_and_offsets_preset(PRESET_FULL_RECT);input.mouse_filter=MOUSE_FILTER_STOP;input.gui_input.connect(touch)
 	map=Control.new();map.mouse_filter=MOUSE_FILTER_IGNORE;area.add_child(map);map.position=Vector2(10,10);map.size=Vector2(146,112);map.draw.connect(draw_map)
@@ -452,6 +455,45 @@ func interior_floor_detail():
 				var angle=float(posmod(x*3+y*11,8))*PI*.25
 				placements.append(Transform3D(Basis(Vector3.UP,angle),pos(q)+Vector3(0,.005,0)));used+=1
 	batch_parts(parts,placements,false);floor_detail_count=placements.size()
+func passage_thresholds():
+	threshold_count=0;threshold_cells.clear()
+	var parts=rock_parts("res://assets/dungeon_"+["forest","reef","star"][region]+"_threshold.glb")
+	if parts.is_empty():return
+	var placements:Array[Transform3D]=[]
+	for room in run.rooms:
+		for y in range(room.position.y,room.end.y):
+			for x in range(room.position.x,room.end.x):
+				var q=Vector2i(x,y)
+				if not run.cells.has(q):continue
+				for d in Rules.DIR:
+					var passage:Vector2i=q+d
+					if room.has_point(passage) or not run.cells.has(passage) or threshold_cells.has(passage):continue
+					var across=Vector2i(-d.y,d.x)
+					# Only decorate narrow entrances, never an open room or wide junction.
+					if run.cells.has(passage+across) or run.cells.has(passage-across):continue
+					if run.loot.has(passage) or passage==run.stairs or run.traps.has(passage):continue
+					threshold_cells[passage]=true
+					var angle=atan2(float(-d.x),float(-d.y))
+					placements.append(Transform3D(Basis(Vector3.UP,angle),pos(passage)))
+	batch_parts(parts,placements,false);threshold_count=placements.size()
+func room_lighting():
+	# A small, fixed pool: only the player's nearest two rooms cast accent light.
+	room_lights.clear()
+	for i in range(2):
+		var light=OmniLight3D.new();geometry.add_child(light)
+		light.light_color=[Color("#ffd59a"),Color("#75dfd3"),Color("#bfadff")][region]
+		light.light_energy=.45 if i==0 else .30
+		light.omni_range=5.0;light.omni_attenuation=1.4;light.shadow_enabled=false
+		room_lights.append(light)
+	update_room_lights()
+func update_room_lights():
+	var candidates:Array[Vector2i]=[]
+	for room in run.rooms:
+		var q:Vector2i=room.get_center();candidates.append(q)
+	candidates.sort_custom(func(a:Vector2i,b:Vector2i):return run.distance(a,run.player)<run.distance(b,run.player))
+	for i in range(room_lights.size()):
+		room_lights[i].visible=i<candidates.size()
+		if i<candidates.size():room_lights[i].position=pos(candidates[i])+Vector3(-1.1,2.6,-1.0)
 func floor_name()->String:
 	return ["Ancient passages","Treasure chamber","Monster den","Restorative grotto","Forgotten ruins"][run.floor_kind]
 func build_floor():
@@ -506,6 +548,8 @@ func build_floor():
 		boundary_detail(walls)
 	room_detail(seen)
 	interior_floor_detail()
+	passage_thresholds()
+	room_lighting()
 	var dais=prop(geometry,"dungeon_"+["forest","reef","star"][region]+"_dais",pos(run.relic)+Vector3(0,-.025,0))
 	if dais!=null:dais.rotation.y=PI*.25
 	for i in range(run.rooms.size()):
@@ -532,7 +576,7 @@ func build_floor():
 	camera.position=pet.position+Vector3(0,8.5,10.5);camera.look_at(pet.position)
 	refresh_actors()
 	floor_build_usec=Time.get_ticks_usec()-start_usec
-	print("DUNGEON_FLOOR_BUILD region=",region," floor=",run.floor_number," usec=",floor_build_usec," rocks=",rock_modules," cached_rock_sets=",rock_mesh_cache.size()," landmarks=",landmark_count," details=",detail_count," paired_spans=",span_count," corners=",corner_count," terraces=",terrace_count," floor_details=",floor_detail_count)
+	print("DUNGEON_FLOOR_BUILD region=",region," floor=",run.floor_number," usec=",floor_build_usec," rocks=",rock_modules," cached_rock_sets=",rock_mesh_cache.size()," landmarks=",landmark_count," details=",detail_count," paired_spans=",span_count," corners=",corner_count," terraces=",terrace_count," floor_details=",floor_detail_count," thresholds=",threshold_count)
 func actor_for(key:String,at:Vector3)->Node3D:
 	if actor_nodes.has(key):return actor_nodes[key]
 	var n=Node3D.new();actors.add_child(n);n.position=at;actor_nodes[key]=n;actor_created+=1
@@ -683,6 +727,7 @@ func _process(dt:float):
 		var before=run.player
 		var damage_before:int=run.hits
 		if run.move(next):
+			if before!=run.player:update_room_lights()
 			if before==run.player or run.hits>damage_before:path.clear()
 			sync()
 		else:path.clear()

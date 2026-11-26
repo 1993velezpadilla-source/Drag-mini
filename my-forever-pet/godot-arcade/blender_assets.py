@@ -1237,4 +1237,38 @@ for i in range(8):
  o.rotation_euler.z=-a
 crystal((0,.032,0),.075,.05,star,1701)
 export('dungeon_star_floor_detail',2500)
+# Passage entrance trim. Flat traversable middle, asymmetric lantern pillars on
+# both sides. Models are aligned along local X and face the room along +Z.
+clear()
+for side in [-1,1]:
+ x=side*.65
+ natural_rock((x,.09,0),(.32,.19,.85),foreststone,1800+side)
+ tube([(x,.13,-.24),(x+side*.08,.40,-.14),(x+side*.08,.72,.08)],[.105,.09,.045],bark,10)
+ ball((x+side*.07,.70,.12),(.19,.22,.19),glow)
+ for j in range(3):
+  blades((x,.16,-.16+j*.16),j*2.1+side,.26,.065,leafbright)
+for i in range(3):
+ rock_slab(((i-1)*.33,.015,0),(.30,.04,.68),forestedge,1810+i,.008)
+export('dungeon_forest_threshold',3500)
+clear()
+for side in [-1,1]:
+ x=side*.65
+ natural_rock((x,.09,0),(.32,.19,.85),reefstone,1820+side)
+ for j in range(3):
+  tube([(x,.10,-.20+j*.20),(x+side*.08,.30,-.18+j*.20),(x+side*.13,.46+j*.08,-.12+j*.20)],[.065,.048,.021],coral if j%2 else coral2)
+ ball((x,.26,.19),(.21,.19,.21),pearl)
+for i in range(3):
+ o=ball(((i-1)*.33,.022,0),(.27,.045,.31),reefedge)
+export('dungeon_reef_threshold',3500)
+clear()
+for side in [-1,1]:
+ x=side*.65
+ rock_slab((x,.10,0),(.31,.20,.79),astralstone,1840+side,.018)
+ rock_slab((x,.31,0),(.27,.28,.31),astraledge,1842+side,.02)
+ crystal((x,.47,0),.105,.28,violetglow,1844+side)
+ for z in [-.26,.26]:box((x,.20,z),(.22,.045,.08),rune,.008)
+for i in range(3):
+ rock_slab(((i-1)*.33,.018,0),(.31,.045,.70),astraledge,1850+i,.008)
+ box(((i-1)*.33,.044,0),(.24,.025,.05),rune,.004)
+export('dungeon_star_threshold',3500)
 with open(os.path.join(OUT,'mesh-metrics.json'),'w') as out: json.dump(stats,out,indent=2)
