@@ -527,6 +527,18 @@ func make_player() -> void:
 	mascot=Node3D.new()
 	player.add_child(mascot)
 	mascot.rotation.y=PI
+	var active_store=get_node_or_null("/root/PetStore")
+	var active_id:int=active_store.species() if active_store!=null and active_store.arcade_mode==4 else 0
+	if using_blender and active_id>0:
+		var file="res://assets/creatures/species_%02d.glb"%active_id
+		if ResourceLoader.exists(file):
+			var selected=load(file) as PackedScene
+			if selected!=null:
+				mascot.add_child(selected.instantiate())
+				# Preserve runner foot-array contract for the original animation controller.
+				for side in [-1,1]:
+					var pivot=Node3D.new();mascot.add_child(pivot);pivot.position=Vector3(side*.37,.20,.16);feet.append(pivot)
+				return
 	if using_blender and asset(mascot,"mosskit",Vector3.ZERO)!=null:
 		for side in [-1,1]:
 			var foot := asset(mascot,"foot",Vector3(side*0.37,0.20,0.16))

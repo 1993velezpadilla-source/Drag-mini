@@ -261,7 +261,7 @@ func research_patrol(region:int,step:int,answer:Array,phase:float)->Dictionary:
 	return {"ok":true,"correct":true,"message":"Patrol trace found! +3 coins · +3 XP"}
 func field_rank_required(id:int)->int:
 	return 1 if id<12 else 2 if id<24 else 3
-func field_begin(region:int,patrol:bool=false)->Dictionary:
+func field_begin(region:int,patrol:bool=false,dungeon:bool=false)->Dictionary:
 	advance(now())
 	if not field_session.is_empty() or arcade_mode!=-1:return {}
 	if region<0 or region>=3 or not available() or s.germs>0 or s.hunger<1 or s.energy<3:return {}
@@ -276,10 +276,14 @@ func field_begin(region:int,patrol:bool=false)->Dictionary:
 	var engine=preload("res://field_hunt_rules.gd").new()
 	engine.setup(region,id,step,finale,patrol,seed_id)
 	field_session={"region":region,"id":id,"step":step,"finale":finale,"patrol":patrol,"seed":seed_id,"required":engine.required,"time_limit":engine.time_left,"minimum_time":float(engine.required)*engine.capture_time}
+	if dungeon:
+		var dungeon_run=preload("res://dungeon_rules.gd").new()
+		dungeon_run.setup(region,id,step,finale,patrol,seed_id)
+		field_session.required=dungeon_run.floor_count;field_session.minimum_time=2.0;field_session.time_limit=86400.0;field_session.dungeon=true
 	return field_session.duplicate()
 func field_cancel():
 	field_session={}
-func field_finish(success:bool,completed:int,elapsed:float,hits:int=-1)->Dictionary:
+func field_finish(success:bool,completed:int,elapsed:float,hits:int=-1,dungeon_coins:int=0,dungeon_materials:int=0)->Dictionary:
 	if field_session.is_empty():return {"ok":false,"message":"No active hunt"}
 	var session=field_session;field_session={}
 	advance(now())
@@ -290,6 +294,9 @@ func field_finish(success:bool,completed:int,elapsed:float,hits:int=-1)->Diction
 		return {"ok":true,"correct":false,"message":"Trail lost. Rest or try again."}
 	var flawless=hits==0
 	var bonus=5 if flawless else 0
+	if session.get("dungeon",false):
+		bonus+=clampi(dungeon_coins,0,250)
+		s.materials=mini(9999,int(s.materials)+clampi(dungeon_materials,0,60))
 	if session.patrol:
 		if int(s.research_daily[r])!=step:return {"ok":false,"message":"Survey expired"}
 		s.energy-=3;research_credit(r,2);s.coins=mini(999999,int(s.coins)+5+bonus);earn(4);save_game()

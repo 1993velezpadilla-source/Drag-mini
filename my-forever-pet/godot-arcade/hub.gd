@@ -990,7 +990,7 @@ func build_habitat():
 		var block:String=store.research_block("track" if step<goal else "encounter",r)
 		if store.research_rank(r)<store.field_rank_required(id):block="Requires explorer rank %d · Complete local surveys"%store.field_rank_required(id)
 		if store.s.energy<3:block="Rest first · 3 energy required"
-		var go=button(hero,"ENTER WILD TERRITORY" if step<goal else "APPROACH WILD CREATURE",func():open_active_field(r,false))
+		var go=button(hero,"ENTER MYSTERY DUNGEON" if step<goal else "CREATURE RESCUE DUNGEON",func():open_active_field(r,false))
 		go.custom_minimum_size.y=60;go.disabled=not block.is_empty();go.add_theme_stylebox_override("normal",menu_skin(Research.TINTS[r].darkened(.64),Research.TINTS[r]))
 		if not block.is_empty():label(hero,block,14).autowrap_mode=TextServer.AUTOWRAP_WORD_SMART
 	else:label(hero,"Local collection complete",20)
@@ -1015,20 +1015,20 @@ func open_field_options(r:int,sanctuaries:bool):
 	if sanctuaries:sanctuary_cards(actions,r)
 	else:field_contract(actions,r)
 	swipe_children(actions);section_scroll.scroll_vertical=0
-func open_active_field(r:int,patrol:bool):
-	var session:Dictionary=store.field_begin(r,patrol)
+func open_active_field(r:int,patrol:bool,legacy:bool=false):
+	var session:Dictionary=store.field_begin(r,patrol,not legacy)
 	if session.is_empty():hunt_message="Cannot explore right now. Check energy and rank.";select("Habitat");return
-	var field=preload("res://wild_field.gd").new()
+	var field=preload("res://wild_field.gd").new() if legacy else preload("res://dungeon_view.gd").new()
 	add_child(field);field.set_anchors_and_offsets_preset(PRESET_FULL_RECT)
 	field.setup(r,int(session.id),int(session.step),bool(session.finale),patrol,int(session.seed),store.species())
 	# Stop rendering the home pet while the full-screen field is active.
 	live_stage.hide()
 	field.canceled.connect(func():store.field_cancel();field.queue_free();live_stage.show();select("Habitat"))
 	field.ended.connect(func(success:bool,completed:int,elapsed:float):
-		var result:Dictionary=store.field_finish(success,completed,elapsed,field.run.hits)
-		field.queue_free()
+		var result:Dictionary=store.field_finish(success,completed,elapsed,field.run.hits,0 if legacy else field.run.coins,0 if legacy else field.run.materials)
+		field.hide();field.queue_free()
 		live_stage.show()
-		finish_hunt(result))
+		finish_hunt.call_deferred(result))
 func open_research_trial(r:int,id:int,step:int,site:int):
 	reset_actions()
 	section_heading(actions,Research.REGIONS[r],Research.SITES[r][site]+" · recover the fresh trace")
@@ -1695,7 +1695,7 @@ func capture_home():
 	select("World"); await capture_frame("/tmp/forever-world.png")
 	for r in range(3):
 		hunt_region=r; select("Habitat"); await capture_frame("/tmp/forever-habitat-%d.png"%r)
-		open_active_field(r,false); await capture_frame("/tmp/forever-wild-%d.png"%r)
+		open_active_field(r,false,true); await capture_frame("/tmp/forever-wild-%d.png"%r)
 		var wild_view:Control
 		for child in get_children():
 			if child.get_script()==preload("res://wild_field.gd"):wild_view=child
