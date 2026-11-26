@@ -1025,7 +1025,7 @@ func open_active_field(r:int,patrol:bool):
 	live_stage.hide()
 	field.canceled.connect(func():store.field_cancel();field.queue_free();live_stage.show();select("Habitat"))
 	field.ended.connect(func(success:bool,completed:int,elapsed:float):
-		var result:Dictionary=store.field_finish(success,completed,elapsed)
+		var result:Dictionary=store.field_finish(success,completed,elapsed,field.run.hits)
 		field.queue_free()
 		live_stage.show()
 		finish_hunt(result))
@@ -1045,14 +1045,25 @@ func finish_hunt(result:Dictionary):
 	if result.get("unlocked",false):
 		play_reward(true)
 		select("Habitat")
-		var popup=AcceptDialog.new(); popup.title="New companion!"; popup.ok_button_text="Continue exploring"
-		var content=VBoxContainer.new(); popup.add_child(content)
+		var popup=AcceptDialog.new(); popup.title="DISCOVERY COMPLETE"; popup.ok_button_text="Continue exploring"
+		var content=VBoxContainer.new();content.add_theme_constant_override("separation",10);popup.add_child(content)
 		var id=int(result.species)
+		var tier=0 if id<12 else 1 if id<24 else 2
+		var rarity=label(content,["COMMON DISCOVERY","RARE DISCOVERY","MYSTIC DISCOVERY"][tier],15);rarity.horizontal_alignment=HORIZONTAL_ALIGNMENT_CENTER;rarity.modulate=[Color("#a7e9af"),Color("#8fd9ff"),Color("#e1b4ff")][tier]
 		var image=TextureRect.new(); image.texture=tex("res://assets/pet_%d.png"%id); image.custom_minimum_size=Vector2(250,200); image.expand_mode=TextureRect.EXPAND_IGNORE_SIZE; image.stretch_mode=TextureRect.STRETCH_KEEP_ASPECT_CENTERED; content.add_child(image)
 		label(content,store.SPECIES[id],24).horizontal_alignment=HORIZONTAL_ALIGNMENT_CENTER
-		label(content,"+%d coins · +25 XP · +2 materials"%int(result.coins),15).horizontal_alignment=HORIZONTAL_ALIGNMENT_CENTER
+		var rewards=panel(content)
+		var reward_line=row(rewards)
+		label(reward_line,"+%d coins"%int(result.coins),17).size_flags_horizontal=SIZE_EXPAND_FILL
+		label(reward_line,"+%d XP"%int(result.get("xp",25)),17)
+		var materials_line=row(rewards)
+		label(materials_line,"+%d materials"%int(result.get("materials",2)),15).size_flags_horizontal=SIZE_EXPAND_FILL
+		var crystals=int(result.get("crystals",1 if id>=12 else 0))
+		if crystals>0:label(materials_line,"+%d crystals"%crystals,15)
+		if result.get("flawless",false):
+			var perfect=label(content,"FLAWLESS · No hazard hits",15);perfect.modulate=Color("#f5d78c");perfect.horizontal_alignment=HORIZONTAL_ALIGNMENT_CENTER
 		button(content,"Meet in collection ›",func(): popup.queue_free(); collection_feature=id; select("Pets"))
-		popup.confirmed.connect(popup.queue_free); popup.canceled.connect(popup.queue_free); add_child(popup); popup.popup_centered(Vector2i(340,370))
+		popup.confirmed.connect(popup.queue_free); popup.canceled.connect(popup.queue_free); add_child(popup); popup.popup_centered(Vector2i(390,450))
 	else:
 		if result.get("correct",false):play_reward(false)
 		select("Habitat")
