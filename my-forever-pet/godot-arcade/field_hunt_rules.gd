@@ -27,7 +27,7 @@ var capture_time=.65
 var capture_radius=.85
 var burst_left=0.0
 var burst_cooldown=0.0
-var burst_direction=Vector2.ZERO
+var burst_target=Vector2.ZERO
 var environmental_force=Vector2.ZERO
 var gust_phase=0.0
 func setup(r:int,id:int,n:int,finale:bool,is_patrol:bool,seed_id:int):
@@ -57,7 +57,7 @@ func burst()->bool:
 	if finished or burst_cooldown>0:return false
 	var v=destination-player
 	if v.length()<.3:return false
-	burst_direction=v.normalized();burst_left=.42;burst_cooldown=4.0;started=true;set_inspecting(false);return true
+	burst_target=player+v.limit_length(11.5*.42);burst_left=.42;burst_cooldown=4.0;started=true;set_inspecting(false);return true
 func current_at(p:Vector2)->Vector2:
 	if region==1:
 		return Vector2(sin(p.y*.55+elapsed*.8),cos(p.x*.46-elapsed*.65))*.72
@@ -83,26 +83,40 @@ func hazard_at(i:int)->Vector2:
 		_:return Vector2(sin(elapsed*(1.05+i*.10)+offset)*6.7,cos(elapsed*.57+offset)*5.8)
 func tick(delta:float):
 	if finished or not started:return
-	var dt=clampf(delta,0,.10)
+	if delta<=0.0:return
+	# Do not award a capture after the deadline, even after a stalled frame.
+	if delta>=time_left:
+		elapsed+=time_left;time_left=0.0;finished=true;success=false;return
+	# Limit simulation catch-up, but never give the player extra clock time.
+	var remaining=minf(delta,.25)
+	var skipped=delta-remaining
+	elapsed+=skipped;time_left-=skipped
+	while remaining>0.000001 and not finished:
+		var dt=minf(remaining,.05)
+		_tick_step(dt)
+		remaining-=dt
+func _tick_step(dt:float):
 	elapsed+=dt;time_left-=dt;hit_cooldown=maxf(0,hit_cooldown-dt);scan_left=maxf(0,scan_left-dt)
 	burst_cooldown=maxf(0,burst_cooldown-dt)
 	environmental_force=current_at(player)
-	if burst_left>0:
+	var was_bursting=burst_left>0.0
+	if was_bursting:
+		var burst_dt=minf(dt,burst_left)
 		burst_left=maxf(0,burst_left-dt)
-		player+=burst_direction*dt*11.5
+		player=player.move_toward(burst_target,burst_dt*11.5)
 	else:
 		player=player.move_toward(destination,dt*[5.5,5.3,6.0][region])
 		# Holding still to inspect stabilizes the pet against currents.
-		if not inspecting:player+=environmental_force*dt
+		if not (inspecting and inspect_ready()):player+=environmental_force*dt
 	player=player.clamp(Vector2(-7.8,-7.4),Vector2(7.8,7.4))
 	hazard_positions.clear()
 	for i in range(2 if specimen<12 else 3):
 		var p=hazard_at(i);hazard_positions.append(p)
-		if player.distance_to(p)<.83 and hit_cooldown<=0 and burst_left<=0:
+		if player.distance_to(p)<.83 and hit_cooldown<=0 and not was_bursting:
 			hit_cooldown=1.3;hits+=1;time_left-=3;hold=0
 	if time_left<=0:
 		finished=true;success=false;return
-	if inspecting and inspect_ready():hold+=dt
+	if inspecting and not was_bursting and inspect_ready():hold+=dt
 	else:hold=maxf(0,hold-dt*2.5)
 	if hold>=capture_time:
 		index+=1;hold=0;inspecting=false
