@@ -245,5 +245,22 @@ func run():
 	pet.s.hunger=1
 	check(pet.family_status(1)=="Hungry","family needs status")
 	check(pet.action("form",-1) and pet.s.name=="Moss" and pet.family_name_for(1)=="Luna","family names persist on switch")
+	reset(4)
+	pet.arcade_daily_sync(pet.now())
+	var daily_mode:int=pet.arcade_daily_mode()
+	var daily_target:int=pet.arcade_daily_target()
+	check(not pet.arcade_claim_daily(),"daily arcade requires score")
+	check(pet.begin_arcade(daily_mode),"daily game begins")
+	pet.finish_arcade(daily_target,5.0)
+	check(pet.s.arcade_daily_best==daily_target and pet.s.arcade_runs[daily_mode]==1,"daily progress from actual finished run")
+	var coins_before:int=pet.s.coins
+	check(pet.arcade_claim_daily() and pet.s.coins==coins_before+25,"daily arcade bonus paid")
+	check(not pet.arcade_claim_daily(),"daily bonus one time")
+	pet.s.best[0]=50
+	check(pet.arcade_medal_level(0)==3,"three milestone medals earned")
+	check(pet.arcade_claim_medal(0) and pet.arcade_claim_medal(0) and pet.arcade_claim_medal(0),"milestone rewards sequential")
+	check(not pet.arcade_claim_medal(0),"medal rewards one time")
+	pet.s.arcade_day="yesterday";pet.arcade_daily_sync(pet.now())
+	check(pet.s.arcade_daily_best==0 and not pet.s.arcade_daily_claimed and pet.s.arcade_medals[0]==3,"daily resets but medals persist")
 	print("FOREVER_PET_CORE_PASS ",passed)
 	quit()

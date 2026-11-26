@@ -14,13 +14,17 @@ const COST=[120,150,180,240,160,170,100,300]
 const SLOT=[0,1,2,2,3,1,0,2]
 var s:Dictionary={}
 var arcade_mode=-1
+var arcade_return=false
+var arcade_last_result:Dictionary={}
+const ARCADE_NAMES=["Star Catch","Flappy Pet","Cloud Jump","Find My Pet","Pet Dash 3D"]
+const MEDALS=[[10,25,50],[3,8,16],[5,15,30],[2,5,8],[10,30,70]]
 var test_mode=false
 var dirty=false
 var wallpaper_keys:Dictionary={}
 const PERSONAL=["stage","field","body","eyes","color","variant","friendship","inherited_eyes","name","hunger","happy","energy","bond","waste","mistakes","germs","hygiene","toilet","soap","cells","foods","equipped","worn","training","age","food_clock","mood_clock","energy_clock","waste_clock","cell_clock","care_clock","hygiene_clock","toilet_clock","rest_clock","sleep_until","awake_until","interaction_at","companion_xp"]
 const WALL_ROOMS=["room_bedroom","room_kitchen","room_bathroom","room_toy","room_garden","room_lab"]
 func defaults()->Dictionary:
-	return {"profiles":{},"companion_xp":0,"research_evidence":[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],"research_trust":[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],"sanctuary_mask":0,"sanctuary_progress":[0,0,0,0,0,0,0,0,0],"research_day":"","research_daily":[0,0,0],"research_claimed":0,"research_rank_xp":[0,0,0],"research_skill":0,"research_misses":[0,0,0],"research_target":[-1,-1,-1],"wallpaper_room":0,"wallpaper_x":1,"wallpaper_y":2,"wallpaper_size":1,"wallpaper_minimal":false,"wallpaper_battery":false,"wallpaper_status":true,"stage":0,"field":0,"habitat":0,"body":0,"eyes":0,"color":0,"variant":0,"generation":1,"friendship":0,"inherited_eyes":-1,"name":"","hunger":5,"happy":10,"energy":100,"bond":0,"xp":0,"waste":0,"mistakes":0,"germs":0,"hygiene":100,"toilet":100,"coins":0,"crystals":0,"materials":0,"fuel":0,"snacks":0,"medicine":0,"soap":0,"cells":[0,0,0],"foods":[0,0,0,0],"collection":0,"favorites":0,"care_day":"","care_mask":0,"care_claims":0,"care_claimed":false,"form":-1,"owned":0,"equipped":0,"installation":0,"wardrobe":0,"worn":[0,0,0,0],"theme":0,"training":0,"age":0.0,"last":0.0,"food_clock":0.0,"mood_clock":0.0,"energy_clock":0.0,"waste_clock":0.0,"cell_clock":0.0,"care_clock":0.0,"hygiene_clock":0.0,"toilet_clock":0.0,"rest_clock":0.0,"sleep_until":0.0,"awake_until":0.0,"auto_sleep":true,"trip_end":0.0,"destination":0,"trip_bonus":0,"journeys":0,"pending":[0,0,0],"daily_day":"","quest_day":"","quests":0,"claimed":0,"garden_at":0.0,"harvests":0,"interaction_at":0.0,"best":[0,0,0,0,0]}
+	return {"arcade_day":"","arcade_daily_best":0,"arcade_daily_claimed":false,"arcade_medals":[0,0,0,0,0],"arcade_runs":[0,0,0,0,0],"profiles":{},"companion_xp":0,"research_evidence":[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],"research_trust":[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],"sanctuary_mask":0,"sanctuary_progress":[0,0,0,0,0,0,0,0,0],"research_day":"","research_daily":[0,0,0],"research_claimed":0,"research_rank_xp":[0,0,0],"research_skill":0,"research_misses":[0,0,0],"research_target":[-1,-1,-1],"wallpaper_room":0,"wallpaper_x":1,"wallpaper_y":2,"wallpaper_size":1,"wallpaper_minimal":false,"wallpaper_battery":false,"wallpaper_status":true,"stage":0,"field":0,"habitat":0,"body":0,"eyes":0,"color":0,"variant":0,"generation":1,"friendship":0,"inherited_eyes":-1,"name":"","hunger":5,"happy":10,"energy":100,"bond":0,"xp":0,"waste":0,"mistakes":0,"germs":0,"hygiene":100,"toilet":100,"coins":0,"crystals":0,"materials":0,"fuel":0,"snacks":0,"medicine":0,"soap":0,"cells":[0,0,0],"foods":[0,0,0,0],"collection":0,"favorites":0,"care_day":"","care_mask":0,"care_claims":0,"care_claimed":false,"form":-1,"owned":0,"equipped":0,"installation":0,"wardrobe":0,"worn":[0,0,0,0],"theme":0,"training":0,"age":0.0,"last":0.0,"food_clock":0.0,"mood_clock":0.0,"energy_clock":0.0,"waste_clock":0.0,"cell_clock":0.0,"care_clock":0.0,"hygiene_clock":0.0,"toilet_clock":0.0,"rest_clock":0.0,"sleep_until":0.0,"awake_until":0.0,"auto_sleep":true,"trip_end":0.0,"destination":0,"trip_bonus":0,"journeys":0,"pending":[0,0,0],"daily_day":"","quest_day":"","quests":0,"claimed":0,"garden_at":0.0,"harvests":0,"interaction_at":0.0,"best":[0,0,0,0,0]}
 func _ready():
 	test_mode=false
 	for flag in ["--test","--soak","--capture","--lane-only","--unassisted","--home-test","--home-capture","--home-touch-test"]:
@@ -648,7 +652,7 @@ func action(id:String,i:int=0)->bool:
 			if not ready or int(s.form)!=-1 or s.stage!=4 or s.friendship<4 or s.pending[0]>0: return false
 			var old=s.duplicate(true)
 			s=defaults()
-			for key in ["xp","profiles","sanctuary_mask","sanctuary_progress","research_day","research_daily","research_claimed","research_rank_xp","research_skill","research_evidence","research_trust","research_misses","research_target","wallpaper_room","wallpaper_x","wallpaper_y","wallpaper_size","wallpaper_minimal","wallpaper_battery","wallpaper_status","coins","crystals","materials","fuel","snacks","medicine","collection","favorites","care_day","care_mask","care_claims","care_claimed","owned","equipped","installation","wardrobe","worn","theme","garden_at","harvests","best","daily_day","quest_day","quests","claimed","journeys","auto_sleep"]: s[key]=old[key]
+			for key in ["arcade_day","arcade_daily_best","arcade_daily_claimed","arcade_medals","arcade_runs","xp","profiles","sanctuary_mask","sanctuary_progress","research_day","research_daily","research_claimed","research_rank_xp","research_skill","research_evidence","research_trust","research_misses","research_target","wallpaper_room","wallpaper_x","wallpaper_y","wallpaper_size","wallpaper_minimal","wallpaper_battery","wallpaper_status","coins","crystals","materials","fuel","snacks","medicine","collection","favorites","care_day","care_mask","care_claims","care_claimed","owned","equipped","installation","wardrobe","worn","theme","garden_at","harvests","best","daily_day","quest_day","quests","claimed","journeys","auto_sleep"]: s[key]=old[key]
 			s.profiles.erase("-1"); s.generation=old.generation+1; s.habitat=int(old.habitat); s.field=int(old.habitat); s.inherited_eyes=2; s.eyes=2; s.color=1; s.last=at
 		_: ok=false
 	if ok:
@@ -656,6 +660,32 @@ func action(id:String,i:int=0)->bool:
 		s.coins=clampi(int(s.coins),0,999999); s.snacks=mini(99,int(s.snacks)); s.materials=mini(9999,int(s.materials)); s.crystals=mini(9999,int(s.crystals))
 		save_game()
 	return ok
+func arcade_daily_sync(at:float):
+	var day=date_key(at)
+	if str(s.arcade_day)!=day:
+		s.arcade_day=day; s.arcade_daily_best=0; s.arcade_daily_claimed=false
+func arcade_daily_mode()->int:
+	return posmod(int(date_key(now()).replace("-","")),5)
+func arcade_daily_target()->int:
+	return int(MEDALS[arcade_daily_mode()][0])
+func arcade_medal_level(mode:int)->int:
+	if mode<0 or mode>=5:return 0
+	var result=0
+	for threshold in MEDALS[mode]:
+		if int(s.best[mode])>=threshold:result+=1
+	return result
+func arcade_claim_medal(mode:int)->bool:
+	if mode<0 or mode>=5 or s.stage==0:return false
+	var previous=clampi(int(s.arcade_medals[mode]),0,3)
+	if previous>=arcade_medal_level(mode):return false
+	s.arcade_medals[mode]=previous+1
+	s.coins=mini(999999,int(s.coins)+[15,30,60][previous])
+	if previous==2:s.crystals=mini(9999,int(s.crystals)+1)
+	earn(5*(previous+1));save_game();return true
+func arcade_claim_daily()->bool:
+	arcade_daily_sync(now())
+	if s.stage==0 or s.arcade_daily_claimed or int(s.arcade_daily_best)<arcade_daily_target():return false
+	s.arcade_daily_claimed=true;s.coins=mini(999999,int(s.coins)+25);s.materials=mini(9999,int(s.materials)+1);earn(10);save_game();return true
 func arcade_block(mode:int)->String:
 	if mode<0 or mode>=5: return "Unknown game"
 	if s.stage==0: return "Hatch your egg first"
@@ -672,10 +702,16 @@ func finish_arcade(score:int,seconds:float,snacks:int=0)->int:
 	if arcade_mode<0: return 0
 	var mode=arcade_mode
 	arcade_mode=-1
+	arcade_return=true;arcade_last_result={}
+	arcade_daily_sync(now())
 	if not is_finite(seconds) or seconds<1.0: return 0
 	score=clampi(score,0,1000000)
 	var reward=mini(100,score*[2,6,4,10,3][mode])
+	var new_best=score>int(s.best[mode])
 	s.best[mode]=maxi(int(s.best[mode]),score)
+	s.arcade_runs[mode]=mini(999999,int(s.arcade_runs[mode])+1)
+	if mode==arcade_daily_mode():s.arcade_daily_best=maxi(int(s.arcade_daily_best),score)
+	arcade_last_result={"mode":mode,"score":score,"reward":reward,"record":new_best}
 	s.coins=mini(999999,int(s.coins)+reward); s.snacks=mini(99,int(s.snacks)+clampi(snacks,0,20))
 	if reward>0: s.energy=maxi(0,int(s.energy)-3); s.happy=mini(10,int(s.happy)+2); s.food_clock+=300; earn(mini(10,int(reward/5)))
 	save_game()

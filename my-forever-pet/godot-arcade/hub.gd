@@ -107,6 +107,8 @@ func _ready():
 		call_deferred("test_touch")
 		return
 	make_ui()
+	if store.arcade_return:
+		store.arcade_return=false;select("Arcade")
 	refresh()
 	var t=Timer.new(); t.wait_time=1; t.timeout.connect(refresh); add_child(t); t.start()
 	var controls_timer=Timer.new(); controls_timer.wait_time=.20; controls_timer.timeout.connect(update_action_controls); add_child(controls_timer); controls_timer.start()
@@ -721,11 +723,35 @@ func shop_tile(parent:Node,name:String,cost:String,detail:String,path:String,cta
 	var b=button(card,cta,func(): perform(id,arg)); b.custom_minimum_size.y=42; b.add_theme_font_size_override("font_size",15)
 	b.set_meta("hint",hint); b.set_meta("detail",detail); b.set_meta("short_cta",true); register_action(b,id,arg)
 func build_arcade():
-	section_heading(actions,"Play & earn","Five games. Every successful run earns coins for your pet.")
+	section_heading(actions,"Arcade","Five games · Earn coins, beat records and collect medals.")
+	store.arcade_daily_sync(store.now())
+	var daily=panel(actions)
+	var mode:int=store.arcade_daily_mode()
+	label(daily,"DAILY CHALLENGE",12).modulate=Color("#f7d39a")
+	label(daily,GAMES[mode],21)
+	var goal:int=store.arcade_daily_target()
+	label(daily,"Score %d · Reward 25 coins + material"%goal,14).autowrap_mode=TextServer.AUTOWRAP_WORD_SMART
+	var progress=ProgressBar.new();progress.max_value=goal;progress.value=mini(goal,int(store.s.arcade_daily_best));progress.custom_minimum_size.y=10;progress.show_percentage=false;daily.add_child(progress)
+	label(daily,"%d / %d"%[mini(goal,int(store.s.arcade_daily_best)),goal],13)
+	var ready=int(store.s.arcade_daily_best)>=goal
+	var claimed:bool=store.s.arcade_daily_claimed
+	var cta=button(daily,"Collected ✓" if claimed else "Claim bonus" if ready else "Play challenge ›",func():
+		if ready:
+			if store.arcade_claim_daily():play_reward(true);select("Arcade");refresh()
+		else:launch_game(mode))
+	cta.disabled=claimed or (not ready and not store.arcade_block(mode).is_empty())
+	cta.add_theme_stylebox_override("normal",menu_skin(Color("#77522d"),Color("#f5d28a")))
+	if not store.arcade_last_result.is_empty():
+		var result=store.arcade_last_result
+		var last=panel(actions)
+		label(last,("NEW RECORD · " if result.record else "LAST RUN · ")+GAMES[int(result.mode)],15).modulate=Color("#bde9c9")
+		label(last,"%d score · +%d coins"%[result.score,result.reward],19)
+		store.arcade_last_result={}
 	var hero=panel(actions)
 	var art=TextureRect.new(); art.texture=tex("res://assets/sky-panorama.png"); art.custom_minimum_size.y=135; art.expand_mode=TextureRect.EXPAND_IGNORE_SIZE; art.stretch_mode=TextureRect.STRETCH_KEEP_ASPECT_COVERED; hero.add_child(art)
 	label(hero,"PET DASH 3D",24).modulate=Color("#f7d39a")
 	label(hero,"Sky kingdom · Best %d"%int(store.s.best[4]),15)
+	arcade_medals_row(hero,4)
 	var b=button(hero,"Play ›",func(): launch_game(4)); b.add_theme_stylebox_override("normal",menu_skin(Color("#7950ad"),Color("#e9c5ff")))
 	var reason:String=store.arcade_block(4); b.disabled=not reason.is_empty()
 	if not reason.is_empty(): label(hero,reason,14).modulate=Color("#f2c590")
@@ -736,7 +762,24 @@ func build_arcade():
 		label(card,GAMES[i],18).autowrap_mode=TextServer.AUTOWRAP_WORD_SMART
 		label(card,["Build a combo","Fly through gates","Climb the sky","Spot your pet"][i],13).autowrap_mode=TextServer.AUTOWRAP_WORD_SMART
 		label(card,"Best %d"%int(store.s.best[i]),13).modulate=Color("#e4bcff")
+		arcade_medals_row(card,i)
 		var play=button(card,"Play ›",func(): launch_game(i)); play.disabled=not store.arcade_block(i).is_empty()
+func arcade_medals_row(parent:Node,mode:int):
+	var achieved:int=store.arcade_medal_level(mode)
+	var claimed:int=clampi(int(store.s.arcade_medals[mode]),0,3)
+	var medal=row(parent)
+	for tier in range(3):
+		var icon=TextureRect.new();icon.texture=GameIcons.texture("daily");icon.custom_minimum_size=Vector2(24,24);icon.expand_mode=TextureRect.EXPAND_IGNORE_SIZE;icon.stretch_mode=TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		icon.modulate=[Color("#c88b60"),Color("#c2d6e7"),Color("#ffd271")][tier] if tier<achieved else Color("#59536c")
+		medal.add_child(icon)
+	label(medal,"%d/3"%achieved,12)
+	if claimed<achieved:
+		var b=button(parent,"Claim medal ›",func():
+			if store.arcade_claim_medal(mode):play_reward(true);select("Arcade");refresh())
+		b.custom_minimum_size.y=38;b.add_theme_font_size_override("font_size",13)
+	elif achieved<3:
+		label(parent,"Next medal: %d"%int(store.MEDALS[mode][achieved]),12).modulate=Color("#d0bfe6")
+	else:label(parent,"All medals earned",12).modulate=Color("#bde9c9")
 func life_header(tab:String):
 	var title=label(actions,"Care & growth",23)
 	title.add_theme_color_override("font_color",Color("#f4d9ff"))
