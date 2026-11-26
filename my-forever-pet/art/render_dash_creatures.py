@@ -257,6 +257,9 @@ for species in range(1,24):
  validate_eyes(eyes,species)
  export('species_%02d'%species,42000)
 with open(os.path.join(OUT,'creature-metrics.json'),'w') as f:json.dump(stats,f,indent=2)
+if '--mesh-only' in sys.argv:
+ print('CREATURE_FACE_GATE_PASS',len(stats),flush=True)
+ sys.exit(0)
 # Render the actual approved GLB plus feet, and each new mesh, for 2D arcade and Petpedia.
 # Orthographic portrait is rendered from the GLB itself; no alternate Mosskit mesh.
 OUT=ROOT

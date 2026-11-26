@@ -2,7 +2,7 @@ name: Forever Pet Godot arcade prototype
 on:
   push:
     branches: [feature/my-forever-pet-paradise]
-    paths: ['my-forever-pet/godot-arcade/**', '.github/workflows/my-forever-pet-godot.yml']
+    paths: ['my-forever-pet/godot-arcade/**', 'my-forever-pet/art/**', '.github/workflows/my-forever-pet-godot.yml']
   workflow_dispatch:
 permissions:
   contents: read

@@ -127,7 +127,7 @@ func button(parent:Node,value:String,fn:Callable)->Button:
 func row(parent:Node)->HBoxContainer:
 	var h=HBoxContainer.new(); h.add_theme_constant_override("separation",8); parent.add_child(h); return h
 func panel(parent:Node)->VBoxContainer:
-	var p=PanelContainer.new(); p.add_theme_stylebox_override("panel",style(Color("#162747"),Color("#5876a1"))); parent.add_child(p)
+	var p=PanelContainer.new(); p.add_theme_stylebox_override("panel",style(Color("#251d47ef"),Color("#9583d2"),21)); parent.add_child(p)
 	var v=VBoxContainer.new(); v.add_theme_constant_override("separation",7); p.add_child(v); return v
 func make_ui():
 	var backdrop=ColorRect.new(); backdrop.color=Color("#110e29"); backdrop.set_anchors_and_offsets_preset(PRESET_FULL_RECT); add_child(backdrop)

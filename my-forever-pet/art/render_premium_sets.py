@@ -93,6 +93,31 @@ velvet=material('midnight plum textile',(.13,.065,.21),.82)
 richwood=material('dark warm oak',(.18,.072,.032),.54)
 cityglass=material('night skyline',(.016,.035,.105),.36,0,.4)
 citylight=material('lit windows',(.95,.52,.22),.45,0,1.6)
+# Packed textures exported with GLB; no renderer-specific noise shader dependency.
+def baked_surface(m,rgb,kind):
+    rng=random.Random(812)
+    n=128
+    im=bpy.data.images.new(m.name+' surface',width=n,height=n)
+    pixels=[]
+    for y in range(n):
+        for x in range(n):
+            if kind=='wood':
+                wave=.82+.085*math.sin(y*.62+1.5*math.sin(x*.055))+.043*math.sin(y*1.9+x*.03)
+            elif kind=='fabric':
+                wave=.89+.045*math.sin(x*2.1)*math.sin(y*2.1)
+            else:
+                wave=.94+.016*math.sin(x*.33+y*.13)
+            value=wave+rng.uniform(-.025,.025)
+            pixels.extend([max(0,min(1,c*value)) for c in rgb]+[1])
+    im.pixels.foreach_set(pixels);im.pack()
+    tex=m.node_tree.nodes.new('ShaderNodeTexImage');tex.image=im
+    m.node_tree.links.new(tex.outputs['Color'],m.node_tree.nodes.get('Principled BSDF').inputs['Base Color'])
+baked_surface(richwood,(.38,.18,.095),'wood')
+baked_surface(wood,(.63,.33,.17),'wood')
+baked_surface(velvet,(.32,.16,.46),'fabric')
+baked_surface(blue,(.19,.29,.77),'fabric')
+baked_surface(lilac,(.37,.28,.57),'fabric')
+baked_surface(wall,(.18,.23,.38),'plaster')
 layout={}
 def clear_set():
     bpy.ops.object.select_all(action='SELECT');bpy.ops.object.delete(use_global=False)
@@ -250,8 +275,16 @@ camera_render('room_bathroom',{'soap':(-1.6,.45,1.28),'rinse':(-2.9,1.0,1.2),'to
 clear_set();room_base(velvet);bed()
 # Bedroom: a furnished night loft, not a recycled generic wall.
 for ob in list(scene.objects):
-    if ob.name.startswith(('window','brass window rim','cloud','wall inset')):bpy.data.objects.remove(ob,do_unlink=True)
+    if ob.name.startswith(('window','brass window rim','cloud','wall inset','architectural column','gold column trim','ceiling cornice','lantern')):bpy.data.objects.remove(ob,do_unlink=True)
 box('panoramic window',(0,3.29,3.75),(4.3,.16,3.55),cityglass,.10)
+for x in [-4.7,4.7]:
+    box('built-in side shelving',(x,3.04,2.8),(1.2,.50,5.2),richwood,.09)
+    for z in [1.3,2.4,3.5,4.6]:
+        box('shelf ledge',(x,2.72,z),(1.34,.78,.14),wood,.06)
+        box('shelf accent light',(x,2.32,z-.08),(1.12,.045,.055),neon,.018)
+for z in [5.7,5.85]:box('indirect ceiling strip',(0,3.02,z),(10.9,.10,.07),neon if z<5.8 else glow,.025)
+for radius in [1.14,1.54]:torus('pendant chandelier',(0,.0,5.5),radius,.045,glow)
+for x in [-1.3,1.3]:cylinder('pendant support',(x,0,5.82),.024,.62,gold)
 for i in range(13):
     x=-1.93+i*.32;h=.40+(i*7%9)*.18
     box('skyline tower',(x,3.16,2.15+h/2),(.26,.06,h),navy,.018)
@@ -282,6 +315,15 @@ box('chair back',(3.2,-.05,1.28),(.95,.22,1.16),velvet,.15)
 cylinder('chair foot',(3.2,.36,.28),.36,.55,navy)
 for i in range(12):star('rug stitch',(-1.30+i*.24,-1.65,.075),.065,gold,(0,0,0))
 torus('rug light trim',(0,-1.65,.07),1.55,.035,neon,scale=(1,.65,1))
+# Sculpted beanbag, plush star and toys bring scale and personality into foreground.
+ball('beanbag base',(4.0,-1.35,.36),(.85,.78,.40),velvet)
+ball('beanbag back',(4.25,-.96,.83),(.76,.48,.67),purple)
+ball('beanbag cushion',(3.93,-1.65,.56),(.58,.43,.16),lilac)
+for x in [-3.6,-3.15]:ball('decor cushion',(x,1.75,1.28),(.36,.24,.22),rose if x<-3.3 else cream)
+ball('toy beach ball',(-2.65,-2.2,.29),(.29,.29,.29),blue)
+torus('toy ball stripe',(-2.65,-2.2,.29),.277,.025,cream,rot=(pi/2,0,.4))
+bowl(2.05,-2.45,0)
+for i in range(9):ball('braided toy',(-2.1+i*.12,-2.8+.06*math.sin(i),.09),(.10,.10,.08),[gold,rose,blue][i%3],12)
 star('bedside star lamp',(-1.55,1.15,.63),.40,glow)
 banner(-4.35,4.95,blue);banner(4.35,5.25,purple)
 for i in range(7):star('ceiling constellation',(-2.4+i*.8,3.06,4.85-.23*(i%2)),.12,gold)
