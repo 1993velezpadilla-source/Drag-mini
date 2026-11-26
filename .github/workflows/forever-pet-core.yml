@@ -61,6 +61,13 @@ jobs:
           timeout 60 /tmp/godot/Godot_v4.4.1-stable_linux.x86_64 --headless --path /tmp/pet-core --script res://dungeon_test.gd 2>&1 | tee /tmp/dungeon-test.log
           grep -F 'FOREVER_DUNGEON_PASS' /tmp/dungeon-test.log
           ! grep -E 'SCRIPT ERROR|Parse Error' /tmp/dungeon-test.log
+      - name: Simulate full combat expeditions without removing enemies
+        run: |
+          set -euo pipefail
+          cp my-forever-pet/tests/dungeon_combat_soak.gd /tmp/pet-core/
+          timeout 75 /tmp/godot/Godot_v4.4.1-stable_linux.x86_64 --headless --path /tmp/pet-core --script res://dungeon_combat_soak.gd 2>&1 | tee /tmp/dungeon-combat.log
+          grep -F 'DUNGEON_COMBAT_SOAK_PASS' /tmp/dungeon-combat.log
+          ! grep -E 'SCRIPT ERROR|Parse Error|Assertion failed' /tmp/dungeon-combat.log
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -71,3 +78,4 @@ jobs:
             /tmp/research-trials.log
             /tmp/wild-field.log
             /tmp/dungeon-test.log
+            /tmp/dungeon-combat.log
