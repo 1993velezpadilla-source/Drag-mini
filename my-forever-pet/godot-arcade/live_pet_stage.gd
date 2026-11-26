@@ -34,6 +34,10 @@ var contact_mesh:MeshInstance3D
 var reaction_time=0.0
 var reaction_kind=""
 var sleeping=false
+var egg_body:MeshInstance3D
+var reaction_length=1.15
+var reaction_prop:Node3D
+var mood_state="healthy"
 var fx_root:Node3D
 var fx_nodes:Array[Node3D]=[]
 var light_key:DirectionalLight3D
@@ -94,7 +98,7 @@ func update_camera():
 # Compose the actual 3D avatar inside the unoccluded screen rectangle.
 # Refit only when room, model, clothing or layout changes, not every frame.
 func frame_pet(safe:Rect2):
-	if not is_instance_valid(camera) or not is_instance_valid(avatar) or active_stage==0 or not bare_bounds.has_volume(): return
+	if not is_instance_valid(camera) or not is_instance_valid(avatar) or not bare_bounds.has_volume(): return
 	if safe.size.x<100 or safe.size.y<120 or view.size.x<2: return
 	camera_safe=safe
 	var key=str(safe)+str(size)+str(active_species)+str(active_stage)+equipped_key
@@ -108,9 +112,9 @@ func frame_pet(safe:Rect2):
 			var b=mesh_bounds(ob,Transform3D.IDENTITY)
 			if b.has_volume(): bounds=bounds.merge(b)
 	# Avoid transient bounce, squash and yaw affecting composition.
-	var factor=(.70 if active_stage==1 else .88 if active_stage==2 else 1.0)*1.65*pet_fit
+	var factor=pet_scale()
 	var anchor=ground-Vector3(0,sole_offset*factor,0)
-	var target=Rect2(safe.position+Vector2(10,8),safe.size-Vector2(20,16))
+	var target=Rect2(safe.position+Vector2(18,18),safe.size-Vector2(36,32))
 	for attempt in range(7):
 		var r=project_bounds(bounds,anchor,factor)
 		if r.size.x<=0 or r.size.y<=0: break
@@ -217,10 +221,10 @@ func set_pet(species:int,stage:int):
 	equipped_key=""
 	avatar.position=ground
 	sole_offset=0.0
+	egg_body=null
 	if stage==0:
-		avatar.hide()
-		return
-	if species==0:
+		make_egg()
+	elif species==0:
 		# Identical asset files and foot placement to runner.make_player().
 		mesh(avatar,"res://assets/mosskit.glb",Vector3.ZERO)
 		for side in [-1,1]:
@@ -233,9 +237,23 @@ func set_pet(species:int,stage:int):
 	sole_offset=mesh_bottom(avatar,Transform3D.IDENTITY)
 	bare_bounds=mesh_bounds(avatar,Transform3D.IDENTITY)
 	pet_fit=minf(1.0,2.3/maxf(0.1,maxf(bare_bounds.size.x,bare_bounds.size.y))) if species!=0 else 1.0
-	var base=0.70 if stage==1 else 0.88 if stage==2 else 1.0
-	avatar.scale=Vector3.ONE*base*1.65*pet_fit
+	avatar.scale=Vector3.ONE*pet_scale()
 	avatar.position.y=ground.y-sole_offset*avatar.scale.y
+func pet_scale()->float:
+	return (0.82 if active_stage==0 else .70 if active_stage==1 else .88 if active_stage==2 else 1.0)*1.65*pet_fit
+func make_egg():
+	egg_body=crop_shape(avatar,Vector3(0,.78,0),Vector3(1.05,1.54,1.05),Color("#f9e8c6"))
+	var shell=egg_body.material_override as StandardMaterial3D
+	shell.roughness=.28
+	# Small flattened decorations follow the shell surface rather than hovering.
+	for i in range(10):
+		var angle=float(i)*2.39996
+		var height=.40+float(i%4)*.24
+		var radius=.525*sqrt(maxf(.03,1.0-pow((height-.78)/.77,2)))
+		var dot=crop_shape(avatar,Vector3(sin(angle)*radius,height,cos(angle)*radius),Vector3(.16,.21,.035),[Color("#77cfb2"),Color("#a69ee6"),Color("#f6b66b")][i%3])
+		dot.rotation.y=angle
+func set_mood(value:String):
+	mood_state=value
 func mesh_bounds(node:Node,relative:Transform3D)->AABB:
 	var result=AABB()
 	var t=relative
@@ -332,11 +350,16 @@ func set_sleeping(value:bool):
 func react(kind:String,asleep:bool):
 	sleeping=asleep
 	reaction_kind=kind
-	reaction_time=1.15
+	reaction_length=1.85 if kind in ["hatch","care_claim","form","play","toy"] else 1.35
+	reaction_time=reaction_length
+	if is_instance_valid(reaction_prop): reaction_prop.queue_free(); reaction_prop=null
 	if kind in ["play","toy","bond","praise","train","daily","harvest","care_claim"]: touch_bounce=0.30
 	for child in fx_root.get_children(): fx_root.remove_child(child); child.queue_free()
 	fx_nodes.clear()
-	if kind not in ["food","cook","snack","bond","play","toy","praise","daily","soap","rinse","harvest","craft","care_claim","clean","bath","toilet","cell","medicine"]: return
+	if kind in ["food","cook","snack","play","toy"]:
+		var color=Color("#e5a34e") if kind in ["food","cook","snack"] else Color("#db78b7")
+		reaction_prop=crop_shape(fx_root,ground+Vector3(0,.5,1.0),Vector3.ONE*.28,color)
+	if kind not in ["food","cook","snack","bond","play","toy","praise","daily","soap","rinse","harvest","craft","care_claim","clean","bath","toilet","cell","medicine","hatch","form"]: return
 	var asset="coin" if kind in ["daily","harvest","care_claim"] else "reward_spark"
 	for i in range(5):
 		var ob:Node3D
@@ -354,13 +377,13 @@ func screen_point(world_point:Vector3)->Vector2:
 	var p=camera.unproject_position(world_point)
 	return p*size/Vector2(view.size)
 func _process(dt:float):
-	if not is_instance_valid(avatar): return
+	if not is_instance_valid(avatar) or not is_visible_in_tree(): return
 	elapsed+=dt
 	reaction_time=maxf(0,reaction_time-dt)
 	for i in range(fx_nodes.size()):
 		var ob=fx_nodes[i]
 		if not is_instance_valid(ob): continue
-		var t=1.0-reaction_time/1.15
+		var t=1.0-reaction_time/reaction_length
 		var a=float(i)*TAU/5+t*2.0
 		ob.position=ground+Vector3(cos(a)*(0.5+t*0.7),1.1+t*1.9,sin(a)*0.5)
 		ob.rotation.y+=dt*3
@@ -369,8 +392,30 @@ func _process(dt:float):
 	avatar.rotation.y=lerpf(avatar.rotation.y,target_yaw+sin(elapsed*0.9)*0.055,minf(1,dt*5))
 	var bounce=sin(touch_bounce/0.30*PI)*0.10
 	if active_species==25: bounce+=.18+.06*sin(elapsed*2.5)
-	var base=(0.70 if active_stage==1 else 0.88 if active_stage==2 else 1.0)*1.65*pet_fit
+	var base=pet_scale()
+	var progress=clampf(1.0-reaction_time/reaction_length,0,1)
+	var envelope=sin(progress*PI) if reaction_time>0 else 0.0
+	var feeding=reaction_kind in ["food","cook","snack"] and reaction_time>0
+	var playing=reaction_kind in ["play","toy","train"] and reaction_time>0
+	var affection=reaction_kind in ["bond","praise"] and reaction_time>0
+	var bath=reaction_kind in ["bath","soap","rinse"] and reaction_time>0
 	var breathe=1.0+sin(elapsed*(1.7 if sleeping else 2.6))*0.014
-	var chew=sin(reaction_time*24)*0.045 if reaction_time>0 and reaction_kind in ["food","cook","snack"] else 0.0
+	var chew=sin(progress*TAU*5)*.045*envelope if feeding else 0.0
+	var lean=sin(progress*TAU*2)*.10*envelope if playing else sin(progress*PI)*.10 if affection else 0.0
+	if playing: bounce+=absf(sin(progress*TAU*2))*.21*envelope
+	if reaction_kind in ["hatch","form","care_claim"] and reaction_time>0: bounce+=sin(progress*PI)*.22
+	if active_stage==0: lean+=sin(elapsed*1.6)*.035
+	avatar.rotation.z=lerpf(avatar.rotation.z,lean,minf(1,dt*9))
+	avatar.rotation.x=lerpf(avatar.rotation.x,.09*envelope if feeding else -.07 if sleeping else .045 if mood_state=="sick" else 0.0,minf(1,dt*7))
+	if bath: avatar.rotation.y+=sin(progress*TAU*3)*.06*envelope
 	avatar.scale=Vector3(base/breathe*(1+chew),base*breathe*(0.85 if sleeping else 1.0)*(1-chew),base/breathe)
 	avatar.position=ground+Vector3(0,bounce-sole_offset*avatar.scale.y,0)
+	if is_instance_valid(reaction_prop):
+		if reaction_time<=0: reaction_prop.queue_free(); reaction_prop=null
+		elif feeding:
+			reaction_prop.position=ground+Vector3(.3*(1-progress),.35+progress*1.15,.70*(1-progress))
+			reaction_prop.scale=Vector3.ONE*.28*(1-progress*.94)
+		else:
+			reaction_prop.position=ground+Vector3(sin(progress*TAU*1.5)*.65,.25+absf(sin(progress*TAU*3))*.5,.65)
+	for i in range(feet.size()):
+		feet[i].position.y=.20+(absf(sin(progress*TAU*2+i*PI))*.05*envelope if playing else 0.0)
