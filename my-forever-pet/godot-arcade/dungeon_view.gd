@@ -235,13 +235,13 @@ func build_terrain_textures():
 			var relief=0.0
 			if region==0:
 				# Mossy woodland soil: broad irregular patches, flecks of leaf litter, no brick grid.
-				var patch=smoothstep(-.13,.22,h)
+				var patch=smoothstep(-.28,.38,h)
 				var grain=.5+.5*sin(u*TAU*19.0+sin(w*TAU*13.0)*2.0)
-				color=Color(.65,.59,.42).lerp(Color(.72,.82,.52),patch)
-				color=color.darkened(grain*.07)
+				color=Color(.69,.64,.49).lerp(Color(.75,.80,.58),patch)
+				color=color.darkened(grain*.035)
 				var leaf=smoothstep(.89,.99,sin(u*TAU*8.0+w*TAU*11.0+sin(w*TAU*7.0)*2.0))
 				color=color.lerp(Color(.79,.56,.25),leaf*.14)
-				relief=h*.15+grain*.012
+				relief=h*.09+grain*.009
 			elif region==1:
 				# Seabed sandstone: crossing ripples and light caustics, no masonry.
 				var ripple=sin(w*TAU*7.0+sin(u*TAU*2.0)*1.45)
@@ -739,7 +739,9 @@ func build_exterior_surface():
 	var low=Vector2i(999,999);var high=Vector2i(-999,-999)
 	for p in run.cells:
 		low=Vector2i(mini(low.x,p.x),mini(low.y,p.y));high=Vector2i(maxi(high.x,p.x),maxi(high.y,p.y))
-	low-=Vector2i(7,7);high+=Vector2i(7,7)
+	# The lowered landscape must extend beyond the farthest camera ray.
+	# Extra distant terrain is inexpensive compared with another GLB cluster.
+	low-=Vector2i(12,18);high+=Vector2i(12,12)
 	var width=high.x-low.x+1;var depth=high.y-low.y+1
 	var noise=FastNoiseLite.new();noise.seed=run.seed_value+region*901+run.floor_number*37;noise.frequency=.19;noise.fractal_octaves=3
 	var vertices=PackedVector3Array();var normals=PackedVector3Array();var colors=PackedColorArray();var indices=PackedInt32Array();var uvs=PackedVector2Array()
@@ -762,10 +764,13 @@ func build_exterior_surface():
 			# Preserve support beneath placed Blender scenery; lower only the
 			# unobstructed landscape. The playable floor is untouched.
 			var support=0.0
-			for group in exterior_groups:
-				support=maxf(support,1.0-smoothstep(1.0,2.5,Vector2(q-group).length()))
-			for landmark in landmark_cells:
-				support=maxf(support,1.0-smoothstep(1.0,2.5,Vector2(q-landmark).length()))
+			# All groups are within six Manhattan cells of the dungeon. A
+			# conservative expanded bound avoids per-prop scans in distant terrain.
+			if distance<7 or exterior_distances.has(q+Vector2i(3,0)) or exterior_distances.has(q-Vector2i(3,0)) or exterior_distances.has(q+Vector2i(0,3)) or exterior_distances.has(q-Vector2i(0,3)):
+				for group in exterior_groups:
+					support=maxf(support,1.0-smoothstep(1.0,2.5,Vector2(q-group).length()))
+				for landmark in landmark_cells:
+					support=maxf(support,1.0-smoothstep(1.0,2.5,Vector2(q-landmark).length()))
 			if terrace_cells.has(q):support=1.0
 			if not near:h-=depth_factor*(1.0-support)*[.32,1.05,1.75][region]
 			heights[y*width+x]=h;exterior_max_height=maxf(exterior_max_height,h)
@@ -928,7 +933,8 @@ vec2 hash2(vec2 a){
 }
 void vertex(){p=(MODEL_MATRIX*vec4(VERTEX,1.0)).xz;}
 void fragment(){
- vec2 q=p*1.02+vec2(0.10*sin(p.y*1.3+scene_time*0.5),0.10*cos(p.x*1.5-scene_time*0.41));
+ vec2 q=p*0.92;
+ q+=vec2(0.24*sin(p.y*1.7+sin(p.x*0.8)+scene_time*0.5),0.22*cos(p.x*1.6+sin(p.y*1.1)-scene_time*0.41));
  vec2 cell=floor(q);vec2 f=fract(q);
  float first=9.0;float second=9.0;
  for(int y=-1;y<=1;y++){
@@ -940,9 +946,12 @@ void fragment(){
   }
  }
  float edge=max(sqrt(second)-sqrt(first),0.0);
- float core=1.0-smoothstep(0.012,0.055,edge);
- float halo=1.0-smoothstep(0.035,0.16,edge);
- ALBEDO=vec3(0.48,0.90,0.84);ALPHA=core*0.22+halo*0.10;
+ float core=1.0-smoothstep(0.008,0.065,edge);
+ float halo=1.0-smoothstep(0.025,0.19,edge);
+ float flicker=0.45+0.55*pow(0.5+0.5*sin(p.x*2.3+p.y*1.9+sin(p.y*3.2)+scene_time*1.1),2.0);
+ float light_pool=0.48+0.52*smoothstep(-0.8,0.8,sin(p.x*0.63-p.y*0.81+scene_time*0.23));
+ ALBEDO=mix(vec3(0.27,0.72,0.80),vec3(0.88,0.98,0.68),flicker);
+ ALPHA=(core*0.15+halo*0.08)*flicker*light_pool;
 }""")
 	else:
 		# Flat gold-inlaid constellation seal, one per sufficiently large room.

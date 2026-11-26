@@ -88,6 +88,11 @@ func run():
 		assert(not dungeon.map_expanded and dungeon.map.size==small_map)
 		assert(dungeon.terrain_texture!=null and dungeon.terrain_normal!=null)
 		assert(dungeon.exterior_vertex_count>100 and dungeon.exterior_max_height<-.25,"exterior stays below playable floor")
+		var landscape_bounds:AABB=dungeon.exterior_surface.mesh.get_aabb()
+		for cell in dungeon.run.cells:
+			var center:Vector3=dungeon.pos(cell)
+			assert(center.x-landscape_bounds.position.x>=16.7 and landscape_bounds.end.x-center.x>=16.7,"exterior side margin")
+			assert(center.z-landscape_bounds.position.z>=25.1 and landscape_bounds.end.z-center.z>=16.7,"exterior depth margin")
 		assert(dungeon.floor_surface.mesh.get_surface_count()==1,"continuous indexed walkable terrain")
 		if ResourceLoader.exists("res://assets/dungeon_forest_exterior.glb"):
 			assert(dungeon.exterior_groups.size()>0 and dungeon.exterior_groups.size()<=40,"exterior landscape groups placed within budget")
