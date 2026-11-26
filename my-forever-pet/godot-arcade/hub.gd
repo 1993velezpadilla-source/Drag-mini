@@ -23,6 +23,7 @@ var feedback_layer:Control
 var feedback_serial=0
 var room_scroll:ScrollContainer
 var stage_space:Control
+var pet_touch:Button
 var daily_cta:Button
 var care_cta:Button
 var reward_row:HBoxContainer
@@ -185,7 +186,7 @@ func make_ui():
 	face=Label.new(); face.text="• ᴗ •"; face.add_theme_font_size_override("font_size",29); face.add_theme_color_override("font_color",Color("#28202c")); face.set_anchors_and_offsets_preset(PRESET_CENTER); face.offset_left=-39; face.offset_top=-7; visual.add_child(face)
 	room_tag=Label.new(); room_tag.add_theme_font_size_override("font_size",18); room_tag.position=Vector2(14,118); room_tag.add_theme_color_override("font_outline_color",Color("#15213e")); room_tag.add_theme_constant_override("outline_size",5); room_tag.mouse_filter=MOUSE_FILTER_IGNORE; visual.add_child(room_tag)
 	outfit_label=Label.new(); outfit_label.add_theme_font_size_override("font_size",14); outfit_label.set_anchors_and_offsets_preset(PRESET_BOTTOM_WIDE); outfit_label.offset_top=-31; outfit_label.offset_bottom=-3; outfit_label.horizontal_alignment=HORIZONTAL_ALIGNMENT_CENTER; visual.add_child(outfit_label)
-	var touch=Button.new(); touch.flat=true; touch.focus_mode=FOCUS_NONE; touch.set_anchors_and_offsets_preset(PRESET_FULL_RECT); touch.pressed.connect(func(): live_stage.tap(); perform("hatch" if store.s.stage==0 else "bond")); visual.add_child(touch)
+	pet_touch=Button.new(); pet_touch.flat=true; pet_touch.focus_mode=FOCUS_NONE; pet_touch.mouse_default_cursor_shape=Control.CURSOR_POINTING_HAND; pet_touch.pressed.connect(func(): live_stage.tap(); perform("hatch" if store.s.stage==0 else "bond")); visual.add_child(pet_touch)
 	egg_art=TextureRect.new(); egg_art.texture=tex("res://assets/premium_egg.png"); egg_art.expand_mode=TextureRect.EXPAND_IGNORE_SIZE; egg_art.stretch_mode=TextureRect.STRETCH_KEEP_ASPECT_CENTERED; egg_art.set_anchors_and_offsets_preset(PRESET_CENTER); egg_art.offset_left=-75; egg_art.offset_right=75; egg_art.offset_top=-80; egg_art.offset_bottom=70; egg_art.mouse_filter=MOUSE_FILTER_IGNORE; visual.add_child(egg_art)
 	hotspot_layer=Control.new(); hotspot_layer.set_anchors_and_offsets_preset(PRESET_FULL_RECT); hotspot_layer.mouse_filter=MOUSE_FILTER_IGNORE; visual.add_child(hotspot_layer)
 	feedback_layer=Control.new(); feedback_layer.set_anchors_and_offsets_preset(PRESET_FULL_RECT); feedback_layer.mouse_filter=MOUSE_FILTER_IGNORE; visual.add_child(feedback_layer)
@@ -651,6 +652,9 @@ func refresh():
 	live_stage.set_pet(store.species(),int(s.stage))
 	live_stage.set_night(night)
 	live_stage.set_sleeping(store.asleep(store.now()))
+	live_stage.set_theme(int(s.theme))
+	live_stage.set_installation(int(s.installation))
+	live_stage.set_crop(float(s.garden_at),store.now())
 	live_stage.dress(s.worn,int(s.equipped))
 	if live_stage.incompatible_wearables>0: outfit_label.text="Shoes stay in your wardrobe for aquatic pets"
 	position_hotspots()
@@ -728,6 +732,8 @@ func position_hotspots():
 	if safe.size.x<80 or safe.size.y<80: return
 	if is_instance_valid(live_stage) and visual.visible:
 		live_stage.frame_pet(safe)
+		var hit:Rect2=live_stage.projected_pet.grow(12).intersection(safe) if live_stage.active_stage>0 else Rect2(safe.get_center()-Vector2(75,75),Vector2(150,150)).intersection(safe)
+		if hit.has_area(): pet_touch.position=hit.position; pet_touch.size=hit.size
 		room_tag.position=Vector2(safe.position.x,safe.position.y+3)
 	var occupied:Array[Rect2]=[]
 	for child in hotspot_layer.get_children():
@@ -810,6 +816,10 @@ func test_home():
 		assert(bg.texture!=null and live_stage.room_node!=null and hotspot_layer.get_child_count()>=2,"room art/hotspots missing: "+name)
 		assert(room_scroll.visible and meter_panel.visible and visual.visible)
 		assert(action_grid.get_child_count()>=3)
+	room("Garden")
+	live_stage.set_crop(0,store.now()); assert(live_stage.crop_stage==0 and live_stage.garden_crop.get_child_count()==0)
+	live_stage.set_crop(store.now()+1200,store.now()); assert(live_stage.crop_stage==1 and live_stage.garden_crop.get_child_count()>0)
+	live_stage.set_crop(store.now()-1,store.now()); assert(live_stage.crop_stage==4 and live_stage.garden_crop.get_child_count()>60)
 	select("Home")
 	store.s.interaction_at=0.0
 	var before_bond:int=store.s.bond

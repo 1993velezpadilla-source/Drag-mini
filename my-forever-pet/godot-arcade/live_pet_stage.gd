@@ -9,6 +9,12 @@ var pet_fit=1.0
 var bare_bounds=AABB()
 var framing_key=""
 var camera_safe=Rect2()
+var decor:Node3D
+var garden_crop:Node3D
+var crop_stage=-1
+var decor_key=""
+var accent_light:OmniLight3D
+var theme_index=-1
 var projected_pet=Rect2()
 var incompatible_wearables=0
 var feet:Array[Node3D]=[]
@@ -64,7 +70,7 @@ func _ready():
 	fill.light_energy=0.38
 	world.add_child(fill)
 	var practical=OmniLight3D.new(); practical.position=Vector3(-3.4,2.8,-1.5); practical.light_color=Color("#ffb278"); practical.light_energy=1.25; practical.omni_range=6.0; world.add_child(practical)
-	var rim=OmniLight3D.new(); rim.position=Vector3(3.5,2.9,-1.7); rim.light_color=Color("#ae81ff"); rim.light_energy=1.1; rim.omni_range=5.5; world.add_child(rim)
+	var rim=OmniLight3D.new(); rim.position=Vector3(3.5,2.9,-1.7); rim.light_color=Color("#ae81ff"); rim.light_energy=1.1; rim.omni_range=5.5; world.add_child(rim); accent_light=rim
 	camera=Camera3D.new()
 	world.add_child(camera)
 	camera.position=Vector3(0,3.25,8.8)
@@ -146,10 +152,58 @@ func mesh(parent:Node3D,path:String,p:Vector3)->Node3D:
 func set_room(id:String):
 	if id==active_room: return
 	active_room=id
+	decor_key=""; crop_stage=-1
+	if is_instance_valid(decor): world.remove_child(decor); decor.queue_free(); decor=null
+	if is_instance_valid(garden_crop): world.remove_child(garden_crop); garden_crop.queue_free(); garden_crop=null
 	if is_instance_valid(room_node):
 		world.remove_child(room_node); room_node.queue_free()
 	room_node=mesh(world,"res://assets/rooms/"+id+".glb",Vector3.ZERO)
 	if room_node==null: push_error("Missing live room "+id)
+func set_theme(index:int):
+	if index==theme_index or not is_instance_valid(accent_light): return
+	theme_index=clampi(index,0,2)
+	accent_light.light_color=[Color("#ffbe91"),Color("#65d9ff"),Color("#c18aff")][theme_index]
+	accent_light.light_energy=[1.0,1.35,1.5][theme_index]
+	environment.ambient_light_color=[Color("#d4deed"),Color("#afddff"),Color("#d0b4ff")][theme_index]
+func set_installation(id:int):
+	var key=active_room+":"+str(id)
+	if key==decor_key: return
+	decor_key=key
+	if is_instance_valid(decor): world.remove_child(decor); decor.queue_free(); decor=null
+	# The purchased object is displayed in its matching room.
+	if id==4 and active_room=="room_bathroom": decor=mesh(world,"res://assets/wardrobe/item_3.glb",Vector3(3.3,.32,1.3))
+	elif id==5 and active_room=="room_bedroom": decor=mesh(world,"res://assets/wardrobe/item_4.glb",Vector3(-3.35,.55,1.35))
+	elif id==6 and active_room=="room_garden": decor=mesh(world,"res://assets/wardrobe/item_5.glb",Vector3(4.1,.9,1.45))
+	if is_instance_valid(decor): decor.scale=Vector3.ONE*.65
+func crop_shape(parent:Node3D,at:Vector3,dimensions:Vector3,color:Color)->MeshInstance3D:
+	var ob=MeshInstance3D.new()
+	var sphere=SphereMesh.new(); sphere.radius=.5; sphere.height=1; sphere.radial_segments=16; sphere.rings=8
+	var mat=StandardMaterial3D.new(); mat.albedo_color=color; mat.roughness=.55
+	ob.mesh=sphere; ob.material_override=mat; ob.position=at; ob.scale=dimensions
+	parent.add_child(ob)
+	return ob
+func set_crop(ready_at:float,now:float):
+	if active_room!="room_garden": return
+	var phase=0 if ready_at<=0 else 4 if ready_at<=now else 1+clampi(int((1200-(ready_at-now))/400),0,2)
+	if phase==crop_stage: return
+	crop_stage=phase
+	if is_instance_valid(garden_crop): world.remove_child(garden_crop); garden_crop.queue_free()
+	garden_crop=Node3D.new(); world.add_child(garden_crop)
+	if phase==0: return
+	var growth=.26+float(phase)*.18
+	for side in [-1,1]:
+		for i in range(6):
+			var x=side*3.1-.8+(i%3)*.8
+			var z=-.5-float(i/3)*.9
+			crop_shape(garden_crop,Vector3(x,.97+growth*.32,z),Vector3(.10,growth,.10),Color("#5d9b44"))
+			for j in range(4):
+				var angle=float(j)*TAU/4
+				var leaf=crop_shape(garden_crop,Vector3(x+cos(angle)*growth*.24,1.01+growth*.39,z+sin(angle)*growth*.24),Vector3(.18,growth*.40,.30),Color("#97d45a") if j%2==0 else Color("#59b867"))
+				leaf.rotation.y=angle; leaf.rotation.x=.55
+			if phase==4:
+				for j in range(3):
+					var angle=float(j)*TAU/3
+					crop_shape(garden_crop,Vector3(x+cos(angle)*.20,1.17+growth*.42,z+sin(angle)*.20),Vector3(.17,.19,.17),Color("#ff628e"))
 func set_pet(species:int,stage:int):
 	if species==active_species and stage==active_stage: return
 	active_species=species; active_stage=stage
