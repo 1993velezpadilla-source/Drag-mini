@@ -48,6 +48,7 @@ var awake_eyes:Array[Node3D]=[]
 var reaction_length=1.15
 var reaction_prop:Node3D
 var mood_state="healthy"
+const ExternalFx=preload("res://pet_external_fx.gd")
 var fx_root:Node3D
 var fx_nodes:Array[Node3D]=[]
 var light_key:DirectionalLight3D
@@ -460,7 +461,9 @@ func _process(dt:float):
 	var feeding=reaction_kind in ["food","cook","snack"] and reaction_time>0
 	if is_instance_valid(pixel_pet):
 		var blink=fposmod(elapsed,3.7)<.12
-		show_pixel_pose(pixel_sleep if sleeping and pixel_sleep!=null else pixel_eat if feeding and int(progress*16.0)%2==0 and pixel_eat!=null else pixel_blink if blink and pixel_blink!=null else pixel_idle)
+		var special_pose:bool=active_stage>0 and active_species==0 and not sleeping and not feeding and mood_state in ["sad","weak","sick"]
+		show_pixel_pose(PixelArt.frame_for(0,"idle",elapsed,mood_state) if special_pose else pixel_sleep if sleeping and pixel_sleep!=null else pixel_eat if feeding and int(progress*16.0)%2==0 and pixel_eat!=null else pixel_blink if blink and pixel_blink!=null else pixel_idle)
+		ExternalFx.world_effect(avatar,"heart-pickup",elapsed,active_stage>0 and reaction_kind in ["bond","praise"] and reaction_time>0,pixel_height*.65)
 	var playing=reaction_kind in ["play","toy","train"] and reaction_time>0
 	var affection=reaction_kind in ["bond","praise"] and reaction_time>0
 	var bath=reaction_kind in ["bath","soap","rinse"] and reaction_time>0

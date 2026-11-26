@@ -1209,7 +1209,7 @@ func refresh():
 	live_stage.set_pet(store.species(),int(s.stage))
 	live_stage.set_night(night)
 	live_stage.set_sleeping(store.asleep(store.now()))
-	live_stage.set_mood("sick" if s.germs>0 else "healthy")
+	live_stage.set_mood(PixelArt.Parts.mood(float(s.happy),float(s.energy),float(s.hunger),int(s.germs)))
 	pet_status.text="Tap to hatch Mosky" if s.stage==0 else room_hint()
 	live_stage.set_room_lighting(int(s.theme))
 	live_stage.set_installation(int(s.installation))

@@ -72,6 +72,8 @@ jobs:
           blender -b -t 4 --python-exit-code 1 -P my-forever-pet/art/render_wardrobe.py -- my-forever-pet/godot-arcade/assets
           for i in $(seq 0 7); do test -s "my-forever-pet/godot-arcade/assets/clothes_$i.png"; test -s "my-forever-pet/godot-arcade/assets/wardrobe/clothes_$i.glb"; done
           for i in $(seq 0 5); do test -s "my-forever-pet/godot-arcade/assets/item_$i.png"; test -s "my-forever-pet/godot-arcade/assets/wardrobe/item_$i.glb"; done
+      - name: Bake existing licensed PixelFX animations
+        run: bash my-forever-pet/art/import_pixelfx.sh my-forever-pet/godot-arcade/assets/pet_fx
       - name: Import and run deterministic scene smoke
         run: |
           set -euo pipefail
@@ -80,6 +82,13 @@ jobs:
           timeout 60 "$G" --headless --path my-forever-pet/godot-arcade -- --test 2>&1 | tee /tmp/godot-smoke.log
           grep -F PET_DASH_3D_SMOKE_PASS /tmp/godot-smoke.log
           ! grep -E 'SCRIPT ERROR|Parse Error' /tmp/godot-smoke.log
+      - name: Verify reusable mood, part and imported effect frames
+        run: |
+          set -euo pipefail
+          G=/tmp/godot/Godot_v4.4.1-stable_linux.x86_64
+          "$G" --headless --path my-forever-pet/godot-arcade --script res://test_pet_animation_library.gd 2>&1 | tee /tmp/pet-animation-library.log
+          grep -F PET_ANIMATION_LIBRARY_PASS /tmp/pet-animation-library.log
+          ! grep -E "SCRIPT ERROR|Parse Error" /tmp/pet-animation-library.log
       - name: Verify integrated Forever Pet hub and wallet
         run: |
           set -euo pipefail

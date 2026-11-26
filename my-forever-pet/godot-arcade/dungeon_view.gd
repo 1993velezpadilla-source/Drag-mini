@@ -1726,6 +1726,7 @@ func _process(dt:float):
 	if hit_time>0.0:pet_pose.rotation.z+=sin(hit_time*45.0)*.10
 	if attack_time>0.0:motion=Vector2(attack_direction.x,attack_direction.z)
 	var pose:String="hurt" if hit_time>0.0 else "attack" if attack_time>0.0 else "reward" if reward_age>0.0 and not moving else "idle"
+	pet_pose.set_meta("pet_mood","weak" if run.hp*3<run.max_hp else "healthy")
 	PixelArt.animate_world_sprite(pet_pose,motion,moving,dt,pose,region==1)
 	var focus=pet.position+Vector3(0,.18,-.48)
 	camera.position=focus+DUNGEON_CAMERA_OFFSET;camera.look_at(focus)
