@@ -16,6 +16,8 @@ func run():
 		assert(dungeon.companion_id==24+region)
 		assert(dungeon.area.size.x>200 and dungeon.area.size.y>200)
 		assert(dungeon.floor_label.text.contains("rooms"))
+		assert(dungeon.terrain_texture!=null and dungeon.terrain_normal!=null)
+		if ResourceLoader.exists("res://assets/dungeon_forest_rock_0.glb"):assert(dungeon.rock_modules>0,"real Blender boundary modules required")
 		assert(root.get_visible_rect().encloses(dungeon.heal_button.get_global_rect()))
 		dungeon.run.enemies.clear()
 		var pickup:Vector2i

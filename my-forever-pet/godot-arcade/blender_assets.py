@@ -780,4 +780,39 @@ for i in range(3):
  cyl((x,.60,0),.13,.10,.31+(i%2)*.16,rune)
  cyl((x,.83+(i%2)*.07,0),.10,0,.18,star)
 export('dungeon_star_wall',5000)
+# Original sculpted rock modules, with broad facets and layered strata.
+import random
+def dungeon_rock(p,size,m,seed):
+ rng=random.Random(seed)
+ bpy.ops.mesh.primitive_ico_sphere_add(subdivisions=2,radius=1,location=v(p))
+ o=bpy.context.object
+ for vert in o.data.vertices:
+  vert.co*=rng.uniform(.88,1.12)
+ o.scale=(size[0]/2,size[2]/2,size[1]/2)
+ o.rotation_euler.z=rng.uniform(-.25,.25)
+ o.data.materials.append(m)
+ # Flat planes retain the handmade rock silhouette, bevelled surrounding props stay smooth.
+ return o
+for region,primary,accent,topmat in [
+ ('forest',foreststone,bark,moss),('reef',reefstone,stone,coral),('star',astralstone,rune,star)]:
+ for variant in range(3):
+  clear()
+  dungeon_rock((0,.32,0),(1.44,.82,1.39),primary,variant+41)
+  for i in range(3):
+   x=(i-1)*.40
+   dungeon_rock((x,.52+((i+variant)%3)*.10,.04),(.66,.64,.87),primary,variant*23+i+53)
+   dungeon_rock((x,.27,-.49),(.58,.40,.42),accent,variant*19+i+84)
+  if region=='forest':
+   for i in range(2):
+    dungeon_rock(((i-.5)*.58,.91,.04),(.72,.22,.83),topmat,variant*17+i)
+  elif region=='reef':
+   for i in range(2):
+    x=(i-.5)*.66
+    cyl((x,.92,0),.105,.04,.43+i*.10,topmat)
+  else:
+   for i in range(2):
+    x=(i-.5)*.63
+    cyl((x,.93,0),.12,.09,.36+i*.10,accent)
+    cyl((x,1.16+i*.05,0),.09,0,.18,topmat)
+  export('dungeon_%s_rock_%d'%(region,variant),2400)
 with open(os.path.join(OUT,'mesh-metrics.json'),'w') as out: json.dump(stats,out,indent=2)

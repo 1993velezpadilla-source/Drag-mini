@@ -50,11 +50,16 @@ var floor_banner:Label
 var banner_time=0.0
 var floor_label:Label
 var last_floor_seen=0
+var terrain_texture:ImageTexture
+var terrain_normal:ImageTexture
+var terrain_mats:Dictionary={}
+var rock_modules=0
 func setup(r:int,id:int,step:int,finale:bool,patrol:bool,seed_id:int,companion:int):
 	region=r;companion_id=companion
 	run.setup(r,id,step,finale,patrol,seed_id,companion)
 	hp_previous=run.hp
 	palette=[ [Color("#37574b"),Color("#58775a"),Color("#17392f"),Color("#f4c77b")], [Color("#244c64"),Color("#39748a"),Color("#123449"),Color("#7ce8e4")], [Color("#414264"),Color("#62678b"),Color("#282c50"),Color("#dbb8ff")] ][r]
+	build_terrain_textures()
 	build_ui()
 	build_floor()
 	update_hud()
@@ -92,8 +97,9 @@ func build_ui():
 	var holder=SubViewportContainer.new();holder.stretch=true;holder.stretch_shrink=1;holder.mouse_filter=MOUSE_FILTER_IGNORE;area.add_child(holder);holder.set_anchors_and_offsets_preset(PRESET_FULL_RECT)
 	viewport=SubViewport.new();viewport.own_world_3d=true;viewport.render_target_update_mode=SubViewport.UPDATE_ALWAYS;holder.add_child(viewport)
 	world=Node3D.new();viewport.add_child(world)
-	var env=WorldEnvironment.new();env.environment=Environment.new();env.environment.background_mode=Environment.BG_COLOR;env.environment.background_color=palette[2].darkened(.55);env.environment.ambient_light_source=Environment.AMBIENT_SOURCE_COLOR;env.environment.ambient_light_color=Color("#e0edff");env.environment.ambient_light_energy=.65;world.add_child(env)
-	var sun=DirectionalLight3D.new();sun.rotation_degrees=Vector3(-55,-35,0);sun.light_energy=.9;sun.shadow_enabled=true;world.add_child(sun)
+	var env=WorldEnvironment.new();env.environment=Environment.new();env.environment.background_mode=Environment.BG_COLOR;env.environment.background_color=palette[2].darkened(.55);env.environment.ambient_light_source=Environment.AMBIENT_SOURCE_COLOR;env.environment.ambient_light_color=Color("#e0edff");env.environment.ambient_light_energy=.55;world.add_child(env)
+	var sun=DirectionalLight3D.new();sun.rotation_degrees=Vector3(-48,-35,0);sun.light_color=[Color("#fff2d4"),Color("#c0eaff"),Color("#d9d2ff")][region];sun.light_energy=1.15;sun.shadow_enabled=true;world.add_child(sun)
+	var fill=DirectionalLight3D.new();fill.rotation_degrees=Vector3(-35,145,0);fill.light_color=palette[3];fill.light_energy=.28;fill.shadow_enabled=false;world.add_child(fill)
 	camera=Camera3D.new();camera.projection=Camera3D.PROJECTION_ORTHOGONAL;camera.keep_aspect=Camera3D.KEEP_WIDTH;camera.size=8.6;world.add_child(camera);camera.current=true
 	var input=Control.new();area.add_child(input);input.set_anchors_and_offsets_preset(PRESET_FULL_RECT);input.mouse_filter=MOUSE_FILTER_STOP;input.gui_input.connect(touch)
 	map=Control.new();map.mouse_filter=MOUSE_FILTER_IGNORE;area.add_child(map);map.position=Vector2(10,10);map.size=Vector2(153,105);map.draw.connect(draw_map)
@@ -119,6 +125,39 @@ func mat(c:Color)->StandardMaterial3D:
 	if not mats.has(c):
 		var m=StandardMaterial3D.new();m.albedo_color=c;m.roughness=.8;mats[c]=m
 	return mats[c]
+func build_terrain_textures():
+	# One deterministic, seamless texture pair per biome; no texture allocation per tile.
+	var size_px=128
+	var img=Image.create(size_px,size_px,false,Image.FORMAT_RGBA8)
+	var normals=Image.create(size_px,size_px,false,Image.FORMAT_RGBA8)
+	var noise=FastNoiseLite.new();noise.seed=146+region*97;noise.frequency=.045;noise.fractal_octaves=4
+	var heights:PackedFloat32Array=[];heights.resize(size_px*size_px)
+	for y in range(size_px):
+		for x in range(size_px):
+			# Blend four periodic samples so the edge wraps without a hard seam.
+			var u=float(x)/size_px;var w=float(y)/size_px
+			var h0=lerpf(noise.get_noise_2d(x,y),noise.get_noise_2d(x-size_px,y),u)
+			var h1=lerpf(noise.get_noise_2d(x,y-size_px),noise.get_noise_2d(x-size_px,y-size_px),u)
+			heights[y*size_px+x]=lerpf(h0,h1,w)
+	for y in range(size_px):
+		for x in range(size_px):
+			var h=heights[y*size_px+x]
+			var grain=.025*sin(float(x*13+y*19))
+			var tone=clampf(.86+h*.28+grain,.56,1.0)
+			img.set_pixel(x,y,Color(tone,tone,tone,1.0))
+			var dx=heights[y*size_px+posmod(x+1,size_px)]-heights[y*size_px+posmod(x-1,size_px)]
+			var dy=heights[posmod(y+1,size_px)*size_px+x]-heights[posmod(y-1,size_px)*size_px+x]
+			var n=Vector3(-dx*2.1,-dy*2.1,1).normalized()
+			normals.set_pixel(x,y,Color(n.x*.5+.5,n.y*.5+.5,n.z*.5+.5,1))
+	img.generate_mipmaps();normals.generate_mipmaps()
+	terrain_texture=ImageTexture.create_from_image(img);terrain_normal=ImageTexture.create_from_image(normals)
+func terrain_mat(c:Color)->StandardMaterial3D:
+	if terrain_mats.has(c):return terrain_mats[c]
+	var m=StandardMaterial3D.new();m.albedo_color=c;m.albedo_texture=terrain_texture;m.roughness=.84
+	m.normal_enabled=true;m.normal_texture=terrain_normal;m.normal_scale=.55
+	m.uv1_triplanar=true;m.uv1_world_triplanar=true;m.uv1_scale=Vector3.ONE*.72
+	terrain_mats[c]=m
+	return m
 func mesh(kind:String)->Mesh:
 	if not meshes.has(kind):
 		match kind:
@@ -152,11 +191,11 @@ func prop(parent:Node3D,name_value:String,at:Vector3)->Node3D:
 	if ob==null:return null
 	parent.add_child(ob);ob.position=at
 	return ob
-func batch(parent:Node3D,points:Array[Vector3],kind:String,sz:Vector3,c:Color):
+func batch(parent:Node3D,points:Array[Vector3],kind:String,sz:Vector3,c:Color,textured:bool=false):
 	if points.is_empty():return
 	var mm=MultiMesh.new();mm.transform_format=MultiMesh.TRANSFORM_3D;mm.mesh=mesh(kind);mm.instance_count=points.size()
 	for i in range(points.size()):mm.set_instance_transform(i,Transform3D(Basis.from_scale(sz),points[i]))
-	var instance=MultiMeshInstance3D.new();instance.multimesh=mm;instance.material_override=mat(c);parent.add_child(instance)
+	var instance=MultiMeshInstance3D.new();instance.multimesh=mm;instance.material_override=terrain_mat(c) if textured else mat(c);parent.add_child(instance)
 func boundary_detail(points:Array[Vector3]):
 	# Batch shared Blender submeshes, rather than allocating a full scene per tile.
 	var file="res://assets/"+["dungeon_forest_wall","dungeon_reef_wall","dungeon_star_wall"][region]+".glb"
@@ -181,6 +220,35 @@ func boundary_detail(points:Array[Vector3]):
 		var instance=MultiMeshInstance3D.new();instance.multimesh=mm;geometry.add_child(instance)
 		instance.cast_shadow=GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	template.free();wall_decorations=chosen.size()
+func natural_boundary(points:Array[Vector3])->bool:
+	rock_modules=0
+	var prefix="res://assets/dungeon_"+["forest","reef","star"][region]+"_rock_"
+	for variant in range(3):
+		if not ResourceLoader.exists(prefix+str(variant)+".glb"):return false
+	for variant in range(3):
+		var scene=load(prefix+str(variant)+".glb") as PackedScene
+		if scene==null:return false
+		var template=scene.instantiate() as Node3D
+		if template==null:return false
+		geometry.add_child(template)
+		var inverse=template.global_transform.affine_inverse()
+		var placements:Array[Transform3D]=[]
+		for i in range(points.size()):
+			if posmod(i+run.floor_number,3)!=variant:continue
+			var angle=float(posmod(i*7+run.floor_number,4))*PI*.5
+			var scale_value=Vector3(1.04,.86+.14*float(posmod(i*13,5))/4.0,1.04)
+			placements.append(Transform3D(Basis(Vector3.UP,angle).scaled(scale_value),points[i]-Vector3(0,.44,0)))
+		if not placements.is_empty():
+			for child in template.find_children("*","MeshInstance3D",true,false):
+				var source=child as MeshInstance3D
+				if source.mesh==null:continue
+				var mm=MultiMesh.new();mm.transform_format=MultiMesh.TRANSFORM_3D;mm.mesh=source.mesh;mm.instance_count=placements.size()
+				var local_transform=inverse*source.global_transform
+				for i in range(placements.size()):mm.set_instance_transform(i,placements[i]*local_transform)
+				var instance=MultiMeshInstance3D.new();instance.multimesh=mm;geometry.add_child(instance)
+			rock_modules+=placements.size()
+		template.free()
+	return rock_modules==points.size()
 func floor_name()->String:
 	return ["Ancient passages","Treasure chamber","Monster den","Restorative grotto","Forgotten ruins"][run.floor_kind]
 func build_floor():
@@ -199,16 +267,16 @@ func build_floor():
 			var next:Vector2i=q+d
 			if not run.cells.has(next) and not seen.has(next):
 				seen[next]=true;walls.append(pos(next)+Vector3(0,.44,0))
-	batch(geometry,a,"box",Vector3(1.38,.24,1.38),palette[0]);batch(geometry,b,"box",Vector3(1.38,.24,1.38),palette[1])
-	batch(geometry,walls,"box",Vector3(1.4,.94,1.4),palette[2])
-	var tops:Array[Vector3]=[]
-	for p in walls:tops.append(p+Vector3(0,.51,0))
-	batch(geometry,tops,"box",Vector3(1.42,.14,1.42),palette[1])
-	batch(geometry,floor_ornaments,"box",Vector3(.58,.026,.58),palette[1].lightened(.17))
-	var trim:Array[Vector3]=[]
-	for p in walls:trim.append(p+Vector3(0,.10,0))
-	batch(geometry,trim,"box",Vector3(1.43,.12,1.43),palette[2].lightened(.22))
-	wall_decorations=0;boundary_detail(walls)
+	var ground:Color=palette[0].lerp(palette[1],.55)
+	batch(geometry,a,"box",Vector3(1.40,.24,1.40),ground,true);batch(geometry,b,"box",Vector3(1.40,.24,1.40),ground.lightened(.025),true)
+	# Dark foundation closes small rock gaps; the visible silhouette comes from sculpted Blender modules.
+	var foundation:Array[Vector3]=[]
+	for p in walls:foundation.append(p-Vector3(0,.28,0))
+	batch(geometry,foundation,"box",Vector3(1.4,.38,1.4),palette[2],true)
+	wall_decorations=0
+	if not natural_boundary(walls):
+		batch(geometry,walls,"box",Vector3(1.4,.88,1.4),palette[2],true)
+		boundary_detail(walls)
 	for i in range(run.rooms.size()):
 		var p=pos(run.rooms[i].position)+Vector3(-.48,0,-.48)
 		if prop(geometry,["dungeon_forest_shrine","dungeon_reef_shrine","dungeon_star_shrine"][region],p)==null:
