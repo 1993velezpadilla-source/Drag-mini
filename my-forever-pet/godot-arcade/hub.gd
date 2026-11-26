@@ -378,9 +378,14 @@ func perform(id:String,i:int=0):
 		notice.text="  •  ".join(changes) if not changes.is_empty() else "Done!"
 		if store.care_count()>old_care: notice.text+="  •  Care %d/4"%mini(4,store.care_count())
 		if store.level()>old_level: notice.text+="  •  LEVEL UP!"
-		if id=="care_claim" and int(before.care_claims)<4: notice.text="NEW COMPANION: "+store.SPECIES[24+int(before.care_claims)]
+		var new_companion=-1
+		if id=="care_claim":
+			for species_id in range(24,28):
+				if (int(before.collection)&(1<<species_id))==0 and (int(store.s.collection)&(1<<species_id))!=0:
+					new_companion=species_id;break
+			if new_companion>=24:notice.text="NEW COMPANION: "+store.SPECIES[new_companion]
 		if id=="field": notice.text="Egg lineage: "+store.FIELDS[i] if store.s.stage==0 else "Habitat preference: "+store.FIELDS[i]+" • Same pet"
-		if id=="care_claim": show_care_reward(int(before.care_claims))
+		if id=="care_claim": show_care_reward(new_companion)
 		play_reward(id=="care_claim" or store.level()>old_level or store.care_count()>old_care)
 	else:
 		notice.text=reason_for(id,i)
@@ -395,18 +400,18 @@ func perform(id:String,i:int=0):
 	if section=="Today": select("Today")
 	if section=="Pets" and id=="form": show_collection()
 	if section=="Family" and id=="form": select("Family")
-func show_care_reward(previous:int):
+func show_care_reward(unlocked:int):
 	var popup=AcceptDialog.new()
 	popup.title="Care chest unlocked!"
 	popup.ok_button_text="Collect & continue"
 	popup.add_theme_stylebox_override("panel",skin(Color("#51316d"),Color("#ffd48a")))
 	var content=VBoxContainer.new(); content.add_theme_constant_override("separation",12); popup.add_child(content)
-	var image=TextureRect.new(); image.texture=tex("res://assets/pet_%d.png"%(24+previous)) if previous<4 else GameIcons.texture("daily")
+	var image=TextureRect.new(); image.texture=tex("res://assets/pet_%d.png"%unlocked) if unlocked>=24 else GameIcons.texture("daily")
 	image.custom_minimum_size=Vector2(260,220); image.expand_mode=TextureRect.EXPAND_IGNORE_SIZE; image.stretch_mode=TextureRect.STRETCH_KEEP_ASPECT_CENTERED; content.add_child(image)
-	var heading=label(content,store.SPECIES[24+previous]+" unlocked!" if previous<4 else "Care adventure complete!",23); heading.horizontal_alignment=HORIZONTAL_ALIGNMENT_CENTER; heading.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART
+	var heading=label(content,store.SPECIES[unlocked]+" unlocked!" if unlocked>=24 else "Care adventure complete!",23); heading.horizontal_alignment=HORIZONTAL_ALIGNMENT_CENTER; heading.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART
 	var reward=label(content,"+25 coins    +2 materials    +15 XP",17); reward.horizontal_alignment=HORIZONTAL_ALIGNMENT_CENTER
-	if previous<4:
-		var b=button(content,"View new companion",func(): popup.queue_free(); collection_feature=24+previous; select("Pets")); b.custom_minimum_size.y=48
+	if unlocked>=24:
+		var b=button(content,"View new companion",func(): popup.queue_free(); collection_feature=unlocked; select("Pets")); b.custom_minimum_size.y=48
 	popup.confirmed.connect(popup.queue_free)
 	popup.canceled.connect(popup.queue_free)
 	add_child(popup); popup.popup_centered(Vector2i(340,390))

@@ -192,7 +192,10 @@ func care_credit(id:String):
 	elif id=="harvest": group=5
 	if group>=0: s.care_mask=int(s.care_mask)|(1<<group)
 func care_ready()->bool: return s.stage>0 and care_count()>=4 and not s.care_claimed
-func next_special()->int: return 24+int(s.care_claims) if s.care_claims<4 else -1
+func next_special()->int:
+	for id in range(24,28):
+		if (int(s.collection)&(1<<id))==0:return id
+	return -1
 func sanctuary_block(region:int,tier:int)->String:
 	if region<0 or region>=3 or tier<0 or tier>=3:return "Unknown sanctuary"
 	if s.stage==0:return "Hatch your egg first"

@@ -273,5 +273,13 @@ func run():
 	check(pet.today_claim() and pet.s.coins==today_wallet+35,"adventure bonus")
 	check(not pet.today_claim(),"daily bonus idempotent")
 	check(pet.today_count(pet.now()+86400)==0,"old tasks cannot count tomorrow")
+	reset(4)
+	pet.s.collection=(1<<24)|(1<<26)
+	check(pet.next_special()==25,"care chest skips already discovered companions")
+	pet.s.care_day=pet.date_key(pet.now());pet.s.care_mask=15
+	check(pet.action("care_claim") and (int(pet.s.collection)&(1<<25))!=0,"care chest grants missing companion")
+	check(pet.next_special()==27,"next undiscovered special")
+	pet.s.collection=int(pet.s.collection)|(1<<27)
+	check(pet.next_special()==-1,"all specials discovered no duplicate reward")
 	print("FOREVER_PET_CORE_PASS ",passed)
 	quit()
