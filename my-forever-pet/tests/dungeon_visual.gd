@@ -103,6 +103,9 @@ func run():
 				assert(dungeon.habitat_tall.size()>0 and dungeon.habitat_tall.size()<=22)
 				assert(dungeon.habitat_low.size()>0 and dungeon.habitat_low.size()<=80)
 				for q in dungeon.habitat_tall:assert(dungeon.exterior_distances[q]>=3)
+				for q in dungeon.habitat_large+dungeon.vista_large:
+					for dy in range(-2,3):
+						for dx in range(-2,3):assert(not dungeon.run.cells.has(q+Vector2i(dx,dy)),"large landscape footprint keeps traversal clear")
 				for q in dungeon.habitat_low:
 					assert(dungeon.exterior_distances[q]>=2 and not dungeon.run.cells.has(q))
 					assert(not dungeon.terrace_cells.has(q),"understory fills open land, not terrace footprints")

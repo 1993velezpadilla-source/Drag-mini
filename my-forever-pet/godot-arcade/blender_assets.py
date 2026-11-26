@@ -1559,17 +1559,19 @@ clear()
 stream=mat('woodland turquoise stream',(.055,.44,.48),.12,.27)
 foam=mat('cascade pale highlights',(.56,.87,.90),.05,.32)
 natural_rock((0,.16,0),(2.32,.32,1.70),foreststone,2800)
-natural_rock((-.45,.50,-.38),(1.1,.72,.85),forestedge,2801)
-natural_rock((.51,.31,-.36),(.90,.50,.82),moss,2802)
-ball((0,.32,.42),(1.52,.10,.82),stream)
+natural_rock((-.45,.76,-.38),(1.1,1.24,.85),forestedge,2801)
+natural_rock((.51,.54,-.36),(.90,.96,.82),moss,2802)
+# Broad pool with a dark wet shoreline below the taller cascade.
+ball((0,.28,.42),(1.86,.15,1.10),forestedge)
+ball((0,.36,.43),(1.70,.09,.99),stream)
 # Continuous scalloped water sheet with a broad crest, curved drop and
 # widening splash apron. Thin surface geometry instead of four pipe meshes.
 verts=[];faces=[];rows=13;cols=11
 for j in range(rows):
  t=j/(rows-1)
- y=.34+.53*(1-t*t)
- z=-.43+.79*t
- width=.34+.13*t*t
+ y=.38+1.02*(1-t*t)
+ z=-.43+.86*t
+ width=.43+.20*t*t
  for i in range(cols):
   u=i/(cols-1)*2-1
   wave=.012*math.sin(u*17+t*11)+.008*math.cos(u*29-t*8)
@@ -1585,11 +1587,11 @@ for k in range(5):
  points=[]
  for j in range(7):
   t=.04+j*.146
-  points.append((u*(.34+.13*t*t)+.035*math.sin(t*pi),.355+.53*(1-t*t)+.012*math.sin(u*17+t*11),-.43+.79*t+.018))
+  points.append((u*(.43+.20*t*t)+.035*math.sin(t*pi),.395+1.02*(1-t*t)+.012*math.sin(u*17+t*11),-.43+.86*t+.018))
  tube(points,[.012,.014,.012,.013,.011,.010,.007],foam,6)
 for k in range(9):
  a=k*2*pi/9
- ball((.36*math.cos(a),.38,.34+.12*math.sin(a)),(.10+.035*(k%3),.035,.065),foam)
+ ball((.49*math.cos(a),.41,.43+.18*math.sin(a)),(.10+.035*(k%3),.035,.065),foam)
 # Fallen log with visible branching and richly planted bank, rather than bare rock.
 tube([(-1.01,.28,.18),(-.80,.34,.43),(-.58,.32,.65),(-.31,.25,.78)],[.13,.12,.10,.06],bark,10)
 tube([(-.80,.34,.43),(-.65,.48,.38),(-.54,.53,.33)],[.055,.037,.018],bark,8)
@@ -1704,7 +1706,9 @@ for x,z in [(-.29,.19),(.32,-.12)]:
 tube([(-.59,.04,-.33),(-.16,.07,-.21),(.18,.05,-.36)],[.053,.039,.012],bark,6)
 export('dungeon_forest_understory',2600)
 clear()
-# Deep reef outcrop with several heights, overhanging ledges and a kelp forest.
+# Deep reef outcrop: connected low reef mass, not isolated pillars.
+natural_rock((0,.29,0),(2.42,.57,1.65),reefstone,3198)
+natural_rock((-.04,.61,.08),(1.97,.38,1.27),reefedge,3199)
 for k,(x,z,h) in enumerate([(-.67,-.25,1.75),(.39,-.32,2.15),(.61,.55,.86)]):
  natural_rock((x,h*.43,z),(.92,h,.92),reefstone,3200+k)
  for j in range(2):
@@ -1765,7 +1769,7 @@ for j in range(10):
  t=j/9
  for i in range(6):
   u=i/5*2-1
-  verts.append((.25*u*(1+.25*t),1.16-1.03*t*t,.54+.40*t+.04*math.sin(t*pi)))
+  verts.append((.32*u*(1+.25*t),1.16-1.19*t*t,.54+.49*t+.04*math.sin(t*pi)))
 for j in range(9):
  for i in range(5):
   a=j*6+i;faces.append((a,a+1,a+7,a+6))
