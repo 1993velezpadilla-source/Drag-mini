@@ -72,6 +72,7 @@ var exterior_groups:Array[Vector2i]=[]
 var exterior_vistas:Array[Vector2i]=[]
 var habitat_tall:Array[Vector2i]=[]
 var habitat_low:Array[Vector2i]=[]
+var habitat_ground_candidates:Array[Vector2i]=[]
 var exterior_static_batches=0
 var landmark_cells:Array[Vector2i]=[]
 var exterior_distances:Dictionary={}
@@ -552,7 +553,7 @@ func build_exterior_world(wall_cells:Dictionary):
 	# Multi-source BFS provides exact distance bands in O(cells + exterior area).
 	# No decoration is added to the gameplay graph.
 	exterior_static_batches=0;exterior_motion_batches=0;exterior_motion_materials.clear()
-	exterior_groups.clear();exterior_vistas.clear();habitat_tall.clear();habitat_low.clear();exterior_distances.clear();exterior_life.clear();exterior_life_parts.clear();exterior_life_centers.clear();exterior_clock=0.0
+	exterior_groups.clear();exterior_vistas.clear();habitat_tall.clear();habitat_low.clear();habitat_ground_candidates.clear();exterior_distances.clear();exterior_life.clear();exterior_life_parts.clear();exterior_life_centers.clear();exterior_clock=0.0
 	var queue:Array[Vector2i]=[]
 	for q in run.cells:
 		exterior_distances[q]=0;queue.append(q)
@@ -625,7 +626,7 @@ func build_habitat_layers(prefix:String,queue:Array[Vector2i],wall_cells:Diction
 	var low_parts=rock_parts(prefix+"_understory.glb")
 	if tall_parts.is_empty() or low_parts.is_empty():return
 	var tall_placements:Array[Transform3D]=[]
-	var low_placements:Array[Transform3D]=[]
+	habitat_ground_candidates.assign(queue)
 	# Favor exterior behind rooms and sides. Tall assets farther from walkable
 	# tiles protect the camera's foreground view. No gameplay cells are edited.
 	var candidates:Array[Vector2i]=[]
@@ -652,16 +653,23 @@ func build_habitat_layers(prefix:String,queue:Array[Vector2i],wall_cells:Diction
 			if Vector2(old-q).length_squared()<7.0:safe=false;break
 		if not safe:continue
 		var angle=float(posmod(q.x*7+q.y*11,7)-3)*.15
-		var scale_value=.94+.18*float(posmod(q.x*13+q.y*7,5))/4.0
+		var scale_value=.89+.23*float(posmod(q.x*13+q.y*7,5))/4.0
+		var height_factor=.88+.24*float(posmod(q.x*17+q.y*3,7))/6.0
 		var elevation=.12 if region==2 else -.42
-		tall_placements.append(Transform3D(Basis(Vector3.UP,angle).scaled(Vector3.ONE*scale_value),pos(q)+Vector3(0,elevation,0)))
+		tall_placements.append(Transform3D(Basis(Vector3.UP,angle).scaled(Vector3(scale_value,scale_value*height_factor,scale_value)),pos(q)+Vector3(0,elevation,0)))
 		habitat_tall.append(q)
-	# Low cover fills near-wall and midground gaps with smaller silhouettes,
-	# not another repeated tower. Deterministic jitter stays in exterior tiles.
+	batch_exterior_parts(tall_parts,tall_placements)
+func fill_habitat_understory(wall_cells:Dictionary):
+	if habitat_ground_candidates.is_empty():return
+	var prefix="res://assets/dungeon_"+["forest","reef","star"][region]
+	var low_parts=rock_parts(prefix+"_understory.glb")
+	if low_parts.is_empty():return
+	var low_placements:Array[Transform3D]=[]
+	# Fill the actual remaining terrain, after reserving large models and terraces.
 	for distance in [2,3,4,5]:
-		for q in queue:
+		for q in habitat_ground_candidates:
 			if habitat_low.size()>=80:break
-			if exterior_distances[q]!=distance or wall_cells.has(q):continue
+			if exterior_distances[q]!=distance or wall_cells.has(q) or terrace_cells.has(q):continue
 			var safe=true
 			for old in exterior_groups:
 				if Vector2(old-q).length_squared()<1.6:safe=false;break
@@ -676,7 +684,6 @@ func build_habitat_layers(prefix:String,queue:Array[Vector2i],wall_cells:Diction
 			var scale_value=.70+.27*float(posmod(q.x*7+q.y*13,5))/4.0
 			low_placements.append(Transform3D(Basis(Vector3.UP,angle).scaled(Vector3.ONE*scale_value),pos(q)+Vector3(0,-.51,0)))
 			habitat_low.append(q)
-	batch_exterior_parts(tall_parts,tall_placements)
 	batch_exterior_parts(low_parts,low_placements)
 	print("DUNGEON_HABITAT region=",region," tall=",habitat_tall.size()," understory=",habitat_low.size())
 func exterior_clearance(q:Vector2i)->bool:
@@ -727,6 +734,8 @@ func landscape_terraces(wall_cells:Dictionary):
 					if Vector2(tile-group).length_squared()<3.0:safe=false
 				for landmark in landmark_cells:
 					if Vector2(tile-landmark).length_squared()<2.0:safe=false
+				for tall in habitat_tall:
+					if Vector2(tile-tall).length_squared()<3.0:safe=false
 		if not safe:continue
 		for dy in range(2):
 			for dx in range(2):terrace_cells[q+Vector2i(dx,dy)]=true
@@ -1125,7 +1134,9 @@ func build_floor():
 			var q:Vector2i=cell+direction
 			if run.cells.has(q) or seen.has(q) or scenery_seen.has(q):continue
 			scenery_seen[q]=true
-			if posmod(q.x*17+q.y*31+run.floor_number,4)==0:
+			# Legacy isolated clusters are only a fallback. The full habitat
+			# already supplies distinct low cover and would otherwise overlap.
+			if not ResourceLoader.exists("res://assets/dungeon_"+["forest","reef","star"][region]+"_understory.glb") and posmod(q.x*17+q.y*31+run.floor_number,4)==0:
 				scenery_points.append(pos(q)+Vector3(0,-.45,0))
 	var cluster_file="res://assets/dungeon_"+["forest","reef","star"][region]+"_cluster.glb"
 	for part in rock_parts(cluster_file):
@@ -1140,6 +1151,7 @@ func build_floor():
 	backdrop_landmarks(seen)
 	build_exterior_world(seen)
 	landscape_terraces(seen)
+	fill_habitat_understory(seen)
 	build_exterior_surface()
 	if not natural_boundary(walls):
 		batch(geometry,walls,"box",Vector3(1.4,.88,1.4),palette[2],true)

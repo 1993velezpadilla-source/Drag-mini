@@ -103,7 +103,11 @@ func run():
 				assert(dungeon.habitat_tall.size()>0 and dungeon.habitat_tall.size()<=22)
 				assert(dungeon.habitat_low.size()>0 and dungeon.habitat_low.size()<=80)
 				for q in dungeon.habitat_tall:assert(dungeon.exterior_distances[q]>=3)
-				for q in dungeon.habitat_low:assert(dungeon.exterior_distances[q]>=2 and not dungeon.run.cells.has(q))
+				for q in dungeon.habitat_low:
+					assert(dungeon.exterior_distances[q]>=2 and not dungeon.run.cells.has(q))
+					assert(not dungeon.terrace_cells.has(q),"understory fills open land, not terrace footprints")
+				for q in dungeon.habitat_tall:
+					for tile in dungeon.terrace_cells:assert(Vector2(q-tile).length_squared()>=3.0,"terrace keeps clear of tall habitat")
 			if region<2 and ResourceLoader.exists("res://assets/dungeon_forest_vista.glb"):
 				assert(dungeon.exterior_motion_batches>0,"authored water or kelp material animates")
 				for material in dungeon.exterior_motion_materials.values():
