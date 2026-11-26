@@ -418,7 +418,7 @@ func backdrop_landmarks(wall_cells:Dictionary):
 					if run.cells.has(q+Vector2i(dx,dy)):safe=false
 			for other in used:
 				if run.distance(q,other)<4:safe=false
-						if not safe:continue
+			if not safe:continue
 			var ob=prop(geometry,prefix,pos(q)+Vector3(0,-.38,0))
 			if ob!=null:
 				ob.rotation.y=float(posmod(q.x*7+q.y*13,7)-3)*.12
