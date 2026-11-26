@@ -1921,18 +1921,48 @@ for i in range(4):
  box((.19*math.cos(a),.04,.19*math.sin(a)),(.12,.045,.05),rune,.007)
 export('dungeon_star_understory',2400)
 clear()
-# Original sculpted atmospheric bank: soft overlapping lobes at different
-# heights, two tonal layers, with a flattened trailing base.
-cloud_shadow=mat('astral cloud lavender shade',(.27,.28,.48),0,.93)
-cloud_light=mat('astral cloud pearl lavender',(.61,.62,.82),0,.91)
-for p,sz,m in [
- ((-.53,.30,.02),(1.58,.55,1.13),cloud_shadow),
- ((.48,.27,-.12),(1.64,.50,1.08),cloud_shadow),
- ((-.92,.45,.04),(.86,.54,.83),cloud_light),
- ((-.41,.62,-.14),(1.13,.89,.96),cloud_light),
- ((.20,.54,.13),(1.12,.76,1.10),cloud_light),
- ((.79,.43,-.09),(1.0,.57,.82),cloud_light)]:
- ob=ball(p,sz,m)
- for poly in ob.data.polygons:poly.use_smooth=True
+# A continuous closed cumulus silhouette. Sculpt a single connected surface
+# from overlapping soft height fields, rather than intersecting sphere meshes.
+cloud_shadow=mat('astral cloud lavender shade',(.35,.38,.62),0,.94)
+cloud_light=mat('astral cloud pearl lavender',(.76,.80,.97),0,.94)
+n=40;steps=10;verts=[];faces=[]
+def cloud_outline(theta):
+ return 1+.10*math.sin(5*theta+.6)+.07*math.cos(3*theta-.4)+.035*math.sin(9*theta)
+def cloud_point(r,theta,upper):
+ outline=cloud_outline(theta)
+ x=1.31*r*outline*math.cos(theta)
+ z=.69*r*outline*math.sin(theta)+.07*r*math.sin(theta*2)
+ # The primary lobes share a broad body; soft field blends produce a
+ # continuous rounded crest with more than one apparent cloud scale.
+ dome=0.0
+ for cx,cz,height,sx,sz in [(-.75,.04,.48,.37,.29),(-.27,-.12,.80,.44,.38),(.27,.12,.63,.40,.34),(.83,-.08,.36,.32,.25),(-.30,.40,.24,.24,.19),(.48,-.36,.27,.27,.21)]:
+  dome+=height*math.exp(-((x-cx)/sx)**2-((z-cz)/sz)**2)
+ taper=math.sqrt(max(0,1-r*r))
+ if upper:
+  y=.24+taper*(.14+dome+.045*math.sin(7*x+2*z)*math.cos(6*z))
+ else:
+  y=.24-taper*(.16+.045*math.cos(x*4)*math.cos(z*5))
+ return (x,y,z)
+# Share the entire silhouette ring between upper and lower surfaces.
+for i in range(n):verts.append(cloud_point(1,i*2*pi/n,True))
+for upper in [True,False]:
+ previous=list(range(n))
+ for j in range(1,steps):
+  radius=1-j/steps
+  current=[]
+  for i in range(n):
+   current.append(len(verts));verts.append(cloud_point(radius,i*2*pi/n,upper))
+  for i in range(n):
+   k=(i+1)%n;faces.append((previous[i],previous[k],current[k],current[i]))
+  previous=current
+ center=len(verts);verts.append(cloud_point(0,0,upper))
+ for i in range(n):faces.append((previous[i],previous[(i+1)%n],center))
+ob=architectural_mesh('continuous sculpted cumulus bank',verts,faces,cloud_light)
+ob.data.materials.append(cloud_shadow)
+# Only the underside is cooler; continuous normals over the top keep the
+# silhouette free of the hard seams of overlapping individual stones.
+for poly in ob.data.polygons:
+ poly.material_index=1 if poly.center.z<.235 else 0
+ poly.use_smooth=True
 export('dungeon_star_cloud_habitat',3800)
 with open(os.path.join(OUT,'mesh-metrics.json'),'w') as out: json.dump(stats,out,indent=2)
