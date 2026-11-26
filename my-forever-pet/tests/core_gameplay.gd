@@ -235,5 +235,15 @@ func run():
 	pet.s.friendship=4; pet.s.xp=900
 	check(pet.action("breed") and pet.s.xp==900,"account level survives new generation")
 	check(pet.s.profiles.has("1") and not pet.s.profiles.has("-1"),"adopted family survives new generation")
+	reset(4)
+	pet.s.collection=(1<<1)|(1<<4)
+	check(pet.family_slots()==[-1],"family excludes not adopted species")
+	check(pet.action("form",1) and pet.family_slots()==[-1,1],"family includes adopted companion")
+	check(pet.rename_companion(1,"Luna") and pet.family_name_for(1)=="Luna","active rename")
+	check(pet.rename_companion(-1,"Moss") and pet.family_name_for(-1)=="Moss","inactive rename")
+	check(not pet.rename_companion(4,"Not adopted"),"cannot rename unadopted species")
+	pet.s.hunger=1
+	check(pet.family_status(1)=="Hungry","family needs status")
+	check(pet.action("form",-1) and pet.s.name=="Moss" and pet.family_name_for(1)=="Luna","family names persist on switch")
 	print("FOREVER_PET_CORE_PASS ",passed)
 	quit()

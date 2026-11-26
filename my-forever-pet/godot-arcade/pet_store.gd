@@ -120,6 +120,35 @@ func validated_profiles(raw:Dictionary)->Dictionary:
 func companion_profile(slot:int)->Dictionary:
 	if slot==int(s.form):return profile_snapshot()
 	return s.profiles.get(str(slot),{})
+func family_slots()->Array[int]:
+	var slots:Array[int]=[-1]
+	for i in range(SPECIES.size()):
+		if (int(s.collection)&(1<<i))!=0 and (int(s.form)==i or s.profiles.has(str(i))):slots.append(i)
+	return slots
+func family_name_for(slot:int)->String:
+	var profile=companion_profile(slot)
+	if not str(profile.get("name","")).strip_edges().is_empty():return str(profile.name)
+	if slot==-1:
+		return "Egg" if int(profile.get("stage",0))==0 else SPECIES[original_species()]
+	return SPECIES[slot] if slot>=0 and slot<SPECIES.size() else ""
+func rename_companion(slot:int,value:String)->bool:
+	if not slot in family_slots():return false
+	var clean=value.strip_edges().replace("\n"," ").replace("\r"," ").left(24)
+	if slot==int(s.form):s.name=clean
+	elif s.profiles.has(str(slot)):s.profiles[str(slot)]["name"]=clean
+	else:return false
+	save_game()
+	return true
+func family_status(slot:int)->String:
+	var p=companion_profile(slot)
+	if p.is_empty():return "Not adopted"
+	if int(p.stage)==0:return "Ready to hatch"
+	if int(p.germs)>0:return "Needs treatment"
+	if int(p.hunger)<=1:return "Hungry"
+	if int(p.energy)<=20:return "Needs rest"
+	if int(p.hygiene)<=35 or int(p.toilet)<=20:return "Needs cleaning"
+	if int(p.happy)<=3:return "Needs playtime"
+	return "Happy and healthy"
 func original_species()->int:
 	var original=companion_profile(-1)
 	if original.is_empty():return inherited_species()
