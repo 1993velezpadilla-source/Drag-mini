@@ -231,7 +231,24 @@ def camera_render(key,anchors,pet=(0,-1.7,.18),night=False):
     print('PREMIUM_SET_RENDER_OK',key,points,flush=True)
 # Kitchen
 clear_set();room_base(mint)
+remove_parts(("wall inset","architectural column","gold column trim","ceiling cornice","lantern"))
 tiled_floor(cream,ivory)
+# Kitchen gets a real backsplash, integrated appliances, brass trim and task lights.
+for x in range(-7,8):
+    for z in range(4):
+        box("subway backsplash",(x*.65+(z%2)*.19,3.20,1.55+z*.32),(.62,.075,.29),ivory if (x+z)%4 else mint,.018)
+box("fridge body",(-4.65,2.05,1.50),(1.30,1.13,2.95),navy,.12)
+for z,height in [(2.19,1.30),(.79,1.40)]:
+    box("fridge door",(-4.65,1.43,z),(1.20,.14,height),mint,.09)
+    box("fridge handle",(-4.24,1.30,z),(.08,.14,.46),gold,.035)
+for j in range(3):star("fridge magnet",(-4.85+j*.20,1.32,2.39),.07,[rose,gold,blue][j])
+box("range hood",(-3.05,2.80,3.03),(1.55,.81,.34),navy,.09)
+box("range light",(-3.05,2.47,2.85),(1.19,.08,.06),glow,.022)
+box("sink countertop",(3.05,1.65,1.48),(2.85,1.36,.16),ivory,.06)
+box("sink inset",(3.55,1.65,1.58),(.93,.69,.06),navy,.08)
+torus("sink rim",(3.55,1.65,1.62),.37,.038,gold,scale=(1.22,.84,1))
+torus("curved faucet",(3.55,2.04,1.90),.22,.038,gold,rot=(pi/2,0,0))
+for x in [-3.4,3.4]:box("under cabinet glow",(x,2.84,3.58),(1.87,.08,.065),glow,.02)
 for x in [-3.4,3.4]:
     box('kitchen upper cupboard',(x,3.12,4.15),(2.3,.58,1.02),mint,.10)
     for dx in [-.54,.54]:
@@ -240,7 +257,10 @@ for x in [-3.4,3.4]:
 cabinet(-3.05,1.65,3.2);cabinet(3.05,1.65,2.8)
 box('oven',(-3.05,1.03,.73),(1.1,.2,.86),navy,.08)
 box('oven window',(-3.05,.9,.70),(.77,.06,.51),screen,.05)
-for x in [-3.65,-2.45]:torus('stove burner',(x,1.65,1.44),.28,.06,dark)
+for x in [-3.65,-2.45]:
+    torus('stove burner',(x,1.65,1.44),.28,.06,dark)
+    torus('burner heating ring',(x,1.65,1.45),.17,.025,terra)
+    cylinder('stove control',(x,.86,1.25),.09,.11,gold,rot=(pi/2,0,0))
 cylinder('cooking pot',(-3.65,1.65,1.73),.34,.46,rose);cylinder('lid',(-3.65,1.65,1.98),.38,.08,gold)
 for i in range(4):bottle(2.1+i*.44,2.02,1.42,[rose,green,water,purple][i])
 shelf(-2.9,2.75);shelf(2.9,2.75)
@@ -390,6 +410,15 @@ torus('handle',(-3.1,-.92,.55),.32,.06,gold,rot=(pi/2,0,0))
 camera_render('room_garden',{'plant':(-3.1,1,1.2),'harvest':(3.1,1,1.2)})
 # Potion lab
 clear_set();room_base(purple)
+remove_parts(('window','brass window rim','cloud','wall inset','architectural column','gold column trim','lantern'))
+# Observatory laboratory, with deep indigo alcove and a real arcane device.
+box('observatory glass',(0,3.24,3.70),(3.25,.16,3.8),nightSky,.15)
+for i in range(3):
+    torus('observatory orbit',(0,3.10,3.72),.54+i*.42,.035,gold,rot=(pi/2,0,0),scale=(1,.85,1))
+for i in range(12):
+    angle=i*pi/6
+    star('orbit glyph',(1.29*math.cos(angle),2.99,3.72+1.29*math.sin(angle)),.11,crystal)
+ball('observatory planet',(0,2.97,3.72),(.36,.16,.36),neonblue)
 for x in [-4.3,4.3]:
     cylinder('alchemist column',(x,2.45,1.8),.27,3.4,navy)
     for z in [.2,1.8,3.5]:cylinder('brass collar',(x,2.45,z),.36,.14,gold)
@@ -402,6 +431,12 @@ for x in [-3,3]:
         for i in range(4):bottle(x-.8+i*.53,2.8,z+.06,[water,rose,green,crystal][i])
 cylinder('cauldron',(-3,1.45,1.80),.60,.75,navy,r2=.7)
 torus('cauldron rim',(-3,1.45,2.20),.68,.07,gold)
+cylinder('potion surface',(-3,1.45,2.19),.57,.045,crystal)
+for side in [-1,1]:torus('cauldron handle',(-3+side*.66,1.45,1.99),.19,.045,gold,rot=(pi/2,0,0))
+for z in [1.52,1.78]:torus('cauldron brass band',(-3,1.45,z),.61,.035,gold)
+for j in range(6):
+    angle=j*pi/3
+    star('alchemy table rune',(3+.74*math.cos(angle),1.4+.74*math.sin(angle),1.50),.11,glow,(0,0,0))
 for i in range(6):ball('magic bubble',(-3+random.uniform(-.4,.4),1.4,2.22+i*.09),(.1,.1,.1),crystal,12)
 cylinder('crystal stand',(3,1.4,1.57),.52,.28,gold)
 for i in range(3):

@@ -333,7 +333,7 @@ func show_care_reward(previous:int):
 	var heading=label(content,store.SPECIES[24+previous]+" unlocked!" if previous<4 else "Care adventure complete!",23); heading.horizontal_alignment=HORIZONTAL_ALIGNMENT_CENTER; heading.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART
 	var reward=label(content,"+25 coins    +2 materials    +15 XP",17); reward.horizontal_alignment=HORIZONTAL_ALIGNMENT_CENTER
 	if previous<4:
-		var b=button(content,"View new companion",func(): popup.hide(); collection_feature=24+previous; select("Pets")); b.custom_minimum_size.y=48
+		var b=button(content,"View new companion",func(): popup.queue_free(); collection_feature=24+previous; select("Pets")); b.custom_minimum_size.y=48
 	popup.confirmed.connect(popup.queue_free)
 	popup.canceled.connect(popup.queue_free)
 	add_child(popup); popup.popup_centered(Vector2i(340,390))

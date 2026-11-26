@@ -194,7 +194,7 @@ func set_crop(ready_at:float,now:float):
 	for side in [-1,1]:
 		for i in range(6):
 			var x=side*3.1-.8+(i%3)*.8
-			var z=-.5-float(i/3)*.9
+			var z=-.5-floorf(float(i)/3.0)*.9
 			crop_shape(garden_crop,Vector3(x,.97+growth*.32,z),Vector3(.10,growth,.10),Color("#5d9b44"))
 			for j in range(4):
 				var angle=float(j)*TAU/4
@@ -333,15 +333,18 @@ func react(kind:String,asleep:bool):
 	sleeping=asleep
 	reaction_kind=kind
 	reaction_time=1.15
-	if kind in ["play","toy","bond","praise","train","daily","harvest"]: touch_bounce=0.30
+	if kind in ["play","toy","bond","praise","train","daily","harvest","care_claim"]: touch_bounce=0.30
 	for child in fx_root.get_children(): fx_root.remove_child(child); child.queue_free()
 	fx_nodes.clear()
-	if kind not in ["food","cook","snack","bond","play","toy","praise","daily","soap","rinse","harvest","craft"]: return
-	var asset="coin" if kind in ["daily","harvest"] else "reward_spark"
+	if kind not in ["food","cook","snack","bond","play","toy","praise","daily","soap","rinse","harvest","craft","care_claim","clean","bath","toilet","cell","medicine"]: return
+	var asset="coin" if kind in ["daily","harvest","care_claim"] else "reward_spark"
 	for i in range(5):
-		var ob=mesh(fx_root,"res://assets/"+asset+".glb",ground+Vector3(0,1.2,0))
+		var ob:Node3D
+		if kind in ["soap","rinse","bath"]:
+			ob=crop_shape(fx_root,ground+Vector3(0,1.2,0),Vector3.ONE*.30,Color("#9edfff"))
+		else: ob=mesh(fx_root,"res://assets/"+asset+".glb",ground+Vector3(0,1.2,0))
 		if ob!=null:
-			ob.scale=Vector3.ONE*0.22
+			ob.scale=Vector3.ONE*(.34 if kind in ["soap","rinse","bath"] else .22)
 			fx_nodes.append(ob)
 func tap():
 	touch_bounce=0.30
