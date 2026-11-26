@@ -1,4 +1,5 @@
 extends Control
+const PixelArt=preload("res://pixel_pet_art.gd")
 const Rules=preload("res://field_hunt_rules.gd")
 const Data=preload("res://research_data.gd")
 signal ended(success:bool,completed:int,elapsed:float)
@@ -110,6 +111,9 @@ func flat_shape(mesh:Mesh,p:Vector3,sz:Vector3,c:Color,parent:Node3D,glow:bool=f
 	return ob
 func model(id:int,parent:Node3D)->Node3D:
 	var root=Node3D.new();parent.add_child(root)
+	if PixelArt.world_sprite(root,id)!=null:
+		root.scale=Vector3.ONE*.78
+		return root
 	var file="res://assets/mosskit.glb" if id==0 else "res://assets/creatures/species_%02d.glb"%id
 	if ResourceLoader.exists(file):
 		var scene=load(file) as PackedScene
@@ -288,6 +292,7 @@ func _process(dt:float):
 		marker.rotation.y=atan2(force.x,force.y);marker.visible=force.length()>.18
 	var move=run.player-last_position
 	if move.length()>.01:player.rotation.y=atan2(move.x,move.y)
+	PixelArt.orient_world_sprite(player,camera)
 	last_position=run.player
 	camera_focus=camera_focus.lerp(Vector3(clampf(run.player.x,-4.0,4.0),0,clampf(run.player.y,-4.0,4.0)),1.0-exp(-dt*7.0))
 	camera.position=camera_focus+Vector3(0,23,17);camera.look_at(camera_focus)
@@ -314,6 +319,7 @@ func _process(dt:float):
 	if is_instance_valid(wild):
 		wild.position=Vector3(point.x,.1,point.y);wild.visible=run.player.distance_to(point)<5.5;wild.rotation.y=atan2(run.player.x-point.x,run.player.y-point.y)
 		wild.scale=Vector3.ONE*.78*(1.0+.08*sin(run.elapsed*18.0) if run.alert_left()>0.0 else 1.0)
+		PixelArt.orient_world_sprite(wild,camera)
 	for i in range(hazards.size()):
 		var p=run.hazard_at(i);hazards[i].position=Vector3(p.x,0,p.y);hazards[i].rotation.y=run.elapsed*1.7
 	update_hud()

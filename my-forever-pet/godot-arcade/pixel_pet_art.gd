@@ -76,3 +76,39 @@ static func portrait(path:String,trim:bool=false,pose:String="")->Texture2D:
 	var tex:=ImageTexture.create_from_image(im)
 	cache[key]=tex
 	return tex
+
+# World-facing presentation only. The actor root still owns movement, hit
+# effects, scale, visibility and game rules. Full 3D backgrounds are untouched.
+static func world_sprite(parent:Node3D,id:int,height:float=1.65)->Sprite3D:
+	var front:=portrait("res://assets/pet_%d.png"%id,true)
+	if front==null: return null
+	var rear:=portrait("res://assets/pet_rear_%d.png"%id,true)
+	var sprite:=Sprite3D.new()
+	sprite.name="PixelCompanion"
+	sprite.texture=front
+	sprite.texture_filter=BaseMaterial3D.TEXTURE_FILTER_NEAREST
+	sprite.alpha_cut=SpriteBase3D.ALPHA_CUT_DISCARD
+	sprite.billboard=BaseMaterial3D.BILLBOARD_ENABLED
+	sprite.shaded=false
+	sprite.cast_shadow=GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	sprite.position.y=height*.5
+	sprite.pixel_size=height/float(front.get_height())
+	sprite.set_meta("front",front)
+	sprite.set_meta("rear",rear if rear!=null else front)
+	sprite.set_meta("world_height",height)
+	parent.add_child(sprite)
+	return sprite
+
+static func orient_world_sprite(actor:Node3D,camera:Camera3D)->void:
+	if not is_instance_valid(actor) or not is_instance_valid(camera): return
+	var sprite:=actor.get_node_or_null("PixelCompanion") as Sprite3D
+	if sprite==null: return
+	var to_camera:=camera.global_position-actor.global_position
+	to_camera.y=0
+	var forward:=actor.global_transform.basis.z
+	forward.y=0
+	var facing:=forward.normalized().dot(to_camera.normalized())
+	var tex:Texture2D=sprite.get_meta("rear") if facing<-.15 else sprite.get_meta("front")
+	if sprite.texture!=tex:
+		sprite.texture=tex
+		sprite.pixel_size=float(sprite.get_meta("world_height"))/float(tex.get_height())

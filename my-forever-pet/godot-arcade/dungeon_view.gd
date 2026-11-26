@@ -1,4 +1,5 @@
 extends Control
+const PixelArt=preload("res://pixel_pet_art.gd")
 const Rules=preload("res://dungeon_rules.gd")
 const Data=preload("res://research_data.gd")
 signal ended(success:bool,completed:int,elapsed:float)
@@ -333,6 +334,9 @@ func shape(parent:Node3D,kind:String,p:Vector3,scale_value:Vector3,c:Color)->Mes
 	return o
 func model(parent:Node3D,id:int)->Node3D:
 	var node=Node3D.new();parent.add_child(node)
+	if PixelArt.world_sprite(node,id)!=null:
+		node.scale=Vector3.ONE*.70
+		return node
 	var file="res://assets/mosskit.glb" if id==0 else "res://assets/creatures/species_%02d.glb"%id
 	if ResourceLoader.exists(file):
 		var scene=cached_scene(file)
@@ -1524,6 +1528,7 @@ func build_floor():
 	floor_banner.size=Vector2(area.size.x,45);floor_banner.position=Vector2(0,area.size.y*.12)
 	var focus=pet.position+Vector3(0,.18,-.48)
 	camera.position=focus+DUNGEON_CAMERA_OFFSET;camera.look_at(focus)
+	PixelArt.orient_world_sprite(pet_pose,camera)
 	refresh_actors()
 	floor_build_usec=Time.get_ticks_usec()-start_usec
 	print("DUNGEON_FLOOR_BUILD region=",region," floor=",run.floor_number," usec=",floor_build_usec," rocks=",rock_modules," cached_rock_sets=",rock_mesh_cache.size()," landmarks=",landmark_count," details=",detail_count," paired_spans=",span_count," corners=",corner_count," terraces=",terrace_count," floor_details=",floor_detail_count," thresholds=",threshold_count," exterior_vertices=",exterior_vertex_count," exterior_groups=",exterior_groups.size()," exterior_static_batches=",exterior_static_batches," exterior_life=",exterior_life_centers.size())
