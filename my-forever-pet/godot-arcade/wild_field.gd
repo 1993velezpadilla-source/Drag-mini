@@ -16,6 +16,12 @@ var status:Label
 var timer_label:Label
 var progress:ProgressBar
 var calm:ProgressBar
+var signal_bar:ProgressBar
+var inspect_button:Button
+var scan_button:Button
+var pulse:Node3D
+var found_flash=0.0
+var camera_focus=Vector3.ZERO
 var last_index=0
 var last_position=Vector2.ZERO
 var notified=false
@@ -41,8 +47,12 @@ func setup(r:int,id:int,step:int,finale:bool,patrol:bool,seed_id:int,companion:i
 	var bottom=VBoxContainer.new();bottom.add_theme_constant_override("separation",8);footer.add_child(bottom)
 	readout=Label.new();readout.add_theme_font_size_override("font_size",23);readout.horizontal_alignment=HORIZONTAL_ALIGNMENT_CENTER;bottom.add_child(readout)
 	progress=ProgressBar.new();progress.max_value=run.required;progress.show_percentage=false;progress.custom_minimum_size.y=12;bottom.add_child(progress)
-	calm=ProgressBar.new();calm.max_value=1.15;calm.show_percentage=false;calm.custom_minimum_size.y=7;calm.visible=finale;bottom.add_child(calm)
+	signal_bar=ProgressBar.new();signal_bar.max_value=1.0;signal_bar.show_percentage=false;signal_bar.custom_minimum_size.y=8;bottom.add_child(signal_bar)
+	calm=ProgressBar.new();calm.max_value=run.capture_time;calm.show_percentage=false;calm.custom_minimum_size.y=9;bottom.add_child(calm)
 	status=Label.new();status.horizontal_alignment=HORIZONTAL_ALIGNMENT_CENTER;status.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART;status.add_theme_font_size_override("font_size",14);bottom.add_child(status)
+	var controls=HBoxContainer.new();controls.add_theme_constant_override("separation",8);bottom.add_child(controls)
+	scan_button=Button.new();scan_button.custom_minimum_size=Vector2(120,58);scan_button.pressed.connect(func():run.scan());controls.add_child(scan_button)
+	inspect_button=Button.new();inspect_button.custom_minimum_size.y=58;inspect_button.size_flags_horizontal=SIZE_EXPAND_FILL;inspect_button.button_down.connect(func():run.set_inspecting(true));inspect_button.button_up.connect(func():run.set_inspecting(false));controls.add_child(inspect_button)
 	update_hud()
 func skin(bg:Color,edge:Color)->StyleBoxFlat:
 	var st=StyleBoxFlat.new();st.bg_color=bg;st.border_color=edge;st.set_border_width_all(1);st.content_margin_left=12;st.content_margin_right=12;st.content_margin_top=10;st.content_margin_bottom=10;return st
@@ -72,7 +82,7 @@ func model(id:int,parent:Node3D)->Node3D:
 func build_world(companion:int,id:int,finale:bool):
 	var env=WorldEnvironment.new();env.environment=Environment.new();env.environment.background_mode=Environment.BG_COLOR;env.environment.background_color=[Color("#254d44"),Color("#16475d"),Color("#3b416c")][region];env.environment.ambient_light_source=Environment.AMBIENT_SOURCE_COLOR;env.environment.ambient_light_color=Color("#d9eaff");env.environment.ambient_light_energy=.8;world.add_child(env)
 	var sun=DirectionalLight3D.new();sun.light_color=Color("#fff2d2");sun.light_energy=1.25;sun.rotation_degrees=Vector3(-55,-30,0);sun.shadow_enabled=true;world.add_child(sun)
-	camera=Camera3D.new();camera.projection=Camera3D.PROJECTION_ORTHOGONAL;camera.keep_aspect=Camera3D.KEEP_WIDTH;camera.size=20.5;world.add_child(camera);camera.position=Vector3(0,23,17);camera.look_at(Vector3.ZERO);camera.current=true
+	camera=Camera3D.new();camera.projection=Camera3D.PROJECTION_ORTHOGONAL;camera.keep_aspect=Camera3D.KEEP_WIDTH;camera.size=13.4;world.add_child(camera);camera_focus=Vector3(run.player.x,0,run.player.y);camera.position=camera_focus+Vector3(0,23,17);camera.look_at(camera_focus);camera.current=true
 	var ground=shape(BoxMesh.new(),Vector3(0,-.35,0),Vector3(22,.6,22),[Color("#547d4c"),Color("#427f91"),Color("#777eaa")][region],world)
 	var mat=ground.material_override as StandardMaterial3D
 	var noise=FastNoiseLite.new();noise.frequency=.12
@@ -104,11 +114,21 @@ func build_world(companion:int,id:int,finale:bool):
 	trace=Node3D.new();world.add_child(trace)
 	var ring=TorusMesh.new();ring.inner_radius=.42;ring.outer_radius=.56;ring.rings=16;ring.ring_segments=8;shape(ring,Vector3(0,.13,0),Vector3.ONE,tint.lightened(.4),trace,true)
 	sphere(Vector3(0,.55,0),Vector3(.22,.22,.22),Color("#fff0a5"),trace,true)
+	pulse=Node3D.new();world.add_child(pulse)
+	var scan_ring=TorusMesh.new();scan_ring.inner_radius=.94;scan_ring.outer_radius=1.0;scan_ring.rings=24;scan_ring.ring_segments=6;shape(scan_ring,Vector3(0,.09,0),Vector3.ONE,tint.lightened(.6),pulse,true)
+	pulse.hide()
 	if finale:wild=model(id,world)
 	for i in range(2 if id<12 else 3):
 		var hazard=Node3D.new();world.add_child(hazard);hazards.append(hazard)
 		var ring2=TorusMesh.new();ring2.inner_radius=.68;ring2.outer_radius=.85;ring2.rings=20;ring2.ring_segments=8;shape(ring2,Vector3(0,.12,0),Vector3.ONE,Color("#f29b6c"),hazard,true)
-		sphere(Vector3(0,.5,0),Vector3(.65,.7,.65),Color("#e29667"),hazard,true)
+		if region==0:
+			for k in range(3):
+				var thorn=shape(PrismMesh.new(),Vector3((k-1)*.24,.38,0),Vector3(.32,.76,.4),Color("#da8b56"),hazard,true);thorn.rotation.y=float(k)*1.3
+		elif region==1:
+			var whirl=TorusMesh.new();whirl.inner_radius=.20;whirl.outer_radius=.48;shape(whirl,Vector3(0,.45,0),Vector3.ONE,Color("#a6e8f5"),hazard,true)
+			sphere(Vector3(0,.6,0),Vector3(.28,.48,.28),Color("#e5f8fc"),hazard,true)
+		else:
+			shape(PrismMesh.new(),Vector3(0,.55,0),Vector3(.62,1.1,.62),Color("#ffc5e5"),hazard,true)
 func aim(p:Vector2,dims:Vector2):
 	if dims.x<=0 or dims.y<=0 or run.finished:return
 	var screen=p*Vector2(viewport.size)/dims
@@ -123,19 +143,32 @@ func _process(dt:float):
 	var move=run.player-last_position
 	if move.length()>.01:player.rotation.y=atan2(move.x,move.y)
 	last_position=run.player
+	camera_focus=camera_focus.lerp(Vector3(clampf(run.player.x,-4.0,4.0),0,clampf(run.player.y,-4.0,4.0)),1.0-exp(-dt*7.0))
+	camera.position=camera_focus+Vector3(0,23,17);camera.look_at(camera_focus)
+	pulse.visible=run.scan_left>0;pulse.position=Vector3(run.player.x,0,run.player.y);pulse.scale=Vector3.ONE*(1.0+7.0*(1.0-run.scan_left/2.6))
+	if run.index!=last_index:found_flash=1.0;last_index=run.index
+	found_flash=maxf(0,found_flash-dt)
 	var point=run.signal_position()
 	trace.position=Vector3(point.x,.02,point.y)
-	trace.visible=run.player.distance_to(point)<3.3 and not run.encounter
+	trace.visible=(run.player.distance_to(point)<2.6 or run.scan_left>0) and not run.encounter
+	trace.scale=Vector3.ONE*(1.0+.14*sin(run.elapsed*8))
 	if is_instance_valid(wild):
 		wild.position=Vector3(point.x,.1,point.y);wild.visible=run.player.distance_to(point)<5.5;wild.rotation.y=atan2(run.player.x-point.x,run.player.y-point.y)
 	for i in range(hazards.size()):
-		var p=run.hazard_at(i);hazards[i].position=Vector3(p.x,0,p.y)
+		var p=run.hazard_at(i);hazards[i].position=Vector3(p.x,0,p.y);hazards[i].rotation.y=run.elapsed*1.7
 	update_hud()
 	if run.finished:
 		notified=true;ended.emit(run.success,run.index,run.elapsed)
 func update_hud():
 	timer_label.text="%02d s"%ceili(maxf(0,run.time_left))
-	progress.value=run.index;calm.value=run.hold
-	readout.text=("Approach gently" if run.encounter else "Follow the signal")+" · %d/%d"%[run.index,run.required]
-	status.text="Tap or drag to move · Avoid glowing hazards" if not run.started else run.direction()+" · "+("Stay close to earn trust" if run.encounter else "Find the hidden trace")
+	progress.value=run.index;calm.value=run.hold;signal_bar.value=run.signal_strength()
+	readout.text=("Wild encounter" if run.encounter else "Track the creature")+"  %d/%d"%[run.index,run.required]
+	scan_button.text="Scan %d"%run.scans;scan_button.disabled=run.scans<=0 or run.scan_left>0 or run.finished
+	inspect_button.text="Hold to befriend" if run.encounter else "Hold to collect"
+	inspect_button.modulate=Color.WHITE if run.inspect_ready() else Color("#82939c")
+	status.text="Tap to move · Use signal strength to search" if not run.started else "Signal: "+("HOT" if run.signal_strength()>.78 else "WARM" if run.signal_strength()>.4 else "COLD")
+	if run.scan_left>0:status.text="SCAN · "+run.direction()
+	if run.inspect_ready():status.text="Hold the action button now!"
+	if found_flash>0:status.text="Trace secured!" if not run.encounter else "Trust gained!"
 	if run.hit_cooldown>0:status.text="Hazard! −3 seconds · Keep moving"
+	timer_label.modulate=Color("#ffab97") if run.time_left<10 else Color.WHITE

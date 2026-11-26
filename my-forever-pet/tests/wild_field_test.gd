@@ -10,12 +10,18 @@ func run():
 					var field=Rules.new();field.setup(region,id,0,finale,false,seed_id)
 					field.tick(.1);assert(not field.started and field.elapsed==0)
 					for frame in range(3000):
-						field.move_to(field.signal_position());field.tick(1.0/60)
+						field.move_to(field.signal_position());field.set_inspecting(true);field.tick(1.0/60)
 						if field.finished:break
 					assert(field.finished and field.success,"field not completable")
 					assert(field.index==field.required)
 					assert(field.elapsed>=2.0)
 					count+=1
+	var passive=Rules.new();passive.setup(0,1,0,false,false,123)
+	for i in range(150):passive.move_to(passive.signal_position());passive.tick(.016)
+	assert(passive.index==0,"walking alone must not collect a trace")
+	assert(passive.scan() and not passive.scan(),"scan cannot spam")
+	for i in range(30):passive.tick(.1)
+	assert(passive.scan_left==0 and passive.scans==2,"scan expires and costs a charge")
 	var expired=Rules.new();expired.setup(0,1,0,false,false,99);expired.move_to(expired.player)
 	for i in range(500):expired.tick(.1)
 	assert(expired.finished and not expired.success)
