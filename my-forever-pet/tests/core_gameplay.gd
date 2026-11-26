@@ -333,5 +333,24 @@ func run():
 		coins=pet.s.coins
 		reward=pet.field_finish(true,attempt.required,20.0,2)
 		check(reward.get("unlocked",false) and not reward.get("flawless",true) and pet.s.coins==coins+[30,55,85][tier],"damage removes only flawless bonus tier "+str(tier))
+	reset(4)
+	pet.field_session={}
+	pet.s.collection=1
+	pet.s.research_target[0]=1
+	var before_dungeon:int=pet.s.coins
+	var before_mats:int=pet.s.materials
+	var dungeon:Dictionary=pet.field_begin(0,false,true)
+	check(not dungeon.is_empty() and dungeon.required==3 and dungeon.companion==pet.species(),"dungeon uses active companion and three floors")
+	var settled:Dictionary=pet.field_finish(true,3,30.0,1,18,2)
+	check(settled.correct and settled.evidence==3 and pet.research_progress(1)==3,"each cleared floor advances research")
+	check(pet.s.coins==before_dungeon+22 and pet.s.materials==before_mats+2,"dungeon loot deposited once")
+	check(not pet.field_finish(true,3,30.0,1,18,2).ok,"dungeon settlement replay blocked")
+	dungeon=pet.field_begin(0,false,true)
+	check(not dungeon.is_empty(),"second dungeon starts")
+	settled=pet.field_finish(true,3,30.0,0,4,1)
+	check(settled.correct and pet.research_progress(1)==R.needed(1),"dungeon progress reaches rescue gate")
+	dungeon=pet.field_begin(0,false,true)
+	check(dungeon.finale and dungeon.required==4,"rescue dungeon requires final guardian floor")
+	pet.field_cancel()
 	print("FOREVER_PET_CORE_PASS ",passed)
 	quit()

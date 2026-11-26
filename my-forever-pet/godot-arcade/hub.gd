@@ -986,6 +986,8 @@ func build_habitat():
 		var copy=VBoxContainer.new();copy.size_flags_horizontal=SIZE_EXPAND_FILL;line.add_child(copy)
 		label(copy,"Unknown trail" if step<goal else store.SPECIES[id],21).autowrap_mode=TextServer.AUTOWRAP_WORD_SMART
 		label(copy,"%d/%d evidence · %s"%[step,goal,"Common" if id<12 else "Rare" if id<24 else "Mystic"],14)
+		var floors=3+(0 if id<12 else 1 if id<24 else 2)+(1 if step>=goal else 0)
+		label(copy,"%d floors · %s"%[floors,"Guardian rescue" if step>=goal else "Evidence per floor"],14).modulate=Research.TINTS[r]
 		var bar=ProgressBar.new();bar.max_value=goal;bar.value=step;bar.show_percentage=false;bar.custom_minimum_size.y=10;copy.add_child(bar)
 		var block:String=store.research_block("track" if step<goal else "encounter",r)
 		if store.research_rank(r)<store.field_rank_required(id):block="Requires explorer rank %d · Complete local surveys"%store.field_rank_required(id)
@@ -1067,6 +1069,17 @@ func finish_hunt(result:Dictionary):
 	else:
 		if result.get("correct",false):play_reward(false)
 		select("Habitat")
+		if result.get("correct",false) and result.get("dungeon",false):
+			var summary=AcceptDialog.new();summary.title="EXPEDITION CLEARED";summary.ok_button_text="Continue adventure"
+			var content=VBoxContainer.new();content.add_theme_constant_override("separation",12);summary.add_child(content)
+			var portrait_art=TextureRect.new();portrait_art.texture=tex("res://assets/pet_%d.png"%store.species());portrait_art.custom_minimum_size=Vector2(220,160);portrait_art.expand_mode=TextureRect.EXPAND_IGNORE_SIZE;portrait_art.stretch_mode=TextureRect.STRETCH_KEEP_ASPECT_CENTERED;content.add_child(portrait_art)
+			label(content,"%d floors cleared"%int(result.floors),25).horizontal_alignment=HORIZONTAL_ALIGNMENT_CENTER
+			if result.get("evidence",0)>0:label(content,"+%d research evidence"%int(result.evidence),19).modulate=Color("#b9ebc0")
+			label(content,"+%d coins   ·   +%d XP"%[int(result.coins),int(result.xp)],19)
+			label(content,"+%d crafting materials"%int(result.materials),17)
+			if result.get("flawless",false):label(content,"FLAWLESS CLEAR",16).modulate=Color("#ffe3a0")
+			var note=label(content,hunt_message,15);note.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART
+			summary.confirmed.connect(summary.queue_free);summary.canceled.connect(summary.queue_free);add_child(summary);summary.popup_centered(Vector2i(385,430))
 func room(name:String):
 	if name!=current_room: notice.text=""
 	for key in nav_buttons:
