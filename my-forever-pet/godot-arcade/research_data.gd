@@ -47,3 +47,16 @@ static func trial_sequence(region:int,id:int,step:int)->Array[int]:
 static func trial_success(region:int,id:int,step:int,answer:Array,phase:float)->bool:
 	if region==1:return is_finite(phase) and phase>=.38 and phase<=.62
 	return answer==trial_sequence(region,id,step)
+
+# Sanctuaries are permanent one-time discoveries, not timed expeditions.
+const SANCTUARIES=[["Ancient Oak","Moonlit Ruins","Emerald Heart"],["Pearl Cavern","Sunken Temple","Abyssal Crown"],["Wind Citadel","Star Observatory","Celestial Gate"]]
+const SANCTUARY_RELICS=[["Amber seed","Moon bark","Emerald heart"],["Pearl fragment","Coral idol","Abyssal crown"],["Wind crystal","Star prism","Celestial key"]]
+static func sanctuary_points(region:int,tier:int)->Array[Vector2]:
+	var points:Array[Vector2]=[]
+	var layouts=[[Vector2(.20,.22),Vector2(.80,.25),Vector2(.74,.72)],[Vector2(.78,.19),Vector2(.19,.45),Vector2(.76,.77)],[Vector2(.24,.19),Vector2(.80,.48),Vector2(.26,.76)]]
+	for i in range(3):points.append(layouts[posmod(region+tier,3)][i])
+	return points
+static func sanctuary_rank(tier:int)->int:return tier+2
+static func sanctuary_bit(region:int,tier:int)->int:return 1<<(region*3+tier)
+static func sanctuary_cost(tier:int)->int:return 4+tier*2
+static func sanctuary_reward(tier:int)->int:return 40+tier*25

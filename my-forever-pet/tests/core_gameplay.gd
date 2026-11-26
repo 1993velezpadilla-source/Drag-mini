@@ -195,5 +195,20 @@ func run():
 	pet.s.research_rank_xp[0]=120; check(pet.research_rank(0)==5,"max rank")
 	pet.s.research_day="yesterday"; pet.s.last=pet.now()-2; pet.advance(pet.now())
 	check(pet.s.research_daily[0]==0 and pet.research_skill_ready(0),"daily reset restores contract and skill")
+	reset(4)
+	check(not pet.sanctuary_block(0,0).is_empty(),"sanctuary requires rank")
+	pet.s.research_rank_xp[0]=30
+	check(pet.sanctuary_block(0,0).is_empty(),"rank two opens sanctuary")
+	var start_wallet:int=pet.s.coins
+	check(pet.sanctuary_collect(0,0,0).ok,"first relic")
+	check(not pet.sanctuary_collect(0,0,0).ok,"duplicate relic blocked")
+	check(pet.sanctuary_collect(0,0,1).ok,"second relic")
+	check(pet.s.coins==start_wallet,"no treasure before all fragments")
+	check(pet.sanctuary_collect(0,0,2).complete,"sanctuary treasure")
+	check(pet.s.coins==start_wallet+40 and pet.s.energy==96,"treasure pays once and consumes energy")
+	check(not pet.sanctuary_collect(0,0,2).ok,"treasure cannot repeat")
+	pet.s.research_rank_xp[0]=60
+	check(pet.sanctuary_block(0,1).is_empty(),"rank three and prior sanctuary open next")
+	check(not pet.sanctuary_block(1,0).is_empty(),"regional rank independent")
 	print("FOREVER_PET_CORE_PASS ",passed)
 	quit()

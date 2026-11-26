@@ -843,6 +843,43 @@ func open_patrol(r:int):
 		select("Habitat"))
 	button(actions,"‹ Return to habitats",func(): select("World"))
 	swipe_children(actions); section_scroll.scroll_vertical=0
+func sanctuary_cards(parent:Node,r:int):
+	section_heading(parent,"Hidden sanctuaries","Rank up to unlock explorable ruins. Find three relic fragments in each.")
+	for tier in range(3):
+		var shell=panel(parent); var line=row(shell)
+		var icon=TextureRect.new(); icon.texture=tex("res://assets/premium_crystal.png"); icon.custom_minimum_size=Vector2(44,44); icon.expand_mode=TextureRect.EXPAND_IGNORE_SIZE; icon.stretch_mode=TextureRect.STRETCH_KEEP_ASPECT_CENTERED; line.add_child(icon)
+		var copy=VBoxContainer.new(); copy.size_flags_horizontal=SIZE_EXPAND_FILL; line.add_child(copy)
+		label(copy,Research.SANCTUARIES[r][tier],18).autowrap_mode=TextServer.AUTOWRAP_WORD_SMART
+		var block:String=store.sanctuary_block(r,tier)
+		var done=(int(store.s.sanctuary_mask)&Research.sanctuary_bit(r,tier))!=0
+		label(copy,block if not block.is_empty() else "+%d coins · %d crystals"%[Research.sanctuary_reward(tier),1+tier],13).autowrap_mode=TextServer.AUTOWRAP_WORD_SMART
+		var b=button(line,"Done ✓" if done else "Enter ›" if block.is_empty() else "Locked",func(): open_sanctuary(r,tier))
+		b.disabled=not block.is_empty(); b.size_flags_horizontal=SIZE_SHRINK_CENTER; b.custom_minimum_size=Vector2(86,44)
+func open_sanctuary(r:int,tier:int):
+	var block:String=store.sanctuary_block(r,tier)
+	if not block.is_empty():hunt_message=block;select("Habitat");return
+	reset_actions()
+	section_heading(actions,Research.SANCTUARIES[r][tier],"Walk by tapping or dragging on the terrain. Follow the glimmers; nearby relics become visible.")
+	var field=preload("res://sanctuary_field.gd").new()
+	actions.add_child(field)
+	var mask=int(store.s.sanctuary_progress[r*3+tier])
+	field.setup(r,tier,mask,tex("res://assets/pet_%d.png"%store.species()))
+	var count=0
+	for i in range(3):
+		if (mask&(1<<i))!=0:count+=1
+	label(actions,"Relic fragments %d/3 · Treasure recovery: %d energy"%[count,Research.sanctuary_cost(tier)],15)
+	field.recovered.connect(func(index:int):
+		var result:Dictionary=store.sanctuary_collect(r,tier,index)
+		hunt_message=str(result.get("message",""))
+		if result.get("complete",false):
+			play_reward(true);select("Habitat")
+		elif result.get("ok",false):
+			play_reward(false);field.mask=int(store.s.sanctuary_progress[r*3+tier]);field.locked=false
+			var toast=label(actions,hunt_message,15);toast.modulate=Color("#f8d788")
+		else:select("Habitat"))
+	button(actions,"‹ Return to habitat",func(): select("Habitat"))
+	swipe_children(actions);field.mouse_filter=MOUSE_FILTER_STOP
+	section_scroll.scroll_vertical=0
 func build_habitat():
 	var r=hunt_region
 	button(actions,"‹ All habitats",func(): select("World")).custom_minimum_size.y=42
@@ -850,6 +887,7 @@ func build_habitat():
 	var id:int=store.research_target(r)
 	field_contract(actions,r)
 	if id<0:
+		sanctuary_cards(actions,r)
 		label(actions,"All available local species registered. Check your collection!",19).autowrap_mode=TextServer.AUTOWRAP_WORD_SMART
 		button(actions,"View collection",func(): select("Pets")); return
 	var step:int=store.research_progress(id)
@@ -885,6 +923,7 @@ func build_habitat():
 			var option=button(actions,Research.OPTIONS[r][i],func(): hunt_action("encounter",i))
 			option.custom_minimum_size.y=53
 		label(actions,"Observe the creature before choosing. There is no need to hurt it.",13).autowrap_mode=TextServer.AUTOWRAP_WORD_SMART
+	sanctuary_cards(actions,r)
 	var dossier=panel(actions)
 	label(dossier,"Field guide · local creatures",18)
 	for candidate in Research.POOLS[r]:
