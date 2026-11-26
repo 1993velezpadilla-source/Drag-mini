@@ -58,6 +58,28 @@ func exterior_review(dungeon,region:int,floor_index:int):
 	assert(not layers.is_empty(),"real exterior render layers found")
 	await frames()
 	var full:Image=dungeon.viewport.get_texture().get_image()
+	# Report the marginal contribution of the actual cloud meshes separately.
+	# A bank count is not a visibility test.
+	if region==2 and ResourceLoader.exists(prefix+"_cloud_habitat.glb"):
+		var cloud_meshes:Array[Mesh]=[]
+		for part in dungeon.rock_parts(prefix+"_cloud_habitat.glb"):cloud_meshes.append(part.mesh)
+		var cloud_layers:Array[Node3D]=[]
+		for layer in layers:
+			if layer is MultiMeshInstance3D and cloud_meshes.has(layer.multimesh.mesh):cloud_layers.append(layer)
+		for layer in cloud_layers:layer.hide()
+		await frames()
+		var cloud_off:Image=dungeon.viewport.get_texture().get_image()
+		for layer in cloud_layers:layer.show()
+		await frames()
+		var cloud_changed=0;var cloud_samples=0
+		for yy in range(0,full.get_height(),2):
+			for xx in range(0,full.get_width(),2):
+				var ca=full.get_pixel(xx,yy);var cb=cloud_off.get_pixel(xx,yy)
+				if maxf(absf(ca.r-cb.r),maxf(absf(ca.g-cb.g),absf(ca.b-cb.b)))>.045:cloud_changed+=1
+				cloud_samples+=1
+		var cloud_coverage=100.0*float(cloud_changed)/maxi(cloud_samples,1)
+		print("ASTRAL_CLOUD_VISIBILITY floor=",floor_index," percent=",cloud_coverage," banks=",dungeon.astral_cloud_bounds.size())
+		if cloud_coverage<.5:push_warning("ART_REJECT cloud geometry is barely visible")
 	for layer in layers:layer.hide()
 	await frames()
 	var empty:Image=dungeon.viewport.get_texture().get_image()

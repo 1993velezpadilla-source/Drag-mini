@@ -1100,6 +1100,16 @@ func build_exterior_surface():
 					var shoulder=-.47+.09*n
 					h=lerpf(h,shoulder,ridge*.86*(1.0-support*.65))
 					h-=depth_factor*(1.0-maxf(support,ridge))*(.22 if region==0 else .43)
+				elif distance>=2 and support<.25:
+					# Keep the opaque cloud sea below the sculpted banks.
+					# Blend at the perimeter; never excavate an island foundation.
+					var p=Vector2(q)*1.4
+					for cloud in astral_cloud_bounds:
+						var c=Vector2(cloud.get_center().x,cloud.get_center().z)
+						var half_extent=Vector2(cloud.size.x,cloud.size.z)*.5+Vector2.ONE*.80
+						var relative=(p-c).abs()/half_extent
+						var mask=1.0-smoothstep(.58,1.0,maxf(relative.x,relative.y))
+						h=lerpf(h,minf(h,cloud.position.y-.18),mask*(1.0-support))
 				h=minf(h,-.35)
 			heights[y*width+x]=h;exterior_max_height=maxf(exterior_max_height,h)
 			vertices.append(Vector3(q.x*1.4,h,q.y*1.4));uvs.append(Vector2(q))
@@ -1161,10 +1171,22 @@ func build_astral_cloud_banks():
 			if exterior_distances[q]!=distance:continue
 			if posmod(q.x*11+q.y*19+run.floor_number,4)!=0:continue
 			var wide=.93+.42*float(posmod(q.x*17+q.y*7,9))/8.0
-			var y=-1.30-.16*float(distance-3)
-			var placement=Transform3D(Basis(Vector3.UP,float(posmod(q.x*7+q.y*13,12))*TAU/12.0).scaled(Vector3(wide,.72,wide*.92)),pos(q)+Vector3(0,y,0))
+			# Derive the crest from the imported geometry, not its origin.
+			# Near banks sit above the cloud sea and further bands descend.
+			var placement=Transform3D(Basis(Vector3.UP,float(posmod(q.x*7+q.y*13,12))*TAU/12.0).scaled(Vector3(wide,.72,wide*.92)),pos(q))
 			var bounds=measure_scenery(parts,placement)
+			var crest=-.40-.13*float(distance-3)
+			var offset=crest-bounds.end.y
+			placement.origin.y+=offset
+			bounds.position.y+=offset
 			if bounds.end.y>-.35 or not scenery_clear_of_floor(bounds):continue
+			# Never cover or cut beneath a terrace.
+			var covers_terrace=false
+			for tile in terrace_cells:
+				var p=pos(tile)
+				if p.x>=bounds.position.x-.70 and p.x<=bounds.end.x+.70 and p.z>=bounds.position.z-.70 and p.z<=bounds.end.z+.70:
+					covers_terrace=true;break
+			if covers_terrace:continue
 			var clear=true
 			for other in scenic_bounds:
 				if other.grow(.12).intersects(bounds):clear=false;break
@@ -1490,8 +1512,8 @@ func build_floor():
 	build_exterior_world(seen)
 	landscape_terraces(seen)
 	fill_habitat_understory(seen)
-	build_exterior_surface()
 	build_astral_cloud_banks()
+	build_exterior_surface()
 	if not natural_boundary(walls):
 		batch(geometry,walls,"box",Vector3(1.4,.88,1.4),palette[2],true)
 		boundary_detail(walls)
