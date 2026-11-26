@@ -6,6 +6,8 @@ var room_node:Node3D
 var avatar:Node3D
 var camera:Camera3D
 var pet_fit=1.0
+var bare_bounds=AABB()
+var incompatible_wearables=0
 var feet:Array[Node3D]=[]
 var wardrobe_nodes:Array[Node3D]=[]
 var equipped_key=""
@@ -126,8 +128,8 @@ func set_pet(species:int,stage:int):
 	else:
 		mesh(avatar,"res://assets/creatures/species_%02d.glb"%species,Vector3.ZERO)
 	sole_offset=mesh_bottom(avatar,Transform3D.IDENTITY)
-	var bounds=mesh_bounds(avatar,Transform3D.IDENTITY)
-	pet_fit=minf(1.0,2.3/maxf(0.1,maxf(bounds.size.x,bounds.size.y))) if species!=0 else 1.0
+	bare_bounds=mesh_bounds(avatar,Transform3D.IDENTITY)
+	pet_fit=minf(1.0,2.3/maxf(0.1,maxf(bare_bounds.size.x,bare_bounds.size.y))) if species!=0 else 1.0
 	var base=0.70 if stage==1 else 0.88 if stage==2 else 1.0
 	avatar.scale=Vector3.ONE*base*1.65*pet_fit
 	avatar.position.y=ground.y-sole_offset*avatar.scale.y
@@ -152,6 +154,33 @@ func mesh_bottom(node:Node,relative:Transform3D)->float:
 func grounded_error()->float:
 	if not is_instance_valid(avatar) or active_stage==0: return 0.0
 	return absf(avatar.position.y+sole_offset*avatar.scale.y-ground.y)
+# Face anchors are authored from the same dimensions as render_dash_creatures.py.
+# Mosskit retains the exact approved runner geometry; clothing is a separate layer.
+func face_anchor()->Vector3:
+	if active_species==0: return Vector3(0,1.03,.68)
+	match active_species%12:
+		1,2,10: return Vector3(0,1.50,.84)
+		3,6: return Vector3(0,1.64,.85)
+		4: return Vector3(0,1.12,.79)
+		5: return Vector3(0,1.39,.76)
+		7: return Vector3(0,1.32,.80)
+		8,11: return Vector3(0,1.50,.77)
+	return Vector3(0,1.50,.77)
+func eye_spacing()->float:
+	if active_species==0: return .58
+	match active_species%12:
+		3,6: return .68
+		5: return .64
+		4: return .60
+		7: return .62
+		8,11: return .56
+	return .58
+func fit_wearable(path:String,anchor:Vector3,factor:float)->Node3D:
+	var ob=mesh(avatar,path,anchor)
+	if ob==null: return null
+	ob.scale=Vector3.ONE*factor
+	wardrobe_nodes.append(ob)
+	return ob
 func dress(worn:Array,equipped:int):
 	if not is_instance_valid(avatar): return
 	var key=str(worn)+":"+str(equipped)
@@ -162,23 +191,37 @@ func dress(worn:Array,equipped:int):
 			avatar.remove_child(ob)
 			ob.queue_free()
 	wardrobe_nodes.clear()
+	incompatible_wearables=0
 	if active_stage==0: return
-	var anchors=[Vector3(0,1.66,0),Vector3(0,1.03,0.68),Vector3(0,0.52,0.38),Vector3(0,0.17,0.21)]
-	var scales=[0.66,0.44,0.58,0.42]
+	var eye=face_anchor()
+	var family=active_species%12
+	var aquatic=active_species!=0 and family in [4,7]
+	var cap_y=1.66 if active_species==0 else eye.y+.52
+	var anchors=[Vector3(0,cap_y,0.05),eye,Vector3(0,.49,.42),Vector3(0,.17,.32)]
+	var scales=[.59,eye_spacing()/1.3,.53,.40]
+	if active_species!=0:
+		anchors[2]=Vector3(0,.62,.48)
+		anchors[3]=Vector3(0,.16,.44)
 	for slot in range(4):
 		var id=int(worn[slot])
 		if id<=0: continue
-		var ob=mesh(avatar,"res://assets/wardrobe/clothes_%d.glb"%(id-1),anchors[slot])
-		if ob!=null:
-			ob.scale=Vector3.ONE*scales[slot]
-			wardrobe_nodes.append(ob)
+		# Fish and jellyfish have no legs to attach shoes to.
+		if aquatic and slot==3:
+			incompatible_wearables+=1
+			continue
+		var ob=fit_wearable("res://assets/wardrobe/clothes_%d.glb"%(id-1),anchors[slot],scales[slot])
+		if ob!=null and slot==0:
+			var bounds=mesh_bounds(ob,Transform3D.IDENTITY)
+			var clearance=eye.y+.24-bounds.position.y
+			if clearance>0: ob.position.y+=clearance
+		if ob!=null and slot==2:
+			var bounds=mesh_bounds(ob,Transform3D.IDENTITY)
+			var overlap=bounds.end.y-(eye.y-.35)
+			if overlap>0: ob.position.y-=overlap
 	if equipped>0:
-		var anchor=Vector3(0,1.72,0) if equipped==1 else Vector3(0.60,1.40,0.26) if equipped==2 else Vector3(0,2.05,0)
-		var ob=mesh(avatar,"res://assets/wardrobe/item_%d.glb"%(equipped-1),anchor)
-		if ob!=null:
-			ob.scale=Vector3.ONE*0.57
-			if equipped==3: ob.rotation.x=PI/2
-			wardrobe_nodes.append(ob)
+		var anchor=Vector3(0,cap_y+.12,0) if equipped==1 else Vector3(.53,eye.y+.37,.22) if equipped==2 else Vector3(0,bare_bounds.end.y+.20,0)
+		var ob=fit_wearable("res://assets/wardrobe/item_%d.glb"%(equipped-1),anchor,.49)
+		if ob!=null and equipped==3: ob.rotation.x=PI/2
 func set_sleeping(value:bool):
 	sleeping=value
 func react(kind:String,asleep:bool):

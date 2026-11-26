@@ -565,6 +565,7 @@ func refresh():
 	live_stage.set_night(night)
 	live_stage.set_sleeping(store.asleep(store.now()))
 	live_stage.dress(s.worn,int(s.equipped))
+	if live_stage.incompatible_wearables>0: outfit_label.text="Shoes stay in your wardrobe for aquatic pets"
 	position_hotspots()
 	face.visible=false
 	egg_visual.visible=s.stage==0 and egg_art.texture==null

@@ -57,8 +57,11 @@ def paw(x,y,z,m):
  for i in range(4):ell('toe',(x+(i-1.5)*.14,y,z+.22+(.04 if i in [1,2] else 0)),(.065,.05,.08),m)
 def shirt(formal=False,suit=False):
  m=navy if formal else teal if suit else cream
- box('body',(0,0,0),(1.45,.48,1.45),m,.20)
- for x in [-1,1]:box('sleeve',(x*.85,0,.38),(.63,.42,.65),m,.12,rot=(0,x*.35,0))
+ # Curved fabric bib: the previous cuboid crossed the face and looked like armor.
+ ell('tailored curved front',(0,0,0),(.74,.26,.60),m)
+ for x in [-1,1]:
+  o=ell('rounded sleeve',(x*.66,.025,.19),(.25,.22,.31),m);o.rotation_euler.y=x*.30
+ tor('collar',(0,-.03,.48),.30,.047,navy if not formal else cream,scale=(1,.72,1))
  if formal:
   box('dress shirt',(0,-.28,.18),(.49,.05,1.06),cream,.05)
   for x in [-1,1]:
@@ -66,7 +69,7 @@ def shirt(formal=False,suit=False):
   for z in [.15,-.12,-.39]:ell('button',(0,-.35,z),(.05,.035,.05),gold)
  elif suit:
   box('control panel',(0,-.30,.17),(.62,.09,.48),navy,.07);ell('badge',(0,-.37,.17),(.13,.05,.13),gold)
- else:paw(0,-.32,.15,teal)
+ else:paw(0,-.265,.06,teal)
 for i in range(8):
  clear()
  if i==0:
