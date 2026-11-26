@@ -337,7 +337,7 @@ func natural_boundary(points:Array[Vector3])->bool:
 	if not spans.is_empty():
 		for q in available:
 			if consumed.has(q):continue
-			if posmod(q.x*31+q.y*17+run.floor_number,4)==0:continue
+			if posmod(q.x*31+q.y*17+run.floor_number,9)==0:continue
 			for d in [Vector2i.RIGHT,Vector2i.DOWN]:
 				var other:Vector2i=q+d
 				if not available.has(other) or consumed.has(other):continue
@@ -358,8 +358,11 @@ func natural_boundary(points:Array[Vector3])->bool:
 		for q in available:
 			if consumed.has(q):continue
 			if posmod(q.x*19+q.y*7+run.floor_number,3)!=variant:continue
-			var angle=float(posmod(q.x*3+q.y*5,4))*PI*.5
-			var scale_value=Vector3(1.08,.78+.27*float(posmod(q.x*13+q.y,5))/4.0,1.08)
+			var inward=Vector2i.ZERO
+			for d in Rules.DIR:
+				if run.cells.has(q+d):inward+=d
+			var angle=atan2(float(inward.x),float(inward.y)) if inward!=Vector2i.ZERO else float(posmod(q.x*3+q.y*5,4))*PI*.5
+			var scale_value=Vector3(1.0,.82+.15*float(posmod(q.x*13+q.y,5))/4.0,1.0)
 			singles.append(Transform3D(Basis(Vector3.UP,angle).scaled(scale_value),pos(q)))
 		batch_parts(variants[variant],singles)
 		rock_modules+=singles.size()
