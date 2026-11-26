@@ -5,6 +5,10 @@ signal ended(success:bool,completed:int,elapsed:float)
 signal canceled
 var run=Rules.new()
 var camera:Camera3D
+var field_input:Control
+var touch_index=-1
+var mouse_held=false
+var action_held=false
 var viewport:SubViewport
 var world:Node3D
 var player:Node3D
@@ -41,12 +45,12 @@ func setup(r:int,id:int,step:int,finale:bool,patrol:bool,seed_id:int,companion:i
 	var back=Button.new();back.text="‹ Exit";back.custom_minimum_size=Vector2(76,48);back.pressed.connect(func():canceled.emit());top.add_child(back)
 	var name=Label.new();name.text=Data.REGIONS[r];name.add_theme_font_size_override("font_size",22);name.size_flags_horizontal=SIZE_EXPAND_FILL;top.add_child(name)
 	timer_label=Label.new();timer_label.add_theme_font_size_override("font_size",22);top.add_child(timer_label)
-	var view=SubViewportContainer.new();view.stretch=true;view.stretch_shrink=2;view.size_flags_vertical=SIZE_EXPAND_FILL;view.mouse_filter=MOUSE_FILTER_STOP;root.add_child(view)
+	var play_area=Control.new();play_area.size_flags_vertical=SIZE_EXPAND_FILL;play_area.clip_contents=true;root.add_child(play_area)
+	var view=SubViewportContainer.new();view.stretch=true;view.stretch_shrink=2;view.mouse_filter=MOUSE_FILTER_IGNORE;play_area.add_child(view);view.set_anchors_and_offsets_preset(PRESET_FULL_RECT)
 	viewport=SubViewport.new();viewport.own_world_3d=true;viewport.render_target_update_mode=SubViewport.UPDATE_ALWAYS;viewport.msaa_3d=Viewport.MSAA_DISABLED;view.add_child(viewport)
 	world=Node3D.new();viewport.add_child(world)
-	view.gui_input.connect(func(e:InputEvent):
-		if e is InputEventMouseButton and e.button_index==MOUSE_BUTTON_LEFT and e.pressed:aim(e.position,view.size)
-		elif e is InputEventMouseMotion and (e.button_mask&MOUSE_BUTTON_MASK_LEFT)!=0:aim(e.position,view.size))
+	field_input=Control.new();field_input.name="FieldInput";field_input.mouse_filter=MOUSE_FILTER_STOP;play_area.add_child(field_input);field_input.set_anchors_and_offsets_preset(PRESET_FULL_RECT)
+	field_input.gui_input.connect(field_event)
 	build_world(companion,id,finale)
 	var footer=PanelContainer.new();footer.add_theme_stylebox_override("panel",skin(Color("#142531"),Color("#354e59")));root.add_child(footer)
 	var bottom=VBoxContainer.new();bottom.add_theme_constant_override("separation",8);footer.add_child(bottom)
@@ -57,7 +61,7 @@ func setup(r:int,id:int,step:int,finale:bool,patrol:bool,seed_id:int,companion:i
 	status=Label.new();status.horizontal_alignment=HORIZONTAL_ALIGNMENT_CENTER;status.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART;status.add_theme_font_size_override("font_size",14);bottom.add_child(status)
 	var controls=HBoxContainer.new();controls.add_theme_constant_override("separation",8);bottom.add_child(controls)
 	scan_button=Button.new();scan_button.custom_minimum_size=Vector2(120,58);scan_button.pressed.connect(func():run.scan());controls.add_child(scan_button)
-	inspect_button=Button.new();inspect_button.custom_minimum_size.y=58;inspect_button.size_flags_horizontal=SIZE_EXPAND_FILL;inspect_button.button_down.connect(func():run.set_inspecting(true));inspect_button.button_up.connect(func():run.set_inspecting(false));controls.add_child(inspect_button)
+	inspect_button=Button.new();inspect_button.custom_minimum_size.y=58;inspect_button.size_flags_horizontal=SIZE_EXPAND_FILL;inspect_button.button_down.connect(func():action_held=true;run.set_inspecting(true));inspect_button.button_up.connect(func():action_held=false;run.set_inspecting(false));controls.add_child(inspect_button)
 	burst_button=Button.new();burst_button.custom_minimum_size=Vector2(102,58);burst_button.pressed.connect(func():run.burst());controls.add_child(burst_button)
 	burst_meter=ProgressBar.new();burst_meter.max_value=4.0;burst_meter.show_percentage=false;burst_meter.custom_minimum_size.y=5;bottom.add_child(burst_meter)
 	update_hud()
@@ -173,9 +177,30 @@ func build_landmarks():
 			marker.position=Vector3(-6+float(i%4)*4,.10,-5+float(i/4)*4.0)
 			var arrow=shape(PrismMesh.new(),Vector3.ZERO,Vector3(.16,.08,.7),tint.lightened(.35),marker,true);arrow.rotation.x=PI/2
 			flow_arrows.append(marker)
+func field_event(event:InputEvent):
+	if event is InputEventScreenTouch:
+		if event.pressed and touch_index==-1:
+			touch_index=event.index;aim(event.position,field_input.size)
+		elif not event.pressed and event.index==touch_index:touch_index=-1
+		field_input.accept_event()
+	elif event is InputEventScreenDrag:
+		if event.index==touch_index:aim(event.position,field_input.size)
+		field_input.accept_event()
+	elif event is InputEventMouseButton and event.button_index==MOUSE_BUTTON_LEFT:
+		if event.device==-1:return
+		mouse_held=event.pressed
+		if mouse_held:aim(event.position,field_input.size)
+		field_input.accept_event()
+	elif event is InputEventMouseMotion and mouse_held and event.device!=-1:
+		aim(event.position,field_input.size)
+		field_input.accept_event()
+func _notification(what:int):
+	if what==NOTIFICATION_APPLICATION_FOCUS_OUT or what==NOTIFICATION_APPLICATION_PAUSED:
+		touch_index=-1;mouse_held=false;action_held=false
+		run.set_inspecting(false)
 func aim(p:Vector2,dims:Vector2):
 	if dims.x<=0 or dims.y<=0 or run.finished:return
-	var screen=p*Vector2(viewport.size)/dims
+	var screen=p.clamp(Vector2.ZERO,dims)*Vector2(viewport.size)/dims
 	var origin=camera.project_ray_origin(screen);var ray=camera.project_ray_normal(screen)
 	if absf(ray.y)<.001:return
 	var hit=origin+ray*(-origin.y/ray.y)

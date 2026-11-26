@@ -34,6 +34,11 @@ func run():
 	assert(water.current_at(Vector2.ZERO).length()>.5,"water current")
 	var sky=Rules.new();sky.setup(2,1,0,false,false,123);sky.elapsed=1.2
 	assert(sky.current_at(Vector2.ZERO).length()>1.0,"sky gust")
+	var timeout_edge=Rules.new();timeout_edge.setup(0,1,0,false,false,321)
+	timeout_edge.player=timeout_edge.signal_position();timeout_edge.move_to(timeout_edge.player)
+	timeout_edge.index=timeout_edge.required-1;timeout_edge.player=timeout_edge.signal_position();timeout_edge.destination=timeout_edge.player
+	timeout_edge.set_inspecting(true);timeout_edge.hold=timeout_edge.capture_time-.01;timeout_edge.time_left=.01
+	timeout_edge.tick(.02);assert(timeout_edge.finished and not timeout_edge.success,"timeout wins over late collection")
 	var expired=Rules.new();expired.setup(0,1,0,false,false,99);expired.move_to(expired.player)
 	for i in range(500):expired.tick(.1)
 	assert(expired.finished and not expired.success)

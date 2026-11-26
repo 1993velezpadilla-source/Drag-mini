@@ -69,7 +69,7 @@ func scan()->bool:
 	if finished or scans<=0 or scan_left>0:return false
 	scans-=1;scan_left=2.6;started=true;return true
 func signal_strength()->float:
-	return clampf(1.0-player.distance_to(signal_position())/11.0,0.0,1.0)
+	return clampf(1.0-player.distance_to(signal_position())/18.0,0.0,1.0)
 func inspect_ready()->bool:
 	return not finished and player.distance_to(signal_position())<=capture_radius and hit_cooldown<=0.0 and burst_left<=0.0
 func set_inspecting(value:bool):
@@ -100,6 +100,8 @@ func tick(delta:float):
 		var p=hazard_at(i);hazard_positions.append(p)
 		if player.distance_to(p)<.83 and hit_cooldown<=0 and burst_left<=0:
 			hit_cooldown=1.3;hits+=1;time_left-=3;hold=0
+	if time_left<=0:
+		finished=true;success=false;return
 	if inspecting and inspect_ready():hold+=dt
 	else:hold=maxf(0,hold-dt*2.5)
 	if hold>=capture_time:
