@@ -1567,6 +1567,8 @@ natural_rock((-.63,2.13,-.55),(1.10,.23,.91),moss,2804)
 natural_rock((.68,1.78,-.51),(1.02,.30,.88),moss,2805)
 natural_rock((-.99,.42,.20),(.54,.66,1.21),moss,2806)
 natural_rock((1.00,.38,.20),(.52,.56,1.18),moss,2807)
+# Keep the verified staging shoreline, widened to meet the taller waterfall.
+ball((0,.27,.46),(2.19,.12,1.65),forestedge)
 ball((0,.32,.46),(2.02,.11,1.52),stream)
 ball((0,2.20,-.64),(1.02,.07,.62),stream)
 # Continuous scalloped water sheet with a broad crest, curved drop and
@@ -1727,7 +1729,9 @@ for x,z in [(-.29,.19),(.32,-.12)]:
 tube([(-.59,.04,-.33),(-.16,.07,-.21),(.18,.05,-.36)],[.053,.039,.012],bark,6)
 export('dungeon_forest_understory',2600)
 clear()
-# Deep reef outcrop with several heights, overhanging ledges and a kelp forest.
+# Connected reef foundation from the verified staging model.
+natural_rock((0,.29,0),(2.42,.57,1.65),reefstone,3198)
+natural_rock((-.04,.61,.08),(1.97,.38,1.27),reefedge,3199)
 for k,(x,z,h) in enumerate([(-.67,-.25,1.75),(.39,-.32,2.15),(.61,.55,.86)]):
  natural_rock((x,h*.43,z),(.92,h,.92),reefstone,3200+k)
  for j in range(2):

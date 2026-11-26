@@ -71,6 +71,9 @@ var exterior_max_height=0.0
 var exterior_groups:Array[Vector2i]=[]
 var exterior_vistas:Array[Vector2i]=[]
 var habitat_tall:Array[Vector2i]=[]
+var habitat_large:Array[Vector2i]=[]
+var vista_large:Array[Vector2i]=[]
+var scenic_bounds:Array[AABB]=[]
 var habitat_low:Array[Vector2i]=[]
 var habitat_ground_candidates:Array[Vector2i]=[]
 var exterior_static_batches=0
@@ -553,7 +556,7 @@ func build_exterior_world(wall_cells:Dictionary):
 	# Multi-source BFS provides exact distance bands in O(cells + exterior area).
 	# No decoration is added to the gameplay graph.
 	exterior_static_batches=0;exterior_motion_batches=0;exterior_motion_materials.clear()
-	exterior_groups.clear();exterior_vistas.clear();habitat_tall.clear();habitat_low.clear();habitat_ground_candidates.clear();exterior_distances.clear();exterior_life.clear();exterior_life_parts.clear();exterior_life_centers.clear();exterior_clock=0.0
+	exterior_groups.clear();exterior_vistas.clear();habitat_tall.clear();habitat_large.clear();vista_large.clear();scenic_bounds.clear();habitat_low.clear();habitat_ground_candidates.clear();exterior_distances.clear();exterior_life.clear();exterior_life_parts.clear();exterior_life_centers.clear();exterior_clock=0.0
 	var queue:Array[Vector2i]=[]
 	for q in run.cells:
 		exterior_distances[q]=0;queue.append(q)
@@ -583,11 +586,22 @@ func build_exterior_world(wall_cells:Dictionary):
 			if not exterior_clearance(q):continue
 			var center=pos(q)+Vector3(0,-.42,0)
 			var angle=float(posmod(q.x*7+q.y*11,5)-2)*.14
-			var vista_scale=Vector3(1.10,1.35,1.08) if exterior_distances[q]>=3 else Vector3(.89,1.12,.89)
-			vista_placements.append(Transform3D(Basis(Vector3.UP,angle).scaled(vista_scale),center))
+			var large=habitat_wide_clearance(q)
+			var vista_scale=Vector3(1.42,1.58,1.35) if large else Vector3(.89,1.12,.89)
+			var placement=Transform3D(Basis(Vector3.UP,angle).scaled(vista_scale),center)
+			var bounds=measure_scenery(vista_parts,placement)
+			if not scenery_clear_of_floor(bounds):
+				large=false
+				placement=Transform3D(Basis(Vector3.UP,angle).scaled(Vector3(.89,1.12,.89)),center)
+				bounds=measure_scenery(vista_parts,placement)
+			if not scenery_clear_of_floor(bounds):continue
+			vista_placements.append(placement);scenic_bounds.append(bounds)
 			exterior_vistas.append(q);exterior_groups.append(q)
+			if large:vista_large.append(q)
 			break
 	batch_exterior_parts(vista_parts,vista_placements)
+	# Reserve the large scenic silhouettes before medium and low vegetation.
+	build_habitat_layers(prefix,queue,wall_cells)
 	# Interleave the sides of each room instead of filling far-away rooms first.
 	var candidates:Array[Vector2i]=[]
 	# Distribute the first layer across all rooms before filling any one room.
@@ -610,11 +624,17 @@ func build_exterior_world(wall_cells:Dictionary):
 		if region!=0:angle=float(posmod(q.x*11+q.y*17,7)-3)*.16
 		var scale_value=.78+.40*float(posmod(q.x*13+q.y*7,9))/8.0
 		var center=pos(q)+Vector3(0,-.45,0)
-		placements.append(Transform3D(Basis(Vector3.UP,angle).scaled(Vector3.ONE*scale_value),center))
+		var placement=Transform3D(Basis(Vector3.UP,angle).scaled(Vector3.ONE*scale_value),center)
+		var bounds=measure_scenery(parts,placement)
+		if not scenery_clear_of_floor(bounds):continue
+		placements.append(placement);scenic_bounds.append(bounds)
 		exterior_groups.append(q)
 		if exterior_life_centers.size()<12:exterior_life_centers.append(center)
 	batch_exterior_parts(parts,placements)
-	build_habitat_layers(prefix,queue,wall_cells)
+	if exterior_life_centers.is_empty():
+		for q in exterior_vistas:
+			if exterior_life_centers.size()>=12:break
+			exterior_life_centers.append(pos(q)+Vector3(0,-.12,1.0))
 	exterior_life_parts=rock_parts(prefix+"_life.glb")
 	if exterior_life_centers.is_empty():return
 	for part in exterior_life_parts:
@@ -631,12 +651,14 @@ func build_habitat_layers(prefix:String,queue:Array[Vector2i],wall_cells:Diction
 	# Favor exterior behind rooms and sides. Tall assets farther from walkable
 	# tiles protect the camera's foreground view. No gameplay cells are edited.
 	var candidates:Array[Vector2i]=[]
-	for room in run.rooms:
-		var m:Vector2i=room.get_center()
-		for x in [m.x,m.x-3,m.x+3]:
-			candidates.append(Vector2i(x,room.position.y-3))
-		candidates.append(Vector2i(room.position.x-3,m.y))
-		candidates.append(Vector2i(room.end.x+2,m.y))
+	for offset in [0,-3,3]:
+		for room in run.rooms:
+			var m:Vector2i=room.get_center()
+			candidates.append(Vector2i(m.x+offset,room.position.y-3))
+			candidates.append(Vector2i(room.position.x-3,m.y+offset))
+			candidates.append(Vector2i(room.end.x+2,m.y+offset))
+			# Tall foreground silhouettes are set back to protect the pet's camera view.
+			candidates.append(Vector2i(m.x+offset,room.end.y+3))
 	# Interleave wider landscape bands so distant rooms are not starved by BFS order.
 	for band in [4,5,6,7,8,9]:
 		for q in queue:
@@ -649,22 +671,29 @@ func build_habitat_layers(prefix:String,queue:Array[Vector2i],wall_cells:Diction
 			for dx in range(-1,2):
 				if run.cells.has(q+Vector2i(dx,dy)):safe=false
 		for old in exterior_groups:
-			if Vector2(old-q).length_squared()<4.0:safe=false;break
+			if Vector2(old-q).length_squared()<(9.0 if vista_large.has(old) else 5.0):safe=false;break
 		for old in landmark_cells:
 			if Vector2(old-q).length_squared()<5.0:safe=false;break
 		for old in habitat_tall:
-			if Vector2(old-q).length_squared()<6.0:safe=false;break
+			if Vector2(old-q).length_squared()<(12.0 if habitat_large.has(old) else 6.0):safe=false;break
 		if not safe:continue
 		var angle=float(posmod(q.x*7+q.y*11,7)-3)*.15
-		var distance:int=exterior_distances[q]
-		var scale_value=.87+.51*float(posmod(q.x*13+q.y*7,9))/8.0
-		var height_factor=1.06+.72*float(posmod(q.x*17+q.y*3,11))/10.0
-		if distance<=3:
-			scale_value=minf(scale_value,1.04)
-			height_factor=minf(height_factor,1.28)
-		var elevation=-.22 if region==2 else -.42
-		tall_placements.append(Transform3D(Basis(Vector3.UP,angle).scaled(Vector3(scale_value,scale_value*height_factor,scale_value)),pos(q)+Vector3(0,elevation,0)))
+		var large=habitat_wide_clearance(q)
+		var scale_value=(1.32+.31*float(posmod(q.x*13+q.y*7,9))/8.0) if large else (.87+.17*float(posmod(q.x*13+q.y*7,9))/8.0)
+		var height_factor=1.05+.43*float(posmod(q.x*17+q.y*3,11))/10.0
+		if not large:height_factor=minf(height_factor,1.28)
+		var elevation=.10 if region==2 else -.42
+		var center=pos(q)+Vector3(0,elevation,0)
+		var placement=Transform3D(Basis(Vector3.UP,angle).scaled(Vector3(scale_value,scale_value*height_factor,scale_value)),center)
+		var bounds=measure_scenery(tall_parts,placement)
+		if not scenery_clear_of_floor(bounds):
+			large=false
+			placement=Transform3D(Basis(Vector3.UP,angle).scaled(Vector3(.88,1.10,.88)),center)
+			bounds=measure_scenery(tall_parts,placement)
+		if not scenery_clear_of_floor(bounds):continue
+		tall_placements.append(placement);scenic_bounds.append(bounds)
 		habitat_tall.append(q)
+		if large:habitat_large.append(q)
 	batch_exterior_parts(tall_parts,tall_placements)
 func fill_habitat_understory(wall_cells:Dictionary):
 	if habitat_ground_candidates.is_empty():return
@@ -679,9 +708,9 @@ func fill_habitat_understory(wall_cells:Dictionary):
 			if exterior_distances[q]!=distance or wall_cells.has(q) or terrace_cells.has(q):continue
 			var safe=true
 			for old in exterior_groups:
-				if Vector2(old-q).length_squared()<1.6:safe=false;break
+				if Vector2(old-q).length_squared()<(3.5 if vista_large.has(old) else 1.6):safe=false;break
 			for old in habitat_tall:
-				if Vector2(old-q).length_squared()<2.2:safe=false;break
+				if Vector2(old-q).length_squared()<(3.5 if habitat_large.has(old) else 2.2):safe=false;break
 			for old in landmark_cells:
 				if Vector2(old-q).length_squared()<2.0:safe=false;break
 			for old in habitat_low:
@@ -689,17 +718,53 @@ func fill_habitat_understory(wall_cells:Dictionary):
 			if not safe:continue
 			var angle=float(posmod(q.x*11+q.y*17,12))*TAU/12.0
 			var scale_value=.76+.34*float(posmod(q.x*7+q.y*13,9))/8.0
-			low_placements.append(Transform3D(Basis(Vector3.UP,angle).scaled(Vector3.ONE*scale_value),pos(q)+Vector3(0,-.51,0)))
+			var placement=Transform3D(Basis(Vector3.UP,angle).scaled(Vector3.ONE*scale_value),pos(q)+Vector3(0,-.51,0))
+			var bounds=measure_scenery(low_parts,placement)
+			if not scenery_clear_of_floor(bounds):continue
+			low_placements.append(placement);scenic_bounds.append(bounds)
 			habitat_low.append(q)
 	batch_exterior_parts(low_parts,low_placements)
-	print("DUNGEON_HABITAT region=",region," tall=",habitat_tall.size()," understory=",habitat_low.size())
+	print("DUNGEON_HABITAT region=",region," tall=",habitat_tall.size()," understory=",habitat_low.size()," large_habitat=",habitat_large.size()," large_vistas=",vista_large.size())
+func measure_scenery(parts:Array,placement:Transform3D)->AABB:
+	# Use the imported GLB's real mesh bounds, including authored offsets,
+	# scale and yaw. A cell-center check alone cannot detect overhanging cliffs.
+	var result=AABB()
+	var first=true
+	for part in parts:
+		var local_transform:Transform3D=part.transform
+		var local_mesh:Mesh=part.mesh
+		var bounds:AABB=(placement*local_transform)*local_mesh.get_aabb()
+		result=bounds if first else result.merge(bounds)
+		first=false
+	return result
+func scenery_clear_of_floor(bounds:AABB)->bool:
+	# Conservative 4 cm safety margin on each side of the 1.4-unit tile.
+	var low=Vector2i(floori((bounds.position.x+.66)/1.4),floori((bounds.position.z+.66)/1.4))
+	var high=Vector2i(floori((bounds.end.x+.74)/1.4),floori((bounds.end.z+.74)/1.4))
+	for y in range(low.y,high.y+1):
+		for x in range(low.x,high.x+1):
+			if run.cells.has(Vector2i(x,y)):return false
+	return true
+func habitat_wide_clearance(q:Vector2i)->bool:
+	for dy in range(-2,3):
+		for dx in range(-2,3):
+			if run.cells.has(q+Vector2i(dx,dy)):return false
+	for old in habitat_tall:
+		if Vector2(old-q).length_squared()<12.0:return false
+	for old in exterior_groups:
+		if Vector2(old-q).length_squared()<12.0:return false
+	for old in landmark_cells:
+		if Vector2(old-q).length_squared()<9.0:return false
+	return true
 func exterior_clearance(q:Vector2i)->bool:
 	if exterior_distances.get(q,99)<2 or exterior_distances.get(q,99)>6:return false
 	for dy in range(-1,2):
 		for dx in range(-1,2):
 			if run.cells.has(q+Vector2i(dx,dy)):return false
 	for old in exterior_groups:
-		if Vector2(old-q).length_squared()<5.0:return false
+		if Vector2(old-q).length_squared()<(9.0 if vista_large.has(old) else 5.0):return false
+	for old in habitat_tall:
+		if Vector2(old-q).length_squared()<(9.0 if habitat_large.has(old) else 5.0):return false
 	for old in landmark_cells:
 		if Vector2(old-q).length_squared()<4.0:return false
 	return true
@@ -738,11 +803,11 @@ func landscape_terraces(wall_cells:Dictionary):
 				var tile:Vector2i=q+Vector2i(dx,dy)
 				if run.cells.has(tile) or wall_cells.has(tile):safe=false
 				for group in exterior_groups:
-					if Vector2(tile-group).length_squared()<3.0:safe=false
+					if Vector2(tile-group).length_squared()<(5.0 if vista_large.has(group) else 3.0):safe=false
 				for landmark in landmark_cells:
 					if Vector2(tile-landmark).length_squared()<2.0:safe=false
 				for tall in habitat_tall:
-					if Vector2(tile-tall).length_squared()<3.0:safe=false
+					if Vector2(tile-tall).length_squared()<(5.0 if habitat_large.has(tall) else 3.0):safe=false
 		if not safe:continue
 		for dy in range(2):
 			for dx in range(2):terrace_cells[q+Vector2i(dx,dy)]=true
@@ -842,15 +907,15 @@ func build_exterior_surface():
 			# Preserve support beneath placed Blender scenery; lower only the
 			# unobstructed landscape. The playable floor is untouched.
 			var support=0.0
-			# All groups are within six Manhattan cells of the dungeon. A
-			# conservative expanded bound avoids per-prop scans in distant terrain.
-			if distance<7 or exterior_distances.has(q+Vector2i(3,0)) or exterior_distances.has(q-Vector2i(3,0)) or exterior_distances.has(q+Vector2i(0,3)) or exterior_distances.has(q-Vector2i(0,3)):
+			# Large habitat can extend into the ninth distance band. Preserve
+			# a connected foundation beyond its footprint.
+			if distance<=9 or exterior_distances.has(q+Vector2i(3,0)) or exterior_distances.has(q-Vector2i(3,0)) or exterior_distances.has(q+Vector2i(0,3)) or exterior_distances.has(q-Vector2i(0,3)):
 				for group in exterior_groups:
-					support=maxf(support,1.0-smoothstep(1.0,2.5,Vector2(q-group).length()))
+					support=maxf(support,1.0-smoothstep(1.0,3.1 if vista_large.has(group) else 2.5,Vector2(q-group).length()))
 				for landmark in landmark_cells:
 					support=maxf(support,1.0-smoothstep(1.0,2.5,Vector2(q-landmark).length()))
 			for group in habitat_tall:
-				if Vector2(q-group).length_squared()<3.0:support=1.0;break
+				if Vector2(q-group).length_squared()<(6.0 if habitat_large.has(group) else 3.0):support=1.0;break
 			if habitat_low.has(q) or terrace_cells.has(q):support=1.0
 			if not near:
 				# Broad ridges, basins and cloud valleys behind the actual scenery.

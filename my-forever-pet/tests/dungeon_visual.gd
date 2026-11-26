@@ -8,6 +8,13 @@ func frames():
 		await process_frame
 		await RenderingServer.frame_post_draw
 func exterior_review(dungeon,region:int,floor_index:int):
+	# Run this geometry gate on both floors, before capturing the actual camera.
+	for bounds in dungeon.scenic_bounds:
+		assert(dungeon.scenery_clear_of_floor(bounds),"transformed Blender model overlaps gameplay tiles")
+	for q in dungeon.habitat_large+dungeon.vista_large:
+		for dy in range(-2,3):
+			for dx in range(-2,3):
+				assert(not dungeon.run.cells.has(q+Vector2i(dx,dy)),"wide scenery keeps the 5x5 traversal clearance")
 	# Measure actual visible pixel contribution, not just node count or frustum overlap.
 	# Render the exact same gameplay camera twice, with and without the exterior GLBs.
 	var prefix="res://assets/dungeon_"+["forest","reef","star"][region]
@@ -74,6 +81,8 @@ func run():
 		dungeon.set_process(false)
 		await frames()
 		check_exterior_chunks(dungeon)
+		var test_center:Vector3=dungeon.pos(dungeon.run.player)
+		assert(not dungeon.scenery_clear_of_floor(AABB(test_center-Vector3(.25,0,.25),Vector3(.5,1,.5))),"reject model over player tile")
 		assert(dungeon.companion_id==24+region)
 		assert(dungeon.area.size.x>200 and dungeon.area.size.y>200)
 		assert(dungeon.floor_label.text.contains("rooms"))
@@ -110,7 +119,7 @@ func run():
 					assert(dungeon.exterior_distances[q]>=2 and not dungeon.run.cells.has(q))
 					assert(not dungeon.terrace_cells.has(q),"understory fills open land, not terrace footprints")
 				for q in dungeon.habitat_tall:
-					for tile in dungeon.terrace_cells:assert(Vector2(q-tile).length_squared()>=3.0,"terrace keeps clear of tall habitat")
+					for tile in dungeon.terrace_cells:assert(Vector2(q-tile).length_squared()>=(5.0 if dungeon.habitat_large.has(q) else 3.0),"terrace keeps clear of tall habitat")
 			if region<2 and ResourceLoader.exists("res://assets/dungeon_forest_vista.glb"):
 				assert(dungeon.exterior_motion_batches>0,"authored water or kelp material animates")
 				for material in dungeon.exterior_motion_materials.values():
