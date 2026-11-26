@@ -103,6 +103,9 @@ var caustic_overlay:MeshInstance3D
 var forest_light_overlay:MeshInstance3D
 var astral_sigils:MultiMeshInstance3D
 var astral_sigil_cells:Array[Vector2i]=[]
+var biome_light_materials:Array[ShaderMaterial]=[]
+var exterior_motion_materials:Dictionary={}
+var exterior_motion_batches=0
 func setup(r:int,id:int,step:int,finale:bool,patrol:bool,seed_id:int,companion:int):
 	region=r;companion_id=companion
 	run.setup(r,id,step,finale,patrol,seed_id,companion)
@@ -328,13 +331,19 @@ func rock_parts(file:String)->Array:
 	template.free()
 	rock_mesh_cache[file]=parts
 	return parts
-func batch_parts(parts:Array,placements:Array[Transform3D],shadows:bool=true):
+func batch_parts(parts:Array,placements:Array[Transform3D],shadows:bool=true,animate_exterior:bool=false):
 	if placements.is_empty():return
 	for part in parts:
 		var mm=MultiMesh.new();mm.transform_format=MultiMesh.TRANSFORM_3D;mm.mesh=part.mesh;mm.instance_count=placements.size()
 		for i in range(placements.size()):mm.set_instance_transform(i,placements[i]*part.transform)
 		var instance=MultiMeshInstance3D.new();instance.multimesh=mm;geometry.add_child(instance)
 		if not shadows:instance.cast_shadow=GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		if animate_exterior and part.mesh.get_surface_count()==1:
+			var original:Material=part.mesh.surface_get_material(0)
+			var animated=exterior_motion_material(original)
+			if animated!=null:
+				instance.material_override=animated
+				exterior_motion_batches+=1
 func natural_boundary(points:Array[Vector3])->bool:
 	rock_modules=0;span_count=0;corner_count=0
 	var prefix="res://assets/dungeon_"+["forest","reef","star"][region]
@@ -457,14 +466,63 @@ func exterior_chunks(placements:Array[Transform3D])->Dictionary:
 			chunks[key]=group
 		chunks[key].append(placement)
 	return chunks
+func exterior_motion_material(original:Material)->ShaderMaterial:
+	if not original is StandardMaterial3D:return null
+	var name=original.resource_name.to_lower()
+	var kind=""
+	if name.contains("woodland turquoise stream"):kind="stream"
+	elif name.contains("cascade pale highlights"):kind="foam"
+	elif name.contains("sea grass"):kind="kelp"
+	if kind.is_empty():return null
+	if exterior_motion_materials.has(kind):return exterior_motion_materials[kind]
+	var shader=Shader.new()
+	if kind=="kelp":
+		shader.code="""shader_type spatial;
+render_mode cull_disabled;
+uniform float scene_time=0.0;
+uniform vec4 base_color:source_color=vec4(0.1,0.35,0.2,1.0);
+varying float leaf_height;
+void vertex(){
+ leaf_height=clamp((VERTEX.y-0.26)/1.7,0.0,1.0);
+ vec3 world_pos=(MODEL_MATRIX*vec4(VERTEX,1.0)).xyz;
+ float sway=leaf_height*leaf_height;
+ VERTEX.x+=sin(scene_time*1.45+world_pos.z*0.85)*0.10*sway;
+ VERTEX.z+=cos(scene_time*1.1+world_pos.x*0.73)*0.065*sway;
+}
+void fragment(){
+ ALBEDO=base_color.rgb*(0.85+leaf_height*0.55);
+ ROUGHNESS=0.73;
+}"""
+	else:
+		shader.code="""shader_type spatial;
+render_mode cull_disabled;
+uniform float scene_time=0.0;
+uniform vec4 base_color:source_color=vec4(0.1,0.6,0.7,1.0);
+uniform bool is_foam=false;
+varying vec3 local_p;
+void vertex(){local_p=VERTEX;}
+void fragment(){
+ float flow=local_p.z*20.0-local_p.y*7.0-scene_time*5.2;
+ float ripple=0.5+0.5*sin(flow+0.65*sin(local_p.x*34.0));
+ float filaments=pow(0.5+0.5*sin(local_p.x*37.0+sin(flow*0.36)),5.0);
+ float shimmer=0.30*ripple+0.70*filaments;
+ ALBEDO=base_color.rgb*(0.76+shimmer*0.37);
+ ROUGHNESS=0.24+0.20*(1.0-ripple);
+ EMISSION=base_color.rgb*shimmer*(is_foam?0.28:0.12);
+}"""
+	var material=ShaderMaterial.new();material.shader=shader
+	material.set_shader_parameter("base_color",original.albedo_color)
+	if kind!="kelp":material.set_shader_parameter("is_foam",kind=="foam")
+	exterior_motion_materials[kind]=material
+	return material
 func batch_exterior_parts(parts:Array,placements:Array[Transform3D]):
 	for chunk in exterior_chunks(placements).values():
-		batch_parts(parts,chunk,false)
+		batch_parts(parts,chunk,false,true)
 		exterior_static_batches+=parts.size()
 func build_exterior_world(wall_cells:Dictionary):
 	# Multi-source BFS provides exact distance bands in O(cells + exterior area).
 	# No decoration is added to the gameplay graph.
-	exterior_static_batches=0
+	exterior_static_batches=0;exterior_motion_batches=0;exterior_motion_materials.clear()
 	exterior_groups.clear();exterior_vistas.clear();exterior_distances.clear();exterior_life.clear();exterior_life_parts.clear();exterior_life_centers.clear();exterior_clock=0.0
 	var queue:Array[Vector2i]=[]
 	for q in run.cells:
@@ -544,6 +602,7 @@ func exterior_clearance(q:Vector2i)->bool:
 	return true
 func update_exterior_world(dt:float):
 	exterior_clock+=clampf(dt,0.0,.25)
+	for material in exterior_motion_materials.values():material.set_shader_parameter("scene_time",exterior_clock)
 	if exterior_life.is_empty():return
 	for i in range(exterior_life_centers.size()):
 		var phase=exterior_clock*(.70 if region==1 else .46)+float(i)*2.399
@@ -807,21 +866,22 @@ func build_living_ambient():
 	update_living_ambient(0.0)
 func light_overlay(shader_source:String)->MeshInstance3D:
 	var shader=Shader.new();shader.code=shader_source
-	var sm=ShaderMaterial.new();sm.shader=shader
+	var sm=ShaderMaterial.new();sm.shader=shader;biome_light_materials.append(sm)
 	var overlay=MeshInstance3D.new();overlay.mesh=floor_surface.mesh;overlay.material_override=sm
 	overlay.position.y=.022;overlay.cast_shadow=GeometryInstance3D.SHADOW_CASTING_SETTING_OFF;geometry.add_child(overlay)
 	return overlay
 func build_biome_light():
-	caustic_overlay=null;forest_light_overlay=null;astral_sigils=null;astral_sigil_cells.clear()
+	caustic_overlay=null;forest_light_overlay=null;astral_sigils=null;astral_sigil_cells.clear();biome_light_materials.clear()
 	if region==0:
 		# World-space moving canopy light, softly broken into leaf-like patches.
 		# One pass on the existing indexed floor, no lights or extra particles.
 		forest_light_overlay=light_overlay("""shader_type spatial;
 render_mode unshaded, blend_mix, depth_draw_never, cull_disabled;
+uniform float scene_time=0.0;
 varying vec2 p;
 void vertex(){p=(MODEL_MATRIX*vec4(VERTEX,1.0)).xz;}
 void fragment(){
- vec2 q=p+vec2(sin(TIME*0.24),cos(TIME*0.19))*0.18;
+ vec2 q=p+vec2(sin(scene_time*0.24),cos(scene_time*0.19))*0.18;
  float n=sin(q.x*1.57+q.y*0.71)+sin(q.y*2.13-q.x*0.84)+0.48*sin(q.x*4.12+q.y*3.41);
  float shafts=smoothstep(0.15,1.25,sin(q.x*0.46+q.y*0.81)+0.32*sin(q.x*1.24-q.y*0.6));
  float sun=smoothstep(0.36,1.37,n)*shafts;
@@ -834,19 +894,20 @@ void fragment(){
 		# neighborhood gives intersecting organic caustic filaments rather than stripes.
 		caustic_overlay=light_overlay("""shader_type spatial;
 render_mode unshaded, blend_add, depth_draw_never, cull_disabled;
+uniform float scene_time=0.0;
 varying vec2 p;
 vec2 hash2(vec2 a){
  return fract(sin(vec2(dot(a,vec2(127.1,311.7)),dot(a,vec2(269.5,183.3))))*43758.5453);
 }
 void vertex(){p=(MODEL_MATRIX*vec4(VERTEX,1.0)).xz;}
 void fragment(){
- vec2 q=p*1.02+vec2(0.10*sin(p.y*1.3+TIME*0.5),0.10*cos(p.x*1.5-TIME*0.41));
+ vec2 q=p*1.02+vec2(0.10*sin(p.y*1.3+scene_time*0.5),0.10*cos(p.x*1.5-scene_time*0.41));
  vec2 cell=floor(q);vec2 f=fract(q);
  float first=9.0;float second=9.0;
  for(int y=-1;y<=1;y++){
   for(int x=-1;x<=1;x++){
    vec2 g=vec2(float(x),float(y));vec2 r=hash2(cell+g);
-   vec2 feature=0.5+0.30*sin(TIME*0.67+r*6.283185);
+   vec2 feature=0.5+0.30*sin(scene_time*0.67+r*6.283185);
    vec2 offset=g+feature-f;float d=dot(offset,offset);
    if(d<first){second=first;first=d;}else{second=min(second,d);}
   }
@@ -861,6 +922,7 @@ void fragment(){
 		# A procedural material on real world geometry, never a screenshot overlay.
 		var shader=Shader.new();shader.code="""shader_type spatial;
 render_mode unshaded, blend_mix, depth_draw_never, cull_disabled;
+uniform float scene_time=0.0;
 float line(float d,float width){return 1.0-smoothstep(width,width+0.008,d);}
 void fragment(){
  vec2 p=UV*2.0-1.0;float r=length(p);float a=atan(p.y,p.x);
@@ -870,11 +932,11 @@ void fragment(){
  float ticks=line(abs(sin(a*12.0)),0.055)*smoothstep(0.69,0.72,r)*(1.0-smoothstep(0.79,0.81,r));
  float center=line(abs(r-0.17),0.008);
  float ink=max(max(rings,spokes),max(ticks,center));
- float pulse=0.82+0.18*sin(TIME*1.5+a*4.0+r*8.0);
+ float pulse=0.82+0.18*sin(scene_time*1.5+a*4.0+r*8.0);
  ALBEDO=mix(vec3(0.72,0.39,0.12),vec3(1.0,0.83,0.40),pulse);
  ALPHA=ink*0.88*(1.0-smoothstep(0.90,0.96,r));
 }"""
-		var material=ShaderMaterial.new();material.shader=shader
+		var material=ShaderMaterial.new();material.shader=shader;biome_light_materials.append(material)
 		var plane=PlaneMesh.new();plane.size=Vector2.ONE
 		var transforms:Array[Transform3D]=[]
 		for room in run.rooms:
@@ -896,6 +958,7 @@ func update_living_ambient(dt:float):
 	if ambient_batches.size()!=2 or not is_instance_valid(trail_batch):return
 	var delta=clampf(dt,0.0,.25)
 	ambient_clock+=delta
+	for material in biome_light_materials:material.set_shader_parameter("scene_time",ambient_clock)
 	for i in range(ambient_origins.size()):
 		ambient_ages[i]+=delta
 		var mote=i>=AMBIENT_COUNT

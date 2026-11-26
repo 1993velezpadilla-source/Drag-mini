@@ -81,6 +81,12 @@ func run():
 		if ResourceLoader.exists("res://assets/dungeon_forest_exterior.glb"):
 			assert(dungeon.exterior_groups.size()>0 and dungeon.exterior_groups.size()<=40,"exterior landscape groups placed within budget")
 			assert(dungeon.exterior_static_batches>0,"static landscape submitted in spatial chunks")
+			if region<2 and ResourceLoader.exists("res://assets/dungeon_forest_vista.glb"):
+				assert(dungeon.exterior_motion_batches>0,"authored water or kelp material animates")
+				for material in dungeon.exterior_motion_materials.values():
+					var previous_time:float=material.get_shader_parameter("scene_time")
+					dungeon.update_exterior_world(.1)
+					assert(material.get_shader_parameter("scene_time")>previous_time)
 			for q in dungeon.exterior_groups:
 				assert(dungeon.exterior_distances[q]>=2 and not dungeon.run.cells.has(q),"exterior groups stay beyond walls")
 				for dy in range(-1,2):
@@ -99,8 +105,11 @@ func run():
 			assert(dungeon.astral_sigils!=null and dungeon.astral_sigil_cells.size()<=dungeon.run.rooms.size(),"bounded astral floor seals")
 			for q in dungeon.astral_sigil_cells:assert(dungeon.run.cells.has(q))
 		else:assert(dungeon.astral_sigils==null)
+		assert(not dungeon.biome_light_materials.is_empty(),"biome lighting uses explicit clock")
+		var old_light_time:float=dungeon.biome_light_materials[0].get_shader_parameter("scene_time")
 		var old_ambient:Vector3=dungeon.ambient_batches[0].multimesh.get_instance_transform(0).origin
 		dungeon.update_living_ambient(.2)
+		assert(dungeon.biome_light_materials[0].get_shader_parameter("scene_time")>old_light_time)
 		assert(dungeon.ambient_batches[0].multimesh.get_instance_transform(0).origin!=old_ambient,"living ambient moves")
 		assert(not surfaces.has(dungeon.floor_surface_signature),"biomes have different floor textures");surfaces[dungeon.floor_surface_signature]=true
 		if ResourceLoader.exists("res://assets/dungeon_forest_landmark.glb"):assert(dungeon.landmark_count>0,"production landmark placed")

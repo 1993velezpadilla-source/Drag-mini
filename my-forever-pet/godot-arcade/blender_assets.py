@@ -1439,9 +1439,21 @@ export('dungeon_forest_exterior',14000)
 clear()
 # Reef garden: continuous limestone base, tall ribbon kelp and broad sea fans.
 profile_wall('submerged limestone ridge',2.5,[(0,.52),(.28,.48),(.46,.22),(.51,-.15),(.35,-.51),(0,-.52)],reefstone,2501,.15)
+# Tall, twisting kelp ribbons. Wider midsections and tapered tips form
+# a readable silhouette against the deep-water background.
 for i in range(7):
  a=i*2*pi/7;x=.76*math.cos(a);z=.64*math.sin(a)
- blades((x,.26,z),a,.95+.29*(i%3),.15,kelp)
+ h=1.10+.29*(i%3);verts=[];faces=[]
+ for j in range(13):
+  t=j/12
+  reach=.29*t+.10*math.sin(t*pi*2+i)*t
+  twist=a+.85*t
+  width=.14*max(.06,math.sin(t*pi)**.65)
+  for side in [-1,1]:
+   verts.append((x+math.cos(a)*reach+side*math.cos(twist)*width,.26+h*t,z+math.sin(a)*reach+side*math.sin(twist)*width))
+ for j in range(12):faces.append((j*2,j*2+1,j*2+3,j*2+2))
+ ob=architectural_mesh('twisting tall sea kelp',verts,faces,kelp)
+ ob.modifiers.new('ribbon thickness','SOLIDIFY').thickness=.012
 for k in range(2):
  x=-.56+k*1.10;verts=[];faces=[];n=16
  for j in range(3):
