@@ -5,6 +5,7 @@ on:
     paths:
       - 'my-forever-pet/godot-arcade/dungeon*.gd'
       - 'my-forever-pet/tests/dungeon_visual.gd'
+      - 'my-forever-pet/tests/dungeon_live_review.gd'
       - '.github/workflows/forever-pet-dungeon-visual.yml'
   workflow_dispatch:
 permissions:
@@ -30,6 +31,13 @@ jobs:
           xvfb-run -a -s "-screen 0 720x1280x24" timeout 120 /tmp/godot/Godot_v4.4.1-stable_linux.x86_64 --path /tmp/dungeon-project --audio-driver Dummy --resolution 540x960 --script res://dungeon_visual.gd 2>&1 | tee /tmp/dungeon-visual.log
           grep -F 'FOREVER_DUNGEON_VIEW_PASS 3' /tmp/dungeon-visual.log
           ! grep -E 'SCRIPT ERROR|Parse Error' /tmp/dungeon-visual.log
+      - name: Capture live combat, corridor and floor transition without removing enemies
+        run: |
+          set -euo pipefail
+          cp my-forever-pet/tests/dungeon_live_review.gd /tmp/dungeon-project/
+          xvfb-run -a -s "-screen 0 720x1280x24" timeout 120 /tmp/godot/Godot_v4.4.1-stable_linux.x86_64 --path /tmp/dungeon-project --audio-driver Dummy --resolution 540x960 --script res://dungeon_live_review.gd 2>&1 | tee /tmp/dungeon-live.log
+          grep -F DUNGEON_LIVE_REVIEW_PASS /tmp/dungeon-live.log
+          ! grep -E 'SCRIPT ERROR|Parse Error|Assertion failed' /tmp/dungeon-live.log
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -37,3 +45,5 @@ jobs:
           path: |
             /tmp/dungeon-real-*.png
             /tmp/dungeon-visual.log
+            /tmp/dungeon-live-*.png
+            /tmp/dungeon-live.log
