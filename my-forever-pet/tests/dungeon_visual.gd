@@ -31,6 +31,7 @@ func run():
 		assert(not dungeon.path.is_empty(),"real viewport tap resolves pickup")
 		dungeon._process(.2)
 		assert(dungeon.run.coins==3 and not dungeon.run.loot.has(pickup),"pickup commits once")
+		assert(dungeon.reward_age>0.0 and dungeon.reward_pool.size()==12,"pooled pickup reward burst")
 		assert(not dungeon.stairs_button.visible,"irrelevant action does not occupy HUD")
 		var created:int=dungeon.actor_created
 		dungeon.sync();dungeon.sync()

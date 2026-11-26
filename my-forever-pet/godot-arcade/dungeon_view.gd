@@ -55,6 +55,10 @@ var terrain_normal:ImageTexture
 var terrain_mats:Dictionary={}
 var rock_modules=0
 var landmark_count=0
+var detail_count=0
+var reward_fx:Node3D
+var reward_age=0.0
+var reward_pool:Array[MeshInstance3D]=[]
 var scene_cache:Dictionary={}
 var rock_mesh_cache:Dictionary={}
 var floor_build_usec=0
@@ -306,6 +310,27 @@ func backdrop_landmarks(wall_cells:Dictionary):
 				ob.rotation.y=float(posmod(x*7+q.y*13,7)-3)*.12
 				used.append(q);landmark_count+=1
 			break
+func room_detail(wall_cells:Dictionary):
+	detail_count=0
+	var file="res://assets/dungeon_"+["forest","reef","star"][region]+"_detail.glb"
+	var parts=rock_parts(file)
+	if parts.is_empty():return
+	var points:Array[Vector3]=[]
+	for q in wall_cells:
+		if posmod(q.x*29+q.y*43+run.floor_number*7,5)!=0:continue
+		for d in Rules.DIR:
+			var next:Vector2i=q+d
+			if not run.cells.has(next) or run.loot.has(next) or next==run.player or next==run.stairs:continue
+			# Offset onto the non-walkable side, so scenery never blocks a tile.
+			points.append(pos(q)+Vector3(d.x*.29,.13,d.y*.29))
+			break
+	if points.is_empty():return
+	for part in parts:
+		var mm=MultiMesh.new();mm.transform_format=MultiMesh.TRANSFORM_3D;mm.mesh=part.mesh;mm.instance_count=points.size()
+		for i in range(points.size()):
+			mm.set_instance_transform(i,Transform3D(Basis(Vector3.UP,i*.79).scaled(Vector3.ONE*.82),points[i])*part.transform)
+		var inst=MultiMeshInstance3D.new();inst.multimesh=mm;geometry.add_child(inst);inst.cast_shadow=GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	detail_count=points.size()
 func floor_name()->String:
 	return ["Ancient passages","Treasure chamber","Monster den","Restorative grotto","Forgotten ruins"][run.floor_kind]
 func build_floor():
@@ -357,6 +382,7 @@ func build_floor():
 	if not natural_boundary(walls):
 		batch(geometry,walls,"box",Vector3(1.4,.88,1.4),palette[2],true)
 		boundary_detail(walls)
+	room_detail(seen)
 	for i in range(run.rooms.size()):
 		var p=pos(run.rooms[i].position)+Vector3(-.52,0,-.52)
 		if prop(geometry,["dungeon_forest_shrine","dungeon_reef_shrine","dungeon_star_shrine"][region],p)==null:
@@ -367,6 +393,11 @@ func build_floor():
 	attack_fx=shape(geometry,"ring",Vector3.ZERO,Vector3.ONE,Color("#ffdfa0"));attack_fx.hide();attack_fx.cast_shadow=GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	var fxmat=StandardMaterial3D.new();fxmat.shading_mode=BaseMaterial3D.SHADING_MODE_UNSHADED;fxmat.albedo_color=Color("#ffe6a3");attack_fx.material_override=fxmat
 	destination_fx=shape(geometry,"ring",Vector3.ZERO,Vector3(.68,.08,.68),Color("#a0e6db"));destination_fx.hide();destination_fx.cast_shadow=GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	reward_pool.clear();reward_age=0.0
+	reward_fx=Node3D.new();geometry.add_child(reward_fx);reward_fx.hide()
+	var sparkle_mat=StandardMaterial3D.new();sparkle_mat.shading_mode=BaseMaterial3D.SHADING_MODE_UNSHADED;sparkle_mat.albedo_color=Color("#ffe5a0")
+	for i in range(12):
+		var spark=shape(reward_fx,"gem",Vector3.ZERO,Vector3(.065,.15,.065),Color("#ffe5a0"));spark.material_override=sparkle_mat;spark.cast_shadow=GeometryInstance3D.SHADOW_CASTING_SETTING_OFF;reward_pool.append(spark)
 	active_floor=run.floor_revision
 	banner_time=1.65;floor_banner.text="B%d  ·  %s"%[run.floor_number,floor_name()];floor_banner.show()
 	floor_banner.size=Vector2(area.size.x,45);floor_banner.position=Vector2(0,area.size.y*.12)
@@ -391,8 +422,8 @@ func refresh_actors():
 			if prop(root,"dungeon_spring",Vector3.ZERO)!=null:continue
 			shape(root,"ring",Vector3(0,.06,0),Vector3(.66,.13,.66),c);shape(root,"orb",Vector3(0,.24,0),Vector3(.62,.29,.62),c);continue
 		if kind=="relic" and prop(root,"dungeon_chest",Vector3.ZERO)!=null:continue
-		if kind=="coin" and prop(root,"coin",Vector3(0,.32,0))!=null:
-			root.scale=Vector3.ONE*.48;root.set_meta("float_item",true);continue
+		if kind=="coin" and prop(root,"dungeon_coin",Vector3.ZERO)!=null:
+			root.set_meta("float_item",true);continue
 		if kind=="potion" and prop(root,"dungeon_berry",Vector3(0,.12,0))!=null:
 			root.set_meta("float_item",true);continue
 		if kind=="material" and prop(root,"dungeon_material",Vector3(0,.12,0))!=null:
@@ -473,6 +504,8 @@ func sync():
 	if previous_event!=run.event_serial:
 		previous_event=run.event_serial;feedback.text=run.last_event;feedback_time=1.0;feedback.show()
 		feedback.size=Vector2(area.size.x,42);feedback.position=Vector2(0,area.size.y*.29)
+		if run.last_event.begins_with("+") or run.last_event.contains("defeated") or run.last_event.contains("secured") or run.last_event.contains("berry"):
+			reward_age=.65;reward_fx.position=pos(run.player);reward_fx.show()
 	if run.finished and not notified:
 		notified=true
 		# Deferred settlement prevents destroying/rebuilding the UI inside a button callback.
@@ -495,6 +528,15 @@ func update_hud():
 func _process(dt:float):
 	if notified or not is_instance_valid(pet):return
 	elapsed+=dt;tick-=dt
+	if reward_age>0.0:
+		reward_age=maxf(0.0,reward_age-dt)
+		var progress=1.0-reward_age/.65
+		for i in range(reward_pool.size()):
+			var angle=float(i)*TAU/reward_pool.size()+progress*.6
+			var radius=.25+progress*.9
+			reward_pool[i].position=Vector3(cos(angle)*radius,.22+sin(progress*PI)*.9,sin(angle)*radius)
+			reward_pool[i].scale=Vector3(.065,.15,.065)*(1.0-progress*.85)
+		reward_fx.visible=reward_age>0.0
 	banner_time=maxf(0.0,banner_time-dt)
 	floor_banner.visible=banner_time>0.0
 	if floor_banner.visible:
