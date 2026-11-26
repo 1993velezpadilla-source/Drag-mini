@@ -1,6 +1,7 @@
 extends Node
 # Independent Godot port of native PetState. Time in seconds, persisted in one wallet.
 const SAVE="user://forever_pet_v1.json"
+const Research=preload("res://research_data.gd")
 const SPECIES=["Mosskit","Mewmew","Barkle","Dracoon","Bubblefin","Neblito","Wispurr","Octoboo","Roostik","Fayli","Pixsy","Puffowl","Fernhorn","Moonmew","Cloverbark","Emberdrake","Pearlfin","NovaNeb","Lunawisp","Reefboo","Suncrest","Aurorafay","Stardust Pixsy","Dreamowl","Ember Imp","Wisp Ghost","Bolt Bot","Mushmellow"]
 const STAGES=["Egg","Baby","Kid","Young","Adult"]
 const FIELDS=["Land","Water","Sky"]
@@ -18,7 +19,7 @@ var dirty=false
 var wallpaper_keys:Dictionary={}
 const WALL_ROOMS=["room_bedroom","room_kitchen","room_bathroom","room_toy","room_garden","room_lab"]
 func defaults()->Dictionary:
-	return {"wallpaper_room":0,"wallpaper_x":1,"wallpaper_y":2,"wallpaper_size":1,"wallpaper_minimal":false,"wallpaper_battery":false,"wallpaper_status":true,"stage":0,"field":0,"habitat":0,"body":0,"eyes":0,"color":0,"variant":0,"generation":1,"friendship":0,"inherited_eyes":-1,"name":"","hunger":5,"happy":10,"energy":100,"bond":0,"xp":0,"waste":0,"mistakes":0,"germs":0,"hygiene":100,"toilet":100,"coins":0,"crystals":0,"materials":0,"fuel":0,"snacks":0,"medicine":0,"soap":0,"cells":[0,0,0],"foods":[0,0,0,0],"collection":0,"favorites":0,"care_day":"","care_mask":0,"care_claims":0,"care_claimed":false,"form":-1,"owned":0,"equipped":0,"installation":0,"wardrobe":0,"worn":[0,0,0,0],"theme":0,"training":0,"age":0.0,"last":0.0,"food_clock":0.0,"mood_clock":0.0,"energy_clock":0.0,"waste_clock":0.0,"cell_clock":0.0,"care_clock":0.0,"hygiene_clock":0.0,"toilet_clock":0.0,"rest_clock":0.0,"sleep_until":0.0,"awake_until":0.0,"auto_sleep":true,"trip_end":0.0,"destination":0,"trip_bonus":0,"journeys":0,"pending":[0,0,0],"daily_day":"","quest_day":"","quests":0,"claimed":0,"garden_at":0.0,"harvests":0,"interaction_at":0.0,"best":[0,0,0,0,0]}
+	return {"research_evidence":[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],"research_trust":[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],"research_misses":[0,0,0],"research_target":[-1,-1,-1],"wallpaper_room":0,"wallpaper_x":1,"wallpaper_y":2,"wallpaper_size":1,"wallpaper_minimal":false,"wallpaper_battery":false,"wallpaper_status":true,"stage":0,"field":0,"habitat":0,"body":0,"eyes":0,"color":0,"variant":0,"generation":1,"friendship":0,"inherited_eyes":-1,"name":"","hunger":5,"happy":10,"energy":100,"bond":0,"xp":0,"waste":0,"mistakes":0,"germs":0,"hygiene":100,"toilet":100,"coins":0,"crystals":0,"materials":0,"fuel":0,"snacks":0,"medicine":0,"soap":0,"cells":[0,0,0],"foods":[0,0,0,0],"collection":0,"favorites":0,"care_day":"","care_mask":0,"care_claims":0,"care_claimed":false,"form":-1,"owned":0,"equipped":0,"installation":0,"wardrobe":0,"worn":[0,0,0,0],"theme":0,"training":0,"age":0.0,"last":0.0,"food_clock":0.0,"mood_clock":0.0,"energy_clock":0.0,"waste_clock":0.0,"cell_clock":0.0,"care_clock":0.0,"hygiene_clock":0.0,"toilet_clock":0.0,"rest_clock":0.0,"sleep_until":0.0,"awake_until":0.0,"auto_sleep":true,"trip_end":0.0,"destination":0,"trip_bonus":0,"journeys":0,"pending":[0,0,0],"daily_day":"","quest_day":"","quests":0,"claimed":0,"garden_at":0.0,"harvests":0,"interaction_at":0.0,"best":[0,0,0,0,0]}
 func _ready():
 	test_mode=false
 	for flag in ["--test","--soak","--capture","--lane-only","--unassisted","--home-test","--home-capture","--home-touch-test"]:
@@ -87,7 +88,7 @@ func level()->int: return 1+int(s.xp/100)
 func inherited_species()->int: return int(s.field)*4+int(s.body)+12*int(s.variant)
 func species()->int:
 	var selected=int(s.form)
-	return selected if selected>=24 and selected<SPECIES.size() and (int(s.collection)&(1<<selected))!=0 else inherited_species()
+	return selected if selected>=0 and selected<SPECIES.size() and (int(s.collection)&(1<<selected))!=0 else inherited_species()
 const CARE_NAMES=["Affection","Feeding","Hygiene","Play / train","Habitat cleanup","Garden harvest"]
 func care_count()->int:
 	var n=0
@@ -105,6 +106,60 @@ func care_credit(id:String):
 	if group>=0: s.care_mask=int(s.care_mask)|(1<<group)
 func care_ready()->bool: return s.stage>0 and care_count()>=4 and not s.care_claimed
 func next_special()->int: return 24+int(s.care_claims) if s.care_claims<4 else -1
+func research_target(region:int)->int:
+	if region<0 or region>=3: return -1
+	var current=int(s.research_target[region])
+	if current in Research.POOLS[region] and current!=species() and (int(s.collection)&(1<<current))==0: return current
+	return Research.next_species(region,int(s.collection),species())
+func research_progress(id:int)->int:
+	return clampi(int(s.research_evidence[id]),0,Research.needed(id)) if id>=0 and id<SPECIES.size() else 0
+func research_block(kind:String,region:int)->String:
+	if region<0 or region>=3: return "Unknown habitat"
+	if s.stage==0: return "Hatch your egg to explore"
+	if not available(): return "Wake your pet first" if asleep(now()) else "Your companion is on an expedition"
+	if s.germs>0: return "Treat illness before exploring"
+	if s.hunger<1: return "Feed your companion first"
+	var target=research_target(region)
+	if target<0: return "Every available local creature discovered"
+	if kind=="track" and research_progress(target)>=Research.needed(target): return "Creature located! Begin encounter"
+	if kind=="track" and s.energy<2: return "Rest first: requires 2 energy"
+	if kind=="encounter" and research_progress(target)<Research.needed(target): return "Find all evidence first"
+	return ""
+func research_action(kind:String,region:int,choice:int)->Dictionary:
+	advance(now())
+	var block=research_block(kind,region)
+	if not block.is_empty(): return {"ok":false,"message":block}
+	var target=research_target(region)
+	if kind not in ["track","encounter"] or choice<0 or choice>=(6 if kind=="track" else 3): return {"ok":false,"message":"Unknown action"}
+	if int(s.research_target[region])!=target:
+		s.research_target[region]=target; s.research_misses[region]=0
+	var step=research_progress(target)
+	if kind=="track":
+		var bit=1<<choice
+		if (int(s.research_misses[region])&bit)!=0: return {"ok":false,"message":"Already searched this site"}
+		if choice!=Research.correct(target,step):
+			s.energy=maxi(0,int(s.energy)-1); s.research_misses[region]=int(s.research_misses[region])|bit
+			save_game()
+			return {"ok":true,"correct":false,"message":"Old trail. Try another site.","species":target}
+		s.energy-=2; s.research_evidence[target]=step+1; s.research_misses[region]=0
+		s.coins=mini(999999,int(s.coins)+4); earn(5)
+		if step+1==Research.needed(target): s.materials=mini(9999,int(s.materials)+1)
+		save_game()
+		return {"ok":true,"correct":true,"species":target,"message":"Creature located!" if step+1==Research.needed(target) else "Fresh evidence! +4 coins · +5 XP"}
+	var trust=clampi(int(s.research_trust[target]),0,2)
+	if choice!=Research.answer(target,trust):
+		return {"ok":true,"correct":false,"species":target,"message":"It hesitates. Observe its behavior and try again."}
+	s.research_trust[target]=trust+1
+	if trust==2:
+		s.collection=int(s.collection)|(1<<target); s.research_target[region]=-1; s.research_misses[region]=0
+		var bonus=30 if target<12 else 55 if target<24 else 85
+		s.coins=mini(999999,int(s.coins)+bonus); s.materials=mini(9999,int(s.materials)+2); earn(25)
+		if target>=12: s.crystals=mini(9999,int(s.crystals)+1)
+		s.quests=int(s.quests)|4
+		save_game()
+		return {"ok":true,"correct":true,"unlocked":true,"species":target,"coins":bonus,"message":"New companion discovered!"}
+	save_game()
+	return {"ok":true,"correct":true,"species":target,"message":"Trust increased!"}
 func favorite(index:int)->bool:
 	return index>=0 and index<SPECIES.size() and (int(s.favorites)&(1<<index))!=0
 func toggle_favorite(index:int)->bool:
@@ -272,7 +327,7 @@ func action_block(id:String,i:int=0)->String:
 		"friend": return "" if s.friendship<4 else "Friendship complete"
 		"form":
 			if i==int(s.form): return "Already active"
-			if i!=-1 and (i<24 or i>=SPECIES.size() or (int(s.collection)&(1<<i))==0): return "Companion locked"
+			if i!=-1 and (i<0 or i>=SPECIES.size() or (int(s.collection)&(1<<i))==0): return "Companion locked"
 		"supply":
 			if i<0 or i>1: return "Unknown supply"
 			var key="medicine" if i==0 else "snacks"
@@ -335,7 +390,7 @@ func action(id:String,i:int=0)->bool:
 			if unlocked>=24: s.collection=int(s.collection)|(1<<unlocked)
 		"form":
 			if s.stage==0: return false
-			if i!=-1 and (i<24 or i>=SPECIES.size() or (int(s.collection)&(1<<i))==0): return false
+			if i!=-1 and (i<0 or i>=SPECIES.size() or (int(s.collection)&(1<<i))==0): return false
 			if int(s.form)==i: return false
 			s.form=i
 		"quest":
@@ -417,7 +472,7 @@ func action(id:String,i:int=0)->bool:
 			if not ready or s.stage!=4 or s.friendship<4 or s.pending[0]>0: return false
 			var old=s.duplicate(true)
 			s=defaults()
-			for key in ["wallpaper_room","wallpaper_x","wallpaper_y","wallpaper_size","wallpaper_minimal","wallpaper_battery","wallpaper_status","coins","crystals","materials","fuel","snacks","medicine","collection","favorites","care_day","care_mask","care_claims","care_claimed","owned","equipped","installation","wardrobe","worn","theme","garden_at","harvests","best","daily_day","quest_day","quests","claimed","journeys","auto_sleep"]: s[key]=old[key]
+			for key in ["research_evidence","research_trust","research_misses","research_target","wallpaper_room","wallpaper_x","wallpaper_y","wallpaper_size","wallpaper_minimal","wallpaper_battery","wallpaper_status","coins","crystals","materials","fuel","snacks","medicine","collection","favorites","care_day","care_mask","care_claims","care_claimed","owned","equipped","installation","wardrobe","worn","theme","garden_at","harvests","best","daily_day","quest_day","quests","claimed","journeys","auto_sleep"]: s[key]=old[key]
 			s.generation=old.generation+1; s.habitat=int(old.habitat); s.field=int(old.habitat); s.inherited_eyes=2; s.eyes=2; s.color=1; s.last=at
 		_: ok=false
 	if ok:

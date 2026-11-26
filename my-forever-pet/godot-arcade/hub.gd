@@ -30,7 +30,10 @@ var shop_tab="Accessories"
 var swipe_dirty=true
 var hint_label:Label
 var quest_claim:Button
-var life_tabs=["Care","Journal","World","Cell","Care Quest"]
+var life_tabs=["Care","Journal","World","Habitat","Cell","Care Quest"]
+const Research=preload("res://research_data.gd")
+var hunt_region=0
+var hunt_message=""
 var daily_cta:Button
 var care_cta:Button
 var wallpaper_cta:Button
@@ -579,6 +582,8 @@ func select(tab:String):
 			button(actions,"View collection ›",func(): select("Pets"))
 		"World":
 			build_world()
+		"Habitat":
+			build_habitat()
 		"Cell":
 			build_care(true)
 
@@ -726,7 +731,7 @@ func life_header(tab:String):
 	var subtitle=label(actions,"Care, growth and adventure — all in one place.",14); subtitle.modulate=Color("#c9bbdf"); subtitle.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART
 	var tabs=row(actions); tabs.add_theme_constant_override("separation",5)
 	for entry in [["Care","Care"],["Growth","Journal"],["Explore","World"]]:
-		var active=tab==entry[1] or (entry[1]=="Care" and tab in ["Cell","Care Quest"])
+		var active=tab==entry[1] or (entry[1]=="Care" and tab in ["Cell","Care Quest"]) or (entry[1]=="World" and tab=="Habitat")
 		var b=button(tabs,entry[0],func(): select(entry[1])); b.custom_minimum_size.y=42; b.add_theme_font_size_override("font_size",16)
 		b.add_theme_stylebox_override("normal",menu_skin(Color("#7850ad") if active else Color("#27203e"),Color("#e4bdff") if active else Color("#5c4c75")))
 func section_heading(parent:Node,title:String,subtitle:String=""):
@@ -778,31 +783,87 @@ func build_care(show_lab:bool):
 	if show_lab: section_scroll.set_deferred("scroll_vertical",maxi(0,section_scroll.get_v_scroll_bar().max_value-section_scroll.size.y))
 	action_card(actions,"Medicine","Cures all sick cells; buy supplies in Shop.","medicine","medicine",0,"Use")
 func build_world():
-	var exp=context_card("expedition","Expedition status")
-	context_meter(exp,"expedition",Color("#65b4ed"))
-	section_heading(actions,"Preferred habitat","Changes future expedition preference, never your current pet.")
-	var hab=row(actions); hab.add_theme_constant_override("separation",6)
-	for i in range(3):
-		var tile=art_tile(hab,store.FIELDS[i],"res://assets/pet_%d.png"%[1,4,8][i],func(): perform("field",i),93,14)
-		register_action(tile,"field",i)
-	section_heading(actions,"Explore the world","Unlock destinations as your pet grows. Matching your preferred habitat grants 5 bonus coins.")
+	section_heading(actions,"Discover wild companions","Follow evidence, observe creatures and earn their trust. Research is available from Baby stage.")
 	for i in range(3):
 		var shell=panel(actions); var line=row(shell)
 		var art=TextureRect.new(); art.texture=tex("res://assets/"+["room_garden.jpg","arcade_find.jpg","sky-panorama.png"][i]); art.custom_minimum_size=Vector2(112,94); art.expand_mode=TextureRect.EXPAND_IGNORE_SIZE; art.stretch_mode=TextureRect.STRETCH_KEEP_ASPECT_COVERED; line.add_child(art)
 		var copy=VBoxContainer.new(); copy.size_flags_horizontal=SIZE_EXPAND_FILL; line.add_child(copy)
-		label(copy,["Meadow","Coral ruins","Starlight islands"][i],19)
-		var detail="%d min • Lv %d • %d fuel"%[10+i*10,1+i*2,i]
-		var hint=label(copy,detail,14); hint.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART
-		var b=button(copy,"Explore ›",func(): perform("trip",i)); b.set_meta("hint",hint); b.set_meta("detail",detail); b.set_meta("short_cta",true); register_action(b,"trip",i)
-	action_card(actions,"Expedition treasure","Collect once after the trip returns.","daily","loot",0,"Collect")
+		label(copy,Research.REGIONS[i],21).modulate=Research.TINTS[i]
+		label(copy,Research.SUB[i],13).autowrap_mode=TextServer.AUTOWRAP_WORD_SMART
+		var n=Research.discovered(i,int(store.s.collection))
+		label(copy,"%d / %d species found"%[n,Research.POOLS[i].size()],14)
+		var p=ProgressBar.new(); p.show_percentage=false; p.max_value=Research.POOLS[i].size(); p.value=n; p.custom_minimum_size.y=9; copy.add_child(p)
+		var target:int=store.research_target(i)
+		var text="Explore ›" if target<0 or store.research_progress(target)==0 else "Continue trail ›"
+		var go=button(copy,text,func(): hunt_region=i; hunt_message=""; select("Habitat"))
+		go.add_theme_stylebox_override("normal",menu_skin(Research.TINTS[i].darkened(.55),Research.TINTS[i]))
+	var exp=context_card("expedition","Supply expeditions")
+	context_meter(exp,"expedition",Color("#65b4ed"))
+	label(exp,"Optional timed trips earn materials and coins after Kid stage.",13).autowrap_mode=TextServer.AUTOWRAP_WORD_SMART
+	for i in range(3):action_card(actions,Research.REGIONS[i],"%d min · Lv %d · %d fuel"%[10+i*10,1+i*2,i],"daily","trip",i,"Send")
+	action_card(actions,"Expedition treasure","Collect after the trip returns.","daily","loot",0,"Collect")
 	var family=context_card("friend","Family & friendship")
 	action_card(family,"Playdate","Build friendship for the next generation.","bond","friend",0,"Playdate")
 	var breed=action_card(family,"Next generation","Adult, friendship 4, no pending expedition rewards.","hatch","breed",0,"Begin")
-	# Replace direct action with explicit confirmation because breeding replaces the current pet.
 	for conn in breed.pressed.get_connections(): breed.pressed.disconnect(conn.callable)
 	breed.pressed.connect(func():
-		var confirm=ConfirmationDialog.new(); confirm.dialog_text="Begin a new egg generation? Your current pet is replaced, collection and items remain."; add_child(confirm)
+		var confirm=ConfirmationDialog.new(); confirm.dialog_text="Begin a new egg generation? Collection and items remain."; add_child(confirm)
 		confirm.confirmed.connect(func(): perform("breed")); confirm.confirmed.connect(confirm.queue_free); confirm.canceled.connect(confirm.queue_free); confirm.popup_centered())
+func build_habitat():
+	var r=hunt_region
+	button(actions,"‹ All habitats",func(): select("World")).custom_minimum_size.y=42
+	section_heading(actions,Research.REGIONS[r],Research.SUB[r])
+	var id:int=store.research_target(r)
+	if id<0:
+		label(actions,"All available local species registered. Check your collection!",19).autowrap_mode=TextServer.AUTOWRAP_WORD_SMART
+		button(actions,"View collection",func(): select("Pets")); return
+	var step:int=store.research_progress(id)
+	var goal:int=Research.needed(id)
+	var hero=panel(actions); var line=row(hero)
+	var art=TextureRect.new(); art.texture=tex("res://assets/pet_%d.png"%id); art.custom_minimum_size=Vector2(100,100); art.expand_mode=TextureRect.EXPAND_IGNORE_SIZE; art.stretch_mode=TextureRect.STRETCH_KEEP_ASPECT_CENTERED; line.add_child(art)
+	art.modulate=Color("#211b35") if step<goal else Color.WHITE
+	var copy=VBoxContainer.new(); copy.size_flags_horizontal=SIZE_EXPAND_FILL; line.add_child(copy)
+	label(copy,"UNKNOWN CREATURE" if step<goal else store.SPECIES[id],20).autowrap_mode=TextServer.AUTOWRAP_WORD_SMART
+	label(copy,("Rare" if id>=12 else "Common")+" · Evidence %d/%d"%[step,goal],14).modulate=Research.TINTS[r]
+	var bar=ProgressBar.new(); bar.max_value=goal; bar.value=step; bar.show_percentage=false; bar.custom_minimum_size.y=12; copy.add_child(bar)
+	label(copy,"Energy %d / 100"%int(store.s.energy),13)
+	if not hunt_message.is_empty():
+		var feedback=label(hero,hunt_message,15); feedback.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART; feedback.modulate=Color("#ffd68d")
+	var block:String=store.research_block("track" if step<goal else "encounter",r)
+	if not block.is_empty():
+		label(actions,block,17).autowrap_mode=TextServer.AUTOWRAP_WORD_SMART
+		button(actions,"Return to care",func(): select("Home")); return
+	if step<goal:
+		section_heading(actions,"Follow the trail","Look for "+Research.CLUES[r][Research.desired(id,step)].to_lower()+". Tap the matching marker. Each search uses energy.")
+		var field=preload("res://research_map.gd").new()
+		actions.add_child(field)
+		field.setup(r,id,step,int(store.s.research_misses[r]) if int(store.s.research_target[r])==id else 0)
+		field.site_selected.connect(func(site:int): hunt_action("track",site))
+		var legend=label(actions,"  ·  ".join(Research.SITES[r]),12); legend.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART
+	else:
+		var trust=clampi(int(store.s.research_trust[id]),0,2)
+		section_heading(actions,"Wild encounter","Trust %d/3 · "%trust+Research.HINTS[r][Research.answer(id,trust)])
+		for i in range(3):
+			var option=button(actions,Research.OPTIONS[r][i],func(): hunt_action("encounter",i))
+			option.custom_minimum_size.y=53
+		label(actions,"Observe the creature before choosing. There is no need to hurt it.",13).autowrap_mode=TextServer.AUTOWRAP_WORD_SMART
+func hunt_action(kind:String,choice:int):
+	var result:Dictionary=store.research_action(kind,hunt_region,choice)
+	hunt_message=str(result.get("message",""))
+	if result.get("unlocked",false):
+		play_reward(true)
+		select("Habitat")
+		var popup=AcceptDialog.new(); popup.title="New companion!"; popup.ok_button_text="Continue exploring"
+		var content=VBoxContainer.new(); popup.add_child(content)
+		var id=int(result.species)
+		var image=TextureRect.new(); image.texture=tex("res://assets/pet_%d.png"%id); image.custom_minimum_size=Vector2(250,200); image.expand_mode=TextureRect.EXPAND_IGNORE_SIZE; image.stretch_mode=TextureRect.STRETCH_KEEP_ASPECT_CENTERED; content.add_child(image)
+		label(content,store.SPECIES[id],24).horizontal_alignment=HORIZONTAL_ALIGNMENT_CENTER
+		label(content,"+%d coins · +25 XP · +2 materials"%int(result.coins),15).horizontal_alignment=HORIZONTAL_ALIGNMENT_CENTER
+		button(content,"Meet in collection ›",func(): popup.queue_free(); collection_feature=id; select("Pets"))
+		popup.confirmed.connect(popup.queue_free); popup.canceled.connect(popup.queue_free); add_child(popup); popup.popup_centered(Vector2i(340,370))
+	else:
+		if result.get("correct",false):play_reward(false)
+		select("Habitat")
 func room(name:String):
 	if name!=current_room: notice.text=""
 	for key in nav_buttons:
@@ -867,17 +928,19 @@ func show_collection():
 	var family=label(copy,family_name(collection_feature),25); family.clip_text=true
 	var species=label(copy,store.SPECIES[collection_feature],16); species.clip_text=true
 	label(copy,species_category(collection_feature)+"  •  "+("Care companion" if collection_feature>=24 else "Secret evolution" if collection_feature>=12 else "Standard form"),12).modulate=species_color(collection_feature).lightened(.35)
-	var desc=label(copy,"Discovered" if (int(store.s.collection)&(1<<collection_feature))!=0 else "Discover through growth and evolution.",14); desc.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART
+	var desc=label(copy,"Discovered" if (int(store.s.collection)&(1<<collection_feature))!=0 else "Discover by tracking in a habitat or through growth.",14); desc.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART
 	var favorite_button=button(copy,"♥ Favorited" if store.favorite(collection_feature) else "♡ Favorite",func(): store.toggle_favorite(collection_feature); show_collection())
 	favorite_button.add_theme_font_size_override("font_size",14)
-	if collection_feature>=24:
-		var unlocked=(int(store.s.collection)&(1<<collection_feature))!=0
-		var form=button(copy,"Restore original form" if int(store.s.form)==collection_feature else "Use companion form" if unlocked else "Unlock in Care Quest",func():
-			if unlocked: perform("form",-1 if int(store.s.form)==collection_feature else collection_feature)
-			else: select("Care Quest"))
-		form.add_theme_font_size_override("font_size",14)
-	else:
-		var growth_button=button(copy,"Growth journal",func(): select("Journal")); growth_button.add_theme_font_size_override("font_size",14)
+	var unlocked=(int(store.s.collection)&(1<<collection_feature))!=0
+	var active=store.species()==collection_feature
+	var form=button(copy,"Restore original form" if active and int(store.s.form)>=0 else "Current companion" if active else "Use companion" if unlocked else "Find in habitat",func():
+		if active and int(store.s.form)>=0: perform("form",-1)
+		elif unlocked and not active: perform("form",collection_feature)
+		elif not unlocked: hunt_region=Research.region_of(collection_feature); hunt_message=""; select("Habitat"))
+	form.disabled=active and int(store.s.form)<0
+	form.add_theme_font_size_override("font_size",14)
+	if not unlocked:
+		label(copy,Research.REGIONS[Research.region_of(collection_feature)]+" · Follow local clues",12).autowrap_mode=TextServer.AUTOWRAP_WORD_SMART
 	var filter_scroll=ScrollContainer.new(); filter_scroll.custom_minimum_size.y=44; filter_scroll.vertical_scroll_mode=ScrollContainer.SCROLL_MODE_DISABLED; actions.add_child(filter_scroll)
 	enable_swipe(filter_scroll)
 	var filter=row(filter_scroll); filter.size_flags_horizontal=SIZE_EXPAND_FILL
@@ -1313,6 +1376,11 @@ func capture_home():
 		await capture_frame("/tmp/forever-"+ROOMS[name]+".png")
 	select("Care"); await capture_frame("/tmp/forever-care.png")
 	select("World"); await capture_frame("/tmp/forever-world.png")
+	for r in range(3):
+		hunt_region=r; select("Habitat"); await capture_frame("/tmp/forever-habitat-%d.png"%r)
+	hunt_region=0
+	var target:int=store.research_target(0); store.s.research_evidence[target]=Research.needed(target)
+	select("Habitat"); await capture_frame("/tmp/forever-encounter.png")
 	select("Journal"); await capture_frame("/tmp/forever-growth.png")
 	select("Pets")
 	await capture_frame("/tmp/forever-collection.png")
