@@ -561,7 +561,7 @@ func build_exterior_world(wall_cells:Dictionary):
 	while cursor<queue.size():
 		var q=queue[cursor];cursor+=1
 		var distance:int=exterior_distances[q]
-		if distance>=6:continue
+		if distance>=9:continue
 		for d in Rules.DIR:
 			var next:Vector2i=q+d
 			if exterior_distances.has(next):continue
@@ -578,12 +578,13 @@ func build_exterior_world(wall_cells:Dictionary):
 	for room in run.rooms:
 		if vista_parts.is_empty() or exterior_vistas.size()>=12:break
 		var middle:Vector2i=room.get_center()
-		var choices:Array[Vector2i]=[Vector2i(middle.x,room.end.y+1),Vector2i(middle.x,room.position.y-2),Vector2i(room.position.x-2,middle.y),Vector2i(room.end.x+1,middle.y)]
+		var choices:Array[Vector2i]=[Vector2i(room.position.x-3,middle.y),Vector2i(room.end.x+2,middle.y),Vector2i(middle.x,room.position.y-3),Vector2i(middle.x,room.end.y+2),Vector2i(middle.x,room.end.y+1)]
 		for q in choices:
 			if not exterior_clearance(q):continue
-			var center=pos(q)+Vector3(0,-.52,0)
-			var angle=float(posmod(q.x*7+q.y*11,5)-2)*.22
-			vista_placements.append(Transform3D(Basis(Vector3.UP,angle).scaled(Vector3(.88,.85,.88)),center))
+			var center=pos(q)+Vector3(0,-.42,0)
+			var angle=float(posmod(q.x*7+q.y*11,5)-2)*.14
+			var vista_scale=Vector3(1.10,1.35,1.08) if exterior_distances[q]>=3 else Vector3(.89,1.12,.89)
+			vista_placements.append(Transform3D(Basis(Vector3.UP,angle).scaled(vista_scale),center))
 			exterior_vistas.append(q);exterior_groups.append(q)
 			break
 	batch_exterior_parts(vista_parts,vista_placements)
@@ -607,7 +608,7 @@ func build_exterior_world(wall_cells:Dictionary):
 		# The reef fans and astral arches are front-facing compositions.
 		# Keep their authored face legible instead of randomly turning them edge-on.
 		if region!=0:angle=float(posmod(q.x*11+q.y*17,7)-3)*.16
-		var scale_value=.83+.14*float(posmod(q.x*13+q.y*7,5))/4.0
+		var scale_value=.78+.40*float(posmod(q.x*13+q.y*7,9))/8.0
 		var center=pos(q)+Vector3(0,-.45,0)
 		placements.append(Transform3D(Basis(Vector3.UP,angle).scaled(Vector3.ONE*scale_value),center))
 		exterior_groups.append(q)
@@ -636,11 +637,13 @@ func build_habitat_layers(prefix:String,queue:Array[Vector2i],wall_cells:Diction
 			candidates.append(Vector2i(x,room.position.y-3))
 		candidates.append(Vector2i(room.position.x-3,m.y))
 		candidates.append(Vector2i(room.end.x+2,m.y))
-	for q in queue:
-		if exterior_distances[q] in [4,5,6]:candidates.append(q)
+	# Interleave wider landscape bands so distant rooms are not starved by BFS order.
+	for band in [4,5,6,7,8,9]:
+		for q in queue:
+			if exterior_distances[q]==band:candidates.append(q)
 	for q in candidates:
-		if habitat_tall.size()>=22:break
-		if exterior_distances.get(q,99)<3 or exterior_distances.get(q,99)>6:continue
+		if habitat_tall.size()>=36:break
+		if exterior_distances.get(q,99)<3 or exterior_distances.get(q,99)>9:continue
 		var safe=true
 		for dy in range(-1,2):
 			for dx in range(-1,2):
@@ -650,12 +653,16 @@ func build_habitat_layers(prefix:String,queue:Array[Vector2i],wall_cells:Diction
 		for old in landmark_cells:
 			if Vector2(old-q).length_squared()<5.0:safe=false;break
 		for old in habitat_tall:
-			if Vector2(old-q).length_squared()<7.0:safe=false;break
+			if Vector2(old-q).length_squared()<6.0:safe=false;break
 		if not safe:continue
 		var angle=float(posmod(q.x*7+q.y*11,7)-3)*.15
-		var scale_value=.89+.23*float(posmod(q.x*13+q.y*7,5))/4.0
-		var height_factor=.88+.24*float(posmod(q.x*17+q.y*3,7))/6.0
-		var elevation=.12 if region==2 else -.42
+		var distance:int=exterior_distances[q]
+		var scale_value=.87+.51*float(posmod(q.x*13+q.y*7,9))/8.0
+		var height_factor=1.06+.72*float(posmod(q.x*17+q.y*3,11))/10.0
+		if distance<=3:
+			scale_value=minf(scale_value,1.04)
+			height_factor=minf(height_factor,1.28)
+		var elevation=-.22 if region==2 else -.42
 		tall_placements.append(Transform3D(Basis(Vector3.UP,angle).scaled(Vector3(scale_value,scale_value*height_factor,scale_value)),pos(q)+Vector3(0,elevation,0)))
 		habitat_tall.append(q)
 	batch_exterior_parts(tall_parts,tall_placements)
@@ -666,9 +673,9 @@ func fill_habitat_understory(wall_cells:Dictionary):
 	if low_parts.is_empty():return
 	var low_placements:Array[Transform3D]=[]
 	# Fill the actual remaining terrain, after reserving large models and terraces.
-	for distance in [2,3,4,5]:
+	for distance in [2,3,4,5,6,7,8,9]:
 		for q in habitat_ground_candidates:
-			if habitat_low.size()>=80:break
+			if habitat_low.size()>=150:break
 			if exterior_distances[q]!=distance or wall_cells.has(q) or terrace_cells.has(q):continue
 			var safe=true
 			for old in exterior_groups:
@@ -681,7 +688,7 @@ func fill_habitat_understory(wall_cells:Dictionary):
 				if Vector2(old-q).length_squared()<2.0:safe=false;break
 			if not safe:continue
 			var angle=float(posmod(q.x*11+q.y*17,12))*TAU/12.0
-			var scale_value=.70+.27*float(posmod(q.x*7+q.y*13,5))/4.0
+			var scale_value=.76+.34*float(posmod(q.x*7+q.y*13,9))/8.0
 			low_placements.append(Transform3D(Basis(Vector3.UP,angle).scaled(Vector3.ONE*scale_value),pos(q)+Vector3(0,-.51,0)))
 			habitat_low.append(q)
 	batch_exterior_parts(low_parts,low_placements)
@@ -830,8 +837,8 @@ func build_exterior_surface():
 				if run.cells.has(q+d):near=true
 			var n=noise.get_noise_2d(q.x,q.y)
 			var h=-.64 if near else -.57+.21*n
-			var distance:int=exterior_distances.get(q,7)
-			var depth_factor=smoothstep(3.0,7.0,float(distance))
+			var distance:int=exterior_distances.get(q,10)
+			var depth_factor=smoothstep(3.0,9.0,float(distance))
 			# Preserve support beneath placed Blender scenery; lower only the
 			# unobstructed landscape. The playable floor is untouched.
 			var support=0.0
@@ -845,7 +852,12 @@ func build_exterior_surface():
 			for group in habitat_tall:
 				if Vector2(q-group).length_squared()<3.0:support=1.0;break
 			if habitat_low.has(q) or terrace_cells.has(q):support=1.0
-			if not near:h-=depth_factor*(1.0-support)*[.32,1.05,1.75][region]
+			if not near:
+				# Broad ridges, basins and cloud valleys behind the actual scenery.
+				var relief=broad.get_noise_2d(q.x,q.y)
+				h-=depth_factor*(1.0-support)*([.40,1.10,2.35][region]+.48*relief)
+				h+=minf(.24,depth_factor*(1.0-support)*maxf(0.0,relief)*.40)
+				h=minf(h,-.35)
 			heights[y*width+x]=h;exterior_max_height=maxf(exterior_max_height,h)
 			vertices.append(Vector3(q.x*1.4,h,q.y*1.4));uvs.append(Vector2(q))
 			var color=deep.lerp(raised,clampf(.43+n*.57,0.0,1.0))

@@ -51,7 +51,7 @@ func exterior_review(dungeon,region:int,floor_index:int):
 	assert(full.save_png(path+"on.png")==OK)
 	assert(empty.save_png(path+"off.png")==OK)
 	assert(difference.save_png(path+"mask.png")==OK)
-	if coverage<1.0:push_warning("Exterior composition rejected: less than 1 percent visible contribution from new assets")
+	if coverage<8.0:push_warning("ART_REJECT exterior contribution below 8 percent; inspect the real camera captures before release")
 	# Coverage is not aesthetic approval. A large ugly mesh can also score highly.
 func check_exterior_chunks(dungeon):
 	var original:Array[Transform3D]=[]
@@ -100,9 +100,12 @@ func run():
 			assert(dungeon.exterior_groups.size()>0 and dungeon.exterior_groups.size()<=40,"exterior landscape groups placed within budget")
 			assert(dungeon.exterior_static_batches>0,"static landscape submitted in spatial chunks")
 			if ResourceLoader.exists("res://assets/dungeon_forest_habitat.glb"):
-				assert(dungeon.habitat_tall.size()>0 and dungeon.habitat_tall.size()<=22)
-				assert(dungeon.habitat_low.size()>0 and dungeon.habitat_low.size()<=80)
-				for q in dungeon.habitat_tall:assert(dungeon.exterior_distances[q]>=3)
+				assert(dungeon.habitat_tall.size()>0 and dungeon.habitat_tall.size()<=36)
+				assert(dungeon.habitat_low.size()>0 and dungeon.habitat_low.size()<=150)
+				for q in dungeon.habitat_tall:
+					assert(dungeon.exterior_distances[q]>=3 and dungeon.exterior_distances[q]<=9)
+					for dy in range(-1,2):
+						for dx in range(-1,2):assert(not dungeon.run.cells.has(q+Vector2i(dx,dy)),"tall scenery clearance")
 				for q in dungeon.habitat_low:
 					assert(dungeon.exterior_distances[q]>=2 and not dungeon.run.cells.has(q))
 					assert(not dungeon.terrace_cells.has(q),"understory fills open land, not terrace footprints")

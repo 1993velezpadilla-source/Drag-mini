@@ -1558,22 +1558,31 @@ clear()
 # Mossy brook with a sculpted cascade, layered rock ledges and flowering banks.
 stream=mat('woodland turquoise stream',(.055,.44,.48),.12,.27)
 foam=mat('cascade pale highlights',(.56,.87,.90),.05,.32)
-natural_rock((0,.16,0),(2.32,.32,1.70),foreststone,2800)
-natural_rock((-.45,.50,-.38),(1.1,.72,.85),forestedge,2801)
-natural_rock((.51,.31,-.36),(.90,.50,.82),moss,2802)
-ball((0,.32,.42),(1.52,.10,.82),stream)
+natural_rock((0,.16,.08),(2.72,.32,2.38),foreststone,2800)
+# Tall fractured escarpment, connected ledges and a moss-covered upper lip.
+natural_rock((-.59,1.12,-.50),(1.30,2.25,1.25),forestedge,2801)
+natural_rock((.60,1.00,-.53),(1.23,2.02,1.28),foreststone,2802)
+natural_rock((0,1.89,-.68),(1.58,.55,.84),foreststone,2803)
+natural_rock((-.63,2.13,-.55),(1.10,.23,.91),moss,2804)
+natural_rock((.68,1.78,-.51),(1.02,.30,.88),moss,2805)
+natural_rock((-.99,.42,.20),(.54,.66,1.21),moss,2806)
+natural_rock((1.00,.38,.20),(.52,.56,1.18),moss,2807)
+ball((0,.32,.46),(2.02,.11,1.52),stream)
+ball((0,2.20,-.64),(1.02,.07,.62),stream)
 # Continuous scalloped water sheet with a broad crest, curved drop and
 # widening splash apron. Thin surface geometry instead of four pipe meshes.
-verts=[];faces=[];rows=13;cols=11
+def cascade_point(t,u):
+ # The crest turns over the cliff, then drops vertically and flares into the pool.
+ y=.34+1.88*(1-t**1.24)
+ z=-.52+.46*(1-math.exp(-9*t))+.70*t**4
+ width=.45+.32*t**3
+ return (u*width+.035*math.sin(t*pi),y+.012*math.sin(u*17+t*11),z+.014*math.cos(u*9+t*4))
+verts=[];faces=[];rows=19;cols=13
 for j in range(rows):
  t=j/(rows-1)
- y=.34+.53*(1-t*t)
- z=-.43+.79*t
- width=.34+.13*t*t
  for i in range(cols):
   u=i/(cols-1)*2-1
-  wave=.012*math.sin(u*17+t*11)+.008*math.cos(u*29-t*8)
-  verts.append((u*width+.035*math.sin(t*pi),y+wave,z+.016*math.cos(u*9+t*4)))
+  verts.append(cascade_point(t,u))
 for j in range(rows-1):
  for i in range(cols-1):
   a=j*cols+i;faces.append((a,a+1,a+cols+1,a+cols))
@@ -1585,11 +1594,11 @@ for k in range(5):
  points=[]
  for j in range(7):
   t=.04+j*.146
-  points.append((u*(.34+.13*t*t)+.035*math.sin(t*pi),.355+.53*(1-t*t)+.012*math.sin(u*17+t*11),-.43+.79*t+.018))
+  x,y,z=cascade_point(t,u);points.append((x,y+.006,z+.024))
  tube(points,[.012,.014,.012,.013,.011,.010,.007],foam,6)
-for k in range(9):
- a=k*2*pi/9
- ball((.36*math.cos(a),.38,.34+.12*math.sin(a)),(.10+.035*(k%3),.035,.065),foam)
+for k in range(12):
+ a=k*2*pi/12
+ ball((.66*math.cos(a),.39,.64+.22*math.sin(a)),(.14+.035*(k%3),.045,.10),foam)
 # Fallen log with visible branching and richly planted bank, rather than bare rock.
 tube([(-1.01,.28,.18),(-.80,.34,.43),(-.58,.32,.65),(-.31,.25,.78)],[.13,.12,.10,.06],bark,10)
 tube([(-.80,.34,.43),(-.65,.48,.38),(-.54,.53,.33)],[.055,.037,.018],bark,8)
@@ -1607,10 +1616,24 @@ for x,z in [(-.71,-.51),(.79,-.44),(.52,.65),(-.49,.68)]:
   ang=k*2*pi/5
   crown_leaf((x+.022*math.cos(ang),.30,z+.022*math.sin(ang)),ang,.095,.039,white)
  ball((x,.34,z),(.075,.05,.075),gold)
-export('dungeon_forest_vista',7000)
+# Vegetation on the cliff itself, not merely on the flat floor below it.
+for i,(x,y,z) in enumerate([(-.88,1.02,-.22),(.80,1.34,-.30),(-.57,2.22,-.43),(.66,1.88,-.31)]):
+ leaf_rosette((x,y,z),2840+i,leafdark,leafbright,.38,fronds=4,pairs=3)
+export('dungeon_forest_vista',9500)
 clear()
 # Hollow sponge tubes, layered plate coral and shell bed; no solid cylinders.
-natural_rock((0,.17,0),(2.27,.36,1.78),reefstone,2900)
+natural_rock((0,.17,0),(2.75,.40,2.20),reefstone,2900)
+natural_rock((-.72,.56,-.49),(1.12,1.10,1.04),reefedge,2902)
+natural_rock((.65,.48,-.38),(1.19,.87,1.18),reefstone,2903)
+# A branching coral silhouette above the sponge bed; asymmetric branches,
+# contrasting warm and cool species, with one connected limestone foundation.
+for k,(x,z,h) in enumerate([(-.77,-.52,1.45),(.68,-.38,1.80)]):
+ m=coral if k==0 else coral2
+ tube([(x,.48,z),(x-.06,h*.68,z),(x+.08,h,z)],[.14,.095,.035],m,9)
+ for j in range(4):
+  side=-1 if j%2==0 else 1
+  y=.75+j*.15
+  tube([(x,y,z),(x+side*.26,y+.24,z+.07),(x+side*.42,y+.42,z+.03)],[.074,.047,.017],m,7)
 def sponge(x,z,h,r,material,seed):
  verts=[];faces=[];n=14
  for y,rr in [(0,r*.82),(h*.47,r*.94),(h,r),(h,r*.61),(h*.33,r*.48)]:
@@ -1638,7 +1661,7 @@ for k in range(5):
 for x,z in [(-.74,.46),(-.26,.63),(.72,.48)]:
  ball((x,.24,z),(.22,.16,.20),pearl)
  for k in range(3):blades((x,.22,z),k*2*pi/3,.42,.09,kelp)
-export('dungeon_reef_vista',7500)
+export('dungeon_reef_vista',9500)
 clear()
 # Suspended observatory island: faceted tapered rock, gilded armillary and crystals.
 # Base extends down to the exterior floor, never into playable cells.
@@ -1741,7 +1764,7 @@ clear()
 # Hanging astral garden island. The rock is broad above and narrow below;
 # the top carries carved ruins, a small flowing stream and luminous plants.
 verts=[];faces=[];n=12
-for y,r in [(0,.10),(.22,.45),(.58,.91),(1.02,1.18),(1.14,1.12)]:
+for y,r in [(-.55,.10),(-.17,.45),(.50,.91),(1.20,1.28),(1.34,1.20)]:
  for i in range(n):
   a=i*2*pi/n;rr=r*(1+.08*math.sin(i*2.9+y))
   verts.append((rr*math.cos(a),y,rr*.76*math.sin(a)))
@@ -1750,14 +1773,14 @@ for j in range(4):
   a=j*n+i;c=j*n+(i+1)%n;faces.append((a,c,c+n,a+n))
 faces.extend([tuple(reversed(range(n))),tuple(range(4*n,5*n))])
 architectural_mesh('hanging garden island',verts,faces,astralstone)
-for x in [-.48,.48]:
- cyl((x,1.52,-.18),.15,.13,.72,astraledge)
- cyl((x,1.18,-.18),.21,.20,.10,rune)
-temple_arch(0,1.85,.52,.20,astraledge,3400)
+for x in [-.58,.58]:
+ cyl((x,1.89,-.18),.17,.13,1.06,astraledge)
+ cyl((x,1.39,-.18),.24,.22,.12,rune)
+temple_arch(0,2.40,.62,.24,astraledge,3400)
 for x,z in [(-.82,.32),(.69,.42),(.27,-.49)]:
- crystal((x,1.10,z),.12,.32,star,3410+int(x*10))
+ crystal((x,1.34,z),.14,.46,star,3410+int(x*10))
  for i in range(5):
-  a=i*2*pi/5;crown_leaf((x,1.13,z),a,.20,.07,violetglow if i%2 else leafdark)
+  a=i*2*pi/5;crown_leaf((x,1.36,z),a,.25,.09,violetglow if i%2 else leafdark)
 # Reuse the named animated stream material. A continuous curved sheet
 # spills over the island edge, not an image or a cylinder.
 verts=[];faces=[]
@@ -1765,7 +1788,7 @@ for j in range(10):
  t=j/9
  for i in range(6):
   u=i/5*2-1
-  verts.append((.25*u*(1+.25*t),1.16-1.03*t*t,.54+.40*t+.04*math.sin(t*pi)))
+  verts.append((.43*u*(1+.25*t),1.36-2.05*t*t,.60+.54*t+.04*math.sin(t*pi)))
 for j in range(9):
  for i in range(5):
   a=j*6+i;faces.append((a,a+1,a+7,a+6))
