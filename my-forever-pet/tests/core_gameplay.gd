@@ -144,6 +144,8 @@ func run():
 	var original:int=pet.species()
 	var target:int=pet.research_target(0)
 	check(target>=0 and target!=original,"starter can research another creature")
+	check(pet.choose_research(24) and pet.research_target(2)==24,"target exact creature from collection")
+	check(not pet.choose_research(-1) and not pet.choose_research(original),"invalid and active targets rejected")
 	check(not pet.research_action("encounter",0,0).ok,"encounter requires evidence")
 	var energy:int=pet.s.energy
 	var wrong:int=(R.correct(target,0)+1)%6

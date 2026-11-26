@@ -824,7 +824,7 @@ func build_habitat():
 	art.modulate=Color("#211b35") if step<goal else Color.WHITE
 	var copy=VBoxContainer.new(); copy.size_flags_horizontal=SIZE_EXPAND_FILL; line.add_child(copy)
 	label(copy,"UNKNOWN CREATURE" if step<goal else store.SPECIES[id],20).autowrap_mode=TextServer.AUTOWRAP_WORD_SMART
-	label(copy,("Rare" if id>=12 else "Common")+" · Evidence %d/%d"%[step,goal],14).modulate=Research.TINTS[r]
+	label(copy,("Mystic" if id>=24 else "Rare" if id>=12 else "Common")+" · Evidence %d/%d"%[step,goal],14).modulate=Research.TINTS[r]
 	var bar=ProgressBar.new(); bar.max_value=goal; bar.value=step; bar.show_percentage=false; bar.custom_minimum_size.y=12; copy.add_child(bar)
 	label(copy,"Energy %d / 100"%int(store.s.energy),13)
 	if not hunt_message.is_empty():
@@ -834,12 +834,12 @@ func build_habitat():
 		label(actions,block,17).autowrap_mode=TextServer.AUTOWRAP_WORD_SMART
 		button(actions,"Return to care",func(): select("Home")); return
 	if step<goal:
-		section_heading(actions,"Follow the trail","Look for "+Research.CLUES[r][Research.desired(id,step)].to_lower()+". Tap the matching marker. Each search uses energy.")
+		section_heading(actions,"Follow the trail",Research.RIDDLES[r][Research.desired(id,step)]+" Which sign matches? Each search uses energy.")
 		var field=preload("res://research_map.gd").new()
 		actions.add_child(field)
 		field.setup(r,id,step,int(store.s.research_misses[r]) if int(store.s.research_target[r])==id else 0)
 		field.site_selected.connect(func(site:int): hunt_action("track",site))
-		var legend=label(actions,"  ·  ".join(Research.SITES[r]),12); legend.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART
+		var legend=label(actions,"Tap a marker to investigate. Correct evidence advances the trail.",12); legend.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART
 	else:
 		var trust=clampi(int(store.s.research_trust[id]),0,2)
 		section_heading(actions,"Wild encounter","Trust %d/3 · "%trust+Research.HINTS[r][Research.answer(id,trust)])
@@ -847,6 +847,13 @@ func build_habitat():
 			var option=button(actions,Research.OPTIONS[r][i],func(): hunt_action("encounter",i))
 			option.custom_minimum_size.y=53
 		label(actions,"Observe the creature before choosing. There is no need to hurt it.",13).autowrap_mode=TextServer.AUTOWRAP_WORD_SMART
+	var dossier=panel(actions)
+	label(dossier,"Field guide · local creatures",18)
+	for candidate in Research.POOLS[r]:
+		if candidate==id or candidate==store.species() or (int(store.s.collection)&(1<<candidate))!=0:continue
+		var item=button(dossier,store.SPECIES[candidate]+" · %d/%d traces"%[store.research_progress(candidate),Research.needed(candidate)],func():
+			if store.choose_research(candidate): hunt_message="New investigation selected"; select("Habitat"))
+		item.custom_minimum_size.y=42; item.add_theme_font_size_override("font_size",14)
 func hunt_action(kind:String,choice:int):
 	var result:Dictionary=store.research_action(kind,hunt_region,choice)
 	hunt_message=str(result.get("message",""))
@@ -936,7 +943,8 @@ func show_collection():
 	var form=button(copy,"Restore original form" if active and int(store.s.form)>=0 else "Current companion" if active else "Use companion" if unlocked else "Find in habitat",func():
 		if active and int(store.s.form)>=0: perform("form",-1)
 		elif unlocked and not active: perform("form",collection_feature)
-		elif not unlocked: hunt_region=Research.region_of(collection_feature); hunt_message=""; select("Habitat"))
+		elif not unlocked:
+			hunt_region=Research.region_of(collection_feature); hunt_message=""; store.choose_research(collection_feature); select("Habitat"))
 	form.disabled=active and int(store.s.form)<0
 	form.add_theme_font_size_override("font_size",14)
 	if not unlocked:

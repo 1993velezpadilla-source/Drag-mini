@@ -111,6 +111,13 @@ func research_target(region:int)->int:
 	var current=int(s.research_target[region])
 	if current in Research.POOLS[region] and current!=species() and (int(s.collection)&(1<<current))==0: return current
 	return Research.next_species(region,int(s.collection),species())
+func choose_research(id:int)->bool:
+	if id<0 or id>=SPECIES.size() or s.stage==0 or id==species() or (int(s.collection)&(1<<id))!=0:return false
+	var region=Research.region_of(id)
+	if int(s.research_target[region])!=id:
+		s.research_target[region]=id; s.research_misses[region]=0
+		save_game()
+	return true
 func research_progress(id:int)->int:
 	return clampi(int(s.research_evidence[id]),0,Research.needed(id)) if id>=0 and id<SPECIES.size() else 0
 func research_block(kind:String,region:int)->String:
