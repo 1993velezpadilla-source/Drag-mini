@@ -51,6 +51,19 @@ func exterior_review(dungeon,region:int,floor_index:int):
 	assert(difference.save_png(path+"mask.png")==OK)
 	if coverage<1.0:push_warning("Exterior composition rejected: less than 1 percent visible contribution from new assets")
 	# Coverage is not aesthetic approval. A large ugly mesh can also score highly.
+func check_exterior_chunks(dungeon):
+	var original:Array[Transform3D]=[]
+	for p in [Vector3(-9,0,-1),Vector3(-.1,0,0),Vector3(0,0,0),Vector3(8.39,0,8.39),Vector3(8.4,0,8.4),Vector3(18,0,-9)]:
+		original.append(Transform3D(Basis(Vector3.UP,.31),p))
+	var chunks:Dictionary=dungeon.exterior_chunks(original)
+	var flattened:Array[Transform3D]=[]
+	for key in chunks:
+		for placement in chunks[key]:
+			assert(Vector2i(floori(placement.origin.x/8.4),floori(placement.origin.z/8.4))==key)
+			flattened.append(placement)
+	assert(flattened.size()==original.size())
+	for placement in original:assert(flattened.count(placement)==1,"preserve each exterior transform")
+	assert(chunks.size()>1)
 func run():
 	for region in range(3):
 		var dungeon=Field.new();root.add_child(dungeon)
@@ -58,6 +71,7 @@ func run():
 		dungeon.setup(region,1,0,false,true,902+region,24+region)
 		dungeon.set_process(false)
 		await frames()
+		check_exterior_chunks(dungeon)
 		assert(dungeon.companion_id==24+region)
 		assert(dungeon.area.size.x>200 and dungeon.area.size.y>200)
 		assert(dungeon.floor_label.text.contains("rooms"))
@@ -66,6 +80,7 @@ func run():
 		assert(dungeon.floor_surface.mesh.get_surface_count()==1,"continuous indexed walkable terrain")
 		if ResourceLoader.exists("res://assets/dungeon_forest_exterior.glb"):
 			assert(dungeon.exterior_groups.size()>0 and dungeon.exterior_groups.size()<=40,"exterior landscape groups placed within budget")
+			assert(dungeon.exterior_static_batches>0,"static landscape submitted in spatial chunks")
 			for q in dungeon.exterior_groups:
 				assert(dungeon.exterior_distances[q]>=2 and not dungeon.run.cells.has(q),"exterior groups stay beyond walls")
 				for dy in range(-1,2):

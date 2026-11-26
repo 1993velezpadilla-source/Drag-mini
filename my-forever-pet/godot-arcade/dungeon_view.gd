@@ -65,6 +65,7 @@ var exterior_vertex_count=0
 var exterior_max_height=0.0
 var exterior_groups:Array[Vector2i]=[]
 var exterior_vistas:Array[Vector2i]=[]
+var exterior_static_batches=0
 var landmark_cells:Array[Vector2i]=[]
 var exterior_distances:Dictionary={}
 var exterior_life:Array[MultiMeshInstance3D]=[]
@@ -445,9 +446,25 @@ func room_detail(wall_cells:Dictionary):
 			mm.set_instance_transform(i,Transform3D(Basis(Vector3.UP,i*.79).scaled(Vector3.ONE*.82),points[i])*part.transform)
 		var inst=MultiMeshInstance3D.new();inst.multimesh=mm;geometry.add_child(inst);inst.cast_shadow=GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	detail_count=points.size()
+func exterior_chunks(placements:Array[Transform3D])->Dictionary:
+	# Keep every authored transform exactly once. A whole-floor MultiMesh cannot
+	# cull its distant instances individually; compact world-space groups can.
+	var chunks:Dictionary={}
+	for placement in placements:
+		var key=Vector2i(floori(placement.origin.x/8.4),floori(placement.origin.z/8.4))
+		if not chunks.has(key):
+			var group:Array[Transform3D]=[]
+			chunks[key]=group
+		chunks[key].append(placement)
+	return chunks
+func batch_exterior_parts(parts:Array,placements:Array[Transform3D]):
+	for chunk in exterior_chunks(placements).values():
+		batch_parts(parts,chunk,false)
+		exterior_static_batches+=parts.size()
 func build_exterior_world(wall_cells:Dictionary):
 	# Multi-source BFS provides exact distance bands in O(cells + exterior area).
 	# No decoration is added to the gameplay graph.
+	exterior_static_batches=0
 	exterior_groups.clear();exterior_vistas.clear();exterior_distances.clear();exterior_life.clear();exterior_life_parts.clear();exterior_life_centers.clear();exterior_clock=0.0
 	var queue:Array[Vector2i]=[]
 	for q in run.cells:
@@ -481,12 +498,14 @@ func build_exterior_world(wall_cells:Dictionary):
 			vista_placements.append(Transform3D(Basis(Vector3.UP,angle).scaled(Vector3(.88,.85,.88)),center))
 			exterior_vistas.append(q);exterior_groups.append(q)
 			break
-	batch_parts(vista_parts,vista_placements,false)
+	batch_exterior_parts(vista_parts,vista_placements)
 	# Interleave the sides of each room instead of filling far-away rooms first.
 	var candidates:Array[Vector2i]=[]
-	for room in run.rooms:
-		var middle:Vector2i=room.get_center()
-		for offset in [0,-2,2,-4,4]:
+	# Distribute the first layer across all rooms before filling any one room.
+	# Prioritize front/back silhouette anchors, followed by the side edges.
+	for offset in [0,-2,2,-4,4]:
+		for room in run.rooms:
+			var middle:Vector2i=room.get_center()
 			candidates.append(Vector2i(middle.x+offset,room.position.y-2))
 			candidates.append(Vector2i(middle.x+offset,room.end.y+1))
 			candidates.append(Vector2i(room.position.x-2,middle.y+offset))
@@ -497,12 +516,15 @@ func build_exterior_world(wall_cells:Dictionary):
 		if exterior_groups.size()>=40:break
 		if not exterior_clearance(q):continue
 		var angle=float(posmod(q.x*11+q.y*17,12))*TAU/12.0
+		# The reef fans and astral arches are front-facing compositions.
+		# Keep their authored face legible instead of randomly turning them edge-on.
+		if region!=0:angle=float(posmod(q.x*11+q.y*17,7)-3)*.16
 		var scale_value=.83+.14*float(posmod(q.x*13+q.y*7,5))/4.0
 		var center=pos(q)+Vector3(0,-.45,0)
 		placements.append(Transform3D(Basis(Vector3.UP,angle).scaled(Vector3.ONE*scale_value),center))
 		exterior_groups.append(q)
 		if exterior_life_centers.size()<12:exterior_life_centers.append(center)
-	batch_parts(parts,placements,false)
+	batch_exterior_parts(parts,placements)
 	exterior_life_parts=rock_parts(prefix+"_life.glb")
 	if exterior_life_centers.is_empty():return
 	for part in exterior_life_parts:
@@ -563,7 +585,7 @@ func landscape_terraces(wall_cells:Dictionary):
 		var center_point=pos(q)+Vector3(.7,-.53,.7)
 		var angle=float(posmod(q.x*7+q.y*11,4))*PI*.5
 		placements.append(Transform3D(Basis(Vector3.UP,angle).scaled(Vector3(.88,.90,.88)),center_point))
-	batch_parts(parts,placements,false);terrace_count=placements.size()
+	batch_exterior_parts(parts,placements);terrace_count=placements.size()
 func interior_floor_detail():
 	floor_detail_count=0
 	var parts=rock_parts("res://assets/dungeon_"+["forest","reef","star"][region]+"_floor_detail.glb")
@@ -638,7 +660,9 @@ func build_exterior_surface():
 	var heights=PackedFloat32Array();heights.resize(width*depth)
 	exterior_max_height=-1.0
 	var deep:Color=[Color("#253d28"),Color("#163c4c"),Color("#24243e")][region]
-	var raised:Color=[Color("#57684b"),Color("#3b6d77"),Color("#4d4968")][region]
+	var raised:Color=[Color("#57684b"),Color("#3b6d77"),Color("#5c537f")][region]
+	var distant:Color=[Color("#132c26"),Color("#102c56"),Color("#292851")][region]
+	var broad=FastNoiseLite.new();broad.seed=noise.seed+991;broad.frequency=.075
 	for y in range(depth):
 		for x in range(width):
 			var q=low+Vector2i(x,y)
@@ -647,9 +671,26 @@ func build_exterior_surface():
 				if run.cells.has(q+d):near=true
 			var n=noise.get_noise_2d(q.x,q.y)
 			var h=-.64 if near else -.57+.21*n
+			var distance:int=exterior_distances.get(q,7)
+			var depth_factor=smoothstep(3.0,7.0,float(distance))
+			# Preserve support beneath placed Blender scenery; lower only the
+			# unobstructed landscape. The playable floor is untouched.
+			var support=0.0
+			for group in exterior_groups:
+				support=maxf(support,1.0-smoothstep(1.0,2.5,Vector2(q-group).length()))
+			for landmark in landmark_cells:
+				support=maxf(support,1.0-smoothstep(1.0,2.5,Vector2(q-landmark).length()))
+			if terrace_cells.has(q):support=1.0
+			if not near:h-=depth_factor*(1.0-support)*[.32,1.05,1.75][region]
 			heights[y*width+x]=h;exterior_max_height=maxf(exterior_max_height,h)
 			vertices.append(Vector3(q.x*1.4,h,q.y*1.4));uvs.append(Vector2(q))
-			colors.append(deep.lerp(raised,clampf(.43+n*.57,0.0,1.0)))
+			var color=deep.lerp(raised,clampf(.43+n*.57,0.0,1.0))
+			color=color.lerp(distant,depth_factor*.75)
+			var cloud=broad.get_noise_2d(q.x,q.y)
+			if region==2:color=color.lerp(Color("#8070a8"),smoothstep(-.05,.55,cloud)*depth_factor*.42)
+			# Baked contact shadow under the actual authored placement centers.
+			color=color.darkened(support*.18)
+			colors.append(color)
 	for y in range(depth):
 		for x in range(width):
 			var left=heights[y*width+maxi(0,x-1)];var right=heights[y*width+mini(width-1,x+1)]
@@ -907,7 +948,6 @@ func build_floor():
 			if not run.cells.has(next) and not seen.has(next):
 				seen[next]=true;walls.append(pos(next)+Vector3(0,.44,0))
 	var ground:Color=[Color("#8a9274"),Color("#76929a"),Color("#77709a")][region]
-	build_exterior_surface()
 	build_walkable_surface(ground)
 	build_living_ambient()
 	# Recess foundation below the walkable surface, so squared pedestals do not protrude around authored rocks.
@@ -937,6 +977,7 @@ func build_floor():
 	backdrop_landmarks(seen)
 	build_exterior_world(seen)
 	landscape_terraces(seen)
+	build_exterior_surface()
 	if not natural_boundary(walls):
 		batch(geometry,walls,"box",Vector3(1.4,.88,1.4),palette[2],true)
 		boundary_detail(walls)
@@ -971,7 +1012,7 @@ func build_floor():
 	camera.position=focus+Vector3(0,7.6,11.3);camera.look_at(focus)
 	refresh_actors()
 	floor_build_usec=Time.get_ticks_usec()-start_usec
-	print("DUNGEON_FLOOR_BUILD region=",region," floor=",run.floor_number," usec=",floor_build_usec," rocks=",rock_modules," cached_rock_sets=",rock_mesh_cache.size()," landmarks=",landmark_count," details=",detail_count," paired_spans=",span_count," corners=",corner_count," terraces=",terrace_count," floor_details=",floor_detail_count," thresholds=",threshold_count," exterior_vertices=",exterior_vertex_count," exterior_groups=",exterior_groups.size()," exterior_life=",exterior_life_centers.size())
+	print("DUNGEON_FLOOR_BUILD region=",region," floor=",run.floor_number," usec=",floor_build_usec," rocks=",rock_modules," cached_rock_sets=",rock_mesh_cache.size()," landmarks=",landmark_count," details=",detail_count," paired_spans=",span_count," corners=",corner_count," terraces=",terrace_count," floor_details=",floor_detail_count," thresholds=",threshold_count," exterior_vertices=",exterior_vertex_count," exterior_groups=",exterior_groups.size()," exterior_static_batches=",exterior_static_batches," exterior_life=",exterior_life_centers.size())
 func actor_for(key:String,at:Vector3)->Node3D:
 	if actor_nodes.has(key):return actor_nodes[key]
 	var n=Node3D.new();actors.add_child(n);n.position=at;actor_nodes[key]=n;actor_created+=1

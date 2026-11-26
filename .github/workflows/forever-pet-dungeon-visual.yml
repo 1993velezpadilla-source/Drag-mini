@@ -1,7 +1,7 @@
 name: Forever Pet dungeon 3D interaction
 on:
   push:
-    branches: [feature/my-forever-pet-paradise]
+    branches: [feature/my-forever-pet-paradise, feature/my-forever-pet-landscape-staging]
     paths:
       - 'my-forever-pet/godot-arcade/dungeon*.gd'
       - 'my-forever-pet/tests/dungeon_visual.gd'
