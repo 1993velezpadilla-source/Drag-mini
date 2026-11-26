@@ -1166,4 +1166,75 @@ rock_slab((-.13,1.17,-.13),(.79,.14,.74),astralstone,1201)
 crystal((-.13,1.26,-.13),.17,.31,violetglow,1202)
 for i in range(2):crystal((.30,.15,.15+i*.22),.10,.28+i*.10,star,i)
 export('dungeon_star_corner',6500)
+# Exterior landscape modules occupy two-by-two nonwalkable cells, not the room perimeter.
+# Layered terrain creates continuity behind the wall instead of empty colored planes.
+clear()
+natural_rock((0,.30,0),(2.45,.65,2.35),foreststone,1301)
+natural_rock((-.42,.51,.21),(1.40,.48,1.28),forestedge,1302)
+for i in range(6):
+ a=i*pi/3
+ x=.78*math.cos(a);z=.78*math.sin(a)
+ natural_rock((x,.32,z),(.71,.41,.65),moss,1310+i)
+ leaf_rosette((x,.51,z),1320+i,leafdark,leafbright,.48)
+for i in range(3):
+ a=i*2*pi/3
+ x=.50*math.cos(a);z=.50*math.sin(a)
+ tube([(x,.45,z),(x-.10,.68,z+.14),(x-.21,.87,z+.24)],[.10,.065,.028],bark,10)
+ ball((x-.21,.93,z+.24),(.53,.28,.50),cap)
+export('dungeon_forest_terrace',9500)
+clear()
+natural_rock((0,.22,0),(2.44,.49,2.38),reefstone,1401)
+for i in range(4):
+ a=i*pi/2;x=.58*math.cos(a);z=.58*math.sin(a)
+ natural_rock((x,.39,z),(1.12,.44,.94),reefedge,1410+i)
+# Low fan shelves, bulb sponges, eel grass and a pearl bed.
+for i in range(6):
+ a=i*pi/3;x=.76*math.cos(a);z=.76*math.sin(a)
+ ball((x,.54,z),(.42,.36,.37),coral2 if i%2 else coral)
+ for j in range(3):
+  aa=a+j*.8;blades((x,.49,z),aa,.42,.10,kelp)
+for i in range(4):
+ a=i*pi/2;ball((.26*math.cos(a),.55,.26*math.sin(a)),(.21,.18,.21),pearl)
+export('dungeon_reef_terrace',8500)
+clear()
+rock_slab((0,.15,0),(2.38,.30,2.36),astralstone,1501)
+for i in range(3):
+ x=(i-1)*.74
+ rock_slab((x,.36,-.26+i*.14),(.85,.43+.08*i,1.12),astraledge,1510+i)
+ for j in range(2):
+  box((x,.53+.045*i,-.43+j*.36),(.58,.045,.055),rune,.009)
+for i in range(5):
+ a=i*2*pi/5
+ crystal((.72*math.cos(a),.42,.72*math.sin(a)),.12,.35+.13*(i%3),star if i%2 else violetglow,i)
+export('dungeon_star_terrace',5500)
+# Low floor ornaments: underfoot decoration that does not resemble a blocking rock.
+clear()
+for i in range(4):
+ a=i*pi/2
+ leaf_rosette((.25*math.cos(a),.012,.25*math.sin(a)),1600+i,leafdark,leafbright,.17)
+for i in range(3):
+ a=i*2*pi/3
+ x=.23*math.cos(a);z=.23*math.sin(a)
+ ball((x,.025,z),(.15,.046,.10),forestedge)
+export('dungeon_forest_floor_detail',3000)
+clear()
+for i in range(5):
+ a=i*2*pi/5
+ x=.24*math.cos(a);z=.24*math.sin(a)
+ # Tiny sculpted shell halves rather than identical crystals or coins.
+ o=ball((x,.047,z),(.19,.09,.13),pearl if i%2 else reefedge)
+ o.rotation_euler.z=a
+for i in range(3):
+ a=i*2*pi/3;blades((.13*math.cos(a),.02,.13*math.sin(a)),a,.19,.06,kelp)
+export('dungeon_reef_floor_detail',2500)
+clear()
+# Inlaid constellation medallion, almost flush with the floor.
+cyl((0,.018,0),.49,.49,.028,astralstone)
+for i in range(8):
+ a=i*pi/4;x=.40*math.cos(a);z=.40*math.sin(a)
+ box((x,.035,z),(.11,.022,.11),rune,.004)
+ o=box((.25*math.cos(a),.035,.25*math.sin(a)),(.28,.022,.032),rune,.004)
+ o.rotation_euler.z=-a
+crystal((0,.032,0),.075,.05,star,1701)
+export('dungeon_star_floor_detail',2500)
 with open(os.path.join(OUT,'mesh-metrics.json'),'w') as out: json.dump(stats,out,indent=2)

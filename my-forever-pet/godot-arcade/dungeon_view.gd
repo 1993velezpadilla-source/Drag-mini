@@ -59,6 +59,9 @@ var landmark_count=0
 var detail_count=0
 var span_count=0
 var corner_count=0
+var terrace_count=0
+var floor_detail_count=0
+var terrace_cells:Dictionary={}
 var reward_fx:Node3D
 var reward_age=0.0
 var reward_pool:Array[MeshInstance3D]=[]
@@ -169,7 +172,7 @@ func build_terrain_textures():
 				# Mossy woodland soil: broad irregular patches, flecks of leaf litter, no brick grid.
 				var patch=smoothstep(-.13,.22,h)
 				var grain=.5+.5*sin(u*TAU*19.0+sin(w*TAU*13.0)*2.0)
-				color=Color(.55,.48,.33).lerp(Color(.71,.88,.53),patch)
+				color=Color(.65,.59,.42).lerp(Color(.72,.82,.52),patch)
 				color=color.darkened(grain*.07)
 				var leaf=smoothstep(.89,.99,sin(u*TAU*8.0+w*TAU*11.0+sin(w*TAU*7.0)*2.0))
 				color=color.lerp(Color(.79,.56,.25),leaf*.14)
@@ -180,7 +183,7 @@ func build_terrain_textures():
 				var wave=sin((u+w)*TAU*3.0+sin(w*TAU*2.0))
 				var caustic=pow(1.0-absf(wave),7.0)
 				color=Color(.54,.69,.72).lerp(Color(.80,.94,.91),clampf(.55+h*.85+ripple*.13,0.0,1.0))
-				color=color.lightened(caustic*.17)
+				color=color.lightened(caustic*.09)
 				relief=h*.09+ripple*.032
 			else:
 				# Astral ruin: broken rectangular slabs and restrained brass tracery.
@@ -404,6 +407,51 @@ func room_detail(wall_cells:Dictionary):
 			mm.set_instance_transform(i,Transform3D(Basis(Vector3.UP,i*.79).scaled(Vector3.ONE*.82),points[i])*part.transform)
 		var inst=MultiMeshInstance3D.new();inst.multimesh=mm;geometry.add_child(inst);inst.cast_shadow=GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	detail_count=points.size()
+func landscape_terraces(wall_cells:Dictionary):
+	terrace_count=0;terrace_cells.clear()
+	var parts=rock_parts("res://assets/dungeon_"+["forest","reef","star"][region]+"_terrace.glb")
+	if parts.is_empty():return
+	var candidates:Dictionary={}
+	# Only consider areas near a wall, keeping the exterior draw distance bounded.
+	for wall in wall_cells:
+		for dy in range(-2,3):
+			for dx in range(-2,3):
+				var q:Vector2i=wall+Vector2i(dx,dy)
+				if posmod(q.x,2)==0 and posmod(q.y,2)==0:candidates[q]=true
+	var placements:Array[Transform3D]=[]
+	for q in candidates:
+		if posmod(q.x*13+q.y*11+run.floor_number,5)==0:continue
+		var safe=true
+		for dy in range(2):
+			for dx in range(2):
+				var tile:Vector2i=q+Vector2i(dx,dy)
+				if run.cells.has(tile) or wall_cells.has(tile):safe=false
+		if not safe:continue
+		for dy in range(2):
+			for dx in range(2):terrace_cells[q+Vector2i(dx,dy)]=true
+		var center_point=pos(q)+Vector3(.7,-.53,.7)
+		var angle=float(posmod(q.x*7+q.y*11,4))*PI*.5
+		placements.append(Transform3D(Basis(Vector3.UP,angle).scaled(Vector3(.88,.90,.88)),center_point))
+	batch_parts(parts,placements,false);terrace_count=placements.size()
+func interior_floor_detail():
+	floor_detail_count=0
+	var parts=rock_parts("res://assets/dungeon_"+["forest","reef","star"][region]+"_floor_detail.glb")
+	if parts.is_empty():return
+	var placements:Array[Transform3D]=[]
+	for room in run.rooms:
+		var used=0
+		for y in range(room.position.y,room.end.y):
+			for x in range(room.position.x,room.end.x):
+				if used>=3:continue
+				var q=Vector2i(x,y)
+				if not run.cells.has(q) or q==run.player or q==run.stairs or run.loot.has(q) or run.traps.has(q):continue
+				if run.enemy_at(q)>=0:continue
+				var edge=x==room.position.x or x==room.end.x-1 or y==room.position.y or y==room.end.y-1
+				if region!=2 and not edge:continue
+				if posmod(x*19+y*37+run.floor_number,5)!=0:continue
+				var angle=float(posmod(x*3+y*11,8))*PI*.25
+				placements.append(Transform3D(Basis(Vector3.UP,angle),pos(q)+Vector3(0,.005,0)));used+=1
+	batch_parts(parts,placements,false);floor_detail_count=placements.size()
 func floor_name()->String:
 	return ["Ancient passages","Treasure chamber","Monster den","Restorative grotto","Forgotten ruins"][run.floor_kind]
 func build_floor():
@@ -423,7 +471,7 @@ func build_floor():
 			var next:Vector2i=q+d
 			if not run.cells.has(next) and not seen.has(next):
 				seen[next]=true;walls.append(pos(next)+Vector3(0,.44,0))
-	var ground:Color=[Color("#7b8856"),Color("#72a4b5"),Color("#77709a")][region]
+	var ground:Color=[Color("#89936e"),Color("#66909e"),Color("#77709a")][region]
 	var far_ground=shape(geometry,"box",Vector3(25,-.77,20),Vector3(88,.35,78),palette[2].darkened(.15))
 	far_ground.material_override=mat(palette[2].darkened(.15));far_ground.cast_shadow=GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	batch(geometry,a,"box",Vector3(1.40,.24,1.40),ground,true);batch(geometry,b,"box",Vector3(1.40,.24,1.40),ground.lightened(.025),true)
@@ -451,11 +499,13 @@ func build_floor():
 			mm.set_instance_transform(i,transform*part.transform)
 		var batch_instance=MultiMeshInstance3D.new();batch_instance.multimesh=mm;geometry.add_child(batch_instance)
 		batch_instance.cast_shadow=GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	landscape_terraces(seen)
 	backdrop_landmarks(seen)
 	if not natural_boundary(walls):
 		batch(geometry,walls,"box",Vector3(1.4,.88,1.4),palette[2],true)
 		boundary_detail(walls)
 	room_detail(seen)
+	interior_floor_detail()
 	var dais=prop(geometry,"dungeon_"+["forest","reef","star"][region]+"_dais",pos(run.relic)+Vector3(0,-.025,0))
 	if dais!=null:dais.rotation.y=PI*.25
 	for i in range(run.rooms.size()):
@@ -465,6 +515,9 @@ func build_floor():
 			shape(geometry,"box",p+Vector3(0,.11,0),Vector3(.62,.18,.62),palette[2])
 	pet=Node3D.new();geometry.add_child(pet);pet.position=pos(run.player)
 	pet_pose=model(pet,companion_id);pet_pose.scale*=1.28
+	# Creature GLBs face local -Z; initial south-facing pet should look toward camera.
+	pet_pose.rotation.y=PI
+	pet.rotation.y=atan2(float(facing.x),float(facing.y))
 	attack_fx=shape(geometry,"ring",Vector3.ZERO,Vector3.ONE,Color("#ffdfa0"));attack_fx.hide();attack_fx.cast_shadow=GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	var fxmat=StandardMaterial3D.new();fxmat.shading_mode=BaseMaterial3D.SHADING_MODE_UNSHADED;fxmat.albedo_color=Color("#ffe6a3");attack_fx.material_override=fxmat
 	destination_fx=shape(geometry,"ring",Vector3.ZERO,Vector3(.68,.08,.68),Color("#a0e6db"));destination_fx.hide();destination_fx.cast_shadow=GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
@@ -479,7 +532,7 @@ func build_floor():
 	camera.position=pet.position+Vector3(0,8.5,10.5);camera.look_at(pet.position)
 	refresh_actors()
 	floor_build_usec=Time.get_ticks_usec()-start_usec
-	print("DUNGEON_FLOOR_BUILD region=",region," floor=",run.floor_number," usec=",floor_build_usec," rocks=",rock_modules," cached_rock_sets=",rock_mesh_cache.size()," landmarks=",landmark_count," details=",detail_count," paired_spans=",span_count," corners=",corner_count)
+	print("DUNGEON_FLOOR_BUILD region=",region," floor=",run.floor_number," usec=",floor_build_usec," rocks=",rock_modules," cached_rock_sets=",rock_mesh_cache.size()," landmarks=",landmark_count," details=",detail_count," paired_spans=",span_count," corners=",corner_count," terraces=",terrace_count," floor_details=",floor_detail_count)
 func actor_for(key:String,at:Vector3)->Node3D:
 	if actor_nodes.has(key):return actor_nodes[key]
 	var n=Node3D.new();actors.add_child(n);n.position=at;actor_nodes[key]=n;actor_created+=1

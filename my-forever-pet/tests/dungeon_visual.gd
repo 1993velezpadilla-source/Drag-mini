@@ -27,6 +27,12 @@ func run():
 					if not dungeon.run.cells.has(p+d):boundary[p+d]=true
 			assert(dungeon.rock_modules==boundary.size(),"every boundary cell rendered exactly once")
 		if ResourceLoader.exists("res://assets/dungeon_forest_span.glb"):assert(dungeon.span_count>0,"multi-tile art breaks repeated wall silhouettes")
+		if ResourceLoader.exists("res://assets/dungeon_forest_terrace.glb"):
+			assert(dungeon.terrace_count>0 and dungeon.floor_detail_count>0,"layered environment models placed")
+			for q in dungeon.terrace_cells:assert(not dungeon.run.cells.has(q),"terraces never cover walkable tiles")
+		dungeon.floor_banner.hide()
+		await frames()
+		assert(root.get_texture().get_image().save_png("/tmp/dungeon-real-%d-entry.png"%region)==OK)
 		assert(root.get_visible_rect().encloses(dungeon.heal_button.get_global_rect()))
 		assert(dungeon.attack_button.icon!=null and dungeon.power_button.icon!=null and dungeon.heal_button.icon!=null)
 		dungeon.run.enemies.clear()
