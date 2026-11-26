@@ -100,10 +100,11 @@ public final class ForeverWallpaperService extends WallpaperService {
                 rect.set((w-dw)/2,(h-dh)/2,(w+dw)/2,(h+dh)/2);c.drawBitmap(room,null,rect,paint);
                 paint.setColor(night?0x770c1435:0x3323173a);c.drawRect(0,0,w,h,paint);
             }
-            float t=now/1000f;
+            float t=(now%600000L)/1000f;
             float pulse=now-reaction<850?(float)Math.sin(Math.PI*Math.max(0,now-reaction)/850f):0;
-            float size=u*(state.optInt("stage",0)<=1?.54f:.72f);
-            petX=w*.5f;petY=h*.68f;petRadius=size*.48f;
+            float[] placement=WallpaperRules.placement(w,h,state.optInt("stage",0),state.optInt("wallpaper_x",1),state.optInt("wallpaper_y",2),state.optInt("wallpaper_size",1));
+            float size=placement[2];
+            petX=placement[0];petY=placement[1];petRadius=size*.48f;
             float bob=(float)Math.sin(t*(night?1.4:2.5))*u*.009f-pulse*u*.045f;
             paint.setColor(0x55000000);rect.set(petX-size*.31f,petY+size*.31f,petX+size*.31f,petY+size*.39f);c.drawOval(rect,paint);
             int portrait=state.optInt("portrait",28);
@@ -118,10 +119,11 @@ public final class ForeverWallpaperService extends WallpaperService {
             }
             if(state.optBoolean("show_status",true)){
                 String msg=night?"Resting":state.optInt("germs")>0?"Needs care":state.optInt("stage",0)==0?"Ready to hatch":state.optLong("trip_end")>System.currentTimeMillis()/1000L?"Exploring":hunger<2?"Hungry":mood<4?"Wants to play":waste>0?"Time to clean":"Happy to see you";
-                if(prefs!=null&&!prefs.getString("request","").isEmpty()&&System.currentTimeMillis()-prefs.getLong("request_at",0)<900000)msg="Care queued • open game";
+                if(prefs!=null&&WallpaperRules.validRequest(prefs.getString("request",""),System.currentTimeMillis()-prefs.getLong("request_at",0),prefs.getInt("request_generation",-1),state.optInt("generation",1)))msg="Care queued • open game";
                 paint.setTextSize(u*.032f);paint.setTextAlign(Paint.Align.CENTER);paint.setColor(0xfff3e6ff);
-                paint.setShadowLayer(4,0,2,0xff120b25);c.drawText(state.optString("name","My Forever Pet"),w*.5f,h*.88f,paint);
-                paint.setTextSize(u*.026f);c.drawText(msg,w*.5f,h*.91f,paint);paint.clearShadowLayer();paint.setTextAlign(Paint.Align.LEFT);
+                paint.setShadowLayer(4,0,2,0xff120b25);float labelX=WallpaperRules.clamp(petX,w*.23f,w*.77f);
+                c.drawText(state.optString("name","My Forever Pet"),labelX,placement[3],paint);
+                paint.setTextSize(u*.026f);c.drawText(msg,labelX,placement[3]+u*.038f,paint);paint.clearShadowLayer();paint.setTextAlign(Paint.Align.LEFT);
             }
         }
         void queue(String request){

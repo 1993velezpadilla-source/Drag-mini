@@ -23,6 +23,15 @@ public final class WallpaperRules {
         if(stage==0)return mood;
         return Math.max(0,Math.min(10,mood)-(int)((Math.max(0,clock)+Math.max(0,awakeSeconds))/(stage==1?1500:3600)));
     }
+    public static float clamp(float v,float lo,float hi){return Math.max(lo,Math.min(hi,v));}
+    /** Placement fits all orientations and reserves space for system dock and status text. */
+    public static float[] placement(float w,float h,int stage,int x,int y,int scale){
+        float u=Math.min(w,h);
+        float size=u*(stage<=1?.75f:1f)*new float[]{.42f,.60f,.76f}[Math.max(0,Math.min(2,scale))];
+        float cx=clamp(w*new float[]{.25f,.5f,.75f}[Math.max(0,Math.min(2,x))],size*.55f,w-size*.55f);
+        float cy=clamp(h*new float[]{.26f,.47f,.68f}[Math.max(0,Math.min(2,y))],size*.56f,h-size*.60f-u*.09f);
+        return new float[]{cx,cy,size,Math.min(h-u*.075f,cy+size*.55f+u*.035f)};
+    }
     public static String gesture(float dx,float dy,float radius,long duration,long sinceTap){
         if(radius<=0||duration<0||duration>=650)return "";
         if(dy<-radius*.65f&&Math.abs(dx)<radius*.35f)return "feed";

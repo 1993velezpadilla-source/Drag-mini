@@ -23,6 +23,12 @@ public final class WallpaperRulesTest {
         check(WallpaperRules.gesture(0,0,100,120,0).equals("tap"),"single tap");
         check(WallpaperRules.gesture(100,0,100,120,0).isEmpty(),"launcher horizontal gesture");
         check(WallpaperRules.gesture(0,0,100,800,0).isEmpty(),"long press ignored");
+        float[] a=WallpaperRules.placement(1080,2400,4,0,0,2);
+        check(a[0]-a[2]/2>=0 && a[1]-a[2]/2>=0,"top left large fits");
+        float[] b=WallpaperRules.placement(2400,1080,4,2,2,2);
+        check(b[0]+b[2]/2<=2400 && b[1]+b[2]/2<=1080,"landscape large fits");
+        check(b[3]+1080*.038f<=1080,"status stays on screen");
+        check(WallpaperRules.placement(1080,2400,0,1,1,1)[2]<WallpaperRules.placement(1080,2400,4,1,1,1)[2],"baby scale");
         System.out.println("FOREVER_WALLPAPER_RULES_PASS "+count);
     }
 }

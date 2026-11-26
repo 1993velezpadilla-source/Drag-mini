@@ -36,6 +36,9 @@ var care_cta:Button
 var wallpaper_cta:Button
 var wallpaper_active=false
 var wallpaper_status_check=0.0
+var wallpaper_preview:Control
+var wallpaper_pet:TextureRect
+var wallpaper_preview_status:Label
 var reward_row:HBoxContainer
 var reward_audio:AudioStreamPlayer
 var action_controls:Array[Button]=[]
@@ -585,10 +588,15 @@ func build_wallpaper():
 	var s:Dictionary=store.s
 	var room_index=clampi(int(s.wallpaper_room),0,5)
 	var card=panel(actions)
-	var preview=Control.new(); preview.custom_minimum_size.y=260; preview.clip_contents=true; card.add_child(preview)
+	var aspect=AspectRatioContainer.new(); aspect.ratio=9.0/16.0; aspect.stretch_mode=AspectRatioContainer.STRETCH_FIT; aspect.custom_minimum_size.y=320; card.add_child(aspect)
+	var preview=Control.new(); preview.clip_contents=true; aspect.add_child(preview); wallpaper_preview=preview
+	var base_color=ColorRect.new(); base_color.color=Color("#45305f"); base_color.set_anchors_and_offsets_preset(PRESET_FULL_RECT); base_color.mouse_filter=MOUSE_FILTER_IGNORE; preview.add_child(base_color)
 	var back=TextureRect.new(); back.texture=tex("res://assets/"+store.WALL_ROOMS[room_index]+".jpg"); back.expand_mode=TextureRect.EXPAND_IGNORE_SIZE; back.stretch_mode=TextureRect.STRETCH_KEEP_ASPECT_COVERED; back.set_anchors_and_offsets_preset(PRESET_FULL_RECT); preview.add_child(back)
 	if s.wallpaper_minimal: back.hide()
-	var pet=TextureRect.new(); pet.texture=tex("res://assets/premium_egg.png" if s.stage==0 else ("res://assets/pet_sleep_%d.png" if store.asleep(store.now()) else "res://assets/pet_%d.png")%store.species()); pet.expand_mode=TextureRect.EXPAND_IGNORE_SIZE; pet.stretch_mode=TextureRect.STRETCH_KEEP_ASPECT_CENTERED; pet.set_anchors_and_offsets_preset(PRESET_CENTER); pet.offset_left=-96; pet.offset_right=96; pet.offset_top=-55; pet.offset_bottom=137; preview.add_child(pet)
+	var pet=TextureRect.new(); pet.texture=tex("res://assets/premium_egg.png" if s.stage==0 else ("res://assets/pet_sleep_%d.png" if store.asleep(store.now()) else "res://assets/pet_%d.png")%store.species()); pet.expand_mode=TextureRect.EXPAND_IGNORE_SIZE; pet.stretch_mode=TextureRect.STRETCH_KEEP_ASPECT_CENTERED; preview.add_child(pet); wallpaper_pet=pet
+	wallpaper_preview_status=Label.new(); wallpaper_preview_status.add_theme_font_size_override("font_size",11); wallpaper_preview_status.horizontal_alignment=HORIZONTAL_ALIGNMENT_CENTER; wallpaper_preview_status.add_theme_constant_override("outline_size",4); wallpaper_preview_status.add_theme_color_override("font_outline_color",Color("#241739")); preview.add_child(wallpaper_preview_status)
+	preview.resized.connect(layout_wallpaper_preview)
+	layout_wallpaper_preview.call_deferred()
 	var title=label(card,store.pet_name()+" • Live wallpaper",21)
 	var plugin=store.wallpaper_plugin()
 	var available:bool=plugin!=null
@@ -599,6 +607,15 @@ func build_wallpaper():
 	apply.custom_minimum_size.y=56; apply.icon=GameIcons.texture("Wallpaper"); apply.expand_icon=true; apply.add_theme_constant_override("icon_max_width",32)
 	apply.disabled=not available
 	apply.add_theme_stylebox_override("normal",menu_skin(Color("#7950ad"),Color("#e9c5ff")))
+	section_heading(actions,"Position & size","Keep your companion clear of your app icons.")
+	for entry in [["wallpaper_x","Horizontal",["Left","Center","Right"]],["wallpaper_y","Vertical",["Top","Middle","Bottom"]],["wallpaper_size","Pet size",["Small","Medium","Large"]]]:
+		var key:String=entry[0]
+		label(actions,entry[1],15)
+		var options=row(actions)
+		for i in range(3):
+			var choice=button(options,entry[2][i],func(): s[key]=i; store.save_game(); layout_wallpaper_preview(); update_wallpaper_choices())
+			choice.custom_minimum_size.y=42; choice.add_theme_font_size_override("font_size",14); choice.set_meta("wall_key",key); choice.set_meta("wall_value",i)
+	update_wallpaper_choices()
 	section_heading(actions,"Personalize","Settings apply to the live wallpaper as well as this preview.")
 	var rooms=GridContainer.new(); rooms.columns=3; actions.add_child(rooms)
 	for j in range(6):
@@ -609,6 +626,27 @@ func build_wallpaper():
 	var help=panel(actions)
 	label(help,"How to interact",20)
 	var desc=label(help,"Tap your pet for a reaction. Double-tap queues a cuddle; swipe up on the pet queues a free grain meal. Queued care is applied once when you return to the game, if your pet needs it. Android launchers may intercept some gestures.",14); desc.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART
+func layout_wallpaper_preview():
+	if not is_instance_valid(wallpaper_preview) or not is_instance_valid(wallpaper_pet): return
+	var s:Dictionary=store.s
+	var dims:Vector2=wallpaper_preview.size
+	if dims.x<=0 or dims.y<=0: return
+	var u=minf(dims.x,dims.y)
+	var extent=u*(.75 if s.stage<=1 else 1.0)*[.42,.60,.76][clampi(int(s.wallpaper_size),0,2)]
+	var x=clampf(dims.x*[.25,.5,.75][clampi(int(s.wallpaper_x),0,2)],extent*.55,dims.x-extent*.55)
+	var y=clampf(dims.y*[.26,.47,.68][clampi(int(s.wallpaper_y),0,2)],extent*.56,dims.y-extent*.60-u*.09)
+	wallpaper_pet.size=Vector2.ONE*extent; wallpaper_pet.position=Vector2(x,y)-wallpaper_pet.size*.5
+	wallpaper_pet.texture=tex("res://assets/premium_egg.png" if s.stage==0 else ("res://assets/pet_sleep_%d.png" if store.asleep(store.now()) else "res://assets/pet_%d.png")%store.species())
+	if is_instance_valid(wallpaper_preview_status):
+		wallpaper_preview_status.visible=bool(s.wallpaper_status)
+		wallpaper_preview_status.text=store.pet_name()+"\n"+store.care_priority()
+		wallpaper_preview_status.size=Vector2(u*.70,30)
+		wallpaper_preview_status.position=Vector2(clampf(x,u*.35,dims.x-u*.35)-u*.35,minf(dims.y-u*.075,y+extent*.55+u*.035)-12)
+func update_wallpaper_choices():
+	for choice in actions.find_children("*","Button",true,false):
+		if choice.has_meta("wall_key"):
+			var selected=int(store.s[choice.get_meta("wall_key")])==int(choice.get_meta("wall_value"))
+			choice.add_theme_stylebox_override("normal",menu_skin(Color("#7850ad") if selected else Color("#27203e"),Color("#e4bdff") if selected else Color("#5c4c75")))
 func build_care_quest():
 	var quest=context_card("care_quest","Daily care adventure")
 	context_meter(quest,"care_quest",Color("#e6aa65"))
@@ -868,6 +906,7 @@ func launch_game(i:int):
 	if not store.begin_arcade(i): notice.text=store.arcade_block(i); notice.show(); return
 	get_tree().change_scene_to_file("res://main.tscn" if i==4 else "res://pet_arcade.tscn")
 func refresh():
+	if section=="Wallpaper": layout_wallpaper_preview()
 	if is_instance_valid(wallpaper_cta) and store.now()-wallpaper_status_check>3.0:
 		wallpaper_status_check=store.now()
 		var plugin=store.wallpaper_plugin()
