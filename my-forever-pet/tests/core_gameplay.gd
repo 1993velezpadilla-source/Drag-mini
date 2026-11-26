@@ -295,5 +295,43 @@ func run():
 	session=pet.field_begin(0,false)
 	check(session.finale and pet.field_finish(true,session.required,10.0).unlocked,"active encounter unlocks creature")
 	check(R.needed(1)==6 and R.needed(14)==9 and R.needed(24)==12,"rarity requires extended investigation")
+	# Validate settlement against the production rules for every rarity, not only the UI.
+	for tier in range(3):
+		reset(4)
+		pet.field_session={}
+		var candidate:int=[1,13,24][tier]
+		var region:int=R.region_of(candidate)
+		pet.s.collection=1
+		pet.s.research_target[region]=candidate
+		pet.s.research_rank_xp[region]=120
+		pet.s.research_evidence[candidate]=R.needed(candidate)
+		var attempt:Dictionary=pet.field_begin(region,false)
+		check(not attempt.is_empty() and attempt.finale,"encounter available tier "+str(tier))
+		var coins:int=pet.s.coins
+		var materials:int=pet.s.materials
+		var crystals:int=pet.s.crystals
+		check(not pet.field_finish(true,attempt.required,float(attempt.time_limit)+1.0,0).correct,"expired successful report rejected tier "+str(tier))
+		check(pet.s.coins==coins and (int(pet.s.collection)&(1<<candidate))==0,"expired encounter cannot unlock tier "+str(tier))
+		attempt=pet.field_begin(region,false)
+		check(not attempt.is_empty(),"retry encounter tier "+str(tier))
+		check(not pet.field_finish(true,attempt.required,NAN,0).correct,"non-finite duration rejected tier "+str(tier))
+		attempt=pet.field_begin(region,false)
+		check(not attempt.is_empty(),"retry after malformed report tier "+str(tier))
+		var reward:Dictionary=pet.field_finish(true,attempt.required,20.0,0)
+		check(reward.get("unlocked",false) and reward.get("flawless",false),"flawless encounter tier "+str(tier))
+		check(pet.s.coins==coins+[35,65,100][tier],"exact coin award tier "+str(tier))
+		check(pet.s.materials==materials+[2,3,4][tier] and pet.s.crystals==crystals+[0,1,2][tier],"exact crafting award tier "+str(tier))
+		check((int(pet.s.collection)&(1<<candidate))!=0,"collection persisted tier "+str(tier))
+		check(not pet.field_finish(true,attempt.required,20.0,0).ok,"reward replay rejected tier "+str(tier))
+		reset(4)
+		pet.s.collection=1
+		pet.s.research_target[region]=candidate
+		pet.s.research_rank_xp[region]=120
+		pet.s.research_evidence[candidate]=R.needed(candidate)
+		attempt=pet.field_begin(region,false)
+		check(not attempt.is_empty(),"normal encounter available tier "+str(tier))
+		coins=pet.s.coins
+		reward=pet.field_finish(true,attempt.required,20.0,2)
+		check(reward.get("unlocked",false) and not reward.get("flawless",true) and pet.s.coins==coins+[30,55,85][tier],"damage removes only flawless bonus tier "+str(tier))
 	print("FOREVER_PET_CORE_PASS ",passed)
 	quit()
