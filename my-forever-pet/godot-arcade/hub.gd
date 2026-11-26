@@ -33,6 +33,9 @@ var quest_claim:Button
 var life_tabs=["Care","Journal","World","Cell","Care Quest"]
 var daily_cta:Button
 var care_cta:Button
+var wallpaper_cta:Button
+var wallpaper_active=false
+var wallpaper_status_check=0.0
 var reward_row:HBoxContainer
 var reward_audio:AudioStreamPlayer
 var action_controls:Array[Button]=[]
@@ -181,6 +184,7 @@ func make_ui():
 	var layout=VBoxContainer.new(); layout.mouse_filter=MOUSE_FILTER_IGNORE; layout.add_theme_constant_override("separation",5); margin.add_child(layout)
 	var brand=row(layout)
 	var logo=label(brand,"My Forever Pet",23); logo.size_flags_horizontal=SIZE_EXPAND_FILL; logo.add_theme_color_override("font_color",Color("#f3d8ff")); logo.add_theme_color_override("font_outline_color",Color("#63369a")); logo.add_theme_constant_override("outline_size",6)
+	wallpaper_cta=button(brand,"Wallpaper",func(): select("Wallpaper")); wallpaper_cta.size_flags_horizontal=SIZE_SHRINK_END; wallpaper_cta.custom_minimum_size=Vector2(112,36); wallpaper_cta.add_theme_font_size_override("font_size",14); wallpaper_cta.icon=GameIcons.texture("Wallpaper"); wallpaper_cta.expand_icon=true; wallpaper_cta.add_theme_constant_override("icon_max_width",24); wallpaper_cta.add_theme_stylebox_override("normal",menu_skin(Color("#7046a4"),Color("#e5b7ff")))
 	var settings=button(brand,"⚙",func(): select("Settings")); settings.size_flags_horizontal=SIZE_SHRINK_END; settings.custom_minimum_size=Vector2(43,34)
 	var header=panel(layout)
 	var head=row(header)
@@ -262,7 +266,7 @@ func make_ui():
 	swipe_children(room_strip)
 	var dock_shell=panel(layout)
 	menu_dock=row(dock_shell); menu_dock.add_theme_constant_override("separation",2)
-	for tab in ["Home","Pets","Rooms","Arcade","Shop","Life"]: nav_tile(menu_dock,tab)
+	for tab in ["Home","Pets","Wallpaper","Arcade","Shop","Life"]: nav_tile(menu_dock,tab)
 	select("Home")
 func art_tile(parent:Node,name:String,path:String,fn:Callable,h:int=66,font:int=13,icon_key:String="")->Button:
 	var b=button(parent,"",fn)
@@ -507,7 +511,7 @@ func select(tab:String):
 	if tab!=section and is_instance_valid(notice): notice.text=""; notice.hide()
 	section=tab
 	for key in nav_buttons:
-		nav_buttons[key].add_theme_stylebox_override("normal",skin(Color("#6738a8"),Color("#e6bcff")) if key==tab or (key=="Life" and tab in life_tabs) else StyleBoxEmpty.new())
+		nav_buttons[key].add_theme_stylebox_override("normal",skin(Color("#6738a8"),Color("#e6bcff")) if key==tab or (key=="Life" and tab in life_tabs) or (key=="Home" and tab=="Rooms") else StyleBoxEmpty.new())
 	if is_instance_valid(section_scroll):
 		section_scroll.scroll_vertical=0
 		var full_menu=tab!="Home"
@@ -526,7 +530,7 @@ func select(tab:String):
 		live_stage.set_room("room_bedroom")
 	reset_actions(5 if tab=="Home" and store.s.stage>0 else 4 if tab=="Home" else 0)
 	if tab in life_tabs: life_header(tab)
-	elif tab not in ["Home","Pets","Shop","Rooms","Arcade"]: label(actions,tab.to_upper(),22)
+	elif tab not in ["Home","Pets","Shop","Rooms","Arcade","Wallpaper"]: label(actions,tab.to_upper(),22)
 	var s:Dictionary=store.s
 	match tab:
 		"Home":
@@ -548,7 +552,6 @@ func select(tab:String):
 			var edit=LineEdit.new(); edit.placeholder_text="Name your pet"; edit.text=s.name; edit.max_length=24; profile.add_child(edit)
 			button(profile,"Save name",func(): store.s.name=edit.text.strip_edges(); store.save_game(); refresh())
 			action_card(actions,"Auto sleep","Rest automatically at night.","sleep","auto",0,"Toggle")
-			showcase_card("Live wallpaper","Keep your companion on your Android home screen.","res://assets/room_bedroom.jpg",func(): select("Wallpaper"))
 		"Wallpaper":
 			build_wallpaper()
 		"Care":
@@ -578,7 +581,7 @@ func select(tab:String):
 
 	update_context()
 func build_wallpaper():
-	section_heading(actions,"Your pet, everywhere","A living companion on your phone's home screen.")
+	section_heading(actions,"Live wallpaper","Take your companion everywhere. Set it directly on your Android home screen.")
 	var s:Dictionary=store.s
 	var room_index=clampi(int(s.wallpaper_room),0,5)
 	var card=panel(actions)
@@ -586,13 +589,14 @@ func build_wallpaper():
 	var back=TextureRect.new(); back.texture=tex("res://assets/"+store.WALL_ROOMS[room_index]+".jpg"); back.expand_mode=TextureRect.EXPAND_IGNORE_SIZE; back.stretch_mode=TextureRect.STRETCH_KEEP_ASPECT_COVERED; back.set_anchors_and_offsets_preset(PRESET_FULL_RECT); preview.add_child(back)
 	if s.wallpaper_minimal: back.hide()
 	var pet=TextureRect.new(); pet.texture=tex("res://assets/premium_egg.png" if s.stage==0 else ("res://assets/pet_sleep_%d.png" if store.asleep(store.now()) else "res://assets/pet_%d.png")%store.species()); pet.expand_mode=TextureRect.EXPAND_IGNORE_SIZE; pet.stretch_mode=TextureRect.STRETCH_KEEP_ASPECT_CENTERED; pet.set_anchors_and_offsets_preset(PRESET_CENTER); pet.offset_left=-96; pet.offset_right=96; pet.offset_top=-55; pet.offset_bottom=137; preview.add_child(pet)
-	var title=label(card,store.pet_name()+" • Live wallpaper",19)
+	var title=label(card,store.pet_name()+" • Live wallpaper",21)
 	var plugin=store.wallpaper_plugin()
-	var available=plugin!=null
+	var available:bool=plugin!=null
 	var status=label(card,"Active on your home screen" if available and plugin.isActive() else "Ready to set" if available else "Available in the Android wallpaper build",14); status.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART
-	var apply=button(card,"Set live wallpaper ›",func():
+	var apply=button(card,"Customize Android wallpaper ›" if available and plugin.isActive() else "Set live wallpaper ›",func():
 		if store.wallpaper_sync() and plugin.openPicker(): status.text="Choose Apply in the Android wallpaper preview."
-		else: status.text="Wallpaper preview could not open. Check Android wallpaper support."))
+		else: status.text="Wallpaper preview could not open. Check Android wallpaper support.")
+	apply.custom_minimum_size.y=56; apply.icon=GameIcons.texture("Wallpaper"); apply.expand_icon=true; apply.add_theme_constant_override("icon_max_width",32)
 	apply.disabled=not available
 	apply.add_theme_stylebox_override("normal",menu_skin(Color("#7950ad"),Color("#e9c5ff")))
 	section_heading(actions,"Personalize","Settings apply to the live wallpaper as well as this preview.")
@@ -764,7 +768,7 @@ func build_world():
 func room(name:String):
 	if name!=current_room: notice.text=""
 	for key in nav_buttons:
-		nav_buttons[key].add_theme_stylebox_override("normal",skin(Color("#6738a8"),Color("#e6bcff")) if key=="Rooms" else StyleBoxEmpty.new())
+		nav_buttons[key].add_theme_stylebox_override("normal",skin(Color("#6738a8"),Color("#e6bcff")) if key=="Home" else StyleBoxEmpty.new())
 	section_scroll.scroll_vertical=0
 	visual.show()
 	stage_space.show()
@@ -864,6 +868,11 @@ func launch_game(i:int):
 	if not store.begin_arcade(i): notice.text=store.arcade_block(i); notice.show(); return
 	get_tree().change_scene_to_file("res://main.tscn" if i==4 else "res://pet_arcade.tscn")
 func refresh():
+	if is_instance_valid(wallpaper_cta) and store.now()-wallpaper_status_check>3.0:
+		wallpaper_status_check=store.now()
+		var plugin=store.wallpaper_plugin()
+		wallpaper_active=plugin!=null and plugin.isActive()
+		wallpaper_cta.text="Wallpaper ON" if wallpaper_active else "Wallpaper"
 	store.advance(store.now())
 	var s:Dictionary=store.s
 	title_label.text=store.pet_name()+"  ·  Lv "+str(store.level())
@@ -1159,6 +1168,10 @@ func test_home():
 		assert(live_stage.grounded_error()<0.001)
 	live_stage.set_pet(0,4)
 	for tab in ["Care","Rooms","Arcade","Shop","Journal","World","Cell","More","Home"]: select(tab)
+	assert(nav_buttons.has("Wallpaper") and wallpaper_cta.is_visible_in_tree())
+	nav_buttons["Wallpaper"].pressed.emit(); assert(section=="Wallpaper" and find_button(actions,"Set live wallpaper ›")!=null)
+	select("Home"); wallpaper_cta.pressed.emit(); assert(section=="Wallpaper")
+	select("Home")
 	assert(nav_buttons.size()==6 and room_tiles.size()==6 and action_grid.get_child_count()==5)
 	select("Pets"); assert(collection_grid.get_child_count()==store.SPECIES.size())
 	assert(store.toggle_favorite(3)); collection_filter="Favorites"; show_collection(); assert(collection_grid.get_child_count()==1)
@@ -1269,6 +1282,7 @@ func capture_home():
 	collection_filter="All"
 	select("Shop")
 	await capture_frame("/tmp/forever-shop.png")
+	select("Wallpaper"); await capture_frame("/tmp/forever-wallpaper.png")
 	store.s.wardrobe=255; store.s.worn=[1,2,3,5]; refresh()
 	select("Home")
 	await capture_frame("/tmp/forever-wardrobe.png")

@@ -9,6 +9,9 @@ static func texture(key:String)->Texture2D:
 		"Home":
 			art='<path d="M6 27L32 5 58 27V56H39V39H25V56H9V27Z" fill="url(#g)"/><path d="M5 29L32 6 59 29" fill="none" stroke="#fff0b3" stroke-width="6" stroke-linecap="round"/>'
 			color="#f4be59"
+		"Wallpaper":
+			art='<rect x="14" y="4" width="36" height="56" rx="8" fill="url(#g)"/><rect x="18" y="10" width="28" height="40" rx="4" fill="#372452"/><path d="M21 32Q21 24 25 24L29 29H35L39 24Q43 24 43 32V41Q32 49 21 41Z" fill="#efb6ff"/><circle cx="28" cy="35" r="2" fill="#372452"/><circle cx="36" cy="35" r="2" fill="#372452"/><path d="M30 40Q32 42 34 40" stroke="#372452" fill="none" stroke-width="2"/><circle cx="32" cy="55" r="2.5" fill="#fff0ff"/>'
+			color="#c295ff"
 		"Rooms":
 			art='<rect x="8" y="10" width="48" height="44" rx="9" fill="url(#g)"/><path d="M8 28H56M32 10V54" stroke="#26355b" stroke-width="5"/><rect x="13" y="14" width="14" height="10" rx="3" fill="#f1f7ff"/><rect x="37" y="34" width="14" height="15" rx="3" fill="#c8b8ff"/>'
 		"Arcade","toy","play":
