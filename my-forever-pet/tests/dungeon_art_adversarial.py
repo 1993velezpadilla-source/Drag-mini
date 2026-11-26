@@ -39,8 +39,15 @@ def inspect_glb(blob):
             if primitive.get('mode',4)!=4:raise ValueError('non-triangle primitive')
             tris+=doc['accessors'][primitive['indices']]['count']//3 if 'indices' in primitive else a['count']//3
     if not points:raise ValueError('empty geometry')
-    digest=hashlib.sha256(json.dumps(sorted(points),separators=(',',':')).encode()).hexdigest()
-    return {'geometry_sha256':digest,'bounds':[lo,hi],'triangles':tris,'unique_vertices':len(points)}
+    def digest(coords):
+        return hashlib.sha256(json.dumps(sorted(coords),separators=(',',':')).encode()).hexdigest()
+    # Reject a cosmetic move or resize of the same mesh. Quantization removes
+    # harmless exporter float noise and ignores duplicated UV seam vertices.
+    center=[(lo[k]+hi[k])*.5 for k in range(3)]
+    size=[hi[k]-lo[k] for k in range(3)]
+    if min(size)<=1e-7:raise ValueError('collapsed wall axis')
+    shape={tuple(round((p[k]-center[k])/size[k],3) for k in range(3)) for p in points}
+    return {'geometry_sha256':digest(points),'normalized_shape_sha256':digest(shape),'bounds':[lo,hi],'triangles':tris,'unique_vertices':len(points)}
 
 def evaluate(candidate,baseline=None):
     results={};failures=[]
@@ -53,12 +60,17 @@ def evaluate(candidate,baseline=None):
             results[name]=r
             if baseline is not None:
                 if name not in baseline:failures.append(f'{name}: missing baseline')
-                elif r['geometry_sha256']==inspect_glb(baseline[name])['geometry_sha256']:failures.append(f'{name}: geometry unchanged (material changes do not count)')
+                else:
+                    try:old=inspect_glb(baseline[name])
+                    except (ValueError,KeyError,struct.error) as exc:failures.append(f'{name}: invalid baseline: {exc}');continue
+                    if r['geometry_sha256']==old['geometry_sha256']:failures.append(f'{name}: geometry unchanged (material changes do not count)')
+                    elif r['normalized_shape_sha256']==old['normalized_shape_sha256']:failures.append(f'{name}: normalized shape unchanged (translation or resize does not count)')
             lo,hi=r['bounds'];half_x=1.4 if part=='span' else .7
             # 3 cm tolerance for bevels; this is a conservative geometry bound, not collision proof.
             if max(-lo[0],hi[0])>half_x+.03 or max(-lo[2],hi[2])>.73:
                 failures.append(f'{name}: exceeds {2*half_x:.1f} x 1.4 wall footprint; bounds={[[round(v,3) for v in x] for x in (lo,hi)]}')
-    return {'checked':len(results),'baseline_compared':baseline is not None,'failures':failures,'assets':results,'art_approved':False}
+    return {'checked':len(results),'baseline_compared':baseline is not None,'failures':failures,'assets':results,'art_approved':False,
+            'limitations':'Coordinate fingerprints detect exact reuse and many resizes, not semantic or artistic similarity. Review actual renders separately.'}
 
 if __name__=='__main__':
     parser=argparse.ArgumentParser();parser.add_argument('candidate');parser.add_argument('--baseline');args=parser.parse_args()

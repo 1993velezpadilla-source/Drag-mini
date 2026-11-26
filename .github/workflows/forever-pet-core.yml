@@ -20,6 +20,8 @@ jobs:
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@v4
+      - name: Validate adversarial geometry comparison on synthetic GLBs
+        run: python3 my-forever-pet/tests/test_dungeon_art_adversarial.py
       - name: Download pinned Godot
         run: |
           curl -fL --retry 3 -o /tmp/godot.zip https://github.com/godotengine/godot/releases/download/4.4.1-stable/Godot_v4.4.1-stable_linux.x86_64.zip
