@@ -30,14 +30,22 @@ var burst_cooldown=0.0
 var burst_target=Vector2.ZERO
 var environmental_force=Vector2.ZERO
 var gust_phase=0.0
+var tier=0
+var reveal_radius=2.6
+var alert_period=5.0
+var alert_duration=1.0
 func setup(r:int,id:int,n:int,finale:bool,is_patrol:bool,seed_id:int):
 	region=r;specimen=id;step=n;encounter=finale;patrol=is_patrol;seed_value=seed_id
 	var rng=RandomNumberGenerator.new();rng.seed=seed_id
+	tier=0 if is_patrol else 0 if id<12 else 1 if id<24 else 2
+	reveal_radius=[2.6,1.9,1.45][tier]
+	alert_period=[5.5,5.0,4.6][tier]
+	alert_duration=[.85,1.0,1.15][tier]
 	required=3 if is_patrol else 4 if finale else 3 if id<12 else 4 if id<24 else 5
 	time_left=44.0 if finale else 29.0+required*3
-	capture_time=1.5 if finale else .65 if id<12 else .85
-	capture_radius=1.6 if finale else .85
-	scans=3 if id<12 else 2
+	capture_time=(1.25+float(tier)*.15) if finale else [.65,.85,1.0][tier]
+	capture_radius=1.6 if finale else [.85,.75,.7][tier]
+	scans=[3,2,1][tier]
 	for i in range(required):
 		var p=Vector2(rng.randf_range(-7.0,7.0),rng.randf_range(-6.5,5.0))
 		for attempt in range(20):
@@ -51,7 +59,7 @@ func move_to(p:Vector2):
 func signal_position()->Vector2:
 	if finished or index>=trail.size():return player
 	var p=trail[index]
-	if encounter:p+=Vector2(sin(elapsed*1.8+index)*1.1,cos(elapsed*1.4+index)*.9)
+	if encounter:p+=Vector2(sin(elapsed*(1.8+tier*.15)+index)*1.1,cos(elapsed*1.4+index)*.9)
 	return p.clamp(Vector2(-7.7,-7.3),Vector2(7.7,7.3))
 func burst()->bool:
 	if finished or burst_cooldown>0:return false
@@ -70,8 +78,14 @@ func scan()->bool:
 	scans-=1;scan_left=2.6;started=true;return true
 func signal_strength()->float:
 	return clampf(1.0-player.distance_to(signal_position())/18.0,0.0,1.0)
+func alert_left()->float:
+	if not encounter or not started:return 0.0
+	var phase=fposmod(elapsed+float(index)*.7,alert_period)
+	return maxf(0.0,alert_duration-phase)
 func inspect_ready()->bool:
-	return not finished and player.distance_to(signal_position())<=capture_radius and hit_cooldown<=0.0 and burst_left<=0.0
+	return not finished and alert_left()<=0.0 and player.distance_to(signal_position())<=capture_radius and hit_cooldown<=0.0 and burst_left<=0.0
+func trace_visible()->bool:
+	return not encounter and (player.distance_to(signal_position())<reveal_radius or scan_left>0.0)
 func set_inspecting(value:bool):
 	inspecting=value
 	if not value:hold=0.0
