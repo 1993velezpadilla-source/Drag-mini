@@ -10,6 +10,10 @@ func frames():
 func exterior_review(dungeon,region:int,floor_index:int):
 	# Run this geometry gate on both floors, before capturing the actual camera.
 	assert(dungeon.vista_focus_points.size()==dungeon.exterior_vistas.size(),"one camera target per vista")
+	assert(dungeon.floor_detail_count==dungeon.floor_detail_bounds.size() and dungeon.floor_detail_count<=48,"bounded interior decoration")
+	for q in dungeon.floor_detail_bounds:
+		assert(dungeon.run.cells.has(q) and not dungeon.threshold_cells.has(q) and q!=dungeon.run.relic and q!=dungeon.run.stairs,"keep objectives and entrances clear")
+		assert(dungeon.floor_detail_fits(q,dungeon.floor_detail_bounds[q]),"interior detail stays low and within a single tile")
 	var variant_total:int=0
 	for count in dungeon.habitat_variant_counts:variant_total+=count
 	assert(variant_total==dungeon.habitat_tall.size(),"habitat variants account for every placement")

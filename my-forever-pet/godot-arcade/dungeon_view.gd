@@ -92,6 +92,7 @@ var threshold_count=0
 var threshold_cells:Dictionary={}
 var room_lights:Array[OmniLight3D]=[]
 var floor_detail_count=0
+var floor_detail_bounds:Dictionary={}
 var terrace_cells:Dictionary={}
 var reward_fx:Node3D
 var reward_age=0.0
@@ -912,24 +913,51 @@ func landscape_terraces(wall_cells:Dictionary):
 		placements.append(Transform3D(Basis(Vector3.UP,angle).scaled(Vector3(.88,.90,.88)),center_point))
 	batch_exterior_parts(parts,placements);terrace_count=placements.size()
 func interior_floor_detail():
-	floor_detail_count=0
+	floor_detail_count=0;floor_detail_bounds.clear()
 	var parts=rock_parts("res://assets/dungeon_"+["forest","reef","star"][region]+"_floor_detail.glb")
 	if parts.is_empty():return
 	var placements:Array[Transform3D]=[]
 	for room in run.rooms:
-		var used=0
+		var candidates:Array[Vector2i]=[]
 		for y in range(room.position.y,room.end.y):
 			for x in range(room.position.x,room.end.x):
-				if used>=3:continue
 				var q=Vector2i(x,y)
-				if not run.cells.has(q) or q==run.player or q==run.stairs or run.loot.has(q) or run.traps.has(q):continue
-				if run.enemy_at(q)>=0:continue
-				var edge=x==room.position.x or x==room.end.x-1 or y==room.position.y or y==room.end.y-1
-				if region!=2 and not edge and posmod(x*13+y*7,3)!=0:continue
-				if posmod(x*19+y*37+run.floor_number,5)!=0:continue
-				var angle=float(posmod(x*3+y*11,8))*PI*.25
-				placements.append(Transform3D(Basis(Vector3.UP,angle),pos(q)+Vector3(0,.005,0)));used+=1
+				if not run.cells.has(q) or q==run.player or q==run.stairs or q==run.relic or q==room.position:continue
+				if run.loot.has(q) or run.traps.has(q) or threshold_cells.has(q) or run.enemy_at(q)>=0:continue
+				var wall_side=false
+				for d in Rules.DIR:
+					if not run.cells.has(q+d):wall_side=true
+					# Leave doorways and the adjacent approach tiles readable.
+					if threshold_cells.has(q+d):
+						wall_side=false;break
+				if wall_side:candidates.append(q)
+		# Seeded ranking avoids a left-to-right bias and keeps room centers open.
+		candidates.sort_custom(func(a:Vector2i,b:Vector2i):
+			return posmod(a.x*73+a.y*137+run.floor_number*31,997)<posmod(b.x*73+b.y*137+run.floor_number*31,997))
+		var used=0
+		var room_cap=2 if region==2 else 5
+		for q in candidates:
+			if used>=room_cap or placements.size()>=48:break
+			var close=false
+			for old in floor_detail_bounds:
+				if Vector2(q-old).length_squared()<2.0:close=true;break
+			if close:continue
+			var edge_dir=Vector2i.ZERO
+			for d in Rules.DIR:
+				if not run.cells.has(q+d):edge_dir=d;break
+			var angle=float(posmod(q.x*3+q.y*11,8))*PI*.25
+			var size_value=.60+.22*float(posmod(q.x*17+q.y*13,7))/6.0
+			var center=pos(q)+Vector3(edge_dir.x*.18,.005,edge_dir.y*.18)
+			var placement=Transform3D(Basis(Vector3.UP,angle).scaled(Vector3(size_value,.55,size_value)),center)
+			var bounds=measure_scenery(parts,placement)
+			if not floor_detail_fits(q,bounds):continue
+			placements.append(placement);floor_detail_bounds[q]=bounds;used+=1
 	batch_parts(parts,placements,false);floor_detail_count=placements.size()
+func floor_detail_fits(q:Vector2i,bounds:AABB)->bool:
+	# Actual transformed mesh footprint must remain inside a single tile
+	# and below the pet's movement silhouette. Decorative, never collision.
+	var center=pos(q)
+	return bounds.position.x>=center.x-.66 and bounds.end.x<=center.x+.66 and bounds.position.z>=center.z-.66 and bounds.end.z<=center.z+.66 and bounds.position.y>=-.04 and bounds.end.y<=.22
 func passage_thresholds():
 	threshold_count=0;threshold_cells.clear()
 	var parts=rock_parts("res://assets/dungeon_"+["forest","reef","star"][region]+"_threshold.glb")
@@ -1380,8 +1408,8 @@ func build_floor():
 		batch(geometry,walls,"box",Vector3(1.4,.88,1.4),palette[2],true)
 		boundary_detail(walls)
 	room_detail(seen)
-	interior_floor_detail()
 	passage_thresholds()
+	interior_floor_detail()
 	room_lighting()
 	var dais=prop(geometry,"dungeon_"+["forest","reef","star"][region]+"_dais",pos(run.relic)+Vector3(0,-.025,0))
 	if dais!=null:dais.rotation.y=PI*.25
