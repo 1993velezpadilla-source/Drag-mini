@@ -54,6 +54,9 @@ var terrain_texture:ImageTexture
 var terrain_normal:ImageTexture
 var terrain_mats:Dictionary={}
 var rock_modules=0
+var scene_cache:Dictionary={}
+var rock_mesh_cache:Dictionary={}
+var floor_build_usec=0
 func setup(r:int,id:int,step:int,finale:bool,patrol:bool,seed_id:int,companion:int):
 	region=r;companion_id=companion
 	run.setup(r,id,step,finale,patrol,seed_id,companion)
@@ -173,7 +176,7 @@ func model(parent:Node3D,id:int)->Node3D:
 	var node=Node3D.new();parent.add_child(node)
 	var file="res://assets/mosskit.glb" if id==0 else "res://assets/creatures/species_%02d.glb"%id
 	if ResourceLoader.exists(file):
-		var scene=load(file) as PackedScene
+		var scene=cached_scene(file)
 		if scene!=null:node.add_child(scene.instantiate())
 		if id==0 and ResourceLoader.exists("res://assets/foot.glb"):
 			for side in [-1,1]:
@@ -182,10 +185,12 @@ func model(parent:Node3D,id:int)->Node3D:
 	else:shape(node,"orb",Vector3(0,.55,0),Vector3(.8,1,.8),Data.TINTS[id%3])
 	node.scale=Vector3.ONE*.70
 	return node
+func cached_scene(file:String)->PackedScene:
+	if not scene_cache.has(file):scene_cache[file]=load(file) as PackedScene if ResourceLoader.exists(file) else null
+	return scene_cache[file]
 func prop(parent:Node3D,name_value:String,at:Vector3)->Node3D:
 	var file="res://assets/"+name_value+".glb"
-	if not ResourceLoader.exists(file):return null
-	var scene=load(file) as PackedScene
+	var scene=cached_scene(file)
 	if scene==null:return null
 	var ob=scene.instantiate() as Node3D
 	if ob==null:return null
@@ -220,18 +225,29 @@ func boundary_detail(points:Array[Vector3]):
 		var instance=MultiMeshInstance3D.new();instance.multimesh=mm;geometry.add_child(instance)
 		instance.cast_shadow=GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	template.free();wall_decorations=chosen.size()
+func rock_parts(file:String)->Array:
+	if rock_mesh_cache.has(file):return rock_mesh_cache[file]
+	var parts:Array=[]
+	var scene=cached_scene(file)
+	if scene==null:return parts
+	var template=scene.instantiate() as Node3D
+	if template==null:return parts
+	geometry.add_child(template)
+	var inverse=template.global_transform.affine_inverse()
+	for child in template.find_children("*","MeshInstance3D",true,false):
+		var source=child as MeshInstance3D
+		if source.mesh!=null:parts.append({"mesh":source.mesh,"transform":inverse*source.global_transform})
+	template.free()
+	rock_mesh_cache[file]=parts
+	return parts
 func natural_boundary(points:Array[Vector3])->bool:
 	rock_modules=0
 	var prefix="res://assets/dungeon_"+["forest","reef","star"][region]+"_rock_"
 	for variant in range(3):
 		if not ResourceLoader.exists(prefix+str(variant)+".glb"):return false
 	for variant in range(3):
-		var scene=load(prefix+str(variant)+".glb") as PackedScene
-		if scene==null:return false
-		var template=scene.instantiate() as Node3D
-		if template==null:return false
-		geometry.add_child(template)
-		var inverse=template.global_transform.affine_inverse()
+		var parts=rock_parts(prefix+str(variant)+".glb")
+		if parts.is_empty():return false
 		var placements:Array[Transform3D]=[]
 		for i in range(points.size()):
 			if posmod(i+run.floor_number,3)!=variant:continue
@@ -239,19 +255,17 @@ func natural_boundary(points:Array[Vector3])->bool:
 			var scale_value=Vector3(1.04,.86+.14*float(posmod(i*13,5))/4.0,1.04)
 			placements.append(Transform3D(Basis(Vector3.UP,angle).scaled(scale_value),points[i]-Vector3(0,.44,0)))
 		if not placements.is_empty():
-			for child in template.find_children("*","MeshInstance3D",true,false):
-				var source=child as MeshInstance3D
-				if source.mesh==null:continue
-				var mm=MultiMesh.new();mm.transform_format=MultiMesh.TRANSFORM_3D;mm.mesh=source.mesh;mm.instance_count=placements.size()
-				var local_transform=inverse*source.global_transform
+			for part in parts:
+				var mm=MultiMesh.new();mm.transform_format=MultiMesh.TRANSFORM_3D;mm.mesh=part.mesh;mm.instance_count=placements.size()
+				var local_transform:Transform3D=part.transform
 				for i in range(placements.size()):mm.set_instance_transform(i,placements[i]*local_transform)
 				var instance=MultiMeshInstance3D.new();instance.multimesh=mm;geometry.add_child(instance)
 			rock_modules+=placements.size()
-		template.free()
 	return rock_modules==points.size()
 func floor_name()->String:
 	return ["Ancient passages","Treasure chamber","Monster den","Restorative grotto","Forgotten ruins"][run.floor_kind]
 func build_floor():
+	var start_usec=Time.get_ticks_usec()
 	if is_instance_valid(geometry):geometry.hide();geometry.queue_free()
 	if is_instance_valid(actors):actors.hide();actors.queue_free()
 	geometry=Node3D.new();world.add_child(geometry);actors=Node3D.new();world.add_child(actors);actor_nodes.clear()
@@ -291,6 +305,8 @@ func build_floor():
 	banner_time=1.65;floor_banner.text="B%d  ·  %s"%[run.floor_number,floor_name()];floor_banner.show()
 	camera.position=pet.position+Vector3(0,12,8);camera.look_at(pet.position)
 	refresh_actors()
+	floor_build_usec=Time.get_ticks_usec()-start_usec
+	print("DUNGEON_FLOOR_BUILD region=",region," floor=",run.floor_number," usec=",floor_build_usec," rocks=",rock_modules," cached_rock_sets=",rock_mesh_cache.size())
 func actor_for(key:String,at:Vector3)->Node3D:
 	if actor_nodes.has(key):return actor_nodes[key]
 	var n=Node3D.new();actors.add_child(n);n.position=at;actor_nodes[key]=n;actor_created+=1

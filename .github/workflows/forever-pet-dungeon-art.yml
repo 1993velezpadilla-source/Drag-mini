@@ -22,7 +22,8 @@ jobs:
       - name: Install Blender, Godot and Mesa
         run: |
           sudo apt-get update -qq
-          sudo apt-get install -y blender xvfb libgl1 libgl1-mesa-dri
+          sudo apt-get install -y blender xvfb libgl1 libgl1-mesa-dri python3-numpy python3-pil
+          blender -b --python-exit-code 1 --python-expr "import numpy; print(numpy.__version__)"
           curl -fL --retry 3 -o /tmp/godot.zip https://github.com/godotengine/godot/releases/download/4.4.1-stable/Godot_v4.4.1-stable_linux.x86_64.zip
           unzip -q /tmp/godot.zip -d /tmp/godot
       - name: Export and audit original production meshes

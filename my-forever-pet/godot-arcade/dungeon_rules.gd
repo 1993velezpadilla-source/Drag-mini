@@ -108,6 +108,10 @@ func generate_floor():
 	loot[relic]="relic"
 	if floor_kind==3:
 		var spring=center(rooms[1])
+		if enemy_at(spring)>=0 or spring==relic or spring==stairs:
+			for p in spots:
+				if rooms[1].has_point(p) and enemy_at(p)<0 and p!=relic and p!=stairs:
+					spring=p;break
 		if spring!=relic and spring!=stairs and enemy_at(spring)<0:
 			loot[spring]="spring";traps.erase(spring)
 	if not guardian_defeated:
@@ -207,7 +211,7 @@ func enemy_turn():
 			if hp==0:
 				finished=true;success=false;message="Rescue needed · expedition lost";return
 		elif gap<=6 and kind!=3:
-			var path=route(p,player)
+			var path=route(p,player,true)
 			if not path.is_empty() and path[0]!=player and enemy_at(path[0])<0:enemies[i].pos=path[0]
 	reveal()
 func move(p:Vector2i)->bool:

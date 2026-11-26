@@ -19,13 +19,19 @@ func step(d)->bool:
 	if d.attack():return true
 	var target:Vector2i=d.stairs if d.secured else d.relic
 	# Seek nearby healing items before engaging a distant objective.
+	var best_distance=6
 	if d.potions<2 or d.hp<d.max_hp/2:
 		for p in d.loot:
-			if d.loot[p] in ["potion","spring"] and d.distance(p,d.player)<=5:
-				target=p;break
+			var kind:String=d.loot[p]
+			if kind!="potion" and (kind!="spring" or d.hp==d.max_hp and d.energy==8):continue
+			var candidate=d.route(d.player,p,true)
+			if not candidate.is_empty() and candidate.size()<best_distance:
+				best_distance=candidate.size();target=p
 	var route=d.route(d.player,target,true)
 	if route.is_empty():route=d.route(d.player,target)
-	if route.is_empty():return false
+	if route.is_empty():
+		print("DUNGEON_STALL seed=",d.seed_value," floor=",d.floor_number," pos=",d.player," target=",target," secured=",d.secured)
+		return false
 	return d.move(route[0])
 func run():
 	var victories=0;var defeats=0;var stalls=0;var actions=0;var guardians=0
@@ -46,7 +52,9 @@ func run():
 						assert(d.guardian_defeated);guardians+=1
 					victories+=1;local_wins+=1
 				elif d.finished:defeats+=1
-				else:stalls+=1
+				else:
+					stalls+=1
+					print("DUNGEON_UNFINISHED seed=",d.seed_value," id=",id," floor=",d.floor_number," turns=",d.turns," attempts=",attempts," HP=",d.hp)
 			print("DUNGEON_BALANCE region=",region," id=",id," wins=",local_wins,"/12")
 	print("DUNGEON_COMBAT_SOAK_PASS runs=108 wins=",victories," defeats=",defeats," stalls=",stalls," actions=",actions," guardian_wins=",guardians)
 	quit()
