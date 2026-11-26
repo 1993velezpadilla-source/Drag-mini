@@ -19,8 +19,8 @@ jobs:
           blender -b --python-exit-code 1 --python-expr 'import numpy; print(numpy.__version__)'
           mkdir -p /tmp/creatures
           blender -b -t 4 --python-exit-code 1 -P my-forever-pet/art/render_dash_creatures.py -- /tmp/creatures --mesh-only 2>&1 | tee /tmp/creatures.log
-          test "$(grep -c '^FACE_VISIBILITY_OK ' /tmp/creatures.log)" -eq 23
-          grep -F 'CREATURE_FACE_GATE_PASS 23' /tmp/creatures.log
+          test "$(grep -c '^FACE_VISIBILITY_OK ' /tmp/creatures.log)" -eq 27
+          grep -F 'CREATURE_FACE_GATE_PASS 27' /tmp/creatures.log
       - uses: actions/upload-artifact@v4
         if: always()
         with:

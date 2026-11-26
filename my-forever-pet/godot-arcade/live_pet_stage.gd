@@ -207,6 +207,7 @@ func grounded_error()->float:
 # Mosskit retains the exact approved runner geometry; clothing is a separate layer.
 func face_anchor()->Vector3:
 	if active_species==0: return Vector3(0,1.03,.68)
+	if active_species>=24: return [Vector3(0,1.47,.79),Vector3(0,1.38,.67),Vector3(0,1.45,.80),Vector3(0,1.09,.56)][active_species-24]
 	match active_species%12:
 		1,2,10: return Vector3(0,1.50,.84)
 		3,6: return Vector3(0,1.64,.85)
@@ -217,6 +218,7 @@ func face_anchor()->Vector3:
 	return Vector3(0,1.50,.77)
 func eye_spacing()->float:
 	if active_species==0: return .58
+	if active_species>=24: return [.60,.58,.60,.46][active_species-24]
 	match active_species%12:
 		3,6: return .68
 		5: return .64
@@ -244,7 +246,7 @@ func dress(worn:Array,equipped:int):
 	if active_stage==0: return
 	var eye=face_anchor()
 	var family=active_species%12
-	var aquatic=active_species!=0 and family in [4,7]
+	var aquatic=active_species==25 or (active_species>0 and active_species<24 and family in [4,7])
 	var cap_y=1.66 if active_species==0 else eye.y+.52
 	var anchors=[Vector3(0,cap_y,0.05),eye,Vector3(0,.49,.42),Vector3(0,.17,.32)]
 	var scales=[.59,eye_spacing()/1.3,.53,.40]
@@ -309,6 +311,7 @@ func _process(dt:float):
 	touch_bounce=maxf(0,touch_bounce-dt)
 	avatar.rotation.y=lerpf(avatar.rotation.y,target_yaw+sin(elapsed*0.9)*0.055,minf(1,dt*5))
 	var bounce=sin(touch_bounce/0.30*PI)*0.10
+	if active_species==25: bounce+=.18+.06*sin(elapsed*2.5)
 	var base=(0.70 if active_stage==1 else 0.88 if active_stage==2 else 1.0)*1.65*pet_fit
 	var breathe=1.0+sin(elapsed*(1.7 if sleeping else 2.6))*0.014
 	var chew=sin(reaction_time*24)*0.045 if reaction_time>0 and reaction_kind in ["food","cook","snack"] else 0.0

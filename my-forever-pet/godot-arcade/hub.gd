@@ -24,10 +24,14 @@ var feedback_serial=0
 var room_scroll:ScrollContainer
 var stage_space:Control
 var daily_cta:Button
+var care_cta:Button
+var reward_row:HBoxContainer
+var reward_audio:AudioStreamPlayer
 var collection_filter="All"
 var collection_feature=3
 var collection_grid:GridContainer
 const FAMILIES=["Sprout","Cat","Dog","Dragon","Fish","Alien","Dinosaur","Jelly","Bird","Fairy","Rabbit","Owl"]
+func family_name(i:int)->String: return FAMILIES[i%12] if i<24 else ["Devil","Ghost","Robot","Mushroom"][i-24]
 const ACTION_COLORS={"bond":"#e967a5","food":"#e5a44d","clean":"#4abce9","play":"#ae78ed","sleep":"#6e91e8","daily":"#ecb15c"}
 var context_labels:Dictionary={}
 var context_bars:Dictionary={}
@@ -207,7 +211,10 @@ func make_ui():
 	section_scroll=ScrollContainer.new(); section_scroll.custom_minimum_size.y=88; section_scroll.horizontal_scroll_mode=ScrollContainer.SCROLL_MODE_DISABLED; layout.add_child(section_scroll)
 	body=VBoxContainer.new(); body.size_flags_horizontal=SIZE_EXPAND_FILL; section_scroll.add_child(body)
 	actions=body
-	daily_cta=button(layout,"Daily Reward   ›",func(): perform("daily")); daily_cta.custom_minimum_size.y=43; daily_cta.icon=GameIcons.texture("daily"); daily_cta.expand_icon=true; daily_cta.add_theme_constant_override("icon_max_width",36); daily_cta.add_theme_stylebox_override("normal",skin(Color("#7747a8"),Color("#ffd38c")))
+	reward_row=row(layout); reward_row.add_theme_constant_override("separation",6)
+	daily_cta=button(reward_row,"Daily Gift",func(): perform("daily")); daily_cta.custom_minimum_size.y=43; daily_cta.icon=GameIcons.texture("daily"); daily_cta.expand_icon=true; daily_cta.add_theme_constant_override("icon_max_width",36); daily_cta.add_theme_stylebox_override("normal",skin(Color("#7747a8"),Color("#ffd38c")))
+	care_cta=button(reward_row,"Care Quest",func(): select("Care Quest")); care_cta.custom_minimum_size.y=43; care_cta.add_theme_font_size_override("font_size",15); care_cta.icon=GameIcons.texture("bond"); care_cta.expand_icon=true; care_cta.add_theme_constant_override("icon_max_width",30)
+	reward_audio=AudioStreamPlayer.new(); reward_audio.volume_db=-16; add_child(reward_audio)
 	room_scroll=ScrollContainer.new(); room_scroll.custom_minimum_size.y=64; room_scroll.vertical_scroll_mode=ScrollContainer.SCROLL_MODE_DISABLED; room_scroll.horizontal_scroll_mode=ScrollContainer.SCROLL_MODE_AUTO; layout.add_child(room_scroll)
 	room_strip=row(room_scroll); room_strip.size_flags_horizontal=SIZE_EXPAND_FILL
 	room_strip.add_theme_constant_override("separation",5)
@@ -269,6 +276,8 @@ func paint_action(b:Button,id:String):
 	b.add_theme_stylebox_override("pressed",skin(tint.darkened(.30),tint.lightened(.58),true))
 func perform(id:String,i:int=0):
 	var before:Dictionary=store.s.duplicate(true)
+	var old_care:int=store.care_count()
+	var old_level:int=store.level()
 	var ok:bool=store.action(id,i)
 	if ok:
 		var changes:Array[String]=[]
@@ -276,6 +285,10 @@ func perform(id:String,i:int=0):
 			var d=int(store.s[key])-int(before[key])
 			if d!=0: changes.append(("%+d "%d)+str({"hunger":"food","happy":"mood","xp":"XP"}.get(key,key)))
 		notice.text="  •  ".join(changes) if not changes.is_empty() else "Done!"
+		if store.care_count()>old_care: notice.text+="  •  Care %d/4"%mini(4,store.care_count())
+		if store.level()>old_level: notice.text+="  •  LEVEL UP!"
+		if id=="care_claim" and int(before.care_claims)<4: notice.text="NEW COMPANION: "+store.SPECIES[24+int(before.care_claims)]
+		play_reward(id=="care_claim" or store.level()>old_level or store.care_count()>old_care)
 	else:
 		notice.text=reason_for(id,i)
 	refresh()
@@ -283,6 +296,20 @@ func perform(id:String,i:int=0):
 	if ok: live_stage.react(id,store.asleep(store.now()))
 	if visual.visible: show_feedback(notice.text,id)
 	if section=="Shop": select("Shop")
+	if section=="Care Quest": select("Care Quest")
+	if section=="Pets" and id=="form": show_collection()
+func play_reward(big:bool):
+	if not is_instance_valid(reward_audio): return
+	var sample_rate=22050
+	var count=4410 if big else 2205
+	var bytes=PackedByteArray(); bytes.resize(count*2)
+	for j in range(count):
+		var t=float(j)/sample_rate
+		var freq=660.0 if not big else 523.25 if t<.065 else 659.25 if t<.13 else 783.99
+		var env=sin(PI*float(j)/count)*exp(-t*3)
+		bytes.encode_s16(j*2,int(sin(TAU*freq*t)*env*9000))
+	var audio=AudioStreamWAV.new(); audio.format=AudioStreamWAV.FORMAT_16_BITS; audio.mix_rate=sample_rate; audio.data=bytes
+	reward_audio.stream=audio; reward_audio.play()
 func reason_for(id:String,i:int)->String:
 	var s:Dictionary=store.s
 	if s.stage==0: return "Hatch your egg first"
@@ -386,7 +413,7 @@ func select(tab:String):
 		section_scroll.custom_minimum_size.y=88
 		visual.visible=not full_menu
 		stage_space.visible=not full_menu
-		daily_cta.visible=not full_menu
+		reward_row.visible=not full_menu
 		room_scroll.visible=not full_menu
 		meter_panel.visible=not full_menu
 		section_scroll.size_flags_vertical=SIZE_EXPAND_FILL if full_menu else SIZE_FILL
@@ -411,6 +438,19 @@ func select(tab:String):
 				add_action("Sleep","sleep")
 		"Pets":
 			show_collection()
+		"Care Quest":
+			var quest=context_card("care_quest","Daily care adventure")
+			context_meter(quest,"care_quest",Color("#e6aa65"))
+			for j in range(6):
+				var done=(int(s.care_mask)&(1<<j))!=0
+				var destination=["Home","Kitchen","Bathroom","Toy room","Home","Garden"][j]
+				var btn=button(actions,("✓ " if done else "› ")+store.CARE_NAMES[j],func():
+					if destination=="Home": select("Home")
+					else: room(destination))
+				btn.disabled=done
+			var claim=button(actions,"Claim care chest • 25 coins + materials",func(): perform("care_claim")); claim.disabled=not store.care_ready()
+			var next=store.next_special()
+			if next>=24: showcase_card("Next companion: "+store.SPECIES[next],"Complete four different care activities today.","res://assets/pet_%d.png"%next,func(): collection_feature=next; select("Pets"))
 		"More":
 			for tab_name in ["Care","Journal","World","Cell"]:
 				showcase_card(tab_name,["Care & feeding","Quests & collection","Explore & playdates","Growth & health"][["Care","Journal","World","Cell"].find(tab_name)],"res://assets/"+NAV_ART[tab_name],func(): select(tab_name))
@@ -451,7 +491,7 @@ func select(tab:String):
 			add_action("Daily gift","daily")
 			for i in range(3): add_action(["Bond quest","Clean quest","Expedition quest"][i]+" • 15 coins","quest",i)
 			add_action("Craft crystal • 3 materials","craft"); add_action("Secret evolution","secret")
-			button(actions,"Petpedia • 24 forms",show_collection)
+			button(actions,"Petpedia • "+str(store.SPECIES.size())+" forms",func(): select("Pets"))
 		"World":
 			var expedition=context_card("expedition","Expedition status")
 			context_meter(expedition,"expedition",Color("#65b4ed"))
@@ -477,7 +517,7 @@ func room(name:String):
 	section_scroll.scroll_vertical=0
 	visual.show()
 	stage_space.show()
-	daily_cta.hide()
+	reward_row.hide()
 	room_scroll.show()
 	meter_panel.show()
 	section_scroll.size_flags_vertical=SIZE_FILL
@@ -504,7 +544,9 @@ func room(name:String):
 		context_meter(garden,"garden",Color("#90cb70"))
 	update_context()
 func species_category(i:int)->String:
-	var kind=FAMILIES[i%12]
+	var kind=family_name(i)
+	if kind in ["Devil","Ghost","Mushroom"]: return "Mystic"
+	if kind=="Robot": return "Alien"
 	if kind=="Alien": return "Alien"
 	if kind in ["Fish","Jelly"]: return "Water"
 	if kind in ["Bird","Owl","Dragon"]: return "Sky"
@@ -521,21 +563,28 @@ func show_collection():
 	var title=label(actions,"PET COLLECTION",25)
 	title.add_theme_color_override("font_color",Color("#f5d6ff"))
 	var discovered=0
-	for i in range(24):
+	for i in range(store.SPECIES.size()):
 		if (int(store.s.collection)&(1<<i))!=0: discovered+=1
-	label(actions,"%d / 24 discovered  •  Tap a creature to inspect"%discovered,14).modulate=Color("#d0bedf")
+	label(actions,"%d / %d discovered  •  Tap a creature to inspect"%[discovered,store.SPECIES.size()],14).modulate=Color("#d0bedf")
 	var featured=panel(actions)
 	var hero=row(featured)
 	var portrait_art=TextureRect.new(); portrait_art.texture=tex("res://assets/pet_%d.png"%collection_feature); portrait_art.custom_minimum_size=Vector2(144,188); portrait_art.expand_mode=TextureRect.EXPAND_IGNORE_SIZE; portrait_art.stretch_mode=TextureRect.STRETCH_KEEP_ASPECT_CENTERED; hero.add_child(portrait_art)
 	var copy=VBoxContainer.new(); copy.size_flags_horizontal=SIZE_EXPAND_FILL; hero.add_child(copy)
 	label(copy,"FEATURED SPECIES",12).modulate=Color("#ffce86")
-	var family=label(copy,FAMILIES[collection_feature%12],25); family.clip_text=true
+	var family=label(copy,family_name(collection_feature),25); family.clip_text=true
 	var species=label(copy,store.SPECIES[collection_feature],16); species.clip_text=true
-	label(copy,species_category(collection_feature)+"  •  "+("Secret evolution" if collection_feature>=12 else "Standard form"),12).modulate=species_color(collection_feature).lightened(.35)
+	label(copy,species_category(collection_feature)+"  •  "+("Care companion" if collection_feature>=24 else "Secret evolution" if collection_feature>=12 else "Standard form"),12).modulate=species_color(collection_feature).lightened(.35)
 	var desc=label(copy,"Discovered" if (int(store.s.collection)&(1<<collection_feature))!=0 else "Discover through growth and evolution.",14); desc.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART
 	var favorite_button=button(copy,"♥ Favorited" if store.favorite(collection_feature) else "♡ Favorite",func(): store.toggle_favorite(collection_feature); show_collection())
 	favorite_button.add_theme_font_size_override("font_size",14)
-	var growth_button=button(copy,"Growth journal",func(): select("Journal")); growth_button.add_theme_font_size_override("font_size",14)
+	if collection_feature>=24:
+		var unlocked=(int(store.s.collection)&(1<<collection_feature))!=0
+		var form=button(copy,"Restore original form" if int(store.s.form)==collection_feature else "Use companion form" if unlocked else "Unlock in Care Quest",func():
+			if unlocked: perform("form",-1 if int(store.s.form)==collection_feature else collection_feature)
+			else: select("Care Quest"))
+		form.add_theme_font_size_override("font_size",14)
+	else:
+		var growth_button=button(copy,"Growth journal",func(): select("Journal")); growth_button.add_theme_font_size_override("font_size",14)
 	var filter_scroll=ScrollContainer.new(); filter_scroll.custom_minimum_size.y=44; filter_scroll.vertical_scroll_mode=ScrollContainer.SCROLL_MODE_DISABLED; actions.add_child(filter_scroll)
 	var filter=row(filter_scroll); filter.size_flags_horizontal=SIZE_EXPAND_FILL
 	for key in ["All","Land","Sky","Water","Alien","Mystic","Favorites"]:
@@ -543,7 +592,7 @@ func show_collection():
 		b.add_theme_font_size_override("font_size",12); b.custom_minimum_size=Vector2(64,40)
 		if key==collection_filter: b.add_theme_stylebox_override("normal",skin(Color("#926332"),Color("#ffe0a1")))
 	collection_grid=GridContainer.new(); collection_grid.columns=3 if size.x>=450 else 2; collection_grid.add_theme_constant_override("h_separation",6); collection_grid.add_theme_constant_override("v_separation",6); actions.add_child(collection_grid)
-	for i in range(24):
+	for i in range(store.SPECIES.size()):
 		var category=species_category(i)
 		if collection_filter=="Favorites" and not store.favorite(i): continue
 		if collection_filter not in ["All","Favorites"] and category!=collection_filter: continue
@@ -553,7 +602,7 @@ func show_collection():
 		b.custom_minimum_size=Vector2(0,182)
 		b.add_theme_stylebox_override("normal",skin(tint.darkened(.70),Color("#ffce89") if i==collection_feature else tint.lightened(.25)))
 		var v=VBoxContainer.new(); v.set_anchors_and_offsets_preset(PRESET_FULL_RECT); v.offset_left=7; v.offset_right=-7; v.offset_top=6; v.offset_bottom=-7; v.mouse_filter=MOUSE_FILTER_IGNORE; v.add_theme_constant_override("separation",2); b.add_child(v)
-		var flags=label(v,("♥  " if store.favorite(i) else "")+("SECRET" if i>=12 else category.to_upper()),10); flags.mouse_filter=MOUSE_FILTER_IGNORE; flags.modulate=tint.lightened(.5)
+		var flags=label(v,("♥  " if store.favorite(i) else "")+("CARE" if i>=24 else "SECRET" if i>=12 else category.to_upper()),10); flags.mouse_filter=MOUSE_FILTER_IGNORE; flags.modulate=tint.lightened(.5)
 		var art=TextureRect.new(); art.texture=tex("res://assets/pet_%d.png"%i); art.expand_mode=TextureRect.EXPAND_IGNORE_SIZE; art.stretch_mode=TextureRect.STRETCH_KEEP_ASPECT_CENTERED; art.size_flags_vertical=SIZE_EXPAND_FILL; art.mouse_filter=MOUSE_FILTER_IGNORE; v.add_child(art)
 		var name=label(v,store.SPECIES[i],14); name.horizontal_alignment=HORIZONTAL_ALIGNMENT_CENTER; name.clip_text=true; name.mouse_filter=MOUSE_FILTER_IGNORE
 		var status=label(v,"Discovered" if known else "Undiscovered",11); status.horizontal_alignment=HORIZONTAL_ALIGNMENT_CENTER; status.mouse_filter=MOUSE_FILTER_IGNORE; status.modulate=Color("#9ce2b5") if known else Color("#c7b9db")
@@ -585,7 +634,9 @@ func refresh():
 	outfit_label.text=""
 	if is_instance_valid(daily_cta):
 		daily_cta.disabled=s.stage==0 or s.daily_day==store.date_key(store.now())
-		daily_cta.text="Daily reward collected" if daily_cta.disabled else "Daily Reward   ›"
+		daily_cta.text="Gift collected" if daily_cta.disabled else "Daily Gift"
+		care_cta.text="Care chest ready!" if store.care_ready() else "Care %d/4"%mini(4,store.care_count())
+		care_cta.add_theme_stylebox_override("normal",skin(Color("#8b5134") if store.care_ready() else Color("#51316d"),Color("#ffd48a") if store.care_ready() else Color("#dc9fed")))
 	if not current_room.is_empty(): path="res://assets/"+str(ROOMS.get(current_room,"room_bedroom"))+".jpg"
 	bg.texture=tex(path)
 	update_room_scene()
@@ -617,6 +668,7 @@ func set_context(key:String,message:String,progress:float=-1.0):
 func update_context():
 	var s:Dictionary=store.s
 	var now:float=store.now()
+	set_context("care_quest","%d / 4 different activities • %d chests earned"%[mini(4,store.care_count()),s.care_claims],mini(100,store.care_count()*25))
 	set_context("care","%s\nHygiene %d%%  •  Bathroom %d%%  •  Waste %d/6  •  Medicine %d"%[store.care_priority(),s.hygiene,s.toilet,s.waste,s.medicine])
 	for key in ["hygiene","toilet"]:
 		if context_bars.has(key): context_bars[key].value=s[key]
@@ -742,16 +794,16 @@ func test_home():
 	assert(wear_layers[4].visible and wear_layers[4].texture!=null and live_stage.wardrobe_nodes.size()==1)
 	assert(live_stage.feet.size()==2 and live_stage.avatar.get_child_count()>=3)
 	assert(is_finite(live_stage.sole_offset) and live_stage.grounded_error()<0.001)
-	for species in range(24):
+	for species in range(store.SPECIES.size()):
 		live_stage.set_pet(species,4)
 		assert(live_stage.avatar.get_child_count()>0 and is_finite(live_stage.sole_offset))
 		assert(live_stage.grounded_error()<0.001)
 	live_stage.set_pet(0,4)
 	for tab in ["Care","Rooms","Arcade","Shop","Journal","World","Cell","More","Home"]: select(tab)
 	assert(nav_buttons.size()==6 and room_tiles.size()==6 and action_grid.get_child_count()==5)
-	select("Pets"); assert(collection_grid.get_child_count()==24)
+	select("Pets"); assert(collection_grid.get_child_count()==store.SPECIES.size())
 	assert(store.toggle_favorite(3)); collection_filter="Favorites"; show_collection(); assert(collection_grid.get_child_count()==1)
-	collection_filter="Alien"; show_collection(); assert(collection_grid.get_child_count()==2)
+	collection_filter="Alien"; show_collection(); assert(collection_grid.get_child_count()==3)
 	collection_filter="All"; select("Home")
 	for name in ROOMS:
 		room(name)
@@ -824,11 +876,14 @@ func capture_home():
 	store.s.stage=4; store.s.coins=250; store.s.name="Mosskit"
 	make_ui(); refresh()
 	await capture_frame("/tmp/forever-home.png")
-	for species in range(24):
-		store.s.variant=int(species/12); store.s.field=int((species%12)/4); store.s.body=species%4; store.s.name=store.SPECIES[species]
+	for species in range(store.SPECIES.size()):
+		store.s.form=-1
+		if species>=24: store.s.collection=int(store.s.collection)|(1<<species); store.s.form=species
+		else: store.s.variant=int(species/12); store.s.field=int((species%12)/4); store.s.body=species%4
+		store.s.name=store.SPECIES[species]
 		refresh()
 		await capture_frame("/tmp/forever-species-%02d.png"%species)
-	store.s.variant=0; store.s.field=0; store.s.body=0; store.s.name="Mosskit"; refresh()
+	store.s.form=-1; store.s.variant=0; store.s.field=0; store.s.body=0; store.s.name="Mosskit"; refresh()
 	for name in ROOMS:
 		select("Rooms")
 		room(name)

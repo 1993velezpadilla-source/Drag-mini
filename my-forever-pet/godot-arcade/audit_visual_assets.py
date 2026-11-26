@@ -19,12 +19,12 @@ reference=inspect(root/'mosskit.glb')
 for p in sorted((root/'creatures').glob('*.glb')):
  m=inspect(p);assert reference['triangles']*.5<=m['triangles']<=42000,(p,m);assert m['materials']>=3,(p,m)
  report[p.name]=m
-assert len(report)==23
+assert len(report)==27
 for p in sorted((root/'rooms').glob('*.glb')):
  m=inspect(p);assert 5000<=m['triangles']<=260000,(p,m);assert m['materials']>=8,(p,m)
  report[p.name]=m
-assert len(report)==29
-for i in range(24):
+assert len(report)==33
+for i in range(28):
  p=root/('pet_%d.png'%i)
  im=Image.open(p).convert('RGBA');a=im.getchannel('A');b=a.getbbox()
  margin=round(min(im.width,im.height)*.05)

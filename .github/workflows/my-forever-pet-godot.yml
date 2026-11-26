@@ -55,13 +55,13 @@ jobs:
           set -euo pipefail
           blender -b -t 4 --python-exit-code 1 -P my-forever-pet/art/render_home.py -- my-forever-pet/godot-arcade/assets
           blender -b -t 4 --python-exit-code 1 -P my-forever-pet/art/render_pets.py -- my-forever-pet/godot-arcade/assets
-          for i in $(seq 0 23); do test -s "my-forever-pet/godot-arcade/assets/pet_$i.png"; done
+          for i in $(seq 0 27); do test -s "my-forever-pet/godot-arcade/assets/pet_$i.png"; done
           for field in 0 1 2; do for stage in 1 2; do test -s "my-forever-pet/godot-arcade/assets/growth_${field}_${stage}.png"; done; done
           test -s my-forever-pet/godot-arcade/assets/home_day.jpg
           blender -b -t 4 --python-exit-code 1 -P my-forever-pet/art/render_premium_sets.py -- my-forever-pet/godot-arcade/assets
           for room in kitchen bathroom bedroom toy garden lab; do test -s "my-forever-pet/godot-arcade/assets/room_$room.jpg"; test -s "my-forever-pet/godot-arcade/assets/rooms/room_$room.glb"; done
           blender -b -t 4 --python-exit-code 1 -P my-forever-pet/art/render_dash_creatures.py -- my-forever-pet/godot-arcade/assets
-          for i in $(seq -w 1 23); do test -s "my-forever-pet/godot-arcade/assets/creatures/species_$i.glb"; done
+          for i in $(seq -w 1 27); do test -s "my-forever-pet/godot-arcade/assets/creatures/species_$i.glb"; done
           for game in star flappy cloud find; do test -s "my-forever-pet/godot-arcade/assets/arcade_$game.jpg"; done
           test -s my-forever-pet/godot-arcade/assets/room_layout.json
           python3 my-forever-pet/godot-arcade/audit_visual_assets.py my-forever-pet/godot-arcade/assets
@@ -179,10 +179,10 @@ jobs:
       - name: Capture actual Forever Pet home and arcade viewports
         run: |
           set -euo pipefail
-          xvfb-run -a -s "-screen 0 720x1280x24" timeout 120 /tmp/godot/Godot_v4.4.1-stable_linux.x86_64 --path my-forever-pet/godot-arcade --rendering-method gl_compatibility --audio-driver Dummy --resolution 540x960 -- --home-capture 2>&1 | tee /tmp/forever-capture.log
+          xvfb-run -a -s "-screen 0 720x1280x24" timeout 180 /tmp/godot/Godot_v4.4.1-stable_linux.x86_64 --path my-forever-pet/godot-arcade --rendering-method gl_compatibility --audio-driver Dummy --resolution 540x960 -- --home-capture 2>&1 | tee /tmp/forever-capture.log
           grep -F FOREVER_PET_CAPTURE_PASS /tmp/forever-capture.log
           ! grep -E "SCRIPT ERROR|Parse Error" /tmp/forever-capture.log
-          test "$(find /tmp -maxdepth 1 -name 'forever-*.png' | wc -l)" -eq 40
+          test "$(find /tmp -maxdepth 1 -name 'forever-*.png' | wc -l)" -eq 44
       - uses: actions/upload-artifact@v4
         with:
           name: Forever-Pet-real-game-viewports

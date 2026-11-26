@@ -67,7 +67,7 @@ func _ready():
 		var pp="res://assets/premium_"+key+".png"
 		if ResourceLoader.exists(pp): prop_textures[key]=load(pp)
 	rng.randomize()
-	for i in range(24):
+	for i in range(store.SPECIES.size()):
 		var path="res://assets/pet_%d.png"%i
 		other_textures.append(load(path) if ResourceLoader.exists(path) else null)
 	pet_texture=other_textures[store.species()]

@@ -175,16 +175,71 @@ def validate_eyes(eyes,species):
   hit,loc,n,index,obj,matrix=scene.ray_cast(deps,origin,Vector((0,1,0)),distance=8)
   assert hit and obj.name.startswith(('eye_','pupil_','catchlight_')),('occluded eye',species,obj.name if hit else 'no hit')
  print('FACE_VISIBILITY_OK',species,flush=True)
-for species in range(1,24):
+for species in range(1,28):
  clear()
- i=species%12;secret=species>=12
- family=families[i];rgb=palettes[i]
+ i=species%12;secret=12<=species<24
+ family=families[i] if species<24 else ["devil","ghost","robot","mushroom"][species-24];rgb=palettes[i] if species<24 else [(0.68,.065,.12),(.46,.76,.92),(.28,.40,.56),(.78,.26,.17)][species-24]
  if secret:
   secret_palette=[(.18,.60,.25),(.20,.28,.53),(.45,.20,.10),(.95,.35,.07),(.27,.73,.74),(.36,.15,.67),(.19,.53,.57),(.08,.62,.75),(.85,.46,.12),(.43,.20,.78),(.67,.48,.77),(.20,.23,.42)]
   rgb=secret_palette[i]
  m=mat('skin_%02d'%species,rgb,0,.44)
  a=mat('accent_%02d'%species,tuple(min(1,c*.68+.28) for c in rgb),0,.53)
- if family in ('cat','dog','rabbit'):
+ if family=='devil':
+  shape('imp body',(0,.66,-.12),(.94,1.06,1.02),m)
+  shape('imp chest',(0,.64,.34),(.60,.74,.25),a)
+  shape('imp head',(0,1.40,.13),(1.35,1.18,1.12),m)
+  for side in [-1,1]:
+   tip('curved horn',(side*.45,2.05,.08),.50,.19,dark,side*.24)
+   shape('horn base',(side*.45,1.91,.08),(.35,.23,.28),a)
+   limb('imp arm',(side*.38,.88,.09),(side*.58,.49,.25),.26,m)
+   wing(side,dark,a,.86,True)
+  feet(m,.18,.38,.32,.51)
+  tail(m,[(0,.41,-.55),(.56,.41,-.78),(.85,.75,-.85),(.90,1.05,-.82)],.15)
+  tip('arrow tail',(.90,1.17,-.82),.28,.19,a)
+  eyes=face(0,1.47,.69,.30,.87)
+ elif family=='ghost':
+  # One continuous scalloped ghost shell, tapering toward the tail.
+  verts=[]; faces=[]; rings=20; steps=40
+  for k in range(rings+1):
+   theta=pi*k/rings; yy=1.12+.91*math.cos(theta)
+   radius=.72*math.sin(theta)
+   if k>rings*.6: radius*=1.0+.14*math.sin(theta)
+   for j in range(steps):
+    ang=2*pi*j/steps; r=radius*(1+.075*math.cos(5*ang)*max(0,(k/rings-.48)*2))
+    verts.append(v((r*math.cos(ang),yy+.07*math.sin(5*ang)*math.sin(theta)**3,r*.77*math.sin(ang))))
+  for k in range(rings):
+   for j in range(steps): faces.append((k*steps+j,k*steps+(j+1)%steps,(k+1)*steps+(j+1)%steps,(k+1)*steps+j))
+  mesh=bpy.data.meshes.new('ghost flowing shell');mesh.from_pydata(verts,[],faces);mesh.update()
+  ob=bpy.data.objects.new('ghost flowing shell',mesh);bpy.context.scene.collection.objects.link(ob);finish(ob,m)
+  for side in [-1,1]:
+   limb('floating sleeve',(side*.51,.98,0),(side*.83,.76,.08),.27,a)
+   shape('spectral glow spot',(side*.43,.59,.30),(.16,.21,.10),water)
+  eyes=face(0,1.38,.57,.29,.90)
+ elif family=='robot':
+  # Mechanical body, joints, antenna and panel lights.
+  shape('robot chassis',(0,.70,-.06),(1.02,1.12,.91),m)
+  shape('robot head',(0,1.43,.12),(1.44,1.10,.98),a)
+  shape('visor',(0,1.45,.54),(1.24,.69,.24),dark)
+  for side in [-1,1]:
+   shape('ear speaker',(side*.70,1.43,.05),(.24,.44,.41),gold)
+   limb('robot articulated arm',(side*.49,.84,0),(side*.69,.48,.19),.24,m)
+   shape('elbow bearing',(side*.59,.65,.10),(.25,.25,.25),gold)
+  feet(m,.18,.32,.34,.60)
+  limb('antenna',(0,1.90,0),(0,2.22,0),.10,m)
+  shape('signal beacon',(0,2.22,0),(.24,.24,.24),water)
+  shape('power core',(0,.70,.40),(.38,.36,.14),water)
+  eyes=face(0,1.45,.70,.30,.82)
+ elif family=='mushroom':
+  shape('mushroom stalk',(0,.86,0),(.94,1.30,.90),fur)
+  shape('cap dome',(0,1.83,-.02),(1.92,.90,1.60),m)
+  shape('cap underside',(0,1.53,-.02),(1.71,.23,1.43),a)
+  for j in range(9):
+   ang=j*2.4;r=.22+.40*(j%3)/2
+   shape('cap speckle',(r*math.cos(ang),2.16-.25*r,r*.78*math.sin(ang)),(.19,.10,.20),fur)
+  feet(fur,.17,.27,.25,.48)
+  for side in [-1,1]:limb('little arm',(side*.36,.83,.06),(side*.61,.52,.18),.23,fur)
+  eyes=face(0,1.09,.46,.23,.72)
+ elif family in ('cat','dog','rabbit'):
   shape('torso',(0,.65,-.18),(1.05,1.12,1.12),m)
   shape('chest',(0,.67,.32),(.70,.79,.30),fur)
   shape('head',(0,1.41,.16),(1.42,1.22,1.15),m)
@@ -294,7 +349,7 @@ if '--mesh-only' in sys.argv:
 # Orthographic portrait is rendered from the GLB itself; no alternate Mosskit mesh.
 OUT=ROOT
 from mathutils import Vector
-for species in range(24):
+for species in range(28):
  clear()
  if species==0:
   bpy.ops.import_scene.gltf(filepath=os.path.join(ROOT,'mosskit.glb'))

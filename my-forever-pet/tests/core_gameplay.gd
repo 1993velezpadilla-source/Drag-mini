@@ -86,12 +86,24 @@ func run():
 	check(pet.action("secret") and pet.species()==12,"secret evolution")
 	check(not pet.action("secret"),"secret evolution cannot repeat")
 	check(pet.toggle_favorite(3) and pet.favorite(3),"favorite species")
-	check(not pet.toggle_favorite(-1) and not pet.toggle_favorite(24),"invalid favorites rejected")
+	check(not pet.toggle_favorite(-1) and not pet.toggle_favorite(28),"invalid favorites rejected")
 	check(pet.toggle_favorite(5) and pet.toggle_favorite(5) and not pet.favorite(5),"unfavorite species")
 	pet.s.friendship=4
 	wallet=pet.s.coins
 	check(pet.action("breed") and pet.s.stage==0 and pet.s.generation==2,"new generation")
 	check(pet.s.coins==wallet and pet.s.wardrobe!=0,"inherit wallet and wardrobe")
 	check(pet.favorite(3),"favorites survive new generation")
+	reset(4)
+	check(not pet.action("form",24),"locked companion cannot equip")
+	pet.s.hunger=3; pet.s.hygiene=10
+	check(pet.action("bond"),"care affection credit")
+	check(pet.action("food",3),"care feeding credit")
+	check(pet.action("bath"),"care hygiene credit")
+	pet.s.interaction_at=0.0
+	check(pet.action("play"),"care play credit")
+	check(pet.care_count()==4 and pet.care_ready(),"four distinct care categories")
+	check(pet.action("care_claim") and not pet.action("care_claim"),"care chest once")
+	check(pet.action("form",24) and pet.species()==24,"unlock and equip devil")
+	check(pet.action("form",-1) and pet.species()==0,"restore inherited form")
 	print("FOREVER_PET_CORE_PASS ",passed)
 	quit()

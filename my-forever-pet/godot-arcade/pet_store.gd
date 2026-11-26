@@ -1,7 +1,7 @@
 extends Node
 # Independent Godot port of native PetState. Time in seconds, persisted in one wallet.
 const SAVE="user://forever_pet_v1.json"
-const SPECIES=["Mosskit","Mewmew","Barkle","Dracoon","Bubblefin","Neblito","Wispurr","Octoboo","Roostik","Fayli","Pixsy","Puffowl","Fernhorn","Moonmew","Cloverbark","Emberdrake","Pearlfin","NovaNeb","Lunawisp","Reefboo","Suncrest","Aurorafay","Stardust Pixsy","Dreamowl"]
+const SPECIES=["Mosskit","Mewmew","Barkle","Dracoon","Bubblefin","Neblito","Wispurr","Octoboo","Roostik","Fayli","Pixsy","Puffowl","Fernhorn","Moonmew","Cloverbark","Emberdrake","Pearlfin","NovaNeb","Lunawisp","Reefboo","Suncrest","Aurorafay","Stardust Pixsy","Dreamowl","Ember Imp","Wisp Ghost","Bolt Bot","Mushmellow"]
 const STAGES=["Egg","Baby","Kid","Young","Adult"]
 const FIELDS=["Land","Water","Sky"]
 const FOODS=["Meat","Carrot","Fish","Grain"]
@@ -16,7 +16,7 @@ var arcade_mode=-1
 var test_mode=false
 var dirty=false
 func defaults()->Dictionary:
-	return {"stage":0,"field":0,"body":0,"eyes":0,"color":0,"variant":0,"generation":1,"friendship":0,"inherited_eyes":-1,"name":"","hunger":5,"happy":10,"energy":100,"bond":0,"xp":0,"waste":0,"mistakes":0,"germs":0,"hygiene":100,"toilet":100,"coins":0,"crystals":0,"materials":0,"fuel":0,"snacks":0,"medicine":0,"soap":0,"cells":[0,0,0],"foods":[0,0,0,0],"collection":0,"favorites":0,"owned":0,"equipped":0,"installation":0,"wardrobe":0,"worn":[0,0,0,0],"theme":0,"training":0,"age":0.0,"last":0.0,"food_clock":0.0,"mood_clock":0.0,"energy_clock":0.0,"waste_clock":0.0,"cell_clock":0.0,"care_clock":0.0,"hygiene_clock":0.0,"toilet_clock":0.0,"rest_clock":0.0,"sleep_until":0.0,"awake_until":0.0,"auto_sleep":true,"trip_end":0.0,"destination":0,"journeys":0,"pending":[0,0,0],"daily_day":"","quest_day":"","quests":0,"claimed":0,"garden_at":0.0,"harvests":0,"interaction_at":0.0,"best":[0,0,0,0,0]}
+	return {"stage":0,"field":0,"body":0,"eyes":0,"color":0,"variant":0,"generation":1,"friendship":0,"inherited_eyes":-1,"name":"","hunger":5,"happy":10,"energy":100,"bond":0,"xp":0,"waste":0,"mistakes":0,"germs":0,"hygiene":100,"toilet":100,"coins":0,"crystals":0,"materials":0,"fuel":0,"snacks":0,"medicine":0,"soap":0,"cells":[0,0,0],"foods":[0,0,0,0],"collection":0,"favorites":0,"care_day":"","care_mask":0,"care_claims":0,"care_claimed":false,"form":-1,"owned":0,"equipped":0,"installation":0,"wardrobe":0,"worn":[0,0,0,0],"theme":0,"training":0,"age":0.0,"last":0.0,"food_clock":0.0,"mood_clock":0.0,"energy_clock":0.0,"waste_clock":0.0,"cell_clock":0.0,"care_clock":0.0,"hygiene_clock":0.0,"toilet_clock":0.0,"rest_clock":0.0,"sleep_until":0.0,"awake_until":0.0,"auto_sleep":true,"trip_end":0.0,"destination":0,"journeys":0,"pending":[0,0,0],"daily_day":"","quest_day":"","quests":0,"claimed":0,"garden_at":0.0,"harvests":0,"interaction_at":0.0,"best":[0,0,0,0,0]}
 func _ready():
 	test_mode=false
 	for flag in ["--test","--soak","--capture","--lane-only","--unassisted","--home-test","--home-capture"]:
@@ -71,7 +71,27 @@ func care_priority()->String:
 	if s.waste>0: return "Clean the room"
 	return "Happy and healthy"
 func level()->int: return 1+int(s.xp/100)
-func species()->int: return int(s.field)*4+int(s.body)+12*int(s.variant)
+func inherited_species()->int: return int(s.field)*4+int(s.body)+12*int(s.variant)
+func species()->int:
+	var selected=int(s.form)
+	return selected if selected>=24 and selected<SPECIES.size() and (int(s.collection)&(1<<selected))!=0 else inherited_species()
+const CARE_NAMES=["Affection","Feeding","Hygiene","Play / train","Habitat cleanup","Garden harvest"]
+func care_count()->int:
+	var n=0
+	for i in range(6):
+		if (int(s.care_mask)&(1<<i))!=0: n+=1
+	return n
+func care_credit(id:String):
+	var group=-1
+	if id in ["bond","praise"]: group=0
+	elif id in ["food","cook","snack"]: group=1
+	elif id in ["bath","rinse","toilet"]: group=2
+	elif id in ["play","toy","train"]: group=3
+	elif id=="clean": group=4
+	elif id=="harvest": group=5
+	if group>=0: s.care_mask=int(s.care_mask)|(1<<group)
+func care_ready()->bool: return s.stage>0 and care_count()>=4 and not s.care_claimed
+func next_special()->int: return 24+int(s.care_claims) if s.care_claims<4 else -1
 func favorite(index:int)->bool:
 	return index>=0 and index<SPECIES.size() and (int(s.favorites)&(1<<index))!=0
 func toggle_favorite(index:int)->bool:
@@ -89,6 +109,7 @@ func advance(at:float):
 	s.last=at
 	if s.stage==0: return
 	var day=date_key(at)
+	if s.care_day!=day: s.care_day=day; s.care_mask=0; s.care_claimed=false
 	if s.quest_day!=day: s.quest_day=day; s.quests=0; s.claimed=0
 	var trip:float=s.trip_end
 	while cursor<at:
@@ -124,7 +145,7 @@ func advance(at:float):
 		elif s.stage==2 and s.age>=86400:
 			s.stage=3; s.age-=86400; s.body=s.foods.find(s.foods.max())
 		elif s.stage==3 and s.age>=86400:
-			s.stage=4; s.age-=86400; s.eyes=s.inherited_eyes if s.inherited_eyes>=0 else mini(3,int(s.mistakes/2)); s.collection=int(s.collection)|(1<<species())
+			s.stage=4; s.age-=86400; s.eyes=s.inherited_eyes if s.inherited_eyes>=0 else mini(3,int(s.mistakes/2)); s.collection=int(s.collection)|(1<<inherited_species())
 	if trip>0 and at>=trip:
 		s.pending=[25+int(s.destination)*20+mini(20,int(s.training/2)),2+int(s.destination),1 if int(s.journeys)%3==2 or s.destination==2 else 0]
 		s.trip_end=0.0; s.journeys+=1; s.quests=int(s.quests)|4; earn(35+int(s.destination)*15)
@@ -178,6 +199,16 @@ func action(id:String,i:int=0)->bool:
 		"daily":
 			if s.stage==0 or s.daily_day==date_key(at): return false
 			s.daily_day=date_key(at); s.coins+=20; s.materials+=1
+		"care_claim":
+			if not care_ready(): return false
+			var unlocked=next_special()
+			s.care_claimed=true; s.care_claims+=1; s.coins+=25; s.materials+=2; earn(15)
+			if unlocked>=24: s.collection=int(s.collection)|(1<<unlocked)
+		"form":
+			if s.stage==0: return false
+			if i!=-1 and (i<24 or i>=SPECIES.size() or (int(s.collection)&(1<<i))==0): return false
+			if int(s.form)==i: return false
+			s.form=i
 		"quest":
 			if i<0 or i>2 or (int(s.quests)&(1<<i))==0 or (int(s.claimed)&(1<<i))!=0: return false
 			s.claimed=int(s.claimed)|(1<<i); s.coins+=15; earn(10)
@@ -186,7 +217,7 @@ func action(id:String,i:int=0)->bool:
 			s.materials-=3; s.crystals+=1
 		"secret":
 			if s.stage!=4 or s.variant!=0 or s.bond<30 or s.training<10 or s.crystals<3: return false
-			s.crystals-=3; s.variant=1; s.collection=int(s.collection)|(1<<species())
+			s.crystals-=3; s.variant=1; s.collection=int(s.collection)|(1<<inherited_species())
 		"cook":
 			if not ready or s.materials<2 or s.hunger>=5: return false
 			s.materials-=2; feed(3)
@@ -257,10 +288,11 @@ func action(id:String,i:int=0)->bool:
 			if not ready or s.stage!=4 or s.friendship<4 or s.pending[0]>0: return false
 			var old=s.duplicate(true)
 			s=defaults()
-			for key in ["coins","crystals","materials","fuel","snacks","medicine","collection","favorites","owned","equipped","installation","wardrobe","worn","theme","garden_at","harvests","best","daily_day","quest_day","quests","claimed","journeys","auto_sleep"]: s[key]=old[key]
+			for key in ["coins","crystals","materials","fuel","snacks","medicine","collection","favorites","care_day","care_mask","care_claims","care_claimed","owned","equipped","installation","wardrobe","worn","theme","garden_at","harvests","best","daily_day","quest_day","quests","claimed","journeys","auto_sleep"]: s[key]=old[key]
 			s.generation=old.generation+1; s.inherited_eyes=2; s.eyes=2; s.color=1; s.last=at
 		_: ok=false
 	if ok:
+		care_credit(id)
 		s.coins=clampi(int(s.coins),0,999999); s.snacks=mini(99,int(s.snacks)); s.materials=mini(9999,int(s.materials)); s.crystals=mini(9999,int(s.crystals))
 		save_game()
 	return ok
