@@ -1696,6 +1696,14 @@ func capture_home():
 	for r in range(3):
 		hunt_region=r; select("Habitat"); await capture_frame("/tmp/forever-habitat-%d.png"%r)
 		open_active_field(r,false); await capture_frame("/tmp/forever-wild-%d.png"%r)
+		var wild_view:Control
+		for child in get_children():
+			if child.get_script()==preload("res://wild_field.gd"):wild_view=child
+		assert(is_instance_valid(wild_view),"capture requires actual wild field")
+		wild_view.run.move_to(wild_view.run.signal_position())
+		assert(wild_view.run.scan(),"capture requires a working scan")
+		await capture_frame("/tmp/forever-wild-scan-%d.png"%r)
+		assert(wild_view.compass_arrow.visible and wild_view.trace.visible,"scan visuals must render")
 		store.field_cancel()
 		for child in get_children():
 			if child.get_script()==preload("res://wild_field.gd"):child.queue_free()

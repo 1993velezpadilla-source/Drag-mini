@@ -2,7 +2,7 @@ name: My Forever Pet Android
 on:
   push:
     branches: [feature/my-forever-pet-paradise]
-    paths: ['my-forever-pet/**', '.github/workflows/my-forever-pet-android.yml']
+    paths: ['my-forever-pet/**', '!my-forever-pet/godot-arcade/**', '!my-forever-pet/art-gauntlet/**', '!my-forever-pet/tests/*.gd', '.github/workflows/my-forever-pet-android.yml']
   workflow_dispatch:
 permissions:
   contents: read

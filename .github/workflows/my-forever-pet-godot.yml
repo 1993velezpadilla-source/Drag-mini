@@ -4,6 +4,9 @@ on:
     branches: [feature/my-forever-pet-paradise]
     paths: ['my-forever-pet/godot-arcade/**', 'my-forever-pet/art/**', '.github/workflows/my-forever-pet-godot.yml']
   workflow_dispatch:
+concurrency:
+  group: forever-pet-godot-${{ github.ref }}
+  cancel-in-progress: true
 permissions:
   contents: read
 jobs:
@@ -201,7 +204,8 @@ jobs:
           ! grep -E "SCRIPT ERROR|Parse Error" /tmp/forever-capture.log
           test "$(grep -c "^PET_FRAME .*forever-species-" /tmp/forever-capture.log)" -eq 28
           if grep -E "^PET_FRAME .*forever-species-.*enclosed=false" /tmp/forever-capture.log; then echo "Creature framing rejected"; exit 1; fi
-          test "$(find /tmp -maxdepth 1 -name 'forever-*.png' | wc -l)" -eq 65
+          for region in 0 1 2; do test -s "/tmp/forever-wild-scan-$region.png"; done
+          test "$(find /tmp -maxdepth 1 -name 'forever-*.png' | wc -l)" -eq 68
       - uses: actions/upload-artifact@v4
         with:
           name: Forever-Pet-real-game-viewports
