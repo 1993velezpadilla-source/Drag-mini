@@ -300,7 +300,7 @@ func build_floor():
 		batch(geometry,walls,"box",Vector3(1.4,.88,1.4),palette[2],true)
 		boundary_detail(walls)
 	for i in range(run.rooms.size()):
-		var p=pos(run.rooms[i].position)+Vector3(-.48,0,-.48)
+		var p=pos(run.rooms[i].position)+Vector3(-.52,0,-.52)
 		if prop(geometry,["dungeon_forest_shrine","dungeon_reef_shrine","dungeon_star_shrine"][region],p)==null:
 			shape(geometry,"gem" if region!=0 else "orb",p+Vector3(0,.45,0),Vector3(.38,.88,.38),palette[3])
 			shape(geometry,"box",p+Vector3(0,.11,0),Vector3(.62,.18,.62),palette[2])
@@ -329,12 +329,15 @@ func refresh_actors():
 		var kind:String=run.loot[p]
 		var c=Color("#ffd277") if kind=="coin" else Color("#f2a8c0") if kind=="potion" else Color("#76ffdc") if kind=="spring" else palette[3]
 		if kind=="spring":
+			if prop(root,"dungeon_spring",Vector3.ZERO)!=null:continue
 			shape(root,"ring",Vector3(0,.06,0),Vector3(.66,.13,.66),c);shape(root,"orb",Vector3(0,.24,0),Vector3(.62,.29,.62),c);continue
 		if kind=="relic" and prop(root,"dungeon_chest",Vector3.ZERO)!=null:continue
 		if kind=="coin" and prop(root,"coin",Vector3(0,.32,0))!=null:
 			root.scale=Vector3.ONE*.48;root.set_meta("float_item",true);continue
-		if kind=="potion" and prop(root,"snack",Vector3(0,.25,0))!=null:
-			root.scale=Vector3.ONE*.55;root.set_meta("float_item",true);continue
+		if kind=="potion" and prop(root,"dungeon_berry",Vector3(0,.12,0))!=null:
+			root.set_meta("float_item",true);continue
+		if kind=="material" and prop(root,"dungeon_material",Vector3(0,.12,0))!=null:
+			root.set_meta("float_item",true);continue
 		var item=shape(root,"gem",Vector3(0,.36,0),Vector3(.38,.6,.38),c);item.rotation.y=.7
 		root.set_meta("float_item",true)
 	for i in range(run.enemies.size()):

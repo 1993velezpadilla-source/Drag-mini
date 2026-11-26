@@ -695,147 +695,202 @@ for x in [-.39,.39]:
 box((0,.19,-.16),(.34,.28,.09),gold,.04)
 ball((0,.19,-.23),(.16,.16,.08),jetflame)
 export('jetpack',12000)
-# Mystery dungeons: compact, original beveled landmarks and collectible silhouettes.
-clear()
-moss=mat('dungeon moss',(.075,.20,.035),0,.9)
-bark=mat('dungeon ancient root',(.27,.13,.075))
-cap=mat('dungeon mushroom coral',(.68,.24,.25))
-box((0,.10,0),(.80,.20,.80),stone,.09)
-for i in range(3):
- a=i*2*pi/3
- x=.21*math.cos(a);z=.21*math.sin(a)
- cyl((x,.32,z),.075,.045,.38,bark)
- ball((x,.53,z),(.35,.18,.35),cap)
- for j in range(3):
-  a2=j*2*pi/3
-  ball((x+.095*math.cos(a2),.61,z+.095*math.sin(a2)),(.045,.035,.045),cream)
-ball((0,.12,0),(.80,.19,.75),moss)
-export('dungeon_forest_shrine',6500)
-clear()
-coral=mat('reef coral',(.76,.32,.27))
-reef=mat('reef jade',(.10,.40,.45))
-pearl=mat('reef pearl',(.74,.91,.95),.16,.24)
-box((0,.09,0),(.80,.18,.80),reef,.08)
-for i in range(5):
- a=i*2*pi/5
- x=.24*math.cos(a);z=.24*math.sin(a)
- o=cyl((x,.38,z),.075,.035,.62+(.15 if i%2 else 0),coral)
- o.rotation_euler.x=.28*math.sin(a);o.rotation_euler.y=.28*math.cos(a)
- ball((x,.62,z),(.13,.13,.13),pearl)
-ball((0,.31,0),(.31,.31,.31),pearl)
-export('dungeon_reef_shrine',7000)
-clear()
-rune=mat('star violet',(.37,.25,.65),.18,.33)
-star=mat('star crystal',(.65,.67,.93),.25,.22)
-box((0,.10,0),(.82,.20,.82),rune,.065)
-for i in range(4):
- a=i*pi/2
- x=.28*math.cos(a);z=.28*math.sin(a)
- cyl((x,.31,z),.12,.09,.36,gold)
- cyl((x,.54,z),.10,0,.20,star)
-cyl((0,.47,0),.18,.12,.54,star)
-cyl((0,.82,0),.12,0,.20,star)
-export('dungeon_star_shrine',6500)
-clear()
-box((0,.20,0),(.80,.40,.56),wood,.05)
-box((0,.43,0),(.83,.16,.59),wood2,.055)
-for x in [-.29,.29]:
- box((x,.30,.30),(.07,.53,.055),gold,.015)
- box((x,.53,0),(.07,.05,.57),gold,.015)
-box((0,.35,.31),(.20,.16,.05),gold,.02)
-ball((0,.35,.35),(.07,.07,.05),dark)
-export('dungeon_chest',4000)
-clear()
-cyl((0,.08,0),.43,.43,.16,stone)
-for i in range(4):
- box((0,.12+i*.105,-.29+i*.18),(.78,.16,.20),cream,.025)
-for x in [-.43,.43]:
- cyl((x,.35,0),.06,.045,.65,gold)
- ball((x,.70,0),(.13,.16,.13),pearl)
-export('dungeon_stairs',4500)
-# Modular natural boundary pieces: one tile wide, mobile triangle budgets.
-clear()
-foreststone=mat('forest slate',(.095,.13,.075),0,.85)
-forestleaf=mat('forest bright moss',(.34,.49,.15))
-for i in range(3):
- x=(i-1)*.40
- box((x,.29,0),(.49,.57,.95),foreststone,.11)
- ball((x,.59,.02),(.53,.20,.83),moss)
-for x in [-.42,.41]:
- ball((x,.69,.18),(.34,.16,.31),forestleaf)
-export('dungeon_forest_wall',5000)
-clear()
-reefstone=mat('reef limestone',(.045,.15,.22),0,.76)
-for i in range(3):
- x=(i-1)*.39
- box((x,.26,0),(.49,.52,.91),reefstone,.12)
- cyl((x,.56,0),.11,.055,.31+(i%2)*.18,coral)
- ball((x,.76+(i%2)*.08,0),(.18,.13,.18),pearl)
-export('dungeon_reef_wall',5000)
-clear()
-astralstone=mat('astral basalt',(.105,.085,.19),0,.77)
-for i in range(3):
- x=(i-1)*.39
- box((x,.28,0),(.49,.56,.95),astralstone,.08)
- cyl((x,.60,0),.13,.10,.31+(i%2)*.16,rune)
- cyl((x,.83+(i%2)*.07,0),.10,0,.18,star)
-export('dungeon_star_wall',5000)
-# Original sculpted rock modules, with broad facets and layered strata.
+# Mystery dungeon kit v2: authored biome silhouettes, bevels, layered materials,
+# deliberately distinct wall profiles and small decorative details.
 import random
-def dungeon_rock(p,size,m,seed):
+def rock_slab(p,size,m,seed,bevel=.045):
  rng=random.Random(seed)
- bpy.ops.mesh.primitive_ico_sphere_add(subdivisions=2,radius=1,location=v(p))
- o=bpy.context.object
- for vert in o.data.vertices:
-  vert.co*=rng.uniform(.88,1.12)
- o.scale=(size[0]/2,size[2]/2,size[1]/2)
- o.rotation_euler.z=rng.uniform(-.25,.25)
- o.data.materials.append(m)
- # Flat planes retain the handmade rock silhouette, bevelled surrounding props stay smooth.
- return o
-for region,primary,accent,topmat in [
- ('forest',foreststone,bark,moss),('reef',reefstone,stone,coral),('star',astralstone,rune,star)]:
- for variant in range(3):
-  clear()
-  dungeon_rock((0,.32,0),(1.44,.82,1.39),primary,variant+41)
+ # irregular octagonal prism, with tapered sides and a beveled edge
+ points=[(-.36,-.50),(.34,-.50),(.50,-.29),(.50,.29),(.30,.50),(-.32,.50),(-.50,.30),(-.50,-.30)]
+ verts=[]
+ for level in range(2):
+  for x,z in points:
+   s=1.0 if level==0 else rng.uniform(.78,.96)
+   verts.append(v((p[0]+x*size[0]*s,p[1]+(level-.5)*size[1]+rng.uniform(-.025,.025),p[2]+z*size[2]*s)))
+ faces=[tuple(range(8)),tuple(range(15,7,-1))]
+ for j in range(8):faces.append((j,(j+1)%8,(j+1)%8+8,j+8))
+ me=bpy.data.meshes.new('weathered stone slab');me.from_pydata(verts,[],faces);me.update()
+ o=bpy.data.objects.new('weathered stone slab',me);bpy.context.collection.objects.link(o)
+ return finish(o,m,bevel)
+def tube(points,radii,m,sides=8):
+ verts=[];faces=[]
+ for i,(p,r) in enumerate(zip(points,radii)):
+  for j in range(sides):
+   a=j*2*pi/sides
+   verts.append(v((p[0]+r*math.cos(a),p[1],p[2]+r*math.sin(a))))
+ for i in range(len(points)-1):
+  for j in range(sides):
+   a=i*sides+j;b=i*sides+(j+1)%sides
+   faces.append((a,b,b+sides,a+sides))
+ faces.extend([tuple(reversed(range(sides))),tuple(range((len(points)-1)*sides,len(points)*sides))])
+ me=bpy.data.meshes.new('organic sweep');me.from_pydata(verts,[],faces);me.update()
+ o=bpy.data.objects.new('organic sweep',me);bpy.context.collection.objects.link(o);return finish(o,m)
+def blades(p,a,length,width,m):
+ verts=[];faces=[]
+ for i in range(7):
+  t=i/6;reach=t*length*.65;h=length*(.92*t-.42*t*t);w=width*math.sin(pi*t)**.7
+  for side in [-1,1]:verts.append(v((p[0]+math.cos(a)*reach-side*w*math.sin(a),p[1]+h,p[2]+math.sin(a)*reach+side*w*math.cos(a))))
+ for i in range(6):faces.append((i*2,i*2+1,i*2+3,i*2+2))
+ me=bpy.data.meshes.new('curved leaf');me.from_pydata(verts,[],faces);me.update()
+ o=bpy.data.objects.new('curved leaf',me);bpy.context.collection.objects.link(o);finish(o,m)
+ mod=o.modifiers.new('leaf thickness','SOLIDIFY');mod.thickness=.018
+def crystal(p,r,h,m,seed):
+ rng=random.Random(seed);verts=[]
+ for level in [0,.73,1]:
+  for i in range(6):
+   a=i*pi/3;rr=r*(1 if level<1 else .12)
+   verts.append(v((p[0]+rr*math.cos(a)+level*r*.18,p[1]+h*level,p[2]+rr*math.sin(a))))
+ faces=[tuple(reversed(range(6))),tuple(range(12,18))]
+ for k in range(2):
+  for i in range(6):faces.append((k*6+i,k*6+(i+1)%6,(k+1)*6+(i+1)%6,(k+1)*6+i))
+ me=bpy.data.meshes.new('faceted crystal');me.from_pydata(verts,[],faces);me.update()
+ o=bpy.data.objects.new('faceted crystal',me);bpy.context.collection.objects.link(o);o.data.materials.append(m);return o
+def emit_mat(name,c,strength):
+ m=mat(name,c,0,.35);bs=m.node_tree.nodes.get('Principled BSDF')
+ bs.inputs['Emission Color'].default_value=(*c,1);bs.inputs['Emission Strength'].default_value=strength
+ return m
+foreststone=mat('weathered olive limestone',(.11,.16,.095),0,.8)
+forestedge=mat('forest layered stone',(.19,.23,.14),0,.84)
+moss=mat('deep moss',(.045,.17,.025),0,.9)
+leafdark=mat('forest leaf shadow',(.025,.115,.045),0,.8)
+leafbright=mat('fern lime',(.16,.31,.06),0,.7)
+bark=mat('weathered roots',(.17,.065,.025),0,.88)
+cap=mat('mushroom ochre',(.63,.24,.055),0,.68)
+reefstone=mat('deep reef basalt',(.045,.13,.19),0,.78)
+reefedge=mat('reef slate',(.085,.23,.28),0,.74)
+coral=mat('salmon coral',(.56,.15,.16),0,.72)
+coral2=mat('violet coral',(.29,.12,.36),0,.7)
+kelp=mat('sea grass',(.035,.19,.115),0,.78)
+pearl=mat('iridescent pearl',(.61,.82,.83),.12,.22)
+astralstone=mat('indigo ruin stone',(.10,.075,.17),0,.79)
+astraledge=mat('violet layered stone',(.19,.14,.29),0,.76)
+rune=mat('brushed brass inlay',(.56,.30,.09),.55,.33)
+star=mat('amethyst crystal',(.26,.15,.57),.18,.26)
+glow=emit_mat('warm lantern core',(.95,.49,.11),.75)
+blueglow=emit_mat('azure magic',(.11,.55,.83),.45)
+violetglow=emit_mat('violet magic',(.45,.25,.85),.45)
+for m,c,seed in [(foreststone,(.25,.32,.19),431),(forestedge,(.33,.36,.24),432),(reefstone,(.095,.24,.32),433),(reefedge,(.18,.35,.42),434),(astralstone,(.20,.14,.31),435),(astraledge,(.30,.23,.43),436)]:
+ stone_texture(m,c,seed)
+# Each biome has three different wall silhouettes, not recolored spheres.
+for variant in range(3):
+ clear()
+ rock_slab((0,.28,0),(1.44,.62,1.37),foreststone,40+variant)
+ for i in range(2):
+  rock_slab(((i-.5)*.69,.67+.07*((i+variant)%2),.04),(.73,.40,.96),forestedge,60+i+variant*8)
+ tube([(-.60,.75,.25),(-.28,.86,.29),(.12,.77,.33),(.49,.83,.41)],[.09,.12,.09,.04],bark)
+ for i in range(5):
+  a=i*2*pi/5+variant;blades((.22*math.cos(a),.81,.22*math.sin(a)),a,.38,.09,leafbright if i%2 else leafdark)
+ if variant==1:
+  for x in [-.26,.22]:
+   cyl((x,.87,.10),.04,.035,.19,bark);ball((x,1.01,.10),(.23,.12,.23),cap)
+ export('dungeon_forest_rock_%d'%variant,6000)
+ clear()
+ rock_slab((0,.27,0),(1.43,.58,1.40),reefstone,110+variant)
+ for i in range(3):
+  rock_slab(((i-1)*.42,.55+.11*((i+variant)%3),.06),(.54,.39,.94),reefedge,140+i+variant*9)
+ for i in range(2):
+  x=(i-.5)*.56;h=.36+.13*((variant+i)%3)
+  tube([(x,.76,0),(x+.03,.9,.03),(x+.13,.76+h,.05)],[.075,.06,.035],coral if i else coral2)
+  tube([(x,.89,0),(x-.14,.99,.04),(x-.21,1.03,.07)],[.04,.04,.022],coral)
+ for i in range(3):blades((.1,.72,.15),i*2*pi/3,.44,.07,kelp)
+ export('dungeon_reef_rock_%d'%variant,6000)
+ clear()
+ rock_slab((0,.25,0),(1.44,.53,1.39),astralstone,210+variant)
+ for i in range(2):
+  rock_slab(((i-.5)*.69,.59+.09*((i+variant)%2),.02),(.73,.47,.96),astraledge,240+i+variant*8)
+ if variant==0:
+  box((0,.67,.52),(.43,.085,.055),rune,.01)
+  box((0,.67,.52),(.09,.35,.06),rune,.01)
+ else:
   for i in range(3):
-   x=(i-1)*.40
-   dungeon_rock((x,.52+((i+variant)%3)*.10,.04),(.66,.64,.87),primary,variant*23+i+53)
-   dungeon_rock((x,.27,-.49),(.58,.40,.42),accent,variant*19+i+84)
-  if region=='forest':
-   for i in range(2):
-    dungeon_rock(((i-.5)*.58,.91,.04),(.72,.22,.83),topmat,variant*17+i)
-  elif region=='reef':
-   for i in range(2):
-    x=(i-.5)*.66
-    cyl((x,.92,0),.105,.04,.43+i*.10,topmat)
-  else:
-   for i in range(2):
-    x=(i-.5)*.63
-    cyl((x,.93,0),.12,.09,.36+i*.10,accent)
-    cyl((x,1.16+i*.05,0),.09,0,.18,topmat)
-  export('dungeon_%s_rock_%d'%(region,variant),2400)
-# Distinct original landmarks placed on safe non-walkable edge tiles.
+   crystal(((i-1)*.24,.72,.05),.10+.025*i,.24+.17*((variant+i)%3),star if i%2 else violetglow,i)
+ export('dungeon_star_rock_%d'%variant,6000)
+# Legacy asset names are replaced, not kept as low-quality fallback art.
+for region,base,accent in [('forest',foreststone,forestedge),('reef',reefstone,reefedge),('star',astralstone,astraledge)]:
+ clear()
+ for i in range(2):rock_slab(((i-.5)*.69,.32,0),(.75,.68,1.37),base,i+82)
+ rock_slab((0,.72,0),(1.37,.21,1.10),accent,86)
+ export('dungeon_%s_wall'%region,2800)
 clear()
-for i in range(5):
- a=i*2*pi/5
- x=.26*math.cos(a);z=.26*math.sin(a)
- o=ball((x,.33,z),(.25,.70,.12),green if i%2 else leaf);o.rotation_euler.y=a;o.rotation_euler.x=.45
-box((0,.10,0),(.60,.18,.60),foreststone,.09)
-for x in [-.19,.19]:ball((x,.21,.19),(.14,.12,.14),cream)
-export('dungeon_forest_cluster',4000)
+rock_slab((0,.10,0),(.92,.20,.80),foreststone,24)
+for i in range(7):
+ a=i*2*pi/7;blades((0,.12,0),a,.65+.18*(i%2),.12,leafbright if i%2 else leafdark)
+for i in range(3):
+ x=(i-1)*.24;cyl((x,.25,.13),.045,.035,.29,bark);ball((x,.42,.13),(.25,.15,.25),cap)
+export('dungeon_forest_cluster',5500)
 clear()
-for i in range(5):
- a=i*2*pi/5;x=.25*math.cos(a);z=.25*math.sin(a)
- o=cyl((x,.37,z),.08,.045,.60+(.15 if i%2 else 0),coral);o.rotation_euler.x=.22*math.sin(a);o.rotation_euler.y=.22*math.cos(a)
- ball((x,.62,z),(.13,.12,.13),pearl)
-box((0,.08,0),(.64,.15,.64),reefstone,.08)
-export('dungeon_reef_cluster',4000)
+rock_slab((0,.10,0),(.90,.20,.81),reefstone,32)
+for i in range(6):
+ a=i*2*pi/6;blades((0,.12,0),a,.7+.18*(i%2),.095,kelp)
+for i in range(3):
+ x=(i-1)*.24
+ tube([(x,.13,.05),(x,.38,.05),(x+.12,.58,.07)],[.075,.05,.035],coral if i%2 else coral2)
+ tube([(x,.31,.05),(x-.11,.42,.05),(x-.17,.53,.05)],[.04,.032,.018],coral)
+export('dungeon_reef_cluster',5500)
 clear()
+rock_slab((0,.10,0),(.90,.20,.81),astralstone,33)
 for i in range(5):
- a=i*2*pi/5;x=.22*math.cos(a);z=.22*math.sin(a)
- h=.38+(.28 if i%2==0 else 0)
- cyl((x,h*.5,z),.13,.095,h,rune);cyl((x,h+.10,z),.095,0,.20,star)
-box((0,.08,0),(.65,.15,.65),astralstone,.07)
-export('dungeon_star_cluster',4000)
+ a=i*2*pi/5;crystal((.25*math.cos(a),.2,.25*math.sin(a)),.11,.38+.17*(i%3),star if i%2 else violetglow,i)
+export('dungeon_star_cluster',4200)
+# Three genuinely different landmarks with readable profiles.
+clear()
+rock_slab((0,.12,0),(.94,.24,.84),foreststone,50)
+box((0,.33,0),(.48,.19,.48),forestedge,.06)
+box((0,.58,0),(.33,.37,.33),glow,.035)
+for x in [-.22,.22]:
+ for z in [-.22,.22]:box((x,.59,z),(.085,.44,.085),foreststone,.02)
+rock_slab((0,.87,0),(.65,.22,.65),forestedge,57)
+for i in range(5):blades((0,.98,0),i*2*pi/5,.30,.07,leafbright)
+export('dungeon_forest_shrine',5000)
+clear()
+rock_slab((0,.11,0),(.90,.22,.84),reefstone,73)
+# Open stylized fan shell: ribbed radial silhouette and pearl.
+for i in range(9):
+ a=(i-4)*.18
+ o=ball((math.sin(a)*.35,.48+.17*math.cos(a),-.12),(.14,.55,.18),pearl);o.rotation_euler.y=-a
+ball((0,.36,.18),(.36,.36,.36),blueglow)
+for i in range(4):blades((.28,.15,.10),i*2*pi/4,.40,.07,kelp)
+export('dungeon_reef_shrine',6500)
+clear()
+rock_slab((0,.10,0),(.90,.20,.84),astralstone,83)
+cyl((0,.29,0),.35,.29,.15,rune)
+for i in range(4):
+ a=i*pi/2;crystal((.28*math.cos(a),.39,.28*math.sin(a)),.105,.40,star,i)
+crystal((0,.39,0),.22,.77,violetglow,6)
+export('dungeon_star_shrine',4200)
+# Treasure and functional objects.
+clear()
+box((0,.22,0),(.87,.43,.59),wood,.055)
+box((0,.48,0),(.89,.23,.61),wood2,.095)
+for x in [-.32,.32]:
+ box((x,.25,.305),(.085,.50,.045),gold,.018)
+ box((x,.57,0),(.08,.06,.58),gold,.012)
+ for y in [.09,.41]:ball((x,y,.345),(.075,.075,.035),gold)
+box((0,.33,.33),(.24,.20,.07),gold,.035)
+ball((0,.34,.38),(.082,.09,.045),dark)
+export('dungeon_chest',5500)
+clear()
+rock_slab((0,.08,0),(1.09,.16,1.03),foreststone,28)
+for i in range(4):box((0,.11+i*.115,-.32+i*.22),(.86,.18,.24),stone,.03)
+for x in [-.48,.48]:
+ box((x,.22,0),(.14,.37,.87),cream,.035)
+ box((x,.51,.29),(.21,.49,.23),stone,.035)
+ ball((x,.79,.29),(.17,.17,.17),glow)
+export('dungeon_stairs',5500)
+clear()
+for i in range(4):
+ a=i*2*pi/4
+ ball((.15*math.cos(a),.18+.05*(i%2),.15*math.sin(a)),(.27,.28,.27),cap)
+for i in range(3):blades((0,.33,0),i*2*pi/3,.24,.07,leafbright)
+export('dungeon_berry',4000)
+clear()
+for i in range(3):
+ a=i*2*pi/3;crystal((.15*math.cos(a),.02,.15*math.sin(a)),.13,.42+.12*i,blueglow if i==1 else star,i)
+export('dungeon_material',1800)
+clear()
+rock_slab((0,.08,0),(1.0,.16,1.0),reefstone,98)
+cyl((0,.17,0),.39,.39,.09,blueglow)
+for i in range(8):
+ a=i*pi/4;rock_slab((.44*math.cos(a),.18,.44*math.sin(a)),(.23,.22,.23),reefedge,100+i,.025)
+export('dungeon_spring',4000)
 with open(os.path.join(OUT,'mesh-metrics.json'),'w') as out: json.dump(stats,out,indent=2)

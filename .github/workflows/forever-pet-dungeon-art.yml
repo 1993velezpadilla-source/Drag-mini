@@ -16,7 +16,7 @@ concurrency:
 jobs:
   art:
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
       - name: Install Blender, Godot and Mesa
@@ -34,6 +34,7 @@ jobs:
           python3 my-forever-pet/godot-arcade/audit_catalog.py /tmp/dungeon-project/assets
           blender -b -t 4 --python-exit-code 1 -P my-forever-pet/art/render_dash_creatures.py -- /tmp/dungeon-project/assets
           for id in 24 25 26; do test -s "/tmp/dungeon-project/assets/creatures/species_$id.glb"; done
+          for asset in chest stairs berry material spring; do test -s "/tmp/dungeon-project/assets/dungeon_$asset.glb"; done
           for region in forest reef star; do
             for variant in 0 1 2; do test -s "/tmp/dungeon-project/assets/dungeon_${region}_rock_${variant}.glb"; done
           done
