@@ -1501,4 +1501,75 @@ crystal((0,.04,0),.12,.32,star,2701)
 crystal((.20,.10,.04),.05,.14,violetglow,2702)
 for x in [-.13,.13]:box((x,.16,0),(.035,.25,.035),rune,.006)
 export('dungeon_star_life',1600)
+# Scenic focal points inspired by the approved visual brief. Built as actual
+# three-dimensional meshes, not reference-image billboards.
+clear()
+# Mossy brook with a sculpted cascade, layered rock ledges and flowering banks.
+stream=mat('woodland turquoise stream',(.055,.44,.48),.12,.27)
+foam=mat('cascade pale highlights',(.56,.87,.90),.05,.32)
+natural_rock((0,.16,0),(2.32,.32,1.70),foreststone,2800)
+natural_rock((-.45,.50,-.38),(1.1,.72,.85),forestedge,2801)
+natural_rock((.51,.31,-.36),(.90,.50,.82),moss,2802)
+ball((0,.32,.42),(1.52,.10,.82),stream)
+# Continuous ribbon follows the slope of the cascade; separate highlight ribbons.
+for k in range(4):
+ x=-.30+k*.20
+ tube([(x,.86,-.42),(x+.04,.83,-.12),(x-.03,.58,.08),(x+.02,.36,.32)],[.105,.098,.085,.070],stream if k%2==0 else foam,8)
+for x in [-.78,.78]:
+ leaf_rosette((x,.27,.25),2810+int(x*10),leafdark,leafbright,.42)
+ for j in range(2):
+  xx=x+j*.12
+  cyl((xx,.23,.61),.035,.029,.15,cream)
+  ball((xx,.33,.61),(.21,.12,.20),cap)
+for x,z in [(-.71,-.51),(.79,-.44),(.52,.65),(-.49,.68)]:
+ for k in range(5):
+  ang=k*2*pi/5;ball((x+.06*math.cos(ang),.30,z+.06*math.sin(ang)),(.11,.065,.10),white)
+ ball((x,.34,z),(.075,.05,.075),gold)
+export('dungeon_forest_vista',7000)
+clear()
+# Hollow sponge tubes, layered plate coral and shell bed; no solid cylinders.
+natural_rock((0,.17,0),(2.27,.36,1.78),reefstone,2900)
+def sponge(x,z,h,r,material,seed):
+ verts=[];faces=[];n=14
+ for y,rr in [(0,r*.82),(h*.47,r*.94),(h,r),(h,r*.61),(h*.33,r*.48)]:
+  for i in range(n):
+   ang=i*2*pi/n;rad=rr*(1+.06*math.sin(ang*5+seed))
+   verts.append((x+rad*math.cos(ang)+y*.10,y+.22,z+rad*math.sin(ang)))
+ for k in range(4):
+  for i in range(n):
+   a=k*n+i;c=k*n+(i+1)%n;faces.append((a,c,c+n,a+n))
+ faces.extend([tuple(reversed(range(n))),tuple(range(n*4,n*5))])
+ architectural_mesh('hollow reef sponge',verts,faces,material)
+ for j in range(6):
+  ang=j*2*pi/6
+  ball((x+h*.10+r*.88*math.cos(ang),h*.72+.22,z+r*.88*math.sin(ang)),(.065,.09,.065),coral2 if material==coral else coral)
+for x,z,h,r,m in [(-.69,-.20,.96,.23,coral2),(-.35,-.42,1.28,.25,coral2),(.06,-.20,.72,.20,coral),(.65,.04,.86,.25,coral)]:
+ sponge(x,z,h,r,m,2901)
+for j in range(3):
+ ball((.37,.36+j*.17,.37),(.80-j*.13,.095,.65-j*.08),coral2 if j%2 else reefedge)
+for x,z in [(-.74,.46),(-.26,.63),(.72,.48)]:
+ ball((x,.24,z),(.22,.16,.20),pearl)
+ for k in range(3):blades((x,.22,z),k*2*pi/3,.42,.09,kelp)
+export('dungeon_reef_vista',7500)
+clear()
+# Suspended observatory island: faceted tapered rock, gilded armillary and crystals.
+# Base extends down to the exterior floor, never into playable cells.
+verts=[];faces=[];n=12
+for y,r in [(0,.16),(.32,.56),(.63,1.04),(.82,.97)]:
+ for i in range(n):
+  ang=i*2*pi/n;rr=r*(1+.10*math.sin(i*2.7))
+  verts.append((rr*math.cos(ang),y,rr*.78*math.sin(ang)))
+for k in range(3):
+ for i in range(n):
+  a=k*n+i;c=k*n+(i+1)%n;faces.append((a,c,c+n,a+n))
+faces.extend([tuple(reversed(range(n))),tuple(range(n*3,n*4))])
+architectural_mesh('tapered celestial island',verts,faces,astralstone)
+cyl((0,.91,0),.62,.58,.17,astraledge)
+cyl((0,1.03,0),.46,.46,.085,rune)
+for a in [0,pi/3,2*pi/3]:
+ ob=ring((0,1.67,0),.58,.035,rune);ob.rotation_euler.y=a;ob.rotation_euler.z=a*.44
+crystal((0,1.31,0),.16,.52,violetglow,2950)
+for x,z in [(-.71,.30),(.66,.29),(.42,-.47),(-.40,-.44)]:
+ crystal((x,.83,z),.10,.28+.10*abs(x),star,2960+int(x*10))
+export('dungeon_star_vista',6500)
 with open(os.path.join(OUT,'mesh-metrics.json'),'w') as out: json.dump(stats,out,indent=2)

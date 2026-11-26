@@ -14,6 +14,7 @@ func exterior_review(dungeon,region:int,floor_index:int):
 	if not ResourceLoader.exists(prefix+"_exterior.glb"):return
 	var meshes:Array[Mesh]=[]
 	for part in dungeon.rock_parts(prefix+"_exterior.glb"):meshes.append(part.mesh)
+	for part in dungeon.rock_parts(prefix+"_vista.glb"):meshes.append(part.mesh)
 	var layers:Array[Node3D]=[]
 	for child in dungeon.geometry.get_children():
 		if child is MultiMeshInstance3D and child.multimesh!=null and meshes.has(child.multimesh.mesh):
@@ -64,8 +65,12 @@ func run():
 		assert(dungeon.exterior_vertex_count>100 and dungeon.exterior_max_height<-.25,"exterior stays below playable floor")
 		assert(dungeon.floor_surface.mesh.get_surface_count()==1,"continuous indexed walkable terrain")
 		if ResourceLoader.exists("res://assets/dungeon_forest_exterior.glb"):
-			assert(dungeon.exterior_groups.size()>0 and dungeon.exterior_groups.size()<=32,"exterior landscape groups placed within budget")
-			for q in dungeon.exterior_groups:assert(dungeon.exterior_distances[q]>=3 and not dungeon.run.cells.has(q),"exterior groups stay beyond walls")
+			assert(dungeon.exterior_groups.size()>0 and dungeon.exterior_groups.size()<=40,"exterior landscape groups placed within budget")
+			for q in dungeon.exterior_groups:
+				assert(dungeon.exterior_distances[q]>=2 and not dungeon.run.cells.has(q),"exterior groups stay beyond walls")
+				for dy in range(-1,2):
+					for dx in range(-1,2):assert(not dungeon.run.cells.has(q+Vector2i(dx,dy)),"scenic footprint clear")
+			if ResourceLoader.exists("res://assets/dungeon_forest_vista.glb"):assert(dungeon.exterior_vistas.size()>0,"room focal scenery placed")
 			assert(dungeon.exterior_life_centers.size()>0 and dungeon.exterior_life_centers.size()<=12)
 			assert(not dungeon.exterior_life.is_empty(),"actual Blender exterior inhabitants loaded")
 			var previous:Vector3=dungeon.exterior_life[0].multimesh.get_instance_transform(0).origin

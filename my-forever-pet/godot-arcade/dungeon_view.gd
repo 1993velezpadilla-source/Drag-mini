@@ -64,6 +64,7 @@ var exterior_surface:MeshInstance3D
 var exterior_vertex_count=0
 var exterior_max_height=0.0
 var exterior_groups:Array[Vector2i]=[]
+var exterior_vistas:Array[Vector2i]=[]
 var exterior_distances:Dictionary={}
 var exterior_life:Array[MultiMeshInstance3D]=[]
 var exterior_life_parts:Array=[]
@@ -157,7 +158,7 @@ func build_ui():
 	var env=WorldEnvironment.new();env.environment=Environment.new();env.environment.background_mode=Environment.BG_COLOR;env.environment.background_color=palette[2].darkened(.55);env.environment.ambient_light_source=Environment.AMBIENT_SOURCE_COLOR;env.environment.ambient_light_color=[Color("#c7d4bc"),Color("#a0cbdc"),Color("#b4afd9")][region];env.environment.ambient_light_energy=.32;world.add_child(env)
 	var sun=DirectionalLight3D.new();sun.rotation_degrees=Vector3(-48,-35,0);sun.light_color=[Color("#fff2d4"),Color("#c0eaff"),Color("#d9d2ff")][region];sun.light_energy=.89;sun.shadow_enabled=true;world.add_child(sun)
 	var fill=DirectionalLight3D.new();fill.rotation_degrees=Vector3(-35,145,0);fill.light_color=palette[3];fill.light_energy=.23;fill.shadow_enabled=false;world.add_child(fill)
-	camera=Camera3D.new();camera.projection=Camera3D.PROJECTION_ORTHOGONAL;camera.keep_aspect=Camera3D.KEEP_WIDTH;camera.size=9.0;world.add_child(camera);camera.current=true
+	camera=Camera3D.new();camera.projection=Camera3D.PROJECTION_ORTHOGONAL;camera.keep_aspect=Camera3D.KEEP_WIDTH;camera.size=10.4;world.add_child(camera);camera.current=true
 	var input=Control.new();area.add_child(input);input.set_anchors_and_offsets_preset(PRESET_FULL_RECT);input.mouse_filter=MOUSE_FILTER_STOP;input.gui_input.connect(touch)
 	map=Control.new();map.mouse_filter=MOUSE_FILTER_IGNORE;area.add_child(map);map.position=Vector2(10,10);map.size=Vector2(146,112);map.draw.connect(draw_map)
 	feedback=Label.new();feedback.horizontal_alignment=HORIZONTAL_ALIGNMENT_CENTER;feedback.add_theme_font_size_override("font_size",24);feedback.add_theme_color_override("font_outline_color",Color("#142535"));feedback.add_theme_constant_override("outline_size",7);feedback.mouse_filter=MOUSE_FILTER_IGNORE;area.add_child(feedback);feedback.hide()
@@ -443,7 +444,7 @@ func room_detail(wall_cells:Dictionary):
 func build_exterior_world(wall_cells:Dictionary):
 	# Multi-source BFS provides exact distance bands in O(cells + exterior area).
 	# No decoration is added to the gameplay graph.
-	exterior_groups.clear();exterior_distances.clear();exterior_life.clear();exterior_life_parts.clear();exterior_life_centers.clear();exterior_clock=0.0
+	exterior_groups.clear();exterior_vistas.clear();exterior_distances.clear();exterior_life.clear();exterior_life_parts.clear();exterior_life_centers.clear();exterior_clock=0.0
 	var queue:Array[Vector2i]=[]
 	for q in run.cells:
 		exterior_distances[q]=0;queue.append(q)
@@ -460,32 +461,40 @@ func build_exterior_world(wall_cells:Dictionary):
 	var parts=rock_parts(prefix+"_exterior.glb")
 	if parts.is_empty():return
 	var placements:Array[Transform3D]=[]
-	# Prefer the camera's far side of rooms. Lower silhouettes on the near side.
-	# Staggered spacing and exact distance clearance prevent clutter and overlap.
+	var vista_parts=rock_parts(prefix+"_vista.glb")
+	var vista_placements:Array[Transform3D]=[]
+	# One foreground focal point per room, then additional midground clusters.
+	# The 3x3 exclusion protects all traversable cells; overlap with the back
+	# of wall geometry is intentional, like a continuous natural embankment.
+	for room in run.rooms:
+		if vista_parts.is_empty() or exterior_vistas.size()>=12:break
+		var middle:Vector2i=room.get_center()
+		var choices:Array[Vector2i]=[Vector2i(middle.x,room.end.y+1),Vector2i(middle.x,room.position.y-2),Vector2i(room.position.x-2,middle.y),Vector2i(room.end.x+1,middle.y)]
+		for q in choices:
+			if not exterior_clearance(q):continue
+			var center=pos(q)+Vector3(0,-.52,0)
+			var angle=float(posmod(q.x*7+q.y*11,5)-2)*.22
+			vista_placements.append(Transform3D(Basis(Vector3.UP,angle).scaled(Vector3(.88,.85,.88)),center))
+			exterior_vistas.append(q);exterior_groups.append(q)
+			break
+	batch_parts(vista_parts,vista_placements,false)
+	# Interleave the sides of each room instead of filling far-away rooms first.
 	var candidates:Array[Vector2i]=[]
 	for room in run.rooms:
-		for x in range(room.position.x-1,room.end.x+1):
-			candidates.append(Vector2i(x,room.position.y-3))
-		for y in range(room.position.y-1,room.end.y+1):
-			candidates.append(Vector2i(room.position.x-3,y))
-			candidates.append(Vector2i(room.end.x+2,y))
+		var middle:Vector2i=room.get_center()
+		for offset in [0,-2,2,-4,4]:
+			candidates.append(Vector2i(middle.x+offset,room.position.y-2))
+			candidates.append(Vector2i(middle.x+offset,room.end.y+1))
+			candidates.append(Vector2i(room.position.x-2,middle.y+offset))
+			candidates.append(Vector2i(room.end.x+1,middle.y+offset))
 	for q in queue:
-		if exterior_distances[q]==4 and posmod(q.x*11+q.y*7,5)==0:candidates.append(q)
+		if exterior_distances[q] in [2,3,4] and posmod(q.x*11+q.y*7,3)==0:candidates.append(q)
 	for q in candidates:
-		if exterior_groups.size()>=32:break
-		if exterior_distances.get(q,99)<3 or exterior_distances.get(q,99)>6:continue
-		var safe=true
-		for old in exterior_groups:
-			if Vector2(old-q).length_squared()<12.0:safe=false;break
-		if not safe:continue
-		for dy in range(-1,2):
-			for dx in range(-1,2):
-				var tile=q+Vector2i(dx,dy)
-				if run.cells.has(tile) or wall_cells.has(tile):safe=false
-		if not safe:continue
+		if exterior_groups.size()>=40:break
+		if not exterior_clearance(q):continue
 		var angle=float(posmod(q.x*11+q.y*17,12))*TAU/12.0
 		var scale_value=.83+.14*float(posmod(q.x*13+q.y*7,5))/4.0
-		var center=pos(q)+Vector3(0,-.50,0)
+		var center=pos(q)+Vector3(0,-.45,0)
 		placements.append(Transform3D(Basis(Vector3.UP,angle).scaled(Vector3.ONE*scale_value),center))
 		exterior_groups.append(q)
 		if exterior_life_centers.size()<12:exterior_life_centers.append(center)
@@ -497,6 +506,14 @@ func build_exterior_world(wall_cells:Dictionary):
 		var inst=MultiMeshInstance3D.new();inst.multimesh=mm;geometry.add_child(inst);inst.cast_shadow=GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		exterior_life.append(inst)
 	update_exterior_world(0.0)
+func exterior_clearance(q:Vector2i)->bool:
+	if exterior_distances.get(q,99)<2 or exterior_distances.get(q,99)>6:return false
+	for dy in range(-1,2):
+		for dx in range(-1,2):
+			if run.cells.has(q+Vector2i(dx,dy)):return false
+	for old in exterior_groups:
+		if Vector2(old-q).length_squared()<5.0:return false
+	return true
 func update_exterior_world(dt:float):
 	exterior_clock+=clampf(dt,0.0,.25)
 	if exterior_life.is_empty():return
@@ -608,7 +625,7 @@ func build_exterior_surface():
 	low-=Vector2i(7,7);high+=Vector2i(7,7)
 	var width=high.x-low.x+1;var depth=high.y-low.y+1
 	var noise=FastNoiseLite.new();noise.seed=run.seed_value+region*901+run.floor_number*37;noise.frequency=.19;noise.fractal_octaves=3
-	var vertices=PackedVector3Array();var normals=PackedVector3Array();var colors=PackedColorArray();var indices=PackedInt32Array()
+	var vertices=PackedVector3Array();var normals=PackedVector3Array();var colors=PackedColorArray();var indices=PackedInt32Array();var uvs=PackedVector2Array()
 	var heights=PackedFloat32Array();heights.resize(width*depth)
 	exterior_max_height=-1.0
 	var deep:Color=[Color("#253d28"),Color("#163c4c"),Color("#24243e")][region]
@@ -622,7 +639,7 @@ func build_exterior_surface():
 			var n=noise.get_noise_2d(q.x,q.y)
 			var h=-.64 if near else -.57+.21*n
 			heights[y*width+x]=h;exterior_max_height=maxf(exterior_max_height,h)
-			vertices.append(Vector3(q.x*1.4,h,q.y*1.4))
+			vertices.append(Vector3(q.x*1.4,h,q.y*1.4));uvs.append(Vector2(q))
 			colors.append(deep.lerp(raised,clampf(.43+n*.57,0.0,1.0)))
 	for y in range(depth):
 		for x in range(width):
@@ -633,7 +650,7 @@ func build_exterior_surface():
 				var i=y*width+x
 				indices.append_array(PackedInt32Array([i,i+1,i+width+1,i,i+width+1,i+width]))
 	var arrays=[];arrays.resize(Mesh.ARRAY_MAX)
-	arrays[Mesh.ARRAY_VERTEX]=vertices;arrays[Mesh.ARRAY_NORMAL]=normals;arrays[Mesh.ARRAY_COLOR]=colors;arrays[Mesh.ARRAY_INDEX]=indices
+	arrays[Mesh.ARRAY_VERTEX]=vertices;arrays[Mesh.ARRAY_NORMAL]=normals;arrays[Mesh.ARRAY_COLOR]=colors;arrays[Mesh.ARRAY_TEX_UV]=uvs;arrays[Mesh.ARRAY_INDEX]=indices
 	var surface=ArrayMesh.new();surface.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES,arrays)
 	exterior_surface=MeshInstance3D.new();exterior_surface.mesh=surface
 	var material=terrain_mat(Color.WHITE).duplicate() as StandardMaterial3D
