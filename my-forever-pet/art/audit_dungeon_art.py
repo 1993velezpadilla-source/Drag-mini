@@ -30,6 +30,7 @@ for name in sorted(expected):
  assert 0<triangles<=catalog[name]['cap'],(name,triangles)
  assert triangles==catalog[name]['triangles'],(name,triangles,catalog[name]['triangles'])
  assert len(materials)>=2,(name,'single material')
+ assert tiny_faces==0,(name,'degenerate exported faces',tiny_faces)
  limit=3.4 if name.endswith('_landmark') else 2.5
  assert all(.02<x<limit for x in size),(name,list(size))
  assert low.z>=-.12 and high.z<=(3.1 if name.endswith('_landmark') else 1.8),(name,list(low),list(high))

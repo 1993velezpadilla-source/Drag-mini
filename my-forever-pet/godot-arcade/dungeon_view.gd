@@ -27,6 +27,7 @@ var tick=0.0
 var path:Array[Vector2i]=[]
 var notified=false
 var palette:Array=[]
+var floor_surface_signature=""
 var meshes:Dictionary={}
 var mats:Dictionary={}
 var active_floor=0
@@ -160,20 +161,38 @@ func build_terrain_textures():
 			var h0=lerpf(noise.get_noise_2d(x,y),noise.get_noise_2d(x-size_px,y),u)
 			var h1=lerpf(noise.get_noise_2d(x,y-size_px),noise.get_noise_2d(x-size_px,y-size_px),u)
 			var h=lerpf(h0,h1,w)
-			var py=w*4.0+sin(u*TAU*2.0)*.09
-			var px=u*4.0+floorf(py)*.5+sin(w*TAU*2.0)*.11
-			var edge=minf(minf(fposmod(px,1.0),1.0-fposmod(px,1.0)),minf(fposmod(py,1.0),1.0-fposmod(py,1.0)))
-			var stone=smoothstep(.018,.10,edge)
-			var shade=.73+.12*sin(floorf(px)*2.1+floorf(py)*1.7)+h*.19
-			var tone=lerpf(.30,shade,stone)
-			var color=Color(tone,tone,tone)
-			if region==0:color=color.lerp(Color(.33,.48,.20),clampf((1.0-stone)*.65+h*.3,0,1))
+			var color:Color
+			var relief=0.0
+			if region==0:
+				# Mossy woodland soil: broad irregular patches, flecks of leaf litter, no brick grid.
+				var patch=smoothstep(-.13,.22,h)
+				var grain=.5+.5*sin(u*TAU*19.0+sin(w*TAU*13.0)*2.0)
+				color=Color(.55,.48,.33).lerp(Color(.71,.88,.53),patch)
+				color=color.darkened(grain*.07)
+				var leaf=smoothstep(.89,.99,sin(u*TAU*8.0+w*TAU*11.0+sin(w*TAU*7.0)*2.0))
+				color=color.lerp(Color(.79,.56,.25),leaf*.14)
+				relief=h*.15+grain*.012
 			elif region==1:
-				var caustic=pow(1.0-absf(sin((u+w)*TAU*3.0+sin(w*TAU*2.0))),12.0)
-				color=color.lightened(caustic*.19)
-			else:color=color.lerp(Color(.64,.52,.35),.27*(1.0-stone)*smoothstep(.1,.8,sin(u*TAU*2.0)))
+				# Seabed sandstone: crossing ripples and light caustics, no masonry.
+				var ripple=sin(w*TAU*7.0+sin(u*TAU*2.0)*1.45)
+				var wave=sin((u+w)*TAU*3.0+sin(w*TAU*2.0))
+				var caustic=pow(1.0-absf(wave),7.0)
+				color=Color(.54,.69,.72).lerp(Color(.80,.94,.91),clampf(.55+h*.85+ripple*.13,0.0,1.0))
+				color=color.lightened(caustic*.17)
+				relief=h*.09+ripple*.032
+			else:
+				# Astral ruin: broken rectangular slabs and restrained brass tracery.
+				var py=w*2.0+sin(u*TAU)*.045
+				var px=u*2.0+floorf(py)*.5+sin(w*TAU*2.0)*.04
+				var edge=minf(minf(fposmod(px,1.0),1.0-fposmod(px,1.0)),minf(fposmod(py,1.0),1.0-fposmod(py,1.0)))
+				var stone=smoothstep(.012,.045,edge)
+				var shade=.71+.13*sin(floorf(px)*2.1+floorf(py)*1.7)+h*.23
+				color=Color(.28,.26,.38).lerp(Color(shade,shade,shade),stone)
+				var line=1.0-smoothstep(.008,.022,absf(edge-.10))
+				color=color.lerp(Color(.82,.65,.37),line*.19)
+				relief=stone*.12+h*.07
 			img.set_pixel(x,y,color)
-			heights[y*size_px+x]=stone*.25+h*.08
+			heights[y*size_px+x]=relief
 	for y in range(size_px):
 		for x in range(size_px):
 			var dx=heights[y*size_px+posmod(x+1,size_px)]-heights[y*size_px+posmod(x-1,size_px)]
@@ -182,11 +201,12 @@ func build_terrain_textures():
 			normals.set_pixel(x,y,Color(n.x*.5+.5,n.y*.5+.5,n.z*.5+.5,1))
 	img.generate_mipmaps();normals.generate_mipmaps()
 	terrain_texture=ImageTexture.create_from_image(img);terrain_normal=ImageTexture.create_from_image(normals)
+	floor_surface_signature=img.get_data().hex_encode().sha256_text()
 func terrain_mat(c:Color)->StandardMaterial3D:
 	if terrain_mats.has(c):return terrain_mats[c]
 	var m=StandardMaterial3D.new();m.albedo_color=c;m.albedo_texture=terrain_texture;m.roughness=.84
-	m.normal_enabled=true;m.normal_texture=terrain_normal;m.normal_scale=.55
-	m.uv1_triplanar=true;m.uv1_world_triplanar=true;m.uv1_scale=Vector3.ONE*.43
+	m.normal_enabled=true;m.normal_texture=terrain_normal;m.normal_scale=.42
+	m.uv1_triplanar=true;m.uv1_world_triplanar=true;m.uv1_scale=Vector3.ONE*(.26 if region==0 else .32 if region==1 else .43)
 	terrain_mats[c]=m
 	return m
 func mesh(kind:String)->Mesh:
@@ -294,10 +314,19 @@ func backdrop_landmarks(wall_cells:Dictionary):
 	landmark_count=0
 	var prefix="dungeon_"+["forest","reef","star"][region]+"_landmark"
 	var used:Array[Vector2i]=[]
-	# Place tall silhouettes on the far side of rooms; never inside a passage.
+	# A hero silhouette for each room, located on a safe boundary cell.
+	# The far edge is preferred; side edges prevent missing decoration when a corridor crosses it.
 	for room in run.rooms:
+		var candidates:Array[Vector2i]=[]
 		for x in range(room.position.x,room.end.x):
-			var q=Vector2i(x,room.position.y-2)
+			candidates.append(Vector2i(x,room.position.y-2))
+		for y in range(room.position.y,room.end.y):
+			candidates.append(Vector2i(room.position.x-2,y))
+			candidates.append(Vector2i(room.end.x+1,y))
+		for x in range(room.position.x,room.end.x):
+			candidates.append(Vector2i(x,room.end.y+1))
+		for q in candidates:
+			if run.cells.has(q):continue
 			var safe=true
 			for dy in range(-1,2):
 				for dx in range(-1,2):
@@ -305,9 +334,9 @@ func backdrop_landmarks(wall_cells:Dictionary):
 			for other in used:
 				if run.distance(q,other)<4:safe=false
 			if not safe:continue
-			var ob=prop(geometry,prefix,pos(q)+Vector3(0,-.48,0))
+			var ob=prop(geometry,prefix,pos(q)+Vector3(0,-.38,0))
 			if ob!=null:
-				ob.rotation.y=float(posmod(x*7+q.y*13,7)-3)*.12
+				ob.rotation.y=float(posmod(q.x*7+q.y*13,7)-3)*.12
 				used.append(q);landmark_count+=1
 			break
 func room_detail(wall_cells:Dictionary):
@@ -350,9 +379,9 @@ func build_floor():
 			var next:Vector2i=q+d
 			if not run.cells.has(next) and not seen.has(next):
 				seen[next]=true;walls.append(pos(next)+Vector3(0,.44,0))
-	var ground:Color=palette[0].lerp(palette[1],.32)
+	var ground:Color=[Color("#7b8856"),Color("#72a4b5"),Color("#77709a")][region]
 	var far_ground=shape(geometry,"box",Vector3(25,-.77,20),Vector3(88,.35,78),palette[2].darkened(.15))
-	far_ground.material_override=terrain_mat(palette[2].darkened(.15));far_ground.cast_shadow=GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	far_ground.material_override=mat(palette[2].darkened(.15));far_ground.cast_shadow=GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	batch(geometry,a,"box",Vector3(1.40,.24,1.40),ground,true);batch(geometry,b,"box",Vector3(1.40,.24,1.40),ground.lightened(.025),true)
 	# Dark foundation closes small rock gaps; the visible silhouette comes from sculpted Blender modules.
 	var foundation:Array[Vector3]=[]
@@ -404,7 +433,7 @@ func build_floor():
 	camera.position=pet.position+Vector3(0,8.5,10.5);camera.look_at(pet.position)
 	refresh_actors()
 	floor_build_usec=Time.get_ticks_usec()-start_usec
-	print("DUNGEON_FLOOR_BUILD region=",region," floor=",run.floor_number," usec=",floor_build_usec," rocks=",rock_modules," cached_rock_sets=",rock_mesh_cache.size())
+	print("DUNGEON_FLOOR_BUILD region=",region," floor=",run.floor_number," usec=",floor_build_usec," rocks=",rock_modules," cached_rock_sets=",rock_mesh_cache.size()," landmarks=",landmark_count," details=",detail_count)
 func actor_for(key:String,at:Vector3)->Node3D:
 	if actor_nodes.has(key):return actor_nodes[key]
 	var n=Node3D.new();actors.add_child(n);n.position=at;actor_nodes[key]=n;actor_created+=1

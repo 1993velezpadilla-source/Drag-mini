@@ -85,6 +85,13 @@ def export(name,maxtri):
  total=0
  for o in bpy.context.scene.objects:
   if o.type=='MESH':
+   if name in ('dungeon_coin','dungeon_chest'):
+    import bmesh
+    bm=bmesh.new();bm.from_mesh(o.data)
+    bmesh.ops.remove_doubles(bm,verts=list(bm.verts),dist=.00003)
+    bmesh.ops.dissolve_degenerate(bm,edges=list(bm.edges),dist=.00003)
+    bmesh.ops.triangulate(bm,faces=list(bm.faces))
+    bmesh.ops.recalc_face_normals(bm,faces=list(bm.faces));bm.to_mesh(o.data);bm.free();o.data.update()
    o.data.calc_loop_triangles();total+=len(o.data.loop_triangles)
  assert 0<total<=maxtri,(name,total,maxtri)
  path=os.path.join(OUT,name+'.glb')
@@ -906,7 +913,7 @@ export('dungeon_star_shrine',4200)
 berry_red=mat('ripe ruby berry',(.58,.018,.045),0,.24)
 clear()
 box((0,.22,0),(.87,.43,.59),wood,.055)
-box((0,.48,0),(.89,.23,.61),wood2,.095)
+box((0,.48,0),(.89,.23,.61),wood2,.07)
 for x in [-.32,.32]:
  box((x,.25,.305),(.085,.50,.045),gold,.018)
  box((x,.57,0),(.08,.06,.58),gold,.012)
@@ -914,7 +921,7 @@ for x in [-.32,.32]:
 for x in [-.42,.42]:
  for z in [-.28,.28]:box((x,.09,z),(.10,.16,.10),gold,.022)
 for y in [.13,.43]:box((0,y,.314),(.68,.035,.045),gold,.008)
-box((0,.33,.33),(.24,.20,.07),gold,.035)
+box((0,.33,.33),(.24,.20,.07),gold,.022)
 ball((0,.34,.38),(.082,.09,.045),dark)
 export('dungeon_chest',5500)
 clear()
@@ -992,8 +999,10 @@ coin_rim=mat('polished coin rim',(.95,.64,.11),.72,.22)
 coin_face=mat('coin recessed honey',(.51,.20,.018),.45,.32)
 cyl((0,.38,0),.30,.30,.10,coin_core,True)
 for z in [-.064,.064]:
- cyl((0,.38,z),.278,.278,.025,coin_rim,True)
- cyl((0,.38,z*1.30),.225,.225,.018,coin_face,True)
+ o=cyl((0,.38,z),.278,.278,.025,coin_rim,True)
+ o.modifiers.get('bevel').width=.004
+ o=cyl((0,.38,z*1.30),.225,.225,.018,coin_face,True)
+ o.modifiers.get('bevel').width=.003
  paw((0,.34,z*1.56),coin_rim,.58)
 for i in range(16):
  ang=i*2*pi/16

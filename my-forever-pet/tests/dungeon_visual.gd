@@ -1,6 +1,7 @@
 extends SceneTree
 const Field=preload("res://dungeon_view.gd")
 var completed=0
+var surfaces:Dictionary={}
 func _initialize():call_deferred("run")
 func frames():
 	for i in range(4):
@@ -17,6 +18,8 @@ func run():
 		assert(dungeon.area.size.x>200 and dungeon.area.size.y>200)
 		assert(dungeon.floor_label.text.contains("rooms"))
 		assert(dungeon.terrain_texture!=null and dungeon.terrain_normal!=null)
+		assert(not surfaces.has(dungeon.floor_surface_signature),"biomes have different floor textures");surfaces[dungeon.floor_surface_signature]=true
+		if ResourceLoader.exists("res://assets/dungeon_forest_landmark.glb"):assert(dungeon.landmark_count>0,"production landmark placed")
 		if ResourceLoader.exists("res://assets/dungeon_forest_rock_0.glb"):assert(dungeon.rock_modules>0,"real Blender boundary modules required")
 		assert(root.get_visible_rect().encloses(dungeon.heal_button.get_global_rect()))
 		assert(dungeon.attack_button.icon!=null and dungeon.power_button.icon!=null and dungeon.heal_button.icon!=null)
