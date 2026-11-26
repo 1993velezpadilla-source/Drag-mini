@@ -48,7 +48,7 @@ public final class ForeverWallpaperService extends WallpaperService {
             if(!next.equals(snapshot)){
                 try{state=new JSONObject(next);snapshot=next;projectedAt=-1;}catch(Exception ignored){}
             }
-            int species=Math.max(0,Math.min(28,state.optInt("portrait",28)));
+            int species=Math.max(32,Math.min(60,state.optInt("portrait",32)));
             String a="awake_"+species,b="sleep_"+species,r="room_"+Math.max(0,Math.min(5,state.optInt("room",0)));
             if(!a.equals(awakeKey)||awake==null){Bitmap image=loadImage(a);if(image!=null){recycle(awake);awake=image;awakeKey=a;}}
             if(!b.equals(sleepKey)||sleep==null){Bitmap image=loadImage(b);if(image!=null){recycle(sleep);sleep=image;sleepKey=b;}}
@@ -107,10 +107,10 @@ public final class ForeverWallpaperService extends WallpaperService {
             petX=placement[0];petY=placement[1];petRadius=size*.48f;
             float bob=(float)Math.sin(t*(night?1.4:2.5))*u*.009f-pulse*u*.045f;
             paint.setColor(0x55000000);rect.set(petX-size*.31f,petY+size*.31f,petX+size*.31f,petY+size*.39f);c.drawOval(rect,paint);
-            int portrait=state.optInt("portrait",28);
+            int portrait=state.optInt("portrait",32);
             Bitmap b=night&&sleep!=null&&sleepKey.equals("sleep_"+portrait)?sleep:awakeKey.equals("awake_"+portrait)?awake:null;
-            if(b!=null){paint.setColor(Color.WHITE);float scale=1+pulse*.06f;
-                rect.set(petX-size*scale/2,petY-size*scale/2+bob,petX+size*scale/2,petY+size*scale/2+bob);c.drawBitmap(b,null,rect,paint);}
+            if(b!=null){paint.setColor(Color.WHITE);paint.setFilterBitmap(false);float scale=1+pulse*.06f;
+                rect.set(petX-size*scale/2,petY-size*scale/2+bob,petX+size*scale/2,petY+size*scale/2+bob);c.drawBitmap(b,null,rect,paint);paint.setFilterBitmap(true);}
             else{paint.setColor(0xffe9d8b5);rect.set(petX-size*.22f,petY-size*.29f,petX+size*.22f,petY+size*.29f);c.drawOval(rect,paint);}
             if(night){paint.setColor(0xffd5c5ff);paint.setTextSize(u*.045f);c.drawText("z  z",petX+size*.28f,petY-size*.28f,paint);}
             if(pulse>0){

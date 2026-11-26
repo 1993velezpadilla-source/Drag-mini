@@ -129,8 +129,8 @@ var biome_light_materials:Array[ShaderMaterial]=[]
 var exterior_motion_materials:Dictionary={}
 var exterior_motion_batches=0
 func setup(r:int,id:int,step:int,finale:bool,patrol:bool,seed_id:int,companion:int):
-	region=r;companion_id=companion
-	run.setup(r,id,step,finale,patrol,seed_id,companion)
+	region=r;companion_id=0
+	run.setup(r,id,step,finale,patrol,seed_id,0)
 	hp_previous=run.hp
 	palette=[ [Color("#37574b"),Color("#58775a"),Color("#17392f"),Color("#f4c77b")], [Color("#244c64"),Color("#39748a"),Color("#123449"),Color("#7ce8e4")], [Color("#414264"),Color("#62678b"),Color("#282c50"),Color("#dbb8ff")] ][r]
 	build_terrain_textures()
@@ -183,7 +183,7 @@ func build_ui():
 	var back=button(h,"‹",leave);back.tooltip_text="Leave expedition";back.size_flags_horizontal=SIZE_SHRINK_BEGIN;back.custom_minimum_size.x=45;back.add_theme_font_size_override("font_size",28)
 	var portrait=TextureRect.new();portrait.custom_minimum_size=Vector2(56,64);portrait.expand_mode=TextureRect.EXPAND_IGNORE_SIZE;portrait.stretch_mode=TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	var portrait_path="res://assets/pet_%d.png"%companion_id
-	if ResourceLoader.exists(portrait_path):portrait.texture=load(portrait_path)
+	portrait.texture=PixelArt.portrait(portrait_path);portrait.texture_filter=CanvasItem.TEXTURE_FILTER_NEAREST
 	h.add_child(portrait)
 	var info=VBoxContainer.new();info.size_flags_horizontal=SIZE_EXPAND_FILL;h.add_child(info)
 	var heading=HBoxContainer.new();heading.add_theme_constant_override("separation",5);info.add_child(heading)
@@ -1567,7 +1567,9 @@ func refresh_actors():
 		root.set_meta("target",pos(p))
 		if root.get_child_count()==0:
 			var id:int=run.specimen if kind==3 else Data.POOLS[region][(kind+run.floor_number)%Data.POOLS[region].size()]
-			var ob=model(root,id);ob.rotation.y=PI
+			# Hostile dungeon constructs are not adoptable pets.
+			var ob=shape(root,"gem",Vector3(0,.6,0),Vector3(.62,1.15,.62),Data.TINTS[region].darkened(.25));ob.rotation.y=PI*.25
+			shape(root,"orb",Vector3(0,.83,.36),Vector3(.18,.18,.12),Color("#ffb776"))
 			if kind==3:ob.scale*=1.45
 			var height=1.9 if kind==3 else 1.42
 			shape(root,"box",Vector3(0,height,0),Vector3(.75,.09,.12),Color("#212835"))

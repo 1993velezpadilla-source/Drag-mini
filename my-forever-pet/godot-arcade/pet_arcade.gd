@@ -69,13 +69,10 @@ func _ready():
 		var pp="res://assets/premium_"+key+".png"
 		if ResourceLoader.exists(pp): prop_textures[key]=load(pp)
 	rng.randomize()
-	for i in range(store.SPECIES.size()):
+	for i in range(store.ROSTER.size()):
 		var path="res://assets/pet_%d.png"%i
 		other_textures.append(PixelArt.portrait(path))
 	pet_texture=other_textures[store.species()]
-	if store.s.stage==1 or store.s.stage==2:
-		var growth_path="res://assets/growth_%d_%d.png"%[store.s.field,store.s.stage]
-		if ResourceLoader.exists(growth_path) and store.species()!=0: pet_texture=PixelArt.portrait(growth_path)
 	reset_round()
 	var bar=HBoxContainer.new()
 	bar.set_anchors_and_offsets_preset(PRESET_TOP_WIDE)
@@ -111,8 +108,7 @@ func new_target():
 func shuffle_crowd():
 	crowd.clear(); target_index=rng.randi_range(0,71)
 	for i in range(72):
-		var id=rng.randi_range(0,22)
-		if id>=store.species(): id+=1
+		var id=rng.randi_range(0,4)
 		crowd.append(Vector3(35+(i%8)*65+rng.randf_range(-9,9),50+int(i/8)*75+rng.randf_range(-10,10),-1 if i==target_index else id))
 	zoomed=false; camera_offset=Vector2.ZERO
 func board_rect()->Rect2:
@@ -307,7 +303,8 @@ func _draw():
 			for i in range(crowd.size()):
 				var v=crowd[i]; var p=crowd_point(v)
 				if p.x<25 or p.x>455 or p.y<25 or p.y>695: continue
-				draw_pet(p,58 if zoomed else 47,pet_texture if i==target_index else other_textures[int(v.z)])
+				if i==target_index:draw_pet(p,58 if zoomed else 47,pet_texture)
+				else:draw_decoy(p,int(v.z),58 if zoomed else 47)
 	if feedback>0:
 		var p=feedback_pos-Vector2(0,(1-feedback/0.65)*36)
 		draw_string(ThemeDB.fallback_font,p,feedback_text,HORIZONTAL_ALIGNMENT_CENTER,-1,24,Color(1,.90,.55,feedback/0.65))
@@ -320,3 +317,11 @@ func _draw():
 	draw_rect(Rect2(r.end.x,r.position.y,maxf(0,size.x-r.end.x),r.size.y),ink)
 	draw_rect(r,Color("#93c6c2"),false,2)
 	if over: draw_rect(r,Color("#102332a0"))
+
+# Find Mosky uses inanimate treasure decoys rather than retired creatures.
+func draw_decoy(at:Vector2,kind:int,sz:float):
+	var tint:Color=[Color("#82c9f0"),Color("#f2b665"),Color("#b99cea"),Color("#e789b6"),Color("#83c6a3")][kind]
+	var r=sz*.34
+	draw_colored_polygon(PackedVector2Array([at+Vector2(0,-r),at+Vector2(r,0),at+Vector2(0,r),at+Vector2(-r,0)]),tint.darkened(.35))
+	draw_colored_polygon(PackedVector2Array([at+Vector2(0,-r*.72),at+Vector2(r*.72,0),at,at+Vector2(-r*.72,0)]),tint)
+	draw_rect(Rect2(at-Vector2(3,8),Vector2(6,6)),tint.lightened(.65))

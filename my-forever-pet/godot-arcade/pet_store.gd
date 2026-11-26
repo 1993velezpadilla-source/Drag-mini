@@ -2,6 +2,9 @@ extends Node
 # Independent Godot port of native PetState. Time in seconds, persisted in one wallet.
 const SAVE="user://forever_pet_v1.json"
 const Research=preload("res://research_data.gd")
+const ROSTER=["Mosky"]
+# Archived catalog IDs are retained for old-save migration and rule fixtures, not the live roster.
+var legacy_catalog=false
 const SPECIES=["Mosskit","Mewmew","Barkle","Dracoon","Bubblefin","Neblito","Wispurr","Octoboo","Roostik","Fayli","Pixsy","Puffowl","Fernhorn","Moonmew","Cloverbark","Emberdrake","Pearlfin","NovaNeb","Lunawisp","Reefboo","Suncrest","Aurorafay","Stardust Pixsy","Dreamowl","Ember Imp","Wisp Ghost","Bolt Bot","Mushmellow"]
 const STAGES=["Egg","Baby","Kid","Young","Adult"]
 const FIELDS=["Land","Water","Sky"]
@@ -52,6 +55,7 @@ func _ready():
 				for key in ["stage","field","habitat","body","eyes","variant"]:
 					s[key]=clampi(int(s[key]),0,{"stage":4,"field":2,"habitat":2,"body":3,"eyes":3,"variant":1}[key])
 				break
+	if not legacy_catalog: enforce_mosky()
 	advance(now())
 	save_game()
 	var timer=Timer.new()
@@ -59,6 +63,18 @@ func _ready():
 	timer.timeout.connect(func(): advance(now()); consume_wallpaper_action(); save_game())
 	add_child(timer)
 	timer.start()
+# Restore the original profile if an old save had another companion active.
+func enforce_mosky():
+	if legacy_catalog:return
+	if int(s.form)>=0 and s.profiles.has("-1"):
+		var original:Dictionary=s.profiles["-1"]
+		for key in PERSONAL:
+			if original.has(key):s[key]=original[key].duplicate(true) if original[key] is Array else original[key]
+	s.form=-1;s.profiles={};s.collection=1 if int(s.stage)>0 else 0
+	s.favorites=int(s.favorites)&1
+	s.name="Mosky"
+	s.variant=0;s.body=0
+	s.research_target=[-1,-1,-1]
 func now()->float: return Time.get_unix_time_from_system()
 func date_key(at:float)->String:
 	var local=Time.get_datetime_dict_from_unix_time(int(at)+int(Time.get_time_zone_from_system().bias)*60)
@@ -126,17 +142,20 @@ func companion_profile(slot:int)->Dictionary:
 	if slot==int(s.form):return profile_snapshot()
 	return s.profiles.get(str(slot),{})
 func family_slots()->Array[int]:
+	if not legacy_catalog:return [-1]
 	var slots:Array[int]=[-1]
 	for i in range(SPECIES.size()):
 		if (int(s.collection)&(1<<i))!=0 and (int(s.form)==i or s.profiles.has(str(i))):slots.append(i)
 	return slots
 func family_name_for(slot:int)->String:
+	if not legacy_catalog:return "Mosky" if slot==-1 else ""
 	var profile=companion_profile(slot)
 	if not str(profile.get("name","")).strip_edges().is_empty():return str(profile.name)
 	if slot==-1:
 		return "Egg" if int(profile.get("stage",0))==0 else SPECIES[original_species()]
 	return SPECIES[slot] if slot>=0 and slot<SPECIES.size() else ""
 func rename_companion(slot:int,value:String)->bool:
+	if not legacy_catalog:return false
 	if not slot in family_slots():return false
 	var clean=value.strip_edges().replace("\n"," ").replace("\r"," ").left(24)
 	if slot==int(s.form):s.name=clean
@@ -155,10 +174,12 @@ func family_status(slot:int)->String:
 	if int(p.happy)<=3:return "Needs playtime"
 	return "Happy and healthy"
 func original_species()->int:
+	if not legacy_catalog:return 0
 	var original=companion_profile(-1)
 	if original.is_empty():return inherited_species()
 	return int(original.field)*4+int(original.body)+12*int(original.variant)
 func switch_companion(slot:int,at:float)->bool:
+	if not legacy_catalog:return false
 	if s.stage==0 or slot==int(s.form) or s.trip_end>at or s.pending[0]>0 or arcade_mode!=-1 or not field_session.is_empty():return false
 	if slot!=-1 and (slot<0 or slot>=SPECIES.size() or (int(s.collection)&(1<<slot))==0):return false
 	if slot==-1 and not s.profiles.has("-1"):return false
@@ -173,8 +194,9 @@ func switch_companion(slot:int,at:float)->bool:
 	return true
 func wallpaper_identity()->int:
 	return int(s.generation)*32+int(s.form)+2
-func inherited_species()->int: return int(s.field)*4+int(s.body)+12*int(s.variant)
+func inherited_species()->int: return int(s.field)*4+int(s.body)+12*int(s.variant) if legacy_catalog else 0
 func species()->int:
+	if not legacy_catalog:return 0
 	var selected=int(s.form)
 	return selected if selected>=0 and selected<SPECIES.size() and (int(s.collection)&(1<<selected))!=0 else inherited_species()
 const CARE_NAMES=["Affection","Feeding","Hygiene","Play / train","Habitat cleanup","Garden harvest"]
@@ -194,6 +216,7 @@ func care_credit(id:String):
 	if group>=0: s.care_mask=int(s.care_mask)|(1<<group)
 func care_ready()->bool: return s.stage>0 and care_count()>=4 and not s.care_claimed
 func next_special()->int:
+	if not legacy_catalog:return -1
 	for id in range(24,28):
 		if (int(s.collection)&(1<<id))==0:return id
 	return -1
@@ -270,8 +293,10 @@ func field_begin(region:int,patrol:bool=false,dungeon:bool=false)->Dictionary:
 	if patrol:
 		if int(s.research_daily[region])>=3:return {}
 		step=int(s.research_daily[region]);id=int(Research.POOLS[region][posmod(int(date_key(now()).replace("-",""))+step,Research.POOLS[region].size())])
+	elif not legacy_catalog:
+		id=int(Research.POOLS[region][0]);step=0
 	elif id<0 or research_rank(region)<field_rank_required(id):return {}
-	var finale=not patrol and step>=Research.needed(id)
+	var finale=not patrol and step>=Research.needed(id) if legacy_catalog else false
 	var seed_id=int(Time.get_ticks_usec())+id*733+step*997
 	var engine=preload("res://field_hunt_rules.gd").new()
 	engine.setup(region,id,step,finale,patrol,seed_id)
@@ -301,6 +326,12 @@ func field_finish(success:bool,completed:int,elapsed:float,hits:int=-1,dungeon_c
 		if int(s.research_daily[r])!=step:return {"ok":false,"message":"Survey expired"}
 		s.energy-=3;research_credit(r,2);s.coins=mini(999999,int(s.coins)+5+bonus+loot_coins);s.materials=mini(9999,int(s.materials)+loot_materials);earn(4);save_game()
 		return {"ok":true,"correct":true,"dungeon":session.get("dungeon",false),"floors":completed,"coins":5+bonus+loot_coins,"materials":loot_materials,"xp":4,"flawless":flawless,"message":"Survey complete! +%d coins%s"%[5+bonus+loot_coins," · Flawless" if flawless else ""]}
+	if not legacy_catalog:
+		s.energy-=3;research_credit(r,3)
+		var reward=4+bonus+loot_coins
+		s.coins=mini(999999,int(s.coins)+reward);s.materials=mini(9999,int(s.materials)+loot_materials);earn(5)
+		save_game()
+		return {"ok":true,"correct":true,"dungeon":session.get("dungeon",false),"floors":completed,"coins":reward,"materials":loot_materials,"xp":5,"flawless":flawless,"message":"Expedition complete! +%d coins"%reward}
 	if research_target(r)!=id or research_progress(id)!=step:return {"ok":false,"message":"Trail changed"}
 	if session.finale:
 		s.energy-=3;s.research_trust[id]=3;s.collection=int(s.collection)|(1<<id);s.research_target[r]=-1;s.research_misses[r]=0;research_credit(r,8)
@@ -326,6 +357,7 @@ func research_target(region:int)->int:
 	if current in Research.POOLS[region] and current!=species() and (int(s.collection)&(1<<current))==0: return current
 	return Research.next_species(region,int(s.collection),species())
 func choose_research(id:int)->bool:
+	if not legacy_catalog:return false
 	if id<0 or id>=SPECIES.size() or s.stage==0 or id==species() or (int(s.collection)&(1<<id))!=0:return false
 	var region=Research.region_of(id)
 	if int(s.research_target[region])!=id:
@@ -335,6 +367,7 @@ func choose_research(id:int)->bool:
 func research_progress(id:int)->int:
 	return clampi(int(s.research_evidence[id]),0,Research.needed(id)) if id>=0 and id<SPECIES.size() else 0
 func research_block(kind:String,region:int)->String:
+	if not legacy_catalog:return "Creature discoveries are not available"
 	if region<0 or region>=3: return "Unknown habitat"
 	if s.stage==0: return "Hatch your egg to explore"
 	if not available(): return "Wake your pet first" if asleep(now()) else "Your companion is on an expedition"
@@ -399,13 +432,16 @@ func research_action(kind:String,region:int,choice:int)->Dictionary:
 	save_game()
 	return {"ok":true,"correct":true,"species":target,"message":"Trust increased!"}
 func favorite(index:int)->bool:
+	if not legacy_catalog and index!=0:return false
 	return index>=0 and index<SPECIES.size() and (int(s.favorites)&(1<<index))!=0
 func toggle_favorite(index:int)->bool:
+	if not legacy_catalog and index!=0:return false
 	if index<0 or index>=SPECIES.size(): return false
 	s.favorites=int(s.favorites)^(1<<index)
 	save_game()
 	return true
 func pet_name()->String:
+	if not legacy_catalog:return "Mosky"
 	return s.name if not str(s.name).is_empty() else STAGES[int(s.stage)] if s.stage<2 else SPECIES[species()]
 func earn(n:int):
 	s.xp=mini(999900,int(s.xp)+n); s.companion_xp=mini(999900,int(s.companion_xp)+n)
@@ -459,6 +495,7 @@ func advance(at:float):
 		s.pending=[25+int(s.destination)*20+mini(20,int(s.training/2))+int(s.trip_bonus),2+int(s.destination),1 if int(s.journeys)%3==2 or s.destination==2 else 0]
 		s.trip_end=0.0; s.journeys+=1; s.quests=int(s.quests)|4; earn(35+int(s.destination)*15)
 func save_game():
+	if not legacy_catalog: enforce_mosky()
 	if test_mode: return
 	var f=FileAccess.open(SAVE+".tmp",FileAccess.WRITE)
 	if f==null: return
@@ -474,7 +511,7 @@ func wallpaper_plugin()->Object:
 func wallpaper_image(plugin:Object,key:String,path:String)->bool:
 	if wallpaper_keys.has(key): return true
 	if not ResourceLoader.exists(path): return false
-	var texture=load(path) as Texture2D
+	var texture=load("res://pixel_pet_art.gd").portrait(path) if not legacy_catalog and (key.begins_with("awake_") or key.begins_with("sleep_")) else load(path) as Texture2D
 	if texture==null: return false
 	var img=texture.get_image()
 	if img==null: return false
@@ -491,14 +528,14 @@ func wallpaper_sync()->bool:
 	var i:int=28 if s.stage==0 else species()
 	var room:int=clampi(int(s.wallpaper_room),0,WALL_ROOMS.size()-1)
 	var path="res://assets/premium_egg.png" if i==28 else "res://assets/pet_%d.png"%i
-	var awake_ok=wallpaper_image(plugin,"awake_%d"%i,path)
-	var sleep_ok=wallpaper_image(plugin,"sleep_%d"%i,path if i==28 else "res://assets/pet_sleep_%d.png"%i)
+	var awake_ok=wallpaper_image(plugin,"awake_%d"%(i+32),path)
+	var sleep_ok=wallpaper_image(plugin,"sleep_%d"%(i+32),path if i==28 else "res://assets/pet_sleep_%d.png"%i)
 	var room_ok=wallpaper_image(plugin,"room_%d"%room,"res://assets/"+WALL_ROOMS[room]+".jpg")
 	if not (awake_ok and sleep_ok and room_ok): return false
 	var snapshot=s.duplicate()
 	snapshot.erase("profiles")
 	snapshot["generation"]=wallpaper_identity()
-	snapshot["portrait"]=i; snapshot["name"]=pet_name(); snapshot["room"]=room
+	snapshot["portrait"]=i+32; snapshot["name"]=pet_name(); snapshot["room"]=room
 	snapshot["minimal"]=s.wallpaper_minimal; snapshot["battery"]=s.wallpaper_battery; snapshot["show_status"]=s.wallpaper_status
 	plugin.syncState(JSON.stringify(snapshot))
 	return true
@@ -522,6 +559,7 @@ func feed(i:int):
 # Read-only action status used by every care control. The authoritative
 # action still validates state and time when executed.
 func action_block(id:String,i:int=0)->String:
+	if not legacy_catalog and id in ["form","breed","friend","secret"]:return "Mosky is the only companion"
 	var at=now()
 	if id=="hatch": return "" if s.stage==0 else "Already hatched"
 	if id=="field": return "Unknown habitat" if i<0 or i>=FIELDS.size() else "Already selected" if int(s.habitat)==i else ""
@@ -589,6 +627,7 @@ func action_block(id:String,i:int=0)->String:
 			return ("Already owned" if owned else "Requires "+str(COST[i])+" coins" if s.coins<COST[i] else "") if id=="clothes" else "" if owned else "Not owned"
 	return ""
 func action(id:String,i:int=0)->bool:
+	if not legacy_catalog and id in ["form","breed","friend","secret"]:return false
 	var at=now()
 	advance(at)
 	var ready=available()
@@ -597,6 +636,7 @@ func action(id:String,i:int=0)->bool:
 		"hatch":
 			if s.stage!=0: return false
 			s.stage=1; s.field=int(s.habitat); s.age=0.0; s.last=at
+			if not legacy_catalog:s.collection=1
 			if s.generation==1 and s.coins==0: s.coins=100
 		"field":
 			if i<0 or i>=FIELDS.size() or int(s.habitat)==i: return false

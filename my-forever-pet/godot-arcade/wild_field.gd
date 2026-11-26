@@ -159,7 +159,7 @@ func build_world(companion:int,id:int,finale:bool):
 		else:sphere(Vector3(x,.12,z),Vector3(scale_value,.22,scale_value),Color("#c2c4ef"),world)
 	build_landmarks()
 	build_terrain_details()
-	player=model(companion,world)
+	player=model(0,world)
 	player.position=Vector3(run.player.x,.1,run.player.y)
 	destination_marker=Node3D.new();world.add_child(destination_marker)
 	var target_ring=TorusMesh.new();target_ring.inner_radius=.28;target_ring.outer_radius=.34;target_ring.rings=16;target_ring.ring_segments=6
@@ -179,7 +179,8 @@ func build_world(companion:int,id:int,finale:bool):
 	var tip=shape(arrow_head,Vector3(0,.18,.46),Vector3(.42,.09,.40),Color("#c8fbff"),compass_arrow,true)
 	tip.rotation.x=PI/2
 	compass_arrow.hide()
-	if finale:wild=model(id,world)
+	if finale:
+		wild=Node3D.new();world.add_child(wild);shape(prism(),Vector3(0,.65,0),Vector3(.8,1.2,.8),tint,wild,true)
 	for i in range(2 if id<12 else 3):
 		var hazard=Node3D.new();world.add_child(hazard);hazards.append(hazard)
 		var ring2=TorusMesh.new();ring2.inner_radius=.68;ring2.outer_radius=.85;ring2.rings=20;ring2.ring_segments=8;shape(ring2,Vector3(0,.12,0),Vector3.ONE,Color("#f29b6c"),hazard,true)

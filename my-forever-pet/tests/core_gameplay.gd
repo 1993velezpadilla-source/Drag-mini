@@ -20,7 +20,14 @@ func reset(stage:int=1):
 	pet.arcade_mode=-1
 func run():
 	pet=load("res://pet_store.gd").new()
+	pet.legacy_catalog=true # archived mechanics regression only
 	root.add_child(pet)
+	pet.legacy_catalog=false
+	reset(4)
+	pet.s.form=4;pet.s.collection=268435455;pet.s.name="Other";pet.enforce_mosky()
+	check(pet.species()==0 and pet.s.collection==1 and pet.s.name=="Mosky" and pet.family_slots()==[-1],"production single-pet save migration")
+	check(not pet.action("form",4) and not pet.action("breed") and not pet.action("secret") and not pet.choose_research(4),"retired companions cannot be obtained")
+	pet.legacy_catalog=true
 	reset(0)
 	pet.s.coins=0
 	check(pet.action("field",2),"choose sky lineage before hatch")
