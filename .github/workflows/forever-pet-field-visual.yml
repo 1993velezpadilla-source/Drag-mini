@@ -1,0 +1,42 @@
+name: Forever Pet isolated 3D field checks
+on:
+  push:
+    branches: [feature/my-forever-pet-paradise]
+    paths:
+      - 'my-forever-pet/godot-arcade/wild_field.gd'
+      - 'my-forever-pet/godot-arcade/field_hunt_rules.gd'
+      - 'my-forever-pet/godot-arcade/research_data.gd'
+      - 'my-forever-pet/tests/field_visual_isolated.gd'
+      - '.github/workflows/forever-pet-field-visual.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  field:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Godot and virtual display
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y xvfb libgl1 libgl1-mesa-dri
+          curl -fL --retry 3 -o /tmp/godot.zip https://github.com/godotengine/godot/releases/download/4.4.1-stable/Godot_v4.4.1-stable_linux.x86_64.zip
+          unzip -q /tmp/godot.zip -d /tmp/godot
+      - name: Run production field without generated companion assets
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/field-project
+          printf '%s\n' 'config_version=5' '[display]' 'window/size/viewport_width=540' 'window/size/viewport_height=960' '[rendering]' 'renderer/rendering_method="gl_compatibility"' > /tmp/field-project/project.godot
+          cp my-forever-pet/godot-arcade/{wild_field,field_hunt_rules,research_data}.gd my-forever-pet/tests/field_visual_isolated.gd /tmp/field-project/
+          xvfb-run -a -s "-screen 0 720x1280x24" timeout 90 /tmp/godot/Godot_v4.4.1-stable_linux.x86_64 --path /tmp/field-project --audio-driver Dummy --resolution 540x960 --script res://field_visual_isolated.gd 2>&1 | tee /tmp/field-isolated.log
+          grep -F 'FOREVER_FIELD_ISOLATED_PASS 3' /tmp/field-isolated.log
+          ! grep -E 'SCRIPT ERROR|Parse Error' /tmp/field-isolated.log
+          for r in 0 1 2; do test -s "/tmp/field-isolated-$r.png"; done
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: Wild-Territory-isolated-render-fallback-companions
+          path: |
+            /tmp/field-isolated-*.png
+            /tmp/field-isolated.log
