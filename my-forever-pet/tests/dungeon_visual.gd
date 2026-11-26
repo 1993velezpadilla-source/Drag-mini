@@ -27,6 +27,10 @@ func run():
 		assert(not dungeon.path.is_empty(),"real viewport tap resolves pickup")
 		dungeon._process(.2)
 		assert(dungeon.run.coins==3 and not dungeon.run.loot.has(pickup),"pickup commits once")
+		assert(not dungeon.stairs_button.visible,"irrelevant action does not occupy HUD")
+		var created:int=dungeon.actor_created
+		dungeon.sync();dungeon.sync()
+		assert(dungeon.actor_created==created,"unchanged actors reused")
 		await frames()
 		assert(root.get_texture().get_image().save_png("/tmp/dungeon-real-%d.png"%region)==OK)
 		dungeon.ended.connect(func(ok:bool,count:int,_time:float):

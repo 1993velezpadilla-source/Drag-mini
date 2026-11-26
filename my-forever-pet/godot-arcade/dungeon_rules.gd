@@ -39,6 +39,9 @@ var specimen=0
 var guardian_defeated=false
 var event_serial=0
 var last_event=""
+var attack_serial=0
+var attack_target=Vector2i.ZERO
+var attack_power=false
 func setup(r:int,id:int,step:int,finale:bool,patrol:bool,seed_id:int,companion:int=0):
 	region=r;seed_value=seed_id;skill_kind=posmod(companion,3);rescue_finale=finale;specimen=id
 	tier=0 if patrol or id<12 else 1 if id<24 else 2
@@ -151,6 +154,7 @@ func pickup():
 	emit_event(message)
 func strike(i:int,power:bool=false):
 	if i<0 or i>=enemies.size():return
+	attack_serial+=1;attack_target=enemies[i].pos;attack_power=power
 	var damage=10 if power else 6
 	enemies[i].hp=int(enemies[i].hp)-damage
 	message="-%d HP · strike!"%damage
