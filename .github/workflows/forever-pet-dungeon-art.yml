@@ -1,7 +1,7 @@
 name: Forever Pet dungeon Blender art integration
 on:
   push:
-    branches: [feature/my-forever-pet-paradise]
+    branches: [feature/my-forever-pet-paradise, feature/my-forever-pet-landscape-staging]
     paths:
       - 'my-forever-pet/godot-arcade/blender_assets.py'
       - 'my-forever-pet/godot-arcade/dungeon*.gd'
@@ -55,6 +55,13 @@ jobs:
           grep -F 'FOREVER_DUNGEON_VIEW_PASS 3' /tmp/dungeon-art.log
           ! grep -E 'SCRIPT ERROR|Parse Error|SHADER ERROR' /tmp/dungeon-art.log
           for r in 0 1 2; do test -s "/tmp/dungeon-real-$r.png"; done
+      - name: Capture full live expedition using exported Blender assets
+        run: |
+          set -euo pipefail
+          cp my-forever-pet/tests/dungeon_live_review.gd /tmp/dungeon-project/
+          xvfb-run -a -s "-screen 0 720x1280x24" timeout 180 /tmp/godot/Godot_v4.4.1-stable_linux.x86_64 --path /tmp/dungeon-project --audio-driver Dummy --resolution 540x960 --script res://dungeon_live_review.gd 2>&1 | tee /tmp/dungeon-art-live.log
+          grep -F 'DUNGEON_LIVE_REVIEW_PASS' /tmp/dungeon-art-live.log
+          ! grep -E 'SCRIPT ERROR|Parse Error|SHADER ERROR|Assertion failed' /tmp/dungeon-art-live.log
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -62,6 +69,8 @@ jobs:
           path: |
             /tmp/dungeon-real-*.png
             /tmp/dungeon-art.log
+            /tmp/dungeon-art-live.log
+            /tmp/dungeon-live-*.png
             /tmp/dungeon-asset-review.log
             /tmp/dungeon-asset-review/
             /tmp/dungeon-project/assets/mesh-metrics.json

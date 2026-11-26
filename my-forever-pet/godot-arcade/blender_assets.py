@@ -1419,7 +1419,39 @@ export('dungeon_star_threshold',3500)
 # Exterior world v1: composed landscape groups, no gameplay collision.
 # Every group is original modeled geometry and shares existing biome materials.
 clear()
-# Woodland grove: one leaning mature tree, a smaller sapling and forest understory.
+# Woodland grove: sculpted lobed crowns with leaf clusters, not spheres.
+# Shared material and low segment count keep the silhouette economical.
+def woodland_crown(p,dimensions,seed,m):
+ rng=random.Random(seed);verts=[];faces=[];n=16;rings=7
+ rx,ry,rz=[a*.5 for a in dimensions]
+ verts.append((p[0],p[1]-ry,p[2]))
+ for j in range(1,rings):
+  t=j*pi/rings
+  for i in range(n):
+   a=i*2*pi/n
+   lobes=1+.13*math.sin(a*5+seed*.13+t*2)+.08*math.cos(a*3-t*5)
+   wrinkle=1+rng.uniform(-.045,.045)
+   verts.append((p[0]+rx*math.sin(t)*math.cos(a)*lobes*wrinkle,p[1]-ry*math.cos(t)+.07*ry*math.sin(a*4+t*3)*math.sin(t),p[2]+rz*math.sin(t)*math.sin(a)*lobes*wrinkle))
+ top=len(verts);verts.append((p[0]+rx*.08,p[1]+ry,p[2]))
+ for i in range(n):faces.append((0,1+(i+1)%n,1+i))
+ for j in range(rings-2):
+  for i in range(n):
+   a=1+j*n+i;c=1+j*n+(i+1)%n
+   faces.append((a,c,c+n,a+n))
+ for i in range(n):faces.append((top,1+(rings-2)*n+i,1+(rings-2)*n+(i+1)%n))
+ return architectural_mesh('sculpted foliage crown',verts,faces,m)
+def crown_leaf(p,a,length,width,m):
+ # Closed pointed foliage with an arched midrib and visible thickness.
+ # Six triangles per leaflet surface; no costly subdivision or sphere.
+ dx=math.cos(a);dz=math.sin(a);sx=-dz;sz=dx
+ verts=[p,(p[0]+dx*length*.36+sx*width,p[1]+length*.12,p[2]+dz*length*.36+sz*width),
+ (p[0]+dx*length,p[1]+length*.16,p[2]+dz*length),
+ (p[0]+dx*length*.36-sx*width,p[1]+length*.12,p[2]+dz*length*.36-sz*width),
+ (p[0]+dx*length*.40,p[1]+length*.24,p[2]+dz*length*.40)]
+ ob=architectural_mesh('pointed canopy leaflet',verts,[(0,1,4),(1,2,4),(2,3,4),(3,0,4)],m)
+ m.use_backface_culling=False
+ return ob
+
 for k,(x,z,h,r) in enumerate([(-.36,-.18,2.23,.24),(.65,.32,1.48,.14)]):
  tube([(x,0,z),(x-.09,h*.32,z+.08),(x+.12,h*.68,z),(x+.20,h*.88,z-.10)],[r*1.35,r,r*.69,r*.25],bark,12)
  for i in range(4):
@@ -1427,9 +1459,16 @@ for k,(x,z,h,r) in enumerate([(-.36,-.18,2.23,.24),(.65,.32,1.48,.14)]):
   tube([(x,.24,z),(x+.36*math.cos(ang),.12,z+.36*math.sin(ang)),(x+.62*math.cos(ang),.02,z+.62*math.sin(ang))],[r*.65,r*.4,.025],bark,8)
   xx=x+.42*math.cos(ang);zz=z+.42*math.sin(ang)
   tube([(x+.05,h*.58,z),(xx,h*.78,zz),(xx+.12,h*.91,zz)],[r*.45,r*.27,.025],bark,8)
-  ball((xx,h*.89,zz),(.83,.60,.79) if k==0 else (.55,.44,.54),moss if i%2 else leafdark)
-  leaf_rosette((xx,h*.96,zz),2400+k*20+i,leafdark,leafbright,.30)
- ball((x+.15,h, z),(.92,.55,.87) if k==0 else (.61,.42,.59),moss)
+  dims=(1.03,.64,.96) if k==0 else (.69,.47,.65)
+  woodland_crown((xx,h*.89,zz),dims,2400+k*20+i,moss if i%2 else leafdark)
+  for j in range(7):
+   a2=j*2*pi/7+i*.4
+   reach=dims[0]*.26
+   crown_leaf((xx+reach*math.cos(a2),h*.96,zz+reach*math.sin(a2)),a2,.24 if k==0 else .18,.09 if k==0 else .065,leafbright if j%3==0 else leafdark)
+ woodland_crown((x+.15,h,z),(1.13,.57,1.07) if k==0 else (.72,.45,.68),2440+k,moss)
+ for j in range(8):
+  a2=j*pi/4
+  crown_leaf((x+.15+.22*math.cos(a2),h+.19,z+.22*math.sin(a2)),a2,.27 if k==0 else .19,.105 if k==0 else .075,leafbright)
 for i in range(5):
  a=i*2*pi/5;leaf_rosette((.80*math.cos(a),.06,.72*math.sin(a)),2450+i,leafdark,leafbright,.44)
 tube([(-.80,.09,.65),(-.35,.11,.55),(.20,.07,.78)],[.09,.075,.025],bark,8)
