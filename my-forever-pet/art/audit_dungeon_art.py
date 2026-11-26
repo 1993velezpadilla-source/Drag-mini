@@ -31,6 +31,12 @@ for name in sorted(expected):
  assert triangles==catalog[name]['triangles'],(name,triangles,catalog[name]['triangles'])
  assert len(materials)>=2,(name,'single material')
  assert tiny_faces==0,(name,'degenerate exported faces',tiny_faces)
+ normal_materials=set()
+ for obj in objects:
+  for material in obj.data.materials:
+   if material and material.use_nodes and any(n.type=='NORMAL_MAP' for n in material.node_tree.nodes):normal_materials.add(material.name)
+ if name.endswith('_span'):
+  assert len(normal_materials)>=2,(name,'missing imported normal maps',normal_materials)
  limit=3.4 if name.endswith(('_landmark','_span','_terrace')) else 2.5
  assert all(.02<x<limit for x in size),(name,list(size))
  assert low.z>=-.12 and high.z<=(3.1 if name.endswith('_landmark') else 1.8),(name,list(low),list(high))
@@ -50,7 +56,23 @@ for name in sorted(expected):
   scene.render.filepath=str(output/(name+'-'+view+'.png'))
   bpy.ops.render.render(write_still=True)
   assert Path(scene.render.filepath).stat().st_size>1000,(name,view)
- report[name]={'triangles':triangles,'materials':sorted(materials),'bounds':[list(low),list(high)],'tiny_faces':tiny_faces,'three_views':True,'technical_pass':True,'art_approved':False}
+ if name.endswith('_span'):
+  scene.render.engine='CYCLES';scene.cycles.samples=16
+  scene.render.resolution_x=640;scene.render.resolution_y=480
+  scene.world.use_nodes=True
+  scene.world.node_tree.nodes.get('Background').inputs['Color'].default_value=(.18,.22,.29,1)
+  scene.world.node_tree.nodes.get('Background').inputs['Strength'].default_value=.35
+  for label,offset,power,color,light_size in [('key',(2,-3,4),450,(1,.88,.72),3),('fill',(-3,-1,2),180,(.65,.81,1),3),('rim',(0,3,3),300,(.8,.85,1),2)]:
+   light_data=bpy.data.lights.new(label,'AREA');light_data.energy=power;light_data.color=color;light_data.shape='DISK';light_data.size=light_size
+   light=bpy.data.objects.new(label,light_data);scene.collection.objects.link(light);light.location=center+Vector(offset)
+   light.rotation_euler=(center-light.location).to_track_quat('-Z','Y').to_euler()
+  cam.location=center+Vector((1,-3,1.9)).normalized()*4
+  cam.rotation_euler=(center-cam.location).to_track_quat('-Z','Y').to_euler()
+  cam_data.ortho_scale=max(high-low)*1.5
+  scene.render.filepath=str(output/(name+'-pbr.png'))
+  bpy.ops.render.render(write_still=True)
+  assert Path(scene.render.filepath).stat().st_size>1000,(name,'PBR render')
+ report[name]={'triangles':triangles,'materials':sorted(materials),'bounds':[list(low),list(high)],'tiny_faces':tiny_faces,'normal_mapped_materials':sorted(normal_materials),'three_views':True,'technical_pass':True,'art_approved':False}
  print('DUNGEON_BLENDER_REIMPORT_PASS',name,triangles,len(materials),'tiny_faces',tiny_faces)
 (output/'asset-review.json').write_text(json.dumps({'assets':report,'count':len(report),'art_approved':False,'note':'Independent geometry checks and render evidence; aesthetic and Android device approval remain separate.'},indent=2))
 print('DUNGEON_ART_REVIEW_PASS',len(report))

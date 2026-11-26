@@ -754,6 +754,16 @@ def tube(points,radii,m,sides=8):
  me=bpy.data.meshes.new('tangent swept organic branch');me.from_pydata(verts,[],faces);me.update()
  bm=bmesh.new();bm.from_mesh(me);bmesh.ops.recalc_face_normals(bm,faces=list(bm.faces));bm.to_mesh(me);bm.free()
  me.update()
+ # Preserve longitudinal grain along the swept branch, including the UV seam.
+ uv=me.uv_layers.new(name='Organic grain UV')
+ for face in me.polygons:
+  ring_indices=[me.loops[li].vertex_index%sides for li in face.loop_indices]
+  seam=0 in ring_indices and sides-1 in ring_indices
+  for li in face.loop_indices:
+   idx=me.loops[li].vertex_index
+   u=(idx%sides)/sides
+   if seam and idx%sides==0:u=1.0
+   uv.data[li].uv=(u,(idx//sides)/max(1,len(path)-1))
  o=bpy.data.objects.new('tangent swept organic branch',me);bpy.context.collection.objects.link(o);return finish(o,m)
 def blades(p,a,length,width,m):
  verts=[];faces=[]
@@ -762,6 +772,10 @@ def blades(p,a,length,width,m):
   for side in [-1,1]:verts.append(v((p[0]+math.cos(a)*reach-side*w*math.sin(a),p[1]+h,p[2]+math.sin(a)*reach+side*w*math.cos(a))))
  for i in range(6):faces.append((i*2,i*2+1,i*2+3,i*2+2))
  me=bpy.data.meshes.new('curved leaf');me.from_pydata(verts,[],faces);me.update()
+ uv=me.uv_layers.new(name='Leaf UV')
+ for face in me.polygons:
+  for li in face.loop_indices:
+   idx=me.loops[li].vertex_index;uv.data[li].uv=(idx%2,(idx//2)/6)
  o=bpy.data.objects.new('curved leaf',me);bpy.context.collection.objects.link(o);finish(o,m)
  mod=o.modifiers.new('leaf thickness','SOLIDIFY');mod.thickness=.018
 def crystal(p,r,h,m,seed):
@@ -799,8 +813,65 @@ star=mat('amethyst crystal',(.26,.15,.57),.18,.26)
 glow=emit_mat('warm lantern core',(.95,.49,.11),.75)
 blueglow=emit_mat('azure magic',(.11,.55,.83),.45)
 violetglow=emit_mat('violet magic',(.45,.25,.85),.45)
-for m,c,seed in [(foreststone,(.25,.32,.19),431),(forestedge,(.33,.36,.24),432),(reefstone,(.095,.24,.32),433),(reefedge,(.18,.35,.42),434),(astralstone,(.20,.14,.31),435),(astraledge,(.30,.23,.43),436)]:
- stone_texture(m,c,seed)
+# Original baked material maps for the dungeon kit only. Keep Pet Dash materials unchanged.
+# Periodic multi-scale height fields encode relief, strata, bark and coral pores.
+def dungeon_surface(m,tint,seed,kind):
+ import numpy as np
+ rng=np.random.default_rng(seed)
+ size=256
+ yy,xx=np.mgrid[0:size,0:size].astype(np.float32)*(2*pi/size)
+ def waves(freq,count):
+  field=np.zeros_like(xx)
+  for i in range(count):
+   kx,ky=rng.integers(-freq,freq+1,2)
+   if not kx and not ky:kx=1
+   field+=np.sin(kx*xx+ky*yy+rng.uniform(0,2*pi))
+  return field/count
+ broad=waves(3,10);medium=waves(12,12);fine=waves(32,16)
+ if kind=='bark':
+  grain=np.sin(14*xx+1.25*np.sin(2*yy)+.45*np.sin(5*yy+xx))
+  split=np.power(.5+.5*grain,8)
+  height=.42+.19*broad+.12*medium-.28*split+.025*fine
+  tone=.81+.20*broad-.22*split+.08*medium
+ elif kind=='coral':
+  pores=np.power(.5+.5*np.sin(17*xx+2*np.sin(11*yy))*np.sin(19*yy+np.sin(7*xx)),9)
+  height=.48+.12*broad+.12*medium-.23*pores+.035*fine
+  tone=.87+.17*broad-.22*pores+.06*medium
+ elif kind=='reef':
+  strata=np.sin(8*yy+1.15*np.sin(3*xx)+.25*np.sin(9*xx))
+  cracks=np.power(.5+.5*strata,10)
+  height=.45+.22*broad+.10*medium-.13*cracks+.045*fine
+  tone=.86+.18*broad-.14*cracks+.12*medium
+ elif kind=='moss':
+  height=.44+.21*broad+.14*medium+.065*fine
+  tone=.83+.25*broad+.16*medium+.08*fine
+ else:
+  veins=np.power(.5+.5*np.sin(7*xx+3*yy+2*broad+medium),12)
+  height=.46+.20*broad+.11*medium-.13*veins+.045*fine
+  tone=.85+.22*broad-.13*veins+.10*medium
+ rgba=np.ones((size,size,4),dtype=np.float32)
+ for channel in range(3):
+  rgba[:,:,channel]=np.clip(tint[channel]*tone,0,1)
+ # Tangent-space normals, sampled periodically for seamless tiling.
+ dx=np.roll(height,-1,axis=1)-np.roll(height,1,axis=1)
+ dy=np.roll(height,-1,axis=0)-np.roll(height,1,axis=0)
+ vec=np.stack((-dx*3.6,-dy*3.6,np.ones_like(height)),axis=-1)
+ vec/=np.linalg.norm(vec,axis=-1,keepdims=True)
+ normal=np.ones_like(rgba);normal[:,:,:3]=vec*.5+.5
+ nodes=m.node_tree.nodes;links=m.node_tree.links;bs=nodes.get('Principled BSDF')
+ for node in list(nodes):
+  if node.type in ('TEX_IMAGE','NORMAL_MAP'):nodes.remove(node)
+ def image_node(name,pixels,space):
+  im=bpy.data.images.new(m.name+' '+name,width=size,height=size,alpha=True)
+  im.colorspace_settings.name=space;im.pixels.foreach_set(pixels.ravel());im.pack()
+  node=nodes.new('ShaderNodeTexImage');node.image=im;return node
+ albedo=image_node('baked albedo',rgba,'sRGB')
+ normal_node=image_node('baked normal',normal,'Non-Color')
+ nm=nodes.new('ShaderNodeNormalMap');nm.inputs['Strength'].default_value=.62
+ links.new(albedo.outputs['Color'],bs.inputs['Base Color'])
+ links.new(normal_node.outputs['Color'],nm.inputs['Color']);links.new(nm.outputs['Normal'],bs.inputs['Normal'])
+for m,c,seed,kind in [(foreststone,(.32,.37,.24),431,'stone'),(forestedge,(.38,.41,.27),432,'stone'),(reefstone,(.14,.30,.36),433,'reef'),(reefedge,(.22,.43,.47),434,'reef'),(astralstone,(.25,.20,.34),435,'stone'),(astraledge,(.35,.30,.47),436,'stone'),(bark,(.40,.23,.12),437,'bark'),(moss,(.19,.34,.10),438,'moss'),(coral,(.70,.29,.24),439,'coral'),(coral2,(.44,.20,.43),440,'coral')]:
+ dungeon_surface(m,c,seed,kind)
 # Organic rock silhouette: irregular profiles, rounded bevels and outward normals.
 def natural_rock(p,size,m,seed):
  rng=random.Random(seed)
