@@ -12,6 +12,11 @@ var actors:Node3D
 var pet:Node3D
 var area:Control
 var hp_bar:ProgressBar
+var hp_text:Label
+var relic_text:Label
+var map_zoom:Button
+var map_expanded=false
+var hud_base:VBoxContainer
 var title_text:Label
 var status_text:Label
 var stats:Label
@@ -126,15 +131,26 @@ func action_icon(kind:String)->Texture2D:
 	match kind:
 		"Strike":symbol='<path d="M5 4L20 19M4 20L19 5M2 7L7 2M17 22L22 17M2 17L7 22M17 2L22 7" stroke="#ffe7a9" stroke-width="3" stroke-linecap="round"/>'
 		"Skill":symbol='<path d="M13 1L4 14H11L9 23L21 9H13Z" fill="#ead2ff" stroke="#b995ff"/>'
+		"Coin":symbol='<circle cx="12" cy="12" r="10" fill="#e9a43c" stroke="#ffe7a1" stroke-width="2"/><circle cx="12" cy="12" r="6" fill="none" stroke="#b87821" stroke-width="1.5"/><path d="M15 8H10L8 11L14 13L15 16H9" fill="none" stroke="#fff0b0" stroke-width="1.6"/>'
+		"Relic":symbol='<path d="M12 2L21 8L18 19L12 23L5 19L3 8Z" fill="#a46af1" stroke="#f1caff" stroke-width="1.4"/><path d="M12 2L9 9L12 23L16 9Z" fill="#dab7ff"/>'
+		"Rooms":symbol='<path d="M4 21V11A8 8 0 0 1 20 11V21H16V11A4 4 0 0 0 8 11V21Z" fill="#c4b08b" stroke="#fff0c6"/>'
+		"Forest":symbol='<path d="M12 21Q12 8 21 3Q24 15 12 16M11 15Q2 15 2 5Q13 6 11 15" fill="#9acc76" stroke="#c9ec9d" stroke-width="1.2"/>'
+		"Reef":symbol='<path d="M12 22V5M12 15L5 10V5M12 11L19 6V2M12 18L21 14" fill="none" stroke="#ff9b9b" stroke-width="3" stroke-linecap="round"/>'
+		"Star":symbol='<path d="M12 1L15 9L23 12L15 15L12 23L9 15L1 12L9 9Z" fill="#ffe3a0" stroke="#fff6d2"/>'
 		"Berry":symbol='<circle cx="8" cy="14" r="6" fill="#f66d79"/><circle cx="16" cy="15" r="6" fill="#d83a61"/><path d="M12 10Q6 0 18 2Q19 8 12 10Z" fill="#a1df74"/>'
 	var image=Image.new()
 	image.load_svg_from_string('<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24">'+symbol+'</svg>')
 	return ImageTexture.create_from_image(image)
+func hud_icon(parent:Node,kind:String,side:int=18)->TextureRect:
+	var item=TextureRect.new();item.texture=action_icon(kind);item.custom_minimum_size=Vector2(side,side)
+	item.expand_mode=TextureRect.EXPAND_IGNORE_SIZE;item.stretch_mode=TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	item.mouse_filter=MOUSE_FILTER_IGNORE;parent.add_child(item);return item
 func button(parent:Node,value:String,action:Callable,accent:bool=false)->Button:
 	var b=Button.new();b.text=value;b.custom_minimum_size.y=62;b.size_flags_horizontal=SIZE_EXPAND_FILL
 	b.add_theme_font_size_override("font_size",17)
-	var action_color=Color("#315f43") if value=="Strike" else Color("#59417b") if value=="Skill" else Color("#765032") if value=="Berry" else Color("#283b4a")
+	var action_color=Color("#28744e") if value=="Strike" else Color("#663d9a") if value=="Skill" else Color("#213d50") if value=="Berry" else Color("#183249")
 	var frame=style(action_color,Color("#d6b877"),18);frame.shadow_color=Color("#090f18bb");frame.shadow_size=4;frame.shadow_offset=Vector2(0,3)
+	frame.border_width_bottom=3
 	b.add_theme_stylebox_override("normal",frame)
 	b.add_theme_stylebox_override("hover",style(action_color.lightened(.14),Color("#ffe4a0"),18))
 	if value in ["Strike","Skill","Berry"]:
@@ -144,21 +160,28 @@ func button(parent:Node,value:String,action:Callable,accent:bool=false)->Button:
 	b.add_theme_color_override("font_disabled_color",Color("#8393a3"))
 	b.pressed.connect(action);parent.add_child(b);return b
 func build_ui():
-	var base=VBoxContainer.new();add_child(base);base.set_anchors_and_offsets_preset(PRESET_FULL_RECT);base.add_theme_constant_override("separation",0)
-	var header=PanelContainer.new();header.add_theme_stylebox_override("panel",style(Color("#162535"),Color("#ad925d"),16));base.add_child(header)
+	var base=VBoxContainer.new();hud_base=base;add_child(base);base.set_anchors_and_offsets_preset(PRESET_FULL_RECT);base.add_theme_constant_override("separation",0)
+	var header=PanelContainer.new();header.add_theme_stylebox_override("panel",style(Color("#102739"),Color("#e2c081"),20));base.add_child(header)
 	var h=HBoxContainer.new();header.add_child(h)
 	var back=button(h,"‹",leave);back.tooltip_text="Leave expedition";back.size_flags_horizontal=SIZE_SHRINK_BEGIN;back.custom_minimum_size.x=45;back.add_theme_font_size_override("font_size",28)
-	var portrait=TextureRect.new();portrait.custom_minimum_size=Vector2(72,72);portrait.expand_mode=TextureRect.EXPAND_IGNORE_SIZE;portrait.stretch_mode=TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	var portrait=TextureRect.new();portrait.custom_minimum_size=Vector2(56,64);portrait.expand_mode=TextureRect.EXPAND_IGNORE_SIZE;portrait.stretch_mode=TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	var portrait_path="res://assets/pet_%d.png"%companion_id
 	if ResourceLoader.exists(portrait_path):portrait.texture=load(portrait_path)
 	h.add_child(portrait)
 	var info=VBoxContainer.new();info.size_flags_horizontal=SIZE_EXPAND_FILL;h.add_child(info)
-	title_text=label(info,"",22,Color("#ffe1a4"))
-	hp_bar=ProgressBar.new();hp_bar.max_value=run.max_hp;hp_bar.custom_minimum_size.y=19;hp_bar.show_percentage=false;info.add_child(hp_bar)
-	hp_bar.add_theme_stylebox_override("fill",style(Color("#62c88b"),Color("#a4f1ba"),8))
-	hp_bar.add_theme_stylebox_override("background",style(Color("#0c1723"),Color("#32465b"),6))
-	stats=label(info,"",14,Color("#c7dce7"))
-	floor_label=label(info,"",12,Color("#a5d8ce"))
+	var heading=HBoxContainer.new();heading.add_theme_constant_override("separation",5);info.add_child(heading)
+	hud_icon(heading,["Forest","Reef","Star"][region],22)
+	title_text=label(heading,"",20,Color("#ffe9bd"));title_text.size_flags_horizontal=SIZE_EXPAND_FILL;title_text.clip_text=true
+	hp_bar=ProgressBar.new();hp_bar.max_value=run.max_hp;hp_bar.custom_minimum_size.y=25;hp_bar.show_percentage=false;info.add_child(hp_bar)
+	var life_fill=style(Color("#36b77e"),Color("#a5f5bf"),12);life_fill.set_border_width_all(1)
+	hp_bar.add_theme_stylebox_override("fill",life_fill)
+	hp_bar.add_theme_stylebox_override("background",style(Color("#0b1825"),Color("#638d86"),12))
+	hp_text=label(hp_bar,"",16,Color.WHITE);hp_text.set_anchors_and_offsets_preset(PRESET_FULL_RECT);hp_text.horizontal_alignment=HORIZONTAL_ALIGNMENT_CENTER;hp_text.vertical_alignment=VERTICAL_ALIGNMENT_CENTER;hp_text.mouse_filter=MOUSE_FILTER_IGNORE
+	hp_text.add_theme_color_override("font_outline_color",Color("#143d30"));hp_text.add_theme_constant_override("outline_size",3)
+	var resources=HBoxContainer.new();resources.add_theme_constant_override("separation",5);info.add_child(resources)
+	hud_icon(resources,"Coin",17);stats=label(resources,"",14,Color("#f6e3bc"))
+	hud_icon(resources,"Relic",17);relic_text=label(resources,"",14,Color("#f1dcff"))
+	hud_icon(resources,"Rooms",17);floor_label=label(resources,"",14,Color("#cce9ec"))
 	area=Control.new();area.size_flags_vertical=SIZE_EXPAND_FILL;area.clip_contents=true;base.add_child(area)
 	var holder=SubViewportContainer.new();holder.stretch=true;holder.stretch_shrink=1;holder.mouse_filter=MOUSE_FILTER_IGNORE;area.add_child(holder);holder.set_anchors_and_offsets_preset(PRESET_FULL_RECT)
 	viewport=SubViewport.new();viewport.own_world_3d=true;viewport.render_target_update_mode=SubViewport.UPDATE_ALWAYS;holder.add_child(viewport)
@@ -169,12 +192,16 @@ func build_ui():
 	camera=Camera3D.new();camera.projection=Camera3D.PROJECTION_ORTHOGONAL;camera.keep_aspect=Camera3D.KEEP_WIDTH;camera.size=10.4;world.add_child(camera);camera.current=true
 	var input=Control.new();area.add_child(input);input.set_anchors_and_offsets_preset(PRESET_FULL_RECT);input.mouse_filter=MOUSE_FILTER_STOP;input.gui_input.connect(touch)
 	map=Control.new();map.mouse_filter=MOUSE_FILTER_IGNORE;area.add_child(map);map.position=Vector2(10,10);map.size=Vector2(146,112);map.draw.connect(draw_map)
+	map_zoom=Button.new();map_zoom.text="+";map_zoom.tooltip_text="Expand explored map";map_zoom.custom_minimum_size=Vector2(32,32);map_zoom.size=Vector2(32,32)
+	map_zoom.add_theme_font_size_override("font_size",22);map_zoom.add_theme_stylebox_override("normal",style(Color("#142d40"),Color("#e2c081"),10))
+	map_zoom.add_theme_stylebox_override("pressed",style(Color("#365364"),Color("#fff0ba"),10))
+	area.add_child(map_zoom);map_zoom.position=map.position+Vector2(map.size.x-37,5);map_zoom.pressed.connect(toggle_map)
 	feedback=Label.new();feedback.horizontal_alignment=HORIZONTAL_ALIGNMENT_CENTER;feedback.add_theme_font_size_override("font_size",24);feedback.add_theme_color_override("font_outline_color",Color("#142535"));feedback.add_theme_constant_override("outline_size",7);feedback.mouse_filter=MOUSE_FILTER_IGNORE;area.add_child(feedback);feedback.hide()
 	floor_banner=Label.new();floor_banner.horizontal_alignment=HORIZONTAL_ALIGNMENT_CENTER;floor_banner.add_theme_font_size_override("font_size",25);floor_banner.add_theme_color_override("font_outline_color",Color("#142535"));floor_banner.add_theme_constant_override("outline_size",8);floor_banner.mouse_filter=MOUSE_FILTER_IGNORE;area.add_child(floor_banner);floor_banner.hide()
-	var footer=PanelContainer.new();footer.add_theme_stylebox_override("panel",style(Color("#162535"),Color("#ad925d"),18));base.add_child(footer)
+	var footer=PanelContainer.new();footer.add_theme_stylebox_override("panel",style(Color("#102739"),Color("#e2c081"),20));base.add_child(footer)
 	var v=VBoxContainer.new();v.add_theme_constant_override("separation",6);footer.add_child(v)
 	status_text=label(v,"",16,Color("#ffe1a4"));status_text.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART;status_text.custom_minimum_size.y=22;status_text.horizontal_alignment=HORIZONTAL_ALIGNMENT_CENTER
-	var a=HBoxContainer.new();v.add_child(a)
+	var a=HBoxContainer.new();a.add_theme_constant_override("separation",8);v.add_child(a)
 	attack_button=button(a,"Strike",func():path.clear();run.attack();sync(),true)
 	power_button=button(a,"Skill",func():path.clear();run.attack(true);sync())
 	heal_button=button(a,"Berry",func():path.clear();run.heal();sync())
@@ -1136,12 +1163,21 @@ func refresh_actors():
 		if not desired.has(key):
 			var n:Node3D=actor_nodes[key]
 			n.hide();n.queue_free();actor_nodes.erase(key)
+func toggle_map():
+	map_expanded=not map_expanded
+	var width=minf(area.size.x-20,300) if map_expanded else 146.0
+	var height=minf(area.size.y*.46,260) if map_expanded else 112.0
+	map.size=Vector2(width,height)
+	map_zoom.position=map.position+Vector2(map.size.x-37,5)
+	map_zoom.text="−" if map_expanded else "+"
+	map_zoom.tooltip_text="Collapse explored map" if map_expanded else "Expand explored map"
+	map.queue_redraw()
 func draw_map():
-	map.draw_style_box(style(Color("#142632e8"),Color("#75968b"),12),Rect2(Vector2.ZERO,map.size))
+	map.draw_style_box(style(Color("#102637ee"),Color("#dfc084"),15),Rect2(Vector2.ZERO,map.size))
 	var extent=Vector2i.ONE
 	for p in run.cells:extent=Vector2i(maxi(extent.x,p.x+1),maxi(extent.y,p.y+1))
-	var unit=minf((map.size.x-16.0)/extent.x,(map.size.y-16.0)/extent.y)
-	var offset=(map.size-Vector2(extent)*unit)*.5
+	var unit=minf((map.size.x-20.0)/extent.x,(map.size.y-44.0)/extent.y)
+	var offset=(map.size-Vector2(extent)*unit)*.5+Vector2(0,10)
 	for p in run.revealed:
 		map.draw_rect(Rect2(Vector2(p)*unit+offset,Vector2.ONE*maxf(1.0,unit-.7)),Color("#759b9f"))
 	for p in run.loot:
@@ -1149,9 +1185,13 @@ func draw_map():
 	for enemy in run.enemies:
 		if run.revealed.has(enemy.pos):map.draw_circle((Vector2(enemy.pos)+Vector2(.5,.5))*unit+offset,maxf(1.2,unit*.3),Color("#f58b90"))
 	if run.revealed.has(run.stairs):map.draw_rect(Rect2(Vector2(run.stairs)*unit+offset,Vector2.ONE*unit),Color("#f8d18b"))
-	map.draw_circle((Vector2(run.player)+Vector2(.5,.5))*unit+offset,maxf(2.0,unit*.5),Color("#c2ffb5"))
+	var player_point=(Vector2(run.player)+Vector2(.5,.5))*unit+offset
+	map.draw_circle(player_point,maxf(4.0,unit*.85),Color("#73e4cc55"))
+	map.draw_circle(player_point,maxf(2.0,unit*.5),Color("#d5fff0"))
 func touch(event:InputEvent):
 	if notified or run.finished:return
+	if map_expanded and (event is InputEventScreenTouch or event is InputEventMouseButton):
+		if Rect2(map.position,map.size).has_point(event.position):return
 	if event is InputEventScreenTouch and event.index!=0:return
 	if not ((event is InputEventScreenTouch and event.pressed) or (event is InputEventMouseButton and event.pressed and event.button_index==MOUSE_BUTTON_LEFT and event.device!=-1)):return
 	if area.size.x<=0 or viewport.size.x<=0:return
@@ -1186,8 +1226,10 @@ func emit_result():
 func update_hud():
 	title_text.text="%s  ·  B%d/%d"%[Data.REGIONS[region],run.floor_number,run.floor_count]
 	hp_bar.value=run.hp
-	floor_label.text="%s  ·  %d/%d rooms"%[floor_name(),run.explored_rooms.size(),run.rooms.size()]
-	stats.text="HP %d/%d  ·  %d coins  ·  %d KO"%[run.hp,run.max_hp,run.coins,run.defeated]
+	hp_text.text="HP %d/%d"%[run.hp,run.max_hp]
+	floor_label.text="%d/%d rooms"%[run.explored_rooms.size(),run.rooms.size()]
+	stats.text=str(run.coins)
+	relic_text.text="%d/%d"%[1 if run.secured else 0,1]
 	hp_bar.modulate=Color("#ff9b9b") if run.hp*3<run.max_hp else Color.WHITE
 	status_text.text=run.message
 	power_button.text="%s %d/8"%[["Burst","Bolt","Drain"][run.skill_kind],run.energy];power_button.disabled=run.energy<2

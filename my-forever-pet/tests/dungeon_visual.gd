@@ -75,6 +75,17 @@ func run():
 		assert(dungeon.companion_id==24+region)
 		assert(dungeon.area.size.x>200 and dungeon.area.size.y>200)
 		assert(dungeon.floor_label.text.contains("rooms"))
+		assert(dungeon.hp_text.text=="HP %d/%d"%[dungeon.run.hp,dungeon.run.max_hp])
+		assert(dungeon.relic_text.text=="0/1" and dungeon.stats.text==str(dungeon.run.coins))
+		var small_map:Vector2=dungeon.map.size
+		dungeon.map_zoom.pressed.emit()
+		assert(dungeon.map_expanded and dungeon.map.size.x>small_map.x)
+		var original_player:Vector2i=dungeon.run.player
+		var map_tap=InputEventScreenTouch.new();map_tap.index=0;map_tap.pressed=true;map_tap.position=dungeon.map.position+Vector2(20,20)
+		dungeon.touch(map_tap)
+		assert(dungeon.path.is_empty() and dungeon.run.player==original_player,"expanded map tap does not move pet")
+		dungeon.map_zoom.pressed.emit()
+		assert(not dungeon.map_expanded and dungeon.map.size==small_map)
 		assert(dungeon.terrain_texture!=null and dungeon.terrain_normal!=null)
 		assert(dungeon.exterior_vertex_count>100 and dungeon.exterior_max_height<-.25,"exterior stays below playable floor")
 		assert(dungeon.floor_surface.mesh.get_surface_count()==1,"continuous indexed walkable terrain")
