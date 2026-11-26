@@ -262,5 +262,16 @@ func run():
 	check(not pet.arcade_claim_medal(0),"medal rewards one time")
 	pet.s.arcade_day="yesterday";pet.arcade_daily_sync(pet.now())
 	check(pet.s.arcade_daily_best==0 and not pet.s.arcade_daily_claimed and pet.s.arcade_medals[0]==3,"daily resets but medals persist")
+	reset(4)
+	var day:String=pet.date_key(pet.now())
+	check(pet.today_count(pet.now())==0 and not pet.today_claim(),"no daily bonus without activities")
+	pet.s.daily_day=day;pet.s.care_day=day;pet.s.care_claimed=true
+	check(pet.today_count(pet.now())==2,"overview derives gift and care flags")
+	pet.s.arcade_day=day;pet.s.arcade_daily_claimed=true;pet.s.research_day=day;pet.s.research_claimed=2
+	check(pet.today_count(pet.now())==4,"all four activities recognized")
+	var today_wallet:int=pet.s.coins
+	check(pet.today_claim() and pet.s.coins==today_wallet+35,"adventure bonus")
+	check(not pet.today_claim(),"daily bonus idempotent")
+	check(pet.today_count(pet.now()+86400)==0,"old tasks cannot count tomorrow")
 	print("FOREVER_PET_CORE_PASS ",passed)
 	quit()

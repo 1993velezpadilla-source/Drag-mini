@@ -30,7 +30,7 @@ var shop_tab="Accessories"
 var swipe_dirty=true
 var hint_label:Label
 var quest_claim:Button
-var life_tabs=["Care","Journal","Cell","Care Quest"]
+var life_tabs=["Care","Journal","Cell","Care Quest","Today"]
 var wellness_cta:Button
 var growth_cta:Button
 var recommended_cta:Button
@@ -268,7 +268,7 @@ func make_ui():
 	reward_row=row(layout); reward_row.add_theme_constant_override("separation",5)
 	wellness_cta=button(reward_row,"Care",func(): select("Care")); wellness_cta.custom_minimum_size.y=43; wellness_cta.add_theme_font_size_override("font_size",14); wellness_cta.icon=GameIcons.texture("clean"); wellness_cta.expand_icon=true; wellness_cta.add_theme_constant_override("icon_max_width",22)
 	daily_cta=button(reward_row,"Daily Gift",func(): perform("daily")); daily_cta.custom_minimum_size.y=43; daily_cta.add_theme_font_size_override("font_size",14); daily_cta.icon=GameIcons.texture("daily"); daily_cta.expand_icon=true; daily_cta.add_theme_constant_override("icon_max_width",36); daily_cta.add_theme_stylebox_override("normal",skin(Color("#7747a8"),Color("#ffd38c")))
-	care_cta=button(reward_row,"Care Quest",func(): select("Care Quest")); care_cta.custom_minimum_size.y=43; care_cta.add_theme_font_size_override("font_size",15); care_cta.icon=GameIcons.texture("bond"); care_cta.expand_icon=true; care_cta.add_theme_constant_override("icon_max_width",22)
+	care_cta=button(reward_row,"Today",func(): select("Today")); care_cta.custom_minimum_size.y=43; care_cta.add_theme_font_size_override("font_size",15); care_cta.icon=GameIcons.texture("bond"); care_cta.expand_icon=true; care_cta.add_theme_constant_override("icon_max_width",22)
 	growth_cta=button(reward_row,"Growth",func(): select("Journal")); growth_cta.custom_minimum_size.y=43; growth_cta.add_theme_font_size_override("font_size",14); growth_cta.icon=GameIcons.texture("Journal"); growth_cta.expand_icon=true; growth_cta.add_theme_constant_override("icon_max_width",22)
 	reward_audio=AudioStreamPlayer.new(); reward_audio.volume_db=-16; add_child(reward_audio)
 	room_scroll=ScrollContainer.new(); room_scroll.custom_minimum_size.y=64; room_scroll.vertical_scroll_mode=ScrollContainer.SCROLL_MODE_DISABLED; room_scroll.horizontal_scroll_mode=ScrollContainer.SCROLL_MODE_AUTO; layout.add_child(room_scroll)
@@ -392,6 +392,7 @@ func perform(id:String,i:int=0):
 	if section=="Shop": select("Shop")
 	if section=="World" and id in ["field","trip","loot","friend","breed"]: update_context()
 	if section=="Care Quest": select("Care Quest")
+	if section=="Today": select("Today")
 	if section=="Pets" and id=="form": show_collection()
 	if section=="Family" and id=="form": select("Family")
 func show_care_reward(previous:int):
@@ -546,8 +547,8 @@ func select(tab:String):
 		room_tag.text="Your home"
 		live_stage.set_room("room_bedroom")
 	reset_actions(5 if tab=="Home" and store.s.stage>0 else 4 if tab=="Home" else 0)
-	if tab in life_tabs: life_header(tab)
-	elif tab not in ["Home","Pets","Family","Shop","Rooms","Arcade","Wallpaper","World","Habitat"]: label(actions,tab.to_upper(),22)
+	if tab in life_tabs and tab!="Today": life_header(tab)
+	elif tab not in ["Home","Pets","Family","Shop","Rooms","Arcade","Wallpaper","World","Habitat","Today"]: label(actions,tab.to_upper(),22)
 	var s:Dictionary=store.s
 	match tab:
 		"Home":
@@ -566,6 +567,8 @@ func select(tab:String):
 			build_family()
 		"Care Quest":
 			build_care_quest()
+		"Today":
+			build_today()
 		"Settings":
 			var profile=panel(actions); label(profile,"Your companion",22)
 			var edit=LineEdit.new(); edit.placeholder_text="Name your pet"; edit.text=s.name; edit.max_length=24; profile.add_child(edit)
@@ -665,6 +668,39 @@ func update_wallpaper_choices():
 		if choice.has_meta("wall_key"):
 			var selected=int(store.s[choice.get_meta("wall_key")])==int(choice.get_meta("wall_value"))
 			choice.add_theme_stylebox_override("normal",menu_skin(Color("#7850ad") if selected else Color("#27203e"),Color("#e4bdff") if selected else Color("#5c4c75")))
+func build_today():
+	var at:float=store.now()
+	store.arcade_daily_sync(at)
+	var complete:Array=store.today_status(at)
+	var count:int=store.today_count(at)
+	section_heading(actions,"Today","Your daily activities in one place. Complete at your own pace; no streak penalties.")
+	var summary=panel(actions)
+	label(summary,"Daily adventure · %d/4"%count,22).modulate=Color("#ffd38d")
+	var progress=ProgressBar.new();progress.max_value=4;progress.value=count;progress.show_percentage=false;progress.custom_minimum_size.y=13;summary.add_child(progress)
+	var claimed=store.s.today_claim_day==store.date_key(at)
+	label(summary,"Adventure bonus: 35 coins · 1 crystal · 15 XP",14).autowrap_mode=TextServer.AUTOWRAP_WORD_SMART
+	var reward=button(summary,"Collected ✓" if claimed else "Claim adventure bonus" if count==4 else "Complete today's activities",func():
+		if store.today_claim():play_reward(true);select("Today");refresh())
+	reward.disabled=claimed or count<4 or store.s.stage==0
+	reward.add_theme_stylebox_override("normal",menu_skin(Color("#77522d"),Color("#f5d28a")))
+	var titles=["Daily gift","Care adventure","Arcade challenge","Field research"]
+	var details=["20 coins + material","%d/4 different care activities · chest"%mini(4,store.care_count()),"%s · score %d/%d"%[GAMES[store.arcade_daily_mode()],mini(store.arcade_daily_target(),int(store.s.arcade_daily_best)),store.arcade_daily_target()],"Claim one regional field contract"]
+	var icons=["daily","bond","Arcade","World"]
+	var destinations=["Home","Care Quest","Arcade","World"]
+	for i in range(4):
+		var card=panel(actions);var line=row(card)
+		var art=TextureRect.new();art.texture=GameIcons.texture(icons[i]);art.custom_minimum_size=Vector2(42,42);art.expand_mode=TextureRect.EXPAND_IGNORE_SIZE;art.stretch_mode=TextureRect.STRETCH_KEEP_ASPECT_CENTERED;line.add_child(art)
+		var copy=VBoxContainer.new();copy.size_flags_horizontal=SIZE_EXPAND_FILL;line.add_child(copy)
+		label(copy,titles[i],18).autowrap_mode=TextServer.AUTOWRAP_WORD_SMART
+		label(copy,details[i],13).autowrap_mode=TextServer.AUTOWRAP_WORD_SMART
+		var b=button(line,"Done ✓" if complete[i] else "Claim" if i==0 else "Go ›",func():
+			if i==0:perform("daily")
+			else:select(destinations[i]))
+		b.size_flags_horizontal=SIZE_SHRINK_CENTER;b.custom_minimum_size=Vector2(78,44);b.add_theme_font_size_override("font_size",14)
+		b.disabled=complete[i] or store.s.stage==0
+		if complete[i]:card.modulate=Color("#c5edce")
+	button(actions,"‹ Return home",func():select("Home"))
+	swipe_children(actions)
 func build_care_quest():
 	var quest=context_card("care_quest","Daily care adventure")
 	context_meter(quest,"care_quest",Color("#e6aa65"))
@@ -1214,7 +1250,7 @@ func refresh():
 	if is_instance_valid(daily_cta):
 		daily_cta.disabled=s.stage==0 or s.daily_day==store.date_key(store.now())
 		daily_cta.text="Claimed" if s.daily_day==store.date_key(store.now()) else "Gift"
-		care_cta.text="Chest!" if store.care_ready() else "%d/4 Care"%mini(4,store.care_count())
+		care_cta.text="Bonus!" if store.today_count(store.now())==4 and s.today_claim_day!=store.date_key(store.now()) else "Today %d/4"%store.today_count(store.now())
 		wellness_cta.text="Treat!" if s.germs>0 else "Care"
 		wellness_cta.add_theme_stylebox_override("normal",menu_skin(Color("#854455") if s.germs>0 else Color("#34244f"),Color("#ffc0cb") if s.germs>0 else Color("#765c9a")))
 		growth_cta.text=store.STAGES[int(s.stage)]
@@ -1497,6 +1533,7 @@ func test_home():
 	nav_buttons["World"].pressed.emit(); assert(section=="World")
 	select("Home"); wellness_cta.pressed.emit(); assert(section=="Care")
 	select("Home"); growth_cta.pressed.emit(); assert(section=="Journal")
+	select("Home"); care_cta.pressed.emit(); assert(section=="Today" and find_button(actions,"Complete today's activities")!=null)
 	select("Home")
 	select("Family"); assert(family_grid.get_child_count()==store.family_slots().size())
 	select("Pets"); assert(collection_grid.get_child_count()==store.SPECIES.size())
@@ -1599,6 +1636,7 @@ func capture_home():
 		room(name)
 		await capture_frame("/tmp/forever-"+ROOMS[name]+".png")
 	select("Care"); await capture_frame("/tmp/forever-care.png")
+	select("Today"); await capture_frame("/tmp/forever-today.png")
 	select("World"); await capture_frame("/tmp/forever-world.png")
 	for r in range(3):
 		hunt_region=r; select("Habitat"); await capture_frame("/tmp/forever-habitat-%d.png"%r)
