@@ -36,7 +36,7 @@ for name in sorted(expected):
  scene.render.engine='BLENDER_WORKBENCH'
  scene.render.resolution_x=384;scene.render.resolution_y=384;scene.render.resolution_percentage=100
  scene.render.image_settings.file_format='PNG'
- sh=scene.display.shading;sh.light='STUDIO';sh.color_type='MATERIAL';sh.show_shadows=True;sh.show_cavity=True;sh.cavity_type='BOTH';sh.show_specular_highlight=True
+ sh=scene.display.shading;sh.light='STUDIO';sh.color_type='TEXTURE';sh.show_shadows=True;sh.show_cavity=True;sh.cavity_type='BOTH';sh.show_specular_highlight=True
  sh.background_type='WORLD'
  if scene.world is None:scene.world=bpy.data.worlds.new('review backdrop')
  scene.world.color=(.075,.085,.10)

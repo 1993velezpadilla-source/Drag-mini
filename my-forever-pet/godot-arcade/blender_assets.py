@@ -708,7 +708,7 @@ def rock_slab(p,size,m,seed,bevel=.045):
    s=1.0 if level==0 else rng.uniform(.78,.96)
    verts.append(v((p[0]+x*size[0]*s,p[1]+(level-.5)*size[1]+rng.uniform(-.025,.025),p[2]+z*size[2]*s)))
  faces=[tuple(range(8)),tuple(range(15,7,-1))]
- for j in range(8):faces.append((j,(j+1)%8,(j+1)%8+8,j+8))
+ for j in range(8):faces.append((j,j+8,(j+1)%8+8,(j+1)%8))
  me=bpy.data.meshes.new('weathered stone slab');me.from_pydata(verts,[],faces);me.update()
  o=bpy.data.objects.new('weathered stone slab',me);bpy.context.collection.objects.link(o)
  return finish(o,m,bevel)
@@ -721,8 +721,8 @@ def tube(points,radii,m,sides=8):
  for i in range(len(points)-1):
   for j in range(sides):
    a=i*sides+j;b=i*sides+(j+1)%sides
-   faces.append((a,b,b+sides,a+sides))
- faces.extend([tuple(reversed(range(sides))),tuple(range((len(points)-1)*sides,len(points)*sides))])
+   faces.append((a,a+sides,b+sides,b))
+ faces.extend([tuple(range(sides)),tuple(reversed(range((len(points)-1)*sides,len(points)*sides)))])
  me=bpy.data.meshes.new('organic sweep');me.from_pydata(verts,[],faces);me.update()
  o=bpy.data.objects.new('organic sweep',me);bpy.context.collection.objects.link(o);return finish(o,m)
 def blades(p,a,length,width,m):
@@ -740,9 +740,9 @@ def crystal(p,r,h,m,seed):
   for i in range(6):
    a=i*pi/3;rr=r*(1 if level<1 else .12)
    verts.append(v((p[0]+rr*math.cos(a)+level*r*.18,p[1]+h*level,p[2]+rr*math.sin(a))))
- faces=[tuple(reversed(range(6))),tuple(range(12,18))]
+ faces=[tuple(range(6)),tuple(reversed(range(12,18)))]
  for k in range(2):
-  for i in range(6):faces.append((k*6+i,k*6+(i+1)%6,(k+1)*6+(i+1)%6,(k+1)*6+i))
+  for i in range(6):faces.append((k*6+i,(k+1)*6+i,(k+1)*6+(i+1)%6,k*6+(i+1)%6))
  me=bpy.data.meshes.new('faceted crystal');me.from_pydata(verts,[],faces);me.update()
  o=bpy.data.objects.new('faceted crystal',me);bpy.context.collection.objects.link(o);o.data.materials.append(m);return o
 def emit_mat(name,c,strength):
@@ -771,40 +771,73 @@ blueglow=emit_mat('azure magic',(.11,.55,.83),.45)
 violetglow=emit_mat('violet magic',(.45,.25,.85),.45)
 for m,c,seed in [(foreststone,(.25,.32,.19),431),(forestedge,(.33,.36,.24),432),(reefstone,(.095,.24,.32),433),(reefedge,(.18,.35,.42),434),(astralstone,(.20,.14,.31),435),(astraledge,(.30,.23,.43),436)]:
  stone_texture(m,c,seed)
+# Organic rock silhouette: irregular profiles, rounded bevels and outward normals.
+def natural_rock(p,size,m,seed):
+ rng=random.Random(seed)
+ bpy.ops.mesh.primitive_ico_sphere_add(subdivisions=2,radius=1,location=v(p))
+ o=bpy.context.object
+ for vertex in o.data.vertices:
+  co=vertex.co
+  co*=rng.uniform(.86,1.13)
+  co.z=max(-.75,co.z)
+  co.z=min(.78,co.z)
+ o.scale=(size[0]*.55,size[2]*.55,size[1]*.62)
+ o.rotation_euler.z=rng.uniform(-.35,.35)
+ o.data.materials.append(m)
+ return o
+def leaf_rosette(p,seed,m1,m2,length=.58):
+ rng=random.Random(seed)
+ for i in range(7):
+  ang=i*2*pi/7+rng.uniform(-.22,.22)
+  blades(p,ang,length*rng.uniform(.76,1.23),.12,m1 if i%2 else m2)
 # Each biome has three different wall silhouettes, not recolored spheres.
 for variant in range(3):
  clear()
- rock_slab((0,.28,0),(1.44,.62,1.37),foreststone,40+variant)
- for i in range(2):
-  rock_slab(((i-.5)*.69,.67+.07*((i+variant)%2),.04),(.73,.40,.96),forestedge,60+i+variant*8)
- tube([(-.60,.75,.25),(-.28,.86,.29),(.12,.77,.33),(.49,.83,.41)],[.09,.12,.09,.04],bark)
- for i in range(5):
-  a=i*2*pi/5+variant;blades((.22*math.cos(a),.81,.22*math.sin(a)),a,.38,.09,leafbright if i%2 else leafdark)
- if variant==1:
-  for x in [-.26,.22]:
-   cyl((x,.87,.10),.04,.035,.19,bark);ball((x,1.01,.10),(.23,.12,.23),cap)
- export('dungeon_forest_rock_%d'%variant,6000)
- clear()
- rock_slab((0,.27,0),(1.43,.58,1.40),reefstone,110+variant)
+ # Whisperwood: intertwined roots over irregular moss-covered boulders.
+ natural_rock((0,.27,0),(1.36,.56,1.30),foreststone,40+variant)
  for i in range(3):
-  rock_slab(((i-1)*.42,.55+.11*((i+variant)%3),.06),(.54,.39,.94),reefedge,140+i+variant*9)
- for i in range(2):
-  x=(i-.5)*.56;h=.36+.13*((variant+i)%3)
-  tube([(x,.76,0),(x+.03,.9,.03),(x+.13,.76+h,.05)],[.075,.06,.035],coral if i else coral2)
-  tube([(x,.89,0),(x-.14,.99,.04),(x-.21,1.03,.07)],[.04,.04,.022],coral)
- for i in range(3):blades((.1,.72,.15),i*2*pi/3,.44,.07,kelp)
- export('dungeon_reef_rock_%d'%variant,6000)
+  x=(i-1)*.39
+  natural_rock((x,.45+.13*((i+variant)%3),.04),(.58,.48,.90),forestedge,60+i+variant*8)
+  natural_rock((x,.76+.10*((i+variant)%2),-.05),(.48,.18,.60),moss,90+i+variant*5)
+ tube([(-.62,.39,.42),(-.35,.65,.45),(.04,.82,.36),(.39,.64,.32),(.62,.45,.18)],[.11,.12,.095,.07,.035],bark)
+ if variant!=1:
+  leaf_rosette((-.29,.68,.02),41+variant,leafdark,leafbright,.48)
+ else:
+  for x in [-.30,.24]:
+   cyl((x,.80,.12),.045,.035,.23,bark);ball((x,.96,.12),(.26,.15,.25),cap)
+ export('dungeon_forest_rock_%d'%variant,6500)
  clear()
- rock_slab((0,.25,0),(1.44,.53,1.39),astralstone,210+variant)
+ # Coral Depths: basalt terraces with branching, contrasting reef silhouettes.
+ natural_rock((0,.27,0),(1.38,.55,1.36),reefstone,110+variant)
  for i in range(2):
-  rock_slab(((i-.5)*.69,.59+.09*((i+variant)%2),.02),(.73,.47,.96),astraledge,240+i+variant*8)
+  natural_rock(((i-.5)*.66,.47+.11*((i+variant)%2),.02),(.78,.44,1.03),reefedge,140+i+variant*9)
+ for i in range(2+variant%2):
+  x=(i-.5)*.52-.1;h=.43+.16*((variant+i)%3)
+  tube([(x,.56,0),(x+.03,.78,.03),(x+.13,.56+h,.05)],[.09,.073,.038],coral if i else coral2)
+  for side in [-1,1]:
+   tube([(x,.77,0),(x+side*.13,.85,.04),(x+side*.23,.96,.07)],[.052,.04,.022],coral2 if i else coral)
+ if variant==2:leaf_rosette((-.24,.50,.1),100+variant,kelp,leafdark,.62)
+ else:
+  for x in [-.42,.39]:ball((x,.57,.20),(.16,.14,.17),pearl)
+ export('dungeon_reef_rock_%d'%variant,6500)
+ clear()
+ # Starfall: broken masonry, brass traces and tall crystal growth.
+ rock_slab((0,.23,0),(1.40,.50,1.35),astralstone,210+variant)
  if variant==0:
-  box((0,.67,.52),(.43,.085,.055),rune,.01)
-  box((0,.67,.52),(.09,.35,.06),rune,.01)
+  for i in range(3):
+   rock_slab(((i-1)*.41,.58+.055*(i%2),.02),(.49,.35,.90),astraledge,240+i)
+  box((0,.57,.50),(.72,.055,.04),rune,.01)
+  crystal((0,.76,.02),.16,.42,violetglow,1)
+ elif variant==1:
+  rock_slab((-.35,.62,0),(.59,.75,.83),astraledge,251)
+  rock_slab((.32,.39,.1),(.59,.31,.83),astraledge,252)
+  box((-.35,.63,.43),(.085,.48,.035),rune,.012)
+  crystal((.34,.58,.10),.18,.45,star,4)
  else:
   for i in range(3):
-   crystal(((i-1)*.24,.72,.05),.10+.025*i,.24+.17*((variant+i)%3),star if i%2 else violetglow,i)
- export('dungeon_star_rock_%d'%variant,6000)
+   natural_rock(((i-1)*.4,.46,.03),(.53,.35,.80),astraledge,268+i)
+   crystal(((i-1)*.29,.63,.05),.13+.025*i,.31+.18*(i%2),star if i%2 else violetglow,i)
+ export('dungeon_star_rock_%d'%variant,6500)
 # Legacy asset names are replaced, not kept as low-quality fallback art.
 for region,base,accent in [('forest',foreststone,forestedge),('reef',reefstone,reefedge),('star',astralstone,astraledge)]:
  clear()

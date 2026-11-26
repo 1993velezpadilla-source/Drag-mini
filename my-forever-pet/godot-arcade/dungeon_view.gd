@@ -254,7 +254,7 @@ func natural_boundary(points:Array[Vector3])->bool:
 		for i in range(points.size()):
 			if posmod(i+run.floor_number,3)!=variant:continue
 			var angle=float(posmod(i*7+run.floor_number,4))*PI*.5
-			var scale_value=Vector3(1.04,.86+.14*float(posmod(i*13,5))/4.0,1.04)
+			var scale_value=Vector3(1.08,.78+.27*float(posmod(i*13,5))/4.0,1.08)
 			placements.append(Transform3D(Basis(Vector3.UP,angle).scaled(scale_value),points[i]-Vector3(0,.44,0)))
 		if not placements.is_empty():
 			for part in parts:
@@ -292,10 +292,25 @@ func build_floor():
 	for p in walls:foundation.append(p-Vector3(0,.28,0))
 	batch(geometry,foundation,"box",Vector3(1.4,.38,1.4),palette[2],true)
 	wall_decorations=0
-	for i in range(walls.size()):
-		if posmod(i*11+run.floor_number,9)==0:
-			var decoration=prop(geometry,["dungeon_forest_cluster","dungeon_reef_cluster","dungeon_star_cluster"][region],walls[i]+Vector3(0,.45,0))
-			if decoration!=null:decoration.rotation.y=float(i%8)*PI*.25
+	var scenery_points:Array[Vector3]=[]
+	var scenery_seen:Dictionary={}
+	for cell in seen:
+		for direction in Rules.DIR:
+			var q:Vector2i=cell+direction
+			if run.cells.has(q) or seen.has(q) or scenery_seen.has(q):continue
+			scenery_seen[q]=true
+			if posmod(q.x*17+q.y*31+run.floor_number,4)==0:
+				scenery_points.append(pos(q)+Vector3(0,-.45,0))
+	var cluster_file="res://assets/dungeon_"+["forest","reef","star"][region]+"_cluster.glb"
+	for part in rock_parts(cluster_file):
+		if scenery_points.is_empty():break
+		var mm=MultiMesh.new();mm.transform_format=MultiMesh.TRANSFORM_3D;mm.mesh=part.mesh;mm.instance_count=scenery_points.size()
+		for i in range(scenery_points.size()):
+			var scale_value=.85+float(posmod(i*7,5))*.13
+			var transform=Transform3D(Basis(Vector3.UP,float(i%8)*PI*.25).scaled(Vector3.ONE*scale_value),scenery_points[i])
+			mm.set_instance_transform(i,transform*part.transform)
+		var batch_instance=MultiMeshInstance3D.new();batch_instance.multimesh=mm;geometry.add_child(batch_instance)
+		batch_instance.cast_shadow=GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	if not natural_boundary(walls):
 		batch(geometry,walls,"box",Vector3(1.4,.88,1.4),palette[2],true)
 		boundary_detail(walls)
