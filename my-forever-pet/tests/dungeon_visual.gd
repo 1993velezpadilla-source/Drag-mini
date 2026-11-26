@@ -112,6 +112,19 @@ func run():
 		dungeon.map_zoom.pressed.emit()
 		assert(not dungeon.map_expanded and dungeon.map.size==small_map)
 		assert(dungeon.terrain_texture!=null and dungeon.terrain_normal!=null)
+		var baked:Image=dungeon.terrain_texture.get_image()
+		assert(baked.get_size()==Vector2i(128,128) and baked.has_mipmaps(),"bounded mipmapped surface bake")
+		var low_luma=1.0;var high_luma=0.0
+		for yy in range(0,128,4):
+			for xx in range(0,128,4):
+				var luma=baked.get_pixel(xx,yy).get_luminance()
+				low_luma=minf(low_luma,luma);high_luma=maxf(high_luma,luma)
+		assert(high_luma-low_luma>.08,"surface has visible tonal variation")
+		if region<2:
+			assert(dungeon.exterior_surface.material_override is StandardMaterial3D)
+			var outside:StandardMaterial3D=dungeon.exterior_surface.material_override
+			var inside:StandardMaterial3D=dungeon.floor_surface.material_override
+			assert(outside.uv1_scale.x<inside.uv1_scale.x,"exterior and room surface use distinct physical scale")
 		assert(dungeon.exterior_vertex_count>100 and dungeon.exterior_max_height<-.25,"exterior stays below playable floor")
 		var landscape_bounds:AABB=dungeon.exterior_surface.mesh.get_aabb()
 		for cell in dungeon.run.cells:

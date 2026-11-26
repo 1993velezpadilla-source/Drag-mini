@@ -245,21 +245,24 @@ func build_terrain_textures():
 			var relief=0.0
 			if region==0:
 				# Mossy woodland soil: broad irregular patches, flecks of leaf litter, no brick grid.
-				var patch=smoothstep(-.28,.38,h)
+				var patch=smoothstep(-.32,.34,h)
+				var fine=float(posmod(x*73+y*137+x*y*19,101))/100.0
 				var grain=.5+.5*sin(u*TAU*19.0+sin(w*TAU*13.0)*2.0)
-				color=Color(.69,.64,.49).lerp(Color(.75,.80,.58),patch)
-				color=color.darkened(grain*.035)
-				var leaf=smoothstep(.89,.99,sin(u*TAU*8.0+w*TAU*11.0+sin(w*TAU*7.0)*2.0))
-				color=color.lerp(Color(.79,.56,.25),leaf*.14)
-				relief=h*.09+grain*.009
+				color=Color(.59,.51,.36).lerp(Color(.76,.82,.51),patch)
+				color=color.lerp(Color(.47,.53,.31),smoothstep(.26,.55,h)*.35)
+				color=color.darkened((grain*.035+fine*.045))
+				relief=h*.095+grain*.008+fine*.005
 			elif region==1:
 				# Seabed sandstone: crossing ripples and light caustics, no masonry.
-				var ripple=sin(w*TAU*7.0+sin(u*TAU*2.0)*1.45)
-				var wave=sin((u+w)*TAU*3.0+sin(w*TAU*2.0))
-				var caustic=pow(1.0-absf(wave),7.0)
-				color=Color(.54,.69,.72).lerp(Color(.80,.94,.91),clampf(.55+h*.85+ripple*.13,0.0,1.0))
-				color=color.lightened(caustic*.09)
-				relief=h*.09+ripple*.032
+				var ripple=sin(w*TAU*8.0+sin(u*TAU*2.0)*1.45+sin((u+w)*TAU)*1.2)
+				var secondary=sin((u-w)*TAU*5.0+sin(w*TAU*2.0)*1.4)
+				var fine=float(posmod(x*103+y*59+x*y*17,113))/112.0
+				var ridge=smoothstep(.24,.95,ripple)*.75+smoothstep(.64,.99,secondary)*.25
+				# Sandy beds use warm mineral grains and cool troughs; caustics
+				# remain in the separate animated lighting overlay.
+				color=Color(.50,.65,.69).lerp(Color(.87,.92,.78),clampf(.50+h*.72+ridge*.28,0.0,1.0))
+				color=color.darkened(fine*.055)
+				relief=h*.055+ridge*.048+fine*.004
 			else:
 				# Astral ruin: broken rectangular slabs and restrained brass tracery.
 				var py=w*2.0+sin(u*TAU)*.045
@@ -273,6 +276,9 @@ func build_terrain_textures():
 				relief=stone*.12+h*.07
 			img.set_pixel(x,y,color)
 			heights[y*size_px+x]=relief
+	# Periodic authored leaf stamps: organic pointed shapes with a midrib,
+	# not a repeated sine-wave pattern. Wrap both axes for seamless mipmaps.
+	if region==0:stamp_woodland_litter(img,heights,size_px)
 	for y in range(size_px):
 		for x in range(size_px):
 			var dx=heights[y*size_px+posmod(x+1,size_px)]-heights[y*size_px+posmod(x-1,size_px)]
@@ -282,6 +288,25 @@ func build_terrain_textures():
 	img.generate_mipmaps();normals.generate_mipmaps()
 	terrain_texture=ImageTexture.create_from_image(img);terrain_normal=ImageTexture.create_from_image(normals)
 	floor_surface_signature=img.get_data().hex_encode().sha256_text()
+func stamp_woodland_litter(img:Image,heights:PackedFloat32Array,size_px:int):
+	var rng=RandomNumberGenerator.new();rng.seed=48381
+	for i in range(54):
+		var cx=rng.randi_range(0,size_px-1);var cy=rng.randi_range(0,size_px-1)
+		var angle=rng.randf_range(0,TAU)
+		var axis=Vector2(cos(angle),sin(angle));var across=Vector2(-axis.y,axis.x)
+		var length=rng.randf_range(2.5,5.6);var width=rng.randf_range(1.0,2.2)
+		var tint=Color(.66,.37,.15).lerp(Color(.89,.67,.27),rng.randf())
+		for dy in range(-7,8):
+			for dx in range(-7,8):
+				var offset=Vector2(dx,dy)
+				var along=offset.dot(axis)/length;var side=offset.dot(across)/width
+				var silhouette=absf(along)+side*side
+				if silhouette>=1.0:continue
+				var x=posmod(cx+dx,size_px);var y=posmod(cy+dy,size_px)
+				var alpha=(1.0-smoothstep(.65,1.0,silhouette))*.75
+				var vein=1.0-smoothstep(.06,.33,absf(side))
+				img.set_pixel(x,y,img.get_pixel(x,y).lerp(tint.lightened(vein*.18),alpha))
+				heights[y*size_px+x]+=.018*alpha
 func terrain_mat(c:Color)->StandardMaterial3D:
 	if terrain_mats.has(c):return terrain_mats[c]
 	var m=StandardMaterial3D.new();m.albedo_color=c;m.albedo_texture=terrain_texture;m.roughness=.84
@@ -961,8 +986,8 @@ func build_exterior_surface():
 	var vertices=PackedVector3Array();var normals=PackedVector3Array();var colors=PackedColorArray();var indices=PackedInt32Array();var uvs=PackedVector2Array()
 	var heights=PackedFloat32Array();heights.resize(width*depth)
 	exterior_max_height=-1.0
-	var deep:Color=[Color("#253d28"),Color("#163c4c"),Color("#24243e")][region]
-	var raised:Color=[Color("#57684b"),Color("#3b6d77"),Color("#5c537f")][region]
+	var deep:Color=[Color("#344c2b"),Color("#235063"),Color("#24243e")][region]
+	var raised:Color=[Color("#788052"),Color("#6b9696"),Color("#5c537f")][region]
 	var distant:Color=[Color("#132c26"),Color("#102c56"),Color("#292851")][region]
 	var broad=FastNoiseLite.new();broad.seed=noise.seed+991;broad.frequency=.075
 	for y in range(depth):
@@ -997,6 +1022,12 @@ func build_exterior_surface():
 			heights[y*width+x]=h;exterior_max_height=maxf(exterior_max_height,h)
 			vertices.append(Vector3(q.x*1.4,h,q.y*1.4));uvs.append(Vector2(q))
 			var color=deep.lerp(raised,clampf(.43+n*.57,0.0,1.0))
+			# Biome-scale patches are sampled in world space, not per room.
+			var sediment=broad.get_noise_2d(q.x+31.0,q.y-19.0)
+			if region==0:
+				color=color.lerp(Color("#8a7950"),smoothstep(.04,.55,sediment)*.48*(1.0-support*.45))
+			elif region==1:
+				color=color.lerp(Color("#9bb5a2"),smoothstep(-.05,.53,sediment)*.55*(1.0-depth_factor*.75))
 			color=color.lerp(distant,depth_factor*.75)
 			var cloud=broad.get_noise_2d(q.x,q.y)
 			if region==2:color=color.lerp(Color("#8070a8"),smoothstep(-.05,.55,cloud)*depth_factor*.42)
@@ -1020,6 +1051,10 @@ func build_exterior_surface():
 	exterior_surface=MeshInstance3D.new();exterior_surface.mesh=surface
 	var material=terrain_mat(Color.WHITE).duplicate() as StandardMaterial3D
 	material.vertex_color_use_as_albedo=true
+	# Exterior soil and sand read at a broader scale than the walkable floor.
+	if region<2:
+		material.uv1_scale=Vector3.ONE*(.15 if region==0 else .21)
+		material.normal_scale=.30
 	if region==2:material.albedo_texture=null;material.normal_enabled=false
 	exterior_surface.material_override=star_cloud_material() if region==2 else material
 	geometry.add_child(exterior_surface)
