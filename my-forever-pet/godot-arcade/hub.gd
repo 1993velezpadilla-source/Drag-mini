@@ -28,6 +28,8 @@ var daily_cta:Button
 var care_cta:Button
 var reward_row:HBoxContainer
 var reward_audio:AudioStreamPlayer
+var action_controls:Array[Button]=[]
+var reward_sounds:Dictionary={}
 var collection_filter="All"
 var collection_feature=3
 var collection_grid:GridContainer
@@ -244,7 +246,7 @@ func nav_tile(parent:Node,tab:String):
 	b.add_theme_stylebox_override("normal",StyleBoxEmpty.new())
 	nav_buttons[tab]=b
 func reset_actions(columns:int=0):
-	context_labels.clear(); context_bars.clear(); cell_tiles.clear()
+	context_labels.clear(); context_bars.clear(); cell_tiles.clear(); action_controls.clear()
 	for child in actions.get_children(): actions.remove_child(child); child.queue_free()
 	action_grid=null
 	if columns>0:
@@ -271,6 +273,26 @@ func quick(name:String,id:String,i:int=0):
 	var path="res://assets/"+str(ACTION_ART.get(id,"premium_star.png"))
 	var b=art_tile(action_grid,name,path,func(): perform(id,i),82 if section=="Home" else 66,13,id)
 	if section=="Home": paint_action(b,id)
+	register_action(b,id,i)
+func register_action(b:Button,id:String,i:int):
+	b.set_meta("action_id",id); b.set_meta("action_arg",i); b.set_meta("original_label",b.tooltip_text if not b.tooltip_text.is_empty() else b.text)
+	b.add_theme_stylebox_override("disabled",skin(Color("#24243c"),Color("#65617c")))
+	action_controls.append(b)
+func update_action_controls():
+	for b in action_controls:
+		if not is_instance_valid(b): continue
+		var id:String=b.get_meta("action_id"); var i:int=b.get_meta("action_arg")
+		var reason:String=store.action_block(id,i)
+		var caption:String=b.get_meta("original_label")
+		if id in ["sleep","lamp"]: caption="Wake" if store.asleep(store.now()) else "Sleep"
+		if id=="auto": caption="Auto sleep: ON" if store.s.auto_sleep else "Auto sleep: OFF"
+		if id=="harvest" and store.s.garden_at>store.now(): caption=time_text(store.garden_remaining(store.now()))
+		b.disabled=not reason.is_empty(); b.tooltip_text=reason if b.disabled else caption
+		b.modulate=Color("#a7a6bc") if b.disabled else Color.WHITE
+		if b.get_child_count()>0 and b.get_child(0) is VBoxContainer:
+			var title=b.get_child(0).get_child(1)
+			title.text=caption
+		else: b.text=caption
 func paint_action(b:Button,id:String):
 	var tint=Color(ACTION_COLORS.get(id,"#9271d9"))
 	b.add_theme_stylebox_override("normal",skin(tint.darkened(.55),tint.lightened(.40)))
@@ -289,6 +311,7 @@ func perform(id:String,i:int=0):
 		if store.care_count()>old_care: notice.text+="  •  Care %d/4"%mini(4,store.care_count())
 		if store.level()>old_level: notice.text+="  •  LEVEL UP!"
 		if id=="care_claim" and int(before.care_claims)<4: notice.text="NEW COMPANION: "+store.SPECIES[24+int(before.care_claims)]
+		if id=="care_claim": show_care_reward(int(before.care_claims))
 		play_reward(id=="care_claim" or store.level()>old_level or store.care_count()>old_care)
 	else:
 		notice.text=reason_for(id,i)
@@ -299,8 +322,25 @@ func perform(id:String,i:int=0):
 	if section=="Shop": select("Shop")
 	if section=="Care Quest": select("Care Quest")
 	if section=="Pets" and id=="form": show_collection()
+func show_care_reward(previous:int):
+	var popup=AcceptDialog.new()
+	popup.title="Care chest unlocked!"
+	popup.ok_button_text="Collect & continue"
+	popup.add_theme_stylebox_override("panel",skin(Color("#51316d"),Color("#ffd48a")))
+	var content=VBoxContainer.new(); content.add_theme_constant_override("separation",12); popup.add_child(content)
+	var image=TextureRect.new(); image.texture=tex("res://assets/pet_%d.png"%(24+previous)) if previous<4 else GameIcons.texture("daily")
+	image.custom_minimum_size=Vector2(260,220); image.expand_mode=TextureRect.EXPAND_IGNORE_SIZE; image.stretch_mode=TextureRect.STRETCH_KEEP_ASPECT_CENTERED; content.add_child(image)
+	var heading=label(content,store.SPECIES[24+previous]+" unlocked!" if previous<4 else "Care adventure complete!",23); heading.horizontal_alignment=HORIZONTAL_ALIGNMENT_CENTER; heading.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART
+	var reward=label(content,"+25 coins    +2 materials    +15 XP",17); reward.horizontal_alignment=HORIZONTAL_ALIGNMENT_CENTER
+	if previous<4:
+		var b=button(content,"View new companion",func(): popup.hide(); collection_feature=24+previous; select("Pets")); b.custom_minimum_size.y=48
+	popup.confirmed.connect(popup.queue_free)
+	popup.canceled.connect(popup.queue_free)
+	add_child(popup); popup.popup_centered(Vector2i(340,390))
 func play_reward(big:bool):
 	if not is_instance_valid(reward_audio): return
+	if reward_sounds.has(big):
+		reward_audio.stream=reward_sounds[big]; reward_audio.play(); return
 	var sample_rate=22050
 	var count=4410 if big else 2205
 	var bytes=PackedByteArray(); bytes.resize(count*2)
@@ -310,8 +350,11 @@ func play_reward(big:bool):
 		var env=sin(PI*float(j)/count)*exp(-t*3)
 		bytes.encode_s16(j*2,int(sin(TAU*freq*t)*env*9000))
 	var audio=AudioStreamWAV.new(); audio.format=AudioStreamWAV.FORMAT_16_BITS; audio.mix_rate=sample_rate; audio.data=bytes
+	reward_sounds[big]=audio
 	reward_audio.stream=audio; reward_audio.play()
 func reason_for(id:String,i:int)->String:
+	var block:String=store.action_block(id,i)
+	if not block.is_empty(): return block
 	var s:Dictionary=store.s
 	if s.stage==0: return "Hatch your egg first"
 	if id=="daily": return "Daily gift already collected"
@@ -335,15 +378,19 @@ func show_feedback(message:String,id:String):
 	p.add_theme_stylebox_override("panel",skin(Color("#36265d"),Color("#c6acff")))
 	p.set_anchors_and_offsets_preset(PRESET_CENTER_TOP)
 	p.offset_left=-170; p.offset_right=170; p.offset_top=40; p.offset_bottom=80
+	if live_stage.camera_safe.has_area():
+		p.offset_top=live_stage.camera_safe.position.y+22; p.offset_bottom=p.offset_top+48
 	feedback_layer.add_child(p)
 	var l=label(p,message,16); l.horizontal_alignment=HORIZONTAL_ALIGNMENT_CENTER; l.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART; l.mouse_filter=MOUSE_FILTER_IGNORE
+	p.modulate.a=0.0
 	var tw=p.create_tween()
-	tw.tween_interval(0.9)
+	tw.tween_property(p,"modulate:a",1.0,.13)
+	tw.tween_interval(1.1)
 	tw.tween_property(p,"modulate:a",0.0,0.35)
 	tw.tween_callback(p.queue_free)
 func add_action(name:String,id:String,i:int=0):
 	if is_instance_valid(action_grid): quick(name,id,i)
-	else: button(actions,name,func(): perform(id,i))
+	else: register_action(button(actions,name,func(): perform(id,i)),id,i)
 func showcase_card(name:String,detail:String,path:String,fn:Callable):
 	var shell=panel(actions)
 	var h=row(shell)
@@ -652,7 +699,7 @@ func refresh():
 	live_stage.set_pet(store.species(),int(s.stage))
 	live_stage.set_night(night)
 	live_stage.set_sleeping(store.asleep(store.now()))
-	live_stage.set_theme(int(s.theme))
+	live_stage.set_room_lighting(int(s.theme))
 	live_stage.set_installation(int(s.installation))
 	live_stage.set_crop(float(s.garden_at),store.now())
 	live_stage.dress(s.worn,int(s.equipped))
@@ -670,6 +717,7 @@ func set_context(key:String,message:String,progress:float=-1.0):
 	if context_labels.has(key) and is_instance_valid(context_labels[key]): context_labels[key].text=message
 	if progress>=0 and context_bars.has(key) and is_instance_valid(context_bars[key]): context_bars[key].value=clampf(progress,0,100)
 func update_context():
+	update_action_controls()
 	var s:Dictionary=store.s
 	var now:float=store.now()
 	set_context("care_quest","%d / 4 different activities • %d chests earned"%[mini(4,store.care_count()),s.care_claims],mini(100,store.care_count()*25))

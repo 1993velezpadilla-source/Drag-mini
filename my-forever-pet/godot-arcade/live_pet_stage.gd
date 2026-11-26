@@ -159,7 +159,7 @@ func set_room(id:String):
 		world.remove_child(room_node); room_node.queue_free()
 	room_node=mesh(world,"res://assets/rooms/"+id+".glb",Vector3.ZERO)
 	if room_node==null: push_error("Missing live room "+id)
-func set_theme(index:int):
+func set_room_lighting(index:int):
 	if index==theme_index or not is_instance_valid(accent_light): return
 	theme_index=clampi(index,0,2)
 	accent_light.light_color=[Color("#ffbe91"),Color("#65d9ff"),Color("#c18aff")][theme_index]

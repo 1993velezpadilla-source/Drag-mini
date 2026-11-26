@@ -161,6 +161,45 @@ func save_game():
 func feed(i:int):
 	s.hunger=mini(5,int(s.hunger)+1); s.foods[i]+=1; s.toilet=maxi(0,int(s.toilet)-3)
 	if i==species()%4: s.happy=mini(10,int(s.happy)+1); s.bond=mini(100,int(s.bond)+1)
+# Read-only action status used by every care control. The authoritative
+# action still validates state and time when executed.
+func action_block(id:String,i:int=0)->String:
+	var at=now()
+	if id=="hatch": return "" if s.stage==0 else "Already hatched"
+	if id=="field": return "" if s.stage<=1 and i>=0 and i<3 else "Habitat fixed after baby stage"
+	if id=="auto": return ""
+	if s.stage==0: return "Hatch your egg first"
+	match id:
+		"daily": return "Come back tomorrow" if s.daily_day==date_key(at) else ""
+		"care_claim": return "" if care_ready() else "Complete four different care activities"
+		"clean": return "" if s.waste>0 else "Habitat is clean"
+		"sleep","lamp": return "Pet is exploring" if s.trip_end>at else ""
+		"plant": return "Crop already planted" if s.garden_at>0 else "Requires 5 coins" if s.coins<5 else ""
+		"harvest": return "Plant a seed first" if s.garden_at==0 else "Ready in "+str(ceili((s.garden_at-at)/60))+" min" if s.garden_at>at else ""
+		"theme": return "" if i>=0 and i<3 and (i==0 or level()>=i+1) else "Unlocks at level "+str(i+1)
+		"craft": return "" if s.materials>=3 else "Requires 3 materials"
+		"loot": return "" if s.pending[0]>0 else "No rewards to collect"
+		"quest": return "" if i>=0 and i<3 and (int(s.quests)&(1<<i))!=0 and (int(s.claimed)&(1<<i))==0 else "Quest not ready or already claimed"
+		"secret": return "" if s.stage==4 and s.variant==0 and s.bond>=30 and s.training>=10 and s.crystals>=3 else "Adult, 30 bond, 10 training, 3 crystals"
+	if id in ["food","cook","snack","medicine","cell","soap","rinse","bath","toilet","bond","play","toy","train","praise","trip","friend","breed"]:
+		if s.trip_end>at: return "Pet is exploring"
+		if asleep(at): return "Wake your pet first"
+	match id:
+		"food":
+			if i<0 or i>=FOODS.size(): return "Unknown food"
+			return "Pet is full" if s.hunger>=5 else "Requires "+str(FOOD_COST[i])+" coins" if s.coins<FOOD_COST[i] else ""
+		"cook": return "Pet is full" if s.hunger>=5 else "Requires 2 materials" if s.materials<2 else ""
+		"snack": return "No snacks" if s.snacks<=0 else "Pet is full and happy" if s.hunger>=5 and s.happy>=10 else ""
+		"medicine": return "No medicine" if s.medicine<=0 else "Pet is healthy" if s.germs==0 else ""
+		"cell": return "" if s.germs>0 else "All cells healthy"
+		"soap": return "Rinse first" if s.soap>=3 else "Pet is clean" if s.hygiene>=100 else ""
+		"rinse": return "" if s.soap>0 else "Apply soap first"
+		"bath": return "Pet is clean" if s.hygiene>=100 and s.soap==0 else ""
+		"toilet": return "" if s.toilet<100 else "No bathroom need"
+		"bond","play","toy","train","praise":
+			var cost=4 if id=="train" else 3 if id in ["play","toy"] else 0
+			return "Needs rest" if s.energy<cost else ""
+	return ""
 func action(id:String,i:int=0)->bool:
 	var at=now()
 	advance(at)
