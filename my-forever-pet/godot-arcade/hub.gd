@@ -85,6 +85,7 @@ var assets:Dictionary={}
 var pixel_assets:Dictionary={}
 const ROOMS={"Kitchen":"room_kitchen","Bathroom":"room_bathroom","Bedroom":"room_bedroom","Toy room":"room_toy","Garden":"room_garden","Potion lab":"room_lab"}
 func tex(path:String)->Texture2D:
+	if path=="res://assets/pet_0.png" or path=="res://assets/pet_sleep_0.png": return PixelArt.portrait(path)
 	if not assets.has(path) and ResourceLoader.exists(path): assets[path]=load(path)
 	return assets.get(path) as Texture2D
 # Cache pixel portraits once; never resize or recolor on every refresh.
@@ -212,7 +213,7 @@ func make_ui():
 	var head=row(header)
 	identity_art=TextureRect.new(); identity_art.custom_minimum_size=Vector2(48,48); identity_art.expand_mode=TextureRect.EXPAND_IGNORE_SIZE; identity_art.stretch_mode=TextureRect.STRETCH_KEEP_ASPECT_CENTERED; head.add_child(identity_art)
 	var identity=VBoxContainer.new(); identity.size_flags_horizontal=SIZE_EXPAND_FILL; identity.add_theme_constant_override("separation",2); head.add_child(identity)
-	title_label=label(identity,"Mosskit",21); title_label.clip_text=true
+	title_label=label(identity,"Mosky",21); title_label.clip_text=true
 	xp_bar=ProgressBar.new(); xp_bar.show_percentage=false; xp_bar.custom_minimum_size.y=8; xp_bar.max_value=100
 	xp_bar.add_theme_stylebox_override("background",bar_skin(Color("#101530"),Color("#5e6caa")))
 	xp_bar.add_theme_stylebox_override("fill",bar_skin(Color("#9465e5"),Color("#c9a7ff")))
@@ -392,7 +393,7 @@ func perform(id:String,i:int=0):
 				if (int(before.collection)&(1<<species_id))==0 and (int(store.s.collection)&(1<<species_id))!=0:
 					new_companion=species_id;break
 			if new_companion>=24:notice.text="NEW COMPANION: "+store.SPECIES[new_companion]
-		if id=="field": notice.text="Egg lineage: "+store.FIELDS[i] if store.s.stage==0 else "Habitat preference: "+store.FIELDS[i]+" • Same pet"
+		if id=="field": notice.text="Habitat preference: "+store.FIELDS[i] if store.s.stage==0 else "Habitat preference: "+store.FIELDS[i]+" • Same pet"
 		if id=="care_claim": show_care_reward(new_companion)
 		play_reward(id=="care_claim" or store.level()>old_level or store.care_count()>old_care)
 	else:
@@ -1209,7 +1210,7 @@ func refresh():
 	live_stage.set_night(night)
 	live_stage.set_sleeping(store.asleep(store.now()))
 	live_stage.set_mood("sick" if s.germs>0 else "healthy")
-	pet_status.text="Tap to hatch • Choose lineage below" if s.stage==0 else room_hint()
+	pet_status.text="Tap to hatch Mosky" if s.stage==0 else room_hint()
 	live_stage.set_room_lighting(int(s.theme))
 	live_stage.set_installation(int(s.installation))
 	live_stage.set_crop(float(s.garden_at),store.now())

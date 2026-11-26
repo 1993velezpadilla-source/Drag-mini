@@ -46,7 +46,40 @@ static func mosskit(pose:String)->Image:
 	ellipse(im,Vector2(24,35),Vector2(2,1),pink)
 	return im
 
+static func mosskit_back(step:int)->Image:
+	var img:=Image.create(48,48,false,Image.FORMAT_RGBA8)
+	img.fill(Color.TRANSPARENT)
+	var outline:=Color("#24421d")
+	var shade:=Color("#4b912d")
+	var mid:=Color("#78c83d")
+	var light:=Color("#a4e85b")
+	for side in [-1,1]:
+		var foot_y:=41.0+float(step*side)
+		var foot:=Vector2(24+side*10,foot_y)
+		ellipse(img,foot,Vector2(8,5),outline)
+		ellipse(img,foot+Vector2(0,-1),Vector2(6,3),shade)
+		ellipse(img,foot+Vector2(-1,-2),Vector2(4,2),mid)
+		var ear:=Vector2(24+side*12,11)
+		ellipse(img,ear,Vector2(6,10),outline)
+		ellipse(img,ear+Vector2(0,-1),Vector2(4,8),mid)
+		ellipse(img,ear+Vector2(-1,-3),Vector2(2,4),light)
+	ellipse(img,Vector2(24,10),Vector2(5,6),outline)
+	ellipse(img,Vector2(24,9),Vector2(3,4),light)
+	ellipse(img,Vector2(24,26),Vector2(19,17),outline)
+	ellipse(img,Vector2(24,26),Vector2(17,15),shade)
+	ellipse(img,Vector2(23,23),Vector2(16,13),mid)
+	ellipse(img,Vector2(18,17),Vector2(9,4),light)
+	for side in [-1,1]:
+		ellipse(img,Vector2(24+side*11,23),Vector2(4,4),shade)
+		ellipse(img,Vector2(23+side*11,22),Vector2(3,3),light)
+	ellipse(img,Vector2(24,36),Vector2(6,6),outline)
+	ellipse(img,Vector2(24,35),Vector2(5,5),shade)
+	ellipse(img,Vector2(23,34),Vector2(3,3),light)
+	return img
+
+
 static func source_image(path:String)->Image:
+	if path=="res://assets/pet_rear_0.png": return mosskit_back(0)
 	if path=="res://assets/pet_0.png": return mosskit("idle")
 	if path=="res://assets/pet_sleep_0.png": return mosskit("sleep")
 	if not ResourceLoader.exists(path): return null

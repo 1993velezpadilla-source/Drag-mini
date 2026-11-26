@@ -223,6 +223,7 @@ func set_crop(ready_at:float,now:float):
 					var angle=float(j)*TAU/3
 					crop_shape(garden_crop,Vector3(x+cos(angle)*.20,1.17+growth*.42,z+sin(angle)*.20),Vector3(.17,.19,.17),Color("#ff628e"))
 func set_pet(species:int,stage:int):
+	species=0 # One visible companion; never instantiate retired species.
 	if species==active_species and stage==active_stage: return
 	active_species=species; active_stage=stage
 	framing_key=""

@@ -1,4 +1,5 @@
 extends Node3D
+const PixelArt=preload("res://pixel_pet_art.gd")
 # Standalone 3D vertical slice; no native wallet writes yet.
 const LANES := [-2.0, 0.0, 2.0]
 const SEGMENT := 18.0
@@ -571,35 +572,7 @@ func pixel_ellipse(img:Image, center:Vector2, radii:Vector2, tint:Color) -> void
 			if q.length_squared()<=1.0: img.set_pixel(x,y,tint)
 
 func mosskit_back_frame(step:int) -> Texture2D:
-	var img:=Image.create(48,48,false,Image.FORMAT_RGBA8)
-	img.fill(Color.TRANSPARENT)
-	var outline:=Color("#24421d")
-	var shade:=Color("#4b912d")
-	var mid:=Color("#78c83d")
-	var light:=Color("#a4e85b")
-	for side in [-1,1]:
-		var foot_y:=41.0+float(step*side)
-		var foot:=Vector2(24+side*10,foot_y)
-		pixel_ellipse(img,foot,Vector2(8,5),outline)
-		pixel_ellipse(img,foot+Vector2(0,-1),Vector2(6,3),shade)
-		pixel_ellipse(img,foot+Vector2(-1,-2),Vector2(4,2),mid)
-		var ear:=Vector2(24+side*12,11)
-		pixel_ellipse(img,ear,Vector2(6,10),outline)
-		pixel_ellipse(img,ear+Vector2(0,-1),Vector2(4,8),mid)
-		pixel_ellipse(img,ear+Vector2(-1,-3),Vector2(2,4),light)
-	pixel_ellipse(img,Vector2(24,10),Vector2(5,6),outline)
-	pixel_ellipse(img,Vector2(24,9),Vector2(3,4),light)
-	pixel_ellipse(img,Vector2(24,26),Vector2(19,17),outline)
-	pixel_ellipse(img,Vector2(24,26),Vector2(17,15),shade)
-	pixel_ellipse(img,Vector2(23,23),Vector2(16,13),mid)
-	pixel_ellipse(img,Vector2(18,17),Vector2(9,4),light)
-	for side in [-1,1]:
-		pixel_ellipse(img,Vector2(24+side*11,23),Vector2(4,4),shade)
-		pixel_ellipse(img,Vector2(23+side*11,22),Vector2(3,3),light)
-	pixel_ellipse(img,Vector2(24,36),Vector2(6,6),outline)
-	pixel_ellipse(img,Vector2(24,35),Vector2(5,5),shade)
-	pixel_ellipse(img,Vector2(23,34),Vector2(3,3),light)
-	return ImageTexture.create_from_image(img)
+	return ImageTexture.create_from_image(PixelArt.mosskit_back(step))
 
 func make_pixel_runner() -> void:
 	var store=get_node_or_null("/root/PetStore")
