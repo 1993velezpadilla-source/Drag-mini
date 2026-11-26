@@ -152,11 +152,21 @@ def ears(m,head_y,front,kind):
    limb('inner rabbit ear',(side*.38,head_y+.39,front+.16),(side*.50,head_y+.91,front+.09),.19,pink)
 def tail(m,points,w):
  for a,b in zip(points,points[1:]):limb('tail',a,b,w,m)
-def wing(side,m,accent,y=.95):
- # Sculpted wing with separate membrane and fingers; extends outward and backward.
- shape('wing membrane',(side*.90,y+.12,-.35),(.83,.87,.19),accent)
- for j in range(3):
-  limb('wing finger',(side*.53,y,-.28),(side*(1.10+j*.12),y+.45-j*.32,-.44),.12,m)
+def wing(side,m,accent,y=.95,dragon=False):
+ # A separate shaped membrane, rather than another spherical body part.
+ if dragon:
+  outline=[(.49,0),(.66,.58),(1.22,.83),(1.48,.62),(1.25,.23),(1.02,.34),(.96,-.10),(.76,.05),(.65,-.27)]
+ else:
+  outline=[(.49,0),(.65,.42),(1.02,.64),(1.36,.50),(1.30,.14),(1.01,-.02),(1.10,-.33),(.82,-.40),(.60,-.21)]
+ mesh=bpy.data.meshes.new('wing outline')
+ coords=[v((side*x,y+dy,-.36-.16*(x-.49))) for x,dy in outline]
+ mesh.from_pydata(coords,[],[list(range(len(coords)))]);mesh.update()
+ ob=bpy.data.objects.new('sculpted wing membrane',mesh);bpy.context.scene.collection.objects.link(ob);finish(ob,accent)
+ mod=ob.modifiers.new('membrane thickness','SOLIDIFY');mod.thickness=.055
+ mod=ob.modifiers.new('soft edges','BEVEL');mod.width=.025;mod.segments=3
+ for j in ([2,4,6,8] if dragon else [2,4,7]):
+  x,dy=outline[j]
+  limb('wing rib',(side*.49,y,-.32),(side*x,y+dy,-.36-.16*(x-.49)),.075,m)
 def validate_eyes(eyes,species):
  bpy.context.view_layer.update()
  scene=bpy.context.scene;deps=bpy.context.evaluated_depsgraph_get()
@@ -169,7 +179,9 @@ for species in range(1,24):
  clear()
  i=species%12;secret=species>=12
  family=families[i];rgb=palettes[i]
- if secret:rgb=tuple(min(1,c*.65+.14) for c in rgb)
+ if secret:
+  secret_palette=[(.18,.60,.25),(.20,.28,.53),(.45,.20,.10),(.95,.35,.07),(.27,.73,.74),(.36,.15,.67),(.19,.53,.57),(.08,.62,.75),(.85,.46,.12),(.43,.20,.78),(.67,.48,.77),(.20,.23,.42)]
+  rgb=secret_palette[i]
  m=mat('skin_%02d'%species,rgb,0,.44)
  a=mat('accent_%02d'%species,tuple(min(1,c*.68+.28) for c in rgb),0,.53)
  if family in ('cat','dog','rabbit'):
@@ -197,14 +209,14 @@ for species in range(1,24):
    limb('arm',(side*.43,.90,.20),(side*.53,.56,.43),.25,m)
    if family=='dragon':
     tip('horn',(side*.46,2.16,.10),.55,.17,gold,side*.25)
-    wing(side,m,a,1.02)
+    wing(side,m,a,1.02,True)
   feet(m,.20,.45,.38,.61)
   tail(m,[(0,.50,-.65),(.35,.38,-1.0),(.82,.46,-1.17),(1.12,.70,-1.13)],.33)
   for j in range(5):tip('dorsal spike',(0,1.63-j*.22,-.48-j*.13),.23,.12,gold)
   eyes=face(0,1.64,.72,.34,.77)
  elif family=='fish':
   shape('fish body',(0,.97,0),(1.40,1.30,1.34),m)
-  shape('fish belly',(0,.65,.43),(.86,.63,.39),fur)
+  shape('fish belly',(0,.54,.36),(.72,.40,.47),fur)
   for side in [-1,1]:
    limb('pectoral fin',(side*.58,.91,-.04),(side*.97,.60,-.25),.32,a)
    limb('tail lobe',(0,.98,-.65),(side*.43,1.25,-1.04),.36,a)
@@ -249,11 +261,29 @@ for species in range(1,24):
    limb('petal ear',(side*.45,1.68,.06),(side*.76,1.98,-.06),.27,a)
   flower((0,1.97,.34),1.3)
   eyes=face(0,1.50,.63,.28,.85)
- # Secret forms are intentional accessories behind the face, never a sphere over it.
+ # Each secret evolution changes the silhouette in a family-specific manner.
  if secret:
-  for side in [-1,1]:
-   shape('secret shoulder gem',(side*.47,.87,.32),(.19,.26,.14),gold)
-  shape('secret chest gem',(0,.65,.53),(.18,.23,.12),gold)
+  if family in ('cat','dog','rabbit'):
+   for side in [-1,1]:
+    limb('moon fur plume',(side*.35,.52,-.54),(side*.87,1.02,-.82),.23,a)
+   shape('chest jewel',(0,.65,.55),(.18,.23,.12),gold)
+  elif family in ('dragon','dinosaur'):
+   for j in range(4):tip('evolved spine',(0,1.84-j*.24,-.40-j*.14),.36,.15,gold)
+   for side in [-1,1]:shape('arm armor',(side*.53,.71,.40),(.18,.25,.12),gold)
+  elif family in ('fish','jelly'):
+   for side in [-1,1]:
+    limb('reef streamer',(side*.48,.81,-.31),(side*.89,.26,-.62),.18,a)
+   for j in range(3):shape('bioluminescent mark',((j-1)*.16,1.62,.41),(.09,.09,.07),gold)
+  elif family=='alien':
+   for side in [-1,1]:
+    limb('stellar antenna branch',(side*.44,1.94,-.08),(side*.76,2.18,-.14),.095,a)
+    shape('antenna jewel',(side*.76,2.18,-.14),(.14,.14,.14),water)
+  elif family in ('bird','owl'):
+   for j in range(5):limb('royal tail feather',((j-2)*.11,.68,-.45),((j-2)*.25,1.28,-.91),.19,gold)
+  else:
+   for side in [-1,1]:
+    limb('flower crown leaf',(side*.36,1.92,-.05),(side*.62,2.18,-.21),.18,green)
+   flower((0,2.12,.08),1.3)
  validate_eyes(eyes,species)
  export('species_%02d'%species,42000)
 with open(os.path.join(OUT,'creature-metrics.json'),'w') as f:json.dump(stats,f,indent=2)
