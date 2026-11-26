@@ -1694,25 +1694,43 @@ export('dungeon_star_vista',6500)
 # foliage and reef geometry. Designed for non-walkable exterior cells only.
 clear()
 autumn=mat('amber woodland canopy',(.46,.20,.045),0,.78)
-# Mature broadleaf tree: tall tapered trunk and spreading asymmetric branches.
-tube([(0,0,0),(-.14,.66,.05),(.04,1.37,-.06),(.22,2.25,.04)],[.36,.27,.18,.065],bark,12)
-for i in range(5):
- a=i*2*pi/5+.4;dx=math.cos(a);dz=math.sin(a)
- tube([(0,.27,0),(.48*dx,.14,.48*dz),(.92*dx,.035,.92*dz)],[.16,.095,.026],bark,8)
- h=1.77+.12*(i%3)
- tube([(.02,1.15,0),(.37*dx,h-.18,.37*dz),(.66*dx,h+.34,.66*dz)],[.12,.08,.025],bark,9)
- woodland_crown((.66*dx,h+.39,.66*dz),(1.18,.65,1.03),3000+i,leafdark if i%2 else moss)
- for j in range(5):
-  ang=j*2*pi/5+i
-  crown_leaf((.66*dx+.33*math.cos(ang),h+.64,.66*dz+.33*math.sin(ang)),ang,.30,.11,leafbright)
-woodland_crown((.22,2.64,.04),(1.44,.69,1.32),3010,moss)
-# Small autumnal tree, distinct silhouette and a warm seasonal accent.
-tube([(-.85,0,.46),(-.91,.67,.46),(-.70,1.31,.43)],[.15,.105,.028],bark,9)
-for i in range(3):
- ang=i*2*pi/3
- woodland_crown((-.70+.26*math.cos(ang),1.39+.14*(i%2),.43+.27*math.sin(ang)),(.72,.44,.67),3020+i,autumn)
-for i in range(3):
- ang=i*2*pi/3;leaf_rosette((.58*math.cos(ang),.05,.58*math.sin(ang)),3030+i,leafdark,leafbright,.48,fronds=4,pairs=3)
+# Ancient split-trunk oak with asymmetric, overlapping sprays. The canopy
+# silhouettes use visible leaf tips on outer edges, not only on the top.
+spring_leaf=mat('woodland spring leaf',(.27,.48,.09),0,.74)
+gold_leaf=mat('woodland golden leaf',(.72,.37,.055),0,.78)
+tube([(0,.02,0),(-.12,.58,.06),(-.07,1.18,-.07),(.10,1.78,-.11),(.22,2.23,.04)],[.29,.25,.19,.13,.045],bark,12)
+for i in range(6):
+ a=i*2*pi/6+.23;dx=math.cos(a);dz=math.sin(a)
+ tube([(0,.39,0),(.31*dx,.23,.31*dz),(.59*dx,.09,.59*dz),(.99*dx,.02,.99*dz)],[.15,.12,.075,.018],bark,8)
+ # Different branch elevations create open windows through the canopy.
+ h=1.65+.14*(i%3)+.09*math.sin(i*2.2)
+ x=.62*dx;z=.62*dz
+ tube([(-.06,1.10,0),(.32*dx,h-.19,.30*dz),(x,h+.26,z)],[.12,.076,.024],bark,9)
+ tube([(.32*dx,h-.19,.30*dz),(x-.18*dz,h+.04,z+.18*dx),(x-.27*dz,h+.13,z+.27*dx)],[.075,.045,.017],bark,7)
+ woodland_crown((x,h+.30,z),(.96,.48,.90),3000+i,leafdark if i%2 else moss)
+ woodland_crown((x-.25*dz,h+.13,z+.25*dx),(.58,.34,.54),3040+i,spring_leaf)
+ for j in range(11):
+  ang=j*2*pi/11+i*.5
+  reach=.31+.035*math.sin(j*3.1)
+  y=h+.27+.13*math.sin(j*1.6)
+  crown_leaf((x+reach*math.cos(ang),y,z+reach*math.sin(ang)),ang,.30+.04*(j%3),.10,leafbright if j%3==0 else spring_leaf)
+woodland_crown((.18,2.63,.02),(1.25,.58,1.15),3010,moss)
+for j in range(14):
+ a=j*2*pi/14
+ crown_leaf((.18+.40*math.cos(a),2.70+.06*math.sin(j*2),.02+.36*math.sin(a)),a,.31,.11,spring_leaf if j%2 else leafbright)
+# A different tree species: narrow fork, tiered hanging sprays, warm leaf edges.
+tube([(-.93,0,.39),(-1.00,.48,.39),(-.90,.92,.40),(-.77,1.55,.34)],[.15,.11,.075,.022],bark,9)
+for i in range(4):
+ ang=i*2*pi/4+.35;dx=math.cos(ang);dz=math.sin(ang)
+ x=-.84+.29*dx;z=.37+.29*dz;y=1.20+.13*i
+ tube([(-.92,.78,.39),(x,y-.18,z),(x+.14*dx,y,z+.14*dz)],[.064,.045,.012],bark,7)
+ woodland_crown((x,y,z),(.66,.38,.60),3020+i,autumn)
+ for j in range(7):
+  a=j*2*pi/7+ang
+  crown_leaf((x+.20*math.cos(a),y+.04,z+.20*math.sin(a)),a,.22,.075,gold_leaf if j%3 else autumn)
+for i in range(4):
+ ang=i*2*pi/4+.27
+ leaf_rosette((.57*math.cos(ang),.06,.57*math.sin(ang)),3030+i,leafdark,leafbright,.46,fronds=4,pairs=3)
 export('dungeon_forest_habitat',6500)
 clear()
 # Woodland ground cover: no pedestal or raised square. Leaf litter and
@@ -1729,17 +1747,41 @@ for x,z in [(-.29,.19),(.32,-.12)]:
 tube([(-.59,.04,-.33),(-.16,.07,-.21),(.18,.05,-.36)],[.053,.039,.012],bark,6)
 export('dungeon_forest_understory',2600)
 clear()
-# Connected reef foundation from the verified staging model.
-natural_rock((0,.29,0),(2.42,.57,1.65),reefstone,3198)
-natural_rock((-.04,.61,.08),(1.97,.38,1.27),reefedge,3199)
-for k,(x,z,h) in enumerate([(-.67,-.25,1.75),(.39,-.32,2.15),(.61,.55,.86)]):
- natural_rock((x,h*.43,z),(.92,h,.92),reefstone,3200+k)
- for j in range(2):
-  y=h*(.49+j*.27)
-  natural_rock((x+.13,y,z+.14),(.97,.18,.85),reefedge,3210+k*2+j)
- for i in range(3):
-  a=i*2*pi/3;xx=x+.20*math.cos(a);zz=z+.21*math.sin(a)
-  tube([(xx,h*.79,zz),(xx+.09*math.cos(a),h*.79+.20,zz+.09*math.sin(a)),(xx+.22*math.cos(a),h*.79+.40,zz+.20*math.sin(a))],[.065,.043,.020],coral if k%2 else coral2,7)
+# Broad sloping limestone shelves, with coral colonies rooted on real ledges.
+# Layered irregular profiles replace the isolated upright dark stone towers.
+coral_salmon=mat('reef salmon branching coral',(.94,.26,.20),0,.72)
+coral_sun=mat('reef golden coral tips',(.96,.56,.13),0,.68)
+coral_lilac=mat('reef orchid plate coral',(.64,.24,.62),0,.64)
+natural_rock((0,.21,0),(2.58,.45,1.91),reefstone,3198)
+natural_rock((-.42,.43,-.11),(1.85,.45,1.36),reefedge,3199)
+natural_rock((.54,.51,-.27),(1.42,.73,1.39),reefstone,3200)
+natural_rock((.56,.79,-.29),(1.30,.27,1.03),reefedge,3201)
+natural_rock((-.53,.64,-.33),(1.32,.32,1.12),reefedge,3202)
+def reef_plate(x,y,z,rx,rz,seed,m):
+ # Closed, scalloped plate with curved cup and a thicker support center.
+ n=18;verts=[(x,y-.055,z)];faces=[]
+ for ring_index,(scale,dy) in enumerate([(.38,-.025),(1,.045),(1,.085),(.43,.055)]):
+  for j in range(n):
+   a=j*2*pi/n;lobes=1+.14*math.sin(a*5+seed*.3)+.07*math.cos(a*3)
+   verts.append((x+rx*scale*lobes*math.cos(a),y+dy+.035*scale*math.sin(a*3+seed),z+rz*scale*lobes*math.sin(a)))
+ for j in range(n):faces.append((0,1+(j+1)%n,1+j))
+ for k in range(3):
+  for j in range(n):
+   a=1+k*n+j;b=1+k*n+(j+1)%n;faces.append((a,b,b+n,a+n))
+ top=len(verts);verts.append((x,y+.055,z))
+ for j in range(n):faces.append((top,1+3*n+j,1+3*n+(j+1)%n))
+ return architectural_mesh('scalloped living plate coral',verts,faces,m)
+for i,(x,y,z,rx,rz) in enumerate([(-.63,.61,-.12,.64,.45),(-.70,.89,-.26,.45,.37),(.58,.82,-.27,.57,.42),(.70,1.04,-.33,.40,.32),(.08,.43,.57,.46,.32)]):
+ reef_plate(x,y,z,rx,rz,3220+i,coral_lilac if i%2==0 else coral_salmon)
+# Branching antler colonies: forks at varied heights and visible warm tips.
+for i,(x,y,z,h,m) in enumerate([(-.65,.84,-.39,1.03,coral_salmon),(.61,1.02,-.39,1.18,coral2),(.10,.37,.48,.83,coral_salmon)]):
+ tube([(x,y,z),(x-.04,y+h*.44,z+.04),(x+.05,y+h*.82,z),(x+.12,y+h,z-.03)],[.105,.076,.044,.019],m,9)
+ for j in range(5):
+  ang=j*2.39+i*.6;dx=math.cos(ang);dz=math.sin(ang);base=y+h*(.24+.09*j)
+  tip=(x+.34*dx,base+h*.45,z+.30*dz)
+  tube([(x,base,z),(x+.18*dx,base+h*.24,z+.13*dz),tip],[.063,.043,.018],m,7)
+  fork=(tip[0]+.13*math.cos(ang+.8),tip[1]+.16,tip[2]+.12*math.sin(ang+.8))
+  tube([(x+.18*dx,base+h*.24,z+.13*dz),tip,fork],[.038,.025,.009],coral_sun if j%2==0 else m,6)
 for i in range(5):
  a=i*2*pi/5;x=.88*math.cos(a);z=.65*math.sin(a)
  h=1.75+.19*(i%3);verts=[];faces=[]
