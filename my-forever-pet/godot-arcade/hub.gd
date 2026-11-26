@@ -113,7 +113,7 @@ func _ready():
 	var t=Timer.new(); t.wait_time=1; t.timeout.connect(refresh); add_child(t); t.start()
 	var controls_timer=Timer.new(); controls_timer.wait_time=.20; controls_timer.timeout.connect(update_action_controls); add_child(controls_timer); controls_timer.start()
 func style(color:Color,border:Color,r:int=16)->StyleBoxFlat:
-	var b=StyleBoxFlat.new(); b.bg_color=color; b.border_color=border; b.set_border_width_all(2); b.set_corner_radius_all(r); b.shadow_color=Color("#09132980"); b.shadow_size=3
+	var b=StyleBoxFlat.new(); b.bg_color=color; b.border_color=border; b.set_border_width_all(1); b.set_corner_radius_all(r); b.shadow_color=Color("#09132960"); b.shadow_size=2
 	b.content_margin_left=12; b.content_margin_right=12; b.content_margin_top=8; b.content_margin_bottom=8
 	return b
 func label(parent:Node,value:String,sz:int=18)->Label:
@@ -178,7 +178,7 @@ func button(parent:Node,value:String,fn:Callable)->Button:
 func row(parent:Node)->HBoxContainer:
 	var h=HBoxContainer.new(); h.mouse_filter=MOUSE_FILTER_PASS; h.add_theme_constant_override("separation",8); parent.add_child(h); return h
 func panel(parent:Node)->VBoxContainer:
-	var p=PanelContainer.new(); p.size_flags_horizontal=SIZE_EXPAND_FILL; p.mouse_filter=MOUSE_FILTER_PASS; p.add_theme_stylebox_override("panel",style(Color("#251d47ef"),Color("#9583d2"),21)); parent.add_child(p)
+	var p=PanelContainer.new(); p.size_flags_horizontal=SIZE_EXPAND_FILL; p.mouse_filter=MOUSE_FILTER_PASS; p.add_theme_stylebox_override("panel",style(Color("#202737"),Color("#374455"),14)); parent.add_child(p)
 	var v=VBoxContainer.new(); v.mouse_filter=MOUSE_FILTER_PASS; v.add_theme_constant_override("separation",7); p.add_child(v); return v
 func enable_swipe(container:ScrollContainer):
 	container.scroll_deadzone=12
@@ -193,11 +193,11 @@ func swipe_children(node:Node):
 		else: node.mouse_filter=MOUSE_FILTER_IGNORE
 	for child in node.get_children(): swipe_children(child)
 func make_ui():
-	var backdrop=ColorRect.new(); backdrop.color=Color("#110e29"); backdrop.set_anchors_and_offsets_preset(PRESET_FULL_RECT); add_child(backdrop)
+	var backdrop=ColorRect.new(); backdrop.color=Color("#101722"); backdrop.set_anchors_and_offsets_preset(PRESET_FULL_RECT); add_child(backdrop)
 	var margin=MarginContainer.new(); margin.set_anchors_and_offsets_preset(PRESET_FULL_RECT); margin.add_theme_constant_override("margin_left",8); margin.add_theme_constant_override("margin_right",8); margin.add_theme_constant_override("margin_top",7); margin.add_theme_constant_override("margin_bottom",7); margin.mouse_filter=MOUSE_FILTER_IGNORE; add_child(margin)
 	var layout=VBoxContainer.new(); layout.mouse_filter=MOUSE_FILTER_IGNORE; layout.add_theme_constant_override("separation",5); margin.add_child(layout)
 	var brand=row(layout)
-	var logo=label(brand,"My Forever Pet",23); logo.size_flags_horizontal=SIZE_EXPAND_FILL; logo.add_theme_color_override("font_color",Color("#f3d8ff")); logo.add_theme_color_override("font_outline_color",Color("#63369a")); logo.add_theme_constant_override("outline_size",6)
+	var logo=label(brand,"My Forever Pet",23); logo.size_flags_horizontal=SIZE_EXPAND_FILL; logo.add_theme_color_override("font_color",Color("#eaf4f7")); logo.add_theme_constant_override("outline_size",0)
 	wallpaper_cta=button(brand,"Wallpaper",func(): select("Wallpaper")); wallpaper_cta.size_flags_horizontal=SIZE_SHRINK_END; wallpaper_cta.custom_minimum_size=Vector2(112,36); wallpaper_cta.add_theme_font_size_override("font_size",14); wallpaper_cta.icon=GameIcons.texture("Wallpaper"); wallpaper_cta.expand_icon=true; wallpaper_cta.add_theme_constant_override("icon_max_width",24); wallpaper_cta.add_theme_stylebox_override("normal",menu_skin(Color("#7046a4"),Color("#e5b7ff")))
 	var settings=button(brand,"⚙",func(): select("Settings")); settings.size_flags_horizontal=SIZE_SHRINK_END; settings.custom_minimum_size=Vector2(43,34)
 	var header=panel(layout)
@@ -923,22 +923,8 @@ func field_contract(parent:Node,r:int):
 	b.custom_minimum_size.y=44
 func open_patrol(r:int):
 	hunt_region=r
-	if not store.available() or store.s.germs>0 or store.s.hunger<1 or store.s.energy<2:
-		hunt_message="Hatch, wake, feed and rest your pet before surveying."; select("Habitat"); return
-	var step:int=store.s.research_daily[r]
-	if step>=3: select("World");return
-	section="Habitat"; reset_actions()
-	var id:int=Research.POOLS[r][posmod(int(store.date_key(store.now()).replace("-",""))+step,Research.POOLS[r].size())]
-	section_heading(actions,"Daily survey",Research.REGIONS[r]+" · recover a local trace")
-	var trial=preload("res://research_trial.gd").new(); panel(actions).add_child(trial); trial.setup(r,id,step)
-	if store.research_skill_ready(r): trial.add_skill(func(): return store.research_use_skill(r))
-	trial.resolved.connect(func(answer:Array,phase:float):
-		var result:Dictionary=store.research_patrol(r,step,answer,phase)
-		hunt_message=str(result.get("message",""))
-		if result.get("correct",false):play_reward(false)
-		select("Habitat"))
-	button(actions,"‹ Return to habitats",func(): select("World"))
-	swipe_children(actions); section_scroll.scroll_vertical=0
+	section="Habitat"
+	open_active_field(r,true)
 func sanctuary_cards(parent:Node,r:int):
 	section_heading(parent,"Hidden sanctuaries","Rank up to unlock explorable ruins. Find three relic fragments in each.")
 	for tier in range(3):
@@ -984,55 +970,62 @@ func open_sanctuary(r:int,tier:int):
 	section_scroll.scroll_vertical=0
 func build_habitat():
 	var r=hunt_region
-	button(actions,"‹ All habitats",func(): select("World")).custom_minimum_size.y=42
-	section_heading(actions,Research.REGIONS[r],Research.SUB[r])
+	var back=row(actions)
+	button(back,"‹ World",func():select("World")).custom_minimum_size.y=42
+	button(back,"Field guide",func():build_field_guide(r)).custom_minimum_size.y=42
+	var hero=panel(actions)
+	var art=TextureRect.new();art.texture=tex("res://assets/"+["room_garden.jpg","arcade_find.jpg","sky-panorama.png"][r]);art.expand_mode=TextureRect.EXPAND_IGNORE_SIZE;art.stretch_mode=TextureRect.STRETCH_KEEP_ASPECT_COVERED;art.custom_minimum_size.y=145;hero.add_child(art)
+	label(hero,Research.REGIONS[r],26).modulate=Research.TINTS[r]
+	label(hero,"Explorer rank %d · %d/%d species discovered"%[store.research_rank(r),Research.discovered(r,int(store.s.collection)),Research.POOLS[r].size()],14).autowrap_mode=TextServer.AUTOWRAP_WORD_SMART
 	var id:int=store.research_target(r)
-	field_contract(actions,r)
-	if id<0:
-		sanctuary_cards(actions,r)
-		label(actions,"All available local species registered. Check your collection!",19).autowrap_mode=TextServer.AUTOWRAP_WORD_SMART
-		button(actions,"View collection",func(): select("Pets")); return
-	var step:int=store.research_progress(id)
-	var goal:int=Research.needed(id)
-	var hero=panel(actions); var line=row(hero)
-	var art=TextureRect.new(); art.texture=tex("res://assets/pet_%d.png"%id); art.custom_minimum_size=Vector2(100,100); art.expand_mode=TextureRect.EXPAND_IGNORE_SIZE; art.stretch_mode=TextureRect.STRETCH_KEEP_ASPECT_CENTERED; line.add_child(art)
-	art.modulate=Color("#211b35") if step<goal else Color.WHITE
-	var copy=VBoxContainer.new(); copy.size_flags_horizontal=SIZE_EXPAND_FILL; line.add_child(copy)
-	label(copy,"UNKNOWN CREATURE" if step<goal else store.SPECIES[id],20).autowrap_mode=TextServer.AUTOWRAP_WORD_SMART
-	label(copy,("Mystic" if id>=24 else "Rare" if id>=12 else "Common")+" · Evidence %d/%d"%[step,goal],14).modulate=Research.TINTS[r]
-	var bar=ProgressBar.new(); bar.max_value=goal; bar.value=step; bar.show_percentage=false; bar.custom_minimum_size.y=12; copy.add_child(bar)
-	label(copy,"Energy %d / 100 · %d per trace"%[int(store.s.energy),Research.cost(r,store.species())],13)
-	if Research.region_of(store.species())==r: label(copy,Research.ABILITIES[r]+" · companion bonus",12).modulate=Research.TINTS[r]
-	if not hunt_message.is_empty():
-		var feedback=label(hero,hunt_message,15); feedback.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART; feedback.modulate=Color("#ffd68d")
-	var block:String=store.research_block("track" if step<goal else "encounter",r)
-	if not block.is_empty():
-		label(actions,block,17).autowrap_mode=TextServer.AUTOWRAP_WORD_SMART
-		button(actions,"Return to care",func(): select("Home")); return
-	if step<goal:
-		section_heading(actions,"Follow the trail",Research.RIDDLES[r][Research.desired(id,step)]+" Which sign matches? Each search uses energy.")
-		var field=preload("res://research_map.gd").new()
-		actions.add_child(field)
-		field.setup(r,id,step,int(store.s.research_misses[r]) if int(store.s.research_target[r])==id else 0)
-		field.site_selected.connect(func(site:int):
-			if site==Research.correct(id,step): open_research_trial(r,id,step,site)
-			else: hunt_action("track",site))
-		var legend=label(actions,"Tap a marker to investigate. Correct evidence advances the trail.",12); legend.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART
-	else:
-		var trust=clampi(int(store.s.research_trust[id]),0,2)
-		section_heading(actions,"Wild encounter","Trust %d/3 · "%trust+Research.HINTS[r][Research.answer(id,trust)])
-		for i in range(3):
-			var option=button(actions,Research.OPTIONS[r][i],func(): hunt_action("encounter",i))
-			option.custom_minimum_size.y=53
-		label(actions,"Observe the creature before choosing. There is no need to hurt it.",13).autowrap_mode=TextServer.AUTOWRAP_WORD_SMART
-	sanctuary_cards(actions,r)
-	var dossier=panel(actions)
-	label(dossier,"Field guide · local creatures",18)
+	if id>=0:
+		var step:int=store.research_progress(id)
+		var goal:int=Research.needed(id)
+		var line=row(hero)
+		var portrait_art=TextureRect.new();portrait_art.texture=tex("res://assets/pet_%d.png"%id);portrait_art.modulate=Color("#283343") if step<goal else Color.WHITE;portrait_art.custom_minimum_size=Vector2(84,84);portrait_art.expand_mode=TextureRect.EXPAND_IGNORE_SIZE;portrait_art.stretch_mode=TextureRect.STRETCH_KEEP_ASPECT_CENTERED;line.add_child(portrait_art)
+		var copy=VBoxContainer.new();copy.size_flags_horizontal=SIZE_EXPAND_FILL;line.add_child(copy)
+		label(copy,"Unknown trail" if step<goal else store.SPECIES[id],21).autowrap_mode=TextServer.AUTOWRAP_WORD_SMART
+		label(copy,"%d/%d evidence · %s"%[step,goal,"Common" if id<12 else "Rare" if id<24 else "Mystic"],14)
+		var bar=ProgressBar.new();bar.max_value=goal;bar.value=step;bar.show_percentage=false;bar.custom_minimum_size.y=10;copy.add_child(bar)
+		var block:String=store.research_block("track" if step<goal else "encounter",r)
+		if store.research_rank(r)<store.field_rank_required(id):block="Requires explorer rank %d"%store.field_rank_required(id)
+		if store.s.energy<3:block="Rest first · 3 energy required"
+		var go=button(hero,"ENTER WILD TERRITORY" if step<goal else "APPROACH WILD CREATURE",func():open_active_field(r,false))
+		go.custom_minimum_size.y=60;go.disabled=not block.is_empty();go.add_theme_stylebox_override("normal",menu_skin(Research.TINTS[r].darkened(.64),Research.TINTS[r]))
+		if not block.is_empty():label(hero,block,14).autowrap_mode=TextServer.AUTOWRAP_WORD_SMART
+	else:label(hero,"Local collection complete",20)
+	if not hunt_message.is_empty():label(hero,hunt_message,15).autowrap_mode=TextServer.AUTOWRAP_WORD_SMART
+	var options=row(actions)
+	button(options,"Local survey",func():open_field_options(r,false)).custom_minimum_size.y=50
+	button(options,"Sanctuaries",func():open_field_options(r,true)).custom_minimum_size.y=50
+	swipe_children(actions)
+func build_field_guide(r:int):
+	reset_actions()
+	button(actions,"‹ Back to territory",func():select("Habitat"))
+	section_heading(actions,"Field guide",Research.REGIONS[r])
 	for candidate in Research.POOLS[r]:
-		if candidate==id or candidate==store.species() or (int(store.s.collection)&(1<<candidate))!=0:continue
-		var item=button(dossier,store.SPECIES[candidate]+" · %d/%d traces"%[store.research_progress(candidate),Research.needed(candidate)],func():
-			if store.choose_research(candidate): hunt_message="New investigation selected"; select("Habitat"))
-		item.custom_minimum_size.y=42; item.add_theme_font_size_override("font_size",14)
+		if candidate==store.species() or (int(store.s.collection)&(1<<candidate))!=0:continue
+		var item=button(actions,("Unknown creature" if store.research_progress(candidate)==0 else "Trail %d"%candidate)+" · %d/%d evidence · Rank %d"%[store.research_progress(candidate),Research.needed(candidate),store.field_rank_required(candidate)],func():
+			if store.choose_research(candidate):hunt_message="Trail selected";select("Habitat"))
+		item.custom_minimum_size.y=52;item.disabled=store.research_rank(r)<store.field_rank_required(candidate)
+	swipe_children(actions);section_scroll.scroll_vertical=0
+func open_field_options(r:int,sanctuaries:bool):
+	reset_actions()
+	button(actions,"‹ Back to territory",func():select("Habitat"))
+	if sanctuaries:sanctuary_cards(actions,r)
+	else:field_contract(actions,r)
+	swipe_children(actions);section_scroll.scroll_vertical=0
+func open_active_field(r:int,patrol:bool):
+	var session:Dictionary=store.field_begin(r,patrol)
+	if session.is_empty():hunt_message="Cannot explore right now. Check energy and rank.";select("Habitat");return
+	var field=preload("res://wild_field.gd").new()
+	add_child(field);field.set_anchors_and_offsets_preset(PRESET_FULL_RECT)
+	field.setup(r,int(session.id),int(session.step),bool(session.finale),patrol,int(session.seed),store.species())
+	field.canceled.connect(func():store.field_cancel();field.queue_free())
+	field.ended.connect(func(success:bool,completed:int,elapsed:float):
+		var result:Dictionary=store.field_finish(success,completed,elapsed)
+		field.queue_free()
+		finish_hunt(result))
 func open_research_trial(r:int,id:int,step:int,site:int):
 	reset_actions()
 	section_heading(actions,Research.REGIONS[r],Research.SITES[r][site]+" · recover the fresh trace")
@@ -1213,7 +1206,7 @@ func show_collection():
 		var tint=species_color(i)
 		var b=button(collection_grid,"",func(): update_feature(i))
 		b.custom_minimum_size=Vector2(0,182)
-		b.add_theme_stylebox_override("normal",skin(tint.darkened(.70),Color("#ffce89") if i==collection_feature else tint.lightened(.25)))
+		b.add_theme_stylebox_override("normal",style(Color("#263747") if known else Color("#202936"),Color("#e4bd7a") if i==collection_feature else Color("#465969"),12))
 		var v=VBoxContainer.new(); v.set_anchors_and_offsets_preset(PRESET_FULL_RECT); v.offset_left=7; v.offset_right=-7; v.offset_top=6; v.offset_bottom=-7; v.mouse_filter=MOUSE_FILTER_IGNORE; v.add_theme_constant_override("separation",2); b.add_child(v)
 		var flags=label(v,("♥  " if store.favorite(i) else "")+("CARE" if i>=24 else "SECRET" if i>=12 else category.to_upper()),10); flags.mouse_filter=MOUSE_FILTER_IGNORE; flags.modulate=tint.lightened(.5)
 		var art=TextureRect.new(); art.texture=tex("res://assets/pet_%d.png"%i); art.expand_mode=TextureRect.EXPAND_IGNORE_SIZE; art.stretch_mode=TextureRect.STRETCH_KEEP_ASPECT_CENTERED; art.size_flags_vertical=SIZE_EXPAND_FILL; art.mouse_filter=MOUSE_FILTER_IGNORE; v.add_child(art)
@@ -1645,6 +1638,11 @@ func capture_home():
 	select("World"); await capture_frame("/tmp/forever-world.png")
 	for r in range(3):
 		hunt_region=r; select("Habitat"); await capture_frame("/tmp/forever-habitat-%d.png"%r)
+		open_active_field(r,false); await capture_frame("/tmp/forever-wild-%d.png"%r)
+		store.field_cancel()
+		for child in get_children():
+			if child.get_script()==preload("res://wild_field.gd"):child.queue_free()
+		await get_tree().process_frame
 	hunt_region=0
 	var target:int=store.research_target(0); store.s.research_evidence[target]=Research.needed(target)
 	select("Habitat"); await capture_frame("/tmp/forever-encounter.png")

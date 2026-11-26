@@ -17,7 +17,7 @@ static func region_of(id:int)->int:
 		if id in POOLS[r]: return r
 	return 0
 static func needed(id:int)->int:
-	return 3 if id<12 else 4 if id<24 else 5
+	return 6 if id<12 else 9 if id<24 else 12
 static func desired(id:int,step:int)->int:
 	return posmod(id*3+step*5+int(id/3),6)
 static func correct(id:int,step:int)->int:

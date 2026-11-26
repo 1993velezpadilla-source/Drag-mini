@@ -23,7 +23,7 @@ jobs:
           G=/tmp/godot/Godot_v4.4.1-stable_linux.x86_64
           "$G" --headless --path my-forever-pet/godot-arcade --check-only --script res://runner.gd 2>&1 | tee /tmp/dash-parse.log
           ! grep -E "SCRIPT ERROR|Parse Error" /tmp/dash-parse.log
-          for script in pet_store.gd hub.gd pet_arcade.gd live_pet_stage.gd research_map.gd research_trial.gd sanctuary_field.gd; do
+          for script in pet_store.gd hub.gd pet_arcade.gd live_pet_stage.gd research_map.gd research_trial.gd sanctuary_field.gd field_hunt_rules.gd wild_field.gd; do
             "$G" --headless --path my-forever-pet/godot-arcade --check-only --script "res://$script" 2>&1 | tee "/tmp/$script.log"
             ! grep -E "SCRIPT ERROR|Parse Error" "/tmp/$script.log"
           done
@@ -201,7 +201,7 @@ jobs:
           ! grep -E "SCRIPT ERROR|Parse Error" /tmp/forever-capture.log
           test "$(grep -c "^PET_FRAME .*forever-species-" /tmp/forever-capture.log)" -eq 28
           if grep -E "^PET_FRAME .*forever-species-.*enclosed=false" /tmp/forever-capture.log; then echo "Creature framing rejected"; exit 1; fi
-          test "$(find /tmp -maxdepth 1 -name 'forever-*.png' | wc -l)" -eq 62
+          test "$(find /tmp -maxdepth 1 -name 'forever-*.png' | wc -l)" -eq 65
       - uses: actions/upload-artifact@v4
         with:
           name: Forever-Pet-real-game-viewports
