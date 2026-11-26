@@ -275,34 +275,41 @@ func field_begin(region:int,patrol:bool=false)->Dictionary:
 	var seed_id=int(Time.get_ticks_usec())+id*733+step*997
 	var engine=preload("res://field_hunt_rules.gd").new()
 	engine.setup(region,id,step,finale,patrol,seed_id)
-	field_session={"region":region,"id":id,"step":step,"finale":finale,"patrol":patrol,"seed":seed_id,"required":engine.required}
+	field_session={"region":region,"id":id,"step":step,"finale":finale,"patrol":patrol,"seed":seed_id,"required":engine.required,"time_limit":engine.time_left,"minimum_time":float(engine.required)*engine.capture_time}
 	return field_session.duplicate()
 func field_cancel():
 	field_session={}
-func field_finish(success:bool,completed:int,elapsed:float)->Dictionary:
+func field_finish(success:bool,completed:int,elapsed:float,hits:int=-1)->Dictionary:
 	if field_session.is_empty():return {"ok":false,"message":"No active hunt"}
 	var session=field_session;field_session={}
 	advance(now())
 	var r:int=session.region;var id:int=session.id;var step:int=session.step
 	if not available() or s.energy<3 or s.germs>0 or s.hunger<1:return {"ok":false,"message":"Your companion needs care."}
-	if not success or completed!=int(session.required) or not is_finite(elapsed) or elapsed<2.0:
+	if not success or completed!=int(session.required) or not is_finite(elapsed) or elapsed<maxf(2.0,float(session.minimum_time)-.05) or elapsed>float(session.time_limit)+.1:
 		s.energy=maxi(0,int(s.energy)-2);save_game()
 		return {"ok":true,"correct":false,"message":"Trail lost. Rest or try again."}
+	var flawless=hits==0
+	var bonus=5 if flawless else 0
 	if session.patrol:
 		if int(s.research_daily[r])!=step:return {"ok":false,"message":"Survey expired"}
-		s.energy-=3;research_credit(r,2);s.coins=mini(999999,int(s.coins)+5);earn(4);save_game()
-		return {"ok":true,"correct":true,"message":"Survey complete! +5 coins"}
+		s.energy-=3;research_credit(r,2);s.coins=mini(999999,int(s.coins)+5+bonus);earn(4);save_game()
+		return {"ok":true,"correct":true,"message":"Survey complete! +%d coins%s"%[5+bonus," · Flawless" if flawless else ""]}
 	if research_target(r)!=id or research_progress(id)!=step:return {"ok":false,"message":"Trail changed"}
 	if session.finale:
 		s.energy-=3;s.research_trust[id]=3;s.collection=int(s.collection)|(1<<id);s.research_target[r]=-1;s.research_misses[r]=0;research_credit(r,8)
-		var reward=30 if id<12 else 55 if id<24 else 85
-		s.coins=mini(999999,int(s.coins)+reward);s.materials=mini(9999,int(s.materials)+2);earn(25)
-		if id>=12:s.crystals=mini(9999,int(s.crystals)+1)
+		var tier=0 if id<12 else 1 if id<24 else 2
+		var reward=[30,55,85][tier]+(bonus*(tier+1))
+		var xp:int=[25,35,50][tier]
+		var materials:int=[2,3,4][tier]
+		var crystals:int=[0,1,2][tier]
+		s.coins=mini(999999,int(s.coins)+reward);s.materials=mini(9999,int(s.materials)+materials);earn(xp)
+		s.crystals=mini(9999,int(s.crystals)+crystals)
 		save_game()
-		return {"ok":true,"correct":true,"unlocked":true,"species":id,"coins":reward,"message":"New companion discovered!"}
+		return {"ok":true,"correct":true,"unlocked":true,"species":id,"coins":reward,"xp":xp,"materials":materials,"crystals":crystals,"flawless":flawless,"message":"New companion discovered!"}
 	s.energy-=3;s.research_target[r]=id;s.research_evidence[id]=step+1;s.research_misses[r]=0
-	research_credit(r,3);s.coins=mini(999999,int(s.coins)+4);earn(5);save_game()
-	return {"ok":true,"correct":true,"message":"Creature located! Prepare for encounter." if step+1>=Research.needed(id) else "Fresh evidence recovered!"}
+	research_credit(r,3);s.coins=mini(999999,int(s.coins)+4+bonus);earn(5);save_game()
+	var message="Creature located! Prepare for encounter." if step+1>=Research.needed(id) else "Fresh evidence recovered!"
+	return {"ok":true,"correct":true,"message":message+" +%d coins%s"%[4+bonus," · Flawless" if flawless else ""]}
 func research_target(region:int)->int:
 	if region<0 or region>=3: return -1
 	var current=int(s.research_target[region])
