@@ -1054,9 +1054,13 @@ func show_collection():
 		if not active and (unlocked or slot==-1): perform("form",slot)
 		elif not unlocked:
 			hunt_region=Research.region_of(collection_feature); hunt_message=""; store.choose_research(collection_feature); select("Habitat"))
-	form.disabled=active or (slot==-1 and store.s.stage==0)
+	var switch_block:String=store.action_block("form",slot) if unlocked or slot==-1 else ""
+	form.disabled=active or ((unlocked or slot==-1) and not switch_block.is_empty())
+	if not active and not switch_block.is_empty():
+		label(copy,switch_block,12).autowrap_mode=TextServer.AUTOWRAP_WORD_SMART
 	if int(store.s.form)>=0:
-		button(copy,"Return original companion",func(): perform("form",-1)).add_theme_font_size_override("font_size",12)
+		var home=button(copy,"Return original companion",func(): perform("form",-1))
+		home.add_theme_font_size_override("font_size",12); home.disabled=not store.action_block("form",-1).is_empty()
 	form.add_theme_font_size_override("font_size",14)
 	if not unlocked and slot!=-1:
 		label(copy,Research.REGIONS[Research.region_of(collection_feature)]+" · Follow local clues",12).autowrap_mode=TextServer.AUTOWRAP_WORD_SMART

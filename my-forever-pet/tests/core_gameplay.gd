@@ -230,5 +230,10 @@ func run():
 	check(pet.action("form",-1),"restore lineage")
 	check(pet.original_species()==0,"original genetics preserved")
 	check(pet.validated_profiles(pet.s.profiles).has("1"),"profile save validation")
+	var persisted=JSON.parse_string(JSON.stringify(pet.s.profiles))
+	check(pet.validated_profiles(persisted)["1"].name=="Mew","profile JSON roundtrip")
+	pet.s.friendship=4; pet.s.xp=900
+	check(pet.action("breed") and pet.s.xp==900,"account level survives new generation")
+	check(pet.s.profiles.has("1") and not pet.s.profiles.has("-1"),"adopted family survives new generation")
 	print("FOREVER_PET_CORE_PASS ",passed)
 	quit()

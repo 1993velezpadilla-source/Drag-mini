@@ -440,7 +440,7 @@ func action_block(id:String,i:int=0)->String:
 		"craft": return "" if s.materials>=3 else "Requires 3 materials"
 		"loot": return "" if s.pending[0]>0 else "No rewards to collect"
 		"quest": return "" if i>=0 and i<3 and (int(s.quests)&(1<<i))!=0 and (int(s.claimed)&(1<<i))==0 else "Quest not ready or already claimed"
-		"secret": return "" if int(s.form)==-1 and s.stage==4 and s.variant==0 and s.bond>=30 and s.training>=10 and s.crystals>=3 else "Adult, 30 bond, 10 training, 3 crystals"
+		"secret": return "" if int(s.form)==-1 and s.stage==4 and s.variant==0 and s.bond>=30 and s.training>=10 and s.crystals>=3 else "Original companion only · Adult, 30 bond, 10 training, 3 crystals"
 	if id in ["food","cook","snack","medicine","cell","soap","rinse","bath","toilet","bond","play","toy","train","praise","trip","friend","breed"]:
 		if s.trip_end>at: return "Pet is exploring"
 		if asleep(at): return "Wake your pet first"
@@ -468,10 +468,12 @@ func action_block(id:String,i:int=0)->String:
 			if s.pending[0]>0: return "Collect previous rewards first"
 			if level()<1+i*2: return "Unlocks at level "+str(1+i*2)
 			if s.fuel<i: return "Requires "+str(i)+" fuel"
-		"breed": return "" if int(s.form)==-1 and s.stage==4 and s.friendship>=4 and s.pending[0]==0 else "Requires adult, friendship 4, collected rewards"
+		"breed": return "" if int(s.form)==-1 and s.stage==4 and s.friendship>=4 and s.pending[0]==0 else "Original companion only · Adult, friendship 4, collected rewards"
 		"friend": return "" if s.friendship<4 else "Friendship complete"
 		"form":
+			if s.stage==0:return "Hatch your egg first"
 			if i==int(s.form): return "Already active"
+			if i==-1 and not s.profiles.has("-1"):return "Original companion unavailable"
 			if s.trip_end>at or s.pending[0]>0 or arcade_mode!=-1:return "Finish your current activity first"
 			if i!=-1 and (i<0 or i>=SPECIES.size() or (int(s.collection)&(1<<i))==0): return "Companion locked"
 		"supply":
@@ -617,7 +619,7 @@ func action(id:String,i:int=0)->bool:
 			if not ready or int(s.form)!=-1 or s.stage!=4 or s.friendship<4 or s.pending[0]>0: return false
 			var old=s.duplicate(true)
 			s=defaults()
-			for key in ["profiles","sanctuary_mask","sanctuary_progress","research_day","research_daily","research_claimed","research_rank_xp","research_skill","research_evidence","research_trust","research_misses","research_target","wallpaper_room","wallpaper_x","wallpaper_y","wallpaper_size","wallpaper_minimal","wallpaper_battery","wallpaper_status","coins","crystals","materials","fuel","snacks","medicine","collection","favorites","care_day","care_mask","care_claims","care_claimed","owned","equipped","installation","wardrobe","worn","theme","garden_at","harvests","best","daily_day","quest_day","quests","claimed","journeys","auto_sleep"]: s[key]=old[key]
+			for key in ["xp","profiles","sanctuary_mask","sanctuary_progress","research_day","research_daily","research_claimed","research_rank_xp","research_skill","research_evidence","research_trust","research_misses","research_target","wallpaper_room","wallpaper_x","wallpaper_y","wallpaper_size","wallpaper_minimal","wallpaper_battery","wallpaper_status","coins","crystals","materials","fuel","snacks","medicine","collection","favorites","care_day","care_mask","care_claims","care_claimed","owned","equipped","installation","wardrobe","worn","theme","garden_at","harvests","best","daily_day","quest_day","quests","claimed","journeys","auto_sleep"]: s[key]=old[key]
 			s.profiles.erase("-1"); s.generation=old.generation+1; s.habitat=int(old.habitat); s.field=int(old.habitat); s.inherited_eyes=2; s.eyes=2; s.color=1; s.last=at
 		_: ok=false
 	if ok:
