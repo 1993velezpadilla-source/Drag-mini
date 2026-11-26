@@ -88,23 +88,32 @@ func label(parent:Node,value:String,sz:int=18)->Label:
 func skin(tint:Color,edge:Color,pressed:bool=false)->StyleBoxTexture:
 	var key=str(tint)+str(edge)+str(pressed)
 	if skin_cache.has(key): return skin_cache[key]
-	var im=Image.create(64,64,false,Image.FORMAT_RGBA8)
-	for y in range(64):
-		for x in range(64):
-			var q=Vector2(absf(x-31.5)-20.0,absf(y-31.5)-20.0)
-			var d=q.max(Vector2.ZERO).length()+minf(maxf(q.x,q.y),0.0)-10.0
-			var alpha=clampf(0.8-d,0,1)
-			var shade=1.0-float(y)/90.0
-			var c=tint.lightened(0.12*shade).darkened(float(y)/170.0+(0.12 if pressed else 0.0))
-			if d>-2.5: c=edge.lerp(tint,0.15 if y<32 else 0.42)
-			elif y<22: c=c.lightened(0.13*(1-float(y)/22.0))
-			c.a=alpha
+	var im=Image.create(96,96,false,Image.FORMAT_RGBA8)
+	for y in range(96):
+		for x in range(96):
+			var q=Vector2(absf(x-47.5)-27.0,absf(y-46.5)-27.0)
+			var d=q.max(Vector2.ZERO).length()+minf(maxf(q.x,q.y),0.0)-16.0
+			var t=float(y)/95.0
+			var c=tint.lightened(.21*(1-t)).darkened(.28*t)
+			var sheen=exp(-pow((t-.14)*6,2))*.13
+			c=c.lightened(sheen)
+			if d>-1.8:
+				c=edge.lightened(.27*(1-t))
+			elif d>-4:
+				c=edge.lerp(tint,.40)
+			else:
+				c=c.lightened(exp(-absf(d+5)*.33)*.10)
+			if pressed: c=c.darkened(.17)
+			if d>0:
+				c=edge
+				c.a=exp(-d*.65)*.5
+			else: c.a=1
 			im.set_pixel(x,y,c)
 	var s=StyleBoxTexture.new()
 	s.texture=ImageTexture.create_from_image(im)
 	for side in [SIDE_LEFT,SIDE_TOP,SIDE_RIGHT,SIDE_BOTTOM]:
-		s.set_texture_margin(side,14)
-		s.set_content_margin(side,7)
+		s.set_texture_margin(side,22)
+		s.set_content_margin(side,8)
 	skin_cache[key]=s
 	return s
 func bar_skin(tint:Color,edge:Color)->StyleBoxTexture:
@@ -149,6 +158,7 @@ func make_ui():
 	info=label(currency,"0 coins | 0 gems",15); info.horizontal_alignment=HORIZONTAL_ALIGNMENT_RIGHT
 	clock_label=label(currency,"00:00",12); clock_label.horizontal_alignment=HORIZONTAL_ALIGNMENT_RIGHT
 	stage_space=Control.new(); stage_space.custom_minimum_size.y=240; stage_space.size_flags_vertical=SIZE_EXPAND_FILL; stage_space.mouse_filter=MOUSE_FILTER_IGNORE; layout.add_child(stage_space)
+	stage_space.resized.connect(position_hotspots)
 	visual=Control.new(); visual.clip_contents=true; visual.set_anchors_and_offsets_preset(PRESET_FULL_RECT); visual.anchor_top=.11; visual.anchor_bottom=.86; add_child(visual); move_child(visual,1)
 	visual.resized.connect(position_hotspots)
 	if FileAccess.file_exists("res://assets/room_layout.json"):
@@ -203,7 +213,8 @@ func make_ui():
 		var b=art_tile(room_strip,name,"res://assets/"+ROOMS[name]+".jpg",func(): room(name),59,12)
 		b.custom_minimum_size.x=80
 		room_tiles[name]=b
-	menu_dock=row(layout); menu_dock.add_theme_constant_override("separation",5)
+	var dock_shell=panel(layout)
+	menu_dock=row(dock_shell); menu_dock.add_theme_constant_override("separation",2)
 	for tab in ["Home","Pets","Rooms","Arcade","Shop","More"]: nav_tile(menu_dock,tab)
 	select("Home")
 func art_tile(parent:Node,name:String,path:String,fn:Callable,h:int=66,font:int=13,icon_key:String="")->Button:
@@ -364,7 +375,7 @@ func _process(delta:float):
 func select(tab:String):
 	section=tab
 	for key in nav_buttons:
-		nav_buttons[key].add_theme_stylebox_override("normal",skin(Color("#3d5e87") if key==tab else Color("#222b56"),Color("#aee9ff") if key==tab else Color("#777fd0")))
+		nav_buttons[key].add_theme_stylebox_override("normal",skin(Color("#6738a8"),Color("#e6bcff")) if key==tab else StyleBoxEmpty.new())
 	if is_instance_valid(section_scroll):
 		section_scroll.scroll_vertical=0
 		var full_menu=tab!="Home"
@@ -457,7 +468,7 @@ func select(tab:String):
 	update_context()
 func room(name:String):
 	for key in nav_buttons:
-		nav_buttons[key].add_theme_stylebox_override("normal",skin(Color("#3d5e87") if key=="Rooms" else Color("#222b56"),Color("#aee9ff") if key=="Rooms" else Color("#777fd0")))
+		nav_buttons[key].add_theme_stylebox_override("normal",skin(Color("#6738a8"),Color("#e6bcff")) if key=="Rooms" else StyleBoxEmpty.new())
 	section_scroll.scroll_vertical=0
 	visual.show()
 	stage_space.show()
@@ -622,6 +633,10 @@ func update_room_scene():
 	position_hotspots()
 func position_hotspots():
 	if not is_instance_valid(hotspot_layer): return
+	var safe=Rect2(Vector2(8,8),visual.size-Vector2(16,16))
+	if is_instance_valid(stage_space) and stage_space.size.y>100:
+		safe=safe.intersection(Rect2(stage_space.global_position-visual.global_position+Vector2(8,8),stage_space.size-Vector2(16,16)))
+	if safe.size.x<80 or safe.size.y<80: return
 	var occupied:Array[Rect2]=[]
 	for child in hotspot_layer.get_children():
 		var point:Vector2=child.get_meta("point")
@@ -629,16 +644,16 @@ func position_hotspots():
 		if child.has_meta("world_point") and is_instance_valid(live_stage): center=live_stage.screen_point(child.get_meta("world_point"))
 		var dims:Vector2=child.get_combined_minimum_size().max(child.custom_minimum_size)
 		child.size=dims
-		var limit=(visual.size-dims).max(Vector2.ZERO)
-		var at=(center-dims/2).clamp(Vector2.ZERO,limit)
+		var limit=(safe.end-dims).max(safe.position)
+		var at=(center-dims/2).clamp(safe.position,limit)
 		for attempt in range(8):
 			var candidate=Rect2(at,dims).grow(3)
 			var overlap=false
 			for taken in occupied:
 				if candidate.intersects(taken): overlap=true; break
 			if not overlap: break
-			at.y=clampf(at.y+dims.y+8,0,limit.y)
-			if attempt==3: at.x=clampf(at.x+dims.x+8,0,limit.x); at.y=clampf(center.y-dims.y/2,0,limit.y)
+			at.y=clampf(at.y+dims.y+8,safe.position.y,limit.y)
+			if attempt==3: at.x=clampf(at.x+dims.x+8,safe.position.x,limit.x); at.y=clampf(center.y-dims.y/2,safe.position.y,limit.y)
 		child.position=at
 		occupied.append(Rect2(at,dims).grow(3))
 func test_home():
