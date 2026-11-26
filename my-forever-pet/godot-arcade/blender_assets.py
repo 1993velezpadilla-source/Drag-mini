@@ -1665,4 +1665,123 @@ crystal((0,1.31,0),.16,.52,violetglow,2950)
 for x,z in [(-.71,.30),(.66,.29),(.42,-.47),(-.40,-.44)]:
  crystal((x,.83,z),.10,.28+.10*abs(x),star,2960+int(x*10))
 export('dungeon_star_vista',6500)
+# Habitat layers: distinct silhouettes for the wild landscape, economical
+# foliage and reef geometry. Designed for non-walkable exterior cells only.
+clear()
+autumn=mat('amber woodland canopy',(.46,.20,.045),0,.78)
+# Mature broadleaf tree: tall tapered trunk and spreading asymmetric branches.
+tube([(0,0,0),(-.14,.66,.05),(.04,1.37,-.06),(.22,2.25,.04)],[.36,.27,.18,.065],bark,12)
+for i in range(5):
+ a=i*2*pi/5+.4;dx=math.cos(a);dz=math.sin(a)
+ tube([(0,.27,0),(.48*dx,.14,.48*dz),(.92*dx,.035,.92*dz)],[.16,.095,.026],bark,8)
+ h=1.77+.12*(i%3)
+ tube([(.02,1.15,0),(.37*dx,h-.18,.37*dz),(.66*dx,h+.34,.66*dz)],[.12,.08,.025],bark,9)
+ woodland_crown((.66*dx,h+.39,.66*dz),(1.18,.65,1.03),3000+i,leafdark if i%2 else moss)
+ for j in range(5):
+  ang=j*2*pi/5+i
+  crown_leaf((.66*dx+.33*math.cos(ang),h+.64,.66*dz+.33*math.sin(ang)),ang,.30,.11,leafbright)
+woodland_crown((.22,2.64,.04),(1.44,.69,1.32),3010,moss)
+# Small autumnal tree, distinct silhouette and a warm seasonal accent.
+tube([(-.85,0,.46),(-.91,.67,.46),(-.70,1.31,.43)],[.15,.105,.028],bark,9)
+for i in range(3):
+ ang=i*2*pi/3
+ woodland_crown((-.70+.26*math.cos(ang),1.39+.14*(i%2),.43+.27*math.sin(ang)),(.72,.44,.67),3020+i,autumn)
+for i in range(3):
+ ang=i*2*pi/3;leaf_rosette((.58*math.cos(ang),.05,.58*math.sin(ang)),3030+i,leafdark,leafbright,.48,fronds=4,pairs=3)
+export('dungeon_forest_habitat',6500)
+clear()
+# Woodland ground cover: no pedestal or raised square. Leaf litter and
+# low flowering plants join the spaces between mature trees.
+for i in range(5):
+ a=i*2*pi/5;x=.43*math.cos(a);z=.40*math.sin(a)
+ leaf_rosette((x,.035,z),3100+i,leafdark,leafbright,.32+.07*(i%2),fronds=4,pairs=3)
+ for j in range(3):
+  ang=a+j*1.7;crown_leaf((x+.20*math.cos(ang),.022,z+.20*math.sin(ang)),ang,.17,.055,autumn)
+for x,z in [(-.29,.19),(.32,-.12)]:
+ for j in range(5):
+  a=j*2*pi/5;crown_leaf((x,.20,z),a,.11,.044,white)
+ ball((x,.22,z),(.08,.035,.08),gold)
+tube([(-.59,.04,-.33),(-.16,.07,-.21),(.18,.05,-.36)],[.053,.039,.012],bark,6)
+export('dungeon_forest_understory',2600)
+clear()
+# Deep reef outcrop with several heights, overhanging ledges and a kelp forest.
+for k,(x,z,h) in enumerate([(-.67,-.25,1.75),(.39,-.32,2.15),(.61,.55,.86)]):
+ natural_rock((x,h*.43,z),(.92,h,.92),reefstone,3200+k)
+ for j in range(2):
+  y=h*(.49+j*.27)
+  natural_rock((x+.13,y,z+.14),(.97,.18,.85),reefedge,3210+k*2+j)
+ for i in range(3):
+  a=i*2*pi/3;xx=x+.20*math.cos(a);zz=z+.21*math.sin(a)
+  tube([(xx,h*.79,zz),(xx+.09*math.cos(a),h*.79+.20,zz+.09*math.sin(a)),(xx+.22*math.cos(a),h*.79+.40,zz+.20*math.sin(a))],[.065,.043,.020],coral if k%2 else coral2,7)
+for i in range(5):
+ a=i*2*pi/5;x=.88*math.cos(a);z=.65*math.sin(a)
+ h=1.75+.19*(i%3);verts=[];faces=[]
+ for j in range(11):
+  t=j/10;reach=.24*t+.14*math.sin(t*2*pi+i)*t;width=.13*max(.08,math.sin(pi*t)**.65)
+  for side in [-1,1]:
+   verts.append((x+reach*math.cos(a)+side*width*math.cos(a+t),.05+h*t,z+reach*math.sin(a)+side*width*math.sin(a+t)))
+ for j in range(10):faces.append((2*j,2*j+1,2*j+3,2*j+2))
+ ob=architectural_mesh('deep water ribbon kelp',verts,faces,kelp);ob.modifiers.new('kelp membrane','SOLIDIFY').thickness=.012
+export('dungeon_reef_habitat',5400)
+clear()
+# Seafloor garden: shells, sea stars, branched coral and hollow sponges.
+for i in range(3):
+ a=i*2*pi/3;x=.36*math.cos(a);z=.36*math.sin(a)
+ sponge(x,z,.30+.12*i,.12,sponge_violet if i%2 else sponge_orange,3300+i)
+for i in range(5):
+ a=i*2*pi/5
+ tube([(0,.035,0),(.14*math.cos(a),.08,.14*math.sin(a)),(.30*math.cos(a),.025,.30*math.sin(a))],[.062,.047,.014],sponge_orange,6)
+for x,z in [(-.47,.30),(.40,-.35)]:
+ for j in range(3):
+  a=j*2*pi/3
+  tube([(x,.02,z),(x+.08*math.cos(a),.16,z+.08*math.sin(a)),(x+.17*math.cos(a),.33,z+.17*math.sin(a))],[.045,.035,.014],coral,6)
+ ball((x,.055,z),(.22,.10,.18),pearl)
+export('dungeon_reef_understory',4200)
+clear()
+# Hanging astral garden island. The rock is broad above and narrow below;
+# the top carries carved ruins, a small flowing stream and luminous plants.
+verts=[];faces=[];n=12
+for y,r in [(0,.10),(.22,.45),(.58,.91),(1.02,1.18),(1.14,1.12)]:
+ for i in range(n):
+  a=i*2*pi/n;rr=r*(1+.08*math.sin(i*2.9+y))
+  verts.append((rr*math.cos(a),y,rr*.76*math.sin(a)))
+for j in range(4):
+ for i in range(n):
+  a=j*n+i;c=j*n+(i+1)%n;faces.append((a,c,c+n,a+n))
+faces.extend([tuple(reversed(range(n))),tuple(range(4*n,5*n))])
+architectural_mesh('hanging garden island',verts,faces,astralstone)
+for x in [-.48,.48]:
+ cyl((x,1.52,-.18),.15,.13,.72,astraledge)
+ cyl((x,1.18,-.18),.21,.20,.10,rune)
+temple_arch(0,1.85,.52,.20,astraledge,3400)
+for x,z in [(-.82,.32),(.69,.42),(.27,-.49)]:
+ crystal((x,1.10,z),.12,.32,star,3410+int(x*10))
+ for i in range(5):
+  a=i*2*pi/5;crown_leaf((x,1.13,z),a,.20,.07,violetglow if i%2 else leafdark)
+# Reuse the named animated stream material. A continuous curved sheet
+# spills over the island edge, not an image or a cylinder.
+verts=[];faces=[]
+for j in range(10):
+ t=j/9
+ for i in range(6):
+  u=i/5*2-1
+  verts.append((.25*u*(1+.25*t),1.16-1.03*t*t,.54+.40*t+.04*math.sin(t*pi)))
+for j in range(9):
+ for i in range(5):
+  a=j*6+i;faces.append((a,a+1,a+7,a+6))
+o=architectural_mesh('astral garden waterfall',verts,faces,stream);o.modifiers.new('water membrane','SOLIDIFY').thickness=.012
+export('dungeon_star_habitat',5500)
+clear()
+# Low celestial understory, scattered carved fragments with luminous blossoms.
+for i in range(3):
+ a=i*2*pi/3;x=.35*math.cos(a);z=.35*math.sin(a)
+ rock_slab((x,.10,z),(.38,.19,.32),astraledge,3500+i)
+ crystal((x,.15,z),.07,.18+.05*i,star,3510+i)
+ for j in range(5):
+  ang=j*2*pi/5
+  crown_leaf((x,.07,z),ang,.23,.078,violetglow if j%2 else leafdark)
+for i in range(4):
+ a=i*pi/2
+ box((.19*math.cos(a),.04,.19*math.sin(a)),(.12,.045,.05),rune,.007)
+export('dungeon_star_understory',2400)
 with open(os.path.join(OUT,'mesh-metrics.json'),'w') as out: json.dump(stats,out,indent=2)

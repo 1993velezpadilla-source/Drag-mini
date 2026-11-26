@@ -70,6 +70,8 @@ var exterior_vertex_count=0
 var exterior_max_height=0.0
 var exterior_groups:Array[Vector2i]=[]
 var exterior_vistas:Array[Vector2i]=[]
+var habitat_tall:Array[Vector2i]=[]
+var habitat_low:Array[Vector2i]=[]
 var exterior_static_batches=0
 var landmark_cells:Array[Vector2i]=[]
 var exterior_distances:Dictionary={}
@@ -550,7 +552,7 @@ func build_exterior_world(wall_cells:Dictionary):
 	# Multi-source BFS provides exact distance bands in O(cells + exterior area).
 	# No decoration is added to the gameplay graph.
 	exterior_static_batches=0;exterior_motion_batches=0;exterior_motion_materials.clear()
-	exterior_groups.clear();exterior_vistas.clear();exterior_distances.clear();exterior_life.clear();exterior_life_parts.clear();exterior_life_centers.clear();exterior_clock=0.0
+	exterior_groups.clear();exterior_vistas.clear();habitat_tall.clear();habitat_low.clear();exterior_distances.clear();exterior_life.clear();exterior_life_parts.clear();exterior_life_centers.clear();exterior_clock=0.0
 	var queue:Array[Vector2i]=[]
 	for q in run.cells:
 		exterior_distances[q]=0;queue.append(q)
@@ -610,6 +612,7 @@ func build_exterior_world(wall_cells:Dictionary):
 		exterior_groups.append(q)
 		if exterior_life_centers.size()<12:exterior_life_centers.append(center)
 	batch_exterior_parts(parts,placements)
+	build_habitat_layers(prefix,queue,wall_cells)
 	exterior_life_parts=rock_parts(prefix+"_life.glb")
 	if exterior_life_centers.is_empty():return
 	for part in exterior_life_parts:
@@ -617,6 +620,65 @@ func build_exterior_world(wall_cells:Dictionary):
 		var inst=MultiMeshInstance3D.new();inst.multimesh=mm;geometry.add_child(inst);inst.cast_shadow=GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		exterior_life.append(inst)
 	update_exterior_world(0.0)
+func build_habitat_layers(prefix:String,queue:Array[Vector2i],wall_cells:Dictionary):
+	var tall_parts=rock_parts(prefix+"_habitat.glb")
+	var low_parts=rock_parts(prefix+"_understory.glb")
+	if tall_parts.is_empty() or low_parts.is_empty():return
+	var tall_placements:Array[Transform3D]=[]
+	var low_placements:Array[Transform3D]=[]
+	# Favor exterior behind rooms and sides. Tall assets farther from walkable
+	# tiles protect the camera's foreground view. No gameplay cells are edited.
+	var candidates:Array[Vector2i]=[]
+	for room in run.rooms:
+		var m:Vector2i=room.get_center()
+		for x in [m.x,m.x-3,m.x+3]:
+			candidates.append(Vector2i(x,room.position.y-3))
+		candidates.append(Vector2i(room.position.x-3,m.y))
+		candidates.append(Vector2i(room.end.x+2,m.y))
+	for q in queue:
+		if exterior_distances[q] in [4,5,6]:candidates.append(q)
+	for q in candidates:
+		if habitat_tall.size()>=22:break
+		if exterior_distances.get(q,99)<3 or exterior_distances.get(q,99)>6:continue
+		var safe=true
+		for dy in range(-1,2):
+			for dx in range(-1,2):
+				if run.cells.has(q+Vector2i(dx,dy)):safe=false
+		for old in exterior_groups:
+			if Vector2(old-q).length_squared()<4.0:safe=false;break
+		for old in landmark_cells:
+			if Vector2(old-q).length_squared()<5.0:safe=false;break
+		for old in habitat_tall:
+			if Vector2(old-q).length_squared()<7.0:safe=false;break
+		if not safe:continue
+		var angle=float(posmod(q.x*7+q.y*11,7)-3)*.15
+		var scale_value=.94+.18*float(posmod(q.x*13+q.y*7,5))/4.0
+		var elevation=.12 if region==2 else -.42
+		tall_placements.append(Transform3D(Basis(Vector3.UP,angle).scaled(Vector3.ONE*scale_value),pos(q)+Vector3(0,elevation,0)))
+		habitat_tall.append(q)
+	# Low cover fills near-wall and midground gaps with smaller silhouettes,
+	# not another repeated tower. Deterministic jitter stays in exterior tiles.
+	for distance in [2,3,4,5]:
+		for q in queue:
+			if habitat_low.size()>=80:break
+			if exterior_distances[q]!=distance or wall_cells.has(q):continue
+			var safe=true
+			for old in exterior_groups:
+				if Vector2(old-q).length_squared()<1.6:safe=false;break
+			for old in habitat_tall:
+				if Vector2(old-q).length_squared()<2.2:safe=false;break
+			for old in landmark_cells:
+				if Vector2(old-q).length_squared()<2.0:safe=false;break
+			for old in habitat_low:
+				if Vector2(old-q).length_squared()<2.0:safe=false;break
+			if not safe:continue
+			var angle=float(posmod(q.x*11+q.y*17,12))*TAU/12.0
+			var scale_value=.70+.27*float(posmod(q.x*7+q.y*13,5))/4.0
+			low_placements.append(Transform3D(Basis(Vector3.UP,angle).scaled(Vector3.ONE*scale_value),pos(q)+Vector3(0,-.51,0)))
+			habitat_low.append(q)
+	batch_exterior_parts(tall_parts,tall_placements)
+	batch_exterior_parts(low_parts,low_placements)
+	print("DUNGEON_HABITAT region=",region," tall=",habitat_tall.size()," understory=",habitat_low.size())
 func exterior_clearance(q:Vector2i)->bool:
 	if exterior_distances.get(q,99)<2 or exterior_distances.get(q,99)>6:return false
 	for dy in range(-1,2):
@@ -771,7 +833,9 @@ func build_exterior_surface():
 					support=maxf(support,1.0-smoothstep(1.0,2.5,Vector2(q-group).length()))
 				for landmark in landmark_cells:
 					support=maxf(support,1.0-smoothstep(1.0,2.5,Vector2(q-landmark).length()))
-			if terrace_cells.has(q):support=1.0
+			for group in habitat_tall:
+				if Vector2(q-group).length_squared()<3.0:support=1.0;break
+			if habitat_low.has(q) or terrace_cells.has(q):support=1.0
 			if not near:h-=depth_factor*(1.0-support)*[.32,1.05,1.75][region]
 			heights[y*width+x]=h;exterior_max_height=maxf(exterior_max_height,h)
 			vertices.append(Vector3(q.x*1.4,h,q.y*1.4));uvs.append(Vector2(q))

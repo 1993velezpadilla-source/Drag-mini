@@ -15,6 +15,8 @@ func exterior_review(dungeon,region:int,floor_index:int):
 	var meshes:Array[Mesh]=[]
 	for part in dungeon.rock_parts(prefix+"_exterior.glb"):meshes.append(part.mesh)
 	for part in dungeon.rock_parts(prefix+"_vista.glb"):meshes.append(part.mesh)
+	for suffix in ["_habitat.glb","_understory.glb"]:
+		for part in dungeon.rock_parts(prefix+suffix):meshes.append(part.mesh)
 	var layers:Array[Node3D]=[]
 	for child in dungeon.geometry.get_children():
 		if child is MultiMeshInstance3D and child.multimesh!=null and meshes.has(child.multimesh.mesh):
@@ -97,6 +99,11 @@ func run():
 		if ResourceLoader.exists("res://assets/dungeon_forest_exterior.glb"):
 			assert(dungeon.exterior_groups.size()>0 and dungeon.exterior_groups.size()<=40,"exterior landscape groups placed within budget")
 			assert(dungeon.exterior_static_batches>0,"static landscape submitted in spatial chunks")
+			if ResourceLoader.exists("res://assets/dungeon_forest_habitat.glb"):
+				assert(dungeon.habitat_tall.size()>0 and dungeon.habitat_tall.size()<=22)
+				assert(dungeon.habitat_low.size()>0 and dungeon.habitat_low.size()<=80)
+				for q in dungeon.habitat_tall:assert(dungeon.exterior_distances[q]>=3)
+				for q in dungeon.habitat_low:assert(dungeon.exterior_distances[q]>=2 and not dungeon.run.cells.has(q))
 			if region<2 and ResourceLoader.exists("res://assets/dungeon_forest_vista.glb"):
 				assert(dungeon.exterior_motion_batches>0,"authored water or kelp material animates")
 				for material in dungeon.exterior_motion_materials.values():

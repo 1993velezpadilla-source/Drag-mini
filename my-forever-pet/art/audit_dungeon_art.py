@@ -5,7 +5,7 @@ from mathutils import Vector
 args=sys.argv[sys.argv.index('--')+1:]
 root=Path(args[0]); output=Path(args[1]);output.mkdir(parents=True,exist_ok=True)
 catalog=json.loads((root/'catalog-audit.json').read_text())['assets']
-expected={f'dungeon_{biome}_{part}' for biome in ('forest','reef','star') for part in ('wall','shrine','cluster','rock_0','rock_1','rock_2','landmark','detail','span','dais','corner','terrace','floor_detail','threshold','exterior','life','vista')}
+expected={f'dungeon_{biome}_{part}' for biome in ('forest','reef','star') for part in ('wall','shrine','cluster','rock_0','rock_1','rock_2','landmark','detail','span','dais','corner','terrace','floor_detail','threshold','exterior','life','vista','habitat','understory')}
 expected.update('dungeon_'+name for name in ('chest','stairs','berry','material','spring','coin'))
 assert expected=={p.stem for p in root.glob('dungeon_*.glb')},'dungeon catalog mismatch'
 report={}
@@ -37,9 +37,9 @@ for name in sorted(expected):
    if material and material.use_nodes and any(n.type=='NORMAL_MAP' for n in material.node_tree.nodes):normal_materials.add(material.name)
  if name.endswith('_span'):
   assert len(normal_materials)>=2,(name,'missing imported normal maps',normal_materials)
- limit=3.4 if name.endswith(('_landmark','_span','_terrace','_exterior','_vista')) else 2.5
+ limit=3.4 if name.endswith(('_landmark','_span','_terrace','_exterior','_vista','_habitat')) else 2.5
  assert all(.02<x<limit for x in size),(name,list(size))
- assert low.z>=-.12 and high.z<=(3.1 if name.endswith(('_landmark','_exterior','_vista')) else 1.8),(name,list(low),list(high))
+ assert low.z>=-.12 and high.z<=(3.1 if name.endswith(('_landmark','_exterior','_vista','_habitat')) else 1.8),(name,list(low),list(high))
  scene=bpy.context.scene
  scene.render.engine='BLENDER_WORKBENCH'
  scene.render.resolution_x=384;scene.render.resolution_y=384;scene.render.resolution_percentage=100
