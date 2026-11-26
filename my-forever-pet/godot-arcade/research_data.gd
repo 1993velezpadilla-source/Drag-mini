@@ -35,3 +35,15 @@ static func discovered(r:int,collection:int)->int:
 	for id in POOLS[r]:
 		if (collection&(1<<id))!=0:n+=1
 	return n
+
+const ABILITIES=["Trail sense","Current rider","Wind glide"]
+static func cost(region:int,companion:int)->int:
+	return 1 if region_of(companion)==region else 2
+static func trial_sequence(region:int,id:int,step:int)->Array[int]:
+	var result:Array[int]=[]
+	for k in range(3 if region==0 else 4):
+		result.append(posmod(id*3+step*7+k*5+k*k,4))
+	return result
+static func trial_success(region:int,id:int,step:int,answer:Array,phase:float)->bool:
+	if region==1:return is_finite(phase) and phase>=.38 and phase<=.62
+	return answer==trial_sequence(region,id,step)

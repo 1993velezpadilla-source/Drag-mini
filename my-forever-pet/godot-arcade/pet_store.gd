@@ -129,9 +129,24 @@ func research_block(kind:String,region:int)->String:
 	var target=research_target(region)
 	if target<0: return "Every available local creature discovered"
 	if kind=="track" and research_progress(target)>=Research.needed(target): return "Creature located! Begin encounter"
-	if kind=="track" and s.energy<2: return "Rest first: requires 2 energy"
+	if kind=="track" and s.energy<Research.cost(region,species()): return "Rest first: requires %d energy"%Research.cost(region,species())
 	if kind=="encounter" and research_progress(target)<Research.needed(target): return "Find all evidence first"
 	return ""
+func research_survey(region:int,site:int,target:int,step:int,answer:Array,phase:float)->Dictionary:
+	advance(now())
+	var block=research_block("track",region)
+	if not block.is_empty(): return {"ok":false,"message":block}
+	if target!=research_target(region) or step!=research_progress(target) or site!=Research.correct(target,step):
+		return {"ok":false,"message":"Trail has changed. Search again."}
+	if not Research.trial_success(region,target,step,answer,phase):
+		s.energy=maxi(0,int(s.energy)-1); save_game()
+		return {"ok":true,"correct":false,"message":"The trace escaped! −1 energy. Try again."}
+	var result=research_action("track",region,site)
+	if result.get("correct",false) and posmod(target*7+step*3,5)==0:
+		s.materials=mini(9999,int(s.materials)+1); s.coins=mini(999999,int(s.coins)+8)
+		result["message"]=str(result.message)+" · Rare trace +8 coins +1 material"
+		save_game()
+	return result
 func research_action(kind:String,region:int,choice:int)->Dictionary:
 	advance(now())
 	var block=research_block(kind,region)
@@ -148,7 +163,7 @@ func research_action(kind:String,region:int,choice:int)->Dictionary:
 			s.energy=maxi(0,int(s.energy)-1); s.research_misses[region]=int(s.research_misses[region])|bit
 			save_game()
 			return {"ok":true,"correct":false,"message":"Old trail. Try another site.","species":target}
-		s.energy-=2; s.research_evidence[target]=step+1; s.research_misses[region]=0
+		s.energy-=Research.cost(region,species()); s.research_evidence[target]=step+1; s.research_misses[region]=0
 		s.coins=mini(999999,int(s.coins)+4); earn(5)
 		if step+1==Research.needed(target): s.materials=mini(9999,int(s.materials)+1)
 		save_game()

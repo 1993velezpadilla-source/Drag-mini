@@ -826,7 +826,8 @@ func build_habitat():
 	label(copy,"UNKNOWN CREATURE" if step<goal else store.SPECIES[id],20).autowrap_mode=TextServer.AUTOWRAP_WORD_SMART
 	label(copy,("Mystic" if id>=24 else "Rare" if id>=12 else "Common")+" · Evidence %d/%d"%[step,goal],14).modulate=Research.TINTS[r]
 	var bar=ProgressBar.new(); bar.max_value=goal; bar.value=step; bar.show_percentage=false; bar.custom_minimum_size.y=12; copy.add_child(bar)
-	label(copy,"Energy %d / 100"%int(store.s.energy),13)
+	label(copy,"Energy %d / 100 · %d per trace"%[int(store.s.energy),Research.cost(r,store.species())],13)
+	if Research.region_of(store.species())==r: label(copy,Research.ABILITIES[r]+" · companion bonus",12).modulate=Research.TINTS[r]
 	if not hunt_message.is_empty():
 		var feedback=label(hero,hunt_message,15); feedback.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART; feedback.modulate=Color("#ffd68d")
 	var block:String=store.research_block("track" if step<goal else "encounter",r)
@@ -838,7 +839,9 @@ func build_habitat():
 		var field=preload("res://research_map.gd").new()
 		actions.add_child(field)
 		field.setup(r,id,step,int(store.s.research_misses[r]) if int(store.s.research_target[r])==id else 0)
-		field.site_selected.connect(func(site:int): hunt_action("track",site))
+		field.site_selected.connect(func(site:int):
+			if site==Research.correct(id,step): open_research_trial(r,id,step,site)
+			else: hunt_action("track",site))
 		var legend=label(actions,"Tap a marker to investigate. Correct evidence advances the trail.",12); legend.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART
 	else:
 		var trust=clampi(int(store.s.research_trust[id]),0,2)
@@ -854,8 +857,17 @@ func build_habitat():
 		var item=button(dossier,store.SPECIES[candidate]+" · %d/%d traces"%[store.research_progress(candidate),Research.needed(candidate)],func():
 			if store.choose_research(candidate): hunt_message="New investigation selected"; select("Habitat"))
 		item.custom_minimum_size.y=42; item.add_theme_font_size_override("font_size",14)
+func open_research_trial(r:int,id:int,step:int,site:int):
+	reset_actions()
+	section_heading(actions,Research.REGIONS[r],Research.SITES[r][site]+" · recover the fresh trace")
+	var trial=preload("res://research_trial.gd").new(); panel(actions).add_child(trial); trial.setup(r,id,step)
+	trial.resolved.connect(func(answer:Array,phase:float): finish_hunt(store.research_survey(r,site,id,step,answer,phase)))
+	button(actions,"‹ Return to map",func(): select("Habitat"))
+	swipe_children(actions)
+	section_scroll.scroll_vertical=0
 func hunt_action(kind:String,choice:int):
-	var result:Dictionary=store.research_action(kind,hunt_region,choice)
+	finish_hunt(store.research_action(kind,hunt_region,choice))
+func finish_hunt(result:Dictionary):
 	hunt_message=str(result.get("message",""))
 	if result.get("unlocked",false):
 		play_reward(true)
