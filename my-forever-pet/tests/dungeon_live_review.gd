@@ -45,7 +45,8 @@ func run():
 		d.setup(region,1,0,false,true,902+region,24+region)
 		d.set_process(false)
 		await frames()
-		assert(d.run.enemies.size()>0 and d.companion_id==24+region)
+		assert(d.run.enemies.size()>0 and d.companion_id==0,"live enemies preserved and Mosky is the only companion")
+		assert(d.pet_pose.get_node_or_null("PixelCompanion") is Sprite3D,"actual pixel companion visible")
 		var seen:Dictionary={}
 		await capture(d,region,"entry")
 		seen["entry"]=true
