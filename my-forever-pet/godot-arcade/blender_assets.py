@@ -85,7 +85,7 @@ def export(name,maxtri):
  total=0
  for o in bpy.context.scene.objects:
   if o.type=='MESH':
-   if name in ('dungeon_coin','dungeon_chest'):
+   if name in ('dungeon_coin','dungeon_chest','dungeon_star_floor_detail'):
     import bmesh
     bm=bmesh.new();bm.from_mesh(o.data)
     bmesh.ops.remove_doubles(bm,verts=list(bm.verts),dist=.00003)
@@ -1068,50 +1068,98 @@ for i in range(4):
  a=i*pi/2;crystal((.20*math.cos(a),.17,.20*math.sin(a)),.08,.25+.07*(i%2),star,i)
 crystal((0,.16,0),.10,.48,violetglow,9)
 export('dungeon_star_detail',4000)
-# Distinct architectural silhouettes for multi-tile boundary runs.
-# Local X is the span; local +Z faces into the room.
+# Reauthored long wall architecture. Local +Z is the room-facing side.
+# Sculpted continuous cross-sections eliminate the bead-on-a-string silhouette.
+def cliff_bank(width,height,depth,m,seed):
+ import bmesh
+ rng=random.Random(seed)
+ verts=[];faces=[];steps=13
+ # Closed vertical section: ground toe, eroded face, shoulder, ridge and back.
+ profile=[(0,.49),(.19,.54),(.40,.43),(.65,.39),(.86,.20),(1,-.04),(.83,-.34),(.35,-.48),(0,-.47)]
+ for i in range(steps):
+  x=(i/(steps-1)-.5)*width
+  lift=1+.11*math.sin(i*.67+seed)+rng.uniform(-.055,.055)
+  for j,(h,d) in enumerate(profile):
+   wobble=.035*math.sin(i*1.4+j*.9+seed)
+   verts.append(v((x,height*h*lift,depth*(d+wobble))))
+ n=len(profile)
+ for i in range(steps-1):
+  for j in range(n):
+   k=i*n+j;l=i*n+(j+1)%n
+   faces.append((k,l,l+n,k+n))
+ faces.extend([tuple(reversed(range(n))),tuple(range((steps-1)*n,steps*n))])
+ me=bpy.data.meshes.new('continuous eroded wall face');me.from_pydata(verts,[],faces);me.update()
+ bm=bmesh.new();bm.from_mesh(me);bmesh.ops.recalc_face_normals(bm,faces=list(bm.faces));bm.to_mesh(me);bm.free()
+ uv=me.uv_layers.new(name='Continuous cliff UV')
+ for poly in me.polygons:
+  axis=max(range(3),key=lambda k:abs(poly.normal[k]));axes=[k for k in range(3) if k!=axis]
+  for li in poly.loop_indices:
+   co=me.vertices[me.loops[li].vertex_index].co;uv.data[li].uv=(co[axes[0]]*.7,co[axes[1]]*.7)
+ o=bpy.data.objects.new('continuous eroded wall face',me);bpy.context.collection.objects.link(o);finish(o,m)
+ for face in me.polygons:face.use_smooth=False
+ return o
+# Forest: an earth bank held by massive roots, natural overhangs and ferns.
 clear()
-natural_rock((0,.25,0),(2.68,.55,1.22),foreststone,820)
-tube([(-1.21,.22,.23),(-.80,.47,.29),(-.42,.75,.18),(.02,.60,.32),(.48,.35,.40),(1.18,.20,.27)],[.19,.24,.23,.20,.15,.065],bark,12)
-tube([(-.82,.32,-.23),(-.62,.83,-.20),(-.50,1.25,-.10),(-.32,1.56,-.06)],[.32,.27,.20,.12],bark,12)
+cliff_bank(2.78,1.12,1.18,foreststone,820)
 for i in range(4):
- ang=i*pi/2
- tube([(-.51,1.04,-.09),(-.51+.27*math.cos(ang),1.34,-.09+.27*math.sin(ang)),(-.51+.54*math.cos(ang),1.52,-.09+.54*math.sin(ang))],[.12,.085,.035],bark)
- leaf_rosette((-.51+.40*math.cos(ang),1.48,-.09+.40*math.sin(ang)),851+i,leafdark,leafbright,.50)
-for i in range(4):
- x=.11+i*.28
- natural_rock((x,.39+.07*(i%2),-.10),(.45,.40,.71),forestedge,872+i)
- leaf_rosette((x,.57,.06),880+i,leafdark,leafbright,.30)
-export('dungeon_forest_span',8500)
-clear()
-# Asymmetric coral shelf with curved branch fans and pearl pockets.
-natural_rock((0,.24,0),(2.65,.48,1.18),reefstone,901)
+ x=-1.02+i*.68
+ natural_rock((x,.81+.09*(i%2),-.16),(.83,.35,.87),moss,821+i)
+tube([(-1.31,.39,.44),(-.98,.72,.48),(-.54,1.05,.37),(-.11,.86,.49),(.43,.47,.53),(1.25,.19,.43)],[.18,.23,.21,.18,.13,.06],bark,12)
+tube([(-.65,.97,.12),(-.31,.76,.38),(-.18,.41,.54),(.12,.13,.53)],[.17,.15,.10,.04],bark,12)
+tube([(.68,1.0,-.12),(.55,.78,.28),(.82,.42,.43),(1.19,.10,.48)],[.18,.13,.10,.035],bark,12)
+for i in range(6):
+ x=-1.08+i*.42
+ leaf_rosette((x,.98,-.11+.10*(i%2)),850+i,leafdark,leafbright,.49)
 for i in range(3):
- x=(i-1)*.76
- natural_rock((x,.46+.09*i,-.13),(.98,.43,.90),reefedge,910+i)
-for i in range(5):
- x=(i-2)*.27+.30
- h=.58+.12*(2-abs(i-2))
- tube([(x*.60,.51,-.02),(x*.85,.78,0),(x, .56+h,.08),(x+.12,.76+h,.16)],[.13,.10,.075,.035],coral if i%2 else coral2)
- for side in [-1,1]:
-  tube([(x*.85,.78,0),(x+side*.13,.96,.05),(x+side*.22,1.12,.10)],[.065,.047,.023],coral2 if i%2 else coral)
-for i in range(4):
- a=i*pi/2;blades((-.77,.53,.17),a,.58,.10,kelp)
-ball((-.78,.52,.28),(.24,.21,.24),pearl)
-export('dungeon_reef_span',7500)
+ x=-.68+i*.43
+ cyl((x,.40+.07*i,.48),.045,.035,.20,bark)
+ ball((x,.52+.07*i,.48),(.22,.13,.22),cap)
+ for j in range(3):
+  ang=j*2*pi/3;ball((x+.052*math.cos(ang),.573+.07*i,.48+.052*math.sin(ang)),(.037,.022,.035),cream)
+export('dungeon_forest_span',10000)
+# Reef: carved limestone face with overlapping shelf corals and cavities.
 clear()
-# Broken colonnade: visible horizontal lintel, relief panels and a crystal break.
-rock_slab((0,.15,0),(2.70,.30,1.17),astralstone,941)
-for x in [-.95,-.10]:
- rock_slab((x,.37,0),(.57,.17,.74),astralstone,943)
- cyl((x,.84,0),.20,.17,.83,astraledge)
- for y in [.48,1.18]:cyl((x,y,0),.27,.27,.11,rune)
-rock_slab((-.52,1.38,0),(1.47,.27,.67),astraledge,948)
-box((-.52,1.38,.34),(1.22,.055,.045),rune,.012)
-for x,h in [(.38,.45),(.71,.81),(1.03,.37)]:
- rock_slab((x,.31,0),(.52,.38,.79),astralstone,955+int(x*10))
- crystal((x,.48,.02),.15,h,star if x<.7 else violetglow,960)
-export('dungeon_star_span',6500)
+cliff_bank(2.78,.94,1.15,reefstone,901)
+for i in range(3):
+ x=-.85+i*.83
+ natural_rock((x,.45+.12*(i%2),.21),(.92,.24,.83),reefedge,910+i)
+ natural_rock((x-.08,.75+.07*(i%2),-.07),(.81,.20,.78),reefedge,918+i)
+# Broad fan of sculpted ribs and smaller branching coral, asymmetrical across the span.
+for i in range(9):
+ ang=(i-4)*.22;x=-.62+.48*math.sin(ang);h=.55+.25*math.cos(ang)
+ tube([(-.62,.68,.05),(x*.65-.20,.91,.04),(x,.75+h,.10)],[.075,.059,.025],coral2 if i%2 else coral,10)
+for i in range(4):
+ x=.38+i*.22
+ tube([(x,.66,.03),(x-.04,.87,.10),(x+.13,1.15+.11*(i%2),.10)],[.105,.078,.034],coral if i%2 else coral2)
+ tube([(x-.04,.87,.10),(x-.19,1.04,.11)],[.055,.028],coral2)
+for i in range(3):
+ x=-.28+i*.32
+ ball((x,.48,.54),(.22,.18,.20),pearl)
+for i in range(4):blades((1.0,.60,-.14),i*pi/2,.58,.10,kelp)
+export('dungeon_reef_span',9000)
+# Astral: intact carved temple frieze and shattered fluted pilasters.
+clear()
+rock_slab((0,.16,0),(2.76,.32,1.17),astralstone,941)
+for i in range(3):
+ x=-.89+i*.89
+ rock_slab((x,.62,-.12),(.88,.63,.79),astraledge,943+i)
+ # Inset recessed panel surrounded by a brass frame and diamond relief.
+ box((x,.63,.30),(.59,.41,.07),astralstone,.018)
+ for y in [.42,.84]:box((x,y,.351),(.59,.047,.046),rune,.009)
+ for dx in [-.29,.29]:box((x+dx,.63,.351),(.042,.40,.046),rune,.009)
+ ob=box((x,.63,.38),(.19,.19,.055),rune,.012);ob.rotation_euler.y=pi*.25
+for x in [-1.21,.12]:
+ cyl((x,.83,.15),.21,.18,.97,astraledge)
+ for k in range(8):
+  ang=k*pi/4
+  ob=box((x+.19*math.cos(ang),.83,.15+.19*math.sin(ang)),(.045,.76,.045),astralstone,.006)
+  ob.rotation_euler.z=ang
+ for y in [.35,1.30]:cyl((x,y,.15),.26,.26,.09,rune)
+rock_slab((-.63,1.44,-.04),(1.45,.24,.73),astraledge,948)
+box((-.63,1.44,.35),(1.29,.049,.048),rune,.008)
+for x,h in [(.60,.36),(.94,.52),(1.17,.25)]:
+ crystal((x,.94,-.05),.12,h,star if x<.9 else violetglow,960+int(x*10))
+export('dungeon_star_span',9000)
 # Ground-level treasure chamber focal points. No collision or path changes.
 for biome,base,trim,light in [('forest',foreststone,forestedge,glow),('reef',reefstone,reefedge,blueglow),('star',astralstone,astraledge,violetglow)]:
  clear()
@@ -1229,7 +1277,8 @@ for i in range(3):
 export('dungeon_reef_floor_detail',2500)
 clear()
 # Inlaid constellation medallion, almost flush with the floor.
-cyl((0,.018,0),.49,.49,.028,astralstone)
+o=cyl((0,.018,0),.49,.49,.028,astralstone)
+o.modifiers.get('bevel').width=.003
 for i in range(8):
  a=i*pi/4;x=.40*math.cos(a);z=.40*math.sin(a)
  box((x,.035,z),(.11,.022,.11),rune,.004)

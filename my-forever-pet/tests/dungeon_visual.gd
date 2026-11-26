@@ -26,7 +26,7 @@ func run():
 				for d in dungeon.run.DIR:
 					if not dungeon.run.cells.has(p+d):boundary[p+d]=true
 			assert(dungeon.rock_modules==boundary.size(),"every boundary cell rendered exactly once")
-		if ResourceLoader.exists("res://assets/dungeon_forest_span.glb"):assert(dungeon.span_count>0,"multi-tile art breaks repeated wall silhouettes")
+		if ResourceLoader.exists("res://assets/dungeon_forest_span.glb"):assert(dungeon.span_count>0,"continuous sculpted wall faces required")
 		if ResourceLoader.exists("res://assets/dungeon_forest_terrace.glb"):
 			assert(dungeon.terrace_count>0 and dungeon.floor_detail_count>0,"layered environment models placed")
 			for q in dungeon.terrace_cells:assert(not dungeon.run.cells.has(q),"terraces never cover walkable tiles")

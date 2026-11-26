@@ -131,7 +131,7 @@ func build_ui():
 	var env=WorldEnvironment.new();env.environment=Environment.new();env.environment.background_mode=Environment.BG_COLOR;env.environment.background_color=palette[2].darkened(.55);env.environment.ambient_light_source=Environment.AMBIENT_SOURCE_COLOR;env.environment.ambient_light_color=[Color("#c7d4bc"),Color("#a0cbdc"),Color("#b4afd9")][region];env.environment.ambient_light_energy=.32;world.add_child(env)
 	var sun=DirectionalLight3D.new();sun.rotation_degrees=Vector3(-48,-35,0);sun.light_color=[Color("#fff2d4"),Color("#c0eaff"),Color("#d9d2ff")][region];sun.light_energy=.89;sun.shadow_enabled=true;world.add_child(sun)
 	var fill=DirectionalLight3D.new();fill.rotation_degrees=Vector3(-35,145,0);fill.light_color=palette[3];fill.light_energy=.23;fill.shadow_enabled=false;world.add_child(fill)
-	camera=Camera3D.new();camera.projection=Camera3D.PROJECTION_ORTHOGONAL;camera.keep_aspect=Camera3D.KEEP_WIDTH;camera.size=8.2;world.add_child(camera);camera.current=true
+	camera=Camera3D.new();camera.projection=Camera3D.PROJECTION_ORTHOGONAL;camera.keep_aspect=Camera3D.KEEP_WIDTH;camera.size=9.0;world.add_child(camera);camera.current=true
 	var input=Control.new();area.add_child(input);input.set_anchors_and_offsets_preset(PRESET_FULL_RECT);input.mouse_filter=MOUSE_FILTER_STOP;input.gui_input.connect(touch)
 	map=Control.new();map.mouse_filter=MOUSE_FILTER_IGNORE;area.add_child(map);map.position=Vector2(10,10);map.size=Vector2(146,112);map.draw.connect(draw_map)
 	feedback=Label.new();feedback.horizontal_alignment=HORIZONTAL_ALIGNMENT_CENTER;feedback.add_theme_font_size_override("font_size",24);feedback.add_theme_color_override("font_outline_color",Color("#142535"));feedback.add_theme_constant_override("outline_size",7);feedback.mouse_filter=MOUSE_FILTER_IGNORE;area.add_child(feedback);feedback.hide()
@@ -344,7 +344,8 @@ func natural_boundary(points:Array[Vector3])->bool:
 				var inward=normal if forward else -normal
 				var angle=atan2(float(inward.x),float(inward.y))
 				var middle=(pos(q)+pos(other))*.5
-				placements.append(Transform3D(Basis(Vector3.UP,angle),middle))
+				var wall_height=1.10 if inward.y>0 else .76 if inward.y<0 else .94
+				placements.append(Transform3D(Basis(Vector3.UP,angle).scaled(Vector3(1.0,wall_height,1.0)),middle))
 				consumed[q]=true;consumed[other]=true;span_count+=1
 				break
 		batch_parts(spans,placements)
@@ -513,7 +514,7 @@ func build_floor():
 			var next:Vector2i=q+d
 			if not run.cells.has(next) and not seen.has(next):
 				seen[next]=true;walls.append(pos(next)+Vector3(0,.44,0))
-	var ground:Color=[Color("#89936e"),Color("#66909e"),Color("#77709a")][region]
+	var ground:Color=[Color("#8a9274"),Color("#76929a"),Color("#77709a")][region]
 	var far_ground=shape(geometry,"box",Vector3(25,-.77,20),Vector3(88,.35,78),palette[2].darkened(.15))
 	far_ground.material_override=mat(palette[2].darkened(.15));far_ground.cast_shadow=GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	batch(geometry,a,"box",Vector3(1.40,.24,1.40),ground,true);batch(geometry,b,"box",Vector3(1.40,.24,1.40),ground.lightened(.025),true)
@@ -573,7 +574,8 @@ func build_floor():
 	active_floor=run.floor_revision
 	banner_time=1.65;floor_banner.text="B%d  ·  %s"%[run.floor_number,floor_name()];floor_banner.show()
 	floor_banner.size=Vector2(area.size.x,45);floor_banner.position=Vector2(0,area.size.y*.12)
-	camera.position=pet.position+Vector3(0,8.5,10.5);camera.look_at(pet.position)
+	var focus=pet.position+Vector3(0,.18,-.48)
+	camera.position=focus+Vector3(0,7.6,11.3);camera.look_at(focus)
 	refresh_actors()
 	floor_build_usec=Time.get_ticks_usec()-start_usec
 	print("DUNGEON_FLOOR_BUILD region=",region," floor=",run.floor_number," usec=",floor_build_usec," rocks=",rock_modules," cached_rock_sets=",rock_mesh_cache.size()," landmarks=",landmark_count," details=",detail_count," paired_spans=",span_count," corners=",corner_count," terraces=",terrace_count," floor_details=",floor_detail_count," thresholds=",threshold_count)
@@ -747,4 +749,5 @@ func _process(dt:float):
 	else:attack_fx.hide()
 	if hit_time>0.0:pet_pose.rotation.z+=sin(hit_time*45.0)*.19
 	if facing!=Vector2i.ZERO:pet.rotation.y=atan2(float(facing.x),float(facing.y))
-	camera.position=pet.position+Vector3(0,8.5,10.5);camera.look_at(pet.position)
+	var focus=pet.position+Vector3(0,.18,-.48)
+	camera.position=focus+Vector3(0,7.6,11.3);camera.look_at(focus)
