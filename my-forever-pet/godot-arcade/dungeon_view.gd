@@ -60,6 +60,10 @@ var detail_count=0
 var span_count=0
 var corner_count=0
 var terrace_count=0
+var exterior_surface:MeshInstance3D
+var exterior_vertex_count=0
+var exterior_max_height=0.0
+var floor_surface:MeshInstance3D
 var threshold_count=0
 var threshold_cells:Dictionary={}
 var room_lights:Array[OmniLight3D]=[]
@@ -497,27 +501,107 @@ func update_room_lights():
 		if i<candidates.size():room_lights[i].position=pos(candidates[i])+Vector3(-1.1,2.6,-1.0)
 func floor_name()->String:
 	return ["Ancient passages","Treasure chamber","Monster den","Restorative grotto","Forgotten ruins"][run.floor_kind]
+func build_exterior_surface():
+	# The procedural terrain is a connected landscape, not a flat colored void.
+	# All scenery models remain the original Blender GLBs. The terrain never
+	# rises to walkable height or changes the gameplay grid.
+	var low=Vector2i(999,999);var high=Vector2i(-999,-999)
+	for p in run.cells:
+		low=Vector2i(mini(low.x,p.x),mini(low.y,p.y));high=Vector2i(maxi(high.x,p.x),maxi(high.y,p.y))
+	low-=Vector2i(7,7);high+=Vector2i(7,7)
+	var width=high.x-low.x+1;var depth=high.y-low.y+1
+	var noise=FastNoiseLite.new();noise.seed=run.seed_value+region*901+run.floor_number*37;noise.frequency=.19;noise.fractal_octaves=3
+	var vertices=PackedVector3Array();var normals=PackedVector3Array();var colors=PackedColorArray();var indices=PackedInt32Array()
+	var heights=PackedFloat32Array();heights.resize(width*depth)
+	exterior_max_height=-1.0
+	var deep:Color=[Color("#253d28"),Color("#163c4c"),Color("#24243e")][region]
+	var raised:Color=[Color("#57684b"),Color("#3b6d77"),Color("#4d4968")][region]
+	for y in range(depth):
+		for x in range(width):
+			var q=low+Vector2i(x,y)
+			var near=run.cells.has(q)
+			for d in Rules.DIR:
+				if run.cells.has(q+d):near=true
+			var n=noise.get_noise_2d(q.x,q.y)
+			var h=-.64 if near else -.57+.21*n
+			heights[y*width+x]=h;exterior_max_height=maxf(exterior_max_height,h)
+			vertices.append(Vector3(q.x*1.4,h,q.y*1.4))
+			colors.append(deep.lerp(raised,clampf(.43+n*.57,0.0,1.0)))
+	for y in range(depth):
+		for x in range(width):
+			var left=heights[y*width+maxi(0,x-1)];var right=heights[y*width+mini(width-1,x+1)]
+			var front=heights[maxi(0,y-1)*width+x];var back=heights[mini(depth-1,y+1)*width+x]
+			normals.append(Vector3(left-right,2.8,front-back).normalized())
+			if x<width-1 and y<depth-1:
+				var i=y*width+x
+				indices.append_array(PackedInt32Array([i,i+1,i+width+1,i,i+width+1,i+width]))
+	var arrays=[];arrays.resize(Mesh.ARRAY_MAX)
+	arrays[Mesh.ARRAY_VERTEX]=vertices;arrays[Mesh.ARRAY_NORMAL]=normals;arrays[Mesh.ARRAY_COLOR]=colors;arrays[Mesh.ARRAY_INDEX]=indices
+	var surface=ArrayMesh.new();surface.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES,arrays)
+	exterior_surface=MeshInstance3D.new();exterior_surface.mesh=surface
+	var material=terrain_mat(Color.WHITE).duplicate() as StandardMaterial3D
+	material.vertex_color_use_as_albedo=true
+	if region==2:material.albedo_texture=null;material.normal_enabled=false
+	exterior_surface.material_override=material;geometry.add_child(exterior_surface)
+	exterior_surface.cast_shadow=GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	exterior_vertex_count=vertices.size()
+func floor_vertex_color(point:Vector2)->Color:
+	# Contact shading at the wall-foot: continuous per-vertex gradient,
+	# independent of the tile pattern or the lighting renderer.
+	var cell=Vector2i(floori(point.x+.5),floori(point.y+.5))
+	var distance=1.5
+	for dy in range(-1,2):
+		for dx in range(-1,2):
+			var q=cell+Vector2i(dx,dy)
+			if run.cells.has(q):continue
+			var delta=(point-Vector2(q)).abs()-Vector2(.5,.5)
+			distance=minf(distance,Vector2(maxf(delta.x,0.0),maxf(delta.y,0.0)).length())
+	var factor=smoothstep(0.0,.82,distance)
+	var edge:Color=[Color("#99937b"),Color("#82979f"),Color("#93879f")][region]
+	return edge.lerp(Color.WHITE,.28+.72*factor)
+func build_walkable_surface(ground:Color):
+	# One indexed surface with shared vertices and soft border shading.
+	var surface_tool=SurfaceTool.new();surface_tool.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var vertices:Dictionary={}
+	for p in run.cells:
+		for y in range(2):
+			for x in range(2):
+				var origin:Vector2i=p*2+Vector2i(x-1,y-1)
+				var corners=[origin,origin+Vector2i.RIGHT,origin+Vector2i(1,1),origin+Vector2i.DOWN]
+				var ids:PackedInt32Array=[]
+				for key in corners:
+					if not vertices.has(key):
+						var point=Vector2(key)*.5
+						surface_tool.set_normal(Vector3.UP)
+						surface_tool.set_color(floor_vertex_color(point))
+						surface_tool.set_uv(point)
+						surface_tool.add_vertex(Vector3(point.x*1.4,-.01,point.y*1.4))
+						vertices[key]=vertices.size()
+					ids.append(vertices[key])
+				for k in [0,1,2,0,2,3]:surface_tool.add_index(ids[k])
+	var surface=surface_tool.commit()
+	floor_surface=MeshInstance3D.new();floor_surface.mesh=surface
+	var material=terrain_mat(ground).duplicate() as StandardMaterial3D
+	material.vertex_color_use_as_albedo=true
+	floor_surface.material_override=material;geometry.add_child(floor_surface)
 func build_floor():
 	var start_usec=Time.get_ticks_usec()
 	if is_instance_valid(geometry):geometry.hide();geometry.queue_free()
 	if is_instance_valid(actors):actors.hide();actors.queue_free()
 	geometry=Node3D.new();world.add_child(geometry);actors=Node3D.new();world.add_child(actors);actor_nodes.clear()
-	var a:Array[Vector3]=[];var b:Array[Vector3]=[];var walls:Array[Vector3]=[]
+	var walls:Array[Vector3]=[]
 	floor_ornaments.clear()
 	var seen:Dictionary={}
 	for p in run.cells:
 		var q:Vector2i=p
-		if (q.x+q.y)%2==0:a.append(pos(q)+Vector3(0,-.13,0))
-		else:b.append(pos(q)+Vector3(0,-.13,0))
 		if posmod(q.x*37+q.y*19+run.floor_number*13,11)==0:floor_ornaments.append(pos(q)+Vector3(0,.003,0))
 		for d in Rules.DIR:
 			var next:Vector2i=q+d
 			if not run.cells.has(next) and not seen.has(next):
 				seen[next]=true;walls.append(pos(next)+Vector3(0,.44,0))
 	var ground:Color=[Color("#8a9274"),Color("#76929a"),Color("#77709a")][region]
-	var far_ground=shape(geometry,"box",Vector3(25,-.77,20),Vector3(88,.35,78),palette[2].darkened(.15))
-	far_ground.material_override=mat(palette[2].darkened(.15));far_ground.cast_shadow=GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	batch(geometry,a,"box",Vector3(1.40,.24,1.40),ground,true);batch(geometry,b,"box",Vector3(1.40,.24,1.40),ground.lightened(.025),true)
+	build_exterior_surface()
+	build_walkable_surface(ground)
 	# Recess foundation below the walkable surface, so squared pedestals do not protrude around authored rocks.
 	var foundation:Array[Vector3]=[]
 	for p in walls:foundation.append(p-Vector3(0,.59,0))
@@ -578,7 +662,7 @@ func build_floor():
 	camera.position=focus+Vector3(0,7.6,11.3);camera.look_at(focus)
 	refresh_actors()
 	floor_build_usec=Time.get_ticks_usec()-start_usec
-	print("DUNGEON_FLOOR_BUILD region=",region," floor=",run.floor_number," usec=",floor_build_usec," rocks=",rock_modules," cached_rock_sets=",rock_mesh_cache.size()," landmarks=",landmark_count," details=",detail_count," paired_spans=",span_count," corners=",corner_count," terraces=",terrace_count," floor_details=",floor_detail_count," thresholds=",threshold_count)
+	print("DUNGEON_FLOOR_BUILD region=",region," floor=",run.floor_number," usec=",floor_build_usec," rocks=",rock_modules," cached_rock_sets=",rock_mesh_cache.size()," landmarks=",landmark_count," details=",detail_count," paired_spans=",span_count," corners=",corner_count," terraces=",terrace_count," floor_details=",floor_detail_count," thresholds=",threshold_count," exterior_vertices=",exterior_vertex_count)
 func actor_for(key:String,at:Vector3)->Node3D:
 	if actor_nodes.has(key):return actor_nodes[key]
 	var n=Node3D.new();actors.add_child(n);n.position=at;actor_nodes[key]=n;actor_created+=1

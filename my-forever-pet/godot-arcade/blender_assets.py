@@ -892,11 +892,39 @@ def natural_rock(p,size,m,seed):
   for li in face.loop_indices:
    co=o.data.vertices[o.data.loops[li].vertex_index].co;uv.data[li].uv=(co[axes[0]]*.45+.5,co[axes[1]]*.45+.5)
  return o
+def fern_frond(p,a,length,m):
+ # Compound fern: a curved central rachis and eight individually shaped pinnae.
+ # Double-sided mesh leaves replace the broad, artificial star-shaped ribbons.
+ verts=[];faces=[]
+ def point(t,offset=0,lift=0):
+  reach=length*(.84*t)
+  return (p[0]+math.cos(a)*reach-math.sin(a)*offset,
+          p[1]+length*(1.24*t-.76*t*t)+lift,
+          p[2]+math.sin(a)*reach+math.cos(a)*offset)
+ def leaflet(t,side,width):
+  j=len(verts)
+  for q in [point(t),point(t+.05,side*width*.68),point(t+.17,side*width),point(t+.19,side*width*.30),point(t+.09,side*width*.47,width*.12)]:
+   verts.append(v(q))
+  faces.extend([(j,j+1,j+4),(j+1,j+2,j+4),(j+2,j+3,j+4),(j+3,j,j+4)])
+ for i in range(5):
+  t=.12+i*.15
+  width=length*(.22-.024*i)
+  for side in [-1,1]:leaflet(t,side,width)
+ start=len(verts)
+ for i in range(7):
+  t=i/6
+  for side in [-1,1]:verts.append(v(point(t,side*length*.014)))
+ for i in range(6):faces.append((start+2*i,start+2*i+1,start+2*i+3,start+2*i+2))
+ me=bpy.data.meshes.new('compound fern foliage');me.from_pydata(verts,[],faces);me.update()
+ o=bpy.data.objects.new('compound fern foliage',me);bpy.context.collection.objects.link(o);finish(o,m)
+ m.use_backface_culling=False
 def leaf_rosette(p,seed,m1,m2,length=.58):
  rng=random.Random(seed)
  for i in range(7):
   ang=i*2*pi/7+rng.uniform(-.22,.22)
-  blades(p,ang,length*rng.uniform(.76,1.23),.12,m1 if i%2 else m2)
+  span=length*rng.uniform(.76,1.23)
+  if m1==leafdark and m2==leafbright:fern_frond(p,ang,span,m1 if i%2 else m2)
+  else:blades(p,ang,span,.12,m1 if i%2 else m2)
 # Each biome has three different wall silhouettes, not recolored spheres.
 for variant in range(3):
  clear()

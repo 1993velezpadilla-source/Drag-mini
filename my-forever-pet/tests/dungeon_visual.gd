@@ -18,6 +18,8 @@ func run():
 		assert(dungeon.area.size.x>200 and dungeon.area.size.y>200)
 		assert(dungeon.floor_label.text.contains("rooms"))
 		assert(dungeon.terrain_texture!=null and dungeon.terrain_normal!=null)
+		assert(dungeon.exterior_vertex_count>100 and dungeon.exterior_max_height<-.25,"exterior stays below playable floor")
+		assert(dungeon.floor_surface.mesh.get_surface_count()==1,"continuous indexed walkable terrain")
 		assert(not surfaces.has(dungeon.floor_surface_signature),"biomes have different floor textures");surfaces[dungeon.floor_surface_signature]=true
 		if ResourceLoader.exists("res://assets/dungeon_forest_landmark.glb"):assert(dungeon.landmark_count>0,"production landmark placed")
 		if ResourceLoader.exists("res://assets/dungeon_forest_rock_0.glb"):
