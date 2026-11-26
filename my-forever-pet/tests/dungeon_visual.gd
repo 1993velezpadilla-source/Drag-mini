@@ -14,6 +14,11 @@ func exterior_review(dungeon,region:int,floor_index:int):
 	for q in dungeon.floor_detail_bounds:
 		assert(dungeon.run.cells.has(q) and not dungeon.threshold_cells.has(q) and q!=dungeon.run.relic and q!=dungeon.run.stairs,"keep objectives and entrances clear")
 		assert(dungeon.floor_detail_fits(q,dungeon.floor_detail_bounds[q]),"interior detail stays low and within a single tile")
+	assert(dungeon.astral_cloud_bounds.size()<=dungeon.ASTRAL_CLOUD_CAP,"bounded cloud geometry")
+	if region!=2:assert(dungeon.astral_cloud_bounds.is_empty(),"cloud banks restricted to Starfall")
+	for cloud in dungeon.astral_cloud_bounds:
+		assert(cloud.end.y<=-.35 and dungeon.scenery_clear_of_floor(cloud),"clouds remain below and outside gameplay")
+		for other in dungeon.scenic_bounds:assert(not other.intersects(cloud),"clouds preserve scenic island silhouettes")
 	var variant_total:int=0
 	for count in dungeon.habitat_variant_counts:variant_total+=count
 	assert(variant_total==dungeon.habitat_tall.size(),"habitat variants account for every placement")
@@ -34,7 +39,7 @@ func exterior_review(dungeon,region:int,floor_index:int):
 	var meshes:Array[Mesh]=[]
 	for part in dungeon.rock_parts(prefix+"_exterior.glb"):meshes.append(part.mesh)
 	for part in dungeon.rock_parts(prefix+"_vista.glb"):meshes.append(part.mesh)
-	for suffix in ["_habitat.glb","_understory.glb","_crystal_habitat.glb","_ruin_habitat.glb"]:
+	for suffix in ["_habitat.glb","_understory.glb","_crystal_habitat.glb","_ruin_habitat.glb","_cloud_habitat.glb"]:
 		for part in dungeon.rock_parts(prefix+suffix):meshes.append(part.mesh)
 	var layers:Array[Node3D]=[]
 	for child in dungeon.geometry.get_children():

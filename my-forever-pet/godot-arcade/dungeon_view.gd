@@ -76,6 +76,8 @@ var vista_large:Array[Vector2i]=[]
 var scenic_bounds:Array[AABB]=[]
 var vista_focus_points:Array[Vector3]=[]
 var habitat_variant_counts:Array[int]=[0,0,0]
+var astral_cloud_bounds:Array[AABB]=[]
+const ASTRAL_CLOUD_CAP=24
 const DUNGEON_CAMERA_OFFSET=Vector3(0,7.6,11.3)
 const DUNGEON_CAMERA_WIDTH=10.4
 var habitat_low:Array[Vector2i]=[]
@@ -1088,6 +1090,34 @@ func build_exterior_surface():
 	geometry.add_child(exterior_surface)
 	exterior_surface.cast_shadow=GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	exterior_vertex_count=vertices.size()
+func build_astral_cloud_banks():
+	astral_cloud_bounds.clear()
+	if region!=2:return
+	var parts=rock_parts("res://assets/dungeon_star_cloud_habitat.glb")
+	if parts.is_empty():return
+	var placements:Array[Transform3D]=[]
+	# Interleave near and far bands: a cloud bank must remain below the
+	# playable plane and may not cross the actual footprint of any island.
+	for distance in [3,5,4,6,7,8,9]:
+		for q in exterior_distances:
+			if placements.size()>=ASTRAL_CLOUD_CAP:break
+			if exterior_distances[q]!=distance:continue
+			if posmod(q.x*11+q.y*19+run.floor_number,4)!=0:continue
+			var wide=.93+.42*float(posmod(q.x*17+q.y*7,9))/8.0
+			var y=-1.30-.16*float(distance-3)
+			var placement=Transform3D(Basis(Vector3.UP,float(posmod(q.x*7+q.y*13,12))*TAU/12.0).scaled(Vector3(wide,.72,wide*.92)),pos(q)+Vector3(0,y,0))
+			var bounds=measure_scenery(parts,placement)
+			if bounds.end.y>-.35 or not scenery_clear_of_floor(bounds):continue
+			var clear=true
+			for other in scenic_bounds:
+				if other.grow(.12).intersects(bounds):clear=false;break
+			if not clear:continue
+			for other in astral_cloud_bounds:
+				if other.grow(.30).intersects(bounds):clear=false;break
+			if not clear:continue
+			placements.append(placement);astral_cloud_bounds.append(bounds)
+	batch_exterior_parts(parts,placements)
+	print("ASTRAL_CLOUD_BANKS ",astral_cloud_bounds.size())
 func star_cloud_material()->ShaderMaterial:
 	# Opaque, two-scale painted cloud field on the depressed exterior terrain.
 	# No extra draw calls, alpha sorting, textures or particle overdraw.
@@ -1115,8 +1145,8 @@ void fragment(){
  float detail=noise2(p*2.25+vec2(3.2,1.7));
  float cloud=smoothstep(0.32,0.79,0.53*broad+0.35*folds+0.12*detail);
  float rim=smoothstep(0.45,0.82,cloud);
- vec3 shade=mix(vec3(0.115,0.13,0.28),vec3(0.39,0.35,0.63),cloud);
- shade=mix(shade,vec3(0.61,0.53,0.79),rim*0.7);
+ vec3 shade=mix(vec3(0.085,0.10,0.24),vec3(0.32,0.36,0.62),cloud);
+ shade=mix(shade,vec3(0.66,0.65,0.88),rim*0.85);
  ALBEDO=mix(ground_tint.rgb,shade,ground_tint.a*0.86);
  EMISSION=shade*ground_tint.a*0.10;
  ROUGHNESS=0.95;
@@ -1404,6 +1434,7 @@ func build_floor():
 	landscape_terraces(seen)
 	fill_habitat_understory(seen)
 	build_exterior_surface()
+	build_astral_cloud_banks()
 	if not natural_boundary(walls):
 		batch(geometry,walls,"box",Vector3(1.4,.88,1.4),palette[2],true)
 		boundary_detail(walls)

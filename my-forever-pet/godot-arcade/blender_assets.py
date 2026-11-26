@@ -1909,4 +1909,19 @@ for i in range(4):
  a=i*pi/2
  box((.19*math.cos(a),.04,.19*math.sin(a)),(.12,.045,.05),rune,.007)
 export('dungeon_star_understory',2400)
+clear()
+# Original sculpted atmospheric bank: soft overlapping lobes at different
+# heights, two tonal layers, with a flattened trailing base.
+cloud_shadow=mat('astral cloud lavender shade',(.27,.28,.48),0,.93)
+cloud_light=mat('astral cloud pearl lavender',(.61,.62,.82),0,.91)
+for p,sz,m in [
+ ((-.53,.30,.02),(1.58,.55,1.13),cloud_shadow),
+ ((.48,.27,-.12),(1.64,.50,1.08),cloud_shadow),
+ ((-.92,.45,.04),(.86,.54,.83),cloud_light),
+ ((-.41,.62,-.14),(1.13,.89,.96),cloud_light),
+ ((.20,.54,.13),(1.12,.76,1.10),cloud_light),
+ ((.79,.43,-.09),(1.0,.57,.82),cloud_light)]:
+ ob=ball(p,sz,m)
+ for poly in ob.data.polygons:poly.use_smooth=True
+export('dungeon_star_cloud_habitat',3800)
 with open(os.path.join(OUT,'mesh-metrics.json'),'w') as out: json.dump(stats,out,indent=2)
