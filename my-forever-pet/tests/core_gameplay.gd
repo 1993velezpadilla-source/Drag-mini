@@ -23,9 +23,12 @@ func run():
 	root.add_child(pet)
 	reset(0)
 	pet.s.coins=0
+	check(pet.action("field",2),"choose sky lineage before hatch")
 	check(pet.action("hatch"),"hatch")
 	check(pet.s.coins==100 and not pet.action("hatch"),"starter wallet paid once")
-	check(pet.action("field",2),"choose sky habitat")
+	var original_species:int=pet.species()
+	check(pet.action("field",0) and pet.species()==original_species and pet.s.field==2,"changing habitat never transforms hatched pet")
+	check(pet.s.habitat==0 and not pet.action("field",0),"selected habitat retained without repeated action")
 	var t:float=pet.now()
 	pet.s.last=t-3601
 	pet.advance(t)
@@ -123,5 +126,8 @@ func run():
 	check(not pet.action_block("form",24).is_empty(),"locked form control")
 	pet.s.medicine=99; check(not pet.action_block("supply",0).is_empty() and not pet.action("supply",0),"inventory cap")
 	check(pet.action("buy",0) and not pet.action_block("buy",0).is_empty(),"owned item cannot rebuy")
+	var adult_species:int=pet.species()
+	check(pet.action("field",1) and pet.species()==adult_species,"adult habitat independent of species")
+	check(pet.s.habitat==1 and pet.s.field==0,"adult lineage preserved")
 	print("FOREVER_PET_CORE_PASS ",passed)
 	quit()

@@ -137,6 +137,8 @@ func bar_skin(tint:Color,edge:Color)->StyleBoxTexture:
 	return b
 func button(parent:Node,value:String,fn:Callable)->Button:
 	var b=Button.new(); b.text=value; b.custom_minimum_size=Vector2(0,48); b.size_flags_horizontal=Control.SIZE_EXPAND_FILL
+	b.mouse_filter=MOUSE_FILTER_PASS
+	b.action_mode=BaseButton.ACTION_MODE_BUTTON_RELEASE
 	b.add_theme_font_size_override("font_size",18)
 	b.add_theme_stylebox_override("normal",skin(Color("#222b56"),Color("#777fd0")))
 	b.add_theme_stylebox_override("pressed",skin(Color("#473b78"),Color("#a3dfff"),true))
@@ -144,10 +146,21 @@ func button(parent:Node,value:String,fn:Callable)->Button:
 	b.focus_mode=FOCUS_NONE
 	b.pressed.connect(fn); parent.add_child(b); return b
 func row(parent:Node)->HBoxContainer:
-	var h=HBoxContainer.new(); h.add_theme_constant_override("separation",8); parent.add_child(h); return h
+	var h=HBoxContainer.new(); h.mouse_filter=MOUSE_FILTER_PASS; h.add_theme_constant_override("separation",8); parent.add_child(h); return h
 func panel(parent:Node)->VBoxContainer:
-	var p=PanelContainer.new(); p.add_theme_stylebox_override("panel",style(Color("#251d47ef"),Color("#9583d2"),21)); parent.add_child(p)
-	var v=VBoxContainer.new(); v.add_theme_constant_override("separation",7); p.add_child(v); return v
+	var p=PanelContainer.new(); p.mouse_filter=MOUSE_FILTER_PASS; p.add_theme_stylebox_override("panel",style(Color("#251d47ef"),Color("#9583d2"),21)); parent.add_child(p)
+	var v=VBoxContainer.new(); v.mouse_filter=MOUSE_FILTER_PASS; v.add_theme_constant_override("separation",7); p.add_child(v); return v
+func enable_swipe(container:ScrollContainer):
+	container.scroll_deadzone=12
+	container.mouse_filter=MOUSE_FILTER_STOP
+	container.get_v_scroll_bar().custom_minimum_size.x=3
+	container.get_h_scroll_bar().custom_minimum_size.y=3
+func swipe_children(node:Node):
+	# Every intermediate Control must propagate the press and drag to ScrollContainer.
+	if node is Control and not node is ScrollBar and not node is ScrollContainer and not node is LineEdit:
+		if node is BaseButton or node is Container: node.mouse_filter=MOUSE_FILTER_PASS
+		else: node.mouse_filter=MOUSE_FILTER_IGNORE
+	for child in node.get_children(): swipe_children(child)
 func make_ui():
 	var backdrop=ColorRect.new(); backdrop.color=Color("#110e29"); backdrop.set_anchors_and_offsets_preset(PRESET_FULL_RECT); add_child(backdrop)
 	var margin=MarginContainer.new(); margin.set_anchors_and_offsets_preset(PRESET_FULL_RECT); margin.add_theme_constant_override("margin_left",8); margin.add_theme_constant_override("margin_right",8); margin.add_theme_constant_override("margin_top",7); margin.add_theme_constant_override("margin_bottom",7); margin.mouse_filter=MOUSE_FILTER_IGNORE; add_child(margin)
@@ -215,19 +228,22 @@ func make_ui():
 	notice.clip_text=true
 	notice.hide()
 	section_scroll=ScrollContainer.new(); section_scroll.custom_minimum_size.y=88; section_scroll.horizontal_scroll_mode=ScrollContainer.SCROLL_MODE_DISABLED; layout.add_child(section_scroll)
-	body=VBoxContainer.new(); body.size_flags_horizontal=SIZE_EXPAND_FILL; section_scroll.add_child(body)
+	enable_swipe(section_scroll)
+	body=VBoxContainer.new(); body.mouse_filter=MOUSE_FILTER_PASS; body.size_flags_horizontal=SIZE_EXPAND_FILL; section_scroll.add_child(body)
 	actions=body
 	reward_row=row(layout); reward_row.add_theme_constant_override("separation",6)
 	daily_cta=button(reward_row,"Daily Gift",func(): perform("daily")); daily_cta.custom_minimum_size.y=43; daily_cta.icon=GameIcons.texture("daily"); daily_cta.expand_icon=true; daily_cta.add_theme_constant_override("icon_max_width",36); daily_cta.add_theme_stylebox_override("normal",skin(Color("#7747a8"),Color("#ffd38c")))
 	care_cta=button(reward_row,"Care Quest",func(): select("Care Quest")); care_cta.custom_minimum_size.y=43; care_cta.add_theme_font_size_override("font_size",15); care_cta.icon=GameIcons.texture("bond"); care_cta.expand_icon=true; care_cta.add_theme_constant_override("icon_max_width",30)
 	reward_audio=AudioStreamPlayer.new(); reward_audio.volume_db=-16; add_child(reward_audio)
 	room_scroll=ScrollContainer.new(); room_scroll.custom_minimum_size.y=64; room_scroll.vertical_scroll_mode=ScrollContainer.SCROLL_MODE_DISABLED; room_scroll.horizontal_scroll_mode=ScrollContainer.SCROLL_MODE_AUTO; layout.add_child(room_scroll)
+	enable_swipe(room_scroll)
 	room_strip=row(room_scroll); room_strip.size_flags_horizontal=SIZE_EXPAND_FILL
 	room_strip.add_theme_constant_override("separation",5)
 	for name in ["Bedroom","Kitchen","Bathroom","Toy room","Garden","Potion lab"]:
 		var b=art_tile(room_strip,name,"res://assets/"+ROOMS[name]+".jpg",func(): room(name),59,12)
 		b.custom_minimum_size.x=80
 		room_tiles[name]=b
+	swipe_children(room_strip)
 	var dock_shell=panel(layout)
 	menu_dock=row(dock_shell); menu_dock.add_theme_constant_override("separation",2)
 	for tab in ["Home","Pets","Rooms","Arcade","Shop","More"]: nav_tile(menu_dock,tab)
@@ -295,6 +311,7 @@ func update_action_controls():
 		if id in ["sleep","lamp"]: caption="Wake" if store.asleep(store.now()) else "Sleep"
 		if id=="auto": caption="Auto sleep: ON" if store.s.auto_sleep else "Auto sleep: OFF"
 		if id=="harvest" and store.s.garden_at>store.now(): caption=time_text(store.garden_remaining(store.now()))
+		if id=="field": caption=store.FIELDS[i]+(" ✓" if int(store.s.habitat)==i else "")
 		if id in ["bond","play","toy","train","praise"] and reason=="Give your pet a moment": caption="Wait %.1fs"%maxf(0,1.5-(store.now()-store.s.interaction_at))
 		b.disabled=not reason.is_empty(); b.tooltip_text=reason if b.disabled else caption
 		b.modulate=Color("#a7a6bc") if b.disabled else Color.WHITE
@@ -320,6 +337,7 @@ func perform(id:String,i:int=0):
 		if store.care_count()>old_care: notice.text+="  •  Care %d/4"%mini(4,store.care_count())
 		if store.level()>old_level: notice.text+="  •  LEVEL UP!"
 		if id=="care_claim" and int(before.care_claims)<4: notice.text="NEW COMPANION: "+store.SPECIES[24+int(before.care_claims)]
+		if id=="field": notice.text="Egg lineage: "+store.FIELDS[i] if store.s.stage==0 else "Habitat preference: "+store.FIELDS[i]+" • Same pet"
 		if id=="care_claim": show_care_reward(int(before.care_claims))
 		play_reward(id=="care_claim" or store.level()>old_level or store.care_count()>old_care)
 	else:
@@ -645,6 +663,7 @@ func show_collection():
 	else:
 		var growth_button=button(copy,"Growth journal",func(): select("Journal")); growth_button.add_theme_font_size_override("font_size",14)
 	var filter_scroll=ScrollContainer.new(); filter_scroll.custom_minimum_size.y=44; filter_scroll.vertical_scroll_mode=ScrollContainer.SCROLL_MODE_DISABLED; actions.add_child(filter_scroll)
+	enable_swipe(filter_scroll)
 	var filter=row(filter_scroll); filter.size_flags_horizontal=SIZE_EXPAND_FILL
 	for key in ["All","Land","Sky","Water","Alien","Mystic","Favorites"]:
 		var b=button(filter,key,func(): collection_filter=key; show_collection())
@@ -666,6 +685,7 @@ func show_collection():
 		var name=label(v,store.SPECIES[i],14); name.horizontal_alignment=HORIZONTAL_ALIGNMENT_CENTER; name.clip_text=true; name.mouse_filter=MOUSE_FILTER_IGNORE
 		var status=label(v,"Discovered" if known else "Undiscovered",11); status.horizontal_alignment=HORIZONTAL_ALIGNMENT_CENTER; status.mouse_filter=MOUSE_FILTER_IGNORE; status.modulate=Color("#9ce2b5") if known else Color("#c7b9db")
 	if collection_grid.get_child_count()==0: label(actions,"No favorites yet. Open a species and tap Favorite.",16).autowrap_mode=TextServer.AUTOWRAP_WORD_SMART
+	swipe_children(actions)
 func launch_game(i:int):
 	if not store.begin_arcade(i): notice.text="Your pet needs rest or is busy."; return
 	get_tree().change_scene_to_file("res://main.tscn" if i==4 else "res://pet_arcade.tscn")
@@ -730,6 +750,7 @@ func set_context(key:String,message:String,progress:float=-1.0):
 	if context_labels.has(key) and is_instance_valid(context_labels[key]): context_labels[key].text=message
 	if progress>=0 and context_bars.has(key) and is_instance_valid(context_bars[key]): context_bars[key].value=clampf(progress,0,100)
 func update_context():
+	swipe_children(actions)
 	update_action_controls()
 	var s:Dictionary=store.s
 	var now:float=store.now()
