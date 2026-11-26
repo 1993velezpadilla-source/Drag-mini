@@ -25,6 +25,11 @@ var scans=3
 var scan_left=0.0
 var capture_time=.65
 var capture_radius=.85
+var burst_left=0.0
+var burst_cooldown=0.0
+var burst_direction=Vector2.ZERO
+var environmental_force=Vector2.ZERO
+var gust_phase=0.0
 func setup(r:int,id:int,n:int,finale:bool,is_patrol:bool,seed_id:int):
 	region=r;specimen=id;step=n;encounter=finale;patrol=is_patrol;seed_value=seed_id
 	var rng=RandomNumberGenerator.new();rng.seed=seed_id
@@ -48,27 +53,52 @@ func signal_position()->Vector2:
 	var p=trail[index]
 	if encounter:p+=Vector2(sin(elapsed*1.8+index)*1.1,cos(elapsed*1.4+index)*.9)
 	return p.clamp(Vector2(-7.7,-7.3),Vector2(7.7,7.3))
+func burst()->bool:
+	if finished or burst_cooldown>0:return false
+	var v=destination-player
+	if v.length()<.3:return false
+	burst_direction=v.normalized();burst_left=.42;burst_cooldown=4.0;started=true;set_inspecting(false);return true
+func current_at(p:Vector2)->Vector2:
+	if region==1:
+		return Vector2(sin(p.y*.55+elapsed*.8),cos(p.x*.46-elapsed*.65))*.72
+	if region==2:
+		var strength=maxf(0.0,sin(elapsed*1.1))
+		return Vector2(cos(p.y*.2),sin(p.x*.2))*strength*1.25
+	return Vector2.ZERO
 func scan()->bool:
 	if finished or scans<=0 or scan_left>0:return false
 	scans-=1;scan_left=2.6;started=true;return true
 func signal_strength()->float:
 	return clampf(1.0-player.distance_to(signal_position())/11.0,0.0,1.0)
 func inspect_ready()->bool:
-	return not finished and player.distance_to(signal_position())<=capture_radius and hit_cooldown<=0.0
+	return not finished and player.distance_to(signal_position())<=capture_radius and hit_cooldown<=0.0 and burst_left<=0.0
 func set_inspecting(value:bool):
 	inspecting=value
 	if not value:hold=0.0
 func hazard_at(i:int)->Vector2:
-	return Vector2(sin(elapsed*(.68+i*.11)+float(i)*2.3)*6.1,cos(elapsed*(.49+i*.13)+float(i)*1.7)*5.8)
+	var offset=float(i)*2.3
+	match region:
+		0:return Vector2(sin(elapsed*(.72+i*.14)+offset)*6.1,sin(elapsed*.43+offset)*5.8)
+		1:return Vector2(cos(elapsed*(.48+i*.12)+offset)*5.7,sin(elapsed*(.48+i*.12)+offset)*5.7)
+		_:return Vector2(sin(elapsed*(1.05+i*.10)+offset)*6.7,cos(elapsed*.57+offset)*5.8)
 func tick(delta:float):
 	if finished or not started:return
 	var dt=clampf(delta,0,.10)
 	elapsed+=dt;time_left-=dt;hit_cooldown=maxf(0,hit_cooldown-dt);scan_left=maxf(0,scan_left-dt)
-	player=player.move_toward(destination,dt*[5.5,5.0,6.0][region])
+	burst_cooldown=maxf(0,burst_cooldown-dt)
+	environmental_force=current_at(player)
+	if burst_left>0:
+		burst_left=maxf(0,burst_left-dt)
+		player+=burst_direction*dt*11.5
+	else:
+		player=player.move_toward(destination,dt*[5.5,5.3,6.0][region])
+		# Holding still to inspect stabilizes the pet against currents.
+		if not inspecting:player+=environmental_force*dt
+	player=player.clamp(Vector2(-7.8,-7.4),Vector2(7.8,7.4))
 	hazard_positions.clear()
 	for i in range(2 if specimen<12 else 3):
 		var p=hazard_at(i);hazard_positions.append(p)
-		if player.distance_to(p)<.83 and hit_cooldown<=0:
+		if player.distance_to(p)<.83 and hit_cooldown<=0 and burst_left<=0:
 			hit_cooldown=1.3;hits+=1;time_left-=3;hold=0
 	if inspecting and inspect_ready():hold+=dt
 	else:hold=maxf(0,hold-dt*2.5)

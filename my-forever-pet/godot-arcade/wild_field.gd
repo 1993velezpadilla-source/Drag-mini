@@ -19,6 +19,11 @@ var calm:ProgressBar
 var signal_bar:ProgressBar
 var inspect_button:Button
 var scan_button:Button
+var burst_button:Button
+var burst_meter:ProgressBar
+var flow_arrows:Array[Node3D]=[]
+var mesh_cache:Dictionary={}
+var material_cache:Dictionary={}
 var pulse:Node3D
 var found_flash=0.0
 var camera_focus=Vector3.ZERO
@@ -53,19 +58,28 @@ func setup(r:int,id:int,step:int,finale:bool,patrol:bool,seed_id:int,companion:i
 	var controls=HBoxContainer.new();controls.add_theme_constant_override("separation",8);bottom.add_child(controls)
 	scan_button=Button.new();scan_button.custom_minimum_size=Vector2(120,58);scan_button.pressed.connect(func():run.scan());controls.add_child(scan_button)
 	inspect_button=Button.new();inspect_button.custom_minimum_size.y=58;inspect_button.size_flags_horizontal=SIZE_EXPAND_FILL;inspect_button.button_down.connect(func():run.set_inspecting(true));inspect_button.button_up.connect(func():run.set_inspecting(false));controls.add_child(inspect_button)
+	burst_button=Button.new();burst_button.custom_minimum_size=Vector2(102,58);burst_button.pressed.connect(func():run.burst());controls.add_child(burst_button)
+	burst_meter=ProgressBar.new();burst_meter.max_value=4.0;burst_meter.show_percentage=false;burst_meter.custom_minimum_size.y=5;bottom.add_child(burst_meter)
 	update_hud()
 func skin(bg:Color,edge:Color)->StyleBoxFlat:
 	var st=StyleBoxFlat.new();st.bg_color=bg;st.border_color=edge;st.set_border_width_all(1);st.content_margin_left=12;st.content_margin_right=12;st.content_margin_top=10;st.content_margin_bottom=10;return st
 func material(c:Color,glow:bool=false)->StandardMaterial3D:
+	var key=str(c)+str(glow)
+	if material_cache.has(key):return material_cache[key]
 	var m=StandardMaterial3D.new();m.albedo_color=c;m.roughness=.88
 	if glow:m.emission_enabled=true;m.emission=c;m.emission_energy_multiplier=.7
+	material_cache[key]=m
 	return m
 func shape(mesh:Mesh,p:Vector3,scale_value:Vector3,c:Color,parent:Node3D,glow:bool=false)->MeshInstance3D:
 	var ob=MeshInstance3D.new();ob.mesh=mesh;ob.material_override=material(c,glow);parent.add_child(ob);ob.position=p;ob.scale=scale_value;return ob
 func sphere(p:Vector3,sz:Vector3,c:Color,parent:Node3D,glow:bool=false)->MeshInstance3D:
-	var m=SphereMesh.new();m.radial_segments=10;m.rings=6;return shape(m,p,sz,c,parent,glow)
+	if not mesh_cache.has("sphere"):
+		var m=SphereMesh.new();m.radial_segments=10;m.rings=6;mesh_cache["sphere"]=m
+	return shape(mesh_cache["sphere"],p,sz,c,parent,glow)
 func column(p:Vector3,sz:Vector3,c:Color,parent:Node3D)->MeshInstance3D:
-	var m=CylinderMesh.new();m.radial_segments=8;return shape(m,p,sz,c,parent)
+	if not mesh_cache.has("column"):
+		var m=CylinderMesh.new();m.radial_segments=8;mesh_cache["column"]=m
+	return shape(mesh_cache["column"],p,sz,c,parent)
 func model(id:int,parent:Node3D)->Node3D:
 	var root=Node3D.new();parent.add_child(root)
 	var file="res://assets/mosskit.glb" if id==0 else "res://assets/creatures/species_%02d.glb"%id
@@ -84,7 +98,8 @@ func build_world(companion:int,id:int,finale:bool):
 	var sun=DirectionalLight3D.new();sun.light_color=Color("#fff2d2");sun.light_energy=1.25;sun.rotation_degrees=Vector3(-55,-30,0);sun.shadow_enabled=true;world.add_child(sun)
 	camera=Camera3D.new();camera.projection=Camera3D.PROJECTION_ORTHOGONAL;camera.keep_aspect=Camera3D.KEEP_WIDTH;camera.size=13.4;world.add_child(camera);camera_focus=Vector3(run.player.x,0,run.player.y);camera.position=camera_focus+Vector3(0,23,17);camera.look_at(camera_focus);camera.current=true
 	var ground=shape(BoxMesh.new(),Vector3(0,-.35,0),Vector3(22,.6,22),[Color("#547d4c"),Color("#427f91"),Color("#777eaa")][region],world)
-	var mat=ground.material_override as StandardMaterial3D
+	var mat=ground.material_override.duplicate() as StandardMaterial3D
+	ground.material_override=mat
 	var noise=FastNoiseLite.new();noise.frequency=.12
 	var texture=NoiseTexture2D.new();texture.width=256;texture.height=256;texture.noise=noise
 	var gradient=Gradient.new();gradient.colors=PackedColorArray([tint.darkened(.64),tint.darkened(.16)]);texture.color_ramp=gradient;mat.albedo_texture=texture;mat.albedo_color=Color.WHITE
@@ -110,6 +125,7 @@ func build_world(companion:int,id:int,finale:bool):
 				var grass=shape(PrismMesh.new(),Vector3(x+(j-1)*.08,.13,z),Vector3(.08,.27+float(j%2)*.08,.06),Color("#a7c26d"),world);grass.rotation.y=float(j)*1.2
 		elif region==1:sphere(Vector3(x,.04,z),Vector3(scale_value,.09,scale_value*.8),Color("#c1dacf"),world)
 		else:sphere(Vector3(x,.12,z),Vector3(scale_value,.22,scale_value),Color("#c2c4ef"),world)
+	build_landmarks()
 	player=model(companion,world)
 	trace=Node3D.new();world.add_child(trace)
 	var ring=TorusMesh.new();ring.inner_radius=.42;ring.outer_radius=.56;ring.rings=16;ring.ring_segments=8;shape(ring,Vector3(0,.13,0),Vector3.ONE,tint.lightened(.4),trace,true)
@@ -129,6 +145,34 @@ func build_world(companion:int,id:int,finale:bool):
 			sphere(Vector3(0,.6,0),Vector3(.28,.48,.28),Color("#e5f8fc"),hazard,true)
 		else:
 			shape(PrismMesh.new(),Vector3(0,.55,0),Vector3(.62,1.1,.62),Color("#ffc5e5"),hazard,true)
+func build_landmarks():
+	# Distinct landmarks outside the playable route; terrain remains traversable.
+	for side in [-1,1]:
+		for i in range(3):
+			var x=float(side)*8.9;var z=-6.0+float(i)*5.2
+			if region==0:
+				column(Vector3(x,1.5,z),Vector3(.65,2.8,.65),Color("#765443"),world)
+				for j in range(4):
+					var ob=sphere(Vector3(x+sin(j*1.6)*.7,2.8+float(j%2)*.4,z+cos(j*1.6)*.6),Vector3(2.2,1.6,2.0),[Color("#3f7756"),Color("#78a66b")][j%2],world)
+					ob.rotation.y=float(j)
+				for k in range(3):
+					var p=Vector3(x-float(side)*.9,.12,z+float(k)*.32)
+					column(p,Vector3(.11,.24,.11),Color("#f2d4a1"),world);sphere(p+Vector3(0,.17,0),Vector3(.34,.16,.34),Color("#e0a16c"),world)
+			elif region==1:
+				sphere(Vector3(x,.2,z),Vector3(1.4,.4,1.3),Color("#59798c"),world)
+				for j in range(5):
+					var coral=column(Vector3(x+sin(j*1.4)*.42,.70,z+cos(j*1.4)*.42),Vector3(.20,1.2+float(j%3)*.26,.20),[Color("#d88ea9"),Color("#b8b6ec"),Color("#ffcc9e")][j%3],world)
+					coral.rotation.z=sin(float(j))*.30
+			else:
+				var rock=shape(PrismMesh.new(),Vector3(x,1.1,z),Vector3(1.0,2.2,1.0),Color("#b8a8e4"),world);rock.rotation.y=float(i)*.7
+				for j in range(3):
+					sphere(Vector3(x+sin(j*2.1)*.75,.35,z+cos(j*2.1)*.65),Vector3(1.3,.5,1.3),Color("#d0d9f2"),world)
+	if region!=0:
+		for i in range(12):
+			var marker=Node3D.new();world.add_child(marker)
+			marker.position=Vector3(-6+float(i%4)*4,.10,-5+float(i/4)*4.0)
+			var arrow=shape(PrismMesh.new(),Vector3.ZERO,Vector3(.16,.08,.7),tint.lightened(.35),marker,true);arrow.rotation.x=PI/2
+			flow_arrows.append(marker)
 func aim(p:Vector2,dims:Vector2):
 	if dims.x<=0 or dims.y<=0 or run.finished:return
 	var screen=p*Vector2(viewport.size)/dims
@@ -139,7 +183,10 @@ func aim(p:Vector2,dims:Vector2):
 func _process(dt:float):
 	if not is_instance_valid(player) or notified:return
 	run.tick(dt)
-	player.position=Vector3(run.player.x,.1+absf(sin(run.elapsed*12))*.10,run.player.y)
+	player.position=Vector3(run.player.x,.1+absf(sin(run.elapsed*12))*.10+(0.26 if run.burst_left>0 else 0.0),run.player.y)
+	for marker in flow_arrows:
+		var force:Vector2=run.current_at(Vector2(marker.position.x,marker.position.z))
+		marker.rotation.y=atan2(force.x,force.y);marker.visible=force.length()>.18
 	var move=run.player-last_position
 	if move.length()>.01:player.rotation.y=atan2(move.x,move.y)
 	last_position=run.player
@@ -164,9 +211,14 @@ func update_hud():
 	progress.value=run.index;calm.value=run.hold;signal_bar.value=run.signal_strength()
 	readout.text=("Wild encounter" if run.encounter else "Track the creature")+"  %d/%d"%[run.index,run.required]
 	scan_button.text="Scan %d"%run.scans;scan_button.disabled=run.scans<=0 or run.scan_left>0 or run.finished
+	burst_button.text=["Dash","Swim","Glide"][region] if run.burst_cooldown<=0 else "%ds"%ceili(run.burst_cooldown)
+	burst_button.disabled=run.burst_cooldown>0 or run.finished
+	burst_meter.value=4.0-run.burst_cooldown
 	inspect_button.text="Hold to befriend" if run.encounter else "Hold to collect"
 	inspect_button.modulate=Color.WHITE if run.inspect_ready() else Color("#82939c")
 	status.text="Tap to move · Use signal strength to search" if not run.started else "Signal: "+("HOT" if run.signal_strength()>.78 else "WARM" if run.signal_strength()>.4 else "COLD")
+	if run.started and region==1 and run.environmental_force.length()>.55:status.text+=" · Current"
+	if run.started and region==2 and run.environmental_force.length()>.7:status.text+=" · Wind gust"
 	if run.scan_left>0:status.text="SCAN · "+run.direction()
 	if run.inspect_ready():status.text="Hold the action button now!"
 	if found_flash>0:status.text="Trace secured!" if not run.encounter else "Trust gained!"

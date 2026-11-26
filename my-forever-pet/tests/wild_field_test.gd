@@ -22,6 +22,18 @@ func run():
 	assert(passive.scan() and not passive.scan(),"scan cannot spam")
 	for i in range(30):passive.tick(.1)
 	assert(passive.scan_left==0 and passive.scans==2,"scan expires and costs a charge")
+	var land=Rules.new();land.setup(0,1,0,false,false,123)
+	land.move_to(Vector2(0,-4));assert(land.burst() and not land.burst(),"burst cooldown")
+	var start=land.player
+	land.tick(.1);assert(land.player.distance_to(start)>1.0,"dash accelerates movement")
+	assert(not land.inspect_ready(),"cannot inspect while dashing")
+	for i in range(40):land.tick(.1)
+	assert(land.burst_cooldown<.001,"burst recharges")
+	assert(land.current_at(Vector2.ZERO)==Vector2.ZERO,"land has no drift")
+	var water=Rules.new();water.setup(1,1,0,false,false,123)
+	assert(water.current_at(Vector2.ZERO).length()>.5,"water current")
+	var sky=Rules.new();sky.setup(2,1,0,false,false,123);sky.elapsed=1.2
+	assert(sky.current_at(Vector2.ZERO).length()>1.0,"sky gust")
 	var expired=Rules.new();expired.setup(0,1,0,false,false,99);expired.move_to(expired.player)
 	for i in range(500):expired.tick(.1)
 	assert(expired.finished and not expired.success)

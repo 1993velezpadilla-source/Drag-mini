@@ -1021,10 +1021,13 @@ func open_active_field(r:int,patrol:bool):
 	var field=preload("res://wild_field.gd").new()
 	add_child(field);field.set_anchors_and_offsets_preset(PRESET_FULL_RECT)
 	field.setup(r,int(session.id),int(session.step),bool(session.finale),patrol,int(session.seed),store.species())
-	field.canceled.connect(func():store.field_cancel();field.queue_free();select("Habitat"))
+	# Stop rendering the home pet while the full-screen field is active.
+	live_stage.hide()
+	field.canceled.connect(func():store.field_cancel();field.queue_free();live_stage.show();select("Habitat"))
 	field.ended.connect(func(success:bool,completed:int,elapsed:float):
 		var result:Dictionary=store.field_finish(success,completed,elapsed)
 		field.queue_free()
+		live_stage.show()
 		finish_hunt(result))
 func open_research_trial(r:int,id:int,step:int,site:int):
 	reset_actions()
@@ -1642,6 +1645,7 @@ func capture_home():
 		store.field_cancel()
 		for child in get_children():
 			if child.get_script()==preload("res://wild_field.gd"):child.queue_free()
+		live_stage.show()
 		await get_tree().process_frame
 	hunt_region=0
 	var target:int=store.research_target(0); store.s.research_evidence[target]=Research.needed(target)
