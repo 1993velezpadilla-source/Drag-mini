@@ -902,7 +902,7 @@ def natural_rock(p,size,m,seed):
   for li in face.loop_indices:
    co=o.data.vertices[o.data.loops[li].vertex_index].co;uv.data[li].uv=(co[axes[0]]*.45+.5,co[axes[1]]*.45+.5)
  return o
-def fern_frond(p,a,length,m):
+def fern_frond(p,a,length,m,pairs=5):
  # Compound fern: a curved central rachis and eight individually shaped pinnae.
  # Double-sided mesh leaves replace the broad, artificial star-shaped ribbons.
  verts=[];faces=[]
@@ -916,9 +916,9 @@ def fern_frond(p,a,length,m):
   for q in [point(t),point(t+.05,side*width*.68),point(t+.17,side*width),point(t+.19,side*width*.30),point(t+.09,side*width*.47,width*.12)]:
    verts.append(v(q))
   faces.extend([(j,j+1,j+4),(j+1,j+2,j+4),(j+2,j+3,j+4),(j+3,j,j+4)])
- for i in range(5):
-  t=.12+i*.15
-  width=length*(.22-.024*i)
+ for i in range(pairs):
+  t=.12+i*.60/max(1,pairs-1)
+  width=length*(.22-.096*i/max(1,pairs-1))
   for side in [-1,1]:leaflet(t,side,width)
  start=len(verts)
  for i in range(7):
@@ -928,12 +928,12 @@ def fern_frond(p,a,length,m):
  me=bpy.data.meshes.new('compound fern foliage');me.from_pydata(verts,[],faces);me.update()
  o=bpy.data.objects.new('compound fern foliage',me);bpy.context.collection.objects.link(o);finish(o,m)
  m.use_backface_culling=False
-def leaf_rosette(p,seed,m1,m2,length=.58):
+def leaf_rosette(p,seed,m1,m2,length=.58,fronds=7,pairs=5):
  rng=random.Random(seed)
- for i in range(7):
-  ang=i*2*pi/7+rng.uniform(-.22,.22)
+ for i in range(fronds):
+  ang=i*2*pi/fronds+rng.uniform(-.22,.22)
   span=length*rng.uniform(.76,1.23)
-  if m1==leafdark and m2==leafbright:fern_frond(p,ang,span,m1 if i%2 else m2)
+  if m1==leafdark and m2==leafbright:fern_frond(p,ang,span,m1 if i%2 else m2,pairs)
   else:blades(p,ang,span,.12,m1 if i%2 else m2)
 # DUNGEON ARCHITECTURE V3: independent sculpted profiles, no stacked rock walls.
 # All coordinates are Godot-space. The gameplay grid remains unchanged.
@@ -1593,16 +1593,19 @@ for k in range(9):
 # Fallen log with visible branching and richly planted bank, rather than bare rock.
 tube([(-1.01,.28,.18),(-.80,.34,.43),(-.58,.32,.65),(-.31,.25,.78)],[.13,.12,.10,.06],bark,10)
 tube([(-.80,.34,.43),(-.65,.48,.38),(-.54,.53,.33)],[.055,.037,.018],bark,8)
-for k in range(4):leaf_rosette((-.92+k*.16,.35,.51+k*.06),2820+k,leafdark,leafbright,.22)
+for k in range(4):leaf_rosette((-.92+k*.16,.35,.51+k*.06),2820+k,leafdark,leafbright,.22,fronds=4,pairs=3)
 for x in [-.78,.78]:
- leaf_rosette((x,.27,.25),2810+int(x*10),leafdark,leafbright,.42)
+ leaf_rosette((x,.27,.25),2810+int(x*10),leafdark,leafbright,.42,fronds=6,pairs=4)
  for j in range(2):
   xx=x+j*.12
   cyl((xx,.23,.61),.035,.029,.15,cream)
   ball((xx,.33,.61),(.21,.12,.20),cap)
+# Daisy petals have a raised curved midrib instead of 20 tiny spheres.
+# The flowers retain all five visible petals and golden centers.
 for x,z in [(-.71,-.51),(.79,-.44),(.52,.65),(-.49,.68)]:
  for k in range(5):
-  ang=k*2*pi/5;ball((x+.06*math.cos(ang),.30,z+.06*math.sin(ang)),(.11,.065,.10),white)
+  ang=k*2*pi/5
+  crown_leaf((x+.022*math.cos(ang),.30,z+.022*math.sin(ang)),ang,.095,.039,white)
  ball((x,.34,z),(.075,.05,.075),gold)
 export('dungeon_forest_vista',7000)
 clear()
