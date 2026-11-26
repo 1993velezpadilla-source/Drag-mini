@@ -7,7 +7,7 @@ var step:int
 var elapsed=0.0
 var phase=0.0
 var active=true
-var hidden=false
+var sequence_ready=false
 var sequence:Array[int]=[]
 var entered:Array[int]=[]
 var readout:Label
@@ -36,13 +36,13 @@ func setup(r:int,id:int,n:int):
 		var row=HBoxContainer.new(); add_child(row)
 		for k in range(4):
 			var b=make_button(row,symbols[k],func(): press_symbol(k)); b.disabled=r==0; buttons.append(b)
-		if r==2: hidden=true
+		if r==2: sequence_ready=true
 func add_skill(fn:Callable):
 	skill_button=make_button(self,Data.ABILITIES[region]+" · use daily skill",func():
 		if active and fn.call():
 			assisted=true; skill_button.disabled=true; skill_button.text="Companion skill active"
 			if region==0 and entered.is_empty():
-				hidden=false; elapsed=0.0; readout.text=sequence_text()
+				sequence_ready=false; elapsed=0.0; readout.text=sequence_text()
 				for b in buttons:b.disabled=true
 			elif region==2 and entered.is_empty():
 				entered.append(sequence[0]); readout.text=sequence_text())
@@ -57,7 +57,7 @@ func sequence_text()->String:
 		parts.append("✓" if k<entered.size() else symbols[sequence[k]])
 	return "  ".join(parts)
 func press_symbol(k:int):
-	if not active or not hidden:return
+	if not active or not sequence_ready:return
 	entered.append(k)
 	if entered[-1]!=sequence[entered.size()-1] or entered.size()==sequence.size():finish(entered,-1.0)
 	elif region==2:readout.text=sequence_text()
@@ -73,6 +73,6 @@ func _process(dt:float):
 		phase=0.5+0.5*sin(elapsed*(1.8 if assisted else 3.7)+float(target))
 		track.value=phase*100
 		readout.text="NOW!" if phase>=.38 and phase<=.62 else "Watch the current"
-	elif region==0 and not hidden and elapsed>=(4.0 if assisted else 2.0):
-		hidden=true; readout.text="Your turn"; prompt.text="Repeat the footprint sequence."
+	elif region==0 and not sequence_ready and elapsed>=(4.0 if assisted else 2.0):
+		sequence_ready=true; readout.text="Your turn"; prompt.text="Repeat the footprint sequence."
 		for b in buttons:b.disabled=false

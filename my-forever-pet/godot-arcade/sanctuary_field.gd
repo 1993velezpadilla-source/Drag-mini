@@ -22,7 +22,14 @@ func setup(r:int,t:int,m:int,pet:Texture2D):
 	region=r; tier=t; mask=m; companion=pet; points=Data.sanctuary_points(r,t)
 	custom_minimum_size.y=400; mouse_filter=MOUSE_FILTER_STOP; set_meta("direct_field_input",true)
 	# Keep paths wide and relics reachable. Distinct terrain on each map.
-	obstacles=[Rect2(.39,.19,.17,.19),Rect2(.42,.53,.17,.16)] if (r+t)%2==0 else [Rect2(.30,.30,.20,.16),Rect2(.55,.62,.18,.13)]
+	obstacles.clear()
+	var candidates=[Rect2(.39,.19,.17,.19),Rect2(.42,.53,.17,.16)] if (r+t)%2==0 else [Rect2(.30,.30,.20,.16),Rect2(.55,.62,.18,.13)]
+	for rect in candidates:
+		var safe=true
+		for p in points:
+			if rect.grow(.09).has_point(p):safe=false
+		if rect.grow(.09).has_point(pos):safe=false
+		if safe:obstacles.append(rect)
 	navigation.region=Rect2i(0,0,GRID+1,GRID+1)
 	navigation.diagonal_mode=AStarGrid2D.DIAGONAL_MODE_ONLY_IF_NO_OBSTACLES
 	navigation.update()
@@ -35,7 +42,7 @@ func grid_cell(p:Vector2)->Vector2i:
 func nearest_open(p:Vector2)->Vector2i:
 	var cell=grid_cell(p)
 	if not navigation.is_point_solid(cell):return cell
-	var best=Vector2i(-1,-1);var distance=INF
+	var best=Vector2i(-1,-1);var distance:float=INF
 	for y in range(GRID+1):
 		for x in range(GRID+1):
 			var id=Vector2i(x,y)
@@ -59,7 +66,7 @@ func _gui_input(event:InputEvent):
 	if event is InputEventMouseButton and event.button_index==MOUSE_BUTTON_LEFT and event.pressed:
 		move_to(event.position/size); accept_event()
 	elif event is InputEventMouseMotion and event.button_mask&MOUSE_BUTTON_MASK_LEFT:
-		var p=event.position/size
+		var p:Vector2=event.position/size
 		if walk_time-last_path_at>.10 and p.distance_to(last_touch)>.035:move_to(p)
 		accept_event()
 func can_move(p:Vector2)->bool:
@@ -71,10 +78,10 @@ func _process(dt:float):
 	if locked:return
 	walk_time+=dt
 	shimmer=maxf(0,shimmer-dt)
-	var remaining=minf(dt,.05)*(.44 if region==1 else .58)
+	var remaining:float=minf(dt,.05)*(.44 if region==1 else .58)
 	while remaining>0.00001 and not path.is_empty():
-		var next=path[0]
-		var distance=pos.distance_to(next)
+		var next:Vector2=path[0]
+		var distance:float=pos.distance_to(next)
 		if distance<=remaining:
 			pos=next; remaining-=distance; path.remove_at(0)
 		else:
@@ -88,7 +95,7 @@ func _process(dt:float):
 	queue_redraw()
 func _draw():
 	if size.x<=0 or size.y<=0:return
-	var tint=Data.TINTS[region]
+	var tint:Color=Data.TINTS[region]
 	for k in range(28):
 		var y=float(k)/28
 		draw_rect(Rect2(0,size.y*y,size.x,size.y/28+1),tint.darkened(.80).lerp(tint.darkened(.48),y))
@@ -125,15 +132,15 @@ func _draw():
 	for i in range(trail.size()):
 		draw_circle(trail[i]*size,2.0+float(i)/trail.size()*2,Color(tint.r,tint.g,tint.b,float(i)/trail.size()*.45))
 	if not path.is_empty():
-		var dest=path[-1]*size
+		var dest:Vector2=path[-1]*size
 		draw_arc(dest,10+sin(walk_time*5)*2,0,TAU,28,tint,2,true)
 	for i in range(points.size()):
-		var p=points[i]*size
+		var p:Vector2=points[i]*size
 		if (mask&(1<<i))!=0:
 			draw_arc(p,15,0,TAU,24,Color("#8fddb7"),2,true);continue
-		var distance=pos.distance_to(points[i])
+		var distance:float=pos.distance_to(points[i])
 		if distance<.28:
-			var glow=12+sin(walk_time*4+i)*3
+			var glow:float=12+sin(walk_time*4+i)*3
 			draw_circle(p,glow*1.6,Color("#ffdf7644"))
 			draw_colored_polygon(PackedVector2Array([p+Vector2(0,-12),p+Vector2(9,0),p+Vector2(0,12),p+Vector2(-9,0)]),Color("#ffe69e"))
 		else:pass
