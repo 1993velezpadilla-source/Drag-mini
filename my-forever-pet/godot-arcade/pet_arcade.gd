@@ -1,4 +1,5 @@
 extends Control
+const PixelArt=preload("res://pixel_pet_art.gd")
 const NAMES=["Star Catch","Flappy Pet","Cloud Jump","Find My Pet"]
 const WORLD=Vector2(480,720)
 var store:Node
@@ -56,6 +57,7 @@ func round_limit()->float: return 20.0 if mode==0 else 60.0 if mode==3 else 0.0
 func flash(at:Vector2,message:String):
 	feedback_pos=at; feedback_text=message; feedback=0.65
 func _ready():
+	texture_filter=CanvasItem.TEXTURE_FILTER_NEAREST
 	store=get_node("/root/PetStore")
 	if store.arcade_mode<0 or store.arcade_mode>3:
 		get_tree().call_deferred("change_scene_to_file","res://hub.tscn")
@@ -69,11 +71,11 @@ func _ready():
 	rng.randomize()
 	for i in range(store.SPECIES.size()):
 		var path="res://assets/pet_%d.png"%i
-		other_textures.append(load(path) if ResourceLoader.exists(path) else null)
+		other_textures.append(PixelArt.portrait(path))
 	pet_texture=other_textures[store.species()]
 	if store.s.stage==1 or store.s.stage==2:
 		var growth_path="res://assets/growth_%d_%d.png"%[store.s.field,store.s.stage]
-		if ResourceLoader.exists(growth_path): pet_texture=load(growth_path)
+		if ResourceLoader.exists(growth_path) and store.species()!=0: pet_texture=PixelArt.portrait(growth_path)
 	reset_round()
 	var bar=HBoxContainer.new()
 	bar.set_anchors_and_offsets_preset(PRESET_TOP_WIDE)

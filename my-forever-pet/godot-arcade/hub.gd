@@ -1,6 +1,7 @@
 extends Control
 const GAMES=["Star Catch","Flappy Pet","Cloud Jump","Find My Pet","Pet Dash 3D"]
 const GameIcons=preload("res://game_icons.gd")
+const PixelArt=preload("res://pixel_pet_art.gd")
 var store:Node
 var title_label:Label
 var info:Label
@@ -88,22 +89,8 @@ func tex(path:String)->Texture2D:
 	return assets.get(path) as Texture2D
 # Cache pixel portraits once; never resize or recolor on every refresh.
 func pixel_portrait(path:String)->Texture2D:
-	if pixel_assets.has(path): return pixel_assets[path] as Texture2D
-	var source:=tex(path)
-	if source==null: return null
-	var im:=source.get_image()
-	if im==null or im.is_empty(): return source
-	im.convert(Image.FORMAT_RGBA8)
-	im.resize(64,64,Image.INTERPOLATE_LANCZOS)
-	for y in range(64):
-		for x in range(64):
-			var c:=im.get_pixel(x,y)
-			if c.a<0.5: c=Color.TRANSPARENT
-			else: c=Color(roundf(c.r*15.0)/15.0,roundf(c.g*15.0)/15.0,roundf(c.b*15.0)/15.0,1.0)
-			im.set_pixel(x,y,c)
-	var result:=ImageTexture.create_from_image(im)
-	pixel_assets[path]=result
-	return result
+	var pixel:=PixelArt.portrait(path)
+	return pixel if pixel!=null else tex(path)
 var stats:Array[ProgressBar]=[]
 var notice:Label
 var last_stage_rect=Rect2()
@@ -426,7 +413,7 @@ func show_care_reward(unlocked:int):
 	popup.ok_button_text="Collect & continue"
 	popup.add_theme_stylebox_override("panel",skin(Color("#51316d"),Color("#ffd48a")))
 	var content=VBoxContainer.new(); content.add_theme_constant_override("separation",12); popup.add_child(content)
-	var image=TextureRect.new(); image.texture=tex("res://assets/pet_%d.png"%unlocked) if unlocked>=24 else GameIcons.texture("daily")
+	var image=TextureRect.new(); image.texture=pixel_portrait("res://assets/pet_%d.png"%unlocked) if unlocked>=24 else GameIcons.texture("daily")
 	image.custom_minimum_size=Vector2(260,220); image.expand_mode=TextureRect.EXPAND_IGNORE_SIZE; image.stretch_mode=TextureRect.STRETCH_KEEP_ASPECT_CENTERED; content.add_child(image)
 	var heading=label(content,store.SPECIES[unlocked]+" unlocked!" if unlocked>=24 else "Care adventure complete!",23); heading.horizontal_alignment=HORIZONTAL_ALIGNMENT_CENTER; heading.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART
 	var reward=label(content,"+25 coins    +2 materials    +15 XP",17); reward.horizontal_alignment=HORIZONTAL_ALIGNMENT_CENTER
@@ -639,7 +626,7 @@ func build_wallpaper():
 	var base_color=ColorRect.new(); base_color.color=Color("#45305f"); base_color.set_anchors_and_offsets_preset(PRESET_FULL_RECT); base_color.mouse_filter=MOUSE_FILTER_IGNORE; preview.add_child(base_color)
 	var back=TextureRect.new(); back.texture=tex("res://assets/"+store.WALL_ROOMS[room_index]+".jpg"); back.expand_mode=TextureRect.EXPAND_IGNORE_SIZE; back.stretch_mode=TextureRect.STRETCH_KEEP_ASPECT_COVERED; back.set_anchors_and_offsets_preset(PRESET_FULL_RECT); preview.add_child(back)
 	if s.wallpaper_minimal: back.hide()
-	var pet=TextureRect.new(); pet.texture=tex("res://assets/premium_egg.png" if s.stage==0 else ("res://assets/pet_sleep_%d.png" if store.asleep(store.now()) else "res://assets/pet_%d.png")%store.species()); pet.expand_mode=TextureRect.EXPAND_IGNORE_SIZE; pet.stretch_mode=TextureRect.STRETCH_KEEP_ASPECT_CENTERED; preview.add_child(pet); wallpaper_pet=pet
+	var pet=TextureRect.new(); pet.texture=pixel_portrait("res://assets/premium_egg.png" if s.stage==0 else ("res://assets/pet_sleep_%d.png" if store.asleep(store.now()) else "res://assets/pet_%d.png")%store.species()); pet.expand_mode=TextureRect.EXPAND_IGNORE_SIZE; pet.stretch_mode=TextureRect.STRETCH_KEEP_ASPECT_CENTERED; preview.add_child(pet); wallpaper_pet=pet
 	wallpaper_preview_status=Label.new(); wallpaper_preview_status.add_theme_font_size_override("font_size",11); wallpaper_preview_status.horizontal_alignment=HORIZONTAL_ALIGNMENT_CENTER; wallpaper_preview_status.add_theme_constant_override("outline_size",4); wallpaper_preview_status.add_theme_color_override("font_outline_color",Color("#241739")); preview.add_child(wallpaper_preview_status)
 	preview.resized.connect(layout_wallpaper_preview)
 	layout_wallpaper_preview.call_deferred()
@@ -682,7 +669,7 @@ func layout_wallpaper_preview():
 	var x=clampf(dims.x*[.25,.5,.75][clampi(int(s.wallpaper_x),0,2)],extent*.55,dims.x-extent*.55)
 	var y=clampf(dims.y*[.26,.47,.68][clampi(int(s.wallpaper_y),0,2)],extent*.56,dims.y-extent*.60-u*.09)
 	wallpaper_pet.size=Vector2.ONE*extent; wallpaper_pet.position=Vector2(x,y)-wallpaper_pet.size*.5
-	wallpaper_pet.texture=tex("res://assets/premium_egg.png" if s.stage==0 else ("res://assets/pet_sleep_%d.png" if store.asleep(store.now()) else "res://assets/pet_%d.png")%store.species())
+	wallpaper_pet.texture=pixel_portrait("res://assets/premium_egg.png" if s.stage==0 else ("res://assets/pet_sleep_%d.png" if store.asleep(store.now()) else "res://assets/pet_%d.png")%store.species())
 	if is_instance_valid(wallpaper_preview_status):
 		wallpaper_preview_status.visible=bool(s.wallpaper_status)
 		wallpaper_preview_status.text=store.pet_name()+"\n"+store.care_priority()
@@ -732,7 +719,7 @@ func build_care_quest():
 	var next:int=store.next_special()
 	if next>=24:
 		var hero=panel(actions); var line=row(hero)
-		var art=TextureRect.new(); art.texture=tex("res://assets/pet_%d.png"%next); art.custom_minimum_size=Vector2(124,118); art.expand_mode=TextureRect.EXPAND_IGNORE_SIZE; art.stretch_mode=TextureRect.STRETCH_KEEP_ASPECT_CENTERED; line.add_child(art)
+		var art=TextureRect.new(); art.texture=pixel_portrait("res://assets/pet_%d.png"%next); art.custom_minimum_size=Vector2(124,118); art.expand_mode=TextureRect.EXPAND_IGNORE_SIZE; art.stretch_mode=TextureRect.STRETCH_KEEP_ASPECT_CENTERED; line.add_child(art)
 		var copy=VBoxContainer.new(); copy.size_flags_horizontal=SIZE_EXPAND_FILL; line.add_child(copy)
 		label(copy,"NEXT COMPANION",12).modulate=Color("#ffd08a")
 		label(copy,store.SPECIES[next],23).autowrap_mode=TextServer.AUTOWRAP_WORD_SMART
@@ -1001,7 +988,7 @@ func build_habitat():
 		var step:int=store.research_progress(id)
 		var goal:int=Research.needed(id)
 		var line=row(hero)
-		var portrait_art=TextureRect.new();portrait_art.texture=tex("res://assets/pet_%d.png"%id);portrait_art.modulate=Color("#283343") if step<goal else Color.WHITE;portrait_art.custom_minimum_size=Vector2(84,84);portrait_art.expand_mode=TextureRect.EXPAND_IGNORE_SIZE;portrait_art.stretch_mode=TextureRect.STRETCH_KEEP_ASPECT_CENTERED;line.add_child(portrait_art)
+		var portrait_art=TextureRect.new();portrait_art.texture=pixel_portrait("res://assets/pet_%d.png"%id);portrait_art.modulate=Color("#283343") if step<goal else Color.WHITE;portrait_art.custom_minimum_size=Vector2(84,84);portrait_art.expand_mode=TextureRect.EXPAND_IGNORE_SIZE;portrait_art.stretch_mode=TextureRect.STRETCH_KEEP_ASPECT_CENTERED;line.add_child(portrait_art)
 		var copy=VBoxContainer.new();copy.size_flags_horizontal=SIZE_EXPAND_FILL;line.add_child(copy)
 		label(copy,"Unknown trail" if step<goal else store.SPECIES[id],21).autowrap_mode=TextServer.AUTOWRAP_WORD_SMART
 		label(copy,"%d/%d evidence · %s"%[step,goal,"Common" if id<12 else "Rare" if id<24 else "Mystic"],14)
@@ -1071,7 +1058,7 @@ func finish_hunt(result:Dictionary):
 		var id=int(result.species)
 		var tier=0 if id<12 else 1 if id<24 else 2
 		var rarity=label(content,["COMMON DISCOVERY","RARE DISCOVERY","MYSTIC DISCOVERY"][tier],15);rarity.horizontal_alignment=HORIZONTAL_ALIGNMENT_CENTER;rarity.modulate=[Color("#a7e9af"),Color("#8fd9ff"),Color("#e1b4ff")][tier]
-		var image=TextureRect.new(); image.texture=tex("res://assets/pet_%d.png"%id); image.custom_minimum_size=Vector2(250,200); image.expand_mode=TextureRect.EXPAND_IGNORE_SIZE; image.stretch_mode=TextureRect.STRETCH_KEEP_ASPECT_CENTERED; content.add_child(image)
+		var image=TextureRect.new(); image.texture=pixel_portrait("res://assets/pet_%d.png"%id); image.custom_minimum_size=Vector2(250,200); image.expand_mode=TextureRect.EXPAND_IGNORE_SIZE; image.stretch_mode=TextureRect.STRETCH_KEEP_ASPECT_CENTERED; content.add_child(image)
 		label(content,store.SPECIES[id],24).horizontal_alignment=HORIZONTAL_ALIGNMENT_CENTER
 		var rewards=panel(content)
 		var reward_line=row(rewards)
@@ -1091,7 +1078,7 @@ func finish_hunt(result:Dictionary):
 		if result.get("correct",false) and result.get("dungeon",false):
 			var summary=AcceptDialog.new();summary.title="EXPEDITION CLEARED";summary.ok_button_text="Continue adventure"
 			var content=VBoxContainer.new();content.add_theme_constant_override("separation",12);summary.add_child(content)
-			var portrait_art=TextureRect.new();portrait_art.texture=tex("res://assets/pet_%d.png"%store.species());portrait_art.custom_minimum_size=Vector2(220,160);portrait_art.expand_mode=TextureRect.EXPAND_IGNORE_SIZE;portrait_art.stretch_mode=TextureRect.STRETCH_KEEP_ASPECT_CENTERED;content.add_child(portrait_art)
+			var portrait_art=TextureRect.new();portrait_art.texture=pixel_portrait("res://assets/pet_%d.png"%store.species());portrait_art.custom_minimum_size=Vector2(220,160);portrait_art.expand_mode=TextureRect.EXPAND_IGNORE_SIZE;portrait_art.stretch_mode=TextureRect.STRETCH_KEEP_ASPECT_CENTERED;content.add_child(portrait_art)
 			label(content,"%d floors cleared"%int(result.floors),25).horizontal_alignment=HORIZONTAL_ALIGNMENT_CENTER
 			if result.get("evidence",0)>0:label(content,"+%d research evidence"%int(result.evidence),19).modulate=Color("#b9ebc0")
 			label(content,"+%d coins   ·   +%d XP"%[int(result.coins),int(result.xp)],19)
@@ -1166,7 +1153,7 @@ func build_family():
 		var id:int=store.original_species() if slot==-1 else slot
 		var shell=panel(family_grid)
 		var line=row(shell)
-		var art=TextureRect.new(); art.texture=tex("res://assets/premium_egg.png" if int(p.stage)==0 else "res://assets/pet_%d.png"%id); art.custom_minimum_size=Vector2(94,114);art.expand_mode=TextureRect.EXPAND_IGNORE_SIZE;art.stretch_mode=TextureRect.STRETCH_KEEP_ASPECT_CENTERED;line.add_child(art)
+		var art=TextureRect.new(); art.texture=pixel_portrait("res://assets/premium_egg.png" if int(p.stage)==0 else "res://assets/pet_%d.png"%id); art.custom_minimum_size=Vector2(94,114);art.expand_mode=TextureRect.EXPAND_IGNORE_SIZE;art.stretch_mode=TextureRect.STRETCH_KEEP_ASPECT_CENTERED;line.add_child(art)
 		var copy=VBoxContainer.new();copy.size_flags_horizontal=SIZE_EXPAND_FILL;line.add_child(copy)
 		label(copy,store.family_name_for(slot),20).autowrap_mode=TextServer.AUTOWRAP_WORD_SMART
 		label(copy,("Original" if slot==-1 else store.SPECIES[id])+" · Lv %d"%(1+int(p.companion_xp/50)),13).autowrap_mode=TextServer.AUTOWRAP_WORD_SMART
@@ -1203,7 +1190,7 @@ func show_collection():
 	var explore=button(actions,"Discover companions in World ›",func(): select("World")); explore.custom_minimum_size.y=40; explore.add_theme_font_size_override("font_size",14)
 	var featured=panel(actions)
 	var hero=row(featured)
-	var portrait_art=TextureRect.new(); portrait_art.texture=tex("res://assets/pet_%d.png"%collection_feature); portrait_art.custom_minimum_size=Vector2(120,142); portrait_art.expand_mode=TextureRect.EXPAND_IGNORE_SIZE; portrait_art.stretch_mode=TextureRect.STRETCH_KEEP_ASPECT_CENTERED; hero.add_child(portrait_art)
+	var portrait_art=TextureRect.new(); portrait_art.texture=pixel_portrait("res://assets/pet_%d.png"%collection_feature); portrait_art.custom_minimum_size=Vector2(120,142); portrait_art.expand_mode=TextureRect.EXPAND_IGNORE_SIZE; portrait_art.stretch_mode=TextureRect.STRETCH_KEEP_ASPECT_CENTERED; hero.add_child(portrait_art)
 	var copy=VBoxContainer.new(); copy.size_flags_horizontal=SIZE_EXPAND_FILL; hero.add_child(copy)
 	label(copy,"SPECIES PROFILE",11).modulate=Color("#b5d5d1")
 	var family=label(copy,family_name(collection_feature),16); family.modulate=Color("#aec2c8"); family.clip_text=true
@@ -1255,7 +1242,7 @@ func show_collection():
 		b.add_theme_stylebox_override("normal",style(Color("#263747") if known else Color("#202936"),Color("#e4bd7a") if i==collection_feature else Color("#465969"),12))
 		var v=VBoxContainer.new(); v.set_anchors_and_offsets_preset(PRESET_FULL_RECT); v.offset_left=7; v.offset_right=-7; v.offset_top=6; v.offset_bottom=-7; v.mouse_filter=MOUSE_FILTER_IGNORE; v.add_theme_constant_override("separation",2); b.add_child(v)
 		var flags=label(v,("♥  " if store.favorite(i) else "")+("CARE" if i>=24 else "SECRET" if i>=12 else category.to_upper()),10); flags.mouse_filter=MOUSE_FILTER_IGNORE; flags.modulate=tint.lightened(.5)
-		var art=TextureRect.new(); art.texture=tex("res://assets/pet_%d.png"%i); art.modulate=Color.WHITE if known else Color("#62717e"); art.expand_mode=TextureRect.EXPAND_IGNORE_SIZE; art.stretch_mode=TextureRect.STRETCH_KEEP_ASPECT_CENTERED; art.size_flags_vertical=SIZE_EXPAND_FILL; art.mouse_filter=MOUSE_FILTER_IGNORE; v.add_child(art)
+		var art=TextureRect.new(); art.texture=pixel_portrait("res://assets/pet_%d.png"%i); art.modulate=Color.WHITE if known else Color("#62717e"); art.expand_mode=TextureRect.EXPAND_IGNORE_SIZE; art.stretch_mode=TextureRect.STRETCH_KEEP_ASPECT_CENTERED; art.size_flags_vertical=SIZE_EXPAND_FILL; art.mouse_filter=MOUSE_FILTER_IGNORE; v.add_child(art)
 		var name=label(v,store.SPECIES[i],14); name.horizontal_alignment=HORIZONTAL_ALIGNMENT_CENTER; name.clip_text=true; name.mouse_filter=MOUSE_FILTER_IGNORE
 		var status=label(v,"Discovered" if known else "Track in World",11); status.horizontal_alignment=HORIZONTAL_ALIGNMENT_CENTER; status.mouse_filter=MOUSE_FILTER_IGNORE; status.modulate=Color("#9ce2b5") if known else Color("#c7b9db")
 	if collection_grid.get_child_count()==0: label(actions,"No matching companions yet. Explore World to discover more." if collection_filter=="Discovered" else "No favorites yet. Open a species and tap Favorite.",16).autowrap_mode=TextServer.AUTOWRAP_WORD_SMART
@@ -1601,17 +1588,26 @@ func test_home():
 	refresh()
 	assert(wear_layers[4].visible and wear_layers[4].texture!=null and live_stage.wardrobe_nodes.size()==1)
 	assert(live_stage.feet.size()==2 and live_stage.avatar.get_child_count()>=3)
+	assert(live_stage.stretch_shrink==1 and live_stage.view.msaa_3d==Viewport.MSAA_2X)
+	assert(is_instance_valid(live_stage.pixel_pet) and live_stage.pixel_pet.visible)
+	assert(live_stage.pixel_pet.texture_filter==BaseMaterial3D.TEXTURE_FILTER_NEAREST)
+	assert(live_stage.pixel_pet.texture.get_width()<=64 and live_stage.pixel_pet.texture.get_height()<=64)
+	for child in live_stage.awake_body.find_children("*","MeshInstance3D",true,false):
+		assert((child.layers & live_stage.camera.cull_mask)==0,"3D pet must not be visible in the room camera")
 	assert(is_finite(live_stage.sole_offset) and live_stage.grounded_error()<0.001)
 	for species in range(store.SPECIES.size()):
 		live_stage.set_pet(species,4)
 		assert(live_stage.avatar.get_child_count()>0 and is_finite(live_stage.sole_offset))
 		assert(is_instance_valid(live_stage.sleep_face))
+		assert(is_instance_valid(live_stage.pixel_pet) and live_stage.pixel_pet.texture!=null)
 		live_stage.set_sleeping(true); assert(live_stage.sleep_face.visible)
+		assert(live_stage.pixel_pet.texture==live_stage.pixel_sleep)
 		if species==0: assert(not live_stage.awake_body.visible)
 		else:
 			assert(live_stage.awake_eyes.size()>0)
 			for eye in live_stage.awake_eyes: assert(not eye.visible)
 		live_stage.set_sleeping(false); assert(not live_stage.sleep_face.visible)
+		assert(live_stage.pixel_pet.texture==live_stage.pixel_idle)
 		if species==0: assert(live_stage.awake_body.visible)
 		else:
 			for eye in live_stage.awake_eyes: assert(eye.visible)

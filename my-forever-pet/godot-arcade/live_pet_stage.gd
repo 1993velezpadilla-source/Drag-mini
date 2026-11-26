@@ -1,5 +1,12 @@
 extends SubViewportContainer
-# A live Godot scene using the exact runner GLB and articulated paws.
+# Full-resolution 3D rooms with a separately rendered pixel-art companion.
+const PixelArt=preload("res://pixel_pet_art.gd")
+var pixel_pet:Sprite3D
+var pixel_idle:Texture2D
+var pixel_sleep:Texture2D
+var pixel_blink:Texture2D
+var pixel_eat:Texture2D
+var pixel_height:=1.0
 var view:SubViewport
 var world:Node3D
 var room_node:Node3D
@@ -45,16 +52,15 @@ var fx_root:Node3D
 var fx_nodes:Array[Node3D]=[]
 var light_key:DirectionalLight3D
 func _ready():
-	# Transitional hybrid look: render the interactive scene at a small integer
-	# resolution while retaining real room interactions, wardrobe and camera.
+	# Do not pixelate the room, furniture, lighting or effects.
 	stretch=true
-	stretch_shrink=3
-	texture_filter=CanvasItem.TEXTURE_FILTER_NEAREST
+	stretch_shrink=1
+	texture_filter=CanvasItem.TEXTURE_FILTER_LINEAR
 	mouse_filter=MOUSE_FILTER_IGNORE
 	view=SubViewport.new()
 	view.own_world_3d=true
 	view.render_target_update_mode=SubViewport.UPDATE_ALWAYS
-	view.msaa_3d=Viewport.MSAA_DISABLED
+	view.msaa_3d=Viewport.MSAA_2X
 	add_child(view)
 	world=Node3D.new()
 	view.add_child(world)
@@ -90,6 +96,7 @@ func _ready():
 	camera.fov=56
 	camera.keep_aspect=Camera3D.KEEP_HEIGHT
 	camera.size=11.6
+	camera.cull_mask=1
 	camera.current=true
 	resized.connect(update_camera)
 	visibility_changed.connect(update_render_state)
@@ -221,6 +228,7 @@ func set_pet(species:int,stage:int):
 	framing_key=""
 	if is_instance_valid(avatar):
 		world.remove_child(avatar); avatar.queue_free()
+	pixel_pet=null
 	avatar=Node3D.new()
 	world.add_child(avatar)
 	feet.clear()
@@ -250,7 +258,39 @@ func set_pet(species:int,stage:int):
 	pet_fit=minf(1.0,2.3/maxf(0.1,maxf(bare_bounds.size.x,bare_bounds.size.y))) if species!=0 else 1.0
 	avatar.scale=Vector3.ONE*pet_scale()
 	avatar.position.y=ground.y-sole_offset*avatar.scale.y
+	make_pixel_pet()
 	set_sleeping(sleeping)
+
+func make_pixel_pet()->void:
+	var path: String="res://assets/premium_egg.png" if active_stage==0 else "res://assets/pet_%d.png"%active_species
+	pixel_idle=PixelArt.portrait(path,true)
+	if pixel_idle==null or not bare_bounds.has_volume(): return
+	pixel_sleep=PixelArt.portrait("res://assets/pet_sleep_%d.png"%active_species,true) if active_stage>0 else pixel_idle
+	pixel_blink=PixelArt.portrait(path,true,"blink") if active_species==0 and active_stage>0 else pixel_idle
+	pixel_eat=PixelArt.portrait(path,true,"eat") if active_species==0 and active_stage>0 else pixel_idle
+	# Keep the old geometry for framing, anchors and saved wardrobe compatibility,
+	# but exclude it from the room camera. Its visibility flags remain available
+	# to the existing sleep/awake state machine.
+	for child in avatar.find_children("*","MeshInstance3D",true,false):
+		var body:=child as MeshInstance3D
+		body.layers=2
+	pixel_pet=Sprite3D.new()
+	pixel_pet.name="ActiveCompanionPixelSprite"
+	pixel_pet.texture_filter=BaseMaterial3D.TEXTURE_FILTER_NEAREST
+	pixel_pet.alpha_cut=SpriteBase3D.ALPHA_CUT_DISCARD
+	pixel_pet.shaded=false
+	pixel_pet.double_sided=true
+	pixel_height=bare_bounds.size.y
+	pixel_pet.position=Vector3(bare_bounds.get_center().x,bare_bounds.get_center().y,bare_bounds.get_center().z)
+	avatar.add_child(pixel_pet)
+	show_pixel_pose(pixel_idle)
+
+func show_pixel_pose(value:Texture2D)->void:
+	if not is_instance_valid(pixel_pet) or value==null: return
+	if pixel_pet.texture==value: return
+	pixel_pet.texture=value
+	pixel_pet.pixel_size=pixel_height/maxf(1.0,float(value.get_height()))
+
 func find_eye_nodes(node:Node):
 	if node is Node3D and str(node.name).begins_with("awake_eye_"): awake_eyes.append(node)
 	for child in node.get_children(): find_eye_nodes(child)
@@ -362,6 +402,7 @@ func dress(worn:Array,equipped:int):
 		if ob!=null and equipped==3: ob.rotation.x=PI/2
 func set_sleeping(value:bool):
 	sleeping=value
+	show_pixel_pose(pixel_sleep if value and pixel_sleep!=null else pixel_idle)
 	if active_stage==0 or not is_instance_valid(sleep_face): return
 	sleep_face.visible=value
 	if active_species==0 and is_instance_valid(awake_body): awake_body.visible=not value
@@ -416,6 +457,9 @@ func _process(dt:float):
 	var progress=clampf(1.0-reaction_time/reaction_length,0,1)
 	var envelope=sin(progress*PI) if reaction_time>0 else 0.0
 	var feeding=reaction_kind in ["food","cook","snack"] and reaction_time>0
+	if is_instance_valid(pixel_pet):
+		var blink=fposmod(elapsed,3.7)<.12
+		show_pixel_pose(pixel_sleep if sleeping and pixel_sleep!=null else pixel_eat if feeding and int(progress*16.0)%2==0 and pixel_eat!=null else pixel_blink if blink and pixel_blink!=null else pixel_idle)
 	var playing=reaction_kind in ["play","toy","train"] and reaction_time>0
 	var affection=reaction_kind in ["bond","praise"] and reaction_time>0
 	var bath=reaction_kind in ["bath","soap","rinse"] and reaction_time>0
