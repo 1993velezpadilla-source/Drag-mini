@@ -181,7 +181,8 @@ func enable_swipe(container:ScrollContainer):
 func swipe_children(node:Node):
 	# Every intermediate Control must propagate the press and drag to ScrollContainer.
 	if node is Control and not node is ScrollBar and not node is ScrollContainer and not node is LineEdit:
-		if node is BaseButton or node is Container: node.mouse_filter=MOUSE_FILTER_PASS
+		if node.has_meta("direct_field_input"): node.mouse_filter=MOUSE_FILTER_STOP
+		elif node is BaseButton or node is Container: node.mouse_filter=MOUSE_FILTER_PASS
 		else: node.mouse_filter=MOUSE_FILTER_IGNORE
 	for child in node.get_children(): swipe_children(child)
 func make_ui():
@@ -867,7 +868,9 @@ func open_sanctuary(r:int,tier:int):
 	var count=0
 	for i in range(3):
 		if (mask&(1<<i))!=0:count+=1
-	label(actions,"Relic fragments %d/3 · Treasure recovery: %d energy"%[count,Research.sanctuary_cost(tier)],15)
+	var counter=label(actions,"Relic fragments %d/3 · Treasure recovery: %d energy"%[count,Research.sanctuary_cost(tier)],15)
+	counter.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART
+	var feedback=label(actions,"Explore the terrain to reveal glimmers.",14);feedback.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART
 	field.recovered.connect(func(index:int):
 		var result:Dictionary=store.sanctuary_collect(r,tier,index)
 		hunt_message=str(result.get("message",""))
@@ -875,7 +878,11 @@ func open_sanctuary(r:int,tier:int):
 			play_reward(true);select("Habitat")
 		elif result.get("ok",false):
 			play_reward(false);field.mask=int(store.s.sanctuary_progress[r*3+tier]);field.locked=false
-			var toast=label(actions,hunt_message,15);toast.modulate=Color("#f8d788")
+			var found=0
+			for j in range(3):
+				if (field.mask&(1<<j))!=0:found+=1
+			counter.text="Relic fragments %d/3 · Treasure recovery: %d energy"%[found,Research.sanctuary_cost(tier)]
+			feedback.text=hunt_message; feedback.modulate=Color("#f8d788")
 		else:select("Habitat"))
 	button(actions,"‹ Return to habitat",func(): select("Habitat"))
 	swipe_children(actions);field.mouse_filter=MOUSE_FILTER_STOP
@@ -1476,6 +1483,9 @@ func capture_home():
 	hunt_region=0
 	var target:int=store.research_target(0); store.s.research_evidence[target]=Research.needed(target)
 	select("Habitat"); await capture_frame("/tmp/forever-encounter.png")
+	for r in range(3):
+		store.s.research_rank_xp[r]=30; hunt_region=r; select("Habitat"); open_sanctuary(r,0)
+		await capture_frame("/tmp/forever-sanctuary-%d.png"%r)
 	select("Journal"); await capture_frame("/tmp/forever-growth.png")
 	select("Pets")
 	await capture_frame("/tmp/forever-collection.png")

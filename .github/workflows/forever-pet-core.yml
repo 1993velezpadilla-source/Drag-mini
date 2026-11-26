@@ -5,6 +5,7 @@ on:
     paths:
       - 'my-forever-pet/godot-arcade/pet_store.gd'
       - 'my-forever-pet/godot-arcade/research_data.gd'
+      - 'my-forever-pet/godot-arcade/sanctuary_field.gd'
       - 'my-forever-pet/tests/**'
       - '.github/workflows/forever-pet-core.yml'
   workflow_dispatch:
@@ -29,8 +30,17 @@ jobs:
           timeout 60 /tmp/godot/Godot_v4.4.1-stable_linux.x86_64 --headless --path /tmp/pet-core --script res://core_gameplay.gd -- --home-test 2>&1 | tee /tmp/pet-core.log
           grep -F FOREVER_PET_CORE_PASS /tmp/pet-core.log
           ! grep -E 'CORE_FAIL|SCRIPT ERROR|Parse Error' /tmp/pet-core.log
+      - name: Traverse all nine sanctuaries in production movement code
+        run: |
+          set -euo pipefail
+          cp my-forever-pet/godot-arcade/sanctuary_field.gd my-forever-pet/tests/sanctuary_navigation.gd /tmp/pet-core/
+          timeout 60 /tmp/godot/Godot_v4.4.1-stable_linux.x86_64 --headless --path /tmp/pet-core --script res://sanctuary_navigation.gd 2>&1 | tee /tmp/sanctuary-nav.log
+          grep -F 'FOREVER_SANCTUARY_NAV_PASS 27' /tmp/sanctuary-nav.log
+          ! grep -E 'SCRIPT ERROR|Parse Error' /tmp/sanctuary-nav.log
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: core-gameplay-report
-          path: /tmp/pet-core.log
+          path: |
+            /tmp/pet-core.log
+            /tmp/sanctuary-nav.log
