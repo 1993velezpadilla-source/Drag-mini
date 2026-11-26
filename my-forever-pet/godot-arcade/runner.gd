@@ -356,6 +356,7 @@ func _ready() -> void:
 		shadow_chunks[chunk]=casters
 	update_scenery_visibility()
 	make_player()
+	make_pixel_runner()
 	make_ground_shadow_resources()
 	make_glow_resources()
 	player_shadow=ground_shadow(self,1.8,1.3)
@@ -557,6 +558,73 @@ func make_player() -> void:
 		feet.append(orb(mascot,Vector3(side*0.37,0.20,0.16),Vector3(0.68,0.4,0.67),Color("#73bf38")))
 	orb(mascot,Vector3(0,0.72,0.61),Vector3(0.28,0.25,0.09),Color("#4b253e"))
 	orb(mascot,Vector3(0,0.65,0.66),Vector3(0.17,0.085,0.04),Color("#ee7296"))
+
+
+# Pixel-art presentation only: retain original mascot transform, feet and physics.
+var pixel_runner: Sprite3D
+var pixel_runner_frames: Array[Texture2D] = []
+
+func pixel_ellipse(img:Image, center:Vector2, radii:Vector2, tint:Color) -> void:
+	for y in range(maxi(0,int(center.y-radii.y)),mini(img.get_height(),int(center.y+radii.y)+1)):
+		for x in range(maxi(0,int(center.x-radii.x)),mini(img.get_width(),int(center.x+radii.x)+1)):
+			var q:= (Vector2(x,y)-center)/radii
+			if q.length_squared()<=1.0: img.set_pixel(x,y,tint)
+
+func mosskit_back_frame(step:int) -> Texture2D:
+	var img:=Image.create(48,48,false,Image.FORMAT_RGBA8)
+	img.fill(Color.TRANSPARENT)
+	var outline:=Color("#24421d")
+	var shade:=Color("#4b912d")
+	var mid:=Color("#78c83d")
+	var light:=Color("#a4e85b")
+	for side in [-1,1]:
+		var foot_y:=41.0+float(step*side)
+		var foot:=Vector2(24+side*10,foot_y)
+		pixel_ellipse(img,foot,Vector2(8,5),outline)
+		pixel_ellipse(img,foot+Vector2(0,-1),Vector2(6,3),shade)
+		pixel_ellipse(img,foot+Vector2(-1,-2),Vector2(4,2),mid)
+		var ear:=Vector2(24+side*12,11)
+		pixel_ellipse(img,ear,Vector2(6,10),outline)
+		pixel_ellipse(img,ear+Vector2(0,-1),Vector2(4,8),mid)
+		pixel_ellipse(img,ear+Vector2(-1,-3),Vector2(2,4),light)
+	pixel_ellipse(img,Vector2(24,10),Vector2(5,6),outline)
+	pixel_ellipse(img,Vector2(24,9),Vector2(3,4),light)
+	pixel_ellipse(img,Vector2(24,26),Vector2(19,17),outline)
+	pixel_ellipse(img,Vector2(24,26),Vector2(17,15),shade)
+	pixel_ellipse(img,Vector2(23,23),Vector2(16,13),mid)
+	pixel_ellipse(img,Vector2(18,17),Vector2(9,4),light)
+	for side in [-1,1]:
+		pixel_ellipse(img,Vector2(24+side*11,23),Vector2(4,4),shade)
+		pixel_ellipse(img,Vector2(23+side*11,22),Vector2(3,3),light)
+	pixel_ellipse(img,Vector2(24,36),Vector2(6,6),outline)
+	pixel_ellipse(img,Vector2(24,35),Vector2(5,5),shade)
+	pixel_ellipse(img,Vector2(23,34),Vector2(3,3),light)
+	return ImageTexture.create_from_image(img)
+
+func make_pixel_runner() -> void:
+	var store=get_node_or_null("/root/PetStore")
+	var species_id:int=store.species() if store!=null and store.arcade_mode==4 else 0
+	# Until the species atlas is complete, never substitute Mosskit for another pet.
+	if species_id!=0: return
+	for step in [0,2,-2]:
+		pixel_runner_frames.append(mosskit_back_frame(step))
+	for child in mascot.get_children():
+		if child is Node3D: child.hide()
+	pixel_runner=Sprite3D.new()
+	pixel_runner.name="MosskitPixelBack"
+	pixel_runner.texture=pixel_runner_frames[0]
+	pixel_runner.texture_filter=BaseMaterial3D.TEXTURE_FILTER_NEAREST
+	pixel_runner.pixel_size=0.043
+	pixel_runner.position.y=0.99
+	pixel_runner.shaded=false
+	pixel_runner.double_sided=true
+	mascot.add_child(pixel_runner)
+
+func animate_pixel_runner(running:bool) -> void:
+	if not is_instance_valid(pixel_runner): return
+	var frame:int=1+int(floor(clock*9.0))%2 if running else 0
+	pixel_runner.texture=pixel_runner_frames[frame]
+
 
 func panel_style(bg: Color, border: Color, radius: int) -> StyleBoxFlat:
 	var style := StyleBoxFlat.new()
@@ -1277,6 +1345,7 @@ func _physics_process(dt: float) -> void:
 	pickup_feedback.visible=pickup_flash>0
 	if pickup_flash>0:
 		pickup_feedback.modulate.a=minf(1,pickup_flash*4)
+	animate_pixel_runner(running_pose)
 	for i in range(feet.size()):
 		feet[i].position.z=(0.13 if i==0 else -0.13) if surf_time>0 else (0.16+sin(clock*16+i*PI)*0.25 if running_pose else 0.16)
 		feet[i].position.y=0.20+maxf(0,sin(clock*16+i*PI))*0.18 if running_pose else 0.20
