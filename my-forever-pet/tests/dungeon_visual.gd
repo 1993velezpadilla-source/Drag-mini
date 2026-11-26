@@ -19,6 +19,7 @@ func run():
 		assert(dungeon.terrain_texture!=null and dungeon.terrain_normal!=null)
 		if ResourceLoader.exists("res://assets/dungeon_forest_rock_0.glb"):assert(dungeon.rock_modules>0,"real Blender boundary modules required")
 		assert(root.get_visible_rect().encloses(dungeon.heal_button.get_global_rect()))
+		assert(dungeon.attack_button.icon!=null and dungeon.power_button.icon!=null and dungeon.heal_button.icon!=null)
 		dungeon.run.enemies.clear()
 		var pickup:Vector2i
 		for d in dungeon.run.DIR:
@@ -34,6 +35,7 @@ func run():
 		var created:int=dungeon.actor_created
 		dungeon.sync();dungeon.sync()
 		assert(dungeon.actor_created==created,"unchanged actors reused")
+		dungeon.feedback.hide();dungeon.floor_banner.hide()
 		await frames()
 		assert(root.get_texture().get_image().save_png("/tmp/dungeon-real-%d.png"%region)==OK)
 		dungeon.ended.connect(func(ok:bool,count:int,_time:float):

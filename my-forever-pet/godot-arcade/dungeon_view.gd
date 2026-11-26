@@ -54,6 +54,7 @@ var terrain_texture:ImageTexture
 var terrain_normal:ImageTexture
 var terrain_mats:Dictionary={}
 var rock_modules=0
+var landmark_count=0
 var scene_cache:Dictionary={}
 var rock_mesh_cache:Dictionary={}
 var floor_build_usec=0
@@ -72,12 +73,24 @@ func style(bg:Color,border:Color,radius:int=14)->StyleBoxFlat:
 	return s
 func label(parent:Node,value:String,size_value:int,color:Color=Color.WHITE)->Label:
 	var l=Label.new();l.text=value;l.add_theme_font_size_override("font_size",size_value);l.modulate=color;parent.add_child(l);return l
+func action_icon(kind:String)->Texture2D:
+	var symbol=""
+	match kind:
+		"Strike":symbol='<path d="M5 4L20 19M4 20L19 5M2 7L7 2M17 22L22 17M2 17L7 22M17 2L22 7" stroke="#ffe7a9" stroke-width="3" stroke-linecap="round"/>'
+		"Skill":symbol='<path d="M13 1L4 14H11L9 23L21 9H13Z" fill="#ead2ff" stroke="#b995ff"/>'
+		"Berry":symbol='<circle cx="8" cy="14" r="6" fill="#f66d79"/><circle cx="16" cy="15" r="6" fill="#d83a61"/><path d="M12 10Q6 0 18 2Q19 8 12 10Z" fill="#a1df74"/>'
+	var image=Image.new()
+	image.load_svg_from_string('<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24">'+symbol+'</svg>')
+	return ImageTexture.create_from_image(image)
 func button(parent:Node,value:String,action:Callable,accent:bool=false)->Button:
 	var b=Button.new();b.text=value;b.custom_minimum_size.y=62;b.size_flags_horizontal=SIZE_EXPAND_FILL
 	b.add_theme_font_size_override("font_size",17)
 	var action_color=Color("#315f43") if value=="Strike" else Color("#59417b") if value=="Skill" else Color("#765032") if value=="Berry" else Color("#283b4a")
 	var frame=style(action_color,Color("#d6b877"),18);frame.shadow_color=Color("#090f18bb");frame.shadow_size=4;frame.shadow_offset=Vector2(0,3)
 	b.add_theme_stylebox_override("normal",frame)
+	b.add_theme_stylebox_override("hover",style(action_color.lightened(.14),Color("#ffe4a0"),18))
+	if value in ["Strike","Skill","Berry"]:
+		b.icon=action_icon(value);b.expand_icon=true;b.add_theme_constant_override("icon_max_width",27)
 	b.add_theme_stylebox_override("pressed",style(Color("#496b81"),Color("#f6e2a6")))
 	b.add_theme_stylebox_override("disabled",style(Color("#202b36"),Color("#34404e")))
 	b.add_theme_color_override("font_disabled_color",Color("#8393a3"))
@@ -86,15 +99,15 @@ func build_ui():
 	var base=VBoxContainer.new();add_child(base);base.set_anchors_and_offsets_preset(PRESET_FULL_RECT);base.add_theme_constant_override("separation",0)
 	var header=PanelContainer.new();header.add_theme_stylebox_override("panel",style(Color("#162535"),Color("#ad925d"),16));base.add_child(header)
 	var h=HBoxContainer.new();header.add_child(h)
-	var back=button(h,"Exit",leave);back.size_flags_horizontal=SIZE_SHRINK_BEGIN;back.custom_minimum_size.x=58
-	var portrait=TextureRect.new();portrait.custom_minimum_size=Vector2(58,58);portrait.expand_mode=TextureRect.EXPAND_IGNORE_SIZE;portrait.stretch_mode=TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	var back=button(h,"‹",leave);back.tooltip_text="Leave expedition";back.size_flags_horizontal=SIZE_SHRINK_BEGIN;back.custom_minimum_size.x=45;back.add_theme_font_size_override("font_size",28)
+	var portrait=TextureRect.new();portrait.custom_minimum_size=Vector2(72,72);portrait.expand_mode=TextureRect.EXPAND_IGNORE_SIZE;portrait.stretch_mode=TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	var portrait_path="res://assets/pet_%d.png"%companion_id
 	if ResourceLoader.exists(portrait_path):portrait.texture=load(portrait_path)
 	h.add_child(portrait)
 	var info=VBoxContainer.new();info.size_flags_horizontal=SIZE_EXPAND_FILL;h.add_child(info)
 	title_text=label(info,"",22,Color("#ffe1a4"))
-	hp_bar=ProgressBar.new();hp_bar.max_value=run.max_hp;hp_bar.custom_minimum_size.y=15;hp_bar.show_percentage=false;info.add_child(hp_bar)
-	hp_bar.add_theme_stylebox_override("fill",style(Color("#77d5a5"),Color("#77d5a5"),6))
+	hp_bar=ProgressBar.new();hp_bar.max_value=run.max_hp;hp_bar.custom_minimum_size.y=19;hp_bar.show_percentage=false;info.add_child(hp_bar)
+	hp_bar.add_theme_stylebox_override("fill",style(Color("#62c88b"),Color("#a4f1ba"),8))
 	hp_bar.add_theme_stylebox_override("background",style(Color("#0c1723"),Color("#32465b"),6))
 	stats=label(info,"",14,Color("#c7dce7"))
 	floor_label=label(info,"",12,Color("#a5d8ce"))
@@ -105,14 +118,14 @@ func build_ui():
 	var env=WorldEnvironment.new();env.environment=Environment.new();env.environment.background_mode=Environment.BG_COLOR;env.environment.background_color=palette[2].darkened(.55);env.environment.ambient_light_source=Environment.AMBIENT_SOURCE_COLOR;env.environment.ambient_light_color=Color("#e0edff");env.environment.ambient_light_energy=.38;world.add_child(env)
 	var sun=DirectionalLight3D.new();sun.rotation_degrees=Vector3(-48,-35,0);sun.light_color=[Color("#fff2d4"),Color("#c0eaff"),Color("#d9d2ff")][region];sun.light_energy=.78;sun.shadow_enabled=true;world.add_child(sun)
 	var fill=DirectionalLight3D.new();fill.rotation_degrees=Vector3(-35,145,0);fill.light_color=palette[3];fill.light_energy=.18;fill.shadow_enabled=false;world.add_child(fill)
-	camera=Camera3D.new();camera.projection=Camera3D.PROJECTION_ORTHOGONAL;camera.keep_aspect=Camera3D.KEEP_WIDTH;camera.size=10.0;world.add_child(camera);camera.current=true
+	camera=Camera3D.new();camera.projection=Camera3D.PROJECTION_ORTHOGONAL;camera.keep_aspect=Camera3D.KEEP_WIDTH;camera.size=8.2;world.add_child(camera);camera.current=true
 	var input=Control.new();area.add_child(input);input.set_anchors_and_offsets_preset(PRESET_FULL_RECT);input.mouse_filter=MOUSE_FILTER_STOP;input.gui_input.connect(touch)
 	map=Control.new();map.mouse_filter=MOUSE_FILTER_IGNORE;area.add_child(map);map.position=Vector2(10,10);map.size=Vector2(146,112);map.draw.connect(draw_map)
 	feedback=Label.new();feedback.horizontal_alignment=HORIZONTAL_ALIGNMENT_CENTER;feedback.add_theme_font_size_override("font_size",24);feedback.add_theme_color_override("font_outline_color",Color("#142535"));feedback.add_theme_constant_override("outline_size",7);feedback.mouse_filter=MOUSE_FILTER_IGNORE;area.add_child(feedback);feedback.hide()
 	floor_banner=Label.new();floor_banner.horizontal_alignment=HORIZONTAL_ALIGNMENT_CENTER;floor_banner.add_theme_font_size_override("font_size",25);floor_banner.add_theme_color_override("font_outline_color",Color("#142535"));floor_banner.add_theme_constant_override("outline_size",8);floor_banner.mouse_filter=MOUSE_FILTER_IGNORE;area.add_child(floor_banner);floor_banner.hide()
-	var footer=PanelContainer.new();footer.add_theme_stylebox_override("panel",style(Color("#162535"),Color("#344e63"),0));base.add_child(footer)
+	var footer=PanelContainer.new();footer.add_theme_stylebox_override("panel",style(Color("#162535"),Color("#ad925d"),18));base.add_child(footer)
 	var v=VBoxContainer.new();v.add_theme_constant_override("separation",6);footer.add_child(v)
-	status_text=label(v,"",16,Color("#ffe1a4"));status_text.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART;status_text.custom_minimum_size.y=44
+	status_text=label(v,"",16,Color("#ffe1a4"));status_text.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART;status_text.custom_minimum_size.y=22;status_text.horizontal_alignment=HORIZONTAL_ALIGNMENT_CENTER
 	var a=HBoxContainer.new();v.add_child(a)
 	attack_button=button(a,"Strike",func():path.clear();run.attack();sync(),true)
 	power_button=button(a,"Skill",func():path.clear();run.attack(true);sync())
@@ -131,28 +144,37 @@ func mat(c:Color)->StandardMaterial3D:
 		var m=StandardMaterial3D.new();m.albedo_color=c;m.roughness=.8;mats[c]=m
 	return mats[c]
 func build_terrain_textures():
-	# One deterministic, seamless texture pair per biome; no texture allocation per tile.
+	# Periodic hand-laid paving: irregular joints and regional surface accents.
 	var size_px=128
 	var img=Image.create(size_px,size_px,false,Image.FORMAT_RGBA8)
 	var normals=Image.create(size_px,size_px,false,Image.FORMAT_RGBA8)
-	var noise=FastNoiseLite.new();noise.seed=146+region*97;noise.frequency=.045;noise.fractal_octaves=4
+	var noise=FastNoiseLite.new();noise.seed=146+region*97;noise.frequency=.045;noise.fractal_octaves=3
 	var heights:PackedFloat32Array=[];heights.resize(size_px*size_px)
 	for y in range(size_px):
 		for x in range(size_px):
-			# Blend four periodic samples so the edge wraps without a hard seam.
 			var u=float(x)/size_px;var w=float(y)/size_px
 			var h0=lerpf(noise.get_noise_2d(x,y),noise.get_noise_2d(x-size_px,y),u)
 			var h1=lerpf(noise.get_noise_2d(x,y-size_px),noise.get_noise_2d(x-size_px,y-size_px),u)
-			heights[y*size_px+x]=lerpf(h0,h1,w)
+			var h=lerpf(h0,h1,w)
+			var py=w*4.0+sin(u*TAU*2.0)*.09
+			var px=u*4.0+floorf(py)*.5+sin(w*TAU*2.0)*.11
+			var edge=minf(minf(fposmod(px,1.0),1.0-fposmod(px,1.0)),minf(fposmod(py,1.0),1.0-fposmod(py,1.0)))
+			var stone=smoothstep(.018,.10,edge)
+			var shade=.73+.12*sin(floorf(px)*2.1+floorf(py)*1.7)+h*.19
+			var tone=lerpf(.30,shade,stone)
+			var color=Color(tone,tone,tone)
+			if region==0:color=color.lerp(Color(.33,.48,.20),clampf((1.0-stone)*.65+h*.3,0,1))
+			elif region==1:
+				var caustic=pow(1.0-absf(sin((u+w)*TAU*3.0+sin(w*TAU*2.0))),12.0)
+				color=color.lightened(caustic*.19)
+			else:color=color.lerp(Color(.64,.52,.35),.27*(1.0-stone)*smoothstep(.1,.8,sin(u*TAU*2.0)))
+			img.set_pixel(x,y,color)
+			heights[y*size_px+x]=stone*.25+h*.08
 	for y in range(size_px):
 		for x in range(size_px):
-			var h=heights[y*size_px+x]
-			var grain=.025*sin(float(x*13+y*19))
-			var tone=clampf(.86+h*.28+grain,.56,1.0)
-			img.set_pixel(x,y,Color(tone,tone,tone,1.0))
 			var dx=heights[y*size_px+posmod(x+1,size_px)]-heights[y*size_px+posmod(x-1,size_px)]
 			var dy=heights[posmod(y+1,size_px)*size_px+x]-heights[posmod(y-1,size_px)*size_px+x]
-			var n=Vector3(-dx*2.1,-dy*2.1,1).normalized()
+			var n=Vector3(-dx*2.6,-dy*2.6,1).normalized()
 			normals.set_pixel(x,y,Color(n.x*.5+.5,n.y*.5+.5,n.z*.5+.5,1))
 	img.generate_mipmaps();normals.generate_mipmaps()
 	terrain_texture=ImageTexture.create_from_image(img);terrain_normal=ImageTexture.create_from_image(normals)
@@ -160,7 +182,7 @@ func terrain_mat(c:Color)->StandardMaterial3D:
 	if terrain_mats.has(c):return terrain_mats[c]
 	var m=StandardMaterial3D.new();m.albedo_color=c;m.albedo_texture=terrain_texture;m.roughness=.84
 	m.normal_enabled=true;m.normal_texture=terrain_normal;m.normal_scale=.55
-	m.uv1_triplanar=true;m.uv1_world_triplanar=true;m.uv1_scale=Vector3.ONE*.72
+	m.uv1_triplanar=true;m.uv1_world_triplanar=true;m.uv1_scale=Vector3.ONE*.43
 	terrain_mats[c]=m
 	return m
 func mesh(kind:String)->Mesh:
@@ -264,6 +286,26 @@ func natural_boundary(points:Array[Vector3])->bool:
 				var instance=MultiMeshInstance3D.new();instance.multimesh=mm;geometry.add_child(instance)
 			rock_modules+=placements.size()
 	return rock_modules==points.size()
+func backdrop_landmarks(wall_cells:Dictionary):
+	landmark_count=0
+	var prefix="dungeon_"+["forest","reef","star"][region]+"_landmark"
+	var used:Array[Vector2i]=[]
+	# Place tall silhouettes on the far side of rooms; never inside a passage.
+	for room in run.rooms:
+		for x in range(room.position.x,room.end.x):
+			var q=Vector2i(x,room.position.y-2)
+			var safe=true
+			for dy in range(-1,2):
+				for dx in range(-1,2):
+					if run.cells.has(q+Vector2i(dx,dy)):safe=false
+			for other in used:
+				if run.distance(q,other)<4:safe=false
+			if not safe:continue
+			var ob=prop(geometry,prefix,pos(q)+Vector3(0,-.48,0))
+			if ob!=null:
+				ob.rotation.y=float(posmod(x*7+q.y*13,7)-3)*.12
+				used.append(q);landmark_count+=1
+			break
 func floor_name()->String:
 	return ["Ancient passages","Treasure chamber","Monster den","Restorative grotto","Forgotten ruins"][run.floor_kind]
 func build_floor():
@@ -311,6 +353,7 @@ func build_floor():
 			mm.set_instance_transform(i,transform*part.transform)
 		var batch_instance=MultiMeshInstance3D.new();batch_instance.multimesh=mm;geometry.add_child(batch_instance)
 		batch_instance.cast_shadow=GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	backdrop_landmarks(seen)
 	if not natural_boundary(walls):
 		batch(geometry,walls,"box",Vector3(1.4,.88,1.4),palette[2],true)
 		boundary_detail(walls)
@@ -320,13 +363,14 @@ func build_floor():
 			shape(geometry,"gem" if region!=0 else "orb",p+Vector3(0,.45,0),Vector3(.38,.88,.38),palette[3])
 			shape(geometry,"box",p+Vector3(0,.11,0),Vector3(.62,.18,.62),palette[2])
 	pet=Node3D.new();geometry.add_child(pet);pet.position=pos(run.player)
-	pet_pose=model(pet,companion_id)
+	pet_pose=model(pet,companion_id);pet_pose.scale*=1.28
 	attack_fx=shape(geometry,"ring",Vector3.ZERO,Vector3.ONE,Color("#ffdfa0"));attack_fx.hide();attack_fx.cast_shadow=GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	var fxmat=StandardMaterial3D.new();fxmat.shading_mode=BaseMaterial3D.SHADING_MODE_UNSHADED;fxmat.albedo_color=Color("#ffe6a3");attack_fx.material_override=fxmat
 	destination_fx=shape(geometry,"ring",Vector3.ZERO,Vector3(.68,.08,.68),Color("#a0e6db"));destination_fx.hide();destination_fx.cast_shadow=GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	active_floor=run.floor_revision
 	banner_time=1.65;floor_banner.text="B%d  ·  %s"%[run.floor_number,floor_name()];floor_banner.show()
-	camera.position=pet.position+Vector3(0,10,10);camera.look_at(pet.position)
+	floor_banner.size=Vector2(area.size.x,45);floor_banner.position=Vector2(0,area.size.y*.12)
+	camera.position=pet.position+Vector3(0,8.5,10.5);camera.look_at(pet.position)
 	refresh_actors()
 	floor_build_usec=Time.get_ticks_usec()-start_usec
 	print("DUNGEON_FLOOR_BUILD region=",region," floor=",run.floor_number," usec=",floor_build_usec," rocks=",rock_modules," cached_rock_sets=",rock_mesh_cache.size())
@@ -428,6 +472,7 @@ func sync():
 	hp_previous=run.hp
 	if previous_event!=run.event_serial:
 		previous_event=run.event_serial;feedback.text=run.last_event;feedback_time=1.0;feedback.show()
+		feedback.size=Vector2(area.size.x,42);feedback.position=Vector2(0,area.size.y*.29)
 	if run.finished and not notified:
 		notified=true
 		# Deferred settlement prevents destroying/rebuilding the UI inside a button callback.
@@ -487,4 +532,4 @@ func _process(dt:float):
 	else:attack_fx.hide()
 	if hit_time>0.0:pet_pose.rotation.z+=sin(hit_time*45.0)*.19
 	if facing!=Vector2i.ZERO:pet.rotation.y=atan2(float(facing.x),float(facing.y))
-	camera.position=pet.position+Vector3(0,10,10);camera.look_at(pet.position)
+	camera.position=pet.position+Vector3(0,8.5,10.5);camera.look_at(pet.position)

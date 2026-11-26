@@ -926,4 +926,46 @@ cyl((0,.17,0),.39,.39,.09,blueglow)
 for i in range(8):
  a=i*pi/4;rock_slab((.44*math.cos(a),.18,.44*math.sin(a)),(.23,.22,.23),reefedge,100+i,.025)
 export('dungeon_spring',4000)
+# Large backdrop silhouettes. These are placed ONLY beyond the walkable boundary.
+# Forest: branching ancient trunk, root flares and layered leaf canopy.
+clear()
+tube([(0,0,0),(-.12,.58,.06),(.08,1.20,.02),(.14,1.95,-.08)],[.37,.28,.23,.14],bark,12)
+for i in range(5):
+ a=i*2*pi/5
+ tube([(0,.34,0),(.36*math.cos(a),.14,.36*math.sin(a)),(.78*math.cos(a),.04,.78*math.sin(a))],[.18,.13,.035],bark)
+for i in range(4):
+ a=i*pi/2+.3;x=.64*math.cos(a);z=.64*math.sin(a)
+ tube([(.05,1.15,0),(x*.55,1.63,z*.55),(x,2.15,z)],[.15,.11,.045],bark)
+ ball((x,2.13,z),(.97,.70,.98),leafdark if i%2 else moss)
+ leaf_rosette((x,2.16,z),70+i,leafdark,leafbright,.58)
+ball((.10,2.30,0),(1.05,.70,1.05),moss)
+export('dungeon_forest_landmark',10000)
+# Reef: tall coral fans and tiered reef outcrop, not a forest asset recolored.
+clear()
+natural_rock((0,.30,0),(1.65,.65,1.34),reefstone,385)
+natural_rock((-.35,.68,.08),(.88,.58,.82),reefedge,386)
+for i in range(5):
+ x=(i-2)*.27;h=1.05+.16*(2-abs(i-2))
+ tube([(0,.58,0),(x*.48,.93,.04),(x,h+.43,.08),(x*1.21,h+.62,.10)],[.11,.09,.07,.035],coral if i%2 else coral2)
+ for side in [-1,1]:
+  tube([(x*.65,h+.02,.04),(x+side*.22,h+.24,-.03),(x+side*.29,h+.39,-.05)],[.06,.044,.022],coral if i%2 else coral2)
+for i in range(5):
+ a=i*2*pi/5;blades((.42*math.cos(a),.39,.42*math.sin(a)),a,.85,.13,kelp)
+ball((.38,.62,.38),(.27,.25,.27),pearl)
+export('dungeon_reef_landmark',7500)
+# Astral ruin: broken monumental arch and brass trim with a suspended crystal.
+clear()
+for side in [-1,1]:
+ x=side*.72
+ rock_slab((x,.13,0),(.55,.26,.64),astralstone,500+side)
+ for i in range(3):
+  rock_slab((x,.41+i*.35,0),(.43,.34,.48),astraledge,510+i+side)
+ box((x, .80,.255),(.075,.92,.035),rune,.012)
+for i in range(7):
+ ang=i*pi/6
+ x=.72*math.cos(ang);y=1.24+.72*math.sin(ang)
+ o=box((x,y,0),(.37,.34,.52),astraledge,.045);o.rotation_euler.y=ang-pi/2
+crystal((0,1.30,0),.18,.48,violetglow,11)
+for side in [-1,1]:crystal((side*.91,.08,.35),.11,.48,star,side+7)
+export('dungeon_star_landmark',7000)
 with open(os.path.join(OUT,'mesh-metrics.json'),'w') as out: json.dump(stats,out,indent=2)
