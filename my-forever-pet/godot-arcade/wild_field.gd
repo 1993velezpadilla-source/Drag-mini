@@ -39,6 +39,7 @@ var found_flash=0.0
 var camera_focus=Vector3.ZERO
 var last_index=0
 var last_position=Vector2.ZERO
+var pet_hurt_left:=0.0
 var previous_hits=0
 var notified=false
 var tint:Color
@@ -282,18 +283,20 @@ func _process(dt:float):
 	if not is_instance_valid(player) or notified:return
 	run.tick(dt)
 	var moving=run.player.distance_to(last_position)>.005
-	player.position=Vector3(run.player.x,.1+(absf(sin(run.elapsed*12))*.10 if moving else 0.0)+(0.26 if run.burst_left>0 else 0.0),run.player.y)
+	player.position=Vector3(run.player.x,.1+(0.18 if run.burst_left>0 else 0.0),run.player.y)
+	pet_hurt_left=maxf(0.0,pet_hurt_left-dt)
 	destination_marker.position=Vector3(run.destination.x,.02,run.destination.y)
 	destination_marker.visible=run.started and not run.finished and run.player.distance_to(run.destination)>.35
 	if run.hits>previous_hits:
 		previous_hits=run.hits
+		pet_hurt_left=.26
 		Input.vibrate_handheld(65)
 	for marker in flow_arrows:
 		var force:Vector2=run.current_at(Vector2(marker.position.x,marker.position.z))
 		marker.rotation.y=atan2(force.x,force.y);marker.visible=force.length()>.18
 	var move=run.player-last_position
-	if move.length()>.01:player.rotation.y=atan2(move.x,move.y)
-	PixelArt.orient_world_sprite(player,camera)
+	var pose:String="hurt" if pet_hurt_left>0 else "burst" if run.burst_left>0 else "reward" if found_flash>.6 and not moving else "idle"
+	PixelArt.animate_world_sprite(player,move if moving else Vector2.ZERO,moving,dt,pose,region==1)
 	last_position=run.player
 	camera_focus=camera_focus.lerp(Vector3(clampf(run.player.x,-4.0,4.0),0,clampf(run.player.y,-4.0,4.0)),1.0-exp(-dt*7.0))
 	camera.position=camera_focus+Vector3(0,23,17);camera.look_at(camera_focus)
@@ -320,7 +323,6 @@ func _process(dt:float):
 	if is_instance_valid(wild):
 		wild.position=Vector3(point.x,.1,point.y);wild.visible=run.player.distance_to(point)<5.5;wild.rotation.y=atan2(run.player.x-point.x,run.player.y-point.y)
 		wild.scale=Vector3.ONE*.78*(1.0+.08*sin(run.elapsed*18.0) if run.alert_left()>0.0 else 1.0)
-		PixelArt.orient_world_sprite(wild,camera)
 	for i in range(hazards.size()):
 		var p=run.hazard_at(i);hazards[i].position=Vector3(p.x,0,p.y);hazards[i].rotation.y=run.elapsed*1.7
 	update_hud()

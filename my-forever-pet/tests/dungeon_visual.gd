@@ -114,7 +114,25 @@ func run():
 		assert(dungeon.camera_ray_blocked(AABB(blocker-Vector3.ONE*.3,Vector3.ONE*.6),test_center),"foreground obstruction detected")
 		assert(not dungeon.camera_ray_blocked(AABB(blocker+Vector3(5,0,0),Vector3.ONE*.6),test_center),"side scenery does not obstruct camera")
 		assert(not dungeon.scenery_clear_of_floor(AABB(test_center-Vector3(.25,0,.25),Vector3(.5,1,.5))),"reject model over player tile")
-		assert(dungeon.companion_id==24+region)
+		assert(dungeon.companion_id==0,"retired species cannot replace Mosky")
+		var sprite=dungeon.pet_pose.get_node("PixelCompanion") as Sprite3D
+		var art=preload("res://pixel_pet_art.gd")
+		var directions=[Vector2.DOWN,Vector2.UP,Vector2.LEFT,Vector2.RIGHT]
+		var hashes:Array=[]
+		for dir in range(4):
+			art.animate_world_sprite(dungeon.pet_pose,directions[dir],true,.01)
+			assert(int(sprite.get_meta("facing"))==dir)
+			var first:Texture2D=sprite.texture
+			hashes.append(first.get_image().get_data().hex_encode())
+			art.animate_world_sprite(dungeon.pet_pose,directions[dir],true,.11)
+			assert(sprite.texture!=first and sprite.texture.get_image().get_data()!=first.get_image().get_data(),"walk has distinct drawn frames")
+			art.animate_world_sprite(dungeon.pet_pose,Vector2.ZERO,false,.01)
+			assert(int(sprite.get_meta("facing"))==dir and sprite.get_meta("anim_state")=="idle")
+		for i in range(4):
+			for k in range(i+1,4):assert(hashes[i]!=hashes[k],"directions must have distinct pixel art")
+		art.animate_world_sprite(dungeon.pet_pose,Vector2.DOWN,false,.01,"hurt")
+		assert(sprite.get_meta("anim_state")=="hurt")
+		art.animate_world_sprite(dungeon.pet_pose,Vector2.DOWN,false,.01,"idle")
 		assert(dungeon.area.size.x>200 and dungeon.area.size.y>200)
 		assert(dungeon.floor_label.text.contains("rooms"))
 		assert(dungeon.hp_text.text=="HP %d/%d"%[dungeon.run.hp,dungeon.run.max_hp])

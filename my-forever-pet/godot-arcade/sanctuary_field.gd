@@ -1,5 +1,9 @@
 extends Control
 const Data=preload("res://research_data.gd")
+const PixelArt=preload("res://pixel_pet_art.gd")
+var pet_facing:=0
+var pet_anim_clock:=0.0
+var pet_moving:=false
 signal recovered(index:int)
 var region=0
 var tier=0
@@ -19,7 +23,8 @@ var shimmer=0.0
 var last_touch=Vector2(-1,-1)
 var last_path_at=-1.0
 func setup(r:int,t:int,m:int,pet:Texture2D):
-	region=r; tier=t; mask=m; companion=pet; points=Data.sanctuary_points(r,t)
+	region=r; tier=t; mask=m; companion=PixelArt.adventure_frame(0,"idle"); points=Data.sanctuary_points(r,t)
+	texture_filter=CanvasItem.TEXTURE_FILTER_NEAREST
 	custom_minimum_size.y=400; mouse_filter=MOUSE_FILTER_STOP; set_meta("direct_field_input",true)
 	# Keep paths wide and relics reachable. Distinct terrain on each map.
 	obstacles.clear()
@@ -78,6 +83,7 @@ func _process(dt:float):
 	if locked:return
 	walk_time+=dt
 	shimmer=maxf(0,shimmer-dt)
+	var previous:=pos
 	var remaining:float=minf(dt,.05)*(.44 if region==1 else .58)
 	while remaining>0.00001 and not path.is_empty():
 		var next:Vector2=path[0]
@@ -86,6 +92,12 @@ func _process(dt:float):
 			pos=next; remaining-=distance; path.remove_at(0)
 		else:
 			pos=pos.move_toward(next,remaining);remaining=0
+	var delta:Vector2=(pos-previous)*size
+	var moving:bool=delta.length_squared()>.0025
+	var direction:int=PixelArt.direction_for(delta,pet_facing)
+	if moving!=pet_moving or direction!=pet_facing:pet_anim_clock=0.0
+	pet_moving=moving;pet_facing=direction;pet_anim_clock+=dt
+	companion=PixelArt.frame_for(pet_facing,"walk" if pet_moving else "idle",pet_anim_clock)
 	if trail.is_empty() or trail[-1].distance_to(pos)>.025:
 		trail.append(pos)
 		if trail.size()>14:trail.remove_at(0)
@@ -149,5 +161,7 @@ func _draw():
 	draw_arc(at,30,0,TAU,40,tint,2,true)
 	if shimmer>0:
 		draw_arc(at,30+45*(1-shimmer/.9),0,TAU,48,Color(1,.84,.44,shimmer/.9),3,true)
-	if companion!=null:draw_texture_rect(companion,Rect2(at-Vector2(34,40+sin(walk_time*9)*2),Vector2(68,68)),false)
+	if companion!=null:
+		var hop:float=absf(sin(pet_anim_clock*TAU*3.5))*4.0 if pet_moving else sin(pet_anim_clock*2.5)*.8
+		draw_texture_rect(companion,Rect2(at-Vector2(34,48+hop),Vector2(68,68)),false)
 	else:draw_circle(at,12,tint)

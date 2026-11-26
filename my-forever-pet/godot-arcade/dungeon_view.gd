@@ -1512,8 +1512,8 @@ func build_floor():
 			shape(geometry,"box",p+Vector3(0,.11,0),Vector3(.62,.18,.62),palette[2])
 	pet=Node3D.new();geometry.add_child(pet);pet.position=pos(run.player)
 	pet_pose=model(pet,companion_id);pet_pose.scale*=1.28
-	# Creature GLBs face local -Z; initial south-facing pet should look toward camera.
-	pet_pose.rotation.y=PI
+	# Sprite orientation is driven by actual movement, not the GLB basis.
+	pet_pose.rotation.y=0.0
 	pet.rotation.y=atan2(float(facing.x),float(facing.y))
 	attack_fx=shape(geometry,"ring",Vector3.ZERO,Vector3.ONE,Color("#ffdfa0"));attack_fx.hide();attack_fx.cast_shadow=GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	var fxmat=StandardMaterial3D.new();fxmat.shading_mode=BaseMaterial3D.SHADING_MODE_UNSHADED;fxmat.albedo_color=Color("#ffe6a3");attack_fx.material_override=fxmat
@@ -1528,7 +1528,7 @@ func build_floor():
 	floor_banner.size=Vector2(area.size.x,45);floor_banner.position=Vector2(0,area.size.y*.12)
 	var focus=pet.position+Vector3(0,.18,-.48)
 	camera.position=focus+DUNGEON_CAMERA_OFFSET;camera.look_at(focus)
-	PixelArt.orient_world_sprite(pet_pose,camera)
+	PixelArt.animate_world_sprite(pet_pose,Vector2(facing),false,0.0,"idle",region==1)
 	refresh_actors()
 	floor_build_usec=Time.get_ticks_usec()-start_usec
 	print("DUNGEON_FLOOR_BUILD region=",region," floor=",run.floor_number," usec=",floor_build_usec," rocks=",rock_modules," cached_rock_sets=",rock_mesh_cache.size()," landmarks=",landmark_count," details=",detail_count," paired_spans=",span_count," corners=",corner_count," terraces=",terrace_count," floor_details=",floor_detail_count," thresholds=",threshold_count," exterior_vertices=",exterior_vertex_count," exterior_groups=",exterior_groups.size()," exterior_static_batches=",exterior_static_batches," exterior_life=",exterior_life_centers.size())
@@ -1709,22 +1709,23 @@ func _process(dt:float):
 		else:path.clear()
 		tick=.16
 	var target=pos(run.player)
+	var travel:Vector3=target-pet.position
 	pet.position=pet.position.lerp(target,1.0-exp(-dt*18.0))
 	destination_fx.visible=not path.is_empty()
 	if destination_fx.visible:destination_fx.position=pos(path[-1])+Vector3(0,.06,0)
 	attack_time=maxf(0.0,attack_time-dt);hit_time=maxf(0.0,hit_time-dt)
-	var moving=pet.position.distance_to(target)>.06
-	pet_pose.position=Vector3(0,.09*absf(sin(elapsed*18.0)) if moving else .015*sin(elapsed*3.5),0)
-	pet_pose.rotation.z=sin(elapsed*20.0)*.07 if moving else 0.0
-	if region==1:
-		pet_pose.position.y=.10+.055*sin(elapsed*5.0)
-		pet_pose.rotation.z=sin(elapsed*7.0)*.045 if moving else 0.0
+	var moving:bool=travel.length()>.045
+	var motion:=Vector2(travel.x,travel.z) if moving else Vector2.ZERO
+	pet_pose.position=Vector3.ZERO
+	pet_pose.rotation.z=0.0
 	if attack_time>0.0:
 		var phase=sin(PI*attack_time/.28)
 		pet_pose.position+=pet.basis.inverse()*attack_direction*phase*.40
 		attack_fx.visible=true;attack_fx.scale=Vector3(1.1-phase*.42,.13,1.1-phase*.42)
 	else:attack_fx.hide()
-	if hit_time>0.0:pet_pose.rotation.z+=sin(hit_time*45.0)*.19
-	if facing!=Vector2i.ZERO:pet.rotation.y=atan2(float(facing.x),float(facing.y))
+	if hit_time>0.0:pet_pose.rotation.z+=sin(hit_time*45.0)*.10
+	if attack_time>0.0:motion=Vector2(attack_direction.x,attack_direction.z)
+	var pose:String="hurt" if hit_time>0.0 else "attack" if attack_time>0.0 else "reward" if reward_age>0.0 and not moving else "idle"
+	PixelArt.animate_world_sprite(pet_pose,motion,moving,dt,pose,region==1)
 	var focus=pet.position+Vector3(0,.18,-.48)
 	camera.position=focus+DUNGEON_CAMERA_OFFSET;camera.look_at(focus)

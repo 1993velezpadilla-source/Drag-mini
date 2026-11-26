@@ -24,6 +24,7 @@ func run():
 				assert((field.mask&(1<<i))!=0,"unreachable relic")
 				checks+=1
 			assert(field.mask==7)
+			assert(field.companion!=null and field.companion.get_width()==48)
 			field.free()
 	print("FOREVER_SANCTUARY_NAV_PASS ",checks)
 	quit()

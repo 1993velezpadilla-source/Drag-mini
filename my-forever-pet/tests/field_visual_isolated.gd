@@ -32,6 +32,9 @@ func run():
 		assert(field.touch_index==-1,"release clears pointer")
 		field._process(.016)
 		assert(field.destination_marker.visible,"destination is visible")
+		var sprite=field.player.get_node("PixelCompanion") as Sprite3D
+		assert(sprite!=null and sprite.texture.get_width()==48 and sprite.texture.get_height()==48)
+		assert(int(sprite.get_meta("facing")) in [0,1,2,3])
 		field.scan_button.pressed.emit()
 		field._process(.016)
 		assert(field.compass_arrow.visible and field.trace.visible and field.run.scans==2,"scan activates actual world markers")
