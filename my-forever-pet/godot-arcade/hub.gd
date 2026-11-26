@@ -1520,6 +1520,30 @@ func test_home():
 	store.s.germs=0; store.s.hunger=5; store.s.energy=100; assert(store.action("trip",0)); assert(not store.available())
 	store.s.trip_end=store.now()-1; store.advance(store.now()+1); assert(store.s.pending[0]>0)
 	assert(store.action("loot")); assert(not store.action("loot"))
+	store.s=saved.duplicate(true)
+	# Test the actual store settlement, including replay and invalid timing.
+	store.s.stage=2;store.s.energy=100;store.s.hunger=5;store.s.germs=0
+	store.s.collection=1;store.s.research_target[0]=1
+	var field_case:Dictionary=store.field_begin(0,false)
+	assert(not field_case.is_empty(),"field starts for common trail")
+	var field_wallet:int=store.s.coins
+	var invalid:Dictionary=store.field_finish(true,int(field_case.required),.1,0)
+	assert(not invalid.get("correct",false) and store.s.coins==field_wallet,"impossible timing cannot pay")
+	field_case=store.field_begin(0,false)
+	assert(not field_case.is_empty())
+	var clean:Dictionary=store.field_finish(true,int(field_case.required),8.0,0)
+	assert(clean.get("correct",false) and store.s.coins==field_wallet+9,"clean trail earns bonus")
+	assert(not store.field_finish(true,int(field_case.required),8.0,0).get("ok",false),"no repeated settlement")
+	store.s.research_rank_xp[2]=90;store.s.research_target[2]=24
+	store.s.research_evidence[24]=Research.needed(24)
+	field_case=store.field_begin(2,false)
+	assert(not field_case.is_empty() and field_case.finale)
+	var before_crystals:int=store.s.crystals
+	var before_materials:int=store.s.materials
+	var discovery:Dictionary=store.field_finish(true,int(field_case.required),20.0,0)
+	assert(discovery.get("unlocked",false) and discovery.coins==100 and discovery.xp==50)
+	assert(store.s.crystals==before_crystals+2 and store.s.materials==before_materials+4)
+	assert((int(store.s.collection)&(1<<24))!=0)
 	store.s=saved
 	make_ui(); refresh()
 	live_stage.set_pet(0,0); assert(live_stage.egg_body!=null and live_stage.bare_bounds.has_volume())
