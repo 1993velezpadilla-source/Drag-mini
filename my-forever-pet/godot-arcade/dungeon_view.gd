@@ -73,18 +73,20 @@ func style(bg:Color,border:Color,radius:int=14)->StyleBoxFlat:
 func label(parent:Node,value:String,size_value:int,color:Color=Color.WHITE)->Label:
 	var l=Label.new();l.text=value;l.add_theme_font_size_override("font_size",size_value);l.modulate=color;parent.add_child(l);return l
 func button(parent:Node,value:String,action:Callable,accent:bool=false)->Button:
-	var b=Button.new();b.text=value;b.custom_minimum_size.y=54;b.size_flags_horizontal=SIZE_EXPAND_FILL
+	var b=Button.new();b.text=value;b.custom_minimum_size.y=62;b.size_flags_horizontal=SIZE_EXPAND_FILL
 	b.add_theme_font_size_override("font_size",17)
-	b.add_theme_stylebox_override("normal",style(Color("#315f62") if accent else Color("#25374a"),Color("#79d5c3") if accent else Color("#53657d")))
+	var action_color=Color("#315f43") if value=="Strike" else Color("#59417b") if value=="Skill" else Color("#765032") if value=="Berry" else Color("#283b4a")
+	var frame=style(action_color,Color("#d6b877"),18);frame.shadow_color=Color("#090f18bb");frame.shadow_size=4;frame.shadow_offset=Vector2(0,3)
+	b.add_theme_stylebox_override("normal",frame)
 	b.add_theme_stylebox_override("pressed",style(Color("#496b81"),Color("#f6e2a6")))
 	b.add_theme_stylebox_override("disabled",style(Color("#202b36"),Color("#34404e")))
 	b.add_theme_color_override("font_disabled_color",Color("#8393a3"))
 	b.pressed.connect(action);parent.add_child(b);return b
 func build_ui():
 	var base=VBoxContainer.new();add_child(base);base.set_anchors_and_offsets_preset(PRESET_FULL_RECT);base.add_theme_constant_override("separation",0)
-	var header=PanelContainer.new();header.add_theme_stylebox_override("panel",style(Color("#162535"),Color("#344e63"),0));base.add_child(header)
+	var header=PanelContainer.new();header.add_theme_stylebox_override("panel",style(Color("#162535"),Color("#ad925d"),16));base.add_child(header)
 	var h=HBoxContainer.new();header.add_child(h)
-	var back=button(h,"‹",leave);back.size_flags_horizontal=SIZE_SHRINK_BEGIN;back.custom_minimum_size.x=48
+	var back=button(h,"Exit",leave);back.size_flags_horizontal=SIZE_SHRINK_BEGIN;back.custom_minimum_size.x=58
 	var portrait=TextureRect.new();portrait.custom_minimum_size=Vector2(58,58);portrait.expand_mode=TextureRect.EXPAND_IGNORE_SIZE;portrait.stretch_mode=TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	var portrait_path="res://assets/pet_%d.png"%companion_id
 	if ResourceLoader.exists(portrait_path):portrait.texture=load(portrait_path)
@@ -100,12 +102,12 @@ func build_ui():
 	var holder=SubViewportContainer.new();holder.stretch=true;holder.stretch_shrink=1;holder.mouse_filter=MOUSE_FILTER_IGNORE;area.add_child(holder);holder.set_anchors_and_offsets_preset(PRESET_FULL_RECT)
 	viewport=SubViewport.new();viewport.own_world_3d=true;viewport.render_target_update_mode=SubViewport.UPDATE_ALWAYS;holder.add_child(viewport)
 	world=Node3D.new();viewport.add_child(world)
-	var env=WorldEnvironment.new();env.environment=Environment.new();env.environment.background_mode=Environment.BG_COLOR;env.environment.background_color=palette[2].darkened(.55);env.environment.ambient_light_source=Environment.AMBIENT_SOURCE_COLOR;env.environment.ambient_light_color=Color("#e0edff");env.environment.ambient_light_energy=.55;world.add_child(env)
-	var sun=DirectionalLight3D.new();sun.rotation_degrees=Vector3(-48,-35,0);sun.light_color=[Color("#fff2d4"),Color("#c0eaff"),Color("#d9d2ff")][region];sun.light_energy=1.15;sun.shadow_enabled=true;world.add_child(sun)
-	var fill=DirectionalLight3D.new();fill.rotation_degrees=Vector3(-35,145,0);fill.light_color=palette[3];fill.light_energy=.28;fill.shadow_enabled=false;world.add_child(fill)
-	camera=Camera3D.new();camera.projection=Camera3D.PROJECTION_ORTHOGONAL;camera.keep_aspect=Camera3D.KEEP_WIDTH;camera.size=8.6;world.add_child(camera);camera.current=true
+	var env=WorldEnvironment.new();env.environment=Environment.new();env.environment.background_mode=Environment.BG_COLOR;env.environment.background_color=palette[2].darkened(.55);env.environment.ambient_light_source=Environment.AMBIENT_SOURCE_COLOR;env.environment.ambient_light_color=Color("#e0edff");env.environment.ambient_light_energy=.38;world.add_child(env)
+	var sun=DirectionalLight3D.new();sun.rotation_degrees=Vector3(-48,-35,0);sun.light_color=[Color("#fff2d4"),Color("#c0eaff"),Color("#d9d2ff")][region];sun.light_energy=.78;sun.shadow_enabled=true;world.add_child(sun)
+	var fill=DirectionalLight3D.new();fill.rotation_degrees=Vector3(-35,145,0);fill.light_color=palette[3];fill.light_energy=.18;fill.shadow_enabled=false;world.add_child(fill)
+	camera=Camera3D.new();camera.projection=Camera3D.PROJECTION_ORTHOGONAL;camera.keep_aspect=Camera3D.KEEP_WIDTH;camera.size=10.0;world.add_child(camera);camera.current=true
 	var input=Control.new();area.add_child(input);input.set_anchors_and_offsets_preset(PRESET_FULL_RECT);input.mouse_filter=MOUSE_FILTER_STOP;input.gui_input.connect(touch)
-	map=Control.new();map.mouse_filter=MOUSE_FILTER_IGNORE;area.add_child(map);map.position=Vector2(10,10);map.size=Vector2(153,105);map.draw.connect(draw_map)
+	map=Control.new();map.mouse_filter=MOUSE_FILTER_IGNORE;area.add_child(map);map.position=Vector2(10,10);map.size=Vector2(146,112);map.draw.connect(draw_map)
 	feedback=Label.new();feedback.horizontal_alignment=HORIZONTAL_ALIGNMENT_CENTER;feedback.add_theme_font_size_override("font_size",24);feedback.add_theme_color_override("font_outline_color",Color("#142535"));feedback.add_theme_constant_override("outline_size",7);feedback.mouse_filter=MOUSE_FILTER_IGNORE;area.add_child(feedback);feedback.hide()
 	floor_banner=Label.new();floor_banner.horizontal_alignment=HORIZONTAL_ALIGNMENT_CENTER;floor_banner.add_theme_font_size_override("font_size",25);floor_banner.add_theme_color_override("font_outline_color",Color("#142535"));floor_banner.add_theme_constant_override("outline_size",8);floor_banner.mouse_filter=MOUSE_FILTER_IGNORE;area.add_child(floor_banner);floor_banner.hide()
 	var footer=PanelContainer.new();footer.add_theme_stylebox_override("panel",style(Color("#162535"),Color("#344e63"),0));base.add_child(footer)
@@ -281,13 +283,19 @@ func build_floor():
 			var next:Vector2i=q+d
 			if not run.cells.has(next) and not seen.has(next):
 				seen[next]=true;walls.append(pos(next)+Vector3(0,.44,0))
-	var ground:Color=palette[0].lerp(palette[1],.55)
+	var ground:Color=palette[0].lerp(palette[1],.32)
+	var far_ground=shape(geometry,"box",Vector3(25,-.77,20),Vector3(88,.35,78),palette[2].darkened(.15))
+	far_ground.material_override=terrain_mat(palette[2].darkened(.15));far_ground.cast_shadow=GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	batch(geometry,a,"box",Vector3(1.40,.24,1.40),ground,true);batch(geometry,b,"box",Vector3(1.40,.24,1.40),ground.lightened(.025),true)
 	# Dark foundation closes small rock gaps; the visible silhouette comes from sculpted Blender modules.
 	var foundation:Array[Vector3]=[]
 	for p in walls:foundation.append(p-Vector3(0,.28,0))
 	batch(geometry,foundation,"box",Vector3(1.4,.38,1.4),palette[2],true)
 	wall_decorations=0
+	for i in range(walls.size()):
+		if posmod(i*11+run.floor_number,9)==0:
+			var decoration=prop(geometry,["dungeon_forest_cluster","dungeon_reef_cluster","dungeon_star_cluster"][region],walls[i]+Vector3(0,.45,0))
+			if decoration!=null:decoration.rotation.y=float(i%8)*PI*.25
 	if not natural_boundary(walls):
 		batch(geometry,walls,"box",Vector3(1.4,.88,1.4),palette[2],true)
 		boundary_detail(walls)
@@ -303,7 +311,7 @@ func build_floor():
 	destination_fx=shape(geometry,"ring",Vector3.ZERO,Vector3(.68,.08,.68),Color("#a0e6db"));destination_fx.hide();destination_fx.cast_shadow=GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	active_floor=run.floor_revision
 	banner_time=1.65;floor_banner.text="B%d  ·  %s"%[run.floor_number,floor_name()];floor_banner.show()
-	camera.position=pet.position+Vector3(0,12,8);camera.look_at(pet.position)
+	camera.position=pet.position+Vector3(0,10,10);camera.look_at(pet.position)
 	refresh_actors()
 	floor_build_usec=Time.get_ticks_usec()-start_usec
 	print("DUNGEON_FLOOR_BUILD region=",region," floor=",run.floor_number," usec=",floor_build_usec," rocks=",rock_modules," cached_rock_sets=",rock_mesh_cache.size())
@@ -365,15 +373,19 @@ func refresh_actors():
 			var n:Node3D=actor_nodes[key]
 			n.hide();n.queue_free();actor_nodes.erase(key)
 func draw_map():
-	map.draw_rect(Rect2(Vector2.ZERO,map.size),Color("#102030dd"))
+	map.draw_style_box(style(Color("#142632e8"),Color("#75968b"),12),Rect2(Vector2.ZERO,map.size))
+	var extent=Vector2i.ONE
+	for p in run.cells:extent=Vector2i(maxi(extent.x,p.x+1),maxi(extent.y,p.y+1))
+	var unit=minf((map.size.x-16.0)/extent.x,(map.size.y-16.0)/extent.y)
+	var offset=(map.size-Vector2(extent)*unit)*.5
 	for p in run.revealed:
-		map.draw_rect(Rect2(Vector2(p)*6+Vector2(9,9),Vector2(5,5)),Color("#6994a6"))
+		map.draw_rect(Rect2(Vector2(p)*unit+offset,Vector2.ONE*maxf(1.0,unit-.7)),Color("#759b9f"))
 	for p in run.loot:
-		if run.revealed.has(p):map.draw_circle(Vector2(p)*6+Vector2(11.5,11.5),1.7,Color("#ffcf72"))
+		if run.revealed.has(p):map.draw_circle((Vector2(p)+Vector2(.5,.5))*unit+offset,maxf(1.0,unit*.24),Color("#ffcf72"))
 	for enemy in run.enemies:
-		if run.revealed.has(enemy.pos):map.draw_circle(Vector2(enemy.pos)*6+Vector2(11.5,11.5),2.1,Color("#f58b90"))
-	if run.revealed.has(run.stairs):map.draw_rect(Rect2(Vector2(run.stairs)*6+Vector2(9,9),Vector2(5,5)),Color("#f8d18b"))
-	map.draw_circle(Vector2(run.player)*6+Vector2(11.5,11.5),3.5,Color("#b1ffbc"))
+		if run.revealed.has(enemy.pos):map.draw_circle((Vector2(enemy.pos)+Vector2(.5,.5))*unit+offset,maxf(1.2,unit*.3),Color("#f58b90"))
+	if run.revealed.has(run.stairs):map.draw_rect(Rect2(Vector2(run.stairs)*unit+offset,Vector2.ONE*unit),Color("#f8d18b"))
+	map.draw_circle((Vector2(run.player)+Vector2(.5,.5))*unit+offset,maxf(2.0,unit*.5),Color("#c2ffb5"))
 func touch(event:InputEvent):
 	if notified or run.finished:return
 	if event is InputEventScreenTouch and event.index!=0:return
@@ -457,4 +469,4 @@ func _process(dt:float):
 	else:attack_fx.hide()
 	if hit_time>0.0:pet_pose.rotation.z+=sin(hit_time*45.0)*.19
 	if facing!=Vector2i.ZERO:pet.rotation.y=atan2(float(facing.x),float(facing.y))
-	camera.position=pet.position+Vector3(0,12,8);camera.look_at(pet.position)
+	camera.position=pet.position+Vector3(0,10,10);camera.look_at(pet.position)

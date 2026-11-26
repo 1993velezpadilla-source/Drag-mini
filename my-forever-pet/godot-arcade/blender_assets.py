@@ -697,7 +697,7 @@ ball((0,.19,-.23),(.16,.16,.08),jetflame)
 export('jetpack',12000)
 # Mystery dungeons: compact, original beveled landmarks and collectible silhouettes.
 clear()
-moss=mat('dungeon moss',(.17,.37,.15))
+moss=mat('dungeon moss',(.075,.20,.035),0,.9)
 bark=mat('dungeon ancient root',(.27,.13,.075))
 cap=mat('dungeon mushroom coral',(.68,.24,.25))
 box((0,.10,0),(.80,.20,.80),stone,.09)
@@ -755,7 +755,7 @@ for x in [-.43,.43]:
 export('dungeon_stairs',4500)
 # Modular natural boundary pieces: one tile wide, mobile triangle budgets.
 clear()
-foreststone=mat('forest slate',(.23,.30,.22))
+foreststone=mat('forest slate',(.095,.13,.075),0,.85)
 forestleaf=mat('forest bright moss',(.34,.49,.15))
 for i in range(3):
  x=(i-1)*.40
@@ -765,7 +765,7 @@ for x in [-.42,.41]:
  ball((x,.69,.18),(.34,.16,.31),forestleaf)
 export('dungeon_forest_wall',5000)
 clear()
-reefstone=mat('reef limestone',(.22,.43,.51))
+reefstone=mat('reef limestone',(.045,.15,.22),0,.76)
 for i in range(3):
  x=(i-1)*.39
  box((x,.26,0),(.49,.52,.91),reefstone,.12)
@@ -773,7 +773,7 @@ for i in range(3):
  ball((x,.76+(i%2)*.08,0),(.18,.13,.18),pearl)
 export('dungeon_reef_wall',5000)
 clear()
-astralstone=mat('astral basalt',(.27,.27,.43))
+astralstone=mat('astral basalt',(.105,.085,.19),0,.77)
 for i in range(3):
  x=(i-1)*.39
  box((x,.28,0),(.49,.56,.95),astralstone,.08)
@@ -815,4 +815,27 @@ for region,primary,accent,topmat in [
     cyl((x,.93,0),.12,.09,.36+i*.10,accent)
     cyl((x,1.16+i*.05,0),.09,0,.18,topmat)
   export('dungeon_%s_rock_%d'%(region,variant),2400)
+# Distinct original landmarks placed on safe non-walkable edge tiles.
+clear()
+for i in range(5):
+ a=i*2*pi/5
+ x=.26*math.cos(a);z=.26*math.sin(a)
+ o=ball((x,.33,z),(.25,.70,.12),green if i%2 else leaf);o.rotation_euler.y=a;o.rotation_euler.x=.45
+box((0,.10,0),(.60,.18,.60),foreststone,.09)
+for x in [-.19,.19]:ball((x,.21,.19),(.14,.12,.14),cream)
+export('dungeon_forest_cluster',4000)
+clear()
+for i in range(5):
+ a=i*2*pi/5;x=.25*math.cos(a);z=.25*math.sin(a)
+ o=cyl((x,.37,z),.08,.045,.60+(.15 if i%2 else 0),coral);o.rotation_euler.x=.22*math.sin(a);o.rotation_euler.y=.22*math.cos(a)
+ ball((x,.62,z),(.13,.12,.13),pearl)
+box((0,.08,0),(.64,.15,.64),reefstone,.08)
+export('dungeon_reef_cluster',4000)
+clear()
+for i in range(5):
+ a=i*2*pi/5;x=.22*math.cos(a);z=.22*math.sin(a)
+ h=.38+(.28 if i%2==0 else 0)
+ cyl((x,h*.5,z),.13,.095,h,rune);cyl((x,h+.10,z),.095,0,.20,star)
+box((0,.08,0),(.65,.15,.65),astralstone,.07)
+export('dungeon_star_cluster',4000)
 with open(os.path.join(OUT,'mesh-metrics.json'),'w') as out: json.dump(stats,out,indent=2)

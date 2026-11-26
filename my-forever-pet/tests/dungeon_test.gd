@@ -3,6 +3,8 @@ const Rules=preload("res://dungeon_rules.gd")
 func _initialize():call_deferred("run")
 func run():
 	var total=0
+	var room_counts:Dictionary={}
+	var signatures:Dictionary={}
 	for region in range(3):
 		for id in [1,13,24]:
 			for seed_value in range(20):
@@ -12,6 +14,9 @@ func run():
 				assert(first==clone.cells,"same seed same layout")
 				for floor_index in range(field.floor_count):
 					assert(field.floor_number==floor_index+1)
+					assert(field.rooms.size()>=4 and field.rooms.size()<=9)
+					room_counts[field.rooms.size()]=true
+					signatures[str(field.rooms)]=true
 					assert(field.route(field.player,field.relic).size()>0)
 					assert(field.route(field.player,field.stairs).size()>0)
 					assert(not field.descend(),"cannot skip relic")
@@ -68,5 +73,7 @@ func run():
 	var health:int=heavy.hp
 	heavy.enemy_turn();assert(heavy.hp==health and heavy.enemies[0].windup)
 	heavy.enemy_turn();assert(heavy.hp<health and not heavy.enemies[0].windup)
+	assert(room_counts.size()>=4 and signatures.size()>100,"genuine structural variation")
+	print("DUNGEON_LAYOUT_VARIETY room_counts=",room_counts.keys()," unique_room_signatures=",signatures.size())
 	print("FOREVER_DUNGEON_PASS ",total)
 	quit()

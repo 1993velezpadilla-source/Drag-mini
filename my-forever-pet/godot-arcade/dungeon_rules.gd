@@ -69,6 +69,57 @@ func connect_cells(a:Vector2i,b:Vector2i):
 			p.y+=signi(b.y-p.y);cells[p]=true
 		while p.x!=b.x:
 			p.x+=signi(b.x-p.x);cells[p]=true
+func build_layout():
+	# Independent implementation: variable sector occupancy, random room sizes,
+	# connected spanning tree, extra loops and imperfect corner cuts.
+	var grids=[Vector2i(3,2),Vector2i(2,3),Vector2i(3,3),Vector2i(4,2)]
+	var grid:Vector2i=grids[rng.randi_range(0,grids.size()-1)]
+	var slots:Array[Vector2i]=[]
+	for y in range(grid.y):
+		for x in range(grid.x):slots.append(Vector2i(x,y))
+	for i in range(slots.size()-1,0,-1):
+		var j=rng.randi_range(0,i);var swap=slots[i];slots[i]=slots[j];slots[j]=swap
+	var room_count=rng.randi_range(4,slots.size())
+	for i in range(room_count):
+		var slot=slots[i]
+		var width=rng.randi_range(5,7);var height=rng.randi_range(5,7)
+		var origin=slot*9+Vector2i(rng.randi_range(1,9-width-1),rng.randi_range(1,9-height-1))
+		var room=Rect2i(origin,Vector2i(width,height));rooms.append(room)
+		var cut=rng.randi_range(0,3)
+		for y in range(room.position.y,room.end.y):
+			for x in range(room.position.x,room.end.x):
+				var corner_x=x==room.position.x or x==room.end.x-1
+				var corner_y=y==room.position.y or y==room.end.y-1
+				if cut>0 and corner_x and corner_y and rng.randi_range(0,3)<cut:continue
+				cells[Vector2i(x,y)]=true
+	var reached:Array[int]=[0]
+	var links:Dictionary={}
+	while reached.size()<rooms.size():
+		var best=99999;var source=0;var destination=-1
+		for i in reached:
+			for j in range(rooms.size()):
+				if j in reached:continue
+				var score=distance(center(rooms[i]),center(rooms[j]))*4+rng.randi_range(0,12)
+				if score<best:best=score;source=i;destination=j
+		connect_cells(center(rooms[source]),center(rooms[destination]))
+		links[Vector2i(mini(source,destination),maxi(source,destination))]=true
+		reached.append(destination)
+	var extra=rng.randi_range(0,mini(4,room_count-2))
+	for n in range(extra):
+		var i=rng.randi_range(0,room_count-1);var j=rng.randi_range(0,room_count-1)
+		var key=Vector2i(mini(i,j),maxi(i,j))
+		if i!=j and not links.has(key) and distance(center(rooms[i]),center(rooms[j]))<=20:
+			connect_cells(center(rooms[i]),center(rooms[j]));links[key]=true
+	player=center(rooms[0])
+	var farthest=-1;var exit_index=1
+	for i in range(1,rooms.size()):
+		var steps=route(player,center(rooms[i])).size()
+		if steps>farthest:farthest=steps;exit_index=i
+	stairs=center(rooms[exit_index])
+	var choices:Array[int]=[]
+	for i in range(1,rooms.size()):
+		if i!=exit_index:choices.append(i)
+	relic=center(rooms[choices[rng.randi_range(0,choices.size()-1)]])
 func generate_floor():
 	rng.seed=seed_value+floor_number*7919
 	cells.clear();rooms.clear();enemies.clear();loot.clear();revealed.clear();traps.clear();explored_rooms.clear()
@@ -76,20 +127,8 @@ func generate_floor():
 	floor_style=posmod(seed_value+floor_number,3)
 	floor_kind=0 if floor_number==1 else posmod(seed_value*3+floor_number*7,5)
 	secured=false;guardian_defeated=not (rescue_finale and floor_number==floor_count);floor_revision+=1
-	for y in range(2):
-		for x in range(3):
-			var room=Rect2i(Vector2i(1+x*7+rng.randi_range(0,1),1+y*7+rng.randi_range(0,1)),Vector2i(rng.randi_range(4,5),rng.randi_range(4,5)))
-			rooms.append(room)
-			for j in range(room.position.y,room.end.y):
-				for i in range(room.position.x,room.end.x):cells[Vector2i(i,j)]=true
-	for i in range(1,6):
-		if i%3!=0:connect_cells(center(rooms[i-1]),center(rooms[i]))
-		else:connect_cells(center(rooms[i-3]),center(rooms[i]))
-	if floor_style==0:connect_cells(center(rooms[2]),center(rooms[5]))
-	elif floor_style==1:connect_cells(center(rooms[1]),center(rooms[4]))
-	else:
-		connect_cells(center(rooms[1]),center(rooms[4]));connect_cells(center(rooms[2]),center(rooms[5]))
-	player=center(rooms[0]);stairs=center(rooms[5 if floor_style!=1 else 2]);relic=center(rooms[4 if floor_style!=2 else 3])
+	build_layout()
+
 	var spots:Array= cells.keys()
 	for i in range(spots.size()-1,0,-1):
 		var j=rng.randi_range(0,i);var temp=spots[i];spots[i]=spots[j];spots[j]=temp
