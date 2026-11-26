@@ -29,16 +29,18 @@ var flow_arrows:Array[Node3D]=[]
 var mesh_cache:Dictionary={}
 var material_cache:Dictionary={}
 var pulse:Node3D
+var destination_marker:Node3D
 var found_flash=0.0
 var camera_focus=Vector3.ZERO
 var last_index=0
 var last_position=Vector2.ZERO
+var previous_hits=0
 var notified=false
 var tint:Color
 var region:int
 var rng=RandomNumberGenerator.new()
 func setup(r:int,id:int,step:int,finale:bool,patrol:bool,seed_id:int,companion:int):
-	region=r;tint=Data.TINTS[r];rng.seed=seed_id;run.setup(r,id,step,finale,patrol,seed_id)
+	region=r;tint=Data.TINTS[r];rng.seed=seed_id;run.setup(r,id,step,finale,patrol,seed_id);last_position=run.player
 	var root=VBoxContainer.new();root.set_anchors_and_offsets_preset(PRESET_FULL_RECT);root.add_theme_constant_override("separation",0);add_child(root)
 	var head=PanelContainer.new();head.add_theme_stylebox_override("panel",skin(Color("#142531"),Color("#354e59")));root.add_child(head)
 	var top=HBoxContainer.new();head.add_child(top)
@@ -131,6 +133,10 @@ func build_world(companion:int,id:int,finale:bool):
 		else:sphere(Vector3(x,.12,z),Vector3(scale_value,.22,scale_value),Color("#c2c4ef"),world)
 	build_landmarks()
 	player=model(companion,world)
+	destination_marker=Node3D.new();world.add_child(destination_marker)
+	var target_ring=TorusMesh.new();target_ring.inner_radius=.28;target_ring.outer_radius=.34;target_ring.rings=16;target_ring.ring_segments=6
+	shape(target_ring,Vector3(0,.08,0),Vector3.ONE,Color("#e9faff"),destination_marker,true)
+	destination_marker.hide()
 	trace=Node3D.new();world.add_child(trace)
 	var ring=TorusMesh.new();ring.inner_radius=.42;ring.outer_radius=.56;ring.rings=16;ring.ring_segments=8;shape(ring,Vector3(0,.13,0),Vector3.ONE,tint.lightened(.4),trace,true)
 	sphere(Vector3(0,.55,0),Vector3(.22,.22,.22),Color("#fff0a5"),trace,true)
@@ -187,11 +193,11 @@ func field_event(event:InputEvent):
 		if event.index==touch_index:aim(event.position,field_input.size)
 		field_input.accept_event()
 	elif event is InputEventMouseButton and event.button_index==MOUSE_BUTTON_LEFT:
-		if event.device==-1:return
+		if event.device==-1 or touch_index!=-1:return
 		mouse_held=event.pressed
 		if mouse_held:aim(event.position,field_input.size)
 		field_input.accept_event()
-	elif event is InputEventMouseMotion and mouse_held and event.device!=-1:
+	elif event is InputEventMouseMotion and mouse_held and touch_index==-1 and event.device!=-1:
 		aim(event.position,field_input.size)
 		field_input.accept_event()
 func _notification(what:int):
@@ -199,7 +205,7 @@ func _notification(what:int):
 		touch_index=-1;mouse_held=false;action_held=false
 		run.set_inspecting(false)
 func aim(p:Vector2,dims:Vector2):
-	if dims.x<=0 or dims.y<=0 or run.finished:return
+	if dims.x<=0 or dims.y<=0 or run.finished or not is_instance_valid(camera) or viewport.size.x<=0 or viewport.size.y<=0:return
 	var screen=p.clamp(Vector2.ZERO,dims)*Vector2(viewport.size)/dims
 	var origin=camera.project_ray_origin(screen);var ray=camera.project_ray_normal(screen)
 	if absf(ray.y)<.001:return
@@ -208,7 +214,13 @@ func aim(p:Vector2,dims:Vector2):
 func _process(dt:float):
 	if not is_instance_valid(player) or notified:return
 	run.tick(dt)
-	player.position=Vector3(run.player.x,.1+absf(sin(run.elapsed*12))*.10+(0.26 if run.burst_left>0 else 0.0),run.player.y)
+	var moving=run.player.distance_to(last_position)>.005
+	player.position=Vector3(run.player.x,.1+(absf(sin(run.elapsed*12))*.10 if moving else 0.0)+(0.26 if run.burst_left>0 else 0.0),run.player.y)
+	destination_marker.position=Vector3(run.destination.x,.02,run.destination.y)
+	destination_marker.visible=run.started and not run.finished and run.player.distance_to(run.destination)>.35
+	if run.hits>previous_hits:
+		previous_hits=run.hits
+		Input.vibrate_handheld(65)
 	for marker in flow_arrows:
 		var force:Vector2=run.current_at(Vector2(marker.position.x,marker.position.z))
 		marker.rotation.y=atan2(force.x,force.y);marker.visible=force.length()>.18
@@ -218,7 +230,9 @@ func _process(dt:float):
 	camera_focus=camera_focus.lerp(Vector3(clampf(run.player.x,-4.0,4.0),0,clampf(run.player.y,-4.0,4.0)),1.0-exp(-dt*7.0))
 	camera.position=camera_focus+Vector3(0,23,17);camera.look_at(camera_focus)
 	pulse.visible=run.scan_left>0;pulse.position=Vector3(run.player.x,0,run.player.y);pulse.scale=Vector3.ONE*(1.0+7.0*(1.0-run.scan_left/2.6))
-	if run.index!=last_index:found_flash=1.0;last_index=run.index
+	if run.index!=last_index:
+		found_flash=1.0;last_index=run.index
+		Input.vibrate_handheld(35)
 	found_flash=maxf(0,found_flash-dt)
 	var point=run.signal_position()
 	trace.position=Vector3(point.x,.02,point.y)
@@ -237,10 +251,10 @@ func update_hud():
 	readout.text=("Wild encounter" if run.encounter else "Track the creature")+"  %d/%d"%[run.index,run.required]
 	scan_button.text="Scan %d"%run.scans;scan_button.disabled=run.scans<=0 or run.scan_left>0 or run.finished
 	burst_button.text=["Dash","Swim","Glide"][region] if run.burst_cooldown<=0 else "%ds"%ceili(run.burst_cooldown)
-	burst_button.disabled=run.burst_cooldown>0 or run.finished
+	burst_button.disabled=run.burst_cooldown>0 or run.finished or run.destination.distance_to(run.player)<.3
 	burst_meter.value=4.0-run.burst_cooldown
 	inspect_button.text="Hold to befriend" if run.encounter else "Hold to collect"
-	inspect_button.modulate=Color.WHITE if run.inspect_ready() else Color("#82939c")
+	inspect_button.modulate=Color("#a8ffd6") if run.inspect_ready() else Color("#82939c")
 	status.text="Tap to move · Use signal strength to search" if not run.started else "Signal: "+("HOT" if run.signal_strength()>.78 else "WARM" if run.signal_strength()>.4 else "COLD")
 	if run.started and region==1 and run.environmental_force.length()>.55:status.text+=" · Current"
 	if run.started and region==2 and run.environmental_force.length()>.7:status.text+=" · Wind gust"
