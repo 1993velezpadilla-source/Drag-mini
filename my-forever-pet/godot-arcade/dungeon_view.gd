@@ -45,6 +45,7 @@ var hp_previous=0
 var hit_time=0.0
 var pet_pose:Node3D
 var floor_ornaments:Array[Vector3]=[]
+var wall_decorations=0
 func setup(r:int,id:int,step:int,finale:bool,patrol:bool,seed_id:int,companion:int):
 	region=r;companion_id=companion
 	run.setup(r,id,step,finale,patrol,seed_id,companion)
@@ -150,6 +151,30 @@ func batch(parent:Node3D,points:Array[Vector3],kind:String,sz:Vector3,c:Color):
 	var mm=MultiMesh.new();mm.transform_format=MultiMesh.TRANSFORM_3D;mm.mesh=mesh(kind);mm.instance_count=points.size()
 	for i in range(points.size()):mm.set_instance_transform(i,Transform3D(Basis.from_scale(sz),points[i]))
 	var instance=MultiMeshInstance3D.new();instance.multimesh=mm;instance.material_override=mat(c);parent.add_child(instance)
+func boundary_detail(points:Array[Vector3]):
+	# Batch shared Blender submeshes, rather than allocating a full scene per tile.
+	var file="res://assets/"+["dungeon_forest_wall","dungeon_reef_wall","dungeon_star_wall"][region]+".glb"
+	if not ResourceLoader.exists(file):return
+	var scene=load(file) as PackedScene
+	if scene==null:return
+	var template=scene.instantiate() as Node3D
+	if template==null:return
+	var chosen:Array[Vector3]=[]
+	for i in range(points.size()):
+		if posmod(i*13+run.floor_number*3,5)==0:chosen.append(points[i]-Vector3(0,.44,0))
+	if chosen.is_empty():template.free();return
+	geometry.add_child(template)
+	var inverse=template.global_transform.affine_inverse()
+	for child in template.find_children("*","MeshInstance3D",true,false):
+		var source=child as MeshInstance3D
+		if source.mesh==null:continue
+		var local_transform=inverse*source.global_transform
+		var mm=MultiMesh.new();mm.transform_format=MultiMesh.TRANSFORM_3D;mm.mesh=source.mesh;mm.instance_count=chosen.size()
+		for i in range(chosen.size()):
+			mm.set_instance_transform(i,Transform3D(Basis.IDENTITY,chosen[i]+Vector3(0,.54,0))*local_transform)
+		var instance=MultiMeshInstance3D.new();instance.multimesh=mm;geometry.add_child(instance)
+		instance.cast_shadow=GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	template.free();wall_decorations=chosen.size()
 func build_floor():
 	if is_instance_valid(geometry):geometry.hide();geometry.queue_free()
 	if is_instance_valid(actors):actors.hide();actors.queue_free()
@@ -175,6 +200,7 @@ func build_floor():
 	var trim:Array[Vector3]=[]
 	for p in walls:trim.append(p+Vector3(0,.10,0))
 	batch(geometry,trim,"box",Vector3(1.43,.12,1.43),palette[2].lightened(.22))
+	wall_decorations=0;boundary_detail(walls)
 	for i in range(run.rooms.size()):
 		var p=pos(run.rooms[i].position)+Vector3(-.48,0,-.48)
 		if prop(geometry,["dungeon_forest_shrine","dungeon_reef_shrine","dungeon_star_shrine"][region],p)==null:
@@ -202,7 +228,12 @@ func refresh_actors():
 		var kind:String=run.loot[p]
 		var c=Color("#ffd277") if kind=="coin" else Color("#f2a8c0") if kind=="potion" else palette[3]
 		if kind=="relic" and prop(root,"dungeon_chest",Vector3.ZERO)!=null:continue
+		if kind=="coin" and prop(root,"coin",Vector3(0,.32,0))!=null:
+			root.scale=Vector3.ONE*.48;root.set_meta("float_item",true);continue
+		if kind=="potion" and prop(root,"snack",Vector3(0,.25,0))!=null:
+			root.scale=Vector3.ONE*.55;root.set_meta("float_item",true);continue
 		var item=shape(root,"gem",Vector3(0,.36,0),Vector3(.38,.6,.38),c);item.rotation.y=.7
+		root.set_meta("float_item",true)
 	for i in range(run.enemies.size()):
 		var enemy:Dictionary=run.enemies[i]
 		var p:Vector2i=enemy.pos
@@ -299,6 +330,8 @@ func _process(dt:float):
 		feedback.size=Vector2(area.size.x,42);feedback.position=Vector2(0,area.size.y*.29-(1.0-feedback_time)*24.0);feedback.modulate.a=minf(1.0,feedback_time*4.0)
 	for n in actor_nodes.values():
 		if n.has_meta("target"):n.position=n.position.lerp(n.get_meta("target"),1.0-exp(-dt*15.0))
+		elif n.has_meta("float_item"):
+			n.position.y=.12+.07*sin(elapsed*4.0+n.position.x);n.rotation.y=elapsed*1.8
 	if tick<=0 and not path.is_empty() and not run.finished:
 		var next:Vector2i=path.pop_front()
 		facing=next-run.player

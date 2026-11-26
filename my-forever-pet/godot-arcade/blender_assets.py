@@ -753,4 +753,31 @@ for x in [-.43,.43]:
  cyl((x,.35,0),.06,.045,.65,gold)
  ball((x,.70,0),(.13,.16,.13),pearl)
 export('dungeon_stairs',4500)
+# Modular natural boundary pieces: one tile wide, mobile triangle budgets.
+clear()
+foreststone=mat('forest slate',(.23,.30,.22))
+forestleaf=mat('forest bright moss',(.34,.49,.15))
+for i in range(3):
+ x=(i-1)*.40
+ box((x,.29,0),(.49,.57,.95),foreststone,.11)
+ ball((x,.59,.02),(.53,.20,.83),moss)
+for x in [-.42,.41]:
+ ball((x,.69,.18),(.34,.16,.31),forestleaf)
+export('dungeon_forest_wall',5000)
+clear()
+reefstone=mat('reef limestone',(.22,.43,.51))
+for i in range(3):
+ x=(i-1)*.39
+ box((x,.26,0),(.49,.52,.91),reefstone,.12)
+ cyl((x,.56,0),.11,.055,.31+(i%2)*.18,coral)
+ ball((x,.76+(i%2)*.08,0),(.18,.13,.18),pearl)
+export('dungeon_reef_wall',5000)
+clear()
+astralstone=mat('astral basalt',(.27,.27,.43))
+for i in range(3):
+ x=(i-1)*.39
+ box((x,.28,0),(.49,.56,.95),astralstone,.08)
+ cyl((x,.60,0),.13,.10,.31+(i%2)*.16,rune)
+ cyl((x,.83+(i%2)*.07,0),.10,0,.18,star)
+export('dungeon_star_wall',5000)
 with open(os.path.join(OUT,'mesh-metrics.json'),'w') as out: json.dump(stats,out,indent=2)
