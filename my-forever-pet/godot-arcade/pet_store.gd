@@ -178,7 +178,7 @@ func action_block(id:String,i:int=0)->String:
 	if id=="hatch": return "" if s.stage==0 else "Already hatched"
 	if id=="field": return "" if s.stage<=1 and i>=0 and i<3 else "Habitat fixed after baby stage"
 	if id=="auto": return ""
-	if s.stage==0: return "Hatch your egg first"
+	if s.stage==0 and id not in ["buy","use","theme","quest","loot","harvest"]: return "Hatch your egg first"
 	match id:
 		"daily": return "Come back tomorrow" if s.daily_day==date_key(at) else ""
 		"care_claim": return "" if care_ready() else "Complete four different care activities"
@@ -208,7 +208,34 @@ func action_block(id:String,i:int=0)->String:
 		"toilet": return "" if s.toilet<100 else "No bathroom need"
 		"bond","play","toy","train","praise":
 			var cost=4 if id=="train" else 3 if id in ["play","toy"] else 0
-			return "Needs rest" if s.energy<cost else ""
+			return "Needs rest" if s.energy<cost else "Give your pet a moment" if at-s.interaction_at<1.5 else ""
+		"trip":
+			if i<0 or i>2: return "Unknown destination"
+			if s.stage<2: return "Available at Kid stage"
+			if s.germs>0: return "Treat illness first"
+			if s.hunger<2: return "Feed your pet first"
+			if s.energy<25: return "Requires 25 energy"
+			if s.pending[0]>0: return "Collect previous rewards first"
+			if level()<1+i*2: return "Unlocks at level "+str(1+i*2)
+			if s.fuel<i: return "Requires "+str(i)+" fuel"
+		"breed": return "" if s.stage==4 and s.friendship>=4 and s.pending[0]==0 else "Requires adult, friendship 4, collected rewards"
+		"friend": return "" if s.friendship<4 else "Friendship complete"
+		"form":
+			if i==int(s.form): return "Already active"
+			if i!=-1 and (i<24 or i>=SPECIES.size() or (int(s.collection)&(1<<i))==0): return "Companion locked"
+		"supply":
+			if i<0 or i>1: return "Unknown supply"
+			var key="medicine" if i==0 else "snacks"
+			var price=12 if i==0 else 5
+			return "Inventory full" if s[key]>=99 else "Requires "+str(price)+" coins" if s.coins<price else ""
+		"buy","use":
+			if i<0 or i>=ITEMS.size(): return "Unknown item"
+			var owned=(int(s.owned)&(1<<i))!=0
+			return ("Already owned" if owned else "Requires "+str(PRICES[i])+" coins" if s.coins<PRICES[i] else "") if id=="buy" else "" if owned else "Not owned"
+		"clothes","wear":
+			if i<0 or i>=CLOTHES.size(): return "Unknown garment"
+			var owned=(int(s.wardrobe)&(1<<i))!=0
+			return ("Already owned" if owned else "Requires "+str(COST[i])+" coins" if s.coins<COST[i] else "") if id=="clothes" else "" if owned else "Not owned"
 	return ""
 func action(id:String,i:int=0)->bool:
 	var at=now()
@@ -331,7 +358,7 @@ func action(id:String,i:int=0)->bool:
 			if s.pending[0]<=0: return false
 			s.coins+=s.pending[0]; s.materials+=s.pending[1]; s.crystals+=s.pending[2]; s.pending=[0,0,0]
 		"friend":
-			if not ready: return false
+			if not ready or s.friendship>=4: return false
 			s.friendship=mini(4,int(s.friendship)+2)
 		"breed":
 			if not ready or s.stage!=4 or s.friendship<4 or s.pending[0]>0: return false

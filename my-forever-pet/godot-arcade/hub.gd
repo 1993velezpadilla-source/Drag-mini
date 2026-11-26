@@ -85,6 +85,7 @@ func _ready():
 	make_ui()
 	refresh()
 	var t=Timer.new(); t.wait_time=1; t.timeout.connect(refresh); add_child(t); t.start()
+	var controls_timer=Timer.new(); controls_timer.wait_time=.20; controls_timer.timeout.connect(update_action_controls); add_child(controls_timer); controls_timer.start()
 func style(color:Color,border:Color,r:int=16)->StyleBoxFlat:
 	var b=StyleBoxFlat.new(); b.bg_color=color; b.border_color=border; b.set_border_width_all(2); b.set_corner_radius_all(r); b.shadow_color=Color("#09132980"); b.shadow_size=3
 	b.content_margin_left=12; b.content_margin_right=12; b.content_margin_top=8; b.content_margin_bottom=8
@@ -279,6 +280,11 @@ func register_action(b:Button,id:String,i:int):
 	b.add_theme_stylebox_override("disabled",skin(Color("#24243c"),Color("#65617c")))
 	action_controls.append(b)
 func update_action_controls():
+	if is_instance_valid(hotspot_layer):
+		for b in hotspot_layer.get_children():
+			if b.has_meta("hotspot_action"):
+				var block:String=store.action_block(str(b.get_meta("hotspot_action")))
+				b.disabled=not block.is_empty(); b.tooltip_text=block
 	for b in action_controls:
 		if not is_instance_valid(b): continue
 		var id:String=b.get_meta("action_id"); var i:int=b.get_meta("action_arg")
@@ -287,6 +293,7 @@ func update_action_controls():
 		if id in ["sleep","lamp"]: caption="Wake" if store.asleep(store.now()) else "Sleep"
 		if id=="auto": caption="Auto sleep: ON" if store.s.auto_sleep else "Auto sleep: OFF"
 		if id=="harvest" and store.s.garden_at>store.now(): caption=time_text(store.garden_remaining(store.now()))
+		if id in ["bond","play","toy","train","praise"] and reason=="Give your pet a moment": caption="Wait %.1fs"%maxf(0,1.5-(store.now()-store.s.interaction_at))
 		b.disabled=not reason.is_empty(); b.tooltip_text=reason if b.disabled else caption
 		b.modulate=Color("#a7a6bc") if b.disabled else Color.WHITE
 		if b.get_child_count()>0 and b.get_child(0) is VBoxContainer:
@@ -318,6 +325,7 @@ func perform(id:String,i:int=0):
 	refresh()
 	notice.visible=not visual.visible
 	if ok: live_stage.react(id,store.asleep(store.now()))
+	update_action_controls()
 	if visual.visible: show_feedback(notice.text,id)
 	if section=="Shop": select("Shop")
 	if section=="Care Quest": select("Care Quest")
@@ -496,7 +504,7 @@ func select(tab:String):
 					if destination=="Home": select("Home")
 					else: room(destination))
 				btn.disabled=done
-			var claim=button(actions,"Claim care chest • 25 coins + materials",func(): perform("care_claim")); claim.disabled=not store.care_ready()
+			var claim=button(actions,"Claim care chest • 25 coins + materials",func(): perform("care_claim")); register_action(claim,"care_claim",0)
 			var next=store.next_special()
 			if next>=24: showcase_card("Next companion: "+store.SPECIES[next],"Complete four different care activities today.","res://assets/pet_%d.png"%next,func(): collection_feature=next; select("Pets"))
 		"More":
@@ -547,8 +555,9 @@ func select(tab:String):
 			for i in range(3): add_action("Habitat: "+store.FIELDS[i],"field",i)
 			for i in range(3): add_action(["Meadow • 10 min","Coral ruins • 20 min","Starlight islands • 30 min"][i],"trip",i)
 			add_action("Collect expedition rewards","loot"); add_action("Playdate (local)","friend")
-			button(actions,"Start next generation",func():
-				var confirm=ConfirmationDialog.new(); confirm.dialog_text="Begin a new egg generation?"; add_child(confirm); confirm.confirmed.connect(func(): perform("breed")); confirm.popup_centered())
+			var breed_button=button(actions,"Start next generation",func():
+				var confirm=ConfirmationDialog.new(); confirm.dialog_text="Begin a new egg generation?"; add_child(confirm); confirm.confirmed.connect(func(): perform("breed")); confirm.confirmed.connect(confirm.queue_free); confirm.canceled.connect(confirm.queue_free); confirm.popup_centered())
+			register_action(breed_button,"breed",0)
 		"Cell":
 			var growth=context_card("growth","Cell development")
 			context_meter(growth,"growth",Color("#af8bff"))
@@ -771,6 +780,7 @@ func update_room_scene():
 			elif key=="food": select("Care")
 			else: perform(str(key)))
 		hotspot_layer.add_child(b)
+		if key not in ["arcade","food"]: b.set_meta("hotspot_action",str(key))
 	position_hotspots()
 func position_hotspots():
 	if not is_instance_valid(hotspot_layer): return
