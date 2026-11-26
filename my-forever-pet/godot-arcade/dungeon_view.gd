@@ -251,13 +251,13 @@ func build_terrain_textures():
 			var relief=0.0
 			if region==0:
 				# Mossy woodland soil: broad irregular patches, flecks of leaf litter, no brick grid.
-				var patch=smoothstep(-.32,.34,h)
+				var patch=smoothstep(-.52,.52,h)
 				var fine=float(posmod(x*73+y*137+x*y*19,101))/100.0
 				var grain=.5+.5*sin(u*TAU*19.0+sin(w*TAU*13.0)*2.0)
-				color=Color(.59,.51,.36).lerp(Color(.76,.82,.51),patch)
-				color=color.lerp(Color(.47,.53,.31),smoothstep(.26,.55,h)*.35)
+				color=Color(.65,.59,.42).lerp(Color(.73,.77,.52),patch)
+				color=color.lerp(Color(.58,.65,.39),smoothstep(.26,.55,h)*.22)
 				color=color.darkened((grain*.035+fine*.045))
-				relief=h*.095+grain*.008+fine*.005
+				relief=h*.048+grain*.006+fine*.005
 			elif region==1:
 				# Seabed sandstone: crossing ripples and light caustics, no masonry.
 				var ripple=sin(w*TAU*8.0+sin(u*TAU*2.0)*1.45+sin((u+w)*TAU)*1.2)

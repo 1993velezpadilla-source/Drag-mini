@@ -1324,18 +1324,29 @@ for i in range(3):
  ball((x-.21,.93,z+.24),(.53,.28,.50),cap)
 export('dungeon_forest_terrace',9500)
 clear()
-natural_rock((0,.22,0),(2.44,.49,2.38),reefstone,1401)
-for i in range(4):
- a=i*pi/2;x=.58*math.cos(a);z=.58*math.sin(a)
- natural_rock((x,.39,z),(1.12,.44,.94),reefedge,1410+i)
-# Low fan shelves, bulb sponges, eel grass and a pearl bed.
-for i in range(6):
- a=i*pi/3;x=.76*math.cos(a);z=.76*math.sin(a)
- ball((x,.54,z),(.42,.36,.37),coral2 if i%2 else coral)
- for j in range(3):
-  aa=a+j*.8;blades((x,.49,z),aa,.42,.10,kelp)
-for i in range(4):
- a=i*pi/2;ball((.26*math.cos(a),.55,.26*math.sin(a)),(.21,.18,.21),pearl)
+# An asymmetric reef ledge that tapers into the sand, not a circular plinth.
+# Broad connected limestone shelves and coral colonies grow from the ridge.
+natural_rock((-.20,.18,.04),(1.83,.40,1.68),reefstone,1401)
+natural_rock((.49,.24,-.24),(1.35,.50,1.53),reefstone,1402)
+natural_rock((-.45,.42,-.32),(1.31,.37,1.04),reefedge,1410)
+natural_rock((.49,.49,-.30),(1.26,.30,1.03),reefedge,1411)
+natural_rock((.08,.29,.52),(1.16,.21,.72),reefedge,1412)
+terrace_coral=mat('terrace warm coral',(.72,.21,.15),0,.73)
+terrace_tip=mat('terrace peach coral tips',(.94,.45,.25),0,.70)
+terrace_fan=mat('terrace mauve sea fans',(.45,.16,.42),0,.70)
+for i,(x,y,z,h,m) in enumerate([(-.56,.58,-.28,.52,terrace_coral),(.47,.62,-.36,.69,terrace_fan),(.13,.39,.43,.32,terrace_coral)]):
+ tube([(x,y,z),(x-.045,y+h*.55,z+.025),(x+.06,y+h,z)],[.075,.046,.014],m,8)
+ for j in range(4):
+  angle=j*2.39+i*.7;dx=math.cos(angle);dz=math.sin(angle)
+  start=y+h*(.20+j*.11)
+  tip=(x+.22*dx,start+h*.56,z+.19*dz)
+  tube([(x,start,z),(x+.10*dx,start+h*.24,z+.10*dz),tip],[.044,.026,.009],m,7)
+  tube([tip,(tip[0]+.085*dx,tip[1]+.10,tip[2]+.07*dz)],[.019,.006],terrace_tip if i!=1 else m,6)
+for i,(x,z,y) in enumerate([(-.79,.33,.33),(.65,.26,.47),(.11,-.67,.38)]):
+ for j in range(4):
+  blades((x,y,z),i*.9+j*1.7,.32+.07*(j%3),.07,kelp)
+for x,z in [(-.27,.66),(.36,.58),(.83,-.04)]:
+ ball((x,.28,z),(.16,.10,.12),pearl)
 export('dungeon_reef_terrace',8500)
 clear()
 rock_slab((0,.15,0),(2.38,.30,2.36),astralstone,1501)
@@ -1696,8 +1707,8 @@ clear()
 autumn=mat('amber woodland canopy',(.46,.20,.045),0,.78)
 # Ancient split-trunk oak with asymmetric, overlapping sprays. The canopy
 # silhouettes use visible leaf tips on outer edges, not only on the top.
-spring_leaf=mat('woodland spring leaf',(.27,.48,.09),0,.74)
-gold_leaf=mat('woodland golden leaf',(.72,.37,.055),0,.78)
+spring_leaf=mat('woodland spring leaf',(.18,.34,.065),0,.82)
+gold_leaf=mat('woodland golden leaf',(.54,.29,.045),0,.82)
 tube([(0,.02,0),(-.12,.58,.06),(-.07,1.18,-.07),(.10,1.78,-.11),(.22,2.23,.04)],[.29,.25,.19,.13,.045],bark,12)
 for i in range(6):
  a=i*2*pi/6+.23;dx=math.cos(a);dz=math.sin(a)
