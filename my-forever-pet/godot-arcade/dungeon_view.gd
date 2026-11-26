@@ -1185,33 +1185,35 @@ func build_astral_cloud_banks():
 	for q in exterior_distances:
 		if exterior_distances[q]>=3 and not candidates.has(q):candidates.append(q)
 	for q in candidates:
-			if placements.size()>=ASTRAL_CLOUD_CAP:break
-			var distance:int=exterior_distances[q]
-			var wide=1.15+.48*float(posmod(q.x*17+q.y*7,9))/8.0
-			# Derive the crest from the imported geometry, not its origin.
-			# Near banks sit above the cloud sea and further bands descend.
-			var placement=Transform3D(Basis(Vector3.UP,float(posmod(q.x*7+q.y*13,12))*TAU/12.0).scaled(Vector3(wide,.72,wide*.92)),pos(q))
-			var bounds=measure_scenery(parts,placement)
-			var crest=-.36-.09*maxf(0.0,float(distance-3))
-			var offset=crest-bounds.end.y
-			placement.origin.y+=offset
-			bounds.position.y+=offset
-			if bounds.end.y>-.35 or not scenery_clear_of_floor(bounds):continue
-			# Never cover or cut beneath a terrace.
-			var covers_terrace=false
-			for tile in terrace_cells:
-				var p=pos(tile)
-				if p.x>=bounds.position.x-.70 and p.x<=bounds.end.x+.70 and p.z>=bounds.position.z-.70 and p.z<=bounds.end.z+.70:
-					covers_terrace=true;break
-			if covers_terrace:continue
-			var clear=true
-			for other in scenic_bounds:
-				if other.grow(.12).intersects(bounds):clear=false;break
-			if not clear:continue
-			for other in astral_cloud_bounds:
-				if other.grow(.30).intersects(bounds):clear=false;break
-			if not clear:continue
-			placements.append(placement);astral_cloud_bounds.append(bounds)
+		if placements.size()>=ASTRAL_CLOUD_CAP:break
+		var distance:int=exterior_distances[q]
+		var wide=1.15+.48*float(posmod(q.x*17+q.y*7,9))/8.0
+		# Derive the crest from the imported geometry, not its origin.
+		# Near banks sit above the cloud sea and further bands descend.
+		var placement=Transform3D(Basis(Vector3.UP,float(posmod(q.x*7+q.y*13,12))*TAU/12.0).scaled(Vector3(wide,.72,wide*.92)),pos(q))
+		var bounds=measure_scenery(parts,placement)
+		var crest=-.36-.09*maxf(0.0,float(distance-3))
+		var offset=crest-bounds.end.y
+		placement.origin.y+=offset
+		bounds.position.y+=offset
+		if bounds.end.y>-.35 or not scenery_clear_of_floor(bounds):continue
+		# Never cover or cut beneath a terrace.
+		var covers_terrace=false
+		for tile in terrace_cells:
+			var p=pos(tile)
+			if p.x>=bounds.position.x-.70 and p.x<=bounds.end.x+.70 and p.z>=bounds.position.z-.70 and p.z<=bounds.end.z+.70:
+				covers_terrace=true;break
+		if covers_terrace:continue
+		var clear=true
+		for other in scenic_bounds:
+			# Protect the horizontal footprint even when a cloud sits lower
+			# than a floating island; this also prevents terrain excavation.
+			if Rect2(Vector2(other.position.x,other.position.z),Vector2(other.size.x,other.size.z)).grow(.12).intersects(Rect2(Vector2(bounds.position.x,bounds.position.z),Vector2(bounds.size.x,bounds.size.z))):clear=false;break
+		if not clear:continue
+		for other in astral_cloud_bounds:
+			if other.grow(.30).intersects(bounds):clear=false;break
+		if not clear:continue
+		placements.append(placement);astral_cloud_bounds.append(bounds)
 	batch_exterior_parts(parts,placements)
 	print("ASTRAL_CLOUD_BANKS ",astral_cloud_bounds.size())
 func cloud_anchor_score(q:Vector2i,focus:Vector3)->float:

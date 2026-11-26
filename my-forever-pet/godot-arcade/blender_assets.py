@@ -1349,7 +1349,7 @@ def terrace_colony(x,y,z,h,seed,m,tip_material):
   ang2=ang+.85
   tx=ex+.115*math.cos(ang2);tz=ez+.115*math.sin(ang2)
   tube([(ex,top-.24*h,ez),(tx,top-.08*h,tz),(tx+.03*dx,top+.035,tz+.03*dz)],[.056,.044,.023],tip_material,7)
-  ball((ex+.025*dx,top,ez+.025*dz),(.078,.083,.078),tip_material)
+  tube([(ex+.025*dx,top-.035,ez+.025*dz),(ex+.025*dx,top,ez+.025*dz),(ex+.025*dx,top+.035,ez+.025*dz)],[.031,.043,.017],tip_material,8)
 terrace_colony(-.56,.53,-.28,.65,1417,terrace_coral,terrace_tip)
 terrace_colony(.47,.58,-.36,.76,1418,terrace_fan,coral2)
 terrace_colony(.13,.36,.43,.39,1419,terrace_coral,terrace_tip)
