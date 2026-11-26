@@ -103,6 +103,31 @@ from mathutils import Vector
 fur=mat('warm ivory fur',(.95,.79,.63),0,.66)
 tooth=mat('ivory teeth',(.99,.92,.79),0,.35)
 eye_iris=mat('deep violet iris',(.10,.045,.22),0,.19)
+# UV-baked original microdetail: keep the material readable on mobile without
+# relying on procedural shaders that glTF cannot export. Seam is periodic.
+def skin_finish(material,rgb,family,seed):
+ import random
+ rng=random.Random(1009+seed);w,h=96,64
+ image=bpy.data.images.new(material.name+' baked finish',width=w,height=h)
+ pixels=[]
+ for y in range(h):
+  t=y/(h-1)
+  for x in range(w):
+   u=x/w
+   soft=.91+.075*math.sin(pi*t)+.045*math.cos(2*pi*u)*math.sin(pi*t)
+   if family in ('dragon','dinosaur','fish','devil'):
+    detail=.035*math.cos(2*pi*(u*12+.24*math.sin(t*14*pi)))*math.cos(t*14*pi)
+   elif family in ('cat','dog','rabbit','bird','owl','sprout','fairy'):
+    detail=.025*math.sin(2*pi*u*23+.38*math.sin(t*12*pi))
+   elif family=='robot':
+    detail=.022*math.cos(2*pi*u*4)*math.cos(t*8*pi)
+   else:detail=.018*math.sin(2*pi*u*6+t*5*pi)
+   shade=soft+detail+rng.uniform(-.008,.008)
+   pixels.extend([max(0,min(1,c*shade)) for c in rgb]+[1])
+ image.pixels.foreach_set(pixels);image.pack()
+ node=material.node_tree.nodes.new('ShaderNodeTexImage');node.image=image
+ material.node_tree.links.new(node.outputs['Color'],material.node_tree.nodes.get('Principled BSDF').inputs['Base Color'])
+ return material
 palettes=[(.35,.69,.12),(.63,.58,.68),(.65,.36,.15),(.78,.16,.085),(.08,.52,.68),(.29,.64,.75),(.27,.55,.13),(.44,.21,.65),(.12,.36,.76),(.73,.35,.50),(.88,.71,.65),(.34,.22,.15)]
 families=['sprout','cat','dog','dragon','fish','alien','dinosaur','jelly','bird','fairy','rabbit','owl']
 def shape(name,p,size,material):
@@ -124,9 +149,11 @@ def face(x,y,z,spread,scale=1,beak=False):
  eyes=[]
  for side in [-1,1]:
   xx=x+side*spread
-  eye=shape('eye_%s'%side,(xx,y,z),(.35*scale,.45*scale,.15*scale),eye_iris)
-  shape('pupil_%s'%side,(xx,y,z+.064*scale),(.24*scale,.32*scale,.055*scale),dark)
-  shape('catchlight_%s'%side,(xx-.05*scale,y+.095*scale,z+.098*scale),(.10*scale,.12*scale,.045*scale),white)
+  eye=shape('eye_rim_%s'%side,(xx,y,z),(.35*scale,.45*scale,.15*scale),dark)
+  shape('eye_iris_%s'%side,(xx,y-.014*scale,z+.052*scale),(.29*scale,.37*scale,.080*scale),eye_iris)
+  shape('pupil_%s'%side,(xx,y+.005*scale,z+.088*scale),(.19*scale,.27*scale,.055*scale),dark)
+  shape('catchlight_%s'%side,(xx-.048*scale,y+.096*scale,z+.115*scale),(.09*scale,.11*scale,.038*scale),white)
+  shape('catchlight_small_%s'%side,(xx+.065*scale,y-.077*scale,z+.109*scale),(.040*scale,.047*scale,.025*scale),white)
   shape('blush',(xx+side*.16*scale,y-.22*scale,z-.05*scale),(.19*scale,.10*scale,.055*scale),pink)
   eyes.append((xx,y,z))
  if beak:
@@ -182,8 +209,13 @@ for species in range(1,28):
  if secret:
   secret_palette=[(.18,.60,.25),(.20,.28,.53),(.45,.20,.10),(.95,.35,.07),(.27,.73,.74),(.36,.15,.67),(.19,.53,.57),(.08,.62,.75),(.85,.46,.12),(.43,.20,.78),(.67,.48,.77),(.20,.23,.42)]
   rgb=secret_palette[i]
- m=mat('skin_%02d'%species,rgb,0,.44)
- a=mat('accent_%02d'%species,tuple(min(1,c*.68+.28) for c in rgb),0,.53)
+ roughness=.30 if family in ('fish','jelly','ghost') else .32 if family=='robot' else .58 if family in ('cat','dog','rabbit','bird','owl') else .43
+ m=skin_finish(mat('skin_%02d'%species,rgb,.23 if family=='robot' else 0,roughness),rgb,family,species)
+ accent=tuple(min(1,c*.68+.28) for c in rgb)
+ a=skin_finish(mat('accent_%02d'%species,accent,.10 if family=='robot' else 0,roughness+.06),accent,family,species+41)
+ iris_palette=[(.55,.74,.18),(.16,.61,.83),(.62,.32,.10),(.94,.62,.11),(.18,.74,.68),(.57,.26,.92),(.77,.46,.12),(.65,.31,.87),(.15,.65,.93),(.75,.31,.54),(.36,.58,.84),(.91,.56,.11)]
+ iris=iris_palette[i] if species<24 else [(.94,.50,.06),(.24,.79,.99),(.17,.78,.89),(.62,.31,.15)][species-24]
+ eye_iris=mat('iris_%02d'%species,iris,.10,.20)
  if family=='devil':
   shape('imp body',(0,.66,-.12),(.94,1.06,1.02),m)
   shape('imp chest',(0,.64,.34),(.60,.74,.25),a)
@@ -251,9 +283,23 @@ for species in range(1,28):
   shape('muzzle',(0,1.16,.72),(.45,.25,.22),fur)
   shape('nose',(0,1.26,.86),(.18,.10,.09),dark)
   shape('smile',(0,1.11,.86),(.19,.07,.06),pink)
+  # Distinct facial details stay below the eye rays.
+  for side in [-1,1]:
+   if family=='cat':
+    for j in range(3):
+     limb('fine whisker',(side*.16,1.20-j*.06,.80),(side*(.46+j*.025),1.23-j*.09,.69),.018,fur)
+   elif family=='dog':
+    shape('muzzle freckle',(side*.14,1.20,.84),(.046,.044,.026),dark)
+    shape('forehead marking',(side*.09,1.86,.57),(.13,.16,.065),fur)
+   else:
+    shape('rabbit cheek tuft',(side*.36,1.22,.64),(.25,.18,.12),fur)
+    shape('rabbit front tooth',(side*.047,1.045,.84),(.072,.095,.065),tooth)
  elif family in ('dragon','dinosaur'):
   shape('body',(0,.69,-.18),(1.07,1.22,1.24),m)
   shape('belly',(0,.70,.37),(.66,.89,.33),fur)
+  for j in range(4):
+   yy=.40+j*.14
+   shape('ventral scale plate',(0,yy,.49+(.045 if j in [1,2] else 0)),(.43 if j in [1,2] else .30,.075,.045),a)
   shape('head',(0,1.50,.20),(1.36,1.16,1.12),m)
   shape('snout',(0,1.27,.70),(.78,.43,.62),a)
   shape('jaw',(0,1.09,.72),(.69,.20,.48),fur)
@@ -276,6 +322,10 @@ for species in range(1,28):
    limb('pectoral fin',(side*.58,.91,-.04),(side*.97,.60,-.25),.32,a)
    limb('tail lobe',(0,.98,-.65),(side*.43,1.25,-1.04),.36,a)
   shape('dorsal fin',(0,1.64,-.21),(.19,.52,.64),a)
+  for side in [-1,1]:
+   for j in range(3):
+    yy=.79+j*.13
+    shape('side scale',(side*(.56+.04*(j%2)),yy,.27),(.11,.13,.055),a)
   eyes=face(0,1.12,.65,.30,.88)
  elif family=='alien':
   shape('alien torso',(0,.52,-.04),(.85,.88,.78),m)
@@ -286,10 +336,16 @@ for species in range(1,28):
    limb('alien arm',(side*.35,.75,0),(side*.61,.44,.15),.23,m)
   feet(m,.16,.30,.25,.43)
   shape('chest crystal',(0,.61,.39),(.25,.30,.12),water)
+  for side in [-1,1]:
+   for j in range(3):
+    shape('alien markings',(side*(.39+j*.09),1.69+j*.045,.43-j*.07),(.085,.07,.045),m)
   eyes=face(0,1.39,.61,.32,1.05)
  elif family=='jelly':
   shape('jelly dome',(0,1.32,0),(1.65,1.08,1.35),a)
   shape('jelly rim',(0,.92,0),(1.52,.25,1.20),m)
+  for j in range(8):
+   angle=j*pi/4
+   shape('rim pearl',(.69*math.cos(angle),.96,.53*math.sin(angle)),(.13,.13,.13),water)
   for j in range(8):
    angle=j*pi/4;x=.52*math.cos(angle);z=.40*math.sin(angle)
    limb('tentacle',(x,.92,z),(x*1.15,.50,z*1.15),.20,m)
@@ -298,6 +354,10 @@ for species in range(1,28):
  elif family in ('bird','owl'):
   shape('feathered torso',(0,.76,-.10),(1.08,1.24,1.02),m)
   shape('chest plumage',(0,.75,.42),(.81,.83,.32),fur)
+  for j in range(3):
+   for k in range(3):
+    xx=(k-1)*.14;yy=.52+j*.15
+    shape('chest feather detail',(xx,yy,.55 if k==1 else .52),(.13,.19,.045),a)
   shape('head',(0,1.42,.14),(1.22,1.08,1.00),m)
   for side in [-1,1]:
    shape('folded wing',(side*.56,.83,-.09),(.46,.85,.50),a)
