@@ -26,6 +26,8 @@ var stage_space:Control
 var pet_touch:Button
 var pet_status:Label
 var life_tab="Care"
+var shop_tab="Accessories"
+var swipe_dirty=true
 var hint_label:Label
 var quest_claim:Button
 var life_tabs=["Care","Journal","World","Cell","Care Quest"]
@@ -86,6 +88,9 @@ func _ready():
 		return
 	if args.has("--home-capture"):
 		call_deferred("capture_home")
+		return
+	if args.has("--home-touch-test"):
+		call_deferred("test_touch")
 		return
 	make_ui()
 	refresh()
@@ -157,7 +162,7 @@ func button(parent:Node,value:String,fn:Callable)->Button:
 func row(parent:Node)->HBoxContainer:
 	var h=HBoxContainer.new(); h.mouse_filter=MOUSE_FILTER_PASS; h.add_theme_constant_override("separation",8); parent.add_child(h); return h
 func panel(parent:Node)->VBoxContainer:
-	var p=PanelContainer.new(); p.mouse_filter=MOUSE_FILTER_PASS; p.add_theme_stylebox_override("panel",style(Color("#251d47ef"),Color("#9583d2"),21)); parent.add_child(p)
+	var p=PanelContainer.new(); p.size_flags_horizontal=SIZE_EXPAND_FILL; p.mouse_filter=MOUSE_FILTER_PASS; p.add_theme_stylebox_override("panel",style(Color("#251d47ef"),Color("#9583d2"),21)); parent.add_child(p)
 	var v=VBoxContainer.new(); v.mouse_filter=MOUSE_FILTER_PASS; v.add_theme_constant_override("separation",7); p.add_child(v); return v
 func enable_swipe(container:ScrollContainer):
 	container.scroll_deadzone=12
@@ -276,7 +281,7 @@ func nav_tile(parent:Node,tab:String):
 	b.add_theme_stylebox_override("normal",StyleBoxEmpty.new())
 	nav_buttons[tab]=b
 func reset_actions(columns:int=0):
-	context_labels.clear(); context_bars.clear(); cell_tiles.clear(); action_controls.clear()
+	context_labels.clear(); context_bars.clear(); cell_tiles.clear(); action_controls.clear(); swipe_dirty=true
 	for child in actions.get_children(): actions.remove_child(child); child.queue_free()
 	action_grid=null
 	if columns>0:
@@ -499,6 +504,7 @@ func _process(delta:float):
 func select(tab:String):
 	if tab in ["Life","More"]: tab="Care"
 	if tab in life_tabs: life_tab=tab
+	if tab!=section and is_instance_valid(notice): notice.text=""; notice.hide()
 	section=tab
 	for key in nav_buttons:
 		nav_buttons[key].add_theme_stylebox_override("normal",skin(Color("#6738a8"),Color("#e6bcff")) if key==tab or (key=="Life" and tab in life_tabs) else StyleBoxEmpty.new())
@@ -518,9 +524,9 @@ func select(tab:String):
 		update_room_scene()
 		room_tag.text="Your home"
 		live_stage.set_room("room_bedroom")
-	reset_actions(5 if tab=="Home" and store.s.stage>0 else 3 if tab=="Home" else 0)
+	reset_actions(5 if tab=="Home" and store.s.stage>0 else 4 if tab=="Home" else 0)
 	if tab in life_tabs: life_header(tab)
-	elif tab not in ["Home","Pets"]: label(actions,tab.to_upper(),22)
+	elif tab not in ["Home","Pets","Shop","Rooms","Arcade"]: label(actions,tab.to_upper(),22)
 	var s:Dictionary=store.s
 	match tab:
 		"Home":
@@ -536,18 +542,7 @@ func select(tab:String):
 		"Pets":
 			show_collection()
 		"Care Quest":
-			var quest=context_card("care_quest","Daily care adventure")
-			context_meter(quest,"care_quest",Color("#e6aa65"))
-			for j in range(6):
-				var done=(int(s.care_mask)&(1<<j))!=0
-				var destination=["Home","Kitchen","Bathroom","Toy room","Home","Garden"][j]
-				var btn=button(actions,("✓ " if done else "› ")+store.CARE_NAMES[j],func():
-					if destination=="Home": select("Home")
-					else: room(destination))
-				btn.disabled=done
-			var claim=button(actions,"Claim care chest • 25 coins + materials",func(): perform("care_claim")); register_action(claim,"care_claim",0)
-			var next=store.next_special()
-			if next>=24: showcase_card("Next companion: "+store.SPECIES[next],"Complete four different care activities today.","res://assets/pet_%d.png"%next,func(): collection_feature=next; select("Pets"))
+			build_care_quest()
 		"Settings":
 			var profile=panel(actions); label(profile,"Your companion",22)
 			var edit=LineEdit.new(); edit.placeholder_text="Name your pet"; edit.text=s.name; edit.max_length=24; profile.add_child(edit)
@@ -556,27 +551,14 @@ func select(tab:String):
 		"Care":
 			build_care(false)
 		"Rooms":
-			for room_name in ROOMS:
-				showcase_card(room_name,"Enter room","res://assets/"+ROOMS[room_name]+".jpg",func(): room(room_name))
+			section_heading(actions,"Your home","Six rooms, six ways to care for your companion.")
+			var grid=GridContainer.new(); grid.columns=2; grid.add_theme_constant_override("h_separation",7); grid.add_theme_constant_override("v_separation",7); actions.add_child(grid)
+			for entry in [["Bedroom","Rest, wake and lighting"],["Kitchen","Feed and cook"],["Bathroom","Wash and toilet"],["Toy room","Play and arcade"],["Garden","Plant, grow and harvest"],["Potion lab","Medicine and crafting"]]:
+				room_link(grid,entry[0],entry[1],entry[0])
 		"Arcade":
-			for i in [4,0,1,2,3]:
-				var image="res://assets/arcade_"+["star","flappy","cloud","find","star"][i]+".jpg"
-				if i==4: image="res://assets/sky-panorama.png"
-				showcase_card(GAMES[i],["Build a combo","Fly through gates","Climb the sky","Spot your companion","Run the sky kingdom"][i],image,func(): launch_game(i))
+			build_arcade()
 		"Shop":
-			label(actions,"Furniture & accessories",20)
-			for i in range(store.ITEMS.size()):
-				var owned=(int(s.owned)&(1<<i))!=0
-				var active=s.equipped==i+1 or s.installation==i+1
-				product_card(store.ITEMS[i],"Equipped" if active else "Owned" if owned else "%d coins"%store.PRICES[i],"res://assets/item_%d.png"%i,"Remove" if active else "Use" if owned else "Buy",func(): perform("use" if owned else "buy",i),owned or s.coins>=store.PRICES[i])
-			label(actions,"Wardrobe",20)
-			for i in range(store.CLOTHES.size()):
-				var owned=(int(s.wardrobe)&(1<<i))!=0
-				var active=s.worn.has(i+1)
-				product_card(store.CLOTHES[i],"Wearing" if active else "Owned" if owned else "%d coins"%store.COST[i],"res://assets/clothes_%d.png"%i,"Remove" if active else "Wear" if owned else "Buy",func(): perform("wear" if owned else "clothes",i),owned or s.coins>=store.COST[i])
-			label(actions,"Supplies",20)
-			product_card("Medicine","12 coins • %d owned"%s.medicine,"res://assets/premium_medicine.png","Buy",func(): perform("supply",0),s.coins>=12)
-			product_card("Snack","5 coins • %d owned"%s.snacks,"res://assets/premium_snack.png","Buy",func(): perform("supply",1),s.coins>=5)
+			build_shop()
 		"Journal":
 			var growth=context_card("growth","Growth journey")
 			context_meter(growth,"growth",Color("#b08bf0"))
@@ -592,10 +574,83 @@ func select(tab:String):
 			build_care(true)
 
 	update_context()
+func build_care_quest():
+	var quest=context_card("care_quest","Daily care adventure")
+	context_meter(quest,"care_quest",Color("#e6aa65"))
+	var next:int=store.next_special()
+	if next>=24:
+		var hero=panel(actions); var line=row(hero)
+		var art=TextureRect.new(); art.texture=tex("res://assets/pet_%d.png"%next); art.custom_minimum_size=Vector2(124,118); art.expand_mode=TextureRect.EXPAND_IGNORE_SIZE; art.stretch_mode=TextureRect.STRETCH_KEEP_ASPECT_CENTERED; line.add_child(art)
+		var copy=VBoxContainer.new(); copy.size_flags_horizontal=SIZE_EXPAND_FILL; line.add_child(copy)
+		label(copy,"NEXT COMPANION",12).modulate=Color("#ffd08a")
+		label(copy,store.SPECIES[next],23).autowrap_mode=TextServer.AUTOWRAP_WORD_SMART
+		label(copy,"Complete 4 different care activities and claim your chest.",14).autowrap_mode=TextServer.AUTOWRAP_WORD_SMART
+	var claim=action_card(actions,"Care chest","25 coins · 2 materials · 15 XP","daily","care_claim",0,"Claim")
+	claim.add_theme_stylebox_override("normal",menu_skin(Color("#80512f"),Color("#f5cb86")))
+	section_heading(actions,"Activities","Any four different activities count. There is no need to complete all six.")
+	for j in range(6):
+		var done=(int(store.s.care_mask)&(1<<j))!=0
+		var destination=["Home","Kitchen","Bathroom","Toy room","Home","Garden"][j]
+		var card=panel(actions); var line=row(card)
+		var art=TextureRect.new(); art.texture=GameIcons.texture(["bond","food","clean","play","clean","daily"][j]); art.expand_mode=TextureRect.EXPAND_IGNORE_SIZE; art.stretch_mode=TextureRect.STRETCH_KEEP_ASPECT_CENTERED; art.custom_minimum_size=Vector2(37,37); line.add_child(art)
+		var copy=VBoxContainer.new(); copy.size_flags_horizontal=SIZE_EXPAND_FILL; line.add_child(copy)
+		label(copy,store.CARE_NAMES[j],16)
+		var detail=label(copy,["Cuddle or praise your pet.","Feed any food or snack when hungry.","Wash, rinse or use the toilet.","Play, train or use a toy.","Clean actual waste in your habitat.","Plant a seed and harvest when ready."][j],13); detail.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART
+		var btn=button(line,"Done ✓" if done else "Go ›",func():
+			if destination=="Home": select("Home")
+			else: room(destination))
+		btn.size_flags_horizontal=SIZE_SHRINK_CENTER; btn.custom_minimum_size=Vector2(76,40); btn.add_theme_font_size_override("font_size",14); btn.disabled=done
+		if done: detail.modulate=Color("#a6e8bc")
+func build_shop():
+	section_heading(actions,"Pet boutique","Collect outfits and decorate your rooms using coins you earn.")
+	var tabs=row(actions)
+	for name in ["Accessories","Wardrobe","Supplies"]:
+		var b=button(tabs,name,func(): shop_tab=name; select("Shop")); b.add_theme_font_size_override("font_size",14); b.custom_minimum_size.y=42
+		b.add_theme_stylebox_override("normal",menu_skin(Color("#7850ad") if shop_tab==name else Color("#27203e"),Color("#e4bdff") if shop_tab==name else Color("#5c4c75")))
+	var grid=GridContainer.new(); grid.columns=2; grid.add_theme_constant_override("h_separation",7); grid.add_theme_constant_override("v_separation",7); actions.add_child(grid)
+	var s:Dictionary=store.s
+	if shop_tab=="Accessories":
+		for i in range(store.ITEMS.size()):
+			var owned=(int(s.owned)&(1<<i))!=0
+			var active=s.equipped==i+1 or s.installation==i+1
+			shop_tile(grid,store.ITEMS[i],("Wearing" if i<3 else "Installed") if active else "Owned" if owned else "%d coins"%store.PRICES[i],["Pet accessory","Pet accessory","Pet accessory","Bathroom furniture","Bedroom furniture","Garden furniture"][i],"res://assets/item_%d.png"%i,"Remove" if active else "Use" if owned else "Buy","use" if owned else "buy",i)
+	elif shop_tab=="Wardrobe":
+		for i in range(store.CLOTHES.size()):
+			var owned=(int(s.wardrobe)&(1<<i))!=0
+			var active=s.worn.has(i+1)
+			shop_tile(grid,store.CLOTHES[i],"Wearing" if active else "Owned" if owned else "%d coins"%store.COST[i],"Wearable outfit","res://assets/clothes_%d.png"%i,"Remove" if active else "Wear" if owned else "Buy","wear" if owned else "clothes",i)
+	else:
+		shop_tile(grid,"Medicine","12 coins · %d owned"%s.medicine,"Treats sick cells.","res://assets/premium_medicine.png","Buy","supply",0)
+		shop_tile(grid,"Snack","5 coins · %d owned"%s.snacks,"Feeds and improves mood.","res://assets/premium_snack.png","Buy","supply",1)
+func shop_tile(parent:Node,name:String,cost:String,detail:String,path:String,cta:String,id:String,arg:int):
+	var card=panel(parent)
+	var art=TextureRect.new(); art.texture=tex(path); art.custom_minimum_size.y=104; art.expand_mode=TextureRect.EXPAND_IGNORE_SIZE; art.stretch_mode=TextureRect.STRETCH_KEEP_ASPECT_CENTERED; card.add_child(art)
+	var title=label(card,name,17); title.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART
+	var price=label(card,cost,15); price.modulate=Color("#ffd38d")
+	var hint=label(card,detail,12); hint.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART
+	var b=button(card,cta,func(): perform(id,arg)); b.custom_minimum_size.y=42; b.add_theme_font_size_override("font_size",15)
+	b.set_meta("hint",hint); b.set_meta("detail",detail); b.set_meta("short_cta",true); register_action(b,id,arg)
+func build_arcade():
+	section_heading(actions,"Play & earn","Five games. Every successful run earns coins for your pet.")
+	var hero=panel(actions)
+	var art=TextureRect.new(); art.texture=tex("res://assets/sky-panorama.png"); art.custom_minimum_size.y=135; art.expand_mode=TextureRect.EXPAND_IGNORE_SIZE; art.stretch_mode=TextureRect.STRETCH_KEEP_ASPECT_COVERED; hero.add_child(art)
+	label(hero,"PET DASH 3D",24).modulate=Color("#f7d39a")
+	label(hero,"Sky kingdom · Best %d"%int(store.s.best[4]),15)
+	var b=button(hero,"Play ›",func(): launch_game(4)); b.add_theme_stylebox_override("normal",menu_skin(Color("#7950ad"),Color("#e9c5ff")))
+	var reason:String=store.arcade_block(4); b.disabled=not reason.is_empty()
+	if not reason.is_empty(): label(hero,reason,14).modulate=Color("#f2c590")
+	var grid=GridContainer.new(); grid.columns=2; grid.add_theme_constant_override("h_separation",7); grid.add_theme_constant_override("v_separation",7); actions.add_child(grid)
+	for i in range(4):
+		var card=panel(grid)
+		var thumb=TextureRect.new(); thumb.texture=tex("res://assets/arcade_"+["star","flappy","cloud","find"][i]+".jpg"); thumb.custom_minimum_size.y=95; thumb.expand_mode=TextureRect.EXPAND_IGNORE_SIZE; thumb.stretch_mode=TextureRect.STRETCH_KEEP_ASPECT_COVERED; card.add_child(thumb)
+		label(card,GAMES[i],18).autowrap_mode=TextServer.AUTOWRAP_WORD_SMART
+		label(card,["Build a combo","Fly through gates","Climb the sky","Spot your pet"][i],13).autowrap_mode=TextServer.AUTOWRAP_WORD_SMART
+		label(card,"Best %d"%int(store.s.best[i]),13).modulate=Color("#e4bcff")
+		var play=button(card,"Play ›",func(): launch_game(i)); play.disabled=not store.arcade_block(i).is_empty()
 func life_header(tab:String):
 	var title=label(actions,"Your pet's life",26)
 	title.add_theme_color_override("font_color",Color("#f4d9ff"))
-	var subtitle=label(actions,"Care, growth and adventure — all in one place.",14); subtitle.modulate=Color("#c9bbdf")
+	var subtitle=label(actions,"Care, growth and adventure — all in one place.",14); subtitle.modulate=Color("#c9bbdf"); subtitle.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART
 	var tabs=row(actions); tabs.add_theme_constant_override("separation",5)
 	for entry in [["Care","Care"],["Growth","Journal"],["Explore","World"]]:
 		var active=tab==entry[1] or (entry[1]=="Care" and tab in ["Cell","Care Quest"])
@@ -676,6 +731,7 @@ func build_world():
 		var confirm=ConfirmationDialog.new(); confirm.dialog_text="Begin a new egg generation? Your current pet is replaced, collection and items remain."; add_child(confirm)
 		confirm.confirmed.connect(func(): perform("breed")); confirm.confirmed.connect(confirm.queue_free); confirm.canceled.connect(confirm.queue_free); confirm.popup_centered())
 func room(name:String):
+	if name!=current_room: notice.text=""
 	for key in nav_buttons:
 		nav_buttons[key].add_theme_stylebox_override("normal",skin(Color("#6738a8"),Color("#e6bcff")) if key=="Rooms" else StyleBoxEmpty.new())
 	section_scroll.scroll_vertical=0
@@ -754,7 +810,7 @@ func show_collection():
 	var filter=row(filter_scroll); filter.size_flags_horizontal=SIZE_EXPAND_FILL
 	for key in ["All","Land","Sky","Water","Alien","Mystic","Favorites"]:
 		var b=button(filter,key,func(): collection_filter=key; show_collection())
-		b.add_theme_font_size_override("font_size",12); b.custom_minimum_size=Vector2(64,40)
+		b.add_theme_font_size_override("font_size",12); b.custom_minimum_size=Vector2(79,40)
 		if key==collection_filter: b.add_theme_stylebox_override("normal",skin(Color("#926332"),Color("#ffe0a1")))
 	collection_grid=GridContainer.new(); collection_grid.columns=3 if size.x>=450 else 2; collection_grid.add_theme_constant_override("h_separation",6); collection_grid.add_theme_constant_override("v_separation",6); actions.add_child(collection_grid)
 	for i in range(store.SPECIES.size()):
@@ -774,7 +830,7 @@ func show_collection():
 	if collection_grid.get_child_count()==0: label(actions,"No favorites yet. Open a species and tap Favorite.",16).autowrap_mode=TextServer.AUTOWRAP_WORD_SMART
 	swipe_children(actions)
 func launch_game(i:int):
-	if not store.begin_arcade(i): notice.text="Your pet needs rest or is busy."; return
+	if not store.begin_arcade(i): notice.text=store.arcade_block(i); notice.show(); return
 	get_tree().change_scene_to_file("res://main.tscn" if i==4 else "res://pet_arcade.tscn")
 func refresh():
 	store.advance(store.now())
@@ -818,7 +874,7 @@ func refresh():
 	live_stage.set_night(night)
 	live_stage.set_sleeping(store.asleep(store.now()))
 	live_stage.set_mood("sick" if s.germs>0 else "healthy")
-	pet_status.text="Tap to hatch • Choose lineage below" if s.stage==0 else store.care_priority()+"  •  "+home_hint()
+	pet_status.text="Tap to hatch • Choose lineage below" if s.stage==0 else room_hint()
 	live_stage.set_room_lighting(int(s.theme))
 	live_stage.set_installation(int(s.installation))
 	live_stage.set_crop(float(s.garden_at),store.now())
@@ -833,6 +889,17 @@ func refresh():
 		rendered_stage=int(s.stage)
 		if section=="Home": select("Home")
 	update_context()
+func room_hint()->String:
+	var s:Dictionary=store.s
+	if store.asleep(store.now()) or s.trip_end>store.now(): return store.care_priority()+" • "+home_hint()
+	match current_room:
+		"Kitchen": return "Full • Come back when hungry" if s.hunger>=5 else "Choose a meal • Grain is free"
+		"Bathroom": return "Clean & fresh" if s.hygiene>=100 and s.toilet>=100 else "Soap then rinse • Toilet when needed"
+		"Garden": return "Plant a seed for 5 coins" if s.garden_at==0 else "Ready to harvest!" if store.garden_remaining(store.now())==0 else "Crop growing • "+time_text(store.garden_remaining(store.now()))
+		"Bedroom": return "Rest restores energy • Themes change lighting"
+		"Potion lab": return "Medicine treats illness • Craft with 3 materials"
+		"Toy room": return "Play increases mood • Arcade earns coins"
+	return store.care_priority()+" • "+home_hint()
 func home_hint()->String:
 	var s:Dictionary=store.s
 	if s.trip_end>store.now(): return "Life › Explore"
@@ -847,7 +914,8 @@ func set_context(key:String,message:String,progress:float=-1.0):
 	if context_labels.has(key) and is_instance_valid(context_labels[key]): context_labels[key].text=message
 	if progress>=0 and context_bars.has(key) and is_instance_valid(context_bars[key]): context_bars[key].value=clampf(progress,0,100)
 func update_context():
-	swipe_children(actions)
+	if swipe_dirty:
+		swipe_children(actions); swipe_dirty=false
 	update_action_controls()
 	var s:Dictionary=store.s
 	var now:float=store.now()
@@ -938,6 +1006,64 @@ func position_hotspots():
 			if attempt==3: at.x=clampf(at.x+dims.x+8,safe.position.x,limit.x); at.y=clampf(center.y-dims.y/2,safe.position.y,limit.y)
 		child.position=at
 		occupied.append(Rect2(at,dims).grow(3))
+func find_button(node:Node,value:String)->Button:
+	if node is Button and node.text==value: return node
+	for child in node.get_children():
+		var found=find_button(child,value)
+		if found!=null: return found
+	return null
+func test_mouse_motion(at:Vector2,relative:Vector2,held:bool):
+	var ev=InputEventMouseMotion.new()
+	ev.position=at; ev.global_position=at; ev.relative=relative; ev.button_mask=MOUSE_BUTTON_MASK_LEFT if held else 0
+	get_viewport().push_input(ev,true)
+func test_mouse_button(at:Vector2,down:bool):
+	var ev=InputEventMouseButton.new()
+	ev.position=at; ev.global_position=at; ev.button_index=MOUSE_BUTTON_LEFT; ev.pressed=down; ev.button_mask=MOUSE_BUTTON_MASK_LEFT if down else 0
+	get_viewport().push_input(ev,true)
+func test_drag(start:Vector2,delta:Vector2):
+	test_mouse_motion(start,Vector2.ZERO,false); test_mouse_button(start,true)
+	await get_tree().process_frame
+	var previous=start
+	for i in range(1,7):
+		var next=start+delta*(float(i)/6)
+		test_mouse_motion(next,next-previous,true); previous=next
+		await get_tree().process_frame
+	test_mouse_button(previous,false)
+	await get_tree().process_frame
+func test_touch():
+	Input.emulate_touch_from_mouse=true
+	assert(DisplayServer.is_touchscreen_available())
+	store.s=store.defaults(); store.s.stage=4; store.s.auto_sleep=false; store.s.coins=1000
+	make_ui(); refresh(); select("Pets")
+	for i in range(5): await get_tree().process_frame
+	var button_to_swipe=find_button(actions,"♡ Favorite")
+	assert(button_to_swipe!=null)
+	var start=button_to_swipe.get_global_rect().get_center()
+	assert(section_scroll.get_global_rect().has_point(start))
+	var initial_fav:int=store.s.favorites
+	await test_drag(start,Vector2(0,-150))
+	assert(section_scroll.scroll_vertical>50,"Vertical swipe must scroll from a real favorite button")
+	assert(store.s.favorites==initial_fav,"Swipe must not activate the button")
+	await get_tree().create_timer(.9).timeout
+	select("Pets")
+	for i in range(5): await get_tree().process_frame
+	button_to_swipe=find_button(actions,"♡ Favorite")
+	start=button_to_swipe.get_global_rect().get_center()
+	test_mouse_motion(start,Vector2.ZERO,false); test_mouse_button(start,true); await get_tree().process_frame; test_mouse_button(start,false)
+	await get_tree().process_frame
+	assert(store.favorite(collection_feature),"A tap still activates the favorite button")
+	select("Pets")
+	for i in range(5): await get_tree().process_frame
+	var filter_button=find_button(actions,"Water")
+	assert(filter_button!=null)
+	var sc=filter_button.get_parent().get_parent() as ScrollContainer
+	assert(sc!=null)
+	var initial_filter=collection_filter
+	await test_drag(filter_button.get_global_rect().get_center(),Vector2(-165,0))
+	assert(sc.scroll_horizontal>35,"Horizontal swipe must scroll the habitat filters")
+	assert(collection_filter==initial_filter,"Horizontal swipe must not select a filter")
+	print("FOREVER_PET_TOUCH_PASS vertical horizontal tap no-accidental-action")
+	get_tree().quit()
 func test_home():
 	store.s=store.defaults(); store.s.auto_sleep=false
 	assert(store.action("hatch")); assert(store.s.coins==100)

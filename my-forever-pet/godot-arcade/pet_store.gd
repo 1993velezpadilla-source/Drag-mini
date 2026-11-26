@@ -19,7 +19,7 @@ func defaults()->Dictionary:
 	return {"stage":0,"field":0,"habitat":0,"body":0,"eyes":0,"color":0,"variant":0,"generation":1,"friendship":0,"inherited_eyes":-1,"name":"","hunger":5,"happy":10,"energy":100,"bond":0,"xp":0,"waste":0,"mistakes":0,"germs":0,"hygiene":100,"toilet":100,"coins":0,"crystals":0,"materials":0,"fuel":0,"snacks":0,"medicine":0,"soap":0,"cells":[0,0,0],"foods":[0,0,0,0],"collection":0,"favorites":0,"care_day":"","care_mask":0,"care_claims":0,"care_claimed":false,"form":-1,"owned":0,"equipped":0,"installation":0,"wardrobe":0,"worn":[0,0,0,0],"theme":0,"training":0,"age":0.0,"last":0.0,"food_clock":0.0,"mood_clock":0.0,"energy_clock":0.0,"waste_clock":0.0,"cell_clock":0.0,"care_clock":0.0,"hygiene_clock":0.0,"toilet_clock":0.0,"rest_clock":0.0,"sleep_until":0.0,"awake_until":0.0,"auto_sleep":true,"trip_end":0.0,"destination":0,"trip_bonus":0,"journeys":0,"pending":[0,0,0],"daily_day":"","quest_day":"","quests":0,"claimed":0,"garden_at":0.0,"harvests":0,"interaction_at":0.0,"best":[0,0,0,0,0]}
 func _ready():
 	test_mode=false
-	for flag in ["--test","--soak","--capture","--lane-only","--unassisted","--home-test","--home-capture"]:
+	for flag in ["--test","--soak","--capture","--lane-only","--unassisted","--home-test","--home-capture","--home-touch-test"]:
 		if OS.get_cmdline_user_args().has(flag): test_mode=true
 	s=defaults()
 	if not test_mode:
@@ -182,7 +182,7 @@ func action_block(id:String,i:int=0)->String:
 	if s.stage==0 and id not in ["buy","use","theme","quest","loot","harvest"]: return "Hatch your egg first"
 	match id:
 		"daily": return "Come back tomorrow" if s.daily_day==date_key(at) else ""
-		"care_claim": return "" if care_ready() else "Complete four different care activities"
+		"care_claim": return "Chest already collected today" if s.care_claimed else "" if care_ready() else "Complete four different care activities"
 		"clean": return "" if s.waste>0 else "Habitat is clean"
 		"sleep","lamp": return "Pet is exploring" if s.trip_end>at else ""
 		"plant": return "Crop already planted" if s.garden_at>0 else "Requires 5 coins" if s.coins<5 else ""
@@ -376,8 +376,16 @@ func action(id:String,i:int=0)->bool:
 		s.coins=clampi(int(s.coins),0,999999); s.snacks=mini(99,int(s.snacks)); s.materials=mini(9999,int(s.materials)); s.crystals=mini(9999,int(s.crystals))
 		save_game()
 	return ok
+func arcade_block(mode:int)->String:
+	if mode<0 or mode>=5: return "Unknown game"
+	if s.stage==0: return "Hatch your egg first"
+	if s.trip_end>now(): return "Pet is exploring"
+	if asleep(now()): return "Wake your pet first"
+	if s.energy<5: return "Needs at least 5 energy"
+	if arcade_mode!=-1: return "Another game is active"
+	return ""
 func begin_arcade(mode:int)->bool:
-	if mode<0 or mode>=5 or not available() or s.energy<5 or arcade_mode!=-1: return false
+	if not arcade_block(mode).is_empty(): return false
 	arcade_mode=mode
 	return true
 func finish_arcade(score:int,seconds:float,snacks:int=0)->int:

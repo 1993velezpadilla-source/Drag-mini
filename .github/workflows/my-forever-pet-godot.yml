@@ -84,6 +84,12 @@ jobs:
           timeout 60 "$G" --headless --path my-forever-pet/godot-arcade -- --home-test 2>&1 | tee /tmp/pet-home.log
           grep -F FOREVER_PET_HUB_PASS /tmp/pet-home.log
           ! grep -E "SCRIPT ERROR|Parse Error" /tmp/pet-home.log
+      - name: Verify actual touch-style scrolling and tap cancellation
+        run: |
+          set -euo pipefail
+          xvfb-run -a -s "-screen 0 720x1280x24" timeout 60 /tmp/godot/Godot_v4.4.1-stable_linux.x86_64 --path my-forever-pet/godot-arcade --rendering-method gl_compatibility --audio-driver Dummy --resolution 540x960 -- --home-touch-test 2>&1 | tee /tmp/pet-touch.log
+          grep -F "FOREVER_PET_TOUCH_PASS" /tmp/pet-touch.log
+          ! grep -E "SCRIPT ERROR|Parse Error" /tmp/pet-touch.log
       - name: Prove lane-only play loses the opening action gate
         run: |
           set -euo pipefail
