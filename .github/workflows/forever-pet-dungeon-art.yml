@@ -1,0 +1,56 @@
+name: Forever Pet dungeon Blender art integration
+on:
+  push:
+    branches: [feature/my-forever-pet-paradise]
+    paths:
+      - 'my-forever-pet/godot-arcade/blender_assets.py'
+      - 'my-forever-pet/godot-arcade/dungeon*.gd'
+      - 'my-forever-pet/tests/dungeon_visual.gd'
+      - '.github/workflows/forever-pet-dungeon-art.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: forever-dungeon-art-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  art:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Blender, Godot and Mesa
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y blender xvfb libgl1 libgl1-mesa-dri
+          curl -fL --retry 3 -o /tmp/godot.zip https://github.com/godotengine/godot/releases/download/4.4.1-stable/Godot_v4.4.1-stable_linux.x86_64.zip
+          unzip -q /tmp/godot.zip -d /tmp/godot
+      - name: Export and audit original production meshes
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/dungeon-project/assets
+          blender -b -t 4 --python-exit-code 1 -P my-forever-pet/godot-arcade/blender_assets.py -- /tmp/dungeon-project/assets
+          python3 my-forever-pet/godot-arcade/audit_catalog.py /tmp/dungeon-project/assets
+          for region in forest reef star; do
+            for variant in 0 1 2; do test -s "/tmp/dungeon-project/assets/dungeon_${region}_rock_${variant}.glb"; done
+          done
+      - name: Render active production dungeon scene with actual Blender terrain
+        run: |
+          set -euo pipefail
+          printf '%s\n' 'config_version=5' '[display]' 'window/size/viewport_width=540' 'window/size/viewport_height=960' '[rendering]' 'renderer/rendering_method="gl_compatibility"' > /tmp/dungeon-project/project.godot
+          cp my-forever-pet/godot-arcade/{dungeon_view,dungeon_rules,research_data}.gd my-forever-pet/tests/dungeon_visual.gd /tmp/dungeon-project/
+          timeout 120 /tmp/godot/Godot_v4.4.1-stable_linux.x86_64 --headless --editor --path /tmp/dungeon-project --import --quit
+          xvfb-run -a -s "-screen 0 720x1280x24" timeout 120 /tmp/godot/Godot_v4.4.1-stable_linux.x86_64 --path /tmp/dungeon-project --audio-driver Dummy --resolution 540x960 --script res://dungeon_visual.gd 2>&1 | tee /tmp/dungeon-art.log
+          grep -F 'FOREVER_DUNGEON_VIEW_PASS 3' /tmp/dungeon-art.log
+          ! grep -E 'SCRIPT ERROR|Parse Error|SHADER ERROR' /tmp/dungeon-art.log
+          for r in 0 1 2; do test -s "/tmp/dungeon-real-$r.png"; done
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: Dungeon-production-Blender-terrain-actual-viewports
+          path: |
+            /tmp/dungeon-real-*.png
+            /tmp/dungeon-art.log
+            /tmp/dungeon-project/assets/mesh-metrics.json
+            /tmp/dungeon-project/assets/catalog-audit.json
+            /tmp/dungeon-project/assets/dungeon*.glb
