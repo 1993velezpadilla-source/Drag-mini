@@ -98,6 +98,9 @@ var trail_angles:PackedFloat32Array=[]
 var trail_cursor=0
 var trail_emitted=0
 var caustic_overlay:MeshInstance3D
+var forest_light_overlay:MeshInstance3D
+var astral_sigils:MultiMeshInstance3D
+var astral_sigil_cells:Array[Vector2i]=[]
 func setup(r:int,id:int,step:int,finale:bool,patrol:bool,seed_id:int,companion:int):
 	region=r;companion_id=companion
 	run.setup(r,id,step,finale,patrol,seed_id,companion)
@@ -155,8 +158,8 @@ func build_ui():
 	var holder=SubViewportContainer.new();holder.stretch=true;holder.stretch_shrink=1;holder.mouse_filter=MOUSE_FILTER_IGNORE;area.add_child(holder);holder.set_anchors_and_offsets_preset(PRESET_FULL_RECT)
 	viewport=SubViewport.new();viewport.own_world_3d=true;viewport.render_target_update_mode=SubViewport.UPDATE_ALWAYS;holder.add_child(viewport)
 	world=Node3D.new();viewport.add_child(world)
-	var env=WorldEnvironment.new();env.environment=Environment.new();env.environment.background_mode=Environment.BG_COLOR;env.environment.background_color=palette[2].darkened(.55);env.environment.ambient_light_source=Environment.AMBIENT_SOURCE_COLOR;env.environment.ambient_light_color=[Color("#c7d4bc"),Color("#a0cbdc"),Color("#b4afd9")][region];env.environment.ambient_light_energy=.32;world.add_child(env)
-	var sun=DirectionalLight3D.new();sun.rotation_degrees=Vector3(-48,-35,0);sun.light_color=[Color("#fff2d4"),Color("#c0eaff"),Color("#d9d2ff")][region];sun.light_energy=.89;sun.shadow_enabled=true;world.add_child(sun)
+	var env=WorldEnvironment.new();env.environment=Environment.new();env.environment.background_mode=Environment.BG_COLOR;env.environment.background_color=palette[2].darkened(.55);env.environment.ambient_light_source=Environment.AMBIENT_SOURCE_COLOR;env.environment.ambient_light_color=[Color("#c7d4bc"),Color("#a0cbdc"),Color("#b4afd9")][region];env.environment.ambient_light_energy=[.29,.36,.32][region];world.add_child(env)
+	var sun=DirectionalLight3D.new();sun.rotation_degrees=Vector3(-48,-35,0);sun.light_color=[Color("#fff0bd"),Color("#a6e5ff"),Color("#dccbff")][region];sun.light_energy=[1.02,.90,.95][region];sun.shadow_enabled=true;world.add_child(sun)
 	var fill=DirectionalLight3D.new();fill.rotation_degrees=Vector3(-35,145,0);fill.light_color=palette[3];fill.light_energy=.23;fill.shadow_enabled=false;world.add_child(fill)
 	camera=Camera3D.new();camera.projection=Camera3D.PROJECTION_ORTHOGONAL;camera.keep_aspect=Camera3D.KEEP_WIDTH;camera.size=10.4;world.add_child(camera);camera.current=true
 	var input=Control.new();area.add_child(input);input.set_anchors_and_offsets_preset(PRESET_FULL_RECT);input.mouse_filter=MOUSE_FILTER_STOP;input.gui_input.connect(touch)
@@ -753,24 +756,89 @@ func build_living_ambient():
 	trail_origins.clear();trail_ages.clear();trail_angles.clear();trail_cursor=0;trail_emitted=0
 	trail_origins.resize(TRAIL_COUNT);trail_ages.resize(TRAIL_COUNT);trail_angles.resize(TRAIL_COUNT)
 	trail_ages.fill(99.0)
-	caustic_overlay=null
-	if region==1:
-		var shader=Shader.new()
-		shader.code="""shader_type spatial;
-render_mode unshaded, blend_add, depth_draw_never, cull_disabled;
-varying vec2 world_xz;
-void vertex() { world_xz = (MODEL_MATRIX * vec4(VERTEX,1.0)).xz; }
-void fragment() {
- vec2 p=world_xz*1.65;
- float a=sin(p.x*2.1+p.y*1.4+sin(p.y*1.8+TIME*0.46)*1.3+TIME*0.62);
- float b=sin(p.y*2.5-p.x*1.2+sin(p.x*1.4-TIME*0.37)*1.2);
- float lines=pow(1.0-abs(a*b),12.0);
- ALBEDO=vec3(0.30,0.62,0.68); ALPHA=lines*0.12;
-}"""
-		var sm=ShaderMaterial.new();sm.shader=shader
-		caustic_overlay=MeshInstance3D.new();caustic_overlay.mesh=floor_surface.mesh;caustic_overlay.material_override=sm
-		caustic_overlay.position.y=.022;caustic_overlay.cast_shadow=GeometryInstance3D.SHADOW_CASTING_SETTING_OFF;geometry.add_child(caustic_overlay)
+	build_biome_light()
 	update_living_ambient(0.0)
+func light_overlay(shader_source:String)->MeshInstance3D:
+	var shader=Shader.new();shader.code=shader_source
+	var sm=ShaderMaterial.new();sm.shader=shader
+	var overlay=MeshInstance3D.new();overlay.mesh=floor_surface.mesh;overlay.material_override=sm
+	overlay.position.y=.022;overlay.cast_shadow=GeometryInstance3D.SHADOW_CASTING_SETTING_OFF;geometry.add_child(overlay)
+	return overlay
+func build_biome_light():
+	caustic_overlay=null;forest_light_overlay=null;astral_sigils=null;astral_sigil_cells.clear()
+	if region==0:
+		# World-space moving canopy light, softly broken into leaf-like patches.
+		# One pass on the existing indexed floor, no lights or extra particles.
+		forest_light_overlay=light_overlay("""shader_type spatial;
+render_mode unshaded, blend_mix, depth_draw_never, cull_disabled;
+varying vec2 p;
+void vertex(){p=(MODEL_MATRIX*vec4(VERTEX,1.0)).xz;}
+void fragment(){
+ vec2 q=p+vec2(sin(TIME*0.24),cos(TIME*0.19))*0.18;
+ float n=sin(q.x*1.57+q.y*0.71)+sin(q.y*2.13-q.x*0.84)+0.48*sin(q.x*4.12+q.y*3.41);
+ float shafts=smoothstep(0.15,1.25,sin(q.x*0.46+q.y*0.81)+0.32*sin(q.x*1.24-q.y*0.6));
+ float sun=smoothstep(0.36,1.37,n)*shafts;
+ float shadow=(1.0-smoothstep(-1.36,-0.13,n))*0.21;
+ ALBEDO=mix(vec3(0.09,0.20,0.12),vec3(1.0,0.88,0.46),sun);
+ ALPHA=max(shadow,sun*0.32);
+}""")
+	elif region==1:
+		# Animated nearest/second-nearest cellular edges. A single bounded 3x3
+		# neighborhood gives intersecting organic caustic filaments rather than stripes.
+		caustic_overlay=light_overlay("""shader_type spatial;
+render_mode unshaded, blend_add, depth_draw_never, cull_disabled;
+varying vec2 p;
+vec2 hash2(vec2 a){
+ return fract(sin(vec2(dot(a,vec2(127.1,311.7)),dot(a,vec2(269.5,183.3))))*43758.5453);
+}
+void vertex(){p=(MODEL_MATRIX*vec4(VERTEX,1.0)).xz;}
+void fragment(){
+ vec2 q=p*1.02+vec2(0.10*sin(p.y*1.3+TIME*0.5),0.10*cos(p.x*1.5-TIME*0.41));
+ vec2 cell=floor(q);vec2 f=fract(q);
+ float first=9.0;float second=9.0;
+ for(int y=-1;y<=1;y++){
+  for(int x=-1;x<=1;x++){
+   vec2 g=vec2(float(x),float(y));vec2 r=hash2(cell+g);
+   vec2 feature=0.5+0.30*sin(TIME*0.67+r*6.283185);
+   vec2 offset=g+feature-f;float d=dot(offset,offset);
+   if(d<first){second=first;first=d;}else{second=min(second,d);}
+  }
+ }
+ float edge=max(sqrt(second)-sqrt(first),0.0);
+ float core=1.0-smoothstep(0.012,0.055,edge);
+ float halo=1.0-smoothstep(0.035,0.16,edge);
+ ALBEDO=vec3(0.48,0.90,0.84);ALPHA=core*0.22+halo*0.10;
+}""")
+	else:
+		# Flat gold-inlaid constellation seal, one per sufficiently large room.
+		# A procedural material on real world geometry, never a screenshot overlay.
+		var shader=Shader.new();shader.code="""shader_type spatial;
+render_mode unshaded, blend_mix, depth_draw_never, cull_disabled;
+float line(float d,float width){return 1.0-smoothstep(width,width+0.008,d);}
+void fragment(){
+ vec2 p=UV*2.0-1.0;float r=length(p);float a=atan(p.y,p.x);
+ float rings=max(line(abs(r-0.84),0.009),line(abs(r-0.68),0.007));
+ float star_radius=0.30+0.32*pow(abs(cos(a*4.0)),5.0);
+ float spokes=line(abs(r-star_radius),0.010);
+ float ticks=line(abs(sin(a*12.0)),0.055)*smoothstep(0.69,0.72,r)*(1.0-smoothstep(0.79,0.81,r));
+ float center=line(abs(r-0.17),0.008);
+ float ink=max(max(rings,spokes),max(ticks,center));
+ float pulse=0.82+0.18*sin(TIME*1.5+a*4.0+r*8.0);
+ ALBEDO=mix(vec3(0.72,0.39,0.12),vec3(1.0,0.83,0.40),pulse);
+ ALPHA=ink*0.88*(1.0-smoothstep(0.90,0.96,r));
+}"""
+		var material=ShaderMaterial.new();material.shader=shader
+		var plane=PlaneMesh.new();plane.size=Vector2.ONE
+		var transforms:Array[Transform3D]=[]
+		for room in run.rooms:
+			if mini(room.size.x,room.size.y)<3:continue
+			var q:Vector2i=room.get_center()
+			var diameter=minf(3.5,float(mini(room.size.x,room.size.y))*1.4-.65)
+			astral_sigil_cells.append(q)
+			transforms.append(Transform3D(Basis.from_scale(Vector3(diameter,1,diameter)),pos(q)+Vector3(0,.018,0)))
+		if not transforms.is_empty():
+			astral_sigils=ambient_batch(plane,transforms.size(),material)
+			for i in range(transforms.size()):astral_sigils.multimesh.set_instance_transform(i,transforms[i])
 func emit_trail(tile:Vector2i,dir:Vector2i):
 	if not run.cells.has(tile):return
 	var side=-1.0 if trail_cursor%2==0 else 1.0

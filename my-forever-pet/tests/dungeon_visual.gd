@@ -79,6 +79,11 @@ func run():
 		assert(dungeon.ambient_batches.size()==2 and dungeon.ambient_origins.size()==36)
 		assert(dungeon.trail_batch.multimesh.instance_count==16 and dungeon.trail_emitted==0)
 		assert((dungeon.caustic_overlay!=null)==(region==1))
+		assert((dungeon.forest_light_overlay!=null)==(region==0),"canopy light only in woodland")
+		if region==2:
+			assert(dungeon.astral_sigils!=null and dungeon.astral_sigil_cells.size()<=dungeon.run.rooms.size(),"bounded astral floor seals")
+			for q in dungeon.astral_sigil_cells:assert(dungeon.run.cells.has(q))
+		else:assert(dungeon.astral_sigils==null)
 		var old_ambient:Vector3=dungeon.ambient_batches[0].multimesh.get_instance_transform(0).origin
 		dungeon.update_living_ambient(.2)
 		assert(dungeon.ambient_batches[0].multimesh.get_instance_transform(0).origin!=old_ambient,"living ambient moves")
