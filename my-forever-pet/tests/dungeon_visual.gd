@@ -23,6 +23,9 @@ func exterior_review(dungeon,region:int,floor_index:int):
 		assert(dungeon.exterior_distances.get(q,0)>=2 and not dungeon.run.cells.has(q),"ridge outside traversable graph")
 		assert(dungeon.landscape_ridge_weights[q]>0.0 and dungeon.landscape_ridge_weights[q]<=1.0)
 	assert(dungeon.astral_cloud_bounds.size()<=dungeon.ASTRAL_CLOUD_CAP,"bounded cloud geometry")
+	var focus=dungeon.pos(dungeon.run.player)
+	var q=dungeon.run.player
+	assert(dungeon.cloud_anchor_score(q+Vector2i(3,4),focus)>dungeon.cloud_anchor_score(q+Vector2i(15,15),focus),"visible clouds outrank remote banks")
 	if region!=2:assert(dungeon.astral_cloud_bounds.is_empty(),"cloud banks restricted to Starfall")
 	for cloud in dungeon.astral_cloud_bounds:
 		assert(cloud.end.y<=-.35 and dungeon.scenery_clear_of_floor(cloud),"clouds remain below and outside gameplay")

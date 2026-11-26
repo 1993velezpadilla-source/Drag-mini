@@ -1334,14 +1334,40 @@ natural_rock((.08,.29,.52),(1.16,.21,.72),reefedge,1412)
 terrace_coral=mat('terrace warm coral',(.72,.21,.15),0,.73)
 terrace_tip=mat('terrace peach coral tips',(.94,.45,.25),0,.70)
 terrace_fan=mat('terrace mauve sea fans',(.45,.16,.42),0,.70)
-for i,(x,y,z,h,m) in enumerate([(-.56,.58,-.28,.52,terrace_coral),(.47,.62,-.36,.69,terrace_fan),(.13,.39,.43,.32,terrace_coral)]):
- tube([(x,y,z),(x-.045,y+h*.55,z+.025),(x+.06,y+h,z)],[.075,.046,.014],m,8)
- for j in range(4):
-  angle=j*2.39+i*.7;dx=math.cos(angle);dz=math.sin(angle)
-  start=y+h*(.20+j*.11)
-  tip=(x+.22*dx,start+h*.56,z+.19*dz)
-  tube([(x,start,z),(x+.10*dx,start+h*.24,z+.10*dz),tip],[.044,.026,.009],m,7)
-  tube([tip,(tip[0]+.085*dx,tip[1]+.10,tip[2]+.07*dz)],[.019,.006],terrace_tip if i!=1 else m,6)
+def terrace_colony(x,y,z,h,seed,m,tip_material):
+ # Rounded finger coral: the thick fingers fan out from a common base,
+ # and split into fleshy blunt tips rather than bare pointed twigs.
+ rng=random.Random(seed)
+ tube([(x,y,z),(x,y+.19*h,z),(x+.03,y+.43*h,z)],[.16,.14,.095],m,10)
+ for j in range(7):
+  ang=j*2.399+seed*.1;dx=math.cos(ang);dz=math.sin(ang)
+  reach=.15+.16*(j%3)/2
+  top=y+h*(.72+.24*rng.random())
+  ex=x+reach*dx;ez=z+reach*dz
+  tube([(x+.055*dx,y+.12*h,z+.055*dz),(x+.12*dx,y+.38*h,z+.12*dz),(ex,top-.14*h,ez),(ex+.025*dx,top,ez+.025*dz)],[.097,.086,.065,.039],m,8)
+  # Rounded small crown at a fork, with visibly contrasting growing tip.
+  ang2=ang+.85
+  tx=ex+.115*math.cos(ang2);tz=ez+.115*math.sin(ang2)
+  tube([(ex,top-.24*h,ez),(tx,top-.08*h,tz),(tx+.03*dx,top+.035,tz+.03*dz)],[.056,.044,.023],tip_material,7)
+  ball((ex+.025*dx,top,ez+.025*dz),(.078,.083,.078),tip_material)
+terrace_colony(-.56,.53,-.28,.65,1417,terrace_coral,terrace_tip)
+terrace_colony(.47,.58,-.36,.76,1418,terrace_fan,coral2)
+terrace_colony(.13,.36,.43,.39,1419,terrace_coral,terrace_tip)
+# Fluted sea fans: closed thin wavy surfaces with a broad outer rim.
+for i,(x,y,z,ang) in enumerate([(-.26,.38,.38,.2),(.67,.45,.04,1.1)]):
+ verts=[];faces=[];n=12
+ for side in [-1,1]:
+  verts.append((x-side*.018*math.sin(ang),y,z+side*.018*math.cos(ang)))
+  for j in range(n+1):
+   theta=-1.20+2.4*j/n;radius=.37*(1+.08*math.sin(j*2.2))
+   w=radius*math.sin(theta);hh=radius*math.cos(theta)
+   ripple=.035*math.sin(j*1.7)
+   verts.append((x+w*math.cos(ang)-(side*.018+ripple)*math.sin(ang),y+hh,z+w*math.sin(ang)+(side*.018+ripple)*math.cos(ang)))
+ k=n+2
+ for j in range(n):
+  faces.append((0,j+1,j+2));faces.append((k,k+j+2,k+j+1));faces.append((j+1,k+j+1,k+j+2,j+2))
+ faces.extend([(0,k,k+1,1),(0,n+1,k+n+1,k)])
+ architectural_mesh('sculpted fluted sea fan',verts,faces,terrace_fan if i else terrace_tip)
 for i,(x,z,y) in enumerate([(-.79,.33,.33),(.65,.26,.47),(.11,-.67,.38)]):
  for j in range(4):
   blades((x,y,z),i*.9+j*1.7,.32+.07*(j%3),.07,kelp)

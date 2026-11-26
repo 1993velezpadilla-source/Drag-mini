@@ -1100,7 +1100,7 @@ func build_exterior_surface():
 					var shoulder=-.47+.09*n
 					h=lerpf(h,shoulder,ridge*.86*(1.0-support*.65))
 					h-=depth_factor*(1.0-maxf(support,ridge))*(.22 if region==0 else .43)
-				elif distance>=2 and support<.25:
+				elif distance>=2 and support<.95:
 					# Keep the opaque cloud sea below the sculpted banks.
 					# Blend at the perimeter; never excavate an island foundation.
 					var p=Vector2(q)*1.4
@@ -1108,8 +1108,10 @@ func build_exterior_surface():
 						var c=Vector2(cloud.get_center().x,cloud.get_center().z)
 						var half_extent=Vector2(cloud.size.x,cloud.size.z)*.5+Vector2.ONE*.80
 						var relative=(p-c).abs()/half_extent
-						var mask=1.0-smoothstep(.58,1.0,maxf(relative.x,relative.y))
-						h=lerpf(h,minf(h,cloud.position.y-.18),mask*(1.0-support))
+						var mask=1.0-smoothstep(.80,1.0,maxf(relative.x,relative.y))
+						# Island and terrace centers are protected by placement
+						# exclusion. Soft support halos must not bury clouds.
+						h=lerpf(h,minf(h,cloud.position.y-.24),mask)
 				h=minf(h,-.35)
 			heights[y*width+x]=h;exterior_max_height=maxf(exterior_max_height,h)
 			vertices.append(Vector3(q.x*1.4,h,q.y*1.4));uvs.append(Vector2(q))
@@ -1163,19 +1165,34 @@ func build_astral_cloud_banks():
 	var parts=rock_parts("res://assets/dungeon_star_cloud_habitat.glb")
 	if parts.is_empty():return
 	var placements:Array[Transform3D]=[]
-	# Interleave near and far bands: a cloud bank must remain below the
-	# playable plane and may not cross the actual footprint of any island.
-	for distance in [3,5,4,6,7,8,9]:
+	# Allocate visible positions to every room before filling distant bands.
+	# Rank in camera coordinates; offscreen banks should not consume the cap.
+	var candidates:Array[Vector2i]=[]
+	var per_room:Array=[]
+	for room in run.rooms:
+		var local:Array[Vector2i]=[]
+		var focus=pos(room.get_center())
 		for q in exterior_distances:
+			if exterior_distances[q]<2 or exterior_distances[q]>8:continue
+			var delta=pos(q)-focus
+			if absf(delta.x)>6.8 or absf(delta.z)>12.0:continue
+			local.append(q)
+		local.sort_custom(func(a:Vector2i,b:Vector2i):return cloud_anchor_score(a,focus)>cloud_anchor_score(b,focus))
+		per_room.append(local)
+	for i in range(56):
+		for local in per_room:
+			if i<local.size() and not candidates.has(local[i]):candidates.append(local[i])
+	for q in exterior_distances:
+		if exterior_distances[q]>=3 and not candidates.has(q):candidates.append(q)
+	for q in candidates:
 			if placements.size()>=ASTRAL_CLOUD_CAP:break
-			if exterior_distances[q]!=distance:continue
-			if posmod(q.x*11+q.y*19+run.floor_number,4)!=0:continue
-			var wide=.93+.42*float(posmod(q.x*17+q.y*7,9))/8.0
+			var distance:int=exterior_distances[q]
+			var wide=1.15+.48*float(posmod(q.x*17+q.y*7,9))/8.0
 			# Derive the crest from the imported geometry, not its origin.
 			# Near banks sit above the cloud sea and further bands descend.
 			var placement=Transform3D(Basis(Vector3.UP,float(posmod(q.x*7+q.y*13,12))*TAU/12.0).scaled(Vector3(wide,.72,wide*.92)),pos(q))
 			var bounds=measure_scenery(parts,placement)
-			var crest=-.40-.13*float(distance-3)
+			var crest=-.36-.09*maxf(0.0,float(distance-3))
 			var offset=crest-bounds.end.y
 			placement.origin.y+=offset
 			bounds.position.y+=offset
@@ -1197,6 +1214,12 @@ func build_astral_cloud_banks():
 			placements.append(placement);astral_cloud_bounds.append(bounds)
 	batch_exterior_parts(parts,placements)
 	print("ASTRAL_CLOUD_BANKS ",astral_cloud_bounds.size())
+func cloud_anchor_score(q:Vector2i,focus:Vector3)->float:
+	var delta=pos(q)-focus
+	var up=Vector3(0,DUNGEON_CAMERA_OFFSET.z,-DUNGEON_CAMERA_OFFSET.y).normalized()
+	var projected_y=delta.dot(up)
+	# Favor the visible sides and lower foreground, not the far room behind.
+	return 8.0-absf(absf(delta.x)-3.9)*1.15-absf(absf(projected_y)-5.0)*.70
 func star_cloud_material()->ShaderMaterial:
 	# Opaque, two-scale painted cloud field on the depressed exterior terrain.
 	# No extra draw calls, alpha sorting, textures or particle overdraw.
