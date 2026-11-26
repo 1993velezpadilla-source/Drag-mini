@@ -101,6 +101,13 @@ func column(p:Vector3,sz:Vector3,c:Color,parent:Node3D)->MeshInstance3D:
 	if not mesh_cache.has("column"):
 		var m=CylinderMesh.new();m.radial_segments=8;mesh_cache["column"]=m
 	return shape(mesh_cache["column"],p,sz,c,parent)
+func prism()->Mesh:
+	if not mesh_cache.has("prism"):mesh_cache["prism"]=PrismMesh.new()
+	return mesh_cache["prism"]
+func flat_shape(mesh:Mesh,p:Vector3,sz:Vector3,c:Color,parent:Node3D,glow:bool=false)->MeshInstance3D:
+	var ob=shape(mesh,p,sz,c,parent,glow)
+	ob.cast_shadow=GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	return ob
 func model(id:int,parent:Node3D)->Node3D:
 	var root=Node3D.new();parent.add_child(root)
 	var file="res://assets/mosskit.glb" if id==0 else "res://assets/creatures/species_%02d.glb"%id
@@ -135,7 +142,7 @@ func build_world(companion:int,id:int,finale:bool):
 			elif region==1:
 				for j in range(3):column(Vector3(x+(j-1)*.25,.5+float(j%2)*.25,z),Vector3(.24,1.0+float(j%2)*.5,.24),[Color("#db9cb6"),Color("#f2c09c"),Color("#aa86ce")][j],world)
 			else:
-				var m=PrismMesh.new();var rock=shape(m,Vector3(x,.7,z),Vector3(.8,1.7,.8),Color("#b8b7f0"),world);rock.rotation.y=rng.randf_range(0,TAU)
+				var rock=shape(prism(),Vector3(x,.7,z),Vector3(.8,1.7,.8),Color("#b8b7f0"),world);rock.rotation.y=rng.randf_range(0,TAU)
 		else:
 			sphere(Vector3(x,.035,z),Vector3(.25,.06,.19),tint.darkened(.30),world)
 	for i in range(28):
@@ -143,25 +150,28 @@ func build_world(companion:int,id:int,finale:bool):
 		var scale_value=rng.randf_range(.15,.35)
 		if region==0:
 			for j in range(3):
-				var grass=shape(PrismMesh.new(),Vector3(x+(j-1)*.08,.13,z),Vector3(.08,.27+float(j%2)*.08,.06),Color("#a7c26d"),world);grass.rotation.y=float(j)*1.2
+				var grass=flat_shape(prism(),Vector3(x+(j-1)*.08,.13,z),Vector3(.08,.27+float(j%2)*.08,.06),Color("#a7c26d"),world);grass.rotation.y=float(j)*1.2
 		elif region==1:sphere(Vector3(x,.04,z),Vector3(scale_value,.09,scale_value*.8),Color("#c1dacf"),world)
 		else:sphere(Vector3(x,.12,z),Vector3(scale_value,.22,scale_value),Color("#c2c4ef"),world)
 	build_landmarks()
+	build_terrain_details()
 	player=model(companion,world)
+	player.position=Vector3(run.player.x,.1,run.player.y)
 	destination_marker=Node3D.new();world.add_child(destination_marker)
 	var target_ring=TorusMesh.new();target_ring.inner_radius=.28;target_ring.outer_radius=.34;target_ring.rings=16;target_ring.ring_segments=6
 	shape(target_ring,Vector3(0,.08,0),Vector3.ONE,Color("#e9faff"),destination_marker,true)
 	destination_marker.hide()
 	trace=Node3D.new();world.add_child(trace)
 	var ring=TorusMesh.new();ring.inner_radius=.42;ring.outer_radius=.56;ring.rings=16;ring.ring_segments=8;shape(ring,Vector3(0,.13,0),Vector3.ONE,tint.lightened(.4),trace,true)
-	sphere(Vector3(0,.55,0),Vector3(.22,.22,.22),Color("#fff0a5"),trace,true)
+	build_trace_art()
+	trace.hide()
 	pulse=Node3D.new();world.add_child(pulse)
 	var scan_ring=TorusMesh.new();scan_ring.inner_radius=.94;scan_ring.outer_radius=1.0;scan_ring.rings=24;scan_ring.ring_segments=6;shape(scan_ring,Vector3(0,.09,0),Vector3.ONE,tint.lightened(.6),pulse,true)
 	pulse.hide()
 	compass_arrow=Node3D.new();world.add_child(compass_arrow)
 	var arrow_shaft=BoxMesh.new()
 	shape(arrow_shaft,Vector3(0,.18,.12),Vector3(.10,.08,.48),Color("#c8fbff"),compass_arrow,true)
-	var arrow_head=PrismMesh.new()
+	var arrow_head=prism()
 	var tip=shape(arrow_head,Vector3(0,.18,.46),Vector3(.42,.09,.40),Color("#c8fbff"),compass_arrow,true)
 	tip.rotation.x=PI/2
 	compass_arrow.hide()
@@ -171,12 +181,26 @@ func build_world(companion:int,id:int,finale:bool):
 		var ring2=TorusMesh.new();ring2.inner_radius=.68;ring2.outer_radius=.85;ring2.rings=20;ring2.ring_segments=8;shape(ring2,Vector3(0,.12,0),Vector3.ONE,Color("#f29b6c"),hazard,true)
 		if region==0:
 			for k in range(3):
-				var thorn=shape(PrismMesh.new(),Vector3((k-1)*.24,.38,0),Vector3(.32,.76,.4),Color("#da8b56"),hazard,true);thorn.rotation.y=float(k)*1.3
+				var thorn=shape(prism(),Vector3((k-1)*.24,.38,0),Vector3(.32,.76,.4),Color("#da8b56"),hazard,true);thorn.rotation.y=float(k)*1.3
 		elif region==1:
 			var whirl=TorusMesh.new();whirl.inner_radius=.20;whirl.outer_radius=.48;shape(whirl,Vector3(0,.45,0),Vector3.ONE,Color("#a6e8f5"),hazard,true)
 			sphere(Vector3(0,.6,0),Vector3(.28,.48,.28),Color("#e5f8fc"),hazard,true)
 		else:
-			shape(PrismMesh.new(),Vector3(0,.55,0),Vector3(.62,1.1,.62),Color("#ffc5e5"),hazard,true)
+			shape(prism(),Vector3(0,.55,0),Vector3(.62,1.1,.62),Color("#ffc5e5"),hazard,true)
+func build_trace_art():
+	# Distinct silhouettes for the three biomes; no extra collision objects.
+	if region==0:
+		for i in range(3):
+			var root=Node3D.new();trace.add_child(root);root.position=Vector3(float(i-1)*.23,.08,float(i%2)*.22-.12);root.rotation.y=float(i-1)*.30
+			var pad=sphere(Vector3(0,0,.04),Vector3(.23,.045,.19),Color("#ffdd98"),root,true);pad.cast_shadow=GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+			for toe in [-1,0,1]:
+				var digit=sphere(Vector3(float(toe)*.075,0,-.095),Vector3(.075,.04,.085),Color("#fff2c1"),root,true);digit.cast_shadow=GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	elif region==1:
+		for i in range(4):
+			var bubble=sphere(Vector3(sin(float(i)*2.1)*.25,.20+float(i)*.19,cos(float(i)*2.1)*.22),Vector3.ONE*(.16+float(i%2)*.08),Color("#a1f1ff"),trace,true);bubble.cast_shadow=GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	else:
+		for i in range(3):
+			var shard=flat_shape(prism(),Vector3(float(i-1)*.19,.30+float(i%2)*.14,0),Vector3(.19,.43,.17),Color("#f5ceff"),trace,true);shard.rotation.z=float(i-1)*.35
 func build_landmarks():
 	# Distinct landmarks outside the playable route; terrain remains traversable.
 	for side in [-1,1]:
@@ -196,15 +220,31 @@ func build_landmarks():
 					var coral=column(Vector3(x+sin(j*1.4)*.42,.70,z+cos(j*1.4)*.42),Vector3(.20,1.2+float(j%3)*.26,.20),[Color("#d88ea9"),Color("#b8b6ec"),Color("#ffcc9e")][j%3],world)
 					coral.rotation.z=sin(float(j))*.30
 			else:
-				var rock=shape(PrismMesh.new(),Vector3(x,1.1,z),Vector3(1.0,2.2,1.0),Color("#b8a8e4"),world);rock.rotation.y=float(i)*.7
+				var rock=shape(prism(),Vector3(x,1.1,z),Vector3(1.0,2.2,1.0),Color("#b8a8e4"),world);rock.rotation.y=float(i)*.7
 				for j in range(3):
 					sphere(Vector3(x+sin(j*2.1)*.75,.35,z+cos(j*2.1)*.65),Vector3(1.3,.5,1.3),Color("#d0d9f2"),world)
 	if region!=0:
 		for i in range(12):
 			var marker=Node3D.new();world.add_child(marker)
 			marker.position=Vector3(-6+float(i%4)*4,.10,-5+float(i/4)*4.0)
-			var arrow=shape(PrismMesh.new(),Vector3.ZERO,Vector3(.16,.08,.7),tint.lightened(.35),marker,true);arrow.rotation.x=PI/2
+			var arrow=flat_shape(prism(),Vector3.ZERO,Vector3(.16,.08,.7),tint.lightened(.35),marker,true);arrow.rotation.x=PI/2
 			flow_arrows.append(marker)
+func build_terrain_details():
+	# Low profile landmarks provide navigation cues without obscuring the player.
+	for i in range(6):
+		var p=Vector3(-5.8+float(i%3)*5.8,.015,-4.3+float(i/3)*7.1)
+		if region==0:
+			var patch=sphere(p,Vector3(2.0,.055,1.4),Color("#8d9460"),world);patch.cast_shadow=GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+			for j in range(4):
+				var pebble=sphere(p+Vector3(sin(j*1.7)*.55,.045,cos(j*1.7)*.43),Vector3(.23,.08,.17),Color("#c3b48c"),world);pebble.cast_shadow=GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		elif region==1:
+			var ripple=TorusMesh.new();ripple.inner_radius=.93;ripple.outer_radius=1.0;ripple.rings=16;ripple.ring_segments=6
+			flat_shape(ripple,p+Vector3(0,.05,0),Vector3(1.05,.28,.78),Color("#7bbdc6"),world)
+		else:
+			var rune=TorusMesh.new();rune.inner_radius=.74;rune.outer_radius=.82;rune.rings=12;rune.ring_segments=6
+			flat_shape(rune,p+Vector3(0,.04,0),Vector3(1,.25,1),Color("#b5a9df"),world)
+			for j in range(4):
+				var stone=flat_shape(prism(),p+Vector3(sin(j*PI/2)*.58,.05,cos(j*PI/2)*.58),Vector3(.16,.08,.24),Color("#e0d6f9"),world);stone.rotation.y=float(j)*PI/2
 func field_event(event:InputEvent):
 	if event is InputEventScreenTouch:
 		if event.pressed and touch_index==-1:
@@ -269,7 +309,7 @@ func _process(dt:float):
 		signal_trend=" · Closer" if change>.025 else " · Farther" if change<-.025 else ""
 		signal_sample=strength;signal_sample_timer=0.0
 	trace.position=Vector3(point.x,.02,point.y)
-	trace.visible=run.trace_visible()
+	trace.visible=run.trace_visible() and not run.finished
 	trace.scale=Vector3.ONE*(1.0+.14*sin(run.elapsed*8))
 	if is_instance_valid(wild):
 		wild.position=Vector3(point.x,.1,point.y);wild.visible=run.player.distance_to(point)<5.5;wild.rotation.y=atan2(run.player.x-point.x,run.player.y-point.y)
