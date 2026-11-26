@@ -38,7 +38,7 @@ jobs:
       - name: Traverse all nine sanctuaries in production movement code
         run: |
           set -euo pipefail
-          cp my-forever-pet/godot-arcade/{sanctuary_field,pixel_pet_art}.gd my-forever-pet/tests/sanctuary_navigation.gd /tmp/pet-core/
+          cp my-forever-pet/godot-arcade/{sanctuary_field,pixel_pet_art,pet_part_rig,pet_external_fx}.gd my-forever-pet/tests/sanctuary_navigation.gd /tmp/pet-core/
           timeout 60 /tmp/godot/Godot_v4.4.1-stable_linux.x86_64 --headless --path /tmp/pet-core --script res://sanctuary_navigation.gd 2>&1 | tee /tmp/sanctuary-nav.log
           grep -F 'FOREVER_SANCTUARY_NAV_PASS 27' /tmp/sanctuary-nav.log
           ! grep -E 'SCRIPT ERROR|Parse Error' /tmp/sanctuary-nav.log

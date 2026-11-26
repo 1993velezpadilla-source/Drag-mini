@@ -28,7 +28,7 @@ jobs:
           set -euo pipefail
           mkdir -p /tmp/field-project
           printf '%s\n' 'config_version=5' '[display]' 'window/size/viewport_width=540' 'window/size/viewport_height=960' '[rendering]' 'renderer/rendering_method="gl_compatibility"' > /tmp/field-project/project.godot
-          cp my-forever-pet/godot-arcade/{wild_field,field_hunt_rules,research_data,pixel_pet_art}.gd my-forever-pet/tests/field_visual_isolated.gd /tmp/field-project/
+          cp my-forever-pet/godot-arcade/{wild_field,field_hunt_rules,research_data,pixel_pet_art,pet_part_rig,pet_external_fx}.gd my-forever-pet/tests/field_visual_isolated.gd /tmp/field-project/
           xvfb-run -a -s "-screen 0 720x1280x24" timeout 90 /tmp/godot/Godot_v4.4.1-stable_linux.x86_64 --path /tmp/field-project --audio-driver Dummy --resolution 540x960 --script res://field_visual_isolated.gd 2>&1 | tee /tmp/field-isolated.log
           grep -F 'FOREVER_FIELD_ISOLATED_PASS 3' /tmp/field-isolated.log
           ! grep -E 'SCRIPT ERROR|Parse Error' /tmp/field-isolated.log

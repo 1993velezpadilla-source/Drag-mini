@@ -27,7 +27,7 @@ jobs:
           set -euo pipefail
           mkdir -p /tmp/dungeon-project
           printf '%s\n' 'config_version=5' '[display]' 'window/size/viewport_width=540' 'window/size/viewport_height=960' '[rendering]' 'renderer/rendering_method="gl_compatibility"' > /tmp/dungeon-project/project.godot
-          cp my-forever-pet/godot-arcade/{dungeon_view,dungeon_rules,research_data,pixel_pet_art}.gd my-forever-pet/tests/dungeon_visual.gd /tmp/dungeon-project/
+          cp my-forever-pet/godot-arcade/{dungeon_view,dungeon_rules,research_data,pixel_pet_art,pet_part_rig,pet_external_fx}.gd my-forever-pet/tests/dungeon_visual.gd /tmp/dungeon-project/
           xvfb-run -a -s "-screen 0 720x1280x24" timeout 120 /tmp/godot/Godot_v4.4.1-stable_linux.x86_64 --path /tmp/dungeon-project --audio-driver Dummy --resolution 540x960 --script res://dungeon_visual.gd 2>&1 | tee /tmp/dungeon-visual.log
           grep -F 'FOREVER_DUNGEON_VIEW_PASS 3' /tmp/dungeon-visual.log
           ! grep -E 'SCRIPT ERROR|Parse Error' /tmp/dungeon-visual.log
