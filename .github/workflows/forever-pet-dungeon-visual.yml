@@ -1,0 +1,39 @@
+name: Forever Pet dungeon 3D interaction
+on:
+  push:
+    branches: [feature/my-forever-pet-paradise]
+    paths:
+      - 'my-forever-pet/godot-arcade/dungeon*.gd'
+      - 'my-forever-pet/tests/dungeon_visual.gd'
+      - '.github/workflows/forever-pet-dungeon-visual.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  dungeon-view:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Godot and Mesa
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y xvfb libgl1 libgl1-mesa-dri
+          curl -fL --retry 3 -o /tmp/godot.zip https://github.com/godotengine/godot/releases/download/4.4.1-stable/Godot_v4.4.1-stable_linux.x86_64.zip
+          unzip -q /tmp/godot.zip -d /tmp/godot
+      - name: Test actual dungeon pickup and deferred completion
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/dungeon-project
+          printf '%s\n' 'config_version=5' '[display]' 'window/size/viewport_width=540' 'window/size/viewport_height=960' '[rendering]' 'renderer/rendering_method="gl_compatibility"' > /tmp/dungeon-project/project.godot
+          cp my-forever-pet/godot-arcade/{dungeon_view,dungeon_rules,research_data}.gd my-forever-pet/tests/dungeon_visual.gd /tmp/dungeon-project/
+          xvfb-run -a -s "-screen 0 720x1280x24" timeout 120 /tmp/godot/Godot_v4.4.1-stable_linux.x86_64 --path /tmp/dungeon-project --audio-driver Dummy --resolution 540x960 --script res://dungeon_visual.gd 2>&1 | tee /tmp/dungeon-visual.log
+          grep -F 'FOREVER_DUNGEON_VIEW_PASS 3' /tmp/dungeon-visual.log
+          ! grep -E 'SCRIPT ERROR|Parse Error' /tmp/dungeon-visual.log
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: Dungeon-real-Godot-viewport-fallback-assets
+          path: |
+            /tmp/dungeon-real-*.png
+            /tmp/dungeon-visual.log
