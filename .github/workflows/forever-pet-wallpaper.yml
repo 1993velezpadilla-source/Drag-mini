@@ -1,0 +1,48 @@
+name: Forever Pet native wallpaper gate
+on:
+  push:
+    branches: [feature/my-forever-pet-paradise]
+    paths: ['my-forever-pet/godot-arcade/android_wallpaper/**','.github/workflows/forever-pet-wallpaper.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  native:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Run pure native interaction rules
+        run: |
+          set -euo pipefail
+          D=my-forever-pet/godot-arcade/android_wallpaper
+          javac -d /tmp/wall-rules "$D/WallpaperRules.java" my-forever-pet/tests/WallpaperRulesTest.java
+          java -cp /tmp/wall-rules org.myforeverpet.wallpaper.WallpaperRulesTest | tee /tmp/wall-rules.log
+          grep -F 'FOREVER_WALLPAPER_RULES_PASS 20' /tmp/wall-rules.log
+      - name: Compile actual service against official Android and Godot classes
+        run: |
+          set -euo pipefail
+          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" 'platforms;android-34'
+          curl -fL --retry 3 -o /tmp/templates.tpz https://github.com/godotengine/godot/releases/download/4.4.1-stable/Godot_v4.4.1-stable_export_templates.tpz
+          unzip -q /tmp/templates.tpz templates/android_source.zip -d /tmp/templates
+          unzip -q /tmp/templates/templates/android_source.zip -d /tmp/wall-template
+          python3 my-forever-pet/godot-arcade/android_wallpaper/install.py /tmp/wall-template
+          AAR=$(find /tmp/wall-template -name '*.aar' | grep -E 'godot-lib.*debug' | head -1)
+          test -s "$AAR"
+          unzip -p "$AAR" classes.jar > /tmp/godot-classes.jar
+          javac -cp "$ANDROID_HOME/platforms/android-34/android.jar:/tmp/godot-classes.jar" -d /tmp/wall-native /tmp/wall-template/src/org/myforeverpet/wallpaper/*.java
+          test -s /tmp/wall-native/org/myforeverpet/wallpaper/ForeverWallpaperService.class
+          test -s /tmp/wall-native/org/myforeverpet/wallpaper/ForeverWallpaperPlugin.class
+          echo FOREVER_WALLPAPER_NATIVE_COMPILE_PASS
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: wallpaper-native-review
+          path: |
+            /tmp/wall-rules.log
+            /tmp/wall-template/AndroidManifest.xml
+            /tmp/wall-native

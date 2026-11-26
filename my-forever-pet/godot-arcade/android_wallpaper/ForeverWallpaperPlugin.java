@@ -26,27 +26,30 @@ public final class ForeverWallpaperPlugin extends GodotPlugin {
         Activity a=getActivity(); if(a!=null&&json.length()<12000)
             a.getSharedPreferences("forever_wallpaper",Context.MODE_PRIVATE).edit().putString("snapshot",json).apply();
     }
-    @UsedByGodot public String consumeAction(){
+    @UsedByGodot public String consumeAction(int generation){
         Activity a=getActivity();if(a==null)return "";
         synchronized(ForeverWallpaperService.ACTION_LOCK){
             android.content.SharedPreferences p=a.getSharedPreferences("forever_wallpaper",Context.MODE_PRIVATE);
             String request=p.getString("request","");
             long at=p.getLong("request_at",0);
-            p.edit().remove("request").remove("request_at").commit();
-            return System.currentTimeMillis()-at<900000 && System.currentTimeMillis()>=at?request:"";
+            int requestedGeneration=p.getInt("request_generation",-1);
+            p.edit().remove("request").remove("request_at").remove("request_generation").commit();
+            return WallpaperRules.validRequest(request,System.currentTimeMillis()-at,requestedGeneration,generation)?request:"";
         }
     }
     @UsedByGodot public boolean openPicker(){
         Activity a=getActivity();if(a==null)return false;
         Intent i=new Intent(WallpaperManager.ACTION_CHANGE_LIVE_WALLPAPER);
         i.putExtra(WallpaperManager.EXTRA_LIVE_WALLPAPER_COMPONENT,new ComponentName(a,ForeverWallpaperService.class));
-        if(i.resolveActivity(a.getPackageManager())==null)return false;
+        if(!a.getPackageManager().hasSystemFeature("android.software.live_wallpaper"))return false;
         a.runOnUiThread(()->{try{a.startActivity(i);}catch(RuntimeException e){Log.w("ForeverWallpaper","Picker failed",e);}});
         return true;
     }
     @UsedByGodot public boolean isActive(){
         Activity a=getActivity();if(a==null)return false;
-        android.app.WallpaperInfo i=WallpaperManager.getInstance(a).getWallpaperInfo();
-        return i!=null && a.getPackageName().equals(i.getPackageName()) && ForeverWallpaperService.class.getName().equals(i.getServiceName());
+        try{
+            android.app.WallpaperInfo i=WallpaperManager.getInstance(a).getWallpaperInfo();
+            return i!=null && a.getPackageName().equals(i.getPackageName()) && ForeverWallpaperService.class.getName().equals(i.getServiceName());
+        }catch(SecurityException e){return false;}
     }
 }

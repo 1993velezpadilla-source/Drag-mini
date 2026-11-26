@@ -22,13 +22,14 @@ public final class ForeverWallpaperService extends WallpaperService {
         Bitmap awake,sleep,room;
         String awakeKey="",sleepKey="",roomKey="",snapshot="";
         boolean shown,surface;
-        long loaded,lastTap,reaction,downAt;
+        long loaded,lastTap,reaction,downAt,projectedAt=-1;
+        int hunger=5,mood=10,waste=0;
         float downX,downY,petX,petY,petRadius;
         int finger=-1;
         @Override public void onCreate(SurfaceHolder holder){
             super.onCreate(holder);prefs=getSharedPreferences("forever_wallpaper",MODE_PRIVATE);setTouchEventsEnabled(true);
         }
-        @Override public void onVisibilityChanged(boolean visible){shown=visible;handler.removeCallbacks(frame);if(visible){loaded=0;drawFrame();}}
+        @Override public void onVisibilityChanged(boolean visible){shown=visible;handler.removeCallbacks(frame);if(visible){loaded=0;projectedAt=-1;lastTap=0;finger=-1;drawFrame();}}
         @Override public void onSurfaceCreated(SurfaceHolder holder){super.onSurfaceCreated(holder);surface=true;drawFrame();}
         @Override public void onSurfaceChanged(SurfaceHolder holder,int format,int width,int height){super.onSurfaceChanged(holder,format,width,height);drawFrame();}
         @Override public void onSurfaceDestroyed(SurfaceHolder holder){surface=false;handler.removeCallbacks(frame);super.onSurfaceDestroyed(holder);}
@@ -45,19 +46,41 @@ public final class ForeverWallpaperService extends WallpaperService {
             loaded=now;
             String next=prefs.getString("snapshot","");
             if(!next.equals(snapshot)){
-                try{state=new JSONObject(next);snapshot=next;}catch(Exception ignored){}
+                try{state=new JSONObject(next);snapshot=next;projectedAt=-1;}catch(Exception ignored){}
             }
             int species=Math.max(0,Math.min(28,state.optInt("portrait",28)));
             String a="awake_"+species,b="sleep_"+species,r="room_"+Math.max(0,Math.min(5,state.optInt("room",0)));
             if(!a.equals(awakeKey)||awake==null){Bitmap image=loadImage(a);if(image!=null){recycle(awake);awake=image;awakeKey=a;}}
             if(!b.equals(sleepKey)||sleep==null){Bitmap image=loadImage(b);if(image!=null){recycle(sleep);sleep=image;sleepKey=b;}}
             if(!r.equals(roomKey)||room==null){Bitmap image=loadImage(r);if(image!=null){recycle(room);room=image;roomKey=r;}}
+            projectNeeds();
         }
-        boolean asleep(){
+        boolean asleepAt(long at,Calendar local){
+            local.setTimeInMillis(at*1000L);
+            return WallpaperRules.sleeping(state.optInt("stage",0),at,state.optLong("trip_end"),
+                state.optLong("sleep_until"),state.optLong("awake_until"),state.optBoolean("auto_sleep",true),local.get(Calendar.HOUR_OF_DAY));
+        }
+        boolean asleep(){return asleepAt(System.currentTimeMillis()/1000L,Calendar.getInstance());}
+        // Display-only estimate. Godot remains the sole authority for growth, economy and save.
+        void projectNeeds(){
             long now=System.currentTimeMillis()/1000L;
-            int hour=Calendar.getInstance().get(Calendar.HOUR_OF_DAY);
-            return state.optInt("stage",0)>0&&state.optLong("trip_end")<=now&&
-                (state.optLong("sleep_until")>now||(state.optBoolean("auto_sleep",true)&&state.optLong("awake_until")<=now&&(hour>=21||hour<7)));
+            if(projectedAt>=0&&now>=projectedAt&&now-projectedAt<30)return;
+            projectedAt=now;
+            long saved=state.optLong("last",now),cursor=Math.max(saved,now-86400);
+            long awakeSeconds=0;
+            Calendar local=Calendar.getInstance();
+            while(cursor<now){
+                long next=Math.min(now,cursor+60-cursor%60);
+                for(String key:new String[]{"sleep_until","awake_until","trip_end"}){
+                    long boundary=state.optLong(key);if(boundary>cursor)next=Math.min(next,boundary);
+                }
+                if(!asleepAt(cursor,local))awakeSeconds+=next-cursor;
+                cursor=next;
+            }
+            int stage=state.optInt("stage",0);
+            hunger=WallpaperRules.projectedHunger(state.optInt("hunger",5),stage,state.optDouble("food_clock",0),awakeSeconds);
+            mood=WallpaperRules.projectedMood(state.optInt("happy",10),stage,state.optDouble("mood_clock",0),awakeSeconds);
+            waste=stage==0?0:WallpaperRules.projectedWaste(state.optInt("waste"),state.optDouble("waste_clock",0),awakeSeconds);
         }
         void drawFrame(){
             handler.removeCallbacks(frame);if(!shown||!surface)return;
@@ -94,7 +117,7 @@ public final class ForeverWallpaperService extends WallpaperService {
                 for(int j=0;j<5;j++){double a=j*2*Math.PI/5;float x=petX+(float)Math.cos(a)*size*(.35f+pulse*.18f),y=petY+(float)Math.sin(a)*size*.39f-pulse*u*.05f;c.drawCircle(x,y,u*.012f*(1+pulse),paint);}
             }
             if(state.optBoolean("show_status",true)){
-                String msg=night?"Resting":state.optInt("germs")>0?"Needs care":state.optInt("hunger",5)<2?"Hungry":state.optInt("happy",10)<4?"Wants to play":state.optInt("waste")>0?"Time to clean":"Happy to see you";
+                String msg=night?"Resting":state.optInt("germs")>0?"Needs care":state.optInt("stage",0)==0?"Ready to hatch":state.optLong("trip_end")>System.currentTimeMillis()/1000L?"Exploring":hunger<2?"Hungry":mood<4?"Wants to play":waste>0?"Time to clean":"Happy to see you";
                 if(prefs!=null&&!prefs.getString("request","").isEmpty()&&System.currentTimeMillis()-prefs.getLong("request_at",0)<900000)msg="Care queued • open game";
                 paint.setTextSize(u*.032f);paint.setTextAlign(Paint.Align.CENTER);paint.setColor(0xfff3e6ff);
                 paint.setShadowLayer(4,0,2,0xff120b25);c.drawText(state.optString("name","My Forever Pet"),w*.5f,h*.88f,paint);
@@ -102,8 +125,13 @@ public final class ForeverWallpaperService extends WallpaperService {
             }
         }
         void queue(String request){
-            if(prefs==null||isPreview())return;
-            synchronized(ACTION_LOCK){prefs.edit().putString("request",request).putLong("request_at",System.currentTimeMillis()).commit();}
+            if(prefs==null||isPreview()||state.optInt("stage",0)==0||state.optLong("trip_end")>System.currentTimeMillis()/1000L)return;
+            if("feed".equals(request)&&hunger>=5)return;
+            synchronized(ACTION_LOCK){
+                long now=System.currentTimeMillis();int generation=state.optInt("generation",1);
+                if(WallpaperRules.validRequest(prefs.getString("request",""),now-prefs.getLong("request_at",0),prefs.getInt("request_generation",-1),generation))return;
+                prefs.edit().putString("request",request).putInt("request_generation",generation).putLong("request_at",now).commit();
+            }
         }
         @Override public void onTouchEvent(MotionEvent e){
             if(!shown){super.onTouchEvent(e);return;}
@@ -113,9 +141,10 @@ public final class ForeverWallpaperService extends WallpaperService {
             else if(action==MotionEvent.ACTION_UP&&finger==e.getPointerId(0)){
                 long now=SystemClock.elapsedRealtime();float dx=e.getX()-downX,dy=e.getY()-downY;
                 boolean hit=Math.hypot(downX-petX,downY-petY)<petRadius;
-                if(hit&&now-downAt<650&&!asleep()){
-                    if(dy<-petRadius*.65f&&Math.abs(dx)<petRadius*.35f){queue("feed");reaction=now;lastTap=0;}
-                    else if(Math.hypot(dx,dy)<petRadius*.14f){reaction=now;if(now-lastTap<350&&lastTap>0){queue("bond");lastTap=0;}else lastTap=now;}
+                if(hit&&!asleep()){
+                    String gesture=WallpaperRules.gesture(dx,dy,petRadius,now-downAt,lastTap>0?now-lastTap:0);
+                    if("feed".equals(gesture)||"bond".equals(gesture)){queue(gesture);reaction=now;lastTap=0;}
+                    else if("tap".equals(gesture)){reaction=now;lastTap=now;}
                 }
                 finger=-1;
             }

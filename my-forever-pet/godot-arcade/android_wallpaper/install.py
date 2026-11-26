@@ -13,6 +13,10 @@ A='{http://schemas.android.com/apk/res/android}'
 ET.register_namespace('android',A[1:-1]);ET.register_namespace('tools','http://schemas.android.com/tools')
 tree=ET.parse(manifest);root=tree.getroot();app=root.find('application');assert app is not None
 ET.SubElement(root,'uses-feature',{A+'name':'android.software.live_wallpaper',A+'required':'false'})
+queries=root.find('queries')
+if queries is None: queries=ET.SubElement(root,'queries')
+for action in ['android.service.wallpaper.WallpaperService','android.service.wallpaper.CHANGE_LIVE_WALLPAPER']:
+ intent=ET.SubElement(queries,'intent');ET.SubElement(intent,'action',{A+'name':action})
 ET.SubElement(app,'meta-data',{A+'name':'org.godotengine.plugin.v2.ForeverWallpaper',A+'value':'org.myforeverpet.wallpaper.ForeverWallpaperPlugin'})
 service=ET.SubElement(app,'service',{A+'name':'org.myforeverpet.wallpaper.ForeverWallpaperService',A+'label':'My Forever Pet',A+'exported':'true',A+'permission':'android.permission.BIND_WALLPAPER'})
 f=ET.SubElement(service,'intent-filter');ET.SubElement(f,'action',{A+'name':'android.service.wallpaper.WallpaperService'})

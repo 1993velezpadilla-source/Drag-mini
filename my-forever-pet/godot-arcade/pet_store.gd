@@ -207,10 +207,12 @@ func consume_wallpaper_action():
 	if test_mode: return
 	var plugin=wallpaper_plugin()
 	if plugin==null: return
-	var request=str(plugin.consumeAction())
+	var request=str(plugin.consumeAction(int(s.generation)))
 	if request=="bond": action("bond")
 	elif request=="feed": action("food",3)
 func _notification(what:int):
+	if what==NOTIFICATION_APPLICATION_PAUSED and not s.is_empty():
+		advance(now()); save_game()
 	if what==NOTIFICATION_APPLICATION_RESUMED and not s.is_empty():
 		advance(now())
 		consume_wallpaper_action()
