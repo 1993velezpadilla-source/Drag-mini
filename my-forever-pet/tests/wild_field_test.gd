@@ -39,6 +39,17 @@ func run():
 	timeout_edge.index=timeout_edge.required-1;timeout_edge.player=timeout_edge.signal_position();timeout_edge.destination=timeout_edge.player
 	timeout_edge.set_inspecting(true);timeout_edge.hold=timeout_edge.capture_time-.01;timeout_edge.time_left=.01
 	timeout_edge.tick(.02);assert(timeout_edge.finished and not timeout_edge.success,"timeout wins over late collection")
+	var stall=Rules.new();stall.setup(0,1,0,false,false,123);stall.move_to(stall.player)
+	var initial_clock=stall.time_left
+	stall.tick(1.0)
+	assert(absf(stall.time_left-(initial_clock-1.0))<.001,"stalled frame must not extend deadline")
+	stall.time_left=.2;stall.tick(.5)
+	assert(stall.finished and not stall.success and stall.time_left==0.0,"stall past deadline loses")
+	var short_dash=Rules.new();short_dash.setup(0,1,0,false,false,123)
+	var target=short_dash.player+Vector2(.75,0)
+	short_dash.move_to(target);assert(short_dash.burst())
+	for i in range(9):short_dash.tick(.05)
+	assert(short_dash.player.distance_to(target)<.01,"dash must not overshoot a nearby target")
 	var expired=Rules.new();expired.setup(0,1,0,false,false,99);expired.move_to(expired.player)
 	for i in range(500):expired.tick(.1)
 	assert(expired.finished and not expired.success)
