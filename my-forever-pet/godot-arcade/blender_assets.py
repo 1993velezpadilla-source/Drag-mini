@@ -1511,10 +1511,38 @@ natural_rock((0,.16,0),(2.32,.32,1.70),foreststone,2800)
 natural_rock((-.45,.50,-.38),(1.1,.72,.85),forestedge,2801)
 natural_rock((.51,.31,-.36),(.90,.50,.82),moss,2802)
 ball((0,.32,.42),(1.52,.10,.82),stream)
-# Continuous ribbon follows the slope of the cascade; separate highlight ribbons.
-for k in range(4):
- x=-.30+k*.20
- tube([(x,.86,-.42),(x+.04,.83,-.12),(x-.03,.58,.08),(x+.02,.36,.32)],[.105,.098,.085,.070],stream if k%2==0 else foam,8)
+# Continuous scalloped water sheet with a broad crest, curved drop and
+# widening splash apron. Thin surface geometry instead of four pipe meshes.
+verts=[];faces=[];rows=13;cols=11
+for j in range(rows):
+ t=j/(rows-1)
+ y=.34+.53*(1-t*t)
+ z=-.43+.79*t
+ width=.34+.13*t*t
+ for i in range(cols):
+  u=i/(cols-1)*2-1
+  wave=.012*math.sin(u*17+t*11)+.008*math.cos(u*29-t*8)
+  verts.append((u*width+.035*math.sin(t*pi),y+wave,z+.016*math.cos(u*9+t*4)))
+for j in range(rows-1):
+ for i in range(cols-1):
+  a=j*cols+i;faces.append((a,a+1,a+cols+1,a+cols))
+waterfall=architectural_mesh('continuous cascade sheet',verts,faces,stream)
+waterfall.modifiers.new('water sheet depth','SOLIDIFY').thickness=.012
+# Long narrow foamy streaks conform to the falling sheet.
+for k in range(5):
+ u=(k-2)*.30
+ points=[]
+ for j in range(7):
+  t=.04+j*.146
+  points.append((u*(.34+.13*t*t)+.035*math.sin(t*pi),.355+.53*(1-t*t)+.012*math.sin(u*17+t*11),-.43+.79*t+.018))
+ tube(points,[.012,.014,.012,.013,.011,.010,.007],foam,6)
+for k in range(9):
+ a=k*2*pi/9
+ ball((.36*math.cos(a),.38,.34+.12*math.sin(a)),(.10+.035*(k%3),.035,.065),foam)
+# Fallen log with visible branching and richly planted bank, rather than bare rock.
+tube([(-1.01,.28,.18),(-.80,.34,.43),(-.58,.32,.65),(-.31,.25,.78)],[.13,.12,.10,.06],bark,10)
+tube([(-.80,.34,.43),(-.65,.48,.38),(-.54,.53,.33)],[.055,.037,.018],bark,8)
+for k in range(4):leaf_rosette((-.92+k*.16,.35,.51+k*.06),2820+k,leafdark,leafbright,.22)
 for x in [-.78,.78]:
  leaf_rosette((x,.27,.25),2810+int(x*10),leafdark,leafbright,.42)
  for j in range(2):
@@ -1543,10 +1571,16 @@ def sponge(x,z,h,r,material,seed):
  for j in range(6):
   ang=j*2*pi/6
   ball((x+h*.10+r*.88*math.cos(ang),h*.72+.22,z+r*.88*math.sin(ang)),(.065,.09,.065),coral2 if material==coral else coral)
-for x,z,h,r,m in [(-.69,-.20,.96,.23,coral2),(-.35,-.42,1.28,.25,coral2),(.06,-.20,.72,.20,coral),(.65,.04,.86,.25,coral)]:
+sponge_violet=mat('luminous violet sponge',(.48,.21,.68),0,.49)
+sponge_orange=mat('warm tangerine sponge',(.95,.37,.095),0,.54)
+for x,z,h,r,m in [(-.69,-.20,.96,.23,sponge_violet),(-.35,-.42,1.28,.25,sponge_violet),(.06,-.20,.72,.20,sponge_orange),(.65,.04,.86,.25,sponge_orange)]:
  sponge(x,z,h,r,m,2901)
 for j in range(3):
  ball((.37,.36+j*.17,.37),(.80-j*.13,.095,.65-j*.08),coral2 if j%2 else reefedge)
+for k in range(5):
+ a=k*2*pi/5;x=-.54+.25*math.cos(a);z=.46+.22*math.sin(a)
+ tube([(x,.22,z),(x+.07*math.cos(a),.46,z+.07*math.sin(a)),(x+.17*math.cos(a),.64,z+.17*math.sin(a))],[.065,.042,.022],coral,8)
+ ball((x+.17*math.cos(a),.66,z+.17*math.sin(a)),(.07,.065,.07),pearl)
 for x,z in [(-.74,.46),(-.26,.63),(.72,.48)]:
  ball((x,.24,z),(.22,.16,.20),pearl)
  for k in range(3):blades((x,.22,z),k*2*pi/3,.42,.09,kelp)
@@ -1564,6 +1598,11 @@ for k in range(3):
   a=k*n+i;c=k*n+(i+1)%n;faces.append((a,c,c+n,a+n))
 faces.extend([tuple(reversed(range(n))),tuple(range(n*3,n*4))])
 architectural_mesh('tapered celestial island',verts,faces,astralstone)
+for i in range(5):
+ a=i*2*pi/5
+ x=.72*math.cos(a);z=.55*math.sin(a)
+ rock_slab((x,.53,z),(.48,.50,.44),astraledge,2955+i)
+ crystal((x,.82,z),.085,.24+.07*(i%3),violetglow,2970+i)
 cyl((0,.91,0),.62,.58,.17,astraledge)
 cyl((0,1.03,0),.46,.46,.085,rune)
 for a in [0,pi/3,2*pi/3]:

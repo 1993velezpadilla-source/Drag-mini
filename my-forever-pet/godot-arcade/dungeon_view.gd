@@ -65,6 +65,7 @@ var exterior_vertex_count=0
 var exterior_max_height=0.0
 var exterior_groups:Array[Vector2i]=[]
 var exterior_vistas:Array[Vector2i]=[]
+var landmark_cells:Array[Vector2i]=[]
 var exterior_distances:Dictionary={}
 var exterior_life:Array[MultiMeshInstance3D]=[]
 var exterior_life_parts:Array=[]
@@ -395,7 +396,7 @@ func natural_boundary(points:Array[Vector3])->bool:
 	rock_modules+=span_count*2+corner_count
 	return rock_modules==points.size()
 func backdrop_landmarks(wall_cells:Dictionary):
-	landmark_count=0
+	landmark_count=0;landmark_cells.clear()
 	var prefix="dungeon_"+["forest","reef","star"][region]+"_landmark"
 	var used:Array[Vector2i]=[]
 	# A hero silhouette for each room, located on a safe boundary cell.
@@ -417,11 +418,11 @@ func backdrop_landmarks(wall_cells:Dictionary):
 					if run.cells.has(q+Vector2i(dx,dy)):safe=false
 			for other in used:
 				if run.distance(q,other)<4:safe=false
-			if not safe:continue
+						if not safe:continue
 			var ob=prop(geometry,prefix,pos(q)+Vector3(0,-.38,0))
 			if ob!=null:
 				ob.rotation.y=float(posmod(q.x*7+q.y*13,7)-3)*.12
-				used.append(q);landmark_count+=1
+				used.append(q);landmark_cells.append(q);landmark_count+=1
 			break
 func room_detail(wall_cells:Dictionary):
 	detail_count=0
@@ -516,6 +517,8 @@ func exterior_clearance(q:Vector2i)->bool:
 			if run.cells.has(q+Vector2i(dx,dy)):return false
 	for old in exterior_groups:
 		if Vector2(old-q).length_squared()<5.0:return false
+	for old in landmark_cells:
+		if Vector2(old-q).length_squared()<4.0:return false
 	return true
 func update_exterior_world(dt:float):
 	exterior_clock+=clampf(dt,0.0,.25)
@@ -537,20 +540,23 @@ func landscape_terraces(wall_cells:Dictionary):
 	var candidates:Dictionary={}
 	# Only consider areas near a wall, keeping the exterior draw distance bounded.
 	for wall in wall_cells:
-		for dy in range(-2,3):
-			for dx in range(-2,3):
+		for dy in range(-4,5):
+			for dx in range(-4,5):
 				var q:Vector2i=wall+Vector2i(dx,dy)
 				if posmod(q.x,2)==0 and posmod(q.y,2)==0:candidates[q]=true
 	var placements:Array[Transform3D]=[]
 	for q in candidates:
-		if posmod(q.x*13+q.y*11+run.floor_number,5)==0:continue
+		if placements.size()>=24:break
+		if posmod(q.x*13+q.y*11+run.floor_number,5)==0 and not placements.is_empty():continue
 		var safe=true
 		for dy in range(2):
 			for dx in range(2):
 				var tile:Vector2i=q+Vector2i(dx,dy)
 				if run.cells.has(tile) or wall_cells.has(tile):safe=false
 				for group in exterior_groups:
-					if Vector2(tile-group).length_squared()<4.0:safe=false
+					if Vector2(tile-group).length_squared()<3.0:safe=false
+				for landmark in landmark_cells:
+					if Vector2(tile-landmark).length_squared()<2.0:safe=false
 		if not safe:continue
 		for dy in range(2):
 			for dx in range(2):terrace_cells[q+Vector2i(dx,dy)]=true
@@ -928,9 +934,9 @@ func build_floor():
 			mm.set_instance_transform(i,transform*part.transform)
 		var batch_instance=MultiMeshInstance3D.new();batch_instance.multimesh=mm;geometry.add_child(batch_instance)
 		batch_instance.cast_shadow=GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	backdrop_landmarks(seen)
 	build_exterior_world(seen)
 	landscape_terraces(seen)
-	backdrop_landmarks(seen)
 	if not natural_boundary(walls):
 		batch(geometry,walls,"box",Vector3(1.4,.88,1.4),palette[2],true)
 		boundary_detail(walls)
