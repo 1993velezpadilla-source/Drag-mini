@@ -1042,4 +1042,60 @@ for i in range(4):
  a=i*pi/2;crystal((.20*math.cos(a),.17,.20*math.sin(a)),.08,.25+.07*(i%2),star,i)
 crystal((0,.16,0),.10,.48,violetglow,9)
 export('dungeon_star_detail',4000)
+# Distinct architectural silhouettes for multi-tile boundary runs.
+# Local X is the span; local +Z faces into the room.
+clear()
+natural_rock((0,.25,0),(2.68,.55,1.22),foreststone,820)
+tube([(-1.21,.22,.23),(-.80,.47,.29),(-.42,.75,.18),(.02,.60,.32),(.48,.35,.40),(1.18,.20,.27)],[.19,.24,.23,.20,.15,.065],bark,12)
+tube([(-.82,.32,-.23),(-.62,.83,-.20),(-.50,1.25,-.10),(-.32,1.56,-.06)],[.32,.27,.20,.12],bark,12)
+for i in range(4):
+ ang=i*pi/2
+ tube([(-.51,1.04,-.09),(-.51+.27*math.cos(ang),1.34,-.09+.27*math.sin(ang)),(-.51+.54*math.cos(ang),1.52,-.09+.54*math.sin(ang))],[.12,.085,.035],bark)
+ leaf_rosette((-.51+.40*math.cos(ang),1.48,-.09+.40*math.sin(ang)),851+i,leafdark,leafbright,.50)
+for i in range(4):
+ x=.11+i*.28
+ natural_rock((x,.39+.07*(i%2),-.10),(.45,.40,.71),forestedge,872+i)
+ leaf_rosette((x,.57,.06),880+i,leafdark,leafbright,.30)
+export('dungeon_forest_span',8500)
+clear()
+# Asymmetric coral shelf with curved branch fans and pearl pockets.
+natural_rock((0,.24,0),(2.65,.48,1.18),reefstone,901)
+for i in range(3):
+ x=(i-1)*.76
+ natural_rock((x,.46+.09*i,-.13),(.98,.43,.90),reefedge,910+i)
+for i in range(5):
+ x=(i-2)*.27+.30
+ h=.58+.12*(2-abs(i-2))
+ tube([(x*.60,.51,-.02),(x*.85,.78,0),(x, .56+h,.08),(x+.12,.76+h,.16)],[.13,.10,.075,.035],coral if i%2 else coral2)
+ for side in [-1,1]:
+  tube([(x*.85,.78,0),(x+side*.13,.96,.05),(x+side*.22,1.12,.10)],[.065,.047,.023],coral2 if i%2 else coral)
+for i in range(4):
+ a=i*pi/2;blades((-.77,.53,.17),a,.58,.10,kelp)
+ball((-.78,.52,.28),(.24,.21,.24),pearl)
+export('dungeon_reef_span',7500)
+clear()
+# Broken colonnade: visible horizontal lintel, relief panels and a crystal break.
+rock_slab((0,.15,0),(2.70,.30,1.17),astralstone,941)
+for x in [-.95,-.10]:
+ rock_slab((x,.37,0),(.57,.17,.74),astralstone,943)
+ cyl((x,.84,0),.20,.17,.83,astraledge)
+ for y in [.48,1.18]:cyl((x,y,0),.27,.27,.11,rune)
+rock_slab((-.52,1.38,0),(1.47,.27,.67),astraledge,948)
+box((-.52,1.38,.34),(1.22,.055,.045),rune,.012)
+for x,h in [(.38,.45),(.71,.81),(1.03,.37)]:
+ rock_slab((x,.31,0),(.52,.38,.79),astralstone,955+int(x*10))
+ crystal((x,.48,.02),.15,h,star if x<.7 else violetglow,960)
+export('dungeon_star_span',6500)
+# Ground-level treasure chamber focal points. No collision or path changes.
+for biome,base,trim,light in [('forest',foreststone,forestedge,glow),('reef',reefstone,reefedge,blueglow),('star',astralstone,astraledge,violetglow)]:
+ clear()
+ rock_slab((0,.055,0),(1.23,.11,1.23),base,981,.018)
+ cyl((0,.115,0),.49,.49,.055,trim)
+ for i in range(8):
+  angle=i*pi/4;x=.51*math.cos(angle);z=.51*math.sin(angle)
+  o=box((x,.14,z),(.16,.04,.065),rune,.009);o.rotation_euler.z=-angle
+ for x in [-.49,.49]:
+  if biome=='forest':leaf_rosette((x,.12,.18),987+int(x*10),leafdark,leafbright,.21)
+  else:crystal((x,.13,.18),.065,.19,light,3)
+ export('dungeon_%s_dais'%biome,4000)
 with open(os.path.join(OUT,'mesh-metrics.json'),'w') as out: json.dump(stats,out,indent=2)

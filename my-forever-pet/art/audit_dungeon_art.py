@@ -5,7 +5,7 @@ from mathutils import Vector
 args=sys.argv[sys.argv.index('--')+1:]
 root=Path(args[0]); output=Path(args[1]);output.mkdir(parents=True,exist_ok=True)
 catalog=json.loads((root/'catalog-audit.json').read_text())['assets']
-expected={f'dungeon_{biome}_{part}' for biome in ('forest','reef','star') for part in ('wall','shrine','cluster','rock_0','rock_1','rock_2','landmark','detail')}
+expected={f'dungeon_{biome}_{part}' for biome in ('forest','reef','star') for part in ('wall','shrine','cluster','rock_0','rock_1','rock_2','landmark','detail','span','dais')}
 expected.update('dungeon_'+name for name in ('chest','stairs','berry','material','spring','coin'))
 assert expected=={p.stem for p in root.glob('dungeon_*.glb')},'dungeon catalog mismatch'
 report={}
@@ -31,7 +31,7 @@ for name in sorted(expected):
  assert triangles==catalog[name]['triangles'],(name,triangles,catalog[name]['triangles'])
  assert len(materials)>=2,(name,'single material')
  assert tiny_faces==0,(name,'degenerate exported faces',tiny_faces)
- limit=3.4 if name.endswith('_landmark') else 2.5
+ limit=3.4 if name.endswith(('_landmark','_span')) else 2.5
  assert all(.02<x<limit for x in size),(name,list(size))
  assert low.z>=-.12 and high.z<=(3.1 if name.endswith('_landmark') else 1.8),(name,list(low),list(high))
  scene=bpy.context.scene

@@ -57,6 +57,7 @@ var terrain_mats:Dictionary={}
 var rock_modules=0
 var landmark_count=0
 var detail_count=0
+var span_count=0
 var reward_fx:Node3D
 var reward_age=0.0
 var reward_pool:Array[MeshInstance3D]=[]
@@ -288,27 +289,56 @@ func rock_parts(file:String)->Array:
 	template.free()
 	rock_mesh_cache[file]=parts
 	return parts
+func batch_parts(parts:Array,placements:Array[Transform3D],shadows:bool=true):
+	if placements.is_empty():return
+	for part in parts:
+		var mm=MultiMesh.new();mm.transform_format=MultiMesh.TRANSFORM_3D;mm.mesh=part.mesh;mm.instance_count=placements.size()
+		for i in range(placements.size()):mm.set_instance_transform(i,placements[i]*part.transform)
+		var instance=MultiMeshInstance3D.new();instance.multimesh=mm;geometry.add_child(instance)
+		if not shadows:instance.cast_shadow=GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 func natural_boundary(points:Array[Vector3])->bool:
-	rock_modules=0
-	var prefix="res://assets/dungeon_"+["forest","reef","star"][region]+"_rock_"
+	rock_modules=0;span_count=0
+	var prefix="res://assets/dungeon_"+["forest","reef","star"][region]
+	var variants:Array=[]
 	for variant in range(3):
-		if not ResourceLoader.exists(prefix+str(variant)+".glb"):return false
-	for variant in range(3):
-		var parts=rock_parts(prefix+str(variant)+".glb")
+		var parts=rock_parts(prefix+"_rock_"+str(variant)+".glb")
 		if parts.is_empty():return false
-		var placements:Array[Transform3D]=[]
-		for i in range(points.size()):
-			if posmod(i+run.floor_number,3)!=variant:continue
-			var angle=float(posmod(i*7+run.floor_number,4))*PI*.5
-			var scale_value=Vector3(1.08,.78+.27*float(posmod(i*13,5))/4.0,1.08)
-			placements.append(Transform3D(Basis(Vector3.UP,angle).scaled(scale_value),points[i]-Vector3(0,.44,0)))
-		if not placements.is_empty():
-			for part in parts:
-				var mm=MultiMesh.new();mm.transform_format=MultiMesh.TRANSFORM_3D;mm.mesh=part.mesh;mm.instance_count=placements.size()
-				var local_transform:Transform3D=part.transform
-				for i in range(placements.size()):mm.set_instance_transform(i,placements[i]*local_transform)
-				var instance=MultiMeshInstance3D.new();instance.multimesh=mm;geometry.add_child(instance)
-			rock_modules+=placements.size()
+		variants.append(parts)
+	var spans=rock_parts(prefix+"_span.glb")
+	var available:Dictionary={}
+	for p in points:available[Vector2i(roundi(p.x/1.4),roundi(p.z/1.4))]=true
+	var consumed:Dictionary={}
+	var placements:Array[Transform3D]=[]
+	# Pair straight wall cells that face the same open space. Do not span corridors.
+	if not spans.is_empty():
+		for q in available:
+			if consumed.has(q):continue
+			if posmod(q.x*31+q.y*17+run.floor_number,4)==0:continue
+			for d in [Vector2i.RIGHT,Vector2i.DOWN]:
+				var other:Vector2i=q+d
+				if not available.has(other) or consumed.has(other):continue
+				var normal=Vector2i(-d.y,d.x)
+				var forward=run.cells.has(q+normal) and run.cells.has(other+normal)
+				var backward=run.cells.has(q-normal) and run.cells.has(other-normal)
+				if not forward and not backward:continue
+				var inward=normal if forward else -normal
+				var angle=atan2(float(inward.x),float(inward.y))
+				var middle=(pos(q)+pos(other))*.5
+				placements.append(Transform3D(Basis(Vector3.UP,angle),middle))
+				consumed[q]=true;consumed[other]=true;span_count+=1
+				break
+		batch_parts(spans,placements)
+	for variant in range(3):
+		var singles:Array[Transform3D]=[]
+		for q in available:
+			if consumed.has(q):continue
+			if posmod(q.x*19+q.y*7+run.floor_number,3)!=variant:continue
+			var angle=float(posmod(q.x*3+q.y*5,4))*PI*.5
+			var scale_value=Vector3(1.08,.78+.27*float(posmod(q.x*13+q.y,5))/4.0,1.08)
+			singles.append(Transform3D(Basis(Vector3.UP,angle).scaled(scale_value),pos(q)))
+		batch_parts(variants[variant],singles)
+		rock_modules+=singles.size()
+	rock_modules+=span_count*2
 	return rock_modules==points.size()
 func backdrop_landmarks(wall_cells:Dictionary):
 	landmark_count=0
@@ -412,6 +442,8 @@ func build_floor():
 		batch(geometry,walls,"box",Vector3(1.4,.88,1.4),palette[2],true)
 		boundary_detail(walls)
 	room_detail(seen)
+	var dais=prop(geometry,"dungeon_"+["forest","reef","star"][region]+"_dais",pos(run.relic)+Vector3(0,-.025,0))
+	if dais!=null:dais.rotation.y=PI*.25
 	for i in range(run.rooms.size()):
 		var p=pos(run.rooms[i].position)+Vector3(-.52,0,-.52)
 		if prop(geometry,["dungeon_forest_shrine","dungeon_reef_shrine","dungeon_star_shrine"][region],p)==null:
@@ -433,7 +465,7 @@ func build_floor():
 	camera.position=pet.position+Vector3(0,8.5,10.5);camera.look_at(pet.position)
 	refresh_actors()
 	floor_build_usec=Time.get_ticks_usec()-start_usec
-	print("DUNGEON_FLOOR_BUILD region=",region," floor=",run.floor_number," usec=",floor_build_usec," rocks=",rock_modules," cached_rock_sets=",rock_mesh_cache.size()," landmarks=",landmark_count," details=",detail_count)
+	print("DUNGEON_FLOOR_BUILD region=",region," floor=",run.floor_number," usec=",floor_build_usec," rocks=",rock_modules," cached_rock_sets=",rock_mesh_cache.size()," landmarks=",landmark_count," details=",detail_count," paired_spans=",span_count)
 func actor_for(key:String,at:Vector3)->Node3D:
 	if actor_nodes.has(key):return actor_nodes[key]
 	var n=Node3D.new();actors.add_child(n);n.position=at;actor_nodes[key]=n;actor_created+=1

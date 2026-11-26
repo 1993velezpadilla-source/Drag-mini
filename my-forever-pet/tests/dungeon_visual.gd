@@ -21,6 +21,7 @@ func run():
 		assert(not surfaces.has(dungeon.floor_surface_signature),"biomes have different floor textures");surfaces[dungeon.floor_surface_signature]=true
 		if ResourceLoader.exists("res://assets/dungeon_forest_landmark.glb"):assert(dungeon.landmark_count>0,"production landmark placed")
 		if ResourceLoader.exists("res://assets/dungeon_forest_rock_0.glb"):assert(dungeon.rock_modules>0,"real Blender boundary modules required")
+		if ResourceLoader.exists("res://assets/dungeon_forest_span.glb"):assert(dungeon.span_count>0,"multi-tile art breaks repeated wall silhouettes")
 		assert(root.get_visible_rect().encloses(dungeon.heal_button.get_global_rect()))
 		assert(dungeon.attack_button.icon!=null and dungeon.power_button.icon!=null and dungeon.heal_button.icon!=null)
 		dungeon.run.enemies.clear()
