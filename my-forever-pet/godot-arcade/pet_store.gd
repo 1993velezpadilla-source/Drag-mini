@@ -19,7 +19,7 @@ var dirty=false
 var wallpaper_keys:Dictionary={}
 const WALL_ROOMS=["room_bedroom","room_kitchen","room_bathroom","room_toy","room_garden","room_lab"]
 func defaults()->Dictionary:
-	return {"research_evidence":[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],"research_trust":[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],"research_misses":[0,0,0],"research_target":[-1,-1,-1],"wallpaper_room":0,"wallpaper_x":1,"wallpaper_y":2,"wallpaper_size":1,"wallpaper_minimal":false,"wallpaper_battery":false,"wallpaper_status":true,"stage":0,"field":0,"habitat":0,"body":0,"eyes":0,"color":0,"variant":0,"generation":1,"friendship":0,"inherited_eyes":-1,"name":"","hunger":5,"happy":10,"energy":100,"bond":0,"xp":0,"waste":0,"mistakes":0,"germs":0,"hygiene":100,"toilet":100,"coins":0,"crystals":0,"materials":0,"fuel":0,"snacks":0,"medicine":0,"soap":0,"cells":[0,0,0],"foods":[0,0,0,0],"collection":0,"favorites":0,"care_day":"","care_mask":0,"care_claims":0,"care_claimed":false,"form":-1,"owned":0,"equipped":0,"installation":0,"wardrobe":0,"worn":[0,0,0,0],"theme":0,"training":0,"age":0.0,"last":0.0,"food_clock":0.0,"mood_clock":0.0,"energy_clock":0.0,"waste_clock":0.0,"cell_clock":0.0,"care_clock":0.0,"hygiene_clock":0.0,"toilet_clock":0.0,"rest_clock":0.0,"sleep_until":0.0,"awake_until":0.0,"auto_sleep":true,"trip_end":0.0,"destination":0,"trip_bonus":0,"journeys":0,"pending":[0,0,0],"daily_day":"","quest_day":"","quests":0,"claimed":0,"garden_at":0.0,"harvests":0,"interaction_at":0.0,"best":[0,0,0,0,0]}
+	return {"research_evidence":[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],"research_trust":[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],"research_day":"","research_daily":[0,0,0],"research_claimed":0,"research_rank_xp":[0,0,0],"research_skill":0,"research_misses":[0,0,0],"research_target":[-1,-1,-1],"wallpaper_room":0,"wallpaper_x":1,"wallpaper_y":2,"wallpaper_size":1,"wallpaper_minimal":false,"wallpaper_battery":false,"wallpaper_status":true,"stage":0,"field":0,"habitat":0,"body":0,"eyes":0,"color":0,"variant":0,"generation":1,"friendship":0,"inherited_eyes":-1,"name":"","hunger":5,"happy":10,"energy":100,"bond":0,"xp":0,"waste":0,"mistakes":0,"germs":0,"hygiene":100,"toilet":100,"coins":0,"crystals":0,"materials":0,"fuel":0,"snacks":0,"medicine":0,"soap":0,"cells":[0,0,0],"foods":[0,0,0,0],"collection":0,"favorites":0,"care_day":"","care_mask":0,"care_claims":0,"care_claimed":false,"form":-1,"owned":0,"equipped":0,"installation":0,"wardrobe":0,"worn":[0,0,0,0],"theme":0,"training":0,"age":0.0,"last":0.0,"food_clock":0.0,"mood_clock":0.0,"energy_clock":0.0,"waste_clock":0.0,"cell_clock":0.0,"care_clock":0.0,"hygiene_clock":0.0,"toilet_clock":0.0,"rest_clock":0.0,"sleep_until":0.0,"awake_until":0.0,"auto_sleep":true,"trip_end":0.0,"destination":0,"trip_bonus":0,"journeys":0,"pending":[0,0,0],"daily_day":"","quest_day":"","quests":0,"claimed":0,"garden_at":0.0,"harvests":0,"interaction_at":0.0,"best":[0,0,0,0,0]}
 func _ready():
 	test_mode=false
 	for flag in ["--test","--soak","--capture","--lane-only","--unassisted","--home-test","--home-capture","--home-touch-test"]:
@@ -106,6 +106,37 @@ func care_credit(id:String):
 	if group>=0: s.care_mask=int(s.care_mask)|(1<<group)
 func care_ready()->bool: return s.stage>0 and care_count()>=4 and not s.care_claimed
 func next_special()->int: return 24+int(s.care_claims) if s.care_claims<4 else -1
+func research_rank(region:int)->int:
+	return mini(5,1+int(maxi(0,int(s.research_rank_xp[region]))/30))
+func research_credit(region:int,points:int):
+	s.research_rank_xp[region]=mini(150,int(s.research_rank_xp[region])+points)
+	s.research_daily[region]=mini(3,int(s.research_daily[region])+1)
+func research_claim(region:int)->bool:
+	advance(now())
+	if region<0 or region>=3 or s.stage==0 or int(s.research_daily[region])<3 or (int(s.research_claimed)&(1<<region))!=0:return false
+	s.research_claimed=int(s.research_claimed)|(1<<region)
+	s.coins=mini(999999,int(s.coins)+25); s.materials=mini(9999,int(s.materials)+2); earn(15)
+	save_game()
+	return true
+func research_skill_ready(region:int)->bool:
+	return region>=0 and region<3 and available() and Research.region_of(species())==region and (int(s.research_skill)&(1<<region))==0
+func research_use_skill(region:int)->bool:
+	advance(now())
+	if not research_skill_ready(region):return false
+	s.research_skill=int(s.research_skill)|(1<<region); save_game()
+	return true
+func research_patrol(region:int,step:int,answer:Array,phase:float)->Dictionary:
+	advance(now())
+	if region<0 or region>=3 or s.stage==0 or not available() or s.germs>0 or s.hunger<1 or s.energy<2:
+		return {"ok":false,"message":"Your companion needs care before patrolling."}
+	if int(s.research_daily[region])>=3 or step!=int(s.research_daily[region]):return {"ok":false,"message":"Daily survey complete or trail changed."}
+	var target:int=Research.POOLS[region][posmod(int(date_key(now()).replace("-",""))+step,Research.POOLS[region].size())]
+	if not Research.trial_success(region,target,step,answer,phase):
+		s.energy-=1; save_game()
+		return {"ok":true,"correct":false,"message":"Trace escaped. Try again."}
+	s.energy-=2; research_credit(region,2)
+	s.coins=mini(999999,int(s.coins)+3); earn(3); save_game()
+	return {"ok":true,"correct":true,"message":"Patrol trace found! +3 coins · +3 XP"}
 func research_target(region:int)->int:
 	if region<0 or region>=3: return -1
 	var current=int(s.research_target[region])
@@ -163,7 +194,8 @@ func research_action(kind:String,region:int,choice:int)->Dictionary:
 			s.energy=maxi(0,int(s.energy)-1); s.research_misses[region]=int(s.research_misses[region])|bit
 			save_game()
 			return {"ok":true,"correct":false,"message":"Old trail. Try another site.","species":target}
-		s.energy-=Research.cost(region,species()); s.research_evidence[target]=step+1; s.research_misses[region]=0
+		s.energy-=Research.cost(region,species()); s.research_evidence[target]=step+1
+		research_credit(region,3); s.research_misses[region]=0
 		s.coins=mini(999999,int(s.coins)+4); earn(5)
 		if step+1==Research.needed(target): s.materials=mini(9999,int(s.materials)+1)
 		save_game()
@@ -174,6 +206,7 @@ func research_action(kind:String,region:int,choice:int)->Dictionary:
 	s.research_trust[target]=trust+1
 	if trust==2:
 		s.collection=int(s.collection)|(1<<target); s.research_target[region]=-1; s.research_misses[region]=0
+		research_credit(region,8)
 		var bonus=30 if target<12 else 55 if target<24 else 85
 		s.coins=mini(999999,int(s.coins)+bonus); s.materials=mini(9999,int(s.materials)+2); earn(25)
 		if target>=12: s.crystals=mini(9999,int(s.crystals)+1)
@@ -199,6 +232,8 @@ func advance(at:float):
 	s.last=at
 	if s.stage==0: return
 	var day=date_key(at)
+	if s.research_day!=day:
+		s.research_day=day; s.research_daily=[0,0,0]; s.research_claimed=0; s.research_skill=0
 	if s.care_day!=day: s.care_day=day; s.care_mask=0; s.care_claimed=false
 	if s.quest_day!=day: s.quest_day=day; s.quests=0; s.claimed=0
 	var trip:float=s.trip_end
@@ -494,7 +529,7 @@ func action(id:String,i:int=0)->bool:
 			if not ready or s.stage!=4 or s.friendship<4 or s.pending[0]>0: return false
 			var old=s.duplicate(true)
 			s=defaults()
-			for key in ["research_evidence","research_trust","research_misses","research_target","wallpaper_room","wallpaper_x","wallpaper_y","wallpaper_size","wallpaper_minimal","wallpaper_battery","wallpaper_status","coins","crystals","materials","fuel","snacks","medicine","collection","favorites","care_day","care_mask","care_claims","care_claimed","owned","equipped","installation","wardrobe","worn","theme","garden_at","harvests","best","daily_day","quest_day","quests","claimed","journeys","auto_sleep"]: s[key]=old[key]
+			for key in ["research_day","research_daily","research_claimed","research_rank_xp","research_skill","research_evidence","research_trust","research_misses","research_target","wallpaper_room","wallpaper_x","wallpaper_y","wallpaper_size","wallpaper_minimal","wallpaper_battery","wallpaper_status","coins","crystals","materials","fuel","snacks","medicine","collection","favorites","care_day","care_mask","care_claims","care_claimed","owned","equipped","installation","wardrobe","worn","theme","garden_at","harvests","best","daily_day","quest_day","quests","claimed","journeys","auto_sleep"]: s[key]=old[key]
 			s.generation=old.generation+1; s.habitat=int(old.habitat); s.field=int(old.habitat); s.inherited_eyes=2; s.eyes=2; s.color=1; s.last=at
 		_: ok=false
 	if ok:

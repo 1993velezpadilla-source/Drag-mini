@@ -14,6 +14,8 @@ var readout:Label
 var track:ProgressBar
 var prompt:Label
 var buttons:Array[Button]=[]
+var assisted=false
+var skill_button:Button
 var symbols=["▲","◆","●","■"]
 func setup(r:int,id:int,n:int):
 	region=r; target=id; step=n
@@ -35,6 +37,16 @@ func setup(r:int,id:int,n:int):
 		for k in range(4):
 			var b=make_button(row,symbols[k],func(): press_symbol(k)); b.disabled=r==0; buttons.append(b)
 		if r==2: hidden=true
+func add_skill(fn:Callable):
+	skill_button=make_button(self,Data.ABILITIES[region]+" · use daily skill",func():
+		if active and fn.call():
+			assisted=true; skill_button.disabled=true; skill_button.text="Companion skill active"
+			if region==0 and entered.is_empty():
+				hidden=false; elapsed=0.0; readout.text=sequence_text()
+				for b in buttons:b.disabled=true
+			elif region==2 and entered.is_empty():
+				entered.append(sequence[0]); readout.text=sequence_text())
+	skill_button.add_theme_font_size_override("font_size",15)
 func make_button(parent:Node,text:String,fn:Callable)->Button:
 	var b=Button.new(); b.text=text; b.custom_minimum_size=Vector2(0,54); b.size_flags_horizontal=Control.SIZE_EXPAND_FILL; b.mouse_filter=Control.MOUSE_FILTER_PASS; b.action_mode=BaseButton.ACTION_MODE_BUTTON_RELEASE
 	var st=StyleBoxFlat.new(); st.bg_color=Data.TINTS[region].darkened(.64); st.border_color=Data.TINTS[region]; st.set_border_width_all(2); st.set_corner_radius_all(14)
@@ -58,9 +70,9 @@ func _process(dt:float):
 	if not active:return
 	elapsed+=dt
 	if region==1:
-		phase=0.5+0.5*sin(elapsed*3.7+float(target))
+		phase=0.5+0.5*sin(elapsed*(1.8 if assisted else 3.7)+float(target))
 		track.value=phase*100
 		readout.text="NOW!" if phase>=.38 and phase<=.62 else "Watch the current"
-	elif region==0 and not hidden and elapsed>=2.0:
+	elif region==0 and not hidden and elapsed>=(4.0 if assisted else 2.0):
 		hidden=true; readout.text="Your turn"; prompt.text="Repeat the footprint sequence."
 		for b in buttons:b.disabled=false

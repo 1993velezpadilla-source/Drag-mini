@@ -791,12 +791,14 @@ func build_world():
 		label(copy,Research.REGIONS[i],21).modulate=Research.TINTS[i]
 		label(copy,Research.SUB[i],13).autowrap_mode=TextServer.AUTOWRAP_WORD_SMART
 		var n=Research.discovered(i,int(store.s.collection))
-		label(copy,"%d / %d species found"%[n,Research.POOLS[i].size()],14)
+		label(copy,"%d / %d species found · Rank %d/5"%[n,Research.POOLS[i].size(),store.research_rank(i)],14).autowrap_mode=TextServer.AUTOWRAP_WORD_SMART
 		var p=ProgressBar.new(); p.show_percentage=false; p.max_value=Research.POOLS[i].size(); p.value=n; p.custom_minimum_size.y=9; copy.add_child(p)
 		var target:int=store.research_target(i)
 		var text="Explore ›" if target<0 or store.research_progress(target)==0 else "Continue trail ›"
 		var go=button(copy,text,func(): hunt_region=i; hunt_message=""; select("Habitat"))
 		go.add_theme_stylebox_override("normal",menu_skin(Research.TINTS[i].darkened(.55),Research.TINTS[i]))
+	section_heading(actions,"Daily field contracts","Recover three traces per territory for a bonus. Available even after completing a collection.")
+	for i in range(3): field_contract(actions,i)
 	var exp=context_card("expedition","Supply expeditions")
 	context_meter(exp,"expedition",Color("#65b4ed"))
 	label(exp,"Optional timed trips earn materials and coins after Kid stage.",13).autowrap_mode=TextServer.AUTOWRAP_WORD_SMART
@@ -809,11 +811,44 @@ func build_world():
 	breed.pressed.connect(func():
 		var confirm=ConfirmationDialog.new(); confirm.dialog_text="Begin a new egg generation? Collection and items remain."; add_child(confirm)
 		confirm.confirmed.connect(func(): perform("breed")); confirm.confirmed.connect(confirm.queue_free); confirm.canceled.connect(confirm.queue_free); confirm.popup_centered())
+func field_contract(parent:Node,r:int):
+	var shell=panel(parent)
+	var head=row(shell)
+	label(head,Research.REGIONS[r],17).size_flags_horizontal=SIZE_EXPAND_FILL
+	label(head,"%d/3"%int(store.s.research_daily[r]),16).modulate=Research.TINTS[r]
+	var bar=ProgressBar.new(); bar.show_percentage=false; bar.max_value=3; bar.value=store.s.research_daily[r]; bar.custom_minimum_size.y=9; shell.add_child(bar)
+	var claimed=(int(store.s.research_claimed)&(1<<r))!=0
+	var ready=int(store.s.research_daily[r])>=3
+	var b=button(shell,"Collected ✓" if claimed else "Claim 25 coins + materials" if ready else "Survey local traces ›",func():
+		if ready:
+			if store.research_claim(r): play_reward(true); select(section)
+		else: open_patrol(r))
+	b.disabled=claimed
+	b.custom_minimum_size.y=44
+func open_patrol(r:int):
+	hunt_region=r
+	if not store.available() or store.s.germs>0 or store.s.hunger<1 or store.s.energy<2:
+		hunt_message="Hatch, wake, feed and rest your pet before surveying."; select("Habitat"); return
+	var step:int=store.s.research_daily[r]
+	if step>=3: select("World");return
+	section="Habitat"; reset_actions()
+	var id:int=Research.POOLS[r][posmod(int(store.date_key(store.now()).replace("-",""))+step,Research.POOLS[r].size())]
+	section_heading(actions,"Daily survey",Research.REGIONS[r]+" · recover a local trace")
+	var trial=preload("res://research_trial.gd").new(); panel(actions).add_child(trial); trial.setup(r,id,step)
+	if store.research_skill_ready(r): trial.add_skill(func(): return store.research_use_skill(r))
+	trial.resolved.connect(func(answer:Array,phase:float):
+		var result:Dictionary=store.research_patrol(r,step,answer,phase)
+		hunt_message=str(result.get("message",""))
+		if result.get("correct",false):play_reward(false)
+		select("Habitat"))
+	button(actions,"‹ Return to habitats",func(): select("World"))
+	swipe_children(actions); section_scroll.scroll_vertical=0
 func build_habitat():
 	var r=hunt_region
 	button(actions,"‹ All habitats",func(): select("World")).custom_minimum_size.y=42
 	section_heading(actions,Research.REGIONS[r],Research.SUB[r])
 	var id:int=store.research_target(r)
+	field_contract(actions,r)
 	if id<0:
 		label(actions,"All available local species registered. Check your collection!",19).autowrap_mode=TextServer.AUTOWRAP_WORD_SMART
 		button(actions,"View collection",func(): select("Pets")); return
@@ -861,6 +896,7 @@ func open_research_trial(r:int,id:int,step:int,site:int):
 	reset_actions()
 	section_heading(actions,Research.REGIONS[r],Research.SITES[r][site]+" · recover the fresh trace")
 	var trial=preload("res://research_trial.gd").new(); panel(actions).add_child(trial); trial.setup(r,id,step)
+	if store.research_skill_ready(r): trial.add_skill(func(): return store.research_use_skill(r))
 	trial.resolved.connect(func(answer:Array,phase:float): finish_hunt(store.research_survey(r,site,id,step,answer,phase)))
 	button(actions,"‹ Return to map",func(): select("Habitat"))
 	swipe_children(actions)
