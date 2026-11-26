@@ -19,6 +19,12 @@ static func texture(key:String)->Texture2D:
 		"More":
 			art='<rect x="8" y="9" width="48" height="46" rx="13" fill="url(#g)"/><circle cx="20" cy="32" r="4.5" fill="#24244e"/><circle cx="32" cy="32" r="4.5" fill="#24244e"/><circle cx="44" cy="32" r="4.5" fill="#24244e"/>'
 			color="#c6afff"
+		"energy":
+			art='<path d="M35 4L9 36H29L24 60 56 24H36L43 4Z" fill="url(#g)" stroke="#d9faff" stroke-width="2" stroke-linejoin="round"/>'
+			color="#55d9ff"
+		"mood":
+			art='<circle cx="32" cy="32" r="25" fill="url(#g)"/><circle cx="23" cy="25" r="3.7" fill="#65305a"/><circle cx="41" cy="25" r="3.7" fill="#65305a"/><path d="M19 36Q32 51 45 36" fill="none" stroke="#65305a" stroke-width="4.5" stroke-linecap="round"/>'
+			color="#ff8ac9"
 		"bond":
 			art='<path d="M32 55C19 45 5 35 5 21 5 7 24 4 32 19 40 4 59 7 59 21 59 35 45 45 32 55Z" fill="url(#g)"/><path d="M13 20Q16 11 25 15" stroke="#fff4ff" stroke-width="4" fill="none" stroke-linecap="round"/>'
 			color="#ff91bf"

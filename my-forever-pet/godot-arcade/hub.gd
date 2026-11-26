@@ -182,7 +182,7 @@ func make_ui():
 	for i in range(4):
 		var column=VBoxContainer.new(); column.size_flags_horizontal=SIZE_EXPAND_FILL; column.add_theme_constant_override("separation",1); meters.add_child(column)
 		var top=row(column); top.add_theme_constant_override("separation",3)
-		var emblem=TextureRect.new(); emblem.texture=GameIcons.texture(["food","bond","sleep","bond"][i]); emblem.expand_mode=TextureRect.EXPAND_IGNORE_SIZE; emblem.stretch_mode=TextureRect.STRETCH_KEEP_ASPECT_CENTERED; emblem.custom_minimum_size=Vector2(28,28); top.add_child(emblem)
+		var emblem=TextureRect.new(); emblem.texture=GameIcons.texture(["food","mood","energy","bond"][i]); emblem.expand_mode=TextureRect.EXPAND_IGNORE_SIZE; emblem.stretch_mode=TextureRect.STRETCH_KEEP_ASPECT_CENTERED; emblem.custom_minimum_size=Vector2(28,28); top.add_child(emblem)
 		var values=VBoxContainer.new(); values.size_flags_horizontal=SIZE_EXPAND_FILL; values.add_theme_constant_override("separation",0); top.add_child(values)
 		var name=label(values,["Food","Mood","Energy","Bond"][i],11); name.modulate=colors[i].lightened(.3)
 		var value=label(values,"100%",17); status_values.append(value)
@@ -763,13 +763,19 @@ func capture_home():
 	make_ui(); refresh()
 	await capture_frame("/tmp/forever-home.png")
 	for species in range(24):
-		live_stage.set_pet(species,4)
+		store.s.variant=int(species/12); store.s.field=int((species%12)/4); store.s.body=species%4; store.s.name=store.SPECIES[species]
+		refresh()
 		await capture_frame("/tmp/forever-species-%02d.png"%species)
-	live_stage.set_pet(0,4)
+	store.s.variant=0; store.s.field=0; store.s.body=0; store.s.name="Mosskit"; refresh()
 	for name in ROOMS:
 		select("Rooms")
 		room(name)
 		await capture_frame("/tmp/forever-"+ROOMS[name]+".png")
+	select("Pets")
+	await capture_frame("/tmp/forever-collection.png")
+	collection_filter="Alien"; show_collection()
+	await capture_frame("/tmp/forever-collection-alien.png")
+	collection_filter="All"
 	select("Shop")
 	await capture_frame("/tmp/forever-shop.png")
 	store.s.wardrobe=255; store.s.worn=[1,2,3,5]; refresh()

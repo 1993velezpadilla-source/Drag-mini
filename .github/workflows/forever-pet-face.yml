@@ -12,10 +12,11 @@ jobs:
     timeout-minutes: 12
     steps:
       - uses: actions/checkout@v4
-      - run: sudo apt-get update -qq && sudo apt-get install -y blender
+      - run: sudo apt-get update -qq && sudo apt-get install -y blender python3-numpy
       - name: Build and validate every replacement creature without rendering rooms
         run: |
           set -euo pipefail
+          blender -b --python-exit-code 1 --python-expr 'import numpy; print(numpy.__version__)'
           mkdir -p /tmp/creatures
           blender -b -t 4 --python-exit-code 1 -P my-forever-pet/art/render_dash_creatures.py -- /tmp/creatures --mesh-only 2>&1 | tee /tmp/creatures.log
           test "$(grep -c '^FACE_VISIBILITY_OK ' /tmp/creatures.log)" -eq 23
