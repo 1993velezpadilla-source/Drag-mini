@@ -198,6 +198,32 @@ for side in [-1,1]:
 ball((0,.73,-.77),(.25,.25,.13),softlime)
 ball((0,1.62,-.09),(.25,.38,.24),softlime)
 export('mosskit',26000)
+# The runner Mosskit export above is unchanged. A home-only sleeping body
+# uses the identical silhouette, mouth, ears and markings with closed lids.
+clear()
+ball((0,.85,0),(1.48,1.52,1.2),lime)
+for side in [-1,1]:
+ o=ball((side*.48,1.58,0),(.42,.72,.35),lime);o.rotation_euler.y=side*.38
+ o=ball((side*.48,1.60,.12),(.25,.49,.15),pink);o.rotation_euler.y=side*.38
+ # Closed eyelid follows the curved cheek surface and replaces both eye and highlight.
+ for j in range(9):
+  dx=(j-4)*.034
+  ball((side*.29+dx,1.02-.035*math.sin(pi*j/8),.56+(.025*(1-abs(dx)/.136))),(.051,.035,.047),dark)
+ ball((side*.47,.78,.46),(.22,.12,.09),pink)
+ball((0,.72,.61),(.29,.25,.10),dark);ball((0,.65,.66),(.17,.085,.055),pink)
+ball((0,.66,-.65),(.36,.36,.34),lime)
+# Signature leafy ears/back tufts, subtle green gradient patches, and plush tail tip.
+softlime=mat("Mosskit leaf highlights",(.32,.67,.07),0,.44)
+for side in [-1,1]:
+ o=ball((side*.39,1.34,-.44),(.29,.32,.16),softlime);o.rotation_euler.y=side*.30
+ ball((side*.16,.47,-.55),(.18,.23,.08),softlime)
+ball((0,.73,-.77),(.25,.25,.13),softlime)
+ball((0,1.62,-.09),(.25,.38,.24),softlime)
+root_out=OUT
+OUT=os.path.join(root_out,'home_faces');os.makedirs(OUT,exist_ok=True)
+export('mosskit_sleep',26000)
+stats.pop('mosskit_sleep')
+OUT=root_out
 clear()
 ball((0,0,0),(.68,.40,.67),lime)
 # Pads are flattened along vertical Y, attached to the sole, not the heel.

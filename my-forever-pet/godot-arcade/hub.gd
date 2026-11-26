@@ -891,6 +891,16 @@ func test_home():
 	for species in range(store.SPECIES.size()):
 		live_stage.set_pet(species,4)
 		assert(live_stage.avatar.get_child_count()>0 and is_finite(live_stage.sole_offset))
+		assert(is_instance_valid(live_stage.sleep_face))
+		live_stage.set_sleeping(true); assert(live_stage.sleep_face.visible)
+		if species==0: assert(not live_stage.awake_body.visible)
+		else:
+			assert(live_stage.awake_eyes.size()>0)
+			for eye in live_stage.awake_eyes: assert(not eye.visible)
+		live_stage.set_sleeping(false); assert(not live_stage.sleep_face.visible)
+		if species==0: assert(live_stage.awake_body.visible)
+		else:
+			for eye in live_stage.awake_eyes: assert(eye.visible)
 		assert(live_stage.grounded_error()<0.001)
 	live_stage.set_pet(0,4)
 	for tab in ["Care","Rooms","Arcade","Shop","Journal","World","Cell","More","Home"]: select(tab)
@@ -975,6 +985,9 @@ func capture_home():
 	store.s.stage=4; store.s.coins=250; store.s.name="Mosskit"
 	make_ui(); refresh()
 	await capture_frame("/tmp/forever-home.png")
+	store.s.sleep_until=store.now()+60; refresh()
+	await capture_frame("/tmp/forever-sleep-mosskit.png")
+	store.s.sleep_until=0; refresh()
 	for species in range(store.SPECIES.size()):
 		store.s.form=-1
 		if species>=24: store.s.collection=int(store.s.collection)|(1<<species); store.s.form=species
@@ -982,6 +995,10 @@ func capture_home():
 		store.s.name=store.SPECIES[species]
 		refresh()
 		await capture_frame("/tmp/forever-species-%02d.png"%species)
+		if species in [3,5,24,25]:
+			store.s.sleep_until=store.now()+60; refresh()
+			await capture_frame("/tmp/forever-sleep-%02d.png"%species)
+			store.s.sleep_until=0; refresh()
 	store.s.form=-1; store.s.variant=0; store.s.field=0; store.s.body=0; store.s.name="Mosskit"; refresh()
 	for name in ROOMS:
 		select("Rooms")

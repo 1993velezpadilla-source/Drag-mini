@@ -75,12 +75,15 @@ def export(name,maxtri):
  bpy.ops.object.select_all(action='SELECT');bpy.ops.object.convert(target='MESH')
  groups={}
  for o in list(bpy.context.scene.objects):
-  if o.type=='MESH':groups.setdefault(o.data.materials[0].name,[]).append(o)
- for group in groups.values():
+  if o.type=='MESH':
+   group=('awake_eye_' if o.name.startswith(('eye_','pupil_','catchlight_')) else '')+o.data.materials[0].name
+   groups.setdefault(group,[]).append(o)
+ for key,group in groups.items():
   bpy.ops.object.select_all(action='DESELECT')
   for o in group:o.select_set(True)
   bpy.context.view_layer.objects.active=group[0]
   if len(group)>1:bpy.ops.object.join()
+  if key.startswith('awake_eye_'):bpy.context.object.name=key
   bpy.ops.object.transform_apply(location=True,rotation=True,scale=True)
  total=0
  for o in bpy.context.scene.objects:
@@ -143,6 +146,11 @@ def limb(name,a,b,w,material):
 def tip(name,p,h,r,material,tilt=0):
  o=cyl(p,r,.012,h,material);o.name=name;o.rotation_euler.y=tilt
  return o
+def closed_lids(eyes):
+ # The lids are curved 3D tubes at the actual open-eye centers.
+ for x,y,z in eyes:
+  points=[(x+(j-4)*.034,y-.026-.047*math.sin(pi*j/8),z+.055) for j in range(9)]
+  for j in range(8):limb('closed eyelid',points[j],points[j+1],.035,dark)
 def face(x,y,z,spread,scale=1,beak=False):
  # Eye whites and highlights remain in front of the head; named landmarks are
  # checked with actual geometry rays before material merging.
@@ -401,6 +409,14 @@ for species in range(1,28):
    flower((0,2.12,.08),1.3)
  validate_eyes(eyes,species)
  export('species_%02d'%species,42000)
+ clear()
+ closed_lids(eyes)
+ awake_dir=OUT
+ OUT=os.path.join(ROOT,'home_faces');os.makedirs(OUT,exist_ok=True)
+ sleep_name='sleep_%02d'%species
+ export(sleep_name,6000)
+ stats.pop(sleep_name)
+ OUT=awake_dir
 with open(os.path.join(OUT,'creature-metrics.json'),'w') as f:json.dump(stats,f,indent=2)
 if '--mesh-only' in sys.argv:
  print('CREATURE_FACE_GATE_PASS',len(stats),flush=True)

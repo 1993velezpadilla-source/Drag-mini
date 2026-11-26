@@ -20,6 +20,12 @@ for p in sorted((root/'creatures').glob('*.glb')):
  m=inspect(p);assert reference['triangles']*.5<=m['triangles']<=42000,(p,m);assert m['materials']>=3,(p,m)
  report[p.name]=m
 assert len(report)==27
+for i in range(1,28):
+ p=root/'creatures'/('species_%02d.glb'%i)
+ data=p.read_bytes();length=struct.unpack_from('<I',data,12)[0];doc=json.loads(data[20:20+length])
+ assert any(n.get('name','').startswith('awake_eye_') for n in doc.get('nodes',[])),('missing separate eyes',i)
+ closed=inspect(root/'home_faces'/('sleep_%02d.glb'%i));assert 0<closed['triangles']<=6000,('closed eye mesh',i)
+assert inspect(root/'home_faces'/'mosskit_sleep.glb')['triangles']>0
 for p in sorted((root/'rooms').glob('*.glb')):
  m=inspect(p);assert 5000<=m['triangles']<=260000,(p,m);assert m['materials']>=8,(p,m)
  report[p.name]=m

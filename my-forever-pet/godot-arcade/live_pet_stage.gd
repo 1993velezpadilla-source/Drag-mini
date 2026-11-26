@@ -35,6 +35,9 @@ var reaction_time=0.0
 var reaction_kind=""
 var sleeping=false
 var egg_body:MeshInstance3D
+var awake_body:Node3D
+var sleep_face:Node3D
+var awake_eyes:Array[Node3D]=[]
 var reaction_length=1.15
 var reaction_prop:Node3D
 var mood_state="healthy"
@@ -221,24 +224,32 @@ func set_pet(species:int,stage:int):
 	equipped_key=""
 	avatar.position=ground
 	sole_offset=0.0
-	egg_body=null
+	egg_body=null; awake_body=null; sleep_face=null; awake_eyes.clear()
 	if stage==0:
 		make_egg()
 	elif species==0:
 		# Identical asset files and foot placement to runner.make_player().
-		mesh(avatar,"res://assets/mosskit.glb",Vector3.ZERO)
+		awake_body=mesh(avatar,"res://assets/mosskit.glb",Vector3.ZERO)
+		sleep_face=mesh(avatar,"res://assets/home_faces/mosskit_sleep.glb",Vector3.ZERO)
 		for side in [-1,1]:
 			var foot=mesh(avatar,"res://assets/foot.glb",Vector3(side*0.37,0.20,0.16))
 			if foot!=null:
 				foot.rotation.y=PI
 				feet.append(foot)
 	else:
-		mesh(avatar,"res://assets/creatures/species_%02d.glb"%species,Vector3.ZERO)
+		awake_body=mesh(avatar,"res://assets/creatures/species_%02d.glb"%species,Vector3.ZERO)
+		if is_instance_valid(awake_body): find_eye_nodes(awake_body)
+		sleep_face=mesh(avatar,"res://assets/home_faces/sleep_%02d.glb"%species,Vector3.ZERO)
+	if is_instance_valid(sleep_face): sleep_face.hide()
 	sole_offset=mesh_bottom(avatar,Transform3D.IDENTITY)
 	bare_bounds=mesh_bounds(avatar,Transform3D.IDENTITY)
 	pet_fit=minf(1.0,2.3/maxf(0.1,maxf(bare_bounds.size.x,bare_bounds.size.y))) if species!=0 else 1.0
 	avatar.scale=Vector3.ONE*pet_scale()
 	avatar.position.y=ground.y-sole_offset*avatar.scale.y
+	set_sleeping(sleeping)
+func find_eye_nodes(node:Node):
+	if node is Node3D and str(node.name).begins_with("awake_eye_"): awake_eyes.append(node)
+	for child in node.get_children(): find_eye_nodes(child)
 func pet_scale()->float:
 	return (0.82 if active_stage==0 else .70 if active_stage==1 else .88 if active_stage==2 else 1.0)*1.65*pet_fit
 func make_egg():
@@ -347,6 +358,11 @@ func dress(worn:Array,equipped:int):
 		if ob!=null and equipped==3: ob.rotation.x=PI/2
 func set_sleeping(value:bool):
 	sleeping=value
+	if active_stage==0 or not is_instance_valid(sleep_face): return
+	sleep_face.visible=value
+	if active_species==0 and is_instance_valid(awake_body): awake_body.visible=not value
+	for ob in awake_eyes:
+		if is_instance_valid(ob): ob.visible=not value
 func react(kind:String,asleep:bool):
 	sleeping=asleep
 	reaction_kind=kind
