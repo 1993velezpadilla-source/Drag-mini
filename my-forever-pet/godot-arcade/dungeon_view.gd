@@ -67,6 +67,9 @@ var corner_count=0
 var terrace_count=0
 var exterior_surface:MeshInstance3D
 var exterior_vertex_count=0
+var landscape_ridge_weights:Dictionary={}
+var landscape_links:Array[Vector4i]=[]
+const LANDSCAPE_LINK_CAP=32
 var exterior_max_height=0.0
 var exterior_groups:Array[Vector2i]=[]
 var exterior_vistas:Array[Vector2i]=[]
@@ -1001,7 +1004,49 @@ func update_room_lights():
 		if i<candidates.size():room_lights[i].position=pos(candidates[i])+Vector3(-1.1,2.6,-1.0)
 func floor_name()->String:
 	return ["Ancient passages","Treasure chamber","Monster den","Restorative grotto","Forgotten ruins"][run.floor_kind]
+func build_landscape_connections():
+	landscape_ridge_weights.clear();landscape_links.clear()
+	if region==2:return
+	# Link neighboring authored formations with continuous terrain shoulders.
+	# Reject paths that would cross a room or its boundary. No gameplay RNG
+	# or collision is touched and no extra draw calls are needed.
+	var anchors:Array[Vector2i]=[]
+	for q in exterior_groups+habitat_tall:
+		if not anchors.has(q):anchors.append(q)
+	var pairs:Dictionary={}
+	for a in anchors:
+		if landscape_links.size()>=LANDSCAPE_LINK_CAP:break
+		var best=Vector2i.ZERO
+		var best_distance=65.0
+		var found=false
+		for b in anchors:
+			var d=Vector2(a-b).length_squared()
+			if d<4.0 or d>=best_distance:continue
+			if pairs.has(Vector4i(a.x,a.y,b.x,b.y)) or pairs.has(Vector4i(b.x,b.y,a.x,a.y)):continue
+			if not landscape_path_clear(a,b):continue
+			best=b;best_distance=d;found=true
+		if not found:continue
+		var key=Vector4i(a.x,a.y,best.x,best.y)
+		pairs[key]=true;landscape_links.append(key)
+		var steps=maxi(1,ceili(sqrt(best_distance)*3.0))
+		for i in range(steps+1):
+			var point=Vector2(a).lerp(Vector2(best),float(i)/float(steps))
+			var center=Vector2i(roundi(point.x),roundi(point.y))
+			for dy in range(-2,3):
+				for dx in range(-2,3):
+					var q=center+Vector2i(dx,dy)
+					if exterior_distances.get(q,0)<2:continue
+					var weight=1.0-smoothstep(.35,2.0,Vector2(q).distance_to(point))
+					if weight>.001:
+						landscape_ridge_weights[q]=maxf(landscape_ridge_weights.get(q,0.0),weight)
+func landscape_path_clear(a:Vector2i,b:Vector2i)->bool:
+	var steps=maxi(1,ceili(Vector2(a-b).length()*3.0))
+	for i in range(steps+1):
+		var p=Vector2(a).lerp(Vector2(b),float(i)/float(steps))
+		if exterior_distances.get(Vector2i(roundi(p.x),roundi(p.y)),0)<2:return false
+	return true
 func build_exterior_surface():
+	build_landscape_connections()
 	# The procedural terrain is a connected landscape, not a flat colored void.
 	# All scenery models remain the original Blender GLBs. The terrain never
 	# rises to walkable height or changes the gameplay grid.
@@ -1043,11 +1088,18 @@ func build_exterior_surface():
 			for group in habitat_tall:
 				if Vector2(q-group).length_squared()<(6.0 if habitat_large.has(group) else 3.0):support=1.0;break
 			if habitat_low.has(q) or terrace_cells.has(q):support=1.0
+			var ridge:float=landscape_ridge_weights.get(q,0.0)
 			if not near:
 				# Broad ridges, basins and cloud valleys behind the actual scenery.
 				var relief=broad.get_noise_2d(q.x,q.y)
 				h-=depth_factor*(1.0-support)*([.40,1.10,2.35][region]+.48*relief)
 				h+=minf(.24,depth_factor*(1.0-support)*maxf(0.0,relief)*.40)
+				# Blend broad mossy banks or limestone shelves between the
+				# actual rock/tree anchors, without raising the walkable floor.
+				if region<2:
+					var shoulder=-.47+.09*n
+					h=lerpf(h,shoulder,ridge*.86*(1.0-support*.65))
+					h-=depth_factor*(1.0-maxf(support,ridge))*(.22 if region==0 else .43)
 				h=minf(h,-.35)
 			heights[y*width+x]=h;exterior_max_height=maxf(exterior_max_height,h)
 			vertices.append(Vector3(q.x*1.4,h,q.y*1.4));uvs.append(Vector2(q))
@@ -1058,7 +1110,11 @@ func build_exterior_surface():
 				color=color.lerp(Color("#8a7950"),smoothstep(.04,.55,sediment)*.48*(1.0-support*.45))
 			elif region==1:
 				color=color.lerp(Color("#9bb5a2"),smoothstep(-.05,.53,sediment)*.55*(1.0-depth_factor*.75))
-			color=color.lerp(distant,depth_factor*.75)
+			if region==0:
+				color=color.lerp(Color("#75844b"),ridge*.44)
+			elif region==1:
+				color=color.lerp(Color("#719b8d"),ridge*.55)
+			color=color.lerp(distant,depth_factor*.75*(1.0-ridge*.50))
 			var cloud=broad.get_noise_2d(q.x,q.y)
 			if region==2:color=color.lerp(Color("#8070a8"),smoothstep(-.05,.55,cloud)*depth_factor*.42)
 			# Baked contact shadow under the actual authored placement centers.
@@ -1090,6 +1146,7 @@ func build_exterior_surface():
 	geometry.add_child(exterior_surface)
 	exterior_surface.cast_shadow=GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	exterior_vertex_count=vertices.size()
+	print("DUNGEON_LANDSCAPE_CONNECTIONS region=",region," links=",landscape_links.size()," ridge_vertices=",landscape_ridge_weights.size())
 func build_astral_cloud_banks():
 	astral_cloud_bounds.clear()
 	if region!=2:return

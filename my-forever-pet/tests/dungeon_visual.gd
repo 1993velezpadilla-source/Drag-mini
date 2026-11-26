@@ -14,6 +14,14 @@ func exterior_review(dungeon,region:int,floor_index:int):
 	for q in dungeon.floor_detail_bounds:
 		assert(dungeon.run.cells.has(q) and not dungeon.threshold_cells.has(q) and q!=dungeon.run.relic and q!=dungeon.run.stairs,"keep objectives and entrances clear")
 		assert(dungeon.floor_detail_fits(q,dungeon.floor_detail_bounds[q]),"interior detail stays low and within a single tile")
+	assert(dungeon.landscape_links.size()<=dungeon.LANDSCAPE_LINK_CAP,"bounded landscape connections")
+	if region==2:assert(dungeon.landscape_links.is_empty() and dungeon.landscape_ridge_weights.is_empty(),"floating islands remain separate")
+	for link in dungeon.landscape_links:
+		var a=Vector2i(link.x,link.y);var b=Vector2i(link.z,link.w)
+		assert(dungeon.landscape_path_clear(a,b),"terrain connection stays outside rooms and walls")
+	for q in dungeon.landscape_ridge_weights:
+		assert(dungeon.exterior_distances.get(q,0)>=2 and not dungeon.run.cells.has(q),"ridge outside traversable graph")
+		assert(dungeon.landscape_ridge_weights[q]>0.0 and dungeon.landscape_ridge_weights[q]<=1.0)
 	assert(dungeon.astral_cloud_bounds.size()<=dungeon.ASTRAL_CLOUD_CAP,"bounded cloud geometry")
 	if region!=2:assert(dungeon.astral_cloud_bounds.is_empty(),"cloud banks restricted to Starfall")
 	for cloud in dungeon.astral_cloud_bounds:
