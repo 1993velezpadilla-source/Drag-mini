@@ -26,7 +26,7 @@ var elapsed=0.0
 var tick=0.0
 var path:Array[Vector2i]=[]
 var notified=false
-var palette:Array[Color]=[]
+var palette:Array=[]
 var meshes:Dictionary={}
 var mats:Dictionary={}
 var active_floor=0
@@ -54,7 +54,7 @@ func build_ui():
 	var base=VBoxContainer.new();add_child(base);base.set_anchors_and_offsets_preset(PRESET_FULL_RECT);base.add_theme_constant_override("separation",0)
 	var header=PanelContainer.new();header.add_theme_stylebox_override("panel",style(Color("#162535"),Color("#344e63"),0));base.add_child(header)
 	var h=HBoxContainer.new();header.add_child(h)
-	var back=button(h,"Exit",func():if not notified:notified=true;canceled.emit());back.size_flags_horizontal=SIZE_SHRINK_BEGIN
+	var back=button(h,"Exit",leave);back.size_flags_horizontal=SIZE_SHRINK_BEGIN
 	var info=VBoxContainer.new();info.size_flags_horizontal=SIZE_EXPAND_FILL;h.add_child(info)
 	title_text=label(info,"",22,Color("#ffe1a4"))
 	hp_bar=ProgressBar.new();hp_bar.max_value=run.max_hp;hp_bar.custom_minimum_size.y=15;hp_bar.show_percentage=false;info.add_child(hp_bar)
@@ -68,7 +68,7 @@ func build_ui():
 	var sun=DirectionalLight3D.new();sun.rotation_degrees=Vector3(-55,-35,0);sun.light_energy=.9;sun.shadow_enabled=true;world.add_child(sun)
 	camera=Camera3D.new();camera.projection=Camera3D.PROJECTION_ORTHOGONAL;camera.keep_aspect=Camera3D.KEEP_WIDTH;camera.size=9.5;world.add_child(camera);camera.current=true
 	var input=Control.new();area.add_child(input);input.set_anchors_and_offsets_preset(PRESET_FULL_RECT);input.mouse_filter=MOUSE_FILTER_STOP;input.gui_input.connect(touch)
-	map=Control.new();map.mouse_filter=MOUSE_FILTER_IGNORE;area.add_child(map);map.position=Vector2(10,10);map.size=Vector2(148,105);map.draw.connect(draw_map)
+	map=Control.new();map.mouse_filter=MOUSE_FILTER_IGNORE;area.add_child(map);map.position=Vector2(10,10);map.size=Vector2(153,105);map.draw.connect(draw_map)
 	var footer=PanelContainer.new();footer.add_theme_stylebox_override("panel",style(Color("#162535"),Color("#344e63"),0));base.add_child(footer)
 	var v=VBoxContainer.new();v.add_theme_constant_override("separation",6);footer.add_child(v)
 	status_text=label(v,"",16,Color("#ffe1a4"));status_text.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART;status_text.custom_minimum_size.y=44
@@ -77,6 +77,12 @@ func build_ui():
 	power_button=button(a,"Skill",func():path.clear();run.attack(true);sync())
 	heal_button=button(a,"Berry",func():path.clear();run.heal();sync())
 	stairs_button=button(v,"Descend",func():path.clear();run.descend();sync(),true)
+func leave():
+	if notified:return
+	notified=true
+	call_deferred("emit_cancel")
+func emit_cancel():
+	canceled.emit()
 func pos(p:Vector2i)->Vector3:
 	return Vector3(p.x*1.4,0,p.y*1.4)
 func mat(c:Color)->StandardMaterial3D:
@@ -179,7 +185,9 @@ func sync():
 	if run.finished and not notified:
 		notified=true
 		# Deferred settlement prevents destroying/rebuilding the UI inside a button callback.
-		ended.emit.call_deferred(run.success,run.floor_count if run.success else run.floor_number-1,maxf(2.0,elapsed))
+		call_deferred("emit_result")
+func emit_result():
+	ended.emit(run.success,run.floor_count if run.success else run.floor_number-1,maxf(2.0,elapsed))
 func update_hud():
 	title_text.text="%s  ·  B%d/%d"%[Data.REGIONS[region],run.floor_number,run.floor_count]
 	hp_bar.value=run.hp
@@ -197,8 +205,9 @@ func _process(dt:float):
 		var next:Vector2i=path.pop_front()
 		facing=next-run.player
 		var before=run.player
+		var damage_before:int=run.hits
 		if run.move(next):
-			if before==run.player or run.enemy_at(next)>=0:path.clear()
+			if before==run.player or run.hits>damage_before:path.clear()
 			sync()
 		else:path.clear()
 		tick=.16

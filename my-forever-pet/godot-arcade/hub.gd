@@ -1023,7 +1023,7 @@ func open_active_field(r:int,patrol:bool,legacy:bool=false):
 	field.setup(r,int(session.id),int(session.step),bool(session.finale),patrol,int(session.seed),store.species())
 	# Stop rendering the home pet while the full-screen field is active.
 	live_stage.hide()
-	field.canceled.connect(func():store.field_cancel();field.queue_free();live_stage.show();select("Habitat"))
+	field.canceled.connect(func():store.field_cancel();field.hide();field.queue_free();live_stage.show();select.call_deferred("Habitat"))
 	field.ended.connect(func(success:bool,completed:int,elapsed:float):
 		var result:Dictionary=store.field_finish(success,completed,elapsed,field.run.hits,0 if legacy else field.run.coins,0 if legacy else field.run.materials)
 		field.hide();field.queue_free()
@@ -1708,6 +1708,15 @@ func capture_home():
 		for child in get_children():
 			if child.get_script()==preload("res://wild_field.gd"):child.queue_free()
 		live_stage.show()
+		await get_tree().process_frame
+	for r in range(3):
+		hunt_region=r;select("Habitat");open_active_field(r,false)
+		var dungeon:Control
+		for child in get_children():
+			if child.get_script()==preload("res://dungeon_view.gd"):dungeon=child
+		assert(is_instance_valid(dungeon))
+		await capture_frame("/tmp/forever-dungeon-%d.png"%r)
+		store.field_cancel();dungeon.hide();dungeon.queue_free();live_stage.show()
 		await get_tree().process_frame
 	hunt_region=0
 	var target:int=store.research_target(0); store.s.research_evidence[target]=Research.needed(target)

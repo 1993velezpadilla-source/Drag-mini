@@ -93,7 +93,8 @@ func route(a:Vector2i,b:Vector2i,avoid_enemies:bool=false)->Array[Vector2i]:
 	var result:Array[Vector2i]=[]
 	if not cells.has(a) or not cells.has(b) or a==b:return result
 	var queue:Array[Vector2i]=[a]
-	var previous:Dictionary={a:a}
+	var previous:Dictionary={}
+	previous[a]=a
 	var cursor=0
 	while cursor<queue.size():
 		var p=queue[cursor];cursor+=1

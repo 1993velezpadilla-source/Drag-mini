@@ -294,29 +294,28 @@ func field_finish(success:bool,completed:int,elapsed:float,hits:int=-1,dungeon_c
 		return {"ok":true,"correct":false,"message":"Trail lost. Rest or try again."}
 	var flawless=hits==0
 	var bonus=5 if flawless else 0
-	if session.get("dungeon",false):
-		bonus+=clampi(dungeon_coins,0,250)
-		s.materials=mini(9999,int(s.materials)+clampi(dungeon_materials,0,60))
+	var loot_coins=clampi(dungeon_coins,0,250) if session.get("dungeon",false) else 0
+	var loot_materials=clampi(dungeon_materials,0,60) if session.get("dungeon",false) else 0
 	if session.patrol:
 		if int(s.research_daily[r])!=step:return {"ok":false,"message":"Survey expired"}
-		s.energy-=3;research_credit(r,2);s.coins=mini(999999,int(s.coins)+5+bonus);earn(4);save_game()
-		return {"ok":true,"correct":true,"message":"Survey complete! +%d coins%s"%[5+bonus," · Flawless" if flawless else ""]}
+		s.energy-=3;research_credit(r,2);s.coins=mini(999999,int(s.coins)+5+bonus+loot_coins);s.materials=mini(9999,int(s.materials)+loot_materials);earn(4);save_game()
+		return {"ok":true,"correct":true,"message":"Survey complete! +%d coins%s"%[5+bonus+loot_coins," · Flawless" if flawless else ""]}
 	if research_target(r)!=id or research_progress(id)!=step:return {"ok":false,"message":"Trail changed"}
 	if session.finale:
 		s.energy-=3;s.research_trust[id]=3;s.collection=int(s.collection)|(1<<id);s.research_target[r]=-1;s.research_misses[r]=0;research_credit(r,8)
 		var tier=0 if id<12 else 1 if id<24 else 2
-		var reward=[30,55,85][tier]+(bonus*(tier+1))
+		var reward:int=[30,55,85][tier]+(bonus*(tier+1))+loot_coins
 		var xp:int=[25,35,50][tier]
-		var materials:int=[2,3,4][tier]
+		var materials:int=[2,3,4][tier]+loot_materials
 		var crystals:int=[0,1,2][tier]
 		s.coins=mini(999999,int(s.coins)+reward);s.materials=mini(9999,int(s.materials)+materials);earn(xp)
 		s.crystals=mini(9999,int(s.crystals)+crystals)
 		save_game()
 		return {"ok":true,"correct":true,"unlocked":true,"species":id,"coins":reward,"xp":xp,"materials":materials,"crystals":crystals,"flawless":flawless,"message":"New companion discovered!"}
 	s.energy-=3;s.research_target[r]=id;s.research_evidence[id]=step+1;s.research_misses[r]=0
-	research_credit(r,3);s.coins=mini(999999,int(s.coins)+4+bonus);earn(5);save_game()
+	research_credit(r,3);s.coins=mini(999999,int(s.coins)+4+bonus+loot_coins);s.materials=mini(9999,int(s.materials)+loot_materials);earn(5);save_game()
 	var message="Creature located! Prepare for encounter." if step+1>=Research.needed(id) else "Fresh evidence recovered!"
-	return {"ok":true,"correct":true,"message":message+" +%d coins%s"%[4+bonus," · Flawless" if flawless else ""]}
+	return {"ok":true,"correct":true,"message":message+" +%d coins%s"%[4+bonus+loot_coins," · Flawless" if flawless else ""]}
 func research_target(region:int)->int:
 	if region<0 or region>=3: return -1
 	var current=int(s.research_target[region])
