@@ -28,8 +28,14 @@ var success=false
 var message=""
 var seed_value=0
 var floor_revision=0
-func setup(r:int,id:int,step:int,finale:bool,patrol:bool,seed_id:int):
-	region=r;seed_value=seed_id
+var floor_style=0
+var defeated=0
+var combo=0
+var best_combo=0
+var skill_kind=0
+var traps:Dictionary={}
+func setup(r:int,id:int,step:int,finale:bool,patrol:bool,seed_id:int,companion:int=0):
+	region=r;seed_value=seed_id;skill_kind=posmod(companion,3)
 	tier=0 if patrol or id<12 else 1 if id<24 else 2
 	floor_count=2 if patrol else 3+tier+(1 if finale else 0)
 	max_hp=42+4*tier;hp=max_hp
@@ -52,7 +58,8 @@ func connect_cells(a:Vector2i,b:Vector2i):
 			p.x+=signi(b.x-p.x);cells[p]=true
 func generate_floor():
 	rng.seed=seed_value+floor_number*7919
-	cells.clear();rooms.clear();enemies.clear();loot.clear();revealed.clear()
+	cells.clear();rooms.clear();enemies.clear();loot.clear();revealed.clear();traps.clear()
+	floor_style=posmod(seed_value+floor_number,3)
 	secured=false;floor_revision+=1
 	for y in range(2):
 		for x in range(3):
@@ -63,8 +70,11 @@ func generate_floor():
 	for i in range(1,6):
 		if i%3!=0:connect_cells(center(rooms[i-1]),center(rooms[i]))
 		else:connect_cells(center(rooms[i-3]),center(rooms[i]))
-	connect_cells(center(rooms[2]),center(rooms[5]))
-	player=center(rooms[0]);stairs=center(rooms[5]);relic=center(rooms[4])
+	if floor_style==0:connect_cells(center(rooms[2]),center(rooms[5]))
+	elif floor_style==1:connect_cells(center(rooms[1]),center(rooms[4]))
+	else:
+		connect_cells(center(rooms[1]),center(rooms[4]));connect_cells(center(rooms[2]),center(rooms[5]))
+	player=center(rooms[0]);stairs=center(rooms[5 if floor_style!=1 else 2]);relic=center(rooms[4 if floor_style!=2 else 3])
 	var spots:Array= cells.keys()
 	for i in range(spots.size()-1,0,-1):
 		var j=rng.randi_range(0,i);var temp=spots[i];spots[i]=spots[j];spots[j]=temp
@@ -75,6 +85,7 @@ func generate_floor():
 			enemies.append({"pos":p,"hp":8+floor_number*2+tier*2,"kind":rng.randi_range(0,2)})
 		elif loot.size()<9:
 			loot[p]="potion" if loot.size()%4==0 else "material" if loot.size()%3==0 else "coin"
+		elif traps.size()<floor_number-1:traps[p]=true
 		else:break
 	loot[relic]="relic"
 	# A guaranteed immediate pickup introduces the loop on every floor.
@@ -131,7 +142,8 @@ func strike(i:int,power:bool=false):
 	enemies[i].hp=int(enemies[i].hp)-damage
 	message="-%d HP · strike!"%damage
 	if int(enemies[i].hp)<=0:
-		enemies.remove_at(i);coins+=2;message="Enemy defeated! +2 coins"
+		enemies.remove_at(i);defeated+=1;combo+=1;best_combo=maxi(best_combo,combo)
+		var reward=2+mini(3,combo-1);coins+=reward;message="Enemy defeated! +%d coins · Combo %d"%[reward,combo]
 func enemy_turn():
 	turns+=1
 	for i in range(enemies.size()):
@@ -139,7 +151,7 @@ func enemy_turn():
 		var gap=distance(p,player)
 		if gap==1:
 			var damage=2+tier+int(floor_number/3)
-			hp=maxi(0,hp-damage);hits+=1
+			hp=maxi(0,hp-damage);hits+=1;combo=0
 			message="Hit! −%d HP"%damage
 			if hp==0:
 				finished=true;success=false;message="Rescue needed · expedition lost";return
@@ -153,15 +165,25 @@ func move(p:Vector2i)->bool:
 	if i>=0:strike(i)
 	else:
 		player=p;pickup()
+		if traps.has(player):
+			traps.erase(player);hp=maxi(1,hp-3);hits+=1;combo=0;message="Trap! −3 HP"
 	enemy_turn()
 	return true
 func attack(power:bool=false)->bool:
 	if finished or (power and energy<2):return false
+	if power and skill_kind==1:
+		# A ranged strike reaches two tiles only through traversable ground.
+		for d in DIR:
+			if not cells.has(player+d) or enemy_at(player+d)>=0:continue
+			var ranged=enemy_at(player+d*2)
+			if ranged>=0:energy-=2;strike(ranged,true);enemy_turn();return true
 	for d in DIR:
 		var i=enemy_at(player+d)
 		if i>=0:
 			if power:energy-=2
-			strike(i,power);enemy_turn();return true
+			strike(i,power)
+			if power and skill_kind==2:hp=mini(max_hp,hp+4)
+			enemy_turn();return true
 	message="No enemy in reach";return false
 func heal()->bool:
 	if finished or potions<=0 or hp==max_hp:return false

@@ -1475,21 +1475,26 @@ func test_touch():
 	for i in range(8):await get_tree().process_frame
 	var field:Control
 	for child in get_children():
-		if child.get_script()==preload("res://wild_field.gd"):field=child
-	assert(is_instance_valid(field),"wild field opened")
-	var surface:Control=field.field_input
-	assert(surface.size.x>100 and surface.size.y>100,"field touch surface laid out")
-	var screen_pos=field.camera.unproject_position(Vector3(2.5,0,2.0))*surface.size/Vector2(field.viewport.size)
-	assert(Rect2(Vector2.ZERO,surface.size).has_point(screen_pos))
+		if child.get_script()==preload("res://dungeon_view.gd"):field=child
+	assert(is_instance_valid(field),"production dungeon opened")
+	assert(field.companion_id==store.species(),"active pet in dungeon")
+	assert(field.area.size.x>100 and field.area.size.y>100)
+	field.set_process(false)
+	field.run.enemies.clear()
+	var pickup:Vector2i
+	for d in field.run.DIR:
+		if field.run.loot.get(field.run.player+d,"")=="coin":pickup=field.run.player+d;break
+	var screen_pos=field.camera.unproject_position(field.pos(pickup))*field.area.size/Vector2(field.viewport.size)
+	assert(Rect2(Vector2.ZERO,field.area.size).has_point(screen_pos))
 	var press=InputEventScreenTouch.new();press.index=0;press.pressed=true;press.position=screen_pos
-	surface.gui_input.emit(press)
-	assert(field.run.destination.distance_to(Vector2(2.5,2.0))<.12,"native touch maps to correct world coordinates")
-	var second=InputEventScreenTouch.new();second.index=1;second.pressed=true;second.position=Vector2(5,5);surface.gui_input.emit(second)
-	assert(field.run.destination.distance_to(Vector2(2.5,2.0))<.12,"second finger cannot steal movement")
-	press.pressed=false;surface.gui_input.emit(press)
-	assert(field.touch_index==-1,"touch released")
-	field.canceled.emit()
-	print("FOREVER_PET_TOUCH_PASS vertical horizontal tap no-accidental-action wild-coordinate multi-touch")
+	field.touch(press)
+	assert(not field.path.is_empty(),"native touch maps to dungeon tile")
+	field._process(.2)
+	assert(field.run.coins==3 and not field.run.loot.has(pickup),"production pickup collected once")
+	field.leave()
+	await get_tree().process_frame
+	assert(store.field_session.is_empty(),"cancel clears session")
+	print("FOREVER_PET_TOUCH_PASS vertical horizontal tap no-accidental-action dungeon-coordinate pickup")
 	get_tree().quit()
 func test_home():
 	store.s=store.defaults(); store.s.auto_sleep=false

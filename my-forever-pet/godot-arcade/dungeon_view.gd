@@ -33,7 +33,7 @@ var active_floor=0
 var facing=Vector2i.DOWN
 func setup(r:int,id:int,step:int,finale:bool,patrol:bool,seed_id:int,companion:int):
 	region=r;companion_id=companion
-	run.setup(r,id,step,finale,patrol,seed_id)
+	run.setup(r,id,step,finale,patrol,seed_id,companion)
 	palette=[ [Color("#37574b"),Color("#58775a"),Color("#17392f"),Color("#f4c77b")], [Color("#244c64"),Color("#39748a"),Color("#123449"),Color("#7ce8e4")], [Color("#414264"),Color("#62678b"),Color("#282c50"),Color("#dbb8ff")] ][r]
 	build_ui()
 	build_floor()
@@ -169,6 +169,8 @@ func refresh_actors():
 		var id:int=Data.POOLS[region][(int(enemy.kind)+run.floor_number)%Data.POOLS[region].size()]
 		var ob=model(actors,id);ob.position=pos(p);ob.rotation.y=PI
 		shape(actors,"box",pos(p)+Vector3(0,1.42,0),Vector3(.6,.07,.09),Color("#ee7c83"))
+	for p in run.traps:
+		if run.revealed.has(p):shape(actors,"ring",pos(p)+Vector3(0,.04,0),Vector3(.5,.06,.5),Color("#b9788b"))
 	if run.revealed.has(run.stairs):
 		if prop(actors,"dungeon_stairs",pos(run.stairs))==null:
 			for i in range(3):shape(actors,"box",pos(run.stairs)+Vector3(0,.08+float(i)*.12,float(i)*.20-.2),Vector3(.95,.16,.32),palette[3] if run.secured else palette[2])
@@ -181,6 +183,7 @@ func draw_map():
 	map.draw_circle(Vector2(run.player)*6+Vector2(11.5,11.5),3.5,Color("#b1ffbc"))
 func touch(event:InputEvent):
 	if notified or run.finished:return
+	if event is InputEventScreenTouch and event.index!=0:return
 	if not ((event is InputEventScreenTouch and event.pressed) or (event is InputEventMouseButton and event.pressed and event.button_index==MOUSE_BUTTON_LEFT and event.device!=-1)):return
 	if area.size.x<=0 or viewport.size.x<=0:return
 	var screen=event.position*Vector2(viewport.size)/area.size
@@ -204,9 +207,9 @@ func emit_result():
 func update_hud():
 	title_text.text="%s  ·  B%d/%d"%[Data.REGIONS[region],run.floor_number,run.floor_count]
 	hp_bar.value=run.hp
-	stats.text="HP %d/%d   •   %d coins   •   %d berries"%[run.hp,run.max_hp,run.coins,run.potions]
+	stats.text="HP %d/%d  •  %d coins  •  %d KO"%[run.hp,run.max_hp,run.coins,run.defeated]
 	status_text.text=run.message
-	power_button.text="Skill %d/8"%run.energy;power_button.disabled=run.energy<2
+	power_button.text="%s %d/8"%[["Burst","Bolt","Drain"][run.skill_kind],run.energy];power_button.disabled=run.energy<2
 	heal_button.text="Berry ×%d"%run.potions;heal_button.disabled=run.potions==0 or run.hp==run.max_hp
 	stairs_button.text="Descend ›" if run.floor_number<run.floor_count else "Complete expedition"
 	stairs_button.disabled=not run.secured or run.player!=run.stairs

@@ -42,5 +42,13 @@ func run():
 	assert(fight.attack() and fight.hp<hp and fight.enemies.size()==1)
 	assert(fight.attack(true) and fight.enemies.is_empty() and fight.energy==6)
 	assert(fight.heal() and fight.hp==hp and fight.potions==1)
+	var ranged=Rules.new();ranged.setup(0,1,0,false,false,99,1)
+	ranged.enemies.clear()
+	var direction=Vector2i.ZERO
+	for d in Rules.DIR:
+		if ranged.cells.has(ranged.player+d) and ranged.cells.has(ranged.player+d*2):direction=d;break
+	assert(direction!=Vector2i.ZERO)
+	ranged.enemies.append({"pos":ranged.player+direction*2,"hp":8,"kind":0})
+	assert(ranged.attack(true) and ranged.enemies.is_empty() and ranged.defeated==1)
 	print("FOREVER_DUNGEON_PASS ",total)
 	quit()
