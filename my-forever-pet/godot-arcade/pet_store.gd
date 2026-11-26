@@ -159,7 +159,7 @@ func original_species()->int:
 	if original.is_empty():return inherited_species()
 	return int(original.field)*4+int(original.body)+12*int(original.variant)
 func switch_companion(slot:int,at:float)->bool:
-	if s.stage==0 or slot==int(s.form) or s.trip_end>at or s.pending[0]>0 or arcade_mode!=-1:return false
+	if s.stage==0 or slot==int(s.form) or s.trip_end>at or s.pending[0]>0 or arcade_mode!=-1 or not field_session.is_empty():return false
 	if slot!=-1 and (slot<0 or slot>=SPECIES.size() or (int(s.collection)&(1<<slot))==0):return false
 	if slot==-1 and not s.profiles.has("-1"):return false
 	s.profiles[str(s.form)]=profile_snapshot()
@@ -263,7 +263,7 @@ func field_rank_required(id:int)->int:
 	return 1 if id<12 else 2 if id<24 else 3
 func field_begin(region:int,patrol:bool=false)->Dictionary:
 	advance(now())
-	if not field_session.is_empty():return {}
+	if not field_session.is_empty() or arcade_mode!=-1:return {}
 	if region<0 or region>=3 or not available() or s.germs>0 or s.hunger<1 or s.energy<3:return {}
 	var id=research_target(region)
 	var step=research_progress(id)

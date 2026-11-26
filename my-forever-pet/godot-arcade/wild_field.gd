@@ -30,7 +30,7 @@ func setup(r:int,id:int,step:int,finale:bool,patrol:bool,seed_id:int,companion:i
 	var back=Button.new();back.text="‹ Exit";back.custom_minimum_size=Vector2(76,48);back.pressed.connect(func():canceled.emit());top.add_child(back)
 	var name=Label.new();name.text=Data.REGIONS[r];name.add_theme_font_size_override("font_size",22);name.size_flags_horizontal=SIZE_EXPAND_FILL;top.add_child(name)
 	timer_label=Label.new();timer_label.add_theme_font_size_override("font_size",22);top.add_child(timer_label)
-	var view=SubViewportContainer.new();view.stretch=true;view.stretch_shrink=1;view.size_flags_vertical=SIZE_EXPAND_FILL;view.mouse_filter=MOUSE_FILTER_STOP;root.add_child(view)
+	var view=SubViewportContainer.new();view.stretch=true;view.stretch_shrink=2;view.size_flags_vertical=SIZE_EXPAND_FILL;view.mouse_filter=MOUSE_FILTER_STOP;root.add_child(view)
 	viewport=SubViewport.new();viewport.own_world_3d=true;viewport.render_target_update_mode=SubViewport.UPDATE_ALWAYS;viewport.msaa_3d=Viewport.MSAA_DISABLED;view.add_child(viewport)
 	world=Node3D.new();viewport.add_child(world)
 	view.gui_input.connect(func(e:InputEvent):
@@ -73,12 +73,12 @@ func build_world(companion:int,id:int,finale:bool):
 	var env=WorldEnvironment.new();env.environment=Environment.new();env.environment.background_mode=Environment.BG_COLOR;env.environment.background_color=[Color("#254d44"),Color("#16475d"),Color("#3b416c")][region];env.environment.ambient_light_source=Environment.AMBIENT_SOURCE_COLOR;env.environment.ambient_light_color=Color("#d9eaff");env.environment.ambient_light_energy=.8;world.add_child(env)
 	var sun=DirectionalLight3D.new();sun.light_color=Color("#fff2d2");sun.light_energy=1.25;sun.rotation_degrees=Vector3(-55,-30,0);sun.shadow_enabled=true;world.add_child(sun)
 	camera=Camera3D.new();camera.projection=Camera3D.PROJECTION_ORTHOGONAL;camera.keep_aspect=Camera3D.KEEP_WIDTH;camera.size=20.5;world.add_child(camera);camera.position=Vector3(0,23,17);camera.look_at(Vector3.ZERO);camera.current=true
-	var ground=shape(BoxMesh.new(),Vector3(0,-.35,0),Vector3(19,.6,19),[Color("#547d4c"),Color("#427f91"),Color("#777eaa")][region],world)
+	var ground=shape(BoxMesh.new(),Vector3(0,-.35,0),Vector3(22,.6,22),[Color("#547d4c"),Color("#427f91"),Color("#777eaa")][region],world)
 	var mat=ground.material_override as StandardMaterial3D
 	var noise=FastNoiseLite.new();noise.frequency=.12
 	var texture=NoiseTexture2D.new();texture.width=256;texture.height=256;texture.noise=noise
 	var gradient=Gradient.new();gradient.colors=PackedColorArray([tint.darkened(.64),tint.darkened(.16)]);texture.color_ramp=gradient;mat.albedo_texture=texture;mat.albedo_color=Color.WHITE
-	for i in range(70):
+	for i in range(86):
 		var x=rng.randf_range(-9.1,9.1);var z=rng.randf_range(-9.1,9.1)
 		var edge=absf(x)>7.9 or absf(z)>7.9
 		if edge:
@@ -92,9 +92,14 @@ func build_world(companion:int,id:int,finale:bool):
 				var m=PrismMesh.new();var rock=shape(m,Vector3(x,.7,z),Vector3(.8,1.7,.8),Color("#b8b7f0"),world);rock.rotation.y=rng.randf_range(0,TAU)
 		else:
 			sphere(Vector3(x,.035,z),Vector3(.25,.06,.19),tint.darkened(.30),world)
-	for i in range(12):
+	for i in range(28):
 		var x=rng.randf_range(-8,8);var z=rng.randf_range(-8,8)
-		sphere(Vector3(x,.10,z),Vector3(.25,.14,.25),Color("#f4d9a1") if region==0 else Color("#b7ecf3"),world)
+		var scale_value=rng.randf_range(.15,.35)
+		if region==0:
+			for j in range(3):
+				var grass=shape(PrismMesh.new(),Vector3(x+(j-1)*.08,.13,z),Vector3(.08,.27+float(j%2)*.08,.06),Color("#a7c26d"),world);grass.rotation.y=float(j)*1.2
+		elif region==1:sphere(Vector3(x,.04,z),Vector3(scale_value,.09,scale_value*.8),Color("#c1dacf"),world)
+		else:sphere(Vector3(x,.12,z),Vector3(scale_value,.22,scale_value),Color("#c2c4ef"),world)
 	player=model(companion,world)
 	trace=Node3D.new();world.add_child(trace)
 	var ring=TorusMesh.new();ring.inner_radius=.42;ring.outer_radius=.56;ring.rings=16;ring.ring_segments=8;shape(ring,Vector3(0,.13,0),Vector3.ONE,tint.lightened(.4),trace,true)

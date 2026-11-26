@@ -46,6 +46,13 @@ jobs:
           timeout 60 /tmp/godot/Godot_v4.4.1-stable_linux.x86_64 --headless --path /tmp/pet-core --script res://research_trials.gd 2>&1 | tee /tmp/research-trials.log
           grep -F 'FOREVER_RESEARCH_TRIAL_PASS 9' /tmp/research-trials.log
           ! grep -E 'SCRIPT ERROR|Parse Error' /tmp/research-trials.log
+      - name: Exercise active world field routes and encounters
+        run: |
+          set -euo pipefail
+          cp my-forever-pet/tests/wild_field_test.gd /tmp/pet-core/
+          timeout 60 /tmp/godot/Godot_v4.4.1-stable_linux.x86_64 --headless --path /tmp/pet-core --script res://wild_field_test.gd 2>&1 | tee /tmp/wild-field.log
+          grep -F 'FOREVER_WILD_FIELD_PASS 54' /tmp/wild-field.log
+          ! grep -E 'SCRIPT ERROR|Parse Error' /tmp/wild-field.log
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -54,3 +61,4 @@ jobs:
             /tmp/pet-core.log
             /tmp/sanctuary-nav.log
             /tmp/research-trials.log
+            /tmp/wild-field.log

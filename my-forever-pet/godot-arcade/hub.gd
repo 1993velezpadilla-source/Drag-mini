@@ -169,9 +169,10 @@ func button(parent:Node,value:String,fn:Callable)->Button:
 	b.mouse_filter=MOUSE_FILTER_PASS
 	b.action_mode=BaseButton.ACTION_MODE_BUTTON_RELEASE
 	b.add_theme_font_size_override("font_size",18)
-	b.add_theme_stylebox_override("normal",menu_skin(Color("#34244f"),Color("#765c9a")))
-	b.add_theme_stylebox_override("pressed",menu_skin(Color("#7950a8"),Color("#eccbff")))
-	b.add_theme_stylebox_override("hover",menu_skin(Color("#493263"),Color("#ae86d1")))
+	b.add_theme_stylebox_override("normal",menu_skin(Color("#283847"),Color("#425766")))
+	b.add_theme_stylebox_override("pressed",menu_skin(Color("#3c5964"),Color("#b6e3d4")))
+	b.add_theme_stylebox_override("hover",menu_skin(Color("#344859"),Color("#718e99")))
+	b.add_theme_stylebox_override("disabled",menu_skin(Color("#1e2733"),Color("#34414e")))
 	b.add_theme_color_override("font_disabled_color",Color("#b9afc5"))
 	b.focus_mode=FOCUS_NONE
 	b.pressed.connect(fn); parent.add_child(b); return b
@@ -297,7 +298,7 @@ func art_tile(parent:Node,name:String,path:String,fn:Callable,h:int=66,font:int=
 	return b
 func nav_tile(parent:Node,tab:String):
 	var art="premium_crystal.png" if tab=="Life" else str(NAV_ART.get(tab,"premium_star.png"))
-	var b=art_tile(parent,tab,"res://assets/"+art,func(): select(tab),61,12,"bond" if tab=="Pets" else "More" if tab=="Life" else tab)
+	var b=art_tile(parent,tab,"res://assets/"+art,func(): select(tab),56,12,"bond" if tab=="Pets" else "More" if tab=="Life" else tab)
 	b.add_theme_stylebox_override("normal",StyleBoxEmpty.new())
 	nav_buttons[tab]=b
 func reset_actions(columns:int=0):
@@ -534,7 +535,7 @@ func select(tab:String):
 	if tab!=section and is_instance_valid(notice): notice.text=""; notice.hide()
 	section=tab
 	for key in nav_buttons:
-		nav_buttons[key].add_theme_stylebox_override("normal",skin(Color("#6738a8"),Color("#e6bcff")) if key==tab or (key=="Pets" and tab=="Family") or (key=="World" and tab=="Habitat") or (key=="Home" and (tab=="Rooms" or tab in life_tabs)) else StyleBoxEmpty.new())
+		nav_buttons[key].add_theme_stylebox_override("normal",menu_skin(Color("#365449"),Color("#9acdb6")) if key==tab or (key=="Pets" and tab=="Family") or (key=="World" and tab=="Habitat") or (key=="Home" and (tab=="Rooms" or tab in life_tabs)) else StyleBoxEmpty.new())
 	if is_instance_valid(section_scroll):
 		section_scroll.scroll_vertical=0
 		var full_menu=tab!="Home"
@@ -879,10 +880,10 @@ func build_care(show_lab:bool):
 	if show_lab: section_scroll.set_deferred("scroll_vertical",maxi(0,section_scroll.get_v_scroll_bar().max_value-section_scroll.size.y))
 	action_card(actions,"Medicine","Cures all sick cells; buy supplies in Shop.","medicine","medicine",0,"Use")
 func build_world():
-	section_heading(actions,"Discover wild companions","Follow evidence, observe creatures and earn their trust. Research is available from Baby stage.")
+	section_heading(actions,"Explore the world","Play in wild territories to discover new companions.")
 	for i in range(3):
 		var shell=panel(actions); var line=row(shell)
-		var art=TextureRect.new(); art.texture=tex("res://assets/"+["room_garden.jpg","arcade_find.jpg","sky-panorama.png"][i]); art.custom_minimum_size=Vector2(112,94); art.expand_mode=TextureRect.EXPAND_IGNORE_SIZE; art.stretch_mode=TextureRect.STRETCH_KEEP_ASPECT_COVERED; line.add_child(art)
+		var art=TextureRect.new(); art.texture=tex("res://assets/"+["room_garden.jpg","arcade_find.jpg","sky-panorama.png"][i]); art.custom_minimum_size=Vector2(148,125); art.expand_mode=TextureRect.EXPAND_IGNORE_SIZE; art.stretch_mode=TextureRect.STRETCH_KEEP_ASPECT_COVERED; line.add_child(art)
 		var copy=VBoxContainer.new(); copy.size_flags_horizontal=SIZE_EXPAND_FILL; line.add_child(copy)
 		label(copy,Research.REGIONS[i],21).modulate=Research.TINTS[i]
 		label(copy,Research.SUB[i],13).autowrap_mode=TextServer.AUTOWRAP_WORD_SMART
@@ -893,8 +894,7 @@ func build_world():
 		var text="Explore ›" if target<0 or store.research_progress(target)==0 else "Continue trail ›"
 		var go=button(copy,text,func(): hunt_region=i; hunt_message=""; select("Habitat"))
 		go.add_theme_stylebox_override("normal",menu_skin(Research.TINTS[i].darkened(.55),Research.TINTS[i]))
-	section_heading(actions,"Daily field contracts","Recover three traces per territory for a bonus. Available even after completing a collection.")
-	for i in range(3): field_contract(actions,i)
+	
 	var exp=context_card("expedition","Supply expeditions")
 	context_meter(exp,"expedition",Color("#65b4ed"))
 	label(exp,"Optional timed trips earn materials and coins after Kid stage.",13).autowrap_mode=TextServer.AUTOWRAP_WORD_SMART
@@ -988,7 +988,7 @@ func build_habitat():
 		label(copy,"%d/%d evidence · %s"%[step,goal,"Common" if id<12 else "Rare" if id<24 else "Mystic"],14)
 		var bar=ProgressBar.new();bar.max_value=goal;bar.value=step;bar.show_percentage=false;bar.custom_minimum_size.y=10;copy.add_child(bar)
 		var block:String=store.research_block("track" if step<goal else "encounter",r)
-		if store.research_rank(r)<store.field_rank_required(id):block="Requires explorer rank %d"%store.field_rank_required(id)
+		if store.research_rank(r)<store.field_rank_required(id):block="Requires explorer rank %d · Complete local surveys"%store.field_rank_required(id)
 		if store.s.energy<3:block="Rest first · 3 energy required"
 		var go=button(hero,"ENTER WILD TERRITORY" if step<goal else "APPROACH WILD CREATURE",func():open_active_field(r,false))
 		go.custom_minimum_size.y=60;go.disabled=not block.is_empty();go.add_theme_stylebox_override("normal",menu_skin(Research.TINTS[r].darkened(.64),Research.TINTS[r]))
@@ -1021,7 +1021,7 @@ func open_active_field(r:int,patrol:bool):
 	var field=preload("res://wild_field.gd").new()
 	add_child(field);field.set_anchors_and_offsets_preset(PRESET_FULL_RECT)
 	field.setup(r,int(session.id),int(session.step),bool(session.finale),patrol,int(session.seed),store.species())
-	field.canceled.connect(func():store.field_cancel();field.queue_free())
+	field.canceled.connect(func():store.field_cancel();field.queue_free();select("Habitat"))
 	field.ended.connect(func(success:bool,completed:int,elapsed:float):
 		var result:Dictionary=store.field_finish(success,completed,elapsed)
 		field.queue_free()
@@ -1056,7 +1056,7 @@ func finish_hunt(result:Dictionary):
 func room(name:String):
 	if name!=current_room: notice.text=""
 	for key in nav_buttons:
-		nav_buttons[key].add_theme_stylebox_override("normal",skin(Color("#6738a8"),Color("#e6bcff")) if key=="Home" else StyleBoxEmpty.new())
+		nav_buttons[key].add_theme_stylebox_override("normal",menu_skin(Color("#365449"),Color("#9acdb6")) if key=="Home" else StyleBoxEmpty.new())
 	section_scroll.scroll_vertical=0
 	visual.show()
 	stage_space.show()
@@ -1157,11 +1157,11 @@ func show_collection():
 	var explore=button(actions,"Discover companions in World ›",func(): select("World")); explore.custom_minimum_size.y=40; explore.add_theme_font_size_override("font_size",14)
 	var featured=panel(actions)
 	var hero=row(featured)
-	var portrait_art=TextureRect.new(); portrait_art.texture=tex("res://assets/pet_%d.png"%collection_feature); portrait_art.custom_minimum_size=Vector2(144,188); portrait_art.expand_mode=TextureRect.EXPAND_IGNORE_SIZE; portrait_art.stretch_mode=TextureRect.STRETCH_KEEP_ASPECT_CENTERED; hero.add_child(portrait_art)
+	var portrait_art=TextureRect.new(); portrait_art.texture=tex("res://assets/pet_%d.png"%collection_feature); portrait_art.custom_minimum_size=Vector2(120,142); portrait_art.expand_mode=TextureRect.EXPAND_IGNORE_SIZE; portrait_art.stretch_mode=TextureRect.STRETCH_KEEP_ASPECT_CENTERED; hero.add_child(portrait_art)
 	var copy=VBoxContainer.new(); copy.size_flags_horizontal=SIZE_EXPAND_FILL; hero.add_child(copy)
-	label(copy,"FEATURED SPECIES",12).modulate=Color("#ffce86")
-	var family=label(copy,family_name(collection_feature),25); family.clip_text=true
-	var species=label(copy,store.SPECIES[collection_feature],16); species.clip_text=true
+	label(copy,"SPECIES PROFILE",11).modulate=Color("#b5d5d1")
+	var family=label(copy,family_name(collection_feature),16); family.modulate=Color("#aec2c8"); family.clip_text=true
+	var species=label(copy,store.SPECIES[collection_feature],23); species.clip_text=true
 	label(copy,species_category(collection_feature)+"  •  "+("Care companion" if collection_feature>=24 else "Secret evolution" if collection_feature>=12 else "Standard form"),12).modulate=species_color(collection_feature).lightened(.35)
 	var desc=label(copy,"Discovered" if (int(store.s.collection)&(1<<collection_feature))!=0 else "Discover by tracking in a habitat or through growth.",14); desc.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART
 	var favorite_button=button(copy,"♥ Favorited" if store.favorite(collection_feature) else "♡ Favorite",func(): store.toggle_favorite(collection_feature); show_collection())
@@ -1205,13 +1205,13 @@ func show_collection():
 		var known=(int(store.s.collection)&(1<<i))!=0
 		var tint=species_color(i)
 		var b=button(collection_grid,"",func(): update_feature(i))
-		b.custom_minimum_size=Vector2(0,182)
+		b.custom_minimum_size=Vector2(0,148)
 		b.add_theme_stylebox_override("normal",style(Color("#263747") if known else Color("#202936"),Color("#e4bd7a") if i==collection_feature else Color("#465969"),12))
 		var v=VBoxContainer.new(); v.set_anchors_and_offsets_preset(PRESET_FULL_RECT); v.offset_left=7; v.offset_right=-7; v.offset_top=6; v.offset_bottom=-7; v.mouse_filter=MOUSE_FILTER_IGNORE; v.add_theme_constant_override("separation",2); b.add_child(v)
 		var flags=label(v,("♥  " if store.favorite(i) else "")+("CARE" if i>=24 else "SECRET" if i>=12 else category.to_upper()),10); flags.mouse_filter=MOUSE_FILTER_IGNORE; flags.modulate=tint.lightened(.5)
-		var art=TextureRect.new(); art.texture=tex("res://assets/pet_%d.png"%i); art.expand_mode=TextureRect.EXPAND_IGNORE_SIZE; art.stretch_mode=TextureRect.STRETCH_KEEP_ASPECT_CENTERED; art.size_flags_vertical=SIZE_EXPAND_FILL; art.mouse_filter=MOUSE_FILTER_IGNORE; v.add_child(art)
+		var art=TextureRect.new(); art.texture=tex("res://assets/pet_%d.png"%i); art.modulate=Color.WHITE if known else Color("#62717e"); art.expand_mode=TextureRect.EXPAND_IGNORE_SIZE; art.stretch_mode=TextureRect.STRETCH_KEEP_ASPECT_CENTERED; art.size_flags_vertical=SIZE_EXPAND_FILL; art.mouse_filter=MOUSE_FILTER_IGNORE; v.add_child(art)
 		var name=label(v,store.SPECIES[i],14); name.horizontal_alignment=HORIZONTAL_ALIGNMENT_CENTER; name.clip_text=true; name.mouse_filter=MOUSE_FILTER_IGNORE
-		var status=label(v,"Discovered" if known else "Undiscovered",11); status.horizontal_alignment=HORIZONTAL_ALIGNMENT_CENTER; status.mouse_filter=MOUSE_FILTER_IGNORE; status.modulate=Color("#9ce2b5") if known else Color("#c7b9db")
+		var status=label(v,"Discovered" if known else "Track in World",11); status.horizontal_alignment=HORIZONTAL_ALIGNMENT_CENTER; status.mouse_filter=MOUSE_FILTER_IGNORE; status.modulate=Color("#9ce2b5") if known else Color("#c7b9db")
 	if collection_grid.get_child_count()==0: label(actions,"No matching companions yet. Explore World to discover more." if collection_filter=="Discovered" else "No favorites yet. Open a species and tap Favorite.",16).autowrap_mode=TextServer.AUTOWRAP_WORD_SMART
 	swipe_children(actions)
 func launch_game(i:int):

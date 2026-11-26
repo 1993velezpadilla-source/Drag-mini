@@ -24,7 +24,7 @@ func setup(r:int,id:int,n:int,finale:bool,is_patrol:bool,seed_id:int):
 	region=r;specimen=id;step=n;encounter=finale;patrol=is_patrol;seed_value=seed_id
 	var rng=RandomNumberGenerator.new();rng.seed=seed_id
 	required=3 if is_patrol else 4 if finale else 3 if id<12 else 4 if id<24 else 5
-	time_left=42.0 if finale else 34.0+required*3
+	time_left=38.0 if finale else 25.0+required*3
 	for i in range(required):
 		var p=Vector2(rng.randf_range(-7.0,7.0),rng.randf_range(-6.5,5.0))
 		for attempt in range(20):
@@ -39,7 +39,7 @@ func signal_position()->Vector2:
 	if finished or index>=trail.size():return player
 	var p=trail[index]
 	if encounter:p+=Vector2(sin(elapsed*1.8+index)*1.1,cos(elapsed*1.4+index)*.9)
-	return p
+	return p.clamp(Vector2(-7.7,-7.3),Vector2(7.7,7.3))
 func hazard_at(i:int)->Vector2:
 	return Vector2(sin(elapsed*(.68+i*.11)+float(i)*2.3)*6.1,cos(elapsed*(.49+i*.13)+float(i)*1.7)*5.8)
 func tick(delta:float):
