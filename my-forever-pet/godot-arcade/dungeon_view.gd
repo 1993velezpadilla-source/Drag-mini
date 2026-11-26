@@ -474,7 +474,7 @@ func interior_floor_detail():
 				if not run.cells.has(q) or q==run.player or q==run.stairs or run.loot.has(q) or run.traps.has(q):continue
 				if run.enemy_at(q)>=0:continue
 				var edge=x==room.position.x or x==room.end.x-1 or y==room.position.y or y==room.end.y-1
-				if region!=2 and not edge:continue
+				if region!=2 and not edge and posmod(x*13+y*7,3)!=0:continue
 				if posmod(x*19+y*37+run.floor_number,5)!=0:continue
 				var angle=float(posmod(x*3+y*11,8))*PI*.25
 				placements.append(Transform3D(Basis(Vector3.UP,angle),pos(q)+Vector3(0,.005,0)));used+=1
@@ -694,7 +694,7 @@ func update_living_ambient(dt:float):
 		var age=ambient_ages[i];var phase=age/duration;var seed=float(i)*2.399
 		var fade=minf(1.0,minf(phase*7.0,(1.0-phase)*6.0))
 		var offset=Vector3(sin(age*.71+seed)*.46,0,cos(age*.57+seed)*.36)
-		var size=.10+.035*float(i%4)
+		var size=.12+.035*float(i%4)
 		var basis:Basis
 		if mote:
 			offset.y=.55+.30*sin(age*.8+seed)+phase*.40
@@ -713,7 +713,7 @@ func update_living_ambient(dt:float):
 		var index=i-AMBIENT_COUNT if mote else i
 		var mm=ambient_batches[batch_index].multimesh
 		mm.set_instance_transform(index,Transform3D(basis,ambient_origins[i]+offset))
-		mm.set_instance_color(index,Color(1,1,1,fade*.65))
+		mm.set_instance_color(index,Color(1,1,1,fade*(.82 if region==0 and not mote else .70)))
 	var life=1.7 if region==1 else 3.2
 	for i in range(TRAIL_COUNT):
 		trail_ages[i]=minf(99.0,trail_ages[i]+delta)

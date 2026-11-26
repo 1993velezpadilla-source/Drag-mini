@@ -83,10 +83,11 @@ def export(name,maxtri):
   if len(group)>1:bpy.ops.object.join()
   bpy.ops.object.transform_apply(location=True,rotation=True,scale=True)
  # Fit the four measured oversize woodland singles to their cell, preserving Z/Y silhouette.
- if name=='dungeon_forest_wall' or name.startswith('dungeon_forest_rock_'):
+ if name=='dungeon_forest_wall' or name.startswith('dungeon_forest_rock_') or name=='dungeon_forest_span':
   extent=max(abs(vertex.co.x) for ob in bpy.context.scene.objects if ob.type=='MESH' for vertex in ob.data.vertices)
-  if extent>.70:
-   factor=.70/extent
+  limit=1.39 if name.endswith('_span') else .70
+  if extent>limit:
+   factor=limit/extent
    for ob in bpy.context.scene.objects:
     if ob.type=='MESH':
      for vertex in ob.data.vertices:vertex.co.x*=factor
@@ -981,42 +982,47 @@ def hollow_trunk(x,z,r,h,seed):
  # Use individual short arcs, not a closed sweep with duplicate endpoint.
  for i in range(0,n,4):tube(rim[i:i+5],[r*.075]*5,forestedge,6)
 def forest_architecture(width,seed,style=0):
+ # Living forest edge: asymmetrical bank with ONE branching tree on long
+ # segments. Short segments use exposed roots, not a row of identical stumps.
  half=width*.5
- # Sculpted soil face is interrupted by root cavities, not rounded stones.
- profile_wall('forest exposed earth',width,[(0,.56),(.22,.52),(.48,.36),(.70,.20),(.79,-.15),(.52,-.48),(0,-.49)],foreststone,seed,.15)
- profile_wall('overhanging moss lip',width,[(.64,.22),(.78,.38),(.88,.15),(.87,-.38),(.66,-.44)],moss,seed+1,.12)
- count=2 if width>2 else 1
- for k in range(count):
-  x=(-.27 if k==0 else .28)*width if count==2 else .08*width*(style-1)
-  hollow_trunk(x,-.18,.23 if width<2 else .31,.89+.19*((seed+k)%3),seed+k)
-  for side in [-1,1]:
-   end=max(-half+.07,min(half-.07,x+side*width*.38))
-   tube([(x,.62,-.13),(x+side*.13,.44,.19),((x+end)*.5,.19,.40),(end,.055,.56)],[.18,.14,.085,.028],bark,12)
+ profile_wall('forest exposed earth',width,[(0,.56),(.20,.48),(.39,.29),(.53,.18),(.59,-.18),(.42,-.48),(0,-.49)],foreststone,seed,.15)
+ profile_wall('overhanging moss lip',width,[(.43,.23),(.58,.33),(.65,.10),(.62,-.36),(.44,-.43)],moss,seed+1,.12)
+ x=-width*.18 if width>2 else 0.0
+ for side in [-1,1]:
+  end=side*(half-.09)
+  tube([(x,.53,-.16),(x+side*.12,.38,.16),((x+end)*.5,.15,.39),(end,.06,.50)],[.16,.13,.085,.029],bark,12)
+ if width>2 or style==0:
+  h=1.27 if width>2 else 1.05
+  tube([(x,.28,-.14),(x-.07,.66,-.18),(x+.04,h-.21,-.17),(x+.12,h,-.15)],[.20,.17,.12,.065],bark,12)
+  for k in range(3):
+   a=k*2*pi/3+.40
+   rx=x+.29*math.cos(a);rz=-.14+.20*math.sin(a)
+   tube([(x,h-.27,-.16),(rx*.6+x*.4,h-.09,rz),(rx,h+.10,rz)],[.075,.052,.025],bark,8)
+   ball((rx,h+.13,rz),(.54,.36,.48),moss if k%2 else leafdark)
+   leaf_rosette((rx,h+.22,rz),seed+80+k,leafdark,leafbright,.27)
  for k in range(4 if width>2 else 2):
-  x=(k/(3 if width>2 else 1)-.5)*width*.72
-  leaf_rosette((x,.79,-.10),seed+40+k,leafdark,leafbright,.37)
- # Small fungi emerge from the exposed earth face rather than sitting on every wall.
+  xx=(k/(3 if width>2 else 1)-.5)*width*.66
+  leaf_rosette((xx,.55,-.08),seed+40+k,leafdark,leafbright,.31)
  if style!=2:
-  for k in range(2):
-   x=(-.20+k*.19)*width
-   cyl((x,.32,.43),.035,.027,.16,cream)
-   ball((x,.43,.43),(.20,.095,.19),cap)
+  xx=width*.19
+  cyl((xx,.26,.42),.035,.027,.16,cream)
+  ball((xx,.37,.42),(.22,.11,.20),cap)
 def reef_architecture(width,seed,style=0):
  # A cavern face with carved concavity and three overhanging scalloped strata.
  profile_wall('undercut limestone cavern',width,[(0,.52),(.18,.47),(.38,.17),(.62,.12),(.84,.40),(1.07,.42),(1.18,-.06),(.8,-.47),(0,-.49)],reefstone,seed,.09)
- for j in range(3):
-  y=.20+j*.31
-  profile_wall('continuous mineral shelf',width,[(y-.07,.20),(y,.49+.035*j),(y+.10,.46),(y+.15,-.25),(y-.07,-.33)],reefedge,seed+j*7,.10)
+ for j in range(2):
+  y=.25+j*.53
+  profile_wall('continuous mineral shelf',width,[(y-.09,.20),(y,.46+.035*j),(y+.12,.36),(y+.19,-.25),(y-.09,-.33)],reefedge,seed+j*7,.17)
  # Broad folded fan mesh, with scalloped ribs instead of stick-shaped coral.
  for k in range(2 if width>2 else 1):
   x=(-.26+k*.52)*width if width>2 else (style-1)*.12
   verts=[];faces=[];segments=14
   for j in range(3):
-   radius=[.09,.26,.46][j]*(1.1 if width>2 else .85)
+   radius=[.09,.33,.55][j]*(1.1 if width>2 else .85)
    for i in range(segments+1):
     a=-1.12+2.24*i/segments
     r=radius*(1+.10*math.cos(i*pi))
-    verts.append((x+r*math.sin(a),.85+r*math.cos(a),-.10+.09*math.sin(i*.9)*j/2))
+    verts.append((x+r*math.sin(a),.85+r*math.cos(a),.08+.09*math.sin(i*.9)*j/2))
   for j in range(2):
    for i in range(segments):
     a=j*(segments+1)+i;faces.append((a,a+1,a+segments+2,a+segments+1))
@@ -1024,7 +1030,7 @@ def reef_architecture(width,seed,style=0):
   ob.modifiers.new('fan shell thickness','SOLIDIFY').thickness=.018
   for i in range(0,segments+1,3):
    a=-1.12+2.24*i/segments
-   tube([(x,.85,-.08),(x+.19*math.sin(a),.85+.19*math.cos(a),-.03),(x+.38*math.sin(a),.85+.38*math.cos(a),-.01)],[.030,.022,.010],coral,6)
+   tube([(x,.85,.10),(x+.19*math.sin(a),.85+.19*math.cos(a),.15),(x+.44*math.sin(a),.85+.44*math.cos(a),.16)],[.030,.022,.010],coral,6)
  for k in range(3):
   x=(k-1)*width*.24
   ball((x,.43,.28),(.14,.14,.14),pearl)
@@ -1049,7 +1055,7 @@ def star_architecture(width,seed,style=0):
   bay=width/count;cx=(k-(count-1)*.5)*bay;r=bay*.35
   box((cx,.57,.01),(r*1.40,.60,.05),astralstone,.014)
   temple_arch(cx,.69,r,.25,astraledge,seed+k)
-  temple_arch(cx,.69,r*.77,.04,rune,seed+k)
+  temple_arch(cx,.69,r*.70,.04,rune,seed+k)
   for side in [-1,1]:
    x=cx+side*r*.86
    box((x,.48,.17),(.13,.55,.27),astraledge,.021)
@@ -1062,9 +1068,10 @@ def star_architecture(width,seed,style=0):
  box((0,top,-.10),(width,.14,.72),astraledge,.022)
  box((0,top-.09,.24),(width,.055,.07),rune,.009)
  # Split-height crown: avoid the uninterrupted flat purple block silhouette.
- for i in range(3 if width>2 else 2):
-  x=(i-(1 if width>2 else .5))*width*.28
-  box((x,top+.13,-.20),(width*.18,.13,.39),astralstone,.022)
+ if style==2:
+  box((-width*.28,top+.09,-.20),(width*.26,.08,.39),astralstone,.022)
+ elif width>2:
+  box((width*.25,top+.10,-.20),(width*.18,.12,.39),astralstone,.022)
 architecture={'forest':forest_architecture,'reef':reef_architecture,'star':star_architecture}
 for biome,build in architecture.items():
  for variant in range(3):
@@ -1350,6 +1357,9 @@ for i in range(3):
  a=i*2*pi/3
  x=.23*math.cos(a);z=.23*math.sin(a)
  ball((x,.025,z),(.15,.046,.10),forestedge)
+# Fallen forked twig, deliberately small and flat to preserve traversal readability.
+tube([(-.36,.04,-.24),(-.09,.05,-.16),(.17,.04,-.11),(.34,.035,.07)],[.030,.025,.019,.010],bark,6)
+tube([(-.09,.05,-.16),(-.03,.04,-.32),(.09,.03,-.38)],[.018,.014,.008],bark,6)
 export('dungeon_forest_floor_detail',3000)
 clear()
 for i in range(5):
