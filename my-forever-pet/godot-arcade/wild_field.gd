@@ -56,17 +56,28 @@ func setup(r:int,id:int,step:int,finale:bool,patrol:bool,seed_id:int,companion:i
 	build_world(companion,id,finale)
 	var footer=PanelContainer.new();footer.add_theme_stylebox_override("panel",skin(Color("#142531"),Color("#354e59")));root.add_child(footer)
 	var bottom=VBoxContainer.new();bottom.add_theme_constant_override("separation",8);footer.add_child(bottom)
-	readout=Label.new();readout.add_theme_font_size_override("font_size",23);readout.horizontal_alignment=HORIZONTAL_ALIGNMENT_CENTER;bottom.add_child(readout)
-	progress=ProgressBar.new();progress.max_value=run.required;progress.show_percentage=false;progress.custom_minimum_size.y=12;bottom.add_child(progress)
-	signal_bar=ProgressBar.new();signal_bar.max_value=1.0;signal_bar.show_percentage=false;signal_bar.custom_minimum_size.y=8;bottom.add_child(signal_bar)
-	calm=ProgressBar.new();calm.max_value=run.capture_time;calm.show_percentage=false;calm.custom_minimum_size.y=9;bottom.add_child(calm)
+	readout=Label.new();readout.add_theme_font_size_override("font_size",20);readout.horizontal_alignment=HORIZONTAL_ALIGNMENT_CENTER;bottom.add_child(readout)
+	progress=field_meter(bottom,"TRUST" if run.encounter else "TRAIL",float(run.required),Color("#a7e9af"))
+	var meters=HBoxContainer.new();meters.add_theme_constant_override("separation",14);bottom.add_child(meters)
+	var radar=VBoxContainer.new();radar.size_flags_horizontal=SIZE_EXPAND_FILL;meters.add_child(radar)
+	var action=VBoxContainer.new();action.size_flags_horizontal=SIZE_EXPAND_FILL;meters.add_child(action)
+	signal_bar=field_meter(radar,"SIGNAL",1.0,Color("#71cfee"))
+	calm=field_meter(action,"BOND" if run.encounter else "COLLECT",run.capture_time,Color("#f6d48b"))
 	status=Label.new();status.horizontal_alignment=HORIZONTAL_ALIGNMENT_CENTER;status.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART;status.add_theme_font_size_override("font_size",14);bottom.add_child(status)
 	var controls=HBoxContainer.new();controls.add_theme_constant_override("separation",8);bottom.add_child(controls)
 	scan_button=Button.new();scan_button.custom_minimum_size=Vector2(120,58);scan_button.pressed.connect(func():run.scan());controls.add_child(scan_button)
 	inspect_button=Button.new();inspect_button.custom_minimum_size.y=58;inspect_button.size_flags_horizontal=SIZE_EXPAND_FILL;inspect_button.button_down.connect(func():action_held=true;run.set_inspecting(true));inspect_button.button_up.connect(func():action_held=false;run.set_inspecting(false));controls.add_child(inspect_button)
 	burst_button=Button.new();burst_button.custom_minimum_size=Vector2(102,58);burst_button.pressed.connect(func():run.burst());controls.add_child(burst_button)
-	burst_meter=ProgressBar.new();burst_meter.max_value=4.0;burst_meter.show_percentage=false;burst_meter.custom_minimum_size.y=5;bottom.add_child(burst_meter)
+	burst_meter=field_meter(bottom,"ABILITY",4.0,Color("#c6adff"))
 	update_hud()
+func field_meter(parent:Container,caption_text:String,limit:float,fill_color:Color)->ProgressBar:
+	var line=HBoxContainer.new();line.add_theme_constant_override("separation",8);parent.add_child(line)
+	var caption=Label.new();caption.text=caption_text;caption.custom_minimum_size.x=65;caption.add_theme_font_size_override("font_size",11);caption.modulate=Color("#b7cbd3");line.add_child(caption)
+	var meter=ProgressBar.new();meter.max_value=limit;meter.step=.001;meter.show_percentage=false;meter.custom_minimum_size.y=9;meter.size_flags_horizontal=SIZE_EXPAND_FILL;meter.size_flags_vertical=SIZE_SHRINK_CENTER
+	var track=StyleBoxFlat.new();track.bg_color=Color("#0c1922");track.set_corner_radius_all(5)
+	var fill=StyleBoxFlat.new();fill.bg_color=fill_color;fill.set_corner_radius_all(5)
+	meter.add_theme_stylebox_override("background",track);meter.add_theme_stylebox_override("fill",fill);line.add_child(meter)
+	return meter
 func skin(bg:Color,edge:Color)->StyleBoxFlat:
 	var st=StyleBoxFlat.new();st.bg_color=bg;st.border_color=edge;st.set_border_width_all(1);st.content_margin_left=12;st.content_margin_right=12;st.content_margin_top=10;st.content_margin_bottom=10;return st
 func material(c:Color,glow:bool=false)->StandardMaterial3D:
