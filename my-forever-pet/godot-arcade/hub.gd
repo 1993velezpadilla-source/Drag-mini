@@ -30,7 +30,11 @@ var shop_tab="Accessories"
 var swipe_dirty=true
 var hint_label:Label
 var quest_claim:Button
-var life_tabs=["Care","Journal","World","Habitat","Cell","Care Quest"]
+var life_tabs=["Care","Journal","Cell","Care Quest"]
+var wellness_cta:Button
+var growth_cta:Button
+var recommended_cta:Button
+var recommended_destination="Care"
 const Research=preload("res://research_data.gd")
 var hunt_region=0
 var hunt_message=""
@@ -258,9 +262,11 @@ func make_ui():
 	enable_swipe(section_scroll)
 	body=VBoxContainer.new(); body.mouse_filter=MOUSE_FILTER_PASS; body.size_flags_horizontal=SIZE_EXPAND_FILL; section_scroll.add_child(body)
 	actions=body
-	reward_row=row(layout); reward_row.add_theme_constant_override("separation",6)
-	daily_cta=button(reward_row,"Daily Gift",func(): perform("daily")); daily_cta.custom_minimum_size.y=43; daily_cta.icon=GameIcons.texture("daily"); daily_cta.expand_icon=true; daily_cta.add_theme_constant_override("icon_max_width",36); daily_cta.add_theme_stylebox_override("normal",skin(Color("#7747a8"),Color("#ffd38c")))
-	care_cta=button(reward_row,"Care Quest",func(): select("Care Quest")); care_cta.custom_minimum_size.y=43; care_cta.add_theme_font_size_override("font_size",15); care_cta.icon=GameIcons.texture("bond"); care_cta.expand_icon=true; care_cta.add_theme_constant_override("icon_max_width",30)
+	reward_row=row(layout); reward_row.add_theme_constant_override("separation",5)
+	wellness_cta=button(reward_row,"Care",func(): select("Care")); wellness_cta.custom_minimum_size.y=43; wellness_cta.add_theme_font_size_override("font_size",14); wellness_cta.icon=GameIcons.texture("clean"); wellness_cta.expand_icon=true; wellness_cta.add_theme_constant_override("icon_max_width",22)
+	daily_cta=button(reward_row,"Daily Gift",func(): perform("daily")); daily_cta.custom_minimum_size.y=43; daily_cta.add_theme_font_size_override("font_size",14); daily_cta.icon=GameIcons.texture("daily"); daily_cta.expand_icon=true; daily_cta.add_theme_constant_override("icon_max_width",36); daily_cta.add_theme_stylebox_override("normal",skin(Color("#7747a8"),Color("#ffd38c")))
+	care_cta=button(reward_row,"Care Quest",func(): select("Care Quest")); care_cta.custom_minimum_size.y=43; care_cta.add_theme_font_size_override("font_size",15); care_cta.icon=GameIcons.texture("bond"); care_cta.expand_icon=true; care_cta.add_theme_constant_override("icon_max_width",22)
+	growth_cta=button(reward_row,"Growth",func(): select("Journal")); growth_cta.custom_minimum_size.y=43; growth_cta.add_theme_font_size_override("font_size",14); growth_cta.icon=GameIcons.texture("Journal"); growth_cta.expand_icon=true; growth_cta.add_theme_constant_override("icon_max_width",22)
 	reward_audio=AudioStreamPlayer.new(); reward_audio.volume_db=-16; add_child(reward_audio)
 	room_scroll=ScrollContainer.new(); room_scroll.custom_minimum_size.y=64; room_scroll.vertical_scroll_mode=ScrollContainer.SCROLL_MODE_DISABLED; room_scroll.horizontal_scroll_mode=ScrollContainer.SCROLL_MODE_AUTO; layout.add_child(room_scroll)
 	enable_swipe(room_scroll)
@@ -273,7 +279,7 @@ func make_ui():
 	swipe_children(room_strip)
 	var dock_shell=panel(layout)
 	menu_dock=row(dock_shell); menu_dock.add_theme_constant_override("separation",2)
-	for tab in ["Home","Pets","Wallpaper","Arcade","Shop","Life"]: nav_tile(menu_dock,tab)
+	for tab in ["Home","Pets","World","Arcade","Shop","Wallpaper"]: nav_tile(menu_dock,tab)
 	select("Home")
 func art_tile(parent:Node,name:String,path:String,fn:Callable,h:int=66,font:int=13,icon_key:String="")->Button:
 	var b=button(parent,"",fn)
@@ -518,7 +524,7 @@ func select(tab:String):
 	if tab!=section and is_instance_valid(notice): notice.text=""; notice.hide()
 	section=tab
 	for key in nav_buttons:
-		nav_buttons[key].add_theme_stylebox_override("normal",skin(Color("#6738a8"),Color("#e6bcff")) if key==tab or (key=="Life" and tab in life_tabs) or (key=="Home" and tab=="Rooms") else StyleBoxEmpty.new())
+		nav_buttons[key].add_theme_stylebox_override("normal",skin(Color("#6738a8"),Color("#e6bcff")) if key==tab or (key=="World" and tab=="Habitat") or (key=="Home" and (tab=="Rooms" or tab in life_tabs)) else StyleBoxEmpty.new())
 	if is_instance_valid(section_scroll):
 		section_scroll.scroll_vertical=0
 		var full_menu=tab!="Home"
@@ -537,7 +543,7 @@ func select(tab:String):
 		live_stage.set_room("room_bedroom")
 	reset_actions(5 if tab=="Home" and store.s.stage>0 else 4 if tab=="Home" else 0)
 	if tab in life_tabs: life_header(tab)
-	elif tab not in ["Home","Pets","Shop","Rooms","Arcade","Wallpaper"]: label(actions,tab.to_upper(),22)
+	elif tab not in ["Home","Pets","Shop","Rooms","Arcade","Wallpaper","World","Habitat"]: label(actions,tab.to_upper(),22)
 	var s:Dictionary=store.s
 	match tab:
 		"Home":
@@ -681,15 +687,16 @@ func build_care_quest():
 		btn.size_flags_horizontal=SIZE_SHRINK_CENTER; btn.custom_minimum_size=Vector2(76,40); btn.add_theme_font_size_override("font_size",14); btn.disabled=done
 		if done: detail.modulate=Color("#a6e8bc")
 func build_shop():
-	section_heading(actions,"Pet boutique","Collect outfits and decorate your rooms using coins you earn.")
+	section_heading(actions,"Pet boutique","Outfits, furniture and supplies.")
+	var funds=label(actions,"Wallet: %d coins · %d crystals"%[store.s.coins,store.s.crystals],16); funds.modulate=Color("#ffd38d")
 	var tabs=row(actions)
-	for name in ["Accessories","Wardrobe","Supplies"]:
-		var b=button(tabs,name,func(): shop_tab=name; select("Shop")); b.add_theme_font_size_override("font_size",14); b.custom_minimum_size.y=42
+	for name in ["Accessories","Furniture","Wardrobe","Supplies"]:
+		var b=button(tabs,name,func(): shop_tab=name; select("Shop")); b.add_theme_font_size_override("font_size",12); b.custom_minimum_size.y=42
 		b.add_theme_stylebox_override("normal",menu_skin(Color("#7850ad") if shop_tab==name else Color("#27203e"),Color("#e4bdff") if shop_tab==name else Color("#5c4c75")))
 	var grid=GridContainer.new(); grid.columns=2; grid.add_theme_constant_override("h_separation",7); grid.add_theme_constant_override("v_separation",7); actions.add_child(grid)
 	var s:Dictionary=store.s
-	if shop_tab=="Accessories":
-		for i in range(store.ITEMS.size()):
+	if shop_tab in ["Accessories","Furniture"]:
+		for i in range(0,3) if shop_tab=="Accessories" else range(3,store.ITEMS.size()):
 			var owned=(int(s.owned)&(1<<i))!=0
 			var active=s.equipped==i+1 or s.installation==i+1
 			shop_tile(grid,store.ITEMS[i],("Wearing" if i<3 else "Installed") if active else "Owned" if owned else "%d coins"%store.PRICES[i],["Pet accessory","Pet accessory","Pet accessory","Bathroom furniture","Bedroom furniture","Garden furniture"][i],"res://assets/item_%d.png"%i,"Remove" if active else "Use" if owned else "Buy","use" if owned else "buy",i)
@@ -727,12 +734,12 @@ func build_arcade():
 		label(card,"Best %d"%int(store.s.best[i]),13).modulate=Color("#e4bcff")
 		var play=button(card,"Play ›",func(): launch_game(i)); play.disabled=not store.arcade_block(i).is_empty()
 func life_header(tab:String):
-	var title=label(actions,"Your pet's life",26)
+	var title=label(actions,"Care & growth",23)
 	title.add_theme_color_override("font_color",Color("#f4d9ff"))
-	var subtitle=label(actions,"Care, growth and adventure — all in one place.",14); subtitle.modulate=Color("#c9bbdf"); subtitle.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART
+	
 	var tabs=row(actions); tabs.add_theme_constant_override("separation",5)
-	for entry in [["Care","Care"],["Growth","Journal"],["Explore","World"]]:
-		var active=tab==entry[1] or (entry[1]=="Care" and tab in ["Cell","Care Quest"]) or (entry[1]=="World" and tab=="Habitat")
+	for entry in [["Wellness","Care"],["Growth","Journal"],["Daily care","Care Quest"]]:
+		var active=tab==entry[1] or (entry[1]=="Care" and tab=="Cell")
 		var b=button(tabs,entry[0],func(): select(entry[1])); b.custom_minimum_size.y=42; b.add_theme_font_size_override("font_size",16)
 		b.add_theme_stylebox_override("normal",menu_skin(Color("#7850ad") if active else Color("#27203e"),Color("#e4bdff") if active else Color("#5c4c75")))
 func section_heading(parent:Node,title:String,subtitle:String=""):
@@ -1015,12 +1022,14 @@ func update_feature(i:int):
 	section_scroll.scroll_vertical=0
 func show_collection():
 	reset_actions()
-	var title=label(actions,"PET COLLECTION",25)
+	var title=label(actions,"Pet collection",25)
 	title.add_theme_color_override("font_color",Color("#f5d6ff"))
 	var discovered=0
 	for i in range(store.SPECIES.size()):
 		if (int(store.s.collection)&(1<<i))!=0: discovered+=1
 	label(actions,"%d / %d discovered  •  Tap a creature to inspect"%[discovered,store.SPECIES.size()],14).modulate=Color("#d0bedf")
+	var collection_meter=ProgressBar.new(); collection_meter.max_value=store.SPECIES.size(); collection_meter.value=discovered; collection_meter.show_percentage=false; collection_meter.custom_minimum_size.y=10; actions.add_child(collection_meter)
+	var explore=button(actions,"Discover companions in World ›",func(): select("World")); explore.custom_minimum_size.y=40; explore.add_theme_font_size_override("font_size",14)
 	var featured=panel(actions)
 	var hero=row(featured)
 	var portrait_art=TextureRect.new(); portrait_art.texture=tex("res://assets/pet_%d.png"%collection_feature); portrait_art.custom_minimum_size=Vector2(144,188); portrait_art.expand_mode=TextureRect.EXPAND_IGNORE_SIZE; portrait_art.stretch_mode=TextureRect.STRETCH_KEEP_ASPECT_CENTERED; hero.add_child(portrait_art)
@@ -1100,8 +1109,11 @@ func refresh():
 	outfit_label.text=""
 	if is_instance_valid(daily_cta):
 		daily_cta.disabled=s.stage==0 or s.daily_day==store.date_key(store.now())
-		daily_cta.text="Gift collected" if daily_cta.disabled else "Daily Gift"
-		care_cta.text="Care chest ready!" if store.care_ready() else "Care %d/4"%mini(4,store.care_count())
+		daily_cta.text="Claimed" if s.daily_day==store.date_key(store.now()) else "Gift"
+		care_cta.text="Chest!" if store.care_ready() else "%d/4 Care"%mini(4,store.care_count())
+		wellness_cta.text="Treat!" if s.germs>0 else "Care"
+		wellness_cta.add_theme_stylebox_override("normal",menu_skin(Color("#854455") if s.germs>0 else Color("#34244f"),Color("#ffc0cb") if s.germs>0 else Color("#765c9a")))
+		growth_cta.text=store.STAGES[int(s.stage)]
 		care_cta.add_theme_stylebox_override("normal",skin(Color("#8b5134") if store.care_ready() else Color("#51316d"),Color("#ffd48a") if store.care_ready() else Color("#dc9fed")))
 	if not current_room.is_empty(): path="res://assets/"+str(ROOMS.get(current_room,"room_bedroom"))+".jpg"
 	bg.texture=tex(path)
@@ -1146,9 +1158,9 @@ func room_hint()->String:
 	return store.care_priority()+" • "+home_hint()
 func home_hint()->String:
 	var s:Dictionary=store.s
-	if s.trip_end>store.now(): return "Life › Explore"
+	if s.trip_end>store.now(): return "World › Expeditions"
 	if store.asleep(store.now()): return "Tap Wake"
-	if s.germs>0: return "Life › Care"
+	if s.germs>0: return "Care › Wellness"
 	if s.hunger<5: return "Kitchen"
 	if s.hygiene<100 or s.toilet<100: return "Bathroom"
 	if s.waste>0: return "Tap Clean"
@@ -1377,6 +1389,11 @@ func test_home():
 	select("Home"); wallpaper_cta.pressed.emit(); assert(section=="Wallpaper")
 	select("Home")
 	assert(nav_buttons.size()==6 and room_tiles.size()==6 and action_grid.get_child_count()==5)
+	assert(nav_buttons.has("World") and not nav_buttons.has("Life"))
+	nav_buttons["World"].pressed.emit(); assert(section=="World")
+	select("Home"); wellness_cta.pressed.emit(); assert(section=="Care")
+	select("Home"); growth_cta.pressed.emit(); assert(section=="Journal")
+	select("Home")
 	select("Pets"); assert(collection_grid.get_child_count()==store.SPECIES.size())
 	assert(store.toggle_favorite(3)); collection_filter="Favorites"; show_collection(); assert(collection_grid.get_child_count()==1)
 	collection_filter="Alien"; show_collection(); assert(collection_grid.get_child_count()==3)

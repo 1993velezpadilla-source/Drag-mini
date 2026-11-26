@@ -12,6 +12,12 @@ static func texture(key:String)->Texture2D:
 		"Wallpaper":
 			art='<rect x="14" y="4" width="36" height="56" rx="8" fill="url(#g)"/><rect x="18" y="10" width="28" height="40" rx="4" fill="#372452"/><path d="M21 32Q21 24 25 24L29 29H35L39 24Q43 24 43 32V41Q32 49 21 41Z" fill="#efb6ff"/><circle cx="28" cy="35" r="2" fill="#372452"/><circle cx="36" cy="35" r="2" fill="#372452"/><path d="M30 40Q32 42 34 40" stroke="#372452" fill="none" stroke-width="2"/><circle cx="32" cy="55" r="2.5" fill="#fff0ff"/>'
 			color="#c295ff"
+		"World":
+			art='<circle cx="32" cy="32" r="26" fill="url(#g)"/><ellipse cx="32" cy="32" rx="13" ry="26" stroke="#315657" stroke-width="3" fill="none"/><path d="M7 32H57M13 18H51M13 46H51" stroke="#315657" stroke-width="3" fill="none"/><path d="M34 8L46 12 42 21 29 23 23 15Z M17 34L29 37 32 50 21 55 13 44Z M46 36L53 42 46 50 39 44Z" fill="#e6ffbf"/>'
+			color="#7bd4a5"
+		"Journal":
+			art='<rect x="11" y="5" width="43" height="54" rx="6" fill="url(#g)"/><path d="M19 7V58" stroke="#4b3575" stroke-width="4"/><path d="M28 43V32L35 25 42 29 47 17" stroke="#fff5cc" stroke-width="5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>'
+			color="#bb9aff"
 		"Rooms":
 			art='<rect x="8" y="10" width="48" height="44" rx="9" fill="url(#g)"/><path d="M8 28H56M32 10V54" stroke="#26355b" stroke-width="5"/><rect x="13" y="14" width="14" height="10" rx="3" fill="#f1f7ff"/><rect x="37" y="34" width="14" height="15" rx="3" fill="#c8b8ff"/>'
 		"Arcade","toy","play":
