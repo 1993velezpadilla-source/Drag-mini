@@ -28,7 +28,16 @@ func _ready():
 			var data=JSON.parse_string(FileAccess.get_file_as_string(source))
 			if data is Dictionary:
 				for key in s:
-					if data.has(key) and (typeof(data[key])==typeof(s[key]) or (typeof(s[key]) in [TYPE_INT,TYPE_FLOAT] and typeof(data[key]) in [TYPE_INT,TYPE_FLOAT])): s[key]=data[key]
+					if not data.has(key): continue
+					if s[key] is Array:
+						if data[key] is Array and data[key].size()==s[key].size():
+							var valid=true
+							for value in data[key]:
+								if not (value is int or value is float) or not is_finite(float(value)): valid=false
+							if valid: s[key]=data[key]
+					elif typeof(data[key])==typeof(s[key]) or (typeof(s[key]) in [TYPE_INT,TYPE_FLOAT] and typeof(data[key]) in [TYPE_INT,TYPE_FLOAT]): s[key]=data[key]
+				for key in ["stage","field","body","eyes","variant"]:
+					s[key]=clampi(int(s[key]),0,{"stage":4,"field":2,"body":3,"eyes":3,"variant":1}[key])
 				break
 	advance(now())
 	save_game()
@@ -156,7 +165,8 @@ func save_game():
 	f.store_string(JSON.stringify(s))
 	f.flush()
 	f.close()
-	if FileAccess.file_exists(SAVE): DirAccess.copy_absolute(ProjectSettings.globalize_path(SAVE),ProjectSettings.globalize_path(SAVE+".bak"))
+	if FileAccess.file_exists(SAVE) and JSON.parse_string(FileAccess.get_file_as_string(SAVE)) is Dictionary:
+		DirAccess.copy_absolute(ProjectSettings.globalize_path(SAVE),ProjectSettings.globalize_path(SAVE+".bak"))
 	DirAccess.rename_absolute(ProjectSettings.globalize_path(SAVE+".tmp"),ProjectSettings.globalize_path(SAVE))
 func feed(i:int):
 	s.hunger=mini(5,int(s.hunger)+1); s.foods[i]+=1; s.toilet=maxi(0,int(s.toilet)-3)
