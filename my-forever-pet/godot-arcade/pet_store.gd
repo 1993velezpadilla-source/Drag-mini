@@ -17,9 +17,10 @@ var arcade_mode=-1
 var test_mode=false
 var dirty=false
 var wallpaper_keys:Dictionary={}
+const PERSONAL=["stage","field","body","eyes","color","variant","friendship","inherited_eyes","name","hunger","happy","energy","bond","waste","mistakes","germs","hygiene","toilet","soap","cells","foods","equipped","worn","training","age","food_clock","mood_clock","energy_clock","waste_clock","cell_clock","care_clock","hygiene_clock","toilet_clock","rest_clock","sleep_until","awake_until","interaction_at","companion_xp"]
 const WALL_ROOMS=["room_bedroom","room_kitchen","room_bathroom","room_toy","room_garden","room_lab"]
 func defaults()->Dictionary:
-	return {"research_evidence":[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],"research_trust":[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],"sanctuary_mask":0,"sanctuary_progress":[0,0,0,0,0,0,0,0,0],"research_day":"","research_daily":[0,0,0],"research_claimed":0,"research_rank_xp":[0,0,0],"research_skill":0,"research_misses":[0,0,0],"research_target":[-1,-1,-1],"wallpaper_room":0,"wallpaper_x":1,"wallpaper_y":2,"wallpaper_size":1,"wallpaper_minimal":false,"wallpaper_battery":false,"wallpaper_status":true,"stage":0,"field":0,"habitat":0,"body":0,"eyes":0,"color":0,"variant":0,"generation":1,"friendship":0,"inherited_eyes":-1,"name":"","hunger":5,"happy":10,"energy":100,"bond":0,"xp":0,"waste":0,"mistakes":0,"germs":0,"hygiene":100,"toilet":100,"coins":0,"crystals":0,"materials":0,"fuel":0,"snacks":0,"medicine":0,"soap":0,"cells":[0,0,0],"foods":[0,0,0,0],"collection":0,"favorites":0,"care_day":"","care_mask":0,"care_claims":0,"care_claimed":false,"form":-1,"owned":0,"equipped":0,"installation":0,"wardrobe":0,"worn":[0,0,0,0],"theme":0,"training":0,"age":0.0,"last":0.0,"food_clock":0.0,"mood_clock":0.0,"energy_clock":0.0,"waste_clock":0.0,"cell_clock":0.0,"care_clock":0.0,"hygiene_clock":0.0,"toilet_clock":0.0,"rest_clock":0.0,"sleep_until":0.0,"awake_until":0.0,"auto_sleep":true,"trip_end":0.0,"destination":0,"trip_bonus":0,"journeys":0,"pending":[0,0,0],"daily_day":"","quest_day":"","quests":0,"claimed":0,"garden_at":0.0,"harvests":0,"interaction_at":0.0,"best":[0,0,0,0,0]}
+	return {"profiles":{},"companion_xp":0,"research_evidence":[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],"research_trust":[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],"sanctuary_mask":0,"sanctuary_progress":[0,0,0,0,0,0,0,0,0],"research_day":"","research_daily":[0,0,0],"research_claimed":0,"research_rank_xp":[0,0,0],"research_skill":0,"research_misses":[0,0,0],"research_target":[-1,-1,-1],"wallpaper_room":0,"wallpaper_x":1,"wallpaper_y":2,"wallpaper_size":1,"wallpaper_minimal":false,"wallpaper_battery":false,"wallpaper_status":true,"stage":0,"field":0,"habitat":0,"body":0,"eyes":0,"color":0,"variant":0,"generation":1,"friendship":0,"inherited_eyes":-1,"name":"","hunger":5,"happy":10,"energy":100,"bond":0,"xp":0,"waste":0,"mistakes":0,"germs":0,"hygiene":100,"toilet":100,"coins":0,"crystals":0,"materials":0,"fuel":0,"snacks":0,"medicine":0,"soap":0,"cells":[0,0,0],"foods":[0,0,0,0],"collection":0,"favorites":0,"care_day":"","care_mask":0,"care_claims":0,"care_claimed":false,"form":-1,"owned":0,"equipped":0,"installation":0,"wardrobe":0,"worn":[0,0,0,0],"theme":0,"training":0,"age":0.0,"last":0.0,"food_clock":0.0,"mood_clock":0.0,"energy_clock":0.0,"waste_clock":0.0,"cell_clock":0.0,"care_clock":0.0,"hygiene_clock":0.0,"toilet_clock":0.0,"rest_clock":0.0,"sleep_until":0.0,"awake_until":0.0,"auto_sleep":true,"trip_end":0.0,"destination":0,"trip_bonus":0,"journeys":0,"pending":[0,0,0],"daily_day":"","quest_day":"","quests":0,"claimed":0,"garden_at":0.0,"harvests":0,"interaction_at":0.0,"best":[0,0,0,0,0]}
 func _ready():
 	test_mode=false
 	for flag in ["--test","--soak","--capture","--lane-only","--unassisted","--home-test","--home-capture","--home-touch-test"]:
@@ -40,6 +41,8 @@ func _ready():
 							if valid: s[key]=data[key]
 					elif typeof(data[key])==typeof(s[key]) or (typeof(s[key]) in [TYPE_INT,TYPE_FLOAT] and typeof(data[key]) in [TYPE_INT,TYPE_FLOAT]): s[key]=data[key]
 				if not data.has("habitat"): s.habitat=s.field
+				s.profiles=validated_profiles(s.profiles)
+				if int(s.form)>=0 and not s.profiles.has("-1"): s.profiles["-1"]=profile_snapshot()
 				for key in ["wallpaper_x","wallpaper_y","wallpaper_size"]: s[key]=clampi(int(s[key]),0,2)
 				for key in ["stage","field","habitat","body","eyes","variant"]:
 					s[key]=clampi(int(s[key]),0,{"stage":4,"field":2,"habitat":2,"body":3,"eyes":3,"variant":1}[key])
@@ -85,6 +88,57 @@ func care_priority()->String:
 	if s.waste>0: return "Clean the room"
 	return "Happy and healthy"
 func level()->int: return 1+int(s.xp/100)
+func companion_level()->int: return 1+int(s.companion_xp/50)
+func profile_snapshot()->Dictionary:
+	var result={}
+	for key in PERSONAL:
+		result[key]=s[key].duplicate(true) if s[key] is Array else s[key]
+	return result
+func validated_profiles(raw:Dictionary)->Dictionary:
+	var result={}
+	var template=defaults()
+	var caps={"stage":4,"field":2,"body":3,"eyes":3,"variant":1,"hunger":5,"happy":10,"energy":100,"bond":100,"hygiene":100,"toilet":100,"germs":3,"waste":6,"friendship":4}
+	for slot in range(-1,SPECIES.size()):
+		var key=str(slot)
+		if not raw.has(key) or not raw[key] is Dictionary: continue
+		var entry={}
+		for field in PERSONAL:
+			var fallback=template[field]
+			var value=raw[key].get(field,fallback)
+			if fallback is Array:
+				var valid=value is Array and value.size()==fallback.size()
+				if valid:
+					for n in value:
+						if not (n is int or n is float) or not is_finite(float(n)): valid=false
+				entry[field]=value.duplicate(true) if valid else fallback.duplicate(true)
+			elif fallback is String: entry[field]=str(value).left(24) if value is String else fallback
+			else: entry[field]=value if (value is int or value is float) and is_finite(float(value)) else fallback
+		for field in caps: entry[field]=clampi(int(entry[field]),0,int(caps[field]))
+		if slot>=0:entry.stage=4
+		result[key]=entry
+	return result
+func companion_profile(slot:int)->Dictionary:
+	if slot==int(s.form):return profile_snapshot()
+	return s.profiles.get(str(slot),{})
+func original_species()->int:
+	var original=companion_profile(-1)
+	if original.is_empty():return inherited_species()
+	return int(original.field)*4+int(original.body)+12*int(original.variant)
+func switch_companion(slot:int,at:float)->bool:
+	if s.stage==0 or slot==int(s.form) or s.trip_end>at or s.pending[0]>0 or arcade_mode!=-1:return false
+	if slot!=-1 and (slot<0 or slot>=SPECIES.size() or (int(s.collection)&(1<<slot))==0):return false
+	if slot==-1 and not s.profiles.has("-1"):return false
+	s.profiles[str(s.form)]=profile_snapshot()
+	var entry:Dictionary=s.profiles.get(str(slot),{})
+	if entry.is_empty():
+		var fresh=defaults()
+		fresh.stage=4; fresh.field=int(slot%12/4); fresh.body=slot%4; fresh.variant=1 if slot>=12 and slot<24 else 0
+		for key in PERSONAL: entry[key]=fresh[key]
+	for key in PERSONAL:s[key]=entry[key].duplicate(true) if entry[key] is Array else entry[key]
+	s.form=slot; s.last=at
+	return true
+func wallpaper_identity()->int:
+	return int(s.generation)*32+int(s.form)+2
 func inherited_species()->int: return int(s.field)*4+int(s.body)+12*int(s.variant)
 func species()->int:
 	var selected=int(s.form)
@@ -255,7 +309,8 @@ func toggle_favorite(index:int)->bool:
 	return true
 func pet_name()->String:
 	return s.name if not str(s.name).is_empty() else STAGES[int(s.stage)] if s.stage<2 else SPECIES[species()]
-func earn(n:int): s.xp=mini(999900,int(s.xp)+n)
+func earn(n:int):
+	s.xp=mini(999900,int(s.xp)+n); s.companion_xp=mini(999900,int(s.companion_xp)+n)
 func advance(at:float):
 	if s.last<=0: s.last=at; return
 	if at<=s.last: return
@@ -343,6 +398,8 @@ func wallpaper_sync()->bool:
 	var room_ok=wallpaper_image(plugin,"room_%d"%room,"res://assets/"+WALL_ROOMS[room]+".jpg")
 	if not (awake_ok and sleep_ok and room_ok): return false
 	var snapshot=s.duplicate()
+	snapshot.erase("profiles")
+	snapshot["generation"]=wallpaper_identity()
 	snapshot["portrait"]=i; snapshot["name"]=pet_name(); snapshot["room"]=room
 	snapshot["minimal"]=s.wallpaper_minimal; snapshot["battery"]=s.wallpaper_battery; snapshot["show_status"]=s.wallpaper_status
 	plugin.syncState(JSON.stringify(snapshot))
@@ -351,7 +408,7 @@ func consume_wallpaper_action():
 	if test_mode: return
 	var plugin=wallpaper_plugin()
 	if plugin==null: return
-	var request=str(plugin.consumeAction(int(s.generation)))
+	var request=str(plugin.consumeAction(wallpaper_identity()))
 	if request=="bond": action("bond")
 	elif request=="feed": action("food",3)
 func _notification(what:int):
@@ -383,7 +440,7 @@ func action_block(id:String,i:int=0)->String:
 		"craft": return "" if s.materials>=3 else "Requires 3 materials"
 		"loot": return "" if s.pending[0]>0 else "No rewards to collect"
 		"quest": return "" if i>=0 and i<3 and (int(s.quests)&(1<<i))!=0 and (int(s.claimed)&(1<<i))==0 else "Quest not ready or already claimed"
-		"secret": return "" if s.stage==4 and s.variant==0 and s.bond>=30 and s.training>=10 and s.crystals>=3 else "Adult, 30 bond, 10 training, 3 crystals"
+		"secret": return "" if int(s.form)==-1 and s.stage==4 and s.variant==0 and s.bond>=30 and s.training>=10 and s.crystals>=3 else "Adult, 30 bond, 10 training, 3 crystals"
 	if id in ["food","cook","snack","medicine","cell","soap","rinse","bath","toilet","bond","play","toy","train","praise","trip","friend","breed"]:
 		if s.trip_end>at: return "Pet is exploring"
 		if asleep(at): return "Wake your pet first"
@@ -411,10 +468,11 @@ func action_block(id:String,i:int=0)->String:
 			if s.pending[0]>0: return "Collect previous rewards first"
 			if level()<1+i*2: return "Unlocks at level "+str(1+i*2)
 			if s.fuel<i: return "Requires "+str(i)+" fuel"
-		"breed": return "" if s.stage==4 and s.friendship>=4 and s.pending[0]==0 else "Requires adult, friendship 4, collected rewards"
+		"breed": return "" if int(s.form)==-1 and s.stage==4 and s.friendship>=4 and s.pending[0]==0 else "Requires adult, friendship 4, collected rewards"
 		"friend": return "" if s.friendship<4 else "Friendship complete"
 		"form":
 			if i==int(s.form): return "Already active"
+			if s.trip_end>at or s.pending[0]>0 or arcade_mode!=-1:return "Finish your current activity first"
 			if i!=-1 and (i<0 or i>=SPECIES.size() or (int(s.collection)&(1<<i))==0): return "Companion locked"
 		"supply":
 			if i<0 or i>1: return "Unknown supply"
@@ -479,8 +537,7 @@ func action(id:String,i:int=0)->bool:
 		"form":
 			if s.stage==0: return false
 			if i!=-1 and (i<0 or i>=SPECIES.size() or (int(s.collection)&(1<<i))==0): return false
-			if int(s.form)==i: return false
-			s.form=i
+			if not switch_companion(i,at):return false
 		"quest":
 			if i<0 or i>2 or (int(s.quests)&(1<<i))==0 or (int(s.claimed)&(1<<i))!=0: return false
 			s.claimed=int(s.claimed)|(1<<i); s.coins+=15; earn(10)
@@ -488,7 +545,7 @@ func action(id:String,i:int=0)->bool:
 			if s.stage==0 or s.materials<3: return false
 			s.materials-=3; s.crystals+=1
 		"secret":
-			if s.stage!=4 or s.variant!=0 or s.bond<30 or s.training<10 or s.crystals<3: return false
+			if int(s.form)!=-1 or s.stage!=4 or s.variant!=0 or s.bond<30 or s.training<10 or s.crystals<3: return false
 			s.crystals-=3; s.variant=1; s.collection=int(s.collection)|(1<<inherited_species())
 		"cook":
 			if not ready or s.materials<2 or s.hunger>=5: return false
@@ -557,11 +614,11 @@ func action(id:String,i:int=0)->bool:
 			if not ready or s.friendship>=4: return false
 			s.friendship=mini(4,int(s.friendship)+2)
 		"breed":
-			if not ready or s.stage!=4 or s.friendship<4 or s.pending[0]>0: return false
+			if not ready or int(s.form)!=-1 or s.stage!=4 or s.friendship<4 or s.pending[0]>0: return false
 			var old=s.duplicate(true)
 			s=defaults()
-			for key in ["sanctuary_mask","sanctuary_progress","research_day","research_daily","research_claimed","research_rank_xp","research_skill","research_evidence","research_trust","research_misses","research_target","wallpaper_room","wallpaper_x","wallpaper_y","wallpaper_size","wallpaper_minimal","wallpaper_battery","wallpaper_status","coins","crystals","materials","fuel","snacks","medicine","collection","favorites","care_day","care_mask","care_claims","care_claimed","owned","equipped","installation","wardrobe","worn","theme","garden_at","harvests","best","daily_day","quest_day","quests","claimed","journeys","auto_sleep"]: s[key]=old[key]
-			s.generation=old.generation+1; s.habitat=int(old.habitat); s.field=int(old.habitat); s.inherited_eyes=2; s.eyes=2; s.color=1; s.last=at
+			for key in ["profiles","sanctuary_mask","sanctuary_progress","research_day","research_daily","research_claimed","research_rank_xp","research_skill","research_evidence","research_trust","research_misses","research_target","wallpaper_room","wallpaper_x","wallpaper_y","wallpaper_size","wallpaper_minimal","wallpaper_battery","wallpaper_status","coins","crystals","materials","fuel","snacks","medicine","collection","favorites","care_day","care_mask","care_claims","care_claimed","owned","equipped","installation","wardrobe","worn","theme","garden_at","harvests","best","daily_day","quest_day","quests","claimed","journeys","auto_sleep"]: s[key]=old[key]
+			s.profiles.erase("-1"); s.generation=old.generation+1; s.habitat=int(old.habitat); s.field=int(old.habitat); s.inherited_eyes=2; s.eyes=2; s.color=1; s.last=at
 		_: ok=false
 	if ok:
 		care_credit(id)

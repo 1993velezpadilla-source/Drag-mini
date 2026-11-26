@@ -1043,14 +1043,22 @@ func show_collection():
 	favorite_button.add_theme_font_size_override("font_size",14)
 	var unlocked=(int(store.s.collection)&(1<<collection_feature))!=0
 	var active=store.species()==collection_feature
-	var form=button(copy,"Restore original form" if active and int(store.s.form)>=0 else "Current companion" if active else "Use companion" if unlocked else "Find in habitat",func():
-		if active and int(store.s.form)>=0: perform("form",-1)
-		elif unlocked and not active: perform("form",collection_feature)
+	var original:int=store.original_species()
+	var slot:int=-1 if collection_feature==original else collection_feature
+	var saved:Dictionary=store.companion_profile(slot)
+	if not saved.is_empty():
+		label(copy,("Home companion" if slot==-1 else "Adopted companion")+" · Lv %d"%(1+int(saved.companion_xp/50)),12).autowrap_mode=TextServer.AUTOWRAP_WORD_SMART
+		if not str(saved.name).is_empty():label(copy,str(saved.name),13).autowrap_mode=TextServer.AUTOWRAP_WORD_SMART
+		label(copy,"Bond %d%% · Energy %d%%"%[saved.bond,saved.energy],12).autowrap_mode=TextServer.AUTOWRAP_WORD_SMART
+	var form=button(copy,"Current companion" if active else "Return home companion" if slot==-1 else "Switch companion" if unlocked and not saved.is_empty() else "Adopt companion" if unlocked else "Find in habitat",func():
+		if not active and (unlocked or slot==-1): perform("form",slot)
 		elif not unlocked:
 			hunt_region=Research.region_of(collection_feature); hunt_message=""; store.choose_research(collection_feature); select("Habitat"))
-	form.disabled=active and int(store.s.form)<0
+	form.disabled=active or (slot==-1 and store.s.stage==0)
+	if int(store.s.form)>=0:
+		button(copy,"Return original companion",func(): perform("form",-1)).add_theme_font_size_override("font_size",12)
 	form.add_theme_font_size_override("font_size",14)
-	if not unlocked:
+	if not unlocked and slot!=-1:
 		label(copy,Research.REGIONS[Research.region_of(collection_feature)]+" · Follow local clues",12).autowrap_mode=TextServer.AUTOWRAP_WORD_SMART
 	var filter_scroll=ScrollContainer.new(); filter_scroll.custom_minimum_size.y=44; filter_scroll.vertical_scroll_mode=ScrollContainer.SCROLL_MODE_DISABLED; actions.add_child(filter_scroll)
 	enable_swipe(filter_scroll)
@@ -1088,11 +1096,11 @@ func refresh():
 		wallpaper_cta.text="Wallpaper ON" if wallpaper_active else "Wallpaper"
 	store.advance(store.now())
 	var s:Dictionary=store.s
-	title_label.text=store.pet_name()+"  ·  Lv "+str(store.level())
+	title_label.text=store.pet_name()+"  ·  Lv "+str(store.companion_level())
 	identity_art.texture=tex("res://assets/premium_egg.png" if s.stage==0 else "res://assets/pet_%d.png"%store.species())
-	xp_bar.value=fposmod(float(s.xp),100)
+	xp_bar.value=fposmod(float(s.companion_xp),50)*2
 	info.text="%d coins  |  %d gems"%[s.coins,s.crystals]
-	clock_label.text=Time.get_time_string_from_system().substr(0,5)
+	clock_label.text="Account Lv %d · "%store.level()+Time.get_time_string_from_system().substr(0,5)
 	for i in range(4):
 		stats[i].value=[s.hunger*20,s.happy*10,s.energy,s.bond][i]
 		status_values[i].text="%d%%"%int(stats[i].value)

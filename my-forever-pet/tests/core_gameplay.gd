@@ -210,5 +210,25 @@ func run():
 	pet.s.research_rank_xp[0]=60
 	check(pet.sanctuary_block(0,1).is_empty(),"rank three and prior sanctuary open next")
 	check(not pet.sanctuary_block(1,0).is_empty(),"regional rank independent")
+	reset(4)
+	pet.s.collection=(1<<1)|(1<<4)
+	pet.s.name="Original"; pet.s.hunger=2; pet.s.bond=32; pet.s.companion_xp=75
+	var old_token:int=pet.wallpaper_identity()
+	check(pet.action("form",1),"adopt new companion")
+	check(pet.s.name=="" and pet.s.hunger==5 and pet.s.bond==0,"independent new profile")
+	check(pet.wallpaper_identity()!=old_token,"wallpaper care cannot cross companions")
+	pet.s.name="Mew"; pet.s.hunger=3; pet.s.bond=8
+	var shared_wallet:int=pet.s.coins
+	check(pet.action("form",-1),"return original")
+	check(pet.s.name=="Original" and pet.s.hunger==2 and pet.s.bond==32 and pet.s.companion_xp==75,"original stats preserved")
+	check(pet.s.coins==shared_wallet,"shared wallet preserved")
+	check(pet.action("form",1) and pet.s.name=="Mew" and pet.s.hunger==3 and pet.s.bond==8,"adopted stats persist")
+	pet.s.pending=[3,0,0]
+	check(not pet.action("form",4),"cannot swap pending expedition")
+	pet.s.pending=[0,0,0]; pet.s.friendship=4
+	check(not pet.action("breed"),"adopted companion cannot replace original generation")
+	check(pet.action("form",-1),"restore lineage")
+	check(pet.original_species()==0,"original genetics preserved")
+	check(pet.validated_profiles(pet.s.profiles).has("1"),"profile save validation")
 	print("FOREVER_PET_CORE_PASS ",passed)
 	quit()
