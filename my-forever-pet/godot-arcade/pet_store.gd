@@ -16,7 +16,7 @@ var arcade_mode=-1
 var test_mode=false
 var dirty=false
 func defaults()->Dictionary:
-	return {"stage":0,"field":0,"habitat":0,"body":0,"eyes":0,"color":0,"variant":0,"generation":1,"friendship":0,"inherited_eyes":-1,"name":"","hunger":5,"happy":10,"energy":100,"bond":0,"xp":0,"waste":0,"mistakes":0,"germs":0,"hygiene":100,"toilet":100,"coins":0,"crystals":0,"materials":0,"fuel":0,"snacks":0,"medicine":0,"soap":0,"cells":[0,0,0],"foods":[0,0,0,0],"collection":0,"favorites":0,"care_day":"","care_mask":0,"care_claims":0,"care_claimed":false,"form":-1,"owned":0,"equipped":0,"installation":0,"wardrobe":0,"worn":[0,0,0,0],"theme":0,"training":0,"age":0.0,"last":0.0,"food_clock":0.0,"mood_clock":0.0,"energy_clock":0.0,"waste_clock":0.0,"cell_clock":0.0,"care_clock":0.0,"hygiene_clock":0.0,"toilet_clock":0.0,"rest_clock":0.0,"sleep_until":0.0,"awake_until":0.0,"auto_sleep":true,"trip_end":0.0,"destination":0,"journeys":0,"pending":[0,0,0],"daily_day":"","quest_day":"","quests":0,"claimed":0,"garden_at":0.0,"harvests":0,"interaction_at":0.0,"best":[0,0,0,0,0]}
+	return {"stage":0,"field":0,"habitat":0,"body":0,"eyes":0,"color":0,"variant":0,"generation":1,"friendship":0,"inherited_eyes":-1,"name":"","hunger":5,"happy":10,"energy":100,"bond":0,"xp":0,"waste":0,"mistakes":0,"germs":0,"hygiene":100,"toilet":100,"coins":0,"crystals":0,"materials":0,"fuel":0,"snacks":0,"medicine":0,"soap":0,"cells":[0,0,0],"foods":[0,0,0,0],"collection":0,"favorites":0,"care_day":"","care_mask":0,"care_claims":0,"care_claimed":false,"form":-1,"owned":0,"equipped":0,"installation":0,"wardrobe":0,"worn":[0,0,0,0],"theme":0,"training":0,"age":0.0,"last":0.0,"food_clock":0.0,"mood_clock":0.0,"energy_clock":0.0,"waste_clock":0.0,"cell_clock":0.0,"care_clock":0.0,"hygiene_clock":0.0,"toilet_clock":0.0,"rest_clock":0.0,"sleep_until":0.0,"awake_until":0.0,"auto_sleep":true,"trip_end":0.0,"destination":0,"trip_bonus":0,"journeys":0,"pending":[0,0,0],"daily_day":"","quest_day":"","quests":0,"claimed":0,"garden_at":0.0,"harvests":0,"interaction_at":0.0,"best":[0,0,0,0,0]}
 func _ready():
 	test_mode=false
 	for flag in ["--test","--soak","--capture","--lane-only","--unassisted","--home-test","--home-capture"]:
@@ -157,7 +157,7 @@ func advance(at:float):
 		elif s.stage==3 and s.age>=86400:
 			s.stage=4; s.age-=86400; s.eyes=s.inherited_eyes if s.inherited_eyes>=0 else mini(3,int(s.mistakes/2)); s.collection=int(s.collection)|(1<<inherited_species())
 	if trip>0 and at>=trip:
-		s.pending=[25+int(s.destination)*20+mini(20,int(s.training/2)),2+int(s.destination),1 if int(s.journeys)%3==2 or s.destination==2 else 0]
+		s.pending=[25+int(s.destination)*20+mini(20,int(s.training/2))+int(s.trip_bonus),2+int(s.destination),1 if int(s.journeys)%3==2 or s.destination==2 else 0]
 		s.trip_end=0.0; s.journeys+=1; s.quests=int(s.quests)|4; earn(35+int(s.destination)*15)
 func save_game():
 	if test_mode: return
@@ -357,7 +357,7 @@ func action(id:String,i:int=0)->bool:
 			s.worn[SLOT[i]]=0 if s.worn[SLOT[i]]==i+1 else i+1
 		"trip":
 			if not ready or s.stage<2 or s.germs>0 or s.hunger<2 or s.energy<25 or s.pending[0]>0 or i<0 or i>2 or level()<1+i*2 or s.fuel<i: return false
-			s.fuel-=i; s.energy-=25; s.destination=i; s.trip_end=at+(10+i*10)*60
+			s.fuel-=i; s.energy-=25; s.destination=i; s.trip_bonus=5 if i==int(s.habitat) else 0; s.trip_end=at+(10+i*10)*60
 		"loot":
 			if s.pending[0]<=0: return false
 			s.coins+=s.pending[0]; s.materials+=s.pending[1]; s.crystals+=s.pending[2]; s.pending=[0,0,0]

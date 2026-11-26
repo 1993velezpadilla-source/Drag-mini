@@ -185,7 +185,7 @@ jobs:
           ! grep -E "SCRIPT ERROR|Parse Error" /tmp/forever-capture.log
           test "$(grep -c "^PET_FRAME .*forever-species-" /tmp/forever-capture.log)" -eq 28
           if grep -E "^PET_FRAME .*forever-species-.*enclosed=false" /tmp/forever-capture.log; then echo "Creature framing rejected"; exit 1; fi
-          test "$(find /tmp -maxdepth 1 -name 'forever-*.png' | wc -l)" -eq 49
+          test "$(find /tmp -maxdepth 1 -name 'forever-*.png' | wc -l)" -eq 52
       - uses: actions/upload-artifact@v4
         with:
           name: Forever-Pet-real-game-viewports

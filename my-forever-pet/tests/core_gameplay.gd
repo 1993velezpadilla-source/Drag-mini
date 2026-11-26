@@ -129,5 +129,11 @@ func run():
 	var adult_species:int=pet.species()
 	check(pet.action("field",1) and pet.species()==adult_species,"adult habitat independent of species")
 	check(pet.s.habitat==1 and pet.s.field==0,"adult lineage preserved")
+	reset(4)
+	pet.s.habitat=0
+	check(pet.action("trip",0) and pet.s.trip_bonus==5,"preferred habitat expedition bonus")
+	check(pet.action("field",1) and pet.s.trip_bonus==5,"habitat cannot change active expedition reward")
+	pet.s.trip_end=pet.now()-1; pet.advance(pet.now()+1)
+	check(pet.s.pending[0]==30,"bonus added once to expedition reward")
 	print("FOREVER_PET_CORE_PASS ",passed)
 	quit()
