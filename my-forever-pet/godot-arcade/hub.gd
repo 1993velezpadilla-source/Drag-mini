@@ -342,10 +342,11 @@ func product_card(name:String,detail:String,asset_path:String,action_text:String
 	var copy=VBoxContainer.new()
 	copy.size_flags_horizontal=SIZE_EXPAND_FILL
 	h.add_child(copy)
-	label(copy,name,18)
-	var d=label(copy,detail,13)
+	var product_name=label(copy,name,18); product_name.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART
+	var d=label(copy,detail,13); d.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART
 	d.modulate=Color("#c9d9d4")
 	var b=button(h,action_text,fn)
+	b.add_theme_font_size_override("font_size",14)
 	b.size_flags_horizontal=SIZE_SHRINK_CENTER
 	b.custom_minimum_size.x=100
 	b.disabled=not enabled
@@ -496,32 +497,61 @@ func room(name:String):
 		var garden=context_card("garden","Garden crop")
 		context_meter(garden,"garden",Color("#90cb70"))
 	update_context()
+func species_category(i:int)->String:
+	var kind=FAMILIES[i%12]
+	if kind=="Alien": return "Alien"
+	if kind in ["Fish","Jelly"]: return "Water"
+	if kind in ["Bird","Owl","Dragon"]: return "Sky"
+	if kind in ["Fairy","Sprout"]: return "Mystic"
+	return "Land"
+func species_color(i:int)->Color:
+	return Color({"Alien":"#a873e9","Water":"#4a9ed5","Sky":"#697de0","Mystic":"#bd76bc","Land":"#77b889"}[species_category(i)])
+func update_feature(i:int):
+	collection_feature=i
+	show_collection()
+	section_scroll.scroll_vertical=0
 func show_collection():
 	reset_actions()
-	var title=label(actions,"PET COLLECTION",26)
+	var title=label(actions,"PET COLLECTION",25)
 	title.add_theme_color_override("font_color",Color("#f5d6ff"))
+	var discovered=0
+	for i in range(24):
+		if (int(store.s.collection)&(1<<i))!=0: discovered+=1
+	label(actions,"%d / 24 discovered  •  Tap a creature to inspect"%discovered,14).modulate=Color("#d0bedf")
 	var featured=panel(actions)
 	var hero=row(featured)
-	var portrait_art=TextureRect.new(); portrait_art.texture=tex("res://assets/pet_%d.png"%collection_feature); portrait_art.custom_minimum_size=Vector2(180,190); portrait_art.expand_mode=TextureRect.EXPAND_IGNORE_SIZE; portrait_art.stretch_mode=TextureRect.STRETCH_KEEP_ASPECT_CENTERED; hero.add_child(portrait_art)
+	var portrait_art=TextureRect.new(); portrait_art.texture=tex("res://assets/pet_%d.png"%collection_feature); portrait_art.custom_minimum_size=Vector2(144,188); portrait_art.expand_mode=TextureRect.EXPAND_IGNORE_SIZE; portrait_art.stretch_mode=TextureRect.STRETCH_KEEP_ASPECT_CENTERED; hero.add_child(portrait_art)
 	var copy=VBoxContainer.new(); copy.size_flags_horizontal=SIZE_EXPAND_FILL; hero.add_child(copy)
-	label(copy,"FEATURED SPECIES",13).modulate=Color("#ffce86")
-	label(copy,FAMILIES[collection_feature%12],26)
-	label(copy,store.SPECIES[collection_feature],17)
+	label(copy,"FEATURED SPECIES",12).modulate=Color("#ffce86")
+	var family=label(copy,FAMILIES[collection_feature%12],25); family.clip_text=true
+	var species=label(copy,store.SPECIES[collection_feature],16); species.clip_text=true
+	label(copy,species_category(collection_feature)+"  •  "+("Secret evolution" if collection_feature>=12 else "Standard form"),12).modulate=species_color(collection_feature).lightened(.35)
 	var desc=label(copy,"Discovered" if (int(store.s.collection)&(1<<collection_feature))!=0 else "Discover through growth and evolution.",14); desc.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART
-	button(copy,"Growth journal",func(): select("Journal"))
-	var filter=row(actions)
-	for key in ["All","Land","Sky","Water","Alien","Mystic"]:
+	var favorite_button=button(copy,"♥ Favorited" if store.favorite(collection_feature) else "♡ Favorite",func(): store.toggle_favorite(collection_feature); show_collection())
+	favorite_button.add_theme_font_size_override("font_size",14)
+	var growth_button=button(copy,"Growth journal",func(): select("Journal")); growth_button.add_theme_font_size_override("font_size",14)
+	var filter_scroll=ScrollContainer.new(); filter_scroll.custom_minimum_size.y=44; filter_scroll.vertical_scroll_mode=ScrollContainer.SCROLL_MODE_DISABLED; actions.add_child(filter_scroll)
+	var filter=row(filter_scroll); filter.size_flags_horizontal=SIZE_EXPAND_FILL
+	for key in ["All","Land","Sky","Water","Alien","Mystic","Favorites"]:
 		var b=button(filter,key,func(): collection_filter=key; show_collection())
-		b.add_theme_font_size_override("font_size",12); b.custom_minimum_size.y=40
-	collection_grid=GridContainer.new(); collection_grid.columns=3; collection_grid.add_theme_constant_override("h_separation",5); collection_grid.add_theme_constant_override("v_separation",5); actions.add_child(collection_grid)
+		b.add_theme_font_size_override("font_size",12); b.custom_minimum_size=Vector2(64,40)
+		if key==collection_filter: b.add_theme_stylebox_override("normal",skin(Color("#926332"),Color("#ffe0a1")))
+	collection_grid=GridContainer.new(); collection_grid.columns=3 if size.x>=450 else 2; collection_grid.add_theme_constant_override("h_separation",6); collection_grid.add_theme_constant_override("v_separation",6); actions.add_child(collection_grid)
 	for i in range(24):
-		var kind=FAMILIES[i%12]
-		var category="Alien" if kind=="Alien" else "Water" if kind in ["Fish","Jelly"] else "Sky" if kind in ["Bird","Owl","Dragon"] else "Mystic" if kind in ["Fairy","Sprout"] else "Land"
-		if collection_filter!="All" and category!=collection_filter: continue
+		var category=species_category(i)
+		if collection_filter=="Favorites" and not store.favorite(i): continue
+		if collection_filter not in ["All","Favorites"] and category!=collection_filter: continue
 		var known=(int(store.s.collection)&(1<<i))!=0
-		var b=art_tile(collection_grid,kind+" · "+("Owned" if known else "Locked"),"res://assets/pet_%d.png"%i,func(): collection_feature=i; show_collection(),147,12)
-		b.custom_minimum_size.x=145
-		b.add_theme_stylebox_override("normal",skin(Color("#39275e") if i>=12 else Color("#222b56"),Color("#ffce89") if i==collection_feature else Color("#9d83c8")))
+		var tint=species_color(i)
+		var b=button(collection_grid,"",func(): update_feature(i))
+		b.custom_minimum_size=Vector2(0,182)
+		b.add_theme_stylebox_override("normal",skin(tint.darkened(.70),Color("#ffce89") if i==collection_feature else tint.lightened(.25)))
+		var v=VBoxContainer.new(); v.set_anchors_and_offsets_preset(PRESET_FULL_RECT); v.offset_left=7; v.offset_right=-7; v.offset_top=6; v.offset_bottom=-7; v.mouse_filter=MOUSE_FILTER_IGNORE; v.add_theme_constant_override("separation",2); b.add_child(v)
+		var flags=label(v,("♥  " if store.favorite(i) else "")+("SECRET" if i>=12 else category.to_upper()),10); flags.mouse_filter=MOUSE_FILTER_IGNORE; flags.modulate=tint.lightened(.5)
+		var art=TextureRect.new(); art.texture=tex("res://assets/pet_%d.png"%i); art.expand_mode=TextureRect.EXPAND_IGNORE_SIZE; art.stretch_mode=TextureRect.STRETCH_KEEP_ASPECT_CENTERED; art.size_flags_vertical=SIZE_EXPAND_FILL; art.mouse_filter=MOUSE_FILTER_IGNORE; v.add_child(art)
+		var name=label(v,store.SPECIES[i],14); name.horizontal_alignment=HORIZONTAL_ALIGNMENT_CENTER; name.clip_text=true; name.mouse_filter=MOUSE_FILTER_IGNORE
+		var status=label(v,"Discovered" if known else "Undiscovered",11); status.horizontal_alignment=HORIZONTAL_ALIGNMENT_CENTER; status.mouse_filter=MOUSE_FILTER_IGNORE; status.modulate=Color("#9ce2b5") if known else Color("#c7b9db")
+	if collection_grid.get_child_count()==0: label(actions,"No favorites yet. Open a species and tap Favorite.",16).autowrap_mode=TextServer.AUTOWRAP_WORD_SMART
 func launch_game(i:int):
 	if not store.begin_arcade(i): notice.text="Your pet needs rest or is busy."; return
 	get_tree().change_scene_to_file("res://main.tscn" if i==4 else "res://pet_arcade.tscn")
@@ -710,7 +740,10 @@ func test_home():
 	live_stage.set_pet(0,4)
 	for tab in ["Care","Rooms","Arcade","Shop","Journal","World","Cell","More","Home"]: select(tab)
 	assert(nav_buttons.size()==6 and room_tiles.size()==6 and action_grid.get_child_count()==5)
-	select("Pets"); assert(collection_grid.get_child_count()==24); select("Home")
+	select("Pets"); assert(collection_grid.get_child_count()==24)
+	assert(store.toggle_favorite(3)); collection_filter="Favorites"; show_collection(); assert(collection_grid.get_child_count()==1)
+	collection_filter="Alien"; show_collection(); assert(collection_grid.get_child_count()==2)
+	collection_filter="All"; select("Home")
 	for name in ROOMS:
 		room(name)
 		assert(bg.texture!=null and live_stage.room_node!=null and hotspot_layer.get_child_count()>=2,"room art/hotspots missing: "+name)

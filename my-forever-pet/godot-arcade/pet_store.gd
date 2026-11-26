@@ -16,7 +16,7 @@ var arcade_mode=-1
 var test_mode=false
 var dirty=false
 func defaults()->Dictionary:
-	return {"stage":0,"field":0,"body":0,"eyes":0,"color":0,"variant":0,"generation":1,"friendship":0,"inherited_eyes":-1,"name":"","hunger":5,"happy":10,"energy":100,"bond":0,"xp":0,"waste":0,"mistakes":0,"germs":0,"hygiene":100,"toilet":100,"coins":0,"crystals":0,"materials":0,"fuel":0,"snacks":0,"medicine":0,"soap":0,"cells":[0,0,0],"foods":[0,0,0,0],"collection":0,"owned":0,"equipped":0,"installation":0,"wardrobe":0,"worn":[0,0,0,0],"theme":0,"training":0,"age":0.0,"last":0.0,"food_clock":0.0,"mood_clock":0.0,"energy_clock":0.0,"waste_clock":0.0,"cell_clock":0.0,"care_clock":0.0,"hygiene_clock":0.0,"toilet_clock":0.0,"rest_clock":0.0,"sleep_until":0.0,"awake_until":0.0,"auto_sleep":true,"trip_end":0.0,"destination":0,"journeys":0,"pending":[0,0,0],"daily_day":"","quest_day":"","quests":0,"claimed":0,"garden_at":0.0,"harvests":0,"interaction_at":0.0,"best":[0,0,0,0,0]}
+	return {"stage":0,"field":0,"body":0,"eyes":0,"color":0,"variant":0,"generation":1,"friendship":0,"inherited_eyes":-1,"name":"","hunger":5,"happy":10,"energy":100,"bond":0,"xp":0,"waste":0,"mistakes":0,"germs":0,"hygiene":100,"toilet":100,"coins":0,"crystals":0,"materials":0,"fuel":0,"snacks":0,"medicine":0,"soap":0,"cells":[0,0,0],"foods":[0,0,0,0],"collection":0,"favorites":0,"owned":0,"equipped":0,"installation":0,"wardrobe":0,"worn":[0,0,0,0],"theme":0,"training":0,"age":0.0,"last":0.0,"food_clock":0.0,"mood_clock":0.0,"energy_clock":0.0,"waste_clock":0.0,"cell_clock":0.0,"care_clock":0.0,"hygiene_clock":0.0,"toilet_clock":0.0,"rest_clock":0.0,"sleep_until":0.0,"awake_until":0.0,"auto_sleep":true,"trip_end":0.0,"destination":0,"journeys":0,"pending":[0,0,0],"daily_day":"","quest_day":"","quests":0,"claimed":0,"garden_at":0.0,"harvests":0,"interaction_at":0.0,"best":[0,0,0,0,0]}
 func _ready():
 	test_mode=false
 	for flag in ["--test","--soak","--capture","--lane-only","--unassisted","--home-test","--home-capture"]:
@@ -72,6 +72,13 @@ func care_priority()->String:
 	return "Happy and healthy"
 func level()->int: return 1+int(s.xp/100)
 func species()->int: return int(s.field)*4+int(s.body)+12*int(s.variant)
+func favorite(index:int)->bool:
+	return index>=0 and index<SPECIES.size() and (int(s.favorites)&(1<<index))!=0
+func toggle_favorite(index:int)->bool:
+	if index<0 or index>=SPECIES.size(): return false
+	s.favorites=int(s.favorites)^(1<<index)
+	save_game()
+	return true
 func pet_name()->String:
 	return s.name if not str(s.name).is_empty() else STAGES[int(s.stage)] if s.stage<2 else SPECIES[species()]
 func earn(n:int): s.xp=mini(999900,int(s.xp)+n)
@@ -250,7 +257,7 @@ func action(id:String,i:int=0)->bool:
 			if not ready or s.stage!=4 or s.friendship<4 or s.pending[0]>0: return false
 			var old=s.duplicate(true)
 			s=defaults()
-			for key in ["coins","crystals","materials","fuel","snacks","medicine","collection","owned","equipped","installation","wardrobe","worn","theme","garden_at","harvests","best","daily_day","quest_day","quests","claimed","journeys","auto_sleep"]: s[key]=old[key]
+			for key in ["coins","crystals","materials","fuel","snacks","medicine","collection","favorites","owned","equipped","installation","wardrobe","worn","theme","garden_at","harvests","best","daily_day","quest_day","quests","claimed","journeys","auto_sleep"]: s[key]=old[key]
 			s.generation=old.generation+1; s.inherited_eyes=2; s.eyes=2; s.color=1; s.last=at
 		_: ok=false
 	if ok:

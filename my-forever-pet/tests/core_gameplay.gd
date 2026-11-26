@@ -85,9 +85,13 @@ func run():
 	pet.s.bond=30; pet.s.training=10; pet.s.crystals=3
 	check(pet.action("secret") and pet.species()==12,"secret evolution")
 	check(not pet.action("secret"),"secret evolution cannot repeat")
+	check(pet.toggle_favorite(3) and pet.favorite(3),"favorite species")
+	check(not pet.toggle_favorite(-1) and not pet.toggle_favorite(24),"invalid favorites rejected")
+	check(pet.toggle_favorite(5) and pet.toggle_favorite(5) and not pet.favorite(5),"unfavorite species")
 	pet.s.friendship=4
 	wallet=pet.s.coins
 	check(pet.action("breed") and pet.s.stage==0 and pet.s.generation==2,"new generation")
 	check(pet.s.coins==wallet and pet.s.wardrobe!=0,"inherit wallet and wardrobe")
+	check(pet.favorite(3),"favorites survive new generation")
 	print("FOREVER_PET_CORE_PASS ",passed)
 	quit()
