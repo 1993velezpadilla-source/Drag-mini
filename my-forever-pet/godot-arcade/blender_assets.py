@@ -725,18 +725,36 @@ def rock_slab(p,size,m,seed,bevel=.045):
  o=bpy.data.objects.new('weathered stone slab',me);bpy.context.collection.objects.link(o)
  return finish(o,m,bevel)
 def tube(points,radii,m,sides=8):
- verts=[];faces=[]
- for i,(p,r) in enumerate(zip(points,radii)):
+ # Parallel-transported circular cross sections: horizontal roots and branching
+ # coral retain their volume rather than collapsing into horizontal discs.
+ from mathutils import Vector
+ import bmesh
+ path=[Vector(v(p)) for p in points]
+ verts=[];faces=[];frame=None
+ for i,(p,r) in enumerate(zip(path,radii)):
+  tangent=(path[min(i+1,len(path)-1)]-path[max(i-1,0)]).normalized()
+  if frame is None:
+   ref=Vector((0,0,1)) if abs(tangent.z)<.85 else Vector((1,0,0))
+   frame=ref.cross(tangent).normalized()
+  else:
+   frame=frame-tangent*frame.dot(tangent)
+   if frame.length<.001:frame=tangent.cross(Vector((1,0,0)) if abs(tangent.x)<.85 else Vector((0,1,0)))
+   frame.normalize()
+  cross=tangent.cross(frame).normalized()
   for j in range(sides):
-   a=j*2*pi/sides
-   verts.append(v((p[0]+r*math.cos(a),p[1],p[2]+r*math.sin(a))))
- for i in range(len(points)-1):
+   ang=j*2*pi/sides
+   # Subtle longitudinal ridges; tapered organic sections, not straight cones.
+   rad=r*(1+.045*math.sin(j*3*2*pi/sides+i*.6))
+   verts.append(tuple(p+rad*(frame*math.cos(ang)+cross*math.sin(ang))))
+ for i in range(len(path)-1):
   for j in range(sides):
-   a=i*sides+j;b=i*sides+(j+1)%sides
-   faces.append((a,a+sides,b+sides,b))
- faces.extend([tuple(range(sides)),tuple(reversed(range((len(points)-1)*sides,len(points)*sides)))])
- me=bpy.data.meshes.new('organic sweep');me.from_pydata(verts,[],faces);me.update()
- o=bpy.data.objects.new('organic sweep',me);bpy.context.collection.objects.link(o);return finish(o,m)
+   a=i*sides+j;c=i*sides+(j+1)%sides
+   faces.append((a,c,c+sides,a+sides))
+ faces.extend([tuple(reversed(range(sides))),tuple(range((len(path)-1)*sides,len(path)*sides))])
+ me=bpy.data.meshes.new('tangent swept organic branch');me.from_pydata(verts,[],faces);me.update()
+ bm=bmesh.new();bm.from_mesh(me);bmesh.ops.recalc_face_normals(bm,faces=list(bm.faces));bm.to_mesh(me);bm.free()
+ me.update()
+ o=bpy.data.objects.new('tangent swept organic branch',me);bpy.context.collection.objects.link(o);return finish(o,m)
 def blades(p,a,length,width,m):
  verts=[];faces=[]
  for i in range(7):
@@ -963,7 +981,15 @@ for i in range(4):
  ball((x,2.13,z),(.97,.70,.98),leafdark if i%2 else moss)
  leaf_rosette((x,2.16,z),70+i,leafdark,leafbright,.58)
 ball((.10,2.30,0),(1.05,.70,1.05),moss)
-export('dungeon_forest_landmark',10000)
+for i in range(7):
+ a=i*2*pi/7
+ x=.77*math.cos(a);z=.77*math.sin(a)
+ ball((x,1.97+.11*(i%3),z),(.72,.46,.73),leafdark if i%3==0 else moss)
+ leaf_rosette((x,2.06+.10*(i%3),z),180+i,leafdark,leafbright,.38)
+for i in range(5):
+ a=i*2*pi/5
+ tube([(.31*math.cos(a),.16,.31*math.sin(a)),(.23*math.cos(a)-.07,.67,.23*math.sin(a)),(.19*math.cos(a)+.04,1.12,.19*math.sin(a))],[.045,.035,.016],forestedge)
+export('dungeon_forest_landmark',14000)
 # Reef: tall coral fans and tiered reef outcrop, not a forest asset recolored.
 clear()
 natural_rock((0,.30,0),(1.65,.65,1.34),reefstone,385)
@@ -1098,4 +1124,46 @@ for biome,base,trim,light in [('forest',foreststone,forestedge,glow),('reef',ree
   if biome=='forest':leaf_rosette((x,.12,.18),987+int(x*10),leafdark,leafbright,.21)
   else:crystal((x,.13,.18),.065,.19,light,3)
  export('dungeon_%s_dais'%biome,4000)
+# Junction modules break the repeated wall silhouette at room turns.
+# Local +X and +Z face the walkable corner. Footprint stays inside one cell.
+clear()
+natural_rock((0,.20,0),(1.32,.42,1.25),foreststone,1101)
+tube([(-.29,.10,-.30),(-.23,.48,-.24),(-.14,.91,-.19),(-.20,1.37,-.17)],[.34,.29,.23,.13],bark,12)
+for a in [0,pi*.5,pi,pi*1.5]:
+ x=.52*math.cos(a);z=.52*math.sin(a)
+ tube([(-.20,.42,-.17),(x*.55,.20,z*.55),(x,.07,z)],[.16,.10,.035],bark,10)
+for i in range(5):
+ a=i*2*pi/5
+ leaf_rosette((.32*math.cos(a),.42,.32*math.sin(a)),1120+i,leafdark,leafbright,.32)
+for i in range(3):
+ a=i*2*pi/3
+ ball((-.14+.28*math.cos(a),1.34+.09*(i%2),-.17+.28*math.sin(a)),(.50,.37,.50),moss if i%2 else leafdark)
+export('dungeon_forest_corner',8500)
+clear()
+natural_rock((0,.21,0),(1.28,.46,1.28),reefstone,1150)
+# Ridged spiral shell: curved ribs around a nacre center, different from branching coral.
+for i in range(9):
+ a=(i-4)*.25
+ x=.42*math.sin(a);y=.36+.52*math.cos(a)
+ o=ball((x,y,-.14),(.16,.54,.21),pearl if i%2 else reefedge)
+ o.rotation_euler.y=-a
+ball((0,.37,.19),(.38,.34,.34),blueglow)
+for i in range(3):
+ a=i*2*pi/3
+ x=.35*math.cos(a);z=.35*math.sin(a)
+ tube([(x,.28,z),(x*1.15,.49,z),(x*1.25,.76,z+.07)],[.077,.065,.030],coral if i%2 else coral2,10)
+export('dungeon_reef_corner',5500)
+clear()
+# Carved octagonal pillar with recessed bands and a broken crystal crown.
+rock_slab((0,.12,0),(1.22,.24,1.22),astralstone,1200)
+cyl((-.13,.27,-.13),.40,.37,.12,astraledge)
+cyl((-.13,.71,-.13),.29,.25,.78,astraledge)
+for i in range(8):
+ a=i*pi/4;x=-.13+.262*math.cos(a);z=-.13+.262*math.sin(a)
+ o=box((x,.70,z),(.065,.60,.075),astralstone,.012);o.rotation_euler.z=a
+for y in [.35,1.08]:cyl((-.13,y,-.13),.33,.33,.075,rune)
+rock_slab((-.13,1.17,-.13),(.79,.14,.74),astralstone,1201)
+crystal((-.13,1.26,-.13),.17,.31,violetglow,1202)
+for i in range(2):crystal((.30,.15,.15+i*.22),.10,.28+i*.10,star,i)
+export('dungeon_star_corner',6500)
 with open(os.path.join(OUT,'mesh-metrics.json'),'w') as out: json.dump(stats,out,indent=2)

@@ -58,6 +58,7 @@ var rock_modules=0
 var landmark_count=0
 var detail_count=0
 var span_count=0
+var corner_count=0
 var reward_fx:Node3D
 var reward_age=0.0
 var reward_pool:Array[MeshInstance3D]=[]
@@ -297,7 +298,7 @@ func batch_parts(parts:Array,placements:Array[Transform3D],shadows:bool=true):
 		var instance=MultiMeshInstance3D.new();instance.multimesh=mm;geometry.add_child(instance)
 		if not shadows:instance.cast_shadow=GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 func natural_boundary(points:Array[Vector3])->bool:
-	rock_modules=0;span_count=0
+	rock_modules=0;span_count=0;corner_count=0
 	var prefix="res://assets/dungeon_"+["forest","reef","star"][region]
 	var variants:Array=[]
 	for variant in range(3):
@@ -308,6 +309,19 @@ func natural_boundary(points:Array[Vector3])->bool:
 	var available:Dictionary={}
 	for p in points:available[Vector2i(roundi(p.x/1.4),roundi(p.z/1.4))]=true
 	var consumed:Dictionary={}
+	var corners=rock_parts(prefix+"_corner.glb")
+	var turns:Array[Transform3D]=[]
+	if not corners.is_empty():
+		for q in available:
+			var openings:Array[Vector2i]=[]
+			for d in Rules.DIR:
+				if run.cells.has(q+d):openings.append(d)
+			if openings.size()!=2 or openings[0]+openings[1]==Vector2i.ZERO:continue
+			var inward=Vector2(openings[0]+openings[1])
+			var angle=atan2(inward.x,inward.y)-PI*.25
+			turns.append(Transform3D(Basis(Vector3.UP,angle),pos(q)))
+			consumed[q]=true;corner_count+=1
+		batch_parts(corners,turns)
 	var placements:Array[Transform3D]=[]
 	# Pair straight wall cells that face the same open space. Do not span corridors.
 	if not spans.is_empty():
@@ -338,7 +352,7 @@ func natural_boundary(points:Array[Vector3])->bool:
 			singles.append(Transform3D(Basis(Vector3.UP,angle).scaled(scale_value),pos(q)))
 		batch_parts(variants[variant],singles)
 		rock_modules+=singles.size()
-	rock_modules+=span_count*2
+	rock_modules+=span_count*2+corner_count
 	return rock_modules==points.size()
 func backdrop_landmarks(wall_cells:Dictionary):
 	landmark_count=0
@@ -413,10 +427,10 @@ func build_floor():
 	var far_ground=shape(geometry,"box",Vector3(25,-.77,20),Vector3(88,.35,78),palette[2].darkened(.15))
 	far_ground.material_override=mat(palette[2].darkened(.15));far_ground.cast_shadow=GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	batch(geometry,a,"box",Vector3(1.40,.24,1.40),ground,true);batch(geometry,b,"box",Vector3(1.40,.24,1.40),ground.lightened(.025),true)
-	# Dark foundation closes small rock gaps; the visible silhouette comes from sculpted Blender modules.
+	# Recess foundation below the walkable surface, so squared pedestals do not protrude around authored rocks.
 	var foundation:Array[Vector3]=[]
-	for p in walls:foundation.append(p-Vector3(0,.28,0))
-	batch(geometry,foundation,"box",Vector3(1.4,.38,1.4),palette[2],true)
+	for p in walls:foundation.append(p-Vector3(0,.59,0))
+	batch(geometry,foundation,"box",Vector3(1.18,.24,1.18),palette[2].darkened(.12),false)
 	wall_decorations=0
 	var scenery_points:Array[Vector3]=[]
 	var scenery_seen:Dictionary={}
@@ -465,7 +479,7 @@ func build_floor():
 	camera.position=pet.position+Vector3(0,8.5,10.5);camera.look_at(pet.position)
 	refresh_actors()
 	floor_build_usec=Time.get_ticks_usec()-start_usec
-	print("DUNGEON_FLOOR_BUILD region=",region," floor=",run.floor_number," usec=",floor_build_usec," rocks=",rock_modules," cached_rock_sets=",rock_mesh_cache.size()," landmarks=",landmark_count," details=",detail_count," paired_spans=",span_count)
+	print("DUNGEON_FLOOR_BUILD region=",region," floor=",run.floor_number," usec=",floor_build_usec," rocks=",rock_modules," cached_rock_sets=",rock_mesh_cache.size()," landmarks=",landmark_count," details=",detail_count," paired_spans=",span_count," corners=",corner_count)
 func actor_for(key:String,at:Vector3)->Node3D:
 	if actor_nodes.has(key):return actor_nodes[key]
 	var n=Node3D.new();actors.add_child(n);n.position=at;actor_nodes[key]=n;actor_created+=1

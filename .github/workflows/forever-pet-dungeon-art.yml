@@ -43,8 +43,8 @@ jobs:
         run: |
           set -euo pipefail
           xvfb-run -a blender -b -t 4 --python-exit-code 1 -P my-forever-pet/art/audit_dungeon_art.py -- /tmp/dungeon-project/assets /tmp/dungeon-asset-review 2>&1 | tee /tmp/dungeon-asset-review.log
-          grep -F 'DUNGEON_ART_REVIEW_PASS 36' /tmp/dungeon-asset-review.log
-          test "$(find /tmp/dungeon-asset-review -name '*.png' | wc -l)" -eq 108
+          grep -F 'DUNGEON_ART_REVIEW_PASS 39' /tmp/dungeon-asset-review.log
+          test "$(find /tmp/dungeon-asset-review -name '*.png' | wc -l)" -eq 117
       - name: Render active production dungeon scene with actual Blender terrain
         run: |
           set -euo pipefail
