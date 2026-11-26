@@ -113,6 +113,15 @@ func model(parent:Node3D,id:int)->Node3D:
 	else:shape(node,"orb",Vector3(0,.55,0),Vector3(.8,1,.8),Data.TINTS[id%3])
 	node.scale=Vector3.ONE*.70
 	return node
+func prop(parent:Node3D,name_value:String,at:Vector3)->Node3D:
+	var file="res://assets/"+name_value+".glb"
+	if not ResourceLoader.exists(file):return null
+	var scene=load(file) as PackedScene
+	if scene==null:return null
+	var ob=scene.instantiate() as Node3D
+	if ob==null:return null
+	parent.add_child(ob);ob.position=at
+	return ob
 func batch(parent:Node3D,points:Array[Vector3],kind:String,sz:Vector3,c:Color):
 	if points.is_empty():return
 	var mm=MultiMesh.new();mm.transform_format=MultiMesh.TRANSFORM_3D;mm.mesh=mesh(kind);mm.instance_count=points.size()
@@ -138,9 +147,10 @@ func build_floor():
 	for p in walls:tops.append(p+Vector3(0,.51,0))
 	batch(geometry,tops,"box",Vector3(1.42,.14,1.42),palette[1])
 	for i in range(run.rooms.size()):
-		var p=pos(run.rooms[i].position)+Vector3(-.5,.45,-.5)
-		shape(geometry,"gem" if region!=0 else "orb",p,Vector3(.38,.88,.38),palette[3])
-		shape(geometry,"box",p-Vector3(0,.34,0),Vector3(.62,.18,.62),palette[2])
+		var p=pos(run.rooms[i].position)+Vector3(-.48,0,-.48)
+		if prop(geometry,["dungeon_forest_shrine","dungeon_reef_shrine","dungeon_star_shrine"][region],p)==null:
+			shape(geometry,"gem" if region!=0 else "orb",p+Vector3(0,.45,0),Vector3(.38,.88,.38),palette[3])
+			shape(geometry,"box",p+Vector3(0,.11,0),Vector3(.62,.18,.62),palette[2])
 	pet=model(geometry,companion_id);pet.position=pos(run.player)
 	active_floor=run.floor_revision
 	camera.position=pet.position+Vector3(0,12,8);camera.look_at(pet.position)
@@ -151,6 +161,7 @@ func refresh_actors():
 		if not run.revealed.has(p):continue
 		var kind:String=run.loot[p]
 		var c=Color("#ffd277") if kind=="coin" else Color("#f2a8c0") if kind=="potion" else palette[3]
+		if kind=="relic" and prop(actors,"dungeon_chest",pos(p))!=null:continue
 		var item=shape(actors,"gem",pos(p)+Vector3(0,.36,0),Vector3(.38,.6,.38),c);item.rotation.y=.7
 	for enemy in run.enemies:
 		var p:Vector2i=enemy.pos
@@ -159,7 +170,9 @@ func refresh_actors():
 		var ob=model(actors,id);ob.position=pos(p);ob.rotation.y=PI
 		shape(actors,"box",pos(p)+Vector3(0,1.42,0),Vector3(.6,.07,.09),Color("#ee7c83"))
 	if run.revealed.has(run.stairs):
-		for i in range(3):shape(actors,"box",pos(run.stairs)+Vector3(0,.08+float(i)*.12,float(i)*.20-.2),Vector3(.95,.16,.32),palette[3] if run.secured else palette[2])
+		if prop(actors,"dungeon_stairs",pos(run.stairs))==null:
+			for i in range(3):shape(actors,"box",pos(run.stairs)+Vector3(0,.08+float(i)*.12,float(i)*.20-.2),Vector3(.95,.16,.32),palette[3] if run.secured else palette[2])
+		if run.secured:shape(actors,"ring",pos(run.stairs)+Vector3(0,.08,0),Vector3(.7,.12,.7),Color("#e9d28c"))
 func draw_map():
 	map.draw_rect(Rect2(Vector2.ZERO,map.size),Color("#102030dd"))
 	for p in run.revealed:

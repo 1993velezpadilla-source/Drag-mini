@@ -695,4 +695,62 @@ for x in [-.39,.39]:
 box((0,.19,-.16),(.34,.28,.09),gold,.04)
 ball((0,.19,-.23),(.16,.16,.08),jetflame)
 export('jetpack',12000)
+# Mystery dungeons: compact, original beveled landmarks and collectible silhouettes.
+clear()
+moss=mat('dungeon moss',(.17,.37,.15))
+bark=mat('dungeon ancient root',(.27,.13,.075))
+cap=mat('dungeon mushroom coral',(.68,.24,.25))
+box((0,.10,0),(.80,.20,.80),stone,.09)
+for i in range(3):
+ a=i*2*pi/3
+ x=.21*math.cos(a);z=.21*math.sin(a)
+ cyl((x,.32,z),.075,.045,.38,bark)
+ ball((x,.53,z),(.35,.18,.35),cap)
+ for j in range(3):
+  a2=j*2*pi/3
+  ball((x+.095*math.cos(a2),.61,z+.095*math.sin(a2)),(.045,.035,.045),cream)
+ball((0,.12,0),(.80,.19,.75),moss)
+export('dungeon_forest_shrine',6500)
+clear()
+coral=mat('reef coral',(.76,.32,.27))
+reef=mat('reef jade',(.10,.40,.45))
+pearl=mat('reef pearl',(.74,.91,.95),.16,.24)
+box((0,.09,0),(.80,.18,.80),reef,.08)
+for i in range(5):
+ a=i*2*pi/5
+ x=.24*math.cos(a);z=.24*math.sin(a)
+ o=cyl((x,.38,z),.075,.035,.62+(.15 if i%2 else 0),coral)
+ o.rotation_euler.x=.28*math.sin(a);o.rotation_euler.y=.28*math.cos(a)
+ ball((x,.62,z),(.13,.13,.13),pearl)
+ball((0,.31,0),(.31,.31,.31),pearl)
+export('dungeon_reef_shrine',7000)
+clear()
+rune=mat('star violet',(.37,.25,.65),.18,.33)
+star=mat('star crystal',(.65,.67,.93),.25,.22)
+box((0,.10,0),(.82,.20,.82),rune,.065)
+for i in range(4):
+ a=i*pi/2
+ x=.28*math.cos(a);z=.28*math.sin(a)
+ cyl((x,.31,z),.12,.09,.36,gold)
+ cyl((x,.54,z),.10,0,.20,star)
+cyl((0,.47,0),.18,.12,.54,star)
+cyl((0,.82,0),.12,0,.20,star)
+export('dungeon_star_shrine',6500)
+clear()
+box((0,.20,0),(.80,.40,.56),wood,.05)
+box((0,.43,0),(.83,.16,.59),wood2,.055)
+for x in [-.29,.29]:
+ box((x,.30,.30),(.07,.53,.055),gold,.015)
+ box((x,.53,0),(.07,.05,.57),gold,.015)
+box((0,.35,.31),(.20,.16,.05),gold,.02)
+ball((0,.35,.35),(.07,.07,.05),dark)
+export('dungeon_chest',4000)
+clear()
+cyl((0,.08,0),.43,.43,.16,stone)
+for i in range(4):
+ box((0,.12+i*.105,-.29+i*.18),(.78,.16,.20),cream,.025)
+for x in [-.43,.43]:
+ cyl((x,.35,0),.06,.045,.65,gold)
+ ball((x,.70,0),(.13,.16,.13),pearl)
+export('dungeon_stairs',4500)
 with open(os.path.join(OUT,'mesh-metrics.json'),'w') as out: json.dump(stats,out,indent=2)

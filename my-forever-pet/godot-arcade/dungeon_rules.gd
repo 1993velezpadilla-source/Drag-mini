@@ -138,7 +138,9 @@ func enemy_turn():
 		var p:Vector2i=enemies[i].pos
 		var gap=distance(p,player)
 		if gap==1:
-			hp=maxi(0,hp-(2+tier+int(floor_number/3)));hits+=1
+			var damage=2+tier+int(floor_number/3)
+			hp=maxi(0,hp-damage);hits+=1
+			message="Hit! −%d HP"%damage
 			if hp==0:
 				finished=true;success=false;message="Rescue needed · expedition lost";return
 		elif gap<=6:
