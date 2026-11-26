@@ -9,6 +9,7 @@ func frames():
 		await RenderingServer.frame_post_draw
 func exterior_review(dungeon,region:int,floor_index:int):
 	# Run this geometry gate on both floors, before capturing the actual camera.
+	assert(dungeon.vista_focus_points.size()==dungeon.exterior_vistas.size(),"one camera target per vista")
 	for bounds in dungeon.scenic_bounds:
 		assert(dungeon.scenery_clear_of_floor(bounds),"transformed Blender model overlaps gameplay tiles")
 	for q in dungeon.habitat_large+dungeon.vista_large:
@@ -82,6 +83,12 @@ func run():
 		await frames()
 		check_exterior_chunks(dungeon)
 		var test_center:Vector3=dungeon.pos(dungeon.run.player)
+		var near_vista=AABB(test_center+Vector3(2,0,-2),Vector3(1.4,2,1.4))
+		var cropped_vista=AABB(test_center+Vector3(8,0,-2),Vector3(1.4,2,1.4))
+		assert(dungeon.score_vista(near_vista,test_center)>dungeon.score_vista(cropped_vista,test_center),"camera-visible scenic anchor wins")
+		var blocker:Vector3=test_center+Vector3(0,7.6,11.3).normalized()*3
+		assert(dungeon.camera_ray_blocked(AABB(blocker-Vector3.ONE*.3,Vector3.ONE*.6),test_center),"foreground obstruction detected")
+		assert(not dungeon.camera_ray_blocked(AABB(blocker+Vector3(5,0,0),Vector3.ONE*.6),test_center),"side scenery does not obstruct camera")
 		assert(not dungeon.scenery_clear_of_floor(AABB(test_center-Vector3(.25,0,.25),Vector3(.5,1,.5))),"reject model over player tile")
 		assert(dungeon.companion_id==24+region)
 		assert(dungeon.area.size.x>200 and dungeon.area.size.y>200)

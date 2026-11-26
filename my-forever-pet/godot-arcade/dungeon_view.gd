@@ -74,6 +74,9 @@ var habitat_tall:Array[Vector2i]=[]
 var habitat_large:Array[Vector2i]=[]
 var vista_large:Array[Vector2i]=[]
 var scenic_bounds:Array[AABB]=[]
+var vista_focus_points:Array[Vector3]=[]
+const DUNGEON_CAMERA_OFFSET=Vector3(0,7.6,11.3)
+const DUNGEON_CAMERA_WIDTH=10.4
 var habitat_low:Array[Vector2i]=[]
 var habitat_ground_candidates:Array[Vector2i]=[]
 var exterior_static_batches=0
@@ -195,7 +198,7 @@ func build_ui():
 	var env=WorldEnvironment.new();env.environment=Environment.new();env.environment.background_mode=Environment.BG_COLOR;env.environment.background_color=palette[2].darkened(.55);env.environment.ambient_light_source=Environment.AMBIENT_SOURCE_COLOR;env.environment.ambient_light_color=[Color("#c7d4bc"),Color("#a0cbdc"),Color("#b4afd9")][region];env.environment.ambient_light_energy=[.29,.36,.32][region];world.add_child(env)
 	var sun=DirectionalLight3D.new();sun.rotation_degrees=Vector3(-48,-35,0);sun.light_color=[Color("#fff0bd"),Color("#a6e5ff"),Color("#dccbff")][region];sun.light_energy=[1.02,.90,.95][region];sun.shadow_enabled=true;world.add_child(sun)
 	var fill=DirectionalLight3D.new();fill.rotation_degrees=Vector3(-35,145,0);fill.light_color=palette[3];fill.light_energy=.23;fill.shadow_enabled=false;world.add_child(fill)
-	camera=Camera3D.new();camera.projection=Camera3D.PROJECTION_ORTHOGONAL;camera.keep_aspect=Camera3D.KEEP_WIDTH;camera.size=10.4;world.add_child(camera);camera.current=true
+	camera=Camera3D.new();camera.projection=Camera3D.PROJECTION_ORTHOGONAL;camera.keep_aspect=Camera3D.KEEP_WIDTH;camera.size=DUNGEON_CAMERA_WIDTH;world.add_child(camera);camera.current=true
 	var input=Control.new();area.add_child(input);input.set_anchors_and_offsets_preset(PRESET_FULL_RECT);input.mouse_filter=MOUSE_FILTER_STOP;input.gui_input.connect(touch)
 	map=Control.new();map.mouse_filter=MOUSE_FILTER_IGNORE;area.add_child(map);map.position=Vector2(10,10);map.size=Vector2(146,112);map.draw.connect(draw_map)
 	map_zoom=Button.new();map_zoom.text="+";map_zoom.tooltip_text="Expand explored map";map_zoom.custom_minimum_size=Vector2(32,32);map_zoom.size=Vector2(32,32)
@@ -556,7 +559,7 @@ func build_exterior_world(wall_cells:Dictionary):
 	# Multi-source BFS provides exact distance bands in O(cells + exterior area).
 	# No decoration is added to the gameplay graph.
 	exterior_static_batches=0;exterior_motion_batches=0;exterior_motion_materials.clear()
-	exterior_groups.clear();exterior_vistas.clear();habitat_tall.clear();habitat_large.clear();vista_large.clear();scenic_bounds.clear();habitat_low.clear();habitat_ground_candidates.clear();exterior_distances.clear();exterior_life.clear();exterior_life_parts.clear();exterior_life_centers.clear();exterior_clock=0.0
+	exterior_groups.clear();exterior_vistas.clear();habitat_tall.clear();habitat_large.clear();vista_large.clear();scenic_bounds.clear();vista_focus_points.clear();habitat_low.clear();habitat_ground_candidates.clear();exterior_distances.clear();exterior_life.clear();exterior_life_parts.clear();exterior_life_centers.clear();exterior_clock=0.0
 	var queue:Array[Vector2i]=[]
 	for q in run.cells:
 		exterior_distances[q]=0;queue.append(q)
@@ -575,13 +578,28 @@ func build_exterior_world(wall_cells:Dictionary):
 	var placements:Array[Transform3D]=[]
 	var vista_parts=rock_parts(prefix+"_vista.glb")
 	var vista_placements:Array[Transform3D]=[]
-	# One foreground focal point per room, then additional midground clusters.
-	# The 3x3 exclusion protects all traversable cells; overlap with the back
-	# of wall geometry is intentional, like a continuous natural embankment.
+	# Score each possible scenic anchor in the actual orthographic camera
+	# plane, rather than blindly choosing a side outside the narrow viewport.
+	# The placement remains deterministic and independent of gameplay RNG.
 	for room in run.rooms:
 		if vista_parts.is_empty() or exterior_vistas.size()>=12:break
 		var middle:Vector2i=room.get_center()
-		var choices:Array[Vector2i]=[Vector2i(room.position.x-3,middle.y),Vector2i(room.end.x+2,middle.y),Vector2i(middle.x,room.position.y-3),Vector2i(middle.x,room.end.y+2),Vector2i(middle.x,room.end.y+1)]
+		var choices:Array[Vector2i]=[]
+		for offset in [0,-1,1,-2,2]:
+			choices.append(Vector2i(middle.x+offset,room.end.y+2))
+			choices.append(Vector2i(middle.x+offset,room.position.y-3))
+			choices.append(Vector2i(room.position.x-3,middle.y+offset))
+			choices.append(Vector2i(room.end.x+2,middle.y+offset))
+		for offset in [0,-1,1,-2,2]:
+			choices.append(Vector2i(middle.x+offset,room.end.y+1))
+			choices.append(Vector2i(middle.x+offset,room.position.y-2))
+			choices.append(Vector2i(room.position.x-2,middle.y+offset))
+			choices.append(Vector2i(room.end.x+1,middle.y+offset))
+		var best_score=-INF
+		var best_cell=Vector2i.ZERO
+		var best_transform=Transform3D.IDENTITY
+		var best_bounds=AABB()
+		var best_large=false
 		for q in choices:
 			if not exterior_clearance(q):continue
 			var center=pos(q)+Vector3(0,-.42,0)
@@ -595,10 +613,14 @@ func build_exterior_world(wall_cells:Dictionary):
 				placement=Transform3D(Basis(Vector3.UP,angle).scaled(Vector3(.89,1.12,.89)),center)
 				bounds=measure_scenery(vista_parts,placement)
 			if not scenery_clear_of_floor(bounds):continue
-			vista_placements.append(placement);scenic_bounds.append(bounds)
-			exterior_vistas.append(q);exterior_groups.append(q)
-			if large:vista_large.append(q)
-			break
+			var score=score_vista(bounds,pos(middle))
+			if score>best_score:
+				best_score=score;best_cell=q;best_transform=placement;best_bounds=bounds;best_large=large
+		if best_score>-INF:
+			vista_placements.append(best_transform);scenic_bounds.append(best_bounds)
+			exterior_vistas.append(best_cell);exterior_groups.append(best_cell)
+			vista_focus_points.append(best_bounds.position+best_bounds.size*Vector3(.5,.65,.5))
+			if best_large:vista_large.append(best_cell)
 	batch_exterior_parts(vista_parts,vista_placements)
 	# Reserve the large scenic silhouettes before medium and low vegetation.
 	build_habitat_layers(prefix,queue,wall_cells)
@@ -693,6 +715,13 @@ func build_habitat_layers(prefix:String,queue:Array[Vector2i],wall_cells:Diction
 			placement=Transform3D(Basis(Vector3.UP,angle).scaled(Vector3(.88,1.10,.88)),center)
 			bounds=measure_scenery(tall_parts,placement)
 		if not scenery_clear_of_floor(bounds):continue
+		# Do not trade a visible waterfall for a large foreground tree.
+		if obscures_vista_or_room(bounds):
+			large=false
+			var reduced_center=pos(q)+Vector3(0,-.42,0)
+			placement=Transform3D(Basis(Vector3.UP,angle).scaled(Vector3(.82,.72,.82)),reduced_center)
+			bounds=measure_scenery(tall_parts,placement)
+			if not scenery_clear_of_floor(bounds) or obscures_vista_or_room(bounds):continue
 		tall_placements.append(placement);scenic_bounds.append(bounds)
 		habitat_tall.append(q)
 		if large:habitat_large.append(q)
@@ -727,6 +756,31 @@ func fill_habitat_understory(wall_cells:Dictionary):
 			habitat_low.append(q)
 	batch_exterior_parts(low_parts,low_placements)
 	print("DUNGEON_HABITAT region=",region," tall=",habitat_tall.size()," understory=",habitat_low.size()," large_habitat=",habitat_large.size()," large_vistas=",vista_large.size())
+func score_vista(bounds:AABB,focus:Vector3)->float:
+	# With a fixed X camera axis, horizontal crop is exact. The vertical
+	# preference is soft because the viewport's portrait ratio can change.
+	var center=bounds.get_center()
+	var delta=center-focus
+	var half_width=DUNGEON_CAMERA_WIDTH*.5
+	var overlap=maxf(0.0,minf(bounds.end.x,focus.x+half_width)-maxf(bounds.position.x,focus.x-half_width))
+	var visible=overlap/maxf(bounds.size.x,.01)
+	var camera_up=Vector3(0,DUNGEON_CAMERA_OFFSET.z,-DUNGEON_CAMERA_OFFSET.y).normalized()
+	var screen_y=delta.dot(camera_up)
+	var side_preference=1.0-absf(absf(delta.x)-2.8)/half_width
+	# Reward a readable off-center landmark, not a centered foreground obstruction.
+	var front_penalty=maxf(0.0,delta.z-1.0)*.10
+	return visible*5.0+side_preference-absf(screen_y-1.6)*.23-front_penalty
+func camera_ray_blocked(bounds:AABB,target:Vector3)->bool:
+	# Orthographic sight lines are parallel at every player location.
+	# Only test forward from the target toward the camera.
+	return bounds.intersects_segment(target+DUNGEON_CAMERA_OFFSET.normalized()*.12,target+DUNGEON_CAMERA_OFFSET)!=null
+func obscures_vista_or_room(bounds:AABB)->bool:
+	for target in vista_focus_points:
+		if camera_ray_blocked(bounds,target):return true
+	for room in run.rooms:
+		var target=pos(room.get_center())+Vector3(0,.65,0)
+		if camera_ray_blocked(bounds,target):return true
+	return false
 func measure_scenery(parts:Array,placement:Transform3D)->AABB:
 	# Use the imported GLB's real mesh bounds, including authored offsets,
 	# scale and yaw. A cell-center check alone cannot detect overhanging cliffs.
@@ -1263,7 +1317,7 @@ func build_floor():
 	banner_time=1.65;floor_banner.text="B%d  ·  %s"%[run.floor_number,floor_name()];floor_banner.show()
 	floor_banner.size=Vector2(area.size.x,45);floor_banner.position=Vector2(0,area.size.y*.12)
 	var focus=pet.position+Vector3(0,.18,-.48)
-	camera.position=focus+Vector3(0,7.6,11.3);camera.look_at(focus)
+	camera.position=focus+DUNGEON_CAMERA_OFFSET;camera.look_at(focus)
 	refresh_actors()
 	floor_build_usec=Time.get_ticks_usec()-start_usec
 	print("DUNGEON_FLOOR_BUILD region=",region," floor=",run.floor_number," usec=",floor_build_usec," rocks=",rock_modules," cached_rock_sets=",rock_mesh_cache.size()," landmarks=",landmark_count," details=",detail_count," paired_spans=",span_count," corners=",corner_count," terraces=",terrace_count," floor_details=",floor_detail_count," thresholds=",threshold_count," exterior_vertices=",exterior_vertex_count," exterior_groups=",exterior_groups.size()," exterior_static_batches=",exterior_static_batches," exterior_life=",exterior_life_centers.size())
@@ -1460,4 +1514,4 @@ func _process(dt:float):
 	if hit_time>0.0:pet_pose.rotation.z+=sin(hit_time*45.0)*.19
 	if facing!=Vector2i.ZERO:pet.rotation.y=atan2(float(facing.x),float(facing.y))
 	var focus=pet.position+Vector3(0,.18,-.48)
-	camera.position=focus+Vector3(0,7.6,11.3);camera.look_at(focus)
+	camera.position=focus+DUNGEON_CAMERA_OFFSET;camera.look_at(focus)
