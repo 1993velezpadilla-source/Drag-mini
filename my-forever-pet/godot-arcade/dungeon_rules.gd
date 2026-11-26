@@ -34,8 +34,13 @@ var combo=0
 var best_combo=0
 var skill_kind=0
 var traps:Dictionary={}
+var rescue_finale=false
+var specimen=0
+var guardian_defeated=false
+var event_serial=0
+var last_event=""
 func setup(r:int,id:int,step:int,finale:bool,patrol:bool,seed_id:int,companion:int=0):
-	region=r;seed_value=seed_id;skill_kind=posmod(companion,3)
+	region=r;seed_value=seed_id;skill_kind=posmod(companion,3);rescue_finale=finale;specimen=id
 	tier=0 if patrol or id<12 else 1 if id<24 else 2
 	floor_count=2 if patrol else 3+tier+(1 if finale else 0)
 	max_hp=42+4*tier;hp=max_hp
@@ -60,7 +65,7 @@ func generate_floor():
 	rng.seed=seed_value+floor_number*7919
 	cells.clear();rooms.clear();enemies.clear();loot.clear();revealed.clear();traps.clear()
 	floor_style=posmod(seed_value+floor_number,3)
-	secured=false;floor_revision+=1
+	secured=false;guardian_defeated=not (rescue_finale and floor_number==floor_count);floor_revision+=1
 	for y in range(2):
 		for x in range(3):
 			var room=Rect2i(Vector2i(1+x*7+rng.randi_range(0,1),1+y*7+rng.randi_range(0,1)),Vector2i(rng.randi_range(4,5),rng.randi_range(4,5)))
@@ -82,12 +87,16 @@ func generate_floor():
 	for p in spots:
 		if p==player or p==stairs or p==relic or distance(p,player)<4:continue
 		if enemies.size()<count:
-			enemies.append({"pos":p,"hp":8+floor_number*2+tier*2,"kind":rng.randi_range(0,2)})
+			var life=8+floor_number*2+tier*2
+			enemies.append({"uid":enemies.size(),"pos":p,"hp":life,"max_hp":life,"kind":rng.randi_range(0,2),"windup":false})
 		elif loot.size()<9:
 			loot[p]="potion" if loot.size()%4==0 else "material" if loot.size()%3==0 else "coin"
 		elif traps.size()<floor_number-1:traps[p]=true
 		else:break
 	loot[relic]="relic"
+	if not guardian_defeated:
+		var life=24+6*tier
+		enemies.append({"uid":99,"pos":relic,"hp":life,"max_hp":life,"kind":3,"windup":false})
 	# A guaranteed immediate pickup introduces the loop on every floor.
 	for d in DIR:
 		var p:Vector2i=player+d
@@ -95,7 +104,7 @@ func generate_floor():
 			loot[p]="coin";break
 	energy=mini(8,energy+2)
 	reveal()
-	message="B%d · Find the relic and stairs"%floor_number
+	message="Guardian chamber · Rescue the creature" if not guardian_defeated else "B%d · Find the relic and stairs"%floor_number
 func enemy_at(p:Vector2i)->int:
 	for i in range(enemies.size()):
 		if enemies[i].pos==p:return i
@@ -127,8 +136,11 @@ func reveal():
 		if room.has_point(player):
 			for p in cells:
 				if room.has_point(p):revealed[p]=true
+func emit_event(value:String):
+	last_event=value;event_serial+=1
 func pickup():
 	if not loot.has(player):return
+	if player==relic and not guardian_defeated:return
 	var kind:String=loot[player]
 	loot.erase(player)
 	match kind:
@@ -136,26 +148,44 @@ func pickup():
 		"potion":potions+=1;message="Healing berry found"
 		"material":materials+=1;message="+1 crafting material"
 		"relic":secured=true;message="Relic secured! Find the stairs"
+	emit_event(message)
 func strike(i:int,power:bool=false):
 	if i<0 or i>=enemies.size():return
 	var damage=10 if power else 6
 	enemies[i].hp=int(enemies[i].hp)-damage
 	message="-%d HP · strike!"%damage
+	emit_event("−%d HP"%damage)
 	if int(enemies[i].hp)<=0:
+		var guardian=int(enemies[i].kind)==3
 		enemies.remove_at(i);defeated+=1;combo+=1;best_combo=maxi(best_combo,combo)
-		var reward=2+mini(3,combo-1);coins+=reward;message="Enemy defeated! +%d coins · Combo %d"%[reward,combo]
+		if guardian:guardian_defeated=true
+		var reward=(12 if guardian else 2)+mini(3,combo-1);coins+=reward;message="Guardian defeated! +%d coins"%reward if guardian else "Enemy defeated! +%d coins · Combo %d"%[reward,combo]
+		emit_event(message)
 func enemy_turn():
 	turns+=1
 	for i in range(enemies.size()):
 		var p:Vector2i=enemies[i].pos
 		var gap=distance(p,player)
-		if gap==1:
-			var damage=2+tier+int(floor_number/3)
+		var kind:int=enemies[i].kind
+		var straight=p.x==player.x or p.y==player.y
+		var ranged=kind==1 and gap==2 and straight and cells.has(p+(player-p)/2) and enemy_at(p+(player-p)/2)<0
+		var heavy=kind>=2
+		var charged:bool=enemies[i].get("windup",false)
+		if charged and gap!=1:
+			enemies[i].windup=false
+			continue
+		if gap==1 and heavy and not charged:
+			enemies[i].windup=true
+			message="Guardian charging!" if kind==3 else "Heavy attack incoming!"
+			continue
+		if gap==1 or ranged:
+			enemies[i].windup=false
+			var damage=2+tier+int(floor_number/3)+(2 if heavy else 0)
 			hp=maxi(0,hp-damage);hits+=1;combo=0
-			message="Hit! −%d HP"%damage
+			message="Hit! −%d HP"%damage;emit_event(message)
 			if hp==0:
 				finished=true;success=false;message="Rescue needed · expedition lost";return
-		elif gap<=6:
+		elif gap<=6 and kind!=3:
 			var path=route(p,player)
 			if not path.is_empty() and path[0]!=player and enemy_at(path[0])<0:enemies[i].pos=path[0]
 	reveal()
@@ -166,7 +196,7 @@ func move(p:Vector2i)->bool:
 	else:
 		player=p;pickup()
 		if traps.has(player):
-			traps.erase(player);hp=maxi(1,hp-3);hits+=1;combo=0;message="Trap! −3 HP"
+			traps.erase(player);hp=maxi(1,hp-3);hits+=1;combo=0;message="Trap! −3 HP";emit_event(message)
 	enemy_turn()
 	return true
 func attack(power:bool=false)->bool:
@@ -187,7 +217,7 @@ func attack(power:bool=false)->bool:
 	message="No enemy in reach";return false
 func heal()->bool:
 	if finished or potions<=0 or hp==max_hp:return false
-	potions-=1;hp=mini(max_hp,hp+20);message="Recovered HP";enemy_turn();return true
+	potions-=1;hp=mini(max_hp,hp+20);message="Recovered HP";emit_event(message);enemy_turn();return true
 func descend()->bool:
 	if finished or player!=stairs or not secured:return false
 	if floor_number>=floor_count:

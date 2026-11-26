@@ -31,6 +31,11 @@ var meshes:Dictionary={}
 var mats:Dictionary={}
 var active_floor=0
 var facing=Vector2i.DOWN
+var actor_nodes:Dictionary={}
+var feedback:Label
+var feedback_time=0.0
+var previous_event=0
+var actor_created=0
 func setup(r:int,id:int,step:int,finale:bool,patrol:bool,seed_id:int,companion:int):
 	region=r;companion_id=companion
 	run.setup(r,id,step,finale,patrol,seed_id,companion)
@@ -69,6 +74,7 @@ func build_ui():
 	camera=Camera3D.new();camera.projection=Camera3D.PROJECTION_ORTHOGONAL;camera.keep_aspect=Camera3D.KEEP_WIDTH;camera.size=9.5;world.add_child(camera);camera.current=true
 	var input=Control.new();area.add_child(input);input.set_anchors_and_offsets_preset(PRESET_FULL_RECT);input.mouse_filter=MOUSE_FILTER_STOP;input.gui_input.connect(touch)
 	map=Control.new();map.mouse_filter=MOUSE_FILTER_IGNORE;area.add_child(map);map.position=Vector2(10,10);map.size=Vector2(153,105);map.draw.connect(draw_map)
+	feedback=Label.new();feedback.horizontal_alignment=HORIZONTAL_ALIGNMENT_CENTER;feedback.add_theme_font_size_override("font_size",24);feedback.add_theme_color_override("font_outline_color",Color("#142535"));feedback.add_theme_constant_override("outline_size",7);feedback.mouse_filter=MOUSE_FILTER_IGNORE;area.add_child(feedback);feedback.hide()
 	var footer=PanelContainer.new();footer.add_theme_stylebox_override("panel",style(Color("#162535"),Color("#344e63"),0));base.add_child(footer)
 	var v=VBoxContainer.new();v.add_theme_constant_override("separation",6);footer.add_child(v)
 	status_text=label(v,"",16,Color("#ffe1a4"));status_text.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART;status_text.custom_minimum_size.y=44
@@ -130,7 +136,7 @@ func batch(parent:Node3D,points:Array[Vector3],kind:String,sz:Vector3,c:Color):
 func build_floor():
 	if is_instance_valid(geometry):geometry.hide();geometry.queue_free()
 	if is_instance_valid(actors):actors.hide();actors.queue_free()
-	geometry=Node3D.new();world.add_child(geometry);actors=Node3D.new();world.add_child(actors)
+	geometry=Node3D.new();world.add_child(geometry);actors=Node3D.new();world.add_child(actors);actor_nodes.clear()
 	var a:Array[Vector3]=[];var b:Array[Vector3]=[];var walls:Array[Vector3]=[]
 	var seen:Dictionary={}
 	for p in run.cells:
@@ -155,26 +161,56 @@ func build_floor():
 	active_floor=run.floor_revision
 	camera.position=pet.position+Vector3(0,12,8);camera.look_at(pet.position)
 	refresh_actors()
+func actor_for(key:String,at:Vector3)->Node3D:
+	if actor_nodes.has(key):return actor_nodes[key]
+	var n=Node3D.new();actors.add_child(n);n.position=at;actor_nodes[key]=n;actor_created+=1
+	return n
 func refresh_actors():
-	for child in actors.get_children():child.hide();child.queue_free()
+	var desired:Dictionary={}
 	for p in run.loot:
 		if not run.revealed.has(p):continue
+		var key="loot:"+str(p);desired[key]=true
+		if actor_nodes.has(key):continue
+		var root=actor_for(key,pos(p))
 		var kind:String=run.loot[p]
 		var c=Color("#ffd277") if kind=="coin" else Color("#f2a8c0") if kind=="potion" else palette[3]
-		if kind=="relic" and prop(actors,"dungeon_chest",pos(p))!=null:continue
-		var item=shape(actors,"gem",pos(p)+Vector3(0,.36,0),Vector3(.38,.6,.38),c);item.rotation.y=.7
-	for enemy in run.enemies:
+		if kind=="relic" and prop(root,"dungeon_chest",Vector3.ZERO)!=null:continue
+		var item=shape(root,"gem",Vector3(0,.36,0),Vector3(.38,.6,.38),c);item.rotation.y=.7
+	for i in range(run.enemies.size()):
+		var enemy:Dictionary=run.enemies[i]
 		var p:Vector2i=enemy.pos
 		if not run.revealed.has(p):continue
-		var id:int=Data.POOLS[region][(int(enemy.kind)+run.floor_number)%Data.POOLS[region].size()]
-		var ob=model(actors,id);ob.position=pos(p);ob.rotation.y=PI
-		shape(actors,"box",pos(p)+Vector3(0,1.42,0),Vector3(.6,.07,.09),Color("#ee7c83"))
+		var key="enemy:"+str(enemy.get("uid",i));desired[key]=true
+		var kind:int=enemy.kind
+		var root=actor_for(key,pos(p))
+		root.set_meta("target",pos(p))
+		if root.get_child_count()==0:
+			var id:int=run.specimen if kind==3 else Data.POOLS[region][(kind+run.floor_number)%Data.POOLS[region].size()]
+			var ob=model(root,id);ob.rotation.y=PI
+			if kind==3:ob.scale*=1.45
+			var height=1.9 if kind==3 else 1.42
+			shape(root,"box",Vector3(0,height,0),Vector3(.75,.09,.12),Color("#212835"))
+			var bar=shape(root,"box",Vector3(0,height+.015,.012),Vector3(.72,.075,.13),Color("#ee7c83"));bar.name="HP"
+			var marker=shape(root,"ring",Vector3(0,.06,0),Vector3(.74,.12,.74),Color("#ffb25d"));marker.name="Warning"
+		var bar=root.get_node("HP") as Node3D
+		bar.scale.x=.72*clampf(float(enemy.hp)/float(enemy.get("max_hp",enemy.hp)),0,1)
+		root.get_node("Warning").visible=enemy.get("windup",false)
 	for p in run.traps:
-		if run.revealed.has(p):shape(actors,"ring",pos(p)+Vector3(0,.04,0),Vector3(.5,.06,.5),Color("#b9788b"))
+		if not run.revealed.has(p):continue
+		var key="trap:"+str(p);desired[key]=true
+		if not actor_nodes.has(key):shape(actor_for(key,pos(p)),"ring",Vector3(0,.04,0),Vector3(.5,.06,.5),Color("#b9788b"))
 	if run.revealed.has(run.stairs):
-		if prop(actors,"dungeon_stairs",pos(run.stairs))==null:
-			for i in range(3):shape(actors,"box",pos(run.stairs)+Vector3(0,.08+float(i)*.12,float(i)*.20-.2),Vector3(.95,.16,.32),palette[3] if run.secured else palette[2])
-		if run.secured:shape(actors,"ring",pos(run.stairs)+Vector3(0,.08,0),Vector3(.7,.12,.7),Color("#e9d28c"))
+		var key="stairs";desired[key]=true
+		if not actor_nodes.has(key):
+			var root=actor_for(key,pos(run.stairs))
+			if prop(root,"dungeon_stairs",Vector3.ZERO)==null:
+				for i in range(3):shape(root,"box",Vector3(0,.08+float(i)*.12,float(i)*.20-.2),Vector3(.95,.16,.32),palette[2])
+			var glow=shape(root,"ring",Vector3(0,.08,0),Vector3(.7,.12,.7),Color("#e9d28c"));glow.name="Ready"
+		actor_nodes[key].get_node("Ready").visible=run.secured
+	for key in actor_nodes.keys():
+		if not desired.has(key):
+			var n:Node3D=actor_nodes[key]
+			n.hide();n.queue_free();actor_nodes.erase(key)
 func draw_map():
 	map.draw_rect(Rect2(Vector2.ZERO,map.size),Color("#102030dd"))
 	for p in run.revealed:
@@ -198,6 +234,8 @@ func sync():
 	if run.floor_revision!=active_floor:build_floor()
 	else:refresh_actors()
 	update_hud()
+	if previous_event!=run.event_serial:
+		previous_event=run.event_serial;feedback.text=run.last_event;feedback_time=1.0;feedback.show()
 	if run.finished and not notified:
 		notified=true
 		# Deferred settlement prevents destroying/rebuilding the UI inside a button callback.
@@ -217,6 +255,12 @@ func update_hud():
 func _process(dt:float):
 	if notified or not is_instance_valid(pet):return
 	elapsed+=dt;tick-=dt
+	feedback_time=maxf(0.0,feedback_time-dt)
+	feedback.visible=feedback_time>0.0
+	if feedback.visible:
+		feedback.size=Vector2(area.size.x,42);feedback.position=Vector2(0,area.size.y*.29-(1.0-feedback_time)*24.0);feedback.modulate.a=minf(1.0,feedback_time*4.0)
+	for n in actor_nodes.values():
+		if n.has_meta("target"):n.position=n.position.lerp(n.get_meta("target"),1.0-exp(-dt*15.0))
 	if tick<=0 and not path.is_empty() and not run.finished:
 		var next:Vector2i=path.pop_front()
 		facing=next-run.player

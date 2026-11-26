@@ -50,5 +50,21 @@ func run():
 	assert(direction!=Vector2i.ZERO)
 	ranged.enemies.append({"pos":ranged.player+direction*2,"hp":8,"kind":0})
 	assert(ranged.attack(true) and ranged.enemies.is_empty() and ranged.defeated==1)
+	var boss=Rules.new();boss.setup(0,14,0,true,false,123,1)
+	boss.floor_number=boss.floor_count;boss.generate_floor()
+	assert(not boss.guardian_defeated and boss.enemy_at(boss.relic)>=0)
+	boss.player=boss.relic;boss.pickup();assert(not boss.secured)
+	var idx:int=boss.enemy_at(boss.relic)
+	boss.enemies[idx].hp=1;boss.strike(idx)
+	assert(boss.guardian_defeated);boss.pickup();assert(boss.secured)
+	var heavy=Rules.new();heavy.setup(0,1,0,false,false,19)
+	heavy.enemies.clear()
+	var near:Vector2i
+	for d in Rules.DIR:
+		if heavy.cells.has(heavy.player+d):near=heavy.player+d;break
+	heavy.enemies.append({"pos":near,"hp":20,"kind":2,"windup":false})
+	var health:int=heavy.hp
+	heavy.enemy_turn();assert(heavy.hp==health and heavy.enemies[0].windup)
+	heavy.enemy_turn();assert(heavy.hp<health and not heavy.enemies[0].windup)
 	print("FOREVER_DUNGEON_PASS ",total)
 	quit()
