@@ -10,6 +10,13 @@ func frames():
 func exterior_review(dungeon,region:int,floor_index:int):
 	# Run this geometry gate on both floors, before capturing the actual camera.
 	assert(dungeon.vista_focus_points.size()==dungeon.exterior_vistas.size(),"one camera target per vista")
+	var variant_total:int=0
+	for count in dungeon.habitat_variant_counts:variant_total+=count
+	assert(variant_total==dungeon.habitat_tall.size(),"habitat variants account for every placement")
+	if region==2 and ResourceLoader.exists("res://assets/dungeon_star_crystal_habitat.glb"):
+		assert(dungeon.exterior_surface.material_override is ShaderMaterial,"astral background uses layered cloud shading")
+		if variant_total>=3:
+			for count in dungeon.habitat_variant_counts:assert(count>0,"all three island silhouettes placed")
 	for bounds in dungeon.scenic_bounds:
 		assert(dungeon.scenery_clear_of_floor(bounds),"transformed Blender model overlaps gameplay tiles")
 	for q in dungeon.habitat_large+dungeon.vista_large:
@@ -23,7 +30,7 @@ func exterior_review(dungeon,region:int,floor_index:int):
 	var meshes:Array[Mesh]=[]
 	for part in dungeon.rock_parts(prefix+"_exterior.glb"):meshes.append(part.mesh)
 	for part in dungeon.rock_parts(prefix+"_vista.glb"):meshes.append(part.mesh)
-	for suffix in ["_habitat.glb","_understory.glb"]:
+	for suffix in ["_habitat.glb","_understory.glb","_crystal_habitat.glb","_ruin_habitat.glb"]:
 		for part in dungeon.rock_parts(prefix+suffix):meshes.append(part.mesh)
 	var layers:Array[Node3D]=[]
 	for child in dungeon.geometry.get_children():

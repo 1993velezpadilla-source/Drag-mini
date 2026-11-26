@@ -1853,6 +1853,50 @@ for k in [-1,1]:
  tube(points,[.012]*8+[.006],foam,6)
 export('dungeon_star_habitat',5500)
 clear()
+# Crystal sanctuary: asymmetric suspended rock with a radiant crystal crown,
+# distinct from the arch-and-waterfall island. All geometry is original.
+def celestial_island(seed,wide,depth,top):
+ n=14;verts=[];faces=[]
+ for level,(y,r) in enumerate([(0,.09),(.24,.31),(.65,.66),(top-.18,1),(top,.88)]):
+  for i in range(n):
+   ang=i*2*pi/n;rr=r*(1+.11*math.sin(i*2.1+seed)+.07*math.cos(i*3.8+level))
+   verts.append((rr*wide*math.cos(ang)+.13*(1-r),y+.025*r*math.sin(i*2.7),rr*depth*math.sin(ang)))
+ for j in range(4):
+  for i in range(n):
+   k=j*n+i;l=j*n+(i+1)%n;faces.append((k,l,l+n,k+n))
+ faces.extend([tuple(reversed(range(n))),tuple(range(4*n,5*n))])
+ return architectural_mesh('fractured celestial island',verts,faces,astralstone)
+celestial_island(3600,1.19,.88,1.02)
+for i,(x,z,h,r) in enumerate([(-.26,-.12,1.55,.24),(.40,.03,1.02,.18),(-.70,.14,.63,.13),(.22,.54,.48,.12),(.71,-.28,.54,.12)]):
+ crystal((x,1.01+h*.20,z),r,h,star if i%2 else violetglow,3610+i)
+ rock_slab((x,.99,z),(.43,.16,.35),astraledge,3620+i)
+for i in range(9):
+ ang=i*2*pi/9
+ box((.83*math.cos(ang),1.025,.58*math.sin(ang)),(.13,.045,.065),rune,.009)
+ crown_leaf((.78*math.cos(ang),1.05,.60*math.sin(ang)),ang,.21,.07,leafdark if i%2 else violetglow)
+export('dungeon_star_crystal_habitat',3900)
+clear()
+# Broken observatory island: terraces, fractured columns and inset gilding,
+# no duplicate waterfall or identical arch silhouette.
+celestial_island(3700,1.25,.91,.83)
+rock_slab((0,.84,0),(1.85,.18,1.30),astraledge,3701)
+for i in range(3):
+ box((0,.92+i*.10,.54-i*.16),(1.03,.12,.31),astraledge,.022)
+for i,(x,z,h) in enumerate([(-.63,-.35,1.18),(.63,-.35,.70),(-.62,.40,.42)]):
+ cyl((x,1.02+h*.5,z),.15,.115,h,astraledge)
+ cyl((x,1.00,z),.22,.20,.10,rune)
+ cyl((x,1.04+h,z),.17,.14,.10,rune)
+ for j in range(3):
+  ang=j*2*pi/3
+  box((x+.135*math.cos(ang),1.04+h*.45,z+.135*math.sin(ang)),(.035,h*.64,.035),rune,.004)
+# Tilted celestial instrument on its own pedestal.
+cyl((.14,1.05,-.12),.30,.26,.25,astraledge)
+ob=ring((.14,1.63,-.12),.42,.035,rune);ob.rotation_euler.y=.55
+crystal((.14,1.38,-.12),.11,.40,violetglow,3720)
+for i,(x,z) in enumerate([(-.92,.10),(.88,.35),(.30,-.70)]):
+ crystal((x,.86,z),.10,.32,star,3730+i)
+export('dungeon_star_ruin_habitat',4400)
+clear()
 # Low celestial understory, scattered carved fragments with luminous blossoms.
 for i in range(3):
  a=i*2*pi/3;x=.35*math.cos(a);z=.35*math.sin(a)

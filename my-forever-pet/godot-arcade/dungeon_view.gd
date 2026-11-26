@@ -75,6 +75,7 @@ var habitat_large:Array[Vector2i]=[]
 var vista_large:Array[Vector2i]=[]
 var scenic_bounds:Array[AABB]=[]
 var vista_focus_points:Array[Vector3]=[]
+var habitat_variant_counts:Array[int]=[0,0,0]
 const DUNGEON_CAMERA_OFFSET=Vector3(0,7.6,11.3)
 const DUNGEON_CAMERA_WIDTH=10.4
 var habitat_low:Array[Vector2i]=[]
@@ -559,7 +560,7 @@ func build_exterior_world(wall_cells:Dictionary):
 	# Multi-source BFS provides exact distance bands in O(cells + exterior area).
 	# No decoration is added to the gameplay graph.
 	exterior_static_batches=0;exterior_motion_batches=0;exterior_motion_materials.clear()
-	exterior_groups.clear();exterior_vistas.clear();habitat_tall.clear();habitat_large.clear();vista_large.clear();scenic_bounds.clear();vista_focus_points.clear();habitat_low.clear();habitat_ground_candidates.clear();exterior_distances.clear();exterior_life.clear();exterior_life_parts.clear();exterior_life_centers.clear();exterior_clock=0.0
+	exterior_groups.clear();exterior_vistas.clear();habitat_tall.clear();habitat_large.clear();vista_large.clear();scenic_bounds.clear();vista_focus_points.clear();habitat_variant_counts.assign([0,0,0]);habitat_low.clear();habitat_ground_candidates.clear();exterior_distances.clear();exterior_life.clear();exterior_life_parts.clear();exterior_life_centers.clear();exterior_clock=0.0
 	var queue:Array[Vector2i]=[]
 	for q in run.cells:
 		exterior_distances[q]=0;queue.append(q)
@@ -669,6 +670,10 @@ func build_habitat_layers(prefix:String,queue:Array[Vector2i],wall_cells:Diction
 	var low_parts=rock_parts(prefix+"_understory.glb")
 	if tall_parts.is_empty() or low_parts.is_empty():return
 	var tall_placements:Array[Transform3D]=[]
+	var crystal_placements:Array[Transform3D]=[]
+	var ruin_placements:Array[Transform3D]=[]
+	var crystal_parts:Array=rock_parts(prefix+"_crystal_habitat.glb") if region==2 else []
+	var ruin_parts:Array=rock_parts(prefix+"_ruin_habitat.glb") if region==2 else []
 	habitat_ground_candidates.assign(queue)
 	# Favor exterior behind rooms and sides. Tall assets farther from walkable
 	# tiles protect the camera's foreground view. No gameplay cells are edited.
@@ -700,6 +705,10 @@ func build_habitat_layers(prefix:String,queue:Array[Vector2i],wall_cells:Diction
 			if Vector2(old-q).length_squared()<(12.0 if habitat_large.has(old) else 6.0):safe=false;break
 		if not safe:continue
 		var angle=float(posmod(q.x*7+q.y*11,7)-3)*.15
+		# Cycle actual silhouette families; spatial scale still comes from seed.
+		var variant=habitat_tall.size()%3 if region==2 and not crystal_parts.is_empty() and not ruin_parts.is_empty() else 0
+		var selected_parts:Array=crystal_parts if variant==1 else ruin_parts if variant==2 else tall_parts
+		if variant!=0:angle=float(posmod(q.x*11+q.y*7,12))*TAU/12.0
 		var large=habitat_wide_clearance(q)
 		var scale_value=(1.32+.31*float(posmod(q.x*13+q.y*7,9))/8.0) if large else (.87+.17*float(posmod(q.x*13+q.y*7,9))/8.0)
 		var height_factor=1.05+.43*float(posmod(q.x*17+q.y*3,11))/10.0
@@ -709,23 +718,29 @@ func build_habitat_layers(prefix:String,queue:Array[Vector2i],wall_cells:Diction
 		var elevation=(.52 if large else -.12) if region==2 else -.42
 		var center=pos(q)+Vector3(0,elevation,0)
 		var placement=Transform3D(Basis(Vector3.UP,angle).scaled(Vector3(scale_value,scale_value*height_factor,scale_value)),center)
-		var bounds=measure_scenery(tall_parts,placement)
+		var bounds=measure_scenery(selected_parts,placement)
 		if not scenery_clear_of_floor(bounds):
 			large=false
 			placement=Transform3D(Basis(Vector3.UP,angle).scaled(Vector3(.88,1.10,.88)),center)
-			bounds=measure_scenery(tall_parts,placement)
+			bounds=measure_scenery(selected_parts,placement)
 		if not scenery_clear_of_floor(bounds):continue
 		# Do not trade a visible waterfall for a large foreground tree.
 		if obscures_vista_or_room(bounds):
 			large=false
 			var reduced_center=pos(q)+Vector3(0,-.42,0)
 			placement=Transform3D(Basis(Vector3.UP,angle).scaled(Vector3(.82,.72,.82)),reduced_center)
-			bounds=measure_scenery(tall_parts,placement)
+			bounds=measure_scenery(selected_parts,placement)
 			if not scenery_clear_of_floor(bounds) or obscures_vista_or_room(bounds):continue
-		tall_placements.append(placement);scenic_bounds.append(bounds)
+		if variant==1:crystal_placements.append(placement)
+		elif variant==2:ruin_placements.append(placement)
+		else:tall_placements.append(placement)
+		habitat_variant_counts[variant]+=1
+		scenic_bounds.append(bounds)
 		habitat_tall.append(q)
 		if large:habitat_large.append(q)
 	batch_exterior_parts(tall_parts,tall_placements)
+	batch_exterior_parts(crystal_parts,crystal_placements)
+	batch_exterior_parts(ruin_parts,ruin_placements)
 func fill_habitat_understory(wall_cells:Dictionary):
 	if habitat_ground_candidates.is_empty():return
 	var prefix="res://assets/dungeon_"+["forest","reef","star"][region]
@@ -987,6 +1002,9 @@ func build_exterior_surface():
 			if region==2:color=color.lerp(Color("#8070a8"),smoothstep(-.05,.55,cloud)*depth_factor*.42)
 			# Baked contact shadow under the actual authored placement centers.
 			color=color.darkened(support*.18)
+			# Alpha is a cloud-coverage weight, never transparency: keep rock
+			# foundations clear while giving the space between islands depth.
+			if region==2:color.a=(1.0-support)*smoothstep(1.0,4.0,float(distance))
 			colors.append(color)
 	for y in range(depth):
 		for x in range(width):
@@ -1003,9 +1021,46 @@ func build_exterior_surface():
 	var material=terrain_mat(Color.WHITE).duplicate() as StandardMaterial3D
 	material.vertex_color_use_as_albedo=true
 	if region==2:material.albedo_texture=null;material.normal_enabled=false
-	exterior_surface.material_override=material;geometry.add_child(exterior_surface)
+	exterior_surface.material_override=star_cloud_material() if region==2 else material
+	geometry.add_child(exterior_surface)
 	exterior_surface.cast_shadow=GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	exterior_vertex_count=vertices.size()
+func star_cloud_material()->ShaderMaterial:
+	# Opaque, two-scale painted cloud field on the depressed exterior terrain.
+	# No extra draw calls, alpha sorting, textures or particle overdraw.
+	var shader=Shader.new()
+	shader.code="""shader_type spatial;
+render_mode cull_disabled;
+varying vec3 cloud_pos;
+varying vec4 ground_tint;
+float hash21(vec2 p){
+ p=fract(p*vec2(123.34,456.21));p+=dot(p,p+45.32);
+ return fract(p.x*p.y);
+}
+float noise2(vec2 p){
+ vec2 i=floor(p), f=fract(p); f=f*f*(3.0-2.0*f);
+ return mix(mix(hash21(i),hash21(i+vec2(1,0)),f.x),mix(hash21(i+vec2(0,1)),hash21(i+vec2(1,1)),f.x),f.y);
+}
+void vertex(){
+ cloud_pos=(MODEL_MATRIX*vec4(VERTEX,1.0)).xyz;
+ ground_tint=COLOR;
+}
+void fragment(){
+ vec2 p=cloud_pos.xz*vec2(0.23,0.31);
+ float broad=noise2(p*0.55);
+ float folds=noise2(p+vec2(broad*1.8,broad*0.8));
+ float detail=noise2(p*2.25+vec2(3.2,1.7));
+ float cloud=smoothstep(0.32,0.79,0.53*broad+0.35*folds+0.12*detail);
+ float rim=smoothstep(0.45,0.82,cloud);
+ vec3 shade=mix(vec3(0.115,0.13,0.28),vec3(0.39,0.35,0.63),cloud);
+ shade=mix(shade,vec3(0.61,0.53,0.79),rim*0.7);
+ ALBEDO=mix(ground_tint.rgb,shade,ground_tint.a*0.86);
+ EMISSION=shade*ground_tint.a*0.10;
+ ROUGHNESS=0.95;
+}"""
+	var material=ShaderMaterial.new()
+	material.shader=shader
+	return material
 func floor_vertex_color(point:Vector2)->Color:
 	# Contact shading at the wall-foot: continuous per-vertex gradient,
 	# independent of the tile pattern or the lighting renderer.

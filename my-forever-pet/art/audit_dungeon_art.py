@@ -6,7 +6,7 @@ args=sys.argv[sys.argv.index('--')+1:]
 root=Path(args[0]); output=Path(args[1]);output.mkdir(parents=True,exist_ok=True)
 catalog=json.loads((root/'catalog-audit.json').read_text())['assets']
 expected={f'dungeon_{biome}_{part}' for biome in ('forest','reef','star') for part in ('wall','shrine','cluster','rock_0','rock_1','rock_2','landmark','detail','span','dais','corner','terrace','floor_detail','threshold','exterior','life','vista','habitat','understory')}
-expected.update('dungeon_'+name for name in ('chest','stairs','berry','material','spring','coin'))
+expected.update('dungeon_'+name for name in ('chest','stairs','berry','material','spring','coin','star_crystal_habitat','star_ruin_habitat'))
 assert expected=={p.stem for p in root.glob('dungeon_*.glb')},'dungeon catalog mismatch'
 report={}
 for name in sorted(expected):
