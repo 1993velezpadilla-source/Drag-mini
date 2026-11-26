@@ -15,6 +15,7 @@ func run():
 		await frames()
 		assert(dungeon.companion_id==24+region)
 		assert(dungeon.area.size.x>200 and dungeon.area.size.y>200)
+		assert(dungeon.floor_label.text.contains("rooms"))
 		assert(root.get_visible_rect().encloses(dungeon.heal_button.get_global_rect()))
 		dungeon.run.enemies.clear()
 		var pickup:Vector2i

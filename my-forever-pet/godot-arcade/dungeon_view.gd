@@ -46,6 +46,10 @@ var hit_time=0.0
 var pet_pose:Node3D
 var floor_ornaments:Array[Vector3]=[]
 var wall_decorations=0
+var floor_banner:Label
+var banner_time=0.0
+var floor_label:Label
+var last_floor_seen=0
 func setup(r:int,id:int,step:int,finale:bool,patrol:bool,seed_id:int,companion:int):
 	region=r;companion_id=companion
 	run.setup(r,id,step,finale,patrol,seed_id,companion)
@@ -83,6 +87,7 @@ func build_ui():
 	hp_bar.add_theme_stylebox_override("fill",style(Color("#77d5a5"),Color("#77d5a5"),6))
 	hp_bar.add_theme_stylebox_override("background",style(Color("#0c1723"),Color("#32465b"),6))
 	stats=label(info,"",14,Color("#c7dce7"))
+	floor_label=label(info,"",12,Color("#a5d8ce"))
 	area=Control.new();area.size_flags_vertical=SIZE_EXPAND_FILL;area.clip_contents=true;base.add_child(area)
 	var holder=SubViewportContainer.new();holder.stretch=true;holder.stretch_shrink=1;holder.mouse_filter=MOUSE_FILTER_IGNORE;area.add_child(holder);holder.set_anchors_and_offsets_preset(PRESET_FULL_RECT)
 	viewport=SubViewport.new();viewport.own_world_3d=true;viewport.render_target_update_mode=SubViewport.UPDATE_ALWAYS;holder.add_child(viewport)
@@ -93,6 +98,7 @@ func build_ui():
 	var input=Control.new();area.add_child(input);input.set_anchors_and_offsets_preset(PRESET_FULL_RECT);input.mouse_filter=MOUSE_FILTER_STOP;input.gui_input.connect(touch)
 	map=Control.new();map.mouse_filter=MOUSE_FILTER_IGNORE;area.add_child(map);map.position=Vector2(10,10);map.size=Vector2(153,105);map.draw.connect(draw_map)
 	feedback=Label.new();feedback.horizontal_alignment=HORIZONTAL_ALIGNMENT_CENTER;feedback.add_theme_font_size_override("font_size",24);feedback.add_theme_color_override("font_outline_color",Color("#142535"));feedback.add_theme_constant_override("outline_size",7);feedback.mouse_filter=MOUSE_FILTER_IGNORE;area.add_child(feedback);feedback.hide()
+	floor_banner=Label.new();floor_banner.horizontal_alignment=HORIZONTAL_ALIGNMENT_CENTER;floor_banner.add_theme_font_size_override("font_size",25);floor_banner.add_theme_color_override("font_outline_color",Color("#142535"));floor_banner.add_theme_constant_override("outline_size",8);floor_banner.mouse_filter=MOUSE_FILTER_IGNORE;area.add_child(floor_banner);floor_banner.hide()
 	var footer=PanelContainer.new();footer.add_theme_stylebox_override("panel",style(Color("#162535"),Color("#344e63"),0));base.add_child(footer)
 	var v=VBoxContainer.new();v.add_theme_constant_override("separation",6);footer.add_child(v)
 	status_text=label(v,"",16,Color("#ffe1a4"));status_text.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART;status_text.custom_minimum_size.y=44
@@ -175,6 +181,8 @@ func boundary_detail(points:Array[Vector3]):
 		var instance=MultiMeshInstance3D.new();instance.multimesh=mm;geometry.add_child(instance)
 		instance.cast_shadow=GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	template.free();wall_decorations=chosen.size()
+func floor_name()->String:
+	return ["Ancient passages","Treasure chamber","Monster den","Restorative grotto","Forgotten ruins"][run.floor_kind]
 func build_floor():
 	if is_instance_valid(geometry):geometry.hide();geometry.queue_free()
 	if is_instance_valid(actors):actors.hide();actors.queue_free()
@@ -212,6 +220,7 @@ func build_floor():
 	var fxmat=StandardMaterial3D.new();fxmat.shading_mode=BaseMaterial3D.SHADING_MODE_UNSHADED;fxmat.albedo_color=Color("#ffe6a3");attack_fx.material_override=fxmat
 	destination_fx=shape(geometry,"ring",Vector3.ZERO,Vector3(.68,.08,.68),Color("#a0e6db"));destination_fx.hide();destination_fx.cast_shadow=GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	active_floor=run.floor_revision
+	banner_time=1.65;floor_banner.text="B%d  ·  %s"%[run.floor_number,floor_name()];floor_banner.show()
 	camera.position=pet.position+Vector3(0,12,8);camera.look_at(pet.position)
 	refresh_actors()
 func actor_for(key:String,at:Vector3)->Node3D:
@@ -226,7 +235,9 @@ func refresh_actors():
 		if actor_nodes.has(key):continue
 		var root=actor_for(key,pos(p))
 		var kind:String=run.loot[p]
-		var c=Color("#ffd277") if kind=="coin" else Color("#f2a8c0") if kind=="potion" else palette[3]
+		var c=Color("#ffd277") if kind=="coin" else Color("#f2a8c0") if kind=="potion" else Color("#76ffdc") if kind=="spring" else palette[3]
+		if kind=="spring":
+			shape(root,"ring",Vector3(0,.06,0),Vector3(.66,.13,.66),c);shape(root,"orb",Vector3(0,.24,0),Vector3(.62,.29,.62),c);continue
 		if kind=="relic" and prop(root,"dungeon_chest",Vector3.ZERO)!=null:continue
 		if kind=="coin" and prop(root,"coin",Vector3(0,.32,0))!=null:
 			root.scale=Vector3.ONE*.48;root.set_meta("float_item",true);continue
@@ -312,6 +323,7 @@ func emit_result():
 func update_hud():
 	title_text.text="%s  ·  B%d/%d"%[Data.REGIONS[region],run.floor_number,run.floor_count]
 	hp_bar.value=run.hp
+	floor_label.text="%s  ·  %d/%d rooms"%[floor_name(),run.explored_rooms.size(),run.rooms.size()]
 	stats.text="HP %d/%d  ·  %d coins  ·  %d KO"%[run.hp,run.max_hp,run.coins,run.defeated]
 	hp_bar.modulate=Color("#ff9b9b") if run.hp*3<run.max_hp else Color.WHITE
 	status_text.text=run.message
@@ -324,6 +336,10 @@ func update_hud():
 func _process(dt:float):
 	if notified or not is_instance_valid(pet):return
 	elapsed+=dt;tick-=dt
+	banner_time=maxf(0.0,banner_time-dt)
+	floor_banner.visible=banner_time>0.0
+	if floor_banner.visible:
+		floor_banner.size=Vector2(area.size.x,45);floor_banner.position=Vector2(0,area.size.y*.12);floor_banner.modulate.a=minf(1.0,banner_time*3.0)
 	feedback_time=maxf(0.0,feedback_time-dt)
 	feedback.visible=feedback_time>0.0
 	if feedback.visible:

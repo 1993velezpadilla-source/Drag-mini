@@ -29,7 +29,9 @@ func run():
 					for p in field.route(field.player,field.relic):assert(field.move(p))
 					assert(field.secured)
 					for p in field.route(field.player,field.stairs):assert(field.move(p))
+					var coins_before:int=field.coins
 					assert(field.descend())
+					assert(field.coins>=coins_before and field.total_bonus<=6*field.floor_number,"bounded exploration bonus")
 					total+=1
 				assert(field.finished and field.success)
 	var fight=Rules.new();fight.setup(0,1,0,false,false,42)

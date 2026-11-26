@@ -42,6 +42,11 @@ var last_event=""
 var attack_serial=0
 var attack_target=Vector2i.ZERO
 var attack_power=false
+var explored_rooms:Dictionary={}
+var floor_bonus=0
+var total_bonus=0
+var floor_kind=0
+var player_rested=false
 func setup(r:int,id:int,step:int,finale:bool,patrol:bool,seed_id:int,companion:int=0):
 	region=r;seed_value=seed_id;skill_kind=posmod(companion,3);rescue_finale=finale;specimen=id
 	tier=0 if patrol or id<12 else 1 if id<24 else 2
@@ -66,8 +71,10 @@ func connect_cells(a:Vector2i,b:Vector2i):
 			p.x+=signi(b.x-p.x);cells[p]=true
 func generate_floor():
 	rng.seed=seed_value+floor_number*7919
-	cells.clear();rooms.clear();enemies.clear();loot.clear();revealed.clear();traps.clear()
+	cells.clear();rooms.clear();enemies.clear();loot.clear();revealed.clear();traps.clear();explored_rooms.clear()
+	floor_bonus=0;player_rested=false
 	floor_style=posmod(seed_value+floor_number,3)
+	floor_kind=0 if floor_number==1 else posmod(seed_value*3+floor_number*7,5)
 	secured=false;guardian_defeated=not (rescue_finale and floor_number==floor_count);floor_revision+=1
 	for y in range(2):
 		for x in range(3):
@@ -87,16 +94,22 @@ func generate_floor():
 	for i in range(spots.size()-1,0,-1):
 		var j=rng.randi_range(0,i);var temp=spots[i];spots[i]=spots[j];spots[j]=temp
 	var count=mini(7,2+floor_number+tier)
+	if floor_kind==1:count=maxi(2,count-2)
+	if floor_kind==2:count=mini(8,count+1)
 	for p in spots:
 		if p==player or p==stairs or p==relic or distance(p,player)<4:continue
 		if enemies.size()<count:
 			var life=8+floor_number*2+tier*2
 			enemies.append({"uid":enemies.size(),"pos":p,"hp":life,"max_hp":life,"kind":rng.randi_range(0,2),"windup":false})
-		elif loot.size()<9:
+		elif loot.size()<(14 if floor_kind==1 else 9):
 			loot[p]="potion" if loot.size()%4==0 else "material" if loot.size()%3==0 else "coin"
 		elif traps.size()<floor_number-1:traps[p]=true
 		else:break
 	loot[relic]="relic"
+	if floor_kind==3:
+		var spring=center(rooms[1])
+		if spring!=relic and spring!=stairs and enemy_at(spring)<0:
+			loot[spring]="spring";traps.erase(spring)
 	if not guardian_defeated:
 		var life=24+6*tier
 		enemies.append({"uid":99,"pos":relic,"hp":life,"max_hp":life,"kind":3,"windup":false})
@@ -133,6 +146,9 @@ func route(a:Vector2i,b:Vector2i,avoid_enemies:bool=false)->Array[Vector2i]:
 		result.push_front(p);p=previous[p]
 	return result
 func reveal():
+	for i in range(rooms.size()):
+		if rooms[i].has_point(player) and not explored_rooms.has(i):
+			explored_rooms[i]=true
 	for p in cells:
 		if distance(p,player)<=5:revealed[p]=true
 	for room in rooms:
@@ -150,6 +166,7 @@ func pickup():
 		"coin":coins+=3;message="+3 coins"
 		"potion":potions+=1;message="Healing berry found"
 		"material":materials+=1;message="+1 crafting material"
+		"spring":hp=mini(max_hp,hp+18);energy=mini(8,energy+3);player_rested=true;message="Restorative spring · HP and skill restored"
 		"relic":secured=true;message="Relic secured! Find the stairs"
 	emit_event(message)
 func strike(i:int,power:bool=false):
@@ -224,6 +241,7 @@ func heal()->bool:
 	potions-=1;hp=mini(max_hp,hp+20);message="Recovered HP";emit_event(message);enemy_turn();return true
 func descend()->bool:
 	if finished or player!=stairs or not secured:return false
+	floor_bonus=mini(6,maxi(0,explored_rooms.size()-2)*2);coins+=floor_bonus;total_bonus+=floor_bonus
 	if floor_number>=floor_count:
 		finished=true;success=true;message="Expedition complete!";return true
 	floor_number+=1;hp=mini(max_hp,hp+10);generate_floor();return true
