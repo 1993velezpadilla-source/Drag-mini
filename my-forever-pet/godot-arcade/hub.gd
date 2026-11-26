@@ -81,10 +81,29 @@ var hotspot_layer:Control
 var room_layout:Dictionary={}
 var room_key=""
 var assets:Dictionary={}
+var pixel_assets:Dictionary={}
 const ROOMS={"Kitchen":"room_kitchen","Bathroom":"room_bathroom","Bedroom":"room_bedroom","Toy room":"room_toy","Garden":"room_garden","Potion lab":"room_lab"}
 func tex(path:String)->Texture2D:
 	if not assets.has(path) and ResourceLoader.exists(path): assets[path]=load(path)
 	return assets.get(path) as Texture2D
+# Cache pixel portraits once; never resize or recolor on every refresh.
+func pixel_portrait(path:String)->Texture2D:
+	if pixel_assets.has(path): return pixel_assets[path] as Texture2D
+	var source:=tex(path)
+	if source==null: return null
+	var im:=source.get_image()
+	if im==null or im.is_empty(): return source
+	im.convert(Image.FORMAT_RGBA8)
+	im.resize(64,64,Image.INTERPOLATE_LANCZOS)
+	for y in range(64):
+		for x in range(64):
+			var c:=im.get_pixel(x,y)
+			if c.a<0.5: c=Color.TRANSPARENT
+			else: c=Color(roundf(c.r*15.0)/15.0,roundf(c.g*15.0)/15.0,roundf(c.b*15.0)/15.0,1.0)
+			im.set_pixel(x,y,c)
+	var result:=ImageTexture.create_from_image(im)
+	pixel_assets[path]=result
+	return result
 var stats:Array[ProgressBar]=[]
 var notice:Label
 var last_stage_rect=Rect2()
@@ -1254,7 +1273,8 @@ func refresh():
 	store.advance(store.now())
 	var s:Dictionary=store.s
 	title_label.text=store.pet_name()+"  ·  Lv "+str(store.companion_level())
-	identity_art.texture=tex("res://assets/premium_egg.png" if s.stage==0 else "res://assets/pet_%d.png"%store.species())
+	identity_art.texture_filter=CanvasItem.TEXTURE_FILTER_NEAREST
+	identity_art.texture=pixel_portrait("res://assets/premium_egg.png" if s.stage==0 else "res://assets/pet_%d.png"%store.species())
 	xp_bar.value=fposmod(float(s.companion_xp),50)*2
 	info.text="%d coins  |  %d gems"%[s.coins,s.crystals]
 	clock_label.text="Account Lv %d · "%store.level()+Time.get_time_string_from_system().substr(0,5)
@@ -1285,7 +1305,8 @@ func refresh():
 	update_room_scene()
 	var pp="res://assets/pet_%d.png"%store.species()
 	if s.stage==1 or s.stage==2: pp="res://assets/growth_%d_%d.png"%[s.field,s.stage]
-	portrait.texture=tex(pp)
+	portrait.texture_filter=CanvasItem.TEXTURE_FILTER_NEAREST
+	portrait.texture=pixel_portrait(pp)
 	portrait.modulate=Color("#9ba9c7") if store.asleep(store.now()) else Color.WHITE
 	portrait.scale=Vector2.ONE*(0.64 if s.stage<2 else 0.85 if s.stage==2 else 1.0)
 	portrait.visible=false

@@ -45,12 +45,16 @@ var fx_root:Node3D
 var fx_nodes:Array[Node3D]=[]
 var light_key:DirectionalLight3D
 func _ready():
+	# Transitional hybrid look: render the interactive scene at a small integer
+	# resolution while retaining real room interactions, wardrobe and camera.
 	stretch=true
+	stretch_shrink=3
+	texture_filter=CanvasItem.TEXTURE_FILTER_NEAREST
 	mouse_filter=MOUSE_FILTER_IGNORE
 	view=SubViewport.new()
 	view.own_world_3d=true
 	view.render_target_update_mode=SubViewport.UPDATE_ALWAYS
-	view.msaa_3d=Viewport.MSAA_2X
+	view.msaa_3d=Viewport.MSAA_DISABLED
 	add_child(view)
 	world=Node3D.new()
 	view.add_child(world)

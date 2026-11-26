@@ -469,6 +469,26 @@ for species in range(28):
  sc.render.filepath=os.path.join(ROOT,'pet_%d.png'%species)
  bpy.ops.render.render(write_still=True)
  print('DASH_STYLE_PORTRAIT_OK',species,flush=True)
+ # Pixel runner rear sprite: render the same species mesh, never swap identity.
+ front_location=cam.location.copy();front_rotation=cam.rotation_euler.copy();front_scale=cam.data.ortho_scale
+ rear=Vector((0,6.8,2.6)).normalized()
+ cam.location=center+rear*8
+ cam.rotation_euler=(-rear).to_track_quat('-Z','Y').to_euler()
+ bpy.context.view_layer.update()
+ local=[cam.matrix_world.inverted()@v for v in points]
+ xmin,xmax=min(v.x for v in local),max(v.x for v in local)
+ ymin,ymax=min(v.y for v in local),max(v.y for v in local)
+ cam.location+=cam.matrix_world.to_3x3()@Vector(((xmin+xmax)*.5,(ymin+ymax)*.5,0))
+ cam.data.ortho_scale=max(xmax-xmin,ymax-ymin)/.82
+ bpy.context.view_layer.update()
+ projected=[world_to_camera_view(sc,cam,v) for v in points]
+ assert all(.075<=v.x<=.925 and .075<=v.y<=.925 for v in projected),('rear pixel framing',species)
+ sc.render.resolution_x=64;sc.render.resolution_y=64;sc.cycles.samples=12
+ sc.render.filepath=os.path.join(ROOT,'pet_rear_%d.png'%species)
+ bpy.ops.render.render(write_still=True)
+ print('PIXEL_REAR_OK',species,flush=True)
+ cam.location=front_location;cam.rotation_euler=front_rotation;cam.data.ortho_scale=front_scale
+ sc.render.resolution_x=384;sc.render.resolution_y=384;sc.cycles.samples=20
  # Match the same camera and lighting for the closed-eye wallpaper portrait.
  if species==0:
   # Rebuild only the creature objects; leave camera and lights in place.

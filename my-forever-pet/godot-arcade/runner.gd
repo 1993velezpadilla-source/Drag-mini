@@ -604,17 +604,33 @@ func mosskit_back_frame(step:int) -> Texture2D:
 func make_pixel_runner() -> void:
 	var store=get_node_or_null("/root/PetStore")
 	var species_id:int=store.species() if store!=null and store.arcade_mode==4 else 0
-	# Until the species atlas is complete, never substitute Mosskit for another pet.
-	if species_id!=0: return
-	for step in [0,2,-2]:
-		pixel_runner_frames.append(mosskit_back_frame(step))
+	# Every selected companion keeps its own silhouette. Missing art falls back
+	# to the original 3D model, never to another species.
+	if species_id==0:
+		for step in [0,2,-2]:
+			pixel_runner_frames.append(mosskit_back_frame(step))
+	else:
+		var path: String="res://assets/pet_rear_%d.png"%species_id
+		if not ResourceLoader.exists(path): return
+		var original:=load(path) as Texture2D
+		if original==null: return
+		var img:=original.get_image()
+		if img==null or img.is_empty(): return
+		img.convert(Image.FORMAT_RGBA8)
+		for y in range(img.get_height()):
+			for x in range(img.get_width()):
+				var c:=img.get_pixel(x,y)
+				if c.a<0.5: c=Color.TRANSPARENT
+				else: c=Color(roundf(c.r*15.0)/15.0,roundf(c.g*15.0)/15.0,roundf(c.b*15.0)/15.0,1.0)
+				img.set_pixel(x,y,c)
+		pixel_runner_frames.append(ImageTexture.create_from_image(img))
 	for child in mascot.get_children():
 		if child is Node3D: child.hide()
 	pixel_runner=Sprite3D.new()
-	pixel_runner.name="MosskitPixelBack"
+	pixel_runner.name="ActivePetPixelBack"
 	pixel_runner.texture=pixel_runner_frames[0]
 	pixel_runner.texture_filter=BaseMaterial3D.TEXTURE_FILTER_NEAREST
-	pixel_runner.pixel_size=0.043
+	pixel_runner.pixel_size=0.043 if species_id==0 else 0.036
 	pixel_runner.position.y=0.99
 	pixel_runner.shaded=false
 	pixel_runner.double_sided=true
@@ -622,7 +638,7 @@ func make_pixel_runner() -> void:
 
 func animate_pixel_runner(running:bool) -> void:
 	if not is_instance_valid(pixel_runner): return
-	var frame:int=1+int(floor(clock*9.0))%2 if running else 0
+	var frame:int=1+int(floor(clock*9.0))%2 if running and pixel_runner_frames.size()==3 else 0
 	pixel_runner.texture=pixel_runner_frames[frame]
 
 
