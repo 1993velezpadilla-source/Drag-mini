@@ -236,10 +236,11 @@ func _process(dt:float):
 	found_flash=maxf(0,found_flash-dt)
 	var point=run.signal_position()
 	trace.position=Vector3(point.x,.02,point.y)
-	trace.visible=(run.player.distance_to(point)<2.6 or run.scan_left>0) and not run.encounter
+	trace.visible=run.trace_visible()
 	trace.scale=Vector3.ONE*(1.0+.14*sin(run.elapsed*8))
 	if is_instance_valid(wild):
 		wild.position=Vector3(point.x,.1,point.y);wild.visible=run.player.distance_to(point)<5.5;wild.rotation.y=atan2(run.player.x-point.x,run.player.y-point.y)
+		wild.scale=Vector3.ONE*.78*(1.0+.08*sin(run.elapsed*18.0) if run.alert_left()>0.0 else 1.0)
 	for i in range(hazards.size()):
 		var p=run.hazard_at(i);hazards[i].position=Vector3(p.x,0,p.y);hazards[i].rotation.y=run.elapsed*1.7
 	update_hud()
@@ -248,18 +249,21 @@ func _process(dt:float):
 func update_hud():
 	timer_label.text="%02d s"%ceili(maxf(0,run.time_left))
 	progress.value=run.index;calm.value=run.hold;signal_bar.value=run.signal_strength()
-	readout.text=("Wild encounter" if run.encounter else "Track the creature")+"  %d/%d"%[run.index,run.required]
+	readout.text=(["Common","Rare","Mystic"][run.tier]+(" encounter" if run.encounter else " trail"))+"  %d/%d"%[run.index,run.required]
 	scan_button.text="Scan %d"%run.scans;scan_button.disabled=run.scans<=0 or run.scan_left>0 or run.finished
 	burst_button.text=["Dash","Swim","Glide"][region] if run.burst_cooldown<=0 else "%ds"%ceili(run.burst_cooldown)
 	burst_button.disabled=run.burst_cooldown>0 or run.finished or run.destination.distance_to(run.player)<.3
 	burst_meter.value=4.0-run.burst_cooldown
-	inspect_button.text="Hold to befriend" if run.encounter else "Hold to collect"
+	inspect_button.text="Wait · alert" if run.alert_left()>0.0 else "Hold to befriend" if run.encounter else "Hold to collect"
 	inspect_button.modulate=Color("#a8ffd6") if run.inspect_ready() else Color("#82939c")
 	status.text="Tap to move · Use signal strength to search" if not run.started else "Signal: "+("HOT" if run.signal_strength()>.78 else "WARM" if run.signal_strength()>.4 else "COLD")
 	if run.started and region==1 and run.environmental_force.length()>.55:status.text+=" · Current"
 	if run.started and region==2 and run.environmental_force.length()>.7:status.text+=" · Wind gust"
 	if run.scan_left>0:status.text="SCAN · "+run.direction()
 	if run.inspect_ready():status.text="Hold the action button now!"
+	if run.alert_left()>0.0 and run.player.distance_to(run.signal_position())<5.5:
+		status.text="ALERT · Wait for the creature to calm down"
+		inspect_button.modulate=Color("#f5ad8b")
 	if found_flash>0:status.text="Trace secured!" if not run.encounter else "Trust gained!"
 	if run.hit_cooldown>0:status.text="Hazard! −3 seconds · Keep moving"
 	timer_label.modulate=Color("#ffab97") if run.time_left<10 else Color.WHITE
