@@ -682,7 +682,9 @@ func build_habitat_layers(prefix:String,queue:Array[Vector2i],wall_cells:Diction
 		var scale_value=(1.32+.31*float(posmod(q.x*13+q.y*7,9))/8.0) if large else (.87+.17*float(posmod(q.x*13+q.y*7,9))/8.0)
 		var height_factor=1.05+.43*float(posmod(q.x*17+q.y*3,11))/10.0
 		if not large:height_factor=minf(height_factor,1.28)
-		var elevation=.10 if region==2 else -.42
+		# A suspended star garden may be elevated only in a wide safe exterior
+		# footprint. Keep the authored model inside the same GLB audit limits.
+		var elevation=(.52 if large else -.12) if region==2 else -.42
 		var center=pos(q)+Vector3(0,elevation,0)
 		var placement=Transform3D(Basis(Vector3.UP,angle).scaled(Vector3(scale_value,scale_value*height_factor,scale_value)),center)
 		var bounds=measure_scenery(tall_parts,placement)

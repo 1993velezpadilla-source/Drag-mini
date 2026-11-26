@@ -1768,7 +1768,8 @@ clear()
 # Hanging astral garden island. The rock is broad above and narrow below;
 # the top carries carved ruins, a small flowing stream and luminous plants.
 verts=[];faces=[];n=12
-for y,r in [(-.55,.10),(-.17,.45),(.50,.91),(1.20,1.28),(1.34,1.20)]:
+# Keep the base at the GLB support origin; runtime elevation is separate.
+for y,r in [(-.065,.10),(.25,.45),(.76,.91),(1.42,1.28),(1.56,1.20)]:
  for i in range(n):
   a=i*2*pi/n;rr=r*(1+.08*math.sin(i*2.9+y))
   verts.append((rr*math.cos(a),y,rr*.76*math.sin(a)))
@@ -1777,14 +1778,15 @@ for j in range(4):
   a=j*n+i;c=j*n+(i+1)%n;faces.append((a,c,c+n,a+n))
 faces.extend([tuple(reversed(range(n))),tuple(range(4*n,5*n))])
 architectural_mesh('hanging garden island',verts,faces,astralstone)
-for x in [-.58,.58]:
- cyl((x,1.89,-.18),.17,.13,1.06,astraledge)
- cyl((x,1.39,-.18),.24,.22,.12,rune)
-temple_arch(0,2.40,.62,.24,astraledge,3400)
+# Architectural crown remains below the independent 3.1-unit height gate.
+for x in [-.48,.48]:
+ cyl((x,1.93,.16),.17,.13,.74,astraledge)
+ cyl((x,1.61,.16),.24,.22,.12,rune)
+temple_arch(0,2.30,.57,.24,astraledge,3400)
 for x,z in [(-.82,.32),(.69,.42),(.27,-.49)]:
- crystal((x,1.34,z),.14,.46,star,3410+int(x*10))
+ crystal((x,1.56,z),.14,.46,star,3410+int(x*10))
  for i in range(5):
-  a=i*2*pi/5;crown_leaf((x,1.36,z),a,.25,.09,violetglow if i%2 else leafdark)
+  a=i*2*pi/5;crown_leaf((x,1.58,z),a,.25,.09,violetglow if i%2 else leafdark)
 # Reuse the named animated stream material. A continuous curved sheet
 # spills over the island edge, not an image or a cylinder.
 verts=[];faces=[]
@@ -1792,11 +1794,21 @@ for j in range(10):
  t=j/9
  for i in range(6):
   u=i/5*2-1
-  verts.append((.43*u*(1+.25*t),1.36-2.05*t*t,.60+.54*t+.04*math.sin(t*pi)))
+  # Water begins above the rim, travels past the widest island shelf
+  # before dropping, and ends just above the GLB support origin.
+  verts.append((.43*u*(1+.25*t),1.60-1.66*t**2.6,.77+.39*(1-math.exp(-7*t))+.12*t*t))
 for j in range(9):
  for i in range(5):
   a=j*6+i;faces.append((a,a+1,a+7,a+6))
 o=architectural_mesh('astral garden waterfall',verts,faces,stream);o.modifiers.new('water membrane','SOLIDIFY').thickness=.012
+# A shallow luminous source and two narrow flow highlights connect the sheet to the garden.
+ball((0,1.58,.63),(.92,.07,.52),stream)
+for k in [-1,1]:
+ points=[]
+ for j in range(9):
+  t=j/8
+  points.append((k*.18*(1+.25*t),1.612-1.66*t**2.6,.785+.39*(1-math.exp(-7*t))+.12*t*t))
+ tube(points,[.012]*8+[.006],foam,6)
 export('dungeon_star_habitat',5500)
 clear()
 # Low celestial understory, scattered carved fragments with luminous blossoms.
