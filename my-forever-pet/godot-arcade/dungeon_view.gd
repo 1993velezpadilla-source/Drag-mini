@@ -63,6 +63,12 @@ var terrace_count=0
 var exterior_surface:MeshInstance3D
 var exterior_vertex_count=0
 var exterior_max_height=0.0
+var exterior_groups:Array[Vector2i]=[]
+var exterior_distances:Dictionary={}
+var exterior_life:Array[MultiMeshInstance3D]=[]
+var exterior_life_parts:Array=[]
+var exterior_life_centers:Array[Vector3]=[]
+var exterior_clock=0.0
 var floor_surface:MeshInstance3D
 var threshold_count=0
 var threshold_cells:Dictionary={}
@@ -434,6 +440,76 @@ func room_detail(wall_cells:Dictionary):
 			mm.set_instance_transform(i,Transform3D(Basis(Vector3.UP,i*.79).scaled(Vector3.ONE*.82),points[i])*part.transform)
 		var inst=MultiMeshInstance3D.new();inst.multimesh=mm;geometry.add_child(inst);inst.cast_shadow=GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	detail_count=points.size()
+func build_exterior_world(wall_cells:Dictionary):
+	# Multi-source BFS provides exact distance bands in O(cells + exterior area).
+	# No decoration is added to the gameplay graph.
+	exterior_groups.clear();exterior_distances.clear();exterior_life.clear();exterior_life_parts.clear();exterior_life_centers.clear();exterior_clock=0.0
+	var queue:Array[Vector2i]=[]
+	for q in run.cells:
+		exterior_distances[q]=0;queue.append(q)
+	var cursor=0
+	while cursor<queue.size():
+		var q=queue[cursor];cursor+=1
+		var distance:int=exterior_distances[q]
+		if distance>=6:continue
+		for d in Rules.DIR:
+			var next:Vector2i=q+d
+			if exterior_distances.has(next):continue
+			exterior_distances[next]=distance+1;queue.append(next)
+	var prefix="res://assets/dungeon_"+["forest","reef","star"][region]
+	var parts=rock_parts(prefix+"_exterior.glb")
+	if parts.is_empty():return
+	var placements:Array[Transform3D]=[]
+	# Prefer the camera's far side of rooms. Lower silhouettes on the near side.
+	# Staggered spacing and exact distance clearance prevent clutter and overlap.
+	var candidates:Array[Vector2i]=[]
+	for room in run.rooms:
+		for x in range(room.position.x-1,room.end.x+1):
+			candidates.append(Vector2i(x,room.position.y-3))
+		for y in range(room.position.y-1,room.end.y+1):
+			candidates.append(Vector2i(room.position.x-3,y))
+			candidates.append(Vector2i(room.end.x+2,y))
+	for q in queue:
+		if exterior_distances[q]==4 and posmod(q.x*11+q.y*7,5)==0:candidates.append(q)
+	for q in candidates:
+		if exterior_groups.size()>=32:break
+		if exterior_distances.get(q,99)<3 or exterior_distances.get(q,99)>6:continue
+		var safe=true
+		for old in exterior_groups:
+			if Vector2(old-q).length_squared()<12.0:safe=false;break
+		if not safe:continue
+		for dy in range(-1,2):
+			for dx in range(-1,2):
+				var tile=q+Vector2i(dx,dy)
+				if run.cells.has(tile) or wall_cells.has(tile):safe=false
+		if not safe:continue
+		var angle=float(posmod(q.x*11+q.y*17,12))*TAU/12.0
+		var scale_value=.83+.14*float(posmod(q.x*13+q.y*7,5))/4.0
+		var center=pos(q)+Vector3(0,-.50,0)
+		placements.append(Transform3D(Basis(Vector3.UP,angle).scaled(Vector3.ONE*scale_value),center))
+		exterior_groups.append(q)
+		if exterior_life_centers.size()<12:exterior_life_centers.append(center)
+	batch_parts(parts,placements,false)
+	exterior_life_parts=rock_parts(prefix+"_life.glb")
+	if exterior_life_centers.is_empty():return
+	for part in exterior_life_parts:
+		var mm=MultiMesh.new();mm.transform_format=MultiMesh.TRANSFORM_3D;mm.mesh=part.mesh;mm.instance_count=exterior_life_centers.size()
+		var inst=MultiMeshInstance3D.new();inst.multimesh=mm;geometry.add_child(inst);inst.cast_shadow=GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		exterior_life.append(inst)
+	update_exterior_world(0.0)
+func update_exterior_world(dt:float):
+	exterior_clock+=clampf(dt,0.0,.25)
+	if exterior_life.is_empty():return
+	for i in range(exterior_life_centers.size()):
+		var phase=exterior_clock*(.70 if region==1 else .46)+float(i)*2.399
+		var radius=.55 if region==0 else .80
+		var center=exterior_life_centers[i]
+		var height=1.1+.26*sin(phase*1.6) if region==0 else .83+.18*sin(phase) if region==1 else 1.25+.23*sin(phase)
+		var point=center+Vector3(cos(phase)*radius,height,sin(phase)*radius)
+		var basis=Basis(Vector3.UP,-phase-PI*.5)
+		if region==0:basis=basis*Basis(Vector3.RIGHT,sin(exterior_clock*8.0+i)*.26)
+		for k in range(exterior_life.size()):
+			exterior_life[k].multimesh.set_instance_transform(i,Transform3D(basis,point)*exterior_life_parts[k].transform)
 func landscape_terraces(wall_cells:Dictionary):
 	terrace_count=0;terrace_cells.clear()
 	var parts=rock_parts("res://assets/dungeon_"+["forest","reef","star"][region]+"_terrace.glb")
@@ -453,6 +529,8 @@ func landscape_terraces(wall_cells:Dictionary):
 			for dx in range(2):
 				var tile:Vector2i=q+Vector2i(dx,dy)
 				if run.cells.has(tile) or wall_cells.has(tile):safe=false
+				for group in exterior_groups:
+					if Vector2(tile-group).length_squared()<4.0:safe=false
 		if not safe:continue
 		for dy in range(2):
 			for dx in range(2):terrace_cells[q+Vector2i(dx,dy)]=true
@@ -765,6 +843,7 @@ func build_floor():
 			mm.set_instance_transform(i,transform*part.transform)
 		var batch_instance=MultiMeshInstance3D.new();batch_instance.multimesh=mm;geometry.add_child(batch_instance)
 		batch_instance.cast_shadow=GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	build_exterior_world(seen)
 	landscape_terraces(seen)
 	backdrop_landmarks(seen)
 	if not natural_boundary(walls):
@@ -801,7 +880,7 @@ func build_floor():
 	camera.position=focus+Vector3(0,7.6,11.3);camera.look_at(focus)
 	refresh_actors()
 	floor_build_usec=Time.get_ticks_usec()-start_usec
-	print("DUNGEON_FLOOR_BUILD region=",region," floor=",run.floor_number," usec=",floor_build_usec," rocks=",rock_modules," cached_rock_sets=",rock_mesh_cache.size()," landmarks=",landmark_count," details=",detail_count," paired_spans=",span_count," corners=",corner_count," terraces=",terrace_count," floor_details=",floor_detail_count," thresholds=",threshold_count," exterior_vertices=",exterior_vertex_count)
+	print("DUNGEON_FLOOR_BUILD region=",region," floor=",run.floor_number," usec=",floor_build_usec," rocks=",rock_modules," cached_rock_sets=",rock_mesh_cache.size()," landmarks=",landmark_count," details=",detail_count," paired_spans=",span_count," corners=",corner_count," terraces=",terrace_count," floor_details=",floor_detail_count," thresholds=",threshold_count," exterior_vertices=",exterior_vertex_count," exterior_groups=",exterior_groups.size()," exterior_life=",exterior_life_centers.size())
 func actor_for(key:String,at:Vector3)->Node3D:
 	if actor_nodes.has(key):return actor_nodes[key]
 	var n=Node3D.new();actors.add_child(n);n.position=at;actor_nodes[key]=n;actor_created+=1
@@ -926,6 +1005,7 @@ func _process(dt:float):
 	if notified or not is_instance_valid(pet):return
 	elapsed+=dt;tick-=dt
 	update_living_ambient(dt)
+	update_exterior_world(dt)
 	if reward_age>0.0:
 		reward_age=maxf(0.0,reward_age-dt)
 		var progress=1.0-reward_age/.65

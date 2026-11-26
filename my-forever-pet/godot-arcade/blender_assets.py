@@ -1416,4 +1416,89 @@ for i in range(3):
  rock_slab(((i-1)*.33,.018,0),(.31,.045,.70),astraledge,1850+i,.008)
  box(((i-1)*.33,.044,0),(.24,.025,.05),rune,.004)
 export('dungeon_star_threshold',3500)
+# Exterior world v1: composed landscape groups, no gameplay collision.
+# Every group is original modeled geometry and shares existing biome materials.
+clear()
+# Woodland grove: one leaning mature tree, a smaller sapling and forest understory.
+for k,(x,z,h,r) in enumerate([(-.36,-.18,2.23,.24),(.65,.32,1.48,.14)]):
+ tube([(x,0,z),(x-.09,h*.32,z+.08),(x+.12,h*.68,z),(x+.20,h*.88,z-.10)],[r*1.35,r,r*.69,r*.25],bark,12)
+ for i in range(4):
+  ang=i*pi/2+k*.5
+  tube([(x,.24,z),(x+.36*math.cos(ang),.12,z+.36*math.sin(ang)),(x+.62*math.cos(ang),.02,z+.62*math.sin(ang))],[r*.65,r*.4,.025],bark,8)
+  xx=x+.42*math.cos(ang);zz=z+.42*math.sin(ang)
+  tube([(x+.05,h*.58,z),(xx,h*.78,zz),(xx+.12,h*.91,zz)],[r*.45,r*.27,.025],bark,8)
+  ball((xx,h*.89,zz),(.83,.60,.79) if k==0 else (.55,.44,.54),moss if i%2 else leafdark)
+  leaf_rosette((xx,h*.96,zz),2400+k*20+i,leafdark,leafbright,.30)
+ ball((x+.15,h, z),(.92,.55,.87) if k==0 else (.61,.42,.59),moss)
+for i in range(5):
+ a=i*2*pi/5;leaf_rosette((.80*math.cos(a),.06,.72*math.sin(a)),2450+i,leafdark,leafbright,.44)
+tube([(-.80,.09,.65),(-.35,.11,.55),(.20,.07,.78)],[.09,.075,.025],bark,8)
+for x in [-.65,-.36]:
+ cyl((x,.13,.68),.045,.035,.19,cream);ball((x,.25,.68),(.24,.12,.23),cap)
+export('dungeon_forest_exterior',14000)
+clear()
+# Reef garden: continuous limestone base, tall ribbon kelp and broad sea fans.
+profile_wall('submerged limestone ridge',2.5,[(0,.52),(.28,.48),(.46,.22),(.51,-.15),(.35,-.51),(0,-.52)],reefstone,2501,.15)
+for i in range(7):
+ a=i*2*pi/7;x=.76*math.cos(a);z=.64*math.sin(a)
+ blades((x,.26,z),a,.95+.29*(i%3),.15,kelp)
+for k in range(2):
+ x=-.56+k*1.10;verts=[];faces=[];n=16
+ for j in range(3):
+  rad=[.09,.43,.79][j]
+  for i in range(n+1):
+   ang=-1.12+2.24*i/n;rr=rad*(1+.09*math.cos(i*pi))
+   verts.append((x+rr*math.sin(ang),.55+k*.24+rr*math.cos(ang),.05+.12*math.sin(i*.7)*j/2))
+ for j in range(2):
+  for i in range(n):
+   q=j*(n+1)+i;faces.append((q,q+1,q+n+2,q+n+1))
+ o=architectural_mesh('large living sea fan',verts,faces,coral if k==0 else coral2)
+ o.modifiers.new('fan thickness','SOLIDIFY').thickness=.022
+ for i in range(0,n+1,2):
+  ang=-1.12+2.24*i/n
+  tube([(x,.55+k*.24,.09),(x+.35*math.sin(ang),.55+k*.24+.35*math.cos(ang),.14),(x+.72*math.sin(ang),.55+k*.24+.72*math.cos(ang),.16)],[.035,.021,.008],coral2 if k==0 else coral,6)
+for i in range(5):
+ a=i*2*pi/5
+ ball((.68*math.cos(a),.27,.64*math.sin(a)),(.25,.22,.27),pearl if i%2 else reefedge)
+export('dungeon_reef_exterior',9500)
+clear()
+# Celestial ruin skyline: tall fractured arch over a stepped platform and crystal garden.
+rock_slab((0,.12,0),(2.55,.24,1.9),astralstone,2601)
+for side in [-1,1]:
+ x=side*.82
+ box((x,.29,-.18),(.65,.18,.68),astraledge,.035)
+ cyl((x,.91,-.18),.24,.21,1.12,astraledge)
+ for y in [.42,1.42]:cyl((x,y,-.18),.30,.30,.10,rune)
+ for k in range(6):
+  a=k*pi/3;ob=box((x+.22*math.cos(a),.93,-.18+.22*math.sin(a)),(.048,.83,.048),astralstone,.007);ob.rotation_euler.z=a
+temple_arch(0,1.49,.88,.38,astraledge,2610)
+temple_arch(0,1.49,.61,.045,rune,2611)
+for x,h in [(-1.0,.46),(-.4,.60),(.37,.83),(.92,.32)]:
+ crystal((x,.22,.51),.13,h,star if x<0 else violetglow,2620+int(x*10))
+for x in [-.62,.62]:
+ rock_slab((x,.27,.73),(.42,.18,.30),astraledge,2630+int(x*10))
+export('dungeon_star_exterior',8500)
+# Animated exterior inhabitants: geometry is modeled in Blender, motion in Godot.
+clear()
+# Butterfly with four curved wings and small body; not a glowing sphere.
+ball((0,.12,0),(.09,.12,.30),bark)
+for side in [-1,1]:
+ ball((side*.16,.14,-.06),(.31,.065,.34),cap)
+ ball((side*.12,.13,.13),(.23,.05,.23),gold)
+ ball((side*.22,.18,-.08),(.08,.026,.10),cream)
+export('dungeon_forest_life',2500)
+clear()
+# Small reef fish, tapered body, distinct tail and fins, horizontal +X direction.
+ball((0,.14,0),(.42,.25,.18),reefedge)
+ball((.14,.16,.065),(.08,.08,.04),pearl)
+ball((.15,.165,.087),(.033,.034,.022),astralstone)
+ob=ball((-.24,.14,0),(.22,.27,.058),coral2);ob.rotation_euler.y=.22
+ball((-.02,.27,0),(.15,.14,.045),coral)
+export('dungeon_reef_life',2500)
+clear()
+# Suspended astral fragment, narrow brass frame and smaller orbiting shard.
+crystal((0,.04,0),.12,.32,star,2701)
+crystal((.20,.10,.04),.05,.14,violetglow,2702)
+for x in [-.13,.13]:box((x,.16,0),(.035,.25,.035),rune,.006)
+export('dungeon_star_life',1600)
 with open(os.path.join(OUT,'mesh-metrics.json'),'w') as out: json.dump(stats,out,indent=2)
