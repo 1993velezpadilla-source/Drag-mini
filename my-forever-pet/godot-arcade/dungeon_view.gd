@@ -5409,7 +5409,17 @@ func remaining_response_events(events:Array,cast_serial:int)->Array:
 		result.append(event)
 	return result
 
-func response_fx_plan(events:Array,start:float)->Array[Dictionary]:
+# Reserve the single player body across all targets, including pending casts.
+func response_cast_available_at()->float:
+	var cursor:float=maxf(0.0,attack_time)
+	if run!=null and run.attack_serial!=previous_attack:
+		cursor=maxf(cursor,float(combat_profile(run.player_attack_fx).duration))
+	for pending in delayed_combat_fx:
+		var duration:float=float(combat_profile(str(pending.event.fx)).duration)
+		cursor=maxf(cursor,float(pending.delay)+duration+.04)
+	return cursor
+
+func response_fx_plan(events:Array,start:float,body_available:float=0.0)->Array[Dictionary]:
 	var result:Array[Dictionary]=[]
 	var cursor:float=maxf(0.0,start)
 	for event in events:
@@ -5418,6 +5428,7 @@ func response_fx_plan(events:Array,start:float)->Array[Dictionary]:
 		if str(event.get("source",""))=="sleep_counter" and not id.is_empty() and event.has("from") and event.has("to"):
 			var profile:=combat_profile(id)
 			var duration:float=float(profile.duration)
+			cursor=maxf(cursor,body_available)
 			item.launch=cursor
 			item.hit=cursor+duration*float(profile.impact)
 			item.event={"fx":id,"from":event.from,"to":event.to,"tiles":[event.to],"path":event.get("path",[event.to])}
@@ -5452,7 +5463,7 @@ func queue_observed_enemy_damage(actor:Node3D,uid:int,tile:Vector2i,defeated:boo
 			queue_enemy_reaction(actor,defeated,float(spec.delay),Vector3(spec.direction),float(spec.span),int(spec.count))
 			return
 	var secondary_delay:float=float(spec.delay)+float(spec.span)+.04 if linked else 0.0
-	var plan:Array[Dictionary]=response_fx_plan(events if not events.is_empty() else [{}],secondary_delay)
+	var plan:Array[Dictionary]=response_fx_plan(events if not events.is_empty() else [{}],secondary_delay,response_cast_available_at())
 	# Queue terminal callback first; subsequent calls preserve that final pose.
 	for index in range(plan.size()-1,-1,-1):
 		var item:Dictionary=plan[index]
