@@ -9263,6 +9263,94 @@ const V14_ATTACK_DIRECTION={
 	"electric_spark":["scatter",0.7,0.6,1.35,0.3],
 	"electric_dash":["jet",1.04,0.5,1.5,0.1],
 	"electric_bind":["spiral",0.68,1.04,0.82,1.5],
+	"grass_giga":["root",1.25,1.1,0.8,1.1],
+	"grass_absorb":["collapse",0.46,0.55,1.3,0.2],
+	"grass_solar":["jet",1.45,0.86,0.83,0.4],
+	"grass_vine":["whiplash",0.92,0.78,1.25,0.65],
+	"grass_needle":["thorn",0.6,0.68,1.4,0.2],
+	"grass_frenzy":["root",1.64,1.65,0.76,1.6],
+	"grass_razor":["sweep",0.96,0.72,1.35,0.6],
+	"grass_magic":["orbit",1.05,0.94,0.91,1.35],
+	"grass_mega":["collapse",0.76,0.84,1.03,0.4],
+	"grass_blade":["sweep",0.83,0.91,1.48,0.2],
+	"grass_wood":["tumble",1.35,0.76,0.84,0.1],
+	"grass_energy":["star",1.08,1.02,0.91,0.3],
+	"grass_knot":["root",0.82,0.4,1.12,0.65],
+	"grass_flare":["petal",1.42,1.18,0.79,0.8],
+	"grass_bomb":["scatter",1.05,0.95,0.93,0.2],
+	"grass_whip":["whiplash",1.45,1.04,0.96,1.3],
+	"grass_storm":["spiral",1.57,1.35,0.72,2.1],
+	"grass_bullet":["chain",0.62,0.48,1.5,0.1],
+	"grass_spore":["spore",1.2,0.95,0.7,0.4],
+	"grass_sleep":["spore",0.92,0.85,0.61,0.25],
+	"grass_stun":["spore",0.85,0.6,1.15,0.8],
+	"grass_cotton":["float",0.8,1.3,0.55,0.3],
+	"grass_aroma":["petal",0.95,0.78,0.7,0.5],
+	"grass_synthesis":["rise",0.66,1.18,0.65,0.4],
+	"grass_whistle":["front",0.83,0.61,1.15,0.1],
+	"grass_leech":["root",0.74,0.6,0.9,0.4],
+	"grass_petal":["petal",1.15,1.05,0.87,1.1],
+	"grass_roots":["root",0.96,0.65,0.67,0.5],
+	"grass_worry":["spore",0.55,0.52,1.05,0.2],
+	"ice_aurora":["front",1.04,1.22,0.7,0.4],
+	"ice_wind":["snow",1.22,0.73,0.85,0.6],
+	"ice_powder":["snow",0.78,0.65,1.08,0.3],
+	"ice_blizzard":["snow",1.65,1.32,0.65,1.2],
+	"ice_punch":["shatter",0.75,0.72,1.45,0.3],
+	"ice_beam":["thorn",1.14,0.57,1.12,0.2],
+	"ice_fang":["pincer",0.68,0.74,1.42,0.2],
+	"ice_shard":["thorn",0.52,0.46,1.65,0.1],
+	"ice_spear":["chain",0.76,0.82,1.42,0.2],
+	"ice_ball":["tumble",0.94,0.62,1.16,0.5],
+	"ice_haze":["mist",1.26,0.62,0.62,0.35],
+	"ice_mist":["mist",0.86,1.04,0.55,0.5],
+	"ice_hail":["shatter",1.06,1.48,1.05,0.3],
+	"ice_cold":["shatter",1.5,1.55,0.77,0.5],
+	"ice_avalanche":["tumble",1.62,1.32,0.85,0.4],
+	"earth_dig":["fissure",0.92,0.85,1.15,0.3],
+	"earth_tomb":["tumble",1.08,0.55,0.91,0.3],
+	"earth_slap":["glob",0.57,0.38,1.5,0.1],
+	"earth_club":["sweep",0.93,0.66,1.31,0.2],
+	"earth_shot":["jet",0.72,0.32,1.43,0.2],
+	"earth_power":["fissure",1.24,1.63,0.88,0.7],
+	"earth_bomb":["glob",1.16,0.83,0.86,0.4],
+	"earth_rush":["chain",0.83,0.59,1.32,0.3],
+	"earth_return":["orbit",0.78,0.66,1.05,1.65],
+	"earth_dust":["mist",1.03,0.45,0.92,0.2],
+	"earth_mudcoat":["glob",0.87,0.3,0.73,0.3],
+	"earth_fissure":["fissure",1.7,0.48,0.78,1.2],
+	"earth_spikes":["thorn",0.89,0.33,1.1,0.1],
+	"earth_quake":["fissure",1.58,0.71,0.98,0.9],
+	"earth_magnitude":["fissure",1.32,0.95,0.72,0.4],
+	"rock_throw":["tumble",0.87,0.96,1.22,0.15],
+	"rock_slide":["tumble",1.4,1.15,0.95,0.35],
+	"rock_tomb":["pincer",1.15,1.38,0.74,0.4],
+	"rock_ancient":["orbit",1.07,0.92,0.77,1.15],
+	"rock_wrecker":["shatter",1.75,1.21,0.83,0.25],
+	"rock_edge":["thorn",1.02,1.55,1.02,0.4],
+	"rock_gem":["star",0.79,0.74,1.22,0.1],
+	"rock_smash":["shatter",1.24,0.95,1.43,0.1],
+	"rock_blast":["chain",1.18,0.87,1.25,0.2],
+	"rock_roll":["tumble",1.1,0.38,1.37,0.65],
+	"rock_polish":["orbit",0.65,0.7,0.8,1.8],
+	"rock_storm":["mist",1.48,0.83,0.91,0.8],
+	"rock_trap":["thorn",0.84,0.48,0.88,0.3],
+	"poison_smog":["mist",1.12,0.59,0.68,0.2],
+	"poison_gas":["mist",1.35,0.91,0.55,0.5],
+	"poison_toxic":["glob",0.76,0.45,0.82,0.5],
+	"poison_fang":["pincer",0.63,0.45,1.36,0.3],
+	"poison_powder":["spore",1.08,0.82,0.69,0.65],
+	"poison_sting":["thorn",0.49,0.48,1.55,0.15],
+	"poison_armor":["orbit",0.73,0.96,0.67,0.9],
+	"poison_sludge":["glob",0.92,0.65,0.97,0.2],
+	"poison_bomb":["glob",1.35,0.99,0.75,0.7],
+	"poison_tail":["sweep",1.04,0.47,1.26,0.4],
+	"poison_acid":["jet",0.86,0.31,1.18,0.3],
+	"poison_gastro":["glob",0.69,0.86,0.63,0.4],
+	"poison_cross":["crosscut",0.98,0.82,1.32,0.2],
+	"poison_gunk":["glob",1.58,1.13,0.69,0.85],
+	"poison_jab":["thorn",0.66,0.61,1.44,0.2],
+	"poison_spikes":["thorn",0.94,0.24,0.98,0.2],
 }
 func attack_visual_intensity(id:String)->float:
 	var row:Dictionary=Rules.MOVE_LIBRARY.get(id,Rules.DEV_NATIVE_MOVES.get(id,{}))
@@ -9295,6 +9383,18 @@ func attack_direction_sample(art:Array,age:float,index:int,count:int,forward:Vec
 		"chain":q=forward*(f*.72+phase*.38)+side*sin(float(index)*1.8)*.18+Vector3.UP*(arc*.24)
 		"rise":q=radial*(.10+phase*.38)+Vector3.UP*(arc*(.45+f*.58))
 		"zigzag":q=forward*(f-.5)*.95+side*(1.0 if index%2==0 else -1.0)*(.12+phase*.48)+Vector3.UP*(arc*(.3+f*.5))
+		# Organic tendrils unfurl; rigid crystals and rocks use ballistic motion.
+		"root":q=radial.rotated(Vector3.UP,spin*arc)*(.08+phase*.62)+Vector3.UP*(sin(phase*PI*.75)*(.25+f*.62))
+		"whiplash":q=forward*(.1+phase*.82)+side*sin(angle+phase*TAU*spin)*(.12+arc*.52)+Vector3.UP*(arc*(.25+f*.48))
+		"thorn":q=radial*(.06+phase*.78)+Vector3.UP*(arc*(.22+f*.84))
+		"spore":q=radial.rotated(Vector3.UP,phase*spin)*(.1+phase*.68)+Vector3.UP*(.12+phase*(.32+f*.58)+sin(angle+phase*TAU)*.08)
+		"snow":q=forward*(phase*.48)+side*(f-.5)*1.3+Vector3.UP*(.12+(1.0-phase)*(.38+f*.7)+sin(angle+phase*TAU*spin)*.08)
+		"shatter":q=radial*(.05+sqrt(phase)*(.38+f*.45))+Vector3.UP*(4.0*phase*(1.0-phase)*(.26+f*.57))
+		"mist":q=radial.rotated(Vector3.UP,phase*spin)*(.10+sqrt(phase)*.68)+Vector3.UP*(.08+phase*(.20+f*.33))
+		"tumble":q=forward*(phase*(.28+f*.64))+side*sin(angle)*(.12+phase*.46)+Vector3.UP*(4.0*phase*(1.0-phase)*(.19+f*.56))
+		"fissure":q=forward*(f-.5)*1.5+side*sin(float(index)*2.1)*(.07+phase*.20)+Vector3.UP*(arc*(.15+f*.72))
+		"glob":q=radial*(.08+phase*(.36+f*.37))+Vector3.UP*(4.0*phase*(1.0-phase)*(.16+f*.36))
+		"crosscut":q=(forward+side*(1.0 if index%2==0 else -1.0)).normalized()*(f-.5)*(.8+phase*.7)+Vector3.UP*(arc*.42)
 	return Vector3(q.x*float(art[1]),q.y*float(art[2]),q.z*float(art[1]))
 
 func cinematic_impact_layers(id:String,profile:Dictionary,source:Vector3,target:Vector3,age:float,used:int,light:Color,dark:Color,status:bool)->int:
@@ -9400,9 +9500,12 @@ func cinematic_impact_layers(id:String,profile:Dictionary,source:Vector3,target:
 				flat=true;q.y=.055
 			else:flat=false
 			if mode=="cloud" or mode=="smoke":size*=1.25
-		if not direction.is_empty() and not status:
+		if not direction.is_empty():
 			var authored_offset:Vector3=attack_direction_sample(direction,age,i,count,forward,side)
 			q=ground+authored_offset*intensity
+			if status:
+				# Support motion stays subdued and above ground; it is not a damage flash.
+				q.y=maxf(q.y,.14)
 			if flat:q.y=.055
 		else:
 			q=ground+(q-ground)*intensity

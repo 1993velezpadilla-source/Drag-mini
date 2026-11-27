@@ -874,14 +874,26 @@ func run()->void:
 		var key:String=str(fingerprint)
 		assert(not motion_fingerprints.has(key),"duplicate geometry "+role)
 		motion_fingerprints[key]=role
-	assert(motion_fingerprints.size()==48)
+	assert(motion_fingerprints.size()==136)
 	for move_id in catalog:
 		var intensity:float=field.attack_visual_intensity(move_id)
 		assert(intensity>=.66 and intensity<=1.34,move_id)
 	assert(field.attack_visual_intensity("eos_188")<field.attack_visual_intensity("eos_064"))
 	assert(field.attack_visual_intensity("eos_308")<field.attack_visual_intensity("eos_240"))
 	assert(field.attack_visual_intensity("eos_262")<field.attack_visual_intensity("eos_157"))
-	print("KINDRIA_V14_DIRECTION_PASS 48")
+	print("KINDRIA_V14_DIRECTION_PASS 136")
+	# Capture paired actual material finishes, not concept art, for visual review.
+	for move_id in ["eos_076","eos_079","eos_061","eos_059","eos_091","eos_089","eos_088","eos_444","eos_124","eos_482"]:
+		if not catalog.has(move_id):continue
+		var profile:Dictionary=field.combat_profile(move_id)
+		for particle in field.combat_particles:particle.hide()
+		var style:Array=field.combat_style(move_id)
+		var used:int=field.cinematic_impact_layers(move_id,profile,special_source,bite_position,.32,0,Color(str(style[1])),Color(str(style[2])),catalog[move_id].category=="status")
+		assert(used>0 and used<=Field.FX_PARTICLE_CAP,move_id)
+		await frames()
+		assert(root.get_texture().get_image().save_png("/tmp/effekseer-review/v14-finish-"+move_id+".png")==OK)
+	for particle in field.combat_particles:particle.hide()
+	print("KINDRIA_V14_NATURE_MATERIAL_PASS 88")
 	var plan:Array=[
 		{"stage":"ally_invoke","anchor":"source","start":0.0,"end":.15,"enabled":true},
 		{"stage":"enemy_invoke","anchor":"source","start":0.0,"end":.15,"enabled":true},
