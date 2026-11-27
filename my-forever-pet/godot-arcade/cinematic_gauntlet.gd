@@ -658,6 +658,9 @@ func run_checks()->void:
 	# A duplicate sequence or sparse animation is a review candidate, not proof
 	# of poor visual quality. Preserve exact IDs in the downloadable CI report.
 	var quality_rows:Array=[]
+	var visual_rows:Dictionary={}
+	var visual_dir:String="/tmp/kindria-visual"
+	if DirAccess.make_dir_recursive_absolute(visual_dir)!=OK:failures.append("visual output directory")
 	var sequence_owners:Dictionary={}
 	var duplicate_groups:Dictionary={}
 	var review_candidates:Array=[]
@@ -678,9 +681,17 @@ func run_checks()->void:
 		var blank_frames:Array=[]
 		var repeat_count:int=0
 		var previous_hash:String=""
+		var strip:=Image.create(48*Dungeon.FX_FRAME_COUNT,48,false,Image.FORMAT_RGBA8)
+		strip.fill(Color.TRANSPARENT)
+		var frame_areas:Array[int]=[]
+		var edge_frames:Array[int]=[]
 		for frame in range(Dungeon.FX_FRAME_COUNT):
 			var image:Image=view.combat_frame_image(id,frame)
 			var bytes:PackedByteArray=image.get_data()
+			strip.blit_rect(image,Rect2i(0,0,48,48),Vector2i(frame*48,0))
+			var bounds:=image.get_used_rect()
+			frame_areas.append(bounds.get_area())
+			if bounds.has_area() and (bounds.position.x==0 or bounds.position.y==0 or bounds.end.x==48 or bounds.end.y==48):edge_frames.append(frame)
 			sequence.update(bytes)
 			var frame_hash:String=bytes.hex_encode().sha256_text()
 			frame_hashes[frame_hash]=true
@@ -690,6 +701,12 @@ func run_checks()->void:
 			if image.get_size()!=Vector2i(48,48):failures.append("full catalog frame size "+str(id))
 			frame_total+=1;checks+=1
 		var signature:String=sequence.finish().hex_encode()
+		var element:String=str(profile.element)
+		var folder:String=visual_dir+"/"+element
+		if DirAccess.make_dir_recursive_absolute(folder)!=OK:failures.append("visual element directory "+element)
+		if strip.save_png(folder+"/"+str(id)+".png")!=OK:failures.append("visual strip export "+str(id))
+		if not visual_rows.has(element):visual_rows[element]=[]
+		visual_rows[element].append({"id":id,"name":str(move.get("name",id)),"impact_frame":clampi(int(float(profile.impact)*Dungeon.FX_FRAME_COUNT),0,Dungeon.FX_FRAME_COUNT-1),"frame_areas":frame_areas,"edge_frames":edge_frames})
 		if sequence_owners.has(signature):
 			if not duplicate_groups.has(signature):duplicate_groups[signature]=[sequence_owners[signature]]
 			duplicate_groups[signature].append(id)
@@ -743,6 +760,12 @@ func run_checks()->void:
 	else:
 		report.store_string(JSON.stringify({"moves":quality_rows,"frame_total":frame_total,"audio_total":audio_total,"runtime_samples":runtime_samples,"duplicate_sequences":duplicate_groups,"review_candidates":review_candidates,"secondary_cache_size":view.combat_textures.size()}, "\t"))
 		report.close()
+	var visual_index:=FileAccess.open(visual_dir+"/index.json",FileAccess.WRITE)
+	if visual_index==null:failures.append("visual index export")
+	else:
+		visual_index.store_string(JSON.stringify(visual_rows,"\t"))
+		visual_index.close()
+	print("KINDRIA_VISUAL_EXPORT sequences=",quality_rows.size()," elements=",visual_rows.size()," frames=",frame_total)
 	print("KINDRIA_FULL_QUALITY moves=",quality_rows.size()," frames=",frame_total," audio=",audio_total," runtime_samples=",runtime_samples," duplicate_groups=",duplicate_groups.size()," review_candidates=",review_candidates.size())
 	scene.free()
 	var home:=Home.new()
