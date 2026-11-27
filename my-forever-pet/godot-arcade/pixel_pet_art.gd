@@ -421,8 +421,18 @@ static func attack_body_sample(progress:float,impact:float,motion:String,species
 	# strike frame. The maximum extension is at contact, not after it.
 	var windup:float=clampf(t/peak,0.0,1.0)
 	var recover:float=clampf((t-peak)/(1.0-peak),0.0,1.0)
-	var prepare:float=smoothstep(0.0,.34,windup)*(1.0-smoothstep(.34,.78,windup))
-	var strike:float=smoothstep(.55,1.0,windup)*(1.0-smoothstep(0.0,1.0,recover))
+	# V20.3: different compression timing for quick and heavy anatomy.
+	var preparation:float=.34
+	var release_bias:float=1.0
+	match motion:
+		"rush","horn","claw","lash","wing","spin","aerial":preparation=.23;release_bias=.86
+		"fang","pincer":preparation=.28;release_bias=1.40
+		"crunch","down":preparation=.44;release_bias=.88
+		"punch","uppercut","kick":preparation=.37;release_bias=1.15
+		"lowkick","tail":preparation=.28;release_bias=1.08
+		"focus","gesture":preparation=.44;release_bias=.80
+	var prepare:float=smoothstep(0.0,preparation,windup)*(1.0-smoothstep(preparation,.78,windup))
+	var strike:float=smoothstep(.55,1.0,windup)*(1.0-smoothstep(0.0,1.0,pow(recover,release_bias)))
 	var envelope:float=pow(sin(PI*t),2.0)
 	var compression:float=.07
 	var extension:float=.10
