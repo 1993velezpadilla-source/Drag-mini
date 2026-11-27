@@ -3204,6 +3204,13 @@ func rtdx_material_stamp(mode:String,light:Color,dark:Color)->Image:
 					var core:float=(p/Vector2(.94,.16)).length()
 					alpha=1.0-smoothstep(.30,1.0,core)
 					tint=dark.lerp(light,1.0-smoothstep(.10,.75,core))
+				"rtdx_dust":
+					# Diffuse gray-beige cloud, with irregular soft lobes.
+					var a:float=((p-Vector2(-.24,.03))/Vector2(.70,.59)).length()
+					var b:float=((p-Vector2(.26,-.12))/Vector2(.64,.73)).length()
+					var rim:float=minf(a,b)+.05*sin(p.x*19.0+p.y*13.0)
+					alpha=(1.0-smoothstep(.35,1.07,rim))*.84
+					tint=dark.lerp(light,1.0-smoothstep(.08,.9,rim))
 				"rtdx_lowkick":
 					# Pale foot-contact emblem; original shape, not a traced asset.
 					var sole:float=((p-Vector2(0,.23))/Vector2(.38,.56)).length()
@@ -8541,7 +8548,7 @@ func reserve_confirmed_contacts(dt:float,used:int)->int:
 			used=priority_contact_fx(burst,t,used,secondary)
 	return used
 
-const RTDX_OBSERVED_MOVES=["eos_530","eos_114","eos_262","eos_149","eos_260","eos_174","eos_036","eos_092","eos_109","eos_108","eos_151"]
+const RTDX_OBSERVED_MOVES=["eos_530","eos_114","eos_262","eos_149","eos_260","eos_174","eos_036","eos_092","eos_109","eos_108","eos_151","eos_142"]
 
 # Orient the wedge in screen space, without changing the combat path.
 func rtdx_directional_stamp(used:int,at:Vector3,mode:String,light:Color,dark:Color,size_value:float,alpha:float,source:Vector3,target:Vector3)->int:
@@ -8607,6 +8614,34 @@ func rtdx_observed_stage_fx(burst:Dictionary,t:float,used:int)->int:
 			used=environment_particle(used,q+Vector3.UP*(.26+sin(progress*PI)*.50),"rtdx_bluefire",Color("#45d8ff"),Color("#1647ec"),1.65,fade*.86)
 			if i==0:
 				cinematic_halo(Vector3(q.x,.065,q.z),Color("#247aff"),2.1,fade*.65,t,true)
+	elif id=="eos_142":
+		# The archived DX still shows diffuse dust and a downward stat mark.
+		# Cloud is environmental; the mark requires a confirmed stat change.
+		var forward:Vector3=(target-source).normalized()
+		var lateral:=Vector3(-forward.z,0.0,forward.x).normalized()
+		if lateral.length_squared()<.01:lateral=Vector3.RIGHT
+		var fade:float=minf(1.0,progress*7.0)*(1.0-after)
+		for i in range(5):
+			var f:float=float(i)/4.0
+			var q:Vector3=combat_path_sample(points,clampf(progress-f*.25,0.0,1.0))
+			q+=forward*(.08+after*.23)+lateral*(f-.5)*(.25+after*.35)+Vector3.UP*(.20+f*.42+after*.18)
+			used=environment_particle(used,q,"rtdx_dust",Color("#d5cbb6"),Color("#88827a"),.95+f*.36+after*.32,fade*.72)
+		if t>=peak and after<.85:
+			var results:Dictionary=burst.get("results",{})
+			var primary:=Vector2i(roundi(target.x/1.4),roundi(target.z/1.4))
+			var cells:Array[Vector2i]=[]
+			for cell in results:
+				if cell is Vector2i and int(results[cell].get("effects",0))>0:cells.append(cell)
+			cells.sort_custom(func(a:Vector2i,b:Vector2i)->bool:
+				var da:int=(a-primary).length_squared()
+				var db:int=(b-primary).length_squared()
+				if da!=db:return da<db
+				if a.x!=b.x:return a.x<b.x
+				return a.y<b.y)
+			for i in range(mini(5,cells.size())):
+				var at:Vector3=target if cells[i]==primary else pos(cells[i])+Vector3.UP*.55
+				used=environment_particle(used,at+Vector3.UP*(.65-after*.4),"support_down",Color("#ffe05a"),Color("#be9228"),.80,1.0-after/.85)
+		return used
 	elif id=="eos_151":
 		# Charge is separately shown by charge_environment_fx. Release is a
 		# narrow yellow-white ray along the actual cast path.

@@ -19,3 +19,7 @@ Rechecked original Ember, Scratch, Peck and Sacred Fire stills. Sacred Fire is f
 ## V15.2 — contact, psychic and solar
 
 Five previously inspected reference stills inform revised effects (Air Cutter, Low Kick, Psychic, Psywave, Solar Beam). Four archive pages reopened; Air Cutter and Solar Beam page reload failed, so their existing observations were used without claiming new inspection. Quick Attack already belongs to the full tile travel route and receives a regression test, not a new inferred return timing. Solar Beam maps to eos_151 (Sunlance); charge and release effects are separate. Psychic uses a local tint and energy echoes, not an unverified full-screen or actor silhouette clone. All five effect timings remain engine approximations, no frame-level video timing verified.
+
+## V15.3 — Sand Attack and source-quality gate
+
+Confirmed Dust Flick (eos_142) is SAND_ATTACK in the original reference catalog. Based on the existing inspected Sand Attack still, replace generic particles with an original soft gray-beige dust cloud and a yellow downward glyph only when an accuracy-lowering effect is recorded. Environmental dust can remain on misses. Existing timing is not a measured DX timing. Growl and Hyper Beam archive pages were accessible, but image retrieval failed again; no visual changes were inferred. Hyper Beam is flagged as indirect capture. The DX list documents different PP and ranges for Growl and Hyper Beam; preserve Kindria's current balance and record differences for review. No new animation timing was verified from video.

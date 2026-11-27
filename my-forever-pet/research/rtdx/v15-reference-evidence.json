@@ -53,13 +53,18 @@
       "name": "Growl",
       "page": "https://archives.bulbagarden.net/wiki/File:Growl_PMD_RTDX.png",
       "status": "image_fetch_failed",
-      "timing_verified": false
+      "timing_verified": false,
+      "kindria_id": "eos_217",
+      "v15_3_source_status": "Archive page opened; image fetch failed again. No visual design inferred."
     },
     {
       "name": "Hyper Beam",
       "page": "https://archives.bulbagarden.net/wiki/File:Hyper_Beam_PMD_RTDX.png",
       "status": "image_fetch_failed",
-      "timing_verified": false
+      "timing_verified": false,
+      "kindria_id": "eos_242",
+      "v15_3_source_status": "Archive page opened; image fetch failed again. No visual design inferred.",
+      "source_quality": "Archive flags image as needing direct capture."
     },
     {
       "name": "Laser Focus",
@@ -144,10 +149,11 @@
       "name": "Sand Attack",
       "page": "https://archives.bulbagarden.net/wiki/File:Sand_Attack_PMD_RTDX.png",
       "status": "still_inspected",
-      "kindria_id": null,
+      "kindria_id": "eos_142",
       "image": "https://archives.bulbagarden.net/media/upload/9/98/Sand_Attack_PMD_RTDX.png",
       "observation": "Diffuse gray-beige airborne dust behind actors and yellow downward stat marker; status message indicates accuracy decreased. Exact move ID still needs mapping.",
-      "timing_verified": false
+      "timing_verified": false,
+      "v15_3_source_status": "Archive file page reopened; existing visual observation retained. Reference key SAND_ATTACK verified in Kindria rules."
     },
     {
       "name": "Scratch",
@@ -340,6 +346,33 @@
       "id": "eos_151",
       "basis": "Solar Beam previously inspected still",
       "status": "original approximate implementation, timing and rendered comparison pending"
+    },
+    {
+      "id": "eos_142",
+      "basis": "Sand Attack previously inspected still",
+      "status": "original diffuse cloud and confirmed-effect glyph implementation; temporal verification pending"
     }
-  ]
+  ],
+  "catalog_comparison": {
+    "source": "https://mysterydungeonwiki.com/wiki/Rescue_Team_DX:List_of_Moves",
+    "scope": "Document only, no balance changes. DX mechanics and EOS prototype are different references.",
+    "rows": [
+      {
+        "id": "eos_217",
+        "name": "Growl",
+        "dx_pp": 30,
+        "kindria_pp": 20,
+        "dx_range": "entire room",
+        "kindria_range": "room"
+      },
+      {
+        "id": "eos_242",
+        "name": "Hyper Beam",
+        "dx_pp": 10,
+        "kindria_pp": 8,
+        "dx_range": "4 tiles",
+        "kindria_range": "line up to 10 tiles"
+      }
+    ]
+  }
 }

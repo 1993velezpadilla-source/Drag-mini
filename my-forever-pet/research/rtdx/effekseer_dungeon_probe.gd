@@ -1010,6 +1010,25 @@ func run()->void:
 	assert(field.tile_cast_sample(rush,"ground",1.0,.64).position.is_equal_approx(special_source))
 	print("KINDRIA_V15_PSYCHIC_SOLAR_CONTACT_PASS 5")
 	print("KINDRIA_V15_QUICK_ROUTE_PASS")
+	# Sand Attack must show environmental dust independently of the accuracy
+	# reduction glyph; only an actual effect result can emit the latter.
+	var sand_profile:Dictionary=field.combat_profile("eos_142")
+	var sand_peak:float=float(sand_profile.impact)
+	var sand_burst:Dictionary={"id":"eos_142","profile":sand_profile,"points":[special_source,bite_position],"results":{target:{"effects":1}}}
+	var sand_phase:float=lerpf(sand_peak,1.0,.22)
+	assert(field.rtdx_observed_stage_fx(sand_burst,sand_peak*.65,0)==5)
+	assert(field.rtdx_observed_stage_fx(sand_burst,sand_phase,0)==6)
+	assert(field.combat_particles[0].texture.get_width()==64)
+	assert(field.combat_particles[5].texture.get_width()==32)
+	await frames()
+	assert(root.get_texture().get_image().save_png("/tmp/effekseer-review/v15-observed-eos_142.png")==OK)
+	sand_burst.results={target:{"misses":1}}
+	assert(field.rtdx_observed_stage_fx(sand_burst,sand_phase,0)==5)
+	sand_burst.results={target:{"damage":8}}
+	assert(field.rtdx_observed_stage_fx(sand_burst,sand_phase,0)==5)
+	assert(field.rtdx_observed_stage_fx(sand_burst,sand_phase,Field.FX_PARTICLE_CAP)==Field.FX_PARTICLE_CAP)
+	for particle in field.combat_particles:particle.hide()
+	print("KINDRIA_V15_SAND_STATUS_PASS")
 	var plan:Array=[
 		{"stage":"ally_invoke","anchor":"source","start":0.0,"end":.15,"enabled":true},
 		{"stage":"enemy_invoke","anchor":"source","start":0.0,"end":.15,"enabled":true},
