@@ -5484,7 +5484,7 @@ func native_identity_frame(id:String,frame:int,base:Image)->Image:
 	return im
 
 # V16.7: individually remastered after reviewing actual Godot PNG strips.
-const VISUAL_REMASTER_MOVES=["eos_504","eos_308","eos_135","eos_142","eos_047","eos_250","eos_299","eos_329","eos_262","eos_279","eos_101","eos_199","eos_251","eos_486","eos_462","eos_018","eos_507","eos_175","eos_254","eos_097","eos_163","eos_320","eos_033","eos_166","eos_228","eos_004","eos_252","eos_330","eos_465","eos_138","eos_021","eos_501","eos_053","eos_157","eos_064","eos_188","eos_240","eos_255","eos_342","eos_539","eos_041","eos_278","eos_538","eos_239","eos_193","eos_272","eos_519","eos_494","eos_292","eos_065","eos_276","eos_208","eos_522","eos_452","eos_433","eos_087","eos_063","eos_062","eos_476","eos_127","eos_451","eos_436","eos_491","eos_046","eos_109","eos_234","eos_107","eos_463","eos_133","eos_317","eos_111","eos_331","eos_345","eos_270","eos_042","eos_344","eos_461","eos_180","eos_535","eos_150","eos_118","eos_484","eos_008","eos_131","eos_030","eos_481","eos_028","eos_073","lib_ground_1","eos_057","eos_036","eos_442","eos_153","eos_205","eos_100","eos_518","eos_178","eos_200","eos_495","eos_280","eos_197","eos_332","eos_147","eos_485","eos_459","eos_151","eos_537","eos_443","eos_336","eos_182","eos_253","eos_441","eos_076","lib_grass_1","eos_001","eos_325","eos_103","eos_536","eos_510","eos_431","eos_475","eos_523","eos_080","eos_082","eos_114","eos_323","eos_470","eos_502","eos_529","eos_530","eos_460","eos_520","eos_449","eos_288","eos_164","eos_306","eos_023","eos_086","eos_346"]
+const VISUAL_REMASTER_MOVES=["eos_504","eos_308","eos_135","eos_142","eos_047","eos_250","eos_299","eos_329","eos_262","eos_279","eos_101","eos_199","eos_251","eos_486","eos_462","eos_018","eos_507","eos_175","eos_254","eos_097","eos_163","eos_320","eos_033","eos_166","eos_228","eos_004","eos_252","eos_330","eos_465","eos_138","eos_021","eos_501","eos_053","eos_157","eos_064","eos_188","eos_240","eos_255","eos_342","eos_539","eos_041","eos_278","eos_538","eos_239","eos_193","eos_272","eos_519","eos_494","eos_292","eos_065","eos_276","eos_208","eos_522","eos_452","eos_433","eos_087","eos_063","eos_062","eos_476","eos_127","eos_451","eos_436","eos_491","eos_046","eos_109","eos_234","eos_107","eos_463","eos_133","eos_317","eos_111","eos_331","eos_345","eos_270","eos_042","eos_344","eos_461","eos_180","eos_535","eos_150","eos_118","eos_484","eos_008","eos_131","eos_030","eos_481","eos_028","eos_073","lib_ground_1","eos_057","eos_036","eos_442","eos_153","eos_205","eos_100","eos_518","eos_178","eos_200","eos_495","eos_280","eos_197","eos_332","eos_147","eos_485","eos_459","eos_151","eos_537","eos_443","eos_336","eos_182","eos_253","eos_441","eos_076","lib_grass_1","eos_001","eos_325","eos_103","eos_536","eos_510","eos_431","eos_475","eos_523","eos_080","eos_082","eos_114","eos_323","eos_470","eos_502","eos_529","eos_530","eos_460","eos_520","eos_449","eos_288","eos_164","eos_306","eos_023","eos_086","eos_346","lib_fairy_1","lib_fairy_2","lib_fairy_3"]
 func visual_remaster_frame(id:String,frame:int)->Image:
 	var im:=Image.create(48,48,false,Image.FORMAT_RGBA8)
 	im.fill(Color.TRANSPARENT)
@@ -7597,6 +7597,77 @@ func visual_remaster_frame(id:String,frame:int)->Image:
 					var theta:float=a+float(k)*.65
 					var v:=q+Vector2(cos(theta),sin(theta))*13
 					fx_line(im,v,v+Vector2(cos(theta),sin(theta))*3,1.1,Color("#9ab962",fade))
+		"lib_fairy_1":
+			# Glimmer Shot: a compact enchanted star comet, not a psychic orb.
+			var q:=Vector2(9+29*drive,24)
+			for j in range(5):
+				var f:float=float(j+1)/5.0
+				var v:=q-Vector2(15*f*fade,sin(t*TAU+float(j)*1.5)*4*f)
+				var tint:=Color("#f6b8dc",fade*(1.0-f*.6)) if j%2==0 else Color("#ffe6a4",fade*(1.0-f*.6))
+				fairy_star(im,v,3.1-1.8*f,tint)
+			var radius:float=4.0+3.0*pulse
+			for j in range(5):
+				var a:float=-PI*.5+float(j)*TAU/5.0+t*.7
+				var axis:=Vector2(cos(a),sin(a))
+				var normal:=Vector2(-axis.y,axis.x)
+				fx_line(im,q+normal*1.8,q+axis*radius,2.3,Color("#af73c7",fade))
+				fx_line(im,q-normal*1.3,q+axis*radius,1.3,Color("#ffd9ed",fade))
+			fx_disc(im,q,2.5,Color("#fff6cf",fade))
+			if t>=peak:
+				for j in range(7):
+					var a:float=float(j)*TAU/7.0+t*.5
+					var v:=q+Vector2(cos(a),sin(a))*(radius+8*(1.0-fade))
+					fairy_star(im,v,1.5+float(j%2)*.5,Color("#ffe9b5" if j%2==0 else "#ffc3e8",fade))
+		"lib_fairy_2":
+			# Pixie Halo: concentric ribbons of gold and pink, orbiting lights and a radial bloom.
+			var c:=Vector2(24,24)
+			var radius:float=5.0+13.0*drive
+			for j in range(2):
+				var phase:float=t*TAU+float(j)*PI
+				var prev:=c+Vector2(cos(phase)*radius,sin(phase)*radius*.64)
+				for k in range(1,29):
+					var a:float=phase+float(k)*TAU/28.0
+					var q:=c+Vector2(cos(a)*radius,sin(a)*radius*.64+sin(a*2.0+float(j)*PI)*3)
+					var tint:=Color("#ffe4a7",fade) if j==0 else Color("#ffc3e9",fade)
+					fx_line(im,prev,q,2.4,Color("#a776c9",fade*.78))
+					fx_line(im,prev,q,1.1,tint)
+					prev=q
+			for j in range(8):
+				var a:float=float(j)*TAU/8.0-t*TAU
+				var v:=c+Vector2(cos(a),sin(a))*(radius+2)
+				fairy_star(im,v,1.8+float(j%3)*.6,Color("#fff2ba" if j%2==0 else "#ffd0ee",fade))
+			if t>=peak:
+				for j in range(8):
+					var a:float=float(j)*TAU/8.0
+					var axis:=Vector2(cos(a),sin(a))
+					fx_line(im,c+axis*(radius*.40),c+axis*(radius+4*(1.0-fade)),.9,Color("#fff0d1",fade*.65))
+		"lib_fairy_3":
+			# Moon Prism: crescent moon gathers light into four orthogonal beams.
+			var c:=Vector2(24,24)
+			var charge:float=clampf(t/maxf(peak,.01),0.0,1.0)
+			var radius:float=5.0+3.0*charge
+			for y in range(48):
+				for x in range(48):
+					var v:=Vector2(x,y)-c
+					if v.length()<=radius and (v-Vector2(3,-2)).length()>radius*.80:
+						im.set_pixel(x,y,Color("#ffe6b5",fade) if v.length()>radius-1.2 else Color("#fff9ef",fade))
+			for j in range(4):
+				var a:float=float(j)*PI*.5
+				var axis:=Vector2(cos(a),sin(a))
+				var normal:=Vector2(-axis.y,axis.x)
+				var extent:float=radius+13*drive
+				var tip:=c+axis*extent
+				if t>=peak:
+					fx_line(im,c+axis*radius,tip,4.2,Color("#ad88ed",fade))
+					fx_line(im,c+axis*radius,tip,2.4,Color("#eac4ff",fade))
+					fx_line(im,c+axis*radius,tip,1.0,Color("#fff8ea",fade))
+					fairy_star(im,tip,2.5,Color("#ffe9b1",fade))
+					for k in range(2):
+						var v:=c+axis*(radius+5+float(k)*5)+normal*sin(t*TAU+float(k))*3
+						fx_disc(im,v,1.2,Color("#ffc4df",fade))
+				else:
+					var v:=c+axis*(18-9*charge)
+					fairy_star(im,v,2.0,Color("#d8b8ff",fade))
 	return im
 
 func combat_frame_image(id:String,frame:int)->Image:
