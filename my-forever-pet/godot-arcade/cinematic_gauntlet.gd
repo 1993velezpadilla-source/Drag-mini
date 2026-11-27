@@ -268,6 +268,15 @@ func run_checks()->void:
 	# Catalog-wide real image smoke test, including native signatures.
 	var catalog:Dictionary=Dungeon.Rules.MOVE_LIBRARY.duplicate()
 	catalog.merge(Dungeon.Rules.DEV_NATIVE_MOVES)
+	# V22.4: one family classification must exactly match all legacy branches.
+	var particle_prefixes:Array[String]=["electric","fire_","water_","grass_","ice_","earth_","rock_","fight_","air_","poison_","bug_","psi_","ghost_","dragon_","dark_","steel_","normal_","neutral_","support_","status_"]
+	var particle_roles:Array[String]=["electric","electric_sky","fire","fire_","ground","lash","unknown_extra"]
+	for move_id in catalog:particle_roles.append(str(view.combat_profile(str(move_id)).role))
+	for particle_role in particle_roles:
+		var family:String=view.combat_particle_family(particle_role)
+		for prefix in particle_prefixes:
+			if (family==prefix)!=particle_role.begins_with(prefix):failures.append("V22.4 particle family mismatch "+particle_role+" "+prefix)
+			checks+=1
 	var elements:Dictionary={}
 	for id in catalog:
 		var profile:Dictionary=view.combat_profile(str(id))
