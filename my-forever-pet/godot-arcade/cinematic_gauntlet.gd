@@ -261,6 +261,30 @@ func run_checks()->void:
 		if not is_finite(value) or absf(value)>1.0:failures.append("unbounded camera impulse")
 		if step in [0,100] and absf(value)>.001:failures.append("camera impulse endpoint")
 		checks+=1
+	# Body deformation must peak on the same frame as the directional drive,
+	# including very short anticipation windows and downward strikes.
+	for peak in [.12,.34,.48,.64,.88]:
+		for kind in ["rush","contact","lash","aerial","down","spin","focus","gesture","cast"]:
+			var contact_body:=Art.attack_body_sample(peak,peak,kind)
+			var previous_body:=Art.attack_body_sample(0.0,peak,kind)
+			for step in range(101):
+				var phase:float=float(step)/100.0
+				var body:=Art.attack_body_sample(phase,peak,kind)
+				var stretch:float=float(body.stretch)
+				if not is_finite(stretch) or stretch<.84 or stretch>1.16 or float(body.lift)<0.0:failures.append("invalid continuous body")
+				if step in [0,100] and (absf(stretch-1.0)>.001 or absf(float(body.lift))>.001):failures.append("body rest mismatch")
+				if kind!="down" and stretch>float(contact_body.stretch)+.001:failures.append("extension after contact")
+				if absf(stretch-float(previous_body.stretch))>.13:failures.append("body transition jump")
+				previous_body=body
+				checks+=1
+			var before:=Art.attack_body_sample(peak-.0001,peak,kind)
+			var after:=Art.attack_body_sample(peak+.0001,peak,kind)
+			if absf(float(before.stretch)-float(after.stretch))>.001:failures.append("body contact discontinuity")
+			if kind in ["aerial","down"]:
+				var landed:=view.cast_motion_offset(kind,peak,peak)
+				var near_landing:=view.cast_motion_offset(kind,peak-.0001,peak)
+				if absf(landed.y)>.0001 or absf(near_landing.y)>.0001:failures.append("abrupt landing")
+			checks+=1
 	# Directed contact art is independently visible and kick poses are animated.
 	for id in Dungeon.CONTACT_ICON_KIND:
 		var kind:String=view.directed_contact_kind(id,str(view.combat_profile(id).role))
