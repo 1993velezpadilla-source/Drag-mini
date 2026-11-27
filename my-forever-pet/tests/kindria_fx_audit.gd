@@ -225,6 +225,20 @@ func run()->void:
 			if not bool(hit.visible) or not bool(end.visible) or absf(float(hit.height))>.001 or absf(float(end.height))>.001:errors.append("charge impact "+phase)
 			if phase=="airborne" and absf(float(start.height)-.95)>.001:errors.append("airborne release continuity")
 	print("KINDRIA_CHARGE_VISUAL_PASS")
+	# Every profile's leading travel reaches the end at the same instant as
+	# damage reaction. Trailing particles finish inside the effect lifetime.
+	for row in reports:
+		var peak:float=float(row.impact_fraction)
+		var first:float=field.combat_travel_progress(0.0,peak)
+		var impact:float=field.combat_travel_progress(peak,peak)
+		if absf(first)>.001 or absf(impact-1.0)>.001:errors.append("travel impact sync "+str(row.id))
+		var last:float=0.0
+		for step in range(101):
+			var progress:float=field.combat_travel_progress(float(step)/100.0,peak,.65)
+			if progress<last or progress>1.0:errors.append("travel monotonic "+str(row.id))
+			last=progress
+		if absf(last-1.0)>.001:errors.append("travel tail incomplete "+str(row.id))
+	print("KINDRIA_TRAVEL_IMPACT_AUDIT 468")
 	# Exercise more frames than the cache cap, then verify hot hits and exact normalization.
 	for row in reports.slice(0,40):
 		for frame in range(Field.FX_FRAME_COUNT):field.combat_animated_texture(str(row.id),frame)
