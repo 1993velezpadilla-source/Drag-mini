@@ -434,6 +434,25 @@ func run()->void:
 			if apex.y<.29 or absf(landing.y)>.001 or absf(recovery.y)>.001:errors.append("airborne landing timing "+motion)
 			if landing.x<.19 or recovery.x>=landing.x:errors.append("landing forward recovery "+motion)
 	print("KINDRIA_AERIAL_LANDING_PASS")
+	# The live enemy sprite and transformed companion consume the shared body curve.
+	var body_actor:=Node3D.new()
+	body_actor.set_meta("species","sporeling")
+	var body_sprite:=Sprite3D.new()
+	body_sprite.name="EnemyPixel"
+	body_actor.add_child(body_sprite)
+	field.player_cast_motion="rush"
+	field.player_cast_duration=.8
+	field.player_cast_impact=.5
+	field.attack_time=.6
+	field.sync_disguise_pose(body_actor,"attack",Vector2.RIGHT)
+	field.update_enemy_pixel(body_actor,0.0,Vector3.ZERO)
+	var expected_body:Dictionary=PixelArt.attack_body_sample(.25,.5,"rush")
+	if absf(body_sprite.scale.y-float(expected_body.stretch))>.001 or body_actor.get_meta("enemy_cast_motion")!="rush":errors.append("disguise body runtime curve")
+	field.sync_disguise_pose(body_actor,"idle",Vector2.RIGHT)
+	field.update_enemy_pixel(body_actor,0.0,Vector3.ZERO)
+	if not body_sprite.scale.is_equal_approx(Vector3.ONE):errors.append("enemy body scale recovery")
+	body_actor.free()
+	print("KINDRIA_SHARED_BODY_RUNTIME_PASS")
 	# A cast created by path movement after the frame clock must start at zero age.
 	field.attack_time=.4
 	field.player_impact_delay=.2
