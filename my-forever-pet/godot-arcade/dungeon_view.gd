@@ -14412,6 +14412,101 @@ func combat_audio_gesture_sample(gesture:Vector4,t:float,p:float,pitch:float,noi
 	var tone:float=sin(TAU*pitch*(gesture.x*t+.5*gesture.y*t*p))
 	return (tone*.42+noise*.30*gesture.w+body*.23)*rhythm*transient
 
+# V19.8: short, shared environmental samples. These are not damage sounds.
+const ENV_AUDIO_SURFACE={"fire":"ember","water":"splash","ice":"crystal","ground":"gravel","rock":"gravel","poison":"drip","electric":"static","grass":"leaves","dragon":"ember","steel":"metal","flying":"wind"}
+func combat_environment_audio_plan(id:String,profile:Dictionary)->Array:
+	var peak:float=clampf(float(profile.impact),.12,.88)
+	var cues:Array=[]
+	match tile_cast_kind(id):
+		"burrow":cues.append({"phase":"env_dig","fraction":peak*.22,"anchor":"travel"});cues.append({"phase":"env_gravel","fraction":peak,"anchor":"terrain"})
+		"dive":cues.append({"phase":"env_dive","fraction":peak*.24,"anchor":"travel"});cues.append({"phase":"env_splash","fraction":peak,"anchor":"terrain"})
+		"air":cues.append({"phase":"env_wind","fraction":peak*.32,"anchor":"travel"});cues.append({"phase":"env_land","fraction":peak,"anchor":"terrain"})
+		"vanish":cues.append({"phase":"env_vanish","fraction":peak*.20,"anchor":"travel"});cues.append({"phase":"env_vanish","fraction":peak,"anchor":"terrain"})
+		"ground":cues.append({"phase":"env_gravel","fraction":peak*.40,"anchor":"travel"})
+	if cues.size()<2:
+		var element:String=str(profile.element)
+		if ENV_AUDIO_SURFACE.has(element):
+			cues.append({"phase":"env_"+str(ENV_AUDIO_SURFACE[element]),"fraction":lerpf(peak,1.0,.24),"anchor":"surface"})
+	return cues
+
+func combat_environment_surface_allowed(results:Dictionary,cell:Vector2i,damage:int,element:String)->bool:
+	if results.has(cell):return int(results[cell].get("damage",0))>0
+	if results.is_empty() and damage>0:return true
+	return element in SURFACE_TERRAIN_ELEMENTS
+
+func combat_environment_audio_sample(kind:String,t:float,p:float,noise:float,body:float,slow:float)->float:
+	var high:float=noise-body
+	match kind:
+		"ember":return high*.36*pow(absf(sin(t*TAU*37.0)),8.0)+body*.42
+		"splash":return high*.44*pow(1.0-p,1.5)+sin(TAU*(530.0*t-240.0*t*p)+sin(TAU*31.0*t)*1.8)*.23
+		"crystal":return (sin(TAU*1970.0*t)*.25+sin(TAU*3127.0*t)*.19)*pow(1.0-p,1.3)+high*.28*pow(absf(sin(p*PI*4.0)),5.0)
+		"gravel","dig":return body*.48+high*.32*pow(absf(sin(p*PI*(5.0 if kind=="dig" else 3.0))),4.0)+slow*.36
+		"dive":return body*.52+sin(TAU*(340.0*t-150.0*t*p)+sin(TAU*23.0*t)*2.4)*.27
+		"drip":return sin(TAU*(540.0*t-310.0*t*p)+sin(p*TAU*3.0)*2.1)*.35+body*.29
+		"static":return high*.52*pow(absf(sin(t*TAU*63.0)),4.0)+sin(TAU*1320.0*t)*.14
+		"leaves":return high*.45*absf(sin(p*PI*4.0))+body*.24
+		"metal":return sin(TAU*1171.0*t)*.26+sin(TAU*2249.0*t)*.17+high*.19*pow(1.0-p,2.0)
+		"wind":return body*.66*sin(p*PI)+high*.13
+		"land":return slow*.50+body*.32*pow(1.0-p,2.0)
+		"vanish":return sin(TAU*(480.0*t+380.0*t*p)+sin(TAU*13.0*t)*1.8)*.28+body*.23
+	return 0.0
+
+func combat_environment_sound(phase:String,variant:int)->AudioStreamWAV:
+	var key:String=phase+":"+str(variant)
+	if fx_audio_cache.has(key):return fx_audio_cache[key]
+	var kind:String=phase.trim_prefix("env_")
+	var rng:=RandomNumberGenerator.new()
+	rng.seed=posmod(hash(key),2147483647)
+	var rate:int=22050
+	var count:int=int(rate*(.22 if kind in ["dig","wind","vanish","ember"] else .16))
+	var bytes:=PackedByteArray()
+	bytes.resize(count*2)
+	var body:float=0.0
+	var slow:float=0.0
+	for i in range(count):
+		var t:float=float(i)/rate
+		var p:float=float(i)/maxi(1,count-1)
+		var noise:float=rng.randf_range(-1.0,1.0)
+		body=lerpf(body,noise,.18)
+		slow=lerpf(slow,noise,.045)
+		var value:float=combat_environment_audio_sample(kind,t,p,noise,body,slow)*combat_audio_envelope(p,"status")*.72
+		bytes.encode_s16(i*2,roundi(clampf(value,-.95,.95)*32767.0))
+	var audio:=AudioStreamWAV.new()
+	audio.format=AudioStreamWAV.FORMAT_16_BITS
+	audio.mix_rate=rate
+	audio.stereo=false
+	audio.data=bytes
+	if fx_audio_cache.size()>=192:fx_audio_cache.erase(fx_audio_cache.keys()[0])
+	fx_audio_cache[key]=audio
+	return audio
+
+func dispatch_environment_audio(burst:Dictionary)->void:
+	var cues:Array=burst.get("environment_audio",[])
+	var cursor:int=int(burst.get("environment_audio_cursor",0))
+	var profile:Dictionary=burst.profile
+	var duration:float=float(burst.duration)
+	var points:Array=burst.points
+	while cursor<cues.size():
+		var cue:Dictionary=cues[cursor]
+		var fraction:float=float(cue.fraction)
+		var age:float=float(burst.age)-fraction*duration
+		if age<0.0:break
+		cursor+=1
+		if age>=.10:continue
+		var at:Vector3=points[-1]
+		var anchor_kind:String=str(cue.anchor)
+		if anchor_kind=="travel":
+			at=combat_path_sample(points,combat_travel_progress(fraction,float(profile.impact)))
+		elif anchor_kind=="surface":
+			var record:Dictionary=Rules.MOVE_LIBRARY.get(str(burst.id),Rules.DEV_NATIVE_MOVES.get(str(burst.id),{}))
+			if str(record.get("category",""))=="status":continue
+			var cell:=Vector2i(roundi(at.x/1.4),roundi(at.z/1.4))
+			if not combat_environment_surface_allowed(burst.get("results",{}),cell,int(burst.get("damage",0)),str(profile.element)):continue
+		# Terrain anchors are the actual landing/exit tile, even when an actor evades.
+		if anchor_kind!="travel":at.y=.08
+		play_combat_sound(str(burst.id),str(cue.phase),at,false,age)
+	burst["environment_audio_cursor"]=cursor
+
 func combat_sound(id:String,phase:String,variant:int)->AudioStreamWAV:
 	var key:=id+":"+phase+":"+str(variant)
 	if fx_audio_cache.has(key):return fx_audio_cache[key]
@@ -14530,6 +14625,7 @@ func combat_sound(id:String,phase:String,variant:int)->AudioStreamWAV:
 # Playback-only mix: preserve the authored PCM and cache. Critical contacts
 # have priority over launches and misses when all twelve voices are occupied.
 func combat_audio_mix(power:int,phase:String,critical:bool=false)->Vector3:
+	if phase.begins_with("env_"):return Vector3(-23.0,1.0,0.0)
 	var weight:float=cinematic_power_sample(power,phase=="status").x
 	var gain:float=clampf(20.0*log(maxf(.01,weight))/log(10.0),-2.0,3.0)
 	match phase:
@@ -14566,7 +14662,7 @@ func play_combat_sound(id:String,phase:String,at:Vector3,critical:bool=false,age
 	if slot<0:return
 	var key:=id+":"+phase
 	var variant:int=posmod(int(fx_audio_counter.get(key,-1))+1,3)
-	var stream:=combat_sound(id,phase,variant)
+	var stream:AudioStreamWAV=combat_environment_sound(phase,variant) if phase.begins_with("env_") else combat_sound(id,phase,variant)
 	# A late frame skips elapsed audio instead of replaying an old transient.
 	var offset:float=maxf(0.0,age)*mix.y
 	if offset>=stream.get_length()-.008:return
@@ -14657,6 +14753,8 @@ func combat_fx_spawn(event:Dictionary)->void:
 	burst["impact_waves"]=cast_impact_waves(burst.results)
 	burst["impact_times"]=reaction_times(float(burst.duration),float(profile.impact),burst.impact_waves.size())
 	burst["impact_cursor"]=0
+	burst["environment_audio"]=combat_environment_audio_plan(id,profile)
+	burst["environment_audio_cursor"]=0
 	play_combat_sound(id,"launch",waypoints[0])
 # Leading projectile reaches its destination on the exact impact fraction.
 # Trailing particles are delayed within the remaining lifetime, never beyond it.
@@ -15103,6 +15201,7 @@ func combat_fx_update(dt:float)->void:
 		var profile:Dictionary=burst.profile
 		var previous_cursor:int=int(burst.get("impact_cursor",0))
 		dispatch_cast_waves(burst)
+		dispatch_environment_audio(burst)
 		latest_hit=latest_player_impact(latest_hit,burst,previous_cursor)
 		if not burst.impacted and t>=float(profile.impact):
 			burst.impacted=true
