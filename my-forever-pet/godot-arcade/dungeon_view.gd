@@ -1809,7 +1809,7 @@ func combat_frame_image(id:String,frame:int)->Image:
 	var light:=Color(style[1]);var dark:=Color(style[2]);var edge:=dark.darkened(.52)
 	var im:=Image.create(FX_FRAME_SIZE,FX_FRAME_SIZE,false,Image.FORMAT_RGBA8);im.fill(Color.TRANSPARENT)
 	var t:float=float(posmod(frame,FX_FRAME_COUNT))/float(FX_FRAME_COUNT-1)
-	if mode=="lightning":
+	if str(combat_profile(id).role).begins_with("electric"):
 		electric_sprite(im,id,frame,str(combat_profile(id).role));return im
 	var center:=Vector2(24,24)
 	match mode:
@@ -1934,7 +1934,18 @@ func combat_profile(id:String)->Dictionary:
 		"eos_129":role="electric_burst"
 		"eos_188":role="electric_short"
 		"eos_189":role="electric_wave"
-	var impact:float=.48 if role in ["contact","electric_contact","electric_short"] else .64 if role in ["projectile","lash","electric_arc","electric_wave","electric_sky"] else .40
+		"eos_065":role="electric_fist"
+		"eos_144":role="electric_spark"
+		"eos_193":role="electric_orb"
+		"eos_354":role="electric_dash"
+		"eos_452":role="electric_fang"
+		"eos_489":role="electric_beam"
+		"eos_521":role="electric_room"
+		"eos_192":role="electric_bind"
+		"eos_128":role="electric_charge"
+		"eos_493":role="electric_lift"
+	if role in ["electric_charge","electric_lift"]:mode="lightning"
+	var impact:float=.48 if role in ["contact","electric_contact","electric_short","electric_fist","electric_fang","electric_dash","electric_spark"] else .64 if role in ["projectile","lash","electric_arc","electric_wave","electric_sky","electric_orb","electric_beam"] else .40
 	return {"mode":mode,"role":role,"element":element,"pattern":pattern,"range":reach,"duration":float(style[3]),"impact":impact,"socket":"ground" if role=="ground" else "head" if role=="projectile" else "center"}
 func electric_sprite(im:Image,id:String,frame:int,role:String)->void:
 	var cyan:=Color("#40cfff")
@@ -1965,6 +1976,53 @@ func electric_sprite(im:Image,id:String,frame:int,role:String)->void:
 				var angle:float=-PI*.40+float(j)*PI*.10
 				wave.append(Vector2(x+cos(angle)*6.0,24+sin(angle)*18.0))
 			paths.append(wave)
+	elif role=="electric_fist":
+		var offset:float=sin(float(frame)*PI/11.0)*5.0
+		fx_disc(im,Vector2(29+offset,24),9.0,violet);fx_disc(im,Vector2(29+offset,24),6.5,gold)
+		fx_line(im,Vector2(5,24),Vector2(22+offset,24),5.0,cyan)
+		for i in range(4):
+			paths.append([Vector2(28,24),Vector2(34+i*2,9+i*9),Vector2(40,7+i*10)])
+	elif role=="electric_spark":
+		for i in range(6):
+			var angle:float=float(i)*TAU/6.0+float(frame)*.35
+			var d:=Vector2(cos(angle),sin(angle))
+			paths.append([center+d*4,center+d*10+Vector2(-d.y,d.x)*4,center+d*19])
+	elif role=="electric_orb":
+		var radius:float=10.0+sin(float(frame)*PI/11.0)*5.0
+		fx_disc(im,center,radius,violet);fx_disc(im,center,radius-2.0,cyan);fx_disc(im,center,radius*.55,white)
+		for i in range(5):
+			var a:float=float(i)*TAU/5.0+float(frame)*.2
+			var d:=Vector2(cos(a),sin(a));paths.append([center+d*radius*.5,center+d*radius,center+d*(radius+5.0)])
+	elif role=="electric_dash":
+		for i in range(3):
+			var y:float=12.0+float(i)*12.0
+			paths.append([Vector2(2,y),Vector2(17,y-4),Vector2(15,y+4),Vector2(43,y)])
+		fx_disc(im,Vector2(36,24),7.0,gold,4.0)
+	elif role=="electric_fang":
+		for i in range(3):
+			var x:float=15.0+float(i)*9.0
+			var bite:float=sin(float(frame)*PI/11.0)*7.0
+			paths.append([Vector2(x-3,8+bite),Vector2(x,19+bite),Vector2(x+4,9+bite)])
+			paths.append([Vector2(x-3,40-bite),Vector2(x,29-bite),Vector2(x+4,39-bite)])
+	elif role=="electric_beam":
+		var w:float=2.0+sin(float(frame)*PI/11.0)*3.0
+		fx_line(im,Vector2(3,24),Vector2(44,24),w*3.0,violet)
+		fx_line(im,Vector2(3,24),Vector2(44,24),w*1.7,cyan)
+		paths.append([Vector2(3,24),Vector2(44,24)])
+	elif role=="electric_room":
+		for i in range(12):
+			var a:float=float(i)*TAU/12.0+float(frame%2)*.1
+			var d:=Vector2(cos(a),sin(a));paths.append([center+d*3,center+d*12+Vector2(-d.y,d.x)*5,center+d*21])
+		fx_disc(im,center,8.0+float(frame%4)*3.0,cyan,7.0+float(frame%4)*3.0)
+	elif role in ["electric_bind","electric_charge","electric_lift"]:
+		var radius:float=15.0-float(frame)*.6 if role=="electric_charge" else 10.0+float(frame%4)
+		for ring in range(3):
+			var path:Array=[]
+			for j in range(13):
+				var a:float=float(j)*TAU/12.0+float(frame)*.22
+				var y:float=float(ring-1)*7.0 if role!="electric_lift" else float(ring)*6.0-float(frame)*.8
+				path.append(center+Vector2(cos(a)*radius,sin(a)*radius*.45+y))
+			paths.append(path)
 	elif role=="electric_contact" or role=="electric_area":
 		var rays:int=5 if role=="electric_contact" else 8
 		for i in range(rays):
@@ -2025,6 +2083,50 @@ func electric_world_arc(points:Array,t:float,role:String,tiles:Array)->void:
 		for i in range(3):
 			var center:Vector3=front-direction*float(i)*.23
 			paths.append([center-side*.38,center+Vector3.UP*.27,center+side*.38])
+	elif role=="electric_fist":
+		paths.append([points[0],points[-1]])
+		for i in range(4):
+			var angle:float=float(i)*TAU/4.0
+			paths.append([points[-1],points[-1]+Vector3(cos(angle)*.42,.25,sin(angle)*.42)])
+	elif role=="electric_spark":
+		var at:Vector3=points[-1]
+		for i in range(6):
+			var a:float=float(i)*TAU/6.0+t*TAU
+			paths.append([at,at+Vector3(cos(a)*.46,.2*sin(a),sin(a)*.46)])
+	elif role=="electric_dash":
+		var at:Vector3=combat_path_sample(points,clampf(t*2.0,0,1))
+		var dir:Vector3=(points[-1]-points[0]).normalized()
+		var side:Vector3=dir.cross(Vector3.UP)
+		for i in range(3):
+			var off:Vector3=side*float(i-1)*.16
+			paths.append([at-dir*.7+off,at+off])
+	elif role=="electric_fang":
+		var at:Vector3=points[-1]
+		for i in range(3):
+			var off:Vector3=Vector3.RIGHT*float(i-1)*.18
+			var bite:float=.45*(1.0-sin(t*PI))
+			paths.append([at+off+Vector3.UP*(bite+.2),at+off,at+off-Vector3.UP*(bite+.2)])
+	elif role=="electric_beam":
+		paths.append(points)
+		var dir:Vector3=(points[-1]-points[0]).normalized()
+		var side:Vector3=dir.cross(Vector3.UP)*.12
+		paths.append([points[0]+side,points[-1]+side])
+		paths.append([points[0]-side,points[-1]-side])
+	elif role=="electric_room":
+		for tile in tiles:
+			var at:Vector3=tile+Vector3.UP*.35
+			paths.append([at+Vector3(-.32,.12,0),at,at+Vector3(.32,.12,0)])
+	elif role in ["electric_bind","electric_charge","electric_lift","electric_orb"]:
+		var at:Vector3=points[-1] if role=="electric_bind" else points[0] if role!="electric_orb" else combat_path_sample(points,clampf(t*1.65,0,1))
+		var radius:float=.38 if role=="electric_bind" else .55*(1.0-t*.6) if role=="electric_charge" else .36
+		var rings:int=2 if role!="electric_lift" else 3
+		for i in range(rings):
+			var path:Array=[]
+			for j in range(9):
+				var a:float=float(j)*TAU/8.0+t*TAU
+				var y:float=float(i)*.18+(t*.65 if role=="electric_lift" else 0.0)
+				path.append(at+Vector3(cos(a)*radius,y,sin(a)*radius))
+			paths.append(path)
 	elif role=="electric_area":
 		for tile in tiles:
 			var target:Vector3=tile
@@ -2278,6 +2380,14 @@ func combat_fx_update(dt:float)->void:
 				q=points[-1]+Vector3(cos(angle)*.16,sin(angle)*.15,0);size=.30
 			elif profile.role=="electric_wave":
 				q=combat_path_sample(points,clampf(t*1.8-f*.18,0,1));size=.70
+			elif profile.role in ["electric_fist","electric_fang","electric_spark","electric_bind"]:
+				q=points[-1]+Vector3(cos(angle)*.18,sin(angle)*.18,0);size=.45
+			elif profile.role in ["electric_orb","electric_dash","electric_beam"]:
+				q=combat_path_sample(points,clampf(t*1.65-f*.12,0,1));size=.82 if profile.role=="electric_orb" else .42
+			elif profile.role=="electric_room":
+				q=tiles[j%tiles.size()]+Vector3(0,.42,0);size=.48
+			elif profile.role in ["electric_charge","electric_lift"]:
+				q=points[0]+Vector3(cos(angle)*.25,t*.55 if profile.role=="electric_lift" else .12,sin(angle)*.25);size=.48
 			# Drained energy travels from victim back to caster; healing stays on caster.
 			if profile.role=="drain" and t>=.40:
 				var back:float=clampf((t-.40)*2.0-f*.22,0.0,1.0)
@@ -2611,7 +2721,7 @@ func _process(dt:float):
 	elif run.charge_phase=="gather":pet_pose.position.y=.03+.04*sin(elapsed*12.0)
 	if attack_time>0.0:
 		var phase=sin(PI*attack_time/maxf(.01,player_cast_duration))
-		var lunge:float=.40 if player_cast_mode in ["contact","electric_contact"] else .13 if player_cast_mode=="lash" else -.08
+		var lunge:float=.40 if player_cast_mode in ["contact","electric_contact","electric_fist","electric_fang","electric_spark","electric_dash"] else .13 if player_cast_mode=="lash" else -.08
 		pet_pose.position+=pet.basis.inverse()*attack_direction*phase*lunge
 		attack_fx.visible=player_impact_delay<=0.0;attack_fx.scale=Vector3(1.1-phase*.42,.13,1.1-phase*.42)
 	else:attack_fx.hide()
