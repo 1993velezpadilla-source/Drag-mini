@@ -82,8 +82,9 @@ jobs:
           grep -F 'KINDRIA_V13_CONFIRMED_MATERIAL_PASS' /tmp/effekseer-review/dungeon-probe.log
           grep -F 'KINDRIA_V13_RESIDUE_DAMAGE_CELLS_PASS' /tmp/effekseer-review/dungeon-probe.log
           grep -F 'KINDRIA_V13_LEGACY_STAGE_PASS 589' /tmp/effekseer-review/dungeon-probe.log
-          grep -F 'KINDRIA_V14_DIRECTION_PASS 136' /tmp/effekseer-review/dungeon-probe.log
+          grep -F 'KINDRIA_V14_DIRECTION_PASS 266' /tmp/effekseer-review/dungeon-probe.log
           grep -F 'KINDRIA_V14_NATURE_MATERIAL_PASS 88' /tmp/effekseer-review/dungeon-probe.log
+          grep -F 'KINDRIA_V14_COMBAT_MOTION_PASS 130' /tmp/effekseer-review/dungeon-probe.log
           ! grep -E 'SCRIPT ERROR|Shader compilation failed' /tmp/effekseer-review/dungeon-probe.log
       - uses: actions/upload-artifact@v4
         if: always()

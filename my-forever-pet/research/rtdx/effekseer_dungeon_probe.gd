@@ -874,14 +874,14 @@ func run()->void:
 		var key:String=str(fingerprint)
 		assert(not motion_fingerprints.has(key),"duplicate geometry "+role)
 		motion_fingerprints[key]=role
-	assert(motion_fingerprints.size()==136)
+	assert(motion_fingerprints.size()==266)
 	for move_id in catalog:
 		var intensity:float=field.attack_visual_intensity(move_id)
 		assert(intensity>=.66 and intensity<=1.34,move_id)
 	assert(field.attack_visual_intensity("eos_188")<field.attack_visual_intensity("eos_064"))
 	assert(field.attack_visual_intensity("eos_308")<field.attack_visual_intensity("eos_240"))
 	assert(field.attack_visual_intensity("eos_262")<field.attack_visual_intensity("eos_157"))
-	print("KINDRIA_V14_DIRECTION_PASS 136")
+	print("KINDRIA_V14_DIRECTION_PASS 266")
 	# Capture paired actual material finishes, not concept art, for visual review.
 	var review_moves:Dictionary={"eos_135":"grass","eos_076":"grass","eos_462":"ice","eos_270":"ice","eos_008":"ground","eos_118":"ground","eos_028":"rock","eos_453":"rock","eos_200":"poison","eos_280":"poison"}
 	for move_id in review_moves:
@@ -897,6 +897,24 @@ func run()->void:
 		assert(root.get_texture().get_image().save_png("/tmp/effekseer-review/v14-finish-"+move_id+".png")==OK)
 	for particle in field.combat_particles:particle.hide()
 	print("KINDRIA_V14_NATURE_MATERIAL_PASS 88")
+	# Paired direct-contact and supernatural attacks: capture three distinct
+	# points through the finish while preserving their existing contact emblems.
+	var v14_combat_pairs:Dictionary={"eos_092":"fight_lowkick","eos_206":"fight_highkick","eos_036":"air_cutter","eos_353":"air_blast","eos_108":"psi_wave","eos_109":"psi_psychic","eos_126":"ghost_punch","eos_476":"ghost_claw","eos_063":"dark_bite","eos_062":"dark_crunch"}
+	for move_id in v14_combat_pairs:
+		assert(catalog.has(move_id),move_id)
+		var p:Dictionary=field.combat_profile(move_id)
+		assert(str(p.role)==str(v14_combat_pairs[move_id]),move_id)
+		assert(Field.V14_ATTACK_DIRECTION.has(str(p.role)),move_id)
+		var burst:Dictionary={"id":move_id,"profile":p,"points":[special_source,bite_position],"tiles":[field.pos(target)],"results":{target:{"damage":8,"hits":1}}}
+		for moment in [.12,.34,.58]:
+			for particle in field.combat_particles:particle.hide()
+			var phase:float=lerpf(float(p.impact),1.0,float(moment))
+			var used:int=field.element_finish_fx(burst,phase,0)
+			assert(used>0 and used<=Field.FX_PARTICLE_CAP,move_id)
+			await frames()
+			assert(root.get_texture().get_image().save_png("/tmp/effekseer-review/v14-contact-"+move_id+"-"+str(roundi(float(moment)*100.0))+".png")==OK)
+	for particle in field.combat_particles:particle.hide()
+	print("KINDRIA_V14_COMBAT_MOTION_PASS 130")
 	var plan:Array=[
 		{"stage":"ally_invoke","anchor":"source","start":0.0,"end":.15,"enabled":true},
 		{"stage":"enemy_invoke","anchor":"source","start":0.0,"end":.15,"enabled":true},
