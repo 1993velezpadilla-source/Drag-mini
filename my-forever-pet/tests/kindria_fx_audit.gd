@@ -239,6 +239,15 @@ func run()->void:
 			last=progress
 		if absf(last-1.0)>.001:errors.append("travel tail incomplete "+str(row.id))
 	print("KINDRIA_TRAVEL_IMPACT_AUDIT 468")
+	# World launch sockets and actual target endpoints, including self-casts.
+	var route:Array=field.combat_waypoints(Vector2i.ZERO,Vector2i(3,0),[Vector2i.ZERO,Vector2i(1,0),Vector2i(1,0)],.66,.8)
+	if route.size()!=3 or not route[0].is_equal_approx(Vector3(0,.66,0)) or not route[-1].is_equal_approx(Vector3(4.2,.8,0)):errors.append("world socket path")
+	var uneven:Array=[Vector3.ZERO,Vector3.RIGHT,Vector3.RIGHT*4.0]
+	if not field.combat_path_sample(uneven,.5).is_equal_approx(Vector3.RIGHT*2.0):errors.append("distance weighted travel")
+	var self_path:Array=field.combat_waypoints(Vector2i.ZERO,Vector2i.ZERO,[Vector2i.ZERO],.13,.13)
+	if self_path.size()!=2 or not field.combat_path_sample(self_path,.5).is_equal_approx(Vector3(0,.13,0)):errors.append("self cast anchor")
+	if absf(field.combat_socket_height("head",1.45,.13)-1.087)>.001 or absf(field.combat_socket_height("ground",1.45,.13)-.13)>.001:errors.append("scaled socket height")
+	print("KINDRIA_WORLD_SOCKET_PASS")
 	# Exercise more frames than the cache cap, then verify hot hits and exact normalization.
 	for row in reports.slice(0,40):
 		for frame in range(Field.FX_FRAME_COUNT):field.combat_animated_texture(str(row.id),frame)

@@ -4657,6 +4657,46 @@ func play_combat_sound(id:String,phase:String,at:Vector3)->void:
 	fx_audio_counter[key]=variant
 	var player_audio:=fx_audio[fx_audio_cursor];fx_audio_cursor=posmod(fx_audio_cursor+1,fx_audio.size())
 	player_audio.stop();player_audio.position=at;player_audio.stream=combat_sound(id,phase,variant);player_audio.play()
+# Tile anchors remain deterministic; sprite scale and hover offset locate the
+# launch/impact socket without moving logical combat or collision tiles.
+func combat_socket_height(socket:String,scale:float=1.0,rise:float=0.0)->float:
+	if socket=="ground":return .13
+	return (.66 if socket=="head" else .45)*maxf(.1,scale)+maxf(0.0,rise)
+
+func combat_actor_socket(actor:Node3D,socket:String)->float:
+	if not is_instance_valid(actor):return combat_socket_height(socket)
+	var scale:float=float(actor.get_meta("enemy_size_multiplier",1.0))
+	var sprite:=actor.get_node_or_null("EnemyPixel") as Sprite3D
+	var rise:float=maxf(0.0,sprite.position.y-.54*scale) if sprite!=null else 0.0
+	return combat_socket_height(socket,scale,rise)
+
+func combat_target_actor(cell:Vector2i)->Node3D:
+	if run==null:return null
+	if cell==run.player:return disguise_actor if is_instance_valid(disguise_actor) else pet_pose
+	for enemy in run.enemies:
+		if enemy.pos==cell:
+			var actor=actor_nodes.get("enemy:"+str(enemy.get("uid",-1)))
+			if is_instance_valid(actor) and not actor.is_queued_for_deletion():return actor
+	# Defeated actors may still await impact; their logical target is retained.
+	for key in actor_nodes:
+		if not str(key).begins_with("enemy:"):continue
+		var actor=actor_nodes[key]
+		if is_instance_valid(actor) and not actor.is_queued_for_deletion() and actor.get_meta("target",Vector3.INF)==pos(cell):return actor
+	return null
+
+func combat_waypoints(source:Vector2i,target:Vector2i,path:Array,source_height:float,target_height:float)->Array:
+	var points:Array=[pos(source)+Vector3.UP*source_height]
+	var cells:Array=[source]
+	for cell in path:
+		if cell is Vector2i and cell!=cells[-1]:cells.append(cell)
+	if cells[-1]!=target:cells.append(target)
+	if cells.size()==1:
+		points.append(pos(target)+Vector3.UP*target_height)
+	else:
+		for i in range(1,cells.size()):
+			points.append(pos(cells[i])+Vector3.UP*lerpf(source_height,target_height,float(i)/float(cells.size()-1)))
+	return points
+
 func combat_fx_spawn(event:Dictionary)->void:
 	if not is_instance_valid(combat_fx_root):return
 	var id:String=str(event.get("fx","basic_strike"))
@@ -4664,10 +4704,16 @@ func combat_fx_spawn(event:Dictionary)->void:
 	var profile:=combat_profile(id)
 	var source:Vector2i=event.get("from",Vector2i.ZERO)
 	var target:Vector2i=event.get("to",source)
-	var height:float=.13 if profile.socket=="ground" else .66 if profile.socket=="head" else .45
-	var waypoints:Array=[pos(source)+Vector3(0,height,0)]
-	for cell in event.get("path",[target]):waypoints.append(pos(cell)+Vector3(0,.45,0))
-	if waypoints.size()<2:waypoints.append(pos(target)+Vector3(0,.45,0))
+	var source_actor:Node3D=null
+	if event.has("uid"):
+		var candidate=actor_nodes.get("enemy:"+str(event.uid))
+		if is_instance_valid(candidate):source_actor=candidate
+	else:
+		source_actor=disguise_actor if is_instance_valid(disguise_actor) else pet_pose
+	var height:float=combat_actor_socket(source_actor,str(profile.socket))
+	var target_height:float=combat_actor_socket(combat_target_actor(target),"center")
+	if source==target and str(profile.socket)=="ground":target_height=height
+	var waypoints:Array=combat_waypoints(source,target,event.get("path",[target]),height,target_height)
 	var tiles:Array=[]
 	for cell in event.get("tiles",[target]):tiles.append(pos(cell)+Vector3(0,.12,0))
 	if tiles.is_empty():tiles.append(pos(target)+Vector3(0,.12,0))
@@ -4685,10 +4731,20 @@ func combat_path_sample(points:Array,t:float)->Vector3:
 	if points.is_empty():return Vector3.ZERO
 	if points.size()==1 or t<=0.0:return points[0]
 	if t>=1.0:return points[-1]
-	var index:float=clampf(t,0.0,1.0)*float(points.size()-1)
-	var a:int=mini(floori(index),points.size()-2)
-	var start:Vector3=points[a]
-	return start.lerp(points[a+1],index-float(a))
+	# Distance weighting prevents short/long segments from moving at different speeds.
+	var length:float=0.0
+	for i in range(1,points.size()):
+		var a:Vector3=points[i-1]
+		length+=a.distance_to(points[i])
+	if length<.00001:return points[-1]
+	var remaining:float=clampf(t,0.0,1.0)*length
+	for i in range(1,points.size()):
+		var a:Vector3=points[i-1]
+		var distance:float=a.distance_to(points[i])
+		if distance<.00001:continue
+		if remaining<=distance:return a.lerp(points[i],remaining/distance)
+		remaining-=distance
+	return points[-1]
 # World-space anatomy of a lash: one continuous extending/retracting stem, not
 # repeated thumbnail sprites. Leaves and tendrils follow the actual curve.
 func vine_world_lash(points:Array,t:float,profile:Dictionary,id:String)->void:
