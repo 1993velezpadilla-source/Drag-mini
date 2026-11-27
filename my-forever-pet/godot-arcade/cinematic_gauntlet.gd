@@ -536,6 +536,24 @@ func run_checks()->void:
 		checks+=1
 	if distortion_families.size()!=6:failures.append("distortion family coverage")
 	checks+=1
+	# Targeted visual remasters selected from actual Godot art inspection.
+	if Dungeon.VISUAL_REMASTER_MOVES.size()!=8:failures.append("visual remaster coverage")
+	for id in Dungeon.VISUAL_REMASTER_MOVES:
+		var peak_pixels:int=0
+		var signatures:Dictionary={}
+		for frame in range(Dungeon.FX_FRAME_COUNT):
+			var remaster:=view.combat_frame_image(id,frame)
+			var occupied:int=0
+			for y in range(remaster.get_height()):
+				for x in range(remaster.get_width()):
+					if remaster.get_pixel(x,y).a>32.0/255.0:occupied+=1
+			peak_pixels=maxi(peak_pixels,occupied)
+			signatures[remaster.get_data().hex_encode().sha256_text()]=true
+			if occupied==0:failures.append("empty remastered frame "+id)
+			checks+=1
+		if peak_pixels<170 or signatures.size()<6:failures.append("insufficient remaster silhouette "+id)
+		print("KINDRIA_REMASTER ",id," peak_pixels=",peak_pixels," distinct_frames=",signatures.size())
+		checks+=1
 	# Directed contact art is independently visible and kick poses are animated.
 	for id in Dungeon.CONTACT_ICON_KIND:
 		var kind:String=view.directed_contact_kind(id,str(view.combat_profile(id).role))
