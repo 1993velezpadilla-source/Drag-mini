@@ -4589,6 +4589,54 @@ func status_sprite(im:Image,role:String,frame:int)->void:
 			else:
 				fx_disc(im,c,4.0+sin(t*PI)*7.0,light);fight_burst(im,c,10.0+sin(t*PI)*11.0,12,t,light,gold)
 
+# Fairy magic has its own material vocabulary: iridescent stars, prism rays,
+# crescents and luminous dust rather than recolored generic physical sparks.
+func fairy_star(im:Image,at:Vector2,r:float,tint:Color)->void:
+	fx_line(im,at-Vector2(r,0),at+Vector2(r,0),.8,tint)
+	fx_line(im,at-Vector2(0,r),at+Vector2(0,r),.8,tint)
+	fx_disc(im,at,1.4,Color("#fffbe8"))
+
+func fairy_sprite(im:Image,role:String,frame:int)->void:
+	var t:float=float(frame)/11.0
+	var c:=Vector2(24,24)
+	var pink:=Color("#ffacde");var violet:=Color("#a78af5");var gold:=Color("#ffe5a4")
+	var pearl:=Color("#fff7ef")
+	match role:
+		"fairy_glimmer":
+			var q:=Vector2(8+30*t,24)
+			for i in range(5):
+				fairy_star(im,q-Vector2(float(i)*5,sin(t*TAU+i)*4),maxf(1.5,5.5-float(i)),pink if i%2==0 else gold)
+		"fairy_halo","fairy_dust":
+			for i in range(9):
+				var a:float=float(i)*TAU/9.0+t*3.0
+				var radius:float=8.0+12.0*sin(t*PI)
+				var q:=c+Vector2(cos(a),sin(a))*radius
+				fairy_star(im,q,2.5+float(i%3),gold if i%2==0 else pink)
+			if role=="fairy_halo":fx_disc(im,c,14.0+sin(t*PI)*4.0,violet,12.0+sin(t*PI)*4.0)
+		"fairy_prism","fairy_verdict":
+			var q:=Vector2(11+24*t,24) if role=="fairy_prism" else c
+			for i in range(6 if role=="fairy_prism" else 8):
+				var a:float=float(i)*TAU/(6.0 if role=="fairy_prism" else 8.0)+t
+				var tip:=q+Vector2(cos(a),sin(a))*(7.0+12.0*sin(t*PI))
+				fx_line(im,q,tip,2.6,violet)
+				fx_line(im,q,tip,.9,pearl)
+				fairy_star(im,tip,2.5,gold)
+			fx_disc(im,q,3.5,pink)
+		"fairy_kick","fairy_blade":
+			var a:float=-PI*.8+t*PI
+			fight_arc(im,c,15.0,a,1.8,pink,violet,3.2)
+			var q:=c+Vector2(cos(a+1.5),sin(a+1.5))*14.0
+			fairy_star(im,q,5.5,gold)
+			if role=="fairy_kick":
+				fx_line(im,q-Vector2(6,5),q+Vector2(2,3),3.1,violet)
+				fx_line(im,q+Vector2(2,3),q+Vector2(7,3),2.1,pearl)
+		"fairy_comet":
+			var q:=Vector2(8+30*t,8+26*t)
+			fx_line(im,q-Vector2(12,11),q,4.0,violet)
+			fx_line(im,q-Vector2(10,9),q,2.0,pink)
+			fairy_star(im,q,7.0,gold)
+		_:fairy_star(im,c,8.0,pearl)
+
 func combat_frame_image(id:String,frame:int)->Image:
 	var style:Array=combat_style(id)
 	var mode:String=combat_animation_mode(id,str(style[0]))
@@ -4628,6 +4676,13 @@ func combat_frame_image(id:String,frame:int)->Image:
 		dark_sprite(im,role,frame);return im
 	if role.begins_with("steel_"):
 		steel_sprite(im,role,frame);return im
+	if role.begins_with("fairy_"):
+		fairy_sprite(im,role,frame);return im
+	if role=="neutral_echo":
+		for i in range(3):
+			var radius:float=4.0+fposmod(t+float(i)/3.0,1.0)*17.0
+			fx_disc(im,Vector2(24,24),radius,light,maxf(0.0,radius-2.0))
+		return im
 	if role.begins_with("normal_"):
 		normal_contact_sprite(im,role,frame);return im
 	if role.begins_with("neutral_"):
@@ -4767,6 +4822,66 @@ func build_combat_profile(id:String)->Dictionary:
 		if Rules.MOVE_LIBRARY[id].has("drain_fraction"):role="drain"
 		elif Rules.MOVE_LIBRARY[id].has("heal_fraction"):role="heal"
 	match id:
+		"lib_normal_1":role="normal_tackle"
+		"lib_normal_2":role="neutral_echo"
+		"lib_normal_3":role="neutral_beam"
+		"lib_fire_1":role="fire_ember"
+		"lib_fire_2":role="fire_breath"
+		"lib_fire_3":role="fire_vortex"
+		"lib_water_1":role="water_bubble"
+		"lib_water_2":role="water_bubblebeam"
+		"lib_water_3":role="water_surf"
+		"lib_electric_1":role="electric_fang"
+		"lib_electric_2":role="electric_arc"
+		"lib_electric_3":role="electric_room"
+		"lib_grass_1":role="grass_whip"
+		"lib_grass_2":role="grass_razor"
+		"lib_grass_3":role="grass_roots"
+		"lib_ice_1":role="ice_shard"
+		"lib_ice_2":role="ice_beam"
+		"lib_ice_3":role="ice_wind"
+		"lib_fighting_1":role="fight_palm"
+		"lib_fighting_2":role="fight_roundkick"
+		"lib_fighting_3":role="fight_focus"
+		"lib_poison_1":role="poison_gunk"
+		"lib_poison_2":role="poison_acid"
+		"lib_poison_3":role="poison_sludge"
+		"lib_ground_1":role="earth_fissure"
+		"lib_ground_2":role="earth_rush"
+		"lib_ground_3":role="earth_shot"
+		"lib_flying_1":role="air_cutter"
+		"lib_flying_2":role="air_blast"
+		"lib_flying_3":role="air_bounce"
+		"lib_psychic_1":role="psi_beam"
+		"lib_psychic_2":role="psi_wave"
+		"lib_psychic_3":role="psi_luster"
+		"lib_bug_1":role="bug_string"
+		"lib_bug_2":role="bug_turn"
+		"lib_bug_3":role="bug_signal"
+		"lib_rock_1":role="rock_throw"
+		"lib_rock_2":role="rock_roll"
+		"lib_rock_3":role="rock_blast"
+		"lib_ghost_1":role="ghost_claw"
+		"lib_ghost_2":role="ghost_force"
+		"lib_ghost_3":role="ghost_ball"
+		"lib_dragon_1":role="dragon_claw"
+		"lib_dragon_2":role="dragon_breath"
+		"lib_dragon_3":role="dragon_rush"
+		"lib_dark_1":role="dark_bite"
+		"lib_dark_2":role="dark_void"
+		"lib_dark_3":role="dark_pulse"
+		"lib_steel_1":role="steel_claw"
+		"lib_steel_2":role="steel_bullet"
+		"lib_steel_3":role="steel_meteor"
+		"lib_fairy_1":role="fairy_glimmer"
+		"lib_fairy_2":role="fairy_halo"
+		"lib_fairy_3":role="fairy_prism"
+		"star_kick":role="fairy_kick"
+		"alt_starlit_pup":role="fairy_glimmer"
+		"lunar_dust":role="fairy_dust"
+		"comet_drop":role="fairy_comet"
+		"celestial_verdict":role="fairy_verdict"
+		"alt_celestial_guardian":role="fairy_blade"
 		"eos_064":role="electric_sky"
 		"eos_129":role="electric_burst"
 		"eos_188":role="electric_short"
