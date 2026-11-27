@@ -4219,12 +4219,14 @@ func bug_sprite(im:Image,role:String,frame:int)->void:
 				fight_arc(im,q,8.0,-PI*.5,PI,Color("#f1ffff"),Color("#7eb0af"),2.4)
 				fx_disc(im,q+Vector2(2,15),1.5,silk)
 		"bug_signal":
-			for i in range(3):
-				var prev:=Vector2(2,20+float(i)*4)
-				for j in range(1,15):
-					var f:float=float(j)/14.0
-					var q:=Vector2(2+43*f,24+sin(f*TAU*2.0+t*TAU+float(i)*2.1)*6.0)
-					fx_line(im,prev,q,3.0,[Color("#fa829d"),Color("#7edbe4"),light][i]);prev=q
+			# Original blue tapered ray with a white leading glint, based on the DX still.
+			for j in range(36):
+				var f:float=float(j)/35.0
+				var q:=Vector2(4.0+f*35.0,24.0)
+				fx_disc(im,q,.4+f*3.1,Color("#2268e8",.72))
+				fx_disc(im,q,.2+f*1.55,Color("#6bd9ff"))
+			fx_line(im,Vector2(33,24),Vector2(45,24),.9,Color.WHITE)
+			fx_line(im,Vector2(39,18),Vector2(39,30),.9,Color.WHITE)
 		"bug_twin","bug_pin","bug_horn":
 			var count:int=2 if role=="bug_twin" else 5 if role=="bug_pin" else 1
 			for i in range(count):
@@ -4262,10 +4264,15 @@ func bug_sprite(im:Image,role:String,frame:int)->void:
 			var q:=c+Vector2(cos(t*TAU),sin(t*TAU))*14.0
 			bug_wing(im,q,t*TAU+PI*.5,6.0,light,dark)
 		"bug_buzz":
-			for i in range(4):
-				var r:float=5.0+float(i)*5.0+sin(t*TAU+float(i))*2.0
-				fx_disc(im,c,r,Color(light,.78),r-1.4)
-			bug_wing(im,c,t*TAU,7.0,silk,dark)
+			for i in range(3):
+				var radius:float=5.0+float(i)*6.0+t*2.0
+				fx_disc(im,c,radius,Color("#ffbf35",.78),radius-1.4)
+			for sign_value in [-1.0,1.0]:
+				var a:=c+Vector2(sign_value*7,-2)
+				var z:=c+Vector2(sign_value*21,-5)
+				fx_line(im,a,c+Vector2(sign_value*14,-5),2.4,Color("#ffe656"))
+				fx_line(im,c+Vector2(sign_value*14,-5),c+Vector2(sign_value*12,-1),2.0,Color("#ffe656"))
+				fx_line(im,c+Vector2(sign_value*12,-1),z,2.0,Color("#ffe656"))
 
 # Original mental energy, spatial and support glyphs; no source art is used.
 func psi_ring(im:Image,c:Vector2,r:float,light:Color,dark:Color)->void:
@@ -6755,6 +6762,11 @@ func combat_fx_update(dt:float)->void:
 				latest_hit=latest_player_impact(latest_hit,burst)
 		if t>=1.0:
 			combat_bursts.remove_at(k);continue
+		# Evidence-backed stages replace (rather than stack over) unrelated
+		# legacy sprite/ribbon/halo families for these two researched moves.
+		if str(burst.id) in ["eos_530","eos_114"]:
+			used=rtdx_observed_stage_fx(burst,t,used)
+			continue
 		cinematic_element_surface(burst,t)
 		cinematic_cast_enhancement(burst,t)
 		ultra_attack_ribbons(burst,t)
@@ -8459,8 +8471,47 @@ func reserve_confirmed_contacts(dt:float,used:int)->int:
 			used=priority_contact_fx(burst,t,used,secondary)
 	return used
 
+# V15: visible shapes grounded in linked DX stills. Animation timing and
+# exact particle count are Kindria approximations pending temporal evidence.
+func rtdx_observed_stage_fx(burst:Dictionary,t:float,used:int)->int:
+	var points:Array=burst.get("points",[])
+	if points.is_empty():return used
+	var source:Vector3=points[0]
+	var target:Vector3=points[-1]
+	var peak:float=clampf(float(burst.profile.impact),.01,.99)
+	var progress:float=clampf(t/peak,0.0,1.0)
+	var after:float=clampf((t-peak)/(1.0-peak),0.0,1.0)
+	var id:String=str(burst.id)
+	if id=="eos_530":
+		var warm:=Color("#ffc33b")
+		var gold:=Color("#ff9c24")
+		var fade:float=clampf((1.0-after)*1.2,0.0,1.0)*minf(1.0,t*18.0)
+		for i in range(3):
+			var radius:float=.85+float(i)*.76+progress*.30+after*.28
+			used=environment_particle(used,source,"shock_ring",warm,gold,radius,fade*(1.0-float(i)*.14))
+		var side:=Vector3.RIGHT
+		if is_instance_valid(camera):side=camera.global_transform.basis.x.normalized()
+		for sign_value in [-1.0,1.0]:
+			used=environment_particle(used,source+side*float(sign_value)*(.42+progress*.20)+Vector3.UP*.16,"lightning",Color("#ffe94f"),gold,.64,fade)
+	elif id=="eos_114" and t<peak:
+		var head:Vector3=combat_path_sample(points,progress)
+		var travel:Vector3=head-source
+		# Continuous narrow blue core with a tapered tail, instead of rainbow strands.
+		for i in range(12):
+			var f:float=float(i)/11.0
+			var q:Vector3=head-travel*f*.68
+			var width:float=lerpf(.32,.08,f)
+			used=environment_particle(used,q,"drop",Color("#6ad9ff"),Color("#2568ec"),width,1.0-f*.45)
+		used=environment_particle(used,head,"impact_star",Color.WHITE,Color("#75baff"),.54,minf(1.0,t*20.0))
+	if t>=peak and after<.48:
+		var confirmed:Variant=confirmed_stage_target(burst,true)
+		if confirmed!=null:
+			used=environment_particle(used,confirmed,"impact_star",Color("#fff8d7") if id=="eos_530" else Color.WHITE,Color("#ffb535") if id=="eos_530" else Color("#7abaff"),.49,(1.0-after/.48)*.85)
+	return used
+
 func element_finish_fx(burst:Dictionary,t:float,used:int,contacts_reserved:bool=false)->int:
 	var id:String=str(burst.id)
+	if id in ["eos_530","eos_114"]:return rtdx_observed_stage_fx(burst,t,used)
 	var profile:Dictionary=burst.profile
 	var style:Array=combat_style(id)
 	var light:=Color(str(style[1]));var dark:=Color(str(style[2]))

@@ -940,6 +940,27 @@ func run()->void:
 		assert(root.get_texture().get_image().save_png("/tmp/effekseer-review/v14-final-"+move_id+".png")==OK)
 	for particle in field.combat_particles:particle.hide()
 	print("KINDRIA_V14_FINAL_NATURE_PASS 205")
+	# V15 screenshot-grounded geometry: source rings and blue moving projectile.
+	for move_id in ["eos_530","eos_114"]:
+		var observed_profile:Dictionary=field.combat_profile(move_id)
+		var observed_peak:float=float(observed_profile.impact)
+		var observed_burst:Dictionary={"id":move_id,"profile":observed_profile,"points":[special_source,bite_position],"results":{target:{"damage":8}}}
+		for particle in field.combat_particles:particle.hide()
+		var observed_count:int=field.rtdx_observed_stage_fx(observed_burst,observed_peak*.55,0)
+		assert(observed_count==5 if move_id=="eos_530" else observed_count==13)
+		if move_id=="eos_530":
+			for i in range(3):
+				assert(field.combat_particles[i].position.is_equal_approx(special_source))
+		else:
+			assert(field.combat_particles[12].position.is_equal_approx(special_source.lerp(bite_position,.55)))
+		await frames()
+		assert(root.get_texture().get_image().save_png("/tmp/effekseer-review/v15-observed-"+move_id+".png")==OK)
+		observed_burst.results={target:{"misses":1}}
+		var miss_count:int=field.rtdx_observed_stage_fx(observed_burst,observed_peak+.02,0)
+		assert(miss_count==5 if move_id=="eos_530" else miss_count==0)
+		assert(field.rtdx_observed_stage_fx(observed_burst,observed_peak*.55,Field.FX_PARTICLE_CAP)==Field.FX_PARTICLE_CAP)
+	for particle in field.combat_particles:particle.hide()
+	print("KINDRIA_V15_OBSERVED_GEOMETRY_PASS 2")
 	var plan:Array=[
 		{"stage":"ally_invoke","anchor":"source","start":0.0,"end":.15,"enabled":true},
 		{"stage":"enemy_invoke","anchor":"source","start":0.0,"end":.15,"enabled":true},
