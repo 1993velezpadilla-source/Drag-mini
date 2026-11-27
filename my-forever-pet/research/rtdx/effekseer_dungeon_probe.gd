@@ -883,9 +883,12 @@ func run()->void:
 	assert(field.attack_visual_intensity("eos_262")<field.attack_visual_intensity("eos_157"))
 	print("KINDRIA_V14_DIRECTION_PASS 136")
 	# Capture paired actual material finishes, not concept art, for visual review.
-	for move_id in ["eos_076","eos_079","eos_061","eos_059","eos_091","eos_089","eos_088","eos_444","eos_124","eos_482"]:
-		if not catalog.has(move_id):continue
+	var review_moves:Dictionary={"eos_135":"grass","eos_076":"grass","eos_462":"ice","eos_270":"ice","eos_008":"ground","eos_118":"ground","eos_028":"rock","eos_453":"rock","eos_200":"poison","eos_280":"poison"}
+	for move_id in review_moves:
+		assert(catalog.has(move_id),move_id)
 		var profile:Dictionary=field.combat_profile(move_id)
+		assert(str(profile.element)==str(review_moves[move_id]),move_id)
+		assert(Field.V14_ATTACK_DIRECTION.has(str(profile.role)),move_id)
 		for particle in field.combat_particles:particle.hide()
 		var style:Array=field.combat_style(move_id)
 		var used:int=field.cinematic_impact_layers(move_id,profile,special_source,bite_position,.32,0,Color(str(style[1])),Color(str(style[2])),catalog[move_id].category=="status")
