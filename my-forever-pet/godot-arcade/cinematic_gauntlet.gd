@@ -482,6 +482,32 @@ func run_checks()->void:
 				checks+=1
 	if view.cinematic_light_slot([],2,1.0)!=0 or view.cinematic_light_slot([1.0],2,2.0)!=1 or view.cinematic_light_slot([4.8,2.9],2,6.2)!=1 or view.cinematic_light_slot([4.8,2.9],2,1.9)!=-1 or view.cinematic_light_slot([2.5],1,4.2)!=0 or view.cinematic_light_slot([],0,6.0)!=-1:failures.append("light pool priority")
 	checks+=6
+	# Local environmental response must expire and never grow stronger on
+	# empty terrain than on a confirmed hit.
+	var environmental_signatures:Dictionary={}
+	if Dungeon.ELEMENT_ENVIRONMENT_RESPONSE.size()!=18:failures.append("environment response coverage")
+	for element in Dungeon.ELEMENT_FINISH_MODE:
+		if not Dungeon.ELEMENT_ENVIRONMENT_RESPONSE.has(element):
+			failures.append("missing environment response "+element)
+			continue
+		var signature:String=str(Dungeon.ELEMENT_ENVIRONMENT_RESPONSE[element])
+		if environmental_signatures.has(signature):failures.append("duplicate environment response "+element)
+		environmental_signatures[signature]=true
+		for step in range(101):
+			var phase:float=float(step)/100.0
+			var response:=view.environmental_response_sample(element,phase)
+			var terrain:=view.environmental_response_sample(element,phase,true)
+			if not response.is_finite() or response.x<1.0 or response.x>3.2 or absf(response.y)>1.0 or response.z<0.0 or response.z>1.0 or response.w<0.0 or response.w>.5:failures.append("environment response bounds "+element)
+			if absf(terrain.y-response.y*.45)>.0001 or absf(terrain.z-response.z*.45)>.0001 or absf(terrain.w-response.w*.45)>.0001:failures.append("terrain response strength "+element)
+			if step==100 and (absf(response.y)+response.z+response.w)>.0001:failures.append("environment response not expired "+element)
+			checks+=1
+	var old_mark:Dictionary={"at":Vector3(1,0,1),"age":.95,"life":1.0,"element":"water","terrain_only":false,"color":Color.BLUE}
+	var live_mark:Dictionary={"at":Vector3(4,0,2),"age":.05,"life":1.0,"element":"flying","terrain_only":false,"color":Color.WHITE}
+	var picked:=view.exterior_response_pick([live_mark,old_mark])
+	if picked.is_empty() or Vector4(picked.pulse).x!=4.0:failures.append("environment impulse priority")
+	old_mark.age=1.0;live_mark.age=1.0
+	if not view.exterior_response_pick([live_mark,old_mark]).is_empty():failures.append("expired exterior impulse")
+	checks+=2
 	# Directed contact art is independently visible and kick poses are animated.
 	for id in Dungeon.CONTACT_ICON_KIND:
 		var kind:String=view.directed_contact_kind(id,str(view.combat_profile(id).role))
