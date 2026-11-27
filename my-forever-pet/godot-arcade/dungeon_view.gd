@@ -14451,9 +14451,77 @@ func combat_environment_audio_sample(kind:String,t:float,p:float,noise:float,bod
 		"vanish":return sin(TAU*(480.0*t+380.0*t*p)+sin(TAU*13.0*t)*1.8)*.28+body*.23
 	return 0.0
 
+# V20.0: master once on cache miss, never in the per-frame mixer.
+const FX_AUDIO_CACHE_CAP:int=192
+const FX_AUDIO_PEAK_LIMIT:float=.78
+const FX_AUDIO_MIX_BUDGET:float=.70
+func combat_audio_master_pcm(bytes:PackedByteArray)->float:
+	var count:int=bytes.size()/2
+	if count<2:return 0.0
+	var peak:float=0.0
+	var previous:float=0.0
+	var filtered:float=0.0
+	for i in range(count):
+		var input:float=float(bytes.decode_s16(i*2))/32767.0
+		# Approximately 18 Hz DC blocker at 22.05 kHz.
+		filtered=input-previous+.995*filtered
+		previous=input
+		var fade:float=minf(1.0,minf(float(i),float(count-1-i))/64.0)
+		var value:float=clampf(filtered*fade,-.95,.95)
+		bytes.encode_s16(i*2,roundi(value*32767.0))
+		peak=maxf(peak,absf(value))
+	var gain:float=minf(1.25,FX_AUDIO_PEAK_LIMIT/maxf(.0001,peak))
+	var final_peak:float=0.0
+	for i in range(count):
+		var pcm:int=roundi(clampf(float(bytes.decode_s16(i*2))*gain,-FX_AUDIO_PEAK_LIMIT*32767.0,FX_AUDIO_PEAK_LIMIT*32767.0))
+		bytes.encode_s16(i*2,pcm)
+		final_peak=maxf(final_peak,float(absi(pcm))/32767.0)
+	return final_peak
+
+func combat_audio_cached(key:String)->AudioStreamWAV:
+	if not fx_audio_cache.has(key):return null
+	var audio:AudioStreamWAV=fx_audio_cache[key]
+	# True LRU: frequently repeated combat effects survive catalog churn.
+	fx_audio_cache.erase(key)
+	fx_audio_cache[key]=audio
+	return audio
+
+func combat_audio_store(key:String,bytes:PackedByteArray,rate:int)->AudioStreamWAV:
+	var peak:float=combat_audio_master_pcm(bytes)
+	var audio:=AudioStreamWAV.new()
+	audio.format=AudioStreamWAV.FORMAT_16_BITS
+	audio.mix_rate=rate
+	audio.stereo=false
+	audio.data=bytes
+	audio.set_meta("combat_pcm_peak",peak)
+	if fx_audio_cache.size()>=FX_AUDIO_CACHE_CAP:fx_audio_cache.erase(fx_audio_cache.keys()[0])
+	fx_audio_cache[key]=audio
+	return audio
+
+# Conservative sum of source peaks, with headroom reserved for critical hits.
+# No compressor pumping, extra buses or changes to music/UI audio.
+func combat_audio_admission_db(peak:float,requested_db:float,occupied:float,priority:int)->float:
+	var ceiling:float=FX_AUDIO_MIX_BUDGET
+	match priority:
+		0:ceiling=.34
+		1:ceiling=.46
+		2:ceiling=.58
+	var available:float=maxf(0.0,ceiling-maxf(0.0,occupied))
+	if available<=.0001:return -80.0
+	return minf(requested_db,linear_to_db(available/maxf(.0001,peak)))
+
+func combat_audio_spatial_profile(priority:int)->Vector2:
+	# X = unit distance, Y = maximum distance. Contact remains readable
+	# from the tactical camera; small atmospheric details stay local.
+	match priority:
+		0:return Vector2(2.6,14.0)
+		1:return Vector2(3.5,20.0)
+		_:return Vector2(4.5,24.0)
+
 func combat_environment_sound(phase:String,variant:int)->AudioStreamWAV:
 	var key:String=phase+":"+str(variant)
-	if fx_audio_cache.has(key):return fx_audio_cache[key]
+	var cached:=combat_audio_cached(key)
+	if cached!=null:return cached
 	var kind:String=phase.trim_prefix("env_")
 	var rng:=RandomNumberGenerator.new()
 	rng.seed=posmod(hash(key),2147483647)
@@ -14471,14 +14539,7 @@ func combat_environment_sound(phase:String,variant:int)->AudioStreamWAV:
 		slow=lerpf(slow,noise,.045)
 		var value:float=combat_environment_audio_sample(kind,t,p,noise,body,slow)*combat_audio_envelope(p,"status")*.72
 		bytes.encode_s16(i*2,roundi(clampf(value,-.95,.95)*32767.0))
-	var audio:=AudioStreamWAV.new()
-	audio.format=AudioStreamWAV.FORMAT_16_BITS
-	audio.mix_rate=rate
-	audio.stereo=false
-	audio.data=bytes
-	if fx_audio_cache.size()>=192:fx_audio_cache.erase(fx_audio_cache.keys()[0])
-	fx_audio_cache[key]=audio
-	return audio
+	return combat_audio_store(key,bytes,rate)
 
 func dispatch_environment_audio(burst:Dictionary)->void:
 	var cues:Array=burst.get("environment_audio",[])
@@ -14563,7 +14624,8 @@ func combat_status_audio_sample(kind:String,t:float,p:float,noise:float,variant:
 
 func combat_status_sound(phase:String,variant:int)->AudioStreamWAV:
 	var key:String=phase+":"+str(variant)
-	if fx_audio_cache.has(key):return fx_audio_cache[key]
+	var cached:=combat_audio_cached(key)
+	if cached!=null:return cached
 	var kind:String=phase.trim_prefix("status_")
 	var rng:=RandomNumberGenerator.new()
 	rng.seed=posmod(hash(key),2147483647)
@@ -14575,18 +14637,12 @@ func combat_status_sound(phase:String,variant:int)->AudioStreamWAV:
 		var p:float=float(i)/maxi(1,count-1)
 		var value:float=combat_status_audio_sample(kind,float(i)/rate,p,rng.randf_range(-1.0,1.0),variant)*combat_audio_envelope(p,"status")*.72
 		bytes.encode_s16(i*2,roundi(clampf(value,-.95,.95)*32767.0))
-	var audio:=AudioStreamWAV.new()
-	audio.format=AudioStreamWAV.FORMAT_16_BITS
-	audio.mix_rate=rate
-	audio.stereo=false
-	audio.data=bytes
-	if fx_audio_cache.size()>=192:fx_audio_cache.erase(fx_audio_cache.keys()[0])
-	fx_audio_cache[key]=audio
-	return audio
+	return combat_audio_store(key,bytes,rate)
 
 func combat_sound(id:String,phase:String,variant:int)->AudioStreamWAV:
 	var key:=id+":"+phase+":"+str(variant)
-	if fx_audio_cache.has(key):return fx_audio_cache[key]
+	var cached:=combat_audio_cached(key)
+	if cached!=null:return cached
 	var profile:=combat_profile(id)
 	var element:String=profile.element
 	var role:String=profile.role
@@ -14695,10 +14751,7 @@ func combat_sound(id:String,phase:String,variant:int)->AudioStreamWAV:
 		var signal_value:float=wave*envelope*.85
 		var pcm:int=roundi(clampf(signal_value/(1.0+absf(signal_value)*.35),-.95,.95)*32767.0)
 		data.encode_s16(i*2,pcm)
-	var audio:=AudioStreamWAV.new();audio.format=AudioStreamWAV.FORMAT_16_BITS;audio.mix_rate=rate;audio.stereo=false;audio.data=data
-	if fx_audio_cache.size()>=192:fx_audio_cache.erase(fx_audio_cache.keys()[0])
-	fx_audio_cache[key]=audio
-	return audio
+	return combat_audio_store(key,data,rate)
 # Playback-only mix: preserve the authored PCM and cache. Critical contacts
 # have priority over launches and misses when all twelve voices are occupied.
 func combat_audio_mix(power:int,phase:String,critical:bool=false)->Vector3:
@@ -14748,12 +14801,25 @@ func play_combat_sound(id:String,phase:String,at:Vector3,critical:bool=false,age
 	# A late frame skips elapsed audio instead of replaying an old transient.
 	var offset:float=maxf(0.0,age)*mix.y
 	if offset>=stream.get_length()-.008:return
+	var occupied:float=0.0
+	for i in range(fx_audio.size()):
+		if i==slot or not fx_audio[i].playing:continue
+		var other:AudioStreamPlayer3D=fx_audio[i]
+		var other_peak:float=float(other.get_meta("combat_pcm_peak",FX_AUDIO_PEAK_LIMIT))
+		occupied+=other_peak*db_to_linear(other.volume_db)
+	var peak:float=float(stream.get_meta("combat_pcm_peak",FX_AUDIO_PEAK_LIMIT))
+	var admitted_db:float=combat_audio_admission_db(peak,mix.x,occupied,int(mix.z))
+	if admitted_db< -40.0:return
 	fx_audio_counter[key]=variant
 	var player_audio:=fx_audio[slot];fx_audio_cursor=posmod(slot+1,fx_audio.size())
 	player_audio.stop()
 	player_audio.position=at
 	player_audio.stream=stream
-	player_audio.volume_db=mix.x
+	player_audio.volume_db=admitted_db
+	player_audio.set_meta("combat_pcm_peak",peak)
+	var spatial:Vector2=combat_audio_spatial_profile(int(mix.z))
+	player_audio.unit_size=spatial.x
+	player_audio.max_distance=spatial.y
 	player_audio.pitch_scale=mix.y
 	player_audio.set_meta("combat_audio_priority",int(mix.z))
 	player_audio.play(offset)
