@@ -2986,6 +2986,54 @@ func combat_pixel_texture(mode:String,light:Color,dark:Color)->ImageTexture:
 				"status_exchange":
 					fill=absf(v.y+3.0)<1.1 and absf(v.x)<6.5 or absf(v.y-3.0)<1.1 and absf(v.x)<6.5 or absf(v.y+3.0+absf(v.x-5.0))<1.1 and v.x>2.0 or absf(v.y-3.0-absf(v.x+5.0))<1.1 and v.x< -2.0
 					inner=fill and absf(v.x)<4.0
+				"projectile_spectral_orb","projectile_mist_orb":
+					fill=r<6.5+sin(atan2(v.y,v.x)*5.0)*.85;inner=r<3.7 and (v.x+v.y<1.5 or mode=="projectile_spectral_orb")
+				"projectile_charged_orb","projectile_weather_orb":
+					fill=r<5.0 or (r<7.3 and absf(sin(atan2(v.y,v.x)*4.0))*r<1.2)
+					inner=r<3.1
+				"projectile_seed_orb","projectile_seed_train","projectile_seed_bomb":
+					fill=absf(v.x)*.85+absf(v.y-v.x*.28)*1.15<5.9
+					inner=fill and absf(v.y-v.x*.28)<1.1
+				"projectile_force_orb","projectile_aura_orb","projectile_magnet_orb":
+					fill=r<6.7 and (r>4.6 or absf(v.x)+absf(v.y)<4.4)
+					inner=r<2.8 or (fill and v.x+v.y< -3)
+				"projectile_aurora_beam","projectile_frost_beam","projectile_prism_beam","projectile_signal_beam","projectile_arc_beam","projectile_metal_beam","projectile_water_jet":
+					var a:float=sin(v.x*.8)*1.4 if mode=="projectile_arc_beam" else 0.0
+					var width:float=2.7 if mode=="projectile_water_jet" else 1.8
+					fill=absf(v.y-a)<width+.6*cos(v.x*.8) and absf(v.x)<7.3
+					inner=fill and absf(v.y-a)<.85
+					if mode=="projectile_frost_beam":fill=fill or (absf(v.x)<6.0 and absf(v.y)<5.5 and posmod(x+y,7)==0)
+					if mode=="projectile_prism_beam":fill=fill or absf(v.y-v.x*.55)<.8
+				"projectile_flame_stream","projectile_flame_burst","projectile_dragon_stream","projectile_ember_dart":
+					var tail:float=7.0-absf(v.x)
+					fill=absf(v.y-sin(v.x*.75)*1.5)<tail*.60+.65
+					inner=fill and absf(v.y)<1.8 and v.x> -3.0
+				"projectile_bubble_train":
+					var a:float=(v-Vector2(-3,2)).length();var b:float=(v-Vector2(3,-2)).length()
+					fill=absf(a-3.2)<.8 or absf(b-3.1)<.8
+					inner=fill and v.y<1.0
+				"projectile_ice_needle","projectile_metal_needle","projectile_thorn_needle","projectile_twin_needle","projectile_metal_dart":
+					var off:float=absf(v.y)-2.1 if mode=="projectile_twin_needle" else v.y
+					fill=absf(off)<(7.4-absf(v.x))*.32+.5
+					inner=fill and absf(off)<.7
+				"projectile_wind_blade","projectile_leaf_blade":
+					fill=absf(v.y-(v.x*v.x*.10-2.8))<1.25 and absf(v.x)<7.2
+					inner=fill and v.y<2.0
+					if mode=="projectile_leaf_blade":fill=fill or (absf(v.y-v.x*.32)<.8 and absf(v.x)<5.0)
+				"projectile_egg_bomb","projectile_venom_bomb","projectile_venom_blob","projectile_earth_bomb","projectile_rock_bomb","projectile_ink_blob","projectile_rock_dart","projectile_mud_dart":
+					var a:float=atan2(v.y,v.x)
+					var edge:float=5.8+sin(a*5.0)*.9
+					if mode=="projectile_egg_bomb":edge=5.5+v.y*.13
+					if mode in ["projectile_ink_blob","projectile_venom_blob"]:edge+=sin(a*7.0)*.75
+					fill=r<edge
+					inner=fill and (v.x+v.y< -2.0 or (r<3.0 and posmod(x*3+y*7,5)==0))
+				"projectile_prism_pulse","projectile_shadow_pulse","projectile_charged_pulse","projectile_water_pulse","projectile_dragon_pulse","projectile_vacuum_pulse","projectile_sonic_ring":
+					var ring:float=r if mode!="projectile_vacuum_pulse" else absf(v.x)+absf(v.y)*.7
+					fill=absf(ring-6.0)<.95 or absf(ring-3.3)<.8
+					inner=fill and (v.x+v.y<0.0 or mode=="projectile_charged_pulse")
+				"projectile_star_dart":
+					fill=r<7.0 and (absf(v.x)<1.0 or absf(v.y)<1.0 or absf(absf(v.x)-absf(v.y))<.65)
+					inner=r<2.2
 				"projectile_orb":
 					fill=r<7.0;inner=r<4.5 or (r>5.5 and v.x+v.y<0)
 				"projectile_beam":
@@ -7392,11 +7440,30 @@ func schedule_response_text(tile:Vector2i,event:Dictionary,delay:float)->void:
 # Explicit projectile shapes; locomotion attacks intentionally stay excluded.
 const PROJECTILE_IDENTITY={"eos_031":"orb","eos_127":"orb","eos_193":"orb","eos_443":"orb","eos_454":"orb","eos_508":"orb","eos_309":"orb","lib_normal_3":"beam","lib_ice_2":"beam","lib_psychic_1":"beam","eos_042":"beam","eos_107":"beam","eos_114":"beam","eos_239":"beam","eos_242":"beam","eos_345":"beam","eos_353":"beam","eos_489":"beam","eos_536":"beam","eos_152":"beam","alt_coralcrab":"beam","lib_fire_2":"stream","lib_dragon_2":"stream","eos_053":"stream","eos_157":"stream","eos_240":"stream","eos_342":"stream","alt_fungal_monarch":"stream","alt_leviathorn":"stream","lib_water_1":"bubble","lib_water_2":"bubble","eos_016":"bubble","eos_255":"bubble","bubble_burst":"bubble","lib_ice_1":"needle","lib_flying_1":"needle","lib_steel_2":"needle","eos_462":"needle","eos_163":"needle","eos_164":"needle","eos_201":"needle","eos_306":"needle","alt_rootgnawer":"needle","alt_hollow_stag":"needle","alt_reef_pup":"needle","alt_crystarok":"needle","alt_voidspider":"needle","feather_fan":"needle","eos_166":"bomb","eos_280":"bomb","eos_485":"bomb","eos_486":"bomb","eos_501":"bomb","eos_523":"bomb","eos_453":"bomb","eos_044":"bomb","lib_psychic_2":"pulse","lib_dark_3":"pulse","eos_189":"pulse","eos_310":"pulse","eos_436":"pulse","eos_539":"pulse","eos_479":"pulse","eos_108":"pulse","jelly_pulse":"pulse","lib_fire_1":"dart","lib_grass_2":"dart","lib_ground_3":"dart","lib_rock_1":"dart","lib_fairy_1":"dart","eos_299":"dart","eos_251":"dart","eos_290":"dart","eos_527":"dart","leaf_dart":"dart","alt_starlit_pup":"dart","nova_bolt":"dart"}
 
+# Material-specific silhouettes use the authored role, not a random ID hash.
+const PROJECTILE_ROLE_FORM={"neutral_weather":"weather_orb","ghost_ball":"spectral_orb","electric_orb":"charged_orb","grass_energy":"seed_orb","fight_blast":"force_orb","fight_aura":"aura_orb","psi_mist":"mist_orb","ice_aurora":"aurora_beam","ice_beam":"frost_beam","psi_beam":"prism_beam","bug_signal":"signal_beam","water_cannon":"water_jet","water_pump":"water_jet","air_blast":"wind_blade","electric_beam":"arc_beam","steel_flash":"metal_beam","neutral_sonic":"sonic_ring","fire_breath":"flame_stream","fire_blast":"flame_burst","dragon_breath":"dragon_stream","water_bubblebeam":"bubble_train","ice_shard":"ice_needle","air_cutter":"wind_blade","steel_bullet":"metal_needle","grass_bullet":"seed_train","bug_twin":"twin_needle","bug_pin":"thorn_needle","neutral_spike":"thorn_needle","neutral_egg":"egg_bomb","poison_bomb":"venom_bomb","poison_gunk":"venom_blob","grass_bomb":"seed_bomb","earth_bomb":"earth_bomb","steel_magnet":"magnet_orb","rock_wrecker":"rock_bomb","water_ink":"ink_blob","psi_wave":"prism_pulse","dark_pulse":"shadow_pulse","electric_wave":"charged_pulse","water_pulse":"water_pulse","dragon_pulse":"dragon_pulse","fight_vacuum":"vacuum_pulse","fire_ember":"ember_dart","grass_razor":"leaf_blade","earth_shot":"mud_dart","rock_throw":"rock_dart","fairy_glimmer":"star_dart","earth_return":"mud_dart","steel_mirror":"metal_dart"}
+func directed_projectile_form(id:String,role:String)->String:
+	return str(PROJECTILE_ROLE_FORM.get(role,PROJECTILE_IDENTITY.get(id,"")))
+
+# X: longitudinal head scale, Y: spacing, Z: maximum trail samples.
+func projectile_form_profile(kind:String)->Vector3:
+	match kind:
+		"beam","aurora_beam","frost_beam","prism_beam","signal_beam","arc_beam","metal_beam":return Vector3(.65,.065,5)
+		"stream","flame_stream","dragon_stream","water_jet":return Vector3(.58,.10,4)
+		"bubble_train","seed_train","twin_needle":return Vector3(.43,.17,4)
+		"bomb","egg_bomb","venom_bomb","venom_blob","seed_bomb","earth_bomb","rock_bomb","ink_blob":return Vector3(.71,.20,2)
+		"needle","ice_needle","metal_needle","thorn_needle","wind_blade","leaf_blade":return Vector3(.48,.13,3)
+		"pulse","prism_pulse","shadow_pulse","charged_pulse","water_pulse","dragon_pulse","vacuum_pulse","sonic_ring":return Vector3(.67,.15,3)
+		_:return Vector3(.53,.17,3)
+
 func projectile_identity_sample(kind:String,points:Array,progress:float,trail:float)->Vector3:
 	var p:float=clampf(progress-trail,0.0,1.0)
 	var q:Vector3=combat_path_sample(points,p)
-	if kind=="bomb":q.y+=sin(p*PI)*.55
-	elif kind=="bubble":q.y+=sin(p*PI)*.13
+	var arc:float=sin(p*PI)
+	if kind in ["bomb","egg_bomb","venom_bomb","venom_blob","seed_bomb","earth_bomb","rock_bomb","ink_blob"]:q.y+=arc*(.75 if kind in ["egg_bomb","rock_bomb"] else .55)
+	elif kind in ["bubble","bubble_train"]:q.y+=arc*.13
+	elif kind in ["seed_train","mud_dart","rock_dart"]:q.y+=arc*.19
+	elif kind in ["ghost_ball","spectral_orb","mist_orb"]:q.y+=arc*sin(p*TAU)*.15
 	return q
 
 func projectile_identity_fx(burst:Dictionary,t:float,used:int)->int:
@@ -7406,20 +7473,31 @@ func projectile_identity_fx(burst:Dictionary,t:float,used:int)->int:
 	if t>=peak:return used
 	var points:Array=burst.points
 	if points.size()<2 or Vector3(points[0]).distance_squared_to(points[-1])<.001:return used
-	var kind:String=str(PROJECTILE_IDENTITY[id])
+	var kind:=directed_projectile_form(id,str(burst.profile.role))
 	var progress:float=clampf(t/peak,0.0,1.0)
 	var style:Array=combat_style(id)
 	var light:=Color(style[1]);var dark:=Color(style[2])
-	var count:int=3 if kind in ["beam","stream","pulse"] else 2
+	var shape:=projectile_form_profile(kind)
+	var count:int=int(shape.z)
+	if fx_performance_tier==2:count=mini(count,3)
 	var head_mode:String="projectile_"+kind
 	for i in range(count):
 		if used>=fx_cast_particle_limit:break
-		var lag:float=float(i)*(.10 if kind in ["beam","stream"] else .18)
+		var lag:float=float(i)*shape.y
 		if progress<lag:continue
 		var q:=projectile_identity_sample(kind,points,progress,lag)
-		var scale_value:float=(.56 if kind in ["orb","bomb"] else .44)*(1.0-float(i)*.19)
-		var opacity:float=minf(1.0,progress*10.0)*(1.0-float(i)*.24)
+		var scale_value:float=shape.x*(1.0-float(i)*.13)
+		var opacity:float=minf(1.0,progress*14.0)*(1.0-float(i)*.16)
 		used=environment_particle(used,q,head_mode,light,dark,scale_value,opacity)
+	# World-space trail follows the same path and ends at the confirmed contact clock.
+	if kind in ["beam","aurora_beam","frost_beam","prism_beam","signal_beam","arc_beam","metal_beam","flame_stream","dragon_stream","water_jet"] and fx_performance_tier<2:
+		var previous:=projectile_identity_sample(kind,points,progress,minf(progress,.28))
+		for j in range(1,7):
+			var f:float=float(j)/6.0
+			var q:=projectile_identity_sample(kind,points,progress,minf(progress,.28)*(1.0-f))
+			var width:float=.035+.045*f
+			ultra_trail_segment(previous,q,width,width,Color(dark,f*.32),Color(light,f*.62))
+			previous=q
 	return used
 
 func multi_hit_accents(burst:Dictionary,t:float,used:int)->int:
