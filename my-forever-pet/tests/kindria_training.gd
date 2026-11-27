@@ -71,9 +71,9 @@ func _initialize():
 		if not str(id).begins_with("eos_"):continue
 		var move:Dictionary=Rules.MOVE_LIBRARY[id]
 		assert(int(str(id).trim_prefix("eos_"))==int(move.reference_id))
-		assert(move.pp>0 and (move.power>0 or move.has("heal_fraction") or move.has("inflict_status") or move.has("stat_changes") or move.has("shield_kind") or move.has("boon_kind") or move.has("weather_set") or move.has("floor_sport") or move.has("weather_heal") or move.has("special_rule") or move.has("trap_kind") or move.has("blast_radius")))
+		assert(move.pp>0 and (move.power>0 or move.has("heal_fraction") or move.has("inflict_status") or move.has("stat_changes") or move.has("shield_kind") or move.has("boon_kind") or move.has("weather_set") or move.has("floor_sport") or move.has("weather_heal") or move.has("special_rule") or move.has("trap_kind") or move.has("blast_radius") or move.has("stat_transfer") or move.has("random_cast")))
 		assert(move.reference_strikes==1 or (move.has("hit_min") and move.hit_min>=2 and move.hit_max<=5))
-		assert(move.category in ["physical","special"] or (move.category=="status" and (move.has("heal_fraction") or move.has("inflict_status") or move.has("stat_changes") or move.has("shield_kind") or move.has("boon_kind") or move.has("weather_set") or move.has("floor_sport") or move.has("weather_heal") or move.has("special_rule") or move.has("trap_kind") or move.has("blast_radius"))))
+		assert(move.category in ["physical","special"] or (move.category=="status" and (move.has("heal_fraction") or move.has("inflict_status") or move.has("stat_changes") or move.has("shield_kind") or move.has("boon_kind") or move.has("weather_set") or move.has("floor_sport") or move.has("weather_heal") or move.has("special_rule") or move.has("trap_kind") or move.has("blast_radius") or move.has("stat_transfer") or move.has("random_cast"))))
 		assert(id in Rules.available_moves([move.type],100))
 		assert(not id in Rules.available_moves([move.type],15))
 		assert(Rules.reference_accuracy(move)>=0.0 and Rules.reference_accuracy(move)<=100.0)
@@ -414,6 +414,33 @@ func _initialize():
 	hazard.floor_weather="rain"
 	assert(not hazard.blast_move(Rules.MOVE_LIBRARY.eos_155) and hazard.hp==18)
 	print("KINDRIA_TRAP_BLAST_PASS")
+	var exchange=Rules.new()
+	exchange.player_stages={"attack":3,"defense":-2};exchange.player_halves={"attack":1}
+	var target:Dictionary={"stages":{"attack":-1,"sp_attack":2,"defense":4},"stat_halves":{"defense":2}}
+	assert(exchange.transfer_stats("power",target))
+	assert(exchange.player_stages.attack==-1 and target.stages.attack==3 and target.stat_halves.attack==1)
+	assert(exchange.transfer_stats("guard",target))
+	assert(exchange.player_stages.defense==4 and exchange.player_halves.defense==2)
+	assert(exchange.transfer_stats("invert"))
+	assert(exchange.player_stages.attack==4 and exchange.player_stages.defense==-1)
+	assert(exchange.transfer_stats("copy",target))
+	assert(exchange.player_stages.attack==target.stages.attack)
+	exchange.player_stages.attack=0
+	assert(target.stages.attack==3)
+	assert(exchange.transfer_stats("charge") and exchange.charge_power_turns==2)
+	exchange.enemy_turn()
+	assert(exchange.charge_power_turns==1)
+	exchange.enemy_turn()
+	assert(exchange.charge_power_turns==0)
+	var invoke=Rules.new()
+	invoke.player=Vector2i(1,1)
+	invoke.cells[invoke.player]=true;invoke.cells[Vector2i(2,1)]=true
+	invoke.enemies.append({"pos":Vector2i(2,1),"hp":1000,"kind":0,"species":"reef_pup"})
+	invoke.equipped_moves=["eos_330"];invoke.move_pp={"eos_330":22}
+	assert(not invoke.invocation_candidates(Vector2i.RIGHT).is_empty())
+	assert(invoke.cast_move("eos_330",Vector2i.RIGHT))
+	assert(invoke.move_pp.eos_330==21 and invoke.move_pp.size()==1 and invoke.turns==1)
+	print("KINDRIA_TRANSFER_PASS")
 	assert(Rules.EOS_IDENTIFIED_COUNT==468)
 	print("KINDRIA_EOS_PROTOTYPES_PASS ",eos_count)
 	print("KINDRIA_LEARNSET_PP_PASS")
