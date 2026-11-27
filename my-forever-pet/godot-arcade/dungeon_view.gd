@@ -2113,25 +2113,45 @@ func cast_motion_kind(id:String,profile:Dictionary)->String:
 
 # Anticipation, acceleration, contact and follow-through share the authored
 # impact clock. No extra turn delay and no change to the tile-cast route.
-func attack_direction_sample(progress:float,impact:float)->Vector3:
+# V20.3: per-anatomy anticipation, acceleration and recovery. The contact
+# frame is fixed; curves change only the cosmetic body offset.
+# X: windup share, Y: drive bias, Z: recovery bias, W: follow-through weight.
+func cast_motion_timing(kind:String)->Vector4:
+	match kind:
+		"rush","horn":return Vector4(.24,.72,.90,.65)
+		"contact","punch":return Vector4(.34,1.18,1.35,.65)
+		"fang","pincer":return Vector4(.28,1.45,1.55,.50)
+		"crunch":return Vector4(.42,1.15,.78,1.0)
+		"claw","lash":return Vector4(.24,.78,1.32,.9)
+		"uppercut","kick":return Vector4(.38,1.10,.90,1.0)
+		"lowkick","tail":return Vector4(.28,.90,1.08,.95)
+		"wing","spin":return Vector4(.20,.75,.82,1.0)
+		"aerial":return Vector4(.22,.82,.92,.70)
+		"down":return Vector4(.48,1.32,1.10,.78)
+		"focus","gesture":return Vector4(.44,.88,.80,.50)
+		_:return Vector4(.34,1.0,1.0,1.0)
+
+func attack_direction_sample(progress:float,impact:float,kind:String="cast")->Vector3:
 	var t:float=clampf(progress,0.0,1.0)
 	var peak:float=clampf(impact,.12,.88)
-	var windup_end:float=peak*.34
+	var timing:Vector4=cast_motion_timing(kind)
+	var windup_end:float=peak*timing.x
 	var anticipation:float=pow(sin(PI*t/windup_end),2.0) if t<windup_end else 0.0
 	var drive:float=0.0
 	var follow:float=0.0
 	if t>=windup_end and t<=peak:
-		drive=smoothstep(windup_end,peak,t)
+		var travel:float=clampf((t-windup_end)/maxf(.001,peak-windup_end),0.0,1.0)
+		drive=smoothstep(0.0,1.0,pow(travel,timing.y))
 	elif t>peak:
 		var recovery:float=(t-peak)/(1.0-peak)
-		drive=1.0-smoothstep(0.0,1.0,recovery)
-		follow=pow(sin(recovery*PI),2.0)*(1.0-recovery)
+		drive=1.0-smoothstep(0.0,1.0,pow(recovery,timing.z))
+		follow=pow(sin(recovery*PI),2.0)*(1.0-recovery)*timing.w
 	return Vector3(anticipation,drive,follow)
 
 func cast_motion_offset(kind:String,progress:float,impact:float)->Vector3:
 	var t:float=clampf(progress,0.0,1.0)
 	var peak:float=clampf(impact,.12,.88)
-	var cue:=attack_direction_sample(t,peak)
+	var cue:=attack_direction_sample(t,peak,kind)
 	var recoil:float=pow(sin(t*PI),2.0)
 	match kind:
 		"rush":return Vector3(.64*cue.y-.14*cue.x,.05*recoil,0)
@@ -2825,10 +2845,12 @@ func premium_hit_sample(progress:float)->Dictionary:
 	var t:float=clampf(progress,0.0,1.0)
 	# Fast contact, then damped elastic recovery; exact neutral endpoints.
 	var envelope:float=sin(t*PI)*sin(t*PI)
-	var recoil:float=sin(t*PI)*pow(1.0-t,.65)
+	# Rapid recoil and slower return. A small late rebound avoids a rigid stop.
+	var recoil:float=smoothstep(0.0,.24,t)*pow(1.0-t,1.25)*1.12
 	var squash:float=1.0-.21*sin(t*PI*1.7)*pow(1.0-t,1.4)
 	var flash:float=.66*pow(1.0-t,3.0)
-	return {"recoil":recoil,"squash":squash,"flash":flash,"lift":envelope*.09,"tilt":sin(t*TAU*2.0)*envelope*.09}
+	var settle:float=sin(t*TAU*2.0)*envelope*.09*(1.0-t*.55)
+	return {"recoil":recoil,"squash":squash,"flash":flash,"lift":envelope*.09,"tilt":settle}
 
 func ultra_update_residues(dt:float,used:int)->int:
 	for i in range(fx_residues.size()-1,-1,-1):
@@ -16592,7 +16614,8 @@ func elemental_dissipation_sample(element:String,progress:float,index:int=0)->Ve
 	var height:float=float(cue[3])
 	var radial:float=.12+spread*smoothstep(0.0,1.0,t)
 	var lift:float=height*sin(t*PI)
-	var size:float=1.0-.65*t
+	# Particle scale settles continuously; opacity follows the material decay.
+	var size:float=1.0-.65*smoothstep(0.0,1.0,t)
 	var alpha:float=pow(1.0-t,float(cue[4]))
 	match str(cue[1]):
 		"rise":
