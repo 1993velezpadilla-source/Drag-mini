@@ -484,6 +484,38 @@ func run()->void:
 		assert(tex.get_width()==32 and tex.get_image().get_used_rect().size.x>0)
 	for particle in field.combat_particles:particle.hide()
 	print("KINDRIA_PROJECTILE_CONTACT_PASS 58")
+	# V11.8: terrain persists on actual affected tiles even when no enemy is hit.
+	var terrain_cases:Dictionary={"lib_ground_1":"quake","lib_rock_3":"fall","eos_008":"burrow","eos_030":"fall","eos_032":"vortex","eos_036":"wind","eos_057":"wind","eos_060":"wind","eos_064":"storm","eos_073":"rise","eos_082":"wind","eos_097":"wind","eos_101":"fall","eos_113":"rise","eos_129":"storm","eos_156":"dive","eos_158":"fall","eos_159":"wave","eos_162":"vortex","eos_219":"wave","eos_230":"wave","eos_270":"wind","eos_272":"rise","eos_278":"rise","eos_437":"wind","eos_481":"rise","eos_484":"rise","eos_519":"rise","eos_521":"storm","eos_012":"weather","eos_014":"weather","eos_141":"weather","eos_223":"sun","eos_131":"rift","eos_118":"quake","eos_296":"quake","eos_535":"fall","eos_435":"rift","eos_460":"wind","eos_494":"wave","eos_538":"fall","eos_394":"wind"}
+	var terrain_tiles:Array=[]
+	for i in range(12):
+		terrain_tiles.append(field.pos(target+Vector2i(i,0))+Vector3.UP*.12)
+	terrain_tiles.append(terrain_tiles[0])
+	for move_id in terrain_cases:
+		var art:Array=field.terrain_contact_art(move_id)
+		assert(art.size()==3 and art[0]==terrain_cases[move_id])
+		var p:Dictionary=field.combat_profile(move_id)
+		var burst:Dictionary={"id":move_id,"profile":p,"points":[special_source,bite_position],"tiles":terrain_tiles,"results":{}}
+		var cells:Array[Vector3]=field.terrain_contact_tiles(burst)
+		assert(cells.size()==Field.TERRAIN_TILE_CAP)
+		assert(is_equal_approx(cells[0].y,.055))
+		assert(Vector2(cells[0].x,cells[0].z).distance_to(Vector2(bite_position.x,bite_position.z))<.001)
+		var peak:float=clampf(float(p.impact),.01,.99)
+		for particle in field.combat_particles:particle.hide()
+		var count_ground:int=field.terrain_contact_fx(burst,peak*.5,0,Color.WHITE,Color.BLACK)
+		assert(count_ground>0 and count_ground<=12)
+		if art[0] in ["burrow","dive","quake","rift","rise","wave","vortex"]:
+			assert(is_equal_approx(field.combat_particles[0].position.y,.055))
+		if art[0] in ["fall","storm","weather","sun"]:
+			assert(field.combat_particles[0].position.y>.20)
+		assert(field.terrain_contact_fx(burst,peak*.5,Field.FX_PARTICLE_CAP,Color.WHITE,Color.BLACK)==Field.FX_PARTICLE_CAP)
+		assert(field.combat_particles.size()==particle_count)
+		burst.tiles=[field.pos(target)]
+		for particle in field.combat_particles:particle.hide()
+		assert(field.terrain_contact_fx(burst,peak*.5,0,Color.WHITE,Color.BLACK)>0)
+		await frames()
+		assert(root.get_texture().get_image().save_png("/tmp/effekseer-review/terrain-"+move_id+".png")==OK)
+	for particle in field.combat_particles:particle.hide()
+	print("KINDRIA_TERRAIN_CONTACT_PASS 42")
 	var plan:Array=[
 		{"stage":"ally_invoke","anchor":"source","start":0.0,"end":.15,"enabled":true},
 		{"stage":"enemy_invoke","anchor":"source","start":0.0,"end":.15,"enabled":true},
