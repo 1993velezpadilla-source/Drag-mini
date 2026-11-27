@@ -41,6 +41,15 @@ var facing=Vector2i.DOWN
 var actor_nodes:Dictionary={}
 var enemy_shadow_material:StandardMaterial3D
 var enemy_shadow_mesh:QuadMesh
+const COMBAT_FX_STYLES={"basic_strike":["slash","#fff3c9","#e8a25c",0.26],"briar_arc":["leap","#b4e579","#4c8d48",0.42],"spore_cloud":["cloud","#f4d68a","#879b49",0.72],"horn_ram":["leap","#f0d2a0","#a77c44",0.35],"leaf_dart":["dart","#b7ed7b","#438b45",0.42],"tusk_sweep":["slash","#f9e0ba","#aa744e",0.35],"vine_snap":["whip","#bfe874","#3f8e4b",0.54],"rolling_moss":["roll","#bdcb82","#536b45",0.5],"feather_fan":["fan","#fff1c3","#b5a773",0.48],"antler_arc":["slash","#e4c89e","#a58454",0.4],"timber_shock":["wave","#ecba69","#8d6842",0.62],"royal_spores":["cloud","#ffdca5","#ca79a3",0.78],"reef_bite":["slash","#d2f5ef","#5ba8b2",0.3],"jelly_pulse":["wave","#b8f8ff","#9c7ce0",0.48],"shell_impact":["wave","#d1e8a4","#739a77",0.44],"bubble_burst":["bubble","#c7fbff","#50b7dc",0.64],"electric_lash":["lightning","#e8fbff","#4b9af8",0.42],"double_pincer":["slash","#ffe2a5","#ef826f",0.36],"tentacle_snare":["whip","#ffd3ea","#bd648c",0.6],"fin_slice":["dart","#dbf4f5","#6ca9db",0.43],"spiral_current":["spiral","#d8fff0","#56b6b8",0.52],"abyss_grasp":["whip","#f9b9ee","#8458b3",0.62],"tidal_jaws":["wave","#e9f7ff","#4287bb",0.55],"star_kick":["slash","#f5e8ff","#a29cf0",0.3],"lunar_dust":["cloud","#eee8ff","#b7a2ed",0.64],"prism_shatter":["shards","#effaff","#7cb9ff",0.55],"nova_bolt":["flame","#fff2a0","#ff784a",0.62],"orbit_lash":["spiral","#dfd0ff","#9663ee",0.52],"comet_drop":["leap","#fff1bb","#e1a3ff",0.48],"gravity_web":["web","#e4d7ff","#9f71e8",0.64],"sonic_cone":["fan","#f9d7ff","#a66be6",0.48],"moon_claw":["slash","#eee5ff","#a58bdc",0.38],"meteor_fist":["meteor","#fff0ba","#ff8d55",0.62],"celestial_verdict":["beam","#fff6d0","#d99bff",0.66]}
+const FX_PARTICLE_CAP=144
+const FX_WARNING_CAP=80
+var combat_particles:Array[Sprite3D]=[]
+var combat_warnings:Array[MeshInstance3D]=[]
+var combat_bursts:Array[Dictionary]=[]
+var combat_textures:Dictionary={}
+var combat_fx_root:Node3D
+var combat_warn_mat:StandardMaterial3D
 var enemy_event_turn:int=-1
 var enemy_event_floor:int=-1
 var feedback:Label
@@ -223,8 +232,8 @@ func build_ui():
 	var v=VBoxContainer.new();v.add_theme_constant_override("separation",6);footer.add_child(v)
 	status_text=label(v,"",16,Color("#ffe1a4"));status_text.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART;status_text.custom_minimum_size.y=22;status_text.horizontal_alignment=HORIZONTAL_ALIGNMENT_CENTER
 	var a=HBoxContainer.new();a.add_theme_constant_override("separation",8);v.add_child(a)
-	attack_button=button(a,"Strike",func():path.clear();run.attack();sync(),true)
-	power_button=button(a,"Skill",func():path.clear();run.attack(true);sync())
+	attack_button=button(a,"Strike",func():path.clear();run.attack(false,facing);sync(),true)
+	power_button=button(a,"Skill",func():path.clear();run.attack(true,facing);sync())
 	heal_button=button(a,"Berry",func():path.clear();run.heal();sync())
 	stairs_button=button(v,"Descend",func():path.clear();run.descend();sync(),true)
 func leave():
@@ -1455,6 +1464,7 @@ func build_floor():
 	if is_instance_valid(geometry):geometry.hide();geometry.queue_free()
 	if is_instance_valid(actors):actors.hide();actors.queue_free()
 	geometry=Node3D.new();world.add_child(geometry);actors=Node3D.new();world.add_child(actors);actor_nodes.clear()
+	combat_fx_setup(geometry)
 	var walls:Array[Vector3]=[]
 	floor_ornaments.clear()
 	var seen:Dictionary={}
@@ -1647,6 +1657,153 @@ func update_enemy_pixel(actor:Node3D,dt:float,motion:Vector3)->void:
 		material.set_shader_parameter("hit_flash",.32 if state=="hurt" else 0.0)
 		material.set_shader_parameter("world_phase",elapsed)
 	else:sprite.modulate=Color("#ffb5c6") if state=="hurt" else Color.WHITE
+# Lightweight reusable pixel VFX: no per-frame node allocation, no camera-facing 3D creatures.
+func combat_fx_setup(parent:Node3D)->void:
+	combat_particles.clear();combat_warnings.clear();combat_bursts.clear()
+	combat_fx_root=Node3D.new();parent.add_child(combat_fx_root)
+	var quad:=QuadMesh.new();quad.size=Vector2(1.22,1.22)
+	combat_warn_mat=StandardMaterial3D.new()
+	combat_warn_mat.shading_mode=BaseMaterial3D.SHADING_MODE_UNSHADED
+	combat_warn_mat.transparency=BaseMaterial3D.TRANSPARENCY_ALPHA
+	var warn_img:=Image.create(16,16,false,Image.FORMAT_RGBA8);warn_img.fill(Color.TRANSPARENT)
+	for y in range(16):
+		for x in range(16):
+			var edge:bool=x in [0,1,14,15] or y in [0,1,14,15]
+			if edge or posmod(x+y,5)==0:warn_img.set_pixel(x,y,Color(1,.32,.18,.65 if edge else .16))
+	combat_warn_mat.albedo_texture=ImageTexture.create_from_image(warn_img)
+	combat_warn_mat.texture_filter=BaseMaterial3D.TEXTURE_FILTER_NEAREST
+	for i in range(FX_WARNING_CAP):
+		var q:=MeshInstance3D.new();q.mesh=quad;q.material_override=combat_warn_mat
+		q.rotation.x=-PI*.5;q.cast_shadow=GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		combat_fx_root.add_child(q);q.hide();combat_warnings.append(q)
+	for i in range(FX_PARTICLE_CAP):
+		var particle:=Sprite3D.new()
+		particle.texture_filter=BaseMaterial3D.TEXTURE_FILTER_NEAREST
+		particle.billboard=BaseMaterial3D.BILLBOARD_ENABLED
+		particle.shaded=false;particle.pixel_size=.032
+		particle.cast_shadow=GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		combat_fx_root.add_child(particle);particle.hide();combat_particles.append(particle)
+func combat_pixel_texture(mode:String,light:Color,dark:Color)->ImageTexture:
+	var key:=mode+str(light)+str(dark)
+	if combat_textures.has(key):return combat_textures[key]
+	var im:=Image.create(16,16,false,Image.FORMAT_RGBA8);im.fill(Color.TRANSPARENT)
+	for y in range(16):
+		for x in range(16):
+			var v:=Vector2(x-7.5,y-7.5)
+			var r:float=v.length()
+			var fill:bool=false
+			var inner:bool=false
+			match mode:
+				"bubble","wave","spiral":
+					fill=r>=4.5 and r<=7.0
+					inner=fill and v.x+v.y<0
+				"slash","fan":
+					fill=absf(v.y-v.x*.65)<2.0 and absf(v.x)<7.0
+					inner=fill and absf(v.y-v.x*.65)<.85
+				"dart","shards":
+					fill=absf(v.x)+absf(v.y)*.55<5.5
+					inner=absf(v.x+1.0)+absf(v.y)*.65<2.5
+				"whip","lightning":
+					var center:float=sin(v.x*.65)*2.3
+					fill=absf(v.y-center)<2.0 and absf(v.x)<7.0
+					inner=fill and absf(v.y-center)<.9
+				"web":
+					fill=r<7.0 and (absf(v.x)<1.0 or absf(v.y)<1.0 or absf(absf(v.x)-absf(v.y))<1.0 or absf(r-5.0)<.7)
+					inner=r<2.0
+				"flame","meteor","beam":
+					fill=absf(v.x)<(7.0-absf(v.y)*.65) and absf(v.y)<7.0
+					inner=fill and absf(v.x+1.0)<3.0 and absf(v.y+1.0)<4.0
+				"cloud":
+					fill=r<6.8 and posmod(x*7+y*11,7)!=0
+					inner=r<3.0
+				_:
+					fill=absf(v.x)+absf(v.y)<7.5
+					inner=absf(v.x+1.0)+absf(v.y+1.0)<4.0
+			if fill:im.set_pixel(x,y,light if inner else dark)
+	var texture:=ImageTexture.create_from_image(im)
+	combat_textures[key]=texture
+	return texture
+func combat_fx_spawn(event:Dictionary)->void:
+	if not is_instance_valid(combat_fx_root):return
+	var id:String=str(event.get("fx","basic_strike"))
+	var style:Array=COMBAT_FX_STYLES.get(id,COMBAT_FX_STYLES.basic_strike)
+	var source:Vector2i=event.get("from",Vector2i.ZERO)
+	var target:Vector2i=event.get("to",source)
+	var waypoints:Array=[pos(source)+Vector3(0,.45,0)]
+	for cell in event.get("path",[target]):waypoints.append(pos(cell)+Vector3(0,.45,0))
+	if waypoints.size()<2:waypoints.append(pos(target)+Vector3(0,.45,0))
+	var tiles:Array=[]
+	for cell in event.get("tiles",[target]):tiles.append(pos(cell)+Vector3(0,.12,0))
+	if tiles.is_empty():tiles.append(pos(target)+Vector3(0,.12,0))
+	if combat_bursts.size()>=10:combat_bursts.pop_front()
+	combat_bursts.append({"id":id,"mode":style[0],"age":0.0,"duration":float(style[3]),"points":waypoints,"tiles":tiles,"texture":combat_pixel_texture(str(style[0]),Color(style[1]),Color(style[2]))})
+func combat_path_sample(points:Array,t:float)->Vector3:
+	var index:float=clampf(t,0.0,.9999)*float(points.size()-1)
+	var a:int=floori(index)
+	var start:Vector3=points[a]
+	return start.lerp(points[a+1],index-float(a))
+func combat_fx_update(dt:float)->void:
+	var used:int=0
+	for k in range(combat_bursts.size()-1,-1,-1):
+		var burst:Dictionary=combat_bursts[k]
+		burst.age+=dt
+		var t:float=float(burst.age)/float(burst.duration)
+		if t>=1.0:
+			combat_bursts.remove_at(k);continue
+		var mode:String=burst.mode
+		var points:Array=burst.points
+		var tiles:Array=burst.tiles
+		var count:int=mini(26,6+tiles.size()*2) if mode in ["cloud","wave","fan","web","shards","beam"] else 14
+		if mode in ["flame","whip","lightning"]:count=22
+		for j in range(count):
+			if used>=combat_particles.size():break
+			var particle:=combat_particles[used];used+=1
+			var f:float=float(j)/maxi(1,count-1)
+			var angle:float=f*TAU+float(j)*2.399
+			var q:Vector3
+			var size:float=.55
+			match mode:
+				"whip","lightning","beam":
+					var reach:float=minf(1.0,t*3.5)
+					q=combat_path_sample(points,f*reach)
+					q.y+=sin(f*PI*4.0-t*14.0)*(.10 if mode=="beam" else .24)
+					size=.48 if mode!="beam" else .78
+				"flame":
+					var travel:float=clampf(t*1.8-f*.65,0.0,1.0)
+					q=combat_path_sample(points,travel)
+					q+=Vector3(cos(angle)*travel*.20,sin(angle+t*7.0)*travel*.22, sin(angle)*travel*.20)
+					size=.45+travel*.70
+				"dart","bubble","roll","spiral","meteor","leap":
+					var travel:float=clampf(t*1.8-f*.5,0.0,1.0)
+					q=combat_path_sample(points,travel)
+					if mode in ["meteor","leap"]:q.y+=sin(travel*PI)*(.85 if mode=="meteor" else .55)
+					if mode=="spiral":q+=Vector3(cos(angle+t*12.0)*.20,sin(angle+t*12.0)*.30,sin(angle+t*12.0)*.20)
+					if mode=="bubble":q.y+=f*.3
+					size=.9 if j==0 else .40+f*.25
+				"slash":
+					q=points[-1]
+					q+=Vector3(cos(angle)*.48*sin(t*PI),sin(angle)*.27,sin(angle)*.48*sin(t*PI))
+					size=.65
+				_:
+					q=tiles[j%tiles.size()]
+					var radius:float=.12+t*.48
+					q+=Vector3(cos(angle)*radius,.18+sin(t*PI)*(.5 if mode=="cloud" else .2),sin(angle)*radius)
+					size=.65 if mode!="web" else .85
+			particle.position=q
+			particle.texture=burst.texture
+			particle.scale=Vector3.ONE*size*(1.0-t*.38)
+			particle.modulate=Color(1,1,1,clampf((1.0-t)*3.5,0.0,1.0))
+			particle.show()
+	for j in range(used,combat_particles.size()):combat_particles[j].hide()
+func combat_update_warnings()->void:
+	var used:int=0
+	for enemy in run.enemies:
+		if not run.revealed.has(enemy.pos):continue
+		for q in run.warning_tiles(enemy):
+			if used>=combat_warnings.size():break
+			combat_warnings[used].position=pos(q)+Vector3(0,.045,0)
+			combat_warnings[used].show();used+=1
+	for j in range(used,combat_warnings.size()):combat_warnings[j].hide()
 func consume_enemy_actions()->void:
 	if enemy_event_floor==run.floor_revision and enemy_event_turn==run.turns:return
 	enemy_event_floor=run.floor_revision;enemy_event_turn=run.turns
@@ -1654,10 +1811,13 @@ func consume_enemy_actions()->void:
 		var key:="enemy:"+str(event.uid)
 		if not actor_nodes.has(key):continue
 		var actor:Node3D=actor_nodes[key]
-		var direction:=Vector2(event.to-event.from)
+		var direction:=Vector2(event.get("aim",event.to-event.from))
 		match str(event.phase):
-			"attack":enemy_pose(actor,"attack",.28,direction)
+			"attack":
+				enemy_pose(actor,"attack",.28,direction)
+				combat_fx_spawn(event)
 			"windup":enemy_pose(actor,"windup",.18,direction)
+			"cancel":enemy_pose(actor,"idle",0.0,direction)
 			"move":
 				if actor.has_meta("species"):
 					actor.set_meta("enemy_facing",PixelArt.direction_for(direction,int(actor.get_meta("enemy_facing",0))))
@@ -1734,6 +1894,7 @@ func refresh_actors():
 					continue
 			n.hide();n.queue_free();actor_nodes.erase(key)
 	consume_enemy_actions()
+	combat_update_warnings()
 func toggle_map():
 	map_expanded=not map_expanded
 	var width=minf(area.size.x-20,300) if map_expanded else 146.0
@@ -1772,6 +1933,12 @@ func touch(event:InputEvent):
 	var hit=origin+ray*(-origin.y/ray.y)
 	var target=Vector2i(roundi(hit.x/1.4),roundi(hit.z/1.4))
 	if target==run.player:return
+	if run.enemy_at(target)>=0 and run.revealed.has(target):
+		var delta:=target-run.player
+		facing=Vector2i(signi(delta.x),0) if absi(delta.x)>absi(delta.y) else Vector2i(0,signi(delta.y))
+		path.clear()
+		if run.distance(run.player,target)==1:run.attack(false,facing)
+		sync();return
 	path=run.route(run.player,target,true)
 	tick=0.0
 func sync():
@@ -1781,6 +1948,7 @@ func sync():
 	if run.attack_serial!=previous_attack:
 		previous_attack=run.attack_serial;attack_time=.28;attack_direction=(pos(run.attack_target)-pos(run.player)).normalized()
 		attack_fx.position=pos(run.attack_target)+Vector3(0,.24,0);attack_fx.show()
+		combat_fx_spawn({"fx":run.player_attack_fx,"from":run.player,"to":run.attack_target,"tiles":run.player_attack_cells,"path":run.player_attack_cells})
 	if run.hp<hp_previous:hit_time=.24
 	hp_previous=run.hp
 	if previous_event!=run.event_serial:
@@ -1812,6 +1980,7 @@ func update_hud():
 func _process(dt:float):
 	if notified or not is_instance_valid(pet):return
 	elapsed+=dt;tick-=dt
+	combat_fx_update(dt)
 	update_living_ambient(dt)
 	update_exterior_world(dt)
 	if reward_age>0.0:
