@@ -1736,6 +1736,13 @@ func update_enemy_pixel(actor:Node3D,dt:float,motion:Vector3)->void:
 	var rise:float=.13+.04*sin(elapsed*3.0+float(actor.get_instance_id()%11)) if hovering and state!="defeat" else 0.0
 	var size_multiplier:float=float(actor.get_meta("enemy_size_multiplier",1.0))
 	sprite.position=Vector3(0,.54*size_multiplier+rise,0)
+	# Same continuous body clock as the companion; preserve the authored ground anchor.
+	sprite.scale=Vector3.ONE
+	if state=="attack":
+		var body:Dictionary=PixelArt.attack_body_sample(clock/maxf(.01,duration),float(actor.get_meta("enemy_cast_impact",.48)),str(actor.get_meta("enemy_cast_motion","contact")))
+		var stretch:float=float(body.stretch)
+		sprite.scale=Vector3(1.0/stretch,stretch,1.0)
+		sprite.position.y+=.54*size_multiplier*(stretch-1.0)+float(body.lift)
 	if state=="attack" and not actor.get_meta("companion_disguise",false):
 		var cast_dir:Vector3=actor.get_meta("enemy_cast_direction",Vector3(0,0,1))
 		var offset:=cast_motion_offset(str(actor.get_meta("enemy_cast_motion","contact")),clock/maxf(.01,duration),float(actor.get_meta("enemy_cast_impact",.48)))
@@ -5795,6 +5802,7 @@ func sync_disguise_pose(actor:Node3D,pose:String,motion:Vector2)->bool:
 		actor.set_meta("enemy_duration",player_cast_duration)
 		actor.set_meta("enemy_clock",clampf(player_cast_duration-attack_time,0.0,player_cast_duration))
 		actor.set_meta("enemy_cast_impact",player_cast_impact)
+		actor.set_meta("enemy_cast_motion",player_cast_motion)
 		return true
 	if pose=="hurt":
 		actor.set_meta("enemy_phase","hurt")
