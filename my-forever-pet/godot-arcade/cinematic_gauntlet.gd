@@ -1091,6 +1091,48 @@ func run_checks()->void:
 	batch_rects[2]=Rect2(25,0,10,10)
 	if not view.particle_batch_groups(batch_rects,batch_keys).is_empty():failures.append("V21.6 overlapping particle fallback")
 	checks+=2
+	# Compare sweep output against the original exhaustive isolation test.
+	var random:=RandomNumberGenerator.new()
+	random.seed=217
+	for trial in range(80):
+		var rects:Array[Rect2]=[]
+		var keys:Array[int]=[]
+		for k in range(40):
+			rects.append(Rect2(random.randi_range(-20,180),random.randi_range(-20,180),random.randi_range(1,16),random.randi_range(1,16)))
+			keys.append(random.randi_range(-1,4))
+		var expected:Dictionary={}
+		for k in range(keys.size()):
+			if keys[k]<0:continue
+			var isolated:bool=true
+			for other in range(rects.size()):
+				if k!=other and rects[k].intersects(rects[other],true):
+					isolated=false
+					break
+			if not isolated:continue
+			if not expected.has(keys[k]):expected[keys[k]]=[]
+			expected[keys[k]].append(k)
+		var expected_groups:Array=[]
+		for key in expected:
+			if expected[key].size()>=Dungeon.FX_PARTICLE_BATCH_MIN:expected_groups.append(expected[key])
+		expected_groups.sort_custom(func(a:Array,b:Array)->bool:
+			if a.size()==b.size():return int(a[0])<int(b[0])
+			return a.size()>b.size())
+		if view.particle_batch_groups(rects,keys)!=expected_groups.slice(0,Dungeon.FX_PARTICLE_BATCH_CAP):failures.append("V21.7 sweep mismatch "+str(trial))
+		checks+=1
+	var spaced_rects:Array[Rect2]=[]
+	var spaced_keys:Array[int]=[]
+	for k in range(208):
+		spaced_rects.append(Rect2(k*12,0,8,8))
+		spaced_keys.append(1)
+	var before_tests:int=view.fx_particle_overlap_tests
+	var spaced_groups:=view.particle_batch_groups(spaced_rects,spaced_keys)
+	if spaced_groups.size()!=1 or spaced_groups[0].size()!=208 or view.fx_particle_overlap_tests!=before_tests:failures.append("V21.7 separated sweep")
+	if view.particle_batch_preflight([-1,1,1,2]) or not view.particle_batch_preflight([1,-1,1,1]):failures.append("V21.7 preflight")
+	for k in range(Dungeon.FX_PARTICLE_NO_GAIN_LIMIT):view.particle_batch_adapt(0)
+	if view.fx_particle_cooldown!=Dungeon.FX_PARTICLE_PROBE_INTERVAL:failures.append("V21.7 adaptive backoff")
+	view.particle_batch_adapt(4)
+	if view.fx_particle_cooldown!=0 or view.fx_particle_no_gain_frames!=0:failures.append("V21.7 adaptive recovery")
+	checks+=4
 	# Generate PCM explicitly below; no speaker playback in a headless test.
 	view.fx_audio.clear()
 	for id in catalog:

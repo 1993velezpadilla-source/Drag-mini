@@ -107,6 +107,13 @@ var fx_particle_batched_count:int=0
 var fx_particle_batches_total:int=0
 var fx_particle_draws_saved:int=0
 var fx_particle_batch_usec:int=0
+var fx_particle_overlap_tests:int=0
+var fx_particle_preflight_skips:int=0
+var fx_particle_cooldown_skips:int=0
+var fx_particle_no_gain_frames:int=0
+var fx_particle_cooldown:int=0
+const FX_PARTICLE_PROBE_INTERVAL:int=6
+const FX_PARTICLE_NO_GAIN_LIMIT:int=8
 var combat_warning_batch:MultiMeshInstance3D
 var combat_warning_positions:PackedVector3Array=PackedVector3Array()
 var fx_warning_batch_updates:int=0
@@ -2485,6 +2492,7 @@ func combat_fx_setup(parent:Node3D)->void:
 		if is_instance_valid(sound):sound.stop()
 	response_slots.clear()
 	fx_particle_batches.clear();fx_particle_batch_materials.clear();fx_particle_batch_used=0;fx_particle_batched_count=0
+	fx_particle_no_gain_frames=0;fx_particle_cooldown=0
 	combat_particles.clear();combat_warning_positions.clear();combat_bursts.clear();retired_impacts.clear();delayed_combat_fx.clear();fx_reactions.clear();fx_ground_shake=0.0;fx_contact_camera=Vector3.ZERO;fx_contact_camera_age=1.0
 	combat_fx_root=Node3D.new();parent.add_child(combat_fx_root)
 	setup_cinematic_lighting()
@@ -15777,23 +15785,64 @@ func commit_fx_geometry(mesh_value:ArrayMesh,mat:Material,positions:PackedVector
 
 # Only flat ImageTexture sprites are eligible: their world transform is
 # already exact. Billboards and AtlasTexture regions stay on the original path.
+# Sweep the projected x intervals; only pairs sharing an x interval can
+# overlap. Noneligible sprites still block eligible ones, including touching edges.
 func particle_batch_groups(rects:Array[Rect2],keys:Array[int])->Array:
+	if rects.size()!=keys.size():return []
+	var frequency:Dictionary={}
+	for key in keys:
+		if key>=0:frequency[key]=int(frequency.get(key,0))+1
+	var candidates:Array[bool]=[]
+	var order:Array[int]=[]
+	for i in range(keys.size()):
+		candidates.append(keys[i]>=0 and int(frequency.get(keys[i],0))>=FX_PARTICLE_BATCH_MIN)
+		order.append(i)
+	if not candidates.has(true):return []
+	order.sort_custom(func(a:int,b:int)->bool:
+		if rects[a].position.x==rects[b].position.x:return a<b
+		return rects[a].position.x<rects[b].position.x)
+	for left in range(order.size()):
+		var a:int=order[left]
+		for right in range(left+1,order.size()):
+			var b:int=order[right]
+			if rects[b].position.x>rects[a].end.x:break
+			if not candidates[a] and not candidates[b]:continue
+			fx_particle_overlap_tests+=1
+			if rects[a].intersects(rects[b],true):
+				candidates[a]=false
+				candidates[b]=false
 	var by_texture:Dictionary={}
 	for i in range(keys.size()):
-		if keys[i]<0:continue
-		var isolated:bool=true
-		for j in range(rects.size()):
-			if i!=j and rects[i].intersects(rects[j],true):
-				isolated=false
-				break
-		if not isolated:continue
+		if not candidates[i]:continue
 		if not by_texture.has(keys[i]):by_texture[keys[i]]=[]
 		by_texture[keys[i]].append(i)
 	var groups:Array=[]
 	for key in by_texture:
 		if by_texture[key].size()>=FX_PARTICLE_BATCH_MIN:groups.append(by_texture[key])
-	groups.sort_custom(func(a:Array,b:Array)->bool:return a.size()>b.size())
+	groups.sort_custom(func(a:Array,b:Array)->bool:
+		if a.size()==b.size():return int(a[0])<int(b[0])
+		return a.size()>b.size())
 	return groups.slice(0,FX_PARTICLE_BATCH_CAP)
+
+func particle_batch_preflight(keys:Array[int])->bool:
+	var frequency:Dictionary={}
+	for key in keys:
+		if key<0:continue
+		frequency[key]=int(frequency.get(key,0))+1
+		if int(frequency[key])>=FX_PARTICLE_BATCH_MIN:return true
+	return false
+
+# Back off only the optional batching path, never effects or particle count.
+# Reprobe periodically even after a long crowded sequence.
+func particle_batch_adapt(saved:int)->void:
+	if saved>0:
+		fx_particle_no_gain_frames=0
+		fx_particle_cooldown=0
+	else:
+		fx_particle_no_gain_frames+=1
+		if fx_particle_no_gain_frames>=FX_PARTICLE_NO_GAIN_LIMIT:
+			fx_particle_no_gain_frames=0
+			fx_particle_cooldown=FX_PARTICLE_PROBE_INTERVAL
 
 func particle_screen_rect(particle:Sprite3D)->Rect2:
 	var texture:Texture2D=particle.texture
@@ -15848,7 +15897,12 @@ func ensure_particle_batch(slot:int)->MultiMeshInstance3D:
 func update_particle_batches()->void:
 	fx_particle_batch_used=0
 	fx_particle_batched_count=0
-	if fx_particle_batch_enabled and is_instance_valid(camera) and camera.is_inside_tree():
+	var can_batch:bool=fx_particle_batch_enabled and is_instance_valid(camera) and camera.is_inside_tree()
+	if can_batch and fx_particle_cooldown>0:
+		fx_particle_cooldown-=1
+		fx_particle_cooldown_skips+=1
+		can_batch=false
+	if can_batch:
 		var start:int=Time.get_ticks_usec()
 		var visible:Array[Sprite3D]=[]
 		var rects:Array[Rect2]=[]
@@ -15856,10 +15910,14 @@ func update_particle_batches()->void:
 		for particle in combat_particles:
 			if not particle.visible or particle.texture==null:continue
 			visible.append(particle)
-			rects.append(particle_screen_rect(particle))
 			var eligible:bool=particle.billboard==BaseMaterial3D.BILLBOARD_DISABLED and particle.texture is ImageTexture and particle.centered and particle.offset==Vector2.ZERO and not camera.is_position_behind(particle.global_position)
 			keys.append(particle.texture.get_instance_id() if eligible else -1)
-		for group in particle_batch_groups(rects,keys):
+		var groups:Array=[]
+		if particle_batch_preflight(keys):
+			for particle in visible:rects.append(particle_screen_rect(particle))
+			groups=particle_batch_groups(rects,keys)
+		else:fx_particle_preflight_skips+=1
+		for group in groups:
 			var slot:int=fx_particle_batch_used
 			var batch:=ensure_particle_batch(slot)
 			var first:Sprite3D=visible[group[0]]
@@ -15879,6 +15937,7 @@ func update_particle_batches()->void:
 			fx_particle_batched_count+=group.size()
 			fx_particle_batches_total+=1
 			fx_particle_draws_saved+=group.size()-1
+		particle_batch_adapt(fx_particle_batched_count-fx_particle_batch_used)
 		fx_particle_batch_usec+=Time.get_ticks_usec()-start
 	for i in range(fx_particle_batch_used,fx_particle_batches.size()):
 		if fx_particle_batches[i].visible:

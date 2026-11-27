@@ -28,7 +28,7 @@ func stats(values:Array[int])->Dictionary:
 	return result
 
 func counters()->Dictionary:
-	return {"atlas_uploads":view.fx_atlas_uploads,"cast_uploads":view.fx_atlas_uploads_in_cast,"frame_builds":view.fx_frame_builds,"secondary_builds":view.fx_secondary_builds,"secondary_pack_hits":view.fx_secondary_pack_hits,"light_candidates":view.fx_light_candidates,"light_commits":view.fx_light_commits,"geometry_batch_submits":view.fx_geometry_batch_submits,"geometry_unique_vertices":view.fx_geometry_unique_vertices,"geometry_triangle_indices":view.fx_geometry_triangle_indices,"warning_batch_updates":view.fx_warning_batch_updates,"particle_batches":view.fx_particle_batches_total,"estimated_particle_draws_saved":view.fx_particle_draws_saved,"particle_batch_cpu_usec":view.fx_particle_batch_usec}
+	return {"atlas_uploads":view.fx_atlas_uploads,"cast_uploads":view.fx_atlas_uploads_in_cast,"frame_builds":view.fx_frame_builds,"secondary_builds":view.fx_secondary_builds,"secondary_pack_hits":view.fx_secondary_pack_hits,"light_candidates":view.fx_light_candidates,"light_commits":view.fx_light_commits,"geometry_batch_submits":view.fx_geometry_batch_submits,"geometry_unique_vertices":view.fx_geometry_unique_vertices,"geometry_triangle_indices":view.fx_geometry_triangle_indices,"warning_batch_updates":view.fx_warning_batch_updates,"particle_batches":view.fx_particle_batches_total,"estimated_particle_draws_saved":view.fx_particle_draws_saved,"particle_batch_cpu_usec":view.fx_particle_batch_usec,"particle_overlap_tests":view.fx_particle_overlap_tests,"particle_preflight_skips":view.fx_particle_preflight_skips,"particle_cooldown_skips":view.fx_particle_cooldown_skips}
 
 func delta(before:Dictionary)->Dictionary:
 	var after:=counters()
