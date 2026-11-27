@@ -2489,8 +2489,33 @@ uniform float ring_mix : hint_range(0.0, 1.0) = 0.0;
 uniform float phase = 0.0;
 uniform int material_family = 0;
 uniform float material_opacity = 1.0;
+uniform int distortion_family = 0;
+uniform float distortion_strength = 0.0;
+uniform float distortion_frequency = 1.0;
 void fragment() {
 	vec2 p = UV * 2.0 - 1.0;
+	float original_radius = length(p);
+	// Warp only the local effect field, not the screen or creature sprites.
+	float edge = 1.0-smoothstep(0.68,1.0,original_radius);
+	float angle0 = atan(p.y,p.x);
+	float wave = phase*6.2831853;
+	float amount = distortion_strength*edge;
+	if (distortion_family == 1) {
+		p.x += sin(p.y*distortion_frequency-wave*1.6)*amount;
+		p.y += sin(p.x*distortion_frequency*0.65+wave)*amount*0.30;
+	} else if (distortion_family == 2) {
+		p += p/max(original_radius,0.08)*sin(original_radius*distortion_frequency-wave)*amount;
+	} else if (distortion_family == 3) {
+		float twist = amount*sin(original_radius*distortion_frequency-wave)*2.0;
+		p = mat2(vec2(cos(twist),sin(twist)),vec2(-sin(twist),cos(twist)))*p;
+	} else if (distortion_family == 4) {
+		p *= 1.0+amount*cos(angle0*distortion_frequency+wave*1.5);
+	} else if (distortion_family == 5) {
+		p.x += sin(p.y*distortion_frequency+wave)*amount*0.7;
+		p.y -= cos(p.x*distortion_frequency-wave)*amount*0.5;
+	} else if (distortion_family == 6) {
+		p *= 1.0-amount*sin(original_radius*distortion_frequency+wave);
+	}
 	float r = length(p);
 	float halo = pow(max(0.0, 1.0-r), 2.7);
 	float radius = mix(0.22, 0.82, phase);
@@ -2535,7 +2560,7 @@ void fragment() {
 		core = detail*0.42;
 	}
 	ALBEDO = mix(tint.rgb, vec3(1.0), clamp(core,0.0,0.75));
-	ALPHA = clamp(a * intensity * detail * envelope * material_opacity, 0.0, 0.75);
+	ALPHA = clamp(a * intensity * detail * envelope * material_opacity * (1.0-smoothstep(0.90,1.0,original_radius)), 0.0, 0.75);
 }
 """
 	var quad:=QuadMesh.new();quad.size=Vector2(1.0,1.0)
@@ -2845,7 +2870,27 @@ func set_fx_uniform(material:ShaderMaterial,parameter:StringName,value:Variant)-
 	material.set_shader_parameter(parameter,value)
 	material.set_meta(key,value)
 
-func cinematic_halo(at:Vector3,color:Color,extent:float,opacity:float,phase:float,ground:bool,element:String="normal")->void:
+# family: 1 heat shimmer, 2 pressure/ripple, 3 vortex, 4 crystalline
+# facets, 5 directional shear, 6 inward dimensional contraction.
+const ELEMENT_DISTORTION={
+	"normal":Vector3(2,.050,11),"fire":Vector3(1,.125,15),
+	"water":Vector3(2,.110,17),"electric":Vector3(5,.095,23),
+	"grass":Vector3(5,.040,7),"ice":Vector3(4,.080,6),
+	"fighting":Vector3(2,.105,9),"poison":Vector3(1,.075,8),
+	"ground":Vector3(2,.085,8),"flying":Vector3(5,.105,11),
+	"psychic":Vector3(3,.140,10),"bug":Vector3(4,.035,9),
+	"rock":Vector3(4,.060,5),"ghost":Vector3(6,.120,12),
+	"dragon":Vector3(3,.125,7),"dark":Vector3(6,.105,9),
+	"steel":Vector3(4,.055,4),"fairy":Vector3(3,.065,13)}
+func elemental_distortion_sample(element:String,phase:float,stage:String,tier:int)->Vector3:
+	var cue:Vector3=ELEMENT_DISTORTION.get(element,ELEMENT_DISTORTION.normal)
+	if tier>=2 or stage=="none":return Vector3.ZERO
+	var t:float=clampf(phase,0.0,1.0)
+	var envelope:float=sin(t*PI) if stage=="launch" else pow(1.0-t,1.8)
+	var strength:float=cue.y*maxf(0.0,envelope)*(.55 if tier==1 else 1.0)
+	return Vector3(cue.x,strength,cue.z)
+
+func cinematic_halo(at:Vector3,color:Color,extent:float,opacity:float,phase:float,ground:bool,element:String="normal",distortion_stage:String="none")->void:
 	if fx_halos_used>=fx_halos.size() or opacity<=.012:return
 	var index:int=fx_halos_used;fx_halos_used+=1
 	var halo:MeshInstance3D=fx_halos[index]
@@ -2861,6 +2906,10 @@ func cinematic_halo(at:Vector3,color:Color,extent:float,opacity:float,phase:floa
 	var material:=elemental_material_profile(element)
 	set_fx_uniform(mat,"material_family",int(material.x) if fx_performance_tier<2 else 0)
 	set_fx_uniform(mat,"material_opacity",material.y)
+	var distortion:=elemental_distortion_sample(element,phase,distortion_stage,fx_performance_tier)
+	set_fx_uniform(mat,"distortion_family",int(distortion.x))
+	set_fx_uniform(mat,"distortion_strength",distortion.y)
+	set_fx_uniform(mat,"distortion_frequency",distortion.z)
 	if not halo.visible:halo.show()
 
 # Per-element response: energy, reach, falloff, temporal modulation.
@@ -3013,7 +3062,7 @@ func cinematic_cast_enhancement(burst:Dictionary,t:float)->void:
 		var at:=combat_path_sample(points,progress)
 		if status:at=source.lerp(target,progress*.6)
 		var envelope:float=sin(progress*PI)
-		cinematic_halo(at,color,.95 if luminous else .65,strength*envelope*.52,progress,false,element)
+		cinematic_halo(at,color,.95 if luminous else .65,strength*envelope*.52,progress,false,element,"none" if status else "launch")
 		if luminous:
 			var lighting:=elemental_light_sample(element,progress,"launch")
 			cinematic_light(at+Vector3.UP*.25,color,lighting.x*(.62 if status else 1.0),lighting.y,lighting.z,1)
@@ -3022,9 +3071,9 @@ func cinematic_cast_enhancement(burst:Dictionary,t:float)->void:
 		var after:float=impact_visual_phase(burst,t)
 		var fade:float=pow(1.0-after,2.0)
 		var extent:float=(2.0 if wide else 1.25)*(1.18 if ultimate else 1.0)
-		cinematic_halo(target,color,extent*(.82+after*.5),strength*fade*.8,after,false,element)
+		cinematic_halo(target,color,extent*(.82+after*.5),strength*fade*.8,after,false,element,"none" if status else "impact")
 		if not status and (fx_performance_tier<2 or after<.55):
-			cinematic_halo(Vector3(target.x,.06,target.z),color,extent*(.84+after*.9),strength*fade*.62,after,true,element)
+			cinematic_halo(Vector3(target.x,.06,target.z),color,extent*(.84+after*.9),strength*fade*.62,after,true,element,"impact")
 		var lighting:=elemental_light_sample(element,after,"impact",wide)
 		var critical:bool=not critical_impact_tiles(burst).is_empty()
 		var energy:float=minf(1.2,lighting.x*(1.12 if ultimate else 1.0)*(1.12 if critical else 1.0)*(.62 if status else 1.0))
