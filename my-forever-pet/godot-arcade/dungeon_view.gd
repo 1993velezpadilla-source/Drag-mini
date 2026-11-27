@@ -1579,7 +1579,9 @@ func build_floor():
 	floor_build_usec=Time.get_ticks_usec()-start_usec
 	print("DUNGEON_FLOOR_BUILD region=",region," floor=",run.floor_number," usec=",floor_build_usec," rocks=",rock_modules," cached_rock_sets=",rock_mesh_cache.size()," landmarks=",landmark_count," details=",detail_count," paired_spans=",span_count," corners=",corner_count," terraces=",terrace_count," floor_details=",floor_detail_count," thresholds=",threshold_count," exterior_vertices=",exterior_vertex_count," exterior_groups=",exterior_groups.size()," exterior_static_batches=",exterior_static_batches," exterior_life=",exterior_life_centers.size())
 func actor_for(key:String,at:Vector3)->Node3D:
-	if actor_nodes.has(key):return actor_nodes[key]
+	if actor_nodes.has(key):
+		if is_instance_valid(actor_nodes[key]) and not actor_nodes[key].is_queued_for_deletion():return actor_nodes[key]
+		actor_nodes.erase(key)
 	var n=Node3D.new();actors.add_child(n);n.position=at;actor_nodes[key]=n;actor_created+=1
 	return n
 # Preview species use the same nearest-filtered 2.5D billboards as Mosky.
@@ -1898,6 +1900,93 @@ func fire_sprite(im:Image,role:String,frame:int)->void:
 				var d:=Vector2(cos(a),sin(a))
 				fx_line(im,Vector2(24,19)+d*(r+2),Vector2(24,19)+d*(r+6),2.0,outer)
 
+func water_drop(im:Image,q:Vector2,r:float,light:Color,dark:Color)->void:
+	fx_disc(im,q,r,dark)
+	fx_disc(im,q-Vector2(0,1),r*.72,light)
+	fx_disc(im,q-Vector2(r*.22,r*.32),maxf(1.0,r*.21),Color("#eaffff"))
+
+func water_sprite(im:Image,role:String,frame:int)->void:
+	var t:float=float(frame)/11.0
+	var center:=Vector2(24,24)
+	var light:=Color("#73e6fa");var dark:=Color("#1768aa")
+	if role=="water_ink":light=Color("#777e9d");dark=Color("#24233e")
+	if role=="water_mud":light=Color("#d2ae70");dark=Color("#745135")
+	match role:
+		"water_bubble","water_bubblebeam":
+			var count:int=5 if role=="water_bubble" else 9
+			for i in range(count):
+				var x:float=5.0+fposmod(float(i)*7.5+t*25.0,38.0)
+				var y:float=24.0+sin(float(i)*2.4+t*TAU)*(7.0 if count==5 else 3.0)
+				var radius:float=3.0+float(i%3)
+				fx_disc(im,Vector2(x,y),radius,dark)
+				fx_disc(im,Vector2(x,y),radius-1.0,light,radius-2.0)
+				fx_disc(im,Vector2(x-1,y-2),1.0,Color.WHITE)
+		"water_ink":
+			for i in range(9):
+				var a:float=float(i)*TAU/9.0+t
+				water_drop(im,center+Vector2(cos(a),sin(a))*(4.0+t*16.0),3.0+float(i%3),light,dark)
+			fx_disc(im,center,6.0,dark)
+		"water_whirlpool","water_ring","water_shell":
+			for ring in range(3):
+				var radius:float=6.0+float(ring)*6.0
+				var last:=center+Vector2(radius,0)
+				for j in range(1,25):
+					var a:float=float(j)*TAU/24.0+t*TAU
+					var q:=center+Vector2(cos(a)*radius,sin(a)*radius*(.42 if role=="water_whirlpool" else .72))
+					if role=="water_shell":q.y-=sin(float(ring)*PI*.5)*6.0
+					if j>1:fx_line(im,last,q,2.4,dark);fx_line(im,last,q,1.0,light)
+					last=q
+				var orbit:float=t*TAU+float(ring)*2.1
+				water_drop(im,center+Vector2(cos(orbit)*radius,sin(orbit)*radius*.65),2.0,light,dark)
+			if role=="water_shell":fx_disc(im,center,8.0,dark,6.0)
+		"water_clamp","water_hammer","water_tail":
+			if role=="water_clamp":
+				var close:float=sin(t*PI)*9.0
+				for sign_y in [-1.0,1.0]:
+					fx_line(im,Vector2(8,24+sign_y*15),Vector2(28,24+sign_y*(15-close)),5.0,dark)
+					fx_line(im,Vector2(28,24+sign_y*(15-close)),Vector2(39,24+sign_y*3),3.0,light)
+			elif role=="water_hammer":
+				var a:float=-1.1+t*2.1
+				var q:=center+Vector2(cos(a),sin(a))*13.0
+				fx_line(im,Vector2(7,36),q,5.0,dark);water_drop(im,q,9.0,light,dark)
+			else:
+				for i in range(12):
+					var a:float=-2.3+float(i)*.27+t*.7
+					water_drop(im,center+Vector2(cos(a),sin(a))*16.0,2.0+float(i)*.3,light,dark)
+		"water_spout","water_fall","water_dive":
+			for i in range(6):
+				var x:float=8.0+float(i)*6.0
+				var y:float=39.0-sin(t*PI)*float(13+i%3*7) if role=="water_spout" else 5.0+fposmod(t*33.0+float(i)*7.0,33.0) if role=="water_fall" else 24.0+sin(t*TAU)*12.0
+				fx_line(im,Vector2(x,39 if role!="water_fall" else 2),Vector2(x,y),3.0,dark)
+				water_drop(im,Vector2(x,y),3.0,light,dark)
+			if role=="water_dive":fx_disc(im,Vector2(24,35),10.0+t*7.0,light,8.0+t*7.0)
+		"water_mud","water_surf":
+			for j in range(1,15):
+				var x:float=2.0+float(j)*3.0
+				var y:float=30.0-sin(float(j)*.33+t*TAU)*(7.0 if role=="water_mud" else 12.0)
+				fx_line(im,Vector2(x,40),Vector2(x,y),4.0,dark)
+				water_drop(im,Vector2(x,y),3.0,light,dark)
+		"water_cannon","water_pump","water_gun","water_jet","water_brine":
+			var width:float=6.0 if role=="water_cannon" else 4.0 if role=="water_pump" else 1.8 if role=="water_gun" else 3.0
+			for i in range(9):
+				var f:float=float(i)/8.0
+				var q:=Vector2(4+40*f,24+sin(f*10.0-t*TAU)*(1.0 if role=="water_cannon" else 4.0))
+				water_drop(im,q,width*(.55+f*.65),light,dark)
+				if role=="water_brine":fx_disc(im,q+Vector2(1,7 if i%2==0 else -7),1.2,Color.WHITE)
+			if role=="water_jet":fx_line(im,Vector2(3,32),Vector2(41,18),2.0,light)
+		"water_pulse":
+			for i in range(3):
+				var x:float=8.0+float(i)*12.0+sin(t*TAU)*2.0
+				for j in range(1,13):
+					var a:float=-PI*.5+float(j)*PI/12.0
+					var b:float=a-PI/12.0
+					fx_line(im,Vector2(x+cos(b)*5,sin(b)*15+24),Vector2(x+cos(a)*5,sin(a)*15+24),2.8,light)
+		"water_rain","water_mist":
+			for i in range(11):
+				var x:float=4.0+float(posmod(i*17,40))
+				var y:float=4.0+fposmod(float(i)*11.0+t*36.0,38.0)
+				if role=="water_rain":fx_line(im,Vector2(x,y),Vector2(x-2,y+6),1.4,light)
+				else:fx_disc(im,Vector2(x,y),4.0+sin(t*PI)*3.0,Color(light,.55))
 func combat_frame_image(id:String,frame:int)->Image:
 	var style:Array=combat_style(id)
 	var mode:String=combat_animation_mode(id,str(style[0]))
@@ -1909,6 +1998,8 @@ func combat_frame_image(id:String,frame:int)->Image:
 		electric_sprite(im,id,frame,role);return im
 	if role.begins_with("fire_"):
 		fire_sprite(im,role,frame);return im
+	if role.begins_with("water_"):
+		water_sprite(im,role,frame);return im
 	var center:=Vector2(24,24)
 	match mode:
 		"vine":
@@ -2060,11 +2151,35 @@ func combat_profile(id:String)->Dictionary:
 		"eos_524":role="fire_magma"
 		"eos_047":role="fire_wisp"
 		"eos_223":role="fire_sun"
+		"eos_016":role="water_bubble"
+		"eos_032":role="water_whirlpool"
+		"eos_044":role="water_ink"
+		"eos_069":role="water_clamp"
+		"eos_087":role="water_hammer"
+		"eos_113":role="water_spout"
+		"eos_156":role="water_dive"
+		"eos_158":role="water_fall"
+		"eos_159":role="water_mud"
+		"eos_219":role="water_surf"
+		"eos_239":role="water_cannon"
+		"eos_240":role="water_pump"
+		"eos_255":role="water_bubblebeam"
+		"eos_308":role="water_gun"
+		"eos_310":role="water_pulse"
+		"eos_432":role="water_jet"
+		"eos_433":role="water_tail"
+		"eos_469":role="water_brine"
+		"eos_070":role="water_shell"
+		"eos_012":role="water_rain"
+		"eos_307":role="water_mist"
+		"eos_434":role="water_ring"
 	if role in ["electric_charge","electric_lift"]:mode="lightning"
 	var impact:float=.48 if role in ["contact","electric_contact","electric_short","electric_fist","electric_fang","electric_dash","electric_spark"] else .64 if role in ["projectile","lash","electric_arc","electric_wave","electric_sky","electric_orb","electric_beam"] else .40
 	if role in ["fire_breath","fire_ember","fire_blast","fire_wisp"]:impact=.64
 	elif role in ["fire_wheel","fire_kick","fire_punch","fire_fang","fire_blitz"]:impact=.48
-	return {"mode":mode,"role":role,"element":element,"pattern":pattern,"range":reach,"duration":float(style[3]),"impact":impact,"socket":"ground" if role in ["ground","fire_plume","fire_magma"] else "head" if role in ["projectile","fire_breath","fire_ember","fire_eruption"] else "center"}
+	if role in ["water_bubble","water_ink","water_cannon","water_pump","water_bubblebeam","water_gun","water_pulse","water_brine"]:impact=.64
+	elif role in ["water_clamp","water_hammer","water_dive","water_fall","water_jet","water_tail"]:impact=.48
+	return {"mode":mode,"role":role,"element":element,"pattern":pattern,"range":reach,"duration":float(style[3]),"impact":impact,"socket":"ground" if role in ["ground","fire_plume","fire_magma","water_dive","water_whirlpool","water_surf"] else "head" if role in ["projectile","fire_breath","fire_ember","fire_eruption","water_bubble","water_ink","water_spout","water_cannon","water_pump","water_bubblebeam","water_gun","water_pulse","water_brine"] else "center"}
 func electric_sprite(im:Image,id:String,frame:int,role:String)->void:
 	var cyan:=Color("#40cfff")
 	var violet:=Color("#5969ed")
@@ -2410,8 +2525,8 @@ func update_combat_reactions(dt:float)->void:
 		var reaction:Dictionary=fx_reactions[i]
 		reaction.delay-=dt
 		if float(reaction.delay)>0.0:continue
-		var actor:Node3D=reaction.actor
-		if is_instance_valid(actor):
+		var actor=reaction.actor
+		if is_instance_valid(actor) and not actor.is_queued_for_deletion():
 			actor.set_meta("pending_impact",false)
 			enemy_pose(actor,"defeat" if reaction.defeated else "hurt",.32 if reaction.defeated else .20)
 			if reaction.defeated:
@@ -2533,6 +2648,31 @@ func combat_fx_update(dt:float)->void:
 						q=points[0]+Vector3(cos(angle)*.12,1.6+t*.35,sin(angle)*.12);size=.82
 					_:
 						q=points[-1]+Vector3(cos(angle)*.28,sin(angle)*.3,sin(angle)*.28);size=.62
+			if str(profile.role).begins_with("water_"):
+				var water_role:String=str(profile.role)
+				var progress:float=clampf(t*1.8-f*.35,0,1)
+				match water_role:
+					"water_bubble","water_bubblebeam","water_ink","water_cannon","water_pump","water_gun","water_pulse","water_brine","water_jet":
+						q=combat_path_sample(points,progress)+Vector3(cos(angle)*.12,sin(angle)*.13,sin(angle)*.12)
+						size=.85 if water_role=="water_cannon" else .30 if water_role in ["water_gun","water_bubble"] else .55
+					"water_whirlpool":
+						q=points[-1]+Vector3(cos(angle+t*TAU)*.46,.12+f*.25,sin(angle+t*TAU)*.46);size=.54
+					"water_spout":
+						q=points[0].lerp(points[-1],progress)+Vector3(cos(angle)*.23,sin(progress*PI)*1.3,sin(angle)*.23);size=.64
+					"water_fall":
+						q=points[-1]+Vector3(cos(angle)*.2,1.5*(1.0-progress),sin(angle)*.2);size=.72
+					"water_dive":
+						q=points[-1]+Vector3(cos(angle)*t*.4,.04+sin(t*PI)*.26,sin(angle)*t*.4);size=.48
+					"water_surf","water_mud":
+						var direction:Vector3=(points[-1]-points[0]).normalized()
+						q=combat_path_sample(points,progress)+direction.cross(Vector3.UP)*(f-.5)*.8+Vector3.UP*sin(t*PI)*.45
+						size=.75 if water_role=="water_surf" else .55
+					"water_ring","water_shell","water_mist":
+						q=points[0]+Vector3(cos(angle+t*TAU)*.4,.15+f*.5,sin(angle+t*TAU)*.4);size=.48
+					"water_rain":
+						q=points[0]+Vector3(cos(angle)*.7,1.8*(1.0-progress),sin(angle)*.7);size=.28
+					_:
+						q=points[-1]+Vector3(cos(angle)*.32,sin(angle)*.28,sin(angle)*.32);size=.60
 			# Drained energy travels from victim back to caster; healing stays on caster.
 			if profile.role=="drain" and t>=.40:
 				var back:float=clampf((t-.40)*2.0-f*.22,0.0,1.0)
@@ -2563,14 +2703,15 @@ func consume_enemy_actions()->void:
 	enemy_event_floor=run.floor_revision;enemy_event_turn=run.turns
 	for event in run.enemy_actions:
 		var key:="enemy:"+str(event.uid)
-		if not actor_nodes.has(key):continue
+		if not actor_nodes.has(key) or not is_instance_valid(actor_nodes[key]):continue
 		var actor:Node3D=actor_nodes[key]
+		if actor.is_queued_for_deletion():continue
 		var direction:=Vector2(event.get("aim",event.to-event.from))
 		match str(event.phase):
 			"attack":
 				var profile:=combat_profile(str(event.get("fx","basic_strike")))
 				enemy_pose(actor,"attack",float(profile.duration),direction)
-				event["target_player"]=true
+				event["target_player"]=event.get("to",Vector2i(-999,-999))==run.player
 				combat_fx_spawn(event)
 			"windup":enemy_pose(actor,"windup",.18,direction)
 			"cancel":enemy_pose(actor,"idle",0.0,direction)
@@ -2578,6 +2719,8 @@ func consume_enemy_actions()->void:
 				if actor.has_meta("species"):
 					actor.set_meta("enemy_facing",PixelArt.direction_for(direction,int(actor.get_meta("enemy_facing",0))))
 func refresh_actors():
+	for key in actor_nodes.keys():
+		if not is_instance_valid(actor_nodes[key]) or actor_nodes[key].is_queued_for_deletion():actor_nodes.erase(key)
 	var desired:Dictionary={}
 	for p in run.loot:
 		if not run.revealed.has(p):continue
@@ -2827,7 +2970,7 @@ func _process(dt:float):
 	if feedback.visible:
 		feedback.size=Vector2(area.size.x,42);feedback.position=Vector2(0,area.size.y*.29-(1.0-feedback_time)*24.0);feedback.modulate.a=minf(1.0,feedback_time*4.0)
 	for key in actor_nodes.keys():
-		var n:Node3D=actor_nodes[key]
+		var n=actor_nodes[key]
 		if not is_instance_valid(n) or n.is_queued_for_deletion():
 			actor_nodes.erase(key);continue
 		if n.has_meta("target"):
@@ -2866,7 +3009,7 @@ func _process(dt:float):
 	elif run.charge_phase=="gather":pet_pose.position.y=.03+.04*sin(elapsed*12.0)
 	if attack_time>0.0:
 		var phase=sin(PI*attack_time/maxf(.01,player_cast_duration))
-		var lunge:float=.40 if player_cast_mode in ["contact","electric_contact","electric_fist","electric_fang","electric_spark","electric_dash","fire_wheel","fire_blitz","fire_kick","fire_punch","fire_fang"] else .13 if player_cast_mode=="lash" else -.08
+		var lunge:float=.40 if player_cast_mode in ["contact","electric_contact","electric_fist","electric_fang","electric_spark","electric_dash","fire_wheel","fire_blitz","fire_kick","fire_punch","fire_fang","water_clamp","water_hammer","water_dive","water_fall","water_jet","water_tail"] else .13 if player_cast_mode=="lash" else -.08
 		pet_pose.position+=pet.basis.inverse()*attack_direction*phase*lunge
 		attack_fx.visible=player_impact_delay<=0.0;attack_fx.scale=Vector3(1.1-phase*.42,.13,1.1-phase*.42)
 	else:attack_fx.hide()
