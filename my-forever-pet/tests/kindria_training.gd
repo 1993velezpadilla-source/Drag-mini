@@ -71,9 +71,9 @@ func _initialize():
 		if not str(id).begins_with("eos_"):continue
 		var move:Dictionary=Rules.MOVE_LIBRARY[id]
 		assert(int(str(id).trim_prefix("eos_"))==int(move.reference_id))
-		assert(move.pp>0 and move.power>0)
+		assert(move.pp>0 and (move.power>0 or move.has("heal_fraction")))
 		assert(move.reference_strikes==1 or (move.has("hit_min") and move.hit_min>=2 and move.hit_max<=5))
-		assert(move.category in ["physical","special"])
+		assert(move.category in ["physical","special"] or (move.category=="status" and move.has("heal_fraction")))
 		assert(id in Rules.available_moves([move.type],100))
 		assert(not id in Rules.available_moves([move.type],15))
 		assert(Rules.reference_accuracy(move)>=0.0 and Rules.reference_accuracy(move)<=100.0)
@@ -97,6 +97,25 @@ func _initialize():
 		if burst.last_move_hits==2:observed_double=true
 	assert(observed_double)
 	print("KINDRIA_MULTIHIT_PASS ",multi_count)
+	var heal=Rules.new()
+	heal.configure_training({"types":["normal"],"level":100,"moves":["eos_117","eos_218"]})
+	heal.hp=10
+	assert(heal.cast_move("eos_117",Vector2i.UP))
+	assert(heal.hp==28 and heal.last_move_healed==18 and heal.turns==1 and heal.move_pp.eos_117==11)
+	assert(heal.attack_target==heal.player)
+	heal.hp=heal.max_hp
+	assert(not heal.cast_move("eos_117",Vector2i.UP))
+	assert(heal.move_pp.eos_117==11 and heal.turns==1)
+	var drain=Rules.new()
+	drain.hp=10
+	drain.enemies.append({"pos":Vector2i(1,0),"hp":5,"kind":0,"species":"reef_pup"})
+	drain.strike(0,true,-1,"eos_076")
+	assert(drain.hp==12 and drain.last_move_healed==2 and drain.enemies.is_empty())
+	drain.hp=35
+	drain.enemies.append({"pos":Vector2i(1,0),"hp":100,"kind":0,"species":"reef_pup"})
+	drain.strike(0,true,-1,"eos_076")
+	assert(drain.hp==drain.max_hp)
+	print("KINDRIA_HEAL_DRAIN_PASS")
 	assert(Rules.EOS_IDENTIFIED_COUNT==468)
 	print("KINDRIA_EOS_PROTOTYPES_PASS ",eos_count)
 	print("KINDRIA_LEARNSET_PP_PASS")

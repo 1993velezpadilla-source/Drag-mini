@@ -1923,6 +1923,9 @@ func combat_profile(id:String)->Dictionary:
 	var role:String="contact" if mode in ["slash","leap","roll"] else "ground" if mode=="quake" else "cast" if mode in ["cloud","web","silk","wave","spiral"] else "projectile"
 	if mode in ["vine","whip"]:role="lash"
 	if mode=="lightning":role="electric_area" if pattern in ["cross","radius","fan","room"] else "electric_contact" if reach==1 else "electric_arc"
+	if Rules.MOVE_LIBRARY.has(id):
+		if Rules.MOVE_LIBRARY[id].has("drain_fraction"):role="drain"
+		elif Rules.MOVE_LIBRARY[id].has("heal_fraction"):role="heal"
 	var impact:float=.48 if role in ["contact","electric_contact"] else .64 if role in ["projectile","lash","electric_arc"] else .40
 	return {"mode":mode,"role":role,"element":element,"pattern":pattern,"range":reach,"duration":float(style[3]),"impact":impact,"socket":"ground" if role=="ground" else "head" if role=="projectile" else "center"}
 func electric_sprite(im:Image,id:String,frame:int,role:String)->void:
@@ -2213,6 +2216,15 @@ func combat_fx_update(dt:float)->void:
 					var radius:float=.12+t*.48
 					q+=Vector3(cos(angle)*radius,.18+sin(t*PI)*(.5 if mode=="cloud" else .2),sin(angle)*radius)
 					size=.65 if mode!="web" else .85
+			# Drained energy travels from victim back to caster; healing stays on caster.
+			if profile.role=="drain" and t>=.40:
+				var back:float=clampf((t-.40)*2.0-f*.22,0.0,1.0)
+				q=combat_path_sample(points,1.0-back)+Vector3(cos(angle)*.10,.15+sin(back*PI)*.35,sin(angle)*.10)
+				size=.32+f*.18
+			elif profile.role=="heal":
+				var radius:float=.12+sin(t*PI)*.38
+				q=points[0]+Vector3(cos(angle)*radius,.12+t*.65,sin(angle)*radius)
+				size=.36
 			particle.position=q
 			particle.texture=animated
 			particle.scale=Vector3.ONE*size*(1.0-t*.38)*.40
