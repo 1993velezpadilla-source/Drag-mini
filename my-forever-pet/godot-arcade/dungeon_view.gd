@@ -3500,6 +3500,148 @@ func support_sprite(im:Image,role:String,frame:int)->void:
 				fx_line(im,q,c,1.6,dark);fx_disc(im,q,2.8,gold)
 			fx_disc(im,c,3.0+sin(t*PI)*3.0,mint)
 
+# Original status glyphs and spatial effects; body animation remains independent.
+func status_kind(role:String)->Array:
+	match role:
+		"status_yawn","status_talk":return ["sleep",["status_yawn","status_talk"].find(role)]
+		"status_lovely","status_charm","status_kiss","status_attract","status_captivate":return ["heart",["status_lovely","status_charm","status_kiss","status_attract","status_captivate"].find(role)]
+		"status_scent","status_smoke","status_odor":return ["cloud",["status_scent","status_smoke","status_odor"].find(role)]
+		"status_screech","status_sing","status_uproar","status_supersonic","status_growl","status_roar","status_perish":return ["sound",["status_screech","status_sing","status_uproar","status_supersonic","status_growl","status_roar","status_perish"].find(role)]
+		"status_mean","status_scary","status_leer","status_glare","status_foresight":return ["eyes",["status_mean","status_scary","status_leer","status_glare","status_foresight"].find(role)]
+		"status_encore","status_disable","status_block","status_curse","status_sub":return ["lock",["status_encore","status_disable","status_block","status_curse","status_sub"].find(role)]
+		"status_convert","status_convert2","status_transform","status_camo":return ["shift",["status_convert","status_convert2","status_transform","status_camo"].find(role)]
+		"status_nature","status_sketch","status_assist","status_mimic","status_metronome","status_first","status_copycat":return ["copy",["status_nature","status_sketch","status_assist","status_mimic","status_metronome","status_first","status_copycat"].find(role)]
+		"status_swagger","status_tickle","status_tail","status_dance":return ["motion",["status_swagger","status_tickle","status_tail","status_dance"].find(role)]
+		"status_baton","status_recycle":return ["item",["status_baton","status_recycle"].find(role)]
+		"status_splash","status_whirl","status_flash":return ["space",["status_splash","status_whirl","status_flash"].find(role)]
+	return ["unknown",0]
+
+func status_sprite(im:Image,role:String,frame:int)->void:
+	var t:float=float(frame)/11.0
+	var c:=Vector2(24,24)
+	var light:=Color("#fff1d9");var dark:=Color("#765d91");var cyan:=Color("#a6e1e9");var gold:=Color("#f8cb76");var rose:=Color("#f28ca9")
+	var kind:Array=status_kind(role)
+	var v:int=int(kind[1])
+	match str(kind[0]):
+		"sleep":
+			for i in range(3+v):
+				var q:=Vector2(8+float(i)*8,30-sin(t*PI+float(i)*.6)*10.0)
+				if v==0:
+					fx_line(im,q,q+Vector2(7,0),1.8,cyan);fx_line(im,q+Vector2(7,0),q+Vector2(0,6),1.8,cyan);fx_line(im,q+Vector2(0,6),q+Vector2(7,6),1.8,cyan)
+				else:fx_disc(im,q,2.5+float(i%2),cyan)
+			if v==1:psi_ring(im,c,10.0+sin(t*PI)*3.0,light,dark)
+		"heart":
+			for i in range(2+v):
+				var q:=Vector2(8+float(i)*6.0+3.0*t,28-sin(t*PI+float(i)*.5)*10.0)
+				var r:float=3.0+float(v%3)
+				fx_disc(im,q+Vector2(-r*.5,-r*.5),r,rose);fx_disc(im,q+Vector2(r*.5,-r*.5),r,rose)
+				fx_line(im,q-Vector2(r,0),q+Vector2(0,r*1.5),r,rose);fx_line(im,q+Vector2(r,0),q+Vector2(0,r*1.5),r,rose)
+				if v%2==1:fx_disc(im,q-Vector2(1,3),1.5,light)
+			if v==3:psi_ring(im,c,15.0+sin(t*PI)*3.0,rose,dark)
+			elif v==4:fight_burst(im,c,18.0,6,t,gold,dark)
+		"cloud":
+			for i in range(5+v*3):
+				var a:float=float(i)*TAU/float(5+v*3)+t*2.0
+				var q:=c+Vector2(cos(a),sin(a))*(5.0+13.0*t)
+				var r:float=8.0 if v==1 else 4.0
+				fx_disc(im,q,r,Color(dark,.7) if v==1 else Color(cyan,.7) if v==2 else Color(rose,.7))
+				fx_disc(im,q-Vector2(1,2),r*.55,light)
+				if v==2:fx_line(im,q,q+Vector2(4,-4),1.5,gold)
+		"sound":
+			if v==1 or v==6:
+				for i in range(4 if v==1 else 7):
+					var q:=Vector2(5+float(i)*6,30-sin(t*TAU+float(i)*.7)*9.0)
+					fx_disc(im,q,2.5,rose if v==1 else dark)
+					fx_line(im,q,q-Vector2(0,9),1.8,light);fx_line(im,q-Vector2(0,9),q+Vector2(5,-6),1.8,gold if v==1 else dark)
+				if v==6:psi_ring(im,c,15.0+sin(t*PI)*3.0,rose,dark)
+			else:
+				for i in range(3+v%4):
+					var q:=Vector2(5+float(i)*7+4*t,24+sin(t*TAU+float(i))*float(v%3)*2.0)
+					fight_arc(im,q,6.0+float(i)*1.8,-PI*.5,PI,cyan if v==3 else gold,dark,2.0+float(v%3))
+				if v==0:fight_burst(im,c,14.0,6,t,rose,dark)
+				if v==5:fx_disc(im,Vector2(11+5*t,24),5.0,rose)
+		"eyes":
+			var r:float=11.0+sin(t*PI)*4.0
+			for i in [-1,1]:
+				var q:=c+Vector2(float(i)*9.0,0)
+				fight_arc(im,q,7.0,-PI*.8,PI*.6,light,dark,2.7);fight_arc(im,q,7.0,PI*.2,PI*.6,light,dark,2.0)
+				fx_disc(im,q+Vector2(sin(t*TAU)*2.0,0),2.0+float(v%3),rose if v<4 else cyan)
+			if v==0:fx_line(im,c-Vector2(14,10),c+Vector2(14,10),2.0,dark)
+			elif v==1:fight_burst(im,c,r+4.0,8,t,rose,dark)
+			elif v==2:fx_line(im,c-Vector2(15,3),c+Vector2(15,3),1.8,gold)
+			elif v==3:psi_polygon(im,c,r,4,PI*.25,gold,dark)
+			else:psi_ring(im,c,r+4.0,cyan,dark)
+		"lock":
+			var r:float=10.0+sin(t*PI)*5.0
+			if v==0:
+				fight_arc(im,c,r,t*TAU,PI*1.7,gold,dark,3.0);fx_line(im,c+Vector2(4,-12),c+Vector2(10,-5),3.0,light)
+			elif v==1:
+				psi_ring(im,c,r,rose,dark);fx_line(im,c-Vector2(10,10),c+Vector2(10,10),3.8,rose)
+			elif v==2:
+				psi_polygon(im,c,r,4,PI*.25,light,dark)
+				for i in range(3):fx_line(im,Vector2(16+float(i)*8,10+3*t),Vector2(16+float(i)*8,37-3*t),2.8,dark)
+			elif v==3:
+				psi_polygon(im,c,r,5,t*PI,rose,dark);fight_burst(im,c,r+4.0,5,t,dark,rose)
+			else:
+				var q:=c+Vector2(sin(t*PI)*8.0,0)
+				psi_polygon(im,q,9.0,5,PI*.5,cyan,dark)
+				fx_disc(im,q+Vector2(-3,-1),1.6,light);fx_disc(im,q+Vector2(3,-1),1.6,light)
+		"shift":
+			var palette:Array[Color]=[rose,cyan,gold,Color("#a1d18c")]
+			for i in range(4+v):
+				var a:float=float(i)*TAU/float(4+v)+t*TAU
+				var q:=c+Vector2(cos(a),sin(a))*(8.0+sin(t*PI)*8.0)
+				psi_polygon(im,q,4.0+float(v),3+v,a,palette[i%4],dark)
+			if v==0:psi_ring(im,c,8.0+sin(t*PI)*5.0,cyan,dark)
+			elif v==1:psi_polygon(im,c,10.0,6,-t*TAU,gold,dark)
+			elif v==2:psi_polygon(im,c,8.0+sin(t*PI)*6.0,3+int(t*4.0),t*PI,light,dark)
+			else:
+				for i in range(4):fx_disc(im,c+Vector2(float(i%2)*8-4,float(i/2)*8-4),3.0,Color(palette[3],.8))
+		"copy":
+			var q:=Vector2(9+30*t,24-sin(t*PI)*7.0)
+			if v==0:
+				for i in range(5):
+					var a:float=float(i)*TAU/5.0+t
+					psi_polygon(im,q+Vector2(cos(a),sin(a))*8.0,4.0,3,a,Color("#a1d18c"),dark)
+			elif v==1:
+				fx_line(im,q-Vector2(6,8),q+Vector2(7,7),3.0,gold);fx_line(im,q+Vector2(7,7),q+Vector2(2,7),2.0,light)
+			elif v==2:fight_burst(im,q,11.0,5,t,cyan,dark)
+			elif v==3 or v==6:
+				psi_polygon(im,q,7.0,4+v%3,t*PI,cyan,dark);psi_polygon(im,Vector2(48-q.x,29),5.0,4+v%3,-t*PI,rose,dark)
+				if v==6:psi_ring(im,q,10.0,light,dark)
+			elif v==4:
+				fx_line(im,c+Vector2(0,11),c+Vector2(sin(t*TAU)*12,-12),3.0,gold)
+				fx_disc(im,c+Vector2(sin(t*TAU)*12,-12),3.0,light)
+			else:
+				for i in range(3):fx_line(im,q-Vector2(10,float(i-1)*5),q+Vector2(5,float(i-1)*5),2.0,gold)
+			if v!=4:fx_disc(im,q,1.7,gold)
+		"motion":
+			for i in range(3+v):
+				var a:float=float(i)*TAU/float(3+v)+t*TAU
+				var q:=c+Vector2(cos(a),sin(a))*(8.0+sin(t*PI)*7.0)
+				fight_arc(im,q,6.0+float(v),a,PI*1.2,gold if v%2==0 else rose,dark,2.2)
+				if v!=2:fx_disc(im,q,2.0,cyan)
+			if v==0:psi_polygon(im,c,8.0,5,t*PI,gold,dark)
+			elif v==2:fx_line(im,c,c+Vector2(sin(t*TAU)*14,9),4.0,rose)
+		"item":
+			var q:=Vector2(8+32*t,24-sin(t*PI)*10.0)
+			if v==0:
+				fx_line(im,q-Vector2(5,-5),q+Vector2(5,-5),4.0,gold);fx_disc(im,q+Vector2(5,-5),3.0,light)
+			else:
+				for i in range(3):
+					var a:float=t*TAU+float(i)*TAU/3.0
+					fight_arc(im,c,13.0,a,PI*.6,cyan,dark,3.2)
+				psi_polygon(im,q,5.0,4,t*PI,gold,dark)
+		"space":
+			if v==0:
+				var q:=Vector2(24,33-absf(sin(t*TAU))*20.0)
+				fx_disc(im,q,5.0,light)
+				for i in range(5):fx_disc(im,Vector2(8+float(i)*8,36-sin(t*PI)*float(i%3)*5),2.0,cyan)
+			elif v==1:
+				for i in range(5):fight_arc(im,Vector2(24,7+float(i)*8),5.0+float(4-i)*2.5,t*TAU+float(i)*.4,PI*1.5,cyan,dark,2.8)
+			else:
+				fx_disc(im,c,4.0+sin(t*PI)*7.0,light);fight_burst(im,c,10.0+sin(t*PI)*11.0,12,t,light,gold)
+
 func combat_frame_image(id:String,frame:int)->Image:
 	var style:Array=combat_style(id)
 	var mode:String=combat_animation_mode(id,str(style[0]))
@@ -3545,6 +3687,8 @@ func combat_frame_image(id:String,frame:int)->Image:
 		neutral_special_sprite(im,role,frame);return im
 	if role.begins_with("support_"):
 		support_sprite(im,role,frame);return im
+	if role.begins_with("status_"):
+		status_sprite(im,role,frame);return im
 	var center:=Vector2(24,24)
 	match mode:
 		"vine":
@@ -4085,6 +4229,53 @@ func combat_profile(id:String)->Dictionary:
 		"eos_349":role="support_lock"
 		"eos_447":role="support_lucky"
 		"eos_492":role="support_acu"
+		"eos_003":role="status_yawn"
+		"eos_227":role="status_talk"
+		"eos_004":role="status_lovely"
+		"eos_011":role="status_charm"
+		"eos_191":role="status_kiss"
+		"eos_326":role="status_attract"
+		"eos_534":role="status_captivate"
+		"eos_010":role="status_scent"
+		"eos_037":role="status_smoke"
+		"eos_054":role="status_odor"
+		"eos_027":role="status_screech"
+		"eos_034":role="status_sing"
+		"eos_112":role="status_uproar"
+		"eos_171":role="status_supersonic"
+		"eos_217":role="status_growl"
+		"eos_284":role="status_roar"
+		"eos_293":role="status_perish"
+		"eos_089":role="status_mean"
+		"eos_106":role="status_scary"
+		"eos_224":role="status_leer"
+		"eos_281":role="status_glare"
+		"eos_315":role="status_foresight"
+		"eos_017":role="status_encore"
+		"eos_059":role="status_disable"
+		"eos_194":role="status_block"
+		"eos_237":role="status_curse"
+		"eos_304":role="status_sub"
+		"eos_183":role="status_convert"
+		"eos_184":role="status_convert2"
+		"eos_282":role="status_transform"
+		"eos_286":role="status_camo"
+		"eos_119":role="status_nature"
+		"eos_138":role="status_sketch"
+		"eos_229":role="status_assist"
+		"eos_327":role="status_mimic"
+		"eos_330":role="status_metronome"
+		"eos_465":role="status_first"
+		"eos_525":role="status_copycat"
+		"eos_024":role="status_swagger"
+		"eos_085":role="status_tickle"
+		"eos_122":role="status_tail"
+		"eos_274":role="status_dance"
+		"eos_252":role="status_baton"
+		"eos_337":role="status_recycle"
+		"eos_254":role="status_splash"
+		"eos_268":role="status_whirl"
+		"eos_273":role="status_flash"
 	if role in ["electric_charge","electric_lift"]:mode="lightning"
 	var impact:float=.48 if role in ["contact","electric_contact","electric_short","electric_fist","electric_fang","electric_dash","electric_spark"] else .64 if role in ["projectile","lash","electric_arc","electric_wave","electric_sky","electric_orb","electric_beam"] else .40
 	if role in ["fire_breath","fire_ember","fire_blast","fire_wisp"]:impact=.64
@@ -4111,6 +4302,7 @@ func combat_profile(id:String)->Dictionary:
 	if role.begins_with("normal_"):impact=.64 if role in ["normal_extreme","normal_quick","normal_giga","normal_climb"] else .48
 	if role.begins_with("neutral_"):impact=.64 if role in ["neutral_beam","neutral_weather","neutral_swift","neutral_egg","neutral_barrage","neutral_spike","neutral_present","neutral_trump","neutral_pay","neutral_hidden","neutral_gift"] else .48
 	if role.begins_with("support_"):impact=.48
+	if role.begins_with("status_"):impact=.48
 	return {"mode":mode,"role":role,"element":element,"pattern":pattern,"range":reach,"duration":float(style[3]),"impact":impact,"socket":"ground" if role in ["ground","fire_plume","fire_magma","water_dive","water_whirlpool","water_surf","grass_frenzy","grass_roots","grass_knot","ice_avalanche","ice_cold","earth_dig","earth_tomb","earth_power","earth_fissure","earth_spikes","earth_quake","earth_magnitude","rock_edge","rock_tomb","rock_trap","rock_roll"] else "head" if role in ["projectile","fire_breath","fire_ember","fire_eruption","water_bubble","water_ink","water_spout","water_cannon","water_pump","water_bubblebeam","water_gun","water_pulse","water_brine","grass_solar","grass_energy","grass_bullet","grass_whistle","ice_aurora","ice_beam","ice_wind","earth_shot","rock_wrecker","rock_blast","rock_gem"] else "center"}
 func electric_sprite(im:Image,id:String,frame:int,role:String)->void:
 	var cyan:=Color("#40cfff")
@@ -4887,6 +5079,22 @@ func combat_fx_update(dt:float)->void:
 						q=tiles[j%tiles.size()]+Vector3(cos(angle+t*TAU)*.32,.12+f*.65,sin(angle+t*TAU)*.32);size=.48
 					_:
 						q=points[0]+Vector3(cos(angle+t*TAU)*.38,.12+f*.6,sin(angle+t*TAU)*.38);size=.46
+			if str(profile.role).begins_with("status_"):
+				var status_role:String=str(profile.role)
+				var progress:float=clampf(t*1.8-f*.30,0,1)
+				match status_role:
+					"status_convert","status_convert2","status_transform","status_camo","status_talk","status_metronome","status_assist","status_nature","status_recycle":
+						q=points[0]+Vector3(cos(angle+t*TAU)*.38,.12+f*.65,sin(angle+t*TAU)*.38);size=.47
+					"status_lovely","status_scent","status_odor","status_uproar","status_growl","status_dance","status_perish","status_baton":
+						q=tiles[j%tiles.size()]+Vector3(cos(angle+t*TAU)*.3,.12+f*.55,sin(angle+t*TAU)*.3);size=.46
+					"status_sketch","status_mimic","status_copycat","status_first":
+						q=combat_path_sample(points,1.0-progress)+Vector3(0,.15+sin(progress*PI)*.4,0);size=.44
+					"status_sing","status_supersonic","status_screech","status_roar","status_whirl":
+						q=combat_path_sample(points,progress)+Vector3(cos(angle)*.12,.18+sin(angle)*.14,sin(angle)*.12);size=.48
+					"status_splash":
+						q=points[0]+Vector3(cos(angle)*.25,.12+absf(sin(t*TAU))*.6,sin(angle)*.25);size=.42
+					_:
+						q=points[-1]+Vector3(cos(angle+t*TAU)*.28,.15+f*.5,sin(angle+t*TAU)*.28);size=.46
 			# Drained energy travels from victim back to caster; healing stays on caster.
 			if profile.role=="drain" and t>=.40:
 				var back:float=clampf((t-.40)*2.0-f*.22,0.0,1.0)

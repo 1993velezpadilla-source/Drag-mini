@@ -418,6 +418,22 @@ func run():
 				support_frames[signature]=true
 				assert(middle.save_png("/tmp/dungeon-real-support-"+id+".png")==OK)
 			print("KINDRIA_SUPPORT_CHOREOGRAPHY_PASS ",support_roles.size())
+			var status_roles:Dictionary={}
+			var status_frames:Dictionary={}
+			for id in ["eos_003","eos_227","eos_004","eos_011","eos_191","eos_326","eos_534","eos_010","eos_037","eos_054","eos_027","eos_034","eos_112","eos_171","eos_217","eos_284","eos_293","eos_089","eos_106","eos_224","eos_281","eos_315","eos_017","eos_059","eos_194","eos_237","eos_304","eos_183","eos_184","eos_282","eos_286","eos_119","eos_138","eos_229","eos_327","eos_330","eos_465","eos_525","eos_024","eos_085","eos_122","eos_274","eos_252","eos_337","eos_254","eos_268","eos_273"]:
+				var profile:Dictionary=dungeon.combat_profile(id)
+				assert(str(profile.role).begins_with("status_"),"dedicated status role "+id)
+				assert(not status_roles.has(profile.role),"unique status choreography "+id)
+				status_roles[profile.role]=true
+				var first:Image=dungeon.combat_frame_image(id,2)
+				var middle:Image=dungeon.combat_frame_image(id,6)
+				assert(first.get_data()!=middle.get_data(),"status animation changes "+id)
+				assert(middle.get_used_rect().has_area(),"nonempty status frame "+id)
+				var signature:String=middle.get_data().hex_encode()
+				assert(not status_frames.has(signature),"unique status sprite "+id)
+				status_frames[signature]=true
+				assert(middle.save_png("/tmp/dungeon-real-status-"+id+".png")==OK)
+			print("KINDRIA_STATUS_CHOREOGRAPHY_PASS ",status_roles.size())
 			# Reproduce the freed-instance registry fault before the real expedition.
 			var retired:Node3D=dungeon.actor_for("retired-test",Vector3.ZERO)
 			retired.free()
