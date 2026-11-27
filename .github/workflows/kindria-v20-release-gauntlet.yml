@@ -1,9 +1,11 @@
-name: Kindria V20 release gauntlet
+name: Kindria V23 release validation
 on:
   push:
     branches: [feature/my-forever-pet-paradise]
     paths:
       - 'my-forever-pet/godot-arcade/**'
+      - 'my-forever-pet/tests/compare_kindria_performance.py'
+      - 'my-forever-pet/tests/test_compare_kindria_performance.py'
       - '.github/workflows/kindria-v20-release-gauntlet.yml'
   workflow_dispatch:
 permissions:
@@ -21,6 +23,9 @@ jobs:
         working-directory: my-forever-pet/godot-arcade
     steps:
       - uses: actions/checkout@v4
+      - name: Validate performance comparator
+        working-directory: my-forever-pet/tests
+        run: python3 -m unittest -v test_compare_kindria_performance
       - name: Install Godot 4.6
         working-directory: /tmp
         run: |
@@ -40,7 +45,7 @@ jobs:
           set -euo pipefail
           godot --headless --path . --script res://cinematic_gauntlet.gd 2>&1 | tee /tmp/kindria-gauntlet.log
           grep -E 'CINEMATIC_GAUNTLET checks=[0-9]+ failures=0$' /tmp/kindria-gauntlet.log
-          grep -E 'KINDRIA_FULL_QUALITY moves=589 .*audio=1178 .*runtime_samples=2945' /tmp/kindria-gauntlet.log
+          grep -E 'KINDRIA_FULL_QUALITY moves=589 frames=7068 audio=1178 runtime_samples=2945' /tmp/kindria-gauntlet.log
           grep -E 'KINDRIA_AUDIO_QUALITY samples=1178 exact_unique=1178' /tmp/kindria-gauntlet.log
           if grep -E 'SCRIPT ERROR|Parse Error|Compile Error|Failed to load script' /tmp/kindria-gauntlet.log; then exit 1; fi
           test -s /tmp/kindria-quality-report.log
@@ -83,6 +88,30 @@ jobs:
           grep -E 'KINDRIA_PERFORMANCE mode=desktop_rendered moves=589 failures=0$' /tmp/kindria-performance-batched.log
           if grep -E 'SCRIPT ERROR|Parse Error|Compile Error' /tmp/kindria-performance-batched.log; then exit 1; fi
           test -s /tmp/kindria-performance-batched.json
+      - name: Validate measured report schema and full stress accounting
+        run: |
+          set -euo pipefail
+          python3 ../tests/compare_kindria_performance.py /tmp/kindria-performance-cpu.json /tmp/kindria-performance-cpu.json > /tmp/kindria-performance-cpu-integrity.json
+          python3 ../tests/compare_kindria_performance.py /tmp/kindria-performance-rendered.json /tmp/kindria-performance-rendered.json > /tmp/kindria-performance-rendered-integrity.json
+          python3 ../tests/compare_kindria_performance.py /tmp/kindria-performance-batched.json /tmp/kindria-performance-batched.json > /tmp/kindria-performance-batched-integrity.json
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          quality = json.loads(Path('/tmp/kindria-quality-report.log').read_text())
+          assert quality['frame_total'] == 7068
+          assert quality['audio_total'] == 1178
+          assert quality['runtime_samples'] == 2945
+          assert len({row['id'] for row in quality['moves']}) == 589
+          assert not quality['duplicate_sequences']
+          report = json.loads(Path('/tmp/kindria-performance-cpu.json').read_text())
+          stress = report['sustained_stress']
+          assert stress['casts'] == 192 and stress['expected_waves'] == 576
+          assert stress['simulation_frames'] == 900 and stress['slow_simulation_frames'] == 12
+          assert stress['peak_active'] == 10 and stress['peak_retired'] >= 6
+          assert stress['memory_samples'][-1]['active'] == 0
+          assert stress['memory_samples'][-1]['retired'] == 0
+          print('KINDRIA_V23_REPORT_INTEGRITY_PASS')
+          PY
       - name: Preserve verified animation pack
         uses: actions/upload-artifact@v4
         with:
