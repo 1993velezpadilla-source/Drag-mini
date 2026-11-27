@@ -425,6 +425,15 @@ func run()->void:
 	var focus_body:Dictionary=PixelArt.attack_body_sample(.25,.5,"focus")
 	if float(rush_body.stretch)>=float(focus_body.stretch):errors.append("body motion distinction")
 	print("KINDRIA_BODY_CONTINUITY_PASS")
+	# Aerial and downward attacks land at the move's own impact beat.
+	for peak in [.12,.25,.48,.7,.88]:
+		for motion in ["aerial","down"]:
+			var apex:Vector3=field.cast_motion_offset(motion,peak*.5,peak)
+			var landing:Vector3=field.cast_motion_offset(motion,peak,peak)
+			var recovery:Vector3=field.cast_motion_offset(motion,peak+(1.0-peak)*.5,peak)
+			if apex.y<.29 or absf(landing.y)>.001 or absf(recovery.y)>.001:errors.append("airborne landing timing "+motion)
+			if landing.x<.19 or recovery.x>=landing.x:errors.append("landing forward recovery "+motion)
+	print("KINDRIA_AERIAL_LANDING_PASS")
 	# Exercise more frames than the cache cap, then verify hot hits and exact normalization.
 	for row in reports.slice(0,40):
 		for frame in range(Field.FX_FRAME_COUNT):field.combat_animated_texture(str(row.id),frame)
