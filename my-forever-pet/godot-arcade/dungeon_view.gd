@@ -14507,6 +14507,81 @@ func dispatch_environment_audio(burst:Dictionary)->void:
 		play_combat_sound(str(burst.id),str(cue.phase),at,false,age)
 	burst["environment_audio_cursor"]=cursor
 
+# V19.9: use actual outcome tags, never an unconfirmed status chance.
+func combat_status_audio_kind(move:Dictionary,row:Dictionary)->String:
+	if int(row.get("heal",0))>0:
+		return "drain" if move.has("drain_fraction") else "heal"
+	var tags:String=str(row.get("status","")).to_lower()
+	var changed:bool=bool(row.get("status_changed",false)) or int(row.get("effects",0))>0 or (int(row.get("damage",0))>0 and not tags.is_empty())
+	if not changed:return ""
+	# New attempt records contain only newly applied tags.
+	for tag in tags.split(" · ",false):
+		match tag:
+			"sleep","drowsy":return "sleep"
+			"confused","confusion":return "confusion"
+			"poison","toxic","poisoned":return "poison"
+			"burn","burned":return "burn"
+			"paralysis","paralyzed":return "paralysis"
+			"freeze","frozen":return "freeze"
+			"stuck","wrapped","leech","paused","encore","sealed":return "bind"
+			"nightmare","perish","curse","heal block","taunt","embargo":return "curse"
+			"infatuated":return "heart"
+	if int(row.get("effects",0))>0 or bool(row.get("status_changed",false)):
+		var kind:String=status_finish_kind(move)
+		if not kind.is_empty():
+			if str(move.get("inflict_status","")) in ["freeze","frozen"]:return "freeze"
+			return kind
+	return ""
+
+# Each short motif has its own contour and articulation. Phase is normalized
+# so changing the playback frame rate never changes the underlying PCM.
+func combat_status_audio_sample(kind:String,t:float,p:float,noise:float,variant:int)->float:
+	var pitch:float=1.0+float(variant-1)*.025
+	var bright:float=sin(TAU*880.0*t*pitch)
+	match kind:
+		"heal":return sin(TAU*pitch*(440.0*t+280.0*t*p))*.42+bright*.14
+		"drain":return sin(TAU*pitch*(630.0*t-210.0*t*p)+sin(TAU*9.0*t)*1.4)*.36+sin(TAU*pitch*330.0*t)*.18
+		"cleanse":return sin(TAU*pitch*(760.0*t+460.0*t*p))*.30+bright*.18+noise*.07*(1.0-p)
+		"shield":return sin(TAU*pitch*390.0*t)*.30+sin(TAU*pitch*1170.0*t)*.22*pow(1.0-p,2.0)
+		"boost":return sin(TAU*pitch*(330.0*t+540.0*t*p))*.42*(.45+.55*absf(sin(p*PI*3.0)))
+		"weaken":return sin(TAU*pitch*(700.0*t-490.0*t*p))*.40*(.45+.55*absf(sin(p*PI*2.0)))
+		"exchange","transform":return sin(TAU*pitch*(480.0*t+260.0*t*p)+sin(p*TAU*2.0)*1.7)*.35+sin(TAU*pitch*(720.0*t-240.0*t*p))*.19
+		"sleep":return sin(TAU*pitch*440.0*t)*.30+sin(TAU*pitch*660.0*t)*.14
+		"confusion":return sin(TAU*pitch*540.0*t+sin(TAU*13.0*t)*3.2)*.40
+		"poison":return sin(TAU*pitch*(180.0*t+130.0*t*p)+sin(TAU*24.0*t)*2.8)*.36+noise*.09
+		"burn":return sin(TAU*pitch*125.0*t)*.22+noise*.34*pow(absf(sin(p*PI*5.0)),3.0)
+		"paralysis":return (noise*.30+sin(TAU*pitch*1370.0*t)*.30)*pow(absf(sin(p*PI*7.0)),4.0)
+		"freeze":return sin(TAU*pitch*1900.0*t)*.28+sin(TAU*pitch*2810.0*t)*.19+noise*.12*pow(1.0-p,3.0)
+		"curse":return sin(TAU*pitch*(145.0*t-55.0*t*p)+sin(TAU*8.0*t)*2.0)*.40+sin(TAU*pitch*219.0*t)*.16
+		"heart":return sin(TAU*pitch*523.25*t)*.29+sin(TAU*pitch*783.99*t)*.18
+		"bind","trap":return (noise*.24+sin(TAU*pitch*230.0*t)*.28)*(.3+.7*pow(absf(sin(p*PI*3.0)),4.0))
+		"weather":return noise*.23*sin(p*PI)+sin(TAU*pitch*(330.0*t+180.0*t*p))*.22
+		"blocked":return sin(TAU*pitch*(260.0*t-150.0*t*p))*.24*pow(1.0-p,2.0)
+		_:return sin(TAU*pitch*(460.0*t+160.0*t*p))*.32+bright*.12
+
+func combat_status_sound(phase:String,variant:int)->AudioStreamWAV:
+	var key:String=phase+":"+str(variant)
+	if fx_audio_cache.has(key):return fx_audio_cache[key]
+	var kind:String=phase.trim_prefix("status_")
+	var rng:=RandomNumberGenerator.new()
+	rng.seed=posmod(hash(key),2147483647)
+	var rate:int=22050
+	var count:int=int(rate*(.11 if kind=="blocked" else .24))
+	var bytes:=PackedByteArray()
+	bytes.resize(count*2)
+	for i in range(count):
+		var p:float=float(i)/maxi(1,count-1)
+		var value:float=combat_status_audio_sample(kind,float(i)/rate,p,rng.randf_range(-1.0,1.0),variant)*combat_audio_envelope(p,"status")*.72
+		bytes.encode_s16(i*2,roundi(clampf(value,-.95,.95)*32767.0))
+	var audio:=AudioStreamWAV.new()
+	audio.format=AudioStreamWAV.FORMAT_16_BITS
+	audio.mix_rate=rate
+	audio.stereo=false
+	audio.data=bytes
+	if fx_audio_cache.size()>=192:fx_audio_cache.erase(fx_audio_cache.keys()[0])
+	fx_audio_cache[key]=audio
+	return audio
+
 func combat_sound(id:String,phase:String,variant:int)->AudioStreamWAV:
 	var key:=id+":"+phase+":"+str(variant)
 	if fx_audio_cache.has(key):return fx_audio_cache[key]
@@ -14626,6 +14701,8 @@ func combat_sound(id:String,phase:String,variant:int)->AudioStreamWAV:
 # have priority over launches and misses when all twelve voices are occupied.
 func combat_audio_mix(power:int,phase:String,critical:bool=false)->Vector3:
 	if phase.begins_with("env_"):return Vector3(-23.0,1.0,0.0)
+	if phase=="status_blocked":return Vector3(-22.0,1.0,0.0)
+	if phase.begins_with("status_"):return Vector3(-16.0,1.0,1.0)
 	var weight:float=cinematic_power_sample(power,phase=="status").x
 	var gain:float=clampf(20.0*log(maxf(.01,weight))/log(10.0),-2.0,3.0)
 	match phase:
@@ -14662,7 +14739,10 @@ func play_combat_sound(id:String,phase:String,at:Vector3,critical:bool=false,age
 	if slot<0:return
 	var key:=id+":"+phase
 	var variant:int=posmod(int(fx_audio_counter.get(key,-1))+1,3)
-	var stream:AudioStreamWAV=combat_environment_sound(phase,variant) if phase.begins_with("env_") else combat_sound(id,phase,variant)
+	var stream:AudioStreamWAV
+	if phase.begins_with("env_"):stream=combat_environment_sound(phase,variant)
+	elif phase.begins_with("status_"):stream=combat_status_sound(phase,variant)
+	else:stream=combat_sound(id,phase,variant)
 	# A late frame skips elapsed audio instead of replaying an old transient.
 	var offset:float=maxf(0.0,age)*mix.y
 	if offset>=stream.get_length()-.008:return
@@ -15006,7 +15086,10 @@ func cast_impact_waves(results:Dictionary)->Array[Dictionary]:
 			if i>=attempts.size():continue
 			var attempt:Dictionary=attempts[i].duplicate()
 			if i==attempts.size()-1:
-				if row.has("status"):attempt["status"]=row.status
+				var has_timed_status:bool=false
+				for entry in attempts:
+					if entry.has("status_changed"):has_timed_status=true;break
+				if row.has("status") and not has_timed_status:attempt["status"]=row.status
 				if row.has("heal"):attempt["heal"]=row.heal
 			wave[tile]=attempt
 		waves.append(wave)
@@ -15053,9 +15136,15 @@ func dispatch_cast_waves(burst:Dictionary)->void:
 		var nearest:float=INF
 		var strongest:int=0
 		var critical:bool=false
+		var status_cues:Dictionary={}
+		var blocked:bool=false
+		var move:Dictionary=Rules.MOVE_LIBRARY.get(str(burst.id),Rules.DEV_NATIVE_MOVES.get(str(burst.id),{}))
 		for tile in wave:
 			var row:Dictionary=wave[tile]
 			var amount:int=int(row.get("damage",0))
+			var kind:String=combat_status_audio_kind(move,row)
+			if not kind.is_empty() and not status_cues.has(kind):status_cues[kind]=pos(tile)+Vector3.UP*target.y
+			blocked=blocked or int(row.get("blocked",0))>0
 			strongest=maxi(strongest,amount)
 			critical=critical or (amount>0 and int(row.get("crit",0))>0)
 			if amount+int(row.get("effects",0))+int(row.get("heal",0))>0:
@@ -15068,8 +15157,14 @@ func dispatch_cast_waves(burst:Dictionary)->void:
 		if audio_age<.14:
 			if strongest>0 or (wave.is_empty() and cursor==0 and int(burst.get("damage",0))>0):
 				play_combat_sound(str(burst.id),"impact",target,critical,audio_age)
-			elif audible:play_combat_sound(str(burst.id),"status",target,false,audio_age)
-			elif not wave.is_empty():play_combat_sound(str(burst.id),"miss",target,false,audio_age)
+			elif status_cues.is_empty() and audible and not wave.is_empty():play_combat_sound(str(burst.id),"status",target,false,audio_age)
+			elif status_cues.is_empty() and not wave.is_empty():play_combat_sound(str(burst.id),"status_blocked" if blocked else "miss",target,false,audio_age)
+			# Bound layered effects to two distinct confirmed motifs per wave.
+			var status_count:int=0
+			for kind in status_cues:
+				if status_count>=2:break
+				play_combat_sound(str(burst.id),"status_"+str(kind),status_cues[kind],false,audio_age)
+				status_count+=1
 		if strongest>0 or (wave.is_empty() and cursor==0 and int(burst.get("damage",0))>0):
 			var age:float=maxf(0.0,float(burst.age)-float(times[cursor]))
 			queue_contact_camera(burst.points[0],target,critical,age)
