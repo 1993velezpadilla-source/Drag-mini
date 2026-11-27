@@ -310,6 +310,12 @@ func run()->void:
 	var counter_profile:Dictionary=field.combat_profile("eos_025")
 	if counter_plan.size()!=2 or absf(float(counter_plan[0].hit)-(.3+float(counter_profile.duration)*float(counter_profile.impact)))>.001 or counter_plan[0].event.path.size()!=2 or float(counter_plan[1].hit)<=float(counter_plan[0].hit):errors.append("counter effect plan")
 	print("KINDRIA_COUNTER_FX_PLAN_PASS")
+	# Body pose uses the same clock, role and aim as each replayed effect.
+	var pose_profile:Dictionary=field.combat_profile("eos_025")
+	var cast_sample:Dictionary=field.player_cast_sample("eos_025",Vector2i(2,2),Vector2i(1,2),.1)
+	if not cast_sample.direction.is_equal_approx(Vector3.LEFT) or absf(float(cast_sample.remaining)-(float(pose_profile.duration)-.1))>.001 or absf(float(cast_sample.impact_delay)-maxf(0.0,float(pose_profile.duration)*float(pose_profile.impact)-.1))>.001:errors.append("counter body clock")
+	if cast_sample.motion!=field.cast_motion_kind("eos_025",pose_profile):errors.append("counter body motion")
+	print("KINDRIA_COUNTER_BODY_CLOCK_PASS")
 	# Exercise more frames than the cache cap, then verify hot hits and exact normalization.
 	for row in reports.slice(0,40):
 		for frame in range(Field.FX_FRAME_COUNT):field.combat_animated_texture(str(row.id),frame)

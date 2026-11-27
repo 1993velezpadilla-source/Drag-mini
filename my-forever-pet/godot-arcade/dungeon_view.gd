@@ -4863,6 +4863,24 @@ func update_combat_reactions(dt:float)->void:
 			var warning=actor.get_node_or_null("Warning")
 			if bar!=null:bar.hide()
 			if warning!=null:warning.hide()
+# Both immediate and delayed casts use the same body presentation contract.
+func player_cast_sample(id:String,source:Vector2i,target:Vector2i,age:float=0.0)->Dictionary:
+	var profile:=combat_profile(id)
+	var duration:float=float(profile.duration)
+	var direction:Vector3=(pos(target)-pos(source)).normalized()
+	if direction.length_squared()<.0001:direction=Vector3(facing.x,0,facing.y).normalized()
+	return {"duration":duration,"remaining":maxf(0.0,duration-age),"impact":float(profile.impact),"impact_delay":maxf(0.0,duration*float(profile.impact)-age),"role":str(profile.role),"motion":cast_motion_kind(id,profile),"direction":direction}
+
+func begin_player_cast_pose(event:Dictionary,age:float=0.0)->void:
+	var sample:=player_cast_sample(str(event.fx),event.from,event.to,age)
+	player_cast_duration=float(sample.duration);player_cast_mode=str(sample.role)
+	attack_time=float(sample.remaining);player_cast_motion=str(sample.motion)
+	player_cast_impact=float(sample.impact);player_impact_delay=float(sample.impact_delay)
+	attack_direction=sample.direction
+	if is_instance_valid(attack_fx):
+		attack_fx.position=pos(event.to)+Vector3(0,.24,0)
+		attack_fx.visible=player_impact_delay<=0.0 and attack_time>0.0
+
 func update_delayed_combat_fx(dt:float)->void:
 	var due:Array[Dictionary]=[]
 	for i in range(delayed_combat_fx.size()-1,-1,-1):
@@ -4873,8 +4891,15 @@ func update_delayed_combat_fx(dt:float)->void:
 	due.sort_custom(func(a:Dictionary,b:Dictionary)->bool:return float(a.delay)<float(b.delay))
 	for item in due:
 		# This frame's elapsed fraction is applied once, not twice.
+		if not is_instance_valid(combat_fx_root):continue
+		var age:float=maxf(0.0,-float(item.delay))
 		combat_fx_spawn(item.event)
-		if not combat_bursts.is_empty():combat_bursts[-1].age=maxf(0.0,-float(item.delay))-dt
+		if not combat_bursts.is_empty():combat_bursts[-1].age=age-dt
+		# Do not turn a moved companion toward a historical origin, or interrupt
+		# a newer attack/charge. The independently recorded world FX still plays.
+		if run!=null and run.player==item.event.from and run.charge_phase.is_empty() and attack_time<=dt:
+			release_charge_phase=""
+			begin_player_cast_pose(item.event,age-dt)
 
 func combat_fx_update(dt:float)->void:
 	update_delayed_combat_fx(dt)
@@ -5623,14 +5648,9 @@ func sync():
 			attack_time=0.0;player_impact_delay=0.0
 	if run.attack_serial!=previous_attack:
 		previous_attack=run.attack_serial
-		var profile:=combat_profile(run.player_attack_fx)
-		player_cast_duration=float(profile.duration);player_cast_mode=str(profile.role);attack_time=player_cast_duration
-		player_cast_motion=cast_motion_kind(run.player_attack_fx,profile);player_cast_impact=float(profile.impact)
-		player_impact_delay=player_cast_duration*float(profile.impact)
-		attack_direction=(pos(run.attack_target)-pos(run.player)).normalized()
-		if attack_direction.length_squared()<.0001:attack_direction=Vector3(facing.x,0,facing.y).normalized()
-		attack_fx.position=pos(run.attack_target)+Vector3(0,.24,0);attack_fx.show()
-		combat_fx_spawn({"fx":run.player_attack_fx,"from":run.player,"to":run.attack_target,"tiles":run.player_attack_cells,"path":run.player_attack_path})
+		var event:Dictionary={"fx":run.player_attack_fx,"from":run.player,"to":run.attack_target,"tiles":run.player_attack_cells,"path":run.player_attack_path}
+		begin_player_cast_pose(event)
+		combat_fx_spawn(event)
 	if run.hp<hp_previous and run.enemy_actions.is_empty():hit_time=.24
 	hp_previous=run.hp
 	if previous_event!=run.event_serial:
