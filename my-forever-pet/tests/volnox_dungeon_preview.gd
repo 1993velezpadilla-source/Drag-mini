@@ -75,11 +75,16 @@ func run():
 		var atlas:=Image.create(48*12,48,false,Image.FORMAT_RGBA8)
 		atlas.fill(Color.TRANSPARENT)
 		var frames:Dictionary={}
+		var visible_frames:int=0
+		var impact_frame:int=clampi(roundi(float(dungeon.combat_profile(id).impact)*11.0),0,11)
 		for frame in range(12):
 			var im:=dungeon.combat_frame_image(id,frame)
-			assert(im.get_used_rect().has_area(),id)
+			assert(im.get_size()==Vector2i(48,48),id+" frame dimensions")
+			if im.get_used_rect().has_area():visible_frames+=1
+			if frame==impact_frame:assert(im.get_used_rect().has_area(),id+" empty impact")
 			frames[im.get_data().hex_encode()]=true
 			atlas.blit_rect(im,Rect2i(0,0,48,48),Vector2i(frame*48,0))
+		assert(visible_frames>=8,id+" insufficient visible frames")
 		assert(frames.size()>=3,id+" animation must change")
 		assert(atlas.save_png("/tmp/kindria-fx-"+id+".png")==OK)
 		distinct+=1
