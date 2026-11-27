@@ -3100,6 +3100,11 @@ func combat_pixel_texture(mode:String,light:Color,dark:Color)->ImageTexture:
 			var fill:bool=false
 			var inner:bool=false
 			match mode:
+				"critical_flash":
+					# Four tapered rays, diagonal glints, and a bright compact core.
+					var ax:float=absf(v.x);var ay:float=absf(v.y)
+					fill=(ax<maxf(.55,2.6-ay*.34) and ay<7.0) or (ay<maxf(.55,2.6-ax*.34) and ax<7.0) or (absf(ax-ay)<.75 and ax+ay<8.0)
+					inner=(ax+ay<3.5) or (minf(ax,ay)<.7 and maxf(ax,ay)<5.0)
 				"status_plus":
 					fill=(absf(v.x)<2.0 and absf(v.y)<6.5) or (absf(v.y)<2.0 and absf(v.x)<6.5)
 					inner=absf(v.x)<.9 or absf(v.y)<.9
@@ -6998,6 +7003,7 @@ func combat_fx_update(dt:float)->void:
 		if crowded:count=mini(count,maxi(1,share*2/3))
 		used=confirmed_contact_icons(burst,t,used)
 		used=directed_impact_fx(burst,t,used)
+		used=critical_contact_fx(burst,used)
 		# Reserve the readable projectile head within the same shared cast quota.
 		used=projectile_identity_fx(burst,t,used)
 		used=ultimate_accent_fx(burst,t,used)
@@ -7907,6 +7913,55 @@ func impact_visual_phase(burst:Dictionary,t:float)->float:
 		return clampf((t-peak)/maxf(.01,1.0-peak),0.0,1.0)
 	var wave:=contact_wave_sample(burst)
 	return 1.0 if wave.is_empty() else float(wave.age)
+
+# Critical accents use only the current confirmed attempt. A later critical
+# cannot tint an earlier hit, and a status or blocked row cannot emit a flash.
+func critical_impact_tiles(burst:Dictionary)->Array[Vector2i]:
+	var targets:Array[Vector2i]=[]
+	var wave:=contact_wave_sample(burst)
+	if wave.is_empty():return targets
+	var results:Dictionary=wave.results
+	for tile in results:
+		var row:Dictionary=results[tile]
+		if int(row.get("damage",0))>0 and int(row.get("crit",0))>0:
+			targets.append(tile)
+			if targets.size()>=4:break
+	return targets
+
+# x = local flash intensity, y = expanding ring, z = outward streak distance.
+func critical_finish_sample(phase:float)->Vector3:
+	var t:float=clampf(phase,0.0,1.0)
+	var fade:float=1.0-smoothstep(.08,1.0,t)
+	return Vector3(fade*fade,.42+1.04*smoothstep(0.0,1.0,t),.18+.66*smoothstep(0.0,1.0,t))
+
+func critical_contact_fx(burst:Dictionary,used:int)->int:
+	var tiles:=critical_impact_tiles(burst)
+	if tiles.is_empty():return used
+	var wave:=contact_wave_sample(burst)
+	var phase:float=float(wave.age)
+	var sample:=critical_finish_sample(phase)
+	if sample.x<.025:return used
+	var profile:Dictionary=burst.profile
+	var style:Array=combat_style(str(burst.id))
+	var light:=Color(style[1]).lerp(Color("#fff3c2"),.65)
+	var dark:=Color(style[2]).lerp(Color("#e0a34c"),.35)
+	# Preserve the elemental center; use a restrained bright rim only on crits.
+	for tile in tiles:
+		var center:=pos(tile)+Vector3.UP*.64
+		used=environment_particle(used,center,"critical_flash",light,dark,.35+.35*sample.x,sample.x)
+		if fx_performance_tier<2 and used<fx_cast_particle_limit:
+			used=environment_particle(used,Vector3(center.x,.065,center.z),"shock_ring",light,dark,sample.y,sample.x*.65,true)
+	# A single target gets two short tapered streaks; crowded casts stay bounded.
+	if fx_performance_tier==0 and tiles.size()==1 and used<fx_cast_particle_limit:
+		var center:=pos(tiles[0])+Vector3.UP*.64
+		var source:Vector3=burst.points[0]
+		var forward:=Vector3(center.x-source.x,0,center.z-source.z).normalized()
+		if forward.length_squared()<.0001:forward=Vector3.FORWARD
+		var side:=Vector3(-forward.z,0,forward.x)
+		for sign_value in [-1.0,1.0]:
+			var direction:Vector3=(side*sign_value+Vector3.UP*.65+forward*.25).normalized()
+			ultra_trail_segment(center+direction*sample.z*.42,center+direction*sample.z,.022*sample.x,.004,Color(light,sample.x*.80),Color(dark,0.0))
+	return used
 
 func directed_impact_fx(burst:Dictionary,t:float,used:int)->int:
 	var profile:Dictionary=burst.profile
