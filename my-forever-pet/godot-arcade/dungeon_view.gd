@@ -87,6 +87,12 @@ var enemy_shadow_mesh:QuadMesh
 const COMBAT_FX_STYLES={"basic_strike":["slash","#fff3c9","#e8a25c",0.26],"briar_arc":["leap","#b4e579","#4c8d48",0.42],"spore_cloud":["cloud","#f4d68a","#879b49",0.72],"horn_ram":["leap","#f0d2a0","#a77c44",0.35],"leaf_dart":["dart","#b7ed7b","#438b45",0.42],"tusk_sweep":["slash","#f9e0ba","#aa744e",0.35],"vine_snap":["whip","#bfe874","#3f8e4b",0.54],"rolling_moss":["roll","#bdcb82","#536b45",0.5],"feather_fan":["fan","#fff1c3","#b5a773",0.48],"antler_arc":["slash","#e4c89e","#a58454",0.4],"timber_shock":["wave","#ecba69","#8d6842",0.62],"royal_spores":["cloud","#ffdca5","#ca79a3",0.78],"reef_bite":["slash","#d2f5ef","#5ba8b2",0.3],"jelly_pulse":["wave","#b8f8ff","#9c7ce0",0.48],"shell_impact":["wave","#d1e8a4","#739a77",0.44],"bubble_burst":["bubble","#c7fbff","#50b7dc",0.64],"electric_lash":["lightning","#e8fbff","#4b9af8",0.42],"double_pincer":["slash","#ffe2a5","#ef826f",0.36],"tentacle_snare":["whip","#ffd3ea","#bd648c",0.6],"fin_slice":["dart","#dbf4f5","#6ca9db",0.43],"spiral_current":["spiral","#d8fff0","#56b6b8",0.52],"abyss_grasp":["whip","#f9b9ee","#8458b3",0.62],"tidal_jaws":["wave","#e9f7ff","#4287bb",0.55],"star_kick":["slash","#f5e8ff","#a29cf0",0.3],"lunar_dust":["cloud","#eee8ff","#b7a2ed",0.64],"prism_shatter":["shards","#effaff","#7cb9ff",0.55],"nova_bolt":["flame","#fff2a0","#ff784a",0.62],"orbit_lash":["spiral","#dfd0ff","#9663ee",0.52],"comet_drop":["leap","#fff1bb","#e1a3ff",0.48],"gravity_web":["web","#e4d7ff","#9f71e8",0.64],"sonic_cone":["fan","#f9d7ff","#a66be6",0.48],"moon_claw":["slash","#eee5ff","#a58bdc",0.38],"meteor_fist":["meteor","#fff0ba","#ff8d55",0.62],"celestial_verdict":["beam","#fff6d0","#d99bff",0.66]}
 const FX_PARTICLE_CAP=144
 var fx_cast_particle_limit:int=FX_PARTICLE_CAP
+# Android-only automatic presentation budget; never changes simulation clocks.
+var fx_performance_tier:int=0
+var fx_frame_average:float=1.0/60.0
+var fx_pressure_age:float=0.0
+var fx_recovery_age:float=0.0
+var fx_performance_grace:float=1.5
 const LIVING_PARTICLE_CAP=64
 const FX_WARNING_CAP=80
 var combat_particles:Array[Sprite3D]=[]
@@ -1851,6 +1857,7 @@ func update_living_ambient(dt:float):
 		trail_batch.multimesh.set_instance_color(i,Color(1,1,1,fade*.58))
 func build_floor():
 	var start_usec=Time.get_ticks_usec()
+	fx_performance_grace=1.5;fx_pressure_age=0.0;fx_recovery_age=0.0
 	if is_instance_valid(geometry):geometry.hide();geometry.queue_free()
 	if is_instance_valid(actors):actors.hide();actors.queue_free()
 	geometry=Node3D.new();world.add_child(geometry);actors=Node3D.new();world.add_child(actors);actor_nodes.clear()
@@ -2556,13 +2563,16 @@ func ultra_update_residues(dt:float,used:int)->int:
 			"grass":mode="leaf"
 			"water":mode="bubble"
 			"electric":mode="lightning"
-		for j in range(4):
-			var angle:float=float(j)*TAU*.25+float(i)*.37
+		var count:int=residue_particle_count()
+		for j in range(count):
+			var angle:float=float(j)*TAU/float(count)+float(i)*.37
 			var radius:float=.24+t*.32
 			var flat:bool=mode in ["venom_splash","bubble","shock_ring"]
 			var q:Vector3=at+Vector3(cos(angle)*radius,0.0 if flat else .08+sin(t*PI)*.24,sin(angle)*radius)
 			used=environment_particle(used,q,mode,mark.color,mark.dark,.34+float(j%2)*.07,fade*.68,flat)
-		cinematic_halo(at,mark.color,1.3+t*.6,fade*.16,t,true)
+		# Late decorative residue halos yield before primary impact lighting.
+		if fx_performance_tier==0 or (fx_performance_tier==1 and t<.55):
+			cinematic_halo(at,mark.color,1.3+t*.6,fade*.16,t,true)
 	return used
 
 # Exact value caching only: no quantization, no temporal stepping.
@@ -2629,7 +2639,7 @@ func cinematic_cast_enhancement(burst:Dictionary,t:float)->void:
 		var fade:float=pow(1.0-after,2.0)
 		var extent:float=2.0 if wide else 1.25
 		cinematic_halo(target,color,extent*(.82+after*.5),strength*fade*.8,after,false)
-		if not status:
+		if not status and (fx_performance_tier<2 or after<.55):
 			cinematic_halo(Vector3(target.x,.06,target.z),color,extent*(.84+after*.9),strength*fade*.62,after,true)
 		cinematic_light(target+Vector3.UP*.4,color,strength*fade*(1.35 if wide else 1.0),2.9 if wide else 2.2)
 
@@ -5895,6 +5905,32 @@ func latest_player_impact(current:Dictionary,burst:Dictionary)->Dictionary:
 func cast_particle_quota(used:int,capacity:int,remaining:int)->int:
 	return maxi(0,capacity-used)/maxi(1,remaining)
 
+# A sustained frame-time threshold with asymmetric recovery prevents flicker.
+# Resume/loading spikes are ignored; the effect tier is not a gameplay setting.
+func update_fx_performance(dt:float)->void:
+	if dt<=0.0 or dt>.25:
+		fx_pressure_age=0.0;fx_recovery_age=0.0
+		return
+	if fx_performance_grace>0.0:
+		fx_performance_grace=maxf(0.0,fx_performance_grace-dt)
+		return
+	fx_frame_average=lerpf(fx_frame_average,dt,1.0-exp(-dt*3.0))
+	var pressure_threshold:float=.024 if fx_performance_tier==0 else .033
+	var recovery_threshold:float=.020 if fx_performance_tier==1 else .026
+	if fx_performance_tier<2 and fx_frame_average>pressure_threshold:
+		fx_pressure_age+=dt;fx_recovery_age=0.0
+		if fx_pressure_age>=1.0:
+			fx_performance_tier+=1;fx_pressure_age=0.0
+	elif fx_performance_tier>0 and fx_frame_average<recovery_threshold:
+		fx_recovery_age+=dt;fx_pressure_age=0.0
+		if fx_recovery_age>=4.0:
+			fx_performance_tier-=1;fx_recovery_age=0.0
+	else:
+		fx_pressure_age=0.0;fx_recovery_age=0.0
+
+func residue_particle_count()->int:
+	return 4 if fx_performance_tier==0 else 3 if fx_performance_tier==1 else 2
+
 func combat_fx_update(dt:float)->void:
 	update_cast_text(dt)
 	var latest_hit:Dictionary={}
@@ -8211,6 +8247,7 @@ func advance_player_combat_clock(dt:float)->void:
 
 func _process(dt:float):
 	if notified or not is_instance_valid(pet):return
+	if OS.has_feature("mobile"):update_fx_performance(dt)
 	elapsed+=dt;tick-=dt
 	if hold_active:
 		hold_age+=dt
