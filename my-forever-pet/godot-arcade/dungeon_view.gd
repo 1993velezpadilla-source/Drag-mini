@@ -11462,24 +11462,24 @@ func visual_remaster_frame(id:String,frame:int)->Image:
 					var a:float=float(j)*TAU/5.0
 					fairy_star(im,q+Vector2(cos(a),sin(a))*(6+8*(1.0-fade)),2.0,Color("#f7dfb3",fade))
 		"eos_061":
-			# Stored Retort: force compresses between two opposing plates and springs back.
-			var c:=Vector2(24,24)
-			var gap:float=15-9*drive
-			for side in [-1.0,1.0]:
-				var q:=c+Vector2(side*gap,0)
-				fx_line(im,q-Vector2(0,10),q+Vector2(0,10),4.8,Color("#a38168",fade))
-				fx_line(im,q-Vector2(0,9),q+Vector2(0,9),2.0,Color("#f3d8ad",fade))
-				for j in range(3):
-					var z:=q+Vector2(-side*5,float(j-1)*6)
-					fx_line(im,z,z+Vector2(side*4,2),1.6,Color("#dcb990",fade))
-			for j in range(1,10):
-				var u:float=float(j)/9.0
-				var v:float=float(j-1)/9.0
-				var a:=c+Vector2(-gap+2*gap*v,sin(v*TAU*2)*5)
-				var z:=c+Vector2(-gap+2*gap*u,sin(u*TAU*2)*5)
-				fx_line(im,a,z,2.8,Color("#e2b16f",fade))
-			if t>=peak:
-				fight_burst(im,c,9+9*pulse,6,t,Color("#fff1c4",fade),Color("#ae805c",fade))
+			# Stored Retort: incoming force collects in a curved receiving shield, then rebounds as a single heavy shot.
+			var c:=Vector2(19,25)
+			var r:float=12-3*drive
+			fight_arc(im,c,r,-PI*.6,PI*1.2,Color("#f2c99c",fade),Color("#956e56",fade),5.0)
+			for j in range(5):
+				var y:float=float(j-2)*4
+				var q:=Vector2(39-15*drive,25+y)
+				fx_line(im,q+Vector2(5,0),q,2.0,Color("#e8bd8b",fade))
+				fx_disc(im,q,1.7,Color("#fff0c3",fade))
+			if t<peak:
+				fx_disc(im,c,5+3*drive,Color("#b88b63",fade))
+				fx_disc(im,c,3+2*drive,Color("#ffe1a5",fade))
+			else:
+				var u:float=smoothstep(peak,1.0,t)
+				var q:=c+Vector2(19*u,0)
+				fx_line(im,c,q,5.2,Color("#c98f66",fade))
+				fx_line(im,c,q,2.5,Color("#fff0c1",fade))
+				fight_burst(im,q,6+5*pulse,6,t,Color("#fff1c4",fade),Color("#ae805c",fade))
 
 		"eos_050":
 			# Titan Toss: curved lifting trajectory and a heavy landing marker.
@@ -12428,12 +12428,25 @@ func visual_remaster_frame(id:String,frame:int)->Image:
 					fx_disc(im,q,2.0,Color("#f3d5a3",fade))
 
 		"eos_337":
-			# Script Renewal: rolled parchment unfolds and a renewal arrow circles it.
-			var c:=Vector2(24,24)
-			fx_line(im,c-Vector2(0,9),c+Vector2(0,9),12.0,Color("#bcaa88",fade))
-			fx_line(im,c-Vector2(1,8),c+Vector2(1,8),8.0,Color("#f0e0b9",fade))
-			for j in range(4):fx_line(im,c+Vector2(-3,-5+float(j)*3),c+Vector2(3,-5+float(j)*3),.9,Color("#a89980",fade))
-			fight_arc(im,c,15.0,t*TAU,PI*1.4,Color("#c8d4a8",fade),Color("#9ba58c",fade),1.6)
+			# Script Renewal: a wide parchment unrolls horizontally, restores missing glyphs, then glows.
+			var c:=Vector2(24,25)
+			var width:float=7+10*drive
+			for j in range(9):
+				var y:float=float(j-4)*2.0
+				fx_line(im,c+Vector2(-width,y),c+Vector2(width,y),2.8,Color("#bca47f",fade))
+				fx_line(im,c+Vector2(-width+2,y-1),c+Vector2(width-2,y-1),1.5,Color("#f6e5bd",fade))
+			for side in [-1.0,1.0]:
+				var q:=c+Vector2(side*width,0)
+				fx_line(im,q-Vector2(0,11),q+Vector2(0,11),4.6,Color("#ad8967",fade))
+				fx_line(im,q-Vector2(0,9),q+Vector2(0,9),2.1,Color("#eed3a1",fade))
+			for j in range(3):
+				var q:=c+Vector2(-width+4,-5+float(j)*5)
+				fx_line(im,q,q+Vector2((width*2-8)*drive,0),1.3,Color("#8b7965",fade))
+			if t>=peak:
+				for j in range(4):
+					var q:=Vector2(10+float(j)*9,11-float(j%2)*3)
+					fairy_star(im,q,2.6,Color("#d7efb9",fade))
+
 		"eos_282":
 			# Wild Guise: abstract silhouette morphs between two visibly different outlines.
 			var c:=Vector2(24,25)
@@ -12627,15 +12640,31 @@ func visual_remaster_frame(id:String,frame:int)->Image:
 			for j in range(3):fx_line(im,q-Vector2(11,float(j-1)*2),q-Vector2(3,float(j-1)*2),.8,Color("#e9c18a",fade))
 			fx_line(im,q,q+Vector2(7,0),1.0,Color(pale,fade))
 		"timber_shock":
-			var c:=Vector2(24,33)
-			for j in range(5):
-				var a:float=PI+float(j)*PI/4.0
-				var d:=Vector2(cos(a),sin(a)*.28)
-				fx_line(im,c,c+d*(5+14*drive),2.2,Color(dark,fade))
-				fx_line(im,c+d*7,c+d*(12+7*drive)+Vector2(2,-2),1.1,Color(light,fade))
-			for j in range(7):
-				var q:=c+Vector2(float(j-3)*5,-absf(sin(t*PI))*float(6+j%3*5))
-				psi_polygon(im,q,2.8,4,t*4.0+float(j),Color("#bd925f",fade),Color("#654931",fade))
+			# Timber Slam: a weighty timber trunk drops diagonally, striking the floor and throwing wooden splinters.
+			var c:=Vector2(24,28)
+			var a:float=-.95+1.25*drive
+			var d:=Vector2(cos(a),sin(a))
+			var n:=Vector2(-d.y,d.x)
+			var q:=c-Vector2(0,13*(1-drive))
+			var tail:=q-d*12
+			var head:=q+d*12
+			fx_line(im,tail,head,10.5,Color("#654631",fade))
+			fx_line(im,tail-n*2,head-n*2,6.5,Color("#a97d51",fade))
+			fx_line(im,tail-n*3,head-n*3,1.7,Color("#e2b77c",fade))
+			for j in range(3):
+				var z:=tail+d*(5+float(j)*6)
+				fx_line(im,z-n*3,z+d*4+n*2,1.3,Color("#805735",fade))
+			fx_disc(im,head,5.0,Color("#d2a576",fade))
+			fx_disc(im,head,3.1,Color("#8c643d",fade),2.0)
+			fx_disc(im,head,1.2,Color("#e9c393",fade))
+			if t>=peak:
+				for j in range(7):
+					var theta:float=PI+float(j)*PI/6.0
+					var axis:=Vector2(cos(theta),sin(theta))
+					var z:=Vector2(24,35)+axis*(6+10*(1-fade))
+					fx_line(im,z,z+axis*4,2.1,Color("#c99a66",fade))
+				fx_line(im,Vector2(10,38),Vector2(38,38),2.0,Color("#af8057",fade))
+
 		"alt_grovetitan":
 			for j in range(1,13):
 				var u:float=float(j)/12.0
