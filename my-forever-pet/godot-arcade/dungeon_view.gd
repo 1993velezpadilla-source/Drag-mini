@@ -2749,7 +2749,8 @@ func ultra_trail_segment(a:Vector3,b:Vector3,wa:float,wb:float,ca:Color,cb:Color
 	fx_trail_positions.append(b-side*wb)
 	fx_trail_colors.append(ca);fx_trail_colors.append(ca)
 	fx_trail_colors.append(cb);fx_trail_colors.append(cb)
-	for index in [0,1,2,0,2,3]:fx_trail_indices.append(base+index)
+	fx_trail_indices.append(base);fx_trail_indices.append(base+1);fx_trail_indices.append(base+2)
+	fx_trail_indices.append(base);fx_trail_indices.append(base+2);fx_trail_indices.append(base+3)
 	fx_trail_vertices+=6
 
 func ultra_attack_ribbons(burst:Dictionary,t:float)->void:
@@ -14505,14 +14506,28 @@ func electric_sprite(im:Image,id:String,frame:int,role:String)->void:
 func arc_segment(a:Vector3,b:Vector3,width:float,col:Color)->void:
 	var direction:=b-a
 	if direction.length_squared()<.000001:return
-	var side:=direction.cross(Vector3(0,.8,.6)).normalized()*width
+	append_arc_layer(a,b,direction.cross(Vector3(0,.8,.6)).normalized(),width,col)
+
+# Layered lightning shares its normal, but keeps the original per-width
+# degeneracy test, triangle order and color for each independent layer.
+func append_arc_layer(a:Vector3,b:Vector3,normal:Vector3,width:float,col:Color)->void:
+	var side:=normal*width
 	if side.length_squared()<.000001:side=Vector3.RIGHT*width
 	var base:int=fx_arc_positions.size()
 	fx_arc_positions.append(a-side);fx_arc_positions.append(a+side)
 	fx_arc_positions.append(b+side);fx_arc_positions.append(b-side)
 	for i in range(4):fx_arc_colors.append(col)
-	for index in [0,1,2,0,2,3]:fx_arc_indices.append(base+index)
+	fx_arc_indices.append(base);fx_arc_indices.append(base+1);fx_arc_indices.append(base+2)
+	fx_arc_indices.append(base);fx_arc_indices.append(base+2);fx_arc_indices.append(base+3)
 	fx_arc_segments+=1
+func electric_arc_layers(a:Vector3,b:Vector3)->void:
+	var direction:=b-a
+	if direction.length_squared()<.000001:return
+	var normal:=direction.cross(Vector3(0,.8,.6)).normalized()
+	append_arc_layer(a,b,normal,.072,Color(.18,.47,1.0,.36))
+	append_arc_layer(a,b,normal,.035,Color("#4edbff"))
+	append_arc_layer(a,b,normal,.016,Color("#fffbd3"))
+
 # Preserve intermediate corners when extending a beam or electrical chain.
 func combat_path_prefix(points:Array,progress:float,metrics:PackedFloat64Array=PackedFloat64Array())->Array:
 	if points.size()<2:return points.duplicate()
@@ -14630,9 +14645,7 @@ func electric_world_arc(points:Array,t:float,role:String,tiles:Array,impact:floa
 					var jitter:float=.42 if role=="electric_wave" else .55 if role=="electric_short" else 1.0
 					var axis:Vector3=side if side.length_squared()>.0001 else Vector3.RIGHT
 					q+=(axis*float(posmod(j*19+k*7+frame*13,19)-9)*.038+Vector3.UP*float(posmod(j*11+frame*7,17)-8)*.045)*jitter
-				arc_segment(last,q,.072,Color(.18,.47,1.0,.36))
-				arc_segment(last,q,.035,Color("#4edbff"))
-				arc_segment(last,q,.016,Color("#fffbd3"))
+				electric_arc_layers(last,q)
 				if j%3==0 and j<9:
 					var sign_side:float=1.0 if posmod(j+k+frame,2)==0 else -1.0
 					var fork:=q+side*sign_side*.18+Vector3.UP*.13+(end-start)*.12
@@ -15546,17 +15559,19 @@ func quake_world_tiles(tiles:Array,t:float,id:String)->void:
 	var style:Array=combat_style(id)
 	var light:=Color(style[1]);var dark:=Color(style[2])
 	var growth:float=clampf(t*2.0,0.0,1.0)
+	var crack_color:Color=dark.darkened(.65)
 	for center_value in tiles:
 		var center:Vector3=center_value
 		center.y=.035
+		var crack_phase:float=float(posmod(hash(str(center)),17))*.12
 		for i in range(5):
 			if fx_arc_segments>1000:return
-			var angle:float=float(i)*TAU/5.0+float(posmod(hash(str(center)),17))*.12
+			var angle:float=float(i)*TAU/5.0+crack_phase
 			var direction:=Vector3(cos(angle),0,sin(angle))
 			var bend:=center+direction*.32*growth+Vector3(-direction.z,0,direction.x)*.12*growth
 			var tip:=center+direction*.61*growth
-			arc_segment(center,bend,.047,dark.darkened(.65))
-			arc_segment(bend,tip,.035,dark.darkened(.65))
+			arc_segment(center,bend,.047,crack_color)
+			arc_segment(bend,tip,.035,crack_color)
 			arc_segment(bend+Vector3.UP*.009,tip+Vector3.UP*.009,.011,light)
 func reaction_times(duration:float,impact:float,count:int)->Array[float]:
 	var times:Array[float]=[]
