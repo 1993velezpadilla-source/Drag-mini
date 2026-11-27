@@ -2240,7 +2240,7 @@ func update_enemy_pixel(actor:Node3D,dt:float,motion:Vector3,body_dt:float=-1.0)
 		sprite.position.y+=body_height*(sprite.scale.y-previous_y)
 		sprite.position.x+=fatigue.y*size_multiplier
 		if shadow!=null:shadow.position.x=sprite.position.x
-	var can_blink:bool=not alert and state in ["idle","walk"] and visual_state in ["idle","walk"] and float(living.sleep)<.1 and not ("freeze" in statuses or "sleep" in statuses or "nightmare" in statuses)
+	var can_blink:bool=not alert and not bool(actor.get_meta("pending_defeat",false)) and state in ["idle","walk"] and visual_state in ["idle","walk"] and float(living.sleep)<.1 and not ("freeze" in statuses or "sleep" in statuses or "nightmare" in statuses)
 	var blink:bool=can_blink and (creature_blink_sample(elapsed,actor.get_instance_id(),species) or (fatigue.z>.75 and fposmod(elapsed+idle_seed,1.7)<.22))
 	# Short asynchronous gestures for land creatures; aquatic appendages cycle.
 	var appendage:int=0
@@ -2248,10 +2248,11 @@ func update_enemy_pixel(actor:Node3D,dt:float,motion:Vector3,body_dt:float=-1.0)
 	if state=="idle" and idle_weight>=.8 and can_blink and fatigue.z<.65 and not bool(living.active) and species in PixelArt.ENEMY_IDLE_APPENDAGES:
 		appendage=creature_appendage_sample(species,elapsed,actor.get_instance_id())
 	var tex:=PixelArt.enemy_pixel_texture(species,facing_index,visual_state,frame,blink,appendage)
-	if tex!=null and sprite.texture!=tex:sprite.texture=tex
+	var texture_changed:bool=tex!=null and sprite.texture!=tex
+	if texture_changed:sprite.texture=tex
 	if sprite.material_override is ShaderMaterial:
 		var material:=sprite.material_override as ShaderMaterial
-		material.set_shader_parameter("sprite_tex",sprite.texture)
+		if texture_changed:material.set_shader_parameter("sprite_tex",sprite.texture)
 		material.set_shader_parameter("hit_flash",hit_flash)
 		material.set_shader_parameter("world_phase",elapsed)
 		var biome:Color=[Color("#d5e6b5"),Color("#9be3e8"),Color("#c3c5ff")][region]
@@ -8053,7 +8054,7 @@ func form_effect_sample(t:float)->Vector3:
 func update_form_effect(dt:float,pose:String)->void:
 	if not is_instance_valid(form_root):return
 	form_age=maxf(0.0,form_age-dt)
-	var visible_now:bool=form_age>0.0 and not tile_cast_active() and run.charge_phase!="underground" and (pet_pose.visible or (is_instance_valid(disguise_actor) and disguise_actor.visible))
+	var visible_now:bool=form_age>0.0 and not tile_cast_active() and not run.charge_phase in ["underground","vanish"] and (pet_pose.visible or (is_instance_valid(disguise_actor) and disguise_actor.visible))
 	form_root.visible=visible_now
 	if not visible_now:
 		form_light.light_energy=0.0
@@ -8074,7 +8075,7 @@ func update_form_effect(dt:float,pose:String)->void:
 		spark.rotation.y=a
 	# Strike and hurt silhouettes retain priority. Only the glow is shared.
 	if pose in ["idle","reward","eat"] and not tile_cast_active():
-		var active:=disguise_actor.get_node_or_null("EnemyPixel") as Sprite3D if is_instance_valid(disguise_actor) else pet_pose.get_node_or_null("PixelCompanion") as Sprite3D
+		var active:Sprite3D=disguise_actor.get_node_or_null("EnemyPixel") as Sprite3D if is_instance_valid(disguise_actor) else pet_pose.get_node_or_null("PixelCompanion") as Sprite3D
 		if active!=null:
 			if active.material_override is ShaderMaterial:
 				var shader:=active.material_override as ShaderMaterial
@@ -8099,6 +8100,9 @@ func update_disguise(dt:float,motion:Vector2,moving:bool,pose:String)->void:
 	disguise_actor.visible=pet_pose.visible
 	pet_pose.hide()
 	disguise_actor.position=pet_pose.position
+	if pose=="eat" and not moving:
+		var chew:float=sin((1.0-reward_age/maxf(.01,interaction_duration))*TAU*5.0)*.035
+		disguise_actor.position.y+=absf(chew)
 	if pose=="reward" and not moving:
 		# Transformed companions share the celebration, not a second attack pose.
 		var celebration:float=clampf(1.0-reward_age/maxf(.01,interaction_duration),0.0,1.0)
@@ -8230,8 +8234,10 @@ func _process(dt:float):
 	var pose:String="hurt" if hit_time>0.0 else "attack" if attack_time>0.0 else expression_pose if not moving and run.charge_phase.is_empty() else "idle"
 	if tile_cast_active() and charge_progress>player_cast_impact+.08:pose="walk"
 	var player_statuses:Array=living_player_statuses()
-	var player_living:=living_body_sample(pet,player_statuses,dt,pose=="idle" and not moving)
-	if pose=="idle" and not moving and ("sleep" in player_statuses or float(player_living.sleep)>.55):pose="sleep"
+	# Sleep outranks noncombat celebration/eating; never hide a real attack or hit.
+	var can_rest:bool=pose in ["idle","reward","eat"] and not moving and not tile_cast_active() and run.charge_phase.is_empty()
+	var player_living:=living_body_sample(pet,player_statuses,dt,can_rest)
+	if can_rest and ("sleep" in player_statuses or float(player_living.sleep)>.55):pose="sleep"
 	pet_pose.set_meta("pet_mood",PixelArt.dungeon_mood(run.hp,run.max_hp,run.poison_turns>0,pose=="reward"))
 	pet_pose.set_meta("dungeon_grounded_gait",true)
 	pet_pose.set_meta("dungeon_cast_motion",player_cast_motion)
