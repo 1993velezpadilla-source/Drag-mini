@@ -5484,7 +5484,7 @@ func native_identity_frame(id:String,frame:int,base:Image)->Image:
 	return im
 
 # V16.7: individually remastered after reviewing actual Godot PNG strips.
-const VISUAL_REMASTER_MOVES=["eos_504","eos_308","eos_135","eos_142","eos_047","eos_250","eos_299","eos_329","eos_262","eos_279","eos_101","eos_199","eos_251","eos_486","eos_462","eos_018","eos_507","eos_175","eos_254","eos_097","eos_163","eos_320","eos_033","eos_166","eos_228","eos_004","eos_252","eos_330","eos_465","eos_138","eos_021","eos_501","eos_053","eos_157","eos_064","eos_188","eos_240","eos_255","eos_342","eos_539","eos_041","eos_278","eos_538","eos_239","eos_193","eos_272","eos_519","eos_494","eos_292","eos_065","eos_276","eos_208","eos_522","eos_452","eos_433","eos_087","eos_063","eos_062","eos_476","eos_127","eos_451","eos_436","eos_491","eos_046","eos_109","eos_234","eos_107","eos_463","eos_133","eos_317","eos_111","eos_331","eos_345","eos_270","eos_042","eos_344","eos_461","eos_180","eos_535","eos_150","eos_118","eos_484","eos_008","eos_131","eos_030","eos_481","eos_028","eos_073","lib_ground_1","eos_057","eos_036","eos_442","eos_153","eos_205","eos_100","eos_518","eos_178","eos_200","eos_495","eos_280","eos_197","eos_332","eos_147","eos_485","eos_459","eos_151","eos_537","eos_443","eos_336","eos_182","eos_253","eos_441","eos_076","lib_grass_1","eos_001","eos_325","eos_103","eos_536","eos_510","eos_431","eos_475","eos_523","eos_080","eos_082","eos_114","eos_323","eos_470","eos_502","eos_529","eos_530","eos_460","eos_520","eos_449","eos_288","eos_164","eos_306","eos_023","eos_086","eos_346","lib_fairy_1","lib_fairy_2","lib_fairy_3","eos_341","eos_498","eos_343","eos_091","eos_162","eos_435","lib_dragon_1","lib_dragon_2","lib_dragon_3","eos_092","eos_204","eos_206","eos_303","eos_222","eos_210","lib_fighting_2","eos_136","eos_075","eos_300","eos_246","eos_430","eos_440","eos_500","eos_508","eos_454","eos_479","eos_243","eos_068","eos_090","lib_fighting_1","lib_fighting_3","eos_072","eos_077","eos_116","eos_531","eos_265","eos_305","eos_051","eos_170","eos_340","eos_007","eos_029","lib_electric_1","lib_electric_2","lib_electric_3","eos_129","eos_144","eos_189","eos_354","eos_489","eos_521","eos_192","eos_128","eos_493","lib_fire_1","lib_fire_2","lib_fire_3","eos_052","eos_149","eos_230","eos_291","eos_517","eos_524","eos_223","lib_water_1","lib_water_2","lib_water_3","eos_016","eos_032","eos_044","eos_069","eos_113","eos_156","eos_158","eos_159","eos_219","eos_310","eos_432","eos_469","eos_070","eos_012","eos_307","eos_434","lib_grass_2","lib_grass_3","eos_221","eos_238","eos_297","eos_458","eos_468","eos_511","eos_079","eos_231","eos_124","eos_351","eos_015","eos_094","eos_084","eos_233","lib_ice_1","lib_ice_2","lib_ice_3","eos_002","eos_088","eos_130","eos_014","lib_poison_1","lib_poison_2","lib_poison_3","eos_198","eos_283","eos_196","eos_202","eos_496","eos_438"]
+const VISUAL_REMASTER_MOVES=["eos_504","eos_308","eos_135","eos_142","eos_047","eos_250","eos_299","eos_329","eos_262","eos_279","eos_101","eos_199","eos_251","eos_486","eos_462","eos_018","eos_507","eos_175","eos_254","eos_097","eos_163","eos_320","eos_033","eos_166","eos_228","eos_004","eos_252","eos_330","eos_465","eos_138","eos_021","eos_501","eos_053","eos_157","eos_064","eos_188","eos_240","eos_255","eos_342","eos_539","eos_041","eos_278","eos_538","eos_239","eos_193","eos_272","eos_519","eos_494","eos_292","eos_065","eos_276","eos_208","eos_522","eos_452","eos_433","eos_087","eos_063","eos_062","eos_476","eos_127","eos_451","eos_436","eos_491","eos_046","eos_109","eos_234","eos_107","eos_463","eos_133","eos_317","eos_111","eos_331","eos_345","eos_270","eos_042","eos_344","eos_461","eos_180","eos_535","eos_150","eos_118","eos_484","eos_008","eos_131","eos_030","eos_481","eos_028","eos_073","lib_ground_1","eos_057","eos_036","eos_442","eos_153","eos_205","eos_100","eos_518","eos_178","eos_200","eos_495","eos_280","eos_197","eos_332","eos_147","eos_485","eos_459","eos_151","eos_537","eos_443","eos_336","eos_182","eos_253","eos_441","eos_076","lib_grass_1","eos_001","eos_325","eos_103","eos_536","eos_510","eos_431","eos_475","eos_523","eos_080","eos_082","eos_114","eos_323","eos_470","eos_502","eos_529","eos_530","eos_460","eos_520","eos_449","eos_288","eos_164","eos_306","eos_023","eos_086","eos_346","lib_fairy_1","lib_fairy_2","lib_fairy_3","eos_341","eos_498","eos_343","eos_091","eos_162","eos_435","lib_dragon_1","lib_dragon_2","lib_dragon_3","eos_092","eos_204","eos_206","eos_303","eos_222","eos_210","lib_fighting_2","eos_136","eos_075","eos_300","eos_246","eos_430","eos_440","eos_500","eos_508","eos_454","eos_479","eos_243","eos_068","eos_090","lib_fighting_1","lib_fighting_3","eos_072","eos_077","eos_116","eos_531","eos_265","eos_305","eos_051","eos_170","eos_340","eos_007","eos_029","lib_electric_1","lib_electric_2","lib_electric_3","eos_129","eos_144","eos_189","eos_354","eos_489","eos_521","eos_192","eos_128","eos_493","lib_fire_1","lib_fire_2","lib_fire_3","eos_052","eos_149","eos_230","eos_291","eos_517","eos_524","eos_223","lib_water_1","lib_water_2","lib_water_3","eos_016","eos_032","eos_044","eos_069","eos_113","eos_156","eos_158","eos_159","eos_219","eos_310","eos_432","eos_469","eos_070","eos_012","eos_307","eos_434","lib_grass_2","lib_grass_3","eos_221","eos_238","eos_297","eos_458","eos_468","eos_511","eos_079","eos_231","eos_124","eos_351","eos_015","eos_094","eos_084","eos_233","lib_ice_1","lib_ice_2","lib_ice_3","eos_002","eos_088","eos_130","eos_014","lib_poison_1","lib_poison_2","lib_poison_3","eos_198","eos_283","eos_196","eos_202","eos_496","eos_438","lib_ground_2","lib_ground_3","eos_143","eos_213","eos_289","eos_285","eos_290","eos_212","eos_295","eos_296"]
 func visual_remaster_frame(id:String,frame:int)->Image:
 	var im:=Image.create(48,48,false,Image.FORMAT_RGBA8)
 	im.fill(Color.TRANSPARENT)
@@ -9200,6 +9200,151 @@ func visual_remaster_frame(id:String,frame:int)->Image:
 					fx_disc(im,p,1.1,Color("#e0e4b7",fade*.7))
 				fx_line(im,q-Vector2(5,5),q+Vector2(5,5),2.0,Color("#d6b5e5",fade))
 				fx_line(im,q+Vector2(-5,5),q+Vector2(5,-5),2.0,Color("#d6b5e5",fade))
+		"lib_ground_2":
+			# Sand Drill: a rotating tapered cone of sand and grit bores forward.
+			var q:=Vector2(10+23*drive,25)
+			for j in range(12):
+				var f:float=float(j)/11.0
+				var x:float=q.x-20*(1.0-f)*fade
+				var rad:float=7.0*(1.0-f)+1.0
+				var p:=Vector2(x,25+sin(f*TAU*2.0-t*TAU*2.0)*rad)
+				fx_line(im,Vector2(x,25-rad),Vector2(x,25+rad),2.7,Color("#927049",fade))
+				fx_line(im,p,p+Vector2(2,0),1.6,Color("#e2bc81",fade))
+				if j%2==0:fx_disc(im,p-Vector2(2,2),1.1,Color("#f5d9a7",fade))
+			for j in range(7):
+				var f:float=float(j)/6.0
+				var p:=q+Vector2(-7-14*f,7+sin(float(j)*2.4+t*TAU)*5)
+				fx_disc(im,p,1.4+f,Color("#b99a6e",fade))
+		"lib_ground_3":
+			# Mud Lance: elongated wet earthen spear with a heavy splashing impact.
+			var q:=Vector2(8+26*drive,24)
+			fx_line(im,q-Vector2(13,0),q+Vector2(7,0),4.8,Color("#60432d",fade))
+			fx_line(im,q-Vector2(11,-1),q+Vector2(7,0),2.7,Color("#a37b50",fade))
+			fx_line(im,q-Vector2(7,2),q+Vector2(6,0),1.1,Color("#d6b98a",fade))
+			for j in range(4):
+				var p:=q+Vector2(-5-float(j)*4,3+float(j%2)*4)
+				fx_disc(im,p,1.8,Color("#8a6445",fade))
+			if t>=peak:
+				for j in range(8):
+					var a:float=float(j)*TAU/8.0
+					var d:=Vector2(cos(a),sin(a))
+					var p:=q+d*(4+10*(1.0-fade))
+					fx_line(im,q+d*3,p,1.6,Color("#795335",fade))
+					fx_disc(im,p,2.0,Color("#b38d62",fade))
+		"eos_143":
+			# Sand Tomb: sinking sand funnel, rotating grains and collapsing rim.
+			var c:=Vector2(24,31)
+			for ring in range(4):
+				var rad:float=4+float(ring)*4+3*drive
+				var prev:=c+Vector2(rad,0)
+				for j in range(1,33):
+					var a:float=float(j)*TAU/32.0
+					var p:=c+Vector2(cos(a)*rad,sin(a)*rad*.44-float(ring)*2*drive)
+					if j>1:
+						fx_line(im,prev,p,2.1,Color("#765337",fade))
+						fx_line(im,prev,p,.9,Color("#d2ae75",fade))
+					prev=p
+				for j in range(4):
+					var a:float=float(j)*TAU/4.0+t*TAU*1.4+float(ring)*.7
+					var p:=c+Vector2(cos(a)*rad,sin(a)*rad*.44-float(ring)*2*drive)
+					fx_disc(im,p,1.4,Color("#e8cd98",fade))
+			fx_disc(im,c,4.0,Color("#513d2e",fade))
+		"eos_213":
+			# Mud Slap: low wide hand-swept fan of wet muddy clumps.
+			var c:=Vector2(7,32)
+			for j in range(11):
+				var f:float=float(j)/10.0
+				var p:=c+Vector2((10+25*f)*drive,-(4+13*f)*sin(f*PI)+sin(float(j)*2.4)*4)
+				fx_disc(im,p,2.0+2*f,Color("#66482f",fade))
+				fx_disc(im,p-Vector2(0,1),1.2+f,Color("#a27b54",fade))
+				if j%2==0:fx_line(im,p-Vector2(5,2),p,1.6,Color("#8d6441",fade))
+			if t>=peak:
+				for j in range(6):
+					var p:=Vector2(25+float(j)*3,34+sin(float(j)*2.4)*4)
+					fx_disc(im,p,2.4,Color("#775438",fade*.7))
+		"eos_289":
+			# Bone Club: a single oversized ivory club swings downward into dirt.
+			var c:=Vector2(16+9*drive,19)
+			var a:float=-PI*.7+drive*PI*.85
+			var d:=Vector2(cos(a),sin(a))
+			earth_bone(im,c,a,15.0,Color("#e8d5ad",fade),Color("#826846",fade))
+			fight_arc(im,c,15.0,-PI*.8,PI*drive,Color("#e8c99a",fade*.75),Color("#9e7851",fade*.7),1.8)
+			if t>=peak:
+				var q:=c+d*10
+				for j in range(7):
+					var b:float=-PI+float(j)*PI/6.0
+					var p:=q+Vector2(cos(b)*13,sin(b)*9)*(1.0-fade)
+					fx_disc(im,p,1.7+float(j%2),Color("#b28b60",fade))
+					fx_line(im,q,p,1.1,Color("#d2b181",fade))
+		"eos_285":
+			# Bone Flurry: alternating bone thrusts; real hit cadence remains external.
+			for j in range(3):
+				var f:float=fposmod(t*1.8+float(j)/3.0,1.0)
+				var q:=Vector2(9+27*f,18+float(j)*6)
+				earth_bone(im,q,-.35+float(j)*.35,10.0,Color("#e8d7b6",fade),Color("#937856",fade))
+				fx_line(im,q-Vector2(10,0),q-Vector2(3,0),1.4,Color("#c6a77b",fade*.8))
+				if f>.7:
+					for k in range(3):
+						var a:float=-PI*.5+float(k)*PI*.5
+						var d:=Vector2(cos(a),sin(a))
+						fx_line(im,q+d*4,q+d*9,1.3,Color("#fff0c9",fade))
+		"eos_290":
+			# Returning Bone: spinning bone travels outward then back with a curved dust wake.
+			var travel:float=sin(t*PI)
+			var q:=Vector2(8+30*travel,24-7*sin(t*TAU))
+			var a:float=t*TAU*2.0
+			earth_bone(im,q,a,12.0,Color("#f1dfba",fade),Color("#91764f",fade))
+			for j in range(1,8):
+				var f:float=maxf(0.0,t-float(j)*.045)
+				var p:=Vector2(8+30*sin(f*PI),24-7*sin(f*TAU))
+				fx_disc(im,p,1.7-float(j)*.12,Color("#c0a178",fade*.7))
+			if t>=peak:
+				fight_arc(im,q,8.0,a,PI*1.2,Color("#e7cda0",fade),Color("#ad895b",fade),1.2)
+		"eos_212":
+			# Grounding Mist: wet mineral slurry clings low to the ground and settles.
+			for j in range(13):
+				var f:float=float(j)/12.0
+				var q:=Vector2(6+36*f,32+sin(f*TAU*1.5-t*TAU)*4)
+				fx_disc(im,q,3.7+2.8*drive,Color("#765c48",fade*.5))
+				fx_disc(im,q-Vector2(1,1),2.8+2*drive,Color("#b39c7b",fade*.6))
+				if j%3==0:
+					fx_line(im,q-Vector2(0,5),q+Vector2(0,3),1.6,Color("#957353",fade))
+			for j in range(6):
+				var q:=Vector2(8+float(j)*6,17+13*drive+sin(float(j)*2.4)*3)
+				fx_disc(im,q,1.3,Color("#d0bc95",fade))
+		"eos_295":
+			# Thorn Tile: mineral spikes erupt across a ground-aligned diamond lattice.
+			var c:=Vector2(24,33)
+			for j in range(4):
+				var v:float=float(j)*6
+				fx_line(im,c+Vector2(-18+v,-6+v*.35),c+Vector2(v,3+v*.35),1.0,Color("#8a6c4c",fade*.8))
+				fx_line(im,c+Vector2(-18+v,6-v*.35),c+Vector2(v,-3-v*.35),1.0,Color("#8a6c4c",fade*.8))
+			for j in range(9):
+				var q:=Vector2(10+float(j%3)*12,27+float(j/3)*4)
+				var h:float=3+10*drive
+				fx_line(im,q-Vector2(3,0),q+Vector2(0,-h),2.6,Color("#69523d",fade))
+				fx_line(im,q+Vector2(3,0),q+Vector2(0,-h),2.0,Color("#c09c71",fade))
+				fx_line(im,q,q+Vector2(0,-h),.8,Color("#e5c8a1",fade))
+				fx_disc(im,q+Vector2(-4,2),1.2,Color("#ad8a60",fade))
+		"eos_296":
+			# Seismic Surge: successive compressed ground shock fronts and airborne debris.
+			var c:=Vector2(24,31)
+			for ring in range(3):
+				var f:float=clampf(drive-float(ring)*.20,0.0,1.0)
+				var rad:float=3+18*f
+				var prev:=c+Vector2(rad,0)
+				for j in range(1,33):
+					var a:float=float(j)*TAU/32.0
+					var offset:float=sin(float(j)*2.4)*1.5
+					var q:=c+Vector2(cos(a)*(rad+offset),sin(a)*(rad+offset)*.48)
+					fx_line(im,prev,q,2.6,Color("#6b4e35",fade*f))
+					fx_line(im,prev,q,1.1,Color("#dbb887",fade*f))
+					prev=q
+			for j in range(9):
+				var a:float=float(j)*TAU/9.0
+				var q:=c+Vector2(cos(a)*18*drive,sin(a)*7*drive-11*pulse)
+				earth_rock(im,q,2.0+float(j%3)*.7,Color("#c7a578",fade),Color("#785b43",fade))
+				fx_disc(im,q+Vector2(0,8),1.5,Color("#b79870",fade*.6))
 	return im
 
 func combat_frame_image(id:String,frame:int)->Image:
