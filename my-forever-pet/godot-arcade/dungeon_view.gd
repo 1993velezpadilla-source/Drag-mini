@@ -2097,6 +2097,75 @@ func grass_sprite(im:Image,role:String,frame:int)->void:
 				var q:=Vector2(5+fposmod(float(i)*10+t*26.0,36.0),24+sin(float(i)*2.2+t*TAU)*9.0)
 				fx_disc(im,q,3.0,light);fx_line(im,q,q-Vector2(0,9),1.7,dark);fx_line(im,q-Vector2(0,9),q+Vector2(5,-6),1.5,light)
 
+func ice_crystal(im:Image,p:Vector2,a:float,r:float,light:Color,dark:Color)->void:
+	var d:=Vector2(cos(a),sin(a))
+	var side:=Vector2(-d.y,d.x)
+	fx_line(im,p-d*r*.55,p+d*r,3.5,dark)
+	fx_line(im,p-side*r*.34,p+d*r,2.0,light)
+	fx_line(im,p+side*r*.34,p+d*r,1.5,Color.WHITE)
+	fx_disc(im,p,2.0,light)
+
+func ice_sprite(im:Image,role:String,frame:int)->void:
+	var t:float=float(frame)/11.0
+	var center:=Vector2(24,24)
+	var light:=Color("#bdf6ff");var dark:=Color("#426ab7")
+	match role:
+		"ice_aurora","ice_beam":
+			for i in range(3):
+				var prev:=Vector2(3,24+float(i-1)*4)
+				for j in range(1,11):
+					var x:float=3.0+float(j)*4.1
+					var q:=Vector2(x,24+float(i-1)*4+sin(float(j)*.8+t*TAU)*(4.0 if role=="ice_aurora" else .9))
+					var tint:Color=Color("#79e7db").lerp(Color("#d9aaff"),float(i)*.5) if role=="ice_aurora" else light
+					fx_line(im,prev,q,4.0,dark);fx_line(im,prev,q,2.0,tint);prev=q
+			if role=="ice_beam":
+				for i in range(5):ice_crystal(im,Vector2(6+fposmod(float(i)*9+t*30,36),24),PI*.5,6.0,light,dark)
+		"ice_wind","ice_powder","ice_blizzard","ice_haze","ice_mist":
+			var count:int=8 if role=="ice_wind" else 16 if role=="ice_powder" else 24 if role=="ice_blizzard" else 11 if role=="ice_haze" else 6
+			for i in range(count):
+				var x:float=4.0+fposmod(float(i)*13+t*38,40.0)
+				var y:float=7.0+float(posmod(i*17,34))+sin(t*TAU+float(i))*3.0
+				var q:=Vector2(x,y)
+				if role=="ice_haze" or role=="ice_mist":
+					fx_disc(im,q,5.0+float(i%3),Color("#7583a6" if role=="ice_haze" else "#d5f5f8",.48))
+				elif role=="ice_blizzard":
+					ice_crystal(im,q,-.4,4.0+float(i%3),light,dark)
+					fx_line(im,q-Vector2(9,3),q,1.2,light)
+				else:
+					fx_disc(im,q,1.4+float(i%2),light)
+					if role=="ice_wind":fx_line(im,q-Vector2(7,1),q,1.1,dark)
+		"ice_punch":
+			var q:=Vector2(24+sin(t*PI)*10,24)
+			fx_line(im,Vector2(4,24),q,7.0,dark);fx_disc(im,q,10.0,light)
+			for i in range(5):ice_crystal(im,q,float(i)*TAU/5.0,9.0,dark,Color("#638ccb"))
+		"ice_fang":
+			var close:float=sin(t*PI)*7.0
+			for i in range(3):
+				var x:float=12.0+float(i)*12.0
+				ice_crystal(im,Vector2(x,8+close),PI*.5,10.0,light,dark)
+				ice_crystal(im,Vector2(x,40-close),-PI*.5,10.0,light,dark)
+		"ice_shard","ice_spear":
+			var count:int=1 if role=="ice_shard" else 5
+			for i in range(count):
+				var q:=Vector2(9+fposmod(t*31.0+float(i)*10.0,30.0),24+sin(float(i)*2+t*TAU)*5.0)
+				ice_crystal(im,q,0.0,13.0 if count==1 else 8.0,light,dark)
+		"ice_ball":
+			var q:=Vector2(9+28*t,25)
+			var radius:float=8.0+sin(t*PI)*3.0
+			fx_disc(im,q,radius,dark);fx_disc(im,q,radius-2.0,light)
+			for i in range(6):ice_crystal(im,q,float(i)*TAU/6.0+t*TAU,6.0,light,dark)
+		"ice_hail":
+			for i in range(9):
+				var q:=Vector2(5+float(posmod(i*13,38)),3+fposmod(float(i)*11+t*40,42))
+				fx_line(im,q-Vector2(0,7),q,1.0,light);ice_crystal(im,q,PI*.5,4.0,light,dark)
+		"ice_cold":
+			for i in range(8):ice_crystal(im,center,float(i)*TAU/8.0,5.0+sin(t*PI)*17.0,light,dark)
+			fx_disc(im,center,7.0,Color.WHITE)
+		"ice_avalanche":
+			for i in range(7):
+				var q:=Vector2(6+float(i)*6,8+fposmod(float(i)*7+t*36,31))
+				ice_crystal(im,q,PI*.5,6.0+float(i%3),light,dark)
+
 func combat_frame_image(id:String,frame:int)->Image:
 	var style:Array=combat_style(id)
 	var mode:String=combat_animation_mode(id,str(style[0]))
@@ -2112,6 +2181,8 @@ func combat_frame_image(id:String,frame:int)->Image:
 		water_sprite(im,role,frame);return im
 	if role.begins_with("grass_"):
 		grass_sprite(im,role,frame);return im
+	if role.begins_with("ice_"):
+		ice_sprite(im,role,frame);return im
 	var center:=Vector2(24,24)
 	match mode:
 		"vine":
@@ -2314,6 +2385,21 @@ func combat_profile(id:String)->Dictionary:
 		"eos_253":role="grass_petal"
 		"eos_233":role="grass_roots"
 		"eos_504":role="grass_worry"
+		"eos_042":role="ice_aurora"
+		"eos_097":role="ice_wind"
+		"eos_101":role="ice_powder"
+		"eos_270":role="ice_blizzard"
+		"eos_344":role="ice_punch"
+		"eos_345":role="ice_beam"
+		"eos_461":role="ice_fang"
+		"eos_462":role="ice_shard"
+		"eos_180":role="ice_spear"
+		"eos_002":role="ice_ball"
+		"eos_088":role="ice_haze"
+		"eos_130":role="ice_mist"
+		"eos_014":role="ice_hail"
+		"eos_150":role="ice_cold"
+		"eos_535":role="ice_avalanche"
 	if role in ["electric_charge","electric_lift"]:mode="lightning"
 	var impact:float=.48 if role in ["contact","electric_contact","electric_short","electric_fist","electric_fang","electric_dash","electric_spark"] else .64 if role in ["projectile","lash","electric_arc","electric_wave","electric_sky","electric_orb","electric_beam"] else .40
 	if role in ["fire_breath","fire_ember","fire_blast","fire_wisp"]:impact=.64
@@ -2322,7 +2408,9 @@ func combat_profile(id:String)->Dictionary:
 	elif role in ["water_clamp","water_hammer","water_dive","water_fall","water_jet","water_tail"]:impact=.48
 	if role in ["grass_solar","grass_razor","grass_magic","grass_energy","grass_bomb","grass_storm","grass_bullet","grass_leech","grass_worry"]:impact=.64
 	elif role in ["grass_vine","grass_whip","grass_needle","grass_blade","grass_wood","grass_knot"]:impact=.48
-	return {"mode":mode,"role":role,"element":element,"pattern":pattern,"range":reach,"duration":float(style[3]),"impact":impact,"socket":"ground" if role in ["ground","fire_plume","fire_magma","water_dive","water_whirlpool","water_surf","grass_frenzy","grass_roots","grass_knot"] else "head" if role in ["projectile","fire_breath","fire_ember","fire_eruption","water_bubble","water_ink","water_spout","water_cannon","water_pump","water_bubblebeam","water_gun","water_pulse","water_brine","grass_solar","grass_energy","grass_bullet","grass_whistle"] else "center"}
+	if role in ["ice_aurora","ice_wind","ice_beam","ice_shard","ice_spear"]:impact=.64
+	elif role in ["ice_punch","ice_fang","ice_ball"]:impact=.48
+	return {"mode":mode,"role":role,"element":element,"pattern":pattern,"range":reach,"duration":float(style[3]),"impact":impact,"socket":"ground" if role in ["ground","fire_plume","fire_magma","water_dive","water_whirlpool","water_surf","grass_frenzy","grass_roots","grass_knot","ice_avalanche","ice_cold"] else "head" if role in ["projectile","fire_breath","fire_ember","fire_eruption","water_bubble","water_ink","water_spout","water_cannon","water_pump","water_bubblebeam","water_gun","water_pulse","water_brine","grass_solar","grass_energy","grass_bullet","grass_whistle","ice_aurora","ice_beam","ice_wind"] else "center"}
 func electric_sprite(im:Image,id:String,frame:int,role:String)->void:
 	var cyan:=Color("#40cfff")
 	var violet:=Color("#5969ed")
@@ -2841,6 +2929,25 @@ func combat_fx_update(dt:float)->void:
 						q=combat_path_sample(points,minf(1.0,t*2.2))+Vector3(0,.12,0);size=.25
 					_:
 						q=points[-1]+Vector3(cos(angle)*.30,sin(angle)*.25,sin(angle)*.30);size=.55
+			if str(profile.role).begins_with("ice_"):
+				var ice_role:String=str(profile.role)
+				var progress:float=clampf(t*1.8-f*.35,0,1)
+				match ice_role:
+					"ice_aurora","ice_beam","ice_wind","ice_shard","ice_spear","ice_ball":
+						q=combat_path_sample(points,progress)+Vector3(cos(angle)*.1,sin(angle)*.13,sin(angle)*.1)
+						if ice_role=="ice_ball":q.y=.14
+						size=.75 if ice_role=="ice_beam" or ice_role=="ice_ball" else .44
+					"ice_powder","ice_blizzard":
+						q=tiles[j%tiles.size()]+Vector3(cos(angle+t*TAU)*.45,1.1*(1.0-progress),sin(angle+t*TAU)*.45);size=.35 if ice_role=="ice_powder" else .62
+					"ice_hail","ice_avalanche":
+						var at:Vector3=points[0] if ice_role=="ice_hail" else points[-1]
+						q=at+Vector3(cos(angle)*.6,1.8*(1.0-progress),sin(angle)*.6);size=.4 if ice_role=="ice_hail" else .78
+					"ice_haze","ice_mist":
+						q=points[0]+Vector3(cos(angle+t*TAU)*.5,.2+f*.5,sin(angle+t*TAU)*.5);size=.65
+					"ice_cold":
+						q=points[-1]+Vector3(cos(angle)*t*.4,.1+sin(t*PI)*.7,sin(angle)*t*.4);size=.9
+					_:
+						q=points[-1]+Vector3(cos(angle)*.28,sin(angle)*.25,sin(angle)*.28);size=.58
 			# Drained energy travels from victim back to caster; healing stays on caster.
 			if profile.role=="drain" and t>=.40:
 				var back:float=clampf((t-.40)*2.0-f*.22,0.0,1.0)
@@ -3143,7 +3250,7 @@ func _process(dt:float):
 			actor_nodes.erase(key);continue
 		if n.has_meta("target"):
 			var target_position:Vector3=n.get_meta("target")
-			var delta_position:=target_position-n.position
+			var delta_position:Vector3=target_position-n.position
 			n.position=n.position.lerp(target_position,1.0-exp(-dt*15.0))
 			update_enemy_pixel(n,dt,delta_position)
 		elif n.has_meta("float_item"):
@@ -3177,7 +3284,7 @@ func _process(dt:float):
 	elif run.charge_phase=="gather":pet_pose.position.y=.03+.04*sin(elapsed*12.0)
 	if attack_time>0.0:
 		var phase=sin(PI*attack_time/maxf(.01,player_cast_duration))
-		var lunge:float=.40 if player_cast_mode in ["contact","electric_contact","electric_fist","electric_fang","electric_spark","electric_dash","fire_wheel","fire_blitz","fire_kick","fire_punch","fire_fang","water_clamp","water_hammer","water_dive","water_fall","water_jet","water_tail","grass_blade","grass_wood","grass_needle"] else .13 if player_cast_mode=="lash" else -.08
+		var lunge:float=.40 if player_cast_mode in ["contact","electric_contact","electric_fist","electric_fang","electric_spark","electric_dash","fire_wheel","fire_blitz","fire_kick","fire_punch","fire_fang","water_clamp","water_hammer","water_dive","water_fall","water_jet","water_tail","grass_blade","grass_wood","grass_needle","ice_punch","ice_fang","ice_ball"] else .13 if player_cast_mode=="lash" else -.08
 		pet_pose.position+=pet.basis.inverse()*attack_direction*phase*lunge
 		attack_fx.visible=player_impact_delay<=0.0;attack_fx.scale=Vector3(1.1-phase*.42,.13,1.1-phase*.42)
 	else:attack_fx.hide()
