@@ -70,6 +70,25 @@ func run()->void:
 	var p:Array=[Vector3.ZERO,Vector3(1,0,0),Vector3(1,2,0)]
 	if field.combat_path_sample(p,0.0)!=p[0] or field.combat_path_sample(p,1.0)!=p[-1] or field.combat_path_sample(p,.5)!=p[1]:errors.append("path endpoints or waypoint")
 	if field.combat_path_sample([],0.5)!=Vector3.ZERO or field.combat_path_sample([Vector3.ONE],.5)!=Vector3.ONE:errors.append("degenerate path")
+	# Actor pose contracts: no movement at boundaries, exact contact peak, rotated directions.
+	var motion_counts:Dictionary={}
+	for row in reports:
+		var id:String=str(row.id)
+		var profile:Dictionary=field.combat_profile(id)
+		var kind:String=field.cast_motion_kind(id,profile)
+		motion_counts[kind]=int(motion_counts.get(kind,0))+1
+		var start:Vector3=field.cast_motion_offset(kind,0.0,float(profile.impact))
+		var finish:Vector3=field.cast_motion_offset(kind,1.0,float(profile.impact))
+		if start.length()>.001 or finish.length()>.001:errors.append("actor motion boundary "+id)
+		for frame in range(13):
+			var offset:Vector3=field.cast_motion_offset(kind,float(frame)/12.0,float(profile.impact))
+			if not offset.is_finite() or offset.length()>1.0:errors.append("invalid actor motion "+id)
+	var contact:Vector3=field.cast_motion_offset("contact",.48,.48)
+	if absf(contact.x-.40)>.001:errors.append("contact not synchronized")
+	if field.cast_offset_world(Vector3(1,0,0),Vector3(0,0,-1))!=Vector3(0,0,-1):errors.append("north facing")
+	if field.cast_offset_world(Vector3(1,0,0),Vector3(-1,0,0))!=Vector3(-1,0,0):errors.append("west facing")
+	if motion_counts.size()<6:errors.append("too few actor motion families")
+	print("KINDRIA_ACTOR_MOTION_AUDIT ",motion_counts)
 	# Exercise more frames than the cache cap, then verify hot hits and exact normalization.
 	for row in reports.slice(0,40):
 		for frame in range(Field.FX_FRAME_COUNT):field.combat_animated_texture(str(row.id),frame)

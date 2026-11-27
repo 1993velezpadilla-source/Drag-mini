@@ -64,6 +64,8 @@ var fx_audio_cursor:int=0
 var fx_arc_segments:int=0
 var player_cast_duration:float=.28
 var player_cast_mode:String="contact"
+var player_cast_motion:String="contact"
+var player_cast_impact:float=.48
 var player_impact_delay:float=0.0
 var fx_reactions:Array[Dictionary]=[]
 var fx_ground_shake:float=0.0
@@ -1650,12 +1652,53 @@ func attach_enemy_pixel(actor:Node3D,species:String)->bool:
 		material.set_shader_parameter("region",region)
 		sprite.material_override=material
 	return true
+# Shared actor movement. Does not modify logical tiles, hitboxes or species pixels.
+func cast_motion_kind(id:String,profile:Dictionary)->String:
+	var role:String=str(profile.role)
+	if role in ["air_sky","air_fly","air_bounce","fight_jumpkick","fight_highkick","water_fall","normal_body","normal_climb","ghost_force"]:return "aerial"
+	if role in ["fight_hammer","normal_stomp","normal_slam","normal_megakick"]:return "down"
+	if role in ["normal_spin","normal_thrash","normal_flail","normal_struggle","normal_frustration","fight_roundkick","dragon_twister","rock_polish","status_dance"]:return "spin"
+	if role in ["electric_dash","fire_wheel","fire_blitz","water_jet","ice_ball","earth_rush","rock_roll","air_brave","dragon_rush","normal_extreme","normal_quick","normal_tackle","normal_takedown","normal_edge","normal_giga","normal_headbutt","normal_skull","normal_feint","steel_head","steel_gyro","ghost_sneak","dark_faint","dark_sucker","fight_mach","bug_turn"]:return "rush"
+	if role in ["lash","grass_vine","grass_whip","grass_needle","poison_tail","steel_tail","normal_wrap","normal_bind","normal_constrict","ghost_lick","status_tail"]:return "lash"
+	if role in ["electric_contact","electric_fist","electric_fang","electric_spark","fire_kick","fire_punch","fire_fang","water_clamp","water_hammer","water_dive","water_tail","grass_blade","grass_wood","ice_punch","ice_fang","earth_club","earth_dig","rock_smash","air_peck","air_drill","air_pluck","air_wing","poison_fang","poison_jab","poison_cross","bug_horn","bug_fury","bug_cross","bug_bite","bug_leech","psi_cut","psi_zen","ghost_punch","ghost_claw","dragon_claw","dark_crunch","dark_bite","dark_slash","steel_claw","steel_wing","steel_bullet","normal_cut","normal_slash","normal_scratch","normal_crushclaw","normal_furyswipes","normal_false","normal_superfang","normal_hyperfang","normal_vice","normal_guillotine","normal_grip","normal_slap","normal_pound","normal_megapunch","normal_comet","normal_double","normal_dizzy","normal_horn","normal_drill","normal_furyattack","normal_strength","normal_return","normal_endeavor","normal_facade","normal_salt","normal_fake","normal_last"]:return "contact"
+	if role.begins_with("fight_") and role not in ["fight_aura","fight_blast","fight_vacuum","fight_bulk","fight_detect","fight_counter","fight_revenge","fight_vital"]:return "contact"
+	if Rules.MOVE_LIBRARY.has(id):
+		var move:Dictionary=Rules.MOVE_LIBRARY[id]
+		if str(move.get("pattern",""))=="self":return "focus"
+		if str(move.get("category",""))=="status":return "gesture"
+	if role in ["contact","electric_short"]:return "contact"
+	return "cast"
+
+func cast_motion_offset(kind:String,progress:float,impact:float)->Vector3:
+	var t:float=clampf(progress,0.0,1.0)
+	var peak:float=clampf(impact,.12,.88)
+	var pulse:float=smoothstep(0.0,peak,t) if t<=peak else 1.0-smoothstep(peak,1.0,t)
+	var recoil:float=sin(t*PI)
+	# X is forward, Y vertical, Z lateral; apply in the caster's facing basis.
+	match kind:
+		"rush":return Vector3(.64*pulse,.05*recoil,0)
+		"contact":return Vector3(.40*pulse,.06*recoil,0)
+		"lash":return Vector3(.13*pulse,.025*recoil,0)
+		"aerial":return Vector3(.36*pulse,.60*recoil,0)
+		"down":return Vector3(.20*pulse,.30*sin(minf(1.0,t/peak)*PI),0)
+		"spin":return Vector3(.10*pulse,.07*recoil,.13*sin(t*TAU))
+		"focus":return Vector3(0,.08*recoil,0)
+		"gesture":return Vector3(.04*pulse,.05*recoil,.04*sin(t*TAU))
+		_:return Vector3(-.10*sin(minf(1.0,t/peak)*PI),.04*recoil,0)
+
+func cast_offset_world(offset:Vector3,direction:Vector3)->Vector3:
+	var forward:=Vector3(direction.x,0,direction.z).normalized()
+	if forward.length_squared()<.0001:forward=Vector3(0,0,1)
+	var side:=Vector3(-forward.z,0,forward.x)
+	return forward*offset.x+Vector3.UP*offset.y+side*offset.z
+
 func enemy_pose(actor:Node3D,state:String,seconds:float,direction:Vector2=Vector2.ZERO)->void:
 	if not actor.has_meta("species"):return
 	actor.set_meta("enemy_phase",state)
 	actor.set_meta("enemy_clock",0.0)
 	actor.set_meta("enemy_duration",seconds)
 	actor.set_meta("enemy_facing",PixelArt.direction_for(direction,int(actor.get_meta("enemy_facing",0))))
+	if state=="attack":actor.set_meta("enemy_cast_direction",Vector3(direction.x,0,direction.y))
 func update_enemy_pixel(actor:Node3D,dt:float,motion:Vector3)->void:
 	var sprite:=actor.get_node_or_null("EnemyPixel") as Sprite3D
 	if sprite==null:return
@@ -1682,7 +1725,11 @@ func update_enemy_pixel(actor:Node3D,dt:float,motion:Vector3)->void:
 	var hovering:bool=species in ["nova_wisp","leafwisp","lunamoth","jellymancer","marrowray","nebulwing","bubblewisp","sylphowl","leviathorn","astro_golem","celestial_guardian","tidal_sovereign"]
 	var rise:float=.13+.04*sin(elapsed*3.0+float(actor.get_instance_id()%11)) if hovering and state!="defeat" else 0.0
 	var size_multiplier:float=float(actor.get_meta("enemy_size_multiplier",1.0))
-	sprite.position.y=.54*size_multiplier+rise
+	sprite.position=Vector3(0,.54*size_multiplier+rise,0)
+	if state=="attack":
+		var cast_dir:Vector3=actor.get_meta("enemy_cast_direction",Vector3(0,0,1))
+		var offset:=cast_motion_offset(str(actor.get_meta("enemy_cast_motion","contact")),clock/maxf(.01,duration),float(actor.get_meta("enemy_cast_impact",.48)))
+		sprite.position+=actor.basis.inverse()*cast_offset_world(offset,cast_dir)
 	var shadow:=actor.get_node_or_null("EnemyContactShadow") as MeshInstance3D
 	if shadow!=null:
 		var footprint:float=size_multiplier*(1.0-rise*.65)
@@ -5147,6 +5194,8 @@ func consume_enemy_actions()->void:
 			"attack":
 				var profile:=combat_profile(str(event.get("fx","basic_strike")))
 				enemy_pose(actor,"attack",float(profile.duration),direction)
+				actor.set_meta("enemy_cast_motion",cast_motion_kind(str(event.get("fx","basic_strike")),profile))
+				actor.set_meta("enemy_cast_impact",float(profile.impact))
 				event["target_player"]=event.get("to",Vector2i(-999,-999))==run.player
 				combat_fx_spawn(event)
 			"windup":enemy_pose(actor,"windup",.18,direction)
@@ -5311,8 +5360,10 @@ func sync():
 		previous_attack=run.attack_serial
 		var profile:=combat_profile(run.player_attack_fx)
 		player_cast_duration=float(profile.duration);player_cast_mode=str(profile.role);attack_time=player_cast_duration
+		player_cast_motion=cast_motion_kind(run.player_attack_fx,profile);player_cast_impact=float(profile.impact)
 		player_impact_delay=player_cast_duration*float(profile.impact)
 		attack_direction=(pos(run.attack_target)-pos(run.player)).normalized()
+		if attack_direction.length_squared()<.0001:attack_direction=Vector3(facing.x,0,facing.y).normalized()
 		attack_fx.position=pos(run.attack_target)+Vector3(0,.24,0);attack_fx.show()
 		combat_fx_spawn({"fx":run.player_attack_fx,"from":run.player,"to":run.attack_target,"tiles":run.player_attack_cells,"path":run.player_attack_path})
 	if run.hp<hp_previous and run.enemy_actions.is_empty():hit_time=.24
@@ -5445,8 +5496,9 @@ func _process(dt:float):
 	elif run.charge_phase=="gather":pet_pose.position.y=.03+.04*sin(elapsed*12.0)
 	if attack_time>0.0:
 		var phase=sin(PI*attack_time/maxf(.01,player_cast_duration))
-		var lunge:float=.40 if player_cast_mode in ["contact","electric_contact","electric_fist","electric_fang","electric_spark","electric_dash","fire_wheel","fire_blitz","fire_kick","fire_punch","fire_fang","water_clamp","water_hammer","water_dive","water_fall","water_jet","water_tail","grass_blade","grass_wood","grass_needle","ice_punch","ice_fang","ice_ball","earth_club","earth_rush","earth_dig","rock_smash","rock_roll"] else .13 if player_cast_mode=="lash" else -.08
-		pet_pose.position+=pet.basis.inverse()*attack_direction*phase*lunge
+		var progress:float=1.0-attack_time/maxf(.01,player_cast_duration)
+		var cast_offset:=cast_motion_offset(player_cast_motion,progress,player_cast_impact)
+		pet_pose.position+=pet.basis.inverse()*cast_offset_world(cast_offset,attack_direction)
 		attack_fx.visible=player_impact_delay<=0.0;attack_fx.scale=Vector3(1.1-phase*.42,.13,1.1-phase*.42)
 	else:attack_fx.hide()
 	if hit_time>0.0:pet_pose.rotation.z+=sin(hit_time*45.0)*.10
