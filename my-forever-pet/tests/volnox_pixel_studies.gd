@@ -31,5 +31,5 @@ func _initialize():
 		assert(count>=10,"missing biome body palette: "+str(pair[0]))
 	print("VOLNOX_BIOME_PALETTE_PASS 3")
 	print("VOLNOX_CRAB_DIRECTIONAL_PASS")
-	print("VOLNOX_2D_PIXEL_PILOT_PASS 12")
+	print("VOLNOX_2D_PIXEL_PILOT_PASS 15")
 	quit()
