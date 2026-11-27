@@ -58,6 +58,38 @@ jobs:
           assert len(seen) == 589, len(seen)
           assert len(list(root.rglob("*.png"))) == 589
           print("KINDRIA_VISUAL_ARTIFACT validated=589 frames=7068 elements=18")
+          # Advisory visual similarity: compare four phases of actual rendered
+          # alpha occupancy and premultiplied colors, including cross-element pairs.
+          from itertools import combinations
+          rows = []
+          for element, moves in index.items():
+              for move in moves:
+                  phases = move["visual_signature"]
+                  assert len(phases) == 4 and all(len(p) == 36 for p in phases), move["id"]
+                  cells = [c for phase in phases for c in phase]
+                  assert all(len(c) == 4 and all(0 <= x <= 255 for x in c) for c in cells), move["id"]
+                  shape = [c[0] for c in cells]
+                  color = [v for c in cells for v in c[1:]]
+                  rows.append((element, move["id"], move["name"], shape, color, sum(shape), sum(color)))
+          pairs = []
+          for a, b in combinations(rows, 2):
+              # Weighted Dice overlap in space and time; robust to small pixel changes.
+              mass = a[5] + b[5]
+              if not mass or 2 * min(a[5], b[5]) / mass < .82:
+                  continue
+              shape = 1 - sum(abs(x-y) for x,y in zip(a[3], b[3])) / mass
+              if shape < (.82 if a[0] == b[0] else .88):
+                  continue
+              cmass = a[6] + b[6]
+              color = 1 - sum(abs(x-y) for x,y in zip(a[4], b[4])) / max(1, cmass)
+              score = .75 * shape + .25 * color
+              pairs.append(dict(a=a[1], b=b[1], name_a=a[2], name_b=b[2], element_a=a[0], element_b=b[0], shape=round(shape, 4), color=round(color, 4), score=round(score, 4)))
+          pairs.sort(key=lambda p: (p["shape"], p["score"]), reverse=True)
+          report = {"moves": len(rows), "pairs_compared": len(rows)*(len(rows)-1)//2, "phase_frames": [1,4,7,10], "grid": [6,6], "same_element_shape_threshold": .82, "cross_element_shape_threshold": .88, "candidates": pairs}
+          (root / "similarity-review.json").write_text(json.dumps(report, indent=2))
+          print("KINDRIA_SIMILARITY moves=%d pairs_compared=%d candidates=%d" % (len(rows), report["pairs_compared"], len(pairs)))
+          for pair in pairs[:40]:
+              print("KINDRIA_SIMILARITY_PAIR " + json.dumps(pair, ensure_ascii=False))
           PY
       - name: Preserve actual attack frame strips
         if: always()
