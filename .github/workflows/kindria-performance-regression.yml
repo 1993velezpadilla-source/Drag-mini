@@ -5,6 +5,8 @@ on:
     paths:
       - 'my-forever-pet/tests/compare_kindria_performance.py'
       - 'my-forever-pet/tests/test_compare_kindria_performance.py'
+      - 'my-forever-pet/godot-arcade/collect_kindria_android.py'
+      - 'my-forever-pet/godot-arcade/test_collect_kindria_android.py'
       - '.github/workflows/kindria-performance-regression.yml'
   workflow_dispatch:
 permissions:
@@ -18,3 +20,6 @@ jobs:
       - name: Test comparator
         working-directory: my-forever-pet/tests
         run: python3 -m unittest -v test_compare_kindria_performance
+      - name: Test Android evidence collector
+        working-directory: my-forever-pet/godot-arcade
+        run: python3 -m unittest -v test_collect_kindria_android
