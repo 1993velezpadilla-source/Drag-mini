@@ -186,6 +186,8 @@ var fx_audio_pack_hits:int=0
 var fx_audio_counter:Dictionary={}
 var fx_audio_cursor:int=0
 var fx_collect_audio:bool=false
+var fx_flushing_audio:bool=false
+var fx_frame_voice_mask:int=0
 var fx_frame_audio:Array[Dictionary]=[]
 var fx_voice_priorities:Array[int]=[]
 var fx_arc_segments:int=0
@@ -2527,7 +2529,7 @@ func combat_fx_setup(parent:Node3D)->void:
 	var arc_node:=MeshInstance3D.new();arc_node.mesh=fx_arc_mesh;arc_node.cast_shadow=GeometryInstance3D.SHADOW_CASTING_SETTING_OFF;combat_fx_root.add_child(arc_node)
 	fx_arc_had_geometry=false;fx_trail_had_geometry=false
 	fx_audio.clear();fx_audio_cursor=0
-	fx_voice_priorities.clear();fx_frame_audio.clear();fx_collect_audio=false
+	fx_voice_priorities.clear();fx_frame_audio.clear();fx_collect_audio=false;fx_flushing_audio=false;fx_frame_voice_mask=0
 	combat_audio_pack_init()
 	for i in range(12):
 		var sound:=AudioStreamPlayer3D.new();sound.unit_size=4.0;sound.max_distance=24.0;sound.volume_db=-12.0
@@ -15205,7 +15207,7 @@ func combat_audio_phase_priority(phase:String,critical:bool=false)->int:
 	if phase.begins_with("status_") or phase=="status" or phase=="launch":return 1
 	return 3 if critical else 2
 
-func combat_audio_voice_slot(priorities:Array[int],cursor:int,priority:int)->int:
+func combat_audio_voice_slot(priorities:Array[int],cursor:int,priority:int,frame_mask:int=0)->int:
 	if priorities.is_empty():return -1
 	var weakest:int=priority
 	var slot:int=-1
@@ -15215,11 +15217,12 @@ func combat_audio_voice_slot(priorities:Array[int],cursor:int,priority:int)->int
 		if active<0:return candidate
 		if active<weakest:
 			weakest=active;slot=candidate
-	# Allow a new damaging contact to replace an equally important old one.
+	# Allow a damaging contact to replace an equally important OLD voice.
+	# A voice admitted in this flush has not had a chance to reach the mixer.
 	if slot<0 and priority>=2:
 		for i in range(priorities.size()):
 			var candidate:int=posmod(cursor+i,priorities.size())
-			if priorities[candidate]==priority:return candidate
+			if priorities[candidate]==priority and (frame_mask & (1<<candidate))==0:return candidate
 	return slot
 
 # All cues due in the same visual update share a chronological admission pass.
@@ -15241,10 +15244,14 @@ func begin_combat_audio_frame()->void:
 
 func flush_combat_audio_frame()->void:
 	fx_collect_audio=false
+	fx_flushing_audio=true
+	fx_frame_voice_mask=0
 	if fx_frame_audio.size()>1:fx_frame_audio.sort_custom(combat_audio_event_before)
 	for cue in fx_frame_audio:
 		play_combat_sound(str(cue.id),str(cue.phase),cue.at,bool(cue.critical),float(cue.age))
 	fx_frame_audio.clear()
+	fx_flushing_audio=false
+	fx_frame_voice_mask=0
 
 func play_combat_sound(id:String,phase:String,at:Vector3,critical:bool=false,age:float=0.0)->void:
 	if fx_collect_audio:
@@ -15259,7 +15266,7 @@ func play_combat_sound(id:String,phase:String,at:Vector3,critical:bool=false,age
 	for i in range(fx_audio.size()):
 		var voice:AudioStreamPlayer3D=fx_audio[i]
 		fx_voice_priorities[i]=int(voice.get_meta("combat_audio_priority",0)) if voice.playing else -1
-	var slot:int=combat_audio_voice_slot(fx_voice_priorities,fx_audio_cursor,int(mix.z))
+	var slot:int=combat_audio_voice_slot(fx_voice_priorities,fx_audio_cursor,int(mix.z),fx_frame_voice_mask if fx_flushing_audio else 0)
 	if slot<0:return
 	var occupied:float=0.0
 	for i in range(fx_audio.size()):
@@ -15294,6 +15301,7 @@ func play_combat_sound(id:String,phase:String,at:Vector3,critical:bool=false,age
 	player_audio.pitch_scale=mix.y
 	player_audio.set_meta("combat_audio_priority",int(mix.z))
 	player_audio.play(offset)
+	if fx_flushing_audio:fx_frame_voice_mask|=1<<slot
 
 # Tile anchors remain deterministic; sprite scale and hover offset locate the
 # launch/impact socket without moving logical combat or collision tiles.
