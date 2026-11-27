@@ -116,6 +116,47 @@ func _initialize():
 	drain.strike(0,true,-1,"eos_076")
 	assert(drain.hp==drain.max_hp)
 	print("KINDRIA_HEAL_DRAIN_PASS")
+	assert(Rules.EOS_ESCALATING_COUNT==3 and Rules.EOS_RECOIL_COUNT==7)
+	var triple_success:bool=false
+	var stopped:bool=false
+	for seed_id in range(128):
+		var chain=Rules.new()
+		chain.rng.seed=seed_id;chain.player=Vector2i(1,1)
+		chain.cells[chain.player]=true;chain.cells[Vector2i(2,1)]=true
+		chain.equipped_moves=["eos_210"];chain.move_pp={"eos_210":15}
+		chain.enemies.append({"pos":Vector2i(2,1),"hp":1000,"kind":0,"species":"reef_pup"})
+		assert(chain.cast_move("eos_210",Vector2i.RIGHT))
+		assert(chain.turns==1 and chain.move_pp.eos_210==14)
+		if chain.last_move_hits==3:
+			assert(chain.last_move_damage==[8,16,24]);triple_success=true
+		else:
+			assert(chain.last_move_attempts==chain.last_move_hits+1);stopped=true
+	assert(triple_success and stopped)
+	var recoil_success:bool=false
+	var recoil_fatal:bool=false
+	for seed_id in range(32):
+		var risk=Rules.new()
+		risk.rng.seed=seed_id;risk.player=Vector2i(1,1)
+		risk.cells[risk.player]=true;risk.cells[Vector2i(2,1)]=true
+		risk.equipped_moves=["eos_533"];risk.move_pp={"eos_533":5}
+		risk.max_hp=40;risk.hp=10
+		risk.enemies.append({"pos":Vector2i(2,1),"hp":1,"kind":0,"species":"reef_pup"})
+		assert(risk.cast_move("eos_533",Vector2i.RIGHT))
+		if risk.last_move_hits>0:
+			assert(risk.last_move_recoil==10 and risk.hp==0 and risk.finished and not risk.success and risk.turns==1)
+			assert(risk.enemy_actions.is_empty());recoil_fatal=true
+		else:assert(risk.last_move_recoil==0)
+		risk=Rules.new()
+		risk.rng.seed=seed_id;risk.player=Vector2i(1,1)
+		risk.cells[risk.player]=true;risk.cells[Vector2i(2,1)]=true
+		risk.equipped_moves=["eos_140"];risk.move_pp={"eos_140":12}
+		risk.max_hp=40;risk.hp=40
+		risk.enemies.append({"pos":Vector2i(2,1),"hp":1,"kind":0,"species":"reef_pup"})
+		assert(risk.cast_move("eos_140",Vector2i.RIGHT))
+		if risk.last_move_hits>0:
+			assert(risk.hp==35 and risk.last_move_recoil==5);recoil_success=true
+	assert(recoil_success and recoil_fatal)
+	print("KINDRIA_ESCALATING_RECOIL_PASS")
 	assert(Rules.EOS_IDENTIFIED_COUNT==468)
 	print("KINDRIA_EOS_PROTOTYPES_PASS ",eos_count)
 	print("KINDRIA_LEARNSET_PP_PASS")
