@@ -294,6 +294,21 @@ static func enemy_line(im:Image,a:Vector2i,b:Vector2i,width:int,c:Color)->void:
 	for i in range(steps+1):
 		var q:=Vector2i(Vector2(a).lerp(Vector2(b),float(i)/maxi(1,steps)).round())
 		enemy_dot(im,q,Vector2i(width,width),c)
+static func enemy_pincer(im:Image,shoulder:Vector2i,palm:Vector2i,forward:Vector2i,pinch:int,ink:Color,shade:Color,purple:Color,brass_dark:Color,gold:Color)->void:
+	var lateral:=Vector2i(-forward.y,forward.x)
+	enemy_line(im,shoulder,palm,3,ink)
+	enemy_line(im,shoulder,palm,2,shade)
+	enemy_dot(im,palm,Vector2i(6,5) if forward.x!=0 else Vector2i(5,6),ink)
+	enemy_dot(im,palm,Vector2i(4,4),purple)
+	enemy_line(im,palm-forward*2-lateral*3,palm-forward*2+lateral*3,1,gold)
+	for k in [-1,1]:
+		var start:=palm+forward*2+lateral*int(k)*3
+		var bend:=palm+forward*5+lateral*int(k)*maxi(1,3+int(pinch/2.0))
+		var tip:=palm+forward*7+lateral*int(k)*maxi(0,pinch)
+		enemy_line(im,start,bend,2,ink)
+		enemy_line(im,bend,tip,2,ink)
+		enemy_line(im,start,bend,1,brass_dark)
+		enemy_line(im,bend,tip,1,gold)
 static func enemy_pixel_cell(id:String,dir:int,pose:String,frame:int=0)->Image:
 	var im:=Image.create(48,48,false,Image.FORMAT_RGBA8)
 	im.fill(Color.TRANSPARENT)
@@ -325,10 +340,19 @@ static func enemy_pixel_cell(id:String,dir:int,pose:String,frame:int=0)->Image:
 			enemy_dot(im,Vector2i(24,cap_y+3),Vector2i(18,7),Color("#583070"))
 			enemy_dot(im,Vector2i(24,cap_y-3),Vector2i(19,13),ink)
 			enemy_dot(im,Vector2i(24,cap_y-4),Vector2i(17,11),purple)
+			enemy_dot(im,Vector2i(30,cap_y-1),Vector2i(8,6),Color("#4b226f"))
+			enemy_line(im,Vector2i(9,cap_y+1),Vector2i(14,cap_y+3),1,Color("#cb6af1"))
+			enemy_line(im,Vector2i(34,cap_y+2),Vector2i(39,cap_y),1,Color("#4b226f"))
 			enemy_dot(im,Vector2i(19,cap_y-8),Vector2i(11,5),bright)
 			for spot in [Vector2i(13,-5),Vector2i(25,-10),Vector2i(34,-3)]:
 				enemy_dot(im,Vector2i(spot.x,cap_y+spot.y),Vector2i(3,2),white)
 			enemy_line(im,Vector2i(8,cap_y+5),Vector2i(39,cap_y+5),1,gold)
+			for x in [11,18,25,32,37]:
+				enemy_line(im,Vector2i(x,cap_y+7),Vector2i(x,cap_y+9),1,Color("#392047"))
+			if not back:
+				enemy_line(im,Vector2i(20,cap_y+2),Vector2i(24,cap_y+5),1,gold)
+				enemy_line(im,Vector2i(24,cap_y+5),Vector2i(28,cap_y+2),1,gold)
+				im.set_pixel(24,cap_y+1,white)
 			if not back:
 				for x in ([29] if side else [19,29]):
 					enemy_dot(im,Vector2i(x,31),Vector2i(4,5),ink)
@@ -337,40 +361,94 @@ static func enemy_pixel_cell(id:String,dir:int,pose:String,frame:int=0)->Image:
 				for i in range(3):
 					enemy_dot(im,Vector2i(24+fx+i*4-4,8-i*2+frame),Vector2i(1,1),pink)
 		"coralcrab":
-			for k in [-1,1]:
+			# Four projected anatomies, not a face pasted on the front silhouette.
+			var coral:=Color("#b94e87")
+			var coral_hi:=Color("#f299bd")
+			var shade:=Color("#402353")
+			var brass_dark:=Color("#935522")
+			var shell_center:=Vector2i(19,25) if side else Vector2i(24,25)
+			var pinch:int=3 if attack and frame==0 else -2 if attack else 4 if wind else 1
+			if side:
+				# Far legs, far claw; shell occludes the far shoulder.
 				for i in range(3):
-					var start:=Vector2i(24+k*9,28+i*4)
-					var finish:=Vector2i(24+k*(17+i%2),33+i*4+step*(-1 if i%2==0 else 1))
-					enemy_line(im,start,finish,2,ink)
-					enemy_line(im,start,finish,1,Color("#a34986"))
-				var claw:=Vector2i(24+k*(17 if attack else 15),23+(2 if wind else 0))
-				enemy_dot(im,claw,Vector2i(7,7),ink)
-				enemy_dot(im,claw,Vector2i(5,5),purple)
-				enemy_dot(im,claw+Vector2i(k*3,-3),Vector2i(3,3),gold)
-				enemy_line(im,claw+Vector2i(k*2,0),claw+Vector2i(k*5,-2 if attack else -5),1,ink)
-			enemy_dot(im,Vector2i(24,29),Vector2i(15,12),ink)
-			enemy_dot(im,Vector2i(24,27),Vector2i(13,10),purple)
-			enemy_dot(im,Vector2i(21,23),Vector2i(9,4),bright)
+					var hip:=Vector2i(10+i*7,27)
+					var knee:=Vector2i(7+i*8,33+step*(-1 if i%2==0 else 1))
+					var foot:=knee+Vector2i(-2,7)
+					enemy_line(im,hip,knee,2,ink)
+					enemy_line(im,knee,foot,2,ink)
+					enemy_line(im,hip,knee,1,shade)
+				enemy_pincer(im,Vector2i(26,22),Vector2i(36,23),Vector2i(1,0),pinch,ink,shade,purple,brass_dark,gold)
+			else:
+				for k in [-1,1]:
+					for i in range(3):
+						var hip:=Vector2i(24+int(k)*10,25+i*4)
+						var knee:=Vector2i(24+int(k)*(14+i%2),30+i*4)
+						var foot:=Vector2i(24+int(k)*(20-i),34+i*4+step*(-1 if (i+int(k))%2==0 else 1))
+						enemy_line(im,hip,knee,2,ink)
+						enemy_line(im,knee,foot,2,ink)
+						enemy_line(im,hip,knee,1,coral)
+						enemy_line(im,knee,foot,1,shade)
+				if back:
+					for k in [-1,1]:
+						enemy_pincer(im,Vector2i(24+int(k)*10,23),Vector2i(24+int(k)*15,15),Vector2i(0,-1),pinch,ink,shade,purple,brass_dark,gold)
+			enemy_dot(im,shell_center,Vector2i(14,12),ink)
+			enemy_dot(im,shell_center+Vector2i(0,-1),Vector2i(12,10),shade)
+			enemy_dot(im,shell_center+Vector2i(0,-3),Vector2i(11,8),purple)
+			enemy_dot(im,shell_center+Vector2i(-3,-6),Vector2i(7,3),bright)
+			# Angular gold crown-shaped shell seam and coral branches.
 			for k in [-1,1]:
-				enemy_line(im,Vector2i(24+k*5,22),Vector2i(24+k*8,12),2,Color("#e276a4"))
-				enemy_dot(im,Vector2i(24+k*8,12),Vector2i(3,2),Color("#ff9cb4"))
-			enemy_line(im,Vector2i(15,24),Vector2i(33,24),1,gold)
-			if not back:
-				for x in ([29] if side else [19,29]):
-					enemy_dot(im,Vector2i(x,29),Vector2i(3,4),ink)
-					enemy_dot(im,Vector2i(x,28),Vector2i(2,2),pink)
+				var branch:=shell_center+Vector2i(int(k)*6,-7)
+				enemy_line(im,branch,branch+Vector2i(int(k)*2,-8),2,ink)
+				enemy_line(im,branch,branch+Vector2i(int(k)*2,-8),1,coral)
+				enemy_line(im,branch+Vector2i(int(k),-4),branch+Vector2i(int(k)*5,-7),1,coral_hi)
+				enemy_dot(im,branch+Vector2i(int(k)*2,-8),Vector2i(2,1),coral_hi)
+			enemy_line(im,shell_center+Vector2i(-10,0),shell_center+Vector2i(-5,4),1,brass_dark)
+			enemy_line(im,shell_center+Vector2i(-5,4),shell_center+Vector2i(5,4),1,gold)
+			enemy_line(im,shell_center+Vector2i(5,4),shell_center+Vector2i(10,0),1,gold)
+			if side:
+				# The head and BOTH claws point right; left mirrors the full anatomy.
+				enemy_dot(im,Vector2i(28,27),Vector2i(5,5),ink)
+				enemy_dot(im,Vector2i(30,26),Vector2i(2,2),pink)
+				im.set_pixel(31,25,white)
+				for i in range(3):
+					var hip:=Vector2i(12+i*7,31)
+					var knee:=Vector2i(9+i*8,37+step*(-1 if i%2==0 else 1))
+					var foot:=knee+Vector2i(-2,5)
+					enemy_line(im,hip,knee,2,ink)
+					enemy_line(im,knee,foot,2,ink)
+					enemy_line(im,hip,knee,1,coral)
+					enemy_line(im,knee,foot,1,bright)
+				enemy_pincer(im,Vector2i(24,31),Vector2i(36+(2 if attack else 0),34),Vector2i(1,0),pinch,ink,shade,purple,brass_dark,gold)
+			elif not back:
+				for x in [19,29]:
+					enemy_dot(im,Vector2i(x,30),Vector2i(4,4),ink)
+					enemy_line(im,Vector2i(x-1,29),Vector2i(x+1,30),1,pink)
+				# Foreground claws overlay the shell and occupy the forward half.
+				for k in [-1,1]:
+					enemy_pincer(im,Vector2i(24+int(k)*9,30),Vector2i(24+int(k)*14,36+(2 if attack else 0)),Vector2i(0,1),pinch,ink,shade,purple,brass_dark,gold)
+			else:
+				enemy_line(im,Vector2i(24,17),Vector2i(24,31),1,bright)
+				for y in [21,25,29]:
+					enemy_line(im,Vector2i(17,y),Vector2i(31,y),1,shade)
 		"nova_wisp":
 			var cy:=24+(step if pose=="walk" else 0)
 			enemy_dot(im,Vector2i(24,cy),Vector2i(11,11),ink)
 			enemy_dot(im,Vector2i(24,cy),Vector2i(9,9),purple)
 			enemy_dot(im,Vector2i(21,cy-4),Vector2i(5,3),bright)
+			enemy_line(im,Vector2i(14,cy-1),Vector2i(20,cy-9),1,Color("#d68cff"))
+			enemy_line(im,Vector2i(27,cy+8),Vector2i(33,cy+3),1,Color("#402353"))
+			for j in range(3):
+				var offset:=Vector2i(j*3-3,-12-j%2*2)
+				enemy_line(im,Vector2i(24,cy)+offset,Vector2i(24,cy)+offset+Vector2i(0,3),1,gold)
 			var orbit:float=float(phase)*PI*.5 if pose=="walk" else float(frame)*.8 if attack else .2
 			for i in range(3):
 				var a:=orbit+float(i)*TAU/3.0
 				var r:=17.0 if attack else 12.0 if wind else 15.0
 				var q:=Vector2i(24+roundi(cos(a)*r),cy+roundi(sin(a)*r*.55))
-				enemy_dot(im,q,Vector2i(3,3),gold)
+				enemy_line(im,q+Vector2i(0,-4),q+Vector2i(0,4),1,gold)
+				enemy_line(im,q+Vector2i(-3,0),q+Vector2i(3,0),1,gold)
 				enemy_dot(im,q,Vector2i(2,2),pink)
+				im.set_pixel(q.x,q.y,white)
 			if not back:
 				for x in ([28] if side else [20,28]):
 					enemy_dot(im,Vector2i(x,cy),Vector2i(3,4),ink)
