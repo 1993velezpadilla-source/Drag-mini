@@ -225,6 +225,7 @@ const TILE_CAST_GROUND=["eos_052","eos_132","eos_139","eos_140","eos_154","eos_1
 var player_impact_delay:float=0.0
 var fx_reactions:Array[Dictionary]=[]
 var fx_due_reactions:Array[Dictionary]=[]
+var fx_pending_reaction_actors:Dictionary={}
 var fx_impact_snapshot_builds:int=0
 var fx_impact_snapshot_hits:int=0
 var fx_contact_sample_hits:int=0
@@ -15456,10 +15457,11 @@ func combat_target_actor(cell:Vector2i)->Node3D:
 			var actor=actor_nodes.get("enemy:"+str(enemy.get("uid",-1)))
 			if is_instance_valid(actor) and not actor.is_queued_for_deletion():return actor
 	# Defeated actors may still await impact; their logical target is retained.
+	var target_position:Vector3=pos(cell)
 	for key in actor_nodes:
 		if not str(key).begins_with("enemy:"):continue
 		var actor=actor_nodes[key]
-		if is_instance_valid(actor) and not actor.is_queued_for_deletion() and actor.get_meta("target",Vector3.INF)==pos(cell):return actor
+		if is_instance_valid(actor) and not actor.is_queued_for_deletion() and actor.get_meta("target",Vector3.INF)==target_position:return actor
 	return null
 
 func combat_waypoints(source:Vector2i,target:Vector2i,path:Array,source_height:float,target_height:float)->Array:
@@ -15491,13 +15493,14 @@ func combat_fx_spawn(event:Dictionary,launch_age:float=0.0)->void:
 	var source:Vector2i=event.get("from",Vector2i.ZERO)
 	var target:Vector2i=event.get("to",source)
 	var source_actor:Node3D=null
-	if event.has("uid"):
-		var candidate=actor_nodes.get("enemy:"+str(event.uid))
-		if is_instance_valid(candidate):source_actor=candidate
-	else:
-		source_actor=disguise_actor if is_instance_valid(disguise_actor) else pet_pose
-	var height:float=float(event.get("source_height",combat_actor_socket(source_actor,str(profile.socket))))
-	var target_height:float=float(event.get("target_height",combat_actor_socket(combat_target_actor(target),"center")))
+	if not event.has("source_height"):
+		if event.has("uid"):
+			var candidate=actor_nodes.get("enemy:"+str(event.uid))
+			if is_instance_valid(candidate):source_actor=candidate
+		else:
+			source_actor=disguise_actor if is_instance_valid(disguise_actor) else pet_pose
+	var height:float=float(event.source_height) if event.has("source_height") else combat_actor_socket(source_actor,str(profile.socket))
+	var target_height:float=float(event.target_height) if event.has("target_height") else combat_actor_socket(combat_target_actor(target),"center")
 	if source==target and str(profile.socket)=="ground":target_height=height
 	var waypoints:Array=combat_waypoints(source,target,event.get("path",[target]),height,target_height)
 	var tiles:Array=[]
@@ -15621,24 +15624,38 @@ func queue_enemy_reaction(actor:Node3D,defeated:bool,delay:float,direction:Vecto
 	# If a new action kills an actor before its earlier hit resolves, retire the
 	# older nonterminal callbacks so they cannot overwrite its defeat pose.
 	if defeated:
-		for i in range(fx_reactions.size()-1,-1,-1):
-			if fx_reactions[i].actor==actor:fx_reactions.remove_at(i)
+		var retained:int=0
+		for reaction in fx_reactions:
+			if reaction.actor==actor:continue
+			fx_reactions[retained]=reaction;retained+=1
+		fx_reactions.resize(retained)
 	actor.set_meta("pending_impact",true)
 	if defeated:actor.set_meta("pending_defeat",true)
 	var times:Array[float]=explicit_times if not explicit_times.is_empty() else reaction_times(delay+span,delay/(delay+span) if delay+span>0.0 else 0.0,count)
 	for i in range(times.size()):
 		fx_reactions.append({"actor":actor,"delay":times[i],"defeated":defeated and i==times.size()-1,"direction":direction,"weight":clampf(impact_weight,.78,1.48)})
 
+# Stable compaction preserves future queue order. Reverse due entries before
+# sorting to preserve the original reverse traversal on identical timestamps.
+func collect_due_enemy_reactions(dt:float)->void:
+	fx_due_reactions.clear()
+	fx_pending_reaction_actors.clear()
+	var retained:int=0
+	for reaction in fx_reactions:
+		reaction.delay-=dt
+		if float(reaction.delay)>0.0:
+			fx_reactions[retained]=reaction;retained+=1
+			var actor=reaction.actor
+			if is_instance_valid(actor):fx_pending_reaction_actors[actor.get_instance_id()]=true
+		else:fx_due_reactions.append(reaction)
+	fx_reactions.resize(retained)
+	fx_due_reactions.reverse()
+
 func update_combat_reactions(dt:float)->void:
 	# Process chronological order even if a slow frame crosses several impacts.
 	if fx_reactions.is_empty():return
-	fx_due_reactions.clear()
+	collect_due_enemy_reactions(dt)
 	var due:Array[Dictionary]=fx_due_reactions
-	for i in range(fx_reactions.size()-1,-1,-1):
-		var reaction:Dictionary=fx_reactions[i]
-		reaction.delay-=dt
-		if float(reaction.delay)>0.0:continue
-		due.append(reaction);fx_reactions.remove_at(i)
 	due.sort_custom(func(a:Dictionary,b:Dictionary)->bool:
 		if float(a.delay)==float(b.delay):return not bool(a.defeated) and bool(b.defeated)
 		return float(a.delay)<float(b.delay))
@@ -15646,10 +15663,7 @@ func update_combat_reactions(dt:float)->void:
 		var actor=reaction.actor
 		if not is_instance_valid(actor) or actor.is_queued_for_deletion():continue
 		if str(actor.get_meta("enemy_phase",""))=="defeat":continue
-		var pending:bool=false
-		for next in fx_reactions:
-			if next.actor==actor:pending=true;break
-		actor.set_meta("pending_impact",pending)
+		actor.set_meta("pending_impact",fx_pending_reaction_actors.has(actor.get_instance_id()))
 		actor.set_meta("enemy_hit_direction",reaction.direction)
 		actor.set_meta("enemy_hit_weight",float(reaction.get("weight",1.0)))
 		enemy_pose(actor,"defeat" if reaction.defeated else "hurt",.32 if reaction.defeated else .20)
@@ -15664,6 +15678,7 @@ func update_combat_reactions(dt:float)->void:
 			if bar!=null:bar.hide()
 			if warning!=null:warning.hide()
 	fx_due_reactions.clear()
+	fx_pending_reaction_actors.clear()
 # Both immediate and delayed casts use the same body presentation contract.
 func player_cast_sample(id:String,source:Vector2i,target:Vector2i,age:float=0.0)->Dictionary:
 	var profile:=combat_profile(id)
