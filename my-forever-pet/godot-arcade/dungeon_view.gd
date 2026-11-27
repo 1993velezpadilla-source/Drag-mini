@@ -1923,6 +1923,7 @@ func build_floor():
 			shape(geometry,"box",p+Vector3(0,.11,0),Vector3(.62,.18,.62),palette[2])
 	pet=Node3D.new();geometry.add_child(pet);pet.position=pos(run.player)
 	pet_pose=model(pet,companion_id);pet_pose.scale*=1.28
+	add_enemy_contact_shadow(pet,"")
 	disguise_actor=null;disguise_species="";form_age=0.0
 	setup_form_effects()
 	visual_charge_phase="";release_charge_phase=""
@@ -2063,6 +2064,7 @@ func cast_offset_world(offset:Vector3,direction:Vector3)->Vector3:
 func enemy_pose(actor:Node3D,state:String,seconds:float,direction:Vector2=Vector2.ZERO)->void:
 	if not actor.has_meta("species"):return
 	actor.set_meta("enemy_phase",state)
+	actor.remove_meta("enemy_tile_cast")
 	actor.set_meta("enemy_clock",0.0)
 	actor.set_meta("enemy_duration",seconds)
 	actor.set_meta("enemy_facing",PixelArt.direction8_for(direction,int(actor.get_meta("enemy_facing",0))))
@@ -2149,6 +2151,7 @@ func update_enemy_pixel(actor:Node3D,dt:float,motion:Vector3,body_dt:float=-1.0)
 	var frame:int=posmod(int(clock*12.0),4) if state=="walk" else mini(1,int(clock*9.0)) if state=="attack" else 0
 	var species:String=str(actor.get_meta("species"))
 	var facing_index:int=int(actor.get_meta("enemy_facing",0))
+	sprite.visible=true
 	var hovering:bool=species in ["nova_wisp","leafwisp","lunamoth","jellymancer","marrowray","nebulwing","bubblewisp","sylphowl","leviathorn","astro_golem","celestial_guardian","tidal_sovereign"]
 	var real_dt:float=maxf(0.0,dt if body_dt<0.0 else body_dt)
 	var idle_weight:float=float(actor.get_meta("native_idle_weight",0.0))
@@ -2181,6 +2184,13 @@ func update_enemy_pixel(actor:Node3D,dt:float,motion:Vector3,body_dt:float=-1.0)
 		var cast_dir:Vector3=actor.get_meta("enemy_cast_direction",Vector3(0,0,1))
 		var offset:=cast_motion_offset(str(actor.get_meta("enemy_cast_motion","contact")),clock/maxf(.01,duration),float(actor.get_meta("enemy_cast_impact",.48)))
 		body_offset=actor.basis.inverse()*cast_offset_world(offset,cast_dir)
+		if actor.has_meta("enemy_tile_cast"):
+			var route:Dictionary=actor.get_meta("enemy_tile_cast")
+			var sample:=tile_cast_sample(route.points,str(route.kind),clock/maxf(.01,duration),float(actor.get_meta("enemy_cast_impact",.48)))
+			body_offset=actor.global_basis.inverse()*(Vector3(sample.position)-actor.global_position)
+			sprite.visible=bool(sample.visible)
+			var heading:Vector3=sample.motion
+			facing_index=PixelArt.direction8_for(Vector2(heading.x,heading.z),facing_index)
 		sprite.position+=body_offset
 	if state=="hurt":
 		var reaction:=creature_hit_sample(clock/maxf(.01,duration),species)
@@ -6074,11 +6084,13 @@ func tile_cast_route(event:Dictionary)->Array:
 
 # Full path from origin to target at the same impact clock as the FX, then
 # reverse the path. Travel is visual: it never picks up loot or consumes turns.
-func tile_cast_sample(points:Array,kind:String,progress:float,impact:float)->Dictionary:
+func tile_cast_sample(points:Array,kind:String,progress:float,impact:float,airborne_start:bool=false)->Dictionary:
 	var p:float=clampf(progress,0.0,1.0)
 	var peak:float=clampf(impact,.12,.88)
 	var returning:bool=p>peak
-	var u:float=clampf(p/peak if not returning else (1.0-p)/(1.0-peak),0.0,1.0)
+	var linear:float=clampf(p/peak if not returning else (1.0-p)/(1.0-peak),0.0,1.0)
+	# Ease both legs at their endpoints, preserving the exact impact clock.
+	var u:float=smoothstep(0.0,1.0,linear)
 	var location:Vector3=combat_path_sample(points,u)
 	var lo:Vector3=combat_path_sample(points,maxf(0.0,u-.015))
 	var hi:Vector3=combat_path_sample(points,minf(1.0,u+.015))
@@ -6090,16 +6102,16 @@ func tile_cast_sample(points:Array,kind:String,progress:float,impact:float)->Dic
 	match kind:
 		"air":
 			height=1.25*arc
-			if not returning and release_charge_phase=="airborne":height+=.95*(1.0-u)
+			if not returning and airborne_start:height+=.95*(1.0-u)
 		"burrow","dive":
-			# Travel below ground, surface on the target, hop back visibly.
+			# Distinct soil/water depth and resurfacing arcs.
 			visible=returning or u>=.76
-			height=.45*arc if returning else -.38*(1.0-u)
+			height=(.28 if kind=="dive" else .45)*arc if returning else -(.24 if kind=="dive" else .38)*(1.0-u)
 		"vanish":
 			visible=returning or u>=.76
 			height=.35*arc if returning else 0.0
 		_:height=.12*arc
-	return {"position":location+Vector3.UP*height,"motion":motion,"visible":visible,"returning":returning}
+	return {"position":location+Vector3.UP*height,"motion":motion,"visible":visible,"returning":returning,"height":height,"path_progress":u}
 
 func tile_cast_active()->bool:
 	return attack_time>0.0 and not player_tile_cast.is_empty()
@@ -8095,6 +8107,9 @@ func consume_enemy_actions()->void:
 			"attack":
 				var profile:=combat_profile(str(event.get("fx","basic_strike")))
 				enemy_pose(actor,"attack",float(profile.duration),direction)
+				var kind:String=tile_cast_kind(str(event.get("fx","basic_strike")))
+				if not kind.is_empty() and event.from!=event.to:
+					actor.set_meta("enemy_tile_cast",{"kind":kind,"points":tile_cast_route(event)})
 				actor.set_meta("enemy_cast_motion",cast_motion_kind(str(event.get("fx","basic_strike")),profile))
 				actor.set_meta("enemy_cast_impact",float(profile.impact))
 				event["target_player"]=event.get("to",Vector2i(-999,-999))==run.player
@@ -8814,7 +8829,7 @@ func _process(dt:float):
 		pet_pose.position.y+=float(reaction.lift)
 	if attack_time>0.0:motion=Vector2(attack_direction.x,attack_direction.z)
 	if tile_cast_active():
-		var travel_pose:=tile_cast_sample(player_tile_cast.points,str(player_tile_cast.kind),charge_progress,player_cast_impact)
+		var travel_pose:=tile_cast_sample(player_tile_cast.points,str(player_tile_cast.kind),charge_progress,player_cast_impact,release_charge_phase=="airborne")
 		pet_pose.position=pet.basis.inverse()*(Vector3(travel_pose.position)-pet.position)
 		pet_pose.visible=bool(travel_pose.visible)
 		var heading:Vector3=travel_pose.motion
@@ -8862,6 +8877,12 @@ func _process(dt:float):
 			healthy_sprite.position.y+=float(healthy_sprite.get_meta("world_height"))*.5*(healthy_sprite.scale.y-prior_scale)
 			healthy_sprite.position.x+=condition.y
 	update_disguise(dt,motion,moving,pose)
+	var companion_shadow:=pet.get_node_or_null("EnemyContactShadow") as MeshInstance3D
+	if companion_shadow!=null:
+		var shadow_sample:=enemy_shadow_sample(pet_pose.position,0.0,0.0,1.0,false)
+		companion_shadow.position=shadow_sample.position
+		companion_shadow.scale=shadow_sample.scale
+		companion_shadow.visible=pet_pose.visible and not is_instance_valid(disguise_actor)
 	update_form_effect(dt,pose)
 	var focus=pet.position+Vector3(0,.18,-.48)
 	# The prior floor-build-only shake never reached the actual render loop.
