@@ -259,8 +259,11 @@ func flush_sleep_reactions()->void:
 		var target:int=enemy_at(p)
 		if target<0 or not attack_footprint(player,aim,str(move.pattern),int(move.reach),true).has(p):continue
 		if not roll_reference_hit(move,enemies[target]):continue
+		var response_uid:int=int(enemies[target].get("uid",-1))
 		strike(target,true,-1,chosen)
 		player_attack_fx=chosen
+		visual_response_cast_serial=attack_serial
+		visual_response_cast_uid=response_uid
 		if chosen=="eos_025" and enemy_at(p)>=0 and rng.randi_range(1,100)<=20:
 			enemies[enemy_at(p)]["paused_turns"]=1
 		emit_event("Sleep counter · "+str(move.name))
@@ -665,6 +668,8 @@ var visual_turn_damage:Dictionary={}
 var visual_turn_damage_turn:int=-1
 var visual_response_events:Dictionary={}
 var visual_response_active:bool=false
+var visual_response_cast_serial:int=-1
+var visual_response_cast_uid:int=-1
 func visual_record_response(enemy:Dictionary,amount:int,source:String)->void:
 	if not visual_response_active:return
 	var uid:int=int(enemy.get("uid",-1))
@@ -1709,6 +1714,7 @@ func enemy_turn():
 	var visual_before:Dictionary=visual_enemy_hp_snapshot()
 	visual_turn_damage.clear()
 	visual_response_events.clear();visual_response_active=true
+	visual_response_cast_serial=-1;visual_response_cast_uid=-1
 	if player_slow_turns>0:player_slow_turns-=1
 	if charge_power_turns>0:charge_power_turns-=1
 	travel_steps_used=0;travel_refresh=false
@@ -1754,11 +1760,12 @@ func enemy_turn():
 	for i in range(travel_boosts.size()-1,-1,-1):
 		travel_boosts[i]-=1
 		if travel_boosts[i]<=0:travel_boosts.remove_at(i)
-	visual_turn_damage=visual_hp_losses(visual_before,visual_enemy_hp_snapshot())
+	var visual_after:Dictionary=visual_enemy_hp_snapshot()
+	visual_turn_damage=visual_hp_losses(visual_before,visual_after)
 	for uid in visual_response_events:
 		if not visual_turn_damage.has(uid):
 			var hp_before:int=int(visual_before.get(uid,0))
-			visual_turn_damage[uid]={"before":hp_before,"after":int(visual_enemy_hp_snapshot().get(uid,0)),"removed":not visual_enemy_hp_snapshot().has(uid)}
+			visual_turn_damage[uid]={"before":hp_before,"after":int(visual_after.get(uid,0)),"removed":not visual_after.has(uid)}
 		visual_turn_damage[uid]["events"]=visual_response_events[uid].duplicate(true)
 	visual_response_active=false
 	visual_turn_damage_turn=turns

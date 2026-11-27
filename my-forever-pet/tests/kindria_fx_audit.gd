@@ -275,6 +275,7 @@ func run()->void:
 	var losses:Dictionary=Rules.visual_hp_losses({1:10,2:8,3:4,4:2},{1:7,3:5,4:2,5:9})
 	if losses.size()!=2 or int(losses[1].before)!=10 or int(losses[1].after)!=7 or bool(losses[1].removed) or not bool(losses[2].removed):errors.append("response turn damage ledger")
 	var mixed:=Node3D.new()
+	mixed.set_meta("species","sporeling")
 	field.queue_enemy_reaction(mixed,true,.84,Vector3.ZERO)
 	field.queue_enemy_reaction(mixed,false,.4,Vector3.RIGHT,.4,3)
 	if field.fx_reactions.size()!=4:errors.append("mixed reaction queue count")

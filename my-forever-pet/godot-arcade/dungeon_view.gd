@@ -5364,6 +5364,7 @@ func queue_observed_enemy_damage(actor:Node3D,uid:int,tile:Vector2i,defeated:boo
 	var new_cast:bool=run.attack_serial!=previous_attack
 	var hits:int=int(run.player_visual_hits.get(uid,0)) if new_cast and run.player_visual_hit_serial==run.attack_serial else 0
 	var affected:bool=tile in run.player_attack_cells
+	var response_cast:bool=new_cast and run.visual_response_cast_serial==run.attack_serial and run.visual_response_cast_uid==uid
 	var response:Dictionary={}
 	if run.visual_turn_damage_turn==run.turns and (enemy_event_floor!=run.floor_revision or enemy_event_turn!=run.turns):
 		response=run.visual_turn_damage.get(uid,{})
@@ -5372,12 +5373,23 @@ func queue_observed_enemy_damage(actor:Node3D,uid:int,tile:Vector2i,defeated:boo
 	if not response.is_empty():
 		var old_hp:int=int(actor.get_meta("enemy_hp",response.before))
 		affected=affected and old_hp>int(response.before)
+	if response_cast:
+		hits=maxi(1,hits);affected=true
 	var spec:=damage_reaction_spec(combat_profile(run.player_attack_fx),new_cast,hits,affected,(pos(tile)-pos(run.player)).normalized())
 	if response.is_empty():
 		queue_enemy_reaction(actor,defeated,float(spec.delay),Vector3(spec.direction),float(spec.span),int(spec.count))
 		return
 	var linked:bool=new_cast and (hits>0 or affected)
-	var events:Array=response.get("events",[])
+	var events:Array=response.get("events",[]).duplicate()
+	if response_cast:
+		# The final sleep counter already owns the visible cast and its impact.
+		# Earlier sleep counters are not individually represented by attack_serial.
+		for index in range(events.size()-1,-1,-1):
+			if str(events[index].get("source",""))=="sleep_counter":
+				events.remove_at(index);break
+		if events.is_empty():
+			queue_enemy_reaction(actor,defeated,float(spec.delay),Vector3(spec.direction),float(spec.span),int(spec.count))
+			return
 	var count:int=maxi(1,events.size())
 	var secondary_delay:float=float(spec.delay)+float(spec.span)+.04 if linked else 0.0
 	# Queue terminal callback first: queue_enemy_reaction retires older callbacks
