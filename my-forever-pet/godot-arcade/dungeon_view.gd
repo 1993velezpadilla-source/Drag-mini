@@ -2468,11 +2468,9 @@ func ultra_impact_residue(burst:Dictionary)->void:
 	var record:Dictionary=Rules.MOVE_LIBRARY.get(id,Rules.DEV_NATIVE_MOVES.get(id,{}))
 	if str(record.get("category",""))=="status":return
 	if not element in ["fire","water","ice","ground","rock","poison","electric","grass","dragon","steel"]:return
-	var results:Dictionary=burst.get("results",{})
-	var target:Vector3=burst.points[-1]
-	var tile:=Vector2i(roundi(target.x/1.4),roundi(target.z/1.4))
-	var result:Dictionary=results.get(tile,{})
-	if int(result.get("damage",0))<=0 and int(burst.get("damage",0))<=0:return
+	var resolved:=resolve_element_impact(burst)
+	if int(resolved.damage)<=0:return
+	var target:Vector3=resolved.target
 	var style:Array=combat_style(id)
 	var life:float=.65 if element in ["fire","electric","dragon"] else .90
 	if fx_residues.size()>=FX_RESIDUE_CAP:fx_residues.pop_front()
@@ -2607,6 +2605,31 @@ func cinematic_light(at:Vector3,color:Color,energy:float,extent:float)->void:
 	light.light_energy=energy
 	if not light.visible:light.show()
 
+# A single impact resolver shared by halos, residues and finish choreography.
+# Empty terrain may still receive environmental effects, never a damage flash.
+func resolve_element_impact(burst:Dictionary)->Dictionary:
+	var points:Array=burst.points
+	var target:Vector3=points[-1]
+	var tile:=Vector2i(roundi(target.x/1.4),roundi(target.z/1.4))
+	var results:Dictionary=burst.get("results",{})
+	var row:Dictionary=results.get(tile,{})
+	if int(row.get("damage",0))+int(row.get("effects",0))+int(row.get("heal",0))>0:
+		return {"kind":"confirmed","target":target,"tile":tile,"damage":int(row.get("damage",0))}
+	var nearest:float=INF
+	var selected:Vector2i=tile
+	var selected_row:Dictionary={}
+	for other in results:
+		var hit:Dictionary=results[other]
+		if int(hit.get("damage",0))+int(hit.get("effects",0))+int(hit.get("heal",0))<=0:continue
+		var distance:float=Vector2(Vector2i(other)-tile).length_squared()
+		if distance<nearest:
+			nearest=distance;selected=other;selected_row=hit
+	if not selected_row.is_empty():
+		return {"kind":"confirmed","target":pos(selected)+Vector3(0,target.y,0),"tile":selected,"damage":int(selected_row.get("damage",0))}
+	if row.is_empty() and results.is_empty() and int(burst.get("damage",0))>0:
+		return {"kind":"confirmed","target":target,"tile":tile,"damage":int(burst.damage)}
+	return {"kind":"terrain" if row.is_empty() else "miss","target":target,"tile":tile,"damage":0}
+
 func cinematic_cast_enhancement(burst:Dictionary,t:float)->void:
 	var points:Array=burst.points
 	if points.is_empty():return
@@ -2620,10 +2643,8 @@ func cinematic_cast_enhancement(burst:Dictionary,t:float)->void:
 	var peak:float=clampf(float(profile.impact),.01,.99)
 	var target:Vector3=points[-1]
 	var source:Vector3=points[0]
-	var results:Dictionary=burst.get("results",{})
-	var tile:=Vector2i(roundi(target.x/1.4),roundi(target.z/1.4))
-	var result:Dictionary=results.get(tile,{})
-	var miss:bool=not result.is_empty() and int(result.get("damage",0))+int(result.get("effects",0))+int(result.get("heal",0))<=0
+	var resolved:=resolve_element_impact(burst)
+	var miss:bool=resolved.kind!="confirmed"
 	var wide:bool=profile.pattern in ["room","floor","radius","cross","fan"]
 	var strength:float=.7 if luminous else .40
 	if status:strength*=.62
@@ -2635,6 +2656,7 @@ func cinematic_cast_enhancement(burst:Dictionary,t:float)->void:
 		cinematic_halo(at,color,.95 if luminous else .65,strength*envelope*.52,progress,false)
 		if luminous:cinematic_light(at+Vector3.UP*.25,color,envelope*strength*.7,2.05)
 	elif not miss:
+		target=resolved.target
 		var after:float=clampf((t-peak)/(1.0-peak),0.0,1.0)
 		var fade:float=pow(1.0-after,2.0)
 		var extent:float=2.0 if wide else 1.25
@@ -7070,12 +7092,12 @@ func element_finish_fx(burst:Dictionary,t:float,used:int)->int:
 		var radius:float=.12+age*.60
 		var count:int=5 if not status else 3
 		var results:Dictionary=burst.get("results",{})
-		# Known misses/blocked hits get a subdued dissipating trail, not a damage flash.
-		var primary_tile:=Vector2i(roundi(target.x/1.4),roundi(target.z/1.4))
-		var row:Dictionary=results.get(primary_tile,{})
-		if not row.is_empty() and int(row.get("damage",0))==0 and int(row.get("effects",0))==0 and int(row.get("heal",0))==0:
+		var resolved:=resolve_element_impact(burst)
+		target=resolved.target
+		var primary_tile:Vector2i=resolved.tile
+		if resolved.kind=="miss":
 			return environment_particle(used,target,"cloud",light,dark,.32+age*.18,fade*.35)
-		if age<.30:
+		if age<.30 and resolved.kind=="confirmed":
 			used=environment_particle(used,target,"bubble" if status else "impact_star",light,dark,.62+age*.55,1.0-age*2.0)
 		# Room-wide attacks show a small localized finish at other confirmed targets.
 		var extra:int=0
@@ -7090,7 +7112,7 @@ func element_finish_fx(burst:Dictionary,t:float,used:int)->int:
 			var angle:float=float(j)*TAU/float(count)
 			var q:=target+Vector3(cos(angle)*radius,.04+sin(age*PI)*(.55 if status else .33),sin(angle)*radius)
 			used=environment_particle(used,q,mode,light,dark,.34*(1.0-age*.5),fade)
-		used=cinematic_impact_layers(id,profile,from,target,age,used,light,dark,status)
+		if resolved.kind=="confirmed":used=cinematic_impact_layers(id,profile,from,target,age,used,light,dark,status)
 		if str(profile.element) in ["water","ground","rock","ice","poison","fire","electric"] or profile.pattern in ["room","radius","cross","floor"]:
 			var ground:=Vector3(target.x,.045,target.z)
 			used=environment_particle(used,ground,"bubble",light,dark,.65+age*1.1,fade*.70,true)
@@ -7805,7 +7827,7 @@ func cinematic_impact_layers(id:String,profile:Dictionary,source:Vector3,target:
 		var size:float=.18+.16*fade
 		var flat:bool=false
 		match element:
-			"fire","dragon":
+			"fire":
 				mode="ember" if i%3!=0 else "smoke"
 				q.y=.10+age*(.9+speed*.45)
 				q+=forward*age*.25
@@ -7821,22 +7843,41 @@ func cinematic_impact_layers(id:String,profile:Dictionary,source:Vector3,target:
 				flat=age>=.63
 				if flat:q.y=.047
 				size=.26+age*.20
-			"ground","rock","steel","ice":
-				mode="crystal" if element=="ice" or element=="steel" else "shards"
-				q.y=.04+arc*(.45+speed*.55)
-				size=.20+speed*.13
+			"ground":
+				mode="earth_hole" if i%3==0 else "shards"
+				flat=i%3==0;q.y=.045 if flat else .04+arc*.48
+				size=.24+age*.25
+			"rock":
+				mode="shards";q.y=.05+arc*(.7+speed*.42);size=.28+speed*.18
+			"steel":
+				mode="slash" if i%2==0 else "crystal"
+				q.y=.08+arc*.35;size=.18+speed*.16
+			"ice":
+				mode="crystal";q.y=.05+float(i%3)*.19+arc*.18
+				size=.30+age*.12
 			"electric":
 				mode="lightning" if i%2==0 else "impact_star"
 				q=target+radial*travel+Vector3.UP*(arc*.36+sin(angle*3.0+age*20.0)*.14)
-			"grass","bug":
-				mode="leaf"
-				q=ground+radial.rotated(Vector3.UP,age*1.8)*travel+Vector3.UP*(.10+arc*.72)
-			"flying","fighting","normal","dark":
-				mode="slash" if i%2==0 else "impact_star"
-				q=target+forward*(age*speed*.7)+side*sin(angle)*travel+Vector3.UP*(arc*.25)
-			"psychic","ghost","fairy":
-				mode="spiral" if i%2==0 else "impact_star"
-				q=target+radial.rotated(Vector3.UP,age*3.6)*travel+Vector3.UP*(age*.44)
+			"grass":
+				mode="leaf";q=ground+radial.rotated(Vector3.UP,age*1.8)*travel+Vector3.UP*(.10+arc*.72)
+			"bug":
+				mode="web" if i%3==0 else "leaf";q=ground+radial*travel+Vector3.UP*(.12+arc*.32)
+			"flying":
+				mode="slash";q=target+radial.rotated(Vector3.UP,age*4.5)*travel+Vector3.UP*(arc*.6)
+			"fighting":
+				mode="impact_star";q=target+forward*(age*speed*.7)+side*sin(angle)*travel+Vector3.UP*(arc*.25)
+			"normal":
+				mode="shock_ring" if i%3==0 else "impact_star";q=target+radial*travel
+			"dark":
+				mode="slash" if i%2==0 else "smoke";q=target-radial*travel+Vector3.UP*(arc*.22)
+			"psychic":
+				mode="spiral";q=target+radial.rotated(Vector3.UP,age*4.8)*travel+Vector3.UP*(age*.44)
+			"ghost":
+				mode="cloud" if i%2==0 else "flame";q=target+radial.rotated(Vector3.UP,-age*2.8)*travel+Vector3.UP*(age*.72)
+			"fairy":
+				mode="impact_star";q=target+radial.rotated(Vector3.UP,age*2.6)*travel+Vector3.UP*(arc*.54)
+			"dragon":
+				mode="flame" if i%2==0 else "lightning";q=target+radial.rotated(Vector3.UP,age*3.2)*travel+Vector3.UP*(arc*.65)
 		used=environment_particle(used,q,mode,light,dark,size,fade*.92,flat)
 	if heavy and not status:
 		used=environment_particle(used,ground,"shock_ring",light,dark,.35+age*2.25,fade*.68,true)
