@@ -71,9 +71,9 @@ func _initialize():
 		if not str(id).begins_with("eos_"):continue
 		var move:Dictionary=Rules.MOVE_LIBRARY[id]
 		assert(int(str(id).trim_prefix("eos_"))==int(move.reference_id))
-		assert(move.pp>0 and (move.power>0 or move.has("heal_fraction") or move.has("inflict_status") or move.has("stat_changes") or move.has("shield_kind") or move.has("boon_kind")))
+		assert(move.pp>0 and (move.power>0 or move.has("heal_fraction") or move.has("inflict_status") or move.has("stat_changes") or move.has("shield_kind") or move.has("boon_kind") or move.has("weather_set") or move.has("floor_sport") or move.has("weather_heal")))
 		assert(move.reference_strikes==1 or (move.has("hit_min") and move.hit_min>=2 and move.hit_max<=5))
-		assert(move.category in ["physical","special"] or (move.category=="status" and (move.has("heal_fraction") or move.has("inflict_status") or move.has("stat_changes") or move.has("shield_kind") or move.has("boon_kind"))))
+		assert(move.category in ["physical","special"] or (move.category=="status" and (move.has("heal_fraction") or move.has("inflict_status") or move.has("stat_changes") or move.has("shield_kind") or move.has("boon_kind") or move.has("weather_set") or move.has("floor_sport") or move.has("weather_heal"))))
 		assert(id in Rules.available_moves([move.type],100))
 		assert(not id in Rules.available_moves([move.type],15))
 		assert(Rules.reference_accuracy(move)>=0.0 and Rules.reference_accuracy(move)<=100.0)
@@ -313,6 +313,28 @@ func _initialize():
 	boon.clear_combat_effects()
 	assert(boon.player_boons.is_empty())
 	print("KINDRIA_BOON_CRITICAL_PASS")
+	var climate=Rules.new()
+	climate.player=Vector2i(1,1)
+	climate.cells[climate.player]=true;climate.cells[Vector2i(2,1)]=true
+	climate.equipped_moves=["eos_012","eos_223","eos_151"];climate.move_pp={"eos_012":12,"eos_223":12,"eos_151":9}
+	assert(climate.cast_move("eos_012",Vector2i.UP))
+	assert(climate.floor_weather=="rain" and climate.weather_factor("water")==1.5 and climate.weather_factor("fire")==.5)
+	assert(climate.weather_ball_type()=="water" and climate.roll_reference_hit(Rules.MOVE_LIBRARY.eos_064))
+	assert(climate.cast_move("eos_223",Vector2i.UP))
+	assert(climate.weather_heal_amount()==80 and climate.weather_factor("fire")==1.5)
+	climate.enemies.append({"pos":Vector2i(2,1),"hp":1000,"kind":0,"species":"reef_pup"})
+	assert(climate.cast_move("eos_151",Vector2i.RIGHT))
+	assert(climate.charged_move_id.is_empty() and climate.move_pp.eos_151==8)
+	climate.floor_sports["water"]=10
+	assert(climate.weather_factor("fire")==.75)
+	climate.set_floor_weather("hail")
+	assert(climate.roll_reference_hit(Rules.MOVE_LIBRARY.eos_270) and not climate.weather_hurts(["ice"]))
+	var old_hp:int=climate.hp
+	for i in range(10):climate.tick_floor_weather()
+	assert(climate.hp==maxi(0,old_hp-3) and climate.floor_sports.is_empty())
+	climate.clear_combat_effects()
+	assert(climate.floor_weather=="clear" and climate.weather_heal_amount()==50)
+	print("KINDRIA_WEATHER_PASS")
 	assert(Rules.EOS_IDENTIFIED_COUNT==468)
 	print("KINDRIA_EOS_PROTOTYPES_PASS ",eos_count)
 	print("KINDRIA_LEARNSET_PP_PASS")
