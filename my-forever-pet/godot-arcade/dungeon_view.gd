@@ -1929,7 +1929,12 @@ func combat_profile(id:String)->Dictionary:
 	if Rules.MOVE_LIBRARY.has(id):
 		if Rules.MOVE_LIBRARY[id].has("drain_fraction"):role="drain"
 		elif Rules.MOVE_LIBRARY[id].has("heal_fraction"):role="heal"
-	var impact:float=.48 if role in ["contact","electric_contact"] else .64 if role in ["projectile","lash","electric_arc"] else .40
+	match id:
+		"eos_064":role="electric_sky"
+		"eos_129":role="electric_burst"
+		"eos_188":role="electric_short"
+		"eos_189":role="electric_wave"
+	var impact:float=.48 if role in ["contact","electric_contact","electric_short"] else .64 if role in ["projectile","lash","electric_arc","electric_wave","electric_sky"] else .40
 	return {"mode":mode,"role":role,"element":element,"pattern":pattern,"range":reach,"duration":float(style[3]),"impact":impact,"socket":"ground" if role=="ground" else "head" if role=="projectile" else "center"}
 func electric_sprite(im:Image,id:String,frame:int,role:String)->void:
 	var cyan:=Color("#40cfff")
@@ -1938,7 +1943,29 @@ func electric_sprite(im:Image,id:String,frame:int,role:String)->void:
 	var white:=Color("#fffef2")
 	var center:=Vector2(24,24)
 	var paths:Array=[]
-	if role=="electric_contact" or role=="electric_area":
+	if role=="electric_sky":
+		var bolt:Array=[Vector2(24,2)]
+		for j in range(1,9):bolt.append(Vector2(24+float(posmod(j*17+frame*11,13)-6),2+j*5))
+		paths.append(bolt)
+	elif role=="electric_burst":
+		for i in range(8):
+			var angle:float=float(i)*TAU/8.0
+			var radius:float=5.0+float(frame)*1.25
+			var d:=Vector2(cos(angle),sin(angle))
+			paths.append([center,center+d*radius*.48+Vector2(-d.y,d.x)*3.0,center+d*radius])
+		fx_disc(im,center,3.0+float(frame),cyan,2.0+float(frame))
+	elif role=="electric_short":
+		paths.append([Vector2(8,24),Vector2(17,19),Vector2(22,28),Vector2(32,20),Vector2(39,24)])
+		fx_disc(im,Vector2(35,24),2.0+float(frame%3),gold)
+	elif role=="electric_wave":
+		for i in range(3):
+			var x:float=8.0+float(i)*10.0+float(frame%3)
+			var wave:Array=[]
+			for j in range(9):
+				var angle:float=-PI*.40+float(j)*PI*.10
+				wave.append(Vector2(x+cos(angle)*6.0,24+sin(angle)*18.0))
+			paths.append(wave)
+	elif role=="electric_contact" or role=="electric_area":
 		var rays:int=5 if role=="electric_contact" else 8
 		for i in range(rays):
 			var angle:float=float(i)*TAU/rays+float(frame%3)*.17
@@ -1964,7 +1991,7 @@ func electric_sprite(im:Image,id:String,frame:int,role:String)->void:
 				var bend:=b.lerp(fork,.5)+Vector2(3,-2)
 				fx_line(im,b,bend,1.1,cyan);fx_line(im,bend,fork,.6,white)
 				fx_disc(im,fork,1.0,gold)
-	if role!="electric_arc":fx_disc(im,center,2.0+float(frame%3),white)
+	if role in ["electric_contact","electric_area","electric_burst"]:fx_disc(im,center,2.0+float(frame%3),white)
 # Connected world-space ribbons: jitter is deterministic and changes at 24 Hz.
 func arc_segment(a:Vector3,b:Vector3,width:float,col:Color)->void:
 	var direction:=b-a
@@ -1977,7 +2004,28 @@ func arc_segment(a:Vector3,b:Vector3,width:float,col:Color)->void:
 func electric_world_arc(points:Array,t:float,role:String,tiles:Array)->void:
 	var frame:int=int(t*36.0)
 	var paths:Array=[]
-	if role=="electric_area":
+	if role=="electric_sky":
+		if t<.32:return
+		var target:Vector3=points[-1]
+		paths.append([target+Vector3.UP*(2.8-maxf(0.0,t-.45)*2.0),target])
+		if t>.58:
+			for i in range(4):
+				var angle:float=float(i)*TAU/4.0
+				paths.append([target,target+Vector3(cos(angle)*.65,.08,sin(angle)*.65)])
+	elif role=="electric_burst":
+		for tile in tiles:
+			var target:Vector3=tile+Vector3.UP*.35
+			paths.append([points[0],points[0].lerp(target,clampf(t*2.5,0,1))])
+	elif role=="electric_short":
+		paths.append([points[0],points[-1]])
+	elif role=="electric_wave":
+		var front:Vector3=combat_path_sample(points,clampf(t*1.8,0,1))
+		var direction:Vector3=(points[-1]-points[0]).normalized()
+		var side:Vector3=direction.cross(Vector3.UP)
+		for i in range(3):
+			var center:Vector3=front-direction*float(i)*.23
+			paths.append([center-side*.38,center+Vector3.UP*.27,center+side*.38])
+	elif role=="electric_area":
 		for tile in tiles:
 			var target:Vector3=tile
 			paths.append([points[0],target+Vector3(0,.4,0)])
@@ -1996,7 +2044,10 @@ func electric_world_arc(points:Array,t:float,role:String,tiles:Array)->void:
 				if fx_arc_segments>=1000:return
 				var f:float=float(j)/9.0
 				var q:=start.lerp(end,f)
-				if j<9:q+=side*float(posmod(j*19+k*7+frame*13,19)-9)*.038+Vector3.UP*float(posmod(j*11+frame*7,17)-8)*.045
+				if j<9:
+					var jitter:float=.42 if role=="electric_wave" else .55 if role=="electric_short" else 1.0
+					var axis:Vector3=side if side.length_squared()>.0001 else Vector3.RIGHT
+					q+=(axis*float(posmod(j*19+k*7+frame*13,19)-9)*.038+Vector3.UP*float(posmod(j*11+frame*7,17)-8)*.045)*jitter
 				arc_segment(last,q,.072,Color(.18,.47,1.0,.36))
 				arc_segment(last,q,.035,Color("#4edbff"))
 				arc_segment(last,q,.016,Color("#fffbd3"))
@@ -2219,6 +2270,14 @@ func combat_fx_update(dt:float)->void:
 					var radius:float=.12+t*.48
 					q+=Vector3(cos(angle)*radius,.18+sin(t*PI)*(.5 if mode=="cloud" else .2),sin(angle)*radius)
 					size=.65 if mode!="web" else .85
+			if profile.role=="electric_sky":
+				q=points[-1]+Vector3(0,lerpf(2.8,.0,clampf(t*1.5,0,1)),0);size=.75
+			elif profile.role=="electric_burst":
+				q=tiles[j%tiles.size()]+Vector3(0,.38,0);size=.62
+			elif profile.role=="electric_short":
+				q=points[-1]+Vector3(cos(angle)*.16,sin(angle)*.15,0);size=.30
+			elif profile.role=="electric_wave":
+				q=combat_path_sample(points,clampf(t*1.8-f*.18,0,1));size=.70
 			# Drained energy travels from victim back to caster; healing stays on caster.
 			if profile.role=="drain" and t>=.40:
 				var back:float=clampf((t-.40)*2.0-f*.22,0.0,1.0)
