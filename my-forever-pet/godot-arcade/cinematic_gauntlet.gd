@@ -455,6 +455,13 @@ func run_checks()->void:
 		if not view.combat_bursts.is_empty() or max_visible==0:failures.append("world cast lifetime "+str(id))
 		quality_rows.append({"id":id,"element":profile.element,"role":profile.role,"category":category,"distinct_frames":frame_hashes.size(),"blank_frames":blank_frames,"adjacent_repeats":repeat_count,"sequence_sha256":signature,"audio_form":audio_form,"audio_peaks":audio_peaks,"max_visible_particles":max_visible})
 	if frame_total!=589*Dungeon.FX_FRAME_COUNT or audio_total!=1178 or runtime_samples!=2945:failures.append("full catalog sample coverage")
+	# V15.2 promotes the original duplicate report from advisory to a hard gate.
+	if Dungeon.NATIVE_IDENTITY_CASTS.size()!=60:failures.append("native identity coverage")
+	for signature in duplicate_groups:
+		failures.append("identical move sequence: "+str(duplicate_groups[signature]))
+	for id in Dungeon.NATIVE_IDENTITY_CASTS:
+		if not catalog.has(id) or not Dungeon.AUTHORED_STAGE_FX.has(id):failures.append("missing native choreography "+str(id))
+		checks+=1
 	if view.combat_textures.size()>Dungeon.FX_SECONDARY_TEXTURE_CAP or view.fx_animated_cache.size()>Dungeon.FX_ANIMATED_CACHE_CAP or view.fx_audio_cache.size()>192:failures.append("catalog cache overflow")
 	var report:=FileAccess.open("/tmp/kindria-quality-report.log",FileAccess.WRITE)
 	if report==null:failures.append("quality report write failed")
