@@ -267,6 +267,45 @@ func run()->void:
 	var fire_art:Array=field.punch_contact_art("eos_292")
 	assert(field.combat_particles[0].texture==field.combat_pixel_texture("fist_front",Color(str(fire_art[5])),Color(str(fire_art[6]))))
 	print("KINDRIA_CONTACT_PUNCH_PASS 17")
+	# V11.3: actual feet, directional contact and element accents for all kicks.
+	var kick_cases:Dictionary={"lib_fighting_2":"slash","eos_092":"shards","eos_204":"slash","eos_206":"impact_star","eos_271":"shards","eos_276":"flame","eos_303":"shock_ring","eos_321":"shock_ring","eos_222":"impact_star","eos_210":"slash"}
+	for move_id in kick_cases:
+		var art:Array=field.kick_contact_art(move_id)
+		assert(art.size()==9 and art[8]==kick_cases[move_id])
+		assert(field.kick_contact_fx(move_id,punch_source,bite_position,0.0,0,Color.WHITE,Color.BLACK)==1)
+		var foot:Sprite3D=field.combat_particles[0]
+		var initial:Vector3=foot.position
+		assert(foot.texture.get_image().get_used_rect().size.x>0)
+		var expected_texture:Texture2D=field.combat_pixel_texture(str(art[5]),Color(str(art[6])),Color(str(art[7])))
+		var mirror_texture:Texture2D=expected_texture
+		if str(art[5]) in ["kick_side","kick_raised"]:
+			mirror_texture=field.combat_pixel_texture(str(art[5])+"_mirror",Color(str(art[6])),Color(str(art[7])))
+		assert(foot.texture==expected_texture or foot.texture==mirror_texture)
+		assert(field.kick_contact_fx(move_id,punch_source,bite_position,float(art[1])*.30,0,Color.WHITE,Color.BLACK)>=2)
+		assert(foot.position.distance_to(initial)>.05)
+		assert(field.combat_particles[1].texture==field.combat_pixel_texture(str(art[8]),Color.WHITE,Color.BLACK))
+		assert(field.combat_particles.size()==particle_count)
+		assert(field.kick_contact_fx(move_id,punch_source,bite_position,float(art[1]),0,Color.WHITE,Color.BLACK)==0)
+		assert(field.kick_contact_fx(move_id,punch_source,bite_position,0.0,Field.FX_PARTICLE_CAP,Color.WHITE,Color.BLACK)==Field.FX_PARTICLE_CAP)
+	field.kick_contact_fx("eos_092",punch_source,bite_position,0.0,0,Color.WHITE,Color.BLACK)
+	var low_height:float=field.combat_particles[0].position.y
+	field.kick_contact_fx("eos_206",punch_source,bite_position,0.0,0,Color.WHITE,Color.BLACK)
+	assert(field.combat_particles[0].position.y>low_height+.80)
+	var triple_art:Array=field.kick_contact_art("eos_210")
+	field.kick_contact_fx("eos_210",punch_source,bite_position,float(triple_art[1])*.10,0,Color.WHITE,Color.BLACK,3)
+	var first_kick:Vector3=field.combat_particles[0].position
+	var first_foot:Texture2D=field.combat_particles[0].texture
+	field.kick_contact_fx("eos_210",punch_source,bite_position,float(triple_art[1])*(.10+1.0/3.0),0,Color.WHITE,Color.BLACK,3)
+	assert(field.combat_particles[0].position.distance_to(first_kick)>.35)
+	assert(field.combat_particles[0].texture!=first_foot)
+	var kick_profile:Dictionary=field.combat_profile("eos_276")
+	var kick_burst:Dictionary={"id":"eos_276","profile":kick_profile,"points":[field.pos(origin),bite_position],"results":{target:{"misses":1}}}
+	assert(field.element_finish_fx(kick_burst,float(kick_profile.impact),0)==1)
+	kick_burst.results={target:{"damage":8,"hits":1}}
+	assert(field.element_finish_fx(kick_burst,float(kick_profile.impact),0)>1)
+	var blaze_art:Array=field.kick_contact_art("eos_276")
+	assert(field.combat_particles[0].texture==field.combat_pixel_texture("kick_heel",Color(str(blaze_art[6])),Color(str(blaze_art[7]))))
+	print("KINDRIA_CONTACT_KICK_PASS 10")
 	var plan:Array=[
 		{"stage":"ally_invoke","anchor":"source","start":0.0,"end":.15,"enabled":true},
 		{"stage":"enemy_invoke","anchor":"source","start":0.0,"end":.15,"enabled":true},
