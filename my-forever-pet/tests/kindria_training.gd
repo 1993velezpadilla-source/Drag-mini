@@ -811,6 +811,27 @@ func _initialize():
 	resources.hp=1;resources.belly_tenths=0
 	assert(not resources.spend_belly() and resources.finished and not resources.success)
 	print("KINDRIA_RESOURCE_MOVE_PASS")
+	var guise=Rules.new()
+	guise.player=Vector2i(1,1);guise.trained_profile={"types":["grass"],"level":20}
+	guise.rooms.append(Rect2i(1,1,4,4))
+	for x in range(1,5):
+		for y in range(1,5):guise.cells[Vector2i(x,y)]=true
+	guise.enemies.append({"pos":Vector2i(2,1),"hp":50,"kind":0,"species":"reef_pup","uid":1})
+	guise.enemies.append({"pos":Vector2i(3,1),"hp":50,"kind":0,"species":"reef_pup","uid":2})
+	assert(guise.transform_form() and guise.transformed_species=="reef_pup")
+	assert(guise.current_player_types()==["grass"] and guise.equipped_moves.is_empty())
+	assert(guise.apply_decoy(0))
+	assert(guise.enemies[0].decoy_turns>=21 and guise.enemies[0].decoy_turns<=50)
+	assert(guise.decoy_action(1) and guise.enemies[0].hp==48)
+	assert(guise.apply_decoy(1) and not guise.enemies[0].has("decoy_turns"))
+	guise.clear_combat_effects()
+	assert(guise.transformed_species=="")
+	var certain:Dictionary=Rules.MOVE_LIBRARY.eos_252.duplicate()
+	certain.acc1=125;certain.acc2=125
+	var before_tiles:Array=[guise.player,guise.enemies[0].pos,guise.enemies[1].pos]
+	assert(guise.relay_swap(certain)==2)
+	assert(guise.player in before_tiles and guise.enemy_at(guise.player)<0 and guise.enemies[0].pos!=guise.enemies[1].pos)
+	print("KINDRIA_FORM_POSITION_PASS")
 	assert(Rules.EOS_IDENTIFIED_COUNT==468)
 	print("KINDRIA_EOS_PROTOTYPES_PASS ",eos_count)
 	print("KINDRIA_LEARNSET_PP_PASS")
