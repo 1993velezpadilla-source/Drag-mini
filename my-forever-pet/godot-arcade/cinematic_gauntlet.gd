@@ -36,6 +36,41 @@ func run_checks()->void:
 	var checks:int=0
 	var failures:Array[String]=[]
 	var view:=Dungeon.new()
+	# V24.8: reused budgets must match a fresh allocation across changing demand.
+	var living_memory_probe:=Dungeon.new()
+	var living_memory_reused:Array[int]=[]
+	for living_memory_case in [[],[0],[3],[1,8,2],[20,20,20,20],[0,3,0,4],[1],[0,0],[]]:
+		var living_memory_demands:Array[int]=[]
+		living_memory_demands.assign(living_memory_case)
+		for living_memory_capacity in [0,1,4,16,64,100]:
+			var living_memory_expected:Array[int]=[]
+			living_memory_expected.resize(living_memory_demands.size())
+			living_memory_expected.fill(0)
+			var living_memory_remaining:int=living_memory_capacity
+			while living_memory_remaining>0:
+				var living_memory_progress:bool=false
+				for living_memory_index in range(living_memory_demands.size()):
+					if living_memory_expected[living_memory_index]>=living_memory_demands[living_memory_index]:continue
+					living_memory_expected[living_memory_index]+=1
+					living_memory_remaining-=1
+					living_memory_progress=true
+					if living_memory_remaining==0:break
+				if not living_memory_progress:break
+			living_memory_probe.fill_living_particle_budgets(living_memory_demands,living_memory_capacity,living_memory_reused)
+			if living_memory_reused!=living_memory_expected:failures.append("V24.8 reused budget parity")
+			checks+=1
+	var living_memory_actor:=Node3D.new()
+	living_memory_probe.append_living_particle_actor(living_memory_actor,["sleep","burn"],1.08)
+	living_memory_probe.append_living_particle_actor(living_memory_actor,["poison"],1.12)
+	if living_memory_probe.fx_living_actors.size()!=2 or living_memory_probe.fx_living_status_rows[0]!=["sleep","burn"]:failures.append("V24.8 actor row order")
+	if not is_equal_approx(living_memory_probe.fx_living_heights[1],1.12):failures.append("V24.8 actor height parity")
+	var living_memory_expected_demand:int=int(living_memory_probe.living_status_palette("sleep")[3])+int(living_memory_probe.living_status_palette("burn")[3])
+	if living_memory_probe.fx_living_demands[0]!=living_memory_expected_demand:failures.append("V24.8 demand parity")
+	living_memory_probe.clear_living_particle_actors()
+	if not living_memory_probe.fx_living_actors.is_empty() or not living_memory_probe.fx_living_status_rows.is_empty() or not living_memory_probe.fx_living_heights.is_empty() or not living_memory_probe.fx_living_demands.is_empty():failures.append("V24.8 stale actor rows")
+	checks+=4
+	living_memory_actor.free()
+	living_memory_probe.free()
 	# V24.7: compare stable compaction and pending actor indexing with the old queue.
 	var reaction_probe:=Dungeon.new()
 	var reaction_actor_a:=Node3D.new()
