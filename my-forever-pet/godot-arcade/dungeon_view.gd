@@ -4835,7 +4835,7 @@ func queue_enemy_reaction(actor:Node3D,defeated:bool,delay:float,direction:Vecto
 			if fx_reactions[i].actor==actor:fx_reactions.remove_at(i)
 	actor.set_meta("pending_impact",true)
 	if defeated:actor.set_meta("pending_defeat",true)
-	var times:Array[float]=reaction_times(delay+span,delay/maxf(.001,delay+span),count)
+	var times:Array[float]=reaction_times(delay+span,delay/(delay+span) if delay+span>0.0 else 0.0,count)
 	for i in range(times.size()):
 		fx_reactions.append({"actor":actor,"delay":times[i],"defeated":defeated and i==times.size()-1,"direction":direction})
 
@@ -4882,6 +4882,10 @@ func begin_player_cast_pose(event:Dictionary,age:float=0.0)->void:
 		attack_fx.position=pos(event.to)+Vector3(0,.24,0)
 		attack_fx.visible=player_impact_delay<=0.0 and attack_time>0.0
 
+func delayed_cast_can_replay(duration:float,age:float,dt:float,body_remaining:float)->bool:
+	# Compare the previous animation against the actual launch instant, not the end of the frame.
+	return age<duration and body_remaining<=maxf(0.0,dt-age)+.0001
+
 func update_delayed_combat_fx(dt:float)->void:
 	var due:Array[Dictionary]=[]
 	for i in range(delayed_combat_fx.size()-1,-1,-1):
@@ -4898,7 +4902,7 @@ func update_delayed_combat_fx(dt:float)->void:
 		if not combat_bursts.is_empty():combat_bursts[-1].age=age-dt
 		# Do not turn a moved companion toward a historical origin, or interrupt
 		# a newer attack/charge. The independently recorded world FX still plays.
-		if age<float(combat_profile(str(item.event.fx)).duration) and run!=null and run.player==item.event.from and run.charge_phase.is_empty() and attack_time<=dt:
+		if delayed_cast_can_replay(float(combat_profile(str(item.event.fx)).duration),age,dt,attack_time) and run!=null and run.player==item.event.from and run.charge_phase.is_empty():
 			release_charge_phase=""
 			begin_player_cast_pose(item.event,age-dt)
 
