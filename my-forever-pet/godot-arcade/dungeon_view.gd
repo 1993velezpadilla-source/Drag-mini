@@ -5484,7 +5484,7 @@ func native_identity_frame(id:String,frame:int,base:Image)->Image:
 	return im
 
 # V16.7: individually remastered after reviewing actual Godot PNG strips.
-const VISUAL_REMASTER_MOVES=["eos_504","eos_308","eos_135","eos_142","eos_047","eos_250","eos_299","eos_329","eos_262","eos_279","eos_101","eos_199","eos_251","eos_486","eos_462","eos_018","eos_507","eos_175","eos_254","eos_097","eos_163","eos_320","eos_033","eos_166","eos_228","eos_004","eos_252","eos_330","eos_465","eos_138","eos_021","eos_501","eos_053","eos_157","eos_064","eos_188","eos_240","eos_255","eos_342","eos_539","eos_041","eos_278","eos_538","eos_239","eos_193","eos_272","eos_519","eos_494","eos_292","eos_065","eos_276","eos_208","eos_522","eos_452","eos_433","eos_087","eos_063","eos_062","eos_476","eos_127","eos_451","eos_436","eos_491","eos_046","eos_109","eos_234","eos_107","eos_463","eos_133","eos_317","eos_111","eos_331","eos_345","eos_270","eos_042","eos_344","eos_461","eos_180","eos_535","eos_150","eos_118","eos_484","eos_008","eos_131","eos_030","eos_481","eos_028","eos_073","lib_ground_1","eos_057","eos_036","eos_442","eos_153","eos_205","eos_100","eos_518","eos_178","eos_200","eos_495","eos_280","eos_197","eos_332","eos_147","eos_485","eos_459","eos_151","eos_537","eos_443","eos_336","eos_182","eos_253","eos_441","eos_076","lib_grass_1","eos_001","eos_325","eos_103","eos_536","eos_510","eos_431","eos_475","eos_523","eos_080","eos_082","eos_114","eos_323","eos_470","eos_502","eos_529","eos_530","eos_460","eos_520","eos_449","eos_288"]
+const VISUAL_REMASTER_MOVES=["eos_504","eos_308","eos_135","eos_142","eos_047","eos_250","eos_299","eos_329","eos_262","eos_279","eos_101","eos_199","eos_251","eos_486","eos_462","eos_018","eos_507","eos_175","eos_254","eos_097","eos_163","eos_320","eos_033","eos_166","eos_228","eos_004","eos_252","eos_330","eos_465","eos_138","eos_021","eos_501","eos_053","eos_157","eos_064","eos_188","eos_240","eos_255","eos_342","eos_539","eos_041","eos_278","eos_538","eos_239","eos_193","eos_272","eos_519","eos_494","eos_292","eos_065","eos_276","eos_208","eos_522","eos_452","eos_433","eos_087","eos_063","eos_062","eos_476","eos_127","eos_451","eos_436","eos_491","eos_046","eos_109","eos_234","eos_107","eos_463","eos_133","eos_317","eos_111","eos_331","eos_345","eos_270","eos_042","eos_344","eos_461","eos_180","eos_535","eos_150","eos_118","eos_484","eos_008","eos_131","eos_030","eos_481","eos_028","eos_073","lib_ground_1","eos_057","eos_036","eos_442","eos_153","eos_205","eos_100","eos_518","eos_178","eos_200","eos_495","eos_280","eos_197","eos_332","eos_147","eos_485","eos_459","eos_151","eos_537","eos_443","eos_336","eos_182","eos_253","eos_441","eos_076","lib_grass_1","eos_001","eos_325","eos_103","eos_536","eos_510","eos_431","eos_475","eos_523","eos_080","eos_082","eos_114","eos_323","eos_470","eos_502","eos_529","eos_530","eos_460","eos_520","eos_449","eos_288","eos_164","eos_306","eos_023","eos_086","eos_346"]
 func visual_remaster_frame(id:String,frame:int)->Image:
 	var im:=Image.create(48,48,false,Image.FORMAT_RGBA8)
 	im.fill(Color.TRANSPARENT)
@@ -7543,6 +7543,60 @@ func visual_remaster_frame(id:String,frame:int)->Image:
 				var a:float=float(j)*TAU/7.0+t
 				var axis:=Vector2(cos(a),sin(a))
 				fx_line(im,c+axis*(radius+2),c+axis*(radius+5+4*pulse),1.2,Color("#ffec9a",fade))
+		"eos_164","eos_306":
+			# Twin Needles flies as a matched pair; Pin Volley has a staggered five-dart fan.
+			var twin:bool=id=="eos_164"
+			var count:int=2 if twin else 5
+			for j in range(count):
+				var f:float=clampf(drive*(1.0 if twin else 1.3)-(0.0 if twin else float(j)*.12),0.0,1.0)
+				var q:=Vector2(7+30*f,24+(float(j)-float(count-1)*.5)*(10.0 if twin else 5.0))
+				fx_line(im,q-Vector2(8*fade,0),q,1.0,Color("#a6b77a",fade))
+				fx_line(im,q-Vector2(5,2),q+Vector2(6,0),1.6,Color("#62783f",fade))
+				fx_line(im,q-Vector2(5,-2),q+Vector2(6,0),1.3,Color("#e7edaa",fade))
+				if t>=peak:
+					fx_disc(im,q+Vector2(7,3),1.2,Color("#f9f2b9",fade))
+		"eos_023":
+			# Silk Drag: two thin threads unspool into a tightening target-side knot.
+			var head:=Vector2(7+31*drive,24)
+			for j in range(2):
+				var prev:=Vector2(4,24)
+				for k in range(1,20):
+					var f:float=float(k)/19.0
+					var q:=Vector2(4+(head.x-4)*f,24+sin(f*TAU*1.7-t*TAU+float(j)*PI)*3*f)
+					fx_line(im,prev,q,1.7,Color("#b2c5b1",fade))
+					fx_line(im,prev,q,.8,Color("#fcfff0",fade))
+					prev=q
+			if t>=peak:
+				for j in range(3):
+					fight_arc(im,head,3.0+float(j)*1.8,t*2+float(j),PI*1.5,Color("#f6fff3",fade),Color("#b1c3a7",fade),1.0)
+		"eos_086":
+			# Silken Anchor: radial silk spokes deploy before the web is woven.
+			var c:=Vector2(24,24)
+			var r:float=4+17*drive
+			for j in range(8):
+				var a:float=float(j)*TAU/8.0
+				var axis:=Vector2(cos(a),sin(a))
+				var next_axis:=Vector2(cos(a+TAU/8),sin(a+TAU/8))
+				fx_line(im,c,c+axis*r,1.2,Color("#f4f9ed",fade))
+				for k in range(1,4):
+					var f:float=float(k)/3.0
+					if drive>=f*.6:
+						var q:=c+axis*r*f
+						var v:=c+next_axis*r*f
+						var mid:=q.lerp(v,.5).lerp(c,.13)
+						fx_line(im,q,mid,1.0,Color("#c3d4bf",fade))
+						fx_line(im,mid,v,1.0,Color("#f9fff1",fade))
+		"eos_346":
+			# Double Rake: two sequential serrated arcs, offset in time.
+			for j in range(2):
+				var u:float=clampf(drive*1.45-float(j)*.35,0.0,1.0)
+				var q:=Vector2(17+10*u,21+float(j)*6)
+				var a:float=-1.9+1.5*u
+				fight_arc(im,q,13.0,a,PI*.88,Color("#ecf6bc",fade),Color("#668744",fade),3.4)
+				for k in range(3):
+					var theta:float=a+float(k)*.65
+					var v:=q+Vector2(cos(theta),sin(theta))*13
+					fx_line(im,v,v+Vector2(cos(theta),sin(theta))*3,1.1,Color("#9ab962",fade))
 	return im
 
 func combat_frame_image(id:String,frame:int)->Image:
