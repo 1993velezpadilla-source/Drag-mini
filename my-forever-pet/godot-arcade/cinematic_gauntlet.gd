@@ -777,6 +777,29 @@ func run_checks()->void:
 				checks+=3
 	if audio_natures.size()!=18:failures.append("V19.6 missing acoustic nature")
 	checks+=1
+	# V19.7 acoustic gestures: every catalog move has a bounded semantic profile.
+	var gesture_groups:Dictionary={}
+	for id in catalog:
+		var gesture:Vector4=view.combat_audio_gesture(id,view.combat_profile(id))
+		if not gesture.is_finite() or gesture.x<60.0 or gesture.x>2000.0 or gesture.x+gesture.y<30.0 or gesture.z<1.0 or gesture.z>7.0 or gesture.w<0.0 or gesture.w>1.0:failures.append("V19.7 invalid gesture "+str(id))
+		var max_sample:float=0.0
+		for i in range(21):
+			var progress:float=float(i)/20.0
+			var sample:float=view.combat_audio_gesture_sample(gesture,progress*.2,progress,1.0,.5,-.3)
+			if not is_finite(sample) or absf(sample)>1.0:failures.append("V19.7 gesture sample "+str(id))
+			max_sample=maxf(max_sample,absf(sample))
+		if max_sample<.005:failures.append("V19.7 silent gesture "+str(id))
+		gesture_groups[str(gesture)]=true
+		checks+=23
+	if gesture_groups.size()<35:failures.append("V19.7 insufficient gesture variety")
+	checks+=1
+	for group in [["eos_262","eos_053","eos_291","eos_157"],["eos_308","eos_240","eos_239","eos_255"],["eos_064","eos_193","eos_489","eos_521"]]:
+		var seen_gestures:Dictionary={}
+		for id in group:
+			var gesture:Vector4=view.combat_audio_gesture(id,view.combat_profile(id))
+			if seen_gestures.has(str(gesture)):failures.append("V19.7 same-nature gesture collision "+id)
+			seen_gestures[str(gesture)]=true
+			checks+=1
 	# Full catalog: actual frame bytes, audio buffers, and pooled world FX.
 	# A duplicate sequence or sparse animation is a review candidate, not proof
 	# of poor visual quality. Preserve exact IDs in the downloadable CI report.
