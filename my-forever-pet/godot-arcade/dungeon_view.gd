@@ -5826,10 +5826,18 @@ func update_disguise(dt:float,motion:Vector2,moving:bool,pose:String)->void:
 	var synchronized:bool=sync_disguise_pose(disguise_actor,pose,motion)
 	update_enemy_pixel(disguise_actor,0.0 if synchronized else dt,Vector3(motion.x,0,motion.y) if moving else Vector3.ZERO)
 
+func advance_player_combat_clock(dt:float)->void:
+	attack_time=maxf(0.0,attack_time-dt)
+	hit_time=maxf(0.0,hit_time-dt)
+	player_impact_delay=maxf(0.0,player_impact_delay-dt)
+
 func _process(dt:float):
 	if notified or not is_instance_valid(pet):return
 	elapsed+=dt;tick-=dt
 	combat_fx_update(dt)
+	# Advance existing clocks before path movement can launch a new action.
+	# A cast created by sync() later in this frame starts at age zero.
+	advance_player_combat_clock(dt)
 	update_living_ambient(dt)
 	update_exterior_world(dt)
 	if reward_age>0.0:
@@ -5878,8 +5886,6 @@ func _process(dt:float):
 	pet.position=pet.position.lerp(target,1.0-exp(-dt*18.0))
 	destination_fx.visible=not path.is_empty()
 	if destination_fx.visible:destination_fx.position=pos(path[-1])+Vector3(0,.06,0)
-	attack_time=maxf(0.0,attack_time-dt);hit_time=maxf(0.0,hit_time-dt)
-	player_impact_delay=maxf(0.0,player_impact_delay-dt)
 	var moving:bool=travel.length()>.045
 	# Logical movement direction takes priority over residual smoothing from a
 	# previous turn, avoiding backwards-facing sprites at corridor corners.
