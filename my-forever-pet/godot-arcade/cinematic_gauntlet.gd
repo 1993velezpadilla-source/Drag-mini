@@ -1066,6 +1066,24 @@ func run_checks()->void:
 	var scene:=Node3D.new()
 	root.add_child(scene)
 	view.combat_fx_setup(scene)
+	# Indexed geometry must expand to the exact original two triangles.
+	view.ultra_trail_segment(Vector3.ZERO,Vector3.RIGHT,.1,.2,Color.RED,Color.BLUE)
+	var expected_indices:=PackedInt32Array([0,1,2,0,2,3])
+	if view.fx_trail_positions.size()!=4 or view.fx_trail_indices!=expected_indices or view.fx_trail_colors!=PackedColorArray([Color.RED,Color.RED,Color.BLUE,Color.BLUE]):failures.append("V21.5 ribbon topology")
+	if not view.commit_fx_geometry(view.fx_trail_mesh,view.fx_trail_material,view.fx_trail_positions,view.fx_trail_colors,view.fx_trail_indices):failures.append("V21.5 ribbon submission")
+	if view.fx_trail_mesh.get_surface_count()!=1 or view.fx_trail_mesh.surface_get_array_len(0)!=4 or view.fx_trail_mesh.surface_get_array_index_len(0)!=6:failures.append("V21.5 indexed mesh")
+	view.fx_trail_mesh.clear_surfaces()
+	view.fx_trail_started=false
+	view.arc_segment(Vector3.ZERO,Vector3.RIGHT,.1,Color.WHITE)
+	if view.fx_arc_positions.size()!=4 or view.fx_arc_indices!=expected_indices:failures.append("V21.5 arc topology")
+	var warnings:=PackedVector3Array([Vector3(1,.045,0),Vector3(2,.045,0),Vector3(1,.045,0)])
+	view.apply_combat_warning_batch(warnings)
+	var warning_updates:int=view.fx_warning_batch_updates
+	view.apply_combat_warning_batch(warnings)
+	if view.combat_warning_batch.multimesh.visible_instance_count!=3 or view.fx_warning_batch_updates!=warning_updates:failures.append("V21.5 warning batch")
+	view.apply_combat_warning_batch(PackedVector3Array())
+	if view.combat_warning_batch.visible or view.combat_warning_batch.multimesh.visible_instance_count!=0:failures.append("V21.5 warning cleanup")
+	checks+=6
 	# Generate PCM explicitly below; no speaker playback in a headless test.
 	view.fx_audio.clear()
 	for id in catalog:

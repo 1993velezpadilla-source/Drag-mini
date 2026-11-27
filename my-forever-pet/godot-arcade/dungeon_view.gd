@@ -96,7 +96,9 @@ var fx_performance_grace:float=1.5
 const LIVING_PARTICLE_CAP=64
 const FX_WARNING_CAP=80
 var combat_particles:Array[Sprite3D]=[]
-var combat_warnings:Array[MeshInstance3D]=[]
+var combat_warning_batch:MultiMeshInstance3D
+var combat_warning_positions:PackedVector3Array=PackedVector3Array()
+var fx_warning_batch_updates:int=0
 const CAST_TEXT_CAP:int=16
 var cast_text_pool:Array[Label3D]=[]
 var cast_text_age:Array[float]=[]
@@ -140,7 +142,13 @@ var fx_light_commits:int=0
 var fx_light_candidates:int=0
 var fx_arc_had_geometry:bool=false
 var fx_trail_had_geometry:bool=false
-var fx_arc_mesh:ImmediateMesh
+var fx_arc_mesh:ArrayMesh
+var fx_arc_positions:PackedVector3Array=PackedVector3Array()
+var fx_arc_colors:PackedColorArray=PackedColorArray()
+var fx_arc_indices:PackedInt32Array=PackedInt32Array()
+var fx_geometry_batch_submits:int=0
+var fx_geometry_unique_vertices:int=0
+var fx_geometry_triangle_indices:int=0
 var fx_arc_material:StandardMaterial3D
 var fx_audio:Array[AudioStreamPlayer3D]=[]
 var fx_audio_cache:Dictionary={}
@@ -180,7 +188,10 @@ var fx_light_scores:Array[float]=[]
 var fx_halos_used:int=0
 const FX_TRAIL_VERTEX_CAP:int=960
 const FX_RESIDUE_CAP:int=6
-var fx_trail_mesh:ImmediateMesh
+var fx_trail_mesh:ArrayMesh
+var fx_trail_positions:PackedVector3Array=PackedVector3Array()
+var fx_trail_colors:PackedColorArray=PackedColorArray()
+var fx_trail_indices:PackedInt32Array=PackedInt32Array()
 var fx_trail_material:StandardMaterial3D
 var fx_trail_vertices:int=0
 var fx_trail_started:bool=false
@@ -2462,7 +2473,7 @@ func combat_fx_setup(parent:Node3D)->void:
 	for sound in fx_audio:
 		if is_instance_valid(sound):sound.stop()
 	response_slots.clear()
-	combat_particles.clear();combat_warnings.clear();combat_bursts.clear();retired_impacts.clear();delayed_combat_fx.clear();fx_reactions.clear();fx_ground_shake=0.0;fx_contact_camera=Vector3.ZERO;fx_contact_camera_age=1.0
+	combat_particles.clear();combat_warning_positions.clear();combat_bursts.clear();retired_impacts.clear();delayed_combat_fx.clear();fx_reactions.clear();fx_ground_shake=0.0;fx_contact_camera=Vector3.ZERO;fx_contact_camera_age=1.0
 	combat_fx_root=Node3D.new();parent.add_child(combat_fx_root)
 	setup_cinematic_lighting()
 	setup_ultra_combat_layers()
@@ -2471,7 +2482,7 @@ func combat_fx_setup(parent:Node3D)->void:
 		var tag:=Label3D.new();tag.billboard=BaseMaterial3D.BILLBOARD_ENABLED
 		tag.font_size=38;tag.outline_size=9;tag.pixel_size=.006;tag.no_depth_test=true
 		combat_fx_root.add_child(tag);tag.hide();cast_text_pool.append(tag);cast_text_age.append(0.0);cast_text_origin.append(Vector3.ZERO)
-	fx_arc_mesh=ImmediateMesh.new()
+	fx_arc_mesh=ArrayMesh.new()
 	fx_arc_material=StandardMaterial3D.new()
 	fx_arc_material.shading_mode=BaseMaterial3D.SHADING_MODE_UNSHADED
 	fx_arc_material.vertex_color_use_as_albedo=true
@@ -2495,10 +2506,17 @@ func combat_fx_setup(parent:Node3D)->void:
 			if edge or posmod(x+y,5)==0:warn_img.set_pixel(x,y,Color(1,.32,.18,.65 if edge else .16))
 	combat_warn_mat.albedo_texture=ImageTexture.create_from_image(warn_img)
 	combat_warn_mat.texture_filter=BaseMaterial3D.TEXTURE_FILTER_NEAREST
-	for i in range(FX_WARNING_CAP):
-		var q:=MeshInstance3D.new();q.mesh=quad;q.material_override=combat_warn_mat
-		q.rotation.x=-PI*.5;q.cast_shadow=GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-		combat_fx_root.add_child(q);q.hide();combat_warnings.append(q)
+	quad.material=combat_warn_mat
+	combat_warning_batch=MultiMeshInstance3D.new()
+	var warning_mesh:=MultiMesh.new()
+	warning_mesh.transform_format=MultiMesh.TRANSFORM_3D
+	warning_mesh.mesh=quad
+	warning_mesh.instance_count=FX_WARNING_CAP
+	warning_mesh.visible_instance_count=0
+	combat_warning_batch.multimesh=warning_mesh
+	combat_warning_batch.cast_shadow=GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	combat_fx_root.add_child(combat_warning_batch)
+	combat_warning_batch.hide()
 	for i in range(FX_PARTICLE_CAP+LIVING_PARTICLE_CAP):
 		var particle:=Sprite3D.new()
 		particle.texture_filter=BaseMaterial3D.TEXTURE_FILTER_NEAREST
@@ -2641,11 +2659,11 @@ void fragment() {
 		light.light_energy=0.0
 		combat_fx_root.add_child(light);light.hide();fx_lights.append(light)
 
-# One batched ImmediateMesh for all animated ribbons, no new nodes per attack.
+# One indexed surface per ribbon material, no new nodes per attack.
 func setup_ultra_combat_layers()->void:
 	fx_residues.clear();fx_reaction_sparks.clear()
 	fx_trail_vertices=0;fx_trail_started=false
-	fx_trail_mesh=ImmediateMesh.new()
+	fx_trail_mesh=ArrayMesh.new()
 	fx_trail_material=StandardMaterial3D.new()
 	fx_trail_material.shading_mode=BaseMaterial3D.SHADING_MODE_UNSHADED
 	fx_trail_material.transparency=BaseMaterial3D.TRANSPARENCY_ALPHA
@@ -2665,13 +2683,15 @@ func ultra_trail_segment(a:Vector3,b:Vector3,wa:float,wb:float,ca:Color,cb:Color
 	var view:Vector3=camera.global_basis.z if is_instance_valid(camera) else Vector3(0,.8,.6)
 	var side:Vector3=direction.cross(view).normalized()
 	if side.length_squared()<.000001:side=Vector3.RIGHT
-	if not fx_trail_started:
-		fx_trail_mesh.surface_begin(Mesh.PRIMITIVE_TRIANGLES,fx_trail_material)
-		fx_trail_started=true
-	var vertices:Array[Vector3]=[a-side*wa,a+side*wa,b+side*wb,a-side*wa,b+side*wb,b-side*wb]
-	for i in range(6):
-		fx_trail_mesh.surface_set_color(ca if i in [0,1,3] else cb)
-		fx_trail_mesh.surface_add_vertex(vertices[i])
+	fx_trail_started=true
+	var base:int=fx_trail_positions.size()
+	fx_trail_positions.append(a-side*wa)
+	fx_trail_positions.append(a+side*wa)
+	fx_trail_positions.append(b+side*wb)
+	fx_trail_positions.append(b-side*wb)
+	fx_trail_colors.append(ca);fx_trail_colors.append(ca)
+	fx_trail_colors.append(cb);fx_trail_colors.append(cb)
+	for index in [0,1,2,0,2,3]:fx_trail_indices.append(base+index)
 	fx_trail_vertices+=6
 
 func ultra_attack_ribbons(burst:Dictionary,t:float)->void:
@@ -14377,8 +14397,11 @@ func arc_segment(a:Vector3,b:Vector3,width:float,col:Color)->void:
 	if direction.length_squared()<.000001:return
 	var side:=direction.cross(Vector3(0,.8,.6)).normalized()*width
 	if side.length_squared()<.000001:side=Vector3.RIGHT*width
-	for q in [a-side,a+side,b+side,a-side,b+side,b-side]:
-		fx_arc_mesh.surface_set_color(col);fx_arc_mesh.surface_add_vertex(q)
+	var base:int=fx_arc_positions.size()
+	fx_arc_positions.append(a-side);fx_arc_positions.append(a+side)
+	fx_arc_positions.append(b+side);fx_arc_positions.append(b-side)
+	for i in range(4):fx_arc_colors.append(col)
+	for index in [0,1,2,0,2,3]:fx_arc_indices.append(base+index)
 	fx_arc_segments+=1
 # Preserve intermediate corners when extending a beam or electrical chain.
 func combat_path_prefix(points:Array,progress:float)->Array:
@@ -15724,6 +15747,22 @@ func update_fx_performance(dt:float)->void:
 func residue_particle_count()->int:
 	return 4 if fx_performance_tier==0 else 3 if fx_performance_tier==1 else 2
 
+# Preserve the original triangle winding, color interpolation and separate
+# alpha/additive materials while submitting compact indexed arrays in bulk.
+func commit_fx_geometry(mesh_value:ArrayMesh,mat:Material,positions:PackedVector3Array,colors:PackedColorArray,indices:PackedInt32Array)->bool:
+	if positions.is_empty() or indices.is_empty():return false
+	var arrays:Array=[]
+	arrays.resize(Mesh.ARRAY_MAX)
+	arrays[Mesh.ARRAY_VERTEX]=positions
+	arrays[Mesh.ARRAY_COLOR]=colors
+	arrays[Mesh.ARRAY_INDEX]=indices
+	mesh_value.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES,arrays)
+	mesh_value.surface_set_material(0,mat)
+	fx_geometry_batch_submits+=1
+	fx_geometry_unique_vertices+=positions.size()
+	fx_geometry_triangle_indices+=indices.size()
+	return true
+
 func combat_fx_update(dt:float)->void:
 	update_cast_text(dt)
 	var latest_hit:Dictionary={}
@@ -15731,6 +15770,7 @@ func combat_fx_update(dt:float)->void:
 	var used:int=0
 	fx_lights_used=0;fx_halos_used=0;fx_light_scores.clear();fx_light_requests.clear()
 	fx_trail_vertices=0;fx_trail_started=false
+	fx_trail_positions.clear();fx_trail_colors.clear();fx_trail_indices.clear()
 	if fx_trail_had_geometry and is_instance_valid(fx_trail_mesh):fx_trail_mesh.clear_surfaces()
 	fx_trail_had_geometry=false
 	update_combat_reactions(dt)
@@ -15738,9 +15778,9 @@ func combat_fx_update(dt:float)->void:
 	fx_contact_camera_age=minf(1.0,fx_contact_camera_age+dt)
 	latest_hit=update_retired_impacts(dt)
 	fx_arc_segments=0
+	fx_arc_positions.clear();fx_arc_colors.clear();fx_arc_indices.clear()
 	if fx_arc_had_geometry and is_instance_valid(fx_arc_mesh):fx_arc_mesh.clear_surfaces()
 	fx_arc_had_geometry=false
-	var arcs_started:bool=false
 	var remaining_casts:int=0
 	for pending in combat_bursts:
 		if float(pending.age)+dt<float(pending.duration):remaining_casts+=1
@@ -15782,10 +15822,8 @@ func combat_fx_update(dt:float)->void:
 		var points:Array=burst.points
 		var tiles:Array=burst.tiles
 		if str(profile.role).begins_with("electric") and t>.08 and t<.91:
-			if not arcs_started:fx_arc_mesh.surface_begin(Mesh.PRIMITIVE_TRIANGLES,fx_arc_material);arcs_started=true
 			electric_world_arc(points,t,str(profile.role),tiles,float(profile.impact))
 		elif str(profile.role) in ["lash","ground","grass_vine","grass_whip","grass_needle","earth_quake","earth_magnitude","earth_fissure"] and t>.03:
-			if not arcs_started:fx_arc_mesh.surface_begin(Mesh.PRIMITIVE_TRIANGLES,fx_arc_material);arcs_started=true
 			if profile.role in ["lash","grass_vine","grass_whip","grass_needle"]:vine_world_lash(points,t,profile,str(burst.id))
 			else:quake_world_tiles(tiles,t,str(burst.id))
 		var count:int=mini(26,6+tiles.size()*2) if mode in ["cloud","wave","fan","web","shards","beam"] else 14
@@ -16237,13 +16275,13 @@ func combat_fx_update(dt:float)->void:
 		queue_ultra_reaction(pet.global_position+Vector3.UP*.54,latest_hit.direction,false,float(latest_hit.age))
 	used=ultra_reaction_particles(dt,used)
 	used=ultra_update_residues(dt,used)
-	if fx_trail_started:fx_trail_mesh.surface_end();fx_trail_had_geometry=true
+	if fx_trail_started:fx_trail_had_geometry=commit_fx_geometry(fx_trail_mesh,fx_trail_material,fx_trail_positions,fx_trail_colors,fx_trail_indices)
 	living_status_fx()
 	if not latest_hit.is_empty():
 		# The player clock advances once after this method, so compensate for that frame.
 		hit_time=.24+dt-float(latest_hit.age)
 		player_hit_direction=latest_hit.direction
-	if arcs_started:fx_arc_mesh.surface_end();fx_arc_had_geometry=true
+	if not fx_arc_positions.is_empty():fx_arc_had_geometry=commit_fx_geometry(fx_arc_mesh,fx_arc_material,fx_arc_positions,fx_arc_colors,fx_arc_indices)
 	for j in range(used,mini(FX_PARTICLE_CAP,combat_particles.size())):
 		if combat_particles[j].visible:combat_particles[j].hide()
 	commit_cinematic_lights()
@@ -17880,15 +17918,30 @@ func charge_environment_fx(used:int)->int:
 				used=environment_particle(used,origin+Vector3(cos(angle)*.42,1.05+.16*sin(angle),sin(angle)*.42),"slash",Color("#ecfaff"),Color("#82b6cf"),.40,.85)
 	return used
 
+# Same warning texture, transform and opacity for every instance. Duplicate
+# tiles are deliberately retained to preserve their original alpha layering.
+func apply_combat_warning_batch(positions:PackedVector3Array)->void:
+	if not is_instance_valid(combat_warning_batch):return
+	if positions==combat_warning_positions:return
+	var mesh_value:MultiMesh=combat_warning_batch.multimesh
+	var count:int=mini(positions.size(),FX_WARNING_CAP)
+	var orientation:=Basis(Vector3.RIGHT,-PI*.5)
+	for i in range(count):
+		if i>=combat_warning_positions.size() or positions[i]!=combat_warning_positions[i]:
+			mesh_value.set_instance_transform(i,Transform3D(orientation,positions[i]))
+	mesh_value.visible_instance_count=count
+	combat_warning_batch.visible=count>0
+	combat_warning_positions=positions.slice(0,count)
+	fx_warning_batch_updates+=1
+
 func combat_update_warnings()->void:
-	var used:int=0
+	var positions:=PackedVector3Array()
 	for enemy in run.enemies:
 		if not run.revealed.has(enemy.pos):continue
 		for q in run.warning_tiles(enemy):
-			if used>=combat_warnings.size():break
-			combat_warnings[used].position=pos(q)+Vector3(0,.045,0)
-			combat_warnings[used].show();used+=1
-	for j in range(used,combat_warnings.size()):combat_warnings[j].hide()
+			if positions.size()>=FX_WARNING_CAP:break
+			positions.append(pos(q)+Vector3(0,.045,0))
+	apply_combat_warning_batch(positions)
 func consume_enemy_actions()->void:
 	if enemy_event_floor==run.floor_revision and enemy_event_turn==run.turns:return
 	enemy_event_floor=run.floor_revision;enemy_event_turn=run.turns

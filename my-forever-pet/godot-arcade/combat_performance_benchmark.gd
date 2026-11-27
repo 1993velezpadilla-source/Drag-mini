@@ -28,7 +28,7 @@ func stats(values:Array[int])->Dictionary:
 	return result
 
 func counters()->Dictionary:
-	return {"atlas_uploads":view.fx_atlas_uploads,"cast_uploads":view.fx_atlas_uploads_in_cast,"frame_builds":view.fx_frame_builds,"secondary_builds":view.fx_secondary_builds,"secondary_pack_hits":view.fx_secondary_pack_hits,"light_candidates":view.fx_light_candidates,"light_commits":view.fx_light_commits}
+	return {"atlas_uploads":view.fx_atlas_uploads,"cast_uploads":view.fx_atlas_uploads_in_cast,"frame_builds":view.fx_frame_builds,"secondary_builds":view.fx_secondary_builds,"secondary_pack_hits":view.fx_secondary_pack_hits,"light_candidates":view.fx_light_candidates,"light_commits":view.fx_light_commits,"geometry_batch_submits":view.fx_geometry_batch_submits,"geometry_unique_vertices":view.fx_geometry_unique_vertices,"geometry_triangle_indices":view.fx_geometry_triangle_indices,"warning_batch_updates":view.fx_warning_batch_updates}
 
 func delta(before:Dictionary)->Dictionary:
 	var after:=counters()
@@ -146,6 +146,7 @@ func benchmark()->void:
 		report["per_move"]=per_move
 		if cold_spawn.size()!=589 or warm_spawn.size()!=589 or crowd_spawn.size()!=12*Dungeon.COMBAT_BURST_CAP:failures.append("benchmark coverage")
 	report["counters"]=counters()
+	if view.fx_geometry_unique_vertices*3!=view.fx_geometry_triangle_indices*2:failures.append("indexed geometry ratio")
 	report["peaks"]={"atlas_entries":peak_atlases,"secondary_entries":peak_secondary,"visible_particles":peak_particles,"lights":peak_lights,"trail_vertices":peak_trail,"static_bytes":peak_static_bytes,"renderer_video_bytes":peak_video_bytes}
 	if peak_atlases>Dungeon.FX_ATLAS_CACHE_CAP or peak_secondary>Dungeon.FX_SECONDARY_TEXTURE_CAP or peak_particles>Dungeon.FX_PARTICLE_CAP+Dungeon.LIVING_PARTICLE_CAP or peak_lights>Dungeon.FX_LIGHT_CAP or peak_trail>Dungeon.FX_TRAIL_VERTEX_CAP:failures.append("pool cap exceeded")
 	if view.fx_frame_builds!=0 or view.fx_light_commits>view.fx_light_candidates:failures.append("renderer regression")
