@@ -5484,7 +5484,7 @@ func native_identity_frame(id:String,frame:int,base:Image)->Image:
 	return im
 
 # V16.7: individually remastered after reviewing actual Godot PNG strips.
-const VISUAL_REMASTER_MOVES=["eos_504","eos_308","eos_135","eos_142","eos_047","eos_250","eos_299","eos_329","eos_262","eos_279","eos_101","eos_199","eos_251","eos_486","eos_462","eos_018","eos_507","eos_175","eos_254","eos_097","eos_163","eos_320","eos_033","eos_166","eos_228","eos_004","eos_252","eos_330","eos_465","eos_138","eos_021","eos_501","eos_053","eos_157","eos_064","eos_188","eos_240","eos_255","eos_342","eos_539","eos_041","eos_278","eos_538","eos_239","eos_193","eos_272","eos_519","eos_494","eos_292","eos_065","eos_276","eos_208","eos_522","eos_452","eos_433","eos_087","eos_063","eos_062","eos_476","eos_127","eos_451","eos_436","eos_491","eos_046","eos_109","eos_234","eos_107","eos_463","eos_133","eos_317","eos_111","eos_331","eos_345","eos_270","eos_042","eos_344","eos_461","eos_180","eos_535","eos_150","eos_118","eos_484","eos_008","eos_131","eos_030","eos_481","eos_028","eos_073","lib_ground_1","eos_057","eos_036","eos_442","eos_153","eos_205","eos_100","eos_518","eos_178","eos_200","eos_495","eos_280","eos_197","eos_332","eos_147","eos_485","eos_459","eos_151","eos_537","eos_443","eos_336","eos_182","eos_253","eos_441","eos_076","lib_grass_1","eos_001","eos_325","eos_103","eos_536","eos_510","eos_431","eos_475","eos_523"]
+const VISUAL_REMASTER_MOVES=["eos_504","eos_308","eos_135","eos_142","eos_047","eos_250","eos_299","eos_329","eos_262","eos_279","eos_101","eos_199","eos_251","eos_486","eos_462","eos_018","eos_507","eos_175","eos_254","eos_097","eos_163","eos_320","eos_033","eos_166","eos_228","eos_004","eos_252","eos_330","eos_465","eos_138","eos_021","eos_501","eos_053","eos_157","eos_064","eos_188","eos_240","eos_255","eos_342","eos_539","eos_041","eos_278","eos_538","eos_239","eos_193","eos_272","eos_519","eos_494","eos_292","eos_065","eos_276","eos_208","eos_522","eos_452","eos_433","eos_087","eos_063","eos_062","eos_476","eos_127","eos_451","eos_436","eos_491","eos_046","eos_109","eos_234","eos_107","eos_463","eos_133","eos_317","eos_111","eos_331","eos_345","eos_270","eos_042","eos_344","eos_461","eos_180","eos_535","eos_150","eos_118","eos_484","eos_008","eos_131","eos_030","eos_481","eos_028","eos_073","lib_ground_1","eos_057","eos_036","eos_442","eos_153","eos_205","eos_100","eos_518","eos_178","eos_200","eos_495","eos_280","eos_197","eos_332","eos_147","eos_485","eos_459","eos_151","eos_537","eos_443","eos_336","eos_182","eos_253","eos_441","eos_076","lib_grass_1","eos_001","eos_325","eos_103","eos_536","eos_510","eos_431","eos_475","eos_523","eos_080","eos_082","eos_114","eos_323","eos_470","eos_502","eos_529","eos_530"]
 func visual_remaster_frame(id:String,frame:int)->Image:
 	var im:=Image.create(48,48,false,Image.FORMAT_RGBA8)
 	im.fill(Color.TRANSPARENT)
@@ -7378,6 +7378,125 @@ func visual_remaster_frame(id:String,frame:int)->Image:
 					var axis:=Vector2(cos(a),sin(a))
 					fx_line(im,q+axis*6,q+axis*(9+8*(1.0-fade)),1.5,Color("#e7f8ff",fade))
 					fx_disc(im,q+axis*(10+8*(1.0-fade)),1.3,Color("#ffe2b3",fade))
+		"eos_080","eos_529":
+			# Leech Life uses hooked mandibles and a return stream; Bug Bite is a short snap.
+			var drain:bool=id=="eos_080"
+			var c:=Vector2(24,24)
+			var gap:float=15.0-10.0*drive+5.0*(1.0-fade)
+			for side in [-1,1]:
+				var sy:float=float(side)
+				var root:=c+Vector2(sy*(gap+4),-8)
+				var elbow:=c+Vector2(sy*(gap+5),3)
+				var tip:=c+Vector2(sy*(gap-3),6)
+				fx_line(im,root,elbow,4.6,Color("#39462d",fade))
+				fx_line(im,elbow,tip,4.0,Color("#39462d",fade))
+				fx_line(im,root,elbow,2.6,Color("#aebc70",fade))
+				fx_line(im,elbow,tip,2.1,Color("#e7ecad",fade))
+				fx_line(im,tip,tip+Vector2(-sy*3,-4),1.8,Color("#f7f4cf",fade))
+			if t>=peak:
+				if drain:
+					var travel:float=smoothstep(peak,1.0,t)
+					for j in range(5):
+						var f:float=clampf(travel*1.24-float(j)*.11,0.0,1.0)
+						var q:=Vector2(36-27*f,24+sin(f*TAU+float(j))*5)
+						fx_line(im,q,q+Vector2(4,0),1.3,Color("#c1b957",fade))
+						fx_disc(im,q,2.1,Color("#f4e994",fade))
+				else:
+					for j in range(6):
+						var a:float=float(j)*TAU/6.0
+						var axis:=Vector2(cos(a),sin(a))
+						fx_line(im,c+axis*4,c+axis*(9+6*(1.0-fade)),1.5,Color("#f1dca2",fade))
+		"eos_082":
+			# Silver Wind: shimmering insect scales carried by a broad curved breeze.
+			for j in range(3):
+				var prev:=Vector2(5,24+float(j-1)*3)
+				for k in range(1,14):
+					var f:float=float(k)/13.0
+					var q:=Vector2(5+35*f*drive,24+float(j-1)*(3+9*f)+sin(f*TAU-t*TAU)*3)
+					fx_line(im,prev,q,2.1,Color("#719fa2",fade*.7))
+					fx_line(im,prev,q,.9,Color("#ecffff",fade))
+					prev=q
+			for j in range(12):
+				var f:float=fposmod(t*1.15+float(j)*.09,1.0)
+				var q:=Vector2(7+34*f*drive,24+sin(float(j)*2.4+t*3)*14*f)
+				fairy_star(im,q,1.2+float(j%3)*.45,Color("#f2ffe8",fade))
+		"eos_114":
+			# Signal Beam: repeating red and green signal pulses around a pale core.
+			var head:=Vector2(9+29*drive,24)
+			var tail:=Vector2(maxf(4.0,head.x-31*fade),24)
+			fx_line(im,tail,head,4.8,Color("#486b68",fade))
+			fx_line(im,tail,head,1.4,Color("#f0fff4",fade))
+			for j in range(6):
+				var f:float=fposmod(t*1.5+float(j)*.17,1.0)
+				var q:=tail.lerp(head,f)
+				var tint:=Color("#ff9da1",fade) if j%2==0 else Color("#a7f58c",fade)
+				fx_line(im,q+Vector2(-2,-5),q+Vector2(2,5),2.1,tint)
+				fx_disc(im,q,1.4,Color("#effff0",fade))
+			if t>=peak:
+				fairy_star(im,head,4.0+2*pulse,Color("#eaffbd",fade))
+		"eos_323":
+			# Megahorn: massive tapered beetle horn with a forked root and impact splinters.
+			var q:=Vector2(9+23*drive,24)
+			var tip:=q+Vector2(10,0)
+			fx_line(im,q-Vector2(13*fade,0),q,4.0,Color("#839d55",fade))
+			for j in range(-5,6):
+				fx_line(im,q+Vector2(-10,float(j)),tip,1.4,Color("#4b5a37",fade))
+			fx_line(im,q-Vector2(10,-4),tip,2.0,Color("#d9e6a5",fade))
+			fx_line(im,q-Vector2(8,3),q-Vector2(13,8),2.2,Color("#a7b67d",fade))
+			if t>=peak:
+				for j in range(7):
+					var a:float=float(j)*TAU/7.0
+					var axis:=Vector2(cos(a),sin(a))
+					fx_line(im,tip+axis*3,tip+axis*(6+8*(1.0-fade)),1.5,Color("#f5edb2",fade))
+		"eos_470":
+			# X Scissor: two articulated chitin blades sweep across each other.
+			var c:=Vector2(24,24)
+			for side in [-1,1]:
+				var sy:float=float(side)
+				var angle:float=sy*(-1.15+1.95*drive)
+				var axis:=Vector2(cos(angle),sin(angle))
+				var origin:=c-axis*12
+				var tip:=c+axis*14
+				fx_line(im,origin,c,5.0,Color("#526336",fade))
+				fx_line(im,c,tip,3.8,Color("#526336",fade))
+				fx_line(im,origin,tip,2.2,Color("#e5f0a8",fade))
+				fx_line(im,c+Vector2(0,sy*2),tip,1.0,Color("#fff9d8",fade))
+			if t>=peak:
+				fairy_star(im,c,4+3*pulse,Color("#fff8c8",fade))
+				for j in range(4):
+					var a:float=PI*.25+float(j)*PI*.5
+					var axis:=Vector2(cos(a),sin(a))
+					fx_line(im,c+axis*11,c+axis*(15+4*(1.0-fade)),1.1,Color("#d5e798",fade))
+		"eos_502":
+			# U Turn: forward strike curves into a returning path; tile movement is unchanged.
+			var c:=Vector2(24,24)
+			var angle:float=PI+TAU*.72*drive
+			fight_arc(im,c,14.0,angle-1.6,1.8,Color("#e4f4b3",fade),Color("#658446",fade),3.2)
+			var q:=c+Vector2(cos(angle),sin(angle))*14
+			var axis:=Vector2(-sin(angle),cos(angle))
+			var normal:=Vector2(-axis.y,axis.x)
+			fx_line(im,q,q-axis*5+normal*3,1.8,Color("#edffd1",fade))
+			fx_line(im,q,q-axis*5-normal*3,1.8,Color("#edffd1",fade))
+			bug_wing(im,q-axis*5,angle,5.5,Color("#e9f6bd",fade),Color("#748c48",fade))
+			if t>=peak:
+				fairy_star(im,Vector2(11,24),3.0,Color("#f5f9cc",fade))
+		"eos_530":
+			# Bug Buzz: vibrating wing source and expanding scalloped acoustic fronts.
+			var c:=Vector2(24,24)
+			for side in [-1,1]:
+				var sy:float=float(side)
+				var a:float=sy*(1.0+.6*sin(t*TAU*3))
+				bug_wing(im,c+Vector2(0,sy*3),a,6.0,Color("#f2f5c3",fade),Color("#738744",fade))
+			for j in range(3):
+				var radius:float=4.0+float(j)*5+7*drive
+				var prev:=c+Vector2(radius,0)
+				for k in range(1,25):
+					var a:float=float(k)*TAU/24.0
+					var rr:float=radius+sin(a*6-t*TAU)*1.2
+					var q:=c+Vector2(cos(a),sin(a))*rr
+					fx_line(im,prev,q,1.9,Color("#8fa959",fade))
+					fx_line(im,prev,q,.8,Color("#f1ffd2",fade))
+					prev=q
 	return im
 
 func combat_frame_image(id:String,frame:int)->Image:
