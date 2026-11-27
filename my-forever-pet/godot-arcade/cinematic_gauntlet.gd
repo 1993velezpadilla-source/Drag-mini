@@ -379,6 +379,90 @@ func run_checks()->void:
 	if view.combat_audio_form("eos_062",view.combat_profile("eos_062"))!="crunch":failures.append("crunch acoustic identity")
 	if view.combat_audio_form("eos_063",view.combat_profile("eos_063"))!="fang":failures.append("bite acoustic identity")
 	checks+=2
+	# Full catalog: actual frame bytes, audio buffers, and pooled world FX.
+	# A duplicate sequence or sparse animation is a review candidate, not proof
+	# of poor visual quality. Preserve exact IDs in the downloadable CI report.
+	var quality_rows:Array=[]
+	var sequence_owners:Dictionary={}
+	var duplicate_groups:Dictionary={}
+	var review_candidates:Array=[]
+	var frame_total:int=0
+	var runtime_samples:int=0
+	var audio_total:int=0
+	var scene:=Node3D.new()
+	root.add_child(scene)
+	view.combat_fx_setup(scene)
+	# Generate PCM explicitly below; no speaker playback in a headless test.
+	view.fx_audio.clear()
+	for id in catalog:
+		var profile:=view.combat_profile(id)
+		var move:Dictionary=catalog[id]
+		var frame_hashes:Dictionary={}
+		var sequence:=HashingContext.new()
+		sequence.start(HashingContext.HASH_SHA256)
+		var blank_frames:Array=[]
+		var repeat_count:int=0
+		var previous_hash:String=""
+		for frame in range(Dungeon.FX_FRAME_COUNT):
+			var image:Image=view.combat_frame_image(id,frame)
+			var bytes:PackedByteArray=image.get_data()
+			sequence.update(bytes)
+			var frame_hash:String=bytes.hex_encode().sha256_text()
+			frame_hashes[frame_hash]=true
+			if frame_hash==previous_hash:repeat_count+=1
+			previous_hash=frame_hash
+			if not image.get_used_rect().has_area():blank_frames.append(frame)
+			if image.get_size()!=Vector2i(48,48):failures.append("full catalog frame size "+str(id))
+			frame_total+=1;checks+=1
+		var signature:String=sequence.finish().hex_encode()
+		if sequence_owners.has(signature):
+			if not duplicate_groups.has(signature):duplicate_groups[signature]=[sequence_owners[signature]]
+			duplicate_groups[signature].append(id)
+		else:sequence_owners[signature]=id
+		if frame_hashes.size()<3 or blank_frames.size()>3 or repeat_count>5:review_candidates.append(id)
+		if blank_frames.size()==Dungeon.FX_FRAME_COUNT:failures.append("empty full sequence "+str(id))
+		var audio_form:=view.combat_audio_form(id,profile)
+		var audio_peaks:Dictionary={}
+		for phase in ["launch","impact"]:
+			var audio:=view.combat_sound(id,phase,0)
+			var pcm:PackedByteArray=audio.data
+			var peak:int=0
+			for offset in range(0,pcm.size(),2):
+				peak=maxi(peak,absi(pcm.decode_s16(offset)))
+			if pcm.size()<1000 or peak<100 or peak>31130 or pcm.decode_s16(0)!=0 or pcm.decode_s16(pcm.size()-2)!=0:failures.append("catalog audio "+str(id)+" "+phase)
+			audio_peaks[phase]=peak
+			audio_total+=1;checks+=1
+		var category:String=str(move.get("category",""))
+		var target_tile:=Vector2i(2,0)
+		var row:Dictionary={"effects":1} if category=="status" else {"damage":8}
+		var event:Dictionary={"fx":id,"from":Vector2i.ZERO,"to":target_tile,"path":[Vector2i(1,0),target_tile],"tiles":[target_tile],"results":{target_tile:row},"damage":int(row.get("damage",0))}
+		view.combat_fx_spawn(event)
+		var duration:float=float(view.combat_bursts[-1].duration)
+		var last:float=0.0
+		var max_visible:int=0
+		var peak_time:float=float(profile.impact)
+		for phase in [peak_time*.45,peak_time,peak_time+(1.0-peak_time)*.45,.98,1.02]:
+			view.combat_fx_update((float(phase)-last)*duration)
+			last=float(phase)
+			var visible:int=0
+			for particle in view.combat_particles:
+				if not particle.visible:continue
+				visible+=1
+				if not particle.position.is_finite() or not particle.scale.is_finite() or particle.texture==null:failures.append("invalid world particle "+str(id))
+			max_visible=maxi(max_visible,visible)
+			if visible>Dungeon.FX_PARTICLE_CAP or view.fx_trail_vertices>Dungeon.FX_TRAIL_VERTEX_CAP or view.fx_halos_used>Dungeon.FX_HALO_CAP:failures.append("world pool overflow "+str(id))
+			runtime_samples+=1;checks+=1
+		if not view.combat_bursts.is_empty() or max_visible==0:failures.append("world cast lifetime "+str(id))
+		quality_rows.append({"id":id,"element":profile.element,"role":profile.role,"category":category,"distinct_frames":frame_hashes.size(),"blank_frames":blank_frames,"adjacent_repeats":repeat_count,"sequence_sha256":signature,"audio_form":audio_form,"audio_peaks":audio_peaks,"max_visible_particles":max_visible})
+	if frame_total!=589*Dungeon.FX_FRAME_COUNT or audio_total!=1178 or runtime_samples!=2945:failures.append("full catalog sample coverage")
+	if view.combat_textures.size()>Dungeon.FX_SECONDARY_TEXTURE_CAP or view.fx_animated_cache.size()>Dungeon.FX_ANIMATED_CACHE_CAP or view.fx_audio_cache.size()>192:failures.append("catalog cache overflow")
+	var report:=FileAccess.open("/tmp/kindria-quality-report.log",FileAccess.WRITE)
+	if report==null:failures.append("quality report write failed")
+	else:
+		report.store_string(JSON.stringify({"moves":quality_rows,"frame_total":frame_total,"audio_total":audio_total,"runtime_samples":runtime_samples,"duplicate_sequences":duplicate_groups,"review_candidates":review_candidates,"secondary_cache_size":view.combat_textures.size()}, "\t"))
+		report.close()
+	print("KINDRIA_FULL_QUALITY moves=",quality_rows.size()," frames=",frame_total," audio=",audio_total," runtime_samples=",runtime_samples," duplicate_groups=",duplicate_groups.size()," review_candidates=",review_candidates.size())
+	scene.free()
 	var home:=Home.new()
 	home.free()
 	view.free()
