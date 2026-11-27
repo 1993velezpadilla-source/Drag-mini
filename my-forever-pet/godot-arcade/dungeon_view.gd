@@ -5484,7 +5484,7 @@ func native_identity_frame(id:String,frame:int,base:Image)->Image:
 	return im
 
 # V16.7: individually remastered after reviewing actual Godot PNG strips.
-const VISUAL_REMASTER_MOVES=["eos_504","eos_308","eos_135","eos_142","eos_047","eos_250","eos_299","eos_329","eos_262","eos_279","eos_101","eos_199","eos_251","eos_486","eos_462","eos_018","eos_507","eos_175","eos_254","eos_097","eos_163","eos_320","eos_033","eos_166","eos_228","eos_004","eos_252","eos_330","eos_465","eos_138","eos_021","eos_501","eos_053","eos_157","eos_064","eos_188","eos_240","eos_255","eos_342","eos_539","eos_041","eos_278","eos_538","eos_239","eos_193","eos_272","eos_519","eos_494","eos_292","eos_065","eos_276","eos_208","eos_522","eos_452","eos_433","eos_087","eos_063","eos_062","eos_476","eos_127","eos_451","eos_436","eos_491","eos_046","eos_109","eos_234","eos_107","eos_463","eos_133","eos_317","eos_111","eos_331","eos_345","eos_270","eos_042","eos_344","eos_461","eos_180","eos_535","eos_150"]
+const VISUAL_REMASTER_MOVES=["eos_504","eos_308","eos_135","eos_142","eos_047","eos_250","eos_299","eos_329","eos_262","eos_279","eos_101","eos_199","eos_251","eos_486","eos_462","eos_018","eos_507","eos_175","eos_254","eos_097","eos_163","eos_320","eos_033","eos_166","eos_228","eos_004","eos_252","eos_330","eos_465","eos_138","eos_021","eos_501","eos_053","eos_157","eos_064","eos_188","eos_240","eos_255","eos_342","eos_539","eos_041","eos_278","eos_538","eos_239","eos_193","eos_272","eos_519","eos_494","eos_292","eos_065","eos_276","eos_208","eos_522","eos_452","eos_433","eos_087","eos_063","eos_062","eos_476","eos_127","eos_451","eos_436","eos_491","eos_046","eos_109","eos_234","eos_107","eos_463","eos_133","eos_317","eos_111","eos_331","eos_345","eos_270","eos_042","eos_344","eos_461","eos_180","eos_535","eos_150","eos_118","eos_484","eos_008","eos_131","eos_030","eos_481","eos_028","eos_073","lib_ground_1"]
 func visual_remaster_frame(id:String,frame:int)->Image:
 	var im:=Image.create(48,48,false,Image.FORMAT_RGBA8)
 	im.fill(Color.TRANSPARENT)
@@ -6731,6 +6731,147 @@ func visual_remaster_frame(id:String,frame:int)->Image:
 					var q:=tip+axis*(4*(1.0-fade))
 					ice_crystal(im,q,a,2.5,Color("#ffffff",fade),Color("#82b9e2",fade))
 			fx_disc(im,c,3.5+2*pulse,Color("#f7ffff",fade))
+		"eos_118":
+			# Tectonic Pulse: spreading ground fractures and displaced slabs.
+			var c:=Vector2(24,29)
+			var extent:float=4.0+18.0*drive
+			for j in range(7):
+				var a:float=float(j)*TAU/7.0
+				var axis:=Vector2(cos(a),sin(a)*.66)
+				var normal:=Vector2(-axis.y,axis.x)
+				var prev:=c
+				for k in range(1,5):
+					var f:float=float(k)/4.0
+					var q:=c+axis*extent*f+normal*sin(float(k)*2.1+float(j))*2.0*f
+					fx_line(im,prev,q,1.5+2.0*drive,Color("#382c2b",fade))
+					fx_line(im,prev+Vector2(0,2),q+Vector2(0,2),1.0,Color("#d3a77b",fade))
+					prev=q
+				var lift:float=sin(t*PI)*float(3+j%3*3)
+				mineral(im,prev-Vector2(0,lift),3.1+float(j%2),a,Color("#c9b08d",fade),Color("#675248",fade))
+			if t>=peak:
+				var radius:float=9+12*(1.0-fade)
+				for j in range(9):
+					var a:float=float(j)*TAU/9.0
+					var q:=c+Vector2(cos(a)*radius,sin(a)*radius*.52)
+					fx_disc(im,q,2.1,Color("#bd9b78",fade*.62))
+		"eos_484":
+			# Earth Power: warm underground vents erupt with soil and glowing energy.
+			for j in range(4):
+				var x:float=7.0+float(j)*11.0
+				var u:float=clampf(drive*1.25-float(j)*.10,0.0,1.0)
+				var h:float=3+24*u*fade
+				var c:=Vector2(x,37+float(j%2)*3)
+				fx_line(im,c-Vector2(4,0),c+Vector2(4,0),2.2,Color("#4c382c",fade))
+				fx_line(im,c,c-Vector2(0,h),5.8,Color("#936342",fade))
+				fx_line(im,c,c-Vector2(0,h),3.0,Color("#e6ad65",fade))
+				fx_line(im,c,c-Vector2(0,h),1.0,Color("#ffe8ad",fade))
+				for k in range(3):
+					var f:float=fposmod(t+float(k)*.30+float(j)*.13,1.0)
+					var q:=c+Vector2(float(k-1)*7*f,-h*sin(f*PI))
+					earth_rock(im,q,2.0+float(k%2),Color("#cfaa77",fade),Color("#6d4835",fade))
+		"eos_008":
+			# Burrow Strike: excavation hole, soil thrown outwards, then emergence.
+			var c:=Vector2(24,33)
+			var radius:float=4.0+10.0*drive
+			for j in range(-4,5):
+				var y:float=float(j)
+				var w:float=radius*sqrt(maxf(0.0,1.0-y*y/25.0))
+				fx_line(im,c+Vector2(-w,y),c+Vector2(w,y),1.0,Color("#302825",fade))
+			for j in range(12):
+				var a:float=float(j)*TAU/12.0
+				var axis:=Vector2(cos(a),sin(a)*.38)
+				var f:float=fposmod(t*1.25+float(j)*.09,1.0)
+				var q:=c+axis*(radius+5*f)-Vector2(0,12*sin(f*PI)*pulse)
+				earth_rock(im,q,2.4+float(j%3)*.5,Color("#c9a375",fade),Color("#79503b",fade))
+			if t>=peak:
+				for j in range(5):
+					var q:=c+Vector2(float(j-2)*4,-5-15*fade)
+					fx_line(im,c+Vector2(float(j-2)*2,0),q,1.5,Color("#e8c89b",fade))
+		"eos_131":
+			# Fault Rift: a single deep chasm propagates and tears open.
+			var prev:=Vector2(4,37)
+			for j in range(1,10):
+				var f:float=float(j)/9.0
+				if f>drive+.12:break
+				var q:=Vector2(4+39*f,37-24*f+sin(float(j)*2.7)*3)
+				var width:float=2.5+5.0*drive
+				fx_line(im,prev,q,width+2,Color("#7b5a44",fade))
+				fx_line(im,prev,q,width,Color("#251d20",fade))
+				fx_line(im,prev+Vector2(0,3),q+Vector2(0,3),1.3,Color("#dcba8c",fade))
+				if j%2==0:
+					var tip:=q+Vector2(-4,-6)
+					fx_line(im,q,tip,1.8,Color("#392a29",fade))
+					earth_rock(im,tip-Vector2(0,4*pulse),2.7,Color("#cfad80",fade),Color("#71513c",fade))
+				prev=q
+		"eos_030":
+			# Rock Slide: staggered boulders descend diagonally and shed rubble.
+			for j in range(6):
+				var f:float=clampf(t*1.40-float(j)*.12,0.0,1.0)
+				var landing:=Vector2(12+float(j%3)*13,33+float(j%2)*5)
+				var q:=landing+Vector2(-8,-29)*(1.0-f)
+				var opacity:float=1.0-smoothstep(.87,1.0,f)
+				fx_line(im,q-Vector2(3,10),q,1.9,Color("#c5b19a",opacity))
+				mineral(im,q,4.8+float(j%3),float(j)+f*2.8,Color("#ded1bf",opacity),Color("#746763",opacity))
+				if f>=.78:
+					for k in range(3):
+						var a:float=PI+float(k)*PI*.5
+						var v:=landing+Vector2(cos(a),sin(a))*(3+9*(f-.78)/.22)
+						earth_rock(im,v,2.0,Color("#cdb99f",opacity),Color("#847267",opacity))
+		"eos_481":
+			# Stone Edge: angular mineral spires thrust up in sequence.
+			for j in range(5):
+				var f:float=clampf(drive*1.4-float(j)*.11,0.0,1.0)
+				var base:=Vector2(7+float(j)*8,38-float(j%2)*4)
+				var h:float=(10+float(j%3)*5)*f
+				var tip:=base+Vector2(float(j%2)*2-1,-h)
+				for k in range(-3,4):
+					fx_line(im,base+Vector2(float(k),0),tip,1.2,Color("#706765",fade))
+				fx_line(im,base-Vector2(3,0),tip,1.3,Color("#d3c6b2",fade))
+				fx_line(im,base+Vector2(1,0),tip,1.1,Color("#9c8b7d",fade))
+				if t>=peak:
+					var q:=base+Vector2(-4-float(j%2)*2,-h*.45-5*(1.0-fade))
+					mineral(im,q,2.3,float(j),Color("#d4bfa6",fade),Color("#766b60",fade))
+		"eos_028":
+			# Rock Throw: one rotating faceted stone follows a ballistic arc.
+			var q:=Vector2(10+27*drive,30-17*sin(drive*PI))
+			var radius:float=6.5+1.0*pulse
+			fx_line(im,q-Vector2(8*fade,3),q,2.1,Color("#b49c88",fade))
+			mineral(im,q,radius,t*TAU,Color("#d6c7b2",fade),Color("#655b56",fade))
+			if t>=peak:
+				for j in range(5):
+					var a:float=float(j)*TAU/5.0
+					var axis:=Vector2(cos(a),sin(a))
+					var v:=q+axis*(radius+7*(1.0-fade))
+					mineral(im,v,2.0,a,Color("#cdbcaa",fade),Color("#817167",fade))
+		"eos_073":
+			# Rock Tomb: falling stones assemble a rocky enclosure around the target.
+			var c:=Vector2(24,29)
+			for j in range(6):
+				var a:float=float(j)*TAU/6.0
+				var u:float=clampf(drive*1.24-float(j%3)*.12,0.0,1.0)
+				var base:=c+Vector2(cos(a)*13,sin(a)*7)
+				var q:=base-Vector2(0,21*(1.0-u))
+				var radius:float=5.2+float(j%2)
+				mineral(im,q,radius,a*.55,Color("#c8b8a7",fade),Color("#665b56",fade))
+				if t>=peak:
+					fx_disc(im,base+Vector2(0,4),2.7,Color("#b9a38d",fade*.7))
+			if t>=peak:
+				fx_disc(im,c,4.0+3.0*pulse,Color("#514034",fade*.45),3.0+3.0*pulse)
+		"lib_ground_1":
+			# Fissure Slam: two wide shock fractures crossing a central crater.
+			var c:=Vector2(24,30)
+			for j in range(4):
+				var a:float=PI*.25+float(j)*PI*.5
+				var axis:=Vector2(cos(a),sin(a)*.68)
+				var tip:=c+axis*(5+22*drive)
+				var bend:=c+axis*(3+8*drive)+Vector2(-axis.y,axis.x)*3
+				fx_line(im,c,bend,4.3,Color("#3b2c27",fade))
+				fx_line(im,bend,tip,3.0,Color("#3b2c27",fade))
+				fx_line(im,bend+Vector2(0,3),tip+Vector2(0,3),1.2,Color("#d5b183",fade))
+				mineral(im,tip-Vector2(0,7*pulse),3.4,a,Color("#c8a778",fade),Color("#78563e",fade))
+			var radius:float=3.0+9.0*drive
+			fx_disc(im,c,radius,Color("#8f694b",fade),maxf(0.0,radius-2.5))
+			fx_disc(im,c,radius*.55,Color("#342823",fade))
 	return im
 
 func combat_frame_image(id:String,frame:int)->Image:
