@@ -1084,6 +1084,13 @@ func run_checks()->void:
 	view.apply_combat_warning_batch(PackedVector3Array())
 	if view.combat_warning_batch.visible or view.combat_warning_batch.multimesh.visible_instance_count!=0:failures.append("V21.5 warning cleanup")
 	checks+=6
+	var batch_rects:Array[Rect2]=[Rect2(0,0,10,10),Rect2(20,0,10,10),Rect2(40,0,10,10),Rect2(60,0,10,10),Rect2(65,0,10,10)]
+	var batch_keys:Array[int]=[1,1,1,1,-1]
+	var safe_groups:=view.particle_batch_groups(batch_rects,batch_keys)
+	if safe_groups.size()!=1 or safe_groups[0]!=[0,1,2]:failures.append("V21.6 isolated particle grouping")
+	batch_rects[2]=Rect2(25,0,10,10)
+	if not view.particle_batch_groups(batch_rects,batch_keys).is_empty():failures.append("V21.6 overlapping particle fallback")
+	checks+=2
 	# Generate PCM explicitly below; no speaker playback in a headless test.
 	view.fx_audio.clear()
 	for id in catalog:

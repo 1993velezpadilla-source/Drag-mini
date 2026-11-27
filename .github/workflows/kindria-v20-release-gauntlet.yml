@@ -76,6 +76,13 @@ jobs:
           grep -E 'KINDRIA_PERFORMANCE mode=desktop_rendered moves=589 failures=0$' /tmp/kindria-performance-rendered.log
           if grep -E 'SCRIPT ERROR|Parse Error|Compile Error' /tmp/kindria-performance-rendered.log; then exit 1; fi
           test -s /tmp/kindria-performance-rendered.json
+      - name: Compare opt-in particle batching on desktop
+        run: |
+          set -euo pipefail
+          LIBGL_ALWAYS_SOFTWARE=1 xvfb-run -a timeout 120 godot --path . --rendering-method gl_compatibility --audio-driver Dummy --resolution 720x720 --script res://combat_performance_benchmark.gd -- --rendered --particle-batching 2>&1 | tee /tmp/kindria-performance-batched.log
+          grep -E 'KINDRIA_PERFORMANCE mode=desktop_rendered moves=589 failures=0$' /tmp/kindria-performance-batched.log
+          if grep -E 'SCRIPT ERROR|Parse Error|Compile Error' /tmp/kindria-performance-batched.log; then exit 1; fi
+          test -s /tmp/kindria-performance-batched.json
       - name: Preserve verified animation pack
         uses: actions/upload-artifact@v4
         with:

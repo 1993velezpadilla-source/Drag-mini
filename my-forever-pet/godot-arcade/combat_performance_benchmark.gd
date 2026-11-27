@@ -28,7 +28,7 @@ func stats(values:Array[int])->Dictionary:
 	return result
 
 func counters()->Dictionary:
-	return {"atlas_uploads":view.fx_atlas_uploads,"cast_uploads":view.fx_atlas_uploads_in_cast,"frame_builds":view.fx_frame_builds,"secondary_builds":view.fx_secondary_builds,"secondary_pack_hits":view.fx_secondary_pack_hits,"light_candidates":view.fx_light_candidates,"light_commits":view.fx_light_commits,"geometry_batch_submits":view.fx_geometry_batch_submits,"geometry_unique_vertices":view.fx_geometry_unique_vertices,"geometry_triangle_indices":view.fx_geometry_triangle_indices,"warning_batch_updates":view.fx_warning_batch_updates}
+	return {"atlas_uploads":view.fx_atlas_uploads,"cast_uploads":view.fx_atlas_uploads_in_cast,"frame_builds":view.fx_frame_builds,"secondary_builds":view.fx_secondary_builds,"secondary_pack_hits":view.fx_secondary_pack_hits,"light_candidates":view.fx_light_candidates,"light_commits":view.fx_light_commits,"geometry_batch_submits":view.fx_geometry_batch_submits,"geometry_unique_vertices":view.fx_geometry_unique_vertices,"geometry_triangle_indices":view.fx_geometry_triangle_indices,"warning_batch_updates":view.fx_warning_batch_updates,"particle_batches":view.fx_particle_batches_total,"estimated_particle_draws_saved":view.fx_particle_draws_saved,"particle_batch_cpu_usec":view.fx_particle_batch_usec}
 
 func delta(before:Dictionary)->Dictionary:
 	var after:=counters()
@@ -43,7 +43,7 @@ func sample_pools()->void:
 	var visible:int=0
 	for particle in view.combat_particles:
 		if particle.visible:visible+=1
-	peak_particles=maxi(peak_particles,visible)
+	peak_particles=maxi(peak_particles,visible+view.fx_particle_batched_count)
 
 func sample_memory()->void:
 	peak_static_bytes=maxi(peak_static_bytes,int(OS.get_static_memory_usage()))
@@ -151,7 +151,7 @@ func benchmark()->void:
 	if peak_atlases>Dungeon.FX_ATLAS_CACHE_CAP or peak_secondary>Dungeon.FX_SECONDARY_TEXTURE_CAP or peak_particles>Dungeon.FX_PARTICLE_CAP+Dungeon.LIVING_PARTICLE_CAP or peak_lights>Dungeon.FX_LIGHT_CAP or peak_trail>Dungeon.FX_TRAIL_VERTEX_CAP:failures.append("pool cap exceeded")
 	if view.fx_frame_builds!=0 or view.fx_light_commits>view.fx_light_candidates:failures.append("renderer regression")
 	report["failures"]=failures
-	var file:=FileAccess.open("/tmp/kindria-performance-rendered.json" if rendered else "/tmp/kindria-performance-cpu.json",FileAccess.WRITE)
+	var file:=FileAccess.open("/tmp/kindria-performance-batched.json" if rendered and view.fx_particle_batch_enabled else "/tmp/kindria-performance-rendered.json" if rendered else "/tmp/kindria-performance-cpu.json",FileAccess.WRITE)
 	if file==null:failures.append("report write")
 	else:
 		file.store_string(JSON.stringify(report,"\t"))
@@ -199,6 +199,7 @@ func rendered_probe(ids:Array,catalog:Dictionary,report:Dictionary)->void:
 			submit_times.append(submit_usec)
 			sample_pools()
 		if i%20==0:sample_memory()
+	report["experimental_particle_batching"]=view.fx_particle_batch_enabled
 	report["rendered_frame_intervals"]=stats(frame_times)
 	report["cpu_update"]=stats(submit_times)
 	report["rendered_samples"]=frame_times.size()

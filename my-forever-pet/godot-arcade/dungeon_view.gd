@@ -96,6 +96,17 @@ var fx_performance_grace:float=1.5
 const LIVING_PARTICLE_CAP=64
 const FX_WARNING_CAP=80
 var combat_particles:Array[Sprite3D]=[]
+# Opt-in until rendered equivalence and device timing are established.
+var fx_particle_batch_enabled:bool="--particle-batching" in OS.get_cmdline_user_args()
+const FX_PARTICLE_BATCH_CAP:int=8
+const FX_PARTICLE_BATCH_MIN:int=3
+var fx_particle_batches:Array[MultiMeshInstance3D]=[]
+var fx_particle_batch_materials:Array[StandardMaterial3D]=[]
+var fx_particle_batch_used:int=0
+var fx_particle_batched_count:int=0
+var fx_particle_batches_total:int=0
+var fx_particle_draws_saved:int=0
+var fx_particle_batch_usec:int=0
 var combat_warning_batch:MultiMeshInstance3D
 var combat_warning_positions:PackedVector3Array=PackedVector3Array()
 var fx_warning_batch_updates:int=0
@@ -2473,6 +2484,7 @@ func combat_fx_setup(parent:Node3D)->void:
 	for sound in fx_audio:
 		if is_instance_valid(sound):sound.stop()
 	response_slots.clear()
+	fx_particle_batches.clear();fx_particle_batch_materials.clear();fx_particle_batch_used=0;fx_particle_batched_count=0
 	combat_particles.clear();combat_warning_positions.clear();combat_bursts.clear();retired_impacts.clear();delayed_combat_fx.clear();fx_reactions.clear();fx_ground_shake=0.0;fx_contact_camera=Vector3.ZERO;fx_contact_camera_age=1.0
 	combat_fx_root=Node3D.new();parent.add_child(combat_fx_root)
 	setup_cinematic_lighting()
@@ -15763,6 +15775,116 @@ func commit_fx_geometry(mesh_value:ArrayMesh,mat:Material,positions:PackedVector
 	fx_geometry_triangle_indices+=indices.size()
 	return true
 
+# Only flat ImageTexture sprites are eligible: their world transform is
+# already exact. Billboards and AtlasTexture regions stay on the original path.
+func particle_batch_groups(rects:Array[Rect2],keys:Array[int])->Array:
+	var by_texture:Dictionary={}
+	for i in range(keys.size()):
+		if keys[i]<0:continue
+		var isolated:bool=true
+		for j in range(rects.size()):
+			if i!=j and rects[i].intersects(rects[j],true):
+				isolated=false
+				break
+		if not isolated:continue
+		if not by_texture.has(keys[i]):by_texture[keys[i]]=[]
+		by_texture[keys[i]].append(i)
+	var groups:Array=[]
+	for key in by_texture:
+		if by_texture[key].size()>=FX_PARTICLE_BATCH_MIN:groups.append(by_texture[key])
+	groups.sort_custom(func(a:Array,b:Array)->bool:return a.size()>b.size())
+	return groups.slice(0,FX_PARTICLE_BATCH_CAP)
+
+func particle_screen_rect(particle:Sprite3D)->Rect2:
+	var texture:Texture2D=particle.texture
+	var half:=texture.get_size()*particle.pixel_size*.5
+	var center:=particle.global_position
+	var basis:=particle.global_basis
+	if particle.billboard!=BaseMaterial3D.BILLBOARD_DISABLED:
+		# Conservative sphere bound for billboard sprites, regardless of facing.
+		var radius:float=half.length()*maxf(basis.x.length(),maxf(basis.y.length(),basis.z.length()))
+		var rect:=Rect2(camera.unproject_position(center),Vector2.ZERO)
+		for x in [-1.0,1.0]:
+			for y in [-1.0,1.0]:
+				for z in [-1.0,1.0]:
+					var point:=center+Vector3(x,y,z)*radius
+					if camera.is_position_behind(point):return camera.get_viewport().get_visible_rect()
+					rect=rect.expand(camera.unproject_position(point))
+		return rect.grow(2.0)
+	var bounds:=Rect2(camera.unproject_position(center),Vector2.ZERO)
+	for x in [-1.0,1.0]:
+		for y in [-1.0,1.0]:
+			var point:=center+basis*Vector3(x*half.x,y*half.y,0.0)
+			if camera.is_position_behind(point):return camera.get_viewport().get_visible_rect()
+			bounds=bounds.expand(camera.unproject_position(point))
+	return bounds.grow(2.0)
+
+func ensure_particle_batch(slot:int)->MultiMeshInstance3D:
+	while fx_particle_batches.size()<=slot:
+		var material:=StandardMaterial3D.new()
+		material.shading_mode=BaseMaterial3D.SHADING_MODE_UNSHADED
+		material.transparency=BaseMaterial3D.TRANSPARENCY_ALPHA
+		material.cull_mode=BaseMaterial3D.CULL_DISABLED
+		material.vertex_color_use_as_albedo=true
+		material.texture_filter=BaseMaterial3D.TEXTURE_FILTER_NEAREST
+		var quad:=QuadMesh.new()
+		quad.size=Vector2.ONE
+		quad.material=material
+		var multimesh:=MultiMesh.new()
+		multimesh.transform_format=MultiMesh.TRANSFORM_3D
+		multimesh.use_colors=true
+		multimesh.mesh=quad
+		multimesh.instance_count=FX_PARTICLE_CAP+LIVING_PARTICLE_CAP
+		multimesh.visible_instance_count=0
+		var batch:=MultiMeshInstance3D.new()
+		batch.multimesh=multimesh
+		batch.cast_shadow=GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		combat_fx_root.add_child(batch)
+		batch.hide()
+		fx_particle_batches.append(batch)
+		fx_particle_batch_materials.append(material)
+	return fx_particle_batches[slot]
+
+func update_particle_batches()->void:
+	fx_particle_batch_used=0
+	fx_particle_batched_count=0
+	if fx_particle_batch_enabled and is_instance_valid(camera) and camera.is_inside_tree():
+		var start:int=Time.get_ticks_usec()
+		var visible:Array[Sprite3D]=[]
+		var rects:Array[Rect2]=[]
+		var keys:Array[int]=[]
+		for particle in combat_particles:
+			if not particle.visible or particle.texture==null:continue
+			visible.append(particle)
+			rects.append(particle_screen_rect(particle))
+			var eligible:bool=particle.billboard==BaseMaterial3D.BILLBOARD_DISABLED and particle.texture is ImageTexture and particle.centered and particle.offset==Vector2.ZERO and not camera.is_position_behind(particle.global_position)
+			keys.append(particle.texture.get_instance_id() if eligible else -1)
+		for group in particle_batch_groups(rects,keys):
+			var slot:int=fx_particle_batch_used
+			var batch:=ensure_particle_batch(slot)
+			var first:Sprite3D=visible[group[0]]
+			var material:StandardMaterial3D=fx_particle_batch_materials[slot]
+			if material.albedo_texture!=first.texture:material.albedo_texture=first.texture
+			var mesh_value:MultiMesh=batch.multimesh
+			for i in range(group.size()):
+				var particle:Sprite3D=visible[group[i]]
+				var size:=particle.texture.get_size()*particle.pixel_size
+				var basis:=particle.basis*Basis.from_scale(Vector3(size.x,size.y,1.0))
+				mesh_value.set_instance_transform(i,Transform3D(basis,particle.position))
+				mesh_value.set_instance_color(i,particle.modulate)
+				particle.hide()
+			mesh_value.visible_instance_count=group.size()
+			batch.show()
+			fx_particle_batch_used+=1
+			fx_particle_batched_count+=group.size()
+			fx_particle_batches_total+=1
+			fx_particle_draws_saved+=group.size()-1
+		fx_particle_batch_usec+=Time.get_ticks_usec()-start
+	for i in range(fx_particle_batch_used,fx_particle_batches.size()):
+		if fx_particle_batches[i].visible:
+			fx_particle_batches[i].hide()
+			fx_particle_batches[i].multimesh.visible_instance_count=0
+
 func combat_fx_update(dt:float)->void:
 	update_cast_text(dt)
 	var latest_hit:Dictionary={}
@@ -16284,6 +16406,7 @@ func combat_fx_update(dt:float)->void:
 	if not fx_arc_positions.is_empty():fx_arc_had_geometry=commit_fx_geometry(fx_arc_mesh,fx_arc_material,fx_arc_positions,fx_arc_colors,fx_arc_indices)
 	for j in range(used,mini(FX_PARTICLE_CAP,combat_particles.size())):
 		if combat_particles[j].visible:combat_particles[j].hide()
+	update_particle_batches()
 	commit_cinematic_lights()
 	for j in range(fx_lights_used,fx_lights.size()):
 		if fx_lights[j].visible:fx_lights[j].hide()
