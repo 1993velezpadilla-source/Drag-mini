@@ -36,6 +36,23 @@ func run_checks()->void:
 	var checks:int=0
 	var failures:Array[String]=[]
 	var view:=Dungeon.new()
+	# V25.2: warming predicts playback keys without advancing variant counters.
+	var audio_warm_probe:=Dungeon.new()
+	audio_warm_probe.fx_audio_counter["probe_a:launch"]=2
+	audio_warm_probe.fx_audio_counter["probe_a:impact"]=0
+	audio_warm_probe.fx_audio_counter["probe_a:miss"]=1
+	var audio_warm_before:Dictionary=audio_warm_probe.fx_audio_counter.duplicate()
+	var audio_warm_keys:Array[String]=audio_warm_probe.combat_floor_audio_keys(["probe_a","probe_b"])
+	if audio_warm_keys!=["probe_a:launch:0","probe_a:impact:1","probe_a:miss:2","probe_a:status:0","probe_b:launch:0","probe_b:impact:0","probe_b:miss:0","probe_b:status:0"]:failures.append("V25.2 predicted PCM variants")
+	if audio_warm_probe.fx_audio_counter!=audio_warm_before:failures.append("V25.2 playback rotation altered")
+	var audio_warm_ids:Array[String]=[]
+	for audio_warm_i in range(100):audio_warm_ids.append("probe_"+str(audio_warm_i))
+	if audio_warm_probe.combat_floor_audio_keys(audio_warm_ids).size()!=Dungeon.FX_AUDIO_CACHE_CAP:failures.append("V25.2 warm cap")
+	audio_warm_probe.fx_audio_pack_checked=true
+	audio_warm_probe.combat_warm_floor_audio(audio_warm_ids)
+	if not audio_warm_probe.fx_audio_cache.is_empty() or audio_warm_probe.fx_floor_audio_warm_count!=0:failures.append("V25.2 missing pack synthesized")
+	checks+=4
+	audio_warm_probe.free()
 	# V24.9: shared world math must preserve deterministic spawn and response selection.
 	var world_probe:=Dungeon.new()
 	var world_rng:=RandomNumberGenerator.new()
