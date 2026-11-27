@@ -218,6 +218,30 @@ func run_checks()->void:
 				var motion_sample:=view.tile_cast_sample(movement_route,kind,t,peak)
 				if not Vector3(motion_sample.position).is_finite() or float(motion_sample.path_progress)<0.0 or float(motion_sample.path_progress)>1.0:failures.append("invalid tile cast trajectory")
 				checks+=1
+	# Every nature has a visible, bounded environmental stamp and a finite fade.
+	if Dungeon.SURFACE_STAMP.size()!=18:failures.append("surface stamp nature coverage")
+	var silhouettes:Dictionary={}
+	for element in Dungeon.SURFACE_STAMP:
+		var ink:=view.surface_stamp_palette(element)
+		var mode:String="surface_"+str(Dungeon.SURFACE_STAMP[element])
+		var texture:=view.combat_pixel_texture(mode,ink[0],ink[1])
+		if texture==null or not texture.get_image().get_used_rect().has_area():
+			failures.append("empty surface stamp: "+str(element))
+		var shape:=view.combat_pixel_texture(mode,Color.WHITE,Color.BLACK)
+		silhouettes[mode]=shape.get_image().get_data()
+		for step in range(101):
+			var phase:float=float(step)/100.0
+			var sample:Vector3=view.surface_stamp_sample(element,phase)
+			if not sample.is_finite() or sample.x<=0.0 or sample.x>2.0 or sample.y<0.0 or sample.y>1.001 or sample.z<-.0001 or sample.z>1.001:
+				failures.append("invalid surface envelope: "+str(element))
+			if step==100 and absf(sample.y)>.0001:failures.append("surface stamp did not expire")
+			checks+=1
+	if silhouettes.size()!=12:failures.append("surface silhouette coverage")
+	var modes:Array=silhouettes.keys()
+	for i in range(modes.size()):
+		for j in range(i+1,modes.size()):
+			if silhouettes[modes[i]]==silhouettes[modes[j]]:failures.append("duplicate ground stamp")
+			checks+=1
 	var home:=Home.new()
 	home.free()
 	view.free()
