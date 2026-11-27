@@ -1018,6 +1018,7 @@ func run_checks()->void:
 		if not Dungeon.AUDIO_ROLE_GESTURES.has(kind):failures.append("V20.7 missing authored role "+kind)
 		checks+=1
 	# V21.0 texture reuse: retain hot entries even under full cache pressure.
+	view.fx_secondary_pack_checked=true
 	view.fx_frame_pack_checked=true # Exercise the original fallback LRU independently of the baked path.
 	view.fx_animated_cache.clear()
 	view.fx_animated_newest=""

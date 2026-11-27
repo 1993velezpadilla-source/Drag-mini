@@ -87,4 +87,54 @@ func bake()->void:
 	if warm_ids.count("eos_308")!=1 or not warm_ids.has("eos_135") or not warm_ids.has("basic_strike") or warm_ids.size()>Dungeon.FX_ATLAS_CACHE_CAP:failures+=1
 	print("KINDRIA_FRAME_PACK moves=",ids.size()," frames=",ids.size()*count," bytes=",total," atlas_uploads=",reader.fx_atlas_uploads," procedural_builds=",reader.fx_frame_builds," failures=",failures)
 	reader.free()
+	failures+=bake_secondary(ids,catalog)
 	quit(0 if failures==0 else 1)
+
+# Sample real combat choreography and retain exact CPU source images before upload.
+# Unknown runtime combinations retain the renderer's original fallback.
+func bake_secondary(ids:Array,catalog:Dictionary)->int:
+	var view:=Dungeon.new()
+	var scene:=Node3D.new()
+	root.add_child(scene)
+	view.fx_secondary_pack_checked=true
+	view.fx_secondary_capture=true
+	view.combat_fx_setup(scene)
+	view.fx_audio.clear()
+	var tile:=Vector2i(2,0)
+	for id in ids:
+		var move:Dictionary=catalog.get(id,{})
+		var row:Dictionary={"effects":1} if str(move.get("category",""))=="status" else {"damage":8}
+		var event:Dictionary={"fx":id,"from":Vector2i.ZERO,"to":tile,"path":[Vector2i(1,0),tile],"tiles":[tile],"results":{tile:row},"damage":int(row.get("damage",0))}
+		view.combat_fx_spawn(event)
+		var duration:float=float(view.combat_bursts[-1].duration)
+		for step in range(16):view.combat_fx_update(duration/15.0)
+		for step in range(8):view.combat_fx_update(.12)
+	var images:Dictionary=view.fx_secondary_images
+	scene.free()
+	view.free()
+	var pack:=FileAccess.open(FOLDER+"/particles.bin",FileAccess.WRITE)
+	if pack==null:return 1
+	var entries:Dictionary={}
+	var failures:int=0
+	var keys:Array=images.keys()
+	keys.sort()
+	for key in keys:
+		var image:Image=images[key]
+		if image.get_format()!=Image.FORMAT_RGBA8:image.convert(Image.FORMAT_RGBA8)
+		entries[key]=[pack.get_position(),image.get_width(),image.get_height()]
+		pack.store_buffer(image.get_data())
+	var size:int=pack.get_position()
+	pack.close()
+	var index:=FileAccess.open(FOLDER+"/particles.json",FileAccess.WRITE)
+	if index==null:return 1
+	index.store_string(JSON.stringify({"version":1,"bytes":size,"entries":entries}))
+	index.close()
+	var reader:=Dungeon.new()
+	for key in keys:
+		var image:=reader.secondary_pack_image(str(key))
+		var source:Image=images[key]
+		if image==null or image.get_data()!=source.get_data():failures+=1
+	if keys.is_empty():failures+=1
+	reader.free()
+	print("KINDRIA_SECONDARY_PACK textures=",keys.size()," bytes=",size," failures=",failures)
+	return failures

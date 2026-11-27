@@ -129,6 +129,15 @@ var fx_floor_warm_count:int=0
 var fx_floor_warm_usec:int=0
 var fx_atlas_uploads_in_cast:int=0
 var fx_secondary_builds:int=0
+var fx_secondary_pack_checked:bool=false
+var fx_secondary_pack:FileAccess
+var fx_secondary_entries:Dictionary={}
+var fx_secondary_pack_hits:int=0
+var fx_secondary_capture:bool=false
+var fx_secondary_images:Dictionary={}
+var fx_light_requests:Array[Dictionary]=[]
+var fx_light_commits:int=0
+var fx_light_candidates:int=0
 var fx_arc_had_geometry:bool=false
 var fx_trail_had_geometry:bool=false
 var fx_arc_mesh:ImmediateMesh
@@ -2519,7 +2528,7 @@ func elemental_material_profile(element:String)->Vector3:
 
 func setup_cinematic_lighting()->void:
 	fx_lights.clear();fx_halos.clear();fx_halo_materials.clear()
-	fx_lights_used=0;fx_halos_used=0;fx_light_scores.clear()
+	fx_lights_used=0;fx_halos_used=0;fx_light_scores.clear();fx_light_requests.clear()
 	if cinematic_halo_shader==null:
 		cinematic_halo_shader=Shader.new()
 		cinematic_halo_shader.code="""
@@ -2992,8 +3001,8 @@ func cinematic_halo(at:Vector3,color:Color,extent:float,opacity:float,phase:floa
 	if not ground and is_instance_valid(camera):halo.global_basis=camera.global_basis.orthonormalized()
 	halo.scale=Vector3.ONE*extent
 	set_fx_uniform(mat,"tint",color)
-	mat.set_shader_parameter("intensity",opacity)
-	mat.set_shader_parameter("phase",phase)
+	set_fx_uniform(mat,"intensity",opacity)
+	set_fx_uniform(mat,"phase",phase)
 	set_fx_uniform(mat,"ring_mix",1.0 if ground else 0.0)
 	var material:=elemental_material_profile(element)
 	set_fx_uniform(mat,"material_family",int(material.x) if fx_performance_tier<2 else 0)
@@ -3055,13 +3064,23 @@ func cinematic_light(at:Vector3,color:Color,energy:float,extent:float,attenuatio
 	if index==fx_light_scores.size():fx_light_scores.append(score)
 	else:fx_light_scores[index]=score
 	fx_lights_used=fx_light_scores.size()
-	var light:OmniLight3D=fx_lights[index]
-	light.position=at
-	if light.light_color!=color:light.light_color=color
-	if light.omni_range!=extent:light.omni_range=extent
-	if light.omni_attenuation!=attenuation:light.omni_attenuation=attenuation
-	light.light_energy=energy
-	if not light.visible:light.show()
+	fx_light_candidates+=1
+	var request:Dictionary={"at":at,"color":color,"energy":energy,"extent":extent,"attenuation":attenuation}
+	if index==fx_light_requests.size():fx_light_requests.append(request)
+	else:fx_light_requests[index]=request
+
+# Only final winning candidates touch the rendering server, once per slot.
+func commit_cinematic_lights()->void:
+	for index in range(fx_light_requests.size()):
+		var request:Dictionary=fx_light_requests[index]
+		var light:OmniLight3D=fx_lights[index]
+		if light.position!=request.at:light.position=request.at
+		if light.light_color!=request.color:light.light_color=request.color
+		if light.omni_range!=request.extent:light.omni_range=request.extent
+		if light.omni_attenuation!=request.attenuation:light.omni_attenuation=request.attenuation
+		if light.light_energy!=request.energy:light.light_energy=request.energy
+		if not light.visible:light.show()
+		fx_light_commits+=1
 
 # A single impact resolver shared by halos, residues and finish choreography.
 # Empty terrain may still receive environmental effects, never a damage flash.
@@ -3324,9 +3343,45 @@ func particle_material_pixel(family:int,v:Vector2,inner:bool,light:Color,dark:Co
 
 # Secondary textures retain a fixed working set during long Combat Lab sessions.
 # Visible Sprite3D nodes retain references even when a cache key is evicted.
+func secondary_pack_init()->void:
+	if fx_secondary_pack_checked:return
+	fx_secondary_pack_checked=true
+	var index_file:=FileAccess.open("res://generated_combat_frames/particles.json",FileAccess.READ)
+	if index_file==null:return
+	var index=JSON.parse_string(index_file.get_as_text())
+	if not index is Dictionary or int(index.get("version",0))!=1:return
+	var entries=index.get("entries",{})
+	if not entries is Dictionary:return
+	var pack:=FileAccess.open("res://generated_combat_frames/particles.bin",FileAccess.READ)
+	if pack==null or pack.get_length()!=int(index.get("bytes",-1)):return
+	fx_secondary_entries=entries
+	fx_secondary_pack=pack
+
+func secondary_pack_image(key:String)->Image:
+	secondary_pack_init()
+	if fx_secondary_pack==null or not fx_secondary_entries.has(key):return null
+	var row=fx_secondary_entries[key]
+	if not row is Array or row.size()!=3:return null
+	var offset:int=int(row[0])
+	var width:int=int(row[1])
+	var height:int=int(row[2])
+	if not width in [16,48] or height!=width:return null
+	var length:int=width*height*4
+	if offset<0 or offset+length>fx_secondary_pack.get_length():return null
+	fx_secondary_pack.seek(offset)
+	var bytes:=fx_secondary_pack.get_buffer(length)
+	if bytes.size()!=length:return null
+	return Image.create_from_data(width,height,false,Image.FORMAT_RGBA8,bytes)
+
+func secondary_generated_texture(key:String,image:Image)->ImageTexture:
+	fx_secondary_builds+=1
+	if fx_secondary_capture and not fx_secondary_images.has(key):fx_secondary_images[key]=image.duplicate()
+	var texture:=ImageTexture.create_from_image(image)
+	cache_combat_particle(key,texture)
+	return texture
+
 func cache_combat_particle(key:String,texture:ImageTexture)->void:
 	if combat_textures.has(key):return
-	fx_secondary_builds+=1
 	if combat_textures.size()>=FX_SECONDARY_TEXTURE_CAP:
 		combat_textures.erase(combat_textures.keys()[0])
 	combat_textures[key]=texture
@@ -3341,11 +3396,15 @@ func combat_pixel_texture(mode:String,light:Color,dark:Color)->ImageTexture:
 			combat_textures[key]=cached
 			fx_secondary_newest=key
 		return cached
+	var baked:=secondary_pack_image(key)
+	if baked!=null:
+		var texture:=ImageTexture.create_from_image(baked)
+		cache_combat_particle(key,texture)
+		fx_secondary_pack_hits+=1
+		return texture
 	if mode.begins_with("contact:"):
 		var parts:=mode.split(":")
-		var icon:=ImageTexture.create_from_image(contact_icon_image(parts[1],int(parts[2]),light,dark))
-		cache_combat_particle(key,icon)
-		return icon
+		return secondary_generated_texture(key,contact_icon_image(parts[1],int(parts[2]),light,dark))
 	var im:=Image.create(16,16,false,Image.FORMAT_RGBA8);im.fill(Color.TRANSPARENT)
 	var material_family:int=particle_material_family(mode)
 	for y in range(16):
@@ -3576,9 +3635,7 @@ func combat_pixel_texture(mode:String,light:Color,dark:Color)->ImageTexture:
 					fill=absf(v.x)+absf(v.y)<7.5
 					inner=absf(v.x+1.0)+absf(v.y+1.0)<4.0
 			if fill:im.set_pixel(x,y,particle_material_pixel(material_family,v,inner,light,dark))
-	var texture:=ImageTexture.create_from_image(im)
-	cache_combat_particle(key,texture)
-	return texture
+	return secondary_generated_texture(key,im)
 var combat_style_cache:Dictionary={}
 func combat_style(id:String)->Array:
 	if not combat_style_cache.has(id):combat_style_cache[id]=build_combat_style(id)
@@ -15672,7 +15729,7 @@ func combat_fx_update(dt:float)->void:
 	var latest_hit:Dictionary={}
 	update_delayed_combat_fx(dt)
 	var used:int=0
-	fx_lights_used=0;fx_halos_used=0;fx_light_scores.clear()
+	fx_lights_used=0;fx_halos_used=0;fx_light_scores.clear();fx_light_requests.clear()
 	fx_trail_vertices=0;fx_trail_started=false
 	if fx_trail_had_geometry and is_instance_valid(fx_trail_mesh):fx_trail_mesh.clear_surfaces()
 	fx_trail_had_geometry=false
@@ -16157,12 +16214,15 @@ func combat_fx_update(dt:float)->void:
 				var radius:float=.12+sin(t*PI)*.38
 				q=points[0]+Vector3(cos(angle)*radius,.12+t*.65,sin(angle)*radius)
 				size=.36
-			particle.billboard=BaseMaterial3D.BILLBOARD_ENABLED;particle.rotation=Vector3.ZERO
-			particle.position=q
-			particle.texture=animated
-			particle.scale=Vector3.ONE*size*(1.0-t*.38)*.40
-			particle.modulate=Color(1,1,1,clampf((1.0-t)*3.5,0.0,1.0))
-			particle.show()
+			if particle.billboard!=BaseMaterial3D.BILLBOARD_ENABLED:particle.billboard=BaseMaterial3D.BILLBOARD_ENABLED
+			if particle.rotation!=Vector3.ZERO:particle.rotation=Vector3.ZERO
+			if particle.position!=q:particle.position=q
+			if particle.texture!=animated:particle.texture=animated
+			var particle_scale:=Vector3.ONE*size*(1.0-t*.38)*.40
+			if particle.scale!=particle_scale:particle.scale=particle_scale
+			var particle_tint:=Color(1,1,1,clampf((1.0-t)*3.5,0.0,1.0))
+			if particle.modulate!=particle_tint:particle.modulate=particle_tint
+			if not particle.visible:particle.show()
 		if crowded and t>=float(profile.impact):
 			used=element_finish_fx(burst,t,used)
 			used=authored_stage_fx(burst,t,used)
@@ -16186,6 +16246,7 @@ func combat_fx_update(dt:float)->void:
 	if arcs_started:fx_arc_mesh.surface_end();fx_arc_had_geometry=true
 	for j in range(used,mini(FX_PARTICLE_CAP,combat_particles.size())):
 		if combat_particles[j].visible:combat_particles[j].hide()
+	commit_cinematic_lights()
 	for j in range(fx_lights_used,fx_lights.size()):
 		if fx_lights[j].visible:fx_lights[j].hide()
 	for j in range(fx_halos_used,fx_halos.size()):
