@@ -132,6 +132,25 @@ func sustained_stress(ids:Array,catalog:Dictionary)->Dictionary:
 	if int(measured.retired_dropped)!=0:failures.append("V22.8 retired overflow")
 	return {"casts":spawned,"expected_waves":spawned*3,"slow_simulation_frames":slow_frames,"simulation_frames":frame_times.size(),"peak_active":peak_active,"peak_retired":peak_retired,"spawn":stats(spawn_times),"update":stats(update_times),"combined_cpu_submission":stats(frame_times),"memory_samples":memory_samples,"counters":measured}
 
+# Measure the steady idle path separately from the active battle and drain.
+# No synthetic FPS claim: these are CPU submission times, not wall intervals.
+func idle_submission_probe()->Dictionary:
+	var drain_frames:int=0
+	while not view.combat_fx_can_idle() and drain_frames<240:
+		view.combat_fx_update(DT)
+		drain_frames+=1
+	if not view.combat_fx_can_idle():failures.append("V25.1 idle probe did not drain")
+	var before:=counters()
+	var idle_times:Array[int]=[]
+	for i in range(600):
+		var start:int=Time.get_ticks_usec()
+		view.combat_fx_update(DT)
+		idle_times.append(Time.get_ticks_usec()-start)
+		if not view.combat_fx_can_idle():failures.append("V25.1 idle path became active")
+	var measured:=delta(before)
+	if int(measured.dispatched_waves)!=0 or int(measured.geometry_batch_submits)!=0 or int(measured.atlas_uploads)!=0 or int(measured.frame_builds)!=0:failures.append("V25.1 idle render work")
+	return {"frames":idle_times.size(),"drain_frames":drain_frames,"cpu_update":stats(idle_times),"counters":measured}
+
 func benchmark()->void:
 	var catalog:Dictionary=Dungeon.Rules.MOVE_LIBRARY.duplicate()
 	catalog.merge(Dungeon.Rules.DEV_NATIVE_MOVES)
@@ -198,6 +217,8 @@ func benchmark()->void:
 		report["crowd_counters_including_prewarm"]=delta(crowd_before)
 		report["per_move"]=per_move
 		report["sustained_stress"]=sustained_stress(ids,catalog)
+		report["steady_idle"]=idle_submission_probe()
+		print("KINDRIA_IDLE_SUBMISSION ",JSON.stringify(report.steady_idle))
 		if cold_spawn.size()!=589 or warm_spawn.size()!=589 or crowd_spawn.size()!=12*Dungeon.COMBAT_BURST_CAP:failures.append("benchmark coverage")
 	report["counters"]=counters()
 	if view.fx_geometry_unique_vertices*3!=view.fx_geometry_triangle_indices*2:failures.append("indexed geometry ratio")
@@ -230,7 +251,10 @@ func rendered_probe(ids:Array,catalog:Dictionary,report:Dictionary)->void:
 	environment.environment=env
 	scene.add_child(environment)
 	var frame_times:Array[int]=[]
+	var wall_intervals:Array[int]=[]
+	var draw_calls:Array[int]=[]
 	var submit_times:Array[int]=[]
+	var previous_draw:int=0
 	var group:Array=[]
 	for i in range(Dungeon.COMBAT_BURST_CAP):
 		var id:String=str(ids[i*47])
@@ -248,13 +272,22 @@ func rendered_probe(ids:Array,catalog:Dictionary,report:Dictionary)->void:
 		var submit_usec:int=Time.get_ticks_usec()-submit_start
 		await process_frame
 		await RenderingServer.frame_post_draw
+		var draw_completed:int=Time.get_ticks_usec()
 		if i>=40:
-			frame_times.append(Time.get_ticks_usec()-start)
+			frame_times.append(draw_completed-start)
+			wall_intervals.append(draw_completed-previous_draw)
+			draw_calls.append(int(Performance.get_monitor(Performance.RENDER_TOTAL_DRAW_CALLS_IN_FRAME)))
 			submit_times.append(submit_usec)
 			sample_pools()
+		previous_draw=draw_completed
 		if i%20==0:sample_memory()
 	report["experimental_particle_batching"]=view.fx_particle_batch_enabled
 	report["rendered_frame_intervals"]=stats(frame_times)
 	report["cpu_update"]=stats(submit_times)
 	report["rendered_samples"]=frame_times.size()
-	if frame_times.size()!=200:failures.append("rendered sample coverage")
+	report["wall_frame_intervals"]=stats(wall_intervals)
+	draw_calls.sort()
+	report["draw_calls"]={"samples":draw_calls.size(),"p50":draw_calls[ceili(draw_calls.size()*.50)-1],"p95":draw_calls[ceili(draw_calls.size()*.95)-1],"max":draw_calls[-1]}
+	report["render_environment"]={"os":OS.get_name(),"adapter":RenderingServer.get_video_adapter_name(),"viewport":str(root.size),"vsync":DisplayServer.window_get_vsync_mode()}
+	if frame_times.size()!=200 or wall_intervals.size()!=200 or draw_calls.size()!=200:failures.append("rendered sample coverage")
+	print("KINDRIA_RENDER_WALL ",JSON.stringify({"intervals":report.wall_frame_intervals,"draw_calls":report.draw_calls,"environment":report.render_environment}))
