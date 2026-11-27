@@ -5,7 +5,47 @@ const MINION_ROSTER = [[["bramble_pup","Bramble Pup","quadruped_bound","Briar Po
 # Row: stable species ID, display name, anatomy-specific gait, signature move, combat class.
 # Species attack contract: range, telegraph, cooldown, damage modifier, effect, magnitude, VFX identifier.
 const SIGNATURE_SKILLS={"bramble_pup":[2,false,2,0,"pounce",1,"briar_arc"],"sporeling":[2,false,3,-1,"poison",2,"spore_cloud"],"thornbeetle":[2,true,2,1,"pounce",1,"horn_ram"],"leafwisp":[3,false,2,-1,"none",0,"leaf_dart"],"rootgnawer":[1,false,2,1,"mark",1,"tusk_sweep"],"vinesnap":[2,true,2,0,"weaken",1,"vine_snap"],"mossmite":[2,false,3,0,"guard",1,"rolling_moss"],"sylphowl":[3,false,3,0,"none",0,"feather_fan"],"hollow_stag":[1,true,2,2,"mark",1,"antler_arc"],"grovetitan":[1,true,3,2,"guard",2,"timber_shock"],"fungal_monarch":[2,true,3,1,"poison",3,"royal_spores"],"reef_pup":[1,false,1,0,"none",0,"reef_bite"],"jellymancer":[2,false,3,-1,"drain",1,"jelly_pulse"],"shellguard":[1,true,2,0,"guard",3,"shell_impact"],"bubblewisp":[3,false,3,-1,"weaken",1,"bubble_burst"],"eelstrix":[2,false,2,0,"drain",1,"electric_lash"],"coralcrab":[1,false,2,1,"guard",1,"double_pincer"],"anemoneye":[2,true,3,0,"weaken",2,"tentacle_snare"],"marrowray":[3,false,2,0,"mark",1,"fin_slice"],"leviathorn":[2,true,2,1,"pounce",1,"spiral_current"],"abyss_colossus":[2,true,3,2,"weaken",1,"abyss_grasp"],"tidal_sovereign":[2,true,2,3,"mark",1,"tidal_jaws"],"starlit_pup":[1,false,2,1,"none",0,"star_kick"],"lunamoth":[2,false,3,-1,"weaken",2,"lunar_dust"],"crystarok":[1,true,2,1,"guard",2,"prism_shatter"],"nova_wisp":[3,false,3,0,"drain",1,"nova_bolt"],"orbitserpent":[2,false,2,0,"mark",1,"orbit_lash"],"comet_hare":[2,false,2,1,"pounce",1,"comet_drop"],"voidspider":[2,true,3,0,"mark",2,"gravity_web"],"nebulwing":[3,false,3,-1,"drain",2,"sonic_cone"],"lunar_prowler":[1,true,2,2,"none",0,"moon_claw"],"astro_golem":[3,true,3,1,"none",0,"meteor_fist"],"celestial_guardian":[3,true,3,2,"drain",2,"celestial_verdict"]}
+const ATTACK_PATTERNS={"bramble_pup":"line","sporeling":"radius","thornbeetle":"line","leafwisp":"line","rootgnawer":"front","vinesnap":"corner","mossmite":"line","sylphowl":"fan","hollow_stag":"fan","grovetitan":"radius","fungal_monarch":"radius","reef_pup":"front","jellymancer":"radius","shellguard":"front","bubblewisp":"corner","eelstrix":"line","coralcrab":"fan","anemoneye":"corner","marrowray":"line","leviathorn":"line","abyss_colossus":"radius","tidal_sovereign":"fan","starlit_pup":"front","lunamoth":"fan","crystarok":"radius","nova_wisp":"line","orbitserpent":"corner","comet_hare":"line","voidspider":"corner","nebulwing":"fan","lunar_prowler":"front","astro_golem":"corner","celestial_guardian":"cross"}
 var enemy_actions:Array[Dictionary]=[]
+var player_attack_fx:String="basic_strike"
+var player_attack_cells:Array[Vector2i]=[]
+# A footprint maps each legal target to its exact unobstructed travel path.
+func attack_footprint(origin:Vector2i,forward:Vector2i,pattern:String,reach:int)->Dictionary:
+	var out:Dictionary={}
+	var directions:Array=[forward]
+	if pattern in ["radius","cross"]:directions=DIR
+	if pattern=="front":reach=1
+	for d in directions:
+		var path:Array[Vector2i]=[]
+		for distance_index in range(1,reach+1):
+			var q:Vector2i=origin+d*distance_index
+			if not cells.has(q) or enemy_at(q)>=0:break
+			path.append(q)
+			out[q]=path.duplicate()
+			if pattern in ["corner","fan","radius"]:
+				for sign_side in [-1,1]:
+					var turn:=Vector2i(-d.y,d.x)*int(sign_side)
+					var branch:Array[Vector2i]=path.duplicate()
+					var limit:int=reach-distance_index if pattern!="fan" else mini(1,reach-distance_index+1)
+					for j in range(1,limit+1):
+						var target:=q+turn*j
+						if not cells.has(target) or enemy_at(target)>=0:break
+						# Fan can hit front diagonals, but not through two blocked orthogonal cells.
+						branch.append(target)
+						if not out.has(target) or branch.size()<out[target].size():out[target]=branch.duplicate()
+	return out
+func attack_aim(origin:Vector2i,target:Vector2i,pattern:String,reach:int)->Vector2i:
+	var delta:=target-origin
+	var preferred:=Vector2i(signi(delta.x),0) if absi(delta.x)>absi(delta.y) else Vector2i(0,signi(delta.y))
+	if preferred!=Vector2i.ZERO and attack_footprint(origin,preferred,pattern,reach).has(target):return preferred
+	for d in DIR:
+		if attack_footprint(origin,d,pattern,reach).has(target):return d
+	return Vector2i.ZERO
+func warning_tiles(enemy:Dictionary)->Array:
+	if not enemy.get("windup",false):return []
+	var skill:=signature_skill(enemy)
+	return attack_footprint(enemy.pos,enemy.get("aim",Vector2i.DOWN),str(ATTACK_PATTERNS.get(enemy.get("species",""),"line")),int(skill[0])).keys()
+
 var poison_turns:int=0
 var weakened_strikes:int=0
 var marked_damage:int=0
@@ -32,7 +72,7 @@ func apply_signature_effect(i:int,skill:Array)->void:
 		"guard":enemies[i]["guard"]=amount
 		"pounce":
 			var from:Vector2i=enemies[i].pos
-			if distance(from,player)==2:
+			if distance(from,player)==2 and (from.x==player.x or from.y==player.y):
 				var q:=from+Vector2i(signi(player.x-from.x),signi(player.y-from.y))
 				if cells.has(q) and enemy_at(q)<0 and q!=player:enemies[i].pos=q
 
@@ -260,6 +300,9 @@ func pickup():
 func strike(i:int,power:bool=false):
 	if i<0 or i>=enemies.size():return
 	attack_serial+=1;attack_target=enemies[i].pos;attack_power=power
+	player_attack_fx="basic_strike" if not power else ["briar_arc","nova_bolt","jelly_pulse"][skill_kind]
+	player_attack_cells=[attack_target]
+	if power and distance(player,attack_target)==2:player_attack_cells.push_front(player+(attack_target-player)/2)
 	var damage:int=10 if power else 6
 	if weakened_strikes>0:
 		damage=maxi(1,damage-1);weakened_strikes-=1
@@ -291,14 +334,17 @@ func enemy_turn():
 		var cooldown:int=int(enemies[i].get("cooldown",0))
 		var ready:bool=cooldown<=0
 		if cooldown>0:enemies[i]["cooldown"]=cooldown-1
-		var in_range:=line_of_attack(p,player,int(skill[0]))
+		var pattern:String=ATTACK_PATTERNS.get(enemies[i].get("species",""),"line")
+		var aim:Vector2i=enemies[i].get("aim",Vector2i.ZERO) if charged else attack_aim(p,player,pattern,int(skill[0]))
+		var footprint:Dictionary=attack_footprint(p,aim,pattern,int(skill[0])) if aim!=Vector2i.ZERO else {}
+		var in_range:bool=footprint.has(player)
 		if charged and not in_range:
 			enemies[i].windup=false
-			enemy_actions.append({"uid":enemies[i].get("uid",i),"phase":"cancel","from":p,"to":player,"move":enemies[i].get("signature","Strike")})
+			enemy_actions.append({"uid":enemies[i].get("uid",i),"phase":"cancel","from":p,"to":p+aim,"move":enemies[i].get("signature","Strike")})
 			continue
 		if ready and in_range and bool(skill[1]) and not charged:
-			enemies[i].windup=true
-			enemy_actions.append({"uid":enemies[i].get("uid",i),"phase":"windup","from":p,"to":player,"move":enemies[i].get("signature","Heavy attack"),"fx":skill[6]})
+			enemies[i].windup=true;enemies[i]["aim"]=aim
+			enemy_actions.append({"uid":enemies[i].get("uid",i),"phase":"windup","from":p,"to":p+aim,"move":enemies[i].get("signature","Heavy attack"),"fx":skill[6],"tiles":footprint.keys()})
 			message="%s charging %s!"%[enemies[i].get("name","Enemy"),enemies[i].get("signature","Heavy attack")]
 			continue
 		if (ready and in_range) or (gap==1 and not ready):
@@ -314,7 +360,7 @@ func enemy_turn():
 			if special:
 				enemies[i]["cooldown"]=maxi(0,int(skill[2])-1)
 				apply_signature_effect(i,skill)
-			enemy_actions.append({"uid":enemies[i].get("uid",i),"phase":"attack","from":p,"to":player,"end":enemies[i].pos,"move":move_name,"fx":skill[6] if special else "basic_strike","effect":effect,"damage":damage})
+			enemy_actions.append({"uid":enemies[i].get("uid",i),"phase":"attack","from":p,"to":player,"end":enemies[i].pos,"move":move_name,"fx":skill[6] if special else "basic_strike","effect":effect,"damage":damage,"aim":aim if special else player-p,"pattern":pattern if special else "front","tiles":footprint.keys() if special else [player],"path":footprint.get(player,[player]) if special else [player]})
 			message="%s · %s! −%d HP"%[enemies[i].get("name","Enemy"),move_name,damage]
 			if effect!="none":message+=" · "+effect.capitalize()
 			emit_event(message)
@@ -336,22 +382,22 @@ func move(p:Vector2i)->bool:
 			traps.erase(player);hp=maxi(1,hp-3);hits+=1;combo=0;message="Trap! −3 HP";emit_event(message)
 	enemy_turn()
 	return true
-func attack(power:bool=false)->bool:
+func attack(power:bool=false,aim:Vector2i=Vector2i.ZERO)->bool:
 	if finished or (power and energy<2):return false
+	var directions:Array=DIR if aim==Vector2i.ZERO else [aim]
 	if power and skill_kind==1:
-		# A ranged strike reaches two tiles only through traversable ground.
-		for d in DIR:
+		for d in directions:
 			if not cells.has(player+d) or enemy_at(player+d)>=0:continue
 			var ranged=enemy_at(player+d*2)
 			if ranged>=0:energy-=2;strike(ranged,true);enemy_turn();return true
-	for d in DIR:
+	for d in directions:
 		var i=enemy_at(player+d)
 		if i>=0:
 			if power:energy-=2
 			strike(i,power)
 			if power and skill_kind==2:hp=mini(max_hp,hp+4)
 			enemy_turn();return true
-	message="No enemy in reach";return false
+	message="No enemy in that direction";return false
 func heal()->bool:
 	if finished or potions<=0 or hp==max_hp:return false
 	potions-=1;hp=mini(max_hp,hp+20);message="Recovered HP";emit_event(message);enemy_turn();return true

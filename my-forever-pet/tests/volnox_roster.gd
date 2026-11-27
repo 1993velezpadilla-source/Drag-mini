@@ -19,12 +19,15 @@ func _initialize():
 			assert(ids.has(e.species) and gaits.has(e.gait) and moves.has(e.signature))
 		assert(int(d.enemy_profile(3,99)[4])==3)
 	var fx:Dictionary={}
+	var patterns:Dictionary={}
 	var effects:Dictionary={}
 	for region in range(3):
 		for row in Rules.MINION_ROSTER[region]:
 			var id:String=row[0]
 			assert(Rules.SIGNATURE_SKILLS.has(id))
 			var skill:Array=Rules.SIGNATURE_SKILLS[id]
+			var pattern:String=Rules.ATTACK_PATTERNS[id]
+			patterns[pattern]=true
 			assert(not fx.has(skill[6]))
 			fx[skill[6]]=true
 			var d=Rules.new()
@@ -51,7 +54,28 @@ func _initialize():
 			# Line of sight cannot fire through a wall.
 			d.cells.erase(d.player-Vector2i(1,0))
 			assert(not d.line_of_attack(d.player-Vector2i(2,0),d.player,3))
-	assert(fx.size()==33 and effects.size()==7)
+	assert(fx.size()==33 and effects.size()==7 and patterns.size()==6)
+	var grid=Rules.new()
+	for x in range(7):
+		for y in range(7):grid.cells[Vector2i(x,y)]=true
+	var origin:=Vector2i(3,3)
+	assert(grid.attack_footprint(origin,Vector2i.RIGHT,"front",1).size()==1)
+	assert(grid.attack_footprint(origin,Vector2i.RIGHT,"line",3).size()==3)
+	assert(grid.attack_footprint(origin,Vector2i.RIGHT,"fan",1).has(origin+Vector2i(1,1)))
+	assert(grid.attack_footprint(origin,Vector2i.RIGHT,"corner",3).has(origin+Vector2i(1,2)))
+	assert(not grid.attack_footprint(origin,Vector2i.RIGHT,"corner",3).has(origin+Vector2i(-1,1)))
+	assert(grid.attack_footprint(origin,Vector2i.RIGHT,"radius",2).size()==12)
+	assert(grid.attack_footprint(origin,Vector2i.RIGHT,"cross",3).size()==12)
+	grid.cells.erase(origin+Vector2i.RIGHT)
+	assert(grid.attack_footprint(origin,Vector2i.RIGHT,"line",3).is_empty())
+	assert(grid.attack_footprint(origin,Vector2i.RIGHT,"corner",3).is_empty())
+	grid.cells[origin+Vector2i.RIGHT]=true
+	grid.player=origin+Vector2i.RIGHT*2;grid.hp=100;grid.max_hp=100
+	grid.enemies.append({"pos":origin,"uid":0,"hp":30,"kind":2,"species":"thornbeetle","windup":false})
+	grid.enemy_turn();assert(grid.enemies[0].windup)
+	grid.player=origin+Vector2i.UP;grid.enemy_turn()
+	assert(grid.hp==100 and grid.enemy_actions[0].phase=="cancel","locked aim cannot retarget")
+	print("VOLNOX_GRID_PATTERN_PASS 6")
 	print("VOLNOX_SIGNATURE_COMBAT_PASS ",fx.size())
 	print("VOLNOX_ROSTER_PASS ",ids.size())
 	quit()
