@@ -349,6 +349,27 @@ func run_checks()->void:
 	for i in range(600):view.update_fx_performance(1.0/60.0)
 	if view.fx_performance_tier!=0 or view.residue_particle_count()!=4:failures.append("full quality did not recover")
 	checks+=5
+	# V23.6: defer recovery at contact but never indefinitely.
+	view.fx_performance_tier=2
+	view.fx_frame_average=1.0/60.0
+	view.fx_pressure_age=0.0;view.fx_recovery_age=0.0
+	for i in range(260):view.update_fx_performance(1.0/60.0,true)
+	if view.fx_performance_tier!=2:failures.append("V23.6 quality changed during active cast")
+	view.update_fx_performance(1.0/60.0,false)
+	if view.fx_performance_tier!=1:failures.append("V23.6 missed quiet recovery boundary")
+	view.fx_recovery_age=0.0
+	for i in range(310):view.update_fx_performance(1.0/60.0,true)
+	if view.fx_performance_tier!=0:failures.append("V23.6 indefinite recovery deferral")
+	view.fx_frame_average=.045;view.fx_pressure_age=.95;view.fx_recovery_age=.5
+	view.update_fx_performance(.8,true)
+	if not is_equal_approx(view.fx_frame_average,1.0/60.0) or view.fx_pressure_age!=0.0 or view.fx_recovery_age!=0.0:failures.append("V23.6 stale pressure after pause")
+	view.update_fx_performance(NAN,true)
+	if not is_finite(view.fx_frame_average) or view.fx_performance_tier!=0:failures.append("V23.6 nonfinite delta")
+	for i in range(100):view.update_fx_performance(.04,true)
+	if view.fx_performance_tier!=2:failures.append("V23.6 active pressure still requires protection")
+	view.fx_performance_tier=0;view.fx_frame_average=1.0/60.0
+	view.fx_pressure_age=0.0;view.fx_recovery_age=0.0
+	checks+=6
 	# Catalog-wide real image smoke test, including native signatures.
 	var catalog:Dictionary=Dungeon.Rules.MOVE_LIBRARY.duplicate()
 	catalog.merge(Dungeon.Rules.DEV_NATIVE_MOVES)
