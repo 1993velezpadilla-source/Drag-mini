@@ -2589,6 +2589,40 @@ func elemental_silhouette(role:String,kind:String)->int:
 		"drain":return 1
 	return 9
 
+# RTDX-inspired independent presentation tracks. All resources here refer
+# to Kindria's own cue families; no original game binaries or FX are used.
+# A backend may resolve the same track into a native emitter, sprite or mesh.
+func elemental_track_plan(id:String,profile:Dictionary)->Array:
+	var role:String=str(profile.role)
+	var cue:Array=AUTHORED_STAGE_FX.get(id,AUTHORED_STAGE_FX.get(role,["contact","impact_star",4,.35,.4]))
+	var kind:String=str(cue[0])
+	var material:String=str(cue[1])
+	var peak:float=float(profile.impact)
+	var element:String=str(profile.element)
+	var records:Dictionary=Rules.MOVE_LIBRARY.get(id,Rules.DEV_NATIVE_MOVES.get(id,{}))
+	var status:bool=str(records.get("category",""))=="status"
+	var travel:bool=kind in ["stream","cone","dash","arc","whip","helix","fall","rise","eruption","wave","drain"]
+	var area:bool=str(profile.pattern) in ["room","floor","radius","cross","fan"] or kind in ["burst","ground","wave","coil"]
+	var impact_material:String=material
+	match element:
+		"fire":impact_material="ember"
+		"water":impact_material="drop"
+		"electric":impact_material="lightning"
+		"poison":impact_material="venom_splash"
+		"ice","steel":impact_material="crystal"
+		"rock","ground":impact_material="shards"
+		"grass":impact_material="leaf"
+		"ghost","dark":impact_material="smoke"
+	var plan:Array=[
+		{"stage":"ally_invoke","anchor":"source","start":0.0,"end":peak*.24,"material":material,"enabled":true},
+		{"stage":"enemy_invoke","anchor":"source","start":0.0,"end":peak*.24,"material":material,"enabled":true},
+		{"stage":"caster","anchor":str(profile.socket),"start":0.0,"end":peak,"material":material,"enabled":true},
+		{"stage":"projectile","anchor":"path","start":peak*.18,"end":peak,"material":material,"enabled":travel},
+		{"stage":"area","anchor":"tiles","start":peak,"end":lerpf(peak,1.0,.85),"material":impact_material,"enabled":area},
+		{"stage":"impact","anchor":"target","start":peak,"end":1.0,"material":impact_material,"enabled":not status},
+		{"stage":"projectile_impact","anchor":"target","start":peak,"end":lerpf(peak,1.0,.68),"material":impact_material,"enabled":travel and not status}]
+	return plan
+
 func cinematic_element_surface(burst:Dictionary,t:float)->void:
 	var points:Array=burst.points
 	if points.is_empty():return
@@ -5850,7 +5884,7 @@ func combat_fx_spawn(event:Dictionary)->void:
 	if tiles.is_empty():tiles.append(pos(target)+Vector3(0,.12,0))
 	if combat_bursts.size()>=COMBAT_BURST_CAP:
 		retire_combat_burst(combat_bursts.pop_front())
-	combat_bursts.append({"id":id,"mode":style[0],"profile":profile,"target_player":event.get("target_player",false),"damage":event.get("damage",0),"impacted":false,"age":0.0,"duration":float(style[3]),"points":waypoints,"tiles":tiles,"texture":combat_animated_texture(id,0),"results":event.get("results",{}).duplicate(true)})
+	combat_bursts.append({"id":id,"mode":style[0],"profile":profile,"target_player":event.get("target_player",false),"damage":event.get("damage",0),"impacted":false,"age":0.0,"duration":float(style[3]),"points":waypoints,"tiles":tiles,"presentation_tracks":elemental_track_plan(id,profile),"texture":combat_animated_texture(id,0),"results":event.get("results",{}).duplicate(true)})
 	play_combat_sound(id,"launch",waypoints[0])
 # Leading projectile reaches its destination on the exact impact fraction.
 # Trailing particles are delayed within the remaining lifetime, never beyond it.

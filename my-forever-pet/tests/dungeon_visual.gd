@@ -146,6 +146,15 @@ func audit_all_premium_fx(dungeon)->void:
 		var signature:String=JSON.stringify(cue)
 		assert(not cues.has(signature),"duplicate choreography "+str(id))
 		cues[signature]=id
+		var plan:Array=dungeon.elemental_track_plan(id,profile)
+		assert(plan.size()==7,"missing presentation stages "+str(id))
+		var stage_names:Dictionary={}
+		for track in plan:
+			assert(not stage_names.has(track.stage))
+			stage_names[track.stage]=true
+			assert(float(track.start)>=0.0 and float(track.end)<=1.0 and float(track.start)<float(track.end),"invalid track timeline "+str(id))
+			assert(not str(track.anchor).is_empty() and not str(track.material).is_empty())
+		assert(stage_names.has("projectile_impact") and stage_names.has("enemy_invoke"))
 		var peak:float=float(profile.impact)
 		assert(peak>0.0 and peak<1.0,"invalid impact "+str(id))
 		var hit:Dictionary={"id":id,"profile":profile,"points":sample_points,"results":{tile:{"damage":4,"effects":0,"heal":0}}}
