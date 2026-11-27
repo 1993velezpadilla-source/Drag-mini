@@ -2306,6 +2306,12 @@ func refresh_actors():
 		var bar=root.get_node("HP") as Node3D
 		bar.scale.x=.72*clampf(float(enemy.hp)/float(enemy.get("max_hp",enemy.hp)),0,1)
 		root.get_node("Warning").visible=enemy.get("windup",false)
+		var status_label:=root.get_node_or_null("Status") as Label3D
+		if status_label==null:
+			status_label=Label3D.new();status_label.name="Status";status_label.billboard=BaseMaterial3D.BILLBOARD_ENABLED
+			status_label.font_size=28;status_label.outline_size=6;status_label.pixel_size=.006
+			status_label.position=Vector3(0,2.15 if kind==3 else 1.68,0);root.add_child(status_label)
+		status_label.text=run.enemy_status_text(enemy);status_label.visible=not status_label.text.is_empty()
 	for p in run.traps:
 		if not run.revealed.has(p):continue
 		var key="trap:"+str(p);desired[key]=true
