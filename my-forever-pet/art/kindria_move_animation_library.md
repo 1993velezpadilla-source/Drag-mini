@@ -48,3 +48,6 @@ All 14 electric reference entries now have individual roles. Thunder Punch: char
 
 ## Iteration 50: dragon choreography pilot
 11 individual roles: Outrage, Twister, Dragon Claw, Dragon Rage, Dragonbreath, Dragon Dance, Spacial Rend, Roar of Time, Dragon Rush, Draco Meteor and Dragon Pulse. Original pixel frames and pooled tile-space trajectories including overhead meteors, room effects and caster aura. Numeric combat data unchanged. Temporal, nonempty and distinct-frame tests and PNG exports added. Psychic 3D run 45935142768 and smoke 45935142756 passed; ghost and dragon render gates, source footage, species body motion and Android performance remain unverified at authoring.
+
+## Iteration 51: dark choreography pilot
+24 individual dark roles for the audited reference entries, including distinct bites, deceptive approach, theft and exchange, radial pulse, void, retaliation and status glyphs. Original pixel frames and tile-space trajectories; numeric combat data unchanged. Temporal, nonempty and distinct-frame checks and PNG exports added. Psychic 45935142768 logs verified all 251 prior roles and live expeditions (18 captures, 25 fights, 3 transitions). Ghost core 45935218707 passed. New dark CI, reference footage, species body motion and Android performance remain unverified at authoring.

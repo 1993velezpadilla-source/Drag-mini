@@ -338,6 +338,22 @@ func run():
 				dragon_frames[signature]=true
 				assert(middle.save_png("/tmp/dungeon-real-dragon-"+id+".png")==OK)
 			print("KINDRIA_DRAGON_CHOREOGRAPHY_PASS ",dragon_roles.size())
+			var dark_roles:Dictionary={}
+			var dark_frames:Dictionary={}
+			for id in ["eos_022","eos_033","eos_038","eos_043","eos_045","eos_062","eos_063","eos_167","eos_172","eos_214","eos_249","eos_269","eos_334","eos_436","eos_445","eos_466","eos_472","eos_482","eos_483","eos_488","eos_491","eos_503","eos_515","eos_542"]:
+				var profile:Dictionary=dungeon.combat_profile(id)
+				assert(str(profile.role).begins_with("dark_"),"dedicated dark role "+id)
+				assert(not dark_roles.has(profile.role),"unique dark choreography "+id)
+				dark_roles[profile.role]=true
+				var first:Image=dungeon.combat_frame_image(id,2)
+				var middle:Image=dungeon.combat_frame_image(id,6)
+				assert(first.get_data()!=middle.get_data(),"dark animation changes "+id)
+				assert(middle.get_used_rect().has_area(),"nonempty dark frame "+id)
+				var signature:String=middle.get_data().hex_encode()
+				assert(not dark_frames.has(signature),"unique dark sprite "+id)
+				dark_frames[signature]=true
+				assert(middle.save_png("/tmp/dungeon-real-dark-"+id+".png")==OK)
+			print("KINDRIA_DARK_CHOREOGRAPHY_PASS ",dark_roles.size())
 			# Reproduce the freed-instance registry fault before the real expedition.
 			var retired:Node3D=dungeon.actor_for("retired-test",Vector3.ZERO)
 			retired.free()

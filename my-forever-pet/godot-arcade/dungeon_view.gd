@@ -2998,6 +2998,110 @@ func dragon_sprite(im:Image,role:String,frame:int)->void:
 				fight_arc(im,q,7.0+float(i)*2.0,-PI*.5,PI,cyan,dark,4.0)
 				fx_disc(im,q,2.0,light)
 
+# Original dark-type FX, with separate contact, deceptive and room-scale silhouettes.
+func dark_sprite(im:Image,role:String,frame:int)->void:
+	var t:float=float(frame)/11.0
+	var c:=Vector2(24,24)
+	var ink:=Color("#211b35");var shade:=Color("#633e76");var light:=Color("#db9ad8");var red:=Color("#ff887f");var gold:=Color("#efcc8c")
+	match role:
+		"dark_torment":
+			for i in range(4):
+				var a:float=float(i)*TAU/4.0+t*TAU
+				var q:=c+Vector2(cos(a),sin(a))*12.0
+				fight_arc(im,q,7.0,a,PI*1.4,red,ink,3.0)
+			fx_disc(im,c,4.0+sin(t*PI)*3.0,shade)
+		"dark_tears":
+			for i in range(5):
+				var q:=Vector2(9+float(i)*7,8+25*clampf(t*1.4-float(i)*.12,0.0,1.0))
+				fx_line(im,q-Vector2(0,5),q,2.0,Color("#94c5ef"))
+				fx_disc(im,q,2.5,Color("#c2ecff"))
+		"dark_pursuit":
+			for i in range(3):
+				var q:=Vector2(9+float(i)*11+sin(t*PI)*4.0,24)
+				fx_line(im,q-Vector2(6,7),q+Vector2(5,0),3.0,light)
+				fx_line(im,q+Vector2(-6,7),q+Vector2(5,0),3.0,shade)
+		"dark_memento":
+			for i in range(8):
+				var a:float=float(i)*TAU/8.0+t
+				var q:=c+Vector2(cos(a),sin(a))*(4.0+15.0*t)
+				fx_disc(im,q,5.0*(1.0-t)+1.0,Color(shade,.8))
+				fx_line(im,q,q+Vector2(0,7),2.0,ink)
+		"dark_flatter":
+			for i in range(3):
+				var q:=Vector2(12+float(i)*12,30-sin(t*PI+float(i)*.5)*12.0)
+				fx_disc(im,q+Vector2(-2,-2),3.0,light);fx_disc(im,q+Vector2(2,-2),3.0,light)
+				fx_line(im,q-Vector2(4,0),q+Vector2(0,5),3.0,red)
+				fx_line(im,q+Vector2(4,0),q+Vector2(0,5),3.0,red)
+			fight_burst(im,c,12.0,4,t,gold,shade)
+		"dark_crunch","dark_bite":
+			var gap:float=12.0-sin(t*PI)*8.0
+			var count:int=6 if role=="dark_crunch" else 3
+			for i in range(count):
+				var x:float=7.0+float(i)*34.0/float(count-1)
+				fx_line(im,Vector2(x,24-gap),Vector2(x+2,24-gap+7),4.0,ink)
+				fx_line(im,Vector2(x,24+gap),Vector2(x-2,24+gap-7),3.0,gold)
+			if role=="dark_crunch":fight_burst(im,c,10.0+t*6.0,7,t,red,shade)
+		"dark_faint":
+			var q:=Vector2(6+36*t,24)
+			for i in range(6):fx_disc(im,q-Vector2(float(i)*5,sin(float(i)+t*TAU)*4),5.0,Color(ink,1.0-float(i)*.14))
+			fx_line(im,q-Vector2(4,8),q+Vector2(6,0),3.0,light)
+		"dark_taunt":
+			fight_burst(im,c,14.0+sin(t*PI)*5.0,6,t,red,shade)
+			fx_line(im,Vector2(24,12+3*t),Vector2(24,25+3*t),4.0,gold)
+			fx_disc(im,Vector2(24,32+3*t),2.5,gold)
+		"dark_thief","dark_snatch","dark_switch":
+			var q:=Vector2(36-24*t,24-sin(t*PI)*11.0)
+			psi_polygon(im,q,6.0,4,t*PI,gold,shade)
+			fight_arc(im,c,14.0,t*TAU,PI*1.15,light,ink,3.0)
+			if role=="dark_snatch":
+				fx_line(im,q,q+Vector2(-9,5),5.0,shade)
+				fight_burst(im,q,9.0,5,t,red,ink)
+			elif role=="dark_switch":
+				var p:=Vector2(12+24*t,24+sin(t*PI)*11.0)
+				psi_polygon(im,p,5.0,3,-t*PI,red,ink)
+			else:fx_line(im,q,q+Vector2(10,0),2.0,gold)
+		"dark_knock","dark_fling":
+			var q:=Vector2(8+32*t,24-sin(t*PI)*(12.0 if role=="dark_fling" else 5.0))
+			psi_polygon(im,q,7.0,5,t*TAU,gold,ink)
+			if role=="dark_knock":fight_burst(im,c,12.0+t*6.0,6,t,light,shade)
+			else:fx_line(im,q,q-Vector2(12,6),3.0,shade)
+		"dark_beat":
+			for i in range(5):
+				var a:float=float(i)*TAU/5.0+t*TAU
+				var q:=c+Vector2(cos(a),sin(a))*(18.0-10.0*t)
+				fx_disc(im,q,5.0,ink)
+				fx_disc(im,q+Vector2(1,-2),2.0,light)
+		"dark_pulse","dark_void":
+			var count:int=4 if role=="dark_pulse" else 6
+			for i in range(count):
+				var r:float=4.0+float(i)*3.0+sin(t*PI)*4.0
+				psi_ring(im,c,r,light if role=="dark_pulse" else shade,ink)
+			if role=="dark_void":fx_disc(im,c,9.0+sin(t*PI)*6.0,ink)
+			else:fight_burst(im,c,18.0,8,t,red,shade)
+		"dark_punish","dark_payback","dark_assure","dark_sucker":
+			var count:int=7 if role=="dark_punish" else 5 if role=="dark_payback" else 3 if role=="dark_assure" else 4
+			var q:=c if role!="dark_sucker" else Vector2(7+32*t,24)
+			fight_burst(im,q,9.0+sin(t*PI)*10.0,count,t,red if role=="dark_punish" else gold,ink)
+			if role=="dark_payback":fight_arc(im,q,16.0,t*TAU,PI*1.4,light,shade,4.0)
+			elif role=="dark_assure":psi_polygon(im,q,8.0+t*4.0,4,t*PI,light,ink)
+			elif role=="dark_sucker":
+				fx_disc(im,q,7.0,shade)
+				for i in range(3):fx_disc(im,q+Vector2(5,float(i-1)*4),2.8,light)
+			else:fx_disc(im,q,4.0+t*3.0,red)
+		"dark_embargo":
+			psi_polygon(im,c,12.0+sin(t*PI)*4.0,4,PI*.25,gold,ink)
+			psi_ring(im,c,18.0,light,shade)
+			fx_line(im,c-Vector2(10,10),c+Vector2(10,10),4.0,red)
+		"dark_slash":
+			for i in range(2):
+				fight_arc(im,c+Vector2(float(i)*6,0),15.0,-PI*.8+t*1.7,PI*1.15,light,ink,5.0)
+		"dark_plot":
+			for i in range(3):
+				var q:=Vector2(12+float(i)*12,30-sin(t*PI+float(i)*.7)*13.0)
+				fx_disc(im,q,4.0+float(i),shade)
+				fx_disc(im,q+Vector2(0,-2),1.6,light)
+			fight_arc(im,c,16.0,t*TAU,PI*1.25,gold,ink,2.6)
+
 func combat_frame_image(id:String,frame:int)->Image:
 	var style:Array=combat_style(id)
 	var mode:String=combat_animation_mode(id,str(style[0]))
@@ -3033,6 +3137,8 @@ func combat_frame_image(id:String,frame:int)->Image:
 		ghost_sprite(im,role,frame);return im
 	if role.begins_with("dragon_"):
 		dragon_sprite(im,role,frame);return im
+	if role.begins_with("dark_"):
+		dark_sprite(im,role,frame);return im
 	var center:=Vector2(24,24)
 	match mode:
 		"vine":
@@ -3428,6 +3534,30 @@ func combat_profile(id:String)->Dictionary:
 		"eos_498":role="dragon_rush"
 		"eos_538":role="dragon_meteor"
 		"eos_539":role="dragon_pulse"
+		"eos_022":role="dark_torment"
+		"eos_033":role="dark_tears"
+		"eos_038":role="dark_pursuit"
+		"eos_043":role="dark_memento"
+		"eos_045":role="dark_flatter"
+		"eos_062":role="dark_crunch"
+		"eos_063":role="dark_bite"
+		"eos_167":role="dark_faint"
+		"eos_172":role="dark_taunt"
+		"eos_214":role="dark_thief"
+		"eos_249":role="dark_knock"
+		"eos_269":role="dark_beat"
+		"eos_334":role="dark_snatch"
+		"eos_436":role="dark_pulse"
+		"eos_445":role="dark_punish"
+		"eos_466":role="dark_embargo"
+		"eos_472":role="dark_payback"
+		"eos_482":role="dark_switch"
+		"eos_483":role="dark_void"
+		"eos_488":role="dark_assure"
+		"eos_491":role="dark_slash"
+		"eos_503":role="dark_fling"
+		"eos_515":role="dark_sucker"
+		"eos_542":role="dark_plot"
 	if role in ["electric_charge","electric_lift"]:mode="lightning"
 	var impact:float=.48 if role in ["contact","electric_contact","electric_short","electric_fist","electric_fang","electric_dash","electric_spark"] else .64 if role in ["projectile","lash","electric_arc","electric_wave","electric_sky","electric_orb","electric_beam"] else .40
 	if role in ["fire_breath","fire_ember","fire_blast","fire_wisp"]:impact=.64
@@ -3449,6 +3579,7 @@ func combat_profile(id:String)->Dictionary:
 	if role.begins_with("psi_"):impact=.64 if role in ["psi_beam","psi_wave","psi_mist","psi_luster"] else .48
 	if role.begins_with("ghost_"):impact=.64 if role in ["ghost_ball","ghost_confuse","ghost_sneak","ghost_force"] else .48
 	if role.begins_with("dragon_"):impact=.64 if role in ["dragon_breath","dragon_flame","dragon_pulse","dragon_meteor","dragon_rush"] else .48
+	if role.begins_with("dark_"):impact=.64 if role in ["dark_faint","dark_fling","dark_sucker","dark_pulse","dark_void"] else .48
 	return {"mode":mode,"role":role,"element":element,"pattern":pattern,"range":reach,"duration":float(style[3]),"impact":impact,"socket":"ground" if role in ["ground","fire_plume","fire_magma","water_dive","water_whirlpool","water_surf","grass_frenzy","grass_roots","grass_knot","ice_avalanche","ice_cold","earth_dig","earth_tomb","earth_power","earth_fissure","earth_spikes","earth_quake","earth_magnitude","rock_edge","rock_tomb","rock_trap","rock_roll"] else "head" if role in ["projectile","fire_breath","fire_ember","fire_eruption","water_bubble","water_ink","water_spout","water_cannon","water_pump","water_bubblebeam","water_gun","water_pulse","water_brine","grass_solar","grass_energy","grass_bullet","grass_whistle","ice_aurora","ice_beam","ice_wind","earth_shot","rock_wrecker","rock_blast","rock_gem"] else "center"}
 func electric_sprite(im:Image,id:String,frame:int,role:String)->void:
 	var cyan:=Color("#40cfff")
@@ -4155,6 +4286,24 @@ func combat_fx_update(dt:float)->void:
 						q=points[0]+Vector3(cos(angle+t*TAU)*.42,.12+f*.62,sin(angle+t*TAU)*.42);size=.46
 					_:
 						q=points[-1]+Vector3(cos(angle)*.28,.18+sin(angle)*.25,sin(angle)*.28);size=.56
+			if str(profile.role).begins_with("dark_"):
+				var dark_role:String=str(profile.role)
+				var progress:float=clampf(t*1.8-f*.30,0,1)
+				match dark_role:
+					"dark_faint","dark_sucker","dark_fling":
+						q=combat_path_sample(points,progress)+Vector3(0,sin(progress*PI)*(.8 if dark_role=="dark_fling" else .2),0);size=.55
+					"dark_thief","dark_snatch","dark_knock":
+						q=combat_path_sample(points,1.0-progress)+Vector3(cos(angle)*.12,.15+sin(progress*PI)*.45,sin(angle)*.12);size=.44
+					"dark_switch":
+						q=combat_path_sample(points,progress if j%2==0 else 1.0-progress)+Vector3(0,sin(progress*PI)*(.48 if j%2==0 else .20),0);size=.43
+					"dark_pulse","dark_void","dark_memento","dark_beat":
+						q=tiles[j%tiles.size()]+Vector3(cos(angle+t*TAU)*.34,.12+f*.5,sin(angle+t*TAU)*.34);size=.55
+					"dark_pursuit","dark_payback","dark_plot":
+						q=points[0]+Vector3(cos(angle+t*TAU)*.4,.12+f*.65,sin(angle+t*TAU)*.4);size=.47
+					"dark_tears":
+						q=points[-1]+Vector3(cos(angle)*.22,.8*(1.0-progress),sin(angle)*.22);size=.35
+					_:
+						q=points[-1]+Vector3(cos(angle+t*TAU)*.26,.16+f*.36,sin(angle+t*TAU)*.26);size=.52
 			# Drained energy travels from victim back to caster; healing stays on caster.
 			if profile.role=="drain" and t>=.40:
 				var back:float=clampf((t-.40)*2.0-f*.22,0.0,1.0)
