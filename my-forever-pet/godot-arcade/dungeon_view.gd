@@ -1709,6 +1709,12 @@ func enemy_pose(actor:Node3D,state:String,seconds:float,direction:Vector2=Vector
 	actor.set_meta("enemy_duration",seconds)
 	actor.set_meta("enemy_facing",PixelArt.direction_for(direction,int(actor.get_meta("enemy_facing",0))))
 	if state=="attack":actor.set_meta("enemy_cast_direction",Vector3(direction.x,0,direction.y))
+# Contact shadows follow horizontal body displacement, never the airborne height.
+func enemy_shadow_sample(body_offset:Vector3,hover:float,parent_lift:float,size_multiplier:float,wide:bool)->Dictionary:
+	var altitude:float=maxf(0.0,hover+body_offset.y+parent_lift)
+	var footprint:float=size_multiplier*clampf(1.0-altitude*.65,.42,1.0)
+	return {"position":Vector3(body_offset.x,.035-parent_lift,body_offset.z),"scale":Vector3(footprint*(1.15 if wide else 1.0),footprint*.8,1.0)}
+
 func update_enemy_pixel(actor:Node3D,dt:float,motion:Vector3)->void:
 	var sprite:=actor.get_node_or_null("EnemyPixel") as Sprite3D
 	if sprite==null:return
@@ -1736,6 +1742,7 @@ func update_enemy_pixel(actor:Node3D,dt:float,motion:Vector3)->void:
 	var rise:float=.13+.04*sin(elapsed*3.0+float(actor.get_instance_id()%11)) if hovering and state!="defeat" else 0.0
 	var size_multiplier:float=float(actor.get_meta("enemy_size_multiplier",1.0))
 	sprite.position=Vector3(0,.54*size_multiplier+rise,0)
+	var body_offset:=Vector3.ZERO
 	# Same continuous body clock as the companion; preserve the authored ground anchor.
 	sprite.scale=Vector3.ONE
 	if state=="attack":
@@ -1746,14 +1753,18 @@ func update_enemy_pixel(actor:Node3D,dt:float,motion:Vector3)->void:
 	if state=="attack" and not actor.get_meta("companion_disguise",false):
 		var cast_dir:Vector3=actor.get_meta("enemy_cast_direction",Vector3(0,0,1))
 		var offset:=cast_motion_offset(str(actor.get_meta("enemy_cast_motion","contact")),clock/maxf(.01,duration),float(actor.get_meta("enemy_cast_impact",.48)))
-		sprite.position+=actor.basis.inverse()*cast_offset_world(offset,cast_dir)
+		body_offset=actor.basis.inverse()*cast_offset_world(offset,cast_dir)
+		sprite.position+=body_offset
 	if state=="hurt" and not actor.get_meta("companion_disguise",false):
 		var hit_dir:Vector3=actor.get_meta("enemy_hit_direction",Vector3.ZERO)
-		sprite.position+=actor.basis.inverse()*hit_dir.normalized()*.16*sin(PI*clampf(clock/maxf(.01,duration),0.0,1.0))
+		body_offset=actor.basis.inverse()*hit_dir.normalized()*.16*sin(PI*clampf(clock/maxf(.01,duration),0.0,1.0))
+		sprite.position+=body_offset
 	var shadow:=actor.get_node_or_null("EnemyContactShadow") as MeshInstance3D
 	if shadow!=null:
-		var footprint:float=size_multiplier*(1.0-rise*.65)
-		shadow.scale=Vector3(footprint*(1.15 if species in ["eelstrix","marrowray","coralcrab","shellguard"] else 1.0),footprint*.8,1.0)
+		var parent_lift:float=actor.position.y if actor.get_meta("companion_disguise",false) else 0.0
+		var shadow_sample:=enemy_shadow_sample(body_offset,rise,parent_lift,size_multiplier,species in ["eelstrix","marrowray","coralcrab","shellguard"])
+		shadow.position=shadow_sample.position
+		shadow.scale=shadow_sample.scale
 	var visual_state:String=state
 	# Separate continuous locomotion phase prevents an idle/move transition
 	# from resetting a wingbeat. Combat pose timing always takes precedence.
