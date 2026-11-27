@@ -307,6 +307,24 @@ func run_checks()->void:
 	for id in anatomy_expected:
 		if view.cast_motion_kind(id,view.combat_profile(id))!=anatomy_expected[id]:failures.append("incorrect anatomical cast "+id)
 		checks+=1
+	# Every creature owns a distinct authored response, without changing the
+	# neutral endpoints or tile-based travel rules.
+	var creature_signatures:Dictionary={}
+	for species in Art.ENEMY_PIXEL_PILOTS:
+		var anatomy:=Art.creature_cast_profile(species)
+		if not Art.CREATURE_CAST_PROFILES.has(species):failures.append("missing creature cast profile "+species)
+		if creature_signatures.has(str(anatomy)):failures.append("duplicate creature cast profile "+species)
+		creature_signatures[str(anatomy)]=true
+		for kind in ["rush","contact","lash","aerial","down","spin","focus","gesture","cast","fang","crunch","claw","pincer","punch","uppercut","kick","lowkick","wing","tail","horn"]:
+			for step in range(101):
+				var phase:float=float(step)/100.0
+				var motion:=Art.creature_cast_offset(view.cast_motion_offset(kind,phase,.48),species)
+				var body:=Art.attack_body_sample(phase,.48,kind,species)
+				if not motion.is_finite() or motion.length()>1.0 or float(body.stretch)<.78 or float(body.stretch)>1.22 or float(body.lift)<0.0:failures.append("creature cast bounds "+species+" "+kind)
+				if step in [0,100] and (motion.length()>.001 or absf(float(body.stretch)-1.0)>.001 or absf(float(body.lift))>.001):failures.append("creature cast endpoint "+species+" "+kind)
+				checks+=1
+	if creature_signatures.size()!=Art.ENEMY_PIXEL_PILOTS.size():failures.append("creature profile coverage")
+	if Art.creature_cast_profile("")!=Vector4.ONE:failures.append("neutral companion profile")
 	# Directed contact art is independently visible and kick poses are animated.
 	for id in Dungeon.CONTACT_ICON_KIND:
 		var kind:String=view.directed_contact_kind(id,str(view.combat_profile(id).role))
