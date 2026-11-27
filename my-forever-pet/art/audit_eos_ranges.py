@@ -57,3 +57,39 @@ assert rows[189]["range_code"]==5
 assert rows[182]["range_code"]==0
 assert rows[118]["range_code"]==3
 print("EOS_RANGE_AUDIT_PASS",len(rows)-len(internal_aliases),"decoded records;",len(internal_aliases),"unverified internal aliases;",len(mismatch),"numeric disagreements retained for review")
+
+# Verify the checked-in runtime independently of the reference binary's internal aliases.
+root=args.baseline.parent
+catalog=json.loads((root/"eos_runtime_catalog.json").read_text())
+source=(root.parent/"godot-arcade"/"dungeon_rules.gd").read_text()
+runtime=json.loads(next(line.removeprefix("const MOVE_LIBRARY=") for line in source.splitlines() if line.startswith("const MOVE_LIBRARY=")))
+assert len(catalog)==468
+assert len(runtime)==522
+assert {k for k in runtime if k.startswith("eos_")}==set(catalog)
+fields={"power":"power","pp":"pp","type":"type","category":"category","acc1":"accuracy1","acc2":"accuracy2","crit":"crit","strikes":"strikes","reference_range":"range"}
+runtime_fields={"crit":"reference_crit","strikes":"reference_strikes"}
+# Neutral menu classification for the three typeless/dynamic moves is intentional.
+neutral_menu={"eos_324":("hidden_power",True),"eos_360":("typeless",True),"eos_394":("special_rule","35")}
+runtime_errors=[]
+for key,record in catalog.items():
+    i=record["reference_id"]
+    entry=runtime[key]
+    assert key==f"eos_{i:03d}" and entry["reference_id"]==i
+    assert record["status"]!="pending_special_rules"
+    for field,baseline_field in fields.items():
+        expected=rows[i][baseline_field]
+        if record[field]!=expected:
+            runtime_errors.append((key,field,"catalog",record[field],expected))
+        actual=entry[runtime_fields.get(field,field)]
+        if field=="type" and key in neutral_menu:
+            flag,value=neutral_menu[key]
+            if expected=="none" and actual=="normal" and entry.get(flag)==value:
+                continue
+        if actual!=expected:
+            runtime_errors.append((key,field,"runtime",actual,expected))
+    assert entry["prototype"] is True
+    assert 0<=entry["reach"]<=10 and entry["frame_count"]>0 and entry["duration"]>0
+assert not runtime_errors,runtime_errors
+report["runtime_audit"]={"catalog_count":len(catalog),"runtime_count":len(runtime),"matched_reference_count":len(catalog),"field_errors":runtime_errors,"neutral_menu_exceptions":list(neutral_menu),"visual_fidelity":"not validated"}
+args.output.write_text(json.dumps(report,indent=2)+"\n")
+print("KINDRIA_RUNTIME_METADATA_PASS",len(catalog),"moves;",len(runtime),"runtime entries; zero unexplained metadata differences")
