@@ -144,6 +144,8 @@ var fx_trail_material:StandardMaterial3D
 var fx_trail_vertices:int=0
 var fx_trail_started:bool=false
 var fx_residues:Array[Dictionary]=[]
+const FX_REACTION_SPARK_CAP:int=12
+var fx_reaction_sparks:Array[Dictionary]=[]
 var combat_warn_mat:StandardMaterial3D
 var enemy_event_turn:int=-1
 var enemy_event_floor:int=-1
@@ -2086,7 +2088,11 @@ func update_enemy_pixel(actor:Node3D,dt:float,motion:Vector3)->void:
 		sprite.position+=body_offset
 	if state=="hurt" and not actor.get_meta("companion_disguise",false):
 		var hit_dir:Vector3=actor.get_meta("enemy_hit_direction",Vector3.ZERO)
-		body_offset=actor.basis.inverse()*hit_dir.normalized()*.16*sin(PI*clampf(clock/maxf(.01,duration),0.0,1.0))
+		var reaction:=premium_hit_sample(clock/maxf(.01,duration))
+		body_offset=actor.basis.inverse()*hit_dir.normalized()*.32*float(reaction.recoil)
+		var squash:float=float(reaction.squash)
+		sprite.scale=Vector3(1.0/squash,squash,1.0)
+		sprite.position.y+=.54*size_multiplier*(squash-1.0)+float(reaction.lift)
 		sprite.position+=body_offset
 	var shadow:=actor.get_node_or_null("EnemyContactShadow") as MeshInstance3D
 	if shadow!=null:
@@ -2121,7 +2127,7 @@ func update_enemy_pixel(actor:Node3D,dt:float,motion:Vector3)->void:
 	if sprite.material_override is ShaderMaterial:
 		var material:=sprite.material_override as ShaderMaterial
 		material.set_shader_parameter("sprite_tex",sprite.texture)
-		material.set_shader_parameter("hit_flash",.32 if state=="hurt" else 0.0)
+		material.set_shader_parameter("hit_flash",float(premium_hit_sample(clock/maxf(.01,duration)).flash) if state=="hurt" else 0.0)
 		material.set_shader_parameter("world_phase",elapsed)
 	else:sprite.modulate=Color("#ffb5c6") if state=="hurt" else Color.WHITE
 # Lightweight reusable pixel VFX: no per-frame node allocation, no camera-facing 3D creatures.
@@ -2214,7 +2220,7 @@ void fragment() {
 
 # One batched ImmediateMesh for all animated ribbons, no new nodes per attack.
 func setup_ultra_combat_layers()->void:
-	fx_residues.clear()
+	fx_residues.clear();fx_reaction_sparks.clear()
 	fx_trail_vertices=0;fx_trail_started=false
 	fx_trail_mesh=ImmediateMesh.new()
 	fx_trail_material=StandardMaterial3D.new()
@@ -2315,6 +2321,44 @@ func ultra_impact_residue(burst:Dictionary)->void:
 	var life:float=.65 if element in ["fire","electric","dragon"] else .90
 	if fx_residues.size()>=FX_RESIDUE_CAP:fx_residues.pop_front()
 	fx_residues.append({"at":Vector3(target.x,.065,target.z),"element":element,"color":Color(str(style[1])),"dark":Color(str(style[2])),"age":0.0,"life":life})
+
+# A hit response belongs to the confirmed impact, not the launch frame.
+func queue_ultra_reaction(at:Vector3,direction:Vector3,terminal:bool)->void:
+	if fx_reaction_sparks.size()>=FX_REACTION_SPARK_CAP:fx_reaction_sparks.pop_front()
+	var forward:=Vector3(direction.x,0,direction.z).normalized()
+	if forward.length_squared()<.0001:forward=Vector3.FORWARD
+	fx_reaction_sparks.append({"at":at,"dir":forward,"age":0.0,"life":.46 if terminal else .24,"terminal":terminal})
+
+func ultra_reaction_particles(dt:float,used:int)->int:
+	for i in range(fx_reaction_sparks.size()-1,-1,-1):
+		var row:Dictionary=fx_reaction_sparks[i]
+		row.age+=dt
+		var t:float=float(row.age)/float(row.life)
+		if t>=1.0:
+			fx_reaction_sparks.remove_at(i);continue
+		var at:Vector3=row.at
+		var forward:Vector3=row.dir
+		var side:=Vector3(-forward.z,0,forward.x)
+		var terminal:bool=row.terminal
+		var count:int=8 if terminal else 5
+		var fade:float=(1.0-t)*(1.0-t)
+		for j in range(count):
+			var f:float=float(j)/maxi(1,count-1)
+			var distance:float=t*(.65 if terminal else .40)
+			var q:Vector3=at+forward*distance+side*(f-.5)*distance*1.8+Vector3.UP*(sin(t*PI)*(.45 if terminal else .24)+.08*sin(f*TAU))
+			used=environment_particle(used,q,"impact_star" if j%2==0 else "slash",Color("#fff1d1"),Color("#dd8b75"),.25+float(j%3)*.06,fade*.92)
+		if terminal:
+			cinematic_halo(Vector3(at.x,.065,at.z),Color("#ffcc91"),.8+t*.72,fade*.25,t,true)
+	return used
+
+# Impact body motion is normalized by the actual reaction clock. No logical
+# movement or damage values are modified.
+func premium_hit_sample(progress:float)->Dictionary:
+	var t:float=clampf(progress,0.0,1.0)
+	var recoil:float=sin(t*PI)*pow(1.0-t,.65)
+	var squash:float=1.0-.21*sin(t*PI*1.7)*pow(1.0-t,1.4)
+	var flash:float=.66*pow(1.0-t,3.0)
+	return {"recoil":recoil,"squash":squash,"flash":flash,"lift":sin(t*PI)*.09}
 
 func ultra_update_residues(dt:float,used:int)->int:
 	for i in range(fx_residues.size()-1,-1,-1):
@@ -5496,6 +5540,7 @@ func update_combat_reactions(dt:float)->void:
 		actor.set_meta("pending_impact",pending)
 		actor.set_meta("enemy_hit_direction",reaction.direction)
 		enemy_pose(actor,"defeat" if reaction.defeated else "hurt",.32 if reaction.defeated else .20)
+		queue_ultra_reaction(actor.global_position+Vector3.UP*.54,reaction.direction,bool(reaction.defeated))
 		# The actor renderer advances dt later in this frame. Subtract the
 		# pre-impact portion now so only the actual post-impact age is applied.
 		actor.set_meta("enemy_clock",-clampf(dt+float(reaction.delay),0.0,dt))
@@ -6117,6 +6162,9 @@ func combat_fx_update(dt:float)->void:
 		used=authored_stage_fx(burst,t,used)
 		used=element_finish_fx(burst,t,used)
 	if run!=null and not run.charge_phase.is_empty():used=charge_environment_fx(used)
+	if not latest_hit.is_empty() and is_instance_valid(pet):
+		queue_ultra_reaction(pet.global_position+Vector3.UP*.54,latest_hit.direction,false)
+	used=ultra_reaction_particles(dt,used)
 	used=ultra_update_residues(dt,used)
 	if fx_trail_started:fx_trail_mesh.surface_end()
 	living_status_fx()
@@ -7796,8 +7844,10 @@ func _process(dt:float):
 		attack_fx.visible=player_impact_delay<=0.0;attack_fx.scale=Vector3(1.1-phase*.42,.13,1.1-phase*.42)
 	else:attack_fx.hide()
 	if hit_time>0.0:
-		pet_pose.rotation.z+=sin(hit_time*45.0)*.10
-		pet_pose.position+=pet.basis.inverse()*player_hit_direction*.14*sin(PI*clampf(hit_time/.24,0.0,1.0))
+		var reaction:=premium_hit_sample(1.0-hit_time/.24)
+		pet_pose.rotation.z+=sin(hit_time*45.0)*.07
+		pet_pose.position+=pet.basis.inverse()*player_hit_direction*.32*float(reaction.recoil)
+		pet_pose.position.y+=float(reaction.lift)
 	if attack_time>0.0:motion=Vector2(attack_direction.x,attack_direction.z)
 	if tile_cast_active():
 		var travel_pose:=tile_cast_sample(player_tile_cast.points,str(player_tile_cast.kind),charge_progress,player_cast_impact)
@@ -7813,6 +7863,14 @@ func _process(dt:float):
 	pet_pose.set_meta("dungeon_grounded_gait",true)
 	pet_pose.set_meta("dungeon_cast_motion",player_cast_motion)
 	PixelArt.animate_world_sprite(pet_pose,motion,moving,dt,pose,region==1,1.0-attack_time/maxf(.01,player_cast_duration) if attack_time>0.0 else -1.0,player_cast_impact)
+	if pose=="hurt":
+		var companion_sprite:=pet_pose.get_node_or_null("PixelCompanion") as Sprite3D
+		if companion_sprite!=null:
+			var sample:=premium_hit_sample(1.0-hit_time/.24)
+			var squash:float=float(sample.squash)
+			companion_sprite.scale=Vector3(1.0/squash,squash,1.0)
+			companion_sprite.position.y=float(companion_sprite.get_meta("world_height"))*.5*squash
+			companion_sprite.modulate=Color.WHITE.lerp(Color("#ffc5bc"),float(sample.flash))
 	update_disguise(dt,motion,moving,pose)
 	var focus=pet.position+Vector3(0,.18,-.48)
 	# The prior floor-build-only shake never reached the actual render loop.
