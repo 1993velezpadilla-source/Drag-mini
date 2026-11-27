@@ -15439,7 +15439,10 @@ func combat_fx_spawn(event:Dictionary,launch_age:float=0.0)->void:
 # Leading projectile reaches its destination on the exact impact fraction.
 # Trailing particles are delayed within the remaining lifetime, never beyond it.
 func combat_travel_progress(t:float,impact:float,trail:float=0.0)->float:
-	var peak:float=clampf(impact,.001,.999)
+	return combat_travel_progress_from_peak(t,clampf(impact,.001,.999),trail)
+
+# A cast's clamped peak is invariant across all of its particles.
+func combat_travel_progress_from_peak(t:float,peak:float,trail:float=0.0)->float:
 	var delay:float=clampf(trail,0.0,.9)*(1.0-peak)
 	return clampf((t-delay)/peak,0.0,1.0)
 
@@ -16239,6 +16242,11 @@ func combat_fx_update(dt:float)->void:
 		# Reserve the readable projectile head within the same shared cast quota.
 		used=projectile_identity_fx(burst,t,used)
 		used=ultimate_accent_fx(burst,t,used)
+		# Share exact cast-invariant math; keep every particle's own trail and angle.
+		var particle_travel_peak:float=clampf(cast_impact,.001,.999)
+		var particle_head_progress:float=combat_travel_progress_from_peak(t,particle_travel_peak)
+		var particle_phase_arc:float=sin(t*PI)
+		var particle_phase_turn:float=t*TAU
 		var particle_denominator:int=maxi(1,count-1)
 		for j in range(count):
 			if used>=fx_cast_particle_limit:break
@@ -16249,21 +16257,21 @@ func combat_fx_update(dt:float)->void:
 			var size:float=.55
 			match particle_mode:
 				"vine","whip":
-					q=combat_path_sample(points,combat_travel_progress(t,cast_impact),path_metrics);q.y+=.15*sin(angle);size=.22
+					q=combat_path_sample(points,particle_head_progress,path_metrics);q.y+=.15*sin(angle);size=.22
 				"quake":
-					q=tiles[j%tiles.size()];q+=Vector3(cos(angle)*t*.32,sin(t*PI)*.65,sin(angle)*t*.32);size=.29
+					q=tiles[j%tiles.size()];q+=Vector3(cos(angle)*t*.32,particle_phase_arc*.65,sin(angle)*t*.32);size=.29
 				"lightning","beam","radiant":
-					var reach:float=combat_travel_progress(t,cast_impact)
+					var reach:float=particle_head_progress
 					q=combat_path_sample(points,f*reach,path_metrics)
 					q.y+=sin(f*PI*4.0-t*14.0)*(.10 if mode=="beam" else .24)
 					size=.48 if mode!="beam" else .78
 				"flame","fire_stream":
-					var travel:float=combat_travel_progress(t,cast_impact,f*.65)
+					var travel:float=combat_travel_progress_from_peak(t,particle_travel_peak,f*.65)
 					q=combat_path_sample(points,travel,path_metrics)
 					q+=Vector3(cos(angle)*travel*.20,sin(angle+t*7.0)*travel*.22, sin(angle)*travel*.20)
 					size=.45+travel*.70
 				"dart","bubble","bubble_beam","roll","spiral","meteor","leap":
-					var travel:float=combat_travel_progress(t,cast_impact,f*.5)
+					var travel:float=combat_travel_progress_from_peak(t,particle_travel_peak,f*.5)
 					q=combat_path_sample(points,travel,path_metrics)
 					if mode in ["meteor","leap"]:q.y+=sin(travel*PI)*(.85 if mode=="meteor" else .55)
 					if mode=="spiral":q+=Vector3(cos(angle+t*12.0)*.20,sin(angle+t*12.0)*.30,sin(angle+t*12.0)*.20)
@@ -16271,32 +16279,32 @@ func combat_fx_update(dt:float)->void:
 					size=.9 if j==0 else .40+f*.25
 				"slash":
 					q=points[-1]
-					q+=Vector3(cos(angle)*.48*sin(t*PI),sin(angle)*.27,sin(angle)*.48*sin(t*PI))
+					q+=Vector3(cos(angle)*.48*particle_phase_arc,sin(angle)*.27,sin(angle)*.48*particle_phase_arc)
 					size=.65
 				_:
 					q=tiles[j%tiles.size()]
 					var radius:float=.12+t*.48
-					q+=Vector3(cos(angle)*radius,.18+sin(t*PI)*(.5 if mode=="cloud" else .2),sin(angle)*radius)
+					q+=Vector3(cos(angle)*radius,.18+particle_phase_arc*(.5 if mode=="cloud" else .2),sin(angle)*radius)
 					size=.65 if mode!="web" else .85
 			if cast_role=="electric_sky":
-				q=points[-1]+Vector3(0,lerpf(2.8,.0,combat_travel_progress(t,cast_impact)),0);size=.75
+				q=points[-1]+Vector3(0,lerpf(2.8,.0,particle_head_progress),0);size=.75
 			elif cast_role=="electric_burst":
 				q=tiles[j%tiles.size()]+Vector3(0,.38,0);size=.62
 			elif cast_role=="electric_short":
 				q=points[-1]+Vector3(cos(angle)*.16,sin(angle)*.15,0);size=.30
 			elif cast_role=="electric_wave":
-				q=combat_path_sample(points,combat_travel_progress(t,cast_impact,f*.18),path_metrics);size=.70
+				q=combat_path_sample(points,combat_travel_progress_from_peak(t,particle_travel_peak,f*.18),path_metrics);size=.70
 			elif cast_role in ["electric_fist","electric_fang","electric_spark","electric_bind"]:
 				q=points[-1]+Vector3(cos(angle)*.18,sin(angle)*.18,0);size=.45
 			elif cast_role in ["electric_orb","electric_dash","electric_beam"]:
-				q=combat_path_sample(points,combat_travel_progress(t,cast_impact,f*.12),path_metrics);size=.82 if cast_role=="electric_orb" else .42
+				q=combat_path_sample(points,combat_travel_progress_from_peak(t,particle_travel_peak,f*.12),path_metrics);size=.82 if cast_role=="electric_orb" else .42
 			elif cast_role=="electric_room":
 				q=tiles[j%tiles.size()]+Vector3(0,.42,0);size=.48
 			elif cast_role in ["electric_charge","electric_lift"]:
 				q=points[0]+Vector3(cos(angle)*.25,t*.55 if cast_role=="electric_lift" else .12,sin(angle)*.25);size=.48
 			if cast_family=="fire_":
 				var fire_role:String=cast_role
-				var progress:float=combat_travel_progress(t,cast_impact,f*.35)
+				var progress:float=combat_travel_progress_from_peak(t,particle_travel_peak,f*.35)
 				match fire_role:
 					"fire_breath","fire_ember","fire_wisp":
 						q=combat_path_sample(points,progress,path_metrics)+Vector3(cos(angle)*.12,sin(angle)*.14,sin(angle)*.12)
@@ -16306,16 +16314,16 @@ func combat_fx_update(dt:float)->void:
 						if t>.55:q+=Vector3(cos(angle),.3*sin(angle),sin(angle))*(t-.55)*.85
 						size=.8
 					"fire_overheat","fire_blastburn","fire_heatwave","fire_plume":
-						q=tiles[j%tiles.size()]+Vector3(cos(angle)*t*.38,.15+sin(t*PI)*(.8 if fire_role=="fire_plume" else .35),sin(angle)*t*.38)
+						q=tiles[j%tiles.size()]+Vector3(cos(angle)*t*.38,.15+particle_phase_arc*(.8 if fire_role=="fire_plume" else .35),sin(angle)*t*.38)
 						size=.85 if fire_role=="fire_blastburn" else .58
 					"fire_wheel","fire_blitz":
-						q=combat_path_sample(points,progress,path_metrics)+Vector3(cos(angle+t*TAU)*.18,.1+absf(sin(angle+t*TAU))*.4,sin(angle+t*TAU)*.18)
+						q=combat_path_sample(points,progress,path_metrics)+Vector3(cos(angle+particle_phase_turn)*.18,.1+absf(sin(angle+particle_phase_turn))*.4,sin(angle+particle_phase_turn)*.18)
 						size=.72 if fire_role=="fire_blitz" else .46
 					"fire_eruption":
 						q=points[0].lerp(points[-1],progress)+Vector3(cos(angle)*.35,sin(progress*PI)*1.1,sin(angle)*.35)
 						size=.62
 					"fire_vortex","fire_magma":
-						q=points[-1]+Vector3(cos(angle+t*TAU*2.0)*.45,f*.75,sin(angle+t*TAU*2.0)*.45)
+						q=points[-1]+Vector3(cos(angle+particle_phase_turn*2.0)*.45,f*.75,sin(angle+particle_phase_turn*2.0)*.45)
 						size=.9 if fire_role=="fire_magma" else .5
 					"fire_sun":
 						q=points[0]+Vector3(cos(angle)*.12,1.6+t*.35,sin(angle)*.12);size=.82
@@ -16323,32 +16331,32 @@ func combat_fx_update(dt:float)->void:
 						q=points[-1]+Vector3(cos(angle)*.28,sin(angle)*.3,sin(angle)*.28);size=.62
 			if cast_family=="water_":
 				var water_role:String=cast_role
-				var progress:float=combat_travel_progress(t,cast_impact,f*.35)
+				var progress:float=combat_travel_progress_from_peak(t,particle_travel_peak,f*.35)
 				match water_role:
 					"water_bubble","water_bubblebeam","water_ink","water_cannon","water_pump","water_gun","water_pulse","water_brine","water_jet":
 						q=combat_path_sample(points,progress,path_metrics)+Vector3(cos(angle)*.12,sin(angle)*.13,sin(angle)*.12)
 						size=.85 if water_role=="water_cannon" else .30 if water_role in ["water_gun","water_bubble"] else .55
 					"water_whirlpool":
-						q=points[-1]+Vector3(cos(angle+t*TAU)*.46,.12+f*.25,sin(angle+t*TAU)*.46);size=.54
+						q=points[-1]+Vector3(cos(angle+particle_phase_turn)*.46,.12+f*.25,sin(angle+particle_phase_turn)*.46);size=.54
 					"water_spout":
 						q=points[0].lerp(points[-1],progress)+Vector3(cos(angle)*.23,sin(progress*PI)*1.3,sin(angle)*.23);size=.64
 					"water_fall":
 						q=points[-1]+Vector3(cos(angle)*.2,1.5*(1.0-progress),sin(angle)*.2);size=.72
 					"water_dive":
-						q=points[-1]+Vector3(cos(angle)*t*.4,.04+sin(t*PI)*.26,sin(angle)*t*.4);size=.48
+						q=points[-1]+Vector3(cos(angle)*t*.4,.04+particle_phase_arc*.26,sin(angle)*t*.4);size=.48
 					"water_surf","water_mud":
 						var direction:Vector3=(points[-1]-points[0]).normalized()
-						q=combat_path_sample(points,progress,path_metrics)+direction.cross(Vector3.UP)*(f-.5)*.8+Vector3.UP*sin(t*PI)*.45
+						q=combat_path_sample(points,progress,path_metrics)+direction.cross(Vector3.UP)*(f-.5)*.8+Vector3.UP*particle_phase_arc*.45
 						size=.75 if water_role=="water_surf" else .55
 					"water_ring","water_shell","water_mist":
-						q=points[0]+Vector3(cos(angle+t*TAU)*.4,.15+f*.5,sin(angle+t*TAU)*.4);size=.48
+						q=points[0]+Vector3(cos(angle+particle_phase_turn)*.4,.15+f*.5,sin(angle+particle_phase_turn)*.4);size=.48
 					"water_rain":
 						q=points[0]+Vector3(cos(angle)*.7,1.8*(1.0-progress),sin(angle)*.7);size=.28
 					_:
 						q=points[-1]+Vector3(cos(angle)*.32,sin(angle)*.28,sin(angle)*.32);size=.60
 			if cast_family=="grass_":
 				var grass_role:String=cast_role
-				var progress:float=combat_travel_progress(t,cast_impact,f*.35)
+				var progress:float=combat_travel_progress_from_peak(t,particle_travel_peak,f*.35)
 				match grass_role:
 					"grass_absorb","grass_mega","grass_giga":
 						var return_progress:float=clampf((t-.25)*1.55-f*.18,0,1)
@@ -16360,59 +16368,59 @@ func combat_fx_update(dt:float)->void:
 					"grass_bomb","grass_leech":
 						q=combat_path_sample(points,progress,path_metrics)+Vector3(0,sin(progress*PI)*.65,0);size=.54
 					"grass_frenzy","grass_knot":
-						q=points[-1]+Vector3(cos(angle)*.35,.1+sin(t*PI)*.9,sin(angle)*.35);size=.64
+						q=points[-1]+Vector3(cos(angle)*.35,.1+particle_phase_arc*.9,sin(angle)*.35);size=.64
 					"grass_spore","grass_sleep","grass_stun","grass_flare":
 						q=tiles[j%tiles.size()]+Vector3(cos(angle)*t*.45,.15+f*.45,sin(angle)*t*.45);size=.46
 					"grass_storm","grass_petal":
-						q=combat_path_sample(points,progress,path_metrics)+Vector3(cos(angle+t*TAU)*.42,.2+f*.5,sin(angle+t*TAU)*.42);size=.48
+						q=combat_path_sample(points,progress,path_metrics)+Vector3(cos(angle+particle_phase_turn)*.42,.2+f*.5,sin(angle+particle_phase_turn)*.42);size=.48
 					"grass_roots","grass_aroma","grass_synthesis":
-						q=points[0]+Vector3(cos(angle)*.45,.1+sin(t*PI)*.65,sin(angle)*.45);size=.52
+						q=points[0]+Vector3(cos(angle)*.45,.1+particle_phase_arc*.65,sin(angle)*.45);size=.52
 					"grass_vine","grass_whip","grass_needle":
-						q=combat_path_sample(points,combat_travel_progress(t,cast_impact),path_metrics)+Vector3(0,.12,0);size=.25
+						q=combat_path_sample(points,particle_head_progress,path_metrics)+Vector3(0,.12,0);size=.25
 					_:
 						q=points[-1]+Vector3(cos(angle)*.30,sin(angle)*.25,sin(angle)*.30);size=.55
 			if cast_family=="ice_":
 				var ice_role:String=cast_role
-				var progress:float=combat_travel_progress(t,cast_impact,f*.35)
+				var progress:float=combat_travel_progress_from_peak(t,particle_travel_peak,f*.35)
 				match ice_role:
 					"ice_aurora","ice_beam","ice_wind","ice_shard","ice_spear","ice_ball":
 						q=combat_path_sample(points,progress,path_metrics)+Vector3(cos(angle)*.1,sin(angle)*.13,sin(angle)*.1)
 						if ice_role=="ice_ball":q.y=.14
 						size=.75 if ice_role=="ice_beam" or ice_role=="ice_ball" else .44
 					"ice_powder","ice_blizzard":
-						q=tiles[j%tiles.size()]+Vector3(cos(angle+t*TAU)*.45,1.1*(1.0-progress),sin(angle+t*TAU)*.45);size=.35 if ice_role=="ice_powder" else .62
+						q=tiles[j%tiles.size()]+Vector3(cos(angle+particle_phase_turn)*.45,1.1*(1.0-progress),sin(angle+particle_phase_turn)*.45);size=.35 if ice_role=="ice_powder" else .62
 					"ice_hail","ice_avalanche":
 						var at:Vector3=points[0] if ice_role=="ice_hail" else points[-1]
 						q=at+Vector3(cos(angle)*.6,1.8*(1.0-progress),sin(angle)*.6);size=.4 if ice_role=="ice_hail" else .78
 					"ice_haze","ice_mist":
-						q=points[0]+Vector3(cos(angle+t*TAU)*.5,.2+f*.5,sin(angle+t*TAU)*.5);size=.65
+						q=points[0]+Vector3(cos(angle+particle_phase_turn)*.5,.2+f*.5,sin(angle+particle_phase_turn)*.5);size=.65
 					"ice_cold":
-						q=points[-1]+Vector3(cos(angle)*t*.4,.1+sin(t*PI)*.7,sin(angle)*t*.4);size=.9
+						q=points[-1]+Vector3(cos(angle)*t*.4,.1+particle_phase_arc*.7,sin(angle)*t*.4);size=.9
 					_:
 						q=points[-1]+Vector3(cos(angle)*.28,sin(angle)*.25,sin(angle)*.28);size=.58
 			if cast_family=="earth_":
 				var earth_role:String=cast_role
-				var progress:float=combat_travel_progress(t,cast_impact,f*.35)
+				var progress:float=combat_travel_progress_from_peak(t,particle_travel_peak,f*.35)
 				match earth_role:
 					"earth_dig":
-						q=points[-1]+Vector3(cos(angle)*t*.45,.08+sin(t*PI)*.55,sin(angle)*t*.45);size=.48
+						q=points[-1]+Vector3(cos(angle)*t*.45,.08+particle_phase_arc*.55,sin(angle)*t*.45);size=.48
 					"earth_tomb":
-						q=points[-1]+Vector3(cos(angle+t*TAU)*.48,.1+f*.48,sin(angle+t*TAU)*.48);size=.50
+						q=points[-1]+Vector3(cos(angle+particle_phase_turn)*.48,.1+f*.48,sin(angle+particle_phase_turn)*.48);size=.50
 					"earth_shot","earth_bomb","earth_slap","earth_dust":
 						q=combat_path_sample(points,progress,path_metrics)+Vector3(cos(angle)*.1,sin(progress*PI)*(.75 if earth_role=="earth_bomb" else .18),sin(angle)*.1);size=.74 if earth_role=="earth_bomb" else .35
 					"earth_return":
-						q=combat_path_sample(points,sin(t*PI),path_metrics)+Vector3(0,.24+sin(t*PI)*.28,0);size=.65
+						q=combat_path_sample(points,particle_phase_arc,path_metrics)+Vector3(0,.24+particle_phase_arc*.28,0);size=.65
 					"earth_power","earth_quake","earth_magnitude","earth_fissure":
-						q=tiles[j%tiles.size()]+Vector3(cos(angle)*.35,.07+sin(t*PI)*(.95 if earth_role=="earth_power" else .45),sin(angle)*.35);size=.58
+						q=tiles[j%tiles.size()]+Vector3(cos(angle)*.35,.07+particle_phase_arc*(.95 if earth_role=="earth_power" else .45),sin(angle)*.35);size=.58
 					"earth_spikes":
-						q=points[0]+Vector3(cos(angle)*.25,.05+sin(t*PI)*.22,sin(angle)*.25);size=.48
+						q=points[0]+Vector3(cos(angle)*.25,.05+particle_phase_arc*.22,sin(angle)*.25);size=.48
 					"earth_mudcoat":
 						q=points[0]+Vector3(cos(angle)*.4,.12+f*.5,sin(angle)*.4);size=.48
 					_:
 						q=points[-1]+Vector3(cos(angle)*.25,sin(angle)*.25,sin(angle)*.25);size=.65
 			if cast_family=="rock_":
 				var rock_role:String=cast_role
-				var progress:float=combat_travel_progress(t,cast_impact,f*.30)
+				var progress:float=combat_travel_progress_from_peak(t,particle_travel_peak,f*.30)
 				match rock_role:
 					"rock_throw","rock_blast","rock_gem","rock_wrecker","rock_ancient":
 						q=combat_path_sample(points,progress,path_metrics)+Vector3(cos(angle)*.12,sin(progress*PI)*(.85 if rock_role=="rock_throw" else .24),sin(angle)*.12)
@@ -16421,25 +16429,25 @@ func combat_fx_update(dt:float)->void:
 						q=points[-1]+Vector3(cos(angle)*.45,1.8*(1.0-progress),sin(angle)*.45)
 						size=.64
 					"rock_edge":
-						q=points[-1]+Vector3(cos(angle)*.28,.05+sin(t*PI)*.75,sin(angle)*.28);size=.70
+						q=points[-1]+Vector3(cos(angle)*.28,.05+particle_phase_arc*.75,sin(angle)*.28);size=.70
 					"rock_roll":
 						q=combat_path_sample(points,progress,path_metrics)+Vector3(0,.12,0);size=.72
 					"rock_smash":
 						q=points[-1]+Vector3(cos(angle)*t*.45,sin(angle)*.27,sin(angle)*t*.45);size=.70
 					"rock_polish":
-						q=points[0]+Vector3(cos(angle+t*TAU)*.4,.2+f*.55,sin(angle+t*TAU)*.4);size=.46
+						q=points[0]+Vector3(cos(angle+particle_phase_turn)*.4,.2+f*.55,sin(angle+particle_phase_turn)*.4);size=.46
 					"rock_storm":
-						q=points[0]+Vector3(cos(angle+t*TAU*2.0)*.75,.2+f*.8,sin(angle+t*TAU*2.0)*.75);size=.38
+						q=points[0]+Vector3(cos(angle+particle_phase_turn*2.0)*.75,.2+f*.8,sin(angle+particle_phase_turn*2.0)*.75);size=.38
 					"rock_trap":
 						q=points[0]+Vector3(cos(angle)*.42,.04+t*.12,sin(angle)*.42);size=.45
 			if cast_family=="fight_":
 				var fight_role:String=cast_role
-				var progress:float=combat_travel_progress(t,cast_impact,f*.30)
+				var progress:float=combat_travel_progress_from_peak(t,particle_travel_peak,f*.30)
 				match fight_role:
 					"fight_blast","fight_aura","fight_vacuum","fight_mach":
 						q=combat_path_sample(points,progress,path_metrics)+Vector3(0,.12,0);size=.85 if fight_role=="fight_blast" else .52
 					"fight_uppercut":
-						q=points[-1]+Vector3(cos(angle)*.18,sin(t*PI)*.9,sin(angle)*.18);size=.55
+						q=points[-1]+Vector3(cos(angle)*.18,particle_phase_arc*.9,sin(angle)*.18);size=.55
 					"fight_jumpkick","fight_highkick","fight_toss":
 						q=combat_path_sample(points,progress,path_metrics)+Vector3(0,sin(progress*PI)*(.95 if fight_role=="fight_highkick" else .55),0);size=.60
 					"fight_lowkick":
@@ -16449,14 +16457,14 @@ func combat_fx_update(dt:float)->void:
 					"fight_drain":
 						q=combat_path_sample(points,1.0-clampf((t-.35)*1.7-f*.2,0,1),path_metrics)+Vector3(cos(angle)*.14,.15,sin(angle)*.14);size=.42
 					"fight_bulk","fight_detect","fight_counter","fight_revenge","fight_vital":
-						q=points[0]+Vector3(cos(angle+t*TAU)*.38,.15+f*.6,sin(angle+t*TAU)*.38);size=.55
+						q=points[0]+Vector3(cos(angle+particle_phase_turn)*.38,.15+f*.6,sin(angle+particle_phase_turn)*.38);size=.55
 					"fight_submission","fight_roundkick":
-						q=points[-1]+Vector3(cos(angle+t*TAU)*.38,.15,sin(angle+t*TAU)*.38);size=.58
+						q=points[-1]+Vector3(cos(angle+particle_phase_turn)*.38,.15,sin(angle+particle_phase_turn)*.38);size=.58
 					_:
 						q=points[-1]+Vector3(cos(angle)*.27,sin(angle)*.25,sin(angle)*.27);size=.56
 			if cast_family=="air_":
 				var air_role:String=cast_role
-				var progress:float=combat_travel_progress(t,cast_impact,f*.30)
+				var progress:float=combat_travel_progress_from_peak(t,particle_travel_peak,f*.30)
 				match air_role:
 					"air_cutter","air_gust","air_blast":
 						q=combat_path_sample(points,progress,path_metrics)+Vector3(cos(angle)*.12,.2+sin(angle)*.16,sin(angle)*.12);size=.84 if air_role=="air_blast" else .48
@@ -16465,33 +16473,33 @@ func combat_fx_update(dt:float)->void:
 					"air_sky":
 						q=points[-1]+Vector3(cos(angle)*.18,2.0*(1.0-progress),sin(angle)*.18);size=.78
 					"air_tailwind","air_roost","air_mirror":
-						q=points[0]+Vector3(cos(angle+t*TAU)*.42,.1+f*.58,sin(angle+t*TAU)*.42);size=.50
+						q=points[0]+Vector3(cos(angle+particle_phase_turn)*.42,.1+f*.58,sin(angle+particle_phase_turn)*.42);size=.50
 					"air_defog","air_chatter":
 						q=tiles[j%tiles.size()]+Vector3(cos(angle)*t*.43,.25+f*.35,sin(angle)*t*.43);size=.46
 					"air_feather":
-						q=points[-1]+Vector3(cos(angle+t*TAU)*.4,1.1*(1.0-progress),sin(angle+t*TAU)*.4);size=.40
+						q=points[-1]+Vector3(cos(angle+particle_phase_turn)*.4,1.1*(1.0-progress),sin(angle+particle_phase_turn)*.4);size=.40
 					"air_drill":
-						q=points[-1]+Vector3(cos(angle+t*TAU*2.0)*.22,.2,sin(angle+t*TAU*2.0)*.22);size=.55
+						q=points[-1]+Vector3(cos(angle+particle_phase_turn*2.0)*.22,.2,sin(angle+particle_phase_turn*2.0)*.22);size=.55
 					_:
 						q=points[-1]+Vector3(cos(angle)*.25,sin(angle)*.24,sin(angle)*.25);size=.53
 			if cast_family=="poison_":
 				var poison_role:String=cast_role
-				var progress:float=combat_travel_progress(t,cast_impact,f*.30)
+				var progress:float=combat_travel_progress_from_peak(t,particle_travel_peak,f*.30)
 				match poison_role:
 					"poison_bomb","poison_gunk","poison_sludge","poison_acid","poison_gastro","poison_sting":
 						q=combat_path_sample(points,progress,path_metrics)+Vector3(cos(angle)*.10,sin(progress*PI)*(.75 if poison_role=="poison_bomb" else .18),sin(angle)*.10)
 						size=.84 if poison_role=="poison_gunk" else .48
 					"poison_armor":
-						q=points[0]+Vector3(cos(angle+t*TAU)*.38,.12+f*.62,sin(angle+t*TAU)*.38);size=.52
+						q=points[0]+Vector3(cos(angle+particle_phase_turn)*.38,.12+f*.62,sin(angle+particle_phase_turn)*.38);size=.52
 					"poison_spikes":
-						q=tiles[j%tiles.size()]+Vector3(cos(angle)*.32,.04+sin(t*PI)*.13,sin(angle)*.32);size=.42
+						q=tiles[j%tiles.size()]+Vector3(cos(angle)*.32,.04+particle_phase_arc*.13,sin(angle)*.32);size=.42
 					"poison_smog","poison_gas","poison_powder","poison_toxic":
 						q=points[-1]+Vector3(cos(angle+t)*(.18+t*.35),.08+f*.56,sin(angle+t)*(.18+t*.35));size=.43
 					_:
 						q=points[-1]+Vector3(cos(angle)*.23,.15+sin(angle)*.18,sin(angle)*.23);size=.54
 			if cast_family=="bug_":
 				var bug_role:String=cast_role
-				var progress:float=combat_travel_progress(t,cast_impact,f*.30)
+				var progress:float=combat_travel_progress_from_peak(t,particle_travel_peak,f*.30)
 				match bug_role:
 					"bug_string","bug_signal","bug_twin","bug_pin","bug_horn":
 						q=combat_path_sample(points,progress,path_metrics)+Vector3(cos(angle)*.10,.12+sin(angle)*.12,sin(angle)*.10)
@@ -16501,16 +16509,16 @@ func combat_fx_update(dt:float)->void:
 					"bug_turn":
 						q=combat_path_sample(points,1.0-absf(2.0*progress-1.0),path_metrics)+Vector3(0,sin(progress*PI)*.48,0);size=.55
 					"bug_glow","bug_heal","bug_defend":
-						q=points[0]+Vector3(cos(angle+t*TAU)*.38,.12+f*.6,sin(angle+t*TAU)*.38);size=.45
+						q=points[0]+Vector3(cos(angle+particle_phase_turn)*.38,.12+f*.6,sin(angle+particle_phase_turn)*.38);size=.45
 					"bug_silver","bug_attack","bug_buzz":
-						q=tiles[j%tiles.size()]+Vector3(cos(angle+t*TAU)*.33,.2+sin(angle)*.18,sin(angle+t*TAU)*.33);size=.49
+						q=tiles[j%tiles.size()]+Vector3(cos(angle+particle_phase_turn)*.33,.2+sin(angle)*.18,sin(angle+particle_phase_turn)*.33);size=.49
 					"bug_web":
 						q=points[-1]+Vector3(cos(angle)*t*.4,.12+f*.28,sin(angle)*t*.4);size=.58
 					_:
 						q=points[-1]+Vector3(cos(angle)*.22,.15+sin(angle)*.18,sin(angle)*.22);size=.53
 			if cast_family=="psi_":
 				var psi_role:String=cast_role
-				var progress:float=combat_travel_progress(t,cast_impact,f*.30)
+				var progress:float=combat_travel_progress_from_peak(t,particle_travel_peak,f*.30)
 				match psi_role:
 					"psi_beam","psi_wave","psi_mist","psi_luster","psi_cut","psi_zen":
 						q=combat_path_sample(points,progress,path_metrics)+Vector3(cos(angle)*.10,.15+sin(angle)*.12,sin(angle)*.10);size=.58
@@ -16521,12 +16529,12 @@ func combat_fx_update(dt:float)->void:
 					"psi_gravity","psi_room","psi_block","psi_agility","psi_wish","psi_lunar":
 						q=tiles[j%tiles.size()]+Vector3(cos(angle)*.30,1.4*(1.0-progress) if psi_role=="psi_gravity" else .15+f*.45,sin(angle)*.30);size=.52
 					"psi_cosmic","psi_teleport","psi_amnesia","psi_rest","psi_barrier","psi_screen","psi_magic","psi_mirror","psi_future","psi_calm","psi_meditate","psi_reflect","psi_powertrick":
-						q=points[0]+Vector3(cos(angle+t*TAU)*.40,.12+f*.65,sin(angle+t*TAU)*.40);size=.50
+						q=points[0]+Vector3(cos(angle+particle_phase_turn)*.40,.12+f*.65,sin(angle+particle_phase_turn)*.40);size=.50
 					_:
-						q=points[-1]+Vector3(cos(angle+t*TAU)*.32,.15+f*.42,sin(angle+t*TAU)*.32);size=.52
+						q=points[-1]+Vector3(cos(angle+particle_phase_turn)*.32,.15+f*.42,sin(angle+particle_phase_turn)*.32);size=.52
 			if cast_family=="ghost_":
 				var ghost_role:String=cast_role
-				var progress:float=combat_travel_progress(t,cast_impact,f*.30)
+				var progress:float=combat_travel_progress_from_peak(t,particle_travel_peak,f*.30)
 				match ghost_role:
 					"ghost_ball","ghost_confuse","ghost_punch","ghost_lick":
 						q=combat_path_sample(points,progress,path_metrics)+Vector3(cos(angle)*.11,.14+sin(angle)*.10,sin(angle)*.11);size=.65 if ghost_role=="ghost_ball" else .46
@@ -16535,16 +16543,16 @@ func combat_fx_update(dt:float)->void:
 					"ghost_force":
 						q=points[-1]+Vector3(cos(angle)*.20,1.4*(1.0-progress),sin(angle)*.20);size=.68
 					"ghost_grudge":
-						q=points[0]+Vector3(cos(angle+t*TAU)*.38,.12+f*.65,sin(angle+t*TAU)*.38);size=.49
+						q=points[0]+Vector3(cos(angle+particle_phase_turn)*.38,.12+f*.65,sin(angle+particle_phase_turn)*.38);size=.49
 					"ghost_bond":
 						q=combat_path_sample(points,f,path_metrics)+Vector3(0,.15+sin(t*TAU+f*TAU)*.15,0);size=.40
 					"ghost_wind","ghost_shade":
-						q=tiles[j%tiles.size()]+Vector3(cos(angle+t*TAU)*.36,.16+f*.48,sin(angle+t*TAU)*.36);size=.52
+						q=tiles[j%tiles.size()]+Vector3(cos(angle+particle_phase_turn)*.36,.16+f*.48,sin(angle+particle_phase_turn)*.36);size=.52
 					_:
-						q=points[-1]+Vector3(cos(angle+t*TAU)*.30,.18+f*.42,sin(angle+t*TAU)*.30);size=.51
+						q=points[-1]+Vector3(cos(angle+particle_phase_turn)*.30,.18+f*.42,sin(angle+particle_phase_turn)*.30);size=.51
 			if cast_family=="dragon_":
 				var dragon_role:String=cast_role
-				var progress:float=combat_travel_progress(t,cast_impact,f*.30)
+				var progress:float=combat_travel_progress_from_peak(t,particle_travel_peak,f*.30)
 				match dragon_role:
 					"dragon_breath","dragon_flame","dragon_pulse","dragon_rush":
 						q=combat_path_sample(points,progress,path_metrics)+Vector3(cos(angle)*.12,.18+sin(angle)*.12,sin(angle)*.12);size=.76 if dragon_role=="dragon_rush" else .56
@@ -16553,14 +16561,14 @@ func combat_fx_update(dt:float)->void:
 					"dragon_rend","dragon_time":
 						q=tiles[j%tiles.size()]+Vector3(cos(angle)*.30,.2+f*.46,sin(angle)*.30);size=.60
 					"dragon_twister":
-						q=points[-1]+Vector3(cos(angle+t*TAU*2.0)*.32,.1+f*.85,sin(angle+t*TAU*2.0)*.32);size=.48
+						q=points[-1]+Vector3(cos(angle+particle_phase_turn*2.0)*.32,.1+f*.85,sin(angle+particle_phase_turn*2.0)*.32);size=.48
 					"dragon_dance":
-						q=points[0]+Vector3(cos(angle+t*TAU)*.42,.12+f*.62,sin(angle+t*TAU)*.42);size=.46
+						q=points[0]+Vector3(cos(angle+particle_phase_turn)*.42,.12+f*.62,sin(angle+particle_phase_turn)*.42);size=.46
 					_:
 						q=points[-1]+Vector3(cos(angle)*.28,.18+sin(angle)*.25,sin(angle)*.28);size=.56
 			if cast_family=="dark_":
 				var dark_role:String=cast_role
-				var progress:float=combat_travel_progress(t,cast_impact,f*.30)
+				var progress:float=combat_travel_progress_from_peak(t,particle_travel_peak,f*.30)
 				match dark_role:
 					"dark_faint","dark_sucker","dark_fling":
 						q=combat_path_sample(points,progress,path_metrics)+Vector3(0,sin(progress*PI)*(.8 if dark_role=="dark_fling" else .2),0);size=.55
@@ -16569,73 +16577,73 @@ func combat_fx_update(dt:float)->void:
 					"dark_switch":
 						q=combat_path_sample(points,progress if j%2==0 else 1.0-progress,path_metrics)+Vector3(0,sin(progress*PI)*(.48 if j%2==0 else .20),0);size=.43
 					"dark_pulse","dark_void","dark_memento","dark_beat":
-						q=tiles[j%tiles.size()]+Vector3(cos(angle+t*TAU)*.34,.12+f*.5,sin(angle+t*TAU)*.34);size=.55
+						q=tiles[j%tiles.size()]+Vector3(cos(angle+particle_phase_turn)*.34,.12+f*.5,sin(angle+particle_phase_turn)*.34);size=.55
 					"dark_pursuit","dark_payback","dark_plot":
-						q=points[0]+Vector3(cos(angle+t*TAU)*.4,.12+f*.65,sin(angle+t*TAU)*.4);size=.47
+						q=points[0]+Vector3(cos(angle+particle_phase_turn)*.4,.12+f*.65,sin(angle+particle_phase_turn)*.4);size=.47
 					"dark_tears":
 						q=points[-1]+Vector3(cos(angle)*.22,.8*(1.0-progress),sin(angle)*.22);size=.35
 					_:
-						q=points[-1]+Vector3(cos(angle+t*TAU)*.26,.16+f*.36,sin(angle+t*TAU)*.26);size=.52
+						q=points[-1]+Vector3(cos(angle+particle_phase_turn)*.26,.16+f*.36,sin(angle+particle_phase_turn)*.26);size=.52
 			if cast_family=="steel_":
 				var steel_role:String=cast_role
-				var progress:float=combat_travel_progress(t,cast_impact,f*.30)
+				var progress:float=combat_travel_progress_from_peak(t,particle_travel_peak,f*.30)
 				match steel_role:
 					"steel_meteor","steel_bullet","steel_flash","steel_mirror","steel_magnet","steel_gyro","steel_sound":
 						q=combat_path_sample(points,progress,path_metrics)+Vector3(cos(angle)*.10,.15+sin(progress*PI)*(.65 if steel_role=="steel_magnet" else .13),sin(angle)*.10);size=.67 if steel_role=="steel_flash" else .49
 					"steel_doom","steel_defense","steel_burst":
-						q=points[0]+Vector3(cos(angle+t*TAU)*.38,.12+f*.65,sin(angle+t*TAU)*.38);size=.50
+						q=points[0]+Vector3(cos(angle+particle_phase_turn)*.38,.12+f*.65,sin(angle+particle_phase_turn)*.38);size=.50
 					"steel_tail","steel_wing","steel_claw","steel_head":
-						q=points[-1]+Vector3(cos(angle+t*TAU)*.28,.16+sin(angle)*.20,sin(angle+t*TAU)*.28);size=.56
+						q=points[-1]+Vector3(cos(angle+particle_phase_turn)*.28,.16+sin(angle)*.20,sin(angle+particle_phase_turn)*.28);size=.56
 			if cast_family=="normal_":
 				var normal_role:String=cast_role
-				var progress:float=combat_travel_progress(t,cast_impact,f*.30)
+				var progress:float=combat_travel_progress_from_peak(t,particle_travel_peak,f*.30)
 				match normal_role:
 					"normal_extreme","normal_quick","normal_tackle","normal_takedown","normal_edge","normal_giga","normal_headbutt","normal_skull","normal_feint","normal_horn","normal_drill","normal_furyattack":
 						q=combat_path_sample(points,progress,path_metrics)+Vector3(cos(angle)*.10,.16+sin(progress*PI)*.16,sin(angle)*.10);size=.76 if normal_role=="normal_giga" else .53
 					"normal_stomp","normal_megakick","normal_slam","normal_body","normal_climb":
 						q=points[-1]+Vector3(cos(angle)*.22,1.0*(1.0-progress),sin(angle)*.22);size=.58
 					"normal_bide":
-						q=points[0]+Vector3(cos(angle+t*TAU)*.40,.12+f*.6,sin(angle+t*TAU)*.40);size=.50
+						q=points[0]+Vector3(cos(angle+particle_phase_turn)*.40,.12+f*.6,sin(angle+particle_phase_turn)*.40);size=.50
 					"normal_cut","normal_thrash":
-						q=tiles[j%tiles.size()]+Vector3(cos(angle+t*TAU)*.28,.16+f*.3,sin(angle+t*TAU)*.28);size=.54
+						q=tiles[j%tiles.size()]+Vector3(cos(angle+particle_phase_turn)*.28,.16+f*.3,sin(angle+particle_phase_turn)*.28);size=.54
 					"normal_constrict","normal_bind","normal_wrap","normal_spin":
-						q=points[-1]+Vector3(cos(angle+t*TAU)*.38,.12+f*.55,sin(angle+t*TAU)*.38);size=.48
+						q=points[-1]+Vector3(cos(angle+particle_phase_turn)*.38,.12+f*.55,sin(angle+particle_phase_turn)*.38);size=.48
 					_:
-						q=points[-1]+Vector3(cos(angle+t*TAU)*.26,.16+f*.36,sin(angle+t*TAU)*.26);size=.52
+						q=points[-1]+Vector3(cos(angle+particle_phase_turn)*.26,.16+f*.36,sin(angle+particle_phase_turn)*.26);size=.52
 			if cast_family=="neutral_":
 				var neutral_role:String=cast_role
-				var progress:float=combat_travel_progress(t,cast_impact,f*.30)
+				var progress:float=combat_travel_progress_from_peak(t,particle_travel_peak,f*.30)
 				match neutral_role:
 					"neutral_self","neutral_explosion","neutral_vacuum","neutral_wide":
-						q=tiles[j%tiles.size()]+Vector3(cos(angle+t*TAU)*.35,.15+f*.6,sin(angle+t*TAU)*.35);size=.76 if neutral_role=="neutral_explosion" else .55
+						q=tiles[j%tiles.size()]+Vector3(cos(angle+particle_phase_turn)*.35,.15+f*.6,sin(angle+particle_phase_turn)*.35);size=.76 if neutral_role=="neutral_explosion" else .55
 					"neutral_egg","neutral_present","neutral_trump","neutral_pay":
 						q=combat_path_sample(points,progress,path_metrics)+Vector3(0,sin(progress*PI)*.75,0);size=.50
 					"neutral_covet":
 						q=combat_path_sample(points,1.0-progress,path_metrics)+Vector3(0,.15+sin(progress*PI)*.4,0);size=.43
 					"neutral_wring":
-						q=points[-1]+Vector3(cos(angle+t*TAU)*.3,.12+f*.6,sin(angle+t*TAU)*.3);size=.53
+						q=points[-1]+Vector3(cos(angle+particle_phase_turn)*.3,.12+f*.6,sin(angle+particle_phase_turn)*.3);size=.53
 					"neutral_snore":
-						q=points[0]+Vector3(cos(angle+t*TAU)*.4,.15+f*.5,sin(angle+t*TAU)*.4);size=.43
+						q=points[0]+Vector3(cos(angle+particle_phase_turn)*.4,.15+f*.5,sin(angle+particle_phase_turn)*.4);size=.43
 					_:
 						q=combat_path_sample(points,progress,path_metrics)+Vector3(cos(angle)*.11,.14+sin(angle)*.15,sin(angle)*.11);size=.75 if neutral_role=="neutral_beam" else .48
 			if cast_family=="support_":
 				var support_role:String=cast_role
-				var progress:float=combat_travel_progress(t,cast_impact,f*.30)
+				var progress:float=combat_travel_progress_from_peak(t,particle_travel_peak,f*.30)
 				match support_role:
 					"support_pain","support_psych":
 						q=combat_path_sample(points,progress if j%2==0 else 1.0-progress,path_metrics)+Vector3(0,.15+sin(progress*PI)*.45,0);size=.43
 					"support_sun","support_moon","support_bell","support_safeguard","support_egg","support_help","support_milk","support_refresh","support_lucky","support_acu":
-						q=tiles[j%tiles.size()]+Vector3(cos(angle+t*TAU)*.32,.12+f*.65,sin(angle+t*TAU)*.32);size=.48
+						q=tiles[j%tiles.size()]+Vector3(cos(angle+particle_phase_turn)*.32,.12+f*.65,sin(angle+particle_phase_turn)*.32);size=.48
 					_:
-						q=points[0]+Vector3(cos(angle+t*TAU)*.38,.12+f*.6,sin(angle+t*TAU)*.38);size=.46
+						q=points[0]+Vector3(cos(angle+particle_phase_turn)*.38,.12+f*.6,sin(angle+particle_phase_turn)*.38);size=.46
 			if cast_family=="status_":
 				var status_role:String=cast_role
-				var progress:float=combat_travel_progress(t,cast_impact,f*.30)
+				var progress:float=combat_travel_progress_from_peak(t,particle_travel_peak,f*.30)
 				match status_role:
 					"status_convert","status_convert2","status_transform","status_camo","status_talk","status_metronome","status_assist","status_nature","status_recycle":
-						q=points[0]+Vector3(cos(angle+t*TAU)*.38,.12+f*.65,sin(angle+t*TAU)*.38);size=.47
+						q=points[0]+Vector3(cos(angle+particle_phase_turn)*.38,.12+f*.65,sin(angle+particle_phase_turn)*.38);size=.47
 					"status_lovely","status_scent","status_odor","status_uproar","status_growl","status_dance","status_perish","status_baton":
-						q=tiles[j%tiles.size()]+Vector3(cos(angle+t*TAU)*.3,.12+f*.55,sin(angle+t*TAU)*.3);size=.46
+						q=tiles[j%tiles.size()]+Vector3(cos(angle+particle_phase_turn)*.3,.12+f*.55,sin(angle+particle_phase_turn)*.3);size=.46
 					"status_sketch","status_mimic","status_copycat","status_first":
 						q=combat_path_sample(points,1.0-progress,path_metrics)+Vector3(0,.15+sin(progress*PI)*.4,0);size=.44
 					"status_sing","status_supersonic","status_screech","status_roar","status_whirl":
@@ -16643,14 +16651,14 @@ func combat_fx_update(dt:float)->void:
 					"status_splash":
 						q=points[0]+Vector3(cos(angle)*.25,.12+absf(sin(t*TAU))*.6,sin(angle)*.25);size=.42
 					_:
-						q=points[-1]+Vector3(cos(angle+t*TAU)*.28,.15+f*.5,sin(angle+t*TAU)*.28);size=.46
+						q=points[-1]+Vector3(cos(angle+particle_phase_turn)*.28,.15+f*.5,sin(angle+particle_phase_turn)*.28);size=.46
 			# Drained energy travels from victim back to caster; healing stays on caster.
 			if cast_role=="drain" and t>=.40:
 				var back:float=clampf((t-.40)*2.0-f*.22,0.0,1.0)
 				q=combat_path_sample(points,1.0-back,path_metrics)+Vector3(cos(angle)*.10,.15+sin(back*PI)*.35,sin(angle)*.10)
 				size=.32+f*.18
 			elif cast_role=="heal":
-				var radius:float=.12+sin(t*PI)*.38
+				var radius:float=.12+particle_phase_arc*.38
 				q=points[0]+Vector3(cos(angle)*radius,.12+t*.65,sin(angle)*radius)
 				size=.36
 			if particle.billboard!=BaseMaterial3D.BILLBOARD_ENABLED:particle.billboard=BaseMaterial3D.BILLBOARD_ENABLED
