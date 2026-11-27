@@ -8561,6 +8561,31 @@ func rtdx_directional_stamp(used:int,at:Vector3,mode:String,light:Color,dark:Col
 			particle.global_transform=Transform3D(camera.global_transform.basis*Basis(Vector3.BACK,-direction.angle()).scaled(Vector3.ONE*size_value),particle.global_position)
 	return next
 
+# A single target-selection contract for all evidence-driven finishes.
+# Affected cells are sorted independently of dictionary insertion order.
+func rtdx_confirmed_cells(burst:Dictionary,effect_only:bool=false)->Array[Vector2i]:
+	var cells:Array[Vector2i]=[]
+	var points:Array=burst.get("points",[])
+	if points.is_empty():return cells
+	var target:Vector3=points[-1]
+	var primary:=Vector2i(roundi(target.x/1.4),roundi(target.z/1.4))
+	var results:Dictionary=burst.get("results",{})
+	for cell in results:
+		if not cell is Vector2i:continue
+		var row:Dictionary=results[cell]
+		if int(row.get("effects" if effect_only else "damage",0))>0:cells.append(cell)
+	cells.sort_custom(func(a:Vector2i,b:Vector2i)->bool:
+		var da:int=(a-primary).length_squared()
+		var db:int=(b-primary).length_squared()
+		if da!=db:return da<db
+		if a.x!=b.x:return a.x<b.x
+		return a.y<b.y)
+	return cells
+
+func rtdx_cell_anchor(target:Vector3,cell:Vector2i)->Vector3:
+	var primary:=Vector2i(roundi(target.x/1.4),roundi(target.z/1.4))
+	return target if cell==primary else pos(cell)+Vector3.UP*.55
+
 # V15: visible shapes grounded in linked DX stills. Animation timing and
 # exact particle count are Kindria approximations pending temporal evidence.
 func rtdx_observed_stage_fx(burst:Dictionary,t:float,used:int)->int:
@@ -8627,19 +8652,9 @@ func rtdx_observed_stage_fx(burst:Dictionary,t:float,used:int)->int:
 			q+=forward*(.08+after*.23)+lateral*(f-.5)*(.25+after*.35)+Vector3.UP*(.20+f*.42+after*.18)
 			used=environment_particle(used,q,"rtdx_dust",Color("#d5cbb6"),Color("#88827a"),.95+f*.36+after*.32,fade*.72)
 		if t>=peak and after<.85:
-			var results:Dictionary=burst.get("results",{})
-			var primary:=Vector2i(roundi(target.x/1.4),roundi(target.z/1.4))
-			var cells:Array[Vector2i]=[]
-			for cell in results:
-				if cell is Vector2i and int(results[cell].get("effects",0))>0:cells.append(cell)
-			cells.sort_custom(func(a:Vector2i,b:Vector2i)->bool:
-				var da:int=(a-primary).length_squared()
-				var db:int=(b-primary).length_squared()
-				if da!=db:return da<db
-				if a.x!=b.x:return a.x<b.x
-				return a.y<b.y)
+			var cells:Array[Vector2i]=rtdx_confirmed_cells(burst,true)
 			for i in range(mini(5,cells.size())):
-				var at:Vector3=target if cells[i]==primary else pos(cells[i])+Vector3.UP*.55
+				var at:Vector3=rtdx_cell_anchor(target,cells[i])
 				used=environment_particle(used,at+Vector3.UP*(.65-after*.4),"support_down",Color("#ffe05a"),Color("#be9228"),.80,1.0-after/.85)
 		return used
 	elif id=="eos_151":
@@ -8652,29 +8667,20 @@ func rtdx_observed_stage_fx(burst:Dictionary,t:float,used:int)->int:
 				used=rtdx_directional_stamp(used,q,"rtdx_solar",Color.WHITE,Color("#ffdf3a"),.90,minf(1.0,progress*10.0),source,target)
 			used=environment_particle(used,head,"rtdx_glint",Color.WHITE,Color("#fff17b"),.78,minf(1.0,progress*12.0))
 		elif after<.55:
-			var confirmed:Variant=confirmed_stage_target(burst,true)
-			if confirmed!=null:used=environment_particle(used,confirmed,"rtdx_glint",Color.WHITE,Color("#ffdf3a"),1.05,1.0-after/.55)
+			var cells:Array[Vector2i]=rtdx_confirmed_cells(burst)
+			for i in range(mini(5,cells.size())):
+				used=environment_particle(used,rtdx_cell_anchor(target,cells[i]),"rtdx_glint",Color.WHITE,Color("#ffdf3a"),1.05,1.0-after/.55)
 		return used
 	elif id in ["eos_036","eos_092","eos_109","eos_108"]:
 		if t<peak or after>=.78:return used
 		# Every mark is anchored to a confirmed victim. No duplicate generic
 		# contact icons and no global pink overlay from an unverified still.
-		var cells:Array[Vector2i]=[]
-		var results:Dictionary=burst.get("results",{})
-		var primary:=Vector2i(roundi(target.x/1.4),roundi(target.z/1.4))
-		for cell in results:
-			if cell is Vector2i and int(results[cell].get("damage",0))>0:cells.append(cell)
-		cells.sort_custom(func(a:Vector2i,b:Vector2i)->bool:
-			var da:int=(a-primary).length_squared()
-			var db:int=(b-primary).length_squared()
-			if da!=db:return da<db
-			if a.x!=b.x:return a.x<b.x
-			return a.y<b.y)
+		var cells:Array[Vector2i]=rtdx_confirmed_cells(burst)
 		var fade:float=1.0-after/.78
 		var right:=Vector3.RIGHT
 		if is_instance_valid(camera):right=camera.global_transform.basis.x.normalized()
 		for i in range(mini(5,cells.size())):
-			var at:Vector3=target if cells[i]==primary else pos(cells[i])+Vector3.UP*.55
+			var at:Vector3=rtdx_cell_anchor(target,cells[i])
 			match id:
 				"eos_036":
 					for j in [-1.0,1.0]:
@@ -8698,9 +8704,9 @@ func rtdx_observed_stage_fx(burst:Dictionary,t:float,used:int)->int:
 		return used
 	elif id in ["eos_260","eos_174"]:
 		if t>=peak and after<.68:
-			var confirmed:Variant=confirmed_stage_target(burst,true)
-			if confirmed!=null:
-				var at:Vector3=confirmed
+			var cells:Array[Vector2i]=rtdx_confirmed_cells(burst)
+			for hit_index in range(mini(5,cells.size())):
+				var at:Vector3=rtdx_cell_anchor(target,cells[hit_index])
 				var fade:float=1.0-after/.68
 				if id=="eos_260":
 					used=environment_particle(used,at,"rtdx_scratch",Color.WHITE,Color("#bcdfff"),1.22,fade)
@@ -8714,19 +8720,9 @@ func rtdx_observed_stage_fx(burst:Dictionary,t:float,used:int)->int:
 	if t>=peak and after<.48:
 		# One localized reaction per confirmed damaged tile, never an impact
 		# on a missed primary or an arbitrary empty tile.
-		var results:Dictionary=burst.get("results",{})
-		var primary:=Vector2i(roundi(target.x/1.4),roundi(target.z/1.4))
-		var cells:Array[Vector2i]=[]
-		for cell in results:
-			if cell is Vector2i and int(results[cell].get("damage",0))>0:cells.append(cell)
-		cells.sort_custom(func(a:Vector2i,b:Vector2i)->bool:
-			var da:int=(a-primary).length_squared()
-			var db:int=(b-primary).length_squared()
-			if da!=db:return da<db
-			if a.x!=b.x:return a.x<b.x
-			return a.y<b.y)
+		var cells:Array[Vector2i]=rtdx_confirmed_cells(burst,false)
 		for i in range(mini(5,cells.size())):
-			var at:Vector3=target if cells[i]==primary else pos(cells[i])+Vector3.UP*.55
+			var at:Vector3=rtdx_cell_anchor(target,cells[i])
 			var light:=Color("#fff8d7") if id=="eos_530" else Color("#9ef6ff") if id=="eos_149" else Color("#fff087") if id=="eos_262" else Color.WHITE
 			var dark:=Color("#ffb535") if id=="eos_530" else Color("#286bff") if id=="eos_149" else Color("#ff5d0c") if id=="eos_262" else Color("#7abaff")
 			used=environment_particle(used,at,"impact_star",light,dark,.49,(1.0-after/.48)*.85)

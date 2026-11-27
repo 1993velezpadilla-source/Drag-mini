@@ -18,8 +18,12 @@
     {
       "name": "Aurora Veil",
       "page": "https://archives.bulbagarden.net/wiki/File:Aurora_Veil_PMD_RTDX.png",
-      "status": "indexed_uninspected",
-      "timing_verified": false
+      "status": "still_inspected",
+      "timing_verified": false,
+      "image": "https://archives.bulbagarden.net/media/upload/thumb/2/26/Aurora_Veil_PMD_RTDX.png/800px-Aurora_Veil_PMD_RTDX.png",
+      "observation": "Broad pale luminous veil across upper dungeon scene; white/cyan four-point glints and smaller snowflake-like motes. Hail is active in the HUD, so not all snow particles can be attributed to the move. Caster and allied actors remain visible. Single still cannot establish duration, movement, or affected area.",
+      "kindria_id": null,
+      "mapping_status": "No exact EOS catalog counterpart established; do not substitute another ice move."
     },
     {
       "name": "Brutal Swing",
@@ -55,7 +59,8 @@
       "status": "image_fetch_failed",
       "timing_verified": false,
       "kindria_id": "eos_217",
-      "v15_3_source_status": "Archive page opened; image fetch failed again. No visual design inferred."
+      "v15_3_source_status": "Archive page opened; image fetch failed again. No visual design inferred.",
+      "v15_5_source_status": "File page confirmed; image fetch failed again."
     },
     {
       "name": "Hyper Beam",
@@ -64,7 +69,10 @@
       "timing_verified": false,
       "kindria_id": "eos_242",
       "v15_3_source_status": "Archive page opened; image fetch failed again. No visual design inferred.",
-      "source_quality": "Archive flags image as needing direct capture."
+      "source_quality": "Archive flags image as needing direct capture.",
+      "v15_5_source_status": "File page confirmed; image fetch failed again.",
+      "source_variant": "Rayquaza according to file description; do not infer normal-size animation.",
+      "image": "https://archives.bulbagarden.net/media/upload/d/d1/Hyper_Beam_PMD_RTDX.png"
     },
     {
       "name": "Laser Focus",

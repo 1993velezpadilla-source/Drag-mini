@@ -1043,6 +1043,25 @@ func run()->void:
 	assert(field.rtdx_observed_stage_fx(buzz_burst,buzz_phase,Field.FX_PARTICLE_CAP)==Field.FX_PARTICLE_CAP)
 	for particle in field.combat_particles:particle.hide()
 	print("KINDRIA_V15_MULTI_TARGET_PASS")
+	# V15.5: one ordering and confirmation contract, including contact
+	# and solar effects. No false marks for healing, status or missed cells.
+	for move_id in ["eos_260","eos_174","eos_151"]:
+		var p:Dictionary=field.combat_profile(move_id)
+		var peak:float=float(p.impact)
+		var burst:Dictionary={"id":move_id,"profile":p,"points":[special_source,bite_position],"results":{secondary_tile:{"damage":8},target:{"misses":1},origin:{"damage":4}}}
+		var cells:Array[Vector2i]=field.rtdx_confirmed_cells(burst)
+		assert(cells.size()==2 and not cells.has(target),move_id)
+		var phase:float=lerpf(peak,1.0,.20)
+		for particle in field.combat_particles:particle.hide()
+		var used:int=field.rtdx_observed_stage_fx(burst,phase,0)
+		assert(used==8 if move_id=="eos_260" else used==2,move_id)
+		burst.results={origin:{"damage":4},target:{"misses":1},secondary_tile:{"damage":8}}
+		assert(field.rtdx_confirmed_cells(burst)==cells,move_id)
+		burst.results={target:{"heal":4},secondary_tile:{"effects":1}}
+		assert(field.rtdx_observed_stage_fx(burst,phase,0)==0,move_id)
+		assert(field.rtdx_confirmed_cells(burst,true)==[secondary_tile],move_id)
+	for particle in field.combat_particles:particle.hide()
+	print("KINDRIA_V15_CONTACT_TARGET_CONTRACT_PASS 3")
 	var plan:Array=[
 		{"stage":"ally_invoke","anchor":"source","start":0.0,"end":.15,"enabled":true},
 		{"stage":"enemy_invoke","anchor":"source","start":0.0,"end":.15,"enabled":true},
