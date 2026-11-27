@@ -11,6 +11,25 @@ func run_checks()->void:
 	var checks:int=0
 	var failures:Array[String]=[]
 	var view:=Dungeon.new()
+	# V19.2: verify analytic flight apex, landing, bounce and ground clearance.
+	for landing in [.35,.58,.72,.90]:
+		for height in [.2,.6,1.1]:
+			for bounce in [0.0,.12,.20]:
+				var start:=view.material_flight_sample(0.0,landing,height,bounce)
+				var apex:=view.material_flight_sample(landing*.5,landing,height,bounce)
+				var contact:=view.material_flight_sample(landing,landing,height,bounce)
+				var end:=view.material_flight_sample(1.0,landing,height,bounce)
+				if start.distance_to(Vector3.ZERO)>.00001:failures.append("material flight start")
+				if absf(apex.x-height)>.00001 or apex.z!=0.0:failures.append("material flight apex")
+				if absf(contact.x)>.00001 or absf(contact.y-1.0)>.00001 or contact.z!=1.0:failures.append("material landing")
+				if absf(end.x)>.00001 or end.z!=1.0:failures.append("material settling")
+				checks+=4
+				var previous:float=0.0
+				for step in range(101):
+					var sample:=view.material_flight_sample(float(step)/100.0,landing,height,bounce)
+					if not sample.is_finite() or sample.x<-.00001 or sample.y<previous-.00001:failures.append("material flight continuity")
+					previous=sample.y
+					checks+=1
 	# V19 power scaling is monotonic, bounded and neutral for variable-power moves.
 	var previous_power:=Vector3.ZERO
 	for power in range(1,61):
