@@ -2735,6 +2735,14 @@ func execute_move(id:String,aim:Vector2i,releasing:bool,invocation_id:String="",
 			record_cast_result(target,dealt_total,landed,changed,last_critical_hits>critical_before)
 			if landed and changed and not status_after.is_empty() and status_after!=status_before:
 				player_cast_results[target]["status"]=status_after
+				# Preserve the status delta on the attempt that actually caused it.
+				var before_tags:PackedStringArray=status_before.split(" · ",false)
+				var new_tags:PackedStringArray=[]
+				for tag in status_after.split(" · ",false):
+					if not before_tags.has(tag):new_tags.append(tag)
+				var attempts:Array=player_cast_results[target]["attempts"]
+				attempts[-1]["status"]=" · ".join(new_tags)
+				attempts[-1]["status_changed"]=true
 			if not landed and move.get("stop_on_miss",false):break
 	if last_move_hits==0 or move.category=="status" or move.has("special_rule"):attack_serial+=1
 	attack_target=primary;player_attack_fx=id;player_attack_path=travel
