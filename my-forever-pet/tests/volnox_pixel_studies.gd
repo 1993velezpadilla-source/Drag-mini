@@ -1,6 +1,7 @@
 extends SceneTree
 const Art=preload("res://pixel_pet_art.gd")
 func _initialize():
+	assert(Art.ENEMY_PIXEL_PILOTS.size()==33)
 	for id in Art.ENEMY_PIXEL_PILOTS:
 		var sheet:=Art.enemy_pixel_atlas(id)
 		assert(sheet.get_size()==Vector2i(528,192))
@@ -46,5 +47,5 @@ func _initialize():
 		assert(count>=10,"missing biome body palette: "+str(pair[0]))
 	print("VOLNOX_BIOME_PALETTE_PASS 3")
 	print("VOLNOX_CRAB_DIRECTIONAL_PASS")
-	print("VOLNOX_2D_PIXEL_PILOT_PASS 30")
+	print("VOLNOX_2D_PIXEL_PILOT_PASS 33")
 	quit()

@@ -24,7 +24,7 @@ jobs:
           cp my-forever-pet/godot-arcade/{pixel_pet_art,pet_part_rig,pet_external_fx}.gd my-forever-pet/tests/volnox_pixel_studies.gd /tmp/pixel/
           set -o pipefail
           timeout 60 /tmp/godot/Godot_v4.4.1-stable_linux.x86_64 --headless --path /tmp/pixel --script res://volnox_pixel_studies.gd 2>&1 | tee /tmp/volnox-pixel.log
-          grep -F 'VOLNOX_2D_PIXEL_PILOT_PASS 30' /tmp/volnox-pixel.log
+          grep -F 'VOLNOX_2D_PIXEL_PILOT_PASS 33' /tmp/volnox-pixel.log
           ! grep -E 'SCRIPT ERROR|Parse Error|Assertion failed' /tmp/volnox-pixel.log
       - name: Check all 33 art contracts
         run: |
@@ -37,6 +37,10 @@ jobs:
           for field in ('id','gait','attack','silhouette','personality','material'):
               assert len({e[field] for e in enemies})==33, field
           assert all(len({e['palette'][k] for k in ('dark','mid','light')})==3 for e in enemies)
+          import re
+          source=Path('my-forever-pet/godot-arcade/pixel_pet_art.gd').read_text()
+          ids=json.loads(re.search(r'const ENEMY_PIXEL_PILOTS=(\[.*?\])',source).group(1))
+          assert len(ids)==33 and set(ids)=={e['id'] for e in enemies}
           print('VOLNOX_ART_CONTRACT_PASS 33')
           PY
       - name: Render real Godot spatial shader on 2D sprite quads
@@ -54,7 +58,7 @@ jobs:
           set -euo pipefail
           cp my-forever-pet/godot-arcade/{dungeon_view,dungeon_rules,research_data}.gd my-forever-pet/tests/volnox_dungeon_preview.gd /tmp/pixel/
           xvfb-run -a timeout 60 /tmp/godot/Godot_v4.4.1-stable_linux.x86_64 --path /tmp/pixel --audio-driver Dummy --script res://volnox_dungeon_preview.gd 2>&1 | tee /tmp/volnox-runtime.log
-          grep -F VOLNOX_RUNTIME_PIXEL_PASS /tmp/volnox-runtime.log
+          grep -F 'VOLNOX_RUNTIME_PIXEL_PASS 33' /tmp/volnox-runtime.log
           ! grep -E 'SCRIPT ERROR|Parse Error|SHADER ERROR|Assertion failed' /tmp/volnox-runtime.log
       - uses: actions/upload-artifact@v4
         if: always()

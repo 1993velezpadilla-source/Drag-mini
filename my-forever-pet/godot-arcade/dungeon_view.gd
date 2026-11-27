@@ -1579,8 +1579,11 @@ func attach_enemy_pixel(actor:Node3D,species:String)->bool:
 	sprite.billboard=BaseMaterial3D.BILLBOARD_ENABLED
 	sprite.shaded=false
 	sprite.cast_shadow=GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	sprite.pixel_size=1.25/48.0
-	sprite.position.y=.54
+	var boss:bool=species in ["fungal_monarch","tidal_sovereign","celestial_guardian"]
+	var size_multiplier:float=1.45 if boss else 1.0
+	sprite.pixel_size=1.25*size_multiplier/48.0
+	sprite.position.y=.54*size_multiplier
+	actor.set_meta("enemy_size_multiplier",size_multiplier)
 	add_enemy_contact_shadow(actor,species)
 	actor.add_child(sprite)
 	actor.set_meta("species",species)
@@ -1628,12 +1631,13 @@ func update_enemy_pixel(actor:Node3D,dt:float,motion:Vector3)->void:
 	var frame:int=posmod(int(clock*12.0),4) if state=="walk" else mini(1,int(clock*9.0)) if state=="attack" else 0
 	var species:String=str(actor.get_meta("species"))
 	var facing_index:int=int(actor.get_meta("enemy_facing",0))
-	var hovering:bool=species in ["nova_wisp","leafwisp","lunamoth","jellymancer","marrowray","nebulwing"]
+	var hovering:bool=species in ["nova_wisp","leafwisp","lunamoth","jellymancer","marrowray","nebulwing","bubblewisp","sylphowl","leviathorn","astro_golem","celestial_guardian","tidal_sovereign"]
 	var rise:float=.13+.04*sin(elapsed*3.0+float(actor.get_instance_id()%11)) if hovering and state!="defeat" else 0.0
-	sprite.position.y=.54+rise
+	var size_multiplier:float=float(actor.get_meta("enemy_size_multiplier",1.0))
+	sprite.position.y=.54*size_multiplier+rise
 	var shadow:=actor.get_node_or_null("EnemyContactShadow") as MeshInstance3D
 	if shadow!=null:
-		var footprint:float=1.0-rise*.65
+		var footprint:float=size_multiplier*(1.0-rise*.65)
 		shadow.scale=Vector3(footprint*(1.15 if species in ["eelstrix","marrowray","coralcrab","shellguard"] else 1.0),footprint*.8,1.0)
 	var tex:=PixelArt.enemy_pixel_texture(species,facing_index,state,frame)
 	if tex!=null and sprite.texture!=tex:sprite.texture=tex
