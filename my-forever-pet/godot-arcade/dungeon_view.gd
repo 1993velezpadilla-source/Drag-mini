@@ -2680,7 +2680,12 @@ func combat_pixel_texture(mode:String,light:Color,dark:Color)->ImageTexture:
 	var texture:=ImageTexture.create_from_image(im)
 	combat_textures[key]=texture
 	return texture
+var combat_style_cache:Dictionary={}
 func combat_style(id:String)->Array:
+	if not combat_style_cache.has(id):combat_style_cache[id]=build_combat_style(id)
+	return combat_style_cache[id]
+
+func build_combat_style(id:String)->Array:
 	if Rules.MOVE_LIBRARY.has(id):
 		var move:Dictionary=Rules.MOVE_LIBRARY[id]
 		return [move.mode,move.light,move.dark,move.duration]
@@ -4702,7 +4707,12 @@ func combat_animated_texture(id:String,frame:int)->ImageTexture:
 	return texture
 # Presentation contracts are independent of damage rules. Each attack has a
 # caster motion, source socket, launch point, target reaction and sound phases.
+var combat_profile_cache:Dictionary={}
 func combat_profile(id:String)->Dictionary:
+	if not combat_profile_cache.has(id):combat_profile_cache[id]=build_combat_profile(id)
+	return combat_profile_cache[id]
+
+func build_combat_profile(id:String)->Dictionary:
 	var style:Array=combat_style(id)
 	var mode:String=combat_animation_mode(id,str(style[0]))
 	var reach:int=1
@@ -5892,7 +5902,12 @@ func combat_fx_update(dt:float)->void:
 		ultra_attack_ribbons(burst,t)
 		var mode:String=burst.mode
 		var frame:int=clampi(int(t*FX_FRAME_COUNT),0,FX_FRAME_COUNT-1)
-		var animated:=combat_animated_texture(str(burst.id),frame)
+		# Hold the exact texture for the current authored frame, even if the
+		# shared cache evicts it during a simultaneous multi-target attack.
+		if int(burst.get("cached_frame",-1))!=frame:
+			burst["cached_frame"]=frame
+			burst["texture"]=combat_animated_texture(str(burst.id),frame)
+		var animated:ImageTexture=burst.texture
 		var points:Array=burst.points
 		var tiles:Array=burst.tiles
 		if str(profile.role).begins_with("electric") and t>.08 and t<.91:
