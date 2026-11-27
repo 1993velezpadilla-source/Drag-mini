@@ -14480,6 +14480,7 @@ func combat_environment_audio_sample(kind:String,t:float,p:float,noise:float,bod
 # V20.0: master once on cache miss, never in the per-frame mixer.
 const FX_AUDIO_CACHE_CAP:int=192
 const FX_AUDIO_PEAK_LIMIT:float=.78
+const FX_AUDIO_STEP_LIMIT:float=.74
 const FX_AUDIO_MIX_BUDGET:float=.70
 func combat_audio_master_pcm(bytes:PackedByteArray)->float:
 	var count:int=bytes.size()/2
@@ -14498,9 +14499,16 @@ func combat_audio_master_pcm(bytes:PackedByteArray)->float:
 		peak=maxf(peak,absf(value))
 	var gain:float=minf(1.25,FX_AUDIO_PEAK_LIMIT/maxf(.0001,peak))
 	var final_peak:float=0.0
+	var previous_pcm:int=0
+	var step_limit:int=int(FX_AUDIO_STEP_LIMIT*32767.0)
 	for i in range(count):
 		var pcm:int=roundi(clampf(float(bytes.decode_s16(i*2))*gain,-FX_AUDIO_PEAK_LIMIT*32767.0,FX_AUDIO_PEAK_LIMIT*32767.0))
+		# Restrict only extreme adjacent-sample excursions. Ordinary transients
+		# and the original decay remain untouched; the terminal fade is silent.
+		pcm=clampi(pcm,previous_pcm-step_limit,previous_pcm+step_limit)
+		if i==count-1:pcm=0
 		bytes.encode_s16(i*2,pcm)
+		previous_pcm=pcm
 		final_peak=maxf(final_peak,float(absi(pcm))/32767.0)
 	return final_peak
 
@@ -14687,6 +14695,8 @@ func combat_sound(id:String,phase:String,variant:int)->AudioStreamWAV:
 	var data:=PackedByteArray();data.resize(samples*2)
 	var last_noise:float=0.0
 	var slow_noise:float=0.0
+	var previous_noise:float=0.0
+	var electric_gate:float=.30+.70*float(seed_value%13%5<3)
 	# Keep the same tonal identity across variants and playback phases.
 	var identity_seed:int=posmod(hash(id),2147483647)
 	var pitch:float=1.0+float(identity_seed%23-11)*.008+float(variant-1)*.025
@@ -14702,6 +14712,8 @@ func combat_sound(id:String,phase:String,variant:int)->AudioStreamWAV:
 	for i in range(samples):
 		var t:float=float(i)*inv_rate;var p:float=float(i)*inv_samples
 		var noise:float=rng.randf_range(-1.0,1.0)
+		var rounded_noise:float=.70*noise+.30*previous_noise
+		previous_noise=noise
 		last_noise=lerpf(last_noise,noise,.18)
 		slow_noise=lerpf(slow_noise,noise,.045)
 		var ep:float=float(i)*inv_end
@@ -14711,7 +14723,8 @@ func combat_sound(id:String,phase:String,variant:int)->AudioStreamWAV:
 		match element:
 			"electric":
 				var gate:float=.30+.70*float(posmod(int(t*170.0)+seed_value%13,5)<3)
-				wave=(noise*.47+sin(TAU*pitch*(210.0*t+3500.0*t*t))*.31+sin(TAU*1220.0*t*pitch)*.17)*gate
+				electric_gate=lerpf(electric_gate,gate,.28)
+				wave=(rounded_noise*.47+sin(TAU*pitch*(210.0*t+3500.0*t*t))*.31+sin(TAU*1220.0*t*pitch)*.17)*electric_gate
 			"water":
 				wave=sin(TAU*pitch*(310.0*t+720.0*t*t)+sin(TAU*37.0*t)*2.5)*.48+last_noise*.23
 				wave*=.45+.55*absf(sin(TAU*13.0*t))
@@ -14759,7 +14772,7 @@ func combat_sound(id:String,phase:String,variant:int)->AudioStreamWAV:
 				accent=sin(TAU*pitch*(88.0*t-38.0*t*p))*pow(1.0-p,1.7)*.66+last_noise*.34*sin(p*PI)+(noise-last_noise)*.18
 			"fang":
 				var snap:float=exp(-pow((p-.16)/.09,2.0))
-				accent=(noise-last_noise)*snap*.78+sin(TAU*220.0*t*pitch)*snap*.26
+				accent=(rounded_noise-last_noise)*snap*.66+sin(TAU*220.0*t*pitch)*snap*.32
 			"crunch":
 				var snap:float=exp(-pow((p-.12)/.09,2.0))+.72*exp(-pow((p-.40)/.14,2.0))
 				accent=(noise-last_noise)*snap*.60+sin(TAU*105.0*t*pitch)*snap*.48+last_noise*.28
@@ -14767,7 +14780,7 @@ func combat_sound(id:String,phase:String,variant:int)->AudioStreamWAV:
 				var snap:float=exp(-pow((p-.15)/.065,2.0))+.65*exp(-pow((p-.28)/.065,2.0))
 				accent=(noise-last_noise)*snap*.55+sin(TAU*1550.0*t*pitch)*snap*.28
 			"claw":
-				accent=(noise-last_noise)*(.32+.30*absf(sin(p*TAU*2.0)))+sweep*.23
+				accent=(rounded_noise-last_noise)*(.32+.26*absf(sin(p*TAU*2.0)))+sweep*.25
 			"slice":
 				accent=(noise-last_noise)*.49*sin(p*PI)+sin(TAU*pitch*(1450.0*t-880.0*t*p))*.25
 			"wind":accent=last_noise*.56*sin(p*PI)+sweep*.17
