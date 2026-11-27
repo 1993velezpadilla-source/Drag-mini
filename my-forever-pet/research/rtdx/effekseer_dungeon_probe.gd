@@ -584,6 +584,39 @@ func run()->void:
 		assert(root.get_texture().get_image().save_png("/tmp/effekseer-review/motion-"+move_id+".png")==OK)
 	for particle in field.combat_particles:particle.hide()
 	print("KINDRIA_MOTION_CONTACT_PASS 34")
+	# V12.2: every previously uncovered water, fire, ice and electric record.
+	var elemental_cases:Dictionary={"alt_bubblewisp":"TERRAIN","alt_coralcrab":"PROJECTILE","alt_crystarok":"PROJECTILE","alt_eelstrix":"BITE","alt_jellymancer":"SPECIAL","alt_leviathorn":"PROJECTILE","alt_marrowray":"PROJECTILE","alt_nova_wisp":"TERRAIN","alt_reef_pup":"PROJECTILE","alt_tidal_sovereign":"BODY","bubble_burst":"PROJECTILE","electric_lash":"SPECIAL","eos_016":"PROJECTILE","eos_041":"TERRAIN","eos_044":"PROJECTILE","eos_052":"BODY","eos_087":"MOTION","eos_144":"BODY","eos_149":"BODY","eos_150":"TERRAIN","eos_157":"PROJECTILE","eos_180":"PROJECTILE","eos_188":"PROJECTILE","eos_189":"PROJECTILE","eos_291":"TERRAIN","eos_307":"TERRAIN","eos_469":"PROJECTILE","eos_524":"TERRAIN","jelly_pulse":"TERRAIN","lib_electric_2":"PROJECTILE","lib_electric_3":"TERRAIN","lib_fire_3":"TERRAIN","lib_ice_2":"PROJECTILE","lib_ice_3":"TERRAIN","lib_water_1":"PROJECTILE","lib_water_3":"TERRAIN","nova_bolt":"PROJECTILE","prism_shatter":"TERRAIN","spiral_current":"BODY","tidal_jaws":"BITE"}
+	for move_id in elemental_cases:
+		var group:String=elemental_cases[move_id]
+		var p:Dictionary=field.combat_profile(move_id)
+		var style:Array=field.combat_style(move_id)
+		var light:=Color(str(style[1]));var dark:=Color(str(style[2]))
+		var peak:float=clampf(float(p.impact),.01,.99)
+		var burst:Dictionary={"id":move_id,"profile":p,"points":[special_source,bite_position],"tiles":[field.pos(target)],"results":{target:{"damage":8,"hits":2}}}
+		var n:int=0
+		for particle in field.combat_particles:particle.hide()
+		match group:
+			"PROJECTILE":
+				assert(not field.projectile_contact_art(move_id).is_empty())
+				n=field.projectile_contact_fx(burst,peak*.55,0,light,dark)
+			"TERRAIN":
+				assert(not field.terrain_contact_art(move_id).is_empty())
+				n=field.terrain_contact_fx(burst,peak*.55,0,light,dark)
+			"BODY":
+				n=field.body_contact_fx(move_id,special_source,bite_position,.25,0,light,dark,2)
+			"SPECIAL":
+				n=field.special_contact_fx(burst,peak*.55,0,light,dark)
+			"BITE":
+				n=field.bite_contact_fx(move_id,bite_position,.20,0,light,dark)
+			"MOTION":
+				n=field.motion_contact_fx(move_id,special_source,bite_position,.25,0,light,dark,2)
+		assert(n>0 and n<=12,"missing elemental presentation "+move_id)
+		assert(field.combat_particles.size()==particle_count)
+		assert(field.combat_particles[0].texture.get_image().get_used_rect().size.x>0)
+		await frames()
+		assert(root.get_texture().get_image().save_png("/tmp/effekseer-review/v12-element-"+move_id+".png")==OK)
+	for particle in field.combat_particles:particle.hide()
+	print("KINDRIA_ELEMENTAL_AUDIT_PASS 40")
 	var plan:Array=[
 		{"stage":"ally_invoke","anchor":"source","start":0.0,"end":.15,"enabled":true},
 		{"stage":"enemy_invoke","anchor":"source","start":0.0,"end":.15,"enabled":true},
