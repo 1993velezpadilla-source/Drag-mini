@@ -3,9 +3,9 @@
   "library": 522,
   "native": 67,
   "total": 589,
-  "covered_unique": 403,
-  "pending": 186,
-  "profile_entries": 414,
+  "covered_unique": 465,
+  "pending": 124,
+  "profile_entries": 476,
   "by_element": {
     "dark": {
       "total": 32,
@@ -13,11 +13,11 @@
     },
     "poison": {
       "total": 24,
-      "covered": 10
+      "covered": 24
     },
     "rock": {
       "total": 22,
-      "covered": 10
+      "covered": 22
     },
     "normal": {
       "total": 160,
@@ -41,7 +41,7 @@
     },
     "grass": {
       "total": 42,
-      "covered": 23
+      "covered": 42
     },
     "flying": {
       "total": 27,
@@ -57,7 +57,7 @@
     },
     "bug": {
       "total": 24,
-      "covered": 17
+      "covered": 24
     },
     "steel": {
       "total": 17,
@@ -73,7 +73,7 @@
     },
     "ground": {
       "total": 20,
-      "covered": 10
+      "covered": 20
     },
     "psychic": {
       "total": 45,
@@ -124,7 +124,9 @@
       "element": "poison",
       "category": "physical",
       "pattern": "radius",
-      "profiles": [],
+      "profiles": [
+        "TERRAIN"
+      ],
       "validation": "runtime_unverified"
     },
     {
@@ -134,7 +136,9 @@
       "element": "rock",
       "category": "physical",
       "pattern": "radius",
-      "profiles": [],
+      "profiles": [
+        "TERRAIN"
+      ],
       "validation": "runtime_unverified"
     },
     {
@@ -222,7 +226,9 @@
       "element": "poison",
       "category": "special",
       "pattern": "line",
-      "profiles": [],
+      "profiles": [
+        "PROJECTILE"
+      ],
       "validation": "runtime_unverified"
     },
     {
@@ -232,7 +238,9 @@
       "element": "grass",
       "category": "physical",
       "pattern": "corner",
-      "profiles": [],
+      "profiles": [
+        "BODY"
+      ],
       "validation": "runtime_unverified"
     },
     {
@@ -242,7 +250,9 @@
       "element": "grass",
       "category": "physical",
       "pattern": "line",
-      "profiles": [],
+      "profiles": [
+        "PROJECTILE"
+      ],
       "validation": "runtime_unverified"
     },
     {
@@ -264,7 +274,9 @@
       "element": "grass",
       "category": "special",
       "pattern": "fan",
-      "profiles": [],
+      "profiles": [
+        "PROJECTILE"
+      ],
       "validation": "runtime_unverified"
     },
     {
@@ -320,7 +332,9 @@
       "element": "rock",
       "category": "physical",
       "pattern": "radius",
-      "profiles": [],
+      "profiles": [
+        "TERRAIN"
+      ],
       "validation": "runtime_unverified"
     },
     {
@@ -374,7 +388,9 @@
       "element": "grass",
       "category": "physical",
       "pattern": "line",
-      "profiles": [],
+      "profiles": [
+        "PROJECTILE"
+      ],
       "validation": "runtime_unverified"
     },
     {
@@ -384,7 +400,9 @@
       "element": "rock",
       "category": "physical",
       "pattern": "line",
-      "profiles": [],
+      "profiles": [
+        "BODY"
+      ],
       "validation": "runtime_unverified"
     },
     {
@@ -394,7 +412,9 @@
       "element": "grass",
       "category": "special",
       "pattern": "front",
-      "profiles": [],
+      "profiles": [
+        "BODY"
+      ],
       "validation": "runtime_unverified"
     },
     {
@@ -426,7 +446,9 @@
       "element": "bug",
       "category": "physical",
       "pattern": "front",
-      "profiles": [],
+      "profiles": [
+        "BITE"
+      ],
       "validation": "runtime_unverified"
     },
     {
@@ -448,7 +470,9 @@
       "element": "grass",
       "category": "physical",
       "pattern": "front",
-      "profiles": [],
+      "profiles": [
+        "BITE"
+      ],
       "validation": "runtime_unverified"
     },
     {
@@ -458,7 +482,9 @@
       "element": "bug",
       "category": "special",
       "pattern": "line",
-      "profiles": [],
+      "profiles": [
+        "PROJECTILE"
+      ],
       "validation": "runtime_unverified"
     },
     {
@@ -468,7 +494,9 @@
       "element": "grass",
       "category": "physical",
       "pattern": "fan",
-      "profiles": [],
+      "profiles": [
+        "BODY"
+      ],
       "validation": "runtime_unverified"
     },
     {
@@ -488,7 +516,9 @@
       "element": "grass",
       "category": "physical",
       "pattern": "line",
-      "profiles": [],
+      "profiles": [
+        "BODY"
+      ],
       "validation": "runtime_unverified"
     },
     {
@@ -530,7 +560,9 @@
       "element": "bug",
       "category": "physical",
       "pattern": "fan",
-      "profiles": [],
+      "profiles": [
+        "MOTION"
+      ],
       "validation": "runtime_unverified"
     },
     {
@@ -1616,7 +1648,9 @@
       "element": "rock",
       "category": "special",
       "pattern": "corner_front",
-      "profiles": [],
+      "profiles": [
+        "PROJECTILE"
+      ],
       "validation": "runtime_unverified"
     },
     {
@@ -1752,7 +1786,9 @@
       "element": "rock",
       "category": "physical",
       "pattern": "front",
-      "profiles": [],
+      "profiles": [
+        "PROJECTILE"
+      ],
       "validation": "runtime_unverified"
     },
     {
@@ -2194,7 +2230,9 @@
       "element": "ground",
       "category": "physical",
       "pattern": "front",
-      "profiles": [],
+      "profiles": [
+        "TERRAIN"
+      ],
       "validation": "runtime_unverified"
     },
     {
@@ -2240,7 +2278,9 @@
       "element": "poison",
       "category": "special",
       "pattern": "front",
-      "profiles": [],
+      "profiles": [
+        "TERRAIN"
+      ],
       "validation": "runtime_unverified"
     },
     {
@@ -2871,7 +2911,9 @@
       "element": "poison",
       "category": "physical",
       "pattern": "corner_front",
-      "profiles": [],
+      "profiles": [
+        "PROJECTILE"
+      ],
       "validation": "runtime_unverified"
     },
     {
@@ -3011,7 +3053,9 @@
       "element": "ground",
       "category": "status",
       "pattern": "self",
-      "profiles": [],
+      "profiles": [
+        "TERRAIN"
+      ],
       "validation": "runtime_unverified"
     },
     {
@@ -3112,7 +3156,9 @@
       "element": "grass",
       "category": "physical",
       "pattern": "front",
-      "profiles": [],
+      "profiles": [
+        "MOTION"
+      ],
       "validation": "runtime_unverified"
     },
     {
@@ -3304,7 +3350,9 @@
       "element": "grass",
       "category": "special",
       "pattern": "corner_front",
-      "profiles": [],
+      "profiles": [
+        "TERRAIN"
+      ],
       "validation": "runtime_unverified"
     },
     {
@@ -3472,7 +3520,9 @@
       "element": "grass",
       "category": "special",
       "pattern": "front",
-      "profiles": [],
+      "profiles": [
+        "TERRAIN"
+      ],
       "validation": "runtime_unverified"
     },
     {
@@ -3843,7 +3893,9 @@
       "element": "ground",
       "category": "physical",
       "pattern": "corner_front",
-      "profiles": [],
+      "profiles": [
+        "PROJECTILE"
+      ],
       "validation": "runtime_unverified"
     },
     {
@@ -3887,7 +3939,9 @@
       "element": "ground",
       "category": "physical",
       "pattern": "front",
-      "profiles": [],
+      "profiles": [
+        "MOTION"
+      ],
       "validation": "runtime_unverified"
     },
     {
@@ -3897,7 +3951,9 @@
       "element": "ground",
       "category": "physical",
       "pattern": "line",
-      "profiles": [],
+      "profiles": [
+        "PROJECTILE"
+      ],
       "validation": "runtime_unverified"
     },
     {
@@ -3955,7 +4011,9 @@
       "element": "ground",
       "category": "status",
       "pattern": "self",
-      "profiles": [],
+      "profiles": [
+        "TERRAIN"
+      ],
       "validation": "runtime_unverified"
     },
     {
@@ -3977,7 +4035,9 @@
       "element": "grass",
       "category": "special",
       "pattern": "corner_front",
-      "profiles": [],
+      "profiles": [
+        "PROJECTILE"
+      ],
       "validation": "runtime_unverified"
     },
     {
@@ -4375,7 +4435,9 @@
       "element": "poison",
       "category": "special",
       "pattern": "corner_front",
-      "profiles": [],
+      "profiles": [
+        "PROJECTILE"
+      ],
       "validation": "runtime_unverified"
     },
     {
@@ -4417,7 +4479,9 @@
       "element": "grass",
       "category": "physical",
       "pattern": "front",
-      "profiles": [],
+      "profiles": [
+        "CLAW"
+      ],
       "validation": "runtime_unverified"
     },
     {
@@ -4751,7 +4815,9 @@
       "element": "poison",
       "category": "status",
       "pattern": "corner_front",
-      "profiles": [],
+      "profiles": [
+        "SUPPORT"
+      ],
       "validation": "runtime_unverified"
     },
     {
@@ -4785,7 +4851,9 @@
       "element": "grass",
       "category": "physical",
       "pattern": "corner_front",
-      "profiles": [],
+      "profiles": [
+        "BODY"
+      ],
       "validation": "runtime_unverified"
     },
     {
@@ -4921,7 +4989,9 @@
       "element": "rock",
       "category": "physical",
       "pattern": "line",
-      "profiles": [],
+      "profiles": [
+        "PROJECTILE"
+      ],
       "validation": "runtime_unverified"
     },
     {
@@ -4977,7 +5047,9 @@
       "element": "grass",
       "category": "special",
       "pattern": "front",
-      "profiles": [],
+      "profiles": [
+        "SPECIAL"
+      ],
       "validation": "runtime_unverified"
     },
     {
@@ -4987,7 +5059,9 @@
       "element": "poison",
       "category": "physical",
       "pattern": "front",
-      "profiles": [],
+      "profiles": [
+        "MOTION"
+      ],
       "validation": "runtime_unverified"
     },
     {
@@ -5103,7 +5177,9 @@
       "element": "bug",
       "category": "physical",
       "pattern": "front",
-      "profiles": [],
+      "profiles": [
+        "MOTION"
+      ],
       "validation": "runtime_unverified"
     },
     {
@@ -5211,7 +5287,9 @@
       "element": "rock",
       "category": "status",
       "pattern": "self",
-      "profiles": [],
+      "profiles": [
+        "TERRAIN"
+      ],
       "validation": "runtime_unverified"
     },
     {
@@ -5387,7 +5465,9 @@
       "element": "poison",
       "category": "physical",
       "pattern": "front",
-      "profiles": [],
+      "profiles": [
+        "MOTION"
+      ],
       "validation": "runtime_unverified"
     },
     {
@@ -5397,7 +5477,9 @@
       "element": "poison",
       "category": "status",
       "pattern": "self",
-      "profiles": [],
+      "profiles": [
+        "TERRAIN"
+      ],
       "validation": "runtime_unverified"
     },
     {
@@ -5582,7 +5664,9 @@
       "element": "rock",
       "category": "special",
       "pattern": "corner_front",
-      "profiles": [],
+      "profiles": [
+        "PROJECTILE"
+      ],
       "validation": "runtime_unverified"
     },
     {
@@ -5870,7 +5954,9 @@
       "element": "grass",
       "category": "special",
       "pattern": "line",
-      "profiles": [],
+      "profiles": [
+        "PROJECTILE"
+      ],
       "validation": "runtime_unverified"
     },
     {
@@ -5971,7 +6057,9 @@
       "element": "bug",
       "category": "physical",
       "pattern": "line",
-      "profiles": [],
+      "profiles": [
+        "BODY"
+      ],
       "validation": "runtime_unverified"
     },
     {
@@ -5993,7 +6081,9 @@
       "element": "grass",
       "category": "special",
       "pattern": "line",
-      "profiles": [],
+      "profiles": [
+        "PROJECTILE"
+      ],
       "validation": "runtime_unverified"
     },
     {
@@ -6003,7 +6093,9 @@
       "element": "bug",
       "category": "special",
       "pattern": "corner",
-      "profiles": [],
+      "profiles": [
+        "SPECIAL"
+      ],
       "validation": "runtime_unverified"
     },
     {
@@ -6025,7 +6117,9 @@
       "element": "bug",
       "category": "special",
       "pattern": "fan",
-      "profiles": [],
+      "profiles": [
+        "SPECIAL"
+      ],
       "validation": "runtime_unverified"
     },
     {
@@ -6319,7 +6413,9 @@
       "element": "grass",
       "category": "special",
       "pattern": "line",
-      "profiles": [],
+      "profiles": [
+        "PROJECTILE"
+      ],
       "validation": "runtime_unverified"
     },
     {
@@ -6329,7 +6425,9 @@
       "element": "grass",
       "category": "physical",
       "pattern": "radius",
-      "profiles": [],
+      "profiles": [
+        "TERRAIN"
+      ],
       "validation": "runtime_unverified"
     },
     {
@@ -6351,7 +6449,9 @@
       "element": "ground",
       "category": "physical",
       "pattern": "line",
-      "profiles": [],
+      "profiles": [
+        "BODY"
+      ],
       "validation": "runtime_unverified"
     },
     {
@@ -6361,7 +6461,9 @@
       "element": "ground",
       "category": "special",
       "pattern": "line",
-      "profiles": [],
+      "profiles": [
+        "PROJECTILE"
+      ],
       "validation": "runtime_unverified"
     },
     {
@@ -6443,7 +6545,9 @@
       "element": "poison",
       "category": "physical",
       "pattern": "front",
-      "profiles": [],
+      "profiles": [
+        "PROJECTILE"
+      ],
       "validation": "runtime_unverified"
     },
     {
@@ -6453,7 +6557,9 @@
       "element": "poison",
       "category": "special",
       "pattern": "corner",
-      "profiles": [],
+      "profiles": [
+        "PROJECTILE"
+      ],
       "validation": "runtime_unverified"
     },
     {
@@ -6463,7 +6569,9 @@
       "element": "poison",
       "category": "special",
       "pattern": "radius",
-      "profiles": [],
+      "profiles": [
+        "TERRAIN"
+      ],
       "validation": "runtime_unverified"
     },
     {
@@ -6517,7 +6625,9 @@
       "element": "rock",
       "category": "physical",
       "pattern": "line",
-      "profiles": [],
+      "profiles": [
+        "BODY"
+      ],
       "validation": "runtime_unverified"
     },
     {
@@ -6615,7 +6725,9 @@
       "element": "rock",
       "category": "physical",
       "pattern": "corner",
-      "profiles": [],
+      "profiles": [
+        "PUNCH"
+      ],
       "validation": "runtime_unverified"
     },
     {
@@ -6681,7 +6793,9 @@
       "element": "rock",
       "category": "physical",
       "pattern": "line",
-      "profiles": [],
+      "profiles": [
+        "BODY"
+      ],
       "validation": "runtime_unverified"
     },
     {
@@ -6691,7 +6805,9 @@
       "element": "poison",
       "category": "special",
       "pattern": "radius",
-      "profiles": [],
+      "profiles": [
+        "TERRAIN"
+      ],
       "validation": "runtime_unverified"
     },
     {
@@ -6701,7 +6817,9 @@
       "element": "rock",
       "category": "physical",
       "pattern": "front",
-      "profiles": [],
+      "profiles": [
+        "BODY"
+      ],
       "validation": "runtime_unverified"
     },
     {
@@ -6733,7 +6851,9 @@
       "element": "poison",
       "category": "special",
       "pattern": "radius",
-      "profiles": [],
+      "profiles": [
+        "TERRAIN"
+      ],
       "validation": "runtime_unverified"
     },
     {
@@ -6777,7 +6897,9 @@
       "element": "ground",
       "category": "physical",
       "pattern": "radius",
-      "profiles": [],
+      "profiles": [
+        "TERRAIN"
+      ],
       "validation": "runtime_unverified"
     },
     {
@@ -6787,7 +6909,9 @@
       "element": "ground",
       "category": "physical",
       "pattern": "front",
-      "profiles": [],
+      "profiles": [
+        "BODY"
+      ],
       "validation": "runtime_unverified"
     },
     {
