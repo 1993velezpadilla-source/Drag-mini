@@ -379,6 +379,22 @@ func run()->void:
 	var scarce_slots:Dictionary=field.global_counter_slots(counter_responses,72,.3,1)
 	if scarce_slots.has(72) or float(scarce_slots[70])<0.0 or float(scarce_slots[71])!=-1.0:errors.append("global counter capacity and immediate exclusion")
 	print("KINDRIA_GLOBAL_COUNTER_ORDER_PASS")
+	# Invisible targets cannot consume the last available render reservation.
+	var visible_responses:Dictionary=field.eligible_counter_responses(counter_responses,{9:true})
+	var visible_slots:Dictionary=field.global_counter_slots(visible_responses,-1,.3,1)
+	if visible_responses.size()!=1 or visible_slots.size()!=1 or not visible_slots.has(71) or absf(float(visible_slots[71])-.3)>.001:errors.append("invisible counter reservation")
+	# Equal-time hit and defeat must leave a terminal pose and no pending impact.
+	var tied_actor:=Node3D.new()
+	tied_actor.set_meta("species","sporeling")
+	field.fx_reactions.clear()
+	field.queue_enemy_reaction(tied_actor,true,.2,Vector3.RIGHT)
+	field.queue_enemy_reaction(tied_actor,false,.2,Vector3.LEFT)
+	field.update_combat_reactions(.3)
+	if str(tied_actor.get_meta("enemy_phase",""))!="defeat" or tied_actor.get_meta("pending_impact",false) or tied_actor.get_meta("pending_defeat",false):errors.append("tied terminal reaction")
+	if tied_actor.get_meta("enemy_hit_direction",Vector3.ZERO)!=Vector3.RIGHT:errors.append("tied terminal direction")
+	field.fx_reactions.clear()
+	tied_actor.free()
+	print("KINDRIA_VISIBLE_COUNTER_TERMINAL_PASS")
 	# Exercise more frames than the cache cap, then verify hot hits and exact normalization.
 	for row in reports.slice(0,40):
 		for frame in range(Field.FX_FRAME_COUNT):field.combat_animated_texture(str(row.id),frame)
