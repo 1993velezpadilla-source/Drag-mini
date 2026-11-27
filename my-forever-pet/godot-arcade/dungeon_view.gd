@@ -5484,7 +5484,7 @@ func native_identity_frame(id:String,frame:int,base:Image)->Image:
 	return im
 
 # V16.7: individually remastered after reviewing actual Godot PNG strips.
-const VISUAL_REMASTER_MOVES=["eos_504","eos_308","eos_135","eos_142","eos_047","eos_250","eos_299","eos_329","eos_262","eos_279","eos_101","eos_199","eos_251","eos_486","eos_462","eos_018","eos_507","eos_175","eos_254","eos_097","eos_163","eos_320","eos_033","eos_166","eos_228","eos_004","eos_252","eos_330","eos_465","eos_138","eos_021","eos_501","eos_053","eos_157","eos_064","eos_188","eos_240","eos_255","eos_342","eos_539","eos_041","eos_278","eos_538","eos_239","eos_193","eos_272","eos_519","eos_494","eos_292","eos_065","eos_276","eos_208","eos_522","eos_452","eos_433","eos_087","eos_063","eos_062","eos_476","eos_127","eos_451","eos_436","eos_491","eos_046","eos_109","eos_234","eos_107","eos_463","eos_133","eos_317","eos_111","eos_331","eos_345","eos_270","eos_042","eos_344","eos_461","eos_180","eos_535","eos_150","eos_118","eos_484","eos_008","eos_131","eos_030","eos_481","eos_028","eos_073","lib_ground_1","eos_057","eos_036","eos_442","eos_153","eos_205","eos_100","eos_518","eos_178","eos_200","eos_495","eos_280","eos_197","eos_332","eos_147","eos_485","eos_459","eos_151","eos_537","eos_443","eos_336","eos_182","eos_253","eos_441","eos_076","lib_grass_1","eos_001","eos_325","eos_103","eos_536","eos_510","eos_431","eos_475","eos_523","eos_080","eos_082","eos_114","eos_323","eos_470","eos_502","eos_529","eos_530","eos_460","eos_520","eos_449","eos_288","eos_164","eos_306","eos_023","eos_086","eos_346","lib_fairy_1","lib_fairy_2","lib_fairy_3","eos_341","eos_498","eos_343","eos_091","eos_162","eos_435","lib_dragon_1","lib_dragon_2","lib_dragon_3","eos_092","eos_204","eos_206","eos_303","eos_222","eos_210","lib_fighting_2","eos_136","eos_075","eos_300","eos_246","eos_430","eos_440","eos_500","eos_508","eos_454","eos_479","eos_243","eos_068","eos_090","lib_fighting_1","lib_fighting_3","eos_072","eos_077","eos_116","eos_531","eos_265","eos_305","eos_051","eos_170","eos_340","eos_007","eos_029","lib_electric_1","lib_electric_2","lib_electric_3","eos_129","eos_144","eos_189","eos_354","eos_489","eos_521","eos_192","eos_128","eos_493","lib_fire_1","lib_fire_2","lib_fire_3","eos_052","eos_149","eos_230","eos_291","eos_517","eos_524","eos_223","lib_water_1","lib_water_2","lib_water_3","eos_016","eos_032","eos_044","eos_069","eos_113","eos_156","eos_158","eos_159","eos_219","eos_310","eos_432","eos_469","eos_070","eos_012","eos_307","eos_434","lib_grass_2","lib_grass_3","eos_221","eos_238","eos_297","eos_458","eos_468","eos_511","eos_079","eos_231","eos_124","eos_351","eos_015","eos_094","eos_084","eos_233","lib_ice_1","lib_ice_2","lib_ice_3","eos_002","eos_088","eos_130","eos_014","lib_poison_1","lib_poison_2","lib_poison_3","eos_198","eos_283","eos_196","eos_202","eos_496","eos_438","lib_ground_2","lib_ground_3","eos_143","eos_213","eos_289","eos_285","eos_290","eos_212","eos_295","eos_296","lib_rock_1","lib_rock_2","lib_rock_3","eos_093","eos_453","eos_512","eos_533","eos_350","eos_105","eos_540","eos_141","eos_480","lib_flying_1","lib_flying_2","lib_flying_3","eos_174","eos_179","eos_211","eos_353","eos_446","eos_490","eos_444","eos_267","eos_509","eos_456","eos_040","lib_bug_1","lib_bug_2","lib_bug_3","lib_psychic_1","lib_psychic_2","lib_psychic_3","eos_110","eos_309","eos_335","eos_473","eos_099","eos_146","eos_215","eos_258","eos_319","eos_333","eos_095","eos_316","eos_338","eos_259","eos_108","eos_187","eos_266","eos_448","eos_506","eos_513","eos_514","eos_232","eos_464","eos_478","eos_528","eos_450","eos_298","eos_499","eos_209","eos_137","eos_220","eos_439","eos_526"]
+const VISUAL_REMASTER_MOVES=["eos_504","eos_308","eos_135","eos_142","eos_047","eos_250","eos_299","eos_329","eos_262","eos_279","eos_101","eos_199","eos_251","eos_486","eos_462","eos_018","eos_507","eos_175","eos_254","eos_097","eos_163","eos_320","eos_033","eos_166","eos_228","eos_004","eos_252","eos_330","eos_465","eos_138","eos_021","eos_501","eos_053","eos_157","eos_064","eos_188","eos_240","eos_255","eos_342","eos_539","eos_041","eos_278","eos_538","eos_239","eos_193","eos_272","eos_519","eos_494","eos_292","eos_065","eos_276","eos_208","eos_522","eos_452","eos_433","eos_087","eos_063","eos_062","eos_476","eos_127","eos_451","eos_436","eos_491","eos_046","eos_109","eos_234","eos_107","eos_463","eos_133","eos_317","eos_111","eos_331","eos_345","eos_270","eos_042","eos_344","eos_461","eos_180","eos_535","eos_150","eos_118","eos_484","eos_008","eos_131","eos_030","eos_481","eos_028","eos_073","lib_ground_1","eos_057","eos_036","eos_442","eos_153","eos_205","eos_100","eos_518","eos_178","eos_200","eos_495","eos_280","eos_197","eos_332","eos_147","eos_485","eos_459","eos_151","eos_537","eos_443","eos_336","eos_182","eos_253","eos_441","eos_076","lib_grass_1","eos_001","eos_325","eos_103","eos_536","eos_510","eos_431","eos_475","eos_523","eos_080","eos_082","eos_114","eos_323","eos_470","eos_502","eos_529","eos_530","eos_460","eos_520","eos_449","eos_288","eos_164","eos_306","eos_023","eos_086","eos_346","lib_fairy_1","lib_fairy_2","lib_fairy_3","eos_341","eos_498","eos_343","eos_091","eos_162","eos_435","lib_dragon_1","lib_dragon_2","lib_dragon_3","eos_092","eos_204","eos_206","eos_303","eos_222","eos_210","lib_fighting_2","eos_136","eos_075","eos_300","eos_246","eos_430","eos_440","eos_500","eos_508","eos_454","eos_479","eos_243","eos_068","eos_090","lib_fighting_1","lib_fighting_3","eos_072","eos_077","eos_116","eos_531","eos_265","eos_305","eos_051","eos_170","eos_340","eos_007","eos_029","lib_electric_1","lib_electric_2","lib_electric_3","eos_129","eos_144","eos_189","eos_354","eos_489","eos_521","eos_192","eos_128","eos_493","lib_fire_1","lib_fire_2","lib_fire_3","eos_052","eos_149","eos_230","eos_291","eos_517","eos_524","eos_223","lib_water_1","lib_water_2","lib_water_3","eos_016","eos_032","eos_044","eos_069","eos_113","eos_156","eos_158","eos_159","eos_219","eos_310","eos_432","eos_469","eos_070","eos_012","eos_307","eos_434","lib_grass_2","lib_grass_3","eos_221","eos_238","eos_297","eos_458","eos_468","eos_511","eos_079","eos_231","eos_124","eos_351","eos_015","eos_094","eos_084","eos_233","lib_ice_1","lib_ice_2","lib_ice_3","eos_002","eos_088","eos_130","eos_014","lib_poison_1","lib_poison_2","lib_poison_3","eos_198","eos_283","eos_196","eos_202","eos_496","eos_438","lib_ground_2","lib_ground_3","eos_143","eos_213","eos_289","eos_285","eos_290","eos_212","eos_295","eos_296","lib_rock_1","lib_rock_2","lib_rock_3","eos_093","eos_453","eos_512","eos_533","eos_350","eos_105","eos_540","eos_141","eos_480","lib_flying_1","lib_flying_2","lib_flying_3","eos_174","eos_179","eos_211","eos_353","eos_446","eos_490","eos_444","eos_267","eos_509","eos_456","eos_040","lib_bug_1","lib_bug_2","lib_bug_3","lib_psychic_1","lib_psychic_2","lib_psychic_3","eos_110","eos_309","eos_335","eos_473","eos_099","eos_146","eos_215","eos_258","eos_319","eos_333","eos_095","eos_316","eos_338","eos_259","eos_108","eos_187","eos_266","eos_448","eos_506","eos_513","eos_514","eos_232","eos_464","eos_478","eos_528","eos_450","eos_298","eos_499","eos_209","eos_137","eos_220","eos_439","eos_526","lib_ghost_1","lib_ghost_2","lib_ghost_3","eos_120","eos_126","eos_437","eos_477","eos_013","eos_216","eos_005","eos_313","eos_035","eos_049"]
 func visual_remaster_frame(id:String,frame:int)->Image:
 	var im:=Image.create(48,48,false,Image.FORMAT_RGBA8)
 	im.fill(Color.TRANSPARENT)
@@ -10109,6 +10109,166 @@ func visual_remaster_frame(id:String,frame:int)->Image:
 				var q:=Vector2(9+float(j)*4.3,20+20*f)
 				fairy_star(im,q,1.5,Color("#e7e4ff",fade))
 			fx_disc(im,Vector2(24,36),8+7*drive,Color("#c9e7dc",fade*.75),6.5+7*drive)
+		"lib_ghost_1":
+			# Shade Claw: a single long hooked spectral talon pulls a smoky wake.
+			var q:=Vector2(10+24*drive,24)
+			fight_arc(im,q,13.0,-PI*.85+t*.7,PI*1.25,Color("#a2eadb",fade),Color("#302a51",fade),4.5)
+			fight_arc(im,q-Vector2(5,2),10.0,-PI*.85+t*.7,PI*.9,Color("#a99bcf",fade*.65),Color("#403251",fade*.7),2.0)
+			for j in range(7):
+				var p:=q+Vector2(-13+float(j)*3,8+sin(float(j)*2.4+t*TAU)*5)
+				fx_disc(im,p,2.0+float(j%2),Color("#544168",fade*.55))
+			if t>=peak:fairy_star(im,q+Vector2(5,-3),3.8,Color("#d4ffee",fade))
+		"lib_ghost_2":
+			# Phantom Thread: a luminous strand winds through displaced shadow wisps.
+			var prev:=Vector2(4,24)
+			for j in range(1,30):
+				var f:float=float(j)/29.0
+				var q:=Vector2(4+37*f*drive,24+sin(f*TAU*2-t*TAU)*8*f)
+				fx_line(im,prev,q,3.2,Color("#322840",fade))
+				fx_line(im,prev,q,1.0,Color("#9ad8ce",fade))
+				if j%5==0:fx_disc(im,q-Vector2(2,4),2.2,Color("#74628d",fade*.55))
+				prev=q
+			if t>=peak:
+				for j in range(3):
+					fight_arc(im,prev,4+float(j)*3,t*TAU,PI*1.6,Color("#bcebdd",fade),Color("#514269",fade),1.2)
+		"lib_ghost_3":
+			# Spectral Bloom: eerie petals unfurl into drifting spirit flames.
+			var c:=Vector2(24,28)
+			for j in range(6):
+				var a:float=float(j)*TAU/6.0+t*.7
+				var d:=Vector2(cos(a),sin(a))
+				var q:=c+d*(4+10*drive)
+				fx_line(im,c,q,3.6,Color("#3a2d55",fade))
+				fire_lobe(im,q,3.8,t+float(j)*.16,Color("#a8efdb",fade),Color("#6f509f",fade))
+				fx_disc(im,q+d*5,1.1,Color("#d6f8ed",fade))
+			fx_disc(im,c,5.0,Color("#29263d",fade))
+			fx_disc(im,c-Vector2(0,1),2.0,Color("#c4d6ff",fade))
+		"eos_120":
+			# Lick: broad curling spectral tongue with a rounded wet tip.
+			var prev:=Vector2(5,26)
+			for j in range(1,22):
+				var f:float=float(j)/21.0
+				var q:=Vector2(5+33*f*drive,26+sin(f*PI*1.4+t*TAU)*5*f)
+				fx_line(im,prev,q,6.8-2.0*f,Color("#4d2d58",fade))
+				fx_line(im,prev-Vector2(0,1),q-Vector2(0,1),3.7-1.0*f,Color("#b878a5",fade))
+				if j%4==0:fx_line(im,prev,q,1.0,Color("#efb9d5",fade))
+				prev=q
+			fx_disc(im,prev,2.7,Color("#d8a4c9",fade))
+			if t>=peak:
+				for j in range(5):
+					var a:float=float(j)*TAU/5.0
+					fx_disc(im,prev+Vector2(cos(a),sin(a))*(4+6*(1.0-fade)),1.3,Color("#a8d9cc",fade))
+		"eos_126":
+			# Shadow Punch: compact spectral fist, distinct knuckles and trailing ghost smoke.
+			var q:=Vector2(10+24*drive,24)
+			fx_line(im,q-Vector2(15,0),q-Vector2(4,0),6.0,Color("#282238",fade))
+			fx_disc(im,q-Vector2(2,0),7.5,Color("#4b365f",fade))
+			for j in range(4):
+				var p:=q+Vector2(4, -6+float(j)*4)
+				fx_disc(im,p,3.1,Color("#352945",fade))
+				fx_disc(im,p-Vector2(0,1),1.9,Color("#b6a0e1",fade))
+			fx_line(im,q+Vector2(-5,5),q+Vector2(2,3),2.7,Color("#8068a5",fade))
+			for j in range(5):
+				var p:=q+Vector2(-10-float(j)*3,sin(float(j)*2.4+t*TAU)*5)
+				fx_disc(im,p,2.9,Color("#514164",fade*.55))
+			if t>=peak:
+				for j in range(6):
+					var a:float=float(j)*TAU/6.0
+					var d:=Vector2(cos(a),sin(a))
+					fx_line(im,q+d*5,q+d*(9+7*(1.0-fade)),1.5,Color("#c0e7df",fade))
+		"eos_437":
+			# Ominous Wind: low creeping spirit silhouettes borne on dark curling gusts.
+			for j in range(5):
+				var f:float=float(j)/4.0
+				var q:=Vector2(8+30*f*drive,28+sin(float(j)*2.4+t*TAU)*7)
+				fight_arc(im,q,6+3*f,-PI*.8+t,PI*1.45,Color("#90c9c4",fade),Color("#392b51",fade),2.7)
+				fx_disc(im,q,3.4,Color("#453453",fade*.8))
+				fx_disc(im,q+Vector2(-1,-1),.85,Color("#c8e9e0",fade))
+				fx_disc(im,q+Vector2(1,-1),.85,Color("#c8e9e0",fade))
+				fx_line(im,q-Vector2(8,1),q-Vector2(3,2),1.5,Color("#79618e",fade*.7))
+		"eos_477":
+			# Shade Rift: ragged vertical tear opens, then a shadow strikes from within.
+			var c:=Vector2(24,24)
+			var width:float=2+9*pulse
+			for j in range(15):
+				var f:float=float(j)/14.0
+				var y:float=5+37*f
+				var w:float=width*sin(f*PI)
+				fx_line(im,Vector2(c.x-w,y),Vector2(c.x+w,y),2.6,Color("#231b36",fade))
+				if j%2==0:
+					fx_disc(im,Vector2(c.x-w,y),1.4,Color("#8f72c5",fade))
+					fx_disc(im,Vector2(c.x+w,y),1.4,Color("#b7dedc",fade))
+			if t>=peak:
+				var q:=Vector2(24,8+25*(1.0-fade))
+				fx_line(im,q-Vector2(0,14),q,6.0,Color("#49345f",fade))
+				fx_line(im,q-Vector2(0,12),q,2.2,Color("#c3b6ed",fade))
+				fairy_star(im,q,4+4*(1.0-fade),Color("#d8f6ec",fade))
+		"eos_013":
+			# Mirage Ray: crooked green spectral beam carrying illusory ghost faces.
+			var prev:=Vector2(4,24)
+			for j in range(1,25):
+				var f:float=float(j)/24.0
+				var q:=Vector2(4+39*f*drive,24+sin(f*TAU*2-t*TAU)*6*f)
+				fx_line(im,prev,q,3.8,Color("#403051",fade))
+				fx_line(im,prev,q,1.3,Color("#a1e0cb",fade))
+				if j%6==0:
+					fx_disc(im,q,3.4,Color("#665681",fade))
+					fx_disc(im,q-Vector2(1,1),.85,Color("#e4f8d6",fade))
+					fx_disc(im,q+Vector2(1,-1),.85,Color("#e4f8d6",fade))
+				prev=q
+		"eos_216":
+			# Night Echo: dark concentric echoes radiate from a hollow spirit face.
+			var c:=Vector2(24,24)
+			for j in range(4):
+				var rad:float=5+float(j)*4+3*drive
+				fight_arc(im,c,rad,t*.6+float(j)*.65,PI*1.72,Color("#b39bd8",fade*.8),Color("#30243e",fade),2.4)
+			fx_disc(im,c,6.5,Color("#272135",fade))
+			fx_disc(im,c+Vector2(-2,-1),1.2,Color("#aad8cf",fade))
+			fx_disc(im,c+Vector2(2,-1),1.2,Color("#aad8cf",fade))
+			fx_disc(im,c+Vector2(0,2),1.4,Color("#775c91",fade))
+		"eos_005":
+			# Dread Dream: looming nightmare mask emerges behind a bed of curling shadows.
+			var c:=Vector2(24,22)
+			fx_disc(im,c,8+5*drive,Color("#36263e",fade))
+			for j in range(5):
+				var q:=c+Vector2(-10+float(j)*5,8+sin(float(j)*2.4+t*TAU)*4)
+				fire_lobe(im,q,4.0,t+float(j)*.2,Color("#8a719e",fade),Color("#352742",fade))
+			for side in [-1.0,1.0]:
+				var q:=c+Vector2(side*4,-3)
+				fx_line(im,q+Vector2(side*3,-2),q-Vector2(side*2,-1),2.2,Color("#c2dad7",fade))
+			fight_arc(im,c+Vector2(0,4),4.0,0.0,PI,Color("#9275b0",fade),Color("#281e36",fade),1.4)
+		"eos_313":
+			# Fate Link: two ghost flames joined by a tightening chain of spectral links.
+			for j in range(2):
+				var q:=Vector2(9+float(j)*30,24)
+				fire_lobe(im,q,4.5,t+float(j)*.5,Color("#c4eee2",fade),Color("#684d98",fade))
+			for j in range(6):
+				var f:float=float(j)/5.0
+				var q:=Vector2(9+30*f,24+sin(f*PI)*8*(1.0-drive))
+				var a:float=float(j%2)*PI*.5
+				fight_arc(im,q,4.0,a,TAU,Color("#c2afd9",fade),Color("#4d3a69",fade),1.4)
+				fx_disc(im,q,1.0,Color("#e5f8eb",fade))
+		"eos_035":
+			# Essence Drain: spectral motes pulled from the target into a dark spirit flame.
+			var travel:float=drive
+			for j in range(7):
+				var f:float=clampf(travel-float(j)*.09,0.0,1.0)
+				var q:=Vector2(39-30*f,24+sin(float(j)*2.4+t*TAU)*6)
+				fx_line(im,q,q+Vector2(5,0),1.5,Color("#715a91",fade))
+				fx_disc(im,q,2.6,Color("#4b365e",fade))
+				fx_disc(im,q-Vector2(0,1),1.3,Color("#a3ddcf",fade))
+			fire_lobe(im,Vector2(9,24),4+3*pulse,t,Color("#b4e8d9",fade),Color("#5b447e",fade))
+		"eos_049":
+			# Final Grudge: black-purple curse seal with rising spectral flames.
+			var c:=Vector2(24,30)
+			psi_polygon(im,c,13+3*drive,5,t*.8,Color("#a98ed0",fade),Color("#32233f",fade))
+			for j in range(5):
+				var a:float=float(j)*TAU/5.0+t*.8
+				var q:=c+Vector2(cos(a)*13,sin(a)*8)
+				fire_lobe(im,q-Vector2(0,7*drive),3.4,t+float(j)*.2,Color("#b8d9d6",fade),Color("#654487",fade))
+				fx_line(im,q,q-Vector2(0,8*drive),1.0,Color("#8467a2",fade))
+			fx_line(im,c-Vector2(4,4),c+Vector2(4,4),1.6,Color("#c8afdc",fade))
+			fx_line(im,c+Vector2(-4,4),c+Vector2(4,-4),1.6,Color("#c8afdc",fade))
 	return im
 
 func combat_frame_image(id:String,frame:int)->Image:
