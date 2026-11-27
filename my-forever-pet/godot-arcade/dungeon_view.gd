@@ -14357,6 +14357,67 @@ func combat_audio_duration(profile:Dictionary,form:String,phase:String)->float:
 # V19.7: acoustic gesture is chosen from authored motion, not random pitch.
 # Vector4: center Hz, signed sweep Hz, pulse count, transient weight.
 const AUDIO_ROLE_GESTURES={
+	"normal_tackle":Vector4(155,-65,1,0.85),
+	"neutral_echo":Vector4(310,-110,3,0.42),
+	"neutral_beam":Vector4(710,260,2,0.24),
+	"normal_thrash":Vector4(220,-100,5,0.78),
+	"normal_cut":Vector4(1380,-920,1,0.84),
+	"normal_superfang":Vector4(180,-85,2,0.92),
+	"normal_slap":Vector4(420,-210,2,0.88),
+	"normal_return":Vector4(340,180,2,0.48),
+	"normal_strength":Vector4(95,-35,1,0.91),
+	"normal_bide":Vector4(120,330,3,0.22),
+	"normal_endeavor":Vector4(240,420,2,0.42),
+	"normal_facade":Vector4(270,-150,3,0.72),
+	"normal_constrict":Vector4(280,-100,4,0.35),
+	"normal_salt":Vector4(1150,-420,3,0.6),
+	"normal_slash":Vector4(1200,-660,2,0.76),
+	"normal_spin":Vector4(470,150,5,0.39),
+	"normal_flail":Vector4(205,-130,6,0.78),
+	"normal_bind":Vector4(320,-170,3,0.46),
+	"normal_extreme":Vector4(980,-650,1,0.92),
+	"normal_headbutt":Vector4(105,-50,1,0.86),
+	"normal_edge":Vector4(125,-50,2,0.82),
+	"normal_slam":Vector4(80,-30,2,0.92),
+	"normal_horn":Vector4(410,-190,1,0.81),
+	"normal_drill":Vector4(530,-220,6,0.66),
+	"normal_quick":Vector4(760,-450,1,0.87),
+	"normal_takedown":Vector4(135,-70,2,0.86),
+	"normal_fake":Vector4(830,-480,1,0.69),
+	"normal_body":Vector4(75,-25,1,0.89),
+	"normal_guillotine":Vector4(760,-430,1,0.95),
+	"normal_vice":Vector4(170,-60,2,0.86),
+	"normal_pound":Vector4(210,-100,1,0.88),
+	"normal_scratch":Vector4(1650,-850,3,0.75),
+	"normal_hyperfang":Vector4(135,-60,2,0.94),
+	"normal_dizzy":Vector4(250,130,4,0.71),
+	"normal_stomp":Vector4(68,-22,2,0.95),
+	"normal_crushclaw":Vector4(850,-420,3,0.92),
+	"normal_wrap":Vector4(350,-90,5,0.3),
+	"normal_furyattack":Vector4(460,-230,5,0.8),
+	"normal_furyswipes":Vector4(1250,-570,5,0.77),
+	"normal_false":Vector4(1050,-580,1,0.48),
+	"normal_megakick":Vector4(72,-28,1,0.97),
+	"normal_megapunch":Vector4(100,-42,1,0.94),
+	"normal_frustration":Vector4(180,-85,4,0.83),
+	"normal_double":Vector4(240,-100,2,0.83),
+	"normal_comet":Vector4(340,-150,5,0.78),
+	"normal_grip":Vector4(195,-80,2,0.75),
+	"normal_climb":Vector4(280,140,3,0.67),
+	"normal_skull":Vector4(90,-32,2,0.85),
+	"normal_giga":Vector4(65,-20,1,0.98),
+	"normal_feint":Vector4(880,-380,2,0.6),
+	"normal_last":Vector4(130,320,2,0.88),
+	"normal_struggle":Vector4(200,-100,4,0.83),
+	"psi_luster":Vector4(720,380,3,0.25),
+	"psi_wave":Vector4(390,240,4,0.3),
+	"psi_beam":Vector4(930,340,2,0.35),
+	"grass_roots":Vector4(120,80,3,0.6),
+	"grass_whip":Vector4(790,-490,1,0.75),
+	"grass_razor":Vector4(1500,-930,3,0.7),
+	"fight_focus":Vector4(210,420,2,0.26),
+	"fight_palm":Vector4(160,-60,2,0.74),
+	"fight_roundkick":Vector4(155,-90,3,0.78),
 	"fire_ember":Vector4(920,-540,1,.82),
 	"fire_breath":Vector4(185,120,3,.22),
 	"fire_vortex":Vector4(260,180,5,.34),
@@ -14409,7 +14470,29 @@ const AUDIO_ROLE_GESTURES={
 func combat_audio_gesture(id:String,profile:Dictionary)->Vector4:
 	var role:String=str(profile.role)
 	if AUDIO_ROLE_GESTURES.has(role):return AUDIO_ROLE_GESTURES[role]
-	if role.begins_with("support_") or role.begins_with("status_") or role in ["heal","drain"]:
+	var record:Dictionary=Rules.MOVE_LIBRARY.get(id,Rules.DEV_NATIVE_MOVES.get(id,{}))
+	if str(record.get("category",""))=="status":
+		match status_finish_kind(record):
+			"heal":return Vector4(440,420,3,.12)
+			"cleanse":return Vector4(840,620,4,.12)
+			"shield":return Vector4(390,90,2,.22)
+			"boost":return Vector4(330,540,4,.26)
+			"weaken":return Vector4(690,-510,3,.28)
+			"exchange":return Vector4(480,280,2,.32)
+			"transform":return Vector4(260,680,5,.22)
+			"sleep":return Vector4(380,-80,1,.08)
+			"confusion":return Vector4(550,-160,5,.36)
+			"poison":return Vector4(180,140,4,.46)
+			"burn":return Vector4(155,-45,5,.58)
+			"paralysis":return Vector4(1350,-470,7,.66)
+			"curse":return Vector4(145,-60,3,.40)
+			"heart":return Vector4(520,110,2,.14)
+			"bind":return Vector4(230,-100,3,.52)
+			"weather":return Vector4(320,210,5,.20)
+			"trap":return Vector4(510,-260,2,.56)
+	if role=="heal":return Vector4(440,420,3,.12)
+	if role=="drain":return Vector4(610,-290,3,.25)
+	if role.begins_with("support_") or role.begins_with("status_"):
 		return Vector4(520,260,2,.18)
 	var form:String=combat_audio_form(id,profile)
 	match form:
@@ -14433,7 +14516,7 @@ func combat_audio_gesture(id:String,profile:Dictionary)->Vector4:
 	return Vector4(330,-130,1,.48)
 
 func combat_audio_gesture_sample(gesture:Vector4,t:float,p:float,pitch:float,noise:float,body:float)->float:
-	var rhythm:float=.45+.55*pow(absf(sin(p*PI*gesture.z)),2.0)
+	var rhythm:float=.22+.78*pow(absf(sin(p*PI*gesture.z)),2.0)
 	var transient:float=lerpf(sin(p*PI),pow(1.0-p,2.0),gesture.w)
 	var tone:float=sin(TAU*pitch*(gesture.x*t+.5*gesture.y*t*p))
 	return (tone*.42+noise*.30*gesture.w+body*.23)*rhythm*transient
@@ -14796,7 +14879,10 @@ func combat_sound(id:String,phase:String,variant:int)->AudioStreamWAV:
 			"rustle","chitin":accent=(noise-last_noise)*.38*absf(sin(p*TAU*4.0))
 			"viscous":accent=sin(TAU*pitch*(180.0*t-70.0*t*p)+sin(p*TAU*4.0)*2.6)*.34
 		wave=wave*.60+accent*(.85 if strike else .62)
-		if not missed:wave=wave*.82+combat_audio_gesture_sample(gesture,t,p,pitch,noise-last_noise,slow_noise)*(.52 if strike else .40)
+		if not missed:
+			# Gesture controls the whole accent envelope, not merely an added tone.
+			var articulation:float=.68+.32*pow(absf(sin(p*PI*gesture.z)),2.0)
+			wave=wave*.77*articulation+combat_audio_gesture_sample(gesture,t,p,pitch,rounded_noise-last_noise,slow_noise)*(.69 if strike else .59)
 		if strike:wave+=sin(TAU*95.0*t*pitch)*.17*pow(1.0-p,2.0)
 		elif missed:wave=(noise-last_noise)*.34+sweep*.12
 		elif status_phase:wave=sin(TAU*520.0*t*pitch)*.20+sin(TAU*780.0*t*pitch)*.14+wave*.55
