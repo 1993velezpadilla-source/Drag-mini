@@ -4753,6 +4753,14 @@ func combat_waypoints(source:Vector2i,target:Vector2i,path:Array,source_height:f
 			points.append(pos(cells[i])+Vector3.UP*lerpf(source_height,target_height,float(i)/float(cells.size()-1)))
 	return points
 
+# Deferred casts snapshot heights along with tiles, not live actors at replay time.
+func snapshot_counter_geometry(event:Dictionary,source_actor:Node3D,target_actor:Node3D)->Dictionary:
+	var result:Dictionary=event.duplicate(true)
+	var profile:=combat_profile(str(result.fx))
+	result["source_height"]=combat_actor_socket(source_actor,str(profile.socket))
+	result["target_height"]=combat_actor_socket(target_actor,"center")
+	return result
+
 func combat_fx_spawn(event:Dictionary)->void:
 	if not is_instance_valid(combat_fx_root):return
 	var id:String=str(event.get("fx","basic_strike"))
@@ -4766,8 +4774,8 @@ func combat_fx_spawn(event:Dictionary)->void:
 		if is_instance_valid(candidate):source_actor=candidate
 	else:
 		source_actor=disguise_actor if is_instance_valid(disguise_actor) else pet_pose
-	var height:float=combat_actor_socket(source_actor,str(profile.socket))
-	var target_height:float=combat_actor_socket(combat_target_actor(target),"center")
+	var height:float=float(event.get("source_height",combat_actor_socket(source_actor,str(profile.socket))))
+	var target_height:float=float(event.get("target_height",combat_actor_socket(combat_target_actor(target),"center")))
 	if source==target and str(profile.socket)=="ground":target_height=height
 	var waypoints:Array=combat_waypoints(source,target,event.get("path",[target]),height,target_height)
 	var tiles:Array=[]
@@ -5557,7 +5565,9 @@ func queue_observed_enemy_damage(actor:Node3D,uid:int,tile:Vector2i,defeated:boo
 	# Overflow uses reaction-only timing, not an impact scheduled for a nonexistent effect.
 	for item in plan:
 		if not item.event.is_empty():
-			delayed_combat_fx.append({"delay":float(item.launch),"event":item.event})
+			var source_actor:Node3D=disguise_actor if is_instance_valid(disguise_actor) else pet_pose
+			var frozen_event:=snapshot_counter_geometry(item.event,source_actor,actor)
+			delayed_combat_fx.append({"delay":float(item.launch),"event":frozen_event})
 	# Queue terminal callback first; subsequent calls preserve that final pose.
 	for index in range(plan.size()-1,-1,-1):
 		var item:Dictionary=plan[index]
