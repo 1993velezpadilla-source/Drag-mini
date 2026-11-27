@@ -3102,6 +3102,99 @@ func dark_sprite(im:Image,role:String,frame:int)->void:
 				fx_disc(im,q+Vector2(0,-2),1.6,light)
 			fight_arc(im,c,16.0,t*TAU,PI*1.25,gold,ink,2.6)
 
+# Original metal FX: faceted reflections, heavy contact, magnetic and radiant energy.
+func steel_sprite(im:Image,role:String,frame:int)->void:
+	var t:float=float(frame)/11.0
+	var c:=Vector2(24,24)
+	var chrome:=Color("#e4edf2");var iron:=Color("#73869b");var dark:=Color("#364557");var cyan:=Color("#a8eaff");var gold:=Color("#ffe39c")
+	match role:
+		"steel_tail":
+			var q:=c+Vector2(0,4)
+			fight_arc(im,q,17.0,-PI+t*1.8,PI*1.3,chrome,dark,7.0)
+			var a:float=-PI+t*1.8+PI*1.3
+			psi_polygon(im,q+Vector2(cos(a),sin(a))*17.0,5.0,5,a,chrome,iron)
+		"steel_sound":
+			for i in range(5):
+				var q:=Vector2(4+float(i)*9+4*t,24)
+				fight_arc(im,q,6.0+float(i)*2.5,-PI*.55,PI*1.1,chrome,iron,2.4)
+				fx_disc(im,q,1.8,cyan)
+		"steel_meteor":
+			var q:=Vector2(7+32*t,24)
+			for i in range(4):
+				fx_line(im,q-Vector2(float(i)*5.0+6,7),q-Vector2(float(i)*5.0,0),3.0,gold)
+			psi_polygon(im,q,10.0,5,t*PI,chrome,dark)
+			fight_burst(im,q,14.0,5,t,gold,iron)
+		"steel_defense":
+			for i in range(6):
+				var a:float=float(i)*TAU/6.0+t*TAU*.5
+				var q:=c+Vector2(cos(a),sin(a))*(10.0+sin(t*PI)*5.0)
+				psi_polygon(im,q,6.0,6,a,chrome,dark)
+				fx_line(im,q-Vector2(3,3),q+Vector2(2,-3),2.0,cyan)
+		"steel_wing":
+			for i in [-1,1]:
+				var q:=c+Vector2(float(i)*5.0,0)
+				for j in range(4):
+					var f:float=float(j)/3.0
+					var a:float=float(i)*(0.5+t*1.1+f*.4)
+					var p:=q+Vector2(float(i)*f*12.0,f*5.0)
+					fx_line(im,p,p+Vector2(float(i)*cos(a)*12.0,-sin(a)*12.0*float(i)),4.0,iron)
+					fx_line(im,p,p+Vector2(float(i)*cos(a)*10.0,-sin(a)*10.0*float(i)),1.6,chrome)
+		"steel_doom":
+			var r:float=5.0+sin(t*PI)*12.0
+			psi_ring(im,c,r,gold,dark)
+			for i in range(8):
+				var a:float=float(i)*TAU/8.0+t
+				var q:=c+Vector2(cos(a),sin(a))*(20.0-10.0*t)
+				fx_line(im,q,q+Vector2(0,-7.0),2.3,chrome)
+			fight_burst(im,c,r,4,t,cyan,iron)
+		"steel_claw":
+			for i in range(3):
+				var q:=c+Vector2(float(i-1)*7,float(i-1)*4)
+				fight_arc(im,q,14.0,-PI*.8+t*1.2,PI*1.05,chrome,dark,4.2)
+				fx_disc(im,q+Vector2(sin(t*PI)*8.0,0),1.5,gold)
+		"steel_head":
+			var q:=Vector2(8+30*t,24)
+			psi_polygon(im,q,10.0,6,PI*.5,chrome,dark)
+			fx_line(im,q-Vector2(7,-3),q+Vector2(7,-3),4.0,iron)
+			fight_burst(im,q,13.0,6,t,gold,dark)
+		"steel_gyro":
+			var q:=Vector2(8+32*t,24)
+			fx_disc(im,q,10.0,dark);fx_disc(im,q,7.0,iron)
+			for i in range(3):
+				fight_arc(im,q,12.0,t*TAU*2.0+float(i)*TAU/3.0,PI*.6,chrome,cyan,3.2)
+		"steel_bullet":
+			for i in range(3):
+				var q:=Vector2(5+35*t-float(i)*7,20+float(i)*4)
+				fx_line(im,q-Vector2(9,0),q,4.0,iron)
+				fx_disc(im,q,3.5,chrome)
+				fx_line(im,q-Vector2(15,0),q-Vector2(6,0),1.4,gold)
+		"steel_magnet":
+			var q:=Vector2(7+32*t,24-sin(t*PI)*9.0)
+			fx_disc(im,q,7.5,dark);fx_disc(im,q,4.5,chrome)
+			for i in range(4):
+				var a:float=float(i)*TAU/4.0+t*TAU
+				var p:=q+Vector2(cos(a),sin(a))*10.0
+				fx_disc(im,p,2.8,Color("#e88883") if i%2==0 else cyan)
+				fight_arc(im,q,12.0,a,PI*.4,chrome,iron,1.8)
+		"steel_mirror":
+			var q:=Vector2(8+32*t,24)
+			psi_polygon(im,q,9.0,4,t*PI,chrome,iron)
+			fx_line(im,q-Vector2(5,5),q+Vector2(4,4),3.0,cyan)
+			for i in range(4):fx_disc(im,q-Vector2(float(i+1)*6,sin(t*TAU+float(i))*5.0),2.0,chrome)
+		"steel_burst":
+			for i in range(9):
+				var a:float=float(i)*TAU/9.0+t
+				var q:=c+Vector2(cos(a),sin(a))*(5.0+15.0*t)
+				psi_polygon(im,q,3.5,3,a,chrome,dark)
+				fx_line(im,c,q,1.8,gold)
+			psi_ring(im,c,6.0+sin(t*PI)*7.0,cyan,iron)
+		"steel_flash":
+			var q:=Vector2(4+38*t,24)
+			fx_line(im,Vector2(2,24),q,10.0,iron)
+			fx_line(im,Vector2(2,24),q,6.0,cyan)
+			fx_line(im,Vector2(2,24),q,2.2,chrome)
+			fight_burst(im,q,9.0+sin(t*PI)*5.0,6,t,chrome,gold)
+
 func combat_frame_image(id:String,frame:int)->Image:
 	var style:Array=combat_style(id)
 	var mode:String=combat_animation_mode(id,str(style[0]))
@@ -3139,6 +3232,8 @@ func combat_frame_image(id:String,frame:int)->Image:
 		dragon_sprite(im,role,frame);return im
 	if role.begins_with("dark_"):
 		dark_sprite(im,role,frame);return im
+	if role.begins_with("steel_"):
+		steel_sprite(im,role,frame);return im
 	var center:=Vector2(24,24)
 	match mode:
 		"vine":
@@ -3558,6 +3653,20 @@ func combat_profile(id:String)->Dictionary:
 		"eos_503":role="dark_fling"
 		"eos_515":role="dark_sucker"
 		"eos_542":role="dark_plot"
+		"eos_001":role="steel_tail"
+		"eos_083":role="steel_sound"
+		"eos_103":role="steel_meteor"
+		"eos_186":role="steel_defense"
+		"eos_244":role="steel_wing"
+		"eos_256":role="steel_doom"
+		"eos_325":role="steel_claw"
+		"eos_431":role="steel_head"
+		"eos_475":role="steel_gyro"
+		"eos_510":role="steel_bullet"
+		"eos_523":role="steel_magnet"
+		"eos_527":role="steel_mirror"
+		"eos_532":role="steel_burst"
+		"eos_536":role="steel_flash"
 	if role in ["electric_charge","electric_lift"]:mode="lightning"
 	var impact:float=.48 if role in ["contact","electric_contact","electric_short","electric_fist","electric_fang","electric_dash","electric_spark"] else .64 if role in ["projectile","lash","electric_arc","electric_wave","electric_sky","electric_orb","electric_beam"] else .40
 	if role in ["fire_breath","fire_ember","fire_blast","fire_wisp"]:impact=.64
@@ -3580,6 +3689,7 @@ func combat_profile(id:String)->Dictionary:
 	if role.begins_with("ghost_"):impact=.64 if role in ["ghost_ball","ghost_confuse","ghost_sneak","ghost_force"] else .48
 	if role.begins_with("dragon_"):impact=.64 if role in ["dragon_breath","dragon_flame","dragon_pulse","dragon_meteor","dragon_rush"] else .48
 	if role.begins_with("dark_"):impact=.64 if role in ["dark_faint","dark_fling","dark_sucker","dark_pulse","dark_void"] else .48
+	if role.begins_with("steel_"):impact=.64 if role in ["steel_meteor","steel_bullet","steel_flash","steel_mirror","steel_magnet"] else .48
 	return {"mode":mode,"role":role,"element":element,"pattern":pattern,"range":reach,"duration":float(style[3]),"impact":impact,"socket":"ground" if role in ["ground","fire_plume","fire_magma","water_dive","water_whirlpool","water_surf","grass_frenzy","grass_roots","grass_knot","ice_avalanche","ice_cold","earth_dig","earth_tomb","earth_power","earth_fissure","earth_spikes","earth_quake","earth_magnitude","rock_edge","rock_tomb","rock_trap","rock_roll"] else "head" if role in ["projectile","fire_breath","fire_ember","fire_eruption","water_bubble","water_ink","water_spout","water_cannon","water_pump","water_bubblebeam","water_gun","water_pulse","water_brine","grass_solar","grass_energy","grass_bullet","grass_whistle","ice_aurora","ice_beam","ice_wind","earth_shot","rock_wrecker","rock_blast","rock_gem"] else "center"}
 func electric_sprite(im:Image,id:String,frame:int,role:String)->void:
 	var cyan:=Color("#40cfff")
@@ -4304,6 +4414,16 @@ func combat_fx_update(dt:float)->void:
 						q=points[-1]+Vector3(cos(angle)*.22,.8*(1.0-progress),sin(angle)*.22);size=.35
 					_:
 						q=points[-1]+Vector3(cos(angle+t*TAU)*.26,.16+f*.36,sin(angle+t*TAU)*.26);size=.52
+			if str(profile.role).begins_with("steel_"):
+				var steel_role:String=str(profile.role)
+				var progress:float=clampf(t*1.8-f*.30,0,1)
+				match steel_role:
+					"steel_meteor","steel_bullet","steel_flash","steel_mirror","steel_magnet","steel_gyro","steel_sound":
+						q=combat_path_sample(points,progress)+Vector3(cos(angle)*.10,.15+sin(progress*PI)*(.65 if steel_role=="steel_magnet" else .13),sin(angle)*.10);size=.67 if steel_role=="steel_flash" else .49
+					"steel_doom","steel_defense","steel_burst":
+						q=points[0]+Vector3(cos(angle+t*TAU)*.38,.12+f*.65,sin(angle+t*TAU)*.38);size=.50
+					"steel_tail","steel_wing","steel_claw","steel_head":
+						q=points[-1]+Vector3(cos(angle+t*TAU)*.28,.16+sin(angle)*.20,sin(angle+t*TAU)*.28);size=.56
 			# Drained energy travels from victim back to caster; healing stays on caster.
 			if profile.role=="drain" and t>=.40:
 				var back:float=clampf((t-.40)*2.0-f*.22,0.0,1.0)

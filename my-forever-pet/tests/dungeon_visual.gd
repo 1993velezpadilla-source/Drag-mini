@@ -354,6 +354,22 @@ func run():
 				dark_frames[signature]=true
 				assert(middle.save_png("/tmp/dungeon-real-dark-"+id+".png")==OK)
 			print("KINDRIA_DARK_CHOREOGRAPHY_PASS ",dark_roles.size())
+			var steel_roles:Dictionary={}
+			var steel_frames:Dictionary={}
+			for id in ["eos_001","eos_083","eos_103","eos_186","eos_244","eos_256","eos_325","eos_431","eos_475","eos_510","eos_523","eos_527","eos_532","eos_536"]:
+				var profile:Dictionary=dungeon.combat_profile(id)
+				assert(str(profile.role).begins_with("steel_"),"dedicated steel role "+id)
+				assert(not steel_roles.has(profile.role),"unique steel choreography "+id)
+				steel_roles[profile.role]=true
+				var first:Image=dungeon.combat_frame_image(id,2)
+				var middle:Image=dungeon.combat_frame_image(id,6)
+				assert(first.get_data()!=middle.get_data(),"steel animation changes "+id)
+				assert(middle.get_used_rect().has_area(),"nonempty steel frame "+id)
+				var signature:String=middle.get_data().hex_encode()
+				assert(not steel_frames.has(signature),"unique steel sprite "+id)
+				steel_frames[signature]=true
+				assert(middle.save_png("/tmp/dungeon-real-steel-"+id+".png")==OK)
+			print("KINDRIA_STEEL_CHOREOGRAPHY_PASS ",steel_roles.size())
 			# Reproduce the freed-instance registry fault before the real expedition.
 			var retired:Node3D=dungeon.actor_for("retired-test",Vector3.ZERO)
 			retired.free()
