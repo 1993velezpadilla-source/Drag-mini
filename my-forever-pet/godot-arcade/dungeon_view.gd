@@ -141,9 +141,10 @@ var astral_sigil_cells:Array[Vector2i]=[]
 var biome_light_materials:Array[ShaderMaterial]=[]
 var exterior_motion_materials:Dictionary={}
 var exterior_motion_batches=0
-func setup(r:int,id:int,step:int,finale:bool,patrol:bool,seed_id:int,companion:int):
+func setup(r:int,id:int,step:int,finale:bool,patrol:bool,seed_id:int,companion:int,training:Dictionary={}):
 	region=r;companion_id=0
 	run.setup(r,id,step,finale,patrol,seed_id,0)
+	if not training.is_empty():run.configure_training(training)
 	hp_previous=run.hp
 	palette=[ [Color("#37574b"),Color("#58775a"),Color("#17392f"),Color("#f4c77b")], [Color("#244c64"),Color("#39748a"),Color("#123449"),Color("#7ce8e4")], [Color("#414264"),Color("#62678b"),Color("#282c50"),Color("#dbb8ff")] ][r]
 	build_terrain_textures()

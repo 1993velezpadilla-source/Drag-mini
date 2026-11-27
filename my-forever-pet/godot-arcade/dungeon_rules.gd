@@ -8,6 +8,73 @@ const SIGNATURE_SKILLS={"bramble_pup":[2,false,2,0,"pounce",1,"briar_arc"],"spor
 const ATTACK_PATTERNS={"bramble_pup":"line","sporeling":"radius","thornbeetle":"line","leafwisp":"line","rootgnawer":"front","vinesnap":"corner","mossmite":"line","sylphowl":"fan","hollow_stag":"fan","grovetitan":"radius","fungal_monarch":"radius","reef_pup":"front","jellymancer":"radius","shellguard":"front","bubblewisp":"corner","eelstrix":"line","coralcrab":"fan","anemoneye":"corner","marrowray":"line","leviathorn":"line","abyss_colossus":"radius","tidal_sovereign":"fan","starlit_pup":"front","lunamoth":"fan","crystarok":"radius","nova_wisp":"line","orbitserpent":"corner","comet_hare":"line","voidspider":"corner","nebulwing":"fan","lunar_prowler":"front","astro_golem":"corner","celestial_guardian":"cross"}
 # Secondary moves have independent geometry and recovery. They do not stack status effects.
 const SECONDARY_SKILLS={"bramble_pup":[1,"fan","Thorn Scratch",-1,"none",0,"slash"],"sporeling":[1,"front","Cap Bonk",-1,"none",0,"roll"],"thornbeetle":[1,"front","Mandible Cut",-1,"none",0,"slash"],"leafwisp":[1,"fan","Razor Leaves",-1,"none",0,"fan"],"rootgnawer":[2,"line","Root Needle",-2,"none",0,"dart"],"vinesnap":[1,"front","Petal Chomp",-1,"none",0,"slash"],"mossmite":[1,"radius","Pebble Scatter",-2,"none",0,"shards"],"sylphowl":[1,"fan","Talon Rake",-1,"none",0,"slash"],"hollow_stag":[2,"line","Bark Spear",-2,"none",0,"dart"],"grovetitan":[2,"corner","Root Hook",-2,"none",0,"whip"],"fungal_monarch":[3,"line","Royal Spore Jet",-2,"none",0,"cloud"],"reef_pup":[2,"line","Water Needle",-2,"none",0,"dart"],"jellymancer":[1,"front","Tentacle Flick",-1,"none",0,"whip"],"shellguard":[2,"line","Shell Disc",-2,"none",0,"roll"],"bubblewisp":[1,"radius","Foam Ring",-2,"none",0,"bubble"],"eelstrix":[1,"fan","Static Fang",-1,"none",0,"lightning"],"coralcrab":[2,"line","Brine Jet",-2,"none",0,"beam"],"anemoneye":[1,"radius","Nettle Bloom",-2,"none",0,"cloud"],"marrowray":[1,"fan","Tail Barb",-1,"none",0,"slash"],"leviathorn":[3,"line","Brackish Lance",-2,"none",0,"spiral"],"abyss_colossus":[1,"radius","Ink Veil",-2,"none",0,"cloud"],"tidal_sovereign":[3,"line","Riptide Rush",-2,"none",0,"wave"],"starlit_pup":[2,"line","Comet Spark",-2,"none",0,"dart"],"lunamoth":[1,"fan","Moon Wing",-1,"none",0,"fan"],"crystarok":[2,"line","Crystal Needle",-2,"none",0,"shards"],"nova_wisp":[1,"radius","Cinder Halo",-2,"none",0,"flame"],"orbitserpent":[1,"front","Ring Fang",-1,"none",0,"slash"],"comet_hare":[1,"fan","Lunar Kick",-1,"none",0,"slash"],"voidspider":[3,"line","Silk Dart",-2,"none",0,"web"],"nebulwing":[1,"radius","Echo Burst",-2,"none",0,"wave"],"lunar_prowler":[2,"line","Shadow Pounce",-2,"none",0,"leap"],"astro_golem":[1,"radius","Gravel Nova",-2,"none",0,"shards"],"celestial_guardian":[2,"fan","Halo Blade",-2,"none",0,"slash"]}
+# Kindria original rules, based on documented RPG mechanics, not copied game source.
+const TYPE_CHART={"normal":[[],["rock","steel"],["ghost"]],"fire":[["grass","ice","bug","steel"],["fire","water","rock","dragon"],[]],"water":[["fire","ground","rock"],["water","grass","dragon"],[]],"electric":[["water","flying"],["electric","grass","dragon"],["ground"]],"grass":[["water","ground","rock"],["fire","grass","poison","flying","bug","dragon","steel"],[]],"ice":[["grass","ground","flying","dragon"],["fire","water","ice","steel"],[]],"fighting":[["normal","ice","rock","dark","steel"],["poison","flying","psychic","bug","fairy"],["ghost"]],"poison":[["grass","fairy"],["poison","ground","rock","ghost"],["steel"]],"ground":[["fire","electric","poison","rock","steel"],["grass","bug"],["flying"]],"flying":[["grass","fighting","bug"],["electric","rock","steel"],[]],"psychic":[["fighting","poison"],["psychic","steel"],["dark"]],"bug":[["grass","psychic","dark"],["fire","fighting","poison","flying","ghost","steel","fairy"],[]],"rock":[["fire","ice","flying","bug"],["fighting","ground","steel"],[]],"ghost":[["psychic","ghost"],["dark"],["normal"]],"dragon":[["dragon"],["steel"],["fairy"]],"dark":[["psychic","ghost"],["fighting","dark","fairy"],[]],"steel":[["ice","rock","fairy"],["fire","water","electric","steel"],[]],"fairy":[["fighting","dragon","dark"],["fire","poison","steel"],[]]}
+const NATURE_NAMES=["Hardy","Lonely","Brave","Adamant","Naughty","Bold","Docile","Relaxed","Impish","Lax","Timid","Hasty","Serious","Jolly","Naive","Modest","Mild","Quiet","Bashful","Rash","Calm","Gentle","Sassy","Careful","Quirky","Lazy"]
+# Stat order: HP, attack, defense, special attack, special defense, speed.
+const NATURE_ORDER=[1,2,5,3,4]
+const STAT_NAMES=["HP","Attack","Defense","Sp. Attack","Sp. Defense","Speed"]
+const ENEMY_TRAINING={"bramble_pup":[["grass","normal"],"grass","normal",1,1,"physical"],"sporeling":[["grass","poison"],"poison","grass",4,1,"special"],"thornbeetle":[["bug","grass"],"bug","bug",2,2,"physical"],"leafwisp":[["grass","flying"],"grass","grass",5,1,"special"],"rootgnawer":[["ground","grass"],"ground","grass",1,1,"physical"],"vinesnap":[["grass","poison"],"grass","grass",1,2,"physical"],"mossmite":[["rock","grass"],"rock","rock",2,1,"physical"],"sylphowl":[["flying","grass"],"flying","flying",5,1,"special"],"hollow_stag":[["grass","ghost"],"grass","grass",1,2,"physical"],"grovetitan":[["grass","ground"],"ground","grass",0,2,"physical"],"fungal_monarch":[["grass","poison"],"poison","poison",4,3,"special"],"reef_pup":[["water"],"water","water",5,1,"physical"],"jellymancer":[["water","electric"],"electric","water",4,1,"special"],"shellguard":[["water","rock"],"rock","rock",2,2,"physical"],"bubblewisp":[["water","fairy"],"water","water",3,1,"special"],"eelstrix":[["water","electric"],"electric","electric",5,1,"special"],"coralcrab":[["water","bug"],"bug","water",1,1,"physical"],"anemoneye":[["water","poison"],"poison","poison",4,2,"physical"],"marrowray":[["water","flying"],"flying","water",5,1,"special"],"leviathorn":[["water","dragon"],"water","water",3,2,"physical"],"abyss_colossus":[["water","dark"],"dark","dark",0,2,"physical"],"tidal_sovereign":[["water","dark"],"water","water",1,3,"physical"],"starlit_pup":[["fairy","normal"],"fairy","fairy",5,1,"physical"],"lunamoth":[["bug","fairy"],"fairy","flying",4,1,"special"],"crystarok":[["rock","ice"],"ice","ice",2,2,"physical"],"nova_wisp":[["fire","ghost"],"fire","fire",3,1,"special"],"orbitserpent":[["dragon","psychic"],"psychic","dragon",3,1,"physical"],"comet_hare":[["normal","fairy"],"fairy","normal",5,1,"physical"],"voidspider":[["bug","dark"],"dark","bug",2,2,"special"],"nebulwing":[["flying","ghost"],"ghost","flying",5,1,"special"],"lunar_prowler":[["dark","ice"],"dark","dark",1,2,"physical"],"astro_golem":[["rock","psychic"],"rock","rock",2,2,"physical"],"celestial_guardian":[["flying","fairy"],"fairy","fairy",3,3,"special"]}
+const EV_STAT_CAP=252
+const EV_TOTAL_CAP=510
+const IV_ENABLED=false
+var trained_profile:Dictionary={}
+var earned_ev:Array=[0,0,0,0,0,0]
+var last_type_multiplier:float=1.0
+static func type_multiplier(move_type:String,defender_types:Array,mode:String="explorers")->float:
+	if not TYPE_CHART.has(move_type):return 1.0
+	var matchups:Array=TYPE_CHART[move_type]
+	var factor:float=1.0
+	var seen:Dictionary={}
+	for element in defender_types:
+		if seen.has(element):continue
+		seen[element]=true
+		if element in matchups[2]:factor*=.5 if mode=="explorers" else 0.0
+		elif element in matchups[0]:factor*=1.4 if mode=="explorers" else 2.0
+		elif element in matchups[1]:factor*=.7 if mode=="explorers" else .5
+	return factor
+static func nature_factor(nature_id:int,stat:int)->float:
+	if stat==0 or nature_id<0 or nature_id>=NATURE_NAMES.size():return 1.0
+	if nature_id==25:return 1.1 if stat==2 else .9 if stat==5 else 1.0
+	var plus:int=NATURE_ORDER[int(nature_id/5.0)]
+	var minus:int=NATURE_ORDER[nature_id%5]
+	if plus==minus:return 1.0
+	return 1.1 if stat==plus else .9 if stat==minus else 1.0
+static func normalized_ev(values:Array,limit:int=EV_TOTAL_CAP)->Array:
+	var result:Array=[0,0,0,0,0,0]
+	var remaining:int=limit
+	for i in range(mini(6,values.size())):
+		if not (values[i] is int or values[i] is float) or not is_finite(float(values[i])):continue
+		result[i]=clampi(int(values[i]),0,mini(EV_STAT_CAP,remaining))
+		remaining-=int(result[i])
+	return result
+static func stat_value(base:int,level:int,ev:int,nature_id:int,stat:int)->int:
+	var lv:int=clampi(level,1,100)
+	var trained:int=int((2*base+int(clampi(ev,0,EV_STAT_CAP)/4.0))*lv/100.0)
+	if stat==0:return trained+lv+10
+	return floori(float(trained+5)*nature_factor(nature_id,stat))
+static func make_pet_stats(level:int,ev:Array,nature_id:int)->Array:
+	var base:Array=[45,48,48,54,50,52]
+	var out:Array=[]
+	for i in range(6):out.append(stat_value(base[i],level,int(ev[i]),nature_id,i))
+	return out
+func configure_training(profile:Dictionary)->void:
+	trained_profile=profile.duplicate(true)
+	var stats:Array=trained_profile.get("stats",[])
+	if stats.size()==6:
+		var bonus:int=mini(35,maxi(0,int(stats[0])-int(make_pet_stats(int(profile.get("level",1)),[0,0,0,0,0,0],0)[0])))
+		max_hp+=bonus;hp=max_hp
+func trained_damage(raw:int,move_type:String,attacker_types:Array,defender_types:Array,attack_stat:int,defense_stat:int,_neutral_stat:int)->int:
+	last_type_multiplier=type_multiplier(move_type,defender_types)
+	if last_type_multiplier<=0.0:return 0
+	var stab:float=1.2 if move_type in attacker_types else 1.0
+	var ratio:float=clampf(float(maxi(1,attack_stat))/maxi(1,defense_stat),.60,1.65)
+	return maxi(1,roundi(float(raw)*last_type_multiplier*stab*ratio))
+func gain_enemy_ev(enemy:Dictionary)->void:
+	var profile:Array=ENEMY_TRAINING.get(enemy.get("species",""),[])
+	if profile.is_empty():return
+	var index:int=int(profile[3]);earned_ev[index]=mini(510,int(earned_ev[index])+int(profile[4]))
+
 var enemy_actions:Array[Dictionary]=[]
 var player_attack_fx:String="basic_strike"
 var player_attack_cells:Array[Vector2i]=[]
@@ -306,6 +373,14 @@ func strike(i:int,power:bool=false):
 	player_attack_cells=[attack_target]
 	if power and distance(player,attack_target)==2:player_attack_cells.push_front(player+(attack_target-player)/2)
 	var damage:int=10 if power else 6
+	last_type_multiplier=1.0
+	if not trained_profile.is_empty():
+		var enemy_info:Array=ENEMY_TRAINING.get(enemies[i].get("species",""),[["normal"],"normal","normal",0,0,"physical"])
+		var stat_index:int=3 if power and skill_kind==1 else 1
+		var stats:Array=trained_profile.stats
+		var neutral:Array=make_pet_stats(int(trained_profile.level),[0,0,0,0,0,0],0)
+		var move_type:String=str(trained_profile.types[0]) if power else "normal"
+		damage=trained_damage(damage,move_type,trained_profile.types,enemy_info[0],int(stats[stat_index]),int(neutral[stat_index]),int(neutral[stat_index]))
 	if weakened_strikes>0:
 		damage=maxi(1,damage-1);weakened_strikes-=1
 	var guard:int=int(enemies[i].get("guard",0))
@@ -316,6 +391,7 @@ func strike(i:int,power:bool=false):
 	emit_event("−%d HP"%damage)
 	if int(enemies[i].hp)<=0:
 		var guardian=int(enemies[i].kind)==3
+		gain_enemy_ev(enemies[i])
 		enemies.remove_at(i);defeated+=1;combo+=1;best_combo=maxi(best_combo,combo)
 		if guardian:guardian_defeated=true
 		var reward=(12 if guardian else 2)+mini(3,combo-1);coins+=reward;message="Guardian defeated! +%d coins"%reward if guardian else "Enemy defeated! +%d coins · Combo %d"%[reward,combo]
@@ -368,6 +444,14 @@ func enemy_turn():
 			if special:damage=maxi(1,damage+int(skill[3]))
 			else:damage=maxi(1,damage-1)
 			if marked_damage>0:damage+=marked_damage;marked_damage=0
+			last_type_multiplier=1.0
+			if not trained_profile.is_empty():
+				var info:Array=ENEMY_TRAINING.get(enemies[i].get("species",""),[["normal"],"normal","normal",0,0,"physical"])
+				var move_type:String=str(info[2] if alternate else info[1]) if special else "normal"
+				var stat_index:int=4 if str(info[5])=="special" else 2
+				var stats:Array=trained_profile.stats
+				var neutral:Array=make_pet_stats(int(trained_profile.level),[0,0,0,0,0,0],0)
+				damage=trained_damage(damage,move_type,info[0],trained_profile.types,int(neutral[stat_index]),int(stats[stat_index]),int(neutral[stat_index]))
 			hp=maxi(0,hp-damage);hits+=1;combo=0
 			var move_name:String=str(enemies[i].get("signature","Strike")) if special else "Quick strike"
 			if alternate:move_name=str(SECONDARY_SKILLS[species][2])
@@ -376,8 +460,10 @@ func enemy_turn():
 				if alternate:enemies[i]["alt_cooldown"]=maxi(0,int(skill[2])-1)
 				else:enemies[i]["cooldown"]=maxi(0,int(skill[2])-1)
 				apply_signature_effect(i,skill)
-			enemy_actions.append({"uid":enemies[i].get("uid",i),"phase":"attack","from":p,"to":player,"end":enemies[i].pos,"move":move_name,"fx":skill[6] if special else "basic_strike","effect":effect,"damage":damage,"aim":aim if special else player-p,"pattern":pattern if special else "front","tiles":footprint.keys() if special else [player],"path":footprint.get(player,[player]) if special else [player]})
+			enemy_actions.append({"uid":enemies[i].get("uid",i),"phase":"attack","from":p,"to":player,"end":enemies[i].pos,"move":move_name,"fx":skill[6] if special else "basic_strike","effect":effect,"damage":damage,"effectiveness":last_type_multiplier,"aim":aim if special else player-p,"pattern":pattern if special else "front","tiles":footprint.keys() if special else [player],"path":footprint.get(player,[player]) if special else [player]})
 			message="%s · %s! −%d HP"%[enemies[i].get("name","Enemy"),move_name,damage]
+			if last_type_multiplier>1.01:message+=" · Effective!"
+			elif last_type_multiplier<.99:message+=" · Resisted"
 			if effect!="none":message+=" · "+effect.capitalize()
 			emit_event(message)
 			if hp==0:

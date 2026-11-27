@@ -25,10 +25,11 @@ const MEDALS=[[10,25,50],[3,8,16],[5,15,30],[2,5,8],[10,30,70]]
 var test_mode=false
 var dirty=false
 var wallpaper_keys:Dictionary={}
-const PERSONAL=["stage","field","body","eyes","color","variant","friendship","inherited_eyes","name","hunger","happy","energy","bond","waste","mistakes","germs","hygiene","toilet","soap","cells","foods","equipped","worn","training","age","food_clock","mood_clock","energy_clock","waste_clock","cell_clock","care_clock","hygiene_clock","toilet_clock","rest_clock","sleep_until","awake_until","interaction_at","companion_xp"]
+const TrainingRules=preload("res://dungeon_rules.gd")
+const PERSONAL=["nature_id","ev_allocated","ev_bank","stage","field","body","eyes","color","variant","friendship","inherited_eyes","name","hunger","happy","energy","bond","waste","mistakes","germs","hygiene","toilet","soap","cells","foods","equipped","worn","training","age","food_clock","mood_clock","energy_clock","waste_clock","cell_clock","care_clock","hygiene_clock","toilet_clock","rest_clock","sleep_until","awake_until","interaction_at","companion_xp"]
 const WALL_ROOMS=["room_bedroom","room_kitchen","room_bathroom","room_toy","room_garden","room_lab"]
 func defaults()->Dictionary:
-	return {"today_claim_day":"","arcade_day":"","arcade_daily_best":0,"arcade_daily_claimed":false,"arcade_medals":[0,0,0,0,0],"arcade_runs":[0,0,0,0,0],"profiles":{},"companion_xp":0,"research_evidence":[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],"research_trust":[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],"sanctuary_mask":0,"sanctuary_progress":[0,0,0,0,0,0,0,0,0],"research_day":"","research_daily":[0,0,0],"research_claimed":0,"research_rank_xp":[0,0,0],"research_skill":0,"research_misses":[0,0,0],"research_target":[-1,-1,-1],"wallpaper_room":0,"wallpaper_x":1,"wallpaper_y":2,"wallpaper_size":1,"wallpaper_minimal":false,"wallpaper_battery":false,"wallpaper_status":true,"stage":0,"field":0,"habitat":0,"body":0,"eyes":0,"color":0,"variant":0,"generation":1,"friendship":0,"inherited_eyes":-1,"name":"","hunger":5,"happy":10,"energy":100,"bond":0,"xp":0,"waste":0,"mistakes":0,"germs":0,"hygiene":100,"toilet":100,"coins":0,"crystals":0,"materials":0,"fuel":0,"snacks":0,"medicine":0,"soap":0,"cells":[0,0,0],"foods":[0,0,0,0],"collection":0,"favorites":0,"care_day":"","care_mask":0,"care_claims":0,"care_claimed":false,"form":-1,"owned":0,"equipped":0,"installation":0,"wardrobe":0,"worn":[0,0,0,0],"theme":0,"training":0,"age":0.0,"last":0.0,"food_clock":0.0,"mood_clock":0.0,"energy_clock":0.0,"waste_clock":0.0,"cell_clock":0.0,"care_clock":0.0,"hygiene_clock":0.0,"toilet_clock":0.0,"rest_clock":0.0,"sleep_until":0.0,"awake_until":0.0,"auto_sleep":true,"trip_end":0.0,"destination":0,"trip_bonus":0,"journeys":0,"pending":[0,0,0],"daily_day":"","quest_day":"","quests":0,"claimed":0,"garden_at":0.0,"harvests":0,"interaction_at":0.0,"best":[0,0,0,0,0]}
+	return {"nature_id":-1,"ev_allocated":[0,0,0,0,0,0],"ev_bank":[0,0,0,0,0,0],"today_claim_day":"","arcade_day":"","arcade_daily_best":0,"arcade_daily_claimed":false,"arcade_medals":[0,0,0,0,0],"arcade_runs":[0,0,0,0,0],"profiles":{},"companion_xp":0,"research_evidence":[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],"research_trust":[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],"sanctuary_mask":0,"sanctuary_progress":[0,0,0,0,0,0,0,0,0],"research_day":"","research_daily":[0,0,0],"research_claimed":0,"research_rank_xp":[0,0,0],"research_skill":0,"research_misses":[0,0,0],"research_target":[-1,-1,-1],"wallpaper_room":0,"wallpaper_x":1,"wallpaper_y":2,"wallpaper_size":1,"wallpaper_minimal":false,"wallpaper_battery":false,"wallpaper_status":true,"stage":0,"field":0,"habitat":0,"body":0,"eyes":0,"color":0,"variant":0,"generation":1,"friendship":0,"inherited_eyes":-1,"name":"","hunger":5,"happy":10,"energy":100,"bond":0,"xp":0,"waste":0,"mistakes":0,"germs":0,"hygiene":100,"toilet":100,"coins":0,"crystals":0,"materials":0,"fuel":0,"snacks":0,"medicine":0,"soap":0,"cells":[0,0,0],"foods":[0,0,0,0],"collection":0,"favorites":0,"care_day":"","care_mask":0,"care_claims":0,"care_claimed":false,"form":-1,"owned":0,"equipped":0,"installation":0,"wardrobe":0,"worn":[0,0,0,0],"theme":0,"training":0,"age":0.0,"last":0.0,"food_clock":0.0,"mood_clock":0.0,"energy_clock":0.0,"waste_clock":0.0,"cell_clock":0.0,"care_clock":0.0,"hygiene_clock":0.0,"toilet_clock":0.0,"rest_clock":0.0,"sleep_until":0.0,"awake_until":0.0,"auto_sleep":true,"trip_end":0.0,"destination":0,"trip_bonus":0,"journeys":0,"pending":[0,0,0],"daily_day":"","quest_day":"","quests":0,"claimed":0,"garden_at":0.0,"harvests":0,"interaction_at":0.0,"best":[0,0,0,0,0]}
 func _ready():
 	test_mode=false
 	for flag in ["--test","--soak","--capture","--lane-only","--unassisted","--home-test","--home-capture","--home-touch-test"]:
@@ -56,6 +57,7 @@ func _ready():
 					s[key]=clampi(int(s[key]),0,{"stage":4,"field":2,"habitat":2,"body":3,"eyes":3,"variant":1}[key])
 				break
 	if not legacy_catalog: enforce_mosky()
+	validate_training()
 	advance(now())
 	save_game()
 	var timer=Timer.new()
@@ -284,6 +286,35 @@ func research_patrol(region:int,step:int,answer:Array,phase:float)->Dictionary:
 	return {"ok":true,"correct":true,"message":"Patrol trace found! +3 coins · +3 XP"}
 func field_rank_required(id:int)->int:
 	return 1 if id<12 else 2 if id<24 else 3
+func validate_training()->void:
+	s.ev_allocated=TrainingRules.normalized_ev(s.ev_allocated)
+	s.ev_bank=TrainingRules.normalized_ev(s.ev_bank,1512)
+	for i in range(6):s.ev_bank[i]=mini(int(s.ev_bank[i]),252-int(s.ev_allocated[i]))
+	if int(s.nature_id)<0 or int(s.nature_id)>=TrainingRules.NATURE_NAMES.size():
+		s.nature_id=posmod(int(s.generation)*17+int(s.installation)*7,TrainingRules.NATURE_NAMES.size())
+func training_profile()->Dictionary:
+	validate_training()
+	var level_value:int=clampi(companion_level(),1,100)
+	return {"nature":int(s.nature_id),"nature_name":TrainingRules.NATURE_NAMES[int(s.nature_id)],"types":["grass"],"level":level_value,"ev":s.ev_allocated.duplicate(),"bank":s.ev_bank.duplicate(),"stats":TrainingRules.make_pet_stats(level_value,s.ev_allocated,int(s.nature_id))}
+func allocate_ev(stat:int,amount:int)->int:
+	if stat<0 or stat>=6 or amount<=0 or not field_session.is_empty():return 0
+	validate_training()
+	var total:int=0
+	for n in s.ev_allocated:total+=int(n)
+	var spent:int=mini(amount,mini(int(s.ev_bank[stat]),mini(252-int(s.ev_allocated[stat]),510-total)))
+	if spent<=0:return 0
+	s.ev_bank[stat]-=spent;s.ev_allocated[stat]+=spent
+	save_game()
+	return spent
+func deposit_ev(values:Array)->int:
+	if values.size()!=6:return 0
+	validate_training()
+	var gained:int=0
+	for i in range(6):
+		if not (values[i] is int or values[i] is float) or not is_finite(float(values[i])):continue
+		var n:int=clampi(int(values[i]),0,252-int(s.ev_allocated[i])-int(s.ev_bank[i]))
+		s.ev_bank[i]+=n;gained+=n
+	return gained
 func field_begin(region:int,patrol:bool=false,dungeon:bool=false)->Dictionary:
 	advance(now())
 	if not field_session.is_empty() or arcade_mode!=-1:return {}
@@ -304,11 +335,11 @@ func field_begin(region:int,patrol:bool=false,dungeon:bool=false)->Dictionary:
 	if dungeon:
 		var dungeon_run=preload("res://dungeon_rules.gd").new()
 		dungeon_run.setup(region,id,step,finale,patrol,seed_id,species())
-		field_session.required=dungeon_run.floor_count;field_session.minimum_time=2.0;field_session.time_limit=86400.0;field_session.dungeon=true;field_session.companion=species()
+		field_session.required=dungeon_run.floor_count;field_session.minimum_time=2.0;field_session.time_limit=86400.0;field_session.dungeon=true;field_session.companion=species();field_session.training=training_profile()
 	return field_session.duplicate()
 func field_cancel():
 	field_session={}
-func field_finish(success:bool,completed:int,elapsed:float,hits:int=-1,dungeon_coins:int=0,dungeon_materials:int=0)->Dictionary:
+func field_finish(success:bool,completed:int,elapsed:float,hits:int=-1,dungeon_coins:int=0,dungeon_materials:int=0,dungeon_ev:Array=[])->Dictionary:
 	if field_session.is_empty():return {"ok":false,"message":"No active hunt"}
 	var session=field_session;field_session={}
 	advance(now())
@@ -318,6 +349,7 @@ func field_finish(success:bool,completed:int,elapsed:float,hits:int=-1,dungeon_c
 		s.energy=maxi(0,int(s.energy)-2);save_game()
 		return {"ok":true,"correct":false,"message":"Trail lost. Rest or try again."}
 	if session.get("dungeon",false) and int(session.companion)!=species():return {"ok":false,"message":"Companion changed"}
+	var ev_gained:int=deposit_ev(dungeon_ev) if session.get("dungeon",false) else 0
 	var flawless=hits==0
 	var bonus=5 if flawless else 0
 	var loot_coins=clampi(dungeon_coins,0,250) if session.get("dungeon",false) else 0
@@ -331,7 +363,7 @@ func field_finish(success:bool,completed:int,elapsed:float,hits:int=-1,dungeon_c
 		var reward=4+bonus+loot_coins
 		s.coins=mini(999999,int(s.coins)+reward);s.materials=mini(9999,int(s.materials)+loot_materials);earn(5)
 		save_game()
-		return {"ok":true,"correct":true,"dungeon":session.get("dungeon",false),"floors":completed,"coins":reward,"materials":loot_materials,"xp":5,"flawless":flawless,"message":"Expedition complete! +%d coins"%reward}
+		return {"ok":true,"correct":true,"dungeon":session.get("dungeon",false),"floors":completed,"coins":reward,"materials":loot_materials,"xp":5,"flawless":flawless,"ev_gained":ev_gained,"message":"Expedition complete! +%d coins · +%d EV"%( [reward,ev_gained] )}
 	if research_target(r)!=id or research_progress(id)!=step:return {"ok":false,"message":"Trail changed"}
 	if session.finale:
 		s.energy-=3;s.research_trust[id]=3;s.collection=int(s.collection)|(1<<id);s.research_target[r]=-1;s.research_misses[r]=0;research_credit(r,8)

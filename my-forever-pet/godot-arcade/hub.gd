@@ -995,12 +995,13 @@ func open_active_field(r:int,patrol:bool,legacy:bool=false):
 	if session.is_empty():hunt_message="Cannot explore right now. Check energy and rank.";select("Habitat");return
 	var field=preload("res://wild_field.gd").new() if legacy else preload("res://dungeon_view.gd").new()
 	add_child(field);field.set_anchors_and_offsets_preset(PRESET_FULL_RECT)
-	field.setup(r,int(session.id),int(session.step),bool(session.finale),patrol,int(session.seed),store.species())
+	if legacy:field.setup(r,int(session.id),int(session.step),bool(session.finale),patrol,int(session.seed),store.species())
+	else:field.setup(r,int(session.id),int(session.step),bool(session.finale),patrol,int(session.seed),store.species(),session.get("training",{}))
 	# Stop rendering the home pet while the full-screen field is active.
 	live_stage.hide()
 	field.canceled.connect(func():store.field_cancel();field.hide();field.queue_free();live_stage.show();select.call_deferred("Habitat"))
 	field.ended.connect(func(success:bool,completed:int,elapsed:float):
-		var result:Dictionary=store.field_finish(success,completed,elapsed,field.run.hits,0 if legacy else field.run.coins,0 if legacy else field.run.materials)
+		var result:Dictionary=store.field_finish(success,completed,elapsed,field.run.hits,0 if legacy else field.run.coins,0 if legacy else field.run.materials,[] if legacy else field.run.earned_ev)
 		field.hide();field.queue_free()
 		live_stage.show()
 		finish_hunt.call_deferred(result))
@@ -1153,8 +1154,33 @@ func show_collection():
 	label(card,"Mosky",26).horizontal_alignment=HORIZONTAL_ALIGNMENT_CENTER
 	label(card,"YOUR COMPANION · Lv %d"%store.companion_level(),14).horizontal_alignment=HORIZONTAL_ALIGNMENT_CENTER
 	button(card,"♥ Favorited" if store.favorite(0) else "♡ Favorite",func():store.toggle_favorite(0);show_collection())
+	button(card,"Combat training · EVs ›",func():show_training())
 	button(card,"Care for Mosky ›",func():select("Home"))
 	swipe_children(actions)
+func show_training():
+	reset_actions()
+	button(actions,"‹ Pet roster",func():show_collection())
+	var profile:Dictionary=store.training_profile()
+	section_heading(actions,"Combat training","Defeat creatures to earn stat-specific EVs, then invest them here.")
+	var top=panel(actions)
+	label(top,"Mosky · Lv %d · %s"%[profile.level,profile.nature_name],22)
+	label(top,"Grass · Nature bonuses affect combat stats",15)
+	var total:int=0
+	for n in profile.ev:total+=int(n)
+	label(top,"Allocated %d / 510 · IVs disabled"%total,16)
+	var names:Array=["HP","Attack","Defense","Sp. Attack","Sp. Defense","Speed"]
+	for i in range(6):
+		var card=panel(actions)
+		var h=row(card)
+		var copy=VBoxContainer.new();copy.size_flags_horizontal=SIZE_EXPAND_FILL;h.add_child(copy)
+		label(copy,"%s · %d"%[names[i],profile.stats[i]],18)
+		label(copy,"EV %d/252 · Available %d"%[profile.ev[i],profile.bank[i]],14)
+		var plus=button(h,"+1",func():store.allocate_ev(i,1);show_training())
+		plus.disabled=int(profile.bank[i])==0 or int(profile.ev[i])>=252 or total>=510
+		var batch=button(h,"+4",func():store.allocate_ev(i,4);show_training())
+		batch.disabled=plus.disabled
+	swipe_children(actions)
+	section_scroll.scroll_vertical=0
 func launch_game(i:int):
 	if not store.begin_arcade(i): notice.text=store.arcade_block(i); notice.show(); return
 	get_tree().change_scene_to_file("res://main.tscn" if i==4 else "res://pet_arcade.tscn")

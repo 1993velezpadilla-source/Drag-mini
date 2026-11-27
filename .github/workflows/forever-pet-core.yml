@@ -73,6 +73,13 @@ jobs:
           grep -F 'VOLNOX_GRID_PATTERN_PASS 6' /tmp/volnox-roster.log
           grep -F 'VOLNOX_SECONDARY_SKILL_PASS 33' /tmp/volnox-roster.log
           ! grep -E 'SCRIPT ERROR|Parse Error|Assertion failed' /tmp/volnox-roster.log
+      - name: Check type affinities, natures and EV yields
+        run: |
+          set -euo pipefail
+          cp my-forever-pet/tests/kindria_training.gd /tmp/pet-core/
+          timeout 30 /tmp/godot/Godot_v4.4.1-stable_linux.x86_64 --headless --path /tmp/pet-core --script res://kindria_training.gd 2>&1 | tee /tmp/kindria-training.log
+          grep -F 'KINDRIA_TRAINING_PASS' /tmp/kindria-training.log
+          ! grep -E 'SCRIPT ERROR|Parse Error|Assertion failed' /tmp/kindria-training.log
       - name: Simulate full combat expeditions without removing enemies
         run: |
           set -euo pipefail
@@ -92,3 +99,4 @@ jobs:
             /tmp/dungeon-test.log
             /tmp/dungeon-combat.log
             /tmp/volnox-roster.log
+            /tmp/kindria-training.log
