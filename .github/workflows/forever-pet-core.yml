@@ -80,6 +80,13 @@ jobs:
           timeout 30 /tmp/godot/Godot_v4.4.1-stable_linux.x86_64 --headless --path /tmp/pet-core --script res://kindria_training.gd 2>&1 | tee /tmp/kindria-training.log
           grep -F 'KINDRIA_TRAINING_PASS' /tmp/kindria-training.log
           ! grep -E 'SCRIPT ERROR|Parse Error|Assertion failed' /tmp/kindria-training.log
+      - name: Execute every Combat Lab entry against isolated targets
+        run: |
+          set -euo pipefail
+          cp my-forever-pet/tests/dev_move_execution_audit.gd /tmp/pet-core/
+          timeout 60 /tmp/godot/Godot_v4.4.1-stable_linux.x86_64 --headless --path /tmp/pet-core --script res://dev_move_execution_audit.gd 2>&1 | tee /tmp/dev-move-audit.log
+          grep -F "KINDRA_DEV_EXECUTION_AUDIT_PASS 589" /tmp/dev-move-audit.log
+          ! grep -E "SCRIPT ERROR|Parse Error|Assertion failed" /tmp/dev-move-audit.log
       - name: Simulate full combat expeditions without removing enemies
         run: |
           set -euo pipefail
@@ -100,3 +107,5 @@ jobs:
             /tmp/dungeon-combat.log
             /tmp/volnox-roster.log
             /tmp/kindria-training.log
+            /tmp/dev-move-audit.json
+            /tmp/dev-move-audit.log

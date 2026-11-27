@@ -29,6 +29,10 @@ var dev_page_label:Label
 var dev_prev:Button
 var dev_next:Button
 var dev_detail:RichTextLabel
+var dev_browser:VBoxContainer
+var dev_info_mode:bool=false
+var dev_selected_label:Label
+var dev_source:OptionButton
 var dev_result:Label
 var dev_aim:Button
 var dev_fx_only:CheckButton
@@ -305,18 +309,9 @@ func lab_open()->void:
 	lab_layout();update_hud()
 
 func lab_build_catalog()->void:
-	dev_catalog=Rules.MOVE_LIBRARY.duplicate(true)
-	for species in Rules.SIGNATURE_SKILLS:
-		var signature:Array=Rules.SIGNATURE_SKILLS[species]
-		var secondary:Array=Rules.SECONDARY_SKILLS[species]
-		for id in [str(signature[6]),"alt_"+str(species)]:
-			if dev_catalog.has(id):continue
-			var profile:=combat_profile(id)
-			dev_catalog[id]={"name":str(secondary[2]) if id.begins_with("alt_") else id.replace("_"," ").capitalize(),"type":profile.element,"category":"enemy FX","pattern":profile.pattern,"reach":profile.range,"duration":profile.duration,"preview_only":true}
-	for id in COMBAT_FX_STYLES:
-		if dev_catalog.has(id):continue
-		var profile:=combat_profile(id)
-		dev_catalog[id]={"name":id.replace("_"," ").capitalize(),"type":profile.element,"category":"legacy FX","pattern":profile.pattern,"reach":profile.range,"duration":profile.duration,"preview_only":true}
+	dev_catalog.clear()
+	for id in Rules.MOVE_LIBRARY:dev_catalog[id]=Rules.dev_move_record(id)
+	for id in Rules.DEV_NATIVE_MOVES:dev_catalog[id]=Rules.dev_move_record(id)
 
 func lab_build_panel()->void:
 	lab_build_catalog()
@@ -329,9 +324,10 @@ func lab_build_panel()->void:
 	var heading:=label(header,"DEV · Combat Lab",20,Color("#aff3ce"));heading.size_flags_horizontal=SIZE_EXPAND_FILL
 	var minimize:=lab_button(header,"−",lab_minimize);minimize.size_flags_horizontal=SIZE_SHRINK_END;minimize.custom_minimum_size.x=48;minimize.tooltip_text="Minimize to floating DEV bubble"
 	heading.text="DEV · Combat Lab  ∞"
-	dev_search=LineEdit.new();dev_search.placeholder_text="Search move name, reference or ID";dev_search.custom_minimum_size.y=36;stack.add_child(dev_search)
+	dev_browser=VBoxContainer.new();dev_browser.add_theme_constant_override("separation",4);stack.add_child(dev_browser)
+	dev_search=LineEdit.new();dev_search.placeholder_text="Search name, reference or ID";dev_search.custom_minimum_size.y=36;dev_browser.add_child(dev_search)
 	dev_search.text_changed.connect(func(_value:String):dev_page=0;lab_refresh())
-	var filters:=HBoxContainer.new();stack.add_child(filters)
+	var filters:=HBoxContainer.new();dev_browser.add_child(filters)
 	dev_element=OptionButton.new();dev_element.size_flags_horizontal=SIZE_EXPAND_FILL;filters.add_child(dev_element);dev_element.add_item("All elements")
 	var elements:Array=[]
 	for id in dev_catalog:
@@ -340,22 +336,29 @@ func lab_build_panel()->void:
 	elements.sort()
 	for element in elements:dev_element.add_item(str(element).capitalize())
 	dev_category=OptionButton.new();dev_category.size_flags_horizontal=SIZE_EXPAND_FILL;filters.add_child(dev_category)
-	for category in ["All categories","Physical","Special","Status","Enemy FX","Legacy FX"]:dev_category.add_item(category)
+	for category in ["All categories","Physical","Special","Status"]:dev_category.add_item(category)
+	dev_source=OptionButton.new();dev_source.size_flags_horizontal=SIZE_EXPAND_FILL;filters.add_child(dev_source)
+	for source in ["All sources","EoS","Kindra"]:dev_source.add_item(source)
+	dev_source.item_selected.connect(func(_index:int):dev_page=0;lab_refresh())
 	dev_element.item_selected.connect(func(_index:int):dev_page=0;lab_refresh())
 	dev_category.item_selected.connect(func(_index:int):dev_page=0;lab_refresh())
-	dev_grid=GridContainer.new();dev_grid.columns=2;dev_grid.add_theme_constant_override("h_separation",5);dev_grid.add_theme_constant_override("v_separation",4);stack.add_child(dev_grid)
-	var pager:=HBoxContainer.new();stack.add_child(pager)
+	dev_grid=GridContainer.new();dev_grid.columns=2;dev_grid.add_theme_constant_override("h_separation",5);dev_grid.add_theme_constant_override("v_separation",4);dev_browser.add_child(dev_grid)
+	var pager:=HBoxContainer.new();dev_browser.add_child(pager)
 	dev_prev=lab_button(pager,"‹ Prev",func():dev_page-=1;lab_refresh())
 	dev_page_label=label(pager,"",14,Color("#d2e8e3"));dev_page_label.size_flags_horizontal=SIZE_EXPAND_FILL;dev_page_label.horizontal_alignment=HORIZONTAL_ALIGNMENT_CENTER;dev_page_label.vertical_alignment=VERTICAL_ALIGNMENT_CENTER
 	dev_next=lab_button(pager,"Next ›",func():dev_page+=1;lab_refresh())
-	dev_detail=RichTextLabel.new();dev_detail.custom_minimum_size.y=72;dev_detail.scroll_active=true;dev_detail.bbcode_enabled=false;dev_detail.add_theme_font_size_override("normal_font_size",14);stack.add_child(dev_detail)
-	dev_detail.text="Hold a move for details and drag to aim.";dev_detail.hide()
+	dev_detail=RichTextLabel.new();dev_detail.custom_minimum_size.y=96;dev_detail.scroll_active=true;dev_detail.bbcode_enabled=false;dev_detail.add_theme_font_size_override("normal_font_size",14);stack.add_child(dev_detail)
+	dev_detail.text="Select a move. Hold and drag to aim.";dev_detail.hide()
+	dev_selected_label=label(stack,"Select a move · tap to cast",13,Color("#c6e8dd"));dev_selected_label.clip_text=true
 	var controls:=HBoxContainer.new();stack.add_child(controls)
 	dev_aim=lab_button(controls,"Aim ↓",func():rotate_combat_aim();lab_update_aim())
-	lab_button(controls,"Info",func():dev_detail.visible=not dev_detail.visible)
+	lab_button(controls,"Moves / Info",lab_toggle_info)
 	lab_button(controls,"Target +",lab_spawn_target)
 	lab_button(controls,"Next floor",func():path.clear();run.dev_next_floor();sync();dev_result.text="Endless floor B%d"%run.floor_number)
-	dev_fx_only=CheckButton.new();dev_fx_only.text="FX only";controls.add_child(dev_fx_only)
+	var tools_row:=HBoxContainer.new();stack.add_child(tools_row)
+	dev_fx_only=CheckButton.new();dev_fx_only.text="FX only";tools_row.add_child(dev_fx_only)
+	lab_button(tools_row,"Injure",func():run.hp=maxi(1,run.max_hp/2);update_hud();dev_result.text="Healing fixture: HP at 50%")
+	lab_button(tools_row,"Clear targets",func():run.enemies.clear();sync();dev_result.text="Targets cleared")
 	dev_result=label(stack,"Ready · tap a move",13,Color("#a7e9bf"));dev_result.clip_text=true
 	lab_button(stack,"Exit sandbox · discard rewards",leave)
 	dev_bubble=PanelContainer.new()
@@ -373,6 +376,8 @@ func lab_filtered_ids()->Array[String]:
 	var category:String=dev_category.get_item_text(dev_category.selected).to_lower() if is_instance_valid(dev_category) and dev_category.selected>0 else ""
 	for id in dev_catalog:
 		var move:Dictionary=dev_catalog[id]
+		if is_instance_valid(dev_source) and dev_source.selected==1 and not move.has("reference_id"):continue
+		if is_instance_valid(dev_source) and dev_source.selected==2 and move.has("reference_id"):continue
 		if not element.is_empty() and str(move.type)!=element:continue
 		if not category.is_empty() and str(move.category)!=category:continue
 		if not query.is_empty() and not query in (str(move.name)+" "+str(move.get("reference_key","")).replace("_"," ")+" "+str(id)).to_lower():continue
@@ -402,15 +407,26 @@ func lab_accuracy(value:Variant)->String:
 	if value==null:return "Not recorded"
 	return "Bypass (%s)"%str(value) if int(value)>100 else "%d%%"%int(value)
 
+func lab_toggle_info()->void:
+	dev_info_mode=not dev_info_mode
+	dev_browser.visible=not dev_info_mode
+	dev_detail.custom_minimum_size.y=164 if dev_info_mode else 96
+	dev_detail.visible=dev_info_mode
+
 func lab_move_info(id:String)->String:
 	var m:Dictionary=dev_catalog[id]
-	var text_value:String="%s  •  %s / %s\nPower %s   PP %s   Crit %s\nACC 1: %s   ACC 2: %s\nRange: %s · Reach %s · Hits %s\n"%[m.name,str(m.type).capitalize(),str(m.category).capitalize(),str(m.get("power","—")),str(m.get("pp","—")),str(m.get("reference_crit","—")),lab_accuracy(m.get("acc1")),lab_accuracy(m.get("acc2")),str(m.get("reference_range",m.pattern)),str(m.get("reach","—")),str(m.get("reference_strikes","—"))]
+	var source:String="EoS reference · prototype" if m.has("reference_id") else "Kindra original"
+	var pp:String="Free" if int(m.pp)==0 else str(m.pp)
+	var text_value:String="%s · %s / %s\n%s\nPower %s   PP %s   Crit %s%%\nACC 1: %s   ACC 2: %s\nRange: %s · Reach %s · Hits %s\n"%[m.name,str(m.type).capitalize(),str(m.category).capitalize(),source,str(m.power),pp,str(m.reference_crit),lab_accuracy(m.acc1),lab_accuracy(m.acc2),str(m.get("reference_range",m.pattern)),str(m.reach),str(m.reference_strikes)]
 	if m.has("reference_key"):text_value+="Reference: %s (#%s)\n"%[str(m.reference_key).replace("_"," "),str(m.reference_id)]
-	if m.has("learn_level"):text_value+="Normal learn level: %s · Bypassed in DEV\n"%str(m.learn_level)
-	if m.get("preview_only",false):text_value+="Enemy/legacy effect: no player move stats recorded. FX preview only.\n"
-	var omitted:Array=["name","type","category","power","pp","reference_crit","acc1","acc2","reference_range","reach","reference_strikes","reference_key","reference_id","learn_level","light","dark","prototype","preview_only","frame_count","frame_size"]
-	for key in m:
-		if not key in omitted:text_value+=str(key).replace("_"," ").capitalize()+": "+str(m[key])+"\n"
+	if m.has("description"):text_value+=str(m.description)+"\n"
+	if m.has("balance"):text_value+=str(m.balance)+"\n"
+	if int(m.power)>0:text_value+="Damage: calculated per target; actual HP loss appears after cast.\n"
+	if m.has("heal_fraction"):text_value+="Healing: %s%% max HP\n"%str(float(m.heal_fraction)*100.0)
+	if m.has("charge_phase"):text_value+="Two turns: "+str(m.charge_phase)+"; tap again to release.\n"
+	if m.get("sleep_reactive",false):text_value+="Condition: triggers when attacked asleep.\n"
+	for key in ["special_rule","inflict_status","status_chance","stat_changes","stat_transfer","boon_kind","shield_kind","drain_fraction","recoil_fraction","hit_min","hit_max","weather","trap_kind","reserve_action","native_effect","effect_amount"]:
+		if m.has(key):text_value+=str(key).replace("_"," ").capitalize()+": "+str(m[key])+"\n"
 	return text_value.strip_edges()
 
 func lab_update_aim()->void:
@@ -446,16 +462,20 @@ func lab_preview(id:String)->void:
 func lab_cast(id:String)->void:
 	if not run.dev_sandbox or not dev_catalog.has(id):return
 	path.clear();dev_selected=id;dev_detail.text=lab_move_info(id)
-	var before:int=run.attack_serial
-	var used:bool=false
-	if not dev_fx_only.button_pressed and Rules.MOVE_LIBRARY.has(id):
-		used=run.dev_cast_move(id,facing)
-		sync()
-	if not used or run.attack_serial==before:
+	dev_selected_label.text=str(dev_catalog[id].name)+" · "+str(dev_catalog[id].category).capitalize()+" · "+str(dev_catalog[id].type).capitalize()
+	if dev_fx_only.button_pressed:
 		lab_preview(id)
 		dev_result.text="FX preview · "+str(dev_catalog[id].name)
 	else:
-		dev_result.text="Cast · "+str(dev_catalog[id].name)+" · "+run.message
+		var used:bool=run.dev_cast_move(id,facing)
+		var outcome:String=run.message
+		if used:
+			var total:int=0
+			for amount in run.last_move_damage:total+=int(amount)
+			outcome+=" · Damage %d · Heal %d · Hits %d/%d"%[total,run.last_move_healed,run.last_move_hits,run.last_move_attempts]
+		sync()
+		dev_result.text=("Cast · " if used else "Blocked · ")+outcome
+		dev_detail.text=lab_move_info(id)+"\n\nLAST TEST\n"+dev_result.text
 	lab_update_aim()
 
 func lab_minimize()->void:
@@ -6065,7 +6085,7 @@ func _input(event:InputEvent)->void:
 		var action:=hold_action
 		hold_active=false;hold_visible=false;hold_move={};hold_release_pending=true
 		if is_instance_valid(hold_info):hold_info.hide()
-		if hold_is_dev and is_instance_valid(dev_detail):dev_detail.hide()
+		if hold_is_dev and is_instance_valid(dev_detail):dev_detail.visible=dev_info_mode
 		if is_instance_valid(aim_preview):aim_preview.queue_redraw()
 		# Allow the GUI to see release so BaseButton clears its pressed state.
 		finish_attack_release.call_deferred(action)

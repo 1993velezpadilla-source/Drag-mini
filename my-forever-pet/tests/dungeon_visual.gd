@@ -688,7 +688,12 @@ func run():
 	lab.lab_open()
 	await frames()
 	assert(lab.run.dev_sandbox and lab.dev_panel.visible and not lab.dev_bubble.visible)
-	assert(lab.dev_catalog.size()>=522 and lab.lab_filtered_ids().size()==lab.dev_catalog.size())
+	assert(lab.dev_catalog.size()==589 and lab.lab_filtered_ids().size()==lab.dev_catalog.size())
+	for id in lab.dev_catalog:
+		var m:Dictionary=lab.dev_catalog[id]
+		for key in ["power","pp","acc1","acc2","reference_crit","reference_strikes","category","reach","pattern"]:assert(m.has(key),str(id)+" missing "+key)
+		assert(not m.get("preview_only",false))
+	assert("Power" in lab.lab_move_info("abyss_grasp") and "Kindra original" in lab.lab_move_info("abyss_grasp"))
 	assert(lab.dev_grid.get_child_count()==lab.DEV_PAGE_SIZE,"paged catalog")
 	assert(lab.dev_panel.get_parent()==lab.hud_base and not lab.dungeon_footer.visible,"DEV replaces footer rather than covering world")
 	assert(not lab.area.get_global_rect().intersects(lab.dev_panel.get_global_rect()),"combat lab and world never overlap")
@@ -741,6 +746,8 @@ func run():
 	var equipped:Array=lab.run.equipped_moves.duplicate()
 	lab.dev_fx_only.button_pressed=false
 	lab.lab_spawn_target()
+	lab.lab_cast("abyss_grasp")
+	assert(lab.dev_result.text.begins_with("Cast") and not lab.run.last_move_damage.is_empty(),"original signature must execute damage, not fallback FX")
 	lab.lab_cast("eos_064")
 	assert(lab.dev_panel.visible and lab.run.equipped_moves==equipped)
 	assert(lab.run.move_pp["eos_064"]==7)
