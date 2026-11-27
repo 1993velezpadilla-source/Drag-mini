@@ -11,6 +11,27 @@ func run_checks()->void:
 	var checks:int=0
 	var failures:Array[String]=[]
 	var view:=Dungeon.new()
+	# V19.3: bounded optical profiles, distinct material identity and quality fallback.
+	var optical_profiles:Dictionary={}
+	for element in ["normal","fire","water","electric","grass","ice","fighting","poison","ground","flying","psychic","bug","rock","ghost","dragon","dark","steel","fairy"]:
+		var initial:=view.elemental_atmosphere_sample(element,0.0,false,0)
+		var ground:=view.elemental_atmosphere_sample(element,0.0,true,0)
+		var medium:=view.elemental_atmosphere_sample(element,0.0,false,1)
+		var low:=view.elemental_atmosphere_sample(element,0.0,false,2)
+		if optical_profiles.has(initial):failures.append("duplicate optical profile "+element)
+		optical_profiles[initial]=true
+		if ground.z!=0.0 or ground.x>initial.x+.00001:failures.append("floor optical profile "+element)
+		if medium.distance_to(initial*.55)>.00001 or low!=Vector3.ZERO:failures.append("optical quality fallback "+element)
+		checks+=3
+		var previous:=initial
+		for step in range(101):
+			var sample:=view.elemental_atmosphere_sample(element,float(step)/100.0,false,0)
+			if not sample.is_finite() or sample.x<0.0 or sample.y<0.0 or sample.z<0.0 or sample.x>1.0 or sample.y>1.0 or sample.z>1.0:failures.append("optical bounds "+element)
+			if sample.x>previous.x+.00001 or sample.y>previous.y+.00001 or sample.z>previous.z+.00001:failures.append("optical dissipation "+element)
+			previous=sample
+			checks+=2
+		if previous.length()>.00001:failures.append("optical terminal fade "+element)
+		checks+=1
 	# V19.2: verify analytic flight apex, landing, bounce and ground clearance.
 	for landing in [.35,.58,.72,.90]:
 		for height in [.2,.6,1.1]:
