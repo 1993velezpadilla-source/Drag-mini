@@ -63,6 +63,7 @@ jobs:
           grep -F 'KINDRIA_PROJECTILE_CONTACT_PASS 58' /tmp/effekseer-review/dungeon-probe.log
           grep -F 'KINDRIA_TERRAIN_CONTACT_PASS 42' /tmp/effekseer-review/dungeon-probe.log
           grep -F 'KINDRIA_SUPPORT_CONTACT_PASS 121' /tmp/effekseer-review/dungeon-probe.log
+          grep -F 'KINDRIA_MOTION_CONTACT_PASS 34' /tmp/effekseer-review/dungeon-probe.log
           ! grep -E 'SCRIPT ERROR|Shader compilation failed' /tmp/effekseer-review/dungeon-probe.log
       - uses: actions/upload-artifact@v4
         if: always()
