@@ -2714,6 +2714,22 @@ func combat_pixel_texture(mode:String,light:Color,dark:Color)->ImageTexture:
 			var fill:bool=false
 			var inner:bool=false
 			match mode:
+				"projectile_orb":
+					fill=r<7.0;inner=r<4.5 or (r>5.5 and v.x+v.y<0)
+				"projectile_beam":
+					fill=absf(v.y)<3.5 and absf(v.x)<7.5;inner=absf(v.y)<1.5
+				"projectile_stream":
+					fill=absf(v.y)<(7.3-absf(v.x))*.75+1.0;inner=absf(v.y)<2.0 and v.x> -4.0
+				"projectile_bubble":
+					fill=r<7.0 and (r>4.4 or (v.x< -1.0 and v.y< -1.0));inner=r>5.1 and v.x+v.y<0.0
+				"projectile_needle":
+					fill=absf(v.y)<(7.5-absf(v.x))*.29+.6;inner=absf(v.y)<.9 and v.x> -5.0
+				"projectile_bomb":
+					fill=r<6.4 and (r<4.8 or posmod(x+y,3)!=0);inner=r<3.2 or (v.x<0 and v.y< -2.0 and r<5.5)
+				"projectile_pulse":
+					fill=absf(r-6.1)<1.0 or absf(r-3.4)<.8;inner=v.x+v.y<0
+				"projectile_dart":
+					fill=absf(v.y)<(7.5-absf(v.x))*.48+.5;inner=absf(v.y)<1.2 and v.x> -3.0
 				"venom_splash":
 					fill=(r<4.0 or (r<7.2 and sin(atan2(v.y,v.x)*5.0)>.40) or (r>5.8 and posmod(x*3+y*7,13)==0))
 					inner=r<2.8 or (fill and v.x+v.y<-2.5)
@@ -6174,6 +6190,8 @@ func combat_fx_update(dt:float)->void:
 		# Keep elemental contact accents visible when the base spray is large.
 		if crowded:count=mini(count,maxi(1,share*2/3))
 		used=confirmed_contact_icons(burst,t,used)
+		# Reserve the readable projectile head within the same shared cast quota.
+		used=projectile_identity_fx(burst,t,used)
 		for j in range(count):
 			if used>=fx_cast_particle_limit:break
 			var particle:=combat_particles[used];used+=1
@@ -6971,6 +6989,39 @@ func schedule_response_text(tile:Vector2i,event:Dictionary,delay:float)->void:
 	var row:Dictionary={"damage":amount,"hits":1,"crit":0,"status":caption}
 	if response_text_queue.size()>=RESPONSE_TEXT_CAP:response_text_queue.pop_front()
 	response_text_queue.append({"tile":tile,"delay":maxf(0.0,delay),"row":row})
+
+# Explicit projectile shapes; locomotion attacks intentionally stay excluded.
+const PROJECTILE_IDENTITY={"eos_031":"orb","eos_127":"orb","eos_193":"orb","eos_443":"orb","eos_454":"orb","eos_508":"orb","eos_309":"orb","lib_normal_3":"beam","lib_ice_2":"beam","lib_psychic_1":"beam","eos_042":"beam","eos_107":"beam","eos_114":"beam","eos_239":"beam","eos_242":"beam","eos_345":"beam","eos_353":"beam","eos_489":"beam","eos_536":"beam","eos_152":"beam","alt_coralcrab":"beam","lib_fire_2":"stream","lib_dragon_2":"stream","eos_053":"stream","eos_157":"stream","eos_240":"stream","eos_342":"stream","alt_fungal_monarch":"stream","alt_leviathorn":"stream","lib_water_1":"bubble","lib_water_2":"bubble","eos_016":"bubble","eos_255":"bubble","bubble_burst":"bubble","lib_ice_1":"needle","lib_flying_1":"needle","lib_steel_2":"needle","eos_462":"needle","eos_163":"needle","eos_164":"needle","eos_201":"needle","eos_306":"needle","alt_rootgnawer":"needle","alt_hollow_stag":"needle","alt_reef_pup":"needle","alt_crystarok":"needle","alt_voidspider":"needle","feather_fan":"needle","eos_166":"bomb","eos_280":"bomb","eos_485":"bomb","eos_486":"bomb","eos_501":"bomb","eos_523":"bomb","eos_453":"bomb","eos_044":"bomb","lib_psychic_2":"pulse","lib_dark_3":"pulse","eos_189":"pulse","eos_310":"pulse","eos_436":"pulse","eos_539":"pulse","eos_479":"pulse","eos_108":"pulse","jelly_pulse":"pulse","lib_fire_1":"dart","lib_grass_2":"dart","lib_ground_3":"dart","lib_rock_1":"dart","lib_fairy_1":"dart","eos_299":"dart","eos_251":"dart","eos_290":"dart","eos_527":"dart","leaf_dart":"dart","alt_starlit_pup":"dart","nova_bolt":"dart"}
+
+func projectile_identity_sample(kind:String,points:Array,progress:float,trail:float)->Vector3:
+	var p:float=clampf(progress-trail,0.0,1.0)
+	var q:Vector3=combat_path_sample(points,p)
+	if kind=="bomb":q.y+=sin(p*PI)*.55
+	elif kind=="bubble":q.y+=sin(p*PI)*.13
+	return q
+
+func projectile_identity_fx(burst:Dictionary,t:float,used:int)->int:
+	var id:String=str(burst.id)
+	if not PROJECTILE_IDENTITY.has(id):return used
+	var peak:float=clampf(float(burst.profile.impact),.01,.99)
+	if t>=peak:return used
+	var points:Array=burst.points
+	if points.size()<2 or Vector3(points[0]).distance_squared_to(points[-1])<.001:return used
+	var kind:String=str(PROJECTILE_IDENTITY[id])
+	var progress:float=clampf(t/peak,0.0,1.0)
+	var style:Array=combat_style(id)
+	var light:=Color(style[1]);var dark:=Color(style[2])
+	var count:int=3 if kind in ["beam","stream","pulse"] else 2
+	var head_mode:String="projectile_"+kind
+	for i in range(count):
+		if used>=fx_cast_particle_limit:break
+		var lag:float=float(i)*(.10 if kind in ["beam","stream"] else .18)
+		if progress<lag:continue
+		var q:=projectile_identity_sample(kind,points,progress,lag)
+		var scale_value:float=(.56 if kind in ["orb","bomb"] else .44)*(1.0-float(i)*.19)
+		var opacity:float=minf(1.0,progress*10.0)*(1.0-float(i)*.24)
+		used=environment_particle(used,q,head_mode,light,dark,scale_value,opacity)
+	return used
 
 func confirmed_contact_icons(burst:Dictionary,t:float,used:int)->int:
 	var id:String=str(burst.id)
