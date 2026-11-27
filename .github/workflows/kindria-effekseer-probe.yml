@@ -2,12 +2,13 @@ name: Kindria Effekseer compatibility probe
 on:
   workflow_dispatch:
   push:
-    branches: [feature/my-forever-pet-combat-audit]
+    branches: [feature/my-forever-pet-combat-audit, feature/kindria-hybrid-combat-v8]
     paths:
       - 'my-forever-pet/research/rtdx/effekseer_probe.gd'
       - '.github/workflows/kindria-effekseer-probe.yml'
       - 'my-forever-pet/research/rtdx/effekseer_dungeon_probe.gd'
       - 'my-forever-pet/godot-arcade/dungeon_effekseer_backend.gd'
+      - 'my-forever-pet/godot-arcade/dungeon_view.gd'
 jobs:
   probe:
     runs-on: ubuntu-latest
@@ -48,6 +49,8 @@ jobs:
           engine=/tmp/godot/Godot_v4.4.1-stable_linux.x86_64
           xvfb-run -a timeout 240 "$engine" --path /tmp/effsrc/Demo --rendering-method gl_compatibility --audio-driver Dummy --resolution 540x960 --max-fps 60 --script res://effekseer_dungeon_probe.gd 2>&1 | tee /tmp/effekseer-review/dungeon-probe.log
           grep -F 'KINDRIA_EFFEKSEER_DUNGEON_PASS 5' /tmp/effekseer-review/dungeon-probe.log
+          grep -F 'KINDRIA_NATIVE_MIXED_OUTCOMES_PASS' /tmp/effekseer-review/dungeon-probe.log
+          grep -F 'KINDRIA_NATIVE_SHARED_AREA_PASS' /tmp/effekseer-review/dungeon-probe.log
           ! grep -E 'SCRIPT ERROR|Shader compilation failed' /tmp/effekseer-review/dungeon-probe.log
       - uses: actions/upload-artifact@v4
         if: always()
