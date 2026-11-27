@@ -36,6 +36,27 @@ func run_checks()->void:
 	var checks:int=0
 	var failures:Array[String]=[]
 	var view:=Dungeon.new()
+	# V24.3: exact geometry parity for three-layer electrical segments.
+	var geometry_probe:=Dungeon.new()
+	for geometry_start in [Vector3.ZERO,Vector3(1.5,-.2,3.0)]:
+		for geometry_delta in [Vector3.ZERO,Vector3(.0001,0,0),Vector3.RIGHT,Vector3.UP,Vector3(0,.8,.6),Vector3(-2,.7,1.4)]:
+			var geometry_end:Vector3=geometry_start+geometry_delta
+			geometry_probe.fx_arc_positions.clear();geometry_probe.fx_arc_colors.clear();geometry_probe.fx_arc_indices.clear();geometry_probe.fx_arc_segments=0
+			geometry_probe.arc_segment(geometry_start,geometry_end,.072,Color(.18,.47,1.0,.36))
+			geometry_probe.arc_segment(geometry_start,geometry_end,.035,Color("#4edbff"))
+			geometry_probe.arc_segment(geometry_start,geometry_end,.016,Color("#fffbd3"))
+			var expected_geometry_positions:PackedVector3Array=geometry_probe.fx_arc_positions.duplicate()
+			var expected_geometry_colors:PackedColorArray=geometry_probe.fx_arc_colors.duplicate()
+			var expected_geometry_indices:PackedInt32Array=geometry_probe.fx_arc_indices.duplicate()
+			var expected_geometry_segments:int=geometry_probe.fx_arc_segments
+			geometry_probe.fx_arc_positions.clear();geometry_probe.fx_arc_colors.clear();geometry_probe.fx_arc_indices.clear();geometry_probe.fx_arc_segments=0
+			geometry_probe.electric_arc_layers(geometry_start,geometry_end)
+			if geometry_probe.fx_arc_positions!=expected_geometry_positions:failures.append("V24.3 vertex parity")
+			if geometry_probe.fx_arc_colors!=expected_geometry_colors:failures.append("V24.3 color parity")
+			if geometry_probe.fx_arc_indices!=expected_geometry_indices:failures.append("V24.3 winding parity")
+			if geometry_probe.fx_arc_segments!=expected_geometry_segments:failures.append("V24.3 segment parity")
+			checks+=4
+	geometry_probe.free()
 	# V24.2: reuse independent audio records without dropping overflow cues.
 	var audio_pool_probe:=Dungeon.new()
 	for audio_round in range(3):
