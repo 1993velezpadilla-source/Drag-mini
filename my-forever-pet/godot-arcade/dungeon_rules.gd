@@ -1934,12 +1934,6 @@ func enemy_turn_actions():
 			continue
 		var support_cd:int=int(enemies[i].get("support_cooldown",0))
 		if support_cd>0:enemies[i]["support_cooldown"]=support_cd-1
-		var support_kind:String=str(ENEMY_SUPPORT.get(enemies[i].get("species",""),""))
-		if support_cd<=0 and gap<=2 and not enemies[i].get("windup",false) and not support_kind.is_empty() and enemy_move_allowed(enemies[i],"support"):
-			var use_support:bool=(support_kind=="guard" and int(enemies[i].get("stages",{}).get("defense",0))<2) or (support_kind=="drowse" and not boon_active("hostile_drowse") and not boon_active("hostile_sleep"))
-			if use_support and execute_enemy_support(i,support_kind):
-				enemy_actions.append({"uid":enemies[i].get("uid",i),"phase":"attack","from":p,"to":p if support_kind=="guard" else player,"move":"Ward" if support_kind=="guard" else "Drowsy Hex","fx":"basic_strike","damage":0,"tiles":[p if support_kind=="guard" else player],"path":[p if support_kind=="guard" else player]})
-				continue
 		var kind:int=int(enemies[i].kind)
 		var skill:=signature_skill(enemies[i])
 		var primary_allowed:bool=enemy_move_allowed(enemies[i],"primary")
@@ -1964,6 +1958,12 @@ func enemy_turn_actions():
 				footprint=attack_footprint(p,aim,pattern,int(alt[0]))
 				in_range=true;ready=true
 				skill=[alt[0],false,3,alt[3],alt[4],alt[5],"alt_"+species]
+		var support_kind:String=str(ENEMY_SUPPORT.get(enemies[i].get("species",""),""))
+		if not charged and not (ready and in_range) and support_cd<=0 and gap<=2 and not enemies[i].get("windup",false) and not support_kind.is_empty() and enemy_move_allowed(enemies[i],"support"):
+			var use_support:bool=(support_kind=="guard" and int(enemies[i].get("stages",{}).get("defense",0))<2) or (support_kind=="drowse" and not boon_active("hostile_drowse") and not boon_active("hostile_sleep"))
+			if use_support and execute_enemy_support(i,support_kind):
+				enemy_actions.append({"uid":enemies[i].get("uid",i),"phase":"attack","from":p,"to":p if support_kind=="guard" else player,"move":"Ward" if support_kind=="guard" else "Drowsy Hex","fx":"basic_strike","damage":0,"tiles":[p if support_kind=="guard" else player],"path":[p if support_kind=="guard" else player]})
+				continue
 		if charged and not in_range:
 			enemies[i].windup=false
 			enemy_actions.append({"uid":enemies[i].get("uid",i),"phase":"cancel","from":p,"to":p+aim,"move":enemies[i].get("signature","Strike")})
