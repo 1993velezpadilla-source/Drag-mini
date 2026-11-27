@@ -613,5 +613,57 @@ func run():
 		assert(completed==region+1,"no repeated completion")
 		dungeon.queue_free()
 		await process_frame
+	# Test the lab on a separate expedition; the normal completion tests above remain unchanged.
+	var lab=Field.new();root.add_child(lab)
+	lab.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	lab.setup(0,1,0,false,true,943,0)
+	lab.set_process(false)
+	await frames()
+	lab.lab_open()
+	await frames()
+	assert(lab.run.dev_sandbox and lab.dev_panel.visible and not lab.dev_bubble.visible)
+	assert(lab.dev_catalog.size()>=522 and lab.lab_filtered_ids().size()==lab.dev_catalog.size())
+	assert(lab.dev_grid.get_child_count()==lab.DEV_PAGE_SIZE,"paged catalog")
+	lab.dev_search.text="THUNDER"
+	lab.dev_search.text_changed.emit("THUNDER")
+	assert("eos_064" in lab.lab_filtered_ids())
+	var info:String=lab.lab_move_info("eos_064")
+	assert("Power 45" in info and "PP 7" in info and "73%" in info and "Range:" in info)
+	lab.dev_fx_only.button_pressed=true
+	var before:int=lab.run.attack_serial
+	lab.lab_cast("eos_064")
+	assert(lab.dev_panel.visible and lab.run.attack_serial==before and lab.player_cast_duration>0.0)
+	assert(lab.dev_result.text.begins_with("FX preview"))
+	lab.lab_minimize()
+	assert(lab.dev_bubble.visible and not lab.dev_panel.visible)
+	var bubble_before:Vector2=lab.dev_bubble.position
+	lab.dev_drag_moved=false;lab.dev_drag_distance=0.0
+	lab.lab_drag(Vector2(-60,-30))
+	assert(lab.dev_bubble.position!=bubble_before)
+	lab.lab_end_drag()
+	assert(lab.dev_bubble.visible)
+	lab.dev_drag_moved=false
+	lab.lab_end_drag()
+	assert(lab.dev_panel.visible and not lab.dev_bubble.visible)
+	lab.run.hp=0
+	assert(lab.run.hp>0)
+	lab.run.potions=0;lab.run.energy=0;lab.run.belly_tenths=0
+	lab.run.dev_refill()
+	assert(lab.run.hp==lab.run.max_hp and lab.run.potions>=99 and lab.run.energy==8 and lab.run.belly_tenths==1000)
+	var equipped:Array=lab.run.equipped_moves.duplicate()
+	lab.dev_fx_only.button_pressed=false
+	lab.lab_spawn_target()
+	lab.lab_cast("eos_064")
+	assert(lab.dev_panel.visible and lab.run.equipped_moves==equipped)
+	assert(lab.run.move_pp["eos_064"]==7)
+	lab.run.floor_number=lab.run.floor_count
+	lab.run.player=lab.run.stairs;lab.run.secured=true
+	assert(lab.run.descend() and not lab.run.finished and lab.run.floor_number>lab.run.floor_count)
+	lab.sync()
+	await frames()
+	assert(root.get_texture().get_image().save_png("/tmp/dungeon-real-dev-lab.png")==OK)
+	print("KINDRIA_DEV_LAB_PASS moves=",lab.dev_catalog.size()," floor=",lab.run.floor_number)
+	lab.queue_free()
+	await process_frame
 	print("FOREVER_DUNGEON_VIEW_PASS ",completed)
 	quit()
