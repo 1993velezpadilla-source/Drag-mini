@@ -242,6 +242,25 @@ func run_checks()->void:
 		for j in range(i+1,modes.size()):
 			if silhouettes[modes[i]]==silhouettes[modes[j]]:failures.append("duplicate ground stamp")
 			checks+=1
+	# Anticipation and drive use exactly the same authored impact time.
+	for peak in [.12,.34,.48,.64,.88]:
+		var windup:=view.attack_direction_sample(peak*.17,peak)
+		var contact:=view.attack_direction_sample(peak,peak)
+		if windup.x<.99 or absf(windup.y)>.001:failures.append("missing anticipation")
+		if absf(contact.y-1.0)>.001 or absf(contact.x)>.001:failures.append("contact clock mismatch")
+		for kind in ["rush","contact","lash","aerial","down","spin","focus","gesture","cast"]:
+			for step in range(101):
+				var phase:float=float(step)/100.0
+				var sample:=view.cast_motion_offset(kind,phase,peak)
+				if not sample.is_finite() or sample.length()>1.0:failures.append("invalid cast direction")
+				if step in [0,100] and sample.length()>.001:failures.append("cast offset did not return to neutral")
+				checks+=1
+	for step in range(101):
+		var phase:float=float(step)/100.0
+		var value:float=view.contact_camera_sample(phase)
+		if not is_finite(value) or absf(value)>1.0:failures.append("unbounded camera impulse")
+		if step in [0,100] and absf(value)>.001:failures.append("camera impulse endpoint")
+		checks+=1
 	var home:=Home.new()
 	home.free()
 	view.free()
