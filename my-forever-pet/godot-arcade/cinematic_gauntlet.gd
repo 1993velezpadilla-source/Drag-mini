@@ -328,6 +328,26 @@ func run_checks()->void:
 	impact_test.impact_cursor=2
 	if view.resolve_element_impact(view.impact_visual_view(impact_test)).kind!="confirmed":failures.append("confirmed wave lost")
 	checks+=4
+	# All elemental materials select finite, bounded parameters for the pooled shader.
+	var families:Dictionary={}
+	for element in Dungeon.ELEMENT_MATERIAL:
+		var material:=view.elemental_material_profile(element)
+		families[int(material.x)]=true
+		if not material.is_finite() or material.x<0.0 or material.x>11.0 or material.y<=0.0 or material.y>1.0 or material.z<0.0 or material.z>1.2+.001:failures.append("invalid elemental material: "+str(element))
+		checks+=1
+	if Dungeon.ELEMENT_MATERIAL.size()!=18 or families.size()!=12:failures.append("elemental material coverage")
+	var material_light:=Color("#d6b6a0")
+	var material_dark:=Color("#44342d")
+	for family in range(12):
+		for y in range(16):
+			for x in range(16):
+				for inner in [true,false]:
+					var pixel:=view.particle_material_pixel(family,Vector2(x-7.5,y-7.5),inner,material_light,material_dark)
+					if not is_finite(pixel.r) or not is_finite(pixel.g) or not is_finite(pixel.b) or not is_finite(pixel.a) or pixel.r<0.0 or pixel.r>1.001 or pixel.g<0.0 or pixel.g>1.001 or pixel.b<0.0 or pixel.b>1.001 or pixel.a<=0.0 or pixel.a>1.001:failures.append("invalid material pixel")
+					checks+=1
+	if view.particle_material_pixel(2,Vector2(4,4),false,material_light,material_dark).a>=1.0:failures.append("water not translucent")
+	if view.particle_material_pixel(3,Vector2.ZERO,true,material_light,material_dark).r<=material_light.r:failures.append("electric core not luminous")
+	checks+=2
 	var home:=Home.new()
 	home.free()
 	view.free()
