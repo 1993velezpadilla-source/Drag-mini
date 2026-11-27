@@ -407,6 +407,34 @@ func run_checks()->void:
 		if not is_finite(value) or absf(value)>1.0:failures.append("unbounded camera impulse")
 		if step in [0,100] and absf(value)>.001:failures.append("camera impulse endpoint")
 		checks+=1
+	# V22.0: equal-time contacts must not depend on active/retired traversal.
+	for first_critical in [false,true]:
+		view.fx_contact_camera=Vector3.ZERO;view.fx_contact_camera_age=1.0
+		if first_critical:
+			view.queue_contact_camera(Vector3.ZERO,Vector3.FORWARD,true,.04)
+			view.queue_contact_camera(Vector3.ZERO,Vector3.RIGHT,false,.04)
+		else:
+			view.queue_contact_camera(Vector3.ZERO,Vector3.RIGHT,false,.04)
+			view.queue_contact_camera(Vector3.ZERO,Vector3.FORWARD,true,.04)
+		if not view.fx_contact_camera.is_equal_approx(Vector3.FORWARD*.065):failures.append("V22.0 concurrent critical priority")
+		view.queue_contact_camera(Vector3.ZERO,Vector3.RIGHT,false,.05)
+		if not view.fx_contact_camera.is_equal_approx(Vector3.FORWARD*.065):failures.append("V22.0 stale impact override")
+		view.queue_contact_camera(Vector3.ZERO,Vector3.RIGHT,false,.02)
+		if not view.fx_contact_camera.is_equal_approx(Vector3.RIGHT*.038):failures.append("V22.0 newest impact priority")
+		checks+=3
+	for reverse_order in [false,true]:
+		view.fx_contact_camera=Vector3.ZERO;view.fx_contact_camera_age=1.0
+		var directions:Array[Vector3]=[Vector3.RIGHT,Vector3.FORWARD]
+		if reverse_order:directions.reverse()
+		for direction in directions:view.queue_contact_camera(Vector3.ZERO,direction,true,.04)
+		if not view.fx_contact_camera.is_equal_approx(Vector3.RIGHT*.065):failures.append("V22.0 equal-strength deterministic direction")
+		view.queue_contact_camera(Vector3.ZERO,Vector3.ZERO,true,.01)
+		if not view.fx_contact_camera.is_equal_approx(Vector3.RIGHT*.065):failures.append("V22.0 zero-length contact override")
+		checks+=2
+	view.fx_contact_camera=Vector3.ZERO;view.fx_contact_camera_age=1.0
+	view.queue_contact_camera(Vector3.ZERO,Vector3.RIGHT,true,.18)
+	if view.fx_contact_camera!=Vector3.ZERO:failures.append("V22.0 expired impulse replay")
+	checks+=1
 	# Body deformation must peak on the same frame as the directional drive,
 	# including very short anticipation windows and downward strikes.
 	for peak in [.12,.34,.48,.64,.88]:
