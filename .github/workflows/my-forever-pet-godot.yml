@@ -12,7 +12,7 @@ permissions:
 jobs:
   godot-smoke:
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: 90
     steps:
       - uses: actions/checkout@v4
       - name: Download pinned Godot editor
@@ -159,8 +159,16 @@ jobs:
           export GODOT_ANDROID_KEYSTORE_DEBUG_USER=androiddebugkey
           export GODOT_ANDROID_KEYSTORE_DEBUG_PASSWORD=android
           G=/tmp/godot/Godot_v4.4.1-stable_linux.x86_64
+          "$G" --headless --path my-forever-pet/godot-arcade --script res://bake_combat_audio.gd 2>&1 | tee /tmp/kindria-apk-audio-pack.log
+          grep -E 'KINDRIA_AUDIO_PACK entries=[1-9][0-9]* bytes=[1-9][0-9]* elapsed_ms=[0-9]+ failures=0$' /tmp/kindria-apk-audio-pack.log
+          ! grep -E 'SCRIPT ERROR|Parse Error|Compile Error' /tmp/kindria-apk-audio-pack.log
           "$G" --headless --path my-forever-pet/godot-arcade --script res://bake_combat_frames.gd 2>&1 | tee /tmp/kindria-apk-frame-pack.log
           grep -E 'KINDRIA_FRAME_PACK .*procedural_builds=0 failures=0$' /tmp/kindria-apk-frame-pack.log
+          grep -E 'KINDRIA_SECONDARY_PACK textures=[1-9][0-9]* bytes=[1-9][0-9]* failures=0$' /tmp/kindria-apk-frame-pack.log
+          ! grep -E 'SCRIPT ERROR|Parse Error|Compile Error' /tmp/kindria-apk-frame-pack.log
+          for file in generated_combat_audio/index.json generated_combat_audio/audio.pcm generated_combat_frames/index.json generated_combat_frames/frames.bin generated_combat_frames/particles.json generated_combat_frames/particles.bin; do
+            test -s "my-forever-pet/godot-arcade/$file"
+          done
           "$G" --verbose --headless --path my-forever-pet/godot-arcade --export-debug "Android Lab" /tmp/My-Forever-Pet-Godot-arm64.apk
           test -s /tmp/My-Forever-Pet-Godot-arm64.apk
           "$SDK/build-tools/34.0.0/apksigner" verify /tmp/My-Forever-Pet-Godot-arm64.apk
@@ -175,6 +183,18 @@ jobs:
           name: My-Forever-Pet-Godot-Android-ARM64-debug
           path: /tmp/My-Forever-Pet-Godot-arm64.apk
           if-no-files-found: error
+      - name: Preserve combat packaging evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: Kindria-APK-combat-pack-evidence
+          if-no-files-found: warn
+          path: |
+            /tmp/kindria-apk-audio-pack.log
+            /tmp/kindria-apk-frame-pack.log
+            my-forever-pet/godot-arcade/generated_combat_audio/index.json
+            my-forever-pet/godot-arcade/generated_combat_frames/index.json
+            my-forever-pet/godot-arcade/generated_combat_frames/particles.json
       - name: Export editable Mosky sprite sheet
         run: |
           set -euo pipefail

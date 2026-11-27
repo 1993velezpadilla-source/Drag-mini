@@ -133,6 +133,8 @@ var combat_bursts:Array[Dictionary]=[]
 var retired_impacts:Array[Dictionary]=[]
 const DELAYED_COMBAT_FX_CAP:int=24
 var delayed_combat_fx:Array[Dictionary]=[]
+var fx_due_delayed_casts:Array[Dictionary]=[]
+var fx_retired_environment_cues:int=0
 const FX_SECONDARY_TEXTURE_CAP:int=768
 var combat_textures:Dictionary={}
 var fx_secondary_newest:String=""
@@ -3188,9 +3190,10 @@ func ultimate_accent_fx(burst:Dictionary,t:float,used:int)->int:
 			var q:=source+Vector3(cos(a)*radius,.08+p*.34,sin(a)*radius)
 			used=environment_particle(used,q,material,light,dark,.30,envelope.x*.9)
 		return used
-	var resolved:=resolve_element_impact(burst)
+	var resolved:=resolve_element_impact(impact_visual_view(burst))
 	if resolved.kind!="confirmed" or int(resolved.damage)<=0:return used
-	var age:float=clampf((t-peak)/(1.0-peak),0.0,1.0)
+	var age:float=impact_visual_phase(burst,t)
+	if age>=1.0:return used
 	var sample:=ultimate_envelope(age)
 	var target:Vector3=resolved.target
 	# Different ground materials; no extra fullscreen flash or camera seizure.
@@ -15563,7 +15566,9 @@ func delayed_cast_can_replay(duration:float,age:float,dt:float,body_remaining:fl
 	return age<duration and body_remaining<=maxf(0.0,dt-age)+.0001
 
 func update_delayed_combat_fx(dt:float)->void:
-	var due:Array[Dictionary]=[]
+	if delayed_combat_fx.is_empty():return
+	fx_due_delayed_casts.clear()
+	var due:Array[Dictionary]=fx_due_delayed_casts
 	for i in range(delayed_combat_fx.size()-1,-1,-1):
 		var item:Dictionary=delayed_combat_fx[i]
 		item.delay-=dt
@@ -15581,6 +15586,7 @@ func update_delayed_combat_fx(dt:float)->void:
 		if delayed_cast_can_replay(float(combat_profile(str(item.event.fx)).duration),age,dt,attack_time) and run!=null and run.player==item.event.from and run.charge_phase.is_empty():
 			release_charge_phase=""
 			begin_player_cast_pose(item.event,age-dt)
+	fx_due_delayed_casts.clear()
 
 # Rendering visits newer bursts first, but the last actual impact wins the hurt pose.
 # A visual budget eviction must not silently cancel a pending hit or sound.
@@ -15722,9 +15728,12 @@ func queue_contact_camera(source:Vector3,target:Vector3,critical:bool,age:float)
 	fx_contact_camera=direction*(.065 if critical else .038)
 	fx_contact_camera_age=age
 
+func cast_has_pending_events(burst:Dictionary)->bool:
+	return int(burst.get("impact_cursor",0))<burst.get("impact_times",[]).size() or int(burst.get("environment_audio_cursor",0))<burst.get("environment_audio",[]).size()
+
 func retire_combat_burst(burst:Dictionary)->void:
-	if int(burst.get("impact_cursor",0))>=burst.get("impact_times",[]).size():return
-	var record:Dictionary={"id":burst.id,"age":burst.age,"duration":burst.duration,"profile":burst.profile,"points":[burst.points[0],burst.points[-1]],"target_player":burst.get("target_player",false),"damage":burst.get("damage",0),"results":burst.get("results",{}).duplicate(true),"impact_waves":burst.impact_waves,"impact_times":burst.impact_times,"impact_cursor":burst.impact_cursor,"impacted":burst.impacted}
+	if not cast_has_pending_events(burst):return
+	var record:Dictionary={"id":burst.id,"age":burst.age,"duration":burst.duration,"profile":burst.profile,"points":burst.points,"path_metrics":burst.get("path_metrics",PackedFloat64Array()),"environment_audio":burst.get("environment_audio",[]),"environment_audio_cursor":burst.get("environment_audio_cursor",0),"target_player":burst.get("target_player",false),"damage":burst.get("damage",0),"results":burst.get("results",{}).duplicate(true),"impact_waves":burst.impact_waves,"impact_times":burst.impact_times,"impact_cursor":burst.impact_cursor,"impacted":burst.impacted}
 	if retired_impacts.size()>=RETIRED_IMPACT_CAP:
 		var replace_index:int=-1
 		for i in range(retired_impacts.size()):
@@ -15743,11 +15752,14 @@ func update_retired_impacts(dt:float)->Dictionary:
 		record.age+=dt
 		var previous_cursor:int=int(record.get("impact_cursor",0))
 		dispatch_cast_waves(record)
+		var previous_environment:int=int(record.get("environment_audio_cursor",0))
+		dispatch_environment_audio(record)
+		fx_retired_environment_cues+=int(record.get("environment_audio_cursor",0))-previous_environment
 		latest=latest_player_impact(latest,record,previous_cursor)
 		if not bool(record.impacted) and float(record.age)>=float(record.duration)*float(record.profile.impact):
 			record.impacted=true
 			if str(record.profile.role) in ["ground","earth_quake","earth_magnitude","earth_fissure"]:fx_ground_shake=maxf(fx_ground_shake,combat_ground_shake_at_age(float(record.age)-float(record.duration)*float(record.profile.impact)))
-		if int(record.impact_cursor)>=record.impact_times.size():retired_impacts.remove_at(i)
+		if not cast_has_pending_events(record):retired_impacts.remove_at(i)
 	return latest
 
 # A player reaction belongs to the newest newly dispatched damaging attempt,
@@ -17987,10 +17999,16 @@ func authored_stage_fx(burst:Dictionary,t:float,used:int)->int:
 	var row:Dictionary=results.get(primary_tile,{})
 	var miss:bool=not row.is_empty() and int(row.get("damage",0))+int(row.get("effects",0))+int(row.get("heal",0))<=0
 	var peak:float=float(profile.impact)
-	if t>=peak and miss:
-		var resolved:=resolve_element_impact(burst)
-		if resolved.kind!="confirmed":return used
-		target=resolved.target
+	if t>=peak:
+		var active_view:=impact_visual_view(burst)
+		var resolved:=resolve_element_impact(active_view)
+		if burst.get("impact_waves",[]).size()>1:
+			# Physical contact accents must not reveal a future successful hit.
+			if resolved.kind!="confirmed" and str(cue[0]) in ["contact","burst","pincer","sweep"]:return used
+			if resolved.kind=="confirmed":target=resolved.target
+		elif miss:
+			if resolved.kind!="confirmed":return used
+			target=resolved.target
 	var forward:=Vector3(target.x-source.x,0,target.z-source.z)
 	if forward.length_squared()<.0001:forward=Vector3.FORWARD
 	forward=forward.normalized()

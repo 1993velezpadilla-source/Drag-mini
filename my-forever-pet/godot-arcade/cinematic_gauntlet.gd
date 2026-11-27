@@ -1181,6 +1181,17 @@ func run_checks()->void:
 	checks+=4
 	# Generate PCM explicitly below; no speaker playback in a headless test.
 	view.fx_audio.clear()
+	# An evicted cast with a completed hit still owns future environmental cues.
+	var retired_points:Array=[Vector3.ZERO,Vector3(1.4,.4,0),Vector3(1.4,.4,1.4)]
+	var retired_test:Dictionary={"id":"eos_100","age":.55,"duration":1.0,"profile":{"impact":.5,"role":"air_fly","element":"flying"},"points":retired_points,"target_player":false,"damage":4,"results":{},"impact_waves":[{}],"impact_times":[.5],"impact_cursor":1,"impacted":true,"environment_audio":[{"phase":"env_land","fraction":.7,"anchor":"terrain"}],"environment_audio_cursor":0}
+	view.retire_combat_burst(retired_test)
+	if view.retired_impacts.size()!=1 or view.retired_impacts[0].points!=retired_points:failures.append("V22.0 retired environment route")
+	var retired_cues:int=view.fx_retired_environment_cues
+	view.update_retired_impacts(.05)
+	if view.retired_impacts.size()!=1 or view.fx_retired_environment_cues!=retired_cues:failures.append("V22.0 early retired cue")
+	view.update_retired_impacts(.11)
+	if not view.retired_impacts.is_empty() or view.fx_retired_environment_cues!=retired_cues+1:failures.append("V22.0 retired cue completion")
+	checks+=3
 	for id in catalog:
 		var profile:=view.combat_profile(id)
 		var move:Dictionary=catalog[id]
