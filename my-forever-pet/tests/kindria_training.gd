@@ -832,6 +832,27 @@ func _initialize():
 	assert(guise.relay_swap(certain)==2)
 	assert(guise.player in before_tiles and guise.enemy_at(guise.player)<0 and guise.enemies[0].pos!=guise.enemies[1].pos)
 	print("KINDRIA_FORM_POSITION_PASS")
+	var team=Rules.new()
+	team.player=Vector2i(2,2)
+	team.rooms.append(Rect2i(1,1,5,5))
+	for x in range(1,10):
+		for y in range(1,6):team.cells[Vector2i(x,y)]=true
+	team.configure_allies([{"species":"reef_pup","max_hp":30,"moves":["eos_069"]},{"species":"bramble_pup","max_hp":40,"moves":["eos_182"]}])
+	assert(team.allies.size()==2 and team.allies[0].pos!=team.allies[1].pos)
+	var partner:Dictionary=team.allies[0]
+	var distant:Dictionary=team.allies[1]
+	distant.pos=Vector2i(9,5)
+	assert(team.party_support("party_boost")==1 and partner.stages.attack==1 and partner.stages.sp_attack==1)
+	partner.hp=2;partner.status={"poison":true};partner.pp.eos_069=1
+	assert(team.party_support("party_heal")==1 and team.hp==1 and partner.hp==30 and partner.status.is_empty() and partner.pp.eos_069==1)
+	assert(team.party_support("party_renew")==1 and partner.pp.eos_069==Rules.MOVE_LIBRARY.eos_069.pp)
+	assert(team.party_support("party_rally")==2 and team.distance(team.player,distant.pos)<=3)
+	assert(team.party_support("leader_decoy")==1 and team.boon_active("decoy"))
+	team.enemies.append({"pos":Vector2i(6,2),"hp":30,"kind":0,"species":"reef_pup"})
+	assert("eos_069" in team.floor_assist_candidates() and "eos_308" in team.floor_assist_candidates())
+	assert(not team.enemy_target_ally(0))
+	assert(Rules.EOS_PROTOTYPE_COUNT==468)
+	print("KINDRIA_PARTY_MOVES_PASS")
 	assert(Rules.EOS_IDENTIFIED_COUNT==468)
 	print("KINDRIA_EOS_PROTOTYPES_PASS ",eos_count)
 	print("KINDRIA_LEARNSET_PP_PASS")
