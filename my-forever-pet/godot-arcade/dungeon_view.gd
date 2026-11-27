@@ -4426,6 +4426,54 @@ func status_sprite(im:Image,role:String,frame:int)->void:
 			else:
 				fx_disc(im,c,4.0+sin(t*PI)*7.0,light);fight_burst(im,c,10.0+sin(t*PI)*11.0,12,t,light,gold)
 
+# Native moves use their authored trajectory to construct a matching foreground
+# sprite layer, rather than sharing the same generic slash / cloud / beam.
+func native_stage_sprite(im:Image,id:String,frame:int)->void:
+	if not AUTHORED_STAGE_FX.has(id):return
+	var cue:Array=AUTHORED_STAGE_FX[id]
+	var kind:String=str(cue[0])
+	var material:String=str(cue[1])
+	var n:int=int(cue[2])
+	var spread:float=clampf(float(cue[3])*11.0,2.0,15.0)
+	var height:float=clampf(float(cue[4])*9.0,2.0,17.0)
+	var t:float=float(posmod(frame,FX_FRAME_COUNT))/float(FX_FRAME_COUNT-1)
+	var style:Array=combat_style(id)
+	var light:=Color(style[1]);var dark:=Color(style[2])
+	var center:=Vector2(24,24)
+	for i in range(n):
+		var f:float=float(i)/maxi(1,n-1)
+		var angle:float=f*TAU
+		var p:float=clampf(t*1.18-f*.18,0.0,1.0)
+		var q:=center+Vector2((p-.5)*29.0,(f-.5)*spread)
+		match kind:
+			"fall":q=center+Vector2(cos(angle)*spread,-height*(1.0-p)+sin(angle)*3.0)
+			"rise","eruption":q=center+Vector2(cos(angle)*spread*p,height*(.6-p))
+			"burst","contact":q=center+Vector2(cos(angle)*spread,sin(angle)*height)*sin(p*PI*.7)
+			"pincer":q=center+Vector2((-1.0 if i%2==0 else 1.0)*spread*(1.0-p), (f-.5)*height)
+			"cone":q=center+Vector2((p-.5)*29.0,(f-.5)*spread*p*1.8)
+			"helix","coil","wheel","shield":q=center+Vector2(cos(angle+t*TAU)*spread,sin(angle+t*TAU)*height)
+			"arc":q.y-=height*sin(p*PI)
+			"whip":q.y+=sin(f*TAU*1.3-t*5.0)*height*.65
+			"sweep":q=center+Vector2(cos(angle*.7+t*PI)*spread,sin(angle*.7+t*PI)*height)
+			"ground":q=center+Vector2(cos(angle)*spread,sin(angle)*spread*.30+height*.32)*(.45+.55*p)
+			"gather":q=center+Vector2(cos(angle)*spread,sin(angle)*height)*(1.0-p)
+			"wave":q.y+=sin(p*TAU+angle)*height*.48
+		var size:float=1.0+sin(f*PI)*1.1
+		match material:
+			"slash","dart","lightning","whip":
+				var direction:=Vector2(cos(angle),sin(angle)) if kind in ["sweep","wheel","coil"] else Vector2(1.0,-.35)
+				fx_line(im,q-direction*size*2.0,q+direction*size,dark.a*1.4,dark)
+				fx_line(im,q-direction*size,q+direction*size,.65,light)
+			"bubble","shock_ring","spiral","web":
+				fx_disc(im,q,size+1.4,dark,size*.65)
+				fx_disc(im,q-Vector2(.4,.4),size+.65,light,size*.9)
+			"crystal","shards","leaf":
+				fx_line(im,q+Vector2(-size,1),q+Vector2(size,-2),1.5,dark)
+				fx_line(im,q,q+Vector2(size,-2),.65,light)
+			_:
+				fx_disc(im,q,size+.6,dark)
+				fx_disc(im,q-Vector2(.5,.5),size*.55,light)
+
 func combat_frame_image(id:String,frame:int)->Image:
 	var style:Array=combat_style(id)
 	var mode:String=combat_animation_mode(id,str(style[0]))
@@ -4434,45 +4482,45 @@ func combat_frame_image(id:String,frame:int)->Image:
 	var t:float=float(posmod(frame,FX_FRAME_COUNT))/float(FX_FRAME_COUNT-1)
 	var role:String=str(combat_profile(id).role)
 	if role.begins_with("electric"):
-		electric_sprite(im,id,frame,role);return im
+		electric_sprite(im,id,frame,role);native_stage_sprite(im,id,frame);return im
 	if role.begins_with("fire_"):
-		fire_sprite(im,role,frame);return im
+		fire_sprite(im,role,frame);native_stage_sprite(im,id,frame);return im
 	if role.begins_with("water_"):
-		water_sprite(im,role,frame);return im
+		water_sprite(im,role,frame);native_stage_sprite(im,id,frame);return im
 	if role.begins_with("grass_"):
-		grass_sprite(im,role,frame);return im
+		grass_sprite(im,role,frame);native_stage_sprite(im,id,frame);return im
 	if role.begins_with("ice_"):
-		ice_sprite(im,role,frame);return im
+		ice_sprite(im,role,frame);native_stage_sprite(im,id,frame);return im
 	if role.begins_with("earth_"):
-		earth_sprite(im,role,frame);return im
+		earth_sprite(im,role,frame);native_stage_sprite(im,id,frame);return im
 	if role.begins_with("rock_"):
-		rock_sprite(im,role,frame);return im
+		rock_sprite(im,role,frame);native_stage_sprite(im,id,frame);return im
 	if role.begins_with("fight_"):
-		fight_sprite(im,role,frame);return im
+		fight_sprite(im,role,frame);native_stage_sprite(im,id,frame);return im
 	if role.begins_with("air_"):
-		air_sprite(im,role,frame);return im
+		air_sprite(im,role,frame);native_stage_sprite(im,id,frame);return im
 	if role.begins_with("poison_"):
-		poison_sprite(im,role,frame);return im
+		poison_sprite(im,role,frame);native_stage_sprite(im,id,frame);return im
 	if role.begins_with("bug_"):
-		bug_sprite(im,role,frame);return im
+		bug_sprite(im,role,frame);native_stage_sprite(im,id,frame);return im
 	if role.begins_with("psi_"):
-		psi_sprite(im,role,frame);return im
+		psi_sprite(im,role,frame);native_stage_sprite(im,id,frame);return im
 	if role.begins_with("ghost_"):
-		ghost_sprite(im,role,frame);return im
+		ghost_sprite(im,role,frame);native_stage_sprite(im,id,frame);return im
 	if role.begins_with("dragon_"):
-		dragon_sprite(im,role,frame);return im
+		dragon_sprite(im,role,frame);native_stage_sprite(im,id,frame);return im
 	if role.begins_with("dark_"):
-		dark_sprite(im,role,frame);return im
+		dark_sprite(im,role,frame);native_stage_sprite(im,id,frame);return im
 	if role.begins_with("steel_"):
-		steel_sprite(im,role,frame);return im
+		steel_sprite(im,role,frame);native_stage_sprite(im,id,frame);return im
 	if role.begins_with("normal_"):
-		normal_contact_sprite(im,role,frame);return im
+		normal_contact_sprite(im,role,frame);native_stage_sprite(im,id,frame);return im
 	if role.begins_with("neutral_"):
-		neutral_special_sprite(im,role,frame);return im
+		neutral_special_sprite(im,role,frame);native_stage_sprite(im,id,frame);return im
 	if role.begins_with("support_"):
-		support_sprite(im,role,frame);return im
+		support_sprite(im,role,frame);native_stage_sprite(im,id,frame);return im
 	if role.begins_with("status_"):
-		status_sprite(im,role,frame);return im
+		status_sprite(im,role,frame);native_stage_sprite(im,id,frame);return im
 	var center:=Vector2(24,24)
 	match mode:
 		"vine":
@@ -4560,6 +4608,7 @@ func combat_frame_image(id:String,frame:int)->Image:
 			for i in range(4):
 				var q:=p-Vector2(float(i)*4.0, sin(t*TAU+i)*3.0)
 				fx_disc(im,q,5.0-float(i),dark);fx_disc(im,q-Vector2(1,1),maxf(1.0,3.0-float(i)*.5),light)
+	native_stage_sprite(im,id,frame)
 	return im
 func combat_animated_texture(id:String,frame:int)->ImageTexture:
 	var normalized:int=posmod(frame,FX_FRAME_COUNT)
