@@ -2089,6 +2089,14 @@ func creature_blink_sample(seconds:float,seed:int,species:String)->bool:
 	var cycle:int=floori((seconds+float(posmod(seed,97))*.127)/period)
 	return phase<.135 or (posmod(cycle+seed,5)==0 and phase>.255 and phase<.365)
 
+# Presentation-only health envelope. The gameplay HP remains authoritative.
+func creature_condition_sample(actor:Node3D,hp_ratio:float,dt:float,enabled:bool)->Vector3:
+	var target:float=clampf((.45-hp_ratio)/.30,0.0,1.0) if enabled else float(actor.get_meta("native_fatigue",0.0))
+	var fatigue:float=move_toward(float(actor.get_meta("native_fatigue",0.0)),target,maxf(0.0,dt)*3.0)
+	actor.set_meta("native_fatigue",fatigue)
+	var phase:float=elapsed*TAU*1.05+float(actor.get_instance_id()%31)*.31
+	return Vector3(1.0-fatigue*(.075+.023*sin(phase)),fatigue*.014*sin(phase*.5),fatigue)
+
 func update_enemy_pixel(actor:Node3D,dt:float,motion:Vector3,body_dt:float=-1.0)->void:
 	var sprite:=actor.get_node_or_null("EnemyPixel") as Sprite3D
 	if sprite==null:return
@@ -2121,6 +2129,7 @@ func update_enemy_pixel(actor:Node3D,dt:float,motion:Vector3,body_dt:float=-1.0)
 	actor.set_meta("native_idle_weight",idle_weight)
 	var idle_seed:float=float(actor.get_instance_id()%97)*TAU/97.0
 	var idle_sample:=creature_idle_sample(species,elapsed,idle_seed,idle_weight,hovering)
+	var fatigue:=creature_condition_sample(actor,float(actor.get_meta("native_hp_ratio",1.0)),real_dt,not bool(actor.get_meta("pending_impact",false)))
 	var rise:float=.13+.04*sin(elapsed*3.0+float(actor.get_instance_id()%11)) if hovering and state!="defeat" else 0.0
 	rise+=idle_sample.z
 	var size_multiplier:float=float(actor.get_meta("enemy_size_multiplier",1.0))
@@ -2192,12 +2201,29 @@ func update_enemy_pixel(actor:Node3D,dt:float,motion:Vector3,body_dt:float=-1.0)
 			shadow.position.x=sprite.position.x
 			shadow.scale.x*=1.0+float(living.sleep)*.24
 			shadow.scale.y*=1.0+float(living.sleep)*.13
-	var can_blink:bool=state in ["idle","walk"] and visual_state in ["idle","walk"] and float(living.sleep)<.1 and not ("freeze" in statuses or "sleep" in statuses or "nightmare" in statuses)
-	var blink:bool=can_blink and creature_blink_sample(elapsed,actor.get_instance_id(),species)
+	# Persistent alert posture follows the real windup flag, even after the
+	# short anticipatory event has expired. Never override attacks or ailments.
+	var alert:bool=state in ["idle","windup"] and bool(actor.get_meta("native_alert",false)) and not bool(living.active)
+	if alert:
+		visual_state="windup";frame=0
+		var ready:float=1.0-.055*(.6+.4*sin(elapsed*TAU*2.0))
+		sprite.scale=Vector3(1.0/ready,ready,1.0)
+		sprite.position.y=.54*size_multiplier*ready+rise
+	elif state in ["idle","walk"] and not bool(living.active) and not bool(actor.get_meta("pending_impact",false)):
+		# Multiply the existing gait/breathing scale, rather than replacing it.
+		var body_height:float=.54*size_multiplier
+		var previous_y:float=sprite.scale.y
+		sprite.scale.x/=fatigue.x
+		sprite.scale.y*=fatigue.x
+		sprite.position.y+=body_height*(sprite.scale.y-previous_y)
+		sprite.position.x+=fatigue.y*size_multiplier
+		if shadow!=null:shadow.position.x=sprite.position.x
+	var can_blink:bool=not alert and state in ["idle","walk"] and visual_state in ["idle","walk"] and float(living.sleep)<.1 and not ("freeze" in statuses or "sleep" in statuses or "nightmare" in statuses)
+	var blink:bool=can_blink and (creature_blink_sample(elapsed,actor.get_instance_id(),species) or (fatigue.z>.75 and fposmod(elapsed+idle_seed,1.7)<.22))
 	# Short asynchronous gestures for land creatures; aquatic appendages cycle.
 	var appendage:int=0
 	# Return to a neutral cell before allowing an independent idle gesture.
-	if state=="idle" and idle_weight>=.8 and can_blink and not bool(living.active) and species in PixelArt.ENEMY_IDLE_APPENDAGES:
+	if state=="idle" and idle_weight>=.8 and can_blink and fatigue.z<.65 and not bool(living.active) and species in PixelArt.ENEMY_IDLE_APPENDAGES:
 		appendage=creature_appendage_sample(species,elapsed,actor.get_instance_id())
 	var tex:=PixelArt.enemy_pixel_texture(species,facing_index,visual_state,frame,blink,appendage)
 	if tex!=null and sprite.texture!=tex:sprite.texture=tex
@@ -7662,6 +7688,8 @@ func refresh_actors():
 		if int(enemy.hp)<int(root.get_meta("enemy_hp",enemy.hp)) or fresh_response:
 			queue_observed_enemy_damage(root,uid,p,false)
 		root.set_meta("enemy_hp",int(enemy.hp))
+		root.set_meta("native_hp_ratio",clampf(float(enemy.hp)/maxf(1.0,float(enemy.get("max_hp",enemy.hp))),0.0,1.0))
+		root.set_meta("native_alert",bool(enemy.get("windup",false)))
 		var bar=root.get_node("HP") as Node3D
 		bar.scale.x=.72*clampf(float(enemy.hp)/float(enemy.get("max_hp",enemy.hp)),0,1)
 		root.get_node("Warning").visible=enemy.get("windup",false)
@@ -7683,6 +7711,7 @@ func refresh_actors():
 			var label:=Label3D.new();label.name="AllyHP";label.billboard=BaseMaterial3D.BILLBOARD_ENABLED;label.font_size=28;label.pixel_size=.006;label.position=Vector3(0,1.65,0);root.add_child(label)
 		var label:=root.get_node("AllyHP") as Label3D
 		label.text="%d/%d"%[a.hp,a.max_hp]
+		root.set_meta("native_hp_ratio",clampf(float(a.hp)/maxf(1.0,float(a.max_hp)),0.0,1.0))
 	for p in run.player_traps:
 		if not run.revealed.has(p) or not run.revealed_player_traps.has(p):continue
 		var key="owntrap:"+str(p);desired[key]=true
@@ -7957,6 +7986,7 @@ func update_disguise(dt:float,motion:Vector2,moving:bool,pose:String)->void:
 	disguise_actor.position=pet_pose.position
 	disguise_actor.rotation.z=pet_pose.rotation.z
 	disguise_actor.set_meta("living_statuses",living_player_statuses())
+	disguise_actor.set_meta("native_hp_ratio",clampf(float(run.hp)/maxf(1.0,float(run.max_hp)),0.0,1.0))
 	disguise_actor.set_meta("enemy_facing",PixelArt.direction8_for(motion,int(disguise_actor.get_meta("enemy_facing",0))))
 	var synchronized:bool=sync_disguise_pose(disguise_actor,pose,motion)
 	update_enemy_pixel(disguise_actor,0.0 if synchronized else dt,Vector3(motion.x,0,motion.y) if moving else Vector3.ZERO,dt)
@@ -8091,6 +8121,15 @@ func _process(dt:float):
 	else:
 		var active_sprite:=pet_pose.get_node_or_null("PixelCompanion") as Sprite3D
 		if active_sprite!=null:active_sprite.position.x=0.0
+	var condition:=creature_condition_sample(pet,clampf(float(run.hp)/maxf(1.0,float(run.max_hp)),0.0,1.0),dt,true)
+	if pose=="idle" and not bool(player_living.active) and not tile_cast_active():
+		var healthy_sprite:=pet_pose.get_node_or_null("PixelCompanion") as Sprite3D
+		if healthy_sprite!=null:
+			var prior_scale:float=healthy_sprite.scale.y
+			healthy_sprite.scale.x/=condition.x
+			healthy_sprite.scale.y*=condition.x
+			healthy_sprite.position.y+=float(healthy_sprite.get_meta("world_height"))*.5*(healthy_sprite.scale.y-prior_scale)
+			healthy_sprite.position.x+=condition.y
 	update_disguise(dt,motion,moving,pose)
 	var focus=pet.position+Vector3(0,.18,-.48)
 	# The prior floor-build-only shake never reached the actual render loop.
