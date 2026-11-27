@@ -2426,6 +2426,7 @@ func update_hud():
 	status_text.text=run.message if run.charged_move_id.is_empty() else str(Rules.MOVE_LIBRARY[run.charged_move_id].name)+" · Ready to release"
 	var stage_text:String=run.stage_summary(run.player_stages,run.player_halves)
 	if not stage_text.is_empty():status_text.text+=" · "+stage_text
+	if run.travel_speed()>1:status_text.text+=" · MOVE ×%d"%run.travel_speed()
 	if is_instance_valid(aim_button):aim_button.text="Aim "+["↑","→","↓","←"][maxi(0,Rules.DIR.find(facing))]
 	if is_instance_valid(special_button):special_button.disabled=run.energy<2
 	for i in range(move_buttons.size()):
