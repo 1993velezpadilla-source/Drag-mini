@@ -36,6 +36,27 @@ func run_checks()->void:
 	var checks:int=0
 	var failures:Array[String]=[]
 	var view:=Dungeon.new()
+	# V25.9: exact bounded warm plans, with no unapproved species.
+	var companion_warm_plan:Array[Vector3i]=Art.companion_attack_warm_plan()
+	if companion_warm_plan.size()!=28:failures.append("V25.9 companion plan count")
+	checks+=1
+	for warm_dir in range(8):
+		for warm_frame in range(2):
+			if not companion_warm_plan.has(Vector3i(warm_dir,0,warm_frame)):failures.append("V25.9 attack cell")
+			checks+=1
+		if not companion_warm_plan.has(Vector3i(warm_dir,1,0)):failures.append("V25.9 recovery cell")
+		if companion_warm_plan.has(Vector3i(warm_dir,2,1))!=(warm_dir>=4):failures.append("V25.9 cast cell")
+		checks+=2
+	var enemy_warm_ids:Array=["sporeling","coralcrab","sporeling","missing_species"]
+	var enemy_warm_plan:Array[Dictionary]=Art.enemy_attack_warm_plan(enemy_warm_ids,32)
+	if enemy_warm_plan.size()!=10:failures.append("V25.9 unique species")
+	if Art.enemy_attack_warm_plan(enemy_warm_ids,3)!=enemy_warm_plan.slice(0,3):failures.append("V25.9 bounded interleave")
+	if not Art.enemy_attack_warm_plan(enemy_warm_ids,0).is_empty():failures.append("V25.9 zero cap")
+	if enemy_warm_plan.size()==10:
+		if enemy_warm_plan[0].id!="sporeling" or enemy_warm_plan[1].id!="coralcrab":failures.append("V25.9 species priority")
+		if enemy_warm_plan[2].pose!="attack" or enemy_warm_plan[2].frame!=1:failures.append("V25.9 strike priority")
+	else:failures.append("V25.9 plan incomplete")
+	checks+=5
 	# V25.8: compare optimized neutral and non-neutral fatigue to the original formula.
 	var creature_probe:=Dungeon.new()
 	var creature_actor:=Node3D.new()
