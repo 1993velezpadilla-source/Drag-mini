@@ -971,7 +971,7 @@ static func enemy_pixel_cell(id:String,dir:int,pose:String,frame:int=0,eyelids:b
 			var sea:=Color("#467d99")
 			var skin:=Color("#83b6c2")
 			var ivory:=Color("#d4e6df")
-			var flap:int=([0,4,0,-4][phase] if pose)+combat_part
+			var flap:int=([0,4,0,-4][phase] if pose=="walk" else -4 if wind else 5 if attack else 0)+combat_part
 			var c:=Vector2i(24,24)
 			var tail_base:=c+Vector2i(-8,3) if side else c+Vector2i(0,9 if back else -9)
 			var tail_mid:=c+Vector2i(-15,5+step+twitch) if side else c+Vector2i(step,15 if back else -15)
@@ -1141,7 +1141,7 @@ static func enemy_pixel_cell(id:String,dir:int,pose:String,frame:int=0,eyelids:b
 			var deep:=Color("#43375e")
 			var lilac:=Color("#a894e5")
 			var moon:=Color("#f1dbf7")
-			var flap:int=([0,5,0,-5][phase] if pose)+combat_part
+			var flap:int=([0,5,0,-5][phase] if pose=="walk" else 6 if wind else -5 if attack else 0)+combat_part
 			var center:=Vector2i(24,25)
 			for k in [-1,1]:
 				var sign_x:int=int(k)
@@ -1396,7 +1396,7 @@ static func enemy_pixel_cell(id:String,dir:int,pose:String,frame:int=0,eyelids:b
 			var mid:=Color("#7666aa")
 			var pale:=Color("#cab7ed")
 			var c:=Vector2i(24,24)
-			var flap:int=([0,5,0,-5][phase] if pose)+combat_part
+			var flap:int=([0,5,0,-5][phase] if pose=="walk" else 5 if wind else -4 if attack else 0)+combat_part
 			for k in [-1,1]:
 				var sign_x:int=int(k)
 				var shoulder:=c+Vector2i(sign_x*4,-2)
@@ -1478,7 +1478,7 @@ static func enemy_pixel_cell(id:String,dir:int,pose:String,frame:int=0,eyelids:b
 			var pale:=Color("#b6e8d9")
 			var coral:=Color("#d7828c")
 			var c:=Vector2i(25,24)
-			var wag:int=([0,4,0,-4][phase] if pose)+combat_part
+			var wag:int=([0,4,0,-4][phase] if pose=="walk" else -3 if wind else 3 if attack else twitch*3)+combat_part
 			var head:=c+Vector2i(7,1) if side else c+Vector2i(0,5 if not back else -5)
 			var tail:=c+Vector2i(-11,0) if side else c+Vector2i(0,-11 if not back else 11)
 			var tip:=tail+Vector2i(-10,wag) if side else tail+Vector2i(wag,-8 if not back else 8)
@@ -1549,7 +1549,7 @@ static func enemy_pixel_cell(id:String,dir:int,pose:String,frame:int=0,eyelids:b
 			var feather:=Color("#b9a77c")
 			var cream:=Color("#dcd7a9")
 			var moss:=Color("#768b49")
-			var flap:int=([0,5,0,-5][phase] if pose)+combat_part
+			var flap:int=([0,5,0,-5][phase] if pose=="walk" else -4 if wind else 5 if attack else 0)+combat_part
 			var c:=Vector2i(23,25)
 			for k in [-1,1]:
 				var sign_x:int=int(k)
@@ -1684,7 +1684,7 @@ static func enemy_pixel_cell(id:String,dir:int,pose:String,frame:int=0,eyelids:b
 			var mid:=Color("#b2a07d")
 			var pale:=Color("#dcce9a")
 			var moss:=Color("#74894b")
-			var swing:int=(3 if attack and frame)+combat_part
+			var swing:int=(3 if attack and frame==1 else -2 if wind else 0)+combat_part
 			var c:=Vector2i(19,28) if side else Vector2i(24,29)
 			for i in range(4):
 				var k:int=-1 if i%2==0 else 1
@@ -1736,7 +1736,7 @@ static func enemy_pixel_cell(id:String,dir:int,pose:String,frame:int=0,eyelids:b
 			var mid:=Color("#a6bc89")
 			var pale:=Color("#ead4a8")
 			var shade:=Color("#28505f")
-			var flex:int=([0,3,0,-3][phase] if pose)+combat_part
+			var flex:int=([0,3,0,-3][phase] if pose=="walk" else -3 if wind else 3 if attack else 0)+combat_part
 			var c:=Vector2i(22,25) if side else Vector2i(24,25)
 			var path:Array[Vector2i]=[c+Vector2i(0,5),c+Vector2i(-2,12),c+Vector2i(3,17),c+Vector2i(9+flex,15),c+Vector2i(10+flex,10),c+Vector2i(6+flex,8)]
 			if side:path=[c+Vector2i(0,5),c+Vector2i(-4,12),c+Vector2i(-10,15),c+Vector2i(-15,11+flex),c+Vector2i(-13,6+flex),c+Vector2i(-8,6+flex)]
@@ -1985,7 +1985,7 @@ static func enemy_pixel_cell(id:String,dir:int,pose:String,frame:int=0,eyelids:b
 			var pale:=Color("#e6e1d3")
 			var blue:=Color("#446989")
 			var c:=Vector2i(23,25)
-			var wave:int=([0,4,0,-4][phase] if pose)+combat_part
+			var wave:int=([0,4,0,-4][phase] if pose=="walk" else -3 if wind else 3 if attack else twitch*3)+combat_part
 			var tail:=c+Vector2i(-15,0) if side else c+Vector2i(0,14 if back else -14)
 			var tip:=tail+Vector2i(-5,wave) if side else tail+Vector2i(wave,4 if back else -4)
 			enemy_line(im,c,tail,5,ink);enemy_line(im,c,tail,3,blue)
@@ -2026,7 +2026,7 @@ static func enemy_pixel_cell(id:String,dir:int,pose:String,frame:int=0,eyelids:b
 			var pale:=Color("#f5e7fd")
 			var shade:=Color("#76669f")
 			var c:=Vector2i(24,26)
-			var flap:int=([0,4,0,-4][phase] if pose)+combat_part
+			var flap:int=([0,4,0,-4][phase] if pose=="walk" else -3 if wind else 4 if attack else twitch*3)+combat_part
 			for k in [-1,1]:
 				var n:int=int(k)
 				var a:=c+Vector2i(n*6,-3)
