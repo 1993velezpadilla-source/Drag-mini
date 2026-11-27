@@ -576,7 +576,7 @@ func run()->void:
 		assert(field.combat_particles.size()==particle_count)
 		var p:Dictionary=field.combat_profile(move_id)
 		var burst:Dictionary={"id":move_id,"profile":p,"points":[special_source,bite_position],"results":{target:{"misses":1}}}
-		assert(field.element_finish_fx(burst,float(p.impact),0)==1)
+		assert(field.priority_contact_fx(burst,float(p.impact),0)==0)
 		burst.results={target:{"damage":8,"hits":1}}
 		for particle in field.combat_particles:particle.hide()
 		assert(field.element_finish_fx(burst,lerpf(float(p.impact),1.0,.25),0)>1)
@@ -800,6 +800,18 @@ func run()->void:
 	field.combat_bursts.assign(saved_bursts)
 	for particle in field.combat_particles:particle.hide()
 	print("KINDRIA_V13_CONTACT_PRIORITY_PASS 10")
+	# V13.3: no confirmed victim means no contact or elemental impact.
+	var mixed_profile:Dictionary=field.combat_profile("eos_063")
+	var mixed_burst:Dictionary={"id":"eos_063","profile":mixed_profile,"points":[special_source,bite_position],"tiles":[field.pos(target)],"results":{}}
+	var mixed_tick:float=lerpf(float(mixed_profile.impact),1.0,.2)
+	assert(field.element_finish_fx(mixed_burst,mixed_tick,0)==1)
+	assert(field.priority_contact_fx(mixed_burst,mixed_tick,0)==0)
+	mixed_burst.results={target:{"misses":1},secondary_tile:{"damage":8,"hits":1}}
+	assert(field.priority_contact_fx(mixed_burst,mixed_tick,0)==0)
+	assert(field.priority_contact_fx(mixed_burst,mixed_tick,0,true)>=2)
+	assert(field.element_finish_fx(mixed_burst,mixed_tick,0)>8)
+	for particle in field.combat_particles:particle.hide()
+	print("KINDRIA_V13_CONFIRMED_MATERIAL_PASS")
 	var plan:Array=[
 		{"stage":"ally_invoke","anchor":"source","start":0.0,"end":.15,"enabled":true},
 		{"stage":"enemy_invoke","anchor":"source","start":0.0,"end":.15,"enabled":true},
