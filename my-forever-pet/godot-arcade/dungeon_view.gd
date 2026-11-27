@@ -5484,7 +5484,7 @@ func native_identity_frame(id:String,frame:int,base:Image)->Image:
 	return im
 
 # V16.7: individually remastered after reviewing actual Godot PNG strips.
-const VISUAL_REMASTER_MOVES=["eos_504","eos_308","eos_135","eos_142","eos_047","eos_250","eos_299","eos_329","eos_262","eos_279","eos_101","eos_199","eos_251","eos_486","eos_462","eos_018","eos_507","eos_175","eos_254","eos_097","eos_163","eos_320","eos_033","eos_166","eos_228","eos_004","eos_252","eos_330","eos_465","eos_138","eos_021","eos_501","eos_053","eos_157","eos_064","eos_188","eos_240","eos_255","eos_342","eos_539","eos_041","eos_278","eos_538","eos_239","eos_193","eos_272","eos_519","eos_494","eos_292","eos_065","eos_276","eos_208","eos_522","eos_452","eos_433","eos_087","eos_063","eos_062","eos_476","eos_127","eos_451","eos_436","eos_491","eos_046","eos_109","eos_234","eos_107","eos_463","eos_133","eos_317","eos_111","eos_331","eos_345","eos_270","eos_042","eos_344","eos_461","eos_180","eos_535","eos_150","eos_118","eos_484","eos_008","eos_131","eos_030","eos_481","eos_028","eos_073","lib_ground_1","eos_057","eos_036","eos_442","eos_153","eos_205","eos_100","eos_518","eos_178","eos_200","eos_495","eos_280","eos_197","eos_332","eos_147","eos_485","eos_459","eos_151","eos_537","eos_443","eos_336","eos_182","eos_253","eos_441","eos_076","lib_grass_1","eos_001","eos_325","eos_103","eos_536","eos_510","eos_431","eos_475","eos_523","eos_080","eos_082","eos_114","eos_323","eos_470","eos_502","eos_529","eos_530"]
+const VISUAL_REMASTER_MOVES=["eos_504","eos_308","eos_135","eos_142","eos_047","eos_250","eos_299","eos_329","eos_262","eos_279","eos_101","eos_199","eos_251","eos_486","eos_462","eos_018","eos_507","eos_175","eos_254","eos_097","eos_163","eos_320","eos_033","eos_166","eos_228","eos_004","eos_252","eos_330","eos_465","eos_138","eos_021","eos_501","eos_053","eos_157","eos_064","eos_188","eos_240","eos_255","eos_342","eos_539","eos_041","eos_278","eos_538","eos_239","eos_193","eos_272","eos_519","eos_494","eos_292","eos_065","eos_276","eos_208","eos_522","eos_452","eos_433","eos_087","eos_063","eos_062","eos_476","eos_127","eos_451","eos_436","eos_491","eos_046","eos_109","eos_234","eos_107","eos_463","eos_133","eos_317","eos_111","eos_331","eos_345","eos_270","eos_042","eos_344","eos_461","eos_180","eos_535","eos_150","eos_118","eos_484","eos_008","eos_131","eos_030","eos_481","eos_028","eos_073","lib_ground_1","eos_057","eos_036","eos_442","eos_153","eos_205","eos_100","eos_518","eos_178","eos_200","eos_495","eos_280","eos_197","eos_332","eos_147","eos_485","eos_459","eos_151","eos_537","eos_443","eos_336","eos_182","eos_253","eos_441","eos_076","lib_grass_1","eos_001","eos_325","eos_103","eos_536","eos_510","eos_431","eos_475","eos_523","eos_080","eos_082","eos_114","eos_323","eos_470","eos_502","eos_529","eos_530","eos_460","eos_520","eos_449","eos_288"]
 func visual_remaster_frame(id:String,frame:int)->Image:
 	var im:=Image.create(48,48,false,Image.FORMAT_RGBA8)
 	im.fill(Color.TRANSPARENT)
@@ -7497,6 +7497,52 @@ func visual_remaster_frame(id:String,frame:int)->Image:
 					fx_line(im,prev,q,1.9,Color("#8fa959",fade))
 					fx_line(im,prev,q,.8,Color("#f1ffd2",fade))
 					prev=q
+		"eos_460":
+			# Attack Order: a coordinated swarm converges on the commanded point.
+			var c:=Vector2(24,24)
+			for j in range(8):
+				var a:float=float(j)*TAU/8.0+t*1.6
+				var axis:=Vector2(cos(a),sin(a))
+				var normal:=Vector2(-axis.y,axis.x)
+				var radius:float=19.0-13.0*drive+8.0*(1.0-fade)
+				var q:=c+axis*radius
+				fx_line(im,q+axis*5,q,1.2,Color("#b6d377",fade))
+				fx_line(im,q-axis*2,q+axis*2,2.7,Color("#526239",fade))
+				fx_line(im,q,q+normal*3.5+axis*2,1.8,Color("#e8f4b0",fade))
+				fx_line(im,q,q-normal*3.5+axis*2,1.8,Color("#d2ed99",fade))
+			if t>=peak:fairy_star(im,c,4+4*pulse,Color("#f8ffcf",fade))
+		"eos_520":
+			# Swarm Ward: six protective hexagonal chitin plates lock into a shield.
+			var c:=Vector2(24,24)
+			for j in range(6):
+				var a:float=float(j)*TAU/6.0+t*.4
+				var q:=c+Vector2(cos(a),sin(a))*(19-8*drive)
+				psi_polygon(im,q,5.0,6,a,Color("#e7f5b5",fade),Color("#678344",fade))
+				fx_disc(im,q,1.4,Color("#a7c77a",fade))
+			if t>=peak:
+				fx_disc(im,c,14.0,Color("#d0ed9a",fade),12.5)
+		"eos_449":
+			# Hive Renewal: amber honeycomb cells pulse and send healing motes inward.
+			var c:=Vector2(24,24)
+			for j in range(6):
+				var a:float=float(j)*TAU/6.0
+				var q:=c+Vector2(cos(a),sin(a))*12
+				psi_polygon(im,q,6.0,6,PI/6,Color("#ffdc85",fade),Color("#9f793c",fade))
+				var v:=q.lerp(c,drive)
+				fx_disc(im,v,2.0,Color("#a6f3af",fade))
+			fx_line(im,c-Vector2(0,5),c+Vector2(0,5),2.4,Color("#d8ffca",fade))
+			fx_line(im,c-Vector2(5,0),c+Vector2(5,0),2.4,Color("#d8ffca",fade))
+		"eos_288":
+			# Glow Focus: firefly-like golden abdomen brightens through successive pulses.
+			var c:=Vector2(24,27)
+			var radius:float=4+6*drive
+			fx_disc(im,c,radius+3,Color("#ac8b35",fade*.45))
+			fx_disc(im,c,radius,Color("#ebc652",fade))
+			fx_disc(im,c-Vector2(1,2),radius*.55,Color("#fff8b8",fade))
+			for j in range(7):
+				var a:float=float(j)*TAU/7.0+t
+				var axis:=Vector2(cos(a),sin(a))
+				fx_line(im,c+axis*(radius+2),c+axis*(radius+5+4*pulse),1.2,Color("#ffec9a",fade))
 	return im
 
 func combat_frame_image(id:String,frame:int)->Image:
