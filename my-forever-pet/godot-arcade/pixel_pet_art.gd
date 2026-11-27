@@ -2063,8 +2063,19 @@ static func enemy_asset_cell(id:String,dir:int,pose:String,frame:int)->Image:
 # Only transfer authored eyelid differences when the production art matches
 # the original pixels exactly in that region. Never replace the whole atlas.
 static func enemy_expression_cell(id:String,dir:int,pose:String,frame:int,production:Image,blink:bool,appendage:int)->Image:
-	var open:=enemy_pixel_cell(id,dir,pose,frame,false,0)
 	var shut:=enemy_pixel_cell(id,dir,pose,frame,blink,appendage)
+	# Procedural fallback is already the exact authored base; no second draw
+	# or per-pixel compatibility scan is necessary.
+	if enemy_atlas_cache.get(id)==null:
+		return production if production.get_data()==shut.get_data() else shut
+	var open:=enemy_pixel_cell(id,dir,pose,frame,false,0)
+	# Native PackedByteArray comparison avoids thousands of GDScript pixel calls
+	# when the approved atlas matches the authored cell exactly.
+	if production.get_format()==open.get_format():
+		var original_bytes:=open.get_data()
+		var changed_bytes:=shut.get_data()
+		if original_bytes==changed_bytes:return production
+		if production.get_data()==original_bytes:return shut
 	var changes:Array[Vector2i]=[]
 	for y in range(48):
 		for x in range(48):
