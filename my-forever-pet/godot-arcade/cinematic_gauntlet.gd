@@ -460,6 +460,28 @@ func run_checks()->void:
 				checks+=1
 	if view.elemental_dissipation_sample("fire",.9).y<=0.0 or view.elemental_dissipation_sample("ice",.9).y>=0.0 or view.elemental_dissipation_sample("psychic",.9).x>=view.elemental_dissipation_sample("psychic",.1).x:failures.append("elemental trajectory distinction")
 	checks+=1
+	# Lighting is local, elemental, finite and bounded by the original pool.
+	var lighting_signatures:Dictionary={}
+	if Dungeon.ELEMENT_LIGHT_PROFILE.size()!=18:failures.append("elemental light profile coverage")
+	for element in Dungeon.ELEMENT_FINISH_MODE:
+		if not Dungeon.ELEMENT_LIGHT_PROFILE.has(element):
+			failures.append("missing elemental light "+element)
+			continue
+		var cue:Array=Dungeon.ELEMENT_LIGHT_PROFILE[element]
+		if lighting_signatures.has(str(cue)):failures.append("duplicate light profile "+element)
+		lighting_signatures[str(cue)]=true
+		for stage in ["launch","impact","residue"]:
+			for step in range(101):
+				var phase:float=float(step)/100.0
+				var sample:=view.elemental_light_sample(element,phase,stage)
+				var wide_sample:=view.elemental_light_sample(element,phase,stage,true)
+				if not sample.is_finite() or sample.x<0.0 or sample.x>1.201 or sample.y<1.0 or sample.y>2.7 or sample.z<1.0 or sample.z>3.0:failures.append("light profile bounds "+element)
+				if wide_sample.y<sample.y or wide_sample.y>3.2 or wide_sample.x!=sample.x:failures.append("wide light bounds "+element)
+				if step==100 and sample.x>.0001:failures.append("light did not expire "+element)
+				if stage=="launch" and step==0 and sample.x>.0001:failures.append("launch light starts abruptly "+element)
+				checks+=1
+	if view.cinematic_light_slot([],2,1.0)!=0 or view.cinematic_light_slot([1.0],2,2.0)!=1 or view.cinematic_light_slot([4.8,2.9],2,6.2)!=1 or view.cinematic_light_slot([4.8,2.9],2,1.9)!=-1 or view.cinematic_light_slot([2.5],1,4.2)!=0 or view.cinematic_light_slot([],0,6.0)!=-1:failures.append("light pool priority")
+	checks+=6
 	# Directed contact art is independently visible and kick poses are animated.
 	for id in Dungeon.CONTACT_ICON_KIND:
 		var kind:String=view.directed_contact_kind(id,str(view.combat_profile(id).role))
@@ -649,7 +671,7 @@ func run_checks()->void:
 				visible+=1
 				if not particle.position.is_finite() or not particle.scale.is_finite() or particle.texture==null:failures.append("invalid world particle "+str(id))
 			max_visible=maxi(max_visible,visible)
-			if visible>Dungeon.FX_PARTICLE_CAP or view.fx_trail_vertices>Dungeon.FX_TRAIL_VERTEX_CAP or view.fx_halos_used>Dungeon.FX_HALO_CAP:failures.append("world pool overflow "+str(id))
+			if visible>Dungeon.FX_PARTICLE_CAP or view.fx_trail_vertices>Dungeon.FX_TRAIL_VERTEX_CAP or view.fx_halos_used>Dungeon.FX_HALO_CAP or view.fx_lights_used>Dungeon.FX_LIGHT_CAP:failures.append("world pool overflow "+str(id))
 			runtime_samples+=1;checks+=1
 		if not view.combat_bursts.is_empty() or max_visible==0:failures.append("world cast lifetime "+str(id))
 		quality_rows.append({"id":id,"element":profile.element,"role":profile.role,"category":category,"distinct_frames":frame_hashes.size(),"blank_frames":blank_frames,"adjacent_repeats":repeat_count,"sequence_sha256":signature,"audio_form":audio_form,"audio_peaks":audio_peaks,"max_visible_particles":max_visible})
