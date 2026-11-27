@@ -22,18 +22,24 @@ FILES = (
 
 def read_pck(data):
     # Godot 4.4 PCK format v2: offsets are relative to file_base when packed.
-    if data[:4] != b"GDPC":
+    if len(data) < 100 or data[:4] != b"GDPC":
         raise ValueError("PCK signature missing")
     version, major, minor, patch, flags = struct.unpack_from("<5I", data, 4)
     if version != 2 or major != 4 or flags & 1:
         raise ValueError(f"unsupported/encrypted PCK {version=} {major=} {flags=}")
     file_base = struct.unpack_from("<Q", data, 24)[0]
     count = struct.unpack_from("<I", data, 96)[0]
+    if not 100 <= file_base <= len(data) or count > (file_base - 100) // 40:
+        raise ValueError("invalid PCK directory bounds")
     cursor = 100
     entries = {}
     for _ in range(count):
+        if cursor + 4 > file_base:
+            raise ValueError("truncated PCK directory")
         length = struct.unpack_from("<I", data, cursor)[0]
         cursor += 4
+        if length == 0 or cursor + length + 36 > file_base:
+            raise ValueError("invalid PCK entry name or directory size")
         name = data[cursor:cursor + length].rstrip(b"\x00").decode("utf-8")
         cursor += length
         offset, size = struct.unpack_from("<QQ", data, cursor)
@@ -49,6 +55,8 @@ def read_pck(data):
         payload = data[start:start + size]
         if len(payload) != size or hashlib.md5(payload).digest() != digest:
             raise ValueError(f"invalid PCK payload {name}")
+        if name in entries:
+            raise ValueError(f"duplicate PCK combat resource {name}")
         entries[name] = payload
     return entries
 
@@ -56,15 +64,22 @@ def read_pck(data):
 def verify(apk, root):
     expected = {name: (root / name).read_bytes() for name in FILES}
     found = {}
+    def record(name, payload):
+        if name in found and found[name] != payload:
+            raise ValueError(f"conflicting APK combat resource copies: {name}")
+        found[name] = payload
+
     with zipfile.ZipFile(apk) as archive:
-        for entry in archive.namelist():
+        for info in archive.infolist():
+            entry = info.filename
             if not entry.startswith("assets/"):
                 continue
             name = entry.removeprefix("assets/")
             if name in expected:
-                found[name] = archive.read(entry)
+                record(name, archive.read(info))
             elif entry.endswith(".pck"):
-                found.update(read_pck(archive.read(entry)))
+                for resource, payload in read_pck(archive.read(info)).items():
+                    record(resource, payload)
     report = {}
     for name, payload in expected.items():
         if not payload or found.get(name) != payload:
