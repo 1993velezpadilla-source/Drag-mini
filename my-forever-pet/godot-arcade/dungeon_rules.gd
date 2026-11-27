@@ -2724,7 +2724,7 @@ const DEV_TARGET_DESCRIPTIONS={"self":"User","front":"One enemy directly ahead",
 static func dev_move_description(m:Dictionary)->String:
 	var parts:Array[String]=[]
 	if m.has("description"):parts.append(str(m.description))
-	if m.has("special_rule"):parts.append(str(DEV_RULE_DESCRIPTIONS.get(str(m.special_rule),"Executes "+str(m.special_rule).replace("_"," ")+"."))
+	if m.has("special_rule"):parts.append(str(DEV_RULE_DESCRIPTIONS.get(str(m.special_rule),"Executes "+str(m.special_rule).replace("_"," ")+".")))
 	if m.has("boon_kind"):parts.append(str(DEV_BOON_DESCRIPTIONS.get(str(m.boon_kind),"Applies "+str(m.boon_kind)+".")))
 	if m.has("shield_kind"):parts.append(str(DEV_SHIELD_DESCRIPTIONS.get(str(m.shield_kind),"Grants a defensive ward.")))
 	if m.has("stat_transfer"):parts.append(str(DEV_TRANSFER_DESCRIPTIONS.get(str(m.stat_transfer),"Changes combat stats.")))

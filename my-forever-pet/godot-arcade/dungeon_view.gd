@@ -5905,7 +5905,7 @@ func element_finish_fx(burst:Dictionary,t:float,used:int)->int:
 	var points:Array=burst.points
 	var from:Vector3=points[0]
 	var target:Vector3=points[-1]
-	var record:Dictionary=Rules.dev_move_record(id)
+	var record:Dictionary=Rules.MOVE_LIBRARY.get(id,Rules.DEV_NATIVE_MOVES.get(id,{}))
 	var status:bool=str(record.get("category",""))=="status"
 	var mode:String=str(ELEMENT_FINISH_MODE.get(str(profile.element),"impact_star"))
 	if t<peak*.48:
