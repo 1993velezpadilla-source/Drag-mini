@@ -2621,7 +2621,7 @@ func elemental_track_plan(id:String,profile:Dictionary)->Array:
 		{"stage":"ally_invoke","anchor":"source","start":0.0,"end":peak*.24,"material":material,"enabled":true},
 		{"stage":"enemy_invoke","anchor":"source","start":0.0,"end":peak*.24,"material":material,"enabled":true},
 		{"stage":"caster","anchor":str(profile.socket),"start":0.0,"end":peak,"material":material,"enabled":true},
-		{"stage":"projectile","anchor":"path","start":peak*.18,"end":peak,"material":material,"enabled":travel},
+		{"stage":"projectile","anchor":"path","start":peak*.18,"end":peak,"material":material,"enabled":travel,"motion":kind,"spread":float(cue[3]),"height":float(cue[4])},
 		{"stage":"area","anchor":"tiles","start":peak,"end":lerpf(peak,1.0,.85),"material":impact_material,"enabled":area},
 		{"stage":"impact","anchor":"target","start":peak,"end":1.0,"material":impact_material,"enabled":not status},
 		{"stage":"projectile_impact","anchor":"target","start":peak,"end":lerpf(peak,1.0,.68),"material":impact_material,"enabled":travel and not status}]
