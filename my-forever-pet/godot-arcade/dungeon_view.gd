@@ -2784,6 +2784,22 @@ func combat_pixel_texture(mode:String,light:Color,dark:Color)->ImageTexture:
 			var fill:bool=false
 			var inner:bool=false
 			match mode:
+				"kick_side","kick_raised","kick_heel","kick_sole","kick_side_mirror","kick_raised_mirror":
+					# Profile of shin, ankle, heel and toes, not a generic slash.
+					var p:Vector2=v
+					if mode.ends_with("_mirror"):p.x=-p.x
+					if mode.begins_with("kick_raised"):p=p.rotated(-PI*.28)
+					elif mode=="kick_heel":p=p.rotated(PI*.28)
+					if mode=="kick_sole":
+						var sole:float=Vector2(p.x*.75,p.y).length()
+						fill=sole<6.5 and absf(p.x)<5.7
+						inner=fill and sole<5.4 and absf(fposmod(p.y+1.4,2.8)-1.4)>.45
+					else:
+						var shin:bool=p.x>=-6.7 and p.x<-.4 and absf(p.y+2.0+p.x*.15)<2.2
+						var ankle:bool=(p-Vector2(-.5,-.5)).length()<2.8
+						var toes:bool=Vector2((p.x-2.1)*.68,(p.y-1.6)*1.15).length()<3.5 and p.x<7.1
+						fill=shin or ankle or toes
+						inner=fill and ((shin and p.y<-1.9) or (toes and p.y<1.4 and absf(fposmod(p.x+1.0,2.0)-1.0)>.25))
 				"fist_front","fist_steel","fist_ghost":
 					# Four rounded knuckles, curled thumb and a narrow wrist.
 					var knuckle:float=absf(fposmod(v.x+1.5,3.0)-1.5)
@@ -7177,6 +7193,77 @@ func punch_contact_fx(id:String,source:Vector3,target:Vector3,age:float,used:int
 			used=environment_particle(used,q-direction*.20,"fist_ghost",light,dark,size*.75,alpha*.38)
 	return used
 
+# size, normalized lifetime, reach, lift, motion, silhouette, highlight,
+# outline and elemental accent. Multi-kick cadence uses confirmed hit counts.
+const KICK_CONTACT_ART={
+	"lib_fighting_2":[.85,.68,.52,.25,"sweep","kick_side","#fff0d9","#a76d45","slash"],
+	"eos_092":[.72,.50,.42,.08,"low","kick_side","#ffe9ce","#ad784e","shards"],
+	"eos_204":[.84,.65,.52,.65,"jump","kick_raised","#fff1d7","#aa7047","slash"],
+	"eos_206":[.98,.75,.62,.98,"jump","kick_raised","#fff2d8","#b47845","impact_star"],
+	"eos_271":[.93,.70,.30,.72,"stomp","kick_sole","#fff1d9","#9d7255","shards"],
+	"eos_276":[.91,.70,.55,.42,"sweep","kick_heel","#fff0b3","#e35d29","flame"],
+	"eos_303":[.86,.73,.58,.35,"spin","kick_side","#ffefd3","#ab7146","shock_ring"],
+	"eos_321":[1.08,.77,.64,.38,"heavy","kick_heel","#fff1d8","#986947","shock_ring"],
+	"eos_222":[.72,.84,.45,.27,"multi","kick_side","#ffedd4","#ac7549","impact_star"],
+	"eos_210":[.73,.90,.48,.34,"multi","kick_raised","#fff0d5","#b67a48","slash"]}
+
+func kick_contact_art(id:String)->Array:
+	return KICK_CONTACT_ART.get(id,[])
+
+func kick_contact_fx(id:String,source:Vector3,target:Vector3,age:float,used:int,element_light:Color,element_dark:Color,hits:int=1)->int:
+	var art:Array=kick_contact_art(id)
+	if art.is_empty() or age<0.0 or age>=float(art[1]):return used
+	var t:float=age/float(art[1])
+	var motion:String=str(art[4])
+	var repeats:int=clampi(hits,1,3 if id=="eos_210" else 2) if motion=="multi" else 1
+	var cycle:float=t*float(repeats)
+	var p:float=fposmod(cycle,1.0)
+	var leg_sign:float=1.0 if int(cycle)%2==0 else -1.0
+	var forward:Vector3=target-source
+	forward.y=0.0
+	if forward.length_squared()<.0001:forward=Vector3.FORWARD
+	forward=forward.normalized()
+	var side:Vector3=forward.cross(Vector3.UP)
+	var reach:float=float(art[2])
+	var lift:float=float(art[3])
+	var strike:float=smoothstep(0.0,.30,p)
+	var retract:float=smoothstep(.40,1.0,p)
+	var center:Vector3=target+Vector3.UP*.12
+	var q:Vector3=center-forward*reach*(1.0-strike+.25*retract)
+	match motion:
+		"low":
+			q=Vector3(q.x,.16,q.z)+side*reach*(1.0-strike)*.5
+		"jump":
+			q+=Vector3.UP*lift*(1.0-strike)
+		"stomp":
+			q=Vector3(target.x,.12+lift*(1.0-strike),target.z)
+		"sweep","spin":
+			var angle:float=lerpf(-PI*.65,PI*.60,p)
+			q=center+(side*cos(angle)-forward*sin(angle))*reach*(1.0-strike+.35*retract)+Vector3.UP*lift
+		"multi":
+			q+=side*leg_sign*.22+Vector3.UP*lift*sin(p*PI)
+		"heavy":
+			q+=Vector3.UP*lift*(1.0-strike)
+	var size:float=float(art[0])*(.88+.19*sin(p*PI))
+	var alpha:float=1.0-smoothstep(.65,1.0,t)
+	if motion=="multi":alpha*=1.0-smoothstep(.82,1.0,p)
+	var texture_mode:String=str(art[5])
+	# Choose screen-facing foot direction, then alternate successive kicks.
+	var mirror:bool=leg_sign<0.0
+	if is_instance_valid(camera):
+		mirror=mirror!=(forward.dot(camera.global_basis.x)<0.0)
+	if mirror and texture_mode in ["kick_side","kick_raised"]:texture_mode+="_mirror"
+	if used>=mini(FX_PARTICLE_CAP,combat_particles.size()):return used
+	used=environment_particle(used,q,texture_mode,Color(str(art[6])),Color(str(art[7])),size,alpha)
+	if p>=.20:
+		var accent:Vector3=center+side*leg_sign*(.18+p*.26)
+		var flat:bool=motion in ["low","stomp"] or str(art[8])=="shock_ring"
+		if flat:accent.y=.065
+		used=environment_particle(used,accent,str(art[8]),element_light,element_dark,size*(.50+p*.24),alpha*.85,flat)
+		if motion in ["sweep","spin"] or id=="eos_321":
+			used=environment_particle(used,q-side*.18,"slash",element_light,element_dark,size*.68,alpha*.45)
+	return used
+
 func element_finish_fx(burst:Dictionary,t:float,used:int)->int:
 	var id:String=str(burst.id)
 	var profile:Dictionary=burst.profile
@@ -7209,6 +7296,7 @@ func element_finish_fx(burst:Dictionary,t:float,used:int)->int:
 		if not status and int(row.get("damage",0))+int(row.get("effects",0))+int(row.get("heal",0))>0:
 			used=bite_contact_fx(id,target,age,used,light,dark)
 			used=punch_contact_fx(id,from,target,age,used,light,dark,int(row.get("hits",1)))
+			used=kick_contact_fx(id,from,target,age,used,light,dark,int(row.get("hits",1)))
 		if primary_miss:
 			used=environment_particle(used,target,"cloud",light,dark,.32+age*.18,fade*.35)
 		elif age<.30:
@@ -7222,6 +7310,7 @@ func element_finish_fx(burst:Dictionary,t:float,used:int)->int:
 			var q:Vector3=pos(tile)+Vector3(0,.45,0)
 			if not status:used=bite_contact_fx(id,q,age,used,light,dark)
 			if not status:used=punch_contact_fx(id,from,q,age,used,light,dark,int(other.get("hits",1)))
+			if not status:used=kick_contact_fx(id,from,q,age,used,light,dark,int(other.get("hits",1)))
 			used=environment_particle(used,q,"bubble" if status else "impact_star",light,dark,.45+age*.38,fade)
 			extra+=1
 		# A miss at the selected tile must not hide hits on other tiles.
