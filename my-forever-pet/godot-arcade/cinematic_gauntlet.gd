@@ -36,6 +36,20 @@ func run_checks()->void:
 	var checks:int=0
 	var failures:Array[String]=[]
 	var view:=Dungeon.new()
+	# V23.5: exact nearest-rank percentiles and honest pause-gap accounting.
+	var diagnostic_samples:=PackedInt64Array([40000,10000,16667,20000,33333])
+	var diagnostic_stats:=view.fx_diag_stats(diagnostic_samples)
+	if int(diagnostic_stats.samples)!=5 or int(diagnostic_stats.p50_usec)!=20000 or int(diagnostic_stats.p95_usec)!=40000 or int(diagnostic_stats.p99_usec)!=40000:failures.append("V23.5 percentile math")
+	if int(diagnostic_stats.over_60hz_budget)!=3 or int(diagnostic_stats.over_30hz_budget)!=1 or diagnostic_samples[0]!=40000:failures.append("V23.5 threshold or sample mutation")
+	if not view.fx_diag_stats(PackedInt64Array()).is_empty():failures.append("V23.5 empty sample")
+	view.fx_diag_sample(1000000,400,true)
+	view.fx_diag_sample(1016667,500,true)
+	view.fx_diag_sample(1400000,700,true)
+	view.fx_diag_sample(1416667,600,false)
+	view.fx_diag_sample(1433334,800,false)
+	if view.fx_diag_intervals!=PackedInt64Array([16667,16667]) or view.fx_diag_cpu!=PackedInt64Array([500,600]) or view.fx_diag_gaps!=1:failures.append("V23.5 active interval and gap accounting")
+	view.fx_diag_previous_usec=0;view.fx_diag_was_active=false;view.fx_diag_intervals.clear();view.fx_diag_cpu.clear();view.fx_diag_gaps=0
+	checks+=4
 	# V22.7: allocation-free oldest-key selection preserves the old eviction order.
 	var empty_fx_cache:Dictionary={}
 	if view.evict_oldest_fx_cache_entry(empty_fx_cache) or not empty_fx_cache.is_empty():failures.append("V22.7 empty eviction")
