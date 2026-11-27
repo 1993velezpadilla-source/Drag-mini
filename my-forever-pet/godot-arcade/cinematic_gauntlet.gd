@@ -36,6 +36,59 @@ func run_checks()->void:
 			if float(hit.squash)<.7 or float(hit.squash)>1.3 or absf(idle_sample.x-1.0)>.04:
 				failures.append("motion out of bounds: "+species)
 			checks+=1
+		# Exercise real Sprite3D actors and the actual state update code.
+		var actor:=Node3D.new()
+		root.add_child(actor)
+		if not view.attach_enemy_pixel(actor,species):
+			failures.append("attach enemy failed: "+species)
+			actor.free()
+			continue
+		var sprite:=actor.get_node("EnemyPixel") as Sprite3D
+		var shadow:=actor.get_node("EnemyContactShadow") as MeshInstance3D
+		actor.set_meta("native_hp_ratio",.15)
+		for i in range(30):
+			view.elapsed+=1.0/60.0
+			view.update_enemy_pixel(actor,1.0/60.0,Vector3.ZERO)
+			if not sprite.scale.is_finite() or not sprite.position.is_finite():
+				failures.append("invalid idle actor: "+species)
+			checks+=1
+		actor.set_meta("native_alert",true)
+		view.update_enemy_pixel(actor,1.0/60.0,Vector3.ZERO)
+		if sprite.texture!=Art.enemy_pixel_texture(species,0,"windup",0):
+			failures.append("alert pose not applied: "+species)
+		checks+=1
+		actor.set_meta("native_alert",false)
+		actor.set_meta("living_statuses",["sleep"])
+		for i in range(30):
+			view.update_enemy_pixel(actor,1.0/60.0,Vector3.ZERO)
+		if sprite.texture!=Art.enemy_pixel_texture(species,0,"sleep",0):
+			failures.append("sleep pose not applied: "+species)
+		checks+=1
+		actor.set_meta("living_statuses",[])
+		view.enemy_pose(actor,"hurt",.24)
+		view.update_enemy_pixel(actor,.08,Vector3.ZERO)
+		if sprite.texture!=Art.enemy_pixel_texture(species,0,"hurt",0):
+			failures.append("hurt did not override sleep: "+species)
+		checks+=1
+		view.enemy_pose(actor,"defeat",.32)
+		view.update_enemy_pixel(actor,.25,Vector3.ZERO)
+		if sprite.scale.y>=1.0 or shadow.scale.x>=1.45:
+			failures.append("defeat collapse missing: "+species)
+		checks+=1
+		view.update_enemy_pixel(actor,.10,Vector3.ZERO)
+		if not actor.is_queued_for_deletion() or actor.visible:
+			failures.append("defeat cleanup missing: "+species)
+		checks+=1
+		# Deferred deletion avoids freeing a queued node twice.
+	for capacity in range(65):
+		var demands:Array[int]=[1,4,9,16,20,32]
+		var budgets:Array[int]=view.living_particle_budgets(demands,capacity)
+		var total:int=0
+		for i in range(demands.size()):
+			total+=budgets[i]
+			if budgets[i]<0 or budgets[i]>demands[i]:failures.append("particle budget overflow")
+		if total!=capacity:failures.append("particle budget conservation")
+		checks+=1
 	for i in range(101):
 		var form:Vector3=view.form_effect_sample(float(i)/100.0)
 		if form.x<.129 or form.x>1.051 or form.y<-.001 or form.y>1.001:
