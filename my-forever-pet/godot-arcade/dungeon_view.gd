@@ -2472,20 +2472,53 @@ func ultra_attack_ribbons(burst:Dictionary,t:float)->void:
 
 # Impact residue is independent of the cast lifetime, but only confirmed
 # outcomes get a material trace. Bounded and discarded with the floor.
-func ultra_impact_residue(burst:Dictionary)->void:
-	var profile:Dictionary=burst.profile
-	var element:String=str(profile.element)
+# Material response uses the recorded wave and the actual walkable cell.
+# Reef is seabed sandstone, not a new water collision type.
+const SURFACE_REACTION_MODES={"fire":"ember","water":"bubble","ice":"crystal","ground":"shards","rock":"shards","poison":"venom_splash","electric":"lightning","grass":"leaf","dragon":"ember","steel":"crystal","normal":"smoke","fighting":"smoke","flying":"slash","bug":"leaf","psychic":"status_swirl","ghost":"smoke","dark":"slash","fairy":"impact_star"}
+const SURFACE_TERRAIN_ELEMENTS=["fire","water","ice","ground","rock","poison","electric","grass","dragon","steel","flying"]
+func impact_surface_palette()->Array[Color]:
+	match region:
+		0:return [Color("#c6c18b"),Color("#6e6745")]
+		1:return [Color("#b9ddd5"),Color("#587e8a")]
+		_:return [Color("#c5b8e4"),Color("#65577f")]
+
+func queue_surface_residue(tile:Vector2i,element:String,style:Array,terrain_only:bool,age:float)->void:
+	if run==null or not run.cells.has(tile):return
+	var life:float=.65 if element in ["fire","electric","dragon","normal","fighting","flying"] else .90
+	if terrain_only:life*=.72
+	if age>=life:return
+	var at:Vector3=pos(tile)+Vector3.UP*.065
+	var edge:=Vector2i.ZERO
+	for direction in [Vector2i.LEFT,Vector2i.RIGHT,Vector2i.UP,Vector2i.DOWN]:
+		if not run.cells.has(tile+direction):
+			edge=direction;break
+	var row:Dictionary={"at":at,"tile":tile,"element":element,"color":Color(str(style[1])),"dark":Color(str(style[2])),"age":age,"life":life,"edge":edge,"detail":floor_detail_bounds.has(tile),"terrain_only":terrain_only,"biome":region}
+	# Refresh repeated contacts rather than evicting other affected tiles.
+	for i in range(fx_residues.size()-1,-1,-1):
+		if fx_residues[i].get("tile")==tile and fx_residues[i].element==element:
+			fx_residues.remove_at(i);break
+	if fx_residues.size()>=FX_RESIDUE_CAP:fx_residues.pop_front()
+	fx_residues.append(row)
+
+func ultra_impact_residue(burst:Dictionary,wave:Dictionary,first:bool,age:float)->void:
+	var element:String=str(burst.profile.element)
 	var id:String=str(burst.id)
 	var record:Dictionary=Rules.MOVE_LIBRARY.get(id,Rules.DEV_NATIVE_MOVES.get(id,{}))
-	if str(record.get("category",""))=="status":return
-	if not element in ["fire","water","ice","ground","rock","poison","electric","grass","dragon","steel"]:return
-	var resolved:=resolve_element_impact(burst)
-	if int(resolved.damage)<=0:return
-	var target:Vector3=resolved.target
+	if str(record.get("category",""))=="status" or not SURFACE_REACTION_MODES.has(element):return
 	var style:Array=combat_style(id)
-	var life:float=.65 if element in ["fire","electric","dragon"] else .90
-	if fx_residues.size()>=FX_RESIDUE_CAP:fx_residues.pop_front()
-	fx_residues.append({"at":Vector3(target.x,.065,target.z),"element":element,"color":Color(str(style[1])),"dark":Color(str(style[2])),"age":0.0,"life":life})
+	for tile in wave:
+		if int(wave[tile].get("damage",0))>0:
+			queue_surface_residue(tile,element,style,false,age)
+	if not first:return
+	var target:Vector3=burst.points[-1]
+	var cell:=Vector2i(roundi(target.x/1.4),roundi(target.z/1.4))
+	var results:Dictionary=burst.get("results",{})
+	# A miss or blocked actor is not an empty tile. No false damage accents.
+	if results.has(cell):return
+	if results.is_empty() and int(burst.get("damage",0))>0:
+		queue_surface_residue(cell,element,style,false,age)
+	elif element in SURFACE_TERRAIN_ELEMENTS:
+		queue_surface_residue(cell,element,style,true,age)
 
 # A hit response belongs to the confirmed impact, not the launch frame.
 func queue_ultra_reaction(at:Vector3,direction:Vector3,terminal:bool)->void:
@@ -2563,25 +2596,34 @@ func ultra_update_residues(dt:float,used:int)->int:
 			fx_residues.remove_at(i);continue
 		var fade:float=pow(1.0-t,1.4)
 		var at:Vector3=mark.at
-		var mode:String="shock_ring"
-		match str(mark.element):
-			"poison":mode="venom_splash"
-			"fire","dragon":mode="ember"
-			"ice","steel":mode="crystal"
-			"ground","rock":mode="shards"
-			"grass":mode="leaf"
-			"water":mode="bubble"
-			"electric":mode="lightning"
+		var element:String=str(mark.element)
+		var mode:String=str(SURFACE_REACTION_MODES.get(element,"shock_ring"))
+		var terrain_only:bool=bool(mark.terrain_only)
+		var strength:float=.55 if terrain_only else 1.0
+		var surface:Array[Color]=impact_surface_palette()
 		var count:int=residue_particle_count()
 		for j in range(count):
 			var angle:float=float(j)*TAU/float(count)+float(i)*.37
-			var radius:float=.24+t*.32
-			var flat:bool=mode in ["venom_splash","bubble","shock_ring"]
+			var radius:float=.18+t*.34
+			var flat:bool=mode in ["venom_splash","bubble","shock_ring","status_swirl"]
 			var q:Vector3=at+Vector3(cos(angle)*radius,0.0 if flat else .08+sin(t*PI)*.24,sin(angle)*radius)
-			used=environment_particle(used,q,mode,mark.color,mark.dark,.34+float(j%2)*.07,fade*.68,flat)
-		# Late decorative residue halos yield before primary impact lighting.
+			used=environment_particle(used,q,mode,mark.color,mark.dark,.34+float(j%2)*.07,fade*.68*strength,flat)
+		# Surface material accent: moss litter, seabed sediment or mineral dust.
+		# All positions stay within the 1.4-unit walkable tile.
+		var biome:int=int(mark.biome)
+		var dust_mode:String="leaf" if biome==0 and (bool(mark.detail) or element in ["grass","flying"]) else "smoke" if biome!=2 else "shards"
+		if used<fx_cast_particle_limit and (fx_performance_tier==0 or t<.42):
+			var drift:Vector3=Vector3(.30*t,.08+sin(t*PI)*.18,-.23*t)
+			used=environment_particle(used,at+drift,dust_mode,surface[0],surface[1],.34,fade*.58*strength)
+		var edge:Vector2i=mark.edge
+		if edge!=Vector2i.ZERO and element in ["ground","rock","fighting","steel","water","flying"] and fx_performance_tier<2:
+			var side:=Vector3(edge.x,0,edge.y)
+			used=environment_particle(used,at+side*.55+Vector3.UP*(.12+sin(t*PI)*.24),dust_mode,surface[0],surface[1],.32,fade*.55*strength)
+		# Reflect elemental light on the actual floor and nearby geometry.
 		if fx_performance_tier==0 or (fx_performance_tier==1 and t<.55):
-			cinematic_halo(at,mark.color,1.3+t*.6,fade*.16,t,true)
+			cinematic_halo(at,mark.color,.85+t*.55,fade*.18*strength,t,true)
+		if t<.28 and not terrain_only and element in ["fire","electric","dragon","fairy"] and fx_performance_tier==0:
+			cinematic_light(at+Vector3.UP*.28,mark.color,fade*.28,1.5)
 	return used
 
 # Exact value caching only: no quantization, no temporal stepping.
@@ -6210,6 +6252,7 @@ func dispatch_cast_waves(burst:Dictionary)->void:
 	while cursor<times.size() and float(burst.age)>=float(times[cursor]):
 		var wave:Dictionary=waves[cursor]
 		show_cast_results(wave)
+		ultra_impact_residue(burst,wave,cursor==0,maxf(0.0,float(burst.age)-float(times[cursor])))
 		var audible:bool=wave.is_empty() and cursor==0
 		for tile in wave:
 			var row:Dictionary=wave[tile]
@@ -6316,7 +6359,6 @@ func combat_fx_update(dt:float)->void:
 		dispatch_cast_waves(burst)
 		if not burst.impacted and t>=float(profile.impact):
 			burst.impacted=true
-			ultra_impact_residue(burst)
 			if str(profile.role) in ["ground","earth_quake","earth_magnitude","earth_fissure"]:fx_ground_shake=.22
 			if burst.get("target_player",false) and int(burst.get("damage",0))>0:
 				latest_hit=latest_player_impact(latest_hit,burst)
