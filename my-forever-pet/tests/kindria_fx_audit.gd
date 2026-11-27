@@ -142,6 +142,19 @@ func run()->void:
 		if first.get_pixel(1,1)!=expected.get_pixel(1,1):errors.append("anatomy direction "+str(dir))
 	if Parts.clip_index(strip,1.0,true)!=0 or Parts.clip_index(strip,1.0,false)!=1:errors.append("anatomy loop vs one-shot")
 	print("KINDRIA_PART_RIG_CONTRACT_PASS")
+	# Exercise the exact texture composition path with a fixture, then restore
+	# production registry. No synthetic fixture is installed into game assets.
+	var saved_manifest:Dictionary=PixelArt.part_manifest
+	var saved_checked:bool=PixelArt.part_manifest_checked
+	PixelArt.part_manifest_checked=true
+	PixelArt.part_manifest={"fixture":[part]}
+	var unchanged:Image=PixelArt.compose_creature_cell("missing",body,0,"attack",1)
+	var layered:Image=PixelArt.compose_creature_cell("fixture",body,0,"attack",1,"weak")
+	if unchanged.get_data()!=body.get_data() or layered.get_pixel(1,1)!=Color.BLUE:errors.append("runtime part registry")
+	if not Parts.load_manifest("res://nonexistent_parts_fixture.json").is_empty():errors.append("missing manifest fallback")
+	PixelArt.part_manifest=saved_manifest
+	PixelArt.part_manifest_checked=saved_checked
+	print("KINDRIA_PART_RUNTIME_ROUTE_PASS")
 	# Exercise more frames than the cache cap, then verify hot hits and exact normalization.
 	for row in reports.slice(0,40):
 		for frame in range(Field.FX_FRAME_COUNT):field.combat_animated_texture(str(row.id),frame)

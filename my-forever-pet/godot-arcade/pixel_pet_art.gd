@@ -9,6 +9,22 @@ const CELL=48
 const POSE_COLUMNS=10
 static var skin_image:Image
 static var skin_checked=false
+const PART_MANIFEST="res://assets/creature_parts.json"
+static var part_manifest_checked:bool=false
+static var part_manifest:Dictionary={}
+
+static func approved_parts(id:String)->Array:
+	if not part_manifest_checked:
+		part_manifest_checked=true
+		part_manifest=Parts.load_manifest(PART_MANIFEST)
+	return part_manifest.get(id,[])
+
+static func compose_creature_cell(id:String,body:Image,dir:int,pose:String,frame:int,mood:String="healthy")->Image:
+	var parts:Array=approved_parts(id)
+	if parts.is_empty():return body
+	var progress:float=float(posmod(frame,4))/4.0 if pose in ["walk","burst"] else float(clampi(frame,0,1)) if pose=="attack" else 1.0 if pose in ["recover","hurt","defeat"] else 0.0
+	return Parts.composite_pose(body,parts,dir,pose,mood,progress)
+
 static func ellipse(im:Image,center:Vector2,radii:Vector2,c:Color)->void:
 	for y in range(maxi(0,int(center.y-radii.y)),mini(im.get_height(),int(center.y+radii.y)+1)):
 		for x in range(maxi(0,int(center.x-radii.x)),mini(im.get_width(),int(center.x+radii.x)+1)):
@@ -227,7 +243,7 @@ static func adventure_frame(dir:int,pose:String,frame:int=0,mood:String="healthy
 	if cache.has(key):return cache[key] as Texture2D
 	var original:=skin_cell(dir,pose,frame)
 	if skin_image==null and mood!="healthy":original=authored_cell(dir,pose,frame,mood)
-	var tex:=ImageTexture.create_from_image(original)
+	var tex:=ImageTexture.create_from_image(compose_creature_cell("mosky",original,dir,pose,frame,mood))
 	cache[key]=tex
 	return tex
 
@@ -1834,7 +1850,7 @@ static func enemy_pixel_texture(id:String,dir:int,pose:String,frame:int)->Textur
 	if not cache.has(key):
 		var image:=enemy_asset_cell(id,dir,pose,frame)
 		if image==null:return null
-		cache[key]=ImageTexture.create_from_image(image)
+		cache[key]=ImageTexture.create_from_image(compose_creature_cell(id,image,dir,pose,frame))
 	return cache[key] as Texture2D
 static func enemy_pixel_atlas(id:String)->Image:
 	var im:=Image.create(48*ENEMY_POSES.size(),192,false,Image.FORMAT_RGBA8)
