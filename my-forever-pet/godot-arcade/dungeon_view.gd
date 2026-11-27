@@ -2833,6 +2833,53 @@ func claw_contact_stamp(mode:String,light:Color,dark:Color)->Image:
 				im.set_pixel(x,y,ink)
 	return im
 
+# Compact creature-contact emblems: horn, armored head, body pressure,
+# sweeping tail and piercing drill. Original pixel geometry, never a human limb.
+func body_contact_stamp(mode:String,light:Color,dark:Color)->Image:
+	var im:=Image.create(32,32,false,Image.FORMAT_RGBA8)
+	im.fill(Color.TRANSPARENT)
+	var shape:String=mode.trim_suffix("_mirror")
+	for y in range(32):
+		for x in range(32):
+			var p:=Vector2(float(x)-15.5,float(y)-15.5)
+			if mode.ends_with("_mirror"):p.x=-p.x
+			var fill:bool=false
+			var inner:bool=false
+			match shape:
+				"body_horn","body_drill":
+					var u:float=clampf((p.x+12.0)/25.0,0.0,1.0)
+					var axis:float=-3.5*u*u+1.5
+					var width:float=6.5*(1.0-u)+.5
+					fill=p.x>=-12.0 and p.x<=13.0 and absf(p.y-axis)<width
+					inner=fill and absf(p.y-axis)<width*.52
+					if shape=="body_drill" and fill and absf(fposmod(p.x+p.y*.7,5.0)-2.5)<.8:inner=false
+				"body_head","body_armor":
+					var dome:float=Vector2((p.x+1.0)*.85,(p.y+1.0)*1.1).length()
+					var brow:bool=p.x>1.0 and p.x<12.0 and absf(p.y+2.0)<4.0
+					fill=dome<10.5 or brow
+					inner=fill and p.y<-1.0 and dome<8.8
+					if shape=="body_armor" and fill and absf(p.x+p.y*.45-2.0)<1.1:inner=false
+				"body_tail","body_tail_blade":
+					var u:float=(p.x+12.0)/25.0
+					var curve:float=6.0-13.0*sin(clampf(u,0.0,1.0)*PI*.9)
+					var width:float=5.1*(1.0-clampf(u,0.0,1.0))+.9
+					fill=u>=0.0 and u<=1.0 and absf(p.y-curve)<width
+					inner=fill and absf(p.y-curve)<width*.55
+					if shape=="body_tail_blade" and u>.72:
+						fill=fill or (u<=1.0 and absf(p.y-curve)<(1.0-u)*13.0)
+						inner=fill and absf(p.y-curve)<1.4
+				"body_slam":
+					var r:float=Vector2(p.x*.78,p.y*1.4).length()
+					fill=(r>6.5 and r<10.5) or (absf(p.x)<2.0 and p.y<4.0 and p.y>-12.0)
+					inner=fill and (r>8.0 or absf(p.x)<.8)
+				_:
+					var chevron:float=absf(p.x-(9.0-absf(p.y)*.78))
+					var second:float=absf(p.x-(0.0-absf(p.y)*.78))
+					fill=absf(p.y)<12.0 and (chevron<2.8 or second<2.0)
+					inner=fill and (chevron<1.3 or second<.8)
+			if fill:im.set_pixel(x,y,light if inner else dark)
+	return im
+
 func combat_pixel_texture(mode:String,light:Color,dark:Color)->ImageTexture:
 	var key:=mode+":"+str(light)+":"+str(dark)
 	if combat_textures.has(key):return combat_textures[key]
@@ -2840,6 +2887,11 @@ func combat_pixel_texture(mode:String,light:Color,dark:Color)->ImageTexture:
 	# of resident material variants even in an endless developer dungeon.
 	if combat_texture_order.size()>=FX_MATERIAL_CACHE_CAP:
 		combat_textures.erase(combat_texture_order.pop_front())
+	if mode.begins_with("body_"):
+		var body_stamp:=ImageTexture.create_from_image(body_contact_stamp(mode,light,dark))
+		combat_textures[key]=body_stamp
+		combat_texture_order.append(key)
+		return body_stamp
 	if mode.begins_with("claw_"):
 		var claw_stamp:=ImageTexture.create_from_image(claw_contact_stamp(mode,light,dark))
 		combat_textures[key]=claw_stamp
@@ -6862,7 +6914,7 @@ func environment_particle(index:int,position:Vector3,mode:String,light:Color,dar
 	particle.rotation=Vector3(-PI*.5,0,0) if flat else Vector3.ZERO
 	particle.position=position
 	particle.texture=combat_pixel_texture(mode,light,dark)
-	particle.pixel_size=.016 if mode.begins_with("kick_") or mode.begins_with("claw_") else .032
+	particle.pixel_size=.016 if mode.begins_with("kick_") or mode.begins_with("claw_") or mode.begins_with("body_") else .032
 	particle.scale=Vector3.ONE*scale_value
 	particle.modulate=Color(1,1,1,clampf(alpha,0.0,1.0))
 	particle.show()
@@ -7386,6 +7438,51 @@ func claw_contact_fx(id:String,source:Vector3,target:Vector3,age:float,used:int,
 			used=environment_particle(used,center-side*.25+Vector3.UP*.24,str(art[6]),light,dark,size*.45,alpha*.55)
 	return used
 
+# size, lifetime, reach, silhouette, highlight, outline, element accent, motion.
+const BODY_CONTACT_ART={"lib_normal_1":[0.85,0.55,0.48,"body_dash","#fff1d6","#a78b68","impact_star","dash"],"lib_normal_2":[1,0.68,0.4,"body_slam","#fff0cd","#a78358","shock_ring","slam"],"lib_bug_2":[0.9,0.62,0.5,"body_armor","#e4f6b1","#708d42","shards","dash"],"eos_001":[1,0.72,0.55,"body_tail_blade","#e4f5ff","#627d9f","shards","tail"],"eos_121":[0.78,0.65,0.36,"body_dash","#fff0d5","#b48b68","impact_star","flurry"],"eos_139":[0.86,0.55,0.42,"body_head","#fff0d7","#a17e65","impact_star","head"],"eos_140":[1.15,0.78,0.6,"body_dash","#fff4c6","#d17a45","shock_ring","dash"],"eos_154":[0.72,0.48,0.4,"body_dash","#fff2d8","#a68866","impact_star","dash"],"eos_161":[0.93,0.65,0.42,"body_slam","#fff0cf","#ad835c","shards","slam"],"eos_176":[0.88,0.58,0.48,"body_horn","#fff1d1","#96734e","impact_star","pierce"],"eos_203":[0.94,0.67,0.55,"body_dash","#fff1d1","#b47950","shock_ring","dash"],"eos_235":[1.1,0.75,0.48,"body_slam","#ffe9cd","#b27d51","shock_ring","slam"],"eos_283":[0.95,0.7,0.5,"body_tail_blade","#e5b6ff","#663782","venom_splash","tail"],"eos_323":[1.15,0.76,0.65,"body_horn","#ecffb8","#688340","leaf","pierce"],"eos_348":[1.08,0.78,0.58,"body_armor","#fff4db","#91765e","shock_ring","head"],"eos_354":[1.04,0.7,0.62,"body_dash","#fff6a1","#c3911e","lightning","dash"],"eos_431":[1.03,0.68,0.5,"body_armor","#e8f7ff","#7186a2","shards","head"],"eos_433":[1.05,0.75,0.55,"body_tail","#c0f4ff","#388bb9","wave","tail"],"eos_455":[1.35,0.88,0.7,"body_dash","#fff4d1","#cf8c46","shock_ring","dash"],"eos_473":[1.02,0.72,0.45,"body_head","#f5c8ff","#9862bf","spiral","head"],"eos_517":[1.13,0.76,0.62,"body_dash","#fff0ad","#e44b20","flame","dash"],"eos_533":[1.22,0.82,0.5,"body_armor","#f7d8ad","#926a49","shards","head"],"eos_177":[1.03,0.78,0.6,"body_drill","#fff5dc","#a28769","shards","pierce"],"eos_009":[0.91,0.88,0.42,"body_dash","#fff0d0","#b68055","impact_star","flurry"]}
+
+func body_contact_art(id:String)->Array:
+	return BODY_CONTACT_ART.get(id,[])
+
+func body_contact_fx(id:String,source:Vector3,target:Vector3,age:float,used:int,element_light:Color,element_dark:Color,hits:int=1)->int:
+	var art:Array=body_contact_art(id)
+	if art.is_empty() or age<0.0 or age>=float(art[1]):return used
+	var t:float=age/float(art[1])
+	var motion:String=str(art[7])
+	var repeats:int=clampi(hits,1,3) if motion=="flurry" else 1
+	var cycle:float=t*float(repeats)
+	var p:float=fposmod(cycle,1.0)
+	var forward:Vector3=target-source
+	forward.y=0.0
+	if forward.length_squared()<.0001:forward=Vector3.FORWARD
+	forward=forward.normalized()
+	var side:Vector3=forward.cross(Vector3.UP)
+	var strike:float=smoothstep(0.0,.34,p)
+	var reach:float=float(art[2])
+	var center:Vector3=target+Vector3.UP*.09
+	var q:Vector3=center-forward*reach*(1.0-strike+.15*smoothstep(.45,1.0,p))
+	match motion:
+		"slam":q=Vector3(target.x,.12+.65*(1.0-strike),target.z)
+		"tail":q+=side*reach*(strike-.5)+Vector3.UP*.13*sin(p*PI)
+		"head":q+=Vector3.UP*.25*(1.0-strike)
+		"pierce":q+=Vector3.UP*.07
+		"flurry":q+=side*(.22 if int(cycle)%2==0 else -.22)
+	var size:float=float(art[0])*(.86+.28*sin(p*PI))
+	var alpha:float=1.0-smoothstep(.62,1.0,t)
+	if motion=="flurry":alpha*=1.0-smoothstep(.82,1.0,p)
+	var mode:String=str(art[3])
+	if is_instance_valid(camera) and forward.dot(camera.global_basis.x)<0.0:mode+="_mirror"
+	if used>=mini(FX_PARTICLE_CAP,combat_particles.size()):return used
+	used=environment_particle(used,q,mode,Color(str(art[4])),Color(str(art[5])),size,alpha)
+	if p>=.18:
+		var accent:Vector3=center+side*(.18+p*.32)
+		var flat:bool=motion=="slam" or str(art[6])=="shock_ring"
+		if flat:accent.y=.065
+		used=environment_particle(used,accent,str(art[6]),element_light,element_dark,size*.65,alpha*.86,flat)
+		if motion=="tail" or motion=="dash":
+			used=environment_particle(used,q-forward*.20,str(art[6]),element_light,element_dark,size*.48,alpha*.48)
+	return used
+
 func element_finish_fx(burst:Dictionary,t:float,used:int)->int:
 	var id:String=str(burst.id)
 	var profile:Dictionary=burst.profile
@@ -7420,6 +7517,7 @@ func element_finish_fx(burst:Dictionary,t:float,used:int)->int:
 			used=punch_contact_fx(id,from,target,age,used,light,dark,int(row.get("hits",1)))
 			used=kick_contact_fx(id,from,target,age,used,light,dark,int(row.get("hits",1)))
 			used=claw_contact_fx(id,from,target,age,used,light,dark,int(row.get("hits",1)))
+			used=body_contact_fx(id,from,target,age,used,light,dark,int(row.get("hits",1)))
 		if primary_miss:
 			used=environment_particle(used,target,"cloud",light,dark,.32+age*.18,fade*.35)
 		elif age<.30:
@@ -7435,6 +7533,7 @@ func element_finish_fx(burst:Dictionary,t:float,used:int)->int:
 			if not status:used=punch_contact_fx(id,from,q,age,used,light,dark,int(other.get("hits",1)))
 			if not status:used=kick_contact_fx(id,from,q,age,used,light,dark,int(other.get("hits",1)))
 			if not status:used=claw_contact_fx(id,from,q,age,used,light,dark,int(other.get("hits",1)))
+			if not status:used=body_contact_fx(id,from,q,age,used,light,dark,int(other.get("hits",1)))
 			used=environment_particle(used,q,"bubble" if status else "impact_star",light,dark,.45+age*.38,fade)
 			extra+=1
 		# A miss at the selected tile must not hide hits on other tiles.
