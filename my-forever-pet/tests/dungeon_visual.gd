@@ -98,6 +98,31 @@ func check_exterior_chunks(dungeon):
 	assert(flattened.size()==original.size())
 	for placement in original:assert(flattened.count(placement)==1,"preserve each exterior transform")
 	assert(chunks.size()>1)
+# Staged art review in the actual gameplay camera and terrain, not a concept image.
+func review_volnox(dungeon,region:int):
+	var species:Array=[["sporeling","vinesnap","thornbeetle"],["coralcrab","eelstrix","marrowray"],["nova_wisp","comet_hare","voidspider"]][region]
+	var cells:Array=[]
+	for q in dungeon.run.cells:
+		if q==dungeon.run.player or dungeon.run.loot.has(q) or dungeon.run.enemy_at(q)>=0:continue
+		var offset:Vector2i=q-dungeon.run.player
+		if absi(offset.x)<=2 and absi(offset.y)<=2:cells.append(q)
+	cells.sort_custom(func(a,b):return Vector2(a-dungeon.run.player).length_squared()<Vector2(b-dungeon.run.player).length_squared())
+	assert(cells.size()>=1,"visible review positions")
+	var staged:Array[Node3D]=[]
+	for i in range(mini(species.size(),cells.size())):
+		var actor:=Node3D.new()
+		dungeon.actors.add_child(actor)
+		actor.position=dungeon.pos(cells[i])
+		assert(dungeon.attach_enemy_pixel(actor,str(species[i])))
+		assert(actor.has_node("EnemyContactShadow"))
+		assert(actor.get_node("EnemyPixel").material_override is ShaderMaterial)
+		dungeon.enemy_pose(actor,"idle",0.0,Vector2([Vector2.DOWN,Vector2.RIGHT,Vector2.LEFT][i]))
+		dungeon.update_enemy_pixel(actor,.1,Vector3.ZERO)
+		staged.append(actor)
+	await frames()
+	assert(root.get_texture().get_image().save_png("/tmp/dungeon-real-volnox-%d.png"%region)==OK)
+	for actor in staged:actor.free()
+	await frames()
 func run():
 	for region in range(3):
 		var dungeon=Field.new();root.add_child(dungeon)
@@ -227,6 +252,7 @@ func run():
 		dungeon.floor_banner.hide()
 		await frames()
 		assert(root.get_texture().get_image().save_png("/tmp/dungeon-real-%d-entry.png"%region)==OK)
+		await review_volnox(dungeon,region)
 		await exterior_review(dungeon,region,1)
 		if ResourceLoader.exists("res://assets/dungeon_forest_threshold.glb"):
 			assert(dungeon.threshold_count>0,"authored passage entrances")
