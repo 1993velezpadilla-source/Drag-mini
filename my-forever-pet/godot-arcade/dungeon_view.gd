@@ -11927,18 +11927,19 @@ func visual_remaster_frame(id:String,frame:int)->Image:
 					var a:float=float(j)*TAU/5.0
 					fx_disc(im,c+Vector2(cos(a),sin(a))*13,2.0,Color("#e6d8bb",fade*.6))
 		"eos_302":
-			# Curl Guard: a thick rolled spiral wraps itself inward as a defensive stance.
-			var c:=Vector2(24,24)
-			var prev:=c+Vector2(15,0)
-			for j in range(1,40):
-				var f:float=float(j)/39.0
-				var a:float=f*TAU*2+t*TAU*.5
-				var rad:float=(15-12*f)*(1.0-.25*drive)
-				var q:=c+Vector2(cos(a),sin(a))*rad
-				if j>1:
-					fx_line(im,prev,q,3.6,Color("#a59582",fade))
-					fx_line(im,prev,q,1.6,Color("#e9d8bd",fade))
-				prev=q
+			# Curl Guard: layered rounded shell curls around a tucked silhouette.
+			var c:=Vector2(24,28)
+			var radius:float=13-3*drive
+			fx_disc(im,c,radius,Color("#9a8874",fade))
+			fx_disc(im,c-Vector2(1,2),radius-2,Color("#d9c6a7",fade))
+			for j in range(4):
+				var r:float=radius-float(j)*2.5
+				fight_arc(im,c,r,PI*.9+t*.7,PI*1.35,Color("#f2dfbd",fade),Color("#a69179",fade),2.1)
+			fx_disc(im,c+Vector2(3,2),3.4,Color("#a18b77",fade))
+			for j in range(3):
+				var q:=Vector2(14+float(j)*10,10+float(j%2)*3)
+				fx_line(im,q,q+Vector2(0,5*drive+3),1.8,Color("#ead5aa",fade))
+			if t>=peak:fairy_star(im,c-Vector2(5,8),3.0,Color("#fff4d4",fade))
 		"eos_106":
 			# Dread Glance: looming mask opens angular eyes above a slowing glyph.
 			var c:=Vector2(24,20)
@@ -16856,6 +16857,20 @@ func authored_stage_fx(burst:Dictionary,t:float,used:int)->int:
 		used=environment_particle(used,q,str(cue[1]),light,dark,size,opacity*.85,flat)
 	return used
 
+# Analytic world-space flight: no RigidBody allocations or frame-step integration.
+# x=height above contact plane, y=horizontal progress, z=landed flag.
+func material_flight_sample(age:float,landing:float,height:float,bounce:float=0.0)->Vector3:
+	var t:float=clampf(age,0.0,1.0)
+	var end:float=clampf(landing,.30,.95)
+	var u:float=clampf(t/end,0.0,1.0)
+	var lift:float=4.0*maxf(0.0,height)*u*(1.0-u)
+	var travel:float=1.0-pow(1.0-u,1.35)
+	if t>=end:
+		var tail:float=clampf((t-end)/maxf(.001,1.0-end),0.0,1.0)
+		lift=4.0*tail*(1.0-tail)*maxf(0.0,bounce)*maxf(0.0,height)
+		travel=1.0+tail*.10*clampf(bounce,0.0,1.0)
+	return Vector3(lift,travel,1.0 if t>=end else 0.0)
+
 func cinematic_impact_layers(id:String,profile:Dictionary,source:Vector3,target:Vector3,age:float,used:int,light:Color,dark:Color,status:bool)->int:
 	var element:String=str(profile.element)
 	var role:String=str(profile.role)
@@ -16884,31 +16899,42 @@ func cinematic_impact_layers(id:String,profile:Dictionary,source:Vector3,target:
 		match element:
 			"fire":
 				mode="ember" if i%3!=0 else "smoke"
-				q.y=.10+age*(.9+speed*.45)
-				q+=forward*age*.25
-				size=.24+age*.28 if mode=="smoke" else .22*fade
+				var smoke:bool=mode=="smoke"
+				q=ground+radial*travel*(.65 if smoke else 1.0)+forward*age*.25
+				q.y=ground.y+.12+age*(.72+speed*.55)*(1.25 if smoke else 1.0)
+				size=.24+age*.36 if smoke else .22*fade
 			"water":
-				mode="drop" if age<.76 else "shock_ring"
-				q.y=.05+arc*(.65+speed*.30)
-				flat=age>=.76
-				if flat:q.y=.045
+				var flight:=material_flight_sample(age,.68+float(i%4)*.06,.55+speed*.30)
+				flat=flight.z>.5
+				mode="shock_ring" if flat else "drop"
+				q=ground+radial*flight.y*speed*.78+Vector3.UP*flight.x
+				size=.19+(.21*maxf(0.0,age-.68) if flat else .10*fade)
 			"poison":
-				mode="drop" if age<.63 else "venom_splash"
-				q.y=.05+arc*.48
-				flat=age>=.63
-				if flat:q.y=.047
-				size=.26+age*.20
+				var flight:=material_flight_sample(age,.58+float(i%3)*.07,.33+speed*.16)
+				flat=flight.z>.5
+				mode="venom_splash" if flat else "drop"
+				q=ground+radial*flight.y*speed*.58+Vector3.UP*flight.x
+				size=.22+age*.24 if flat else .25+.08*fade
 			"ground":
 				mode="earth_hole" if i%3==0 else "shards"
-				flat=i%3==0;q.y=.045 if flat else .04+arc*.48
-				size=.24+age*.25
+				flat=i%3==0
+				var flight:=material_flight_sample(age,.60+float(i%3)*.08,.36+speed*.22,.12)
+				q=ground+radial*(travel if flat else flight.y*speed*.66)+Vector3.UP*(0.0 if flat else flight.x)
+				size=.24+age*.25 if flat else .28
 			"rock":
-				mode="shards";q.y=.05+arc*(.7+speed*.42);size=.28+speed*.18
+				mode="shards"
+				var flight:=material_flight_sample(age,.63+float(i%4)*.07,.55+speed*.48,.20)
+				q=ground+radial*flight.y*speed*.94+Vector3.UP*flight.x
+				size=.28+speed*.18
 			"steel":
 				mode="slash" if i%2==0 else "crystal"
-				q.y=.08+arc*.35;size=.18+speed*.16
+				var flight:=material_flight_sample(age,.50+float(i%3)*.08,.28+speed*.22,.10)
+				q=ground+radial*flight.y*speed*.85+Vector3.UP*flight.x
+				size=.18+speed*.16
 			"ice":
-				mode="crystal";q.y=.05+float(i%3)*.19+arc*.18
+				mode="crystal"
+				var flight:=material_flight_sample(age,.72+float(i%3)*.07,.22+float(i%3)*.12)
+				q=ground+radial*flight.y*speed*.62+Vector3.UP*flight.x
 				size=.30+age*.12
 			"electric":
 				mode="lightning" if i%2==0 else "impact_star"
