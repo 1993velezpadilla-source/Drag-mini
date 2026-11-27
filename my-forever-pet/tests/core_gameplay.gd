@@ -27,6 +27,12 @@ func run():
 	pet.s.form=4;pet.s.collection=268435455;pet.s.name="Other";pet.enforce_mosky()
 	check(pet.species()==0 and pet.s.collection==1 and pet.s.name=="Mosky" and pet.family_slots()==[-1],"production single-pet save migration")
 	check(not pet.action("form",4) and not pet.action("breed") and not pet.action("secret") and not pet.choose_research(4),"retired companions cannot be obtained")
+	reset(4)
+	pet.s.companion_xp=700
+	var loadout:Dictionary=pet.training_profile()
+	check(loadout.moves.size()==3,"level unlocks all three grass moves")
+	check(pet.equip_move(0,"lib_grass_3") and pet.training_profile().moves[0]=="lib_grass_3","loadout ordering persists")
+	check(not pet.equip_move(0,"lib_fire_1"),"off-type moves rejected")
 	pet.legacy_catalog=true
 	reset(0)
 	pet.s.coins=0

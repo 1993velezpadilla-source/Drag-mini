@@ -1166,6 +1166,7 @@ func show_training():
 	label(top,"Mosky · Lv %d · %s"%[profile.level,profile.nature_name],22)
 	label(top,"Grass · "+str(profile.nature_trait),15)
 	label(top,str(profile.nature_summary),16).autowrap_mode=TextServer.AUTOWRAP_WORD_SMART
+	button(top,"Moves & loadout ›",func():show_move_training())
 	var total:int=0
 	for n in profile.ev:total+=int(n)
 	label(top,"Allocated %d / 510 · IVs disabled"%total,16)
@@ -1182,6 +1183,28 @@ func show_training():
 		plus.disabled=int(profile.bank[i])==0 or int(profile.ev[i])>=252 or total>=510
 		var batch=button(h,"+4",func():store.allocate_ev(i,4);show_training())
 		batch.disabled=plus.disabled
+	swipe_children(actions)
+	section_scroll.scroll_vertical=0
+func show_move_training():
+	reset_actions()
+	button(actions,"‹ Combat training",func():show_training())
+	var profile:Dictionary=store.training_profile()
+	var rules=preload("res://dungeon_rules.gd")
+	section_heading(actions,"Move library","Moves unlock at their required level. Equip up to four before entering a dungeon.")
+	for id in rules.MOVE_LIBRARY:
+		var move:Dictionary=rules.MOVE_LIBRARY[id]
+		if not move.type in profile.types:continue
+		var card=panel(actions)
+		label(card,str(move.name)+" · Lv "+str(move.learn_level),19)
+		label(card,"%s · %s · %d tiles · Power %d · PP %d"%[move.category.capitalize(),move.pattern,move.reach,move.power,move.pp],14).autowrap_mode=TextServer.AUTOWRAP_WORD_SMART
+		var unlocked:bool=int(profile.level)>=int(move.learn_level)
+		if not unlocked:
+			label(card,"Locked · level "+str(move.learn_level),15)
+			continue
+		var line=row(card)
+		for slot in range(4):
+			var b=button(line,"Slot %d"%(slot+1),func():store.equip_move(slot,id);show_move_training())
+			if slot<profile.moves.size() and profile.moves[slot]==id:b.text="✓ %d"%(slot+1)
 	swipe_children(actions)
 	section_scroll.scroll_vertical=0
 func launch_game(i:int):

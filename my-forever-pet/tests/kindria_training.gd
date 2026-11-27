@@ -47,5 +47,19 @@ func _initialize():
 		d.gain_enemy_ev({"species":species})
 		assert(d.earned_ev[int(info[3])]==before+int(info[4]))
 	assert(d.earned_ev.reduce(func(a,b):return a+b,0)>33)
+	var cast=Rules.new()
+	cast.player=Vector2i(3,3)
+	for x in range(7):
+		for y in range(7):cast.cells[Vector2i(x,y)]=true
+	cast.configure_training({"types":["grass"],"level":15,"nature":0,"ev":[0,0,0,0,0,0],"moves":["lib_grass_1","lib_grass_2","lib_grass_3","lib_fire_1"]})
+	assert(cast.equipped_moves.size()==3 and not cast.move_pp.has("lib_fire_1"))
+	cast.enemies.append({"pos":Vector2i(4,4),"hp":100,"kind":0,"species":"reef_pup"})
+	assert(not cast.cast_move("lib_grass_2",Vector2i.RIGHT))
+	assert(cast.cast_move("lib_grass_1",Vector2i.RIGHT))
+	assert(cast.move_pp.lib_grass_1==17 and cast.player_attack_path.size()==2)
+	assert(cast.player_attack_fx=="lib_grass_1")
+	cast.move_pp.lib_grass_1=0
+	assert(not cast.cast_move("lib_grass_1",Vector2i.RIGHT))
+	print("KINDRIA_LEARNSET_PP_PASS")
 	print("KINDRIA_TRAINING_PASS 18 types 26 natures 33 EV yields")
 	quit()

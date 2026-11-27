@@ -28,6 +28,9 @@ const EV_STAT_CAP=252
 const EV_TOTAL_CAP=510
 const IV_ENABLED=false
 var trained_profile:Dictionary={}
+var equipped_moves:Array=[]
+var move_pp:Dictionary={}
+var player_attack_path:Array=[]
 var speed_meter:float=0.0
 var earned_ev:Array=[0,0,0,0,0,0]
 var last_type_multiplier:float=1.0
@@ -94,6 +97,11 @@ static func make_pet_stats(level:int,ev:Array,nature_id:int)->Array:
 func configure_training(profile:Dictionary)->void:
 	trained_profile=profile.duplicate(true)
 	speed_meter=0.0
+	equipped_moves.clear();move_pp.clear()
+	var learned:=available_moves(profile.get("types",[]),int(profile.get("level",1)))
+	for id in profile.get("moves",[]):
+		if id in learned and not id in equipped_moves and equipped_moves.size()<4:
+			equipped_moves.append(id);move_pp[id]=int(MOVE_LIBRARY[id].pp)
 	var stats:Array=trained_profile.get("stats",[])
 	if stats.size()==6:
 		var bonus:int=mini(35,maxi(0,int(stats[0])-int(make_pet_stats(int(profile.get("level",1)),[0,0,0,0,0,0],0)[0])))
@@ -113,7 +121,7 @@ var enemy_actions:Array[Dictionary]=[]
 var player_attack_fx:String="basic_strike"
 var player_attack_cells:Array[Vector2i]=[]
 # A footprint maps each legal target to its exact unobstructed travel path.
-func attack_footprint(origin:Vector2i,forward:Vector2i,pattern:String,reach:int)->Dictionary:
+func attack_footprint(origin:Vector2i,forward:Vector2i,pattern:String,reach:int,player_cast:bool=false)->Dictionary:
 	var out:Dictionary={}
 	var directions:Array=[forward]
 	if pattern in ["radius","cross"]:directions=DIR
@@ -122,9 +130,12 @@ func attack_footprint(origin:Vector2i,forward:Vector2i,pattern:String,reach:int)
 		var path:Array[Vector2i]=[]
 		for distance_index in range(1,reach+1):
 			var q:Vector2i=origin+d*distance_index
-			if not cells.has(q) or enemy_at(q)>=0:break
+			if not cells.has(q):break
+			var occupied:bool=enemy_at(q)>=0
+			if occupied and not player_cast:break
 			path.append(q)
 			out[q]=path.duplicate()
+			if occupied:break
 			if pattern in ["corner","fan","radius"]:
 				for sign_side in [-1,1]:
 					var turn:=Vector2i(-d.y,d.x)*int(sign_side)
@@ -132,10 +143,13 @@ func attack_footprint(origin:Vector2i,forward:Vector2i,pattern:String,reach:int)
 					var limit:int=reach-distance_index if pattern!="fan" else mini(1,reach-distance_index+1)
 					for j in range(1,limit+1):
 						var target:=q+turn*j
-						if not cells.has(target) or enemy_at(target)>=0:break
+						if not cells.has(target):break
+						var branch_occupied:bool=enemy_at(target)>=0
+						if branch_occupied and not player_cast:break
 						# Fan can hit front diagonals, but not through two blocked orthogonal cells.
 						branch.append(target)
 						if not out.has(target) or branch.size()<out[target].size():out[target]=branch.duplicate()
+						if branch_occupied:break
 	return out
 func attack_aim(origin:Vector2i,target:Vector2i,pattern:String,reach:int)->Vector2i:
 	var delta:=target-origin
@@ -400,19 +414,22 @@ func pickup():
 		"spring":hp=mini(max_hp,hp+18);energy=mini(8,energy+3);player_rested=true;message="Restorative spring · HP and skill restored"
 		"relic":secured=true;message="Relic secured! Find the stairs"
 	emit_event(message)
-func strike(i:int,power:bool=false,style_override:int=-1):
+func strike(i:int,power:bool=false,style_override:int=-1,move_id:String=""):
 	var attack_style:int=skill_kind if style_override<0 else clampi(style_override,0,2)
 	if i<0 or i>=enemies.size():return
 	attack_serial+=1;attack_target=enemies[i].pos;attack_power=power
 	player_attack_fx="basic_strike" if not power else ["briar_arc","leaf_dart","jelly_pulse"][attack_style]
 	player_attack_cells=[attack_target]
 	if power and distance(player,attack_target)==2:player_attack_cells.push_front(player+(attack_target-player)/2)
-	var damage:int=10 if power else 6
+	player_attack_path=player_attack_cells.duplicate()
+	var move:Dictionary=MOVE_LIBRARY.get(move_id,{})
+	var damage:int=int(move.power) if not move.is_empty() else 10 if power else 6
 	last_type_multiplier=1.0
 	if not trained_profile.is_empty():
 		var enemy_info:Array=ENEMY_TRAINING.get(enemies[i].get("species",""),[["normal"],"normal","normal",0,0,"physical"])
 		var stat_index:int=3 if power and attack_style==1 else 1
-		var move_type:String=str(trained_profile.types[0]) if power else "normal"
+		if not move.is_empty():stat_index=3 if move.category=="special" else 1
+		var move_type:String=str(move.type) if not move.is_empty() else str(trained_profile.types[0]) if power else "normal"
 		damage=trained_damage(damage,move_type,trained_profile.types,enemy_info[0],combat_stat(stat_index),neutral_combat_stat(stat_index),neutral_combat_stat(stat_index))
 	if weakened_strikes>0:
 		damage=maxi(0,damage-1);weakened_strikes-=1
@@ -536,6 +553,31 @@ func attack(power:bool=false,aim:Vector2i=Vector2i.ZERO,style_override:int=-1)->
 			if power and attack_style==2:hp=mini(max_hp,hp+4)
 			enemy_turn();return true
 	message="No enemy in that direction";return false
+func cast_move(id:String,aim:Vector2i)->bool:
+	if finished or not id in equipped_moves or not MOVE_LIBRARY.has(id) or int(move_pp.get(id,0))<=0:return false
+	if not aim in DIR:return false
+	var move:Dictionary=MOVE_LIBRARY[id]
+	var footprint:=attack_footprint(player,aim,str(move.pattern),int(move.reach),true)
+	var targets:Array=[]
+	for i in range(enemies.size()):
+		if footprint.has(enemies[i].pos):targets.append(i)
+	if targets.is_empty():message="No target in "+str(move.name)+" range";return false
+	var area_attack:bool=str(move.pattern) in ["fan","radius","cross"]
+	if not area_attack:
+		targets.sort_custom(func(a,b):return footprint[enemies[a].pos].size()<footprint[enemies[b].pos].size())
+		targets.resize(1)
+	var primary:Vector2i=enemies[int(targets[0])].pos
+	var travel:Array=footprint[primary].duplicate()
+	var hit_tiles:Array[Vector2i]=[]
+	for i in targets:hit_tiles.append(enemies[i].pos)
+	targets.sort();targets.reverse()
+	move_pp[id]=int(move_pp[id])-1
+	for i in targets:strike(i,true,-1,id)
+	attack_target=primary;player_attack_fx=id;player_attack_path=travel
+	player_attack_cells=hit_tiles
+	message=str(move.name)+" · PP %d/%d"%[move_pp[id],move.pp]
+	enemy_turn()
+	return true
 func heal()->bool:
 	if finished or potions<=0 or hp==max_hp:return false
 	potions-=1;hp=mini(max_hp,hp+20);message="Recovered HP";emit_event(message);enemy_turn();return true

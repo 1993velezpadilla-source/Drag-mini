@@ -14,9 +14,11 @@ jobs:
       - uses: actions/checkout@v4
       - run: |
           set -euo pipefail
+          sudo apt-get update -qq
+          sudo apt-get install -y libegl1 libgl1 libgl1-mesa-dri xvfb
           curl -fL --retry 3 https://download.blender.org/release/Blender4.3/blender-4.3.2-linux-x64.tar.xz -o /tmp/blender.tar.xz
           tar -xf /tmp/blender.tar.xz -C /tmp
-          /tmp/blender-4.3.2-linux-x64/blender -b -t 2 -P my-forever-pet/art/blender_move_fx.py -- /tmp/kindria_blender_fx | tee /tmp/blender-fx.log
+          xvfb-run -a /tmp/blender-4.3.2-linux-x64/blender -b -t 2 -P my-forever-pet/art/blender_move_fx.py -- /tmp/kindria_blender_fx | tee /tmp/blender-fx.log
           grep -F KINDRIA_BLENDER_BRIAR_PASS /tmp/blender-fx.log
           test "$(find /tmp/kindria_blender_fx -name 'briar_*.png' | wc -l)" = 12
       - uses: actions/upload-artifact@v4

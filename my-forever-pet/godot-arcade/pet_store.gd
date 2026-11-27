@@ -26,10 +26,10 @@ var test_mode=false
 var dirty=false
 var wallpaper_keys:Dictionary={}
 const TrainingRules=preload("res://dungeon_rules.gd")
-const PERSONAL=["nature_id","ev_allocated","ev_bank","stage","field","body","eyes","color","variant","friendship","inherited_eyes","name","hunger","happy","energy","bond","waste","mistakes","germs","hygiene","toilet","soap","cells","foods","equipped","worn","training","age","food_clock","mood_clock","energy_clock","waste_clock","cell_clock","care_clock","hygiene_clock","toilet_clock","rest_clock","sleep_until","awake_until","interaction_at","companion_xp"]
+const PERSONAL=["move_slots","nature_id","ev_allocated","ev_bank","stage","field","body","eyes","color","variant","friendship","inherited_eyes","name","hunger","happy","energy","bond","waste","mistakes","germs","hygiene","toilet","soap","cells","foods","equipped","worn","training","age","food_clock","mood_clock","energy_clock","waste_clock","cell_clock","care_clock","hygiene_clock","toilet_clock","rest_clock","sleep_until","awake_until","interaction_at","companion_xp"]
 const WALL_ROOMS=["room_bedroom","room_kitchen","room_bathroom","room_toy","room_garden","room_lab"]
 func defaults()->Dictionary:
-	return {"nature_id":-1,"ev_allocated":[0,0,0,0,0,0],"ev_bank":[0,0,0,0,0,0],"today_claim_day":"","arcade_day":"","arcade_daily_best":0,"arcade_daily_claimed":false,"arcade_medals":[0,0,0,0,0],"arcade_runs":[0,0,0,0,0],"profiles":{},"companion_xp":0,"research_evidence":[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],"research_trust":[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],"sanctuary_mask":0,"sanctuary_progress":[0,0,0,0,0,0,0,0,0],"research_day":"","research_daily":[0,0,0],"research_claimed":0,"research_rank_xp":[0,0,0],"research_skill":0,"research_misses":[0,0,0],"research_target":[-1,-1,-1],"wallpaper_room":0,"wallpaper_x":1,"wallpaper_y":2,"wallpaper_size":1,"wallpaper_minimal":false,"wallpaper_battery":false,"wallpaper_status":true,"stage":0,"field":0,"habitat":0,"body":0,"eyes":0,"color":0,"variant":0,"generation":1,"friendship":0,"inherited_eyes":-1,"name":"","hunger":5,"happy":10,"energy":100,"bond":0,"xp":0,"waste":0,"mistakes":0,"germs":0,"hygiene":100,"toilet":100,"coins":0,"crystals":0,"materials":0,"fuel":0,"snacks":0,"medicine":0,"soap":0,"cells":[0,0,0],"foods":[0,0,0,0],"collection":0,"favorites":0,"care_day":"","care_mask":0,"care_claims":0,"care_claimed":false,"form":-1,"owned":0,"equipped":0,"installation":0,"wardrobe":0,"worn":[0,0,0,0],"theme":0,"training":0,"age":0.0,"last":0.0,"food_clock":0.0,"mood_clock":0.0,"energy_clock":0.0,"waste_clock":0.0,"cell_clock":0.0,"care_clock":0.0,"hygiene_clock":0.0,"toilet_clock":0.0,"rest_clock":0.0,"sleep_until":0.0,"awake_until":0.0,"auto_sleep":true,"trip_end":0.0,"destination":0,"trip_bonus":0,"journeys":0,"pending":[0,0,0],"daily_day":"","quest_day":"","quests":0,"claimed":0,"garden_at":0.0,"harvests":0,"interaction_at":0.0,"best":[0,0,0,0,0]}
+	return {"move_slots":[-1,-1,-1,-1],"nature_id":-1,"ev_allocated":[0,0,0,0,0,0],"ev_bank":[0,0,0,0,0,0],"today_claim_day":"","arcade_day":"","arcade_daily_best":0,"arcade_daily_claimed":false,"arcade_medals":[0,0,0,0,0],"arcade_runs":[0,0,0,0,0],"profiles":{},"companion_xp":0,"research_evidence":[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],"research_trust":[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],"sanctuary_mask":0,"sanctuary_progress":[0,0,0,0,0,0,0,0,0],"research_day":"","research_daily":[0,0,0],"research_claimed":0,"research_rank_xp":[0,0,0],"research_skill":0,"research_misses":[0,0,0],"research_target":[-1,-1,-1],"wallpaper_room":0,"wallpaper_x":1,"wallpaper_y":2,"wallpaper_size":1,"wallpaper_minimal":false,"wallpaper_battery":false,"wallpaper_status":true,"stage":0,"field":0,"habitat":0,"body":0,"eyes":0,"color":0,"variant":0,"generation":1,"friendship":0,"inherited_eyes":-1,"name":"","hunger":5,"happy":10,"energy":100,"bond":0,"xp":0,"waste":0,"mistakes":0,"germs":0,"hygiene":100,"toilet":100,"coins":0,"crystals":0,"materials":0,"fuel":0,"snacks":0,"medicine":0,"soap":0,"cells":[0,0,0],"foods":[0,0,0,0],"collection":0,"favorites":0,"care_day":"","care_mask":0,"care_claims":0,"care_claimed":false,"form":-1,"owned":0,"equipped":0,"installation":0,"wardrobe":0,"worn":[0,0,0,0],"theme":0,"training":0,"age":0.0,"last":0.0,"food_clock":0.0,"mood_clock":0.0,"energy_clock":0.0,"waste_clock":0.0,"cell_clock":0.0,"care_clock":0.0,"hygiene_clock":0.0,"toilet_clock":0.0,"rest_clock":0.0,"sleep_until":0.0,"awake_until":0.0,"auto_sleep":true,"trip_end":0.0,"destination":0,"trip_bonus":0,"journeys":0,"pending":[0,0,0],"daily_day":"","quest_day":"","quests":0,"claimed":0,"garden_at":0.0,"harvests":0,"interaction_at":0.0,"best":[0,0,0,0,0]}
 func _ready():
 	test_mode=false
 	for flag in ["--test","--soak","--capture","--lane-only","--unassisted","--home-test","--home-capture","--home-touch-test"]:
@@ -293,11 +293,45 @@ func validate_training()->void:
 	if int(s.nature_id)<0 or int(s.nature_id)>=TrainingRules.NATURE_NAMES.size():
 		if int(s.stage)>0:s.nature_id=randi_range(0,TrainingRules.NATURE_NAMES.size()-1)
 		else:s.nature_id=-1
+func move_ids()->Array:
+	# Stable numeric codes for save compatibility: type index * 3 + ordinal.
+	var ids:Array=[]
+	for element in TrainingRules.TYPE_CHART:
+		for ordinal in range(1,4):ids.append("lib_"+str(element)+"_"+str(ordinal))
+	return ids
+func validate_move_slots()->Array:
+	var ids:=move_ids()
+	var learned:=TrainingRules.available_moves(["grass"],clampi(companion_level(),1,100)) if int(s.stage)>0 else []
+	var valid:Array=[]
+	for code in s.move_slots:
+		var index:int=int(code)
+		if index>=0 and index<ids.size() and ids[index] in learned and not index in valid:valid.append(index)
+	for id in learned:
+		var index:int=ids.find(id)
+		if valid.size()<4 and not index in valid:valid.append(index)
+	while valid.size()<4:valid.append(-1)
+	s.move_slots=valid
+	var result:Array=[]
+	for index in valid:
+		if index>=0:result.append(ids[index])
+	return result
+func equip_move(slot:int,id:String)->bool:
+	if slot<0 or slot>=4 or not field_session.is_empty():return false
+	var ids:=move_ids()
+	if int(s.stage)==0 or not id in TrainingRules.available_moves(["grass"],clampi(companion_level(),1,100)):return false
+	validate_move_slots()
+	var code:int=ids.find(id)
+	var existing:int=s.move_slots.find(code)
+	var prior:int=int(s.move_slots[slot])
+	if existing>=0:s.move_slots[existing]=prior
+	s.move_slots[slot]=code
+	save_game()
+	return true
 func training_profile()->Dictionary:
 	validate_training()
 	var level_value:int=clampi(companion_level(),1,100)
 	var nature_id:int=int(s.nature_id)
-	return {"nature":nature_id,"nature_name":TrainingRules.NATURE_NAMES[nature_id] if nature_id>=0 else "Not hatched","nature_summary":TrainingRules.nature_summary(nature_id),"nature_pair":TrainingRules.nature_pair(nature_id),"nature_trait":TrainingRules.NATURE_TRAITS[nature_id] if nature_id>=0 else "Unknown","types":["grass"],"level":level_value,"ev":s.ev_allocated.duplicate(),"bank":s.ev_bank.duplicate(),"stats":TrainingRules.make_pet_stats(level_value,s.ev_allocated,int(s.nature_id))}
+	return {"nature":nature_id,"nature_name":TrainingRules.NATURE_NAMES[nature_id] if nature_id>=0 else "Not hatched","nature_summary":TrainingRules.nature_summary(nature_id),"nature_pair":TrainingRules.nature_pair(nature_id),"nature_trait":TrainingRules.NATURE_TRAITS[nature_id] if nature_id>=0 else "Unknown","types":["grass"],"moves":validate_move_slots(),"level":level_value,"ev":s.ev_allocated.duplicate(),"bank":s.ev_bank.duplicate(),"stats":TrainingRules.make_pet_stats(level_value,s.ev_allocated,int(s.nature_id))}
 func allocate_ev(stat:int,amount:int)->int:
 	if stat<0 or stat>=6 or amount<=0 or not field_session.is_empty():return 0
 	validate_training()

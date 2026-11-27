@@ -40,6 +40,7 @@ var active_floor=0
 var facing=Vector2i.DOWN
 var aim_button:Button
 var special_button:Button
+var move_buttons:Array[Button]=[]
 var actor_nodes:Dictionary={}
 var enemy_shadow_material:StandardMaterial3D
 var enemy_shadow_mesh:QuadMesh
@@ -243,6 +244,13 @@ func build_ui():
 	var tactical=HBoxContainer.new();tactical.add_theme_constant_override("separation",8);v.add_child(tactical)
 	aim_button=button(tactical,"Aim ↓",func():rotate_combat_aim())
 	special_button=button(tactical,"Leaf Dart",func():path.clear();run.attack(true,facing,1);sync())
+	if not run.equipped_moves.is_empty():
+		power_button.hide();special_button.hide()
+		var skills=GridContainer.new();skills.columns=2;v.add_child(skills)
+		for id in run.equipped_moves:
+			var b=button(skills,str(Rules.MOVE_LIBRARY[id].name),func():path.clear();run.cast_move(id,facing);sync())
+			b.size_flags_horizontal=Control.SIZE_EXPAND_FILL
+			move_buttons.append(b)
 	stairs_button=button(v,"Descend",func():path.clear();run.descend();sync(),true)
 func leave():
 	if notified:return
@@ -2097,7 +2105,7 @@ func sync():
 	if run.attack_serial!=previous_attack:
 		previous_attack=run.attack_serial;attack_time=.28;attack_direction=(pos(run.attack_target)-pos(run.player)).normalized()
 		attack_fx.position=pos(run.attack_target)+Vector3(0,.24,0);attack_fx.show()
-		combat_fx_spawn({"fx":run.player_attack_fx,"from":run.player,"to":run.attack_target,"tiles":run.player_attack_cells,"path":run.player_attack_cells})
+		combat_fx_spawn({"fx":run.player_attack_fx,"from":run.player,"to":run.attack_target,"tiles":run.player_attack_cells,"path":run.player_attack_path})
 	if run.hp<hp_previous:hit_time=.24
 	hp_previous=run.hp
 	if previous_event!=run.event_serial:
@@ -2122,6 +2130,11 @@ func update_hud():
 	status_text.text=run.message
 	if is_instance_valid(aim_button):aim_button.text="Aim "+["↑","→","↓","←"][maxi(0,Rules.DIR.find(facing))]
 	if is_instance_valid(special_button):special_button.disabled=run.energy<2
+	for i in range(move_buttons.size()):
+		var id:String=run.equipped_moves[i]
+		var move:Dictionary=Rules.MOVE_LIBRARY[id]
+		move_buttons[i].text="%s · %d/%d"%[move.name,run.move_pp[id],move.pp]
+		move_buttons[i].disabled=int(run.move_pp[id])<=0
 	power_button.text="%s %d/8"%[["Burst","Bolt","Drain"][run.skill_kind],run.energy];power_button.disabled=run.energy<2
 	heal_button.text="Berry ×%d"%run.potions;heal_button.disabled=run.potions==0 or run.hp==run.max_hp
 	stairs_button.text="Descend ›" if run.floor_number<run.floor_count else "Complete expedition"
