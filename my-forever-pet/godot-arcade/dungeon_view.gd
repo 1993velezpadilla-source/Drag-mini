@@ -2334,6 +2334,10 @@ func update_enemy_pixel(actor:Node3D,dt:float,motion:Vector3,body_dt:float=-1.0)
 	# Return to a neutral cell before allowing an independent idle gesture.
 	if state=="idle" and idle_weight>=.8 and can_blink and fatigue.z<.65 and not bool(living.active) and species in PixelArt.ENEMY_IDLE_APPENDAGES:
 		appendage=creature_appendage_sample(species,elapsed,actor.get_instance_id())
+	# Strike-only anatomical cells follow the same authoritative impact time.
+	# Hurt, sleep, defeat and recovery keep their existing priority.
+	if state=="attack" and visual_state=="attack" and species in PixelArt.ENEMY_COMBAT_APPENDAGES:
+		appendage=PixelArt.combat_appendage_stage(clock/maxf(.01,duration),float(actor.get_meta("enemy_cast_impact",.48)))
 	# Most rendered frames keep the same authored cell. Avoid repeated string
 	# formatting and texture-cache queries until one of its discrete inputs changes.
 	var cell_signature:=Vector4i(facing_index,frame,int(blink),appendage)
