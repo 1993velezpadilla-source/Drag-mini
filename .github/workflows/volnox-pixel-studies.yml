@@ -15,7 +15,7 @@ permissions:
   contents: read
 jobs:
   pixel:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 8
     steps:
       - uses: actions/checkout@v4
@@ -28,6 +28,7 @@ jobs:
           set -o pipefail
           timeout 60 /tmp/godot/Godot_v4.4.1-stable_linux.x86_64 --headless --path /tmp/pixel --script res://volnox_pixel_studies.gd 2>&1 | tee /tmp/volnox-pixel.log
           grep -F 'VOLNOX_2D_PIXEL_PILOT_PASS 33' /tmp/volnox-pixel.log
+          grep -F 'VOLNOX_8WAY_STUDIES_PASS 33' /tmp/volnox-pixel.log
           ! grep -E 'SCRIPT ERROR|Parse Error|Assertion failed' /tmp/volnox-pixel.log
       - name: Check all 33 art contracts
         run: |

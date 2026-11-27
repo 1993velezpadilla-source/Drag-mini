@@ -13,6 +13,7 @@ var hold_action:Callable
 var hold_move:Dictionary={}
 var hold_origin:Vector2
 var hold_active:bool=false
+var hold_release_pending:bool=false
 var hold_visible:bool=false
 var hold_age:float=0.0
 var hold_is_dev:bool=false
@@ -1982,7 +1983,7 @@ func enemy_pose(actor:Node3D,state:String,seconds:float,direction:Vector2=Vector
 	actor.set_meta("enemy_phase",state)
 	actor.set_meta("enemy_clock",0.0)
 	actor.set_meta("enemy_duration",seconds)
-	actor.set_meta("enemy_facing",PixelArt.direction_for(direction,int(actor.get_meta("enemy_facing",0))))
+	actor.set_meta("enemy_facing",PixelArt.direction8_for(direction,int(actor.get_meta("enemy_facing",0))))
 	if state=="attack":actor.set_meta("enemy_cast_direction",Vector3(direction.x,0,direction.y))
 # Contact shadows follow horizontal body displacement, never the airborne height.
 func enemy_shadow_sample(body_offset:Vector3,hover:float,parent_lift:float,size_multiplier:float,wide:bool)->Dictionary:
@@ -2009,7 +2010,7 @@ func update_enemy_pixel(actor:Node3D,dt:float,motion:Vector3)->void:
 		var next_state:="walk" if motion.length_squared()>.002 else "idle"
 		if next_state!=state:clock=0.0
 		state=next_state
-		if state=="walk":actor.set_meta("enemy_facing",PixelArt.direction_for(Vector2(motion.x,motion.z),int(actor.get_meta("enemy_facing",0))))
+		if state=="walk":actor.set_meta("enemy_facing",PixelArt.direction8_for(Vector2(motion.x,motion.z),int(actor.get_meta("enemy_facing",0))))
 	actor.set_meta("enemy_phase",state);actor.set_meta("enemy_clock",clock);actor.set_meta("enemy_duration",duration)
 	var frame:int=posmod(int(clock*12.0),4) if state=="walk" else mini(1,int(clock*9.0)) if state=="attack" else 0
 	var species:String=str(actor.get_meta("species"))
@@ -5750,7 +5751,7 @@ func consume_enemy_actions()->void:
 			"cancel":enemy_pose(actor,"idle",0.0,direction)
 			"move":
 				if actor.has_meta("species"):
-					actor.set_meta("enemy_facing",PixelArt.direction_for(direction,int(actor.get_meta("enemy_facing",0))))
+					actor.set_meta("enemy_facing",PixelArt.direction8_for(direction,int(actor.get_meta("enemy_facing",0))))
 # Periodic damage, traps and allied actions must not inherit the previous
 # player's attack duration, direction, or multi-hit count.
 func damage_reaction_spec(profile:Dictionary,new_cast:bool,tracked_hits:int,affected_tile:bool,direction:Vector3)->Dictionary:
@@ -6028,9 +6029,13 @@ func draw_map():
 	map.draw_circle(player_point,maxf(4.0,unit*.85),Color("#73e4cc55"))
 	map.draw_circle(player_point,maxf(2.0,unit*.5),Color("#d5fff0"))
 func bind_attack_gesture(b:Button,move:Dictionary,action:Callable,is_dev:bool=false)->void:
+	# Native button activation (keyboard/accessibility or programmatic press) remains valid.
+	# A captured pointer release is dispatched separately and must not cast twice.
+	b.pressed.connect(func():
+		if not hold_active and not hold_release_pending and not notified and not run.finished:action.call())
 	# Godot emulates mouse from touch on Android. Capture the release globally so a drag may leave the button.
 	b.gui_input.connect(func(event:InputEvent):
-		if event is InputEventMouseButton and event.button_index==MOUSE_BUTTON_LEFT and event.pressed and not b.disabled and not hold_active:
+		if event is InputEventMouseButton and event.button_index==MOUSE_BUTTON_LEFT and event.pressed and not b.disabled and not hold_active and not hold_release_pending:
 			hold_active=true;hold_visible=false;hold_age=0.0;hold_origin=b.get_global_transform_with_canvas()*event.position;hold_move=move;hold_action=action;hold_is_dev=is_dev;path.clear())
 
 func held_attack_description(m:Dictionary)->String:
@@ -6058,12 +6063,17 @@ func _input(event:InputEvent)->void:
 		get_viewport().set_input_as_handled()
 	elif event is InputEventMouseButton and event.button_index==MOUSE_BUTTON_LEFT and not event.pressed:
 		var action:=hold_action
-		hold_active=false;hold_visible=false;hold_move={}
+		hold_active=false;hold_visible=false;hold_move={};hold_release_pending=true
 		if is_instance_valid(hold_info):hold_info.hide()
 		if hold_is_dev and is_instance_valid(dev_detail):dev_detail.hide()
 		if is_instance_valid(aim_preview):aim_preview.queue_redraw()
 		# Allow the GUI to see release so BaseButton clears its pressed state.
-		if action.is_valid() and not notified and not run.finished:action.call_deferred()
+		finish_attack_release.call_deferred(action)
+
+func finish_attack_release(action:Callable)->void:
+	if not hold_release_pending:return
+	hold_release_pending=false
+	if action.is_valid() and not notified and not run.finished:action.call()
 
 func draw_aim_preview()->void:
 	if not hold_active or not hold_visible or not is_instance_valid(camera) or viewport.size.x<=0 or viewport.size.y<=0:return
@@ -6193,7 +6203,7 @@ func update_hud():
 # enemy sprite renderer supplies appearance only, never a second lunge.
 func sync_disguise_pose(actor:Node3D,pose:String,motion:Vector2)->bool:
 	actor.set_meta("companion_disguise",true)
-	actor.set_meta("enemy_facing",PixelArt.direction_for(motion,int(actor.get_meta("enemy_facing",0))))
+	actor.set_meta("enemy_facing",PixelArt.direction8_for(motion,int(actor.get_meta("enemy_facing",0))))
 	if pose=="attack":
 		actor.set_meta("enemy_phase","attack")
 		actor.set_meta("enemy_duration",player_cast_duration)
@@ -6227,7 +6237,7 @@ func update_disguise(dt:float,motion:Vector2,moving:bool,pose:String)->void:
 	disguise_actor.visible=pet_pose.visible
 	pet_pose.hide()
 	disguise_actor.position=pet_pose.position
-	disguise_actor.set_meta("enemy_facing",PixelArt.direction_for(motion,int(disguise_actor.get_meta("enemy_facing",0))))
+	disguise_actor.set_meta("enemy_facing",PixelArt.direction8_for(motion,int(disguise_actor.get_meta("enemy_facing",0))))
 	var synchronized:bool=sync_disguise_pose(disguise_actor,pose,motion)
 	update_enemy_pixel(disguise_actor,0.0 if synchronized else dt,Vector3(motion.x,0,motion.y) if moving else Vector3.ZERO)
 

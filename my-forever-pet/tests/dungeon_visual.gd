@@ -650,6 +650,11 @@ func run():
 	lab._input(up)
 	await frames()
 	assert(not lab.hold_active and lab.dev_panel.visible and not lab.dev_detail.visible)
+	# Accessibility / keyboard / test activation still performs exactly one real action.
+	var before_direct:String=lab.dev_result.text
+	lab.dev_result.text="Direct activation pending"
+	move_button.pressed.emit()
+	assert(lab.dev_result.text!="Direct activation pending","direct action is not swallowed by hold capture")
 	print("KINDRA_DEV_HOLD_DRAG_PASS")
 	lab.lab_minimize()
 	assert(lab.dev_bubble.visible and not lab.dev_panel.visible)

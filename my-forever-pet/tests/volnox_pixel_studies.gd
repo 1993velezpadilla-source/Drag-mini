@@ -6,6 +6,13 @@ func _initialize():
 		var sheet:=Art.enemy_pixel_atlas(id)
 		assert(sheet.get_size()==Vector2i(528,192))
 		assert(sheet.save_png("/tmp/"+id+"-pixel-atlas.png")==OK)
+		var expanded:=Art.enemy_pixel_atlas(id,8)
+		assert(expanded.get_size()==Vector2i(528,384))
+		assert(expanded.save_png("/tmp/"+id+"-8way-pixel-atlas.png")==OK)
+		for dir in range(4,8):
+			var diagonal:=Art.enemy_pixel_cell(id,dir,"idle")
+			assert(diagonal.get_used_rect().has_area(),id+" diagonal empty")
+			assert(diagonal.get_data()!=Art.enemy_pixel_cell(id,0 if dir<6 else 1,"idle").get_data(),id+" diagonal same as cardinal")
 		for dir in range(4):
 			var first:=Art.enemy_pixel_cell(id,dir,"walk",1)
 			var second:=Art.enemy_pixel_cell(id,dir,"walk",3)
@@ -47,5 +54,6 @@ func _initialize():
 		assert(count>=10,"missing biome body palette: "+str(pair[0]))
 	print("VOLNOX_BIOME_PALETTE_PASS 3")
 	print("VOLNOX_CRAB_DIRECTIONAL_PASS")
+	print("VOLNOX_8WAY_STUDIES_PASS 33")
 	print("VOLNOX_2D_PIXEL_PILOT_PASS 33")
 	quit()

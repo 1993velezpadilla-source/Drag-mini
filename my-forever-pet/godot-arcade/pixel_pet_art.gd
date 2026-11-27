@@ -460,6 +460,13 @@ static func enemy_pincer(im:Image,shoulder:Vector2i,palm:Vector2i,forward:Vector
 		enemy_line(im,start,bend,1,brass_dark)
 		enemy_line(im,bend,tip,1,gold)
 static func enemy_pixel_cell(id:String,dir:int,pose:String,frame:int=0)->Image:
+	# Eight-way provisional three-quarter studies retain each species' own anatomy.
+	if dir>=4:
+		var profile:=enemy_pixel_cell(id,3,pose,frame)
+		var broadside:=enemy_pixel_cell(id,1 if dir>=6 else 0,pose,frame)
+		var diagonal:=enemy_three_quarter_cell(profile,broadside,dir>=6)
+		if dir in [5,7]:diagonal.flip_x()
+		return diagonal
 	var im:=Image.create(48,48,false,Image.FORMAT_RGBA8)
 	im.fill(Color.TRANSPARENT)
 	var ink:=Color("#21152e")
@@ -1918,6 +1925,23 @@ static func enemy_pixel_cell(id:String,dir:int,pose:String,frame:int=0)->Image:
 			fallen.blit_rect(cropped,Rect2i(Vector2i.ZERO,cropped.get_size()),Vector2i(int((48-cropped.get_width())/2.0),maxi(0,44-cropped.get_height())))
 		return fallen
 	return im
+# Provisional projection of the authored anatomy. No rotation of the entire sprite into the ground.
+# Rear diagonals use the rear-facing cell so eyes do not reappear on the back.
+static func enemy_three_quarter_cell(profile:Image,broadside:Image,rear:bool)->Image:
+	var out:=Image.create(48,48,false,Image.FORMAT_RGBA8)
+	out.fill(Color.TRANSPARENT)
+	# A small horizontal foreshortening and shoulder offset differentiates the diagonal pose.
+	# Use the original rear anatomy for the rear view and the original front for the near face.
+	var primary:Image=broadside
+	var bounds:=primary.get_used_rect()
+	if not bounds.has_area():return profile.duplicate() as Image
+	var body:=primary.get_region(bounds)
+	var width:int=maxi(1,roundi(float(bounds.size.x)*.88))
+	body.resize(width,bounds.size.y,Image.INTERPOLATE_NEAREST)
+	var x:int=clampi(roundi(float(bounds.position.x)+float(bounds.size.x-width)*.5)+2,0,48-width)
+	out.blit_rect(body,Rect2i(0,0,width,bounds.size.y),Vector2i(x,bounds.position.y))
+	return out
+
 # External production atlases take priority over unapproved procedural studies.
 static var enemy_atlas_cache:Dictionary={}
 static func enemy_asset_cell(id:String,dir:int,pose:String,frame:int)->Image:
@@ -1928,24 +1952,31 @@ static func enemy_asset_cell(id:String,dir:int,pose:String,frame:int)->Image:
 			var tex:=load(path) as Texture2D
 			if tex!=null:
 				var candidate:=tex.get_image()
-				if candidate!=null and (not candidate.is_compressed() or candidate.decompress()==OK) and candidate.get_size()==Vector2i(528,192):
+				if candidate!=null and (not candidate.is_compressed() or candidate.decompress()==OK) and candidate.get_width()==528 and candidate.get_height() in [192,384]:
 					img=candidate
 		enemy_atlas_cache[id]=img
 	var sheet:Image=enemy_atlas_cache[id]
 	if sheet==null:return enemy_pixel_cell(id,dir,pose,frame) if id in ENEMY_PIXEL_PILOTS else null
 	var col:int=1+posmod(frame,4) if pose=="walk" else 6+posmod(frame,2) if pose=="attack" else ENEMY_POSES.find(pose)
-	return sheet.get_region(Rect2i(maxi(col,0)*48,clampi(dir,0,3)*48,48,48))
+	if dir>=4 and sheet.get_height()==192:
+		var profile:=sheet.get_region(Rect2i(maxi(col,0)*48,3*48,48,48))
+		var broadside:=sheet.get_region(Rect2i(maxi(col,0)*48,(1 if dir>=6 else 0)*48,48,48))
+		var diagonal:=enemy_three_quarter_cell(profile,broadside,dir>=6)
+		if dir in [5,7]:diagonal.flip_x()
+		return diagonal
+	return sheet.get_region(Rect2i(maxi(col,0)*48,clampi(dir,0,sheet.get_height()/48-1)*48,48,48))
 static func enemy_pixel_texture(id:String,dir:int,pose:String,frame:int)->Texture2D:
 	var key:="enemy:%s:%d:%s:%d"%[id,dir,pose,frame]
 	if not cache.has(key):
 		var image:=enemy_asset_cell(id,dir,pose,frame)
 		if image==null:return null
-		cache[key]=ImageTexture.create_from_image(compose_creature_cell(id,image,dir,pose,frame))
+		cache[key]=ImageTexture.create_from_image(compose_creature_cell(id,image,dir if dir<4 else (0 if dir<6 else 1),pose,frame))
 	return cache[key] as Texture2D
-static func enemy_pixel_atlas(id:String)->Image:
-	var im:=Image.create(48*ENEMY_POSES.size(),192,false,Image.FORMAT_RGBA8)
+static func enemy_pixel_atlas(id:String,directions:int=4)->Image:
+	var rows:int=8 if directions==8 else 4
+	var im:=Image.create(48*ENEMY_POSES.size(),48*rows,false,Image.FORMAT_RGBA8)
 	im.fill(Color.TRANSPARENT)
-	for dir in range(4):
+	for dir in range(rows):
 		for col in range(ENEMY_POSES.size()):
 			var frame:int=col-1 if col in [1,2,3,4] else col-6 if col in [6,7] else 0
 			im.blit_rect(enemy_pixel_cell(id,dir,ENEMY_POSES[col],frame),Rect2i(0,0,48,48),Vector2i(col*48,dir*48))
