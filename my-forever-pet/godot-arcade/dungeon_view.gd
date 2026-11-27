@@ -2237,14 +2237,14 @@ func update_enemy_pixel(actor:Node3D,dt:float,motion:Vector3,body_dt:float=-1.0)
 		body_offset.x=idle_sample.y*size_multiplier
 		sprite.position.x+=body_offset.x
 	if state=="attack":
-		var body:Dictionary=PixelArt.attack_body_sample(clock/maxf(.01,duration),float(actor.get_meta("enemy_cast_impact",.48)),str(actor.get_meta("enemy_cast_motion","contact")))
+		var body:Dictionary=PixelArt.attack_body_sample(clock/maxf(.01,duration),float(actor.get_meta("enemy_cast_impact",.48)),str(actor.get_meta("enemy_cast_motion","contact")),species)
 		var stretch:float=float(body.stretch)
 		sprite.scale=Vector3(1.0/stretch,stretch,1.0)
 		sprite.position.y+=.54*size_multiplier*(stretch-1.0)+float(body.lift)
 	if state=="attack" and not actor.get_meta("companion_disguise",false):
 		var cast_dir:Vector3=actor.get_meta("enemy_cast_direction",Vector3(0,0,1))
 		var offset:=cast_motion_offset(str(actor.get_meta("enemy_cast_motion","contact")),clock/maxf(.01,duration),float(actor.get_meta("enemy_cast_impact",.48)))
-		body_offset=actor.basis.inverse()*cast_offset_world(offset,cast_dir)
+		body_offset=actor.basis.inverse()*cast_offset_world(PixelArt.creature_cast_offset(offset,species),cast_dir)
 		if actor.has_meta("enemy_tile_cast"):
 			var route:Dictionary=actor.get_meta("enemy_tile_cast")
 			var sample:=tile_cast_sample(route.points,str(route.kind),clock/maxf(.01,duration),float(actor.get_meta("enemy_cast_impact",.48)))
@@ -9624,7 +9624,7 @@ func _process(dt:float):
 	if attack_time>0.0:
 		var phase=sin(PI*attack_time/maxf(.01,player_cast_duration))
 		var progress:float=1.0-attack_time/maxf(.01,player_cast_duration)
-		var cast_offset:=cast_motion_offset(player_cast_motion,progress,player_cast_impact)
+		var cast_offset:=PixelArt.creature_cast_offset(cast_motion_offset(player_cast_motion,progress,player_cast_impact),run.transformed_species)
 		if releasing and release_charge_phase=="airborne":cast_offset.y=0.0
 		pet_pose.position+=pet.basis.inverse()*cast_offset_world(cast_offset,attack_direction)
 		attack_fx.visible=player_impact_delay<=0.0;attack_fx.scale=Vector3(1.1-phase*.42,.13,1.1-phase*.42)
@@ -9655,6 +9655,7 @@ func _process(dt:float):
 	pet_pose.set_meta("pet_mood",PixelArt.dungeon_mood(run.hp,run.max_hp,run.poison_turns>0,pose=="reward"))
 	pet_pose.set_meta("dungeon_grounded_gait",true)
 	pet_pose.set_meta("dungeon_cast_motion",player_cast_motion)
+	pet_pose.set_meta("dungeon_cast_species",run.transformed_species)
 	PixelArt.animate_world_sprite(pet_pose,motion,moving,dt,pose,region==1,1.0-attack_time/maxf(.01,player_cast_duration) if attack_time>0.0 else -1.0,player_cast_impact)
 	if pose=="hurt":
 		var companion_sprite:=pet_pose.get_node_or_null("PixelCompanion") as Sprite3D
