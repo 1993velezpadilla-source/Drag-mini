@@ -438,6 +438,28 @@ func run_checks()->void:
 		if step==100 and critical_sample.x>.0001:failures.append("critical flash not expired")
 		prior_flash=critical_sample.x;prior_ring=critical_sample.y
 		checks+=1
+	# Every elemental terminal profile has a material and bounded trajectory.
+	var terminal_signatures:Dictionary={}
+	if Dungeon.ELEMENT_DISSIPATION.size()!=18:failures.append("elemental dissipation coverage")
+	for element in Dungeon.ELEMENT_FINISH_MODE:
+		if not Dungeon.ELEMENT_DISSIPATION.has(element):
+			failures.append("missing dissipation "+element)
+			continue
+		var cue:Array=Dungeon.ELEMENT_DISSIPATION[element]
+		if terminal_signatures.has(str(cue)):failures.append("duplicate dissipation profile "+element)
+		terminal_signatures[str(cue)]=true
+		var terminal_texture:=view.combat_pixel_texture(str(cue[0]),Color("#fff3c2"),Color("#e0a34c"))
+		if terminal_texture==null or not terminal_texture.get_image().get_used_rect().has_area():failures.append("empty dissipation texture "+element)
+		for step in range(101):
+			var phase:float=float(step)/100.0
+			for particle_index in range(5):
+				var terminal:=view.elemental_dissipation_sample(element,phase,particle_index)
+				var offset:=view.elemental_dissipation_offset(element,phase,particle_index,5)
+				if not terminal.is_finite() or not offset.is_finite() or terminal.x<0.0 or terminal.x>1.1 or terminal.z<.3 or terminal.z>1.41 or terminal.w<0.0 or terminal.w>1.001 or offset.length()>1.3:failures.append("dissipation bounds "+element)
+				if step==100 and terminal.w>.0001:failures.append("dissipation did not expire "+element)
+				checks+=1
+	if view.elemental_dissipation_sample("fire",.9).y<=0.0 or view.elemental_dissipation_sample("ice",.9).y>=0.0 or view.elemental_dissipation_sample("psychic",.9).x>=view.elemental_dissipation_sample("psychic",.1).x:failures.append("elemental trajectory distinction")
+	checks+=1
 	# Directed contact art is independently visible and kick poses are animated.
 	for id in Dungeon.CONTACT_ICON_KIND:
 		var kind:String=view.directed_contact_kind(id,str(view.combat_profile(id).role))
