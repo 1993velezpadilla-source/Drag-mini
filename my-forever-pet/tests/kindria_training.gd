@@ -787,6 +787,30 @@ func _initialize():
 	assert(echoes.move_pp.eos_069==Rules.MOVE_LIBRARY.eos_069.pp)
 	assert(echoes.trained_profile.moves==echoes.equipped_moves)
 	print("KINDRIA_COPY_MOVE_PASS")
+	var resources=Rules.new()
+	resources.player_stages={"attack":-3}
+	resources.player_halves={"attack":true}
+	assert(resources.belly_drum() and resources.belly_value()==1)
+	assert(resources.player_stages.attack==10 and not resources.player_halves.has("attack"))
+	assert(not resources.belly_drum())
+	var resource_hp:int=resources.hp
+	for i in range(10):assert(resources.spend_belly())
+	assert(resources.belly_value()==0 and resources.hp==resource_hp)
+	assert(resources.spend_belly() and resources.hp==resource_hp-1)
+	resources.player=Vector2i(2,2);resources.loot[resources.player]="trail_fruit"
+	resources.pickup()
+	assert(resources.belly_value()==50)
+	resources.trained_profile={"types":["normal"],"level":100}
+	assert(resources.add_technique_manual("eos_154"))
+	assert(resources.learn_from_manual("eos_154"))
+	assert(resources.equipped_moves==["eos_154"] and resources.spent_manuals.eos_154==1)
+	resources.spent_manuals["eos_337"]=1
+	assert(resources.recycle_manuals()==1)
+	assert(resources.technique_manuals.eos_154==1 and resources.spent_manuals.eos_337==1)
+	assert(resources.recycle_manuals()==0)
+	resources.hp=1;resources.belly_tenths=0
+	assert(not resources.spend_belly() and resources.finished and not resources.success)
+	print("KINDRIA_RESOURCE_MOVE_PASS")
 	assert(Rules.EOS_IDENTIFIED_COUNT==468)
 	print("KINDRIA_EOS_PROTOTYPES_PASS ",eos_count)
 	print("KINDRIA_LEARNSET_PP_PASS")
