@@ -2470,14 +2470,29 @@ func ultra_impact_residue(burst:Dictionary)->void:
 	if str(record.get("category",""))=="status":return
 	if not element in ["fire","water","ice","ground","rock","poison","electric","grass","dragon","steel"]:return
 	var results:Dictionary=burst.get("results",{})
-	var target:Vector3=burst.points[-1]
-	var tile:=Vector2i(roundi(target.x/1.4),roundi(target.z/1.4))
-	var result:Dictionary=results.get(tile,{})
-	if int(result.get("damage",0))<=0 and int(burst.get("damage",0))<=0:return
+	var points:Array=burst.points
+	if points.is_empty():return
+	var target:Vector3=points[-1]
+	var primary:=Vector2i(roundi(target.x/1.4),roundi(target.z/1.4))
+	# Aggregate cast damage does not establish which tile was hit.
+	# Keep at most four confirmed damage marks, nearest first, with stable ties.
+	var cells:Array[Vector2i]=[]
+	for tile in results:
+		if not tile is Vector2i:continue
+		var row:Dictionary=results[tile]
+		if int(row.get("damage",0))>0:cells.append(tile)
+	cells.sort_custom(func(a:Vector2i,b:Vector2i)->bool:
+		var da:int=(a-primary).length_squared()
+		var db:int=(b-primary).length_squared()
+		if da!=db:return da<db
+		if a.x!=b.x:return a.x<b.x
+		return a.y<b.y)
 	var style:Array=combat_style(id)
 	var life:float=.65 if element in ["fire","electric","dragon"] else .90
-	if fx_residues.size()>=FX_RESIDUE_CAP:fx_residues.pop_front()
-	fx_residues.append({"at":Vector3(target.x,.065,target.z),"element":element,"color":Color(str(style[1])),"dark":Color(str(style[2])),"age":0.0,"life":life})
+	for i in range(mini(4,cells.size())):
+		var at:Vector3=pos(cells[i])
+		if fx_residues.size()>=FX_RESIDUE_CAP:fx_residues.pop_front()
+		fx_residues.append({"at":Vector3(at.x,.065,at.z),"element":element,"color":Color(str(style[1])),"dark":Color(str(style[2])),"age":0.0,"life":life})
 
 # A hit response belongs to the confirmed impact, not the launch frame.
 func queue_ultra_reaction(at:Vector3,direction:Vector3,terminal:bool)->void:

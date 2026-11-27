@@ -812,6 +812,35 @@ func run()->void:
 	assert(field.element_finish_fx(mixed_burst,mixed_tick,0)>8)
 	for particle in field.combat_particles:particle.hide()
 	print("KINDRIA_V13_CONFIRMED_MATERIAL_PASS")
+	# V13.4: persistent elemental residues must follow actual damage cells.
+	var saved_residues:Array[Dictionary]=field.fx_residues.duplicate()
+	field.fx_residues.clear()
+	var residue_profile:Dictionary=field.combat_profile("lib_fire_1")
+	var residue_burst:Dictionary={"id":"lib_fire_1","profile":residue_profile,"points":[special_source,bite_position],"damage":99,"results":{target:{"misses":1}}}
+	field.ultra_impact_residue(residue_burst)
+	assert(field.fx_residues.is_empty())
+	var residue_far:Vector2i=target+Vector2i(3,0)
+	var residue_tie:Vector2i=target+Vector2i.LEFT
+	residue_burst.results={residue_far:{"damage":4},secondary_tile:{"damage":8},target:{"blocked":1},residue_tie:{"damage":3}}
+	field.ultra_impact_residue(residue_burst)
+	assert(field.fx_residues.size()==3)
+	assert(field.fx_residues[0].at==Vector3(field.pos(residue_tie).x,.065,field.pos(residue_tie).z))
+	assert(field.fx_residues[1].at==Vector3(field.pos(secondary_tile).x,.065,field.pos(secondary_tile).z))
+	assert(field.fx_residues[2].at==Vector3(field.pos(residue_far).x,.065,field.pos(residue_far).z))
+	field.fx_residues.clear()
+	residue_burst.results={target:{"effects":1},secondary_tile:{"heal":5}}
+	field.ultra_impact_residue(residue_burst)
+	assert(field.fx_residues.is_empty())
+	residue_burst.results={}
+	field.ultra_impact_residue(residue_burst)
+	assert(field.fx_residues.is_empty())
+	residue_burst.results={target:{"damage":7},secondary_tile:{"damage":8},residue_tie:{"damage":3},residue_far:{"damage":4},target+Vector2i(4,0):{"damage":9}}
+	field.ultra_impact_residue(residue_burst)
+	assert(field.fx_residues.size()==4)
+	for j in range(Field.FX_RESIDUE_CAP+2):field.ultra_impact_residue(residue_burst)
+	assert(field.fx_residues.size()==Field.FX_RESIDUE_CAP)
+	field.fx_residues.assign(saved_residues)
+	print("KINDRIA_V13_RESIDUE_DAMAGE_CELLS_PASS")
 	var plan:Array=[
 		{"stage":"ally_invoke","anchor":"source","start":0.0,"end":.15,"enabled":true},
 		{"stage":"enemy_invoke","anchor":"source","start":0.0,"end":.15,"enabled":true},
