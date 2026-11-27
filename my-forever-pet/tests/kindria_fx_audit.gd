@@ -214,6 +214,17 @@ func run()->void:
 	if field.sync_disguise_pose(disguise,"idle",Vector2.DOWN) or disguise.get_meta("enemy_phase")!="idle":errors.append("disguise recovery")
 	disguise.free()
 	print("KINDRIA_DISGUISE_CLOCK_PASS")
+	# Charged visual states follow the rules' actual release and impact.
+	for impact in [.2,.48,.8]:
+		for phase in ["airborne","underground","vanish","gather"]:
+			var hold:Dictionary=field.charge_visual_sample(phase,false,0.0,impact)
+			var start:Dictionary=field.charge_visual_sample(phase,true,0.0,impact)
+			var hit:Dictionary=field.charge_visual_sample(phase,true,impact,impact)
+			var end:Dictionary=field.charge_visual_sample(phase,true,1.0,impact)
+			if bool(hold.visible)!=(phase not in ["underground","vanish"]) or bool(start.visible)!=bool(hold.visible):errors.append("charge visibility "+phase)
+			if not bool(hit.visible) or not bool(end.visible) or absf(float(hit.height))>.001 or absf(float(end.height))>.001:errors.append("charge impact "+phase)
+			if phase=="airborne" and absf(float(start.height)-.95)>.001:errors.append("airborne release continuity")
+	print("KINDRIA_CHARGE_VISUAL_PASS")
 	# Exercise more frames than the cache cap, then verify hot hits and exact normalization.
 	for row in reports.slice(0,40):
 		for frame in range(Field.FX_FRAME_COUNT):field.combat_animated_texture(str(row.id),frame)

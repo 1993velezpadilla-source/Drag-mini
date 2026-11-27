@@ -82,6 +82,8 @@ var previous_event=0
 var actor_created=0
 var previous_attack=0
 var attack_time=0.0
+var visual_charge_phase:String=""
+var release_charge_phase:String=""
 var attack_direction=Vector3.ZERO
 var attack_fx:MeshInstance3D
 var destination_fx:MeshInstance3D
@@ -1565,6 +1567,8 @@ func build_floor():
 	pet=Node3D.new();geometry.add_child(pet);pet.position=pos(run.player)
 	pet_pose=model(pet,companion_id);pet_pose.scale*=1.28
 	disguise_actor=null;disguise_species=""
+	visual_charge_phase="";release_charge_phase=""
+	attack_time=0.0;hit_time=0.0;player_impact_delay=0.0
 	# Sprite orientation is driven by actual movement, not the GLB basis.
 	pet_pose.rotation.y=0.0
 	pet.rotation.y=atan2(float(facing.x),float(facing.y))
@@ -5408,10 +5412,36 @@ func touch(event:InputEvent):
 		sync();return
 	path=run.route(run.player,target,true)
 	tick=0.0
+# Charge presentation is driven by the actual turn state; no extra gameplay delay.
+func charge_visual_sample(phase:String,releasing:bool,progress:float,impact:float)->Dictionary:
+	var t:float=clampf(progress,0.0,1.0)
+	var peak:float=clampf(impact,.12,.88)
+	var y:float=0.0
+	var visible:bool=true
+	if not releasing:
+		visible=not phase in ["underground","vanish"]
+		y=.95 if phase=="airborne" else .04 if phase=="gather" else 0.0
+	else:
+		match phase:
+			"airborne":y=.95*(1.0-smoothstep(0.0,peak,t))
+			"underground":
+				visible=t>=peak*.55
+				y=-.28*(1.0-smoothstep(peak*.55,peak,t)) if visible else 0.0
+			"vanish":visible=t>=peak*.55
+			"gather":y=.04*(1.0-smoothstep(0.0,peak,t))
+	return {"visible":visible,"height":y}
+
 func sync():
 	if run.floor_revision!=active_floor:build_floor()
 	else:refresh_actors()
 	update_hud()
+	var next_charge:String=run.charge_phase
+	if next_charge!=visual_charge_phase:
+		release_charge_phase=visual_charge_phase if next_charge.is_empty() and run.attack_serial!=previous_attack else ""
+		visual_charge_phase=next_charge
+		if not next_charge.is_empty():
+			# Cancel any older visible swing when a fresh charge starts.
+			attack_time=0.0;player_impact_delay=0.0
 	if run.attack_serial!=previous_attack:
 		previous_attack=run.attack_serial
 		var profile:=combat_profile(run.player_attack_fx)
@@ -5571,13 +5601,19 @@ func _process(dt:float):
 	if motion.length_squared()<.0001 and moving:motion=Vector2(travel.x,travel.z)
 	pet_pose.position=Vector3.ZERO
 	pet_pose.rotation.z=0.0
-	pet_pose.visible=not run.charge_phase in ["underground","vanish"]
-	if run.charge_phase=="airborne":pet_pose.position.y=.95+sin(elapsed*8.0)*.06
-	elif run.charge_phase=="gather":pet_pose.position.y=.03+.04*sin(elapsed*12.0)
+	var charge_progress:float=1.0-attack_time/maxf(.01,player_cast_duration)
+	var releasing:bool=attack_time>0.0 and not release_charge_phase.is_empty()
+	var charge:Dictionary=charge_visual_sample(release_charge_phase if releasing else run.charge_phase,releasing,charge_progress,player_cast_impact)
+	pet_pose.visible=bool(charge.visible)
+	pet_pose.position.y=float(charge.height)
+	if not releasing and run.charge_phase=="airborne":pet_pose.position.y+=sin(elapsed*8.0)*.06
+	elif not releasing and run.charge_phase=="gather":pet_pose.position.y+=.025*sin(elapsed*12.0)
+	if attack_time<=0.0:release_charge_phase=""
 	if attack_time>0.0:
 		var phase=sin(PI*attack_time/maxf(.01,player_cast_duration))
 		var progress:float=1.0-attack_time/maxf(.01,player_cast_duration)
 		var cast_offset:=cast_motion_offset(player_cast_motion,progress,player_cast_impact)
+		if releasing and release_charge_phase=="airborne":cast_offset.y=0.0
 		pet_pose.position+=pet.basis.inverse()*cast_offset_world(cast_offset,attack_direction)
 		attack_fx.visible=player_impact_delay<=0.0;attack_fx.scale=Vector3(1.1-phase*.42,.13,1.1-phase*.42)
 	else:attack_fx.hide()
