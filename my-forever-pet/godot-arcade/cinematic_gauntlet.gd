@@ -36,6 +36,20 @@ func run_checks()->void:
 	var checks:int=0
 	var failures:Array[String]=[]
 	var view:=Dungeon.new()
+	# V23.7: queue compaction preserves retained order and chronological FIFO.
+	view.delayed_combat_fx.assign([{"delay":.5,"event":{"id":"a"}},{"delay":.125,"event":{"id":"b"}},{"delay":.0625,"event":{"id":"c"}},{"delay":.5,"event":{"id":"d"}},{"delay":.125,"event":{"id":"e"}}])
+	view.collect_due_combat_casts(.125)
+	var due_ids:Array=[]
+	for queued in view.fx_due_delayed_casts:due_ids.append(queued.event.id)
+	if due_ids!=["c","b","e"]:failures.append("V23.7 due order")
+	if view.delayed_combat_fx.size()!=2 or view.delayed_combat_fx[0].event.id!="a" or view.delayed_combat_fx[1].event.id!="d":failures.append("V23.7 retained order")
+	if float(view.fx_due_delayed_casts[0].delay)!=-.0625 or float(view.delayed_combat_fx[0].delay)!=.375:failures.append("V23.7 exact elapsed time")
+	view.collect_due_combat_casts(.375)
+	if view.fx_due_delayed_casts.size()!=2 or not view.delayed_combat_fx.is_empty():failures.append("V23.7 exact boundary")
+	elif view.fx_due_delayed_casts[0].event.id!="a" or view.fx_due_delayed_casts[1].event.id!="d":failures.append("V23.7 boundary FIFO")
+	view.collect_due_combat_casts(.125)
+	if not view.fx_due_delayed_casts.is_empty():failures.append("V23.7 duplicate dispatch")
+	checks+=5
 	# V23.5: exact nearest-rank percentiles and honest pause-gap accounting.
 	var diagnostic_samples:=PackedInt64Array([40000,10000,16667,20000,33333])
 	var diagnostic_stats:=view.fx_diag_stats(diagnostic_samples)
