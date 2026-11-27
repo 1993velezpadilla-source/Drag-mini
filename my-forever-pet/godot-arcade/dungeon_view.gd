@@ -103,7 +103,9 @@ var combat_bursts:Array[Dictionary]=[]
 var retired_impacts:Array[Dictionary]=[]
 const DELAYED_COMBAT_FX_CAP:int=24
 var delayed_combat_fx:Array[Dictionary]=[]
+const FX_MATERIAL_CACHE_CAP:int=256
 var combat_textures:Dictionary={}
+var combat_texture_order:Array[String]=[]
 # Keep transient animation frames separate from permanent static FX textures.
 const FX_ANIMATED_CACHE_CAP=384
 var fx_animated_cache:Dictionary={}
@@ -130,11 +132,15 @@ var fx_geometry_count:int=0
 const FX_FRAME_COUNT=12
 const FX_FRAME_SIZE=48
 var combat_fx_root:Node3D
+var native_fx_backend:Node3D
+var native_fx_bindings:Dictionary={}
 const FX_LIGHT_CAP:int=2
 const FX_HALO_CAP:int=8
 var fx_lights:Array[OmniLight3D]=[]
 var fx_halos:Array[MeshInstance3D]=[]
 var fx_halo_materials:Array[ShaderMaterial]=[]
+var fx_halo_additive:Shader
+var fx_halo_body:Shader
 var fx_lights_used:int=0
 var fx_halos_used:int=0
 const FX_TRAIL_VERTEX_CAP:int=960
@@ -2145,6 +2151,8 @@ func combat_fx_setup(parent:Node3D)->void:
 	response_slots.clear()
 	combat_particles.clear();combat_warnings.clear();combat_bursts.clear();retired_impacts.clear();delayed_combat_fx.clear();fx_reactions.clear();fx_ground_shake=0.0
 	combat_fx_root=Node3D.new();parent.add_child(combat_fx_root)
+	native_fx_backend=null
+	if not native_fx_bindings.is_empty():configure_native_fx(native_fx_bindings)
 	setup_cinematic_lighting()
 	setup_ultra_combat_layers()
 	cast_text_pool.clear();cast_text_age.clear();cast_text_origin.clear();cast_text_cursor=0;response_text_queue.clear()
@@ -2198,8 +2206,19 @@ uniform vec4 tint : source_color = vec4(1.0);
 uniform float intensity : hint_range(0.0, 1.0) = 0.0;
 uniform float ring_mix : hint_range(0.0, 1.0) = 0.0;
 uniform float phase = 0.0;
+uniform int element_mode = 0;
+uniform float variation = 0.0;
+uniform int silhouette = 0;
+uniform float heading = 0.0;
+uniform float material_phase = 0.0;
+float grain(vec2 p) { return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453); }
+float noise2(vec2 p) { vec2 i=floor(p); vec2 f=fract(p); f=f*f*(3.0-2.0*f); return mix(mix(grain(i),grain(i+vec2(1.0,0.0)),f.x),mix(grain(i+vec2(0.0,1.0)),grain(i+vec2(1.0)),f.x),f.y); }
+float ribbon(float x,float w) { float width=max(w,0.001); return 1.0-smoothstep(width*0.35,width,abs(x)); }
 void fragment() {
 	vec2 p = UV * 2.0 - 1.0;
+	vec2 original = p;
+	float cs=cos(heading); float sn=sin(heading);
+	p=vec2(p.x*cs-p.y*sn,p.x*sn+p.y*cs);
 	float r = length(p);
 	float halo = pow(max(0.0, 1.0-r), 2.7);
 	float radius = mix(0.22, 0.82, phase);
@@ -2208,10 +2227,140 @@ void fragment() {
 	float ring = exp(-d*d) * (1.0-smoothstep(0.85, 1.0, r));
 	float echo = exp(-e*e) * 0.24;
 	float a = mix(halo, ring*0.68+echo, ring_mix);
-	ALBEDO = tint.rgb;
-	ALPHA = clamp(a * intensity, 0.0, 0.75);
+	vec3 col=tint.rgb;
+	float ang=atan(p.y,p.x);
+	float n=noise2(p*5.0+vec2(variation*3.0,-phase*5.0));
+	float core=0.0;
+	float edge=1.0-smoothstep(0.75,0.99,r);
+	if (element_mode==1) { // Fire: tapering turbulent tongues, hot core, cooler outer flame.
+		float y=clamp((p.y+0.86)/1.7,0.0,1.0);
+		float w=0.78*pow(y,0.65)*(1.0-0.12*y);
+		float sway=0.17*sin(p.y*8.0+phase*9.0+variation);
+		float flame=1.0-smoothstep(w*0.48,w+0.06,abs(p.x-sway-(n-0.5)*0.34));
+		a=flame*smoothstep(0.0,0.18,y)*(1.0-smoothstep(0.85,1.0,y))*(0.65+0.35*n);
+		core=flame*smoothstep(0.3,0.9,y)*(1.0-smoothstep(0.12,0.45,abs(p.x-sway)));
+		col=mix(vec3(1.0,0.12,0.015),vec3(1.0,0.83,0.32),core);
+	} else if (element_mode==2) { // Water: curved crest, transparent body and moving foam.
+		float crest=0.22*sin(p.x*5.0-phase*8.0)+0.14*p.x*p.x;
+		float body=ribbon(p.y-crest,0.38);
+		float foam=ribbon(p.y-crest+0.23+0.04*sin(p.x*22.0),0.075);
+		a=(body*0.58+foam*0.5)*(1.0-smoothstep(0.72,0.98,abs(p.x)));
+		col=mix(vec3(0.015,0.35,0.8),vec3(0.69,1.0,1.0),clamp(foam+body*n*0.32,0.0,1.0));
+	} else if (element_mode==3) { // Electricity: discontinuous angular discharge and forks.
+		float step_x=floor((p.x+1.0)*7.0);
+		float f=fract((p.x+1.0)*7.0);
+		float h0=(grain(vec2(step_x,floor(phase*12.0)+variation))-0.5)*0.8;
+		float h1=(grain(vec2(step_x+1.0,floor(phase*12.0)+variation))-0.5)*0.8;
+		float bolt=ribbon(p.y-mix(h0,h1,f),0.065);
+		float fork=ribbon(p.y-mix(h0,h1,f)-max(0.0,p.x)*0.85,0.035)*smoothstep(0.0,0.25,p.x);
+		a=bolt+fork*0.65;col=mix(vec3(1.0,0.58,0.04),vec3(1.0,1.0,0.83),bolt);
+	} else if (element_mode==4) { // Poison: thick asymmetric globules and dripping edges.
+		float blobs=length(p*vec2(1.1,0.85)+vec2(0.11*sin(phase*6.0),0.03));
+		float viscous=1.0-smoothstep(0.42,0.69,blobs+(n-0.5)*0.42);
+		float drip=ribbon(p.x-0.28*sin(p.y*5.0+variation),0.13)*(1.0-smoothstep(0.6,0.95,p.y))*smoothstep(0.05,0.35,p.y);
+		a=viscous*0.95+drip*0.65;col=mix(vec3(0.19,0.025,0.30),vec3(0.78,0.24,0.88),n);
+	} else if (element_mode==5) { // Grass: organic leaf-vein fans.
+		float leaf=ribbon(p.y-0.36*sin(p.x*3.4+phase*5.0),0.28*(1.0-abs(p.x)));
+		float vein=ribbon(p.y-0.36*sin(p.x*3.4+phase*5.0),0.035);
+		a=leaf*0.8+vein*0.2;col=mix(vec3(0.12,0.54,0.05),vec3(0.72,1.0,0.32),vein+n*0.28);
+	} else if (element_mode==6) { // Ice: sharp six-fold facets.
+		float facet=abs(cos(ang*3.0+variation))*0.28+0.47;
+		float frost=1.0-smoothstep(facet-0.04,facet+0.02,r);
+		float cut=ribbon(sin(ang*3.0+variation),0.11)*frost;
+		a=frost*0.55+cut*0.45;col=mix(vec3(0.24,0.61,0.95),vec3(0.83,1.0,1.0),cut+0.24*n);
+	} else if (element_mode==7) { // Ground: broad low dust and branching fissures.
+		float crack=ribbon(sin(ang*4.0+r*10.0+n),0.13);
+		float dust=(1.0-smoothstep(0.35,0.93,r+n*0.28))*smoothstep(0.18,0.63,n);
+		a=dust*0.82+crack*edge*0.68;
+		col=mix(vec3(0.25,0.105,0.035),vec3(0.79,0.53,0.24),n);
+	} else if (element_mode==8) { // Rock: discrete angular mineral faces.
+		float facet=max(abs(p.x+p.y*0.36),abs(p.y-p.x*0.27));
+		float chip=(1.0-smoothstep(0.52,0.76,facet+n*0.19))*smoothstep(0.42,0.70,n);
+		float seam=ribbon(sin(ang*6.0+variation),0.12);
+		a=chip*0.98+seam*edge*0.35;
+		col=mix(vec3(0.24,0.25,0.29),vec3(0.74,0.75,0.77),n);
+	} else if (element_mode==9) { // Flying: separated curved air blades.
+		float shear=ribbon(sin(ang*2.0-r*8.0+phase*9.0),0.19);
+		a=shear*smoothstep(0.15,0.35,r)*edge;col=mix(vec3(0.52,0.81,0.93),vec3(0.95,1.0,1.0),shear);
+	} else if (element_mode==10) { // Fighting: short directional impact burst.
+		float rays=pow(abs(cos(ang*5.0+variation)),9.0);
+		a=(rays*0.7+halo)*edge;col=mix(vec3(0.92,0.26,0.08),vec3(1.0,0.89,0.47),halo);
+	} else if (element_mode==11) { // Bug: segmented chitin and silk.
+		float silk=ribbon(sin(ang*5.0+variation),0.12)+ribbon(sin(r*22.0-phase*5.0),0.17)*0.48;
+		a=silk*edge;col=mix(vec3(0.42,0.57,0.08),vec3(0.94,0.99,0.56),n);
+	} else if (element_mode==12) { // Psychic: concentric bent interference waves.
+		float pulse=ribbon(sin(r*21.0-phase*9.0+sin(ang*3.0)),0.22);
+		a=pulse*edge;col=mix(vec3(0.6,0.08,0.74),vec3(1.0,0.55,0.92),pulse);
+	} else if (element_mode==13) { // Ghost: translucent rising wisps with gaps.
+		float wisp=ribbon(sin(ang*3.0-r*8.0+phase*4.0),0.32);
+		a=wisp*edge*(0.38+0.58*n);
+		col=mix(vec3(0.3,0.17,0.71),vec3(0.69,0.43,0.96),n);
+	} else if (element_mode==15) { // Dark: sharp inward crescent shadows.
+		float cut=ribbon(sin(ang*2.0+r*13.0-phase*8.0),0.16);
+		float rim=smoothstep(0.16,0.55,r)*edge;
+		a=cut*rim*(0.75+0.23*n);
+		col=mix(vec3(0.10,0.035,0.19),vec3(0.51,0.25,0.71),cut);
+	} else if (element_mode==14) { // Dragon: flame-like twin twisting energy streams.
+		float twin=ribbon(abs(p.y-0.22*sin(p.x*8.0-phase*8.0))-0.27,0.19);
+		a=twin*edge;col=mix(vec3(0.18,0.21,0.91),vec3(0.91,0.63,1.0),n);
+	} else if (element_mode==16) { // Steel: intersecting hard reflective facets.
+		float metal=ribbon(p.y-p.x*0.58,0.17)+ribbon(p.y+p.x*0.58,0.12);
+		a=metal*edge;col=mix(vec3(0.29,0.44,0.56),vec3(0.91,0.98,1.0),metal);
+	} else if (element_mode==17) { // Fairy: star-shaped light.
+		float star=pow(abs(cos(ang*2.5+phase)),12.0);
+		a=(star*0.76+halo)*edge;col=mix(vec3(0.92,0.22,0.65),vec3(1.0,0.94,0.89),halo);
+	} else if (element_mode==18) { // Normal: neutral speed/impact streak.
+		float streak=ribbon(p.y,0.16)*(1.0-smoothstep(0.35,0.99,abs(p.x)));
+		a=streak+halo*0.5;col=mix(vec3(0.62,0.65,0.68),vec3(1.0,0.97,0.89),streak);
+	}
+	// Distinct silhouettes control actual material coverage, not just hue.
+	float shape=1.0;
+	if (silhouette==1) { // compact projectile and tapered trailing plume
+		float w=0.18+0.40*smoothstep(-0.85,0.65,original.x);
+		shape=(1.0-smoothstep(w*0.6,w,abs(original.y)))*(1.0-smoothstep(0.7,0.97,original.x));
+	} else if (silhouette==2) { // widening jet
+		float w=0.12+0.68*clamp((original.x+1.0)*0.5,0.0,1.0);
+		shape=1.0-smoothstep(w*0.65,w,abs(original.y));
+	} else if (silhouette==3) { // upright falling/rising column
+		shape=1.0-smoothstep(0.32,0.8,abs(original.x));
+	} else if (silhouette==4) { // expanding shockfront
+		shape=ribbon(r-(0.3+0.46*material_phase),0.25);
+		a=max(a*shape,shape*0.38);
+	} else if (silhouette==5) { // orbit / containment
+		shape=ribbon(r-0.62,0.24)*(0.6+0.4*sin(ang*3.0-phase*6.0));
+		a=max(a*shape,shape*0.32);
+	} else if (silhouette==6) { // crossing contact cuts
+		shape=max(ribbon(original.y-original.x*0.56,0.30),ribbon(original.y+original.x*0.56,0.24));
+	} else if (silhouette==7) { // broad ground front
+		shape=1.0-smoothstep(0.4,0.94,length(original*vec2(0.75,1.25)));
+	} else if (silhouette==8) { // two converging jaws
+		float jaw=0.64-0.32*material_phase;
+		shape=ribbon(abs(original.x)-jaw+original.y*original.y*0.24,0.23);
+	} else if (silhouette==9) { // multiple independent falling/rising lobes
+		shape=0.55+0.45*noise2(original*4.0+vec2(0.0,phase*4.0));
+	} else if (silhouette==10) { // blue sacred flame rather than ordinary orange fire
+		col=mix(vec3(0.02,0.16,0.88),vec3(0.35,0.95,1.0),core);
+		shape=0.8+0.2*n;
+	} else if (silhouette==11) { // spherical water bubbles
+		float rim=ribbon(r-0.60,0.12);
+		a=rim*0.9+(1.0-smoothstep(0.45,0.62,r))*0.28+ribbon(length(p+vec2(0.18,0.18))-0.15,0.06)*0.55;
+		col=mix(vec3(0.035,0.40,0.84),vec3(0.83,1.0,1.0),rim);
+	} else if (silhouette==12) { // compact electrical field around body
+		float radial=ribbon(sin(ang*5.0+r*9.0+phase*9.0),0.16);
+		a=radial*edge;col=mix(vec3(1.0,0.55,0.04),vec3(1.0,1.0,0.87),radial);
+	} else if (silhouette==13) { // short-range psychic rings surround target
+		a=ribbon(r-0.64,0.075)+ribbon(length(p*vec2(1.35,0.8))-0.48,0.065);
+		col=mix(tint.rgb,vec3(1.0,0.48,0.94),0.55);
+	}
+	ALBEDO = col;
+	ALPHA = clamp(a * shape * intensity * (element_mode==0 ? 1.0:edge), 0.0, 0.9);
 }
 """
+	fx_halo_additive=shader
+	fx_halo_body=Shader.new()
+	# Physical materials must be able to darken the background: additive-only
+	# rendering turns dirt, rock and toxic liquid into tiny yellow glimmers.
+	fx_halo_body.code=shader.code.replace("blend_add","blend_mix")
 	var quad:=QuadMesh.new();quad.size=Vector2(1.0,1.0)
 	for i in range(FX_HALO_CAP):
 		var halo:=MeshInstance3D.new()
@@ -2282,6 +2431,11 @@ func ultra_attack_ribbons(burst:Dictionary,t:float)->void:
 	var outer:=Color(str(style[2]))
 	var source:Vector3=points[0]
 	var target:Vector3=points[-1]
+	if kind=="drain":
+		var victim:Variant=confirmed_stage_target(burst,true)
+		if victim==null:return
+		target=victim
+		points=[source,target]
 	var forward:=Vector3(target.x-source.x,0,target.z-source.z).normalized()
 	if forward.length_squared()<.0001:forward=Vector3.FORWARD
 	var side:=Vector3(-forward.z,0,forward.x)
@@ -2317,18 +2471,36 @@ func ultra_impact_residue(burst:Dictionary)->void:
 	var profile:Dictionary=burst.profile
 	var element:String=str(profile.element)
 	var id:String=str(burst.id)
+	# Still-grounded choreography owns its finish. Do not append an
+	# undocumented lingering elemental residue (e.g. orange Sacred Fire).
+	if id in RTDX_OBSERVED_MOVES:return
 	var record:Dictionary=Rules.MOVE_LIBRARY.get(id,Rules.DEV_NATIVE_MOVES.get(id,{}))
 	if str(record.get("category",""))=="status":return
 	if not element in ["fire","water","ice","ground","rock","poison","electric","grass","dragon","steel"]:return
 	var results:Dictionary=burst.get("results",{})
-	var target:Vector3=burst.points[-1]
-	var tile:=Vector2i(roundi(target.x/1.4),roundi(target.z/1.4))
-	var result:Dictionary=results.get(tile,{})
-	if int(result.get("damage",0))<=0 and int(burst.get("damage",0))<=0:return
+	var points:Array=burst.points
+	if points.is_empty():return
+	var target:Vector3=points[-1]
+	var primary:=Vector2i(roundi(target.x/1.4),roundi(target.z/1.4))
+	# Aggregate cast damage does not establish which tile was hit.
+	# Keep at most four confirmed damage marks, nearest first, with stable ties.
+	var cells:Array[Vector2i]=[]
+	for tile in results:
+		if not tile is Vector2i:continue
+		var row:Dictionary=results[tile]
+		if int(row.get("damage",0))>0:cells.append(tile)
+	cells.sort_custom(func(a:Vector2i,b:Vector2i)->bool:
+		var da:int=(a-primary).length_squared()
+		var db:int=(b-primary).length_squared()
+		if da!=db:return da<db
+		if a.x!=b.x:return a.x<b.x
+		return a.y<b.y)
 	var style:Array=combat_style(id)
 	var life:float=.65 if element in ["fire","electric","dragon"] else .90
-	if fx_residues.size()>=FX_RESIDUE_CAP:fx_residues.pop_front()
-	fx_residues.append({"at":Vector3(target.x,.065,target.z),"element":element,"color":Color(str(style[1])),"dark":Color(str(style[2])),"age":0.0,"life":life})
+	for i in range(mini(4,cells.size())):
+		var at:Vector3=pos(cells[i])
+		if fx_residues.size()>=FX_RESIDUE_CAP:fx_residues.pop_front()
+		fx_residues.append({"at":Vector3(at.x,.065,at.z),"element":element,"color":Color(str(style[1])),"dark":Color(str(style[2])),"age":0.0,"life":life})
 
 # A hit response belongs to the confirmed impact, not the launch frame.
 func queue_ultra_reaction(at:Vector3,direction:Vector3,terminal:bool)->void:
@@ -2395,19 +2567,26 @@ func ultra_update_residues(dt:float,used:int)->int:
 		cinematic_halo(at,mark.color,1.3+t*.6,fade*.16,t,true)
 	return used
 
-func cinematic_halo(at:Vector3,color:Color,extent:float,opacity:float,phase:float,ground:bool)->void:
+func cinematic_halo(at:Vector3,color:Color,extent:float,opacity:float,phase:float,ground:bool,element_mode:int=0,variation:float=0.0,silhouette:int=0,heading:float=0.0,shape_phase:float=0.0,aspect:Vector2=Vector2.ONE)->void:
 	if fx_halos_used>=fx_halos.size() or opacity<=.012:return
 	var index:int=fx_halos_used;fx_halos_used+=1
 	var halo:MeshInstance3D=fx_halos[index]
 	var mat:ShaderMaterial=fx_halo_materials[index]
+	var material_shader:Shader=fx_halo_body if element_mode in [1,2,4,5,6,7,8,11,13,15,16] else fx_halo_additive
+	if mat.shader!=material_shader:mat.shader=material_shader
 	halo.position=at
 	halo.rotation=Vector3(-PI*.5,0,0) if ground else Vector3.ZERO
 	if not ground and is_instance_valid(camera):halo.global_basis=camera.global_basis.orthonormalized()
-	halo.scale=Vector3.ONE*extent
+	halo.scale=Vector3(extent*aspect.x,extent*aspect.y,extent)
 	mat.set_shader_parameter("tint",color)
 	mat.set_shader_parameter("intensity",opacity)
 	mat.set_shader_parameter("phase",phase)
 	mat.set_shader_parameter("ring_mix",1.0 if ground else 0.0)
+	mat.set_shader_parameter("element_mode",element_mode)
+	mat.set_shader_parameter("variation",variation)
+	mat.set_shader_parameter("silhouette",silhouette)
+	mat.set_shader_parameter("heading",heading)
+	mat.set_shader_parameter("material_phase",shape_phase)
 	halo.show()
 
 func cinematic_light(at:Vector3,color:Color,energy:float,extent:float)->void:
@@ -2417,12 +2596,242 @@ func cinematic_light(at:Vector3,color:Color,energy:float,extent:float)->void:
 	light.omni_range=extent;light.light_energy=energy
 	light.show()
 
+const ELEMENT_SHADER_MODES={"fire":1,"water":2,"electric":3,"poison":4,"grass":5,"ice":6,"ground":7,"rock":8,"flying":9,"fighting":10,"bug":11,"psychic":12,"ghost":13,"dragon":14,"dark":15,"steel":16,"fairy":17,"normal":18}
+
+# A continuous shaded material is composited behind the existing authored pixels.
+# Reserve only one pooled quad per cast; never allocate effects during combat.
+# Per-move material choreography, shared only where behavior is actually related.
+# DX visual references: Ember compact orange plume, Sacred Fire blue clouds,
+# Psywave target rings. Remaining forms are original authored approximations.
+func elemental_silhouette(role:String,kind:String)->int:
+	match role:
+		"fire_sacred":return 10
+		"water_bubble","water_bubblebeam":return 11
+		"electric_burst","electric_charge","electric_room":return 12
+		"psi_wave":return 13
+		"electric_sky","water_fall","water_spout","fire_eruption","fire_plume":return 3
+		"fire_breath","water_pump","water_cannon","electric_beam":return 2
+		"fire_ember","water_gun","electric_orb":return 1
+		"fire_heatwave","water_surf":return 7
+		"fire_vortex","water_whirlpool","fire_wheel":return 5
+		"fire_blastburn","fire_overheat":return 9
+	match kind:
+		"stream","arc","dash","dart":return 1
+		"cone":return 2
+		"fall","rise","eruption":return 3
+		"burst","wave":return 4
+		"coil","wheel","helix","shield","gather":return 5
+		"contact","sweep","whip":return 6
+		"ground":return 7
+		"pincer":return 8
+		"drain":return 1
+	return 9
+
+# RTDX-inspired independent presentation tracks. All resources here refer
+# to Kindria's own cue families; no original game binaries or FX are used.
+# A backend may resolve the same track into a native emitter, sprite or mesh.
+# Authored finishing materials: primary, secondary, emission, spread, lift.
+# No extra nodes or emitters are allocated for these move-specific layers.
+const MOVE_FINISH_ART={
+	"fire_ember":["ember","smoke","#ff9b46",.55,.45],
+	"fire_breath":["flame","ember","#ffb04c",.82,.75],
+	"fire_sacred":["flame","cloud","#bcecff",.70,1.25],
+	"fire_wisp":["flame","smoke","#bb8cff",.45,.85],
+	"fire_heatwave":["wave","ember","#ff823a",1.30,.35],
+	"fire_blast":["flame","impact_star","#ffbd58",1.25,.90],
+	"fire_overheat":["smoke","ember","#ff5733",1.35,1.25],
+	"fire_eruption":["flame","shards","#ff9a37",.85,1.75],
+	"water_bubble":["bubble","drop","#8befff",.48,.80],
+	"water_bubblebeam":["bubble","bubble","#b2f5ff",.60,.55],
+	"water_gun":["drop","drop","#72cfff",.44,.40],
+	"water_pump":["drop","wave","#55c4ff",.95,.85],
+	"water_surf":["wave","drop","#7ceeff",1.45,.55],
+	"water_whirlpool":["spiral","bubble","#5dd9eb",.90,.70],
+	"water_ink":["smoke","drop","#5066b3",.65,.30],
+	"water_spout":["drop","bubble","#b6f6ff",.85,1.65],
+	"electric_sky":["lightning","impact_star","#fff3a0",.55,1.65],
+	"electric_short":["lightning","lightning","#ffe76a",.30,.35],
+	"electric_burst":["shock_ring","lightning","#fff279",1.15,.48],
+	"electric_beam":["lightning","beam","#fff8bd",.42,.50],
+	"electric_orb":["impact_star","lightning","#f5ff9c",.72,.72],
+	"electric_wave":["shock_ring","lightning","#a8eaff",.95,.22],
+	"electric_room":["lightning","shock_ring","#fef2a6",1.40,1.10],
+	"ice_beam":["crystal","beam","#c1f5ff",.48,.40],
+	"ice_shard":["shards","crystal","#d9faff",.30,.35],
+	"ice_blizzard":["crystal","cloud","#d2edff",1.30,1.05],
+	"ice_powder":["cloud","crystal","#f0fbff",.80,.55],
+	"ice_avalanche":["shards","cloud","#b2def8",1.20,.85],
+	"air_cutter":["slash","slash","#e2fff2",.70,.45],
+	"air_gust":["wave","cloud","#c0ecdf",.90,.35],
+	"air_sky":["slash","shock_ring","#e8faff",.65,1.15],
+	"air_drill":["spiral","slash","#c8f4ff",.52,.60],
+	"air_blast":["beam","slash","#e1ffff",1.05,.70]}
+# V13.1: material-specific finishes for the previously under-authored roles.
+const V13_FINISH_ART={"poison_smog":["smoke","cloud","#b79acb",1.05,0.48],"poison_gas":["cloud","smoke","#bf7ce1",1.15,0.7],"poison_toxic":["venom_splash","drop","#b558f4",0.72,0.32],"poison_fang":["drop","venom_splash","#bd8bf2",0.55,0.48],"poison_powder":["projectile_spore","cloud","#d8a4eb",0.95,0.9],"poison_sting":["projectile_thorn","drop","#e1aaff",0.42,0.45],"poison_sludge":["drop","venom_splash","#a766cf",0.75,0.4],"poison_bomb":["venom_splash","drop","#b25ee0",1.25,0.8],"poison_tail":["slash","venom_splash","#d4a3ff",0.8,0.48],"poison_acid":["drop","venom_splash","#d8ea76",0.75,0.3],"poison_cross":["slash","drop","#d99aff",0.95,0.65],"poison_gunk":["venom_splash","smoke","#8c4aa9",1.4,0.75],"poison_jab":["projectile_thorn","venom_splash","#d4a9f8",0.58,0.38],"poison_spikes":["projectile_thorn","venom_splash","#bc79d8",0.72,0.25],"earth_dig":["shards","earth_hole","#ba9365",0.85,0.9],"earth_tomb":["shards","smoke","#d6b77c",1.15,0.25],"earth_slap":["drop","smoke","#b39770",0.52,0.26],"earth_club":["projectile_bone","shards","#e8d8b8",0.68,0.65],"earth_shot":["projectile_stone","smoke","#c6a678",0.7,0.4],"earth_power":["shards","smoke","#e4ac55",1.05,1.65],"earth_bomb":["drop","shards","#a4835a",1.12,0.7],"earth_rush":["projectile_bone","shards","#e9d9bd",0.58,0.5],"earth_return":["projectile_bone","impact_star","#f3e2c5",0.65,0.6],"earth_fissure":["earth_hole","shards","#a77946",1.25,0.3],"earth_quake":["shards","smoke","#c6a16a",1.55,0.5],"earth_magnitude":["shards","shock_ring","#d6b684",1.2,0.65],"earth_spikes":["projectile_thorn","shards","#c3a17b",0.68,0.3],"rock_throw":["projectile_stone","shards","#c9bdad",0.75,0.72],"rock_slide":["projectile_stone","smoke","#b6ac9e",1.1,1.15],"rock_tomb":["shards","projectile_stone","#c4b09a",0.9,1.28],"rock_ancient":["projectile_stone","spiral","#ddd0bc",0.85,0.82],"rock_wrecker":["projectile_stone","shards","#e0c5ac",1.55,1.15],"rock_edge":["shards","crystal","#d8d1c7",0.78,1.4],"rock_gem":["crystal","impact_star","#ffe4bd",0.62,0.65],"rock_smash":["shards","shock_ring","#d6b499",1.3,0.82],"rock_blast":["projectile_stone","shards","#bfb7aa",0.82,0.62],"rock_roll":["projectile_stone","smoke","#ad9a80",0.88,0.35],"rock_storm":["shards","smoke","#d8bc88",1.35,0.5],"rock_trap":["projectile_stone","shards","#c1b5a3",0.78,0.35],"grass_giga":["leaf","spiral","#a6f38c",0.88,0.8],"grass_absorb":["leaf","impact_star","#b7ed8c",0.45,0.45],"grass_solar":["beam","leaf","#eaff8e",0.8,0.65],"grass_vine":["leaf","special_vine","#96d56c",0.62,0.5],"grass_needle":["projectile_thorn","leaf","#c5ef8d",0.58,0.58],"grass_frenzy":["projectile_thorn","leaf","#a9d46d",1.35,1.7],"grass_razor":["leaf","slash","#c4ff99",0.8,0.62],"grass_magic":["leaf","impact_star","#dafab4",0.9,0.95],"grass_mega":["leaf","spiral","#9ce880",0.66,0.6],"grass_blade":["slash","leaf","#d7ffad",0.72,0.62],"grass_wood":["shards","leaf","#b88b57",1.18,0.88],"grass_energy":["leaf","spiral","#bbff83",0.88,0.82],"grass_knot":["special_vine","leaf","#9cd46f",0.66,0.32],"grass_flare":["leaf","impact_star","#efffb0",1.28,1.05],"grass_bomb":["projectile_seed","leaf","#a9db69",1.03,0.9],"grass_whip":["special_vine","leaf","#79c65c",1.05,0.72],"grass_storm":["leaf","slash","#b0ed80",1.55,1.25],"grass_bullet":["projectile_seed","leaf","#c5e696",0.55,0.5],"grass_petal":["leaf","spiral","#f1a1d6",1.12,0.92],"fight_chop":["slash","impact_star","#fff1cf",0.64,0.4],"fight_break":["shards","shock_ring","#ffc58a",0.95,0.62],"fight_reversal":["impact_star","shock_ring","#ffb070",1.15,0.6],"fight_cross":["slash","impact_star","#fff0b3",0.88,0.65],"fight_lowkick":["shards","impact_star","#f3c49a",0.66,0.2],"fight_submission":["shock_ring","impact_star","#ffc69b",0.9,0.52],"fight_uppercut":["impact_star","slash","#ffe1b0",0.65,1.2],"fight_jumpkick":["slash","impact_star","#ffe0b3",0.8,0.85],"fight_highkick":["impact_star","shock_ring","#ffd49a",1.05,1.12],"fight_super":["shock_ring","impact_star","#ff9c64",1.42,0.9],"fight_dynamic":["impact_star","shock_ring","#ffb86e",1.15,0.85],"fight_mach":["slash","impact_star","#fff3d7",0.48,0.28],"fight_roundkick":["shock_ring","slash","#ffe7b8",0.88,0.45],"fight_hammer":["impact_star","shards","#ffc494",1.1,0.82],"fight_close":["impact_star","slash","#fff1cb",1.05,0.65],"fight_blast":["shock_ring","impact_star","#ffbc85",1.2,1],"fight_vacuum":["wave","slash","#e8f5e8",0.78,0.44],"fight_drain":["spiral","impact_star","#bbef96",0.65,0.62],"fight_palm":["shock_ring","impact_star","#ffe3b7",0.85,0.45],"fight_aura":["spiral","impact_star","#a5dbff",0.9,0.78],"fight_slap":["impact_star","slash","#fff0db",0.57,0.38],"fight_thrust":["impact_star","shock_ring","#ffdbad",0.67,0.55],"psi_beam":["beam","spiral","#f3b6ff",0.74,0.55],"psi_wave":["spiral","wave","#e7a4fb",0.82,0.45],"psi_psychic":["projectile_eye","spiral","#e7a1fc",1.05,0.85],"psi_boost":["spiral","impact_star","#ffabf5",1.35,1.1],"psi_extra":["wave","spiral","#e5c4ff",0.75,0.65],"psi_confusion":["spiral","impact_star","#dcafff",0.7,0.45],"psi_mist":["cloud","spiral","#e1c0ff",0.85,0.83],"psi_dream":["spiral","smoke","#c4a4ed",0.66,0.62],"psi_luster":["projectile_prism","impact_star","#fff1d7",1.05,0.95],"psi_cut":["slash","spiral","#edc1ff",0.75,0.65],"psi_zen":["spiral","impact_star","#f3b8ff",0.88,0.64],"ghost_astonish":["smoke","impact_star","#c1a4e7",0.62,0.75],"ghost_lick":["special_tongue","smoke","#d9a9ee",0.6,0.5],"ghost_punch":["smoke","impact_star","#c6a3ef",0.78,0.58],"ghost_ball":["smoke","spiral","#b38de8",1.1,0.95],"ghost_shade":["smoke","cloud","#a797df",1.1,0.78],"ghost_wind":["smoke","slash","#bfadea",1.35,1.1],"ghost_sneak":["smoke","slash","#ac8fd8",0.62,0.48],"ghost_claw":["claw_spectral","smoke","#cfb4ff",0.82,0.8],"ghost_force":["smoke","shock_ring","#b99ce8",1.2,1.02],"bug_leech":["leaf","special_thread","#b9e480",0.55,0.48],"bug_silver":["leaf","impact_star","#e5f7d9",1.18,0.82],"bug_signal":["beam","projectile_prism","#caff86",0.65,0.65],"bug_twin":["projectile_needle","shards","#d7ec9e",0.55,0.42],"bug_pin":["projectile_needle","leaf","#bde982",0.6,0.56],"bug_horn":["shards","leaf","#cae68d",0.92,0.75],"bug_cross":["slash","leaf","#d8f4a7",0.84,0.65],"bug_buzz":["special_wave","leaf","#d5e992",1.05,0.7],"dragon_rage":["flame","shock_ring","#d3a0ff",1.15,0.88],"dragon_twister":["spiral","flame","#b6b1ff",0.92,1.35],"dragon_claw":["slash","flame","#dab1ff",0.85,0.8],"dragon_flame":["flame","ember","#ffad8a",0.8,0.75],"dragon_breath":["flame","ember","#c5a7ff",0.92,0.85],"dragon_rend":["slash","spiral","#c9a3ff",1.45,0.9],"dragon_time":["wave","spiral","#9ddcff",1.48,1.02],"dragon_rush":["flame","impact_star","#dcb2ff",1.12,0.85],"dragon_meteor":["meteor","flame","#ffb687",1.48,1.65],"dragon_pulse":["spiral","flame","#b7a6ff",1.02,0.74],"dark_crunch":["smoke","impact_star","#9573c6",0.85,0.55],"dark_bite":["smoke","slash","#b08ccf",0.55,0.4],"dark_faint":["smoke","slash","#9c83c8",0.7,0.5],"dark_thief":["slash","smoke","#ae93ca",0.62,0.46],"dark_knock":["impact_star","smoke","#b59bd6",0.84,0.65],"dark_pulse":["spiral","smoke","#9e75d4",1.1,0.66],"dark_punish":["slash","shock_ring","#b287d5",1,0.68],"dark_slash":["slash","smoke","#bb96e7",0.82,0.58],"dark_sucker":["impact_star","smoke","#b79bdc",0.68,0.42],"steel_tail":["slash","shards","#d7eaff",0.95,0.7],"steel_meteor":["shards","impact_star","#e1f1ff",1.15,0.92],"steel_wing":["slash","shards","#d4e8ff",0.92,0.62],"steel_claw":["slash","shards","#e3f2ff",0.74,0.6],"steel_head":["shards","impact_star","#d7e8f4",0.85,0.65],"steel_gyro":["shards","spiral","#d5e8f5",0.88,0.52],"steel_bullet":["shards","impact_star","#e5f2ff",0.55,0.4],"steel_magnet":["projectile_stone","shards","#b8d1e5",0.87,0.74],"steel_mirror":["crystal","impact_star","#e9f8ff",0.75,0.68],"steel_flash":["beam","shards","#e6f4ff",1.1,0.72],"neutral_tri":["impact_star","spiral","#fff0d4",0.94,0.7],"neutral_beam":["beam","shock_ring","#fff2cb",1.4,0.8],"neutral_pay":["projectile_coin","impact_star","#ffdd83",0.82,0.85],"neutral_explosion":["smoke","shock_ring","#ffd29c",1.5,1.15],"neutral_self":["smoke","ember","#ffd8ab",1.12,0.8],"normal_giga":["shock_ring","impact_star","#ffe4b0",1.4,0.75],"lib_fairy_1":["impact_star","projectile_comet","#ffc5ec",0.64,0.75],"lib_fairy_2":["impact_star","bubble","#ffd9f5",1.1,0.95],"lib_fairy_3":["projectile_prism","impact_star","#ffe4f7",1.1,0.8],"celestial_verdict":["impact_star","projectile_comet","#fff0d1",1.4,1.35]}
+const ELEMENT_MATERIAL_ART={"fire":["ember","smoke","#ffaf57",0.85,0.85],"water":["drop","wave","#82dcff",0.88,0.75],"electric":["lightning","impact_star","#fff2a2",0.85,0.58],"poison":["venom_splash","drop","#cd96f4",0.9,0.45],"grass":["leaf","projectile_thorn","#b4ef83",0.88,0.85],"ice":["crystal","shards","#d7f5ff",0.85,0.68],"ground":["shards","smoke","#c7a471",1,0.48],"rock":["projectile_stone","shards","#c8bbae",0.98,0.85],"flying":["slash","wave","#d9f8ff",0.9,0.65],"fighting":["impact_star","shock_ring","#ffce9f",0.9,0.6],"bug":["special_thread","leaf","#d8ed9e",0.8,0.7],"psychic":["spiral","projectile_eye","#e4a8ff",0.88,0.72],"ghost":["smoke","cloud","#c0a4e9",0.93,0.95],"dragon":["flame","spiral","#d6adff",1,0.9],"dark":["slash","smoke","#a68acb",0.85,0.58],"steel":["shards","crystal","#d7eaff",0.87,0.65],"fairy":["impact_star","projectile_comet","#ffd3ef",0.95,0.9],"normal":["impact_star","slash","#fff0d5",0.85,0.55]}
+func move_finish_art(id:String,profile:Dictionary)->Array:
+	var role:String=str(profile.role)
+	return MOVE_FINISH_ART.get(id,MOVE_FINISH_ART.get(role,V13_FINISH_ART.get(id,V13_FINISH_ART.get(role,ELEMENT_MATERIAL_ART.get(str(profile.element),ELEMENT_MATERIAL_ART.normal)))))
+
+func elemental_track_plan(id:String,profile:Dictionary)->Array:
+	var role:String=str(profile.role)
+	var cue:Array=AUTHORED_STAGE_FX.get(id,AUTHORED_STAGE_FX.get(role,["contact","impact_star",4,.35,.4]))
+	var kind:String=str(cue[0])
+	var material:String=str(cue[1])
+	var peak:float=float(profile.impact)
+	var element:String=str(profile.element)
+	var records:Dictionary=Rules.MOVE_LIBRARY.get(id,Rules.DEV_NATIVE_MOVES.get(id,{}))
+	var status:bool=str(records.get("category",""))=="status"
+	var travel:bool=kind in ["stream","cone","dash","arc","whip","helix","fall","rise","eruption","wave","drain"]
+	var area:bool=str(profile.pattern) in ["room","floor","radius","cross","fan"] or kind in ["burst","ground","wave","coil"]
+	var impact_material:String=material
+	match element:
+		"fire":impact_material="ember"
+		"water":impact_material="drop"
+		"electric":impact_material="lightning"
+		"poison":impact_material="venom_splash"
+		"ice","steel":impact_material="crystal"
+		"rock","ground":impact_material="shards"
+		"grass":impact_material="leaf"
+		"ghost","dark":impact_material="smoke"
+	var finish_art:Array=move_finish_art(id,profile)
+	if not finish_art.is_empty():impact_material=str(finish_art[0])
+	var plan:Array=[
+		{"stage":"ally_invoke","anchor":"source","start":0.0,"end":peak*.24,"material":material,"enabled":true},
+		{"stage":"enemy_invoke","anchor":"source","start":0.0,"end":peak*.24,"material":material,"enabled":true},
+		{"stage":"caster","anchor":str(profile.socket),"start":0.0,"end":peak,"material":material,"enabled":true},
+		{"stage":"projectile","anchor":"path","start":peak*.18,"end":peak,"material":material,"enabled":travel,"motion":kind,"spread":float(cue[3]),"height":float(cue[4])},
+		{"stage":"area","anchor":"tiles","start":peak,"end":lerpf(peak,1.0,.85),"material":impact_material,"enabled":area},
+		{"stage":"impact","anchor":"target","start":peak,"end":1.0,"material":impact_material,"enabled":not status},
+		{"stage":"projectile_impact","anchor":"target","start":peak,"end":lerpf(peak,1.0,.68),"material":impact_material,"enabled":travel and not status}]
+	return plan
+
+# Localized material and lighting should not vanish just because the selected
+# target missed while a different creature was hit by the same cast.
+func secondary_material_target(results:Dictionary,primary:Vector2i)->Variant:
+	var found:bool=false
+	var best:=Vector2i.ZERO
+	var best_dist:int=0
+	for tile in results:
+		if not tile is Vector2i or tile==primary:continue
+		var row:Dictionary=results[tile]
+		if int(row.get("damage",0))+int(row.get("effects",0))+int(row.get("heal",0))<=0:continue
+		var cell:Vector2i=tile
+		var distance:int=(cell-primary).length_squared()
+		if not found or distance<best_dist or (distance==best_dist and (cell.x<best.x or (cell.x==best.x and cell.y<best.y))):
+			found=true;best=cell;best_dist=distance
+	if not found:return null
+	return pos(best)+Vector3.UP*.55
+
+# An authored post-contact layer can follow a secondary result, but the
+# original projectile path must never be rewritten before impact.
+func confirmed_stage_target(burst:Dictionary,damage_only:bool=false)->Variant:
+	var points:Array=burst.get("points",[])
+	if points.is_empty():return null
+	var target:Vector3=points[-1]
+	var primary:=Vector2i(roundi(target.x/1.4),roundi(target.z/1.4))
+	var results:Dictionary=burst.get("results",{})
+	if not damage_only:
+		var row:Dictionary=results.get(primary,{})
+		if int(row.get("damage",0))+int(row.get("effects",0))+int(row.get("heal",0))>0:return target
+		return secondary_material_target(results,primary)
+	var row:Dictionary=results.get(primary,{})
+	if int(row.get("damage",0))>0:return target
+	var victims:Dictionary={}
+	var source:Vector3=points[0]
+	var source_cell:=Vector2i(roundi(source.x/1.4),roundi(source.z/1.4))
+	for tile in results:
+		if not tile is Vector2i or tile==source_cell:continue
+		if int(results[tile].get("damage",0))>0:victims[tile]=results[tile]
+	return secondary_material_target(victims,primary)
+
+func legacy_stage_visible(burst:Dictionary,t:float)->bool:
+	if t<float(burst.profile.impact):return true
+	var points:Array=burst.get("points",[])
+	if points.is_empty():return false
+	var target:Vector3=points[-1]
+	var tile:=Vector2i(roundi(target.x/1.4),roundi(target.z/1.4))
+	var row:Dictionary=burst.get("results",{}).get(tile,{})
+	# Dedicated terrain and travel layers run separately even on empty tiles.
+	return int(row.get("damage",0))+int(row.get("effects",0))+int(row.get("heal",0))>0
+
+func cinematic_element_surface(burst:Dictionary,t:float)->void:
+	var points:Array=burst.points
+	if points.is_empty():return
+	var id:String=str(burst.id)
+	var profile:Dictionary=burst.profile
+	var element:String=str(profile.element)
+	var shader_mode:int=int(ELEMENT_SHADER_MODES.get(element,18))
+	var record:Dictionary=Rules.MOVE_LIBRARY.get(id,Rules.DEV_NATIVE_MOVES.get(id,{}))
+	var status:bool=str(record.get("category",""))=="status"
+	var peak:float=clampf(float(profile.impact),.01,.99)
+	var role:String=str(profile.role)
+	var cue_key:String=id if AUTHORED_STAGE_FX.has(id) else role
+	var cue:Array=AUTHORED_STAGE_FX.get(cue_key,["contact","impact_star",4,.35,.4])
+	var kind:String=str(cue[0])
+	var spread:float=float(cue[3])
+	var height:float=float(cue[4])
+	var before:bool=t<peak
+	var progress:float=clampf(t/peak,0.0,1.0)
+	var after:float=clampf((t-peak)/(1.0-peak),0.0,1.0)
+	var source:Vector3=points[0];var target:Vector3=points[-1]
+	var tile:=Vector2i(roundi(target.x/1.4),roundi(target.z/1.4))
+	var results:Dictionary=burst.get("results",{})
+	var row:Dictionary=results.get(tile,{})
+	if not before and int(row.get("damage",0))+int(row.get("effects",0))+int(row.get("heal",0))<=0:
+		var alternative:Variant=secondary_material_target(results,tile)
+		if alternative==null:return
+		target=alternative
+	var anchor:Vector3=combat_path_sample(points,progress) if before else target
+	var ground:bool=kind=="ground" or (not before and element in ["ground","rock","poison"])
+	if kind=="fall" and before:anchor=target+Vector3.UP*height*(1.0-progress)
+	elif kind=="rise" and before:anchor=source+Vector3.UP*height*progress
+	elif kind=="eruption" and before:anchor=target+Vector3.UP*height*progress
+	elif kind=="arc" and before:anchor.y+=height*sin(progress*PI)
+	elif kind in ["gather","shield"] and before:anchor=source
+	elif kind=="drain" and not before:
+		var victim:Variant=confirmed_stage_target(burst,true)
+		if victim==null:return
+		anchor=source.lerp(victim,1.0-after)
+	if ground:anchor.y=.065
+	var envelope:float=sin(progress*PI) if before else pow(1.0-after,1.35)
+	var extent:float=clampf(.96+spread*1.10+height*.30,1.15,2.55)*(1.0+after*.28)
+	var opacity:float=envelope*(.50 if status else .94)
+	if kind in ["burst","contact","pincer"] and before:opacity*=smoothstep(.5,1.0,progress)
+	var style:Array=combat_style(id)
+	var silhouette:int=elemental_silhouette(role,kind)
+	var shape_phase:float=progress if before else after
+	var aspect:=Vector2.ONE
+	var heading:float=0.0
+	if silhouette in [1,2]:
+		aspect=Vector2(1.48,.70) if silhouette==1 else Vector2(1.75,.90)
+		if is_instance_valid(camera):
+			var a:Vector2=camera.unproject_position(source)
+			var b:Vector2=camera.unproject_position(target)
+			if a.distance_squared_to(b)>.001:heading=-(b-a).angle()
+	elif silhouette==3:aspect=Vector2(.82,1.55)
+	elif silhouette==7:aspect=Vector2(1.5,.92)
+	if silhouette==10:extent*=1.20
+	if silhouette==13:anchor=target;aspect=Vector2(.88,1.25)
+	# Rotate the plane itself for directional masks; preserve world ground plane.
+	var previous_count:int=fx_halos_used
+	cinematic_halo(anchor,Color(str(style[1])),extent,opacity,t,ground,shader_mode,float(posmod(id.hash(),97))/13.0,silhouette,0.0,shape_phase,aspect)
+	if not ground and fx_halos_used>previous_count and silhouette in [1,2]:
+		var mesh:MeshInstance3D=fx_halos[previous_count]
+		mesh.rotate_object_local(Vector3.BACK,heading)
+	# Tall or broad effects get a second lobe only while there is room in the pool.
+	if silhouette in [9,10] and fx_halos_used<FX_HALO_CAP-2:
+		var offset:=Vector3(sin(t*5.0)*spread*.56,height*.32,cos(t*5.0)*spread*.43)
+		cinematic_halo(anchor+offset,Color(str(style[1])),extent*.76,opacity*.72,t,ground,shader_mode,float(posmod(id.hash(),97))/13.0+1.7,silhouette,0.0,shape_phase)
+
 func cinematic_cast_enhancement(burst:Dictionary,t:float)->void:
 	var points:Array=burst.points
 	if points.is_empty():return
 	var profile:Dictionary=burst.profile
 	var style:Array=combat_style(str(burst.id))
 	var color:=Color(str(style[1])).lerp(Color(str(style[2])),.34)
+	var art:Array=move_finish_art(str(burst.id),profile)
+	if not art.is_empty():color=Color(str(art[2]))
 	var element:String=str(profile.element)
 	var record:Dictionary=Rules.MOVE_LIBRARY.get(str(burst.id),Rules.DEV_NATIVE_MOVES.get(str(burst.id),{}))
 	var status:bool=str(record.get("category",""))=="status"
@@ -2433,7 +2842,12 @@ func cinematic_cast_enhancement(burst:Dictionary,t:float)->void:
 	var results:Dictionary=burst.get("results",{})
 	var tile:=Vector2i(roundi(target.x/1.4),roundi(target.z/1.4))
 	var result:Dictionary=results.get(tile,{})
-	var miss:bool=not result.is_empty() and int(result.get("damage",0))+int(result.get("effects",0))+int(result.get("heal",0))<=0
+	var miss:bool=int(result.get("damage",0))+int(result.get("effects",0))+int(result.get("heal",0))<=0
+	if miss and t>=peak:
+		var alternative:Variant=secondary_material_target(results,tile)
+		if alternative!=null:
+			target=alternative
+			miss=false
 	var wide:bool=profile.pattern in ["room","floor","radius","cross","fan"]
 	var strength:float=.7 if luminous else .40
 	if status:strength*=.62
@@ -2448,14 +2862,420 @@ func cinematic_cast_enhancement(burst:Dictionary,t:float)->void:
 		var after:float=clampf((t-peak)/(1.0-peak),0.0,1.0)
 		var fade:float=pow(1.0-after,2.0)
 		var extent:float=2.0 if wide else 1.25
-		cinematic_halo(target,color,extent*(.82+after*.5),strength*fade*.8,after,false)
+		cinematic_halo(target,color,extent*(.82+after*.5),strength*fade*.42,after,false)
 		if not status:
 			cinematic_halo(Vector3(target.x,.06,target.z),color,extent*(.84+after*.9),strength*fade*.62,after,true)
 		cinematic_light(target+Vector3.UP*.4,color,strength*fade*(1.35 if wide else 1.0),2.9 if wide else 2.2)
 
+# Original GBA-inspired impact emblem: detached toes and compact sole pad.
+# Drawn analytically at 32px; no external game graphics are bundled.
+func kick_pad_distance(p:Vector2,center:Vector2,radii:Vector2,rotation:float=0.0)->float:
+	var q:Vector2=(p-center).rotated(rotation)
+	return Vector2(q.x/radii.x,q.y/radii.y).length()
+
+func classic_kick_stamp(mode:String,light:Color,dark:Color)->Image:
+	var im:=Image.create(32,32,false,Image.FORMAT_RGBA8)
+	im.fill(Color.TRANSPARENT)
+	var angle:float=0.0
+	if mode.begins_with("kick_side"):angle=-.64
+	elif mode.begins_with("kick_raised"):angle=-.24
+	elif mode=="kick_heel":angle=.48
+	var edge:=Color("#fff3db").lerp(light,.35)
+	var body:=dark.lerp(light,.42)
+	var shadow:=dark.darkened(.28)
+	for y in range(32):
+		for x in range(32):
+			var p:=Vector2(float(x)-15.5,float(y)-15.5).rotated(-angle)
+			if mode.ends_with("_mirror"):p.x=-p.x
+			# The three individual toe pads read instantly as a creature kick.
+			var left:float=kick_pad_distance(p,Vector2(-8.2,-5.2),Vector2(3.3,4.4),-.48)
+			var middle:float=kick_pad_distance(p,Vector2(-.6,-9.1),Vector2(3.7,4.5),.05)
+			var right:float=kick_pad_distance(p,Vector2(7.6,-5.9),Vector2(3.4,4.2),.46)
+			var pad:float=minf(kick_pad_distance(p,Vector2(.2,3.1),Vector2(6.2,5.6)),kick_pad_distance(p,Vector2(-.1,7.6),Vector2(3.5,4.6)))
+			var d:float=minf(minf(left,middle),minf(right,pad))
+			if d>1.0:continue
+			var ink:Color=body
+			if d>.81:ink=edge
+			elif d>.63 or p.y>8.0:ink=shadow
+			elif p.y<0.0:ink=body.lerp(light,.30)
+			im.set_pixel(x,y,ink)
+	return im
+
+# Original 32px contact marks: separated tapered talon cuts or a single blade.
+# No source game sprite is copied. The palette supplies the elemental identity.
+func claw_contact_stamp(mode:String,light:Color,dark:Color)->Image:
+	var im:=Image.create(32,32,false,Image.FORMAT_RGBA8)
+	im.fill(Color.TRANSPARENT)
+	var lanes:int=3
+	if mode in ["claw_blade","claw_crescent"]:lanes=1
+	elif mode=="claw_scratch":lanes=2
+	elif mode=="claw_crush":lanes=4
+	var width:float=1.9 if mode=="claw_crush" else 1.25
+	if lanes==1:width=2.5
+	for y in range(32):
+		for x in range(32):
+			var p:=Vector2(float(x)-15.5,float(y)-15.5).rotated(-.65)
+			if mode=="claw_crescent":p=Vector2(float(x)-15.5,float(y)-15.5).rotated(.20)
+			var u:float=(p.y+12.5)/25.0
+			if u<=0.0 or u>=1.0:continue
+			var taper:float=pow(sin(u*PI),.65)
+			for lane in range(lanes):
+				var offset:float=(float(lane)-float(lanes-1)*.5)*5.4
+				var curve:float=(u-.5)*(u-.5)*12.0-2.0
+				if mode=="claw_crescent":curve=(u-.5)*(u-.5)*27.0-3.0
+				var distance:float=absf(p.x-offset-curve)
+				if distance>width*taper+1.05:continue
+				var ink:Color=dark
+				if distance<width*taper:ink=light
+				if mode=="claw_spectral" and u>.78 and posmod(x+y,4)==0:ink.a*=.38
+				im.set_pixel(x,y,ink)
+	return im
+
+# Compact creature-contact emblems: horn, armored head, body pressure,
+# sweeping tail and piercing drill. Original pixel geometry, never a human limb.
+func body_contact_stamp(mode:String,light:Color,dark:Color)->Image:
+	var im:=Image.create(32,32,false,Image.FORMAT_RGBA8)
+	im.fill(Color.TRANSPARENT)
+	var shape:String=mode.trim_suffix("_mirror")
+	for y in range(32):
+		for x in range(32):
+			var p:=Vector2(float(x)-15.5,float(y)-15.5)
+			if mode.ends_with("_mirror"):p.x=-p.x
+			var fill:bool=false
+			var inner:bool=false
+			match shape:
+				"body_horn","body_drill":
+					var u:float=clampf((p.x+12.0)/25.0,0.0,1.0)
+					var axis:float=-3.5*u*u+1.5
+					var width:float=6.5*(1.0-u)+.5
+					fill=p.x>=-12.0 and p.x<=13.0 and absf(p.y-axis)<width
+					inner=fill and absf(p.y-axis)<width*.52
+					if shape=="body_drill" and fill and absf(fposmod(p.x+p.y*.7,5.0)-2.5)<.8:inner=false
+				"body_head","body_armor":
+					var dome:float=Vector2((p.x+1.0)*.85,(p.y+1.0)*1.1).length()
+					var brow:bool=p.x>1.0 and p.x<12.0 and absf(p.y+2.0)<4.0
+					fill=dome<10.5 or brow
+					inner=fill and p.y<-1.0 and dome<8.8
+					if shape=="body_armor" and fill and absf(p.x+p.y*.45-2.0)<1.1:inner=false
+				"body_tail","body_tail_blade":
+					var u:float=(p.x+12.0)/25.0
+					var curve:float=6.0-13.0*sin(clampf(u,0.0,1.0)*PI*.9)
+					var width:float=5.1*(1.0-clampf(u,0.0,1.0))+.9
+					fill=u>=0.0 and u<=1.0 and absf(p.y-curve)<width
+					inner=fill and absf(p.y-curve)<width*.55
+					if shape=="body_tail_blade" and u>.72:
+						fill=fill or (u<=1.0 and absf(p.y-curve)<(1.0-u)*13.0)
+						inner=fill and absf(p.y-curve)<1.4
+				"body_slam":
+					var r:float=Vector2(p.x*.78,p.y*1.4).length()
+					fill=(r>6.5 and r<10.5) or (absf(p.x)<2.0 and p.y<4.0 and p.y>-12.0)
+					inner=fill and (r>8.0 or absf(p.x)<.8)
+				_:
+					var chevron:float=absf(p.x-(9.0-absf(p.y)*.78))
+					var second:float=absf(p.x-(0.0-absf(p.y)*.78))
+					fill=absf(p.y)<12.0 and (chevron<2.8 or second<2.0)
+					inner=fill and (chevron<1.3 or second<.8)
+			if fill:im.set_pixel(x,y,light if inner else dark)
+	return im
+
+# Small readable pixel emblems for tether, sound and restraint effects.
+func special_contact_stamp(mode:String,light:Color,dark:Color)->Image:
+	var im:=Image.create(32,32,false,Image.FORMAT_RGBA8)
+	im.fill(Color.TRANSPARENT)
+	for y in range(32):
+		for x in range(32):
+			var p:=Vector2(float(x)-15.5,float(y)-15.5)
+			var distance:float=99.0
+			match mode:
+				"special_tongue","special_vine","special_thread":
+					var axis:float=sin(p.x*.23)*4.1
+					var width:float=3.5 if mode=="special_tongue" else 1.9 if mode=="special_vine" else .65
+					if absf(p.x)<13.0:distance=absf(p.y-axis)-width
+					if mode=="special_vine" and absf(p.x+4.0)<3.5:distance=minf(distance,Vector2(p.x+4.0,(p.y-axis-3.0)*1.7).length()-3.0)
+				"special_coil":
+					var rr:float=Vector2(p.x*.76,p.y*1.25).length()
+					distance=minf(absf(rr-8.8),absf(rr-5.4))-1.2
+				"special_clamp":
+					var jaw:float=Vector2(p.x*.84,p.y*1.15).length()
+					if absf(p.y)>2.0:distance=absf(jaw-9.0)-2.2
+				"special_note":
+					var stem:float=maxf(absf(p.x-2.0)-1.2,absf(p.y+3.0)-8.2)
+					var head:float=Vector2((p.x+2.0)*.7,p.y-7.0).length()-3.0
+					var flag:float=Vector2(p.x-5.0,p.y+8.0).length()-2.8
+					distance=minf(stem,minf(head,flag))
+				"special_wave":
+					var rr:float=Vector2(p.x*.85,p.y).length()
+					if p.x>0.0:distance=minf(absf(rr-5.0),minf(absf(rr-9.0),absf(rr-13.0)))-.9
+			if distance<=0.0:im.set_pixel(x,y,light if distance<-.8 else dark)
+	return im
+
+# Original compact projectile stamps. Existing elemental sprites remain available.
+func projectile_contact_stamp(mode:String,light:Color,dark:Color)->Image:
+	var im:=Image.create(32,32,false,Image.FORMAT_RGBA8)
+	im.fill(Color.TRANSPARENT)
+	for y in range(32):
+		for x in range(32):
+			var p:=Vector2(float(x)-15.5,float(y)-15.5)
+			var d:float=99.0
+			match mode:
+				"projectile_bone":
+					d=maxf(absf(p.x)-10.0,absf(p.y)-2.4)
+					for tip in [-1.0,1.0]:
+						for edge in [-1.0,1.0]:
+							d=minf(d,p.distance_to(Vector2(tip*10.0,edge*3.0))-4.0)
+				"projectile_thorn":
+					var u:float=(p.x+12.0)/25.0
+					if u>=0.0 and u<=1.0:d=absf(p.y+3.0*u*u)-(4.8*(1.0-u)+.5)
+				"projectile_spore":
+					d=minf(p.distance_to(Vector2(-5,-3))-4.3,minf(p.distance_to(Vector2(5,3))-4.7,p.distance_to(Vector2(3,-6))-3.5))
+				"projectile_crescent":
+					d=maxf(p.length()-12.0,10.4-p.distance_to(Vector2(5,-4)))
+				"projectile_comet":
+					d=minf(p.distance_to(Vector2(5,0))-6.5,maxf(absf(p.y)-(5.0*(p.x+14.0)/18.0+.4),maxf(-14.0-p.x,p.x-4.0)))
+				"projectile_eye":
+					var eye:float=absf(p.y)-(7.5*maxf(0.0,1.0-absf(p.x)/13.0))
+					d=absf(eye)-.9
+					if absf(p.x)>13.0:d=99.0
+					d=minf(d,p.length()-3.2)
+				"projectile_prism":
+					d=maxf(absf(p.x)*.82+absf(p.y)*.66-9.8,absf(p.x)-11.0)
+				"projectile_coin":
+					d=absf(Vector2(p.x*.92,p.y*1.3).length()-8.5)-2.2
+					d=minf(d,maxf(absf(p.x)-1.1,absf(p.y)-5.0))
+				"projectile_parcel":
+					d=maxf(absf(p.x)-8.5,absf(p.y-2.0)-8.0)
+					d=minf(d,absf(Vector2(absf(p.x)-4.0,p.y+9.0).length()-3.4)-1.0)
+				"projectile_card":
+					var q:Vector2=p.rotated(.32)
+					d=maxf(absf(q.x)-6.3,absf(q.y)-10.6)
+				"projectile_feather":
+					var u:float=(p.x+12.0)/25.0
+					if u>=0.0 and u<=1.0:d=absf(p.y+2.0*sin(u*PI))-(4.4*sin(u*PI)+.5)
+				"projectile_seed":
+					d=Vector2((p.x-p.y*.25)*.85,p.y*1.35).length()-8.0
+				"projectile_needle":
+					if absf(p.x)<13.0:d=absf(p.y)-maxf(.7,3.2*(1.0-(p.x+13.0)/26.0))
+				"projectile_stone":
+					d=maxf(absf(p.x+p.y*.22)*.75,absf(p.y)*.85)+absf(p.x-p.y)*.18-9.0
+				"projectile_orb":
+					d=p.length()-10.0
+				"projectile_flare":
+					# Five-point flame emblem, an authored Fire Blast silhouette.
+					var r:float=p.length()
+					var a:float=atan2(p.y,p.x)
+					d=r-(6.3+5.0*pow(maxf(0.0,cos(a*5.0)),2.0))
+				"projectile_ray":
+					if absf(p.x)<14.0:d=absf(p.y)-maxf(1.2,3.6-absf(p.x)*.11)
+			if d>0.0:continue
+			var ink:Color=dark if d> -1.5 else light
+			if mode=="projectile_orb" and p.distance_to(Vector2(-3,-3))<3.2:ink=light.lerp(Color.WHITE,.65)
+			if mode=="projectile_seed" and absf(p.x-p.y*.25)<.8:ink=dark
+			im.set_pixel(x,y,ink)
+	return im
+
+# Original status symbols: crosses, ward facets, arrows and crescent sleep.
+func support_contact_stamp(mode:String,light:Color,dark:Color)->Image:
+	var im:=Image.create(32,32,false,Image.FORMAT_RGBA8)
+	im.fill(Color.TRANSPARENT)
+	for y in range(32):
+		for x in range(32):
+			var p:=Vector2(float(x)-15.5,float(y)-15.5)
+			var d:float=99.0
+			match mode:
+				"support_heart":
+					var lobes:float=minf(p.distance_to(Vector2(-4.5,-3.8)),p.distance_to(Vector2(4.5,-3.8)))-5.6
+					var tip:float=maxf(absf(p.x)*1.05+p.y-9.0,-p.y-4.0)
+					d=minf(lobes,tip)
+				"support_cross":
+					d=minf(maxf(absf(p.x)-2.4,absf(p.y)-9.5),maxf(absf(p.y)-2.4,absf(p.x)-9.5))
+				"support_ward":
+					var shape:float=maxf(absf(p.x)*.95+maxf(0.0,p.y)*.45,absf(p.y)*.88)
+					d=absf(shape-10.0)-1.5
+				"support_up","support_down":
+					if mode=="support_down":p.y=-p.y
+					d=minf(maxf(absf(p.x)-1.6,absf(p.y)-9.5),maxf(absf(p.y+7.0-absf(p.x))-.9,absf(p.x)-7.0))
+				"support_moon":
+					d=maxf(p.length()-10.0,8.5-p.distance_to(Vector2(5,-4)))
+				"support_seal":
+					d=minf(absf(p.length()-10.0)-1.3,absf(p.y-p.x)-1.1 if p.length()<9.0 else 99.0)
+				"support_change":
+					d=minf(absf(p.length()-10.0)-1.25,absf(absf(p.x)+absf(p.y)-7.0)-1.2)
+			if d<=0.0:im.set_pixel(x,y,light if d<-.8 else dark)
+	return im
+
+# Creature wings, pointed beaks, open palms and chop marks. These are not
+# human-leg sprites, and differ from the closed fist or claw silhouettes.
+func motion_contact_stamp(mode:String,light:Color,dark:Color)->Image:
+	var im:=Image.create(32,32,false,Image.FORMAT_RGBA8)
+	im.fill(Color.TRANSPARENT)
+	var shape:String=mode.trim_prefix("motion_").trim_suffix("_mirror")
+	for y in range(32):
+		for x in range(32):
+			var p:=Vector2(float(x)-15.5,float(y)-15.5)
+			if mode.ends_with("_mirror"):p.x=-p.x
+			var d:float=99.0
+			match shape:
+				"wing":
+					var u:float=(p.x+12.0)/25.0
+					var axis:float=-5.0*sin(clampf(u,0.0,1.0)*PI)
+					if u>=0.0 and u<=1.0:
+						d=absf(p.y-axis)-maxf(.9,8.0*sin(u*PI))
+						if p.y>axis and absf(fposmod(p.x+p.y*.30,5.0)-2.5)<.65:d=maxf(d,.25)
+				"beak":
+					var u:float=(p.x+11.0)/24.0
+					if u>=0.0 and u<=1.0:
+						d=absf(p.y+2.0*u)-(6.0*(1.0-u)+.4)
+						if absf(p.y+2.0*u)<.65:d=maxf(d,.2)
+				"bone":
+					d=maxf(absf(p.x)-10.0,absf(p.y)-2.8)
+					for tip in [-1.0,1.0]:
+						for edge in [-1.0,1.0]:
+							d=minf(d,p.distance_to(Vector2(tip*10.0,edge*3.0))-4.0)
+				"thorn":
+					var u:float=(p.x+12.0)/25.0
+					if u>=0.0 and u<=1.0:d=absf(p.y+3.0*u*u)-(5.0*(1.0-u)+.5)
+				"pincer":
+					var base:float=Vector2(p.x+6.0,p.y*1.2).length()-6.4
+					var jaw:float=absf(Vector2(p.x-1.0,p.y*.88).length()-9.0)-2.8
+					if p.x>7.0 and absf(p.y)<3.5:jaw=99.0
+					d=minf(base,jaw)
+				"palm":
+					d=Vector2(p.x*.85,(p.y-3.0)*1.1).length()-6.5
+					for j in range(4):
+						var finger_x:float=-5.7+float(j)*3.8
+						var finger_top:float=-10.0+absf(float(j)-1.5)*1.8
+						var finger:float=maxf(absf(p.x-finger_x)-1.45,maxf(finger_top-p.y,p.y-1.0))
+						d=minf(d,finger)
+					d=minf(d,Vector2(p.x+7.8,(p.y-2.0)*.70).length()-2.5)
+				"chop":
+					var a:Vector2=p.rotated(.75)
+					d=maxf(absf(a.x)-2.1,absf(a.y)-11.0)
+				"cross":
+					d=minf(maxf(absf(p.x-p.y)-2.0,absf(p.x+p.y)-16.0),maxf(absf(p.x+p.y)-2.0,absf(p.x-p.y)-16.0))
+				_:
+					d=absf(p.x-(8.0-absf(p.y)*.78))-2.6
+					if absf(p.y)>12.0:d=99.0
+			if d<=0.0:im.set_pixel(x,y,light if d<-.8 else dark)
+	return im
+
+# Original high-resolution soft flame/contact masks. Only the visible
+# shape and palette are reference-grounded; no captured pixels are sampled.
+func rtdx_material_stamp(mode:String,light:Color,dark:Color)->Image:
+	var im:=Image.create(64,64,false,Image.FORMAT_RGBA8)
+	im.fill(Color.TRANSPARENT)
+	for y in range(64):
+		for x in range(64):
+			var p:=Vector2((float(x)-31.5)/30.0,(float(y)-31.5)/30.0)
+			var alpha:float=0.0
+			var tint:Color=light
+			match mode:
+				"rtdx_flame","rtdx_bluefire":
+					var body:float=(p/Vector2(.72,.83)).length()
+					var lobe:float=((p-Vector2(.18,-.42))/Vector2(.42,.49)).length()
+					var rim:float=minf(body,lobe)+sin(p.x*18.0+p.y*11.0)*.07+sin(p.y*24.0-p.x*7.0)*.05
+					alpha=1.0-smoothstep(.38,1.10,rim)
+					tint=dark.lerp(light,1.0-smoothstep(.05,.81,rim))
+				"rtdx_scratch":
+					var center:=Vector2(-.24,-.25)
+					var q:Vector2=p-center
+					var angle:float=q.angle()
+					if angle>-.15 and angle<1.74:
+						var thickness:float=.018+.082*sin((angle+.15)/1.89*PI)
+						alpha=1.0-smoothstep(thickness,thickness+.045,absf(q.length()-.88))
+				"rtdx_peck":
+					# Compact right-facing tapered golden wedge, not a full beak icon.
+					var width:float=.40*clampf((.78-p.x)/1.53,0.0,1.0)
+					var distance:float=maxf(absf(p.y)-width,maxf(-.76-p.x,p.x-.80))
+					alpha=1.0-smoothstep(-.015,.045,distance)
+					tint=dark.lerp(light,clampf(.70+(.18-absf(p.y))*.65,0.0,1.0))
+				"rtdx_glint":
+					var beam:float=minf(absf(p.x)*4.8+absf(p.y)*.65,absf(p.y)*4.8+absf(p.x)*.65)
+					alpha=1.0-smoothstep(.15,.65,beam)
+				"rtdx_aircut":
+					var q:Vector2=p.rotated(-.62)
+					var width:float=.045*sqrt(maxf(0.0,1.0-q.x*q.x))
+					alpha=(1.0-smoothstep(width,width+.05,absf(q.y)))*(1.0-smoothstep(.78,1.0,absf(q.x)))
+				"rtdx_psy_ellipse":
+					var radius:float=(p/Vector2(.42,.88)).length()
+					alpha=1.0-smoothstep(.065,.18,absf(radius-1.0))
+					tint=dark.lerp(light,1.0-smoothstep(.02,.10,absf(radius-1.0)))
+				"rtdx_psychic":
+					var radius:float=(p/Vector2(.80,.91)).length()
+					alpha=(1.0-smoothstep(.22,1.0,radius))*.78
+					tint=dark.lerp(light,1.0-smoothstep(.1,.85,radius))
+				"rtdx_solar","rtdx_signal_strip":
+					# Continuous strip: narrow bright core and soft colored edge.
+					# The blue projectile tapers toward the trailing end.
+					var width:float=.24 if mode=="rtdx_solar" else lerpf(.07,.28,clampf((p.x+1.0)*.5,0.0,1.0))
+					var core:float=absf(p.y)/width
+					alpha=(1.0-smoothstep(.30,1.0,core))*(1.0-smoothstep(.94,1.06,absf(p.x)))
+					tint=dark.lerp(light,1.0-smoothstep(.10,.75,core))
+				"rtdx_dust":
+					# Diffuse gray-beige cloud, with irregular soft lobes.
+					var a:float=((p-Vector2(-.24,.03))/Vector2(.70,.59)).length()
+					var b:float=((p-Vector2(.26,-.12))/Vector2(.64,.73)).length()
+					var rim:float=minf(a,b)+.05*sin(p.x*19.0+p.y*13.0)
+					alpha=(1.0-smoothstep(.35,1.07,rim))*.84
+					tint=dark.lerp(light,1.0-smoothstep(.08,.9,rim))
+				"rtdx_lowkick":
+					# Pale foot-contact emblem; original shape, not a traced asset.
+					var sole:float=((p-Vector2(0,.23))/Vector2(.38,.56)).length()
+					var toe:float=((p-Vector2(-.18,-.37))/Vector2(.19,.22)).length()
+					var toe2:float=((p-Vector2(.12,-.43))/Vector2(.16,.20)).length()
+					var distance:float=minf(sole,minf(toe,toe2))
+					alpha=1.0-smoothstep(.91,1.07,distance)
+					tint=dark.lerp(light,1.0-smoothstep(.5,1.0,distance))
+			tint.a=alpha
+			im.set_pixel(x,y,tint)
+	return im
+
 func combat_pixel_texture(mode:String,light:Color,dark:Color)->ImageTexture:
-	var key:=mode+str(light)+str(dark)
+	var key:=mode+":"+str(light)+":"+str(dark)
 	if combat_textures.has(key):return combat_textures[key]
+	# Existing sprites retain references after cache eviction. Bound the number
+	# of resident material variants even in an endless developer dungeon.
+	if combat_texture_order.size()>=FX_MATERIAL_CACHE_CAP:
+		combat_textures.erase(combat_texture_order.pop_front())
+	if mode.begins_with("rtdx_"):
+		var stamp:=ImageTexture.create_from_image(rtdx_material_stamp(mode,light,dark))
+		combat_textures[key]=stamp
+		combat_texture_order.append(key)
+		return stamp
+	if mode.begins_with("motion_"):
+		var motion_stamp:=ImageTexture.create_from_image(motion_contact_stamp(mode,light,dark))
+		combat_textures[key]=motion_stamp
+		combat_texture_order.append(key)
+		return motion_stamp
+	if mode.begins_with("support_"):
+		var support_stamp:=ImageTexture.create_from_image(support_contact_stamp(mode,light,dark))
+		combat_textures[key]=support_stamp
+		combat_texture_order.append(key)
+		return support_stamp
+	if mode.begins_with("projectile_"):
+		var shot_stamp:=ImageTexture.create_from_image(projectile_contact_stamp(mode,light,dark))
+		combat_textures[key]=shot_stamp
+		combat_texture_order.append(key)
+		return shot_stamp
+	if mode.begins_with("special_"):
+		var special_stamp:=ImageTexture.create_from_image(special_contact_stamp(mode,light,dark))
+		combat_textures[key]=special_stamp
+		combat_texture_order.append(key)
+		return special_stamp
+	if mode.begins_with("body_"):
+		var body_stamp:=ImageTexture.create_from_image(body_contact_stamp(mode,light,dark))
+		combat_textures[key]=body_stamp
+		combat_texture_order.append(key)
+		return body_stamp
+	if mode.begins_with("claw_"):
+		var claw_stamp:=ImageTexture.create_from_image(claw_contact_stamp(mode,light,dark))
+		combat_textures[key]=claw_stamp
+		combat_texture_order.append(key)
+		return claw_stamp
+	if mode.begins_with("kick_"):
+		var stamp:=ImageTexture.create_from_image(classic_kick_stamp(mode,light,dark))
+		combat_textures[key]=stamp
+		combat_texture_order.append(key)
+		return stamp
 	var im:=Image.create(16,16,false,Image.FORMAT_RGBA8);im.fill(Color.TRANSPARENT)
 	for y in range(16):
 		for x in range(16):
@@ -2464,6 +3284,31 @@ func combat_pixel_texture(mode:String,light:Color,dark:Color)->ImageTexture:
 			var fill:bool=false
 			var inner:bool=false
 			match mode:
+				"fist_front","fist_steel","fist_ghost":
+					# Four rounded knuckles, curled thumb and a narrow wrist.
+					var knuckle:float=absf(fposmod(v.x+1.5,3.0)-1.5)
+					var crown:float=-5.8+knuckle*.8+absf(v.x)*.09
+					var palm:bool=absf(v.x)<5.7 and v.y>=crown and v.y<3.6-absf(v.x)*.10
+					var thumb:bool=(v-Vector2(-4.7,.9)).length()<2.3
+					var wrist:bool=absf(v.x+.4)<3.5 and v.y>=2.8 and v.y<6.6
+					fill=palm or thumb or wrist
+					inner=fill and ((palm and v.y<-.5 and knuckle>.38) or (thumb and v.x<-4.4) or (wrist and v.x<-1.0))
+					if mode=="fist_steel" and fill and (absf(v.y+1.0)<.5 or absf(v.x)<.5):inner=true
+					if mode=="fist_ghost" and v.y>3.0 and posmod(x+y,3)==0:fill=false
+				"bite_upper","bite_lower","crunch_upper","crunch_lower","fang_upper","fang_lower":
+					var upper:bool=mode.ends_with("_upper")
+					var heavy:bool=mode.begins_with("crunch")
+					var fang:bool=mode.begins_with("fang")
+					var jaw_y:float=v.y if upper else -v.y
+					var half_width:float=7.0 if heavy else 5.8
+					var rim:float=-2.0+absf(v.x)*.34
+					var band:bool=absf(v.x)<half_width and jaw_y>=rim-2.0 and jaw_y<=rim+.5
+					var tooth_dist:float=absf(absf(v.x)-4.0) if fang else absf(fposmod(v.x+1.5,3.0)-1.5)
+					var tooth_length:float=5.6 if heavy else 4.5 if fang else 3.2
+					var depth:float=jaw_y-rim
+					var tooth:bool=absf(v.x)<half_width and depth>=0.0 and depth<tooth_length and tooth_dist<1.45*(1.0-depth/tooth_length)
+					fill=band or tooth
+					inner=tooth and depth>.35 and tooth_dist<maxf(.35,.85*(1.0-depth/tooth_length))
 				"venom_splash":
 					fill=(r<4.0 or (r<7.2 and sin(atan2(v.y,v.x)*5.0)>.40) or (r>5.8 and posmod(x*3+y*7,13)==0))
 					inner=r<2.8 or (fill and v.x+v.y<-2.5)
@@ -2491,25 +3336,57 @@ func combat_pixel_texture(mode:String,light:Color,dark:Color)->ImageTexture:
 				"drop":
 					fill=r<3.9 or (v.y<0 and absf(v.x)<(7.0+v.y)*.46)
 					inner=r<2.0 and v.x<0
-				"bubble","wave","spiral":
-					fill=r>=4.5 and r<=7.0
-					inner=fill and v.x+v.y<0
-				"slash","fan":
-					fill=absf(v.y-v.x*.65)<2.0 and absf(v.x)<7.0
-					inner=fill and absf(v.y-v.x*.65)<.85
-				"dart","shards":
-					fill=absf(v.x)+absf(v.y)*.55<5.5
-					inner=absf(v.x+1.0)+absf(v.y)*.65<2.5
-				"whip","lightning":
+				"bubble":
+					fill=(r>=5.1 and r<=7.0) or (v-Vector2(-2.6,-3.1)).length()<1.45
+					inner=fill and (v.x+v.y<-3.0 or r<5.1)
+				"wave":
+					var crest:float=sin(v.x*.43)*2.3
+					fill=absf(v.x)<7.0 and (absf(v.y-crest)<1.3 or absf(v.y-crest-3.2)<.7)
+					inner=fill and absf(v.y-crest)<.65
+				"spiral":
+					var angle:float=atan2(v.y,v.x)
+					var arm:float=absf(sin(angle-r*.85))
+					fill=r<7.1 and (arm<.25 or r<1.5)
+					inner=fill and (arm<.11 or r<1.5)
+				"slash":
+					var cut:float=v.y-v.x*.65+.065*v.x*v.x
+					fill=absf(cut)<maxf(.5,2.2-absf(v.x)*.21) and absf(v.x)<7.0
+					inner=fill and absf(cut)<.7
+				"fan":
+					var angle:float=atan2(v.y,v.x+3.5)
+					fill=v.x>-4.0 and r<7.5 and absf(angle)<.78 and absf(sin(angle*9.0))<.48
+					inner=fill and v.x<1.0
+				"dart":
+					fill=absf(v.y)<maxf(.55,(v.x+7.0)*.20) and v.x<7.0 and v.x>-7.0
+					inner=fill and absf(v.y)<.65
+				"shards":
+					fill=absf(v.x+v.y*.35)*1.45+absf(v.y)*.70<5.7
+					inner=fill and v.x+v.y*.35<.4 and absf(v.y)<4.5
+				"whip":
 					var center:float=sin(v.x*.65)*2.3
-					fill=absf(v.y-center)<2.0 and absf(v.x)<7.0
-					inner=fill and absf(v.y-center)<.9
+					fill=absf(v.y-center)<maxf(.8,1.7-v.x*.07) and absf(v.x)<7.0
+					inner=fill and absf(v.y-center)<.65
+				"lightning":
+					var zig:float=(absf(fposmod(v.x+7.0,6.0)-3.0)-1.5)*1.8
+					var fork:float=v.y-((v.x-1.0)*.9+2.0)
+					fill=(absf(v.y-zig)<1.25 and absf(v.x)<7.0) or (v.x>1.0 and absf(fork)<.7)
+					inner=fill and absf(v.y-zig)<.55
 				"web":
 					fill=r<7.0 and (absf(v.x)<1.0 or absf(v.y)<1.0 or absf(absf(v.x)-absf(v.y))<1.0 or absf(r-5.0)<.7)
 					inner=r<2.0
-				"flame","meteor","beam":
-					fill=absf(v.x)<(7.0-absf(v.y)*.65) and absf(v.y)<7.0
-					inner=fill and absf(v.x+1.0)<3.0 and absf(v.y+1.0)<4.0
+				"flame":
+					var w:float=4.8*(1.0-clampf((-v.y+1.0)/9.0,0.0,1.0))
+					var curl:float=sin(v.y*.48)*1.3
+					fill=absf(v.x-curl)<maxf(.65,w) and v.y>-7.0 and v.y<6.5
+					inner=fill and absf(v.x-curl+.7)<w*.50 and v.y>-.8
+				"meteor":
+					var core:float=(v-Vector2(2.0,2.0)).length()
+					var tail:float=absf(v.y-v.x)
+					fill=core<4.6 or (v.x<2.0 and v.y<2.0 and tail<maxf(.65,2.5+v.x*.20))
+					inner=fill and (core<2.7 or (tail<.7 and v.x<2.0))
+				"beam":
+					fill=absf(v.x)<7.5 and (absf(v.y)<2.6 or (absf(v.y)<4.3 and posmod(x+y,5)==0))
+					inner=fill and absf(v.y)<1.2
 				"cloud":
 					fill=r<6.8 and posmod(x*7+y*11,7)!=0
 					inner=r<3.0
@@ -2519,7 +3396,9 @@ func combat_pixel_texture(mode:String,light:Color,dark:Color)->ImageTexture:
 			if fill:im.set_pixel(x,y,light if inner else dark)
 	var texture:=ImageTexture.create_from_image(im)
 	combat_textures[key]=texture
+	combat_texture_order.append(key)
 	return texture
+const ELEMENT_NATIVE_PALETTE={"normal":["#fff1d7","#a8886a"],"fire":["#ffc16f","#d34e24"],"water":["#c6f6ff","#368cc0"],"electric":["#fff5a1","#c99c24"],"grass":["#d4fba1","#518b41"],"ice":["#dffaff","#62a8d8"],"ground":["#e5c799","#966c42"],"rock":["#e3d9c9","#887865"],"poison":["#e2b3fa","#8142a3"],"psychic":["#f5c1ff","#a35bc3"],"ghost":["#d7bcff","#6550a5"],"dark":["#c8acd9","#59406e"],"fighting":["#ffe6c2","#b77a48"],"flying":["#e7faff","#8db6c6"],"bug":["#e5f5aa","#748b42"],"dragon":["#e5c3ff","#8250ba"],"steel":["#e7f4ff","#798da4"],"fairy":["#ffd5ef","#bc76ad"]}
 func combat_style(id:String)->Array:
 	if Rules.MOVE_LIBRARY.has(id):
 		var move:Dictionary=Rules.MOVE_LIBRARY[id]
@@ -2530,6 +3409,12 @@ func combat_style(id:String)->Array:
 			var main:Array=Rules.SIGNATURE_SKILLS[species]
 			var original:Array=COMBAT_FX_STYLES[main[6]]
 			var alt:Array=Rules.SECONDARY_SKILLS[species]
+			var record:Dictionary=Rules.DEV_NATIVE_MOVES.get(id,{})
+			var primary:Dictionary=Rules.DEV_NATIVE_MOVES.get(str(main[6]),{})
+			var own_type:String=str(record.get("type","normal"))
+			if own_type!=str(primary.get("type",own_type)):
+				var own_palette:Array=ELEMENT_NATIVE_PALETTE.get(own_type,ELEMENT_NATIVE_PALETTE.normal)
+				return [alt[6],own_palette[0],own_palette[1],.34]
 			return [alt[6],original[1],original[2],.34]
 	return COMBAT_FX_STYLES.get(id,COMBAT_FX_STYLES.basic_strike)
 # Original hand-keyed pixel geometry. Every frame is a separate texture and is
@@ -3413,12 +4298,14 @@ func bug_sprite(im:Image,role:String,frame:int)->void:
 				fight_arc(im,q,8.0,-PI*.5,PI,Color("#f1ffff"),Color("#7eb0af"),2.4)
 				fx_disc(im,q+Vector2(2,15),1.5,silk)
 		"bug_signal":
-			for i in range(3):
-				var prev:=Vector2(2,20+float(i)*4)
-				for j in range(1,15):
-					var f:float=float(j)/14.0
-					var q:=Vector2(2+43*f,24+sin(f*TAU*2.0+t*TAU+float(i)*2.1)*6.0)
-					fx_line(im,prev,q,3.0,[Color("#fa829d"),Color("#7edbe4"),light][i]);prev=q
+			# Original blue tapered ray with a white leading glint, based on the DX still.
+			for j in range(36):
+				var f:float=float(j)/35.0
+				var q:=Vector2(4.0+f*35.0,24.0)
+				fx_disc(im,q,.4+f*3.1,Color("#2268e8",.72))
+				fx_disc(im,q,.2+f*1.55,Color("#6bd9ff"))
+			fx_line(im,Vector2(33,24),Vector2(45,24),.9,Color.WHITE)
+			fx_line(im,Vector2(39,18),Vector2(39,30),.9,Color.WHITE)
 		"bug_twin","bug_pin","bug_horn":
 			var count:int=2 if role=="bug_twin" else 5 if role=="bug_pin" else 1
 			for i in range(count):
@@ -3456,10 +4343,15 @@ func bug_sprite(im:Image,role:String,frame:int)->void:
 			var q:=c+Vector2(cos(t*TAU),sin(t*TAU))*14.0
 			bug_wing(im,q,t*TAU+PI*.5,6.0,light,dark)
 		"bug_buzz":
-			for i in range(4):
-				var r:float=5.0+float(i)*5.0+sin(t*TAU+float(i))*2.0
-				fx_disc(im,c,r,Color(light,.78),r-1.4)
-			bug_wing(im,c,t*TAU,7.0,silk,dark)
+			for i in range(3):
+				var radius:float=5.0+float(i)*6.0+t*2.0
+				fx_disc(im,c,radius,Color("#ffbf35",.78),radius-1.4)
+			for sign_value in [-1.0,1.0]:
+				var a:=c+Vector2(sign_value*7,-2)
+				var z:=c+Vector2(sign_value*21,-5)
+				fx_line(im,a,c+Vector2(sign_value*14,-5),2.4,Color("#ffe656"))
+				fx_line(im,c+Vector2(sign_value*14,-5),c+Vector2(sign_value*12,-1),2.0,Color("#ffe656"))
+				fx_line(im,c+Vector2(sign_value*12,-1),z,2.0,Color("#ffe656"))
 
 # Original mental energy, spatial and support glyphs; no source art is used.
 func psi_ring(im:Image,c:Vector2,r:float,light:Color,dark:Color)->void:
@@ -4394,53 +5286,193 @@ func status_sprite(im:Image,role:String,frame:int)->void:
 			else:
 				fx_disc(im,c,4.0+sin(t*PI)*7.0,light);fight_burst(im,c,10.0+sin(t*PI)*11.0,12,t,light,gold)
 
+# Native moves use their authored trajectory to construct a matching foreground
+# sprite layer, rather than sharing the same generic slash / cloud / beam.
+# Artist-review overrides: distinct focal silhouettes, not palette swaps.
+func native_signature_sprite(im:Image,id:String,frame:int)->bool:
+	var t:float=float(posmod(frame,FX_FRAME_COUNT))/float(FX_FRAME_COUNT-1)
+	var style:Array=combat_style(id)
+	var light:=Color(style[1]);var dark:=Color(style[2]);var ink:=dark.darkened(.55)
+	var center:=Vector2(24,24)
+	match id:
+		"alt_thornbeetle":
+			# Two opposing hooked talons close on the same point.
+			var reach:float=12.0-8.0*sin(t*PI)
+			for sign_value in [-1.0,1.0]:
+				var last:=center+Vector2(sign_value*(reach+7.0),-10.0)
+				for j in range(1,11):
+					var f:float=float(j)/10.0
+					var q:=center+Vector2(sign_value*(reach+7.0*cos(f*PI)), -10.0+f*23.0)
+					fx_line(im,last,q,2.8-f*1.7,ink)
+					fx_line(im,last,q,1.7-f*.9,dark)
+					fx_line(im,last-Vector2(0,1),q-Vector2(0,1),.65,light)
+					last=q
+		"alt_sylphowl":
+			# Three elongated feathers spiral outward with pointed barbs.
+			for j in range(3):
+				var angle:float=-1.2+float(j)*.85+t*1.4
+				var d:=Vector2(cos(angle),sin(angle));var side:=Vector2(-d.y,d.x)
+				var q:=center+d*(3.0+t*11.0)
+				fx_line(im,q-d*7.0,q+d*7.0,1.1,light)
+				for k in range(5):
+					var f:float=float(k)/4.0
+					var p:=q+d*(f*12.0-6.0)
+					fx_line(im,p,p-d*3.0+side*sin(f*PI)*4.0,1.0,dark)
+					fx_line(im,p,p-d*3.0-side*sin(f*PI)*3.0,.8,light)
+		"alt_comet_hare":
+			var q:=center+Vector2(-15.0+30.0*t,4.0-17.0*sin(t*PI))
+			for j in range(7,0,-1):
+				var p:float=maxf(0.0,t-float(j)*.045)
+				var tail:=center+Vector2(-15.0+30.0*p,4.0-17.0*sin(p*PI))
+				fx_disc(im,tail,3.8-float(j)*.42,dark)
+			fx_disc(im,q,4.0,ink);fx_disc(im,q,2.8,light)
+			for j in range(4):
+				var angle:float=float(j)*PI*.5+t
+				fx_line(im,q+Vector2(cos(angle),sin(angle))*4.0,q+Vector2(cos(angle),sin(angle))*7.0,.7,light)
+		"alt_celestial_guardian":
+			# Angular crystal blade fan, facets aligned along the swing.
+			for j in range(5):
+				var angle:float=-1.3+float(j)*.45+t*1.6
+				var d:=Vector2(cos(angle),sin(angle));var side:=Vector2(-d.y,d.x)
+				var q:=center+d*(10.0+3.0*sin(t*PI))
+				fx_line(im,q-d*5.0,q+d*5.0,2.7,ink)
+				fx_line(im,q-d*4.0+side,q+d*5.0,1.4,dark)
+				fx_line(im,q-d*4.0-side,q+d*4.0,.9,light)
+		"alt_jellymancer":
+			# Flexible liquid tendrils with a droplet at each terminal.
+			for j in range(3):
+				var last:=Vector2(8,15+float(j)*8.0)
+				for k in range(1,13):
+					var f:float=float(k)/12.0
+					var q:=Vector2(8+31.0*f,15+float(j)*8.0+sin(f*TAU*1.2-t*7.0)*4.0*f)
+					fx_line(im,last,q,1.5,dark);fx_line(im,last-Vector2(0,1),q-Vector2(0,1),.6,light)
+					last=q
+				fx_disc(im,last,2.4,dark);fx_disc(im,last-Vector2(0,1),1.1,light)
+		"alt_anemoneye":
+			# A pressure jet rises from a circular aperture; liquid peels away.
+			fx_disc(im,Vector2(24,34),9.0,dark,6.5)
+			for j in range(7):
+				var p:float=fposmod(t+float(j)*.13,1.0)
+				var q:=Vector2(24.0+sin(float(j)*2.4)*p*12.0,34.0-27.0*sin(p*PI))
+				fx_line(im,q,q+Vector2(0,4.0-p*2.0),1.8,dark)
+				fx_disc(im,q,1.1,light)
+		"alt_starlit_pup":
+			var q:=Vector2(7.0+34.0*t,24.0)
+			for j in range(3):
+				var tail:=q-Vector2(float(j+1)*6.0,0)
+				fx_line(im,tail-Vector2(3,0),tail+Vector2(1,0),1.0,dark)
+			for j in range(5):
+				var angle:float=float(j)*TAU/5.0-PI*.5
+				var d:=Vector2(cos(angle),sin(angle))
+				fx_line(im,q,q+d*7.0,1.9,dark);fx_line(im,q,q+d*5.0,.8,light)
+			fx_disc(im,q,2.0,light)
+		"alt_rootgnawer":
+			# Broad arrowhead leaf with visible stem and veins.
+			var q:=Vector2(8.0+30.0*t,24.0+sin(t*PI)*3.0)
+			fx_line(im,q-Vector2(10,0),q+Vector2(6,0),1.1,dark)
+			for j in range(6):
+				var f:float=float(j)/5.0
+				var p:=q+Vector2(-6.0+12.0*f,0)
+				var w:float=sin(f*PI)*5.5
+				fx_line(im,p-Vector2(0,w),p+Vector2(0,w),1.1,dark)
+				fx_line(im,p,p-Vector2(2,w*.8),.7,light)
+		_:return false
+	return true
+
+func native_stage_sprite(im:Image,id:String,frame:int)->void:
+	if not AUTHORED_STAGE_FX.has(id):return
+	var cue:Array=AUTHORED_STAGE_FX[id]
+	var kind:String=str(cue[0])
+	var material:String=str(cue[1])
+	var n:int=int(cue[2])
+	var spread:float=clampf(float(cue[3])*11.0,2.0,15.0)
+	var height:float=clampf(float(cue[4])*9.0,2.0,17.0)
+	var t:float=float(posmod(frame,FX_FRAME_COUNT))/float(FX_FRAME_COUNT-1)
+	var style:Array=combat_style(id)
+	var light:=Color(style[1]);var dark:=Color(style[2])
+	var center:=Vector2(24,24)
+	for i in range(n):
+		var f:float=float(i)/maxi(1,n-1)
+		var angle:float=f*TAU
+		var p:float=clampf(t*1.18-f*.18,0.0,1.0)
+		var q:=center+Vector2((p-.5)*29.0,(f-.5)*spread)
+		match kind:
+			"fall":q=center+Vector2(cos(angle)*spread,-height*(1.0-p)+sin(angle)*3.0)
+			"rise","eruption":q=center+Vector2(cos(angle)*spread*p,height*(.6-p))
+			"burst","contact":q=center+Vector2(cos(angle)*spread,sin(angle)*height)*sin(p*PI*.7)
+			"pincer":q=center+Vector2((-1.0 if i%2==0 else 1.0)*spread*(1.0-p), (f-.5)*height)
+			"cone":q=center+Vector2((p-.5)*29.0,(f-.5)*spread*p*1.8)
+			"helix","coil","wheel","shield":q=center+Vector2(cos(angle+t*TAU)*spread,sin(angle+t*TAU)*height)
+			"arc":q.y-=height*sin(p*PI)
+			"whip":q.y+=sin(f*TAU*1.3-t*5.0)*height*.65
+			"sweep":q=center+Vector2(cos(angle*.7+t*PI)*spread,sin(angle*.7+t*PI)*height)
+			"ground":q=center+Vector2(cos(angle)*spread,sin(angle)*spread*.30+height*.32)*(.45+.55*p)
+			"gather":q=center+Vector2(cos(angle)*spread,sin(angle)*height)*(1.0-p)
+			"wave":q.y+=sin(p*TAU+angle)*height*.48
+		var size:float=1.0+sin(f*PI)*1.1
+		match material:
+			"slash","dart","lightning","whip":
+				var direction:=Vector2(cos(angle),sin(angle)) if kind in ["sweep","wheel","coil"] else Vector2(1.0,-.35)
+				fx_line(im,q-direction*size*2.0,q+direction*size,dark.a*1.4,dark)
+				fx_line(im,q-direction*size,q+direction*size,.65,light)
+			"bubble","shock_ring","spiral","web":
+				fx_disc(im,q,size+1.4,dark,size*.65)
+				fx_disc(im,q-Vector2(.4,.4),size+.65,light,size*.9)
+			"crystal","shards","leaf":
+				fx_line(im,q+Vector2(-size,1),q+Vector2(size,-2),1.5,dark)
+				fx_line(im,q,q+Vector2(size,-2),.65,light)
+			_:
+				fx_disc(im,q,size+.6,dark)
+				fx_disc(im,q-Vector2(.5,.5),size*.55,light)
+
 func combat_frame_image(id:String,frame:int)->Image:
 	var style:Array=combat_style(id)
 	var mode:String=combat_animation_mode(id,str(style[0]))
 	var light:=Color(style[1]);var dark:=Color(style[2]);var edge:=dark.darkened(.52)
 	var im:=Image.create(FX_FRAME_SIZE,FX_FRAME_SIZE,false,Image.FORMAT_RGBA8);im.fill(Color.TRANSPARENT)
+	if native_signature_sprite(im,id,frame):return im
 	var t:float=float(posmod(frame,FX_FRAME_COUNT))/float(FX_FRAME_COUNT-1)
 	var role:String=str(combat_profile(id).role)
 	if role.begins_with("electric"):
-		electric_sprite(im,id,frame,role);return im
+		electric_sprite(im,id,frame,role);native_stage_sprite(im,id,frame);return im
 	if role.begins_with("fire_"):
-		fire_sprite(im,role,frame);return im
+		fire_sprite(im,role,frame);native_stage_sprite(im,id,frame);return im
 	if role.begins_with("water_"):
-		water_sprite(im,role,frame);return im
+		water_sprite(im,role,frame);native_stage_sprite(im,id,frame);return im
 	if role.begins_with("grass_"):
-		grass_sprite(im,role,frame);return im
+		grass_sprite(im,role,frame);native_stage_sprite(im,id,frame);return im
 	if role.begins_with("ice_"):
-		ice_sprite(im,role,frame);return im
+		ice_sprite(im,role,frame);native_stage_sprite(im,id,frame);return im
 	if role.begins_with("earth_"):
-		earth_sprite(im,role,frame);return im
+		earth_sprite(im,role,frame);native_stage_sprite(im,id,frame);return im
 	if role.begins_with("rock_"):
-		rock_sprite(im,role,frame);return im
+		rock_sprite(im,role,frame);native_stage_sprite(im,id,frame);return im
 	if role.begins_with("fight_"):
-		fight_sprite(im,role,frame);return im
+		fight_sprite(im,role,frame);native_stage_sprite(im,id,frame);return im
 	if role.begins_with("air_"):
-		air_sprite(im,role,frame);return im
+		air_sprite(im,role,frame);native_stage_sprite(im,id,frame);return im
 	if role.begins_with("poison_"):
-		poison_sprite(im,role,frame);return im
+		poison_sprite(im,role,frame);native_stage_sprite(im,id,frame);return im
 	if role.begins_with("bug_"):
-		bug_sprite(im,role,frame);return im
+		bug_sprite(im,role,frame);native_stage_sprite(im,id,frame);return im
 	if role.begins_with("psi_"):
-		psi_sprite(im,role,frame);return im
+		psi_sprite(im,role,frame);native_stage_sprite(im,id,frame);return im
 	if role.begins_with("ghost_"):
-		ghost_sprite(im,role,frame);return im
+		ghost_sprite(im,role,frame);native_stage_sprite(im,id,frame);return im
 	if role.begins_with("dragon_"):
-		dragon_sprite(im,role,frame);return im
+		dragon_sprite(im,role,frame);native_stage_sprite(im,id,frame);return im
 	if role.begins_with("dark_"):
-		dark_sprite(im,role,frame);return im
+		dark_sprite(im,role,frame);native_stage_sprite(im,id,frame);return im
 	if role.begins_with("steel_"):
-		steel_sprite(im,role,frame);return im
+		steel_sprite(im,role,frame);native_stage_sprite(im,id,frame);return im
 	if role.begins_with("normal_"):
-		normal_contact_sprite(im,role,frame);return im
+		normal_contact_sprite(im,role,frame);native_stage_sprite(im,id,frame);return im
 	if role.begins_with("neutral_"):
-		neutral_special_sprite(im,role,frame);return im
+		neutral_special_sprite(im,role,frame);native_stage_sprite(im,id,frame);return im
 	if role.begins_with("support_"):
-		support_sprite(im,role,frame);return im
+		support_sprite(im,role,frame);native_stage_sprite(im,id,frame);return im
 	if role.begins_with("status_"):
-		status_sprite(im,role,frame);return im
+		status_sprite(im,role,frame);native_stage_sprite(im,id,frame);return im
 	var center:=Vector2(24,24)
 	match mode:
 		"vine":
@@ -4528,6 +5560,7 @@ func combat_frame_image(id:String,frame:int)->Image:
 			for i in range(4):
 				var q:=p-Vector2(float(i)*4.0, sin(t*TAU+i)*3.0)
 				fx_disc(im,q,5.0-float(i),dark);fx_disc(im,q-Vector2(1,1),maxf(1.0,3.0-float(i)*.5),light)
+	native_stage_sprite(im,id,frame)
 	return im
 func combat_animated_texture(id:String,frame:int)->ImageTexture:
 	var normalized:int=posmod(frame,FX_FRAME_COUNT)
@@ -4560,6 +5593,11 @@ func combat_profile(id:String)->Dictionary:
 				reach=int(Rules.SECONDARY_SKILLS[species][0] if alt else skill[0])
 				pattern=str(Rules.SECONDARY_SKILLS[species][1] if alt else Rules.ATTACK_PATTERNS[species])
 				element=str(info[2] if alt else info[1]);break
+	if Rules.DEV_NATIVE_MOVES.has(id):
+		var native:Dictionary=Rules.DEV_NATIVE_MOVES[id]
+		element=str(native.type)
+		reach=int(native.reach)
+		pattern=str(native.pattern)
 	var role:String="contact" if mode in ["slash","leap","roll"] else "ground" if mode=="quake" else "cast" if mode in ["cloud","web","silk","wave","spiral"] else "projectile"
 	if mode in ["vine","whip"]:role="lash"
 	if mode=="lightning":role="electric_area" if pattern in ["cross","radius","fan","room"] else "electric_contact" if reach==1 else "electric_arc"
@@ -5414,6 +6452,81 @@ func snapshot_counter_geometry(event:Dictionary,source_actor:Node3D,target_actor
 	result["target_height"]=combat_actor_socket(target_actor,"center")
 	return result
 
+# Optional opt-in: the base game needs neither the extension nor demo assets.
+# Bindings are authored per move and stage, never a blanket element replacement.
+func configure_native_fx(bindings:Dictionary)->bool:
+	native_fx_bindings=bindings.duplicate(true)
+	if is_instance_valid(native_fx_backend):
+		native_fx_backend.call("reset")
+		native_fx_backend.queue_free()
+		native_fx_backend=null
+	if bindings.is_empty() or not is_instance_valid(combat_fx_root):return false
+	if not ClassDB.class_exists("EffekseerEmitter3D"):return false
+	var script_path:String="res://dungeon_effekseer_backend.gd"
+	if not ResourceLoader.exists(script_path):return false
+	var script:Script=load(script_path)
+	var backend:Node3D=script.new()
+	combat_fx_root.add_child(backend)
+	if not bool(backend.call("prepare")):
+		backend.queue_free()
+		return false
+	native_fx_backend=backend
+	return true
+
+func schedule_native_cast(burst:Dictionary,enemy:bool,target:Vector2i)->void:
+	if not is_instance_valid(native_fx_backend):return
+	var id:String=str(burst.id)
+	# Evidence-driven moves use their authored procedural renderer exclusively
+	# until an individual native binding has itself been visually audited.
+	if id in RTDX_OBSERVED_MOVES:return
+	if not native_fx_bindings.has(id):return
+	var bindings:Dictionary=native_fx_bindings[id]
+	var results:Dictionary=burst.get("results",{})
+	var confirmed:Array[Vector2i]=[]
+	for tile in results:
+		if not tile is Vector2i:continue
+		var row:Dictionary=results[tile]
+		if int(row.get("damage",0))+int(row.get("effects",0))+int(row.get("heal",0))>0:
+			confirmed.append(tile)
+	var hit:bool=confirmed.has(target)
+	# A room-scale layer plays once per cast, not once per victim.
+	# Localized hits retain their own target socket, never a missed tile.
+	var primary_plan:Array=[]
+	var area_plan:Array=[]
+	var secondary_plan:Array=[]
+	for track in burst.presentation_tracks:
+		var stage:String=str(track.stage)
+		if not bool(track.enabled) or not bindings.has(stage):continue
+		if stage=="area":
+			area_plan.append(track)
+		else:
+			primary_plan.append(track)
+		if stage=="impact":
+			secondary_plan.append(track)
+	var duration:float=float(burst.duration)
+	var primary_tiles:Array=[pos(target)+Vector3.UP*.12] if hit else []
+	native_fx_backend.call("schedule_cast",primary_plan,bindings,burst.points,primary_tiles,duration,enemy,hit)
+	if confirmed.is_empty():return
+	# Stable nearest-first selection keeps the cast readable under the mobile cap.
+	confirmed.sort_custom(func(a:Vector2i,b:Vector2i)->bool:
+		var da:int=(a-target).length_squared()
+		var db:int=(b-target).length_squared()
+		if da!=db:return da<db
+		if a.x!=b.x:return a.x<b.x
+		return a.y<b.y)
+	if not area_plan.is_empty():
+		var center:Vector2i=target if hit else confirmed[0]
+		var center_ground:Vector3=pos(center)+Vector3.UP*.12
+		native_fx_backend.call("schedule_cast",area_plan,bindings,[burst.points[0],center_ground],[center_ground],duration,enemy,true)
+	if secondary_plan.is_empty():return
+	var extra:int=0
+	for tile in confirmed:
+		if tile==target:continue
+		if extra>=4:break
+		var secondary:Vector3=pos(tile)+Vector3.UP*combat_actor_socket(combat_target_actor(tile),"center")
+		native_fx_backend.call("schedule_cast",secondary_plan,bindings,[burst.points[0],secondary],[pos(tile)+Vector3.UP*.12],duration,enemy,true)
+		extra+=1
+
 func combat_fx_spawn(event:Dictionary)->void:
 	if not is_instance_valid(combat_fx_root):return
 	var id:String=str(event.get("fx","basic_strike"))
@@ -5436,7 +6549,8 @@ func combat_fx_spawn(event:Dictionary)->void:
 	if tiles.is_empty():tiles.append(pos(target)+Vector3(0,.12,0))
 	if combat_bursts.size()>=COMBAT_BURST_CAP:
 		retire_combat_burst(combat_bursts.pop_front())
-	combat_bursts.append({"id":id,"mode":style[0],"profile":profile,"target_player":event.get("target_player",false),"damage":event.get("damage",0),"impacted":false,"age":0.0,"duration":float(style[3]),"points":waypoints,"tiles":tiles,"texture":combat_animated_texture(id,0),"results":event.get("results",{}).duplicate(true)})
+	combat_bursts.append({"id":id,"mode":style[0],"profile":profile,"target_player":event.get("target_player",false),"damage":event.get("damage",0),"impacted":false,"age":0.0,"duration":float(style[3]),"points":waypoints,"tiles":tiles,"presentation_tracks":elemental_track_plan(id,profile),"results":event.get("results",{}).duplicate(true)})
+	schedule_native_cast(combat_bursts[-1],event.has("uid"),target)
 	play_combat_sound(id,"launch",waypoints[0])
 # Leading projectile reaches its destination on the exact impact fraction.
 # Trailing particles are delayed within the remaining lifetime, never beyond it.
@@ -5548,7 +6662,7 @@ func update_combat_reactions(dt:float)->void:
 		actor.set_meta("pending_impact",pending)
 		actor.set_meta("enemy_hit_direction",reaction.direction)
 		enemy_pose(actor,"defeat" if reaction.defeated else "hurt",.32 if reaction.defeated else .20)
-		queue_ultra_reaction(actor.global_position+Vector3.UP*.54,reaction.direction,bool(reaction.defeated))
+		if actor.is_inside_tree():queue_ultra_reaction(actor.global_position+Vector3.UP*.54,reaction.direction,bool(reaction.defeated))
 		# The actor renderer advances dt later in this frame. Subtract the
 		# pre-impact portion now so only the actual post-impact age is applied.
 		actor.set_meta("enemy_clock",-clampf(dt+float(reaction.delay),0.0,dt))
@@ -5701,6 +6815,7 @@ func latest_player_impact(current:Dictionary,burst:Dictionary)->Dictionary:
 	return {"age":age,"direction":direction}
 
 func combat_fx_update(dt:float)->void:
+	if is_instance_valid(native_fx_backend):native_fx_backend.call("advance",dt)
 	update_cast_text(dt)
 	var latest_hit:Dictionary={}
 	update_delayed_combat_fx(dt)
@@ -5711,6 +6826,7 @@ func combat_fx_update(dt:float)->void:
 	update_combat_reactions(dt)
 	fx_ground_shake=maxf(0.0,fx_ground_shake-dt*3.0)
 	latest_hit=update_retired_impacts(dt)
+	used=reserve_confirmed_contacts(dt,used)
 	fx_arc_segments=0
 	if is_instance_valid(fx_arc_mesh):fx_arc_mesh.clear_surfaces()
 	var arcs_started:bool=false
@@ -5728,6 +6844,12 @@ func combat_fx_update(dt:float)->void:
 				latest_hit=latest_player_impact(latest_hit,burst)
 		if t>=1.0:
 			combat_bursts.remove_at(k);continue
+		# Evidence-backed stages replace (rather than stack over) unrelated
+		# legacy sprite/ribbon/halo families for the researched moves.
+		if str(burst.id) in RTDX_OBSERVED_MOVES:
+			used=rtdx_observed_stage_fx(burst,t,used)
+			continue
+		cinematic_element_surface(burst,t)
 		cinematic_cast_enhancement(burst,t)
 		ultra_attack_ribbons(burst,t)
 		var mode:String=burst.mode
@@ -5747,6 +6869,7 @@ func combat_fx_update(dt:float)->void:
 		if str(profile.role).begins_with("electric"):count=4
 		if profile.role=="lash":count=3
 		if profile.role=="ground":count=mini(18,tiles.size()*3)
+		if not legacy_stage_visible(burst,t):count=0
 		for j in range(count):
 			if used>=FX_PARTICLE_CAP:break
 			var particle:=combat_particles[used];used+=1
@@ -6163,12 +7286,14 @@ func combat_fx_update(dt:float)->void:
 			particle.billboard=BaseMaterial3D.BILLBOARD_ENABLED;particle.rotation=Vector3.ZERO
 			particle.position=q
 			particle.texture=animated
+			particle.texture_filter=BaseMaterial3D.TEXTURE_FILTER_NEAREST
+			particle.pixel_size=.032
 			particle.scale=Vector3.ONE*size*(1.0-t*.38)*.40
 			particle.modulate=Color(1,1,1,clampf((1.0-t)*3.5,0.0,1.0))
 			particle.show()
 		used=travel_environment_fx(burst,t,used)
 		used=authored_stage_fx(burst,t,used)
-		used=element_finish_fx(burst,t,used)
+		used=element_finish_fx(burst,t,used,true)
 	if run!=null and not run.charge_phase.is_empty():used=charge_environment_fx(used)
 	if not latest_hit.is_empty() and is_instance_valid(pet):
 		queue_ultra_reaction(pet.global_position+Vector3.UP*.54,latest_hit.direction,false)
@@ -6193,6 +7318,8 @@ func environment_particle(index:int,position:Vector3,mode:String,light:Color,dar
 	particle.rotation=Vector3(-PI*.5,0,0) if flat else Vector3.ZERO
 	particle.position=position
 	particle.texture=combat_pixel_texture(mode,light,dark)
+	particle.texture_filter=BaseMaterial3D.TEXTURE_FILTER_LINEAR if mode.begins_with("rtdx_") else BaseMaterial3D.TEXTURE_FILTER_NEAREST
+	particle.pixel_size=.008 if mode.begins_with("rtdx_") else .016 if mode.begins_with("kick_") or mode.begins_with("claw_") or mode.begins_with("body_") or mode.begins_with("special_") or mode.begins_with("projectile_") or mode.begins_with("support_") or mode.begins_with("motion_") else .032
 	particle.scale=Vector3.ONE*scale_value
 	particle.modulate=Color(1,1,1,clampf(alpha,0.0,1.0))
 	particle.show()
@@ -6248,6 +7375,7 @@ func living_enemy_statuses(e:Dictionary)->Array:
 
 func living_player_statuses()->Array:
 	var result:Array=[]
+	if run.shield_turns>0 and not run.shield_kind.is_empty():result.append("ward_"+run.shield_kind)
 	if run.boon_active("nap") or run.boon_active("hostile_sleep"):result.append("sleep")
 	if run.poison_turns>0:result.append("poison")
 	if run.self_confusion_turns>0:result.append("confusion")
@@ -6286,6 +7414,12 @@ func living_sleep_glyphs(actor:Node3D,sleeping:bool,height:float)->void:
 		glyph.modulate=Color(.68,.86,1.0,sin(t*PI))
 
 func living_status_palette(kind:String)->Array:
+	if kind.begins_with("ward_"):
+		match kind:
+			"ward_reflect":return ["support_ward","#d7f6ff","#488fbe",3]
+			"ward_screen":return ["support_ward","#f5d5ff","#9961bf",3]
+			"ward_safeguard":return ["support_ward","#d4ffe1","#4ca47b",3]
+			_:return ["support_ward","#fff2bb","#b69c50",3]
 	match kind:
 		"poison","badly_poisoned","toxic","bad_poison":return ["bubble","#c59bf7","#6838a9",8]
 		"burn":return ["flame","#ffd489","#bd492d",7]
@@ -6346,6 +7480,8 @@ func living_actor_particles(actor:Node3D,statuses:Array,used:int,height:float)->
 				"burn":
 					y=.08+f*height*.95
 					radius=.24+.13*sin(f*PI)
+			if kind.begins_with("ward_"):
+				radius=.48;y=height*.45;size=.56
 			var q:=origin+Vector3(cos(angle)*radius,y,sin(angle)*radius)
 			var texture_mode:String=str(style[0])
 			if kind in ["poison","toxic","bad_poison","badly_poisoned"]:texture_mode="venom_splash" if flat else "drop" if i%2==0 else "bubble"
@@ -6468,8 +7604,1180 @@ func schedule_response_text(tile:Vector2i,event:Dictionary,delay:float)->void:
 	if response_text_queue.size()>=RESPONSE_TEXT_CAP:response_text_queue.pop_front()
 	response_text_queue.append({"tile":tile,"delay":maxf(0.0,delay),"row":row})
 
-func element_finish_fx(burst:Dictionary,t:float,used:int)->int:
+# Contact silhouettes are independent from elemental particles. Exact move IDs
+# avoid confusing a physical bite with an unrelated attack or status effect.
+const BITE_CONTACT_ART={
+	"eos_063":["bite",.66,.42,"#fff3dc","#805e50","smoke"],
+	"eos_062":["crunch",1.12,.55,"#fff1d1","#43263e","smoke"],
+	"eos_198":["fang",.82,.43,"#e4ffd4","#7947a0","venom_splash"],
+	"eos_261":["fang",.88,.45,"#fff2db","#a17b63","impact_star"],
+	"eos_020":["fang",.91,.45,"#fff5e4","#ad8266","impact_star"],
+	"eos_452":["fang",.82,.43,"#fff9b0","#db9522","lightning"],
+	"eos_461":["fang",.82,.43,"#e0fcff","#438fb9","crystal"],
+	"eos_522":["fang",.82,.43,"#fff0b3","#e45c2e","flame"],
+	"eos_529":["bite",.62,.40,"#ecffc5","#628247","leaf"],
+	"lib_electric_1":["fang",.78,.42,"#fff9b0","#db9522","lightning"],
+	"lib_dragon_3":["fang",.84,.43,"#f5ddff","#7552b3","flame"],
+	"lib_dark_1":["fang",.83,.43,"#eadcff","#553568","smoke"],
+	"reef_bite":["bite",.70,.42,"#e5f8ff","#4e819e","drop"],
+	"tidal_jaws":["bite",0.92,0.46,"#e5fbff","#437a9c","wave"],
+	"alt_eelstrix":["fang",0.7,0.4,"#fff6b3","#d8a22e","lightning"],
+	"alt_thornbeetle":["bite",0.78,0.4,"#e4f4bb","#66864a","leaf"],
+	"alt_vinesnap":["bite",0.85,0.43,"#e7ffc7","#60904d","leaf"],
+	"alt_orbitserpent":["fang",0.95,0.45,"#f4dcff","#7752b3","spiral"]
+}
+
+func bite_contact_art(id:String)->Array:
+	return BITE_CONTACT_ART.get(id,[])
+
+# A pair of screen-facing sprites closes over the actual target. Crunch uses
+# larger, denser teeth, longer hold and heavier dark pressure particles.
+func bite_contact_fx(id:String,target:Vector3,age:float,used:int,element_light:Color,element_dark:Color)->int:
+	var art:Array=bite_contact_art(id)
+	if art.is_empty():return used
+	var family:String=str(art[0])
+	var heavy:bool=family=="crunch"
+	var life:float=.86 if heavy else .65
+	if age<0.0 or age>=life:return used
+	var t:float=age/life
+	var close:float=smoothstep(0.0,.32,t)
+	var separation:float=lerpf(float(art[2]),float(art[2])*.12,close)
+	var size:float=float(art[1])*(1.0+.08*sin(t*PI))
+	var alpha:float=1.0-smoothstep(.55,1.0,t)
+	var up:Vector3=Vector3.UP
+	if is_instance_valid(camera):up=camera.global_basis.y.normalized()
+	var center:Vector3=target+up*.10
+	var light:=Color(str(art[3]))
+	var dark:=Color(str(art[4]))
+	if used+2>mini(FX_PARTICLE_CAP,combat_particles.size()):return used
+	used=environment_particle(used,center+up*separation,family+"_upper",light,dark,size,alpha)
+	used=environment_particle(used,center-up*separation,family+"_lower",light,dark,size,alpha)
+	if t>=.25:
+		var mode:String=str(art[5])
+		var spread:float=.40 if heavy else .24
+		for i in range(2 if heavy else 1):
+			var side:float=-1.0 if i==0 else 1.0
+			used=environment_particle(used,center+Vector3(side*spread*t,.12+t*.15,0),mode,element_light,element_dark,(.60 if heavy else .34)*(1.0+t*.35),alpha*.82)
+	return used
+
+# Physical punch silhouette plus its own element, contact direction and weight.
+# size, approach, normalized life, motion, texture, highlight, outline, accent.
+const PUNCH_CONTACT_ART={
+	"lib_fighting_3":[.78,.42,.60,"straight","fist_front","#fff1d7","#a56a45","impact_star"],
+	"eos_065":[.74,.38,.56,"straight","fist_front","#fff6b4","#b68022","lightning"],
+	"eos_075":[.94,.52,.74,"heavy","fist_front","#fff4da","#ad7044","shock_ring"],
+	"eos_103":[.96,.57,.70,"down","fist_steel","#e2f0ff","#667b9e","shards"],
+	"eos_126":[.79,.45,.70,"ghost","fist_ghost","#e7cbff","#68428e","smoke"],
+	"eos_136":[.82,.45,.65,"up","fist_front","#fff0d0","#a56a45","impact_star"],
+	"eos_246":[.92,.50,.72,"heavy","fist_front","#fff1d7","#a66a40","shock_ring"],
+	"eos_264":[.71,.33,.62,"sway","fist_front","#fff4e1","#a08069","spiral"],
+	"eos_292":[.80,.42,.62,"straight","fist_front","#fff0aa","#d65a28","flame"],
+	"eos_300":[.64,.56,.40,"fast","fist_front","#fff6dc","#b07853","slash"],
+	"eos_322":[1.02,.52,.76,"heavy","fist_front","#fff4da","#96715a","shock_ring"],
+	"eos_344":[.80,.40,.66,"straight","fist_front","#e1fcff","#438eb7","crystal"],
+	"eos_430":[.93,.54,.72,"down","fist_front","#ffe7d1","#a26a42","impact_star"],
+	"eos_500":[.76,.38,.68,"drain","fist_front","#e4ffc5","#739c52","spiral"],
+	"eos_510":[.64,.58,.42,"fast","fist_steel","#edf5ff","#667b9e","shards"],
+	"eos_515":[.72,.48,.52,"fast","fist_front","#e1d0f4","#57436d","smoke"],
+	"eos_347":[.64,.34,.78,"flurry","fist_front","#fff3d8","#9c7658","impact_star"],
+	"meteor_fist":[0.96,0.55,0.7,"down","fist_front","#ffe2b7","#9b7357","shards"]
+}
+
+func punch_contact_art(id:String)->Array:
+	return PUNCH_CONTACT_ART.get(id,[])
+
+func punch_contact_fx(id:String,source:Vector3,target:Vector3,age:float,used:int,element_light:Color,element_dark:Color,hits:int=1)->int:
+	var art:Array=punch_contact_art(id)
+	if art.is_empty() or age<0.0 or age>=float(art[2]):return used
+	var t:float=age/float(art[2])
+	var motion:String=str(art[3])
+	var repetitions:int=clampi(hits,1,5) if motion=="flurry" else 1
+	var pulse:float=t*float(repetitions)
+	var phase:float=fposmod(pulse,1.0)
+	var direction:Vector3=target-source
+	direction.y=0.0
+	if direction.length_squared()<.0001:direction=Vector3.FORWARD
+	direction=direction.normalized()
+	var side:Vector3=direction.cross(Vector3.UP)
+	var approach:float=float(art[1])
+	var center:Vector3=target+Vector3.UP*.12
+	var stroke:float=1.0-smoothstep(0.0,.24,phase)
+	var recoil:float=smoothstep(.24,.80,phase)*.20
+	var q:Vector3=center-direction*approach*(stroke+recoil)
+	match motion:
+		"up":q+=Vector3.UP*lerpf(-.38,.28,smoothstep(0.0,.70,phase))
+		"down":q+=Vector3.UP*.52*stroke
+		"sway":q+=side*sin(phase*TAU)*.22
+		"flurry":q+=side*(.18 if int(pulse)%2==0 else -.18)
+		"ghost":q+=Vector3.UP*sin(phase*PI)*.14
+		"drain":q-=direction*.28*smoothstep(.45,1.0,phase)
+	var alpha:float=1.0-smoothstep(.60,1.0,t)
+	if motion=="flurry":alpha*=1.0-smoothstep(.82,1.0,phase)
+	var size:float=float(art[0])*(.86+.20*sin(phase*PI))
+	var light:=Color(str(art[5]));var dark:=Color(str(art[6]))
+	if used>=mini(FX_PARTICLE_CAP,combat_particles.size()):return used
+	# Reserve the readable fist before its element accent or generic impact.
+	used=environment_particle(used,q,str(art[4]),light,dark,size,alpha)
+	if phase>=.18:
+		var accent:Vector3=center+side*(.20+phase*.23)+Vector3.UP*phase*.22
+		if motion=="drain":accent=center.lerp(source,smoothstep(.20,1.0,phase))
+		used=environment_particle(used,accent,str(art[7]),element_light,element_dark,size*(.52+phase*.22),alpha*.85)
+		if motion=="ghost":
+			used=environment_particle(used,q-direction*.20,"fist_ghost",light,dark,size*.75,alpha*.38)
+	return used
+
+# size, normalized lifetime, reach, lift, motion, silhouette, highlight,
+# outline and elemental accent. Multi-kick cadence uses confirmed hit counts.
+const KICK_CONTACT_ART={
+	"lib_fighting_2":[.85,.68,.52,.25,"sweep","kick_side","#fff0d9","#a76d45","slash"],
+	"eos_092":[.72,.50,.42,.08,"low","kick_side","#ffe9ce","#ad784e","shards"],
+	"eos_204":[.84,.65,.52,.65,"jump","kick_raised","#fff1d7","#aa7047","slash"],
+	"eos_206":[.98,.75,.62,.98,"jump","kick_raised","#fff2d8","#b47845","impact_star"],
+	"eos_271":[.93,.70,.30,.72,"stomp","kick_sole","#fff1d9","#9d7255","shards"],
+	"eos_276":[.91,.70,.55,.42,"sweep","kick_heel","#fff0b3","#e35d29","flame"],
+	"eos_303":[.86,.73,.58,.35,"spin","kick_side","#ffefd3","#ab7146","shock_ring"],
+	"eos_321":[1.08,.77,.64,.38,"heavy","kick_heel","#fff1d8","#986947","shock_ring"],
+	"eos_222":[.72,.84,.45,.27,"multi","kick_side","#ffedd4","#ac7549","impact_star"],
+	"eos_210":[.73,.90,.48,.34,"multi","kick_raised","#fff0d5","#b67a48","slash"],
+	"star_kick":[0.81,0.7,0.49,0.3,"sweep","kick_side","#fff1df","#ba87dc","impact_star"],
+	"alt_comet_hare":[0.86,0.7,0.52,0.42,"sweep","kick_raised","#fff0e0","#a889bd","impact_star"]
+}
+
+func kick_contact_art(id:String)->Array:
+	return KICK_CONTACT_ART.get(id,[])
+
+func kick_contact_fx(id:String,source:Vector3,target:Vector3,age:float,used:int,element_light:Color,element_dark:Color,hits:int=1)->int:
+	var art:Array=kick_contact_art(id)
+	if art.is_empty() or age<0.0 or age>=float(art[1]):return used
+	var t:float=age/float(art[1])
+	var motion:String=str(art[4])
+	var repeats:int=clampi(hits,1,3 if id=="eos_210" else 2) if motion=="multi" else 1
+	var cycle:float=t*float(repeats)
+	var p:float=fposmod(cycle,1.0)
+	var leg_sign:float=1.0 if int(cycle)%2==0 else -1.0
+	var forward:Vector3=target-source
+	forward.y=0.0
+	if forward.length_squared()<.0001:forward=Vector3.FORWARD
+	forward=forward.normalized()
+	var side:Vector3=forward.cross(Vector3.UP)
+	var reach:float=float(art[2])
+	var lift:float=float(art[3])
+	var strike:float=smoothstep(0.0,.25,p)
+	var retract:float=smoothstep(.40,1.0,p)
+	var center:Vector3=target+Vector3.UP*.12
+	var q:Vector3=center-forward*reach*(1.0-strike+.25*retract)
+	match motion:
+		"low":
+			q=Vector3(q.x,.16,q.z)+side*reach*(1.0-strike)*.5
+		"jump":
+			q+=Vector3.UP*lift*(1.0-strike)
+		"stomp":
+			q=Vector3(target.x,.12+lift*(1.0-strike),target.z)
+		"sweep","spin":
+			var angle:float=lerpf(-PI*.65,PI*.60,p)
+			q=center+(side*cos(angle)-forward*sin(angle))*reach*(1.0-strike+.35*retract)+Vector3.UP*lift
+		"multi":
+			q+=side*leg_sign*.22+Vector3.UP*lift*sin(p*PI)
+		"heavy":
+			q+=Vector3.UP*lift*(1.0-strike)
+	var size:float=float(art[0])*(1.18+.32*sin(p*PI))
+	if motion=="heavy":size*=1.15
+	var alpha:float=1.0-smoothstep(.62,1.0,t)
+	if motion=="multi":alpha*=1.0-smoothstep(.82,1.0,p)
+	var texture_mode:String=str(art[5])
+	if motion=="multi" and int(cycle)==2:texture_mode="kick_sole"
+	# Choose screen-facing foot direction, then alternate successive kicks.
+	var mirror:bool=leg_sign<0.0
+	if is_instance_valid(camera):
+		mirror=mirror!=(forward.dot(camera.global_basis.x)<0.0)
+	if mirror and texture_mode in ["kick_side","kick_raised"]:texture_mode+="_mirror"
+	if used>=mini(FX_PARTICLE_CAP,combat_particles.size()):return used
+	used=environment_particle(used,q,texture_mode,Color(str(art[6])),Color(str(art[7])),size,alpha)
+	if p>=.20:
+		var accent:Vector3=center+side*leg_sign*(.18+p*.26)
+		var flat:bool=motion in ["low","stomp"] or str(art[8])=="shock_ring"
+		if flat:accent.y=.065
+		used=environment_particle(used,accent,str(art[8]),element_light,element_dark,size*(.50+p*.24),alpha*.85,flat)
+		if motion in ["sweep","spin"] or id=="eos_321":
+			used=environment_particle(used,q-side*.18,"slash",element_light,element_dark,size*.68,alpha*.45)
+	return used
+
+# size, normalized life, approach, silhouette, core, outline, accent,
+# motion. Distinct claw family vs single edged weapon/slash.
+const CLAW_CONTACT_ART={
+	"lib_ghost_1":[1.00,.82,.40,"claw_spectral","#e6caff","#67368f","smoke","ghost"],
+	"lib_dragon_1":[1.00,.74,.48,"claw_talon","#aaf5dd","#436cbd","flame","dragon"],
+	"eos_018":[.76,.50,.36,"claw_blade","#fff5d8","#9b805e","impact_star","quick"],
+	"eos_081":[.91,.64,.42,"claw_talon","#fff4dc","#a77e60","slash","sweep"],
+	"eos_208":[1.12,.78,.52,"claw_talon","#b4fff1","#5357c8","flame","dragon"],
+	"eos_260":[.70,.48,.28,"claw_scratch","#fff3e1","#a38570","impact_star","quick"],
+	"eos_275":[1.20,.83,.55,"claw_crush","#fff2cf","#96644c","shock_ring","heavy"],
+	"eos_325":[1.02,.70,.42,"claw_talon","#e6f5ff","#627c9e","shards","metal"],
+	"eos_463":[1.04,.72,.46,"claw_crescent","#ffdcfa","#a449b3","spiral","psychic"],
+	"eos_476":[1.15,.90,.47,"claw_spectral","#e6c6ff","#592583","smoke","ghost"],
+	"eos_491":[1.10,.75,.46,"claw_crescent","#e5d2ff","#453058","smoke","dark"],
+	"eos_312":[.75,.90,.35,"claw_talon","#fff3db","#a27c5e","impact_star","multi"],
+	"eos_346":[.80,.85,.39,"claw_blade","#defba4","#6e9342","leaf","multi"],
+	"eos_360":[1.16,.72,.50,"claw_crescent","#fff6d9","#b58e65","slash","wide"],
+	"eos_336":[0.98,0.72,0.46,"claw_crescent","#d8ffa9","#528936","leaf","sweep"],
+	"moon_claw":[0.95,0.74,0.4,"claw_crescent","#e8dfff","#624d91","smoke","dark"],
+	"alt_bramble_pup":[0.67,0.58,0.32,"claw_scratch","#fff0d4","#9a8064","impact_star","quick"],
+	"eos_314":[0.78,0.59,0.36,"claw_blade","#fff5db","#a78b66","slash","quick"],
+	"lib_steel_1":[1.02,0.72,0.47,"claw_crescent","#eff8ff","#6d8399","shards","sweep"]
+}
+
+func claw_contact_art(id:String)->Array:
+	return CLAW_CONTACT_ART.get(id,[])
+
+func claw_contact_fx(id:String,source:Vector3,target:Vector3,age:float,used:int,element_light:Color,element_dark:Color,hits:int=1)->int:
+	var art:Array=claw_contact_art(id)
+	if art.is_empty() or age<0.0 or age>=float(art[1]):return used
+	var t:float=age/float(art[1])
+	var motion:String=str(art[7])
+	var repeats:int=clampi(hits,1,5) if motion=="multi" else 1
+	var cycle:float=t*float(repeats)
+	var p:float=fposmod(cycle,1.0)
+	var forward:Vector3=target-source
+	forward.y=0.0
+	if forward.length_squared()<.0001:forward=Vector3.FORWARD
+	forward=forward.normalized()
+	var side:Vector3=forward.cross(Vector3.UP)
+	var sign_value:float=1.0 if int(cycle)%2==0 else -1.0
+	var sweep:float=smoothstep(0.0,.40,p)
+	var center:Vector3=target+Vector3.UP*.12
+	var q:Vector3=center-forward*float(art[2])*(1.0-sweep)+side*sign_value*(sweep-.5)*.38
+	if motion=="heavy":q.y+=.45*(1.0-sweep)
+	if motion=="wide":q+=side*(sweep-.5)*.45
+	if motion=="multi":q+=side*sign_value*.18
+	var alpha:float=1.0-smoothstep(.58,1.0,t)
+	if motion=="multi":alpha*=1.0-smoothstep(.80,1.0,p)
+	var size:float=float(art[0])*(.88+.28*sin(p*PI))
+	var light:=Color(str(art[4]));var dark:=Color(str(art[5]))
+	var mode:String=str(art[3])
+	if used>=mini(FX_PARTICLE_CAP,combat_particles.size()):return used
+	used=environment_particle(used,q,mode,light,dark,size,alpha)
+	if p>=.18:
+		var accent:Vector3=center+side*sign_value*(.15+p*.32)+Vector3.UP*p*.30
+		var flat:bool=motion=="heavy"
+		if flat:accent.y=.065
+		used=environment_particle(used,accent,str(art[6]),element_light,element_dark,size*.68,alpha*.86,flat)
+		if motion=="ghost":
+			# Ectoplasm and offset ghostly talons are distinct from the core cuts.
+			used=environment_particle(used,q-side*.18-forward*.18,"claw_spectral",light,dark,size*1.12,alpha*.30)
+			used=environment_particle(used,center-side*.30+Vector3.UP*(.18+p*.45),"spiral",light,dark,size*.52,alpha*.60)
+		elif motion in ["dragon","metal","psychic","dark"]:
+			used=environment_particle(used,center-side*.25+Vector3.UP*.24,str(art[6]),light,dark,size*.45,alpha*.55)
+	return used
+
+# size, lifetime, reach, silhouette, highlight, outline, element accent, motion.
+const BODY_CONTACT_ART={"lib_normal_1":[0.85,0.55,0.48,"body_dash","#fff1d6","#a78b68","impact_star","dash"],"lib_normal_2":[1,0.68,0.4,"body_slam","#fff0cd","#a78358","shock_ring","slam"],"lib_bug_2":[0.9,0.62,0.5,"body_armor","#e4f6b1","#708d42","shards","dash"],"eos_001":[1,0.72,0.55,"body_tail_blade","#e4f5ff","#627d9f","shards","tail"],"eos_121":[0.78,0.65,0.36,"body_dash","#fff0d5","#b48b68","impact_star","flurry"],"eos_139":[0.86,0.55,0.42,"body_head","#fff0d7","#a17e65","impact_star","head"],"eos_140":[1.15,0.78,0.6,"body_dash","#fff4c6","#d17a45","shock_ring","dash"],"eos_154":[0.72,0.48,0.4,"body_dash","#fff2d8","#a68866","impact_star","dash"],"eos_161":[0.93,0.65,0.42,"body_slam","#fff0cf","#ad835c","shards","slam"],"eos_176":[0.88,0.58,0.48,"body_horn","#fff1d1","#96734e","impact_star","pierce"],"eos_203":[0.94,0.67,0.55,"body_dash","#fff1d1","#b47950","shock_ring","dash"],"eos_235":[1.1,0.75,0.48,"body_slam","#ffe9cd","#b27d51","shock_ring","slam"],"eos_283":[0.95,0.7,0.5,"body_tail_blade","#e5b6ff","#663782","venom_splash","tail"],"eos_323":[1.15,0.76,0.65,"body_horn","#ecffb8","#688340","leaf","pierce"],"eos_348":[1.08,0.78,0.58,"body_armor","#fff4db","#91765e","shock_ring","head"],"eos_354":[1.04,0.7,0.62,"body_dash","#fff6a1","#c3911e","lightning","dash"],"eos_431":[1.03,0.68,0.5,"body_armor","#e8f7ff","#7186a2","shards","head"],"eos_433":[1.05,0.75,0.55,"body_tail","#c0f4ff","#388bb9","wave","tail"],"eos_455":[1.35,0.88,0.7,"body_dash","#fff4d1","#cf8c46","shock_ring","dash"],"eos_473":[1.02,0.72,0.45,"body_head","#f5c8ff","#9862bf","spiral","head"],"eos_517":[1.13,0.76,0.62,"body_dash","#fff0ad","#e44b20","flame","dash"],"eos_533":[1.22,0.82,0.5,"body_armor","#f7d8ad","#926a49","shards","head"],"eos_177":[1.03,0.78,0.6,"body_drill","#fff5dc","#a28769","shards","pierce"],"eos_009":[0.91,0.88,0.42,"body_dash","#fff0d0","#b68055","impact_star","flurry"],
+	"alt_tidal_sovereign":[1.13,0.78,0.66,"body_dash","#d5f8ff","#377aab","wave","dash"],
+	"eos_052":[0.86,0.69,0.46,"body_dash","#ffe0a1","#e75a27","flame","dash"],
+	"eos_144":[0.72,0.5,0.42,"body_dash","#fff4a1","#d0a121","lightning","dash"],
+	"eos_149":[1.1,0.8,0.55,"body_dash","#fff5c8","#f07136","flame","dash"],
+	"spiral_current":[0.87,0.63,0.52,"body_drill","#d1f7ff","#458bb3","wave","pierce"],
+	"alt_grovetitan":[0.98,0.77,0.52,"body_tail","#d1f4a9","#597d40","leaf","tail"],
+	"alt_shellguard":[0.91,0.67,0.55,"body_armor","#f0dfc1","#8c7357","shards","dash"],
+	"alt_sporeling":[0.75,0.55,0.35,"body_head","#d4f5b6","#69964c","projectile_spore","head"],
+	"antler_arc":[1.04,0.72,0.54,"body_horn","#e0f5be","#6c8e47","leaf","tail"],
+	"briar_arc":[0.9,0.63,0.55,"body_dash","#d8ffac","#65983e","leaf","dash"],
+	"eos_441":[1.18,0.78,0.54,"body_armor","#f0d0a1","#815a38","shards","slam"],
+	"horn_ram":[1.03,0.72,0.63,"body_horn","#e8f7bd","#6b8a49","leaf","pierce"],
+	"lib_ground_2":[0.98,0.69,0.61,"body_drill","#f0d5ad","#997145","shards","pierce"],
+	"lib_rock_2":[1.08,0.72,0.62,"body_armor","#e5d8c7","#846e59","shards","dash"],
+	"rolling_moss":[0.85,0.62,0.48,"body_armor","#c9e4a1","#658447","leaf","dash"],
+	"shell_impact":[0.87,0.63,0.46,"body_armor","#f1debf","#8e7555","shards","head"],
+	"tusk_sweep":[0.94,0.69,0.51,"body_horn","#f8ebc5","#9d8059","shards","tail"],
+	"eos_091":[1.15,0.88,0.6,"body_dash","#e3c9ff","#8653b9","flame","flurry"]
+}
+
+func body_contact_art(id:String)->Array:
+	return BODY_CONTACT_ART.get(id,[])
+
+func body_contact_fx(id:String,source:Vector3,target:Vector3,age:float,used:int,element_light:Color,element_dark:Color,hits:int=1)->int:
+	var art:Array=body_contact_art(id)
+	if art.is_empty() or age<0.0 or age>=float(art[1]):return used
+	var t:float=age/float(art[1])
+	var motion:String=str(art[7])
+	var repeats:int=clampi(hits,1,3) if motion=="flurry" else 1
+	var cycle:float=t*float(repeats)
+	var p:float=fposmod(cycle,1.0)
+	var forward:Vector3=target-source
+	forward.y=0.0
+	if forward.length_squared()<.0001:forward=Vector3.FORWARD
+	forward=forward.normalized()
+	var side:Vector3=forward.cross(Vector3.UP)
+	var strike:float=smoothstep(0.0,.34,p)
+	var reach:float=float(art[2])
+	var center:Vector3=target+Vector3.UP*.09
+	var q:Vector3=center-forward*reach*(1.0-strike+.15*smoothstep(.45,1.0,p))
+	match motion:
+		"slam":q=Vector3(target.x,.12+.65*(1.0-strike),target.z)
+		"tail":q+=side*reach*(strike-.5)+Vector3.UP*.13*sin(p*PI)
+		"head":q+=Vector3.UP*.25*(1.0-strike)
+		"pierce":q+=Vector3.UP*.07
+		"flurry":q+=side*(.22 if int(cycle)%2==0 else -.22)
+	var size:float=float(art[0])*(.86+.28*sin(p*PI))
+	var alpha:float=1.0-smoothstep(.62,1.0,t)
+	if motion=="flurry":alpha*=1.0-smoothstep(.82,1.0,p)
+	var mode:String=str(art[3])
+	if is_instance_valid(camera) and forward.dot(camera.global_basis.x)<0.0:mode+="_mirror"
+	if used>=mini(FX_PARTICLE_CAP,combat_particles.size()):return used
+	used=environment_particle(used,q,mode,Color(str(art[4])),Color(str(art[5])),size,alpha)
+	if p>=.18:
+		var accent:Vector3=center+side*(.18+p*.32)
+		var flat:bool=motion=="slam" or str(art[6])=="shock_ring"
+		if flat:accent.y=.065
+		used=environment_particle(used,accent,str(art[6]),element_light,element_dark,size*.65,alpha*.86,flat)
+		if motion=="tail" or motion=="dash":
+			used=environment_particle(used,q-forward*.20,str(art[6]),element_light,element_dark,size*.48,alpha*.48)
+	return used
+
+# Special choreography runs once per cast, not once per hit. Status effects
+# have a visible launch but a restrained finish only for confirmed outcomes.
+const SPECIAL_CONTACT_ART={"eos_123":["burst",0.95,"flame","smoke"],"eos_155":["burst",1.65,"flame","smoke"],"eos_272":["burst",1.3,"flame","ember"],"eos_120":["lash",0.62,"special_tongue","smoke"],"lib_grass_1":["lash",0.75,"special_vine","leaf"],"eos_182":["lash",0.78,"special_vine","leaf"],"eos_511":["lash",1.15,"special_vine","leaf"],"eos_023":["silk",0.65,"special_thread","web"],"eos_086":["silk",0.95,"web","special_thread"],"eos_294":["coil",0.85,"special_coil","impact_star"],"eos_125":["coil",0.72,"special_coil","shock_ring"],"eos_071":["coil",0.55,"special_coil","impact_star"],"eos_069":["clamp",0.85,"special_clamp","drop"],"eos_116":["clamp",1.05,"special_clamp","impact_star"],"eos_076":["drain",1.15,"leaf","impact_star"],"eos_135":["drain",0.55,"leaf","impact_star"],"eos_320":["drain",0.84,"leaf","impact_star"],"eos_080":["drain",0.68,"special_thread","leaf"],"eos_500":["drain",0.72,"spiral","impact_star"],"eos_329":["seed",0.68,"leaf","special_vine"],"lib_normal_3":["sound",0.75,"special_wave","shock_ring"],"eos_152":["sound",0.65,"special_wave","slash"],"eos_241":["sound",1.25,"special_wave","shock_ring"],"eos_530":["sound",0.95,"special_wave","leaf"],"eos_446":["sound",0.8,"special_note","slash"],"eos_034":["sound",0.68,"special_note","bubble"],"eos_171":["sound",0.73,"special_wave","spiral"],"eos_027":["sound",1.02,"special_wave","shards"],"eos_083":["sound",0.88,"special_wave","shards"],"eos_284":["sound",1.05,"special_wave","shock_ring"],"eos_293":["sound",1.3,"special_note","smoke"],"eos_112":["sound",1,"special_wave","impact_star"],"eos_025":["sound",0.65,"special_note","cloud"],"eos_217":["sound",0.5,"special_wave","cloud"],"eos_195":["sound",0.85,"special_wave","impact_star"],"eos_026":["sound",0.8,"special_note","impact_star"],"tentacle_snare":["lash",0.92,"special_tongue","drop"],"vine_snap":["lash",0.75,"special_vine","leaf"],"gravity_web":["silk",1.1,"web","special_thread"],"abyss_grasp":["clamp",1.18,"special_clamp","smoke"],"eos_192":["coil",0.74,"special_coil","lightning"],
+	"alt_jellymancer":["lash",0.63,"special_tongue","drop"],
+	"electric_lash":["lash",0.86,"lightning","shock_ring"],
+	"eos_458":["coil",0.88,"special_vine","leaf"],
+	"lib_bug_1":["silk",0.82,"web","special_thread"],
+	"lib_bug_3":["sound",0.72,"special_wave","projectile_spore"],
+	"eos_331":["drain",0.92,"spiral","smoke"],
+	"lib_ghost_2":["lash",0.88,"special_thread","smoke"],
+	"orbit_lash":["lash",0.85,"special_coil","spiral"],
+	"sonic_cone":["sound",0.86,"special_wave","smoke"],
+	"eos_007":["counter",0.85,"special_clamp","shock_ring"],
+	"eos_051":["counter",0.92,"support_ward","impact_star"],
+	"eos_061":["counter",1.12,"spiral","shock_ring"],
+	"eos_248":["clamp",0.89,"special_clamp","impact_star"],
+	"eos_254":["splash",0.68,"drop","cloud"],
+	"eos_268":["sound",0.93,"special_wave","cloud"],
+	"eos_340":["counter",1.03,"fist_front","impact_star"],
+	"eos_474":["coil",0.85,"special_coil","shock_ring"],
+	"eos_505":["clamp",1.18,"special_clamp","shock_ring"],
+	"eos_532":["counter",1.1,"crystal","shards"]
+}
+func special_contact_art(id:String)->Array:
+	return SPECIAL_CONTACT_ART.get(id,[])
+
+func special_contact_fx(burst:Dictionary,t:float,used:int,light:Color,dark:Color)->int:
+	var art:Array=special_contact_art(str(burst.id))
+	var points:Array=burst.points
+	if art.is_empty() or points.is_empty():return used
+	var kind:String=str(art[0])
+	var strength:float=float(art[1])
+	var mode:String=str(art[2])
+	var accent:String=str(art[3])
+	var peak:float=clampf(float(burst.profile.impact),.01,.99)
+	var source:Vector3=points[0]
+	var target:Vector3=points[-1]
+	var results:Dictionary=burst.get("results",{})
+	var forward:Vector3=target-source
+	forward.y=0.0
+	if forward.length_squared()<.0001:forward=Vector3.FORWARD
+	forward=forward.normalized()
+	var side:Vector3=forward.cross(Vector3.UP)
+	var progress:float=clampf(t/peak,0.0,1.0)
+	var age:float=clampf((t-peak)/(1.0-peak),0.0,1.0)
+	if kind=="splash":
+		# Harmless action: show a hop trace, never a hit or damage flash.
+		var q:Vector3=source+Vector3.UP*(.1+sin(t*PI)*.40)
+		return environment_particle(used,q,mode,light,dark,.5*strength,sin(t*PI)*.8)
+	if kind=="counter" and t<peak:
+		return environment_particle(used,source,"support_ward",light,dark,strength,sin(progress*PI)*.8)
+	if kind=="burst":
+		# Self-centered explosion must occur even if no enemy is hit.
+		var center:Vector3=source if str(burst.id) in ["eos_123","eos_155"] else target
+		if t<peak:
+			return environment_particle(used,center,"impact_star",light,dark,.28+progress*.65*strength,sin(progress*PI)*.8)
+		used=environment_particle(used,center,"shock_ring",light,dark,(.65+age*2.4)*strength,1.0-age,true)
+		for i in range(5):
+			var angle:float=float(i)*TAU/5.0
+			var q:Vector3=center+Vector3(cos(angle),0,sin(angle))*strength*(.18+age)+Vector3.UP*age*.75
+			used=environment_particle(used,q,mode if age<.48 else accent,light,dark,(.36+age*.42)*strength,1.0-age)
+		return used
+	if t<peak:
+		if kind in ["lash","silk","sound","seed"]:
+			var count:int=4 if kind=="sound" else 3
+			for i in range(count):
+				var along:float=clampf(progress-float(i)*.17,0.0,1.0)
+				var q:Vector3=combat_path_sample(points,along)
+				if kind=="lash":q+=side*sin(along*PI)*strength*.25
+				if kind=="sound":q+=Vector3.UP*.10*sin(along*TAU)
+				var size:float=(.45+along*.40)*strength if kind=="sound" else .65*strength
+				used=environment_particle(used,q,mode,light,dark,size,sin(progress*PI)*.92)
+		return used
+	var confirmed:Array[Vector2i]=[]
+	for tile in results:
+		if not tile is Vector2i:continue
+		var row:Dictionary=results[tile]
+		if int(row.get("damage",0))+int(row.get("effects",0))>0:confirmed.append(tile)
+	var primary:=Vector2i(roundi(target.x/1.4),roundi(target.z/1.4))
+	confirmed.sort_custom(func(a:Vector2i,b:Vector2i)->bool:
+		var da:int=(a-primary).length_squared()
+		var db:int=(b-primary).length_squared()
+		if da!=db:return da<db
+		if a.x!=b.x:return a.x<b.x
+		return a.y<b.y)
+	var source_tile:=Vector2i(roundi(source.x/1.4),roundi(source.z/1.4))
+	for i in range(mini(4,confirmed.size())):
+		var tile:Vector2i=confirmed[i]
+		var q:Vector3=pos(tile)+Vector3.UP*.55
+		if kind=="drain":
+			if tile==source_tile or int(results[tile].get("damage",0))<=0:continue
+			for j in range(3):
+				var back:float=clampf(age*1.5-float(j)*.15,0.0,1.0)
+				var orb:Vector3=q.lerp(source,back)+Vector3.UP*sin(back*PI)*.35
+				used=environment_particle(used,orb,mode,light,dark,.44*strength,(1.0-age)*.95)
+		elif kind in ["coil","clamp","silk","seed"]:
+			var scale_value:float=strength*(1.12-.30*smoothstep(0.0,.45,age))
+			used=environment_particle(used,q,mode,light,dark,scale_value,1.0-age)
+			used=environment_particle(used,q+Vector3.UP*.24,accent,light,dark,.44*strength,1.0-age)
+		else:
+			used=environment_particle(used,q,accent,light,dark,(.45+age*.40)*strength,1.0-age)
+	return used
+
+# Motion, material, impact accent, size, arc height. Per-move authored values.
+const PROJECTILE_CONTACT_ART={"lib_fire_1":["dart","ember","ember",0.52,0.1],"lib_fire_2":["beam","flame","ember",0.85,0.1],"lib_water_2":["beam","bubble","drop",0.65,0.1],"lib_ice_1":["dart","projectile_needle","crystal",0.52,0.1],"lib_flying_1":["dart","projectile_needle","slash",0.56,0.1],"lib_psychic_2":["pulse","spiral","spiral",0.72,0.1],"lib_rock_1":["dart","projectile_stone","shards",0.55,0.1],"lib_dark_3":["pulse","spiral","smoke",0.84,0.1],"lib_fairy_1":["dart","impact_star","impact_star",0.58,0.1],"eos_028":["lob","projectile_stone","shards",0.76,0.88],"eos_031":["orb","projectile_orb","impact_star",0.83,0.1],"eos_042":["beam","projectile_ray","crystal",0.72,0.1],"eos_053":["beam","flame","ember",0.92,0.1],"eos_107":["beam","projectile_ray","spiral",0.72,0.1],"eos_114":["beam","projectile_ray","leaf",0.65,0.1],"eos_127":["orb","projectile_orb","smoke",1.02,0.1],"eos_145":["volley","impact_star","impact_star",0.52,0.1],"eos_151":["beam","projectile_ray","leaf",1.08,0.1],"eos_166":["lob","projectile_seed","shock_ring",0.85,1.05],"eos_193":["orb","projectile_orb","lightning",1.05,0.1],"eos_213":["dart","projectile_stone","smoke",0.48,0.1],"eos_239":["beam","projectile_ray","drop",1.25,0.1],"eos_240":["beam","drop","wave",1.04,0.1],"eos_242":["beam","projectile_ray","shock_ring",1.35,0.1],"eos_251":["volley","leaf","leaf",0.55,0.1],"eos_255":["beam","bubble","drop",0.73,0.1],"eos_262":["dart","ember","flame",0.58,0.1],"eos_279":["lob","projectile_orb","venom_splash",0.64,0.45],"eos_280":["lob","projectile_orb","venom_splash",1.02,0.85],"eos_299":["dart","projectile_stone","drop",0.62,0.1],"eos_308":["beam","drop","drop",0.52,0.1],"eos_309":["orb","projectile_orb","cloud",0.78,0.1],"eos_310":["pulse","bubble","wave",0.81,0.1],"eos_345":["beam","projectile_ray","crystal",0.8,0.1],"eos_436":["pulse","spiral","smoke",1.05,0.1],"eos_443":["orb","projectile_orb","leaf",0.87,0.1],"eos_454":["orb","projectile_orb","shock_ring",1.15,0.1],"eos_462":["dart","projectile_needle","crystal",0.52,0.1],"eos_468":["lob","projectile_seed","leaf",1.03,0.65],"eos_485":["lob","projectile_orb","venom_splash",1.15,0.8],"eos_486":["lob","projectile_seed","leaf",0.88,0.9],"eos_489":["beam","lightning","lightning",0.65,0.1],"eos_501":["lob","projectile_stone","drop",0.89,0.8],"eos_508":["orb","projectile_orb","spiral",0.9,0.1],"eos_523":["lob","projectile_stone","shards",0.92,0.7],"eos_527":["dart","crystal","shards",0.75,0.1],"eos_536":["beam","projectile_ray","shards",0.92,0.1],"eos_538":["meteor","meteor","flame",1.2,2.6],"eos_539":["pulse","projectile_orb","flame",0.98,0.1],"eos_163":["volley","projectile_seed","leaf",0.45,0.1],"eos_164":["volley","projectile_needle","shards",0.5,0.1],"eos_201":["volley","projectile_needle","impact_star",0.48,0.1],"eos_306":["volley","projectile_needle","leaf",0.52,0.1],"eos_350":["volley","projectile_stone","shards",0.65,0.1],"eos_002":["roll","projectile_orb","crystal",0.83,0.1],"eos_108":["pulse","spiral","spiral",0.65,0.1],"eos_341":["beam","flame","ember",0.9,0.1],"eos_504":["dart","projectile_seed","leaf",0.58,0.1],
+	"alt_coralcrab":["beam","drop","wave",0.78,0.1],
+	"alt_crystarok":["dart","projectile_needle","crystal",0.68,0.1],
+	"alt_leviathorn":["dart","projectile_needle","drop",0.92,0.1],
+	"alt_marrowray":["volley","projectile_needle","drop",0.58,0.1],
+	"alt_reef_pup":["dart","projectile_needle","drop",0.48,0.1],
+	"bubble_burst":["orb","bubble","drop",0.69,0.1],
+	"eos_016":["volley","bubble","drop",0.51,0.1],
+	"eos_044":["lob","projectile_orb","smoke",0.93,0.48],
+	"eos_157":["beam","projectile_flare","ember",1.25,0.1],
+	"eos_180":["volley","projectile_needle","crystal",0.67,0.1],
+	"eos_188":["dart","lightning","impact_star",0.55,0.1],
+	"eos_189":["pulse","lightning","shock_ring",0.84,0.1],
+	"eos_469":["beam","drop","wave",0.86,0.1],
+	"lib_electric_2":["beam","lightning","shock_ring",0.76,0.1],
+	"lib_ice_2":["beam","projectile_ray","crystal",1,0.1],
+	"lib_water_1":["volley","bubble","drop",0.49,0.1],
+	"nova_bolt":["orb","projectile_orb","flame",0.87,0.1],
+	"alt_fungal_monarch":["beam","projectile_spore","venom_splash",0.88,0.1],
+	"alt_hollow_stag":["dart","projectile_thorn","leaf",0.95,0.1],
+	"alt_leafwisp":["volley","leaf","leaf",0.63,0.1],
+	"alt_rootgnawer":["dart","projectile_thorn","leaf",0.56,0.1],
+	"alt_voidspider":["dart","special_thread","web",0.65,0.1],
+	"eos_093":["lob","projectile_stone","shards",0.89,0.65],
+	"eos_105":["roll","projectile_stone","shards",0.92,0.1],
+	"eos_200":["dart","projectile_thorn","venom_splash",0.55,0.1],
+	"eos_285":["volley","projectile_bone","shards",0.74,0.1],
+	"eos_290":["return","projectile_bone","impact_star",0.93,0.1],
+	"eos_297":["volley","leaf","impact_star",0.66,0.1],
+	"eos_332":["beam","drop","venom_splash",0.74,0.1],
+	"eos_453":["lob","projectile_stone","shards",1.45,0.7],
+	"eos_512":["beam","crystal","shards",0.98,0.1],
+	"eos_537":["volley","leaf","leaf",1.1,0.1],
+	"leaf_dart":["dart","leaf","leaf",0.58,0.1],
+	"lib_grass_2":["dart","projectile_thorn","leaf",0.66,0.1],
+	"lib_ground_3":["dart","projectile_thorn","shards",0.76,0.1],
+	"lib_poison_1":["dart","drop","venom_splash",0.55,0.1],
+	"lib_poison_2":["lob","drop","venom_splash",0.8,0.55],
+	"alt_celestial_guardian":["volley","projectile_crescent","impact_star",0.84,0.1],
+	"alt_starlit_pup":["dart","projectile_comet","impact_star",0.71,0.1],
+	"eos_109":["pulse","projectile_eye","spiral",1.03,0.1],
+	"eos_110":["orb","projectile_orb","spiral",1.35,0.1],
+	"eos_133":["pulse","projectile_eye","wave",0.84,0.1],
+	"eos_234":["pulse","spiral","impact_star",0.69,0.1],
+	"eos_335":["beam","projectile_prism","impact_star",0.99,0.1],
+	"eos_342":["beam","flame","ember",0.83,0.1],
+	"lib_dragon_2":["beam","flame","flame",0.9,0.1],
+	"lib_fairy_3":["beam","projectile_prism","impact_star",1.05,0.1],
+	"lib_psychic_1":["dart","projectile_needle","spiral",0.85,0.1],
+	"eos_168":["volley","projectile_stone","shards",0.56,0.1],
+	"eos_207":["triad","projectile_orb","impact_star",0.83,0.1],
+	"eos_228":["volley","projectile_coin","impact_star",0.59,0.1],
+	"eos_245":["orb","projectile_orb","shock_ring",0.92,0.1],
+	"eos_277":["lob","projectile_parcel","impact_star",0.78,0.85],
+	"eos_324":["orb","projectile_orb","spiral",0.78,0.1],
+	"eos_353":["beam","projectile_ray","slash",1.13,0.1],
+	"eos_442":["dart","projectile_crescent","slash",0.86,0.1],
+	"eos_457":["volley","projectile_card","impact_star",0.77,0.1],
+	"eos_475":["roll","projectile_orb","shards",0.94,0.1],
+	"eos_479":["pulse","special_wave","shock_ring",0.79,0.1],
+	"feather_fan":["volley","projectile_feather","slash",0.62,0.1],
+	"lib_flying_2":["volley","projectile_crescent","slash",0.89,0.1],
+	"lib_steel_2":["dart","projectile_needle","shards",0.82,0.1],
+	"lib_steel_3":["volley","crystal","shards",0.88,0.1]
+}
+func projectile_contact_art(id:String)->Array:
+	return PROJECTILE_CONTACT_ART.get(id,[])
+
+func projectile_contact_fx(burst:Dictionary,t:float,used:int,light:Color,dark:Color)->int:
+	var art:Array=projectile_contact_art(str(burst.id))
+	var points:Array=burst.points
+	if art.is_empty() or points.is_empty():return used
+	var kind:String=str(art[0])
+	var mode:String=str(art[1])
+	var accent:String=str(art[2])
+	var size:float=float(art[3])
+	var height:float=float(art[4])
+	var peak:float=clampf(float(burst.profile.impact),.01,.99)
+	var source:Vector3=points[0]
+	var target:Vector3=points[-1]
+	var results:Dictionary=burst.get("results",{})
+	var progress:float=clampf(t/peak,0.0,1.0)
+	if t<peak:
+		var count:int=1
+		match kind:
+			"beam":count=6
+			"volley":count=3 if str(burst.id)=="eos_145" else 2 if str(burst.id)=="eos_164" else 4
+			"pulse","triad":count=3
+			"meteor":count=4
+		for i in range(count):
+			var p:float=clampf(progress-float(i)*.13,0.0,1.0)
+			if kind=="beam":p=progress*float(i+1)/float(count)
+			if kind!="beam" and i>0 and progress<float(i)*.13:continue
+			var q:Vector3=combat_path_sample(points,p)
+			if kind=="lob":q.y+=height*sin(p*PI)
+			elif kind=="roll":q.y=.18
+			elif kind=="meteor":
+				q=target+Vector3(cos(float(i)*2.4)*.30,height*(1.0-p),sin(float(i)*2.4)*.30)
+			var scale_value:float=size*(.74+.26*p)
+			if kind=="beam":scale_value=size*(.65+.35*progress)
+			if kind=="pulse":scale_value=size*(.65+.70*p)
+			var shot_light:Color=light
+			var shot_dark:Color=dark
+			if kind=="triad":
+				var colors:Array=[Color("#ffad63"),Color("#e3f58d"),Color("#9eeaff")]
+				shot_light=colors[i];shot_dark=shot_light.darkened(.48)
+				q+=Vector3.UP*(.17*float(i-1))
+			used=environment_particle(used,q,mode,shot_light,shot_dark,scale_value,minf(1.0,progress*8.0))
+			if i==0 and kind in ["lob","orb","meteor"]:
+				used=environment_particle(used,q+Vector3.UP*.12,accent,light,dark,scale_value*.52,.60)
+		return used
+	var age:float=clampf((t-peak)/(1.0-peak),0.0,1.0)
+	if kind=="return":
+		var back:Vector3=combat_path_sample(points,1.0-age)
+		back+=Vector3.UP*sin(age*PI)*.22
+		used=environment_particle(used,back,mode,light,dark,size,1.0-age)
+	var primary:=Vector2i(roundi(target.x/1.4),roundi(target.z/1.4))
+	var confirmed:Array[Vector2i]=[]
+	for tile in results:
+		if not tile is Vector2i:continue
+		var row:Dictionary=results[tile]
+		if int(row.get("damage",0))+int(row.get("effects",0))>0:confirmed.append(tile)
+	confirmed.sort_custom(func(a:Vector2i,b:Vector2i)->bool:
+		var da:int=(a-primary).length_squared()
+		var db:int=(b-primary).length_squared()
+		if da!=db:return da<db
+		if a.x!=b.x:return a.x<b.x
+		return a.y<b.y)
+	for i in range(mini(4,confirmed.size())):
+		var tile:Vector2i=confirmed[i]
+		var q:Vector3=pos(tile)+Vector3.UP*.55
+		var hits:int=clampi(int(results[tile].get("hits",1)),1,5)
+		var pulse:float=fposmod(age*float(hits),1.0) if kind=="volley" or kind=="roll" else age
+		used=environment_particle(used,q,accent,light,dark,size*(.55+pulse*.7),1.0-age)
+		if kind in ["orb","lob","meteor","beam"]:
+			used=environment_particle(used,q+Vector3.UP*.15,"impact_star",light,dark,size*.52,(1.0-age)*.65)
+	return used
+
+# Terrain effects are attached to cast tiles, not to damage events. An empty
+# tile can still show water, a fissure or weather without a false hit marker.
+const TERRAIN_CONTACT_ART={"lib_ground_1":["quake","shards",1.1],"lib_rock_3":["fall","crystal",1],"eos_008":["burrow","shards",0.8],"eos_030":["fall","shards",0.95],"eos_032":["vortex","drop",0.8],"eos_036":["wind","slash",0.65],"eos_057":["wind","cloud",0.75],"eos_060":["wind","slash",1],"eos_064":["storm","lightning",1.1],"eos_073":["rise","shards",0.9],"eos_082":["wind","leaf",0.9],"eos_097":["wind","crystal",0.7],"eos_101":["fall","crystal",0.7],"eos_113":["rise","drop",1.1],"eos_129":["storm","lightning",0.85],"eos_156":["dive","drop",0.8],"eos_158":["fall","drop",1.1],"eos_159":["wave","drop",0.85],"eos_162":["vortex","flame",0.95],"eos_219":["wave","drop",1.25],"eos_230":["wave","ember",1.15],"eos_270":["wind","crystal",1.25],"eos_272":["rise","flame",1.2],"eos_278":["rise","flame",1.3],"eos_437":["wind","smoke",1],"eos_481":["rise","shards",1.1],"eos_484":["rise","shards",1.25],"eos_519":["rise","flame",1.1],"eos_521":["storm","lightning",1.2],"eos_012":["weather","drop",0.85],"eos_014":["weather","crystal",0.9],"eos_141":["weather","shards",0.85],"eos_223":["sun","ember",1],"eos_131":["rift","earth_hole",1],"eos_118":["quake","shards",1.3],"eos_296":["quake","shards",0.85],"eos_535":["fall","crystal",1.2],"eos_435":["rift","spiral",1.2],"eos_460":["wind","leaf",0.8],"eos_494":["wave","spiral",1.25],"eos_538":["fall","meteor",1.15],"eos_394":["wind","slash",0.95],
+	"alt_bubblewisp":["wave","bubble",0.73],
+	"alt_nova_wisp":["vortex","ember",0.77],
+	"eos_041":["rise","flame",1.52],
+	"eos_150":["freeze","crystal",1.35],
+	"eos_291":["vortex","flame",0.93],
+	"eos_307":["weather","drop",0.62],
+	"eos_524":["vortex","flame",1.45],
+	"jelly_pulse":["storm","lightning",0.67],
+	"lib_electric_3":["storm","lightning",1.02],
+	"lib_fire_3":["vortex","flame",0.91],
+	"lib_ice_3":["wind","crystal",0.91],
+	"lib_water_3":["wave","drop",1.04],
+	"prism_shatter":["rise","crystal",0.88],
+	"alt_anemoneye":["rise","projectile_thorn",0.88],
+	"alt_astro_golem":["fall","shards",1.1],
+	"alt_mossmite":["fall","projectile_stone",0.65],
+	"eos_143":["vortex","shards",0.92],
+	"eos_147":["wind","smoke",0.83],
+	"eos_212":["weather","shards",0.72],
+	"eos_238":["rise","projectile_thorn",1.48],
+	"eos_253":["vortex","leaf",1.05],
+	"eos_295":["hazard","projectile_thorn",0.82],
+	"eos_480":["hazard","projectile_stone",0.9],
+	"eos_496":["hazard","projectile_thorn",0.88],
+	"lib_grass_3":["quake","projectile_thorn",0.97],
+	"lib_poison_3":["vortex","venom_splash",0.95],
+	"royal_spores":["wind","projectile_spore",1.08],
+	"spore_cloud":["wind","projectile_spore",0.65],
+	"timber_shock":["quake","shards",1.12],
+	"alt_abyss_colossus":["wind","smoke",1.18],
+	"celestial_verdict":["fall","impact_star",1.4],
+	"comet_drop":["fall","projectile_comet",1.03],
+	"eos_216":["wind","smoke",0.95],
+	"lib_dark_2":["rift","smoke",1.04],
+	"lib_fairy_2":["vortex","impact_star",0.85],
+	"lib_ghost_3":["vortex","smoke",1],
+	"lib_psychic_3":["rise","projectile_prism",1.3],
+	"lunar_dust":["wind","impact_star",0.74],
+	"alt_nebulwing":["wind","impact_star",0.82],
+	"eos_029":["rise","shards",0.77],
+	"lib_flying_3":["vortex","cloud",0.94]
+}
+const TERRAIN_TILE_CAP:int=6
+
+func terrain_contact_art(id:String)->Array:
+	return TERRAIN_CONTACT_ART.get(id,[])
+
+func terrain_contact_tiles(burst:Dictionary)->Array[Vector3]:
+	var tiles:Array[Vector3]=[]
+	var points:Array=burst.points
+	if points.is_empty():return tiles
+	var anchor:Vector3=points[-1]
+	for value in burst.get("tiles",[]):
+		if not value is Vector3:continue
+		var q:Vector3=value
+		q.y=.055
+		if not tiles.has(q):tiles.append(q)
+	if tiles.is_empty():tiles.append(Vector3(anchor.x,.055,anchor.z))
+	tiles.sort_custom(func(a:Vector3,b:Vector3)->bool:
+		var da:float=Vector2(a.x-anchor.x,a.z-anchor.z).length_squared()
+		var db:float=Vector2(b.x-anchor.x,b.z-anchor.z).length_squared()
+		if not is_equal_approx(da,db):return da<db
+		if a.x!=b.x:return a.x<b.x
+		return a.z<b.z)
+	if tiles.size()>TERRAIN_TILE_CAP:tiles.resize(TERRAIN_TILE_CAP)
+	return tiles
+
+func terrain_contact_fx(burst:Dictionary,t:float,used:int,light:Color,dark:Color)->int:
+	var art:Array=terrain_contact_art(str(burst.id))
+	var points:Array=burst.points
+	if art.is_empty() or points.is_empty() or t<0.0 or t>=1.0:return used
+	var kind:String=str(art[0])
+	var material:String=str(art[1])
+	var strength:float=float(art[2])
+	var peak:float=clampf(float(burst.profile.impact),.01,.99)
+	var progress:float=clampf(t/peak,0.0,1.0)
+	var age:float=clampf((t-peak)/(1.0-peak),0.0,1.0)
+	var opacity:float=clampf(t*9.0,0.0,1.0)*(1.0-age)
+	var source:Vector3=points[0]
+	var target:Vector3=points[-1]
+	var forward:Vector3=target-source
+	forward.y=0.0
+	if forward.length_squared()<.0001:forward=Vector3.FORWARD
+	forward=forward.normalized()
+	var side:Vector3=forward.cross(Vector3.UP)
+	if kind in ["burrow","dive"]:
+		var route:Vector3=combat_path_sample(points,progress)
+		route.y=.055
+		used=environment_particle(used,route,"earth_hole" if kind=="burrow" else "shock_ring",light,dark,.70*strength,opacity,true)
+		return environment_particle(used,route+Vector3.UP*(.15+sin(progress*PI)*.25),material,light,dark,.42*strength,opacity)
+	var cells:Array[Vector3]=terrain_contact_tiles(burst)
+	for i in range(cells.size()):
+		if used>=FX_PARTICLE_CAP:break
+		var center:Vector3=cells[i]
+		var phase:float=float(i)*2.399
+		var radial:=Vector3(cos(phase),0,sin(phase))
+		var q:Vector3=center+Vector3.UP*.12
+		var flat:bool=false
+		var mode:String=material
+		var size:float=.56*strength
+		match kind:
+			"quake","rift":
+				used=environment_particle(used,center,"earth_hole" if kind=="rift" else "shock_ring",light,dark,(.45+progress*.65+age*.35)*strength,opacity,true)
+				q=center+radial*.30*age+Vector3.UP*(.12+sin(age*PI)*.65)
+			"rise":
+				q=center+Vector3.UP*(.12+sin(clampf(progress*.55+age*.45,0.0,1.0)*PI)*1.35*strength)
+				used=environment_particle(used,center,"shock_ring",light,dark,.70*strength,opacity*.65,true)
+			"fall","weather","storm":
+				q=center+radial*.22+Vector3.UP*(.12+(1.0-progress)*1.8*strength)
+				if kind=="weather":q.y=.20+fposmod(1.0-t*2.0+float(i)*.21,1.0)*1.65
+				if kind=="storm":q.y=.25+(1.0-progress)*2.2
+			"wave":
+				q=center-forward*(1.0-progress)*.55+Vector3.UP*(.10+sin(progress*PI)*.55*strength)
+				used=environment_particle(used,center,"wave",light,dark,(.65+age*.65)*strength,opacity*.75,true)
+			"wind","vortex":
+				var angle:float=phase+t*TAU*2.0
+				q=center+(forward*cos(angle)+side*sin(angle))*.42*strength+Vector3.UP*(.20+fposmod(t+float(i)*.17,1.0)*.85)
+				if kind=="vortex":used=environment_particle(used,center,"spiral",light,dark,.85*strength,opacity*.7,true)
+			"hazard":
+				q=center+Vector3.UP*.025
+				flat=true
+				size=.84*strength*(.35+.65*progress)
+			"freeze":
+				used=environment_particle(used,center,"shock_ring",light,dark,1.15*strength,opacity,true)
+				q=center+radial*.35+Vector3.UP*(.20+progress*.62)
+				size=.90*strength
+			"sun":
+				q=center+Vector3.UP*(1.4+sin(t*PI)*.35)
+				mode="impact_star"
+				size=.85*strength
+		used=environment_particle(used,q,mode,light,dark,size,opacity,flat)
+	return used
+
+# Cast-time status art is outcome driven; the persistent layer reads live rules.
+const SUPPORT_CONTACT_ART={"eos_117":"heal","eos_218":"heal","eos_006":"heal","eos_094":"heal","eos_173":"heal","eos_449":"heal","eos_165":"heal","eos_318":"heal","eos_509":"heal","eos_236":"heal","eos_439":"heal","eos_526":"heal","eos_015":"cleanse","eos_026":"cleanse","eos_339":"cleanse","eos_456":"cleanse","eos_088":"cleanse","eos_301":"shield","eos_305":"shield","eos_104":"shield","eos_338":"shield","eos_259":"shield","eos_134":"shield","eos_130":"shield","eos_258":"shield","eos_186":"shield","eos_058":"shield","eos_070":"shield","eos_202":"shield","eos_520":"shield","eos_302":"shield","eos_298":"shield","eos_003":"sleep","eos_004":"sleep","eos_034":"sleep","eos_079":"sleep","eos_111":"sleep","eos_231":"sleep","eos_483":"sleep","eos_084":"sleep","eos_232":"sleep","eos_013":"confuse","eos_171":"confuse","eos_191":"confuse","eos_274":"confuse","eos_196":"poison","eos_197":"poison","eos_199":"poison","eos_124":"paralysis","eos_192":"paralysis","eos_281":"paralysis","eos_047":"burn","eos_183":"transform","eos_184":"transform","eos_286":"transform","eos_282":"transform","eos_304":"transform","eos_169":"transform","eos_148":"transform","eos_056":"transform","eos_055":"boost","eos_099":"boost","eos_181":"boost","eos_195":"boost","eos_215":"boost","eos_265":"boost","eos_288":"boost","eos_319":"boost","eos_333":"boost","eos_542":"boost","eos_095":"boost","eos_343":"boost","eos_444":"boost","eos_540":"boost","eos_074":"boost","eos_492":"boost","eos_257":"boost","eos_128":"boost","eos_160":"boost","eos_019":"boost","eos_010":"weaken","eos_011":"weaken","eos_027":"weaken","eos_033":"weaken","eos_083":"weaken","eos_085":"weaken","eos_122":"weaken","eos_142":"weaken","eos_146":"weaken","eos_217":"weaken","eos_224":"weaken","eos_273":"weaken","eos_106":"weaken","eos_351":"weaken","eos_267":"weaken","eos_534":"weaken","eos_266":"seal","eos_450":"seal","eos_059":"seal","eos_017":"seal","eos_022":"seal","eos_172":"seal","eos_466":"seal","eos_089":"seal","eos_194":"seal","eos_225":"regen","eos_434":"regen","eos_233":"regen","eos_021":"link","eos_313":"link","eos_464":"link","eos_448":"link","eos_506":"link","eos_513":"link","eos_137":"link","eos_209":"link","eos_482":"link","eos_187":"phase","eos_478":"phase","eos_493":"phase","eos_499":"phase",
+	"eos_438":"seal",
+	"eos_005":"nightmare",
+	"eos_035":"seal",
+	"eos_043":"weaken",
+	"eos_045":"confuse",
+	"eos_049":"nightmare",
+	"eos_220":"transform",
+	"eos_269":"link",
+	"eos_316":"shield",
+	"eos_317":"omen",
+	"eos_334":"link",
+	"eos_503":"phase",
+	"eos_514":"transform",
+	"eos_528":"reveal",
+	"eos_024":"confuse",
+	"eos_037":"smoke",
+	"eos_040":"copy",
+	"eos_054":"reveal",
+	"eos_098":"reveal",
+	"eos_102":"link",
+	"eos_115":"copy",
+	"eos_119":"omen",
+	"eos_138":"copy",
+	"eos_185":"boost",
+	"eos_227":"sleep",
+	"eos_229":"copy",
+	"eos_237":"nightmare",
+	"eos_252":"link",
+	"eos_256":"omen",
+	"eos_263":"omen",
+	"eos_315":"reveal",
+	"eos_326":"heart",
+	"eos_327":"copy",
+	"eos_330":"omen",
+	"eos_337":"regen",
+	"eos_349":"reveal",
+	"eos_447":"shield",
+	"eos_465":"copy",
+	"eos_471":"omen",
+	"eos_525":"copy"
+}
+const SUPPORT_VISUALS={
+	"heal":["support_cross","impact_star","#c4ffe0","#329c72"],
+	"cleanse":["support_cross","leaf","#e6fff4","#6cc7a6"],
+	"shield":["support_ward","crystal","#e5f7ff","#658fc7"],
+	"sleep":["support_moon","cloud","#d5e4ff","#7775c4"],
+	"confuse":["spiral","impact_star","#fff1a2","#a66cc8"],
+	"poison":["venom_splash","bubble","#d9a6ff","#7839aa"],
+	"paralysis":["lightning","impact_star","#fff2a3","#c79527"],
+	"burn":["flame","ember","#ffd68b","#e05a26"],
+	"transform":["support_change","spiral","#e7d5ff","#9064bd"],
+	"boost":["support_up","impact_star","#ffe7a6","#c08d38"],
+	"weaken":["support_down","cloud","#c3c8f4","#776eaa"],
+	"seal":["support_seal","web","#dbb9ff","#79559f"],
+	"regen":["support_cross","bubble","#c0ffea","#45b6a1"],
+	"link":["support_change","spiral","#f8caff","#ac66bf"],
+	"phase":["support_change","impact_star","#e6ddff","#8b73c9"],
+	"nightmare":["support_moon","smoke","#d7a9ed","#513469"],
+	"omen":["support_seal","spiral","#f3c5ff","#9b4dc5"],
+	"reveal":["projectile_eye","impact_star","#ffe4a9","#9b74c6"],
+	"smoke":["cloud","smoke","#c2bdc8","#61576b"],
+	"copy":["projectile_card","spiral","#e4dbff","#8478c6"],
+	"heart":["support_heart","bubble","#ffb8df","#d268a5"]}
+
+func support_contact_kind(id:String)->String:
+	return str(SUPPORT_CONTACT_ART.get(id,""))
+
+func support_contact_fx(burst:Dictionary,t:float,used:int)->int:
+	var kind:String=support_contact_kind(str(burst.id))
+	var points:Array=burst.points
+	if kind.is_empty() or points.is_empty() or t<0.0 or t>=1.0:return used
+	var art:Array=SUPPORT_VISUALS[kind]
+	var light:=Color(str(art[2]));var dark:=Color(str(art[3]))
+	var peak:float=clampf(float(burst.profile.impact),.01,.99)
+	var source:Vector3=points[0]
+	var target:Vector3=points[-1]
+	var progress:float=clampf(t/peak,0.0,1.0)
+	if t<peak:
+		var q:Vector3=combat_path_sample(points,progress)
+		return environment_particle(used,q,str(art[1]),light,dark,.40+.18*progress,sin(progress*PI)*.7)
+	var age:float=clampf((t-peak)/(1.0-peak),0.0,1.0)
+	var results:Dictionary=burst.get("results",{})
+	var confirmed:Array[Vector2i]=[]
+	for tile in results:
+		if not tile is Vector2i:continue
+		var row:Dictionary=results[tile]
+		var changed:bool=int(row.get("effects",0))>0
+		var healed:bool=int(row.get("heal",0))>0
+		var damage_effect:bool=str(burst.id) in ["eos_263","eos_471"] and int(row.get("damage",0))>0
+		if (healed if kind=="heal" else changed or healed or damage_effect):confirmed.append(tile)
+	var primary:=Vector2i(roundi(target.x/1.4),roundi(target.z/1.4))
+	confirmed.sort_custom(func(a:Vector2i,b:Vector2i)->bool:
+		var da:int=(a-primary).length_squared()
+		var db:int=(b-primary).length_squared()
+		if da!=db:return da<db
+		if a.x!=b.x:return a.x<b.x
+		return a.y<b.y)
+	for i in range(mini(4,confirmed.size())):
+		var q:Vector3=pos(confirmed[i])+Vector3.UP*.65
+		var motion:float=age*.42
+		if kind=="weaken":motion=-motion
+		if kind in ["heal","regen","boost","weaken","sleep"]:q.y+=motion
+		var size:float=.76+.24*sin(age*PI)
+		used=environment_particle(used,q,str(art[0]),light,dark,size,1.0-age)
+		for j in range(2):
+			var angle:float=age*TAU+float(j)*PI
+			var accent:Vector3=q+Vector3(cos(angle)*.28,.16,sin(angle)*.28)
+			used=environment_particle(used,accent,str(art[1]),light,dark,.34,(1.0-age)*.8)
+	return used
+
+# V12 audit follow-up: uncovered aerial and open-hand impacts.
+const MOTION_CONTACT_ART={"eos_100":["wing","dive",1.12,"slash"],"eos_153":["wing","dive",0.91,"cloud"],"eos_205":["crest","bounce",1,"shock_ring"],"eos_179":["wing","sweep",0.83,"slash"],"eos_518":["wing","dive",1.2,"flame"],"eos_211":["beak","drill",1.02,"shards"],"eos_174":["beak","jab",0.65,"impact_star"],"eos_490":["beak","jab",0.75,"leaf"],"eos_178":["wing","sweep",0.88,"cloud"],"eos_244":["wing","sweep",1,"shards"],"eos_477":["crest","vanish",1.1,"smoke"],"eos_132":["crest","rush",1.05,"slash"],"eos_190":["crest","rush",0.68,"slash"],"eos_226":["palm","jab",0.65,"impact_star"],"eos_039":["palm","multi",0.72,"impact_star"],"eos_175":["palm","multi",0.82,"shock_ring"],"eos_531":["palm","sweep",0.85,"impact_star"],"eos_507":["palm","jab",1,"shock_ring"],"eos_068":["chop","down",0.8,"slash"],"eos_072":["chop","down",1.05,"shards"],"eos_090":["cross","down",1.05,"slash"],"eos_243":["crest","rush",1.18,"shock_ring"],"eos_440":["palm","rush",1.08,"impact_star"],"eos_170":["crest","toss",1.1,"shock_ring"],"eos_311":["beak","multi",0.74,"impact_star"],"eos_487":["palm","multi",0.83,"impact_star"],"eos_250":["palm","down",0.78,"impact_star"],"eos_432":["crest","rush",0.85,"drop"],"eos_451":["crest","vanish",0.78,"smoke"],"eos_498":["crest","rush",1.15,"flame"],"eos_502":["wing","sweep",0.8,"leaf"],"lib_fighting_1":["palm","jab",0.83,"shock_ring"],"alt_sylphowl":["wing","sweep",0.78,"slash"],"alt_lunamoth":["wing","sweep",0.9,"impact_star"],
+	"eos_087":["pincer","down",1.06,"drop"],
+	"double_pincer":["pincer","sweep",0.93,"leaf"],
+	"eos_221":["thorn","jab",0.9,"leaf"],
+	"eos_289":["bone","down",0.91,"shards"],
+	"eos_459":["cross","down",0.95,"venom_splash"],
+	"eos_470":["cross","sweep",1.12,"leaf"],
+	"eos_495":["thorn","jab",0.83,"venom_splash"],
+	"alt_lunar_prowler":["crest","vanish",0.88,"smoke"],
+	"eos_038":["crest","rush",0.78,"smoke"],
+	"eos_046":["palm","vanish",0.73,"smoke"],
+	"eos_167":["crest","vanish",0.83,"smoke"],
+	"eos_214":["palm","sweep",0.77,"smoke"],
+	"eos_249":["palm","down",0.95,"impact_star"],
+	"eos_445":["chop","down",1.08,"smoke"],
+	"eos_472":["crest","rush",1,"shock_ring"],
+	"eos_488":["palm","jab",0.88,"smoke"],
+	"basic_strike":["palm","jab",0.54,"impact_star"],
+	"eos_048":["crest","rush",0.92,"impact_star"],
+	"eos_050":["palm","toss",1.13,"shock_ring"],
+	"eos_066":["palm","jab",0.88,"shock_ring"],
+	"eos_067":["crest","rush",0.89,"impact_star"],
+	"eos_077":["palm","rush",1.02,"shock_ring"],
+	"eos_078":["palm","sweep",0.74,"impact_star"],
+	"eos_096":["crest","sweep",0.78,"spiral"],
+	"eos_247":["pincer","down",1.22,"impact_star"],
+	"eos_287":["palm","sweep",0.72,"impact_star"],
+	"eos_328":["crest","rush",1.07,"shock_ring"],
+	"eos_352":["palm","multi",0.75,"impact_star"],
+	"eos_497":["crest","rush",1.26,"shock_ring"],
+	"eos_516":["palm","jab",0.65,"slash"],
+	"eos_541":["crest","bounce",0.95,"shards"],
+	"fin_slice":["wing","sweep",0.77,"slash"]
+}
+
+func motion_contact_art(id:String)->Array:
+	return MOTION_CONTACT_ART.get(id,[])
+
+func motion_contact_fx(id:String,source:Vector3,target:Vector3,age:float,used:int,light:Color,dark:Color,hits:int=1)->int:
+	var art:Array=motion_contact_art(id)
+	if art.is_empty() or age<0.0 or age>=.82:return used
+	var t:float=age/.82
+	var kind:String=str(art[1])
+	var repetitions:int=clampi(hits,1,5) if kind=="multi" else 1
+	var cycle:float=t*float(repetitions)
+	var p:float=fposmod(cycle,1.0)
+	var side_sign:float=1.0 if int(cycle)%2==0 else -1.0
+	var forward:Vector3=target-source
+	forward.y=0.0
+	if forward.length_squared()<.0001:forward=Vector3.FORWARD
+	forward=forward.normalized()
+	var side:Vector3=forward.cross(Vector3.UP)
+	var contact:float=smoothstep(0.0,.30,p)
+	var center:Vector3=target+Vector3.UP*.08
+	var q:Vector3=center-forward*.40*(1.0-contact)
+	match kind:
+		"dive","down":q.y+=.65*(1.0-contact)
+		"bounce","toss":q.y+=.75*(1.0-contact)+sin(p*PI)*.12
+		"sweep":q+=side*(contact-.5)*.55
+		"rush":q-=forward*.28*(1.0-contact)
+		"multi":q+=side*side_sign*.21
+		"drill":q+=side*sin(p*TAU*3.0)*.11
+		"vanish":q+=side*.22*(1.0-contact)
+	var mode:String="motion_"+str(art[0])
+	if is_instance_valid(camera) and forward.dot(camera.global_basis.x)<0.0:mode+="_mirror"
+	var size:float=float(art[2])*(.88+.26*sin(p*PI))
+	var alpha:float=1.0-smoothstep(.60,1.0,t)
+	if kind=="multi":alpha*=1.0-smoothstep(.82,1.0,p)
+	if used>=mini(FX_PARTICLE_CAP,combat_particles.size()):return used
+	used=environment_particle(used,q,mode,light,dark,size,alpha)
+	if p>=.18:
+		var accent:Vector3=center+side*side_sign*.22+Vector3.UP*p*.16
+		used=environment_particle(used,accent,str(art[3]),light,dark,size*.62,alpha*.84)
+		if kind in ["vanish","drill","rush","dive"]:
+			used=environment_particle(used,q-forward*.21,mode,light,dark,size*.72,alpha*.30)
+	return used
+
+# Contact emblems use a dedicated first pass over active casts. Primary
+# contacts from all casts have priority over secondary contacts and filler.
+func confirmed_contact_at(id:String,source:Vector3,target:Vector3,age:float,used:int,light:Color,dark:Color,hits:int)->int:
+	used=bite_contact_fx(id,target,age,used,light,dark)
+	used=punch_contact_fx(id,source,target,age,used,light,dark,hits)
+	used=kick_contact_fx(id,source,target,age,used,light,dark,hits)
+	used=claw_contact_fx(id,source,target,age,used,light,dark,hits)
+	used=body_contact_fx(id,source,target,age,used,light,dark,hits)
+	return motion_contact_fx(id,source,target,age,used,light,dark,hits)
+
+func priority_contact_fx(burst:Dictionary,t:float,used:int,secondary:bool=false)->int:
+	var peak:float=float(burst.profile.impact)
+	var points:Array=burst.points
+	if t<peak or t>=1.0 or points.is_empty():return used
 	var id:String=str(burst.id)
+	var record:Dictionary=Rules.MOVE_LIBRARY.get(id,Rules.DEV_NATIVE_MOVES.get(id,{}))
+	if str(record.get("category",""))=="status":return used
+	var source:Vector3=points[0]
+	var target:Vector3=points[-1]
+	var age:float=clampf((t-peak)/maxf(.01,1.0-peak),0.0,1.0)
+	var style:Array=combat_style(id)
+	var light:=Color(str(style[1]));var dark:=Color(str(style[2]))
+	var primary:=Vector2i(roundi(target.x/1.4),roundi(target.z/1.4))
+	var results:Dictionary=burst.get("results",{})
+	if not secondary:
+		var row:Dictionary=results.get(primary,{})
+		if int(row.get("damage",0))+int(row.get("effects",0))+int(row.get("heal",0))<=0:return used
+		return confirmed_contact_at(id,source,target,age,used,light,dark,int(row.get("hits",1)))
+	var cells:Array[Vector2i]=[]
+	for tile in results:
+		if not tile is Vector2i or tile==primary:continue
+		var row:Dictionary=results[tile]
+		if int(row.get("damage",0))+int(row.get("effects",0))+int(row.get("heal",0))>0:cells.append(tile)
+	cells.sort_custom(func(a:Vector2i,b:Vector2i)->bool:
+		var da:int=(a-primary).length_squared()
+		var db:int=(b-primary).length_squared()
+		if da!=db:return da<db
+		if a.x!=b.x:return a.x<b.x
+		return a.y<b.y)
+	for i in range(mini(4,cells.size())):
+		var tile:Vector2i=cells[i]
+		var row:Dictionary=results[tile]
+		used=confirmed_contact_at(id,source,pos(tile)+Vector3.UP*.45,age,used,light,dark,int(row.get("hits",1)))
+	return used
+
+func reserve_confirmed_contacts(dt:float,used:int)->int:
+	# Same projected timeline as combat_fx_update; never advances state twice.
+	for secondary in [false,true]:
+		for k in range(combat_bursts.size()-1,-1,-1):
+			var burst:Dictionary=combat_bursts[k]
+			# Observed presentation owns its contact marks, without duplicates.
+			if str(burst.id) in RTDX_OBSERVED_MOVES:continue
+			var t:float=(float(burst.age)+dt)/maxf(.001,float(burst.duration))
+			used=priority_contact_fx(burst,t,used,secondary)
+	return used
+
+const RTDX_OBSERVED_MOVES=["eos_530","eos_114","eos_262","eos_149","eos_260","eos_174","eos_036","eos_092","eos_109","eos_108","eos_151","eos_142"]
+
+# Orient the wedge in screen space, without changing the combat path.
+func rtdx_directional_stamp(used:int,at:Vector3,mode:String,light:Color,dark:Color,size_value:float,alpha:float,source:Vector3,target:Vector3)->int:
+	var next:int=environment_particle(used,at,mode,light,dark,size_value,alpha)
+	if next>used and is_instance_valid(camera):
+		var direction:Vector2=camera.unproject_position(target)-camera.unproject_position(source)
+		if direction.length_squared()>.001:
+			var particle:Sprite3D=combat_particles[used]
+			particle.billboard=BaseMaterial3D.BILLBOARD_DISABLED
+			particle.global_transform=Transform3D(camera.global_transform.basis*Basis(Vector3.BACK,-direction.angle()).scaled(Vector3.ONE*size_value),particle.global_position)
+	return next
+
+# A continuous camera-facing beam segment, sized from the actual path.
+# Original masks and widths; timing is not inferred from a screenshot.
+func rtdx_beam_segment(used:int,a:Vector3,b:Vector3,mode:String,light:Color,dark:Color,alpha:float)->int:
+	var delta:Vector3=b-a
+	if delta.length_squared()<.000001:return used
+	var next:int=environment_particle(used,(a+b)*.5,mode,light,dark,1.0,alpha)
+	if next==used:return used
+	var particle:Sprite3D=combat_particles[used]
+	var basis:Basis=camera.global_transform.basis if is_instance_valid(camera) else Basis.IDENTITY
+	var local:Vector3=basis.inverse()*delta
+	var planar:=Vector2(local.x,local.y)
+	# A depth-only segment remains a small luminous point in screen space.
+	var width:float=maxf(.025,planar.length())
+	var direction:float=planar.angle() if planar.length_squared()>.000001 else 0.0
+	var extent:float=float(particle.texture.get_width())*particle.pixel_size
+	var stretch:=Vector3((width+.035)/extent,1.0,1.0)
+	particle.billboard=BaseMaterial3D.BILLBOARD_DISABLED
+	particle.global_transform=Transform3D(basis*Basis(Vector3.BACK,direction)*Basis.from_scale(stretch),particle.global_position)
+	return next
+
+# Clip each polyline segment to the visible distance interval. This avoids
+# skipping corners or leaving gaps on long casts; no per-tile particle flood.
+func rtdx_beam_path(used:int,points:Array,first:float,last:float,mode:String,light:Color,dark:Color,alpha:float)->int:
+	if points.size()<2 or last<=first:return used
+	var length:float=0.0
+	for i in range(1,points.size()):
+		var a:Vector3=points[i-1]
+		length+=a.distance_to(points[i])
+	if length<.00001:return used
+	var from_distance:float=clampf(first,0.0,1.0)*length
+	var to_distance:float=clampf(last,0.0,1.0)*length
+	var cursor:float=0.0
+	for i in range(1,points.size()):
+		if used>=FX_PARTICLE_CAP:break
+		var a:Vector3=points[i-1]
+		var z:Vector3=points[i]
+		var segment:float=a.distance_to(z)
+		if segment<.00001:continue
+		var lo:float=maxf(cursor,from_distance)
+		var hi:float=minf(cursor+segment,to_distance)
+		if hi>lo:
+			used=rtdx_beam_segment(used,a.lerp(z,(lo-cursor)/segment),a.lerp(z,(hi-cursor)/segment),mode,light,dark,alpha)
+		cursor+=segment
+		if cursor>=to_distance:break
+	return used
+
+# A single target-selection contract for all evidence-driven finishes.
+# Affected cells are sorted independently of dictionary insertion order.
+func rtdx_confirmed_cells(burst:Dictionary,effect_only:bool=false)->Array[Vector2i]:
+	var cells:Array[Vector2i]=[]
+	var points:Array=burst.get("points",[])
+	if points.is_empty():return cells
+	var target:Vector3=points[-1]
+	var primary:=Vector2i(roundi(target.x/1.4),roundi(target.z/1.4))
+	var results:Dictionary=burst.get("results",{})
+	for cell in results:
+		if not cell is Vector2i:continue
+		var row:Dictionary=results[cell]
+		if int(row.get("effects" if effect_only else "damage",0))>0:cells.append(cell)
+	cells.sort_custom(func(a:Vector2i,b:Vector2i)->bool:
+		var da:int=(a-primary).length_squared()
+		var db:int=(b-primary).length_squared()
+		if da!=db:return da<db
+		if a.x!=b.x:return a.x<b.x
+		return a.y<b.y)
+	return cells
+
+func rtdx_cell_anchor(target:Vector3,cell:Vector2i)->Vector3:
+	var primary:=Vector2i(roundi(target.x/1.4),roundi(target.z/1.4))
+	return target if cell==primary else pos(cell)+Vector3.UP*.55
+
+# V15: visible shapes grounded in linked DX stills. Animation timing and
+# exact particle count are Kindria approximations pending temporal evidence.
+func rtdx_observed_stage_fx(burst:Dictionary,t:float,used:int)->int:
+	var points:Array=burst.get("points",[])
+	if points.is_empty():return used
+	var source:Vector3=points[0]
+	var target:Vector3=points[-1]
+	var peak:float=clampf(float(burst.profile.impact),.01,.99)
+	var progress:float=clampf(t/peak,0.0,1.0)
+	var after:float=clampf((t-peak)/(1.0-peak),0.0,1.0)
+	var id:String=str(burst.id)
+	if id=="eos_530":
+		var warm:=Color("#ffc33b")
+		var gold:=Color("#ff9c24")
+		var fade:float=clampf((1.0-after)*1.2,0.0,1.0)*minf(1.0,t*18.0)
+		for i in range(3):
+			var radius:float=.85+float(i)*.76+progress*.30+after*.28
+			used=environment_particle(used,source,"shock_ring",warm,gold,radius,fade*(1.0-float(i)*.14))
+		var side:=Vector3.RIGHT
+		if is_instance_valid(camera):side=camera.global_transform.basis.x.normalized()
+		for sign_value in [-1.0,1.0]:
+			used=environment_particle(used,source+side*float(sign_value)*(.42+progress*.20)+Vector3.UP*.16,"lightning",Color("#ffe94f"),gold,.64,fade)
+	elif id=="eos_114" and t<peak:
+		var head:Vector3=combat_path_sample(points,progress)
+		used=rtdx_beam_path(used,points,progress*.32,progress,"rtdx_signal_strip",Color("#c2f2ff"),Color("#2568ec"),minf(1.0,t*20.0))
+		used=environment_particle(used,head,"impact_star",Color.WHITE,Color("#75baff"),.54,minf(1.0,t*20.0))
+	elif id=="eos_262" and t<peak:
+		# Dense compact orange flame mass between caster and target.
+		for i in range(7):
+			var f:float=float(i)/6.0
+			var p:float=clampf(progress-f*.27,0.0,1.0)
+			var q:Vector3=combat_path_sample(points,p)+Vector3.UP*(.08+f*.20)
+			used=environment_particle(used,q,"rtdx_flame",Color("#fff087"),Color("#ff5d0c"),.64-f*.24,minf(1.0,progress*8.0))
+	elif id=="eos_149":
+		# Indirect reference capture: blue flame clouds and blue floor glow.
+		# Keep light local rather than changing global scene exposure.
+		var fade:float=(1.0-after)*minf(1.0,t*12.0)
+		var tiles:Array=burst.get("tiles",[])
+		var anchors:Array=[source]
+		for i in range(mini(5,tiles.size())):
+			var anchor:Vector3=tiles[i]
+			anchors.append(anchor+Vector3.UP*.45)
+		for i in range(anchors.size()):
+			var q:Vector3=anchors[i]
+			used=environment_particle(used,q+Vector3.UP*(.26+sin(progress*PI)*.50),"rtdx_bluefire",Color("#45d8ff"),Color("#1647ec"),1.65,fade*.86)
+			if i==0:
+				cinematic_halo(Vector3(q.x,.065,q.z),Color("#247aff"),2.1,fade*.65,t,true)
+	elif id=="eos_142":
+		# The archived DX still shows diffuse dust and a downward stat mark.
+		# Cloud is environmental; the mark requires a confirmed stat change.
+		var forward:Vector3=(target-source).normalized()
+		var lateral:=Vector3(-forward.z,0.0,forward.x).normalized()
+		if lateral.length_squared()<.01:lateral=Vector3.RIGHT
+		var fade:float=minf(1.0,progress*7.0)*(1.0-after)
+		for i in range(5):
+			var f:float=float(i)/4.0
+			var q:Vector3=combat_path_sample(points,clampf(progress-f*.25,0.0,1.0))
+			q+=forward*(.08+after*.23)+lateral*(f-.5)*(.25+after*.35)+Vector3.UP*(.20+f*.42+after*.18)
+			used=environment_particle(used,q,"rtdx_dust",Color("#d5cbb6"),Color("#88827a"),.95+f*.36+after*.32,fade*.72)
+		if t>=peak and after<.85:
+			var cells:Array[Vector2i]=rtdx_confirmed_cells(burst,true)
+			for i in range(mini(5,cells.size())):
+				var at:Vector3=rtdx_cell_anchor(target,cells[i])
+				used=environment_particle(used,at+Vector3.UP*(.65-after*.4),"support_down",Color("#ffe05a"),Color("#be9228"),.80,1.0-after/.85)
+		return used
+	elif id=="eos_151":
+		# Charge is separately shown by charge_environment_fx. Release is a
+		# narrow yellow-white ray along the actual cast path.
+		if t<peak:
+			var head:Vector3=combat_path_sample(points,progress)
+			used=rtdx_beam_path(used,points,0.0,progress,"rtdx_solar",Color.WHITE,Color("#ffdf3a"),minf(1.0,progress*10.0))
+			used=environment_particle(used,head,"rtdx_glint",Color.WHITE,Color("#fff17b"),.78,minf(1.0,progress*12.0))
+		elif after<.55:
+			var cells:Array[Vector2i]=rtdx_confirmed_cells(burst)
+			for i in range(mini(5,cells.size())):
+				used=environment_particle(used,rtdx_cell_anchor(target,cells[i]),"rtdx_glint",Color.WHITE,Color("#ffdf3a"),1.05,1.0-after/.55)
+		return used
+	elif id in ["eos_036","eos_092","eos_109","eos_108"]:
+		if t<peak or after>=.78:return used
+		# Every mark is anchored to a confirmed victim. No duplicate generic
+		# contact icons and no global pink overlay from an unverified still.
+		var cells:Array[Vector2i]=rtdx_confirmed_cells(burst)
+		var fade:float=1.0-after/.78
+		var right:=Vector3.RIGHT
+		if is_instance_valid(camera):right=camera.global_transform.basis.x.normalized()
+		for i in range(mini(5,cells.size())):
+			var at:Vector3=rtdx_cell_anchor(target,cells[i])
+			match id:
+				"eos_036":
+					for j in [-1.0,1.0]:
+						used=environment_particle(used,at+right*float(j)*.11+Vector3.UP*float(j)*.08,"rtdx_aircut",Color("#f2ffff"),Color("#b9e9ff"),1.42,fade)
+				"eos_092":
+					used=environment_particle(used,at-Vector3.UP*.18,"rtdx_lowkick",Color("#f2f1e9"),Color("#98b1bb"),1.05,fade)
+					used=environment_particle(used,at-Vector3.UP*.12,"rtdx_glint",Color("#ffe66a"),Color("#ffcb38"),.62,fade)
+					for j in range(4):
+						var angle:float=float(j)*TAU/4.0+.3
+						var q:Vector3=at+right*cos(angle)*(.24+after*.25)+Vector3.UP*sin(angle)*(.22+after*.20)
+						used=environment_particle(used,q,"rtdx_glint",Color("#deffff"),Color("#89daef"),.35,fade)
+				"eos_108":
+					for j in [-1.0,0.0,1.0]:
+						used=environment_particle(used,at+right*float(j)*(.13+after*.12),"rtdx_psy_ellipse",Color("#ff83f8"),Color("#ce29b9"),1.55+after*.35,fade)
+				"eos_109":
+					# Local pink-red wash with offset cool/warm echoes; the
+					# original screenshot cannot establish full-screen tint.
+					used=environment_particle(used,at,"rtdx_psychic",Color("#ff93bd"),Color("#ee4b86"),2.25,fade*.78)
+					used=environment_particle(used,at-right*.18,"rtdx_psychic",Color("#92baff"),Color("#506cdd"),1.32,fade*.48)
+					used=environment_particle(used,at+right*.18,"rtdx_psychic",Color("#ff8b9e"),Color("#de405b"),1.32,fade*.48)
+		return used
+	elif id in ["eos_260","eos_174"]:
+		if t>=peak and after<.68:
+			var cells:Array[Vector2i]=rtdx_confirmed_cells(burst)
+			for hit_index in range(mini(5,cells.size())):
+				var at:Vector3=rtdx_cell_anchor(target,cells[hit_index])
+				var fade:float=1.0-after/.68
+				if id=="eos_260":
+					used=environment_particle(used,at,"rtdx_scratch",Color.WHITE,Color("#bcdfff"),1.22,fade)
+					for i in range(3):
+						var q:Vector3=at+Vector3(cos(float(i)*2.4)*.30,.14+float(i)*.12,sin(float(i)*2.4)*.24)
+						used=environment_particle(used,q,"rtdx_glint",Color.WHITE,Color("#ecfaff"),.29,fade*.9)
+				else:
+					var offset:Vector3=(source-at).normalized()*.20
+					used=rtdx_directional_stamp(used,at+offset,"rtdx_peck",Color("#ffe653"),Color("#e2a02c"),1.12,fade,source,at)
+		return used
+	if t>=peak and after<.48:
+		# One localized reaction per confirmed damaged tile, never an impact
+		# on a missed primary or an arbitrary empty tile.
+		var cells:Array[Vector2i]=rtdx_confirmed_cells(burst,false)
+		for i in range(mini(5,cells.size())):
+			var at:Vector3=rtdx_cell_anchor(target,cells[i])
+			var light:=Color("#fff8d7") if id=="eos_530" else Color("#9ef6ff") if id=="eos_149" else Color("#fff087") if id=="eos_262" else Color.WHITE
+			var dark:=Color("#ffb535") if id=="eos_530" else Color("#286bff") if id=="eos_149" else Color("#ff5d0c") if id=="eos_262" else Color("#7abaff")
+			used=environment_particle(used,at,"impact_star",light,dark,.49,(1.0-after/.48)*.85)
+	return used
+
+func element_finish_fx(burst:Dictionary,t:float,used:int,contacts_reserved:bool=false)->int:
+	var id:String=str(burst.id)
+	if id in RTDX_OBSERVED_MOVES:return rtdx_observed_stage_fx(burst,t,used)
 	var profile:Dictionary=burst.profile
 	var style:Array=combat_style(id)
 	var light:=Color(str(style[1]));var dark:=Color(str(style[2]))
@@ -6480,6 +8788,10 @@ func element_finish_fx(burst:Dictionary,t:float,used:int)->int:
 	var record:Dictionary=Rules.MOVE_LIBRARY.get(id,Rules.DEV_NATIVE_MOVES.get(id,{}))
 	var status:bool=str(record.get("category",""))=="status"
 	var mode:String=str(ELEMENT_FINISH_MODE.get(str(profile.element),"impact_star"))
+	used=special_contact_fx(burst,t,used,light,dark)
+	used=projectile_contact_fx(burst,t,used,light,dark)
+	used=terrain_contact_fx(burst,t,used,light,dark)
+	used=support_contact_fx(burst,t,used)
 	if t<peak*.48:
 		var startup:float=clampf(t/(peak*.48),0.0,1.0)
 		for j in range(3):
@@ -6495,19 +8807,30 @@ func element_finish_fx(burst:Dictionary,t:float,used:int)->int:
 		# Known misses/blocked hits get a subdued dissipating trail, not a damage flash.
 		var primary_tile:=Vector2i(roundi(target.x/1.4),roundi(target.z/1.4))
 		var row:Dictionary=results.get(primary_tile,{})
-		if not row.is_empty() and int(row.get("damage",0))==0 and int(row.get("effects",0))==0 and int(row.get("heal",0))==0:
-			return environment_particle(used,target,"cloud",light,dark,.32+age*.18,fade*.35)
-		if age<.30:
+		var primary_confirmed:bool=int(row.get("damage",0))+int(row.get("effects",0))+int(row.get("heal",0))>0
+		var primary_miss:bool=not primary_confirmed
+		if not contacts_reserved:used=priority_contact_fx(burst,t,used)
+		if primary_miss:
+			used=environment_particle(used,target,"cloud",light,dark,.32+age*.18,fade*.35)
+		elif age<.30:
 			used=environment_particle(used,target,"bubble" if status else "impact_star",light,dark,.62+age*.55,1.0-age*2.0)
+		if not contacts_reserved:used=priority_contact_fx(burst,t,used,true)
 		# Room-wide attacks show a small localized finish at other confirmed targets.
 		var extra:int=0
 		for tile in results:
-			if tile==primary_tile or extra>=4:continue
+			if not tile is Vector2i or tile==primary_tile or extra>=4:continue
 			var other:Dictionary=results[tile]
 			if int(other.get("damage",0))+int(other.get("effects",0))+int(other.get("heal",0))<=0:continue
 			var q:Vector3=pos(tile)+Vector3(0,.45,0)
 			used=environment_particle(used,q,"bubble" if status else "impact_star",light,dark,.45+age*.38,fade)
 			extra+=1
+		# Redirect the full elemental finish to a confirmed secondary rather
+		# than place it on an empty/missed primary tile. Ambient terrain and
+		# projectile travel were already rendered independently above.
+		if primary_miss:
+			var alternative:Variant=secondary_material_target(results,primary_tile)
+			if alternative==null:return used
+			target=alternative
 		for j in range(count):
 			var angle:float=float(j)*TAU/float(count)
 			var q:=target+Vector3(cos(angle)*radius,.04+sin(age*PI)*(.55 if status else .33),sin(angle)*radius)
@@ -6515,7 +8838,7 @@ func element_finish_fx(burst:Dictionary,t:float,used:int)->int:
 		used=cinematic_impact_layers(id,profile,from,target,age,used,light,dark,status)
 		if str(profile.element) in ["water","ground","rock","ice","poison","fire","electric"] or profile.pattern in ["room","radius","cross","floor"]:
 			var ground:=Vector3(target.x,.045,target.z)
-			used=environment_particle(used,ground,"bubble",light,dark,.65+age*1.1,fade*.70,true)
+			used=environment_particle(used,ground,"shock_ring",light,dark,.65+age*1.1,fade*.70,true)
 	return used
 
 # Secondary choreography: material-specific trajectories, with a stable move
@@ -7125,12 +9448,16 @@ func authored_stage_fx(burst:Dictionary,t:float,used:int)->int:
 	if points.is_empty():return used
 	var source:Vector3=points[0]
 	var target:Vector3=points[-1]
-	var results:Dictionary=burst.get("results",{})
-	var primary_tile:=Vector2i(roundi(target.x/1.4),roundi(target.z/1.4))
-	var row:Dictionary=results.get(primary_tile,{})
-	var miss:bool=not row.is_empty() and int(row.get("damage",0))+int(row.get("effects",0))+int(row.get("heal",0))<=0
 	var peak:float=float(profile.impact)
-	if miss and t>=peak:return used
+	var mode:String=str(cue[0])
+	if t>=peak:
+		var confirmed:Variant=confirmed_stage_target(burst,mode=="drain")
+		if confirmed==null:
+			# Ground choreography is environmental, not an actor damage flash.
+			if mode!="ground":return used
+		elif confirmed!=target:
+			target=confirmed
+			points=[source,target]
 	var forward:=Vector3(target.x-source.x,0,target.z-source.z)
 	if forward.length_squared()<.0001:forward=Vector3.FORWARD
 	forward=forward.normalized()
@@ -7138,7 +9465,6 @@ func authored_stage_fx(burst:Dictionary,t:float,used:int)->int:
 	var spread:float=float(cue[3])
 	var height:float=float(cue[4])
 	var count:int=int(cue[2])
-	var mode:String=str(cue[0])
 	var progress:float=clampf(t/maxf(.01,peak),0.0,1.0)
 	var after:float=clampf((t-peak)/maxf(.01,1.0-peak),0.0,1.0)
 	var opacity:float=minf(t*12.0,1.0-after)
@@ -7203,6 +9529,679 @@ func authored_stage_fx(burst:Dictionary,t:float,used:int)->int:
 		used=environment_particle(used,q,str(cue[1]),light,dark,size,opacity*.85,flat)
 	return used
 
+# V14.1: hand-directed geometry, spread, lift, tempo and spin. Art
+# direction is semantic, not a randomized color or cosmetic ID offset.
+const V14_ATTACK_DIRECTION={
+	"fire_ember":["scatter",0.55,0.52,1.45,0.2],
+	"fire_breath":["jet",1.05,0.85,1.05,0.2],
+	"fire_blast":["star",1.35,1.08,0.9,0.1],
+	"fire_overheat":["collapse",1.48,1.15,0.8,0.3],
+	"fire_heatwave":["front",1.6,0.48,0.85,0.1],
+	"fire_wheel":["orbit",0.9,0.78,1.2,1],
+	"fire_eruption":["column",0.92,1.65,0.92,0.2],
+	"fire_vortex":["spiral",1.15,1.25,0.83,1.4],
+	"fire_sacred":["petal",0.88,1.28,0.85,0.5],
+	"fire_wisp":["float",0.55,0.92,0.72,0.4],
+	"fire_blastburn":["star",1.62,1.32,0.72,0.35],
+	"fire_blitz":["jet",1.35,0.92,1.3,0.1],
+	"fire_plume":["column",1.15,1.32,0.78,0.4],
+	"fire_magma":["collapse",0.95,0.65,0.72,0.7],
+	"fire_sun":["orbit",1.18,1.12,0.7,0.7],
+	"fire_fang":["pincer",0.64,0.52,1.35,0.1],
+	"fire_punch":["jet",0.75,0.62,1.4,0.1],
+	"fire_kick":["sweep",0.82,0.56,1.24,0.3],
+	"water_gun":["jet",0.62,0.56,1.3,0.1],
+	"water_pump":["jet",1.38,0.92,0.86,0.45],
+	"water_cannon":["column",1.42,1.12,0.77,0.25],
+	"water_bubble":["float",0.65,0.72,0.7,0.3],
+	"water_bubblebeam":["chain",0.8,0.8,1,0.2],
+	"water_surf":["front",1.7,0.72,0.78,0.1],
+	"water_whirlpool":["spiral",1.12,0.57,0.8,1.8],
+	"water_spout":["column",1.03,1.75,0.83,0.4],
+	"water_fall":["column",0.82,1.38,1.15,0.1],
+	"water_ink":["collapse",0.96,0.48,0.85,0.6],
+	"water_pulse":["orbit",0.92,0.72,1.15,0.6],
+	"water_jet":["jet",0.8,0.44,1.5,0.1],
+	"water_brine":["scatter",0.8,0.8,0.9,0.5],
+	"water_dive":["rise",0.85,0.75,1.1,0.3],
+	"water_mud":["front",1,0.28,1.04,0.2],
+	"water_clamp":["pincer",0.68,0.55,1.15,0.2],
+	"water_hammer":["rise",0.95,0.85,1.28,0.1],
+	"water_tail":["sweep",1.1,0.52,1.1,0.3],
+	"electric_sky":["column",0.8,1.75,1.2,0.2],
+	"electric_short":["zigzag",0.48,0.52,1.45,0.2],
+	"electric_wave":["front",1.2,0.35,1.08,0.1],
+	"electric_burst":["star",1.25,0.76,1.12,0.1],
+	"electric_orb":["orbit",0.94,0.9,1.1,1.1],
+	"electric_beam":["chain",1.15,0.55,1.32,0.15],
+	"electric_room":["zigzag",1.6,1.1,0.9,0.5],
+	"electric_fist":["jet",0.72,0.58,1.45,0.15],
+	"electric_fang":["pincer",0.65,0.64,1.32,0.25],
+	"electric_spark":["scatter",0.7,0.6,1.35,0.3],
+	"electric_dash":["jet",1.04,0.5,1.5,0.1],
+	"electric_bind":["spiral",0.68,1.04,0.82,1.5],
+	"grass_giga":["root",1.25,1.1,0.8,1.1],
+	"grass_absorb":["collapse",0.46,0.55,1.3,0.2],
+	"grass_solar":["jet",1.45,0.86,0.83,0.4],
+	"grass_vine":["whiplash",0.92,0.78,1.25,0.65],
+	"grass_needle":["thorn",0.6,0.68,1.4,0.2],
+	"grass_frenzy":["root",1.64,1.65,0.76,1.6],
+	"grass_razor":["sweep",0.96,0.72,1.35,0.6],
+	"grass_magic":["orbit",1.05,0.94,0.91,1.35],
+	"grass_mega":["collapse",0.76,0.84,1.03,0.4],
+	"grass_blade":["sweep",0.83,0.91,1.48,0.2],
+	"grass_wood":["tumble",1.35,0.76,0.84,0.1],
+	"grass_energy":["star",1.08,1.02,0.91,0.3],
+	"grass_knot":["root",0.82,0.4,1.12,0.65],
+	"grass_flare":["petal",1.42,1.18,0.79,0.8],
+	"grass_bomb":["scatter",1.05,0.95,0.93,0.2],
+	"grass_whip":["whiplash",1.45,1.04,0.96,1.3],
+	"grass_storm":["spiral",1.57,1.35,0.72,2.1],
+	"grass_bullet":["chain",0.62,0.48,1.5,0.1],
+	"grass_spore":["spore",1.2,0.95,0.7,0.4],
+	"grass_sleep":["spore",0.92,0.85,0.61,0.25],
+	"grass_stun":["spore",0.85,0.6,1.15,0.8],
+	"grass_cotton":["float",0.8,1.3,0.55,0.3],
+	"grass_aroma":["petal",0.95,0.78,0.7,0.5],
+	"grass_synthesis":["rise",0.66,1.18,0.65,0.4],
+	"grass_whistle":["front",0.83,0.61,1.15,0.1],
+	"grass_leech":["root",0.74,0.6,0.9,0.4],
+	"grass_petal":["petal",1.15,1.05,0.87,1.1],
+	"grass_roots":["root",0.96,0.65,0.67,0.5],
+	"grass_worry":["spore",0.55,0.52,1.05,0.2],
+	"ice_aurora":["front",1.04,1.22,0.7,0.4],
+	"ice_wind":["snow",1.22,0.73,0.85,0.6],
+	"ice_powder":["snow",0.78,0.65,1.08,0.3],
+	"ice_blizzard":["snow",1.65,1.32,0.65,1.2],
+	"ice_punch":["shatter",0.75,0.72,1.45,0.3],
+	"ice_beam":["thorn",1.14,0.57,1.12,0.2],
+	"ice_fang":["pincer",0.68,0.74,1.42,0.2],
+	"ice_shard":["thorn",0.52,0.46,1.65,0.1],
+	"ice_spear":["chain",0.76,0.82,1.42,0.2],
+	"ice_ball":["tumble",0.94,0.62,1.16,0.5],
+	"ice_haze":["mist",1.26,0.62,0.62,0.35],
+	"ice_mist":["mist",0.86,1.04,0.55,0.5],
+	"ice_hail":["shatter",1.06,1.48,1.05,0.3],
+	"ice_cold":["shatter",1.5,1.55,0.77,0.5],
+	"ice_avalanche":["tumble",1.62,1.32,0.85,0.4],
+	"earth_dig":["fissure",0.92,0.85,1.15,0.3],
+	"earth_tomb":["tumble",1.08,0.55,0.91,0.3],
+	"earth_slap":["glob",0.57,0.38,1.5,0.1],
+	"earth_club":["sweep",0.93,0.66,1.31,0.2],
+	"earth_shot":["jet",0.72,0.32,1.43,0.2],
+	"earth_power":["fissure",1.24,1.63,0.88,0.7],
+	"earth_bomb":["glob",1.16,0.83,0.86,0.4],
+	"earth_rush":["chain",0.83,0.59,1.32,0.3],
+	"earth_return":["orbit",0.78,0.66,1.05,1.65],
+	"earth_dust":["mist",1.03,0.45,0.92,0.2],
+	"earth_mudcoat":["glob",0.87,0.3,0.73,0.3],
+	"earth_fissure":["fissure",1.7,0.48,0.78,1.2],
+	"earth_spikes":["thorn",0.89,0.33,1.1,0.1],
+	"earth_quake":["fissure",1.58,0.71,0.98,0.9],
+	"earth_magnitude":["fissure",1.32,0.95,0.72,0.4],
+	"rock_throw":["tumble",0.87,0.96,1.22,0.15],
+	"rock_slide":["tumble",1.4,1.15,0.95,0.35],
+	"rock_tomb":["pincer",1.15,1.38,0.74,0.4],
+	"rock_ancient":["orbit",1.07,0.92,0.77,1.15],
+	"rock_wrecker":["shatter",1.75,1.21,0.83,0.25],
+	"rock_edge":["thorn",1.02,1.55,1.02,0.4],
+	"rock_gem":["star",0.79,0.74,1.22,0.1],
+	"rock_smash":["shatter",1.24,0.95,1.43,0.1],
+	"rock_blast":["chain",1.18,0.87,1.25,0.2],
+	"rock_roll":["tumble",1.1,0.38,1.37,0.65],
+	"rock_polish":["orbit",0.65,0.7,0.8,1.8],
+	"rock_storm":["mist",1.48,0.83,0.91,0.8],
+	"rock_trap":["thorn",0.84,0.48,0.88,0.3],
+	"poison_smog":["mist",1.12,0.59,0.68,0.2],
+	"poison_gas":["mist",1.35,0.91,0.55,0.5],
+	"poison_toxic":["glob",0.76,0.45,0.82,0.5],
+	"poison_fang":["pincer",0.63,0.45,1.36,0.3],
+	"poison_powder":["spore",1.08,0.82,0.69,0.65],
+	"poison_sting":["thorn",0.49,0.48,1.55,0.15],
+	"poison_armor":["orbit",0.73,0.96,0.67,0.9],
+	"poison_sludge":["glob",0.92,0.65,0.97,0.2],
+	"poison_bomb":["glob",1.35,0.99,0.75,0.7],
+	"poison_tail":["sweep",1.04,0.47,1.26,0.4],
+	"poison_acid":["jet",0.86,0.31,1.18,0.3],
+	"poison_gastro":["glob",0.69,0.86,0.63,0.4],
+	"poison_cross":["crosscut",0.98,0.82,1.32,0.2],
+	"poison_gunk":["glob",1.58,1.13,0.69,0.85],
+	"poison_jab":["thorn",0.66,0.61,1.44,0.2],
+	"poison_spikes":["thorn",0.94,0.24,0.98,0.2],
+	"fight_chop":["cleave",0.66,0.63,1.45,0.1],
+	"fight_break":["fracture",1.02,0.79,1.23,0.3],
+	"fight_focus":["gather",0.72,0.95,0.68,0.5],
+	"fight_reversal":["recoil",1.16,0.78,0.83,0.2],
+	"fight_cross":["crosscut",1.12,0.92,1.29,0.2],
+	"fight_lowkick":["sweep",0.84,0.18,1.36,0.4],
+	"fight_submission":["grapple",0.92,0.62,1.03,0.7],
+	"fight_uppercut":["uppercut",0.83,1.48,1.26,0.3],
+	"fight_jumpkick":["dive",0.92,1.08,1.25,0.4],
+	"fight_highkick":["uppercut",1.14,1.68,1.12,0.6],
+	"fight_super":["fracture",1.54,1.11,0.82,0.5],
+	"fight_dynamic":["recoil",1.31,1.02,1.12,0.3],
+	"fight_mach":["jab",0.62,0.41,1.75,0.1],
+	"fight_roundkick":["sweep",1.04,0.72,1.26,0.8],
+	"fight_hammer":["dive",1.26,1.38,1.16,0.2],
+	"fight_close":["barrage",1.13,0.8,1.45,0.2],
+	"fight_blast":["star",1.57,0.97,0.89,0.4],
+	"fight_vacuum":["collapse",0.92,0.62,1.38,0.2],
+	"fight_drain":["gather",0.85,0.76,1.1,0.4],
+	"fight_palm":["recoil",0.77,0.52,1.49,0.1],
+	"fight_aura":["orbit",1.14,1.07,0.86,1.2],
+	"fight_slap":["cleave",0.64,0.49,1.52,0.2],
+	"fight_thrust":["jab",0.86,0.52,1.39,0.4],
+	"fight_double":["barrage",0.72,0.55,1.26,0.3],
+	"fight_triple":["barrage",0.98,0.86,1.18,0.5],
+	"fight_bulk":["gather",1.05,1.22,0.63,0.8],
+	"fight_detect":["shield",0.77,0.96,0.84,0.4],
+	"fight_counter":["recoil",0.98,0.63,1.51,0.1],
+	"fight_toss":["tumble",1.28,1.55,1.13,0.2],
+	"fight_revenge":["recoil",1.42,0.87,1.07,0.4],
+	"fight_vital":["jab",0.68,0.65,1.63,0.2],
+	"fight_stonebreak":["fracture",0.88,0.56,1.4,0.4],
+	"air_cutter":["cleave",0.96,0.75,1.34,0.5],
+	"air_gust":["front",1.18,0.66,1.16,0.4],
+	"air_sky":["dive",1.37,1.72,0.86,0.3],
+	"air_fly":["dive",0.88,1.61,1.16,0.6],
+	"air_peck":["jab",0.47,0.48,1.58,0.2],
+	"air_wing":["wing",1.07,0.74,1.24,0.7],
+	"air_ace":["cleave",0.82,0.83,1.65,0.4],
+	"air_bounce":["tumble",0.91,1.57,1.02,0.5],
+	"air_drill":["spiral",0.65,1.13,1.32,2.1],
+	"air_blast":["wing",1.66,1.05,0.9,0.3],
+	"air_slash":["cleave",1.2,1.08,1.1,0.7],
+	"air_chatter":["ripple",0.92,0.83,1.34,1.1],
+	"air_pluck":["jab",0.59,0.63,1.42,0.3],
+	"air_brave":["dive",1.5,1.28,1.3,0.5],
+	"air_tailwind":["wing",1.31,0.68,0.69,1.2],
+	"air_feather":["feather",1.05,1.3,0.67,0.5],
+	"air_roost":["feather",0.68,0.71,0.62,0.2],
+	"air_defog":["mist",1.43,0.72,0.66,0.85],
+	"air_mirror":["mirror",0.97,1.12,0.82,0.7],
+	"psi_agility":["orbit",0.73,0.85,1.54,1.8],
+	"psi_cosmic":["constellation",1.14,1.42,0.64,0.7],
+	"psi_beam":["jet",1.03,0.81,1.31,0.5],
+	"psi_wave":["ripple",1.18,0.74,0.96,1.4],
+	"psi_psychic":["warp",1.26,1.35,0.85,0.9],
+	"psi_boost":["collapse",1.51,1.5,0.78,0.6],
+	"psi_hypnosis":["ripple",0.66,0.9,0.67,2],
+	"psi_extra":["ripple",0.98,1.04,1.15,0.85],
+	"psi_skill":["mirror",0.91,0.84,0.96,0.5],
+	"psi_kinesis":["warp",0.69,0.91,1.07,0.4],
+	"psi_teleport":["warp",0.83,1.42,1.46,1.5],
+	"psi_trick":["mirror",0.76,0.65,1.26,0.4],
+	"psi_amnesia":["float",0.79,1.17,0.64,0.65],
+	"psi_role":["mirror",1.02,0.73,0.87,0.9],
+	"psi_rest":["gather",0.63,0.76,0.55,0.2],
+	"psi_confusion":["ripple",0.83,0.68,1.18,1.6],
+	"psi_barrier":["shield",0.89,1.15,0.75,0.4],
+	"psi_screen":["shield",1.12,1.23,0.67,0.6],
+	"psi_imprison":["grapple",0.96,1.17,0.72,1],
+	"psi_magic":["shield",1.27,1.42,0.62,0.8],
+	"psi_mist":["mist",1.05,1.09,0.71,0.7],
+	"psi_mirror":["mirror",1.34,1.02,0.92,1.1],
+	"psi_future":["constellation",1.27,1.54,0.81,0.4],
+	"psi_calm":["gather",0.88,1.05,0.58,0.6],
+	"psi_dream":["gather",0.81,1.24,0.72,0.9],
+	"psi_meditate":["orbit",0.62,1.18,0.59,0.85],
+	"psi_luster":["constellation",1.35,1.1,1.06,1.1],
+	"psi_reflect":["shield",1.05,0.88,1.08,0.3],
+	"psi_wish":["constellation",0.92,1.21,0.58,0.5],
+	"psi_guard":["shield",0.81,0.74,0.96,0.9],
+	"psi_block":["grapple",0.83,0.95,0.85,0.5],
+	"psi_cut":["cleave",1.05,0.94,1.42,0.8],
+	"psi_shift":["mirror",1.16,0.91,1.12,0.5],
+	"psi_zen":["recoil",0.94,0.91,1.21,0.6],
+	"psi_gravity":["warp",1.43,0.55,0.63,0.2],
+	"psi_room":["warp",1.52,1.18,0.71,1.7],
+	"psi_heart":["mirror",0.85,1.12,0.76,1.4],
+	"psi_power":["gather",1.12,0.88,0.94,0.8],
+	"psi_powertrick":["mirror",0.99,1.35,1.03,0.6],
+	"psi_lunar":["constellation",1.39,1.27,0.55,0.8],
+	"psi_eye":["ripple",0.74,1.11,0.81,2.3],
+	"ghost_nightmare":["haunt",0.99,1.32,0.61,1.3],
+	"ghost_confuse":["haunt",0.77,0.94,0.86,1.8],
+	"ghost_spite":["wraith",0.75,0.89,0.77,0.6],
+	"ghost_astonish":["recoil",0.69,0.97,1.44,0.7],
+	"ghost_grudge":["haunt",1.17,1.42,0.63,0.8],
+	"ghost_lick":["whiplash",0.65,0.53,1.33,0.4],
+	"ghost_punch":["jab",0.91,0.78,1.31,0.7],
+	"ghost_ball":["vortex",1.18,1.05,0.84,1.6],
+	"ghost_shade":["wraith",1.28,1.23,0.74,1.1],
+	"ghost_bond":["mirror",1.13,1.44,0.61,1.8],
+	"ghost_wind":["wraith",1.39,1.09,0.86,1.9],
+	"ghost_sneak":["wraith",0.83,0.45,1.43,0.8],
+	"ghost_claw":["cleave",1.13,1.09,1.53,1.1],
+	"ghost_force":["warp",1.45,1.64,0.79,2],
+	"dark_torment":["grapple",0.9,0.85,0.69,1.5],
+	"dark_tears":["glob",0.55,1.02,0.68,0.4],
+	"dark_pursuit":["wraith",0.95,0.57,1.57,1.5],
+	"dark_memento":["collapse",1.23,1.15,0.66,1.2],
+	"dark_flatter":["orbit",0.83,1.13,0.78,1.4],
+	"dark_crunch":["grapple",1.25,0.96,1.34,0.3],
+	"dark_bite":["pincer",0.68,0.49,1.46,0.4],
+	"dark_faint":["wraith",0.73,0.66,1.28,1.6],
+	"dark_taunt":["ripple",0.74,0.63,1.27,0.6],
+	"dark_thief":["gather",0.71,0.57,1.19,0.2],
+	"dark_knock":["recoil",1.1,0.61,1.38,0.7],
+	"dark_beat":["barrage",1.32,0.79,1.14,0.9],
+	"dark_snatch":["gather",0.96,0.74,1.36,0.6],
+	"dark_pulse":["vortex",1.35,0.85,1.02,1.3],
+	"dark_punish":["fracture",1.24,0.91,1.11,0.5],
+	"dark_embargo":["grapple",0.79,1.06,0.91,1.3],
+	"dark_payback":["recoil",1.22,0.88,1.3,0.8],
+	"dark_switch":["mirror",0.89,0.79,1.34,1.2],
+	"dark_void":["vortex",1.53,1.36,0.58,2.1],
+	"dark_assure":["jab",1.02,0.69,1.47,0.9],
+	"dark_slash":["cleave",1.19,0.82,1.46,0.2],
+	"dark_fling":["tumble",1.01,1.17,1.08,0.8],
+	"dark_sucker":["jab",0.78,0.56,1.78,0.4],
+	"dark_plot":["gather",1.16,1.32,0.73,1.4],
+	"bug_string":["thread",0.76,0.75,0.8,1.2],
+	"bug_leech":["gather",0.58,0.62,1.11,0.7],
+	"bug_silver":["scales",1.25,1.08,0.84,1.1],
+	"bug_web":["thread",1.12,0.95,0.65,1.6],
+	"bug_signal":["prism",0.84,0.72,1.34,0.4],
+	"bug_twin":["needle",0.62,0.59,1.52,0.3],
+	"bug_glow":["constellation",0.71,1.08,0.63,0.8],
+	"bug_pin":["needle",0.79,0.8,1.36,0.4],
+	"bug_horn":["recoil",1.08,0.87,1.22,0.6],
+	"bug_fury":["barrage",0.72,0.68,1.47,0.7],
+	"bug_heal":["gather",0.67,1.04,0.58,1.1],
+	"bug_attack":["swarm",1.32,0.83,1.09,1.4],
+	"bug_cross":["crosscut",0.99,0.77,1.37,0.2],
+	"bug_turn":["wing",0.96,0.69,1.43,0.5],
+	"bug_defend":["shield",0.81,0.98,0.65,0.7],
+	"bug_bite":["pincer",0.57,0.45,1.49,0.2],
+	"bug_buzz":["swarm",1.17,1.15,0.81,2.2],
+	"dragon_rage":["dragonflare",1.29,1.19,0.88,0.7],
+	"dragon_twister":["spiral",1.2,1.52,0.79,2.4],
+	"dragon_claw":["cleave",1.24,0.97,1.41,0.4],
+	"dragon_flame":["dragonflare",1.02,0.87,1.17,1.1],
+	"dragon_breath":["dragonflare",1.15,1.05,1.07,1.7],
+	"dragon_dance":["orbit",1.04,1.31,0.62,1.9],
+	"dragon_rend":["crosscut",1.56,1.18,0.93,0.4],
+	"dragon_time":["clock",1.52,1.39,0.66,1.3],
+	"dragon_rush":["recoil",1.43,1.04,1.28,0.5],
+	"dragon_meteor":["meteor",1.62,1.68,0.77,0.6],
+	"dragon_pulse":["ripple",1.38,1.02,0.93,1.7],
+	"steel_tail":["cleave",1.13,0.66,1.37,0.1],
+	"steel_sound":["ripple",1.25,0.52,1.17,2.4],
+	"steel_meteor":["meteor",1.16,1.35,1.31,0.2],
+	"steel_defense":["plate",0.89,1.08,0.64,0.3],
+	"steel_wing":["wing",1.19,0.79,1.28,0.7],
+	"steel_doom":["clock",1.25,1.2,0.62,2],
+	"steel_claw":["cleave",0.86,0.71,1.5,0.3],
+	"steel_head":["recoil",0.93,0.74,1.48,0.5],
+	"steel_gyro":["orbit",1.07,0.53,1.35,2.6],
+	"steel_bullet":["needle",0.55,0.44,1.79,0.1],
+	"steel_magnet":["plate",1.1,0.94,0.82,0.8],
+	"steel_mirror":["prism",0.92,1.24,0.76,1.3],
+	"steel_burst":["fracture",1.37,0.87,1.13,0.4],
+	"steel_flash":["prism",1.44,1.08,0.91,0.6],
+	"normal_thrash":["barrage",1.24,0.96,1.15,1.2],
+	"normal_cut":["cleave",0.68,0.55,1.53,0.1],
+	"normal_superfang":["pincer",1.32,0.88,1.12,0.1],
+	"normal_slap":["cleave",0.53,0.36,1.61,0.2],
+	"normal_return":["recoil",1.09,0.79,1.24,0.2],
+	"normal_strength":["recoil",1.17,0.91,1.08,0.2],
+	"normal_bide":["gather",0.8,0.89,0.75,0.3],
+	"normal_endeavor":["recoil",0.96,0.65,1.33,0.4],
+	"normal_facade":["recoil",1.19,0.84,1.22,0.3],
+	"normal_constrict":["thread",0.65,0.57,1.08,0.9],
+	"normal_salt":["scatter",0.58,0.63,1.14,0.2],
+	"normal_slash":["cleave",0.85,0.85,1.39,0.4],
+	"normal_spin":["orbit",0.79,0.32,1.51,2.5],
+	"normal_flail":["barrage",0.92,0.63,1.48,1.3],
+	"normal_bind":["thread",0.8,0.61,0.84,1.3],
+	"normal_extreme":["jab",1.16,0.53,1.82,0.8],
+	"normal_headbutt":["recoil",0.87,0.63,1.42,0.2],
+	"normal_edge":["recoil",1.44,0.96,1.27,0.2],
+	"normal_tackle":["jab",0.71,0.47,1.4,0.5],
+	"normal_slam":["dive",1.04,1.1,1.27,0.2],
+	"normal_horn":["needle",0.75,0.75,1.43,0.1],
+	"normal_drill":["spiral",0.84,0.84,1.48,2.8],
+	"normal_quick":["jab",0.58,0.41,1.71,0.6],
+	"normal_takedown":["recoil",1.09,0.82,1.36,0.5],
+	"normal_fake":["jab",0.63,0.39,1.91,0.2],
+	"normal_body":["dive",1.24,1.29,1.17,0.4],
+	"normal_guillotine":["pincer",1.41,1.1,1.23,0.2],
+	"normal_vice":["grapple",0.85,0.59,1.29,0.4],
+	"normal_pound":["jab",0.49,0.48,1.55,0.3],
+	"normal_scratch":["cleave",0.56,0.52,1.56,0.1],
+	"normal_hyperfang":["pincer",1.09,0.73,1.44,0.2],
+	"normal_dizzy":["orbit",0.78,1.08,1.21,2.2],
+	"normal_stomp":["dive",0.92,0.84,1.42,0.2],
+	"normal_crushclaw":["cleave",1.29,1.02,1.35,0.2],
+	"normal_wrap":["thread",0.93,0.78,0.73,1.8],
+	"normal_furyattack":["barrage",0.88,0.55,1.66,0.9],
+	"normal_furyswipes":["barrage",0.97,0.79,1.57,0.8],
+	"normal_false":["cleave",0.68,0.41,1.7,0.1],
+	"normal_megakick":["sweep",1.4,1.17,1.19,0.2],
+	"normal_megapunch":["recoil",1.35,1.02,1.32,0.2],
+	"normal_frustration":["barrage",1.31,0.82,1.25,1.8],
+	"normal_comet":["barrage",1.06,0.94,1.39,1.4],
+	"normal_skull":["recoil",1.38,1.06,1.17,0.2],
+	"normal_struggle":["barrage",0.87,0.62,1.39,1.1],
+	"normal_giga":["fracture",1.62,1.13,0.91,0.4],
+	"normal_double":["barrage",0.93,0.66,1.59,0.3],
+	"normal_last":["star",1.43,1.12,1.11,0.2],
+	"normal_grip":["grapple",1.35,0.83,1.07,0.8],
+	"normal_feint":["jab",0.68,0.36,1.84,0.4],
+	"normal_climb":["uppercut",1.04,1.38,1.14,0.5],
+	"neutral_snore":["ripple",0.77,0.65,0.93,0.5],
+	"neutral_weather":["constellation",0.97,0.88,1.03,0.4],
+	"neutral_razor":["cleave",1.11,0.98,1.28,0.5],
+	"neutral_self":["fracture",1.36,1.06,0.94,0.3],
+	"neutral_swift":["constellation",0.98,0.84,1.45,1.2],
+	"neutral_sonic":["ripple",0.9,0.73,1.41,2.2],
+	"neutral_explosion":["fracture",1.74,1.28,0.73,0.2],
+	"neutral_egg":["tumble",0.72,0.71,1.16,0.4],
+	"neutral_barrage":["chain",0.89,0.68,1.57,0.2],
+	"neutral_spike":["needle",0.85,0.79,1.48,0.5],
+	"neutral_tri":["prism",1.29,0.98,1.08,1.2],
+	"neutral_pay":["scatter",0.84,0.91,1.26,0.2],
+	"neutral_voice":["ripple",1.32,0.79,1.07,1.9],
+	"neutral_beam":["jet",1.58,0.99,0.9,0.2],
+	"neutral_spit":["glob",0.97,0.61,1.29,0.3],
+	"neutral_secret":["constellation",0.81,0.78,1.14,0.6],
+	"neutral_present":["tumble",0.86,0.95,1.03,0.7],
+	"neutral_covet":["gather",0.61,0.7,1.23,0.7],
+	"neutral_hidden":["prism",0.79,0.81,1.27,0.8],
+	"neutral_wide":["wing",1.37,0.83,1.17,0.3],
+	"neutral_vacuum":["collapse",1.19,0.92,1.17,0.2],
+	"neutral_trump":["chain",1.22,0.93,1.09,0.5],
+	"neutral_gift":["petal",0.77,0.86,0.82,0.5],
+	"neutral_wring":["grapple",0.98,0.93,0.95,1.4],
+	"support_sun":["halo",0.92,1.25,0.55,0.4],
+	"support_rage":["gather",0.97,0.84,1.05,0.7],
+	"support_pain":["mirror",0.93,0.85,0.94,0.6],
+	"support_bell":["ripple",0.86,1.12,0.66,1.8],
+	"support_sharpen":["needle",0.65,1.04,0.79,0.2],
+	"support_double":["mirror",0.81,1.08,1.13,1.1],
+	"support_harden":["plate",0.72,0.8,0.7,0.4],
+	"support_focus":["gather",0.7,1.12,0.76,0.8],
+	"support_mind":["orbit",0.81,1.16,0.69,1.4],
+	"support_follow":["halo",0.76,1.15,0.76,0.8],
+	"support_endure":["shield",1.07,0.82,0.87,0.6],
+	"support_psych":["mirror",1.21,1.04,0.86,1.5],
+	"support_recover":["halo",0.85,1.31,0.59,0.6],
+	"support_safeguard":["shield",1.35,1.18,0.59,0.3],
+	"support_growth":["root",0.91,1.19,0.7,0.8],
+	"support_stock":["gather",0.94,1.03,0.68,1.3],
+	"support_egg":["halo",0.62,0.82,0.61,0.3],
+	"support_minimize":["collapse",0.48,0.65,0.68,0.3],
+	"support_moon":["halo",1.11,1.45,0.54,1.1],
+	"support_swords":["blade",1.02,1.22,0.92,1.5],
+	"support_help":["halo",0.98,0.97,0.76,0.9],
+	"support_howl":["ripple",1.09,0.74,1.02,1.6],
+	"support_slack":["float",0.63,0.75,0.56,0.4],
+	"support_wish":["constellation",0.81,1.45,0.52,0.7],
+	"support_swallow":["gather",0.66,0.84,0.83,0.6],
+	"support_drum":["ripple",0.93,0.64,1.22,2.1],
+	"support_protect":["shield",0.91,1.14,0.82,0.2],
+	"support_curl":["orbit",0.59,0.63,0.73,1.3],
+	"support_milk":["halo",0.68,1.03,0.58,0.5],
+	"support_refresh":["mist",0.88,1.15,0.67,0.7],
+	"support_lock":["clock",0.67,0.88,1.12,0.9],
+	"support_lucky":["constellation",1.12,1.18,0.72,1.5],
+	"support_acu":["needle",0.74,0.91,1.09,0.2],
+	"status_yawn":["float",0.69,1.05,0.58,0.3],
+	"status_talk":["ripple",0.72,0.81,0.99,1.4],
+	"status_lovely":["petal",0.68,0.95,0.66,0.7],
+	"status_charm":["petal",0.74,0.8,0.77,0.6],
+	"status_kiss":["petal",0.55,0.75,1.04,0.4],
+	"status_attract":["halo",0.89,1.01,0.68,1.4],
+	"status_captivate":["petal",1.06,1.14,0.64,1.3],
+	"status_scent":["mist",1.15,0.81,0.58,0.8],
+	"status_smoke":["mist",1.28,0.9,0.65,1.1],
+	"status_odor":["mist",0.84,0.72,0.83,0.3],
+	"status_screech":["ripple",1.02,0.65,1.45,2.7],
+	"status_sing":["ripple",0.75,1.04,0.6,1.5],
+	"status_uproar":["ripple",1.35,0.91,1.21,2.8],
+	"status_supersonic":["ripple",0.94,0.59,1.6,3.1],
+	"status_growl":["ripple",0.63,0.45,1.31,1.2],
+	"status_roar":["wing",1.33,0.78,1.4,0.3],
+	"status_perish":["clock",1.23,1.24,0.56,1.7],
+	"status_mean":["grapple",0.83,0.92,0.81,0.8],
+	"status_scary":["haunt",0.78,0.94,1.15,0.7],
+	"status_leer":["needle",0.5,0.67,1.35,0.2],
+	"status_glare":["needle",0.68,0.88,1.25,0.4],
+	"status_foresight":["prism",0.83,1.02,0.74,0.4],
+	"status_encore":["clock",0.87,0.85,0.9,1.4],
+	"status_disable":["grapple",0.71,0.79,0.91,0.6],
+	"status_block":["shield",0.8,1.13,0.78,0.8],
+	"status_curse":["haunt",1.18,1.18,0.71,1.5],
+	"status_sub":["mirror",0.72,1.02,0.87,1.2],
+	"status_convert":["prism",0.76,0.99,0.85,0.7],
+	"status_convert2":["prism",0.92,1.11,0.76,1.1],
+	"status_transform":["warp",1.03,1.21,0.87,1.1],
+	"status_camo":["mist",0.72,0.98,0.64,0.9],
+	"status_nature":["root",0.87,0.95,0.84,1.4],
+	"status_sketch":["blade",0.77,0.93,1.02,0.7],
+	"status_assist":["constellation",0.86,1.08,0.94,0.8],
+	"status_mimic":["mirror",0.73,0.81,1.11,0.9],
+	"status_metronome":["clock",0.9,1.15,0.81,2.2],
+	"status_first":["jab",0.64,0.55,1.63,0.7],
+	"status_copycat":["mirror",0.95,0.86,1.16,1.2],
+	"status_swagger":["orbit",1.02,0.91,0.95,1.6],
+	"status_tickle":["feather",0.55,0.67,1.13,0.6],
+	"status_tail":["sweep",0.71,0.34,1.12,0.4],
+	"status_dance":["orbit",1.17,1.03,0.76,2.1],
+	"status_baton":["chain",0.78,0.92,1.09,0.4],
+	"status_recycle":["orbit",0.8,0.83,0.73,1.8],
+	"status_splash":["rise",0.53,0.61,1.18,0.4],
+	"status_whirl":["spiral",1.15,0.82,1.19,2.5],
+	"status_flash":["prism",1.04,1.15,1.32,0.3],
+	"lib_fairy_1":["prism",0.67,0.7,1.47,0.6],
+	"lib_fairy_2":["halo",1.22,1.36,0.71,1.5],
+	"lib_fairy_3":["prism",1.32,1.63,0.88,1.7],
+	"star_kick":["sweep",0.85,0.89,1.38,0.7],
+	"alt_starlit_pup":["meteor",0.76,0.92,1.51,0.3],
+	"lunar_dust":["scales",1.04,1.19,0.65,1.4],
+	"comet_drop":["meteor",1.25,1.48,1.02,0.4],
+	"celestial_verdict":["constellation",1.64,1.67,0.68,1.8],
+	"alt_celestial_guardian":["blade",1.26,1.04,1.31,1.2],
+	"lib_normal_1":["jab",0.73,0.49,1.48,0.2],
+	"lib_normal_2":["recoil",1.16,0.73,1.14,0.3],
+	"lib_normal_3":["jet",1.12,0.66,1.26,0.4],
+	"lib_fire_1":["scatter",0.59,0.56,1.52,0.4],
+	"lib_fire_2":["jet",1.22,0.94,0.98,0.4],
+	"lib_fire_3":["spiral",1.24,1.18,0.84,1.65],
+	"lib_water_1":["float",0.62,0.83,0.88,0.2],
+	"lib_water_2":["chain",1.02,0.92,1.08,0.6],
+	"lib_water_3":["front",1.48,0.84,0.92,0.4],
+	"lib_electric_1":["pincer",0.72,0.68,1.39,0.2],
+	"lib_electric_2":["zigzag",0.98,0.83,1.37,0.4],
+	"lib_electric_3":["star",1.39,1.09,0.95,0.6],
+	"lib_grass_1":["whiplash",0.83,0.72,1.39,0.85],
+	"lib_grass_2":["sweep",0.78,0.69,1.47,0.3],
+	"lib_grass_3":["root",1.41,1.48,0.85,1.25],
+	"lib_ice_1":["thorn",0.61,0.79,1.59,0.3],
+	"lib_ice_2":["needle",1.03,1.15,1.21,0.4],
+	"lib_ice_3":["snow",1.29,1.12,0.81,1.5],
+	"lib_fighting_1":["recoil",0.85,0.58,1.56,0.4],
+	"lib_fighting_2":["sweep",0.98,0.93,1.38,0.2],
+	"lib_fighting_3":["jab",1.05,0.85,1.43,0.7],
+	"lib_poison_1":["glob",0.55,0.49,1.45,0.2],
+	"lib_poison_2":["jet",0.94,0.42,1.25,0.7],
+	"lib_poison_3":["glob",1.33,1.02,0.71,0.5],
+	"lib_ground_1":["fissure",1.49,1.12,0.87,0.3],
+	"lib_ground_2":["spiral",0.88,0.51,1.37,2.5],
+	"lib_ground_3":["glob",0.84,0.65,1.26,0.2],
+	"lib_flying_1":["needle",0.61,0.85,1.51,0.5],
+	"lib_flying_2":["cleave",1.16,0.77,1.44,0.8],
+	"lib_flying_3":["spiral",1.41,1.28,0.86,2.4],
+	"lib_psychic_1":["prism",0.94,0.95,1.38,0.7],
+	"lib_psychic_2":["ripple",1.08,0.92,0.96,1.85],
+	"lib_psychic_3":["warp",1.47,1.5,0.75,1.2],
+	"lib_bug_1":["thread",0.95,0.86,0.86,1.45],
+	"lib_bug_2":["recoil",0.91,0.59,1.4,0.6],
+	"lib_bug_3":["scales",1.19,1.07,0.76,1.6],
+	"lib_rock_1":["tumble",0.57,0.6,1.39,0.4],
+	"lib_rock_2":["tumble",1.21,0.46,1.25,0.6],
+	"lib_rock_3":["shatter",1.43,1.41,0.79,0.3],
+	"lib_ghost_1":["cleave",0.91,1.06,1.46,0.4],
+	"lib_ghost_2":["thread",0.96,1.14,0.87,1.7],
+	"lib_ghost_3":["haunt",1.3,1.31,0.71,1.7],
+	"lib_dragon_1":["cleave",1.12,0.99,1.35,0.6],
+	"lib_dragon_2":["dragonflare",1.26,1.16,1.02,1.8],
+	"lib_dragon_3":["grapple",1.04,0.96,1.12,0.9],
+	"lib_dark_1":["pincer",0.86,0.72,1.42,0.1],
+	"lib_dark_2":["warp",1.17,1.08,0.92,1.65],
+	"lib_dark_3":["vortex",1.45,1.16,0.89,1.6],
+	"lib_steel_1":["blade",0.84,0.81,1.43,0.7],
+	"lib_steel_2":["needle",0.91,0.85,1.33,0.4],
+	"lib_steel_3":["fracture",1.43,1.14,0.87,0.5],
+	"eos_070":["shield",0.83,0.73,0.69,0.6],
+	"eos_012":["snow",1.25,1.45,0.62,0.3],
+	"eos_307":["mist",1.01,0.74,0.69,0.55],
+	"eos_434":["halo",0.99,0.85,0.64,1.3],
+	"eos_128":["gather",0.91,1.18,0.67,0.65],
+	"eos_493":["orbit",0.78,1.48,0.78,1.25],
+	"basic_strike":["jab",0.45,0.37,1.6,0.3],
+	"briar_arc":["recoil",0.86,0.69,1.36,0.2],
+	"alt_bramble_pup":["cleave",0.63,0.57,1.45,0.4],
+	"spore_cloud":["spore",0.99,0.86,0.75,0.7],
+	"alt_sporeling":["dive",0.65,0.79,1.28,0.2],
+	"horn_ram":["needle",0.94,0.78,1.39,0.3],
+	"alt_thornbeetle":["pincer",0.75,0.59,1.37,0.4],
+	"leaf_dart":["needle",0.58,0.61,1.61,0.3],
+	"alt_leafwisp":["sweep",0.91,0.63,1.41,0.2],
+	"tusk_sweep":["sweep",0.93,0.43,1.28,0.4],
+	"alt_rootgnawer":["thorn",0.76,0.83,1.37,0.4],
+	"vine_snap":["whiplash",0.92,0.63,1.42,0.7],
+	"alt_vinesnap":["pincer",0.78,0.63,1.38,0.3],
+	"rolling_moss":["tumble",1.09,0.51,1.28,0.6],
+	"alt_mossmite":["shatter",0.91,0.62,1.36,0.4],
+	"feather_fan":["feather",0.88,0.72,1.25,0.8],
+	"alt_sylphowl":["cleave",1.04,0.78,1.38,0.3],
+	"antler_arc":["sweep",1.19,0.86,1.21,0.3],
+	"alt_hollow_stag":["needle",1.02,0.73,1.32,0.3],
+	"timber_shock":["fissure",1.43,0.89,0.94,0.5],
+	"alt_grovetitan":["whiplash",1.24,0.83,1.07,1.15],
+	"royal_spores":["spore",1.48,1.38,0.62,1.1],
+	"alt_fungal_monarch":["spore",1.05,1.01,1.12,0.4],
+	"reef_bite":["pincer",0.74,0.51,1.46,0.2],
+	"alt_reef_pup":["needle",0.63,0.55,1.48,0.3],
+	"jelly_pulse":["ripple",1.09,0.84,1.09,2.35],
+	"alt_jellymancer":["whiplash",0.83,0.64,1.35,0.8],
+	"shell_impact":["recoil",1.05,0.64,1.35,0.2],
+	"alt_shellguard":["orbit",0.98,0.48,1.38,2.2],
+	"bubble_burst":["float",0.89,0.93,1.05,0.7],
+	"alt_bubblewisp":["orbit",1.04,0.83,0.85,1.35],
+	"electric_lash":["zigzag",1.09,0.78,1.47,0.4],
+	"alt_eelstrix":["pincer",0.81,0.66,1.48,0.2],
+	"double_pincer":["grapple",1.02,0.62,1.39,0.6],
+	"alt_coralcrab":["jet",0.88,0.54,1.42,0.2],
+	"tentacle_snare":["thread",0.92,0.87,0.91,1.3],
+	"alt_anemoneye":["thorn",1.18,0.98,0.91,0.3],
+	"fin_slice":["cleave",1.13,0.71,1.48,0.2],
+	"alt_marrowray":["sweep",0.98,0.56,1.46,0.3],
+	"spiral_current":["spiral",1.15,0.82,1.34,1.8],
+	"alt_leviathorn":["jet",1.36,0.78,1.22,0.2],
+	"abyss_grasp":["grapple",1.47,1.36,0.79,0.8],
+	"alt_abyss_colossus":["mist",1.46,0.97,0.71,1.1],
+	"tidal_jaws":["pincer",1.31,0.99,1.18,0.5],
+	"alt_tidal_sovereign":["front",1.42,0.8,1.16,0.5],
+	"alt_lunamoth":["wing",1.18,1.12,0.98,0.8],
+	"prism_shatter":["shatter",1.34,1.21,1.02,0.4],
+	"alt_crystarok":["needle",0.85,1.05,1.43,0.2],
+	"nova_bolt":["dragonflare",1.15,0.9,1.21,1.4],
+	"alt_nova_wisp":["orbit",1.21,1.15,0.82,1.55],
+	"orbit_lash":["whiplash",1.14,0.92,1.23,1.65],
+	"alt_orbitserpent":["grapple",0.98,0.82,1.24,1.3],
+	"alt_comet_hare":["sweep",1.19,1.02,1.32,0.2],
+	"gravity_web":["warp",1.28,0.76,0.87,1.8],
+	"alt_voidspider":["thread",0.68,0.69,1.36,1.2],
+	"sonic_cone":["ripple",1.31,1.07,1.09,2.6],
+	"alt_nebulwing":["wing",1.27,0.96,1.05,1.3],
+	"moon_claw":["cleave",1.16,1.13,1.41,0.2],
+	"alt_lunar_prowler":["wraith",1.18,0.78,1.39,1.4],
+	"meteor_fist":["meteor",1.31,1.36,1.19,0.4],
+	"alt_astro_golem":["shatter",1.51,1.07,0.96,0.4],
+}
+func attack_direction_profile(id:String,profile:Dictionary)->Array:
+	return V14_ATTACK_DIRECTION.get(id,V14_ATTACK_DIRECTION.get(str(profile.role),[]))
+
+func attack_visual_intensity(id:String)->float:
+	var row:Dictionary=Rules.MOVE_LIBRARY.get(id,Rules.DEV_NATIVE_MOVES.get(id,{}))
+	if row.is_empty():return 1.0
+	if str(row.get("category",""))=="status":return .78
+	# The reference catalog uses low numerical base powers (typically 1–60).
+	return lerpf(.66,1.34,sqrt(clampf(float(row.get("power",6))/45.0,0.0,1.0)))
+
+func attack_direction_sample(art:Array,age:float,index:int,count:int,forward:Vector3,side:Vector3)->Vector3:
+	var phase:float=pow(clampf(age,0.0,1.0),float(art[3]))
+	var arc:float=sin(phase*PI)
+	var f:float=float(index)/float(maxi(1,count-1))
+	var angle:float=TAU*float(index)/float(maxi(1,count))
+	var radial:Vector3=forward*cos(angle)+side*sin(angle)
+	var spin:float=float(art[4])
+	var q:=Vector3.ZERO
+	match str(art[0]):
+		"scatter":q=radial*(.08+phase*.70)+Vector3.UP*(arc*(.24+f*.44))
+		"jet":q=forward*(phase*(.45+f*.7))+side*sin(angle)*(.08+phase*.17)+Vector3.UP*(arc*.22)
+		"star":q=radial*(.12+phase*(.60+.38*absf(cos(angle*2.5))))+Vector3.UP*(arc*.38)
+		"collapse":q=radial*(.12+(1.0-phase)*.72)+Vector3.UP*(arc*.65+phase*.20)
+		"front":q=forward*(phase*.78)+side*(f-.5)*1.6+Vector3.UP*(arc*.34)
+		"orbit":q=radial.rotated(Vector3.UP,phase*TAU*spin)*(.24+phase*.34)+Vector3.UP*(arc*.36)
+		"column":q=radial*(.10+phase*.22)+Vector3.UP*(arc*(.48+f*.8))
+		"spiral":q=radial.rotated(Vector3.UP,phase*TAU*spin)*(.1+phase*.58)+Vector3.UP*(phase*.66+f*.16)
+		"petal":q=radial*(.15+phase*(.32+.45*absf(sin(angle*3.0))))+Vector3.UP*(arc*.58)
+		"float":q=radial*(.10+phase*.44)+side*sin(phase*TAU+angle)*.12+Vector3.UP*(phase*(.45+f*.65))
+		"pincer":q=side*(1.0 if index%2==0 else -1.0)*(.08+(1.0-phase)*.55)+forward*(f-.5)*.28+Vector3.UP*(arc*.34)
+		"sweep":q=forward*cos(angle+phase*PI)*phase*.7+side*sin(angle+phase*PI)*.65+Vector3.UP*(arc*.28)
+		"chain":q=forward*(f*.72+phase*.38)+side*sin(float(index)*1.8)*.18+Vector3.UP*(arc*.24)
+		"rise":q=radial*(.10+phase*.38)+Vector3.UP*(arc*(.45+f*.58))
+		"zigzag":q=forward*(f-.5)*.95+side*(1.0 if index%2==0 else -1.0)*(.12+phase*.48)+Vector3.UP*(arc*(.3+f*.5))
+		# Organic tendrils unfurl; rigid crystals and rocks use ballistic motion.
+		"root":q=radial.rotated(Vector3.UP,spin*arc)*(.08+phase*.62)+Vector3.UP*(sin(phase*PI*.75)*(.25+f*.62))
+		"whiplash":q=forward*(.1+phase*.82)+side*sin(angle+phase*TAU*spin)*(.12+arc*.52)+Vector3.UP*(arc*(.25+f*.48))
+		"thorn":q=radial*(.06+phase*.78)+Vector3.UP*(arc*(.22+f*.84))
+		"spore":q=radial.rotated(Vector3.UP,phase*spin)*(.1+phase*.68)+Vector3.UP*(.12+phase*(.32+f*.58)+sin(angle+phase*TAU)*.08)
+		"snow":q=forward*(phase*.48)+side*(f-.5)*1.3+Vector3.UP*(.12+(1.0-phase)*(.38+f*.7)+sin(angle+phase*TAU*spin)*.08)
+		"shatter":q=radial*(.05+sqrt(phase)*(.38+f*.45))+Vector3.UP*(4.0*phase*(1.0-phase)*(.26+f*.57))
+		"mist":q=radial.rotated(Vector3.UP,phase*spin)*(.10+sqrt(phase)*.68)+Vector3.UP*(.08+phase*(.20+f*.33))
+		"tumble":q=forward*(phase*(.28+f*.64))+side*sin(angle)*(.12+phase*.46)+Vector3.UP*(4.0*phase*(1.0-phase)*(.19+f*.56))
+		"fissure":q=forward*(f-.5)*1.5+side*sin(float(index)*2.1)*(.07+phase*.20)+Vector3.UP*(arc*(.15+f*.72))
+		"glob":q=radial*(.08+phase*(.36+f*.37))+Vector3.UP*(4.0*phase*(1.0-phase)*(.16+f*.36))
+		"crosscut":q=(forward+side*(1.0 if index%2==0 else -1.0)).normalized()*(f-.5)*(.8+phase*.7)+Vector3.UP*(arc*.42)
+		# Contact silhouettes, wind shear and supernatural displacement.
+		"cleave":q=side*(f-.5)*1.35+forward*(.10+phase*.48)+Vector3.UP*(.18+arc*.35+f*.28)
+		"fracture":q=radial*(.06+sqrt(phase)*(.48+f*.42))+Vector3.UP*(arc*(.17+f*.48))
+		"gather":q=radial.rotated(Vector3.UP,phase*spin)*(.09+(1.0-phase)*.68)+Vector3.UP*(.16+phase*(.27+f*.55))
+		"recoil":q=forward*(.05+sqrt(phase)*(.4+f*.6))+side*sin(angle)*(.12+phase*.45)+Vector3.UP*(arc*.28)
+		"grapple":q=side*(1.0 if index%2==0 else -1.0)*(.12+(1.0-phase)*.65)+forward*cos(angle+phase*spin)*.23+Vector3.UP*(.20+f*.45+arc*.18)
+		"uppercut":q=forward*(.10+phase*.24)+side*sin(angle)*.24+Vector3.UP*(arc*(.6+f*.62))
+		"dive":q=forward*(.08+phase*.62)+side*(f-.5)*(.2+phase*.72)+Vector3.UP*((1.0-phase)*(.35+f*.68)+arc*.18)
+		"jab":q=forward*(.05+phase*(.55+f*.55))+side*sin(angle+spin)*.10+Vector3.UP*(.15+arc*.18)
+		"barrage":q=forward*(phase*(.25+f*.55))+side*(1.0 if index%2==0 else -1.0)*(.16+phase*.32)+Vector3.UP*(.12+absf(sin(phase*TAU*(1.0+spin)+angle))*.35)
+		"shield":q=side*(f-.5)*1.15+forward*(.12+arc*.24)+Vector3.UP*(.12+sin(f*PI)*.72+phase*.12)
+		"wing":q=side*(f-.5)*1.6+forward*(.12+phase*.48)+Vector3.UP*(.10+absf(f-.5)*arc*.95)
+		"ripple":q=radial*(.12+phase*.68+sin(phase*TAU*spin+angle)*.08)+Vector3.UP*(.16+arc*.32)
+		"feather":q=radial.rotated(Vector3.UP,phase*spin)*(.16+phase*.42)+side*sin(angle+phase*TAU)*.15+Vector3.UP*(.18+(1.0-phase)*(.25+f*.65))
+		"constellation":q=radial.rotated(Vector3.UP,phase*spin)*(.18+phase*(.24+f*.44))+Vector3.UP*(.15+arc*.45+f*.33)
+		"warp":q=radial.rotated(Vector3.UP,phase*TAU*spin)*(.08+absf(phase-.5)*1.15)+Vector3.UP*(.16+arc*(.32+f*.52))
+		"mirror":q=side*(1.0 if index%2==0 else -1.0)*(.22+arc*.38)+forward*(f-.5)*(.4+phase*.42)+Vector3.UP*(.12+f*.48+sin(phase*PI*spin)*.12)
+		"haunt":q=radial.rotated(Vector3.UP,-phase*spin)*(.18+arc*.35)+side*sin(phase*TAU+angle)*.10+Vector3.UP*(.17+phase*(.3+f*.65))
+		"wraith":q=forward*(phase*.62)+side*sin(angle-phase*TAU*spin)*(.12+phase*.32)+Vector3.UP*(.12+phase*(.26+f*.48))
+		"vortex":q=radial.rotated(Vector3.UP,-phase*TAU*spin)*(.08+(1.0-phase)*(.42+f*.32))+Vector3.UP*(.12+arc*.62)
+		# Fine silk, chitin, metal facets, dragon fire and luminous fairy magic.
+		"thread":q=radial.rotated(Vector3.UP,phase*TAU*spin+f*TAU)*(.14+arc*.38)+Vector3.UP*(.12+f*.68)
+		"scales":q=radial.rotated(Vector3.UP,phase*spin)*(.08+phase*.65)+side*sin(angle+phase*TAU)*.12+Vector3.UP*(.15+(1.0-phase)*(.35+f*.53))
+		"prism":q=radial*(.15+phase*(.38+.23*absf(cos(angle*3.0+spin))))+Vector3.UP*(.17+arc*(.37+f*.35))
+		"needle":q=forward*(.06+phase*(.52+f*.45))+side*(f-.5)*(.15+arc*.32)+Vector3.UP*(.08+arc*(.18+f*.35))
+		"swarm":q=radial.rotated(Vector3.UP,phase*TAU*spin)*(.14+phase*.42)+side*sin(angle*2.0+phase*TAU)*.13+Vector3.UP*(.16+arc*.43+f*.18)
+		"dragonflare":q=forward*(phase*(.36+f*.52))+radial.rotated(Vector3.UP,phase*TAU*spin)*(.12+arc*.36)+Vector3.UP*(.12+phase*(.3+f*.58))
+		"clock":q=radial.rotated(Vector3.UP,phase*TAU*spin)*(.40+arc*.22)+Vector3.UP*(.12+f*.46)
+		"meteor":q=forward*(phase*.44)+side*(f-.5)*(.25+phase*.7)+Vector3.UP*((1.0-phase)*(.42+f*.66)+arc*.24)
+		"plate":q=side*(f-.5)*1.18+forward*(.12+arc*.24)+Vector3.UP*(.14+f*.63+sin(phase*PI*spin)*.08)
+		"halo":q=radial.rotated(Vector3.UP,phase*spin)*(.19+arc*.38)+Vector3.UP*(.17+phase*(.37+f*.55))
+		"blade":q=side*cos(angle+phase*PI*spin)*(.14+arc*.42)+forward*sin(angle+phase*PI*spin)*(.12+phase*.46)+Vector3.UP*(.12+f*.52)
+	return Vector3(q.x*float(art[1]),q.y*float(art[2]),q.z*float(art[1]))
+
 func cinematic_impact_layers(id:String,profile:Dictionary,source:Vector3,target:Vector3,age:float,used:int,light:Color,dark:Color,status:bool)->int:
 	var element:String=str(profile.element)
 	var role:String=str(profile.role)
@@ -7214,6 +10213,9 @@ func cinematic_impact_layers(id:String,profile:Dictionary,source:Vector3,target:
 	var heavy:bool=profile.pattern in ["room","floor","radius","cross"] or "blast" in role or "quake" in role or "meteor" in role
 	var count:int=10 if heavy else 6
 	if status:count=4
+	var art:Array=move_finish_art(id,profile)
+	var direction:Array=attack_direction_profile(id,profile)
+	var intensity:float=attack_visual_intensity(id)
 	var fade:float=pow(1.0-age,1.25)
 	var ground:=Vector3(target.x,.045,target.z)
 	for i in range(count):
@@ -7227,11 +10229,15 @@ func cinematic_impact_layers(id:String,profile:Dictionary,source:Vector3,target:
 		var size:float=.18+.16*fade
 		var flat:bool=false
 		match element:
-			"fire","dragon":
+			"fire":
 				mode="ember" if i%3!=0 else "smoke"
 				q.y=.10+age*(.9+speed*.45)
 				q+=forward*age*.25
 				size=.24+age*.28 if mode=="smoke" else .22*fade
+			"dragon":
+				mode="flame" if i%2==0 else "spiral"
+				q=target+radial.rotated(Vector3.UP,age*4.8)*travel+Vector3.UP*(.12+arc*.82+age*.22)
+				size=.26+.18*fade
 			"water":
 				mode="drop" if age<.76 else "shock_ring"
 				q.y=.05+arc*(.65+speed*.30)
@@ -7243,30 +10249,93 @@ func cinematic_impact_layers(id:String,profile:Dictionary,source:Vector3,target:
 				flat=age>=.63
 				if flat:q.y=.047
 				size=.26+age*.20
-			"ground","rock","steel","ice":
-				mode="crystal" if element=="ice" or element=="steel" else "shards"
-				q.y=.04+arc*(.45+speed*.55)
-				size=.20+speed*.13
+			"ground":
+				mode="shards" if i%2==0 else "smoke"
+				q.y=.04+arc*(.24+speed*.34)
+				size=.23+speed*.14
+			"rock":
+				mode="projectile_stone" if i%2==0 else "shards"
+				q.y=.04+arc*(.60+speed*.60)
+				size=.28+speed*.17
+			"steel":
+				mode="shards" if i%2==0 else "crystal"
+				q=target+radial*travel*1.1+Vector3.UP*(arc*.35+float(i%3)*.12)
+				size=.19+speed*.12
+			"ice":
+				mode="crystal"
+				q=ground+radial*travel*.65+Vector3.UP*(.10+arc*.68)
+				size=.25+speed*.13
 			"electric":
 				mode="lightning" if i%2==0 else "impact_star"
 				q=target+radial*travel+Vector3.UP*(arc*.36+sin(angle*3.0+age*20.0)*.14)
-			"grass","bug":
+			"grass":
 				mode="leaf"
 				q=ground+radial.rotated(Vector3.UP,age*1.8)*travel+Vector3.UP*(.10+arc*.72)
-			"flying","fighting","normal","dark":
+			"bug":
+				mode="special_thread" if i%2==0 else "leaf"
+				q=target+radial*travel+side*sin(age*TAU*2.0+angle)*.13+Vector3.UP*(arc*.43)
+			"flying":
+				mode="slash"
+				q=target+forward*(age*speed*1.10)+side*sin(angle)*travel+Vector3.UP*(arc*.40)
+			"fighting":
+				mode="impact_star"
+				q=target+forward*(age*speed*.45)+side*sin(angle)*travel*1.3+Vector3.UP*(arc*.16)
+			"normal":
 				mode="slash" if i%2==0 else "impact_star"
-				q=target+forward*(age*speed*.7)+side*sin(angle)*travel+Vector3.UP*(arc*.25)
-			"psychic","ghost","fairy":
-				mode="spiral" if i%2==0 else "impact_star"
+				q=target+radial*travel+Vector3.UP*(arc*.25)
+			"dark":
+				mode="smoke" if i%2==0 else "slash"
+				q=target+radial*(.56*(1.0-age)+.06)+Vector3.UP*(arc*.28)
+			"psychic":
+				mode="spiral"
 				q=target+radial.rotated(Vector3.UP,age*3.6)*travel+Vector3.UP*(age*.44)
-		used=environment_particle(used,q,mode,light,dark,size,fade*.92,flat)
+			"ghost":
+				mode="smoke"
+				q=target+radial.rotated(Vector3.UP,-age*2.8)*travel*.70+Vector3.UP*(age*.95)
+				size=.25+age*.30
+			"fairy":
+				mode="impact_star"
+				q=target+radial*travel*(.75+.35*sin(angle*5.0))+Vector3.UP*(arc*.64+age*.25)
+				size=.20+.17*fade
+		if not art.is_empty() and not status:
+			mode=str(art[1] if i%3==0 else art[0])
+			var spread:float=float(art[3])
+			q=ground+Vector3((q.x-ground.x)*spread,(q.y-ground.y)*float(art[4]),(q.z-ground.z)*spread)
+			if mode=="shock_ring" or (mode=="wave" and role in ["water_surf","fire_heatwave","air_gust"]):
+				flat=true;q.y=.055
+			else:flat=false
+			if mode=="cloud" or mode=="smoke":size*=1.25
+		if not direction.is_empty():
+			var authored_offset:Vector3=attack_direction_sample(direction,age,i,count,forward,side)
+			q=ground+authored_offset*intensity
+			if status:
+				# Support motion stays subdued and above ground; it is not a damage flash.
+				q.y=maxf(q.y,.14)
+			if flat:q.y=.055
+		else:
+			q=ground+(q-ground)*intensity
+			if flat:q.y=.055
+		size*=intensity
+		var finish_light:Color=light if art.is_empty() or status else Color(str(art[2]))
+		used=environment_particle(used,q,mode,finish_light,dark,size,fade*.92,flat)
 	if heavy and not status:
-		used=environment_particle(used,ground,"shock_ring",light,dark,.35+age*2.25,fade*.68,true)
+		used=environment_particle(used,ground,"shock_ring",light,dark,(.35+age*2.25)*intensity,fade*.68,true)
+	return used
+
+func rtdx_solar_charge_fx(origin:Vector3,clock:float,used:int)->int:
+	var alpha:float=.70+.18*sin(clock*5.0)
+	used=environment_particle(used,origin+Vector3.UP*.55,"rtdx_psychic",Color("#fffbd6"),Color("#ffe444"),1.9,alpha)
+	for i in range(6):
+		var angle:float=float(i)*TAU/6.0+clock*.65
+		var q:Vector3=origin+Vector3(cos(angle)*.42,.25+fposmod(clock*.45+float(i)*.17,1.0)*.75,sin(angle)*.42)
+		used=environment_particle(used,q,"rtdx_glint",Color("#fff49a"),Color("#ffc52b"),.28,alpha)
 	return used
 
 func charge_environment_fx(used:int)->int:
 	var origin:Vector3=pos(run.player)+Vector3(0,.04,0)
 	var pulse:float=.8+.12*sin(elapsed*7.0)
+	if run.charged_move_id=="eos_151" and run.charge_phase=="gather":
+		return rtdx_solar_charge_fx(origin,elapsed,used)
 	match run.charge_phase:
 		"underground":
 			used=environment_particle(used,origin,"earth_hole",Color("#c7a777"),Color("#795638"),pulse, .85,true)

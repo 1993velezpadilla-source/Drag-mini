@@ -1,0 +1,5904 @@
+{
+  "schema": 1,
+  "counts": {
+    "total": 589,
+    "reference_key": 477,
+    "still_grounded": 12,
+    "existing_route_regression": 1,
+    "authored_unverified": 576,
+    "timing_verified": 0,
+    "inspected_stills": 22
+  },
+  "rows": [
+    {
+      "id": "abyss_grasp",
+      "name": "Abyss Crush",
+      "type": "dark",
+      "reference_key": null,
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "alt_abyss_colossus",
+      "name": "Ink Veil",
+      "type": "dark",
+      "reference_key": null,
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "alt_anemoneye",
+      "name": "Nettle Bloom",
+      "type": "poison",
+      "reference_key": null,
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "alt_astro_golem",
+      "name": "Gravel Nova",
+      "type": "rock",
+      "reference_key": null,
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "alt_bramble_pup",
+      "name": "Thorn Scratch",
+      "type": "normal",
+      "reference_key": null,
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "alt_bubblewisp",
+      "name": "Foam Ring",
+      "type": "water",
+      "reference_key": null,
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "alt_celestial_guardian",
+      "name": "Halo Blade",
+      "type": "fairy",
+      "reference_key": null,
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "alt_comet_hare",
+      "name": "Lunar Kick",
+      "type": "normal",
+      "reference_key": null,
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "alt_coralcrab",
+      "name": "Brine Jet",
+      "type": "water",
+      "reference_key": null,
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "alt_crystarok",
+      "name": "Crystal Needle",
+      "type": "ice",
+      "reference_key": null,
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "alt_eelstrix",
+      "name": "Static Fang",
+      "type": "electric",
+      "reference_key": null,
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "alt_fungal_monarch",
+      "name": "Royal Spore Jet",
+      "type": "poison",
+      "reference_key": null,
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "alt_grovetitan",
+      "name": "Root Hook",
+      "type": "grass",
+      "reference_key": null,
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "alt_hollow_stag",
+      "name": "Bark Spear",
+      "type": "grass",
+      "reference_key": null,
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "alt_jellymancer",
+      "name": "Tentacle Flick",
+      "type": "water",
+      "reference_key": null,
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "alt_leafwisp",
+      "name": "Razor Leaves",
+      "type": "grass",
+      "reference_key": null,
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "alt_leviathorn",
+      "name": "Brackish Lance",
+      "type": "water",
+      "reference_key": null,
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "alt_lunamoth",
+      "name": "Moon Wing",
+      "type": "flying",
+      "reference_key": null,
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "alt_lunar_prowler",
+      "name": "Shadow Pounce",
+      "type": "dark",
+      "reference_key": null,
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "alt_marrowray",
+      "name": "Tail Barb",
+      "type": "water",
+      "reference_key": null,
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "alt_mossmite",
+      "name": "Pebble Scatter",
+      "type": "rock",
+      "reference_key": null,
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "alt_nebulwing",
+      "name": "Echo Burst",
+      "type": "flying",
+      "reference_key": null,
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "alt_nova_wisp",
+      "name": "Cinder Halo",
+      "type": "fire",
+      "reference_key": null,
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "alt_orbitserpent",
+      "name": "Ring Fang",
+      "type": "dragon",
+      "reference_key": null,
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "alt_reef_pup",
+      "name": "Water Needle",
+      "type": "water",
+      "reference_key": null,
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "alt_rootgnawer",
+      "name": "Root Needle",
+      "type": "grass",
+      "reference_key": null,
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "alt_shellguard",
+      "name": "Shell Disc",
+      "type": "rock",
+      "reference_key": null,
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "alt_sporeling",
+      "name": "Cap Bonk",
+      "type": "grass",
+      "reference_key": null,
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "alt_starlit_pup",
+      "name": "Comet Spark",
+      "type": "fairy",
+      "reference_key": null,
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "alt_sylphowl",
+      "name": "Talon Rake",
+      "type": "flying",
+      "reference_key": null,
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "alt_thornbeetle",
+      "name": "Mandible Cut",
+      "type": "bug",
+      "reference_key": null,
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "alt_tidal_sovereign",
+      "name": "Riptide Rush",
+      "type": "water",
+      "reference_key": null,
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "alt_vinesnap",
+      "name": "Petal Chomp",
+      "type": "grass",
+      "reference_key": null,
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "alt_voidspider",
+      "name": "Silk Dart",
+      "type": "bug",
+      "reference_key": null,
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "antler_arc",
+      "name": "Antler Sweep",
+      "type": "grass",
+      "reference_key": null,
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "basic_strike",
+      "name": "Basic Strike",
+      "type": "normal",
+      "reference_key": null,
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "briar_arc",
+      "name": "Briar Pounce",
+      "type": "grass",
+      "reference_key": null,
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "bubble_burst",
+      "name": "Bubble Shot",
+      "type": "water",
+      "reference_key": null,
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "celestial_verdict",
+      "name": "Celestial Verdict",
+      "type": "fairy",
+      "reference_key": null,
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "comet_drop",
+      "name": "Comet Drop",
+      "type": "fairy",
+      "reference_key": null,
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "double_pincer",
+      "name": "Claw Snap",
+      "type": "bug",
+      "reference_key": null,
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "electric_lash",
+      "name": "Static Lash",
+      "type": "electric",
+      "reference_key": null,
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_001",
+      "name": "Iron Tail",
+      "type": "steel",
+      "reference_key": "IRON_TAIL",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_002",
+      "name": "Frost Tumble",
+      "type": "ice",
+      "reference_key": "ICE_BALL",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_003",
+      "name": "Drowsy Hex",
+      "type": "normal",
+      "reference_key": "YAWN",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_004",
+      "name": "Dream Charm",
+      "type": "normal",
+      "reference_key": "LOVELY_KISS",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_005",
+      "name": "Dread Dream",
+      "type": "ghost",
+      "reference_key": "NIGHTMARE",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_006",
+      "name": "Dawn Renewal",
+      "type": "normal",
+      "reference_key": "MORNING_SUN",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_007",
+      "name": "Redirecting Grip",
+      "type": "fighting",
+      "reference_key": "VITAL_THROW",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_008",
+      "name": "Burrow Strike",
+      "type": "ground",
+      "reference_key": "DIG",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_009",
+      "name": "Wild Flurry",
+      "type": "normal",
+      "reference_key": "THRASH",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_010",
+      "name": "Scent Trace",
+      "type": "normal",
+      "reference_key": "SWEET_SCENT",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_011",
+      "name": "Gentle Hex",
+      "type": "normal",
+      "reference_key": "CHARM",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_012",
+      "name": "Rain Ritual",
+      "type": "water",
+      "reference_key": "RAIN_DANCE",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_013",
+      "name": "Mirage Ray",
+      "type": "ghost",
+      "reference_key": "CONFUSE_RAY",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_014",
+      "name": "Frostfall",
+      "type": "ice",
+      "reference_key": "HAIL",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_015",
+      "name": "Herbal Purge",
+      "type": "grass",
+      "reference_key": "AROMATHERAPY",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_016",
+      "name": "Bubble",
+      "type": "water",
+      "reference_key": "BUBBLE",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_017",
+      "name": "Echo Lock",
+      "type": "normal",
+      "reference_key": "ENCORE",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_018",
+      "name": "Cut",
+      "type": "normal",
+      "reference_key": "CUT",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_019",
+      "name": "Fury Stance",
+      "type": "normal",
+      "reference_key": "RAGE",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_020",
+      "name": "Crescent Fang",
+      "type": "normal",
+      "reference_key": "SUPER_FANG",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_021",
+      "name": "Shared Vitality",
+      "type": "normal",
+      "reference_key": "PAIN_SPLIT",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_022",
+      "name": "Silencing Seal",
+      "type": "dark",
+      "reference_key": "TORMENT",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_023",
+      "name": "Silk Drag",
+      "type": "bug",
+      "reference_key": "STRING_SHOT",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_024",
+      "name": "Provocation",
+      "type": "normal",
+      "reference_key": "SWAGGER",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_025",
+      "name": "Dream Echo",
+      "type": "normal",
+      "reference_key": "SNORE",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_026",
+      "name": "Pure Chime",
+      "type": "normal",
+      "reference_key": "HEAL_BELL",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_027",
+      "name": "Shatter Cry",
+      "type": "normal",
+      "reference_key": "SCREECH",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_028",
+      "name": "Rock Throw",
+      "type": "rock",
+      "reference_key": "ROCK_THROW",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_029",
+      "name": "Stonebreaker",
+      "type": "fighting",
+      "reference_key": "ROCK_SMASH",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_030",
+      "name": "Rock Slide",
+      "type": "rock",
+      "reference_key": "ROCK_SLIDE",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_031",
+      "name": "Weather Ball",
+      "type": "normal",
+      "reference_key": "WEATHER_BALL",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_032",
+      "name": "Whirlpool",
+      "type": "water",
+      "reference_key": "WHIRLPOOL",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_033",
+      "name": "Sorrow Veil",
+      "type": "dark",
+      "reference_key": "FAKE_TEARS",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_034",
+      "name": "Lullaby Note",
+      "type": "normal",
+      "reference_key": "SING",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_035",
+      "name": "Essence Drain",
+      "type": "ghost",
+      "reference_key": "SPITE",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_036",
+      "name": "Air Cutter",
+      "type": "flying",
+      "reference_key": "AIR_CUTTER",
+      "evidence": "still_inspected",
+      "source": "https://archives.bulbagarden.net/wiki/File:Air_Cutter_PMD_RTDX.png",
+      "renderer": "still_grounded",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_037",
+      "name": "Smoke Shroud",
+      "type": "normal",
+      "reference_key": "SMOKESCREEN",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_038",
+      "name": "Pursuer Stance",
+      "type": "dark",
+      "reference_key": "PURSUIT",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_039",
+      "name": "Palm Flurry",
+      "type": "normal",
+      "reference_key": "DOUBLESLAP",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_040",
+      "name": "Mirror Veil",
+      "type": "flying",
+      "reference_key": "MIRROR_MOVE",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_041",
+      "name": "Overheat",
+      "type": "fire",
+      "reference_key": "OVERHEAT",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_042",
+      "name": "Aurora Beam",
+      "type": "ice",
+      "reference_key": "AURORA_BEAM",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_043",
+      "name": "Last Eclipse",
+      "type": "dark",
+      "reference_key": "MEMENTO",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_044",
+      "name": "Octazooka",
+      "type": "water",
+      "reference_key": "OCTAZOOKA",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_045",
+      "name": "False Praise",
+      "type": "dark",
+      "reference_key": "FLATTER",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_046",
+      "name": "Astonish",
+      "type": "ghost",
+      "reference_key": "ASTONISH",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_047",
+      "name": "Cinder Curse",
+      "type": "fire",
+      "reference_key": "WILL_O_WISP",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_048",
+      "name": "Trust Strike",
+      "type": "normal",
+      "reference_key": "RETURN",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_049",
+      "name": "Final Grudge",
+      "type": "ghost",
+      "reference_key": "GRUDGE",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_050",
+      "name": "Titan Toss",
+      "type": "normal",
+      "reference_key": "STRENGTH",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_051",
+      "name": "Retaliation",
+      "type": "fighting",
+      "reference_key": "COUNTER",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_052",
+      "name": "Flame Wheel",
+      "type": "fire",
+      "reference_key": "FLAME_WHEEL",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_053",
+      "name": "Flamethrower",
+      "type": "fire",
+      "reference_key": "FLAMETHROWER",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_054",
+      "name": "Scent Reveal",
+      "type": "normal",
+      "reference_key": "ODOR_SLEUTH",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_055",
+      "name": "Hone Edge",
+      "type": "normal",
+      "reference_key": "SHARPEN",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_056",
+      "name": "Echo Image",
+      "type": "normal",
+      "reference_key": "DOUBLE_TEAM",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_057",
+      "name": "Gust",
+      "type": "flying",
+      "reference_key": "GUST",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_058",
+      "name": "Firm Shell",
+      "type": "normal",
+      "reference_key": "HARDEN",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_059",
+      "name": "Nerve Seal",
+      "type": "normal",
+      "reference_key": "DISABLE",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_060",
+      "name": "Razor Gale",
+      "type": "normal",
+      "reference_key": "RAZOR_WIND",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_061",
+      "name": "Stored Retort",
+      "type": "normal",
+      "reference_key": "BIDE",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_062",
+      "name": "Crunch",
+      "type": "dark",
+      "reference_key": "CRUNCH",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_063",
+      "name": "Bite",
+      "type": "dark",
+      "reference_key": "BITE",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_064",
+      "name": "Thunder",
+      "type": "electric",
+      "reference_key": "THUNDER",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_065",
+      "name": "Thunderpunch",
+      "type": "electric",
+      "reference_key": "THUNDERPUNCH",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_066",
+      "name": "Equalizer",
+      "type": "normal",
+      "reference_key": "ENDEAVOR",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_067",
+      "name": "Facade",
+      "type": "normal",
+      "reference_key": "FACADE",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_068",
+      "name": "Karate Chop",
+      "type": "fighting",
+      "reference_key": "KARATE_CHOP",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_069",
+      "name": "Clamp",
+      "type": "water",
+      "reference_key": "CLAMP",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_070",
+      "name": "Shell Retreat",
+      "type": "water",
+      "reference_key": "WITHDRAW",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_071",
+      "name": "Constrict",
+      "type": "normal",
+      "reference_key": "CONSTRICT",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_072",
+      "name": "Brick Break",
+      "type": "fighting",
+      "reference_key": "BRICK_BREAK",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_073",
+      "name": "Rock Tomb",
+      "type": "rock",
+      "reference_key": "ROCK_TOMB",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_074",
+      "name": "Battle Focus",
+      "type": "normal",
+      "reference_key": "FOCUS_ENERGY",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_075",
+      "name": "Focused Fist",
+      "type": "fighting",
+      "reference_key": "FOCUS_PUNCH",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_076",
+      "name": "Giga Drain",
+      "type": "grass",
+      "reference_key": "GIGA_DRAIN",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_077",
+      "name": "Reversal",
+      "type": "fighting",
+      "reference_key": "REVERSAL",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_078",
+      "name": "Smellingsalt",
+      "type": "normal",
+      "reference_key": "SMELLINGSALT",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_079",
+      "name": "Slumber Spores",
+      "type": "grass",
+      "reference_key": "SPORE",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_080",
+      "name": "Leech Life",
+      "type": "bug",
+      "reference_key": "LEECH_LIFE",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_081",
+      "name": "Slash",
+      "type": "normal",
+      "reference_key": "SLASH",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_082",
+      "name": "Silver Wind",
+      "type": "bug",
+      "reference_key": "SILVER_WIND",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_083",
+      "name": "Resonant Metal",
+      "type": "steel",
+      "reference_key": "METAL_SOUND",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_084",
+      "name": "Reed Lullaby",
+      "type": "grass",
+      "reference_key": "GRASSWHISTLE",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_085",
+      "name": "Distracting Touch",
+      "type": "normal",
+      "reference_key": "TICKLE",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_086",
+      "name": "Silken Anchor",
+      "type": "bug",
+      "reference_key": "SPIDER_WEB",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_087",
+      "name": "Crabhammer",
+      "type": "water",
+      "reference_key": "CRABHAMMER",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_088",
+      "name": "Null Mist",
+      "type": "ice",
+      "reference_key": "HAZE",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_089",
+      "name": "Shadow Anchor",
+      "type": "normal",
+      "reference_key": "MEAN_LOOK",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_090",
+      "name": "Cross Chop",
+      "type": "fighting",
+      "reference_key": "CROSS_CHOP",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_091",
+      "name": "Draconic Frenzy",
+      "type": "dragon",
+      "reference_key": "OUTRAGE",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_092",
+      "name": "Low Kick",
+      "type": "fighting",
+      "reference_key": "LOW_KICK",
+      "evidence": "still_inspected",
+      "source": "https://archives.bulbagarden.net/wiki/File:Low_Kick_PMD_RTDX.png",
+      "renderer": "still_grounded",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_093",
+      "name": "Ancientpower",
+      "type": "rock",
+      "reference_key": "ANCIENTPOWER",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_094",
+      "name": "Verdant Renewal",
+      "type": "grass",
+      "reference_key": "SYNTHESIS",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_095",
+      "name": "Fleet Mind",
+      "type": "psychic",
+      "reference_key": "AGILITY",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_096",
+      "name": "Rapid Spin",
+      "type": "normal",
+      "reference_key": "RAPID_SPIN",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_097",
+      "name": "Icy Wind",
+      "type": "ice",
+      "reference_key": "ICY_WIND",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_098",
+      "name": "True Sight",
+      "type": "normal",
+      "reference_key": "MIND_READER",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_099",
+      "name": "Astral Ward",
+      "type": "psychic",
+      "reference_key": "COSMIC_POWER",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_100",
+      "name": "Skyfall Charge",
+      "type": "flying",
+      "reference_key": "SKY_ATTACK",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_101",
+      "name": "Powder Snow",
+      "type": "ice",
+      "reference_key": "POWDER_SNOW",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_102",
+      "name": "Gathering Cry",
+      "type": "normal",
+      "reference_key": "FOLLOW_ME",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_103",
+      "name": "Meteor Mash",
+      "type": "steel",
+      "reference_key": "METEOR_MASH",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_104",
+      "name": "Last Stand",
+      "type": "normal",
+      "reference_key": "ENDURE",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_105",
+      "name": "Boulder Tumble",
+      "type": "rock",
+      "reference_key": "ROLLOUT",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_106",
+      "name": "Dread Glance",
+      "type": "normal",
+      "reference_key": "SCARY_FACE",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_107",
+      "name": "Psybeam",
+      "type": "psychic",
+      "reference_key": "PSYBEAM",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_108",
+      "name": "Mind Ripple",
+      "type": "psychic",
+      "reference_key": "PSYWAVE",
+      "evidence": "still_inspected",
+      "source": "https://archives.bulbagarden.net/wiki/File:Psywave_PMD_RTDX.png",
+      "renderer": "still_grounded",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_109",
+      "name": "Psychic",
+      "type": "psychic",
+      "reference_key": "PSYCHIC",
+      "evidence": "still_inspected",
+      "source": "https://archives.bulbagarden.net/wiki/File:Psychic_PMD_RTDX.png",
+      "renderer": "still_grounded",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_110",
+      "name": "Psycho Boost",
+      "type": "psychic",
+      "reference_key": "PSYCHO_BOOST",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_111",
+      "name": "Dream Gaze",
+      "type": "psychic",
+      "reference_key": "HYPNOSIS",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_112",
+      "name": "Wake Chorus",
+      "type": "normal",
+      "reference_key": "UPROAR",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_113",
+      "name": "Water Spout",
+      "type": "water",
+      "reference_key": "WATER_SPOUT",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_114",
+      "name": "Signal Beam",
+      "type": "bug",
+      "reference_key": "SIGNAL_BEAM",
+      "evidence": "still_inspected",
+      "source": "https://archives.bulbagarden.net/wiki/File:Signal_Beam_PMD_RTDX.png",
+      "renderer": "still_grounded",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_115",
+      "name": "Echo Mind",
+      "type": "normal",
+      "reference_key": "PSYCH_UP",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_116",
+      "name": "Submission",
+      "type": "fighting",
+      "reference_key": "SUBMISSION",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_117",
+      "name": "Renewal",
+      "type": "normal",
+      "reference_key": "RECOVER",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_118",
+      "name": "Tectonic Pulse",
+      "type": "ground",
+      "reference_key": "EARTHQUAKE",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_119",
+      "name": "Terrain Invocation",
+      "type": "normal",
+      "reference_key": "NATURE_POWER",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_120",
+      "name": "Lick",
+      "type": "ghost",
+      "reference_key": "LICK",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_121",
+      "name": "Flail",
+      "type": "normal",
+      "reference_key": "FLAIL",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_122",
+      "name": "Tail Feint",
+      "type": "normal",
+      "reference_key": "TAIL_WHIP",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_123",
+      "name": "Burst Core",
+      "type": "normal",
+      "reference_key": "SELFDESTRUCT",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_124",
+      "name": "Numbing Pollen",
+      "type": "grass",
+      "reference_key": "STUN_SPORE",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_125",
+      "name": "Bind",
+      "type": "normal",
+      "reference_key": "BIND",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_126",
+      "name": "Shadow Punch",
+      "type": "ghost",
+      "reference_key": "SHADOW_PUNCH",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_127",
+      "name": "Shadow Ball",
+      "type": "ghost",
+      "reference_key": "SHADOW_BALL",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_128",
+      "name": "Static Reservoir",
+      "type": "electric",
+      "reference_key": "CHARGE",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_129",
+      "name": "Thunderbolt",
+      "type": "electric",
+      "reference_key": "THUNDERBOLT",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_130",
+      "name": "Clear Veil",
+      "type": "ice",
+      "reference_key": "MIST",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_131",
+      "name": "Fault Rift",
+      "type": "ground",
+      "reference_key": "FISSURE",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_132",
+      "name": "Extremespeed",
+      "type": "normal",
+      "reference_key": "EXTREMESPEED",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_133",
+      "name": "Extrasensory",
+      "type": "psychic",
+      "reference_key": "EXTRASENSORY",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_134",
+      "name": "Purity Ward",
+      "type": "normal",
+      "reference_key": "SAFEGUARD",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_135",
+      "name": "Absorb",
+      "type": "grass",
+      "reference_key": "ABSORB",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_136",
+      "name": "Sky Uppercut",
+      "type": "fighting",
+      "reference_key": "SKY_UPPERCUT",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_137",
+      "name": "Talent Exchange",
+      "type": "psychic",
+      "reference_key": "SKILL_SWAP",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_138",
+      "name": "Living Inscription",
+      "type": "normal",
+      "reference_key": "SKETCH",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_139",
+      "name": "Headbutt",
+      "type": "normal",
+      "reference_key": "HEADBUTT",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_140",
+      "name": "Double Edge",
+      "type": "normal",
+      "reference_key": "DOUBLE_EDGE",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_141",
+      "name": "Dune Storm",
+      "type": "rock",
+      "reference_key": "SANDSTORM",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_142",
+      "name": "Dust Flick",
+      "type": "ground",
+      "reference_key": "SAND_ATTACK",
+      "evidence": "still_inspected",
+      "source": "https://archives.bulbagarden.net/wiki/File:Sand_Attack_PMD_RTDX.png",
+      "renderer": "still_grounded",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_143",
+      "name": "Sand Tomb",
+      "type": "ground",
+      "reference_key": "SAND_TOMB",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_144",
+      "name": "Spark",
+      "type": "electric",
+      "reference_key": "SPARK",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_145",
+      "name": "Swift",
+      "type": "normal",
+      "reference_key": "SWIFT",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_146",
+      "name": "Mind Distortion",
+      "type": "psychic",
+      "reference_key": "KINESIS",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_147",
+      "name": "Smog",
+      "type": "poison",
+      "reference_key": "SMOG",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_148",
+      "name": "Bloom Focus",
+      "type": "normal",
+      "reference_key": "GROWTH",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_149",
+      "name": "Sacred Fire",
+      "type": "fire",
+      "reference_key": "SACRED_FIRE",
+      "evidence": "still_inspected",
+      "source": "https://archives.bulbagarden.net/wiki/File:Sacred_Fire_PMD_RTDX.png",
+      "renderer": "still_grounded",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_150",
+      "name": "Absolute Frost",
+      "type": "ice",
+      "reference_key": "SHEER_COLD",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_151",
+      "name": "Sunlance",
+      "type": "grass",
+      "reference_key": "SOLARBEAM",
+      "evidence": "still_inspected",
+      "source": "https://archives.bulbagarden.net/wiki/File:Solar_Beam_PMD_RTDX.png",
+      "renderer": "still_grounded",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_152",
+      "name": "Sonic Pulse",
+      "type": "normal",
+      "reference_key": "SONICBOOM",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_153",
+      "name": "Aerial Dive",
+      "type": "flying",
+      "reference_key": "FLY",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_154",
+      "name": "Tackle",
+      "type": "normal",
+      "reference_key": "TACKLE",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_155",
+      "name": "Nova Rupture",
+      "type": "normal",
+      "reference_key": "EXPLOSION",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_156",
+      "name": "Dive",
+      "type": "water",
+      "reference_key": "DIVE",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_157",
+      "name": "Fire Blast",
+      "type": "fire",
+      "reference_key": "FIRE_BLAST",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_158",
+      "name": "Waterfall",
+      "type": "water",
+      "reference_key": "WATERFALL",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_159",
+      "name": "Muddy Water",
+      "type": "water",
+      "reference_key": "MUDDY_WATER",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_160",
+      "name": "Store Vitality",
+      "type": "normal",
+      "reference_key": "STOCKPILE",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_161",
+      "name": "Slam",
+      "type": "normal",
+      "reference_key": "SLAM",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_162",
+      "name": "Twister",
+      "type": "dragon",
+      "reference_key": "TWISTER",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_163",
+      "name": "Seed Volley",
+      "type": "grass",
+      "reference_key": "BULLET_SEED",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_164",
+      "name": "Twin Needles",
+      "type": "bug",
+      "reference_key": "TWINEEDLE",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_165",
+      "name": "Vital Share",
+      "type": "normal",
+      "reference_key": "SOFTBOILED",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_166",
+      "name": "Egg Bomb",
+      "type": "normal",
+      "reference_key": "EGG_BOMB",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_167",
+      "name": "Faint Attack",
+      "type": "dark",
+      "reference_key": "FAINT_ATTACK",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_168",
+      "name": "Pebble Barrage",
+      "type": "normal",
+      "reference_key": "BARRAGE",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_169",
+      "name": "Tiny Form",
+      "type": "normal",
+      "reference_key": "MINIMIZE",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_170",
+      "name": "Seismic Grip",
+      "type": "fighting",
+      "reference_key": "SEISMIC_TOSS",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_171",
+      "name": "Discord Pulse",
+      "type": "normal",
+      "reference_key": "SUPERSONIC",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_172",
+      "name": "Defiant Call",
+      "type": "dark",
+      "reference_key": "TAUNT",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_173",
+      "name": "Lunar Renewal",
+      "type": "normal",
+      "reference_key": "MOONLIGHT",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_174",
+      "name": "Peck",
+      "type": "flying",
+      "reference_key": "PECK",
+      "evidence": "still_inspected",
+      "source": "https://archives.bulbagarden.net/wiki/File:Peck_PMD_RTDX.png",
+      "renderer": "still_grounded",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_175",
+      "name": "Rapid Palms",
+      "type": "fighting",
+      "reference_key": "ARM_THRUST",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_176",
+      "name": "Horn Attack",
+      "type": "normal",
+      "reference_key": "HORN_ATTACK",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_177",
+      "name": "Piercing Horn",
+      "type": "normal",
+      "reference_key": "HORN_DRILL",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_178",
+      "name": "Wing Attack",
+      "type": "flying",
+      "reference_key": "WING_ATTACK",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_179",
+      "name": "Aerial Ace",
+      "type": "flying",
+      "reference_key": "AERIAL_ACE",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_180",
+      "name": "Icicle Volley",
+      "type": "ice",
+      "reference_key": "ICICLE_SPEAR",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_181",
+      "name": "Blade Ritual",
+      "type": "normal",
+      "reference_key": "SWORDS_DANCE",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_182",
+      "name": "Vine Whip",
+      "type": "grass",
+      "reference_key": "VINE_WHIP",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_183",
+      "name": "Element Shift",
+      "type": "normal",
+      "reference_key": "CONVERSION",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_184",
+      "name": "Adaptive Shell",
+      "type": "normal",
+      "reference_key": "CONVERSION_2",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_185",
+      "name": "United Spirit",
+      "type": "normal",
+      "reference_key": "HELPING_HAND",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_186",
+      "name": "Iron Shell",
+      "type": "steel",
+      "reference_key": "IRON_DEFENSE",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_187",
+      "name": "Phase Step",
+      "type": "psychic",
+      "reference_key": "TELEPORT",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_188",
+      "name": "Thundershock",
+      "type": "electric",
+      "reference_key": "THUNDERSHOCK",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_189",
+      "name": "Shock Wave",
+      "type": "electric",
+      "reference_key": "SHOCK_WAVE",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_190",
+      "name": "Quick Attack",
+      "type": "normal",
+      "reference_key": "QUICK_ATTACK",
+      "evidence": "still_inspected",
+      "source": "https://archives.bulbagarden.net/wiki/File:Quick_Attack_PMD_RTDX.png",
+      "renderer": "existing_route_regression",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_191",
+      "name": "Bewilder Charm",
+      "type": "normal",
+      "reference_key": "SWEET_KISS",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_192",
+      "name": "Static Lock",
+      "type": "electric",
+      "reference_key": "THUNDER_WAVE",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_193",
+      "name": "Zap Cannon",
+      "type": "electric",
+      "reference_key": "ZAP_CANNON",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_194",
+      "name": "Stone Anchor",
+      "type": "normal",
+      "reference_key": "BLOCK",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_195",
+      "name": "Rally Howl",
+      "type": "normal",
+      "reference_key": "HOWL",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_196",
+      "name": "Venom Mist",
+      "type": "poison",
+      "reference_key": "POISON_GAS",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_197",
+      "name": "Virulent Hex",
+      "type": "poison",
+      "reference_key": "TOXIC",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_198",
+      "name": "Poison Fang",
+      "type": "poison",
+      "reference_key": "POISON_FANG",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_199",
+      "name": "Venom Pollen",
+      "type": "poison",
+      "reference_key": "POISONPOWDER",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_200",
+      "name": "Poison Sting",
+      "type": "poison",
+      "reference_key": "POISON_STING",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_201",
+      "name": "Spike Volley",
+      "type": "normal",
+      "reference_key": "SPIKE_CANNON",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_202",
+      "name": "Acid Shell",
+      "type": "poison",
+      "reference_key": "ACID_ARMOR",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_203",
+      "name": "Take Down",
+      "type": "normal",
+      "reference_key": "TAKE_DOWN",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_204",
+      "name": "Jump Kick",
+      "type": "fighting",
+      "reference_key": "JUMP_KICK",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_205",
+      "name": "Vault Crash",
+      "type": "flying",
+      "reference_key": "BOUNCE",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_206",
+      "name": "Hi Jump Kick",
+      "type": "fighting",
+      "reference_key": "HI_JUMP_KICK",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_207",
+      "name": "Tri Attack",
+      "type": "normal",
+      "reference_key": "TRI_ATTACK",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_208",
+      "name": "Dragon Claw",
+      "type": "dragon",
+      "reference_key": "DRAGON_CLAW",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_209",
+      "name": "Relic Exchange",
+      "type": "psychic",
+      "reference_key": "TRICK",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_210",
+      "name": "Triple Talon",
+      "type": "fighting",
+      "reference_key": "TRIPLE_KICK",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_211",
+      "name": "Drill Peck",
+      "type": "flying",
+      "reference_key": "DRILL_PECK",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_212",
+      "name": "Grounding Mist",
+      "type": "ground",
+      "reference_key": "MUD_SPORT",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_213",
+      "name": "Mud Slap",
+      "type": "ground",
+      "reference_key": "MUD_SLAP",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_214",
+      "name": "Thief",
+      "type": "dark",
+      "reference_key": "THIEF",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_215",
+      "name": "Blank Mind",
+      "type": "psychic",
+      "reference_key": "AMNESIA",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_216",
+      "name": "Night Echo",
+      "type": "ghost",
+      "reference_key": "NIGHT_SHADE",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_217",
+      "name": "Dread Growl",
+      "type": "normal",
+      "reference_key": "GROWL",
+      "evidence": "image_fetch_failed",
+      "source": "https://archives.bulbagarden.net/wiki/File:Growl_PMD_RTDX.png",
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_218",
+      "name": "Quiet Recovery",
+      "type": "normal",
+      "reference_key": "SLACK_OFF",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_219",
+      "name": "Surf",
+      "type": "water",
+      "reference_key": "SURF",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_220",
+      "name": "Talent Mimic",
+      "type": "psychic",
+      "reference_key": "ROLE_PLAY",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_221",
+      "name": "Needle Arm",
+      "type": "grass",
+      "reference_key": "NEEDLE_ARM",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_222",
+      "name": "Twin Kick",
+      "type": "fighting",
+      "reference_key": "DOUBLE_KICK",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_223",
+      "name": "Sun Ritual",
+      "type": "fire",
+      "reference_key": "SUNNY_DAY",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_224",
+      "name": "Intense Gaze",
+      "type": "normal",
+      "reference_key": "LEER",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_225",
+      "name": "Renewing Wish",
+      "type": "normal",
+      "reference_key": "WISH",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_226",
+      "name": "Fake Out",
+      "type": "normal",
+      "reference_key": "FAKE_OUT",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_227",
+      "name": "Dream Invocation",
+      "type": "normal",
+      "reference_key": "SLEEP_TALK",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_228",
+      "name": "Pay Day",
+      "type": "normal",
+      "reference_key": "PAY_DAY",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_229",
+      "name": "Borrowed Echo",
+      "type": "normal",
+      "reference_key": "ASSIST",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_230",
+      "name": "Heat Wave",
+      "type": "fire",
+      "reference_key": "HEAT_WAVE",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_231",
+      "name": "Drowse Pollen",
+      "type": "grass",
+      "reference_key": "SLEEP_POWDER",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_232",
+      "name": "Deep Rest",
+      "type": "psychic",
+      "reference_key": "REST",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_233",
+      "name": "Rooted Renewal",
+      "type": "grass",
+      "reference_key": "INGRAIN",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_234",
+      "name": "Confusion",
+      "type": "psychic",
+      "reference_key": "CONFUSION",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_235",
+      "name": "Body Slam",
+      "type": "normal",
+      "reference_key": "BODY_SLAM",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_236",
+      "name": "Consume Vitality",
+      "type": "normal",
+      "reference_key": "SWALLOW",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_237",
+      "name": "Hex Pact",
+      "type": "normal",
+      "reference_key": "CURSE",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_238",
+      "name": "Frenzy Plant",
+      "type": "grass",
+      "reference_key": "FRENZY_PLANT",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_239",
+      "name": "Hydro Cannon",
+      "type": "water",
+      "reference_key": "HYDRO_CANNON",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_240",
+      "name": "Hydro Pump",
+      "type": "water",
+      "reference_key": "HYDRO_PUMP",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_241",
+      "name": "Hyper Voice",
+      "type": "normal",
+      "reference_key": "HYPER_VOICE",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_242",
+      "name": "Hyper Beam",
+      "type": "normal",
+      "reference_key": "HYPER_BEAM",
+      "evidence": "image_fetch_failed",
+      "source": "https://archives.bulbagarden.net/wiki/File:Hyper_Beam_PMD_RTDX.png",
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_243",
+      "name": "Superpower",
+      "type": "fighting",
+      "reference_key": "SUPERPOWER",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_244",
+      "name": "Steel Wing",
+      "type": "steel",
+      "reference_key": "STEEL_WING",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_245",
+      "name": "Spit Up",
+      "type": "normal",
+      "reference_key": "SPIT_UP",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_246",
+      "name": "Dynamicpunch",
+      "type": "fighting",
+      "reference_key": "DYNAMICPUNCH",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_247",
+      "name": "Final Shear",
+      "type": "normal",
+      "reference_key": "GUILLOTINE",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_248",
+      "name": "Vicegrip",
+      "type": "normal",
+      "reference_key": "VICEGRIP",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_249",
+      "name": "Disarming Swipe",
+      "type": "dark",
+      "reference_key": "KNOCK_OFF",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_250",
+      "name": "Pound",
+      "type": "normal",
+      "reference_key": "POUND",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_251",
+      "name": "Razor Leaf",
+      "type": "grass",
+      "reference_key": "RAZOR_LEAF",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_252",
+      "name": "Relay Step",
+      "type": "normal",
+      "reference_key": "BATON_PASS",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_253",
+      "name": "Petal Frenzy",
+      "type": "grass",
+      "reference_key": "PETAL_DANCE",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_254",
+      "name": "Bouncing Step",
+      "type": "normal",
+      "reference_key": "SPLASH",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_255",
+      "name": "Bubblebeam",
+      "type": "water",
+      "reference_key": "BUBBLEBEAM",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_256",
+      "name": "Fate Seal",
+      "type": "steel",
+      "reference_key": "DOOM_DESIRE",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_257",
+      "name": "Feral Crescendo",
+      "type": "normal",
+      "reference_key": "BELLY_DRUM",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_258",
+      "name": "Mind Barrier",
+      "type": "psychic",
+      "reference_key": "BARRIER",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_259",
+      "name": "Arcane Ward",
+      "type": "psychic",
+      "reference_key": "LIGHT_SCREEN",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_260",
+      "name": "Scratch",
+      "type": "normal",
+      "reference_key": "SCRATCH",
+      "evidence": "still_inspected",
+      "source": "https://archives.bulbagarden.net/wiki/File:Scratch_PMD_RTDX.png",
+      "renderer": "still_grounded",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_261",
+      "name": "Hyper Fang",
+      "type": "normal",
+      "reference_key": "HYPER_FANG",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_262",
+      "name": "Ember",
+      "type": "fire",
+      "reference_key": "EMBER",
+      "evidence": "still_inspected",
+      "source": "https://archives.bulbagarden.net/wiki/File:Ember_PMD_RTDX.png",
+      "renderer": "still_grounded",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_263",
+      "name": "Secret Power",
+      "type": "normal",
+      "reference_key": "SECRET_POWER",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_264",
+      "name": "Dizzy Punch",
+      "type": "normal",
+      "reference_key": "DIZZY_PUNCH",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_265",
+      "name": "Mighty Stance",
+      "type": "fighting",
+      "reference_key": "BULK_UP",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_266",
+      "name": "Stasis Seal",
+      "type": "psychic",
+      "reference_key": "IMPRISON",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_267",
+      "name": "Feather Veil",
+      "type": "flying",
+      "reference_key": "FEATHERDANCE",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_268",
+      "name": "Gale Thrust",
+      "type": "normal",
+      "reference_key": "WHIRLWIND",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_269",
+      "name": "Rally Warp",
+      "type": "dark",
+      "reference_key": "BEAT_UP",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_270",
+      "name": "Blizzard",
+      "type": "ice",
+      "reference_key": "BLIZZARD",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_271",
+      "name": "Stomp",
+      "type": "normal",
+      "reference_key": "STOMP",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_272",
+      "name": "Blast Burn",
+      "type": "fire",
+      "reference_key": "BLAST_BURN",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_273",
+      "name": "Dazzle",
+      "type": "normal",
+      "reference_key": "FLASH",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_274",
+      "name": "Dizzy Waltz",
+      "type": "normal",
+      "reference_key": "TEETER_DANCE",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_275",
+      "name": "Crush Claw",
+      "type": "normal",
+      "reference_key": "CRUSH_CLAW",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_276",
+      "name": "Blaze Kick",
+      "type": "fire",
+      "reference_key": "BLAZE_KICK",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_277",
+      "name": "Mystery Parcel",
+      "type": "normal",
+      "reference_key": "PRESENT",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_278",
+      "name": "Eruption",
+      "type": "fire",
+      "reference_key": "ERUPTION",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_279",
+      "name": "Sludge",
+      "type": "poison",
+      "reference_key": "SLUDGE",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_280",
+      "name": "Sludge Bomb",
+      "type": "poison",
+      "reference_key": "SLUDGE_BOMB",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_281",
+      "name": "Petrifying Gaze",
+      "type": "normal",
+      "reference_key": "GLARE",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_282",
+      "name": "Wild Guise",
+      "type": "normal",
+      "reference_key": "TRANSFORM",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_283",
+      "name": "Poison Tail",
+      "type": "poison",
+      "reference_key": "POISON_TAIL",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_284",
+      "name": "Thunderous Roar",
+      "type": "normal",
+      "reference_key": "ROAR",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_285",
+      "name": "Bone Flurry",
+      "type": "ground",
+      "reference_key": "BONE_RUSH",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_286",
+      "name": "Terrain Mantle",
+      "type": "normal",
+      "reference_key": "CAMOUFLAGE",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_287",
+      "name": "Covet",
+      "type": "normal",
+      "reference_key": "COVET",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_288",
+      "name": "Glow Focus",
+      "type": "bug",
+      "reference_key": "TAIL_GLOW",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_289",
+      "name": "Bone Club",
+      "type": "ground",
+      "reference_key": "BONE_CLUB",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_290",
+      "name": "Returning Bone",
+      "type": "ground",
+      "reference_key": "BONEMERANG",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_291",
+      "name": "Fire Spin",
+      "type": "fire",
+      "reference_key": "FIRE_SPIN",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_292",
+      "name": "Fire Punch",
+      "type": "fire",
+      "reference_key": "FIRE_PUNCH",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_293",
+      "name": "Final Refrain",
+      "type": "normal",
+      "reference_key": "PERISH_SONG",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_294",
+      "name": "Binding Coil",
+      "type": "normal",
+      "reference_key": "WRAP",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_295",
+      "name": "Thorn Tile",
+      "type": "ground",
+      "reference_key": "SPIKES",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_296",
+      "name": "Seismic Surge",
+      "type": "ground",
+      "reference_key": "MAGNITUDE",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_297",
+      "name": "Magical Leaf",
+      "type": "grass",
+      "reference_key": "MAGICAL_LEAF",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_298",
+      "name": "Arcane Reflection",
+      "type": "psychic",
+      "reference_key": "MAGIC_COAT",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_299",
+      "name": "Mud Shot",
+      "type": "ground",
+      "reference_key": "MUD_SHOT",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_300",
+      "name": "Mach Punch",
+      "type": "fighting",
+      "reference_key": "MACH_PUNCH",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_301",
+      "name": "Aegis",
+      "type": "normal",
+      "reference_key": "PROTECT",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_302",
+      "name": "Curl Guard",
+      "type": "normal",
+      "reference_key": "DEFENSE_CURL",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_303",
+      "name": "Rolling Kick",
+      "type": "fighting",
+      "reference_key": "ROLLING_KICK",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_304",
+      "name": "False Target",
+      "type": "normal",
+      "reference_key": "SUBSTITUTE",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_305",
+      "name": "Deflect",
+      "type": "fighting",
+      "reference_key": "DETECT",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_306",
+      "name": "Pin Volley",
+      "type": "bug",
+      "reference_key": "PIN_MISSILE",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_307",
+      "name": "Dampening Mist",
+      "type": "water",
+      "reference_key": "WATER_SPORT",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_308",
+      "name": "Water Gun",
+      "type": "water",
+      "reference_key": "WATER_GUN",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_309",
+      "name": "Mist Ball",
+      "type": "psychic",
+      "reference_key": "MIST_BALL",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_310",
+      "name": "Water Pulse",
+      "type": "water",
+      "reference_key": "WATER_PULSE",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_311",
+      "name": "Frenzy Thrust",
+      "type": "normal",
+      "reference_key": "FURY_ATTACK",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_312",
+      "name": "Raking Flurry",
+      "type": "normal",
+      "reference_key": "FURY_SWIPES",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_313",
+      "name": "Fate Link",
+      "type": "ghost",
+      "reference_key": "DESTINY_BOND",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_314",
+      "name": "False Swipe",
+      "type": "normal",
+      "reference_key": "FALSE_SWIPE",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_315",
+      "name": "Spirit Reveal",
+      "type": "normal",
+      "reference_key": "FORESIGHT",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_316",
+      "name": "Arcane Reversal",
+      "type": "psychic",
+      "reference_key": "MIRROR_COAT",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_317",
+      "name": "Foresight Pulse",
+      "type": "psychic",
+      "reference_key": "FUTURE_SIGHT",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_318",
+      "name": "Nourishing Wave",
+      "type": "normal",
+      "reference_key": "MILK_DRINK",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_319",
+      "name": "Tranquil Focus",
+      "type": "psychic",
+      "reference_key": "CALM_MIND",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_320",
+      "name": "Mega Drain",
+      "type": "grass",
+      "reference_key": "MEGA_DRAIN",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_321",
+      "name": "Mega Kick",
+      "type": "normal",
+      "reference_key": "MEGA_KICK",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_322",
+      "name": "Mega Punch",
+      "type": "normal",
+      "reference_key": "MEGA_PUNCH",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_323",
+      "name": "Megahorn",
+      "type": "bug",
+      "reference_key": "MEGAHORN",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_324",
+      "name": "Hidden Spark",
+      "type": "normal",
+      "reference_key": "HIDDEN_POWER",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_325",
+      "name": "Metal Claw",
+      "type": "steel",
+      "reference_key": "METAL_CLAW",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_326",
+      "name": "Heart Glance",
+      "type": "normal",
+      "reference_key": "ATTRACT",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_327",
+      "name": "Echo Strike",
+      "type": "normal",
+      "reference_key": "MIMIC",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_328",
+      "name": "Rebel Strike",
+      "type": "normal",
+      "reference_key": "FRUSTRATION",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_329",
+      "name": "Siphon Seed",
+      "type": "grass",
+      "reference_key": "LEECH_SEED",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_330",
+      "name": "Chance Invocation",
+      "type": "normal",
+      "reference_key": "METRONOME",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_331",
+      "name": "Dream Eater",
+      "type": "psychic",
+      "reference_key": "DREAM_EATER",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_332",
+      "name": "Acid",
+      "type": "poison",
+      "reference_key": "ACID",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_333",
+      "name": "Inner Focus",
+      "type": "psychic",
+      "reference_key": "MEDITATE",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_334",
+      "name": "Stolen Blessing",
+      "type": "dark",
+      "reference_key": "SNATCH",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_335",
+      "name": "Luster Purge",
+      "type": "psychic",
+      "reference_key": "LUSTER_PURGE",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_336",
+      "name": "Leaf Blade",
+      "type": "grass",
+      "reference_key": "LEAF_BLADE",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_337",
+      "name": "Script Renewal",
+      "type": "normal",
+      "reference_key": "RECYCLE",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_338",
+      "name": "Physical Ward",
+      "type": "psychic",
+      "reference_key": "REFLECT",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_339",
+      "name": "Cleanse",
+      "type": "normal",
+      "reference_key": "REFRESH",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_340",
+      "name": "Vengeance",
+      "type": "fighting",
+      "reference_key": "REVENGE",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_341",
+      "name": "Drake Wrath",
+      "type": "dragon",
+      "reference_key": "DRAGON_RAGE",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_342",
+      "name": "Dragonbreath",
+      "type": "dragon",
+      "reference_key": "DRAGONBREATH",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_343",
+      "name": "Drake Rhythm",
+      "type": "dragon",
+      "reference_key": "DRAGON_DANCE",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_344",
+      "name": "Ice Punch",
+      "type": "ice",
+      "reference_key": "ICE_PUNCH",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_345",
+      "name": "Ice Beam",
+      "type": "ice",
+      "reference_key": "ICE_BEAM",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_346",
+      "name": "Double Rake",
+      "type": "bug",
+      "reference_key": "FURY_CUTTER",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_347",
+      "name": "Comet Flurry",
+      "type": "normal",
+      "reference_key": "COMET_PUNCH",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_348",
+      "name": "Armored Charge",
+      "type": "normal",
+      "reference_key": "SKULL_BASH",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_349",
+      "name": "Target Lock",
+      "type": "normal",
+      "reference_key": "LOCK_ON",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_350",
+      "name": "Stone Volley",
+      "type": "rock",
+      "reference_key": "ROCK_BLAST",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_351",
+      "name": "Cotton Snare",
+      "type": "grass",
+      "reference_key": "COTTON_SPORE",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_352",
+      "name": "Struggle",
+      "type": "normal",
+      "reference_key": "STRUGGLE",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_353",
+      "name": "Aeroblast",
+      "type": "flying",
+      "reference_key": "AEROBLAST",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_354",
+      "name": "Volt Tackle",
+      "type": "electric",
+      "reference_key": "VOLT_TACKLE",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_360",
+      "name": "Crescent Sweep",
+      "type": "normal",
+      "reference_key": "WIDE_SLASH",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_394",
+      "name": "Vacuum Arc",
+      "type": "normal",
+      "reference_key": "VACUUM_CUT",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_430",
+      "name": "Hammer Arm",
+      "type": "fighting",
+      "reference_key": "HAMMER_ARM",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_431",
+      "name": "Iron Head",
+      "type": "steel",
+      "reference_key": "IRON_HEAD",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_432",
+      "name": "Aqua Jet",
+      "type": "water",
+      "reference_key": "AQUA_JET",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_433",
+      "name": "Aqua Tail",
+      "type": "water",
+      "reference_key": "AQUA_TAIL",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_434",
+      "name": "Tidal Halo",
+      "type": "water",
+      "reference_key": "AQUA_RING",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_435",
+      "name": "Spacial Rend",
+      "type": "dragon",
+      "reference_key": "SPACIAL_REND",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_436",
+      "name": "Dark Pulse",
+      "type": "dark",
+      "reference_key": "DARK_PULSE",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_437",
+      "name": "Ominous Wind",
+      "type": "ghost",
+      "reference_key": "OMINOUS_WIND",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_438",
+      "name": "Nullifying Venom",
+      "type": "poison",
+      "reference_key": "GASTRO_ACID",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_439",
+      "name": "Life Offering",
+      "type": "psychic",
+      "reference_key": "HEALING_WISH",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_440",
+      "name": "Close Combat",
+      "type": "fighting",
+      "reference_key": "CLOSE_COMBAT",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_441",
+      "name": "Wood Hammer",
+      "type": "grass",
+      "reference_key": "WOOD_HAMMER",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_442",
+      "name": "Air Slash",
+      "type": "flying",
+      "reference_key": "AIR_SLASH",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_443",
+      "name": "Energy Ball",
+      "type": "grass",
+      "reference_key": "ENERGY_BALL",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_444",
+      "name": "Wind Escort",
+      "type": "flying",
+      "reference_key": "TAILWIND",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_445",
+      "name": "Punishment",
+      "type": "dark",
+      "reference_key": "PUNISHMENT",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_446",
+      "name": "Chatter",
+      "type": "flying",
+      "reference_key": "CHATTER",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_447",
+      "name": "Fortune Chant",
+      "type": "normal",
+      "reference_key": "LUCKY_CHANT",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_448",
+      "name": "Ward Exchange",
+      "type": "psychic",
+      "reference_key": "GUARD_SWAP",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_449",
+      "name": "Hive Renewal",
+      "type": "bug",
+      "reference_key": "HEAL_ORDER",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_450",
+      "name": "Recovery Seal",
+      "type": "psychic",
+      "reference_key": "HEAL_BLOCK",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_451",
+      "name": "Shadow Sneak",
+      "type": "ghost",
+      "reference_key": "SHADOW_SNEAK",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_452",
+      "name": "Thunder Fang",
+      "type": "electric",
+      "reference_key": "THUNDER_FANG",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_453",
+      "name": "Rock Wrecker",
+      "type": "rock",
+      "reference_key": "ROCK_WRECKER",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_454",
+      "name": "Focus Blast",
+      "type": "fighting",
+      "reference_key": "FOCUS_BLAST",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_455",
+      "name": "Giga Impact",
+      "type": "normal",
+      "reference_key": "GIGA_IMPACT",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_456",
+      "name": "Clear Gust",
+      "type": "flying",
+      "reference_key": "DEFOG",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_457",
+      "name": "Last Reserve",
+      "type": "normal",
+      "reference_key": "TRUMP_CARD",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_458",
+      "name": "Grass Knot",
+      "type": "grass",
+      "reference_key": "GRASS_KNOT",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_459",
+      "name": "Cross Poison",
+      "type": "poison",
+      "reference_key": "CROSS_POISON",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_460",
+      "name": "Attack Order",
+      "type": "bug",
+      "reference_key": "ATTACK_ORDER",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_461",
+      "name": "Ice Fang",
+      "type": "ice",
+      "reference_key": "ICE_FANG",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_462",
+      "name": "Ice Shard",
+      "type": "ice",
+      "reference_key": "ICE_SHARD",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_463",
+      "name": "Psycho Cut",
+      "type": "psychic",
+      "reference_key": "PSYCHO_CUT",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_464",
+      "name": "Burden Transfer",
+      "type": "psychic",
+      "reference_key": "PSYCHO_SHIFT",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_465",
+      "name": "First Echo",
+      "type": "normal",
+      "reference_key": "ME_FIRST",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_466",
+      "name": "Supply Seal",
+      "type": "dark",
+      "reference_key": "EMBARGO",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_468",
+      "name": "Seed Flare",
+      "type": "grass",
+      "reference_key": "SEED_FLARE",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_469",
+      "name": "Brine",
+      "type": "water",
+      "reference_key": "BRINE",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_470",
+      "name": "X Scissor",
+      "type": "bug",
+      "reference_key": "X_SCISSOR",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_471",
+      "name": "Natural Gift",
+      "type": "normal",
+      "reference_key": "NATURAL_GIFT",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_472",
+      "name": "Reprisal",
+      "type": "dark",
+      "reference_key": "PAYBACK",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_473",
+      "name": "Zen Headbutt",
+      "type": "psychic",
+      "reference_key": "ZEN_HEADBUTT",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_474",
+      "name": "Wring Out",
+      "type": "normal",
+      "reference_key": "WRING_OUT",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_475",
+      "name": "Gyro Ball",
+      "type": "steel",
+      "reference_key": "GYRO_BALL",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_476",
+      "name": "Shadow Claw",
+      "type": "ghost",
+      "reference_key": "SHADOW_CLAW",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_477",
+      "name": "Shade Rift",
+      "type": "ghost",
+      "reference_key": "SHADOW_FORCE",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_478",
+      "name": "Gravity Field",
+      "type": "psychic",
+      "reference_key": "GRAVITY",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_479",
+      "name": "Vacuum Wave",
+      "type": "fighting",
+      "reference_key": "VACUUM_WAVE",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_480",
+      "name": "Hidden Crags",
+      "type": "rock",
+      "reference_key": "STEALTH_ROCK",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_481",
+      "name": "Stone Edge",
+      "type": "rock",
+      "reference_key": "STONE_EDGE",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_482",
+      "name": "Shadow Exchange",
+      "type": "dark",
+      "reference_key": "SWITCHEROO",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_483",
+      "name": "Night Veil",
+      "type": "dark",
+      "reference_key": "DARK_VOID",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_484",
+      "name": "Earth Power",
+      "type": "ground",
+      "reference_key": "EARTH_POWER",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_485",
+      "name": "Gunk Shot",
+      "type": "poison",
+      "reference_key": "GUNK_SHOT",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_486",
+      "name": "Seed Bomb",
+      "type": "grass",
+      "reference_key": "SEED_BOMB",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_487",
+      "name": "Twin Strike",
+      "type": "normal",
+      "reference_key": "DOUBLE_HIT",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_488",
+      "name": "Assurance",
+      "type": "dark",
+      "reference_key": "ASSURANCE",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_489",
+      "name": "Charge Beam",
+      "type": "electric",
+      "reference_key": "CHARGE_BEAM",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_490",
+      "name": "Pluck",
+      "type": "flying",
+      "reference_key": "PLUCK",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_491",
+      "name": "Night Slash",
+      "type": "dark",
+      "reference_key": "NIGHT_SLASH",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_492",
+      "name": "Pressure Point",
+      "type": "normal",
+      "reference_key": "ACUPRESSURE",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_493",
+      "name": "Magnetic Lift",
+      "type": "electric",
+      "reference_key": "MAGNET_RISE",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_494",
+      "name": "Roar Of Time",
+      "type": "dragon",
+      "reference_key": "ROAR_OF_TIME",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_495",
+      "name": "Poison Jab",
+      "type": "poison",
+      "reference_key": "POISON_JAB",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_496",
+      "name": "Venom Tile",
+      "type": "poison",
+      "reference_key": "TOXIC_SPIKES",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_497",
+      "name": "Last Resort",
+      "type": "normal",
+      "reference_key": "LAST_RESORT",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_498",
+      "name": "Dragon Rush",
+      "type": "dragon",
+      "reference_key": "DRAGON_RUSH",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_499",
+      "name": "Tempo Rift",
+      "type": "psychic",
+      "reference_key": "TRICK_ROOM",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_500",
+      "name": "Drain Punch",
+      "type": "fighting",
+      "reference_key": "DRAIN_PUNCH",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_501",
+      "name": "Mud Bomb",
+      "type": "ground",
+      "reference_key": "MUD_BOMB",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_502",
+      "name": "U Turn",
+      "type": "bug",
+      "reference_key": "U_TURN",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_503",
+      "name": "Shadow Toss",
+      "type": "dark",
+      "reference_key": "FLING",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_504",
+      "name": "Awake Seed",
+      "type": "grass",
+      "reference_key": "WORRY_SEED",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_505",
+      "name": "Crush Grip",
+      "type": "normal",
+      "reference_key": "CRUSH_GRIP",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_506",
+      "name": "Balance Exchange",
+      "type": "psychic",
+      "reference_key": "HEART_SWAP",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_507",
+      "name": "Force Palm",
+      "type": "fighting",
+      "reference_key": "FORCE_PALM",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_508",
+      "name": "Aura Sphere",
+      "type": "fighting",
+      "reference_key": "AURA_SPHERE",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_509",
+      "name": "Feather Rest",
+      "type": "flying",
+      "reference_key": "ROOST",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_510",
+      "name": "Bullet Punch",
+      "type": "steel",
+      "reference_key": "BULLET_PUNCH",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_511",
+      "name": "Power Whip",
+      "type": "grass",
+      "reference_key": "POWER_WHIP",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_512",
+      "name": "Power Gem",
+      "type": "rock",
+      "reference_key": "POWER_GEM",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_513",
+      "name": "Force Exchange",
+      "type": "psychic",
+      "reference_key": "POWER_SWAP",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_514",
+      "name": "Inverted Stance",
+      "type": "psychic",
+      "reference_key": "POWER_TRICK",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_515",
+      "name": "Sucker Punch",
+      "type": "dark",
+      "reference_key": "SUCKER_PUNCH",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_516",
+      "name": "Feint",
+      "type": "normal",
+      "reference_key": "FEINT",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_517",
+      "name": "Flare Blitz",
+      "type": "fire",
+      "reference_key": "FLARE_BLITZ",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_518",
+      "name": "Brave Bird",
+      "type": "flying",
+      "reference_key": "BRAVE_BIRD",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_519",
+      "name": "Lava Plume",
+      "type": "fire",
+      "reference_key": "LAVA_PLUME",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_520",
+      "name": "Swarm Ward",
+      "type": "bug",
+      "reference_key": "DEFEND_ORDER",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_521",
+      "name": "Discharge",
+      "type": "electric",
+      "reference_key": "DISCHARGE",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_522",
+      "name": "Fire Fang",
+      "type": "fire",
+      "reference_key": "FIRE_FANG",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_523",
+      "name": "Magnet Bomb",
+      "type": "steel",
+      "reference_key": "MAGNET_BOMB",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_524",
+      "name": "Magma Storm",
+      "type": "fire",
+      "reference_key": "MAGMA_STORM",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_525",
+      "name": "Echo Casting",
+      "type": "normal",
+      "reference_key": "COPYCAT",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_526",
+      "name": "Moon Renewal",
+      "type": "psychic",
+      "reference_key": "LUNAR_DANCE",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_527",
+      "name": "Mirror Shot",
+      "type": "steel",
+      "reference_key": "MIRROR_SHOT",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_528",
+      "name": "Mind Reveal",
+      "type": "psychic",
+      "reference_key": "MIRACLE_EYE",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_529",
+      "name": "Bug Bite",
+      "type": "bug",
+      "reference_key": "BUG_BITE",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_530",
+      "name": "Bug Buzz",
+      "type": "bug",
+      "reference_key": "BUG_BUZZ",
+      "evidence": "still_inspected",
+      "source": "https://archives.bulbagarden.net/wiki/File:Bug_Buzz_PMD_RTDX.png",
+      "renderer": "still_grounded",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_531",
+      "name": "Wake Up Slap",
+      "type": "fighting",
+      "reference_key": "WAKE_UP_SLAP",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_532",
+      "name": "Metal Rebound",
+      "type": "steel",
+      "reference_key": "METAL_BURST",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_533",
+      "name": "Head Smash",
+      "type": "rock",
+      "reference_key": "HEAD_SMASH",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_534",
+      "name": "Charming Gaze",
+      "type": "normal",
+      "reference_key": "CAPTIVATE",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_535",
+      "name": "Frozen Retort",
+      "type": "ice",
+      "reference_key": "AVALANCHE",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_536",
+      "name": "Flash Cannon",
+      "type": "steel",
+      "reference_key": "FLASH_CANNON",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_537",
+      "name": "Leaf Storm",
+      "type": "grass",
+      "reference_key": "LEAF_STORM",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_538",
+      "name": "Draco Meteor",
+      "type": "dragon",
+      "reference_key": "DRACO_METEOR",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_539",
+      "name": "Dragon Pulse",
+      "type": "dragon",
+      "reference_key": "DRAGON_PULSE",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_540",
+      "name": "Polished Stone",
+      "type": "rock",
+      "reference_key": "ROCK_POLISH",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_541",
+      "name": "Rock Climb",
+      "type": "normal",
+      "reference_key": "ROCK_CLIMB",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "eos_542",
+      "name": "Schemer's Focus",
+      "type": "dark",
+      "reference_key": "NASTY_PLOT",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "feather_fan",
+      "name": "Feather Needle",
+      "type": "flying",
+      "reference_key": null,
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "fin_slice",
+      "name": "Fin Slice",
+      "type": "flying",
+      "reference_key": null,
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "gravity_web",
+      "name": "Gravity Web",
+      "type": "dark",
+      "reference_key": null,
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "horn_ram",
+      "name": "Thorn Ram",
+      "type": "bug",
+      "reference_key": null,
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "jelly_pulse",
+      "name": "Sting Pulse",
+      "type": "electric",
+      "reference_key": null,
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "leaf_dart",
+      "name": "Leaf Dart",
+      "type": "grass",
+      "reference_key": null,
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "lib_bug_1",
+      "name": "Silk Snare",
+      "type": "bug",
+      "reference_key": null,
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "lib_bug_2",
+      "name": "Carapace Charge",
+      "type": "bug",
+      "reference_key": null,
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "lib_bug_3",
+      "name": "Wing Scales",
+      "type": "bug",
+      "reference_key": null,
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "lib_dark_1",
+      "name": "Shadow Fang",
+      "type": "dark",
+      "reference_key": null,
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "lib_dark_2",
+      "name": "Night Rift",
+      "type": "dark",
+      "reference_key": null,
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "lib_dark_3",
+      "name": "Void Pulse",
+      "type": "dark",
+      "reference_key": null,
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "lib_dragon_1",
+      "name": "Drake Claw",
+      "type": "dragon",
+      "reference_key": null,
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "lib_dragon_2",
+      "name": "Drake Breath",
+      "type": "dragon",
+      "reference_key": null,
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "lib_dragon_3",
+      "name": "Orbit Fang",
+      "type": "dragon",
+      "reference_key": null,
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "lib_electric_1",
+      "name": "Static Fang",
+      "type": "electric",
+      "reference_key": "THUNDERPUNCH",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "lib_electric_2",
+      "name": "Arc Current",
+      "type": "electric",
+      "reference_key": "SHOCK_WAVE",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "lib_electric_3",
+      "name": "Storm Cross",
+      "type": "electric",
+      "reference_key": "THUNDERBOLT",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "lib_fairy_1",
+      "name": "Glimmer Shot",
+      "type": "fairy",
+      "reference_key": null,
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "lib_fairy_2",
+      "name": "Pixie Halo",
+      "type": "fairy",
+      "reference_key": null,
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "lib_fairy_3",
+      "name": "Moon Prism",
+      "type": "fairy",
+      "reference_key": null,
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "lib_fighting_1",
+      "name": "Palm Burst",
+      "type": "fighting",
+      "reference_key": null,
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "lib_fighting_2",
+      "name": "Crescent Kick",
+      "type": "fighting",
+      "reference_key": null,
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "lib_fighting_3",
+      "name": "Spirit Fist",
+      "type": "fighting",
+      "reference_key": null,
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "lib_fire_1",
+      "name": "Ember Dart",
+      "type": "fire",
+      "reference_key": "EMBER",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "lib_fire_2",
+      "name": "Blazing Torrent",
+      "type": "fire",
+      "reference_key": "FLAMETHROWER",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "lib_fire_3",
+      "name": "Cinder Vortex",
+      "type": "fire",
+      "reference_key": null,
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "lib_flying_1",
+      "name": "Feather Needle",
+      "type": "flying",
+      "reference_key": null,
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "lib_flying_2",
+      "name": "Gale Scythe",
+      "type": "flying",
+      "reference_key": null,
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "lib_flying_3",
+      "name": "Cyclone Ring",
+      "type": "flying",
+      "reference_key": null,
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "lib_ghost_1",
+      "name": "Shade Claw",
+      "type": "ghost",
+      "reference_key": null,
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "lib_ghost_2",
+      "name": "Phantom Thread",
+      "type": "ghost",
+      "reference_key": null,
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "lib_ghost_3",
+      "name": "Spectral Bloom",
+      "type": "ghost",
+      "reference_key": null,
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "lib_grass_1",
+      "name": "Briar Whip",
+      "type": "grass",
+      "reference_key": "VINE_WHIP",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "lib_grass_2",
+      "name": "Razor Sprout",
+      "type": "grass",
+      "reference_key": null,
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "lib_grass_3",
+      "name": "Root Quake",
+      "type": "grass",
+      "reference_key": null,
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "lib_ground_1",
+      "name": "Fissure Slam",
+      "type": "ground",
+      "reference_key": "EARTHQUAKE",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "lib_ground_2",
+      "name": "Sand Drill",
+      "type": "ground",
+      "reference_key": null,
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "lib_ground_3",
+      "name": "Mud Lance",
+      "type": "ground",
+      "reference_key": null,
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "lib_ice_1",
+      "name": "Frost Needle",
+      "type": "ice",
+      "reference_key": null,
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "lib_ice_2",
+      "name": "Glacier Ray",
+      "type": "ice",
+      "reference_key": null,
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "lib_ice_3",
+      "name": "Snow Spiral",
+      "type": "ice",
+      "reference_key": null,
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "lib_normal_1",
+      "name": "Tackle Rush",
+      "type": "normal",
+      "reference_key": null,
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "lib_normal_2",
+      "name": "Echo Slam",
+      "type": "normal",
+      "reference_key": null,
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "lib_normal_3",
+      "name": "Sonic Ray",
+      "type": "normal",
+      "reference_key": null,
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "lib_poison_1",
+      "name": "Venom Flick",
+      "type": "poison",
+      "reference_key": null,
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "lib_poison_2",
+      "name": "Acid Arc",
+      "type": "poison",
+      "reference_key": null,
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "lib_poison_3",
+      "name": "Toxic Bloom",
+      "type": "poison",
+      "reference_key": null,
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "lib_psychic_1",
+      "name": "Mind Spear",
+      "type": "psychic",
+      "reference_key": null,
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "lib_psychic_2",
+      "name": "Mirage Pulse",
+      "type": "psychic",
+      "reference_key": null,
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "lib_psychic_3",
+      "name": "Astral Crush",
+      "type": "psychic",
+      "reference_key": null,
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "lib_rock_1",
+      "name": "Pebble Shot",
+      "type": "rock",
+      "reference_key": null,
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "lib_rock_2",
+      "name": "Boulder Rush",
+      "type": "rock",
+      "reference_key": null,
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "lib_rock_3",
+      "name": "Crystal Avalanche",
+      "type": "rock",
+      "reference_key": null,
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "lib_steel_1",
+      "name": "Iron Edge",
+      "type": "steel",
+      "reference_key": null,
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "lib_steel_2",
+      "name": "Alloy Spear",
+      "type": "steel",
+      "reference_key": null,
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "lib_steel_3",
+      "name": "Metal Storm",
+      "type": "steel",
+      "reference_key": null,
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "lib_water_1",
+      "name": "Foam Shot",
+      "type": "water",
+      "reference_key": "BUBBLE",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "lib_water_2",
+      "name": "Pearl Torrent",
+      "type": "water",
+      "reference_key": "BUBBLEBEAM",
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "lib_water_3",
+      "name": "Surge Wall",
+      "type": "water",
+      "reference_key": null,
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "lunar_dust",
+      "name": "Lunar Dust",
+      "type": "fairy",
+      "reference_key": null,
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "meteor_fist",
+      "name": "Meteor Fist",
+      "type": "rock",
+      "reference_key": null,
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "moon_claw",
+      "name": "Moon Claw",
+      "type": "dark",
+      "reference_key": null,
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "nova_bolt",
+      "name": "Nova Bolt",
+      "type": "fire",
+      "reference_key": null,
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "orbit_lash",
+      "name": "Orbit Lash",
+      "type": "psychic",
+      "reference_key": null,
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "prism_shatter",
+      "name": "Prism Smash",
+      "type": "ice",
+      "reference_key": null,
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "reef_bite",
+      "name": "Reef Bite",
+      "type": "water",
+      "reference_key": null,
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "rolling_moss",
+      "name": "Moss Crash",
+      "type": "rock",
+      "reference_key": null,
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "royal_spores",
+      "name": "Spore Crown",
+      "type": "poison",
+      "reference_key": null,
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "shell_impact",
+      "name": "Shell Bash",
+      "type": "rock",
+      "reference_key": null,
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "sonic_cone",
+      "name": "Void Screech",
+      "type": "ghost",
+      "reference_key": null,
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "spiral_current",
+      "name": "Spiral Thrust",
+      "type": "water",
+      "reference_key": null,
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "spore_cloud",
+      "name": "Spore Puff",
+      "type": "poison",
+      "reference_key": null,
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "star_kick",
+      "name": "Star Kick",
+      "type": "fairy",
+      "reference_key": null,
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "tentacle_snare",
+      "name": "Tentacle Snare",
+      "type": "poison",
+      "reference_key": null,
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "tidal_jaws",
+      "name": "Tidal Bite",
+      "type": "water",
+      "reference_key": null,
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "timber_shock",
+      "name": "Timber Slam",
+      "type": "ground",
+      "reference_key": null,
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "tusk_sweep",
+      "name": "Root Tusk",
+      "type": "ground",
+      "reference_key": null,
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    },
+    {
+      "id": "vine_snap",
+      "name": "Snap Vine",
+      "type": "grass",
+      "reference_key": null,
+      "evidence": "not_located",
+      "source": null,
+      "renderer": "authored_unverified",
+      "timing_verified": false
+    }
+  ]
+}

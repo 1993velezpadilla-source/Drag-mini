@@ -123,6 +123,89 @@ func review_volnox(dungeon,region:int):
 	assert(root.get_texture().get_image().save_png("/tmp/dungeon-real-volnox-%d.png"%region)==OK)
 	for actor in staged:actor.free()
 	await frames()
+# Full-catalog regression complements the existing per-element sprite checks.
+# Record collisions instead of conflating different world choreography with
+# different sprite art. A passing report is not artistic approval.
+func audit_all_premium_fx(dungeon)->void:
+	var rules=preload("res://dungeon_rules.gd")
+	var ids:Array=rules.MOVE_LIBRARY.keys()+rules.DEV_NATIVE_MOVES.keys()
+	var cues:Dictionary={}
+	var sprite_signatures:Dictionary={}
+	var report:Array=[]
+	var source:=Vector3(0,.54,0)
+	var target:=Vector3(1.4,.54,0)
+	var tile:=Vector2i(1,0)
+	var sample_points:Array=[source,target]
+	var invalid_frames:int=0
+	for id in ids:
+		var profile:Dictionary=dungeon.combat_profile(id)
+		var key:String=str(id) if dungeon.AUTHORED_STAGE_FX.has(id) else str(profile.role)
+		assert(dungeon.AUTHORED_STAGE_FX.has(key),"missing individual stage cue "+str(id))
+		var cue:Array=dungeon.AUTHORED_STAGE_FX[key]
+		assert(cue.size()==5 and int(cue[2])>0 and int(cue[2])<=10 and float(cue[3])>0.0 and float(cue[4])>0.0,"invalid cue "+str(id))
+		var signature:String=JSON.stringify(cue)
+		assert(not cues.has(signature),"duplicate choreography "+str(id))
+		cues[signature]=id
+		var plan:Array=dungeon.elemental_track_plan(id,profile)
+		assert(plan.size()==7,"missing presentation stages "+str(id))
+		var stage_names:Dictionary={}
+		for track in plan:
+			assert(not stage_names.has(track.stage))
+			stage_names[track.stage]=true
+			assert(float(track.start)>=0.0 and float(track.end)<=1.0 and float(track.start)<float(track.end),"invalid track timeline "+str(id))
+			assert(not str(track.anchor).is_empty() and not str(track.material).is_empty())
+		assert(stage_names.has("projectile_impact") and stage_names.has("enemy_invoke"))
+		var peak:float=float(profile.impact)
+		assert(peak>0.0 and peak<1.0,"invalid impact "+str(id))
+		var hit:Dictionary={"id":id,"profile":profile,"points":sample_points,"results":{tile:{"damage":4,"effects":0,"heal":0}}}
+		var miss:Dictionary={"id":id,"profile":profile,"points":sample_points,"results":{tile:{"damage":0,"effects":0,"heal":0}}}
+		var max_particles:int=0
+		for time in [peak*.5,peak,peak+(1.0-peak)*.25]:
+			var n:int=dungeon.authored_stage_fx(hit,time,0)
+			assert(n<=int(cue[2]) and n<=dungeon.FX_PARTICLE_CAP,"particle overflow "+str(id))
+			for i in range(n):
+				var particle:Sprite3D=dungeon.combat_particles[i]
+				assert(particle.position.is_finite() and particle.scale.is_finite() and particle.texture!=null,"invalid world particle "+str(id))
+				particle.hide()
+			max_particles=maxi(max_particles,n)
+		assert(max_particles>0,"stage never produces particles "+str(id))
+		assert(dungeon.authored_stage_fx(miss,peak+.01,0)==0,"miss creates hit-only stage effects "+str(id))
+		var hashes:Array=[]
+		var nonempty:int=0
+		for frame in [2,6,9]:
+			var image:Image=dungeon.combat_frame_image(id,frame)
+			if image.get_used_rect().has_area():nonempty+=1
+			hashes.append(hash(image.get_data()))
+		if nonempty==0:invalid_frames+=1
+		var sprite_key:String=JSON.stringify(hashes)
+		if not sprite_signatures.has(sprite_key):sprite_signatures[sprite_key]=[]
+		sprite_signatures[sprite_key].append(id)
+		report.append({"id":id,"role":profile.role,"cue":cue,"sample_particles":max_particles,"sprite_frames_nonempty":nonempty,"frame_hashes":hashes})
+	var shared:Array=[]
+	for group in sprite_signatures.values():
+		if group.size()>1:shared.append(group)
+	var file:=FileAccess.open("/tmp/dungeon-real-premium-catalog.json",FileAccess.WRITE)
+	assert(file!=null)
+	file.store_string(JSON.stringify({"moves":report,"shared_sprite_samples":shared,"blank_sprite_sequences":invalid_frames},"  "))
+	file.close()
+	# Mixed outcomes: primary misses, another tile takes damage. Keep that hit.
+	var mixed_profile:Dictionary=dungeon.combat_profile("lib_fire_3")
+	var mixed:Dictionary={"id":"lib_fire_3","profile":mixed_profile,"points":sample_points,"results":{tile:{"damage":0,"effects":0,"heal":0},Vector2i(1,1):{"damage":7,"effects":0,"heal":0}}}
+	var count:int=dungeon.element_finish_fx(mixed,float(mixed_profile.impact)+.04,0)
+	assert(count==2,"miss at primary tile must not suppress second target")
+	for i in range(count):dungeon.combat_particles[i].hide()
+	assert(ids.size()==589 and cues.size()==589)
+	assert(invalid_frames==0,"blank visual sequence; see report")
+	print("KINDRIA_PREMIUM_FX_CATALOG_PASS ",ids.size()," unique_cues=",cues.size()," sampled_sprite_sequences=",sprite_signatures.size()," shared_sprite_groups=",shared.size())
+	var art=preload("res://pixel_pet_art.gd")
+	var sleep_cells:int=0
+	for species in art.ENEMY_PIXEL_PILOTS:
+		for direction in range(8):
+			var asleep:Image=art.enemy_asset_cell(species,direction,"sleep",0)
+			assert(asleep!=null and asleep.get_size()==Vector2i(48,48) and asleep.get_used_rect().has_area(),"missing sleeping cell "+str(species))
+			sleep_cells+=1
+	print("KINDRIA_SLEEP_CELL_COVERAGE_PASS ",sleep_cells)
+
 func run():
 	for region in range(3):
 		var dungeon=Field.new();root.add_child(dungeon)
@@ -132,6 +215,7 @@ func run():
 		await frames()
 		check_exterior_chunks(dungeon)
 		if region==0:
+			audit_all_premium_fx(dungeon)
 			var electric_roles:Dictionary={}
 			var electric_frames:Dictionary={}
 			for id in ["eos_064","eos_129","eos_188","eos_189","eos_065","eos_144","eos_193","eos_354","eos_452","eos_489","eos_521","eos_192","eos_128","eos_493"]:
@@ -737,6 +821,43 @@ func run():
 		assert(count>=4 and count<=preview.combat_particles.size())
 		assert(preview.element_finish_fx(burst,.8,preview.combat_particles.size())==preview.combat_particles.size())
 	print("KINDRA_ELEMENT_FINISH_PASS 8")
+	# Render actual elemental shader + original sprite + world particle composition.
+	var elemental_modes:Dictionary={}
+	for element in preview.ELEMENT_SHADER_MODES:
+		var id:String="lib_"+str(element)+"_2"
+		var target:Vector2i=anchor+Vector2i.RIGHT
+		preview.combat_bursts.clear()
+		preview.combat_fx_update(0.0)
+		preview.combat_fx_spawn({"fx":id,"from":anchor,"to":target,"path":[target],"tiles":[target],"results":{target:{"damage":8,"effects":0,"heal":0}}})
+		var burst:Dictionary=preview.combat_bursts[-1]
+		assert(str(burst.profile.element)==str(element),"element material mismatch "+id)
+		preview.combat_fx_update(float(burst.duration)*float(burst.profile.impact)*.76)
+		var mode:int=int(preview.ELEMENT_SHADER_MODES[element])
+		assert(not elemental_modes.has(mode))
+		elemental_modes[mode]=true
+		assert(preview.fx_halos_used>0 and int(preview.fx_halo_materials[0].get_shader_parameter("element_mode"))==mode,"missing Godot elemental layer "+id)
+		await process_frame
+		await RenderingServer.frame_post_draw
+		assert(root.get_texture().get_image().save_png("/tmp/dungeon-real-element-"+str(element)+"-travel.png")==OK)
+		preview.combat_fx_update(float(burst.duration)*(float(burst.profile.impact)*.24+.06))
+		assert(preview.fx_halos_used>0 and int(preview.fx_halo_materials[0].get_shader_parameter("element_mode"))==mode)
+		await process_frame
+		await RenderingServer.frame_post_draw
+		assert(root.get_texture().get_image().save_png("/tmp/dungeon-real-element-"+str(element)+"-impact.png")==OK)
+	assert(elemental_modes.size()==18)
+	preview.combat_bursts.clear()
+	preview.delayed_combat_fx.clear()
+	preview.combat_fx_update(0.0)
+	# Residues deliberately survive their cast. They may retain a generic ground
+	# ring but must never retain an active elemental material.
+	for index in range(preview.fx_halos_used):
+		assert(int(preview.fx_halo_materials[index].get_shader_parameter("element_mode"))==0,"elemental material survives cast clear")
+	preview.fx_residues.clear()
+	preview.fx_reaction_sparks.clear()
+	preview.combat_fx_update(0.0)
+	assert(preview.fx_halos_used==0,"halo pool survives complete effect reset")
+	for halo in preview.fx_halos:assert(not halo.visible)
+	print("KINDRIA_ELEMENT_SHADER_CAPTURE_PASS 18")
 	var result_tile:Vector2i=anchor+Vector2i.RIGHT
 	var miss:Dictionary={"damage":0,"hits":0,"misses":1,"effects":0,"blocked":0,"crit":0}
 	var critical:Dictionary={"damage":25,"hits":1,"misses":0,"effects":0,"blocked":0,"crit":1}

@@ -1,0 +1,461 @@
+{
+  "schema": 1,
+  "reference_game": "Pokémon Mystery Dungeon: Rescue Team DX (Nintendo Switch, 2020)",
+  "review_date": "2026-11-27",
+  "scope": "Research only. Links to original sources; no redistributed footage, textures, ROM, or proprietary code.",
+  "image_index": "https://archives.bulbagarden.net/wiki/Category:Moves_(Mystery_Dungeon:_Rescue_Team_DX)",
+  "images": [
+    {
+      "name": "Air Cutter",
+      "page": "https://archives.bulbagarden.net/wiki/File:Air_Cutter_PMD_RTDX.png",
+      "status": "still_inspected",
+      "kindria_id": "eos_036",
+      "image": "https://archives.bulbagarden.net/media/upload/2/2a/Air_Cutter_PMD_RTDX.png",
+      "observation": "Two thin pale diagonal cutting streaks are visible across the struck target with damage number. No launch timing is established.",
+      "timing_verified": false,
+      "v15_2_source_status": "page reopen failed; previous recorded observation retained"
+    },
+    {
+      "name": "Aurora Veil",
+      "page": "https://archives.bulbagarden.net/wiki/File:Aurora_Veil_PMD_RTDX.png",
+      "status": "still_inspected",
+      "timing_verified": false,
+      "image": "https://archives.bulbagarden.net/media/upload/thumb/2/26/Aurora_Veil_PMD_RTDX.png/800px-Aurora_Veil_PMD_RTDX.png",
+      "observation": "Broad pale luminous veil across upper dungeon scene; white/cyan four-point glints and smaller snowflake-like motes. Hail is active in the HUD, so not all snow particles can be attributed to the move. Caster and allied actors remain visible. Single still cannot establish duration, movement, or affected area.",
+      "kindria_id": null,
+      "mapping_status": "No exact EOS catalog counterpart established; do not substitute another ice move."
+    },
+    {
+      "name": "Brutal Swing",
+      "page": "https://archives.bulbagarden.net/wiki/File:Brutal_Swing_PMD_RTDX.png",
+      "status": "still_inspected",
+      "kindria_id": null,
+      "image": "https://archives.bulbagarden.net/media/upload/b/b9/Brutal_Swing_PMD_RTDX.png",
+      "observation": "Dark red-black broad annulus around caster, radial red streaks, and yellow target contact flash. No existing equivalent is assumed.",
+      "timing_verified": false
+    },
+    {
+      "name": "Bug Buzz",
+      "page": "https://archives.bulbagarden.net/wiki/File:Bug_Buzz_PMD_RTDX.png",
+      "status": "still_inspected",
+      "kindria_id": "eos_530",
+      "image": "https://archives.bulbagarden.net/media/upload/e/e3/Bug_Buzz_PMD_RTDX.png",
+      "observation": "Caster-centered concentric warm yellow/orange rings with angular yellow sound marks at both sides; not a swarm of insects. Exact expansion speed unknown.",
+      "timing_verified": false
+    },
+    {
+      "name": "Ember",
+      "page": "https://archives.bulbagarden.net/wiki/File:Ember_PMD_RTDX.png",
+      "status": "still_inspected",
+      "kindria_id": "eos_262",
+      "image": "https://archives.bulbagarden.net/media/upload/7/79/Ember_PMD_RTDX.png",
+      "observation": "Dense orange flame cluster between caster and target, bright inner flame and softer orange edge; not only isolated sparks.",
+      "timing_verified": false,
+      "rechecked": "2026-11-27"
+    },
+    {
+      "name": "Growl",
+      "page": "https://archives.bulbagarden.net/wiki/File:Growl_PMD_RTDX.png",
+      "status": "image_fetch_failed",
+      "timing_verified": false,
+      "kindria_id": "eos_217",
+      "v15_3_source_status": "Archive page opened; image fetch failed again. No visual design inferred.",
+      "v15_5_source_status": "File page confirmed; image fetch failed again.",
+      "v15_6_source_status": "Archive file page accessible; image retrieval failed again.",
+      "v15_7_source_status": "Archive file page reachable, image fetch failed again.",
+      "v15_9_source_status": "Preview retrieval failed"
+    },
+    {
+      "name": "Hyper Beam",
+      "page": "https://archives.bulbagarden.net/wiki/File:Hyper_Beam_PMD_RTDX.png",
+      "status": "image_fetch_failed",
+      "timing_verified": false,
+      "kindria_id": "eos_242",
+      "v15_3_source_status": "Archive page opened; image fetch failed again. No visual design inferred.",
+      "source_quality": "Archive flags image as needing direct capture.",
+      "v15_5_source_status": "File page confirmed; image fetch failed again.",
+      "source_variant": "Rayquaza according to file description; do not infer normal-size animation.",
+      "image": "https://archives.bulbagarden.net/media/upload/d/d1/Hyper_Beam_PMD_RTDX.png",
+      "v15_6_source_status": "Archive file page accessible; image retrieval failed again.",
+      "v15_7_source_status": "Archive file page reachable, image fetch failed again.",
+      "v15_9_source_status": "Full image retrieval failed; archive explicitly requests direct capture and labels Rayquaza"
+    },
+    {
+      "name": "Laser Focus",
+      "page": "https://archives.bulbagarden.net/wiki/File:Laser_Focus_PMD_RTDX.png",
+      "status": "still_inspected",
+      "timing_verified": false,
+      "image": "https://archives.bulbagarden.net/media/upload/thumb/0/0e/Laser_Focus_PMD_RTDX.png/800px-Laser_Focus_PMD_RTDX.png",
+      "observation": "Two strong yellow-white cross-shaped glints across the caster's upper body, magenta curved arcs behind them, darkened surroundings. Still only; timing unknown.",
+      "source_quality": "800x450 archive preview",
+      "kindria_id": null,
+      "mapping_status": "No exact existing Kindria counterpart established"
+    },
+    {
+      "name": "Liquidation",
+      "page": "https://archives.bulbagarden.net/wiki/File:Liquidation_PMD_RTDX.png",
+      "status": "indexed_uninspected",
+      "timing_verified": false,
+      "v15_7_source_status": "Archive file page retrieval failed.",
+      "v15_8_source_status": "File page failed.",
+      "v15_9_source_status": "File page retrieval failed"
+    },
+    {
+      "name": "Low Kick",
+      "page": "https://archives.bulbagarden.net/wiki/File:Low_Kick_PMD_RTDX.png",
+      "status": "still_inspected",
+      "kindria_id": "eos_092",
+      "image": "https://archives.bulbagarden.net/media/upload/0/05/Low_Kick_PMD_RTDX.png",
+      "observation": "Pale gray paw/foot-like contact mark amid cyan-white radiating streaks and yellow contact center. Damage number visible.",
+      "timing_verified": false,
+      "v15_2_source_status": "archive page reopened; previous visual observation retained"
+    },
+    {
+      "name": "Peck",
+      "page": "https://archives.bulbagarden.net/wiki/File:Peck_PMD_RTDX.png",
+      "status": "still_inspected",
+      "kindria_id": "eos_174",
+      "image": "https://archives.bulbagarden.net/media/upload/7/7c/Peck_PMD_RTDX.png",
+      "observation": "Compact yellow angular wedge pointing into the target, visible between caster and victim.",
+      "timing_verified": false,
+      "rechecked": "2026-11-27"
+    },
+    {
+      "name": "Precipice Blades",
+      "page": "https://archives.bulbagarden.net/wiki/File:Precipice_Blades_PMD_RTDX.png",
+      "status": "still_inspected",
+      "timing_verified": false,
+      "image": "https://archives.bulbagarden.net/media/upload/thumb/7/7d/Precipice_Blades_PMD_RTDX.png/800px-Precipice_Blades_PMD_RTDX.png",
+      "observation": "Tall red-orange pointed pillars around a large caster, yellow glow at pillar bases, darkened scene. Still does not establish rise speed or damage timing.",
+      "source_quality": "Archive requests direct capture; indirect image, giant boss context",
+      "kindria_id": null,
+      "mapping_status": "No exact existing Kindria counterpart established"
+    },
+    {
+      "name": "Psychic",
+      "page": "https://archives.bulbagarden.net/wiki/File:Psychic_PMD_RTDX.png",
+      "status": "still_inspected",
+      "kindria_id": "eos_109",
+      "image": "https://archives.bulbagarden.net/media/upload/d/d3/Psychic_PMD_RTDX.png",
+      "observation": "Wide translucent pink-red scene tint with ghosted blue/red actor-like silhouettes. Screenshot does not determine tint duration or whether all actors are affected.",
+      "timing_verified": false,
+      "v15_2_source_status": "archive page reopened; previous visual observation retained"
+    },
+    {
+      "name": "Psywave",
+      "page": "https://archives.bulbagarden.net/wiki/File:Psywave_PMD_RTDX.png",
+      "status": "still_inspected",
+      "kindria_id": "eos_108",
+      "image": "https://archives.bulbagarden.net/media/upload/8/82/Psywave_PMD_RTDX.png",
+      "observation": "Bright magenta overlapping upright ellipses around affected actor; damage number and missed-target indicators visible. Do not infer all X markers belong to this attack.",
+      "timing_verified": false,
+      "v15_2_source_status": "archive page reopened; previous visual observation retained"
+    },
+    {
+      "name": "Quick Attack",
+      "page": "https://archives.bulbagarden.net/wiki/File:Quick_Attack_PMD_RTDX.png",
+      "status": "still_inspected",
+      "kindria_id": "eos_190",
+      "image": "https://archives.bulbagarden.net/media/upload/1/1d/Quick_Attack_PMD_RTDX.png",
+      "observation": "Caster is visibly displaced into contact with enemy; still frame cannot establish return path or elapsed time.",
+      "timing_verified": false,
+      "v15_2_source_status": "archive page reopened; previous visual observation retained"
+    },
+    {
+      "name": "Sacred Fire",
+      "page": "https://archives.bulbagarden.net/wiki/File:Sacred_Fire_PMD_RTDX.png",
+      "status": "still_inspected",
+      "kindria_id": "eos_149",
+      "image": "https://archives.bulbagarden.net/media/upload/0/05/Sacred_Fire_PMD_RTDX.png",
+      "observation": "Large saturated blue/cyan soft flame clouds, blue floor glow and very dark background. Not yellow-orange fire.",
+      "timing_verified": false,
+      "rechecked": "2026-11-27",
+      "source_quality": "Archive flags screenshot as indirect capture; palette evidence only; exact exposure unverified."
+    },
+    {
+      "name": "Sand Attack",
+      "page": "https://archives.bulbagarden.net/wiki/File:Sand_Attack_PMD_RTDX.png",
+      "status": "still_inspected",
+      "kindria_id": "eos_142",
+      "image": "https://archives.bulbagarden.net/media/upload/9/98/Sand_Attack_PMD_RTDX.png",
+      "observation": "Diffuse gray-beige airborne dust behind actors and yellow downward stat marker; status message indicates accuracy decreased. Exact move ID still needs mapping.",
+      "timing_verified": false,
+      "v15_3_source_status": "Archive file page reopened; existing visual observation retained. Reference key SAND_ATTACK verified in Kindria rules."
+    },
+    {
+      "name": "Scratch",
+      "page": "https://archives.bulbagarden.net/wiki/File:Scratch_PMD_RTDX.png",
+      "status": "still_inspected",
+      "kindria_id": "eos_260",
+      "image": "https://archives.bulbagarden.net/media/upload/e/e2/Scratch_PMD_RTDX.png",
+      "observation": "Thin curved white contact slash and small white sparkles; damage number above victim.",
+      "timing_verified": false,
+      "rechecked": "2026-11-27"
+    },
+    {
+      "name": "Signal Beam",
+      "page": "https://archives.bulbagarden.net/wiki/File:Signal_Beam_PMD_RTDX.png",
+      "status": "still_inspected",
+      "kindria_id": "eos_114",
+      "image": "https://archives.bulbagarden.net/media/upload/1/14/Signal_Beam_PMD_RTDX.png",
+      "observation": "Narrow blue luminous projectile/trail tapered toward caster, bright white four-point head in direction of travel. No evidence of green or multicolor sine strands in this frame.",
+      "timing_verified": false
+    },
+    {
+      "name": "Smart Strike",
+      "page": "https://archives.bulbagarden.net/wiki/File:Smart_Strike_PMD_RTDX.png",
+      "status": "still_inspected",
+      "timing_verified": false,
+      "image": "https://archives.bulbagarden.net/media/upload/thumb/1/17/Smart_Strike_PMD_RTDX.png/800px-Smart_Strike_PMD_RTDX.png",
+      "observation": "Bright white-yellow contact flare and fine radiating sparks between Ariados and Ponyta; thin rays around the nearer actor. The message log contains both Tackle and Smart Strike, so attribution of every streak is uncertain.",
+      "kindria_id": null,
+      "mapping_status": "No exact existing counterpart confirmed; do not substitute unrelated moves.",
+      "source_quality": "800x450 preview visually inspected"
+    },
+    {
+      "name": "Solar Beam",
+      "page": "https://archives.bulbagarden.net/wiki/File:Solar_Beam_PMD_RTDX.png",
+      "status": "still_inspected",
+      "kindria_id": "eos_151",
+      "image": "https://archives.bulbagarden.net/media/upload/0/07/Solar_Beam_PMD_RTDX.png",
+      "observation": "Two captured phases: yellow-white glow and floating yellow motes around caster; then narrow brilliant yellow-white beam from caster to target with a bright contact star. Exact duration unknown.",
+      "timing_verified": false,
+      "v15_2_source_status": "page reopen failed; previous recorded observation retained"
+    },
+    {
+      "name": "Spotlight",
+      "page": "https://archives.bulbagarden.net/wiki/File:Spotlight_PMD_RTDX.png",
+      "status": "still_inspected",
+      "timing_verified": false,
+      "image": "https://archives.bulbagarden.net/media/upload/thumb/0/0e/Spotlight_PMD_RTDX.png/800px-Spotlight_PMD_RTDX.png",
+      "observation": "A vertical yellow cone descends onto the selected ally Smoochum; round golden pool on the ground and darkened surrounding dungeon. Other actors remain visible.",
+      "kindria_id": null,
+      "mapping_status": "No exact existing counterpart confirmed; do not substitute unrelated moves.",
+      "source_quality": "800x450 preview visually inspected"
+    },
+    {
+      "name": "Stomping Tantrum",
+      "page": "https://archives.bulbagarden.net/wiki/File:Stomping_Tantrum_PMD_RTDX.png",
+      "status": "still_inspected",
+      "timing_verified": false,
+      "image": "https://archives.bulbagarden.net/media/upload/thumb/0/08/Stomping_Tantrum_PMD_RTDX.png/800px-Stomping_Tantrum_PMD_RTDX.png",
+      "observation": "Caster-centered golden burst with upward diagonal streaks, floating dark rock fragments and white glints near the ground. Screenshot shows invocation, not confirmed damage.",
+      "kindria_id": null,
+      "mapping_status": "No matching reference key or name in current 589-record catalog.",
+      "source_quality": "800x450 preview visually inspected"
+    },
+    {
+      "name": "Tearful Look",
+      "page": "https://archives.bulbagarden.net/wiki/File:Tearful_Look_PMD_RTDX.png",
+      "status": "still_inspected",
+      "timing_verified": false,
+      "image": "https://archives.bulbagarden.net/media/upload/thumb/3/30/Tearful_Look_PMD_RTDX.png/800px-Tearful_Look_PMD_RTDX.png",
+      "observation": "Two oversized glossy cartoon eyes with cyan tear rims above caster, darkened dungeon. Invocation frame only; target result not shown.",
+      "kindria_id": null,
+      "mapping_status": "No matching reference key or name in current 589-record catalog.",
+      "source_quality": "800x450 preview visually inspected"
+    },
+    {
+      "name": "Throat Chop",
+      "page": "https://archives.bulbagarden.net/wiki/File:Throat_Chop_PMD_RTDX.png",
+      "status": "indexed_uninspected",
+      "timing_verified": false,
+      "v15_8_source_status": "File page opened; preview failed.",
+      "v15_9_source_status": "Preview retrieval failed"
+    },
+    {
+      "name": "Toxic Thread",
+      "page": "https://archives.bulbagarden.net/wiki/File:Toxic_Thread_PMD_RTDX.png",
+      "status": "still_inspected",
+      "timing_verified": false,
+      "image": "https://archives.bulbagarden.net/media/upload/thumb/b/b0/Toxic_Thread_PMD_RTDX.png/800px-Toxic_Thread_PMD_RTDX.png",
+      "observation": "Target enclosed by stacked dark-purple horizontal coils with vivid magenta blobs and small floating violet particles; caster separated from target. Timing and exact thread count unverified.",
+      "kindria_id": null,
+      "mapping_status": "No matching reference key or name in current 589-record catalog.",
+      "source_quality": "800x450 preview visually inspected"
+    }
+  ],
+  "video_sources": [
+    {
+      "title": "Official press assets and videos",
+      "url": "https://pokemon.gamespress.com/Pokemon-Mystery-Dungeon-Rescue-Team-DX",
+      "status": "indexed_unreviewed"
+    },
+    {
+      "title": "Official trailer directory",
+      "url": "https://www.serebii.net/dungeonrescueteamdx/videos.shtml",
+      "status": "indexed_unreviewed"
+    },
+    {
+      "title": "IGN demo gameplay",
+      "url": "https://www.youtube.com/watch?v=EDFNDr9xAFg",
+      "status": "indexed_unreviewed"
+    },
+    {
+      "title": "Full no-commentary walkthrough",
+      "url": "https://www.youtube.com/watch?v=14vfjRi08pM",
+      "status": "indexed_unreviewed"
+    },
+    {
+      "title": "Story boss fights",
+      "url": "https://www.youtube.com/watch?v=PRqevxHqEqY",
+      "status": "indexed_unreviewed"
+    },
+    {
+      "title": "Japanese official gameplay overview",
+      "url": "https://www.pokemon.co.jp/ex/dungeonDX/howtoplay/200212_01/",
+      "status": "indexed_unreviewed"
+    },
+    {
+      "title": "Japanese official video news",
+      "url": "https://www.pokemon.co.jp/ex/dungeonDX/news/",
+      "status": "indexed_unreviewed"
+    },
+    {
+      "title": "Japanese Nintendo trailer article",
+      "url": "https://www.nintendo.com/jp/topics/article/260de7ce-b970-4d57-ba99-2f3d5f675ca2",
+      "status": "indexed_unreviewed"
+    },
+    {
+      "title": "All bosses and legendaries compilation, 1080p60 listing",
+      "url": "https://www.youtube.com/watch?v=SC7LXCColFA",
+      "status": "indexed_unreviewed"
+    },
+    {
+      "title": "Japanese gameplay preview report",
+      "url": "https://nintendoeverything.com/new-japanese-pokemon-mystery-dungeon-rescue-team-dx-gameplay-video/",
+      "status": "indexed_unreviewed"
+    },
+    {
+      "title": "Gameplay trailer report",
+      "url": "https://www.gamespot.com/articles/pokemon-mystery-dungeon-rescue-team-dx-shows-off-d/1100-6473858/",
+      "status": "indexed_unreviewed"
+    },
+    {
+      "title": "Full demo walkthrough, advertised 1080p60",
+      "url": "https://www.youtube.com/watch?v=qrZvnuOT8pE",
+      "status": "indexed_unreviewed"
+    }
+  ],
+  "mechanics_sources": [
+    {
+      "url": "https://mysterydungeonwiki.com/wiki/Rescue_Team_DX:List_of_Moves",
+      "use": "DX move availability, base PP, range; not visual timing."
+    },
+    {
+      "url": "https://www.serebii.net/dungeonrescueteamdx/tm.shtml",
+      "use": "DX TM availability; not visual timing."
+    },
+    {
+      "url": "https://projectpokemon.org/home/forums/topic/56863-pok%C3%A9mon-mystery-dungeon-rescue-team-dx-research/",
+      "use": "Community format research; not verified battle effect source code."
+    },
+    {
+      "url": "https://github.com/theCapypara/SkyEditor.RomEditor.Rtdx",
+      "use": "ROM editor project; not a verified reconstruction of battle animation renderer."
+    },
+    {
+      "url": "https://bulbapedia.bulbagarden.net/wiki/Hyper_Beam_(move)",
+      "use": "Normal Hyper Beam has 4-tile reach and 3x3 explosion; gigantic variant pierces up to 10 tiles without normal area explosion. Mechanics evidence, not visual evidence."
+    },
+    {
+      "url": "https://wikiwiki.jp/pokemysdundx/わざ一覧",
+      "use": "Japanese corroboration of gigantic Hyper Beam special range and removal of blast; no animation timing."
+    }
+  ],
+  "implementation": [
+    {
+      "id": "eos_530",
+      "basis": "Bug Buzz still",
+      "status": "original approximate implementation, timing and rendered comparison pending"
+    },
+    {
+      "id": "eos_114",
+      "basis": "Signal Beam still",
+      "status": "original approximate implementation, timing and rendered comparison pending"
+    },
+    {
+      "id": "eos_262",
+      "basis": "Ember still rechecked",
+      "status": "original approximate implementation, timing and rendered comparison pending"
+    },
+    {
+      "id": "eos_149",
+      "basis": "Sacred Fire still rechecked",
+      "status": "original approximate implementation, timing and rendered comparison pending"
+    },
+    {
+      "id": "eos_260",
+      "basis": "Scratch still rechecked",
+      "status": "original approximate implementation, timing and rendered comparison pending"
+    },
+    {
+      "id": "eos_174",
+      "basis": "Peck still rechecked",
+      "status": "original approximate implementation, timing and rendered comparison pending"
+    },
+    {
+      "id": "eos_036",
+      "basis": "Air Cutter previously inspected still",
+      "status": "original approximate implementation, timing and rendered comparison pending"
+    },
+    {
+      "id": "eos_092",
+      "basis": "Low Kick previously inspected still",
+      "status": "original approximate implementation, timing and rendered comparison pending"
+    },
+    {
+      "id": "eos_109",
+      "basis": "Psychic previously inspected still",
+      "status": "original approximate implementation, timing and rendered comparison pending"
+    },
+    {
+      "id": "eos_108",
+      "basis": "Psywave previously inspected still",
+      "status": "original approximate implementation, timing and rendered comparison pending"
+    },
+    {
+      "id": "eos_190",
+      "basis": "Quick Attack previously inspected still",
+      "status": "existing full tile travel retained; new route regression, timing unverified"
+    },
+    {
+      "id": "eos_151",
+      "basis": "Solar Beam previously inspected still",
+      "status": "original approximate implementation, timing and rendered comparison pending"
+    },
+    {
+      "id": "eos_142",
+      "basis": "Sand Attack previously inspected still",
+      "status": "original diffuse cloud and confirmed-effect glyph implementation; temporal verification pending"
+    }
+  ],
+  "catalog_comparison": {
+    "source": "https://mysterydungeonwiki.com/wiki/Rescue_Team_DX:List_of_Moves",
+    "scope": "Document only, no balance changes. DX mechanics and EOS prototype are different references.",
+    "rows": [
+      {
+        "id": "eos_217",
+        "name": "Growl",
+        "dx_pp": 30,
+        "kindria_pp": 20,
+        "dx_range": "entire room",
+        "kindria_range": "room"
+      },
+      {
+        "id": "eos_242",
+        "name": "Hyper Beam",
+        "dx_pp": 10,
+        "kindria_pp": 8,
+        "dx_range": "4 tiles",
+        "kindria_range": "line up to 10 tiles",
+        "dx_gigantic_exception": "10 tiles, piercing, no normal 3x3 explosion; recharge retained"
+      }
+    ]
+  },
+  "temporal_measurement": {
+    "tool": "measure_capture.py",
+    "status": "synthetic_test_only_pending_real_video",
+    "rules": "Use local lawful footage and actual decoded PTS, manually identify stages. No inferred durations. No source video committed."
+  }
+}

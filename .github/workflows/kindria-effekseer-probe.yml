@@ -1,0 +1,106 @@
+name: Kindria Effekseer compatibility probe
+on:
+  workflow_dispatch:
+  pull_request:
+    branches: [feature/my-forever-pet-paradise]
+    paths:
+      - 'my-forever-pet/godot-arcade/**'
+      - 'my-forever-pet/research/rtdx/**'
+      - '.github/workflows/kindria-effekseer-probe.yml'
+  push:
+    branches: [feature/my-forever-pet-combat-audit, feature/kindria-hybrid-combat-v8]
+    paths:
+      - 'my-forever-pet/research/rtdx/effekseer_probe.gd'
+      - '.github/workflows/kindria-effekseer-probe.yml'
+      - 'my-forever-pet/research/rtdx/effekseer_dungeon_probe.gd'
+      - 'my-forever-pet/godot-arcade/dungeon_effekseer_backend.gd'
+      - 'my-forever-pet/godot-arcade/dungeon_view.gd'
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install pinned Godot and official Effekseer demo
+        run: |
+          set -euo pipefail
+          sudo apt-get update -qq
+          sudo apt-get install -y xvfb libgl1-mesa-dri libegl1 libgl1
+          curl -fL --retry 3 -o /tmp/godot.zip https://github.com/godotengine/godot/releases/download/4.4.1-stable/Godot_v4.4.1-stable_linux.x86_64.zip
+          unzip -q /tmp/godot.zip -d /tmp/godot
+          curl -fL --retry 3 -o /tmp/eff.zip https://github.com/effekseer/EffekseerForGodot4/releases/download/1.70e.10/EffekseerForGodot4-170e_10.zip
+          unzip -q /tmp/eff.zip -d /tmp/eff
+          git clone --depth 1 --branch 1.70e.10 https://github.com/effekseer/EffekseerForGodot4.git /tmp/effsrc
+          mkdir -p /tmp/effekseer-review
+          addon=$(find /tmp/eff -type d -path '*/addons/effekseer' -print -quit)
+          test -n "$addon"
+          mkdir -p /tmp/effsrc/Demo/addons
+          cp -a "$addon" /tmp/effsrc/Demo/addons/
+          find "$addon" -type f -name '*.so' -print | tee /tmp/effekseer-review/native-binaries.txt
+          while IFS= read -r binary; do file "$binary"; done < /tmp/effekseer-review/native-binaries.txt | tee /tmp/effekseer-review/native-architectures.txt
+          grep -Eiq 'aarch64|ARM aarch64' /tmp/effekseer-review/native-architectures.txt
+          cp my-forever-pet/research/rtdx/{effekseer_probe,effekseer_dungeon_probe}.gd /tmp/effsrc/Demo/
+          cp my-forever-pet/godot-arcade/{dungeon_view,dungeon_rules,research_data,pixel_pet_art,pet_part_rig,pet_external_fx,dungeon_effekseer_backend}.gd my-forever-pet/godot-arcade/volnox_pixel_life.gdshader /tmp/effsrc/Demo/
+      - name: Import and render real sample effects with OpenGL
+        run: |
+          set -euo pipefail
+          engine=/tmp/godot/Godot_v4.4.1-stable_linux.x86_64
+          xvfb-run -a timeout 180 "$engine" --path /tmp/effsrc/Demo --rendering-method gl_compatibility --editor --import --audio-driver Dummy 2>&1 | tee /tmp/effekseer-review/import.log
+          xvfb-run -a timeout 120 "$engine" --path /tmp/effsrc/Demo --rendering-method gl_compatibility --audio-driver Dummy --resolution 540x960 --max-fps 60 --script res://effekseer_probe.gd 2>&1 | tee /tmp/effekseer-review/probe.log
+          grep -F 'EFFEKSEER_GL_PROBE_PASS 5' /tmp/effekseer-review/probe.log
+          ! grep -E 'SCRIPT ERROR|Shader compilation failed' /tmp/effekseer-review/probe.log
+      - name: Render sample emitters on real Kindria dungeon tiles
+        run: |
+          set -euo pipefail
+          engine=/tmp/godot/Godot_v4.4.1-stable_linux.x86_64
+          xvfb-run -a timeout 720 "$engine" --path /tmp/effsrc/Demo --rendering-method gl_compatibility --audio-driver Dummy --resolution 540x960 --max-fps 60 --script res://effekseer_dungeon_probe.gd 2>&1 | tee /tmp/effekseer-review/dungeon-probe.log
+          grep -F 'KINDRIA_EFFEKSEER_DUNGEON_PASS 5' /tmp/effekseer-review/dungeon-probe.log
+          grep -F 'KINDRIA_NATIVE_MIXED_OUTCOMES_PASS' /tmp/effekseer-review/dungeon-probe.log
+          grep -F 'KINDRIA_NATIVE_SHARED_AREA_PASS' /tmp/effekseer-review/dungeon-probe.log
+          grep -F 'KINDRIA_NATIVE_CHOREOGRAPHY_PASS 7' /tmp/effekseer-review/dungeon-probe.log
+          grep -F 'KINDRIA_MOVE_FINISH_ART_PASS 33' /tmp/effekseer-review/dungeon-probe.log
+          grep -F 'KINDRIA_CONTACT_BITE_PASS 13' /tmp/effekseer-review/dungeon-probe.log
+          grep -F 'KINDRIA_CONTACT_PUNCH_PASS 17' /tmp/effekseer-review/dungeon-probe.log
+          grep -F 'KINDRIA_CONTACT_KICK_PASS 10' /tmp/effekseer-review/dungeon-probe.log
+          grep -F 'KINDRIA_CLASSIC_KICK_STAMP_PASS 10' /tmp/effekseer-review/dungeon-probe.log
+          grep -F 'KINDRIA_CONTACT_CLAW_PASS 14' /tmp/effekseer-review/dungeon-probe.log
+          grep -F 'KINDRIA_CONTACT_BODY_PASS 24' /tmp/effekseer-review/dungeon-probe.log
+          grep -F 'KINDRIA_SPECIAL_CONTACT_PASS 41' /tmp/effekseer-review/dungeon-probe.log
+          grep -F 'KINDRIA_PROJECTILE_CONTACT_PASS 58' /tmp/effekseer-review/dungeon-probe.log
+          grep -F 'KINDRIA_TERRAIN_CONTACT_PASS 42' /tmp/effekseer-review/dungeon-probe.log
+          grep -F 'KINDRIA_SUPPORT_CONTACT_PASS 121' /tmp/effekseer-review/dungeon-probe.log
+          grep -F 'KINDRIA_MOTION_CONTACT_PASS 34' /tmp/effekseer-review/dungeon-probe.log
+          grep -F 'KINDRIA_ELEMENTAL_AUDIT_PASS 40' /tmp/effekseer-review/dungeon-probe.log
+          grep -F 'KINDRIA_NATURE_AUDIT_PASS 62' /tmp/effekseer-review/dungeon-probe.log
+          grep -F 'KINDRIA_MYSTIC_AUDIT_PASS 50' /tmp/effekseer-review/dungeon-probe.log
+          grep -F 'KINDRIA_FINAL_AUDIT_PASS 74' /tmp/effekseer-review/dungeon-probe.log
+          grep -F 'KINDRIA_FULL_COVERAGE_PASS 589' /tmp/effekseer-review/dungeon-probe.log
+          grep -F 'KINDRIA_V13_ALL_ELEMENTS_PASS 18' /tmp/effekseer-review/dungeon-probe.log
+          grep -F 'KINDRIA_V13_AUTHORED_FINISH_PASS 147' /tmp/effekseer-review/dungeon-probe.log
+          grep -F 'KINDRIA_V13_FULL_COMPOSITOR_PASS 589' /tmp/effekseer-review/dungeon-probe.log
+          grep -F 'KINDRIA_V13_CONTACT_PRIORITY_PASS 10' /tmp/effekseer-review/dungeon-probe.log
+          grep -F 'KINDRIA_V13_CONFIRMED_MATERIAL_PASS' /tmp/effekseer-review/dungeon-probe.log
+          grep -F 'KINDRIA_V13_RESIDUE_DAMAGE_CELLS_PASS' /tmp/effekseer-review/dungeon-probe.log
+          grep -F 'KINDRIA_V13_LEGACY_STAGE_PASS 589' /tmp/effekseer-review/dungeon-probe.log
+          grep -F 'KINDRIA_V14_DIRECTION_PASS 589' /tmp/effekseer-review/dungeon-probe.log
+          grep -F 'KINDRIA_V14_NO_GENERIC_DIRECTION_PASS 589' /tmp/effekseer-review/dungeon-probe.log
+          grep -F 'KINDRIA_V14_NATURE_MATERIAL_PASS 88' /tmp/effekseer-review/dungeon-probe.log
+          grep -F 'KINDRIA_V14_COMBAT_MOTION_PASS 130' /tmp/effekseer-review/dungeon-probe.log
+          grep -F 'KINDRIA_V14_FINAL_NATURE_PASS 205' /tmp/effekseer-review/dungeon-probe.log
+          grep -F 'KINDRIA_V15_OBSERVED_GEOMETRY_PASS 2' /tmp/effekseer-review/dungeon-probe.log
+          grep -F 'KINDRIA_V15_CONTACT_FIRE_PASS 4' /tmp/effekseer-review/dungeon-probe.log
+          grep -F 'KINDRIA_V15_PSYCHIC_SOLAR_CONTACT_PASS 5' /tmp/effekseer-review/dungeon-probe.log
+          grep -F 'KINDRIA_V15_QUICK_ROUTE_PASS' /tmp/effekseer-review/dungeon-probe.log
+          grep -F 'KINDRIA_V15_SAND_STATUS_PASS' /tmp/effekseer-review/dungeon-probe.log
+          grep -F 'KINDRIA_V15_MULTI_TARGET_PASS' /tmp/effekseer-review/dungeon-probe.log
+          grep -F 'KINDRIA_V15_CONTACT_TARGET_CONTRACT_PASS 3' /tmp/effekseer-review/dungeon-probe.log
+          grep -F 'KINDRIA_V15_CONTINUOUS_BEAM_PASS 2' /tmp/effekseer-review/dungeon-probe.log
+          grep -F 'KINDRIA_V15_RENDER_OWNERSHIP_PASS 12' /tmp/effekseer-review/dungeon-probe.log
+          python3 my-forever-pet/research/rtdx/measure_capture.py --self-test
+          python3 my-forever-pet/research/rtdx/audit_fidelity.py
+          ! grep -E 'SCRIPT ERROR|Shader compilation failed' /tmp/effekseer-review/dungeon-probe.log
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: Kindria-Effekseer-GL-probe
+          path: /tmp/effekseer-review
