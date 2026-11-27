@@ -2455,6 +2455,94 @@ func fight_sprite(im:Image,role:String,frame:int)->void:
 			else:
 				fight_arc(im,c,15.0,t*TAU,-PI*1.5,tint,dark,3.5);fight_fist(im,Vector2(36-24*t,24),PI,6.0,tint,dark)
 
+# Original feather and moving air silhouettes, separated from creature anatomy.
+func air_feather(im:Image,q:Vector2,a:float,r:float,light:Color,dark:Color)->void:
+	var d:=Vector2(cos(a),sin(a))
+	var side:=Vector2(-d.y,d.x)
+	for j in range(1,9):
+		var f:float=float(j)/9.0
+		var at:=q+d*r*f
+		var w:float=sin(f*PI)*r*.24
+		fx_line(im,at,at+side*w-d*r*.17,1.6,light)
+		fx_line(im,at,at-side*w-d*r*.17,1.6,dark)
+	fx_line(im,q,q+d*r,1.0,light)
+
+func air_sprite(im:Image,role:String,frame:int)->void:
+	var t:float=float(frame)/11.0
+	var c:=Vector2(24,24)
+	var light:=Color("#e5f9ff");var dark:=Color("#719bb4")
+	match role:
+		"air_cutter","air_slash","air_ace":
+			var count:int=3 if role=="air_cutter" else 1 if role=="air_slash" else 2
+			for i in range(count):
+				var q:=Vector2(12+sin(t*PI)*19,24+float(i)*6-float(count-1)*3)
+				var a:float=-PI*.75+t*.7+float(i)*.35
+				fight_arc(im,q,13.0 if role=="air_slash" else 9.0,a,PI*1.25,light,dark,5.0 if role=="air_slash" else 3.0)
+				if role=="air_ace":fx_line(im,q-Vector2(17,7),q+Vector2(6,1),1.2,light)
+		"air_gust","air_tailwind","air_defog","air_blast":
+			var count:int=5 if role=="air_gust" else 3 if role=="air_tailwind" else 8 if role=="air_defog" else 7
+			for i in range(count):
+				var f:float=float(i)/float(count)
+				var y:float=7.0+f*35.0
+				var prev:=Vector2(3,y)
+				for j in range(1,12):
+					var x:float=3.0+float(j)*3.8
+					var q:=Vector2(x,y+sin(float(j)*.65+t*TAU+f*4.0)*(3.0 if role!="air_blast" else 1.5))
+					fx_line(im,prev,q,3.2 if role=="air_blast" else 1.6,dark)
+					fx_line(im,prev,q,1.0,light);prev=q
+			if role=="air_blast":fight_arc(im,Vector2(29,24),14.0,-PI*.45,PI*.9,light,dark,3.0)
+			elif role=="air_tailwind":air_feather(im,Vector2(10+sin(t*PI)*15,31),-.6,13.0,light,dark)
+			elif role=="air_defog":
+				for i in range(5):fx_disc(im,Vector2(6+float(i)*8,12+sin(t*TAU+float(i))*8),4.0*(1.0-t),Color(light,.4))
+		"air_sky","air_fly","air_bounce","air_brave":
+			var q:=Vector2(8+31*t,33-sin(t*PI)*(20.0 if role=="air_fly" else 12.0 if role=="air_bounce" else 17.0))
+			var tint:=Color("#ffbf72") if role=="air_brave" else Color("#c9e6ff") if role=="air_sky" else light
+			var shade:=Color("#d66b4a") if role=="air_brave" else dark
+			if role=="air_sky":q=Vector2(25,4+34*t)
+			if role=="air_bounce":q=Vector2(24,34-absf(sin(t*TAU))*23)
+			for i in range(5):
+				var f:float=float(i)/5.0
+				var at:=q-Vector2(f*16.0,f*7.0)
+				fx_disc(im,at,8.0*(1.0-f*.7),shade)
+				fx_disc(im,at,5.0*(1.0-f*.7),tint)
+			air_feather(im,q,-2.5,13.0,tint,shade)
+			air_feather(im,q,2.5,13.0,tint,shade)
+			if role=="air_brave":fight_burst(im,q,14.0,7,t,tint,shade)
+		"air_peck","air_drill","air_pluck":
+			var q:=Vector2(10+sin(t*PI)*22,24)
+			var count:int=3 if role=="air_drill" else 1
+			for i in range(count):
+				var at:=q-Vector2(float(i)*7,sin(t*TAU+float(i))*4.0)
+				fx_line(im,at+Vector2(-9,-5),at+Vector2(8,0),3.6,dark)
+				fx_line(im,at+Vector2(-9,5),at+Vector2(8,0),2.2,light)
+			if role=="air_pluck":air_feather(im,q+Vector2(3,-9),-2.0+t,15.0,Color("#ffe0a0"),dark)
+		"air_wing","air_feather","air_roost":
+			var count:int=2 if role=="air_wing" else 9 if role=="air_feather" else 5
+			for i in range(count):
+				var a:float=float(i)*TAU/float(count)+t*2.5
+				var q:=c+Vector2(cos(a),sin(a))*float(7+i%3*4)
+				if role=="air_wing":q=Vector2(23+float(i*2-1)*5,24)
+				if role=="air_roost":q=Vector2(8+float(i)*7,30+sin(t*PI)*5)
+				air_feather(im,q,a,17.0 if role=="air_wing" else 10.0,light,dark)
+			if role=="air_roost":fx_disc(im,Vector2(24,34),12.0+t*3.0,Color("#a1e6c2"),11.0+t*3.0)
+		"air_chatter":
+			for i in range(6):
+				var a:float=float(i)*TAU/6.0+t
+				var q:=c+Vector2(cos(a),sin(a))*(6.0+t*13.0)
+				fx_disc(im,q,2.5,Color("#e4d5ff"))
+				fx_line(im,q,q-Vector2(0,8),1.4,dark)
+				fx_line(im,q-Vector2(0,8),q+Vector2(4,-5),1.4,light)
+		"air_mirror":
+			var radius:float=10.0+sin(t*PI)*5.0
+			fx_disc(im,c,radius,Color("#92d6eb",.65))
+			fx_disc(im,c,radius,light,radius-2.0)
+			fx_line(im,c-Vector2(7,6),c+Vector2(5,-10),2.2,Color.WHITE)
+			for i in range(3):
+				var a:float=float(i)*TAU/3.0+t*TAU
+				var q:=c+Vector2(cos(a),sin(a))*(radius+4.0)
+				fx_line(im,q-Vector2(3,0),q+Vector2(3,0),1.0,light)
+				fx_line(im,q-Vector2(0,3),q+Vector2(0,3),1.0,light)
+
 func combat_frame_image(id:String,frame:int)->Image:
 	var style:Array=combat_style(id)
 	var mode:String=combat_animation_mode(id,str(style[0]))
@@ -2478,6 +2566,8 @@ func combat_frame_image(id:String,frame:int)->Image:
 		rock_sprite(im,role,frame);return im
 	if role.begins_with("fight_"):
 		fight_sprite(im,role,frame);return im
+	if role.begins_with("air_"):
+		air_sprite(im,role,frame);return im
 	var center:=Vector2(24,24)
 	match mode:
 		"vine":
@@ -2755,6 +2845,25 @@ func combat_profile(id:String)->Dictionary:
 		"eos_340":role="fight_revenge"
 		"eos_007":role="fight_vital"
 		"eos_029":role="fight_stonebreak"
+		"eos_036":role="air_cutter"
+		"eos_057":role="air_gust"
+		"eos_100":role="air_sky"
+		"eos_153":role="air_fly"
+		"eos_174":role="air_peck"
+		"eos_178":role="air_wing"
+		"eos_179":role="air_ace"
+		"eos_205":role="air_bounce"
+		"eos_211":role="air_drill"
+		"eos_353":role="air_blast"
+		"eos_442":role="air_slash"
+		"eos_446":role="air_chatter"
+		"eos_490":role="air_pluck"
+		"eos_518":role="air_brave"
+		"eos_444":role="air_tailwind"
+		"eos_267":role="air_feather"
+		"eos_509":role="air_roost"
+		"eos_456":role="air_defog"
+		"eos_040":role="air_mirror"
 	if role in ["electric_charge","electric_lift"]:mode="lightning"
 	var impact:float=.48 if role in ["contact","electric_contact","electric_short","electric_fist","electric_fang","electric_dash","electric_spark"] else .64 if role in ["projectile","lash","electric_arc","electric_wave","electric_sky","electric_orb","electric_beam"] else .40
 	if role in ["fire_breath","fire_ember","fire_blast","fire_wisp"]:impact=.64
@@ -2770,6 +2879,7 @@ func combat_profile(id:String)->Dictionary:
 	if role in ["rock_throw","rock_wrecker","rock_blast","rock_gem","rock_ancient"]:impact=.64
 	elif role in ["rock_smash","rock_roll","rock_edge"]:impact=.48
 	if role.begins_with("fight_"):impact=.64 if role in ["fight_aura","fight_blast","fight_vacuum"] else .48
+	if role.begins_with("air_"):impact=.64 if role in ["air_blast","air_cutter","air_sky","air_fly","air_bounce"] else .48
 	return {"mode":mode,"role":role,"element":element,"pattern":pattern,"range":reach,"duration":float(style[3]),"impact":impact,"socket":"ground" if role in ["ground","fire_plume","fire_magma","water_dive","water_whirlpool","water_surf","grass_frenzy","grass_roots","grass_knot","ice_avalanche","ice_cold","earth_dig","earth_tomb","earth_power","earth_fissure","earth_spikes","earth_quake","earth_magnitude","rock_edge","rock_tomb","rock_trap","rock_roll"] else "head" if role in ["projectile","fire_breath","fire_ember","fire_eruption","water_bubble","water_ink","water_spout","water_cannon","water_pump","water_bubblebeam","water_gun","water_pulse","water_brine","grass_solar","grass_energy","grass_bullet","grass_whistle","ice_aurora","ice_beam","ice_wind","earth_shot","rock_wrecker","rock_blast","rock_gem"] else "center"}
 func electric_sprite(im:Image,id:String,frame:int,role:String)->void:
 	var cyan:=Color("#40cfff")
@@ -3372,6 +3482,26 @@ func combat_fx_update(dt:float)->void:
 						q=points[-1]+Vector3(cos(angle+t*TAU)*.38,.15,sin(angle+t*TAU)*.38);size=.58
 					_:
 						q=points[-1]+Vector3(cos(angle)*.27,sin(angle)*.25,sin(angle)*.27);size=.56
+			if str(profile.role).begins_with("air_"):
+				var air_role:String=str(profile.role)
+				var progress:float=clampf(t*1.8-f*.30,0,1)
+				match air_role:
+					"air_cutter","air_gust","air_blast":
+						q=combat_path_sample(points,progress)+Vector3(cos(angle)*.12,.2+sin(angle)*.16,sin(angle)*.12);size=.84 if air_role=="air_blast" else .48
+					"air_fly","air_bounce","air_brave":
+						q=combat_path_sample(points,progress)+Vector3(0,sin(progress*PI)*(1.35 if air_role=="air_fly" else .75 if air_role=="air_bounce" else .48),0);size=.68
+					"air_sky":
+						q=points[-1]+Vector3(cos(angle)*.18,2.0*(1.0-progress),sin(angle)*.18);size=.78
+					"air_tailwind","air_roost","air_mirror":
+						q=points[0]+Vector3(cos(angle+t*TAU)*.42,.1+f*.58,sin(angle+t*TAU)*.42);size=.50
+					"air_defog","air_chatter":
+						q=tiles[j%tiles.size()]+Vector3(cos(angle)*t*.43,.25+f*.35,sin(angle)*t*.43);size=.46
+					"air_feather":
+						q=points[-1]+Vector3(cos(angle+t*TAU)*.4,1.1*(1.0-progress),sin(angle+t*TAU)*.4);size=.40
+					"air_drill":
+						q=points[-1]+Vector3(cos(angle+t*TAU*2.0)*.22,.2,sin(angle+t*TAU*2.0)*.22);size=.55
+					_:
+						q=points[-1]+Vector3(cos(angle)*.25,sin(angle)*.24,sin(angle)*.25);size=.53
 			# Drained energy travels from victim back to caster; healing stays on caster.
 			if profile.role=="drain" and t>=.40:
 				var back:float=clampf((t-.40)*2.0-f*.22,0.0,1.0)
