@@ -149,6 +149,7 @@ var fx_halos:Array[MeshInstance3D]=[]
 var fx_halo_materials:Array[ShaderMaterial]=[]
 var cinematic_halo_shader:Shader
 var fx_lights_used:int=0
+var fx_light_scores:Array[float]=[]
 var fx_halos_used:int=0
 const FX_TRAIL_VERTEX_CAP:int=960
 const FX_RESIDUE_CAP:int=6
@@ -2437,7 +2438,7 @@ func elemental_material_profile(element:String)->Vector3:
 
 func setup_cinematic_lighting()->void:
 	fx_lights.clear();fx_halos.clear();fx_halo_materials.clear()
-	fx_lights_used=0;fx_halos_used=0
+	fx_lights_used=0;fx_halos_used=0;fx_light_scores.clear()
 	if cinematic_halo_shader==null:
 		cinematic_halo_shader=Shader.new()
 		cinematic_halo_shader.code="""
@@ -2793,7 +2794,8 @@ func ultra_update_residues(dt:float,used:int)->int:
 		if fx_performance_tier==0 or (fx_performance_tier==1 and t<.55):
 			cinematic_halo(at,mark.color,.85+t*.55,fade*.18*strength,t,true,element)
 		if t<.28 and not terrain_only and element in ["fire","electric","dragon","fairy"] and fx_performance_tier==0:
-			cinematic_light(at+Vector3.UP*.28,mark.color,fade*.28,1.5)
+			var lighting:=elemental_light_sample(element,t,"residue")
+			cinematic_light(at+Vector3.UP*.28,mark.color,lighting.x,lighting.y*.70,lighting.z,0)
 	return used
 
 # Exact value caching only: no quantization, no temporal stepping.
@@ -2822,12 +2824,59 @@ func cinematic_halo(at:Vector3,color:Color,extent:float,opacity:float,phase:floa
 	set_fx_uniform(mat,"material_opacity",material.y)
 	if not halo.visible:halo.show()
 
-func cinematic_light(at:Vector3,color:Color,energy:float,extent:float)->void:
-	if fx_lights_used>=fx_lights.size() or energy<=.02:return
-	var light:OmniLight3D=fx_lights[fx_lights_used];fx_lights_used+=1
+# Per-element response: energy, reach, falloff, temporal modulation.
+const ELEMENT_LIGHT_PROFILE={
+	"normal":[.34,1.45,2.4,"pulse"],"fire":[1.05,2.45,1.4,"flicker"],
+	"water":[.40,2.1,1.9,"ripple"],"electric":[1.18,2.65,2.1,"spark"],
+	"grass":[.30,1.65,1.8,"soft"],"ice":[.76,2.2,2.0,"glint"],
+	"fighting":[.42,1.55,2.5,"pulse"],"poison":[.34,1.8,1.5,"soft"],
+	"ground":[.12,1.25,2.7,"pulse"],"flying":[.25,2.2,1.8,"ripple"],
+	"psychic":[.86,2.35,1.5,"ripple"],"bug":[.24,1.45,2.2,"glint"],
+	"rock":[.16,1.35,2.8,"pulse"],"ghost":[.58,1.9,1.25,"soft"],
+	"dragon":[1.10,2.55,1.45,"flicker"],"dark":[.30,1.5,2.3,"soft"],
+	"steel":[.62,1.85,2.6,"glint"],"fairy":[.88,2.15,1.6,"glint"]}
+# x=energy, y=range, z=attenuation. No full-screen exposure changes.
+func elemental_light_sample(element:String,phase:float,stage:String,wide:bool=false)->Vector3:
+	var cue:Array=ELEMENT_LIGHT_PROFILE.get(element,ELEMENT_LIGHT_PROFILE.normal)
+	var t:float=clampf(phase,0.0,1.0)
+	var envelope:float=sin(t*PI)*.60 if stage=="launch" else pow(1.0-t,2.0)
+	if stage=="residue":envelope*=.26
+	var modulation:float=1.0
+	match str(cue[3]):
+		"flicker":modulation=.86+.14*cos(t*TAU*2.0)
+		"spark":modulation=.82+.18*cos(t*TAU*3.0)
+		"ripple":modulation=.80+.20*cos(t*TAU)
+		"glint":modulation=.88+.12*cos(t*TAU*1.5)
+		"soft":modulation=.90+.10*cos(t*PI)
+	var energy:float=float(cue[0])*envelope*modulation
+	var radius:float=float(cue[1])*(1.18 if wide else 1.0)
+	return Vector3(clampf(energy,0.0,1.2),radius,float(cue[2]))
+
+# Priority bands are disjoint: confirmed impact > travel > residue.
+# Within a band, retain the strongest lights instead of whichever cast is
+# visited first. No more OmniLight3D nodes are allocated.
+func cinematic_light_slot(scores:Array[float],capacity:int,score:float)->int:
+	if capacity<=0:return -1
+	if scores.size()<capacity:return scores.size()
+	var weakest:int=0
+	for i in range(1,scores.size()):
+		if scores[i]<scores[weakest]:weakest=i
+	return weakest if score>scores[weakest] else -1
+
+func cinematic_light(at:Vector3,color:Color,energy:float,extent:float,attenuation:float=1.5,priority:int=1)->void:
+	if energy<=.02:return
+	var capacity:int=mini(fx_lights.size(),1) if fx_performance_tier==2 else fx_lights.size()
+	var score:float=float(clampi(priority,0,3))*2.0+clampf(energy,0.0,1.2)
+	var index:int=cinematic_light_slot(fx_light_scores,capacity,score)
+	if index<0:return
+	if index==fx_light_scores.size():fx_light_scores.append(score)
+	else:fx_light_scores[index]=score
+	fx_lights_used=fx_light_scores.size()
+	var light:OmniLight3D=fx_lights[index]
 	light.position=at
 	if light.light_color!=color:light.light_color=color
 	if light.omni_range!=extent:light.omni_range=extent
+	if light.omni_attenuation!=attenuation:light.omni_attenuation=attenuation
 	light.light_energy=energy
 	if not light.visible:light.show()
 
@@ -2926,7 +2975,9 @@ func cinematic_cast_enhancement(burst:Dictionary,t:float)->void:
 		if status:at=source.lerp(target,progress*.6)
 		var envelope:float=sin(progress*PI)
 		cinematic_halo(at,color,.95 if luminous else .65,strength*envelope*.52,progress,false,element)
-		if luminous:cinematic_light(at+Vector3.UP*.25,color,envelope*strength*.7*elemental_material_profile(element).z,2.05)
+		if luminous:
+			var lighting:=elemental_light_sample(element,progress,"launch")
+			cinematic_light(at+Vector3.UP*.25,color,lighting.x*(.62 if status else 1.0),lighting.y,lighting.z,1)
 	elif not miss:
 		target=resolved.target
 		var after:float=impact_visual_phase(burst,t)
@@ -2935,7 +2986,10 @@ func cinematic_cast_enhancement(burst:Dictionary,t:float)->void:
 		cinematic_halo(target,color,extent*(.82+after*.5),strength*fade*.8,after,false,element)
 		if not status and (fx_performance_tier<2 or after<.55):
 			cinematic_halo(Vector3(target.x,.06,target.z),color,extent*(.84+after*.9),strength*fade*.62,after,true,element)
-		cinematic_light(target+Vector3.UP*.4,color,strength*fade*(1.35 if wide else 1.0)*elemental_material_profile(element).z,2.9 if wide else 2.2)
+		var lighting:=elemental_light_sample(element,after,"impact",wide)
+		var critical:bool=not critical_impact_tiles(burst).is_empty()
+		var energy:float=minf(1.2,lighting.x*(1.12 if ultimate else 1.0)*(1.12 if critical else 1.0)*(.62 if status else 1.0))
+		cinematic_light(target+Vector3.UP*.4,color,energy,lighting.y,lighting.z,3 if critical else 2)
 
 # Contact silhouette is independent of the elemental animation and is only
 # drawn on a confirmed damaging tile. IDs are explicit, not translated names.
@@ -6939,7 +6993,7 @@ func combat_fx_update(dt:float)->void:
 	var latest_hit:Dictionary={}
 	update_delayed_combat_fx(dt)
 	var used:int=0
-	fx_lights_used=0;fx_halos_used=0
+	fx_lights_used=0;fx_halos_used=0;fx_light_scores.clear()
 	fx_trail_vertices=0;fx_trail_started=false
 	if is_instance_valid(fx_trail_mesh):fx_trail_mesh.clear_surfaces()
 	update_combat_reactions(dt)
