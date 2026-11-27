@@ -2166,6 +2166,91 @@ func ice_sprite(im:Image,role:String,frame:int)->void:
 				var q:=Vector2(6+float(i)*6,8+fposmod(float(i)*7+t*36,31))
 				ice_crystal(im,q,PI*.5,6.0+float(i%3),light,dark)
 
+func earth_rock(im:Image,q:Vector2,r:float,light:Color,dark:Color)->void:
+	fx_line(im,q+Vector2(-r,r*.3),q+Vector2(-r*.45,-r),r*.85,dark)
+	fx_line(im,q+Vector2(-r*.45,-r),q+Vector2(r*.8,-r*.5),r*.85,dark)
+	fx_line(im,q+Vector2(r*.8,-r*.5),q+Vector2(r*.6,r*.7),r,dark)
+	fx_line(im,q+Vector2(-r*.6,-r*.4),q+Vector2(r*.4,r*.2),r*.65,light)
+
+func earth_bone(im:Image,q:Vector2,a:float,length:float,light:Color,dark:Color)->void:
+	var d:=Vector2(cos(a),sin(a))
+	var n:=Vector2(-d.y,d.x)
+	var start:=q-d*length*.5
+	var end:=q+d*length*.5
+	fx_line(im,start,end,5.0,dark);fx_line(im,start,end,3.0,light)
+	for tip in [start,end]:
+		fx_disc(im,tip+n*2.5,3.5,dark);fx_disc(im,tip-n*2.5,3.5,dark)
+		fx_disc(im,tip+n*2.5,2.2,light);fx_disc(im,tip-n*2.5,2.2,light)
+
+func earth_sprite(im:Image,role:String,frame:int)->void:
+	var t:float=float(frame)/11.0
+	var center:=Vector2(24,27)
+	var light:=Color("#d8b47d");var dark:=Color("#76503d")
+	match role:
+		"earth_dig":
+			for i in range(10):
+				var a:float=float(i)*TAU/10.0
+				var q:=center+Vector2(cos(a)*15.0,sin(a)*5.0)
+				earth_rock(im,q+Vector2(0,-sin(t*PI)*float(4+i%4*3)),3.0,light,dark)
+			fx_disc(im,center,8.0,Color("#352e2d"),5.0)
+		"earth_tomb":
+			for i in range(14):
+				var f:float=float(i)/14.0
+				var a:float=f*TAU*1.8+t*TAU
+				var q:=center+Vector2(cos(a)*(5.0+f*13.0),sin(a)*(5.0+f*13.0)*.45-f*10.0)
+				fx_disc(im,q,2.4+f*2.0,Color("#c9a66a"));fx_disc(im,q,1.3,light)
+		"earth_slap","earth_dust","earth_mudcoat":
+			var count:int=8 if role=="earth_slap" else 17 if role=="earth_dust" else 12
+			for i in range(count):
+				var f:float=float(i)/float(count)
+				var a:float=f*TAU+t*1.7
+				var q:=Vector2(5+fposmod(f*40+t*24.0,38.0),24+sin(a)*10.0)
+				if role=="earth_mudcoat":q=center+Vector2(cos(a)*14,sin(a)*8)
+				fx_disc(im,q,3.0 if role=="earth_slap" else 1.3 if role=="earth_dust" else 4.0,dark if role!="earth_dust" else light)
+				if role!="earth_dust":fx_disc(im,q-Vector2(1,1),1.6,light)
+		"earth_shot","earth_bomb":
+			var q:=Vector2(9+28*t,24-sin(t*PI)*(11.0 if role=="earth_bomb" else 2.5))
+			var r:float=7.0 if role=="earth_bomb" else 4.5
+			fx_disc(im,q,r,dark);fx_disc(im,q-Vector2(1,2),r*.65,light)
+			for i in range(5):
+				var a:float=float(i)*TAU/5.0
+				fx_disc(im,q+Vector2(cos(a),sin(a))*(r+2.0+t*3.0),1.8,dark)
+		"earth_club","earth_rush","earth_return":
+			var ivory:=Color("#f3e9cd");var shade:=Color("#8c785c")
+			if role=="earth_club":
+				earth_bone(im,center,-1.6+t*2.8,28.0,ivory,shade)
+			elif role=="earth_rush":
+				for i in range(3):earth_bone(im,Vector2(10+float(i)*13,23+sin(t*TAU+float(i))*8),-.8+t*1.8,16.0,ivory,shade)
+			else:
+				earth_bone(im,Vector2(8+sin(t*PI)*31,22),t*TAU*2.0,24.0,ivory,shade)
+		"earth_power":
+			for i in range(7):
+				var x:float=5.0+float(i)*6
+				var rise:float=sin(t*PI)*float(9+i%3*8)
+				fx_line(im,Vector2(x,43),Vector2(x,43-rise),5.5,Color("#ad7440"))
+				earth_rock(im,Vector2(x,40-rise),4.0,Color("#ffdc92"),dark)
+		"earth_fissure":
+			var last:=Vector2(4,40)
+			for i in range(1,10):
+				var q:=Vector2(4+float(i)*4.3,40-float(i)*3.3+sin(float(i)*2.7)*4)
+				fx_line(im,last,q,3.0+t*5.0,Color("#352b2a"));fx_line(im,last+Vector2(0,3),q+Vector2(0,3),1.4,light);last=q
+		"earth_spikes":
+			for i in range(7):
+				var x:float=7.0+float(i%4)*11.0
+				var y:float=33.0+float(i/4)*5.0
+				fx_line(im,Vector2(x-3,y),Vector2(x,y-6-t*11),3.0,dark)
+				fx_line(im,Vector2(x+3,y),Vector2(x,y-6-t*11),1.5,light)
+		"earth_quake","earth_magnitude":
+			var count:int=8 if role=="earth_quake" else 5
+			for i in range(count):
+				var a:float=float(i)*TAU/float(count)+(.2 if role=="earth_magnitude" else 0.0)
+				var d:=Vector2(cos(a),sin(a)*.65)
+				var q:=center+d*(5.0+t*17.0)
+				fx_line(im,center,center+d*7+Vector2(-2,1),2.0,dark)
+				fx_line(im,center+d*7+Vector2(-2,1),q,2.7,dark)
+				earth_rock(im,q-Vector2(0,sin(t*PI)*float(3+i%3*3)),3.0,light,dark)
+			if role=="earth_magnitude":fx_disc(im,center,4.0+t*9.0,light,3.0+t*9.0)
+
 func combat_frame_image(id:String,frame:int)->Image:
 	var style:Array=combat_style(id)
 	var mode:String=combat_animation_mode(id,str(style[0]))
@@ -2183,6 +2268,8 @@ func combat_frame_image(id:String,frame:int)->Image:
 		grass_sprite(im,role,frame);return im
 	if role.begins_with("ice_"):
 		ice_sprite(im,role,frame);return im
+	if role.begins_with("earth_"):
+		earth_sprite(im,role,frame);return im
 	var center:=Vector2(24,24)
 	match mode:
 		"vine":
@@ -2400,6 +2487,21 @@ func combat_profile(id:String)->Dictionary:
 		"eos_014":role="ice_hail"
 		"eos_150":role="ice_cold"
 		"eos_535":role="ice_avalanche"
+		"eos_008":role="earth_dig"
+		"eos_143":role="earth_tomb"
+		"eos_213":role="earth_slap"
+		"eos_289":role="earth_club"
+		"eos_299":role="earth_shot"
+		"eos_484":role="earth_power"
+		"eos_501":role="earth_bomb"
+		"eos_285":role="earth_rush"
+		"eos_290":role="earth_return"
+		"eos_142":role="earth_dust"
+		"eos_212":role="earth_mudcoat"
+		"eos_131":role="earth_fissure"
+		"eos_295":role="earth_spikes"
+		"eos_118":role="earth_quake"
+		"eos_296":role="earth_magnitude"
 	if role in ["electric_charge","electric_lift"]:mode="lightning"
 	var impact:float=.48 if role in ["contact","electric_contact","electric_short","electric_fist","electric_fang","electric_dash","electric_spark"] else .64 if role in ["projectile","lash","electric_arc","electric_wave","electric_sky","electric_orb","electric_beam"] else .40
 	if role in ["fire_breath","fire_ember","fire_blast","fire_wisp"]:impact=.64
@@ -2410,7 +2512,9 @@ func combat_profile(id:String)->Dictionary:
 	elif role in ["grass_vine","grass_whip","grass_needle","grass_blade","grass_wood","grass_knot"]:impact=.48
 	if role in ["ice_aurora","ice_wind","ice_beam","ice_shard","ice_spear"]:impact=.64
 	elif role in ["ice_punch","ice_fang","ice_ball"]:impact=.48
-	return {"mode":mode,"role":role,"element":element,"pattern":pattern,"range":reach,"duration":float(style[3]),"impact":impact,"socket":"ground" if role in ["ground","fire_plume","fire_magma","water_dive","water_whirlpool","water_surf","grass_frenzy","grass_roots","grass_knot","ice_avalanche","ice_cold"] else "head" if role in ["projectile","fire_breath","fire_ember","fire_eruption","water_bubble","water_ink","water_spout","water_cannon","water_pump","water_bubblebeam","water_gun","water_pulse","water_brine","grass_solar","grass_energy","grass_bullet","grass_whistle","ice_aurora","ice_beam","ice_wind"] else "center"}
+	if role in ["earth_shot","earth_bomb","earth_return"]:impact=.64
+	elif role in ["earth_club","earth_rush","earth_dig"]:impact=.48
+	return {"mode":mode,"role":role,"element":element,"pattern":pattern,"range":reach,"duration":float(style[3]),"impact":impact,"socket":"ground" if role in ["ground","fire_plume","fire_magma","water_dive","water_whirlpool","water_surf","grass_frenzy","grass_roots","grass_knot","ice_avalanche","ice_cold","earth_dig","earth_tomb","earth_power","earth_fissure","earth_spikes","earth_quake","earth_magnitude"] else "head" if role in ["projectile","fire_breath","fire_ember","fire_eruption","water_bubble","water_ink","water_spout","water_cannon","water_pump","water_bubblebeam","water_gun","water_pulse","water_brine","grass_solar","grass_energy","grass_bullet","grass_whistle","ice_aurora","ice_beam","ice_wind","earth_shot"] else "center"}
 func electric_sprite(im:Image,id:String,frame:int,role:String)->void:
 	var cyan:=Color("#40cfff")
 	var violet:=Color("#5969ed")
@@ -2777,7 +2881,7 @@ func combat_fx_update(dt:float)->void:
 		var profile:Dictionary=burst.profile
 		if not burst.impacted and t>=float(profile.impact):
 			burst.impacted=true;play_combat_sound(str(burst.id),"impact",burst.points[-1])
-			if str(profile.role)=="ground":fx_ground_shake=.22
+			if str(profile.role) in ["ground","earth_quake","earth_magnitude","earth_fissure"]:fx_ground_shake=.22
 			if burst.get("target_player",false) and int(burst.get("damage",0))>0:hit_time=.24
 		if t>=1.0:
 			combat_bursts.remove_at(k);continue
@@ -2789,7 +2893,7 @@ func combat_fx_update(dt:float)->void:
 		if str(profile.role).begins_with("electric") and t>.08 and t<.91:
 			if not arcs_started:fx_arc_mesh.surface_begin(Mesh.PRIMITIVE_TRIANGLES,fx_arc_material);arcs_started=true
 			electric_world_arc(points,t,str(profile.role),tiles)
-		elif str(profile.role) in ["lash","ground","grass_vine","grass_whip","grass_needle"] and t>.03:
+		elif str(profile.role) in ["lash","ground","grass_vine","grass_whip","grass_needle","earth_quake","earth_magnitude","earth_fissure"] and t>.03:
 			if not arcs_started:fx_arc_mesh.surface_begin(Mesh.PRIMITIVE_TRIANGLES,fx_arc_material);arcs_started=true
 			if profile.role in ["lash","grass_vine","grass_whip","grass_needle"]:vine_world_lash(points,t,profile,str(burst.id))
 			else:quake_world_tiles(tiles,t,str(burst.id))
@@ -2948,6 +3052,26 @@ func combat_fx_update(dt:float)->void:
 						q=points[-1]+Vector3(cos(angle)*t*.4,.1+sin(t*PI)*.7,sin(angle)*t*.4);size=.9
 					_:
 						q=points[-1]+Vector3(cos(angle)*.28,sin(angle)*.25,sin(angle)*.28);size=.58
+			if str(profile.role).begins_with("earth_"):
+				var earth_role:String=str(profile.role)
+				var progress:float=clampf(t*1.8-f*.35,0,1)
+				match earth_role:
+					"earth_dig":
+						q=points[-1]+Vector3(cos(angle)*t*.45,.08+sin(t*PI)*.55,sin(angle)*t*.45);size=.48
+					"earth_tomb":
+						q=points[-1]+Vector3(cos(angle+t*TAU)*.48,.1+f*.48,sin(angle+t*TAU)*.48);size=.50
+					"earth_shot","earth_bomb","earth_slap","earth_dust":
+						q=combat_path_sample(points,progress)+Vector3(cos(angle)*.1,sin(progress*PI)*(.75 if earth_role=="earth_bomb" else .18),sin(angle)*.1);size=.74 if earth_role=="earth_bomb" else .35
+					"earth_return":
+						q=combat_path_sample(points,sin(t*PI))+Vector3(0,.24+sin(t*PI)*.28,0);size=.65
+					"earth_power","earth_quake","earth_magnitude","earth_fissure":
+						q=tiles[j%tiles.size()]+Vector3(cos(angle)*.35,.07+sin(t*PI)*(.95 if earth_role=="earth_power" else .45),sin(angle)*.35);size=.58
+					"earth_spikes":
+						q=points[0]+Vector3(cos(angle)*.25,.05+sin(t*PI)*.22,sin(angle)*.25);size=.48
+					"earth_mudcoat":
+						q=points[0]+Vector3(cos(angle)*.4,.12+f*.5,sin(angle)*.4);size=.48
+					_:
+						q=points[-1]+Vector3(cos(angle)*.25,sin(angle)*.25,sin(angle)*.25);size=.65
 			# Drained energy travels from victim back to caster; healing stays on caster.
 			if profile.role=="drain" and t>=.40:
 				var back:float=clampf((t-.40)*2.0-f*.22,0.0,1.0)
@@ -3284,7 +3408,7 @@ func _process(dt:float):
 	elif run.charge_phase=="gather":pet_pose.position.y=.03+.04*sin(elapsed*12.0)
 	if attack_time>0.0:
 		var phase=sin(PI*attack_time/maxf(.01,player_cast_duration))
-		var lunge:float=.40 if player_cast_mode in ["contact","electric_contact","electric_fist","electric_fang","electric_spark","electric_dash","fire_wheel","fire_blitz","fire_kick","fire_punch","fire_fang","water_clamp","water_hammer","water_dive","water_fall","water_jet","water_tail","grass_blade","grass_wood","grass_needle","ice_punch","ice_fang","ice_ball"] else .13 if player_cast_mode=="lash" else -.08
+		var lunge:float=.40 if player_cast_mode in ["contact","electric_contact","electric_fist","electric_fang","electric_spark","electric_dash","fire_wheel","fire_blitz","fire_kick","fire_punch","fire_fang","water_clamp","water_hammer","water_dive","water_fall","water_jet","water_tail","grass_blade","grass_wood","grass_needle","ice_punch","ice_fang","ice_ball","earth_club","earth_rush","earth_dig"] else .13 if player_cast_mode=="lash" else -.08
 		pet_pose.position+=pet.basis.inverse()*attack_direction*phase*lunge
 		attack_fx.visible=player_impact_delay<=0.0;attack_fx.scale=Vector3(1.1-phase*.42,.13,1.1-phase*.42)
 	else:attack_fx.hide()
