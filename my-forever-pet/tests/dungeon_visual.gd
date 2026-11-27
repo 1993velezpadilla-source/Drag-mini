@@ -290,6 +290,22 @@ func run():
 				bug_frames[signature]=true
 				assert(middle.save_png("/tmp/dungeon-real-bug-"+id+".png")==OK)
 			print("KINDRIA_BUG_CHOREOGRAPHY_PASS ",bug_roles.size())
+			var psychic_roles:Dictionary={}
+			var psychic_frames:Dictionary={}
+			for id in ["eos_095","eos_099","eos_107","eos_108","eos_109","eos_110","eos_111","eos_133","eos_137","eos_146","eos_187","eos_209","eos_215","eos_220","eos_232","eos_234","eos_258","eos_259","eos_266","eos_298","eos_309","eos_316","eos_317","eos_319","eos_331","eos_333","eos_335","eos_338","eos_439","eos_448","eos_450","eos_463","eos_464","eos_473","eos_478","eos_499","eos_506","eos_513","eos_514","eos_526","eos_528"]:
+				var profile:Dictionary=dungeon.combat_profile(id)
+				assert(str(profile.role).begins_with("psi_"),"dedicated psychic role "+id)
+				assert(not psychic_roles.has(profile.role),"unique psychic choreography "+id)
+				psychic_roles[profile.role]=true
+				var first:Image=dungeon.combat_frame_image(id,2)
+				var middle:Image=dungeon.combat_frame_image(id,6)
+				assert(first.get_data()!=middle.get_data(),"psychic animation changes "+id)
+				assert(middle.get_used_rect().has_area(),"nonempty psychic frame "+id)
+				var signature:String=middle.get_data().hex_encode()
+				assert(not psychic_frames.has(signature),"unique psychic sprite "+id)
+				psychic_frames[signature]=true
+				assert(middle.save_png("/tmp/dungeon-real-psychic-"+id+".png")==OK)
+			print("KINDRIA_PSYCHIC_CHOREOGRAPHY_PASS ",psychic_roles.size())
 			# Reproduce the freed-instance registry fault before the real expedition.
 			var retired:Node3D=dungeon.actor_for("retired-test",Vector3.ZERO)
 			retired.free()

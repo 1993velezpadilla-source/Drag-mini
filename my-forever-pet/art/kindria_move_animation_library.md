@@ -39,3 +39,6 @@ All 14 electric reference entries now have individual roles. Thunder Punch: char
 
 ## Iteration 47: bug choreography pilot
 17 independent roles cover all bug reference entries with known range: silk line, radial web, draining jaws, silver wind, multicolor beam, twin needles, tail light, missile volley, horn, rapid cuts, healing swarm, attack swarm, cross cuts, out-and-back path, guard swarm, bite and radial buzz. Original effects, reference combat data unchanged. Temporal, nonempty and unique-frame tests and PNG exports added. Poison core 45934944353, 3D 45934944339 and Android 45934944359 still running at initial inspection; bug CI, footage and species-specific animation not yet verified.
+
+## Iteration 48: psychic choreography pilot
+41 individual psychic roles, including beams, radial mental pressure, hypnosis, exchanging effects, screens and guards, celestial energy, sleep, meditation, spatial distortion, gravity, cutting arcs and dream drain. Original frame art and pooled tile-path particles, no imported source sprites. Temporal, nonempty and unique frame checks and PNG exports added. Poison 45934944339 logs verified all 193 prior roles, actor lifetime and live expeditions (18 captures, 25 fights, 3 transitions); core 45934944353 passed. Bug and psychic CI, source animation fidelity and device validation remain unverified at authoring.

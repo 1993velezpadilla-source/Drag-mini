@@ -2709,6 +2709,145 @@ func bug_sprite(im:Image,role:String,frame:int)->void:
 				fx_disc(im,c,r,Color(light,.78),r-1.4)
 			bug_wing(im,c,t*TAU,7.0,silk,dark)
 
+# Original mental energy, spatial and support glyphs; no source art is used.
+func psi_ring(im:Image,c:Vector2,r:float,light:Color,dark:Color)->void:
+	fx_disc(im,c,r,dark,maxf(0.0,r-3.0))
+	fx_disc(im,c,r-1.0,light,maxf(0.0,r-2.0))
+
+func psi_polygon(im:Image,c:Vector2,r:float,n:int,a:float,light:Color,dark:Color)->void:
+	for i in range(n):
+		var b:float=a+float(i)*TAU/float(n)
+		var next:float=b+TAU/float(n)
+		var p:=c+Vector2(cos(b),sin(b))*r
+		var q:=c+Vector2(cos(next),sin(next))*r
+		fx_line(im,p,q,3.0,dark);fx_line(im,p,q,1.0,light)
+
+func psi_sprite(im:Image,role:String,frame:int)->void:
+	var t:float=float(frame)/11.0
+	var c:=Vector2(24,24)
+	var light:=Color("#ffb8f2");var dark:=Color("#794bb4");var cyan:=Color("#99edff");var gold:=Color("#ffe0a0")
+	match role:
+		"psi_beam","psi_wave":
+			var count:int=3 if role=="psi_beam" else 5
+			for i in range(count):
+				if role=="psi_beam":
+					var prev:=Vector2(2,24+float(i-1)*4)
+					for j in range(1,17):
+						var f:float=float(j)/16.0
+						var q:=Vector2(2+43*f,24+sin(f*TAU*2.0-t*TAU+float(i)*2.1)*6.0)
+						fx_line(im,prev,q,2.8,[light,cyan,gold][i]);prev=q
+				else:
+					var q:=Vector2(5+float(i)*9+t*3.0,24)
+					fight_arc(im,q,6.0+float(i)*2.0,-PI*.5,PI,light,dark,2.8)
+		"psi_psychic","psi_boost","psi_extra","psi_confusion":
+			var count:int=4 if role=="psi_psychic" else 8 if role=="psi_boost" else 3 if role=="psi_extra" else 5
+			for i in range(count):
+				var a:float=float(i)*TAU/float(count)+t*TAU
+				var r:float=5.0+sin(t*PI)*13.0
+				var q:=c+Vector2(cos(a),sin(a))*r
+				if role=="psi_extra":psi_polygon(im,q,7.0,3,a,cyan,dark)
+				elif role=="psi_confusion":fight_arc(im,q,6.0,a,PI*1.5,gold,dark,2.5)
+				elif role=="psi_boost":fx_line(im,c,q,4.0,light);fx_disc(im,q,3.0,cyan)
+				else:psi_ring(im,q,5.0,light,dark)
+			if role=="psi_boost":fight_burst(im,c,20.0,10,t,gold,dark)
+		"psi_hypnosis","psi_eye":
+			var r:float=8.0+sin(t*PI)*4.0
+			if role=="psi_hypnosis":
+				for i in range(3):fight_arc(im,c,r+float(i)*4.0,t*TAU+float(i),PI*1.6,light,dark,2.0)
+			else:
+				fight_arc(im,c,15.0,-PI*.85,PI*.7,cyan,dark,3.0)
+				fight_arc(im,c,15.0,PI*.15,PI*.7,cyan,dark,3.0)
+				fx_disc(im,c+Vector2(sin(t*TAU)*3.0,0),6.0,gold);fx_disc(im,c+Vector2(sin(t*TAU)*3.0,0),2.5,dark)
+		"psi_skill","psi_trick","psi_role","psi_guard","psi_shift","psi_heart","psi_power","psi_powertrick":
+			var variant:int=["psi_skill","psi_trick","psi_role","psi_guard","psi_shift","psi_heart","psi_power","psi_powertrick"].find(role)
+			var left:=Vector2(12,24);var right:=Vector2(36,24)
+			var q:=Vector2(12+24*t,24-sin(t*PI)*8.0)
+			var other:=Vector2(36-24*t,24+sin(t*PI)*8.0)
+			var sides:int=3+variant%5
+			psi_polygon(im,left,6.0,sides,t,light,dark)
+			psi_polygon(im,right,6.0,sides,-t,cyan,dark)
+			if role=="psi_heart":
+				fx_disc(im,q+Vector2(-2,-2),3.0,light);fx_disc(im,q+Vector2(2,-2),3.0,light)
+				fx_line(im,q+Vector2(-4,-1),q+Vector2(0,5),3.0,light);fx_line(im,q+Vector2(4,-1),q+Vector2(0,5),3.0,light)
+			elif role=="psi_guard":psi_polygon(im,q,6.0,5,PI*.5,cyan,dark)
+			elif role=="psi_role":psi_ring(im,q,6.0,gold,dark);fx_disc(im,q,2.0,light)
+			elif role=="psi_power":fight_burst(im,q,8.0,5,t,gold,dark)
+			elif role=="psi_shift":fight_arc(im,q,6.0,t*TAU,PI*1.5,light,dark,2.5)
+			elif role=="psi_trick":psi_polygon(im,q,5.0,4,t*PI,gold,dark)
+			elif role=="psi_powertrick":fx_line(im,q-Vector2(5,4),q+Vector2(5,4),4.0,gold)
+			else:fx_disc(im,q,4.0,light)
+			fx_disc(im,other,2.0+float(variant%3),cyan)
+		"psi_barrier","psi_screen","psi_magic","psi_mirror","psi_reflect","psi_imprison","psi_block":
+			var r:float=12.0+sin(t*PI)*4.0
+			if role=="psi_barrier":psi_polygon(im,c,r,6,PI*.5,cyan,dark)
+			elif role=="psi_screen":
+				for i in range(4):fx_line(im,Vector2(8+float(i)*8,10+t*4),Vector2(8+float(i)*8,36-t*4),2.5,gold)
+				psi_polygon(im,c,r,4,PI*.25,light,dark)
+			elif role=="psi_magic":
+				psi_ring(im,c,r,light,dark);fight_burst(im,c,r+5.0,8,t,gold,dark)
+			elif role=="psi_mirror":
+				psi_polygon(im,c,r,8,PI/8.0,cyan,dark);fx_line(im,Vector2(15,33),Vector2(31,14+t*6),3.5,cyan)
+			elif role=="psi_reflect":
+				fight_arc(im,c,r,-PI*.55,PI*1.1,cyan,dark,5.0);fight_arc(im,c,r-5.0,-PI*.55,PI*1.1,light,dark,2.0)
+			elif role=="psi_imprison":
+				psi_polygon(im,c,r,4,PI*.25,light,dark)
+				for i in range(3):fx_line(im,Vector2(16+float(i)*8,10+t*4),Vector2(16+float(i)*8,37-t*4),3.0,dark)
+			else:
+				psi_ring(im,c,r,gold,dark);fx_line(im,c-Vector2(r*.7,r*.7),c+Vector2(r*.7,r*.7),4.0,Color("#ed788a"))
+		"psi_cosmic","psi_future","psi_lunar","psi_wish":
+			var count:int=7 if role=="psi_cosmic" else 4 if role=="psi_future" else 5 if role=="psi_lunar" else 9
+			for i in range(count):
+				var a:float=float(i)*TAU/float(count)+t*2.5
+				var q:=c+Vector2(cos(a),sin(a))*(8.0+t*11.0)
+				fight_burst(im,q,3.0+float(i%2),4,t,gold,dark)
+			if role=="psi_cosmic":psi_ring(im,c,9.0+t*3,cyan,dark)
+			elif role=="psi_future":
+				psi_ring(im,c,12.0,light,dark);fx_line(im,c,c+Vector2(cos(t*TAU),sin(t*TAU))*9.0,2.0,cyan)
+			elif role=="psi_lunar":fight_arc(im,c,11.0,-PI*.7,PI*1.4,gold,dark,5.0)
+			else:
+				fx_line(im,c-Vector2(0,6),c+Vector2(0,6),3.0,cyan);fx_line(im,c-Vector2(6,0),c+Vector2(6,0),3.0,cyan)
+		"psi_agility","psi_amnesia","psi_rest","psi_calm","psi_meditate","psi_kinesis":
+			if role=="psi_agility":
+				for i in range(4):fight_arc(im,Vector2(8+float(i)*9,24+sin(t*TAU+float(i))*5.0),9.0,-PI*.5,PI,cyan,dark,2.8)
+			elif role=="psi_amnesia":
+				for i in range(5):fx_disc(im,Vector2(12+float(i)*6,24-sin(t*PI+float(i)) * 9.0),3.0+float(i%3),Color(light,.8))
+			elif role=="psi_rest":
+				for i in range(3):
+					var q:=Vector2(10+float(i)*10,35-t*18.0-float(i)*6)
+					fx_line(im,q,q+Vector2(7,0),1.8,cyan);fx_line(im,q+Vector2(7,0),q+Vector2(0,6),1.8,cyan);fx_line(im,q+Vector2(0,6),q+Vector2(7,6),1.8,cyan)
+			elif role=="psi_calm":
+				for i in range(3):psi_ring(im,c,7.0+float(i)*5.0+sin(t*PI)*2.0,cyan,dark)
+			elif role=="psi_meditate":
+				psi_polygon(im,c,14.0,8,t*PI,light,dark);psi_polygon(im,c,8.0,4,-t*PI,gold,dark)
+			else:
+				var q:=Vector2(13+sin(t*TAU)*5,24)
+				fx_line(im,q-Vector2(0,12),q+Vector2(8,8),4.0,cyan);fight_arc(im,q,15.0,t*TAU,PI,light,dark,2.2)
+		"psi_teleport","psi_gravity","psi_room":
+			if role=="psi_teleport":
+				for i in range(6):
+					var a:float=float(i)*TAU/6.0+t*TAU
+					var q:=c+Vector2(cos(a),sin(a))*(20.0*(1.0-t)+2.0)
+					fx_line(im,q,q+Vector2(0,-7),2.2,cyan)
+				psi_ring(im,c,5.0+sin(t*PI)*11.0,light,dark)
+			elif role=="psi_gravity":
+				for i in range(5):
+					var q:=Vector2(7+float(i)*8,5+t*28.0)
+					fx_line(im,q-Vector2(0,9),q,3.0,dark);fx_line(im,q-Vector2(4,5),q,2.0,cyan);fx_line(im,q+Vector2(4,-5),q,2.0,cyan)
+			else:
+				for i in range(3):psi_polygon(im,c,7.0+float(i)*6.0,4,t*PI*.5+float(i)*.2,light,dark)
+		"psi_mist","psi_luster","psi_cut","psi_zen","psi_dream":
+			var q:=Vector2(8+30*t,24)
+			if role=="psi_mist":
+				fx_disc(im,q,8.0,dark);fx_disc(im,q,5.0,cyan)
+				for i in range(5):fx_disc(im,q-Vector2(float(i)*4,sin(t*TAU+float(i))*6),3.0,Color(light,.6))
+			elif role=="psi_luster":fight_burst(im,q,16.0,12,t,gold,dark);fx_disc(im,q,5.0,cyan)
+			elif role=="psi_cut":fight_arc(im,q,14.0,-PI*.65+t,PI*1.3,light,dark,5.0)
+			elif role=="psi_zen":
+				fx_disc(im,q,11.0,dark);fx_disc(im,q+Vector2(3,-1),7.0,cyan);fight_burst(im,q,15.0,5,t,light,dark)
+			else:
+				for i in range(6):fx_disc(im,Vector2(39-31*t-float(i)*3,24+sin(t*TAU+float(i))*6),2.5,Color("#c6a9ff"))
+				fight_arc(im,c,10.0,-PI+t,PI*1.2,light,dark,3.0)
+
 func combat_frame_image(id:String,frame:int)->Image:
 	var style:Array=combat_style(id)
 	var mode:String=combat_animation_mode(id,str(style[0]))
@@ -2738,6 +2877,8 @@ func combat_frame_image(id:String,frame:int)->Image:
 		poison_sprite(im,role,frame);return im
 	if role.begins_with("bug_"):
 		bug_sprite(im,role,frame);return im
+	if role.begins_with("psi_"):
+		psi_sprite(im,role,frame);return im
 	var center:=Vector2(24,24)
 	match mode:
 		"vine":
@@ -3067,6 +3208,47 @@ func combat_profile(id:String)->Dictionary:
 		"eos_520":role="bug_defend"
 		"eos_529":role="bug_bite"
 		"eos_530":role="bug_buzz"
+		"eos_095":role="psi_agility"
+		"eos_099":role="psi_cosmic"
+		"eos_107":role="psi_beam"
+		"eos_108":role="psi_wave"
+		"eos_109":role="psi_psychic"
+		"eos_110":role="psi_boost"
+		"eos_111":role="psi_hypnosis"
+		"eos_133":role="psi_extra"
+		"eos_137":role="psi_skill"
+		"eos_146":role="psi_kinesis"
+		"eos_187":role="psi_teleport"
+		"eos_209":role="psi_trick"
+		"eos_215":role="psi_amnesia"
+		"eos_220":role="psi_role"
+		"eos_232":role="psi_rest"
+		"eos_234":role="psi_confusion"
+		"eos_258":role="psi_barrier"
+		"eos_259":role="psi_screen"
+		"eos_266":role="psi_imprison"
+		"eos_298":role="psi_magic"
+		"eos_309":role="psi_mist"
+		"eos_316":role="psi_mirror"
+		"eos_317":role="psi_future"
+		"eos_319":role="psi_calm"
+		"eos_331":role="psi_dream"
+		"eos_333":role="psi_meditate"
+		"eos_335":role="psi_luster"
+		"eos_338":role="psi_reflect"
+		"eos_439":role="psi_wish"
+		"eos_448":role="psi_guard"
+		"eos_450":role="psi_block"
+		"eos_463":role="psi_cut"
+		"eos_464":role="psi_shift"
+		"eos_473":role="psi_zen"
+		"eos_478":role="psi_gravity"
+		"eos_499":role="psi_room"
+		"eos_506":role="psi_heart"
+		"eos_513":role="psi_power"
+		"eos_514":role="psi_powertrick"
+		"eos_526":role="psi_lunar"
+		"eos_528":role="psi_eye"
 	if role in ["electric_charge","electric_lift"]:mode="lightning"
 	var impact:float=.48 if role in ["contact","electric_contact","electric_short","electric_fist","electric_fang","electric_dash","electric_spark"] else .64 if role in ["projectile","lash","electric_arc","electric_wave","electric_sky","electric_orb","electric_beam"] else .40
 	if role in ["fire_breath","fire_ember","fire_blast","fire_wisp"]:impact=.64
@@ -3085,6 +3267,7 @@ func combat_profile(id:String)->Dictionary:
 	if role.begins_with("air_"):impact=.64 if role in ["air_blast","air_cutter","air_sky","air_fly","air_bounce"] else .48
 	if role.begins_with("poison_"):impact=.64 if role in ["poison_bomb","poison_gunk","poison_acid","poison_sludge","poison_gastro"] else .48
 	if role.begins_with("bug_"):impact=.64 if role in ["bug_string","bug_signal","bug_twin","bug_pin","bug_turn"] else .48
+	if role.begins_with("psi_"):impact=.64 if role in ["psi_beam","psi_wave","psi_mist","psi_luster"] else .48
 	return {"mode":mode,"role":role,"element":element,"pattern":pattern,"range":reach,"duration":float(style[3]),"impact":impact,"socket":"ground" if role in ["ground","fire_plume","fire_magma","water_dive","water_whirlpool","water_surf","grass_frenzy","grass_roots","grass_knot","ice_avalanche","ice_cold","earth_dig","earth_tomb","earth_power","earth_fissure","earth_spikes","earth_quake","earth_magnitude","rock_edge","rock_tomb","rock_trap","rock_roll"] else "head" if role in ["projectile","fire_breath","fire_ember","fire_eruption","water_bubble","water_ink","water_spout","water_cannon","water_pump","water_bubblebeam","water_gun","water_pulse","water_brine","grass_solar","grass_energy","grass_bullet","grass_whistle","ice_aurora","ice_beam","ice_wind","earth_shot","rock_wrecker","rock_blast","rock_gem"] else "center"}
 func electric_sprite(im:Image,id:String,frame:int,role:String)->void:
 	var cyan:=Color("#40cfff")
@@ -3741,6 +3924,22 @@ func combat_fx_update(dt:float)->void:
 						q=points[-1]+Vector3(cos(angle)*t*.4,.12+f*.28,sin(angle)*t*.4);size=.58
 					_:
 						q=points[-1]+Vector3(cos(angle)*.22,.15+sin(angle)*.18,sin(angle)*.22);size=.53
+			if str(profile.role).begins_with("psi_"):
+				var psi_role:String=str(profile.role)
+				var progress:float=clampf(t*1.8-f*.30,0,1)
+				match psi_role:
+					"psi_beam","psi_wave","psi_mist","psi_luster","psi_cut","psi_zen":
+						q=combat_path_sample(points,progress)+Vector3(cos(angle)*.10,.15+sin(angle)*.12,sin(angle)*.10);size=.58
+					"psi_dream":
+						q=combat_path_sample(points,1.0-clampf((t-.35)*1.7-f*.2,0,1))+Vector3(cos(angle)*.13,.18,sin(angle)*.13);size=.42
+					"psi_skill","psi_trick","psi_role","psi_guard","psi_shift","psi_heart","psi_power":
+						q=combat_path_sample(points,progress if j%2==0 else 1.0-progress)+Vector3(0,sin(progress*PI)*(.50 if j%2==0 else .25),0);size=.46
+					"psi_gravity","psi_room","psi_block","psi_agility","psi_wish","psi_lunar":
+						q=tiles[j%tiles.size()]+Vector3(cos(angle)*.30,1.4*(1.0-progress) if psi_role=="psi_gravity" else .15+f*.45,sin(angle)*.30);size=.52
+					"psi_cosmic","psi_teleport","psi_amnesia","psi_rest","psi_barrier","psi_screen","psi_magic","psi_mirror","psi_future","psi_calm","psi_meditate","psi_reflect","psi_powertrick":
+						q=points[0]+Vector3(cos(angle+t*TAU)*.40,.12+f*.65,sin(angle+t*TAU)*.40);size=.50
+					_:
+						q=points[-1]+Vector3(cos(angle+t*TAU)*.32,.15+f*.42,sin(angle+t*TAU)*.32);size=.52
 			# Drained energy travels from victim back to caster; healing stays on caster.
 			if profile.role=="drain" and t>=.40:
 				var back:float=clampf((t-.40)*2.0-f*.22,0.0,1.0)
