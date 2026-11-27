@@ -361,6 +361,32 @@ func run_checks()->void:
 		checks+=1
 	print("KINDRIA_COMBAT_APPENDAGES species=",Art.ENEMY_COMBAT_APPENDAGES.size()," visible_direction_variants=",anatomy_visible)
 	print("KINDRIA_ANATOMY_VISIBILITY ",JSON.stringify(anatomy_visibility))
+	# Attack-specific slots must resolve to existing native anatomy only.
+	var slot_routes:int=0
+	for species in Art.ENEMY_PIXEL_PILOTS:
+		if not Art.COMBAT_ANATOMY_SLOTS.has(species):failures.append("missing anatomy slot registry "+species)
+		for motion in Art.MOTION_ANATOMY:
+			var slot:String=Art.combat_anatomy_slot(species,motion)
+			if not slot.is_empty() and not slot in Art.COMBAT_ANATOMY_SLOTS.get(species,[]):failures.append("unsupported anatomy slot "+species)
+			if not slot.is_empty():slot_routes+=1
+			checks+=1
+	var targeted_cases:Dictionary={"tidal_sovereign":["jaw","tail"],"vinesnap":["jaw","leaf"],"fungal_monarch":["aura","limbs"],"marrowray":["wing","tail"],"rootgnawer":["horn","legs"]}
+	for species in targeted_cases:
+		var slots:Array=targeted_cases[species]
+		var distinct:bool=false
+		for direction in range(8):
+			var left:=Art.enemy_pixel_cell(species,direction,"attack",1,false,2,str(slots[0]))
+			var right:=Art.enemy_pixel_cell(species,direction,"attack",1,false,2,str(slots[1]))
+			if left.get_data()!=right.get_data():distinct=true
+			var plain:=Art.enemy_pixel_texture(species,direction,"attack",1)
+			var unsupported:=Art.enemy_pixel_texture(species,direction,"attack",1,false,2,"unavailable")
+			if plain!=unsupported:failures.append("unsupported anatomy allocated variant "+species)
+			checks+=1
+		if not distinct:failures.append("identical targeted anatomy "+species)
+	if Art.combat_anatomy_slot("tidal_sovereign","crunch")!="jaw" or Art.combat_anatomy_slot("tidal_sovereign","tail")!="tail" or Art.combat_anatomy_slot("comet_hare","kick")!="legs" or not Art.combat_anatomy_slot("nova_wisp","punch").is_empty():failures.append("incorrect anatomical routing")
+	checks+=4
+	print("KINDRIA_ATTACK_ANATOMY routes=",slot_routes," multislot_species=",targeted_cases.size())
+
 	# Directed contact art is independently visible and kick poses are animated.
 	for id in Dungeon.CONTACT_ICON_KIND:
 		var kind:String=view.directed_contact_kind(id,str(view.combat_profile(id).role))
