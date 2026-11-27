@@ -843,6 +843,37 @@ func run_checks()->void:
 			env_signatures[signature]=true
 			if view.combat_environment_sound(phase,variant)!=audio:failures.append("V19.8 environment cache")
 			checks+=3
+	# V19.9 status motifs must reflect confirmed outcomes, not move chance.
+	var ailment_move:Dictionary={"category":"special","inflict_status":"paralysis"}
+	if view.combat_status_audio_kind(ailment_move,{"damage":5})!="":failures.append("V19.9 false proc")
+	if view.combat_status_audio_kind(ailment_move,{"damage":5,"status":"Paralysis","status_changed":true})!="paralysis":failures.append("V19.9 confirmed proc")
+	if view.combat_status_audio_kind({"category":"status","inflict_status":"sleep"},{"misses":1})!="":failures.append("V19.9 missed sleep")
+	if view.combat_status_audio_kind({"category":"status","inflict_status":"sleep"},{"blocked":1})!="":failures.append("V19.9 blocked sleep")
+	if view.combat_status_audio_kind({},{"heal":4})!="heal":failures.append("V19.9 healing")
+	if view.combat_status_audio_kind({"drain_fraction":.5},{"heal":4})!="drain":failures.append("V19.9 drain")
+	if view.combat_status_audio_kind({"category":"status","stat_changes":{"attack":1}},{"effects":1})!="boost":failures.append("V19.9 boost")
+	if view.combat_status_audio_kind({"category":"status","stat_changes":{"attack":-1}},{"effects":1})!="weaken":failures.append("V19.9 weaken")
+	var status_cell:=Vector2i(7,8)
+	var status_waves:Array[Dictionary]=view.cast_impact_waves({status_cell:{"status":"Poison","attempts":[{"damage":3,"status":"Poison","status_changed":true},{"damage":0,"misses":1}]}})
+	if status_waves.size()!=2 or view.combat_status_audio_kind({},status_waves[0][status_cell])!="poison" or not view.combat_status_audio_kind({},status_waves[1][status_cell]).is_empty():failures.append("V19.9 wrong proc timing")
+	checks+=9
+	var status_signatures:Dictionary={}
+	for kind in ["heal","drain","cleanse","shield","boost","weaken","exchange","transform","sleep","confusion","poison","burn","paralysis","freeze","curse","heart","bind","trap","weather","blocked","ritual"]:
+		var phase:String="status_"+kind
+		var mix:Vector3=view.combat_audio_mix(60,phase,true)
+		if mix.z!=(0.0 if kind=="blocked" else 1.0) or mix.x> -15.0:failures.append("V19.9 status priority "+kind)
+		checks+=1
+		for variant in range(3):
+			var audio:AudioStreamWAV=view.combat_status_sound(phase,variant)
+			var pcm:PackedByteArray=audio.data
+			var peak:int=0
+			for offset in range(0,pcm.size(),2):peak=maxi(peak,absi(pcm.decode_s16(offset)))
+			if pcm.size()<1000 or peak<100 or peak>31130 or pcm.decode_s16(0)!=0 or pcm.decode_s16(pcm.size()-2)!=0 or audio.stereo or audio.mix_rate!=22050:failures.append("V19.9 status PCM "+kind)
+			var signature:String=pcm.hex_encode()
+			if status_signatures.has(signature):failures.append("V19.9 duplicate motif "+kind)
+			status_signatures[signature]=true
+			if view.combat_status_sound(phase,variant)!=audio:failures.append("V19.9 status cache "+kind)
+			checks+=3
 	# Full catalog: actual frame bytes, audio buffers, and pooled world FX.
 	# A duplicate sequence or sparse animation is a review candidate, not proof
 	# of poor visual quality. Preserve exact IDs in the downloadable CI report.
