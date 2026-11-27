@@ -874,14 +874,25 @@ func run()->void:
 		var key:String=str(fingerprint)
 		assert(not motion_fingerprints.has(key),"duplicate geometry "+role)
 		motion_fingerprints[key]=role
-	assert(motion_fingerprints.size()==471)
+	assert(motion_fingerprints.size()==589)
 	for move_id in catalog:
 		var intensity:float=field.attack_visual_intensity(move_id)
 		assert(intensity>=.66 and intensity<=1.34,move_id)
 	assert(field.attack_visual_intensity("eos_188")<field.attack_visual_intensity("eos_064"))
 	assert(field.attack_visual_intensity("eos_308")<field.attack_visual_intensity("eos_240"))
 	assert(field.attack_visual_intensity("eos_262")<field.attack_visual_intensity("eos_157"))
-	print("KINDRIA_V14_DIRECTION_PASS 471")
+	print("KINDRIA_V14_DIRECTION_PASS 589")
+	# Every actual catalog ID must resolve to its own authored direction.
+	var resolved_profiles:Dictionary={}
+	for move_id in catalog:
+		var p:Dictionary=field.combat_profile(move_id)
+		var design:Array=field.attack_direction_profile(move_id,p)
+		assert(not design.is_empty(),"generic attack "+move_id)
+		var key:String=str(design)
+		assert(not resolved_profiles.has(key),"shared direction "+move_id)
+		resolved_profiles[key]=move_id
+	assert(resolved_profiles.size()==589)
+	print("KINDRIA_V14_NO_GENERIC_DIRECTION_PASS 589")
 	# Capture paired actual material finishes, not concept art, for visual review.
 	var review_moves:Dictionary={"eos_135":"grass","eos_076":"grass","eos_462":"ice","eos_270":"ice","eos_008":"ground","eos_118":"ground","eos_028":"rock","eos_453":"rock","eos_200":"poison","eos_280":"poison"}
 	for move_id in review_moves:
