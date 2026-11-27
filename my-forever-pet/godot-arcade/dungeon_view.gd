@@ -133,6 +133,8 @@ const TILE_CAST_GROUND=["eos_052","eos_132","eos_139","eos_140","eos_154","eos_1
 var player_impact_delay:float=0.0
 var fx_reactions:Array[Dictionary]=[]
 var fx_ground_shake:float=0.0
+var fx_contact_camera:Vector3=Vector3.ZERO
+var fx_contact_camera_age:float=1.0
 var fx_geometry_count:int=0
 const FX_FRAME_COUNT=12
 const FX_FRAME_SIZE=48
@@ -1874,7 +1876,7 @@ func update_living_ambient(dt:float):
 		trail_ages[i]=minf(99.0,trail_ages[i]+delta)
 		var fade=clampf(1.0-trail_ages[i]/life,0.0,1.0)
 		var scale_value=(.55+trail_ages[i]*.28) if region==1 else .78
-		if fade<=0.0:scale_value=.001
+		if fade<=0.0:scale_value=.001;trail_ages[i]=99.0
 		trail_batch.multimesh.set_instance_transform(i,Transform3D(Basis(Vector3.UP,trail_angles[i]).scaled(Vector3.ONE*scale_value),trail_origins[i]))
 		trail_batch.multimesh.set_instance_color(i,Color(1,1,1,fade*.58))
 func build_floor():
@@ -2057,25 +2059,40 @@ func cast_motion_kind(id:String,profile:Dictionary)->String:
 	if role in ["contact","electric_short"]:return "contact"
 	return "cast"
 
+# Anticipation, acceleration, contact and follow-through share the authored
+# impact clock. No extra turn delay and no change to the tile-cast route.
+func attack_direction_sample(progress:float,impact:float)->Vector3:
+	var t:float=clampf(progress,0.0,1.0)
+	var peak:float=clampf(impact,.12,.88)
+	var windup_end:float=peak*.34
+	var anticipation:float=sin(PI*t/windup_end) if t<windup_end else 0.0
+	var drive:float=0.0
+	var follow:float=0.0
+	if t>=windup_end and t<=peak:
+		drive=smoothstep(windup_end,peak,t)
+	elif t>peak:
+		var recovery:float=(t-peak)/(1.0-peak)
+		drive=1.0-smoothstep(0.0,1.0,recovery)
+		follow=sin(recovery*PI)*(1.0-recovery)
+	return Vector3(anticipation,drive,follow)
+
 func cast_motion_offset(kind:String,progress:float,impact:float)->Vector3:
 	var t:float=clampf(progress,0.0,1.0)
 	var peak:float=clampf(impact,.12,.88)
-	var pulse:float=smoothstep(0.0,peak,t) if t<=peak else 1.0-smoothstep(peak,1.0,t)
+	var cue:=attack_direction_sample(t,peak)
 	var recoil:float=sin(t*PI)
-	# X is forward, Y vertical, Z lateral; apply in the caster's facing basis.
 	match kind:
-		"rush":return Vector3(.64*pulse,.05*recoil,0)
-		"contact":return Vector3(.40*pulse,.06*recoil,0)
-		"lash":return Vector3(.13*pulse,.025*recoil,0)
+		"rush":return Vector3(.64*cue.y-.14*cue.x,.05*recoil,0)
+		"contact":return Vector3(.40*cue.y-.09*cue.x,.06*recoil,0)
+		"lash":return Vector3(.13*cue.y-.08*cue.x,.025*recoil,.07*cue.z)
 		"aerial":
-			# The feet meet the ground at impact, not halfway through recovery.
 			var flight:float=sin(PI*t/peak) if t<peak else 0.0
-			return Vector3(.36*pulse,.60*flight,0)
-		"down":return Vector3(.20*pulse,.30*sin(minf(1.0,t/peak)*PI),0)
-		"spin":return Vector3(.10*pulse,.07*recoil,.13*sin(t*TAU))
+			return Vector3(.36*cue.y-.06*cue.x,.60*flight,0)
+		"down":return Vector3(.20*cue.y-.04*cue.x,.30*sin(minf(1.0,t/peak)*PI),0)
+		"spin":return Vector3(.10*cue.y,.07*recoil,.13*sin(t*TAU))
 		"focus":return Vector3(0,.08*recoil,0)
-		"gesture":return Vector3(.04*pulse,.05*recoil,.04*sin(t*TAU))
-		_:return Vector3(-.10*sin(minf(1.0,t/peak)*PI),.04*recoil,0)
+		"gesture":return Vector3(.04*cue.y,.05*recoil,.04*sin(t*TAU))
+		_:return Vector3(-.10*cue.x+.045*cue.y,.04*recoil,0)
 
 func cast_offset_world(offset:Vector3,direction:Vector3)->Vector3:
 	var forward:=Vector3(direction.x,0,direction.z).normalized()
@@ -2323,7 +2340,7 @@ func combat_fx_setup(parent:Node3D)->void:
 	for sound in fx_audio:
 		if is_instance_valid(sound):sound.stop()
 	response_slots.clear()
-	combat_particles.clear();combat_warnings.clear();combat_bursts.clear();retired_impacts.clear();delayed_combat_fx.clear();fx_reactions.clear();fx_ground_shake=0.0
+	combat_particles.clear();combat_warnings.clear();combat_bursts.clear();retired_impacts.clear();delayed_combat_fx.clear();fx_reactions.clear();fx_ground_shake=0.0;fx_contact_camera=Vector3.ZERO;fx_contact_camera_age=1.0
 	combat_fx_root=Node3D.new();parent.add_child(combat_fx_root)
 	setup_cinematic_lighting()
 	setup_ultra_combat_layers()
@@ -6358,13 +6375,39 @@ func dispatch_cast_waves(burst:Dictionary)->void:
 		show_cast_results(wave)
 		ultra_impact_residue(burst,wave,cursor==0,maxf(0.0,float(burst.age)-float(times[cursor])))
 		var audible:bool=wave.is_empty() and cursor==0
+		var target:Vector3=burst.points[-1]
+		var nearest:float=INF
+		var strongest:int=0
+		var critical:bool=false
 		for tile in wave:
 			var row:Dictionary=wave[tile]
-			if int(row.get("damage",0))+int(row.get("effects",0))+int(row.get("heal",0))>0:
+			var amount:int=int(row.get("damage",0))
+			strongest=maxi(strongest,amount)
+			critical=critical or (amount>0 and int(row.get("crit",0))>0)
+			if amount+int(row.get("effects",0))+int(row.get("heal",0))>0:
 				audible=true
-		if audible:play_combat_sound(str(burst.id),"impact",burst.points[-1])
+				var point:Vector3=pos(tile)+Vector3.UP*target.y
+				var distance:float=point.distance_squared_to(burst.points[-1])
+				if distance<nearest:nearest=distance;target=point
+		if audible:play_combat_sound(str(burst.id),"impact",target)
+		if strongest>0 or (wave.is_empty() and cursor==0 and int(burst.get("damage",0))>0):
+			var age:float=maxf(0.0,float(burst.age)-float(times[cursor]))
+			queue_contact_camera(burst.points[0],target,critical,age)
 		cursor+=1
 	burst["impact_cursor"]=cursor
+
+# A subtle directional impulse only on confirmed damage; no camera zoom,
+# no hit-stop and no re-centering on the enemy's logical tile.
+func contact_camera_sample(progress:float)->float:
+	var t:float=clampf(progress,0.0,1.0)
+	return (1.0-t)*(1.0-t)*sin(t*TAU*1.25)
+
+func queue_contact_camera(source:Vector3,target:Vector3,critical:bool,age:float)->void:
+	if age>=.18 or age>fx_contact_camera_age:return
+	var direction:=Vector3(target.x-source.x,0,target.z-source.z).normalized()
+	if direction.length_squared()<.0001:return
+	fx_contact_camera=direction*(.065 if critical else .038)
+	fx_contact_camera_age=age
 
 func retire_combat_burst(burst:Dictionary)->void:
 	if int(burst.get("impact_cursor",0))>=burst.get("impact_times",[]).size():return
@@ -6441,6 +6484,7 @@ func combat_fx_update(dt:float)->void:
 	if is_instance_valid(fx_trail_mesh):fx_trail_mesh.clear_surfaces()
 	update_combat_reactions(dt)
 	fx_ground_shake=maxf(0.0,fx_ground_shake-dt*3.0)
+	fx_contact_camera_age=minf(1.0,fx_contact_camera_age+dt)
 	latest_hit=update_retired_impacts(dt)
 	fx_arc_segments=0
 	if is_instance_valid(fx_arc_mesh):fx_arc_mesh.clear_surfaces()
@@ -9113,4 +9157,6 @@ func _process(dt:float):
 	var focus=pet.position+Vector3(0,.18,-.48)
 	# The prior floor-build-only shake never reached the actual render loop.
 	var shake:float=minf(fx_ground_shake,.10)
-	camera.position=focus+DUNGEON_CAMERA_OFFSET+Vector3(sin(elapsed*61.0)*shake,0,cos(elapsed*73.0)*shake*.45);camera.look_at(focus)
+	var contact_shift:Vector3=fx_contact_camera*contact_camera_sample(fx_contact_camera_age/.18)
+	camera.position=focus+DUNGEON_CAMERA_OFFSET+Vector3(sin(elapsed*61.0)*shake,0,cos(elapsed*73.0)*shake*.45)+contact_shift
+	camera.look_at(focus+contact_shift)
