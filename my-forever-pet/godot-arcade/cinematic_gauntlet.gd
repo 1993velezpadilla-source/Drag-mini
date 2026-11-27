@@ -1126,8 +1126,14 @@ func run_checks()->void:
 			var similarity_key:String=str(profile.element)+":"+phase+":"+str(metrics.descriptor)
 			if not audio_similarity_groups.has(similarity_key):audio_similarity_groups[similarity_key]=[]
 			audio_similarity_groups[similarity_key].append(id)
-			if float(metrics.rms)<.005 or absf(float(metrics.dc))>.025 or float(metrics.max_step)>.8:
-				audio_review_rows.append({"id":id,"phase":phase,"metrics":metrics})
+			var acoustic_reasons:Array[String]=[]
+			if float(metrics.rms)<.005:acoustic_reasons.append("low_rms")
+			if absf(float(metrics.dc))>.025:acoustic_reasons.append("dc_offset")
+			if float(metrics.max_step)>.8:acoustic_reasons.append("large_sample_step")
+			if not acoustic_reasons.is_empty():
+				var candidate:Dictionary={"id":id,"name":str(move.get("name",id)),"element":profile.element,"phase":phase,"reasons":acoustic_reasons,"metrics":metrics}
+				audio_review_rows.append(candidate)
+				print("KINDRIA_AUDIO_REVIEW ",JSON.stringify(candidate))
 			if float(metrics.peak)>Dungeon.FX_AUDIO_PEAK_LIMIT+.0001:failures.append("V20.1 peak ceiling "+str(id))
 			checks+=2
 			var peak:int=0
@@ -1161,7 +1167,9 @@ func run_checks()->void:
 	# Coarse similarity groups are advisory; only exact PCM duplicates fail.
 	var audio_similarity_review:Dictionary={}
 	for group in audio_similarity_groups:
-		if audio_similarity_groups[group].size()>1:audio_similarity_review[group]=audio_similarity_groups[group]
+		if audio_similarity_groups[group].size()>1:
+			audio_similarity_review[group]=audio_similarity_groups[group]
+			print("KINDRIA_AUDIO_SIMILARITY ",JSON.stringify({"group":group,"ids":audio_similarity_groups[group]}))
 	for priority in range(4):
 		var ceiling:float=view.combat_audio_priority_ceiling(priority)
 		if view.combat_audio_can_admit(ceiling,priority) or not view.combat_audio_can_admit(ceiling-.01,priority):failures.append("V20.1 early admission")
