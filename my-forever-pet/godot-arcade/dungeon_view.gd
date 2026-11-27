@@ -1768,6 +1768,9 @@ func update_enemy_pixel(actor:Node3D,dt:float,motion:Vector3)->void:
 	else:sprite.modulate=Color("#ffb5c6") if state=="hurt" else Color.WHITE
 # Lightweight reusable pixel VFX: no per-frame node allocation, no camera-facing 3D creatures.
 func combat_fx_setup(parent:Node3D)->void:
+	for sound in fx_audio:
+		if is_instance_valid(sound):sound.stop()
+	response_slots.clear()
 	combat_particles.clear();combat_warnings.clear();combat_bursts.clear();delayed_combat_fx.clear();fx_reactions.clear();fx_ground_shake=0.0
 	combat_fx_root=Node3D.new();parent.add_child(combat_fx_root)
 	fx_arc_mesh=ImmediateMesh.new()
