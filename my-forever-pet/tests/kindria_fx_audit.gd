@@ -477,6 +477,20 @@ func run()->void:
 	if absf(field.combat_actor_socket(socket_actor,"ground")-.13)>.001:errors.append("ground socket altitude")
 	socket_actor.free()
 	print("KINDRIA_DYNAMIC_SOCKET_PASS")
+	# Deferred geometry is immutable even when actor nodes or source arrays change.
+	var frozen_source:=Node3D.new()
+	var frozen_target:=Node3D.new()
+	frozen_target.set_meta("enemy_size_multiplier",1.45)
+	var historical_event:Dictionary={"fx":"eos_025","from":Vector2i.ZERO,"to":Vector2i(2,0),"path":[Vector2i(1,0),Vector2i(2,0)]}
+	var frozen:Dictionary=field.snapshot_counter_geometry(historical_event,frozen_source,frozen_target)
+	frozen_target.set_meta("enemy_size_multiplier",.5)
+	historical_event.path.clear()
+	frozen_source.free()
+	frozen_target.free()
+	if absf(float(frozen.target_height)-.45*1.45)>.001 or frozen.path.size()!=2:errors.append("historical counter geometry")
+	var frozen_points:Array=field.combat_waypoints(frozen.from,frozen.to,frozen.path,float(frozen.source_height),float(frozen.target_height))
+	if frozen_points.size()!=3 or absf(float(frozen_points[-1].y)-.45*1.45)>.001:errors.append("historical counter endpoint")
+	print("KINDRIA_FROZEN_COUNTER_GEOMETRY_PASS")
 	# A cast created by path movement after the frame clock must start at zero age.
 	field.attack_time=.4
 	field.player_impact_delay=.2
