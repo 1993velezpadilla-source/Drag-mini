@@ -2045,6 +2045,27 @@ func enemy_shadow_sample(body_offset:Vector3,hover:float,parent_lift:float,size_
 	var footprint:float=size_multiplier*clampf(1.0-altitude*.65,.42,1.0)
 	return {"position":Vector3(body_offset.x,.035-parent_lift,body_offset.z),"scale":Vector3(footprint*(1.15 if wide else 1.0),footprint*.8,1.0)}
 
+# Idle movement stays under a few pixels and uses each creature's silhouette.
+# x: breathing frequency, y: compression amplitude, z: lateral drift, w: hover bob.
+func creature_idle_profile(species:String)->Vector4:
+	match species:
+		"coralcrab","thornbeetle","shellguard","crystarok":return Vector4(.48,.009,.005,0.0)
+		"grovetitan","abyss_colossus","astro_golem","fungal_monarch":return Vector4(.32,.013,.004,.012)
+		"lunamoth","nebulwing","sylphowl","celestial_guardian":return Vector4(1.15,.014,.018,.045)
+		"eelstrix","orbitserpent","leviathorn","vinesnap":return Vector4(.75,.019,.027,.026)
+		"marrowray","tidal_sovereign","reef_pup","anemoneye":return Vector4(.66,.021,.018,.030)
+		"nova_wisp","leafwisp","bubblewisp","jellymancer":return Vector4(.85,.037,.022,.052)
+		"bramble_pup","starlit_pup","hollow_stag","lunar_prowler","rootgnawer","voidspider","mossmite":return Vector4(.68,.020,.007,0.0)
+		"comet_hare":return Vector4(1.0,.025,.009,0.0)
+		"sporeling":return Vector4(.58,.030,.012,0.0)
+		_:return Vector4(.62,.018,.006,0.0)
+
+func creature_idle_sample(species:String,seconds:float,seed:float,weight:float,hovering:bool)->Vector3:
+	var p:=creature_idle_profile(species)
+	var phase:float=seconds*TAU*p.x+seed
+	var w:float=clampf(weight,0.0,1.0)
+	return Vector3(1.0+sin(phase)*p.y*w,sin(phase*.63+seed)*p.z*w,sin(phase*.72)*p.w*w if hovering else 0.0)
+
 func update_enemy_pixel(actor:Node3D,dt:float,motion:Vector3,body_dt:float=-1.0)->void:
 	var sprite:=actor.get_node_or_null("EnemyPixel") as Sprite3D
 	if sprite==null:return
@@ -2070,13 +2091,26 @@ func update_enemy_pixel(actor:Node3D,dt:float,motion:Vector3,body_dt:float=-1.0)
 	var species:String=str(actor.get_meta("species"))
 	var facing_index:int=int(actor.get_meta("enemy_facing",0))
 	var hovering:bool=species in ["nova_wisp","leafwisp","lunamoth","jellymancer","marrowray","nebulwing","bubblewisp","sylphowl","leviathorn","astro_golem","celestial_guardian","tidal_sovereign"]
+	var real_dt:float=maxf(0.0,dt if body_dt<0.0 else body_dt)
+	var idle_weight:float=float(actor.get_meta("native_idle_weight",0.0))
+	# Never layer idle deformation on a strike, hurt or defeat frame.
+	idle_weight=move_toward(idle_weight,1.0,real_dt*5.0) if state=="idle" else 0.0
+	actor.set_meta("native_idle_weight",idle_weight)
+	var idle_seed:float=float(actor.get_instance_id()%97)*TAU/97.0
+	var idle_sample:=creature_idle_sample(species,elapsed,idle_seed,idle_weight,hovering)
 	var rise:float=.13+.04*sin(elapsed*3.0+float(actor.get_instance_id()%11)) if hovering and state!="defeat" else 0.0
+	rise+=idle_sample.z
 	var size_multiplier:float=float(actor.get_meta("enemy_size_multiplier",1.0))
 	sprite.position=Vector3(0,.54*size_multiplier+rise,0)
 	var body_offset:=Vector3.ZERO
 	var hit_flash:float=0.0
 	# Same continuous body clock as the companion; preserve the authored ground anchor.
 	sprite.scale=Vector3.ONE
+	if state=="idle":
+		sprite.scale=Vector3(1.0/idle_sample.x,idle_sample.x,1.0)
+		sprite.position.y+=.54*size_multiplier*(idle_sample.x-1.0)
+		body_offset.x=idle_sample.y*size_multiplier
+		sprite.position.x+=body_offset.x
 	if state=="attack":
 		var body:Dictionary=PixelArt.attack_body_sample(clock/maxf(.01,duration),float(actor.get_meta("enemy_cast_impact",.48)),str(actor.get_meta("enemy_cast_motion","contact")))
 		var stretch:float=float(body.stretch)
@@ -2107,11 +2141,11 @@ func update_enemy_pixel(actor:Node3D,dt:float,motion:Vector3,body_dt:float=-1.0)
 		shadow.position=shadow_sample.position
 		shadow.scale=shadow_sample.scale
 	var visual_state:String=state
-	# Separate continuous locomotion phase prevents an idle/move transition
-	# from resetting a wingbeat. Combat pose timing always takes precedence.
+	# The phase continues through combat even when the strike sprite takes priority.
+	# This avoids freezing the wing/fin cycle every time an enemy attacks.
+	var locomotion_clock:float=fposmod(float(actor.get_meta("native_locomotion_clock",idle_seed))+real_dt,4.0)
+	actor.set_meta("native_locomotion_clock",locomotion_clock)
 	if state in ["idle","walk"]:
-		var locomotion_clock:float=fposmod(float(actor.get_meta("native_locomotion_clock",0.0))+maxf(0.0,dt),4.0)
-		actor.set_meta("native_locomotion_clock",locomotion_clock)
 		var locomotion:Dictionary=PixelArt.enemy_locomotion_sample(species,state,locomotion_clock if PixelArt.NATIVE_HOVER_CYCLES.has(species) else clock)
 		visual_state=str(locomotion.pose);frame=int(locomotion.frame)
 	if state=="attack":
@@ -2129,8 +2163,10 @@ func update_enemy_pixel(actor:Node3D,dt:float,motion:Vector3,body_dt:float=-1.0)
 		var stretch:float=float(living.stretch)
 		sprite.scale=Vector3(float(living.width),stretch,1.0)
 		sprite.position.y=lerpf(.54*size_multiplier+rise,.54*size_multiplier*stretch,float(living.sleep))+.54*size_multiplier*(stretch-1.0)*(1.0-float(living.sleep))
-		sprite.position.x+=float(living.sway)*size_multiplier
+		# Ailments own the silhouette; do not add healthy idle drift to a sleeping body.
+		sprite.position.x=float(living.sway)*size_multiplier
 		if shadow!=null:
+			shadow.position.x=sprite.position.x
 			shadow.scale.x*=1.0+float(living.sleep)*.24
 			shadow.scale.y*=1.0+float(living.sleep)*.13
 	var tex:=PixelArt.enemy_pixel_texture(species,facing_index,visual_state,frame)
