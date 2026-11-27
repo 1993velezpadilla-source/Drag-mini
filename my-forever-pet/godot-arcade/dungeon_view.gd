@@ -2336,19 +2336,23 @@ func update_enemy_pixel(actor:Node3D,dt:float,motion:Vector3,body_dt:float=-1.0)
 		appendage=creature_appendage_sample(species,elapsed,actor.get_instance_id())
 	# Strike-only anatomical cells follow the same authoritative impact time.
 	# Hurt, sleep, defeat and recovery keep their existing priority.
+	var anatomy:String="all"
 	if state=="attack" and visual_state=="attack" and species in PixelArt.ENEMY_COMBAT_APPENDAGES:
-		appendage=PixelArt.combat_appendage_stage(clock/maxf(.01,duration),float(actor.get_meta("enemy_cast_impact",.48)))
+		anatomy=PixelArt.combat_anatomy_slot(species,str(actor.get_meta("enemy_cast_motion","contact")))
+		if not anatomy.is_empty():appendage=PixelArt.combat_appendage_stage(clock/maxf(.01,duration),float(actor.get_meta("enemy_cast_impact",.48)))
+	if appendage==0 or visual_state!="attack":anatomy="all"
 	# Most rendered frames keep the same authored cell. Avoid repeated string
 	# formatting and texture-cache queries until one of its discrete inputs changes.
 	var cell_signature:=Vector4i(facing_index,frame,int(blink),appendage)
 	var texture_changed:bool=false
-	if str(actor.get_meta("native_cell_pose",""))!=visual_state or actor.get_meta("native_cell_signature",Vector4i(-1,-1,-1,-1))!=cell_signature:
-		var tex:=PixelArt.enemy_pixel_texture(species,facing_index,visual_state,frame,blink,appendage)
+	if str(actor.get_meta("native_cell_pose",""))!=visual_state or actor.get_meta("native_cell_signature",Vector4i(-1,-1,-1,-1))!=cell_signature or str(actor.get_meta("native_cell_anatomy",""))!=anatomy:
+		var tex:=PixelArt.enemy_pixel_texture(species,facing_index,visual_state,frame,blink,appendage,anatomy)
 		if tex!=null:
 			texture_changed=sprite.texture!=tex
 			if texture_changed:sprite.texture=tex
 			actor.set_meta("native_cell_pose",visual_state)
 			actor.set_meta("native_cell_signature",cell_signature)
+			actor.set_meta("native_cell_anatomy",anatomy)
 	if sprite.material_override is ShaderMaterial:
 		var material:=sprite.material_override as ShaderMaterial
 		if texture_changed:material.set_shader_parameter("sprite_tex",sprite.texture)
