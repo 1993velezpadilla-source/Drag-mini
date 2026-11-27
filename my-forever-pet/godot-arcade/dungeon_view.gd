@@ -5936,6 +5936,10 @@ func combat_fx_spawn(event:Dictionary)->void:
 	if combat_bursts.size()>=COMBAT_BURST_CAP:
 		retire_combat_burst(combat_bursts.pop_front())
 	combat_bursts.append({"id":id,"mode":style[0],"profile":profile,"target_player":event.get("target_player",false),"damage":event.get("damage",0),"impacted":false,"age":0.0,"duration":float(style[3]),"points":waypoints,"tiles":tiles,"texture":combat_animated_texture(id,0),"airborne_start":not event.has("uid") and release_charge_phase=="airborne","results":event.get("results",{}).duplicate(true)})
+	var burst:Dictionary=combat_bursts[-1]
+	burst["impact_waves"]=cast_impact_waves(burst.results)
+	burst["impact_times"]=reaction_times(float(burst.duration),float(profile.impact),burst.impact_waves.size())
+	burst["impact_cursor"]=0
 	play_combat_sound(id,"launch",waypoints[0])
 # Leading projectile reaches its destination on the exact impact fraction.
 # Trailing particles are delayed within the remaining lifetime, never beyond it.
@@ -6167,9 +6171,49 @@ func update_delayed_combat_fx(dt:float)->void:
 
 # Rendering visits newer bursts first, but the last actual impact wins the hurt pose.
 # A visual budget eviction must not silently cancel a pending hit or sound.
+# Each wave is one recorded attempt per affected tile, not a guessed hit count.
+func cast_impact_waves(results:Dictionary)->Array[Dictionary]:
+	var count:int=1
+	for tile in results:
+		count=maxi(count,mini(12,results[tile].get("attempts",[]).size()))
+	if count==1:return [results]
+	var waves:Array[Dictionary]=[]
+	for i in range(count):
+		var wave:Dictionary={}
+		for tile in results:
+			var row:Dictionary=results[tile]
+			var attempts:Array=row.get("attempts",[])
+			if attempts.is_empty():
+				if i==0:wave[tile]=row
+				continue
+			if i>=attempts.size():continue
+			var attempt:Dictionary=attempts[i].duplicate()
+			if i==attempts.size()-1:
+				if row.has("status"):attempt["status"]=row.status
+				if row.has("heal"):attempt["heal"]=row.heal
+			wave[tile]=attempt
+		waves.append(wave)
+	return waves
+
+func dispatch_cast_waves(burst:Dictionary)->void:
+	var waves:Array=burst.get("impact_waves",[])
+	var times:Array=burst.get("impact_times",[])
+	var cursor:int=int(burst.get("impact_cursor",0))
+	while cursor<times.size() and float(burst.age)>=float(times[cursor]):
+		var wave:Dictionary=waves[cursor]
+		show_cast_results(wave)
+		var audible:bool=wave.is_empty() and cursor==0
+		for tile in wave:
+			var row:Dictionary=wave[tile]
+			if int(row.get("damage",0))+int(row.get("effects",0))+int(row.get("heal",0))>0:
+				audible=true
+		if audible:play_combat_sound(str(burst.id),"impact",burst.points[-1])
+		cursor+=1
+	burst["impact_cursor"]=cursor
+
 func retire_combat_burst(burst:Dictionary)->void:
-	if burst.get("impacted",false):return
-	var record:Dictionary={"id":burst.id,"age":burst.age,"duration":burst.duration,"profile":burst.profile,"points":[burst.points[0],burst.points[-1]],"target_player":burst.get("target_player",false),"damage":burst.get("damage",0),"results":burst.get("results",{}).duplicate(true)}
+	if int(burst.get("impact_cursor",0))>=burst.get("impact_times",[]).size():return
+	var record:Dictionary={"id":burst.id,"age":burst.age,"duration":burst.duration,"profile":burst.profile,"points":[burst.points[0],burst.points[-1]],"target_player":burst.get("target_player",false),"damage":burst.get("damage",0),"results":burst.get("results",{}).duplicate(true),"impact_waves":burst.impact_waves,"impact_times":burst.impact_times,"impact_cursor":burst.impact_cursor,"impacted":burst.impacted}
 	if retired_impacts.size()>=RETIRED_IMPACT_CAP:
 		var replace_index:int=-1
 		for i in range(retired_impacts.size()):
@@ -6186,12 +6230,12 @@ func update_retired_impacts(dt:float)->Dictionary:
 	for i in range(retired_impacts.size()-1,-1,-1):
 		var record:Dictionary=retired_impacts[i]
 		record.age+=dt
-		if float(record.age)<float(record.duration)*float(record.profile.impact):continue
-		play_combat_sound(str(record.id),"impact",record.points[-1])
-		show_cast_results(record.get("results",{}))
-		if str(record.profile.role) in ["ground","earth_quake","earth_magnitude","earth_fissure"]:fx_ground_shake=.22
-		if record.target_player and int(record.damage)>0:latest=latest_player_impact(latest,record)
-		retired_impacts.remove_at(i)
+		dispatch_cast_waves(record)
+		if not bool(record.impacted) and float(record.age)>=float(record.duration)*float(record.profile.impact):
+			record.impacted=true
+			if str(record.profile.role) in ["ground","earth_quake","earth_magnitude","earth_fissure"]:fx_ground_shake=.22
+			if record.target_player and int(record.damage)>0:latest=latest_player_impact(latest,record)
+		if int(record.impact_cursor)>=record.impact_times.size():retired_impacts.remove_at(i)
 	return latest
 
 func latest_player_impact(current:Dictionary,burst:Dictionary)->Dictionary:
@@ -6261,9 +6305,9 @@ func combat_fx_update(dt:float)->void:
 		burst.age+=dt
 		var t:float=float(burst.age)/float(burst.duration)
 		var profile:Dictionary=burst.profile
+		dispatch_cast_waves(burst)
 		if not burst.impacted and t>=float(profile.impact):
-			burst.impacted=true;play_combat_sound(str(burst.id),"impact",burst.points[-1])
-			show_cast_results(burst.get("results",{}))
+			burst.impacted=true
 			ultra_impact_residue(burst)
 			if str(profile.role) in ["ground","earth_quake","earth_magnitude","earth_fissure"]:fx_ground_shake=.22
 			if burst.get("target_player",false) and int(burst.get("damage",0))>0:
@@ -6299,6 +6343,7 @@ func combat_fx_update(dt:float)->void:
 		if profile.role=="ground":count=mini(18,tiles.size()*3)
 		# Keep elemental contact accents visible when the base spray is large.
 		if crowded:count=mini(count,maxi(1,share*2/3))
+		used=multi_hit_accents(burst,t,used)
 		used=confirmed_contact_icons(burst,t,used)
 		# Reserve the readable projectile head within the same shared cast quota.
 		used=projectile_identity_fx(burst,t,used)
@@ -7135,6 +7180,24 @@ func projectile_identity_fx(burst:Dictionary,t:float,used:int)->int:
 		var scale_value:float=(.56 if kind in ["orb","bomb"] else .44)*(1.0-float(i)*.19)
 		var opacity:float=minf(1.0,progress*10.0)*(1.0-float(i)*.24)
 		used=environment_particle(used,q,head_mode,light,dark,scale_value,opacity)
+	return used
+
+func multi_hit_accents(burst:Dictionary,t:float,used:int)->int:
+	var waves:Array=burst.get("impact_waves",[])
+	var times:Array=burst.get("impact_times",[])
+	if waves.size()<2:return used
+	var index:int=int(burst.get("impact_cursor",0))-1
+	if index<0:return used
+	var age:float=float(burst.age)-float(times[index])
+	var lifetime:float=minf(.16,maxf(.045,float(burst.duration)*(1.0-float(burst.profile.impact))/float(waves.size())*.85))
+	if age<0.0 or age>=lifetime:return used
+	var fade:float=1.0-age/lifetime
+	var style:Array=combat_style(str(burst.id))
+	var material:String=str(ELEMENT_FINISH_MODE.get(str(burst.profile.element),"impact_star"))
+	for tile in waves[index]:
+		if int(waves[index][tile].get("damage",0))<=0:continue
+		used=environment_particle(used,pos(tile)+Vector3.UP*.62,material,Color(style[1]),Color(style[2]),.45+age*.8,fade)
+		if used>=fx_cast_particle_limit:break
 	return used
 
 func confirmed_contact_icons(burst:Dictionary,t:float,used:int)->int:
