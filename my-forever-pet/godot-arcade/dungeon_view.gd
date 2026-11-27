@@ -2911,6 +2911,32 @@ func special_contact_stamp(mode:String,light:Color,dark:Color)->Image:
 			if distance<=0.0:im.set_pixel(x,y,light if distance<-.8 else dark)
 	return im
 
+# Original compact projectile stamps. Existing elemental sprites remain available.
+func projectile_contact_stamp(mode:String,light:Color,dark:Color)->Image:
+	var im:=Image.create(32,32,false,Image.FORMAT_RGBA8)
+	im.fill(Color.TRANSPARENT)
+	for y in range(32):
+		for x in range(32):
+			var p:=Vector2(float(x)-15.5,float(y)-15.5)
+			var d:float=99.0
+			match mode:
+				"projectile_seed":
+					d=Vector2((p.x-p.y*.25)*.85,p.y*1.35).length()-8.0
+				"projectile_needle":
+					if absf(p.x)<13.0:d=absf(p.y)-maxf(.7,3.2*(1.0-(p.x+13.0)/26.0))
+				"projectile_stone":
+					d=maxf(absf(p.x+p.y*.22)*.75,absf(p.y)*.85)+absf(p.x-p.y)*.18-9.0
+				"projectile_orb":
+					d=p.length()-10.0
+				"projectile_ray":
+					if absf(p.x)<14.0:d=absf(p.y)-maxf(1.2,3.6-absf(p.x)*.11)
+			if d>0.0:continue
+			var ink:Color=dark if d> -1.5 else light
+			if mode=="projectile_orb" and p.distance_to(Vector2(-3,-3))<3.2:ink=light.lerp(Color.WHITE,.65)
+			if mode=="projectile_seed" and absf(p.x-p.y*.25)<.8:ink=dark
+			im.set_pixel(x,y,ink)
+	return im
+
 func combat_pixel_texture(mode:String,light:Color,dark:Color)->ImageTexture:
 	var key:=mode+":"+str(light)+":"+str(dark)
 	if combat_textures.has(key):return combat_textures[key]
@@ -2918,6 +2944,11 @@ func combat_pixel_texture(mode:String,light:Color,dark:Color)->ImageTexture:
 	# of resident material variants even in an endless developer dungeon.
 	if combat_texture_order.size()>=FX_MATERIAL_CACHE_CAP:
 		combat_textures.erase(combat_texture_order.pop_front())
+	if mode.begins_with("projectile_"):
+		var shot_stamp:=ImageTexture.create_from_image(projectile_contact_stamp(mode,light,dark))
+		combat_textures[key]=shot_stamp
+		combat_texture_order.append(key)
+		return shot_stamp
 	if mode.begins_with("special_"):
 		var special_stamp:=ImageTexture.create_from_image(special_contact_stamp(mode,light,dark))
 		combat_textures[key]=special_stamp
@@ -6951,7 +6982,7 @@ func environment_particle(index:int,position:Vector3,mode:String,light:Color,dar
 	particle.rotation=Vector3(-PI*.5,0,0) if flat else Vector3.ZERO
 	particle.position=position
 	particle.texture=combat_pixel_texture(mode,light,dark)
-	particle.pixel_size=.016 if mode.begins_with("kick_") or mode.begins_with("claw_") or mode.begins_with("body_") or mode.begins_with("special_") else .032
+	particle.pixel_size=.016 if mode.begins_with("kick_") or mode.begins_with("claw_") or mode.begins_with("body_") or mode.begins_with("special_") or mode.begins_with("projectile_") else .032
 	particle.scale=Vector3.ONE*scale_value
 	particle.modulate=Color(1,1,1,clampf(alpha,0.0,1.0))
 	particle.show()
@@ -7597,6 +7628,71 @@ func special_contact_fx(burst:Dictionary,t:float,used:int,light:Color,dark:Color
 			used=environment_particle(used,q,accent,light,dark,(.45+age*.40)*strength,1.0-age)
 	return used
 
+# Motion, material, impact accent, size, arc height. Per-move authored values.
+const PROJECTILE_CONTACT_ART={"lib_fire_1":["dart","ember","ember",0.52,0.1],"lib_fire_2":["beam","flame","ember",0.85,0.1],"lib_water_2":["beam","bubble","drop",0.65,0.1],"lib_ice_1":["dart","projectile_needle","crystal",0.52,0.1],"lib_flying_1":["dart","projectile_needle","slash",0.56,0.1],"lib_psychic_2":["pulse","spiral","spiral",0.72,0.1],"lib_rock_1":["dart","projectile_stone","shards",0.55,0.1],"lib_dark_3":["pulse","spiral","smoke",0.84,0.1],"lib_fairy_1":["dart","impact_star","impact_star",0.58,0.1],"eos_028":["lob","projectile_stone","shards",0.76,0.88],"eos_031":["orb","projectile_orb","impact_star",0.83,0.1],"eos_042":["beam","projectile_ray","crystal",0.72,0.1],"eos_053":["beam","flame","ember",0.92,0.1],"eos_107":["beam","projectile_ray","spiral",0.72,0.1],"eos_114":["beam","projectile_ray","leaf",0.65,0.1],"eos_127":["orb","projectile_orb","smoke",1.02,0.1],"eos_145":["volley","impact_star","impact_star",0.52,0.1],"eos_151":["beam","projectile_ray","leaf",1.08,0.1],"eos_166":["lob","projectile_seed","shock_ring",0.85,1.05],"eos_193":["orb","projectile_orb","lightning",1.05,0.1],"eos_213":["dart","projectile_stone","smoke",0.48,0.1],"eos_239":["beam","projectile_ray","drop",1.25,0.1],"eos_240":["beam","drop","wave",1.04,0.1],"eos_242":["beam","projectile_ray","shock_ring",1.35,0.1],"eos_251":["volley","leaf","leaf",0.55,0.1],"eos_255":["beam","bubble","drop",0.73,0.1],"eos_262":["dart","ember","flame",0.58,0.1],"eos_279":["lob","projectile_orb","venom_splash",0.64,0.45],"eos_280":["lob","projectile_orb","venom_splash",1.02,0.85],"eos_299":["dart","projectile_stone","drop",0.62,0.1],"eos_308":["beam","drop","drop",0.52,0.1],"eos_309":["orb","projectile_orb","cloud",0.78,0.1],"eos_310":["pulse","bubble","wave",0.81,0.1],"eos_345":["beam","projectile_ray","crystal",0.8,0.1],"eos_436":["pulse","spiral","smoke",1.05,0.1],"eos_443":["orb","projectile_orb","leaf",0.87,0.1],"eos_454":["orb","projectile_orb","shock_ring",1.15,0.1],"eos_462":["dart","projectile_needle","crystal",0.52,0.1],"eos_468":["lob","projectile_seed","leaf",1.03,0.65],"eos_485":["lob","projectile_orb","venom_splash",1.15,0.8],"eos_486":["lob","projectile_seed","leaf",0.88,0.9],"eos_489":["beam","lightning","lightning",0.65,0.1],"eos_501":["lob","projectile_stone","drop",0.89,0.8],"eos_508":["orb","projectile_orb","spiral",0.9,0.1],"eos_523":["lob","projectile_stone","shards",0.92,0.7],"eos_527":["dart","crystal","shards",0.75,0.1],"eos_536":["beam","projectile_ray","shards",0.92,0.1],"eos_538":["meteor","meteor","flame",1.2,2.6],"eos_539":["pulse","projectile_orb","flame",0.98,0.1],"eos_163":["volley","projectile_seed","leaf",0.45,0.1],"eos_164":["volley","projectile_needle","shards",0.5,0.1],"eos_201":["volley","projectile_needle","impact_star",0.48,0.1],"eos_306":["volley","projectile_needle","leaf",0.52,0.1],"eos_350":["volley","projectile_stone","shards",0.65,0.1],"eos_002":["roll","projectile_orb","crystal",0.83,0.1],"eos_108":["pulse","spiral","spiral",0.65,0.1],"eos_341":["beam","flame","ember",0.9,0.1],"eos_504":["dart","projectile_seed","leaf",0.58,0.1]}
+func projectile_contact_art(id:String)->Array:
+	return PROJECTILE_CONTACT_ART.get(id,[])
+
+func projectile_contact_fx(burst:Dictionary,t:float,used:int,light:Color,dark:Color)->int:
+	var art:Array=projectile_contact_art(str(burst.id))
+	var points:Array=burst.points
+	if art.is_empty() or points.is_empty():return used
+	var kind:String=str(art[0])
+	var mode:String=str(art[1])
+	var accent:String=str(art[2])
+	var size:float=float(art[3])
+	var height:float=float(art[4])
+	var peak:float=clampf(float(burst.profile.impact),.01,.99)
+	var source:Vector3=points[0]
+	var target:Vector3=points[-1]
+	var results:Dictionary=burst.get("results",{})
+	var progress:float=clampf(t/peak,0.0,1.0)
+	if t<peak:
+		var count:int=1
+		match kind:
+			"beam":count=6
+			"volley":count=3 if str(burst.id)=="eos_145" else 2 if str(burst.id)=="eos_164" else 4
+			"pulse":count=3
+			"meteor":count=4
+		for i in range(count):
+			var p:float=clampf(progress-float(i)*.13,0.0,1.0)
+			if kind=="beam":p=progress*float(i+1)/float(count)
+			if kind!="beam" and i>0 and progress<float(i)*.13:continue
+			var q:Vector3=combat_path_sample(points,p)
+			if kind=="lob":q.y+=height*sin(p*PI)
+			elif kind=="roll":q.y=.18
+			elif kind=="meteor":
+				q=target+Vector3(cos(float(i)*2.4)*.30,height*(1.0-p),sin(float(i)*2.4)*.30)
+			var scale_value:float=size*(.74+.26*p)
+			if kind=="beam":scale_value=size*(.65+.35*progress)
+			if kind=="pulse":scale_value=size*(.65+.70*p)
+			used=environment_particle(used,q,mode,light,dark,scale_value,minf(1.0,progress*8.0))
+			if i==0 and kind in ["lob","orb","meteor"]:
+				used=environment_particle(used,q+Vector3.UP*.12,accent,light,dark,scale_value*.52,.60)
+		return used
+	var age:float=clampf((t-peak)/(1.0-peak),0.0,1.0)
+	var primary:=Vector2i(roundi(target.x/1.4),roundi(target.z/1.4))
+	var confirmed:Array[Vector2i]=[]
+	for tile in results:
+		if not tile is Vector2i:continue
+		var row:Dictionary=results[tile]
+		if int(row.get("damage",0))+int(row.get("effects",0))>0:confirmed.append(tile)
+	confirmed.sort_custom(func(a:Vector2i,b:Vector2i)->bool:
+		var da:int=(a-primary).length_squared()
+		var db:int=(b-primary).length_squared()
+		if da!=db:return da<db
+		if a.x!=b.x:return a.x<b.x
+		return a.y<b.y)
+	for i in range(mini(4,confirmed.size())):
+		var tile:Vector2i=confirmed[i]
+		var q:Vector3=pos(tile)+Vector3.UP*.55
+		var hits:int=clampi(int(results[tile].get("hits",1)),1,5)
+		var pulse:float=fposmod(age*float(hits),1.0) if kind=="volley" or kind=="roll" else age
+		used=environment_particle(used,q,accent,light,dark,size*(.55+pulse*.7),1.0-age)
+		if kind in ["orb","lob","meteor","beam"]:
+			used=environment_particle(used,q+Vector3.UP*.15,"impact_star",light,dark,size*.52,(1.0-age)*.65)
+	return used
+
 func element_finish_fx(burst:Dictionary,t:float,used:int)->int:
 	var id:String=str(burst.id)
 	var profile:Dictionary=burst.profile
@@ -7610,6 +7706,7 @@ func element_finish_fx(burst:Dictionary,t:float,used:int)->int:
 	var status:bool=str(record.get("category",""))=="status"
 	var mode:String=str(ELEMENT_FINISH_MODE.get(str(profile.element),"impact_star"))
 	used=special_contact_fx(burst,t,used,light,dark)
+	used=projectile_contact_fx(burst,t,used,light,dark)
 	if t<peak*.48:
 		var startup:float=clampf(t/(peak*.48),0.0,1.0)
 		for j in range(3):
