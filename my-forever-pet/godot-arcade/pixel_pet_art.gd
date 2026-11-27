@@ -283,3 +283,120 @@ static func animate_world_sprite(actor:Node3D,delta:Vector2,moving:bool,dt:float
 	sprite.scale=Vector3(1.0/stretch,stretch,1.0)
 	sprite.position.y=height*.5*stretch+lift
 	sprite.modulate=Color("#ff9b9b") if state=="hurt" and int(clock*22.0)%2==0 else Color("#d3fff1") if state=="burst" else Color.WHITE
+
+# Volnox enemies are authored 2D pixels, never rendered 3D creature meshes.
+const ENEMY_PIXEL_PILOTS=["sporeling","coralcrab","nova_wisp"]
+const ENEMY_POSES=["idle","walk","walk","walk","walk","windup","attack","attack","recover","hurt","defeat"]
+static func enemy_dot(im:Image,p:Vector2i,r:Vector2i,c:Color)->void:
+	ellipse(im,Vector2(p),Vector2(r),c)
+static func enemy_line(im:Image,a:Vector2i,b:Vector2i,width:int,c:Color)->void:
+	var steps:=maxi(absi(b.x-a.x),absi(b.y-a.y))
+	for i in range(steps+1):
+		var q:=Vector2i(Vector2(a).lerp(Vector2(b),float(i)/maxi(1,steps)).round())
+		enemy_dot(im,q,Vector2i(width,width),c)
+static func enemy_pixel_cell(id:String,dir:int,pose:String,frame:int=0)->Image:
+	var im:=Image.create(48,48,false,Image.FORMAT_RGBA8)
+	im.fill(Color.TRANSPARENT)
+	var ink:=Color("#21152e")
+	var purple:=Color("#69329b")
+	var bright:=Color("#a952db")
+	var gold:=Color("#e0a34c")
+	var pink:=Color("#f78dda")
+	var white:=Color("#ffe5f7")
+	var phase:=posmod(frame,4)
+	var step:int=[0,2,0,-2][phase] if pose=="walk" else 0
+	var wind:=pose=="windup"
+	var attack:=pose=="attack"
+	var recoil:=pose=="hurt"
+	var back:=dir==1
+	var side:=dir>=2
+	var fx:=3 if side else 0
+	match id:
+		"sporeling":
+			var cap_y:=18+(2 if wind else -2 if attack else 0)
+			for k in [-1,1]:
+				var x:=24+k*6
+				var foot_y:=40+(step*k if pose=="walk" else 0)
+				enemy_dot(im,Vector2i(x,foot_y),Vector2i(5,4),ink)
+				enemy_dot(im,Vector2i(x,foot_y-1),Vector2i(3,2),Color("#a08c78"))
+			enemy_dot(im,Vector2i(24,31),Vector2i(11,12),ink)
+			enemy_dot(im,Vector2i(24,30),Vector2i(9,10),Color("#c2a38b"))
+			enemy_dot(im,Vector2i(24,cap_y+5),Vector2i(20,9),ink)
+			enemy_dot(im,Vector2i(24,cap_y+3),Vector2i(18,7),Color("#583070"))
+			enemy_dot(im,Vector2i(24,cap_y-3),Vector2i(19,13),ink)
+			enemy_dot(im,Vector2i(24,cap_y-4),Vector2i(17,11),purple)
+			enemy_dot(im,Vector2i(19,cap_y-8),Vector2i(11,5),bright)
+			for spot in [Vector2i(13,-5),Vector2i(25,-10),Vector2i(34,-3)]:
+				enemy_dot(im,Vector2i(spot.x,cap_y+spot.y),Vector2i(3,2),white)
+			enemy_line(im,Vector2i(8,cap_y+5),Vector2i(39,cap_y+5),1,gold)
+			if not back:
+				for x in ([29] if side else [19,29]):
+					enemy_dot(im,Vector2i(x,31),Vector2i(4,5),ink)
+					enemy_dot(im,Vector2i(x+1,30),Vector2i(2,2),pink)
+			if attack:
+				for i in range(3):
+					enemy_dot(im,Vector2i(24+fx+i*4-4,8-i*2+frame),Vector2i(1,1),pink)
+		"coralcrab":
+			for k in [-1,1]:
+				for i in range(3):
+					var start:=Vector2i(24+k*9,28+i*4)
+					var finish:=Vector2i(24+k*(17+i%2),33+i*4+step*(-1 if i%2==0 else 1))
+					enemy_line(im,start,finish,2,ink)
+					enemy_line(im,start,finish,1,Color("#a34986"))
+				var claw:=Vector2i(24+k*(17 if attack else 15),23+(2 if wind else 0))
+				enemy_dot(im,claw,Vector2i(7,7),ink)
+				enemy_dot(im,claw,Vector2i(5,5),purple)
+				enemy_dot(im,claw+Vector2i(k*3,-3),Vector2i(3,3),gold)
+				enemy_line(im,claw+Vector2i(k*2,0),claw+Vector2i(k*5,-2 if attack else -5),1,ink)
+			enemy_dot(im,Vector2i(24,29),Vector2i(15,12),ink)
+			enemy_dot(im,Vector2i(24,27),Vector2i(13,10),purple)
+			enemy_dot(im,Vector2i(21,23),Vector2i(9,4),bright)
+			for k in [-1,1]:
+				enemy_line(im,Vector2i(24+k*5,22),Vector2i(24+k*8,12),2,Color("#e276a4"))
+				enemy_dot(im,Vector2i(24+k*8,12),Vector2i(3,2),Color("#ff9cb4"))
+			enemy_line(im,Vector2i(15,24),Vector2i(33,24),1,gold)
+			if not back:
+				for x in ([29] if side else [19,29]):
+					enemy_dot(im,Vector2i(x,29),Vector2i(3,4),ink)
+					enemy_dot(im,Vector2i(x,28),Vector2i(2,2),pink)
+		"nova_wisp":
+			var cy:=24+(step if pose=="walk" else 0)
+			enemy_dot(im,Vector2i(24,cy),Vector2i(11,11),ink)
+			enemy_dot(im,Vector2i(24,cy),Vector2i(9,9),purple)
+			enemy_dot(im,Vector2i(21,cy-4),Vector2i(5,3),bright)
+			var orbit:float=float(phase)*PI*.5 if pose=="walk" else float(frame)*.8 if attack else .2
+			for i in range(3):
+				var a:=orbit+float(i)*TAU/3.0
+				var r:=17.0 if attack else 12.0 if wind else 15.0
+				var q:=Vector2i(24+roundi(cos(a)*r),cy+roundi(sin(a)*r*.55))
+				enemy_dot(im,q,Vector2i(3,3),gold)
+				enemy_dot(im,q,Vector2i(2,2),pink)
+			if not back:
+				for x in ([28] if side else [20,28]):
+					enemy_dot(im,Vector2i(x,cy),Vector2i(3,4),ink)
+					enemy_dot(im,Vector2i(x,cy-1),Vector2i(2,2),white)
+	if dir==2:im.flip_x()
+	if recoil:
+		for y in range(48):
+			for x in range(48):
+				var c:=im.get_pixel(x,y)
+				if c.a>0:im.set_pixel(x,y,c.lerp(Color("#ff839f"),.35))
+	if pose=="defeat":
+		var fallen:=Image.create(48,48,false,Image.FORMAT_RGBA8)
+		fallen.fill(Color.TRANSPARENT)
+		im.resize(48,24,Image.INTERPOLATE_NEAREST)
+		fallen.blit_rect(im,Rect2i(0,0,48,24),Vector2i(0,20))
+		return fallen
+	return im
+static func enemy_pixel_texture(id:String,dir:int,pose:String,frame:int)->Texture2D:
+	var key:="enemy:%s:%d:%s:%d"%[id,dir,pose,frame]
+	if not cache.has(key):cache[key]=ImageTexture.create_from_image(enemy_pixel_cell(id,dir,pose,frame))
+	return cache[key] as Texture2D
+static func enemy_pixel_atlas(id:String)->Image:
+	var im:=Image.create(48*ENEMY_POSES.size(),192,false,Image.FORMAT_RGBA8)
+	im.fill(Color.TRANSPARENT)
+	for dir in range(4):
+		for col in range(ENEMY_POSES.size()):
+			var frame:int=col-1 if col in [1,2,3,4] else col-6 if col in [6,7] else 0
+			im.blit_rect(enemy_pixel_cell(id,dir,ENEMY_POSES[col],frame),Rect2i(0,0,48,48),Vector2i(col*48,dir*48))
+	return im
