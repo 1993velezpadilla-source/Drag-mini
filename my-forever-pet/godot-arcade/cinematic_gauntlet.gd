@@ -194,6 +194,15 @@ func run_checks()->void:
 	if view.status_finish_kind({"category":"status","heal_fraction":.5})!="heal":failures.append("heal classification")
 	if view.status_finish_kind({"category":"status","shield_kind":"protect"})!="shield":failures.append("shield classification")
 	checks+=4
+	# Ultimate presentation is bounded and only refers to actual damage moves.
+	for id in Dungeon.ULTIMATE_ACCENTS:
+		if not catalog.has(id) or str(catalog[id].category)=="status":failures.append("invalid ultimate accent: "+str(id))
+		for i in range(101):
+			var p:float=float(i)/100.0
+			var envelope:Vector2=view.ultimate_envelope(p)
+			if not envelope.is_finite() or envelope.x<-.0001 or envelope.x>1.001 or envelope.y<0.0 or envelope.y>1.001:failures.append("invalid cinematic envelope")
+			if i==100 and envelope.length()>.001:failures.append("ultimate effect never expires")
+			checks+=1
 	var home:=Home.new()
 	home.free()
 	view.free()
