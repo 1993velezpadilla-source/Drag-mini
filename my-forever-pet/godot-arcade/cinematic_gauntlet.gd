@@ -36,6 +36,24 @@ func run_checks()->void:
 	var checks:int=0
 	var failures:Array[String]=[]
 	var view:=Dungeon.new()
+	# V25.8: compare optimized neutral and non-neutral fatigue to the original formula.
+	var creature_probe:=Dungeon.new()
+	var creature_actor:=Node3D.new()
+	for creature_enabled in [true,false]:
+		for creature_hp in [1.0,.45,.3,.05]:
+			for creature_old in [0.0,.25,1.0]:
+				for creature_dt in [0.0,.016,.5]:
+					creature_actor.set_meta("native_fatigue",creature_old)
+					creature_probe.elapsed=1.25
+					var creature_target:float=clampf((.45-creature_hp)/.30,0.0,1.0) if creature_enabled else creature_old
+					var creature_fatigue:float=move_toward(creature_old,creature_target,maxf(0.0,creature_dt)*3.0)
+					var creature_phase:float=creature_probe.elapsed*TAU*1.05+float(creature_actor.get_instance_id()%31)*.31
+					var creature_expected:=Vector3(1.0-creature_fatigue*(.075+.023*sin(creature_phase)),creature_fatigue*.014*sin(creature_phase*.5),creature_fatigue)
+					if creature_probe.creature_condition_sample(creature_actor,creature_hp,creature_dt,creature_enabled)!=creature_expected:failures.append("V25.8 fatigue parity")
+					if float(creature_actor.get_meta("native_fatigue"))!=creature_fatigue:failures.append("V25.8 fatigue state")
+					checks+=2
+	creature_actor.free()
+	creature_probe.free()
 	# V25.7: stationary footprints only submit on spawn, overwrite or expiry.
 	var trail_probe:=Dungeon.new()
 	for trail_biome in range(3):
