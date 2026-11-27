@@ -5484,7 +5484,7 @@ func native_identity_frame(id:String,frame:int,base:Image)->Image:
 	return im
 
 # V16.7: individually remastered after reviewing actual Godot PNG strips.
-const VISUAL_REMASTER_MOVES=["eos_504","eos_308","eos_135","eos_142","eos_047","eos_250","eos_299","eos_329","eos_262","eos_279","eos_101","eos_199","eos_251","eos_486","eos_462","eos_018","eos_507","eos_175","eos_254","eos_097","eos_163","eos_320","eos_033","eos_166","eos_228","eos_004","eos_252","eos_330","eos_465","eos_138","eos_021","eos_501","eos_053","eos_157","eos_064","eos_188","eos_240","eos_255","eos_342","eos_539","eos_041","eos_278","eos_538","eos_239","eos_193","eos_272","eos_519","eos_494","eos_292","eos_065","eos_276","eos_208","eos_522","eos_452","eos_433","eos_087","eos_063","eos_062","eos_476","eos_127","eos_451","eos_436","eos_491","eos_046","eos_109","eos_234","eos_107","eos_463","eos_133","eos_317","eos_111","eos_331","eos_345","eos_270","eos_042","eos_344","eos_461","eos_180","eos_535","eos_150","eos_118","eos_484","eos_008","eos_131","eos_030","eos_481","eos_028","eos_073","lib_ground_1","eos_057","eos_036","eos_442","eos_153","eos_205","eos_100","eos_518","eos_178","eos_200","eos_495","eos_280","eos_197","eos_332","eos_147","eos_485","eos_459","eos_151","eos_537","eos_443","eos_336","eos_182","eos_253","eos_441","eos_076","lib_grass_1","eos_001","eos_325","eos_103","eos_536","eos_510","eos_431","eos_475","eos_523","eos_080","eos_082","eos_114","eos_323","eos_470","eos_502","eos_529","eos_530","eos_460","eos_520","eos_449","eos_288","eos_164","eos_306","eos_023","eos_086","eos_346","lib_fairy_1","lib_fairy_2","lib_fairy_3","eos_341","eos_498","eos_343","eos_091","eos_162","eos_435","lib_dragon_1","lib_dragon_2","lib_dragon_3","eos_092","eos_204","eos_206","eos_303","eos_222","eos_210","lib_fighting_2","eos_136","eos_075","eos_300","eos_246","eos_430","eos_440","eos_500","eos_508","eos_454","eos_479","eos_243","eos_068","eos_090","lib_fighting_1","lib_fighting_3","eos_072","eos_077","eos_116","eos_531","eos_265","eos_305","eos_051","eos_170","eos_340","eos_007","eos_029"]
+const VISUAL_REMASTER_MOVES=["eos_504","eos_308","eos_135","eos_142","eos_047","eos_250","eos_299","eos_329","eos_262","eos_279","eos_101","eos_199","eos_251","eos_486","eos_462","eos_018","eos_507","eos_175","eos_254","eos_097","eos_163","eos_320","eos_033","eos_166","eos_228","eos_004","eos_252","eos_330","eos_465","eos_138","eos_021","eos_501","eos_053","eos_157","eos_064","eos_188","eos_240","eos_255","eos_342","eos_539","eos_041","eos_278","eos_538","eos_239","eos_193","eos_272","eos_519","eos_494","eos_292","eos_065","eos_276","eos_208","eos_522","eos_452","eos_433","eos_087","eos_063","eos_062","eos_476","eos_127","eos_451","eos_436","eos_491","eos_046","eos_109","eos_234","eos_107","eos_463","eos_133","eos_317","eos_111","eos_331","eos_345","eos_270","eos_042","eos_344","eos_461","eos_180","eos_535","eos_150","eos_118","eos_484","eos_008","eos_131","eos_030","eos_481","eos_028","eos_073","lib_ground_1","eos_057","eos_036","eos_442","eos_153","eos_205","eos_100","eos_518","eos_178","eos_200","eos_495","eos_280","eos_197","eos_332","eos_147","eos_485","eos_459","eos_151","eos_537","eos_443","eos_336","eos_182","eos_253","eos_441","eos_076","lib_grass_1","eos_001","eos_325","eos_103","eos_536","eos_510","eos_431","eos_475","eos_523","eos_080","eos_082","eos_114","eos_323","eos_470","eos_502","eos_529","eos_530","eos_460","eos_520","eos_449","eos_288","eos_164","eos_306","eos_023","eos_086","eos_346","lib_fairy_1","lib_fairy_2","lib_fairy_3","eos_341","eos_498","eos_343","eos_091","eos_162","eos_435","lib_dragon_1","lib_dragon_2","lib_dragon_3","eos_092","eos_204","eos_206","eos_303","eos_222","eos_210","lib_fighting_2","eos_136","eos_075","eos_300","eos_246","eos_430","eos_440","eos_500","eos_508","eos_454","eos_479","eos_243","eos_068","eos_090","lib_fighting_1","lib_fighting_3","eos_072","eos_077","eos_116","eos_531","eos_265","eos_305","eos_051","eos_170","eos_340","eos_007","eos_029","lib_electric_1","lib_electric_2","lib_electric_3","eos_129","eos_144","eos_189","eos_354","eos_489","eos_521","eos_192","eos_128","eos_493"]
 func visual_remaster_frame(id:String,frame:int)->Image:
 	var im:=Image.create(48,48,false,Image.FORMAT_RGBA8)
 	im.fill(Color.TRANSPARENT)
@@ -8194,6 +8194,177 @@ func visual_remaster_frame(id:String,frame:int)->Image:
 				var q:=c+axis*10
 				fight_fist(im,q,theta+PI,4.8,Color("#f6dcb0",fade),Color("#94604a",fade))
 				fight_arc(im,c,15,theta-.75,1.25,Color("#fcebc3",fade),Color("#bd865f",fade),1.8)
+		"lib_electric_1":
+			# Static Fang: compact paired jaws with thin static sparks across the bite.
+			var c:=Vector2(18+12*drive,24)
+			var gap:float=9-7*drive+5*(1.0-fade)
+			for side in [-1,1]:
+				var sy:float=float(side)
+				var prev:=c+Vector2(-9,sy*(gap+3))
+				for j in range(4):
+					var q:=c+Vector2(-9+float(j)*6,sy*(gap+absf(float(j)-1.5)*2))
+					fx_line(im,prev,q,3.3,Color("#4769aa",fade))
+					fx_line(im,prev,q,1.5,Color("#a5e8ff",fade))
+					fx_line(im,q,q-Vector2(0,sy*(5 if j in [0,3] else 3)),1.6,Color("#fff3b0",fade))
+					prev=q
+			if t>=peak:
+				fx_line(im,c-Vector2(5,3),c+Vector2(1,2),1.5,Color("#b1f2ff",fade))
+				fx_line(im,c+Vector2(1,2),c+Vector2(6,-4),1.0,Color("#fffdd3",fade))
+		"lib_electric_2":
+			# Arc Current: a continuous sinuous electrical filament with alternating forks.
+			var prev:=Vector2(4,24)
+			for j in range(1,12):
+				var f:float=float(j)/11.0
+				var q:=Vector2(4+39*f*drive,24+sin(f*TAU*1.5-t*TAU)*6+float(posmod(j*7+frame*3,5)-2))
+				fx_line(im,prev,q,3.0,Color("#4a6dce",fade))
+				fx_line(im,prev,q,1.6,Color("#83dcff",fade))
+				fx_line(im,prev,q,.7,Color("#fffbd1",fade))
+				if j%3==0:
+					var v:=q+Vector2(-2,7 if j%2==0 else -7)
+					fx_line(im,q,v,1.0,Color("#b7edff",fade))
+				prev=q
+		"lib_electric_3":
+			# Storm Cross: four bolts extend along cardinal directions.
+			var c:=Vector2(24,24)
+			for j in range(4):
+				var a:float=float(j)*PI*.5
+				var axis:=Vector2(cos(a),sin(a))
+				var normal:=Vector2(-axis.y,axis.x)
+				var prev:=c
+				for k in range(1,6):
+					var q:=c+axis*(4+15*drive)*float(k)/5.0+normal*float(posmod(k*7+j*3+frame*5,7)-3)
+					fx_line(im,prev,q,3.0,Color("#496fd3",fade))
+					fx_line(im,prev,q,1.6,Color("#83dcff",fade))
+					fx_line(im,prev,q,.7,Color("#fff5ab",fade))
+					prev=q
+			fairy_star(im,c,3.0+3.0*pulse,Color("#fff7c3",fade))
+		"eos_129":
+			# Thunderbolt: a dense branched strike centered on the target.
+			var c:=Vector2(24,24)
+			for j in range(7):
+				var a:float=float(j)*TAU/7.0
+				var axis:=Vector2(cos(a),sin(a))
+				var normal:=Vector2(-axis.y,axis.x)
+				var prev:=c
+				for k in range(1,5):
+					var q:=c+axis*(6+14*drive)*float(k)/4.0+normal*float(posmod(k*13+j*7+frame*11,9)-4)
+					fx_line(im,prev,q,3.2,Color("#516bd5",fade))
+					fx_line(im,prev,q,1.8,Color("#8ce4ff",fade))
+					fx_line(im,prev,q,.9,Color("#fff6aa",fade))
+					if k==2:
+						fx_line(im,q,q+axis*3+normal*5,1.0,Color("#b9f4ff",fade))
+					prev=q
+			fx_disc(im,c,2.7+2*pulse,Color("#fffdd6",fade))
+		"eos_144":
+			# Spark: compact sharp yellow static burst, smaller than Thunderbolt.
+			var c:=Vector2(12+19*drive,24)
+			for j in range(5):
+				var a:float=float(j)*TAU/5.0+t*.8
+				var axis:=Vector2(cos(a),sin(a))
+				var normal:=Vector2(-axis.y,axis.x)
+				var q:=c+axis*(5+5*drive)
+				var v:=q+normal*3
+				fx_line(im,c,q,2.1,Color("#e6bd4c",fade))
+				fx_line(im,q,v,1.6,Color("#fff38e",fade))
+				fx_line(im,v,v+axis*4,1.1,Color("#fffde0",fade))
+			fx_disc(im,c,2.8,Color("#fff7ae",fade))
+		"eos_189":
+			# Shock Wave: three advancing electrified crescent fronts.
+			for j in range(3):
+				var f:float=clampf(drive*1.3-float(j)*.13,0.0,1.0)
+				var c:=Vector2(8+27*f,24)
+				var radius:float=6+float(j)*2+4*f
+				var prev:=c+Vector2(cos(-PI*.48),sin(-PI*.48))*radius
+				for k in range(1,13):
+					var a:float=-PI*.48+float(k)*PI*.96/12.0
+					var q:=c+Vector2(cos(a),sin(a))*(radius+float(posmod(k*3+frame+j,5)-2))
+					fx_line(im,prev,q,2.4,Color("#577dc8",fade))
+					fx_line(im,prev,q,1.1,Color("#dcfaff",fade))
+					prev=q
+		"eos_354":
+			# Volt Tackle: charged forward wake around the existing actor dash.
+			var q:=Vector2(10+25*drive,24)
+			fx_line(im,q-Vector2(18*fade,0),q,7.0,Color("#6b7ed4",fade*.7))
+			fx_line(im,q-Vector2(13*fade,0),q,3.6,Color("#ffe365",fade))
+			fx_disc(im,q,6.0+2*pulse,Color("#fff2a0",fade))
+			for j in range(6):
+				var a:float=float(j)*TAU/6.0+t*2.0
+				var axis:=Vector2(cos(a),sin(a))
+				var normal:=Vector2(-axis.y,axis.x)
+				var u:=q+axis*6
+				var v:=q+axis*(10+5*pulse)+normal*float(posmod(j+frame,5)-2)
+				fx_line(im,u,v,2.0,Color("#80daff",fade))
+				fx_line(im,v,v+axis*3,1.1,Color("#fffde0",fade))
+		"eos_489":
+			# Charge Beam: narrow coherent electric beam with an emitter and traveling bands.
+			var c:=Vector2(7,24)
+			var q:=Vector2(9+32*drive,24)
+			fx_disc(im,c,3.2+3*pulse,Color("#f4d65f",fade))
+			fx_disc(im,c,2.0+1.5*pulse,Color("#fffce2",fade))
+			fx_line(im,c,q,4.4,Color("#6385d9",fade))
+			fx_line(im,c,q,2.4,Color("#b0eaff",fade))
+			fx_line(im,c,q,1.1,Color("#fffad0",fade))
+			for j in range(5):
+				var f:float=fposmod(t*1.6+float(j)*.2,1.0)
+				var v:=c.lerp(q,f)
+				fx_line(im,v+Vector2(-2,-4),v+Vector2(2,4),1.2,Color("#ffe879",fade))
+		"eos_521":
+			# Discharge: expanding room-scale radial network with twelve branching arcs.
+			var c:=Vector2(24,24)
+			var radius:float=4+16*drive
+			for j in range(12):
+				var a:float=float(j)*TAU/12.0
+				var axis:=Vector2(cos(a),sin(a))
+				var normal:=Vector2(-axis.y,axis.x)
+				var u:=c+axis*radius*.42
+				var v:=c+axis*radius*.72+normal*float(posmod(j*7+frame*3,7)-3)
+				var w:=c+axis*radius
+				fx_line(im,u,v,2.6,Color("#4b7bc9",fade))
+				fx_line(im,v,w,1.8,Color("#a2e6ff",fade))
+				fx_line(im,v,v+normal*4,1.0,Color("#fff2ad",fade))
+			fx_disc(im,c,radius,Color("#7bd6ff",fade*.65),maxf(0.0,radius-1.0))
+		"eos_192":
+			# Static Lock: three staggered electrical restraints close around the target.
+			var c:=Vector2(24,24)
+			for j in range(3):
+				var radius:float=14-5*drive
+				var y:float=float(j-1)*7
+				var prev:=c+Vector2(radius,y)
+				for k in range(1,25):
+					var a:float=float(k)*TAU/24.0
+					var q:=c+Vector2(cos(a)*radius,sin(a)*radius*.36+y)+Vector2(0,float(posmod(k*5+frame+j,3)-1))
+					fx_line(im,prev,q,2.1,Color("#7288be",fade))
+					fx_line(im,prev,q,.9,Color("#ffef98",fade))
+					prev=q
+		"eos_128":
+			# Static Reservoir: energy streams converge into a capacitor-like core.
+			var c:=Vector2(24,24)
+			for j in range(8):
+				var a:float=float(j)*TAU/8.0+t*.7
+				var axis:=Vector2(cos(a),sin(a))
+				var r:float=19-12*drive
+				var q:=c+axis*r
+				fx_line(im,q,q-axis*4,1.6,Color("#a8e6ff",fade))
+				fx_line(im,q-axis*4,q-axis*6+Vector2(-axis.y,axis.x)*2,1.0,Color("#fff4a8",fade))
+			fx_disc(im,c,3.0+5*drive,Color("#5478c6",fade))
+			fx_disc(im,c,2.0+3*drive,Color("#fff2a0",fade))
+		"eos_493":
+			# Magnetic Lift: rising elliptical field rings and floating metallic motes.
+			var c:=Vector2(24,35-14*drive)
+			for j in range(3):
+				var radius:float=8+float(j)*3
+				var y:float=-float(j)*6
+				var prev:=c+Vector2(radius,y)
+				for k in range(1,25):
+					var a:float=float(k)*TAU/24.0+t*.6
+					var q:=c+Vector2(cos(a)*radius,sin(a)*radius*.35+y)
+					fx_line(im,prev,q,1.9,Color("#718ac7",fade))
+					fx_line(im,prev,q,.8,Color("#c8edff",fade))
+					prev=q
+			for j in range(6):
+				var a:float=float(j)*TAU/6.0+t*TAU
+				var q:=c+Vector2(cos(a)*15,sin(a)*5-8)
+				fx_disc(im,q,1.4,Color("#e8f3ff",fade))
 	return im
 
 func combat_frame_image(id:String,frame:int)->Image:
