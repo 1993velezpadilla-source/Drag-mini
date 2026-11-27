@@ -350,6 +350,18 @@ func run()->void:
 	var full_plan:Array[Dictionary]=field.response_fx_plan([first_event],.2,99.0,0)
 	if not full_plan[0].event.is_empty() or absf(float(full_plan[0].hit)-.2)>.001:errors.append("saturated counter phantom delay")
 	print("KINDRIA_COUNTER_QUEUE_SATURATION_PASS")
+	# Slow frames cannot allow a delayed attack to interrupt the prior body pose.
+	if field.delayed_cast_can_replay(.6,.15,.2,.1):errors.append("counter interrupts at historical launch")
+	if not field.delayed_cast_can_replay(.6,.15,.2,.04):errors.append("counter rejects valid launch")
+	if field.delayed_cast_can_replay(.1,.15,.2,0.0):errors.append("counter resurrects expired pose")
+	if not field.delayed_cast_can_replay(.6,0.0,.2,.2):errors.append("counter rejects frame boundary")
+	var tiny_actor:=Node3D.new()
+	field.fx_reactions.clear()
+	field.queue_enemy_reaction(tiny_actor,false,.0002)
+	if field.fx_reactions.size()!=1 or absf(float(field.fx_reactions[0].delay)-.0002)>.000001:errors.append("submillisecond reaction clock")
+	field.fx_reactions.clear()
+	tiny_actor.free()
+	print("KINDRIA_COUNTER_SUBFRAME_CLOCK_PASS")
 	# Exercise more frames than the cache cap, then verify hot hits and exact normalization.
 	for row in reports.slice(0,40):
 		for frame in range(Field.FX_FRAME_COUNT):field.combat_animated_texture(str(row.id),frame)
