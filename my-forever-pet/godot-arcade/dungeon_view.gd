@@ -2732,7 +2732,7 @@ func queue_surface_residue(tile:Vector2i,element:String,style:Array,terrain_only
 	for direction in [Vector2i.LEFT,Vector2i.RIGHT,Vector2i.UP,Vector2i.DOWN]:
 		if not run.cells.has(tile+direction):
 			edge=direction;break
-	var row:Dictionary={"at":at,"tile":tile,"element":element,"color":Color(str(style[1])),"dark":Color(str(style[2])),"age":age,"life":life,"edge":edge,"detail":floor_detail_bounds.has(tile),"terrain_only":terrain_only,"biome":region}
+	var row:Dictionary={"at":at,"tile":tile,"element":element,"color":Color(str(style[1])),"dark":Color(str(style[2])),"age":age,"life":life,"edge":edge,"detail":floor_detail_bounds.has(tile),"terrain_only":terrain_only,"biome":region,"fresh":true}
 	# Refresh repeated contacts rather than evicting other affected tiles.
 	for i in range(fx_residues.size()-1,-1,-1):
 		if fx_residues[i].get("tile")==tile and fx_residues[i].element==element:
@@ -2761,16 +2761,19 @@ func ultra_impact_residue(burst:Dictionary,wave:Dictionary,first:bool,age:float)
 		queue_surface_residue(cell,element,style,true,age)
 
 # A hit response belongs to the confirmed impact, not the launch frame.
-func queue_ultra_reaction(at:Vector3,direction:Vector3,terminal:bool)->void:
+func queue_ultra_reaction(at:Vector3,direction:Vector3,terminal:bool,age:float=0.0)->void:
+	var life:float=.46 if terminal else .24
+	if age>=life:return
 	if fx_reaction_sparks.size()>=FX_REACTION_SPARK_CAP:fx_reaction_sparks.pop_front()
 	var forward:=Vector3(direction.x,0,direction.z).normalized()
 	if forward.length_squared()<.0001:forward=Vector3.FORWARD
-	fx_reaction_sparks.append({"at":at,"dir":forward,"age":0.0,"life":.46 if terminal else .24,"terminal":terminal})
+	fx_reaction_sparks.append({"at":at,"dir":forward,"age":maxf(0.0,age),"life":life,"terminal":terminal,"fresh":true})
 
 func ultra_reaction_particles(dt:float,used:int)->int:
 	for i in range(fx_reaction_sparks.size()-1,-1,-1):
 		var row:Dictionary=fx_reaction_sparks[i]
-		row.age+=dt
+		row.age=combat_visual_age(float(row.age),dt,bool(row.get("fresh",false)))
+		row["fresh"]=false
 		var t:float=float(row.age)/float(row.life)
 		if t>=1.0:
 			fx_reaction_sparks.remove_at(i);continue
@@ -2830,7 +2833,8 @@ func premium_hit_sample(progress:float)->Dictionary:
 func ultra_update_residues(dt:float,used:int)->int:
 	for i in range(fx_residues.size()-1,-1,-1):
 		var mark:Dictionary=fx_residues[i]
-		mark.age+=dt
+		mark.age=combat_visual_age(float(mark.age),dt,bool(mark.get("fresh",false)))
+		mark["fresh"]=false
 		var t:float=float(mark.age)/float(mark.life)
 		if t>=1.0:
 			fx_residues.remove_at(i);continue
@@ -14890,7 +14894,7 @@ func snapshot_counter_geometry(event:Dictionary,source_actor:Node3D,target_actor
 	result["target_height"]=combat_actor_socket(target_actor,"center")
 	return result
 
-func combat_fx_spawn(event:Dictionary)->void:
+func combat_fx_spawn(event:Dictionary,launch_age:float=0.0)->void:
 	if not is_instance_valid(combat_fx_root):return
 	var id:String=str(event.get("fx","basic_strike"))
 	var style:Array=combat_style(id)
@@ -14919,7 +14923,7 @@ func combat_fx_spawn(event:Dictionary)->void:
 	burst["impact_cursor"]=0
 	burst["environment_audio"]=combat_environment_audio_plan(id,profile)
 	burst["environment_audio_cursor"]=0
-	play_combat_sound(id,"launch",waypoints[0])
+	if launch_age<.14:play_combat_sound(id,"launch",waypoints[0],false,launch_age)
 # Leading projectile reaches its destination on the exact impact fraction.
 # Trailing particles are delayed within the remaining lifetime, never beyond it.
 func combat_travel_progress(t:float,impact:float,trail:float=0.0)->float:
@@ -15031,7 +15035,7 @@ func update_combat_reactions(dt:float)->void:
 		actor.set_meta("enemy_hit_direction",reaction.direction)
 		actor.set_meta("enemy_hit_weight",float(reaction.get("weight",1.0)))
 		enemy_pose(actor,"defeat" if reaction.defeated else "hurt",.32 if reaction.defeated else .20)
-		queue_ultra_reaction(actor.global_position+Vector3.UP*.54,reaction.direction,bool(reaction.defeated))
+		queue_ultra_reaction(actor.global_position+Vector3.UP*.54,reaction.direction,bool(reaction.defeated),maxf(0.0,-float(reaction.delay)))
 		# The actor renderer advances dt later in this frame. Subtract the
 		# pre-impact portion now so only the actual post-impact age is applied.
 		actor.set_meta("enemy_clock",-clampf(dt+float(reaction.delay),0.0,dt))
@@ -15142,7 +15146,7 @@ func update_delayed_combat_fx(dt:float)->void:
 		# This frame's elapsed fraction is applied once, not twice.
 		if not is_instance_valid(combat_fx_root):continue
 		var age:float=maxf(0.0,-float(item.delay))
-		combat_fx_spawn(item.event)
+		combat_fx_spawn(item.event,age)
 		if not combat_bursts.is_empty():combat_bursts[-1].age=age-dt
 		# Do not turn a moved companion toward a historical origin, or interrupt
 		# a newer attack/charge. The independently recorded world FX still plays.
@@ -15207,14 +15211,22 @@ func confirmed_wave_times(results:Dictionary,tile:Vector2i,duration:float,impact
 		if int(waves[i].get(tile,{}).get("damage",0))>0:confirmed.append(times[i])
 	return confirmed
 
+# V20.2: newly dispatched visuals already carry elapsed sub-frame time.
+func combat_visual_age(age:float,dt:float,fresh:bool)->float:
+	return maxf(0.0,age)+(0.0 if fresh else maxf(0.0,dt))
+
+func combat_ground_shake_at_age(age:float)->float:
+	return maxf(0.0,.22-maxf(0.0,age)*3.0)
+
 func dispatch_cast_waves(burst:Dictionary)->void:
 	var waves:Array=burst.get("impact_waves",[])
 	var times:Array=burst.get("impact_times",[])
 	var cursor:int=int(burst.get("impact_cursor",0))
 	while cursor<times.size() and float(burst.age)>=float(times[cursor]):
 		var wave:Dictionary=waves[cursor]
-		show_cast_results(wave)
-		ultra_impact_residue(burst,wave,cursor==0,maxf(0.0,float(burst.age)-float(times[cursor])))
+		var wave_age:float=maxf(0.0,float(burst.age)-float(times[cursor]))
+		show_cast_results(wave,wave_age)
+		ultra_impact_residue(burst,wave,cursor==0,wave_age)
 		var audible:bool=wave.is_empty() and cursor==0
 		var target:Vector3=burst.points[-1]
 		var nearest:float=INF
@@ -15237,7 +15249,7 @@ func dispatch_cast_waves(burst:Dictionary)->void:
 				var distance:float=point.distance_squared_to(burst.points[-1])
 				if distance<nearest:nearest=distance;target=point
 		# Do not emit a damage thump for a status effect or an explicit miss.
-		var audio_age:float=maxf(0.0,float(burst.age)-float(times[cursor]))
+		var audio_age:float=wave_age
 		if audio_age<.14:
 			if strongest>0 or (wave.is_empty() and cursor==0 and int(burst.get("damage",0))>0):
 				play_combat_sound(str(burst.id),"impact",target,critical,audio_age)
@@ -15292,7 +15304,7 @@ func update_retired_impacts(dt:float)->Dictionary:
 		latest=latest_player_impact(latest,record,previous_cursor)
 		if not bool(record.impacted) and float(record.age)>=float(record.duration)*float(record.profile.impact):
 			record.impacted=true
-			if str(record.profile.role) in ["ground","earth_quake","earth_magnitude","earth_fissure"]:fx_ground_shake=.22
+			if str(record.profile.role) in ["ground","earth_quake","earth_magnitude","earth_fissure"]:fx_ground_shake=maxf(fx_ground_shake,combat_ground_shake_at_age(float(record.age)-float(record.duration)*float(record.profile.impact)))
 		if int(record.impact_cursor)>=record.impact_times.size():retired_impacts.remove_at(i)
 	return latest
 
@@ -15384,7 +15396,7 @@ func combat_fx_update(dt:float)->void:
 		latest_hit=latest_player_impact(latest_hit,burst,previous_cursor)
 		if not burst.impacted and t>=float(profile.impact):
 			burst.impacted=true
-			if str(profile.role) in ["ground","earth_quake","earth_magnitude","earth_fissure"]:fx_ground_shake=.22
+			if str(profile.role) in ["ground","earth_quake","earth_magnitude","earth_fissure"]:fx_ground_shake=maxf(fx_ground_shake,combat_ground_shake_at_age(float(burst.age)-float(burst.duration)*float(profile.impact)))
 		if t>=1.0:
 			combat_bursts.remove_at(k);continue
 		var share:int=cast_particle_quota(used,cast_capacity,remaining_casts)
@@ -15852,7 +15864,7 @@ func combat_fx_update(dt:float)->void:
 	fx_cast_particle_limit=FX_PARTICLE_CAP
 	if run!=null and not run.charge_phase.is_empty():used=charge_environment_fx(used)
 	if not latest_hit.is_empty() and is_instance_valid(pet):
-		queue_ultra_reaction(pet.global_position+Vector3.UP*.54,latest_hit.direction,false)
+		queue_ultra_reaction(pet.global_position+Vector3.UP*.54,latest_hit.direction,false,float(latest_hit.age))
 	used=ultra_reaction_particles(dt,used)
 	used=ultra_update_residues(dt,used)
 	if fx_trail_started:fx_trail_mesh.surface_end()
@@ -16185,7 +16197,8 @@ func cast_result_text(row:Dictionary)->String:
 	if int(row.get("blocked",0))>0:return "NO EFFECT"
 	return "MISS"
 
-func show_cast_results(results:Dictionary)->void:
+func show_cast_results(results:Dictionary,age:float=0.0)->void:
+	if age>=.8:return
 	for tile in results:
 		if cast_text_pool.is_empty():return
 		var row:Dictionary=results[tile]
@@ -16195,7 +16208,11 @@ func show_cast_results(results:Dictionary)->void:
 		tag.text=cast_result_text(row)
 		tag.modulate=Color("#ffd473") if int(row.get("crit",0))>0 else Color("#fff2dc") if damage>0 else Color("#78e7a3") if int(row.get("heal",0))>0 else Color("#a6eacb") if int(row.get("effects",0))>0 else Color("#c3cad7")
 		tag.font_size=46 if int(row.get("crit",0))>0 else 34
-		cast_text_origin[i]=pos(tile)+Vector3(0,1.85,0);tag.position=cast_text_origin[i];cast_text_age[i]=.8;tag.show()
+		cast_text_origin[i]=pos(tile)+Vector3(0,1.85,0)
+		cast_text_age[i]=maxf(0.0,.8-maxf(0.0,age))
+		tag.position=cast_text_origin[i]+Vector3.UP*(1.0-cast_text_age[i]/.8)*.65
+		tag.modulate.a=clampf(cast_text_age[i]*4.0,0.0,1.0)
+		tag.show()
 
 func update_cast_text(dt:float)->void:
 	for i in range(cast_text_pool.size()):
@@ -16210,7 +16227,7 @@ func update_cast_text(dt:float)->void:
 		var pending:Dictionary=response_text_queue[i]
 		pending.delay-=dt
 		if float(pending.delay)<=0.0:
-			show_cast_results({pending.tile:pending.row})
+			show_cast_results({pending.tile:pending.row},maxf(0.0,-float(pending.delay)))
 			response_text_queue.remove_at(i)
 
 func schedule_response_text(tile:Vector2i,event:Dictionary,delay:float)->void:
