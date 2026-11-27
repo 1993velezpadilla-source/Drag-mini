@@ -4517,7 +4517,7 @@ func combat_path_prefix(points:Array,progress:float)->Array:
 
 func electric_world_arc(points:Array,t:float,role:String,tiles:Array,impact:float=.48)->void:
 	var travel:float=combat_travel_progress(t,impact)
-	var tip:Vector3=combat_path_sample(points,travel)
+	var travel_tip:Vector3=combat_path_sample(points,travel)
 	var arrived:bool=t>=impact
 	var strike_progress:float=clampf((t-impact)/maxf(.001,1.0-impact),0.0,1.0)
 	var frame:int=int(t*36.0)
@@ -4537,7 +4537,7 @@ func electric_world_arc(points:Array,t:float,role:String,tiles:Array,impact:floa
 	elif role=="electric_short":
 		paths.append([points[0],points[-1]])
 	elif role=="electric_wave":
-		var front:Vector3=tip
+		var front:Vector3=travel_tip
 		var direction:Vector3=(points[-1]-points[0]).normalized()
 		var side:Vector3=direction.cross(Vector3.UP)
 		for i in range(3):
@@ -4554,7 +4554,7 @@ func electric_world_arc(points:Array,t:float,role:String,tiles:Array,impact:floa
 			var a:float=float(i)*TAU/6.0+t*TAU
 			paths.append([at,at+Vector3(cos(a)*.46,.2*sin(a),sin(a)*.46)])
 	elif role=="electric_dash":
-		var at:Vector3=tip
+		var at:Vector3=travel_tip
 		var dir:Vector3=(points[-1]-points[0]).normalized()
 		var side:Vector3=dir.cross(Vector3.UP)
 		for i in range(3):
@@ -4573,14 +4573,15 @@ func electric_world_arc(points:Array,t:float,role:String,tiles:Array,impact:floa
 		var side:Vector3=dir.cross(Vector3.UP)*.12
 		var left:Array=[];var right:Array=[]
 		for point in prefix:
-			left.append(point+side);right.append(point-side)
+			var beam_point:Vector3=point
+			left.append(beam_point+side);right.append(beam_point-side)
 		paths.append(left);paths.append(right)
 	elif role=="electric_room":
 		for tile in tiles:
 			var at:Vector3=tile+Vector3.UP*.35
 			paths.append([at+Vector3(-.32,.12,0),at,at+Vector3(.32,.12,0)])
 	elif role in ["electric_bind","electric_charge","electric_lift","electric_orb"]:
-		var at:Vector3=points[-1] if role=="electric_bind" else points[0] if role!="electric_orb" else tip
+		var at:Vector3=points[-1] if role=="electric_bind" else points[0] if role!="electric_orb" else travel_tip
 		var radius:float=.38 if role=="electric_bind" else .55*(1.0-t*.6) if role=="electric_charge" else .36
 		var rings:int=2 if role!="electric_lift" else 3
 		for i in range(rings):

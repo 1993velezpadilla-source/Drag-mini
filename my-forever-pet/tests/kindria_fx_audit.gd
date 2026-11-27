@@ -70,7 +70,7 @@ func run()->void:
 	# All frames and IDs must be covered; no GPU texture creation during this pass.
 	if seen_ids.size()!=468 or total_frames!=5616:errors.append("reference coverage count")
 	var p:Array=[Vector3.ZERO,Vector3(1,0,0),Vector3(1,2,0)]
-	if field.combat_path_sample(p,0.0)!=p[0] or field.combat_path_sample(p,1.0)!=p[-1] or field.combat_path_sample(p,.5)!=p[1]:errors.append("path endpoints or waypoint")
+	if field.combat_path_sample(p,0.0)!=p[0] or field.combat_path_sample(p,1.0)!=p[-1] or not field.combat_path_sample(p,1.0/3.0).is_equal_approx(p[1]) or not field.combat_path_sample(p,.5).is_equal_approx(Vector3(1,.5,0)):errors.append("path endpoints or waypoint")
 	if field.combat_path_sample([],0.5)!=Vector3.ZERO or field.combat_path_sample([Vector3.ONE],.5)!=Vector3.ONE:errors.append("degenerate path")
 	# Actor pose contracts: no movement at boundaries, exact contact peak, rotated directions.
 	var motion_counts:Dictionary={}
