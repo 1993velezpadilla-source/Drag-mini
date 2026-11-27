@@ -159,6 +159,88 @@ jobs:
           export GODOT_ANDROID_KEYSTORE_DEBUG_USER=androiddebugkey
           export GODOT_ANDROID_KEYSTORE_DEBUG_PASSWORD=android
           G=/tmp/godot/Godot_v4.4.1-stable_linux.x86_64
+          "$G" --headless --path my-forever-pet/godot-arcade --script res://bake_combat_frames.gd 2>&1 | tee /tmp/kindria-apk-frame-pack.log
+          grep -E 'KINDRIA_FRAME_PACK .*procedural_builds=0 failures=0 "Android Lab" /tmp/My-Forever-Pet-Godot-arm64.apk
+          test -s /tmp/My-Forever-Pet-Godot-arm64.apk
+          "$SDK/build-tools/34.0.0/apksigner" verify /tmp/My-Forever-Pet-Godot-arm64.apk
+          "$SDK/build-tools/34.0.0/aapt" dump badging /tmp/My-Forever-Pet-Godot-arm64.apk | grep -F "org.myforeverpet.godot"
+          unzip -l /tmp/My-Forever-Pet-Godot-arm64.apk | grep -F lib/arm64-v8a/libgodot_android.so
+          "$SDK/build-tools/34.0.0/aapt" dump xmltree /tmp/My-Forever-Pet-Godot-arm64.apk AndroidManifest.xml > /tmp/wallpaper-manifest.log
+          grep -F org.myforeverpet.wallpaper.ForeverWallpaperService /tmp/wallpaper-manifest.log
+          grep -F org.godotengine.plugin.v2.ForeverWallpaper /tmp/wallpaper-manifest.log
+          grep -F android.permission.BIND_WALLPAPER /tmp/wallpaper-manifest.log
+      - uses: actions/upload-artifact@v4
+        with:
+          name: My-Forever-Pet-Godot-Android-ARM64-debug
+          path: /tmp/My-Forever-Pet-Godot-arm64.apk
+          if-no-files-found: error
+      - name: Export editable Mosky sprite sheet
+        run: |
+          set -euo pipefail
+          /tmp/godot/Godot_v4.4.1-stable_linux.x86_64 --headless --path my-forever-pet/godot-arcade --script res://export_mosky_atlas.gd 2>&1 | tee /tmp/mosky-atlas.log
+          grep -F MOSKY_EDITABLE_ATLAS_PASS /tmp/mosky-atlas.log
+          test -s /tmp/mosky-sprite-atlas.png
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Mosky-editable-sprite-atlas
+          path: |
+            /tmp/mosky-sprite-atlas.png
+            /tmp/ponoko-combat-atlas.png
+          if-no-files-found: error
+      - name: Capture actual 3D viewport
+        id: visual
+        continue-on-error: true
+        run: |
+          set -euo pipefail
+          xvfb-run -a -s "-screen 0 720x1280x24" timeout 180 /tmp/godot/Godot_v4.4.1-stable_linux.x86_64 --path my-forever-pet/godot-arcade --rendering-method gl_compatibility --audio-driver Dummy --resolution 540x960 -- --capture
+          test -s /tmp/pet-dash-review.png
+          test -s /tmp/pet-dash-render-metrics.json
+          test -s /tmp/pet-dash-biome-1.png
+          test -s /tmp/pet-dash-biome-2.png
+          cat /tmp/pet-dash-render-metrics.json
+          python3 my-forever-pet/godot-arcade/review_frame.py /tmp/pet-dash-review.png /tmp/pet-dash-visual-metrics.json
+          cat /tmp/pet-dash-visual-metrics.json
+      - uses: actions/upload-artifact@v4
+        if: always() && steps.visual.outcome != 'skipped'
+        with:
+          name: Pet-Dash-3D-real-game-review
+          path: |
+            /tmp/pet-dash-review.png
+            /tmp/pet-dash-biome-1.png
+            /tmp/pet-dash-biome-2.png
+            /tmp/pet-dash-render-metrics.json
+            /tmp/pet-dash-visual-metrics.json
+            /tmp/pet-dash-soak.json
+            my-forever-pet/godot-arcade/assets/*.glb
+            my-forever-pet/godot-arcade/assets/mesh-metrics.json
+            my-forever-pet/godot-arcade/assets/catalog-audit.json
+            my-forever-pet/godot-arcade/assets/sky-panorama.png
+            my-forever-pet/godot-arcade/assets/sky-crystal.png
+            my-forever-pet/godot-arcade/assets/sky-moon.png
+            my-forever-pet/godot-arcade/assets/skyway-music.wav
+          if-no-files-found: error
+      - name: Capture actual Forever Pet home and arcade viewports
+        run: |
+          set -euo pipefail
+          xvfb-run -a -s "-screen 0 720x1280x24" timeout 180 /tmp/godot/Godot_v4.4.1-stable_linux.x86_64 --path my-forever-pet/godot-arcade --rendering-method gl_compatibility --audio-driver Dummy --resolution 540x960 -- --home-capture 2>&1 | tee /tmp/forever-capture.log
+          grep -F FOREVER_PET_CAPTURE_PASS /tmp/forever-capture.log
+          ! grep -E "SCRIPT ERROR|Parse Error" /tmp/forever-capture.log
+          test "$(grep -c "^PET_FRAME .*forever-species-" /tmp/forever-capture.log)" -eq 1
+          if grep -E "^PET_FRAME .*forever-species-.*enclosed=false" /tmp/forever-capture.log; then echo "Creature framing rejected"; exit 1; fi
+          for region in 0 1 2; do test -s "/tmp/forever-wild-scan-$region.png"; done
+          test "$(find /tmp -maxdepth 1 -name 'forever-*.png' | wc -l)" -eq 39
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Forever-Pet-real-game-viewports
+          path: |
+            /tmp/forever-*.png
+            /tmp/forever-capture.log
+            my-forever-pet/godot-arcade/assets/visual-asset-audit.json
+          if-no-files-found: error
+      - name: Require visual verification independently of APK packaging
+        if: always()
+        run: test "${{ steps.visual.outcome }}" = success
+ /tmp/kindria-apk-frame-pack.log
           "$G" --verbose --headless --path my-forever-pet/godot-arcade --export-debug "Android Lab" /tmp/My-Forever-Pet-Godot-arm64.apk
           test -s /tmp/My-Forever-Pet-Godot-arm64.apk
           "$SDK/build-tools/34.0.0/apksigner" verify /tmp/My-Forever-Pet-Godot-arm64.apk

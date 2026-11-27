@@ -118,6 +118,13 @@ const FX_ANIMATED_CACHE_CAP=384
 var fx_animated_cache:Dictionary={}
 var fx_animated_newest:String=""
 var fx_frame_builds:int=0
+const FX_ATLAS_CACHE_CAP:int=32
+var fx_atlas_cache:Dictionary={}
+var fx_frame_pack:FileAccess
+var fx_frame_pack_entries:Dictionary={}
+var fx_frame_pack_checked:bool=false
+var fx_atlas_uploads:int=0
+var fx_frame_pack_hits:int=0
 var fx_secondary_builds:int=0
 var fx_arc_had_geometry:bool=false
 var fx_trail_had_geometry:bool=false
@@ -13496,8 +13503,67 @@ func combat_base_frame_image(id:String,frame:int)->Image:
 				var q:=p-Vector2(float(i)*4.0, sin(t*TAU+i)*3.0)
 				fx_disc(im,q,5.0-float(i),dark);fx_disc(im,q-Vector2(1,1),maxf(1.0,3.0-float(i)*.5),light)
 	return im
-func combat_animated_texture(id:String,frame:int)->ImageTexture:
+# A lossless build-time strip supplies all 12 original frames in one upload.
+# Missing/corrupt packs retain the original procedural fallback for development.
+func combat_frame_pack_init()->void:
+	if fx_frame_pack_checked:return
+	fx_frame_pack_checked=true
+	var index_file:=FileAccess.open("res://generated_combat_frames/index.json",FileAccess.READ)
+	if index_file==null:return
+	var index=JSON.parse_string(index_file.get_as_text())
+	if not index is Dictionary or int(index.get("version",0))!=1:return
+	if int(index.get("size",0))!=FX_FRAME_SIZE or int(index.get("frames",0))!=FX_FRAME_COUNT:return
+	var entries=index.get("entries",{})
+	if not entries is Dictionary:return
+	var pack:=FileAccess.open("res://generated_combat_frames/frames.bin",FileAccess.READ)
+	if pack==null or pack.get_length()!=int(index.get("bytes",-1)):return
+	fx_frame_pack_entries=entries
+	fx_frame_pack=pack
+
+func combat_frame_pack_image(id:String)->Image:
+	combat_frame_pack_init()
+	if fx_frame_pack==null or not fx_frame_pack_entries.has(id):return null
+	var row=fx_frame_pack_entries[id]
+	if not row is Array or row.size()!=2:return null
+	var offset:int=int(row[0])
+	var length:int=int(row[1])
+	if offset<0 or length<=0 or length>FX_FRAME_SIZE*FX_FRAME_SIZE*FX_FRAME_COUNT*5 or offset+length>fx_frame_pack.get_length():return null
+	fx_frame_pack.seek(offset)
+	var bytes:=fx_frame_pack.get_buffer(length)
+	if bytes.size()!=length:return null
+	var image:=Image.new()
+	if image.load_png_from_buffer(bytes)!=OK:return null
+	if image.get_width()!=FX_FRAME_SIZE*FX_FRAME_COUNT or image.get_height()!=FX_FRAME_SIZE:return null
+	if image.get_format()!=Image.FORMAT_RGBA8:image.convert(Image.FORMAT_RGBA8)
+	return image
+
+func combat_packed_frame(id:String,normalized:int)->Texture2D:
+	if fx_atlas_cache.has(id):
+		var cached:Array=fx_atlas_cache[id]
+		fx_atlas_cache.erase(id)
+		fx_atlas_cache[id]=cached
+		fx_frame_pack_hits+=1
+		return cached[normalized]
+	var image:=combat_frame_pack_image(id)
+	if image==null:return null
+	var atlas:=ImageTexture.create_from_image(image)
+	var frames:Array[Texture2D]=[]
+	for i in range(FX_FRAME_COUNT):
+		var frame:=AtlasTexture.new()
+		frame.atlas=atlas
+		frame.region=Rect2(i*FX_FRAME_SIZE,0,FX_FRAME_SIZE,FX_FRAME_SIZE)
+		frame.filter_clip=true
+		frames.append(frame)
+	if fx_atlas_cache.size()>=FX_ATLAS_CACHE_CAP:fx_atlas_cache.erase(fx_atlas_cache.keys()[0])
+	fx_atlas_cache[id]=frames
+	fx_atlas_uploads+=1
+	fx_frame_pack_hits+=1
+	return frames[normalized]
+
+func combat_animated_texture(id:String,frame:int)->Texture2D:
 	var normalized:int=posmod(frame,FX_FRAME_COUNT)
+	var packed:=combat_packed_frame(id,normalized)
+	if packed!=null:return packed
 	var key:="animated:"+id+":"+str(normalized)
 	if fx_animated_cache.has(key):
 		var cached:ImageTexture=fx_animated_cache[key]
@@ -15611,7 +15677,7 @@ func combat_fx_update(dt:float)->void:
 		if int(burst.get("cached_frame",-1))!=frame:
 			burst["cached_frame"]=frame
 			burst["texture"]=combat_animated_texture(str(burst.id),frame)
-		var animated:ImageTexture=burst.texture
+		var animated:Texture2D=burst.texture
 		var points:Array=burst.points
 		var tiles:Array=burst.tiles
 		if str(profile.role).begins_with("electric") and t>.08 and t<.91:
