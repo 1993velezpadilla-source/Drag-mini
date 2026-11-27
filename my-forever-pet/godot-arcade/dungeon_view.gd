@@ -2784,6 +2784,17 @@ func combat_pixel_texture(mode:String,light:Color,dark:Color)->ImageTexture:
 			var fill:bool=false
 			var inner:bool=false
 			match mode:
+				"fist_front","fist_steel","fist_ghost":
+					# Four rounded knuckles, curled thumb and a narrow wrist.
+					var knuckle:float=absf(fposmod(v.x+1.5,3.0)-1.5)
+					var crown:float=-5.8+knuckle*.8+absf(v.x)*.09
+					var palm:bool=absf(v.x)<5.7 and v.y>=crown and v.y<3.6-absf(v.x)*.10
+					var thumb:bool=(v-Vector2(-4.7,.9)).length()<2.3
+					var wrist:bool=absf(v.x+.4)<3.5 and v.y>=2.8 and v.y<6.6
+					fill=palm or thumb or wrist
+					inner=fill and ((palm and v.y<-.5 and knuckle>.38) or (thumb and v.x<-4.4) or (wrist and v.x<-1.0))
+					if mode=="fist_steel" and fill and (absf(v.y+1.0)<.5 or absf(v.x)<.5):inner=true
+					if mode=="fist_ghost" and v.y>3.0 and posmod(x+y,3)==0:fill=false
 				"bite_upper","bite_lower","crunch_upper","crunch_lower","fang_upper","fang_lower":
 					var upper:bool=mode.ends_with("_upper")
 					var heavy:bool=mode.begins_with("crunch")
@@ -7102,6 +7113,70 @@ func bite_contact_fx(id:String,target:Vector3,age:float,used:int,element_light:C
 			used=environment_particle(used,center+Vector3(side*spread*t,.12+t*.15,0),mode,element_light,element_dark,(.60 if heavy else .34)*(1.0+t*.35),alpha*.82)
 	return used
 
+# Physical punch silhouette plus its own element, contact direction and weight.
+# size, approach, normalized life, motion, texture, highlight, outline, accent.
+const PUNCH_CONTACT_ART={
+	"lib_fighting_3":[.78,.42,.60,"straight","fist_front","#fff1d7","#a56a45","impact_star"],
+	"eos_065":[.74,.38,.56,"straight","fist_front","#fff6b4","#b68022","lightning"],
+	"eos_075":[.94,.52,.74,"heavy","fist_front","#fff4da","#ad7044","shock_ring"],
+	"eos_103":[.96,.57,.70,"down","fist_steel","#e2f0ff","#667b9e","shards"],
+	"eos_126":[.79,.45,.70,"ghost","fist_ghost","#e7cbff","#68428e","smoke"],
+	"eos_136":[.82,.45,.65,"up","fist_front","#fff0d0","#a56a45","impact_star"],
+	"eos_246":[.92,.50,.72,"heavy","fist_front","#fff1d7","#a66a40","shock_ring"],
+	"eos_264":[.71,.33,.62,"sway","fist_front","#fff4e1","#a08069","spiral"],
+	"eos_292":[.80,.42,.62,"straight","fist_front","#fff0aa","#d65a28","flame"],
+	"eos_300":[.64,.56,.40,"fast","fist_front","#fff6dc","#b07853","slash"],
+	"eos_322":[1.02,.52,.76,"heavy","fist_front","#fff4da","#96715a","shock_ring"],
+	"eos_344":[.80,.40,.66,"straight","fist_front","#e1fcff","#438eb7","crystal"],
+	"eos_430":[.93,.54,.72,"down","fist_front","#ffe7d1","#a26a42","impact_star"],
+	"eos_500":[.76,.38,.68,"drain","fist_front","#e4ffc5","#739c52","spiral"],
+	"eos_510":[.64,.58,.42,"fast","fist_steel","#edf5ff","#667b9e","shards"],
+	"eos_515":[.72,.48,.52,"fast","fist_front","#e1d0f4","#57436d","smoke"],
+	"eos_347":[.64,.34,.78,"flurry","fist_front","#fff3d8","#9c7658","impact_star"]}
+
+func punch_contact_art(id:String)->Array:
+	return PUNCH_CONTACT_ART.get(id,[])
+
+func punch_contact_fx(id:String,source:Vector3,target:Vector3,age:float,used:int,element_light:Color,element_dark:Color,hits:int=1)->int:
+	var art:Array=punch_contact_art(id)
+	if art.is_empty() or age<0.0 or age>=float(art[2]):return used
+	var t:float=age/float(art[2])
+	var motion:String=str(art[3])
+	var repetitions:int=clampi(hits,1,5) if motion=="flurry" else 1
+	var pulse:float=t*float(repetitions)
+	var phase:float=fposmod(pulse,1.0)
+	var direction:Vector3=target-source
+	direction.y=0.0
+	if direction.length_squared()<.0001:direction=Vector3.FORWARD
+	direction=direction.normalized()
+	var side:Vector3=direction.cross(Vector3.UP)
+	var approach:float=float(art[1])
+	var center:Vector3=target+Vector3.UP*.12
+	var stroke:float=1.0-smoothstep(0.0,.24,phase)
+	var recoil:float=smoothstep(.24,.80,phase)*.20
+	var q:Vector3=center-direction*approach*(stroke+recoil)
+	match motion:
+		"up":q+=Vector3.UP*lerpf(-.38,.28,smoothstep(0.0,.70,phase))
+		"down":q+=Vector3.UP*.52*stroke
+		"sway":q+=side*sin(phase*TAU)*.22
+		"flurry":q+=side*(.18 if int(pulse)%2==0 else -.18)
+		"ghost":q+=Vector3.UP*sin(phase*PI)*.14
+		"drain":q-=direction*.28*smoothstep(.45,1.0,phase)
+	var alpha:float=1.0-smoothstep(.60,1.0,t)
+	if motion=="flurry":alpha*=1.0-smoothstep(.82,1.0,phase)
+	var size:float=float(art[0])*(.86+.20*sin(phase*PI))
+	var light:=Color(str(art[5]));var dark:=Color(str(art[6]))
+	if used>=mini(FX_PARTICLE_CAP,combat_particles.size()):return used
+	# Reserve the readable fist before its element accent or generic impact.
+	used=environment_particle(used,q,str(art[4]),light,dark,size,alpha)
+	if phase>=.18:
+		var accent:Vector3=center+side*(.20+phase*.23)+Vector3.UP*phase*.22
+		if motion=="drain":accent=center.lerp(source,smoothstep(.20,1.0,phase))
+		used=environment_particle(used,accent,str(art[7]),element_light,element_dark,size*(.52+phase*.22),alpha*.85)
+		if motion=="ghost":
+			used=environment_particle(used,q-direction*.20,"fist_ghost",light,dark,size*.75,alpha*.38)
+	return used
+
 func element_finish_fx(burst:Dictionary,t:float,used:int)->int:
 	var id:String=str(burst.id)
 	var profile:Dictionary=burst.profile
@@ -7133,6 +7208,7 @@ func element_finish_fx(burst:Dictionary,t:float,used:int)->int:
 		# Contact icons only on explicitly confirmed results; reserve before generic particles.
 		if not status and int(row.get("damage",0))+int(row.get("effects",0))+int(row.get("heal",0))>0:
 			used=bite_contact_fx(id,target,age,used,light,dark)
+			used=punch_contact_fx(id,from,target,age,used,light,dark,int(row.get("hits",1)))
 		if primary_miss:
 			used=environment_particle(used,target,"cloud",light,dark,.32+age*.18,fade*.35)
 		elif age<.30:
@@ -7145,6 +7221,7 @@ func element_finish_fx(burst:Dictionary,t:float,used:int)->int:
 			if int(other.get("damage",0))+int(other.get("effects",0))+int(other.get("heal",0))<=0:continue
 			var q:Vector3=pos(tile)+Vector3(0,.45,0)
 			if not status:used=bite_contact_fx(id,q,age,used,light,dark)
+			if not status:used=punch_contact_fx(id,from,q,age,used,light,dark,int(other.get("hits",1)))
 			used=environment_particle(used,q,"bubble" if status else "impact_star",light,dark,.45+age*.38,fade)
 			extra+=1
 		# A miss at the selected tile must not hide hits on other tiles.
