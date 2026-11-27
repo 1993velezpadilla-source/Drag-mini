@@ -5484,7 +5484,7 @@ func native_identity_frame(id:String,frame:int,base:Image)->Image:
 	return im
 
 # V16.7: individually remastered after reviewing actual Godot PNG strips.
-const VISUAL_REMASTER_MOVES=["eos_504","eos_308","eos_135","eos_142","eos_047","eos_250","eos_299","eos_329","eos_262","eos_279","eos_101","eos_199","eos_251","eos_486","eos_462","eos_018","eos_507","eos_175","eos_254","eos_097","eos_163","eos_320","eos_033","eos_166","eos_228","eos_004","eos_252","eos_330","eos_465","eos_138","eos_021","eos_501","eos_053","eos_157","eos_064","eos_188","eos_240","eos_255","eos_342","eos_539","eos_041","eos_278","eos_538","eos_239","eos_193","eos_272","eos_519","eos_494","eos_292","eos_065","eos_276","eos_208","eos_522","eos_452","eos_433","eos_087"]
+const VISUAL_REMASTER_MOVES=["eos_504","eos_308","eos_135","eos_142","eos_047","eos_250","eos_299","eos_329","eos_262","eos_279","eos_101","eos_199","eos_251","eos_486","eos_462","eos_018","eos_507","eos_175","eos_254","eos_097","eos_163","eos_320","eos_033","eos_166","eos_228","eos_004","eos_252","eos_330","eos_465","eos_138","eos_021","eos_501","eos_053","eos_157","eos_064","eos_188","eos_240","eos_255","eos_342","eos_539","eos_041","eos_278","eos_538","eos_239","eos_193","eos_272","eos_519","eos_494","eos_292","eos_065","eos_276","eos_208","eos_522","eos_452","eos_433","eos_087","eos_063","eos_062","eos_476","eos_127","eos_451","eos_436","eos_491","eos_046"]
 func visual_remaster_frame(id:String,frame:int)->Image:
 	var im:=Image.create(48,48,false,Image.FORMAT_RGBA8)
 	im.fill(Color.TRANSPARENT)
@@ -6360,6 +6360,129 @@ func visual_remaster_frame(id:String,frame:int)->Image:
 					var axis:=Vector2(cos(a),sin(a))
 					var v:=q+Vector2(1,8)+axis*(6+10*(1.0-fade))
 					water_drop(im,v,2.0,Color("#d8faff",fade),Color("#298bcd",fade))
+		"eos_063","eos_062":
+			# Bite snaps once; Crunch has a broader, heavier jaw and sustained compression.
+			var heavy:bool=id=="eos_062"
+			var c:=Vector2(24+3*drive,24)
+			var jaw_width:float=16.0 if heavy else 11.0
+			var count:int=7 if heavy else 5
+			var gap:float=lerpf(11.0 if heavy else 8.0,2.0,drive)
+			gap+= (2.0 if heavy else 6.0)*(1.0-fade)
+			var ink:=Color("#35203e")
+			var rim:=Color("#a85b76") if heavy else Color("#8c708a")
+			var ivory:=Color("#ffe0b0") if heavy else Color("#fff0d3")
+			for side in [-1,1]:
+				var sy:float=float(side)
+				var prev:=c+Vector2(-jaw_width,sy*(gap+4))
+				for j in range(count):
+					var x:float=lerpf(-jaw_width,jaw_width,float(j)/float(count-1))
+					var q:=c+Vector2(x,sy*(gap+4*absf(x/jaw_width)))
+					fx_line(im,prev,q,5.2 if heavy else 3.6,ink)
+					fx_line(im,prev,q,2.7 if heavy else 1.7,rim)
+					var length:float=(7.0 if heavy else 5.0) if j in [0,count-1] else (4.8 if heavy else 3.3)
+					var tip:=q+Vector2(-x*.12,-sy*length)
+					fx_line(im,q,tip,3.0 if heavy else 2.2,ink)
+					fx_line(im,q,tip,1.7 if heavy else 1.2,ivory)
+					prev=q
+			if t>=peak:
+				for j in range(8 if heavy else 4):
+					var a:float=float(j)*TAU/float(8 if heavy else 4)
+					var axis:=Vector2(cos(a),sin(a))
+					var radius:float=(9.0 if heavy else 5.0)+(8.0 if heavy else 5.0)*(1.0-fade)
+					fx_line(im,c+axis*radius*.5,c+axis*radius,1.8 if heavy else 1.1,Color("#ff827b" if heavy else "#e8c7ac",fade))
+					if heavy:fx_disc(im,c+axis*(radius+3),1.5,Color("#9351a7",fade))
+		"eos_476":
+			# Shadow Claw: tapered spectral talons with detached ghostly wisps.
+			for j in range(3):
+				var c:=Vector2(14+9*drive+float(j)*5,13+float(j)*8)
+				var prev:=c+Vector2(-7,8)
+				for k in range(1,11):
+					var f:float=float(k)/10.0
+					var q:=c+Vector2(-7+20*f,8-19*sin(f*PI*.72))
+					fx_line(im,prev,q,4.3*(1.0-f)+1.1,Color("#302042",fade))
+					fx_line(im,prev,q,2.5*(1.0-f)+.7,Color("#b999f2",fade))
+					prev=q
+				for k in range(3):
+					var q:=c+Vector2(-4+float(k)*4,9+sin(t*TAU+float(k))*3)
+					fire_lobe(im,q,1.6+1.0*pulse,t+float(k)*.2,Color("#b7eee2",fade),Color("#7250aa",fade))
+		"eos_127":
+			# Shadow Ball: opaque dark core with orbiting wisps and a fracture at impact.
+			var c:=Vector2(10+24*drive,24)
+			var radius:float=5.0+4.0*pulse
+			fx_line(im,c-Vector2(13*fade,0),c,4.5,Color("#342143",.7*fade))
+			fx_disc(im,c,radius,Color("#503171",fade))
+			fx_disc(im,c,radius-1.8,Color("#21162e",fade))
+			fx_disc(im,c-Vector2(2,2),radius*.42,Color("#8a62c3",fade))
+			for j in range(4):
+				var a:float=float(j)*TAU/4.0+t*TAU
+				var q:=c+Vector2(cos(a),sin(a))*(radius+3.0)
+				fire_lobe(im,q,2.1,t+float(j)*.21,Color("#b7f1dc",fade),Color("#8b61bf",fade))
+			if t>=peak:
+				for j in range(6):
+					var a:float=float(j)*TAU/6.0+t
+					var axis:=Vector2(cos(a),sin(a))
+					var q:=c+axis*(radius+8*(1.0-fade))
+					fx_line(im,q,q+axis*3,1.4,Color("#d2b4ff",fade))
+		"eos_451":
+			# Shadow Sneak: flat shadow crawls along the ground then rises into a spectral strike.
+			var c:=Vector2(7+27*drive,35)
+			for j in range(6):
+				var q:=c-Vector2(float(j)*4.2,0)
+				fx_line(im,q-Vector2(3,0),q+Vector2(3,0),3.4-float(j)*.35,Color("#211a31",(.9-float(j)*.11)*fade))
+			var rise:float=sin(t*PI)*17.0
+			var tip:=c-Vector2(0,rise)
+			fx_line(im,c,tip,5.3,Color("#332344",fade))
+			fx_line(im,c,tip,2.4,Color("#805eaa",fade))
+			fx_line(im,tip,tip+Vector2(5,-5),3.4,Color("#aa8fdb",fade))
+			fx_disc(im,tip+Vector2(-1,1),1.2,Color("#c5f8e6",fade))
+			if t>=peak:
+				fx_disc(im,c,6+6*(1.0-fade),Color("#9872c8",fade),5+6*(1.0-fade))
+		"eos_436":
+			# Dark Pulse: jagged concentric shock fronts and a deep violet center.
+			var c:=Vector2(24,24)
+			for j in range(3):
+				var radius:float=3.0+float(j)*5.0+8.0*drive
+				var prev:=c+Vector2(radius,0)
+				for k in range(1,25):
+					var a:float=float(k)*TAU/24.0
+					var r:float=radius+sin(a*8+t*TAU)*1.4
+					var q:=c+Vector2(cos(a),sin(a))*r
+					fx_line(im,prev,q,2.9,Color("#382040",fade))
+					fx_line(im,prev,q,1.1,Color("#c583c7",fade))
+					prev=q
+			fx_disc(im,c,4.2+2*pulse,Color("#24132f",fade))
+			for j in range(7):
+				var a:float=float(j)*TAU/7.0+t*2.0
+				var axis:=Vector2(cos(a),sin(a))
+				fx_disc(im,c+axis*(8+10*drive),1.5,Color("#ef9fae",fade))
+		"eos_491":
+			# Night Slash: one long fast black crescent, with a crimson cutting edge.
+			var c:=Vector2(24,24)
+			var sweep:float=-2.0+2.3*drive
+			fight_arc(im,c,16.5,sweep-1.6,1.75,Color("#e9a1c9",fade),Color("#2a172f",fade),6.1)
+			fight_arc(im,c,18.5,sweep-1.15,1.2,Color("#ffc3bd",fade),Color("#86445b",fade),1.5)
+			if t>=peak:
+				for j in range(5):
+					var a:float=sweep+float(j-2)*.32
+					var axis:=Vector2(cos(a),sin(a))
+					fx_line(im,c+axis*15,c+axis*(19+3*(1.0-fade)),1.3,Color("#e58fb0",fade))
+		"eos_046":
+			# Astonish: sudden spectral face with startled burst and recoil motes.
+			var c:=Vector2(24,26-6*pulse)
+			var radius:float=5.0+7.0*drive
+			fx_disc(im,c,radius,Color("#332449",fade))
+			fx_disc(im,c-Vector2(0,2),radius*.8,Color("#7655a7",fade))
+			for side in [-1,1]:
+				var x:float=float(side)*radius*.40
+				var q:=c+Vector2(x,-radius*.25)
+				fx_disc(im,q,2.5,Color("#d4ffed",fade))
+				fx_disc(im,q+Vector2(0,1),1.1,Color("#251a36",fade))
+			fx_disc(im,c+Vector2(0,radius*.35),2.4,Color("#281a3b",fade))
+			if t>=peak:
+				for j in range(8):
+					var a:float=float(j)*TAU/8.0
+					var axis:=Vector2(cos(a),sin(a))
+					fx_line(im,c+axis*(radius+2),c+axis*(radius+6+4*(1.0-fade)),1.7,Color("#d4befd",fade))
 	return im
 
 func combat_frame_image(id:String,frame:int)->Image:
