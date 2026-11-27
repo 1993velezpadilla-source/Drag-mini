@@ -1003,6 +1003,20 @@ func run_checks()->void:
 				if float(metrics.rms)<.005 or absf(float(metrics.dc))>.025:failures.append("V20.6 weak or biased audio "+id+" "+phase)
 				if pcm.decode_s16(0)!=0 or pcm.decode_s16(pcm.size()-2)!=0:failures.append("V20.6 PCM endpoints "+id+" "+phase)
 				checks+=3
+	# V20.7 acoustic identity: compare authored role contours and semantic status
+	# families instead of accepting a common thump for unrelated attacks.
+	var identity_ids:Array=["eos_154","eos_139","eos_140","eos_161","eos_176","eos_177","eos_190","eos_203","eos_226","eos_235","eos_247","eos_248","eos_250","eos_260","eos_264","eos_271","eos_275","eos_294","eos_311","eos_312","eos_314","eos_321","eos_322","eos_328"]
+	var identity_signatures:Dictionary={}
+	for id in identity_ids:
+		var gesture:Vector4=view.combat_audio_gesture(id,view.combat_profile(id))
+		var signature:String=str(gesture)
+		if identity_signatures.has(signature):failures.append("V20.7 duplicate authored gesture "+id)
+		identity_signatures[signature]=true
+		if not gesture.is_finite() or gesture.x<50.0 or gesture.x>2000.0 or gesture.z<1.0 or gesture.z>8.0 or gesture.w<0.0 or gesture.w>1.0:failures.append("V20.7 invalid gesture "+id)
+		checks+=2
+	for kind in ["normal_tackle","normal_drill","normal_megapunch","normal_furyswipes","normal_bide","normal_wrap"]:
+		if not Dungeon.AUDIO_ROLE_GESTURES.has(kind):failures.append("V20.7 missing authored role "+kind)
+		checks+=1
 	# Full catalog: actual frame bytes, audio buffers, and pooled world FX.
 	# A duplicate sequence or sparse animation is a review candidate, not proof
 	# of poor visual quality. Preserve exact IDs in the downloadable CI report.
