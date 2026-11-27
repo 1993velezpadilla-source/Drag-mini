@@ -2067,7 +2067,7 @@ func attack_direction_sample(progress:float,impact:float)->Vector3:
 	var t:float=clampf(progress,0.0,1.0)
 	var peak:float=clampf(impact,.12,.88)
 	var windup_end:float=peak*.34
-	var anticipation:float=sin(PI*t/windup_end) if t<windup_end else 0.0
+	var anticipation:float=pow(sin(PI*t/windup_end),2.0) if t<windup_end else 0.0
 	var drive:float=0.0
 	var follow:float=0.0
 	if t>=windup_end and t<=peak:
@@ -2075,25 +2075,25 @@ func attack_direction_sample(progress:float,impact:float)->Vector3:
 	elif t>peak:
 		var recovery:float=(t-peak)/(1.0-peak)
 		drive=1.0-smoothstep(0.0,1.0,recovery)
-		follow=sin(recovery*PI)*(1.0-recovery)
+		follow=pow(sin(recovery*PI),2.0)*(1.0-recovery)
 	return Vector3(anticipation,drive,follow)
 
 func cast_motion_offset(kind:String,progress:float,impact:float)->Vector3:
 	var t:float=clampf(progress,0.0,1.0)
 	var peak:float=clampf(impact,.12,.88)
 	var cue:=attack_direction_sample(t,peak)
-	var recoil:float=sin(t*PI)
+	var recoil:float=pow(sin(t*PI),2.0)
 	match kind:
 		"rush":return Vector3(.64*cue.y-.14*cue.x,.05*recoil,0)
 		"contact":return Vector3(.40*cue.y-.09*cue.x,.06*recoil,0)
 		"lash":return Vector3(.13*cue.y-.08*cue.x,.025*recoil,.07*cue.z)
 		"aerial":
-			var flight:float=sin(PI*t/peak) if t<peak else 0.0
+			var flight:float=pow(sin(PI*t/peak),2.0) if t<peak else 0.0
 			return Vector3(.36*cue.y-.06*cue.x,.60*flight,0)
-		"down":return Vector3(.20*cue.y-.04*cue.x,.30*sin(minf(1.0,t/peak)*PI),0)
-		"spin":return Vector3(.10*cue.y,.07*recoil,.13*sin(t*TAU))
+		"down":return Vector3(.20*cue.y-.04*cue.x,.30*pow(sin(minf(1.0,t/peak)*PI),2.0),0)
+		"spin":return Vector3(.10*cue.y,.07*recoil,.13*sin(t*TAU)*recoil)
 		"focus":return Vector3(0,.08*recoil,0)
-		"gesture":return Vector3(.04*cue.y,.05*recoil,.04*sin(t*TAU))
+		"gesture":return Vector3(.04*cue.y,.05*recoil,.04*sin(t*TAU)*recoil)
 		_:return Vector3(-.10*cue.x+.045*cue.y,.04*recoil,0)
 
 func cast_offset_world(offset:Vector3,direction:Vector3)->Vector3:
