@@ -2,7 +2,11 @@ extends Node
 # Independent Godot port of native PetState. Time in seconds, persisted in one wallet.
 const SAVE="user://forever_pet_v1.json"
 const Research=preload("res://research_data.gd")
-const ROSTER=["Mosky"]
+const WORLD_NAME="Kindra"
+const CREATURE_NAME="Mosky"
+const CREATURE_PLURAL="Moskies"
+const MASCOT_NAME="Ponoko"
+const ROSTER=[MASCOT_NAME]
 # Archived catalog IDs are retained for old-save migration and rule fixtures, not the live roster.
 var legacy_catalog=false
 const SPECIES=["Mosskit","Mewmew","Barkle","Dracoon","Bubblefin","Neblito","Wispurr","Octoboo","Roostik","Fayli","Pixsy","Puffowl","Fernhorn","Moonmew","Cloverbark","Emberdrake","Pearlfin","NovaNeb","Lunawisp","Reefboo","Suncrest","Aurorafay","Stardust Pixsy","Dreamowl","Ember Imp","Wisp Ghost","Bolt Bot","Mushmellow"]
@@ -74,7 +78,7 @@ func enforce_mosky():
 			if original.has(key):s[key]=original[key].duplicate(true) if original[key] is Array else original[key]
 	s.form=-1;s.profiles={};s.collection=1 if int(s.stage)>0 else 0
 	s.favorites=int(s.favorites)&1
-	s.name="Mosky"
+	s.name=MASCOT_NAME
 	s.variant=0;s.body=0
 	s.research_target=[-1,-1,-1]
 func now()->float: return Time.get_unix_time_from_system()
@@ -150,7 +154,7 @@ func family_slots()->Array[int]:
 		if (int(s.collection)&(1<<i))!=0 and (int(s.form)==i or s.profiles.has(str(i))):slots.append(i)
 	return slots
 func family_name_for(slot:int)->String:
-	if not legacy_catalog:return "Mosky" if slot==-1 else ""
+	if not legacy_catalog:return MASCOT_NAME if slot==-1 else ""
 	var profile=companion_profile(slot)
 	if not str(profile.get("name","")).strip_edges().is_empty():return str(profile.name)
 	if slot==-1:
@@ -511,7 +515,7 @@ func toggle_favorite(index:int)->bool:
 	save_game()
 	return true
 func pet_name()->String:
-	if not legacy_catalog:return "Mosky"
+	if not legacy_catalog:return MASCOT_NAME
 	return s.name if not str(s.name).is_empty() else STAGES[int(s.stage)] if s.stage<2 else SPECIES[species()]
 func earn(n:int):
 	s.xp=mini(999900,int(s.xp)+n); s.companion_xp=mini(999900,int(s.companion_xp)+n)
@@ -629,7 +633,7 @@ func feed(i:int):
 # Read-only action status used by every care control. The authoritative
 # action still validates state and time when executed.
 func action_block(id:String,i:int=0)->String:
-	if not legacy_catalog and id in ["form","breed","friend","secret"]:return "Mosky is the only companion"
+	if not legacy_catalog and id in ["form","breed","friend","secret"]:return MASCOT_NAME+" is the only companion"
 	var at=now()
 	if id=="hatch": return "" if s.stage==0 else "Already hatched"
 	if id=="field": return "Unknown habitat" if i<0 or i>=FIELDS.size() else "Already selected" if int(s.habitat)==i else ""
