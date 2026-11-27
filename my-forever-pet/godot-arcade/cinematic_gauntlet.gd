@@ -36,6 +36,30 @@ func run_checks()->void:
 	var checks:int=0
 	var failures:Array[String]=[]
 	var view:=Dungeon.new()
+	# V22.6: parameter caches must be independent per material and exact.
+	var uniform_shader:=Shader.new()
+	uniform_shader.code="shader_type spatial; uniform float phase = 0.0; uniform float intensity = 0.0; void fragment(){ALBEDO=vec3(phase); ALPHA=intensity;}"
+	var uniform_a:=ShaderMaterial.new()
+	var uniform_b:=ShaderMaterial.new()
+	uniform_a.shader=uniform_shader
+	uniform_b.shader=uniform_shader
+	if not view.set_fx_uniform(uniform_a,&"phase",.25):failures.append("V22.6 first uniform write")
+	if view.set_fx_uniform(uniform_a,&"phase",.25):failures.append("V22.6 redundant uniform")
+	if not view.set_fx_uniform(uniform_a,&"intensity",.25):failures.append("V22.6 distinct uniform key")
+	if not view.set_fx_uniform(uniform_b,&"phase",.25):failures.append("V22.6 distinct material")
+	if not view.set_fx_uniform(uniform_a,&"phase",.75):failures.append("V22.6 changed uniform")
+	if not is_equal_approx(float(uniform_a.get_shader_parameter(&"phase")),.75) or not is_equal_approx(float(uniform_b.get_shader_parameter(&"phase")),.25):failures.append("V22.6 material value parity")
+	var halo_probe:=MeshInstance3D.new()
+	var halo_at:=Vector3(1.0,.065,2.0)
+	view.apply_cinematic_halo_transform(halo_probe,halo_at,1.25,true)
+	if not halo_probe.position.is_equal_approx(halo_at) or not halo_probe.rotation.is_equal_approx(Vector3(-PI*.5,0,0)) or not halo_probe.scale.is_equal_approx(Vector3.ONE*1.25):failures.append("V22.6 ground halo state")
+	# Exact equality is used for skipping; engine decomposition may round rotation.
+	var repeated_halo_writes:int=view.apply_cinematic_halo_transform(halo_probe,halo_at,1.25,true)
+	if repeated_halo_writes>1:failures.append("V22.6 repeated halo transform")
+	view.apply_cinematic_halo_transform(halo_probe,halo_at,.5,false)
+	if not halo_probe.rotation.is_equal_approx(Vector3.ZERO) or not halo_probe.scale.is_equal_approx(Vector3.ONE*.5):failures.append("V22.6 halo reuse")
+	halo_probe.free()
+	checks+=9
 	# V22.5: actual sprite properties remain authoritative across pool reuse.
 	var probe:=Sprite3D.new()
 	var probe_texture:=ImageTexture.create_from_image(Image.create(2,2,false,Image.FORMAT_RGBA8))
