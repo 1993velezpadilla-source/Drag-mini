@@ -556,6 +556,40 @@ func run()->void:
 	var probe:String=str(reports[39].id)
 	if field.combat_animated_texture(probe,-1)!=field.combat_animated_texture(probe,Field.FX_FRAME_COUNT-1):errors.append("frame wrap or cache hit")
 	if field.combat_animated_texture(probe,-1).get_image().get_data()!=field.combat_frame_image(probe,Field.FX_FRAME_COUNT-1).get_data():errors.append("normalized texture differs from frame")
+	# The original reference audit retains its strict 468-move contract.
+	# Independently capture every native/library move at all twelve frames.
+	var native_ids:Array=[]
+	for id in Rules.MOVE_LIBRARY:
+		if not str(id).begins_with("eos_"):native_ids.append(id)
+	native_ids.append_array(Rules.DEV_NATIVE_MOVES.keys())
+	var native_report:Array=[]
+	var native_sequences:Dictionary={}
+	var native_frames:int=0
+	for id in native_ids:
+		var sheet:=Image.create(Field.FX_FRAME_SIZE*Field.FX_FRAME_COUNT,Field.FX_FRAME_SIZE,false,Image.FORMAT_RGBA8)
+		sheet.fill(Color.TRANSPARENT)
+		var distinct:Dictionary={}
+		var blank:Array[int]=[]
+		for frame in range(Field.FX_FRAME_COUNT):
+			var im:Image=field.combat_frame_image(id,frame)
+			native_frames+=1
+			distinct[digest(im.get_data())]=true
+			if not im.get_used_rect().has_area():blank.append(frame)
+			sheet.blit_rect(im,Rect2i(Vector2i.ZERO,im.get_size()),Vector2i(frame*Field.FX_FRAME_SIZE,0))
+		var signature:String=digest(sheet.get_data())
+		if not native_sequences.has(signature):native_sequences[signature]=[]
+		native_sequences[signature].append(id)
+		if distinct.size()<3 or blank.size()==Field.FX_FRAME_COUNT:errors.append("native sprite sequence "+str(id))
+		if sheet.save_png(OUT+"/native-"+str(id)+".png")!=OK:errors.append("native PNG "+str(id))
+		native_report.append({"id":id,"distinct_frames":distinct.size(),"blank_frames":blank,"sequence_sha256":signature})
+	var native_shared:Array=[]
+	for ids in native_sequences.values():
+		if ids.size()>1:native_shared.append(ids)
+	if native_ids.size()!=121 or native_frames!=1452:errors.append("native coverage count")
+	var native_file:=FileAccess.open(OUT+"/native-audit.json",FileAccess.WRITE)
+	native_file.store_string(JSON.stringify({"moves":native_ids.size(),"frames":native_frames,"distinct_sequences":native_sequences.size(),"shared_sequences":native_shared,"moves_detail":native_report},"\t"))
+	native_file.close()
+	print("KINDRIA_NATIVE_FX_AUDIT moves=",native_ids.size()," frames=",native_frames," sequences=",native_sequences.size()," shared_groups=",native_shared.size())
 	var report:Dictionary={"moves":seen_ids.size(),"frames":total_frames,"distinct_roles":roles.size(),"distinct_sequences":signatures.size(),"blank_interior_frames":blank_interior,"adjacent_repeats":repeated_adjacent,"cpu_render_usec":timing_usec,"animated_cache_entries":field.fx_animated_cache.size(),"raw_cache_bytes_upper_bound":Field.FX_ANIMATED_CACHE_CAP*Field.FX_FRAME_SIZE*Field.FX_FRAME_SIZE*4,"errors":errors,"moves_detail":reports}
 	var output:=FileAccess.open(OUT+"/audit.json",FileAccess.WRITE)
 	output.store_string(JSON.stringify(report,"\t"))
