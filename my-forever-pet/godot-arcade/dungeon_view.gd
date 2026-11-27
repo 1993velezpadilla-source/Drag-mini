@@ -7588,16 +7588,21 @@ func visual_remaster_frame(id:String,frame:int)->Image:
 			if t>=peak:
 				fx_disc(im,c,14.0,Color("#d0ed9a",fade),12.5)
 		"eos_449":
-			# Hive Renewal: amber honeycomb cells pulse and send healing motes inward.
-			var c:=Vector2(24,24)
-			for j in range(6):
-				var a:float=float(j)*TAU/6.0
-				var q:=c+Vector2(cos(a),sin(a))*12
-				psi_polygon(im,q,6.0,6,PI/6,Color("#ffdc85",fade),Color("#9f793c",fade))
-				var v:=q.lerp(c,drive)
-				fx_disc(im,v,2.0,Color("#a6f3af",fade))
-			fx_line(im,c-Vector2(0,5),c+Vector2(0,5),2.4,Color("#d8ffca",fade))
-			fx_line(im,c-Vector2(5,0),c+Vector2(5,0),2.4,Color("#d8ffca",fade))
+			# Hive Renewal: a hanging honeycomb dispenses restorative droplets and tiny winged motes.
+			var c:=Vector2(24,19)
+			for j in range(7):
+				var q:=c+Vector2(float(j%3-1)*10,float(j/3)*8-7)
+				psi_polygon(im,q,5.6,6,PI/6,Color("#ffe19a",fade),Color("#a67839",fade))
+				fx_disc(im,q,2.1,Color("#c68c42",fade))
+			for j in range(5):
+				var u:float=fposmod(t*1.4+float(j)*.19,1.0)
+				var q:=Vector2(14+float(j)*5,24+u*14)
+				water_drop(im,q,1.8,Color("#f2e9a5",fade),Color("#88b86b",fade))
+				if j%2==0:bug_wing(im,q,.8*sin(t*TAU*3),3.6,Color("#eaffc5",fade),Color("#86ab65",fade))
+			if t>=peak:
+				fx_line(im,Vector2(24,29),Vector2(24,39),2.5,Color("#d8ffbd",fade))
+				fx_line(im,Vector2(19,34),Vector2(29,34),2.5,Color("#d8ffbd",fade))
+
 		"eos_288":
 			# Glow Focus: firefly-like golden abdomen brightens through successive pulses.
 			var c:=Vector2(24,27)
@@ -7889,7 +7894,7 @@ func visual_remaster_frame(id:String,frame:int)->Image:
 				fx_line(im,q+normal*4,q-axis*5,1.5,Color("#fff2d1",fade))
 			if t>=peak:
 				fairy_star(im,c,3+3*pulse,Color("#c9fff0",fade))
-		"eos_092","eos_204","eos_206","eos_222","eos_210","lib_fighting_2":
+		"eos_092","eos_204","eos_206","eos_222","lib_fighting_2":
 			# Side-view articulated kick: thigh, shin, ankle, boot and sole.
 			# Individual hit confirmation remains in the existing combat timeline.
 			var angle:float=0.0
@@ -7950,6 +7955,26 @@ func visual_remaster_frame(id:String,frame:int)->Image:
 					var q:=toe+d*(3+7*(1.0-fade))
 					fx_line(im,toe+d*2,q,1.4,Color("#fff0b5",fade))
 				if id=="eos_092":fx_line(im,toe-normal*2,toe+axis*4-normal*2,1.0,Color("#ffe3a0",fade))
+		"eos_210":
+			# Triple Talon: three staged talon strikes sweep in a rising diagonal sequence.
+			for j in range(3):
+				var u:float=clampf(drive*1.65-float(j)*.25,0,1)
+				var q:=Vector2(13+18*u,32-float(j)*8)
+				var alpha:float=fade*(.55+.45*u)
+				var d:=Vector2(.86,-.5)
+				var n:=Vector2(-d.y,d.x)
+				var knee:=q-d*8+n*4
+				var ankle:=q-d*3
+				var toe:=q+d*6
+				fx_line(im,knee,ankle,5.3,Color("#725046",alpha))
+				fx_line(im,knee,ankle,2.9,Color("#d9b08b",alpha))
+				fx_line(im,ankle,toe,5.6,Color("#8f5e49",alpha))
+				fx_line(im,ankle,toe,3.2,Color("#ffe5bb",alpha))
+				for k in range(3):
+					var z:=toe+n*float(k-1)*2.4
+					fx_line(im,z,z+d*3,1.4,Color("#fff4d5",alpha))
+				if t>=peak and u>.6:fairy_star(im,toe,3.0,Color("#ffe5a8",alpha))
+
 		"eos_303":
 			# Rolling Kick: a tucked rotating leg unfolds into an outward heel strike.
 			var c:=Vector2(24,24)
@@ -9444,19 +9469,20 @@ func visual_remaster_frame(id:String,frame:int)->Image:
 				var q:=Vector2(8+float(j)*6,17+13*drive+sin(float(j)*2.4)*3)
 				fx_disc(im,q,1.3,Color("#d0bc95",fade))
 		"eos_295":
-			# Thorn Tile: mineral spikes erupt across a ground-aligned diamond lattice.
-			var c:=Vector2(24,33)
+			# Thorn Tile: a visible ground tile cracks before clustered mineral spikes emerge.
+			var c:=Vector2(24,34)
+			var corners:Array[Vector2]=[c+Vector2(-18,-4),c+Vector2(0,-13),c+Vector2(18,-4),c+Vector2(0,7)]
 			for j in range(4):
-				var v:float=float(j)*6
-				fx_line(im,c+Vector2(-18+v,-6+v*.35),c+Vector2(v,3+v*.35),1.0,Color("#8a6c4c",fade*.8))
-				fx_line(im,c+Vector2(-18+v,6-v*.35),c+Vector2(v,-3-v*.35),1.0,Color("#8a6c4c",fade*.8))
-			for j in range(9):
-				var q:=Vector2(10+float(j%3)*12,27+float(j/3)*4)
-				var h:float=3+10*drive
-				fx_line(im,q-Vector2(3,0),q+Vector2(0,-h),2.6,Color("#69523d",fade))
-				fx_line(im,q+Vector2(3,0),q+Vector2(0,-h),2.0,Color("#c09c71",fade))
-				fx_line(im,q,q+Vector2(0,-h),.8,Color("#e5c8a1",fade))
-				fx_disc(im,q+Vector2(-4,2),1.2,Color("#ad8a60",fade))
+				fx_line(im,corners[j],corners[(j+1)%4],2.6,Color("#ac8a61",fade))
+				fx_line(im,c,corners[j],1.1,Color("#684f39",fade))
+			for j in range(5):
+				var q:=c+Vector2(float(j-2)*6,-3-float(j%2)*5)
+				var h:float=(5+float(j%3)*4)*drive+3
+				fx_line(im,q-Vector2(3,0),q+Vector2(0,-h),3.6,Color("#755a40",fade))
+				fx_line(im,q+Vector2(3,0),q+Vector2(0,-h),2.4,Color("#d1aa73",fade))
+				fx_line(im,q,q+Vector2(0,-h),1.0,Color("#f0d3a0",fade))
+				if t>=peak:earth_rock(im,q+Vector2(-4,-2),1.8,Color("#bc9a73",fade),Color("#72583d",fade))
+
 		"eos_296":
 			# Seismic Surge: successive compressed ground shock fronts and airborne debris.
 			var c:=Vector2(24,31)
@@ -10122,15 +10148,22 @@ func visual_remaster_frame(id:String,frame:int)->Image:
 				fx_line(im,q,q-Vector2(0,6+float(j%3)*2),1.5,Color("#b5dcff",fade))
 			if t>=peak:fairy_star(im,c,4*fade+1,Color("#fdf4ff",fade))
 		"eos_266":
-			# Stasis Seal: closing square cage with lock glyph and vertical bars.
+			# Stasis Seal: a psychic hourglass freezes its falling grains as a clasp closes.
 			var c:=Vector2(24,24)
-			var rad:float=18-5*drive
-			psi_polygon(im,c,rad,4,PI*.25,Color("#f4b6e4",fade),Color("#7750a1",fade))
-			for j in range(4):
-				var x:float=14+float(j)*6.5
-				fx_line(im,Vector2(x,11),Vector2(x,37),1.4,Color("#9f75c4",fade))
-			fx_disc(im,c+Vector2(0,-3),4.0,Color("#f6d1f0",fade),2.3)
-			fx_line(im,c+Vector2(-3,1),c+Vector2(3,5),3.5,Color("#d8a6df",fade))
+			for side in [-1.0,1.0]:
+				fx_line(im,c+Vector2(-11,side*14),c+Vector2(11,side*14),4.2,Color("#7655a2",fade))
+				fx_line(im,c+Vector2(-10,side*14),c+Vector2(10,side*14),1.6,Color("#f4c8f0",fade))
+				fx_line(im,c+Vector2(-10,side*12),c,2.6,Color("#c498e5",fade))
+				fx_line(im,c+Vector2(10,side*12),c,2.6,Color("#c498e5",fade))
+			for j in range(7):
+				var u:float=fposmod(minf(t,peak)*1.8+float(j)*.15,1.0)
+				var q:=c+Vector2(sin(float(j)*3.0)*4*(1-u),-10+20*u)
+				fx_disc(im,q,1.3,Color("#f9e3ed",fade))
+			var gap:float=7-5*drive
+			fx_line(im,c-Vector2(gap,3),c+Vector2(-gap,3),3.3,Color("#9772bd",fade))
+			fx_line(im,c+Vector2(gap,-3),c+Vector2(gap,3),3.3,Color("#9772bd",fade))
+			if t>=peak:fx_disc(im,c,3.0,Color("#fff1ff",fade))
+
 		"eos_448":
 			# Ward Exchange: tall protective crests rise and rotate through an orbital transfer.
 			for j in range(2):
@@ -11208,14 +11241,21 @@ func visual_remaster_frame(id:String,frame:int)->Image:
 			fx_line(im,q-Vector2(9,6),q+Vector2(7,0),2.0,Color("#c1a68a",fade))
 			if t>=peak:fairy_star(im,q+Vector2(9,0),5.4,Color("#ffedbc",fade))
 		"eos_140":
-			# Double Edge: bright opposing edges and a recoil streak.
-			var q:=Vector2(9+25*drive,24)
-			for side in [-1.0,1.0]:
-				fx_line(im,q+Vector2(-15,side*8),q+Vector2(6,0),3.8,Color("#b48165",fade))
-				fx_line(im,q+Vector2(-12,side*6),q+Vector2(6,0),1.5,Color("#fff1c6",fade))
+			# Double Edge: heavy cross-body slash, sharp collision and a distinct backward recoil streak.
+			var q:=Vector2(18+13*drive,24)
+			for j in range(2):
+				var side:float=-1.0 if j==0 else 1.0
+				var a:=q+Vector2(-10,side*12)
+				var z:=q+Vector2(8,-side*8)
+				fx_line(im,a,z,5.4,Color("#ad755e",fade))
+				fx_line(im,a,z,2.6,Color("#ffe0aa",fade))
+				fx_line(im,a+Vector2(1,-1),z+Vector2(1,-1),1.1,Color("#fff9db",fade))
 			if t>=peak:
-				fight_burst(im,q,16.0,8,t,Color("#ffe1a9",fade),Color("#c17c60",fade))
-				fx_line(im,q-Vector2(4,0),q-Vector2(20*(1.0-fade)+4,0),2.0,Color("#c99879",fade))
+				fairy_star(im,q,7.0*pulse+2,Color("#fff3ca",fade))
+				for j in range(4):
+					var z:=q-Vector2(5+float(j)*4,float(j%2)*7-3)
+					fx_line(im,z,z-Vector2(6,3),2.0,Color("#c99879",fade))
+
 		"eos_154":
 			# Tackle: compact body-contact shock with a short motion trail.
 			var q:=Vector2(17+17*drive,25)
@@ -11680,15 +11720,22 @@ func visual_remaster_frame(id:String,frame:int)->Image:
 				fx_line(im,q+Vector2(1,0),q+Vector2(1,-7),1.3,tint)
 				fx_line(im,q+Vector2(1,-7),q+Vector2(5,-5),1.2,tint)
 		"eos_171":
-			# Discord Pulse: irregular zigzag waveforms collide without contact sparks.
-			for j in range(3):
-				var prev:=Vector2(3,15+float(j)*8)
-				for k in range(1,17):
-					var f:float=float(k)/16.0
-					var q:=Vector2(3+40*f*drive,15+float(j)*8+sin(float(k)*2.1+t*TAU*2+float(j))*4)
-					fx_line(im,prev,q,2.0,Color("#b58caa",fade))
-					fx_line(im,prev,q,.8,Color("#f1d6e1",fade))
-					prev=q
+			# Discord Pulse: opposing jagged oscillations collide in a broken interference pattern.
+			var c:=Vector2(24,24)
+			for side in [-1.0,1.0]:
+				for j in range(2):
+					var prev:=Vector2(24+side*18,19+float(j)*10)
+					for k in range(1,13):
+						var u:float=float(k)/12.0
+						var q:=Vector2(24+side*(18-17*u*drive),19+float(j)*10+sin(float(k)*2.7+t*TAU*2)*5)
+						fx_line(im,prev,q,2.8,Color("#9b7298",fade))
+						fx_line(im,prev,q,1.2,Color("#f5c7df",fade))
+						prev=q
+			if t>=peak:
+				for j in range(5):
+					var q:=c+Vector2(float(j-2)*4,(-1.0 if j%2==0 else 1.0)*6)
+					fx_line(im,q,q+Vector2(3,4),2.1,Color("#e4b3c9",fade))
+
 		"eos_191":
 			# Bewilder Charm: a drifting kiss-shaped heart splits into confused orbiting motes.
 			var q:=Vector2(9+25*drive,24)
@@ -12192,13 +12239,21 @@ func visual_remaster_frame(id:String,frame:int)->Image:
 				fx_line(im,q-Vector2(0,2),p,1.1,Color("#f3c18d",fade))
 			fx_disc(im,c,8+3*pulse,Color("#e0ac82",fade*.5),7+3*pulse)
 		"eos_315":
-			# Spirit Reveal: translucent outline emerges inside a scanning ring.
+			# Spirit Reveal: a descending scanner uncovers a translucent hidden spirit silhouette.
 			var c:=Vector2(24,24)
-			fx_disc(im,c-Vector2(0,5),5.0,Color("#d3d4cf",fade*.7))
-			fx_line(im,c,c+Vector2(0,8),8.0,Color("#b6c5bc",fade*.5))
-			psi_ring(im,c,16-4*drive,Color("#e8ecd7",fade),Color("#a9b9ae",fade))
-			var y:float=10+28*drive
-			fx_line(im,Vector2(8,y),Vector2(40,y),1.1,Color("#f5f6db",fade))
+			for j in range(5):
+				var q:=c+Vector2(float(j-2)*4,6+float(j%2)*3)
+				fx_disc(im,q,3.5,Color("#b1c5b9",fade*.65))
+			fx_disc(im,c-Vector2(0,7),7.5,Color("#c8d8cf",fade*.8))
+			fx_disc(im,c+Vector2(-2,-8),1.2,Color("#fff7de",fade))
+			fx_disc(im,c+Vector2(2,-8),1.2,Color("#fff7de",fade))
+			for side in [-1.0,1.0]:
+				fx_line(im,c+Vector2(side*4,-1),c+Vector2(side*12,6),3.4,Color("#c4d5c9",fade*.7))
+			var y:float=8+31*drive
+			fx_line(im,Vector2(7,y),Vector2(41,y),3.1,Color("#b9dbb7",fade*.7))
+			fx_line(im,Vector2(7,y),Vector2(41,y),1.2,Color("#f8ffe4",fade))
+			for j in range(3):fairy_star(im,Vector2(12+float(j)*12,y-3),2.0,Color("#effbdc",fade))
+
 		"eos_054":
 			# Scent Reveal: dotted tracking trail leads to a revealed outline.
 			for j in range(7):
@@ -12209,14 +12264,19 @@ func visual_remaster_frame(id:String,frame:int)->Image:
 				fx_disc(im,q+Vector2(2,-3),.8,Color("#e5d8bb",fade))
 			if t>=peak:psi_ring(im,Vector2(37,24),7.0,Color("#eadbb8",fade),Color("#b6a38b",fade))
 		"eos_183":
-			# Element Shift: colored tiles rotate through a neutral conversion prism.
-			var c:=Vector2(24,24)
-			var hues:Array[Color]=[Color("#d8a48a",fade),Color("#a8cee3",fade),Color("#b6d2a2",fade),Color("#e4cc8a",fade)]
+			# Element Shift: a tall conversion prism splits a neutral ray into four colored paths.
+			var c:=Vector2(23,24)
+			var hues:Array[Color]=[Color("#e4a17e",fade),Color("#a6ddf2",fade),Color("#b7df95",fade),Color("#f5de85",fade)]
+			fx_line(im,Vector2(5,24),c,3.7,Color("#f1e8d9",fade))
+			fx_line(im,Vector2(5,24),c,1.1,Color("#fffdf1",fade))
+			psi_polygon(im,c,10,3,-PI*.5+t*.25,Color("#f1e5d4",fade),Color("#a69ca8",fade))
 			for j in range(4):
-				var a:float=float(j)*PI*.5+t*TAU
-				var q:=c+Vector2(cos(a),sin(a))*(14-5*drive)
-				psi_polygon(im,q,4.6,4,a,hues[j],Color("#a49a8e",fade))
-			psi_polygon(im,c,6.0,6,t,Color("#f3ead4",fade),Color("#b8ab97",fade))
+				var q:=Vector2(38,12+float(j)*8)
+				var z:=c.lerp(q,drive)
+				fx_line(im,c,z,2.6,hues[j])
+				psi_polygon(im,z,3.2,4,PI*.25+t,hues[j],Color("#a59b97",fade))
+			if t>=peak:fairy_star(im,c,4.2*pulse,Color("#fff6e1",fade))
+
 		"eos_184":
 			# Adaptive Shell: overlapping armor scales rise upward and shift color as they lock.
 			var c:=Vector2(24,27)
@@ -12315,14 +12375,21 @@ func visual_remaster_frame(id:String,frame:int)->Image:
 				fx_line(im,q+Vector2(4,0),q+Vector2(0,5),2.2,tint)
 				fx_line(im,q+Vector2(0,7),q+Vector2(0,13+5*drive),1.2,Color("#d5b8b5",fade))
 		"eos_017":
-			# Echo Lock: repeated loop arrows close around a move token.
+			# Echo Lock: two mechanical loop arrows trap a central move token in a horizontal track.
 			var c:=Vector2(24,24)
-			for j in range(2):
-				var a:float=float(j)*PI+t*TAU*.6
-				fight_arc(im,c,13.0,a,PI*.8,Color("#e0c8a4",fade),Color("#a79883",fade),2.0)
-				var q:=c+Vector2(cos(a+PI*.8),sin(a+PI*.8))*13
-				fx_disc(im,q,2.2,Color("#f4dfb8",fade))
-			psi_polygon(im,c,5.0,4,PI*.25,Color("#d9c4a3",fade),Color("#9f8b74",fade))
+			for side in [-1.0,1.0]:
+				var q:=c+Vector2(side*9,0)
+				var a:float=t*TAU+side*PI*.5
+				fight_arc(im,q,8.0,a,PI*1.4,Color("#ead5ae",fade),Color("#9a856d",fade),2.6)
+				var d:=Vector2(cos(a+PI*1.4),sin(a+PI*1.4))
+				var z:=q+d*8
+				fx_line(im,z,z-d*3+Vector2(-d.y,d.x)*4,2.1,Color("#ffebc8",fade))
+				fx_line(im,z,z-d*3-Vector2(-d.y,d.x)*4,2.1,Color("#ffebc8",fade))
+			psi_polygon(im,c,4.4,4,PI*.25,Color("#d7c3a2",fade),Color("#9f8b74",fade))
+			if t>=peak:
+				fx_line(im,c-Vector2(3,-4),c+Vector2(3,4),2.0,Color("#a18b72",fade))
+				fx_line(im,c-Vector2(3,4),c+Vector2(3,-4),2.0,Color("#a18b72",fade))
+
 		"eos_327":
 			# Echo Strike: a source strike glyph is reproduced in a second location.
 			for j in range(2):
@@ -12655,15 +12722,23 @@ func visual_remaster_frame(id:String,frame:int)->Image:
 			fx_line(im,q-Vector2(12,0),q+Vector2(12,0),3.1,Color("#a0b78d",fade))
 			if t>=peak:fight_burst(im,q+Vector2(5,0),10+5*pulse,6,t,Color("#e0ebbc",fade),Color("#8b927b",fade))
 		"alt_shellguard":
-			# Shell Disc: rotating scallop-shaped rock disc, with mineral ridges.
-			var q:=Vector2(10+25*drive,24)
-			psi_polygon(im,q,10.0,10,t*TAU,Color("#bfc4a1",fade),Color("#61776b",fade))
-			for j in range(8):
-				var a:float=float(j)*TAU/8.0+t*TAU
-				var d:=Vector2(cos(a),sin(a))
-				fx_line(im,q+d*2.5,q+d*9.0,1.6,Color("#edf1cc",fade))
-			fx_disc(im,q,3.3,Color("#7d998a",fade))
-			for j in range(3):fx_line(im,q-Vector2(13+float(j)*2,float(j-1)*4),q-Vector2(9,float(j-1)*4),.9,Color(light,fade*.7))
+			# Shell Disc: a tilted spinning scallop shell with a fluted rim and mineral facets.
+			var q:=Vector2(15+17*drive,24)
+			for j in range(13):
+				var a:float=float(j)*TAU/13.0+t*TAU
+				var z:=q+Vector2(cos(a)*10,sin(a)*6.5)
+				fx_line(im,q,z,3.0,Color("#657a69",fade))
+				fx_line(im,q,z,1.4,Color("#d7dfb7",fade))
+				fx_disc(im,z,2.5,Color("#aebd98",fade))
+				fx_disc(im,z-Vector2(0,1),1.0,Color("#f1f3d3",fade))
+			fx_disc(im,q,4.0,Color("#789387",fade))
+			fx_line(im,q-Vector2(12,7),q-Vector2(5,7),1.6,Color("#d7e1ba",fade))
+			fx_line(im,q-Vector2(15,-7),q-Vector2(7,-7),1.6,Color("#d7e1ba",fade))
+			if t>=peak:
+				for j in range(4):
+					var z:=q+Vector2(9+float(j%2)*3,float(j-2)*5)
+					earth_rock(im,z,2.0,Color("#c4c5a6",fade),Color("#687a6e",fade))
+
 		"bubble_burst":
 			# Bubble Shot: a large transparent pressure bubble and satellite bubbles.
 			var q:=Vector2(9+27*drive,24-sin(t*PI)*3.0)
