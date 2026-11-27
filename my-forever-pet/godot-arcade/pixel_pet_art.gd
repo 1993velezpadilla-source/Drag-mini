@@ -285,7 +285,7 @@ static func animate_world_sprite(actor:Node3D,delta:Vector2,moving:bool,dt:float
 	sprite.modulate=Color("#ff9b9b") if state=="hurt" and int(clock*22.0)%2==0 else Color("#d3fff1") if state=="burst" else Color.WHITE
 
 # Volnox enemies are authored 2D pixels, never rendered 3D creature meshes.
-const ENEMY_PIXEL_PILOTS=["sporeling","coralcrab","nova_wisp","vinesnap","eelstrix","comet_hare","thornbeetle","marrowray","voidspider"]
+const ENEMY_PIXEL_PILOTS=["sporeling","coralcrab","nova_wisp","vinesnap","eelstrix","comet_hare","thornbeetle","marrowray","voidspider","rootgnawer","jellymancer","lunamoth"]
 const ENEMY_POSES=["idle","walk","walk","walk","walk","windup","attack","attack","recover","hurt","defeat"]
 static func enemy_dot(im:Image,p:Vector2i,r:Vector2i,c:Color)->void:
 	ellipse(im,Vector2(p),Vector2(r),c)
@@ -294,6 +294,17 @@ static func enemy_line(im:Image,a:Vector2i,b:Vector2i,width:int,c:Color)->void:
 	for i in range(steps+1):
 		var q:=Vector2i(Vector2(a).lerp(Vector2(b),float(i)/maxi(1,steps)).round())
 		enemy_dot(im,q,Vector2i(width,width),c)
+# Integer-grid filled polygons allow faceted material clusters rather than circles alone.
+static func enemy_poly(im:Image,points:Array,c:Color)->void:
+	var polygon:=PackedVector2Array()
+	for point in points:polygon.append(Vector2(point))
+	for y in range(48):
+		for x in range(48):
+			if Geometry2D.is_point_in_polygon(Vector2(x+.5,y+.5),polygon):im.set_pixel(x,y,c)
+static func enemy_patch(im:Image,origin:Vector2i,points:Array,c:Color)->void:
+	var shifted:Array=[]
+	for point in points:shifted.append(origin+Vector2i(point))
+	enemy_poly(im,shifted,c)
 static func enemy_pincer(im:Image,shoulder:Vector2i,palm:Vector2i,forward:Vector2i,pinch:int,ink:Color,shade:Color,purple:Color,brass_dark:Color,gold:Color)->void:
 	var lateral:=Vector2i(-forward.y,forward.x)
 	enemy_line(im,shoulder,palm,3,ink)
@@ -699,6 +710,134 @@ static func enemy_pixel_cell(id:String,dir:int,pose:String,frame:int=0)->Image:
 				enemy_line(im,web-Vector2i(4,3),web+Vector2i(4,3),1,glint)
 				enemy_line(im,web+Vector2i(4,-3),web-Vector2i(4,-3),1,glint)
 				enemy_line(im,web-Vector2i(4,0),web+Vector2i(4,0),1,purple)
+		"rootgnawer":
+			# Low, stocky boar. The muzzle and tusks project ahead of the shoulders.
+			var bark:=Color("#5b4835")
+			var fur:=Color("#a18a60")
+			var ivory:=Color("#d0b77c")
+			var dark_fur:=Color("#3c3028")
+			var center:=Vector2i(20,29) if side else Vector2i(24,27)
+			var charge:int=4 if attack else -2 if wind else 0
+			for i in range(4):
+				var stride:int=step*(-1 if i%2==0 else 1)
+				var hip:=center+Vector2i(-8+(i%2)*15,3+int(i/2.0)*3) if side else center+Vector2i(-8+(i%2)*16,4+int(i/2.0)*5)
+				var foot:=hip+Vector2i(stride,9-abs(stride))
+				enemy_line(im,hip,foot,3,ink)
+				enemy_line(im,hip,foot,2,dark_fur)
+				enemy_dot(im,foot,Vector2i(3,2),ink)
+				enemy_line(im,foot-Vector2i(1,1),foot+Vector2i(1,-1),1,fur)
+			enemy_patch(im,center,[Vector2i(-14,1),Vector2i(-13,-8),Vector2i(-8,-13),Vector2i(6,-13),Vector2i(13,-7),Vector2i(14,6),Vector2i(7,11),Vector2i(-10,10)],ink)
+			enemy_patch(im,center,[Vector2i(-12,0),Vector2i(-11,-7),Vector2i(-7,-11),Vector2i(5,-11),Vector2i(11,-6),Vector2i(12,5),Vector2i(6,9),Vector2i(-9,8)],bark)
+			enemy_patch(im,center,[Vector2i(-11,-7),Vector2i(-7,-12),Vector2i(0,-10),Vector2i(7,-9),Vector2i(6,-4),Vector2i(-6,-3)],fur)
+			for i in range(4):
+				var p:=center+Vector2i(-9+i*5,-9-i%2*2)
+				enemy_patch(im,p,[Vector2i(-3,3),Vector2i(0,-5),Vector2i(3,2)],Color("#718347"))
+			enemy_line(im,center+Vector2i(-8,0),center+Vector2i(8,0),1,purple)
+			enemy_dot(im,center,Vector2i(2,2),gold)
+			var head:=center+Vector2i(12+charge,-1) if side else center+Vector2i(0,-9-charge if back else 9+charge)
+			for k in [-1,1]:
+				var ear:=head+Vector2i(int(k)*6,-5)
+				enemy_patch(im,ear,[Vector2i(-4,2),Vector2i(-3,-6),Vector2i(2,-4),Vector2i(4,2)],ink)
+				enemy_patch(im,ear,[Vector2i(-2,1),Vector2i(-2,-4),Vector2i(2,1)],fur)
+			if back:
+				enemy_dot(im,center+Vector2i(0,9),Vector2i(4,3),dark_fur)
+				enemy_line(im,center+Vector2i(0,9),center+Vector2i(3,6),1,ivory)
+			else:
+				enemy_dot(im,head,Vector2i(9,8),ink)
+				enemy_dot(im,head-Vector2i(1,1),Vector2i(7,6),bark)
+				var snout:=head+Vector2i(6,3) if side else head+Vector2i(0,4)
+				enemy_dot(im,snout,Vector2i(5,4),ink)
+				enemy_dot(im,snout,Vector2i(4,3),Color("#a77f79"))
+				for k in [-1,1]:
+					im.set_pixel(clampi(snout.x+int(k)*2,0,47),snout.y,ink)
+					var tusk:=snout+Vector2i(-2 if side else int(k)*5,2)
+					enemy_patch(im,tusk,[Vector2i(-2,0),Vector2i(3,1),Vector2i(4,-5),Vector2i(1,-2)],ivory)
+				for x in ([1] if side else [-5,5]):
+					var eye:=head+Vector2i(int(x),-2)
+					enemy_line(im,eye-Vector2i(2,1),eye+Vector2i(2,1),1,ink)
+					im.set_pixel(eye.x,eye.y,pink)
+		"jellymancer":
+			# Bell propulsion, curved trailing tentacles and articulated contraction.
+			var deep:=Color("#437e96")
+			var gel:=Color("#83c8d3")
+			var frost:=Color("#e0f9f1")
+			var pulse:int=[0,2,-2,-1][phase] if pose=="walk" else 3 if wind else -3 if attack else 0
+			var center:=Vector2i(24,20+pulse)
+			var skirt:int=4 if wind else -2 if attack else pulse
+			for i in range(6):
+				var x:=12+i*5
+				var bend:=roundi(sin(float(i)*1.1+float(phase)*1.57)*3.0) if pose=="walk" else (i-3)*2 if attack else 0
+				var a:=Vector2i(x,center.y+7)
+				var b:=Vector2i(x+bend,32+skirt)
+				var c:=Vector2i(x+bend*2,40-skirt+i%2*3)
+				if side:
+					a.x+=3;b.x-=2;c.x-=5
+				enemy_line(im,a,b,2,ink)
+				enemy_line(im,b,c,2,ink)
+				enemy_line(im,a,b,1,deep)
+				enemy_line(im,b,c,1,gel)
+				enemy_dot(im,c,Vector2i(1,2),pink if attack else frost)
+			enemy_patch(im,center,[Vector2i(-17,5),Vector2i(-16,-4),Vector2i(-10,-12),Vector2i(0,-15),Vector2i(10,-12),Vector2i(16,-4),Vector2i(17,5),Vector2i(10,9),Vector2i(-10,9)],ink)
+			enemy_patch(im,center,[Vector2i(-15,4),Vector2i(-14,-3),Vector2i(-9,-10),Vector2i(0,-13),Vector2i(9,-10),Vector2i(14,-3),Vector2i(15,4),Vector2i(9,7),Vector2i(-9,7)],deep)
+			enemy_patch(im,center,[Vector2i(-13,0),Vector2i(-9,-8),Vector2i(-1,-11),Vector2i(7,-8),Vector2i(11,-2),Vector2i(3,2),Vector2i(-8,2)],gel)
+			enemy_line(im,center+Vector2i(-9,-7),center+Vector2i(-3,-10),1,frost)
+			enemy_line(im,center+Vector2i(-13,5),center+Vector2i(13,5),1,purple)
+			for i in range(3):
+				enemy_dot(im,center+Vector2i(-8+i*8,5),Vector2i(2,1),gold)
+			if not back:
+				for x in ([6] if side else [-5,5]):
+					var eye:=center+Vector2i(int(x),1)
+					enemy_dot(im,eye,Vector2i(3,3),ink)
+					enemy_line(im,eye-Vector2i(1,0),eye+Vector2i(1,-1),1,pink)
+			else:
+				enemy_line(im,center+Vector2i(0,-6),center+Vector2i(0,3),1,frost)
+			if attack:
+				for i in range(3):
+					var arc:=Vector2i(9+i*14,40-frame*2)
+					enemy_line(im,arc-Vector2i(2,2),arc,1,frost)
+					enemy_line(im,arc,arc+Vector2i(2,-2),1,gel)
+		"lunamoth":
+			# Four separately drawn wings; profile folds instead of copying a frontal wing span.
+			var deep:=Color("#43375e")
+			var lilac:=Color("#a894e5")
+			var moon:=Color("#f1dbf7")
+			var flap:int=[0,5,0,-5][phase] if pose=="walk" else 6 if wind else -5 if attack else 0
+			var center:=Vector2i(24,25)
+			for k in [-1,1]:
+				var sign_x:int=int(k)
+				var span:int=17-abs(flap)
+				if side:span=10-int(abs(flap)/2.0)
+				var tip:=center+Vector2i(sign_x*span,-14+flap) if not side else center+Vector2i(-8+sign_x*3,-14+flap*sign_x)
+				var lower:=center+Vector2i(sign_x*(span-3),12-flap) if not side else center+Vector2i(-7+sign_x*2,12-flap*sign_x)
+				var mid:=center+Vector2i(sign_x*6,0) if not side else center+Vector2i(-3,sign_x*5)
+				enemy_poly(im,[center,tip,tip+Vector2i(sign_x*3,6),mid+Vector2i(sign_x*5,4),lower,lower+Vector2i(-sign_x*5,4)],ink)
+				enemy_poly(im,[center,tip+Vector2i(-sign_x*2,2),tip+Vector2i(0,6),mid+Vector2i(sign_x*3,3),lower+Vector2i(-sign_x*2,0),lower+Vector2i(-sign_x*5,2)],deep)
+				enemy_poly(im,[center,tip+Vector2i(-sign_x*3,4),mid+Vector2i(sign_x*3,2),lower+Vector2i(-sign_x*4,-1)],lilac)
+				enemy_line(im,center,tip+Vector2i(-sign_x*2,3),1,moon)
+				enemy_line(im,center,lower+Vector2i(-sign_x*3,0),1,moon)
+				enemy_dot(im,mid+Vector2i(sign_x*4,-4),Vector2i(3,3),purple)
+				enemy_dot(im,mid+Vector2i(sign_x*4,-4),Vector2i(1,2),gold)
+			enemy_dot(im,center+Vector2i(0,5),Vector2i(5,11),ink)
+			enemy_dot(im,center+Vector2i(0,4),Vector2i(3,8),deep)
+			for y in [26,30,34]:
+				enemy_line(im,Vector2i(22,y),Vector2i(26,y),1,lilac)
+			var head:=center+Vector2i(5,-5) if side else center+Vector2i(0,-7)
+			enemy_dot(im,head,Vector2i(6,5),ink)
+			enemy_dot(im,head,Vector2i(4,4),lilac)
+			for k in [-1,1]:
+				var antenna:=head+Vector2i(int(k)*3,-4)
+				var tip:=antenna+Vector2i(int(k)*3,-7)
+				enemy_line(im,antenna,tip,1,deep)
+				enemy_dot(im,tip,Vector2i(1,1),gold)
+			if not back:
+				for x in ([2] if side else [-2,2]):
+					var eye:=head+Vector2i(int(x),0)
+					enemy_dot(im,eye,Vector2i(1,2),ink)
+					im.set_pixel(eye.x,eye.y,pink)
+			if attack:
+				for i in range(5):
+					var dust:=Vector2i(8+i*8,39-frame*3-i%2*3)
+					enemy_dot(im,dust,Vector2i(1,1),moon)
 	if dir==2:im.flip_x()
 	if recoil:
 		for y in range(48):
