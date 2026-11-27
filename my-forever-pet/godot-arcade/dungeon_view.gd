@@ -14383,6 +14383,8 @@ const AUDIO_ROLE_GESTURES={
 func combat_audio_gesture(id:String,profile:Dictionary)->Vector4:
 	var role:String=str(profile.role)
 	if AUDIO_ROLE_GESTURES.has(role):return AUDIO_ROLE_GESTURES[role]
+	if role.begins_with("support_") or role.begins_with("status_") or role in ["heal","drain"]:
+		return Vector4(520,260,2,.18)
 	var form:String=combat_audio_form(id,profile)
 	match form:
 		"fang":return Vector4(240,-120,1,.86)
@@ -14396,8 +14398,6 @@ func combat_audio_gesture(id:String,profile:Dictionary)->Vector4:
 		"implosion":return Vector4(160,510,1,.30)
 		"beam":return Vector4(680,220,2,.25)
 		"bubble":return Vector4(740,-380,3,.55)
-	if role.begins_with("support_") or role.begins_with("status_") or role in ["heal","drain"]:
-		return Vector4(520,260,2,.18)
 	var mode:String=str(profile.mode)
 	if mode in ["spiral","roll","wave"]:return Vector4(340,130,4,.42)
 	if mode in ["cloud","web","silk"]:return Vector4(410,-90,5,.24)
