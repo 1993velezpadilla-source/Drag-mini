@@ -737,6 +737,22 @@ func run():
 		assert(count>=4 and count<=preview.combat_particles.size())
 		assert(preview.element_finish_fx(burst,.8,preview.combat_particles.size())==preview.combat_particles.size())
 	print("KINDRA_ELEMENT_FINISH_PASS 8")
+	var result_tile:Vector2i=anchor+Vector2i.RIGHT
+	var miss:Dictionary={"damage":0,"hits":0,"misses":1,"effects":0,"blocked":0,"crit":0}
+	var critical:Dictionary={"damage":25,"hits":1,"misses":0,"effects":0,"blocked":0,"crit":1}
+	assert(preview.cast_result_text(miss)=="MISS")
+	assert("CRITICAL" in preview.cast_result_text(critical))
+	preview.combat_bursts.clear()
+	preview.combat_fx_spawn({"fx":"eos_064","from":anchor,"to":result_tile,"path":[result_tile],"tiles":[result_tile],"results":{result_tile:miss}})
+	var miss_burst:Dictionary=preview.combat_bursts[-1]
+	assert(preview.element_finish_fx(miss_burst,lerpf(float(miss_burst.profile.impact),1.0,.16),0)==1)
+	preview.combat_fx_update(float(miss_burst.duration)*float(miss_burst.profile.impact)+.001)
+	assert(preview.cast_text_pool.any(func(tag:Label3D):return tag.visible and tag.text=="MISS"))
+	preview.show_cast_results({result_tile:critical})
+	assert(preview.cast_text_pool.any(func(tag:Label3D):return tag.visible and "CRITICAL" in tag.text))
+	preview.update_cast_text(1.0)
+	assert(not preview.cast_text_pool.any(func(tag:Label3D):return tag.visible))
+	print("KINDRA_OUTCOME_PRESENTATION_PASS")
 	preview.queue_free();await process_frame
 	# Test the lab on a separate expedition; the normal completion tests above remain unchanged.
 	var lab=Field.new();root.add_child(lab)

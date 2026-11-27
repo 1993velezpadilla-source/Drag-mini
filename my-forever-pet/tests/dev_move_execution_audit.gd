@@ -22,6 +22,7 @@ func run():
 	var reactive:int=0
 	var conditional_damage:int=0
 	var info_count:int=0
+	var outcome_rows:int=0
 	for id in ids:
 		var f=fixture(4100)
 		var m:Dictionary=Rules.dev_move_record(id)
@@ -41,6 +42,10 @@ func run():
 		if used:accepted+=1
 		else:blocked+=1
 		var initial_outcome:String=f.dev_cast_outcome
+		if f.player_cast_result_serial==f.attack_serial:
+			for row in f.player_cast_results.values():
+				assert(int(row.damage)>=0 and int(row.hits)+int(row.misses)+int(row.effects)+int(row.blocked)>0)
+				outcome_rows+=1
 		var retry_attempts:int=0
 		var best_damage:int=damage
 		if id in ["eos_245","eos_535"] and damage>0:conditional_damage+=1
@@ -65,6 +70,7 @@ func run():
 	var out:=FileAccess.open("/tmp/dev-move-audit.json",FileAccess.WRITE)
 	assert(out!=null);out.store_string(JSON.stringify(report,"  "));out.close()
 	assert(report.size()==589 and native_damage==67 and reactive==2 and info_count==589)
+	print("KINDRA_CAST_OUTCOME_ROWS ",outcome_rows)
 	print("KINDRA_MOVE_INFO_PASS ",info_count," conditional damage first attempt=",conditional_damage)
 	print("KINDRA_REACTIVE_FIXTURES_PASS ",reactive," zero-damage-retries-resolved=",retry_damage)
 	print("KINDRA_DEV_EXECUTION_AUDIT_PASS ",report.size()," native=",native_damage," accepted=",accepted," blocked=",blocked," parity=unverified")

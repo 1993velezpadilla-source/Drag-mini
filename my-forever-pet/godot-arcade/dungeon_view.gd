@@ -89,6 +89,11 @@ const FX_PARTICLE_CAP=144
 const FX_WARNING_CAP=80
 var combat_particles:Array[Sprite3D]=[]
 var combat_warnings:Array[MeshInstance3D]=[]
+const CAST_TEXT_CAP:int=16
+var cast_text_pool:Array[Label3D]=[]
+var cast_text_age:Array[float]=[]
+var cast_text_origin:Array[Vector3]=[]
+var cast_text_cursor:int=0
 const COMBAT_BURST_CAP:int=10
 const RETIRED_IMPACT_CAP:int=128
 var combat_bursts:Array[Dictionary]=[]
@@ -2101,6 +2106,11 @@ func combat_fx_setup(parent:Node3D)->void:
 	response_slots.clear()
 	combat_particles.clear();combat_warnings.clear();combat_bursts.clear();retired_impacts.clear();delayed_combat_fx.clear();fx_reactions.clear();fx_ground_shake=0.0
 	combat_fx_root=Node3D.new();parent.add_child(combat_fx_root)
+	cast_text_pool.clear();cast_text_age.clear();cast_text_origin.clear();cast_text_cursor=0
+	for i in range(CAST_TEXT_CAP):
+		var tag:=Label3D.new();tag.billboard=BaseMaterial3D.BILLBOARD_ENABLED
+		tag.font_size=38;tag.outline_size=9;tag.pixel_size=.006;tag.no_depth_test=true
+		combat_fx_root.add_child(tag);tag.hide();cast_text_pool.append(tag);cast_text_age.append(0.0);cast_text_origin.append(Vector3.ZERO)
 	fx_arc_mesh=ImmediateMesh.new()
 	fx_arc_material=StandardMaterial3D.new()
 	fx_arc_material.shading_mode=BaseMaterial3D.SHADING_MODE_UNSHADED
@@ -5105,7 +5115,7 @@ func combat_fx_spawn(event:Dictionary)->void:
 	if tiles.is_empty():tiles.append(pos(target)+Vector3(0,.12,0))
 	if combat_bursts.size()>=COMBAT_BURST_CAP:
 		retire_combat_burst(combat_bursts.pop_front())
-	combat_bursts.append({"id":id,"mode":style[0],"profile":profile,"target_player":event.get("target_player",false),"damage":event.get("damage",0),"impacted":false,"age":0.0,"duration":float(style[3]),"points":waypoints,"tiles":tiles,"texture":combat_animated_texture(id,0)})
+	combat_bursts.append({"id":id,"mode":style[0],"profile":profile,"target_player":event.get("target_player",false),"damage":event.get("damage",0),"impacted":false,"age":0.0,"duration":float(style[3]),"points":waypoints,"tiles":tiles,"texture":combat_animated_texture(id,0),"results":event.get("results",{}).duplicate(true)})
 	play_combat_sound(id,"launch",waypoints[0])
 # Leading projectile reaches its destination on the exact impact fraction.
 # Trailing particles are delayed within the remaining lifetime, never beyond it.
@@ -5336,7 +5346,7 @@ func update_delayed_combat_fx(dt:float)->void:
 # A visual budget eviction must not silently cancel a pending hit or sound.
 func retire_combat_burst(burst:Dictionary)->void:
 	if burst.get("impacted",false):return
-	var record:Dictionary={"id":burst.id,"age":burst.age,"duration":burst.duration,"profile":burst.profile,"points":[burst.points[0],burst.points[-1]],"target_player":burst.get("target_player",false),"damage":burst.get("damage",0)}
+	var record:Dictionary={"id":burst.id,"age":burst.age,"duration":burst.duration,"profile":burst.profile,"points":[burst.points[0],burst.points[-1]],"target_player":burst.get("target_player",false),"damage":burst.get("damage",0),"results":burst.get("results",{}).duplicate(true)}
 	if retired_impacts.size()>=RETIRED_IMPACT_CAP:
 		var replace_index:int=-1
 		for i in range(retired_impacts.size()):
@@ -5355,6 +5365,7 @@ func update_retired_impacts(dt:float)->Dictionary:
 		record.age+=dt
 		if float(record.age)<float(record.duration)*float(record.profile.impact):continue
 		play_combat_sound(str(record.id),"impact",record.points[-1])
+		show_cast_results(record.get("results",{}))
 		if str(record.profile.role) in ["ground","earth_quake","earth_magnitude","earth_fissure"]:fx_ground_shake=.22
 		if record.target_player and int(record.damage)>0:latest=latest_player_impact(latest,record)
 		retired_impacts.remove_at(i)
@@ -5368,6 +5379,7 @@ func latest_player_impact(current:Dictionary,burst:Dictionary)->Dictionary:
 	return {"age":age,"direction":direction}
 
 func combat_fx_update(dt:float)->void:
+	update_cast_text(dt)
 	var latest_hit:Dictionary={}
 	update_delayed_combat_fx(dt)
 	var used:int=0
@@ -5384,6 +5396,7 @@ func combat_fx_update(dt:float)->void:
 		var profile:Dictionary=burst.profile
 		if not burst.impacted and t>=float(profile.impact):
 			burst.impacted=true;play_combat_sound(str(burst.id),"impact",burst.points[-1])
+			show_cast_results(burst.get("results",{}))
 			if str(profile.role) in ["ground","earth_quake","earth_magnitude","earth_fissure"]:fx_ground_shake=.22
 			if burst.get("target_player",false) and int(burst.get("damage",0))>0:
 				latest_hit=latest_player_impact(latest_hit,burst)
@@ -5896,6 +5909,39 @@ func travel_environment_fx(burst:Dictionary,t:float,used:int)->int:
 # No scene-tree allocation during battle. Use actual target positions; effects
 # are cosmetic and never create damage or alter hit resolution.
 const ELEMENT_FINISH_MODE={"fire":"ember","electric":"lightning","water":"drop","grass":"leaf","ice":"shards","ground":"shards","rock":"shards","poison":"cloud","psychic":"spiral","ghost":"cloud","dark":"slash","fighting":"impact_star","normal":"impact_star","flying":"slash","bug":"leaf","dragon":"flame","steel":"shards","fairy":"impact_star"}
+func cast_result_text(row:Dictionary)->String:
+	var damage:int=int(row.get("damage",0))
+	if damage>0:
+		var prefix:String="CRITICAL " if int(row.get("crit",0))>0 else ""
+		var suffix:String=" · x%d"%int(row.hits) if int(row.get("hits",0))>1 else ""
+		if int(row.get("misses",0))>0:suffix+=" · %d miss"%int(row.misses)
+		return prefix+"−%d HP"%damage+suffix
+	if int(row.get("effects",0))>0:return "EFFECT"
+	if int(row.get("blocked",0))>0:return "NO EFFECT"
+	return "MISS"
+
+func show_cast_results(results:Dictionary)->void:
+	for tile in results:
+		if cast_text_pool.is_empty():return
+		var row:Dictionary=results[tile]
+		var i:int=cast_text_cursor%cast_text_pool.size();cast_text_cursor+=1
+		var tag:Label3D=cast_text_pool[i]
+		var damage:int=int(row.get("damage",0))
+		tag.text=cast_result_text(row)
+		tag.modulate=Color("#ffd473") if int(row.get("crit",0))>0 else Color("#fff2dc") if damage>0 else Color("#a6eacb") if int(row.get("effects",0))>0 else Color("#c3cad7")
+		tag.font_size=46 if int(row.get("crit",0))>0 else 34
+		cast_text_origin[i]=pos(tile)+Vector3(0,1.85,0);tag.position=cast_text_origin[i];cast_text_age[i]=.8;tag.show()
+
+func update_cast_text(dt:float)->void:
+	for i in range(cast_text_pool.size()):
+		if cast_text_age[i]<=0.0:continue
+		cast_text_age[i]=maxf(0.0,cast_text_age[i]-dt)
+		var tag:Label3D=cast_text_pool[i]
+		var phase:float=1.0-cast_text_age[i]/.8
+		tag.position=cast_text_origin[i]+Vector3(0,phase*.65,0)
+		tag.modulate.a=clampf(cast_text_age[i]*4.0,0.0,1.0)
+		if cast_text_age[i]<=0.0:tag.hide()
+
 func element_finish_fx(burst:Dictionary,t:float,used:int)->int:
 	var id:String=str(burst.id)
 	var profile:Dictionary=burst.profile
@@ -5919,6 +5965,12 @@ func element_finish_fx(burst:Dictionary,t:float,used:int)->int:
 		var fade:float=1.0-age
 		var radius:float=.12+age*.60
 		var count:int=5 if not status else 3
+		var results:Dictionary=burst.get("results",{})
+		# Known misses/blocked hits get a subdued dissipating trail, not a damage flash.
+		var primary_tile:=Vector2i(roundi(target.x/1.4),roundi(target.z/1.4))
+		var row:Dictionary=results.get(primary_tile,{})
+		if not row.is_empty() and int(row.get("damage",0))==0 and int(row.get("effects",0))==0:
+			return environment_particle(used,target,"cloud",light,dark,.32+age*.18,fade*.35)
 		if age<.30:
 			used=environment_particle(used,target,"bubble" if status else "impact_star",light,dark,.62+age*.55,1.0-age*2.0)
 		for j in range(count):
@@ -6375,6 +6427,7 @@ func sync():
 	if run.attack_serial!=previous_attack:
 		previous_attack=run.attack_serial
 		var event:Dictionary={"fx":run.player_attack_fx,"from":run.player,"to":run.attack_target,"tiles":run.player_attack_cells,"path":run.player_attack_path}
+		if run.player_cast_result_serial==run.attack_serial:event["results"]=run.player_cast_results.duplicate(true)
 		begin_player_cast_pose(event)
 		combat_fx_spawn(event)
 	if run.hp<hp_previous and run.enemy_actions.is_empty():hit_time=.24

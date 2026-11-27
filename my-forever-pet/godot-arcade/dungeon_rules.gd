@@ -687,6 +687,18 @@ var player_attack_cells:Array[Vector2i]=[]
 # Presentation-only strike counts for the most recent resolved reference move.
 var player_visual_hits:Dictionary={}
 var player_visual_hit_serial:int=-1
+# Actual per-tile attack outcomes. Serial prevents reuse after a reactive cast.
+var player_cast_results:Dictionary={}
+var player_cast_result_serial:int=-1
+func record_cast_result(tile:Vector2i,damage:int,landed:bool,changed:bool,critical:bool)->void:
+	var row:Dictionary=player_cast_results.get(tile,{"damage":0,"hits":0,"misses":0,"effects":0,"blocked":0,"crit":0})
+	row.damage=int(row.damage)+maxi(0,damage)
+	if not landed:row.misses=int(row.misses)+1
+	elif damage>0:row.hits=int(row.hits)+1
+	elif changed:row.effects=int(row.effects)+1
+	else:row.blocked=int(row.blocked)+1
+	if critical and damage>0:row.crit=int(row.crit)+1
+	player_cast_results[tile]=row
 # Net HP losses during the response turn, separate from the initiating cast.
 var visual_turn_damage:Dictionary={}
 var visual_turn_damage_turn:int=-1
@@ -1000,7 +1012,7 @@ func reset_floor_combat_presentation()->void:
 	visual_turn_damage.clear();visual_turn_damage_turn=-1
 	visual_response_events.clear();visual_response_active=false
 	visual_response_cast_serial=-1;visual_response_cast_uid=-1
-	player_visual_hits.clear();player_visual_hit_serial=-1
+	player_visual_hits.clear();player_visual_hit_serial=-1;player_cast_results.clear();player_cast_result_serial=-1
 	enemy_actions.clear()
 	player_attack_cells.clear();player_attack_path.clear()
 
@@ -2279,6 +2291,7 @@ func execute_move(id:String,aim:Vector2i,releasing:bool,invocation_id:String="",
 	var pp_id:String=id if invocation_id.is_empty() else invocation_id
 	if invocation_id.is_empty():last_invoked_move=""
 	last_move_healed=0;last_move_recoil=0;last_move_damage.clear();last_critical_hits=0
+	player_cast_results.clear();player_cast_result_serial=-1
 	if str(move.get("special_rule",""))=="floor_assist":
 		var pool:Array[String]=floor_assist_candidates()
 		if not pool.is_empty() and roll_reference_hit(move):
@@ -2578,7 +2591,10 @@ func execute_move(id:String,aim:Vector2i,releasing:bool,invocation_id:String="",
 			last_move_attempts+=1
 			var visual_uid:int=int(enemies[current].get("uid",-1))
 			var damage_start:int=last_move_damage.size()
-			if roll_reference_hit(move,enemies[current]):
+			var hits_before:int=last_move_hits
+			var critical_before:int=last_critical_hits
+			var landed:bool=roll_reference_hit(move,enemies[current])
+			if landed:
 				if move.has("special_rule"):
 					if move.special_rule=="push":
 						if push_enemy(current):last_move_hits+=1
@@ -2654,14 +2670,17 @@ func execute_move(id:String,aim:Vector2i,releasing:bool,invocation_id:String="",
 						apply_enemy_status(survivor,str(move.inflict_status))
 			else:
 				missed+=1
-				if move.get("stop_on_miss",false):break
-			if visual_uid>=0:
-				for amount in last_move_damage.slice(damage_start):
-					if int(amount)>0:player_visual_hits[visual_uid]=int(player_visual_hits.get(visual_uid,0))+1
+			var dealt_total:int=0
+			for amount in last_move_damage.slice(damage_start):
+				dealt_total+=int(amount)
+				if int(amount)>0 and visual_uid>=0:player_visual_hits[visual_uid]=int(player_visual_hits.get(visual_uid,0))+1
+			var changed:bool=last_move_hits>hits_before and (move.category=="status" or move.has("special_rule") and last_move_damage.size()==damage_start)
+			record_cast_result(target,dealt_total,landed,changed,last_critical_hits>critical_before)
+			if not landed and move.get("stop_on_miss",false):break
 	if last_move_hits==0 or move.category=="status" or move.has("special_rule"):attack_serial+=1
 	attack_target=primary;player_attack_fx=id;player_attack_path=travel
 	player_attack_cells=hit_tiles
-	player_visual_hit_serial=attack_serial
+	player_visual_hit_serial=attack_serial;player_cast_result_serial=attack_serial
 	message=(str(MOVE_LIBRARY[pp_id].name)+" → " if pp_id!=id else "")+str(move.name)+" · PP %d/%d"%[move_pp[pp_id],MOVE_LIBRARY[pp_id].pp]
 	if move.category=="status":message+=" · %d affected"%last_move_hits;emit_event(message)
 	if count>1:message+=" · %d/%d hits"%[last_move_hits,last_move_attempts]
@@ -2798,19 +2817,24 @@ func dev_cast_native(id:String,aim:Vector2i)->bool:
 	targets.sort_custom(func(a:Vector2i,b:Vector2i):return footprint[a].size()<footprint[b].size())
 	if not str(m.pattern) in ["fan","radius","cross","room","floor"]:targets.resize(1)
 	last_move_damage.clear();last_move_healed=0;last_move_recoil=0;last_move_hits=0;last_move_attempts=0;last_critical_hits=0
-	player_visual_hits.clear()
+	player_visual_hits.clear();player_cast_results.clear();player_cast_result_serial=-1
 	var origin:Vector2i=player
 	for target in targets:
 		var index:int=enemy_at(target)
 		if index<0:continue
 		last_move_attempts+=1
 		var uid:int=int(enemies[index].get("uid",-1))
-		if not roll_reference_hit(m,enemies[index]):continue
+		if not roll_reference_hit(m,enemies[index]):
+			record_cast_result(target,0,false,false,false);continue
 		var before:int=last_move_damage.size()
+		var critical_before:int=last_critical_hits
 		strike(index,true,-1,id,1.0,m)
 		last_move_hits+=1
+		var dealt_total:int=0
 		for amount in last_move_damage.slice(before):
+			dealt_total+=int(amount)
 			if int(amount)>0 and uid>=0:player_visual_hits[uid]=int(player_visual_hits.get(uid,0))+1
+		record_cast_result(target,dealt_total,true,false,last_critical_hits>critical_before)
 		index=enemy_at(target)
 		if index>=0:
 			var effect:String=str(m.native_effect)
@@ -2832,7 +2856,7 @@ func dev_cast_native(id:String,aim:Vector2i)->bool:
 			if step_clear(player,next-player) and enemy_at(next)<0 and ally_at(next)<0:player=next;pickup()
 	attack_serial+=1;attack_target=targets[0];attack_power=true;player_attack_fx=id
 	player_attack_cells=targets.duplicate();player_attack_path=footprint[targets[0]].duplicate()
-	player_visual_hit_serial=attack_serial
+	player_visual_hit_serial=attack_serial;player_cast_result_serial=attack_serial
 	message=str(m.name)+" · %d/%d hits"%[last_move_hits,last_move_attempts]
 	if player!=origin:message+=" · Advanced"
 	emit_event(message);enemy_turn();dev_refill()
