@@ -4,6 +4,13 @@ package org.myforeverpet.wallpaper;
 public final class WallpaperRules {
     public static final long REQUEST_LIFETIME_MS=15*60*1000L;
     private WallpaperRules(){}
+    /** Normalize legacy mascot labels without changing other named companions. */
+    public static String companionDisplayName(String name){
+        if(name==null)return "Ponoko";
+        String value=name.trim();
+        if(value.isEmpty()||"Mosky".equalsIgnoreCase(value)||"Mosskit".equalsIgnoreCase(value))return "Ponoko";
+        return value;
+    }
     public static boolean validRequest(String request,long age,int requestGeneration,int currentGeneration){
         return ("bond".equals(request)||"feed".equals(request))
             && age>=0 && age<REQUEST_LIFETIME_MS && requestGeneration==currentGeneration && currentGeneration>0;

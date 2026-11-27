@@ -3,6 +3,11 @@ public final class WallpaperRulesTest {
     static int count;
     static void check(boolean b,String name){if(!b)throw new AssertionError(name);count++;System.out.println("WALLPAPER_OK "+name);}
     public static void main(String[] args){
+        check("Ponoko".equals(WallpaperRules.companionDisplayName(null)),"missing name defaults to Ponoko");
+        check("Ponoko".equals(WallpaperRules.companionDisplayName("  ")),"empty name defaults to Ponoko");
+        check("Ponoko".equals(WallpaperRules.companionDisplayName("mosky")),"legacy Mosky name migrates");
+        check("Ponoko".equals(WallpaperRules.companionDisplayName("Mosskit")),"legacy Mosskit name migrates");
+        check("Ponoko".equals(WallpaperRules.companionDisplayName("Ponoko")) && "Future companion".equals(WallpaperRules.companionDisplayName("Future companion")),"canonical and independent names preserved");
         check(WallpaperRules.validRequest("bond",10,1,1),"valid cuddle");
         check(!WallpaperRules.validRequest("feed",10,1,2),"generation changed");
         check(!WallpaperRules.validRequest("feed",-1,1,1),"clock rollback");

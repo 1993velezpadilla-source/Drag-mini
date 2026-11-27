@@ -25,7 +25,11 @@ func run():
 	pet.legacy_catalog=false
 	reset(4)
 	pet.s.form=4;pet.s.collection=268435455;pet.s.name="Other";pet.enforce_mosky()
-	check(pet.species()==0 and pet.s.collection==1 and pet.s.name=="Mosky" and pet.family_slots()==[-1],"production single-pet save migration")
+	check(pet.species()==0 and pet.s.collection==1 and pet.s.name=="Ponoko" and pet.family_slots()==[-1],"production single-pet save migration")
+	check(pet.WORLD_NAME=="Kindra" and pet.CREATURE_NAME=="Mosky" and pet.CREATURE_PLURAL=="Moskies" and pet.pet_name()=="Ponoko","canonical creature and world identity")
+	pet.s.name="Mosky";pet.s.companion_xp=425;pet.s.coins=137;pet.s.bond=8
+	pet.enforce_mosky()
+	check(pet.s.name=="Ponoko" and pet.s.companion_xp==425 and pet.s.coins==137 and pet.s.bond==8 and pet.s.stage==4,"legacy name migration preserves progress")
 	check(not pet.action("form",4) and not pet.action("breed") and not pet.action("secret") and not pet.choose_research(4),"retired companions cannot be obtained")
 	reset(4)
 	pet.s.companion_xp=700

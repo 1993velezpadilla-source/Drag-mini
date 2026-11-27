@@ -22,7 +22,7 @@ jobs:
           D=my-forever-pet/godot-arcade/android_wallpaper
           javac -d /tmp/wall-rules "$D/WallpaperRules.java" my-forever-pet/tests/WallpaperRulesTest.java
           java -cp /tmp/wall-rules org.myforeverpet.wallpaper.WallpaperRulesTest | tee /tmp/wall-rules.log
-          grep -F 'FOREVER_WALLPAPER_RULES_PASS 24' /tmp/wall-rules.log
+          grep -F 'FOREVER_WALLPAPER_RULES_PASS 29' /tmp/wall-rules.log
       - name: Compile actual service against official Android and Godot classes
         run: |
           set -euo pipefail
