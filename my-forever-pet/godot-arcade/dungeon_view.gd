@@ -15732,7 +15732,17 @@ func queue_contact_camera(source:Vector3,target:Vector3,critical:bool,age:float)
 	if age>=.18 or age>fx_contact_camera_age:return
 	var direction:=Vector3(target.x-source.x,0,target.z-source.z).normalized()
 	if direction.length_squared()<.0001:return
-	fx_contact_camera=direction*(.065 if critical else .038)
+	var impulse:=direction*(.065 if critical else .038)
+	# Concurrent waves can share an exact contact time. Prefer the critical
+	# impulse, then a canonical direction, independent of active/retired order.
+	if age==fx_contact_camera_age:
+		var strength:float=impulse.length_squared()
+		var previous:float=fx_contact_camera.length_squared()
+		if not is_equal_approx(strength,previous):
+			if strength<previous:return
+		elif impulse.x<fx_contact_camera.x or (impulse.x==fx_contact_camera.x and impulse.z<=fx_contact_camera.z):
+			return
+	fx_contact_camera=impulse
 	fx_contact_camera_age=age
 
 func cast_has_pending_events(burst:Dictionary)->bool:
