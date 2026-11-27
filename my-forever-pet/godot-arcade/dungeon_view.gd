@@ -5907,6 +5907,7 @@ func _process(dt:float):
 	var pose:String="hurt" if hit_time>0.0 else "attack" if attack_time>0.0 else "reward" if reward_age>0.0 and not moving else "idle"
 	pet_pose.set_meta("pet_mood",PixelArt.dungeon_mood(run.hp,run.max_hp,run.poison_turns>0,reward_age>0.0))
 	pet_pose.set_meta("dungeon_grounded_gait",true)
+	pet_pose.set_meta("dungeon_cast_motion",player_cast_motion)
 	PixelArt.animate_world_sprite(pet_pose,motion,moving,dt,pose,region==1,1.0-attack_time/maxf(.01,player_cast_duration) if attack_time>0.0 else -1.0,player_cast_impact)
 	update_disguise(dt,motion,moving,pose)
 	var focus=pet.position+Vector3(0,.18,-.48)
