@@ -276,9 +276,15 @@ func flush_sleep_reactions()->void:
 		var response_enemy:Dictionary=enemies[target].duplicate()
 		var response_uid:int=int(response_enemy.get("uid",-1))
 		var damage_index:int=last_move_damage.size()
+		var critical_before:int=last_critical_hits
 		strike(target,true,-1,chosen)
 		player_attack_fx=chosen
 		player_attack_path=response_footprint[p].duplicate()
+		player_cast_results.clear()
+		var reactive_damage:int=0
+		for amount in last_move_damage.slice(damage_index):reactive_damage+=int(amount)
+		record_cast_result(p,reactive_damage,true,false,last_critical_hits>critical_before)
+		player_cast_result_serial=attack_serial
 		if last_move_damage.size()>damage_index:
 			visual_record_response(response_enemy,int(last_move_damage[damage_index]),"sleep_counter",attack_serial,chosen)
 			var recorded:Array=visual_response_events.get(response_uid,[])
@@ -324,6 +330,7 @@ func finish_bide()->void:
 	last_move_attempts=1;last_move_hits=1 if dealt>0 else 0
 	attack_serial+=1;attack_target=target;attack_power=true;player_attack_fx=bide_move_id
 	player_attack_cells=[target];player_attack_path=[target]
+	player_cast_results.clear();record_cast_result(target,dealt,true,false,false);player_cast_result_serial=attack_serial
 	message="Stored retort · −%d HP"%dealt;emit_event(message)
 	bide_damage=0;bide_move_id=""
 func reveal_defender_types(element:String,types:Array,target:Dictionary)->Array:
@@ -699,6 +706,18 @@ func record_cast_result(tile:Vector2i,damage:int,landed:bool,changed:bool,critic
 	else:row.blocked=int(row.blocked)+1
 	if critical and damage>0:row.crit=int(row.crit)+1
 	player_cast_results[tile]=row
+
+func record_cast_heal(tile:Vector2i,amount:int)->void:
+	if amount<=0:return
+	var row:Dictionary=player_cast_results.get(tile,{"damage":0,"hits":0,"misses":0,"effects":0,"blocked":0,"crit":0})
+	row["heal"]=int(row.get("heal",0))+amount
+	player_cast_results[tile]=row
+
+func seal_special_cast()->void:
+	# Explicit special branches supply their actual effect or heal before the enemy turn.
+	if player_cast_results.is_empty():record_cast_result(attack_target,0,true,last_move_hits>0,false)
+	if last_move_healed>0:record_cast_heal(player,last_move_healed)
+	player_cast_result_serial=attack_serial
 # Net HP losses during the response turn, separate from the initiating cast.
 var visual_turn_damage:Dictionary={}
 var visual_turn_damage_turn:int=-1
@@ -1120,9 +1139,15 @@ func party_support(rule:String)->int:
 	for a in allies:
 		if int(a.hp)<=0 or not same_party_room(a.pos):continue
 		if rule=="party_boost":
+			var before_stages:Dictionary=a.stages.duplicate()
 			for key in ["attack","sp_attack"]:a.stages[key]=mini(10,int(a.stages.get(key,0))+1)
+			record_cast_result(a.pos,0,true,a.stages!=before_stages,false)
 		else:
+			var healed:int=maxi(0,int(a.max_hp)-int(a.hp))
+			var cleared:bool=not a.status.is_empty()
 			a.hp=int(a.max_hp);a.status.clear()
+			record_cast_heal(a.pos,healed)
+			if healed==0:record_cast_result(a.pos,0,true,cleared or rule=="party_renew",false)
 			if rule=="party_renew":
 				for id in a.moves:a.pp[id]=int(MOVE_LIBRARY[id].pp)
 		count+=1
@@ -1396,6 +1421,7 @@ func blast_move(move:Dictionary)->bool:
 		if "fire" in types:amount=int(amount/2)
 		var dealt:int=deal_special_damage(i,amount)
 		last_move_attempts+=1;last_move_damage.append(dealt)
+		record_cast_result(q,dealt,true,false,false)
 		if dealt>0:last_move_hits+=1
 	var self_damage:int=maxi(1,int(hp/2))
 	if "fire" in trained_profile.get("types",[]):self_damage=maxi(1,int(self_damage/2))
@@ -1624,7 +1650,9 @@ func strike(i:int,power:bool=false,style_override:int=-1,move_id:String="",damag
 		damage=maxi(0,damage-guard);enemies[i]["guard"]=0
 	if not fixed_damage:damage=held_item_damage(damage,held_item,str(enemies[i].get("held_item","")))
 	var dealt:int=mini(maxi(0,int(enemies[i].hp)),damage)
-	if not move_id.is_empty():last_move_damage.append(dealt)
+	if move_id.is_empty():
+		player_cast_results.clear();record_cast_result(attack_target,dealt,true,false,critical);player_cast_result_serial=attack_serial
+	else:last_move_damage.append(dealt)
 	enemies[i].hp=int(enemies[i].hp)-damage
 	if move.has("drain_fraction") and dealt>0:
 		var before_hp:int=hp
@@ -2291,6 +2319,7 @@ func execute_move(id:String,aim:Vector2i,releasing:bool,invocation_id:String="",
 	var pp_id:String=id if invocation_id.is_empty() else invocation_id
 	if invocation_id.is_empty():last_invoked_move=""
 	last_move_healed=0;last_move_recoil=0;last_move_damage.clear();last_critical_hits=0
+	last_move_hits=0;last_move_attempts=0
 	player_cast_results.clear();player_cast_result_serial=-1
 	if str(move.get("special_rule",""))=="floor_assist":
 		var pool:Array[String]=floor_assist_candidates()
@@ -2303,7 +2332,7 @@ func execute_move(id:String,aim:Vector2i,releasing:bool,invocation_id:String="",
 		last_move_attempts=1;last_move_hits=0
 		attack_serial+=1;attack_target=player;attack_power=false;player_attack_fx=id
 		player_attack_cells=[player];player_attack_path=[player]
-		message=str(move.name)+" · No valid invocation";emit_event(message);enemy_turn();return true
+		message=str(move.name)+" · No valid invocation";emit_event(message);seal_special_cast();enemy_turn();return true
 	if str(move.get("special_rule","")) in ["leader_decoy","party_boost","party_rally","party_heal","party_renew"]:
 		move_pp[pp_id]=int(move_pp[pp_id])-1
 		last_move_attempts=1;last_move_hits=0
@@ -2313,7 +2342,7 @@ func execute_move(id:String,aim:Vector2i,releasing:bool,invocation_id:String="",
 		for a in allies:
 			if int(a.hp)>0 and same_party_room(a.pos):player_attack_cells.append(a.pos)
 		message=str(move.name)+" · "+("%d affected"%last_move_hits if last_move_hits>0 else "No target")
-		emit_event(message);enemy_turn();return true
+		emit_event(message);seal_special_cast();enemy_turn();return true
 	if str(move.get("special_rule","")) in ["transform_form","relay_swap"]:
 		move_pp[pp_id]=int(move_pp[pp_id])-1
 		last_move_attempts=1;last_move_hits=0
@@ -2322,7 +2351,7 @@ func execute_move(id:String,aim:Vector2i,releasing:bool,invocation_id:String="",
 		elif roll_reference_hit(move) and transform_form():last_move_hits=1
 		attack_serial+=1;attack_target=player;attack_power=false;player_attack_fx=id
 		player_attack_cells=[player];player_attack_path=[origin,player]
-		message=str(move.name)+" · "+("Active" if last_move_hits>0 else "Failed");emit_event(message);enemy_turn();return true
+		message=str(move.name)+" · "+("Active" if last_move_hits>0 else "Failed");emit_event(message);seal_special_cast();enemy_turn();return true
 	if str(move.get("special_rule","")) in ["belly_drum","recycle_manual"]:
 		move_pp[pp_id]=int(move_pp[pp_id])-1
 		last_move_attempts=1;last_move_hits=0
@@ -2335,7 +2364,7 @@ func execute_move(id:String,aim:Vector2i,releasing:bool,invocation_id:String="",
 				if restored>0:last_move_hits=1;detail="%d manuals restored"%restored
 		attack_serial+=1;attack_target=player;attack_power=false;player_attack_fx=id
 		player_attack_cells=[player];player_attack_path=[player]
-		message=str(move.name)+" · "+detail;emit_event(message);enemy_turn();return true
+		message=str(move.name)+" · "+detail;emit_event(message);seal_special_cast();enemy_turn();return true
 	if str(move.get("special_rule","")) in ["copy_last","copy_boost","learn_last"]:
 		var copy_rule:String=str(move.special_rule)
 		var copy_area:Dictionary=attack_footprint(player,aim,str(move.pattern),int(move.reach),true)
@@ -2357,14 +2386,14 @@ func execute_move(id:String,aim:Vector2i,releasing:bool,invocation_id:String="",
 		attack_serial+=1;attack_target=target;attack_power=false;player_attack_fx=id
 		player_attack_cells=[target];player_attack_path=[target]
 		message=str(move.name)+" · "+("Learned "+str(MOVE_LIBRARY[copied].name) if last_move_hits>0 else "No valid copy")
-		emit_event(message);enemy_turn();return true
+		emit_event(message);seal_special_cast();enemy_turn();return true
 	if str(move.get("special_rule",""))=="tempo_rift":
 		move_pp[pp_id]=int(move_pp[pp_id])-1
 		last_move_attempts=1;last_move_hits=0
 		if roll_reference_hit(move) and tempo_rift():last_move_hits=1
 		attack_serial+=1;attack_target=player;attack_power=false;player_attack_fx=id
 		player_attack_cells=[player];player_attack_path=[player]
-		message=str(move.name)+" · Movement shifted";emit_event(message);enemy_turn();return true
+		message=str(move.name)+" · Movement shifted";emit_event(message);seal_special_cast();enemy_turn();return true
 	if str(move.get("special_rule",""))=="nature_power":
 		var chosen:String=terrain_invocation_id()
 		last_invoked_move=chosen
@@ -2377,7 +2406,7 @@ func execute_move(id:String,aim:Vector2i,releasing:bool,invocation_id:String="",
 		attack_serial+=1;attack_target=player+aim;attack_power=false;player_attack_fx=id
 		player_attack_cells=[attack_target];player_attack_path=[attack_target]
 		message=str(move.name)+" · "+("Wall opened" if last_move_hits>0 else "No breakable wall")
-		emit_event(message);enemy_turn();return true
+		emit_event(message);seal_special_cast();enemy_turn();return true
 	if str(move.get("special_rule",""))=="splash":
 		move_pp[pp_id]=int(move_pp[pp_id])-1
 		last_move_attempts=1;last_move_hits=0
@@ -2389,7 +2418,7 @@ func execute_move(id:String,aim:Vector2i,releasing:bool,invocation_id:String="",
 		if splash_step(directions[rng.randi_range(0,7)]):last_move_hits=1
 		attack_serial+=1;attack_target=player;attack_power=false;player_attack_fx=id
 		player_attack_cells=[player];player_attack_path=[origin,player]
-		message=str(move.name);emit_event(message)
+		message=str(move.name);emit_event(message);seal_special_cast()
 		if finished:turns+=1;return true
 		enemy_turn();return true
 	if move.get("curse_action",false):
@@ -2411,7 +2440,7 @@ func execute_move(id:String,aim:Vector2i,releasing:bool,invocation_id:String="",
 		attack_serial+=1;attack_target=player+aim if ghost else player;attack_power=false;player_attack_fx=id
 		player_attack_cells=[attack_target];player_attack_path=[attack_target]
 		message=str(move.name)+" · "+("Active" if last_move_hits>0 else "Failed")
-		emit_event(message);enemy_turn();return true
+		emit_event(message);seal_special_cast();enemy_turn();return true
 	if move.get("rampage_random",false):
 		move_pp[pp_id]=int(move_pp[pp_id])-1
 		last_move_attempts=3;last_move_hits=0
@@ -2423,13 +2452,20 @@ func execute_move(id:String,aim:Vector2i,releasing:bool,invocation_id:String="",
 			while dir==Vector2i.ZERO:dir=Vector2i(rng.randi_range(-1,1),rng.randi_range(-1,1))
 			var target:Vector2i=player+dir
 			var current:int=enemy_at(target)
-			if current>=0 and roll_reference_hit(move,enemies[current]):
-				strike(current,true,-1,id);last_move_hits+=1;last=target;hit_cells.append(target)
+			if current>=0:
+				var damage_index:int=last_move_damage.size()
+				var critical_before:int=last_critical_hits
+				var landed:bool=roll_reference_hit(move,enemies[current])
+				if landed:
+					strike(current,true,-1,id);last_move_hits+=1;last=target;hit_cells.append(target)
+				var dealt:int=0
+				for amount in last_move_damage.slice(damage_index):dealt+=int(amount)
+				record_cast_result(target,dealt,landed,false,last_critical_hits>critical_before)
 		self_confusion_turns=rng.randi_range(7,12)
 		attack_serial+=1;attack_target=last;attack_power=true;player_attack_fx=id
 		player_attack_cells=hit_cells;player_attack_path=hit_cells.duplicate()
 		message=str(move.name)+" · %d/3 hits · Confused"%last_move_hits
-		emit_event(message);enemy_turn();return true
+		emit_event(message);seal_special_cast();enemy_turn();return true
 	if move.has("reserve_action"):
 		move_pp[pp_id]=int(move_pp[pp_id])-1
 		last_move_attempts=1;last_move_hits=0
@@ -2439,7 +2475,7 @@ func execute_move(id:String,aim:Vector2i,releasing:bool,invocation_id:String="",
 		attack_serial+=1;attack_target=player;attack_power=false;player_attack_fx=id
 		player_attack_cells=[player];player_attack_path=[player]
 		message=str(move.name)+" · "+("Stored %d/3"%stockpile_count if move.reserve_action=="store" else "+%d HP"%last_move_healed)
-		emit_event(message);enemy_turn();return true
+		emit_event(message);seal_special_cast();enemy_turn();return true
 	if move.get("random_cast",false):
 		var choices:Array[String]=invocation_candidates(aim)
 		if not choices.is_empty() and roll_reference_hit(move):
@@ -2450,7 +2486,7 @@ func execute_move(id:String,aim:Vector2i,releasing:bool,invocation_id:String="",
 		last_move_attempts=1;last_move_hits=0
 		attack_serial+=1;attack_target=player;attack_power=false;player_attack_fx=id
 		player_attack_cells=[player];player_attack_path=[player]
-		message=str(move.name)+" · No valid invocation";emit_event(message);enemy_turn();return true
+		message=str(move.name)+" · No valid invocation";emit_event(message);seal_special_cast();enemy_turn();return true
 	if move.has("stat_transfer") and move.pattern=="self":
 		move_pp[pp_id]=int(move_pp[pp_id])-1
 		last_move_attempts=1;last_move_hits=0
@@ -2458,7 +2494,7 @@ func execute_move(id:String,aim:Vector2i,releasing:bool,invocation_id:String="",
 		attack_serial+=1;attack_target=player;attack_power=false;player_attack_fx=id
 		player_attack_cells=[player];player_attack_path=[player]
 		message=str(move.name)+" · "+stage_summary(player_stages,player_halves)
-		emit_event(message);enemy_turn();return true
+		emit_event(message);seal_special_cast();enemy_turn();return true
 	if move.has("trap_kind") or move.has("blast_radius"):
 		move_pp[pp_id]=int(move_pp[pp_id])-1
 		last_move_attempts=0;last_move_hits=0
@@ -2470,7 +2506,8 @@ func execute_move(id:String,aim:Vector2i,releasing:bool,invocation_id:String="",
 		attack_serial+=1;attack_target=player;attack_power=false;player_attack_fx=id
 		player_attack_path=[player]
 		message=str(move.name)+" · "+("Active" if applied else "Failed")
-		emit_event(message)
+		if move.has("trap_kind"):last_move_hits=1 if applied else 0;last_move_attempts=1
+		emit_event(message);seal_special_cast()
 		if finished:turns+=1;enemy_actions.clear();return true
 		enemy_turn();return true
 	if str(move.get("special_rule",""))=="warp":
@@ -2479,7 +2516,7 @@ func execute_move(id:String,aim:Vector2i,releasing:bool,invocation_id:String="",
 		attack_serial+=1;attack_target=player;attack_power=false;player_attack_fx=id
 		player_attack_cells=[player];player_attack_path=[player]
 		message=str(move.name)+" · "+("Warped" if last_move_hits>0 else "No destination")
-		emit_event(message);enemy_turn();return true
+		emit_event(message);seal_special_cast();enemy_turn();return true
 	if move.has("weather_set") or move.has("floor_sport") or move.has("weather_heal"):
 		move_pp[pp_id]=int(move_pp[pp_id])-1
 		last_move_attempts=1;last_move_hits=0
@@ -2495,7 +2532,7 @@ func execute_move(id:String,aim:Vector2i,releasing:bool,invocation_id:String="",
 		attack_serial+=1;attack_target=player;attack_power=false;player_attack_fx=id
 		player_attack_cells=[player];player_attack_path=[player]
 		message=str(move.name)+" · "+(("+%d HP"%last_move_healed) if move.has("weather_heal") else weather_summary())
-		emit_event(message);enemy_turn();return true
+		emit_event(message);seal_special_cast();enemy_turn();return true
 	if move.has("boon_kind"):
 		move_pp[pp_id]=int(move_pp[pp_id])-1
 		last_move_attempts=1;last_move_hits=0
@@ -2505,7 +2542,7 @@ func execute_move(id:String,aim:Vector2i,releasing:bool,invocation_id:String="",
 		attack_serial+=1;attack_target=player;attack_power=false;player_attack_fx=id
 		player_attack_cells=[player];player_attack_path=[player]
 		message=str(move.name)+" · "+("Active" if last_move_hits>0 else "No effect")
-		emit_event(message);enemy_turn();return true
+		emit_event(message);seal_special_cast();enemy_turn();return true
 	if move.has("shield_kind"):
 		move_pp[pp_id]=int(move_pp[pp_id])-1
 		last_move_attempts=1;last_move_hits=0
@@ -2513,7 +2550,7 @@ func execute_move(id:String,aim:Vector2i,releasing:bool,invocation_id:String="",
 		attack_serial+=1;attack_target=player;attack_power=false;player_attack_fx=id
 		player_attack_cells=[player];player_attack_path=[player]
 		message=str(move.name)+" · "+(shield_kind.capitalize() if last_move_hits>0 else "Failed")
-		emit_event(message);enemy_turn();return true
+		emit_event(message);seal_special_cast();enemy_turn();return true
 	if move.has("stat_changes") and move.pattern=="self":
 		move_pp[pp_id]=int(move_pp[pp_id])-1
 		var changed:bool=apply_stat_changes(player_stages,player_halves,move)
@@ -2526,8 +2563,8 @@ func execute_move(id:String,aim:Vector2i,releasing:bool,invocation_id:String="",
 		message=str(move.name)+" · "+stage_summary(player_stages,player_halves)
 		if speed_added:
 			message+=" · Movement ×%d"%travel_speed()
-			enemy_actions.clear();travel_steps_used=0;travel_refresh=true;emit_event(message);return true
-		emit_event(message);enemy_turn();return true
+			enemy_actions.clear();travel_steps_used=0;travel_refresh=true;emit_event(message);seal_special_cast();return true
+		emit_event(message);seal_special_cast();enemy_turn();return true
 	if move.has("heal_fraction"):
 		if hp>=max_hp and not move.get("roost",false):message="HP already full";return false
 		move_pp[pp_id]=int(move_pp[pp_id])-1
@@ -2541,7 +2578,7 @@ func execute_move(id:String,aim:Vector2i,releasing:bool,invocation_id:String="",
 		attack_serial+=1;attack_target=player;attack_power=false;player_attack_fx=id
 		player_attack_cells=[player];player_attack_path=[player]
 		message=str(move.name)+" · +%d HP"%last_move_healed
-		emit_event("+%d HP"%last_move_healed)
+		emit_event("+%d HP"%last_move_healed);seal_special_cast()
 		enemy_turn()
 		return true
 	var footprint:=attack_footprint(player,aim,str(move.pattern),int(move.reach),true)
@@ -2692,7 +2729,9 @@ func execute_move(id:String,aim:Vector2i,releasing:bool,invocation_id:String="",
 	if move.get("self_confuse",false):
 		self_confusion_turns=rng.randi_range(7,12);message+=" · Confused"
 	active_reserve_multiplier=0
-	if last_move_healed>0:message+=" · +%d HP"%last_move_healed;emit_event("+%d HP"%last_move_healed)
+	if last_move_healed>0:
+		record_cast_heal(player,last_move_healed)
+		message+=" · +%d HP"%last_move_healed;emit_event("+%d HP"%last_move_healed)
 	if move.has("recoil_fraction") and last_move_damage.any(func(d):return d>0):
 		last_move_recoil=mini(hp,maxi(1,floori(float(max_hp)*float(move.recoil_fraction))))
 		hp-=last_move_recoil;hits+=1;combo=0
@@ -2734,7 +2773,7 @@ func dev_next_floor()->bool:
 # DEV-only player adaptations have explicit balancing and use the same damage,
 # status and target geometry pipeline. They do not alter player learnsets.
 const DEV_NATIVE_MOVES={"basic_strike":{"name":"Basic Strike","type":"normal","category":"physical","pattern":"front","reach":1,"power":6,"pp":0,"acc1":125,"acc2":125,"reference_crit":8,"reference_strikes":1,"native":true,"native_effect":"none","effect_amount":0,"description":"Basic attack. Free; does not consume PP."},"briar_arc":{"name":"Briar Pounce","type":"grass","category":"physical","pattern":"line","reach":2,"power":6,"pp":12,"acc1":125,"acc2":125,"reference_crit":8,"reference_strikes":1,"native":true,"native_effect":"pounce","effect_amount":1,"species":"bramble_pup","description":"Inflicts damage and advances the caster toward the target.","balance":"Kindra original · DEV player adaptation, not an EoS reference."},"alt_bramble_pup":{"name":"Thorn Scratch","type":"normal","category":"physical","pattern":"fan","reach":1,"power":5,"pp":10,"acc1":125,"acc2":125,"reference_crit":8,"reference_strikes":1,"native":true,"native_effect":"none","effect_amount":0,"species":"bramble_pup","description":"Inflicts damage.","balance":"Kindra original · DEV player adaptation, not an EoS reference."},"spore_cloud":{"name":"Spore Puff","type":"poison","category":"special","pattern":"radius","reach":2,"power":5,"pp":12,"acc1":125,"acc2":125,"reference_crit":8,"reference_strikes":1,"native":true,"native_effect":"poison","effect_amount":2,"species":"sporeling","description":"Inflicts damage and may poison the target.","balance":"Kindra original · DEV player adaptation, not an EoS reference."},"alt_sporeling":{"name":"Cap Bonk","type":"grass","category":"special","pattern":"front","reach":1,"power":5,"pp":10,"acc1":125,"acc2":125,"reference_crit":8,"reference_strikes":1,"native":true,"native_effect":"none","effect_amount":0,"species":"sporeling","description":"Inflicts damage.","balance":"Kindra original · DEV player adaptation, not an EoS reference."},"horn_ram":{"name":"Thorn Ram","type":"bug","category":"physical","pattern":"line","reach":2,"power":7,"pp":12,"acc1":125,"acc2":125,"reference_crit":8,"reference_strikes":1,"native":true,"native_effect":"pounce","effect_amount":1,"species":"thornbeetle","description":"Inflicts damage and advances the caster toward the target.","balance":"Kindra original · DEV player adaptation, not an EoS reference."},"alt_thornbeetle":{"name":"Mandible Cut","type":"bug","category":"physical","pattern":"front","reach":1,"power":5,"pp":10,"acc1":125,"acc2":125,"reference_crit":8,"reference_strikes":1,"native":true,"native_effect":"none","effect_amount":0,"species":"thornbeetle","description":"Inflicts damage.","balance":"Kindra original · DEV player adaptation, not an EoS reference."},"leaf_dart":{"name":"Leaf Dart","type":"grass","category":"special","pattern":"line","reach":3,"power":5,"pp":12,"acc1":125,"acc2":125,"reference_crit":8,"reference_strikes":1,"native":true,"native_effect":"none","effect_amount":0,"species":"leafwisp","description":"Inflicts damage.","balance":"Kindra original · DEV player adaptation, not an EoS reference."},"alt_leafwisp":{"name":"Razor Leaves","type":"grass","category":"special","pattern":"fan","reach":1,"power":5,"pp":10,"acc1":125,"acc2":125,"reference_crit":8,"reference_strikes":1,"native":true,"native_effect":"none","effect_amount":0,"species":"leafwisp","description":"Inflicts damage.","balance":"Kindra original · DEV player adaptation, not an EoS reference."},"tusk_sweep":{"name":"Root Tusk","type":"ground","category":"physical","pattern":"front","reach":1,"power":7,"pp":12,"acc1":125,"acc2":125,"reference_crit":8,"reference_strikes":1,"native":true,"native_effect":"mark","effect_amount":1,"species":"rootgnawer","description":"Inflicts damage and lowers the target's Defense.","balance":"Kindra original · DEV player adaptation, not an EoS reference."},"alt_rootgnawer":{"name":"Root Needle","type":"grass","category":"physical","pattern":"line","reach":2,"power":4,"pp":10,"acc1":125,"acc2":125,"reference_crit":8,"reference_strikes":1,"native":true,"native_effect":"none","effect_amount":0,"species":"rootgnawer","description":"Inflicts damage.","balance":"Kindra original · DEV player adaptation, not an EoS reference."},"vine_snap":{"name":"Snap Vine","type":"grass","category":"physical","pattern":"corner","reach":2,"power":6,"pp":12,"acc1":125,"acc2":125,"reference_crit":8,"reference_strikes":1,"native":true,"native_effect":"weaken","effect_amount":1,"species":"vinesnap","description":"Inflicts damage and lowers the target's Attack.","balance":"Kindra original · DEV player adaptation, not an EoS reference."},"alt_vinesnap":{"name":"Petal Chomp","type":"grass","category":"physical","pattern":"front","reach":1,"power":5,"pp":10,"acc1":125,"acc2":125,"reference_crit":8,"reference_strikes":1,"native":true,"native_effect":"none","effect_amount":0,"species":"vinesnap","description":"Inflicts damage.","balance":"Kindra original · DEV player adaptation, not an EoS reference."},"rolling_moss":{"name":"Moss Crash","type":"rock","category":"physical","pattern":"line","reach":2,"power":6,"pp":12,"acc1":125,"acc2":125,"reference_crit":8,"reference_strikes":1,"native":true,"native_effect":"guard","effect_amount":1,"species":"mossmite","description":"Inflicts damage and grants the caster a Defense boost.","balance":"Kindra original · DEV player adaptation, not an EoS reference."},"alt_mossmite":{"name":"Pebble Scatter","type":"rock","category":"physical","pattern":"radius","reach":1,"power":4,"pp":10,"acc1":125,"acc2":125,"reference_crit":8,"reference_strikes":1,"native":true,"native_effect":"none","effect_amount":0,"species":"mossmite","description":"Inflicts damage.","balance":"Kindra original · DEV player adaptation, not an EoS reference."},"feather_fan":{"name":"Feather Needle","type":"flying","category":"special","pattern":"fan","reach":3,"power":6,"pp":12,"acc1":125,"acc2":125,"reference_crit":8,"reference_strikes":1,"native":true,"native_effect":"none","effect_amount":0,"species":"sylphowl","description":"Inflicts damage.","balance":"Kindra original · DEV player adaptation, not an EoS reference."},"alt_sylphowl":{"name":"Talon Rake","type":"flying","category":"special","pattern":"fan","reach":1,"power":5,"pp":10,"acc1":125,"acc2":125,"reference_crit":8,"reference_strikes":1,"native":true,"native_effect":"none","effect_amount":0,"species":"sylphowl","description":"Inflicts damage.","balance":"Kindra original · DEV player adaptation, not an EoS reference."},"antler_arc":{"name":"Antler Sweep","type":"grass","category":"physical","pattern":"fan","reach":1,"power":8,"pp":12,"acc1":125,"acc2":125,"reference_crit":8,"reference_strikes":1,"native":true,"native_effect":"mark","effect_amount":1,"species":"hollow_stag","description":"Inflicts damage and lowers the target's Defense.","balance":"Kindra original · DEV player adaptation, not an EoS reference."},"alt_hollow_stag":{"name":"Bark Spear","type":"grass","category":"physical","pattern":"line","reach":2,"power":4,"pp":10,"acc1":125,"acc2":125,"reference_crit":8,"reference_strikes":1,"native":true,"native_effect":"none","effect_amount":0,"species":"hollow_stag","description":"Inflicts damage.","balance":"Kindra original · DEV player adaptation, not an EoS reference."},"timber_shock":{"name":"Timber Slam","type":"ground","category":"physical","pattern":"radius","reach":1,"power":8,"pp":12,"acc1":125,"acc2":125,"reference_crit":8,"reference_strikes":1,"native":true,"native_effect":"guard","effect_amount":2,"species":"grovetitan","description":"Inflicts damage and grants the caster a Defense boost.","balance":"Kindra original · DEV player adaptation, not an EoS reference."},"alt_grovetitan":{"name":"Root Hook","type":"grass","category":"physical","pattern":"corner","reach":2,"power":4,"pp":10,"acc1":125,"acc2":125,"reference_crit":8,"reference_strikes":1,"native":true,"native_effect":"none","effect_amount":0,"species":"grovetitan","description":"Inflicts damage.","balance":"Kindra original · DEV player adaptation, not an EoS reference."},"royal_spores":{"name":"Spore Crown","type":"poison","category":"special","pattern":"radius","reach":2,"power":7,"pp":12,"acc1":125,"acc2":125,"reference_crit":8,"reference_strikes":1,"native":true,"native_effect":"poison","effect_amount":3,"species":"fungal_monarch","description":"Inflicts damage and may poison the target.","balance":"Kindra original · DEV player adaptation, not an EoS reference."},"alt_fungal_monarch":{"name":"Royal Spore Jet","type":"poison","category":"special","pattern":"line","reach":3,"power":4,"pp":10,"acc1":125,"acc2":125,"reference_crit":8,"reference_strikes":1,"native":true,"native_effect":"none","effect_amount":0,"species":"fungal_monarch","description":"Inflicts damage.","balance":"Kindra original · DEV player adaptation, not an EoS reference."},"reef_bite":{"name":"Reef Bite","type":"water","category":"physical","pattern":"front","reach":1,"power":6,"pp":12,"acc1":125,"acc2":125,"reference_crit":8,"reference_strikes":1,"native":true,"native_effect":"none","effect_amount":0,"species":"reef_pup","description":"Inflicts damage.","balance":"Kindra original · DEV player adaptation, not an EoS reference."},"alt_reef_pup":{"name":"Water Needle","type":"water","category":"physical","pattern":"line","reach":2,"power":4,"pp":10,"acc1":125,"acc2":125,"reference_crit":8,"reference_strikes":1,"native":true,"native_effect":"none","effect_amount":0,"species":"reef_pup","description":"Inflicts damage.","balance":"Kindra original · DEV player adaptation, not an EoS reference."},"jelly_pulse":{"name":"Sting Pulse","type":"electric","category":"special","pattern":"radius","reach":2,"power":5,"pp":12,"acc1":125,"acc2":125,"reference_crit":8,"reference_strikes":1,"native":true,"native_effect":"drain","effect_amount":1,"species":"jellymancer","description":"Inflicts damage and drains the target's last move PP.","balance":"Kindra original · DEV player adaptation, not an EoS reference."},"alt_jellymancer":{"name":"Tentacle Flick","type":"water","category":"special","pattern":"front","reach":1,"power":5,"pp":10,"acc1":125,"acc2":125,"reference_crit":8,"reference_strikes":1,"native":true,"native_effect":"none","effect_amount":0,"species":"jellymancer","description":"Inflicts damage.","balance":"Kindra original · DEV player adaptation, not an EoS reference."},"shell_impact":{"name":"Shell Bash","type":"rock","category":"physical","pattern":"front","reach":1,"power":6,"pp":12,"acc1":125,"acc2":125,"reference_crit":8,"reference_strikes":1,"native":true,"native_effect":"guard","effect_amount":3,"species":"shellguard","description":"Inflicts damage and grants the caster a Defense boost.","balance":"Kindra original · DEV player adaptation, not an EoS reference."},"alt_shellguard":{"name":"Shell Disc","type":"rock","category":"physical","pattern":"line","reach":2,"power":4,"pp":10,"acc1":125,"acc2":125,"reference_crit":8,"reference_strikes":1,"native":true,"native_effect":"none","effect_amount":0,"species":"shellguard","description":"Inflicts damage.","balance":"Kindra original · DEV player adaptation, not an EoS reference."},"bubble_burst":{"name":"Bubble Shot","type":"water","category":"special","pattern":"corner","reach":3,"power":5,"pp":12,"acc1":125,"acc2":125,"reference_crit":8,"reference_strikes":1,"native":true,"native_effect":"weaken","effect_amount":1,"species":"bubblewisp","description":"Inflicts damage and lowers the target's Attack.","balance":"Kindra original · DEV player adaptation, not an EoS reference."},"alt_bubblewisp":{"name":"Foam Ring","type":"water","category":"special","pattern":"radius","reach":1,"power":4,"pp":10,"acc1":125,"acc2":125,"reference_crit":8,"reference_strikes":1,"native":true,"native_effect":"none","effect_amount":0,"species":"bubblewisp","description":"Inflicts damage.","balance":"Kindra original · DEV player adaptation, not an EoS reference."},"electric_lash":{"name":"Static Lash","type":"electric","category":"special","pattern":"line","reach":2,"power":6,"pp":12,"acc1":125,"acc2":125,"reference_crit":8,"reference_strikes":1,"native":true,"native_effect":"drain","effect_amount":1,"species":"eelstrix","description":"Inflicts damage and drains the target's last move PP.","balance":"Kindra original · DEV player adaptation, not an EoS reference."},"alt_eelstrix":{"name":"Static Fang","type":"electric","category":"special","pattern":"fan","reach":1,"power":5,"pp":10,"acc1":125,"acc2":125,"reference_crit":8,"reference_strikes":1,"native":true,"native_effect":"none","effect_amount":0,"species":"eelstrix","description":"Inflicts damage.","balance":"Kindra original · DEV player adaptation, not an EoS reference."},"double_pincer":{"name":"Claw Snap","type":"bug","category":"physical","pattern":"fan","reach":1,"power":7,"pp":12,"acc1":125,"acc2":125,"reference_crit":8,"reference_strikes":1,"native":true,"native_effect":"guard","effect_amount":1,"species":"coralcrab","description":"Inflicts damage and grants the caster a Defense boost.","balance":"Kindra original · DEV player adaptation, not an EoS reference."},"alt_coralcrab":{"name":"Brine Jet","type":"water","category":"physical","pattern":"line","reach":2,"power":4,"pp":10,"acc1":125,"acc2":125,"reference_crit":8,"reference_strikes":1,"native":true,"native_effect":"none","effect_amount":0,"species":"coralcrab","description":"Inflicts damage.","balance":"Kindra original · DEV player adaptation, not an EoS reference."},"tentacle_snare":{"name":"Tentacle Snare","type":"poison","category":"physical","pattern":"corner","reach":2,"power":6,"pp":12,"acc1":125,"acc2":125,"reference_crit":8,"reference_strikes":1,"native":true,"native_effect":"weaken","effect_amount":2,"species":"anemoneye","description":"Inflicts damage and lowers the target's Attack.","balance":"Kindra original · DEV player adaptation, not an EoS reference."},"alt_anemoneye":{"name":"Nettle Bloom","type":"poison","category":"physical","pattern":"radius","reach":1,"power":4,"pp":10,"acc1":125,"acc2":125,"reference_crit":8,"reference_strikes":1,"native":true,"native_effect":"none","effect_amount":0,"species":"anemoneye","description":"Inflicts damage.","balance":"Kindra original · DEV player adaptation, not an EoS reference."},"fin_slice":{"name":"Fin Slice","type":"flying","category":"special","pattern":"line","reach":3,"power":6,"pp":12,"acc1":125,"acc2":125,"reference_crit":8,"reference_strikes":1,"native":true,"native_effect":"mark","effect_amount":1,"species":"marrowray","description":"Inflicts damage and lowers the target's Defense.","balance":"Kindra original · DEV player adaptation, not an EoS reference."},"alt_marrowray":{"name":"Tail Barb","type":"water","category":"special","pattern":"fan","reach":1,"power":5,"pp":10,"acc1":125,"acc2":125,"reference_crit":8,"reference_strikes":1,"native":true,"native_effect":"none","effect_amount":0,"species":"marrowray","description":"Inflicts damage.","balance":"Kindra original · DEV player adaptation, not an EoS reference."},"spiral_current":{"name":"Spiral Thrust","type":"water","category":"physical","pattern":"line","reach":2,"power":7,"pp":12,"acc1":125,"acc2":125,"reference_crit":8,"reference_strikes":1,"native":true,"native_effect":"pounce","effect_amount":1,"species":"leviathorn","description":"Inflicts damage and advances the caster toward the target.","balance":"Kindra original · DEV player adaptation, not an EoS reference."},"alt_leviathorn":{"name":"Brackish Lance","type":"water","category":"physical","pattern":"line","reach":3,"power":4,"pp":10,"acc1":125,"acc2":125,"reference_crit":8,"reference_strikes":1,"native":true,"native_effect":"none","effect_amount":0,"species":"leviathorn","description":"Inflicts damage.","balance":"Kindra original · DEV player adaptation, not an EoS reference."},"abyss_grasp":{"name":"Abyss Crush","type":"dark","category":"physical","pattern":"radius","reach":2,"power":8,"pp":12,"acc1":125,"acc2":125,"reference_crit":8,"reference_strikes":1,"native":true,"native_effect":"weaken","effect_amount":1,"species":"abyss_colossus","description":"Inflicts damage and lowers the target's Attack.","balance":"Kindra original · DEV player adaptation, not an EoS reference."},"alt_abyss_colossus":{"name":"Ink Veil","type":"dark","category":"physical","pattern":"radius","reach":1,"power":4,"pp":10,"acc1":125,"acc2":125,"reference_crit":8,"reference_strikes":1,"native":true,"native_effect":"none","effect_amount":0,"species":"abyss_colossus","description":"Inflicts damage.","balance":"Kindra original · DEV player adaptation, not an EoS reference."},"tidal_jaws":{"name":"Tidal Bite","type":"water","category":"physical","pattern":"fan","reach":2,"power":9,"pp":12,"acc1":125,"acc2":125,"reference_crit":8,"reference_strikes":1,"native":true,"native_effect":"mark","effect_amount":1,"species":"tidal_sovereign","description":"Inflicts damage and lowers the target's Defense.","balance":"Kindra original · DEV player adaptation, not an EoS reference."},"alt_tidal_sovereign":{"name":"Riptide Rush","type":"water","category":"physical","pattern":"line","reach":3,"power":4,"pp":10,"acc1":125,"acc2":125,"reference_crit":8,"reference_strikes":1,"native":true,"native_effect":"none","effect_amount":0,"species":"tidal_sovereign","description":"Inflicts damage.","balance":"Kindra original · DEV player adaptation, not an EoS reference."},"star_kick":{"name":"Star Kick","type":"fairy","category":"physical","pattern":"front","reach":1,"power":7,"pp":12,"acc1":125,"acc2":125,"reference_crit":8,"reference_strikes":1,"native":true,"native_effect":"none","effect_amount":0,"species":"starlit_pup","description":"Inflicts damage.","balance":"Kindra original · DEV player adaptation, not an EoS reference."},"alt_starlit_pup":{"name":"Comet Spark","type":"fairy","category":"physical","pattern":"line","reach":2,"power":4,"pp":10,"acc1":125,"acc2":125,"reference_crit":8,"reference_strikes":1,"native":true,"native_effect":"none","effect_amount":0,"species":"starlit_pup","description":"Inflicts damage.","balance":"Kindra original · DEV player adaptation, not an EoS reference."},"lunar_dust":{"name":"Lunar Dust","type":"fairy","category":"special","pattern":"fan","reach":2,"power":5,"pp":12,"acc1":125,"acc2":125,"reference_crit":8,"reference_strikes":1,"native":true,"native_effect":"weaken","effect_amount":2,"species":"lunamoth","description":"Inflicts damage and lowers the target's Attack.","balance":"Kindra original · DEV player adaptation, not an EoS reference."},"alt_lunamoth":{"name":"Moon Wing","type":"flying","category":"special","pattern":"fan","reach":1,"power":5,"pp":10,"acc1":125,"acc2":125,"reference_crit":8,"reference_strikes":1,"native":true,"native_effect":"none","effect_amount":0,"species":"lunamoth","description":"Inflicts damage.","balance":"Kindra original · DEV player adaptation, not an EoS reference."},"prism_shatter":{"name":"Prism Smash","type":"ice","category":"physical","pattern":"radius","reach":1,"power":7,"pp":12,"acc1":125,"acc2":125,"reference_crit":8,"reference_strikes":1,"native":true,"native_effect":"guard","effect_amount":2,"species":"crystarok","description":"Inflicts damage and grants the caster a Defense boost.","balance":"Kindra original · DEV player adaptation, not an EoS reference."},"alt_crystarok":{"name":"Crystal Needle","type":"ice","category":"physical","pattern":"line","reach":2,"power":4,"pp":10,"acc1":125,"acc2":125,"reference_crit":8,"reference_strikes":1,"native":true,"native_effect":"none","effect_amount":0,"species":"crystarok","description":"Inflicts damage.","balance":"Kindra original · DEV player adaptation, not an EoS reference."},"nova_bolt":{"name":"Nova Bolt","type":"fire","category":"special","pattern":"line","reach":3,"power":6,"pp":12,"acc1":125,"acc2":125,"reference_crit":8,"reference_strikes":1,"native":true,"native_effect":"drain","effect_amount":1,"species":"nova_wisp","description":"Inflicts damage and drains the target's last move PP.","balance":"Kindra original · DEV player adaptation, not an EoS reference."},"alt_nova_wisp":{"name":"Cinder Halo","type":"fire","category":"special","pattern":"radius","reach":1,"power":4,"pp":10,"acc1":125,"acc2":125,"reference_crit":8,"reference_strikes":1,"native":true,"native_effect":"none","effect_amount":0,"species":"nova_wisp","description":"Inflicts damage.","balance":"Kindra original · DEV player adaptation, not an EoS reference."},"orbit_lash":{"name":"Orbit Lash","type":"psychic","category":"physical","pattern":"corner","reach":2,"power":6,"pp":12,"acc1":125,"acc2":125,"reference_crit":8,"reference_strikes":1,"native":true,"native_effect":"mark","effect_amount":1,"species":"orbitserpent","description":"Inflicts damage and lowers the target's Defense.","balance":"Kindra original · DEV player adaptation, not an EoS reference."},"alt_orbitserpent":{"name":"Ring Fang","type":"dragon","category":"physical","pattern":"front","reach":1,"power":5,"pp":10,"acc1":125,"acc2":125,"reference_crit":8,"reference_strikes":1,"native":true,"native_effect":"none","effect_amount":0,"species":"orbitserpent","description":"Inflicts damage.","balance":"Kindra original · DEV player adaptation, not an EoS reference."},"comet_drop":{"name":"Comet Drop","type":"fairy","category":"physical","pattern":"line","reach":2,"power":7,"pp":12,"acc1":125,"acc2":125,"reference_crit":8,"reference_strikes":1,"native":true,"native_effect":"pounce","effect_amount":1,"species":"comet_hare","description":"Inflicts damage and advances the caster toward the target.","balance":"Kindra original · DEV player adaptation, not an EoS reference."},"alt_comet_hare":{"name":"Lunar Kick","type":"normal","category":"physical","pattern":"fan","reach":1,"power":5,"pp":10,"acc1":125,"acc2":125,"reference_crit":8,"reference_strikes":1,"native":true,"native_effect":"none","effect_amount":0,"species":"comet_hare","description":"Inflicts damage.","balance":"Kindra original · DEV player adaptation, not an EoS reference."},"gravity_web":{"name":"Gravity Web","type":"dark","category":"special","pattern":"corner","reach":2,"power":6,"pp":12,"acc1":125,"acc2":125,"reference_crit":8,"reference_strikes":1,"native":true,"native_effect":"mark","effect_amount":2,"species":"voidspider","description":"Inflicts damage and lowers the target's Defense.","balance":"Kindra original · DEV player adaptation, not an EoS reference."},"alt_voidspider":{"name":"Silk Dart","type":"bug","category":"special","pattern":"line","reach":3,"power":4,"pp":10,"acc1":125,"acc2":125,"reference_crit":8,"reference_strikes":1,"native":true,"native_effect":"none","effect_amount":0,"species":"voidspider","description":"Inflicts damage.","balance":"Kindra original · DEV player adaptation, not an EoS reference."},"sonic_cone":{"name":"Void Screech","type":"ghost","category":"special","pattern":"fan","reach":3,"power":5,"pp":12,"acc1":125,"acc2":125,"reference_crit":8,"reference_strikes":1,"native":true,"native_effect":"drain","effect_amount":2,"species":"nebulwing","description":"Inflicts damage and drains the target's last move PP.","balance":"Kindra original · DEV player adaptation, not an EoS reference."},"alt_nebulwing":{"name":"Echo Burst","type":"flying","category":"special","pattern":"radius","reach":1,"power":4,"pp":10,"acc1":125,"acc2":125,"reference_crit":8,"reference_strikes":1,"native":true,"native_effect":"none","effect_amount":0,"species":"nebulwing","description":"Inflicts damage.","balance":"Kindra original · DEV player adaptation, not an EoS reference."},"moon_claw":{"name":"Moon Claw","type":"dark","category":"physical","pattern":"front","reach":1,"power":8,"pp":12,"acc1":125,"acc2":125,"reference_crit":8,"reference_strikes":1,"native":true,"native_effect":"none","effect_amount":0,"species":"lunar_prowler","description":"Inflicts damage.","balance":"Kindra original · DEV player adaptation, not an EoS reference."},"alt_lunar_prowler":{"name":"Shadow Pounce","type":"dark","category":"physical","pattern":"line","reach":2,"power":4,"pp":10,"acc1":125,"acc2":125,"reference_crit":8,"reference_strikes":1,"native":true,"native_effect":"none","effect_amount":0,"species":"lunar_prowler","description":"Inflicts damage.","balance":"Kindra original · DEV player adaptation, not an EoS reference."},"meteor_fist":{"name":"Meteor Fist","type":"rock","category":"physical","pattern":"corner","reach":3,"power":7,"pp":12,"acc1":125,"acc2":125,"reference_crit":8,"reference_strikes":1,"native":true,"native_effect":"none","effect_amount":0,"species":"astro_golem","description":"Inflicts damage.","balance":"Kindra original · DEV player adaptation, not an EoS reference."},"alt_astro_golem":{"name":"Gravel Nova","type":"rock","category":"physical","pattern":"radius","reach":1,"power":4,"pp":10,"acc1":125,"acc2":125,"reference_crit":8,"reference_strikes":1,"native":true,"native_effect":"none","effect_amount":0,"species":"astro_golem","description":"Inflicts damage.","balance":"Kindra original · DEV player adaptation, not an EoS reference."},"celestial_verdict":{"name":"Celestial Verdict","type":"fairy","category":"special","pattern":"cross","reach":3,"power":8,"pp":12,"acc1":125,"acc2":125,"reference_crit":8,"reference_strikes":1,"native":true,"native_effect":"drain","effect_amount":2,"species":"celestial_guardian","description":"Inflicts damage and drains the target's last move PP.","balance":"Kindra original · DEV player adaptation, not an EoS reference."},"alt_celestial_guardian":{"name":"Halo Blade","type":"fairy","category":"special","pattern":"fan","reach":2,"power":4,"pp":10,"acc1":125,"acc2":125,"reference_crit":8,"reference_strikes":1,"native":true,"native_effect":"none","effect_amount":0,"species":"celestial_guardian","description":"Inflicts damage.","balance":"Kindra original · DEV player adaptation, not an EoS reference."}}
-const DEV_RULE_DESCRIPTIONS={"20":"Deals 20 fixed damage.","30":"Deals 30 fixed damage.","35":"Deals 35 fixed damage.","half_hp":"Deals half of the target's current HP.","equal_hp":"Reduces the target toward the user's current HP.","psywave":"Deals variable level-based psychic damage.","level":"Deals damage based on the user's level.","ohko":"Attempts to defeat the target in one hit.","push":"Pushes the target away.","warp":"Warps the target to another tile.","pain_split":"Shares current HP between user and target, capped by maximum HP.","magnitude":"Deals variable ground damage based on a randomly selected magnitude.","shift":"Transfers negative conditions between combatants.","present":"Randomly damages or heals the target.","wrap":"Binds the target and user in place.","splash":"Moves the user to a random nearby tile.","break_wall":"Opens a wall tile immediately ahead.","hurl":"Throws the target across the room.","iq_return":"Deals fixed damage that increases with IQ.","iq_frustration":"Deals fixed damage that decreases with IQ.","nature_power":"Invokes an attack based on the terrain.","infatuation":"Infatuates an eligible opposite-gender target.","captivate":"Lowers an opposite-gender target's Special Attack.","destiny_link":"Links incoming damage to the target.","encore":"Locks the target into its last used move.","torment":"Seals the target's last used move.","spite":"Drains the target's last used move PP.","taunt":"Prevents non-damaging support moves.","tempo_rift":"Randomly alters travel speed stages.","swap_item":"Exchanges held items with the target.","drop_item":"Drops the target's held item.","embargo":"Blocks the target's consumable items.","swap_ability":"Exchanges abilities with the target.","copy_ability":"Copies the target's abilities.","suppress_ability":"Temporarily suppresses target abilities.","copy_last":"Invokes the target's last eligible move.","learn_last":"Replaces this move with the target's last eligible move.","copy_boost":"Uses an eligible target attack at increased power.","belly_drum":"Maximizes Attack at the cost of hunger.","recycle_manual":"Restores spent technique manuals.","transform_form":"Copies a hostile creature's visual form.","decoy":"Makes the target a decoy for other enemies.","relay_swap":"Swaps positions with enemies in the room.","leader_decoy":"Makes the leader a decoy.","party_boost":"Raises allies' Attack and Special Attack.","floor_assist":"Invokes an eligible move from the floor's creatures.","party_rally":"Rallies living allies near the leader.","party_heal":"Heals allies in the room at the cost of the user's HP.","party_renew":"Heals allies and restores their PP at the cost of the user's HP."}
+const DEV_RULE_DESCRIPTIONS={"20":"Deals 20 fixed damage.","30":"Deals 30 fixed damage.","35":"Deals 35 fixed damage.","half_hp":"Deals half of the target's current HP.","equal_hp":"Reduces the target toward the user's current HP.","psywave":"Deals variable level-based psychic damage.","level":"Deals damage based on the user's level.","ohko":"Attempts to defeat the target in one hit.","push":"Pushes the target away.","warp":"Warps the user to another tile.","pain_split":"Shares current HP between user and target, capped by maximum HP.","magnitude":"Deals variable ground damage based on a randomly selected magnitude.","shift":"Transfers negative conditions between combatants.","present":"Randomly damages or heals the target.","wrap":"Binds the target and user in place.","splash":"Moves the user to a random nearby tile.","break_wall":"Opens a wall tile immediately ahead.","hurl":"Throws the target across the room.","iq_return":"Deals fixed damage that increases with IQ.","iq_frustration":"Deals fixed damage that decreases with IQ.","nature_power":"Invokes an attack based on the terrain.","infatuation":"Infatuates an eligible opposite-gender target.","captivate":"Lowers an opposite-gender target's Special Attack.","destiny_link":"Links incoming damage to the target.","encore":"Locks the target into its last used move.","torment":"Seals the target's last used move.","spite":"Drains the target's last used move PP.","taunt":"Prevents non-damaging support moves.","tempo_rift":"Randomly alters travel speed stages.","swap_item":"Exchanges held items with the target.","drop_item":"Drops the target's held item.","embargo":"Blocks the target's consumable items.","swap_ability":"Exchanges abilities with the target.","copy_ability":"Copies the target's abilities.","suppress_ability":"Temporarily suppresses target abilities.","copy_last":"Invokes the target's last eligible move.","learn_last":"Replaces this move with the target's last eligible move.","copy_boost":"Uses an eligible target attack at increased power.","belly_drum":"Maximizes Attack at the cost of hunger.","recycle_manual":"Restores spent technique manuals.","transform_form":"Copies a hostile creature's visual form.","decoy":"Makes the target a decoy for other enemies.","relay_swap":"Swaps positions with enemies in the room.","leader_decoy":"Makes the leader a decoy.","party_boost":"Raises allies' Attack and Special Attack.","floor_assist":"Invokes an eligible move from the floor's creatures.","party_rally":"Rallies living allies near the leader.","party_heal":"Heals allies in the room at the cost of the user's HP.","party_renew":"Heals allies and restores their PP at the cost of the user's HP."}
 const DEV_BOON_DESCRIPTIONS={"focus":"Increases critical-hit potential.","lucky":"Protects against critical hits.","mist":"Protects against stat reductions.","wish":"Gradually restores HP.","cure":"Clears the user's negative conditions.","aqua":"Periodically restores HP.","sure":"Makes attacks bypass accuracy checks while active.","nap":"Sleeps, then restores HP and clears conditions.","ingrain":"Roots the user and periodically restores HP.","set_damage":"Sets ordinary attack damage to a fixed amount.","sleepless":"Prevents sleep.","magnet":"Grants temporary immunity to ground attacks.","bide":"Stores incoming damage and releases a retaliatory hit.","rage":"Raises Attack when damaged.","vital_throw":"Retaliates against nearby attackers with a throw.","adapt":"Changes defensive type after being hit.","magic_coat":"Reflects supported status effects.","snatch":"Steals supported enemy buffs.","mirror_veil":"Reflects adjacent non-basic attacks.","grudge":"Drains the last enemy move PP on a fatal hit."}
 const DEV_SHIELD_DESCRIPTIONS={"protect":"Blocks incoming attacks temporarily.","endure":"Prevents an otherwise fatal hit from reducing HP below one.","counter":"Retaliates against adjacent physical attackers.","mirror":"Retaliates against adjacent special attackers.","reflect":"Reduces physical damage.","screen":"Reduces special damage.","metal":"Reflects part of incoming damage to nearby enemies.","safeguard":"Protects against supported negative conditions."}
 const DEV_TRANSFER_DESCRIPTIONS={"copy":"Copies the target's stat changes.","guard":"Exchanges defensive stat changes.","all":"Exchanges stat changes with the target.","power":"Exchanges offensive stat changes.","invert":"Swaps Attack and Defense changes.","random":"Randomly raises a combat stat.","charge":"Raises Special Defense and boosts the next electric attack.","gravity":"Activates gravity on the floor.","conversion":"Adopts an element from an equipped move.","camouflage":"Adopts a type based on the terrain."}

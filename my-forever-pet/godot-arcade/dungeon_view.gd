@@ -5911,6 +5911,8 @@ func travel_environment_fx(burst:Dictionary,t:float,used:int)->int:
 const ELEMENT_FINISH_MODE={"fire":"ember","electric":"lightning","water":"drop","grass":"leaf","ice":"shards","ground":"shards","rock":"shards","poison":"cloud","psychic":"spiral","ghost":"cloud","dark":"slash","fighting":"impact_star","normal":"impact_star","flying":"slash","bug":"leaf","dragon":"flame","steel":"shards","fairy":"impact_star"}
 func cast_result_text(row:Dictionary)->String:
 	var damage:int=int(row.get("damage",0))
+	var healed:int=int(row.get("heal",0))
+	if healed>0 and damage==0:return "+%d HP"%healed
 	if damage>0:
 		var prefix:String="CRITICAL " if int(row.get("crit",0))>0 else ""
 		var suffix:String=" · x%d"%int(row.hits) if int(row.get("hits",0))>1 else ""
@@ -5928,7 +5930,7 @@ func show_cast_results(results:Dictionary)->void:
 		var tag:Label3D=cast_text_pool[i]
 		var damage:int=int(row.get("damage",0))
 		tag.text=cast_result_text(row)
-		tag.modulate=Color("#ffd473") if int(row.get("crit",0))>0 else Color("#fff2dc") if damage>0 else Color("#a6eacb") if int(row.get("effects",0))>0 else Color("#c3cad7")
+		tag.modulate=Color("#ffd473") if int(row.get("crit",0))>0 else Color("#fff2dc") if damage>0 else Color("#78e7a3") if int(row.get("heal",0))>0 else Color("#a6eacb") if int(row.get("effects",0))>0 else Color("#c3cad7")
 		tag.font_size=46 if int(row.get("crit",0))>0 else 34
 		cast_text_origin[i]=pos(tile)+Vector3(0,1.85,0);tag.position=cast_text_origin[i];cast_text_age[i]=.8;tag.show()
 
@@ -5969,10 +5971,19 @@ func element_finish_fx(burst:Dictionary,t:float,used:int)->int:
 		# Known misses/blocked hits get a subdued dissipating trail, not a damage flash.
 		var primary_tile:=Vector2i(roundi(target.x/1.4),roundi(target.z/1.4))
 		var row:Dictionary=results.get(primary_tile,{})
-		if not row.is_empty() and int(row.get("damage",0))==0 and int(row.get("effects",0))==0:
+		if not row.is_empty() and int(row.get("damage",0))==0 and int(row.get("effects",0))==0 and int(row.get("heal",0))==0:
 			return environment_particle(used,target,"cloud",light,dark,.32+age*.18,fade*.35)
 		if age<.30:
 			used=environment_particle(used,target,"bubble" if status else "impact_star",light,dark,.62+age*.55,1.0-age*2.0)
+		# Room-wide attacks show a small localized finish at other confirmed targets.
+		var extra:int=0
+		for tile in results:
+			if tile==primary_tile or extra>=4:continue
+			var other:Dictionary=results[tile]
+			if int(other.get("damage",0))+int(other.get("effects",0))+int(other.get("heal",0))<=0:continue
+			var q:Vector3=pos(tile)+Vector3(0,.45,0)
+			used=environment_particle(used,q,"bubble" if status else "impact_star",light,dark,.45+age*.38,fade)
+			extra+=1
 		for j in range(count):
 			var angle:float=float(j)*TAU/float(count)
 			var q:=target+Vector3(cos(angle)*radius,.04+sin(age*PI)*(.55 if status else .33),sin(angle)*radius)

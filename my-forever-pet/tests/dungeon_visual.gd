@@ -741,6 +741,9 @@ func run():
 	var miss:Dictionary={"damage":0,"hits":0,"misses":1,"effects":0,"blocked":0,"crit":0}
 	var critical:Dictionary={"damage":25,"hits":1,"misses":0,"effects":0,"blocked":0,"crit":1}
 	assert(preview.cast_result_text(miss)=="MISS")
+	assert(preview.cast_result_text({"heal":18})=="+18 HP")
+	assert(preview.cast_result_text({"effects":1})=="EFFECT")
+	assert(preview.cast_result_text({"blocked":1})=="NO EFFECT")
 	assert("CRITICAL" in preview.cast_result_text(critical))
 	preview.combat_bursts.clear()
 	preview.combat_fx_spawn({"fx":"eos_064","from":anchor,"to":result_tile,"path":[result_tile],"tiles":[result_tile],"results":{result_tile:miss}})
