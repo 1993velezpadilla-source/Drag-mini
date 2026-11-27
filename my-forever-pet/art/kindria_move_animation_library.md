@@ -30,3 +30,6 @@ All 14 electric reference entries now have individual roles. Thunder Punch: char
 
 ## Iteration 44: fighting choreography pilot
 32 independently routed fighting effects: contact chops, impact punches, kick arcs at differing heights, grip/throw silhouettes, multi-hit fists, aura/force projectiles, guard and reactive stances. Drain Punch returns particles to the caster. Original FX only, not species-specific limb animation or verified source choreography. Added temporal and family uniqueness assertions and actual PNG capture. Prior rock run 45934242619 passed all 126 effect checks and live expedition (18 captures, 25 fights, 3 transitions), core 45934242710 passed. Fighting tests, source-frame and Android review pending.
+
+## Iteration 45: flying choreography pilot
+19 independently routed flying effects: cutting air crescents, distinct wind streams, vertical dive, flying/bouncing arc, beak impacts, rotating drill, wing/feather silhouettes, recoil charge, sound ripples, room-clearing wind and self support mirror/roost. Added family role and frame uniqueness tests plus PNG exports. Original FX trajectories, not verified source-frame or species-specific flight animations. Previous run 45934522612 passed all 158 effect tests and live expeditions (18 captures, 25 fights, 3 transitions), core 45934522693 passed. Flying visual tests and Android approval pending.
