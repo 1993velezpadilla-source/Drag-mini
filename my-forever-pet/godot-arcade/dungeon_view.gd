@@ -1628,7 +1628,7 @@ func update_enemy_pixel(actor:Node3D,dt:float,motion:Vector3)->void:
 	var frame:int=posmod(int(clock*12.0),4) if state=="walk" else mini(1,int(clock*9.0)) if state=="attack" else 0
 	var species:String=str(actor.get_meta("species"))
 	var facing_index:int=int(actor.get_meta("enemy_facing",0))
-	var hovering:bool=species in ["nova_wisp","leafwisp","lunamoth","jellymancer","marrowray"]
+	var hovering:bool=species in ["nova_wisp","leafwisp","lunamoth","jellymancer","marrowray","nebulwing"]
 	var rise:float=.13+.04*sin(elapsed*3.0+float(actor.get_instance_id()%11)) if hovering and state!="defeat" else 0.0
 	sprite.position.y=.54+rise
 	var shadow:=actor.get_node_or_null("EnemyContactShadow") as MeshInstance3D

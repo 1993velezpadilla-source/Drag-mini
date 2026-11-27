@@ -5,13 +5,13 @@ func _initialize():call_deferred("run")
 func run():
 	var dungeon=View.new()
 	var viewport:=SubViewport.new()
-	viewport.size=Vector2i(960,900)
+	viewport.size=Vector2i(960,1080)
 	viewport.own_world_3d=true
 	viewport.render_target_update_mode=SubViewport.UPDATE_ALWAYS
 	root.add_child(viewport)
 	var world:=Node3D.new();viewport.add_child(world)
 	var camera:=Camera3D.new();world.add_child(camera)
-	camera.position=Vector3(0,5,10);camera.look_at(Vector3(0,.5,0));camera.projection=Camera3D.PROJECTION_ORTHOGONAL;camera.size=10.0;camera.current=true
+	camera.position=Vector3(0,5,10);camera.look_at(Vector3(0,.5,0));camera.projection=Camera3D.PROJECTION_ORTHOGONAL;camera.size=12.0;camera.current=true
 	var env:=WorldEnvironment.new();env.environment=Environment.new();env.environment.background_mode=Environment.BG_COLOR;env.environment.background_color=Color("#243345");world.add_child(env)
 	var floor:=MeshInstance3D.new();world.add_child(floor)
 	var floor_mesh:=PlaneMesh.new();floor_mesh.size=Vector2(18,18);floor.mesh=floor_mesh
@@ -19,7 +19,7 @@ func run():
 	var i:int=0
 	for id in Art.ENEMY_PIXEL_PILOTS:
 		var actor:=Node3D.new();world.add_child(actor)
-		actor.position=Vector3((i%3-1)*2.1,0,float(int(i/3.0))*1.65-3.3)
+		actor.position=Vector3((i%3-1)*2.1,0,float(int(i/3.0))*1.65-4.125)
 		dungeon.region=i%3
 		assert(dungeon.attach_enemy_pixel(actor,id))
 		var sprite:=actor.get_node("EnemyPixel") as Sprite3D
