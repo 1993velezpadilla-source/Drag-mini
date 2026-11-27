@@ -82,6 +82,8 @@ var destination_fx:MeshInstance3D
 var hp_previous=0
 var hit_time=0.0
 var pet_pose:Node3D
+var disguise_actor:Node3D
+var disguise_species:String=""
 var floor_ornaments:Array[Vector3]=[]
 var wall_decorations=0
 var floor_banner:Label
@@ -1555,6 +1557,7 @@ func build_floor():
 			shape(geometry,"box",p+Vector3(0,.11,0),Vector3(.62,.18,.62),palette[2])
 	pet=Node3D.new();geometry.add_child(pet);pet.position=pos(run.player)
 	pet_pose=model(pet,companion_id);pet_pose.scale*=1.28
+	disguise_actor=null;disguise_species=""
 	# Sprite orientation is driven by actual movement, not the GLB basis.
 	pet_pose.rotation.y=0.0
 	pet.rotation.y=atan2(float(facing.x),float(facing.y))
@@ -2455,6 +2458,26 @@ func update_hud():
 	stairs_button.disabled=not run.secured or run.player!=run.stairs
 	stairs_button.visible=run.secured and run.player==run.stairs
 	map.queue_redraw()
+func update_disguise(dt:float,motion:Vector2,moving:bool,pose:String)->void:
+	var desired:String=run.transformed_species
+	if desired!=disguise_species:
+		if is_instance_valid(disguise_actor):
+			disguise_actor.hide();disguise_actor.queue_free()
+		disguise_actor=null;disguise_species=desired
+		if not desired.is_empty():
+			var actor:=Node3D.new()
+			pet.add_child(actor)
+			if attach_enemy_pixel(actor,desired):disguise_actor=actor
+			else:actor.queue_free()
+	if not is_instance_valid(disguise_actor):return
+	disguise_actor.visible=pet_pose.visible
+	pet_pose.hide()
+	disguise_actor.position=pet_pose.position
+	disguise_actor.set_meta("enemy_facing",PixelArt.direction_for(motion,int(disguise_actor.get_meta("enemy_facing",0))))
+	if pose in ["hurt","attack"]:
+		if str(disguise_actor.get_meta("enemy_phase","idle"))!=pose:enemy_pose(disguise_actor,pose,.22,motion)
+	update_enemy_pixel(disguise_actor,dt,Vector3(motion.x,0,motion.y) if moving else Vector3.ZERO)
+
 func _process(dt:float):
 	if notified or not is_instance_valid(pet):return
 	elapsed+=dt;tick-=dt
@@ -2527,5 +2550,6 @@ func _process(dt:float):
 	var pose:String="hurt" if hit_time>0.0 else "attack" if attack_time>0.0 else "reward" if reward_age>0.0 and not moving else "idle"
 	pet_pose.set_meta("pet_mood","weak" if run.hp*3<run.max_hp else "healthy")
 	PixelArt.animate_world_sprite(pet_pose,motion,moving,dt,pose,region==1)
+	update_disguise(dt,motion,moving,pose)
 	var focus=pet.position+Vector3(0,.18,-.48)
 	camera.position=focus+DUNGEON_CAMERA_OFFSET;camera.look_at(focus)
