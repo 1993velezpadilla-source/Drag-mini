@@ -5484,7 +5484,7 @@ func native_identity_frame(id:String,frame:int,base:Image)->Image:
 	return im
 
 # V16.7: individually remastered after reviewing actual Godot PNG strips.
-const VISUAL_REMASTER_MOVES=["eos_504","eos_308","eos_135","eos_142","eos_047","eos_250","eos_299","eos_329","eos_262","eos_279","eos_101","eos_199","eos_251","eos_486","eos_462","eos_018","eos_507","eos_175","eos_254","eos_097","eos_163","eos_320","eos_033","eos_166","eos_228","eos_004","eos_252","eos_330","eos_465","eos_138","eos_021","eos_501","eos_053","eos_157","eos_064","eos_188","eos_240","eos_255","eos_342","eos_539","eos_041","eos_278","eos_538","eos_239","eos_193","eos_272","eos_519","eos_494","eos_292","eos_065","eos_276","eos_208","eos_522","eos_452","eos_433","eos_087","eos_063","eos_062","eos_476","eos_127","eos_451","eos_436","eos_491","eos_046","eos_109","eos_234","eos_107","eos_463","eos_133","eos_317","eos_111","eos_331","eos_345","eos_270","eos_042","eos_344","eos_461","eos_180","eos_535","eos_150","eos_118","eos_484","eos_008","eos_131","eos_030","eos_481","eos_028","eos_073","lib_ground_1","eos_057","eos_036","eos_442","eos_153","eos_205","eos_100","eos_518","eos_178","eos_200","eos_495","eos_280","eos_197","eos_332","eos_147","eos_485","eos_459","eos_151","eos_537","eos_443","eos_336","eos_182","eos_253","eos_441","eos_076","lib_grass_1","eos_001","eos_325","eos_103","eos_536","eos_510","eos_431","eos_475","eos_523","eos_080","eos_082","eos_114","eos_323","eos_470","eos_502","eos_529","eos_530","eos_460","eos_520","eos_449","eos_288","eos_164","eos_306","eos_023","eos_086","eos_346","lib_fairy_1","lib_fairy_2","lib_fairy_3","eos_341","eos_498","eos_343","eos_091","eos_162","eos_435","lib_dragon_1","lib_dragon_2","lib_dragon_3","eos_092","eos_204","eos_206","eos_303","eos_222","eos_210","lib_fighting_2","eos_136","eos_075","eos_300","eos_246","eos_430","eos_440","eos_500","eos_508","eos_454","eos_479","eos_243","eos_068","eos_090","lib_fighting_1","lib_fighting_3","eos_072","eos_077","eos_116","eos_531","eos_265","eos_305","eos_051","eos_170","eos_340","eos_007","eos_029","lib_electric_1","lib_electric_2","lib_electric_3","eos_129","eos_144","eos_189","eos_354","eos_489","eos_521","eos_192","eos_128","eos_493","lib_fire_1","lib_fire_2","lib_fire_3","eos_052","eos_149","eos_230","eos_291","eos_517","eos_524","eos_223","lib_water_1","lib_water_2","lib_water_3","eos_016","eos_032","eos_044","eos_069","eos_113","eos_156","eos_158","eos_159","eos_219","eos_310","eos_432","eos_469","eos_070","eos_012","eos_307","eos_434","lib_grass_2","lib_grass_3","eos_221","eos_238","eos_297","eos_458","eos_468","eos_511","eos_079","eos_231","eos_124","eos_351","eos_015","eos_094","eos_084","eos_233","lib_ice_1","lib_ice_2","lib_ice_3","eos_002","eos_088","eos_130","eos_014","lib_poison_1","lib_poison_2","lib_poison_3","eos_198","eos_283","eos_196","eos_202","eos_496","eos_438","lib_ground_2","lib_ground_3","eos_143","eos_213","eos_289","eos_285","eos_290","eos_212","eos_295","eos_296","lib_rock_1","lib_rock_2","lib_rock_3","eos_093","eos_453","eos_512","eos_533","eos_350","eos_105","eos_540","eos_141","eos_480","lib_flying_1","lib_flying_2","lib_flying_3","eos_174","eos_179","eos_211","eos_353","eos_446","eos_490","eos_444","eos_267","eos_509","eos_456","eos_040","lib_bug_1","lib_bug_2","lib_bug_3","lib_psychic_1","lib_psychic_2","lib_psychic_3","eos_110","eos_309","eos_335","eos_473","eos_099","eos_146","eos_215","eos_258","eos_319","eos_333","eos_095","eos_316","eos_338","eos_259","eos_108","eos_187","eos_266","eos_448","eos_506","eos_513","eos_514","eos_232","eos_464","eos_478","eos_528","eos_450","eos_298","eos_499","eos_209","eos_137","eos_220","eos_439","eos_526","lib_ghost_1","lib_ghost_2","lib_ghost_3","eos_120","eos_126","eos_437","eos_477","eos_013","eos_216","eos_005","eos_313","eos_035","eos_049","lib_dark_1","lib_dark_2","lib_dark_3","eos_167","eos_214","eos_445","eos_488","eos_515","eos_483","eos_542","eos_038","eos_472","eos_045","eos_043","eos_503","eos_022","eos_172","eos_334","eos_482","eos_249","eos_466","eos_269"]
+const VISUAL_REMASTER_MOVES=["eos_504","eos_308","eos_135","eos_142","eos_047","eos_250","eos_299","eos_329","eos_262","eos_279","eos_101","eos_199","eos_251","eos_486","eos_462","eos_018","eos_507","eos_175","eos_254","eos_097","eos_163","eos_320","eos_033","eos_166","eos_228","eos_004","eos_252","eos_330","eos_465","eos_138","eos_021","eos_501","eos_053","eos_157","eos_064","eos_188","eos_240","eos_255","eos_342","eos_539","eos_041","eos_278","eos_538","eos_239","eos_193","eos_272","eos_519","eos_494","eos_292","eos_065","eos_276","eos_208","eos_522","eos_452","eos_433","eos_087","eos_063","eos_062","eos_476","eos_127","eos_451","eos_436","eos_491","eos_046","eos_109","eos_234","eos_107","eos_463","eos_133","eos_317","eos_111","eos_331","eos_345","eos_270","eos_042","eos_344","eos_461","eos_180","eos_535","eos_150","eos_118","eos_484","eos_008","eos_131","eos_030","eos_481","eos_028","eos_073","lib_ground_1","eos_057","eos_036","eos_442","eos_153","eos_205","eos_100","eos_518","eos_178","eos_200","eos_495","eos_280","eos_197","eos_332","eos_147","eos_485","eos_459","eos_151","eos_537","eos_443","eos_336","eos_182","eos_253","eos_441","eos_076","lib_grass_1","eos_001","eos_325","eos_103","eos_536","eos_510","eos_431","eos_475","eos_523","eos_080","eos_082","eos_114","eos_323","eos_470","eos_502","eos_529","eos_530","eos_460","eos_520","eos_449","eos_288","eos_164","eos_306","eos_023","eos_086","eos_346","lib_fairy_1","lib_fairy_2","lib_fairy_3","eos_341","eos_498","eos_343","eos_091","eos_162","eos_435","lib_dragon_1","lib_dragon_2","lib_dragon_3","eos_092","eos_204","eos_206","eos_303","eos_222","eos_210","lib_fighting_2","eos_136","eos_075","eos_300","eos_246","eos_430","eos_440","eos_500","eos_508","eos_454","eos_479","eos_243","eos_068","eos_090","lib_fighting_1","lib_fighting_3","eos_072","eos_077","eos_116","eos_531","eos_265","eos_305","eos_051","eos_170","eos_340","eos_007","eos_029","lib_electric_1","lib_electric_2","lib_electric_3","eos_129","eos_144","eos_189","eos_354","eos_489","eos_521","eos_192","eos_128","eos_493","lib_fire_1","lib_fire_2","lib_fire_3","eos_052","eos_149","eos_230","eos_291","eos_517","eos_524","eos_223","lib_water_1","lib_water_2","lib_water_3","eos_016","eos_032","eos_044","eos_069","eos_113","eos_156","eos_158","eos_159","eos_219","eos_310","eos_432","eos_469","eos_070","eos_012","eos_307","eos_434","lib_grass_2","lib_grass_3","eos_221","eos_238","eos_297","eos_458","eos_468","eos_511","eos_079","eos_231","eos_124","eos_351","eos_015","eos_094","eos_084","eos_233","lib_ice_1","lib_ice_2","lib_ice_3","eos_002","eos_088","eos_130","eos_014","lib_poison_1","lib_poison_2","lib_poison_3","eos_198","eos_283","eos_196","eos_202","eos_496","eos_438","lib_ground_2","lib_ground_3","eos_143","eos_213","eos_289","eos_285","eos_290","eos_212","eos_295","eos_296","lib_rock_1","lib_rock_2","lib_rock_3","eos_093","eos_453","eos_512","eos_533","eos_350","eos_105","eos_540","eos_141","eos_480","lib_flying_1","lib_flying_2","lib_flying_3","eos_174","eos_179","eos_211","eos_353","eos_446","eos_490","eos_444","eos_267","eos_509","eos_456","eos_040","lib_bug_1","lib_bug_2","lib_bug_3","lib_psychic_1","lib_psychic_2","lib_psychic_3","eos_110","eos_309","eos_335","eos_473","eos_099","eos_146","eos_215","eos_258","eos_319","eos_333","eos_095","eos_316","eos_338","eos_259","eos_108","eos_187","eos_266","eos_448","eos_506","eos_513","eos_514","eos_232","eos_464","eos_478","eos_528","eos_450","eos_298","eos_499","eos_209","eos_137","eos_220","eos_439","eos_526","lib_ghost_1","lib_ghost_2","lib_ghost_3","eos_120","eos_126","eos_437","eos_477","eos_013","eos_216","eos_005","eos_313","eos_035","eos_049","lib_dark_1","lib_dark_2","lib_dark_3","eos_167","eos_214","eos_445","eos_488","eos_515","eos_483","eos_542","eos_038","eos_472","eos_045","eos_043","eos_503","eos_022","eos_172","eos_334","eos_482","eos_249","eos_466","eos_269","lib_steel_1","lib_steel_2","lib_steel_3","eos_244","eos_527","eos_083","eos_186","eos_532","eos_256"]
 func visual_remaster_frame(id:String,frame:int)->Image:
 	var im:=Image.create(48,48,false,Image.FORMAT_RGBA8)
 	im.fill(Color.TRANSPARENT)
@@ -10521,6 +10521,132 @@ func visual_remaster_frame(id:String,frame:int)->Image:
 				fx_line(im,q+d*4,q+d*8,1.3,Color("#775262",fade))
 			fx_disc(im,c,3+3*pulse,Color("#d4a477",fade))
 			if t>=peak:psi_ring(im,c,9+5*(1.0-fade),Color("#c19a86",fade),Color("#59404a",fade))
+		"lib_steel_1":
+			# Iron Edge: a solid silver blade cuts through a wide arc, shedding sparks.
+			var c:=Vector2(23,25)
+			var a:float=-PI*.8+drive*PI*1.25
+			var d:=Vector2(cos(a),sin(a))
+			var n:=Vector2(-d.y,d.x)
+			var q:=c+d*18
+			fx_line(im,c-d*6,q,5.8,Color("#435568",fade))
+			fx_line(im,c-d*2-n,q,3.6,Color("#b9cbd8",fade))
+			fx_line(im,c+d*3-n*2,q,1.2,Color("#f4fcff",fade))
+			fx_line(im,c-n*4,c+n*4,2.4,Color("#8199ac",fade))
+			fight_arc(im,c,17.5,a-.9,.9,Color("#e0f2fa",fade*.75),Color("#8298ab",fade*.55),1.9)
+			if t>=peak:
+				for j in range(7):
+					var b:float=a+float(j-3)*.32
+					var v:=Vector2(cos(b),sin(b))
+					fx_line(im,q-v*3,q+v*(3+6*(1.0-fade)),1.1,Color("#ffe3a4",fade))
+		"lib_steel_2":
+			# Alloy Spear: faceted steel spearhead on a narrow polished shaft.
+			var q:=Vector2(9+28*drive,24)
+			fx_line(im,q-Vector2(24,0),q-Vector2(5,0),3.0,Color("#536575",fade))
+			fx_line(im,q-Vector2(24,1),q-Vector2(5,1),1.0,Color("#d9e9ef",fade))
+			fx_line(im,q-Vector2(8,4),q+Vector2(7,0),3.1,Color("#6f879c",fade))
+			fx_line(im,q-Vector2(8,-4),q+Vector2(7,0),2.7,Color("#d8e8f1",fade))
+			fx_line(im,q-Vector2(5,0),q+Vector2(7,0),1.1,Color("#ffffff",fade))
+			for j in range(3):
+				fx_line(im,q+Vector2(-23,-6+float(j)*6),q+Vector2(-14,-6+float(j)*6),.9,Color("#b5c6d5",fade*.8))
+			if t>=peak:fairy_star(im,q+Vector2(7,0),4.5,Color("#fff0c1",fade))
+		"lib_steel_3":
+			# Metal Storm: a fan of independently spinning metallic shards.
+			for j in range(8):
+				var f:float=clampf(drive*1.35-float(j%3)*.12,0.0,1.0)
+				var a:float=float(j-4)*.16
+				var q:=Vector2(5,24)+Vector2(cos(a),sin(a))*34*f
+				var b:float=t*TAU*1.5+float(j)*1.7
+				var d:=Vector2(cos(b),sin(b))
+				var n:=Vector2(-d.y,d.x)
+				fx_line(im,q-d*3+n,q+d*5,2.9,Color("#526473",fade))
+				fx_line(im,q-d*3-n,q+d*5,1.6,Color("#dbe8ef",fade))
+				fx_line(im,q-d*4,q-d*9,1.0,Color("#afc2d0",fade*.7))
+				if j%3==0:fairy_star(im,q,1.5,Color("#fff4cc",fade))
+		"eos_244":
+			# Steel Wing: articulated overlapping steel feathers swing outward.
+			var c:=Vector2(24,24)
+			for side in [-1.0,1.0]:
+				for j in range(5):
+					var f:float=float(j)/4.0
+					var a:float=side*(.22+f*.64+drive*.45)
+					var q:=c+Vector2(side*(2+f*7),-5+f*3)
+					var tip:=q+Vector2(side*cos(a)*(15-f*3),sin(a)*side*11+f*7)
+					fx_line(im,q,tip,4.5,Color("#45586b",fade))
+					fx_line(im,q-Vector2(0,1),tip-Vector2(0,1),2.5,Color("#9fbbcd",fade))
+					fx_line(im,q-Vector2(0,2),tip,1.0,Color("#edf9ff",fade))
+				if t>=peak:
+					for j in range(4):
+						var p:=c+Vector2(side*(14+float(j)*2),-6+float(j)*5)
+						fx_line(im,p,p+Vector2(side*4,-2),1.1,Color("#ffe5aa",fade))
+		"eos_527":
+			# Mirror Shot: rotating polished mirror projectile with moving specular glint.
+			var q:=Vector2(8+28*drive,24)
+			var w:float=3+5*absf(cos(t*TAU))
+			fx_line(im,q-Vector2(w,0),q+Vector2(w,0),9.0,Color("#43566a",fade))
+			fx_line(im,q-Vector2(w*.65,0),q+Vector2(w*.65,0),7.0,Color("#a8c3d4",fade))
+			fx_line(im,q-Vector2(w*.7,3),q+Vector2(w*.7,-3),1.4,Color("#ffffff",fade))
+			for j in range(3):
+				var p:=q+Vector2(-7-float(j)*4,sin(float(j)*2.2+t*TAU)*5)
+				fx_disc(im,p,1.5,Color("#b0e3f0",fade*.8))
+			if t>=peak:
+				for j in range(5):
+					var a:float=float(j)*TAU/5.0
+					fairy_star(im,q+Vector2(cos(a),sin(a))*(5+8*(1.0-fade)),1.7,Color("#e8faff",fade))
+		"eos_083":
+			# Resonant Metal: vibrating steel plate emits successive narrow sound fronts.
+			var c:=Vector2(9,24)
+			var shake:float=sin(t*TAU*3)*1.7
+			fx_line(im,c+Vector2(shake,-8),c+Vector2(shake,8),5.8,Color("#526575",fade))
+			fx_line(im,c+Vector2(shake-1,-7),c+Vector2(shake-1,7),2.2,Color("#d5e8ef",fade))
+			for j in range(5):
+				var f:float=fposmod(t+float(j)*.2,1.0)
+				var q:=c+Vector2(5+27*f,0)
+				fight_arc(im,q,4+8*f,-PI*.5,PI,Color("#d1e8f7",fade*(1.0-f*.5)),Color("#748fa9",fade),1.5)
+				if j%2==0:fx_disc(im,q,1.0,Color("#effbff",fade))
+		"eos_186":
+			# Iron Shell: riveted steel plates assemble around the caster.
+			var c:=Vector2(24,24)
+			for j in range(6):
+				var a:float=float(j)*TAU/6.0+PI*.5
+				var d:=Vector2(cos(a),sin(a))
+				var n:=Vector2(-d.y,d.x)
+				var q:=c+d*(19-8*drive)
+				fx_line(im,q-n*5,q+n*5,6.2,Color("#455669",fade))
+				fx_line(im,q-n*4-d,q+n*4-d,4.0,Color("#9eb6c7",fade))
+				fx_line(im,q-n*4-d*2,q+n*4-d*2,1.0,Color("#f1faff",fade))
+				for side in [-1.0,1.0]:fx_disc(im,q+n*side*3,1.1,Color("#526a80",fade))
+			if t>=peak:fairy_star(im,c+Vector2(7,-7),3.0,Color("#ffffff",fade))
+		"eos_532":
+			# Metal Rebound: impact dents a plate before metallic shards erupt outward.
+			var c:=Vector2(24,24)
+			if t<peak:
+				psi_polygon(im,c,12,6,PI*.5,Color("#dceaf0",fade),Color("#516678",fade))
+				fx_line(im,c-Vector2(6,6),c+Vector2(1,1),2.2,Color("#7b91a3",fade))
+				fx_line(im,c+Vector2(1,1),c+Vector2(6,-3),2.0,Color("#e7f3fa",fade))
+			else:
+				for j in range(10):
+					var a:float=float(j)*TAU/10.0
+					var d:=Vector2(cos(a),sin(a))
+					var q:=c+d*(6+14*(1.0-fade))
+					psi_polygon(im,q,2.8+float(j%2),3,a+t*TAU,Color("#e0eaf1",fade),Color("#53697c",fade))
+					fx_line(im,c+d*4,q-d*3,1.3,Color("#ffdca3",fade))
+				fx_disc(im,c,4.0+3*fade,Color("#fff0cb",fade))
+		"eos_256":
+			# Fate Seal: rotating iron ring with locking teeth closes over a countdown glyph.
+			var c:=Vector2(24,24)
+			var rad:float=18-5*drive
+			psi_ring(im,c,rad,Color("#c6dce9",fade),Color("#45596c",fade))
+			for j in range(8):
+				var a:float=float(j)*TAU/8.0+t*.7
+				var d:=Vector2(cos(a),sin(a))
+				var q:=c+d*rad
+				fx_line(im,q,q-d*5,3.0,Color("#8097ad",fade))
+				fx_disc(im,q,1.3,Color("#eaf6fb",fade))
+			var h:float=6.0
+			fx_line(im,c-Vector2(4,h),c+Vector2(4,h),2.1,Color("#f3ca8a",fade))
+			fx_line(im,c+Vector2(4,-h),c-Vector2(4,h),2.1,Color("#f3ca8a",fade))
+			fx_line(im,c-Vector2(4,h),c+Vector2(4,-h),1.0,Color("#fff0c0",fade))
+			fx_line(im,c-Vector2(4,-h),c+Vector2(4,h),1.0,Color("#fff0c0",fade))
 	return im
 
 func combat_frame_image(id:String,frame:int)->Image:
