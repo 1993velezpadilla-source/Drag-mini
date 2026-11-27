@@ -2219,6 +2219,7 @@ func update_enemy_pixel(actor:Node3D,dt:float,motion:Vector3,body_dt:float=-1.0)
 		var shadow_sample:=enemy_shadow_sample(body_offset,rise,parent_lift,size_multiplier,species in ["eelstrix","marrowray","coralcrab","shellguard"])
 		shadow.position=shadow_sample.position
 		shadow.scale=shadow_sample.scale*defeat_fade
+		shadow.visible=sprite.visible
 	var visual_state:String=state
 	# The phase continues through combat even when the strike sprite takes priority.
 	# This avoids freezing the wing/fin cycle every time an enemy attacks.
@@ -5934,7 +5935,7 @@ func combat_fx_spawn(event:Dictionary)->void:
 	if tiles.is_empty():tiles.append(pos(target)+Vector3(0,.12,0))
 	if combat_bursts.size()>=COMBAT_BURST_CAP:
 		retire_combat_burst(combat_bursts.pop_front())
-	combat_bursts.append({"id":id,"mode":style[0],"profile":profile,"target_player":event.get("target_player",false),"damage":event.get("damage",0),"impacted":false,"age":0.0,"duration":float(style[3]),"points":waypoints,"tiles":tiles,"texture":combat_animated_texture(id,0),"results":event.get("results",{}).duplicate(true)})
+	combat_bursts.append({"id":id,"mode":style[0],"profile":profile,"target_player":event.get("target_player",false),"damage":event.get("damage",0),"impacted":false,"age":0.0,"duration":float(style[3]),"points":waypoints,"tiles":tiles,"texture":combat_animated_texture(id,0),"airborne_start":not event.has("uid") and release_charge_phase=="airborne","results":event.get("results",{}).duplicate(true)})
 	play_combat_sound(id,"launch",waypoints[0])
 # Leading projectile reaches its destination on the exact impact fraction.
 # Trailing particles are delayed within the remaining lifetime, never beyond it.
@@ -7008,13 +7009,16 @@ func travel_environment_fx(burst:Dictionary,t:float,used:int)->int:
 	var progress:float=clampf(t/peak,0.0,1.0)
 	var after:float=clampf((t-peak)/(1.0-peak),0.0,1.0)
 	var points:Array=burst.points
+	var travel_points:Array=[]
+	for point in points:travel_points.append(Vector3(point.x,0.0,point.z))
+	var travel:=tile_cast_sample(travel_points,kind,t,peak,bool(burst.get("airborne_start",false)))
 	var source:Vector3=points[0];source.y=.035
 	var target:Vector3=points[-1];target.y=.035
 	var dust_light:=Color("#c8ad78");var dust_dark:=Color("#705338")
 	if kind=="burrow":
 		# Origin hole, moving trail of displaced soil, then eruption at contact.
 		used=environment_particle(used,source,"earth_hole",dust_light,dust_dark,.85,1.0-t,true)
-		var ground:Vector3=combat_path_sample(points,progress);ground.y=.045
+		var ground:Vector3=travel.position;ground.y=.045
 		used=environment_particle(used,ground,"earth_hole",dust_light,dust_dark,.65,1.0-after,true)
 		for j in range(8):
 			var angle:float=float(j)*TAU/8.0
@@ -7024,12 +7028,12 @@ func travel_environment_fx(burst:Dictionary,t:float,used:int)->int:
 	elif kind=="air" or kind=="dive":
 		var wind_light:=Color("#dff8ff") if kind=="air" else Color("#9ce7f5")
 		var wind_dark:=Color("#729db5") if kind=="air" else Color("#326f9e")
-		var height:float=1.25 if id!="eos_205" else .80
 		if t<peak:
 			for j in range(6):
-				var p:float=maxf(0.0,progress-float(j)*.075)
-				var q:Vector3=combat_path_sample(points,p)
-				q.y=.18+sin(p*PI)*height
+				var lagged:float=maxf(0.0,t-float(j)*.075*peak)
+				var sample:=tile_cast_sample(travel_points,kind,lagged,peak,bool(burst.get("airborne_start",false)))
+				var q:Vector3=sample.position
+				q.y=maxf(.05,q.y+.18)
 				used=environment_particle(used,q,"slash" if kind=="air" else "bubble",wind_light,wind_dark,.60-float(j)*.055,1.0-float(j)*.12)
 		else:
 			used=environment_particle(used,target,"bubble",wind_light,wind_dark,.5+after*1.6,1.0-after,true)
@@ -7038,7 +7042,7 @@ func travel_environment_fx(burst:Dictionary,t:float,used:int)->int:
 				var q:=target+Vector3(cos(angle)*after*.85,.1+sin(after*PI)*.40,sin(angle)*after*.85)
 				used=environment_particle(used,q,"slash",wind_light,wind_dark,.36,1.0-after)
 	elif kind=="ground":
-		var ground:Vector3=combat_path_sample(points,progress);ground.y=.06
+		var ground:Vector3=travel.position;ground.y=.06
 		for j in range(5):
 			var angle:float=float(j)*TAU/5.0
 			used=environment_particle(used,ground+Vector3(cos(angle)*.24,.1+sin(t*PI)*.15,sin(angle)*.24),"cloud",dust_light,dust_dark,.34,1.0-after)
