@@ -5484,7 +5484,7 @@ func native_identity_frame(id:String,frame:int,base:Image)->Image:
 	return im
 
 # V16.7: individually remastered after reviewing actual Godot PNG strips.
-const VISUAL_REMASTER_MOVES=["eos_504","eos_308","eos_135","eos_142","eos_047","eos_250","eos_299","eos_329","eos_262","eos_279","eos_101","eos_199","eos_251","eos_486","eos_462","eos_018","eos_507","eos_175","eos_254","eos_097","eos_163","eos_320","eos_033","eos_166","eos_228","eos_004","eos_252","eos_330","eos_465","eos_138","eos_021","eos_501","eos_053","eos_157","eos_064","eos_188","eos_240","eos_255","eos_342","eos_539","eos_041","eos_278","eos_538","eos_239","eos_193","eos_272","eos_519","eos_494","eos_292","eos_065","eos_276","eos_208","eos_522","eos_452","eos_433","eos_087","eos_063","eos_062","eos_476","eos_127","eos_451","eos_436","eos_491","eos_046","eos_109","eos_234","eos_107","eos_463","eos_133","eos_317","eos_111","eos_331","eos_345","eos_270","eos_042","eos_344","eos_461","eos_180","eos_535","eos_150","eos_118","eos_484","eos_008","eos_131","eos_030","eos_481","eos_028","eos_073","lib_ground_1"]
+const VISUAL_REMASTER_MOVES=["eos_504","eos_308","eos_135","eos_142","eos_047","eos_250","eos_299","eos_329","eos_262","eos_279","eos_101","eos_199","eos_251","eos_486","eos_462","eos_018","eos_507","eos_175","eos_254","eos_097","eos_163","eos_320","eos_033","eos_166","eos_228","eos_004","eos_252","eos_330","eos_465","eos_138","eos_021","eos_501","eos_053","eos_157","eos_064","eos_188","eos_240","eos_255","eos_342","eos_539","eos_041","eos_278","eos_538","eos_239","eos_193","eos_272","eos_519","eos_494","eos_292","eos_065","eos_276","eos_208","eos_522","eos_452","eos_433","eos_087","eos_063","eos_062","eos_476","eos_127","eos_451","eos_436","eos_491","eos_046","eos_109","eos_234","eos_107","eos_463","eos_133","eos_317","eos_111","eos_331","eos_345","eos_270","eos_042","eos_344","eos_461","eos_180","eos_535","eos_150","eos_118","eos_484","eos_008","eos_131","eos_030","eos_481","eos_028","eos_073","lib_ground_1","eos_057","eos_036","eos_442","eos_153","eos_205","eos_100","eos_518","eos_178"]
 func visual_remaster_frame(id:String,frame:int)->Image:
 	var im:=Image.create(48,48,false,Image.FORMAT_RGBA8)
 	im.fill(Color.TRANSPARENT)
@@ -6872,6 +6872,122 @@ func visual_remaster_frame(id:String,frame:int)->Image:
 			var radius:float=3.0+9.0*drive
 			fx_disc(im,c,radius,Color("#8f694b",fade),maxf(0.0,radius-2.5))
 			fx_disc(im,c,radius*.55,Color("#342823",fade))
+		"eos_057":
+			# Gust: expanding curved wind ribbons and entrained dust motes.
+			for j in range(4):
+				var prev:=Vector2(6,24+float(j-2)*2)
+				for k in range(1,15):
+					var f:float=float(k)/14.0
+					var q:=Vector2(6+34*f*drive,24+float(j-2)*(2+7*f)+sin(f*TAU-t*TAU+float(j))*3.0*f)
+					fx_line(im,prev,q,2.2,Color("#749cb5",fade*.7))
+					fx_line(im,prev,q,1.0,Color("#e9faff",fade))
+					prev=q
+			for j in range(7):
+				var f:float=fposmod(t+float(j)*.14,1.0)
+				var q:=Vector2(7+32*f*drive,24+sin(float(j)*2.4+t*3.0)*12*f)
+				fx_disc(im,q,1.2,Color("#c7e5ee",fade))
+		"eos_036":
+			# Air Cutter: three separated crescent projectiles with tapered edges.
+			for j in range(3):
+				var f:float=clampf(drive*1.25-float(j)*.12,0.0,1.0)
+				var q:=Vector2(9+25*f,15+float(j)*9.0)
+				var a:float=-PI*.60+float(j)*.12
+				fight_arc(im,q,8.5,a,PI*1.05,Color("#e9fcff",fade),Color("#609bb9",fade),2.8)
+				fx_line(im,q-Vector2(9*fade,0),q-Vector2(3,0),1.1,Color("#b5e6f1",fade))
+		"eos_442":
+			# Air Slash: single broad pressure blade, sharp white leading edge.
+			var q:=Vector2(10+22*drive,24)
+			var a:float=-1.8+1.1*drive
+			fight_arc(im,q,13.5,a,PI*1.02,Color("#eefcff",fade),Color("#5689a8",fade),5.8)
+			fight_arc(im,q,15.0,a+.18,PI*.82,Color("#ffffff",fade),Color("#a3e2f4",fade),1.5)
+			if t>=peak:
+				for j in range(5):
+					var angle:float=-1.3+float(j)*.65
+					var axis:=Vector2(cos(angle),sin(angle))
+					fx_line(im,q+axis*13,q+axis*(17+5*(1.0-fade)),1.2,Color("#c5f1ff",fade))
+		"eos_153":
+			# Aerial Dive: climbing and descending wind wake; actor route remains authoritative.
+			var q:=Vector2(8+29*drive,34-23*sin(drive*PI))
+			var angle:float=-1.15+2.30*drive
+			var axis:=Vector2(cos(angle),sin(angle))
+			var normal:=Vector2(-axis.y,axis.x)
+			for j in range(3):
+				var v:=q-axis*(5+float(j)*5)
+				fx_line(im,v-normal*(4+float(j)),q-normal*2,1.4,Color("#b0d8f3",fade))
+				fx_line(im,v+normal*(4+float(j)),q+normal*2,1.4,Color("#e8faff",fade))
+			air_feather(im,q,angle-2.35,12.0,Color("#eafaff",fade),Color("#739db9",fade))
+			air_feather(im,q,angle+2.35,12.0,Color("#eafaff",fade),Color("#739db9",fade))
+			if t>=peak:
+				fight_arc(im,q,9+7*(1.0-fade),PI*.1,PI*.8,Color("#dcfaff",fade),Color("#94bbd1",fade),2.0)
+		"eos_205":
+			# Vault Crash: high vault with vertical speed lines and landing pressure ring.
+			var c:=Vector2(24,37)
+			var height:float=sin(drive*PI)*27.0
+			var q:=c-Vector2(0,height)
+			for j in range(4):
+				var x:float=float(j-2)*3.8
+				var sy:float=1.0 if drive<.5 else -1.0
+				fx_line(im,q+Vector2(x,sy*4),q+Vector2(x,sy*(8+height*.35)),1.4,Color("#cbeeff",fade))
+			fx_disc(im,q,4.5,Color("#b1d9f0",fade))
+			fx_disc(im,q-Vector2(0,1),2.8,Color("#effcff",fade))
+			if t>=peak:
+				var radius:float=4+15*(1.0-fade)
+				for j in range(10):
+					var a:float=float(j)*TAU/10.0
+					var axis:=Vector2(cos(a),sin(a)*.38)
+					fx_line(im,c+axis*radius*.65,c+axis*radius,1.5,Color("#e1f5ff",fade))
+					fx_disc(im,c+axis*radius-Vector2(0,4*pulse),1.5,Color("#a5c2cc",fade))
+		"eos_100":
+			# Skyfall Charge: focused descending pressure cone with long trailing ribbons.
+			var q:=Vector2(24,5+31*drive)
+			for j in range(5):
+				var x:float=float(j-2)*3.2
+				var tail:=q+Vector2(x*1.8,-17*fade-3)
+				fx_line(im,tail,q+Vector2(x*.4,0),2.4,Color("#558ac2",fade))
+				fx_line(im,tail,q+Vector2(x*.4,0),1.0,Color("#d8efff",fade))
+			fx_disc(im,q,5.8,Color("#6299d3",fade))
+			fx_disc(im,q,3.3,Color("#eff8ff",fade))
+			if t>=peak:
+				for j in range(7):
+					var a:float=PI+float(j)*PI/6.0
+					var axis:=Vector2(cos(a),sin(a))
+					fx_line(im,q+axis*5,q+axis*(10+7*(1.0-fade)),1.8,Color("#b3deff",fade))
+		"eos_518":
+			# Brave Bird: luminous bird-shaped charge, hot feather tips and recoil sparks.
+			var q:=Vector2(10+24*drive,24-8*sin(drive*PI))
+			fx_line(im,q-Vector2(18*fade,0),q,5.0,Color("#c86441",fade))
+			fx_line(im,q-Vector2(13*fade,0),q,2.5,Color("#ffd294",fade))
+			for side in [-1,1]:
+				var sy:float=float(side)
+				var elbow:=q+Vector2(-6,sy*7)
+				var tip:=q+Vector2(-14,sy*(12+3*pulse))
+				fx_line(im,q,elbow,4.4,Color("#e57e45",fade))
+				fx_line(im,elbow,tip,3.0,Color("#ffca75",fade))
+				for j in range(3):
+					var v:=elbow.lerp(tip,float(j)/3.0)
+					fx_line(im,v,v+Vector2(-4,sy*4),1.7,Color("#ffe0a7",fade))
+			fx_line(im,q,q+Vector2(7,0),3.1,Color("#fff5c9",fade))
+			if t>=peak:
+				for j in range(8):
+					var a:float=float(j)*TAU/8.0
+					var axis:=Vector2(cos(a),sin(a))
+					fx_line(im,q+axis*6,q+axis*(11+7*(1.0-fade)),1.4,Color("#ffbe77",fade))
+		"eos_178":
+			# Wing Attack: feathered wing silhouettes sweep across the target.
+			var c:=Vector2(22,24)
+			for side in [-1,1]:
+				var sy:float=float(side)
+				var angle:float=sy*(-2.2+1.5*drive)
+				var axis:=Vector2(cos(angle),sin(angle))
+				var normal:=Vector2(-axis.y,axis.x)
+				for j in range(5):
+					var f:float=float(j)/4.0
+					var q:=c+axis*(4+12*f)
+					air_feather(im,q,angle+sy*.65,9.0-3*f,Color("#effaff",fade),Color("#739fb9",fade))
+				fx_line(im,c,c+axis*17,2.2,Color("#c1e7f8",fade))
+				fx_line(im,c+normal*2,c+axis*13+normal*2,1.0,Color("#f1ffff",fade))
+			if t>=peak:
+				fight_arc(im,c,17.5,-1.1,2.2,Color("#e9faff",fade),Color("#8bb5c9",fade),2.7)
 	return im
 
 func combat_frame_image(id:String,frame:int)->Image:
