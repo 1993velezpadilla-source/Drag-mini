@@ -187,6 +187,7 @@ var fx_audio_counter:Dictionary={}
 var fx_audio_cursor:int=0
 var fx_collect_audio:bool=false
 var fx_frame_audio:Array[Dictionary]=[]
+var fx_voice_priorities:Array[int]=[]
 var fx_arc_segments:int=0
 var player_cast_duration:float=.28
 var player_cast_waves:Array[float]=[]
@@ -2526,6 +2527,7 @@ func combat_fx_setup(parent:Node3D)->void:
 	var arc_node:=MeshInstance3D.new();arc_node.mesh=fx_arc_mesh;arc_node.cast_shadow=GeometryInstance3D.SHADOW_CASTING_SETTING_OFF;combat_fx_root.add_child(arc_node)
 	fx_arc_had_geometry=false;fx_trail_had_geometry=false
 	fx_audio.clear();fx_audio_cursor=0
+	fx_voice_priorities.clear();fx_frame_audio.clear();fx_collect_audio=false
 	combat_audio_pack_init()
 	for i in range(12):
 		var sound:=AudioStreamPlayer3D.new();sound.unit_size=4.0;sound.max_distance=24.0;sound.volume_db=-12.0
@@ -15197,6 +15199,12 @@ func combat_audio_mix(power:int,phase:String,critical:bool=false)->Vector3:
 		"launch":return Vector3(-15.0+gain*.45,clampf(1.0-(weight-1.0)*.09,.94,1.04),1.0)
 		_:return Vector3(minf(-8.0,-12.0+gain+(1.5 if critical else 0.0)),clampf(1.0-(weight-1.0)*.15,.92,1.04),3.0 if critical else 2.0)
 
+# Priority is independent of power: sorting a frame does not need envelope math.
+func combat_audio_phase_priority(phase:String,critical:bool=false)->int:
+	if phase.begins_with("env_") or phase=="status_blocked" or phase=="miss":return 0
+	if phase.begins_with("status_") or phase=="status" or phase=="launch":return 1
+	return 3 if critical else 2
+
 func combat_audio_voice_slot(priorities:Array[int],cursor:int,priority:int)->int:
 	if priorities.is_empty():return -1
 	var weakest:int=priority
@@ -15240,17 +15248,18 @@ func flush_combat_audio_frame()->void:
 
 func play_combat_sound(id:String,phase:String,at:Vector3,critical:bool=false,age:float=0.0)->void:
 	if fx_collect_audio:
-		var move:Dictionary=Rules.MOVE_LIBRARY.get(id,Rules.DEV_NATIVE_MOVES.get(id,{}))
-		var priority:int=int(combat_audio_mix(int(move.get("power",0)),phase,critical).z)
+		var priority:int=combat_audio_phase_priority(phase,critical)
 		fx_frame_audio.append({"id":id,"phase":phase,"at":at,"critical":critical,"age":maxf(0.0,age),"priority":priority})
 		return
 	if fx_audio.is_empty():return
 	var record:Dictionary=Rules.MOVE_LIBRARY.get(id,Rules.DEV_NATIVE_MOVES.get(id,{}))
 	var mix:=combat_audio_mix(int(record.get("power",0)),phase,critical)
-	var priorities:Array[int]=[]
-	for voice in fx_audio:
-		priorities.append(int(voice.get_meta("combat_audio_priority",0)) if voice.playing else -1)
-	var slot:int=combat_audio_voice_slot(priorities,fx_audio_cursor,int(mix.z))
+	# Refresh live voice state for every admission, but reuse the typed storage.
+	if fx_voice_priorities.size()!=fx_audio.size():fx_voice_priorities.resize(fx_audio.size())
+	for i in range(fx_audio.size()):
+		var voice:AudioStreamPlayer3D=fx_audio[i]
+		fx_voice_priorities[i]=int(voice.get_meta("combat_audio_priority",0)) if voice.playing else -1
+	var slot:int=combat_audio_voice_slot(fx_voice_priorities,fx_audio_cursor,int(mix.z))
 	if slot<0:return
 	var occupied:float=0.0
 	for i in range(fx_audio.size()):
