@@ -14409,21 +14409,59 @@ func combat_sound(id:String,phase:String,variant:int)->AudioStreamWAV:
 	if fx_audio_cache.size()>=192:fx_audio_cache.erase(fx_audio_cache.keys()[0])
 	fx_audio_cache[key]=audio
 	return audio
-func play_combat_sound(id:String,phase:String,at:Vector3)->void:
+# Playback-only mix: preserve the authored PCM and cache. Critical contacts
+# have priority over launches and misses when all twelve voices are occupied.
+func combat_audio_mix(power:int,phase:String,critical:bool=false)->Vector3:
+	var weight:float=cinematic_power_sample(power,phase=="status").x
+	var gain:float=clampf(20.0*log(maxf(.01,weight))/log(10.0),-2.0,3.0)
+	match phase:
+		"miss":return Vector3(-19.0,1.0,0.0)
+		"status":return Vector3(-16.0,1.0,1.0)
+		"launch":return Vector3(-15.0+gain*.45,clampf(1.0-(weight-1.0)*.09,.94,1.04),1.0)
+		_:return Vector3(minf(-8.0,-12.0+gain+(1.5 if critical else 0.0)),clampf(1.0-(weight-1.0)*.15,.92,1.04),3.0 if critical else 2.0)
+
+func combat_audio_voice_slot(priorities:Array[int],cursor:int,priority:int)->int:
+	if priorities.is_empty():return -1
+	var weakest:int=priority
+	var slot:int=-1
+	for i in range(priorities.size()):
+		var candidate:int=posmod(cursor+i,priorities.size())
+		var active:int=priorities[candidate]
+		if active<0:return candidate
+		if active<weakest:
+			weakest=active;slot=candidate
+	# Allow a new damaging contact to replace an equally important old one.
+	if slot<0 and priority>=2:
+		for i in range(priorities.size()):
+			var candidate:int=posmod(cursor+i,priorities.size())
+			if priorities[candidate]==priority:return candidate
+	return slot
+
+func play_combat_sound(id:String,phase:String,at:Vector3,critical:bool=false,age:float=0.0)->void:
 	if fx_audio.is_empty():return
+	var record:Dictionary=Rules.MOVE_LIBRARY.get(id,Rules.DEV_NATIVE_MOVES.get(id,{}))
+	var mix:=combat_audio_mix(int(record.get("power",0)),phase,critical)
+	var priorities:Array[int]=[]
+	for voice in fx_audio:
+		priorities.append(int(voice.get_meta("combat_audio_priority",0)) if voice.playing else -1)
+	var slot:int=combat_audio_voice_slot(priorities,fx_audio_cursor,int(mix.z))
+	if slot<0:return
 	var key:=id+":"+phase
 	var variant:int=posmod(int(fx_audio_counter.get(key,-1))+1,3)
+	var stream:=combat_sound(id,phase,variant)
+	# A late frame skips elapsed audio instead of replaying an old transient.
+	var offset:float=maxf(0.0,age)*mix.y
+	if offset>=stream.get_length()-.008:return
 	fx_audio_counter[key]=variant
-	var slot:int=fx_audio_cursor
-	# Prefer an idle voice instead of cutting an unrelated attack.
-	for i in range(fx_audio.size()):
-		var candidate:int=posmod(fx_audio_cursor+i,fx_audio.size())
-		if not fx_audio[candidate].playing:slot=candidate;break
 	var player_audio:=fx_audio[slot];fx_audio_cursor=posmod(slot+1,fx_audio.size())
-	if player_audio.playing and phase in ["miss","status"]:return
-	player_audio.stop();player_audio.position=at;player_audio.stream=combat_sound(id,phase,variant)
-	player_audio.volume_db=-18.0 if phase=="miss" else -14.0 if phase=="status" else -12.0
-	player_audio.play()
+	player_audio.stop()
+	player_audio.position=at
+	player_audio.stream=stream
+	player_audio.volume_db=mix.x
+	player_audio.pitch_scale=mix.y
+	player_audio.set_meta("combat_audio_priority",int(mix.z))
+	player_audio.play(offset)
+
 # Tile anchors remain deterministic; sprite scale and hover offset locate the
 # launch/impact socket without moving logical combat or collision tiles.
 func combat_socket_height(socket:String,scale:float=1.0,rise:float=0.0)->float:
@@ -14812,10 +14850,10 @@ func dispatch_cast_waves(burst:Dictionary)->void:
 		# Do not emit a damage thump for a status effect or an explicit miss.
 		var audio_age:float=maxf(0.0,float(burst.age)-float(times[cursor]))
 		if audio_age<.14:
-			if strongest>0 or (wave.is_empty() and int(burst.get("damage",0))>0):
-				play_combat_sound(str(burst.id),"impact",target)
-			elif audible:play_combat_sound(str(burst.id),"status" if not wave.is_empty() else "impact",target)
-			elif not wave.is_empty():play_combat_sound(str(burst.id),"miss",target)
+			if strongest>0 or (wave.is_empty() and cursor==0 and int(burst.get("damage",0))>0):
+				play_combat_sound(str(burst.id),"impact",target,critical,audio_age)
+			elif audible:play_combat_sound(str(burst.id),"status",target,false,audio_age)
+			elif not wave.is_empty():play_combat_sound(str(burst.id),"miss",target,false,audio_age)
 		if strongest>0 or (wave.is_empty() and cursor==0 and int(burst.get("damage",0))>0):
 			var age:float=maxf(0.0,float(burst.age)-float(times[cursor]))
 			queue_contact_camera(burst.points[0],target,critical,age)
