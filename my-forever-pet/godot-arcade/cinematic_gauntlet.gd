@@ -36,6 +36,33 @@ func run_checks()->void:
 	var checks:int=0
 	var failures:Array[String]=[]
 	var view:=Dungeon.new()
+	# V22.7: allocation-free oldest-key selection preserves the old eviction order.
+	var empty_fx_cache:Dictionary={}
+	if view.evict_oldest_fx_cache_entry(empty_fx_cache) or not empty_fx_cache.is_empty():failures.append("V22.7 empty eviction")
+	checks+=1
+	for capacity in [1,3,32,192,384]:
+		var old_cache:Dictionary={}
+		var new_cache:Dictionary={}
+		for i in range(capacity):
+			old_cache["entry_"+str(i)]=i
+			new_cache["entry_"+str(i)]=i
+		for i in range(capacity*2):
+			var hot:String="entry_"+str(i%capacity)
+			if old_cache.has(hot):
+				var old_value:Variant=old_cache[hot]
+				var new_value:Variant=new_cache[hot]
+				old_cache.erase(hot);old_cache[hot]=old_value
+				new_cache.erase(hot);new_cache[hot]=new_value
+			old_cache.erase(old_cache.keys()[0])
+			if not view.evict_oldest_fx_cache_entry(new_cache):failures.append("V22.7 unexpected empty cache")
+			var next_key:String="replacement_"+str(i)
+			old_cache[next_key]=i
+			new_cache[next_key]=i
+			if old_cache!=new_cache or old_cache.keys()!=new_cache.keys():failures.append("V22.7 eviction parity "+str(capacity))
+			checks+=1
+	var singleton_fx_cache:Dictionary={"only":42}
+	if not view.evict_oldest_fx_cache_entry(singleton_fx_cache) or not singleton_fx_cache.is_empty():failures.append("V22.7 singleton eviction")
+	checks+=1
 	# V22.6: parameter caches must be independent per material and exact.
 	var uniform_shader:=Shader.new()
 	uniform_shader.code="shader_type spatial; uniform float phase = 0.0; uniform float intensity = 0.0; void fragment(){ALBEDO=vec3(phase); ALPHA=intensity;}"
