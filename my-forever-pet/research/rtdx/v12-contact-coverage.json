@@ -3,9 +3,9 @@
   "library": 522,
   "native": 67,
   "total": 589,
-  "covered_unique": 363,
-  "pending": 226,
-  "profile_entries": 374,
+  "covered_unique": 403,
+  "pending": 186,
+  "profile_entries": 414,
   "by_element": {
     "dark": {
       "total": 32,
@@ -25,7 +25,7 @@
     },
     "water": {
       "total": 36,
-      "covered": 19
+      "covered": 36
     },
     "fairy": {
       "total": 9,
@@ -33,11 +33,11 @@
     },
     "ice": {
       "total": 20,
-      "covered": 14
+      "covered": 20
     },
     "electric": {
       "total": 20,
-      "covered": 12
+      "covered": 20
     },
     "grass": {
       "total": 42,
@@ -49,7 +49,7 @@
     },
     "fire": {
       "total": 23,
-      "covered": 14
+      "covered": 23
     },
     "dragon": {
       "total": 15,
@@ -154,7 +154,9 @@
       "element": "water",
       "category": "special",
       "pattern": "radius",
-      "profiles": [],
+      "profiles": [
+        "TERRAIN"
+      ],
       "validation": "runtime_unverified"
     },
     {
@@ -184,7 +186,9 @@
       "element": "water",
       "category": "physical",
       "pattern": "line",
-      "profiles": [],
+      "profiles": [
+        "PROJECTILE"
+      ],
       "validation": "runtime_unverified"
     },
     {
@@ -194,7 +198,9 @@
       "element": "ice",
       "category": "physical",
       "pattern": "line",
-      "profiles": [],
+      "profiles": [
+        "PROJECTILE"
+      ],
       "validation": "runtime_unverified"
     },
     {
@@ -204,7 +210,9 @@
       "element": "electric",
       "category": "special",
       "pattern": "fan",
-      "profiles": [],
+      "profiles": [
+        "BITE"
+      ],
       "validation": "runtime_unverified"
     },
     {
@@ -244,7 +252,9 @@
       "element": "water",
       "category": "special",
       "pattern": "front",
-      "profiles": [],
+      "profiles": [
+        "SPECIAL"
+      ],
       "validation": "runtime_unverified"
     },
     {
@@ -264,7 +274,9 @@
       "element": "water",
       "category": "physical",
       "pattern": "line",
-      "profiles": [],
+      "profiles": [
+        "PROJECTILE"
+      ],
       "validation": "runtime_unverified"
     },
     {
@@ -296,7 +308,9 @@
       "element": "water",
       "category": "special",
       "pattern": "fan",
-      "profiles": [],
+      "profiles": [
+        "PROJECTILE"
+      ],
       "validation": "runtime_unverified"
     },
     {
@@ -326,7 +340,9 @@
       "element": "fire",
       "category": "special",
       "pattern": "radius",
-      "profiles": [],
+      "profiles": [
+        "TERRAIN"
+      ],
       "validation": "runtime_unverified"
     },
     {
@@ -346,7 +362,9 @@
       "element": "water",
       "category": "physical",
       "pattern": "line",
-      "profiles": [],
+      "profiles": [
+        "PROJECTILE"
+      ],
       "validation": "runtime_unverified"
     },
     {
@@ -418,7 +436,9 @@
       "element": "water",
       "category": "physical",
       "pattern": "line",
-      "profiles": [],
+      "profiles": [
+        "BODY"
+      ],
       "validation": "runtime_unverified"
     },
     {
@@ -478,7 +498,9 @@
       "element": "water",
       "category": "special",
       "pattern": "corner",
-      "profiles": [],
+      "profiles": [
+        "PROJECTILE"
+      ],
       "validation": "runtime_unverified"
     },
     {
@@ -518,7 +540,9 @@
       "element": "electric",
       "category": "special",
       "pattern": "line",
-      "profiles": [],
+      "profiles": [
+        "SPECIAL"
+      ],
       "validation": "runtime_unverified"
     },
     {
@@ -704,7 +728,9 @@
       "element": "water",
       "category": "special",
       "pattern": "line",
-      "profiles": [],
+      "profiles": [
+        "PROJECTILE"
+      ],
       "validation": "runtime_unverified"
     },
     {
@@ -993,7 +1019,9 @@
       "element": "fire",
       "category": "special",
       "pattern": "radius",
-      "profiles": [],
+      "profiles": [
+        "TERRAIN"
+      ],
       "validation": "runtime_unverified"
     },
     {
@@ -1025,7 +1053,9 @@
       "element": "water",
       "category": "special",
       "pattern": "line",
-      "profiles": [],
+      "profiles": [
+        "PROJECTILE"
+      ],
       "validation": "runtime_unverified"
     },
     {
@@ -1107,7 +1137,9 @@
       "element": "fire",
       "category": "physical",
       "pattern": "corner_front",
-      "profiles": [],
+      "profiles": [
+        "BODY"
+      ],
       "validation": "runtime_unverified"
     },
     {
@@ -1514,7 +1546,9 @@
       "element": "water",
       "category": "physical",
       "pattern": "front",
-      "profiles": [],
+      "profiles": [
+        "MOTION"
+      ],
       "validation": "runtime_unverified"
     },
     {
@@ -2170,7 +2204,9 @@
       "element": "electric",
       "category": "physical",
       "pattern": "front",
-      "profiles": [],
+      "profiles": [
+        "BODY"
+      ],
       "validation": "runtime_unverified"
     },
     {
@@ -2226,7 +2262,9 @@
       "element": "fire",
       "category": "physical",
       "pattern": "front",
-      "profiles": [],
+      "profiles": [
+        "BODY"
+      ],
       "validation": "runtime_unverified"
     },
     {
@@ -2236,7 +2274,9 @@
       "element": "ice",
       "category": "special",
       "pattern": "front",
-      "profiles": [],
+      "profiles": [
+        "TERRAIN"
+      ],
       "validation": "runtime_unverified"
     },
     {
@@ -2318,7 +2358,9 @@
       "element": "fire",
       "category": "special",
       "pattern": "corner_front",
-      "profiles": [],
+      "profiles": [
+        "PROJECTILE"
+      ],
       "validation": "runtime_unverified"
     },
     {
@@ -2589,7 +2631,9 @@
       "element": "ice",
       "category": "physical",
       "pattern": "corner_front",
-      "profiles": [],
+      "profiles": [
+        "PROJECTILE"
+      ],
       "validation": "runtime_unverified"
     },
     {
@@ -2681,7 +2725,9 @@
       "element": "electric",
       "category": "special",
       "pattern": "front",
-      "profiles": [],
+      "profiles": [
+        "PROJECTILE"
+      ],
       "validation": "runtime_unverified"
     },
     {
@@ -2691,7 +2737,9 @@
       "element": "electric",
       "category": "special",
       "pattern": "line",
-      "profiles": [],
+      "profiles": [
+        "PROJECTILE"
+      ],
       "validation": "runtime_unverified"
     },
     {
@@ -3859,7 +3907,9 @@
       "element": "fire",
       "category": "special",
       "pattern": "front",
-      "profiles": [],
+      "profiles": [
+        "TERRAIN"
+      ],
       "validation": "runtime_unverified"
     },
     {
@@ -4045,7 +4095,9 @@
       "element": "water",
       "category": "status",
       "pattern": "self",
-      "profiles": [],
+      "profiles": [
+        "TERRAIN"
+      ],
       "validation": "runtime_unverified"
     },
     {
@@ -5039,7 +5091,9 @@
       "element": "water",
       "category": "special",
       "pattern": "front",
-      "profiles": [],
+      "profiles": [
+        "PROJECTILE"
+      ],
       "validation": "runtime_unverified"
     },
     {
@@ -5666,7 +5720,9 @@
       "element": "fire",
       "category": "special",
       "pattern": "front",
-      "profiles": [],
+      "profiles": [
+        "TERRAIN"
+      ],
       "validation": "runtime_unverified"
     },
     {
@@ -5925,7 +5981,9 @@
       "element": "electric",
       "category": "special",
       "pattern": "radius",
-      "profiles": [],
+      "profiles": [
+        "TERRAIN"
+      ],
       "validation": "runtime_unverified"
     },
     {
@@ -6057,7 +6115,9 @@
       "element": "electric",
       "category": "special",
       "pattern": "line",
-      "profiles": [],
+      "profiles": [
+        "PROJECTILE"
+      ],
       "validation": "runtime_unverified"
     },
     {
@@ -6067,7 +6127,9 @@
       "element": "electric",
       "category": "special",
       "pattern": "radius",
-      "profiles": [],
+      "profiles": [
+        "TERRAIN"
+      ],
       "validation": "runtime_unverified"
     },
     {
@@ -6169,7 +6231,9 @@
       "element": "fire",
       "category": "special",
       "pattern": "radius",
-      "profiles": [],
+      "profiles": [
+        "TERRAIN"
+      ],
       "validation": "runtime_unverified"
     },
     {
@@ -6319,7 +6383,9 @@
       "element": "ice",
       "category": "special",
       "pattern": "line",
-      "profiles": [],
+      "profiles": [
+        "PROJECTILE"
+      ],
       "validation": "runtime_unverified"
     },
     {
@@ -6329,7 +6395,9 @@
       "element": "ice",
       "category": "special",
       "pattern": "radius",
-      "profiles": [],
+      "profiles": [
+        "TERRAIN"
+      ],
       "validation": "runtime_unverified"
     },
     {
@@ -6501,7 +6569,9 @@
       "element": "water",
       "category": "special",
       "pattern": "line",
-      "profiles": [],
+      "profiles": [
+        "PROJECTILE"
+      ],
       "validation": "runtime_unverified"
     },
     {
@@ -6523,7 +6593,9 @@
       "element": "water",
       "category": "special",
       "pattern": "fan",
-      "profiles": [],
+      "profiles": [
+        "TERRAIN"
+      ],
       "validation": "runtime_unverified"
     },
     {
@@ -6563,7 +6635,9 @@
       "element": "fire",
       "category": "special",
       "pattern": "line",
-      "profiles": [],
+      "profiles": [
+        "PROJECTILE"
+      ],
       "validation": "runtime_unverified"
     },
     {
@@ -6583,7 +6657,9 @@
       "element": "ice",
       "category": "physical",
       "pattern": "radius",
-      "profiles": [],
+      "profiles": [
+        "TERRAIN"
+      ],
       "validation": "runtime_unverified"
     },
     {
@@ -6645,7 +6721,9 @@
       "element": "water",
       "category": "physical",
       "pattern": "line",
-      "profiles": [],
+      "profiles": [
+        "BODY"
+      ],
       "validation": "runtime_unverified"
     },
     {
@@ -6687,7 +6765,9 @@
       "element": "water",
       "category": "physical",
       "pattern": "fan",
-      "profiles": [],
+      "profiles": [
+        "BITE"
+      ],
       "validation": "runtime_unverified"
     },
     {
