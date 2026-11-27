@@ -119,6 +119,21 @@ func run_checks()->void:
 	for i in range(600):view.update_fx_performance(1.0/60.0)
 	if view.fx_performance_tier!=0 or view.residue_particle_count()!=4:failures.append("full quality did not recover")
 	checks+=5
+	# Catalog-wide real image smoke test, including native signatures.
+	var catalog:Dictionary=Dungeon.Rules.MOVE_LIBRARY.duplicate()
+	catalog.merge(Dungeon.Rules.DEV_NATIVE_MOVES)
+	var elements:Dictionary={}
+	for id in catalog:
+		var profile:Dictionary=view.combat_profile(str(id))
+		var move:Dictionary=catalog[id]
+		elements[str(move.type)]=true
+		if str(profile.element)!=str(move.type) or float(profile.duration)<=0.0 or float(profile.impact)<=0.0 or float(profile.impact)>=1.0:
+			failures.append("invalid move profile: "+str(id))
+		var image:Image=view.combat_frame_image(str(id),6)
+		if image==null or image.get_width()!=48 or image.get_height()!=48 or not image.get_used_rect().has_area():
+			failures.append("missing midpoint art: "+str(id))
+		checks+=1
+	if catalog.size()!=589 or elements.size()!=18:failures.append("catalog coverage changed")
 	var home:=Home.new()
 	home.free()
 	view.free()
