@@ -328,8 +328,13 @@ func run_checks()->void:
 	# Native anatomical strike cells must differ from their base art, while
 	# incompatible imported atlases remain protected by the expression guard.
 	var anatomy_visible:int=0
+	var anatomy_visibility:Dictionary={}
+	if Art.ENEMY_COMBAT_APPENDAGES.size()!=33 or Art.ENEMY_COMBAT_APPENDAGES.size()!=Art.ENEMY_PIXEL_PILOTS.size():failures.append("full anatomy registry coverage")
+	for species in Art.ENEMY_PIXEL_PILOTS:
+		if not species in Art.ENEMY_COMBAT_APPENDAGES:failures.append("missing anatomical species "+species)
 	for species in Art.ENEMY_COMBAT_APPENDAGES:
 		var species_changed:bool=false
+		var species_visible:int=0
 		for direction in range(8):
 			var base:=Art.enemy_pixel_cell(species,direction,"attack",1,false,0)
 			var first:=Art.enemy_pixel_cell(species,direction,"attack",1,false,1)
@@ -341,14 +346,21 @@ func run_checks()->void:
 			var attack_texture:=Art.enemy_pixel_texture(species,direction,"attack",1,false,1)
 			var recovery_texture:=Art.enemy_pixel_texture(species,direction,"attack",1,false,2)
 			if native_texture==null or attack_texture==null or recovery_texture==null:failures.append("missing native combat appendage "+species)
-			elif attack_texture!=native_texture or recovery_texture!=native_texture:anatomy_visible+=1
+			elif attack_texture!=native_texture or recovery_texture!=native_texture:
+				anatomy_visible+=1
+				species_visible+=1
+			for pose in ["windup","recover","defeat","sleep"]:
+				if Art.enemy_pixel_texture(species,direction,pose,0,false,2)!=Art.enemy_pixel_texture(species,direction,pose,0,false,0):failures.append("combat part overrides "+pose+" "+species)
+				checks+=1
 			if Art.enemy_pixel_texture(species,direction,"hurt",0,false,2)!=Art.enemy_pixel_texture(species,direction,"hurt",0,false,0):failures.append("appendage overrides hurt "+species)
 			checks+=1
 		if not species_changed:failures.append("static native appendage "+species)
+		anatomy_visibility[species]=species_visible
 	for peak in [.12,.34,.48,.64,.88]:
 		if Art.combat_appendage_stage(peak-.0001,peak)!=0 or Art.combat_appendage_stage(peak,peak)!=1 or Art.combat_appendage_stage(peak+(1.0-peak)*.30,peak)!=2 or Art.combat_appendage_stage(1.0,peak)!=0:failures.append("appendage phase contract")
 		checks+=1
 	print("KINDRIA_COMBAT_APPENDAGES species=",Art.ENEMY_COMBAT_APPENDAGES.size()," visible_direction_variants=",anatomy_visible)
+	print("KINDRIA_ANATOMY_VISIBILITY ",JSON.stringify(anatomy_visibility))
 	# Directed contact art is independently visible and kick poses are animated.
 	for id in Dungeon.CONTACT_ICON_KIND:
 		var kind:String=view.directed_contact_kind(id,str(view.combat_profile(id).role))
