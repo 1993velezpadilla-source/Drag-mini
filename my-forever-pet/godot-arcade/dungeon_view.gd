@@ -4496,25 +4496,48 @@ func arc_segment(a:Vector3,b:Vector3,width:float,col:Color)->void:
 	for q in [a-side,a+side,b+side,a-side,b+side,b-side]:
 		fx_arc_mesh.surface_set_color(col);fx_arc_mesh.surface_add_vertex(q)
 	fx_arc_segments+=1
-func electric_world_arc(points:Array,t:float,role:String,tiles:Array)->void:
+# Preserve intermediate corners when extending a beam or electrical chain.
+func combat_path_prefix(points:Array,progress:float)->Array:
+	if points.size()<2:return points.duplicate()
+	var total:float=0.0
+	for i in range(1,points.size()):
+		var a:Vector3=points[i-1]
+		total+=a.distance_to(points[i])
+	var remain:float=total*clampf(progress,0.0,1.0)
+	var result:Array=[points[0]]
+	for i in range(1,points.size()):
+		var a:Vector3=points[i-1]
+		var distance:float=a.distance_to(points[i])
+		if distance<.00001:continue
+		if remain<=distance:
+			result.append(a.lerp(points[i],remain/distance));return result
+		result.append(points[i]);remain-=distance
+	if result.size()==1:result.append(points[-1])
+	return result
+
+func electric_world_arc(points:Array,t:float,role:String,tiles:Array,impact:float=.48)->void:
+	var travel:float=combat_travel_progress(t,impact)
+	var tip:Vector3=combat_path_sample(points,travel)
+	var arrived:bool=t>=impact
+	var strike_progress:float=clampf((t-impact)/maxf(.001,1.0-impact),0.0,1.0)
 	var frame:int=int(t*36.0)
 	var paths:Array=[]
 	if role=="electric_sky":
-		if t<.32:return
 		var target:Vector3=points[-1]
-		paths.append([target+Vector3.UP*(2.8-maxf(0.0,t-.45)*2.0),target])
-		if t>.58:
+		var sky:Vector3=target+Vector3.UP*2.8
+		paths.append([sky,sky.lerp(target,travel)])
+		if arrived:
 			for i in range(4):
 				var angle:float=float(i)*TAU/4.0
 				paths.append([target,target+Vector3(cos(angle)*.65,.08,sin(angle)*.65)])
 	elif role=="electric_burst":
 		for tile in tiles:
 			var target:Vector3=tile+Vector3.UP*.35
-			paths.append([points[0],points[0].lerp(target,clampf(t*2.5,0,1))])
+			paths.append([points[0],points[0].lerp(target,travel)])
 	elif role=="electric_short":
 		paths.append([points[0],points[-1]])
 	elif role=="electric_wave":
-		var front:Vector3=combat_path_sample(points,clampf(t*1.8,0,1))
+		var front:Vector3=tip
 		var direction:Vector3=(points[-1]-points[0]).normalized()
 		var side:Vector3=direction.cross(Vector3.UP)
 		for i in range(3):
@@ -4531,7 +4554,7 @@ func electric_world_arc(points:Array,t:float,role:String,tiles:Array)->void:
 			var a:float=float(i)*TAU/6.0+t*TAU
 			paths.append([at,at+Vector3(cos(a)*.46,.2*sin(a),sin(a)*.46)])
 	elif role=="electric_dash":
-		var at:Vector3=combat_path_sample(points,clampf(t*2.0,0,1))
+		var at:Vector3=tip
 		var dir:Vector3=(points[-1]-points[0]).normalized()
 		var side:Vector3=dir.cross(Vector3.UP)
 		for i in range(3):
@@ -4541,20 +4564,23 @@ func electric_world_arc(points:Array,t:float,role:String,tiles:Array)->void:
 		var at:Vector3=points[-1]
 		for i in range(3):
 			var off:Vector3=Vector3.RIGHT*float(i-1)*.18
-			var bite:float=.45*(1.0-sin(t*PI))
+			var bite:float=.45*(1.0-travel) if not arrived else .22*strike_progress
 			paths.append([at+off+Vector3.UP*(bite+.2),at+off,at+off-Vector3.UP*(bite+.2)])
 	elif role=="electric_beam":
-		paths.append(points)
+		var prefix:Array=combat_path_prefix(points,travel)
+		paths.append(prefix)
 		var dir:Vector3=(points[-1]-points[0]).normalized()
 		var side:Vector3=dir.cross(Vector3.UP)*.12
-		paths.append([points[0]+side,points[-1]+side])
-		paths.append([points[0]-side,points[-1]-side])
+		var left:Array=[];var right:Array=[]
+		for point in prefix:
+			left.append(point+side);right.append(point-side)
+		paths.append(left);paths.append(right)
 	elif role=="electric_room":
 		for tile in tiles:
 			var at:Vector3=tile+Vector3.UP*.35
 			paths.append([at+Vector3(-.32,.12,0),at,at+Vector3(.32,.12,0)])
 	elif role in ["electric_bind","electric_charge","electric_lift","electric_orb"]:
-		var at:Vector3=points[-1] if role=="electric_bind" else points[0] if role!="electric_orb" else combat_path_sample(points,clampf(t*1.65,0,1))
+		var at:Vector3=points[-1] if role=="electric_bind" else points[0] if role!="electric_orb" else tip
 		var radius:float=.38 if role=="electric_bind" else .55*(1.0-t*.6) if role=="electric_charge" else .36
 		var rings:int=2 if role!="electric_lift" else 3
 		for i in range(rings):
@@ -4573,10 +4599,11 @@ func electric_world_arc(points:Array,t:float,role:String,tiles:Array)->void:
 		for i in range(5):
 			var angle:float=float(i)*TAU/5.0+float(frame%3)*.2
 			paths.append([points[-1],points[-1]+Vector3(cos(angle)*.55,sin(angle)*.38,sin(angle)*.44)])
-	else:paths.append(points)
+	else:paths.append(combat_path_prefix(points,travel))
 	for path in paths:
 		for k in range(path.size()-1):
 			var start:Vector3=path[k];var end:Vector3=path[k+1]
+			if start.distance_squared_to(end)<.000001:continue
 			var last:=start
 			var side:Vector3=(end-start).cross(Vector3.UP).normalized()
 			for j in range(1,10):
@@ -4862,7 +4889,7 @@ func combat_fx_update(dt:float)->void:
 		var tiles:Array=burst.tiles
 		if str(profile.role).begins_with("electric") and t>.08 and t<.91:
 			if not arcs_started:fx_arc_mesh.surface_begin(Mesh.PRIMITIVE_TRIANGLES,fx_arc_material);arcs_started=true
-			electric_world_arc(points,t,str(profile.role),tiles)
+			electric_world_arc(points,t,str(profile.role),tiles,float(profile.impact))
 		elif str(profile.role) in ["lash","ground","grass_vine","grass_whip","grass_needle","earth_quake","earth_magnitude","earth_fissure"] and t>.03:
 			if not arcs_started:fx_arc_mesh.surface_begin(Mesh.PRIMITIVE_TRIANGLES,fx_arc_material);arcs_started=true
 			if profile.role in ["lash","grass_vine","grass_whip","grass_needle"]:vine_world_lash(points,t,profile,str(burst.id))

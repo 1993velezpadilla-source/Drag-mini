@@ -248,6 +248,16 @@ func run()->void:
 	if self_path.size()!=2 or not field.combat_path_sample(self_path,.5).is_equal_approx(Vector3(0,.13,0)):errors.append("self cast anchor")
 	if absf(field.combat_socket_height("head",1.45,.13)-1.087)>.001 or absf(field.combat_socket_height("ground",1.45,.13)-.13)>.001:errors.append("scaled socket height")
 	print("KINDRIA_WORLD_SOCKET_PASS")
+	# Electrical beam extensions retain intermediate path corners.
+	var corner:Array=[Vector3.ZERO,Vector3.RIGHT*2.0,Vector3(2,0,2)]
+	for step in range(101):
+		var progress:float=float(step)/100.0
+		var prefix:Array=field.combat_path_prefix(corner,progress)
+		if prefix.size()<2 or not prefix[-1].is_equal_approx(field.combat_path_sample(corner,progress)):errors.append("beam path prefix")
+		if progress>.5 and prefix.size()!=3:errors.append("beam corner dropped")
+	var full:Array=field.combat_path_prefix(corner,1.0)
+	if full!=corner:errors.append("beam final endpoint")
+	print("KINDRIA_ELECTRIC_PATH_PASS")
 	# Exercise more frames than the cache cap, then verify hot hits and exact normalization.
 	for row in reports.slice(0,40):
 		for frame in range(Field.FX_FRAME_COUNT):field.combat_animated_texture(str(row.id),frame)
