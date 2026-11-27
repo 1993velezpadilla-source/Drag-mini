@@ -15705,10 +15705,14 @@ func update_delayed_combat_fx(dt:float)->void:
 # Rendering visits newer bursts first, but the last actual impact wins the hurt pose.
 # A visual budget eviction must not silently cancel a pending hit or sound.
 # Each wave is one recorded attempt per affected tile, not a guessed hit count.
-func cast_impact_waves(results:Dictionary)->Array[Dictionary]:
+func cast_impact_wave_count(results:Dictionary)->int:
 	var count:int=1
 	for tile in results:
 		count=maxi(count,mini(12,results[tile].get("attempts",[]).size()))
+	return count
+
+func cast_impact_waves(results:Dictionary)->Array[Dictionary]:
+	var count:int=cast_impact_wave_count(results)
 	if count==1:return [results]
 	var waves:Array[Dictionary]=[]
 	for i in range(count):
@@ -15734,9 +15738,9 @@ func cast_impact_waves(results:Dictionary)->Array[Dictionary]:
 # The same attempt ledger drives world FX and caster pose. Split only the
 # cosmetic body clock; movement routes and gameplay remain on global time.
 func caster_wave_times(event:Dictionary,duration:float,impact:float)->Array[float]:
-	var waves:=cast_impact_waves(event.get("results",{}))
-	if waves.size()<2:return []
-	return reaction_times(duration,impact,waves.size())
+	var count:int=cast_impact_wave_count(event.get("results",{}))
+	if count<2:return []
+	return reaction_times(duration,impact,count)
 
 func caster_wave_progress(age:float,duration:float,impact:float,times:Array)->float:
 	var t:float=clampf(age,0.0,maxf(.001,duration))
@@ -15788,9 +15792,15 @@ func dispatch_cast_waves(burst:Dictionary)->void:
 	var waves:Array=burst.get("impact_waves",[])
 	var times:Array=burst.get("impact_times",[])
 	var cursor:int=int(burst.get("impact_cursor",0))
-	while cursor<times.size() and float(burst.age)>=float(times[cursor]):
+	var age_now:float=float(burst.age)
+	if cursor>=times.size() or age_now<float(times[cursor]):
+		if not burst.has("impact_cursor"):burst["impact_cursor"]=cursor
+		return
+	var move_id:String=str(burst.id)
+	var move:Dictionary=Rules.MOVE_LIBRARY[move_id] if Rules.MOVE_LIBRARY.has(move_id) else Rules.DEV_NATIVE_MOVES.get(move_id,{})
+	while cursor<times.size() and age_now>=float(times[cursor]):
 		var wave:Dictionary=waves[cursor]
-		var wave_age:float=maxf(0.0,float(burst.age)-float(times[cursor]))
+		var wave_age:float=maxf(0.0,age_now-float(times[cursor]))
 		show_cast_results(wave,wave_age)
 		ultra_impact_residue(burst,wave,cursor==0,wave_age)
 		var audible:bool=wave.is_empty() and cursor==0
@@ -15799,7 +15809,6 @@ func dispatch_cast_waves(burst:Dictionary)->void:
 		var critical:bool=false
 		var status_cues:Dictionary={}
 		var blocked:bool=false
-		var move:Dictionary=Rules.MOVE_LIBRARY.get(str(burst.id),Rules.DEV_NATIVE_MOVES.get(str(burst.id),{}))
 		for tile in wave:
 			var row:Dictionary=wave[tile]
 			var amount:int=int(row.get("damage",0))
@@ -15826,8 +15835,7 @@ func dispatch_cast_waves(burst:Dictionary)->void:
 		fx_dispatched_waves+=1
 		if strongest>0 or (wave.is_empty() and cursor==0 and int(burst.get("damage",0))>0):
 			fx_dispatched_damage_waves+=1
-			var age:float=maxf(0.0,float(burst.age)-float(times[cursor]))
-			queue_contact_camera(burst.points[0],target,critical,age)
+			queue_contact_camera(burst.points[0],target,critical,wave_age)
 		elif not audible and not wave.is_empty() and not blocked:fx_dispatched_miss_waves+=1
 		cursor+=1
 	burst["impact_cursor"]=cursor
@@ -15899,6 +15907,7 @@ func latest_player_impact(current:Dictionary,burst:Dictionary,previous_cursor:in
 	var waves:Array=burst.get("impact_waves",[])
 	var times:Array=burst.get("impact_times",[])
 	var cursor:int=mini(int(burst.get("impact_cursor",0)),mini(waves.size(),times.size()))
+	if cursor<=maxi(0,previous_cursor):return current
 	var target:Vector3=burst.points[-1]
 	var tile:=Vector2i(roundi(target.x/1.4),roundi(target.z/1.4))
 	for index in range(cursor-1,maxi(0,previous_cursor)-1,-1):
