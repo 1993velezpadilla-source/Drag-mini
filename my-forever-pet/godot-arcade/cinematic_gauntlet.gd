@@ -625,6 +625,22 @@ func run_checks()->void:
 	contact_burst.age=.60
 	if not view.contact_wave_sample(contact_burst).is_empty():failures.append("contact did not expire")
 	checks+=4
+	# V19.4: a miss cannot trigger recoil, and a later confirmed attempt can.
+	var player_tile:=Vector2i(1,0)
+	var player_wave:Dictionary={"target_player":true,"points":[Vector3(0,.5,0),Vector3(1.4,.5,0)],"damage":16,"age":.21,"impact_cursor":1,"impact_times":[.2,.3,.4],"impact_waves":[{player_tile:{"damage":0,"misses":1}},{player_tile:{"damage":7}},{player_tile:{"damage":9}}]}
+	if not view.latest_player_impact({},player_wave,0).is_empty():failures.append("player first miss recoil")
+	player_wave.age=.31;player_wave.impact_cursor=2
+	var player_second:=view.latest_player_impact({},player_wave,1)
+	if player_second.is_empty() or absf(float(player_second.age)-.01)>.00001:failures.append("player second hit timing")
+	if not view.latest_player_impact({},player_wave,2).is_empty():failures.append("player duplicate recoil")
+	player_wave.age=.42;player_wave.impact_cursor=3
+	var player_lagged:=view.latest_player_impact({},player_wave,0)
+	if player_lagged.is_empty() or absf(float(player_lagged.age)-.02)>.00001:failures.append("player newest hit under lag")
+	player_wave.impact_waves[2]={Vector2i(2,0):{"damage":9}}
+	if not view.latest_player_impact({},player_wave,2).is_empty():failures.append("other tile must not cause player recoil")
+	player_wave.target_player=false
+	if not view.latest_player_impact({},player_wave,0).is_empty():failures.append("non-player recoil")
+	checks+=6
 	# Validate actual authored projectile forms on the same bent route as the
 	# existing family tests, including finite lagged samples and budget limits.
 	var directed_forms:Dictionary={}
