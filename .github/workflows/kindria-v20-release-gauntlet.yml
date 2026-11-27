@@ -52,6 +52,14 @@ jobs:
           godot --headless --path . --script res://bake_combat_audio.gd 2>&1 | tee /tmp/kindria-audio-pack.log
           grep -E 'KINDRIA_AUDIO_PACK entries=[0-9]+ bytes=[0-9]+ elapsed_ms=[0-9]+ failures=0$' /tmp/kindria-audio-pack.log
           if grep -E 'SCRIPT ERROR|Parse Error|Compile Error' /tmp/kindria-audio-pack.log; then exit 1; fi
+          grep -E 'KINDRIA_AUDIO_PACK_BENCH samples=[0-9]+ cold_p50_usec=[0-9]+ cold_p95_usec=[0-9]+ cold_p99_usec=[0-9]+ cold_max_usec=[0-9]+ cache_p95_usec=[0-9]+ cache_peak_entries=[0-9]+' /tmp/kindria-audio-pack.log
+      - name: Preserve verified original PCM pack
+        uses: actions/upload-artifact@v4
+        with:
+          name: kindria-combat-audio-pack
+          if-no-files-found: error
+          retention-days: 14
+          path: my-forever-pet/godot-arcade/generated_combat_audio/
       - name: Preserve diagnostics even on failure
         if: always()
         uses: actions/upload-artifact@v4
