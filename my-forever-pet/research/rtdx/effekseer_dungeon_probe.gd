@@ -39,7 +39,7 @@ func run()->void:
 		var i:int=backend.launch(travel,projectile,points,[points[-1]],float(row[3]),1.0)
 		assert(i>=0)
 		for frame in range(24):
-			backend.advance(.016,float(frame)/23.0)
+			backend.advance(.99/24.0)
 			await frames()
 			if frame in [8,16,23]:assert(root.get_texture().get_image().save_png("/tmp/effekseer-review/dungeon-"+id+"-travel-"+str(frame)+".png")==OK)
 		backend.reset()
@@ -47,11 +47,28 @@ func run()->void:
 		assert(j>=0)
 		assert(backend.slots[j].node.position.distance_to(points[-1])<.001)
 		for frame in range(30):
-			backend.advance(.016,1.0)
+			backend.advance(.016)
 			await frames()
 			if frame in [8,16,23]:assert(root.get_texture().get_image().save_png("/tmp/effekseer-review/dungeon-"+id+"-impact-"+str(frame)+".png")==OK)
 		backend.reset()
 		print("KINDRIA_EFFEKSEER_TRACKS ",id)
+	# Independent clocks, uneven segment distances, capacity and reuse.
+	var effect:Resource=load("res://effects/sample-material3/ef_fire01_projectile.efkefc")
+	var track:Dictionary={"enabled":true,"anchor":"path"}
+	var path:Array=[Vector3.ZERO,Vector3.RIGHT,Vector3.RIGHT*4.0]
+	var slow:int=backend.launch(track,effect,path,[],.2,2.0)
+	var fast:int=backend.launch(track,effect,path,[],.2,1.0)
+	assert(slow>=0 and fast>=0 and slow!=fast)
+	backend.advance(.5)
+	assert(backend.slots[slow].node.position.distance_to(Vector3.RIGHT)<.001,"slow clock and uneven segment")
+	assert(backend.slots[fast].node.position.distance_to(Vector3.RIGHT*2.0)<.001,"fast clock independent")
+	backend.advance(.5)
+	assert(not backend.slots[fast].busy and backend.slots[slow].busy)
+	for index in range(Backend.SLOT_CAP-1):assert(backend.launch(track,effect,path,[],.2,1.0)>=0)
+	assert(backend.launch(track,effect,path,[],.2,1.0)==-1,"overflow is rejected")
+	backend.reset()
+	assert(backend.prepare() and backend.slots.size()==Backend.SLOT_CAP,"pool initialization idempotent")
+	print("KINDRIA_EFFEKSEER_CONCURRENT_PASS")
 	assert(backend.slots.size()==Backend.SLOT_CAP)
 	for slot in backend.slots:assert(not slot.busy)
 	print("KINDRIA_EFFEKSEER_DUNGEON_PASS 5")
