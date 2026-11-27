@@ -5483,7 +5483,106 @@ func native_identity_frame(id:String,frame:int,base:Image)->Image:
 	im.blend_rect(base,Rect2i(Vector2i.ZERO,base.get_size()),offset)
 	return im
 
+# V16.7: individually remastered after reviewing actual Godot PNG strips.
+const VISUAL_REMASTER_MOVES=["eos_504","eos_308","eos_135","eos_142","eos_047","eos_250","eos_299","eos_329"]
+func visual_remaster_frame(id:String,frame:int)->Image:
+	var im:=Image.create(48,48,false,Image.FORMAT_RGBA8)
+	im.fill(Color.TRANSPARENT)
+	var t:float=float(posmod(frame,FX_FRAME_COUNT))/float(FX_FRAME_COUNT-1)
+	var peak:float=clampf(float(combat_profile(id).impact),.12,.88)
+	var drive:float=smoothstep(0.0,peak,t)
+	var fade:float=1.0-smoothstep(peak,1.0,t)
+	var pulse:float=sin(t*PI)
+	var style:Array=combat_style(id)
+	var light:=Color(style[1]);var dark:=Color(style[2])
+	var pale:=light.lerp(Color.WHITE,.65)
+	match id:
+		"eos_308":
+			# Water Gun: connected narrow jet, foamy head and trailing droplets.
+			var head:=Vector2(12+23*drive,24+sin(t*TAU)*2.5)
+			var tail:=Vector2(maxf(4.0,head.x-21.0*fade),25)
+			for j in range(1,12):
+				var a:=tail.lerp(head,float(j-1)/11.0)
+				var b:=tail.lerp(head,float(j)/11.0)
+				a.y+=sin(float(j-1)*.7-t*TAU)*1.8
+				b.y+=sin(float(j)*.7-t*TAU)*1.8
+				fx_line(im,a,b,2.1+float(j)*.12,Color("#176aa2"))
+				fx_line(im,a,b,1.0+float(j)*.10,Color("#66d7f9"))
+			water_drop(im,head,3.7+2.0*pulse,pale,Color("#2e8dbd"))
+			for j in range(4):
+				var q:=head+Vector2(-float(j)*3.5,(-1.0 if j%2==0 else 1.0)*(5.0+t*4.0))
+				fx_disc(im,q,1.6,Color("#9fe9ff"))
+		"eos_135":
+			# Absorb: green energy drawn from the right toward the caster.
+			var travel:float=smoothstep(peak,1.0,t)
+			for j in range(4):
+				var f:float=clampf(drive*.35+travel*.65+float(j)*.12,0.0,1.0)
+				var q:=Vector2(40-32*f,24+sin(f*TAU+float(j))*5.0)
+				fx_line(im,q,q+Vector2(6,2*sin(t*TAU+float(j))),2.0,dark)
+				fx_disc(im,q,3.2,Color("#4fc04d"))
+				fx_disc(im,q-Vector2(1,1),1.6,Color("#d5ff9d"))
+			fx_disc(im,Vector2(8,24),5.0+5.0*travel,Color(light,.60),3.5+5.0*travel)
+		"eos_142":
+			# Sand Attack: broad low cone of dusty grains rather than a sine wave.
+			for j in range(15):
+				var f:float=float(j)/14.0
+				var q:=Vector2(8+30*f*drive,29+sin(float(j)*2.4+t*3.0)*(2.0+10.0*f))
+				fx_disc(im,q,2.0+f*2.1,Color("#8f6b43",.75*fade+.15))
+				fx_disc(im,q-Vector2(1,1),1.3+f*.7,Color("#e8c78d",.8*fade+.15))
+			for j in range(5):fx_line(im,Vector2(8,31),Vector2(11+25*drive,22+float(j)*3.5),.75,Color("#c8a36a",.25+.3*fade))
+		"eos_047":
+			# Will-O-Wisp: violet ghost flame lobes, curling tails and hot cores.
+			for j in range(3):
+				var q:=Vector2(11+12*float(j),27+sin(t*TAU+float(j)*2.0)*4.0)
+				var r:float=3.7+1.5*pulse
+				fire_lobe(im,q,r,t+float(j)*.16,Color("#f6d2ff"),Color("#a35be7"))
+				fx_line(im,q+Vector2(0,2),q+Vector2(-4-3*fade,8),1.2,Color("#7746bb",.7))
+				fx_disc(im,q+Vector2(4,-8),1.1,Color("#efd0ff"))
+		"eos_504":
+			# Worry Seed: large asymmetric seed and nervous orbital motes.
+			var q:=Vector2(10+26*drive,24-6*sin(drive*PI))
+			fx_line(im,q+Vector2(-3,4),q+Vector2(3,-4),5.0,Color("#315b35"))
+			fx_line(im,q+Vector2(-2,3),q+Vector2(2,-3),3.7,Color("#9cca51"))
+			fx_line(im,q+Vector2(-3,2),q+Vector2(2,-3),1.1,Color("#e4ffab"))
+			grass_leaf(im,q+Vector2(0,-5),-1.1+t*.6,7.0,light,dark)
+			for j in range(4):
+				var a:float=float(j)*TAU/4.0+t*TAU
+				fx_disc(im,q+Vector2(cos(a),sin(a))*8.5,1.5,Color("#d5f88a",.9))
+		"eos_250":
+			# Pound: weighty blunt strike with a short gold compression burst.
+			var q:=Vector2(11+21*drive,24)
+			fx_line(im,q-Vector2(11*fade,0),q,3.0,Color("#ae7953",.75))
+			fx_disc(im,q,6.0+2.0*pulse,Color("#76503a"))
+			fx_disc(im,q+Vector2(2,-1),4.9,Color("#edba76"))
+			fx_disc(im,q+Vector2(3,-2),2.5,Color("#fff0c4"))
+			if t>=peak:
+				for j in range(5):
+					var a:float=-PI*.8+float(j)*PI*.4
+					var axis:=Vector2(cos(a),sin(a))
+					fx_line(im,q+axis*6.0,q+axis*(8.0+8.0*(1.0-fade)),1.3,Color("#ffd895",fade))
+		"eos_299":
+			# Mud Shot: dense uneven clay projectile, splatter and granular tail.
+			var q:=Vector2(10+24*drive,25-3*sin(drive*PI))
+			fx_line(im,q-Vector2(9*fade,0),q,3.0,Color("#65422f",.9))
+			fx_disc(im,q,6.0,Color("#704631"))
+			fx_disc(im,q-Vector2(1,2),4.1,Color("#b6804c"))
+			for j in range(6):
+				var a:float=float(j)*TAU/6.0+t
+				var mote:=q+Vector2(cos(a),sin(a))*(7.0+4.0*(1.0-fade))
+				fx_disc(im,mote,1.5+float(j%2),Color("#9b633c",.3+.7*fade))
+		"eos_329":
+			# Leech Seed: seed pods, roots and a green sprouting silhouette.
+			for j in range(3):
+				var q:=Vector2(11+12*float(j),22+sin(t*TAU+float(j))*4.0)
+				fx_disc(im,q,4.4,Color("#325c35"))
+				fx_disc(im,q-Vector2(1,1),2.9,Color("#a5df56"))
+				fx_line(im,q+Vector2(0,2),q+Vector2(0,8+5*drive),1.4,Color("#468a39"))
+				fx_line(im,q+Vector2(0,7),q+Vector2(-4,12),1.0,Color("#70ab44"))
+				grass_leaf(im,q+Vector2(0,-3),-1.4+float(j)*.3,6.0,light,dark)
+	return im
+
 func combat_frame_image(id:String,frame:int)->Image:
+	if id in VISUAL_REMASTER_MOVES:return visual_remaster_frame(id,frame)
 	var base:=combat_base_frame_image(id,frame)
 	if id in NATIVE_IDENTITY_CASTS:return native_identity_frame(id,frame,base)
 	return base
