@@ -1196,6 +1196,7 @@ func show_move_training():
 		if not move.type in profile.types:continue
 		var card=panel(actions)
 		label(card,str(move.name)+" · Lv "+str(move.learn_level),19)
+		if move.get("prototype",false):label(card,"Reference stats · prototype effect",13)
 		label(card,"%s · %s · %d tiles · Power %d · PP %d · Acc %.1f%%"%[move.category.capitalize(),move.pattern,move.reach,move.power,move.pp,rules.reference_accuracy(move)],14).autowrap_mode=TextServer.AUTOWRAP_WORD_SMART
 		var unlocked:bool=int(profile.level)>=int(move.learn_level)
 		if not unlocked:

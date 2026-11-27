@@ -298,6 +298,8 @@ func move_ids()->Array:
 	var ids:Array=[]
 	for element in TrainingRules.TYPE_CHART:
 		for ordinal in range(1,4):ids.append("lib_"+str(element)+"_"+str(ordinal))
+	# Append-only numeric IDs, including reserved slots, preserve existing saves.
+	for ref_id in range(559):ids.append("eos_%03d"%ref_id)
 	return ids
 func validate_move_slots()->Array:
 	var ids:=move_ids()

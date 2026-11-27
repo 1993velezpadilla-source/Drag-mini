@@ -1922,7 +1922,7 @@ func combat_profile(id:String)->Dictionary:
 				element=str(info[2] if alt else info[1]);break
 	var role:String="contact" if mode in ["slash","leap","roll"] else "ground" if mode=="quake" else "cast" if mode in ["cloud","web","silk","wave","spiral"] else "projectile"
 	if mode in ["vine","whip"]:role="lash"
-	if mode=="lightning":role="electric_contact" if reach==1 else "electric_area" if pattern in ["cross","radius","fan"] else "electric_arc"
+	if mode=="lightning":role="electric_area" if pattern in ["cross","radius","fan","room"] else "electric_contact" if reach==1 else "electric_arc"
 	var impact:float=.48 if role in ["contact","electric_contact"] else .64 if role in ["projectile","lash","electric_arc"] else .40
 	return {"mode":mode,"role":role,"element":element,"pattern":pattern,"range":reach,"duration":float(style[3]),"impact":impact,"socket":"ground" if role=="ground" else "head" if role=="projectile" else "center"}
 func electric_sprite(im:Image,id:String,frame:int,role:String)->void:

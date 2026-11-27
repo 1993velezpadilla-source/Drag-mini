@@ -13,7 +13,8 @@ assert data[:4]==b"SIR0"
 header=struct.unpack_from("<I",data,4)[0]
 start=struct.unpack_from("<I",data,header)[0]
 assert start+559*26<=len(data)
-rows=json.loads(args.baseline.read_text())
+baseline=json.loads(args.baseline.read_text())
+rows=baseline["rows"] if isinstance(baseline,dict) else baseline
 assert len(rows)==559
 ranges={0:"front",1:"three_front",2:"adjacent_eight",3:"room",4:"two_tiles",5:"straight_line",6:"floor",7:"self",8:"front_cuts_corners",9:"two_tiles_cuts_corners",15:"special"}
 targets={0:"enemies",1:"allies",2:"everyone",3:"self",4:"two_turn",5:"everyone_except_self",6:"allies_except_self",15:"special"}
@@ -26,7 +27,7 @@ for i,row in enumerate(rows):
     move_id=struct.unpack_from("<H",data,off+22)[0]
     settings,ai=struct.unpack_from("<HH",data,off+4)
     assert move_id==i,(i,move_id)
-    raw={"power":power,"pp":data[off+8],"acc1":data[off+10],"acc2":data[off+11],"hits":data[off+13],"crit":data[off+15],"category":categories.get(data[off+3],"unknown"),"type":type_names[data[off+2]] if data[off+2]<len(type_names) else "unknown"}
+    raw={"power":power,"pp":data[off+8],"accuracy1":data[off+10],"accuracy2":data[off+11],"strikes":data[off+13],"crit":data[off+15],"category":categories.get(data[off+3],"unknown"),"type":type_names[data[off+2]] if data[off+2]<len(type_names) else "unknown"}
     for key in raw:
         if row[key]!=raw[key]:mismatch.append({"id":i,"field":key,"baseline":row[key],"binary":raw[key]})
     row["reference_raw"]=raw

@@ -68,7 +68,8 @@ func run():
 	assert(modes.size()>=13)
 	var ids:Array=RulesForFX.SIGNATURE_SKILLS.values().map(func(skill):return skill[6])
 	for species in RulesForFX.SECONDARY_SKILLS:ids.append("alt_"+species)
-	ids.append_array(RulesForFX.MOVE_LIBRARY.keys())
+	for id in RulesForFX.MOVE_LIBRARY:
+		if str(id).begins_with("lib_"):ids.append(id)
 	var distinct:int=0
 	for id in ids:
 		var atlas:=Image.create(48*12,48,false,Image.FORMAT_RGBA8)
@@ -83,6 +84,16 @@ func run():
 		assert(atlas.save_png("/tmp/kindria-fx-"+id+".png")==OK)
 		distinct+=1
 	assert(distinct==120)
+	var checked:int=0
+	for id in RulesForFX.MOVE_LIBRARY:
+		if not str(id).begins_with("eos_"):continue
+		var first:=dungeon.combat_frame_image(id,2)
+		var second:=dungeon.combat_frame_image(id,8)
+		assert(first.get_used_rect().has_area() and second.get_used_rect().has_area(),id)
+		assert(first.get_data()!=second.get_data(),id)
+		checked+=1
+	assert(checked==RulesForFX.EOS_PROTOTYPE_COUNT)
+	print("KINDRIA_EOS_PREVIEW_PASS ",checked)
 	print("KINDRIA_FX_ATLAS_PASS 120 animated atlases / 1440 frames")
 	var sounds:Dictionary={}
 	for id in ["lib_electric_1","lib_electric_2","lib_electric_3","lib_water_2","lib_fire_2","lib_grass_1","lib_ground_1","lib_fighting_1","lib_ice_1"]:

@@ -66,6 +66,20 @@ func _initialize():
 	assert(Rules.reference_accuracy(Rules.MOVE_LIBRARY.lib_electric_2)==100.0)
 	assert(Rules.MOVE_LIBRARY.lib_water_2.reach==10)
 	print("KINDRIA_EOS_REFERENCE_PASS 9 mapped moves")
+	var eos_count:int=0
+	for id in Rules.MOVE_LIBRARY:
+		if not str(id).begins_with("eos_"):continue
+		var move:Dictionary=Rules.MOVE_LIBRARY[id]
+		assert(int(str(id).trim_prefix("eos_"))==int(move.reference_id))
+		assert(move.pp>0 and move.power>0 and move.reference_strikes==1)
+		assert(move.category in ["physical","special"])
+		assert(id in Rules.available_moves([move.type],100))
+		assert(not id in Rules.available_moves([move.type],15))
+		assert(Rules.reference_accuracy(move)>=0.0 and Rules.reference_accuracy(move)<=100.0)
+		eos_count+=1
+	assert(eos_count==Rules.EOS_PROTOTYPE_COUNT)
+	assert(Rules.EOS_IDENTIFIED_COUNT==468)
+	print("KINDRIA_EOS_PROTOTYPES_PASS ",eos_count)
 	print("KINDRIA_LEARNSET_PP_PASS")
 	print("KINDRIA_TRAINING_PASS 18 types 26 natures 33 EV yields")
 	quit()
