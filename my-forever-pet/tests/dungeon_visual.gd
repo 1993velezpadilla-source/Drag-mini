@@ -174,6 +174,20 @@ func run():
 				water_frames[signature]=true
 				assert(middle.save_png("/tmp/dungeon-real-water-"+id+".png")==OK)
 			print("KINDRIA_WATER_CHOREOGRAPHY_PASS ",water_roles.size())
+			var grass_roles:Dictionary={}
+			var grass_frames:Dictionary={}
+			for id in ["eos_076","eos_135","eos_151","eos_182","eos_221","eos_238","eos_251","eos_297","eos_320","eos_336","eos_441","eos_443","eos_458","eos_468","eos_486","eos_511","eos_537","eos_163","eos_079","eos_231","eos_124","eos_351","eos_015","eos_094","eos_084","eos_329","eos_253","eos_233","eos_504"]:
+				var profile:Dictionary=dungeon.combat_profile(id)
+				assert(not grass_roles.has(profile.role),"unique grass choreography "+id)
+				grass_roles[profile.role]=true
+				var first:Image=dungeon.combat_frame_image(id,2)
+				var middle:Image=dungeon.combat_frame_image(id,6)
+				assert(first.get_data()!=middle.get_data(),"grass animation changes "+id)
+				var signature:String=middle.get_data().hex_encode()
+				assert(not grass_frames.has(signature),"unique grass sprite "+id)
+				grass_frames[signature]=true
+				assert(middle.save_png("/tmp/dungeon-real-grass-"+id+".png")==OK)
+			print("KINDRIA_GRASS_CHOREOGRAPHY_PASS ",grass_roles.size())
 			# Reproduce the freed-instance registry fault before the real expedition.
 			var retired:Node3D=dungeon.actor_for("retired-test",Vector3.ZERO)
 			retired.free()
