@@ -50,6 +50,9 @@ func run()->void:
 						failures.append("invalid body "+id)
 						continue
 					var output:=Parts.composite_pose(body,[part],dir,pose,"healthy",progress)
+					var body_path:String=ROOT+"/fitting/body/"+id
+					DirAccess.make_dir_recursive_absolute(body_path)
+					if body.save_png(body_path+"/%s-%d-%d.png"%[pose,dir,phase])!=OK:failures.append("body sample export "+id)
 					var padded:=Image.create(96,96,false,Image.FORMAT_RGBA8)
 					padded.fill(Color.TRANSPARENT)
 					padded.blit_rect(body,Rect2i(0,0,48,48),Vector2i(24,24))

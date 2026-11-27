@@ -4,6 +4,7 @@ on:
     branches: [feature/my-forever-pet-paradise]
     paths:
       - 'my-forever-pet/art/import_lpc_anatomy.py'
+      - 'my-forever-pet/art/screen_lpc_placement.py'
       - 'my-forever-pet/tests/kindria_anatomy_fit.gd'
       - 'my-forever-pet/godot-arcade/pet_part_rig.gd'
       - '.github/workflows/kindria-lpc-anatomy.yml'
@@ -32,6 +33,8 @@ jobs:
           timeout 120 /tmp/godot/Godot_v4.4.1-stable_linux.x86_64 --headless --path /tmp/kindria-fit-project --script res://kindria_anatomy_fit.gd 2>&1 | tee /tmp/kindria-lpc/fitting.log
           grep -F KINDRIA_LPC_FIT_PASS /tmp/kindria-lpc/fitting.log
           ! grep -E 'SCRIPT ERROR|Parse Error|Assertion failed' /tmp/kindria-lpc/fitting.log
+      - name: Screen directional attachment positions using original pixels
+        run: python my-forever-pet/art/screen_lpc_placement.py /tmp/kindria-lpc
       - uses: actions/upload-artifact@v4
         if: always()
         with:
