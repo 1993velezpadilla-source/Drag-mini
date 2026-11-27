@@ -2268,11 +2268,17 @@ void fragment() {
 		float frost=1.0-smoothstep(facet-0.04,facet+0.02,r);
 		float cut=ribbon(sin(ang*3.0+variation),0.11)*frost;
 		a=frost*0.55+cut*0.45;col=mix(vec3(0.24,0.61,0.95),vec3(0.83,1.0,1.0),cut+0.24*n);
-	} else if (element_mode==7 || element_mode==8) { // Ground: cracked dust; rock: angular ejecta.
-		float crack=ribbon(sin(ang*(element_mode==7 ? 4.0:6.0)+r*10.0+n),0.17);
-		float chip=(1.0-smoothstep(0.5,0.86,r+n*0.31))*smoothstep(0.25,0.66,n);
-		a=chip*0.95+crack*edge*0.52;
-		col=mix(element_mode==7 ? vec3(0.25,0.105,0.035):vec3(0.24,0.25,0.29),element_mode==7 ? vec3(0.79,0.53,0.24):vec3(0.74,0.75,0.77),n);
+	} else if (element_mode==7) { // Ground: broad low dust and branching fissures.
+		float crack=ribbon(sin(ang*4.0+r*10.0+n),0.13);
+		float dust=(1.0-smoothstep(0.35,0.93,r+n*0.28))*smoothstep(0.18,0.63,n);
+		a=dust*0.82+crack*edge*0.68;
+		col=mix(vec3(0.25,0.105,0.035),vec3(0.79,0.53,0.24),n);
+	} else if (element_mode==8) { // Rock: discrete angular mineral faces.
+		float facet=max(abs(p.x+p.y*0.36),abs(p.y-p.x*0.27));
+		float chip=(1.0-smoothstep(0.52,0.76,facet+n*0.19))*smoothstep(0.42,0.70,n);
+		float seam=ribbon(sin(ang*6.0+variation),0.12);
+		a=chip*0.98+seam*edge*0.35;
+		col=mix(vec3(0.24,0.25,0.29),vec3(0.74,0.75,0.77),n);
 	} else if (element_mode==9) { // Flying: separated curved air blades.
 		float shear=ribbon(sin(ang*2.0-r*8.0+phase*9.0),0.19);
 		a=shear*smoothstep(0.15,0.35,r)*edge;col=mix(vec3(0.52,0.81,0.93),vec3(0.95,1.0,1.0),shear);
@@ -2285,10 +2291,15 @@ void fragment() {
 	} else if (element_mode==12) { // Psychic: concentric bent interference waves.
 		float pulse=ribbon(sin(r*21.0-phase*9.0+sin(ang*3.0)),0.22);
 		a=pulse*edge;col=mix(vec3(0.6,0.08,0.74),vec3(1.0,0.55,0.92),pulse);
-	} else if (element_mode==13 || element_mode==15) { // Ghost: drifting wisps; dark: contracting shadow cuts.
-		float wisp=ribbon(sin(ang*3.0-r*8.0+phase*(element_mode==13 ? 4.0:-6.0)),0.32);
-		a=wisp*edge*(0.48+0.5*n);
-		col=mix(element_mode==13 ? vec3(0.3,0.17,0.71):vec3(0.24,0.08,0.38),vec3(0.69,0.43,0.96),n);
+	} else if (element_mode==13) { // Ghost: translucent rising wisps with gaps.
+		float wisp=ribbon(sin(ang*3.0-r*8.0+phase*4.0),0.32);
+		a=wisp*edge*(0.38+0.58*n);
+		col=mix(vec3(0.3,0.17,0.71),vec3(0.69,0.43,0.96),n);
+	} else if (element_mode==15) { // Dark: sharp inward crescent shadows.
+		float cut=ribbon(sin(ang*2.0+r*13.0-phase*8.0),0.16);
+		float rim=smoothstep(0.16,0.55,r)*edge;
+		a=cut*rim*(0.75+0.23*n);
+		col=mix(vec3(0.10,0.035,0.19),vec3(0.51,0.25,0.71),cut);
 	} else if (element_mode==14) { // Dragon: flame-like twin twisting energy streams.
 		float twin=ribbon(abs(p.y-0.22*sin(p.x*8.0-phase*8.0))-0.27,0.19);
 		a=twin*edge;col=mix(vec3(0.18,0.21,0.91),vec3(0.91,0.63,1.0),n);
@@ -2632,8 +2643,12 @@ const MOVE_FINISH_ART={
 	"air_sky":["slash","shock_ring","#e8faff",.65,1.15],
 	"air_drill":["spiral","slash","#c8f4ff",.52,.60],
 	"air_blast":["beam","slash","#e1ffff",1.05,.70]}
+# V13.1: material-specific finishes for the previously under-authored roles.
+const V13_FINISH_ART={"poison_smog":["smoke","cloud","#b79acb",1.05,0.48],"poison_gas":["cloud","smoke","#bf7ce1",1.15,0.7],"poison_toxic":["venom_splash","drop","#b558f4",0.72,0.32],"poison_fang":["drop","venom_splash","#bd8bf2",0.55,0.48],"poison_powder":["projectile_spore","cloud","#d8a4eb",0.95,0.9],"poison_sting":["projectile_thorn","drop","#e1aaff",0.42,0.45],"poison_sludge":["drop","venom_splash","#a766cf",0.75,0.4],"poison_bomb":["venom_splash","drop","#b25ee0",1.25,0.8],"poison_tail":["slash","venom_splash","#d4a3ff",0.8,0.48],"poison_acid":["drop","venom_splash","#d8ea76",0.75,0.3],"poison_cross":["slash","drop","#d99aff",0.95,0.65],"poison_gunk":["venom_splash","smoke","#8c4aa9",1.4,0.75],"poison_jab":["projectile_thorn","venom_splash","#d4a9f8",0.58,0.38],"poison_spikes":["projectile_thorn","venom_splash","#bc79d8",0.72,0.25],"earth_dig":["shards","earth_hole","#ba9365",0.85,0.9],"earth_tomb":["shards","smoke","#d6b77c",1.15,0.25],"earth_slap":["drop","smoke","#b39770",0.52,0.26],"earth_club":["projectile_bone","shards","#e8d8b8",0.68,0.65],"earth_shot":["projectile_stone","smoke","#c6a678",0.7,0.4],"earth_power":["shards","smoke","#e4ac55",1.05,1.65],"earth_bomb":["drop","shards","#a4835a",1.12,0.7],"earth_rush":["projectile_bone","shards","#e9d9bd",0.58,0.5],"earth_return":["projectile_bone","impact_star","#f3e2c5",0.65,0.6],"earth_fissure":["earth_hole","shards","#a77946",1.25,0.3],"earth_quake":["shards","smoke","#c6a16a",1.55,0.5],"earth_magnitude":["shards","shock_ring","#d6b684",1.2,0.65],"earth_spikes":["projectile_thorn","shards","#c3a17b",0.68,0.3],"rock_throw":["projectile_stone","shards","#c9bdad",0.75,0.72],"rock_slide":["projectile_stone","smoke","#b6ac9e",1.1,1.15],"rock_tomb":["shards","projectile_stone","#c4b09a",0.9,1.28],"rock_ancient":["projectile_stone","spiral","#ddd0bc",0.85,0.82],"rock_wrecker":["projectile_stone","shards","#e0c5ac",1.55,1.15],"rock_edge":["shards","crystal","#d8d1c7",0.78,1.4],"rock_gem":["crystal","impact_star","#ffe4bd",0.62,0.65],"rock_smash":["shards","shock_ring","#d6b499",1.3,0.82],"rock_blast":["projectile_stone","shards","#bfb7aa",0.82,0.62],"rock_roll":["projectile_stone","smoke","#ad9a80",0.88,0.35],"rock_storm":["shards","smoke","#d8bc88",1.35,0.5],"rock_trap":["projectile_stone","shards","#c1b5a3",0.78,0.35],"grass_giga":["leaf","spiral","#a6f38c",0.88,0.8],"grass_absorb":["leaf","impact_star","#b7ed8c",0.45,0.45],"grass_solar":["beam","leaf","#eaff8e",0.8,0.65],"grass_vine":["leaf","special_vine","#96d56c",0.62,0.5],"grass_needle":["projectile_thorn","leaf","#c5ef8d",0.58,0.58],"grass_frenzy":["projectile_thorn","leaf","#a9d46d",1.35,1.7],"grass_razor":["leaf","slash","#c4ff99",0.8,0.62],"grass_magic":["leaf","impact_star","#dafab4",0.9,0.95],"grass_mega":["leaf","spiral","#9ce880",0.66,0.6],"grass_blade":["slash","leaf","#d7ffad",0.72,0.62],"grass_wood":["shards","leaf","#b88b57",1.18,0.88],"grass_energy":["leaf","spiral","#bbff83",0.88,0.82],"grass_knot":["special_vine","leaf","#9cd46f",0.66,0.32],"grass_flare":["leaf","impact_star","#efffb0",1.28,1.05],"grass_bomb":["projectile_seed","leaf","#a9db69",1.03,0.9],"grass_whip":["special_vine","leaf","#79c65c",1.05,0.72],"grass_storm":["leaf","slash","#b0ed80",1.55,1.25],"grass_bullet":["projectile_seed","leaf","#c5e696",0.55,0.5],"grass_petal":["leaf","spiral","#f1a1d6",1.12,0.92],"fight_chop":["slash","impact_star","#fff1cf",0.64,0.4],"fight_break":["shards","shock_ring","#ffc58a",0.95,0.62],"fight_reversal":["impact_star","shock_ring","#ffb070",1.15,0.6],"fight_cross":["slash","impact_star","#fff0b3",0.88,0.65],"fight_lowkick":["shards","impact_star","#f3c49a",0.66,0.2],"fight_submission":["shock_ring","impact_star","#ffc69b",0.9,0.52],"fight_uppercut":["impact_star","slash","#ffe1b0",0.65,1.2],"fight_jumpkick":["slash","impact_star","#ffe0b3",0.8,0.85],"fight_highkick":["impact_star","shock_ring","#ffd49a",1.05,1.12],"fight_super":["shock_ring","impact_star","#ff9c64",1.42,0.9],"fight_dynamic":["impact_star","shock_ring","#ffb86e",1.15,0.85],"fight_mach":["slash","impact_star","#fff3d7",0.48,0.28],"fight_roundkick":["shock_ring","slash","#ffe7b8",0.88,0.45],"fight_hammer":["impact_star","shards","#ffc494",1.1,0.82],"fight_close":["impact_star","slash","#fff1cb",1.05,0.65],"fight_blast":["shock_ring","impact_star","#ffbc85",1.2,1],"fight_vacuum":["wave","slash","#e8f5e8",0.78,0.44],"fight_drain":["spiral","impact_star","#bbef96",0.65,0.62],"fight_palm":["shock_ring","impact_star","#ffe3b7",0.85,0.45],"fight_aura":["spiral","impact_star","#a5dbff",0.9,0.78],"fight_slap":["impact_star","slash","#fff0db",0.57,0.38],"fight_thrust":["impact_star","shock_ring","#ffdbad",0.67,0.55],"psi_beam":["beam","spiral","#f3b6ff",0.74,0.55],"psi_wave":["spiral","wave","#e7a4fb",0.82,0.45],"psi_psychic":["projectile_eye","spiral","#e7a1fc",1.05,0.85],"psi_boost":["spiral","impact_star","#ffabf5",1.35,1.1],"psi_extra":["wave","spiral","#e5c4ff",0.75,0.65],"psi_confusion":["spiral","impact_star","#dcafff",0.7,0.45],"psi_mist":["cloud","spiral","#e1c0ff",0.85,0.83],"psi_dream":["spiral","smoke","#c4a4ed",0.66,0.62],"psi_luster":["projectile_prism","impact_star","#fff1d7",1.05,0.95],"psi_cut":["slash","spiral","#edc1ff",0.75,0.65],"psi_zen":["spiral","impact_star","#f3b8ff",0.88,0.64],"ghost_astonish":["smoke","impact_star","#c1a4e7",0.62,0.75],"ghost_lick":["special_tongue","smoke","#d9a9ee",0.6,0.5],"ghost_punch":["smoke","impact_star","#c6a3ef",0.78,0.58],"ghost_ball":["smoke","spiral","#b38de8",1.1,0.95],"ghost_shade":["smoke","cloud","#a797df",1.1,0.78],"ghost_wind":["smoke","slash","#bfadea",1.35,1.1],"ghost_sneak":["smoke","slash","#ac8fd8",0.62,0.48],"ghost_claw":["claw_spectral","smoke","#cfb4ff",0.82,0.8],"ghost_force":["smoke","shock_ring","#b99ce8",1.2,1.02],"bug_leech":["leaf","special_thread","#b9e480",0.55,0.48],"bug_silver":["leaf","impact_star","#e5f7d9",1.18,0.82],"bug_signal":["beam","projectile_prism","#caff86",0.65,0.65],"bug_twin":["projectile_needle","shards","#d7ec9e",0.55,0.42],"bug_pin":["projectile_needle","leaf","#bde982",0.6,0.56],"bug_horn":["shards","leaf","#cae68d",0.92,0.75],"bug_cross":["slash","leaf","#d8f4a7",0.84,0.65],"bug_buzz":["special_wave","leaf","#d5e992",1.05,0.7],"dragon_rage":["flame","shock_ring","#d3a0ff",1.15,0.88],"dragon_twister":["spiral","flame","#b6b1ff",0.92,1.35],"dragon_claw":["slash","flame","#dab1ff",0.85,0.8],"dragon_flame":["flame","ember","#ffad8a",0.8,0.75],"dragon_breath":["flame","ember","#c5a7ff",0.92,0.85],"dragon_rend":["slash","spiral","#c9a3ff",1.45,0.9],"dragon_time":["wave","spiral","#9ddcff",1.48,1.02],"dragon_rush":["flame","impact_star","#dcb2ff",1.12,0.85],"dragon_meteor":["meteor","flame","#ffb687",1.48,1.65],"dragon_pulse":["spiral","flame","#b7a6ff",1.02,0.74],"dark_crunch":["smoke","impact_star","#9573c6",0.85,0.55],"dark_bite":["smoke","slash","#b08ccf",0.55,0.4],"dark_faint":["smoke","slash","#9c83c8",0.7,0.5],"dark_thief":["slash","smoke","#ae93ca",0.62,0.46],"dark_knock":["impact_star","smoke","#b59bd6",0.84,0.65],"dark_pulse":["spiral","smoke","#9e75d4",1.1,0.66],"dark_punish":["slash","shock_ring","#b287d5",1,0.68],"dark_slash":["slash","smoke","#bb96e7",0.82,0.58],"dark_sucker":["impact_star","smoke","#b79bdc",0.68,0.42],"steel_tail":["slash","shards","#d7eaff",0.95,0.7],"steel_meteor":["shards","impact_star","#e1f1ff",1.15,0.92],"steel_wing":["slash","shards","#d4e8ff",0.92,0.62],"steel_claw":["slash","shards","#e3f2ff",0.74,0.6],"steel_head":["shards","impact_star","#d7e8f4",0.85,0.65],"steel_gyro":["shards","spiral","#d5e8f5",0.88,0.52],"steel_bullet":["shards","impact_star","#e5f2ff",0.55,0.4],"steel_magnet":["projectile_stone","shards","#b8d1e5",0.87,0.74],"steel_mirror":["crystal","impact_star","#e9f8ff",0.75,0.68],"steel_flash":["beam","shards","#e6f4ff",1.1,0.72],"neutral_tri":["impact_star","spiral","#fff0d4",0.94,0.7],"neutral_beam":["beam","shock_ring","#fff2cb",1.4,0.8],"neutral_pay":["projectile_coin","impact_star","#ffdd83",0.82,0.85],"neutral_explosion":["smoke","shock_ring","#ffd29c",1.5,1.15],"neutral_self":["smoke","ember","#ffd8ab",1.12,0.8],"normal_giga":["shock_ring","impact_star","#ffe4b0",1.4,0.75],"lib_fairy_1":["impact_star","projectile_comet","#ffc5ec",0.64,0.75],"lib_fairy_2":["impact_star","bubble","#ffd9f5",1.1,0.95],"lib_fairy_3":["projectile_prism","impact_star","#ffe4f7",1.1,0.8],"celestial_verdict":["impact_star","projectile_comet","#fff0d1",1.4,1.35]}
+const ELEMENT_MATERIAL_ART={"fire":["ember","smoke","#ffaf57",0.85,0.85],"water":["drop","wave","#82dcff",0.88,0.75],"electric":["lightning","impact_star","#fff2a2",0.85,0.58],"poison":["venom_splash","drop","#cd96f4",0.9,0.45],"grass":["leaf","projectile_thorn","#b4ef83",0.88,0.85],"ice":["crystal","shards","#d7f5ff",0.85,0.68],"ground":["shards","smoke","#c7a471",1,0.48],"rock":["projectile_stone","shards","#c8bbae",0.98,0.85],"flying":["slash","wave","#d9f8ff",0.9,0.65],"fighting":["impact_star","shock_ring","#ffce9f",0.9,0.6],"bug":["special_thread","leaf","#d8ed9e",0.8,0.7],"psychic":["spiral","projectile_eye","#e4a8ff",0.88,0.72],"ghost":["smoke","cloud","#c0a4e9",0.93,0.95],"dragon":["flame","spiral","#d6adff",1,0.9],"dark":["slash","smoke","#a68acb",0.85,0.58],"steel":["shards","crystal","#d7eaff",0.87,0.65],"fairy":["impact_star","projectile_comet","#ffd3ef",0.95,0.9],"normal":["impact_star","slash","#fff0d5",0.85,0.55]}
 func move_finish_art(id:String,profile:Dictionary)->Array:
-	return MOVE_FINISH_ART.get(id,MOVE_FINISH_ART.get(str(profile.role),[]))
+	var role:String=str(profile.role)
+	return MOVE_FINISH_ART.get(id,MOVE_FINISH_ART.get(role,V13_FINISH_ART.get(id,V13_FINISH_ART.get(role,ELEMENT_MATERIAL_ART.get(str(profile.element),ELEMENT_MATERIAL_ART.normal)))))
 
 func elemental_track_plan(id:String,profile:Dictionary)->Array:
 	var role:String=str(profile.role)
@@ -9078,11 +9093,15 @@ func cinematic_impact_layers(id:String,profile:Dictionary,source:Vector3,target:
 		var size:float=.18+.16*fade
 		var flat:bool=false
 		match element:
-			"fire","dragon":
+			"fire":
 				mode="ember" if i%3!=0 else "smoke"
 				q.y=.10+age*(.9+speed*.45)
 				q+=forward*age*.25
 				size=.24+age*.28 if mode=="smoke" else .22*fade
+			"dragon":
+				mode="flame" if i%2==0 else "spiral"
+				q=target+radial.rotated(Vector3.UP,age*4.8)*travel+Vector3.UP*(.12+arc*.82+age*.22)
+				size=.26+.18*fade
 			"water":
 				mode="drop" if age<.76 else "shock_ring"
 				q.y=.05+arc*(.65+speed*.30)
@@ -9094,22 +9113,54 @@ func cinematic_impact_layers(id:String,profile:Dictionary,source:Vector3,target:
 				flat=age>=.63
 				if flat:q.y=.047
 				size=.26+age*.20
-			"ground","rock","steel","ice":
-				mode="crystal" if element=="ice" or element=="steel" else "shards"
-				q.y=.04+arc*(.45+speed*.55)
-				size=.20+speed*.13
+			"ground":
+				mode="shards" if i%2==0 else "smoke"
+				q.y=.04+arc*(.24+speed*.34)
+				size=.23+speed*.14
+			"rock":
+				mode="projectile_stone" if i%2==0 else "shards"
+				q.y=.04+arc*(.60+speed*.60)
+				size=.28+speed*.17
+			"steel":
+				mode="shards" if i%2==0 else "crystal"
+				q=target+radial*travel*1.1+Vector3.UP*(arc*.35+float(i%3)*.12)
+				size=.19+speed*.12
+			"ice":
+				mode="crystal"
+				q=ground+radial*travel*.65+Vector3.UP*(.10+arc*.68)
+				size=.25+speed*.13
 			"electric":
 				mode="lightning" if i%2==0 else "impact_star"
 				q=target+radial*travel+Vector3.UP*(arc*.36+sin(angle*3.0+age*20.0)*.14)
-			"grass","bug":
+			"grass":
 				mode="leaf"
 				q=ground+radial.rotated(Vector3.UP,age*1.8)*travel+Vector3.UP*(.10+arc*.72)
-			"flying","fighting","normal","dark":
+			"bug":
+				mode="special_thread" if i%2==0 else "leaf"
+				q=target+radial*travel+side*sin(age*TAU*2.0+angle)*.13+Vector3.UP*(arc*.43)
+			"flying":
+				mode="slash"
+				q=target+forward*(age*speed*1.10)+side*sin(angle)*travel+Vector3.UP*(arc*.40)
+			"fighting":
+				mode="impact_star"
+				q=target+forward*(age*speed*.45)+side*sin(angle)*travel*1.3+Vector3.UP*(arc*.16)
+			"normal":
 				mode="slash" if i%2==0 else "impact_star"
-				q=target+forward*(age*speed*.7)+side*sin(angle)*travel+Vector3.UP*(arc*.25)
-			"psychic","ghost","fairy":
-				mode="spiral" if i%2==0 else "impact_star"
+				q=target+radial*travel+Vector3.UP*(arc*.25)
+			"dark":
+				mode="smoke" if i%2==0 else "slash"
+				q=target+radial*(.56*(1.0-age)+.06)+Vector3.UP*(arc*.28)
+			"psychic":
+				mode="spiral"
 				q=target+radial.rotated(Vector3.UP,age*3.6)*travel+Vector3.UP*(age*.44)
+			"ghost":
+				mode="smoke"
+				q=target+radial.rotated(Vector3.UP,-age*2.8)*travel*.70+Vector3.UP*(age*.95)
+				size=.25+age*.30
+			"fairy":
+				mode="impact_star"
+				q=target+radial*travel*(.75+.35*sin(angle*5.0))+Vector3.UP*(arc*.64+age*.25)
+				size=.20+.17*fade
 		if not art.is_empty() and not status:
 			mode=str(art[1] if i%3==0 else art[0])
 			var spread:float=float(art[3])
