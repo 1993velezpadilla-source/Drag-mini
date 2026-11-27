@@ -159,6 +159,36 @@ func run()->void:
 	backend.reset()
 	assert(backend.prepare() and backend.slots.size()==Backend.SLOT_CAP,"pool initialization idempotent")
 	print("KINDRIA_EFFEKSEER_CONCURRENT_PASS")
+	# V9: verify the real authored track metadata and native trajectory samples.
+	var motion_path:Array=[Vector3(0,.55,0),Vector3(4,.55,0)]
+	var motion_cases:Dictionary={"electric_sky":"fall","water_spout":"eruption","water_surf":"wave","fire_wisp":"helix","ice_beam":"stream","rock_throw":"arc","fire_sacred":"rise"}
+	for move_id in motion_cases:
+		var move_tracks:Array=field.elemental_track_plan(move_id,field.combat_profile(move_id))
+		var moving:Dictionary=move_tracks[3]
+		assert(moving.enabled and moving.motion==motion_cases[move_id],move_id+" authored native motion")
+		var endpoint:Vector3=backend.sample_motion(motion_path,4.0,1.0,moving)
+		assert(endpoint.distance_to(motion_path[-1])<.001,move_id+" target endpoint")
+		var first:Vector3=backend.sample_motion(motion_path,4.0,0.0,moving)
+		var mid:Vector3=backend.sample_motion(motion_path,4.0,.25,moving)
+		match moving.motion:
+			"fall":
+				assert(first.y>2.0 and absf(first.x-4.0)<.001 and mid.y<first.y)
+			"eruption":
+				assert(absf(first.y-.12)<.001 and absf(first.x-4.0)<.001 and mid.y>first.y)
+			"wave","arc","rise":
+				assert(mid.y>.55 and absf(mid.x-1.0)<.001)
+			"helix":
+				assert(absf(mid.y-.55)>.01 or absf(mid.z)>.01)
+			"stream":
+				assert(mid.distance_to(Vector3(1,.55,0))<.001)
+	# Launch itself must honor the aerial origin before the first frame.
+	var sky:Dictionary=field.elemental_track_plan("electric_sky",field.combat_profile("electric_sky"))[3]
+	var sky_slot:int=backend.launch(sky,effect,motion_path,[],.2,1.0)
+	assert(sky_slot>=0 and backend.slots[sky_slot].node.position.y>2.0)
+	backend.advance(.5)
+	assert(backend.slots[sky_slot].node.position.y<2.0)
+	backend.reset()
+	print("KINDRIA_NATIVE_CHOREOGRAPHY_PASS 7")
 	var plan:Array=[
 		{"stage":"ally_invoke","anchor":"source","start":0.0,"end":.15,"enabled":true},
 		{"stage":"enemy_invoke","anchor":"source","start":0.0,"end":.15,"enabled":true},
