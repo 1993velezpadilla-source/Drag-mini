@@ -84,6 +84,30 @@ func run():
 		distinct+=1
 	assert(distinct==120)
 	print("KINDRIA_FX_ATLAS_PASS 120 animated atlases / 1440 frames")
+	var sounds:Dictionary={}
+	for id in ["lib_electric_1","lib_electric_2","lib_electric_3","lib_water_2","lib_fire_2","lib_grass_1","lib_ground_1","lib_fighting_1","lib_ice_1"]:
+		for phase in ["launch","impact"]:
+			for variant in range(3):
+				var audio:=dungeon.combat_sound(id,phase,variant)
+				assert(audio.data.size()>1000 and audio.mix_rate==22050)
+				var signature:=audio.data.hex_encode()
+				assert(not sounds.has(signature));sounds[signature]=true
+				if variant==0:assert(audio.save_to_wav("/tmp/kindria-sfx-"+id+"-"+phase+".wav")==OK)
+	assert(sounds.size()==54)
+	assert(dungeon.combat_profile("lib_electric_1").role=="electric_contact")
+	assert(dungeon.combat_profile("lib_electric_2").role=="electric_arc")
+	assert(dungeon.combat_profile("lib_electric_3").role=="electric_area")
+	dungeon.combat_fx_spawn({"fx":"lib_electric_2","from":Vector2i(-2,0),"to":Vector2i(2,0),"path":[Vector2i(-1,0),Vector2i(0,0),Vector2i(1,0),Vector2i(2,0)],"tiles":[Vector2i(2,0)]})
+	dungeon.combat_fx_update(.14)
+	assert(dungeon.fx_arc_segments>50 and dungeon.fx_arc_mesh.get_surface_count()==1)
+	camera.size=8.0;camera.position=Vector3(0,5,9);camera.look_at(Vector3(0,.5,0))
+	await process_frame
+	await RenderingServer.frame_post_draw
+	assert(viewport.get_texture().get_image().save_png("/tmp/kindria-electric-world.png")==OK)
+	dungeon.combat_fx_update(1.0)
+	assert(dungeon.fx_arc_mesh.get_surface_count()==0)
+	camera.size=23.0
+	print("KINDRIA_PREMIUM_FX_PASS 54 distinct sound samples, 3 electric roles")
 	assert(RulesForFX.available_moves(["grass"],1).size()==1)
 	assert(RulesForFX.available_moves(["grass","water"],15).size()==6)
 	for j in range(3):

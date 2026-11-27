@@ -51,6 +51,16 @@ var combat_particles:Array[Sprite3D]=[]
 var combat_warnings:Array[MeshInstance3D]=[]
 var combat_bursts:Array[Dictionary]=[]
 var combat_textures:Dictionary={}
+var fx_arc_mesh:ImmediateMesh
+var fx_arc_material:StandardMaterial3D
+var fx_audio:Array[AudioStreamPlayer3D]=[]
+var fx_audio_cache:Dictionary={}
+var fx_audio_counter:Dictionary={}
+var fx_audio_cursor:int=0
+var fx_arc_segments:int=0
+var player_cast_duration:float=.28
+var player_cast_mode:String="contact"
+var player_impact_delay:float=0.0
 const FX_FRAME_COUNT=12
 const FX_FRAME_SIZE=48
 var combat_fx_root:Node3D
@@ -1677,6 +1687,17 @@ func update_enemy_pixel(actor:Node3D,dt:float,motion:Vector3)->void:
 func combat_fx_setup(parent:Node3D)->void:
 	combat_particles.clear();combat_warnings.clear();combat_bursts.clear()
 	combat_fx_root=Node3D.new();parent.add_child(combat_fx_root)
+	fx_arc_mesh=ImmediateMesh.new()
+	fx_arc_material=StandardMaterial3D.new()
+	fx_arc_material.shading_mode=BaseMaterial3D.SHADING_MODE_UNSHADED
+	fx_arc_material.vertex_color_use_as_albedo=true
+	fx_arc_material.transparency=BaseMaterial3D.TRANSPARENCY_ALPHA
+	fx_arc_material.cull_mode=BaseMaterial3D.CULL_DISABLED
+	var arc_node:=MeshInstance3D.new();arc_node.mesh=fx_arc_mesh;arc_node.cast_shadow=GeometryInstance3D.SHADOW_CASTING_SETTING_OFF;combat_fx_root.add_child(arc_node)
+	fx_audio.clear();fx_audio_cursor=0
+	for i in range(12):
+		var sound:=AudioStreamPlayer3D.new();sound.unit_size=4.0;sound.max_distance=24.0;sound.volume_db=-12.0
+		combat_fx_root.add_child(sound);fx_audio.append(sound)
 	var quad:=QuadMesh.new();quad.size=Vector2(1.22,1.22)
 	combat_warn_mat=StandardMaterial3D.new()
 	combat_warn_mat.shading_mode=BaseMaterial3D.SHADING_MODE_UNSHADED
@@ -1782,6 +1803,8 @@ func combat_frame_image(id:String,frame:int)->Image:
 	var light:=Color(style[1]);var dark:=Color(style[2]);var edge:=dark.darkened(.52)
 	var im:=Image.create(FX_FRAME_SIZE,FX_FRAME_SIZE,false,Image.FORMAT_RGBA8);im.fill(Color.TRANSPARENT)
 	var t:float=float(posmod(frame,FX_FRAME_COUNT))/float(FX_FRAME_COUNT-1)
+	if mode=="lightning":
+		electric_sprite(im,id,frame,str(combat_profile(id).role));return im
 	var center:=Vector2(24,24)
 	match mode:
 		"vine":
@@ -1874,20 +1897,181 @@ func combat_animated_texture(id:String,frame:int)->ImageTexture:
 	var key:="animated:"+id+":"+str(posmod(frame,FX_FRAME_COUNT))
 	if not combat_textures.has(key):combat_textures[key]=ImageTexture.create_from_image(combat_frame_image(id,frame))
 	return combat_textures[key] as ImageTexture
+# Presentation contracts are independent of damage rules. Each attack has a
+# caster motion, source socket, launch point, target reaction and sound phases.
+func combat_profile(id:String)->Dictionary:
+	var style:Array=combat_style(id)
+	var mode:String=combat_animation_mode(id,str(style[0]))
+	var reach:int=1
+	var pattern:String="front"
+	var element:String="normal"
+	if Rules.MOVE_LIBRARY.has(id):
+		var move:Dictionary=Rules.MOVE_LIBRARY[id]
+		reach=int(move.reach);pattern=str(move.pattern);element=str(move.type)
+	else:
+		for species in Rules.SIGNATURE_SKILLS:
+			var skill:Array=Rules.SIGNATURE_SKILLS[species]
+			if id==skill[6] or id=="alt_"+species:
+				var info:Array=Rules.ENEMY_TRAINING[species]
+				var alt:bool=id.begins_with("alt_")
+				reach=int(Rules.SECONDARY_SKILLS[species][0] if alt else skill[0])
+				pattern=str(Rules.SECONDARY_SKILLS[species][1] if alt else Rules.ATTACK_PATTERNS[species])
+				element=str(info[2] if alt else info[1]);break
+	var role:String="contact" if mode in ["slash","leap","roll"] else "ground" if mode=="quake" else "cast" if mode in ["cloud","web","silk","wave","spiral"] else "projectile"
+	if mode in ["vine","whip"]:role="lash"
+	if mode=="lightning":role="electric_contact" if reach==1 else "electric_area" if pattern in ["cross","radius","fan"] else "electric_arc"
+	var impact:float=.48 if role in ["contact","electric_contact"] else .64 if role in ["projectile","lash","electric_arc"] else .40
+	return {"mode":mode,"role":role,"element":element,"pattern":pattern,"range":reach,"duration":float(style[3]),"impact":impact,"socket":"ground" if role=="ground" else "head" if role=="projectile" else "center"}
+func electric_sprite(im:Image,id:String,frame:int,role:String)->void:
+	var cyan:=Color("#40cfff")
+	var violet:=Color("#5969ed")
+	var gold:=Color("#ffe96b")
+	var white:=Color("#fffef2")
+	var center:=Vector2(24,24)
+	var paths:Array=[]
+	if role=="electric_contact" or role=="electric_area":
+		var rays:int=5 if role=="electric_contact" else 8
+		for i in range(rays):
+			var angle:float=float(i)*TAU/rays+float(frame%3)*.17
+			var path:Array=[center]
+			for j in range(1,5):
+				var length:float=float(j)*(3.0 if role=="electric_contact" else 4.8)
+				var tangent:=Vector2(-sin(angle),cos(angle))*float(posmod(i*13+j*17+frame*11,9)-4)
+				path.append(center+Vector2(cos(angle),sin(angle))*length+tangent)
+			paths.append(path)
+	else:
+		var path:Array=[Vector2(2,24)]
+		for i in range(1,10):path.append(Vector2(2+i*4.7,24+float(posmod(i*19+frame*13,21)-10)))
+		paths.append(path)
+	for path in paths:
+		for i in range(1,path.size()):
+			var a:Vector2=path[i-1];var b:Vector2=path[i]
+			fx_line(im,a,b,3.0,Color(violet,.45))
+			fx_line(im,a,b,1.8,cyan)
+			fx_line(im,a,b,.95,gold)
+			fx_line(im,a,b,.48,white)
+			if i%2==0:
+				var fork:=b+Vector2(float(posmod(frame+i*5,13)-6),-8.0 if i%4==0 else 8.0)
+				var bend:=b.lerp(fork,.5)+Vector2(3,-2)
+				fx_line(im,b,bend,1.1,cyan);fx_line(im,bend,fork,.6,white)
+				fx_disc(im,fork,1.0,gold)
+	if role!="electric_arc":fx_disc(im,center,2.0+float(frame%3),white)
+# Connected world-space ribbons: jitter is deterministic and changes at 24 Hz.
+func arc_segment(a:Vector3,b:Vector3,width:float,col:Color)->void:
+	var direction:=b-a
+	if direction.length_squared()<.000001:return
+	var side:=direction.cross(Vector3(0,.8,.6)).normalized()*width
+	if side.length_squared()<.000001:side=Vector3.RIGHT*width
+	for q in [a-side,a+side,b+side,a-side,b+side,b-side]:
+		fx_arc_mesh.surface_set_color(col);fx_arc_mesh.surface_add_vertex(q)
+	fx_arc_segments+=1
+func electric_world_arc(points:Array,t:float,role:String,tiles:Array)->void:
+	var frame:int=int(t*24.0)
+	var paths:Array=[]
+	if role=="electric_area":
+		for tile in tiles:
+			var target:Vector3=tile
+			paths.append([points[0],target+Vector3(0,.4,0)])
+	elif role=="electric_contact":
+		paths.append([points[0],points[-1]])
+		for i in range(5):
+			var angle:float=float(i)*TAU/5.0+float(frame%3)*.2
+			paths.append([points[-1],points[-1]+Vector3(cos(angle)*.55,sin(angle)*.38,sin(angle)*.44)])
+	else:paths.append(points)
+	for path in paths:
+		for k in range(path.size()-1):
+			var start:Vector3=path[k];var end:Vector3=path[k+1]
+			var last:=start
+			var side:Vector3=(end-start).cross(Vector3.UP).normalized()
+			for j in range(1,7):
+				if fx_arc_segments>=600:return
+				var f:float=float(j)/6.0
+				var q:=start.lerp(end,f)
+				if j<6:q+=side*float(posmod(j*19+k*7+frame*13,17)-8)*.033+Vector3.UP*float(posmod(j*11+frame*7,11)-5)*.035
+				arc_segment(last,q,.072,Color(.18,.47,1.0,.36))
+				arc_segment(last,q,.035,Color("#4edbff"))
+				arc_segment(last,q,.016,Color("#fffbd3"))
+				if j%3==0 and j<6:
+					var fork:=q+side*(.24 if j%2==0 else -.24)+Vector3.UP*.16
+					arc_segment(q,fork,.023,Color("#65dfff"));arc_segment(q,fork,.009,Color.WHITE)
+				last=q
+# Original synthesis; no game audio is copied. Each move ID, phase and variant
+# determines a distinct waveform. A 12-voice positional pool avoids allocations.
+func combat_sound(id:String,phase:String,variant:int)->AudioStreamWAV:
+	var key:=id+":"+phase+":"+str(variant)
+	if fx_audio_cache.has(key):return fx_audio_cache[key]
+	var profile:=combat_profile(id)
+	var element:String=profile.element
+	var role:String=profile.role
+	var seed_value:int=posmod(hash(key),2147483647)
+	var rng:=RandomNumberGenerator.new();rng.seed=seed_value
+	var duration:float=.19 if phase=="impact" else minf(.42,float(profile.duration)*.62)
+	if role=="ground":duration+=.11
+	var rate:int=22050
+	var samples:int=int(duration*rate)
+	var data:=PackedByteArray();data.resize(samples*2)
+	var last_noise:float=0.0
+	var pitch:float=1.0+float(seed_value%23-11)*.012+float(variant-1)*.06
+	for i in range(samples):
+		var t:float=float(i)/rate;var p:float=float(i)/samples
+		var noise:float=rng.randf_range(-1.0,1.0)
+		last_noise=lerpf(last_noise,noise,.18)
+		var envelope:float=minf(1.0,p*22.0)*pow(1.0-p,1.7)
+		var wave:float=0.0
+		match element:
+			"electric":
+				var gate:float=.30+.70*float(posmod(int(t*170.0)+seed_value%13,5)<3)
+				wave=(noise*.47+sin(TAU*pitch*(210.0*t+3500.0*t*t))*.31+sin(TAU*1220.0*t*pitch)*.17)*gate
+			"water":
+				wave=sin(TAU*pitch*(310.0*t+720.0*t*t)+sin(TAU*37.0*t)*2.5)*.48+last_noise*.23
+				wave*=.45+.55*absf(sin(TAU*13.0*t))
+			"fire":
+				wave=last_noise*.85+noise*.19+sin(TAU*78.0*t*pitch)*.14
+				wave*=.65+.35*absf(sin(t*TAU*19.0))
+			"grass","bug":
+				wave=(noise-last_noise)*.43+sin(TAU*pitch*(680.0*t-620.0*t*t))*.22
+			"ground","rock","steel":
+				wave=sin(TAU*pitch*(94.0*t-85.0*t*t))*.62+last_noise*.55
+				if element=="steel":wave+=sin(TAU*1080.0*t*pitch)*.24
+			"ice":
+				wave=sin(TAU*1480.0*t*pitch)*.26+sin(TAU*2230.0*t)*.17+noise*.27
+			"psychic","fairy","ghost","dragon","dark":
+				wave=sin(TAU*pitch*(420.0*t+120.0*t*t)+sin(TAU*21.0*t)*1.8)*.40+sin(TAU*880.0*t*pitch)*.18+last_noise*.14
+			"poison":
+				wave=sin(TAU*pitch*(170.0*t+300.0*t*t)+sin(TAU*33.0*t)*3.0)*.42+last_noise*.33
+			_:
+				wave=last_noise*.53+sin(TAU*pitch*(185.0*t-155.0*t*t))*.43
+		if phase=="impact":wave=wave*.68+sin(TAU*95.0*t*pitch)*.24+noise*.15
+		var pcm:int=roundi(clampf(wave*envelope*.72,-.95,.95)*32767.0)
+		data.encode_s16(i*2,pcm)
+	var audio:=AudioStreamWAV.new();audio.format=AudioStreamWAV.FORMAT_16_BITS;audio.mix_rate=rate;audio.stereo=false;audio.data=data
+	if fx_audio_cache.size()>=192:fx_audio_cache.erase(fx_audio_cache.keys()[0])
+	fx_audio_cache[key]=audio
+	return audio
+func play_combat_sound(id:String,phase:String,at:Vector3)->void:
+	if fx_audio.is_empty():return
+	var key:=id+":"+phase
+	var variant:int=posmod(int(fx_audio_counter.get(key,-1))+1,3)
+	fx_audio_counter[key]=variant
+	var player_audio:=fx_audio[fx_audio_cursor];fx_audio_cursor=posmod(fx_audio_cursor+1,fx_audio.size())
+	player_audio.stop();player_audio.position=at;player_audio.stream=combat_sound(id,phase,variant);player_audio.play()
 func combat_fx_spawn(event:Dictionary)->void:
 	if not is_instance_valid(combat_fx_root):return
 	var id:String=str(event.get("fx","basic_strike"))
 	var style:Array=combat_style(id)
+	var profile:=combat_profile(id)
 	var source:Vector2i=event.get("from",Vector2i.ZERO)
 	var target:Vector2i=event.get("to",source)
-	var waypoints:Array=[pos(source)+Vector3(0,.45,0)]
+	var height:float=.13 if profile.socket=="ground" else .66 if profile.socket=="head" else .45
+	var waypoints:Array=[pos(source)+Vector3(0,height,0)]
 	for cell in event.get("path",[target]):waypoints.append(pos(cell)+Vector3(0,.45,0))
 	if waypoints.size()<2:waypoints.append(pos(target)+Vector3(0,.45,0))
 	var tiles:Array=[]
 	for cell in event.get("tiles",[target]):tiles.append(pos(cell)+Vector3(0,.12,0))
 	if tiles.is_empty():tiles.append(pos(target)+Vector3(0,.12,0))
 	if combat_bursts.size()>=10:combat_bursts.pop_front()
-	combat_bursts.append({"id":id,"mode":style[0],"age":0.0,"duration":float(style[3]),"points":waypoints,"tiles":tiles,"texture":combat_animated_texture(id,0)})
+	combat_bursts.append({"id":id,"mode":style[0],"profile":profile,"impacted":false,"age":0.0,"duration":float(style[3]),"points":waypoints,"tiles":tiles,"texture":combat_animated_texture(id,0)})
+	play_combat_sound(id,"launch",waypoints[0])
 func combat_path_sample(points:Array,t:float)->Vector3:
 	var index:float=clampf(t,0.0,.9999)*float(points.size()-1)
 	var a:int=floori(index)
@@ -1895,10 +2079,16 @@ func combat_path_sample(points:Array,t:float)->Vector3:
 	return start.lerp(points[a+1],index-float(a))
 func combat_fx_update(dt:float)->void:
 	var used:int=0
+	fx_arc_segments=0
+	if is_instance_valid(fx_arc_mesh):fx_arc_mesh.clear_surfaces()
+	var arcs_started:bool=false
 	for k in range(combat_bursts.size()-1,-1,-1):
 		var burst:Dictionary=combat_bursts[k]
 		burst.age+=dt
 		var t:float=float(burst.age)/float(burst.duration)
+		var profile:Dictionary=burst.profile
+		if not burst.impacted and t>=float(profile.impact):
+			burst.impacted=true;play_combat_sound(str(burst.id),"impact",burst.points[-1])
 		if t>=1.0:
 			combat_bursts.remove_at(k);continue
 		var mode:String=burst.mode
@@ -1906,8 +2096,12 @@ func combat_fx_update(dt:float)->void:
 		var animated:=combat_animated_texture(str(burst.id),frame)
 		var points:Array=burst.points
 		var tiles:Array=burst.tiles
+		if str(profile.role).begins_with("electric") and t>.08 and t<.91:
+			if not arcs_started:fx_arc_mesh.surface_begin(Mesh.PRIMITIVE_TRIANGLES,fx_arc_material);arcs_started=true
+			electric_world_arc(points,t,str(profile.role),tiles)
 		var count:int=mini(26,6+tiles.size()*2) if mode in ["cloud","wave","fan","web","shards","beam"] else 14
-		if mode in ["flame","whip","lightning"]:count=22
+		if mode in ["flame","whip"]:count=22
+		if str(profile.role).begins_with("electric"):count=4
 		for j in range(count):
 			if used>=combat_particles.size():break
 			var particle:=combat_particles[used];used+=1
@@ -1947,6 +2141,7 @@ func combat_fx_update(dt:float)->void:
 			particle.scale=Vector3.ONE*size*(1.0-t*.38)*.40
 			particle.modulate=Color(1,1,1,clampf((1.0-t)*3.5,0.0,1.0))
 			particle.show()
+	if arcs_started:fx_arc_mesh.surface_end()
 	for j in range(used,combat_particles.size()):combat_particles[j].hide()
 func combat_update_warnings()->void:
 	var used:int=0
@@ -2103,7 +2298,11 @@ func sync():
 	else:refresh_actors()
 	update_hud()
 	if run.attack_serial!=previous_attack:
-		previous_attack=run.attack_serial;attack_time=.28;attack_direction=(pos(run.attack_target)-pos(run.player)).normalized()
+		previous_attack=run.attack_serial
+		var profile:=combat_profile(run.player_attack_fx)
+		player_cast_duration=float(profile.duration);player_cast_mode=str(profile.role);attack_time=player_cast_duration
+		player_impact_delay=player_cast_duration*float(profile.impact)
+		attack_direction=(pos(run.attack_target)-pos(run.player)).normalized()
 		attack_fx.position=pos(run.attack_target)+Vector3(0,.24,0);attack_fx.show()
 		combat_fx_spawn({"fx":run.player_attack_fx,"from":run.player,"to":run.attack_target,"tiles":run.player_attack_cells,"path":run.player_attack_path})
 	if run.hp<hp_previous:hit_time=.24
@@ -2194,14 +2393,16 @@ func _process(dt:float):
 	destination_fx.visible=not path.is_empty()
 	if destination_fx.visible:destination_fx.position=pos(path[-1])+Vector3(0,.06,0)
 	attack_time=maxf(0.0,attack_time-dt);hit_time=maxf(0.0,hit_time-dt)
+	player_impact_delay=maxf(0.0,player_impact_delay-dt)
 	var moving:bool=travel.length()>.045
 	var motion:=Vector2(travel.x,travel.z) if moving else Vector2(facing)
 	pet_pose.position=Vector3.ZERO
 	pet_pose.rotation.z=0.0
 	if attack_time>0.0:
-		var phase=sin(PI*attack_time/.28)
-		pet_pose.position+=pet.basis.inverse()*attack_direction*phase*.40
-		attack_fx.visible=true;attack_fx.scale=Vector3(1.1-phase*.42,.13,1.1-phase*.42)
+		var phase=sin(PI*attack_time/maxf(.01,player_cast_duration))
+		var lunge:float=.40 if player_cast_mode in ["contact","electric_contact"] else .13 if player_cast_mode=="lash" else -.08
+		pet_pose.position+=pet.basis.inverse()*attack_direction*phase*lunge
+		attack_fx.visible=player_impact_delay<=0.0;attack_fx.scale=Vector3(1.1-phase*.42,.13,1.1-phase*.42)
 	else:attack_fx.hide()
 	if hit_time>0.0:pet_pose.rotation.z+=sin(hit_time*45.0)*.10
 	if attack_time>0.0:motion=Vector2(attack_direction.x,attack_direction.z)
