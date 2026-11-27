@@ -288,7 +288,10 @@ static func authored_cell(dir:int,pose:String,frame:int,mood:String="healthy")->
 	match dir:
 		4,5,6,7:
 			im=mosskit_diagonal(dir>=6,stride,pose,mood,frame)
-			if dir in [5,7]:im.flip_x()
+			# The rear drawing's visible silhouette reads NW in the dungeon
+			# (confirmed on Android); mirror it for NE, not NW.
+			# Front diagonal and cardinal art are intentionally unchanged.
+			if dir in [5,6]:im.flip_x()
 		1:im=mosskit_back(stride,mood)
 		2,3:
 			im=mosskit_side(stride,pose in ["blink","sleep"],pose in ["attack","eat"],mood)

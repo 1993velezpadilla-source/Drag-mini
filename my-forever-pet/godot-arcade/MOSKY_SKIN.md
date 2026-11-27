@@ -19,3 +19,5 @@ Diagonal rows appended: southeast, southwest, northeast, northwest. Each row use
 
 ## Ponoko combat preview
 The optional 672 × 384 combat atlas keeps the first ten columns unchanged and appends hurt, recover, defeat, cast. Original 480-pixel-wide sheets remain valid. Four diagonal rows are separately drawn from cardinal rows; left/right variants reflect the three-quarter drawing. The new pass does not change the existing cardinal art, enemies, saved IDs or wallpaper paths. Defeat is an available atlas pose, not a new death system.
+
+Android rear-diagonal orientation correction: NW uses the native rear three-quarter drawing; NE uses its horizontal reflection. Atlas row order remains SE, SW, NE, NW. Front diagonals and cardinal rows are unchanged.

@@ -51,6 +51,19 @@ func _initialize():
 					diagonal_area+=1
 		assert(absf(float(diagonal_area)/float(cardinal_area)-1.0)<.18,"preserve round silhouette volume")
 		assert(absi(diagonal.get_used_rect().end.y-cardinal.get_used_rect().end.y)<=2,"same floor anchor")
+	# Android visual regression: the unmirrored rear silhouette reads NW,
+	# and the reflected rear silhouette reads NE. Test every pose/frame.
+	var poses:Array=["idle","walk","walk","walk","walk","attack","attack","blink","sleep","eat","hurt","recover","defeat","cast"]
+	var frames:Array=[0,0,1,2,3,0,1,0,0,0,0,0,0,0]
+	var strides:Array=[0,0,2,0,-2,2,-2,0,0,0,0,-1,0,1]
+	for k in range(poses.size()):
+		var nw:=Art.mosskit_diagonal(true,int(strides[k]),str(poses[k]),"healthy",int(frames[k]))
+		var ne:=nw.duplicate() as Image
+		ne.flip_x()
+		assert(Art.authored_cell(7,poses[k],frames[k]).get_data()==nw.get_data(),"NW rear art orientation")
+		assert(Art.authored_cell(6,poses[k],frames[k]).get_data()==ne.get_data(),"NE rear art orientation")
+		assert(Art.direction8_for(Vector2(-1,-1))==7 and Art.direction8_for(Vector2(1,-1))==6)
+	print("PONOKO_REAR_DIAGONAL_ORIENTATION_PASS 28")
 	print("PONOKO_CARDINAL_IDENTITY_PASS 4")
 	print("PONOKO_DIAGONAL_POSES_PASS 4")
 	for id in ["spirit-flame","fire-breath","heart-pickup","bubbles","heal"]:

@@ -649,6 +649,10 @@ func run():
 		preview.facing=direction
 		preview._process(.016)
 		assert(sprite.get_meta("facing")==i+4)
+		if i>=2:
+			var expected:Image=art.mosskit_diagonal(true,0,"idle","healthy")
+			if i==2:expected.flip_x()
+			assert(sprite.texture.get_image().get_data()==expected.get_data(),"Android rear-facing artwork regression")
 		await frames()
 		assert(root.get_texture().get_image().save_png("/tmp/dungeon-real-ponoko-"+str(names[i])+"-idle.png")==OK)
 		# Move a real tile rather than manually setting an animation label.
