@@ -5484,7 +5484,7 @@ func native_identity_frame(id:String,frame:int,base:Image)->Image:
 	return im
 
 # V16.7: individually remastered after reviewing actual Godot PNG strips.
-const VISUAL_REMASTER_MOVES=["eos_504","eos_308","eos_135","eos_142","eos_047","eos_250","eos_299","eos_329","eos_262","eos_279","eos_101","eos_199","eos_251","eos_486","eos_462","eos_018","eos_507","eos_175","eos_254","eos_097","eos_163","eos_320","eos_033","eos_166","eos_228","eos_004","eos_252","eos_330","eos_465","eos_138","eos_021","eos_501","eos_053","eos_157","eos_064","eos_188","eos_240","eos_255","eos_342","eos_539","eos_041","eos_278","eos_538","eos_239","eos_193","eos_272","eos_519","eos_494","eos_292","eos_065","eos_276","eos_208","eos_522","eos_452","eos_433","eos_087","eos_063","eos_062","eos_476","eos_127","eos_451","eos_436","eos_491","eos_046","eos_109","eos_234","eos_107","eos_463","eos_133","eos_317","eos_111","eos_331","eos_345","eos_270","eos_042","eos_344","eos_461","eos_180","eos_535","eos_150","eos_118","eos_484","eos_008","eos_131","eos_030","eos_481","eos_028","eos_073","lib_ground_1","eos_057","eos_036","eos_442","eos_153","eos_205","eos_100","eos_518","eos_178","eos_200","eos_495","eos_280","eos_197","eos_332","eos_147","eos_485","eos_459","eos_151","eos_537","eos_443","eos_336","eos_182","eos_253","eos_441","eos_076","lib_grass_1","eos_001","eos_325","eos_103","eos_536","eos_510","eos_431","eos_475","eos_523","eos_080","eos_082","eos_114","eos_323","eos_470","eos_502","eos_529","eos_530","eos_460","eos_520","eos_449","eos_288","eos_164","eos_306","eos_023","eos_086","eos_346","lib_fairy_1","lib_fairy_2","lib_fairy_3","eos_341","eos_498","eos_343","eos_091","eos_162","eos_435","lib_dragon_1","lib_dragon_2","lib_dragon_3","eos_092","eos_204","eos_206","eos_303","eos_222","eos_210","lib_fighting_2","eos_136","eos_075","eos_300","eos_246","eos_430","eos_440","eos_500","eos_508","eos_454","eos_479","eos_243","eos_068","eos_090","lib_fighting_1","lib_fighting_3","eos_072","eos_077","eos_116","eos_531","eos_265","eos_305","eos_051","eos_170","eos_340","eos_007","eos_029","lib_electric_1","lib_electric_2","lib_electric_3","eos_129","eos_144","eos_189","eos_354","eos_489","eos_521","eos_192","eos_128","eos_493","lib_fire_1","lib_fire_2","lib_fire_3","eos_052","eos_149","eos_230","eos_291","eos_517","eos_524","eos_223","lib_water_1","lib_water_2","lib_water_3","eos_016","eos_032","eos_044","eos_069","eos_113","eos_156","eos_158","eos_159","eos_219","eos_310","eos_432","eos_469","eos_070","eos_012","eos_307","eos_434","lib_grass_2","lib_grass_3","eos_221","eos_238","eos_297","eos_458","eos_468","eos_511","eos_079","eos_231","eos_124","eos_351","eos_015","eos_094","eos_084","eos_233","lib_ice_1","lib_ice_2","lib_ice_3","eos_002","eos_088","eos_130","eos_014"]
+const VISUAL_REMASTER_MOVES=["eos_504","eos_308","eos_135","eos_142","eos_047","eos_250","eos_299","eos_329","eos_262","eos_279","eos_101","eos_199","eos_251","eos_486","eos_462","eos_018","eos_507","eos_175","eos_254","eos_097","eos_163","eos_320","eos_033","eos_166","eos_228","eos_004","eos_252","eos_330","eos_465","eos_138","eos_021","eos_501","eos_053","eos_157","eos_064","eos_188","eos_240","eos_255","eos_342","eos_539","eos_041","eos_278","eos_538","eos_239","eos_193","eos_272","eos_519","eos_494","eos_292","eos_065","eos_276","eos_208","eos_522","eos_452","eos_433","eos_087","eos_063","eos_062","eos_476","eos_127","eos_451","eos_436","eos_491","eos_046","eos_109","eos_234","eos_107","eos_463","eos_133","eos_317","eos_111","eos_331","eos_345","eos_270","eos_042","eos_344","eos_461","eos_180","eos_535","eos_150","eos_118","eos_484","eos_008","eos_131","eos_030","eos_481","eos_028","eos_073","lib_ground_1","eos_057","eos_036","eos_442","eos_153","eos_205","eos_100","eos_518","eos_178","eos_200","eos_495","eos_280","eos_197","eos_332","eos_147","eos_485","eos_459","eos_151","eos_537","eos_443","eos_336","eos_182","eos_253","eos_441","eos_076","lib_grass_1","eos_001","eos_325","eos_103","eos_536","eos_510","eos_431","eos_475","eos_523","eos_080","eos_082","eos_114","eos_323","eos_470","eos_502","eos_529","eos_530","eos_460","eos_520","eos_449","eos_288","eos_164","eos_306","eos_023","eos_086","eos_346","lib_fairy_1","lib_fairy_2","lib_fairy_3","eos_341","eos_498","eos_343","eos_091","eos_162","eos_435","lib_dragon_1","lib_dragon_2","lib_dragon_3","eos_092","eos_204","eos_206","eos_303","eos_222","eos_210","lib_fighting_2","eos_136","eos_075","eos_300","eos_246","eos_430","eos_440","eos_500","eos_508","eos_454","eos_479","eos_243","eos_068","eos_090","lib_fighting_1","lib_fighting_3","eos_072","eos_077","eos_116","eos_531","eos_265","eos_305","eos_051","eos_170","eos_340","eos_007","eos_029","lib_electric_1","lib_electric_2","lib_electric_3","eos_129","eos_144","eos_189","eos_354","eos_489","eos_521","eos_192","eos_128","eos_493","lib_fire_1","lib_fire_2","lib_fire_3","eos_052","eos_149","eos_230","eos_291","eos_517","eos_524","eos_223","lib_water_1","lib_water_2","lib_water_3","eos_016","eos_032","eos_044","eos_069","eos_113","eos_156","eos_158","eos_159","eos_219","eos_310","eos_432","eos_469","eos_070","eos_012","eos_307","eos_434","lib_grass_2","lib_grass_3","eos_221","eos_238","eos_297","eos_458","eos_468","eos_511","eos_079","eos_231","eos_124","eos_351","eos_015","eos_094","eos_084","eos_233","lib_ice_1","lib_ice_2","lib_ice_3","eos_002","eos_088","eos_130","eos_014","lib_poison_1","lib_poison_2","lib_poison_3","eos_198","eos_283","eos_196","eos_202","eos_496","eos_438"]
 func visual_remaster_frame(id:String,frame:int)->Image:
 	var im:=Image.create(48,48,false,Image.FORMAT_RGBA8)
 	im.fill(Color.TRANSPARENT)
@@ -9045,6 +9045,161 @@ func visual_remaster_frame(id:String,frame:int)->Image:
 				if f>.84:
 					fx_line(im,q,q+Vector2(3,-2),1.0,Color("#d3efff",opacity))
 					fx_line(im,q,q+Vector2(-3,-2),1.0,Color("#d3efff",opacity))
+		"lib_poison_1":
+			# Venom Flick: a narrow lash throws three sticky venom droplets.
+			var q:=Vector2(9+26*drive,24)
+			var prev:=Vector2(5,32)
+			for j in range(1,13):
+				var f:float=float(j)/12.0
+				var p:=Vector2(5+(q.x-5)*f,32-8*f+sin(f*PI-t*TAU)*5*f)
+				fx_line(im,prev,p,2.7-1.3*f,Color("#56386e",fade))
+				fx_line(im,prev,p,1.1,Color("#c779e0",fade))
+				prev=p
+			for j in range(3):
+				var p:=q+Vector2(float(j)*3, float(j-1)*5)
+				fx_line(im,p-Vector2(4,1),p,2.0,Color("#8245a8",fade))
+				fx_disc(im,p,2.2,Color("#ad57c8",fade))
+				fx_disc(im,p-Vector2(0,1),1.0,Color("#f0b9f4",fade))
+			if t>=peak:
+				for j in range(5):
+					var a:float=float(j)*TAU/5.0
+					fx_disc(im,q+Vector2(cos(a),sin(a))*(5+7*(1.0-fade)),1.2,Color("#b36ed7",fade))
+		"lib_poison_2":
+			# Acid Arc: green corrosive liquid follows a high ballistic arc.
+			var q:=Vector2(7+31*drive,31-18*sin(drive*PI))
+			for j in range(7):
+				var f:float=maxf(0.0,drive-float(j)*.065)
+				var p:=Vector2(7+31*f,31-18*sin(f*PI))
+				fx_disc(im,p,3.2-float(j)*.25,Color("#567b2c",fade))
+				fx_disc(im,p-Vector2(0,1),2.1-float(j)*.14,Color("#c0eb55",fade))
+			if t>=peak:
+				var c:=Vector2(37,34)
+				for j in range(9):
+					var f:float=float(j)/8.0
+					var p:=c+Vector2(-12+18*f,-9*sin(f*PI)*fade)
+					fx_line(im,c,p,1.3,Color("#81af36",fade))
+					fx_disc(im,p,1.6,Color("#d5f477",fade))
+				fx_line(im,c-Vector2(10,0),c+Vector2(7,0),3.5,Color("#587d30",fade*.7))
+		"lib_poison_3":
+			# Toxic Bloom: sinister blossom releases globules and a purple spore cloud.
+			var c:=Vector2(24,28)
+			for j in range(6):
+				var a:float=float(j)*TAU/6.0+t*.5
+				var d:=Vector2(cos(a),sin(a))
+				var q:=c+d*(3+8*drive)
+				fx_line(im,c,q,5.2,Color("#4c325d",fade))
+				fx_disc(im,q,4.2,Color("#9751a3",fade))
+				fx_disc(im,q-Vector2(1,1),2.1,Color("#d894c6",fade))
+			fx_disc(im,c,4.7,Color("#a4c446",fade))
+			fx_disc(im,c,2.2,Color("#e6ec97",fade))
+			for j in range(10):
+				var a:float=float(j)*TAU/10.0+t
+				var q:=c+Vector2(cos(a),sin(a))*(8+11*drive)
+				fx_disc(im,q,2.0+float(j%2),Color("#74508b",fade*.55))
+				fx_disc(im,q-Vector2(0,1),1.0,Color("#d5a2df",fade))
+		"eos_198":
+			# Poison Fang: opposing pointed fangs snap shut, injecting violet venom.
+			var c:=Vector2(24,24)
+			var gap:float=12-9*drive
+			for side in [-1.0,1.0]:
+				var q:=c+Vector2(0,side*gap)
+				var start:float=PI if side<0.0 else 0.0
+				fight_arc(im,q,11.0,start,PI,Color("#c6a3d9",fade),Color("#513458",fade),3.2)
+				for j in range(4):
+					var p:=q+Vector2(-7+float(j)*4.7,0)
+					var tip:=p-Vector2(0,side*(6.0 if j==0 or j==3 else 3.5))
+					fx_line(im,p,tip,2.4,Color("#dfcfeb",fade))
+					fx_line(im,p+Vector2(1,0),tip,1.0,Color("#f5edfa",fade))
+					if j==0 or j==3:fx_disc(im,tip,1.7,Color("#ad52ca",fade))
+			if t>=peak:
+				for j in range(7):
+					var a:float=float(j)*TAU/7.0
+					var p:=c+Vector2(cos(a),sin(a))*(5+10*(1.0-fade))
+					fx_disc(im,p,2.0,Color("#793b92",fade))
+					fx_disc(im,p-Vector2(0,1),1.0,Color("#d68ae6",fade))
+		"eos_283":
+			# Poison Tail: articulated scorpion-like tail swings a toxic stinger.
+			var c:=Vector2(13,33)
+			var prev:=c
+			for j in range(1,21):
+				var f:float=float(j)/20.0
+				var a:float=-PI*.8+f*PI*1.15+drive*.8
+				var q:=c+Vector2(cos(a)*15*f,-14*sin(f*PI)+sin(a)*7*f)
+				fx_line(im,prev,q,4.0-2.0*f,Color("#48334f",fade))
+				fx_line(im,prev-Vector2(0,1),q-Vector2(0,1),2.0-1.0*f,Color("#9754ae",fade))
+				if j%4==0:fx_disc(im,q,2.2,Color("#bd78ce",fade))
+				prev=q
+			var tip:=prev+Vector2(7*drive,-4)
+			fx_line(im,prev,tip,3.2,Color("#7b3b95",fade))
+			fx_line(im,prev-Vector2(0,1),tip,1.1,Color("#e2a5ec",fade))
+			if t>=peak:
+				for j in range(5):
+					var a:float=float(j)*TAU/5.0
+					fx_disc(im,tip+Vector2(cos(a),sin(a))*(4+8*(1.0-fade)),1.7,Color("#bb68d2",fade))
+		"eos_196":
+			# Venom Mist: layered violet gas billows, curls upward and disperses.
+			for j in range(12):
+				var f:float=float(j)/11.0
+				var q:=Vector2(6+35*f*drive,29+sin(f*TAU*1.4-t*TAU)*6-4*drive)
+				fx_disc(im,q,4.0+3*f,Color("#563868",fade*.65))
+				fx_disc(im,q-Vector2(1,2),3.3+2*f,Color("#9560a8",fade*.55))
+				if j%3==0:
+					fight_arc(im,q,3.0+2*f,t*TAU,PI*1.2,Color("#c89bd5",fade*.7),Color("#73518b",fade*.6),1.0)
+			for j in range(8):
+				var q:=Vector2(8+float(j)*4.3*drive,19+sin(float(j)*2.4+t*TAU)*7-4*t)
+				fx_disc(im,q,1.0+float(j%2)*.6,Color("#bba2ce",fade*.7))
+		"eos_202":
+			# Acid Shell: protective glossy chemical coating, bubbles and dripping edges.
+			var c:=Vector2(24,33)
+			var rad:float=7+11*drive
+			var prev:=c-Vector2(rad,0)
+			for j in range(1,31):
+				var a:float=PI+float(j)*PI/30.0
+				var q:=c+Vector2(cos(a),sin(a))*rad
+				fx_line(im,prev,q,4.0,Color("#526a37",fade*.9))
+				fx_line(im,prev-Vector2(0,1),q-Vector2(0,1),2.0,Color("#b9db62",fade))
+				if j%6==0:
+					fx_line(im,q,q+Vector2(0,4+3*pulse),1.8,Color("#86aa43",fade))
+					fx_disc(im,q+Vector2(0,5+3*pulse),1.6,Color("#d3ea8b",fade))
+				prev=q
+			fx_line(im,c-Vector2(rad,0),c+Vector2(rad,0),2.2,Color("#9ab753",fade*.75))
+			for j in range(5):
+				var q:=c+Vector2(-10+float(j)*5,-4-10*fposmod(t+float(j)*.19,1.0))
+				fx_disc(im,q,2.2,Color("#bde67d",fade*.75),1.1)
+		"eos_496":
+			# Venom Tile: ground-bound grid of purple toxic spikes and bubbling residue.
+			var c:=Vector2(24,31)
+			for j in range(4):
+				var v:float=float(j)*5
+				fx_line(im,c+Vector2(-16+v,-6+v*.38),c+Vector2(5+v,2+v*.38),1.1,Color("#80529a",fade*.8))
+				fx_line(im,c+Vector2(-16+v,6-v*.38),c+Vector2(5+v,-2-v*.38),1.1,Color("#80529a",fade*.8))
+			for j in range(9):
+				var x:float=10+float(j%3)*12
+				var y:float=28+float(j/3)*3.5
+				var q:=Vector2(x,y)
+				var h:float=3+8*drive
+				fx_line(im,q-Vector2(3,0),q+Vector2(0,-h),2.3,Color("#4e2e64",fade))
+				fx_line(im,q+Vector2(3,0),q+Vector2(0,-h),2.0,Color("#a35bb8",fade))
+				fx_disc(im,q+Vector2(0,-h),1.1,Color("#dd9fe2",fade))
+				fx_disc(im,q,3.2,Color("#6b427f",fade*.7),2.0)
+		"eos_438":
+			# Nullifying Venom: cross-cutting toxic spray dissolves aura fragments.
+			var q:=Vector2(8+27*drive,24)
+			for j in range(7):
+				var f:float=float(j)/6.0
+				var p:=Vector2(5+(q.x-5)*f,24+sin(float(j)*2.4+t*TAU)*6*f)
+				fx_disc(im,p,3.2+f*2,Color("#624275",fade))
+				fx_disc(im,p-Vector2(1,1),1.8+f,Color("#ba85c6",fade))
+			if t>=peak:
+				for j in range(8):
+					var a:float=float(j)*TAU/8.0+t*.4
+					var d:=Vector2(cos(a),sin(a))
+					var p:=q+d*(5+9*(1.0-fade))
+					var tint:=Color("#a5bd79",fade)
+					fx_line(im,p-d*2,p+d*2,1.3,tint)
+					fx_disc(im,p,1.1,Color("#e0e4b7",fade*.7))
+				fx_line(im,q-Vector2(5,5),q+Vector2(5,5),2.0,Color("#d6b5e5",fade))
+				fx_line(im,q+Vector2(-5,5),q+Vector2(5,-5),2.0,Color("#d6b5e5",fade))
 	return im
 
 func combat_frame_image(id:String,frame:int)->Image:
