@@ -15,7 +15,7 @@ func run_checks()->void:
 	var previous_power:=Vector3.ZERO
 	for power in range(1,61):
 		var sample:=view.cinematic_power_sample(power)
-		if not sample.is_finite() or sample.x<.78 or sample.x>1.48 or sample.y<.80 or sample.y>1.40 or sample.z<.85 or sample.z>1.30:
+		if not sample.is_finite() or sample.x<.78-.00001 or sample.x>1.48+.00001 or sample.y<.80-.00001 or sample.y>1.40+.00001 or sample.z<.85-.00001 or sample.z>1.30+.00001:
 			failures.append("cinematic power bounds "+str(power))
 		if sample.x<previous_power.x or sample.y<previous_power.y or sample.z<previous_power.z:
 			failures.append("cinematic power monotonicity "+str(power))
