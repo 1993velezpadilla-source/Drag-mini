@@ -36,6 +36,23 @@ func run_checks()->void:
 	var checks:int=0
 	var failures:Array[String]=[]
 	var view:=Dungeon.new()
+	# V25.5: compare prebuilt quad topology against the original append order.
+	var quad_probe:=Dungeon.new()
+	quad_probe.warm_fx_quad_indices()
+	var quad_expected:=PackedInt32Array()
+	for quad_count in range(1002):
+		if quad_probe.fx_quad_indices(quad_count*4)!=quad_expected:failures.append("V25.5 topology "+str(quad_count))
+		checks+=1
+		var quad_base:int=quad_count*4
+		quad_expected.append_array(PackedInt32Array([quad_base,quad_base+1,quad_base+2,quad_base,quad_base+2,quad_base+3]))
+	var quad_overflow:int=int(quad_probe.fx_quad_index_prefix.size()/6)+1
+	var quad_overflow_expected:=PackedInt32Array()
+	for quad_i in range(quad_overflow):
+		var quad_b:int=quad_i*4
+		quad_overflow_expected.append_array(PackedInt32Array([quad_b,quad_b+1,quad_b+2,quad_b,quad_b+2,quad_b+3]))
+	if quad_probe.fx_quad_indices(quad_overflow*4)!=quad_overflow_expected:failures.append("V25.5 topology overflow")
+	checks+=1
+	quad_probe.free()
 	# V25.4: every fixed particle layout must reproduce the old scalar math.
 	var layout_probe:=Dungeon.new()
 	layout_probe.warm_particle_layouts()
@@ -282,19 +299,19 @@ func run_checks()->void:
 	for geometry_start in [Vector3.ZERO,Vector3(1.5,-.2,3.0)]:
 		for geometry_delta in [Vector3.ZERO,Vector3(.0001,0,0),Vector3.RIGHT,Vector3.UP,Vector3(0,.8,.6),Vector3(-2,.7,1.4)]:
 			var geometry_end:Vector3=geometry_start+geometry_delta
-			geometry_probe.fx_arc_positions.clear();geometry_probe.fx_arc_colors.clear();geometry_probe.fx_arc_indices.clear();geometry_probe.fx_arc_segments=0
+			geometry_probe.fx_arc_positions.clear();geometry_probe.fx_arc_colors.clear();geometry_probe.fx_arc_segments=0
 			geometry_probe.arc_segment(geometry_start,geometry_end,.072,Color(.18,.47,1.0,.36))
 			geometry_probe.arc_segment(geometry_start,geometry_end,.035,Color("#4edbff"))
 			geometry_probe.arc_segment(geometry_start,geometry_end,.016,Color("#fffbd3"))
 			var expected_geometry_positions:PackedVector3Array=geometry_probe.fx_arc_positions.duplicate()
 			var expected_geometry_colors:PackedColorArray=geometry_probe.fx_arc_colors.duplicate()
-			var expected_geometry_indices:PackedInt32Array=geometry_probe.fx_arc_indices.duplicate()
+			var expected_geometry_indices:PackedInt32Array=geometry_probe.fx_quad_indices(geometry_probe.fx_arc_positions.size())
 			var expected_geometry_segments:int=geometry_probe.fx_arc_segments
-			geometry_probe.fx_arc_positions.clear();geometry_probe.fx_arc_colors.clear();geometry_probe.fx_arc_indices.clear();geometry_probe.fx_arc_segments=0
+			geometry_probe.fx_arc_positions.clear();geometry_probe.fx_arc_colors.clear();geometry_probe.fx_arc_segments=0
 			geometry_probe.electric_arc_layers(geometry_start,geometry_end)
 			if geometry_probe.fx_arc_positions!=expected_geometry_positions:failures.append("V24.3 vertex parity")
 			if geometry_probe.fx_arc_colors!=expected_geometry_colors:failures.append("V24.3 color parity")
-			if geometry_probe.fx_arc_indices!=expected_geometry_indices:failures.append("V24.3 winding parity")
+			if geometry_probe.fx_quad_indices(geometry_probe.fx_arc_positions.size())!=expected_geometry_indices:failures.append("V24.3 winding parity")
 			if geometry_probe.fx_arc_segments!=expected_geometry_segments:failures.append("V24.3 segment parity")
 			checks+=4
 	geometry_probe.free()
@@ -1725,13 +1742,22 @@ func run_checks()->void:
 	# Indexed geometry must expand to the exact original two triangles.
 	view.ultra_trail_segment(Vector3.ZERO,Vector3.RIGHT,.1,.2,Color.RED,Color.BLUE)
 	var expected_indices:=PackedInt32Array([0,1,2,0,2,3])
-	if view.fx_trail_positions.size()!=4 or view.fx_trail_indices!=expected_indices or view.fx_trail_colors!=PackedColorArray([Color.RED,Color.RED,Color.BLUE,Color.BLUE]):failures.append("V21.5 ribbon topology")
-	if not view.commit_fx_geometry(view.fx_trail_mesh,view.fx_trail_material,view.fx_trail_positions,view.fx_trail_colors,view.fx_trail_indices):failures.append("V21.5 ribbon submission")
+	if view.fx_trail_positions.size()!=4 or view.fx_quad_indices(view.fx_trail_positions.size())!=expected_indices or view.fx_trail_colors!=PackedColorArray([Color.RED,Color.RED,Color.BLUE,Color.BLUE]):failures.append("V21.5 ribbon topology")
+	if not view.commit_fx_geometry(view.fx_trail_mesh,view.fx_trail_material,view.fx_trail_positions,view.fx_trail_colors,view.fx_quad_indices(view.fx_trail_positions.size())):failures.append("V21.5 ribbon submission")
 	if view.fx_trail_mesh.get_surface_count()!=1 or view.fx_trail_mesh.surface_get_array_len(0)!=4 or view.fx_trail_mesh.surface_get_array_index_len(0)!=6:failures.append("V21.5 indexed mesh")
 	view.fx_trail_mesh.clear_surfaces()
+	var ribbon_override_found:bool=false
+	for fx_child in view.combat_fx_root.get_children():
+		if fx_child is MeshInstance3D and fx_child.mesh==view.fx_trail_mesh:
+			ribbon_override_found=fx_child.material_override==view.fx_trail_material
+	if not ribbon_override_found:failures.append("V25.5 ribbon material override")
+	if not view.commit_fx_geometry(view.fx_trail_mesh,view.fx_trail_material,view.fx_trail_positions,view.fx_trail_colors,view.fx_quad_indices(view.fx_trail_positions.size()),true):failures.append("V25.5 node material submission")
+	if view.fx_trail_mesh.surface_get_material(0)!=null:failures.append("V25.5 redundant surface material")
+	view.fx_trail_mesh.clear_surfaces()
+	checks+=3
 	view.fx_trail_started=false
 	view.arc_segment(Vector3.ZERO,Vector3.RIGHT,.1,Color.WHITE)
-	if view.fx_arc_positions.size()!=4 or view.fx_arc_indices!=expected_indices:failures.append("V21.5 arc topology")
+	if view.fx_arc_positions.size()!=4 or view.fx_quad_indices(view.fx_arc_positions.size())!=expected_indices:failures.append("V21.5 arc topology")
 	var warnings:=PackedVector3Array([Vector3(1,.045,0),Vector3(2,.045,0),Vector3(1,.045,0)])
 	view.apply_combat_warning_batch(warnings)
 	var warning_updates:int=view.fx_warning_batch_updates
