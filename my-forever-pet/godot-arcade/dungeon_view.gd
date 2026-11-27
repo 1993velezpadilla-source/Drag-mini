@@ -2093,6 +2093,14 @@ func update_enemy_pixel(actor:Node3D,dt:float,motion:Vector3)->void:
 		frame=int(sample.frame)
 		actor.set_meta("enemy_visual_phase",sample.phase)
 	else:actor.set_meta("enemy_visual_phase",state)
+	var sleeping:bool="sleep" in actor.get_meta("living_statuses",[])
+	if sleeping and state in ["idle","walk"]:
+		# A resting body stays grounded rather than continuing the airborne idle.
+		visual_state="defeat"
+		frame=0
+		var breath:float=.63+.035*sin(elapsed*2.8)
+		sprite.scale=Vector3(1.12,breath,1.0)
+		sprite.position.y=.54*size_multiplier*breath
 	var tex:=PixelArt.enemy_pixel_texture(species,facing_index,visual_state,frame)
 	if tex!=null and sprite.texture!=tex:sprite.texture=tex
 	if sprite.material_override is ShaderMaterial:
@@ -5843,6 +5851,7 @@ func combat_fx_update(dt:float)->void:
 		used=travel_environment_fx(burst,t,used)
 		used=element_finish_fx(burst,t,used)
 	if run!=null and not run.charge_phase.is_empty():used=charge_environment_fx(used)
+	used=living_status_fx(used)
 	if not latest_hit.is_empty():
 		# The player clock advances once after this method, so compensate for that frame.
 		hit_time=.24+dt-float(latest_hit.age)
@@ -5862,6 +5871,129 @@ func environment_particle(index:int,position:Vector3,mode:String,light:Color,dar
 	particle.modulate=Color(1,1,1,clampf(alpha,0.0,1.0))
 	particle.show()
 	return index+1
+
+# Persistent ailments are driven by rule state, never by a cast's remaining lifetime.
+func living_enemy_statuses(e:Dictionary)->Array:
+	var result:Array=[]
+	if int(e.get("sleep_turns",0))>0:result.append("sleep")
+	var major:String=str(e.get("major_status",""))
+	if not major.is_empty():result.append(major)
+	for key in ["nightmare","yawn","confusion","wrapped","stuck","leech","curse","paused","perish","heal_block","infatuated","destiny","encore","taunt","embargo","decoy","whiffer","slow","haste","ability_suppressed"]:
+		if int(e.get(key+"_turns",0))>0:result.append(key)
+	return result
+
+func living_player_statuses()->Array:
+	var result:Array=[]
+	if run.boon_active("nap") or run.boon_active("hostile_sleep"):result.append("sleep")
+	if run.poison_turns>0:result.append("poison")
+	if run.self_confusion_turns>0:result.append("confusion")
+	if run.player_slow_turns>0:result.append("slow")
+	for key in ["hostile_drowse","wrapping","ingrain","rage","wish","aqua","mist","magnet","mirror_veil","magic_coat","ability_suppressed","embargo","decoy","focus","sleepless","lucky","sure","bide","grudge","snatch","vital_throw"]:
+		if run.boon_active(key):result.append(key)
+	return result
+
+# Three individually phased Z glyphs rise, sway, grow and dissolve.
+# Labels are allocated only when a creature first falls asleep and reused thereafter.
+func living_sleep_glyphs(actor:Node3D,sleeping:bool,height:float)->void:
+	if not is_instance_valid(actor):return
+	var layer:=actor.get_node_or_null("LivingSleepGlyphs") as Node3D
+	if not sleeping:
+		if layer!=null:layer.hide()
+		return
+	if layer==null:
+		layer=Node3D.new()
+		layer.name="LivingSleepGlyphs"
+		actor.add_child(layer)
+		for i in range(3):
+			var glyph:=Label3D.new()
+			glyph.text="Z"
+			glyph.billboard=BaseMaterial3D.BILLBOARD_ENABLED
+			glyph.font_size=36
+			glyph.outline_size=5
+			glyph.pixel_size=.005
+			glyph.outline_modulate=Color("#28274c")
+			layer.add_child(glyph)
+	layer.show()
+	for i in range(3):
+		var glyph:=layer.get_child(i) as Label3D
+		var t:float=fposmod(elapsed*.72+float(i)/3.0,1.0)
+		glyph.position=Vector3(.12+sin(t*TAU)*.12,height+t*.48,0)
+		glyph.scale=Vector3.ONE*(.55+t*.7)
+		glyph.modulate=Color(.68,.86,1.0,sin(t*PI))
+
+func living_status_palette(kind:String)->Array:
+	match kind:
+		"poison","badly_poisoned","toxic","bad_poison":return ["bubble","#c59bf7","#6838a9",8]
+		"burn":return ["flame","#ffd489","#bd492d",7]
+		"freeze":return ["shards","#e8faff","#65b8ec",7]
+		"paralysis","paralyze","paralyzed":return ["slash","#fff1a3","#cb8c28",6]
+		"confusion":return ["impact_star","#ffeaa5","#ad69da",5]
+		"sleep","yawn","hostile_drowse":return ["cloud","#c8dfff","#7a83c7",4]
+		"nightmare","curse","perish","grudge":return ["cloud","#c5a1ef","#51396c",6]
+		"wrapped","wrapping","stuck","leech","ingrain":return ["whip","#b6e6a0","#477846",6]
+		"infatuated":return ["bubble","#ffc4e5","#d761a7",5]
+		"slow","paused":return ["wave","#aed5fc","#5379ad",5]
+		"haste","focus","sure","rage":return ["slash","#ffe2a1","#cc8249",6]
+		"aqua","mist","mirror_veil","magic_coat","magnet":return ["wave","#b3fff6","#4ca6d0",6]
+		_:return ["impact_star","#d9c6fa","#766b9e",4]
+
+func living_actor_particles(actor:Node3D,statuses:Array,used:int,height:float)->int:
+	living_sleep_glyphs(actor,"sleep" in statuses,height)
+	if statuses.is_empty():return used
+	var origin:Vector3=actor.global_position
+	for k in range(mini(statuses.size(),3)):
+		var kind:String=str(statuses[k])
+		var style:Array=living_status_palette(kind)
+		var light:=Color(str(style[1]))
+		var dark:=Color(str(style[2]))
+		var count:int=int(style[3])
+		for i in range(count):
+			if used>=combat_particles.size():return used
+			var f:float=fposmod(elapsed*(.7 if kind=="sleep" else 1.15)+float(i)/float(count)+k*.19,1.0)
+			var angle:float=float(i)*TAU/float(count)+elapsed*(2.4 if kind=="confusion" else .8)
+			var radius:float=.24+.16*sin(f*PI)
+			var y:float=.12+f*height*.8
+			var size:float=.20+.14*sin(f*PI)
+			var flat:bool=false
+			match kind:
+				"poison","badly_poisoned","toxic","bad_poison":
+					radius=.20+f*.32
+					y=.08+sin(f*PI)*height*.48
+					size=.18+.15*sin(f*PI)
+					# At the end of the drop arc, leave a ground-level venom splash.
+					flat=f>.78
+					if flat:y=.035
+				"freeze":
+					y=.17+float(i%3)*height*.22
+					radius=.32+.05*sin(elapsed*3.0)
+					size=.30
+				"confusion":
+					y=height+.06+.07*sin(angle*2.0)
+					radius=.36
+				"sleep":
+					y=height*.45+f*.36
+					radius=.27+f*.16
+				"wrapped","wrapping","stuck","leech","ingrain":
+					y=.10+float(i%3)*.18
+					radius=.34
+				"burn":
+					y=.08+f*height*.95
+					radius=.24+.13*sin(f*PI)
+			var q:=origin+Vector3(cos(angle)*radius,y,sin(angle)*radius)
+			used=environment_particle(used,q,str(style[0]),light,dark,size,sin(f*PI)*.9,flat)
+	return used
+
+func living_status_fx(used:int)->int:
+	if run==null:return used
+	if is_instance_valid(pet):used=living_actor_particles(pet,living_player_statuses(),used,1.08)
+	for key in actor_nodes.keys():
+		if not str(key).begins_with("enemy:"):continue
+		var actor:=actor_nodes[key] as Node3D
+		if not is_instance_valid(actor) or actor.is_queued_for_deletion() or not actor.visible:continue
+		var statuses:Array=actor.get_meta("living_statuses",[])
+		if str(actor.get_meta("enemy_phase",""))=="defeat":statuses=[]
+		used=living_actor_particles(actor,statuses,used,1.12*float(actor.get_meta("enemy_size_multiplier",1.0)))
+	return used
 
 func travel_environment_fx(burst:Dictionary,t:float,used:int)->int:
 	var id:String=str(burst.id)
@@ -6265,6 +6397,7 @@ func refresh_actors():
 			status_label.font_size=28;status_label.outline_size=6;status_label.pixel_size=.006
 			status_label.position=Vector3(0,2.15 if kind==3 else 1.68,0);root.add_child(status_label)
 		status_label.text=run.enemy_status_text(enemy);status_label.visible=not status_label.text.is_empty()
+		root.set_meta("living_statuses", living_enemy_statuses(enemy))
 	for a in run.allies:
 		if int(a.hp)<=0 or not run.revealed.has(a.pos):continue
 		var key="ally:"+str(a.uid);desired[key]=true
@@ -6653,6 +6786,7 @@ func _process(dt:float):
 		moving=bool(travel_pose.returning)
 	var pose:String="hurt" if hit_time>0.0 else "attack" if attack_time>0.0 else "reward" if reward_age>0.0 and not moving else "idle"
 	if tile_cast_active() and charge_progress>player_cast_impact+.08:pose="walk"
+	if pose=="idle" and not moving and "sleep" in living_player_statuses():pose="sleep"
 	pet_pose.set_meta("pet_mood",PixelArt.dungeon_mood(run.hp,run.max_hp,run.poison_turns>0,reward_age>0.0))
 	pet_pose.set_meta("dungeon_grounded_gait",true)
 	pet_pose.set_meta("dungeon_cast_motion",player_cast_motion)
