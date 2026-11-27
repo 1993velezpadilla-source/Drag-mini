@@ -71,9 +71,9 @@ func _initialize():
 		if not str(id).begins_with("eos_"):continue
 		var move:Dictionary=Rules.MOVE_LIBRARY[id]
 		assert(int(str(id).trim_prefix("eos_"))==int(move.reference_id))
-		assert(move.pp>0 and (move.power>0 or move.has("heal_fraction") or move.has("inflict_status") or move.has("stat_changes") or move.has("shield_kind") or move.has("boon_kind") or move.has("weather_set") or move.has("floor_sport") or move.has("weather_heal")))
+		assert(move.pp>0 and (move.power>0 or move.has("heal_fraction") or move.has("inflict_status") or move.has("stat_changes") or move.has("shield_kind") or move.has("boon_kind") or move.has("weather_set") or move.has("floor_sport") or move.has("weather_heal") or move.has("special_rule")))
 		assert(move.reference_strikes==1 or (move.has("hit_min") and move.hit_min>=2 and move.hit_max<=5))
-		assert(move.category in ["physical","special"] or (move.category=="status" and (move.has("heal_fraction") or move.has("inflict_status") or move.has("stat_changes") or move.has("shield_kind") or move.has("boon_kind") or move.has("weather_set") or move.has("floor_sport") or move.has("weather_heal"))))
+		assert(move.category in ["physical","special"] or (move.category=="status" and (move.has("heal_fraction") or move.has("inflict_status") or move.has("stat_changes") or move.has("shield_kind") or move.has("boon_kind") or move.has("weather_set") or move.has("floor_sport") or move.has("weather_heal") or move.has("special_rule"))))
 		assert(id in Rules.available_moves([move.type],100))
 		assert(not id in Rules.available_moves([move.type],15))
 		assert(Rules.reference_accuracy(move)>=0.0 and Rules.reference_accuracy(move)<=100.0)
@@ -335,6 +335,31 @@ func _initialize():
 	climate.clear_combat_effects()
 	assert(climate.floor_weather=="clear" and climate.weather_heal_amount()==50)
 	print("KINDRIA_WEATHER_PASS")
+	var fixed=Rules.new()
+	fixed.player=Vector2i(1,1)
+	fixed.hp=20
+	for x in range(1,5):fixed.cells[Vector2i(x,1)]=true
+	fixed.enemies.append({"pos":Vector2i(2,1),"hp":100,"kind":0,"species":"reef_pup"})
+	var victim:Dictionary=fixed.enemies[0]
+	assert(fixed.special_damage_amount(Rules.MOVE_LIBRARY.eos_341,victim)==30)
+	assert(fixed.special_damage_amount(Rules.MOVE_LIBRARY.eos_152,victim)==20)
+	assert(fixed.special_damage_amount(Rules.MOVE_LIBRARY.eos_020,victim)==50)
+	assert(fixed.special_damage_amount(Rules.MOVE_LIBRARY.eos_066,victim)==80)
+	assert(fixed.special_damage_amount(Rules.MOVE_LIBRARY.eos_177,victim)==100)
+	assert(fixed.special_damage_amount(Rules.MOVE_LIBRARY.eos_177,{"hp":100,"kind":3})==0)
+	assert(fixed.deal_special_damage(0,30)==30 and fixed.enemies[0].hp==70)
+	fixed.enemies.append({"pos":Vector2i(4,1),"hp":40,"kind":0,"species":"reef_pup"})
+	assert(fixed.push_enemy(0))
+	assert(fixed.enemies[0].pos==Vector2i(3,1) and fixed.enemies[0].hp==65 and fixed.enemies[1].hp==35)
+	assert(fixed.warp_player() and fixed.player==Vector2i(2,1))
+	var fixed_cast=Rules.new()
+	fixed_cast.player=Vector2i(1,1)
+	fixed_cast.cells[fixed_cast.player]=true;fixed_cast.cells[Vector2i(2,1)]=true
+	fixed_cast.equipped_moves=["eos_341"];fixed_cast.move_pp={"eos_341":8}
+	fixed_cast.enemies.append({"pos":Vector2i(2,1),"hp":100,"kind":0,"species":"reef_pup"})
+	assert(fixed_cast.cast_move("eos_341",Vector2i.RIGHT))
+	assert(fixed_cast.last_move_damage==[30] and fixed_cast.move_pp.eos_341==7 and fixed_cast.turns==1)
+	print("KINDRIA_FIXED_DISPLACE_PASS")
 	assert(Rules.EOS_IDENTIFIED_COUNT==468)
 	print("KINDRIA_EOS_PROTOTYPES_PASS ",eos_count)
 	print("KINDRIA_LEARNSET_PP_PASS")
