@@ -84,6 +84,220 @@ jobs:
           timeout 60 "$G" --headless --path my-forever-pet/godot-arcade -- --test 2>&1 | tee /tmp/godot-smoke.log
           grep -F PET_DASH_3D_SMOKE_PASS /tmp/godot-smoke.log
           ! grep -E 'SCRIPT ERROR|Parse Error' /tmp/godot-smoke.log
+      - name: Validate Kindria combat on the actual Android export engine
+        run: |
+          set -euo pipefail
+          G=/tmp/godot/Godot_v4.4.1-stable_linux.x86_64
+          "$G" --version | tee /tmp/kindria-apk-engine.log
+          timeout 600 "$G" --headless --path my-forever-pet/godot-arcade --script res://cinematic_gauntlet.gd 2>&1 | tee /tmp/kindria-apk-gauntlet.log
+          grep -E 'CINEMATIC_GAUNTLET checks=[0-9]+ failures=0
+        run: |
+          set -euo pipefail
+          G=/tmp/godot/Godot_v4.4.1-stable_linux.x86_64
+          "$G" --headless --path my-forever-pet/godot-arcade --script res://test_pet_animation_library.gd 2>&1 | tee /tmp/pet-animation-library.log
+          grep -F PET_ANIMATION_LIBRARY_PASS /tmp/pet-animation-library.log
+          ! grep -E "SCRIPT ERROR|Parse Error" /tmp/pet-animation-library.log
+      - name: Verify integrated Forever Pet hub and wallet
+        run: |
+          set -euo pipefail
+          G=/tmp/godot/Godot_v4.4.1-stable_linux.x86_64
+          timeout 60 "$G" --headless --path my-forever-pet/godot-arcade -- --home-test 2>&1 | tee /tmp/pet-home.log
+          grep -F FOREVER_PET_HUB_PASS /tmp/pet-home.log
+          ! grep -E "SCRIPT ERROR|Parse Error" /tmp/pet-home.log
+      - name: Verify actual touch-style scrolling and tap cancellation
+        run: |
+          set -euo pipefail
+          xvfb-run -a -s "-screen 0 720x1280x24" timeout 60 /tmp/godot/Godot_v4.4.1-stable_linux.x86_64 --path my-forever-pet/godot-arcade --rendering-method gl_compatibility --audio-driver Dummy --resolution 540x960 -- --home-touch-test 2>&1 | tee /tmp/pet-touch.log
+          grep -F "FOREVER_PET_TOUCH_PASS" /tmp/pet-touch.log
+          ! grep -E "SCRIPT ERROR|Parse Error" /tmp/pet-touch.log
+      - name: Prove lane-only play loses the opening action gate
+        run: |
+          set -euo pipefail
+          G=/tmp/godot/Godot_v4.4.1-stable_linux.x86_64
+          timeout 45 "$G" --headless --fixed-fps 60 --path my-forever-pet/godot-arcade -- --lane-only 2>&1 | tee /tmp/dash-lane-only.log
+          grep -F PET_DASH_LANE_ONLY_FAILS /tmp/dash-lane-only.log
+          ! grep -E 'SCRIPT ERROR|Parse Error' /tmp/dash-lane-only.log
+      - name: Verify expert route without power-ups across seeds
+        run: |
+          set -euo pipefail
+          G=/tmp/godot/Godot_v4.4.1-stable_linux.x86_64
+          for seed in 7319 17041; do
+            timeout 120 "$G" --headless --fixed-fps 60 --path my-forever-pet/godot-arcade -- --unassisted --seed=$seed 2>&1 | tee /tmp/dash-unassisted-$seed.log
+            grep -F PET_DASH_UNASSISTED_PASS /tmp/dash-unassisted-$seed.log
+            ! grep -E 'SCRIPT ERROR|Parse Error' /tmp/dash-unassisted-$seed.log
+          done
+      - name: Long-run procedural physics and object recycling
+        run: |
+          set -euo pipefail
+          G=/tmp/godot/Godot_v4.4.1-stable_linux.x86_64
+          timeout 120 "$G" --headless --fixed-fps 60 --path my-forever-pet/godot-arcade -- --soak 2>&1 | tee /tmp/dash-soak.log
+          grep -F PET_DASH_SOAK_PASS /tmp/dash-soak.log
+          ! grep -E 'SCRIPT ERROR|Parse Error' /tmp/dash-soak.log
+          cat /tmp/pet-dash-soak.json
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Export isolated Android ARM64 test APK
+        run: |
+          set -euo pipefail
+          SDK="$ANDROID_HOME"
+          "$SDK/cmdline-tools/latest/bin/sdkmanager" 'platforms;android-34' 'build-tools;34.0.0' 'ndk;23.2.8568313'
+          mkdir -p "$HOME/.local/share/godot/export_templates/4.4.1.stable" "$HOME/.config/godot" "$HOME/.android"
+          curl -fL --retry 3 -o /tmp/templates.tpz https://github.com/godotengine/godot/releases/download/4.4.1-stable/Godot_v4.4.1-stable_export_templates.tpz
+          unzip -q /tmp/templates.tpz templates/android_debug.apk templates/android_release.apk templates/android_source.zip -d /tmp/godot-templates
+          mkdir -p my-forever-pet/godot-arcade/android/build
+          unzip -q /tmp/godot-templates/templates/android_source.zip -d my-forever-pet/godot-arcade/android/build
+          python3 my-forever-pet/godot-arcade/android_wallpaper/install.py my-forever-pet/godot-arcade/android/build
+          touch my-forever-pet/godot-arcade/android/.gdignore
+          printf '4.4.1.stable' > my-forever-pet/godot-arcade/android/.build_version
+          chmod +x my-forever-pet/godot-arcade/android/build/gradlew
+          cp /tmp/godot-templates/templates/android_*.apk "$HOME/.local/share/godot/export_templates/4.4.1.stable/"
+          keytool -genkeypair -keystore "$HOME/.android/petdash-debug.keystore" -storepass android -keypass android -alias androiddebugkey -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Pet Dash Debug"
+          cat > "$HOME/.config/godot/editor_settings-4.4.tres" <<EOF
+          [gd_resource type="EditorSettings" format=3]
+          [resource]
+          export/android/android_sdk_path = "$SDK"
+          export/android/java_sdk_path = "$JAVA_HOME"
+          export/android/debug_keystore = "$HOME/.android/petdash-debug.keystore"
+          export/android/debug_keystore_user = "androiddebugkey"
+          export/android/debug_keystore_pass = "android"
+          EOF
+          export GODOT_ANDROID_KEYSTORE_DEBUG_PATH="$HOME/.android/petdash-debug.keystore"
+          export GODOT_ANDROID_KEYSTORE_DEBUG_USER=androiddebugkey
+          export GODOT_ANDROID_KEYSTORE_DEBUG_PASSWORD=android
+          G=/tmp/godot/Godot_v4.4.1-stable_linux.x86_64
+          "$G" --headless --path my-forever-pet/godot-arcade --script res://bake_combat_audio.gd 2>&1 | tee /tmp/kindria-apk-audio-pack.log
+          grep -E 'KINDRIA_AUDIO_PACK entries=[1-9][0-9]* bytes=[1-9][0-9]* elapsed_ms=[0-9]+ failures=0$' /tmp/kindria-apk-audio-pack.log
+          ! grep -E 'SCRIPT ERROR|Parse Error|Compile Error' /tmp/kindria-apk-audio-pack.log
+          "$G" --headless --path my-forever-pet/godot-arcade --script res://bake_combat_frames.gd 2>&1 | tee /tmp/kindria-apk-frame-pack.log
+          grep -E 'KINDRIA_FRAME_PACK .*procedural_builds=0 failures=0$' /tmp/kindria-apk-frame-pack.log
+          grep -E 'KINDRIA_SECONDARY_PACK textures=[1-9][0-9]* bytes=[1-9][0-9]* failures=0$' /tmp/kindria-apk-frame-pack.log
+          ! grep -E 'SCRIPT ERROR|Parse Error|Compile Error' /tmp/kindria-apk-frame-pack.log
+          for file in generated_combat_audio/index.json generated_combat_audio/audio.pcm generated_combat_frames/index.json generated_combat_frames/frames.bin generated_combat_frames/particles.json generated_combat_frames/particles.bin; do
+            test -s "my-forever-pet/godot-arcade/$file"
+          done
+          "$G" --verbose --headless --path my-forever-pet/godot-arcade --export-debug "Android Lab" /tmp/My-Forever-Pet-Godot-arm64.apk
+          test -s /tmp/My-Forever-Pet-Godot-arm64.apk
+          python3 my-forever-pet/godot-arcade/verify_apk_combat_packs.py /tmp/My-Forever-Pet-Godot-arm64.apk my-forever-pet/godot-arcade /tmp/kindria-apk-pack-verification.json
+          "$SDK/build-tools/34.0.0/apksigner" verify /tmp/My-Forever-Pet-Godot-arm64.apk
+          "$SDK/build-tools/34.0.0/aapt" dump badging /tmp/My-Forever-Pet-Godot-arm64.apk | grep -F "org.myforeverpet.godot"
+          unzip -l /tmp/My-Forever-Pet-Godot-arm64.apk | grep -F lib/arm64-v8a/libgodot_android.so
+          "$SDK/build-tools/34.0.0/aapt" dump xmltree /tmp/My-Forever-Pet-Godot-arm64.apk AndroidManifest.xml > /tmp/wallpaper-manifest.log
+          grep -F org.myforeverpet.wallpaper.ForeverWallpaperService /tmp/wallpaper-manifest.log
+          grep -F org.godotengine.plugin.v2.ForeverWallpaper /tmp/wallpaper-manifest.log
+          grep -F android.permission.BIND_WALLPAPER /tmp/wallpaper-manifest.log
+      - uses: actions/upload-artifact@v4
+        with:
+          name: My-Forever-Pet-Godot-Android-ARM64-debug
+          path: /tmp/My-Forever-Pet-Godot-arm64.apk
+          if-no-files-found: error
+      - name: Record verified APK provenance and SHA256
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import hashlib, json, os
+          from pathlib import Path
+          apk = Path('/tmp/My-Forever-Pet-Godot-arm64.apk')
+          record = {
+              'source_commit': os.environ['GITHUB_SHA'],
+              'workflow_run_id': os.environ['GITHUB_RUN_ID'],
+              'godot_version': Path('/tmp/kindria-apk-engine.log').read_text().strip(),
+              'apk_filename': apk.name,
+              'apk_bytes': apk.stat().st_size,
+              'apk_sha256': hashlib.sha256(apk.read_bytes()).hexdigest(),
+              'architecture': 'arm64-v8a',
+              'combat_gauntlet': 'passed',
+              'device_performance_tested': False,
+          }
+          Path('/tmp/kindria-apk-provenance.json').write_text(json.dumps(record, indent=2))
+          PY
+      - name: Preserve combat packaging evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: Kindria-APK-combat-pack-evidence
+          if-no-files-found: warn
+          path: |
+            /tmp/kindria-apk-engine.log
+            /tmp/kindria-apk-gauntlet.log
+            /tmp/kindria-apk-provenance.json
+            /tmp/kindria-apk-audio-pack.log
+            /tmp/kindria-apk-frame-pack.log
+            /tmp/kindria-apk-pack-verification.json
+            my-forever-pet/godot-arcade/generated_combat_audio/index.json
+            my-forever-pet/godot-arcade/generated_combat_frames/index.json
+            my-forever-pet/godot-arcade/generated_combat_frames/particles.json
+      - name: Export editable Mosky sprite sheet
+        run: |
+          set -euo pipefail
+          /tmp/godot/Godot_v4.4.1-stable_linux.x86_64 --headless --path my-forever-pet/godot-arcade --script res://export_mosky_atlas.gd 2>&1 | tee /tmp/mosky-atlas.log
+          grep -F MOSKY_EDITABLE_ATLAS_PASS /tmp/mosky-atlas.log
+          test -s /tmp/mosky-sprite-atlas.png
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Mosky-editable-sprite-atlas
+          path: |
+            /tmp/mosky-sprite-atlas.png
+            /tmp/ponoko-combat-atlas.png
+          if-no-files-found: error
+      - name: Capture actual 3D viewport
+        id: visual
+        continue-on-error: true
+        run: |
+          set -euo pipefail
+          xvfb-run -a -s "-screen 0 720x1280x24" timeout 180 /tmp/godot/Godot_v4.4.1-stable_linux.x86_64 --path my-forever-pet/godot-arcade --rendering-method gl_compatibility --audio-driver Dummy --resolution 540x960 -- --capture
+          test -s /tmp/pet-dash-review.png
+          test -s /tmp/pet-dash-render-metrics.json
+          test -s /tmp/pet-dash-biome-1.png
+          test -s /tmp/pet-dash-biome-2.png
+          cat /tmp/pet-dash-render-metrics.json
+          python3 my-forever-pet/godot-arcade/review_frame.py /tmp/pet-dash-review.png /tmp/pet-dash-visual-metrics.json
+          cat /tmp/pet-dash-visual-metrics.json
+      - uses: actions/upload-artifact@v4
+        if: always() && steps.visual.outcome != 'skipped'
+        with:
+          name: Pet-Dash-3D-real-game-review
+          path: |
+            /tmp/pet-dash-review.png
+            /tmp/pet-dash-biome-1.png
+            /tmp/pet-dash-biome-2.png
+            /tmp/pet-dash-render-metrics.json
+            /tmp/pet-dash-visual-metrics.json
+            /tmp/pet-dash-soak.json
+            my-forever-pet/godot-arcade/assets/*.glb
+            my-forever-pet/godot-arcade/assets/mesh-metrics.json
+            my-forever-pet/godot-arcade/assets/catalog-audit.json
+            my-forever-pet/godot-arcade/assets/sky-panorama.png
+            my-forever-pet/godot-arcade/assets/sky-crystal.png
+            my-forever-pet/godot-arcade/assets/sky-moon.png
+            my-forever-pet/godot-arcade/assets/skyway-music.wav
+          if-no-files-found: error
+      - name: Capture actual Forever Pet home and arcade viewports
+        run: |
+          set -euo pipefail
+          xvfb-run -a -s "-screen 0 720x1280x24" timeout 180 /tmp/godot/Godot_v4.4.1-stable_linux.x86_64 --path my-forever-pet/godot-arcade --rendering-method gl_compatibility --audio-driver Dummy --resolution 540x960 -- --home-capture 2>&1 | tee /tmp/forever-capture.log
+          grep -F FOREVER_PET_CAPTURE_PASS /tmp/forever-capture.log
+          ! grep -E "SCRIPT ERROR|Parse Error" /tmp/forever-capture.log
+          test "$(grep -c "^PET_FRAME .*forever-species-" /tmp/forever-capture.log)" -eq 1
+          if grep -E "^PET_FRAME .*forever-species-.*enclosed=false" /tmp/forever-capture.log; then echo "Creature framing rejected"; exit 1; fi
+          for region in 0 1 2; do test -s "/tmp/forever-wild-scan-$region.png"; done
+          test "$(find /tmp -maxdepth 1 -name 'forever-*.png' | wc -l)" -eq 39
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Forever-Pet-real-game-viewports
+          path: |
+            /tmp/forever-*.png
+            /tmp/forever-capture.log
+            my-forever-pet/godot-arcade/assets/visual-asset-audit.json
+          if-no-files-found: error
+      - name: Require visual verification independently of APK packaging
+        if: always()
+        run: test "${{ steps.visual.outcome }}" = success
+ /tmp/kindria-apk-gauntlet.log
+          grep -E 'KINDRIA_FULL_QUALITY moves=589 frames=7068 audio=1178 runtime_samples=2945' /tmp/kindria-apk-gauntlet.log
+          grep -E 'KINDRIA_AUDIO_QUALITY samples=1178 exact_unique=1178' /tmp/kindria-apk-gauntlet.log
+          ! grep -E 'SCRIPT ERROR|Parse Error|Compile Error|Failed to load script' /tmp/kindria-apk-gauntlet.log
       - name: Verify reusable mood, part and imported effect frames
         run: |
           set -euo pipefail
