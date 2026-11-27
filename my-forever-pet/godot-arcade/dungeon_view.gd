@@ -2431,6 +2431,11 @@ func ultra_attack_ribbons(burst:Dictionary,t:float)->void:
 	var outer:=Color(str(style[2]))
 	var source:Vector3=points[0]
 	var target:Vector3=points[-1]
+	if kind=="drain":
+		var victim:Variant=confirmed_stage_target(burst,true)
+		if victim==null:return
+		target=victim
+		points=[source,target]
 	var forward:=Vector3(target.x-source.x,0,target.z-source.z).normalized()
 	if forward.length_squared()<.0001:forward=Vector3.FORWARD
 	var side:=Vector3(-forward.z,0,forward.x)
@@ -2715,6 +2720,38 @@ func secondary_material_target(results:Dictionary,primary:Vector2i)->Variant:
 	if not found:return null
 	return pos(best)+Vector3.UP*.55
 
+# An authored post-contact layer can follow a secondary result, but the
+# original projectile path must never be rewritten before impact.
+func confirmed_stage_target(burst:Dictionary,damage_only:bool=false)->Variant:
+	var points:Array=burst.get("points",[])
+	if points.is_empty():return null
+	var target:Vector3=points[-1]
+	var primary:=Vector2i(roundi(target.x/1.4),roundi(target.z/1.4))
+	var results:Dictionary=burst.get("results",{})
+	if not damage_only:
+		var row:Dictionary=results.get(primary,{})
+		if int(row.get("damage",0))+int(row.get("effects",0))+int(row.get("heal",0))>0:return target
+		return secondary_material_target(results,primary)
+	var row:Dictionary=results.get(primary,{})
+	if int(row.get("damage",0))>0:return target
+	var victims:Dictionary={}
+	var source:Vector3=points[0]
+	var source_cell:=Vector2i(roundi(source.x/1.4),roundi(source.z/1.4))
+	for tile in results:
+		if not tile is Vector2i or tile==source_cell:continue
+		if int(results[tile].get("damage",0))>0:victims[tile]=results[tile]
+	return secondary_material_target(victims,primary)
+
+func legacy_stage_visible(burst:Dictionary,t:float)->bool:
+	if t<float(burst.profile.impact):return true
+	var points:Array=burst.get("points",[])
+	if points.is_empty():return false
+	var target:Vector3=points[-1]
+	var tile:=Vector2i(roundi(target.x/1.4),roundi(target.z/1.4))
+	var row:Dictionary=burst.get("results",{}).get(tile,{})
+	# Dedicated terrain and travel layers run separately even on empty tiles.
+	return int(row.get("damage",0))+int(row.get("effects",0))+int(row.get("heal",0))>0
+
 func cinematic_element_surface(burst:Dictionary,t:float)->void:
 	var points:Array=burst.points
 	if points.is_empty():return
@@ -2749,7 +2786,10 @@ func cinematic_element_surface(burst:Dictionary,t:float)->void:
 	elif kind=="eruption" and before:anchor=target+Vector3.UP*height*progress
 	elif kind=="arc" and before:anchor.y+=height*sin(progress*PI)
 	elif kind in ["gather","shield"] and before:anchor=source
-	elif kind=="drain" and not before:anchor=combat_path_sample(points,1.0-after)
+	elif kind=="drain" and not before:
+		var victim:Variant=confirmed_stage_target(burst,true)
+		if victim==null:return
+		anchor=source.lerp(victim,1.0-after)
 	if ground:anchor.y=.065
 	var envelope:float=sin(progress*PI) if before else pow(1.0-after,1.35)
 	var extent:float=clampf(.96+spread*1.10+height*.30,1.15,2.55)*(1.0+after*.28)
@@ -6735,6 +6775,7 @@ func combat_fx_update(dt:float)->void:
 		if str(profile.role).begins_with("electric"):count=4
 		if profile.role=="lash":count=3
 		if profile.role=="ground":count=mini(18,tiles.size()*3)
+		if not legacy_stage_visible(burst,t):count=0
 		for j in range(count):
 			if used>=FX_PARTICLE_CAP:break
 			var particle:=combat_particles[used];used+=1
@@ -9090,12 +9131,16 @@ func authored_stage_fx(burst:Dictionary,t:float,used:int)->int:
 	if points.is_empty():return used
 	var source:Vector3=points[0]
 	var target:Vector3=points[-1]
-	var results:Dictionary=burst.get("results",{})
-	var primary_tile:=Vector2i(roundi(target.x/1.4),roundi(target.z/1.4))
-	var row:Dictionary=results.get(primary_tile,{})
-	var miss:bool=not row.is_empty() and int(row.get("damage",0))+int(row.get("effects",0))+int(row.get("heal",0))<=0
 	var peak:float=float(profile.impact)
-	if miss and t>=peak:return used
+	var mode:String=str(cue[0])
+	if t>=peak:
+		var confirmed:Variant=confirmed_stage_target(burst,mode=="drain")
+		if confirmed==null:
+			# Ground choreography is environmental, not an actor damage flash.
+			if mode!="ground":return used
+		elif confirmed!=target:
+			target=confirmed
+			points=[source,target]
 	var forward:=Vector3(target.x-source.x,0,target.z-source.z)
 	if forward.length_squared()<.0001:forward=Vector3.FORWARD
 	forward=forward.normalized()
@@ -9103,7 +9148,6 @@ func authored_stage_fx(burst:Dictionary,t:float,used:int)->int:
 	var spread:float=float(cue[3])
 	var height:float=float(cue[4])
 	var count:int=int(cue[2])
-	var mode:String=str(cue[0])
 	var progress:float=clampf(t/maxf(.01,peak),0.0,1.0)
 	var after:float=clampf((t-peak)/maxf(.01,1.0-peak),0.0,1.0)
 	var opacity:float=minf(t*12.0,1.0-after)

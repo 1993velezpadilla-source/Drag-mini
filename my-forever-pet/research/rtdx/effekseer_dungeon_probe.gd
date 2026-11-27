@@ -841,6 +841,26 @@ func run()->void:
 	assert(field.fx_residues.size()==Field.FX_RESIDUE_CAP)
 	field.fx_residues.assign(saved_residues)
 	print("KINDRIA_V13_RESIDUE_DAMAGE_CELLS_PASS")
+	# V13.5: all catalog IDs preserve launch but reject empty or missed legacy impacts.
+	for move_id in catalog:
+		var p:Dictionary=field.combat_profile(move_id)
+		var peak:float=float(p.impact)
+		var sample:Dictionary={"id":move_id,"profile":p,"points":[special_source,bite_position],"tiles":[field.pos(target)],"results":{}}
+		assert(field.legacy_stage_visible(sample,peak*.5),move_id)
+		assert(not field.legacy_stage_visible(sample,peak),move_id)
+		assert(field.confirmed_stage_target(sample)==null,move_id)
+		sample.results={target:{"misses":1},secondary_tile:{"damage":8}}
+		assert(not field.legacy_stage_visible(sample,peak),move_id)
+		assert(field.confirmed_stage_target(sample)==field.pos(secondary_tile)+Vector3.UP*.55,move_id)
+		sample.results={target:{"damage":8}}
+		assert(field.legacy_stage_visible(sample,peak),move_id)
+		assert(field.confirmed_stage_target(sample)==bite_position,move_id)
+	var drain_profile:Dictionary=field.combat_profile("eos_076")
+	var drain_burst:Dictionary={"id":"eos_076","profile":drain_profile,"points":[special_source,bite_position],"results":{target:{"misses":1},origin:{"heal":4}}}
+	assert(field.confirmed_stage_target(drain_burst,true)==null)
+	drain_burst.results={target:{"blocked":1},secondary_tile:{"damage":8},origin:{"heal":4}}
+	assert(field.confirmed_stage_target(drain_burst,true)==field.pos(secondary_tile)+Vector3.UP*.55)
+	print("KINDRIA_V13_LEGACY_STAGE_PASS 589")
 	var plan:Array=[
 		{"stage":"ally_invoke","anchor":"source","start":0.0,"end":.15,"enabled":true},
 		{"stage":"enemy_invoke","anchor":"source","start":0.0,"end":.15,"enabled":true},
