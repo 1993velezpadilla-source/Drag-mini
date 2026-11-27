@@ -2045,13 +2045,22 @@ func attach_enemy_pixel(actor:Node3D,species:String)->bool:
 		sprite.material_override=material
 	return true
 # Shared actor movement. Does not modify logical tiles, hitboxes or species pixels.
+# Anatomical motion is selected by role and explicit contact icon metadata.
+# Special aerial, underground, rolling and tile routes retain priority.
 func cast_motion_kind(id:String,profile:Dictionary)->String:
 	var role:String=str(profile.role)
 	if role in ["air_sky","air_fly","air_bounce","fight_jumpkick","fight_highkick","water_fall","normal_body","normal_climb","ghost_force"]:return "aerial"
 	if role in ["fight_hammer","normal_stomp","normal_slam","normal_megakick"]:return "down"
 	if role in ["normal_spin","normal_thrash","normal_flail","normal_struggle","normal_frustration","fight_roundkick","dragon_twister","rock_polish","status_dance"]:return "spin"
 	if role in ["electric_dash","fire_wheel","fire_blitz","water_jet","ice_ball","earth_rush","rock_roll","air_brave","dragon_rush","normal_extreme","normal_quick","normal_tackle","normal_takedown","normal_edge","normal_giga","normal_headbutt","normal_skull","normal_feint","steel_head","steel_gyro","ghost_sneak","dark_faint","dark_sucker","fight_mach","bug_turn"]:return "rush"
-	if role in ["lash","grass_vine","grass_whip","grass_needle","poison_tail","steel_tail","normal_wrap","normal_bind","normal_constrict","ghost_lick","status_tail"]:return "lash"
+	if role in ["lash","grass_vine","grass_whip","grass_needle","normal_wrap","normal_bind","normal_constrict","ghost_lick"]:return "lash"
+	var anatomy:=directed_contact_kind(id,role)
+	if anatomy in ["fang","crunch","claw","pincer"]:return anatomy
+	if anatomy.begins_with("fist"):return "uppercut" if anatomy=="fist_upper" else "punch"
+	if anatomy.begins_with("kick"):return "lowkick" if anatomy=="kick_low" else "kick"
+	if role in ["air_wing","steel_wing","air_peck","air_pluck","air_drill"]:return "wing"
+	if role in ["water_tail","poison_tail","steel_tail","status_tail"]:return "tail"
+	if role in ["normal_horn","normal_drill","bug_horn","bug_fury","normal_furyattack"]:return "horn"
 	if role in ["electric_contact","electric_fist","electric_fang","electric_spark","fire_kick","fire_punch","fire_fang","water_clamp","water_hammer","water_dive","water_tail","grass_blade","grass_wood","ice_punch","ice_fang","earth_club","earth_dig","rock_smash","air_peck","air_drill","air_pluck","air_wing","poison_fang","poison_jab","poison_cross","bug_horn","bug_fury","bug_cross","bug_bite","bug_leech","psi_cut","psi_zen","ghost_punch","ghost_claw","dragon_claw","dark_crunch","dark_bite","dark_slash","steel_claw","steel_wing","steel_bullet","normal_cut","normal_slash","normal_scratch","normal_crushclaw","normal_furyswipes","normal_false","normal_superfang","normal_hyperfang","normal_vice","normal_guillotine","normal_grip","normal_slap","normal_pound","normal_megapunch","normal_comet","normal_double","normal_dizzy","normal_horn","normal_drill","normal_furyattack","normal_strength","normal_return","normal_endeavor","normal_facade","normal_salt","normal_fake","normal_last"]:return "contact"
 	if role.begins_with("fight_") and role not in ["fight_aura","fight_blast","fight_vacuum","fight_bulk","fight_detect","fight_counter","fight_revenge","fight_vital"]:return "contact"
 	if Rules.MOVE_LIBRARY.has(id):
@@ -2086,6 +2095,17 @@ func cast_motion_offset(kind:String,progress:float,impact:float)->Vector3:
 	match kind:
 		"rush":return Vector3(.64*cue.y-.14*cue.x,.05*recoil,0)
 		"contact":return Vector3(.40*cue.y-.09*cue.x,.06*recoil,0)
+		"fang":return Vector3(.36*cue.y-.09*cue.x,.035*recoil,0)
+		"crunch":return Vector3(.48*cue.y-.13*cue.x,.025*recoil,.035*cue.z)
+		"claw":return Vector3(.33*cue.y-.08*cue.x,.09*recoil,.12*cue.y-.10*cue.x)
+		"pincer":return Vector3(.27*cue.y-.05*cue.x,.025*recoil,-.06*cue.z)
+		"punch":return Vector3(.46*cue.y-.12*cue.x,.035*recoil,0)
+		"uppercut":return Vector3(.34*cue.y-.09*cue.x,.19*cue.y,0)
+		"kick":return Vector3(.31*cue.y-.10*cue.x,.12*cue.y,.06*cue.z)
+		"lowkick":return Vector3(.29*cue.y-.08*cue.x,.015*recoil,.08*cue.y)
+		"wing":return Vector3(.20*cue.y-.06*cue.x,.12*recoil,.10*cue.y)
+		"tail":return Vector3(.10*cue.y-.06*cue.x,.03*recoil,.15*cue.y-.10*cue.x)
+		"horn":return Vector3(.53*cue.y-.11*cue.x,.025*recoil,0)
 		"lash":return Vector3(.13*cue.y-.08*cue.x,.025*recoil,.07*cue.z)
 		"aerial":
 			var flight:float=pow(sin(PI*t/peak),2.0) if t<peak else 0.0
