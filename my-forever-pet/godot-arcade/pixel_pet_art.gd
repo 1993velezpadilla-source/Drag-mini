@@ -374,9 +374,13 @@ static func attack_pose_sample(progress:float,impact:float)->Dictionary:
 static func attack_body_sample(progress:float,impact:float,motion:String)->Dictionary:
 	var t:float=clampf(progress,0.0,1.0)
 	var peak:float=clampf(impact,.12,.88)
-	var prepare:float=sin(PI*clampf(t/peak,0.0,1.0)) if t<peak else 0.0
-	var strike:float=sin(PI*clampf((t-peak)/(1.0-peak),0.0,1.0)) if t>=peak else 0.0
-	var envelope:float=sin(PI*t)
+	# Compression begins with anticipation, then releases into the authored
+	# strike frame. The maximum extension is at contact, not after it.
+	var windup:float=clampf(t/peak,0.0,1.0)
+	var recover:float=clampf((t-peak)/(1.0-peak),0.0,1.0)
+	var prepare:float=smoothstep(0.0,.34,windup)*(1.0-smoothstep(.34,.78,windup))
+	var strike:float=smoothstep(.55,1.0,windup)*(1.0-smoothstep(0.0,1.0,recover))
+	var envelope:float=pow(sin(PI*t),2.0)
 	var compression:float=.07
 	var extension:float=.10
 	var lift:float=.018
