@@ -402,6 +402,22 @@ func run():
 				neutral_special_frames[signature]=true
 				assert(middle.save_png("/tmp/dungeon-real-neutral-special-"+id+".png")==OK)
 			print("KINDRIA_NEUTRAL_SPECIAL_CHOREOGRAPHY_PASS ",neutral_special_roles.size())
+			var support_roles:Dictionary={}
+			var support_frames:Dictionary={}
+			for id in ["eos_006","eos_019","eos_021","eos_026","eos_055","eos_056","eos_058","eos_074","eos_098","eos_102","eos_104","eos_115","eos_117","eos_134","eos_148","eos_160","eos_165","eos_169","eos_173","eos_181","eos_185","eos_195","eos_218","eos_225","eos_236","eos_257","eos_301","eos_302","eos_318","eos_339","eos_349","eos_447","eos_492"]:
+				var profile:Dictionary=dungeon.combat_profile(id)
+				assert(str(profile.role).begins_with("support_"),"dedicated support role "+id)
+				assert(not support_roles.has(profile.role),"unique support choreography "+id)
+				support_roles[profile.role]=true
+				var first:Image=dungeon.combat_frame_image(id,2)
+				var middle:Image=dungeon.combat_frame_image(id,6)
+				assert(first.get_data()!=middle.get_data(),"support animation changes "+id)
+				assert(middle.get_used_rect().has_area(),"nonempty support frame "+id)
+				var signature:String=middle.get_data().hex_encode()
+				assert(not support_frames.has(signature),"unique support sprite "+id)
+				support_frames[signature]=true
+				assert(middle.save_png("/tmp/dungeon-real-support-"+id+".png")==OK)
+			print("KINDRIA_SUPPORT_CHOREOGRAPHY_PASS ",support_roles.size())
 			# Reproduce the freed-instance registry fault before the real expedition.
 			var retired:Node3D=dungeon.actor_for("retired-test",Vector3.ZERO)
 			retired.free()

@@ -3381,6 +3381,125 @@ func neutral_special_sprite(im:Image,role:String,frame:int)->void:
 				fight_arc(im,q,15.0-sin(t*PI)*7.0,t*TAU+float(i)*.9,PI*1.5,light,dark,3.8)
 			fight_burst(im,c,6.0+sin(t*PI)*6.0,4,t,red,dark)
 
+# Original neutral support FX, scoped to the actual recipient tiles.
+func support_sprite(im:Image,role:String,frame:int)->void:
+	var t:float=float(frame)/11.0
+	var c:=Vector2(24,24)
+	var mint:=Color("#a7efbe");var gold:=Color("#ffe297");var light:=Color("#f7f4da");var dark:=Color("#648c86");var rose:=Color("#e68f9d")
+	match role:
+		"support_sun","support_moon","support_wish","support_lucky":
+			var v:int=["support_sun","support_moon","support_wish","support_lucky"].find(role)
+			var q:=Vector2(24,19+sin(t*PI)*4.0)
+			if v==0:
+				fx_disc(im,q,8.0,gold);fight_burst(im,q,15.0,12,t,light,gold)
+			elif v==1:
+				fight_arc(im,q,10.0,-PI*.75,PI*1.5,light,dark,5.0)
+			elif v==2:fight_burst(im,q,10.0+sin(t*PI)*5.0,5,t,gold,dark)
+			else:
+				for i in range(4):fx_disc(im,q+Vector2(float(i%2*2-1)*4,float(i/2)*8-4),4.0,mint)
+			for i in range(4+v):
+				var a:float=float(i)*TAU/float(4+v)+t
+				fx_disc(im,c+Vector2(cos(a)*17.0,sin(a)*7.0+11.0),1.8,gold if v!=1 else mint)
+		"support_recover","support_slack","support_swallow","support_refresh","support_egg","support_milk":
+			var v:int=["support_recover","support_slack","support_swallow","support_refresh","support_egg","support_milk"].find(role)
+			for i in range(4+v):
+				var a:float=float(i)*TAU/float(4+v)+t*2.0
+				var q:=c+Vector2(cos(a)*12.0,sin(a)*6.0+10.0-16.0*t)
+				fx_disc(im,q,2.0+float(v%2),mint)
+				if v==3:fx_line(im,q,q-Vector2(0,5),1.5,light)
+			var p:=c+Vector2(0,-sin(t*PI)*5.0)
+			if v==0:
+				fx_line(im,p-Vector2(0,7),p+Vector2(0,7),4.0,light)
+				fx_line(im,p-Vector2(7,0),p+Vector2(7,0),4.0,light)
+			elif v==1:psi_ring(im,p,10.0+sin(t*PI)*3.0,mint,dark)
+			elif v==2:
+				fight_arc(im,p,10.0,t*TAU,PI*1.6,gold,dark,3.0)
+				fx_disc(im,p,4.0+sin(t*PI)*3.0,mint)
+			elif v==3:fight_burst(im,p,11.0,6,t,light,mint)
+			elif v==4:
+				fx_disc(im,p,8.0,dark);fx_disc(im,p-Vector2(0,2),6.0,light)
+				fx_line(im,p-Vector2(5,0),p+Vector2(5,0),1.5,mint)
+			else:
+				psi_polygon(im,p,9.0,4,PI*.25,light,dark)
+				fx_line(im,p-Vector2(3,8),p+Vector2(3,-8),4.0,mint)
+		"support_rage","support_focus","support_growth","support_stock","support_drum","support_howl":
+			var v:int=["support_rage","support_focus","support_growth","support_stock","support_drum","support_howl"].find(role)
+			for i in range(4+v):
+				var a:float=float(i)*TAU/float(4+v)+t*TAU
+				var q:=c+Vector2(cos(a),sin(a))*(6.0+sin(t*PI)*12.0)
+				fx_line(im,c,q,2.0+float(v%3),rose if v==0 or v==4 else gold)
+				fx_disc(im,q,2.0,mint if v==2 else light)
+			if v==0:fight_burst(im,c,12.0,5,t,rose,dark)
+			elif v==1:psi_ring(im,c,10.0,gold,dark)
+			elif v==2:
+				fx_line(im,c+Vector2(0,10),c-Vector2(0,10),4.0,mint)
+				fx_line(im,c-Vector2(6,2),c-Vector2(0,10),3.0,mint)
+				fx_line(im,c+Vector2(6,-2),c-Vector2(0,10),3.0,mint)
+			elif v==3:
+				for i in range(3):fx_disc(im,c+Vector2(float(i-1)*6,0),3.5,gold)
+			elif v==4:
+				psi_ring(im,c,9.0+sin(t*TAU)*2.0,rose,dark)
+			else:fight_arc(im,c,13.0,-PI*.75,PI*1.5,light,dark,3.0)
+		"support_sharpen","support_swords","support_harden","support_curl","support_protect","support_safeguard","support_endure":
+			var v:int=["support_sharpen","support_swords","support_harden","support_curl","support_protect","support_safeguard","support_endure"].find(role)
+			var r:float=10.0+sin(t*PI)*5.0
+			if v<2:
+				for i in range(2+v):
+					var a:float=float(i)*TAU/float(2+v)+t*TAU
+					var q:=c+Vector2(cos(a),sin(a))*r
+					fx_line(im,q-Vector2(0,7),q+Vector2(0,7),3.0,light)
+					if v==1:fx_line(im,q-Vector2(4,3),q+Vector2(4,3),2.0,gold)
+			elif v==2:psi_polygon(im,c,r,6,t*PI,light,dark)
+			elif v==3:
+				for i in range(3):fight_arc(im,c,r-float(i)*3.0,t*TAU,PI*1.6,mint,dark,3.0)
+			elif v==4:
+				psi_polygon(im,c,r,5,PI*.5,light,dark);psi_ring(im,c,r+4.0,mint,dark)
+			elif v==5:
+				for i in range(3):psi_ring(im,c,r+float(i)*3.0,mint,dark)
+			else:
+				psi_polygon(im,c,r,4,PI*.25,gold,dark);fight_burst(im,c,r+4.0,4,t,light,rose)
+		"support_double","support_minimize":
+			var v:int=0 if role=="support_double" else 1
+			for i in range(3):
+				var q:=c+Vector2(float(i-1)*(10.0 if v==0 else 5.0)*sin(t*PI),0)
+				var r:float=7.0 if v==0 else 9.0*(1.0-t)+2.0
+				psi_polygon(im,q,r,5,t*PI,light if i==1 else mint,dark)
+		"support_mind","support_lock","support_follow":
+			var v:int=["support_mind","support_lock","support_follow"].find(role)
+			var r:float=17.0-7.0*t
+			if v==0:
+				fight_arc(im,c,r,-PI*.8,PI*.6,mint,dark,3.0)
+				fight_arc(im,c,r,PI*.2,PI*.6,mint,dark,3.0);fx_disc(im,c,5.0,gold)
+			elif v==1:
+				for i in range(4):
+					var a:float=float(i)*TAU/4.0
+					var q:=c+Vector2(cos(a),sin(a))*r
+					fx_line(im,q,q-Vector2(cos(a),sin(a))*6.0,3.0,gold)
+				psi_ring(im,c,r,light,dark)
+			else:
+				for i in range(3):
+					var q:=Vector2(24,8+float(i)*10+sin(t*PI)*4.0)
+					fx_line(im,q+Vector2(-5,5),q,3.0,mint);fx_line(im,q+Vector2(5,5),q,3.0,mint)
+		"support_pain","support_psych","support_help":
+			var v:int=["support_pain","support_psych","support_help"].find(role)
+			var p:=Vector2(8+32*t,24-sin(t*PI)*9.0)
+			var q:=Vector2(40-32*t,24+sin(t*PI)*9.0)
+			fx_disc(im,p,4.0,gold);fx_disc(im,q,4.0,mint)
+			if v==0:fx_line(im,p,q,2.5,rose)
+			elif v==1:psi_polygon(im,p,7.0,4,t*PI,light,dark)
+			else:fight_burst(im,p,9.0,5,t,light,dark)
+		"support_bell":
+			var q:=c+Vector2(sin(t*TAU)*4.0,-3)
+			psi_polygon(im,q,8.0,5,PI*.5,gold,dark)
+			fx_disc(im,q+Vector2(0,7),2.0,light)
+			for i in range(3):fight_arc(im,q,11.0+float(i)*4.0,t*PI,PI,light,mint,2.0)
+		"support_acu":
+			for i in range(7):
+				var a:float=float(i)*TAU/7.0+t*TAU
+				var q:=c+Vector2(cos(a),sin(a))*(13.0-6.0*sin(t*PI))
+				fx_line(im,q,c,1.6,dark);fx_disc(im,q,2.8,gold)
+			fx_disc(im,c,3.0+sin(t*PI)*3.0,mint)
+
 func combat_frame_image(id:String,frame:int)->Image:
 	var style:Array=combat_style(id)
 	var mode:String=combat_animation_mode(id,str(style[0]))
@@ -3424,6 +3543,8 @@ func combat_frame_image(id:String,frame:int)->Image:
 		normal_contact_sprite(im,role,frame);return im
 	if role.begins_with("neutral_"):
 		neutral_special_sprite(im,role,frame);return im
+	if role.begins_with("support_"):
+		support_sprite(im,role,frame);return im
 	var center:=Vector2(24,24)
 	match mode:
 		"vine":
@@ -3931,6 +4052,39 @@ func combat_profile(id:String)->Dictionary:
 		"eos_457":role="neutral_trump"
 		"eos_471":role="neutral_gift"
 		"eos_474":role="neutral_wring"
+		"eos_006":role="support_sun"
+		"eos_019":role="support_rage"
+		"eos_021":role="support_pain"
+		"eos_026":role="support_bell"
+		"eos_055":role="support_sharpen"
+		"eos_056":role="support_double"
+		"eos_058":role="support_harden"
+		"eos_074":role="support_focus"
+		"eos_098":role="support_mind"
+		"eos_102":role="support_follow"
+		"eos_104":role="support_endure"
+		"eos_115":role="support_psych"
+		"eos_117":role="support_recover"
+		"eos_134":role="support_safeguard"
+		"eos_148":role="support_growth"
+		"eos_160":role="support_stock"
+		"eos_165":role="support_egg"
+		"eos_169":role="support_minimize"
+		"eos_173":role="support_moon"
+		"eos_181":role="support_swords"
+		"eos_185":role="support_help"
+		"eos_195":role="support_howl"
+		"eos_218":role="support_slack"
+		"eos_225":role="support_wish"
+		"eos_236":role="support_swallow"
+		"eos_257":role="support_drum"
+		"eos_301":role="support_protect"
+		"eos_302":role="support_curl"
+		"eos_318":role="support_milk"
+		"eos_339":role="support_refresh"
+		"eos_349":role="support_lock"
+		"eos_447":role="support_lucky"
+		"eos_492":role="support_acu"
 	if role in ["electric_charge","electric_lift"]:mode="lightning"
 	var impact:float=.48 if role in ["contact","electric_contact","electric_short","electric_fist","electric_fang","electric_dash","electric_spark"] else .64 if role in ["projectile","lash","electric_arc","electric_wave","electric_sky","electric_orb","electric_beam"] else .40
 	if role in ["fire_breath","fire_ember","fire_blast","fire_wisp"]:impact=.64
@@ -3956,6 +4110,7 @@ func combat_profile(id:String)->Dictionary:
 	if role.begins_with("steel_"):impact=.64 if role in ["steel_meteor","steel_bullet","steel_flash","steel_mirror","steel_magnet"] else .48
 	if role.begins_with("normal_"):impact=.64 if role in ["normal_extreme","normal_quick","normal_giga","normal_climb"] else .48
 	if role.begins_with("neutral_"):impact=.64 if role in ["neutral_beam","neutral_weather","neutral_swift","neutral_egg","neutral_barrage","neutral_spike","neutral_present","neutral_trump","neutral_pay","neutral_hidden","neutral_gift"] else .48
+	if role.begins_with("support_"):impact=.48
 	return {"mode":mode,"role":role,"element":element,"pattern":pattern,"range":reach,"duration":float(style[3]),"impact":impact,"socket":"ground" if role in ["ground","fire_plume","fire_magma","water_dive","water_whirlpool","water_surf","grass_frenzy","grass_roots","grass_knot","ice_avalanche","ice_cold","earth_dig","earth_tomb","earth_power","earth_fissure","earth_spikes","earth_quake","earth_magnitude","rock_edge","rock_tomb","rock_trap","rock_roll"] else "head" if role in ["projectile","fire_breath","fire_ember","fire_eruption","water_bubble","water_ink","water_spout","water_cannon","water_pump","water_bubblebeam","water_gun","water_pulse","water_brine","grass_solar","grass_energy","grass_bullet","grass_whistle","ice_aurora","ice_beam","ice_wind","earth_shot","rock_wrecker","rock_blast","rock_gem"] else "center"}
 func electric_sprite(im:Image,id:String,frame:int,role:String)->void:
 	var cyan:=Color("#40cfff")
@@ -4722,6 +4877,16 @@ func combat_fx_update(dt:float)->void:
 						q=points[0]+Vector3(cos(angle+t*TAU)*.4,.15+f*.5,sin(angle+t*TAU)*.4);size=.43
 					_:
 						q=combat_path_sample(points,progress)+Vector3(cos(angle)*.11,.14+sin(angle)*.15,sin(angle)*.11);size=.75 if neutral_role=="neutral_beam" else .48
+			if str(profile.role).begins_with("support_"):
+				var support_role:String=str(profile.role)
+				var progress:float=clampf(t*1.8-f*.30,0,1)
+				match support_role:
+					"support_pain","support_psych":
+						q=combat_path_sample(points,progress if j%2==0 else 1.0-progress)+Vector3(0,.15+sin(progress*PI)*.45,0);size=.43
+					"support_sun","support_moon","support_bell","support_safeguard","support_egg","support_help","support_milk","support_refresh","support_lucky","support_acu":
+						q=tiles[j%tiles.size()]+Vector3(cos(angle+t*TAU)*.32,.12+f*.65,sin(angle+t*TAU)*.32);size=.48
+					_:
+						q=points[0]+Vector3(cos(angle+t*TAU)*.38,.12+f*.6,sin(angle+t*TAU)*.38);size=.46
 			# Drained energy travels from victim back to caster; healing stays on caster.
 			if profile.role=="drain" and t>=.40:
 				var back:float=clampf((t-.40)*2.0-f*.22,0.0,1.0)
