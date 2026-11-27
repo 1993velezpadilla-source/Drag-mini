@@ -7,6 +7,31 @@ const Home=preload("res://live_pet_stage.gd")
 func _initialize()->void:
 	call_deferred("run_checks")
 
+# V20.1: compact, amplitude-normalized descriptors for review, not a
+# perceptual equivalence claim. Exact PCM digest is tracked separately.
+func audio_quality_metrics(pcm:PackedByteArray)->Dictionary:
+	var count:int=int(pcm.size()/2)
+	var energy:float=0.0
+	var mean:float=0.0
+	var peak:float=0.0
+	var max_step:float=0.0
+	var crossings:int=0
+	var last:float=0.0
+	var bins:Array[float]=[0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0]
+	for i in range(count):
+		var value:float=float(pcm.decode_s16(i*2))/32767.0
+		energy+=value*value
+		mean+=value
+		peak=maxf(peak,absf(value))
+		max_step=maxf(max_step,absf(value-last))
+		if i>0 and (value>=0.0)!=(last>=0.0):crossings+=1
+		last=value
+		bins[mini(7,int(float(i)*8.0/maxi(1,count)))]+=value*value
+	var descriptor:Array[int]=[]
+	for bin in bins:descriptor.append(roundi(20.0*bin/maxf(.000001,energy)))
+	var rms:float=sqrt(energy/maxi(1,count))
+	return {"rms":rms,"dc":mean/maxi(1,count),"peak":peak,"max_step":max_step,"crossings_per_second":float(crossings)*22050.0/maxi(1,count),"descriptor":str(descriptor)+":"+str(roundi(float(crossings)*22050.0/maxi(1,count)/100.0))+":"+str(roundi(float(count)/22050.0*20.0)),"pcm_sha256":pcm.hex_encode().sha256_text()}
+
 func run_checks()->void:
 	var checks:int=0
 	var failures:Array[String]=[]
@@ -924,6 +949,11 @@ func run_checks()->void:
 	var frame_total:int=0
 	var runtime_samples:int=0
 	var audio_total:int=0
+	var audio_digest_owners:Dictionary={}
+	var audio_similarity_groups:Dictionary={}
+	var audio_review_rows:Array=[]
+	var audio_cold_usec:int=0
+	var audio_cached_usec:int=0
 	var scene:=Node3D.new()
 	root.add_child(scene)
 	view.combat_fx_setup(scene)
@@ -1018,9 +1048,32 @@ func run_checks()->void:
 		# candidate, not a hard failure for thin beams or subtle status moves.
 		var audio_form:=view.combat_audio_form(id,profile)
 		var audio_peaks:Dictionary={}
+		var audio_metrics:Dictionary={}
 		for phase in ["launch","impact"]:
+			var started:int=Time.get_ticks_usec()
 			var audio:=view.combat_sound(id,phase,0)
+			var cold_usec:int=Time.get_ticks_usec()-started
+			started=Time.get_ticks_usec()
+			var cached:AudioStreamWAV=view.combat_sound(id,phase,0)
+			var cached_usec:int=Time.get_ticks_usec()-started
+			audio_cold_usec+=cold_usec
+			audio_cached_usec+=cached_usec
+			if cached!=audio:failures.append("V20.1 cache identity "+str(id))
 			var pcm:PackedByteArray=audio.data
+			var metrics:Dictionary=audio_quality_metrics(pcm)
+			metrics["first_lookup_usec"]=cold_usec
+			metrics["cached_lookup_usec"]=cached_usec
+			audio_metrics[phase]=metrics
+			var digest:String=str(metrics.pcm_sha256)
+			if audio_digest_owners.has(digest):failures.append("V20.1 exact audio duplicate "+str(id)+" "+phase+" vs "+str(audio_digest_owners[digest]))
+			audio_digest_owners[digest]=str(id)+":"+phase
+			var similarity_key:String=str(profile.element)+":"+phase+":"+str(metrics.descriptor)
+			if not audio_similarity_groups.has(similarity_key):audio_similarity_groups[similarity_key]=[]
+			audio_similarity_groups[similarity_key].append(id)
+			if float(metrics.rms)<.005 or absf(float(metrics.dc))>.025 or float(metrics.max_step)>.8:
+				audio_review_rows.append({"id":id,"phase":phase,"metrics":metrics})
+			if float(metrics.peak)>Dungeon.FX_AUDIO_PEAK_LIMIT+.0001:failures.append("V20.1 peak ceiling "+str(id))
+			checks+=2
 			var peak:int=0
 			for offset in range(0,pcm.size(),2):
 				peak=maxi(peak,absi(pcm.decode_s16(offset)))
@@ -1048,7 +1101,21 @@ func run_checks()->void:
 			if visible>Dungeon.FX_PARTICLE_CAP or view.fx_trail_vertices>Dungeon.FX_TRAIL_VERTEX_CAP or view.fx_halos_used>Dungeon.FX_HALO_CAP or view.fx_lights_used>Dungeon.FX_LIGHT_CAP:failures.append("world pool overflow "+str(id))
 			runtime_samples+=1;checks+=1
 		if not view.combat_bursts.is_empty() or max_visible==0:failures.append("world cast lifetime "+str(id))
-		quality_rows.append({"id":id,"element":profile.element,"role":profile.role,"category":category,"distinct_frames":frame_hashes.size(),"blank_frames":blank_frames,"adjacent_repeats":repeat_count,"peak_visible_pixels":peak_visible,"impact_frame":impact_frame,"impact_visible_pixels":impact_visible,"max_border_ratio":max_border_ratio,"visible_pixels":visible_pixels,"border_pixels":border_pixels,"review_reasons":reasons,"sequence_sha256":signature,"audio_form":audio_form,"audio_peaks":audio_peaks,"max_visible_particles":max_visible})
+		quality_rows.append({"id":id,"element":profile.element,"role":profile.role,"category":category,"distinct_frames":frame_hashes.size(),"blank_frames":blank_frames,"adjacent_repeats":repeat_count,"peak_visible_pixels":peak_visible,"impact_frame":impact_frame,"impact_visible_pixels":impact_visible,"max_border_ratio":max_border_ratio,"visible_pixels":visible_pixels,"border_pixels":border_pixels,"review_reasons":reasons,"sequence_sha256":signature,"audio_form":audio_form,"audio_peaks":audio_peaks,"audio_metrics":audio_metrics,"max_visible_particles":max_visible})
+	# Coarse similarity groups are advisory; only exact PCM duplicates fail.
+	var audio_similarity_review:Dictionary={}
+	for group in audio_similarity_groups:
+		if audio_similarity_groups[group].size()>1:audio_similarity_review[group]=audio_similarity_groups[group]
+	for priority in range(4):
+		var ceiling:float=view.combat_audio_priority_ceiling(priority)
+		if view.combat_audio_can_admit(ceiling,priority) or not view.combat_audio_can_admit(ceiling-.01,priority):failures.append("V20.1 early admission")
+		checks+=1
+	var audio_report:=FileAccess.open("/tmp/kindria-audio-quality.json",FileAccess.WRITE)
+	if audio_report==null:failures.append("V20.1 audio report")
+	else:
+		audio_report.store_string(JSON.stringify({"samples":audio_total,"first_lookup_total_usec":audio_cold_usec,"cached_lookup_total_usec":audio_cached_usec,"exact_unique_pcm":audio_digest_owners.size(),"similarity_groups":audio_similarity_review,"review_candidates":audio_review_rows}, "\t"))
+		audio_report.close()
+	print("KINDRIA_AUDIO_QUALITY samples=",audio_total," exact_unique=",audio_digest_owners.size()," review_groups=",audio_similarity_review.size()," review_candidates=",audio_review_rows.size()," first_lookup_usec=",audio_cold_usec," cached_lookup_usec=",audio_cached_usec)
 	if frame_total!=589*Dungeon.FX_FRAME_COUNT or audio_total!=1178 or runtime_samples!=2945:failures.append("full catalog sample coverage")
 	# V15.2 promotes the original duplicate report from advisory to a hard gate.
 	if Dungeon.NATIVE_IDENTITY_CASTS.size()!=60:failures.append("native identity coverage")
