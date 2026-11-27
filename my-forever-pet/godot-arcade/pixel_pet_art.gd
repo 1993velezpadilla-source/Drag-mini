@@ -280,6 +280,22 @@ static func attack_pose_sample(progress:float,impact:float)->Dictionary:
 	var pulse:float=smoothstep(0.0,peak,t) if t<peak else 1.0-smoothstep(peak,1.0,t)
 	return {"phase":phase,"frame":1 if phase=="strike" else 0,"pulse":pulse}
 
+# Dungeon gait uses the existing four directional native walk cells. Lift and
+# squash follow foot cadence, rather than a second unrelated hopping oscillator.
+static func grounded_gait_sample(clock:float,mood:String,burst:bool=false)->Dictionary:
+	var speed:float=14.0 if burst else 10.0
+	if mood in ["weak","sick","sad"]:speed*=.65
+	var phase:float=fposmod(maxf(0.0,clock)*speed,4.0)
+	var stride:float=sin(phase*PI*.5)
+	var lift:float=absf(stride)*(.035 if burst else .015)
+	return {"frame":floori(phase),"stretch":1.0+.025*absf(stride),"lift":lift}
+
+static func dungeon_mood(hp:int,max_hp:int,poisoned:bool,rewarded:bool)->String:
+	if poisoned:return "sick"
+	if hp*3<maxi(1,max_hp):return "weak"
+	if rewarded:return "happy"
+	return "healthy"
+
 static func animate_world_sprite(actor:Node3D,delta:Vector2,moving:bool,dt:float,pose:String="idle",water:bool=false,attack_progress:float=-1.0,attack_impact:float=.48)->void:
 	if not is_instance_valid(actor):return
 	var sprite:=actor.get_node_or_null("PixelCompanion") as Sprite3D
@@ -287,13 +303,19 @@ static func animate_world_sprite(actor:Node3D,delta:Vector2,moving:bool,dt:float
 	var dir:int=direction_for(delta,int(sprite.get_meta("facing",0)))
 	var state:String=pose if pose!="idle" else "walk" if moving else "idle"
 	var clock:float=float(sprite.get_meta("anim_clock",0.0))
-	if state!=str(sprite.get_meta("anim_state","idle")) or dir!=int(sprite.get_meta("facing",0)):clock=0.0
+	var grounded:bool=bool(actor.get_meta("dungeon_grounded_gait",false))
+	var old_state:String=str(sprite.get_meta("anim_state","idle"))
+	if state!=old_state or (dir!=int(sprite.get_meta("facing",0)) and not (grounded and state in ["walk","burst"])):clock=0.0
 	clock+=maxf(0.0,dt)
 	sprite.set_meta("facing",dir)
 	sprite.set_meta("anim_clock",clock)
 	sprite.set_meta("anim_state",state)
 	var mood:String=str(actor.get_meta("pet_mood","healthy"))
 	var tex:=frame_for(dir,state,clock,mood)
+	var gait:Dictionary={}
+	if grounded and state in ["walk","burst"]:
+		gait=grounded_gait_sample(clock,mood,state=="burst")
+		tex=adventure_frame(dir,state,int(gait.frame),mood)
 	var timed_attack:bool=state=="attack" and attack_progress>=0.0
 	var sample:Dictionary={}
 	if timed_attack:
@@ -309,6 +331,8 @@ static func animate_world_sprite(actor:Node3D,delta:Vector2,moving:bool,dt:float
 	var cycle:float=sin(clock*TAU*(5.0 if state=="burst" else 3.5))
 	var stretch:float=1.0+cycle*.045 if moving else 1.0+sin(clock*2.5)*.018
 	var lift:float=absf(cycle)*(.13 if state=="burst" else .075) if moving else .012*sin(clock*2.5)
+	if not gait.is_empty():
+		stretch=float(gait.stretch);lift=float(gait.lift)
 	if water:lift+=.045+.025*sin(clock*5.0)
 	if state=="reward":lift+=absf(sin(clock*TAU*2.0))*.15
 	if state=="attack":

@@ -182,6 +182,22 @@ func run()->void:
 			if PixelArt.enemy_locomotion_sample(species,state,.5).pose!=state:errors.append("native hover overrides combat "+species)
 	if PixelArt.enemy_locomotion_sample("bramble_pup","idle",.6).pose!="idle":errors.append("grounded creature idle changed")
 	print("KINDRIA_NATIVE_HOVER_AUDIT species=",PixelArt.NATIVE_HOVER_CYCLES.size()," frames=",native_checks)
+	# Grounded companion cadence and health-driven native mood variants.
+	for mood_name in ["healthy","happy","weak","sick","sad"]:
+		var speed:float=6.5 if mood_name in ["weak","sick","sad"] else 10.0
+		for frame in range(4):
+			var gait:Dictionary=PixelArt.grounded_gait_sample((float(frame)+.25)/speed,mood_name)
+			if int(gait.frame)!=frame or float(gait.lift)>.016 or float(gait.stretch)<1.0:errors.append("grounded gait "+mood_name)
+	if PixelArt.dungeon_mood(5,30,false,false)!="weak" or PixelArt.dungeon_mood(30,30,true,true)!="sick" or PixelArt.dungeon_mood(30,30,false,true)!="happy":errors.append("dungeon mood priority")
+	var companion:=Node3D.new()
+	companion.set_meta("dungeon_grounded_gait",true)
+	var sprite:=PixelArt.world_sprite(companion,0)
+	PixelArt.animate_world_sprite(companion,Vector2.RIGHT,true,.15)
+	var before:float=float(sprite.get_meta("anim_clock"))
+	PixelArt.animate_world_sprite(companion,Vector2.UP,true,.02)
+	if float(sprite.get_meta("anim_clock"))<=before or int(sprite.get_meta("facing"))!=1:errors.append("companion corner gait reset")
+	companion.free()
+	print("KINDRIA_GROUNDED_GAIT_PASS")
 	# Exercise more frames than the cache cap, then verify hot hits and exact normalization.
 	for row in reports.slice(0,40):
 		for frame in range(Field.FX_FRAME_COUNT):field.combat_animated_texture(str(row.id),frame)

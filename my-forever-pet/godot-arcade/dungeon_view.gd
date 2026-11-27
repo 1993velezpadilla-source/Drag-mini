@@ -5544,7 +5544,10 @@ func _process(dt:float):
 	attack_time=maxf(0.0,attack_time-dt);hit_time=maxf(0.0,hit_time-dt)
 	player_impact_delay=maxf(0.0,player_impact_delay-dt)
 	var moving:bool=travel.length()>.045
-	var motion:=Vector2(travel.x,travel.z) if moving else Vector2(facing)
+	# Logical movement direction takes priority over residual smoothing from a
+	# previous turn, avoiding backwards-facing sprites at corridor corners.
+	var motion:=Vector2(facing)
+	if motion.length_squared()<.0001 and moving:motion=Vector2(travel.x,travel.z)
 	pet_pose.position=Vector3.ZERO
 	pet_pose.rotation.z=0.0
 	pet_pose.visible=not run.charge_phase in ["underground","vanish"]
@@ -5562,7 +5565,8 @@ func _process(dt:float):
 		pet_pose.position+=pet.basis.inverse()*player_hit_direction*.14*sin(PI*clampf(hit_time/.24,0.0,1.0))
 	if attack_time>0.0:motion=Vector2(attack_direction.x,attack_direction.z)
 	var pose:String="hurt" if hit_time>0.0 else "attack" if attack_time>0.0 else "reward" if reward_age>0.0 and not moving else "idle"
-	pet_pose.set_meta("pet_mood","weak" if run.hp*3<run.max_hp else "healthy")
+	pet_pose.set_meta("pet_mood",PixelArt.dungeon_mood(run.hp,run.max_hp,run.poison_turns>0,reward_age>0.0))
+	pet_pose.set_meta("dungeon_grounded_gait",true)
 	PixelArt.animate_world_sprite(pet_pose,motion,moving,dt,pose,region==1,1.0-attack_time/maxf(.01,player_cast_duration) if attack_time>0.0 else -1.0,player_cast_impact)
 	update_disguise(dt,motion,moving,pose)
 	var focus=pet.position+Vector3(0,.18,-.48)
