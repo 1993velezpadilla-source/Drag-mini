@@ -523,6 +523,18 @@ func run()->void:
 	if subframe_actor.get_meta("enemy_phase")!="idle" or absf(float(subframe_actor.get_meta("enemy_clock"))-.03)>.001:errors.append("enemy idle overshoot")
 	subframe_actor.free()
 	print("KINDRIA_ENEMY_SUBFRAME_REACTION_PASS")
+	# Retired visual bursts retain their impact time without retaining textures.
+	field.retired_impacts.clear()
+	var evicted:Dictionary={"id":"basic_strike","age":.1,"duration":.6,"profile":{"impact":.5,"role":"contact"},"points":[Vector3.ZERO,Vector3.RIGHT],"target_player":true,"damage":3,"impacted":false,"texture":null}
+	field.retire_combat_burst(evicted)
+	if field.retired_impacts.size()!=1 or field.retired_impacts[0].has("texture"):errors.append("retired impact storage")
+	if not field.update_retired_impacts(.1).is_empty() or field.retired_impacts.size()!=1:errors.append("retired impact early")
+	var retired_hit:Dictionary=field.update_retired_impacts(.15)
+	if retired_hit.is_empty() or absf(float(retired_hit.get("age",-1))-.05)>.001 or retired_hit.get("direction")!=Vector3.RIGHT or not field.retired_impacts.is_empty():errors.append("retired impact clock")
+	evicted.impacted=true
+	field.retire_combat_burst(evicted)
+	if not field.retired_impacts.is_empty():errors.append("retired impact duplicated")
+	print("KINDRIA_RETIRED_IMPACT_PASS")
 	# A cast created by path movement after the frame clock must start at zero age.
 	field.attack_time=.4
 	field.player_impact_delay=.2
