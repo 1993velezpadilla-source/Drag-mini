@@ -5218,6 +5218,16 @@ func fairy_sprite(im:Image,role:String,frame:int)->void:
 # These sixty native casts were identified by the V15.0 exact-frame audit.
 # Recompose the shared base artwork with the native move's authored stage.
 const NATIVE_IDENTITY_CASTS=["lib_electric_2","lib_steel_3","lib_ground_3","lib_water_3","lib_steel_2","lib_bug_2","lib_ground_2","lib_water_1","lib_ghost_3","lib_fighting_2","lib_poison_1","lib_ice_1","lib_fairy_1","lib_rock_2","lib_dragon_1","lib_ghost_1","lib_psychic_3","lib_psychic_2","lib_water_2","lib_steel_1","lib_dragon_3","lib_dark_1","lib_fire_3","lib_electric_3","lib_normal_1","lib_bug_1","lib_dark_3","lib_dragon_2","alt_sylphowl","lib_electric_1","alt_leviathorn","alt_astro_golem","lib_poison_3","lib_flying_2","lib_flying_1","alt_tidal_sovereign","lib_ground_1","lib_fighting_3","alt_mossmite","lib_ghost_2","alt_voidspider","lib_psychic_1","lib_bug_3","lib_grass_3","lib_grass_2","lib_fire_2","alt_bubblewisp","alt_fungal_monarch","lib_dark_2","lib_ice_2","lib_poison_2","lib_rock_3","lib_rock_1","lib_grass_1","lib_ice_3","alt_crystarok","lib_flying_3","lib_fighting_1","lib_fire_1","lib_normal_3"]
+# Accent cadence follows the same contact fraction as the world animation.
+# X: secondary intensity, Y: primary size, Z: trailing dissipation.
+func native_polish_sample(progress:float,impact:float)->Vector3:
+	var t:float=clampf(progress,0.0,1.0)
+	var peak:float=clampf(impact,.12,.88)
+	var rise:float=smoothstep(0.0,peak,t)
+	var after:float=clampf((t-peak)/(1.0-peak),0.0,1.0)
+	var fade:float=1.0-smoothstep(.0,1.0,after)
+	return Vector3(.20+.80*rise*fade,36.0+6.0*rise*fade,fade)
+
 func native_identity_frame(id:String,frame:int,base:Image)->Image:
 	var im:=Image.create(FX_FRAME_SIZE,FX_FRAME_SIZE,false,Image.FORMAT_RGBA8)
 	im.fill(Color.TRANSPARENT)
@@ -5234,7 +5244,8 @@ func native_identity_frame(id:String,frame:int,base:Image)->Image:
 	var c:=Vector2(24,24)
 	var extent:float=clampf(float(cue[3])*12.0,3.0,13.0)
 	var height:float=clampf(float(cue[4])*8.0,1.0,12.0)
-	var size_px:int=clampi(roundi(36.0+6.0*envelope),36,42)
+	var polish:=native_polish_sample(t,peak)
+	var size_px:int=clampi(roundi(polish.y),36,42)
 	base.resize(size_px,size_px,Image.INTERPOLATE_NEAREST)
 	var center:=c
 	match mode:
@@ -5245,7 +5256,10 @@ func native_identity_frame(id:String,frame:int,base:Image)->Image:
 		"arc":center.y-=height*.45*sin(drive*PI)
 		"sweep":center.x+=sin(t*TAU)*2.0
 	var offset:=Vector2i(center-Vector2.ONE*float(size_px)*.5)
-	im.blit_rect(base,Rect2i(Vector2i.ZERO,base.get_size()),offset)
+	# Keep the primary silhouette in a separate layer; supporting motes must
+	# not erase its pixels or become equally prominent.
+	var accents:=Image.create(FX_FRAME_SIZE,FX_FRAME_SIZE,false,Image.FORMAT_RGBA8)
+	accents.fill(Color.TRANSPARENT)
 	# Semantic material silhouettes: these remain tiny compared with the main art.
 	var amount:int=clampi(int(cue[2])-2,3,8)
 	for i in range(amount):
@@ -5268,16 +5282,26 @@ func native_identity_frame(id:String,frame:int,base:Image)->Image:
 			"burst","contact":p=c+direction*(5.0+extent*(.4+release))
 			_:p=c+direction*(12.0+extent*.45)
 		p.x=clampf(p.x,3.0,44.0);p.y=clampf(p.y,3.0,44.0)
-		var r:float=1.0+.65*envelope
+		var r:float=.8+.85*polish.x
 		match material:
-			"bubble","drop","venom_splash":fx_disc(im,p,r+1.0,dark,r);fx_disc(im,p-Vector2(.7,.7),.75,light)
-			"crystal","shards","dart":fx_line(im,p-Vector2(0,2),p+Vector2(2,1),1.25,dark);fx_line(im,p-Vector2(0,2),p+Vector2(1,0),.65,light)
-			"leaf","whip","web":fx_line(im,p-Vector2(2,1),p+Vector2(2,-1),1.15,dark);fx_line(im,p-Vector2(1,0),p+Vector2(1,-1),.65,light)
-			"lightning":fx_line(im,p-Vector2(2,1),p,1.0,dark);fx_line(im,p,p+Vector2(1,2),.8,light)
-			"ember","flame","smoke","cloud":fx_disc(im,p,r+1.0,dark);fx_disc(im,p-Vector2(0,1),r*.65,light)
-			"slash","shock_ring":fx_line(im,p-direction*2.4,p+direction*2.4,.9,light)
-			"earth_hole":fx_line(im,p-Vector2(2,0),p+Vector2(2,0),1.0,dark)
-			_:fx_disc(im,p,r,dark);fx_disc(im,p,.7,light)
+			"bubble","drop","venom_splash":fx_disc(accents,p,r+1.0,dark,r);fx_disc(accents,p-Vector2(.7,.7),.75,light)
+			"crystal","shards","dart":fx_line(accents,p-Vector2(0,2),p+Vector2(2,1),1.25,dark);fx_line(accents,p-Vector2(0,2),p+Vector2(1,0),.65,light)
+			"leaf","whip","web":fx_line(accents,p-Vector2(2,1),p+Vector2(2,-1),1.15,dark);fx_line(accents,p-Vector2(1,0),p+Vector2(1,-1),.65,light)
+			"lightning":fx_line(accents,p-Vector2(2,1),p,1.0,dark);fx_line(accents,p,p+Vector2(1,2),.8,light)
+			"ember","flame","smoke","cloud":fx_disc(accents,p,r+1.0,dark);fx_disc(accents,p-Vector2(0,1),r*.65,light)
+			"slash","shock_ring":fx_line(accents,p-direction*2.4,p+direction*2.4,.9,light)
+			"earth_hole":fx_line(accents,p-Vector2(2,0),p+Vector2(2,0),1.0,dark)
+			_:fx_disc(accents,p,r,dark);fx_disc(accents,p,.7,light)
+	# Softly attenuate the cached accent alpha (one-time texture generation).
+	# Drawing the original base last keeps its anatomy crisp at 48 pixels.
+	for y in range(FX_FRAME_SIZE):
+		for x in range(FX_FRAME_SIZE):
+			var pixel:=accents.get_pixel(x,y)
+			if pixel.a<=0.0:continue
+			pixel.a*=.36+.57*polish.x
+			accents.set_pixel(x,y,pixel)
+	im.blit_rect(accents,Rect2i(Vector2i.ZERO,accents.get_size()),Vector2i.ZERO)
+	im.blend_rect(base,Rect2i(Vector2i.ZERO,base.get_size()),offset)
 	return im
 
 func combat_frame_image(id:String,frame:int)->Image:
