@@ -5360,6 +5360,15 @@ func damage_reaction_spec(profile:Dictionary,new_cast:bool,tracked_hits:int,affe
 	var delay:float=duration*float(profile.impact)
 	return {"delay":delay,"span":maxf(0.0,duration-delay),"count":maxi(1,tracked_hits),"direction":direction}
 
+# Only remove the exact cast that already owns a world effect, not every
+# counter with the same target and move name.
+func remaining_response_events(events:Array,cast_serial:int)->Array:
+	var result:Array=[]
+	for event in events:
+		if cast_serial>=0 and str(event.get("source",""))=="sleep_counter" and int(event.get("cast_serial",-1))==cast_serial:continue
+		result.append(event)
+	return result
+
 func queue_observed_enemy_damage(actor:Node3D,uid:int,tile:Vector2i,defeated:bool)->void:
 	var new_cast:bool=run.attack_serial!=previous_attack
 	var hits:int=int(run.player_visual_hits.get(uid,0)) if new_cast and run.player_visual_hit_serial==run.attack_serial else 0
@@ -5380,13 +5389,8 @@ func queue_observed_enemy_damage(actor:Node3D,uid:int,tile:Vector2i,defeated:boo
 		queue_enemy_reaction(actor,defeated,float(spec.delay),Vector3(spec.direction),float(spec.span),int(spec.count))
 		return
 	var linked:bool=new_cast and (hits>0 or affected)
-	var events:Array=response.get("events",[]).duplicate()
+	var events:Array=remaining_response_events(response.get("events",[]),run.attack_serial if response_cast else -1)
 	if response_cast:
-		# The final sleep counter already owns the visible cast and its impact.
-		# Earlier sleep counters are not individually represented by attack_serial.
-		for index in range(events.size()-1,-1,-1):
-			if str(events[index].get("source",""))=="sleep_counter":
-				events.remove_at(index);break
 		if events.is_empty():
 			queue_enemy_reaction(actor,defeated,float(spec.delay),Vector3(spec.direction),float(spec.span),int(spec.count))
 			return

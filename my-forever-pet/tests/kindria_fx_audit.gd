@@ -296,6 +296,15 @@ func run()->void:
 	var recorded:Array=ledger.visual_response_events.get(7,[])
 	if recorded.size()!=2 or recorded[0].source!="poison" or int(recorded[1].amount)!=3 or ledger.visual_response_events.has(8):errors.append("periodic damage source ledger")
 	print("KINDRIA_PERIODIC_SOURCE_LEDGER_PASS")
+	ledger.visual_response_active=true
+	ledger.visual_record_response({"uid":9,"hp":20},4,"sleep_counter",40,"eos_025")
+	ledger.visual_record_response({"uid":9,"hp":16},5,"sleep_counter",41,"eos_025")
+	ledger.visual_record_response({"uid":9,"hp":11},2,"poison")
+	var sleep_events:Array=ledger.visual_response_events.get(9,[])
+	var remaining:Array=field.remaining_response_events(sleep_events,41)
+	if sleep_events.size()!=3 or remaining.size()!=2 or int(remaining[0].cast_serial)!=40 or remaining[1].source!="poison":errors.append("counter serial event attribution")
+	if field.remaining_response_events(sleep_events,-1).size()!=3:errors.append("counter event preservation")
+	print("KINDRIA_COUNTER_SERIAL_PASS")
 	# Exercise more frames than the cache cap, then verify hot hits and exact normalization.
 	for row in reports.slice(0,40):
 		for frame in range(Field.FX_FRAME_COUNT):field.combat_animated_texture(str(row.id),frame)

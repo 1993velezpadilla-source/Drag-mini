@@ -259,9 +259,13 @@ func flush_sleep_reactions()->void:
 		var target:int=enemy_at(p)
 		if target<0 or not attack_footprint(player,aim,str(move.pattern),int(move.reach),true).has(p):continue
 		if not roll_reference_hit(move,enemies[target]):continue
-		var response_uid:int=int(enemies[target].get("uid",-1))
+		var response_enemy:Dictionary=enemies[target].duplicate()
+		var response_uid:int=int(response_enemy.get("uid",-1))
+		var damage_index:int=last_move_damage.size()
 		strike(target,true,-1,chosen)
 		player_attack_fx=chosen
+		if last_move_damage.size()>damage_index:
+			visual_record_response(response_enemy,int(last_move_damage[damage_index]),"sleep_counter",attack_serial,chosen)
 		visual_response_cast_serial=attack_serial
 		visual_response_cast_uid=response_uid
 		if chosen=="eos_025" and enemy_at(p)>=0 and rng.randi_range(1,100)<=20:
@@ -670,13 +674,13 @@ var visual_response_events:Dictionary={}
 var visual_response_active:bool=false
 var visual_response_cast_serial:int=-1
 var visual_response_cast_uid:int=-1
-func visual_record_response(enemy:Dictionary,amount:int,source:String)->void:
+func visual_record_response(enemy:Dictionary,amount:int,source:String,cast_serial:int=-1,move_id:String="")->void:
 	if not visual_response_active:return
 	var uid:int=int(enemy.get("uid",-1))
 	var dealt:int=mini(maxi(0,int(enemy.hp)),maxi(0,amount))
 	if uid<0 or dealt<=0:return
 	if not visual_response_events.has(uid):visual_response_events[uid]=[]
-	visual_response_events[uid].append({"source":source,"amount":dealt})
+	visual_response_events[uid].append({"source":source,"amount":dealt,"cast_serial":cast_serial,"move_id":move_id})
 
 func visual_record_stage(before:Dictionary,source:String)->void:
 	var losses:Dictionary=visual_hp_losses(before,visual_enemy_hp_snapshot())
@@ -1741,9 +1745,7 @@ func enemy_turn():
 		stage_before=visual_enemy_hp_snapshot()
 		flush_throws()
 		visual_record_stage(stage_before,"throw")
-		stage_before=visual_enemy_hp_snapshot()
 		flush_sleep_reactions()
-		visual_record_stage(stage_before,"sleep_counter")
 		tick_enemy_statuses()
 		stage_before=visual_enemy_hp_snapshot()
 		tick_player_boons()
