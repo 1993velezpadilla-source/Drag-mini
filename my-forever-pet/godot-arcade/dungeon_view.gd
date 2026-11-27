@@ -121,6 +121,10 @@ var fx_arc_mesh:ImmediateMesh
 var fx_arc_material:StandardMaterial3D
 var fx_audio:Array[AudioStreamPlayer3D]=[]
 var fx_audio_cache:Dictionary={}
+var fx_audio_pack_index:Dictionary={}
+var fx_audio_pack:FileAccess
+var fx_audio_pack_checked:bool=false
+var fx_audio_pack_hits:int=0
 var fx_audio_counter:Dictionary={}
 var fx_audio_cursor:int=0
 var fx_arc_segments:int=0
@@ -2451,6 +2455,7 @@ func combat_fx_setup(parent:Node3D)->void:
 	fx_arc_material.cull_mode=BaseMaterial3D.CULL_DISABLED
 	var arc_node:=MeshInstance3D.new();arc_node.mesh=fx_arc_mesh;arc_node.cast_shadow=GeometryInstance3D.SHADOW_CASTING_SETTING_OFF;combat_fx_root.add_child(arc_node)
 	fx_audio.clear();fx_audio_cursor=0
+	combat_audio_pack_init()
 	for i in range(12):
 		var sound:=AudioStreamPlayer3D.new();sound.unit_size=4.0;sound.max_distance=24.0;sound.volume_db=-12.0
 		combat_fx_root.add_child(sound);fx_audio.append(sound)
@@ -14595,8 +14600,47 @@ func combat_audio_master_pcm(bytes:PackedByteArray)->float:
 		final_peak=maxf(final_peak,float(absi(pcm))/32767.0)
 	return final_peak
 
+# V20.8: pre-rendered original PCM is included by the Android build.
+# Read only a single requested sample; the full pack never enters RAM.
+func combat_audio_pack_init()->void:
+	if fx_audio_pack_checked:return
+	fx_audio_pack_checked=true
+	var index_file:=FileAccess.open("res://generated_combat_audio/index.json",FileAccess.READ)
+	if index_file==null:return
+	var index=JSON.parse_string(index_file.get_as_text())
+	if not index is Dictionary or int(index.get("version",0))!=1:return
+	var entries=index.get("entries",{})
+	if not entries is Dictionary:return
+	var pack:=FileAccess.open("res://generated_combat_audio/audio.pcm",FileAccess.READ)
+	if pack==null or pack.get_length()!=int(index.get("bytes",-1)):return
+	fx_audio_pack_index=entries
+	fx_audio_pack=pack
+
+func combat_audio_pack_load(key:String)->AudioStreamWAV:
+	combat_audio_pack_init()
+	if fx_audio_pack==null or not fx_audio_pack_index.has(key):return null
+	var row:Array=fx_audio_pack_index[key]
+	if row.size()!=3:return null
+	var offset:int=int(row[0])
+	var length:int=int(row[1])
+	var peak:float=float(row[2])
+	if offset<0 or length<=0 or length%2!=0 or length>44100 or offset+length>fx_audio_pack.get_length() or peak<0.0 or peak>FX_AUDIO_PEAK_LIMIT+.0001:return null
+	fx_audio_pack.seek(offset)
+	var bytes:=fx_audio_pack.get_buffer(length)
+	if bytes.size()!=length:return null
+	var audio:=AudioStreamWAV.new()
+	audio.format=AudioStreamWAV.FORMAT_16_BITS
+	audio.mix_rate=22050
+	audio.stereo=false
+	audio.data=bytes
+	audio.set_meta("combat_pcm_peak",peak)
+	if fx_audio_cache.size()>=FX_AUDIO_CACHE_CAP:fx_audio_cache.erase(fx_audio_cache.keys()[0])
+	fx_audio_cache[key]=audio
+	fx_audio_pack_hits+=1
+	return audio
+
 func combat_audio_cached(key:String)->AudioStreamWAV:
-	if not fx_audio_cache.has(key):return null
+	if not fx_audio_cache.has(key):return combat_audio_pack_load(key)
 	var audio:AudioStreamWAV=fx_audio_cache[key]
 	# True LRU: frequently repeated combat effects survive catalog churn.
 	fx_audio_cache.erase(key)
