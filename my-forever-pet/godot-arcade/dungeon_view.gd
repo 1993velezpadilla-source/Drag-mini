@@ -3195,6 +3195,94 @@ func steel_sprite(im:Image,role:String,frame:int)->void:
 			fx_line(im,Vector2(2,24),q,2.2,chrome)
 			fight_burst(im,q,9.0+sin(t*PI)*5.0,6,t,chrome,gold)
 
+# Original neutral contact FX. Variations encode attack form rather than species anatomy.
+func normal_contact_sprite(im:Image,role:String,frame:int)->void:
+	var t:float=float(frame)/11.0
+	var c:=Vector2(24,24)
+	var light:=Color("#fff0cf");var dark:=Color("#8a705f");var red:=Color("#e69374");var gold:=Color("#f3c779")
+	match role:
+		"normal_cut","normal_slash","normal_scratch","normal_crushclaw","normal_furyswipes","normal_false":
+			var v:int=["normal_cut","normal_slash","normal_scratch","normal_crushclaw","normal_furyswipes","normal_false"].find(role)
+			var count:int=[1,2,3,4,5,1][v]
+			for i in range(count):
+				var q:=c+Vector2(float(i)*5.0-float(count-1)*2.5,float(i%2)*5.0)
+				fight_arc(im,q,11.0+float(v)*1.1,-PI*.8+t*(1.0+float(v)*.13),PI*(.75+float(v)*.12),gold if v==5 else light,dark,2.5+float(v)*.5)
+			if v==5:fx_disc(im,c+Vector2(9*sin(t*PI),4),2.0,light)
+		"normal_superfang","normal_hyperfang","normal_vice","normal_guillotine","normal_grip":
+			var v:int=["normal_superfang","normal_hyperfang","normal_vice","normal_guillotine","normal_grip"].find(role)
+			var gap:float=13.0-sin(t*PI)*(7.0+float(v)*.7)
+			for i in [-1,1]:
+				var q:=c+Vector2(0,float(i)*gap)
+				if v<=1:
+					for j in range(3+v*2):
+						var p:=q+Vector2(float(j-1)*7.0-float(v)*5.0,0)
+						fx_line(im,p,p+Vector2(2,-float(i)*8),4.0,light)
+				elif v==3:
+					fx_line(im,q-Vector2(15,0),q+Vector2(15,0),5.0,dark)
+					fx_line(im,q-Vector2(15,-float(i)*2),q+Vector2(15,float(i)*2),2.0,light)
+				else:
+					fight_arc(im,q,13.0,0.0 if i<0 else PI,PI,light,dark,4.0+float(v)*.5)
+			if v==1 or v==4:fight_burst(im,c,8.0+t*9.0,6+v,t,red,dark)
+		"normal_constrict","normal_bind","normal_wrap":
+			var v:int=["normal_constrict","normal_bind","normal_wrap"].find(role)
+			for i in range(3+v):
+				var q:=c+Vector2(0,float(i)*6.0-float(2+v)*3.0)
+				fight_arc(im,q,15.0-sin(t*PI)*(4.0+float(v)),t*TAU+float(i)*.7,PI*1.7,light,dark,2.5+float(v))
+		"normal_slap","normal_pound","normal_megapunch","normal_comet","normal_double","normal_dizzy":
+			var v:int=["normal_slap","normal_pound","normal_megapunch","normal_comet","normal_double","normal_dizzy"].find(role)
+			var count:int=[4,1,1,5,2,3][v]
+			for i in range(count):
+				var q:=Vector2(8+30*clampf(t*1.3-float(i)*.13,0.0,1.0),24+float(i%3-1)*6.0)
+				var r:float=6.0+float(v==2)*5.0
+				fx_disc(im,q,r,dark);fx_disc(im,q+Vector2(2,-1),r*.65,light)
+				for j in range(3):fx_disc(im,q+Vector2(r*.7,float(j-1)*r*.5),r*.32,gold)
+				if v==0:fx_line(im,q-Vector2(3,-7),q+Vector2(3,7),2.0,red)
+				elif v==5:fight_arc(im,q,9.0,t*TAU,PI*1.25,gold,dark,2.0)
+		"normal_horn","normal_drill","normal_furyattack":
+			var v:int=["normal_horn","normal_drill","normal_furyattack"].find(role)
+			for i in range(1+v*2):
+				var q:=Vector2(7+33*t-float(i)*5.0,24+sin(float(i)+t*TAU)*float(v)*4.0)
+				fx_line(im,q-Vector2(13,6),q+Vector2(5,0),4.0,dark)
+				fx_line(im,q-Vector2(13,-6),q+Vector2(5,0),2.0,light)
+				if v==1:fight_arc(im,q,8.0,t*TAU*2.0,PI*1.5,gold,dark,2.0)
+		"normal_stomp","normal_megakick","normal_slam","normal_body","normal_climb":
+			var v:int=["normal_stomp","normal_megakick","normal_slam","normal_body","normal_climb"].find(role)
+			var q:=Vector2(24+sin(t*PI)*float(v)*3.0,6+31*t)
+			psi_polygon(im,q,8.0+float(v),4+v%3,t*float(v),light,dark)
+			fight_burst(im,Vector2(24,36),6.0+t*12.0,5+v,t,gold,dark)
+			if v==1:fx_line(im,q-Vector2(12,6),q+Vector2(8,0),5.0,red)
+			if v==4:
+				for i in range(3):fx_line(im,q+Vector2(float(i-1)*7,4),q+Vector2(float(i-1)*7-4,12),2.0,light)
+		"normal_spin","normal_thrash","normal_flail","normal_struggle","normal_frustration":
+			var v:int=["normal_spin","normal_thrash","normal_flail","normal_struggle","normal_frustration"].find(role)
+			for i in range(2+v):
+				var a:float=t*TAU+float(i)*TAU/float(2+v)
+				var q:=c+Vector2(cos(a),sin(a))*(7.0+float(v)*2.0)
+				fight_arc(im,q,9.0+float(v),a,PI*(1.4-float(v)*.15),light,red if v==4 else dark,3.0)
+				if v>=2:fx_disc(im,q,2.0,gold)
+		"normal_extreme","normal_quick","normal_tackle","normal_takedown","normal_edge","normal_giga","normal_headbutt","normal_skull","normal_feint":
+			var v:int=["normal_extreme","normal_quick","normal_tackle","normal_takedown","normal_edge","normal_giga","normal_headbutt","normal_skull","normal_feint"].find(role)
+			var q:=Vector2(6+33*t,24-sin(t*PI)*float(v%3)*3.0)
+			var r:float=5.0+float(v%5)*1.5
+			for i in range(2+v%4):
+				var p:=q-Vector2(float(i+1)*5.0,float(i%2)*3.0)
+				fx_line(im,p-Vector2(9,0),p,2.0+float(v%3),dark)
+			psi_polygon(im,q,r,3+v%5,t*float(v)*.3,light,red if v==4 or v==5 else dark)
+			if v>=5:fight_burst(im,q,r+4.0,4+v%4,t,gold,dark)
+		"normal_return","normal_strength","normal_bide","normal_endeavor","normal_facade","normal_salt","normal_fake","normal_last":
+			var v:int=["normal_return","normal_strength","normal_bide","normal_endeavor","normal_facade","normal_salt","normal_fake","normal_last"].find(role)
+			var q:=c+Vector2(sin(t*PI)*float(v%4)*4.0,0)
+			fight_burst(im,q,9.0+sin(t*PI)*(9.0+float(v%3)),4+v,t,gold if v%2==0 else red,dark)
+			if v==0:psi_ring(im,q,7.0+t*5.0,light,dark)
+			elif v==1:psi_polygon(im,q,9.0,6,t,light,dark)
+			elif v==2:psi_ring(im,q,15.0,red,dark)
+			elif v==3:fx_line(im,q-Vector2(9,0),q+Vector2(9,0),3.0,light)
+			elif v==4:psi_polygon(im,q,8.0,4,PI*.25,red,dark)
+			elif v==5:
+				for i in range(7):fx_disc(im,q+Vector2(float(i%3-1)*5,float(i/3-1)*5),1.5,light)
+			elif v==6:fx_line(im,q-Vector2(8,7),q+Vector2(8,7),4.0,light)
+			else:psi_polygon(im,q,11.0,5,t*TAU,light,gold)
+
 func combat_frame_image(id:String,frame:int)->Image:
 	var style:Array=combat_style(id)
 	var mode:String=combat_animation_mode(id,str(style[0]))
@@ -3234,6 +3322,8 @@ func combat_frame_image(id:String,frame:int)->Image:
 		dark_sprite(im,role,frame);return im
 	if role.begins_with("steel_"):
 		steel_sprite(im,role,frame);return im
+	if role.begins_with("normal_"):
+		normal_contact_sprite(im,role,frame);return im
 	var center:=Vector2(24,24)
 	match mode:
 		"vine":
@@ -3667,6 +3757,56 @@ func combat_profile(id:String)->Dictionary:
 		"eos_527":role="steel_mirror"
 		"eos_532":role="steel_burst"
 		"eos_536":role="steel_flash"
+		"eos_009":role="normal_thrash"
+		"eos_018":role="normal_cut"
+		"eos_020":role="normal_superfang"
+		"eos_039":role="normal_slap"
+		"eos_048":role="normal_return"
+		"eos_050":role="normal_strength"
+		"eos_061":role="normal_bide"
+		"eos_066":role="normal_endeavor"
+		"eos_067":role="normal_facade"
+		"eos_071":role="normal_constrict"
+		"eos_078":role="normal_salt"
+		"eos_081":role="normal_slash"
+		"eos_096":role="normal_spin"
+		"eos_121":role="normal_flail"
+		"eos_125":role="normal_bind"
+		"eos_132":role="normal_extreme"
+		"eos_139":role="normal_headbutt"
+		"eos_140":role="normal_edge"
+		"eos_154":role="normal_tackle"
+		"eos_161":role="normal_slam"
+		"eos_176":role="normal_horn"
+		"eos_177":role="normal_drill"
+		"eos_190":role="normal_quick"
+		"eos_203":role="normal_takedown"
+		"eos_226":role="normal_fake"
+		"eos_235":role="normal_body"
+		"eos_247":role="normal_guillotine"
+		"eos_248":role="normal_vice"
+		"eos_250":role="normal_pound"
+		"eos_260":role="normal_scratch"
+		"eos_261":role="normal_hyperfang"
+		"eos_264":role="normal_dizzy"
+		"eos_271":role="normal_stomp"
+		"eos_275":role="normal_crushclaw"
+		"eos_294":role="normal_wrap"
+		"eos_311":role="normal_furyattack"
+		"eos_312":role="normal_furyswipes"
+		"eos_314":role="normal_false"
+		"eos_321":role="normal_megakick"
+		"eos_322":role="normal_megapunch"
+		"eos_328":role="normal_frustration"
+		"eos_347":role="normal_comet"
+		"eos_348":role="normal_skull"
+		"eos_352":role="normal_struggle"
+		"eos_455":role="normal_giga"
+		"eos_487":role="normal_double"
+		"eos_497":role="normal_last"
+		"eos_505":role="normal_grip"
+		"eos_516":role="normal_feint"
+		"eos_541":role="normal_climb"
 	if role in ["electric_charge","electric_lift"]:mode="lightning"
 	var impact:float=.48 if role in ["contact","electric_contact","electric_short","electric_fist","electric_fang","electric_dash","electric_spark"] else .64 if role in ["projectile","lash","electric_arc","electric_wave","electric_sky","electric_orb","electric_beam"] else .40
 	if role in ["fire_breath","fire_ember","fire_blast","fire_wisp"]:impact=.64
@@ -3690,6 +3830,7 @@ func combat_profile(id:String)->Dictionary:
 	if role.begins_with("dragon_"):impact=.64 if role in ["dragon_breath","dragon_flame","dragon_pulse","dragon_meteor","dragon_rush"] else .48
 	if role.begins_with("dark_"):impact=.64 if role in ["dark_faint","dark_fling","dark_sucker","dark_pulse","dark_void"] else .48
 	if role.begins_with("steel_"):impact=.64 if role in ["steel_meteor","steel_bullet","steel_flash","steel_mirror","steel_magnet"] else .48
+	if role.begins_with("normal_"):impact=.64 if role in ["normal_extreme","normal_quick","normal_giga","normal_climb"] else .48
 	return {"mode":mode,"role":role,"element":element,"pattern":pattern,"range":reach,"duration":float(style[3]),"impact":impact,"socket":"ground" if role in ["ground","fire_plume","fire_magma","water_dive","water_whirlpool","water_surf","grass_frenzy","grass_roots","grass_knot","ice_avalanche","ice_cold","earth_dig","earth_tomb","earth_power","earth_fissure","earth_spikes","earth_quake","earth_magnitude","rock_edge","rock_tomb","rock_trap","rock_roll"] else "head" if role in ["projectile","fire_breath","fire_ember","fire_eruption","water_bubble","water_ink","water_spout","water_cannon","water_pump","water_bubblebeam","water_gun","water_pulse","water_brine","grass_solar","grass_energy","grass_bullet","grass_whistle","ice_aurora","ice_beam","ice_wind","earth_shot","rock_wrecker","rock_blast","rock_gem"] else "center"}
 func electric_sprite(im:Image,id:String,frame:int,role:String)->void:
 	var cyan:=Color("#40cfff")
@@ -4424,6 +4565,22 @@ func combat_fx_update(dt:float)->void:
 						q=points[0]+Vector3(cos(angle+t*TAU)*.38,.12+f*.65,sin(angle+t*TAU)*.38);size=.50
 					"steel_tail","steel_wing","steel_claw","steel_head":
 						q=points[-1]+Vector3(cos(angle+t*TAU)*.28,.16+sin(angle)*.20,sin(angle+t*TAU)*.28);size=.56
+			if str(profile.role).begins_with("normal_"):
+				var normal_role:String=str(profile.role)
+				var progress:float=clampf(t*1.8-f*.30,0,1)
+				match normal_role:
+					"normal_extreme","normal_quick","normal_tackle","normal_takedown","normal_edge","normal_giga","normal_headbutt","normal_skull","normal_feint","normal_horn","normal_drill","normal_furyattack":
+						q=combat_path_sample(points,progress)+Vector3(cos(angle)*.10,.16+sin(progress*PI)*.16,sin(angle)*.10);size=.76 if normal_role=="normal_giga" else .53
+					"normal_stomp","normal_megakick","normal_slam","normal_body","normal_climb":
+						q=points[-1]+Vector3(cos(angle)*.22,1.0*(1.0-progress),sin(angle)*.22);size=.58
+					"normal_bide":
+						q=points[0]+Vector3(cos(angle+t*TAU)*.40,.12+f*.6,sin(angle+t*TAU)*.40);size=.50
+					"normal_cut","normal_thrash":
+						q=tiles[j%tiles.size()]+Vector3(cos(angle+t*TAU)*.28,.16+f*.3,sin(angle+t*TAU)*.28);size=.54
+					"normal_constrict","normal_bind","normal_wrap","normal_spin":
+						q=points[-1]+Vector3(cos(angle+t*TAU)*.38,.12+f*.55,sin(angle+t*TAU)*.38);size=.48
+					_:
+						q=points[-1]+Vector3(cos(angle+t*TAU)*.26,.16+f*.36,sin(angle+t*TAU)*.26);size=.52
 			# Drained energy travels from victim back to caster; healing stays on caster.
 			if profile.role=="drain" and t>=.40:
 				var back:float=clampf((t-.40)*2.0-f*.22,0.0,1.0)

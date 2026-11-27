@@ -370,6 +370,22 @@ func run():
 				steel_frames[signature]=true
 				assert(middle.save_png("/tmp/dungeon-real-steel-"+id+".png")==OK)
 			print("KINDRIA_STEEL_CHOREOGRAPHY_PASS ",steel_roles.size())
+			var neutral_contact_roles:Dictionary={}
+			var neutral_contact_frames:Dictionary={}
+			for id in ["eos_009","eos_018","eos_020","eos_039","eos_048","eos_050","eos_061","eos_066","eos_067","eos_071","eos_078","eos_081","eos_096","eos_121","eos_125","eos_132","eos_139","eos_140","eos_154","eos_161","eos_176","eos_177","eos_190","eos_203","eos_226","eos_235","eos_247","eos_248","eos_250","eos_260","eos_261","eos_264","eos_271","eos_275","eos_294","eos_311","eos_312","eos_314","eos_321","eos_322","eos_328","eos_347","eos_348","eos_352","eos_455","eos_487","eos_497","eos_505","eos_516","eos_541"]:
+				var profile:Dictionary=dungeon.combat_profile(id)
+				assert(str(profile.role).begins_with("normal_"),"dedicated neutral contact role "+id)
+				assert(not neutral_contact_roles.has(profile.role),"unique neutral contact choreography "+id)
+				neutral_contact_roles[profile.role]=true
+				var first:Image=dungeon.combat_frame_image(id,2)
+				var middle:Image=dungeon.combat_frame_image(id,6)
+				assert(first.get_data()!=middle.get_data(),"neutral contact animation changes "+id)
+				assert(middle.get_used_rect().has_area(),"nonempty neutral contact frame "+id)
+				var signature:String=middle.get_data().hex_encode()
+				assert(not neutral_contact_frames.has(signature),"unique neutral contact sprite "+id)
+				neutral_contact_frames[signature]=true
+				assert(middle.save_png("/tmp/dungeon-real-neutral-contact-"+id+".png")==OK)
+			print("KINDRIA_NEUTRAL_CONTACT_CHOREOGRAPHY_PASS ",neutral_contact_roles.size())
 			# Reproduce the freed-instance registry fault before the real expedition.
 			var retired:Node3D=dungeon.actor_for("retired-test",Vector3.ZERO)
 			retired.free()
