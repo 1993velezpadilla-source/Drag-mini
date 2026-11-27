@@ -96,6 +96,9 @@ var fx_diag_previous_usec:int=0
 var fx_diag_was_active:bool=false
 var fx_diag_intervals:PackedInt64Array=PackedInt64Array()
 var fx_diag_cpu:PackedInt64Array=PackedInt64Array()
+var fx_diag_world:PackedInt64Array=PackedInt64Array()
+var fx_diag_actor:PackedInt64Array=PackedInt64Array()
+var fx_diag_full:PackedInt64Array=PackedInt64Array()
 var fx_diag_gaps:int=0
 var fx_diag_peak_casts:int=0
 var fx_diag_peak_particles:int=0
@@ -19350,7 +19353,7 @@ func fx_diag_stats(samples:PackedInt64Array)->Dictionary:
 		if value>33333:over_double+=1
 	return {"samples":sorted.size(),"p50_usec":sorted[ceili(sorted.size()*.50)-1],"p95_usec":sorted[ceili(sorted.size()*.95)-1],"p99_usec":sorted[ceili(sorted.size()*.99)-1],"max_usec":sorted[-1],"mean_usec":float(total)/sorted.size(),"over_60hz_budget":over_budget,"over_30hz_budget":over_double}
 
-func fx_diag_sample(now:int,submit_usec:int,active:bool)->void:
+func fx_diag_sample(now:int,submit_usec:int,active:bool,world_usec:int=0,actor_usec:int=0,full_usec:int=0)->void:
 	var interval:int=now-fx_diag_previous_usec
 	var include_interval:bool=fx_diag_previous_usec>0 and fx_diag_was_active
 	fx_diag_previous_usec=now
@@ -19361,6 +19364,9 @@ func fx_diag_sample(now:int,submit_usec:int,active:bool)->void:
 		return
 	fx_diag_intervals.append(interval)
 	fx_diag_cpu.append(maxi(0,submit_usec))
+	fx_diag_world.append(maxi(0,world_usec))
+	fx_diag_actor.append(maxi(0,actor_usec))
+	fx_diag_full.append(maxi(0,full_usec))
 	fx_diag_peak_casts=maxi(fx_diag_peak_casts,combat_bursts.size())
 	fx_diag_peak_tier=maxi(fx_diag_peak_tier,fx_performance_tier)
 	var visible_count:int=fx_particle_batched_count
@@ -19369,12 +19375,13 @@ func fx_diag_sample(now:int,submit_usec:int,active:bool)->void:
 	fx_diag_peak_particles=maxi(fx_diag_peak_particles,visible_count)
 	if fx_diag_intervals.size()<FX_DIAG_WINDOW:return
 	# One bounded summary every 300 combat intervals. No per-frame disk writes.
-	print("KINDRIA_DEVICE_PERF ",JSON.stringify({"os":OS.get_name(),"engine_fps":Engine.get_frames_per_second(),"frame_interval":fx_diag_stats(fx_diag_intervals),"fx_cpu_update":fx_diag_stats(fx_diag_cpu),"excluded_long_gaps":fx_diag_gaps,"peak_casts":fx_diag_peak_casts,"peak_particles":fx_diag_peak_particles,"peak_quality_tier":fx_diag_peak_tier,"static_bytes":OS.get_static_memory_usage(),"video_bytes":Performance.get_monitor(Performance.RENDER_VIDEO_MEM_USED),"draw_calls_snapshot":Performance.get_monitor(Performance.RENDER_TOTAL_DRAW_CALLS_IN_FRAME),"atlas_entries":fx_atlas_cache.size(),"secondary_entries":combat_textures.size()}))
-	fx_diag_intervals.clear();fx_diag_cpu.clear()
+	print("KINDRIA_DEVICE_PERF ",JSON.stringify({"os":OS.get_name(),"engine_fps":Engine.get_frames_per_second(),"frame_interval":fx_diag_stats(fx_diag_intervals),"fx_cpu_update":fx_diag_stats(fx_diag_cpu),"world_cpu_update":fx_diag_stats(fx_diag_world),"actor_ui_cpu_update":fx_diag_stats(fx_diag_actor),"process_cpu_total":fx_diag_stats(fx_diag_full),"excluded_long_gaps":fx_diag_gaps,"peak_casts":fx_diag_peak_casts,"peak_particles":fx_diag_peak_particles,"peak_quality_tier":fx_diag_peak_tier,"static_bytes":OS.get_static_memory_usage(),"video_bytes":Performance.get_monitor(Performance.RENDER_VIDEO_MEM_USED),"draw_calls_snapshot":Performance.get_monitor(Performance.RENDER_TOTAL_DRAW_CALLS_IN_FRAME),"atlas_entries":fx_atlas_cache.size(),"secondary_entries":combat_textures.size()}))
+	fx_diag_intervals.clear();fx_diag_cpu.clear();fx_diag_world.clear();fx_diag_actor.clear();fx_diag_full.clear()
 	fx_diag_gaps=0;fx_diag_peak_casts=0;fx_diag_peak_particles=0;fx_diag_peak_tier=0
 
 func _process(dt:float):
 	if notified or not is_instance_valid(pet):return
+	var process_start:int=Time.get_ticks_usec() if fx_diag_enabled else 0
 	if OS.has_feature("mobile"):
 		var active_fx:bool=not combat_bursts.is_empty() or not retired_impacts.is_empty() or not delayed_combat_fx.is_empty() or attack_time>0.0
 		update_fx_performance(dt,active_fx)
@@ -19383,39 +19390,40 @@ func _process(dt:float):
 		hold_age+=dt
 		if hold_age>=.28:show_held_attack()
 		if hold_visible and is_instance_valid(aim_preview):aim_preview.queue_redraw()
-	if fx_diag_enabled:
-		var start_usec:int=Time.get_ticks_usec()
-		var was_active:bool=not combat_bursts.is_empty() or not retired_impacts.is_empty() or not delayed_combat_fx.is_empty()
-		combat_fx_update(dt)
-		var submit_usec:int=Time.get_ticks_usec()-start_usec
-		fx_diag_sample(start_usec,submit_usec,was_active or not combat_bursts.is_empty() or not retired_impacts.is_empty())
-	else:
-		combat_fx_update(dt)
+	var start_usec:int=Time.get_ticks_usec() if fx_diag_enabled else 0
+	var was_active:bool=fx_diag_enabled and (not combat_bursts.is_empty() or not retired_impacts.is_empty() or not delayed_combat_fx.is_empty())
+	combat_fx_update(dt)
+	var world_start:int=Time.get_ticks_usec() if fx_diag_enabled else 0
+	var submit_usec:int=world_start-start_usec
+	var frame_active:bool=fx_diag_enabled and (was_active or not combat_bursts.is_empty() or not retired_impacts.is_empty())
 	# Advance existing clocks before path movement can launch a new action.
 	# A cast created by sync() later in this frame starts at age zero.
 	advance_player_combat_clock(dt)
 	update_living_ambient(dt)
 	update_exterior_world(dt)
+	var actor_start:int=Time.get_ticks_usec() if fx_diag_enabled else 0
 	if reward_age>0.0:
 		reward_age=maxf(0.0,reward_age-dt)
 		var progress:float=1.0-reward_age/maxf(.01,interaction_duration)
 		var mode:String=str(interaction_profile(interaction_kind).mode)
+		var reward_sine:float=sin(progress*PI)
+		var reward_scale:=Vector3(.065,.15,.065)*(1.0-progress*.85)
 		for i in range(reward_pool.size()):
 			var spark:=reward_pool[i]
 			var angle:float=float(i)*TAU/reward_pool.size()+progress*.6
 			var radius:float=.25+progress*.9
-			var height:float=.22+sin(progress*PI)*.9
+			var height:float=.22+reward_sine*.9
 			match mode:
 				"alert":
 					radius=.38+progress*.62;height=.12
 				"eat","heal":
 					radius=.48*(1.0-progress*.65);height=.24+progress*1.0+float(i%3)*.08
 				"treasure":
-					radius=.18+progress*.50;height=.28+sin(progress*PI)*.66+float(i%3)*.08
+					radius=.18+progress*.50;height=.28+reward_sine*.66+float(i%3)*.08
 				"victory":
-					radius=.25+progress*.9;height=.22+sin(progress*PI)*.9
+					radius=.25+progress*.9;height=.22+reward_sine*.9
 			spark.position=Vector3(cos(angle)*radius,height,sin(angle)*radius)
-			spark.scale=Vector3(.065,.15,.065)*(1.0-progress*.85)
+			spark.scale=reward_scale
 		reward_fx.visible=reward_age>0.0
 		if reward_age<=0.0:interaction_priority=0;interaction_kind=""
 	banner_time=maxf(0.0,banner_time-dt)
@@ -19426,6 +19434,7 @@ func _process(dt:float):
 	feedback.visible=feedback_time>0.0
 	if feedback.visible:
 		feedback.size=Vector2(area.size.x,42);feedback.position=Vector2(0,area.size.y*.29-(1.0-feedback_time)*24.0);feedback.modulate.a=minf(1.0,feedback_time*4.0)
+	var enemy_smoothing:float=1.0-exp(-dt*15.0)
 	for key in actor_nodes.keys():
 		var n=actor_nodes[key]
 		if not is_instance_valid(n) or n.is_queued_for_deletion():
@@ -19433,7 +19442,7 @@ func _process(dt:float):
 		if n.has_meta("target"):
 			var target_position:Vector3=n.get_meta("target")
 			var delta_position:Vector3=target_position-n.position
-			n.position=n.position.lerp(target_position,1.0-exp(-dt*15.0))
+			n.position=n.position.lerp(target_position,enemy_smoothing)
 			update_enemy_pixel(n,dt,delta_position)
 		elif n.has_meta("float_item"):
 			n.position.y=.12+.07*sin(elapsed*4.0+n.position.x);n.rotation.y=elapsed*1.8
@@ -19549,3 +19558,6 @@ func _process(dt:float):
 	var contact_shift:Vector3=fx_contact_camera*contact_camera_sample(fx_contact_camera_age/.18)
 	camera.position=focus+DUNGEON_CAMERA_OFFSET+Vector3(sin(elapsed*61.0)*shake,0,cos(elapsed*73.0)*shake*.45)+contact_shift
 	camera.look_at(focus+contact_shift)
+	if fx_diag_enabled:
+		var frame_end:int=Time.get_ticks_usec()
+		fx_diag_sample(start_usec,submit_usec,frame_active,actor_start-world_start,frame_end-actor_start,frame_end-process_start)
