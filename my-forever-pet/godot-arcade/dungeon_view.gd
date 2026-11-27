@@ -14545,7 +14545,8 @@ func combat_status_audio_sample(kind:String,t:float,p:float,noise:float,variant:
 		"shield":return sin(TAU*pitch*390.0*t)*.30+sin(TAU*pitch*1170.0*t)*.22*pow(1.0-p,2.0)
 		"boost":return sin(TAU*pitch*(330.0*t+540.0*t*p))*.42*(.45+.55*absf(sin(p*PI*3.0)))
 		"weaken":return sin(TAU*pitch*(700.0*t-490.0*t*p))*.40*(.45+.55*absf(sin(p*PI*2.0)))
-		"exchange","transform":return sin(TAU*pitch*(480.0*t+260.0*t*p)+sin(p*TAU*2.0)*1.7)*.35+sin(TAU*pitch*(720.0*t-240.0*t*p))*.19
+		"exchange":return sin(TAU*pitch*(480.0*t+260.0*t*p)+sin(p*TAU*2.0)*1.7)*.35+sin(TAU*pitch*(720.0*t-240.0*t*p))*.19
+		"transform":return sin(TAU*pitch*(240.0*t+720.0*t*p)+sin(p*TAU*3.0)*2.0)*.34+sin(TAU*pitch*960.0*t)*.16
 		"sleep":return sin(TAU*pitch*440.0*t)*.30+sin(TAU*pitch*660.0*t)*.14
 		"confusion":return sin(TAU*pitch*540.0*t+sin(TAU*13.0*t)*3.2)*.40
 		"poison":return sin(TAU*pitch*(180.0*t+130.0*t*p)+sin(TAU*24.0*t)*2.8)*.36+noise*.09
@@ -14554,7 +14555,8 @@ func combat_status_audio_sample(kind:String,t:float,p:float,noise:float,variant:
 		"freeze":return sin(TAU*pitch*1900.0*t)*.28+sin(TAU*pitch*2810.0*t)*.19+noise*.12*pow(1.0-p,3.0)
 		"curse":return sin(TAU*pitch*(145.0*t-55.0*t*p)+sin(TAU*8.0*t)*2.0)*.40+sin(TAU*pitch*219.0*t)*.16
 		"heart":return sin(TAU*pitch*523.25*t)*.29+sin(TAU*pitch*783.99*t)*.18
-		"bind","trap":return (noise*.24+sin(TAU*pitch*230.0*t)*.28)*(.3+.7*pow(absf(sin(p*PI*3.0)),4.0))
+		"bind":return (noise*.24+sin(TAU*pitch*230.0*t)*.28)*(.3+.7*pow(absf(sin(p*PI*3.0)),4.0))
+		"trap":return (noise*.22+sin(TAU*pitch*510.0*t)*.25)*(.2+.8*pow(absf(sin(p*PI*2.0)),6.0))
 		"weather":return noise*.23*sin(p*PI)+sin(TAU*pitch*(330.0*t+180.0*t*p))*.22
 		"blocked":return sin(TAU*pitch*(260.0*t-150.0*t*p))*.24*pow(1.0-p,2.0)
 		_:return sin(TAU*pitch*(460.0*t+160.0*t*p))*.32+bright*.12
