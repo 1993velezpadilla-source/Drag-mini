@@ -365,6 +365,9 @@ var trail_batch:MultiMeshInstance3D
 var trail_origins:Array[Vector3]=[]
 var trail_ages:PackedFloat32Array=[]
 var trail_angles:PackedFloat32Array=[]
+var trail_transform_dirty:PackedByteArray=PackedByteArray()
+var world_trail_transform_writes:int=0
+var world_trail_transform_skips:int=0
 var trail_cursor=0
 var trail_emitted=0
 var caustic_overlay:MeshInstance3D
@@ -1449,21 +1452,22 @@ func exterior_response_pick(residues:Array)->Dictionary:
 func update_exterior_world(dt:float):
 	exterior_clock+=clampf(dt,0.0,.25)
 	# Select the strongest live local reaction, not the last visited tile.
-	var reaction:=exterior_response_pick(fx_residues)
+	var reaction:Dictionary=exterior_response_pick(fx_residues) if not exterior_motion_materials.is_empty() and not fx_residues.is_empty() else {}
 	var pulse:Vector4=reaction.get("pulse",Vector4.ZERO)
 	var response:Vector4=reaction.get("response",Vector4.ZERO)
 	var tint:Color=reaction.get("tint",Color.WHITE)
 	for kind in exterior_motion_materials:
 		var material:ShaderMaterial=exterior_motion_materials[kind]
-		material.set_shader_parameter("scene_time",exterior_clock)
 		var uniform_cache:Dictionary=fx_uniform_cache(material)
+		set_fx_uniform_cached(material,uniform_cache,&"scene_time",exterior_clock)
 		set_fx_uniform_cached(material,uniform_cache,"combat_pulse",pulse)
 		set_fx_uniform_cached(material,uniform_cache,"combat_response",response)
 		set_fx_uniform_cached(material,uniform_cache,"combat_tint",tint)
 	if exterior_life.is_empty():return
+	var life_clock:float=exterior_clock*(.70 if region==1 else .46)
+	var radius:float=.55 if region==0 else .80
 	for i in range(exterior_life_centers.size()):
-		var phase=exterior_clock*(.70 if region==1 else .46)+float(i)*2.399
-		var radius=.55 if region==0 else .80
+		var phase=life_clock+float(i)*2.399
 		var center=exterior_life_centers[i]
 		var height=1.1+.26*sin(phase*1.6) if region==0 else .83+.18*sin(phase) if region==1 else 1.25+.23*sin(phase)
 		var point=center+Vector3(cos(phase)*radius,height,sin(phase)*radius)
@@ -1899,6 +1903,7 @@ func build_living_ambient():
 	trail_origins.clear();trail_ages.clear();trail_angles.clear();trail_cursor=0;trail_emitted=0
 	trail_origins.resize(TRAIL_COUNT);trail_ages.resize(TRAIL_COUNT);trail_angles.resize(TRAIL_COUNT)
 	trail_ages.fill(99.0)
+	trail_transform_dirty.resize(TRAIL_COUNT);trail_transform_dirty.fill(0)
 	# Initialize invisible trail slots once, rather than rewriting them forever.
 	for i in range(TRAIL_COUNT):
 		trail_batch.multimesh.set_instance_transform(i,Transform3D(Basis.from_scale(Vector3.ONE*.001),Vector3.ZERO))
@@ -1998,12 +2003,18 @@ func emit_trail(tile:Vector2i,dir:Vector2i):
 	var side=-1.0 if trail_cursor%2==0 else 1.0
 	trail_origins[trail_cursor]=pos(tile)+Vector3(-dir.y*side*.12,.035,dir.x*side*.12)
 	trail_angles[trail_cursor]=atan2(float(dir.x),float(dir.y))
+	trail_transform_dirty[trail_cursor]=1
 	trail_ages[trail_cursor]=0.0;trail_cursor=(trail_cursor+1)%TRAIL_COUNT;trail_emitted+=1
+# Forest and astral footprints keep the same transform until expiration.
+# Reef rings still expand every frame; overwritten slots always resubmit.
+func trail_needs_transform(biome:int,dirty:bool,expired:bool)->bool:
+	return biome==1 or dirty or expired
+
 func update_living_ambient(dt:float):
 	if ambient_batches.size()!=2 or not is_instance_valid(trail_batch):return
 	var delta=clampf(dt,0.0,.25)
 	ambient_clock+=delta
-	for material in biome_light_materials:material.set_shader_parameter("scene_time",ambient_clock)
+	for material in biome_light_materials:set_fx_uniform(material,&"scene_time",ambient_clock)
 	var player_center:=pos(run.player)
 	var primary_mesh:MultiMesh=ambient_batches[0].multimesh
 	var mote_mesh:MultiMesh=ambient_batches[1].multimesh
@@ -2043,8 +2054,13 @@ func update_living_ambient(dt:float):
 		trail_ages[i]=minf(99.0,trail_ages[i]+delta)
 		var fade=clampf(1.0-trail_ages[i]/life,0.0,1.0)
 		var scale_value=(.55+trail_ages[i]*.28) if region==1 else .78
-		if fade<=0.0:scale_value=.001;trail_ages[i]=99.0
-		trail_mesh.set_instance_transform(i,Transform3D(Basis(Vector3.UP,trail_angles[i]).scaled(Vector3.ONE*scale_value),trail_origins[i]))
+		var expired:bool=fade<=0.0
+		if expired:scale_value=.001;trail_ages[i]=99.0
+		if trail_needs_transform(region,trail_transform_dirty[i]!=0,expired):
+			trail_mesh.set_instance_transform(i,Transform3D(Basis(Vector3.UP,trail_angles[i]).scaled(Vector3.ONE*scale_value),trail_origins[i]))
+			trail_transform_dirty[i]=0
+			world_trail_transform_writes+=1
+		else:world_trail_transform_skips+=1
 		trail_mesh.set_instance_color(i,Color(1,1,1,fade*.58))
 func build_floor():
 	var start_usec=Time.get_ticks_usec()
@@ -19375,7 +19391,7 @@ func fx_diag_sample(now:int,submit_usec:int,active:bool,world_usec:int=0,actor_u
 	fx_diag_peak_particles=maxi(fx_diag_peak_particles,visible_count)
 	if fx_diag_intervals.size()<FX_DIAG_WINDOW:return
 	# One bounded summary every 300 combat intervals. No per-frame disk writes.
-	print("KINDRIA_DEVICE_PERF ",JSON.stringify({"os":OS.get_name(),"engine_fps":Engine.get_frames_per_second(),"frame_interval":fx_diag_stats(fx_diag_intervals),"fx_cpu_update":fx_diag_stats(fx_diag_cpu),"world_cpu_update":fx_diag_stats(fx_diag_world),"actor_ui_cpu_update":fx_diag_stats(fx_diag_actor),"process_cpu_total":fx_diag_stats(fx_diag_full),"excluded_long_gaps":fx_diag_gaps,"peak_casts":fx_diag_peak_casts,"peak_particles":fx_diag_peak_particles,"peak_quality_tier":fx_diag_peak_tier,"static_bytes":OS.get_static_memory_usage(),"video_bytes":Performance.get_monitor(Performance.RENDER_VIDEO_MEM_USED),"draw_calls_snapshot":Performance.get_monitor(Performance.RENDER_TOTAL_DRAW_CALLS_IN_FRAME),"atlas_entries":fx_atlas_cache.size(),"secondary_entries":combat_textures.size()}))
+	print("KINDRIA_DEVICE_PERF ",JSON.stringify({"os":OS.get_name(),"engine_fps":Engine.get_frames_per_second(),"frame_interval":fx_diag_stats(fx_diag_intervals),"fx_cpu_update":fx_diag_stats(fx_diag_cpu),"world_cpu_update":fx_diag_stats(fx_diag_world),"trail_transform_writes":world_trail_transform_writes,"trail_transform_skips":world_trail_transform_skips,"actor_ui_cpu_update":fx_diag_stats(fx_diag_actor),"process_cpu_total":fx_diag_stats(fx_diag_full),"excluded_long_gaps":fx_diag_gaps,"peak_casts":fx_diag_peak_casts,"peak_particles":fx_diag_peak_particles,"peak_quality_tier":fx_diag_peak_tier,"static_bytes":OS.get_static_memory_usage(),"video_bytes":Performance.get_monitor(Performance.RENDER_VIDEO_MEM_USED),"draw_calls_snapshot":Performance.get_monitor(Performance.RENDER_TOTAL_DRAW_CALLS_IN_FRAME),"atlas_entries":fx_atlas_cache.size(),"secondary_entries":combat_textures.size()}))
 	fx_diag_intervals.clear();fx_diag_cpu.clear();fx_diag_world.clear();fx_diag_actor.clear();fx_diag_full.clear()
 	fx_diag_gaps=0;fx_diag_peak_casts=0;fx_diag_peak_particles=0;fx_diag_peak_tier=0
 
