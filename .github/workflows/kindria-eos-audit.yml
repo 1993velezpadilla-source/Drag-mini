@@ -1,0 +1,24 @@
+name: Kindria EoS move reference audit
+on:
+  push:
+    branches: [feature/my-forever-pet-paradise]
+    paths: ['my-forever-pet/art/eos_move_audit.json', 'my-forever-pet/art/audit_eos_ranges.py', '.github/workflows/kindria-eos-audit.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Read pinned reference data and export numeric audit only
+        run: |
+          set -euo pipefail
+          curl -fsSL --retry 3 https://raw.githubusercontent.com/pret/pmd-sky/9fa563873cec324993a614ea8ce03433add10e46/files/BALANCE/waza_p.bin -o /tmp/eos-reference.bin
+          python3 my-forever-pet/art/audit_eos_ranges.py /tmp/eos-reference.bin my-forever-pet/art/eos_move_audit.json /tmp/eos-complete-range-audit.json
+          rm /tmp/eos-reference.bin
+      - uses: actions/upload-artifact@v4
+        with:
+          name: kindria-eos-numeric-range-audit
+          path: /tmp/eos-complete-range-audit.json
