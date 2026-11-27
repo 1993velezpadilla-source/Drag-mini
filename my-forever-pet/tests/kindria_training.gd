@@ -71,9 +71,9 @@ func _initialize():
 		if not str(id).begins_with("eos_"):continue
 		var move:Dictionary=Rules.MOVE_LIBRARY[id]
 		assert(int(str(id).trim_prefix("eos_"))==int(move.reference_id))
-		assert(move.pp>0 and (move.power>0 or move.has("heal_fraction") or move.has("inflict_status")))
+		assert(move.pp>0 and (move.power>0 or move.has("heal_fraction") or move.has("inflict_status") or move.has("stat_changes")))
 		assert(move.reference_strikes==1 or (move.has("hit_min") and move.hit_min>=2 and move.hit_max<=5))
-		assert(move.category in ["physical","special"] or (move.category=="status" and (move.has("heal_fraction") or move.has("inflict_status"))))
+		assert(move.category in ["physical","special"] or (move.category=="status" and (move.has("heal_fraction") or move.has("inflict_status") or move.has("stat_changes"))))
 		assert(id in Rules.available_moves([move.type],100))
 		assert(not id in Rules.available_moves([move.type],15))
 		assert(Rules.reference_accuracy(move)>=0.0 and Rules.reference_accuracy(move)<=100.0)
@@ -213,6 +213,25 @@ func _initialize():
 	assert(spell.cast_move("eos_013",Vector2i.RIGHT))
 	assert(spell.enemies[0].hp==100 and spell.last_move_hits==1 and spell.move_pp.eos_013==12 and spell.turns==1)
 	print("KINDRIA_STATUS_PASS")
+	assert(is_equal_approx(Rules.stage_factor("attack",2),332.0/256.0))
+	assert(is_equal_approx(Rules.stage_factor("sp_defense",2),409.0/256.0))
+	var stage_run=Rules.new()
+	stage_run.player=Vector2i(1,1)
+	stage_run.cells[stage_run.player]=true
+	stage_run.equipped_moves=["eos_181"];stage_run.move_pp={"eos_181":7}
+	for i in range(6):assert(stage_run.cast_move("eos_181",Vector2i.UP))
+	assert(stage_run.player_stages.attack==10 and stage_run.move_pp.eos_181==1 and stage_run.turns==6)
+	stage_run.enemies.append({"pos":Vector2i(2,1),"hp":100,"kind":0,"species":"reef_pup"})
+	stage_run.strike(0)
+	assert(stage_run.enemies[0].hp==89)
+	var target_stages:Dictionary={}
+	var target_halves:Dictionary={}
+	for i in range(9):Rules.apply_stat_changes(target_stages,target_halves,Rules.MOVE_LIBRARY.eos_027)
+	assert(target_halves.defense==7 and target_stages.is_empty())
+	assert(is_equal_approx(Rules.stat_effect(target_stages,target_halves,"defense"),1.0/128.0))
+	stage_run.clear_combat_effects()
+	assert(stage_run.player_stages.is_empty())
+	print("KINDRIA_STAT_STAGE_PASS")
 	assert(Rules.EOS_IDENTIFIED_COUNT==468)
 	print("KINDRIA_EOS_PROTOTYPES_PASS ",eos_count)
 	print("KINDRIA_LEARNSET_PP_PASS")
