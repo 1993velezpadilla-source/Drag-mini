@@ -112,11 +112,11 @@ const DELAYED_COMBAT_FX_CAP:int=24
 var delayed_combat_fx:Array[Dictionary]=[]
 const FX_SECONDARY_TEXTURE_CAP:int=768
 var combat_textures:Dictionary={}
-var combat_texture_order:Array[String]=[]
+var fx_secondary_newest:String=""
 # Keep transient animation frames separate from permanent static FX textures.
 const FX_ANIMATED_CACHE_CAP=384
 var fx_animated_cache:Dictionary={}
-var fx_animated_order:Array[String]=[]
+var fx_animated_newest:String=""
 var fx_frame_builds:int=0
 var fx_secondary_builds:int=0
 var fx_arc_had_geometry:bool=false
@@ -3316,18 +3316,20 @@ func particle_material_pixel(family:int,v:Vector2,inner:bool,light:Color,dark:Co
 func cache_combat_particle(key:String,texture:ImageTexture)->void:
 	if combat_textures.has(key):return
 	fx_secondary_builds+=1
-	if combat_texture_order.size()>=FX_SECONDARY_TEXTURE_CAP:
-		combat_textures.erase(combat_texture_order.pop_front())
+	if combat_textures.size()>=FX_SECONDARY_TEXTURE_CAP:
+		combat_textures.erase(combat_textures.keys()[0])
 	combat_textures[key]=texture
-	combat_texture_order.append(key)
+	fx_secondary_newest=key
 
 func combat_pixel_texture(mode:String,light:Color,dark:Color)->ImageTexture:
 	var key:=mode+str(light)+str(dark)
 	if combat_textures.has(key):
-		if not combat_texture_order.is_empty() and combat_texture_order[-1]!=key:
-			combat_texture_order.erase(key)
-			combat_texture_order.append(key)
-		return combat_textures[key]
+		var cached:ImageTexture=combat_textures[key]
+		if fx_secondary_newest!=key:
+			combat_textures.erase(key)
+			combat_textures[key]=cached
+			fx_secondary_newest=key
+		return cached
 	if mode.begins_with("contact:"):
 		var parts:=mode.split(":")
 		var icon:=ImageTexture.create_from_image(contact_icon_image(parts[1],int(parts[2]),light,dark))
@@ -13498,17 +13500,19 @@ func combat_animated_texture(id:String,frame:int)->ImageTexture:
 	var normalized:int=posmod(frame,FX_FRAME_COUNT)
 	var key:="animated:"+id+":"+str(normalized)
 	if fx_animated_cache.has(key):
-		if not fx_animated_order.is_empty() and fx_animated_order[-1]!=key:
-			fx_animated_order.erase(key)
-			fx_animated_order.append(key)
-		return fx_animated_cache[key] as ImageTexture
+		var cached:ImageTexture=fx_animated_cache[key]
+		if fx_animated_newest!=key:
+			fx_animated_cache.erase(key)
+			fx_animated_cache[key]=cached
+			fx_animated_newest=key
+		return cached
 	# LRU eviction; active casts retain their own exact frame reference.
-	if fx_animated_order.size()>=FX_ANIMATED_CACHE_CAP:
-		fx_animated_cache.erase(fx_animated_order.pop_front())
+	if fx_animated_cache.size()>=FX_ANIMATED_CACHE_CAP:
+		fx_animated_cache.erase(fx_animated_cache.keys()[0])
 	fx_frame_builds+=1
 	var texture:=ImageTexture.create_from_image(combat_frame_image(id,normalized))
 	fx_animated_cache[key]=texture
-	fx_animated_order.append(key)
+	fx_animated_newest=key
 	return texture
 # Presentation contracts are independent of damage rules. Each attack has a
 # caster motion, source socket, launch point, target reaction and sound phases.
