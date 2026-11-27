@@ -36,6 +36,41 @@ func run_checks()->void:
 	var checks:int=0
 	var failures:Array[String]=[]
 	var view:=Dungeon.new()
+	# V24.9: shared world math must preserve deterministic spawn and response selection.
+	var world_probe:=Dungeon.new()
+	var world_rng:=RandomNumberGenerator.new()
+	world_probe.ambient_origins.resize(1)
+	world_probe.ambient_ages.resize(1)
+	for world_seed in [7,42,731]:
+		world_rng.seed=world_seed
+		world_probe.ambient_rng.seed=world_seed
+		for world_initial in [true,false,true,false]:
+			var world_center:=Vector3(2.5,0,-3.0)
+			var world_expected_origin:Vector3=world_center+Vector3(world_rng.randf_range(-5.5,5.5),0,world_rng.randf_range(-6.0,5.0))
+			var world_expected_age:float=world_rng.randf_range(0.0,4.5) if world_initial else 0.0
+			world_probe.ambient_spawn_at(0,world_center,world_initial)
+			if world_probe.ambient_origins[0]!=world_expected_origin:failures.append("V24.9 deterministic ambient origin")
+			if not is_equal_approx(world_probe.ambient_ages[0],world_expected_age):failures.append("V24.9 deterministic ambient age")
+			checks+=2
+	for world_trial in range(20):
+		var world_marks:Array=[]
+		for world_index in range(8):
+			world_marks.append({"at":Vector3(world_index,0,world_trial),"age":float((world_index*7+world_trial)%13)*.1,"life":1.0,"element":["fire","water","flying","ice"][world_index%4],"terrain_only":world_index%2==0,"color":Color(float(world_index)/8.0,.5,.8)})
+		if world_trial%2==0:world_marks.reverse()
+		var world_expected:Dictionary={}
+		var world_score:float=0.0
+		for world_mark in world_marks:
+			var world_phase:float=clampf(float(world_mark.age)/maxf(.001,float(world_mark.life)),0.0,1.0)
+			if world_phase>=1.0:continue
+			var world_response:Vector4=world_probe.environmental_response_sample(str(world_mark.element),world_phase,bool(world_mark.terrain_only))
+			var world_weight:float=maxf(absf(world_response.y),maxf(world_response.z,world_response.w))
+			if world_weight<=world_score:continue
+			world_score=world_weight
+			var world_at:Vector3=world_mark.at
+			world_expected={"pulse":Vector4(world_at.x,world_at.z,world_phase,1.0),"response":world_response,"tint":Color(world_mark.color)}
+		if world_probe.exterior_response_pick(world_marks)!=world_expected:failures.append("V24.9 exterior selection parity")
+		checks+=1
+	world_probe.free()
 	# V24.8: reused budgets must match a fresh allocation across changing demand.
 	var living_memory_probe:=Dungeon.new()
 	var living_memory_reused:Array[int]=[]
