@@ -46,7 +46,7 @@ jobs:
         run: |
           set -euo pipefail
           engine=/tmp/godot/Godot_v4.4.1-stable_linux.x86_64
-          xvfb-run -a timeout 120 "$engine" --path /tmp/effsrc/Demo --rendering-method gl_compatibility --audio-driver Dummy --resolution 540x960 --max-fps 60 --script res://effekseer_dungeon_probe.gd 2>&1 | tee /tmp/effekseer-review/dungeon-probe.log
+          xvfb-run -a timeout 240 "$engine" --path /tmp/effsrc/Demo --rendering-method gl_compatibility --audio-driver Dummy --resolution 540x960 --max-fps 60 --script res://effekseer_dungeon_probe.gd 2>&1 | tee /tmp/effekseer-review/dungeon-probe.log
           grep -F 'KINDRIA_EFFEKSEER_DUNGEON_PASS 5' /tmp/effekseer-review/dungeon-probe.log
           ! grep -E 'SCRIPT ERROR|Shader compilation failed' /tmp/effekseer-review/dungeon-probe.log
       - uses: actions/upload-artifact@v4

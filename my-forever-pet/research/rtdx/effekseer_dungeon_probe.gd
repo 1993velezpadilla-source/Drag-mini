@@ -19,11 +19,11 @@ func run()->void:
 	var target:Vector2i=origin+Vector2i.RIGHT
 	var points:Array=[field.pos(origin)+Vector3.UP*.55,field.pos(target)+Vector3.UP*.55]
 	var cases:Array=[
-		["lib_fire_2","sample-material3/ef_fire01_projectile.efkefc","sample-material3/ef_fire01.efkefc",.36,.36],
-		["lib_ice_2","sample-material3/ef_ice02.efkefc","sample-material3/ef_ice01.efkefc",.30,.30],
-		["lib_electric_2","sample-material3/ef_lightning02.efkefc","sample-material3/ef_lightning01.efkefc",.22,.22],
-		["lib_flying_2","sample-material3/ef_wind02.efkefc","sample-material3/ef_wind01.efkefc",.30,.30],
-		["lib_water_2","sample-material2/ToonWater.efkefc","sample-material2/ToonWater.efkefc",.035,.035]]
+		["lib_fire_2","sample-material3/ef_fire01_projectile.efkefc","sample-material3/ef_fire01.efkefc",.62,.78],
+		["lib_ice_2","sample-material3/ef_ice02.efkefc","sample-material3/ef_ice01.efkefc",.30,.35],
+		["lib_electric_2","sample-material3/ef_lightning02.efkefc","sample-material3/ef_lightning01.efkefc",.48,.56],
+		["lib_flying_2","sample-material3/ef_wind02.efkefc","sample-material3/ef_wind01.efkefc",.44,.52],
+		["lib_water_2","sample-material2/ToonWater.efkefc","sample-material2/ToonWater.efkefc",.045,.055]]
 	for row in cases:
 		var id:String=row[0]
 		var profile:Dictionary=field.combat_profile(id)
@@ -52,6 +52,42 @@ func run()->void:
 			if frame in [8,16,23]:assert(root.get_texture().get_image().save_png("/tmp/effekseer-review/dungeon-"+id+"-impact-"+str(frame)+".png")==OK)
 		backend.reset()
 		print("KINDRIA_EFFEKSEER_TRACKS ",id)
+	# Compare the actual built-in combat layers against a hybrid composition.
+	# Both sides use the same attack, simulated time and camera.
+	for row in cases:
+		var id:String=row[0]
+		var profile:Dictionary=field.combat_profile(id)
+		var duration:float=float(profile.duration)
+		var peak:float=float(profile.impact)
+		var plan:Array=field.elemental_track_plan(id,profile)
+		var travel:Dictionary=plan[3] if plan[3].enabled else plan[2]
+		var impact:Dictionary=plan[5]
+		var projectile:Resource=load("res://effects/"+str(row[1]))
+		var hit:Resource=load("res://effects/"+str(row[2]))
+		for hybrid in [false,true]:
+			backend.reset()
+			field.combat_bursts.clear()
+			field.fx_residues.clear()
+			field.fx_reaction_sparks.clear()
+			field.combat_fx_update(0.0)
+			field.combat_fx_spawn({"fx":id,"from":origin,"to":target,"path":[target],"tiles":[target],"results":{target:{"damage":8,"effects":0,"heal":0}}})
+			if hybrid:
+				assert(backend.launch(travel,projectile,points,[points[-1]],float(row[3]),duration*peak)>=0)
+			var frame_dt:float=duration/24.0
+			var did_impact:bool=false
+			for frame in range(24):
+				field.combat_fx_update(frame_dt)
+				backend.advance(frame_dt)
+				if hybrid and not did_impact and float(frame+1)/24.0>=peak:
+					did_impact=true
+					assert(backend.launch(impact,hit,points,[points[-1]],float(row[4]),maxf(duration*(1.0-peak),.32))>=0)
+				await frames()
+				if frame in [int(peak*24.0*.75),mini(22,int(peak*24.0)+3)]:
+					var suffix:String="hybrid" if hybrid else "native"
+					assert(root.get_texture().get_image().save_png("/tmp/effekseer-review/compare-"+id+"-"+suffix+"-"+str(frame)+".png")==OK)
+			backend.reset()
+		print("KINDRIA_HYBRID_COMPARISON ",id)
+	print("KINDRIA_HYBRID_COMPARISON_PASS 5")
 	# Independent clocks, uneven segment distances, capacity and reuse.
 	var effect:Resource=load("res://effects/sample-material3/ef_fire01_projectile.efkefc")
 	var track:Dictionary={"enabled":true,"anchor":"path"}
