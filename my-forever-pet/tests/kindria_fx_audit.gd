@@ -395,6 +395,23 @@ func run()->void:
 	field.fx_reactions.clear()
 	tied_actor.free()
 	print("KINDRIA_VISIBLE_COUNTER_TERMINAL_PASS")
+	# A new floor may reuse a defeated enemy UID, but never its old combat ledger.
+	var floor_rules=Rules.new()
+	floor_rules.visual_turn_damage={0:{"events":[early_counter]}}
+	floor_rules.visual_turn_damage_turn=12
+	floor_rules.visual_response_events={0:[early_counter]}
+	floor_rules.visual_response_active=true
+	floor_rules.visual_response_cast_serial=70
+	floor_rules.visual_response_cast_uid=0
+	floor_rules.player_visual_hits={0:2}
+	floor_rules.player_visual_hit_serial=70
+	floor_rules.player_attack_cells.append(Vector2i(1,1))
+	floor_rules.player_attack_path.append(Vector2i(1,1))
+	floor_rules.reset_floor_combat_presentation()
+	if not floor_rules.visual_turn_damage.is_empty() or floor_rules.visual_turn_damage_turn!=-1 or not floor_rules.visual_response_events.is_empty() or floor_rules.visual_response_active:errors.append("floor damage ledger leaked")
+	if floor_rules.visual_response_cast_serial!=-1 or floor_rules.visual_response_cast_uid!=-1 or floor_rules.player_visual_hit_serial!=-1 or not floor_rules.player_visual_hits.is_empty():errors.append("floor counter identity leaked")
+	if not floor_rules.player_attack_cells.is_empty() or not floor_rules.player_attack_path.is_empty() or not floor_rules.enemy_actions.is_empty():errors.append("floor attack geometry leaked")
+	print("KINDRIA_FLOOR_COUNTER_ISOLATION_PASS")
 	# Exercise more frames than the cache cap, then verify hot hits and exact normalization.
 	for row in reports.slice(0,40):
 		for frame in range(Field.FX_FRAME_COUNT):field.combat_animated_texture(str(row.id),frame)
