@@ -5484,7 +5484,7 @@ func native_identity_frame(id:String,frame:int,base:Image)->Image:
 	return im
 
 # V16.7: individually remastered after reviewing actual Godot PNG strips.
-const VISUAL_REMASTER_MOVES=["eos_504","eos_308","eos_135","eos_142","eos_047","eos_250","eos_299","eos_329","eos_262","eos_279","eos_101","eos_199","eos_251","eos_486","eos_462","eos_018","eos_507","eos_175","eos_254","eos_097","eos_163","eos_320","eos_033","eos_166","eos_228","eos_004","eos_252","eos_330","eos_465","eos_138","eos_021","eos_501","eos_053","eos_157","eos_064","eos_188","eos_240","eos_255","eos_342","eos_539","eos_041","eos_278","eos_538","eos_239","eos_193","eos_272","eos_519","eos_494","eos_292","eos_065","eos_276","eos_208","eos_522","eos_452","eos_433","eos_087","eos_063","eos_062","eos_476","eos_127","eos_451","eos_436","eos_491","eos_046","eos_109","eos_234","eos_107","eos_463","eos_133","eos_317","eos_111","eos_331","eos_345","eos_270","eos_042","eos_344","eos_461","eos_180","eos_535","eos_150","eos_118","eos_484","eos_008","eos_131","eos_030","eos_481","eos_028","eos_073","lib_ground_1","eos_057","eos_036","eos_442","eos_153","eos_205","eos_100","eos_518","eos_178","eos_200","eos_495","eos_280","eos_197","eos_332","eos_147","eos_485","eos_459","eos_151","eos_537","eos_443","eos_336","eos_182","eos_253","eos_441","eos_076","lib_grass_1"]
+const VISUAL_REMASTER_MOVES=["eos_504","eos_308","eos_135","eos_142","eos_047","eos_250","eos_299","eos_329","eos_262","eos_279","eos_101","eos_199","eos_251","eos_486","eos_462","eos_018","eos_507","eos_175","eos_254","eos_097","eos_163","eos_320","eos_033","eos_166","eos_228","eos_004","eos_252","eos_330","eos_465","eos_138","eos_021","eos_501","eos_053","eos_157","eos_064","eos_188","eos_240","eos_255","eos_342","eos_539","eos_041","eos_278","eos_538","eos_239","eos_193","eos_272","eos_519","eos_494","eos_292","eos_065","eos_276","eos_208","eos_522","eos_452","eos_433","eos_087","eos_063","eos_062","eos_476","eos_127","eos_451","eos_436","eos_491","eos_046","eos_109","eos_234","eos_107","eos_463","eos_133","eos_317","eos_111","eos_331","eos_345","eos_270","eos_042","eos_344","eos_461","eos_180","eos_535","eos_150","eos_118","eos_484","eos_008","eos_131","eos_030","eos_481","eos_028","eos_073","lib_ground_1","eos_057","eos_036","eos_442","eos_153","eos_205","eos_100","eos_518","eos_178","eos_200","eos_495","eos_280","eos_197","eos_332","eos_147","eos_485","eos_459","eos_151","eos_537","eos_443","eos_336","eos_182","eos_253","eos_441","eos_076","lib_grass_1","eos_001","eos_325","eos_103","eos_536","eos_510","eos_431","eos_475","eos_523"]
 func visual_remaster_frame(id:String,frame:int)->Image:
 	var im:=Image.create(48,48,false,Image.FORMAT_RGBA8)
 	im.fill(Color.TRANSPARENT)
@@ -7252,6 +7252,132 @@ func visual_remaster_frame(id:String,frame:int)->Image:
 				grass_leaf(im,q,PI+float(j)*.2,4.5,Color("#a2e86e",fade),Color("#397f4d",fade))
 			fx_disc(im,dest,4.5+4.0*drive,Color("#74ba57",fade))
 			fx_disc(im,dest,2.7+2.0*drive,Color("#d9ffab",fade))
+		"eos_001":
+			# Iron Tail: articulated metal segments sweep into a heavy tapered tip.
+			var c:=Vector2(16,25)
+			var angle:float=-2.2+2.7*drive
+			var prev:=c
+			for j in range(1,10):
+				var f:float=float(j)/9.0
+				var a:float=angle+f*1.25
+				var q:=c+Vector2(cos(a),sin(a))*19*f
+				var width:float=7.0-4.3*f
+				fx_line(im,prev,q,width,Color("#35465b",fade))
+				fx_line(im,prev-Vector2(0,1),q-Vector2(0,1),width*.55,Color("#cedce7",fade))
+				var n:=Vector2(-sin(a),cos(a))
+				fx_line(im,q-n*width*.4,q+n*width*.4,1.0,Color("#607589",fade))
+				prev=q
+			fight_arc(im,c,19.0,angle-.6,1.4,Color("#f4fcff",fade),Color("#7a98ac",fade),2.1)
+			if t>=peak:
+				for j in range(5):
+					var a:float=angle+float(j-2)*.4
+					var axis:=Vector2(cos(a),sin(a))
+					fx_line(im,prev,prev+axis*(4+8*(1.0-fade)),1.2,Color("#ffe4a0",fade))
+		"eos_325":
+			# Metal Claw: three polished hooked blades, each with a beveled cutting edge.
+			for j in range(3):
+				var c:=Vector2(12+9*drive+float(j)*5,14+float(j)*7)
+				var prev:=c+Vector2(-6,7)
+				for k in range(1,10):
+					var f:float=float(k)/9.0
+					var q:=c+Vector2(-6+22*f,7-16*sin(f*PI*.7))
+					fx_line(im,prev,q,4.4*(1.0-f)+1.0,Color("#34495c",fade))
+					fx_line(im,prev,q,2.6*(1.0-f)+.6,Color("#c0d4e1",fade))
+					fx_line(im,prev-Vector2(0,1),q-Vector2(0,1),.8,Color("#f6ffff",fade))
+					prev=q
+				if t>=peak:
+					fairy_star(im,prev+Vector2(2,1),2.2,Color("#ffe3a1",fade))
+		"eos_103":
+			# Meteor Mash: a heavy steel fist with a five-point impact flare.
+			var q:=Vector2(10+23*drive,24)
+			for j in range(4):
+				var v:=q-Vector2(5+float(j)*4,0)
+				fx_line(im,v+Vector2(-5,-5),v,2.6,Color("#d59755",fade))
+				fx_line(im,v+Vector2(-7,4),v,1.3,Color("#ffe8ae",fade))
+			fight_fist(im,q,0.0,7.4,Color("#dce8ef",fade),Color("#41556b",fade))
+			if t>=peak:
+				for j in range(5):
+					var a:float=float(j)*TAU/5.0-PI*.5
+					var axis:=Vector2(cos(a),sin(a))
+					var v:=q+axis*(7+11*(1.0-fade))
+					fx_line(im,q+axis*5,v,2.3,Color("#fff1bb",fade))
+					fairy_star(im,v,2.1,Color("#f7fbff",fade))
+		"eos_536":
+			# Flash Cannon: concentrated chrome-white light and a strong directional discharge.
+			var c:=Vector2(8,24)
+			var head:=Vector2(8+34*drive,24)
+			var width:float=4+6*pulse
+			fx_disc(im,c,4+4*pulse,Color("#7b9bb5",fade))
+			fx_disc(im,c,2+3*pulse,Color("#faffff",fade))
+			if drive>.05:
+				fx_line(im,c,head,width+2,Color("#415d79",fade))
+				fx_line(im,c,head,width,Color("#a7e3ff",fade))
+				fx_line(im,c,head,width*.58,Color("#f3ffff",fade))
+				for j in range(5):
+					var q:=c.lerp(head,float(j)/4.0)
+					fx_line(im,q+Vector2(-3,-width*.6),q+Vector2(3,width*.6),1.1,Color("#e5f5fc",fade))
+			if t>=peak:
+				for j in range(8):
+					var a:float=float(j)*TAU/8.0
+					var axis:=Vector2(cos(a),sin(a))
+					fx_line(im,head+axis*4,head+axis*(8+9*(1.0-fade)),1.3,Color("#f5ffff",fade))
+		"eos_510":
+			# Bullet Punch: fast metallic knuckle strike with two narrow motion echoes.
+			for j in range(2,-1,-1):
+				var f:float=clampf(drive*1.25-float(j)*.14,0.0,1.0)
+				var q:=Vector2(10+24*f,24+float(j%2)*4)
+				var opacity:float=fade*(1.0-float(j)*.27)
+				fx_line(im,q-Vector2(12,0),q,1.8,Color("#8daec3",opacity))
+				fight_fist(im,q,0.0,5.8-float(j)*.7,Color("#edf7fc",opacity),Color("#526a81",opacity))
+			if t>=peak:
+				var q:=Vector2(34,24)
+				for j in range(4):
+					var a:float=float(j)*TAU/4.0
+					var axis:=Vector2(cos(a),sin(a))
+					fx_line(im,q+axis*5,q+axis*(8+6*(1.0-fade)),1.1,Color("#fff3c3",fade))
+		"eos_431":
+			# Iron Head: broad armored forehead with rivets and a blunt compression flash.
+			var q:=Vector2(10+24*drive,24)
+			for j in range(-7,8):
+				var y:float=float(j)
+				var w:float=7.5-absf(y)*.45
+				fx_line(im,q+Vector2(-w,y),q+Vector2(w,y),1.5,Color("#4d6075",fade))
+				fx_line(im,q+Vector2(-w+1,y),q+Vector2(w-1,y),.8,Color("#b6c8d7",fade))
+			fx_line(im,q+Vector2(-5,-4),q+Vector2(5,-4),2.1,Color("#f0f9ff",fade))
+			for side in [-1,1]:
+				fx_disc(im,q+Vector2(-4,float(side)*4),1.3,Color("#647b90",fade))
+			if t>=peak:
+				fight_arc(im,q,8+9*(1.0-fade),-PI*.65,PI*1.3,Color("#fff4c3",fade),Color("#8298ab",fade),2.2)
+		"eos_475":
+			# Gyro Ball: spinning solid metal sphere with offset reflective bands.
+			var q:=Vector2(10+24*drive,24)
+			var radius:float=7.0+2.0*pulse
+			fx_disc(im,q,radius,Color("#34485b",fade))
+			fx_disc(im,q-Vector2(1,1),radius-1.7,Color("#819bb0",fade))
+			fx_disc(im,q-Vector2(2,3),radius*.42,Color("#e1f3ff",fade))
+			for j in range(3):
+				var a:float=t*TAU*2.5+float(j)*TAU/3.0
+				fight_arc(im,q,radius+float(j%2)*2,a,PI*.65,Color("#f0fbff",fade),Color("#7297b0",fade),1.9)
+				var v:=q+Vector2(cos(a),sin(a))*(radius+4)
+				fx_line(im,v,v+Vector2(-sin(a),cos(a))*4,1.0,Color("#c6e7fa",fade))
+		"eos_523":
+			# Magnet Bomb: metallic core with paired magnetic poles and converging field lines.
+			var q:=Vector2(10+24*drive,26-9*sin(drive*PI))
+			mineral(im,q,6.5,t*2,Color("#dce7ed",fade),Color("#52677e",fade))
+			for side in [-1,1]:
+				var sy:float=float(side)
+				var pole:=q+Vector2(0,sy*7)
+				var tint:=Color("#f49c9b",fade) if side<0 else Color("#9bdfff",fade)
+				fx_disc(im,pole,2.5,tint)
+				for j in range(2):
+					var radius:float=10.0+float(j)*3
+					fight_arc(im,q,radius,sy*PI*.5-.9,1.8,tint,Color("#526b83",fade),1.4)
+			if t>=peak:
+				for j in range(6):
+					var a:float=float(j)*TAU/6.0+t
+					var axis:=Vector2(cos(a),sin(a))
+					fx_line(im,q+axis*6,q+axis*(9+8*(1.0-fade)),1.5,Color("#e7f8ff",fade))
+					fx_disc(im,q+axis*(10+8*(1.0-fade)),1.3,Color("#ffe2b3",fade))
 	return im
 
 func combat_frame_image(id:String,frame:int)->Image:
