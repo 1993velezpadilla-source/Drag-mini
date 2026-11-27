@@ -135,6 +135,10 @@ const DELAYED_COMBAT_FX_CAP:int=24
 var delayed_combat_fx:Array[Dictionary]=[]
 var fx_due_delayed_casts:Array[Dictionary]=[]
 var fx_retired_environment_cues:int=0
+var fx_dispatched_waves:int=0
+var fx_dispatched_damage_waves:int=0
+var fx_dispatched_miss_waves:int=0
+var fx_retired_dropped:int=0
 const FX_SECONDARY_TEXTURE_CAP:int=768
 var combat_textures:Dictionary={}
 var fx_secondary_newest:String=""
@@ -15709,9 +15713,12 @@ func dispatch_cast_waves(burst:Dictionary)->void:
 				if status_count>=2:break
 				play_combat_sound(str(burst.id),"status_"+str(kind),status_cues[kind],false,audio_age)
 				status_count+=1
+		fx_dispatched_waves+=1
 		if strongest>0 or (wave.is_empty() and cursor==0 and int(burst.get("damage",0))>0):
+			fx_dispatched_damage_waves+=1
 			var age:float=maxf(0.0,float(burst.age)-float(times[cursor]))
 			queue_contact_camera(burst.points[0],target,critical,age)
+		elif not audible and not wave.is_empty() and not blocked:fx_dispatched_miss_waves+=1
 		cursor+=1
 	burst["impact_cursor"]=cursor
 
@@ -15740,8 +15747,11 @@ func retire_combat_burst(burst:Dictionary)->void:
 			if not retired_impacts[i].target_player or int(retired_impacts[i].damage)<=0:
 				replace_index=i;break
 		if replace_index<0:
-			if not record.target_player or int(record.damage)<=0:return
+			if not record.target_player or int(record.damage)<=0:
+				fx_retired_dropped+=1
+				return
 			replace_index=0
+		fx_retired_dropped+=1
 		retired_impacts.remove_at(replace_index)
 	retired_impacts.append(record)
 
@@ -16032,6 +16042,8 @@ func combat_fx_update(dt:float)->void:
 			burst.impacted=true
 			if str(profile.role) in ["ground","earth_quake","earth_magnitude","earth_fissure"]:fx_ground_shake=maxf(fx_ground_shake,combat_ground_shake_at_age(float(burst.age)-float(burst.duration)*float(profile.impact)))
 		if t>=1.0:
+			# Keep any future cue independently of the expired visual lifetime.
+			retire_combat_burst(burst)
 			combat_bursts.remove_at(k);continue
 		var share:int=cast_particle_quota(used,cast_capacity,remaining_casts)
 		remaining_casts=maxi(0,remaining_casts-1)

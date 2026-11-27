@@ -1192,6 +1192,29 @@ func run_checks()->void:
 	view.update_retired_impacts(.11)
 	if not view.retired_impacts.is_empty() or view.fx_retired_environment_cues!=retired_cues+1:failures.append("V22.0 retired cue completion")
 	checks+=3
+	# Saturate the visual pool using actual casts with hit/miss/critical ledgers.
+	# All pending attempts must dispatch exactly once despite visual eviction.
+	var stress_count:int=Dungeon.COMBAT_BURST_CAP+6
+	var stress_tile:=Vector2i(2,0)
+	var stress_row:Dictionary={"damage":9,"hits":2,"misses":1,"crit":1,"attempts":[{"damage":3},{"damage":0,"misses":1},{"damage":6,"crit":1}]}
+	var wave_before:int=view.fx_dispatched_waves
+	var damage_before:int=view.fx_dispatched_damage_waves
+	var miss_before:int=view.fx_dispatched_miss_waves
+	var drops_before:int=view.fx_retired_dropped
+	for k in range(stress_count):
+		view.combat_fx_spawn({"fx":"eos_064","from":Vector2i.ZERO,"to":stress_tile,"path":[Vector2i(1,0),stress_tile],"tiles":[stress_tile],"results":{stress_tile:stress_row},"damage":9})
+	if view.combat_bursts.size()!=Dungeon.COMBAT_BURST_CAP or view.retired_impacts.size()!=6:failures.append("V22.1 overflow retirement")
+	# Mix ordinary frames and a deliberately slow frame crossing multiple hits.
+	for k in range(180):
+		view.combat_fx_update(.23 if k==10 else 1.0/60.0)
+	if not view.combat_bursts.is_empty() or not view.retired_impacts.is_empty():failures.append("V22.1 overflow completion")
+	if view.fx_dispatched_waves-wave_before!=stress_count*3 or view.fx_dispatched_damage_waves-damage_before!=stress_count*2 or view.fx_dispatched_miss_waves-miss_before!=stress_count:failures.append("V22.1 overflow wave accounting")
+	if view.fx_retired_dropped!=drops_before:failures.append("V22.1 unexpected retirement loss")
+	var wave_final:int=view.fx_dispatched_waves
+	view.combat_fx_update(.5)
+	if view.fx_dispatched_waves!=wave_final:failures.append("V22.1 duplicate wave")
+	checks+=5
+	print("KINDRIA_OVERFLOW casts=",stress_count," waves=",view.fx_dispatched_waves-wave_before," damage=",view.fx_dispatched_damage_waves-damage_before," misses=",view.fx_dispatched_miss_waves-miss_before)
 	for id in catalog:
 		var profile:=view.combat_profile(id)
 		var move:Dictionary=catalog[id]
