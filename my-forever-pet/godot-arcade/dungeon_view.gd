@@ -4721,8 +4721,10 @@ func combat_actor_socket(actor:Node3D,socket:String)->float:
 	if not is_instance_valid(actor):return combat_socket_height(socket)
 	var scale:float=float(actor.get_meta("enemy_size_multiplier",1.0))
 	var sprite:=actor.get_node_or_null("EnemyPixel") as Sprite3D
-	var rise:float=maxf(0.0,sprite.position.y-.54*scale) if sprite!=null else 0.0
-	return combat_socket_height(socket,scale,rise)
+	# Remove squash/stretch from measured altitude: deformation is not flight.
+	var rise:float=sprite.position.y-.54*scale*sprite.scale.y if sprite!=null else 0.0
+	if actor==pet_pose or actor.get_meta("companion_disguise",false):rise+=actor.position.y
+	return combat_socket_height(socket,scale,maxf(0.0,rise))
 
 func combat_target_actor(cell:Vector2i)->Node3D:
 	if run==null:return null
