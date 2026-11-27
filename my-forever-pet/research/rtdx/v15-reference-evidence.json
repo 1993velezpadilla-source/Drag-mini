@@ -94,7 +94,8 @@
       "page": "https://archives.bulbagarden.net/wiki/File:Liquidation_PMD_RTDX.png",
       "status": "indexed_uninspected",
       "timing_verified": false,
-      "v15_7_source_status": "Archive file page retrieval failed."
+      "v15_7_source_status": "Archive file page retrieval failed.",
+      "v15_8_source_status": "File page failed."
     },
     {
       "name": "Low Kick",
@@ -232,26 +233,42 @@
     {
       "name": "Stomping Tantrum",
       "page": "https://archives.bulbagarden.net/wiki/File:Stomping_Tantrum_PMD_RTDX.png",
-      "status": "indexed_uninspected",
-      "timing_verified": false
+      "status": "still_inspected",
+      "timing_verified": false,
+      "image": "https://archives.bulbagarden.net/media/upload/thumb/0/08/Stomping_Tantrum_PMD_RTDX.png/800px-Stomping_Tantrum_PMD_RTDX.png",
+      "observation": "Caster-centered golden burst with upward diagonal streaks, floating dark rock fragments and white glints near the ground. Screenshot shows invocation, not confirmed damage.",
+      "kindria_id": null,
+      "mapping_status": "No matching reference key or name in current 589-record catalog.",
+      "source_quality": "800x450 preview visually inspected"
     },
     {
       "name": "Tearful Look",
       "page": "https://archives.bulbagarden.net/wiki/File:Tearful_Look_PMD_RTDX.png",
-      "status": "indexed_uninspected",
-      "timing_verified": false
+      "status": "still_inspected",
+      "timing_verified": false,
+      "image": "https://archives.bulbagarden.net/media/upload/thumb/3/30/Tearful_Look_PMD_RTDX.png/800px-Tearful_Look_PMD_RTDX.png",
+      "observation": "Two oversized glossy cartoon eyes with cyan tear rims above caster, darkened dungeon. Invocation frame only; target result not shown.",
+      "kindria_id": null,
+      "mapping_status": "No matching reference key or name in current 589-record catalog.",
+      "source_quality": "800x450 preview visually inspected"
     },
     {
       "name": "Throat Chop",
       "page": "https://archives.bulbagarden.net/wiki/File:Throat_Chop_PMD_RTDX.png",
       "status": "indexed_uninspected",
-      "timing_verified": false
+      "timing_verified": false,
+      "v15_8_source_status": "File page opened; preview failed."
     },
     {
       "name": "Toxic Thread",
       "page": "https://archives.bulbagarden.net/wiki/File:Toxic_Thread_PMD_RTDX.png",
-      "status": "indexed_uninspected",
-      "timing_verified": false
+      "status": "still_inspected",
+      "timing_verified": false,
+      "image": "https://archives.bulbagarden.net/media/upload/thumb/b/b0/Toxic_Thread_PMD_RTDX.png/800px-Toxic_Thread_PMD_RTDX.png",
+      "observation": "Target enclosed by stacked dark-purple horizontal coils with vivid magenta blobs and small floating violet particles; caster separated from target. Timing and exact thread count unverified.",
+      "kindria_id": null,
+      "mapping_status": "No matching reference key or name in current 589-record catalog.",
+      "source_quality": "800x450 preview visually inspected"
     }
   ],
   "video_sources": [
