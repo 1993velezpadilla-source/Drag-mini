@@ -7693,6 +7693,92 @@ func projectile_contact_fx(burst:Dictionary,t:float,used:int,light:Color,dark:Co
 			used=environment_particle(used,q+Vector3.UP*.15,"impact_star",light,dark,size*.52,(1.0-age)*.65)
 	return used
 
+# Terrain effects are attached to cast tiles, not to damage events. An empty
+# tile can still show water, a fissure or weather without a false hit marker.
+const TERRAIN_CONTACT_ART={"lib_ground_1":["quake","shards",1.1],"lib_rock_3":["fall","crystal",1],"eos_008":["burrow","shards",0.8],"eos_030":["fall","shards",0.95],"eos_032":["vortex","drop",0.8],"eos_036":["wind","slash",0.65],"eos_057":["wind","cloud",0.75],"eos_060":["wind","slash",1],"eos_064":["storm","lightning",1.1],"eos_073":["rise","shards",0.9],"eos_082":["wind","leaf",0.9],"eos_097":["wind","crystal",0.7],"eos_101":["fall","crystal",0.7],"eos_113":["rise","drop",1.1],"eos_129":["storm","lightning",0.85],"eos_156":["dive","drop",0.8],"eos_158":["fall","drop",1.1],"eos_159":["wave","drop",0.85],"eos_162":["vortex","flame",0.95],"eos_219":["wave","drop",1.25],"eos_230":["wave","ember",1.15],"eos_270":["wind","crystal",1.25],"eos_272":["rise","flame",1.2],"eos_278":["rise","flame",1.3],"eos_437":["wind","smoke",1],"eos_481":["rise","shards",1.1],"eos_484":["rise","shards",1.25],"eos_519":["rise","flame",1.1],"eos_521":["storm","lightning",1.2],"eos_012":["weather","drop",0.85],"eos_014":["weather","crystal",0.9],"eos_141":["weather","shards",0.85],"eos_223":["sun","ember",1],"eos_131":["rift","earth_hole",1],"eos_118":["quake","shards",1.3],"eos_296":["quake","shards",0.85],"eos_535":["fall","crystal",1.2],"eos_435":["rift","spiral",1.2],"eos_460":["wind","leaf",0.8],"eos_494":["wave","spiral",1.25],"eos_538":["fall","meteor",1.15],"eos_394":["wind","slash",0.95]}
+const TERRAIN_TILE_CAP:int=6
+
+func terrain_contact_art(id:String)->Array:
+	return TERRAIN_CONTACT_ART.get(id,[])
+
+func terrain_contact_tiles(burst:Dictionary)->Array[Vector3]:
+	var tiles:Array[Vector3]=[]
+	var points:Array=burst.points
+	if points.is_empty():return tiles
+	var anchor:Vector3=points[-1]
+	for value in burst.get("tiles",[]):
+		if not value is Vector3:continue
+		var q:Vector3=value
+		q.y=.055
+		if not tiles.has(q):tiles.append(q)
+	if tiles.is_empty():tiles.append(Vector3(anchor.x,.055,anchor.z))
+	tiles.sort_custom(func(a:Vector3,b:Vector3)->bool:
+		var da:float=Vector2(a.x-anchor.x,a.z-anchor.z).length_squared()
+		var db:float=Vector2(b.x-anchor.x,b.z-anchor.z).length_squared()
+		if not is_equal_approx(da,db):return da<db
+		if a.x!=b.x:return a.x<b.x
+		return a.z<b.z)
+	if tiles.size()>TERRAIN_TILE_CAP:tiles.resize(TERRAIN_TILE_CAP)
+	return tiles
+
+func terrain_contact_fx(burst:Dictionary,t:float,used:int,light:Color,dark:Color)->int:
+	var art:Array=terrain_contact_art(str(burst.id))
+	var points:Array=burst.points
+	if art.is_empty() or points.is_empty() or t<0.0 or t>=1.0:return used
+	var kind:String=str(art[0])
+	var material:String=str(art[1])
+	var strength:float=float(art[2])
+	var peak:float=clampf(float(burst.profile.impact),.01,.99)
+	var progress:float=clampf(t/peak,0.0,1.0)
+	var age:float=clampf((t-peak)/(1.0-peak),0.0,1.0)
+	var opacity:float=clampf(t*9.0,0.0,1.0)*(1.0-age)
+	var source:Vector3=points[0]
+	var target:Vector3=points[-1]
+	var forward:Vector3=target-source
+	forward.y=0.0
+	if forward.length_squared()<.0001:forward=Vector3.FORWARD
+	forward=forward.normalized()
+	var side:Vector3=forward.cross(Vector3.UP)
+	if kind in ["burrow","dive"]:
+		var route:Vector3=combat_path_sample(points,progress)
+		route.y=.055
+		used=environment_particle(used,route,"earth_hole" if kind=="burrow" else "shock_ring",light,dark,.70*strength,opacity,true)
+		return environment_particle(used,route+Vector3.UP*(.15+sin(progress*PI)*.25),material,light,dark,.42*strength,opacity)
+	var cells:Array[Vector3]=terrain_contact_tiles(burst)
+	for i in range(cells.size()):
+		if used>=FX_PARTICLE_CAP:break
+		var center:Vector3=cells[i]
+		var phase:float=float(i)*2.399
+		var radial:=Vector3(cos(phase),0,sin(phase))
+		var q:Vector3=center+Vector3.UP*.12
+		var flat:bool=false
+		var mode:String=material
+		var size:float=.56*strength
+		match kind:
+			"quake","rift":
+				used=environment_particle(used,center,"earth_hole" if kind=="rift" else "shock_ring",light,dark,(.45+progress*.65+age*.35)*strength,opacity,true)
+				q=center+radial*.30*age+Vector3.UP*(.12+sin(age*PI)*.65)
+			"rise":
+				q=center+Vector3.UP*(.12+sin(clampf(progress*.55+age*.45,0.0,1.0)*PI)*1.35*strength)
+				used=environment_particle(used,center,"shock_ring",light,dark,.70*strength,opacity*.65,true)
+			"fall","weather","storm":
+				q=center+radial*.22+Vector3.UP*(.12+(1.0-progress)*1.8*strength)
+				if kind=="weather":q.y=.20+fposmod(1.0-t*2.0+float(i)*.21,1.0)*1.65
+				if kind=="storm":q.y=.25+(1.0-progress)*2.2
+			"wave":
+				q=center-forward*(1.0-progress)*.55+Vector3.UP*(.10+sin(progress*PI)*.55*strength)
+				used=environment_particle(used,center,"wave",light,dark,(.65+age*.65)*strength,opacity*.75,true)
+			"wind","vortex":
+				var angle:float=phase+t*TAU*2.0
+				q=center+(forward*cos(angle)+side*sin(angle))*.42*strength+Vector3.UP*(.20+fposmod(t+float(i)*.17,1.0)*.85)
+				if kind=="vortex":used=environment_particle(used,center,"spiral",light,dark,.85*strength,opacity*.7,true)
+			"sun":
+				q=center+Vector3.UP*(1.4+sin(t*PI)*.35)
+				mode="impact_star"
+				size=.85*strength
+		used=environment_particle(used,q,mode,light,dark,size,opacity,flat)
+	return used
+
 func element_finish_fx(burst:Dictionary,t:float,used:int)->int:
 	var id:String=str(burst.id)
 	var profile:Dictionary=burst.profile
@@ -7707,6 +7793,7 @@ func element_finish_fx(burst:Dictionary,t:float,used:int)->int:
 	var mode:String=str(ELEMENT_FINISH_MODE.get(str(profile.element),"impact_star"))
 	used=special_contact_fx(burst,t,used,light,dark)
 	used=projectile_contact_fx(burst,t,used,light,dark)
+	used=terrain_contact_fx(burst,t,used,light,dark)
 	if t<peak*.48:
 		var startup:float=clampf(t/(peak*.48),0.0,1.0)
 		for j in range(3):
