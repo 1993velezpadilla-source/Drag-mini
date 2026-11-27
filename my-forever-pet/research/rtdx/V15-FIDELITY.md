@@ -15,3 +15,7 @@ Bug Buzz: replace generic insect swarm presentation with warm caster-centered ac
 ## V15.1 — contact and fire
 
 Rechecked original Ember, Scratch, Peck and Sacred Fire stills. Sacred Fire is flagged as indirect capture by the archive. Use original 64px soft-alpha masks, compact orange Ember, blue Sacred Fire clouds, a white curved Scratch mark and a small directional golden Peck wedge. No exact timing claims; no global exposure alteration. The 1080p60 boss compilation is indexed, not frame-inspected. New runtime probes capture four actual dungeon phases and assert contact misses do not emit actor marks. The previous V15 Godot, Android plugin and dungeon probe workflows completed successfully.
+
+## V15.2 — contact, psychic and solar
+
+Five previously inspected reference stills inform revised effects (Air Cutter, Low Kick, Psychic, Psywave, Solar Beam). Four archive pages reopened; Air Cutter and Solar Beam page reload failed, so their existing observations were used without claiming new inspection. Quick Attack already belongs to the full tile travel route and receives a regression test, not a new inferred return timing. Solar Beam maps to eos_151 (Sunlance); charge and release effects are separate. Psychic uses a local tint and energy echoes, not an unverified full-screen or actor silhouette clone. All five effect timings remain engine approximations, no frame-level video timing verified.

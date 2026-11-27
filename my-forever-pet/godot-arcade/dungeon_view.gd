@@ -3188,6 +3188,30 @@ func rtdx_material_stamp(mode:String,light:Color,dark:Color)->Image:
 				"rtdx_glint":
 					var beam:float=minf(absf(p.x)*4.8+absf(p.y)*.65,absf(p.y)*4.8+absf(p.x)*.65)
 					alpha=1.0-smoothstep(.15,.65,beam)
+				"rtdx_aircut":
+					var q:Vector2=p.rotated(-.62)
+					var width:float=.045*sqrt(maxf(0.0,1.0-q.x*q.x))
+					alpha=(1.0-smoothstep(width,width+.05,absf(q.y)))*(1.0-smoothstep(.78,1.0,absf(q.x)))
+				"rtdx_psy_ellipse":
+					var radius:float=(p/Vector2(.42,.88)).length()
+					alpha=1.0-smoothstep(.065,.18,absf(radius-1.0))
+					tint=dark.lerp(light,1.0-smoothstep(.02,.10,absf(radius-1.0)))
+				"rtdx_psychic":
+					var radius:float=(p/Vector2(.80,.91)).length()
+					alpha=(1.0-smoothstep(.22,1.0,radius))*.78
+					tint=dark.lerp(light,1.0-smoothstep(.1,.85,radius))
+				"rtdx_solar":
+					var core:float=(p/Vector2(.94,.16)).length()
+					alpha=1.0-smoothstep(.30,1.0,core)
+					tint=dark.lerp(light,1.0-smoothstep(.10,.75,core))
+				"rtdx_lowkick":
+					# Pale foot-contact emblem; original shape, not a traced asset.
+					var sole:float=((p-Vector2(0,.23))/Vector2(.38,.56)).length()
+					var toe:float=((p-Vector2(-.18,-.37))/Vector2(.19,.22)).length()
+					var toe2:float=((p-Vector2(.12,-.43))/Vector2(.16,.20)).length()
+					var distance:float=minf(sole,minf(toe,toe2))
+					alpha=1.0-smoothstep(.91,1.07,distance)
+					tint=dark.lerp(light,1.0-smoothstep(.5,1.0,distance))
 			tint.a=alpha
 			im.set_pixel(x,y,tint)
 	return im
@@ -8517,7 +8541,7 @@ func reserve_confirmed_contacts(dt:float,used:int)->int:
 			used=priority_contact_fx(burst,t,used,secondary)
 	return used
 
-const RTDX_OBSERVED_MOVES=["eos_530","eos_114","eos_262","eos_149","eos_260","eos_174"]
+const RTDX_OBSERVED_MOVES=["eos_530","eos_114","eos_262","eos_149","eos_260","eos_174","eos_036","eos_092","eos_109","eos_108","eos_151"]
 
 # Orient the wedge in screen space, without changing the combat path.
 func rtdx_directional_stamp(used:int,at:Vector3,mode:String,light:Color,dark:Color,size_value:float,alpha:float,source:Vector3,target:Vector3)->int:
@@ -8583,6 +8607,60 @@ func rtdx_observed_stage_fx(burst:Dictionary,t:float,used:int)->int:
 			used=environment_particle(used,q+Vector3.UP*(.26+sin(progress*PI)*.50),"rtdx_bluefire",Color("#45d8ff"),Color("#1647ec"),1.65,fade*.86)
 			if i==0:
 				cinematic_halo(Vector3(q.x,.065,q.z),Color("#247aff"),2.1,fade*.65,t,true)
+	elif id=="eos_151":
+		# Charge is separately shown by charge_environment_fx. Release is a
+		# narrow yellow-white ray along the actual cast path.
+		if t<peak:
+			var head:Vector3=combat_path_sample(points,progress)
+			for i in range(8):
+				var q:Vector3=source.lerp(head,float(i+1)/8.0)
+				used=rtdx_directional_stamp(used,q,"rtdx_solar",Color.WHITE,Color("#ffdf3a"),.90,minf(1.0,progress*10.0),source,target)
+			used=environment_particle(used,head,"rtdx_glint",Color.WHITE,Color("#fff17b"),.78,minf(1.0,progress*12.0))
+		elif after<.55:
+			var confirmed:Variant=confirmed_stage_target(burst,true)
+			if confirmed!=null:used=environment_particle(used,confirmed,"rtdx_glint",Color.WHITE,Color("#ffdf3a"),1.05,1.0-after/.55)
+		return used
+	elif id in ["eos_036","eos_092","eos_109","eos_108"]:
+		if t<peak or after>=.78:return used
+		# Every mark is anchored to a confirmed victim. No duplicate generic
+		# contact icons and no global pink overlay from an unverified still.
+		var cells:Array[Vector2i]=[]
+		var results:Dictionary=burst.get("results",{})
+		var primary:=Vector2i(roundi(target.x/1.4),roundi(target.z/1.4))
+		for cell in results:
+			if cell is Vector2i and int(results[cell].get("damage",0))>0:cells.append(cell)
+		cells.sort_custom(func(a:Vector2i,b:Vector2i)->bool:
+			var da:int=(a-primary).length_squared()
+			var db:int=(b-primary).length_squared()
+			if da!=db:return da<db
+			if a.x!=b.x:return a.x<b.x
+			return a.y<b.y)
+		var fade:float=1.0-after/.78
+		var right:=Vector3.RIGHT
+		if is_instance_valid(camera):right=camera.global_transform.basis.x.normalized()
+		for i in range(mini(5,cells.size())):
+			var at:Vector3=target if cells[i]==primary else pos(cells[i])+Vector3.UP*.55
+			match id:
+				"eos_036":
+					for j in [-1.0,1.0]:
+						used=environment_particle(used,at+right*float(j)*.11+Vector3.UP*float(j)*.08,"rtdx_aircut",Color("#f2ffff"),Color("#b9e9ff"),1.42,fade)
+				"eos_092":
+					used=environment_particle(used,at-Vector3.UP*.18,"rtdx_lowkick",Color("#f2f1e9"),Color("#98b1bb"),1.05,fade)
+					used=environment_particle(used,at-Vector3.UP*.12,"rtdx_glint",Color("#ffe66a"),Color("#ffcb38"),.62,fade)
+					for j in range(4):
+						var angle:float=float(j)*TAU/4.0+.3
+						var q:Vector3=at+right*cos(angle)*(.24+after*.25)+Vector3.UP*sin(angle)*(.22+after*.20)
+						used=environment_particle(used,q,"rtdx_glint",Color("#deffff"),Color("#89daef"),.35,fade)
+				"eos_108":
+					for j in [-1.0,0.0,1.0]:
+						used=environment_particle(used,at+right*float(j)*(.13+after*.12),"rtdx_psy_ellipse",Color("#ff83f8"),Color("#ce29b9"),1.55+after*.35,fade)
+				"eos_109":
+					# Local pink-red wash with offset cool/warm echoes; the
+					# original screenshot cannot establish full-screen tint.
+					used=environment_particle(used,at,"rtdx_psychic",Color("#ff93bd"),Color("#ee4b86"),2.25,fade*.78)
+					used=environment_particle(used,at-right*.18,"rtdx_psychic",Color("#92baff"),Color("#506cdd"),1.32,fade*.48)
+					used=environment_particle(used,at+right*.18,"rtdx_psychic",Color("#ff8b9e"),Color("#de405b"),1.32,fade*.48)
+		return used
 	elif id in ["eos_260","eos_174"]:
 		if t>=peak and after<.68:
 			var confirmed:Variant=confirmed_stage_target(burst,true)
@@ -10151,9 +10229,20 @@ func cinematic_impact_layers(id:String,profile:Dictionary,source:Vector3,target:
 		used=environment_particle(used,ground,"shock_ring",light,dark,(.35+age*2.25)*intensity,fade*.68,true)
 	return used
 
+func rtdx_solar_charge_fx(origin:Vector3,clock:float,used:int)->int:
+	var alpha:float=.70+.18*sin(clock*5.0)
+	used=environment_particle(used,origin+Vector3.UP*.55,"rtdx_psychic",Color("#fffbd6"),Color("#ffe444"),1.9,alpha)
+	for i in range(6):
+		var angle:float=float(i)*TAU/6.0+clock*.65
+		var q:Vector3=origin+Vector3(cos(angle)*.42,.25+fposmod(clock*.45+float(i)*.17,1.0)*.75,sin(angle)*.42)
+		used=environment_particle(used,q,"rtdx_glint",Color("#fff49a"),Color("#ffc52b"),.28,alpha)
+	return used
+
 func charge_environment_fx(used:int)->int:
 	var origin:Vector3=pos(run.player)+Vector3(0,.04,0)
 	var pulse:float=.8+.12*sin(elapsed*7.0)
+	if run.charged_move_id=="eos_151" and run.charge_phase=="gather":
+		return rtdx_solar_charge_fx(origin,elapsed,used)
 	match run.charge_phase:
 		"underground":
 			used=environment_particle(used,origin,"earth_hole",Color("#c7a777"),Color("#795638"),pulse, .85,true)

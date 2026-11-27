@@ -983,6 +983,33 @@ func run()->void:
 		assert(field.rtdx_observed_stage_fx(burst,phase,Field.FX_PARTICLE_CAP)==Field.FX_PARTICLE_CAP,move_id)
 	for particle in field.combat_particles:particle.hide()
 	print("KINDRIA_V15_CONTACT_FIRE_PASS 4")
+	# V15.2: source-based charge/release, contact shapes and existing tile rush.
+	for move_id in ["eos_036","eos_092","eos_109","eos_108","eos_151"]:
+		var p:Dictionary=field.combat_profile(move_id)
+		var peak:float=float(p.impact)
+		var burst:Dictionary={"id":move_id,"profile":p,"points":[special_source,bite_position],"tiles":[field.pos(target)],"results":{target:{"damage":8}}}
+		var phase:float=peak*.72 if move_id=="eos_151" else lerpf(peak,1.0,.22)
+		for particle in field.combat_particles:particle.hide()
+		var n:int=field.rtdx_observed_stage_fx(burst,phase,0)
+		assert(n>0 and n<=Field.FX_PARTICLE_CAP,move_id)
+		assert(field.combat_particles[0].texture.get_width()==64,move_id)
+		await frames()
+		assert(root.get_texture().get_image().save_png("/tmp/effekseer-review/v15-observed-"+move_id+".png")==OK)
+		burst.results={target:{"misses":1}}
+		assert(field.rtdx_observed_stage_fx(burst,lerpf(peak,1.0,.22),0)==0,move_id)
+		assert(field.rtdx_observed_stage_fx(burst,phase,Field.FX_PARTICLE_CAP)==Field.FX_PARTICLE_CAP,move_id)
+	for particle in field.combat_particles:particle.hide()
+	assert(field.rtdx_solar_charge_fx(special_source,1.25,0)==7)
+	await frames()
+	assert(root.get_texture().get_image().save_png("/tmp/effekseer-review/v15-solar-charge.png")==OK)
+	for particle in field.combat_particles:particle.hide()
+	assert(field.tile_cast_kind("eos_190")=="ground")
+	var rush:Array=[special_source,bite_position]
+	assert(field.tile_cast_sample(rush,"ground",0.0,.64).position.is_equal_approx(special_source))
+	assert(field.tile_cast_sample(rush,"ground",.64,.64).position.is_equal_approx(bite_position))
+	assert(field.tile_cast_sample(rush,"ground",1.0,.64).position.is_equal_approx(special_source))
+	print("KINDRIA_V15_PSYCHIC_SOLAR_CONTACT_PASS 5")
+	print("KINDRIA_V15_QUICK_ROUTE_PASS")
 	var plan:Array=[
 		{"stage":"ally_invoke","anchor":"source","start":0.0,"end":.15,"enabled":true},
 		{"stage":"enemy_invoke","anchor":"source","start":0.0,"end":.15,"enabled":true},

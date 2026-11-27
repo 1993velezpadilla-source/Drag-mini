@@ -12,7 +12,8 @@
       "kindria_id": "eos_036",
       "image": "https://archives.bulbagarden.net/media/upload/2/2a/Air_Cutter_PMD_RTDX.png",
       "observation": "Two thin pale diagonal cutting streaks are visible across the struck target with damage number. No launch timing is established.",
-      "timing_verified": false
+      "timing_verified": false,
+      "v15_2_source_status": "page reopen failed; previous recorded observation retained"
     },
     {
       "name": "Aurora Veil",
@@ -79,7 +80,8 @@
       "kindria_id": "eos_092",
       "image": "https://archives.bulbagarden.net/media/upload/0/05/Low_Kick_PMD_RTDX.png",
       "observation": "Pale gray paw/foot-like contact mark amid cyan-white radiating streaks and yellow contact center. Damage number visible.",
-      "timing_verified": false
+      "timing_verified": false,
+      "v15_2_source_status": "archive page reopened; previous visual observation retained"
     },
     {
       "name": "Peck",
@@ -104,7 +106,8 @@
       "kindria_id": "eos_109",
       "image": "https://archives.bulbagarden.net/media/upload/d/d3/Psychic_PMD_RTDX.png",
       "observation": "Wide translucent pink-red scene tint with ghosted blue/red actor-like silhouettes. Screenshot does not determine tint duration or whether all actors are affected.",
-      "timing_verified": false
+      "timing_verified": false,
+      "v15_2_source_status": "archive page reopened; previous visual observation retained"
     },
     {
       "name": "Psywave",
@@ -113,7 +116,8 @@
       "kindria_id": "eos_108",
       "image": "https://archives.bulbagarden.net/media/upload/8/82/Psywave_PMD_RTDX.png",
       "observation": "Bright magenta overlapping upright ellipses around affected actor; damage number and missed-target indicators visible. Do not infer all X markers belong to this attack.",
-      "timing_verified": false
+      "timing_verified": false,
+      "v15_2_source_status": "archive page reopened; previous visual observation retained"
     },
     {
       "name": "Quick Attack",
@@ -122,7 +126,8 @@
       "kindria_id": "eos_190",
       "image": "https://archives.bulbagarden.net/media/upload/1/1d/Quick_Attack_PMD_RTDX.png",
       "observation": "Caster is visibly displaced into contact with enemy; still frame cannot establish return path or elapsed time.",
-      "timing_verified": false
+      "timing_verified": false,
+      "v15_2_source_status": "archive page reopened; previous visual observation retained"
     },
     {
       "name": "Sacred Fire",
@@ -173,10 +178,11 @@
       "name": "Solar Beam",
       "page": "https://archives.bulbagarden.net/wiki/File:Solar_Beam_PMD_RTDX.png",
       "status": "still_inspected",
-      "kindria_id": null,
+      "kindria_id": "eos_151",
       "image": "https://archives.bulbagarden.net/media/upload/0/07/Solar_Beam_PMD_RTDX.png",
       "observation": "Two captured phases: yellow-white glow and floating yellow motes around caster; then narrow brilliant yellow-white beam from caster to target with a bright contact star. Exact duration unknown.",
-      "timing_verified": false
+      "timing_verified": false,
+      "v15_2_source_status": "page reopen failed; previous recorded observation retained"
     },
     {
       "name": "Spotlight",
@@ -303,6 +309,36 @@
     {
       "id": "eos_174",
       "basis": "Peck still rechecked",
+      "status": "original approximate implementation, timing and rendered comparison pending"
+    },
+    {
+      "id": "eos_036",
+      "basis": "Air Cutter previously inspected still",
+      "status": "original approximate implementation, timing and rendered comparison pending"
+    },
+    {
+      "id": "eos_092",
+      "basis": "Low Kick previously inspected still",
+      "status": "original approximate implementation, timing and rendered comparison pending"
+    },
+    {
+      "id": "eos_109",
+      "basis": "Psychic previously inspected still",
+      "status": "original approximate implementation, timing and rendered comparison pending"
+    },
+    {
+      "id": "eos_108",
+      "basis": "Psywave previously inspected still",
+      "status": "original approximate implementation, timing and rendered comparison pending"
+    },
+    {
+      "id": "eos_190",
+      "basis": "Quick Attack previously inspected still",
+      "status": "existing full tile travel retained; new route regression, timing unverified"
+    },
+    {
+      "id": "eos_151",
+      "basis": "Solar Beam previously inspected still",
       "status": "original approximate implementation, timing and rendered comparison pending"
     }
   ]
