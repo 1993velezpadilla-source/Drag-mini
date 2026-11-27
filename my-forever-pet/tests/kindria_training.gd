@@ -748,7 +748,7 @@ func _initialize():
 	assert(not gear.loot.has(gear.player))
 	print("KINDRIA_HELD_ITEM_PASS")
 	var talents=Rules.new()
-	talents.player_base_abilities=["clear_blood"]
+	talents.player_base_abilities.assign(["clear_blood"])
 	talents.player_abilities=talents.player_base_abilities.duplicate()
 	talents.enemies.append({"pos":Vector2i(2,1),"hp":30,"kind":0,"species":"reef_pup","abilities":["wakeful","critical_shell"]})
 	var talent_enemy:Dictionary=talents.enemies[0]
@@ -761,7 +761,7 @@ func _initialize():
 	assert(talents.apply_ability_rule(0,"copy_ability"))
 	assert(talents.player_has_ability("wakeful") and talents.player_has_ability("critical_shell"))
 	assert(not talents.player_has_ability("clear_blood"))
-	talents.player_abilities=["clear_blood"]
+	talents.player_abilities.assign(["clear_blood"])
 	assert(talents.apply_ability_rule(0,"swap_ability"))
 	assert(talents.player_abilities==["wakeful","critical_shell"])
 	assert(talent_enemy.abilities==["clear_blood"])
