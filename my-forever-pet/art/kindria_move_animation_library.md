@@ -27,3 +27,6 @@ All 14 electric reference entries now have individual roles. Thunder Punch: char
 
 ## Iteration 43: rock choreography pilot
 13 independently routed rock effects with angular mineral facets, arced thrown rock, falling rock slide, encircling tomb, orbiting ancient stones, massive projectile, rising stone edge, sparkling gem, impact fragments, volley, rolling boulder, polish, sandstorm and low ground trap. Temporal and same-family distinct-frame tests plus PNG exports added. Previous run 45933932131 confirmed 113 effects passed, actor lifetime pass and live 18 captures/25 fights/3 transitions; core 45933932089 and smoke 45933935129 passed. Rock tests, source-frame fidelity and Android review remain pending.
+
+## Iteration 44: fighting choreography pilot
+32 independently routed fighting effects: contact chops, impact punches, kick arcs at differing heights, grip/throw silhouettes, multi-hit fists, aura/force projectiles, guard and reactive stances. Drain Punch returns particles to the caster. Original FX only, not species-specific limb animation or verified source choreography. Added temporal and family uniqueness assertions and actual PNG capture. Prior rock run 45934242619 passed all 126 effect checks and live expedition (18 captures, 25 fights, 3 transitions), core 45934242710 passed. Fighting tests, source-frame and Android review pending.
