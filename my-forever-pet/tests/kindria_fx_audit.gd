@@ -1,6 +1,7 @@
 extends SceneTree
 const Field=preload("res://dungeon_view.gd")
 const Rules=preload("res://dungeon_rules.gd")
+const PixelArt=preload("res://pixel_pet_art.gd")
 const OUT="/tmp/kindria-full-fx"
 func _initialize():
 	call_deferred("run")
@@ -77,6 +78,19 @@ func run()->void:
 		var profile:Dictionary=field.combat_profile(id)
 		var kind:String=field.cast_motion_kind(id,profile)
 		motion_counts[kind]=int(motion_counts.get(kind,0))+1
+		var peak:float=clampf(float(profile.impact),.12,.88)
+		var pre:Dictionary=PixelArt.attack_pose_sample(peak-.001,peak)
+		var hit:Dictionary=PixelArt.attack_pose_sample(peak,peak)
+		var end:Dictionary=PixelArt.attack_pose_sample(1.0,peak)
+		if pre.phase!="windup" or hit.phase!="strike" or end.phase!="recover" or int(hit.frame)!=1 or absf(float(hit.pulse)-1.0)>.001:errors.append("actor frame timing "+id)
+		var order:int=0
+		for sample_index in range(101):
+			var sample:Dictionary=PixelArt.attack_pose_sample(float(sample_index)/100.0,peak)
+			var phase_index:int=["windup","strike","recover"].find(sample.phase)
+			if phase_index<order:errors.append("actor phase reversed "+id)
+			order=phase_index
+		row["actor_motion"]=kind
+		row["actor_pose_phases"]=["windup","strike","recover"]
 		var start:Vector3=field.cast_motion_offset(kind,0.0,float(profile.impact))
 		var finish:Vector3=field.cast_motion_offset(kind,1.0,float(profile.impact))
 		if start.length()>.001 or finish.length()>.001:errors.append("actor motion boundary "+id)

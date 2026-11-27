@@ -1734,7 +1734,14 @@ func update_enemy_pixel(actor:Node3D,dt:float,motion:Vector3)->void:
 	if shadow!=null:
 		var footprint:float=size_multiplier*(1.0-rise*.65)
 		shadow.scale=Vector3(footprint*(1.15 if species in ["eelstrix","marrowray","coralcrab","shellguard"] else 1.0),footprint*.8,1.0)
-	var tex:=PixelArt.enemy_pixel_texture(species,facing_index,state,frame)
+	var visual_state:String=state
+	if state=="attack":
+		var sample:Dictionary=PixelArt.attack_pose_sample(clock/maxf(.01,duration),float(actor.get_meta("enemy_cast_impact",.48)))
+		visual_state="windup" if sample.phase=="windup" else "recover" if sample.phase=="recover" else "attack"
+		frame=int(sample.frame)
+		actor.set_meta("enemy_visual_phase",sample.phase)
+	else:actor.set_meta("enemy_visual_phase",state)
+	var tex:=PixelArt.enemy_pixel_texture(species,facing_index,visual_state,frame)
 	if tex!=null and sprite.texture!=tex:sprite.texture=tex
 	if sprite.material_override is ShaderMaterial:
 		var material:=sprite.material_override as ShaderMaterial
@@ -5505,7 +5512,7 @@ func _process(dt:float):
 	if attack_time>0.0:motion=Vector2(attack_direction.x,attack_direction.z)
 	var pose:String="hurt" if hit_time>0.0 else "attack" if attack_time>0.0 else "reward" if reward_age>0.0 and not moving else "idle"
 	pet_pose.set_meta("pet_mood","weak" if run.hp*3<run.max_hp else "healthy")
-	PixelArt.animate_world_sprite(pet_pose,motion,moving,dt,pose,region==1)
+	PixelArt.animate_world_sprite(pet_pose,motion,moving,dt,pose,region==1,1.0-attack_time/maxf(.01,player_cast_duration) if attack_time>0.0 else -1.0,player_cast_impact)
 	update_disguise(dt,motion,moving,pose)
 	var focus=pet.position+Vector3(0,.18,-.48)
 	camera.position=focus+DUNGEON_CAMERA_OFFSET;camera.look_at(focus)

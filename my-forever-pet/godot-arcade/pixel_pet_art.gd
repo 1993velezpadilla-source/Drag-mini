@@ -255,7 +255,16 @@ static func world_sprite(parent:Node3D,id:int,height:float=1.65)->Sprite3D:
 	parent.add_child(sprite)
 	return sprite
 
-static func animate_world_sprite(actor:Node3D,delta:Vector2,moving:bool,dt:float,pose:String="idle",water:bool=false)->void:
+# Explicit one-shot timing for dungeon combat; legacy noncombat callers remain unchanged.
+static func attack_pose_sample(progress:float,impact:float)->Dictionary:
+	var t:float=clampf(progress,0.0,1.0)
+	var peak:float=clampf(impact,.12,.88)
+	var release:float=peak+(1.0-peak)*.42
+	var phase:String="windup" if t<peak else "strike" if t<release else "recover"
+	var pulse:float=smoothstep(0.0,peak,t) if t<peak else 1.0-smoothstep(peak,1.0,t)
+	return {"phase":phase,"frame":1 if phase=="strike" else 0,"pulse":pulse}
+
+static func animate_world_sprite(actor:Node3D,delta:Vector2,moving:bool,dt:float,pose:String="idle",water:bool=false,attack_progress:float=-1.0,attack_impact:float=.48)->void:
 	if not is_instance_valid(actor):return
 	var sprite:=actor.get_node_or_null("PixelCompanion") as Sprite3D
 	if sprite==null:return
@@ -269,6 +278,15 @@ static func animate_world_sprite(actor:Node3D,delta:Vector2,moving:bool,dt:float
 	sprite.set_meta("anim_state",state)
 	var mood:String=str(actor.get_meta("pet_mood","healthy"))
 	var tex:=frame_for(dir,state,clock,mood)
+	var timed_attack:bool=state=="attack" and attack_progress>=0.0
+	var sample:Dictionary={}
+	if timed_attack:
+		sample=attack_pose_sample(attack_progress,attack_impact)
+		# The existing ten-column companion atlas has two authored attack cells.
+		# Keep the strike cell only during the strike window; recover to idle.
+		tex=adventure_frame(dir,"idle" if sample.phase=="recover" else "attack",int(sample.frame),mood)
+		sprite.set_meta("attack_phase",sample.phase)
+	else:sprite.set_meta("attack_phase","")
 	ExternalFx.world_effect(actor,"heart-pickup",clock,state=="reward",float(sprite.get_meta("world_height"))*.75)
 	if sprite.texture!=tex:sprite.texture=tex
 	# Grounded squash/stretch with continuous, not teleporting, motion.
@@ -277,7 +295,12 @@ static func animate_world_sprite(actor:Node3D,delta:Vector2,moving:bool,dt:float
 	var lift:float=absf(cycle)*(.13 if state=="burst" else .075) if moving else .012*sin(clock*2.5)
 	if water:lift+=.045+.025*sin(clock*5.0)
 	if state=="reward":lift+=absf(sin(clock*TAU*2.0))*.15
-	if state=="attack":stretch=1.0+.11*sin(clock*TAU*3.0)
+	if state=="attack":
+		if timed_attack:
+			var pulse:float=float(sample.pulse)
+			stretch=1.0-.07*pulse if sample.phase=="windup" else 1.0+.10*pulse if sample.phase=="strike" else 1.0+.025*pulse
+			lift=.018*pulse
+		else:stretch=1.0+.11*sin(clock*TAU*3.0)
 	if state=="hurt":stretch=.88+.06*sin(clock*35.0)
 	var height:float=float(sprite.get_meta("world_height"))
 	sprite.scale=Vector3(1.0/stretch,stretch,1.0)
