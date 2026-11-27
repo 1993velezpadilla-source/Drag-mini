@@ -5484,7 +5484,7 @@ func native_identity_frame(id:String,frame:int,base:Image)->Image:
 	return im
 
 # V16.7: individually remastered after reviewing actual Godot PNG strips.
-const VISUAL_REMASTER_MOVES=["eos_504","eos_308","eos_135","eos_142","eos_047","eos_250","eos_299","eos_329","eos_262","eos_279","eos_101","eos_199","eos_251","eos_486","eos_462","eos_018","eos_507","eos_175","eos_254","eos_097","eos_163","eos_320","eos_033","eos_166","eos_228","eos_004","eos_252","eos_330","eos_465","eos_138","eos_021","eos_501","eos_053","eos_157","eos_064","eos_188","eos_240","eos_255","eos_342","eos_539","eos_041","eos_278","eos_538","eos_239","eos_193","eos_272","eos_519","eos_494","eos_292","eos_065","eos_276","eos_208","eos_522","eos_452","eos_433","eos_087","eos_063","eos_062","eos_476","eos_127","eos_451","eos_436","eos_491","eos_046","eos_109","eos_234","eos_107","eos_463","eos_133","eos_317","eos_111","eos_331"]
+const VISUAL_REMASTER_MOVES=["eos_504","eos_308","eos_135","eos_142","eos_047","eos_250","eos_299","eos_329","eos_262","eos_279","eos_101","eos_199","eos_251","eos_486","eos_462","eos_018","eos_507","eos_175","eos_254","eos_097","eos_163","eos_320","eos_033","eos_166","eos_228","eos_004","eos_252","eos_330","eos_465","eos_138","eos_021","eos_501","eos_053","eos_157","eos_064","eos_188","eos_240","eos_255","eos_342","eos_539","eos_041","eos_278","eos_538","eos_239","eos_193","eos_272","eos_519","eos_494","eos_292","eos_065","eos_276","eos_208","eos_522","eos_452","eos_433","eos_087","eos_063","eos_062","eos_476","eos_127","eos_451","eos_436","eos_491","eos_046","eos_109","eos_234","eos_107","eos_463","eos_133","eos_317","eos_111","eos_331","eos_345","eos_270","eos_042","eos_344","eos_461","eos_180","eos_535","eos_150"]
 func visual_remaster_frame(id:String,frame:int)->Image:
 	var im:=Image.create(48,48,false,Image.FORMAT_RGBA8)
 	im.fill(Color.TRANSPARENT)
@@ -6598,6 +6598,139 @@ func visual_remaster_frame(id:String,frame:int)->Image:
 				fairy_star(im,q+Vector2(2,-4),1.7,Color("#aef2f8",fade))
 			var c:=Vector2(10,24)
 			fight_arc(im,c,5.0+6.0*travel,-PI*.7,PI*1.4,Color("#e7d0ff",fade),Color("#7a59b9",fade),3.0)
+		"eos_345":
+			# Ice Beam: straight concentrated freezing ray with moving crystalline facets.
+			var head:=Vector2(9+29*drive,24)
+			var tail:=Vector2(maxf(4.0,head.x-30.0*fade),24)
+			fx_line(im,tail,head,6.0,Color("#335baf",fade))
+			fx_line(im,tail,head,4.0,Color("#68c9f1",fade))
+			fx_line(im,tail,head,1.8,Color("#f2ffff",fade))
+			for j in range(5):
+				var f:float=fposmod(t*1.4+float(j)*.2,1.0)
+				var q:=tail.lerp(head,f)
+				ice_crystal(im,q,0.0,3.5+1.5*pulse,Color("#d5faff",fade),Color("#569ad9",fade))
+			if t>=peak:
+				for j in range(6):
+					var a:float=float(j)*TAU/6.0
+					var q:=head+Vector2(cos(a),sin(a))*(5.0+8.0*(1.0-fade))
+					ice_crystal(im,q,a,3.0,Color("#e1ffff",fade),Color("#78b8e7",fade))
+		"eos_270":
+			# Blizzard: broad moving snow front with layered gale streaks and snowflakes.
+			for j in range(4):
+				var y:float=8.0+float(j)*10.0
+				var prev:=Vector2(3,y)
+				for k in range(1,12):
+					var f:float=float(k)/11.0
+					var q:=Vector2(3+41*f,y+sin(f*TAU+t*TAU+float(j))*3.5)
+					fx_line(im,prev,q,4.0,Color("#6fafd5",.23*pulse))
+					fx_line(im,prev,q,1.2,Color("#c3eeff",.65*pulse))
+					prev=q
+			for j in range(18):
+				var f:float=fposmod(t*1.2+float(j)*.139,1.0)
+				var q:=Vector2(3+42*f,5+float(posmod(j*17,38))+sin(t*TAU+float(j))*2)
+				fx_line(im,q-Vector2(7,2),q,1.0,Color("#c8eaff",pulse))
+				if j%3==0:
+					ice_crystal(im,q,t+float(j),3.0+float(j%2),Color("#f1ffff",pulse),Color("#7ebce5",pulse))
+				else:fx_disc(im,q,1.2+float(j%2)*.5,Color("#e6fbff",pulse))
+		"eos_042":
+			# Aurora Beam: flowing colored ribbons separated from the hard Ice Beam.
+			var head:=Vector2(9+29*drive,24)
+			var tail:=Vector2(maxf(4.0,head.x-32.0*fade),24)
+			var colors:Array[Color]=[Color("#84f8e0"),Color("#a5c7ff"),Color("#efb5ff")]
+			for j in range(3):
+				var prev:=tail+Vector2(0,float(j-1)*4)
+				for k in range(1,16):
+					var f:float=float(k)/15.0
+					var q:=tail.lerp(head,f)+Vector2(0,float(j-1)*4+sin(f*TAU*1.4-t*TAU+float(j)*1.7)*5.0*sin(f*PI))
+					fx_line(im,prev,q,3.3,Color("#405d9b",fade*.75))
+					fx_line(im,prev,q,1.8,Color(colors[j],fade))
+					prev=q
+				fairy_star(im,prev,2.5,Color(colors[j],fade))
+		"eos_344":
+			# Ice Punch: visible knuckles encased in crystalline frost.
+			var q:=Vector2(10+23*drive,24)
+			fx_line(im,q-Vector2(13*fade,0),q,3.4,Color("#7cbfe7",fade))
+			fight_fist(im,q,0.0,6.5,Color("#e1f8ff",fade),Color("#4676b5",fade))
+			for j in range(5):
+				var a:float=float(j)*TAU/5.0
+				var axis:=Vector2(cos(a),sin(a))
+				ice_crystal(im,q+axis*5.5,a,3.4,Color("#c6f8ff",fade),Color("#6ba2d4",fade))
+				if t>=peak:
+					var v:=q+axis*(8+8*(1.0-fade))
+					fx_line(im,q+axis*6,v,1.3,Color("#e5ffff",fade))
+					ice_crystal(im,v,a,2.2,Color("#e5ffff",fade),Color("#6da8d9",fade))
+		"eos_461":
+			# Ice Fang: closing icy jaws, long pointed crystalline teeth and frost burst.
+			var c:=Vector2(17+13*drive,24)
+			var opening:float=10.0-7.6*drive+4.0*(1.0-fade)
+			for side in [-1,1]:
+				var sy:float=float(side)
+				var prev:=c+Vector2(-12,sy*(opening+3))
+				for j in range(5):
+					var x:float=-12+float(j)*6.0
+					var q:=c+Vector2(x,sy*(opening+absf(x)*.20))
+					fx_line(im,prev,q,4.2,Color("#4169a5",fade))
+					fx_line(im,prev,q,2.4,Color("#a0d9f9",fade))
+					var length:float=7.0 if j in [0,4] else 4.5
+					var tip:=q+Vector2(0,-sy*length)
+					fx_line(im,q,tip,2.8,Color("#72b4e0",fade))
+					fx_line(im,q,tip,1.4,Color("#efffff",fade))
+					prev=q
+			if t>=peak:
+				for j in range(6):
+					var a:float=float(j)*TAU/6.0
+					var q:=c+Vector2(cos(a),sin(a))*(6+9*(1.0-fade))
+					ice_crystal(im,q,a,2.8,Color("#d9ffff",fade),Color("#70b7e4",fade))
+		"eos_180":
+			# Icicle Volley: sequential pointed ice darts, not a continuous beam.
+			for j in range(5):
+				var f:float=clampf(drive*1.28-float(j)*.13,0.0,1.0)
+				var q:=Vector2(7+29*f,24+sin(float(j)*2.1)*7)
+				fx_line(im,q-Vector2(7*fade,0),q,1.5,Color("#7cc9eb",fade))
+				var tip:=q+Vector2(7,0)
+				for k in range(-3,4):
+					var v:=q+Vector2(-4,float(k))
+					fx_line(im,v,tip,1.1,Color("#699fd5",fade))
+				fx_line(im,q-Vector2(4,1.5),tip,1.3,Color("#dffbff",fade))
+				if t>=peak:
+					fx_disc(im,tip+Vector2(2,-3),1.2,Color("#e4ffff",fade))
+		"eos_535":
+			# Frozen Retort: defensive frost buildup, then an icefall counterstrike.
+			var c:=Vector2(24,34)
+			var buildup:float=clampf(t/maxf(peak,.01),0.0,1.0)
+			for j in range(5):
+				var x:float=8.0+float(j)*8.0
+				var q:=Vector2(x,34-22*buildup)
+				ice_crystal(im,q,-PI*.5,4.0+float(j%3)*1.5,Color("#ddfaff",fade),Color("#6d9ed4",fade))
+				if t>=peak:
+					var v:=q+Vector2(0,22*(1.0-fade))
+					fx_line(im,v-Vector2(0,8),v,2.4,Color("#a1def6",fade))
+					ice_crystal(im,v,PI*.5,5.0,Color("#e7fcff",fade),Color("#4f87c5",fade))
+			if t>=peak:
+				fx_line(im,c-Vector2(17,0),c+Vector2(17,0),2.4,Color("#c1efff",fade))
+				for j in range(7):
+					var q:=c+Vector2(float(j-3)*5,-4-8*sin(float(j)*PI/6.0)*(1.0-fade))
+					fx_disc(im,q,1.7,Color("#b4e6f9",fade))
+		"eos_150":
+			# Absolute Frost: crystallizing central frost seal and radial freeze fracture.
+			var c:=Vector2(24,24)
+			var radius:float=4.0+15.0*drive
+			fx_disc(im,c,radius,Color("#76b8e4",.35*fade),maxf(0.0,radius-2))
+			for j in range(6):
+				var a:float=float(j)*TAU/6.0
+				var axis:=Vector2(cos(a),sin(a))
+				var normal:=Vector2(-axis.y,axis.x)
+				var tip:=c+axis*radius
+				fx_line(im,c,tip,3.3,Color("#437cbf",fade))
+				fx_line(im,c,tip,1.5,Color("#e4ffff",fade))
+				for k in range(2):
+					var q:=c+axis*radius*(.48+float(k)*.28)
+					fx_line(im,q,q-axis*3+normal*4,1.4,Color("#b4e8ff",fade))
+					fx_line(im,q,q-axis*3-normal*4,1.4,Color("#b4e8ff",fade))
+				if t>=peak:
+					var q:=tip+axis*(4*(1.0-fade))
+					ice_crystal(im,q,a,2.5,Color("#ffffff",fade),Color("#82b9e2",fade))
+			fx_disc(im,c,3.5+2*pulse,Color("#f7ffff",fade))
 	return im
 
 func combat_frame_image(id:String,frame:int)->Image:
