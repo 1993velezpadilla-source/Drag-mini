@@ -584,6 +584,16 @@ static func enemy_pincer(im:Image,shoulder:Vector2i,palm:Vector2i,forward:Vector
 # Native anatomical variants operate only on creatures with individually drawn
 # appendages. They reuse the existing atlas compatibility guard and pixel cache.
 const ENEMY_COMBAT_APPENDAGES=["sporeling","coralcrab","nova_wisp","vinesnap","eelstrix","comet_hare","thornbeetle","marrowray","voidspider","rootgnawer","jellymancer","lunamoth","leafwisp","shellguard","crystarok","bramble_pup","anemoneye","nebulwing","mossmite","reef_pup","orbitserpent","sylphowl","bubblewisp","starlit_pup","hollow_stag","leviathorn","lunar_prowler","grovetitan","abyss_colossus","astro_golem","fungal_monarch","tidal_sovereign","celestial_guardian"]
+# Slots describe the geometry actually implemented in the native cell, not
+# a promise that every legal move has a matching limb on every creature.
+const COMBAT_ANATOMY_SLOTS={"sporeling":["limbs"],"coralcrab":["pincer"],"nova_wisp":["aura"],"vinesnap":["jaw","leaf"],"eelstrix":["tail"],"comet_hare":["legs"],"thornbeetle":["horn"],"marrowray":["wing","tail"],"voidspider":["limbs"],"rootgnawer":["horn","legs"],"jellymancer":["tentacle"],"lunamoth":["wing"],"leafwisp":["leaf"],"shellguard":["tail"],"crystarok":["limbs"],"bramble_pup":["tail"],"anemoneye":["tentacle"],"nebulwing":["wing"],"mossmite":["armor"],"reef_pup":["tail"],"orbitserpent":["tail"],"sylphowl":["wing"],"bubblewisp":["aura"],"starlit_pup":["tail"],"hollow_stag":["horn"],"leviathorn":["wing"],"lunar_prowler":["tail"],"grovetitan":["limbs"],"abyss_colossus":["limbs"],"astro_golem":["limbs"],"fungal_monarch":["aura","limbs"],"tidal_sovereign":["tail","jaw"],"celestial_guardian":["wing"]}
+const MOTION_ANATOMY={"fang":["jaw"],"crunch":["jaw"],"claw":["limbs","pincer"],"pincer":["pincer"],"punch":["limbs"],"uppercut":["limbs"],"kick":["legs","limbs"],"lowkick":["legs","limbs"],"wing":["wing"],"tail":["tail"],"horn":["horn"],"lash":["tentacle","leaf","tail"],"rush":["horn","legs","armor","tail"],"spin":["tail","armor","wing"],"aerial":["wing","legs"],"down":["limbs","legs","horn"],"cast":["aura","leaf","tentacle"],"focus":["aura","leaf"],"gesture":["aura","leaf","tentacle"],"contact":["limbs","pincer"]}
+static func combat_anatomy_slot(species:String,motion:String)->String:
+	var available:Array=COMBAT_ANATOMY_SLOTS.get(species,[])
+	for slot in MOTION_ANATOMY.get(motion,[]):
+		if slot in available:return str(slot)
+	return ""
+
 static func combat_appendage_stage(progress:float,impact:float)->int:
 	var t:float=clampf(progress,0.0,1.0)
 	var peak:float=clampf(impact,.12,.88)
@@ -591,11 +601,11 @@ static func combat_appendage_stage(progress:float,impact:float)->int:
 	var after:float=(t-peak)/(1.0-peak)
 	return 1 if after<.18 else 2 if after<.42 else 0
 
-static func enemy_pixel_cell(id:String,dir:int,pose:String,frame:int=0,eyelids:bool=false,appendage:int=0)->Image:
+static func enemy_pixel_cell(id:String,dir:int,pose:String,frame:int=0,eyelids:bool=false,appendage:int=0,anatomy:String="all")->Image:
 	# Eight-way provisional three-quarter studies retain each species' own anatomy.
 	if dir>=4:
-		var profile:=enemy_pixel_cell(id,3,pose,frame,eyelids,appendage)
-		var broadside:=enemy_pixel_cell(id,1 if dir>=6 else 0,pose,frame,eyelids,appendage)
+		var profile:=enemy_pixel_cell(id,3,pose,frame,eyelids,appendage,anatomy)
+		var broadside:=enemy_pixel_cell(id,1 if dir>=6 else 0,pose,frame,eyelids,appendage,anatomy)
 		var diagonal:=enemy_three_quarter_cell(profile,broadside,dir>=6)
 		if dir in [5,7]:diagonal.flip_x()
 		return diagonal
@@ -610,7 +620,15 @@ static func enemy_pixel_cell(id:String,dir:int,pose:String,frame:int=0,eyelids:b
 	var phase:=posmod(frame,4)
 	var step:int=[0,2,0,-2][phase] if pose=="walk" else 0
 	# Independent appendage phase: never alter the ground-contact stride.
-	var combat_part:int=[0,-2,2][clampi(appendage,0,2)] if pose=="attack" and id in ENEMY_COMBAT_APPENDAGES else 0
+	var part_value:int=[0,-2,2][clampi(appendage,0,2)] if pose=="attack" and id in ENEMY_COMBAT_APPENDAGES else 0
+	var slots:Array=COMBAT_ANATOMY_SLOTS.get(id,[])
+	var primary:String=str(slots[0]) if not slots.is_empty() else ""
+	var combat_part:int=part_value if anatomy=="all" or anatomy==primary else 0
+	var jaw_part:int=part_value if anatomy in ["all","jaw"] else 0
+	var leaf_part:int=part_value if anatomy in ["all","leaf"] else 0
+	var leg_part:int=part_value if anatomy in ["all","legs"] else 0
+	var limb_part:int=part_value if anatomy in ["all","limbs"] else 0
+	var tail_part:int=part_value if anatomy in ["all","tail"] else 0
 	var twitch:int=[0,1,-1][clampi(appendage,0,2)] if pose in ["idle","walk"] else int(combat_part/2)
 	var sleeping:=pose=="sleep" or eyelids
 	var wind:=pose=="windup"
@@ -797,7 +815,7 @@ static func enemy_pixel_cell(id:String,dir:int,pose:String,frame:int=0,eyelids:b
 			var petal:=Color("#df8398")
 			var throat:=Color("#532c4b")
 			var bite:int=3 if attack else -2 if wind else 0
-			var gape:int=maxi(1,(7 if wind else 2 if attack and frame==1 else 5)+combat_part)
+			var gape:int=maxi(1,(7 if wind else 2 if attack and frame==1 else 5)+jaw_part)
 			var c:=Vector2i(22,24) if side else Vector2i(24,23)
 			if side:c.x+=bite
 			else:c.y+=(-bite if back else bite)
@@ -811,7 +829,7 @@ static func enemy_pixel_cell(id:String,dir:int,pose:String,frame:int=0,eyelids:b
 			enemy_dot(im,Vector2i(24,34),Vector2i(11,9),ink)
 			enemy_dot(im,Vector2i(24,33),Vector2i(9,7),deep)
 			for k in [-1,1]:
-				var q:=Vector2i(24+int(k)*(8+combat_part),32+int(k)*(step+twitch))
+				var q:=Vector2i(24+int(k)*(8+leaf_part),32+int(k)*(step+(int(leaf_part/2) if attack else twitch)))
 				enemy_cluster(im,q,[Vector2i(-10,1),Vector2i(-6,-5),Vector2i(3,-6),Vector2i(10,1),Vector2i(3,7),Vector2i(-6,6)],[Vector2i(-8,1),Vector2i(-5,-3),Vector2i(3,-4),Vector2i(8,1),Vector2i(2,5),Vector2i(-5,4)],[Vector2i(-6,0),Vector2i(-2,-3),Vector2i(5,0),Vector2i(-1,1)],ink,leaf,lime)
 			enemy_cluster(im,c,[Vector2i(-17,-3),Vector2i(-15,-12),Vector2i(-8,-17),Vector2i(6,-16),Vector2i(15,-11),Vector2i(18,-2),Vector2i(16,10),Vector2i(7,15),Vector2i(-9,13),Vector2i(-16,8)],[Vector2i(-15,-3),Vector2i(-13,-10),Vector2i(-7,-15),Vector2i(5,-14),Vector2i(13,-10),Vector2i(16,-2),Vector2i(14,8),Vector2i(6,13),Vector2i(-8,11),Vector2i(-14,7)],[Vector2i(-12,-7),Vector2i(-6,-13),Vector2i(4,-12),Vector2i(9,-8),Vector2i(3,-6),Vector2i(-7,-5)],ink,rose,petal)
 			if back:
@@ -974,8 +992,8 @@ static func enemy_pixel_cell(id:String,dir:int,pose:String,frame:int=0,eyelids:b
 			var flap:int=([0,4,0,-4][phase] if pose=="walk" else -4 if wind else 5 if attack else 0)+combat_part
 			var c:=Vector2i(24,24)
 			var tail_base:=c+Vector2i(-8,3) if side else c+Vector2i(0,9 if back else -9)
-			var tail_mid:=c+Vector2i(-15,5+step+twitch) if side else c+Vector2i(step,15 if back else -15)
-			var tail_tip:=c+Vector2i(-21,3+step+twitch*2) if side else c+Vector2i(step*2+twitch*2,20 if back else -20)
+			var tail_mid:=c+Vector2i(-15,5+step+(int(tail_part/2) if attack else twitch)) if side else c+Vector2i(step+tail_part,15 if back else -15)
+			var tail_tip:=c+Vector2i(-21,3+step+(tail_part if attack else twitch*2)) if side else c+Vector2i(step*2+(tail_part if attack else twitch*2),20 if back else -20)
 			enemy_line(im,tail_base,tail_mid,2,ink);enemy_line(im,tail_mid,tail_tip,1,ink)
 			enemy_line(im,tail_base,tail_mid,1,sea);enemy_line(im,tail_mid,tail_tip,1,skin)
 			if side:
@@ -1055,7 +1073,7 @@ static func enemy_pixel_cell(id:String,dir:int,pose:String,frame:int=0,eyelids:b
 			var center:=Vector2i(20,29) if side else Vector2i(24,27)
 			var charge:int=(4 if attack else -2 if wind else 0)+combat_part
 			for i in range(4):
-				var stride:int=(step+combat_part)*(-1 if i%2==0 else 1)
+				var stride:int=(step+leg_part)*(-1 if i%2==0 else 1)
 				var hip:=center+Vector2i(-8+(i%2)*15,3+int(i/2.0)*3) if side else center+Vector2i(-8+(i%2)*16,4+int(i/2.0)*5)
 				var foot:=hip+Vector2i(stride,9-abs(stride))
 				enemy_line(im,hip,foot,3,ink)
@@ -1953,7 +1971,7 @@ static func enemy_pixel_cell(id:String,dir:int,pose:String,frame:int=0,eyelids:b
 			enemy_cluster(im,c,[Vector2i(-12,1),Vector2i(-8,-8),Vector2i(8,-8),Vector2i(12,4),Vector2i(9,15),Vector2i(-8,15)],[Vector2i(-10,2),Vector2i(-7,-6),Vector2i(7,-6),Vector2i(10,4),Vector2i(7,13),Vector2i(-7,13)],[Vector2i(-8,2),Vector2i(-3,-4),Vector2i(1,11),Vector2i(-5,12)],ink,bark,mid)
 			for k in [-1,1]:
 				var n:int=int(k)
-				var q:=c+Vector2i(n*(13+combat_part),6+(step+twitch)*n)
+				var q:=c+Vector2i(n*(13+limb_part),6+(step+(int(limb_part/2) if attack else twitch))*n)
 				enemy_line(im,c+Vector2i(n*7,2),q,3,ink)
 				enemy_dot(im,q,Vector2i(5,5),ink)
 				enemy_dot(im,q,Vector2i(4,3),moss)
@@ -2010,7 +2028,7 @@ static func enemy_pixel_cell(id:String,dir:int,pose:String,frame:int=0,eyelids:b
 			if not back:
 				for x in ([1] if side else [-6,6]):enemy_eye(im,h+Vector2i(int(x),-3),ink,pink,white,attack,sleeping)
 				var jaw:=h+Vector2i(4,5) if side else h+Vector2i(0,5)
-				enemy_dot(im,jaw,Vector2i(6,maxi(2,3+int(wind)*2+combat_part)),deep)
+				enemy_dot(im,jaw,Vector2i(6,maxi(2,3+int(wind)*2+jaw_part)),deep)
 				for i in range(3):
 					var q:=jaw+Vector2i(-3+i*3,-1)
 					enemy_poly(im,[q+Vector2i(-1,0),q+Vector2i(1,0),q+Vector2i(0,2+frame*int(attack))],pale)
@@ -2132,8 +2150,8 @@ static func enemy_asset_cell(id:String,dir:int,pose:String,frame:int)->Image:
 	return sheet.get_region(Rect2i(maxi(col,0)*48,clampi(dir,0,sheet.get_height()/48-1)*48,48,48))
 # Only transfer authored eyelid differences when the production art matches
 # the original pixels exactly in that region. Never replace the whole atlas.
-static func enemy_expression_cell(id:String,dir:int,pose:String,frame:int,production:Image,blink:bool,appendage:int)->Image:
-	var shut:=enemy_pixel_cell(id,dir,pose,frame,blink,appendage)
+static func enemy_expression_cell(id:String,dir:int,pose:String,frame:int,production:Image,blink:bool,appendage:int,anatomy:String="all")->Image:
+	var shut:=enemy_pixel_cell(id,dir,pose,frame,blink,appendage,anatomy)
 	# Procedural fallback is already the exact authored base; no second draw
 	# or per-pixel compatibility scan is necessary.
 	if enemy_atlas_cache.get(id)==null:
@@ -2158,21 +2176,24 @@ static func enemy_expression_cell(id:String,dir:int,pose:String,frame:int,produc
 	for q in changes:out.set_pixelv(q,shut.get_pixelv(q))
 	return out
 
-static func enemy_pixel_texture(id:String,dir:int,pose:String,frame:int,blink:bool=false,appendage:int=0)->Texture2D:
+static func enemy_pixel_texture(id:String,dir:int,pose:String,frame:int,blink:bool=false,appendage:int=0,anatomy:String="all")->Texture2D:
 	# Canonical keys: irrelevant frame/gesture indices must never allocate textures.
 	frame=posmod(frame,4) if pose=="walk" else posmod(frame,2) if pose=="attack" else 0
 	dir=clampi(dir,0,7)
 	blink=blink and id in ENEMY_PIXEL_PILOTS and pose in ["idle","walk"] and dir not in [1,6,7]
 	appendage=clampi(appendage,0,2) if (id in ENEMY_IDLE_APPENDAGES and pose in ["idle","walk"]) or (id in ENEMY_COMBAT_APPENDAGES and pose=="attack") else 0
+	if pose=="attack" and anatomy!="all" and not anatomy in COMBAT_ANATOMY_SLOTS.get(id,[]):appendage=0
+	if appendage==0 or pose!="attack":anatomy="all"
 	var base_key:="enemy:%s:%d:%s:%d"%[id,dir,pose,frame]
 	var key:String=base_key
 	if blink:key+=":blink"
 	if appendage>0:key+=":part%d"%appendage
+	if anatomy!="all":key+=":"+anatomy
 	if cache.has(key):return cache[key] as Texture2D
 	var image:=enemy_asset_cell(id,dir,pose,frame)
 	if image==null:return null
 	if blink or appendage>0:
-		var expression:=enemy_expression_cell(id,dir,pose,frame,image,blink,appendage)
+		var expression:=enemy_expression_cell(id,dir,pose,frame,image,blink,appendage,anatomy)
 		# Incompatible production art or unchanged rear poses reuse the base GPU texture.
 		if expression==image:
 			var base_tex:=enemy_pixel_texture(id,dir,pose,frame)
