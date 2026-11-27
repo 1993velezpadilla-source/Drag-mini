@@ -6549,7 +6549,7 @@ func combat_fx_spawn(event:Dictionary)->void:
 	if tiles.is_empty():tiles.append(pos(target)+Vector3(0,.12,0))
 	if combat_bursts.size()>=COMBAT_BURST_CAP:
 		retire_combat_burst(combat_bursts.pop_front())
-	combat_bursts.append({"id":id,"mode":style[0],"profile":profile,"target_player":event.get("target_player",false),"damage":event.get("damage",0),"impacted":false,"age":0.0,"duration":float(style[3]),"points":waypoints,"tiles":tiles,"presentation_tracks":elemental_track_plan(id,profile),"texture":combat_animated_texture(id,0),"results":event.get("results",{}).duplicate(true)})
+	combat_bursts.append({"id":id,"mode":style[0],"profile":profile,"target_player":event.get("target_player",false),"damage":event.get("damage",0),"impacted":false,"age":0.0,"duration":float(style[3]),"points":waypoints,"tiles":tiles,"presentation_tracks":elemental_track_plan(id,profile),"results":event.get("results",{}).duplicate(true)})
 	schedule_native_cast(combat_bursts[-1],event.has("uid"),target)
 	play_combat_sound(id,"launch",waypoints[0])
 # Leading projectile reaches its destination on the exact impact fraction.

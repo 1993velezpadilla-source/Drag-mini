@@ -1,0 +1,41 @@
+name: Kindria RTDX runtime fidelity
+on:
+  workflow_dispatch:
+  push:
+    branches: [feature/kindria-hybrid-combat-v8]
+    paths:
+      - 'my-forever-pet/godot-arcade/**'
+      - 'my-forever-pet/research/rtdx/**'
+      - '.github/workflows/kindria-rtdx-runtime.yml'
+permissions:
+  contents: read
+jobs:
+  runtime:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate catalog evidence and measurement tool
+        run: |
+          python3 my-forever-pet/research/rtdx/audit_fidelity.py
+          python3 my-forever-pet/research/rtdx/measure_capture.py --self-test
+      - name: Install pinned Godot
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y xvfb libgl1 libgl1-mesa-dri
+          curl -fL --retry 3 -o /tmp/godot.zip https://github.com/godotengine/godot/releases/download/4.4.1-stable/Godot_v4.4.1-stable_linux.x86_64.zip
+          unzip -q /tmp/godot.zip -d /tmp/godot
+      - name: Exercise actual dungeon cast pipeline
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/dungeon-project /tmp/kindria-rtdx-runtime
+          printf '%s\n' 'config_version=5' '[display]' 'window/size/viewport_width=540' 'window/size/viewport_height=960' '[rendering]' 'renderer/rendering_method="gl_compatibility"' > /tmp/dungeon-project/project.godot
+          cp my-forever-pet/godot-arcade/{dungeon_view,dungeon_rules,research_data,pixel_pet_art,pet_part_rig,pet_external_fx,dungeon_effekseer_backend}.gd my-forever-pet/godot-arcade/volnox_pixel_life.gdshader my-forever-pet/research/rtdx/rtdx_runtime_probe.gd /tmp/dungeon-project/
+          xvfb-run -a -s "-screen 0 720x1280x24" timeout 180 /tmp/godot/Godot_v4.4.1-stable_linux.x86_64 --path /tmp/dungeon-project --audio-driver Dummy --resolution 540x960 --script res://rtdx_runtime_probe.gd 2>&1 | tee /tmp/kindria-rtdx-runtime/run.log
+          grep -F 'KINDRIA_RTDX_RUNTIME_PASS 12 casts=24' /tmp/kindria-rtdx-runtime/run.log
+          ! grep -E 'SCRIPT ERROR|Parse Error|RTDX_RUNTIME_FAIL' /tmp/kindria-rtdx-runtime/run.log
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: Kindria-RTDX-runtime-captures
+          path: /tmp/kindria-rtdx-runtime/
