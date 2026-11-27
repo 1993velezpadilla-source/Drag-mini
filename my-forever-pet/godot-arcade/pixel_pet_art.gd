@@ -583,7 +583,7 @@ static func enemy_pincer(im:Image,shoulder:Vector2i,palm:Vector2i,forward:Vector
 		enemy_line(im,bend,tip,1,gold)
 # Native anatomical variants operate only on creatures with individually drawn
 # appendages. They reuse the existing atlas compatibility guard and pixel cache.
-const ENEMY_COMBAT_APPENDAGES=["coralcrab","eelstrix","marrowray","voidspider","jellymancer","lunamoth","shellguard","bramble_pup","anemoneye","nebulwing","reef_pup","orbitserpent","sylphowl","starlit_pup","hollow_stag","leviathorn","lunar_prowler","abyss_colossus","astro_golem","tidal_sovereign","celestial_guardian"]
+const ENEMY_COMBAT_APPENDAGES=["sporeling","coralcrab","nova_wisp","vinesnap","eelstrix","comet_hare","thornbeetle","marrowray","voidspider","rootgnawer","jellymancer","lunamoth","leafwisp","shellguard","crystarok","bramble_pup","anemoneye","nebulwing","mossmite","reef_pup","orbitserpent","sylphowl","bubblewisp","starlit_pup","hollow_stag","leviathorn","lunar_prowler","grovetitan","abyss_colossus","astro_golem","fungal_monarch","tidal_sovereign","celestial_guardian"]
 static func combat_appendage_stage(progress:float,impact:float)->int:
 	var t:float=clampf(progress,0.0,1.0)
 	var peak:float=clampf(impact,.12,.88)
@@ -646,7 +646,7 @@ static func enemy_pixel_cell(id:String,dir:int,pose:String,frame:int=0,eyelids:b
 			enemy_patch(im,body,[Vector2i(-8,-5),Vector2i(-5,-10),Vector2i(5,-10),Vector2i(8,-4),Vector2i(7,6),Vector2i(3,8),Vector2i(-5,8),Vector2i(-8,4)],flesh)
 			enemy_patch(im,body,[Vector2i(-7,-3),Vector2i(-3,-7),Vector2i(0,5),Vector2i(-4,7),Vector2i(-7,3)],cream)
 			for k in [-1,1]:
-				var arm:=body+Vector2i(int(k)*9,2+step*int(k)+twitch*int(k))
+				var arm:=body+Vector2i(int(k)*(9+combat_part),2+step*int(k)+twitch*int(k)-combat_part)
 				enemy_line(im,body+Vector2i(int(k)*6,-1),arm,2,ink)
 				enemy_dot(im,arm,Vector2i(2,3),shadow)
 				enemy_line(im,arm+Vector2i(-1,-1),arm+Vector2i(1,-1),1,leaf)
@@ -773,10 +773,10 @@ static func enemy_pixel_cell(id:String,dir:int,pose:String,frame:int=0,eyelids:b
 			for j in range(3):
 				var offset:=Vector2i(j*3-3,-12-j%2*2)
 				enemy_line(im,Vector2i(24,cy)+offset,Vector2i(24,cy)+offset+Vector2i(0,3),1,gold)
-			var orbit:float=float(phase)*PI*.5 if pose=="walk" else float(frame)*.8 if attack else .2+twitch*.22
+			var orbit:float=(float(phase)*PI*.5 if pose=="walk" else float(frame)*.8 if attack else .2+twitch*.22)+float(combat_part)*.24
 			for i in range(3):
 				var a:=orbit+float(i)*TAU/3.0
-				var r:=17.0 if attack else 12.0 if wind else 15.0
+				var r:float=(17.0 if attack else 12.0 if wind else 15.0)+float(combat_part)*.65
 				var q:=Vector2i(24+roundi(cos(a)*r),cy+roundi(sin(a)*r*.55))
 				enemy_line(im,q+Vector2i(0,-4),q+Vector2i(0,4),1,gold)
 				enemy_line(im,q+Vector2i(-3,0),q+Vector2i(3,0),1,gold)
@@ -797,7 +797,7 @@ static func enemy_pixel_cell(id:String,dir:int,pose:String,frame:int=0,eyelids:b
 			var petal:=Color("#df8398")
 			var throat:=Color("#532c4b")
 			var bite:int=3 if attack else -2 if wind else 0
-			var gape:int=7 if wind else 2 if attack and frame==1 else 5
+			var gape:int=maxi(1,(7 if wind else 2 if attack and frame==1 else 5)+combat_part)
 			var c:=Vector2i(22,24) if side else Vector2i(24,23)
 			if side:c.x+=bite
 			else:c.y+=(-bite if back else bite)
@@ -811,7 +811,7 @@ static func enemy_pixel_cell(id:String,dir:int,pose:String,frame:int=0,eyelids:b
 			enemy_dot(im,Vector2i(24,34),Vector2i(11,9),ink)
 			enemy_dot(im,Vector2i(24,33),Vector2i(9,7),deep)
 			for k in [-1,1]:
-				var q:=Vector2i(24+int(k)*8,32+int(k)*(step+twitch))
+				var q:=Vector2i(24+int(k)*(8+combat_part),32+int(k)*(step+twitch))
 				enemy_cluster(im,q,[Vector2i(-10,1),Vector2i(-6,-5),Vector2i(3,-6),Vector2i(10,1),Vector2i(3,7),Vector2i(-6,6)],[Vector2i(-8,1),Vector2i(-5,-3),Vector2i(3,-4),Vector2i(8,1),Vector2i(2,5),Vector2i(-5,4)],[Vector2i(-6,0),Vector2i(-2,-3),Vector2i(5,0),Vector2i(-1,1)],ink,leaf,lime)
 			enemy_cluster(im,c,[Vector2i(-17,-3),Vector2i(-15,-12),Vector2i(-8,-17),Vector2i(6,-16),Vector2i(15,-11),Vector2i(18,-2),Vector2i(16,10),Vector2i(7,15),Vector2i(-9,13),Vector2i(-16,8)],[Vector2i(-15,-3),Vector2i(-13,-10),Vector2i(-7,-15),Vector2i(5,-14),Vector2i(13,-10),Vector2i(16,-2),Vector2i(14,8),Vector2i(6,13),Vector2i(-8,11),Vector2i(-14,7)],[Vector2i(-12,-7),Vector2i(-6,-13),Vector2i(4,-12),Vector2i(9,-8),Vector2i(3,-6),Vector2i(-7,-5)],ink,rose,petal)
 			if back:
@@ -894,8 +894,8 @@ static func enemy_pixel_cell(id:String,dir:int,pose:String,frame:int=0,eyelids:b
 				enemy_dot(im,tail,Vector2i(6,5),ink)
 				enemy_dot(im,tail-Vector2i(0,1),Vector2i(4,3),pale)
 			for k in [-1,1]:
-				var foot:=body+Vector2i(int(k)*8,11+step*int(k))
-				if side:foot=body+Vector2i(-2+int(k)*4,11+step*int(k))
+				var foot:=body+Vector2i(int(k)*(8+combat_part),11+step*int(k)-combat_part)
+				if side:foot=body+Vector2i(-2+int(k)*4+combat_part*2,11+step*int(k)-combat_part)
 				enemy_dot(im,foot,Vector2i(6,4),ink)
 				enemy_dot(im,foot-Vector2i(0,1),Vector2i(4,2),shade)
 				enemy_line(im,foot+Vector2i(-2,-1),foot+Vector2i(2,-1),1,fur)
@@ -958,7 +958,7 @@ static func enemy_pixel_cell(id:String,dir:int,pose:String,frame:int=0,eyelids:b
 			enemy_dot(im,head,Vector2i(8,7),ink)
 			enemy_dot(im,head-Vector2i(1,1),Vector2i(6,5),bark)
 			var horn:=head+Vector2i(3,0) if side else head+Vector2i(0,-2 if back else 2)
-			var tip:=horn+Vector2i(8,-10) if side else horn+Vector2i(0,-9 if back else 9)
+			var tip:=horn+Vector2i(8+combat_part,-10-combat_part) if side else horn+Vector2i(0,(-9-combat_part if back else 9+combat_part))
 			enemy_poly(im,[horn+Vector2i(-4,2),horn+Vector2i(-2,-3),tip+Vector2i(-2,1),tip,tip+Vector2i(2,2),horn+Vector2i(4,4)],ink)
 			enemy_line(im,horn,tip,2,ivory)
 			enemy_line(im,horn+Vector2i(-1,-1),tip,1,white)
@@ -1053,9 +1053,9 @@ static func enemy_pixel_cell(id:String,dir:int,pose:String,frame:int=0,eyelids:b
 			var ivory:=Color("#d0b77c")
 			var dark_fur:=Color("#3c3028")
 			var center:=Vector2i(20,29) if side else Vector2i(24,27)
-			var charge:int=4 if attack else -2 if wind else 0
+			var charge:int=(4 if attack else -2 if wind else 0)+combat_part
 			for i in range(4):
-				var stride:int=step*(-1 if i%2==0 else 1)
+				var stride:int=(step+combat_part)*(-1 if i%2==0 else 1)
 				var hip:=center+Vector2i(-8+(i%2)*15,3+int(i/2.0)*3) if side else center+Vector2i(-8+(i%2)*16,4+int(i/2.0)*5)
 				var foot:=hip+Vector2i(stride,9-abs(stride))
 				enemy_line(im,hip,foot,3,ink)
@@ -1186,7 +1186,7 @@ static func enemy_pixel_cell(id:String,dir:int,pose:String,frame:int=0,eyelids:b
 			var leaf:=Color("#527e42")
 			var light:=Color("#a9d36c")
 			var cream:=Color("#dbe88e")
-			var flutter:int=[0,-3,0,3][phase] if pose=="walk" else 3 if wind else -4 if attack else 0
+			var flutter:int=([0,-3,0,3][phase] if pose=="walk" else 3 if wind else -4 if attack else 0)+combat_part
 			var c:=Vector2i(24,26)
 			var head:=c+Vector2i(4,-1) if side else c
 			var top:=c+Vector2i(-3+flutter+twitch*2,-19)
@@ -1274,7 +1274,7 @@ static func enemy_pixel_cell(id:String,dir:int,pose:String,frame:int=0,eyelids:b
 			var mid:=Color("#8e9ed0")
 			var ice:=Color("#d7e5ff")
 			var c:=Vector2i(20,26) if side else Vector2i(24,26)
-			var lunge:int=3 if attack else -2 if wind else 0
+			var lunge:int=(3 if attack else -2 if wind else 0)+combat_part
 			for k in [-1,1]:
 				var sign_x:int=int(k)
 				var foot:=c+Vector2i(sign_x*8,13+step*sign_x)
@@ -1444,7 +1444,7 @@ static func enemy_pixel_cell(id:String,dir:int,pose:String,frame:int=0,eyelids:b
 			var moss:=Color("#6b8e44")
 			var leaf:=Color("#a9c267")
 			var c:=Vector2i(24,26)
-			var roll:int=step if pose=="walk" else -3 if wind else 3 if attack else twitch
+			var roll:int=(step if pose=="walk" else -3 if wind else 3 if attack else twitch)+combat_part
 			var face:=c+Vector2i(9,4) if side else c+Vector2i(0,8)
 			for k in [-1,1]:
 				var foot:=c+Vector2i(int(k)*9,14-abs(step))
@@ -1600,7 +1600,7 @@ static func enemy_pixel_cell(id:String,dir:int,pose:String,frame:int=0,eyelids:b
 			var sea:=Color("#28738e")
 			var aqua:=Color("#65cdd9")
 			var shine:=Color("#e3ffff")
-			var pulse:int=[0,2,0,-2][phase] if pose=="walk" else -2 if wind else 3 if attack else 0
+			var pulse:int=([0,2,0,-2][phase] if pose=="walk" else -2 if wind else 3 if attack else 0)+combat_part
 			var c:=Vector2i(24,26+pulse)
 			var satellites:Array[Vector2i]=[c+Vector2i(-10,9-pulse+twitch*2),c+Vector2i(11,6+pulse-twitch),c+Vector2i(4+twitch*2,-16-pulse)]
 			if side:satellites=[c+Vector2i(-11,6-pulse),c+Vector2i(-13,-6+pulse),c+Vector2i(5,-15-pulse)]
@@ -1823,7 +1823,7 @@ static func enemy_pixel_cell(id:String,dir:int,pose:String,frame:int=0,eyelids:b
 			var leaf:=Color("#7c8f48")
 			var pale:=Color("#b4bd78")
 			var c:=Vector2i(24,26)
-			var slam:int=5 if attack else -5 if wind else 0
+			var slam:int=(5 if attack else -5 if wind else 0)+combat_part
 			for k in [-1,1]:
 				var n:int=int(k)
 				var foot:=c+Vector2i(n*8,14+step*n)
@@ -1940,7 +1940,7 @@ static func enemy_pixel_cell(id:String,dir:int,pose:String,frame:int=0,eyelids:b
 			var moss:=Color("#78864b")
 			var plum:=Color("#874463")
 			var c:=Vector2i(24,23)
-			var swell:int=3 if wind else -2 if attack else 0
+			var swell:int=(3 if wind else -2 if attack else 0)+combat_part
 			for i in range(3):
 				var n:int=i-1
 				var gait:int=step*(-1 if i%2==0 else 1)
@@ -1953,7 +1953,7 @@ static func enemy_pixel_cell(id:String,dir:int,pose:String,frame:int=0,eyelids:b
 			enemy_cluster(im,c,[Vector2i(-12,1),Vector2i(-8,-8),Vector2i(8,-8),Vector2i(12,4),Vector2i(9,15),Vector2i(-8,15)],[Vector2i(-10,2),Vector2i(-7,-6),Vector2i(7,-6),Vector2i(10,4),Vector2i(7,13),Vector2i(-7,13)],[Vector2i(-8,2),Vector2i(-3,-4),Vector2i(1,11),Vector2i(-5,12)],ink,bark,mid)
 			for k in [-1,1]:
 				var n:int=int(k)
-				var q:=c+Vector2i(n*13,6+(step+twitch)*n)
+				var q:=c+Vector2i(n*(13+combat_part),6+(step+twitch)*n)
 				enemy_line(im,c+Vector2i(n*7,2),q,3,ink)
 				enemy_dot(im,q,Vector2i(5,5),ink)
 				enemy_dot(im,q,Vector2i(4,3),moss)
