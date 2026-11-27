@@ -68,6 +68,7 @@ func run():
 	assert(modes.size()>=13)
 	var ids:Array=RulesForFX.SIGNATURE_SKILLS.values().map(func(skill):return skill[6])
 	for species in RulesForFX.SECONDARY_SKILLS:ids.append("alt_"+species)
+	ids.append_array(RulesForFX.MOVE_LIBRARY.keys())
 	var distinct:int=0
 	for id in ids:
 		var atlas:=Image.create(48*12,48,false,Image.FORMAT_RGBA8)
@@ -81,8 +82,10 @@ func run():
 		assert(frames.size()>=3,id+" animation must change")
 		assert(atlas.save_png("/tmp/kindria-fx-"+id+".png")==OK)
 		distinct+=1
-	assert(distinct==66)
-	print("KINDRIA_FX_ATLAS_PASS 66 animated atlases / 792 frames")
+	assert(distinct==120)
+	print("KINDRIA_FX_ATLAS_PASS 120 animated atlases / 1440 frames")
+	assert(RulesForFX.available_moves(["grass"],1).size()==1)
+	assert(RulesForFX.available_moves(["grass","water"],15).size()==6)
 	for j in range(3):
 		dungeon.combat_fx_spawn({"fx":["vine_snap","nova_bolt","gravity_web"][j],"from":Vector2i(-2,j-1),"to":Vector2i(2,j-1),"path":[Vector2i(-1,j-1),Vector2i(0,j-1),Vector2i(1,j-1),Vector2i(2,j-1)],"tiles":[Vector2i(2,j-1)]})
 	dungeon.combat_fx_update(.24)

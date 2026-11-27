@@ -60,7 +60,7 @@ jobs:
         run: |
           set -euo pipefail
           cp my-forever-pet/godot-arcade/{dungeon_view,dungeon_rules,research_data}.gd my-forever-pet/tests/volnox_dungeon_preview.gd /tmp/pixel/
-          xvfb-run -a timeout 60 /tmp/godot/Godot_v4.4.1-stable_linux.x86_64 --path /tmp/pixel --audio-driver Dummy --script res://volnox_dungeon_preview.gd 2>&1 | tee /tmp/volnox-runtime.log
+          xvfb-run -a timeout 120 /tmp/godot/Godot_v4.4.1-stable_linux.x86_64 --path /tmp/pixel --audio-driver Dummy --script res://volnox_dungeon_preview.gd 2>&1 | tee /tmp/volnox-runtime.log
           grep -F 'VOLNOX_RUNTIME_PIXEL_PASS 33' /tmp/volnox-runtime.log
           grep -F VOLNOX_COMBAT_VFX_PASS /tmp/volnox-runtime.log
           grep -F KINDRIA_FX_ATLAS_PASS /tmp/volnox-runtime.log

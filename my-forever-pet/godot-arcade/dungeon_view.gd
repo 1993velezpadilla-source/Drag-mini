@@ -1732,6 +1732,9 @@ func combat_pixel_texture(mode:String,light:Color,dark:Color)->ImageTexture:
 	combat_textures[key]=texture
 	return texture
 func combat_style(id:String)->Array:
+	if Rules.MOVE_LIBRARY.has(id):
+		var move:Dictionary=Rules.MOVE_LIBRARY[id]
+		return [move.mode,move.light,move.dark,move.duration]
 	if id.begins_with("alt_"):
 		var species:=id.trim_prefix("alt_")
 		if Rules.SECONDARY_SKILLS.has(species):

@@ -1,0 +1,26 @@
+name: Kindria original Blender attack pilot
+on:
+  push:
+    branches: [feature/my-forever-pet-paradise]
+    paths: ['my-forever-pet/art/blender_move_fx.py', '.github/workflows/kindria-blender-fx.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  render:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - run: |
+          set -euo pipefail
+          curl -fL --retry 3 https://download.blender.org/release/Blender4.3/blender-4.3.2-linux-x64.tar.xz -o /tmp/blender.tar.xz
+          tar -xf /tmp/blender.tar.xz -C /tmp
+          /tmp/blender-4.3.2-linux-x64/blender -b -t 2 -P my-forever-pet/art/blender_move_fx.py -- /tmp/kindria_blender_fx | tee /tmp/blender-fx.log
+          grep -F KINDRIA_BLENDER_BRIAR_PASS /tmp/blender-fx.log
+          test "$(find /tmp/kindria_blender_fx -name 'briar_*.png' | wc -l)" = 12
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: Kindria-original-Blender-briar-whip
+          path: /tmp/kindria_blender_fx/
