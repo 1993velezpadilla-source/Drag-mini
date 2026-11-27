@@ -217,6 +217,11 @@ var floor_detail_bounds:Dictionary={}
 var terrace_cells:Dictionary={}
 var reward_fx:Node3D
 var reward_age=0.0
+var interaction_kind:String=""
+var interaction_duration:float=.65
+var interaction_priority:int=0
+var seen_creatures:Dictionary={}
+var interaction_material:StandardMaterial3D
 var reward_pool:Array[MeshInstance3D]=[]
 var scene_cache:Dictionary={}
 var rock_mesh_cache:Dictionary={}
@@ -1907,9 +1912,10 @@ func build_floor():
 	attack_fx=shape(geometry,"ring",Vector3.ZERO,Vector3.ONE,Color("#ffdfa0"));attack_fx.hide();attack_fx.cast_shadow=GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	var fxmat=StandardMaterial3D.new();fxmat.shading_mode=BaseMaterial3D.SHADING_MODE_UNSHADED;fxmat.albedo_color=Color("#ffe6a3");attack_fx.material_override=fxmat
 	destination_fx=shape(geometry,"ring",Vector3.ZERO,Vector3(.68,.08,.68),Color("#a0e6db"));destination_fx.hide();destination_fx.cast_shadow=GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	reward_pool.clear();reward_age=0.0
+	reward_pool.clear();reward_age=0.0;interaction_kind="";interaction_priority=0;seen_creatures.clear()
 	reward_fx=Node3D.new();geometry.add_child(reward_fx);reward_fx.hide()
 	var sparkle_mat=StandardMaterial3D.new();sparkle_mat.shading_mode=BaseMaterial3D.SHADING_MODE_UNSHADED;sparkle_mat.albedo_color=Color("#ffe5a0")
+	interaction_material=sparkle_mat
 	for i in range(12):
 		var spark=shape(reward_fx,"gem",Vector3.ZERO,Vector3(.065,.15,.065),Color("#ffe5a0"));spark.material_override=sparkle_mat;spark.cast_shadow=GeometryInstance3D.SHADOW_CASTING_SETTING_OFF;reward_pool.append(spark)
 	active_floor=run.floor_revision
@@ -7889,6 +7895,41 @@ func charge_visual_sample(phase:String,releasing:bool,progress:float,impact:floa
 			"gather":y=.04*(1.0-smoothstep(0.0,peak,t))
 	return {"visible":visible,"height":y}
 
+# Presentation priority only; no logical turns, pauses or RNG calls.
+func interaction_profile(kind:String)->Dictionary:
+	match kind:
+		"guardian_seen":return {"priority":5,"duration":.85,"color":Color("#ffad73"),"mode":"alert"}
+		"guardian_win","relic":return {"priority":6,"duration":.85,"color":Color("#ffe09b"),"mode":"victory"}
+		"eat","spring","trail_fruit":return {"priority":4,"duration":.72,"color":Color("#9af2a3"),"mode":"eat" if kind!="spring" else "heal"}
+		"manual":return {"priority":3,"duration":.65,"color":Color("#b7b3ff"),"mode":"treasure"}
+		"ward_band","force_band","material":return {"priority":3,"duration":.65,"color":Color("#a2e8ff"),"mode":"treasure"}
+		"coin","potion":return {"priority":2,"duration":.55,"color":Color("#ffe5a0") if kind=="coin" else Color("#ffb8a0"),"mode":"treasure"}
+		"enemy_win":return {"priority":2,"duration":.55,"color":Color("#ffe5a0"),"mode":"victory"}
+		_:return {"priority":1,"duration":.38,"color":Color("#fff0cb"),"mode":"alert"}
+
+func begin_interaction(kind:String,cell:Vector2i)->void:
+	var profile:=interaction_profile(kind)
+	if reward_age>0.0 and int(profile.priority)<interaction_priority:return
+	interaction_kind=kind;interaction_priority=int(profile.priority)
+	interaction_duration=float(profile.duration);reward_age=interaction_duration
+	reward_fx.position=pos(cell);reward_fx.show()
+	if is_instance_valid(interaction_material):interaction_material.albedo_color=profile.color
+
+func sync_creature_discoveries()->void:
+	var nearest:Dictionary={}
+	var best_distance:float=INF
+	for enemy in run.enemies:
+		var uid:int=int(enemy.get("uid",-1))
+		if uid<0 or seen_creatures.has(uid) or not run.revealed.has(enemy.pos):continue
+		seen_creatures[uid]=true
+		var distance:float=Vector2(run.player-enemy.pos).length()
+		if int(enemy.kind)==3:
+			nearest=enemy;best_distance=-1.0
+		elif distance<best_distance:
+			nearest=enemy;best_distance=distance
+	if not nearest.is_empty():
+		begin_interaction("guardian_seen" if int(nearest.kind)==3 else "enemy_seen",nearest.pos)
+
 func sync():
 	run.dev_refill()
 	if run.floor_revision!=active_floor:build_floor()
@@ -7912,8 +7953,11 @@ func sync():
 	if previous_event!=run.event_serial:
 		previous_event=run.event_serial;feedback.text=run.last_event;feedback_time=1.0;feedback.show()
 		feedback.size=Vector2(area.size.x,42);feedback.position=Vector2(0,area.size.y*.29)
-		if run.last_event.begins_with("+") or run.last_event.contains("defeated") or run.last_event.contains("secured") or run.last_event.contains("berry"):
-			reward_age=.65;reward_fx.position=pos(run.player);reward_fx.show()
+	# Consume typed events even when another event overwrites the feedback text.
+	sync_creature_discoveries()
+	for interaction in run.visual_interactions:
+		if int(interaction.floor)==run.floor_revision:begin_interaction(str(interaction.kind),interaction.cell)
+	run.visual_interactions.clear()
 	if run.finished and not notified:
 		notified=true
 		# Deferred settlement prevents destroying/rebuilding the UI inside a button callback.
@@ -7995,7 +8039,7 @@ func update_disguise(dt:float,motion:Vector2,moving:bool,pose:String)->void:
 	disguise_actor.position=pet_pose.position
 	if pose=="reward" and not moving:
 		# Transformed companions share the celebration, not a second attack pose.
-		var celebration:float=clampf(1.0-reward_age/.65,0.0,1.0)
+		var celebration:float=clampf(1.0-reward_age/maxf(.01,interaction_duration),0.0,1.0)
 		disguise_actor.position.y+=absf(sin(celebration*TAU))*sin(celebration*PI)*.20
 	disguise_actor.rotation.z=pet_pose.rotation.z
 	disguise_actor.set_meta("living_statuses",living_player_statuses())
@@ -8025,13 +8069,26 @@ func _process(dt:float):
 	update_exterior_world(dt)
 	if reward_age>0.0:
 		reward_age=maxf(0.0,reward_age-dt)
-		var progress=1.0-reward_age/.65
+		var progress:float=1.0-reward_age/maxf(.01,interaction_duration)
+		var mode:String=str(interaction_profile(interaction_kind).mode)
 		for i in range(reward_pool.size()):
-			var angle=float(i)*TAU/reward_pool.size()+progress*.6
-			var radius=.25+progress*.9
-			reward_pool[i].position=Vector3(cos(angle)*radius,.22+sin(progress*PI)*.9,sin(angle)*radius)
-			reward_pool[i].scale=Vector3(.065,.15,.065)*(1.0-progress*.85)
+			var spark:=reward_pool[i]
+			var angle:float=float(i)*TAU/reward_pool.size()+progress*.6
+			var radius:float=.25+progress*.9
+			var height:float=.22+sin(progress*PI)*.9
+			match mode:
+				"alert":
+					radius=.38+progress*.62;height=.12
+				"eat","heal":
+					radius=.48*(1.0-progress*.65);height=.24+progress*1.0+float(i%3)*.08
+				"treasure":
+					radius=.18+progress*.50;height=.28+sin(progress*PI)*.66+float(i%3)*.08
+				"victory":
+					radius=.25+progress*.9;height=.22+sin(progress*PI)*.9
+			spark.position=Vector3(cos(angle)*radius,height,sin(angle)*radius)
+			spark.scale=Vector3(.065,.15,.065)*(1.0-progress*.85)
 		reward_fx.visible=reward_age>0.0
+		if reward_age<=0.0:interaction_priority=0;interaction_kind=""
 	banner_time=maxf(0.0,banner_time-dt)
 	floor_banner.visible=banner_time>0.0
 	if floor_banner.visible:
@@ -8106,12 +8163,14 @@ func _process(dt:float):
 		var heading:Vector3=travel_pose.motion
 		motion=Vector2(heading.x,heading.z)
 		moving=bool(travel_pose.returning)
-	var pose:String="hurt" if hit_time>0.0 else "attack" if attack_time>0.0 else "reward" if reward_age>0.0 and not moving else "idle"
+	var interaction_mode:String=str(interaction_profile(interaction_kind).mode) if reward_age>0.0 else ""
+	var expression_pose:String="eat" if interaction_mode=="eat" else "reward" if interaction_mode in ["treasure","victory","heal"] else "idle"
+	var pose:String="hurt" if hit_time>0.0 else "attack" if attack_time>0.0 else expression_pose if not moving and run.charge_phase.is_empty() else "idle"
 	if tile_cast_active() and charge_progress>player_cast_impact+.08:pose="walk"
 	var player_statuses:Array=living_player_statuses()
 	var player_living:=living_body_sample(pet,player_statuses,dt,pose=="idle" and not moving)
 	if pose=="idle" and not moving and ("sleep" in player_statuses or float(player_living.sleep)>.55):pose="sleep"
-	pet_pose.set_meta("pet_mood",PixelArt.dungeon_mood(run.hp,run.max_hp,run.poison_turns>0,reward_age>0.0))
+	pet_pose.set_meta("pet_mood",PixelArt.dungeon_mood(run.hp,run.max_hp,run.poison_turns>0,pose=="reward"))
 	pet_pose.set_meta("dungeon_grounded_gait",true)
 	pet_pose.set_meta("dungeon_cast_motion",player_cast_motion)
 	PixelArt.animate_world_sprite(pet_pose,motion,moving,dt,pose,region==1,1.0-attack_time/maxf(.01,player_cast_duration) if attack_time>0.0 else -1.0,player_cast_impact)
