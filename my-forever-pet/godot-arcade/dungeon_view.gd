@@ -2683,6 +2683,23 @@ func elemental_track_plan(id:String,profile:Dictionary)->Array:
 		{"stage":"projectile_impact","anchor":"target","start":peak,"end":lerpf(peak,1.0,.68),"material":impact_material,"enabled":travel and not status}]
 	return plan
 
+# Localized material and lighting should not vanish just because the selected
+# target missed while a different creature was hit by the same cast.
+func secondary_material_target(results:Dictionary,primary:Vector2i)->Variant:
+	var found:bool=false
+	var best:=Vector2i.ZERO
+	var best_dist:int=0
+	for tile in results:
+		if not tile is Vector2i or tile==primary:continue
+		var row:Dictionary=results[tile]
+		if int(row.get("damage",0))+int(row.get("effects",0))+int(row.get("heal",0))<=0:continue
+		var cell:Vector2i=tile
+		var distance:int=(cell-primary).length_squared()
+		if not found or distance<best_dist or (distance==best_dist and (cell.x<best.x or (cell.x==best.x and cell.y<best.y))):
+			found=true;best=cell;best_dist=distance
+	if not found:return null
+	return pos(best)+Vector3.UP*.55
+
 func cinematic_element_surface(burst:Dictionary,t:float)->void:
 	var points:Array=burst.points
 	if points.is_empty():return
@@ -2706,7 +2723,10 @@ func cinematic_element_surface(burst:Dictionary,t:float)->void:
 	var tile:=Vector2i(roundi(target.x/1.4),roundi(target.z/1.4))
 	var results:Dictionary=burst.get("results",{})
 	var row:Dictionary=results.get(tile,{})
-	if not before and not row.is_empty() and int(row.get("damage",0))+int(row.get("effects",0))+int(row.get("heal",0))<=0:return
+	if not before and not row.is_empty() and int(row.get("damage",0))+int(row.get("effects",0))+int(row.get("heal",0))<=0:
+		var alternative:Variant=secondary_material_target(results,tile)
+		if alternative==null:return
+		target=alternative
 	var anchor:Vector3=combat_path_sample(points,progress) if before else target
 	var ground:bool=kind=="ground" or (not before and element in ["ground","rock","poison"])
 	if kind=="fall" and before:anchor=target+Vector3.UP*height*(1.0-progress)
@@ -2765,6 +2785,11 @@ func cinematic_cast_enhancement(burst:Dictionary,t:float)->void:
 	var tile:=Vector2i(roundi(target.x/1.4),roundi(target.z/1.4))
 	var result:Dictionary=results.get(tile,{})
 	var miss:bool=not result.is_empty() and int(result.get("damage",0))+int(result.get("effects",0))+int(result.get("heal",0))<=0
+	if miss and t>=peak:
+		var alternative:Variant=secondary_material_target(results,tile)
+		if alternative!=null:
+			target=alternative
+			miss=false
 	var wide:bool=profile.pattern in ["room","floor","radius","cross","fan"]
 	var strength:float=.7 if luminous else .40
 	if status:strength*=.62
@@ -3239,6 +3264,7 @@ func combat_pixel_texture(mode:String,light:Color,dark:Color)->ImageTexture:
 	combat_textures[key]=texture
 	combat_texture_order.append(key)
 	return texture
+const ELEMENT_NATIVE_PALETTE={"normal":["#fff1d7","#a8886a"],"fire":["#ffc16f","#d34e24"],"water":["#c6f6ff","#368cc0"],"electric":["#fff5a1","#c99c24"],"grass":["#d4fba1","#518b41"],"ice":["#dffaff","#62a8d8"],"ground":["#e5c799","#966c42"],"rock":["#e3d9c9","#887865"],"poison":["#e2b3fa","#8142a3"],"psychic":["#f5c1ff","#a35bc3"],"ghost":["#d7bcff","#6550a5"],"dark":["#c8acd9","#59406e"],"fighting":["#ffe6c2","#b77a48"],"flying":["#e7faff","#8db6c6"],"bug":["#e5f5aa","#748b42"],"dragon":["#e5c3ff","#8250ba"],"steel":["#e7f4ff","#798da4"],"fairy":["#ffd5ef","#bc76ad"]}
 func combat_style(id:String)->Array:
 	if Rules.MOVE_LIBRARY.has(id):
 		var move:Dictionary=Rules.MOVE_LIBRARY[id]
@@ -3249,6 +3275,12 @@ func combat_style(id:String)->Array:
 			var main:Array=Rules.SIGNATURE_SKILLS[species]
 			var original:Array=COMBAT_FX_STYLES[main[6]]
 			var alt:Array=Rules.SECONDARY_SKILLS[species]
+			var record:Dictionary=Rules.DEV_NATIVE_MOVES.get(id,{})
+			var primary:Dictionary=Rules.DEV_NATIVE_MOVES.get(str(main[6]),{})
+			var own_type:String=str(record.get("type","normal"))
+			if own_type!=str(primary.get("type",own_type)):
+				var own_palette:Array=ELEMENT_NATIVE_PALETTE.get(own_type,ELEMENT_NATIVE_PALETTE.normal)
+				return [alt[6],own_palette[0],own_palette[1],.34]
 			return [alt[6],original[1],original[2],.34]
 	return COMBAT_FX_STYLES.get(id,COMBAT_FX_STYLES.basic_strike)
 # Original hand-keyed pixel geometry. Every frame is a separate texture and is
@@ -5420,7 +5452,11 @@ func combat_profile(id:String)->Dictionary:
 				reach=int(Rules.SECONDARY_SKILLS[species][0] if alt else skill[0])
 				pattern=str(Rules.SECONDARY_SKILLS[species][1] if alt else Rules.ATTACK_PATTERNS[species])
 				element=str(info[2] if alt else info[1]);break
-	if Rules.DEV_NATIVE_MOVES.has(id):element=str(Rules.DEV_NATIVE_MOVES[id].type)
+	if Rules.DEV_NATIVE_MOVES.has(id):
+		var native:Dictionary=Rules.DEV_NATIVE_MOVES[id]
+		element=str(native.type)
+		reach=int(native.reach)
+		pattern=str(native.pattern)
 	var role:String="contact" if mode in ["slash","leap","roll"] else "ground" if mode=="quake" else "cast" if mode in ["cloud","web","silk","wave","spiral"] else "projectile"
 	if mode in ["vine","whip"]:role="lash"
 	if mode=="lightning":role="electric_area" if pattern in ["cross","radius","fan","room"] else "electric_contact" if reach==1 else "electric_arc"
