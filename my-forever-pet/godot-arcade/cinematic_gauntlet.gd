@@ -36,6 +36,35 @@ func run_checks()->void:
 	var checks:int=0
 	var failures:Array[String]=[]
 	var view:=Dungeon.new()
+	# V24.6: no idle fast path while any combat producer or cleanup is pending.
+	var idle_probe:=Dungeon.new()
+	if not idle_probe.combat_fx_can_idle():failures.append("V24.6 empty idle")
+	checks+=1
+	for queue_name in ["combat_bursts","delayed_combat_fx","retired_impacts","fx_reactions","fx_reaction_sparks","fx_residues","fx_frame_audio"]:
+		var idle_queue:Array=idle_probe.get(queue_name)
+		idle_queue.append({})
+		if idle_probe.combat_fx_can_idle():failures.append("V24.6 pending "+queue_name)
+		idle_queue.clear()
+		if not idle_probe.combat_fx_can_idle():failures.append("V24.6 drained "+queue_name)
+		checks+=2
+	for count_name in ["fx_cast_particles_used","fx_lights_used","fx_halos_used","fx_arc_segments"]:
+		idle_probe.set(count_name,1)
+		if idle_probe.combat_fx_can_idle():failures.append("V24.6 cleanup "+count_name)
+		idle_probe.set(count_name,0)
+		if not idle_probe.combat_fx_can_idle():failures.append("V24.6 clean "+count_name)
+		checks+=2
+	for flag_name in ["fx_trail_had_geometry","fx_arc_had_geometry","fx_trail_started","fx_collect_audio","fx_flushing_audio"]:
+		idle_probe.set(flag_name,true)
+		if idle_probe.combat_fx_can_idle():failures.append("V24.6 active "+flag_name)
+		idle_probe.set(flag_name,false)
+		checks+=1
+	idle_probe.fx_ground_shake=.18
+	idle_probe.fx_contact_camera_age=.05
+	idle_probe.combat_fx_update(.02)
+	if not is_equal_approx(idle_probe.fx_ground_shake,.12) or not is_equal_approx(idle_probe.fx_contact_camera_age,.07):failures.append("V24.6 idle camera clocks")
+	if not idle_probe.combat_fx_can_idle():failures.append("V24.6 idle stays quiet")
+	checks+=2
+	idle_probe.free()
 	# V24.5: final-state writes must preserve transform/visibility and detect external changes.
 	var pose_probe:=Dungeon.new()
 	for pose_node in [Sprite3D.new(),MeshInstance3D.new()]:
