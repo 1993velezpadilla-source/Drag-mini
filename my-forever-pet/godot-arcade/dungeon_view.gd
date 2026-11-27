@@ -5484,7 +5484,7 @@ func native_identity_frame(id:String,frame:int,base:Image)->Image:
 	return im
 
 # V16.7: individually remastered after reviewing actual Godot PNG strips.
-const VISUAL_REMASTER_MOVES=["eos_504","eos_308","eos_135","eos_142","eos_047","eos_250","eos_299","eos_329","eos_262","eos_279","eos_101","eos_199","eos_251","eos_486","eos_462","eos_018","eos_507","eos_175","eos_254","eos_097","eos_163","eos_320","eos_033","eos_166","eos_228","eos_004","eos_252","eos_330","eos_465","eos_138","eos_021","eos_501","eos_053","eos_157","eos_064","eos_188","eos_240","eos_255","eos_342","eos_539","eos_041","eos_278","eos_538","eos_239","eos_193","eos_272","eos_519","eos_494","eos_292","eos_065","eos_276","eos_208","eos_522","eos_452","eos_433","eos_087","eos_063","eos_062","eos_476","eos_127","eos_451","eos_436","eos_491","eos_046","eos_109","eos_234","eos_107","eos_463","eos_133","eos_317","eos_111","eos_331","eos_345","eos_270","eos_042","eos_344","eos_461","eos_180","eos_535","eos_150","eos_118","eos_484","eos_008","eos_131","eos_030","eos_481","eos_028","eos_073","lib_ground_1","eos_057","eos_036","eos_442","eos_153","eos_205","eos_100","eos_518","eos_178","eos_200","eos_495","eos_280","eos_197","eos_332","eos_147","eos_485","eos_459","eos_151","eos_537","eos_443","eos_336","eos_182","eos_253","eos_441","eos_076","lib_grass_1","eos_001","eos_325","eos_103","eos_536","eos_510","eos_431","eos_475","eos_523","eos_080","eos_082","eos_114","eos_323","eos_470","eos_502","eos_529","eos_530","eos_460","eos_520","eos_449","eos_288","eos_164","eos_306","eos_023","eos_086","eos_346","lib_fairy_1","lib_fairy_2","lib_fairy_3","eos_341","eos_498","eos_343","eos_091","eos_162","eos_435","lib_dragon_1","lib_dragon_2","lib_dragon_3","eos_092","eos_204","eos_206","eos_303","eos_222","eos_210","lib_fighting_2","eos_136","eos_075","eos_300","eos_246","eos_430","eos_440","eos_500","eos_508","eos_454","eos_479","eos_243","eos_068","eos_090","lib_fighting_1","lib_fighting_3","eos_072","eos_077","eos_116","eos_531","eos_265","eos_305","eos_051","eos_170","eos_340","eos_007","eos_029","lib_electric_1","lib_electric_2","lib_electric_3","eos_129","eos_144","eos_189","eos_354","eos_489","eos_521","eos_192","eos_128","eos_493","lib_fire_1","lib_fire_2","lib_fire_3","eos_052","eos_149","eos_230","eos_291","eos_517","eos_524","eos_223","lib_water_1","lib_water_2","lib_water_3","eos_016","eos_032","eos_044","eos_069","eos_113","eos_156","eos_158","eos_159","eos_219","eos_310","eos_432","eos_469","eos_070","eos_012","eos_307","eos_434","lib_grass_2","lib_grass_3","eos_221","eos_238","eos_297","eos_458","eos_468","eos_511","eos_079","eos_231","eos_124","eos_351","eos_015","eos_094","eos_084","eos_233","lib_ice_1","lib_ice_2","lib_ice_3","eos_002","eos_088","eos_130","eos_014","lib_poison_1","lib_poison_2","lib_poison_3","eos_198","eos_283","eos_196","eos_202","eos_496","eos_438","lib_ground_2","lib_ground_3","eos_143","eos_213","eos_289","eos_285","eos_290","eos_212","eos_295","eos_296","lib_rock_1","lib_rock_2","lib_rock_3","eos_093","eos_453","eos_512","eos_533","eos_350","eos_105","eos_540","eos_141","eos_480","lib_flying_1","lib_flying_2","lib_flying_3","eos_174","eos_179","eos_211","eos_353","eos_446","eos_490","eos_444","eos_267","eos_509","eos_456","eos_040","lib_bug_1","lib_bug_2","lib_bug_3","lib_psychic_1","lib_psychic_2","lib_psychic_3","eos_110","eos_309","eos_335","eos_473","eos_099","eos_146","eos_215","eos_258","eos_319","eos_333","eos_095","eos_316","eos_338","eos_259","eos_108","eos_187","eos_266","eos_448","eos_506","eos_513","eos_514","eos_232","eos_464","eos_478","eos_528","eos_450","eos_298","eos_499","eos_209","eos_137","eos_220","eos_439","eos_526","lib_ghost_1","lib_ghost_2","lib_ghost_3","eos_120","eos_126","eos_437","eos_477","eos_013","eos_216","eos_005","eos_313","eos_035","eos_049","lib_dark_1","lib_dark_2","lib_dark_3","eos_167","eos_214","eos_445","eos_488","eos_515","eos_483","eos_542","eos_038","eos_472","eos_045","eos_043","eos_503","eos_022","eos_172","eos_334","eos_482","eos_249","eos_466","eos_269","lib_steel_1","lib_steel_2","lib_steel_3","eos_244","eos_527","eos_083","eos_186","eos_532","eos_256","eos_081","eos_260","eos_275","eos_312","eos_314","eos_261","eos_020","eos_248","eos_505","eos_247","eos_071","eos_125","eos_294","eos_264","eos_322","eos_321","eos_271","eos_039","eos_347","eos_487","eos_176","eos_177","eos_311","lib_normal_1","lib_normal_2","eos_067","eos_078","eos_096","eos_121","eos_132","eos_139","eos_140","eos_154","eos_161","eos_190","eos_203","eos_226","eos_235","eos_263","eos_287","eos_348","eos_352","eos_455","eos_471","eos_497","eos_516","eos_541","eos_168","eos_201","eos_066","eos_123","eos_155","eos_360","eos_009","eos_277","eos_061","eos_050","eos_048","eos_328"]
+const VISUAL_REMASTER_MOVES=["eos_504","eos_308","eos_135","eos_142","eos_047","eos_250","eos_299","eos_329","eos_262","eos_279","eos_101","eos_199","eos_251","eos_486","eos_462","eos_018","eos_507","eos_175","eos_254","eos_097","eos_163","eos_320","eos_033","eos_166","eos_228","eos_004","eos_252","eos_330","eos_465","eos_138","eos_021","eos_501","eos_053","eos_157","eos_064","eos_188","eos_240","eos_255","eos_342","eos_539","eos_041","eos_278","eos_538","eos_239","eos_193","eos_272","eos_519","eos_494","eos_292","eos_065","eos_276","eos_208","eos_522","eos_452","eos_433","eos_087","eos_063","eos_062","eos_476","eos_127","eos_451","eos_436","eos_491","eos_046","eos_109","eos_234","eos_107","eos_463","eos_133","eos_317","eos_111","eos_331","eos_345","eos_270","eos_042","eos_344","eos_461","eos_180","eos_535","eos_150","eos_118","eos_484","eos_008","eos_131","eos_030","eos_481","eos_028","eos_073","lib_ground_1","eos_057","eos_036","eos_442","eos_153","eos_205","eos_100","eos_518","eos_178","eos_200","eos_495","eos_280","eos_197","eos_332","eos_147","eos_485","eos_459","eos_151","eos_537","eos_443","eos_336","eos_182","eos_253","eos_441","eos_076","lib_grass_1","eos_001","eos_325","eos_103","eos_536","eos_510","eos_431","eos_475","eos_523","eos_080","eos_082","eos_114","eos_323","eos_470","eos_502","eos_529","eos_530","eos_460","eos_520","eos_449","eos_288","eos_164","eos_306","eos_023","eos_086","eos_346","lib_fairy_1","lib_fairy_2","lib_fairy_3","eos_341","eos_498","eos_343","eos_091","eos_162","eos_435","lib_dragon_1","lib_dragon_2","lib_dragon_3","eos_092","eos_204","eos_206","eos_303","eos_222","eos_210","lib_fighting_2","eos_136","eos_075","eos_300","eos_246","eos_430","eos_440","eos_500","eos_508","eos_454","eos_479","eos_243","eos_068","eos_090","lib_fighting_1","lib_fighting_3","eos_072","eos_077","eos_116","eos_531","eos_265","eos_305","eos_051","eos_170","eos_340","eos_007","eos_029","lib_electric_1","lib_electric_2","lib_electric_3","eos_129","eos_144","eos_189","eos_354","eos_489","eos_521","eos_192","eos_128","eos_493","lib_fire_1","lib_fire_2","lib_fire_3","eos_052","eos_149","eos_230","eos_291","eos_517","eos_524","eos_223","lib_water_1","lib_water_2","lib_water_3","eos_016","eos_032","eos_044","eos_069","eos_113","eos_156","eos_158","eos_159","eos_219","eos_310","eos_432","eos_469","eos_070","eos_012","eos_307","eos_434","lib_grass_2","lib_grass_3","eos_221","eos_238","eos_297","eos_458","eos_468","eos_511","eos_079","eos_231","eos_124","eos_351","eos_015","eos_094","eos_084","eos_233","lib_ice_1","lib_ice_2","lib_ice_3","eos_002","eos_088","eos_130","eos_014","lib_poison_1","lib_poison_2","lib_poison_3","eos_198","eos_283","eos_196","eos_202","eos_496","eos_438","lib_ground_2","lib_ground_3","eos_143","eos_213","eos_289","eos_285","eos_290","eos_212","eos_295","eos_296","lib_rock_1","lib_rock_2","lib_rock_3","eos_093","eos_453","eos_512","eos_533","eos_350","eos_105","eos_540","eos_141","eos_480","lib_flying_1","lib_flying_2","lib_flying_3","eos_174","eos_179","eos_211","eos_353","eos_446","eos_490","eos_444","eos_267","eos_509","eos_456","eos_040","lib_bug_1","lib_bug_2","lib_bug_3","lib_psychic_1","lib_psychic_2","lib_psychic_3","eos_110","eos_309","eos_335","eos_473","eos_099","eos_146","eos_215","eos_258","eos_319","eos_333","eos_095","eos_316","eos_338","eos_259","eos_108","eos_187","eos_266","eos_448","eos_506","eos_513","eos_514","eos_232","eos_464","eos_478","eos_528","eos_450","eos_298","eos_499","eos_209","eos_137","eos_220","eos_439","eos_526","lib_ghost_1","lib_ghost_2","lib_ghost_3","eos_120","eos_126","eos_437","eos_477","eos_013","eos_216","eos_005","eos_313","eos_035","eos_049","lib_dark_1","lib_dark_2","lib_dark_3","eos_167","eos_214","eos_445","eos_488","eos_515","eos_483","eos_542","eos_038","eos_472","eos_045","eos_043","eos_503","eos_022","eos_172","eos_334","eos_482","eos_249","eos_466","eos_269","lib_steel_1","lib_steel_2","lib_steel_3","eos_244","eos_527","eos_083","eos_186","eos_532","eos_256","eos_081","eos_260","eos_275","eos_312","eos_314","eos_261","eos_020","eos_248","eos_505","eos_247","eos_071","eos_125","eos_294","eos_264","eos_322","eos_321","eos_271","eos_039","eos_347","eos_487","eos_176","eos_177","eos_311","lib_normal_1","lib_normal_2","eos_067","eos_078","eos_096","eos_121","eos_132","eos_139","eos_140","eos_154","eos_161","eos_190","eos_203","eos_226","eos_235","eos_263","eos_287","eos_348","eos_352","eos_455","eos_471","eos_497","eos_516","eos_541","eos_168","eos_201","eos_066","eos_123","eos_155","eos_360","eos_009","eos_277","eos_061","eos_050","eos_048","eos_328","lib_normal_3","eos_031","eos_060","eos_145","eos_207","eos_241","eos_242","eos_245","eos_474","eos_152","eos_394","eos_457","eos_324","eos_025"]
 func visual_remaster_frame(id:String,frame:int)->Image:
 	var im:=Image.create(48,48,false,Image.FORMAT_RGBA8)
 	im.fill(Color.TRANSPARENT)
@@ -11174,6 +11174,159 @@ func visual_remaster_frame(id:String,frame:int)->Image:
 				fx_line(im,q-d*6,q+Vector2(3,-3),2.6,Color("#bd8374",fade))
 				fx_line(im,q+Vector2(3,-3),q+d*6,1.4,Color("#f0c7a4",fade))
 			if t>=peak:fight_burst(im,c,15.0,8,t,Color("#ffe0ad",fade),Color("#c18a75",fade))
+		"lib_normal_3":
+			# Sonic Ray: thin oscillating sound carrier with successive compression fronts.
+			var end_x:float=5+37*drive
+			var prev:=Vector2(4,24)
+			for j in range(1,25):
+				var f:float=float(j)/24.0
+				var q:=Vector2(4+(end_x-4)*f,24+sin(f*TAU*3-t*TAU*2)*3)
+				fx_line(im,prev,q,2.4,Color("#bc9e7e",fade))
+				fx_line(im,prev,q,.9,Color("#fff5df",fade))
+				prev=q
+			for j in range(4):
+				var x:float=7+(end_x-7)*float(j+1)/4.0
+				fight_arc(im,Vector2(x-3,24),4.0,-PI*.5,PI,Color("#e8d3b4",fade),Color("#a7937a",fade),1.1)
+		"eos_031":
+			# Weather Ball: layered atmospheric sphere with neutral cloud wisps.
+			var q:=Vector2(8+28*drive,24)
+			fx_disc(im,q,7.4,Color("#a89f96",fade))
+			fx_disc(im,q-Vector2(1,1),5.8,Color("#dfd8cb",fade))
+			fx_disc(im,q-Vector2(2,3),2.8,Color("#fff9e9",fade))
+			for j in range(5):
+				var a:float=float(j)*TAU/5.0+t*TAU
+				var p:=q+Vector2(cos(a),sin(a))*(7+2*pulse)
+				fx_disc(im,p,2.7,Color("#f3ead8",fade*.65))
+				fx_line(im,p-Vector2(5,0),p,1.0,Color("#c5b8a7",fade*.7))
+			if t>=peak:fx_disc(im,q,10+6*(1.0-fade),Color("#f0dfc2",fade),8+6*(1.0-fade))
+		"eos_060":
+			# Razor Gale: gathered air compresses into three staggered razor crescents.
+			var c:=Vector2(24,24)
+			for j in range(3):
+				var a:float=-PI*.85+float(j)*.48+t*.5
+				var q:=c+Vector2(8*drive-float(j)*5,float(j-1)*6)
+				fight_arc(im,q,10+float(j)*2,a,PI*1.12,Color("#f6f0db",fade),Color("#b4a38d",fade),2.6)
+			for j in range(5):
+				var q:=Vector2(9+float(j)*6,14+sin(t*TAU+float(j))*10)
+				fx_line(im,q-Vector2(5,0),q,1.0,Color("#e3d9c6",fade))
+		"eos_145":
+			# Swift: five distinct golden stars travel in gently curved lanes.
+			for j in range(5):
+				var f:float=clampf(drive*1.45-float(j)*.10,0.0,1.0)
+				var q:=Vector2(6+33*f,24+float(j-2)*5+sin(f*PI)*float(j-2)*2)
+				var a:float=t*TAU+float(j)
+				for k in range(5):
+					var b:float=a+float(k)*TAU/5.0
+					var d:=Vector2(cos(b),sin(b))
+					fx_line(im,q,q+d*(3.5+float(j%2)),1.5,Color("#f5d78b",fade))
+				fx_disc(im,q,1.8,Color("#fff5bd",fade))
+				fx_line(im,q-Vector2(8,0),q-Vector2(4,0),1.1,Color("#ddc192",fade*.8))
+		"eos_207":
+			# Tri Attack: three colored nodes form a rotating triangular energy circuit.
+			var c:=Vector2(10+24*drive,24)
+			var colors:Array[Color]=[Color("#ff9c69",fade),Color("#a6dfff",fade),Color("#f7dc7b",fade)]
+			for j in range(3):
+				var a:float=-PI*.5+float(j)*TAU/3.0+t*1.4
+				var b:float=a+TAU/3.0
+				var p:=c+Vector2(cos(a),sin(a))*8
+				var q:=c+Vector2(cos(b),sin(b))*8
+				fx_line(im,p,q,2.2,Color("#c3ae9a",fade))
+				fx_line(im,p,q,1.0,Color("#fff4dc",fade))
+				fx_disc(im,p,3.3,colors[j])
+				fx_disc(im,p-Vector2(0,1),1.2,Color("#fffbe5",fade))
+			if t>=peak:fairy_star(im,c,5.0,Color("#fff5d5",fade))
+		"eos_241":
+			# Hyper Voice: expanding broad sound cones with vibrating concentric bands.
+			for j in range(5):
+				var f:float=float(j)/4.0
+				var q:=Vector2(6+30*f*drive,24)
+				var rad:float=4+11*f
+				fight_arc(im,q,rad,-PI*.55,PI*1.1,Color("#fff0d9",fade),Color("#b8a08a",fade),3.1)
+				for side in [-1.0,1.0]:
+					fx_disc(im,q+Vector2(0,side*rad*.8),1.1,Color("#edc99d",fade))
+			for j in range(4):
+				var y:float=14+float(j)*7
+				fx_line(im,Vector2(3,y),Vector2(13+20*drive,y),.9,Color("#e4d4be",fade*.5))
+		"eos_242":
+			# Hyper Beam: thick white-hot core, bright neutral-gold envelope and pressure rings.
+			var q:=Vector2(5+37*drive,24)
+			var width:float=5+8*pulse
+			fx_line(im,Vector2(3,24),q,width+4,Color("#ae8c62",fade*.8))
+			fx_line(im,Vector2(3,24),q,width,Color("#f0c888",fade))
+			fx_line(im,Vector2(3,24),q,width*.52,Color("#fff0bf",fade))
+			fx_line(im,Vector2(3,24),q,2.0,Color("#fffdf0",fade))
+			for j in range(4):
+				var x:float=7+float(j)*8*drive
+				fight_arc(im,Vector2(x,24),6+4*pulse,-PI*.58,PI*1.16,Color("#fff0c5",fade),Color("#d1a46c",fade),1.2)
+			if t>=peak:fight_burst(im,q,17.0,10,t,Color("#fff5d1",fade),Color("#ddb075",fade))
+		"eos_245":
+			# Spit Up: stored energy expelled as three dense neutral globules.
+			for j in range(3):
+				var f:float=clampf(drive*1.5-float(j)*.22,0.0,1.0)
+				var q:=Vector2(6+30*f,24+float(j-1)*5)
+				var rad:float=5.7-float(j)*.8
+				fx_disc(im,q,rad,Color("#ab9176",fade))
+				fx_disc(im,q-Vector2(1,1),rad*.65,Color("#ead2a8",fade))
+				fx_disc(im,q-Vector2(2,2),1.2,Color("#fff0cd",fade))
+				fx_line(im,q-Vector2(8,0),q-Vector2(4,0),1.3,Color("#cbb18b",fade))
+			if t>=peak:fairy_star(im,Vector2(35,24),4.0,Color("#fce1ae",fade))
+		"eos_474":
+			# Wring Out: two opposing twisting bands squeeze a shrinking center.
+			var c:=Vector2(24,24)
+			for j in range(2):
+				var prev:=c+Vector2(-12,0)
+				for k in range(1,33):
+					var f:float=float(k)/32.0
+					var a:float=f*TAU*1.5+t*TAU+float(j)*PI
+					var q:=c+Vector2(cos(a)*(13-7*drive),-14+28*f)
+					if k>1:
+						fx_line(im,prev,q,3.0,Color("#a38b78",fade))
+						fx_line(im,prev,q,1.2,Color("#ebd4b6",fade))
+					prev=q
+			fx_disc(im,c,4.0-2*drive,Color("#fff0d2",fade))
+		"eos_152":
+			# Sonic Pulse: a single sharp crescent of compressed air with a thin shock wake.
+			var q:=Vector2(7+30*drive,24)
+			fight_arc(im,q,12.0,-PI*.57,PI*1.14,Color("#fff8e6",fade),Color("#a99f90",fade),3.2)
+			fight_arc(im,q-Vector2(7,0),8.0,-PI*.52,PI*1.04,Color("#e3d8c4",fade*.7),Color("#b6aa98",fade*.6),1.4)
+			for j in range(3):
+				fx_line(im,q+Vector2(-17,float(j-1)*5),q+Vector2(-8,float(j-1)*5),1.0,Color("#e3d8c8",fade))
+		"eos_394":
+			# Vacuum Arc: cross-room converging pressure cuts with a hollow center.
+			var c:=Vector2(24,24)
+			for j in range(4):
+				var a:float=float(j)*PI*.5+t*.5
+				var q:=c+Vector2(cos(a),sin(a))*(13-6*drive)
+				fight_arc(im,q,10.0,a+PI*.5,PI*1.1,Color("#f4ecdb",fade),Color("#a99e91",fade),2.3)
+			fx_disc(im,c,5+4*drive,Color("#ded0bd",fade*.65),4+4*drive)
+		"eos_457":
+			# Last Reserve: successive reserve tokens collapse into one bright projectile.
+			var q:=Vector2(9+25*drive,24)
+			for j in range(3):
+				var p:=q+Vector2(-float(j)*5,float(j-1)*5*(1.0-drive))
+				psi_polygon(im,p,5.0-float(j)*.5,4,PI*.25+t*.4,Color("#f0d6a1",fade),Color("#aa8e6b",fade))
+			fx_disc(im,q,2+2*pulse,Color("#fff5d1",fade))
+			if t>=peak:fight_burst(im,q,11.0,6,t,Color("#ffe4ab",fade),Color("#bca17f",fade))
+		"eos_324":
+			# Hidden Spark: small concealed nucleus reveals a faceted neutral energy burst.
+			var c:=Vector2(24,24)
+			psi_polygon(im,c,8+5*drive,5,t*.8,Color("#e8d6bb",fade),Color("#ad9782",fade))
+			fx_disc(im,c,3.4+2*pulse,Color("#fff4d7",fade))
+			for j in range(5):
+				var a:float=float(j)*TAU/5.0+t
+				var q:=c+Vector2(cos(a),sin(a))*(5+12*drive)
+				fairy_star(im,q,1.5,Color("#edcc9e",fade))
+		"eos_025":
+			# Dream Echo: soft snore waves and rising sleep glyphs travel forward.
+			for j in range(3):
+				var q:=Vector2(9+float(j)*9*drive,25+sin(t*TAU+float(j))*3)
+				fight_arc(im,q,5+float(j)*2,-PI*.5,PI,Color("#ded4e6",fade),Color("#a59caf",fade),1.8)
+			for j in range(3):
+				var q:=Vector2(10+float(j)*9,22-float(j)*5-5*drive)
+				var w:float=3+float(j)
+				fx_line(im,q,q+Vector2(w,0),1.1,Color("#eee5f0",fade))
+				fx_line(im,q+Vector2(w,0),q+Vector2(0,w),1.1,Color("#eee5f0",fade))
+				fx_line(im,q+Vector2(0,w),q+Vector2(w,w),1.1,Color("#eee5f0",fade))
 	return im
 
 func combat_frame_image(id:String,frame:int)->Image:
