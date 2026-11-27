@@ -412,6 +412,19 @@ func run()->void:
 	if floor_rules.visual_response_cast_serial!=-1 or floor_rules.visual_response_cast_uid!=-1 or floor_rules.player_visual_hit_serial!=-1 or not floor_rules.player_visual_hits.is_empty():errors.append("floor counter identity leaked")
 	if not floor_rules.player_attack_cells.is_empty() or not floor_rules.player_attack_path.is_empty() or not floor_rules.enemy_actions.is_empty():errors.append("floor attack geometry leaked")
 	print("KINDRIA_FLOOR_COUNTER_ISOLATION_PASS")
+	# Every motion family returns to its resting scale and crosses impact smoothly.
+	for motion in ["rush","contact","aerial","down","lash","spin","focus","gesture","cast"]:
+		for peak in [.12,.35,.5,.88]:
+			var body_start:Dictionary=PixelArt.attack_body_sample(0.0,peak,motion)
+			var body_end:Dictionary=PixelArt.attack_body_sample(1.0,peak,motion)
+			var body_before:Dictionary=PixelArt.attack_body_sample(peak-.0001,peak,motion)
+			var body_after:Dictionary=PixelArt.attack_body_sample(peak+.0001,peak,motion)
+			if absf(float(body_start.stretch)-1.0)>.001 or absf(float(body_end.stretch)-1.0)>.001 or absf(float(body_end.lift))>.001:errors.append("body rest boundary "+motion)
+			if absf(float(body_before.stretch)-float(body_after.stretch))>.002:errors.append("body impact discontinuity "+motion)
+	var rush_body:Dictionary=PixelArt.attack_body_sample(.25,.5,"rush")
+	var focus_body:Dictionary=PixelArt.attack_body_sample(.25,.5,"focus")
+	if float(rush_body.stretch)>=float(focus_body.stretch):errors.append("body motion distinction")
+	print("KINDRIA_BODY_CONTINUITY_PASS")
 	# Exercise more frames than the cache cap, then verify hot hits and exact normalization.
 	for row in reports.slice(0,40):
 		for frame in range(Field.FX_FRAME_COUNT):field.combat_animated_texture(str(row.id),frame)
