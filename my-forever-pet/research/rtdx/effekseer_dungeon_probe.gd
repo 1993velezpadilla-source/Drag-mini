@@ -579,7 +579,18 @@ func run()->void:
 		assert(field.priority_contact_fx(burst,float(p.impact),0)==0)
 		burst.results={target:{"damage":8,"hits":1}}
 		for particle in field.combat_particles:particle.hide()
-		assert(field.element_finish_fx(burst,lerpf(float(p.impact),1.0,.25),0)>1)
+		var contact_phase:float=lerpf(float(p.impact),1.0,.25)
+		var actual_count:int=field.element_finish_fx(burst,contact_phase,0)
+		if move_id=="eos_174":
+			# V15 reference-specific Peck is one narrow golden wedge, not
+			# the legacy beak emblem plus generic impact particles.
+			assert(actual_count==1,"Peck must render one contact wedge")
+			assert(field.combat_particles[0].texture==field.combat_pixel_texture("rtdx_peck",Color("#ffe653"),Color("#e2a02c")),"Peck texture mismatch")
+			burst.results={target:{"misses":1}}
+			assert(field.element_finish_fx(burst,contact_phase,0)==0,"Peck miss rendered contact")
+			burst.results={target:{"damage":8,"hits":1}}
+		else:
+			assert(actual_count>1,"Missing legacy contact layers: "+move_id)
 		await frames()
 		assert(root.get_texture().get_image().save_png("/tmp/effekseer-review/motion-"+move_id+".png")==OK)
 	for particle in field.combat_particles:particle.hide()

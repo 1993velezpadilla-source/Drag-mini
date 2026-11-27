@@ -61,7 +61,8 @@
       "kindria_id": "eos_217",
       "v15_3_source_status": "Archive page opened; image fetch failed again. No visual design inferred.",
       "v15_5_source_status": "File page confirmed; image fetch failed again.",
-      "v15_6_source_status": "Archive file page accessible; image retrieval failed again."
+      "v15_6_source_status": "Archive file page accessible; image retrieval failed again.",
+      "v15_7_source_status": "Archive file page reachable, image fetch failed again."
     },
     {
       "name": "Hyper Beam",
@@ -74,7 +75,8 @@
       "v15_5_source_status": "File page confirmed; image fetch failed again.",
       "source_variant": "Rayquaza according to file description; do not infer normal-size animation.",
       "image": "https://archives.bulbagarden.net/media/upload/d/d1/Hyper_Beam_PMD_RTDX.png",
-      "v15_6_source_status": "Archive file page accessible; image retrieval failed again."
+      "v15_6_source_status": "Archive file page accessible; image retrieval failed again.",
+      "v15_7_source_status": "Archive file page reachable, image fetch failed again."
     },
     {
       "name": "Laser Focus",
@@ -91,7 +93,8 @@
       "name": "Liquidation",
       "page": "https://archives.bulbagarden.net/wiki/File:Liquidation_PMD_RTDX.png",
       "status": "indexed_uninspected",
-      "timing_verified": false
+      "timing_verified": false,
+      "v15_7_source_status": "Archive file page retrieval failed."
     },
     {
       "name": "Low Kick",
@@ -197,8 +200,13 @@
     {
       "name": "Smart Strike",
       "page": "https://archives.bulbagarden.net/wiki/File:Smart_Strike_PMD_RTDX.png",
-      "status": "indexed_uninspected",
-      "timing_verified": false
+      "status": "still_inspected",
+      "timing_verified": false,
+      "image": "https://archives.bulbagarden.net/media/upload/thumb/1/17/Smart_Strike_PMD_RTDX.png/800px-Smart_Strike_PMD_RTDX.png",
+      "observation": "Bright white-yellow contact flare and fine radiating sparks between Ariados and Ponyta; thin rays around the nearer actor. The message log contains both Tackle and Smart Strike, so attribution of every streak is uncertain.",
+      "kindria_id": null,
+      "mapping_status": "No exact existing counterpart confirmed; do not substitute unrelated moves.",
+      "source_quality": "800x450 preview visually inspected"
     },
     {
       "name": "Solar Beam",
@@ -213,8 +221,13 @@
     {
       "name": "Spotlight",
       "page": "https://archives.bulbagarden.net/wiki/File:Spotlight_PMD_RTDX.png",
-      "status": "indexed_uninspected",
-      "timing_verified": false
+      "status": "still_inspected",
+      "timing_verified": false,
+      "image": "https://archives.bulbagarden.net/media/upload/thumb/0/0e/Spotlight_PMD_RTDX.png/800px-Spotlight_PMD_RTDX.png",
+      "observation": "A vertical yellow cone descends onto the selected ally Smoochum; round golden pool on the ground and darkened surrounding dungeon. Other actors remain visible.",
+      "kindria_id": null,
+      "mapping_status": "No exact existing counterpart confirmed; do not substitute unrelated moves.",
+      "source_quality": "800x450 preview visually inspected"
     },
     {
       "name": "Stomping Tantrum",
