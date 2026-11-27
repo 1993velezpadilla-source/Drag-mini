@@ -36,6 +36,46 @@ func run_checks()->void:
 	var checks:int=0
 	var failures:Array[String]=[]
 	var view:=Dungeon.new()
+	# V24.7: compare stable compaction and pending actor indexing with the old queue.
+	var reaction_probe:=Dungeon.new()
+	var reaction_actor_a:=Node3D.new()
+	var reaction_actor_b:=Node3D.new()
+	for reaction_step in [0.0,.05,.20,.60,1.0]:
+		reaction_probe.fx_reactions.clear()
+		var reaction_reference:Array[Dictionary]=[]
+		for reaction_index in range(48):
+			var reaction_actor:Node3D=reaction_actor_a if reaction_index%3==0 else reaction_actor_b
+			var reaction_record:Dictionary={"actor":reaction_actor,"delay":float(reaction_index%7)*.10,"defeated":false,"direction":Vector3.ZERO,"weight":1.0,"serial":reaction_index}
+			reaction_probe.fx_reactions.append(reaction_record.duplicate())
+			reaction_reference.append(reaction_record.duplicate())
+		var reaction_expected_due:Array[Dictionary]=[]
+		for reaction_index in range(reaction_reference.size()-1,-1,-1):
+			reaction_reference[reaction_index].delay-=reaction_step
+			if float(reaction_reference[reaction_index].delay)<=0.0:
+				reaction_expected_due.append(reaction_reference[reaction_index])
+				reaction_reference.remove_at(reaction_index)
+		reaction_probe.collect_due_enemy_reactions(reaction_step)
+		if reaction_probe.fx_reactions!=reaction_reference:failures.append("V24.7 future order")
+		if reaction_probe.fx_due_reactions!=reaction_expected_due:failures.append("V24.7 due order")
+		checks+=2
+		for reaction_actor in [reaction_actor_a,reaction_actor_b]:
+			var reaction_expected_pending:bool=false
+			for reaction_record in reaction_reference:
+				if reaction_record.actor==reaction_actor:reaction_expected_pending=true;break
+			if reaction_probe.fx_pending_reaction_actors.has(reaction_actor.get_instance_id())!=reaction_expected_pending:failures.append("V24.7 pending actor index")
+			checks+=1
+	reaction_probe.fx_reactions.clear()
+	reaction_probe.queue_enemy_reaction(reaction_actor_a,false,.2,Vector3.ZERO,.1,3)
+	reaction_probe.queue_enemy_reaction(reaction_actor_b,false,.4)
+	reaction_probe.queue_enemy_reaction(reaction_actor_a,true,.3)
+	if reaction_probe.fx_reactions.size()!=2:failures.append("V24.7 terminal compaction count")
+	elif reaction_probe.fx_reactions[0].actor!=reaction_actor_b or reaction_probe.fx_reactions[1].actor!=reaction_actor_a or not reaction_probe.fx_reactions[1].defeated:failures.append("V24.7 terminal compaction order")
+	checks+=2
+	reaction_probe.fx_reactions.clear()
+	reaction_probe.fx_due_reactions.clear()
+	reaction_actor_a.free()
+	reaction_actor_b.free()
+	reaction_probe.free()
 	# V24.6: no idle fast path while any combat producer or cleanup is pending.
 	var idle_probe:=Dungeon.new()
 	if not idle_probe.combat_fx_can_idle():failures.append("V24.6 empty idle")
