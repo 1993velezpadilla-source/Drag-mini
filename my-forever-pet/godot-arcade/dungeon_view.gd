@@ -94,6 +94,8 @@ var cast_text_pool:Array[Label3D]=[]
 var cast_text_age:Array[float]=[]
 var cast_text_origin:Array[Vector3]=[]
 var cast_text_cursor:int=0
+const RESPONSE_TEXT_CAP:int=64
+var response_text_queue:Array[Dictionary]=[]
 const COMBAT_BURST_CAP:int=10
 const RETIRED_IMPACT_CAP:int=128
 var combat_bursts:Array[Dictionary]=[]
@@ -2106,7 +2108,7 @@ func combat_fx_setup(parent:Node3D)->void:
 	response_slots.clear()
 	combat_particles.clear();combat_warnings.clear();combat_bursts.clear();retired_impacts.clear();delayed_combat_fx.clear();fx_reactions.clear();fx_ground_shake=0.0
 	combat_fx_root=Node3D.new();parent.add_child(combat_fx_root)
-	cast_text_pool.clear();cast_text_age.clear();cast_text_origin.clear();cast_text_cursor=0
+	cast_text_pool.clear();cast_text_age.clear();cast_text_origin.clear();cast_text_cursor=0;response_text_queue.clear()
 	for i in range(CAST_TEXT_CAP):
 		var tag:=Label3D.new();tag.billboard=BaseMaterial3D.BILLBOARD_ENABLED
 		tag.font_size=38;tag.outline_size=9;tag.pixel_size=.006;tag.no_depth_test=true
@@ -5917,8 +5919,9 @@ func cast_result_text(row:Dictionary)->String:
 		var prefix:String="CRITICAL " if int(row.get("crit",0))>0 else ""
 		var suffix:String=" · x%d"%int(row.hits) if int(row.get("hits",0))>1 else ""
 		if int(row.get("misses",0))>0:suffix+=" · %d miss"%int(row.misses)
+		if not str(row.get("status","")).is_empty():suffix+="\n"+str(row.status)
 		return prefix+"−%d HP"%damage+suffix
-	if int(row.get("effects",0))>0:return "EFFECT"
+	if int(row.get("effects",0))>0:return str(row.get("status","EFFECT"))
 	if int(row.get("blocked",0))>0:return "NO EFFECT"
 	return "MISS"
 
@@ -5943,6 +5946,22 @@ func update_cast_text(dt:float)->void:
 		tag.position=cast_text_origin[i]+Vector3(0,phase*.65,0)
 		tag.modulate.a=clampf(cast_text_age[i]*4.0,0.0,1.0)
 		if cast_text_age[i]<=0.0:tag.hide()
+	for i in range(response_text_queue.size()-1,-1,-1):
+		var pending:Dictionary=response_text_queue[i]
+		pending.delay-=dt
+		if float(pending.delay)<=0.0:
+			show_cast_results({pending.tile:pending.row})
+			response_text_queue.remove_at(i)
+
+func schedule_response_text(tile:Vector2i,event:Dictionary,delay:float)->void:
+	var amount:int=int(event.get("amount",0))
+	if amount<=0:return
+	var source:String=str(event.get("source",""))
+	var names:Dictionary={"counter":"COUNTER","fate_link":"FATE LINK","trap":"TRAP","weather":"WEATHER","poison":"POISON","toxic":"TOXIC","burn":"BURN","wrap":"BIND","curse":"CURSE","leech":"DRAIN","nightmare":"NIGHTMARE","ally":"ALLY","sleep_counter":"SLEEP COUNTER","boon":"REBOUND"}
+	var caption:String=str(names.get(source,""))
+	var row:Dictionary={"damage":amount,"hits":1,"crit":0,"status":caption}
+	if response_text_queue.size()>=RESPONSE_TEXT_CAP:response_text_queue.pop_front()
+	response_text_queue.append({"tile":tile,"delay":maxf(0.0,delay),"row":row})
 
 func element_finish_fx(burst:Dictionary,t:float,used:int)->int:
 	var id:String=str(burst.id)
@@ -6124,7 +6143,7 @@ func response_fx_plan(events:Array,start:float,body_available:float=0.0,cast_bud
 	var result:Array[Dictionary]=[]
 	var cursor:float=maxf(0.0,start)
 	for event in events:
-		var item:Dictionary={"hit":cursor,"launch":-1.0,"event":{}}
+		var item:Dictionary={"hit":cursor,"launch":-1.0,"event":{},"response":event}
 		var id:String=str(event.get("move_id",""))
 		var serial:int=int(event.get("cast_serial",-1))
 		var reserved:bool=slots.has(serial)
@@ -6136,7 +6155,7 @@ func response_fx_plan(events:Array,start:float,body_available:float=0.0,cast_bud
 			cursor=maxf(cursor,slot if reserved else body_available)
 			item.launch=cursor
 			item.hit=cursor+duration*float(profile.impact)
-			item.event={"fx":id,"from":event.from,"to":event.to,"tiles":[event.to],"path":event.get("path",[event.to])}
+			item.event={"fx":id,"from":event.from,"to":event.to,"tiles":[event.to],"path":event.get("path",[event.to]),"results":event.get("results",{event.to:{"damage":int(event.get("amount",0)),"hits":1,"crit":0}})}
 			cursor+=duration+.04
 		else:cursor+=.12
 		result.append(item)
@@ -6176,6 +6195,8 @@ func queue_observed_enemy_damage(actor:Node3D,uid:int,tile:Vector2i,defeated:boo
 			var source_actor:Node3D=disguise_actor if is_instance_valid(disguise_actor) else pet_pose
 			var frozen_event:=snapshot_counter_geometry(item.event,source_actor,actor)
 			delayed_combat_fx.append({"delay":float(item.launch),"event":frozen_event})
+		else:
+			schedule_response_text(tile,item.response,float(item.hit))
 	# Queue terminal callback first; subsequent calls preserve that final pose.
 	for index in range(plan.size()-1,-1,-1):
 		var item:Dictionary=plan[index]

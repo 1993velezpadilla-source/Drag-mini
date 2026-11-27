@@ -72,6 +72,7 @@ func run():
 	var out:=FileAccess.open("/tmp/dev-move-audit.json",FileAccess.WRITE)
 	assert(out!=null);out.store_string(JSON.stringify(report,"  "));out.close()
 	assert(report.size()==589 and native_damage==67 and reactive==2 and info_count==589)
+	assert(outcome_moves==589,"every fixture must yield a serial-matched result")
 	print("KINDRA_CAST_OUTCOME_ROWS ",outcome_rows," moves=",outcome_moves)
 	print("KINDRA_MOVE_INFO_PASS ",info_count," conditional damage first attempt=",conditional_damage)
 	print("KINDRA_REACTIVE_FIXTURES_PASS ",reactive," zero-damage-retries-resolved=",retry_damage)

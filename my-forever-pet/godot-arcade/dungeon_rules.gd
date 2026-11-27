@@ -292,6 +292,7 @@ func flush_sleep_reactions()->void:
 				recorded[-1]["from"]=player
 				recorded[-1]["to"]=p
 				recorded[-1]["path"]=player_attack_path.duplicate()
+				recorded[-1]["results"]=player_cast_results.duplicate(true)
 		visual_response_cast_serial=attack_serial
 		visual_response_cast_uid=response_uid
 		if chosen=="eos_025" and enemy_at(p)>=0 and rng.randi_range(1,100)<=20:
@@ -2630,6 +2631,7 @@ func execute_move(id:String,aim:Vector2i,releasing:bool,invocation_id:String="",
 			var damage_start:int=last_move_damage.size()
 			var hits_before:int=last_move_hits
 			var critical_before:int=last_critical_hits
+			var status_before:String=enemy_status_text(enemies[current])
 			var landed:bool=roll_reference_hit(move,enemies[current])
 			if landed:
 				if move.has("special_rule"):
@@ -2712,7 +2714,13 @@ func execute_move(id:String,aim:Vector2i,releasing:bool,invocation_id:String="",
 				dealt_total+=int(amount)
 				if int(amount)>0 and visual_uid>=0:player_visual_hits[visual_uid]=int(player_visual_hits.get(visual_uid,0))+1
 			var changed:bool=last_move_hits>hits_before and (move.category=="status" or move.has("special_rule") and last_move_damage.size()==damage_start)
+			var remaining:int=enemy_at(target)
+			var status_after:String=enemy_status_text(enemies[remaining]) if remaining>=0 else ""
+			if landed and not status_after.is_empty() and status_after!=status_before:
+				changed=true
 			record_cast_result(target,dealt_total,landed,changed,last_critical_hits>critical_before)
+			if landed and changed and not status_after.is_empty() and status_after!=status_before:
+				player_cast_results[target]["status"]=status_after
 			if not landed and move.get("stop_on_miss",false):break
 	if last_move_hits==0 or move.category=="status" or move.has("special_rule"):attack_serial+=1
 	attack_target=primary;player_attack_fx=id;player_attack_path=travel
