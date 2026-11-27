@@ -36,3 +36,6 @@ All 14 electric reference entries now have individual roles. Thunder Punch: char
 
 ## Iteration 46: poison choreography pilot
 16 independently routed poison effects covering every poison entry with a reference range: smoke, gas, falling powder, toxic rings, fangs, needles, armor, sludge, arcing bomb, tail, acid spray, gastric acid, crossed slashes, gunk, jab and floor spikes. Original pixel effects and pooled world trajectories, not verified reference frames or species-specific body motion. Existing move data unchanged. Added temporal, nonempty and distinct-frame tests plus PNG exports. Prior flying core 45934789409 and 3D interaction 45934789315 passed at implementation commit. New poison CI, source footage and Android device review pending.
+
+## Iteration 47: bug choreography pilot
+17 independent roles cover all bug reference entries with known range: silk line, radial web, draining jaws, silver wind, multicolor beam, twin needles, tail light, missile volley, horn, rapid cuts, healing swarm, attack swarm, cross cuts, out-and-back path, guard swarm, bite and radial buzz. Original effects, reference combat data unchanged. Temporal, nonempty and unique-frame tests and PNG exports added. Poison core 45934944353, 3D 45934944339 and Android 45934944359 still running at initial inspection; bug CI, footage and species-specific animation not yet verified.

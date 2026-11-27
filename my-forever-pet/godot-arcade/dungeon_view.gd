@@ -2615,6 +2615,100 @@ func poison_sprite(im:Image,role:String,frame:int)->void:
 				fx_line(im,q-Vector2(3,0),q-Vector2(0,h),3.0,dark)
 				fx_line(im,q+Vector2(3,0),q-Vector2(0,h),2.0,acid)
 
+# Original insect FX. Flight paths are based on affected tiles, not camera orientation.
+func bug_wing(im:Image,q:Vector2,a:float,r:float,light:Color,dark:Color)->void:
+	var dir:=Vector2(cos(a),sin(a))
+	var side:=Vector2(-dir.y,dir.x)
+	for sign_value in [-1,1]:
+		var wing:=q+side*float(sign_value)*r*.62
+		fx_disc(im,wing,r*.57,Color(light,.72))
+		fx_line(im,q,wing+dir*r*.45,1.4,dark)
+	fx_line(im,q-dir*r*.5,q+dir*r*.5,2.0,dark)
+
+func bug_sprite(im:Image,role:String,frame:int)->void:
+	var t:float=float(frame)/11.0
+	var c:=Vector2(24,24)
+	var light:=Color("#e1ed91");var dark:=Color("#647b35");var silk:=Color("#f4f2e4")
+	match role:
+		"bug_string":
+			var prev:=Vector2(3,24)
+			for j in range(1,16):
+				var f:float=float(j)/15.0
+				var q:=Vector2(3+40*f*t,24+sin(f*TAU*2.0-t*TAU)*5.0*f)
+				fx_line(im,prev,q,3.0,dark);fx_line(im,prev,q,1.5,silk);prev=q
+		"bug_web":
+			var r:float=9.0+11.0*t
+			for i in range(8):
+				var a:float=float(i)*TAU/8.0
+				var b:float=a+TAU/8.0
+				var dir:=Vector2(cos(a),sin(a))
+				fx_line(im,c,c+dir*r,1.6,silk)
+				for j in range(1,4):
+					var scale_value:float=r*float(j)/3.0
+					fx_line(im,c+dir*scale_value,c+Vector2(cos(b),sin(b))*scale_value,1.2,light)
+		"bug_leech","bug_bite":
+			var gap:float=13.0-sin(t*PI)*9.0
+			for i in [-1,1]:
+				var q:=c+Vector2(float(i)*gap,0)
+				fx_line(im,q+Vector2(0,-9),q+Vector2(-float(i)*7,-3),4.0,dark)
+				fx_line(im,q+Vector2(0,9),q+Vector2(-float(i)*7,3),3.0,light)
+			if role=="bug_leech":
+				for i in range(5):fx_disc(im,Vector2(35-27*t-float(i)*3.0,24+sin(t*TAU+float(i))*5.0),2.2,Color("#f6db73"))
+			else:fight_burst(im,c,6.0+t*9.0,5,t,light,dark)
+		"bug_silver":
+			for i in range(6):
+				var q:=Vector2(4+float(i)*7,12+sin(t*TAU+float(i))*9.0)
+				fight_arc(im,q,8.0,-PI*.5,PI,Color("#f1ffff"),Color("#7eb0af"),2.4)
+				fx_disc(im,q+Vector2(2,15),1.5,silk)
+		"bug_signal":
+			for i in range(3):
+				var prev:=Vector2(2,20+float(i)*4)
+				for j in range(1,15):
+					var f:float=float(j)/14.0
+					var q:=Vector2(2+43*f,24+sin(f*TAU*2.0+t*TAU+float(i)*2.1)*6.0)
+					fx_line(im,prev,q,3.0,[Color("#fa829d"),Color("#7edbe4"),light][i]);prev=q
+		"bug_twin","bug_pin","bug_horn":
+			var count:int=2 if role=="bug_twin" else 5 if role=="bug_pin" else 1
+			for i in range(count):
+				var q:=Vector2(7+32*t-float(i%3)*5,24+float(i)*6-float(count-1)*3)
+				var length:float=19.0 if role=="bug_horn" else 10.0
+				fx_line(im,q-Vector2(length,-3),q+Vector2(4,0),6.0 if role=="bug_horn" else 2.6,dark)
+				fx_line(im,q-Vector2(length,3),q+Vector2(4,0),2.2,light)
+		"bug_fury","bug_cross":
+			var count:int=3 if role=="bug_fury" else 2
+			for i in range(count):
+				var a:float=-PI*.8+float(i)*1.4+t*.5
+				fight_arc(im,c+Vector2(float(i-1)*4,0),13.0,a,PI*.9,light,dark,4.0)
+			if role=="bug_cross":
+				fx_line(im,c-Vector2(12,12),c+Vector2(12,12),2.0,silk)
+				fx_line(im,c+Vector2(-12,12),c+Vector2(12,-12),2.0,light)
+		"bug_glow":
+			var q:=Vector2(24,30)
+			for i in range(3):
+				var r:float=4.0+float(i)*4+sin(t*PI)*4.0
+				fx_disc(im,q,r,Color("#ffd86d",.8),r-1.2)
+			fight_burst(im,q,16.0,7,t,silk,light)
+		"bug_heal","bug_attack","bug_defend":
+			var count:int=4 if role=="bug_heal" else 8 if role=="bug_attack" else 6
+			for i in range(count):
+				var a:float=float(i)*TAU/float(count)+t*TAU
+				var r:float=9.0+t*11.0 if role=="bug_attack" else 15.0 if role=="bug_defend" else 10.0
+				var q:=c+Vector2(cos(a),sin(a))*r
+				bug_wing(im,q,a,5.0 if role=="bug_attack" else 4.0,light,dark)
+			if role=="bug_heal":
+				fx_line(im,c-Vector2(0,6),c+Vector2(0,6),3.0,Color("#8ef5b1"))
+				fx_line(im,c-Vector2(6,0),c+Vector2(6,0),3.0,Color("#8ef5b1"))
+			elif role=="bug_defend":fx_disc(im,c,11.0,Color(dark,.9),9.0)
+		"bug_turn":
+			fight_arc(im,c,15.0,-PI+t*TAU,PI*1.6,light,dark,4.0)
+			var q:=c+Vector2(cos(t*TAU),sin(t*TAU))*14.0
+			bug_wing(im,q,t*TAU+PI*.5,6.0,light,dark)
+		"bug_buzz":
+			for i in range(4):
+				var r:float=5.0+float(i)*5.0+sin(t*TAU+float(i))*2.0
+				fx_disc(im,c,r,Color(light,.78),r-1.4)
+			bug_wing(im,c,t*TAU,7.0,silk,dark)
+
 func combat_frame_image(id:String,frame:int)->Image:
 	var style:Array=combat_style(id)
 	var mode:String=combat_animation_mode(id,str(style[0]))
@@ -2642,6 +2736,8 @@ func combat_frame_image(id:String,frame:int)->Image:
 		air_sprite(im,role,frame);return im
 	if role.begins_with("poison_"):
 		poison_sprite(im,role,frame);return im
+	if role.begins_with("bug_"):
+		bug_sprite(im,role,frame);return im
 	var center:=Vector2(24,24)
 	match mode:
 		"vine":
@@ -2954,6 +3050,23 @@ func combat_profile(id:String)->Dictionary:
 		"eos_485":role="poison_gunk"
 		"eos_495":role="poison_jab"
 		"eos_496":role="poison_spikes"
+		"eos_023":role="bug_string"
+		"eos_080":role="bug_leech"
+		"eos_082":role="bug_silver"
+		"eos_086":role="bug_web"
+		"eos_114":role="bug_signal"
+		"eos_164":role="bug_twin"
+		"eos_288":role="bug_glow"
+		"eos_306":role="bug_pin"
+		"eos_323":role="bug_horn"
+		"eos_346":role="bug_fury"
+		"eos_449":role="bug_heal"
+		"eos_460":role="bug_attack"
+		"eos_470":role="bug_cross"
+		"eos_502":role="bug_turn"
+		"eos_520":role="bug_defend"
+		"eos_529":role="bug_bite"
+		"eos_530":role="bug_buzz"
 	if role in ["electric_charge","electric_lift"]:mode="lightning"
 	var impact:float=.48 if role in ["contact","electric_contact","electric_short","electric_fist","electric_fang","electric_dash","electric_spark"] else .64 if role in ["projectile","lash","electric_arc","electric_wave","electric_sky","electric_orb","electric_beam"] else .40
 	if role in ["fire_breath","fire_ember","fire_blast","fire_wisp"]:impact=.64
@@ -2971,6 +3084,7 @@ func combat_profile(id:String)->Dictionary:
 	if role.begins_with("fight_"):impact=.64 if role in ["fight_aura","fight_blast","fight_vacuum"] else .48
 	if role.begins_with("air_"):impact=.64 if role in ["air_blast","air_cutter","air_sky","air_fly","air_bounce"] else .48
 	if role.begins_with("poison_"):impact=.64 if role in ["poison_bomb","poison_gunk","poison_acid","poison_sludge","poison_gastro"] else .48
+	if role.begins_with("bug_"):impact=.64 if role in ["bug_string","bug_signal","bug_twin","bug_pin","bug_turn"] else .48
 	return {"mode":mode,"role":role,"element":element,"pattern":pattern,"range":reach,"duration":float(style[3]),"impact":impact,"socket":"ground" if role in ["ground","fire_plume","fire_magma","water_dive","water_whirlpool","water_surf","grass_frenzy","grass_roots","grass_knot","ice_avalanche","ice_cold","earth_dig","earth_tomb","earth_power","earth_fissure","earth_spikes","earth_quake","earth_magnitude","rock_edge","rock_tomb","rock_trap","rock_roll"] else "head" if role in ["projectile","fire_breath","fire_ember","fire_eruption","water_bubble","water_ink","water_spout","water_cannon","water_pump","water_bubblebeam","water_gun","water_pulse","water_brine","grass_solar","grass_energy","grass_bullet","grass_whistle","ice_aurora","ice_beam","ice_wind","earth_shot","rock_wrecker","rock_blast","rock_gem"] else "center"}
 func electric_sprite(im:Image,id:String,frame:int,role:String)->void:
 	var cyan:=Color("#40cfff")
@@ -3608,6 +3722,25 @@ func combat_fx_update(dt:float)->void:
 						q=points[-1]+Vector3(cos(angle+t)*(.18+t*.35),.08+f*.56,sin(angle+t)*(.18+t*.35));size=.43
 					_:
 						q=points[-1]+Vector3(cos(angle)*.23,.15+sin(angle)*.18,sin(angle)*.23);size=.54
+			if str(profile.role).begins_with("bug_"):
+				var bug_role:String=str(profile.role)
+				var progress:float=clampf(t*1.8-f*.30,0,1)
+				match bug_role:
+					"bug_string","bug_signal","bug_twin","bug_pin","bug_horn":
+						q=combat_path_sample(points,progress)+Vector3(cos(angle)*.10,.12+sin(angle)*.12,sin(angle)*.10)
+						size=.68 if bug_role=="bug_horn" else .46
+					"bug_leech":
+						q=combat_path_sample(points,1.0-clampf((t-.35)*1.7-f*.2,0,1))+Vector3(cos(angle)*.14,.15,sin(angle)*.14);size=.42
+					"bug_turn":
+						q=combat_path_sample(points,1.0-absf(2.0*progress-1.0))+Vector3(0,sin(progress*PI)*.48,0);size=.55
+					"bug_glow","bug_heal","bug_defend":
+						q=points[0]+Vector3(cos(angle+t*TAU)*.38,.12+f*.6,sin(angle+t*TAU)*.38);size=.45
+					"bug_silver","bug_attack","bug_buzz":
+						q=tiles[j%tiles.size()]+Vector3(cos(angle+t*TAU)*.33,.2+sin(angle)*.18,sin(angle+t*TAU)*.33);size=.49
+					"bug_web":
+						q=points[-1]+Vector3(cos(angle)*t*.4,.12+f*.28,sin(angle)*t*.4);size=.58
+					_:
+						q=points[-1]+Vector3(cos(angle)*.22,.15+sin(angle)*.18,sin(angle)*.22);size=.53
 			# Drained energy travels from victim back to caster; healing stays on caster.
 			if profile.role=="drain" and t>=.40:
 				var back:float=clampf((t-.40)*2.0-f*.22,0.0,1.0)

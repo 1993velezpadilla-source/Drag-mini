@@ -274,6 +274,22 @@ func run():
 				poison_frames[signature]=true
 				assert(middle.save_png("/tmp/dungeon-real-poison-"+id+".png")==OK)
 			print("KINDRIA_POISON_CHOREOGRAPHY_PASS ",poison_roles.size())
+			var bug_roles:Dictionary={}
+			var bug_frames:Dictionary={}
+			for id in ["eos_023","eos_080","eos_082","eos_086","eos_114","eos_164","eos_288","eos_306","eos_323","eos_346","eos_449","eos_460","eos_470","eos_502","eos_520","eos_529","eos_530"]:
+				var profile:Dictionary=dungeon.combat_profile(id)
+				assert(str(profile.role).begins_with("bug_"),"dedicated bug role "+id)
+				assert(not bug_roles.has(profile.role),"unique bug choreography "+id)
+				bug_roles[profile.role]=true
+				var first:Image=dungeon.combat_frame_image(id,2)
+				var middle:Image=dungeon.combat_frame_image(id,6)
+				assert(first.get_data()!=middle.get_data(),"bug animation changes "+id)
+				assert(middle.get_used_rect().has_area(),"nonempty bug frame "+id)
+				var signature:String=middle.get_data().hex_encode()
+				assert(not bug_frames.has(signature),"unique bug sprite "+id)
+				bug_frames[signature]=true
+				assert(middle.save_png("/tmp/dungeon-real-bug-"+id+".png")==OK)
+			print("KINDRIA_BUG_CHOREOGRAPHY_PASS ",bug_roles.size())
 			# Reproduce the freed-instance registry fault before the real expedition.
 			var retired:Node3D=dungeon.actor_for("retired-test",Vector3.ZERO)
 			retired.free()
