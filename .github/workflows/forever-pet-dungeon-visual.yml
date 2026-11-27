@@ -5,6 +5,8 @@ on:
     paths:
       - 'my-forever-pet/godot-arcade/dungeon*.gd'
       - 'my-forever-pet/tests/dungeon_visual.gd'
+      - 'my-forever-pet/tests/kindria_fx_audit.gd'
+      - 'my-forever-pet/art/eos_move_audit.json'
       - 'my-forever-pet/godot-arcade/volnox_pixel_life.gdshader'
       - 'my-forever-pet/tests/dungeon_live_review.gd'
       - '.github/workflows/forever-pet-dungeon-visual.yml'
@@ -39,6 +41,20 @@ jobs:
           xvfb-run -a -s "-screen 0 720x1280x24" timeout 120 /tmp/godot/Godot_v4.4.1-stable_linux.x86_64 --path /tmp/dungeon-project --audio-driver Dummy --resolution 540x960 --script res://dungeon_live_review.gd 2>&1 | tee /tmp/dungeon-live.log
           grep -F DUNGEON_LIVE_REVIEW_PASS /tmp/dungeon-live.log
           ! grep -E 'SCRIPT ERROR|Parse Error|Assertion failed' /tmp/dungeon-live.log
+      - name: Audit all 5616 actual FX frames, complete sprite strips and bounded cache
+        run: |
+          set -euo pipefail
+          cp my-forever-pet/tests/kindria_fx_audit.gd my-forever-pet/art/eos_move_audit.json /tmp/dungeon-project/
+          xvfb-run -a -s "-screen 0 720x1280x24" timeout 120 /tmp/godot/Godot_v4.4.1-stable_linux.x86_64 --path /tmp/dungeon-project --audio-driver Dummy --script res://kindria_fx_audit.gd 2>&1 | tee /tmp/kindria-full-fx.log
+          grep -F KINDRIA_FULL_FX_AUDIT_PASS /tmp/kindria-full-fx.log
+          ! grep -E 'SCRIPT ERROR|Parse Error|Assertion failed' /tmp/kindria-full-fx.log
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: Kindria-full-468-FX-audit
+          path: |
+            /tmp/kindria-full-fx/
+            /tmp/kindria-full-fx.log
       - uses: actions/upload-artifact@v4
         if: always()
         with:

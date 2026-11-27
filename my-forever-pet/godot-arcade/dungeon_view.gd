@@ -51,6 +51,10 @@ var combat_particles:Array[Sprite3D]=[]
 var combat_warnings:Array[MeshInstance3D]=[]
 var combat_bursts:Array[Dictionary]=[]
 var combat_textures:Dictionary={}
+# Keep transient animation frames separate from permanent static FX textures.
+const FX_ANIMATED_CACHE_CAP=384
+var fx_animated_cache:Dictionary={}
+var fx_animated_order:Array[String]=[]
 var fx_arc_mesh:ImmediateMesh
 var fx_arc_material:StandardMaterial3D
 var fx_audio:Array[AudioStreamPlayer3D]=[]
@@ -3778,9 +3782,16 @@ func combat_frame_image(id:String,frame:int)->Image:
 				fx_disc(im,q,5.0-float(i),dark);fx_disc(im,q-Vector2(1,1),maxf(1.0,3.0-float(i)*.5),light)
 	return im
 func combat_animated_texture(id:String,frame:int)->ImageTexture:
-	var key:="animated:"+id+":"+str(posmod(frame,FX_FRAME_COUNT))
-	if not combat_textures.has(key):combat_textures[key]=ImageTexture.create_from_image(combat_frame_image(id,frame))
-	return combat_textures[key] as ImageTexture
+	var normalized:int=posmod(frame,FX_FRAME_COUNT)
+	var key:="animated:"+id+":"+str(normalized)
+	if fx_animated_cache.has(key):return fx_animated_cache[key] as ImageTexture
+	# FIFO eviction only on misses; sprites retain their own reference while visible.
+	if fx_animated_order.size()>=FX_ANIMATED_CACHE_CAP:
+		fx_animated_cache.erase(fx_animated_order.pop_front())
+	var texture:=ImageTexture.create_from_image(combat_frame_image(id,normalized))
+	fx_animated_cache[key]=texture
+	fx_animated_order.append(key)
+	return texture
 # Presentation contracts are independent of damage rules. Each attack has a
 # caster motion, source socket, launch point, target reaction and sound phases.
 func combat_profile(id:String)->Dictionary:
@@ -4595,8 +4606,11 @@ func combat_fx_spawn(event:Dictionary)->void:
 	combat_bursts.append({"id":id,"mode":style[0],"profile":profile,"target_player":event.get("target_player",false),"damage":event.get("damage",0),"impacted":false,"age":0.0,"duration":float(style[3]),"points":waypoints,"tiles":tiles,"texture":combat_animated_texture(id,0)})
 	play_combat_sound(id,"launch",waypoints[0])
 func combat_path_sample(points:Array,t:float)->Vector3:
-	var index:float=clampf(t,0.0,.9999)*float(points.size()-1)
-	var a:int=floori(index)
+	if points.is_empty():return Vector3.ZERO
+	if points.size()==1 or t<=0.0:return points[0]
+	if t>=1.0:return points[-1]
+	var index:float=clampf(t,0.0,1.0)*float(points.size()-1)
+	var a:int=mini(floori(index),points.size()-2)
 	var start:Vector3=points[a]
 	return start.lerp(points[a+1],index-float(a))
 # World-space anatomy of a lash: one continuous extending/retracting stem, not
