@@ -179,6 +179,12 @@ func audit_all_premium_fx(dungeon)->void:
 	assert(file!=null)
 	file.store_string(JSON.stringify({"moves":report,"shared_sprite_samples":shared,"blank_sprite_sequences":invalid_frames},"  "))
 	file.close()
+	# Mixed outcomes: primary misses, another tile takes damage. Keep that hit.
+	var mixed_profile:Dictionary=dungeon.combat_profile("lib_fire_3")
+	var mixed:Dictionary={"id":"lib_fire_3","profile":mixed_profile,"points":sample_points,"results":{tile:{"damage":0,"effects":0,"heal":0},Vector2i(1,1):{"damage":7,"effects":0,"heal":0}}}
+	var count:int=dungeon.element_finish_fx(mixed,float(mixed_profile.impact)+.04,0)
+	assert(count==2,"miss at primary tile must not suppress second target")
+	for i in range(count):dungeon.combat_particles[i].hide()
 	assert(ids.size()==589 and cues.size()==589)
 	assert(invalid_frames==0,"blank visual sequence; see report")
 	print("KINDRIA_PREMIUM_FX_CATALOG_PASS ",ids.size()," unique_cues=",cues.size()," sampled_sprite_sequences=",sprite_signatures.size()," shared_sprite_groups=",shared.size())

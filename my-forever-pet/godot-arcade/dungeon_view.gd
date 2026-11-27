@@ -5580,7 +5580,7 @@ func update_combat_reactions(dt:float)->void:
 		actor.set_meta("pending_impact",pending)
 		actor.set_meta("enemy_hit_direction",reaction.direction)
 		enemy_pose(actor,"defeat" if reaction.defeated else "hurt",.32 if reaction.defeated else .20)
-		queue_ultra_reaction(actor.global_position+Vector3.UP*.54,reaction.direction,bool(reaction.defeated))
+		if actor.is_inside_tree():queue_ultra_reaction(actor.global_position+Vector3.UP*.54,reaction.direction,bool(reaction.defeated))
 		# The actor renderer advances dt later in this frame. Subtract the
 		# pre-impact portion now so only the actual post-impact age is applied.
 		actor.set_meta("enemy_clock",-clampf(dt+float(reaction.delay),0.0,dt))
@@ -6527,9 +6527,10 @@ func element_finish_fx(burst:Dictionary,t:float,used:int)->int:
 		# Known misses/blocked hits get a subdued dissipating trail, not a damage flash.
 		var primary_tile:=Vector2i(roundi(target.x/1.4),roundi(target.z/1.4))
 		var row:Dictionary=results.get(primary_tile,{})
-		if not row.is_empty() and int(row.get("damage",0))==0 and int(row.get("effects",0))==0 and int(row.get("heal",0))==0:
-			return environment_particle(used,target,"cloud",light,dark,.32+age*.18,fade*.35)
-		if age<.30:
+		var primary_miss:bool=not row.is_empty() and int(row.get("damage",0))+int(row.get("effects",0))+int(row.get("heal",0))<=0
+		if primary_miss:
+			used=environment_particle(used,target,"cloud",light,dark,.32+age*.18,fade*.35)
+		elif age<.30:
 			used=environment_particle(used,target,"bubble" if status else "impact_star",light,dark,.62+age*.55,1.0-age*2.0)
 		# Room-wide attacks show a small localized finish at other confirmed targets.
 		var extra:int=0
@@ -6540,6 +6541,8 @@ func element_finish_fx(burst:Dictionary,t:float,used:int)->int:
 			var q:Vector3=pos(tile)+Vector3(0,.45,0)
 			used=environment_particle(used,q,"bubble" if status else "impact_star",light,dark,.45+age*.38,fade)
 			extra+=1
+		# A miss at the selected tile must not hide hits on other tiles.
+		if primary_miss:return used
 		for j in range(count):
 			var angle:float=float(j)*TAU/float(count)
 			var q:=target+Vector3(cos(angle)*radius,.04+sin(age*PI)*(.55 if status else .33),sin(angle)*radius)
@@ -6547,7 +6550,7 @@ func element_finish_fx(burst:Dictionary,t:float,used:int)->int:
 		used=cinematic_impact_layers(id,profile,from,target,age,used,light,dark,status)
 		if str(profile.element) in ["water","ground","rock","ice","poison","fire","electric"] or profile.pattern in ["room","radius","cross","floor"]:
 			var ground:=Vector3(target.x,.045,target.z)
-			used=environment_particle(used,ground,"bubble",light,dark,.65+age*1.1,fade*.70,true)
+			used=environment_particle(used,ground,"shock_ring",light,dark,.65+age*1.1,fade*.70,true)
 	return used
 
 # Secondary choreography: material-specific trajectories, with a stable move
