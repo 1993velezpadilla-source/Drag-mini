@@ -1686,7 +1686,10 @@ func cast_motion_offset(kind:String,progress:float,impact:float)->Vector3:
 		"rush":return Vector3(.64*pulse,.05*recoil,0)
 		"contact":return Vector3(.40*pulse,.06*recoil,0)
 		"lash":return Vector3(.13*pulse,.025*recoil,0)
-		"aerial":return Vector3(.36*pulse,.60*recoil,0)
+		"aerial":
+			# The feet meet the ground at impact, not halfway through recovery.
+			var flight:float=sin(PI*t/peak) if t<peak else 0.0
+			return Vector3(.36*pulse,.60*flight,0)
 		"down":return Vector3(.20*pulse,.30*sin(minf(1.0,t/peak)*PI),0)
 		"spin":return Vector3(.10*pulse,.07*recoil,.13*sin(t*TAU))
 		"focus":return Vector3(0,.08*recoil,0)
