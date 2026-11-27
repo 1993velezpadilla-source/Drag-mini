@@ -181,6 +181,8 @@ var fx_atlas_uploads:int=0
 var fx_frame_pack_hits:int=0
 var fx_floor_warm_count:int=0
 var fx_floor_warm_usec:int=0
+var fx_floor_audio_warm_count:int=0
+var fx_floor_audio_warm_usec:int=0
 var fx_atlas_uploads_in_cast:int=0
 var fx_secondary_builds:int=0
 var fx_secondary_pack_checked:bool=false
@@ -13826,15 +13828,39 @@ func combat_floor_warm_ids(equipped:Array,enemies:Array)->Array[String]:
 			if not ids.has(secondary):ids.append(secondary)
 	return ids.slice(0,FX_ATLAS_CACHE_CAP)
 
+# Warm only the next variants of likely moves from the original baked pack.
+# Never synthesize here, change playback rotation or expand the audio cache.
+func combat_floor_audio_keys(ids:Array)->Array[String]:
+	var keys:Array[String]=[]
+	for id in ids:
+		for phase in ["launch","impact","miss","status"]:
+			var prefix:String=str(id)+":"+phase
+			var variant:int=posmod(int(fx_audio_counter.get(prefix,-1))+1,3)
+			keys.append(prefix+":"+str(variant))
+			if keys.size()>=FX_AUDIO_CACHE_CAP:return keys
+	return keys
+
+func combat_warm_floor_audio(ids:Array)->void:
+	var started:int=Time.get_ticks_usec()
+	fx_floor_audio_warm_count=0
+	combat_audio_pack_init()
+	if fx_audio_pack!=null:
+		for key in combat_floor_audio_keys(ids):
+			if combat_audio_cached(key)!=null:fx_floor_audio_warm_count+=1
+	fx_floor_audio_warm_usec=Time.get_ticks_usec()-started
+	print("KINDRIA_FLOOR_AUDIO warmed=",fx_floor_audio_warm_count," usec=",fx_floor_audio_warm_usec)
+
 func combat_warm_floor()->void:
 	var started:int=Time.get_ticks_usec()
 	fx_floor_warm_count=0
+	var ids:=combat_floor_warm_ids(run.equipped_moves,run.enemies)
 	combat_frame_pack_init()
 	if fx_frame_pack!=null:
-		for id in combat_floor_warm_ids(run.equipped_moves,run.enemies):
+		for id in ids:
 			if combat_packed_frame(id,0)!=null:fx_floor_warm_count+=1
 	fx_floor_warm_usec=Time.get_ticks_usec()-started
 	print("KINDRIA_FLOOR_ATLAS warmed=",fx_floor_warm_count," usec=",fx_floor_warm_usec)
+	combat_warm_floor_audio(ids)
 
 # Active casts pin their own immutable frame array. LRU pressure may evict
 # the shared entry but cannot force a second upload halfway through a cast.
