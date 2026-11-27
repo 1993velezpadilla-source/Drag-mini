@@ -462,6 +462,21 @@ func run()->void:
 	if absf(float(disguise_shadow.position.y)+.6-.035)>.001:errors.append("disguise shadow ground height")
 	if absf(float(disguise_shadow.scale.x)/float(disguise_shadow.scale.y)-1.15/.8)>.001:errors.append("wide shadow proportions")
 	print("KINDRIA_COMBAT_SHADOW_PASS")
+	# Socket altitude follows actual flight, not sprite squash/stretch.
+	var socket_actor:=Node3D.new()
+	var socket_sprite:=Sprite3D.new()
+	socket_sprite.name="EnemyPixel"
+	socket_actor.add_child(socket_sprite)
+	socket_actor.set_meta("enemy_size_multiplier",1.45)
+	socket_sprite.scale.y=1.12
+	socket_sprite.position.y=.54*1.45*1.12+.2
+	if absf(field.combat_actor_socket(socket_actor,"head")-(.66*1.45+.2))>.001:errors.append("deformed socket altitude")
+	socket_actor.set_meta("companion_disguise",true)
+	socket_actor.position.y=.6
+	if absf(field.combat_actor_socket(socket_actor,"head")-(.66*1.45+.8))>.001:errors.append("transformed aerial socket")
+	if absf(field.combat_actor_socket(socket_actor,"ground")-.13)>.001:errors.append("ground socket altitude")
+	socket_actor.free()
+	print("KINDRIA_DYNAMIC_SOCKET_PASS")
 	# A cast created by path movement after the frame clock must start at zero age.
 	field.attack_time=.4
 	field.player_impact_delay=.2
