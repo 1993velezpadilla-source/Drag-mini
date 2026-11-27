@@ -655,6 +655,40 @@ func run()->void:
 	assert(field.combat_particles[0].position.distance_to(special_source)<return_start)
 	for particle in field.combat_particles:particle.hide()
 	print("KINDRIA_NATURE_AUDIT_PASS 62")
+	# V12.4: remaining spectral, dark, dragon, fairy and psychic profiles.
+	var mystic_cases:Dictionary={"alt_abyss_colossus":"TERRAIN","alt_celestial_guardian":"PROJECTILE","alt_lunar_prowler":"MOTION","alt_orbitserpent":"BITE","alt_starlit_pup":"PROJECTILE","celestial_verdict":"TERRAIN","comet_drop":"TERRAIN","eos_005":"SUPPORT","eos_035":"SUPPORT","eos_038":"MOTION","eos_043":"SUPPORT","eos_045":"SUPPORT","eos_046":"MOTION","eos_049":"SUPPORT","eos_091":"BODY","eos_109":"PROJECTILE","eos_110":"PROJECTILE","eos_133":"PROJECTILE","eos_167":"MOTION","eos_214":"MOTION","eos_216":"TERRAIN","eos_220":"SUPPORT","eos_234":"PROJECTILE","eos_249":"MOTION","eos_269":"SUPPORT","eos_316":"SUPPORT","eos_317":"SUPPORT","eos_331":"SPECIAL","eos_334":"SUPPORT","eos_335":"PROJECTILE","eos_342":"PROJECTILE","eos_445":"MOTION","eos_472":"MOTION","eos_488":"MOTION","eos_503":"SUPPORT","eos_514":"SUPPORT","eos_528":"SUPPORT","lib_dark_2":"TERRAIN","lib_dragon_2":"PROJECTILE","lib_fairy_2":"TERRAIN","lib_fairy_3":"PROJECTILE","lib_ghost_2":"SPECIAL","lib_ghost_3":"TERRAIN","lib_psychic_1":"PROJECTILE","lib_psychic_3":"TERRAIN","lunar_dust":"TERRAIN","moon_claw":"CLAW","orbit_lash":"SPECIAL","sonic_cone":"SPECIAL","star_kick":"KICK"}
+	for move_id in mystic_cases:
+		var group:String=mystic_cases[move_id]
+		var p:Dictionary=field.combat_profile(move_id)
+		var style:Array=field.combat_style(move_id)
+		var light:=Color(str(style[1]));var dark:=Color(str(style[2]))
+		var peak:float=clampf(float(p.impact),.01,.99)
+		var burst:Dictionary={"id":move_id,"profile":p,"points":[special_source,bite_position],"tiles":[field.pos(target)],"results":{target:{"damage":8,"hits":2,"effects":1}}}
+		var n:int=0
+		for particle in field.combat_particles:particle.hide()
+		match group:
+			"PROJECTILE":n=field.projectile_contact_fx(burst,peak*.55,0,light,dark)
+			"TERRAIN":n=field.terrain_contact_fx(burst,peak*.55,0,light,dark)
+			"BODY":n=field.body_contact_fx(move_id,special_source,bite_position,.25,0,light,dark,2)
+			"SPECIAL":
+				var tick:float=lerpf(peak,1.0,.25) if move_id=="eos_331" else peak*.55
+				n=field.special_contact_fx(burst,tick,0,light,dark)
+			"BITE":n=field.bite_contact_fx(move_id,bite_position,.20,0,light,dark)
+			"MOTION":n=field.motion_contact_fx(move_id,special_source,bite_position,.25,0,light,dark,2)
+			"CLAW":n=field.claw_contact_fx(move_id,special_source,bite_position,.25,0,light,dark,2)
+			"KICK":n=field.kick_contact_fx(move_id,special_source,bite_position,.25,0,light,dark,2)
+			"SUPPORT":n=field.support_contact_fx(burst,lerpf(peak,1.0,.25),0)
+		assert(n>0 and n<=12,"missing mystic presentation "+move_id)
+		assert(field.combat_particles.size()==particle_count)
+		assert(field.combat_particles[0].texture.get_image().get_used_rect().size.x>0)
+		if move_id in ["eos_109","eos_331","eos_342","eos_005","eos_317","eos_528","eos_167","star_kick","moon_claw","celestial_verdict","alt_celestial_guardian","lib_fairy_3"]:
+			await frames()
+			assert(root.get_texture().get_image().save_png("/tmp/effekseer-review/v12-mystic-"+move_id+".png")==OK)
+	for mode in ["projectile_crescent","projectile_comet","projectile_eye","projectile_prism"]:
+		var tex:Texture2D=field.combat_pixel_texture(mode,Color.WHITE,Color.BLACK)
+		assert(tex.get_width()==32 and tex.get_image().get_used_rect().size.x>0)
+	for particle in field.combat_particles:particle.hide()
+	print("KINDRIA_MYSTIC_AUDIT_PASS 50")
 	var plan:Array=[
 		{"stage":"ally_invoke","anchor":"source","start":0.0,"end":.15,"enabled":true},
 		{"stage":"enemy_invoke","anchor":"source","start":0.0,"end":.15,"enabled":true},
