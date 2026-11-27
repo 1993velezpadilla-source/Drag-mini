@@ -7,6 +7,7 @@ const ExternalFx=preload("res://pet_external_fx.gd")
 const SKIN_PATH="res://assets/mosky/sprites.png"
 const CELL=48
 const POSE_COLUMNS=10
+const COMBAT_POSE_COLUMNS=14
 static var skin_image:Image
 static var skin_checked=false
 const PART_MANIFEST="res://assets/creature_parts.json"
@@ -197,32 +198,64 @@ static func direction8_for(delta:Vector2,previous:int=0)->int:
 	# Preserve the first four editable rows; append SE, SW, NE, NW.
 	return [3,4,0,5,2,7,1,6][posmod(roundi(atan2(delta.y,delta.x)/(PI*.25)),8)]
 
-static func mosskit_diagonal(back:bool,step:int,pose:String,mood:String)->Image:
-	# Original three-quarter artwork: far eye/ear and foot recede; rear view has visible tail.
+# Three-quarter Ponoko is independently posed rather than rotating the front sprite.
+# Anchor: feet at y=45, belly center x=24. Left diagonal uses reflected anatomy.
+static func mosskit_diagonal(back:bool,step:int,pose:String,mood:String,frame:int=0)->Image:
 	var im:=Image.create(48,48,false,Image.FORMAT_RGBA8)
 	im.fill(Color.TRANSPARENT)
 	var ink:=Color("#25421c");var deep:=Color("#478d27");var leaf:=Color("#76c438");var high:=Color("#a7e657");var pink:=Color("#f49ac2");var eye:=Color("#241c43")
 	var droop:bool=mood in ["sad","weak","sick"]
-	ellipse(im,Vector2(30,40-step),Vector2(7,4),ink);ellipse(im,Vector2(30,39-step),Vector2(5,2),deep)
-	var far_ear:=Vector2(30,14 if droop else 9-step*.5)
-	ellipse(im,far_ear,Vector2(5,7),ink);ellipse(im,far_ear,Vector2(3,5),deep)
-	if not back:ellipse(im,far_ear,Vector2(2,3),pink)
-	ellipse(im,Vector2(22,9),Vector2(4,6),ink);ellipse(im,Vector2(23,8),Vector2(2,4),high)
-	ellipse(im,Vector2(23,26),Vector2(18,16),ink);ellipse(im,Vector2(23,26),Vector2(16,14),deep);ellipse(im,Vector2(24,23),Vector2(15,12),leaf);ellipse(im,Vector2(18,17),Vector2(8,3),high)
-	var near_ear:=Vector2(12,16 if droop else 11+step*.5)
-	ellipse(im,near_ear,Vector2(7,6 if droop else 9),ink);ellipse(im,near_ear,Vector2(5,4 if droop else 7),leaf)
-	if not back:ellipse(im,near_ear+Vector2(1,1),Vector2(3,3 if droop else 5),pink)
-	ellipse(im,Vector2(17,42+step),Vector2(9,4),ink);ellipse(im,Vector2(17,41+step),Vector2(7,3),deep);ellipse(im,Vector2(18,40+step),Vector2(5,2),leaf)
+	var strike:bool=(pose=="attack" and frame%2==1) or pose=="cast"
+	var windup:bool=pose=="attack" and not strike
+	var hurt:bool=pose=="hurt"
+	var rest:bool=pose in ["sleep","defeat"]
+	var shift:float=2.0 if strike else -1.0 if windup or hurt else .5 if pose=="recover" else 0.0
+	var lift:float=2.0 if windup or hurt else 0.0
+	var body:=Vector2(24+shift,26+lift+(4.0 if rest else 0.0))
+	var far_foot:=Vector2(31+shift,40-step)
+	var near_foot:=Vector2(16+shift,42+step)
+	if rest:far_foot.y=43;near_foot.y=43
+	# Far foot and far ear are partially occluded by the body.
+	ellipse(im,far_foot,Vector2(7,4),ink);ellipse(im,far_foot+Vector2(0,-1),Vector2(5,2),deep)
+	var far_ear:=Vector2(32+shift,15 if droop or rest else 10-step*.5)
+	if strike:far_ear+=Vector2(1,2)
+	ellipse(im,far_ear,Vector2(5,7 if not rest else 5),ink);ellipse(im,far_ear+Vector2(0,-1),Vector2(3,5 if not rest else 3),deep)
+	if not back:ellipse(im,far_ear+Vector2(1,0),Vector2(2,3),pink)
+	var bud:=Vector2(24+shift,10+lift+(4.0 if rest else 0.0))
+	ellipse(im,bud,Vector2(4,6),ink);ellipse(im,bud+Vector2(-1,-2),Vector2(2,4),high)
+	ellipse(im,body,Vector2(18,15 if not rest else 12),ink)
+	ellipse(im,body,Vector2(16,13 if not rest else 10),deep)
+	ellipse(im,body+Vector2(0,-3),Vector2(15,11 if not rest else 8),leaf)
+	ellipse(im,body+Vector2(-6,-9 if not rest else -6),Vector2(8,3),high)
+	var near_ear:=Vector2(13+shift,17 if droop or rest else 11+step*.5+lift)
+	if strike:near_ear+=Vector2(2,2)
+	ellipse(im,near_ear,Vector2(7,5 if rest else 6 if droop else 9),ink)
+	ellipse(im,near_ear+Vector2(0,-1),Vector2(5,3 if rest else 4 if droop else 7),leaf)
+	if not back:ellipse(im,near_ear+Vector2(1,0),Vector2(3,2 if rest else 3 if droop else 5),pink)
+	else:ellipse(im,near_ear+Vector2(-1,-2),Vector2(3,3),high)
+	ellipse(im,near_foot,Vector2(9,4),ink);ellipse(im,near_foot+Vector2(0,-1),Vector2(7,3),deep);ellipse(im,near_foot+Vector2(1,-2),Vector2(5,2),leaf)
 	if back:
-		ellipse(im,Vector2(13,35),Vector2(6,5),ink);ellipse(im,Vector2(13,34),Vector2(4,3),leaf);ellipse(im,Vector2(12,33),Vector2(2,1),high)
+		# Visible haunch and tail: neither eyes nor pink cheeks on the rear silhouette.
+		var haunch:=body+Vector2(-9,6)
+		ellipse(im,haunch,Vector2(8,7),deep);ellipse(im,haunch+Vector2(-1,-2),Vector2(6,4),leaf)
+		var tail:=body+Vector2(-11,9+step*.5)
+		ellipse(im,tail,Vector2(6,5),ink);ellipse(im,tail+Vector2(0,-1),Vector2(4,3),leaf);ellipse(im,tail+Vector2(-1,-2),Vector2(2,1),high)
+		if strike:ellipse(im,body+Vector2(11,1),Vector2(4,3),deep)
 	else:
-		for p in [Vector2(22,26),Vector2(35,24)]:
-			var far:bool=p.x>30
-			if pose in ["blink","sleep"] or mood in ["weak","sick"]:ellipse(im,p,Vector2(3 if far else 5,1),eye)
+		# The close eye is larger; the distant eye follows the turning silhouette.
+		for p in [body+Vector2(-1,0),body+Vector2(11,-2)]:
+			var far:bool=p.x>body.x+5
+			if pose in ["blink","sleep","hurt","defeat"] or mood in ["weak","sick"]:
+				ellipse(im,p,Vector2(3 if far else 5,1),eye)
 			else:
-				ellipse(im,p,Vector2(3 if far else 5,5 if far else 7),eye);ellipse(im,p+Vector2(-1,-2),Vector2(1 if far else 2,2),Color("#fff3ef"))
-		ellipse(im,Vector2(19,33),Vector2(3,2),pink);ellipse(im,Vector2(37,30),Vector2(2,1),pink)
-		ellipse(im,Vector2(31,34),Vector2(3,4 if pose in ["attack","eat"] else 2),eye);ellipse(im,Vector2(31,35),Vector2(1,1),pink)
+				ellipse(im,p,Vector2(3 if far else 5,5 if far else 7),eye)
+				ellipse(im,p+Vector2(-1,-2),Vector2(1 if far else 2,2),Color("#fff3ef"))
+				if not far:ellipse(im,p+Vector2(2,3),Vector2(1,1),Color("#655b9a"))
+		ellipse(im,body+Vector2(-4,7),Vector2(3,2),pink)
+		ellipse(im,body+Vector2(13,4),Vector2(2,1),pink)
+		var mouth:=body+Vector2(7,8)
+		ellipse(im,mouth,Vector2(3,4 if strike or pose=="eat" else 2),eye)
+		ellipse(im,mouth+Vector2(0,1),Vector2(1,1),pink)
 	return im
 
 static func pose_column(pose:String,frame:int)->int:
@@ -232,16 +265,22 @@ static func pose_column(pose:String,frame:int)->int:
 		"blink":return 7
 		"sleep":return 8
 		"eat":return 9
+		"hurt":return 10
+		"recover":return 11
+		"defeat":return 12
+		"cast":return 13
 	return 0
 
 static func authored_cell(dir:int,pose:String,frame:int,mood:String="healthy")->Image:
 	var stride:int=0
 	if pose in ["walk","burst"]:stride=[0,2,0,-2][posmod(frame,4)]
 	elif pose=="attack":stride=2 if frame%2==0 else -2
+	elif pose=="recover":stride=-1
+	elif pose=="cast":stride=1
 	var im:Image
 	match dir:
 		4,5,6,7:
-			im=mosskit_diagonal(dir>=6,stride,pose,mood)
+			im=mosskit_diagonal(dir>=6,stride,pose,mood,frame)
 			if dir in [5,7]:im.flip_x()
 		1:im=mosskit_back(stride,mood)
 		2,3:
@@ -257,19 +296,23 @@ static func skin_cell(dir:int,pose:String,frame:int)->Image:
 			var tex:=load(SKIN_PATH) as Texture2D
 			if tex!=null:
 				var candidate:=tex.get_image()
-				if candidate!=null and (not candidate.is_compressed() or candidate.decompress()==OK) and candidate.get_width()==CELL*POSE_COLUMNS and candidate.get_height() in [CELL*4,CELL*8]:
+				if candidate!=null and (not candidate.is_compressed() or candidate.decompress()==OK) and candidate.get_width() in [CELL*POSE_COLUMNS,CELL*COMBAT_POSE_COLUMNS] and candidate.get_height() in [CELL*4,CELL*8]:
 					skin_image=candidate
-	if skin_image!=null and dir>=0 and dir<skin_image.get_height()/CELL:
-		return skin_image.get_region(Rect2i(pose_column(pose,frame)*CELL,dir*CELL,CELL,CELL))
+	var column:int=pose_column(pose,frame)
+	if skin_image!=null and dir>=0 and dir<skin_image.get_height()/CELL and column<skin_image.get_width()/CELL:
+		return skin_image.get_region(Rect2i(column*CELL,dir*CELL,CELL,CELL))
 	return authored_cell(dir,pose,frame)
 
-static func editable_atlas()->Image:
-	var sheet:=Image.create(CELL*POSE_COLUMNS,CELL*8,false,Image.FORMAT_RGBA8)
+static func editable_atlas(combat:bool=false)->Image:
+	var columns:int=COMBAT_POSE_COLUMNS if combat else POSE_COLUMNS
+	var sheet:=Image.create(CELL*columns,CELL*8,false,Image.FORMAT_RGBA8)
 	sheet.fill(Color.TRANSPARENT)
 	var poses=["idle","walk","walk","walk","walk","attack","attack","blink","sleep","eat"]
 	var frames=[0,0,1,2,3,0,1,0,0,0]
+	if combat:
+		poses.append_array(["hurt","recover","defeat","cast"]);frames.append_array([0,0,0,0])
 	for dir in range(8):
-		for column in range(POSE_COLUMNS):
+		for column in range(columns):
 			var cell:=skin_cell(dir,poses[column],frames[column])
 			sheet.blit_rect(cell,Rect2i(0,0,CELL,CELL),Vector2i(column*CELL,dir*CELL))
 	return sheet
@@ -381,7 +424,11 @@ static func animate_world_sprite(actor:Node3D,delta:Vector2,moving:bool,dt:float
 		sample=attack_pose_sample(attack_progress,attack_impact)
 		# The existing ten-column companion atlas has two authored attack cells.
 		# Keep the strike cell only during the strike window; recover to idle.
-		tex=adventure_frame(dir,"idle" if sample.phase=="recover" else "attack",int(sample.frame),mood)
+		var attack_pose:String="idle" if sample.phase=="recover" else "attack"
+		if dir>=4:
+			if sample.phase=="recover":attack_pose="recover"
+			elif sample.phase=="strike" and str(actor.get_meta("dungeon_cast_motion","cast")) in ["cast","focus","gesture","lash"]:attack_pose="cast"
+		tex=adventure_frame(dir,attack_pose,int(sample.frame),mood)
 		sprite.set_meta("attack_phase",sample.phase)
 	else:sprite.set_meta("attack_phase","")
 	ExternalFx.world_effect(actor,"heart-pickup",clock,state=="reward",float(sprite.get_meta("world_height"))*.75)

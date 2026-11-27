@@ -613,6 +613,40 @@ func run():
 		assert(completed==region+1,"no repeated completion")
 		dungeon.queue_free()
 		await process_frame
+	# Ponoko review: render the real dungeon and actual runtime companion for each octant.
+	var preview=Field.new();root.add_child(preview)
+	preview.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	preview.setup(0,1,0,false,true,943,0)
+	preview.set_process(false)
+	await frames()
+	var art=preload("res://pixel_pet_art.gd")
+	var actor:Node3D=preview.pet_pose
+	var sprite:Sprite3D=actor.get_node("PixelCompanion")
+	actor.set_meta("dungeon_grounded_gait",true)
+	var directions:Array=[Vector2i(1,1),Vector2i(-1,1),Vector2i(1,-1),Vector2i(-1,-1)]
+	var names:Array=["SE","SW","NE","NW"]
+	for i in range(4):
+		var direction:Vector2i=directions[i]
+		preview.facing=direction
+		preview._process(.016)
+		assert(sprite.get_meta("facing")==i+4)
+		await frames()
+		assert(root.get_texture().get_image().save_png("/tmp/dungeon-real-ponoko-"+str(names[i])+"-idle.png")==OK)
+		art.animate_world_sprite(actor,Vector2(direction),true,.15,"walk")
+		assert(sprite.get_meta("facing")==i+4 and sprite.get_meta("anim_state")=="walk")
+		await frames()
+		assert(root.get_texture().get_image().save_png("/tmp/dungeon-real-ponoko-"+str(names[i])+"-walk.png")==OK)
+		actor.set_meta("dungeon_cast_motion","cast")
+		art.animate_world_sprite(actor,Vector2(direction),false,.016,"attack",false,.52,.48)
+		assert(sprite.get_meta("facing")==i+4 and sprite.get_meta("attack_phase")=="strike")
+		await frames()
+		assert(root.get_texture().get_image().save_png("/tmp/dungeon-real-ponoko-"+str(names[i])+"-cast.png")==OK)
+		art.animate_world_sprite(actor,Vector2(direction),false,.016,"hurt")
+		assert(sprite.get_meta("anim_state")=="hurt")
+		await frames()
+		assert(root.get_texture().get_image().save_png("/tmp/dungeon-real-ponoko-"+str(names[i])+"-hurt.png")==OK)
+	print("PONOKO_DUNGEON_DIAGONAL_PASS 16")
+	preview.queue_free();await process_frame
 	# Test the lab on a separate expedition; the normal completion tests above remain unchanged.
 	var lab=Field.new();root.add_child(lab)
 	lab.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)

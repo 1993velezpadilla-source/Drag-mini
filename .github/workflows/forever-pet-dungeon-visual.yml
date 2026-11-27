@@ -4,6 +4,7 @@ on:
     branches: [feature/my-forever-pet-paradise, feature/my-forever-pet-landscape-staging]
     paths:
       - 'my-forever-pet/godot-arcade/dungeon*.gd'
+      - 'my-forever-pet/godot-arcade/pixel_pet_art.gd'
       - 'my-forever-pet/tests/dungeon_visual.gd'
       - 'my-forever-pet/tests/kindria_fx_audit.gd'
       - 'my-forever-pet/art/eos_move_audit.json'
@@ -33,6 +34,7 @@ jobs:
           cp my-forever-pet/godot-arcade/{dungeon_view,dungeon_rules,research_data,pixel_pet_art,pet_part_rig,pet_external_fx}.gd my-forever-pet/godot-arcade/volnox_pixel_life.gdshader my-forever-pet/tests/dungeon_visual.gd /tmp/dungeon-project/
           xvfb-run -a -s "-screen 0 720x1280x24" timeout 120 /tmp/godot/Godot_v4.4.1-stable_linux.x86_64 --path /tmp/dungeon-project --audio-driver Dummy --resolution 540x960 --script res://dungeon_visual.gd 2>&1 | tee /tmp/dungeon-visual.log
           grep -F 'FOREVER_DUNGEON_VIEW_PASS 3' /tmp/dungeon-visual.log
+          grep -F 'PONOKO_DUNGEON_DIAGONAL_PASS 16' /tmp/dungeon-visual.log
           ! grep -E 'SCRIPT ERROR|Parse Error' /tmp/dungeon-visual.log
       - name: Capture live combat, corridor and floor transition without removing enemies
         run: |

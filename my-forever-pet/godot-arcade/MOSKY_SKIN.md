@@ -16,3 +16,6 @@ wallpaper, adventure animations and Pet Dash rear frames. The current roster and
 system remain single-companion; future species activation is a separate change.
 
 Diagonal rows appended: southeast, southwest, northeast, northwest. Each row uses the original ten pose columns.
+
+## Ponoko combat preview
+The optional 672 × 384 combat atlas keeps the first ten columns unchanged and appends hurt, recover, defeat, cast. Original 480-pixel-wide sheets remain valid. Four diagonal rows are separately drawn from cardinal rows; left/right variants reflect the three-quarter drawing. The new pass does not change the existing cardinal art, enemies, saved IDs or wallpaper paths. Defeat is an available atlas pose, not a new death system.

@@ -182,7 +182,9 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: Mosky-editable-sprite-atlas
-          path: /tmp/mosky-sprite-atlas.png
+          path: |
+            /tmp/mosky-sprite-atlas.png
+            /tmp/ponoko-combat-atlas.png
           if-no-files-found: error
       - name: Capture actual 3D viewport
         id: visual
