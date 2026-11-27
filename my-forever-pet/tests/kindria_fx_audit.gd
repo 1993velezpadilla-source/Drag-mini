@@ -453,6 +453,15 @@ func run()->void:
 	if not body_sprite.scale.is_equal_approx(Vector3.ONE):errors.append("enemy body scale recovery")
 	body_actor.free()
 	print("KINDRIA_SHARED_BODY_RUNTIME_PASS")
+	# Shadows track the attack direction without floating with the body.
+	var ground_shadow:Dictionary=field.enemy_shadow_sample(Vector3.ZERO,0.0,0.0,1.0,false)
+	var jump_shadow:Dictionary=field.enemy_shadow_sample(Vector3(.3,.6,-.2),0.0,0.0,1.0,false)
+	var disguise_shadow:Dictionary=field.enemy_shadow_sample(Vector3.ZERO,.1,.6,1.45,true)
+	if not Vector3(jump_shadow.position).is_equal_approx(Vector3(.3,.035,-.2)):errors.append("jump shadow ground projection")
+	if float(jump_shadow.scale.x)>=float(ground_shadow.scale.x):errors.append("jump shadow altitude")
+	if absf(float(disguise_shadow.position.y)+.6-.035)>.001:errors.append("disguise shadow ground height")
+	if absf(float(disguise_shadow.scale.x)/float(disguise_shadow.scale.y)-1.15/.8)>.001:errors.append("wide shadow proportions")
+	print("KINDRIA_COMBAT_SHADOW_PASS")
 	# A cast created by path movement after the frame clock must start at zero age.
 	field.attack_time=.4
 	field.player_impact_delay=.2
