@@ -558,6 +558,32 @@ func run()->void:
 	field.run.shield_kind=saved_shield;field.run.shield_turns=saved_turns
 	for particle in field.combat_particles:particle.hide()
 	print("KINDRIA_SUPPORT_CONTACT_PASS 121")
+	# V12.1: aerial and open-hand impacts omitted from previous profiles.
+	var motion_cases:Dictionary={"eos_100":["wing","dive",1.12,"slash"],"eos_153":["wing","dive",0.91,"cloud"],"eos_205":["crest","bounce",1,"shock_ring"],"eos_179":["wing","sweep",0.83,"slash"],"eos_518":["wing","dive",1.2,"flame"],"eos_211":["beak","drill",1.02,"shards"],"eos_174":["beak","jab",0.65,"impact_star"],"eos_490":["beak","jab",0.75,"leaf"],"eos_178":["wing","sweep",0.88,"cloud"],"eos_244":["wing","sweep",1,"shards"],"eos_477":["crest","vanish",1.1,"smoke"],"eos_132":["crest","rush",1.05,"slash"],"eos_190":["crest","rush",0.68,"slash"],"eos_226":["palm","jab",0.65,"impact_star"],"eos_039":["palm","multi",0.72,"impact_star"],"eos_175":["palm","multi",0.82,"shock_ring"],"eos_531":["palm","sweep",0.85,"impact_star"],"eos_507":["palm","jab",1,"shock_ring"],"eos_068":["chop","down",0.8,"slash"],"eos_072":["chop","down",1.05,"shards"],"eos_090":["cross","down",1.05,"slash"],"eos_243":["crest","rush",1.18,"shock_ring"],"eos_440":["palm","rush",1.08,"impact_star"],"eos_170":["crest","toss",1.1,"shock_ring"],"eos_311":["beak","multi",0.74,"impact_star"],"eos_487":["palm","multi",0.83,"impact_star"],"eos_250":["palm","down",0.78,"impact_star"],"eos_432":["crest","rush",0.85,"drop"],"eos_451":["crest","vanish",0.78,"smoke"],"eos_498":["crest","rush",1.15,"flame"],"eos_502":["wing","sweep",0.8,"leaf"],"lib_fighting_1":["palm","jab",0.83,"shock_ring"],"alt_sylphowl":["wing","sweep",0.78,"slash"],"alt_lunamoth":["wing","sweep",0.9,"impact_star"]}
+	for move_id in motion_cases:
+		var art:Array=field.motion_contact_art(move_id)
+		assert(art==motion_cases[move_id])
+		assert(field.motion_contact_fx(move_id,punch_source,bite_position,0.0,0,Color.WHITE,Color.BLACK)==1)
+		var emblem:Sprite3D=field.combat_particles[0]
+		var initial:Vector3=emblem.position
+		assert(emblem.texture.get_width()==32 and emblem.texture.get_image().get_used_rect().size.x>0)
+		assert(is_equal_approx(emblem.pixel_size,.016))
+		assert(field.motion_contact_fx(move_id,punch_source,bite_position,.25,0,Color.WHITE,Color.BLACK)>=2)
+		assert(emblem.position.distance_to(initial)>.05)
+		assert(field.combat_particles[1].texture==field.combat_pixel_texture(str(art[3]),Color.WHITE,Color.BLACK))
+		assert(field.motion_contact_fx(move_id,punch_source,bite_position,.82,0,Color.WHITE,Color.BLACK)==0)
+		assert(field.motion_contact_fx(move_id,punch_source,bite_position,0.0,Field.FX_PARTICLE_CAP,Color.WHITE,Color.BLACK)==Field.FX_PARTICLE_CAP)
+		assert(field.combat_particles.size()==particle_count)
+		var p:Dictionary=field.combat_profile(move_id)
+		var burst:Dictionary={"id":move_id,"profile":p,"points":[special_source,bite_position],"results":{target:{"misses":1}}}
+		assert(field.element_finish_fx(burst,float(p.impact),0)==1)
+		burst.results={target:{"damage":8,"hits":1}}
+		for particle in field.combat_particles:particle.hide()
+		assert(field.element_finish_fx(burst,lerpf(float(p.impact),1.0,.25),0)>1)
+		await frames()
+		assert(root.get_texture().get_image().save_png("/tmp/effekseer-review/motion-"+move_id+".png")==OK)
+	for particle in field.combat_particles:particle.hide()
+	print("KINDRIA_MOTION_CONTACT_PASS 34")
 	var plan:Array=[
 		{"stage":"ally_invoke","anchor":"source","start":0.0,"end":.15,"enabled":true},
 		{"stage":"enemy_invoke","anchor":"source","start":0.0,"end":.15,"enabled":true},
