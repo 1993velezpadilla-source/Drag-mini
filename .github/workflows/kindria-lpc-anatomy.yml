@@ -1,0 +1,26 @@
+name: Kindria licensed anatomy library
+on:
+  push:
+    branches: [feature/my-forever-pet-paradise]
+    paths:
+      - 'my-forever-pet/art/import_lpc_anatomy.py'
+      - '.github/workflows/kindria-lpc-anatomy.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  import:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install Pillow==11.3.0
+      - run: python my-forever-pet/art/import_lpc_anatomy.py /tmp/kindria-lpc
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: Kindria-original-LPC-anatomy-preview
+          path: /tmp/kindria-lpc/
