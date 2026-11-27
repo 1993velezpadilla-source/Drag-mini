@@ -5484,7 +5484,7 @@ func native_identity_frame(id:String,frame:int,base:Image)->Image:
 	return im
 
 # V16.7: individually remastered after reviewing actual Godot PNG strips.
-const VISUAL_REMASTER_MOVES=["eos_504","eos_308","eos_135","eos_142","eos_047","eos_250","eos_299","eos_329","eos_262","eos_279","eos_101","eos_199","eos_251","eos_486","eos_462","eos_018","eos_507","eos_175","eos_254","eos_097","eos_163","eos_320","eos_033","eos_166","eos_228","eos_004","eos_252","eos_330","eos_465","eos_138","eos_021","eos_501","eos_053","eos_157","eos_064","eos_188","eos_240","eos_255","eos_342","eos_539"]
+const VISUAL_REMASTER_MOVES=["eos_504","eos_308","eos_135","eos_142","eos_047","eos_250","eos_299","eos_329","eos_262","eos_279","eos_101","eos_199","eos_251","eos_486","eos_462","eos_018","eos_507","eos_175","eos_254","eos_097","eos_163","eos_320","eos_033","eos_166","eos_228","eos_004","eos_252","eos_330","eos_465","eos_138","eos_021","eos_501","eos_053","eos_157","eos_064","eos_188","eos_240","eos_255","eos_342","eos_539","eos_041","eos_278","eos_538","eos_239","eos_193","eos_272","eos_519","eos_494"]
 func visual_remaster_frame(id:String,frame:int)->Image:
 	var im:=Image.create(48,48,false,Image.FORMAT_RGBA8)
 	im.fill(Color.TRANSPARENT)
@@ -6085,6 +6085,149 @@ func visual_remaster_frame(id:String,frame:int)->Image:
 					var a:float=float(j)*TAU/6.0
 					var axis:=Vector2(cos(a),sin(a))
 					fx_line(im,q+axis*4,q+axis*(8+6*(1.0-fade)),1.2,Color("#9ae5ee",fade))
+		"eos_041":
+			# Overheat: white-hot central sphere and turbulent solar corona.
+			var c:=Vector2(24,24)
+			var radius:float=3.0+13.0*drive+3.0*(1.0-fade)
+			fx_disc(im,c,radius,Color("#a52c18",.7*fade+.15))
+			fx_disc(im,c,radius*.74,Color("#ff7226",.85*fade+.12))
+			fx_disc(im,c,radius*.48,Color("#ffdc72",.85*fade+.12))
+			fx_disc(im,c,radius*.24,Color("#fffce0",.9*fade+.1))
+			for j in range(8):
+				var a:float=float(j)*TAU/8.0+t*2.2
+				var axis:=Vector2(cos(a),sin(a))
+				var q:=c+axis*radius*.86
+				fire_lobe(im,q,2.5+2.8*pulse,t+float(j)*.1,Color("#fff5ae",fade),Color("#ef501c",fade))
+				if t>=peak:
+					fx_line(im,c+axis*radius,c+axis*(radius+4),1.2,Color("#ffd281",fade))
+		"eos_278":
+			# Eruption: split ground vents, rising magma pillars and falling rock fragments.
+			for j in range(3):
+				var x:float=11.0+float(j)*13.0
+				var local:float=clampf(drive*1.3-float(j)*.1,0.0,1.0)
+				var h:float=4.0+25.0*local*fade
+				var foot:=Vector2(x,39)
+				fx_line(im,foot+Vector2(-5,1),foot+Vector2(5,1),2.1,Color("#873820",fade))
+				fx_line(im,foot,foot-Vector2(0,h),5.5,Color("#a52d17",fade))
+				fx_line(im,foot,foot-Vector2(0,h),3.4,Color("#ff7928",fade))
+				fx_line(im,foot,foot-Vector2(0,h),1.4,Color("#fff1a5",fade))
+				fire_lobe(im,foot-Vector2(0,h),3.0+2*pulse,t+float(j)*.18,Color("#fff0a3",fade),Color("#ed481b",fade))
+				for k in range(2):
+					var f:float=fposmod(t+float(k)*.35+float(j)*.12,1.0)
+					var q:=foot+Vector2((-1.0 if k==0 else 1.0)*6*f,-22*sin(f*PI))
+					earth_rock(im,q,2.2,Color("#f39a4b",fade),Color("#5f3526",fade))
+		"eos_538":
+			# Draco Meteor: staggered diagonal descent, glowing meteor cores and impact craters.
+			for j in range(5):
+				var f:float=clampf(t*1.45-float(j)*.12,0.0,1.0)
+				var landing:=Vector2(9+float(j%3)*14,35-float(j/3)*8)
+				var q:=landing+Vector2(-10,-31)*(1.0-f)
+				var a:float=1.0-smoothstep(.78,1.0,f)
+				fx_line(im,q-Vector2(5,12)*a,q,4.6,Color("#6947bf",a))
+				fx_line(im,q-Vector2(4,8)*a,q,2.6,Color("#e58df3",a))
+				fx_disc(im,q,4.7,Color("#7144b1",a))
+				fx_disc(im,q,3.2,Color("#f6a552",a))
+				fx_disc(im,q-Vector2(1,1),1.8,Color("#fff4c7",a))
+				if f>=.78:
+					var burst:float=clampf((f-.78)/.22,0.0,1.0)
+					var radius:float=3+7*burst
+					fx_disc(im,landing,radius,Color("#f3b3f4",1.0-burst),maxf(0.0,radius-1.4))
+					for k in range(4):
+						var angle:float=PI+float(k)*PI/3.0
+						var axis:=Vector2(cos(angle),sin(angle))
+						fx_line(im,landing+axis*3,landing+axis*(radius+4),1.2,Color("#ffe9af",1.0-burst))
+		"eos_239":
+			# Hydro Cannon: compression chamber followed by a dense high-pressure beam.
+			var c:=Vector2(8,24)
+			var head:=Vector2(10+29*drive,24)
+			var width:float=3.0+5.0*pulse
+			fx_disc(im,c,4.0+3.0*pulse,Color("#1a73b2",fade))
+			fx_disc(im,c,2.5+2.0*pulse,Color("#d2fbff",fade))
+			if drive>.1:
+				var tail:=Vector2(maxf(5.0,head.x-34.0*fade),24)
+				fx_line(im,tail,head,width+3,Color("#175d99",fade))
+				fx_line(im,tail,head,width,Color("#42c8f8",fade))
+				fx_line(im,tail,head,width*.48,Color("#f0ffff",fade))
+				for j in range(5):
+					var q:=tail.lerp(head,float(j)/4.0)
+					fx_line(im,q+Vector2(-2,-width),q+Vector2(2,width),1.2,Color("#90eaff",fade))
+				for j in range(7):
+					var a:float=-PI*.7+float(j)*PI*1.4/6.0
+					var axis:=Vector2(cos(a),sin(a))
+					var q:=head+axis*(5+8*(1.0-fade))
+					water_drop(im,q,1.8+1.2*pulse,Color("#d8fbff",fade),Color("#328cd1",fade))
+		"eos_193":
+			# Zap Cannon: charged electric sphere and independently flickering branches.
+			var q:=Vector2(9+26*drive,24)
+			var radius:float=4.5+4.0*pulse
+			fx_disc(im,q,radius,Color("#286ccc",fade))
+			fx_disc(im,q,radius*.72,Color("#52c6f2",fade))
+			fx_disc(im,q,radius*.43,Color("#fff899",fade))
+			fx_disc(im,q,radius*.22,Color("#ffffff",fade))
+			for j in range(7):
+				var a:float=float(j)*TAU/7.0+t*3
+				var axis:=Vector2(cos(a),sin(a))
+				var u:=q+axis*radius
+				var v:=u+axis*3+Vector2(-axis.y,axis.x)*sin(t*20+float(j))*3
+				var w:=q+axis*(radius+5+5*(1.0-fade))
+				fx_line(im,u,v,2.0,Color("#91eaff",fade))
+				fx_line(im,v,w,1.1,Color("#fff3a1",fade))
+			if t>=peak:
+				var ring:float=radius+4+6*(1.0-fade)
+				fx_disc(im,q,ring,Color("#d9fbff",fade),ring-1.2)
+		"eos_272":
+			# Blast Burn: expanding concentric flame front rather than a static fire cluster.
+			var c:=Vector2(24,24)
+			var radius:float=4.0+15.0*drive+2.0*(1.0-fade)
+			fx_disc(im,c,radius,Color("#b13c17",.7*fade),maxf(0.0,radius-4))
+			fx_disc(im,c,radius-1.0,Color("#ffbd43",fade),maxf(0.0,radius-2.6))
+			for j in range(10):
+				var a:float=float(j)*TAU/10.0+t*.8
+				var axis:=Vector2(cos(a),sin(a))
+				var q:=c+axis*(radius-2.0)
+				fire_lobe(im,q,2.7+2.1*pulse,t+float(j)*.12,Color("#fff0a0",fade),Color("#f2541d",fade))
+				fx_line(im,c+axis*radius*.45,q,1.2,Color("#ffb347",fade*pulse))
+			if t>=peak:
+				fx_disc(im,c,5.0,Color("#fff3c3",fade))
+		"eos_519":
+			# Lava Plume: broad low molten pool with staggered bubbling arcs.
+			var c:=Vector2(24,35)
+			var span:float=5.0+15.0*drive
+			for j in range(-3,4):
+				var y:float=float(j)
+				var w:float=span*(1.0-absf(y)/6.0)
+				fx_line(im,c+Vector2(-w,y),c+Vector2(w,y),1.4,Color("#ad391e",fade))
+				fx_line(im,c+Vector2(-w*.85,y),c+Vector2(w*.85,y),.9,Color("#ff882c",fade))
+			for j in range(6):
+				var f:float=fposmod(t+float(j)*.16,1.0)
+				var q:=c+Vector2((float(j)-2.5)*span*.35+sin(f*TAU)*3,-(8+float(j%3)*5)*sin(f*PI))
+				fx_line(im,Vector2(q.x,35),q,2.1,Color("#ef5d20",fade*.8))
+				fx_disc(im,q,2.5+float(j%2),Color("#ffbf4a",fade))
+				fx_disc(im,q-Vector2(1,1),1.2,Color("#fff4bb",fade))
+		"eos_494":
+			# Roar of Time: rotating clock seal, time fracture and room-scale shock ring.
+			var c:=Vector2(24,24)
+			var radius:float=9.0+5.0*drive
+			fx_disc(im,c,radius,Color("#6551b9",fade),radius-2.2)
+			fx_disc(im,c,radius-1.0,Color("#a8ddff",fade),radius-1.9)
+			for j in range(12):
+				var a:float=float(j)*TAU/12.0-PI/2
+				var axis:=Vector2(cos(a),sin(a))
+				fx_line(im,c+axis*(radius-4),c+axis*(radius-1),1.2,Color("#c5eaff",fade))
+			var a:float=t*TAU*2.0-PI/2
+			var axis:=Vector2(cos(a),sin(a))
+			var slow_axis:=Vector2(cos(a*.3),sin(a*.3))
+			fx_line(im,c,c+axis*(radius-3),1.6,Color("#fff2b9",fade))
+			fx_line(im,c,c+slow_axis*(radius*.55),2.0,Color("#d6c0ff",fade))
+			fx_disc(im,c,2.3,Color("#efffff",fade))
+			if t>=peak:
+				var ring:float=radius+6*(1.0-fade)
+				fx_disc(im,c,ring,Color("#b9f2ff",fade),ring-1.0)
+				for j in range(6):
+					var angle:float=float(j)*TAU/6.0+t
+					var v:=Vector2(cos(angle),sin(angle))
+					var q:=c+v*(radius*.8)
+					fx_line(im,q,q+v*(5+4*(1.0-fade)),1.3,Color("#d8c7ff",fade))
 	return im
 
 func combat_frame_image(id:String,frame:int)->Image:
