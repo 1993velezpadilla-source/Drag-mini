@@ -174,6 +174,26 @@ func run_checks()->void:
 	impact_burst.results={Vector2i(1,0):{"damage":0,"misses":1}}
 	if view.resolve_element_impact(impact_burst).kind!="miss":failures.append("explicit miss overridden by aggregate damage")
 	checks+=6
+	# All status contracts select a nonempty semantic glyph.
+	var status_count:int=0
+	for id in Dungeon.Rules.MOVE_LIBRARY:
+		var move:Dictionary=Dungeon.Rules.MOVE_LIBRARY[id]
+		if str(move.category)!="status":continue
+		status_count+=1
+		var kind:String=view.status_finish_kind(move)
+		if not Dungeon.STATUS_FINISH_STYLE.has(kind):
+			failures.append("missing status finish: "+str(id))
+			continue
+		var style:Array=Dungeon.STATUS_FINISH_STYLE[kind]
+		var texture:=view.combat_pixel_texture(str(style[0]),Color(style[1]),Color(style[2]))
+		if texture==null or not texture.get_image().get_used_rect().has_area():failures.append("empty status glyph: "+str(id))
+		checks+=1
+	if status_count!=177:failures.append("status catalog changed")
+	if view.status_finish_kind({"category":"status","stat_changes":{"attack":2}})!="boost":failures.append("boost classification")
+	if view.status_finish_kind({"category":"status","stat_changes":{"defense":-1}})!="weaken":failures.append("weaken classification")
+	if view.status_finish_kind({"category":"status","heal_fraction":.5})!="heal":failures.append("heal classification")
+	if view.status_finish_kind({"category":"status","shield_kind":"protect"})!="shield":failures.append("shield classification")
+	checks+=4
 	var home:=Home.new()
 	home.free()
 	view.free()
