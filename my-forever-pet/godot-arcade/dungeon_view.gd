@@ -5484,7 +5484,7 @@ func native_identity_frame(id:String,frame:int,base:Image)->Image:
 	return im
 
 # V16.7: individually remastered after reviewing actual Godot PNG strips.
-const VISUAL_REMASTER_MOVES=["eos_504","eos_308","eos_135","eos_142","eos_047","eos_250","eos_299","eos_329","eos_262","eos_279","eos_101","eos_199","eos_251","eos_486","eos_462","eos_018","eos_507","eos_175","eos_254","eos_097","eos_163","eos_320","eos_033","eos_166","eos_228","eos_004","eos_252","eos_330","eos_465","eos_138","eos_021","eos_501"]
+const VISUAL_REMASTER_MOVES=["eos_504","eos_308","eos_135","eos_142","eos_047","eos_250","eos_299","eos_329","eos_262","eos_279","eos_101","eos_199","eos_251","eos_486","eos_462","eos_018","eos_507","eos_175","eos_254","eos_097","eos_163","eos_320","eos_033","eos_166","eos_228","eos_004","eos_252","eos_330","eos_465","eos_138","eos_021","eos_501","eos_053","eos_157","eos_064","eos_188","eos_240","eos_255","eos_342","eos_539"]
 func visual_remaster_frame(id:String,frame:int)->Image:
 	var im:=Image.create(48,48,false,Image.FORMAT_RGBA8)
 	im.fill(Color.TRANSPARENT)
@@ -5939,6 +5939,152 @@ func visual_remaster_frame(id:String,frame:int)->Image:
 					fx_disc(im,mote,2.3,Color("#ae7848",fade))
 					fx_line(im,q+Vector2(0,3),mote,1.1,Color("#805335",.65*fade))
 				fx_line(im,q+Vector2(-11,7),q+Vector2(11,7),2.0,Color("#b98a59",fade))
+		"eos_053":
+			# Flamethrower: connected expanding flame jet with hot core and cinders.
+			var head:=Vector2(9+28*drive,24)
+			var tail:=Vector2(maxf(5.0,head.x-29.0*fade),24)
+			for j in range(1,11):
+				var f:float=float(j)/10.0
+				var g:float=float(j-1)/10.0
+				var a:=tail.lerp(head,g)+Vector2(0,sin(g*TAU-t*8.0)*2)
+				var v:=tail.lerp(head,f)+Vector2(0,sin(f*TAU-t*8.0)*2)
+				fx_line(im,a,v,2.0+5.0*f,Color("#a72d14",.8+.2*fade))
+				fx_line(im,a,v,1.5+3.4*f,Color("#fa681c"))
+				fx_line(im,a,v,.8+1.7*f,Color("#fff1a1"))
+			for j in range(4):
+				var q:=head+Vector2(-float(j)*3.0,sin(float(j)*2.4+t*TAU)*(4.0+2.0*pulse))
+				fire_lobe(im,q,3.8+2.5*pulse,t+float(j)*.19,Color("#fff5b3"),Color("#ff7626"))
+			for j in range(6):
+				var q:=head+Vector2(-float(j)*4.0,(-1.0 if j%2==0 else 1.0)*(6+float(j%3)*3))
+				fx_disc(im,q,1.2,Color("#ffc75d",.25+.65*fade))
+		"eos_157":
+			# Fire Blast: contracting ignition, five-pronged fire seal, explosive expansion.
+			var q:=Vector2(13+13*drive,24)
+			var radius:float=4.0+9.0*drive+3.0*(1.0-fade)
+			fx_disc(im,q,5.5+2.5*pulse,Color("#a63016",.45+.55*fade))
+			fx_disc(im,q,3.8+2.0*pulse,Color("#ff982c"))
+			for j in range(5):
+				var a:float=-PI/2.0+float(j)*TAU/5.0
+				var axis:=Vector2(cos(a),sin(a))
+				var tip:=q+axis*radius
+				fx_line(im,q,tip,3.6,Color("#c4411b",.5+.5*fade))
+				fx_line(im,q,tip,1.8,Color("#ffd267",.5+.5*fade))
+				fire_lobe(im,tip,3.3+2.0*pulse,t+float(j)*.13,Color("#fff3a3"),Color("#ef4d1b"))
+				if t>=peak:
+					fx_disc(im,q+axis*(radius+4.0),1.5,Color("#ffd17a",fade))
+			fx_disc(im,q,2.7,Color("#fff9d5"))
+		"eos_064":
+			# Thunder: overhead branching strike, white flash, ground electricity.
+			var impact_point:=Vector2(24,36)
+			var fall:float=clampf(t/maxf(peak,.01),0.0,1.0)
+			var previous:=Vector2(22,3)
+			for j in range(1,9):
+				var f:float=float(j)/8.0
+				if f<=fall+.13:
+					var q:=Vector2(24+sin(float(j)*2.9+t*19.0)*5.2*(1.0-f),3+33*f)
+					fx_line(im,previous,q,3.5,Color("#428bfa",.45+.55*fade))
+					fx_line(im,previous,q,1.8,Color("#fcf99d",.5+.5*fade))
+					fx_line(im,previous,q,.8,Color("#ffffff",.6+.4*fade))
+					if j%2==0:
+						fx_line(im,q,q+Vector2((-1.0 if j%4==0 else 1.0)*9,5),1.0,Color("#8ddcff",fade))
+					previous=q
+			if t>=peak:
+				var radius:float=4+13*(1.0-fade)
+				fx_disc(im,impact_point,4.8,Color("#fff9d0",fade))
+				for j in range(6):
+					var a:float=PI+float(j)*PI/5.0
+					var axis:=Vector2(cos(a),sin(a))
+					fx_line(im,impact_point+axis*3,impact_point+axis*radius,1.4,Color("#fff39a",fade))
+					fx_disc(im,impact_point+axis*radius,1.2,Color("#a8e5ff",fade))
+		"eos_188":
+			# Thunder Shock: short traveling jagged spark, no overhead strike.
+			var head:=Vector2(9+27*drive,24)
+			var tail:=Vector2(maxf(4.0,head.x-21.0*fade),24)
+			var previous:=tail
+			for j in range(1,8):
+				var f:float=float(j)/7.0
+				var q:=tail.lerp(head,f)+Vector2(0,(-1.0 if j%2==0 else 1.0)*(2.0+2.4*pulse)*sin(f*PI))
+				fx_line(im,previous,q,2.2,Color("#4b9bf1",.6+.4*fade))
+				fx_line(im,previous,q,1.0,Color("#fffaad"))
+				if j%3==0:fx_line(im,q,q+Vector2(-3,(-1.0 if j%2==0 else 1.0)*5),.9,Color("#c5edff",fade))
+				previous=q
+			fx_disc(im,head,3.2,Color("#7bcfff",.6+.4*fade))
+			fx_disc(im,head,1.8,Color("#fffbd1"))
+			if t>=peak:
+				for j in range(4):
+					var a:float=float(j)*TAU/4.0+t
+					var axis:=Vector2(cos(a),sin(a))
+					fx_line(im,head+axis*3,head+axis*(6+5*(1.0-fade)),1.0,Color("#fff2a1",fade))
+		"eos_240":
+			# Hydro Pump: broad pressurized connected torrent, white foam and spray.
+			var head:=Vector2(10+26*drive,24)
+			var tail:=Vector2(maxf(4.0,head.x-29.0*fade),24)
+			for j in range(1,13):
+				var f:float=float(j)/12.0
+				var g:float=float(j-1)/12.0
+				var a:=tail.lerp(head,g)+Vector2(0,sin(g*TAU-t*9.0)*2.2)
+				var v:=tail.lerp(head,f)+Vector2(0,sin(f*TAU-t*9.0)*2.2)
+				fx_line(im,a,v,3.8+6.0*f,Color("#176396"))
+				fx_line(im,a,v,2.6+4.0*f,Color("#38bce9"))
+				fx_line(im,a-Vector2(0,1),v-Vector2(0,1),1.1+1.5*f,Color("#d9faff"))
+			for j in range(5):
+				var q:=head+Vector2(-float(j)*2.5,sin(float(j)*2.2+t*TAU)*5.5)
+				water_drop(im,q,3.0+2*pulse,Color("#c9f7ff"),Color("#2998d1"))
+			for j in range(8):
+				var a:float=-PI*.65+float(j)*PI*1.3/7.0
+				var axis:=Vector2(cos(a),sin(a))
+				var q:=head+axis*(4+6*pulse+3*(1.0-fade))
+				fx_disc(im,q,1.3+float(j%2)*.5,Color("#bcefff",.3+.7*fade))
+		"eos_255":
+			# Bubblebeam: staggered transparent spheres, refraction and popping rims.
+			for j in range(5):
+				var f:float=clampf(drive*1.27-float(j)*.13,0.0,1.0)
+				var q:=Vector2(7+29*f,24+sin(float(j)*2.4+t*TAU)*5.5)
+				var radius:float=2.8+float(j%3)*1.1+1.1*pulse
+				fx_disc(im,q,radius,Color("#2a92d6",.4+.3*fade),radius-1.3)
+				fx_disc(im,q,radius-1.3,Color("#74d7fa",.19+.12*fade))
+				fx_disc(im,q-Vector2(radius*.4,radius*.4),1.2,Color("#f2ffff"))
+				fx_disc(im,q+Vector2(radius*.4,radius*.35),.9,Color("#a9f3ff"))
+				if t>=peak:
+					for k in range(3):
+						var a:float=float(k)*TAU/3.0+t
+						fx_disc(im,q+Vector2(cos(a),sin(a))*(radius+5*(1.0-fade)),1.0,Color("#ddfbff",fade))
+		"eos_342":
+			# Dragonbreath: layered violet and teal flame stream with draconic wisps.
+			var head:=Vector2(11+24*drive,24)
+			var tail:=Vector2(maxf(5.0,head.x-25.0*fade),24)
+			for j in range(1,12):
+				var f:float=float(j)/11.0
+				var g:float=float(j-1)/11.0
+				var a:=tail.lerp(head,g)+Vector2(0,sin(g*TAU-t*6.0)*3.0)
+				var v:=tail.lerp(head,f)+Vector2(0,sin(f*TAU-t*6.0)*3.0)
+				fx_line(im,a,v,2.4+4.0*f,Color("#49357e"))
+				fx_line(im,a,v,1.5+3.0*f,Color("#9f6edf"))
+				fx_line(im,a,v,.8+1.2*f,Color("#b5fff0"))
+			for j in range(4):
+				var q:=head+Vector2(-float(j)*3.0,sin(t*TAU+float(j)*2.0)*5.0)
+				fire_lobe(im,q,3.4+1.8*pulse,t+float(j)*.15,Color("#bbfff0"),Color("#9156d6"))
+				fx_disc(im,q+Vector2(-4,-5),1.1,Color("#a0e5d5",.4+.6*fade))
+		"eos_539":
+			# Dragon Pulse: traveling energy wavefronts with bright compressed centers.
+			for j in range(3):
+				var f:float=clampf(drive*1.25-float(j)*.20,0.0,1.0)
+				var q:=Vector2(9+25*f,24)
+				var radius:float=4.0+7.0*f
+				for k in range(1,15):
+					var a:float=float(k-1)*TAU/14.0
+					var v:float=float(k)*TAU/14.0
+					var u:=q+Vector2(cos(a)*radius*.42,sin(a)*radius)
+					var w:=q+Vector2(cos(v)*radius*.42,sin(v)*radius)
+					fx_line(im,u,w,2.2,Color("#6542b1",.6+.4*fade))
+					fx_line(im,u,w,.9,Color("#b9f8ff",.6+.4*fade))
+				fx_disc(im,q,2.0+1.2*pulse,Color("#d2c6ff",.6+.4*fade))
+			if t>=peak:
+				var q:=Vector2(34,24)
+				for j in range(6):
+					var a:float=float(j)*TAU/6.0
+					var axis:=Vector2(cos(a),sin(a))
+					fx_line(im,q+axis*4,q+axis*(8+6*(1.0-fade)),1.2,Color("#9ae5ee",fade))
 	return im
 
 func combat_frame_image(id:String,frame:int)->Image:
