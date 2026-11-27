@@ -14351,6 +14351,7 @@ func combat_sound(id:String,phase:String,variant:int)->AudioStreamWAV:
 		slow_noise=lerpf(slow_noise,noise,.045)
 		var envelope:float=combat_audio_envelope(float(i)/maxi(1,samples-1),phase)
 		var wave:float=0.0
+		# V19.6: separate elemental materials rather than recoloring one oscillator.
 		match element:
 			"electric":
 				var gate:float=.30+.70*float(posmod(int(t*170.0)+seed_value%13,5)<3)
@@ -14359,19 +14360,37 @@ func combat_sound(id:String,phase:String,variant:int)->AudioStreamWAV:
 				wave=sin(TAU*pitch*(310.0*t+720.0*t*t)+sin(TAU*37.0*t)*2.5)*.48+last_noise*.23
 				wave*=.45+.55*absf(sin(TAU*13.0*t))
 			"fire":
-				wave=last_noise*.85+noise*.19+sin(TAU*78.0*t*pitch)*.14
-				wave*=.65+.35*absf(sin(t*TAU*19.0))
-			"grass","bug":
-				wave=(noise-last_noise)*.43+sin(TAU*pitch*(680.0*t-620.0*t*t))*.22
-			"ground","rock","steel":
-				wave=sin(TAU*pitch*(94.0*t-85.0*t*t))*.62+last_noise*.55
-				if element=="steel":wave+=sin(TAU*1080.0*t*pitch)*.24
+				wave=(last_noise*.85+noise*.19+sin(TAU*78.0*t*pitch)*.14)*(.65+.35*absf(sin(t*TAU*19.0)))
+			"grass":
+				wave=(noise-last_noise)*.43*(.35+.65*sin(p*PI))+sin(TAU*pitch*(680.0*t-620.0*t*t))*.22
+			"bug":
+				var trill:float=pow(absf(sin(TAU*42.0*t)),3.0)
+				wave=(sin(TAU*1850.0*t*pitch)*.30+(noise-last_noise)*.37)*trill+last_noise*.13
+			"ground":
+				wave=sin(TAU*pitch*(94.0*t-85.0*t*t))*.62+slow_noise*.78+last_noise*.25
+			"rock":
+				var grit:float=.3+.7*pow(absf(sin(p*TAU*3.0)),4.0)
+				wave=sin(TAU*pitch*(160.0*t-85.0*t*p))*.35+(noise-last_noise)*.46*grit+last_noise*.42
+			"steel":
+				wave=sin(TAU*610.0*t*pitch)*.32+sin(TAU*1437.0*t*pitch)*.24+sin(TAU*2371.0*t*pitch)*.13+(noise-last_noise)*.14*pow(1.0-p,3.0)
 			"ice":
-				wave=sin(TAU*1480.0*t*pitch)*.26+sin(TAU*2230.0*t)*.17+noise*.27
-			"psychic","fairy","ghost","dragon","dark":
-				wave=sin(TAU*pitch*(420.0*t+120.0*t*t)+sin(TAU*21.0*t)*1.8)*.40+sin(TAU*880.0*t*pitch)*.18+last_noise*.14
+				wave=sin(TAU*1480.0*t*pitch)*.26+sin(TAU*2230.0*t)*.17+noise*.27*pow(1.0-p,2.0)
+			"psychic":
+				wave=sin(TAU*pitch*(420.0*t+120.0*t*t)+sin(TAU*21.0*t)*1.8)*.43+sin(TAU*880.0*t*pitch)*.18+last_noise*.10
+			"fairy":
+				wave=sin(TAU*660.0*t*pitch)*.28+sin(TAU*990.0*t*pitch)*.18+sin(TAU*1320.0*t*pitch)*.13+sin(TAU*1980.0*t*pitch)*.09
+			"ghost":
+				wave=sin(TAU*pitch*(390.0*t-180.0*t*p)+sin(TAU*7.0*t)*2.3)*.39+sin(TAU*211.0*t*pitch)*.17+last_noise*.21
+			"dragon":
+				wave=sin(TAU*pitch*(92.0*t-32.0*t*p)+sin(TAU*47.0*t)*1.7)*.48+sin(TAU*184.0*t*pitch)*.19+slow_noise*.46
+			"dark":
+				wave=sin(TAU*pitch*(115.0*t-52.0*t*p)+sin(TAU*23.0*t)*1.3)*.43+slow_noise*.47+(noise-last_noise)*.12
 			"poison":
 				wave=sin(TAU*pitch*(170.0*t+300.0*t*t)+sin(TAU*33.0*t)*3.0)*.42+last_noise*.33
+			"flying":
+				wave=(noise-last_noise)*.34*sin(p*PI)+last_noise*.52+sin(TAU*pitch*(940.0*t-620.0*t*p))*.18
+			"fighting":
+				wave=sin(TAU*pitch*(145.0*t-70.0*t*p))*.51*pow(1.0-p,1.4)+(noise-last_noise)*.28
 			_:
 				wave=last_noise*.53+sin(TAU*pitch*(185.0*t-155.0*t*t))*.43
 		# A second, authored acoustic layer separates attacks within each nature.
@@ -14379,13 +14398,24 @@ func combat_sound(id:String,phase:String,variant:int)->AudioStreamWAV:
 		var strike:bool=phase=="impact"
 		var sweep:float=sin(TAU*pitch*(780.0*t-560.0*t*p))
 		match form:
-			"punch","kick","thump":
-				accent=sin(TAU*pitch*(125.0*t-65.0*t*p))*pow(1.0-p,2.0)*.64+(noise-last_noise)*.22
-				if form=="kick":accent+=last_noise*.30*sin(p*PI)
-			"fang","crunch","pincer":
-				var snap:float=pow(maxf(0.0,cos(p*TAU*(2.0 if form=="crunch" else 1.0))),5.0)
-				accent=(noise-last_noise)*snap*.66+sin(TAU*170.0*t*pitch)*snap*.28
-			"claw","slice","wind":accent=(noise-last_noise)*(.35+.25*sin(p*PI))+sweep*.20
+			"punch","thump":
+				accent=sin(TAU*pitch*(125.0*t-65.0*t*p))*pow(1.0-p,2.0)*.64+(noise-last_noise)*.32*pow(1.0-p,4.0)
+			"kick":
+				accent=sin(TAU*pitch*(88.0*t-38.0*t*p))*pow(1.0-p,1.7)*.66+last_noise*.34*sin(p*PI)+(noise-last_noise)*.18
+			"fang":
+				var snap:float=exp(-pow((p-.16)/.09,2.0))
+				accent=(noise-last_noise)*snap*.78+sin(TAU*220.0*t*pitch)*snap*.26
+			"crunch":
+				var snap:float=exp(-pow((p-.12)/.09,2.0))+.72*exp(-pow((p-.40)/.14,2.0))
+				accent=(noise-last_noise)*snap*.60+sin(TAU*105.0*t*pitch)*snap*.48+last_noise*.28
+			"pincer":
+				var snap:float=exp(-pow((p-.15)/.065,2.0))+.65*exp(-pow((p-.28)/.065,2.0))
+				accent=(noise-last_noise)*snap*.55+sin(TAU*1550.0*t*pitch)*snap*.28
+			"claw":
+				accent=(noise-last_noise)*(.32+.30*absf(sin(p*TAU*2.0)))+sweep*.23
+			"slice":
+				accent=(noise-last_noise)*.49*sin(p*PI)+sin(TAU*pitch*(1450.0*t-880.0*t*p))*.25
+			"wind":accent=last_noise*.56*sin(p*PI)+sweep*.17
 			"detonation","shockwave","rumble","stone":
 				accent=slow_noise*.85+sin(TAU*pitch*(72.0*t-32.0*t*p))*.55*pow(1.0-p,1.8)
 			"implosion","void":accent=sin(TAU*pitch*(180.0*t+640.0*t*p))*.42+slow_noise*.35
@@ -14400,7 +14430,7 @@ func combat_sound(id:String,phase:String,variant:int)->AudioStreamWAV:
 		wave=wave*.60+accent*(.85 if strike else .62)
 		if strike:wave+=sin(TAU*95.0*t*pitch)*.17*pow(1.0-p,2.0)
 		elif phase=="miss":wave=(noise-last_noise)*.34+sweep*.12
-		elif phase=="status":wave=sin(TAU*520.0*t*pitch)*.32+sin(TAU*780.0*t*pitch)*.24+wave*.22
+		elif phase=="status":wave=sin(TAU*520.0*t*pitch)*.20+sin(TAU*780.0*t*pitch)*.14+wave*.55
 		# Smooth saturation, with exact silent endpoints to avoid PCM clicks.
 		var signal_value:float=wave*envelope*.85
 		var pcm:int=roundi(clampf(signal_value/(1.0+absf(signal_value)*.35),-.95,.95)*32767.0)
