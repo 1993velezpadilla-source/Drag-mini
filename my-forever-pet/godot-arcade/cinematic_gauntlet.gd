@@ -245,6 +245,28 @@ func run_checks()->void:
 				failures.append("empty physical contact icon: "+str(id))
 			checks+=1
 	# Each projectile reaches the actual path endpoint, even on bent routes.
+	# Cached routes must reproduce the original distance-weighted interpolation.
+	var route_rng:=RandomNumberGenerator.new()
+	route_rng.seed=218
+	for trial in range(64):
+		var route_points:Array=[Vector3.ZERO]
+		for k in range(1+trial%8):
+			var last:Vector3=route_points[-1]
+			route_points.append(last if k%3==0 else last+Vector3(route_rng.randf_range(-3,3),route_rng.randf_range(-1,1),route_rng.randf_range(-3,3)))
+		var metrics:=view.combat_path_metrics(route_points)
+		var builds:int=view.fx_path_metrics_builds
+		for k in range(33):
+			var t:float=float(k)/32.0
+			var cached:=view.combat_path_sample(route_points,t,metrics)
+			var expected:=view.combat_path_sample(route_points,t)
+			if cached.distance_to(expected)>.000001:failures.append("V21.8 path parity")
+			if view.combat_path_prefix(route_points,t,metrics)!=view.combat_path_prefix(route_points,t):failures.append("V21.8 path prefix parity")
+			checks+=2
+		if view.fx_path_metrics_builds<=builds:failures.append("V21.8 fallback path test")
+		builds=view.fx_path_metrics_builds
+		for k in range(33):view.combat_path_sample(route_points,float(k)/32.0,metrics)
+		if view.fx_path_metrics_builds!=builds:failures.append("V21.8 cached path rebuild")
+		checks+=2
 	var route:Array=[Vector3(0,.5,0),Vector3(1.4,.5,0),Vector3(1.4,.5,2.8)]
 	for id in Dungeon.PROJECTILE_IDENTITY:
 		if not catalog.has(id):failures.append("unknown projectile: "+str(id))
