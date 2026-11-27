@@ -1987,6 +1987,116 @@ func water_sprite(im:Image,role:String,frame:int)->void:
 				var y:float=4.0+fposmod(float(i)*11.0+t*36.0,38.0)
 				if role=="water_rain":fx_line(im,Vector2(x,y),Vector2(x-2,y+6),1.4,light)
 				else:fx_disc(im,Vector2(x,y),4.0+sin(t*PI)*3.0,Color(light,.55))
+# Plant effects share only drawing primitives, not completed move frames.
+func grass_leaf(im:Image,center:Vector2,angle:float,length:float,light:Color,dark:Color)->void:
+	var direction:=Vector2(cos(angle),sin(angle))
+	var tip:=center+direction*length
+	var side:=Vector2(-direction.y,direction.x)
+	for n in range(1,7):
+		var f:float=float(n)/7.0
+		var q:=center+direction*length*f
+		var w:float=sin(f*PI)*length*.24
+		fx_line(im,q-side*w,q+side*w,1.5,dark)
+		fx_line(im,q,q+side*w,1.0,light)
+	fx_line(im,center,tip,1.0,light)
+
+func grass_sprite(im:Image,role:String,frame:int)->void:
+	var t:float=float(frame)/11.0
+	var center:=Vector2(24,24)
+	var light:=Color("#b9ef77");var dark:=Color("#287b46")
+	match role:
+		"grass_absorb","grass_mega","grass_giga":
+			var strength:int=1 if role=="grass_absorb" else 2 if role=="grass_mega" else 3
+			for i in range(strength+2):
+				var f:float=fposmod(float(i)/float(strength+2)+t,1.0)
+				var q:=Vector2(42.0-36.0*f,24.0+sin(f*TAU+float(i))*float(2+strength*2))
+				fx_disc(im,q,2.0+float(strength),dark)
+				fx_disc(im,q,1.0+float(strength),light)
+				if strength==3:grass_leaf(im,q,PI+f,.9+float(strength)*2.0,light,dark)
+		"grass_vine","grass_whip","grass_needle":
+			var count:int=2 if role=="grass_whip" else 1
+			for k in range(count):
+				var last:=Vector2(3,24+float(k)*5)
+				for j in range(1,19):
+					var f:float=float(j)/18.0
+					var q:=Vector2(3+f*(12.0+sin(t*PI)*29.0),24+sin(f*TAU*1.5-t*TAU)*float(3+count*2)+float(k)*5)
+					fx_line(im,last,q,4.0 if count==2 else 2.8,dark);fx_line(im,last,q,1.2,light)
+					if j%4==0:
+						if role=="grass_needle":fx_line(im,q,q+Vector2(-3,-8 if j%8==0 else 8),2.0,light)
+						else:grass_leaf(im,q,-1.8 if j%8==0 else 1.8,6.0,light,dark)
+					last=q
+		"grass_solar":
+			var radius:float=5.0+sin(t*PI)*5.0
+			fx_disc(im,Vector2(7,24),radius,Color("#ffe886"))
+			fx_line(im,Vector2(7,24),Vector2(44,24),radius*.85,Color("#f9d34e"))
+			fx_line(im,Vector2(7,24),Vector2(44,24),radius*.40,Color.WHITE)
+		"grass_frenzy","grass_roots","grass_knot":
+			var count:int=5 if role=="grass_frenzy" else 3 if role=="grass_roots" else 2
+			for i in range(count):
+				var x:float=7.0+float(i)*34.0/float(count-1)
+				var last:=Vector2(x,43)
+				for j in range(1,12):
+					var f:float=float(j)/11.0
+					var q:=Vector2(x+sin(f*TAU*1.3+t*TAU)*float(3+i%2*2),43.0-f*(13+sin(t*PI)*23.0))
+					fx_line(im,last,q,3.4,dark);fx_line(im,last,q,1.2,light)
+					if j%3==0:grass_leaf(im,q,PI if i%2==0 else 0.0,7.0,light,dark)
+					last=q
+			if role=="grass_knot":fx_disc(im,center,8.0+t*3.0,light,6.0+t*3.0)
+		"grass_razor","grass_magic","grass_storm","grass_blade","grass_petal":
+			var count:int=4 if role=="grass_razor" else 5 if role=="grass_magic" else 10 if role=="grass_storm" else 3 if role=="grass_blade" else 8
+			for i in range(count):
+				var f:float=float(i)/float(count)
+				var angle:float=f*TAU+t*TAU
+				var q:=Vector2(4+fposmod(f*40+t*31.0,38.0),24+sin(angle)*11.0)
+				if role in ["grass_storm","grass_petal"]:q=center+Vector2(cos(angle),sin(angle))*(5.0+f*16.0)
+				if role=="grass_blade":q=center+Vector2(cos(angle*.5),sin(angle*.5))*10.0
+				if role=="grass_petal":
+					fx_disc(im,q,3.5,Color("#df7fa9"));fx_disc(im,q-Vector2(1,1),2.0,Color("#ffd1e1"))
+				else:
+					var tint:Color=Color("#8fe8d7").lerp(Color("#f1a1df"),f) if role=="grass_magic" else light
+					grass_leaf(im,q,angle,13.0 if role=="grass_blade" else 8.0,tint,dark)
+		"grass_wood":
+			var tip:=Vector2(10+sin(t*PI)*28,14+sin(t*PI)*19)
+			fx_line(im,Vector2(6,42),tip,7.0,Color("#765033"))
+			fx_line(im,tip+Vector2(-8,-5),tip+Vector2(7,5),12.0,Color("#976641"))
+			grass_leaf(im,tip,-PI*.5,10.0,light,dark)
+		"grass_energy","grass_flare","grass_bomb","grass_bullet","grass_leech","grass_worry":
+			var count:int=7 if role=="grass_bullet" else 8 if role=="grass_flare" else 3 if role=="grass_leech" else 1
+			for i in range(count):
+				var angle:float=float(i)*TAU/float(count)+t*TAU
+				var q:=Vector2(5+fposmod(float(i)*9+t*32.0,37.0),24+sin(angle)*5.0)
+				if role=="grass_flare":q=center+Vector2(cos(angle),sin(angle))*(4.0+t*15.0)
+				if count==1:q=Vector2(10+28*t,24)
+				var radius:float=9.0 if role=="grass_energy" else 7.0 if role=="grass_bomb" else 5.0 if role=="grass_worry" else 3.0
+				fx_disc(im,q,radius,dark)
+				fx_disc(im,q-Vector2(1,1),radius*.67,light)
+				if role=="grass_energy":fx_disc(im,q,radius+3.0,light,radius+2.0)
+				elif role=="grass_bomb":grass_leaf(im,q,-PI*.5,9.0,light,dark)
+				elif role=="grass_leech":fx_line(im,q,q+Vector2(4,7),1.0,dark)
+				elif role=="grass_worry":fx_disc(im,q,2.0,Color("#fff2a3"))
+		"grass_spore","grass_sleep","grass_stun","grass_cotton","grass_aroma":
+			var count:int=17 if role=="grass_spore" else 12 if role=="grass_sleep" else 10 if role=="grass_stun" else 6 if role=="grass_cotton" else 9
+			if role=="grass_sleep":light=Color("#c6b9e9")
+			if role=="grass_stun":light=Color("#e6cc65")
+			if role=="grass_cotton":light=Color("#e7f4db")
+			if role=="grass_aroma":light=Color("#f4b4cd")
+			for i in range(count):
+				var a:float=float(i)*2.399+t*1.4
+				var q:=center+Vector2(cos(a),sin(a))*(4.0+t*14.0)*(.4+float(i%5)*.15)
+				var radius:float=5.0 if role=="grass_cotton" else 2.0+float(i%2)
+				fx_disc(im,q,radius,dark);fx_disc(im,q-Vector2(1,1),radius*.7,light)
+				if role=="grass_aroma":grass_leaf(im,q,a,6.0,light,dark)
+		"grass_synthesis":
+			for i in range(8):
+				var a:float=float(i)*TAU/8.0+t*.5
+				var d:=Vector2(cos(a),sin(a))
+				fx_line(im,center+d*(5.0+t*5.0),center+d*(12.0+t*7.0),2.5,Color("#fff2a3"))
+			fx_disc(im,center,7.0+sin(t*PI)*4.0,light)
+		"grass_whistle":
+			for i in range(4):
+				var q:=Vector2(5+fposmod(float(i)*10+t*26.0,36.0),24+sin(float(i)*2.2+t*TAU)*9.0)
+				fx_disc(im,q,3.0,light);fx_line(im,q,q-Vector2(0,9),1.7,dark);fx_line(im,q-Vector2(0,9),q+Vector2(5,-6),1.5,light)
+
 func combat_frame_image(id:String,frame:int)->Image:
 	var style:Array=combat_style(id)
 	var mode:String=combat_animation_mode(id,str(style[0]))
@@ -2000,6 +2110,8 @@ func combat_frame_image(id:String,frame:int)->Image:
 		fire_sprite(im,role,frame);return im
 	if role.begins_with("water_"):
 		water_sprite(im,role,frame);return im
+	if role.begins_with("grass_"):
+		grass_sprite(im,role,frame);return im
 	var center:=Vector2(24,24)
 	match mode:
 		"vine":
@@ -2173,13 +2285,44 @@ func combat_profile(id:String)->Dictionary:
 		"eos_012":role="water_rain"
 		"eos_307":role="water_mist"
 		"eos_434":role="water_ring"
+		"eos_076":role="grass_giga"
+		"eos_135":role="grass_absorb"
+		"eos_151":role="grass_solar"
+		"eos_182":role="grass_vine"
+		"eos_221":role="grass_needle"
+		"eos_238":role="grass_frenzy"
+		"eos_251":role="grass_razor"
+		"eos_297":role="grass_magic"
+		"eos_320":role="grass_mega"
+		"eos_336":role="grass_blade"
+		"eos_441":role="grass_wood"
+		"eos_443":role="grass_energy"
+		"eos_458":role="grass_knot"
+		"eos_468":role="grass_flare"
+		"eos_486":role="grass_bomb"
+		"eos_511":role="grass_whip"
+		"eos_537":role="grass_storm"
+		"eos_163":role="grass_bullet"
+		"eos_079":role="grass_spore"
+		"eos_231":role="grass_sleep"
+		"eos_124":role="grass_stun"
+		"eos_351":role="grass_cotton"
+		"eos_015":role="grass_aroma"
+		"eos_094":role="grass_synthesis"
+		"eos_084":role="grass_whistle"
+		"eos_329":role="grass_leech"
+		"eos_253":role="grass_petal"
+		"eos_233":role="grass_roots"
+		"eos_504":role="grass_worry"
 	if role in ["electric_charge","electric_lift"]:mode="lightning"
 	var impact:float=.48 if role in ["contact","electric_contact","electric_short","electric_fist","electric_fang","electric_dash","electric_spark"] else .64 if role in ["projectile","lash","electric_arc","electric_wave","electric_sky","electric_orb","electric_beam"] else .40
 	if role in ["fire_breath","fire_ember","fire_blast","fire_wisp"]:impact=.64
 	elif role in ["fire_wheel","fire_kick","fire_punch","fire_fang","fire_blitz"]:impact=.48
 	if role in ["water_bubble","water_ink","water_cannon","water_pump","water_bubblebeam","water_gun","water_pulse","water_brine"]:impact=.64
 	elif role in ["water_clamp","water_hammer","water_dive","water_fall","water_jet","water_tail"]:impact=.48
-	return {"mode":mode,"role":role,"element":element,"pattern":pattern,"range":reach,"duration":float(style[3]),"impact":impact,"socket":"ground" if role in ["ground","fire_plume","fire_magma","water_dive","water_whirlpool","water_surf"] else "head" if role in ["projectile","fire_breath","fire_ember","fire_eruption","water_bubble","water_ink","water_spout","water_cannon","water_pump","water_bubblebeam","water_gun","water_pulse","water_brine"] else "center"}
+	if role in ["grass_solar","grass_razor","grass_magic","grass_energy","grass_bomb","grass_storm","grass_bullet","grass_leech","grass_worry"]:impact=.64
+	elif role in ["grass_vine","grass_whip","grass_needle","grass_blade","grass_wood","grass_knot"]:impact=.48
+	return {"mode":mode,"role":role,"element":element,"pattern":pattern,"range":reach,"duration":float(style[3]),"impact":impact,"socket":"ground" if role in ["ground","fire_plume","fire_magma","water_dive","water_whirlpool","water_surf","grass_frenzy","grass_roots","grass_knot"] else "head" if role in ["projectile","fire_breath","fire_ember","fire_eruption","water_bubble","water_ink","water_spout","water_cannon","water_pump","water_bubblebeam","water_gun","water_pulse","water_brine","grass_solar","grass_energy","grass_bullet","grass_whistle"] else "center"}
 func electric_sprite(im:Image,id:String,frame:int,role:String)->void:
 	var cyan:=Color("#40cfff")
 	var violet:=Color("#5969ed")
@@ -2491,7 +2634,7 @@ func vine_world_lash(points:Array,t:float,profile:Dictionary,id:String)->void:
 		var lateral:Vector3=(next-last).cross(Vector3.UP).normalized()
 		q+=lateral*sin(f*TAU*1.2-t*8.0)*.14*f*reach
 		q.y+=sin(f*PI)*.25*reach
-		var width:float=lerpf(.095,.026,f)
+		var width:float=lerpf(.095,.026,f)*(1.8 if profile.role=="grass_whip" else 1.0)
 		arc_segment(last,q,width,outline)
 		arc_segment(last,q,width*.70,dark)
 		arc_segment(last+Vector3.UP*.018,q+Vector3.UP*.018,width*.25,light)
@@ -2558,9 +2701,9 @@ func combat_fx_update(dt:float)->void:
 		if str(profile.role).begins_with("electric") and t>.08 and t<.91:
 			if not arcs_started:fx_arc_mesh.surface_begin(Mesh.PRIMITIVE_TRIANGLES,fx_arc_material);arcs_started=true
 			electric_world_arc(points,t,str(profile.role),tiles)
-		elif str(profile.role) in ["lash","ground"] and t>.03:
+		elif str(profile.role) in ["lash","ground","grass_vine","grass_whip","grass_needle"] and t>.03:
 			if not arcs_started:fx_arc_mesh.surface_begin(Mesh.PRIMITIVE_TRIANGLES,fx_arc_material);arcs_started=true
-			if profile.role=="lash":vine_world_lash(points,t,profile,str(burst.id))
+			if profile.role in ["lash","grass_vine","grass_whip","grass_needle"]:vine_world_lash(points,t,profile,str(burst.id))
 			else:quake_world_tiles(tiles,t,str(burst.id))
 		var count:int=mini(26,6+tiles.size()*2) if mode in ["cloud","wave","fan","web","shards","beam"] else 14
 		if mode in ["flame","whip"]:count=22
@@ -2673,6 +2816,31 @@ func combat_fx_update(dt:float)->void:
 						q=points[0]+Vector3(cos(angle)*.7,1.8*(1.0-progress),sin(angle)*.7);size=.28
 					_:
 						q=points[-1]+Vector3(cos(angle)*.32,sin(angle)*.28,sin(angle)*.32);size=.60
+			if str(profile.role).begins_with("grass_"):
+				var grass_role:String=str(profile.role)
+				var progress:float=clampf(t*1.8-f*.35,0,1)
+				match grass_role:
+					"grass_absorb","grass_mega","grass_giga":
+						var return_progress:float=clampf((t-.25)*1.55-f*.18,0,1)
+						q=combat_path_sample(points,1.0-return_progress)+Vector3(cos(angle)*.12,sin(return_progress*PI)*.30,sin(angle)*.12)
+						size=.25 if grass_role=="grass_absorb" else .40 if grass_role=="grass_mega" else .60
+					"grass_razor","grass_magic","grass_solar","grass_energy","grass_bullet","grass_worry","grass_whistle":
+						q=combat_path_sample(points,progress)+Vector3(cos(angle)*.1,sin(angle)*.12,sin(angle)*.1)
+						size=.82 if grass_role=="grass_energy" else .38
+					"grass_bomb","grass_leech":
+						q=combat_path_sample(points,progress)+Vector3(0,sin(progress*PI)*.65,0);size=.54
+					"grass_frenzy","grass_knot":
+						q=points[-1]+Vector3(cos(angle)*.35,.1+sin(t*PI)*.9,sin(angle)*.35);size=.64
+					"grass_spore","grass_sleep","grass_stun","grass_flare":
+						q=tiles[j%tiles.size()]+Vector3(cos(angle)*t*.45,.15+f*.45,sin(angle)*t*.45);size=.46
+					"grass_storm","grass_petal":
+						q=combat_path_sample(points,progress)+Vector3(cos(angle+t*TAU)*.42,.2+f*.5,sin(angle+t*TAU)*.42);size=.48
+					"grass_roots","grass_aroma","grass_synthesis":
+						q=points[0]+Vector3(cos(angle)*.45,.1+sin(t*PI)*.65,sin(angle)*.45);size=.52
+					"grass_vine","grass_whip","grass_needle":
+						q=combat_path_sample(points,minf(1.0,t*2.2))+Vector3(0,.12,0);size=.25
+					_:
+						q=points[-1]+Vector3(cos(angle)*.30,sin(angle)*.25,sin(angle)*.30);size=.55
 			# Drained energy travels from victim back to caster; healing stays on caster.
 			if profile.role=="drain" and t>=.40:
 				var back:float=clampf((t-.40)*2.0-f*.22,0.0,1.0)
@@ -3009,7 +3177,7 @@ func _process(dt:float):
 	elif run.charge_phase=="gather":pet_pose.position.y=.03+.04*sin(elapsed*12.0)
 	if attack_time>0.0:
 		var phase=sin(PI*attack_time/maxf(.01,player_cast_duration))
-		var lunge:float=.40 if player_cast_mode in ["contact","electric_contact","electric_fist","electric_fang","electric_spark","electric_dash","fire_wheel","fire_blitz","fire_kick","fire_punch","fire_fang","water_clamp","water_hammer","water_dive","water_fall","water_jet","water_tail"] else .13 if player_cast_mode=="lash" else -.08
+		var lunge:float=.40 if player_cast_mode in ["contact","electric_contact","electric_fist","electric_fang","electric_spark","electric_dash","fire_wheel","fire_blitz","fire_kick","fire_punch","fire_fang","water_clamp","water_hammer","water_dive","water_fall","water_jet","water_tail","grass_blade","grass_wood","grass_needle"] else .13 if player_cast_mode=="lash" else -.08
 		pet_pose.position+=pet.basis.inverse()*attack_direction*phase*lunge
 		attack_fx.visible=player_impact_delay<=0.0;attack_fx.scale=Vector3(1.1-phase*.42,.13,1.1-phase*.42)
 	else:attack_fx.hide()
