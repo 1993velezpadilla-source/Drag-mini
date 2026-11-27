@@ -10,7 +10,7 @@ permissions:
   contents: read
 concurrency:
   group: kindria-v20-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: false
 jobs:
   godot-release-gauntlet:
     runs-on: ubuntu-latest
@@ -58,7 +58,24 @@ jobs:
           set -euo pipefail
           godot --headless --path . --script res://bake_combat_frames.gd 2>&1 | tee /tmp/kindria-frame-pack.log
           grep -E 'KINDRIA_FRAME_PACK moves=[0-9]+ frames=[0-9]+ bytes=[0-9]+ atlas_uploads=[0-9]+ procedural_builds=0 failures=0$' /tmp/kindria-frame-pack.log
+          grep -E 'KINDRIA_SECONDARY_PACK textures=[1-9][0-9]* bytes=[1-9][0-9]* failures=0$' /tmp/kindria-frame-pack.log
           if grep -E 'SCRIPT ERROR|Parse Error|Compile Error' /tmp/kindria-frame-pack.log; then exit 1; fi
+      - name: Run packed combat CPU benchmark
+        run: |
+          set -euo pipefail
+          godot --headless --path . --script res://combat_performance_benchmark.gd 2>&1 | tee /tmp/kindria-performance-cpu.log
+          grep -E 'KINDRIA_PERFORMANCE mode=headless_cpu_submission moves=589 failures=0$' /tmp/kindria-performance-cpu.log
+          if grep -E 'SCRIPT ERROR|Parse Error|Compile Error' /tmp/kindria-performance-cpu.log; then exit 1; fi
+          test -s /tmp/kindria-performance-cpu.json
+      - name: Run desktop rendered combat probe (not Android)
+        run: |
+          set -euo pipefail
+          sudo apt-get update -qq
+          sudo apt-get install -y xvfb libgl1-mesa-dri
+          LIBGL_ALWAYS_SOFTWARE=1 xvfb-run -a timeout 120 godot --path . --rendering-method gl_compatibility --audio-driver Dummy --resolution 720x720 --script res://combat_performance_benchmark.gd -- --rendered 2>&1 | tee /tmp/kindria-performance-rendered.log
+          grep -E 'KINDRIA_PERFORMANCE mode=desktop_rendered moves=589 failures=0$' /tmp/kindria-performance-rendered.log
+          if grep -E 'SCRIPT ERROR|Parse Error|Compile Error' /tmp/kindria-performance-rendered.log; then exit 1; fi
+          test -s /tmp/kindria-performance-rendered.json
       - name: Preserve verified animation pack
         uses: actions/upload-artifact@v4
         with:
@@ -86,4 +103,6 @@ jobs:
             /tmp/kindria-audio-quality.json
             /tmp/kindria-audio-pack.log
             /tmp/kindria-frame-pack.log
+            /tmp/kindria-performance-*.json
+            /tmp/kindria-performance-*.log
             /tmp/kindria-visual/
