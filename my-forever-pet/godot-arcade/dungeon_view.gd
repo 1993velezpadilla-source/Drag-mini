@@ -110,6 +110,11 @@ var combat_particles:Array[Sprite3D]=[]
 # Each frame writes contiguous prefixes of the two independent particle pools.
 var fx_cast_particles_used:int=0
 var fx_living_particles_used:int=0
+var fx_living_actors:Array[Node3D]=[]
+var fx_living_status_rows:Array[Array]=[]
+var fx_living_heights:Array[float]=[]
+var fx_living_demands:Array[int]=[]
+var fx_living_budgets:Array[int]=[]
 # Opt-in until rendered equivalence and device timing are established.
 var fx_particle_batch_enabled:bool="--particle-batching" in OS.get_cmdline_user_args()
 const FX_PARTICLE_BATCH_CAP:int=8
@@ -17041,6 +17046,10 @@ func living_actor_particles(actor:Node3D,statuses:Array,used:int,height:float,bu
 # any creature gets its next particle. Unused demand is redistributed.
 func living_particle_budgets(demands:Array[int],capacity:int)->Array[int]:
 	var budgets:Array[int]=[]
+	fill_living_particle_budgets(demands,capacity,budgets)
+	return budgets
+
+func fill_living_particle_budgets(demands:Array[int],capacity:int,budgets:Array[int])->void:
 	budgets.resize(demands.size())
 	budgets.fill(0)
 	var remaining:int=maxi(0,capacity)
@@ -17053,19 +17062,31 @@ func living_particle_budgets(demands:Array[int],capacity:int)->Array[int]:
 			progressed=true
 			if remaining==0:break
 		if not progressed:break
-	return budgets
+
+# Frame-local parallel arrays avoid allocating one Dictionary per affected actor.
+func append_living_particle_actor(actor:Node3D,statuses:Array,height:float)->void:
+	fx_living_actors.append(actor)
+	fx_living_status_rows.append(statuses)
+	fx_living_heights.append(height)
+	var demand:int=0
+	for k in range(mini(statuses.size(),3)):
+		demand+=int(living_status_palette(str(statuses[k]))[3])
+	fx_living_demands.append(demand)
+
+func clear_living_particle_actors()->void:
+	fx_living_actors.clear();fx_living_status_rows.clear();fx_living_heights.clear();fx_living_demands.clear()
 
 func living_status_fx()->void:
+	clear_living_particle_actors()
 	if run==null:
 		fx_living_particles_used=finish_particle_range(FX_PARTICLE_CAP,0,fx_living_particles_used,LIVING_PARTICLE_CAP)
 		return
 	var used:int=FX_PARTICLE_CAP
-	var entries:Array[Dictionary]=[]
 	if is_instance_valid(pet):
 		var player_states:Array=living_player_statuses()
-		if not player_states.is_empty():entries.append({"actor":pet,"statuses":player_states,"height":1.08})
+		if not player_states.is_empty():append_living_particle_actor(pet,player_states,1.08)
 		else:living_sleep_glyphs(pet,false,1.08)
-	for key in actor_nodes.keys():
+	for key in actor_nodes:
 		if not str(key).begins_with("enemy:"):continue
 		var actor:=actor_nodes[key] as Node3D
 		if not is_instance_valid(actor) or actor.is_queued_for_deletion():continue
@@ -17074,22 +17095,15 @@ func living_status_fx()->void:
 		if statuses.is_empty():
 			living_sleep_glyphs(actor,false,1.12)
 			continue
-		entries.append({"actor":actor,"statuses":statuses,"height":1.12*float(actor.get_meta("enemy_size_multiplier",1.0))})
-	if entries.is_empty():
+		append_living_particle_actor(actor,statuses,1.12*float(actor.get_meta("enemy_size_multiplier",1.0)))
+	if fx_living_actors.is_empty():
 		fx_living_particles_used=finish_particle_range(FX_PARTICLE_CAP,0,fx_living_particles_used,LIVING_PARTICLE_CAP)
 		return
-	var demands:Array[int]=[]
-	for entry in entries:
-		var demand:int=0
-		var statuses:Array=entry.statuses
-		for k in range(mini(statuses.size(),3)):
-			demand+=int(living_status_palette(str(statuses[k]))[3])
-		demands.append(demand)
-	var budgets:=living_particle_budgets(demands,mini(LIVING_PARTICLE_CAP,maxi(0,combat_particles.size()-used)))
-	for i in range(entries.size()):
-		var entry:Dictionary=entries[i]
+	fill_living_particle_budgets(fx_living_demands,mini(LIVING_PARTICLE_CAP,maxi(0,combat_particles.size()-used)),fx_living_budgets)
+	for i in range(fx_living_actors.size()):
 		# Even a zero-budget actor updates its independent sleep glyphs.
-		used=living_actor_particles(entry.actor,entry.statuses,used,float(entry.height),budgets[i])
+		used=living_actor_particles(fx_living_actors[i],fx_living_status_rows[i],used,fx_living_heights[i],fx_living_budgets[i])
+	clear_living_particle_actors()
 	fx_living_particles_used=finish_particle_range(FX_PARTICLE_CAP,used-FX_PARTICLE_CAP,fx_living_particles_used,LIVING_PARTICLE_CAP)
 
 func travel_environment_fx(burst:Dictionary,t:float,used:int)->int:
