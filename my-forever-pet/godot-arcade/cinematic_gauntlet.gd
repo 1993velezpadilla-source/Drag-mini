@@ -36,6 +36,32 @@ func run_checks()->void:
 	var checks:int=0
 	var failures:Array[String]=[]
 	var view:=Dungeon.new()
+	# V22.1: delayed launch, retired contact and active environmental cues
+	# share one chronology even when collected in reversed traversal order.
+	var audio_events:Array[Dictionary]=[
+		{"id":"eos_001","phase":"impact","at":Vector3.RIGHT,"critical":false,"age":.03},
+		{"id":"eos_002","phase":"launch","at":Vector3.ZERO,"critical":false,"age":.08},
+		{"id":"eos_003","phase":"impact","at":Vector3.FORWARD,"critical":true,"age":.03},
+		{"id":"eos_004","phase":"env_water","at":Vector3.ZERO,"critical":false,"age":.05},
+		{"id":"eos_005","phase":"miss","at":Vector3.ZERO,"critical":false,"age":.03}]
+	var expected_order:Array[String]=["eos_002","eos_004","eos_003","eos_001","eos_005"]
+	for reverse_audio in [false,true]:
+		var input:Array[Dictionary]=audio_events.duplicate()
+		if reverse_audio:input.reverse()
+		view.begin_combat_audio_frame()
+		for cue in input:view.play_combat_sound(str(cue.id),str(cue.phase),cue.at,bool(cue.critical),float(cue.age))
+		if view.fx_frame_audio.size()!=expected_order.size():failures.append("V22.1 lost queued audio")
+		view.fx_frame_audio.sort_custom(view.combat_audio_event_before)
+		var ordered:Array[String]=[]
+		for cue in view.fx_frame_audio:ordered.append(str(cue.id))
+		if ordered!=expected_order:failures.append("V22.1 chronological audio order")
+		view.flush_combat_audio_frame()
+		if view.fx_collect_audio or not view.fx_frame_audio.is_empty():failures.append("V22.1 stale frame audio")
+		checks+=3
+	# Outside the visual update, sound playback stays immediate.
+	view.play_combat_sound("eos_001","launch",Vector3.ZERO)
+	if not view.fx_frame_audio.is_empty():failures.append("V22.1 immediate audio regression")
+	checks+=1
 	# V19.5: volume/pitch remain bounded and critical voices retain priority.
 	for power in range(61):
 		var normal_mix:=view.combat_audio_mix(power,"impact",false)
