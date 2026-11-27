@@ -423,8 +423,10 @@ func lab_move_info(id:String)->String:
 	var pp:String="Free" if int(m.pp)==0 else str(m.pp)
 	var text_value:String="%s · %s / %s\n%s\nPower %s   PP %s   Crit %s%%\nACC 1: %s   ACC 2: %s\nRange: %s · Reach %s · Hits %s\n"%[m.name,str(m.type).capitalize(),str(m.category).capitalize(),source,str(m.power),pp,str(m.reference_crit),lab_accuracy(m.acc1),lab_accuracy(m.acc2),str(m.get("reference_range",m.pattern)),str(m.reach),str(m.reference_strikes)]
 	if m.has("reference_key"):text_value+="Reference: %s (#%s)\n"%[str(m.reference_key).replace("_"," "),str(m.reference_id)]
-	if m.has("description"):text_value+=str(m.description)+"\n"
+	text_value+="\nWHAT IT DOES\n"+str(m.what_it_does)+"\n\nTARGET\n"+str(m.target_rule)+"\nCONDITION\n"+str(m.condition_text)+"\n"
 	if m.has("balance"):text_value+=str(m.balance)+"\n"
+	text_value+="Status: "+str(m.get("inflict_status",m.get("boon_kind",m.get("shield_kind","None")))).replace("_"," ")+"\n"
+	text_value+="Weather: "+("Dependent" if m.get("weather_heal",false) else str(m.get("weather_set","No explicit requirement")))+"\n"
 	if int(m.power)>0:text_value+="Damage: calculated per target; actual HP loss appears after cast.\n"
 	else:text_value+="Damage: no ordinary base power; see effect or fixed-damage rule below.\n"
 	if m.has("heal_fraction"):text_value+="Healing: %s%% max HP\n"%str(float(m.heal_fraction)*100.0)
@@ -2143,6 +2145,21 @@ func combat_pixel_texture(mode:String,light:Color,dark:Color)->ImageTexture:
 			var fill:bool=false
 			var inner:bool=false
 			match mode:
+				"earth_hole":
+					fill=r<7.0
+					inner=r>4.5 and r<6.4
+				"impact_star":
+					fill=r<6.9 and (absf(v.x)<1.2 or absf(v.y)<1.2 or absf(absf(v.x)-absf(v.y))<.9 or r<2.6)
+					inner=r<2.8
+				"ember":
+					fill=absf(v.x)+absf(v.y)*.62<4.3
+					inner=absf(v.x)+absf(v.y)*.65<2.3
+				"leaf":
+					fill=absf(v.x-v.y*.6)*1.1+absf(v.y)*.6<4.6
+					inner=absf(v.x-v.y*.6)<1.0
+				"drop":
+					fill=r<3.9 or (v.y<0 and absf(v.x)<(7.0+v.y)*.46)
+					inner=r<2.0 and v.x<0
 				"bubble","wave","spiral":
 					fill=r>=4.5 and r<=7.0
 					inner=fill and v.x+v.y<0
@@ -5809,6 +5826,7 @@ func combat_fx_update(dt:float)->void:
 			particle.modulate=Color(1,1,1,clampf((1.0-t)*3.5,0.0,1.0))
 			particle.show()
 		used=travel_environment_fx(burst,t,used)
+		used=element_finish_fx(burst,t,used)
 	if run!=null and not run.charge_phase.is_empty():used=charge_environment_fx(used)
 	if not latest_hit.is_empty():
 		# The player clock advances once after this method, so compensate for that frame.
@@ -5843,9 +5861,9 @@ func travel_environment_fx(burst:Dictionary,t:float,used:int)->int:
 	var dust_light:=Color("#c8ad78");var dust_dark:=Color("#705338")
 	if kind=="burrow":
 		# Origin hole, moving trail of displaced soil, then eruption at contact.
-		used=environment_particle(used,source,"bubble",dust_dark,dust_light,.85,1.0-t,true)
+		used=environment_particle(used,source,"earth_hole",dust_light,dust_dark,.85,1.0-t,true)
 		var ground:Vector3=combat_path_sample(points,progress);ground.y=.045
-		used=environment_particle(used,ground,"bubble",dust_light,dust_dark,.65,1.0-after,true)
+		used=environment_particle(used,ground,"earth_hole",dust_light,dust_dark,.65,1.0-after,true)
 		for j in range(8):
 			var angle:float=float(j)*TAU/8.0
 			var spread:float=.10+.56*after
@@ -5874,12 +5892,50 @@ func travel_environment_fx(burst:Dictionary,t:float,used:int)->int:
 			used=environment_particle(used,ground+Vector3(cos(angle)*.24,.1+sin(t*PI)*.15,sin(angle)*.24),"cloud",dust_light,dust_dark,.34,1.0-after)
 	return used
 
+# Complement the unique move frames with restrained, elemental finishing layers.
+# No scene-tree allocation during battle. Use actual target positions; effects
+# are cosmetic and never create damage or alter hit resolution.
+const ELEMENT_FINISH_MODE={"fire":"ember","electric":"lightning","water":"drop","grass":"leaf","ice":"shards","ground":"shards","rock":"shards","poison":"cloud","psychic":"spiral","ghost":"cloud","dark":"slash","fighting":"impact_star","normal":"impact_star","flying":"slash","bug":"leaf","dragon":"flame","steel":"shards","fairy":"impact_star"}
+func element_finish_fx(burst:Dictionary,t:float,used:int)->int:
+	var id:String=str(burst.id)
+	var profile:Dictionary=burst.profile
+	var style:Array=combat_style(id)
+	var light:=Color(str(style[1]));var dark:=Color(str(style[2]))
+	var peak:float=float(profile.impact)
+	var points:Array=burst.points
+	var from:Vector3=points[0]
+	var target:Vector3=points[-1]
+	var record:Dictionary=Rules.dev_move_record(id)
+	var status:bool=str(record.get("category",""))=="status"
+	var mode:String=str(ELEMENT_FINISH_MODE.get(str(profile.element),"impact_star"))
+	if t<peak*.48:
+		var startup:float=clampf(t/(peak*.48),0.0,1.0)
+		for j in range(3):
+			var angle:float=float(j)*TAU/3.0+startup*2.0
+			var q:=from+Vector3(cos(angle)*(.35-.22*startup),.06+.16*startup,sin(angle)*(.35-.22*startup))
+			used=environment_particle(used,q,mode,light,dark,.29, sin(startup*PI)*.80)
+	elif t>=peak:
+		var age:float=clampf((t-peak)/maxf(.01,1.0-peak),0.0,1.0)
+		var fade:float=1.0-age
+		var radius:float=.12+age*.60
+		var count:int=5 if not status else 3
+		if age<.30:
+			used=environment_particle(used,target,"bubble" if status else "impact_star",light,dark,.62+age*.55,1.0-age*2.0)
+		for j in range(count):
+			var angle:float=float(j)*TAU/float(count)
+			var q:=target+Vector3(cos(angle)*radius,.04+sin(age*PI)*(.55 if status else .33),sin(angle)*radius)
+			used=environment_particle(used,q,mode,light,dark,.34*(1.0-age*.5),fade)
+		if str(profile.element) in ["water","ground","rock","ice","poison","fire","electric"] or profile.pattern in ["room","radius","cross","floor"]:
+			var ground:=Vector3(target.x,.045,target.z)
+			used=environment_particle(used,ground,"bubble",light,dark,.65+age*1.1,fade*.70,true)
+	return used
+
 func charge_environment_fx(used:int)->int:
 	var origin:Vector3=pos(run.player)+Vector3(0,.04,0)
 	var pulse:float=.8+.12*sin(elapsed*7.0)
 	match run.charge_phase:
 		"underground":
-			used=environment_particle(used,origin,"bubble",Color("#795638"),Color("#c7a777"),pulse, .85,true)
+			used=environment_particle(used,origin,"earth_hole",Color("#c7a777"),Color("#795638"),pulse, .85,true)
 			for j in range(4):
 				var angle:float=float(j)*TAU/4.0+elapsed*2.0
 				used=environment_particle(used,origin+Vector3(cos(angle)*.35,.12+absf(sin(elapsed*4.0+j))*.3,sin(angle)*.35),"shards",Color("#c8ad78"),Color("#705338"),.28,.85)
@@ -6211,6 +6267,7 @@ func held_attack_description(m:Dictionary)->String:
 	var pattern:String=str(m.get("pattern","front"));var reach:int=int(m.get("reach",1))
 	var range_name:String="Self" if pattern=="self" else "Entire room" if pattern=="room" else "Entire floor" if pattern=="floor" else "Close / upfront" if reach<=1 else "Mid range" if reach<=3 else ("Long range projectile" if pattern=="line" else "Long range")
 	var details:String="%s · %s / %s\n%s · %s · %d tiles\nPower %s · PP %s · ACC %s/%s"%[m.get("name","Move"),str(m.get("type","normal")).capitalize(),str(m.get("category","physical")).capitalize(),range_name,str(m.get("reference_range",pattern)).replace("_"," "),reach,str(m.get("power","—")),str(m.get("pp","—")),lab_accuracy(m.get("acc1")),lab_accuracy(m.get("acc2"))]
+	if m.has("what_it_does"):details+="\n"+str(m.what_it_does)+"\n"+str(m.condition_text)
 	for key in ["reference_crit","reference_strikes","charge_phase","special_rule","status","secondary_status","boon_kind","shield_kind","recoil","drain","weather_required"]:
 		if m.has(key):details+=" · "+str(key).replace("_"," ")+": "+str(m[key]).replace("_"," ")
 	return details

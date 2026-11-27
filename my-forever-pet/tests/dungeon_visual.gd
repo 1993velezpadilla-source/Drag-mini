@@ -727,6 +727,16 @@ func run():
 		await frames()
 		assert(root.get_texture().get_image().save_png("/tmp/dungeon-real-ponoko-environment-"+id+".png")==OK)
 	print("KINDRA_TRAVEL_ENVIRONMENT_PASS 3")
+	# Representative elements must allocate a startup/impact finishing layer within the same pool.
+	for id in ["eos_064","eos_157","eos_008","eos_153","eos_205","eos_270","eos_154","eos_003"]:
+		preview.combat_bursts.clear()
+		preview.combat_fx_spawn({"fx":id,"from":anchor,"to":anchor+Vector2i.RIGHT,"path":[anchor+Vector2i.RIGHT],"tiles":[anchor+Vector2i.RIGHT]})
+		var burst:Dictionary=preview.combat_bursts[-1]
+		assert(preview.element_finish_fx(burst,float(burst.profile.impact)*.22,0)==3)
+		var count:int=preview.element_finish_fx(burst,lerpf(float(burst.profile.impact),1.0,.16),0)
+		assert(count>=4 and count<=preview.combat_particles.size())
+		assert(preview.element_finish_fx(burst,.8,preview.combat_particles.size())==preview.combat_particles.size())
+	print("KINDRA_ELEMENT_FINISH_PASS 8")
 	preview.queue_free();await process_frame
 	# Test the lab on a separate expedition; the normal completion tests above remain unchanged.
 	var lab=Field.new();root.add_child(lab)
