@@ -15218,6 +15218,24 @@ func combat_visual_age(age:float,dt:float,fresh:bool)->float:
 func combat_ground_shake_at_age(age:float)->float:
 	return maxf(0.0,.22-maxf(0.0,age)*3.0)
 
+# Prefer actual critical/damaging contacts over a closer status-only tile.
+func combat_wave_audio_target(wave:Dictionary,origin:Vector3)->Vector3:
+	var best:Vector3=origin
+	var best_rank:int=0
+	var nearest:float=INF
+	for tile in wave:
+		var row:Dictionary=wave[tile]
+		var amount:int=int(row.get("damage",0))
+		var rank:int=3 if amount>0 and int(row.get("crit",0))>0 else 2 if amount>0 else 1 if int(row.get("effects",0))+int(row.get("heal",0))>0 else 0
+		if rank==0:continue
+		var point:Vector3=pos(tile)+Vector3.UP*origin.y
+		var distance:float=point.distance_squared_to(origin)
+		if rank>best_rank or (rank==best_rank and distance<nearest):
+			best=point
+			best_rank=rank
+			nearest=distance
+	return best
+
 func dispatch_cast_waves(burst:Dictionary)->void:
 	var waves:Array=burst.get("impact_waves",[])
 	var times:Array=burst.get("impact_times",[])
@@ -15228,8 +15246,7 @@ func dispatch_cast_waves(burst:Dictionary)->void:
 		show_cast_results(wave,wave_age)
 		ultra_impact_residue(burst,wave,cursor==0,wave_age)
 		var audible:bool=wave.is_empty() and cursor==0
-		var target:Vector3=burst.points[-1]
-		var nearest:float=INF
+		var target:Vector3=combat_wave_audio_target(wave,burst.points[-1])
 		var strongest:int=0
 		var critical:bool=false
 		var status_cues:Dictionary={}
@@ -15245,9 +15262,6 @@ func dispatch_cast_waves(burst:Dictionary)->void:
 			critical=critical or (amount>0 and int(row.get("crit",0))>0)
 			if amount+int(row.get("effects",0))+int(row.get("heal",0))>0:
 				audible=true
-				var point:Vector3=pos(tile)+Vector3.UP*target.y
-				var distance:float=point.distance_squared_to(burst.points[-1])
-				if distance<nearest:nearest=distance;target=point
 		# Do not emit a damage thump for a status effect or an explicit miss.
 		var audio_age:float=wave_age
 		if audio_age<.14:
