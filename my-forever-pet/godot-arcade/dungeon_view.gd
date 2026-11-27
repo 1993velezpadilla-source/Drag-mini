@@ -14500,13 +14500,19 @@ func combat_audio_store(key:String,bytes:PackedByteArray,rate:int)->AudioStreamW
 
 # Conservative sum of source peaks, with headroom reserved for critical hits.
 # No compressor pumping, extra buses or changes to music/UI audio.
-func combat_audio_admission_db(peak:float,requested_db:float,occupied:float,priority:int)->float:
-	var ceiling:float=FX_AUDIO_MIX_BUDGET
+func combat_audio_priority_ceiling(priority:int)->float:
 	match priority:
-		0:ceiling=.34
-		1:ceiling=.46
-		2:ceiling=.58
-	var available:float=maxf(0.0,ceiling-maxf(0.0,occupied))
+		0:return .34
+		1:return .46
+		2:return .58
+	return FX_AUDIO_MIX_BUDGET
+
+# Reject inaudible events before allocating or synthesizing their PCM.
+func combat_audio_can_admit(occupied:float,priority:int)->bool:
+	return occupied<combat_audio_priority_ceiling(priority)-.0001
+
+func combat_audio_admission_db(peak:float,requested_db:float,occupied:float,priority:int)->float:
+	var available:float=maxf(0.0,combat_audio_priority_ceiling(priority)-maxf(0.0,occupied))
 	if available<=.0001:return -80.0
 	return minf(requested_db,linear_to_db(available/maxf(.0001,peak)))
 
@@ -14659,12 +14665,21 @@ func combat_sound(id:String,phase:String,variant:int)->AudioStreamWAV:
 	var identity_seed:int=posmod(hash(id),2147483647)
 	var pitch:float=1.0+float(identity_seed%23-11)*.008+float(variant-1)*.025
 	var gesture:Vector4=combat_audio_gesture(id,profile)
+	var strike:bool=phase=="impact"
+	var missed:bool=phase=="miss"
+	var status_phase:bool=phase=="status"
+	var attack:float=.045 if strike or missed else .12
+	var release:float=.14 if strike else .22
+	var inv_rate:float=1.0/float(rate)
+	var inv_samples:float=1.0/float(samples)
+	var inv_end:float=1.0/float(maxi(1,samples-1))
 	for i in range(samples):
-		var t:float=float(i)/rate;var p:float=float(i)/samples
+		var t:float=float(i)*inv_rate;var p:float=float(i)*inv_samples
 		var noise:float=rng.randf_range(-1.0,1.0)
 		last_noise=lerpf(last_noise,noise,.18)
 		slow_noise=lerpf(slow_noise,noise,.045)
-		var envelope:float=combat_audio_envelope(float(i)/maxi(1,samples-1),phase)
+		var ep:float=float(i)*inv_end
+		var envelope:float=smoothstep(0.0,attack,ep)*(1.0-smoothstep(1.0-release,1.0,ep))*pow(maxf(0.0,1.0-ep),.85)
 		var wave:float=0.0
 		# V19.6: separate elemental materials rather than recoloring one oscillator.
 		match element:
@@ -14710,7 +14725,6 @@ func combat_sound(id:String,phase:String,variant:int)->AudioStreamWAV:
 				wave=last_noise*.53+sin(TAU*pitch*(185.0*t-155.0*t*t))*.43
 		# A second, authored acoustic layer separates attacks within each nature.
 		var accent:float=0.0
-		var strike:bool=phase=="impact"
 		var sweep:float=sin(TAU*pitch*(780.0*t-560.0*t*p))
 		match form:
 			"punch","thump":
@@ -14743,10 +14757,10 @@ func combat_sound(id:String,phase:String,variant:int)->AudioStreamWAV:
 			"rustle","chitin":accent=(noise-last_noise)*.38*absf(sin(p*TAU*4.0))
 			"viscous":accent=sin(TAU*pitch*(180.0*t-70.0*t*p)+sin(p*TAU*4.0)*2.6)*.34
 		wave=wave*.60+accent*(.85 if strike else .62)
-		if phase!="miss":wave=wave*.82+combat_audio_gesture_sample(gesture,t,p,pitch,noise-last_noise,slow_noise)*(.52 if strike else .40)
+		if not missed:wave=wave*.82+combat_audio_gesture_sample(gesture,t,p,pitch,noise-last_noise,slow_noise)*(.52 if strike else .40)
 		if strike:wave+=sin(TAU*95.0*t*pitch)*.17*pow(1.0-p,2.0)
-		elif phase=="miss":wave=(noise-last_noise)*.34+sweep*.12
-		elif phase=="status":wave=sin(TAU*520.0*t*pitch)*.20+sin(TAU*780.0*t*pitch)*.14+wave*.55
+		elif missed:wave=(noise-last_noise)*.34+sweep*.12
+		elif status_phase:wave=sin(TAU*520.0*t*pitch)*.20+sin(TAU*780.0*t*pitch)*.14+wave*.55
 		# Smooth saturation, with exact silent endpoints to avoid PCM clicks.
 		var signal_value:float=wave*envelope*.85
 		var pcm:int=roundi(clampf(signal_value/(1.0+absf(signal_value)*.35),-.95,.95)*32767.0)
@@ -14792,7 +14806,15 @@ func play_combat_sound(id:String,phase:String,at:Vector3,critical:bool=false,age
 		priorities.append(int(voice.get_meta("combat_audio_priority",0)) if voice.playing else -1)
 	var slot:int=combat_audio_voice_slot(priorities,fx_audio_cursor,int(mix.z))
 	if slot<0:return
-	var key:=id+":"+phase
+	var occupied:float=0.0
+	for i in range(fx_audio.size()):
+		if i==slot or not fx_audio[i].playing:continue
+		var other:AudioStreamPlayer3D=fx_audio[i]
+		var other_peak:float=float(other.get_meta("combat_pcm_peak",FX_AUDIO_PEAK_LIMIT))
+		occupied+=other_peak*db_to_linear(other.volume_db)
+	if not combat_audio_can_admit(occupied,int(mix.z)):return
+	# Shared motifs use a shared rotation; avoid one counter per move and motif.
+	var key:String=phase if phase.begins_with("env_") or phase.begins_with("status_") else id+":"+phase
 	var variant:int=posmod(int(fx_audio_counter.get(key,-1))+1,3)
 	var stream:AudioStreamWAV
 	if phase.begins_with("env_"):stream=combat_environment_sound(phase,variant)
@@ -14801,12 +14823,6 @@ func play_combat_sound(id:String,phase:String,at:Vector3,critical:bool=false,age
 	# A late frame skips elapsed audio instead of replaying an old transient.
 	var offset:float=maxf(0.0,age)*mix.y
 	if offset>=stream.get_length()-.008:return
-	var occupied:float=0.0
-	for i in range(fx_audio.size()):
-		if i==slot or not fx_audio[i].playing:continue
-		var other:AudioStreamPlayer3D=fx_audio[i]
-		var other_peak:float=float(other.get_meta("combat_pcm_peak",FX_AUDIO_PEAK_LIMIT))
-		occupied+=other_peak*db_to_linear(other.volume_db)
 	var peak:float=float(stream.get_meta("combat_pcm_peak",FX_AUDIO_PEAK_LIMIT))
 	var admitted_db:float=combat_audio_admission_db(peak,mix.x,occupied,int(mix.z))
 	if admitted_db< -40.0:return
