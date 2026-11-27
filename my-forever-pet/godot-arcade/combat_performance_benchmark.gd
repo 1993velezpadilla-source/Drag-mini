@@ -79,6 +79,59 @@ func simulate(ids:Array,catalog:Dictionary,spawn_times:Array[int],update_times:A
 	sample_memory()
 	return delta(before)
 
+# V22.8: continuous over-capacity battle, not isolated single-cast timings.
+# Exercise real hit/miss/critical ledgers and deliberately slow simulation
+# frames. CPU timings are submission costs; they are not device GPU FPS.
+func sustained_stress(ids:Array,catalog:Dictionary)->Dictionary:
+	var damaging:Array[String]=[]
+	for id in ids:
+		if str(catalog[id].get("category",""))!="status":damaging.append(str(id))
+	var before:=counters()
+	var spawn_times:Array[int]=[]
+	var update_times:Array[int]=[]
+	var frame_times:Array[int]=[]
+	var memory_samples:Array[Dictionary]=[]
+	var spawned:int=0
+	var peak_active:int=0
+	var peak_retired:int=0
+	var slow_frames:int=0
+	var spawn_batches:int=12
+	var casts_per_batch:int=Dungeon.COMBAT_BURST_CAP+6
+	var active_frames:int=spawn_batches*60
+	for frame in range(active_frames+180):
+		var start:int=Time.get_ticks_usec()
+		if frame<active_frames and frame%60==0:
+			for i in range(casts_per_batch):
+				var id:String=damaging[posmod(spawned*31,damaging.size())]
+				var event:=event_for(id,catalog[id],i)
+				var target:Vector2i=event.to
+				event.results={target:{"damage":9,"hits":2,"misses":1,"crit":1,"attempts":[{"damage":3},{"damage":0,"misses":1},{"damage":6,"crit":1}]}}
+				event.damage=9
+				var spawn_start:int=Time.get_ticks_usec()
+				view.combat_fx_spawn(event)
+				spawn_times.append(Time.get_ticks_usec()-spawn_start)
+				spawned+=1
+			peak_active=maxi(peak_active,view.combat_bursts.size())
+			peak_retired=maxi(peak_retired,view.retired_impacts.size())
+		var dt:float=.23 if frame<active_frames and frame%60==10 else DT
+		if dt!=DT:slow_frames+=1
+		var update_start:int=Time.get_ticks_usec()
+		view.combat_fx_update(dt)
+		update_times.append(Time.get_ticks_usec()-update_start)
+		frame_times.append(Time.get_ticks_usec()-start)
+		sample_pools()
+		peak_active=maxi(peak_active,view.combat_bursts.size())
+		peak_retired=maxi(peak_retired,view.retired_impacts.size())
+		if frame%60==0 or frame==active_frames+179:
+			sample_memory()
+			memory_samples.append({"frame":frame,"static_bytes":int(OS.get_static_memory_usage()),"video_bytes":int(Performance.get_monitor(Performance.RENDER_VIDEO_MEM_USED)),"atlas_entries":view.fx_atlas_cache.size(),"secondary_entries":view.combat_textures.size(),"active":view.combat_bursts.size(),"retired":view.retired_impacts.size()})
+	var measured:=delta(before)
+	if spawned!=spawn_batches*casts_per_batch or peak_active!=Dungeon.COMBAT_BURST_CAP or peak_retired<6:failures.append("V22.8 stress coverage")
+	if not view.combat_bursts.is_empty() or not view.retired_impacts.is_empty():failures.append("V22.8 undrained casts")
+	if int(measured.dispatched_waves)!=spawned*3 or int(measured.dispatched_damage_waves)!=spawned*2 or int(measured.dispatched_miss_waves)!=spawned:failures.append("V22.8 lost or duplicate wave")
+	if int(measured.retired_dropped)!=0:failures.append("V22.8 retired overflow")
+	return {"casts":spawned,"expected_waves":spawned*3,"slow_simulation_frames":slow_frames,"simulation_frames":frame_times.size(),"peak_active":peak_active,"peak_retired":peak_retired,"spawn":stats(spawn_times),"update":stats(update_times),"combined_cpu_submission":stats(frame_times),"memory_samples":memory_samples,"counters":measured}
+
 func benchmark()->void:
 	var catalog:Dictionary=Dungeon.Rules.MOVE_LIBRARY.duplicate()
 	catalog.merge(Dungeon.Rules.DEV_NATIVE_MOVES)
@@ -144,6 +197,7 @@ func benchmark()->void:
 		report["concurrent_casts"]=Dungeon.COMBAT_BURST_CAP
 		report["crowd_counters_including_prewarm"]=delta(crowd_before)
 		report["per_move"]=per_move
+		report["sustained_stress"]=sustained_stress(ids,catalog)
 		if cold_spawn.size()!=589 or warm_spawn.size()!=589 or crowd_spawn.size()!=12*Dungeon.COMBAT_BURST_CAP:failures.append("benchmark coverage")
 	report["counters"]=counters()
 	if view.fx_geometry_unique_vertices*3!=view.fx_geometry_triangle_indices*2:failures.append("indexed geometry ratio")
