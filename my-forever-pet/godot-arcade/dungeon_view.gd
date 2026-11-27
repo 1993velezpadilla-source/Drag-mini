@@ -4435,6 +4435,97 @@ func status_sprite(im:Image,role:String,frame:int)->void:
 
 # Native moves use their authored trajectory to construct a matching foreground
 # sprite layer, rather than sharing the same generic slash / cloud / beam.
+# Artist-review overrides: distinct focal silhouettes, not palette swaps.
+func native_signature_sprite(im:Image,id:String,frame:int)->bool:
+	var t:float=float(posmod(frame,FX_FRAME_COUNT))/float(FX_FRAME_COUNT-1)
+	var style:Array=combat_style(id)
+	var light:=Color(style[1]);var dark:=Color(style[2]);var ink:=dark.darkened(.55)
+	var center:=Vector2(24,24)
+	match id:
+		"alt_thornbeetle":
+			# Two opposing hooked talons close on the same point.
+			var reach:float=12.0-8.0*sin(t*PI)
+			for sign_value in [-1.0,1.0]:
+				var last:=center+Vector2(sign_value*(reach+7.0),-10.0)
+				for j in range(1,11):
+					var f:float=float(j)/10.0
+					var q:=center+Vector2(sign_value*(reach+7.0*cos(f*PI)), -10.0+f*23.0)
+					fx_line(im,last,q,2.8-f*1.7,ink)
+					fx_line(im,last,q,1.7-f*.9,dark)
+					fx_line(im,last-Vector2(0,1),q-Vector2(0,1),.65,light)
+					last=q
+		"alt_sylphowl":
+			# Three elongated feathers spiral outward with pointed barbs.
+			for j in range(3):
+				var angle:float=-1.2+float(j)*.85+t*1.4
+				var d:=Vector2(cos(angle),sin(angle));var side:=Vector2(-d.y,d.x)
+				var q:=center+d*(3.0+t*11.0)
+				fx_line(im,q-d*7.0,q+d*7.0,1.1,light)
+				for k in range(5):
+					var f:float=float(k)/4.0
+					var p:=q+d*(f*12.0-6.0)
+					fx_line(im,p,p-d*3.0+side*sin(f*PI)*4.0,1.0,dark)
+					fx_line(im,p,p-d*3.0-side*sin(f*PI)*3.0,.8,light)
+		"alt_comet_hare":
+			var q:=center+Vector2(-15.0+30.0*t,4.0-17.0*sin(t*PI))
+			for j in range(7,0,-1):
+				var p:float=maxf(0.0,t-float(j)*.045)
+				var tail:=center+Vector2(-15.0+30.0*p,4.0-17.0*sin(p*PI))
+				fx_disc(im,tail,3.8-float(j)*.42,dark)
+			fx_disc(im,q,4.0,ink);fx_disc(im,q,2.8,light)
+			for j in range(4):
+				var angle:float=float(j)*PI*.5+t
+				fx_line(im,q+Vector2(cos(angle),sin(angle))*4.0,q+Vector2(cos(angle),sin(angle))*7.0,.7,light)
+		"alt_celestial_guardian":
+			# Angular crystal blade fan, facets aligned along the swing.
+			for j in range(5):
+				var angle:float=-1.3+float(j)*.45+t*1.6
+				var d:=Vector2(cos(angle),sin(angle));var side:=Vector2(-d.y,d.x)
+				var q:=center+d*(10.0+3.0*sin(t*PI))
+				fx_line(im,q-d*5.0,q+d*5.0,2.7,ink)
+				fx_line(im,q-d*4.0+side,q+d*5.0,1.4,dark)
+				fx_line(im,q-d*4.0-side,q+d*4.0,.9,light)
+		"alt_jellymancer":
+			# Flexible liquid tendrils with a droplet at each terminal.
+			for j in range(3):
+				var last:=Vector2(8,15+float(j)*8.0)
+				for k in range(1,13):
+					var f:float=float(k)/12.0
+					var q:=Vector2(8+31.0*f,15+float(j)*8.0+sin(f*TAU*1.2-t*7.0)*4.0*f)
+					fx_line(im,last,q,1.5,dark);fx_line(im,last-Vector2(0,1),q-Vector2(0,1),.6,light)
+					last=q
+				fx_disc(im,last,2.4,dark);fx_disc(im,last-Vector2(0,1),1.1,light)
+		"alt_anemoneye":
+			# A pressure jet rises from a circular aperture; liquid peels away.
+			fx_disc(im,Vector2(24,34),9.0,dark,6.5)
+			for j in range(7):
+				var p:float=fposmod(t+float(j)*.13,1.0)
+				var q:=Vector2(24.0+sin(float(j)*2.4)*p*12.0,34.0-27.0*sin(p*PI))
+				fx_line(im,q,q+Vector2(0,4.0-p*2.0),1.8,dark)
+				fx_disc(im,q,1.1,light)
+		"alt_starlit_pup":
+			var q:=Vector2(7.0+34.0*t,24.0)
+			for j in range(3):
+				var tail:=q-Vector2(float(j+1)*6.0,0)
+				fx_line(im,tail-Vector2(3,0),tail+Vector2(1,0),1.0,dark)
+			for j in range(5):
+				var angle:float=float(j)*TAU/5.0-PI*.5
+				var d:=Vector2(cos(angle),sin(angle))
+				fx_line(im,q,q+d*7.0,1.9,dark);fx_line(im,q,q+d*5.0,.8,light)
+			fx_disc(im,q,2.0,light)
+		"alt_rootgnawer":
+			# Broad arrowhead leaf with visible stem and veins.
+			var q:=Vector2(8.0+30.0*t,24.0+sin(t*PI)*3.0)
+			fx_line(im,q-Vector2(10,0),q+Vector2(6,0),1.1,dark)
+			for j in range(6):
+				var f:float=float(j)/5.0
+				var p:=q+Vector2(-6.0+12.0*f,0)
+				var w:float=sin(f*PI)*5.5
+				fx_line(im,p-Vector2(0,w),p+Vector2(0,w),1.1,dark)
+				fx_line(im,p,p-Vector2(2,w*.8),.7,light)
+		_:return false
+	return true
+
 func native_stage_sprite(im:Image,id:String,frame:int)->void:
 	if not AUTHORED_STAGE_FX.has(id):return
 	var cue:Array=AUTHORED_STAGE_FX[id]
@@ -4486,6 +4577,7 @@ func combat_frame_image(id:String,frame:int)->Image:
 	var mode:String=combat_animation_mode(id,str(style[0]))
 	var light:=Color(style[1]);var dark:=Color(style[2]);var edge:=dark.darkened(.52)
 	var im:=Image.create(FX_FRAME_SIZE,FX_FRAME_SIZE,false,Image.FORMAT_RGBA8);im.fill(Color.TRANSPARENT)
+	if native_signature_sprite(im,id,frame):return im
 	var t:float=float(posmod(frame,FX_FRAME_COUNT))/float(FX_FRAME_COUNT-1)
 	var role:String=str(combat_profile(id).role)
 	if role.begins_with("electric"):
