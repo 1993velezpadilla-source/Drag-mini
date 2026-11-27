@@ -1944,7 +1944,7 @@ func touch(event:InputEvent):
 	var target=Vector2i(roundi(hit.x/1.4),roundi(hit.z/1.4))
 	if target==run.player:return
 	if run.enemy_at(target)>=0 and run.revealed.has(target):
-		var delta:=target-run.player
+		var delta:Vector2i=target-run.player
 		facing=Vector2i(signi(delta.x),0) if absi(delta.x)>absi(delta.y) else Vector2i(0,signi(delta.y))
 		path.clear()
 		if run.distance(run.player,target)==1:run.attack(false,facing)

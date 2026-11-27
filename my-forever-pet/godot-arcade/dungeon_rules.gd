@@ -382,10 +382,10 @@ func strike(i:int,power:bool=false):
 		var move_type:String=str(trained_profile.types[0]) if power else "normal"
 		damage=trained_damage(damage,move_type,trained_profile.types,enemy_info[0],int(stats[stat_index]),int(neutral[stat_index]),int(neutral[stat_index]))
 	if weakened_strikes>0:
-		damage=maxi(1,damage-1);weakened_strikes-=1
+		damage=maxi(0,damage-1);weakened_strikes-=1
 	var guard:int=int(enemies[i].get("guard",0))
 	if guard>0:
-		damage=maxi(1,damage-guard);enemies[i]["guard"]=0
+		damage=maxi(0,damage-guard);enemies[i]["guard"]=0
 	enemies[i].hp=int(enemies[i].hp)-damage
 	message="-%d HP · strike!"%damage
 	emit_event("−%d HP"%damage)
