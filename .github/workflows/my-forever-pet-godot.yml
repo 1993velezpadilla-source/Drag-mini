@@ -171,6 +171,7 @@ jobs:
           done
           "$G" --verbose --headless --path my-forever-pet/godot-arcade --export-debug "Android Lab" /tmp/My-Forever-Pet-Godot-arm64.apk
           test -s /tmp/My-Forever-Pet-Godot-arm64.apk
+          python3 my-forever-pet/godot-arcade/verify_apk_combat_packs.py /tmp/My-Forever-Pet-Godot-arm64.apk my-forever-pet/godot-arcade /tmp/kindria-apk-pack-verification.json
           "$SDK/build-tools/34.0.0/apksigner" verify /tmp/My-Forever-Pet-Godot-arm64.apk
           "$SDK/build-tools/34.0.0/aapt" dump badging /tmp/My-Forever-Pet-Godot-arm64.apk | grep -F "org.myforeverpet.godot"
           unzip -l /tmp/My-Forever-Pet-Godot-arm64.apk | grep -F lib/arm64-v8a/libgodot_android.so
@@ -192,6 +193,7 @@ jobs:
           path: |
             /tmp/kindria-apk-audio-pack.log
             /tmp/kindria-apk-frame-pack.log
+            /tmp/kindria-apk-pack-verification.json
             my-forever-pet/godot-arcade/generated_combat_audio/index.json
             my-forever-pet/godot-arcade/generated_combat_frames/index.json
             my-forever-pet/godot-arcade/generated_combat_frames/particles.json

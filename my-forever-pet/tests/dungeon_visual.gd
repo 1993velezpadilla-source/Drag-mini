@@ -742,8 +742,11 @@ func run():
 		var directed:int=preview.directed_impact_fx(burst,phase,0)
 		assert(directed==0 if status else directed>=1,"damage-only impact "+id)
 		assert(preview.element_finish_fx(burst,.8,preview.combat_particles.size())==preview.combat_particles.size(),"pool bound "+id)
-		burst.results={cell:{"damage":0,"misses":1}}
-		burst.damage=0
+		# Production casts own immutable result snapshots. Construct an actual
+		# missed cast instead of mutating an already confirmed attack.
+		preview.combat_bursts.clear()
+		preview.combat_fx_spawn({"fx":id,"from":anchor,"to":cell,"path":[cell],"tiles":[cell],"results":{cell:{"damage":0,"misses":1}},"damage":0})
+		burst=preview.combat_bursts[-1]
 		assert(preview.directed_impact_fx(burst,phase,0)==0,"miss cannot emit damage impact "+id)
 		assert(preview.element_finish_fx(burst,phase,0)==1,"miss only emits a subtle cloud "+id)
 	print("KINDRA_ELEMENT_FINISH_PASS 8")
