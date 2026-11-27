@@ -727,15 +727,25 @@ func run():
 		await frames()
 		assert(root.get_texture().get_image().save_png("/tmp/dungeon-real-ponoko-environment-"+id+".png")==OK)
 	print("KINDRA_TRAVEL_ENVIRONMENT_PASS 3")
-	# Representative elements must allocate a startup/impact finishing layer within the same pool.
+	# Confirmed damage, status and misses are different production contracts.
 	for id in ["eos_064","eos_157","eos_008","eos_153","eos_205","eos_270","eos_154","eos_003"]:
 		preview.combat_bursts.clear()
-		preview.combat_fx_spawn({"fx":id,"from":anchor,"to":anchor+Vector2i.RIGHT,"path":[anchor+Vector2i.RIGHT],"tiles":[anchor+Vector2i.RIGHT]})
+		var cell:Vector2i=anchor+Vector2i.RIGHT
+		var status:bool=id=="eos_003"
+		var row:Dictionary={"effects":1,"status":"Sleep"} if status else {"damage":8,"hits":1}
+		preview.combat_fx_spawn({"fx":id,"from":anchor,"to":cell,"path":[cell],"tiles":[cell],"results":{cell:row},"damage":int(row.get("damage",0))})
 		var burst:Dictionary=preview.combat_bursts[-1]
-		assert(preview.element_finish_fx(burst,float(burst.profile.impact)*.22,0)==3)
-		var count:int=preview.element_finish_fx(burst,lerpf(float(burst.profile.impact),1.0,.16),0)
-		assert(count>=4 and count<=preview.combat_particles.size())
-		assert(preview.element_finish_fx(burst,.8,preview.combat_particles.size())==preview.combat_particles.size())
+		assert(preview.element_finish_fx(burst,float(burst.profile.impact)*.22,0)==3,"startup "+id)
+		var phase:float=lerpf(float(burst.profile.impact),1.0,.16)
+		var count:int=preview.element_finish_fx(burst,phase,0)
+		assert(count>=4 and count<=preview.combat_particles.size(),"confirmed finish "+id)
+		var directed:int=preview.directed_impact_fx(burst,phase,0)
+		assert(directed==0 if status else directed>=1,"damage-only impact "+id)
+		assert(preview.element_finish_fx(burst,.8,preview.combat_particles.size())==preview.combat_particles.size(),"pool bound "+id)
+		burst.results={cell:{"damage":0,"misses":1}}
+		burst.damage=0
+		assert(preview.directed_impact_fx(burst,phase,0)==0,"miss cannot emit damage impact "+id)
+		assert(preview.element_finish_fx(burst,phase,0)==1,"miss only emits a subtle cloud "+id)
 	print("KINDRA_ELEMENT_FINISH_PASS 8")
 	var result_tile:Vector2i=anchor+Vector2i.RIGHT
 	var miss:Dictionary={"damage":0,"hits":0,"misses":1,"effects":0,"blocked":0,"crit":0}
