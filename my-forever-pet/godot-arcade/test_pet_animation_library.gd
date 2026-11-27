@@ -29,6 +29,29 @@ func _initialize():
 		var cell:=Art.authored_cell(dir,"idle",0)
 		for other in range(8):
 			if other!=dir:assert(cell.get_data()!=Art.authored_cell(other,"idle",0).get_data())
+	# Art identity guard: identical cardinal palette families, similar solid
+	# silhouette area, original 48px cell and ground anchor.
+	for dir in range(4,8):
+		var diagonal:=Art.authored_cell(dir,"idle",0)
+		var cardinal:=Art.authored_cell(0 if dir<6 else 1,"idle",0)
+		var palette:Dictionary={}
+		var cardinal_area:int=0
+		var diagonal_area:int=0
+		for y in range(48):
+			for x in range(48):
+				var pixel:=cardinal.get_pixel(x,y)
+				if pixel.a>0:
+					palette[pixel.to_rgba32()]=true
+					cardinal_area+=1
+		for y in range(48):
+			for x in range(48):
+				var pixel:=diagonal.get_pixel(x,y)
+				if pixel.a>0:
+					assert(palette.has(pixel.to_rgba32()),"original cardinal palette only")
+					diagonal_area+=1
+		assert(absf(float(diagonal_area)/float(cardinal_area)-1.0)<.18,"preserve round silhouette volume")
+		assert(absi(diagonal.get_used_rect().end.y-cardinal.get_used_rect().end.y)<=2,"same floor anchor")
+	print("PONOKO_CARDINAL_IDENTITY_PASS 4")
 	print("PONOKO_DIAGONAL_POSES_PASS 4")
 	for id in ["spirit-flame","fire-breath","heart-pickup","bubbles","heal"]:
 		var clip:=Fx.clip(id)

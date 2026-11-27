@@ -635,6 +635,15 @@ func run():
 	preview.run.player=anchor;preview.sync();preview.pet.position=preview.pos(anchor)
 	preview._process(.016)
 	var names:Array=["SE","SW","NE","NW"]
+	# Export the exact runtime sprite textures beside approved cardinal frames.
+	# Enlarged nearest-neighbor pixels permit direct identity review.
+	var comparison:=Image.create(48*4,48*2,false,Image.FORMAT_RGBA8)
+	comparison.fill(Color.TRANSPARENT)
+	for dir in range(8):
+		var cell:Image=art.adventure_frame(dir,"idle").get_image()
+		comparison.blit_rect(cell,Rect2i(0,0,48,48),Vector2i((dir%4)*48,(dir/4)*48))
+	comparison.resize(48*4*4,48*2*4,Image.INTERPOLATE_NEAREST)
+	assert(comparison.save_png("/tmp/dungeon-real-ponoko-original-vs-diagonal.png")==OK)
 	for i in range(4):
 		var direction:Vector2i=directions[i]
 		preview.facing=direction

@@ -201,71 +201,68 @@ static func direction8_for(delta:Vector2,previous:int=0)->int:
 # Three-quarter Ponoko is independently posed rather than rotating the front sprite.
 # Anchor: feet at y=45, belly center x=24. Left diagonal uses reflected anatomy.
 static func mosskit_diagonal(back:bool,step:int,pose:String,mood:String,frame:int=0)->Image:
-	# Anatomical turn: head and hips are staggered along the diagonal, not along
-	# a horizontal line. The near eye is below the far eye in a down-right view.
+	# Same round one-piece body, short paws, pink ears and oversized eyes as
+	# the approved front/side/back originals. Only landmark projection changes.
 	var im:=Image.create(48,48,false,Image.FORMAT_RGBA8)
 	im.fill(Color.TRANSPARENT)
-	var ink:=Color("#25421c");var deep:=Color("#478d27");var leaf:=Color("#76c438");var high:=Color("#a7e657");var pink:=Color("#f49ac2");var eye:=Color("#241c43")
+	var ink:=Color("#24421d") if back else Color("#25421c")
+	var deep:=Color("#4b912d") if back else Color("#478d27")
+	var leaf:=Color("#78c83d") if back else Color("#76c438")
+	var high:=Color("#a4e85b") if back else Color("#a7e657")
+	var pink:=Color("#f49ac2");var eye:=Color("#241c43")
 	var droop:bool=mood in ["sad","weak","sick"]
 	var strike:bool=(pose=="attack" and frame%2==1) or pose=="cast"
 	var windup:bool=pose=="attack" and not strike
 	var hurt:bool=pose=="hurt"
 	var rest:bool=pose in ["sleep","defeat"]
-	var shift:float=2.0 if strike else -1.0 if windup or hurt else .5 if pose=="recover" else 0.0
+	var shift:float=1.0 if strike else -1.0 if windup or hurt else .5 if pose=="recover" else 0.0
 	var crouch:float=2.0 if windup or hurt else 4.0 if rest else 0.0
-	var hips:=Vector2(20+shift,27+crouch+(3.0 if back else -2.0))
-	var head:=Vector2(28+shift,24+crouch+(-4.0 if back else 3.0))
-	var far_foot:=Vector2(32+shift,36-step+(0 if back else 1))
-	var near_foot:=Vector2(19+shift,42+step)
+	# Keep original body center and radii. Do not add a separate head or snout.
+	var body:=Vector2(24+shift,26+crouch)
+	var far_foot:=Vector2(33+shift,38-step)
+	var near_foot:=Vector2(17+shift,42+step)
 	if rest:far_foot.y=41;near_foot.y=43
-	# Rear foot and tail are visible at the opposite end from the face.
-	ellipse(im,far_foot,Vector2(7,4),ink);ellipse(im,far_foot+Vector2(0,-1),Vector2(5,2),deep)
-	if not back:
-		var tail:=hips+Vector2(-9,-3)
-		ellipse(im,tail,Vector2(6,5),ink);ellipse(im,tail+Vector2(0,-1),Vector2(4,3),leaf)
-	var far_ear:=Vector2(36+shift,12 if droop or rest else (8 if back else 11)-step*.5)
-	if strike:far_ear+=Vector2(1,2)
-	ellipse(im,far_ear,Vector2(5,7 if not rest else 5),ink);ellipse(im,far_ear,Vector2(3,5 if not rest else 3),deep)
-	if not back:ellipse(im,far_ear+Vector2(1,0),Vector2(2,3),pink)
-	var bud:=Vector2(27+shift,9+crouch+(0 if back else 2))
-	ellipse(im,bud,Vector2(4,6),ink);ellipse(im,bud+Vector2(-1,-2),Vector2(2,4),high)
-	# Two overlapping masses form a turned oval rather than a centered circle.
-	ellipse(im,hips,Vector2(15,15 if not rest else 11),ink)
-	ellipse(im,hips,Vector2(13,13 if not rest else 9),deep)
-	ellipse(im,hips+Vector2(-1,-3),Vector2(12,10 if not rest else 7),leaf)
-	ellipse(im,head,Vector2(16,14 if not rest else 11),ink)
-	ellipse(im,head,Vector2(14,12 if not rest else 9),deep)
-	ellipse(im,head+Vector2(-1,-3),Vector2(13,10 if not rest else 7),leaf)
-	ellipse(im,head+Vector2(-5,-8 if not rest else -5),Vector2(7,3),high)
-	var near_ear:=Vector2(16+shift,(19 if droop or rest else (15 if back else 8)+step*.5)+crouch*.4)
-	if strike:near_ear+=Vector2(1,2)
-	ellipse(im,near_ear,Vector2(6,5 if rest else 6 if droop else 9),ink)
-	ellipse(im,near_ear+Vector2(0,-1),Vector2(4,3 if rest else 4 if droop else 7),leaf)
-	if not back:ellipse(im,near_ear+Vector2(1,0),Vector2(3,2 if rest else 3 if droop else 5),pink)
-	else:ellipse(im,near_ear+Vector2(-1,-2),Vector2(2,3),high)
-	ellipse(im,near_foot,Vector2(9,4),ink);ellipse(im,near_foot+Vector2(0,-1),Vector2(7,3),deep);ellipse(im,near_foot+Vector2(1,-2),Vector2(5,2),leaf)
+	ellipse(im,far_foot,Vector2(7,4),ink);ellipse(im,far_foot+Vector2(0,-1),Vector2(5,3),deep)
+	var far_ear:=Vector2(33+shift,15 if droop or rest else (8 if back else 13)-step*.5)
+	ellipse(im,far_ear,Vector2(5,6 if rest else 8),ink)
+	ellipse(im,far_ear+Vector2(0,-1 if back else 0),Vector2(3,4 if rest else 6),leaf if back else deep)
+	if not back:ellipse(im,far_ear+Vector2(0,1),Vector2(2,4 if not rest else 2),pink)
+	else:ellipse(im,far_ear+Vector2(-1,-3),Vector2(2,3),high)
+	var bud:=Vector2(26+shift,9+crouch)
+	ellipse(im,bud,Vector2(4,6),ink);ellipse(im,bud+Vector2(-1,-1),Vector2(2,4),high)
+	# Same outline, dark lower rim and large lime belly as cardinal sprites.
+	ellipse(im,body,Vector2(18,16 if not rest else 12),ink)
+	ellipse(im,body,Vector2(16,14 if not rest else 10),deep)
+	ellipse(im,body+Vector2(-1,-3),Vector2(15,12 if not rest else 8),leaf)
+	ellipse(im,body+Vector2(-6,-10 if not rest else -6),Vector2(8,3),high)
+	var near_ear:=Vector2(16+shift,(17 if droop or rest else (14 if back else 8)+step*.5)+crouch*.4)
+	ellipse(im,near_ear,Vector2(7 if droop else 6,5 if rest or droop else 9),ink)
+	ellipse(im,near_ear,Vector2(5 if droop else 4,3 if rest or droop else 7),leaf)
+	if not back:ellipse(im,near_ear+Vector2(1,1),Vector2(3,2 if rest or droop else 5),pink)
+	else:ellipse(im,near_ear+Vector2(-1,-3),Vector2(2,4),high)
+	ellipse(im,near_foot,Vector2(9,4),ink);ellipse(im,near_foot+Vector2(0,-1),Vector2(7,3),deep);ellipse(im,near_foot+Vector2(-1,-2),Vector2(5,2),leaf)
 	if back:
-		# NE: head upper right, rump and tail lower left; no facial pixels.
-		var rump:=hips+Vector2(-3,3)
-		ellipse(im,rump,Vector2(12,10),ink);ellipse(im,rump+Vector2(0,-1),Vector2(10,8),deep);ellipse(im,rump+Vector2(-2,-3),Vector2(8,5),leaf)
-		var tail:=rump+Vector2(-5,5+step*.5)
-		ellipse(im,tail,Vector2(6,5),ink);ellipse(im,tail+Vector2(0,-1),Vector2(4,3),leaf);ellipse(im,tail+Vector2(-1,-2),Vector2(2,1),high)
+		# Same back markings and tail as the original rear sprite, offset SW.
+		for p in [body+Vector2(-10,0),body+Vector2(9,-6)]:
+			ellipse(im,p,Vector2(4,4),deep);ellipse(im,p+Vector2(-1,-1),Vector2(3,3),high)
+		var tail:=body+Vector2(-10,10+step*.5)
+		ellipse(im,tail,Vector2(6,5 if droop else 6),ink);ellipse(im,tail+Vector2(0,-1),Vector2(5,4 if droop else 5),deep);ellipse(im,tail+Vector2(-1,-2),Vector2(3,3),high)
 	else:
-		# SE: muzzle protrudes lower right. Eye line slopes up toward the far eye.
-		var muzzle:=head+Vector2(10,7)
-		ellipse(im,muzzle,Vector2(8,7 if not rest else 4),ink)
-		ellipse(im,muzzle+Vector2(-1,-1),Vector2(6,5 if not rest else 3),leaf)
-		for p in [head+Vector2(-1,2),head+Vector2(10,-6)]:
-			var far:bool=p.x>head.x+5
-			if pose in ["blink","sleep","hurt","defeat"] or mood in ["weak","sick"]:ellipse(im,p,Vector2(2 if far else 5,1),eye)
+		# Down-right eye line slopes upward; the smaller far eye is occluded.
+		# Preserve the distinctive white glints, purple iris and round mouth.
+		for p in [body+Vector2(0,1),body+Vector2(12,-5)]:
+			var far:bool=p.x>body.x+5
+			if pose in ["blink","sleep","hurt","defeat"] or mood in ["weak","sick"]:
+				ellipse(im,p,Vector2(2 if far else 5,1),eye)
 			else:
-				ellipse(im,p,Vector2(2 if far else 5,4 if far else 7),eye)
-				ellipse(im,p+Vector2(-1,-2),Vector2(1 if far else 2,2),Color("#fff3ef"))
-				if not far:ellipse(im,p+Vector2(2,3),Vector2(1,1),Color("#655b9a"))
-		ellipse(im,head+Vector2(-5,8),Vector2(3,2),pink)
-		var mouth:=muzzle+Vector2(3,3)
-		ellipse(im,mouth,Vector2(3,4 if strike or pose=="eat" else 2),eye)
-		ellipse(im,mouth+Vector2(0,1),Vector2(1,1),pink)
+				ellipse(im,p,Vector2(3 if far else 5,5 if far else 7),eye)
+				ellipse(im,p+Vector2(-1,-3 if not far else -2),Vector2(1 if far else 2,2),Color("#fff3ef"))
+				im.set_pixel(int(p.x)+1,int(p.y)+(3 if far else 4),Color("#655b9a"))
+		ellipse(im,body+Vector2(-5,7),Vector2(3,2),pink)
+		ellipse(im,body+Vector2(14,1),Vector2(2,1),pink)
+		var mouth:=body+Vector2(10,8)
+		ellipse(im,mouth,Vector2(3,4 if strike or pose=="eat" else 3),eye)
+		ellipse(im,mouth+Vector2(0,1),Vector2(2,1),pink)
 	return im
 
 static func pose_column(pose:String,frame:int)->int:
