@@ -874,14 +874,14 @@ func run()->void:
 		var key:String=str(fingerprint)
 		assert(not motion_fingerprints.has(key),"duplicate geometry "+role)
 		motion_fingerprints[key]=role
-	assert(motion_fingerprints.size()==266)
+	assert(motion_fingerprints.size()==471)
 	for move_id in catalog:
 		var intensity:float=field.attack_visual_intensity(move_id)
 		assert(intensity>=.66 and intensity<=1.34,move_id)
 	assert(field.attack_visual_intensity("eos_188")<field.attack_visual_intensity("eos_064"))
 	assert(field.attack_visual_intensity("eos_308")<field.attack_visual_intensity("eos_240"))
 	assert(field.attack_visual_intensity("eos_262")<field.attack_visual_intensity("eos_157"))
-	print("KINDRIA_V14_DIRECTION_PASS 266")
+	print("KINDRIA_V14_DIRECTION_PASS 471")
 	# Capture paired actual material finishes, not concept art, for visual review.
 	var review_moves:Dictionary={"eos_135":"grass","eos_076":"grass","eos_462":"ice","eos_270":"ice","eos_008":"ground","eos_118":"ground","eos_028":"rock","eos_453":"rock","eos_200":"poison","eos_280":"poison"}
 	for move_id in review_moves:
@@ -915,6 +915,20 @@ func run()->void:
 			assert(root.get_texture().get_image().save_png("/tmp/effekseer-review/v14-contact-"+move_id+"-"+str(roundi(float(moment)*100.0))+".png")==OK)
 	for particle in field.combat_particles:particle.hide()
 	print("KINDRIA_V14_COMBAT_MOTION_PASS 130")
+	var v14_final_pairs:Dictionary={"eos_114":"bug","eos_530":"bug","eos_342":"dragon","eos_538":"dragon","eos_510":"steel","eos_536":"steel","lib_fairy_1":"fairy","lib_fairy_3":"fairy","eos_154":"normal","eos_455":"normal","eos_301":"normal","eos_034":"normal"}
+	for move_id in v14_final_pairs:
+		assert(catalog.has(move_id),move_id)
+		var p:Dictionary=field.combat_profile(move_id)
+		assert(str(p.element)==str(v14_final_pairs[move_id]),move_id)
+		assert(Field.V14_ATTACK_DIRECTION.has(move_id) or Field.V14_ATTACK_DIRECTION.has(str(p.role)),move_id)
+		var style:Array=field.combat_style(move_id)
+		for particle in field.combat_particles:particle.hide()
+		var used:int=field.cinematic_impact_layers(move_id,p,special_source,bite_position,.35,0,Color(str(style[1])),Color(str(style[2])),catalog[move_id].category=="status")
+		assert(used>0 and used<=Field.FX_PARTICLE_CAP,move_id)
+		await frames()
+		assert(root.get_texture().get_image().save_png("/tmp/effekseer-review/v14-final-"+move_id+".png")==OK)
+	for particle in field.combat_particles:particle.hide()
+	print("KINDRIA_V14_FINAL_NATURE_PASS 205")
 	var plan:Array=[
 		{"stage":"ally_invoke","anchor":"source","start":0.0,"end":.15,"enabled":true},
 		{"stage":"enemy_invoke","anchor":"source","start":0.0,"end":.15,"enabled":true},
