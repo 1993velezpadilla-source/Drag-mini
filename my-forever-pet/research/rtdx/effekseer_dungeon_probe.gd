@@ -374,6 +374,46 @@ func run()->void:
 		assert(root.get_texture().get_image().save_png("/tmp/effekseer-review/claw-"+move_id+".png")==OK)
 	for particle in field.combat_particles:particle.hide()
 	print("KINDRIA_CONTACT_CLAW_PASS 14")
+	# V11.5: confirmed creature contact, directional silhouettes and elemental accents.
+	var body_cases:Dictionary={"lib_normal_1":"impact_star","lib_normal_2":"shock_ring","lib_bug_2":"shards","eos_001":"shards","eos_121":"impact_star","eos_139":"impact_star","eos_140":"shock_ring","eos_154":"impact_star","eos_161":"shards","eos_176":"impact_star","eos_203":"shock_ring","eos_235":"shock_ring","eos_283":"venom_splash","eos_323":"leaf","eos_348":"shock_ring","eos_354":"lightning","eos_431":"shards","eos_433":"wave","eos_455":"shock_ring","eos_473":"spiral","eos_517":"flame","eos_533":"shards","eos_177":"shards","eos_009":"impact_star"}
+	for move_id in body_cases:
+		var art:Array=field.body_contact_art(move_id)
+		assert(art.size()==8 and art[6]==body_cases[move_id])
+		assert(field.body_contact_fx(move_id,punch_source,bite_position,0.0,0,Color.WHITE,Color.BLACK)==1)
+		var emblem:Sprite3D=field.combat_particles[0]
+		var start_position:Vector3=emblem.position
+		var face:Texture2D=field.combat_pixel_texture(str(art[3]),Color(str(art[4])),Color(str(art[5])))
+		var mirrored:Texture2D=field.combat_pixel_texture(str(art[3])+"_mirror",Color(str(art[4])),Color(str(art[5])))
+		assert(emblem.texture==face or emblem.texture==mirrored)
+		assert(emblem.texture.get_width()==32 and emblem.texture.get_height()==32)
+		assert(emblem.texture.get_image().get_used_rect().size.x>0)
+		assert(is_equal_approx(emblem.pixel_size,.016))
+		assert(field.body_contact_fx(move_id,punch_source,bite_position,float(art[1])*.30,0,Color.WHITE,Color.BLACK)>=2)
+		assert(emblem.position.distance_to(start_position)>.05)
+		assert(field.combat_particles[1].texture==field.combat_pixel_texture(str(art[6]),Color.WHITE,Color.BLACK))
+		assert(is_equal_approx(field.combat_particles[1].pixel_size,.032))
+		assert(field.combat_particles.size()==particle_count)
+		assert(field.body_contact_fx(move_id,punch_source,bite_position,float(art[1]),0,Color.WHITE,Color.BLACK)==0)
+		assert(field.body_contact_fx(move_id,punch_source,bite_position,0.0,Field.FX_PARTICLE_CAP,Color.WHITE,Color.BLACK)==Field.FX_PARTICLE_CAP)
+	assert(field.body_contact_art("eos_122").is_empty(),"Tail Whip remains a status animation")
+	assert(field.body_contact_art("eos_489").is_empty(),"Charge Beam is not a body contact attack")
+	var ram_profile:Dictionary=field.combat_profile("eos_354")
+	var ram_burst:Dictionary={"id":"eos_354","profile":ram_profile,"points":[field.pos(origin),bite_position],"results":{target:{"misses":1}}}
+	assert(field.element_finish_fx(ram_burst,float(ram_profile.impact),0)==1)
+	ram_burst.results={target:{"damage":8,"hits":1}}
+	assert(field.element_finish_fx(ram_burst,float(ram_profile.impact),0)>1)
+	# Capture a representative frame for each authored move.
+	for move_id in body_cases:
+		var p:Dictionary=field.combat_profile(move_id)
+		var art:Array=field.body_contact_art(move_id)
+		var burst:Dictionary={"id":move_id,"profile":p,"points":[field.pos(origin)+Vector3.UP*.55,bite_position],"results":{target:{"damage":8,"hits":1}}}
+		for particle in field.combat_particles:particle.hide()
+		var tick:float=lerpf(float(p.impact),1.0,float(art[1])*.30)
+		assert(field.element_finish_fx(burst,tick,0)>1)
+		await frames()
+		assert(root.get_texture().get_image().save_png("/tmp/effekseer-review/body-"+move_id+".png")==OK)
+	for particle in field.combat_particles:particle.hide()
+	print("KINDRIA_CONTACT_BODY_PASS 24")
 	var plan:Array=[
 		{"stage":"ally_invoke","anchor":"source","start":0.0,"end":.15,"enabled":true},
 		{"stage":"enemy_invoke","anchor":"source","start":0.0,"end":.15,"enabled":true},
