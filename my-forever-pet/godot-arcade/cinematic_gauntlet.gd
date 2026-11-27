@@ -992,6 +992,17 @@ func run_checks()->void:
 		if float(hit.recoil)<0.0 or float(hit.recoil)>1.0 or absf(float(hit.tilt))>.10:failures.append("V20.3 recoil bounds")
 		if step in [0,100] and (absf(float(hit.recoil))>.001 or absf(float(hit.squash)-1.0)>.001):failures.append("V20.3 recoil rest")
 		checks+=2
+	# V20.6 acoustic repair: replay every flagged move in all three variants.
+	var repaired_audio_ids:Array=["lib_electric_1","lib_dark_1","eos_063","eos_064","eos_325","eos_452","eos_461","eos_522","eos_529","eos_020","alt_vinesnap","alt_sylphowl","alt_eelstrix"]
+	for id in repaired_audio_ids:
+		for phase in ["launch","impact"]:
+			for variant in range(3):
+				var pcm:PackedByteArray=view.combat_sound(id,phase,variant).data
+				var metrics:Dictionary=audio_quality_metrics(pcm)
+				if float(metrics.max_step)>Dungeon.FX_AUDIO_STEP_LIMIT+.0001:failures.append("V20.6 excessive sample step "+id+" "+phase)
+				if float(metrics.rms)<.005 or absf(float(metrics.dc))>.025:failures.append("V20.6 weak or biased audio "+id+" "+phase)
+				if pcm.decode_s16(0)!=0 or pcm.decode_s16(pcm.size()-2)!=0:failures.append("V20.6 PCM endpoints "+id+" "+phase)
+				checks+=3
 	# Full catalog: actual frame bytes, audio buffers, and pooled world FX.
 	# A duplicate sequence or sparse animation is a review candidate, not proof
 	# of poor visual quality. Preserve exact IDs in the downloadable CI report.
@@ -1135,6 +1146,8 @@ func run_checks()->void:
 				audio_review_rows.append(candidate)
 				print("KINDRIA_AUDIO_REVIEW ",JSON.stringify(candidate))
 			if float(metrics.peak)>Dungeon.FX_AUDIO_PEAK_LIMIT+.0001:failures.append("V20.1 peak ceiling "+str(id))
+			if float(metrics.max_step)>Dungeon.FX_AUDIO_STEP_LIMIT+.0001:failures.append("V20.6 sample step ceiling "+str(id)+" "+phase)
+			checks+=1
 			checks+=2
 			var peak:int=0
 			for offset in range(0,pcm.size(),2):
