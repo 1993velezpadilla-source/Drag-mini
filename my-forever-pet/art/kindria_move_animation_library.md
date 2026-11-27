@@ -45,3 +45,6 @@ All 14 electric reference entries now have individual roles. Thunder Punch: char
 
 ## Iteration 49: ghost choreography pilot
 14 individual ghost roles: nightmares, confusion rays, spite, astonishment, grudge, tongue, spectral punch, orb, shade rings, bonds, ominous wind, ground-level sneaking, claw arcs and descending shadow force. Original pixel frames and tile-space trajectories, no source sprites, numeric combat data unchanged. Temporal, nonempty and unique frame tests and PNG exports added. Bug 45935035461 logs verified all 210 previous roles and expedition captures=18 fights=25 transitions=3; core 45935035494 passed. Psychic and ghost CI, source fidelity, species body motion and Android performance not yet confirmed at authoring.
+
+## Iteration 50: dragon choreography pilot
+11 individual roles: Outrage, Twister, Dragon Claw, Dragon Rage, Dragonbreath, Dragon Dance, Spacial Rend, Roar of Time, Dragon Rush, Draco Meteor and Dragon Pulse. Original pixel frames and pooled tile-space trajectories including overhead meteors, room effects and caster aura. Numeric combat data unchanged. Temporal, nonempty and distinct-frame tests and PNG exports added. Psychic 3D run 45935142768 and smoke 45935142756 passed; ghost and dragon render gates, source footage, species body motion and Android performance remain unverified at authoring.

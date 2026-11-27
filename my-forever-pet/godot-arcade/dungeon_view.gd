@@ -2931,6 +2931,73 @@ func ghost_sprite(im:Image,role:String,frame:int)->void:
 			var q:=Vector2(24,6+32*t)
 			fx_disc(im,q,7.0,Color(dark,.9));fight_burst(im,q,11.0,6,t,glow,ink)
 
+# Original draconic pixel effects and directional elemental energy.
+func dragon_sprite(im:Image,role:String,frame:int)->void:
+	var t:float=float(frame)/11.0
+	var c:=Vector2(24,24)
+	var light:=Color("#b8a4ff");var dark:=Color("#55429b");var cyan:=Color("#87f1e8");var gold:=Color("#ffc580")
+	match role:
+		"dragon_rage":
+			for i in range(7):
+				var a:float=float(i)*TAU/7.0+t*2.0
+				var q:=c+Vector2(cos(a),sin(a))*(7.0+sin(t*PI)*12.0)
+				fx_line(im,c,q,5.0,dark);fx_line(im,c,q,2.0,gold)
+				fx_disc(im,q,3.0,light)
+		"dragon_twister":
+			for i in range(6):
+				var y:float=7.0+float(i)*6.0
+				var r:float=4.0+float(5-i)*2.2
+				fight_arc(im,Vector2(24,y),r,t*TAU+float(i)*.5,PI*1.55,cyan,dark,2.7)
+		"dragon_claw":
+			for i in range(3):
+				var q:=c+Vector2(float(i-1)*7,float(i-1)*4)
+				fight_arc(im,q,15.0,-PI*.85+t*1.4,PI*1.1,light,dark,4.5)
+		"dragon_flame","dragon_breath":
+			var count:int=5 if role=="dragon_flame" else 8
+			for i in range(count):
+				var q:=Vector2(4+float(i)*5+4*t,24+sin(t*TAU+float(i))*(3.0+float(i)*.8))
+				var r:float=3.0+float(i)*.65
+				fx_disc(im,q,r,dark)
+				fx_disc(im,q,r*.62,gold if role=="dragon_flame" else cyan)
+				if role=="dragon_breath":fx_line(im,q,q-Vector2(7,0),1.6,light)
+		"dragon_dance":
+			for i in range(6):
+				var a:float=float(i)*TAU/6.0+t*TAU
+				var q:=c+Vector2(cos(a),sin(a))*(10.0+sin(t*PI)*5.0)
+				fight_arc(im,q,6.0,a,PI*1.4,cyan,dark,2.6)
+				fx_disc(im,q+Vector2(0,-4),2.0,gold)
+		"dragon_rend":
+			var q:=c+Vector2(sin(t*PI)*4.0,0)
+			fx_line(im,q-Vector2(19,17),q+Vector2(18,16),8.0,dark)
+			fx_line(im,q-Vector2(19,17),q+Vector2(18,16),2.8,cyan)
+			for i in range(5):
+				var at:=q+Vector2(float(i-2)*7,float(i-2)*6)
+				fx_line(im,at,at+Vector2(6,-7),2.0,light)
+		"dragon_time":
+			var r:float=13.0+sin(t*PI)*4.0
+			psi_ring(im,c,r,cyan,dark)
+			for i in range(12):
+				var a:float=float(i)*TAU/12.0
+				fx_disc(im,c+Vector2(cos(a),sin(a))*r,1.3,light)
+			fx_line(im,c,c+Vector2(cos(t*TAU),sin(t*TAU))*r*.82,2.5,gold)
+			fx_line(im,c,c+Vector2(cos(t*PI),sin(t*PI))*r*.55,2.5,cyan)
+		"dragon_rush":
+			var q:=Vector2(7+32*t,24)
+			for i in range(5):fx_disc(im,q-Vector2(float(i)*5,0),8.0-float(i),Color(dark,1.0-float(i)*.15))
+			fx_line(im,q+Vector2(-10,-11),q+Vector2(12,0),5.0,light)
+			fx_line(im,q+Vector2(-10,11),q+Vector2(12,0),5.0,cyan)
+		"dragon_meteor":
+			for i in range(4):
+				var q:=Vector2(8+float(i)*10,3+30*clampf(t*1.4-float(i)*.10,0.0,1.0))
+				fx_line(im,q-Vector2(7,13),q,6.0,dark)
+				fx_line(im,q-Vector2(7,13),q,3.0,gold)
+				fx_disc(im,q,5.5,light);fx_disc(im,q,3.0,gold)
+		"dragon_pulse":
+			for i in range(4):
+				var q:=Vector2(5+float(i)*9+3*t,24)
+				fight_arc(im,q,7.0+float(i)*2.0,-PI*.5,PI,cyan,dark,4.0)
+				fx_disc(im,q,2.0,light)
+
 func combat_frame_image(id:String,frame:int)->Image:
 	var style:Array=combat_style(id)
 	var mode:String=combat_animation_mode(id,str(style[0]))
@@ -2964,6 +3031,8 @@ func combat_frame_image(id:String,frame:int)->Image:
 		psi_sprite(im,role,frame);return im
 	if role.begins_with("ghost_"):
 		ghost_sprite(im,role,frame);return im
+	if role.begins_with("dragon_"):
+		dragon_sprite(im,role,frame);return im
 	var center:=Vector2(24,24)
 	match mode:
 		"vine":
@@ -3348,6 +3417,17 @@ func combat_profile(id:String)->Dictionary:
 		"eos_451":role="ghost_sneak"
 		"eos_476":role="ghost_claw"
 		"eos_477":role="ghost_force"
+		"eos_091":role="dragon_rage"
+		"eos_162":role="dragon_twister"
+		"eos_208":role="dragon_claw"
+		"eos_341":role="dragon_flame"
+		"eos_342":role="dragon_breath"
+		"eos_343":role="dragon_dance"
+		"eos_435":role="dragon_rend"
+		"eos_494":role="dragon_time"
+		"eos_498":role="dragon_rush"
+		"eos_538":role="dragon_meteor"
+		"eos_539":role="dragon_pulse"
 	if role in ["electric_charge","electric_lift"]:mode="lightning"
 	var impact:float=.48 if role in ["contact","electric_contact","electric_short","electric_fist","electric_fang","electric_dash","electric_spark"] else .64 if role in ["projectile","lash","electric_arc","electric_wave","electric_sky","electric_orb","electric_beam"] else .40
 	if role in ["fire_breath","fire_ember","fire_blast","fire_wisp"]:impact=.64
@@ -3368,6 +3448,7 @@ func combat_profile(id:String)->Dictionary:
 	if role.begins_with("bug_"):impact=.64 if role in ["bug_string","bug_signal","bug_twin","bug_pin","bug_turn"] else .48
 	if role.begins_with("psi_"):impact=.64 if role in ["psi_beam","psi_wave","psi_mist","psi_luster"] else .48
 	if role.begins_with("ghost_"):impact=.64 if role in ["ghost_ball","ghost_confuse","ghost_sneak","ghost_force"] else .48
+	if role.begins_with("dragon_"):impact=.64 if role in ["dragon_breath","dragon_flame","dragon_pulse","dragon_meteor","dragon_rush"] else .48
 	return {"mode":mode,"role":role,"element":element,"pattern":pattern,"range":reach,"duration":float(style[3]),"impact":impact,"socket":"ground" if role in ["ground","fire_plume","fire_magma","water_dive","water_whirlpool","water_surf","grass_frenzy","grass_roots","grass_knot","ice_avalanche","ice_cold","earth_dig","earth_tomb","earth_power","earth_fissure","earth_spikes","earth_quake","earth_magnitude","rock_edge","rock_tomb","rock_trap","rock_roll"] else "head" if role in ["projectile","fire_breath","fire_ember","fire_eruption","water_bubble","water_ink","water_spout","water_cannon","water_pump","water_bubblebeam","water_gun","water_pulse","water_brine","grass_solar","grass_energy","grass_bullet","grass_whistle","ice_aurora","ice_beam","ice_wind","earth_shot","rock_wrecker","rock_blast","rock_gem"] else "center"}
 func electric_sprite(im:Image,id:String,frame:int,role:String)->void:
 	var cyan:=Color("#40cfff")
@@ -4058,6 +4139,22 @@ func combat_fx_update(dt:float)->void:
 						q=tiles[j%tiles.size()]+Vector3(cos(angle+t*TAU)*.36,.16+f*.48,sin(angle+t*TAU)*.36);size=.52
 					_:
 						q=points[-1]+Vector3(cos(angle+t*TAU)*.30,.18+f*.42,sin(angle+t*TAU)*.30);size=.51
+			if str(profile.role).begins_with("dragon_"):
+				var dragon_role:String=str(profile.role)
+				var progress:float=clampf(t*1.8-f*.30,0,1)
+				match dragon_role:
+					"dragon_breath","dragon_flame","dragon_pulse","dragon_rush":
+						q=combat_path_sample(points,progress)+Vector3(cos(angle)*.12,.18+sin(angle)*.12,sin(angle)*.12);size=.76 if dragon_role=="dragon_rush" else .56
+					"dragon_meteor":
+						q=tiles[j%tiles.size()]+Vector3(.4*(1.0-progress),2.0*(1.0-progress),-.3*(1.0-progress));size=.65
+					"dragon_rend","dragon_time":
+						q=tiles[j%tiles.size()]+Vector3(cos(angle)*.30,.2+f*.46,sin(angle)*.30);size=.60
+					"dragon_twister":
+						q=points[-1]+Vector3(cos(angle+t*TAU*2.0)*.32,.1+f*.85,sin(angle+t*TAU*2.0)*.32);size=.48
+					"dragon_dance":
+						q=points[0]+Vector3(cos(angle+t*TAU)*.42,.12+f*.62,sin(angle+t*TAU)*.42);size=.46
+					_:
+						q=points[-1]+Vector3(cos(angle)*.28,.18+sin(angle)*.25,sin(angle)*.28);size=.56
 			# Drained energy travels from victim back to caster; healing stays on caster.
 			if profile.role=="drain" and t>=.40:
 				var back:float=clampf((t-.40)*2.0-f*.22,0.0,1.0)

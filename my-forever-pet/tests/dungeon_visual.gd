@@ -322,6 +322,22 @@ func run():
 				ghost_frames[signature]=true
 				assert(middle.save_png("/tmp/dungeon-real-ghost-"+id+".png")==OK)
 			print("KINDRIA_GHOST_CHOREOGRAPHY_PASS ",ghost_roles.size())
+			var dragon_roles:Dictionary={}
+			var dragon_frames:Dictionary={}
+			for id in ["eos_091","eos_162","eos_208","eos_341","eos_342","eos_343","eos_435","eos_494","eos_498","eos_538","eos_539"]:
+				var profile:Dictionary=dungeon.combat_profile(id)
+				assert(str(profile.role).begins_with("dragon_"),"dedicated dragon role "+id)
+				assert(not dragon_roles.has(profile.role),"unique dragon choreography "+id)
+				dragon_roles[profile.role]=true
+				var first:Image=dungeon.combat_frame_image(id,2)
+				var middle:Image=dungeon.combat_frame_image(id,6)
+				assert(first.get_data()!=middle.get_data(),"dragon animation changes "+id)
+				assert(middle.get_used_rect().has_area(),"nonempty dragon frame "+id)
+				var signature:String=middle.get_data().hex_encode()
+				assert(not dragon_frames.has(signature),"unique dragon sprite "+id)
+				dragon_frames[signature]=true
+				assert(middle.save_png("/tmp/dungeon-real-dragon-"+id+".png")==OK)
+			print("KINDRIA_DRAGON_CHOREOGRAPHY_PASS ",dragon_roles.size())
 			# Reproduce the freed-instance registry fault before the real expedition.
 			var retired:Node3D=dungeon.actor_for("retired-test",Vector3.ZERO)
 			retired.free()
