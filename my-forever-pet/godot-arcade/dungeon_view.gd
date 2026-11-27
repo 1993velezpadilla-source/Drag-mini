@@ -5484,7 +5484,7 @@ func native_identity_frame(id:String,frame:int,base:Image)->Image:
 	return im
 
 # V16.7: individually remastered after reviewing actual Godot PNG strips.
-const VISUAL_REMASTER_MOVES=["eos_504","eos_308","eos_135","eos_142","eos_047","eos_250","eos_299","eos_329","eos_262","eos_279","eos_101","eos_199","eos_251","eos_486","eos_462","eos_018","eos_507","eos_175","eos_254","eos_097","eos_163","eos_320","eos_033","eos_166","eos_228","eos_004","eos_252","eos_330","eos_465","eos_138","eos_021","eos_501","eos_053","eos_157","eos_064","eos_188","eos_240","eos_255","eos_342","eos_539","eos_041","eos_278","eos_538","eos_239","eos_193","eos_272","eos_519","eos_494","eos_292","eos_065","eos_276","eos_208","eos_522","eos_452","eos_433","eos_087","eos_063","eos_062","eos_476","eos_127","eos_451","eos_436","eos_491","eos_046","eos_109","eos_234","eos_107","eos_463","eos_133","eos_317","eos_111","eos_331","eos_345","eos_270","eos_042","eos_344","eos_461","eos_180","eos_535","eos_150","eos_118","eos_484","eos_008","eos_131","eos_030","eos_481","eos_028","eos_073","lib_ground_1","eos_057","eos_036","eos_442","eos_153","eos_205","eos_100","eos_518","eos_178","eos_200","eos_495","eos_280","eos_197","eos_332","eos_147","eos_485","eos_459","eos_151","eos_537","eos_443","eos_336","eos_182","eos_253","eos_441","eos_076","lib_grass_1","eos_001","eos_325","eos_103","eos_536","eos_510","eos_431","eos_475","eos_523","eos_080","eos_082","eos_114","eos_323","eos_470","eos_502","eos_529","eos_530","eos_460","eos_520","eos_449","eos_288","eos_164","eos_306","eos_023","eos_086","eos_346","lib_fairy_1","lib_fairy_2","lib_fairy_3","eos_341","eos_498","eos_343","eos_091","eos_162","eos_435","lib_dragon_1","lib_dragon_2","lib_dragon_3"]
+const VISUAL_REMASTER_MOVES=["eos_504","eos_308","eos_135","eos_142","eos_047","eos_250","eos_299","eos_329","eos_262","eos_279","eos_101","eos_199","eos_251","eos_486","eos_462","eos_018","eos_507","eos_175","eos_254","eos_097","eos_163","eos_320","eos_033","eos_166","eos_228","eos_004","eos_252","eos_330","eos_465","eos_138","eos_021","eos_501","eos_053","eos_157","eos_064","eos_188","eos_240","eos_255","eos_342","eos_539","eos_041","eos_278","eos_538","eos_239","eos_193","eos_272","eos_519","eos_494","eos_292","eos_065","eos_276","eos_208","eos_522","eos_452","eos_433","eos_087","eos_063","eos_062","eos_476","eos_127","eos_451","eos_436","eos_491","eos_046","eos_109","eos_234","eos_107","eos_463","eos_133","eos_317","eos_111","eos_331","eos_345","eos_270","eos_042","eos_344","eos_461","eos_180","eos_535","eos_150","eos_118","eos_484","eos_008","eos_131","eos_030","eos_481","eos_028","eos_073","lib_ground_1","eos_057","eos_036","eos_442","eos_153","eos_205","eos_100","eos_518","eos_178","eos_200","eos_495","eos_280","eos_197","eos_332","eos_147","eos_485","eos_459","eos_151","eos_537","eos_443","eos_336","eos_182","eos_253","eos_441","eos_076","lib_grass_1","eos_001","eos_325","eos_103","eos_536","eos_510","eos_431","eos_475","eos_523","eos_080","eos_082","eos_114","eos_323","eos_470","eos_502","eos_529","eos_530","eos_460","eos_520","eos_449","eos_288","eos_164","eos_306","eos_023","eos_086","eos_346","lib_fairy_1","lib_fairy_2","lib_fairy_3","eos_341","eos_498","eos_343","eos_091","eos_162","eos_435","lib_dragon_1","lib_dragon_2","lib_dragon_3","eos_092","eos_204","eos_206","eos_303","eos_222","eos_210","lib_fighting_2","eos_136","eos_075","eos_300"]
 func visual_remaster_frame(id:String,frame:int)->Image:
 	var im:=Image.create(48,48,false,Image.FORMAT_RGBA8)
 	im.fill(Color.TRANSPARENT)
@@ -7813,6 +7813,106 @@ func visual_remaster_frame(id:String,frame:int)->Image:
 				fx_line(im,q+normal*4,q-axis*5,1.5,Color("#fff2d1",fade))
 			if t>=peak:
 				fairy_star(im,c,3+3*pulse,Color("#c9fff0",fade))
+		"eos_092","eos_204","eos_206","eos_303","eos_222","eos_210","lib_fighting_2":
+			# Side-view articulated kick: thigh, shin, ankle, boot and sole.
+			# Individual hit confirmation remains in the existing combat timeline.
+			var angle:float=0.0
+			var center:=Vector2(21,24)
+			var reach:float=1.0
+			var weight:float=1.0
+			var tint:=Color("#ffe9b7",fade)
+			var shade:=Color("#9c533f",fade)
+			match id:
+				"eos_092":
+					angle=.43;center.y+=8.0;reach=.88
+				"eos_204":
+					angle=-.22;center.y-=7*sin(drive*PI);reach=1.08
+				"eos_206":
+					angle=-.68;center.y-=5;reach=1.15;weight=1.18
+				"eos_303":
+					angle=-1.0+1.9*drive;reach=1.02
+				"eos_222":
+					angle=-.18;reach=.92
+				"eos_210":
+					angle=.05;reach=.94;weight=.94
+				"lib_fighting_2":
+					angle=-1.45+2.2*drive;tint=Color("#f7d8a2",fade);shade=Color("#a85d50",fade)
+			var bend:float=.28+.72*drive
+			var recoil:float=(1.0-fade)*.35
+			var hip:=center+Vector2(-12,-9).rotated(angle)
+			var knee:=center+Vector2(-5,-5-4*(1.0-bend)).rotated(angle)
+			var ankle:=center+Vector2(8*reach*(bend-recoil),5-7*(1.0-bend)).rotated(angle)
+			var toe:=ankle+Vector2(6.4*reach,0).rotated(angle)
+			var outline:=Color("#573c3a",fade)
+			fx_line(im,hip,knee,5.7*weight,outline)
+			fx_line(im,knee,ankle,5.2*weight,outline)
+			fx_line(im,ankle,toe,6.3*weight,outline)
+			fx_line(im,hip,knee,3.6*weight,shade)
+			fx_line(im,knee,ankle,3.2*weight,tint)
+			fx_line(im,ankle,toe,4.0*weight,Color("#fff4d8",fade))
+			var sole:=Vector2(0,2.3*weight).rotated(angle)
+			fx_line(im,ankle+sole,toe+sole,1.1,shade)
+			if id in ["eos_303","lib_fighting_2"]:
+				fight_arc(im,center,17.0,-1.8+angle,1.9,Color("#ffe8b0",fade),Color("#bd784d",fade),2.5)
+			elif id in ["eos_204","eos_206"]:
+				for j in range(3):
+					var q:=hip+Vector2(-3-float(j)*3,3+float(j)*4)
+					fx_line(im,q-Vector2(5,4),q,1.3,Color("#f2ce9c",fade))
+			elif id in ["eos_222","eos_210"]:
+				# Extra speed marks denote the technique, not additional damage events.
+				for j in range(2 if id=="eos_222" else 3):
+					var q:=ankle+Vector2(-5-float(j)*3,4+float(j)*3).rotated(angle)
+					fx_line(im,q-Vector2(5,0).rotated(angle),q,1.1,Color("#fbdbae",fade))
+			else:
+				fx_line(im,hip+Vector2(-6,6),ankle+Vector2(-3,6),1.2,Color("#f4cf9d",fade))
+			if t>=peak:
+				var axis:=Vector2(cos(angle),sin(angle))
+				var normal:=Vector2(-axis.y,axis.x)
+				for j in range(5):
+					var a:float=float(j-2)*.46
+					var d:=axis.rotated(a)
+					var q:=toe+d*(3+7*(1.0-fade))
+					fx_line(im,toe+d*2,q,1.4,Color("#fff0b5",fade))
+				if id=="eos_092":fx_line(im,toe-normal*2,toe+axis*4-normal*2,1.0,Color("#ffe3a0",fade))
+		"eos_136":
+			# Sky Uppercut: vertical rising fist and upward pressure wake.
+			var q:=Vector2(24,36-24*drive)
+			for j in range(3):
+				var x:float=float(j-1)*5.0
+				fx_line(im,q+Vector2(x,5),q+Vector2(x,12+7*fade),1.8,Color("#c88153",fade))
+				fx_line(im,q+Vector2(x,6),q+Vector2(x,10+5*fade),.8,Color("#fff0b8",fade))
+			fight_fist(im,q,-PI*.5,7.1,Color("#ffe7b9",fade),Color("#8e4939",fade))
+			if t>=peak:
+				for j in range(5):
+					var a:float=-PI+float(j)*PI/4.0
+					var axis:=Vector2(cos(a),sin(a))
+					fx_line(im,q+axis*7,q+axis*(11+7*(1.0-fade)),1.6,Color("#fff2bb",fade))
+		"eos_075":
+			# Focused Fist: charge motes converge onto a single heavy punch.
+			var q:=Vector2(12+20*drive,24)
+			for j in range(6):
+				var a:float=float(j)*TAU/6.0+t*.8
+				var axis:=Vector2(cos(a),sin(a))
+				var r:float=17-9*drive
+				fx_line(im,q+axis*r,q+axis*(r-4),1.4,Color("#e8b45b",fade))
+			fight_fist(im,q,0.0,8.0,Color("#ffdda1",fade),Color("#9b5533",fade))
+			if t>=peak:
+				var radius:float=8+9*(1.0-fade)
+				fx_disc(im,q,radius,Color("#ffe9a1",fade),radius-1.4)
+				for j in range(8):
+					var a:float=float(j)*TAU/8.0
+					var axis:=Vector2(cos(a),sin(a))
+					fx_line(im,q+axis*radius,q+axis*(radius+4),1.5,Color("#ffce72",fade))
+		"eos_300":
+			# Mach Punch: compact high-speed fist and three horizontal motion streaks.
+			var q:=Vector2(8+29*drive,24)
+			for j in range(3):
+				var y:float=float(j-1)*4
+				fx_line(im,q+Vector2(-18*fade,y),q+Vector2(-5,y),1.2,Color("#e8b490",fade))
+				fx_line(im,q+Vector2(-12*fade,y),q+Vector2(-5,y),.8,Color("#fff4d2",fade))
+			fight_fist(im,q,0.0,5.0,Color("#fff0ce",fade),Color("#b3694c",fade))
+			if t>=peak:
+				fairy_star(im,q+Vector2(5,0),2.5+2*pulse,Color("#fff6c6",fade))
 	return im
 
 func combat_frame_image(id:String,frame:int)->Image:
