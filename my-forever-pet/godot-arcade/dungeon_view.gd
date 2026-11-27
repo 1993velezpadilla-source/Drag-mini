@@ -5484,7 +5484,7 @@ func native_identity_frame(id:String,frame:int,base:Image)->Image:
 	return im
 
 # V16.7: individually remastered after reviewing actual Godot PNG strips.
-const VISUAL_REMASTER_MOVES=["eos_504","eos_308","eos_135","eos_142","eos_047","eos_250","eos_299","eos_329","eos_262","eos_279","eos_101","eos_199","eos_251","eos_486","eos_462","eos_018","eos_507","eos_175","eos_254","eos_097","eos_163","eos_320","eos_033","eos_166","eos_228","eos_004","eos_252","eos_330","eos_465","eos_138","eos_021","eos_501","eos_053","eos_157","eos_064","eos_188","eos_240","eos_255","eos_342","eos_539","eos_041","eos_278","eos_538","eos_239","eos_193","eos_272","eos_519","eos_494","eos_292","eos_065","eos_276","eos_208","eos_522","eos_452","eos_433","eos_087","eos_063","eos_062","eos_476","eos_127","eos_451","eos_436","eos_491","eos_046","eos_109","eos_234","eos_107","eos_463","eos_133","eos_317","eos_111","eos_331","eos_345","eos_270","eos_042","eos_344","eos_461","eos_180","eos_535","eos_150","eos_118","eos_484","eos_008","eos_131","eos_030","eos_481","eos_028","eos_073","lib_ground_1","eos_057","eos_036","eos_442","eos_153","eos_205","eos_100","eos_518","eos_178","eos_200","eos_495","eos_280","eos_197","eos_332","eos_147","eos_485","eos_459","eos_151","eos_537","eos_443","eos_336","eos_182","eos_253","eos_441","eos_076","lib_grass_1","eos_001","eos_325","eos_103","eos_536","eos_510","eos_431","eos_475","eos_523","eos_080","eos_082","eos_114","eos_323","eos_470","eos_502","eos_529","eos_530","eos_460","eos_520","eos_449","eos_288","eos_164","eos_306","eos_023","eos_086","eos_346","lib_fairy_1","lib_fairy_2","lib_fairy_3"]
+const VISUAL_REMASTER_MOVES=["eos_504","eos_308","eos_135","eos_142","eos_047","eos_250","eos_299","eos_329","eos_262","eos_279","eos_101","eos_199","eos_251","eos_486","eos_462","eos_018","eos_507","eos_175","eos_254","eos_097","eos_163","eos_320","eos_033","eos_166","eos_228","eos_004","eos_252","eos_330","eos_465","eos_138","eos_021","eos_501","eos_053","eos_157","eos_064","eos_188","eos_240","eos_255","eos_342","eos_539","eos_041","eos_278","eos_538","eos_239","eos_193","eos_272","eos_519","eos_494","eos_292","eos_065","eos_276","eos_208","eos_522","eos_452","eos_433","eos_087","eos_063","eos_062","eos_476","eos_127","eos_451","eos_436","eos_491","eos_046","eos_109","eos_234","eos_107","eos_463","eos_133","eos_317","eos_111","eos_331","eos_345","eos_270","eos_042","eos_344","eos_461","eos_180","eos_535","eos_150","eos_118","eos_484","eos_008","eos_131","eos_030","eos_481","eos_028","eos_073","lib_ground_1","eos_057","eos_036","eos_442","eos_153","eos_205","eos_100","eos_518","eos_178","eos_200","eos_495","eos_280","eos_197","eos_332","eos_147","eos_485","eos_459","eos_151","eos_537","eos_443","eos_336","eos_182","eos_253","eos_441","eos_076","lib_grass_1","eos_001","eos_325","eos_103","eos_536","eos_510","eos_431","eos_475","eos_523","eos_080","eos_082","eos_114","eos_323","eos_470","eos_502","eos_529","eos_530","eos_460","eos_520","eos_449","eos_288","eos_164","eos_306","eos_023","eos_086","eos_346","lib_fairy_1","lib_fairy_2","lib_fairy_3","eos_341","eos_498","eos_343","eos_091","eos_162","eos_435","lib_dragon_1","lib_dragon_2","lib_dragon_3"]
 func visual_remaster_frame(id:String,frame:int)->Image:
 	var im:=Image.create(48,48,false,Image.FORMAT_RGBA8)
 	im.fill(Color.TRANSPARENT)
@@ -7668,6 +7668,151 @@ func visual_remaster_frame(id:String,frame:int)->Image:
 				else:
 					var v:=c+axis*(18-9*charge)
 					fairy_star(im,v,2.0,Color("#d8b8ff",fade))
+		"eos_341":
+			# Drake Wrath: a concentrated ancestral flame flares into pointed scales.
+			var c:=Vector2(24,25)
+			var r:float=4.0+10.0*drive
+			fx_disc(im,c,r,Color("#4b3389",fade))
+			fx_disc(im,c-Vector2(0,2),r*.65,Color("#d78cec",fade))
+			fx_disc(im,c-Vector2(0,3),r*.32,Color("#ffdb99",fade))
+			for j in range(7):
+				var a:float=float(j)*TAU/7.0+t*.8
+				var axis:=Vector2(cos(a),sin(a))
+				var q:=c+axis*r*.78
+				fire_lobe(im,q,2.2+2.2*pulse,t+float(j)*.13,Color("#ffca89",fade),Color("#8c58ca",fade))
+				if t>=peak:fx_line(im,q,c+axis*(r+7*(1.0-fade)),1.3,Color("#eac0ff",fade))
+		"eos_498":
+			# Dragon Rush: forward draconic head and horn silhouettes with a pressure wake.
+			var q:=Vector2(10+23*drive,24)
+			fx_line(im,q-Vector2(19*fade,0),q,8.0,Color("#493788",fade))
+			fx_line(im,q-Vector2(14*fade,0),q,4.0,Color("#85d9d9",fade))
+			for side in [-1,1]:
+				var sy:float=float(side)
+				var brow:=q+Vector2(-3,sy*4)
+				var horn:=q+Vector2(-10,sy*11)
+				fx_line(im,brow,horn,3.6,Color("#7354b6",fade))
+				fx_line(im,brow,horn,1.6,Color("#b9eef0",fade))
+				fx_line(im,brow,q+Vector2(9,sy*2),3.8,Color("#a898f0",fade))
+				fx_line(im,q+Vector2(1,sy*3),q+Vector2(5,sy*2),1.2,Color("#fff1b1",fade))
+			fx_line(im,q+Vector2(2,0),q+Vector2(10,0),2.2,Color("#dcffff",fade))
+			if t>=peak:
+				for j in range(7):
+					var a:float=float(j)*TAU/7.0
+					var axis:=Vector2(cos(a),sin(a))
+					fx_line(im,q+axis*8,q+axis*(12+6*(1.0-fade)),1.5,Color("#a6e7e7",fade))
+		"eos_343":
+			# Drake Rhythm: ceremonial twin serpentine auras orbit the caster.
+			var c:=Vector2(24,24)
+			for j in range(2):
+				var prev:=c
+				for k in range(1,26):
+					var f:float=float(k)/25.0
+					var a:float=f*TAU*1.15+t*TAU+float(j)*PI
+					var r:float=(6+11*drive)*(.25+.75*f)
+					var q:=c+Vector2(cos(a)*r,sin(a)*r*.9)
+					fx_line(im,prev,q,3.0,Color("#6144a0",fade))
+					fx_line(im,prev,q,1.2,Color("#8ce9db" if j==0 else "#d2b9ff",fade))
+					prev=q
+				var a:float=t*TAU+float(j)*PI+TAU*1.15
+				var axis:=Vector2(-sin(a),cos(a))
+				var normal:=Vector2(-axis.y,axis.x)
+				fx_line(im,prev-normal*3,prev+axis*4,2.0,Color("#f1dcaa",fade))
+				fx_line(im,prev+normal*3,prev+axis*4,2.0,Color("#f1dcaa",fade))
+			for j in range(5):
+				var a:float=float(j)*TAU/5.0-t*2.0
+				fairy_star(im,c+Vector2(cos(a),sin(a))*(8+10*drive),1.5,Color("#ffdd9c",fade))
+		"eos_091":
+			# Draconic Frenzy: alternating savage crossing slashes and red-violet flares.
+			var c:=Vector2(24,24)
+			for j in range(3):
+				var a:float=-2.5+float(j)*1.6+drive*1.4
+				var q:=c+Vector2(float(j-1)*3,float(j%2)*3)
+				fight_arc(im,q,13.0+float(j)*2,a,1.8,Color("#f9b0a1",fade),Color("#703a90",fade),4.4)
+				var axis:=Vector2(cos(a+1.8),sin(a+1.8))
+				fire_lobe(im,q+axis*13,2.5,t+float(j)*.23,Color("#ffd1a1",fade),Color("#ab4d96",fade))
+			if t>=peak:
+				for j in range(8):
+					var a:float=float(j)*TAU/8.0+t
+					var axis:=Vector2(cos(a),sin(a))
+					fx_line(im,c+axis*7,c+axis*(15+5*(1.0-fade)),1.4,Color("#e4a0bb",fade))
+		"eos_162":
+			# Twister: narrowing draconic tornado with rising motes and a visible funnel.
+			for j in range(6):
+				var y:float=8.0+float(j)*6.0
+				var r:float=(16.0-float(j)*2.4)*(.48+.52*drive)
+				var prev:=Vector2(24+r,y)
+				for k in range(1,21):
+					var a:float=float(k)*TAU/20.0+t*TAU+float(j)*.7
+					var q:=Vector2(24+cos(a)*r,y+sin(a)*2.5)
+					fx_line(im,prev,q,2.3,Color("#5d4b9e",fade*.8))
+					fx_line(im,prev,q,1.0,Color("#a0e7dd",fade))
+					prev=q
+			for j in range(7):
+				var f:float=fposmod(t*1.2+float(j)*.15,1.0)
+				var q:=Vector2(24+sin(f*TAU*2+float(j))*((1.0-f)*5+f*15),40-33*f)
+				fx_disc(im,q,1.4,Color("#d3c1ff",fade))
+		"eos_435":
+			# Spacial Rend: a dark spatial tear with luminous edges and broken shards.
+			var c:=Vector2(24,24)
+			var span:float=4+17*drive
+			var prev:=c-Vector2(span,span*.83)
+			for j in range(1,9):
+				var f:float=float(j)/8.0
+				var q:=c+Vector2(lerpf(-span,span,f),lerpf(-span*.83,span*.83,f)+sin(float(j)*2.6)*2.3)
+				fx_line(im,prev,q,6.5,Color("#8263bc",fade))
+				fx_line(im,prev,q,4.2,Color("#291b46",fade))
+				fx_line(im,prev-Vector2(0,2),q-Vector2(0,2),1.2,Color("#c2f5ed",fade))
+				prev=q
+			if t>=peak:
+				for j in range(7):
+					var f:float=float(j)/6.0
+					var q:=c+Vector2(lerpf(-14,14,f),lerpf(-12,12,f))
+					var sy:float=-1.0 if j%2==0 else 1.0
+					var v:=q+Vector2(-sy*5,sy*(5+8*(1.0-fade)))
+					fx_line(im,q,v,1.5,Color("#e3c8ff",fade))
+					fx_line(im,v,v+Vector2(sy*3,sy*2),1.0,Color("#9be6df",fade))
+		"lib_dragon_1":
+			# Drake Claw: a fan of four short talons distinct from Dragon Claw.
+			var c:=Vector2(19,24)
+			for j in range(4):
+				var a:float=-1.2+float(j)*.72+drive*.5
+				var axis:=Vector2(cos(a),sin(a))
+				var normal:=Vector2(-axis.y,axis.x)
+				var root:=c+axis*4
+				var elbow:=c+axis*(8+9*drive)+normal*3
+				var tip:=c+axis*(11+10*drive)
+				fx_line(im,root,elbow,3.7,Color("#514084",fade))
+				fx_line(im,elbow,tip,2.7,Color("#514084",fade))
+				fx_line(im,root,elbow,1.6,Color("#aee6cb",fade))
+				fx_line(im,elbow,tip,1.0,Color("#e8fff0",fade))
+		"lib_dragon_2":
+			# Drake Breath: an expanding cyan-violet cone of forked flame.
+			var head:=Vector2(8+30*drive,24)
+			for j in range(9):
+				var f:float=float(j)/8.0
+				var q:=Vector2(lerpf(5.0,head.x,f),24+sin(f*TAU*2-t*TAU)*(2+5*f))
+				var r:float=2.0+3.5*f
+				fire_lobe(im,q,r,t+float(j)*.11,Color("#c0fff0",fade),Color("#7255bd",fade))
+			if t>=peak:
+				for j in range(5):
+					var a:float=-1.0+float(j)*.5
+					var q:=head+Vector2(cos(a),sin(a))*(4+7*(1.0-fade))
+					fx_disc(im,q,1.7,Color("#d2b6ff",fade))
+		"lib_dragon_3":
+			# Orbit Fang: paired curved fangs spiral inward and snap shut at contact.
+			var c:=Vector2(24,24)
+			var r:float=17.0-11.0*drive+5*(1.0-fade)
+			for j in range(2):
+				var a:float=t*TAU*.8+float(j)*PI
+				var axis:=Vector2(cos(a),sin(a))
+				var normal:=Vector2(-axis.y,axis.x)
+				var q:=c+axis*r
+				fight_arc(im,c,r,a-1.25,1.25,Color("#b6e6df",fade),Color("#6550a4",fade),2.5)
+				fx_line(im,q+normal*4,q-axis*5,3.4,Color("#574180",fade))
+				fx_line(im,q-normal*3,q-axis*5,2.0,Color("#e7e5ba",fade))
+				fx_line(im,q+normal*4,q-axis*5,1.5,Color("#fff2d1",fade))
+			if t>=peak:
+				fairy_star(im,c,3+3*pulse,Color("#c9fff0",fade))
 	return im
 
 func combat_frame_image(id:String,frame:int)->Image:
