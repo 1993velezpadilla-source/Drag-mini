@@ -63,6 +63,13 @@ jobs:
           timeout 60 /tmp/godot/Godot_v4.4.1-stable_linux.x86_64 --headless --path /tmp/pet-core --script res://dungeon_test.gd 2>&1 | tee /tmp/dungeon-test.log
           grep -F 'FOREVER_DUNGEON_PASS' /tmp/dungeon-test.log
           ! grep -E 'SCRIPT ERROR|Parse Error' /tmp/dungeon-test.log
+      - name: Validate unique Volnox enemy identities and animation contracts
+        run: |
+          set -euo pipefail
+          cp my-forever-pet/tests/volnox_roster.gd /tmp/pet-core/
+          timeout 30 /tmp/godot/Godot_v4.4.1-stable_linux.x86_64 --headless --path /tmp/pet-core --script res://volnox_roster.gd 2>&1 | tee /tmp/volnox-roster.log
+          grep -F 'VOLNOX_ROSTER_PASS 33' /tmp/volnox-roster.log
+          ! grep -E 'SCRIPT ERROR|Parse Error|Assertion failed' /tmp/volnox-roster.log
       - name: Simulate full combat expeditions without removing enemies
         run: |
           set -euo pipefail
@@ -81,3 +88,4 @@ jobs:
             /tmp/wild-field.log
             /tmp/dungeon-test.log
             /tmp/dungeon-combat.log
+            /tmp/volnox-roster.log

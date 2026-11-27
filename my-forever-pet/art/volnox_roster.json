@@ -1,0 +1,251 @@
+{
+  "status": "design_contract_not_production_art",
+  "regions": [
+    {
+      "name": "Whisperwood",
+      "enemies": [
+        {
+          "id": "bramble_pup",
+          "name": "Bramble Pup",
+          "gait": "quadruped_bound",
+          "attack": "Briar Pounce",
+          "combat_class": 0
+        },
+        {
+          "id": "sporeling",
+          "name": "Sporeling",
+          "gait": "mushroom_stem_steps",
+          "attack": "Spore Puff",
+          "combat_class": 1
+        },
+        {
+          "id": "thornbeetle",
+          "name": "Thornbeetle",
+          "gait": "six_leg_tripod",
+          "attack": "Thorn Ram",
+          "combat_class": 2
+        },
+        {
+          "id": "leafwisp",
+          "name": "Leafwisp",
+          "gait": "leaf_flutter",
+          "attack": "Leaf Dart",
+          "combat_class": 1
+        },
+        {
+          "id": "rootgnawer",
+          "name": "Rootgnawer",
+          "gait": "boar_trot",
+          "attack": "Root Tusk",
+          "combat_class": 0
+        },
+        {
+          "id": "vinesnap",
+          "name": "VineSnap",
+          "gait": "root_pull",
+          "attack": "Snap Vine",
+          "combat_class": 2
+        },
+        {
+          "id": "mossmite",
+          "name": "Mossmite",
+          "gait": "rock_roll",
+          "attack": "Moss Crash",
+          "combat_class": 0
+        },
+        {
+          "id": "sylphowl",
+          "name": "Sylphowl",
+          "gait": "owl_flap",
+          "attack": "Feather Needle",
+          "combat_class": 1
+        },
+        {
+          "id": "hollow_stag",
+          "name": "Hollow Stag",
+          "gait": "deer_prance",
+          "attack": "Antler Sweep",
+          "combat_class": 2
+        },
+        {
+          "id": "grovetitan",
+          "name": "Grovetitan",
+          "gait": "tree_biped_stride",
+          "attack": "Timber Slam",
+          "combat_class": 2
+        },
+        {
+          "id": "fungal_monarch",
+          "name": "Fungal Monarch",
+          "gait": "mycelial_tripod",
+          "attack": "Spore Crown",
+          "combat_class": 3
+        }
+      ]
+    },
+    {
+      "name": "Coral Depths",
+      "enemies": [
+        {
+          "id": "reef_pup",
+          "name": "Reef Pup",
+          "gait": "fish_tail_swim",
+          "attack": "Reef Bite",
+          "combat_class": 0
+        },
+        {
+          "id": "jellymancer",
+          "name": "Jellymancer",
+          "gait": "bell_jet_pulse",
+          "attack": "Sting Pulse",
+          "combat_class": 1
+        },
+        {
+          "id": "shellguard",
+          "name": "Shellguard",
+          "gait": "turtle_paddle",
+          "attack": "Shell Bash",
+          "combat_class": 2
+        },
+        {
+          "id": "bubblewisp",
+          "name": "Bubblewisp",
+          "gait": "bubble_buoyancy",
+          "attack": "Bubble Shot",
+          "combat_class": 1
+        },
+        {
+          "id": "eelstrix",
+          "name": "Eelstrix",
+          "gait": "eel_wave_swim",
+          "attack": "Static Lash",
+          "combat_class": 0
+        },
+        {
+          "id": "coralcrab",
+          "name": "Coralcrab",
+          "gait": "crab_lateral_steps",
+          "attack": "Claw Snap",
+          "combat_class": 0
+        },
+        {
+          "id": "anemoneye",
+          "name": "Anemoneye",
+          "gait": "pedal_disc_creep",
+          "attack": "Tentacle Snare",
+          "combat_class": 2
+        },
+        {
+          "id": "marrowray",
+          "name": "Marrowray",
+          "gait": "ray_fin_undulation",
+          "attack": "Fin Slice",
+          "combat_class": 1
+        },
+        {
+          "id": "leviathorn",
+          "name": "Leviathorn",
+          "gait": "seahorse_dorsal_pulse",
+          "attack": "Spiral Thrust",
+          "combat_class": 2
+        },
+        {
+          "id": "abyss_colossus",
+          "name": "Abyss Colossus",
+          "gait": "octopus_arm_crawl",
+          "attack": "Abyss Crush",
+          "combat_class": 2
+        },
+        {
+          "id": "tidal_sovereign",
+          "name": "Tidal Sovereign",
+          "gait": "shark_tail_drive",
+          "attack": "Tidal Bite",
+          "combat_class": 3
+        }
+      ]
+    },
+    {
+      "name": "Starfall Isles",
+      "enemies": [
+        {
+          "id": "starlit_pup",
+          "name": "Starlit Pup",
+          "gait": "six_limbed_comet_skip",
+          "attack": "Star Kick",
+          "combat_class": 0
+        },
+        {
+          "id": "lunamoth",
+          "name": "Lunamoth",
+          "gait": "moth_wing_clap",
+          "attack": "Lunar Dust",
+          "combat_class": 1
+        },
+        {
+          "id": "crystarok",
+          "name": "Crystarok",
+          "gait": "crystal_knuckle_walk",
+          "attack": "Prism Smash",
+          "combat_class": 2
+        },
+        {
+          "id": "nova_wisp",
+          "name": "Nova Wisp",
+          "gait": "orbit_drift",
+          "attack": "Nova Bolt",
+          "combat_class": 1
+        },
+        {
+          "id": "orbitserpent",
+          "name": "Orbitserpent",
+          "gait": "ring_coil_advance",
+          "attack": "Orbit Lash",
+          "combat_class": 0
+        },
+        {
+          "id": "comet_hare",
+          "name": "Comet Hare",
+          "gait": "hind_leg_leap",
+          "attack": "Comet Drop",
+          "combat_class": 0
+        },
+        {
+          "id": "voidspider",
+          "name": "Voidspider",
+          "gait": "eight_leg_wave",
+          "attack": "Gravity Web",
+          "combat_class": 2
+        },
+        {
+          "id": "nebulwing",
+          "name": "Nebulwing",
+          "gait": "bat_fold_glide",
+          "attack": "Void Screech",
+          "combat_class": 1
+        },
+        {
+          "id": "lunar_prowler",
+          "name": "Lunar Prowler",
+          "gait": "feline_stalk",
+          "attack": "Moon Claw",
+          "combat_class": 2
+        },
+        {
+          "id": "astro_golem",
+          "name": "Astro Golem",
+          "gait": "floating_segment_stride",
+          "attack": "Meteor Fist",
+          "combat_class": 2
+        },
+        {
+          "id": "celestial_guardian",
+          "name": "Celestial Guardian",
+          "gait": "winged_hover",
+          "attack": "Celestial Verdict",
+          "combat_class": 3
+        }
+      ]
+    }
+  ]
+}

@@ -1,6 +1,17 @@
 extends RefCounted
 # Original turn-based mystery dungeon. Seeded rooms, connected corridors, finite loot.
 const DIR=[Vector2i.UP,Vector2i.RIGHT,Vector2i.DOWN,Vector2i.LEFT]
+const MINION_ROSTER = [[["bramble_pup","Bramble Pup","quadruped_bound","Briar Pounce",0],["sporeling","Sporeling","mushroom_stem_steps","Spore Puff",1],["thornbeetle","Thornbeetle","six_leg_tripod","Thorn Ram",2],["leafwisp","Leafwisp","leaf_flutter","Leaf Dart",1],["rootgnawer","Rootgnawer","boar_trot","Root Tusk",0],["vinesnap","VineSnap","root_pull","Snap Vine",2],["mossmite","Mossmite","rock_roll","Moss Crash",0],["sylphowl","Sylphowl","owl_flap","Feather Needle",1],["hollow_stag","Hollow Stag","deer_prance","Antler Sweep",2],["grovetitan","Grovetitan","tree_biped_stride","Timber Slam",2],["fungal_monarch","Fungal Monarch","mycelial_tripod","Spore Crown",3]],[["reef_pup","Reef Pup","fish_tail_swim","Reef Bite",0],["jellymancer","Jellymancer","bell_jet_pulse","Sting Pulse",1],["shellguard","Shellguard","turtle_paddle","Shell Bash",2],["bubblewisp","Bubblewisp","bubble_buoyancy","Bubble Shot",1],["eelstrix","Eelstrix","eel_wave_swim","Static Lash",0],["coralcrab","Coralcrab","crab_lateral_steps","Claw Snap",0],["anemoneye","Anemoneye","pedal_disc_creep","Tentacle Snare",2],["marrowray","Marrowray","ray_fin_undulation","Fin Slice",1],["leviathorn","Leviathorn","seahorse_dorsal_pulse","Spiral Thrust",2],["abyss_colossus","Abyss Colossus","octopus_arm_crawl","Abyss Crush",2],["tidal_sovereign","Tidal Sovereign","shark_tail_drive","Tidal Bite",3]],[["starlit_pup","Starlit Pup","six_limbed_comet_skip","Star Kick",0],["lunamoth","Lunamoth","moth_wing_clap","Lunar Dust",1],["crystarok","Crystarok","crystal_knuckle_walk","Prism Smash",2],["nova_wisp","Nova Wisp","orbit_drift","Nova Bolt",1],["orbitserpent","Orbitserpent","ring_coil_advance","Orbit Lash",0],["comet_hare","Comet Hare","hind_leg_leap","Comet Drop",0],["voidspider","Voidspider","eight_leg_wave","Gravity Web",2],["nebulwing","Nebulwing","bat_fold_glide","Void Screech",1],["lunar_prowler","Lunar Prowler","feline_stalk","Moon Claw",2],["astro_golem","Astro Golem","floating_segment_stride","Meteor Fist",2],["celestial_guardian","Celestial Guardian","winged_hover","Celestial Verdict",3]]]
+# Row: stable species ID, display name, anatomy-specific gait, signature move, combat class.
+var enemy_actions:Array[Dictionary]=[]
+func enemy_profile(kind:int,uid:int)->Array:
+	var pool:Array=[]
+	for row in MINION_ROSTER[clampi(region,0,2)]:
+		if int(row[4])==kind:pool.append(row)
+	return pool[posmod(seed_value+floor_number*3+uid*5,pool.size())]
+func make_enemy(p:Vector2i,life:int,kind:int,uid:int)->Dictionary:
+	var profile:=enemy_profile(kind,uid)
+	return {"uid":uid,"pos":p,"hp":life,"max_hp":life,"kind":kind,"windup":false,"species":profile[0],"name":profile[1],"gait":profile[2],"signature":profile[3]}
 var rng=RandomNumberGenerator.new()
 var region=0
 var floor_number=1
@@ -139,7 +150,7 @@ func generate_floor():
 		if p==player or p==stairs or p==relic or distance(p,player)<4:continue
 		if enemies.size()<count:
 			var life=8+floor_number*2+tier*2
-			enemies.append({"uid":enemies.size(),"pos":p,"hp":life,"max_hp":life,"kind":rng.randi_range(0,2),"windup":false})
+			enemies.append(make_enemy(p,life,rng.randi_range(0,2),enemies.size()))
 		elif loot.size()<(14 if floor_kind==1 else 9):
 			loot[p]="potion" if loot.size()%4==0 else "material" if loot.size()%3==0 else "coin"
 		elif traps.size()<floor_number-1:traps[p]=true
@@ -155,7 +166,7 @@ func generate_floor():
 			loot[spring]="spring";traps.erase(spring)
 	if not guardian_defeated:
 		var life=24+6*tier
-		enemies.append({"uid":99,"pos":relic,"hp":life,"max_hp":life,"kind":3,"windup":false})
+		enemies.append(make_enemy(relic,life,3,99))
 	# A guaranteed immediate pickup introduces the loop on every floor.
 	for d in DIR:
 		var p:Vector2i=player+d
@@ -226,6 +237,7 @@ func strike(i:int,power:bool=false):
 		var reward=(12 if guardian else 2)+mini(3,combo-1);coins+=reward;message="Guardian defeated! +%d coins"%reward if guardian else "Enemy defeated! +%d coins · Combo %d"%[reward,combo]
 		emit_event(message)
 func enemy_turn():
+	enemy_actions.clear()
 	turns+=1
 	for i in range(enemies.size()):
 		var p:Vector2i=enemies[i].pos
@@ -240,18 +252,22 @@ func enemy_turn():
 			continue
 		if gap==1 and heavy and not charged:
 			enemies[i].windup=true
+			enemy_actions.append({"uid":enemies[i].get("uid",i),"phase":"windup","from":p,"to":player,"move":enemies[i].get("signature","Heavy attack")})
 			message="Guardian charging!" if kind==3 else "Heavy attack incoming!"
 			continue
 		if gap==1 or ranged:
 			enemies[i].windup=false
 			var damage=2+tier+int(floor_number/3)+(2 if heavy else 0)
 			hp=maxi(0,hp-damage);hits+=1;combo=0
-			message="Hit! −%d HP"%damage;emit_event(message)
+			enemy_actions.append({"uid":enemies[i].get("uid",i),"phase":"attack","from":p,"to":player,"move":enemies[i].get("signature","Strike")})
+			message="%s · %s! −%d HP"%[enemies[i].get("name","Enemy"),enemies[i].get("signature","Strike"),damage];emit_event(message)
 			if hp==0:
 				finished=true;success=false;message="Rescue needed · expedition lost";return
 		elif gap<=6 and kind!=3:
 			var path=route(p,player,true)
-			if not path.is_empty() and path[0]!=player and enemy_at(path[0])<0:enemies[i].pos=path[0]
+			if not path.is_empty() and path[0]!=player and enemy_at(path[0])<0:
+				enemies[i].pos=path[0]
+				enemy_actions.append({"uid":enemies[i].get("uid",i),"phase":"move","from":p,"to":path[0],"gait":enemies[i].get("gait","walk")})
 	reveal()
 func move(p:Vector2i)->bool:
 	if finished or not cells.has(p) or distance(player,p)!=1:return false
