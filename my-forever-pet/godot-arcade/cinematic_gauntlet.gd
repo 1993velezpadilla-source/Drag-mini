@@ -962,6 +962,36 @@ func run_checks()->void:
 	if view.fx_reaction_sparks.size()!=1:failures.append("V20.2 expired reaction")
 	view.fx_reaction_sparks.clear()
 	checks+=2
+	# V20.3 motion timing: differentiated anticipation and recovery without
+	# changing the contact frame, logical tiles or neutral endpoints.
+	var polish_kinds:Array=["rush","contact","fang","crunch","claw","pincer","punch","uppercut","kick","lowkick","wing","tail","horn","lash","aerial","down","spin","focus","gesture","cast"]
+	var polish_signatures:Dictionary={}
+	for kind in polish_kinds:
+		polish_signatures[str(view.cast_motion_timing(kind))]=true
+		for peak in [.12,.34,.48,.64,.88]:
+			var timing:Vector4=view.cast_motion_timing(kind)
+			var windup:Vector3=view.attack_direction_sample(peak*timing.x*.5,peak,kind)
+			var contact:Vector3=view.attack_direction_sample(peak,peak,kind)
+			if absf(windup.x-1.0)>.0001 or absf(contact.y-1.0)>.0001 or absf(contact.x)>.0001:failures.append("V20.3 contact clock "+kind)
+			checks+=1
+			var previous:=Vector3.ZERO
+			for step in range(201):
+				var phase:float=float(step)/200.0
+				var motion:Vector3=view.cast_motion_offset(kind,phase,peak)
+				var body:Dictionary=Art.attack_body_sample(phase,peak,kind)
+				if not motion.is_finite() or motion.length()>1.0 or float(body.stretch)<.84 or float(body.stretch)>1.16:failures.append("V20.3 motion bounds "+kind)
+				if step>0 and motion.distance_to(previous)>.16:failures.append("V20.3 abrupt motion "+kind)
+				if step in [0,200] and (motion.length()>.001 or absf(float(body.stretch)-1.0)>.001):failures.append("V20.3 rest "+kind)
+				previous=motion
+				checks+=3
+	if polish_signatures.size()<10:failures.append("V20.3 insufficient timing variety")
+	checks+=1
+	for step in range(101):
+		var phase:float=float(step)/100.0
+		var hit:Dictionary=view.premium_hit_sample(phase)
+		if float(hit.recoil)<0.0 or float(hit.recoil)>1.0 or absf(float(hit.tilt))>.10:failures.append("V20.3 recoil bounds")
+		if step in [0,100] and (absf(float(hit.recoil))>.001 or absf(float(hit.squash)-1.0)>.001):failures.append("V20.3 recoil rest")
+		checks+=2
 	# Full catalog: actual frame bytes, audio buffers, and pooled world FX.
 	# A duplicate sequence or sparse animation is a review candidate, not proof
 	# of poor visual quality. Preserve exact IDs in the downloadable CI report.
