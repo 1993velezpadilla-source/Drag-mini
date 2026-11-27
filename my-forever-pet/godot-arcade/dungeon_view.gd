@@ -2114,14 +2114,19 @@ func update_enemy_pixel(actor:Node3D,dt:float,motion:Vector3)->void:
 		frame=int(sample.frame)
 		actor.set_meta("enemy_visual_phase",sample.phase)
 	else:actor.set_meta("enemy_visual_phase",state)
-	var sleeping:bool="sleep" in actor.get_meta("living_statuses",[])
-	if sleeping and state in ["idle","walk"]:
-		# A resting body stays grounded rather than continuing the airborne idle.
-		visual_state="defeat"
-		frame=0
-		var breath:float=.63+.035*sin(elapsed*2.8)
-		sprite.scale=Vector3(1.12,breath,1.0)
-		sprite.position.y=.54*size_multiplier*breath
+	var statuses:Array=actor.get_meta("living_statuses",[])
+	var living:=living_body_sample(actor,statuses,dt,state in ["idle","walk","recover"])
+	if float(living.sleep)>.66 and state in ["idle","walk","recover"]:
+		# Existing enemy resting silhouette is a provisional atlas fallback.
+		visual_state="defeat";frame=0
+	if state in ["idle","walk","recover"]:
+		var stretch:float=float(living.stretch)
+		sprite.scale=Vector3(float(living.width),stretch,1.0)
+		sprite.position.y=lerpf(.54*size_multiplier+rise,.54*size_multiplier*stretch,float(living.sleep))+.54*size_multiplier*(stretch-1.0)*(1.0-float(living.sleep))
+		sprite.position.x+=float(living.sway)*size_multiplier
+		if shadow!=null:
+			shadow.scale.x*=1.0+float(living.sleep)*.24
+			shadow.scale.y*=1.0+float(living.sleep)*.13
 	var tex:=PixelArt.enemy_pixel_texture(species,facing_index,visual_state,frame)
 	if tex!=null and sprite.texture!=tex:sprite.texture=tex
 	if sprite.material_override is ShaderMaterial:
@@ -2129,7 +2134,10 @@ func update_enemy_pixel(actor:Node3D,dt:float,motion:Vector3)->void:
 		material.set_shader_parameter("sprite_tex",sprite.texture)
 		material.set_shader_parameter("hit_flash",float(premium_hit_sample(clock/maxf(.01,duration)).flash) if state=="hurt" else 0.0)
 		material.set_shader_parameter("world_phase",elapsed)
-	else:sprite.modulate=Color("#ffb5c6") if state=="hurt" else Color.WHITE
+		var biome:Color=[Color("#d5e6b5"),Color("#9be3e8"),Color("#c3c5ff")][region]
+		material.set_shader_parameter("biome_tint",biome.lerp(living.tint,float(living.tint_weight)))
+		material.set_shader_parameter("ambient_strength",.15+.38*float(living.tint_weight))
+	else:sprite.modulate=Color("#ffb5c6") if state=="hurt" else Color.WHITE.lerp(living.tint,float(living.tint_weight))
 # Lightweight reusable pixel VFX: no per-frame node allocation, no camera-facing 3D creatures.
 func combat_fx_setup(parent:Node3D)->void:
 	for sound in fx_audio:
@@ -6191,6 +6199,44 @@ func environment_particle(index:int,position:Vector3,mode:String,light:Color,dar
 	return index+1
 
 # Persistent ailments are driven by rule state, never by a cast's remaining lifetime.
+# Reversible real-time ailment envelope. Combat pose timing stays authoritative.
+func living_body_sample(actor:Node3D,statuses:Array,dt:float,resting:bool)->Dictionary:
+	var sleep_target:float=1.0 if resting and ("sleep" in statuses or "nightmare" in statuses) else 0.0
+	var sleep:float=move_toward(float(actor.get_meta("living_sleep_blend",0.0)),sleep_target,maxf(dt,0.0)*3.8)
+	actor.set_meta("living_sleep_blend",sleep)
+	var phase:float=elapsed*2.8+float(actor.get_instance_id()%17)*.13
+	var stretch:float=lerpf(1.0,.67+.025*sin(phase),sleep)
+	var width:float=lerpf(1.0,1.14,sleep)
+	var sway:float=0.0
+	var tint:=Color.WHITE
+	var weight:float=0.0
+	if "freeze" in statuses:
+		tint=Color("#9fdaff");weight=.60
+		if resting:
+			stretch=lerpf(stretch,.95,.6)
+			width=1.04
+	elif "toxic" in statuses or "poison" in statuses or "bad_poison" in statuses or "badly_poisoned" in statuses:
+		var squeeze:float=pow(maxf(0.0,sin(phase*1.85)),3.0)
+		tint=Color("#d4a0f7");weight=.25+.21*squeeze
+		if resting and sleep<.1:
+			stretch=1.0-.16*squeeze;width=1.0+.13*squeeze
+			sway=.025*sin(phase*2.0)*squeeze
+	elif "burn" in statuses:
+		tint=Color("#ffac79");weight=.32+.12*sin(phase*2.0)
+		if resting and sleep<.1:sway=.028*sin(phase*3.0)
+	elif "paralysis" in statuses:
+		tint=Color("#ffea99");weight=.22
+		if resting and sleep<.1:
+			var shock:float=pow(maxf(0.0,sin(phase*2.5)),6.0)
+			sway=.055*sin(phase*15.0)*shock
+			stretch=1.0+.10*shock
+	elif "confusion" in statuses and resting and sleep<.1:
+		sway=.07*sin(phase*1.5)
+	if "nightmare" in statuses:
+		tint=Color("#a28ac8");weight=.48
+		if resting:sway+=.035*sin(phase*5.0)
+	return {"sleep":sleep,"stretch":stretch,"width":width,"sway":sway,"tint":tint,"tint_weight":weight}
+
 func living_enemy_statuses(e:Dictionary)->Array:
 	var result:Array=[]
 	if int(e.get("sleep_turns",0))>0:result.append("sleep")
@@ -6256,7 +6302,8 @@ func living_status_palette(kind:String)->Array:
 		_:return ["impact_star","#d9c6fa","#766b9e",4]
 
 func living_actor_particles(actor:Node3D,statuses:Array,used:int,height:float)->int:
-	living_sleep_glyphs(actor,"sleep" in statuses,height)
+	var sleep_blend:float=float(actor.get_meta("living_sleep_blend",0.0))
+	living_sleep_glyphs(actor,"sleep" in statuses or "nightmare" in statuses,height*(1.0-.22*sleep_blend))
 	if statuses.is_empty():return used
 	var origin:Vector3=actor.global_position
 	for k in range(mini(statuses.size(),3)):
@@ -6282,9 +6329,11 @@ func living_actor_particles(actor:Node3D,statuses:Array,used:int,height:float)->
 					flat=f>.78
 					if flat:y=.035
 				"freeze":
-					y=.17+float(i%3)*height*.22
-					radius=.32+.05*sin(elapsed*3.0)
-					size=.30
+					# Stable facets form a visible ice cage rather than orbiting confetti.
+					angle=float(i)*TAU/float(count)
+					y=.12+float(i%3)*height*.27
+					radius=.38
+					size=.37+.08*float(i%3)
 				"confusion":
 					y=height+.06+.07*sin(angle*2.0)
 					radius=.36
@@ -6302,7 +6351,8 @@ func living_actor_particles(actor:Node3D,statuses:Array,used:int,height:float)->
 			if kind in ["poison","toxic","bad_poison","badly_poisoned"]:texture_mode="venom_splash" if flat else "drop" if i%2==0 else "bubble"
 			if kind=="freeze":texture_mode="crystal"
 			if kind=="burn" and i%3==0:texture_mode="smoke"
-			used=environment_particle(used,q,texture_mode,light,dark,size,sin(f*PI)*.9,flat,true)
+			var opacity:float=.70+.16*sin(f*TAU) if kind=="freeze" else sin(f*PI)*.9
+			used=environment_particle(used,q,texture_mode,light,dark,size,opacity,flat,true)
 	return used
 
 func living_status_fx()->void:
@@ -7751,6 +7801,7 @@ func update_disguise(dt:float,motion:Vector2,moving:bool,pose:String)->void:
 	disguise_actor.visible=pet_pose.visible
 	pet_pose.hide()
 	disguise_actor.position=pet_pose.position
+	disguise_actor.set_meta("living_statuses",living_player_statuses())
 	disguise_actor.set_meta("enemy_facing",PixelArt.direction8_for(motion,int(disguise_actor.get_meta("enemy_facing",0))))
 	var synchronized:bool=sync_disguise_pose(disguise_actor,pose,motion)
 	update_enemy_pixel(disguise_actor,0.0 if synchronized else dt,Vector3(motion.x,0,motion.y) if moving else Vector3.ZERO)
@@ -7858,7 +7909,9 @@ func _process(dt:float):
 		moving=bool(travel_pose.returning)
 	var pose:String="hurt" if hit_time>0.0 else "attack" if attack_time>0.0 else "reward" if reward_age>0.0 and not moving else "idle"
 	if tile_cast_active() and charge_progress>player_cast_impact+.08:pose="walk"
-	if pose=="idle" and not moving and "sleep" in living_player_statuses():pose="sleep"
+	var player_statuses:Array=living_player_statuses()
+	var player_living:=living_body_sample(pet,player_statuses,dt,pose=="idle" and not moving)
+	if pose=="idle" and not moving and ("sleep" in player_statuses or float(player_living.sleep)>.55):pose="sleep"
 	pet_pose.set_meta("pet_mood",PixelArt.dungeon_mood(run.hp,run.max_hp,run.poison_turns>0,reward_age>0.0))
 	pet_pose.set_meta("dungeon_grounded_gait",true)
 	pet_pose.set_meta("dungeon_cast_motion",player_cast_motion)
@@ -7871,6 +7924,17 @@ func _process(dt:float):
 			companion_sprite.scale=Vector3(1.0/squash,squash,1.0)
 			companion_sprite.position.y=float(companion_sprite.get_meta("world_height"))*.5*squash
 			companion_sprite.modulate=Color.WHITE.lerp(Color("#ffc5bc"),float(sample.flash))
+	if pose in ["idle","sleep"] and not moving:
+		var resting_sprite:=pet_pose.get_node_or_null("PixelCompanion") as Sprite3D
+		if resting_sprite!=null:
+			var stretch:float=float(player_living.stretch)
+			resting_sprite.scale=Vector3(float(player_living.width),stretch,1.0)
+			resting_sprite.position.y=float(resting_sprite.get_meta("world_height"))*.5*stretch
+			resting_sprite.position.x=float(player_living.sway)
+			resting_sprite.modulate=Color.WHITE.lerp(player_living.tint,float(player_living.tint_weight))
+	else:
+		var active_sprite:=pet_pose.get_node_or_null("PixelCompanion") as Sprite3D
+		if active_sprite!=null:active_sprite.position.x=0.0
 	update_disguise(dt,motion,moving,pose)
 	var focus=pet.position+Vector3(0,.18,-.48)
 	# The prior floor-build-only shake never reached the actual render loop.
