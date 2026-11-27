@@ -3014,13 +3014,19 @@ func ultra_update_residues(dt:float,used:int)->int:
 # One cache per material. StringName parameters are already interned, so
 # avoid constructing and looking up a separate metadata key on every call.
 # All animated combat shader writes use this helper.
-func set_fx_uniform(material:ShaderMaterial,parameter:StringName,value:Variant)->bool:
+func fx_uniform_cache(material:ShaderMaterial)->Dictionary:
 	var cache:Dictionary
 	if material.has_meta(&"fx_uniform_values"):
 		cache=material.get_meta(&"fx_uniform_values")
 	else:
 		cache={}
 		material.set_meta(&"fx_uniform_values",cache)
+	return cache
+
+func set_fx_uniform(material:ShaderMaterial,parameter:StringName,value:Variant)->bool:
+	return set_fx_uniform_cached(material,fx_uniform_cache(material),parameter,value)
+
+func set_fx_uniform_cached(material:ShaderMaterial,cache:Dictionary,parameter:StringName,value:Variant)->bool:
 	if cache.has(parameter) and cache[parameter]==value:return false
 	material.set_shader_parameter(parameter,value)
 	cache[parameter]=value
@@ -3103,20 +3109,21 @@ func cinematic_halo(at:Vector3,color:Color,extent:float,opacity:float,phase:floa
 	var halo:MeshInstance3D=fx_halos[index]
 	var mat:ShaderMaterial=fx_halo_materials[index]
 	apply_cinematic_halo_transform(halo,at,extent,ground)
-	set_fx_uniform(mat,"tint",color)
-	set_fx_uniform(mat,"intensity",opacity)
-	set_fx_uniform(mat,"phase",phase)
-	set_fx_uniform(mat,"ring_mix",1.0 if ground else 0.0)
+	var uniform_cache:Dictionary=fx_uniform_cache(mat)
+	set_fx_uniform_cached(mat,uniform_cache,"tint",color)
+	set_fx_uniform_cached(mat,uniform_cache,"intensity",opacity)
+	set_fx_uniform_cached(mat,uniform_cache,"phase",phase)
+	set_fx_uniform_cached(mat,uniform_cache,"ring_mix",1.0 if ground else 0.0)
 	var material:=elemental_material_profile(element)
-	set_fx_uniform(mat,"material_family",int(material.x) if fx_performance_tier<2 else 0)
-	set_fx_uniform(mat,"material_opacity",material.y)
+	set_fx_uniform_cached(mat,uniform_cache,"material_family",int(material.x) if fx_performance_tier<2 else 0)
+	set_fx_uniform_cached(mat,uniform_cache,"material_opacity",material.y)
 	var distortion:=elemental_distortion_sample(element,phase,distortion_stage,fx_performance_tier)
-	set_fx_uniform(mat,"distortion_family",int(distortion.x))
-	set_fx_uniform(mat,"distortion_strength",distortion.y)
-	set_fx_uniform(mat,"distortion_frequency",distortion.z)
+	set_fx_uniform_cached(mat,uniform_cache,"distortion_family",int(distortion.x))
+	set_fx_uniform_cached(mat,uniform_cache,"distortion_strength",distortion.y)
+	set_fx_uniform_cached(mat,uniform_cache,"distortion_frequency",distortion.z)
 	var atmosphere_cue:Array=ELEMENT_ATMOSPHERE.get(element,ELEMENT_ATMOSPHERE.normal)
-	set_fx_uniform(mat,"atmosphere_color",Color(str(atmosphere_cue[1])))
-	set_fx_uniform(mat,"atmosphere",elemental_atmosphere_sample(element,phase,ground,fx_performance_tier))
+	set_fx_uniform_cached(mat,uniform_cache,"atmosphere_color",Color(str(atmosphere_cue[1])))
+	set_fx_uniform_cached(mat,uniform_cache,"atmosphere",elemental_atmosphere_sample(element,phase,ground,fx_performance_tier))
 	if not halo.visible:halo.show()
 
 # Per-element response: energy, reach, falloff, temporal modulation.
@@ -3168,13 +3175,15 @@ func cinematic_light(at:Vector3,color:Color,energy:float,extent:float,attenuatio
 	else:fx_light_scores[index]=score
 	fx_lights_used=fx_light_scores.size()
 	fx_light_candidates+=1
-	var request:Dictionary={"at":at,"color":color,"energy":energy,"extent":extent,"attenuation":attenuation}
-	if index==fx_light_requests.size():fx_light_requests.append(request)
-	else:fx_light_requests[index]=request
+	# Reuse the bounded request slots, including when a stronger light wins.
+	if index==fx_light_requests.size():fx_light_requests.append({})
+	var request:Dictionary=fx_light_requests[index]
+	request["at"]=at;request["color"]=color;request["energy"]=energy
+	request["extent"]=extent;request["attenuation"]=attenuation
 
 # Only final winning candidates touch the rendering server, once per slot.
 func commit_cinematic_lights()->void:
-	for index in range(fx_light_requests.size()):
+	for index in range(fx_lights_used):
 		var request:Dictionary=fx_light_requests[index]
 		var light:OmniLight3D=fx_lights[index]
 		if light.position!=request.at:light.position=request.at
@@ -16182,7 +16191,7 @@ func combat_fx_update(dt:float)->void:
 	var latest_hit:Dictionary={}
 	update_delayed_combat_fx(dt)
 	var used:int=0
-	fx_lights_used=0;fx_halos_used=0;fx_light_scores.clear();fx_light_requests.clear()
+	fx_lights_used=0;fx_halos_used=0;fx_light_scores.clear()
 	fx_trail_vertices=0;fx_trail_started=false
 	fx_trail_positions.clear();fx_trail_colors.clear();fx_trail_indices.clear()
 	if fx_trail_had_geometry and is_instance_valid(fx_trail_mesh):fx_trail_mesh.clear_surfaces()
