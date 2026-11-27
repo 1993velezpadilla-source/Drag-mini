@@ -4942,7 +4942,16 @@ func update_delayed_combat_fx(dt:float)->void:
 			release_charge_phase=""
 			begin_player_cast_pose(item.event,age-dt)
 
+# Rendering visits newer bursts first, but the last actual impact wins the hurt pose.
+func latest_player_impact(current:Dictionary,burst:Dictionary)->Dictionary:
+	var age:float=maxf(0.0,float(burst.age)-float(burst.duration)*float(burst.profile.impact))
+	if age>=.24 or (not current.is_empty() and age>=float(current.age)):return current
+	var direction:Vector3=(burst.points[-1]-burst.points[0]).normalized()
+	direction.y=0.0
+	return {"age":age,"direction":direction}
+
 func combat_fx_update(dt:float)->void:
+	var latest_hit:Dictionary={}
 	update_delayed_combat_fx(dt)
 	var used:int=0
 	update_combat_reactions(dt)
@@ -4959,9 +4968,7 @@ func combat_fx_update(dt:float)->void:
 			burst.impacted=true;play_combat_sound(str(burst.id),"impact",burst.points[-1])
 			if str(profile.role) in ["ground","earth_quake","earth_magnitude","earth_fissure"]:fx_ground_shake=.22
 			if burst.get("target_player",false) and int(burst.get("damage",0))>0:
-				hit_time=.24
-				player_hit_direction=(burst.points[-1]-burst.points[0]).normalized()
-				player_hit_direction.y=0.0
+				latest_hit=latest_player_impact(latest_hit,burst)
 		if t>=1.0:
 			combat_bursts.remove_at(k);continue
 		var mode:String=burst.mode
@@ -5399,6 +5406,10 @@ func combat_fx_update(dt:float)->void:
 			particle.scale=Vector3.ONE*size*(1.0-t*.38)*.40
 			particle.modulate=Color(1,1,1,clampf((1.0-t)*3.5,0.0,1.0))
 			particle.show()
+	if not latest_hit.is_empty():
+		# The player clock advances once after this method, so compensate for that frame.
+		hit_time=.24+dt-float(latest_hit.age)
+		player_hit_direction=latest_hit.direction
 	if arcs_started:fx_arc_mesh.surface_end()
 	for j in range(used,combat_particles.size()):combat_particles[j].hide()
 func combat_update_warnings()->void:
