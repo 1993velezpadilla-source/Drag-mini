@@ -69,6 +69,32 @@ func run()->void:
 	backend.reset()
 	assert(backend.prepare() and backend.slots.size()==Backend.SLOT_CAP,"pool initialization idempotent")
 	print("KINDRIA_EFFEKSEER_CONCURRENT_PASS")
+	var plan:Array=[
+		{"stage":"ally_invoke","anchor":"source","start":0.0,"end":.15,"enabled":true},
+		{"stage":"enemy_invoke","anchor":"source","start":0.0,"end":.15,"enabled":true},
+		{"stage":"projectile","anchor":"path","start":.2,"end":.6,"enabled":true},
+		{"stage":"impact","anchor":"target","start":.6,"end":1.0,"enabled":true}]
+	var bindings:Dictionary={}
+	for track_row in plan:bindings[track_row.stage]={"effect":effect,"scale":.2}
+	assert(backend.schedule_cast(plan,bindings,path,[],1.0,true,false)==2)
+	assert(backend.pending[0].track.stage=="enemy_invoke")
+	backend.advance(.1)
+	assert(backend.pending.size()==1)
+	backend.advance(.2)
+	assert(backend.pending.is_empty())
+	var traveling:bool=false
+	for slot in backend.slots:
+		if slot.busy and slot.follows:
+			traveling=true
+			assert(slot.node.position.distance_to(Vector3.RIGHT)<.001,"late frame advances correct path fraction")
+	assert(traveling)
+	backend.advance(.5)
+	for slot in backend.slots:assert(not slot.busy)
+	assert(backend.schedule_cast(plan,bindings,path,[],1.0,false,true)==3)
+	assert(backend.pending[0].track.stage=="ally_invoke")
+	backend.reset()
+	assert(backend.pending.is_empty())
+	print("KINDRIA_EFFEKSEER_TIMELINE_PASS")
 	assert(backend.slots.size()==Backend.SLOT_CAP)
 	for slot in backend.slots:assert(not slot.busy)
 	print("KINDRIA_EFFEKSEER_DUNGEON_PASS 5")
