@@ -2339,6 +2339,122 @@ func rock_sprite(im:Image,role:String,frame:int)->void:
 				mineral(im,q,5.0,a,light,dark)
 			fx_disc(im,center,11.0,Color("#998e7a",.65),10.0)
 
+# Original hand-to-hand effect primitives. These are contact silhouettes, not
+# species-specific skeleton animations. The trajectory stays in the actual hit tiles.
+func fight_arc(im:Image,c:Vector2,r:float,start:float,sweep:float,light:Color,dark:Color,width:float)->void:
+	var last:=c+Vector2(cos(start),sin(start))*r
+	for j in range(1,17):
+		var a:float=start+sweep*float(j)/16.0
+		var q:=c+Vector2(cos(a),sin(a))*r
+		fx_line(im,last,q,width,dark)
+		fx_line(im,last,q,width*.42,light)
+		last=q
+
+func fight_burst(im:Image,c:Vector2,r:float,rays:int,t:float,light:Color,dark:Color)->void:
+	for j in range(rays):
+		var a:float=float(j)*TAU/float(rays)+t*.45
+		var d:=Vector2(cos(a),sin(a))
+		fx_line(im,c+d*r*.25,c+d*r,3.0,dark)
+		fx_line(im,c+d*r*.35,c+d*r*.85,1.1,light)
+
+func fight_fist(im:Image,c:Vector2,a:float,r:float,light:Color,dark:Color)->void:
+	var d:=Vector2(cos(a),sin(a))
+	var n:=Vector2(-d.y,d.x)
+	fx_line(im,c-d*r*1.35,c,r*.85,dark)
+	fx_disc(im,c,r,dark)
+	for j in range(4):
+		var p:=c+d*r*.55+n*float(j-1.5)*r*.40
+		fx_disc(im,p,r*.36,light)
+	fx_disc(im,c-d*r*.45+n*r*.45,r*.4,light)
+
+func fight_sprite(im:Image,role:String,frame:int)->void:
+	var t:float=float(frame)/11.0
+	var c:=Vector2(24,24)
+	var light:=Color("#fff2c0");var dark:=Color("#c66146")
+	match role:
+		"fight_chop","fight_cross","fight_break","fight_stonebreak":
+			var offset:float=sin(t*PI)*5.0
+			var p:=c+Vector2(offset,0)
+			fx_line(im,p-Vector2(13,14),p+Vector2(12,13),5.0,dark)
+			fx_line(im,p-Vector2(13,14),p+Vector2(12,13),2.0,light)
+			if role=="fight_cross":
+				fx_line(im,p+Vector2(-13,14),p+Vector2(13,-14),5.0,dark)
+				fx_line(im,p+Vector2(-13,14),p+Vector2(13,-14),2.0,light)
+			elif role in ["fight_break","fight_stonebreak"]:
+				for i in range(5 if role=="fight_break" else 8):
+					var a:float=float(i)*2.399
+					earth_rock(im,c+Vector2(cos(a),sin(a))*(5.0+t*15.0),3.0 if role=="fight_break" else 4.0,Color("#d1b491"),Color("#795c52"))
+		"fight_focus","fight_dynamic","fight_mach","fight_palm","fight_drain","fight_slap","fight_hammer","fight_uppercut":
+			var q:=Vector2(11+sin(t*PI)*21,24)
+			var a:float=0.0
+			var r:float=7.0
+			match role:
+				"fight_focus":r=10.0;dark=Color("#d18a2f")
+				"fight_dynamic":r=9.0;dark=Color("#a64b5a")
+				"fight_mach":r=5.0;dark=Color("#df9775")
+				"fight_palm":r=8.0
+				"fight_drain":light=Color("#d7f6a2");dark=Color("#598751")
+				"fight_slap":a=.7+t*1.1;r=6.0
+				"fight_hammer":a=1.4;q=Vector2(24,8+sin(t*PI)*24);r=10.0
+				"fight_uppercut":a=-PI*.5;q=Vector2(24,37-sin(t*PI)*23);r=8.0
+			fight_fist(im,q,a,r,light,dark)
+			if role=="fight_palm" or role=="fight_slap":
+				for i in range(4):fx_line(im,q+Vector2(2,float(i-2)*3),q+Vector2(10,float(i-2)*4),2.0,light)
+			elif role=="fight_mach":
+				for i in range(3):fx_line(im,q-Vector2(16,float(i-1)*5),q-Vector2(6,float(i-1)*5),1.6,light)
+			elif role=="fight_drain":
+				for i in range(4):fx_disc(im,Vector2(39-fposmod(t*32+float(i)*8,32),34+sin(float(i)+t*TAU)*4),2.5,light)
+			else:fight_burst(im,q,10.0+sin(t*PI)*9.0,5 if role=="fight_dynamic" else 4,t,light,dark)
+		"fight_lowkick","fight_jumpkick","fight_highkick","fight_roundkick","fight_double","fight_triple":
+			var count:int=2 if role=="fight_double" else 3 if role=="fight_triple" else 1
+			var base:float=PI*.16 if role=="fight_lowkick" else -PI*.7 if role=="fight_highkick" else -PI*.33 if role=="fight_jumpkick" else t*TAU if role=="fight_roundkick" else -PI*.15
+			for i in range(count):
+				var a:float=base+t*1.3+float(i)*.65
+				var q:=c+Vector2(0,9 if role=="fight_lowkick" else -7 if role=="fight_highkick" else 0)
+				fight_arc(im,q,12.0+float(i)*3,a,1.65 if role!="fight_roundkick" else 4.2,light,dark,4.0)
+				var tip:=q+Vector2(cos(a+1.4),sin(a+1.4))*13.0
+				fx_line(im,tip,tip+Vector2(5,2),5.0,dark);fx_line(im,tip,tip+Vector2(5,2),2.0,light)
+		"fight_close","fight_thrust","fight_super":
+			var count:int=6 if role=="fight_close" else 4 if role=="fight_thrust" else 3
+			for i in range(count):
+				var f:float=fposmod(t*1.7+float(i)/float(count),1.0)
+				var a:float=0.0 if role=="fight_thrust" else float(i)*TAU/float(count)
+				var q:=c+Vector2(cos(a)*12.0,sin(a)*11.0)*(1.0-f)
+				fight_fist(im,q,a+PI if role!="fight_thrust" else 0.0,4.0 if role!="fight_super" else 7.0,light,dark)
+			if role=="fight_super":fight_burst(im,c,18.0,8,t,light,dark)
+		"fight_blast","fight_aura","fight_vacuum":
+			if role=="fight_vacuum":
+				for i in range(3):fight_arc(im,Vector2(8+float(i)*11+sin(t*TAU)*3,24),13.0,-PI*.43,PI*.86,Color("#dff9ff"),Color("#6d9bab"),3.0)
+			else:
+				var q:=Vector2(9+27*t,24)
+				var radius:float=9.0+sin(t*PI)*4.0 if role=="fight_blast" else 7.0+sin(t*PI)*3.0
+				var outer:=Color("#c27b58") if role=="fight_blast" else Color("#3567bf")
+				var inner:=Color("#fff1be") if role=="fight_blast" else Color("#bcefff")
+				fx_disc(im,q,radius,outer);fx_disc(im,q,radius*.72,inner)
+				fight_arc(im,q,radius+3.0,t*TAU,PI*1.5,inner,outer,2.0)
+				if role=="fight_blast":fight_burst(im,q,16.0,7,t,inner,outer)
+		"fight_submission","fight_toss","fight_vital":
+			var a:float=t*TAU if role=="fight_submission" else -PI*.5+t*PI if role=="fight_toss" else PI*.2+t*PI
+			fight_arc(im,c,15.0,a,PI*1.4,light,dark,4.0)
+			fight_fist(im,c+Vector2(cos(a)*9,sin(a)*9),a,5.0,light,dark)
+			fight_fist(im,c-Vector2(cos(a)*9,sin(a)*9),a+PI,4.0,light,dark)
+			if role=="fight_toss":fx_line(im,Vector2(24,39),Vector2(24,39-sin(t*PI)*29),2.0,light)
+		"fight_bulk","fight_detect","fight_counter","fight_revenge","fight_reversal":
+			var tint:=Color("#ffa87b") if role=="fight_revenge" else Color("#d6e8ff") if role=="fight_detect" else light
+			var radius:float=5.0+t*15.0
+			if role=="fight_bulk":
+				for i in range(3):fight_arc(im,c,6.0+float(i)*5+t*3.0,PI,PI*2.0,tint,dark,2.0)
+			elif role=="fight_detect":
+				fight_arc(im,c,radius,-PI*.5,TAU,tint,Color("#638db5"),2.8)
+				fx_line(im,Vector2(14,24),Vector2(34,24),1.2,tint)
+			elif role=="fight_counter":
+				fight_arc(im,c,radius,0,PI,tint,dark,3.0);fight_arc(im,c,radius,PI,PI,tint,dark,1.8)
+				fight_burst(im,c,8.0+t*9.0,4,t,tint,dark)
+			elif role=="fight_revenge":
+				fight_burst(im,c,8.0+t*13.0,10,t,tint,Color("#a54142"))
+			else:
+				fight_arc(im,c,15.0,t*TAU,-PI*1.5,tint,dark,3.5);fight_fist(im,Vector2(36-24*t,24),PI,6.0,tint,dark)
+
 func combat_frame_image(id:String,frame:int)->Image:
 	var style:Array=combat_style(id)
 	var mode:String=combat_animation_mode(id,str(style[0]))
@@ -2360,6 +2476,8 @@ func combat_frame_image(id:String,frame:int)->Image:
 		earth_sprite(im,role,frame);return im
 	if role.begins_with("rock_"):
 		rock_sprite(im,role,frame);return im
+	if role.begins_with("fight_"):
+		fight_sprite(im,role,frame);return im
 	var center:=Vector2(24,24)
 	match mode:
 		"vine":
@@ -2605,6 +2723,38 @@ func combat_profile(id:String)->Dictionary:
 		"eos_540":role="rock_polish"
 		"eos_141":role="rock_storm"
 		"eos_480":role="rock_trap"
+		"eos_068":role="fight_chop"
+		"eos_072":role="fight_break"
+		"eos_075":role="fight_focus"
+		"eos_077":role="fight_reversal"
+		"eos_090":role="fight_cross"
+		"eos_092":role="fight_lowkick"
+		"eos_116":role="fight_submission"
+		"eos_136":role="fight_uppercut"
+		"eos_204":role="fight_jumpkick"
+		"eos_206":role="fight_highkick"
+		"eos_243":role="fight_super"
+		"eos_246":role="fight_dynamic"
+		"eos_300":role="fight_mach"
+		"eos_303":role="fight_roundkick"
+		"eos_430":role="fight_hammer"
+		"eos_440":role="fight_close"
+		"eos_454":role="fight_blast"
+		"eos_479":role="fight_vacuum"
+		"eos_500":role="fight_drain"
+		"eos_507":role="fight_palm"
+		"eos_508":role="fight_aura"
+		"eos_531":role="fight_slap"
+		"eos_175":role="fight_thrust"
+		"eos_222":role="fight_double"
+		"eos_210":role="fight_triple"
+		"eos_265":role="fight_bulk"
+		"eos_305":role="fight_detect"
+		"eos_051":role="fight_counter"
+		"eos_170":role="fight_toss"
+		"eos_340":role="fight_revenge"
+		"eos_007":role="fight_vital"
+		"eos_029":role="fight_stonebreak"
 	if role in ["electric_charge","electric_lift"]:mode="lightning"
 	var impact:float=.48 if role in ["contact","electric_contact","electric_short","electric_fist","electric_fang","electric_dash","electric_spark"] else .64 if role in ["projectile","lash","electric_arc","electric_wave","electric_sky","electric_orb","electric_beam"] else .40
 	if role in ["fire_breath","fire_ember","fire_blast","fire_wisp"]:impact=.64
@@ -2619,6 +2769,7 @@ func combat_profile(id:String)->Dictionary:
 	elif role in ["earth_club","earth_rush","earth_dig"]:impact=.48
 	if role in ["rock_throw","rock_wrecker","rock_blast","rock_gem","rock_ancient"]:impact=.64
 	elif role in ["rock_smash","rock_roll","rock_edge"]:impact=.48
+	if role.begins_with("fight_"):impact=.64 if role in ["fight_aura","fight_blast","fight_vacuum"] else .48
 	return {"mode":mode,"role":role,"element":element,"pattern":pattern,"range":reach,"duration":float(style[3]),"impact":impact,"socket":"ground" if role in ["ground","fire_plume","fire_magma","water_dive","water_whirlpool","water_surf","grass_frenzy","grass_roots","grass_knot","ice_avalanche","ice_cold","earth_dig","earth_tomb","earth_power","earth_fissure","earth_spikes","earth_quake","earth_magnitude","rock_edge","rock_tomb","rock_trap","rock_roll"] else "head" if role in ["projectile","fire_breath","fire_ember","fire_eruption","water_bubble","water_ink","water_spout","water_cannon","water_pump","water_bubblebeam","water_gun","water_pulse","water_brine","grass_solar","grass_energy","grass_bullet","grass_whistle","ice_aurora","ice_beam","ice_wind","earth_shot","rock_wrecker","rock_blast","rock_gem"] else "center"}
 func electric_sprite(im:Image,id:String,frame:int,role:String)->void:
 	var cyan:=Color("#40cfff")
@@ -3199,6 +3350,28 @@ func combat_fx_update(dt:float)->void:
 						q=points[0]+Vector3(cos(angle+t*TAU*2.0)*.75,.2+f*.8,sin(angle+t*TAU*2.0)*.75);size=.38
 					"rock_trap":
 						q=points[0]+Vector3(cos(angle)*.42,.04+t*.12,sin(angle)*.42);size=.45
+			if str(profile.role).begins_with("fight_"):
+				var fight_role:String=str(profile.role)
+				var progress:float=clampf(t*1.8-f*.30,0,1)
+				match fight_role:
+					"fight_blast","fight_aura","fight_vacuum","fight_mach":
+						q=combat_path_sample(points,progress)+Vector3(0,.12,0);size=.85 if fight_role=="fight_blast" else .52
+					"fight_uppercut":
+						q=points[-1]+Vector3(cos(angle)*.18,sin(t*PI)*.9,sin(angle)*.18);size=.55
+					"fight_jumpkick","fight_highkick","fight_toss":
+						q=combat_path_sample(points,progress)+Vector3(0,sin(progress*PI)*(.95 if fight_role=="fight_highkick" else .55),0);size=.60
+					"fight_lowkick":
+						q=points[-1]+Vector3(cos(angle)*.28,-.22,sin(angle)*.28);size=.48
+					"fight_hammer":
+						q=points[-1]+Vector3(0,.95*(1.0-progress),0);size=.72
+					"fight_drain":
+						q=combat_path_sample(points,1.0-clampf((t-.35)*1.7-f*.2,0,1))+Vector3(cos(angle)*.14,.15,sin(angle)*.14);size=.42
+					"fight_bulk","fight_detect","fight_counter","fight_revenge","fight_vital":
+						q=points[0]+Vector3(cos(angle+t*TAU)*.38,.15+f*.6,sin(angle+t*TAU)*.38);size=.55
+					"fight_submission","fight_roundkick":
+						q=points[-1]+Vector3(cos(angle+t*TAU)*.38,.15,sin(angle+t*TAU)*.38);size=.58
+					_:
+						q=points[-1]+Vector3(cos(angle)*.27,sin(angle)*.25,sin(angle)*.27);size=.56
 			# Drained energy travels from victim back to caster; healing stays on caster.
 			if profile.role=="drain" and t>=.40:
 				var back:float=clampf((t-.40)*2.0-f*.22,0.0,1.0)
