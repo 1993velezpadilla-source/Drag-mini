@@ -3,9 +3,9 @@
   "library": 522,
   "native": 67,
   "total": 589,
-  "covered_unique": 515,
-  "pending": 74,
-  "profile_entries": 526,
+  "covered_unique": 589,
+  "pending": 0,
+  "profile_entries": 600,
   "by_element": {
     "dark": {
       "total": 32,
@@ -21,7 +21,7 @@
     },
     "normal": {
       "total": 160,
-      "covered": 106
+      "covered": 160
     },
     "water": {
       "total": 36,
@@ -45,7 +45,7 @@
     },
     "flying": {
       "total": 27,
-      "covered": 19
+      "covered": 27
     },
     "fire": {
       "total": 23,
@@ -61,7 +61,7 @@
     },
     "steel": {
       "total": 17,
-      "covered": 11
+      "covered": 17
     },
     "ghost": {
       "total": 18,
@@ -69,7 +69,7 @@
     },
     "fighting": {
       "total": 35,
-      "covered": 29
+      "covered": 35
     },
     "ground": {
       "total": 20,
@@ -150,7 +150,9 @@
       "element": "normal",
       "category": "physical",
       "pattern": "fan",
-      "profiles": [],
+      "profiles": [
+        "CLAW"
+      ],
       "validation": "runtime_unverified"
     },
     {
@@ -184,7 +186,9 @@
       "element": "normal",
       "category": "physical",
       "pattern": "fan",
-      "profiles": [],
+      "profiles": [
+        "KICK"
+      ],
       "validation": "runtime_unverified"
     },
     {
@@ -350,7 +354,9 @@
       "element": "flying",
       "category": "special",
       "pattern": "radius",
-      "profiles": [],
+      "profiles": [
+        "TERRAIN"
+      ],
       "validation": "runtime_unverified"
     },
     {
@@ -516,7 +522,9 @@
       "element": "normal",
       "category": "physical",
       "pattern": "front",
-      "profiles": [],
+      "profiles": [
+        "MOTION"
+      ],
       "validation": "runtime_unverified"
     },
     {
@@ -670,7 +678,9 @@
       "element": "fighting",
       "category": "physical",
       "pattern": "self",
-      "profiles": [],
+      "profiles": [
+        "SPECIAL"
+      ],
       "validation": "runtime_unverified"
     },
     {
@@ -872,7 +882,9 @@
       "element": "normal",
       "category": "status",
       "pattern": "front",
-      "profiles": [],
+      "profiles": [
+        "SUPPORT"
+      ],
       "validation": "runtime_unverified"
     },
     {
@@ -932,7 +944,9 @@
       "element": "fighting",
       "category": "status",
       "pattern": "front",
-      "profiles": [],
+      "profiles": [
+        "TERRAIN"
+      ],
       "validation": "runtime_unverified"
     },
     {
@@ -1027,7 +1041,9 @@
       "element": "normal",
       "category": "status",
       "pattern": "corner_front",
-      "profiles": [],
+      "profiles": [
+        "SUPPORT"
+      ],
       "validation": "runtime_unverified"
     },
     {
@@ -1061,7 +1077,9 @@
       "element": "flying",
       "category": "status",
       "pattern": "self",
-      "profiles": [],
+      "profiles": [
+        "SUPPORT"
+      ],
       "validation": "runtime_unverified"
     },
     {
@@ -1155,7 +1173,9 @@
       "element": "normal",
       "category": "physical",
       "pattern": "front",
-      "profiles": [],
+      "profiles": [
+        "MOTION"
+      ],
       "validation": "runtime_unverified"
     },
     {
@@ -1177,7 +1197,9 @@
       "element": "normal",
       "category": "physical",
       "pattern": "front",
-      "profiles": [],
+      "profiles": [
+        "MOTION"
+      ],
       "validation": "runtime_unverified"
     },
     {
@@ -1187,7 +1209,9 @@
       "element": "fighting",
       "category": "physical",
       "pattern": "self",
-      "profiles": [],
+      "profiles": [
+        "SPECIAL"
+      ],
       "validation": "runtime_unverified"
     },
     {
@@ -1221,7 +1245,9 @@
       "element": "normal",
       "category": "status",
       "pattern": "room",
-      "profiles": [],
+      "profiles": [
+        "SUPPORT"
+      ],
       "validation": "runtime_unverified"
     },
     {
@@ -1303,7 +1329,9 @@
       "element": "normal",
       "category": "physical",
       "pattern": "self",
-      "profiles": [],
+      "profiles": [
+        "SPECIAL"
+      ],
       "validation": "runtime_unverified"
     },
     {
@@ -1361,7 +1389,9 @@
       "element": "normal",
       "category": "physical",
       "pattern": "front",
-      "profiles": [],
+      "profiles": [
+        "MOTION"
+      ],
       "validation": "runtime_unverified"
     },
     {
@@ -1371,7 +1401,9 @@
       "element": "normal",
       "category": "physical",
       "pattern": "front",
-      "profiles": [],
+      "profiles": [
+        "MOTION"
+      ],
       "validation": "runtime_unverified"
     },
     {
@@ -1489,7 +1521,9 @@
       "element": "fighting",
       "category": "physical",
       "pattern": "front",
-      "profiles": [],
+      "profiles": [
+        "MOTION"
+      ],
       "validation": "runtime_unverified"
     },
     {
@@ -1499,7 +1533,9 @@
       "element": "normal",
       "category": "physical",
       "pattern": "front",
-      "profiles": [],
+      "profiles": [
+        "MOTION"
+      ],
       "validation": "runtime_unverified"
     },
     {
@@ -1714,7 +1750,9 @@
       "element": "normal",
       "category": "physical",
       "pattern": "front",
-      "profiles": [],
+      "profiles": [
+        "MOTION"
+      ],
       "validation": "runtime_unverified"
     },
     {
@@ -1736,7 +1774,9 @@
       "element": "normal",
       "category": "status",
       "pattern": "self",
-      "profiles": [],
+      "profiles": [
+        "SUPPORT"
+      ],
       "validation": "runtime_unverified"
     },
     {
@@ -1782,7 +1822,9 @@
       "element": "normal",
       "category": "status",
       "pattern": "self",
-      "profiles": [],
+      "profiles": [
+        "SUPPORT"
+      ],
       "validation": "runtime_unverified"
     },
     {
@@ -1936,7 +1978,9 @@
       "element": "normal",
       "category": "status",
       "pattern": "front",
-      "profiles": [],
+      "profiles": [
+        "SUPPORT"
+      ],
       "validation": "runtime_unverified"
     },
     {
@@ -1982,7 +2026,9 @@
       "element": "normal",
       "category": "status",
       "pattern": "self",
-      "profiles": [],
+      "profiles": [
+        "SUPPORT"
+      ],
       "validation": "runtime_unverified"
     },
     {
@@ -2208,7 +2254,9 @@
       "element": "normal",
       "category": "status",
       "pattern": "front",
-      "profiles": [],
+      "profiles": [
+        "SUPPORT"
+      ],
       "validation": "runtime_unverified"
     },
     {
@@ -2566,7 +2614,9 @@
       "element": "normal",
       "category": "physical",
       "pattern": "corner_front",
-      "profiles": [],
+      "profiles": [
+        "PROJECTILE"
+      ],
       "validation": "runtime_unverified"
     },
     {
@@ -2769,7 +2819,9 @@
       "element": "normal",
       "category": "status",
       "pattern": "self",
-      "profiles": [],
+      "profiles": [
+        "SUPPORT"
+      ],
       "validation": "runtime_unverified"
     },
     {
@@ -3033,7 +3085,9 @@
       "element": "normal",
       "category": "special",
       "pattern": "corner_front",
-      "profiles": [],
+      "profiles": [
+        "PROJECTILE"
+      ],
       "validation": "runtime_unverified"
     },
     {
@@ -3272,7 +3326,9 @@
       "element": "normal",
       "category": "status",
       "pattern": "self",
-      "profiles": [],
+      "profiles": [
+        "SUPPORT"
+      ],
       "validation": "runtime_unverified"
     },
     {
@@ -3282,7 +3338,9 @@
       "element": "normal",
       "category": "physical",
       "pattern": "front",
-      "profiles": [],
+      "profiles": [
+        "PROJECTILE"
+      ],
       "validation": "runtime_unverified"
     },
     {
@@ -3292,7 +3350,9 @@
       "element": "normal",
       "category": "status",
       "pattern": "self",
-      "profiles": [],
+      "profiles": [
+        "SUPPORT"
+      ],
       "validation": "runtime_unverified"
     },
     {
@@ -3386,7 +3446,9 @@
       "element": "normal",
       "category": "status",
       "pattern": "self",
-      "profiles": [],
+      "profiles": [
+        "SUPPORT"
+      ],
       "validation": "runtime_unverified"
     },
     {
@@ -3480,7 +3542,9 @@
       "element": "normal",
       "category": "special",
       "pattern": "front",
-      "profiles": [],
+      "profiles": [
+        "PROJECTILE"
+      ],
       "validation": "runtime_unverified"
     },
     {
@@ -3502,7 +3566,9 @@
       "element": "normal",
       "category": "physical",
       "pattern": "front",
-      "profiles": [],
+      "profiles": [
+        "MOTION"
+      ],
       "validation": "runtime_unverified"
     },
     {
@@ -3512,7 +3578,9 @@
       "element": "normal",
       "category": "physical",
       "pattern": "front",
-      "profiles": [],
+      "profiles": [
+        "SPECIAL"
+      ],
       "validation": "runtime_unverified"
     },
     {
@@ -3558,7 +3626,9 @@
       "element": "normal",
       "category": "status",
       "pattern": "self",
-      "profiles": [],
+      "profiles": [
+        "SUPPORT"
+      ],
       "validation": "runtime_unverified"
     },
     {
@@ -3580,7 +3650,9 @@
       "element": "normal",
       "category": "status",
       "pattern": "self",
-      "profiles": [],
+      "profiles": [
+        "SPECIAL"
+      ],
       "validation": "runtime_unverified"
     },
     {
@@ -3602,7 +3674,9 @@
       "element": "steel",
       "category": "status",
       "pattern": "self",
-      "profiles": [],
+      "profiles": [
+        "SUPPORT"
+      ],
       "validation": "runtime_unverified"
     },
     {
@@ -3684,7 +3758,9 @@
       "element": "normal",
       "category": "physical",
       "pattern": "front",
-      "profiles": [],
+      "profiles": [
+        "SUPPORT"
+      ],
       "validation": "runtime_unverified"
     },
     {
@@ -3742,7 +3818,9 @@
       "element": "normal",
       "category": "status",
       "pattern": "front",
-      "profiles": [],
+      "profiles": [
+        "SPECIAL"
+      ],
       "validation": "runtime_unverified"
     },
     {
@@ -3849,7 +3927,9 @@
       "element": "normal",
       "category": "physical",
       "pattern": "corner_front",
-      "profiles": [],
+      "profiles": [
+        "PROJECTILE"
+      ],
       "validation": "runtime_unverified"
     },
     {
@@ -3967,7 +4047,9 @@
       "element": "normal",
       "category": "physical",
       "pattern": "front",
-      "profiles": [],
+      "profiles": [
+        "MOTION"
+      ],
       "validation": "runtime_unverified"
     },
     {
@@ -4289,7 +4371,9 @@
       "element": "normal",
       "category": "physical",
       "pattern": "front",
-      "profiles": [],
+      "profiles": [
+        "CLAW"
+      ],
       "validation": "runtime_unverified"
     },
     {
@@ -4299,7 +4383,9 @@
       "element": "normal",
       "category": "status",
       "pattern": "front",
-      "profiles": [],
+      "profiles": [
+        "SUPPORT"
+      ],
       "validation": "runtime_unverified"
     },
     {
@@ -4405,7 +4491,9 @@
       "element": "normal",
       "category": "special",
       "pattern": "corner_front",
-      "profiles": [],
+      "profiles": [
+        "PROJECTILE"
+      ],
       "validation": "runtime_unverified"
     },
     {
@@ -4427,7 +4515,9 @@
       "element": "normal",
       "category": "status",
       "pattern": "corner_front",
-      "profiles": [],
+      "profiles": [
+        "SUPPORT"
+      ],
       "validation": "runtime_unverified"
     },
     {
@@ -4437,7 +4527,9 @@
       "element": "normal",
       "category": "status",
       "pattern": "front",
-      "profiles": [],
+      "profiles": [
+        "SUPPORT"
+      ],
       "validation": "runtime_unverified"
     },
     {
@@ -4447,7 +4539,9 @@
       "element": "normal",
       "category": "physical",
       "pattern": "front",
-      "profiles": [],
+      "profiles": [
+        "MOTION"
+      ],
       "validation": "runtime_unverified"
     },
     {
@@ -4469,7 +4563,9 @@
       "element": "normal",
       "category": "status",
       "pattern": "self",
-      "profiles": [],
+      "profiles": [
+        "SUPPORT"
+      ],
       "validation": "runtime_unverified"
     },
     {
@@ -4551,7 +4647,9 @@
       "element": "normal",
       "category": "status",
       "pattern": "self",
-      "profiles": [],
+      "profiles": [
+        "SUPPORT"
+      ],
       "validation": "runtime_unverified"
     },
     {
@@ -4585,7 +4683,9 @@
       "element": "fighting",
       "category": "physical",
       "pattern": "self",
-      "profiles": [],
+      "profiles": [
+        "SPECIAL"
+      ],
       "validation": "runtime_unverified"
     },
     {
@@ -4691,7 +4791,9 @@
       "element": "normal",
       "category": "status",
       "pattern": "self",
-      "profiles": [],
+      "profiles": [
+        "SUPPORT"
+      ],
       "validation": "runtime_unverified"
     },
     {
@@ -4725,7 +4827,9 @@
       "element": "normal",
       "category": "physical",
       "pattern": "front",
-      "profiles": [],
+      "profiles": [
+        "MOTION"
+      ],
       "validation": "runtime_unverified"
     },
     {
@@ -4735,7 +4839,9 @@
       "element": "flying",
       "category": "special",
       "pattern": "line",
-      "profiles": [],
+      "profiles": [
+        "PROJECTILE"
+      ],
       "validation": "runtime_unverified"
     },
     {
@@ -4925,7 +5031,9 @@
       "element": "flying",
       "category": "special",
       "pattern": "front",
-      "profiles": [],
+      "profiles": [
+        "PROJECTILE"
+      ],
       "validation": "runtime_unverified"
     },
     {
@@ -4983,7 +5091,9 @@
       "element": "normal",
       "category": "status",
       "pattern": "self",
-      "profiles": [],
+      "profiles": [
+        "SUPPORT"
+      ],
       "validation": "runtime_unverified"
     },
     {
@@ -5101,7 +5211,9 @@
       "element": "normal",
       "category": "special",
       "pattern": "front",
-      "profiles": [],
+      "profiles": [
+        "PROJECTILE"
+      ],
       "validation": "runtime_unverified"
     },
     {
@@ -5195,7 +5307,9 @@
       "element": "normal",
       "category": "status",
       "pattern": "front",
-      "profiles": [],
+      "profiles": [
+        "SUPPORT"
+      ],
       "validation": "runtime_unverified"
     },
     {
@@ -5253,7 +5367,9 @@
       "element": "normal",
       "category": "physical",
       "pattern": "front",
-      "profiles": [],
+      "profiles": [
+        "SUPPORT"
+      ],
       "validation": "runtime_unverified"
     },
     {
@@ -5287,7 +5403,9 @@
       "element": "normal",
       "category": "special",
       "pattern": "front",
-      "profiles": [],
+      "profiles": [
+        "SPECIAL"
+      ],
       "validation": "runtime_unverified"
     },
     {
@@ -5297,7 +5415,9 @@
       "element": "steel",
       "category": "physical",
       "pattern": "front",
-      "profiles": [],
+      "profiles": [
+        "PROJECTILE"
+      ],
       "validation": "runtime_unverified"
     },
     {
@@ -5343,7 +5463,9 @@
       "element": "fighting",
       "category": "special",
       "pattern": "line",
-      "profiles": [],
+      "profiles": [
+        "PROJECTILE"
+      ],
       "validation": "runtime_unverified"
     },
     {
@@ -5557,7 +5679,9 @@
       "element": "normal",
       "category": "physical",
       "pattern": "front",
-      "profiles": [],
+      "profiles": [
+        "MOTION"
+      ],
       "validation": "runtime_unverified"
     },
     {
@@ -5652,7 +5776,9 @@
       "element": "normal",
       "category": "physical",
       "pattern": "front",
-      "profiles": [],
+      "profiles": [
+        "SPECIAL"
+      ],
       "validation": "runtime_unverified"
     },
     {
@@ -5782,7 +5908,9 @@
       "element": "normal",
       "category": "physical",
       "pattern": "front",
-      "profiles": [],
+      "profiles": [
+        "MOTION"
+      ],
       "validation": "runtime_unverified"
     },
     {
@@ -5888,7 +6016,9 @@
       "element": "normal",
       "category": "status",
       "pattern": "corner_front",
-      "profiles": [],
+      "profiles": [
+        "SUPPORT"
+      ],
       "validation": "runtime_unverified"
     },
     {
@@ -5970,7 +6100,9 @@
       "element": "steel",
       "category": "physical",
       "pattern": "self",
-      "profiles": [],
+      "profiles": [
+        "SPECIAL"
+      ],
       "validation": "runtime_unverified"
     },
     {
@@ -6077,7 +6209,9 @@
       "element": "normal",
       "category": "physical",
       "pattern": "front",
-      "profiles": [],
+      "profiles": [
+        "MOTION"
+      ],
       "validation": "runtime_unverified"
     },
     {
@@ -6099,7 +6233,9 @@
       "element": "flying",
       "category": "special",
       "pattern": "fan",
-      "profiles": [],
+      "profiles": [
+        "PROJECTILE"
+      ],
       "validation": "runtime_unverified"
     },
     {
@@ -6109,7 +6245,9 @@
       "element": "flying",
       "category": "special",
       "pattern": "line",
-      "profiles": [],
+      "profiles": [
+        "MOTION"
+      ],
       "validation": "runtime_unverified"
     },
     {
@@ -6431,7 +6569,9 @@
       "element": "flying",
       "category": "special",
       "pattern": "fan",
-      "profiles": [],
+      "profiles": [
+        "PROJECTILE"
+      ],
       "validation": "runtime_unverified"
     },
     {
@@ -6441,7 +6581,9 @@
       "element": "flying",
       "category": "special",
       "pattern": "radius",
-      "profiles": [],
+      "profiles": [
+        "TERRAIN"
+      ],
       "validation": "runtime_unverified"
     },
     {
@@ -6739,7 +6881,9 @@
       "element": "steel",
       "category": "physical",
       "pattern": "front",
-      "profiles": [],
+      "profiles": [
+        "CLAW"
+      ],
       "validation": "runtime_unverified"
     },
     {
@@ -6749,7 +6893,9 @@
       "element": "steel",
       "category": "physical",
       "pattern": "line",
-      "profiles": [],
+      "profiles": [
+        "PROJECTILE"
+      ],
       "validation": "runtime_unverified"
     },
     {
@@ -6759,7 +6905,9 @@
       "element": "steel",
       "category": "physical",
       "pattern": "fan",
-      "profiles": [],
+      "profiles": [
+        "PROJECTILE"
+      ],
       "validation": "runtime_unverified"
     },
     {
