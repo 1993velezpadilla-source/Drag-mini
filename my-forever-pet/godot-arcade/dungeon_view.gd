@@ -2428,6 +2428,8 @@ func update_hud():
 	if not stage_text.is_empty():status_text.text+=" · "+stage_text
 	if run.travel_speed()>1:status_text.text+=" · MOVE ×%d"%run.travel_speed()
 	if run.shield_turns>0:status_text.text+=" · "+run.shield_kind.capitalize()+" "+str(run.shield_turns)
+	var boon_text:String=run.boon_summary()
+	if not boon_text.is_empty():status_text.text+=" · "+boon_text
 	if is_instance_valid(aim_button):aim_button.text="Aim "+["↑","→","↓","←"][maxi(0,Rules.DIR.find(facing))]
 	if is_instance_valid(special_button):special_button.disabled=run.energy<2
 	for i in range(move_buttons.size()):
