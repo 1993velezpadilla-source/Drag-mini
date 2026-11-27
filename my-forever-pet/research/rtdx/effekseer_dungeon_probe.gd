@@ -331,6 +331,49 @@ func run()->void:
 		assert(root.get_texture().get_image().save_png("/tmp/effekseer-review/kick-remake-"+move_id+".png")==OK)
 	for particle in field.combat_particles:particle.hide()
 	print("KINDRIA_CLASSIC_KICK_STAMP_PASS 10")
+	# V11.4: physical talons and single blades, not a recolored universal slash.
+	var claw_cases:Dictionary={"lib_ghost_1":"smoke","lib_dragon_1":"flame","eos_018":"impact_star","eos_081":"slash","eos_208":"flame","eos_260":"impact_star","eos_275":"shock_ring","eos_325":"shards","eos_463":"spiral","eos_476":"smoke","eos_491":"smoke","eos_312":"impact_star","eos_346":"leaf","eos_360":"slash"}
+	for move_id in claw_cases:
+		var art:Array=field.claw_contact_art(move_id)
+		assert(art.size()==8 and art[6]==claw_cases[move_id])
+		assert(field.claw_contact_fx(move_id,punch_source,bite_position,0.0,0,Color.WHITE,Color.BLACK)==1)
+		var mark:Sprite3D=field.combat_particles[0]
+		var start_mark:Vector3=mark.position
+		assert(mark.texture.get_width()==32 and mark.texture.get_height()==32)
+		assert(mark.texture.get_image().get_used_rect().size.x>0)
+		assert(is_equal_approx(mark.pixel_size,.016))
+		assert(mark.texture==field.combat_pixel_texture(str(art[3]),Color(str(art[4])),Color(str(art[5]))))
+		var used_marks:int=field.claw_contact_fx(move_id,punch_source,bite_position,float(art[1])*.30,0,Color.WHITE,Color.BLACK)
+		assert(used_marks>=2)
+		assert(mark.position.distance_to(start_mark)>.05)
+		assert(field.combat_particles[1].texture==field.combat_pixel_texture(str(art[6]),Color.WHITE,Color.BLACK))
+		assert(is_equal_approx(field.combat_particles[1].pixel_size,.032))
+		if str(art[7])=="ghost":
+			assert(used_marks==4)
+			assert(field.combat_particles[2].texture==mark.texture)
+			assert(field.combat_particles[3].texture==field.combat_pixel_texture("spiral",Color(str(art[4])),Color(str(art[5]))))
+		assert(field.combat_particles.size()==particle_count)
+		assert(field.claw_contact_fx(move_id,punch_source,bite_position,float(art[1]),0,Color.WHITE,Color.BLACK)==0)
+		assert(field.claw_contact_fx(move_id,punch_source,bite_position,0.0,Field.FX_PARTICLE_CAP,Color.WHITE,Color.BLACK)==Field.FX_PARTICLE_CAP)
+	var ghost_profile:Dictionary=field.combat_profile("eos_476")
+	var ghost_burst:Dictionary={"id":"eos_476","profile":ghost_profile,"points":[field.pos(origin),bite_position],"results":{target:{"misses":1}}}
+	assert(field.element_finish_fx(ghost_burst,float(ghost_profile.impact),0)==1)
+	ghost_burst.results={target:{"damage":8,"hits":1}}
+	assert(field.element_finish_fx(ghost_burst,float(ghost_profile.impact),0)>1)
+	var spectral_art:Array=field.claw_contact_art("eos_476")
+	assert(field.combat_particles[0].texture==field.combat_pixel_texture("claw_spectral",Color(str(spectral_art[4])),Color(str(spectral_art[5]))))
+	# Visual artifacts for all 14 physical claw and blade moves.
+	for move_id in claw_cases:
+		var p:Dictionary=field.combat_profile(move_id)
+		var art:Array=field.claw_contact_art(move_id)
+		var burst:Dictionary={"id":move_id,"profile":p,"points":[field.pos(origin)+Vector3.UP*.55,bite_position],"results":{target:{"damage":8,"hits":1}}}
+		for particle in field.combat_particles:particle.hide()
+		var tick:float=lerpf(float(p.impact),1.0,float(art[1])*.30)
+		assert(field.element_finish_fx(burst,tick,0)>1)
+		await frames()
+		assert(root.get_texture().get_image().save_png("/tmp/effekseer-review/claw-"+move_id+".png")==OK)
+	for particle in field.combat_particles:particle.hide()
+	print("KINDRIA_CONTACT_CLAW_PASS 14")
 	var plan:Array=[
 		{"stage":"ally_invoke","anchor":"source","start":0.0,"end":.15,"enabled":true},
 		{"stage":"enemy_invoke","anchor":"source","start":0.0,"end":.15,"enabled":true},
