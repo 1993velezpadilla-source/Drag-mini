@@ -525,13 +525,15 @@ func run()->void:
 	print("KINDRIA_ENEMY_SUBFRAME_REACTION_PASS")
 	# Retired visual bursts retain their impact time without retaining textures.
 	field.retired_impacts.clear()
-	var evicted:Dictionary={"id":"basic_strike","age":.1,"duration":.6,"profile":{"impact":.5,"role":"contact"},"points":[Vector3.ZERO,Vector3.RIGHT],"target_player":true,"damage":3,"impacted":false,"texture":null}
+	var evicted:Dictionary={"id":"basic_strike","age":.1,"duration":.6,"profile":field.combat_profile("basic_strike").duplicate(),"points":[Vector3.ZERO,Vector3.RIGHT],"target_player":true,"damage":3,"impacted":false,"texture":null,"results":{},"impact_waves":[{}],"impact_times":[.3],"impact_cursor":0}
+	evicted.profile.impact=.5
 	field.retire_combat_burst(evicted)
 	if field.retired_impacts.size()!=1 or field.retired_impacts[0].has("texture"):errors.append("retired impact storage")
 	if not field.update_retired_impacts(.1).is_empty() or field.retired_impacts.size()!=1:errors.append("retired impact early")
 	var retired_hit:Dictionary=field.update_retired_impacts(.15)
 	if retired_hit.is_empty() or absf(float(retired_hit.get("age",-1))-.05)>.001 or retired_hit.get("direction")!=Vector3.RIGHT or not field.retired_impacts.is_empty():errors.append("retired impact clock")
 	evicted.impacted=true
+	evicted.impact_cursor=1
 	field.retire_combat_burst(evicted)
 	if not field.retired_impacts.is_empty():errors.append("retired impact duplicated")
 	print("KINDRIA_RETIRED_IMPACT_PASS")
