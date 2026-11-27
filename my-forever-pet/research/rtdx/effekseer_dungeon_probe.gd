@@ -414,6 +414,45 @@ func run()->void:
 		assert(root.get_texture().get_image().save_png("/tmp/effekseer-review/body-"+move_id+".png")==OK)
 	for particle in field.combat_particles:particle.hide()
 	print("KINDRIA_CONTACT_BODY_PASS 24")
+	# V11.6: cast-centered blasts, outcome-driven restraint and return trails.
+	var special_cases:Dictionary={"eos_123":"burst","eos_155":"burst","eos_272":"burst","eos_120":"lash","lib_grass_1":"lash","eos_182":"lash","eos_511":"lash","eos_023":"silk","eos_086":"silk","eos_294":"coil","eos_125":"coil","eos_071":"coil","eos_069":"clamp","eos_116":"clamp","eos_076":"drain","eos_135":"drain","eos_320":"drain","eos_080":"drain","eos_500":"drain","eos_329":"seed","lib_normal_3":"sound","eos_152":"sound","eos_241":"sound","eos_530":"sound","eos_446":"sound","eos_034":"sound","eos_171":"sound","eos_027":"sound","eos_083":"sound","eos_284":"sound","eos_293":"sound","eos_112":"sound","eos_025":"sound","eos_217":"sound","eos_195":"sound","eos_026":"sound","tentacle_snare":"lash","vine_snap":"lash","gravity_web":"silk","abyss_grasp":"clamp","eos_192":"coil"}
+	var special_source:Vector3=field.pos(origin)+Vector3.UP*.55
+	for move_id in special_cases:
+		var art:Array=field.special_contact_art(move_id)
+		assert(art.size()==4 and art[0]==special_cases[move_id])
+		var p:Dictionary=field.combat_profile(move_id)
+		var burst:Dictionary={"id":move_id,"profile":p,"points":[special_source,bite_position],"results":{target:{"damage":8,"hits":1}}}
+		var peak:float=float(p.impact)
+		var tick:float=lerpf(peak,1.0,.25)
+		for particle in field.combat_particles:particle.hide()
+		var used_special:int=field.special_contact_fx(burst,tick,0,Color.WHITE,Color.BLACK)
+		assert(used_special>0 and used_special<=12)
+		assert(field.combat_particles.size()==particle_count)
+		assert(field.special_contact_fx(burst,tick,Field.FX_PARTICLE_CAP,Color.WHITE,Color.BLACK)==Field.FX_PARTICLE_CAP)
+		burst.results={target:{"misses":1}}
+		var missed:int=field.special_contact_fx(burst,tick,0,Color.WHITE,Color.BLACK)
+		assert(missed==6 if art[0]=="burst" else missed==0)
+		if move_id in ["eos_123","eos_155"]:
+			assert(field.combat_particles[0].position.distance_to(special_source)<.001)
+		if str(art[0])=="drain":
+			burst.results={target:{"damage":8},origin:{"heal":4}}
+			field.special_contact_fx(burst,peak,0,Color.WHITE,Color.BLACK)
+			var before:float=field.combat_particles[0].position.distance_to(special_source)
+			field.special_contact_fx(burst,lerpf(peak,1.0,.70),0,Color.WHITE,Color.BLACK)
+			assert(field.combat_particles[0].position.distance_to(special_source)<before)
+		burst.results={target:{"damage":8,"hits":1}}
+		for particle in field.combat_particles:particle.hide()
+		field.special_contact_fx(burst,tick,0,Color.WHITE,Color.BLACK)
+		await frames()
+		assert(root.get_texture().get_image().save_png("/tmp/effekseer-review/special-"+move_id+".png")==OK)
+	var silk_profile:Dictionary=field.combat_profile("eos_086")
+	var silk_burst:Dictionary={"id":"eos_086","profile":silk_profile,"points":[special_source,bite_position],"results":{target:{"effects":1}}}
+	assert(field.special_contact_fx(silk_burst,float(silk_profile.impact),0,Color.WHITE,Color.BLACK)==2)
+	for mode in ["special_tongue","special_vine","special_thread","special_coil","special_clamp","special_note","special_wave"]:
+		var tex:Texture2D=field.combat_pixel_texture(mode,Color.WHITE,Color.BLACK)
+		assert(tex.get_width()==32 and tex.get_image().get_used_rect().size.x>0)
+	for particle in field.combat_particles:particle.hide()
+	print("KINDRIA_SPECIAL_CONTACT_PASS 41")
 	var plan:Array=[
 		{"stage":"ally_invoke","anchor":"source","start":0.0,"end":.15,"enabled":true},
 		{"stage":"enemy_invoke","anchor":"source","start":0.0,"end":.15,"enabled":true},
