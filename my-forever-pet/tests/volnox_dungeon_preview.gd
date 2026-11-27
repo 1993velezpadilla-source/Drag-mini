@@ -105,9 +105,9 @@ func run():
 				assert(not sounds.has(signature));sounds[signature]=true
 				if variant==0:assert(audio.save_to_wav("/tmp/kindria-sfx-"+id+"-"+phase+".wav")==OK)
 	assert(sounds.size()==54)
-	assert(dungeon.combat_profile("lib_electric_1").role=="electric_contact")
+	assert(dungeon.combat_profile("lib_electric_1").role=="electric_fang")
 	assert(dungeon.combat_profile("lib_electric_2").role=="electric_arc")
-	assert(dungeon.combat_profile("lib_electric_3").role=="electric_area")
+	assert(dungeon.combat_profile("lib_electric_3").role=="electric_room")
 	dungeon.combat_fx_spawn({"fx":"lib_electric_2","from":Vector2i(-2,0),"to":Vector2i(2,0),"path":[Vector2i(-1,0),Vector2i(0,0),Vector2i(1,0),Vector2i(2,0)],"tiles":[Vector2i(2,0)]})
 	dungeon.combat_fx_update(.14)
 	assert(dungeon.fx_arc_segments>50 and dungeon.fx_arc_mesh.get_surface_count()==1)
