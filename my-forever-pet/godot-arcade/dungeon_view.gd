@@ -2821,7 +2821,7 @@ func cinematic_cast_enhancement(burst:Dictionary,t:float)->void:
 	var peak:float=clampf(float(profile.impact),.01,.99)
 	var target:Vector3=points[-1]
 	var source:Vector3=points[0]
-	var resolved:=resolve_element_impact(burst)
+	var resolved:=resolve_element_impact(impact_visual_view(burst))
 	var miss:bool=resolved.kind!="confirmed"
 	var wide:bool=profile.pattern in ["room","floor","radius","cross","fan"]
 	var strength:float=.7 if luminous else .40
@@ -2837,7 +2837,7 @@ func cinematic_cast_enhancement(burst:Dictionary,t:float)->void:
 		if luminous:cinematic_light(at+Vector3.UP*.25,color,envelope*strength*.7,2.05)
 	elif not miss:
 		target=resolved.target
-		var after:float=clampf((t-peak)/(1.0-peak),0.0,1.0)
+		var after:float=impact_visual_phase(burst,t)
 		var fade:float=pow(1.0-after,2.0)
 		var extent:float=(2.0 if wide else 1.25)*(1.18 if ultimate else 1.0)
 		cinematic_halo(target,color,extent*(.82+after*.5),strength*fade*.8,after,false)
@@ -2986,6 +2986,36 @@ func combat_pixel_texture(mode:String,light:Color,dark:Color)->ImageTexture:
 				"status_exchange":
 					fill=absf(v.y+3.0)<1.1 and absf(v.x)<6.5 or absf(v.y-3.0)<1.1 and absf(v.x)<6.5 or absf(v.y+3.0+absf(v.x-5.0))<1.1 and v.x>2.0 or absf(v.y-3.0-absf(v.x+5.0))<1.1 and v.x< -2.0
 					inner=fill and absf(v.x)<4.0
+				"impact_detonation","impact_force","impact_radiance":
+					var rays:float=absf(sin(atan2(v.y,v.x)*(6.0 if mode=="impact_detonation" else 4.0)))
+					fill=r<2.9 or (r<7.2 and rays*r<1.15)
+					inner=r<2.1 or (fill and r<4.4)
+				"impact_combustion","impact_flare":
+					fill=r<6.0+sin(atan2(v.y,v.x)*5.0)*.9 and (r<4.0 or v.y<3.0)
+					inner=fill and r<3.4
+				"impact_splash","impact_surge","impact_splatter":
+					fill=r<3.1 or (r<7.1 and absf(sin(atan2(v.y,v.x)*5.0))*r<.85)
+					inner=fill and v.x+v.y<1.0
+				"impact_shatter","impact_fracture","impact_eruption","impact_frost":
+					var a:float=atan2(v.y,v.x)
+					fill=r<7.0 and (absf(sin(a*3.0))*r<1.0 or (r>3.0 and absf(cos(a*5.0))*r<.65))
+					inner=fill and (r<3.4 or v.y<0.0)
+				"impact_discharge":
+					fill=r<7.2 and (absf(v.y-sin(v.x*1.6)*2.5)<1.0 or absf(v.x+sin(v.y*1.2)*2.7)<1.0)
+					inner=fill and r<3.5
+				"impact_implosion","impact_vortex","impact_wisp":
+					var a:float=atan2(v.y,v.x)
+					fill=r<7.0 and absf(r-(4.0+a*.85))<1.2
+					inner=fill and r<4.4
+				"impact_bloom":
+					fill=r<6.5 and (r<2.3 or absf(cos(atan2(v.y,v.x)*3.0))>.65)
+					inner=r<3.2
+				"impact_shear":
+					fill=r<7.2 and (absf(v.y-v.x*.7)<.9 or absf(v.y+v.x*.7)<.8)
+					inner=fill and r<3.0
+				"impact_shockwave","impact_ripple","impact_bubble_pop":
+					fill=absf(r-6.2)<.85 or absf(r-3.6)<.75
+					inner=fill and v.x+v.y<0.0
 				"projectile_spectral_orb","projectile_mist_orb":
 					fill=r<6.5+sin(atan2(v.y,v.x)*5.0)*.85;inner=r<3.7 and (v.x+v.y<1.5 or mode=="projectile_spectral_orb")
 				"projectile_charged_orb","projectile_weather_orb":
@@ -6631,8 +6661,8 @@ func combat_fx_update(dt:float)->void:
 		if profile.role=="ground":count=mini(18,tiles.size()*3)
 		# Keep elemental contact accents visible when the base spray is large.
 		if crowded:count=mini(count,maxi(1,share*2/3))
-		used=multi_hit_accents(burst,t,used)
 		used=confirmed_contact_icons(burst,t,used)
+		used=directed_impact_fx(burst,t,used)
 		# Reserve the readable projectile head within the same shared cast quota.
 		used=projectile_identity_fx(burst,t,used)
 		used=ultimate_accent_fx(burst,t,used)
@@ -7500,22 +7530,89 @@ func projectile_identity_fx(burst:Dictionary,t:float,used:int)->int:
 			previous=q
 	return used
 
-func multi_hit_accents(burst:Dictionary,t:float,used:int)->int:
+# Explicit detonation direction by authored move role, with elemental fallback.
+const IMPACT_ELEMENT_FORM={"fire":"combustion","water":"splash","ice":"shatter","electric":"discharge","grass":"bloom","ground":"eruption","rock":"fracture","poison":"splatter","fighting":"force","flying":"shear","psychic":"implosion","ghost":"wisp","dark":"implosion","dragon":"combustion","steel":"fracture","normal":"force","bug":"bloom","fairy":"radiance"}
+const IMPACT_ROLE_FORM={"neutral_explosion":"detonation","fire_blast":"combustion","fire_blastburn":"detonation","fire_overheat":"flare","fire_eruption":"eruption","fire_vortex":"vortex","water_surf":"surge","water_cannon":"splash","water_pump":"surge","water_bubblebeam":"bubble_pop","water_bubble":"bubble_pop","water_pulse":"ripple","ice_blizzard":"shatter","ice_avalanche":"fracture","ice_beam":"frost","earth_fissure":"eruption","earth_quake":"shockwave","earth_bomb":"fracture","rock_blast":"fracture","rock_wrecker":"detonation","rock_smash":"fracture","rock_storm":"fracture","fight_blast":"force","air_blast":"shear","poison_bomb":"splatter","poison_gunk":"splatter","grass_bomb":"bloom","grass_storm":"vortex","ghost_ball":"wisp","dark_void":"implosion","dark_pulse":"ripple","dragon_meteor":"detonation","dragon_pulse":"ripple","steel_meteor":"fracture","steel_burst":"discharge","electric_burst":"discharge","electric_beam":"discharge","psi_beam":"radiance","neutral_beam":"force"}
+func directed_impact_form(profile:Dictionary)->String:
+	return str(IMPACT_ROLE_FORM.get(str(profile.role),IMPACT_ELEMENT_FORM.get(str(profile.element),"force")))
+
+# X is radius, Y is vertical rise, Z is opacity. Every envelope ends at zero
+# opacity. Contraction, expansion and ballistic debris use different curves.
+func directed_impact_sample(form:String,progress:float)->Vector3:
+	var t:float=clampf(progress,0.0,1.0)
+	var radius:float=.12+.78*(1.0-pow(1.0-t,2.0))
+	var height:float=sin(t*PI)*.38
+	var fade:float=pow(1.0-t,1.35)
+	match form:
+		"implosion":radius=.92*(1.0-smoothstep(0.0,1.0,t))+.04;height=.15*sin(t*PI)
+		"combustion","flare","wisp":height=.10+t*.75;radius=.18+t*.42
+		"detonation":radius=.15+1.0*(1.0-pow(1.0-t,3.0));height=sin(t*PI)*.60
+		"eruption","fracture","shatter":height=sin(t*PI)*.82
+		"splash","surge","splatter":height=sin(t*PI)*.60
+		"shockwave","ripple":radius=.18+t*1.10;height=0.0
+		"discharge":fade*=.68+.32*cos(t*TAU*3.0);height=.24*sin(t*PI)
+		"frost":radius=.18+smoothstep(0.0,.65,t)*.63;height=.12
+		"bubble_pop":radius=.08+t*.60;height=.15+sin(t*PI)*.32
+		"shear":radius=.12+t*.95;height=.15*sin(t*PI)
+		"radiance","bloom","vortex":height=sin(t*PI)*.48
+	return Vector3(radius,height,fade)
+
+# Multi-hit presentation must not leak damage from a future attempt.
+func impact_visual_view(burst:Dictionary)->Dictionary:
 	var waves:Array=burst.get("impact_waves",[])
-	var times:Array=burst.get("impact_times",[])
-	if waves.size()<2:return used
+	if waves.size()<2:return burst
 	var index:int=int(burst.get("impact_cursor",0))-1
-	if index<0:return used
-	var age:float=float(burst.age)-float(times[index])
-	var lifetime:float=minf(.16,maxf(.045,float(burst.duration)*(1.0-float(burst.profile.impact))/float(waves.size())*.85))
-	if age<0.0 or age>=lifetime:return used
-	var fade:float=1.0-age/lifetime
-	var style:Array=combat_style(str(burst.id))
-	var material:String=str(ELEMENT_FINISH_MODE.get(str(burst.profile.element),"impact_star"))
-	for tile in waves[index]:
-		if int(waves[index][tile].get("damage",0))<=0:continue
-		used=environment_particle(used,pos(tile)+Vector3.UP*.62,material,Color(style[1]),Color(style[2]),.45+age*.8,fade)
-		if used>=fx_cast_particle_limit:break
+	var active:Dictionary={}
+	if index>=0 and index<waves.size():active=waves[index]
+	return {"points":burst.points,"results":active,"damage":0}
+
+func impact_visual_phase(burst:Dictionary,t:float)->float:
+	if burst.get("impact_waves",[]).size()<2:
+		var peak:float=float(burst.profile.impact)
+		return clampf((t-peak)/maxf(.01,1.0-peak),0.0,1.0)
+	var wave:=contact_wave_sample(burst)
+	return 1.0 if wave.is_empty() else float(wave.age)
+
+func directed_impact_fx(burst:Dictionary,t:float,used:int)->int:
+	var profile:Dictionary=burst.profile
+	var id:String=str(burst.id)
+	var record:Dictionary=Rules.MOVE_LIBRARY.get(id,Rules.DEV_NATIVE_MOVES.get(id,{}))
+	if str(record.get("category",""))=="status" or t<float(profile.impact):return used
+	var phase:float=impact_visual_phase(burst,t)
+	if phase>=1.0:return used
+	var view:=impact_visual_view(burst)
+	var results:Dictionary=view.get("results",{})
+	var targets:Array[Vector3]=[]
+	for tile in results:
+		if int(results[tile].get("damage",0))>0:targets.append(pos(tile)+Vector3.UP*.60)
+	if targets.is_empty() and results.is_empty() and int(view.get("damage",0))>0:targets.append(burst.points[-1])
+	if targets.is_empty():return used
+	var form:=directed_impact_form(profile)
+	var sample:=directed_impact_sample(form,phase)
+	var style:Array=combat_style(id)
+	var light:=Color(style[1]);var dark:=Color(style[2])
+	var material:String=str(ELEMENT_FINISH_MODE.get(str(profile.element),"impact_star"))
+	var source:Vector3=burst.points[0]
+	var limit:int=mini(targets.size(),4)
+	# Give each confirmed target a readable center before adding debris.
+	for i in range(limit):
+		used=environment_particle(used,targets[i],"impact_"+form,light,dark,.62+sample.x*.65,sample.z)
+	if fx_performance_tier==2:return used
+	for i in range(limit):
+		var target:Vector3=targets[i]
+		var forward:=Vector3(target.x-source.x,0,target.z-source.z).normalized()
+		if forward.length_squared()<.0001:forward=Vector3.FORWARD
+		var side:=Vector3(-forward.z,0,forward.x)
+		var count:int=3 if limit==1 and fx_performance_tier==0 else 1
+		for j in range(count):
+			var angle:float=float(j)*TAU/float(count)+phase*2.0
+			var radial:Vector3=forward*cos(angle)+side*sin(angle)
+			if form in ["force","shear","surge"]:radial=forward*.7+side*sin(angle)*.6
+			elif form=="vortex":radial=radial.rotated(Vector3.UP,phase*TAU)
+			var q:Vector3=target+radial*sample.x+Vector3.UP*sample.y
+			var flat:bool=form in ["ripple","shockwave"]
+			if flat:q.y=.06
+			used=environment_particle(used,q,material,light,dark,.24+.13*sample.z,sample.z*.76,flat)
 	return used
 
 # Pick the most recent dispatched wave, never aggregate damage from later hits.
@@ -7649,12 +7746,15 @@ func element_finish_fx(burst:Dictionary,t:float,used:int)->int:
 			var q:=from+Vector3(cos(angle)*(.35-.22*startup),.06+.16*startup,sin(angle)*(.35-.22*startup))
 			used=environment_particle(used,q,mode,light,dark,.29, sin(startup*PI)*.80)
 	elif t>=peak:
-		var age:float=clampf((t-peak)/maxf(.01,1.0-peak),0.0,1.0)
+		var age:float=impact_visual_phase(burst,t)
+		if age>=1.0:return used
 		var fade:float=1.0-age
 		var radius:float=.12+age*.60
 		var count:int=5 if not status else 3
-		var results:Dictionary=burst.get("results",{})
-		var resolved:=resolve_element_impact(burst)
+		var view:=impact_visual_view(burst)
+		var results:Dictionary=view.get("results",{})
+		var resolved:=resolve_element_impact(view)
+		if burst.get("impact_waves",[]).size()>1 and resolved.kind!="confirmed":return used
 		target=resolved.target
 		var primary_tile:Vector2i=resolved.tile
 		if resolved.kind=="miss":
@@ -7671,8 +7771,6 @@ func element_finish_fx(burst:Dictionary,t:float,used:int)->int:
 					used=environment_particle(used,pos(tile)+Vector3.UP*.62,str(STATUS_FINISH_STYLE[kind][0]),Color(STATUS_FINISH_STYLE[kind][1]),Color(STATUS_FINISH_STYLE[kind][2]),.45,fade)
 					extra_status+=1
 			return used
-		if age<.30 and resolved.kind=="confirmed":
-			used=environment_particle(used,target,"bubble" if status else "impact_star",light,dark,.62+age*.55,1.0-age*2.0)
 		# Room-wide attacks show a small localized finish at other confirmed targets.
 		var extra:int=0
 		for tile in results:
