@@ -36,6 +36,34 @@ func run_checks()->void:
 	var checks:int=0
 	var failures:Array[String]=[]
 	var view:=Dungeon.new()
+	# V24.0: compare prefix cleanup with a full scan across growth, shrink,
+	# independent persistent status particles and optional batching hides.
+	var pool_probe:=Dungeon.new()
+	var pool_capacity:int=Dungeon.FX_PARTICLE_CAP+Dungeon.LIVING_PARTICLE_CAP
+	for i in range(pool_capacity):
+		var pool_sprite:=Sprite3D.new()
+		pool_sprite.hide()
+		pool_probe.combat_particles.append(pool_sprite)
+	for pool_counts in [Vector2i(0,0),Vector2i(144,64),Vector2i(7,3),Vector2i(0,3),Vector2i(12,0),Vector2i(12,5),Vector2i(0,0),Vector2i(0,0)]:
+		for i in range(pool_counts.x):pool_probe.combat_particles[i].show()
+		for i in range(pool_counts.y):pool_probe.combat_particles[Dungeon.FX_PARTICLE_CAP+i].show()
+		# Batching is permitted to hide a submitted sprite, not an unused one.
+		if pool_counts.x>2:pool_probe.combat_particles[1].hide()
+		pool_probe.fx_cast_particles_used=pool_probe.finish_particle_range(0,pool_counts.x,pool_probe.fx_cast_particles_used,Dungeon.FX_PARTICLE_CAP)
+		pool_probe.fx_living_particles_used=pool_probe.finish_particle_range(Dungeon.FX_PARTICLE_CAP,pool_counts.y,pool_probe.fx_living_particles_used,Dungeon.LIVING_PARTICLE_CAP)
+		if pool_probe.fx_cast_particles_used!=pool_counts.x or pool_probe.fx_living_particles_used!=pool_counts.y:failures.append("V24.0 active counts")
+		checks+=1
+		for i in range(pool_capacity):
+			var pool_expected:bool=(i<pool_counts.x and not (i==1 and pool_counts.x>2)) or (i>=Dungeon.FX_PARTICLE_CAP and i<Dungeon.FX_PARTICLE_CAP+pool_counts.y)
+			if pool_probe.combat_particles[i].visible!=pool_expected:failures.append("V24.0 visibility parity "+str([pool_counts,i]))
+			checks+=1
+		for i in range(pool_counts.x+pool_counts.y):
+			var pool_expected_index:int=i if i<pool_counts.x else Dungeon.FX_PARTICLE_CAP+i-pool_counts.x
+			if pool_probe.active_particle_pool_index(i)!=pool_expected_index:failures.append("V24.0 pool index parity")
+			checks+=1
+	for pool_sprite in pool_probe.combat_particles:pool_sprite.free()
+	pool_probe.combat_particles.clear()
+	pool_probe.free()
 	# V23.9: the shared particle peak must give exactly the direct trajectory.
 	for render_impact in [-.1,0.0,.001,.12,.5,.88,.999,1.0,1.1]:
 		var render_peak:float=clampf(render_impact,.001,.999)
