@@ -285,7 +285,7 @@ static func animate_world_sprite(actor:Node3D,delta:Vector2,moving:bool,dt:float
 	sprite.modulate=Color("#ff9b9b") if state=="hurt" and int(clock*22.0)%2==0 else Color("#d3fff1") if state=="burst" else Color.WHITE
 
 # Volnox enemies are authored 2D pixels, never rendered 3D creature meshes.
-const ENEMY_PIXEL_PILOTS=["sporeling","coralcrab","nova_wisp","vinesnap","eelstrix","comet_hare","thornbeetle","marrowray","voidspider","rootgnawer","jellymancer","lunamoth","leafwisp","shellguard","crystarok","bramble_pup","anemoneye","nebulwing","mossmite","reef_pup","orbitserpent"]
+const ENEMY_PIXEL_PILOTS=["sporeling","coralcrab","nova_wisp","vinesnap","eelstrix","comet_hare","thornbeetle","marrowray","voidspider","rootgnawer","jellymancer","lunamoth","leafwisp","shellguard","crystarok","bramble_pup","anemoneye","nebulwing","mossmite","reef_pup","orbitserpent","sylphowl","bubblewisp","starlit_pup"]
 const ENEMY_POSES=["idle","walk","walk","walk","walk","windup","attack","attack","recover","hurt","defeat"]
 static func enemy_dot(im:Image,p:Vector2i,r:Vector2i,c:Color)->void:
 	ellipse(im,Vector2(p),Vector2(r),c)
@@ -1246,6 +1246,141 @@ static func enemy_pixel_cell(id:String,dir:int,pose:String,frame:int=0)->Image:
 				var q:=points[5]
 				enemy_line(im,q+Vector2i(-4,-6),q+Vector2i(5,-8),1,pale)
 				enemy_line(im,q+Vector2i(5,-8),q+Vector2i(8,-3),1,purple)
+		"sylphowl":
+			# Watchful woodland owl: layered flight feathers, hooked beak, leaf ear tufts.
+			var bark:=Color("#514635")
+			var dark:=Color("#352d28")
+			var feather:=Color("#b9a77c")
+			var cream:=Color("#dcd7a9")
+			var moss:=Color("#768b49")
+			var flap:int=[0,5,0,-5][phase] if pose=="walk" else -4 if wind else 5 if attack else 0
+			var c:=Vector2i(23,25)
+			for k in [-1,1]:
+				var sign_x:int=int(k)
+				var base:=c+Vector2i(sign_x*6,0)
+				var tip:=c+Vector2i(sign_x*18,-7+flap)
+				if side:
+					base=c+Vector2i(-4,sign_x*3)
+					tip=c+Vector2i(-15,sign_x*8+flap)
+				enemy_poly(im,[base,tip,tip+Vector2i(0,5),base+Vector2i(sign_x*5,12),base+Vector2i(-sign_x*2,8)],ink)
+				enemy_poly(im,[base,tip+Vector2i(-sign_x*2,2),tip+Vector2i(0,4),base+Vector2i(sign_x*4,10)],bark)
+				for i in range(3):
+					var q:=Vector2i(Vector2(base).lerp(Vector2(tip),.34+float(i)*.24))
+					enemy_line(im,q,q+Vector2i(-sign_x*2,5),2,feather)
+					enemy_line(im,q,q+Vector2i(-sign_x,3),1,cream)
+			for k in [-1,1]:
+				var foot:=c+Vector2i(int(k)*5,15)
+				enemy_line(im,foot,foot+Vector2i(2,3),2,dark)
+				enemy_line(im,foot,foot+Vector2i(2,3),1,gold)
+			enemy_dot(im,c+Vector2i(0,5),Vector2i(11,12),ink)
+			enemy_dot(im,c+Vector2i(0,4),Vector2i(9,10),bark)
+			if not back:
+				enemy_dot(im,c+Vector2i(1 if side else 0,7),Vector2i(6,7),feather)
+				for i in range(3):enemy_line(im,c+Vector2i(-3,5+i*3),c+Vector2i(2,6+i*3),1,cream)
+			else:
+				for i in range(3):enemy_line(im,c+Vector2i(-5,2+i*4),c+Vector2i(5,3+i*4),1,moss)
+			var h:=c+Vector2i(5,-8) if side else c+Vector2i(0,-8)
+			for k in [-1,1]:
+				var ear:=h+Vector2i(int(k)*7,-4)
+				enemy_poly(im,[ear+Vector2i(-4,3),ear+Vector2i(-2,-7),ear+Vector2i(4,-3),ear+Vector2i(3,4)],ink)
+				enemy_poly(im,[ear+Vector2i(-2,2),ear+Vector2i(-1,-5),ear+Vector2i(2,-2)],moss)
+			enemy_dot(im,h,Vector2i(12,10),ink)
+			enemy_dot(im,h-Vector2i(0,1),Vector2i(10,8),bark)
+			if not back:
+				for x in ([4] if side else [-5,5]):
+					var eye:=h+Vector2i(int(x),0)
+					enemy_dot(im,eye,Vector2i(5,5),cream)
+					enemy_eye(im,eye,ink,Color("#c99457"),white,attack)
+				var beak:=h+Vector2i(10,3) if side else h+Vector2i(0,5)
+				enemy_poly(im,[beak+Vector2i(-3,-2),beak+Vector2i(3,-2),beak+Vector2i(1,4)],gold)
+			else:enemy_line(im,h+Vector2i(-5,-5),h+Vector2i(4,-5),1,feather)
+			enemy_dot(im,c+Vector2i(0,1),Vector2i(2,2),purple)
+			if attack:
+				var q:=Vector2i(40,26) if side else Vector2i(24,7 if back else 43)
+				enemy_line(im,q-Vector2i(3,2),q+Vector2i(3,2+frame),1,cream)
+		"bubblewisp":
+			# A colonial bubble creature: three soft membranes, a small face in the largest.
+			var dark:=Color("#204e70")
+			var sea:=Color("#28738e")
+			var aqua:=Color("#65cdd9")
+			var shine:=Color("#e3ffff")
+			var pulse:int=[0,2,0,-2][phase] if pose=="walk" else -2 if wind else 3 if attack else 0
+			var c:=Vector2i(24,26+pulse)
+			var satellites:Array[Vector2i]=[c+Vector2i(-10,9-pulse),c+Vector2i(11,6+pulse),c+Vector2i(4,-16-pulse)]
+			if side:satellites=[c+Vector2i(-11,6-pulse),c+Vector2i(-13,-6+pulse),c+Vector2i(5,-15-pulse)]
+			for i in range(3):
+				var q:=satellites[i]
+				var r:int=6 if i<2 else 5
+				enemy_dot(im,q,Vector2i(r,r),ink)
+				enemy_dot(im,q,Vector2i(r-1,r-1),sea)
+				enemy_dot(im,q-Vector2i(1,2),Vector2i(r-3,r-3),aqua)
+				enemy_line(im,q+Vector2i(-2,-3),q+Vector2i(0,-3),1,shine)
+			var radius:int=11+pulse if wind or attack else 11
+			enemy_dot(im,c,Vector2i(radius+2,13),ink)
+			enemy_dot(im,c,Vector2i(radius,11),dark)
+			enemy_dot(im,c-Vector2i(0,2),Vector2i(radius-1,8),sea)
+			enemy_dot(im,c-Vector2i(3,5),Vector2i(5,3),aqua)
+			enemy_line(im,c+Vector2i(-6,-5),c+Vector2i(-3,-8),1,shine)
+			enemy_line(im,c+Vector2i(5,6),c+Vector2i(7,3),1,aqua)
+			if not back:
+				for x in ([5] if side else [-4,4]):enemy_eye(im,c+Vector2i(int(x),1),ink,pink,shine,attack)
+				enemy_dot(im,c+Vector2i(4 if side else 0,7),Vector2i(2,1),ink)
+			else:
+				enemy_dot(im,c+Vector2i(0,2),Vector2i(3,3),sea)
+				enemy_line(im,c+Vector2i(-2,2),c+Vector2i(2,2),1,aqua)
+			enemy_line(im,c+Vector2i(-3,10),c+Vector2i(3,10),1,gold)
+			if attack:
+				var q:=Vector2i(40,24) if side else Vector2i(24,5 if back else 42)
+				enemy_dot(im,q,Vector2i(4+frame,4+frame),shine)
+				enemy_dot(im,q,Vector2i(2+frame,2+frame),aqua)
+		"starlit_pup":
+			# Six-legged comet insect-mammal, not the forest dog's silhouette.
+			var deep:=Color("#34315b")
+			var mid:=Color("#8c9add")
+			var pale:=Color("#dde7ff")
+			var twilight:=Color("#55568d")
+			var surge:int=3 if attack else -2 if wind else 0
+			var c:=Vector2i(20,28) if side else Vector2i(24,27)
+			if side:c.x+=surge
+			else:c.y+=(-surge if back else surge)
+			for i in range(6):
+				var sign_x:int=-1 if i%2==0 else 1
+				var j:int=int(i/2.0)
+				var gait:int=step*(-1 if (i+j)%2==0 else 1)
+				var a:=c+Vector2i(sign_x*7,j*4-3)
+				var b:=a+Vector2i(sign_x*5,5+gait)
+				if side:
+					a=c+Vector2i(j*7-8,sign_x*3)
+					b=a+Vector2i(gait-2,8 if sign_x==1 else 3)
+				enemy_line(im,a,b,3,ink)
+				enemy_line(im,a,b,2,twilight)
+				enemy_dot(im,b,Vector2i(2,2),mid)
+				enemy_dot(im,b+Vector2i(0,1),Vector2i(1,1),pale)
+			var tail:=c+Vector2i(-12,-2) if side else c+Vector2i(0,8 if back else -8)
+			var tip:=tail+Vector2i(-8,-6+step) if side else tail+Vector2i(step,-10 if not back else 10)
+			enemy_poly(im,[tail+Vector2i(-4,3),tail+Vector2i(3,1),tip+Vector2i(2,3),tip,tip+Vector2i(-2,0)],ink)
+			enemy_line(im,tail,tip,2,mid)
+			enemy_line(im,tail,tip,1,pale)
+			enemy_cluster(im,c,[Vector2i(-13,2),Vector2i(-9,-9),Vector2i(0,-13),Vector2i(10,-9),Vector2i(14,1),Vector2i(9,10),Vector2i(-5,11)],[Vector2i(-11,1),Vector2i(-7,-7),Vector2i(0,-11),Vector2i(8,-7),Vector2i(12,1),Vector2i(7,8),Vector2i(-5,9)],[Vector2i(-8,-3),Vector2i(0,-9),Vector2i(6,-5),Vector2i(1,0),Vector2i(-5,2)],ink,deep,twilight)
+			for i in range(3):
+				var q:=c+Vector2i(-5+i*5,-6-i%2*3)
+				enemy_poly(im,[q+Vector2i(-3,3),q+Vector2i(0,-5),q+Vector2i(3,2),q+Vector2i(0,4)],mid)
+				enemy_line(im,q,q+Vector2i(0,-3),1,pale)
+			var h:=c+Vector2i(12,-5) if side else c+Vector2i(0,-10 if back else 7)
+			enemy_cluster(im,h,[Vector2i(-9,-3),Vector2i(-4,-10),Vector2i(5,-10),Vector2i(10,-4),Vector2i(9,5),Vector2i(0,8),Vector2i(-8,4)],[Vector2i(-7,-3),Vector2i(-3,-8),Vector2i(4,-8),Vector2i(8,-3),Vector2i(7,4),Vector2i(0,6),Vector2i(-6,3)],[Vector2i(-6,-3),Vector2i(0,-7),Vector2i(5,-4),Vector2i(1,0)],ink,mid,pale)
+			for k in [-1,1]:
+				var q:=h+Vector2i(int(k)*5,-6)
+				var point:=q+Vector2i(int(k)*4,-7)
+				enemy_poly(im,[q+Vector2i(-3,2),point,q+Vector2i(3,2)],ink)
+				enemy_line(im,q,point,1,mid)
+			if not back:
+				for x in ([3] if side else [-4,4]):enemy_eye(im,h+Vector2i(int(x),0),ink,pink,white,attack)
+				enemy_dot(im,h+Vector2i(6 if side else 0,5),Vector2i(2,1),deep)
+			else:enemy_line(im,h+Vector2i(-3,-3),h+Vector2i(3,-4),1,twilight)
+			enemy_dot(im,c+Vector2i(0,4),Vector2i(2,2),gold)
+			if attack:
+				var q:=Vector2i(41,30) if side else Vector2i(24,6 if back else 43)
+				enemy_line(im,q+Vector2i(-4,-2),q+Vector2i(3,2+frame),1,pale)
 	if dir==2:im.flip_x()
 	if recoil:
 		for y in range(48):
@@ -1257,7 +1392,7 @@ static func enemy_pixel_cell(id:String,dir:int,pose:String,frame:int=0)->Image:
 		# ground animals fall onto their side. These are prototype key poses.
 		var fallen:=Image.create(48,48,false,Image.FORMAT_RGBA8)
 		fallen.fill(Color.TRANSPARENT)
-		if id in ["nova_wisp","leafwisp","jellymancer"]:
+		if id in ["nova_wisp","leafwisp","jellymancer","bubblewisp"]:
 			for y in range(48):
 				for x in range(48):
 					var pixel:=im.get_pixel(x,y)
