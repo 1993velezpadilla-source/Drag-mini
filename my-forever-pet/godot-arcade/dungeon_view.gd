@@ -1425,7 +1425,9 @@ func environmental_response_sample(element:String,phase:float,terrain_only:bool=
 	return Vector4(profile.x,profile.y*strength,profile.z*strength,profile.w*strength)
 
 func exterior_response_pick(residues:Array)->Dictionary:
-	var best:Dictionary={}
+	var best_pulse:=Vector4.ZERO
+	var best_response:=Vector4.ZERO
+	var best_tint:=Color.WHITE
 	var score:float=0.0
 	for mark in residues:
 		var phase:float=clampf(float(mark.age)/maxf(.001,float(mark.life)),0.0,1.0)
@@ -1435,8 +1437,10 @@ func exterior_response_pick(residues:Array)->Dictionary:
 		if weight<=score:continue
 		score=weight
 		var at:Vector3=mark.at
-		best={"pulse":Vector4(at.x,at.z,phase,1.0),"response":response,"tint":Color(mark.color)}
-	return best
+		best_pulse=Vector4(at.x,at.z,phase,1.0)
+		best_response=response;best_tint=Color(mark.color)
+	if score<=0.0:return {}
+	return {"pulse":best_pulse,"response":best_response,"tint":best_tint}
 
 func update_exterior_world(dt:float):
 	exterior_clock+=clampf(dt,0.0,.25)
@@ -1445,11 +1449,13 @@ func update_exterior_world(dt:float):
 	var pulse:Vector4=reaction.get("pulse",Vector4.ZERO)
 	var response:Vector4=reaction.get("response",Vector4.ZERO)
 	var tint:Color=reaction.get("tint",Color.WHITE)
-	for material in exterior_motion_materials.values():
+	for kind in exterior_motion_materials:
+		var material:ShaderMaterial=exterior_motion_materials[kind]
 		material.set_shader_parameter("scene_time",exterior_clock)
-		set_fx_uniform(material,"combat_pulse",pulse)
-		set_fx_uniform(material,"combat_response",response)
-		set_fx_uniform(material,"combat_tint",tint)
+		var uniform_cache:Dictionary=fx_uniform_cache(material)
+		set_fx_uniform_cached(material,uniform_cache,"combat_pulse",pulse)
+		set_fx_uniform_cached(material,uniform_cache,"combat_response",response)
+		set_fx_uniform_cached(material,uniform_cache,"combat_tint",tint)
 	if exterior_life.is_empty():return
 	for i in range(exterior_life_centers.size()):
 		var phase=exterior_clock*(.70 if region==1 else .46)+float(i)*2.399
@@ -1459,8 +1465,9 @@ func update_exterior_world(dt:float):
 		var point=center+Vector3(cos(phase)*radius,height,sin(phase)*radius)
 		var basis=Basis(Vector3.UP,-phase-PI*.5)
 		if region==0:basis=basis*Basis(Vector3.RIGHT,sin(exterior_clock*8.0+i)*.26)
+		var life_transform:=Transform3D(basis,point)
 		for k in range(exterior_life.size()):
-			exterior_life[k].multimesh.set_instance_transform(i,Transform3D(basis,point)*exterior_life_parts[k].transform)
+			exterior_life[k].multimesh.set_instance_transform(i,life_transform*exterior_life_parts[k].transform)
 func landscape_terraces(wall_cells:Dictionary):
 	terrace_count=0;terrace_cells.clear()
 	var parts=rock_parts("res://assets/dungeon_"+["forest","reef","star"][region]+"_terrace.glb")
@@ -1577,8 +1584,12 @@ func update_room_lights():
 		var q:Vector2i=room.get_center();candidates.append(q)
 	candidates.sort_custom(func(a:Vector2i,b:Vector2i):return run.distance(a,run.player)<run.distance(b,run.player))
 	for i in range(room_lights.size()):
-		room_lights[i].visible=i<candidates.size()
-		if i<candidates.size():room_lights[i].position=pos(candidates[i])+Vector3(-1.1,2.6,-1.0)
+		var light:OmniLight3D=room_lights[i]
+		var desired_visible:bool=i<candidates.size()
+		if light.visible!=desired_visible:light.visible=desired_visible
+		if desired_visible:
+			var desired_position:Vector3=pos(candidates[i])+Vector3(-1.1,2.6,-1.0)
+			if light.position!=desired_position:light.position=desired_position
 func floor_name()->String:
 	return ["Ancient passages","Treasure chamber","Monster den","Restorative grotto","Forgotten ruins"][run.floor_kind]
 func build_landscape_connections():
@@ -1849,7 +1860,9 @@ func ambient_batch(mesh_value:Mesh,count:int,material:Material)->MultiMeshInstan
 	inst.cast_shadow=GeometryInstance3D.SHADOW_CASTING_SETTING_OFF;geometry.add_child(inst)
 	return inst
 func ambient_spawn(i:int,initial:bool=false):
-	var center=pos(run.player)
+	ambient_spawn_at(i,pos(run.player),initial)
+
+func ambient_spawn_at(i:int,center:Vector3,initial:bool=false)->void:
 	var spread=Vector3(ambient_rng.randf_range(-5.5,5.5),0,ambient_rng.randf_range(-6.0,5.0))
 	ambient_origins[i]=center+spread
 	ambient_ages[i]=ambient_rng.randf_range(0.0,4.5) if initial else 0.0
@@ -1988,11 +2001,16 @@ func update_living_ambient(dt:float):
 	ambient_clock+=delta
 	for material in biome_light_materials:material.set_shader_parameter("scene_time",ambient_clock)
 	var player_center:=pos(run.player)
+	var primary_mesh:MultiMesh=ambient_batches[0].multimesh
+	var mote_mesh:MultiMesh=ambient_batches[1].multimesh
+	var trail_mesh:MultiMesh=trail_batch.multimesh
+	var reef_basis:=Basis(Vector3.RIGHT,PI*.30)
+	var mote_clock:float=ambient_clock*1.4
 	for i in range(ambient_origins.size()):
 		ambient_ages[i]+=delta
 		var mote=i>=AMBIENT_COUNT
 		var duration=5.5+float(i%5)*.37
-		if ambient_ages[i]>=duration or ambient_origins[i].distance_squared_to(player_center)>81.0:ambient_spawn(i)
+		if ambient_ages[i]>=duration or ambient_origins[i].distance_squared_to(player_center)>81.0:ambient_spawn_at(i,player_center)
 		var age=ambient_ages[i];var phase=age/duration;var seed=float(i)*2.399
 		var fade=minf(1.0,minf(phase*7.0,(1.0-phase)*6.0))
 		var offset=Vector3(sin(age*.71+seed)*.46,0,cos(age*.57+seed)*.36)
@@ -2000,20 +2018,19 @@ func update_living_ambient(dt:float):
 		var basis:Basis
 		if mote:
 			offset.y=.55+.30*sin(age*.8+seed)+phase*.40
-			size=.035+.014*float(i%3);fade*=.48+.52*absf(sin(ambient_clock*1.4+seed))
+			size=.035+.014*float(i%3);fade*=.48+.52*absf(sin(mote_clock+seed))
 			basis=Basis.from_scale(Vector3.ONE*size)
 		elif region==0:
 			offset.y=3.3-phase*3.15
 			basis=Basis.from_euler(Vector3(age*.8+seed,age*.6,seed+sin(age)*.6)).scaled(Vector3.ONE*size*1.7)
 		elif region==1:
 			offset.y=.10+phase*3.0
-			basis=Basis(Vector3.RIGHT,PI*.30).scaled(Vector3.ONE*size*(.75+phase*.6))
+			basis=reef_basis.scaled(Vector3.ONE*size*(.75+phase*.6))
 		else:
 			offset.y=.3+phase*2.6
 			basis=Basis.from_euler(Vector3(age*.4,seed+age*.6,age*.3)).scaled(Vector3(size*.4,size,size*.4))
-		var batch_index=1 if mote else 0
 		var index=i-AMBIENT_COUNT if mote else i
-		var mm=ambient_batches[batch_index].multimesh
+		var mm:MultiMesh=mote_mesh if mote else primary_mesh
 		mm.set_instance_transform(index,Transform3D(basis,ambient_origins[i]+offset))
 		mm.set_instance_color(index,Color(1,1,1,fade*(.82 if region==0 and not mote else .70)))
 	var life=1.7 if region==1 else 3.2
@@ -2023,8 +2040,8 @@ func update_living_ambient(dt:float):
 		var fade=clampf(1.0-trail_ages[i]/life,0.0,1.0)
 		var scale_value=(.55+trail_ages[i]*.28) if region==1 else .78
 		if fade<=0.0:scale_value=.001;trail_ages[i]=99.0
-		trail_batch.multimesh.set_instance_transform(i,Transform3D(Basis(Vector3.UP,trail_angles[i]).scaled(Vector3.ONE*scale_value),trail_origins[i]))
-		trail_batch.multimesh.set_instance_color(i,Color(1,1,1,fade*.58))
+		trail_mesh.set_instance_transform(i,Transform3D(Basis(Vector3.UP,trail_angles[i]).scaled(Vector3.ONE*scale_value),trail_origins[i]))
+		trail_mesh.set_instance_color(i,Color(1,1,1,fade*.58))
 func build_floor():
 	var start_usec=Time.get_ticks_usec()
 	fx_performance_grace=1.5;fx_pressure_age=0.0;fx_recovery_age=0.0
