@@ -14,6 +14,18 @@ func _initialize():
 			var idle:=Art.enemy_pixel_cell(id,dir,"idle")
 			var defeat:=Art.enemy_pixel_cell(id,dir,"defeat")
 			assert(defeat.get_used_rect().has_area() and idle.get_data()!=defeat.get_data(),id+" defeat direction "+str(dir))
+	for id in ["vinesnap","marrowray","thornbeetle","comet_hare"]:
+		var views:Array=[]
+		for dir in range(4):
+			var idle:=Art.enemy_pixel_cell(id,dir,"idle")
+			assert(idle.get_used_rect().size.x>=22,id+" narrow profile "+str(dir))
+			assert(idle.get_used_rect().size.y>=22,id+" flat profile "+str(dir))
+			assert(not views.has(idle.get_data()),id+" duplicate orientation")
+			views.append(idle.get_data())
+		var a:=Art.enemy_pixel_cell(id,3,"windup")
+		var b:=Art.enemy_pixel_cell(id,3,"attack",1)
+		assert(a.get_data()!=b.get_data(),id+" attack silhouette")
+	print("VOLNOX_REDESIGN_DIRECTION_PASS 4")
 	var front:=Art.enemy_pixel_cell("coralcrab",0,"idle")
 	var rear:=Art.enemy_pixel_cell("coralcrab",1,"idle")
 	var left:=Art.enemy_pixel_cell("coralcrab",2,"idle")
