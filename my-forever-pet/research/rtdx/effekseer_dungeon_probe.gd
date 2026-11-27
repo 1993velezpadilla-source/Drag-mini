@@ -516,6 +516,48 @@ func run()->void:
 		assert(root.get_texture().get_image().save_png("/tmp/effekseer-review/terrain-"+move_id+".png")==OK)
 	for particle in field.combat_particles:particle.hide()
 	print("KINDRIA_TERRAIN_CONTACT_PASS 42")
+	# V11.9: status symbols are tied to confirmed changes, not attack damage.
+	var support_cases:Dictionary={"eos_117":"heal","eos_218":"heal","eos_006":"heal","eos_094":"heal","eos_173":"heal","eos_449":"heal","eos_165":"heal","eos_318":"heal","eos_509":"heal","eos_236":"heal","eos_439":"heal","eos_526":"heal","eos_015":"cleanse","eos_026":"cleanse","eos_339":"cleanse","eos_456":"cleanse","eos_088":"cleanse","eos_301":"shield","eos_305":"shield","eos_104":"shield","eos_338":"shield","eos_259":"shield","eos_134":"shield","eos_130":"shield","eos_258":"shield","eos_186":"shield","eos_058":"shield","eos_070":"shield","eos_202":"shield","eos_520":"shield","eos_302":"shield","eos_298":"shield","eos_003":"sleep","eos_004":"sleep","eos_034":"sleep","eos_079":"sleep","eos_111":"sleep","eos_231":"sleep","eos_483":"sleep","eos_084":"sleep","eos_232":"sleep","eos_013":"confuse","eos_171":"confuse","eos_191":"confuse","eos_274":"confuse","eos_196":"poison","eos_197":"poison","eos_199":"poison","eos_124":"paralysis","eos_192":"paralysis","eos_281":"paralysis","eos_047":"burn","eos_183":"transform","eos_184":"transform","eos_286":"transform","eos_282":"transform","eos_304":"transform","eos_169":"transform","eos_148":"transform","eos_056":"transform","eos_055":"boost","eos_099":"boost","eos_181":"boost","eos_195":"boost","eos_215":"boost","eos_265":"boost","eos_288":"boost","eos_319":"boost","eos_333":"boost","eos_542":"boost","eos_095":"boost","eos_343":"boost","eos_444":"boost","eos_540":"boost","eos_074":"boost","eos_492":"boost","eos_257":"boost","eos_128":"boost","eos_160":"boost","eos_019":"boost","eos_010":"weaken","eos_011":"weaken","eos_027":"weaken","eos_033":"weaken","eos_083":"weaken","eos_085":"weaken","eos_122":"weaken","eos_142":"weaken","eos_146":"weaken","eos_217":"weaken","eos_224":"weaken","eos_273":"weaken","eos_106":"weaken","eos_351":"weaken","eos_267":"weaken","eos_534":"weaken","eos_266":"seal","eos_450":"seal","eos_059":"seal","eos_017":"seal","eos_022":"seal","eos_172":"seal","eos_466":"seal","eos_089":"seal","eos_194":"seal","eos_225":"regen","eos_434":"regen","eos_233":"regen","eos_021":"link","eos_313":"link","eos_464":"link","eos_448":"link","eos_506":"link","eos_513":"link","eos_137":"link","eos_209":"link","eos_482":"link","eos_187":"phase","eos_478":"phase","eos_493":"phase","eos_499":"phase"}
+	for move_id in support_cases:
+		var kind:String=field.support_contact_kind(move_id)
+		assert(kind==support_cases[move_id])
+		var p:Dictionary=field.combat_profile(move_id)
+		var peak:float=clampf(float(p.impact),.01,.99)
+		var tick:float=lerpf(peak,1.0,.25)
+		var burst:Dictionary={"id":move_id,"profile":p,"points":[special_source,bite_position],"results":{target:{"heal":8} if kind=="heal" else {"effects":1}}}
+		for particle in field.combat_particles:particle.hide()
+		assert(field.support_contact_fx(burst,tick,0)==3)
+		var icon:Sprite3D=field.combat_particles[0]
+		var visual:Array=Field.SUPPORT_VISUALS[kind]
+		assert(icon.texture==field.combat_pixel_texture(str(visual[0]),Color(str(visual[2])),Color(str(visual[3]))))
+		assert(field.combat_particles.size()==particle_count)
+		assert(field.support_contact_fx(burst,tick,Field.FX_PARTICLE_CAP)==Field.FX_PARTICLE_CAP)
+		burst.results={target:{"misses":1}}
+		assert(field.support_contact_fx(burst,tick,0)==0)
+		burst.results={target:{"blocked":1}}
+		assert(field.support_contact_fx(burst,tick,0)==0)
+		if kind=="heal":
+			burst.results={target:{"effects":1}}
+			assert(field.support_contact_fx(burst,tick,0)==0,"healing requires real HP gain")
+		if move_id in ["eos_117","eos_301","eos_111","eos_197","eos_047","eos_282","eos_181","eos_027","eos_450","eos_434","eos_464","eos_187","eos_192","eos_013","eos_015"]:
+			burst.results={target:{"heal":8} if kind=="heal" else {"effects":1}}
+			for particle in field.combat_particles:particle.hide()
+			field.support_contact_fx(burst,tick,0)
+			await frames()
+			assert(root.get_texture().get_image().save_png("/tmp/effekseer-review/support-"+move_id+".png")==OK)
+	for mode in ["support_cross","support_ward","support_up","support_down","support_moon","support_seal","support_change"]:
+		var tex:Texture2D=field.combat_pixel_texture(mode,Color.WHITE,Color.BLACK)
+		assert(tex.get_width()==32 and tex.get_image().get_used_rect().size.x>0)
+	var saved_shield:String=field.run.shield_kind
+	var saved_turns:int=field.run.shield_turns
+	field.run.shield_kind="reflect";field.run.shield_turns=2
+	assert("ward_reflect" in field.living_player_statuses())
+	assert(field.living_status_palette("ward_reflect")[0]=="support_ward")
+	field.run.shield_turns=0
+	assert(not "ward_reflect" in field.living_player_statuses())
+	field.run.shield_kind=saved_shield;field.run.shield_turns=saved_turns
+	for particle in field.combat_particles:particle.hide()
+	print("KINDRIA_SUPPORT_CONTACT_PASS 121")
 	var plan:Array=[
 		{"stage":"ally_invoke","anchor":"source","start":0.0,"end":.15,"enabled":true},
 		{"stage":"enemy_invoke","anchor":"source","start":0.0,"end":.15,"enabled":true},
