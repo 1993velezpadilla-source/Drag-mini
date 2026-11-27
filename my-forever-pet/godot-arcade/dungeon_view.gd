@@ -16253,7 +16253,19 @@ func combat_particle_family(role:String)->String:
 	var separator:int=role.find("_")
 	return role.substr(0,separator+1) if separator>=0 else ""
 
+# The first quiet frame after combat still takes the full cleanup path.
+# Status particles, text and camera clocks remain independent of active casts.
+func combat_fx_can_idle()->bool:
+	return combat_bursts.is_empty() and delayed_combat_fx.is_empty() and retired_impacts.is_empty() and fx_reactions.is_empty() and fx_reaction_sparks.is_empty() and fx_residues.is_empty() and (run==null or run.charge_phase.is_empty()) and fx_cast_particles_used==0 and fx_lights_used==0 and fx_halos_used==0 and not fx_trail_had_geometry and not fx_arc_had_geometry and not fx_trail_started and fx_arc_segments==0 and not fx_collect_audio and not fx_flushing_audio and fx_frame_audio.is_empty()
+
 func combat_fx_update(dt:float)->void:
+	if combat_fx_can_idle():
+		update_cast_text(dt)
+		fx_ground_shake=maxf(0.0,fx_ground_shake-dt*3.0)
+		fx_contact_camera_age=minf(1.0,fx_contact_camera_age+dt)
+		living_status_fx()
+		update_particle_batches()
+		return
 	begin_combat_audio_frame()
 	update_cast_text(dt)
 	var latest_hit:Dictionary={}
@@ -16272,13 +16284,14 @@ func combat_fx_update(dt:float)->void:
 	fx_arc_positions.clear();fx_arc_colors.clear();fx_arc_indices.clear()
 	if fx_arc_had_geometry and is_instance_valid(fx_arc_mesh):fx_arc_mesh.clear_surfaces()
 	fx_arc_had_geometry=false
+	var charging:bool=run!=null and not run.charge_phase.is_empty()
 	var remaining_casts:int=0
 	for pending in combat_bursts:
 		if float(pending.age)+dt<float(pending.duration):remaining_casts+=1
 	var crowded:bool=remaining_casts>1
 	# A crowded frame keeps slots for real hit reactions and charging.
 	var reserve:int=24 if crowded else 0
-	if run!=null and not run.charge_phase.is_empty():reserve=maxi(reserve,12)
+	if charging:reserve=maxi(reserve,12)
 	if not fx_reaction_sparks.is_empty():reserve=maxi(reserve,16)
 	if not fx_residues.is_empty():reserve=maxi(reserve,12)
 	var cast_capacity:int=FX_PARTICLE_CAP-reserve
@@ -16775,7 +16788,7 @@ func combat_fx_update(dt:float)->void:
 			used=element_finish_fx(burst,t,used)
 	flush_combat_audio_frame()
 	fx_cast_particle_limit=FX_PARTICLE_CAP
-	if run!=null and not run.charge_phase.is_empty():used=charge_environment_fx(used)
+	if charging:used=charge_environment_fx(used)
 	if not latest_hit.is_empty() and is_instance_valid(pet):
 		queue_ultra_reaction(pet.global_position+Vector3.UP*.54,latest_hit.direction,false,float(latest_hit.age))
 	used=ultra_reaction_particles(dt,used)
