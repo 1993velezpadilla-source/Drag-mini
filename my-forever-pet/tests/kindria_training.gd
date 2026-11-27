@@ -604,6 +604,27 @@ func _initialize():
 	toss.enemies.remove_at(1)
 	assert(toss.hurl_enemy(0) and toss.enemies[0].hp==20)
 	print("KINDRIA_TERRAIN_HURL_PASS")
+	assert(Rules.iq_return_damage(0)==5)
+	assert(Rules.iq_return_damage(49)==5 and Rules.iq_return_damage(50)==10)
+	assert(Rules.iq_return_damage(99)==10 and Rules.iq_return_damage(100)==15)
+	assert(Rules.iq_return_damage(699)==40 and Rules.iq_return_damage(700)==45)
+	assert(Rules.iq_return_damage(999)==45)
+	var iq_rules=Rules.new()
+	var target_iq:Dictionary={"hp":100}
+	for value in [0,49,50,100,699,700,999]:
+		iq_rules.trained_profile={"iq":value}
+		assert(iq_rules.special_damage_amount(Rules.MOVE_LIBRARY.eos_048,target_iq)+iq_rules.special_damage_amount(Rules.MOVE_LIBRARY.eos_328,target_iq)==50)
+	iq_rules.region=0;assert(iq_rules.terrain_invocation_id()=="eos_486")
+	iq_rules.region=1;assert(iq_rules.terrain_invocation_id()=="eos_240")
+	iq_rules.region=2;assert(iq_rules.terrain_invocation_id()=="eos_207")
+	iq_rules.player=Vector2i(2,2);iq_rules.cells[iq_rules.player]=true
+	iq_rules.cells[Vector2i(3,2)]=true
+	iq_rules.enemies.append({"pos":Vector2i(3,2),"hp":100,"kind":0,"species":"reef_pup"})
+	iq_rules.equipped_moves=["eos_119"];iq_rules.move_pp={"eos_119":24}
+	assert(iq_rules.cast_move("eos_119",Vector2i.RIGHT))
+	assert(iq_rules.last_invoked_move=="eos_207" and iq_rules.move_pp.eos_119==23)
+	assert(not iq_rules.move_pp.has("eos_207") and iq_rules.turns==1)
+	print("KINDRIA_IQ_TERRAIN_PASS")
 	assert(Rules.EOS_IDENTIFIED_COUNT==468)
 	print("KINDRIA_EOS_PROTOTYPES_PASS ",eos_count)
 	print("KINDRIA_LEARNSET_PP_PASS")
