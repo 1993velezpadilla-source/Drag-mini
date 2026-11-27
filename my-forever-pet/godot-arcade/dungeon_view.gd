@@ -199,7 +199,7 @@ var fx_trail_had_geometry:bool=false
 var fx_arc_mesh:ArrayMesh
 var fx_arc_positions:PackedVector3Array=PackedVector3Array()
 var fx_arc_colors:PackedColorArray=PackedColorArray()
-var fx_arc_indices:PackedInt32Array=PackedInt32Array()
+var fx_quad_index_prefix:PackedInt32Array=PackedInt32Array()
 var fx_geometry_batch_submits:int=0
 var fx_geometry_unique_vertices:int=0
 var fx_geometry_triangle_indices:int=0
@@ -257,7 +257,6 @@ const FX_RESIDUE_CAP:int=6
 var fx_trail_mesh:ArrayMesh
 var fx_trail_positions:PackedVector3Array=PackedVector3Array()
 var fx_trail_colors:PackedColorArray=PackedColorArray()
-var fx_trail_indices:PackedInt32Array=PackedInt32Array()
 var fx_trail_material:StandardMaterial3D
 var fx_trail_vertices:int=0
 var fx_trail_started:bool=false
@@ -2581,6 +2580,7 @@ func combat_fx_setup(parent:Node3D)->void:
 	combat_particles.clear();combat_warning_positions.clear();combat_bursts.clear();retired_impacts.clear();delayed_combat_fx.clear();fx_reactions.clear();fx_ground_shake=0.0;fx_contact_camera=Vector3.ZERO;fx_contact_camera_age=1.0
 	combat_fx_root=Node3D.new();parent.add_child(combat_fx_root)
 	warm_particle_layouts()
+	warm_fx_quad_indices()
 	if fx_particle_batch_enabled:
 		for slot in range(FX_PARTICLE_BATCH_CAP):ensure_particle_batch(slot)
 	setup_cinematic_lighting()
@@ -2596,7 +2596,7 @@ func combat_fx_setup(parent:Node3D)->void:
 	fx_arc_material.vertex_color_use_as_albedo=true
 	fx_arc_material.transparency=BaseMaterial3D.TRANSPARENCY_ALPHA
 	fx_arc_material.cull_mode=BaseMaterial3D.CULL_DISABLED
-	var arc_node:=MeshInstance3D.new();arc_node.mesh=fx_arc_mesh;arc_node.cast_shadow=GeometryInstance3D.SHADOW_CASTING_SETTING_OFF;combat_fx_root.add_child(arc_node)
+	var arc_node:=MeshInstance3D.new();arc_node.mesh=fx_arc_mesh;arc_node.material_override=fx_arc_material;arc_node.cast_shadow=GeometryInstance3D.SHADOW_CASTING_SETTING_OFF;combat_fx_root.add_child(arc_node)
 	fx_arc_had_geometry=false;fx_trail_had_geometry=false
 	fx_audio.clear();fx_audio_cursor=0
 	fx_voice_priorities.clear();fx_frame_audio.clear();fx_audio_cue_pool.clear();fx_collect_audio=false;fx_flushing_audio=false;fx_frame_voice_mask=0
@@ -2782,6 +2782,7 @@ func setup_ultra_combat_layers()->void:
 	fx_trail_material.depth_draw_mode=BaseMaterial3D.DEPTH_DRAW_DISABLED
 	var ribbons:=MeshInstance3D.new()
 	ribbons.mesh=fx_trail_mesh
+	ribbons.material_override=fx_trail_material
 	ribbons.cast_shadow=GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	combat_fx_root.add_child(ribbons)
 
@@ -2793,15 +2794,12 @@ func ultra_trail_segment(a:Vector3,b:Vector3,wa:float,wb:float,ca:Color,cb:Color
 	var side:Vector3=direction.cross(view).normalized()
 	if side.length_squared()<.000001:side=Vector3.RIGHT
 	fx_trail_started=true
-	var base:int=fx_trail_positions.size()
 	fx_trail_positions.append(a-side*wa)
 	fx_trail_positions.append(a+side*wa)
 	fx_trail_positions.append(b+side*wb)
 	fx_trail_positions.append(b-side*wb)
 	fx_trail_colors.append(ca);fx_trail_colors.append(ca)
 	fx_trail_colors.append(cb);fx_trail_colors.append(cb)
-	fx_trail_indices.append(base);fx_trail_indices.append(base+1);fx_trail_indices.append(base+2)
-	fx_trail_indices.append(base);fx_trail_indices.append(base+2);fx_trail_indices.append(base+3)
 	fx_trail_vertices+=6
 
 func ultra_attack_ribbons(burst:Dictionary,t:float)->void:
@@ -14604,12 +14602,9 @@ func arc_segment(a:Vector3,b:Vector3,width:float,col:Color)->void:
 func append_arc_layer(a:Vector3,b:Vector3,normal:Vector3,width:float,col:Color)->void:
 	var side:=normal*width
 	if side.length_squared()<.000001:side=Vector3.RIGHT*width
-	var base:int=fx_arc_positions.size()
 	fx_arc_positions.append(a-side);fx_arc_positions.append(a+side)
 	fx_arc_positions.append(b+side);fx_arc_positions.append(b-side)
 	for i in range(4):fx_arc_colors.append(col)
-	fx_arc_indices.append(base);fx_arc_indices.append(base+1);fx_arc_indices.append(base+2)
-	fx_arc_indices.append(base);fx_arc_indices.append(base+2);fx_arc_indices.append(base+3)
 	fx_arc_segments+=1
 func electric_arc_layers(a:Vector3,b:Vector3)->void:
 	var direction:=b-a
@@ -16138,7 +16133,35 @@ func residue_particle_count()->int:
 
 # Preserve the original triangle winding, color interpolation and separate
 # alpha/additive materials while submitting compact indexed arrays in bulk.
-func commit_fx_geometry(mesh_value:ArrayMesh,mat:Material,positions:PackedVector3Array,colors:PackedColorArray,indices:PackedInt32Array)->bool:
+# Every ribbon/arc segment is the same indexed quad. Build the bounded
+# prefix once, then copy only the exact active topology at submission.
+func warm_fx_quad_indices()->void:
+	if not fx_quad_index_prefix.is_empty():return
+	var capacity:int=maxi(1001,int(FX_TRAIL_VERTEX_CAP/6))
+	fx_quad_index_prefix.resize(capacity*6)
+	for quad in range(capacity):
+		var base:int=quad*4
+		var offset:int=quad*6
+		fx_quad_index_prefix[offset]=base
+		fx_quad_index_prefix[offset+1]=base+1
+		fx_quad_index_prefix[offset+2]=base+2
+		fx_quad_index_prefix[offset+3]=base
+		fx_quad_index_prefix[offset+4]=base+2
+		fx_quad_index_prefix[offset+5]=base+3
+
+func fx_quad_indices(vertex_count:int)->PackedInt32Array:
+	if vertex_count<=0:return PackedInt32Array()
+	warm_fx_quad_indices()
+	var count:int=int(vertex_count/4)*6
+	if count<=fx_quad_index_prefix.size():return fx_quad_index_prefix.slice(0,count)
+	# Preserve the full topology even if a future effect exceeds today's cap.
+	var indices:=fx_quad_index_prefix.duplicate()
+	for base in range(int(indices.size()/6)*4,vertex_count,4):
+		indices.append(base);indices.append(base+1);indices.append(base+2)
+		indices.append(base);indices.append(base+2);indices.append(base+3)
+	return indices
+
+func commit_fx_geometry(mesh_value:ArrayMesh,mat:Material,positions:PackedVector3Array,colors:PackedColorArray,indices:PackedInt32Array,material_on_node:bool=false)->bool:
 	if positions.is_empty() or indices.is_empty():return false
 	var arrays:Array=[]
 	arrays.resize(Mesh.ARRAY_MAX)
@@ -16146,7 +16169,7 @@ func commit_fx_geometry(mesh_value:ArrayMesh,mat:Material,positions:PackedVector
 	arrays[Mesh.ARRAY_COLOR]=colors
 	arrays[Mesh.ARRAY_INDEX]=indices
 	mesh_value.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES,arrays)
-	mesh_value.surface_set_material(0,mat)
+	if not material_on_node:mesh_value.surface_set_material(0,mat)
 	fx_geometry_batch_submits+=1
 	fx_geometry_unique_vertices+=positions.size()
 	fx_geometry_triangle_indices+=indices.size()
@@ -16313,8 +16336,8 @@ func update_particle_batches()->void:
 				mesh_value.set_instance_transform(i,Transform3D(basis,particle.position))
 				mesh_value.set_instance_color(i,particle.modulate)
 				particle.hide()
-			mesh_value.visible_instance_count=group.size()
-			batch.show()
+			if mesh_value.visible_instance_count!=group.size():mesh_value.visible_instance_count=group.size()
+			if not batch.visible:batch.show()
 			fx_particle_batch_used+=1
 			fx_particle_batched_count+=group.size()
 			fx_particle_batches_total+=1
@@ -16380,7 +16403,7 @@ func combat_fx_update(dt:float)->void:
 	var used:int=0
 	fx_lights_used=0;fx_halos_used=0;fx_light_scores.clear()
 	fx_trail_vertices=0;fx_trail_started=false
-	fx_trail_positions.clear();fx_trail_colors.clear();fx_trail_indices.clear()
+	fx_trail_positions.clear();fx_trail_colors.clear()
 	if fx_trail_had_geometry and is_instance_valid(fx_trail_mesh):fx_trail_mesh.clear_surfaces()
 	fx_trail_had_geometry=false
 	update_combat_reactions(dt)
@@ -16388,7 +16411,7 @@ func combat_fx_update(dt:float)->void:
 	fx_contact_camera_age=minf(1.0,fx_contact_camera_age+dt)
 	latest_hit=update_retired_impacts(dt)
 	fx_arc_segments=0
-	fx_arc_positions.clear();fx_arc_colors.clear();fx_arc_indices.clear()
+	fx_arc_positions.clear();fx_arc_colors.clear()
 	if fx_arc_had_geometry and is_instance_valid(fx_arc_mesh):fx_arc_mesh.clear_surfaces()
 	fx_arc_had_geometry=false
 	var charging:bool=run!=null and not run.charge_phase.is_empty()
@@ -16903,13 +16926,13 @@ func combat_fx_update(dt:float)->void:
 		queue_ultra_reaction(pet.global_position+Vector3.UP*.54,latest_hit.direction,false,float(latest_hit.age))
 	used=ultra_reaction_particles(dt,used)
 	used=ultra_update_residues(dt,used)
-	if fx_trail_started:fx_trail_had_geometry=commit_fx_geometry(fx_trail_mesh,fx_trail_material,fx_trail_positions,fx_trail_colors,fx_trail_indices)
+	if fx_trail_started:fx_trail_had_geometry=commit_fx_geometry(fx_trail_mesh,fx_trail_material,fx_trail_positions,fx_trail_colors,fx_quad_indices(fx_trail_positions.size()),true)
 	living_status_fx()
 	if not latest_hit.is_empty():
 		# The player clock advances once after this method, so compensate for that frame.
 		hit_time=.24+dt-float(latest_hit.age)
 		player_hit_direction=latest_hit.direction
-	if not fx_arc_positions.is_empty():fx_arc_had_geometry=commit_fx_geometry(fx_arc_mesh,fx_arc_material,fx_arc_positions,fx_arc_colors,fx_arc_indices)
+	if not fx_arc_positions.is_empty():fx_arc_had_geometry=commit_fx_geometry(fx_arc_mesh,fx_arc_material,fx_arc_positions,fx_arc_colors,fx_quad_indices(fx_arc_positions.size()),true)
 	fx_cast_particles_used=finish_particle_range(0,used,fx_cast_particles_used,FX_PARTICLE_CAP)
 	update_particle_batches()
 	commit_cinematic_lights()
