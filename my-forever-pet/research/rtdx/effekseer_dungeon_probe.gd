@@ -689,6 +689,49 @@ func run()->void:
 		assert(tex.get_width()==32 and tex.get_image().get_used_rect().size.x>0)
 	for particle in field.combat_particles:particle.hide()
 	print("KINDRIA_MYSTIC_AUDIT_PASS 50")
+	# V12.5: every final normal, fighting, steel and flying record.
+	var final_cases:Dictionary={"alt_bramble_pup":"CLAW","alt_comet_hare":"KICK","alt_nebulwing":"TERRAIN","basic_strike":"MOTION","eos_007":"SPECIAL","eos_024":"SUPPORT","eos_029":"TERRAIN","eos_037":"SUPPORT","eos_040":"SUPPORT","eos_048":"MOTION","eos_050":"MOTION","eos_051":"SPECIAL","eos_054":"SUPPORT","eos_061":"SPECIAL","eos_066":"MOTION","eos_067":"MOTION","eos_077":"MOTION","eos_078":"MOTION","eos_096":"MOTION","eos_098":"SUPPORT","eos_102":"SUPPORT","eos_115":"SUPPORT","eos_119":"SUPPORT","eos_138":"SUPPORT","eos_168":"PROJECTILE","eos_185":"SUPPORT","eos_207":"PROJECTILE","eos_227":"SUPPORT","eos_228":"PROJECTILE","eos_229":"SUPPORT","eos_237":"SUPPORT","eos_245":"PROJECTILE","eos_247":"MOTION","eos_248":"SPECIAL","eos_252":"SUPPORT","eos_254":"SPECIAL","eos_256":"SUPPORT","eos_263":"SUPPORT","eos_268":"SPECIAL","eos_277":"PROJECTILE","eos_287":"MOTION","eos_314":"CLAW","eos_315":"SUPPORT","eos_324":"PROJECTILE","eos_326":"SUPPORT","eos_327":"SUPPORT","eos_328":"MOTION","eos_330":"SUPPORT","eos_337":"SUPPORT","eos_340":"SPECIAL","eos_349":"SUPPORT","eos_352":"MOTION","eos_353":"PROJECTILE","eos_442":"PROJECTILE","eos_447":"SUPPORT","eos_457":"PROJECTILE","eos_465":"SUPPORT","eos_471":"SUPPORT","eos_474":"SPECIAL","eos_475":"PROJECTILE","eos_479":"PROJECTILE","eos_497":"MOTION","eos_505":"SPECIAL","eos_516":"MOTION","eos_525":"SUPPORT","eos_532":"SPECIAL","eos_541":"MOTION","feather_fan":"PROJECTILE","fin_slice":"MOTION","lib_flying_2":"PROJECTILE","lib_flying_3":"TERRAIN","lib_steel_1":"CLAW","lib_steel_2":"PROJECTILE","lib_steel_3":"PROJECTILE"}
+	for move_id in final_cases:
+		var group:String=final_cases[move_id]
+		var p:Dictionary=field.combat_profile(move_id)
+		var style:Array=field.combat_style(move_id)
+		var light:=Color(str(style[1]));var dark:=Color(str(style[2]))
+		var peak:float=clampf(float(p.impact),.01,.99)
+		var burst:Dictionary={"id":move_id,"profile":p,"points":[special_source,bite_position],"tiles":[field.pos(target)],"results":{target:{"damage":8,"hits":2,"effects":1}}}
+		var n:int=0
+		for particle in field.combat_particles:particle.hide()
+		match group:
+			"PROJECTILE":n=field.projectile_contact_fx(burst,peak*.55,0,light,dark)
+			"TERRAIN":n=field.terrain_contact_fx(burst,peak*.55,0,light,dark)
+			"SPECIAL":
+				var tick:float=lerpf(peak,1.0,.25) if move_id in ["eos_248","eos_474","eos_505"] else peak*.55
+				n=field.special_contact_fx(burst,tick,0,light,dark)
+			"MOTION":n=field.motion_contact_fx(move_id,special_source,bite_position,.25,0,light,dark,2)
+			"CLAW":n=field.claw_contact_fx(move_id,special_source,bite_position,.25,0,light,dark,2)
+			"KICK":n=field.kick_contact_fx(move_id,special_source,bite_position,.25,0,light,dark,2)
+			"SUPPORT":n=field.support_contact_fx(burst,lerpf(peak,1.0,.25),0)
+		assert(n>0 and n<=12,"missing final presentation "+move_id)
+		assert(field.combat_particles.size()==particle_count)
+		assert(field.combat_particles[0].texture.get_image().get_used_rect().size.x>0)
+		if move_id in ["eos_207","eos_228","eos_277","eos_457","eos_254","eos_051","eos_532","eos_326","eos_353","eos_442","lib_steel_2","alt_comet_hare"]:
+			await frames()
+			assert(root.get_texture().get_image().save_png("/tmp/effekseer-review/v12-final-"+move_id+".png")==OK)
+	for mode in ["projectile_coin","projectile_parcel","projectile_card","projectile_feather","support_heart"]:
+		var tex:Texture2D=field.combat_pixel_texture(mode,Color.WHITE,Color.BLACK)
+		assert(tex.get_width()==32 and tex.get_image().get_used_rect().size.x>0)
+	var all_profiles:Dictionary={}
+	for group in [Field.BITE_CONTACT_ART,Field.PUNCH_CONTACT_ART,Field.KICK_CONTACT_ART,Field.CLAW_CONTACT_ART,Field.BODY_CONTACT_ART,Field.SPECIAL_CONTACT_ART,Field.PROJECTILE_CONTACT_ART,Field.TERRAIN_CONTACT_ART,Field.SUPPORT_CONTACT_ART,Field.MOTION_CONTACT_ART]:
+		for move_id in group:all_profiles[move_id]=true
+	var catalog:Dictionary=Field.Rules.DEV_NATIVE_MOVES.duplicate()
+	catalog.merge(Field.Rules.MOVE_LIBRARY,true)
+	for move_id in catalog:
+		assert(all_profiles.has(move_id),"uncovered catalog ID "+move_id)
+	for move_id in all_profiles:
+		assert(catalog.has(move_id),"orphan visual profile "+move_id)
+	assert(catalog.size()==589 and all_profiles.size()==589)
+	for particle in field.combat_particles:particle.hide()
+	print("KINDRIA_FINAL_AUDIT_PASS 74")
+	print("KINDRIA_FULL_COVERAGE_PASS 589")
 	var plan:Array=[
 		{"stage":"ally_invoke","anchor":"source","start":0.0,"end":.15,"enabled":true},
 		{"stage":"enemy_invoke","anchor":"source","start":0.0,"end":.15,"enabled":true},
