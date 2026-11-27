@@ -387,6 +387,17 @@ static func attack_body_sample(progress:float,impact:float,motion:String)->Dicti
 	match motion:
 		"rush":compression=.12;extension=.14
 		"contact":compression=.09;extension=.12
+		"fang":compression=.09;extension=.065;lift=.012
+		"crunch":compression=.13;extension=-.10;lift=.009
+		"claw":compression=.065;extension=.11;lift=.025
+		"pincer":compression=.06;extension=-.07;lift=.010
+		"punch":compression=.11;extension=.12;lift=.014
+		"uppercut":compression=.09;extension=.15;lift=.028
+		"kick":compression=.08;extension=.10;lift=.025
+		"lowkick":compression=.075;extension=-.065;lift=.008
+		"wing":compression=.035;extension=.095;lift=.030
+		"tail":compression=.045;extension=.055;lift=.010
+		"horn":compression=.12;extension=.075;lift=.012
 		"aerial":compression=.10;extension=.08;lift=.025
 		"down":compression=.04;extension=-.09
 		"lash":compression=.035;extension=.07
