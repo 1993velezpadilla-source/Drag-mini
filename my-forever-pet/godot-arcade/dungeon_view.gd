@@ -5484,7 +5484,7 @@ func native_identity_frame(id:String,frame:int,base:Image)->Image:
 	return im
 
 # V16.7: individually remastered after reviewing actual Godot PNG strips.
-const VISUAL_REMASTER_MOVES=["eos_504","eos_308","eos_135","eos_142","eos_047","eos_250","eos_299","eos_329","eos_262","eos_279","eos_101","eos_199","eos_251","eos_486","eos_462","eos_018","eos_507","eos_175","eos_254","eos_097","eos_163","eos_320","eos_033","eos_166","eos_228","eos_004","eos_252","eos_330","eos_465","eos_138","eos_021","eos_501","eos_053","eos_157","eos_064","eos_188","eos_240","eos_255","eos_342","eos_539","eos_041","eos_278","eos_538","eos_239","eos_193","eos_272","eos_519","eos_494","eos_292","eos_065","eos_276","eos_208","eos_522","eos_452","eos_433","eos_087","eos_063","eos_062","eos_476","eos_127","eos_451","eos_436","eos_491","eos_046","eos_109","eos_234","eos_107","eos_463","eos_133","eos_317","eos_111","eos_331","eos_345","eos_270","eos_042","eos_344","eos_461","eos_180","eos_535","eos_150","eos_118","eos_484","eos_008","eos_131","eos_030","eos_481","eos_028","eos_073","lib_ground_1","eos_057","eos_036","eos_442","eos_153","eos_205","eos_100","eos_518","eos_178","eos_200","eos_495","eos_280","eos_197","eos_332","eos_147","eos_485","eos_459","eos_151","eos_537","eos_443","eos_336","eos_182","eos_253","eos_441","eos_076","lib_grass_1","eos_001","eos_325","eos_103","eos_536","eos_510","eos_431","eos_475","eos_523","eos_080","eos_082","eos_114","eos_323","eos_470","eos_502","eos_529","eos_530","eos_460","eos_520","eos_449","eos_288","eos_164","eos_306","eos_023","eos_086","eos_346","lib_fairy_1","lib_fairy_2","lib_fairy_3","eos_341","eos_498","eos_343","eos_091","eos_162","eos_435","lib_dragon_1","lib_dragon_2","lib_dragon_3","eos_092","eos_204","eos_206","eos_303","eos_222","eos_210","lib_fighting_2","eos_136","eos_075","eos_300","eos_246","eos_430","eos_440","eos_500","eos_508","eos_454","eos_479","eos_243","eos_068","eos_090","lib_fighting_1","lib_fighting_3","eos_072","eos_077","eos_116","eos_531","eos_265","eos_305","eos_051","eos_170","eos_340","eos_007","eos_029","lib_electric_1","lib_electric_2","lib_electric_3","eos_129","eos_144","eos_189","eos_354","eos_489","eos_521","eos_192","eos_128","eos_493","lib_fire_1","lib_fire_2","lib_fire_3","eos_052","eos_149","eos_230","eos_291","eos_517","eos_524","eos_223","lib_water_1","lib_water_2","lib_water_3","eos_016","eos_032","eos_044","eos_069","eos_113","eos_156","eos_158","eos_159","eos_219","eos_310","eos_432","eos_469","eos_070","eos_012","eos_307","eos_434","lib_grass_2","lib_grass_3","eos_221","eos_238","eos_297","eos_458","eos_468","eos_511","eos_079","eos_231","eos_124","eos_351","eos_015","eos_094","eos_084","eos_233","lib_ice_1","lib_ice_2","lib_ice_3","eos_002","eos_088","eos_130","eos_014","lib_poison_1","lib_poison_2","lib_poison_3","eos_198","eos_283","eos_196","eos_202","eos_496","eos_438","lib_ground_2","lib_ground_3","eos_143","eos_213","eos_289","eos_285","eos_290","eos_212","eos_295","eos_296","lib_rock_1","lib_rock_2","lib_rock_3","eos_093","eos_453","eos_512","eos_533","eos_350","eos_105","eos_540","eos_141","eos_480","lib_flying_1","lib_flying_2","lib_flying_3","eos_174","eos_179","eos_211","eos_353","eos_446","eos_490","eos_444","eos_267","eos_509","eos_456","eos_040","lib_bug_1","lib_bug_2","lib_bug_3","lib_psychic_1","lib_psychic_2","lib_psychic_3","eos_110","eos_309","eos_335","eos_473","eos_099","eos_146","eos_215","eos_258","eos_319","eos_333","eos_095","eos_316","eos_338","eos_259","eos_108","eos_187","eos_266","eos_448","eos_506","eos_513","eos_514","eos_232","eos_464","eos_478","eos_528","eos_450","eos_298","eos_499","eos_209","eos_137","eos_220","eos_439","eos_526","lib_ghost_1","lib_ghost_2","lib_ghost_3","eos_120","eos_126","eos_437","eos_477","eos_013","eos_216","eos_005","eos_313","eos_035","eos_049","lib_dark_1","lib_dark_2","lib_dark_3","eos_167","eos_214","eos_445","eos_488","eos_515","eos_483","eos_542","eos_038","eos_472","eos_045","eos_043","eos_503","eos_022","eos_172","eos_334","eos_482","eos_249","eos_466","eos_269","lib_steel_1","lib_steel_2","lib_steel_3","eos_244","eos_527","eos_083","eos_186","eos_532","eos_256","eos_081","eos_260","eos_275","eos_312","eos_314","eos_261","eos_020","eos_248","eos_505","eos_247","eos_071","eos_125","eos_294","eos_264","eos_322","eos_321","eos_271","eos_039","eos_347","eos_487","eos_176","eos_177","eos_311","lib_normal_1","lib_normal_2","eos_067","eos_078","eos_096","eos_121","eos_132","eos_139","eos_140","eos_154","eos_161","eos_190","eos_203","eos_226","eos_235","eos_263","eos_287","eos_348","eos_352","eos_455","eos_471","eos_497","eos_516","eos_541","eos_168","eos_201","eos_066","eos_123","eos_155","eos_360","eos_009","eos_277","eos_061","eos_050","eos_048","eos_328","lib_normal_3","eos_031","eos_060","eos_145","eos_207","eos_241","eos_242","eos_245","eos_474","eos_152","eos_394","eos_457","eos_324","eos_025","eos_117","eos_218","eos_003","eos_034","eos_171","eos_191","eos_281","eos_010","eos_011","eos_027","eos_055","eos_056","eos_058","eos_085","eos_122","eos_148","eos_169","eos_181","eos_195","eos_217","eos_224","eos_273","eos_302","eos_106","eos_301","eos_104","eos_134","eos_074","eos_447","eos_225","eos_026","eos_339"]
+const VISUAL_REMASTER_MOVES=["eos_504","eos_308","eos_135","eos_142","eos_047","eos_250","eos_299","eos_329","eos_262","eos_279","eos_101","eos_199","eos_251","eos_486","eos_462","eos_018","eos_507","eos_175","eos_254","eos_097","eos_163","eos_320","eos_033","eos_166","eos_228","eos_004","eos_252","eos_330","eos_465","eos_138","eos_021","eos_501","eos_053","eos_157","eos_064","eos_188","eos_240","eos_255","eos_342","eos_539","eos_041","eos_278","eos_538","eos_239","eos_193","eos_272","eos_519","eos_494","eos_292","eos_065","eos_276","eos_208","eos_522","eos_452","eos_433","eos_087","eos_063","eos_062","eos_476","eos_127","eos_451","eos_436","eos_491","eos_046","eos_109","eos_234","eos_107","eos_463","eos_133","eos_317","eos_111","eos_331","eos_345","eos_270","eos_042","eos_344","eos_461","eos_180","eos_535","eos_150","eos_118","eos_484","eos_008","eos_131","eos_030","eos_481","eos_028","eos_073","lib_ground_1","eos_057","eos_036","eos_442","eos_153","eos_205","eos_100","eos_518","eos_178","eos_200","eos_495","eos_280","eos_197","eos_332","eos_147","eos_485","eos_459","eos_151","eos_537","eos_443","eos_336","eos_182","eos_253","eos_441","eos_076","lib_grass_1","eos_001","eos_325","eos_103","eos_536","eos_510","eos_431","eos_475","eos_523","eos_080","eos_082","eos_114","eos_323","eos_470","eos_502","eos_529","eos_530","eos_460","eos_520","eos_449","eos_288","eos_164","eos_306","eos_023","eos_086","eos_346","lib_fairy_1","lib_fairy_2","lib_fairy_3","eos_341","eos_498","eos_343","eos_091","eos_162","eos_435","lib_dragon_1","lib_dragon_2","lib_dragon_3","eos_092","eos_204","eos_206","eos_303","eos_222","eos_210","lib_fighting_2","eos_136","eos_075","eos_300","eos_246","eos_430","eos_440","eos_500","eos_508","eos_454","eos_479","eos_243","eos_068","eos_090","lib_fighting_1","lib_fighting_3","eos_072","eos_077","eos_116","eos_531","eos_265","eos_305","eos_051","eos_170","eos_340","eos_007","eos_029","lib_electric_1","lib_electric_2","lib_electric_3","eos_129","eos_144","eos_189","eos_354","eos_489","eos_521","eos_192","eos_128","eos_493","lib_fire_1","lib_fire_2","lib_fire_3","eos_052","eos_149","eos_230","eos_291","eos_517","eos_524","eos_223","lib_water_1","lib_water_2","lib_water_3","eos_016","eos_032","eos_044","eos_069","eos_113","eos_156","eos_158","eos_159","eos_219","eos_310","eos_432","eos_469","eos_070","eos_012","eos_307","eos_434","lib_grass_2","lib_grass_3","eos_221","eos_238","eos_297","eos_458","eos_468","eos_511","eos_079","eos_231","eos_124","eos_351","eos_015","eos_094","eos_084","eos_233","lib_ice_1","lib_ice_2","lib_ice_3","eos_002","eos_088","eos_130","eos_014","lib_poison_1","lib_poison_2","lib_poison_3","eos_198","eos_283","eos_196","eos_202","eos_496","eos_438","lib_ground_2","lib_ground_3","eos_143","eos_213","eos_289","eos_285","eos_290","eos_212","eos_295","eos_296","lib_rock_1","lib_rock_2","lib_rock_3","eos_093","eos_453","eos_512","eos_533","eos_350","eos_105","eos_540","eos_141","eos_480","lib_flying_1","lib_flying_2","lib_flying_3","eos_174","eos_179","eos_211","eos_353","eos_446","eos_490","eos_444","eos_267","eos_509","eos_456","eos_040","lib_bug_1","lib_bug_2","lib_bug_3","lib_psychic_1","lib_psychic_2","lib_psychic_3","eos_110","eos_309","eos_335","eos_473","eos_099","eos_146","eos_215","eos_258","eos_319","eos_333","eos_095","eos_316","eos_338","eos_259","eos_108","eos_187","eos_266","eos_448","eos_506","eos_513","eos_514","eos_232","eos_464","eos_478","eos_528","eos_450","eos_298","eos_499","eos_209","eos_137","eos_220","eos_439","eos_526","lib_ghost_1","lib_ghost_2","lib_ghost_3","eos_120","eos_126","eos_437","eos_477","eos_013","eos_216","eos_005","eos_313","eos_035","eos_049","lib_dark_1","lib_dark_2","lib_dark_3","eos_167","eos_214","eos_445","eos_488","eos_515","eos_483","eos_542","eos_038","eos_472","eos_045","eos_043","eos_503","eos_022","eos_172","eos_334","eos_482","eos_249","eos_466","eos_269","lib_steel_1","lib_steel_2","lib_steel_3","eos_244","eos_527","eos_083","eos_186","eos_532","eos_256","eos_081","eos_260","eos_275","eos_312","eos_314","eos_261","eos_020","eos_248","eos_505","eos_247","eos_071","eos_125","eos_294","eos_264","eos_322","eos_321","eos_271","eos_039","eos_347","eos_487","eos_176","eos_177","eos_311","lib_normal_1","lib_normal_2","eos_067","eos_078","eos_096","eos_121","eos_132","eos_139","eos_140","eos_154","eos_161","eos_190","eos_203","eos_226","eos_235","eos_263","eos_287","eos_348","eos_352","eos_455","eos_471","eos_497","eos_516","eos_541","eos_168","eos_201","eos_066","eos_123","eos_155","eos_360","eos_009","eos_277","eos_061","eos_050","eos_048","eos_328","lib_normal_3","eos_031","eos_060","eos_145","eos_207","eos_241","eos_242","eos_245","eos_474","eos_152","eos_394","eos_457","eos_324","eos_025","eos_117","eos_218","eos_003","eos_034","eos_171","eos_191","eos_281","eos_010","eos_011","eos_027","eos_055","eos_056","eos_058","eos_085","eos_122","eos_148","eos_169","eos_181","eos_195","eos_217","eos_224","eos_273","eos_302","eos_106","eos_301","eos_104","eos_134","eos_074","eos_447","eos_225","eos_026","eos_339","eos_006","eos_173","eos_268","eos_284","eos_089","eos_194","eos_098","eos_349","eos_165","eos_318","eos_037","eos_293","eos_115","eos_492","eos_024","eos_059","eos_160","eos_236","eos_112","eos_019","eos_315","eos_054","eos_183","eos_184","eos_286","eos_237","eos_227","eos_274","eos_119","eos_326","eos_534","eos_017","eos_327","eos_525","eos_257","eos_337","eos_282","eos_304","eos_102","eos_185","eos_229"]
 func visual_remaster_frame(id:String,frame:int)->Image:
 	var im:=Image.create(48,48,false,Image.FORMAT_RGBA8)
 	im.fill(Color.TRANSPARENT)
@@ -11678,6 +11678,412 @@ func visual_remaster_frame(id:String,frame:int)->Image:
 				fx_disc(im,q-Vector2(0,4*drive),1.8,Color("#c1eadb",fade))
 				fx_disc(im,q-Vector2(0,4*drive+1),.8,Color("#f7ffef",fade))
 			fx_disc(im,c,7+5*pulse,Color("#d3f0de",fade*.55),6+5*pulse)
+		"eos_006":
+			# Dawn Renewal: sunrise above a restorative ground halo.
+			var c:=Vector2(24,30-12*drive)
+			fx_disc(im,c,7.0,Color("#e6bd76",fade))
+			fx_disc(im,c,4.8,Color("#fff0b7",fade))
+			for j in range(9):
+				var a:float=PI+float(j)*PI/8.0
+				var d:=Vector2(cos(a),sin(a))
+				fx_line(im,c+d*9,c+d*13,1.3,Color("#f7d89c",fade))
+			fight_arc(im,Vector2(24,35),15,PI,PI,Color("#d5e8b4",fade),Color("#a4b99c",fade),1.4)
+		"eos_173":
+			# Lunar Renewal: silver crescent and descending restorative droplets.
+			var c:=Vector2(24,14)
+			fight_arc(im,c,8.0,-PI*.7,PI*1.45,Color("#eef1db",fade),Color("#a7a8c5",fade),4.0)
+			for j in range(7):
+				var f:float=fposmod(t+float(j)*.14,1.0)
+				var q:=Vector2(9+float(j)*5,20+17*f)
+				fx_disc(im,q,1.5,Color("#cce5d9",fade))
+				fx_disc(im,q-Vector2(0,2),.8,Color("#eff8ed",fade))
+			fx_disc(im,Vector2(24,36),9+5*drive,Color("#dcebd7",fade),8+5*drive)
+		"eos_268":
+			# Gale Thrust: expanding directional wind ribbons indicate displacement.
+			for j in range(5):
+				var prev:=Vector2(3,15+float(j)*4)
+				for k in range(1,19):
+					var f:float=float(k)/18.0
+					var q:=Vector2(3+40*f*drive,24+float(j-2)*(4+3*f)+sin(f*TAU-t*TAU)*2)
+					fx_line(im,prev,q,1.6,Color("#c6c9bc",fade))
+					fx_line(im,prev,q,.8,Color("#f4f1dc",fade))
+					prev=q
+			for j in range(3):
+				var q:=Vector2(20+float(j)*7,24)
+				fx_line(im,q-Vector2(4,4),q,1.2,Color("#e6d9c0",fade))
+				fx_line(im,q-Vector2(4,-4),q,1.2,Color("#e6d9c0",fade))
+		"eos_284":
+			# Thunderous Roar: broad mouth-shaped source and heavy sound fronts.
+			var c:=Vector2(9,24)
+			fx_disc(im,c,5.6,Color("#9b8274",fade),3.3)
+			for j in range(4):
+				var q:=Vector2(11+float(j)*8*drive,24)
+				fight_arc(im,q,5+float(j)*3,-PI*.59,PI*1.18,Color("#f0c7a3",fade),Color("#a38b7b",fade),2.8)
+			for j in range(4):fx_disc(im,Vector2(14+float(j)*8,12+float(j%2)*24),1.1,Color("#e8d3b5",fade))
+		"eos_089":
+			# Shadow Anchor: a shadow tether reaches a fixed ground ring.
+			var c:=Vector2(35,33)
+			fx_disc(im,c,8,Color("#827585",fade*.65),5.8)
+			for j in range(6):
+				var q:=Vector2(6+float(j)*5.6*drive,25+sin(float(j)*.7)*7)
+				psi_polygon(im,q,3.5,6,float(j%2)*PI*.5,Color("#b6a9b9",fade),Color("#645c6b",fade))
+			fx_line(im,c-Vector2(0,9),c+Vector2(0,2),2.6,Color("#a296a8",fade))
+		"eos_194":
+			# Stone Anchor: two stone blocks close around a fixed center.
+			var c:=Vector2(24,30)
+			for side in [-1.0,1.0]:
+				var q:=c+Vector2(side*(17-9*drive),0)
+				earth_rock(im,q,7.0,Color("#c4b8a4",fade),Color("#827b70",fade))
+				fx_line(im,q-Vector2(0,8),q-Vector2(0,13),1.2,Color("#d9cdb7",fade))
+			fx_line(im,c-Vector2(13,8),c+Vector2(13,-8),1.2,Color("#b9ab96",fade))
+		"eos_098":
+			# True Sight: eyelid opens to reveal a clear golden pupil.
+			var c:=Vector2(24,24)
+			for side in [-1.0,1.0]:
+				var prev:=c-Vector2(14,0)
+				for j in range(1,25):
+					var f:float=float(j)/24.0
+					var q:=c+Vector2(-14+28*f,side*sin(f*PI)*(2+8*drive))
+					fx_line(im,prev,q,1.6,Color("#e0c9a6",fade))
+					prev=q
+			fx_disc(im,c,4.5,Color("#ebd5a0",fade))
+			fx_disc(im,c,2.0,Color("#8a806f",fade))
+			fairy_star(im,c-Vector2(1,2),1.4,Color("#fff7df",fade))
+		"eos_349":
+			# Target Lock: four reticle corners converge to a precise aiming point.
+			var c:=Vector2(24,24)
+			var rad:float=19-9*drive
+			for j in range(4):
+				var a:float=float(j)*PI*.5
+				var d:=Vector2(cos(a),sin(a))
+				var n:=Vector2(-d.y,d.x)
+				var q:=c+d*rad
+				fx_line(im,q-n*4,q+n*4,1.8,Color("#e5d6ac",fade))
+				fx_line(im,q,q-d*4,1.2,Color("#a8a894",fade))
+			fx_disc(im,c,2.0,Color("#fff0b7",fade),.9)
+		"eos_165":
+			# Vital Share: a split egg-shaped light releases two healing streams.
+			var c:=Vector2(24,24)
+			for side in [-1.0,1.0]:
+				var q:=c+Vector2(side*7*drive,0)
+				fight_arc(im,q,8.0,-PI*.5 if side>0.0 else PI*.5,PI,Color("#f6ecd5",fade),Color("#bcaa90",fade),3.3)
+				for j in range(3):
+					var p:=q+Vector2(side*float(j)*3,-5-float(j)*4)
+					fairy_star(im,p,1.6,Color("#cce8b8",fade))
+		"eos_318":
+			# Nourishing Wave: creamy droplets lift from a gentle restorative pool.
+			var c:=Vector2(24,34)
+			fx_disc(im,c,10+5*drive,Color("#e8e1c8",fade*.6),8+5*drive)
+			for j in range(8):
+				var f:float=fposmod(t+float(j)*.125,1.0)
+				var q:=Vector2(8+float(j)*4.5,33-24*f)
+				fx_line(im,q,q+Vector2(0,3),2.1,Color("#f4eedb",fade))
+				fx_disc(im,q,1.3,Color("#fffaf0",fade))
+		"eos_037":
+			# Smoke Shroud: overlapping gray clouds bloom and obscure vision.
+			for j in range(12):
+				var a:float=float(j)*2.4+t*.7
+				var q:=Vector2(12+17*drive,24)+Vector2(cos(a),sin(a))*(4+10*drive)
+				var rad:float=4+float(j%3)*1.5
+				fx_disc(im,q,rad,Color("#8d8886",fade*.64))
+				fx_disc(im,q-Vector2(1,1),rad*.68,Color("#c8c0b7",fade*.55))
+		"eos_293":
+			# Final Refrain: three descending dark notes circle a countdown ring.
+			var c:=Vector2(24,24)
+			psi_ring(im,c,15-4*drive,Color("#b9a9bc",fade),Color("#716779",fade))
+			for j in range(3):
+				var a:float=float(j)*TAU/3.0+t*TAU*.5
+				var q:=c+Vector2(cos(a),sin(a))*11
+				fx_disc(im,q,2.5,Color("#b6a5bc",fade))
+				fx_line(im,q+Vector2(1,0),q+Vector2(1,-7),1.6,Color("#d9ccdf",fade))
+				fx_line(im,q+Vector2(1,-7),q+Vector2(5,-4),1.2,Color("#d9ccdf",fade))
+		"eos_115":
+			# Echo Mind: source stat bars are copied to a second matching glyph.
+			for j in range(2):
+				var c:=Vector2(11+float(j)*26,28)
+				for k in range(3):
+					var h:float=4+float(k)*4
+					if j==1:h*=drive
+					fx_line(im,c+Vector2(float(k-1)*4,0),c+Vector2(float(k-1)*4,-h),2.3,Color("#c6b6d4",fade))
+			for j in range(4):fx_disc(im,Vector2(17+float(j)*4,20+sin(t*TAU+float(j))*2),1.0,Color("#e9dce9",fade))
+		"eos_492":
+			# Pressure Point: sequential marked points converge on a selected focus.
+			var c:=Vector2(24,24)
+			for j in range(6):
+				var a:float=float(j)*TAU/6.0
+				var q:=c+Vector2(cos(a),sin(a))*12
+				fx_disc(im,q,2.3,Color("#d1b89f",fade),1.2)
+				if j==3:
+					fx_disc(im,q,3.7*pulse+1,Color("#f6d79f",fade),2.5*pulse)
+					fx_line(im,c,q,1.1,Color("#edd6af",fade))
+			fx_disc(im,c,2.0,Color("#e8d5bd",fade))
+		"eos_024":
+			# Provocation: rising strength chevrons twist into confusion stars.
+			var c:=Vector2(24,25)
+			for j in range(3):
+				var q:=c-Vector2(0,float(j)*6+3*drive)
+				fx_line(im,q-Vector2(5,-4),q,2.0,Color("#d5a083",fade))
+				fx_line(im,q+Vector2(5,4),q,2.0,Color("#d5a083",fade))
+			if t>=peak:
+				for j in range(4):
+					var a:float=float(j)*TAU/4.0+t*TAU
+					fairy_star(im,c+Vector2(cos(a),sin(a))*14,1.9,Color("#e4c6a3",fade))
+		"eos_059":
+			# Nerve Seal: fine radial threads tighten into a locked central node.
+			var c:=Vector2(24,24)
+			for j in range(7):
+				var a:float=float(j)*TAU/7.0
+				var d:=Vector2(cos(a),sin(a))
+				var q:=c+d*(17-6*drive)
+				fx_line(im,q,c+d*4,1.2,Color("#b8a992",fade))
+				fx_disc(im,q,1.6,Color("#e5d4aa",fade))
+			psi_polygon(im,c,5.0,4,PI*.25,Color("#dfc4a0",fade),Color("#938b80",fade))
+		"eos_160":
+			# Store Vitality: three warm energy beads funnel into a reserve vessel.
+			var c:=Vector2(24,32)
+			fight_arc(im,c,9.0,0.0,PI,Color("#e5cfab",fade),Color("#a99b83",fade),2.2)
+			for j in range(3):
+				var q:=Vector2(13+float(j)*11,8+19*drive)
+				fx_disc(im,q,3.3,Color("#c8ad7d",fade))
+				fx_disc(im,q-Vector2(0,1),1.8,Color("#fff1c3",fade))
+				fx_line(im,q,q-Vector2(0,5),.9,Color("#e2c69e",fade))
+		"eos_236":
+			# Consume Vitality: reserve beads dissolve into a restorative spiral.
+			var c:=Vector2(24,26)
+			for j in range(3):
+				var a:float=float(j)*TAU/3.0+t*TAU
+				var q:=c+Vector2(cos(a),sin(a))*(13-10*drive)
+				fx_disc(im,q,3.6,Color("#e6cd9d",fade))
+				fx_disc(im,q,1.5,Color("#fff7d1",fade))
+			for j in range(6):
+				var q:=Vector2(10+float(j)*5.5,34-22*fposmod(t+float(j)*.17,1.0))
+				fx_disc(im,q,1.2,Color("#c5e5b8",fade))
+		"eos_112":
+			# Wake Chorus: rising notes and alert rings dispel sleep.
+			for j in range(5):
+				var q:=Vector2(7+float(j)*8,26-float(j%2)*6-8*drive)
+				var tint:=Color("#e3b879" if j%2==0 else "#d7d8ac",fade)
+				fx_disc(im,q,2.0,tint)
+				fx_line(im,q+Vector2(1,0),q+Vector2(1,-8),1.5,tint)
+				fx_line(im,q+Vector2(1,-8),q+Vector2(5,-5),1.2,tint)
+			fight_arc(im,Vector2(24,30),14+4*drive,PI,PI,Color("#f1dcb0",fade),Color("#b4a384",fade),1.6)
+		"eos_019":
+			# Fury Stance: jagged warm aura rises without contact or damage indicators.
+			var c:=Vector2(24,29)
+			for j in range(9):
+				var x:float=-15+float(j)*3.7
+				var q:=c+Vector2(x,2)
+				var p:=q+Vector2(sin(float(j)*2.4)*3,-5-12*pulse-float(j%3)*2)
+				fx_line(im,q,p,2.6,Color("#c38a73",fade))
+				fx_line(im,q-Vector2(0,2),p,1.1,Color("#f3c18d",fade))
+			fx_disc(im,c,8+3*pulse,Color("#e0ac82",fade*.5),7+3*pulse)
+		"eos_315":
+			# Spirit Reveal: translucent outline emerges inside a scanning ring.
+			var c:=Vector2(24,24)
+			fx_disc(im,c-Vector2(0,5),5.0,Color("#d3d4cf",fade*.7))
+			fx_line(im,c,c+Vector2(0,8),8.0,Color("#b6c5bc",fade*.5))
+			psi_ring(im,c,16-4*drive,Color("#e8ecd7",fade),Color("#a9b9ae",fade))
+			var y:float=10+28*drive
+			fx_line(im,Vector2(8,y),Vector2(40,y),1.1,Color("#f5f6db",fade))
+		"eos_054":
+			# Scent Reveal: dotted tracking trail leads to a revealed outline.
+			for j in range(7):
+				var f:float=float(j)/6.0
+				var q:=Vector2(5+34*f*drive,29-7*sin(f*PI))
+				fx_disc(im,q,1.7,Color("#c7b697",fade))
+				fx_disc(im,q+Vector2(-2,-3),.8,Color("#e5d8bb",fade))
+				fx_disc(im,q+Vector2(2,-3),.8,Color("#e5d8bb",fade))
+			if t>=peak:psi_ring(im,Vector2(37,24),7.0,Color("#eadbb8",fade),Color("#b6a38b",fade))
+		"eos_183":
+			# Element Shift: colored tiles rotate through a neutral conversion prism.
+			var c:=Vector2(24,24)
+			var hues:Array[Color]=[Color("#d8a48a",fade),Color("#a8cee3",fade),Color("#b6d2a2",fade),Color("#e4cc8a",fade)]
+			for j in range(4):
+				var a:float=float(j)*PI*.5+t*TAU
+				var q:=c+Vector2(cos(a),sin(a))*(14-5*drive)
+				psi_polygon(im,q,4.6,4,a,hues[j],Color("#a49a8e",fade))
+			psi_polygon(im,c,6.0,6,t,Color("#f3ead4",fade),Color("#b8ab97",fade))
+		"eos_184":
+			# Adaptive Shell: outer armor panels cycle through different tints.
+			var c:=Vector2(24,24)
+			var hues:Array[Color]=[Color("#c8d6ac",fade),Color("#b4cbd9",fade),Color("#e3bb9f",fade)]
+			for j in range(6):
+				var a:float=float(j)*TAU/6.0
+				var d:=Vector2(cos(a),sin(a))
+				var n:=Vector2(-d.y,d.x)
+				var q:=c+d*(16-5*drive)
+				fx_line(im,q-n*5,q+n*5,4.1,Color("#9e9c8e",fade))
+				fx_line(im,q-n*4-d,q+n*4-d,2.0,hues[(j+int(t*6))%3])
+		"eos_286":
+			# Terrain Mantle: irregular terrain patches cover a translucent silhouette.
+			var c:=Vector2(24,25)
+			fx_disc(im,c-Vector2(0,6),4.5,Color("#d1cab8",fade*.6))
+			fx_line(im,c,c+Vector2(0,8),9.0,Color("#b6af9b",fade*.6))
+			var hues:Array[Color]=[Color("#b6b99a",fade),Color("#ab9d86",fade),Color("#d1c6a7",fade)]
+			for j in range(10):
+				var q:=c+Vector2(sin(float(j)*2.4)*8,-12+float(j)*2.4)
+				fx_disc(im,q,2.0+drive,hues[j%3])
+			for j in range(3):fx_line(im,Vector2(8+float(j)*12,36),Vector2(15+float(j)*12,36),1.1,Color("#b8aa8f",fade))
+		"eos_237":
+			# Hex Pact: opposing seal halves close around a small pact glyph.
+			var c:=Vector2(24,24)
+			for j in range(2):
+				var a:float=float(j)*PI+t*.6
+				fight_arc(im,c,15-3*drive,a,PI*.85,Color("#b3a0bc",fade),Color("#756b80",fade),2.2)
+			psi_polygon(im,c,7.0,5,t*.5,Color("#d3bfd0",fade),Color("#8d778e",fade))
+			for j in range(5):
+				var a:float=float(j)*TAU/5.0
+				fx_disc(im,c+Vector2(cos(a),sin(a))*12,1.3,Color("#d9c5c8",fade))
+		"eos_227":
+			# Dream Invocation: a sleeping crescent opens a tiny invocation portal.
+			var c:=Vector2(15,17)
+			fight_arc(im,c,7.0,-PI*.65,PI*1.4,Color("#dedceb",fade),Color("#a7a1b9",fade),3.4)
+			var q:=Vector2(32,30)
+			psi_ring(im,q,5+5*drive,Color("#ded1e7",fade),Color("#a99bb8",fade))
+			for j in range(5):
+				var p:=Vector2(15+float(j)*4,21+float(j)*2)
+				fx_disc(im,p,1.1,Color("#eee4ed",fade))
+			fairy_star(im,q,2.5,Color("#f7e8d3",fade))
+		"eos_274":
+			# Dizzy Waltz: alternating footprints rotate with orbiting music notes.
+			var c:=Vector2(24,24)
+			for j in range(6):
+				var a:float=float(j)*TAU/6.0+t*TAU
+				var d:=Vector2(cos(a),sin(a))
+				var q:=c+d*13
+				fx_line(im,q-d*2,q+d*2,2.6,Color("#c6aa9e",fade))
+				if j%2==0:
+					fx_disc(im,q-Vector2(0,5),1.6,Color("#ded0b8",fade))
+					fx_line(im,q-Vector2(-1,5),q-Vector2(-1,11),1.1,Color("#ded0b8",fade))
+			fight_arc(im,c,8.0,t*TAU,PI*1.6,Color("#e6c9b6",fade),Color("#b6a1a1",fade),1.3)
+		"eos_119":
+			# Terrain Invocation: three neutral terrain tokens rise into a summoning circle.
+			var c:=Vector2(24,31)
+			psi_ring(im,c,13,Color("#ded3af",fade),Color("#ad9e82",fade))
+			for j in range(3):
+				var q:=Vector2(12+float(j)*12,28-16*drive)
+				if j==0:earth_rock(im,q,3.7,Color("#c7b49a",fade),Color("#958673",fade))
+				elif j==1:
+					fx_line(im,q,q-Vector2(0,7),2.0,Color("#b3c49b",fade))
+					fx_disc(im,q-Vector2(2,5),2.1,Color("#d1dfb5",fade))
+				else:fx_disc(im,q,3.4,Color("#b6d2da",fade),1.8)
+				fx_line(im,q,q+Vector2(0,6),.8,Color("#e7d5b4",fade))
+		"eos_326":
+			# Heart Glance: small hearts travel from one gaze point toward the target.
+			for j in range(4):
+				var f:float=clampf(drive*1.3-float(j)*.12,0.0,1.0)
+				var q:=Vector2(7+31*f,24+sin(float(j)*2.4)*5)
+				var tint:=Color("#e4acb5",fade)
+				fx_disc(im,q+Vector2(-2,-2),2.4,tint)
+				fx_disc(im,q+Vector2(2,-2),2.4,tint)
+				fx_line(im,q-Vector2(4,0),q+Vector2(0,4),2.0,tint)
+				fx_line(im,q+Vector2(4,0),q+Vector2(0,4),2.0,tint)
+		"eos_534":
+			# Charming Gaze: a pair of heart-shaped pupils and a soft downward glimmer.
+			for j in range(2):
+				var q:=Vector2(15+float(j)*18,18)
+				var tint:=Color("#e2aebc",fade)
+				fx_disc(im,q+Vector2(-2,-2),3.0,tint)
+				fx_disc(im,q+Vector2(2,-2),3.0,tint)
+				fx_line(im,q-Vector2(4,0),q+Vector2(0,5),2.2,tint)
+				fx_line(im,q+Vector2(4,0),q+Vector2(0,5),2.2,tint)
+				fx_line(im,q+Vector2(0,7),q+Vector2(0,13+5*drive),1.2,Color("#d5b8b5",fade))
+		"eos_017":
+			# Echo Lock: repeated loop arrows close around a move token.
+			var c:=Vector2(24,24)
+			for j in range(2):
+				var a:float=float(j)*PI+t*TAU*.6
+				fight_arc(im,c,13.0,a,PI*.8,Color("#e0c8a4",fade),Color("#a79883",fade),2.0)
+				var q:=c+Vector2(cos(a+PI*.8),sin(a+PI*.8))*13
+				fx_disc(im,q,2.2,Color("#f4dfb8",fade))
+			psi_polygon(im,c,5.0,4,PI*.25,Color("#d9c4a3",fade),Color("#9f8b74",fade))
+		"eos_327":
+			# Echo Strike: a source strike glyph is reproduced in a second location.
+			for j in range(2):
+				var q:=Vector2(11+float(j)*25,24)
+				var opacity:float=fade if j==0 else fade*drive
+				fx_line(im,q-Vector2(4,6),q+Vector2(4,6),2.4,Color("#e2c7a6",opacity))
+				fx_line(im,q-Vector2(1,7),q+Vector2(6,1),1.0,Color("#f6e7c7",opacity))
+			for j in range(4):fx_disc(im,Vector2(17+float(j)*4,24),.9,Color("#d9cdb7",fade))
+		"eos_525":
+			# Echo Casting: an original spell circle is traced into a matching copy.
+			var c:=Vector2(12,24)
+			psi_polygon(im,c,7,6,t,Color("#d6c5d9",fade),Color("#a295ab",fade))
+			var q:=Vector2(36,24)
+			psi_polygon(im,q,7*drive+1,6,t,Color("#e4d6e5",fade*drive),Color("#a295ab",fade*drive))
+			for j in range(5):
+				var p:=Vector2(16+float(j)*4,24+sin(t*TAU+float(j))*4)
+				fx_disc(im,p,1.1,Color("#e6d8d9",fade))
+		"eos_257":
+			# Feral Crescendo: a rounded drum pulses with expanding rhythmic rings.
+			var c:=Vector2(24,29)
+			fx_line(im,c-Vector2(8,0),c+Vector2(8,0),10.0,Color("#ac8a70",fade))
+			fx_line(im,c-Vector2(8,-3),c+Vector2(8,3),2.2,Color("#eed0a4",fade))
+			for j in range(3):
+				var rad:float=7+float(j)*4+3*absf(sin(t*TAU*2))
+				fight_arc(im,c,rad,PI,PI,Color("#e9bd85",fade),Color("#af9479",fade),1.7)
+			for j in range(4):fx_disc(im,Vector2(12+float(j)*8,12-float(j%2)*3),1.2,Color("#f0d2a0",fade))
+		"eos_337":
+			# Script Renewal: rolled parchment unfolds and a renewal arrow circles it.
+			var c:=Vector2(24,24)
+			fx_line(im,c-Vector2(0,9),c+Vector2(0,9),12.0,Color("#bcaa88",fade))
+			fx_line(im,c-Vector2(1,8),c+Vector2(1,8),8.0,Color("#f0e0b9",fade))
+			for j in range(4):fx_line(im,c+Vector2(-3,-5+float(j)*3),c+Vector2(3,-5+float(j)*3),.9,Color("#a89980",fade))
+			fight_arc(im,c,15.0,t*TAU,PI*1.4,Color("#c8d4a8",fade),Color("#9ba58c",fade),1.6)
+		"eos_282":
+			# Wild Guise: abstract silhouette morphs between two visibly different outlines.
+			var c:=Vector2(24,25)
+			var head:float=5+3*drive
+			fx_disc(im,c-Vector2(0,7),head,Color("#c7b8c6",fade*.7))
+			fx_line(im,c,c+Vector2(0,8),9-3*drive,Color("#b8a9bc",fade*.7))
+			for side in [-1.0,1.0]:
+				var q:=c+Vector2(side*(4+5*drive),-10)
+				fx_line(im,c-Vector2(0,8),q,2.2,Color("#e1d3df",fade))
+			for j in range(6):
+				var a:float=float(j)*TAU/6.0+t
+				fx_disc(im,c+Vector2(cos(a),sin(a))*15,1.2,Color("#eee1dc",fade))
+		"eos_304":
+			# False Target: a stitched decoy outline assembles from soft particles.
+			var c:=Vector2(24,25)
+			fx_disc(im,c-Vector2(0,7),5.2,Color("#c9bba6",fade))
+			fx_line(im,c,c+Vector2(0,8),9.2,Color("#b5a38d",fade))
+			for side in [-1.0,1.0]:
+				fx_line(im,c+Vector2(side*3,0),c+Vector2(side*9,4),3.1,Color("#d8c8af",fade))
+				fx_line(im,c+Vector2(side*2,7),c+Vector2(side*5,12),2.8,Color("#d8c8af",fade))
+			for j in range(4):fx_line(im,c+Vector2(-2,float(j)*3-2),c+Vector2(2,float(j)*3-2),.8,Color("#8d8071",fade))
+		"eos_102":
+			# Gathering Cry: inward pointing attention arrows converge on a leader marker.
+			var c:=Vector2(24,24)
+			for j in range(6):
+				var a:float=float(j)*TAU/6.0
+				var d:=Vector2(cos(a),sin(a))
+				var n:=Vector2(-d.y,d.x)
+				var q:=c+d*(18-7*drive)
+				fx_line(im,q+d*5,q,1.7,Color("#d8ba8b",fade))
+				fx_line(im,q+d*3+n*3,q,1.2,Color("#efd6ac",fade))
+				fx_line(im,q+d*3-n*3,q,1.2,Color("#efd6ac",fade))
+			fairy_star(im,c,4.2,Color("#f7e6b8",fade))
+		"eos_185":
+			# United Spirit: two helping palms meet beneath a shared warm aura.
+			var c:=Vector2(24,26)
+			for side in [-1.0,1.0]:
+				var q:=c+Vector2(side*(15-9*drive),3)
+				fx_disc(im,q,4.5,Color("#bc9d81",fade))
+				for j in range(4):
+					fx_line(im,q+Vector2(-side*2,float(j-1)*2),q+Vector2(-side*7,float(j-1)*2),1.6,Color("#edd3ad",fade))
+			fight_arc(im,c-Vector2(0,3),13.0,PI,PI,Color("#e9d7a4",fade),Color("#bcae8c",fade),1.8)
+			for j in range(3):fairy_star(im,c+Vector2(float(j-1)*7,-12),1.7,Color("#fff1c8",fade))
+		"eos_229":
+			# Borrowed Echo: three ally motes send a borrowed glyph into the caster.
+			var c:=Vector2(24,26)
+			for j in range(3):
+				var a:float=-PI+float(j)*PI*.5
+				var d:=Vector2(cos(a),sin(a))
+				var q:=c+d*(18-11*drive)
+				fx_disc(im,q,3.2,Color("#c7b5cb",fade))
+				fx_disc(im,q,1.3,Color("#f1e1d9",fade))
+				fx_line(im,q,c+d*3,1.1,Color("#dac8d0",fade))
+			psi_polygon(im,c,5.0,5,t*.5,Color("#e8d9be",fade),Color("#a99aac",fade))
 	return im
 
 func combat_frame_image(id:String,frame:int)->Image:
