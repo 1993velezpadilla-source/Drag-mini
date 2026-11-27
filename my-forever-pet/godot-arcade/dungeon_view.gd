@@ -2157,8 +2157,22 @@ func build_floor():
 	PixelArt.animate_world_sprite(pet_pose,Vector2(facing),false,0.0,"idle",region==1)
 	refresh_actors()
 	combat_warm_floor()
+	warm_floor_creature_textures()
 	floor_build_usec=Time.get_ticks_usec()-start_usec
 	print("DUNGEON_FLOOR_BUILD region=",region," floor=",run.floor_number," usec=",floor_build_usec," rocks=",rock_modules," cached_rock_sets=",rock_mesh_cache.size()," landmarks=",landmark_count," details=",detail_count," paired_spans=",span_count," corners=",corner_count," terraces=",terrace_count," floor_details=",floor_detail_count," thresholds=",threshold_count," exterior_vertices=",exterior_vertex_count," exterior_groups=",exterior_groups.size()," exterior_static_batches=",exterior_static_batches," exterior_life=",exterior_life_centers.size())
+# Bounded texture preparation at the existing floor construction boundary.
+# Prioritize revealed enemies; do not alter discovery, RNG or gameplay.
+func warm_floor_creature_textures()->void:
+	var started:int=Time.get_ticks_usec()
+	var mood:String=PixelArt.dungeon_mood(run.hp,run.max_hp,run.poison_turns>0,false)
+	PixelArt.warm_companion_attack_cells(mood)
+	var species_ids:Array[String]=[]
+	for enemy in run.enemies:
+		if run.revealed.has(enemy.pos):species_ids.append(str(enemy.get("species","")))
+	if not run.transformed_species.is_empty():species_ids.push_front(run.transformed_species)
+	PixelArt.warm_enemy_attack_cells(species_ids,32)
+	print("KINDRIA_CREATURE_WARM usec=",Time.get_ticks_usec()-started," cache=",PixelArt.cache.size())
+
 func actor_for(key:String,at:Vector3)->Node3D:
 	if actor_nodes.has(key):
 		if is_instance_valid(actor_nodes[key]) and not actor_nodes[key].is_queued_for_deletion():return actor_nodes[key]
