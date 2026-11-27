@@ -285,7 +285,7 @@ static func animate_world_sprite(actor:Node3D,delta:Vector2,moving:bool,dt:float
 	sprite.modulate=Color("#ff9b9b") if state=="hurt" and int(clock*22.0)%2==0 else Color("#d3fff1") if state=="burst" else Color.WHITE
 
 # Volnox enemies are authored 2D pixels, never rendered 3D creature meshes.
-const ENEMY_PIXEL_PILOTS=["sporeling","coralcrab","nova_wisp"]
+const ENEMY_PIXEL_PILOTS=["sporeling","coralcrab","nova_wisp","vinesnap","eelstrix","comet_hare"]
 const ENEMY_POSES=["idle","walk","walk","walk","walk","windup","attack","attack","recover","hurt","defeat"]
 static func enemy_dot(im:Image,p:Vector2i,r:Vector2i,c:Color)->void:
 	ellipse(im,Vector2(p),Vector2(r),c)
@@ -461,6 +461,127 @@ static func enemy_pixel_cell(id:String,dir:int,pose:String,frame:int=0)->Image:
 				for x in ([28] if side else [20,28]):
 					enemy_dot(im,Vector2i(x,cy),Vector2i(3,4),ink)
 					enemy_dot(im,Vector2i(x,cy-1),Vector2i(2,2),white)
+		"vinesnap":
+			var moss:=Color("#759343")
+			var deep:=Color("#38502c")
+			var petal:=Color("#d8a366")
+			var root_y:=39
+			var reach:=4 if attack else -2 if wind else 0
+			var jaw_gap:=5 if wind else 2 if attack and frame==1 else 4
+			for i in range(3):
+				var sign_x:int=i-1
+				var root_tip:=Vector2i(24+sign_x*13+step*(1 if i%2==0 else -1),43-abs(step))
+				enemy_line(im,Vector2i(24+sign_x*3,root_y-7),root_tip,3,ink)
+				enemy_line(im,Vector2i(24+sign_x*3,root_y-7),root_tip,2,deep)
+				enemy_line(im,root_tip-Vector2i(sign_x*3,2),root_tip,1,moss)
+			var mouth:=Vector2i(28+reach,20) if side else Vector2i(24,18+reach if not back else 18-reach)
+			enemy_line(im,Vector2i(24,37),mouth+Vector2i(-3,8),5,ink)
+			enemy_line(im,Vector2i(24,37),mouth+Vector2i(-3,8),3,moss)
+			for k in [-1,1]:
+				var leaf_pos:=Vector2i(24+int(k)*8,32+int(k)*step)
+				enemy_line(im,Vector2i(24,35),leaf_pos,2,deep)
+				enemy_dot(im,leaf_pos,Vector2i(6,3),deep)
+				enemy_dot(im,leaf_pos-Vector2i(1,1),Vector2i(4,2),moss)
+			if side:
+				enemy_dot(im,mouth+Vector2i(-2,-jaw_gap),Vector2i(13,6),ink)
+				enemy_dot(im,mouth+Vector2i(-2,-jaw_gap-1),Vector2i(11,4),petal)
+				enemy_dot(im,mouth+Vector2i(-2,jaw_gap),Vector2i(12,5),ink)
+				enemy_dot(im,mouth+Vector2i(-2,jaw_gap),Vector2i(10,3),deep)
+				for i in range(3):
+					im.set_pixel(mouth.x+2+i*3,mouth.y-jaw_gap+4,white)
+				enemy_dot(im,mouth+Vector2i(-7,-jaw_gap-2),Vector2i(2,2),purple)
+			else:
+				enemy_dot(im,mouth,Vector2i(15,11),ink)
+				enemy_dot(im,mouth-Vector2i(0,2),Vector2i(13,8),petal)
+				if not back:
+					enemy_dot(im,mouth+Vector2i(0,3),Vector2i(10,jaw_gap+2),ink)
+					for i in range(5):
+						im.set_pixel(mouth.x-6+i*3,mouth.y-jaw_gap+4,white)
+					for k in [-1,1]:
+						enemy_dot(im,mouth+Vector2i(int(k)*8,-3),Vector2i(2,2),purple)
+				else:
+					enemy_line(im,mouth-Vector2i(0,8),mouth+Vector2i(0,7),1,moss)
+			enemy_line(im,Vector2i(20,35),Vector2i(28,35),1,gold)
+		"eelstrix":
+			var deep:=Color("#21495f")
+			var aqua:=Color("#4ba5ad")
+			var shine:=Color("#c4e0bd")
+			var points:Array[Vector2i]=[]
+			var surge:int=3 if attack else -2 if wind else 0
+			for i in range(10):
+				var wave:=roundi(sin(float(i)*.72-float(phase)*PI*.5)*float(3+i%3))
+				if pose!="walk":wave=roundi(sin(float(i)*.72+float(frame)*.8)*float(6 if attack else 3))
+				if side:
+					points.append(Vector2i(37-i*3+surge,20+i+wave))
+				else:
+					points.append(Vector2i(24+wave,34-i*2+surge if not back else 13+i*2-surge))
+			for i in range(9,0,-1):
+				var radius:=maxi(2,6-int(i/2.0))
+				enemy_line(im,points[i],points[i-1],radius,ink)
+				enemy_line(im,points[i],points[i-1],radius-1,deep)
+				enemy_line(im,points[i]-Vector2i(0,1),points[i-1]-Vector2i(0,1),maxi(1,radius-2),aqua)
+				if i in [3,6]:
+					enemy_dot(im,points[i],Vector2i(2,3),gold)
+			var tail:=points[9]
+			enemy_line(im,tail,tail+Vector2i(-4,-5) if side else tail+Vector2i(-4,-3),2,aqua)
+			enemy_line(im,tail,tail+Vector2i(-4,5) if side else tail+Vector2i(4,-3),2,deep)
+			var head:=points[0]
+			enemy_dot(im,head,Vector2i(8,6),ink)
+			enemy_dot(im,head-Vector2i(0,1),Vector2i(7,4),aqua)
+			enemy_line(im,head+Vector2i(-3,-3),head+Vector2i(2,-3),1,shine)
+			if not back:
+				for x in ([2] if side else [-3,3]):
+					enemy_dot(im,head+Vector2i(int(x),-1),Vector2i(2,2),ink)
+					im.set_pixel(head.x+int(x),head.y-2,pink)
+				if side:
+					enemy_line(im,head+Vector2i(1,3),head+Vector2i(6,2 if not attack else 4),1,ink)
+					if attack:im.set_pixel(head.x+4,head.y+2,white)
+				else:
+					enemy_line(im,head+Vector2i(-3,3),head+Vector2i(3,3),1,ink)
+			if attack:
+				for i in range(2,8,2):
+					var spark:=points[i]+Vector2i(0,-7-frame)
+					enemy_line(im,spark,spark+Vector2i(2,-2),1,shine)
+					enemy_line(im,spark+Vector2i(2,-2),spark+Vector2i(4,0),1,purple)
+		"comet_hare":
+			var deep:=Color("#514b8c")
+			var fur:=Color("#b3a5e8")
+			var shine:=Color("#ecf0ff")
+			var jump:int=[0,-3,-5,-2][phase] if pose=="walk" else -4 if attack else 0
+			var crouch:int=3 if wind else 0
+			var body:=Vector2i(22,30+jump+crouch)
+			var head:=Vector2i(29,21+jump+crouch) if side else Vector2i(24,20+jump+crouch)
+			var tail:=body+Vector2i(-11,0) if side else body+Vector2i(0,5 if back else -1)
+			enemy_dot(im,tail,Vector2i(5,4),ink)
+			enemy_dot(im,tail-Vector2i(0,1),Vector2i(3,3),shine)
+			for k in [-1,1]:
+				var foot:=Vector2i(24+int(k)*8,40+int(k)*step if not attack else 40)
+				if side:foot=Vector2i(24+int(k)*4+step,40+jump)
+				enemy_dot(im,foot,Vector2i(7,4),ink)
+				enemy_dot(im,foot-Vector2i(0,1),Vector2i(5,2),deep)
+			enemy_dot(im,body,Vector2i(12,12),ink)
+			enemy_dot(im,body-Vector2i(0,2),Vector2i(10,9),deep)
+			enemy_dot(im,body-Vector2i(2,3),Vector2i(7,6),fur)
+			for k in [-1,1]:
+				var ear_base:=head+Vector2i(int(k)*5,-5)
+				var ear_tip:=ear_base+Vector2i(-4 if side else int(k)*3,-10+step*int(k))
+				enemy_line(im,ear_base,ear_tip,4,ink)
+				enemy_line(im,ear_base,ear_tip,3,fur)
+				enemy_line(im,ear_base,ear_tip+Vector2i(0,2),1,Color("#8877d0"))
+			enemy_dot(im,head,Vector2i(10,9),ink)
+			enemy_dot(im,head-Vector2i(0,1),Vector2i(8,7),fur)
+			enemy_line(im,head+Vector2i(-4,-4),head+Vector2i(1,-5),1,shine)
+			if not back:
+				for x in ([4] if side else [-4,4]):
+					enemy_dot(im,head+Vector2i(int(x),0),Vector2i(2,3),ink)
+					im.set_pixel(head.x+int(x),head.y-1,pink)
+				enemy_dot(im,head+Vector2i(7 if side else 0,4),Vector2i(2,1),deep)
+			else:
+				enemy_line(im,head+Vector2i(-3,2),head+Vector2i(3,2),1,deep)
+			enemy_line(im,body+Vector2i(-5,4),body+Vector2i(5,4),1,gold)
+			if attack:
+				for i in range(3):
+					enemy_line(im,Vector2i(17+i*7,42),Vector2i(15+i*9,45),1,shine)
 	if dir==2:im.flip_x()
 	if recoil:
 		for y in range(48):
