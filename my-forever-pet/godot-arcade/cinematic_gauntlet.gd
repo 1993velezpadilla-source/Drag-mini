@@ -756,6 +756,27 @@ func run_checks()->void:
 	if view.combat_audio_form("eos_062",view.combat_profile("eos_062"))!="crunch":failures.append("crunch acoustic identity")
 	if view.combat_audio_form("eos_063",view.combat_profile("eos_063"))!="fang":failures.append("bite acoustic identity")
 	checks+=2
+	# V19.6 audio variants: verify each nature in impact and status phases.
+	var audio_natures:Dictionary={}
+	for id in catalog:
+		var nature:String=str(view.combat_profile(id).element)
+		if audio_natures.has(nature):continue
+		audio_natures[nature]=id
+		for phase in ["impact","status"]:
+			var previous:=PackedByteArray()
+			for variant in range(3):
+				var sample:=view.combat_sound(id,phase,variant)
+				var bytes:PackedByteArray=sample.data
+				var peak:int=0
+				for offset in range(0,bytes.size(),2):
+					peak=maxi(peak,absi(bytes.decode_s16(offset)))
+				if bytes.size()<1000 or peak<100 or peak>31130 or bytes.decode_s16(0)!=0 or bytes.decode_s16(bytes.size()-2)!=0:failures.append("V19.6 PCM "+nature+" "+phase)
+				if bytes==previous:failures.append("V19.6 duplicate variant "+nature+" "+phase)
+				if view.combat_sound(id,phase,variant).data!=bytes:failures.append("V19.6 unstable cache "+nature+" "+phase)
+				previous=bytes
+				checks+=3
+	if audio_natures.size()!=18:failures.append("V19.6 missing acoustic nature")
+	checks+=1
 	# Full catalog: actual frame bytes, audio buffers, and pooled world FX.
 	# A duplicate sequence or sparse animation is a review candidate, not proof
 	# of poor visual quality. Preserve exact IDs in the downloadable CI report.
