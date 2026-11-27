@@ -275,6 +275,8 @@ func run()->void:
 		assert(field.kick_contact_fx(move_id,punch_source,bite_position,0.0,0,Color.WHITE,Color.BLACK)==1)
 		var foot:Sprite3D=field.combat_particles[0]
 		var initial:Vector3=foot.position
+		assert(foot.texture.get_width()==32 and foot.texture.get_height()==32)
+		assert(is_equal_approx(foot.pixel_size,.016))
 		assert(foot.texture.get_image().get_used_rect().size.x>0)
 		var expected_texture:Texture2D=field.combat_pixel_texture(str(art[5]),Color(str(art[6])),Color(str(art[7])))
 		var mirror_texture:Texture2D=expected_texture
@@ -284,6 +286,7 @@ func run()->void:
 		assert(field.kick_contact_fx(move_id,punch_source,bite_position,float(art[1])*.30,0,Color.WHITE,Color.BLACK)>=2)
 		assert(foot.position.distance_to(initial)>.05)
 		assert(field.combat_particles[1].texture==field.combat_pixel_texture(str(art[8]),Color.WHITE,Color.BLACK))
+		assert(is_equal_approx(field.combat_particles[1].pixel_size,.032))
 		assert(field.combat_particles.size()==particle_count)
 		assert(field.kick_contact_fx(move_id,punch_source,bite_position,float(art[1]),0,Color.WHITE,Color.BLACK)==0)
 		assert(field.kick_contact_fx(move_id,punch_source,bite_position,0.0,Field.FX_PARTICLE_CAP,Color.WHITE,Color.BLACK)==Field.FX_PARTICLE_CAP)
@@ -306,6 +309,28 @@ func run()->void:
 	var blaze_art:Array=field.kick_contact_art("eos_276")
 	assert(field.combat_particles[0].texture==field.combat_pixel_texture("kick_heel",Color(str(blaze_art[6])),Color(str(blaze_art[7]))))
 	print("KINDRIA_CONTACT_KICK_PASS 10")
+	# Classic footprint: distinct three toes and a compact pad, not a shin.
+	var stamp:Image=field.classic_kick_stamp("kick_sole",Color.WHITE,Color("#554258"))
+	for pixel in [Vector2i(7,10),Vector2i(15,6),Vector2i(23,10),Vector2i(15,19)]:
+		assert(stamp.get_pixelv(pixel).a>.9,"toe or sole absent")
+	assert(stamp.get_pixel(15,12).a==0.0,"toe-to-pad separation")
+	assert(stamp.get_pixel(0,0).a==0.0 and stamp.get_pixel(31,31).a==0.0)
+	assert(stamp.save_png("/tmp/effekseer-review/kick-classic-stamp.png")==OK)
+	# Capture each move using the real dungeon impact compositor.
+	for move_id in kick_cases:
+		var p:Dictionary=field.combat_profile(move_id)
+		var art:Array=field.kick_contact_art(move_id)
+		var hit_count:int=3 if move_id=="eos_210" else 2 if move_id=="eos_222" else 1
+		var burst:Dictionary={"id":move_id,"profile":p,"points":[field.pos(origin)+Vector3.UP*.55,bite_position],"results":{target:{"damage":8,"hits":hit_count}}}
+		for particle in field.combat_particles:particle.hide()
+		var age:float=float(art[1])*.30/float(hit_count)
+		var tick:float=lerpf(float(p.impact),1.0,age)
+		var used:int=field.element_finish_fx(burst,tick,0)
+		assert(used>1)
+		await frames()
+		assert(root.get_texture().get_image().save_png("/tmp/effekseer-review/kick-remake-"+move_id+".png")==OK)
+	for particle in field.combat_particles:particle.hide()
+	print("KINDRIA_CLASSIC_KICK_STAMP_PASS 10")
 	var plan:Array=[
 		{"stage":"ally_invoke","anchor":"source","start":0.0,"end":.15,"enabled":true},
 		{"stage":"enemy_invoke","anchor":"source","start":0.0,"end":.15,"enabled":true},
