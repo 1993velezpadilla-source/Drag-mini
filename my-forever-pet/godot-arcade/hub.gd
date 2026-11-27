@@ -213,7 +213,7 @@ func make_ui():
 	var head=row(header)
 	identity_art=TextureRect.new(); identity_art.custom_minimum_size=Vector2(48,48); identity_art.expand_mode=TextureRect.EXPAND_IGNORE_SIZE; identity_art.stretch_mode=TextureRect.STRETCH_KEEP_ASPECT_CENTERED; head.add_child(identity_art)
 	var identity=VBoxContainer.new(); identity.size_flags_horizontal=SIZE_EXPAND_FILL; identity.add_theme_constant_override("separation",2); head.add_child(identity)
-	title_label=label(identity,"Mosky",21); title_label.clip_text=true
+	title_label=label(identity,"Ponoko",21); title_label.clip_text=true
 	xp_bar=ProgressBar.new(); xp_bar.show_percentage=false; xp_bar.custom_minimum_size.y=8; xp_bar.max_value=100
 	xp_bar.add_theme_stylebox_override("background",bar_skin(Color("#101530"),Color("#5e6caa")))
 	xp_bar.add_theme_stylebox_override("fill",bar_skin(Color("#9465e5"),Color("#c9a7ff")))
@@ -585,7 +585,7 @@ func select(tab:String):
 			build_today()
 		"Settings":
 			var profile=panel(actions); label(profile,"Your companion",22)
-			var edit=LineEdit.new(); edit.text="Mosky"; edit.editable=false; profile.add_child(edit)
+			var edit=LineEdit.new(); edit.text="Ponoko"; edit.editable=false; profile.add_child(edit)
 			action_card(actions,"Auto sleep","Rest automatically at night.","sleep","auto",0,"Toggle")
 		"Wallpaper":
 			build_wallpaper()
@@ -603,7 +603,7 @@ func select(tab:String):
 		"Journal":
 			var growth=context_card("growth","Growth journey")
 			context_meter(growth,"growth",Color("#b08bf0"))
-			label(growth,"Care for Mosky as it grows. Its identity never changes.",14).autowrap_mode=TextServer.AUTOWRAP_WORD_SMART
+			label(growth,"Care for Ponoko as it grows. Its identity never changes.",14).autowrap_mode=TextServer.AUTOWRAP_WORD_SMART
 			context_card("quests","Daily quests")
 			for i in range(3): action_card(actions,["Bond quest","Clean quest","Expedition quest"][i],["Show affection to your companion.","Clean a dirty habitat.","Complete an expedition."][i],"daily","quest",i,"Claim 15")
 			action_card(actions,"Craft a crystal","Exchange three materials for one crystal.","craft","craft",0,"Craft")
@@ -886,7 +886,7 @@ func build_care(show_lab:bool):
 	if show_lab: section_scroll.set_deferred("scroll_vertical",maxi(0,section_scroll.get_v_scroll_bar().max_value-section_scroll.size.y))
 	action_card(actions,"Medicine","Cures all sick cells; buy supplies in Shop.","medicine","medicine",0,"Use")
 func build_world():
-	section_heading(actions,"Explore the world","Explore 3D territories and dungeons with Mosky. Recover treasure and earn explorer ranks.")
+	section_heading(actions,"Welcome to the land of Kindra","A world filled with unique creatures called Moskies. Explore territories and dungeons with Ponoko.")
 	for i in range(3):
 		var shell=panel(actions); var line=row(shell)
 		var art=TextureRect.new(); art.texture=tex("res://assets/"+["room_garden.jpg","arcade_find.jpg","sky-panorama.png"][i]); art.custom_minimum_size=Vector2(148,125); art.expand_mode=TextureRect.EXPAND_IGNORE_SIZE; art.stretch_mode=TextureRect.STRETCH_KEEP_ASPECT_COVERED; line.add_child(art)
@@ -1111,7 +1111,7 @@ func pets_tabs(parent:Node,current:String):
 func build_family():
 	pets_tabs(actions,"Family")
 	var slots:Array=store.family_slots()
-	section_heading(actions,"Your companions","Mosky is your only companion.")
+	section_heading(actions,"Your companions","Ponoko is your only companion.")
 	family_grid=VBoxContainer.new(); family_grid.add_theme_constant_override("separation",8); actions.add_child(family_grid)
 	for slot_value in slots:
 		var slot:int=slot_value
@@ -1136,7 +1136,7 @@ func build_family():
 			if active or store.action("form",slot):select("Home");refresh())
 		go.disabled=not active and not store.action_block("form",slot).is_empty()
 		go.custom_minimum_size.y=44;go.add_theme_font_size_override("font_size",15)
-	button(actions,"Explore with Mosky ›",func():select("World"))
+	button(actions,"Explore with Ponoko ›",func():select("World"))
 	swipe_children(actions)
 func rename_family(slot:int):
 	var popup=ConfirmationDialog.new();popup.title="Name your companion";popup.ok_button_text="Save name"
@@ -1147,23 +1147,23 @@ func show_collection():
 	reset_actions()
 	collection_feature=0
 	pets_tabs(actions,"Collection")
-	section_heading(actions,"Pet roster","One companion. One identity. All adventures with Mosky.")
+	section_heading(actions,"Mosky roster","Meet Ponoko, your first Mosky. All adventures begin here.")
 	collection_grid=GridContainer.new();collection_grid.columns=1;actions.add_child(collection_grid)
 	var card=panel(collection_grid)
 	var art=TextureRect.new();art.texture=pixel_portrait("res://assets/pet_0.png");art.texture_filter=CanvasItem.TEXTURE_FILTER_NEAREST;art.custom_minimum_size.y=220;art.expand_mode=TextureRect.EXPAND_IGNORE_SIZE;art.stretch_mode=TextureRect.STRETCH_KEEP_ASPECT_CENTERED;card.add_child(art)
-	label(card,"Mosky",26).horizontal_alignment=HORIZONTAL_ALIGNMENT_CENTER
-	label(card,"YOUR COMPANION · Lv %d"%store.companion_level(),14).horizontal_alignment=HORIZONTAL_ALIGNMENT_CENTER
+	label(card,"Ponoko",26).horizontal_alignment=HORIZONTAL_ALIGNMENT_CENTER
+	label(card,"MOSKY · Lv %d"%store.companion_level(),14).horizontal_alignment=HORIZONTAL_ALIGNMENT_CENTER
 	button(card,"♥ Favorited" if store.favorite(0) else "♡ Favorite",func():store.toggle_favorite(0);show_collection())
 	button(card,"Combat training · EVs ›",func():show_training())
-	button(card,"Care for Mosky ›",func():select("Home"))
+	button(card,"Care for Ponoko ›",func():select("Home"))
 	swipe_children(actions)
 func show_training():
 	reset_actions()
-	button(actions,"‹ Pet roster",func():show_collection())
+	button(actions,"‹ Mosky roster",func():show_collection())
 	var profile:Dictionary=store.training_profile()
-	section_heading(actions,"Combat training","Defeat creatures to earn stat-specific EVs, then invest them here.")
+	section_heading(actions,"Combat training","Defeat Moskies to earn stat-specific EVs, then invest them here.")
 	var top=panel(actions)
-	label(top,"Mosky · Lv %d · %s"%[profile.level,profile.nature_name],22)
+	label(top,"Ponoko · Lv %d · %s"%[profile.level,profile.nature_name],22)
 	label(top,"Grass · "+str(profile.nature_trait),15)
 	label(top,str(profile.nature_summary),16).autowrap_mode=TextServer.AUTOWRAP_WORD_SMART
 	button(top,"Moves & loadout ›",func():show_move_training())
@@ -1263,7 +1263,7 @@ func refresh():
 	live_stage.set_night(night)
 	live_stage.set_sleeping(store.asleep(store.now()))
 	live_stage.set_mood(PixelArt.Parts.mood(float(s.happy),float(s.energy),float(s.hunger),int(s.germs)))
-	pet_status.text="Tap to hatch Mosky" if s.stage==0 else room_hint()
+	pet_status.text="Tap to hatch Ponoko" if s.stage==0 else room_hint()
 	live_stage.set_room_lighting(int(s.theme))
 	live_stage.set_installation(int(s.installation))
 	live_stage.set_crop(float(s.garden_at),store.now())
@@ -1431,7 +1431,7 @@ func test_touch():
 	var start=favorite_button.get_global_rect().get_center()
 	test_mouse_motion(start,Vector2.ZERO,false);test_mouse_button(start,true);await get_tree().process_frame;test_mouse_button(start,false)
 	await get_tree().process_frame
-	assert(store.s.favorites!=initial_fav,"Tap activates Mosky favorite")
+	assert(store.s.favorites!=initial_fav,"Tap activates Ponoko favorite")
 	select("Home")
 	for i in range(5):await get_tree().process_frame
 	var before_room=current_room
@@ -1519,7 +1519,8 @@ func test_home():
 	assert(store.s.crystals==before_crystals+2 and store.s.materials==before_materials+4)
 	assert((int(store.s.collection)&(1<<24))!=0)
 	store.legacy_catalog=false;store.s=saved;store.enforce_mosky()
-	assert(store.ROSTER==["Mosky"] and store.species()==0 and not store.action("form",1))
+	assert(store.ROSTER==["Ponoko"] and store.species()==0 and not store.action("form",1))
+	assert(store.pet_name()=="Ponoko" and store.s.name=="Ponoko" and store.WORLD_NAME=="Kindra" and store.CREATURE_NAME=="Mosky" and store.CREATURE_PLURAL=="Moskies","canonical identity and old-save migration")
 	make_ui(); refresh()
 	live_stage.set_pet(0,0); assert(live_stage.egg_body!=null and live_stage.bare_bounds.has_volume())
 	live_stage.set_pet(store.species(),int(store.s.stage))
@@ -1651,7 +1652,7 @@ func capture_frame(path:String):
 	assert(image.save_png(path)==OK)
 func capture_home():
 	store.s=store.defaults(); store.s.auto_sleep=false
-	store.s.stage=4; store.s.coins=250; store.s.name="Mosky"
+	store.s.stage=4; store.s.coins=250; store.s.name="Ponoko"
 	make_ui(); refresh()
 	await capture_frame("/tmp/forever-home.png")
 	store.s.sleep_until=store.now()+60; refresh()
@@ -1661,14 +1662,14 @@ func capture_home():
 		store.s.form=-1
 		if species>=24: store.s.collection=int(store.s.collection)|(1<<species); store.s.form=species
 		else: store.s.variant=int(species/12); store.s.field=int((species%12)/4); store.s.body=species%4
-		store.s.name="Mosky"
+		store.s.name="Ponoko"
 		refresh()
 		await capture_frame("/tmp/forever-species-%02d.png"%species)
 		if species in [3,5,24,25]:
 			store.s.sleep_until=store.now()+60; refresh()
 			await capture_frame("/tmp/forever-sleep-%02d.png"%species)
 			store.s.sleep_until=0; refresh()
-	store.s.form=-1; store.s.variant=0; store.s.field=0; store.s.body=0; store.s.name="Mosky"; refresh()
+	store.s.form=-1; store.s.variant=0; store.s.field=0; store.s.body=0; store.s.name="Ponoko"; refresh()
 	for name in ROOMS:
 		select("Rooms")
 		room(name)
