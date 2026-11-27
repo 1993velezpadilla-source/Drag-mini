@@ -154,6 +154,10 @@ func run()->void:
 	if not Parts.load_manifest("res://nonexistent_parts_fixture.json").is_empty():errors.append("missing manifest fallback")
 	PixelArt.part_manifest=saved_manifest
 	PixelArt.part_manifest_checked=saved_checked
+	var offsets:Dictionary=Parts.parse_offsets({"0":[4,8],"3":[-4,8],"9":[1,1],"bad":[0,0]},true)
+	if offsets.size()!=2 or offsets.get(0)!=Vector2i(4,8) or offsets.get(3)!=Vector2i(-4,8):errors.append("direction manifest offsets")
+	var mood_offsets:Dictionary=Parts.parse_offsets({"weak":[0,3],"unknown":[0,0],"happy":[1]},false)
+	if mood_offsets.size()!=1 or mood_offsets.get("weak")!=Vector2i(0,3):errors.append("mood manifest offsets")
 	print("KINDRIA_PART_RUNTIME_ROUTE_PASS")
 	# Exercise more frames than the cache cap, then verify hot hits and exact normalization.
 	for row in reports.slice(0,40):

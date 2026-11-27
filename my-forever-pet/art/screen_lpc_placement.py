@@ -35,8 +35,12 @@ def evaluate(body,back,front,dx,dy):
     visible=count(ImageChops.subtract(pm,bm))
     result=Image.alpha_composite(Image.alpha_composite(bg,body),fg)
     score=outside*12 + (40 if pixels and not contact else 0) + front_overlap*1.5
-    if pixels and visible==0:score+=35
-    if pixels:score+=max(0,4-contact)*5
+    if pixels:
+        score+=max(0,4-contact)*5
+        # Do not reward a part that vanishes under the body. Original blank
+        # source cells are reported separately, not treated as detached.
+        score+=max(0,min(12,pixels*.20)-visible)*8
+    else: score+=30
     return score,{"part_pixels":pixels,"contact_pixels":contact,"outside_pixels":outside,
                   "front_overlap_pixels":front_overlap,"exterior_pixels":visible},result.crop((24,24,72,72))
 def main():
@@ -50,9 +54,11 @@ def main():
         bodies={(pose,d,k):canvas(Image.open(output/"body"/creature/f"{pose}-{d}-{k}.png").convert("RGBA"),(24,24))
                 for pose in POSES for d in range(4) for k in range(3)}
         choices=[]; sheet=Image.new("RGBA",(1152,576),"#252c34")
+        # Fit a single scale for the creature, not a different size at every turn.
+        fits={}
         for direction in range(4):
-            options=[]
             for size in (nominal-8,nominal,nominal+8):
+                options=[]
                 # Fit on idle, attack, walk representative samples; audit all 18 later.
                 samples=[(pose,k,bodies[pose,direction,k],
                           cell(images[pose,"back"],direction,k,size,pose),
@@ -63,7 +69,11 @@ def main():
                         stats=[evaluate(b,bg,fg,dx,dy) for _,_,b,bg,fg in samples]
                         score=sum(x[0] for x in stats)+.35*(abs(dx)+abs(dy))+.5*abs(size-nominal)
                         options.append((score,size,dx,dy))
-            score,size,dx,dy=min(options)
+                fits[direction,size]=min(options)
+        size=min((nominal-8,nominal,nominal+8),key=lambda value:
+                 sum(fits[direction,value][0] for direction in range(4)))
+        for direction in range(4):
+            score,_,dx,dy=fits[direction,size]
             records=[]
             for i,pose in enumerate(POSES):
                 for k in range(3):
@@ -76,12 +86,20 @@ def main():
                     sheet.alpha_composite(result,(x+48,y))
             choices.append({"direction":direction,"size":size,"offset":[dx,dy],"score":score,
                 "samples":records,"clipped":sum(r["outside_pixels"]>0 for r in records),
-                "detached":sum(r["part_pixels"]>0 and r["contact_pixels"]==0 for r in records)})
+                "detached":sum(r["part_pixels"]>0 and r["contact_pixels"]==0 for r in records),
+                "source_blank":sum(r["part_pixels"]==0 for r in records),
+                "occluded":sum(r["part_pixels"]>0 and r["exterior_pixels"]==0 for r in records),
+                "low_exposure":sum(r["part_pixels"]>0 and r["exterior_pixels"]<min(12,r["part_pixels"]*.20) for r in records)})
         sheet.save(output/f"{creature}-{part}-screened.png")
-        report={"creature":creature,"source_part":part,"approved":False,"directions":choices}
+        report={"creature":creature,"source_part":part,"approved":False,"size":size,
+                "direction_offsets":{str(c["direction"]):c["offset"] for c in choices},
+                "directions":choices}
         reports.append(report)
         print("KINDRIA_FIT_SCREEN",creature,"clipped",sum(c["clipped"] for c in choices),
               "detached",sum(c["detached"] for c in choices),
+              "blank",sum(c["source_blank"] for c in choices),
+              "occluded",sum(c["occluded"] for c in choices),
+              "low_exposure",sum(c["low_exposure"] for c in choices),
               "placements",[(c["direction"],c["size"],c["offset"]) for c in choices])
     (output/"placement-screen.json").write_text(json.dumps({"candidates":reports,"approved":False},indent=2)+"\n")
     print("KINDRIA_FIT_SCREEN_PASS candidates=4 samples=288")

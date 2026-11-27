@@ -87,6 +87,20 @@ static func load_part_sheet(path:String)->Image:
 	image.convert(Image.FORMAT_RGBA8)
 	return image
 
+static func parse_offsets(raw:Variant,directional:bool)->Dictionary:
+	var parsed:Dictionary={}
+	if not raw is Dictionary:return parsed
+	for key in raw:
+		var pair=raw[key]
+		if not pair is Array or pair.size()!=2:continue
+		if directional:
+			if not str(key).is_valid_int() or int(key)<0 or int(key)>3:continue
+			parsed[int(key)]=Vector2i(clampi(int(pair[0]),-32,32),clampi(int(pair[1]),-32,32))
+		else:
+			if not str(key) in MOODS:continue
+			parsed[str(key)]=Vector2i(clampi(int(pair[0]),-32,32),clampi(int(pair[1]),-32,32))
+	return parsed
+
 static func load_manifest(path:String)->Dictionary:
 	var result:Dictionary={}
 	if not FileAccess.file_exists(path):return result
@@ -105,6 +119,8 @@ static func load_manifest(path:String)->Dictionary:
 			var part:Dictionary={"slot":entry.slot,"size":clampi(int(entry.get("size",48)),8,96)}
 			var offset=entry.get("offset",[0,0])
 			if offset is Array and offset.size()==2:part["offset"]=Vector2i(int(offset[0]),int(offset[1]))
+			part["direction_offsets"]=parse_offsets(entry.get("direction_offsets",{}),true)
+			part["mood_offsets"]=parse_offsets(entry.get("mood_offsets",{}),false)
 			for layer in ["back","front"]:
 				var sheet:=load_part_sheet(str(entry.get(layer,"")))
 				if sheet!=null:part[layer]=sheet
