@@ -415,6 +415,29 @@ func run_checks()->void:
 				checks+=1
 			if view.caster_wave_progress(0.0,duration,peak,times)!=0.0 or view.caster_wave_progress(duration,duration,peak,times)!=1.0:failures.append("caster wave endpoints")
 			checks+=1
+	# Critical finish is local to the active wave and actual damage row.
+	var critical_tile:=Vector2i(1,0)
+	var normal_tile:=Vector2i(2,0)
+	var critical_burst:Dictionary={"duration":.8,"age":.2,"impact_cursor":1,"impact_times":[.2,.4,.6],"impact_waves":[{critical_tile:{"damage":7,"crit":0}},{critical_tile:{"damage":9,"crit":1},normal_tile:{"damage":6,"crit":0}},{critical_tile:{"damage":0,"crit":1,"misses":1}}]}
+	if not view.critical_impact_tiles(critical_burst).is_empty():failures.append("future critical leak")
+	critical_burst.age=.4;critical_burst.impact_cursor=2
+	if view.critical_impact_tiles(critical_burst)!=[critical_tile]:failures.append("critical target isolation")
+	critical_burst.age=.59
+	if not view.critical_impact_tiles(critical_burst).is_empty():failures.append("expired critical flash")
+	critical_burst.age=.6;critical_burst.impact_cursor=3
+	if not view.critical_impact_tiles(critical_burst).is_empty():failures.append("false critical on miss")
+	checks+=4
+	var critical_texture:=view.combat_pixel_texture("critical_flash",Color("#fff3c2"),Color("#e0a34c"))
+	if critical_texture==null or not critical_texture.get_image().get_used_rect().has_area():failures.append("empty critical flash")
+	checks+=1
+	var prior_flash:float=1.0
+	var prior_ring:float=0.0
+	for step in range(101):
+		var critical_sample:=view.critical_finish_sample(float(step)/100.0)
+		if not critical_sample.is_finite() or critical_sample.x<0.0 or critical_sample.x>prior_flash+.0001 or critical_sample.y<prior_ring-.0001 or critical_sample.y>1.47:failures.append("critical envelope")
+		if step==100 and critical_sample.x>.0001:failures.append("critical flash not expired")
+		prior_flash=critical_sample.x;prior_ring=critical_sample.y
+		checks+=1
 	# Directed contact art is independently visible and kick poses are animated.
 	for id in Dungeon.CONTACT_ICON_KIND:
 		var kind:String=view.directed_contact_kind(id,str(view.combat_profile(id).role))
