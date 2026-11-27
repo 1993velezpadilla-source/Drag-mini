@@ -60,7 +60,8 @@
       "timing_verified": false,
       "kindria_id": "eos_217",
       "v15_3_source_status": "Archive page opened; image fetch failed again. No visual design inferred.",
-      "v15_5_source_status": "File page confirmed; image fetch failed again."
+      "v15_5_source_status": "File page confirmed; image fetch failed again.",
+      "v15_6_source_status": "Archive file page accessible; image retrieval failed again."
     },
     {
       "name": "Hyper Beam",
@@ -72,13 +73,19 @@
       "source_quality": "Archive flags image as needing direct capture.",
       "v15_5_source_status": "File page confirmed; image fetch failed again.",
       "source_variant": "Rayquaza according to file description; do not infer normal-size animation.",
-      "image": "https://archives.bulbagarden.net/media/upload/d/d1/Hyper_Beam_PMD_RTDX.png"
+      "image": "https://archives.bulbagarden.net/media/upload/d/d1/Hyper_Beam_PMD_RTDX.png",
+      "v15_6_source_status": "Archive file page accessible; image retrieval failed again."
     },
     {
       "name": "Laser Focus",
       "page": "https://archives.bulbagarden.net/wiki/File:Laser_Focus_PMD_RTDX.png",
-      "status": "indexed_uninspected",
-      "timing_verified": false
+      "status": "still_inspected",
+      "timing_verified": false,
+      "image": "https://archives.bulbagarden.net/media/upload/thumb/0/0e/Laser_Focus_PMD_RTDX.png/800px-Laser_Focus_PMD_RTDX.png",
+      "observation": "Two strong yellow-white cross-shaped glints across the caster's upper body, magenta curved arcs behind them, darkened surroundings. Still only; timing unknown.",
+      "source_quality": "800x450 archive preview",
+      "kindria_id": null,
+      "mapping_status": "No exact existing Kindria counterpart established"
     },
     {
       "name": "Liquidation",
@@ -109,8 +116,13 @@
     {
       "name": "Precipice Blades",
       "page": "https://archives.bulbagarden.net/wiki/File:Precipice_Blades_PMD_RTDX.png",
-      "status": "indexed_uninspected",
-      "timing_verified": false
+      "status": "still_inspected",
+      "timing_verified": false,
+      "image": "https://archives.bulbagarden.net/media/upload/thumb/7/7d/Precipice_Blades_PMD_RTDX.png/800px-Precipice_Blades_PMD_RTDX.png",
+      "observation": "Tall red-orange pointed pillars around a large caster, yellow glow at pillar bases, darkened scene. Still does not establish rise speed or damage timing.",
+      "source_quality": "Archive requests direct capture; indirect image, giant boss context",
+      "kindria_id": null,
+      "mapping_status": "No exact existing Kindria counterpart established"
     },
     {
       "name": "Psychic",
@@ -283,6 +295,11 @@
     {
       "title": "Gameplay trailer report",
       "url": "https://www.gamespot.com/articles/pokemon-mystery-dungeon-rescue-team-dx-shows-off-d/1100-6473858/",
+      "status": "indexed_unreviewed"
+    },
+    {
+      "title": "Full demo walkthrough, advertised 1080p60",
+      "url": "https://www.youtube.com/watch?v=qrZvnuOT8pE",
       "status": "indexed_unreviewed"
     }
   ],

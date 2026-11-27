@@ -3200,9 +3200,12 @@ func rtdx_material_stamp(mode:String,light:Color,dark:Color)->Image:
 					var radius:float=(p/Vector2(.80,.91)).length()
 					alpha=(1.0-smoothstep(.22,1.0,radius))*.78
 					tint=dark.lerp(light,1.0-smoothstep(.1,.85,radius))
-				"rtdx_solar":
-					var core:float=(p/Vector2(.94,.16)).length()
-					alpha=1.0-smoothstep(.30,1.0,core)
+				"rtdx_solar","rtdx_signal_strip":
+					# Continuous strip: narrow bright core and soft colored edge.
+					# The blue projectile tapers toward the trailing end.
+					var width:float=.24 if mode=="rtdx_solar" else lerpf(.07,.28,clampf((p.x+1.0)*.5,0.0,1.0))
+					var core:float=absf(p.y)/width
+					alpha=(1.0-smoothstep(.30,1.0,core))*(1.0-smoothstep(.94,1.06,absf(p.x)))
 					tint=dark.lerp(light,1.0-smoothstep(.10,.75,core))
 				"rtdx_dust":
 					# Diffuse gray-beige cloud, with irregular soft lobes.
@@ -8561,6 +8564,52 @@ func rtdx_directional_stamp(used:int,at:Vector3,mode:String,light:Color,dark:Col
 			particle.global_transform=Transform3D(camera.global_transform.basis*Basis(Vector3.BACK,-direction.angle()).scaled(Vector3.ONE*size_value),particle.global_position)
 	return next
 
+# A continuous camera-facing beam segment, sized from the actual path.
+# Original masks and widths; timing is not inferred from a screenshot.
+func rtdx_beam_segment(used:int,a:Vector3,b:Vector3,mode:String,light:Color,dark:Color,alpha:float)->int:
+	var delta:Vector3=b-a
+	if delta.length_squared()<.000001:return used
+	var next:int=environment_particle(used,(a+b)*.5,mode,light,dark,1.0,alpha)
+	if next==used:return used
+	var particle:Sprite3D=combat_particles[used]
+	var basis:Basis=camera.global_transform.basis if is_instance_valid(camera) else Basis.IDENTITY
+	var local:Vector3=basis.inverse()*delta
+	var planar:=Vector2(local.x,local.y)
+	# A depth-only segment remains a small luminous point in screen space.
+	var width:float=maxf(.025,planar.length())
+	var direction:float=planar.angle() if planar.length_squared()>.000001 else 0.0
+	var extent:float=float(particle.texture.get_width())*particle.pixel_size
+	var stretch:=Vector3((width+.035)/extent,1.0,1.0)
+	particle.billboard=BaseMaterial3D.BILLBOARD_DISABLED
+	particle.global_transform=Transform3D(basis*Basis(Vector3.BACK,direction)*Basis.from_scale(stretch),particle.global_position)
+	return next
+
+# Clip each polyline segment to the visible distance interval. This avoids
+# skipping corners or leaving gaps on long casts; no per-tile particle flood.
+func rtdx_beam_path(used:int,points:Array,first:float,last:float,mode:String,light:Color,dark:Color,alpha:float)->int:
+	if points.size()<2 or last<=first:return used
+	var length:float=0.0
+	for i in range(1,points.size()):
+		var a:Vector3=points[i-1]
+		length+=a.distance_to(points[i])
+	if length<.00001:return used
+	var from_distance:float=clampf(first,0.0,1.0)*length
+	var to_distance:float=clampf(last,0.0,1.0)*length
+	var cursor:float=0.0
+	for i in range(1,points.size()):
+		if used>=FX_PARTICLE_CAP:break
+		var a:Vector3=points[i-1]
+		var z:Vector3=points[i]
+		var segment:float=a.distance_to(z)
+		if segment<.00001:continue
+		var lo:float=maxf(cursor,from_distance)
+		var hi:float=minf(cursor+segment,to_distance)
+		if hi>lo:
+			used=rtdx_beam_segment(used,a.lerp(z,(lo-cursor)/segment),a.lerp(z,(hi-cursor)/segment),mode,light,dark,alpha)
+		cursor+=segment
+		if cursor>=to_distance:break
+	return used
+
 # A single target-selection contract for all evidence-driven finishes.
 # Affected cells are sorted independently of dictionary insertion order.
 func rtdx_confirmed_cells(burst:Dictionary,effect_only:bool=false)->Array[Vector2i]:
@@ -8610,13 +8659,7 @@ func rtdx_observed_stage_fx(burst:Dictionary,t:float,used:int)->int:
 			used=environment_particle(used,source+side*float(sign_value)*(.42+progress*.20)+Vector3.UP*.16,"lightning",Color("#ffe94f"),gold,.64,fade)
 	elif id=="eos_114" and t<peak:
 		var head:Vector3=combat_path_sample(points,progress)
-		var travel:Vector3=head-source
-		# Continuous narrow blue core with a tapered tail, instead of rainbow strands.
-		for i in range(12):
-			var f:float=float(i)/11.0
-			var q:Vector3=head-travel*f*.68
-			var width:float=lerpf(.32,.08,f)
-			used=environment_particle(used,q,"drop",Color("#6ad9ff"),Color("#2568ec"),width,1.0-f*.45)
+		used=rtdx_beam_path(used,points,progress*.32,progress,"rtdx_signal_strip",Color("#c2f2ff"),Color("#2568ec"),minf(1.0,t*20.0))
 		used=environment_particle(used,head,"impact_star",Color.WHITE,Color("#75baff"),.54,minf(1.0,t*20.0))
 	elif id=="eos_262" and t<peak:
 		# Dense compact orange flame mass between caster and target.
@@ -8662,9 +8705,7 @@ func rtdx_observed_stage_fx(burst:Dictionary,t:float,used:int)->int:
 		# narrow yellow-white ray along the actual cast path.
 		if t<peak:
 			var head:Vector3=combat_path_sample(points,progress)
-			for i in range(8):
-				var q:Vector3=source.lerp(head,float(i+1)/8.0)
-				used=rtdx_directional_stamp(used,q,"rtdx_solar",Color.WHITE,Color("#ffdf3a"),.90,minf(1.0,progress*10.0),source,target)
+			used=rtdx_beam_path(used,points,0.0,progress,"rtdx_solar",Color.WHITE,Color("#ffdf3a"),minf(1.0,progress*10.0))
 			used=environment_particle(used,head,"rtdx_glint",Color.WHITE,Color("#fff17b"),.78,minf(1.0,progress*12.0))
 		elif after<.55:
 			var cells:Array[Vector2i]=rtdx_confirmed_cells(burst)

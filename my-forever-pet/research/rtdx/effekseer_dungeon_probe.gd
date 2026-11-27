@@ -947,12 +947,12 @@ func run()->void:
 		var observed_burst:Dictionary={"id":move_id,"profile":observed_profile,"points":[special_source,bite_position],"results":{target:{"damage":8}}}
 		for particle in field.combat_particles:particle.hide()
 		var observed_count:int=field.rtdx_observed_stage_fx(observed_burst,observed_peak*.55,0)
-		assert(observed_count==5 if move_id=="eos_530" else observed_count==13)
+		assert(observed_count==5 if move_id=="eos_530" else observed_count==2)
 		if move_id=="eos_530":
 			for i in range(3):
 				assert(field.combat_particles[i].position.is_equal_approx(special_source))
 		else:
-			assert(field.combat_particles[12].position.is_equal_approx(special_source.lerp(bite_position,.55)))
+			assert(field.combat_particles[1].position.is_equal_approx(special_source.lerp(bite_position,.55)))
 		await frames()
 		assert(root.get_texture().get_image().save_png("/tmp/effekseer-review/v15-observed-"+move_id+".png")==OK)
 		observed_burst.results={target:{"misses":1}}
@@ -1062,6 +1062,24 @@ func run()->void:
 		assert(field.rtdx_confirmed_cells(burst,true)==[secondary_tile],move_id)
 	for particle in field.combat_particles:particle.hide()
 	print("KINDRIA_V15_CONTACT_TARGET_CONTRACT_PASS 3")
+	# V15.6: actual continuous segments across long and bent cast paths.
+	var beam_a:Vector3=special_source
+	var beam_b:Vector3=beam_a+Vector3.RIGHT*5.6
+	var beam_c:Vector3=beam_b+Vector3.BACK*2.8
+	var beam_points:Array=[beam_a,beam_b,beam_c]
+	for beam_mode in ["rtdx_solar","rtdx_signal_strip"]:
+		for particle in field.combat_particles:particle.hide()
+		assert(field.rtdx_beam_path(0,beam_points,0.0,1.0,beam_mode,Color.WHITE,Color.BLUE,1.0)==2)
+		assert(field.combat_particles[0].global_position.is_equal_approx(beam_a.lerp(beam_b,.5)))
+		assert(field.combat_particles[1].global_position.is_equal_approx(beam_b.lerp(beam_c,.5)))
+		assert(field.combat_particles[0].texture.get_width()==64)
+		assert(field.combat_particles[0].global_transform.basis.is_finite())
+		assert(field.rtdx_beam_path(0,beam_points,0.0,.5,beam_mode,Color.WHITE,Color.BLUE,1.0)==1)
+		assert(field.combat_particles[0].global_position.is_equal_approx(beam_a+Vector3.RIGHT*2.1))
+		assert(field.rtdx_beam_path(0,beam_points,.5,.5,beam_mode,Color.WHITE,Color.BLUE,1.0)==0)
+		assert(field.rtdx_beam_path(Field.FX_PARTICLE_CAP,beam_points,0.0,1.0,beam_mode,Color.WHITE,Color.BLUE,1.0)==Field.FX_PARTICLE_CAP)
+	for particle in field.combat_particles:particle.hide()
+	print("KINDRIA_V15_CONTINUOUS_BEAM_PASS 2")
 	var plan:Array=[
 		{"stage":"ally_invoke","anchor":"source","start":0.0,"end":.15,"enabled":true},
 		{"stage":"enemy_invoke","anchor":"source","start":0.0,"end":.15,"enabled":true},

@@ -33,3 +33,7 @@ New measure_capture.py uses ffprobe's actual decoded presentation timestamps, an
 ## V15.5 — consistent confirmed targets and additional still
 
 Aurora Veil's archived 800x450 preview loaded: a pale wide veil and white/cyan glints; hail is active, so snow motes may be weather. No exact Kindria equivalent is assigned. Growl and Hyper Beam images failed retrieval again. Hyper Beam file caption names Rayquaza; the screenshot cannot establish the standard-size variant. No real clip timing obtained. Unified confirmed-cell selection for observed FX; Scratch, Peck, and Solar Beam now handle every confirmed damaged cell up to the existing five-target budget, with deterministic ordering and no effects for heal/status-only rows. New probe tests all three.
+
+## V15.6 — continuous beam geometry and new references
+
+Laser Focus and Precipice Blades preview images inspected; recorded visible shapes and caveats in evidence JSON. Neither is assigned an unrelated Kindria move ID. Precipice Blades is flagged indirect capture and shows a giant boss. Growl and Hyper Beam image requests failed. Additional full demo gameplay indexed only. Replaced discrete repeated stamps in Signal Beam and Solar Beam with continuous camera-facing original strips clipped to actual path length, including bends. This is a Kindria rendering correction based on previously observed narrow continuous rays, not a newly measured DX timing. Added long-path and clipped-segment regression tests; no video timing measured. Gameplay untouched.
