@@ -79,6 +79,7 @@ jobs:
           grep -F 'KINDRIA_V13_AUTHORED_FINISH_PASS 147' /tmp/effekseer-review/dungeon-probe.log
           grep -F 'KINDRIA_V13_FULL_COMPOSITOR_PASS 589' /tmp/effekseer-review/dungeon-probe.log
           grep -F 'KINDRIA_V13_CONTACT_PRIORITY_PASS 10' /tmp/effekseer-review/dungeon-probe.log
+          grep -F 'KINDRIA_V13_CONFIRMED_MATERIAL_PASS' /tmp/effekseer-review/dungeon-probe.log
           ! grep -E 'SCRIPT ERROR|Shader compilation failed' /tmp/effekseer-review/dungeon-probe.log
       - uses: actions/upload-artifact@v4
         if: always()
