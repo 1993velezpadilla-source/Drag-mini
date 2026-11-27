@@ -261,6 +261,29 @@ func run_checks()->void:
 		if not is_finite(value) or absf(value)>1.0:failures.append("unbounded camera impulse")
 		if step in [0,100] and absf(value)>.001:failures.append("camera impulse endpoint")
 		checks+=1
+	# Directed contact art is independently visible and kick poses are animated.
+	for id in Dungeon.CONTACT_ICON_KIND:
+		var kind:String=view.directed_contact_kind(id,str(view.combat_profile(id).role))
+		var previous:PackedByteArray=[]
+		for stage in range(3):
+			var image:Image=view.contact_icon_image(kind,stage,Color("#fff1bc"),Color("#926185"))
+			if not image.get_used_rect().has_area():failures.append("empty directed contact: "+str(id))
+			if kind.begins_with("kick") and stage>0 and image.get_data()==previous:failures.append("static kick pose: "+str(id))
+			previous=image.get_data()
+			checks+=1
+	var contact_tile:=Vector2i(1,0)
+	var contact_burst:Dictionary={"duration":.6,"age":.21,"impact_times":[.2,.3,.4],"impact_cursor":1,"impact_waves":[{contact_tile:{"damage":7}},{contact_tile:{"damage":0,"misses":1}},{contact_tile:{"damage":9}}]}
+	var first_contact:=view.contact_wave_sample(contact_burst)
+	if first_contact.is_empty() or int(first_contact.results[contact_tile].damage)!=7:failures.append("first contact wave")
+	contact_burst.age=.31;contact_burst.impact_cursor=2
+	var missed_contact:=view.contact_wave_sample(contact_burst)
+	if missed_contact.is_empty() or int(missed_contact.results[contact_tile].damage)!=0:failures.append("intermediate miss lost")
+	contact_burst.age=.41;contact_burst.impact_cursor=3
+	var last_contact:=view.contact_wave_sample(contact_burst)
+	if last_contact.is_empty() or int(last_contact.results[contact_tile].damage)!=9:failures.append("third contact wave")
+	contact_burst.age=.60
+	if not view.contact_wave_sample(contact_burst).is_empty():failures.append("contact did not expire")
+	checks+=4
 	var home:=Home.new()
 	home.free()
 	view.free()
