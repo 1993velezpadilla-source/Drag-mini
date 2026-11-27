@@ -61,6 +61,9 @@ var fx_arc_segments:int=0
 var player_cast_duration:float=.28
 var player_cast_mode:String="contact"
 var player_impact_delay:float=0.0
+var fx_reactions:Array[Dictionary]=[]
+var fx_ground_shake:float=0.0
+var fx_geometry_count:int=0
 const FX_FRAME_COUNT=12
 const FX_FRAME_SIZE=48
 var combat_fx_root:Node3D
@@ -1567,7 +1570,7 @@ func build_floor():
 	banner_time=1.65;floor_banner.text="B%d  ·  %s"%[run.floor_number,floor_name()];floor_banner.show()
 	floor_banner.size=Vector2(area.size.x,45);floor_banner.position=Vector2(0,area.size.y*.12)
 	var focus=pet.position+Vector3(0,.18,-.48)
-	camera.position=focus+DUNGEON_CAMERA_OFFSET;camera.look_at(focus)
+	camera.position=focus+DUNGEON_CAMERA_OFFSET+Vector3(sin(elapsed*61.0)*fx_ground_shake,0,cos(elapsed*73.0)*fx_ground_shake*.45);camera.look_at(focus)
 	PixelArt.animate_world_sprite(pet_pose,Vector2(facing),false,0.0,"idle",region==1)
 	refresh_actors()
 	floor_build_usec=Time.get_ticks_usec()-start_usec
@@ -1685,7 +1688,7 @@ func update_enemy_pixel(actor:Node3D,dt:float,motion:Vector3)->void:
 	else:sprite.modulate=Color("#ffb5c6") if state=="hurt" else Color.WHITE
 # Lightweight reusable pixel VFX: no per-frame node allocation, no camera-facing 3D creatures.
 func combat_fx_setup(parent:Node3D)->void:
-	combat_particles.clear();combat_warnings.clear();combat_bursts.clear()
+	combat_particles.clear();combat_warnings.clear();combat_bursts.clear();fx_reactions.clear();fx_ground_shake=0.0
 	combat_fx_root=Node3D.new();parent.add_child(combat_fx_root)
 	fx_arc_mesh=ImmediateMesh.new()
 	fx_arc_material=StandardMaterial3D.new()
@@ -1966,7 +1969,7 @@ func arc_segment(a:Vector3,b:Vector3,width:float,col:Color)->void:
 		fx_arc_mesh.surface_set_color(col);fx_arc_mesh.surface_add_vertex(q)
 	fx_arc_segments+=1
 func electric_world_arc(points:Array,t:float,role:String,tiles:Array)->void:
-	var frame:int=int(t*24.0)
+	var frame:int=int(t*36.0)
 	var paths:Array=[]
 	if role=="electric_area":
 		for tile in tiles:
@@ -1983,17 +1986,20 @@ func electric_world_arc(points:Array,t:float,role:String,tiles:Array)->void:
 			var start:Vector3=path[k];var end:Vector3=path[k+1]
 			var last:=start
 			var side:Vector3=(end-start).cross(Vector3.UP).normalized()
-			for j in range(1,7):
-				if fx_arc_segments>=600:return
-				var f:float=float(j)/6.0
+			for j in range(1,10):
+				if fx_arc_segments>=1000:return
+				var f:float=float(j)/9.0
 				var q:=start.lerp(end,f)
-				if j<6:q+=side*float(posmod(j*19+k*7+frame*13,17)-8)*.033+Vector3.UP*float(posmod(j*11+frame*7,11)-5)*.035
+				if j<9:q+=side*float(posmod(j*19+k*7+frame*13,19)-9)*.038+Vector3.UP*float(posmod(j*11+frame*7,17)-8)*.045
 				arc_segment(last,q,.072,Color(.18,.47,1.0,.36))
 				arc_segment(last,q,.035,Color("#4edbff"))
 				arc_segment(last,q,.016,Color("#fffbd3"))
-				if j%3==0 and j<6:
-					var fork:=q+side*(.24 if j%2==0 else -.24)+Vector3.UP*.16
-					arc_segment(q,fork,.023,Color("#65dfff"));arc_segment(q,fork,.009,Color.WHITE)
+				if j%3==0 and j<9:
+					var sign_side:float=1.0 if posmod(j+k+frame,2)==0 else -1.0
+					var fork:=q+side*sign_side*.18+Vector3.UP*.13+(end-start)*.12
+					var tip:=fork+side*sign_side*.16-Vector3.UP*.07+(end-start)*.08
+					arc_segment(q,fork,.021,Color("#65dfff"));arc_segment(q,fork,.009,Color.WHITE)
+					arc_segment(fork,tip,.011,Color("#a8f2ff"))
 				last=q
 # Original synthesis; no game audio is copied. Each move ID, phase and variant
 # determines a distinct waveform. A 12-voice positional pool avoids allocations.
@@ -2070,15 +2076,74 @@ func combat_fx_spawn(event:Dictionary)->void:
 	for cell in event.get("tiles",[target]):tiles.append(pos(cell)+Vector3(0,.12,0))
 	if tiles.is_empty():tiles.append(pos(target)+Vector3(0,.12,0))
 	if combat_bursts.size()>=10:combat_bursts.pop_front()
-	combat_bursts.append({"id":id,"mode":style[0],"profile":profile,"impacted":false,"age":0.0,"duration":float(style[3]),"points":waypoints,"tiles":tiles,"texture":combat_animated_texture(id,0)})
+	combat_bursts.append({"id":id,"mode":style[0],"profile":profile,"target_player":event.get("target_player",false),"damage":event.get("damage",0),"impacted":false,"age":0.0,"duration":float(style[3]),"points":waypoints,"tiles":tiles,"texture":combat_animated_texture(id,0)})
 	play_combat_sound(id,"launch",waypoints[0])
 func combat_path_sample(points:Array,t:float)->Vector3:
 	var index:float=clampf(t,0.0,.9999)*float(points.size()-1)
 	var a:int=floori(index)
 	var start:Vector3=points[a]
 	return start.lerp(points[a+1],index-float(a))
+# World-space anatomy of a lash: one continuous extending/retracting stem, not
+# repeated thumbnail sprites. Leaves and tendrils follow the actual curve.
+func vine_world_lash(points:Array,t:float,profile:Dictionary,id:String)->void:
+	var style:Array=combat_style(id)
+	var light:=Color(style[1]);var dark:=Color(style[2]);var outline:=dark.darkened(.55)
+	var reach:float=clampf(t/.46,0.0,1.0) if t<.62 else clampf((1.0-t)/.38,0.0,1.0)
+	var last:Vector3=points[0]
+	var steps:int=mini(42,maxi(12,points.size()*9))
+	for j in range(1,steps+1):
+		if fx_arc_segments>1000:return
+		var f:float=float(j)/steps
+		var q:=combat_path_sample(points,f*reach)
+		var next:=combat_path_sample(points,minf(1.0,f*reach+.025))
+		var lateral:Vector3=(next-last).cross(Vector3.UP).normalized()
+		q+=lateral*sin(f*TAU*1.2-t*8.0)*.14*f*reach
+		q.y+=sin(f*PI)*.25*reach
+		var width:float=lerpf(.095,.026,f)
+		arc_segment(last,q,width,outline)
+		arc_segment(last,q,width*.70,dark)
+		arc_segment(last+Vector3.UP*.018,q+Vector3.UP*.018,width*.25,light)
+		if j%6==0 and profile.element=="grass":
+			var leaf:=q+lateral*(.16 if j%12==0 else -.16)+Vector3.UP*.10
+			arc_segment(q,leaf,.055,dark);arc_segment(q,leaf,.023,light)
+		last=q
+# Ground cracks stay flush with the tile surface. Debris sprites are independent.
+func quake_world_tiles(tiles:Array,t:float,id:String)->void:
+	var style:Array=combat_style(id)
+	var light:=Color(style[1]);var dark:=Color(style[2])
+	var growth:float=clampf(t*2.0,0.0,1.0)
+	for center_value in tiles:
+		var center:Vector3=center_value
+		center.y=.035
+		for i in range(5):
+			if fx_arc_segments>1000:return
+			var angle:float=float(i)*TAU/5.0+float(posmod(hash(str(center)),17))*.12
+			var direction:=Vector3(cos(angle),0,sin(angle))
+			var bend:=center+direction*.32*growth+Vector3(-direction.z,0,direction.x)*.12*growth
+			var tip:=center+direction*.61*growth
+			arc_segment(center,bend,.047,dark.darkened(.65))
+			arc_segment(bend,tip,.035,dark.darkened(.65))
+			arc_segment(bend+Vector3.UP*.009,tip+Vector3.UP*.009,.011,light)
+func queue_enemy_reaction(actor:Node3D,defeated:bool,delay:float)->void:
+	if not is_instance_valid(actor):return
+	actor.set_meta("pending_impact",true)
+	fx_reactions.append({"actor":actor,"delay":delay,"defeated":defeated})
+func update_combat_reactions(dt:float)->void:
+	for i in range(fx_reactions.size()-1,-1,-1):
+		var reaction:Dictionary=fx_reactions[i]
+		reaction.delay-=dt
+		if float(reaction.delay)>0.0:continue
+		var actor:Node3D=reaction.actor
+		if is_instance_valid(actor):
+			actor.set_meta("pending_impact",false)
+			enemy_pose(actor,"defeat" if reaction.defeated else "hurt",.32 if reaction.defeated else .20)
+			if reaction.defeated:
+				actor.get_node("HP").hide();actor.get_node("Warning").hide()
+		fx_reactions.remove_at(i)
 func combat_fx_update(dt:float)->void:
 	var used:int=0
+	update_combat_reactions(dt)
+	fx_ground_shake=maxf(0.0,fx_ground_shake-dt*3.0)
 	fx_arc_segments=0
 	if is_instance_valid(fx_arc_mesh):fx_arc_mesh.clear_surfaces()
 	var arcs_started:bool=false
@@ -2089,6 +2154,8 @@ func combat_fx_update(dt:float)->void:
 		var profile:Dictionary=burst.profile
 		if not burst.impacted and t>=float(profile.impact):
 			burst.impacted=true;play_combat_sound(str(burst.id),"impact",burst.points[-1])
+			if str(profile.role)=="ground":fx_ground_shake=.22
+			if burst.get("target_player",false) and int(burst.get("damage",0))>0:hit_time=.24
 		if t>=1.0:
 			combat_bursts.remove_at(k);continue
 		var mode:String=burst.mode
@@ -2099,9 +2166,15 @@ func combat_fx_update(dt:float)->void:
 		if str(profile.role).begins_with("electric") and t>.08 and t<.91:
 			if not arcs_started:fx_arc_mesh.surface_begin(Mesh.PRIMITIVE_TRIANGLES,fx_arc_material);arcs_started=true
 			electric_world_arc(points,t,str(profile.role),tiles)
+		elif str(profile.role) in ["lash","ground"] and t>.03:
+			if not arcs_started:fx_arc_mesh.surface_begin(Mesh.PRIMITIVE_TRIANGLES,fx_arc_material);arcs_started=true
+			if profile.role=="lash":vine_world_lash(points,t,profile,str(burst.id))
+			else:quake_world_tiles(tiles,t,str(burst.id))
 		var count:int=mini(26,6+tiles.size()*2) if mode in ["cloud","wave","fan","web","shards","beam"] else 14
 		if mode in ["flame","whip"]:count=22
 		if str(profile.role).begins_with("electric"):count=4
+		if profile.role=="lash":count=3
+		if profile.role=="ground":count=mini(18,tiles.size()*3)
 		for j in range(count):
 			if used>=combat_particles.size():break
 			var particle:=combat_particles[used];used+=1
@@ -2109,23 +2182,27 @@ func combat_fx_update(dt:float)->void:
 			var angle:float=f*TAU+float(j)*2.399
 			var q:Vector3
 			var size:float=.55
-			match mode:
-				"whip","lightning","beam":
+			match str(profile.mode):
+				"vine","whip":
+					q=combat_path_sample(points,minf(1.0,t*2.2));q.y+=.15*sin(angle);size=.22
+				"quake":
+					q=tiles[j%tiles.size()];q+=Vector3(cos(angle)*t*.32,sin(t*PI)*.65,sin(angle)*t*.32);size=.29
+				"lightning","beam","radiant":
 					var reach:float=minf(1.0,t*3.5)
 					q=combat_path_sample(points,f*reach)
 					q.y+=sin(f*PI*4.0-t*14.0)*(.10 if mode=="beam" else .24)
 					size=.48 if mode!="beam" else .78
-				"flame":
+				"flame","fire_stream":
 					var travel:float=clampf(t*1.8-f*.65,0.0,1.0)
 					q=combat_path_sample(points,travel)
 					q+=Vector3(cos(angle)*travel*.20,sin(angle+t*7.0)*travel*.22, sin(angle)*travel*.20)
 					size=.45+travel*.70
-				"dart","bubble","roll","spiral","meteor","leap":
+				"dart","bubble","bubble_beam","roll","spiral","meteor","leap":
 					var travel:float=clampf(t*1.8-f*.5,0.0,1.0)
 					q=combat_path_sample(points,travel)
 					if mode in ["meteor","leap"]:q.y+=sin(travel*PI)*(.85 if mode=="meteor" else .55)
 					if mode=="spiral":q+=Vector3(cos(angle+t*12.0)*.20,sin(angle+t*12.0)*.30,sin(angle+t*12.0)*.20)
-					if mode=="bubble":q.y+=f*.3
+					if str(profile.mode) in ["bubble","bubble_beam"]:q.y+=f*.3
 					size=.9 if j==0 else .40+f*.25
 				"slash":
 					q=points[-1]
@@ -2162,7 +2239,9 @@ func consume_enemy_actions()->void:
 		var direction:=Vector2(event.get("aim",event.to-event.from))
 		match str(event.phase):
 			"attack":
-				enemy_pose(actor,"attack",.28,direction)
+				var profile:=combat_profile(str(event.get("fx","basic_strike")))
+				enemy_pose(actor,"attack",float(profile.duration),direction)
+				event["target_player"]=true
 				combat_fx_spawn(event)
 			"windup":enemy_pose(actor,"windup",.18,direction)
 			"cancel":enemy_pose(actor,"idle",0.0,direction)
@@ -2209,7 +2288,8 @@ func refresh_actors():
 			var bar=shape(root,"box",Vector3(0,height+.015,.012),Vector3(.72,.075,.13),Color("#ee7c83"));bar.name="HP"
 			var marker=shape(root,"ring",Vector3(0,.06,0),Vector3(.74,.12,.74),Color("#ffb25d"));marker.name="Warning"
 		if int(enemy.hp)<int(root.get_meta("enemy_hp",enemy.hp)):
-			enemy_pose(root,"hurt",.16)
+			var profile:=combat_profile(run.player_attack_fx)
+			queue_enemy_reaction(root,false,float(profile.duration)*float(profile.impact))
 		root.set_meta("enemy_hp",int(enemy.hp))
 		var bar=root.get_node("HP") as Node3D
 		bar.scale.x=.72*clampf(float(enemy.hp)/float(enemy.get("max_hp",enemy.hp)),0,1)
@@ -2235,10 +2315,9 @@ func refresh_actors():
 				for enemy in run.enemies:
 					if key=="enemy:"+str(enemy.get("uid",-1)):still_alive=true;break
 				if not still_alive:
-					if str(n.get_meta("enemy_phase"))!="defeat":
-						enemy_pose(n,"defeat",.32)
-						n.get_node("HP").hide()
-						n.get_node("Warning").hide()
+					if str(n.get_meta("enemy_phase"))!="defeat" and not n.get_meta("pending_impact",false):
+						var profile:=combat_profile(run.player_attack_fx)
+						queue_enemy_reaction(n,true,float(profile.duration)*float(profile.impact))
 					continue
 			n.hide();n.queue_free();actor_nodes.erase(key)
 	consume_enemy_actions()
@@ -2305,7 +2384,7 @@ func sync():
 		attack_direction=(pos(run.attack_target)-pos(run.player)).normalized()
 		attack_fx.position=pos(run.attack_target)+Vector3(0,.24,0);attack_fx.show()
 		combat_fx_spawn({"fx":run.player_attack_fx,"from":run.player,"to":run.attack_target,"tiles":run.player_attack_cells,"path":run.player_attack_path})
-	if run.hp<hp_previous:hit_time=.24
+	if run.hp<hp_previous and run.enemy_actions.is_empty():hit_time=.24
 	hp_previous=run.hp
 	if previous_event!=run.event_serial:
 		previous_event=run.event_serial;feedback.text=run.last_event;feedback_time=1.0;feedback.show()

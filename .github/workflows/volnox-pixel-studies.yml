@@ -65,6 +65,7 @@ jobs:
           grep -F VOLNOX_COMBAT_VFX_PASS /tmp/volnox-runtime.log
           grep -F KINDRIA_FX_ATLAS_PASS /tmp/volnox-runtime.log
           grep -F KINDRIA_PREMIUM_FX_PASS /tmp/volnox-runtime.log
+          grep -F KINDRIA_WORLD_LASH_QUAKE_PASS /tmp/volnox-runtime.log
           ! grep -E 'SCRIPT ERROR|Parse Error|SHADER ERROR|Assertion failed' /tmp/volnox-runtime.log
       - uses: actions/upload-artifact@v4
         if: always()
