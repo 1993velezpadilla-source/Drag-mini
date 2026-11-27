@@ -89,6 +89,17 @@ const FX_PARTICLE_CAP=144
 var fx_cast_particle_limit:int=FX_PARTICLE_CAP
 # Android-only automatic presentation budget; never changes simulation clocks.
 var fx_performance_tier:int=0
+# Explicit opt-in; ordinary gameplay never allocates diagnostic samples.
+const FX_DIAG_WINDOW:int=300
+var fx_diag_enabled:bool=false
+var fx_diag_previous_usec:int=0
+var fx_diag_was_active:bool=false
+var fx_diag_intervals:PackedInt64Array=PackedInt64Array()
+var fx_diag_cpu:PackedInt64Array=PackedInt64Array()
+var fx_diag_gaps:int=0
+var fx_diag_peak_casts:int=0
+var fx_diag_peak_particles:int=0
+var fx_diag_peak_tier:int=0
 var fx_frame_average:float=1.0/60.0
 var fx_pressure_age:float=0.0
 var fx_recovery_age:float=0.0
@@ -343,6 +354,7 @@ var biome_light_materials:Array[ShaderMaterial]=[]
 var exterior_motion_materials:Dictionary={}
 var exterior_motion_batches=0
 func setup(r:int,id:int,step:int,finale:bool,patrol:bool,seed_id:int,companion:int,training:Dictionary={}):
+	fx_diag_enabled="--kindria-diagnostics" in OS.get_cmdline_user_args() or FileAccess.file_exists("user://kindria-diagnostics.enabled")
 	region=r;companion_id=0
 	run.setup(r,id,step,finale,patrol,seed_id,0)
 	if not training.is_empty():run.configure_training(training)
@@ -19039,6 +19051,43 @@ func advance_player_combat_clock(dt:float)->void:
 	hit_time=maxf(0.0,hit_time-dt)
 	player_impact_delay=maxf(0.0,player_impact_delay-dt)
 
+# Wall-clock interval percentiles, not the potentially capped simulation delta.
+func fx_diag_stats(samples:PackedInt64Array)->Dictionary:
+	if samples.is_empty():return {}
+	var sorted:=samples.duplicate()
+	sorted.sort()
+	var total:int=0
+	var over_budget:int=0
+	var over_double:int=0
+	for value in sorted:
+		total+=value
+		if value>16667:over_budget+=1
+		if value>33333:over_double+=1
+	return {"samples":sorted.size(),"p50_usec":sorted[ceili(sorted.size()*.50)-1],"p95_usec":sorted[ceili(sorted.size()*.95)-1],"p99_usec":sorted[ceili(sorted.size()*.99)-1],"max_usec":sorted[-1],"mean_usec":float(total)/sorted.size(),"over_60hz_budget":over_budget,"over_30hz_budget":over_double}
+
+func fx_diag_sample(now:int,submit_usec:int,active:bool)->void:
+	var interval:int=now-fx_diag_previous_usec
+	var include_interval:bool=fx_diag_previous_usec>0 and fx_diag_was_active
+	fx_diag_previous_usec=now
+	fx_diag_was_active=active
+	if not include_interval:return
+	if interval<=0 or interval>250000:
+		fx_diag_gaps+=1
+		return
+	fx_diag_intervals.append(interval)
+	fx_diag_cpu.append(maxi(0,submit_usec))
+	fx_diag_peak_casts=maxi(fx_diag_peak_casts,combat_bursts.size())
+	fx_diag_peak_tier=maxi(fx_diag_peak_tier,fx_performance_tier)
+	var visible_count:int=fx_particle_batched_count
+	for particle in combat_particles:
+		if particle.visible:visible_count+=1
+	fx_diag_peak_particles=maxi(fx_diag_peak_particles,visible_count)
+	if fx_diag_intervals.size()<FX_DIAG_WINDOW:return
+	# One bounded summary every 300 combat intervals. No per-frame disk writes.
+	print("KINDRIA_DEVICE_PERF ",JSON.stringify({"os":OS.get_name(),"engine_fps":Engine.get_frames_per_second(),"frame_interval":fx_diag_stats(fx_diag_intervals),"fx_cpu_update":fx_diag_stats(fx_diag_cpu),"excluded_long_gaps":fx_diag_gaps,"peak_casts":fx_diag_peak_casts,"peak_particles":fx_diag_peak_particles,"peak_quality_tier":fx_diag_peak_tier,"static_bytes":OS.get_static_memory_usage(),"video_bytes":Performance.get_monitor(Performance.RENDER_VIDEO_MEM_USED),"draw_calls_snapshot":Performance.get_monitor(Performance.RENDER_TOTAL_DRAW_CALLS_IN_FRAME),"atlas_entries":fx_atlas_cache.size(),"secondary_entries":combat_textures.size()}))
+	fx_diag_intervals.clear();fx_diag_cpu.clear()
+	fx_diag_gaps=0;fx_diag_peak_casts=0;fx_diag_peak_particles=0;fx_diag_peak_tier=0
+
 func _process(dt:float):
 	if notified or not is_instance_valid(pet):return
 	if OS.has_feature("mobile"):update_fx_performance(dt)
@@ -19047,7 +19096,14 @@ func _process(dt:float):
 		hold_age+=dt
 		if hold_age>=.28:show_held_attack()
 		if hold_visible and is_instance_valid(aim_preview):aim_preview.queue_redraw()
-	combat_fx_update(dt)
+	if fx_diag_enabled:
+		var start_usec:int=Time.get_ticks_usec()
+		var was_active:bool=not combat_bursts.is_empty() or not retired_impacts.is_empty() or not delayed_combat_fx.is_empty()
+		combat_fx_update(dt)
+		var submit_usec:int=Time.get_ticks_usec()-start_usec
+		fx_diag_sample(start_usec,submit_usec,was_active or not combat_bursts.is_empty() or not retired_impacts.is_empty())
+	else:
+		combat_fx_update(dt)
 	# Advance existing clocks before path movement can launch a new action.
 	# A cast created by sync() later in this frame starts at age zero.
 	advance_player_combat_clock(dt)
