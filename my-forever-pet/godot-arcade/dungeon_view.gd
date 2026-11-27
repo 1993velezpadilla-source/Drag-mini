@@ -86,6 +86,7 @@ var enemy_shadow_material:StandardMaterial3D
 var enemy_shadow_mesh:QuadMesh
 const COMBAT_FX_STYLES={"basic_strike":["slash","#fff3c9","#e8a25c",0.26],"briar_arc":["leap","#b4e579","#4c8d48",0.42],"spore_cloud":["cloud","#f4d68a","#879b49",0.72],"horn_ram":["leap","#f0d2a0","#a77c44",0.35],"leaf_dart":["dart","#b7ed7b","#438b45",0.42],"tusk_sweep":["slash","#f9e0ba","#aa744e",0.35],"vine_snap":["whip","#bfe874","#3f8e4b",0.54],"rolling_moss":["roll","#bdcb82","#536b45",0.5],"feather_fan":["fan","#fff1c3","#b5a773",0.48],"antler_arc":["slash","#e4c89e","#a58454",0.4],"timber_shock":["wave","#ecba69","#8d6842",0.62],"royal_spores":["cloud","#ffdca5","#ca79a3",0.78],"reef_bite":["slash","#d2f5ef","#5ba8b2",0.3],"jelly_pulse":["wave","#b8f8ff","#9c7ce0",0.48],"shell_impact":["wave","#d1e8a4","#739a77",0.44],"bubble_burst":["bubble","#c7fbff","#50b7dc",0.64],"electric_lash":["lightning","#e8fbff","#4b9af8",0.42],"double_pincer":["slash","#ffe2a5","#ef826f",0.36],"tentacle_snare":["whip","#ffd3ea","#bd648c",0.6],"fin_slice":["dart","#dbf4f5","#6ca9db",0.43],"spiral_current":["spiral","#d8fff0","#56b6b8",0.52],"abyss_grasp":["whip","#f9b9ee","#8458b3",0.62],"tidal_jaws":["wave","#e9f7ff","#4287bb",0.55],"star_kick":["slash","#f5e8ff","#a29cf0",0.3],"lunar_dust":["cloud","#eee8ff","#b7a2ed",0.64],"prism_shatter":["shards","#effaff","#7cb9ff",0.55],"nova_bolt":["flame","#fff2a0","#ff784a",0.62],"orbit_lash":["spiral","#dfd0ff","#9663ee",0.52],"comet_drop":["leap","#fff1bb","#e1a3ff",0.48],"gravity_web":["web","#e4d7ff","#9f71e8",0.64],"sonic_cone":["fan","#f9d7ff","#a66be6",0.48],"moon_claw":["slash","#eee5ff","#a58bdc",0.38],"meteor_fist":["meteor","#fff0ba","#ff8d55",0.62],"celestial_verdict":["beam","#fff6d0","#d99bff",0.66]}
 const FX_PARTICLE_CAP=144
+var fx_cast_particle_limit:int=FX_PARTICLE_CAP
 const LIVING_PARTICLE_CAP=64
 const FX_WARNING_CAP=80
 var combat_particles:Array[Sprite3D]=[]
@@ -5889,6 +5890,11 @@ func latest_player_impact(current:Dictionary,burst:Dictionary)->Dictionary:
 	direction.y=0.0
 	return {"age":age,"direction":direction}
 
+# Fair streaming allocation: unused slots flow to the remaining casts.
+# Only the visual pool is shared; damage, impacts and sound never wait.
+func cast_particle_quota(used:int,capacity:int,remaining:int)->int:
+	return maxi(0,capacity-used)/maxi(1,remaining)
+
 func combat_fx_update(dt:float)->void:
 	update_cast_text(dt)
 	var latest_hit:Dictionary={}
@@ -5903,6 +5909,16 @@ func combat_fx_update(dt:float)->void:
 	fx_arc_segments=0
 	if is_instance_valid(fx_arc_mesh):fx_arc_mesh.clear_surfaces()
 	var arcs_started:bool=false
+	var remaining_casts:int=0
+	for pending in combat_bursts:
+		if float(pending.age)+dt<float(pending.duration):remaining_casts+=1
+	var crowded:bool=remaining_casts>1
+	# A crowded frame keeps slots for real hit reactions and charging.
+	var reserve:int=24 if crowded else 0
+	if run!=null and not run.charge_phase.is_empty():reserve=maxi(reserve,12)
+	if not fx_reaction_sparks.is_empty():reserve=maxi(reserve,16)
+	var cast_capacity:int=FX_PARTICLE_CAP-reserve
+	fx_cast_particle_limit=FX_PARTICLE_CAP
 	for k in range(combat_bursts.size()-1,-1,-1):
 		var burst:Dictionary=combat_bursts[k]
 		burst.age+=dt
@@ -5917,6 +5933,9 @@ func combat_fx_update(dt:float)->void:
 				latest_hit=latest_player_impact(latest_hit,burst)
 		if t>=1.0:
 			combat_bursts.remove_at(k);continue
+		var share:int=cast_particle_quota(used,cast_capacity,remaining_casts)
+		remaining_casts=maxi(0,remaining_casts-1)
+		fx_cast_particle_limit=used+share
 		cinematic_cast_enhancement(burst,t)
 		ultra_attack_ribbons(burst,t)
 		var mode:String=burst.mode
@@ -5941,8 +5960,10 @@ func combat_fx_update(dt:float)->void:
 		if str(profile.role).begins_with("electric"):count=4
 		if profile.role=="lash":count=3
 		if profile.role=="ground":count=mini(18,tiles.size()*3)
+		# Keep elemental contact accents visible when the base spray is large.
+		if crowded:count=mini(count,maxi(1,share*2/3))
 		for j in range(count):
-			if used>=FX_PARTICLE_CAP:break
+			if used>=fx_cast_particle_limit:break
 			var particle:=combat_particles[used];used+=1
 			var f:float=float(j)/maxi(1,count-1)
 			var angle:float=f*TAU+float(j)*2.399
@@ -6360,9 +6381,15 @@ func combat_fx_update(dt:float)->void:
 			particle.scale=Vector3.ONE*size*(1.0-t*.38)*.40
 			particle.modulate=Color(1,1,1,clampf((1.0-t)*3.5,0.0,1.0))
 			particle.show()
-		used=travel_environment_fx(burst,t,used)
-		used=authored_stage_fx(burst,t,used)
-		used=element_finish_fx(burst,t,used)
+		if crowded and t>=float(profile.impact):
+			used=element_finish_fx(burst,t,used)
+			used=authored_stage_fx(burst,t,used)
+			used=travel_environment_fx(burst,t,used)
+		else:
+			used=travel_environment_fx(burst,t,used)
+			used=authored_stage_fx(burst,t,used)
+			used=element_finish_fx(burst,t,used)
+	fx_cast_particle_limit=FX_PARTICLE_CAP
 	if run!=null and not run.charge_phase.is_empty():used=charge_environment_fx(used)
 	if not latest_hit.is_empty() and is_instance_valid(pet):
 		queue_ultra_reaction(pet.global_position+Vector3.UP*.54,latest_hit.direction,false)
@@ -6383,7 +6410,7 @@ func combat_fx_update(dt:float)->void:
 # Secondary environmental layers use the existing bounded pool, not new nodes
 # per cast. Ground rings remain aligned to the floor while debris billboards.
 func environment_particle(index:int,position:Vector3,mode:String,light:Color,dark:Color,scale_value:float,alpha:float,flat:bool=false,status_layer:bool=false)->int:
-	if index>=mini(combat_particles.size(),FX_PARTICLE_CAP+LIVING_PARTICLE_CAP if status_layer else FX_PARTICLE_CAP):return index
+	if index>=mini(combat_particles.size(),FX_PARTICLE_CAP+LIVING_PARTICLE_CAP if status_layer else fx_cast_particle_limit):return index
 	var particle:Sprite3D=combat_particles[index]
 	var billboard_mode:int=BaseMaterial3D.BILLBOARD_DISABLED if flat else BaseMaterial3D.BILLBOARD_ENABLED
 	if particle.billboard!=billboard_mode:particle.billboard=billboard_mode
@@ -7408,7 +7435,7 @@ func authored_stage_fx(burst:Dictionary,t:float,used:int)->int:
 	var after:float=clampf((t-peak)/maxf(.01,1.0-peak),0.0,1.0)
 	var opacity:float=minf(t*12.0,1.0-after)
 	for i in range(count):
-		if used>=FX_PARTICLE_CAP:break
+		if used>=fx_cast_particle_limit:break
 		var f:float=float(i)/maxi(1,count-1)
 		var angle:float=f*TAU
 		var p:float=clampf(progress-f*.23,0.0,1.0)
