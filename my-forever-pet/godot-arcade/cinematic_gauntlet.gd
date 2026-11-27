@@ -874,6 +874,43 @@ func run_checks()->void:
 			status_signatures[signature]=true
 			if view.combat_status_sound(phase,variant)!=audio:failures.append("V19.9 status cache "+kind)
 			checks+=3
+	# V20.0 mastering: bounded source peaks and conservative admission under load.
+	var mastered:=PackedByteArray()
+	mastered.resize(1024)
+	for i in range(512):
+		mastered.encode_s16(i*2,roundi(25000.0+7000.0*sin(float(i)*.7)))
+	var master_peak:float=view.combat_audio_master_pcm(mastered)
+	var measured_peak:float=0.0
+	for i in range(512):
+		measured_peak=maxf(measured_peak,float(absi(mastered.decode_s16(i*2)))/32767.0)
+	if absf(master_peak-measured_peak)>.0001 or master_peak>Dungeon.FX_AUDIO_PEAK_LIMIT+.0001 or master_peak<.01:failures.append("V20.0 mastered peak")
+	if mastered.decode_s16(0)!=0 or mastered.decode_s16(mastered.size()-2)!=0:failures.append("V20.0 mastered endpoints")
+	checks+=2
+	for priority in range(4):
+		for step in range(71):
+			var occupied:float=float(step)/100.0
+			for peak in [.08,.25,.78]:
+				var admitted:float=view.combat_audio_admission_db(peak,-8.0,occupied,priority)
+				var ceiling:float=[.34,.46,.58,.70][priority]
+				if not is_finite(admitted) or admitted> -7.9999:failures.append("V20.0 invalid admission")
+				if occupied<ceiling and admitted> -40.0 and occupied+peak*db_to_linear(admitted)>ceiling+.0001:failures.append("V20.0 peak budget")
+				if occupied>=ceiling and admitted> -40.0:failures.append("V20.0 over-admission")
+				checks+=3
+	var low_spatial:Vector2=view.combat_audio_spatial_profile(0)
+	var high_spatial:Vector2=view.combat_audio_spatial_profile(3)
+	if low_spatial.x>=high_spatial.x or low_spatial.y>=high_spatial.y:failures.append("V20.0 spatial priority")
+	if view.combat_audio_admission_db(.5,-8.0,.58,3)<=view.combat_audio_admission_db(.5,-8.0,.58,0):failures.append("V20.0 critical headroom")
+	checks+=2
+	view.fx_audio_cache.clear()
+	var lru_bytes:=PackedByteArray()
+	lru_bytes.resize(128)
+	for i in range(Dungeon.FX_AUDIO_CACHE_CAP):
+		view.combat_audio_store("lru_"+str(i),lru_bytes.duplicate(),22050)
+	var retained:AudioStreamWAV=view.combat_audio_cached("lru_0")
+	view.combat_audio_store("lru_new",lru_bytes.duplicate(),22050)
+	if retained==null or not view.fx_audio_cache.has("lru_0") or view.fx_audio_cache.has("lru_1") or view.fx_audio_cache.size()!=Dungeon.FX_AUDIO_CACHE_CAP:failures.append("V20.0 LRU eviction")
+	view.fx_audio_cache.clear()
+	checks+=1
 	# Full catalog: actual frame bytes, audio buffers, and pooled world FX.
 	# A duplicate sequence or sparse animation is a review candidate, not proof
 	# of poor visual quality. Preserve exact IDs in the downloadable CI report.
