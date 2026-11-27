@@ -15012,6 +15012,7 @@ func combat_environment_sound(phase:String,variant:int)->AudioStreamWAV:
 func dispatch_environment_audio(burst:Dictionary)->void:
 	var cues:Array=burst.get("environment_audio",[])
 	var cursor:int=int(burst.get("environment_audio_cursor",0))
+	if cursor>=cues.size() and burst.has("environment_audio_cursor"):return
 	var profile:Dictionary=burst.profile
 	var duration:float=float(burst.duration)
 	var points:Array=burst.points
@@ -15667,17 +15668,28 @@ func delayed_cast_can_replay(duration:float,age:float,dt:float,body_remaining:fl
 	# Compare the previous animation against the actual launch instant, not the end of the frame.
 	return age<duration and body_remaining<=maxf(0.0,dt-age)+.0001
 
-func update_delayed_combat_fx(dt:float)->void:
-	if delayed_combat_fx.is_empty():return
+# Compact pending casts once rather than shifting the queue on every expiry.
+# The bounded due list is chronological, with FIFO for identical launch times.
+func collect_due_combat_casts(dt:float)->void:
 	fx_due_delayed_casts.clear()
-	var due:Array[Dictionary]=fx_due_delayed_casts
-	for i in range(delayed_combat_fx.size()-1,-1,-1):
-		var item:Dictionary=delayed_combat_fx[i]
+	var write_index:int=0
+	for read_index in range(delayed_combat_fx.size()):
+		var item:Dictionary=delayed_combat_fx[read_index]
 		item.delay-=dt
 		if float(item.delay)<=0.0:
-			due.append(item);delayed_combat_fx.remove_at(i)
-	due.sort_custom(func(a:Dictionary,b:Dictionary)->bool:return float(a.delay)<float(b.delay))
-	for item in due:
+			var insert_at:int=fx_due_delayed_casts.size()
+			while insert_at>0 and float(fx_due_delayed_casts[insert_at-1].delay)>float(item.delay):
+				insert_at-=1
+			fx_due_delayed_casts.insert(insert_at,item)
+		else:
+			if write_index!=read_index:delayed_combat_fx[write_index]=item
+			write_index+=1
+	delayed_combat_fx.resize(write_index)
+
+func update_delayed_combat_fx(dt:float)->void:
+	if delayed_combat_fx.is_empty():return
+	collect_due_combat_casts(dt)
+	for item in fx_due_delayed_casts:
 		# This frame's elapsed fraction is applied once, not twice.
 		if not is_instance_valid(combat_fx_root):continue
 		var age:float=maxf(0.0,-float(item.delay))
