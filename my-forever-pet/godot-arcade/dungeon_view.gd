@@ -117,6 +117,10 @@ var combat_texture_order:Array[String]=[]
 const FX_ANIMATED_CACHE_CAP=384
 var fx_animated_cache:Dictionary={}
 var fx_animated_order:Array[String]=[]
+var fx_frame_builds:int=0
+var fx_secondary_builds:int=0
+var fx_arc_had_geometry:bool=false
+var fx_trail_had_geometry:bool=false
 var fx_arc_mesh:ImmediateMesh
 var fx_arc_material:StandardMaterial3D
 var fx_audio:Array[AudioStreamPlayer3D]=[]
@@ -2454,6 +2458,7 @@ func combat_fx_setup(parent:Node3D)->void:
 	fx_arc_material.transparency=BaseMaterial3D.TRANSPARENCY_ALPHA
 	fx_arc_material.cull_mode=BaseMaterial3D.CULL_DISABLED
 	var arc_node:=MeshInstance3D.new();arc_node.mesh=fx_arc_mesh;arc_node.cast_shadow=GeometryInstance3D.SHADOW_CASTING_SETTING_OFF;combat_fx_root.add_child(arc_node)
+	fx_arc_had_geometry=false;fx_trail_had_geometry=false
 	fx_audio.clear();fx_audio_cursor=0
 	combat_audio_pack_init()
 	for i in range(12):
@@ -3310,6 +3315,7 @@ func particle_material_pixel(family:int,v:Vector2,inner:bool,light:Color,dark:Co
 # Visible Sprite3D nodes retain references even when a cache key is evicted.
 func cache_combat_particle(key:String,texture:ImageTexture)->void:
 	if combat_textures.has(key):return
+	fx_secondary_builds+=1
 	if combat_texture_order.size()>=FX_SECONDARY_TEXTURE_CAP:
 		combat_textures.erase(combat_texture_order.pop_front())
 	combat_textures[key]=texture
@@ -3317,7 +3323,11 @@ func cache_combat_particle(key:String,texture:ImageTexture)->void:
 
 func combat_pixel_texture(mode:String,light:Color,dark:Color)->ImageTexture:
 	var key:=mode+str(light)+str(dark)
-	if combat_textures.has(key):return combat_textures[key]
+	if combat_textures.has(key):
+		if not combat_texture_order.is_empty() and combat_texture_order[-1]!=key:
+			combat_texture_order.erase(key)
+			combat_texture_order.append(key)
+		return combat_textures[key]
 	if mode.begins_with("contact:"):
 		var parts:=mode.split(":")
 		var icon:=ImageTexture.create_from_image(contact_icon_image(parts[1],int(parts[2]),light,dark))
@@ -13487,10 +13497,15 @@ func combat_base_frame_image(id:String,frame:int)->Image:
 func combat_animated_texture(id:String,frame:int)->ImageTexture:
 	var normalized:int=posmod(frame,FX_FRAME_COUNT)
 	var key:="animated:"+id+":"+str(normalized)
-	if fx_animated_cache.has(key):return fx_animated_cache[key] as ImageTexture
-	# FIFO eviction only on misses; sprites retain their own reference while visible.
+	if fx_animated_cache.has(key):
+		if not fx_animated_order.is_empty() and fx_animated_order[-1]!=key:
+			fx_animated_order.erase(key)
+			fx_animated_order.append(key)
+		return fx_animated_cache[key] as ImageTexture
+	# LRU eviction; active casts retain their own exact frame reference.
 	if fx_animated_order.size()>=FX_ANIMATED_CACHE_CAP:
 		fx_animated_cache.erase(fx_animated_order.pop_front())
+	fx_frame_builds+=1
 	var texture:=ImageTexture.create_from_image(combat_frame_image(id,normalized))
 	fx_animated_cache[key]=texture
 	fx_animated_order.append(key)
@@ -15081,7 +15096,7 @@ func combat_fx_spawn(event:Dictionary,launch_age:float=0.0)->void:
 	if tiles.is_empty():tiles.append(pos(target)+Vector3(0,.12,0))
 	if combat_bursts.size()>=COMBAT_BURST_CAP:
 		retire_combat_burst(combat_bursts.pop_front())
-	combat_bursts.append({"id":id,"mode":style[0],"profile":profile,"target_player":event.get("target_player",false),"damage":event.get("damage",0),"impacted":false,"age":0.0,"duration":float(style[3]),"points":waypoints,"tiles":tiles,"texture":combat_animated_texture(id,0),"airborne_start":not event.has("uid") and release_charge_phase=="airborne","results":event.get("results",{}).duplicate(true)})
+	combat_bursts.append({"id":id,"mode":style[0],"profile":profile,"target_player":event.get("target_player",false),"damage":event.get("damage",0),"impacted":false,"age":0.0,"duration":float(style[3]),"points":waypoints,"tiles":tiles,"texture":combat_animated_texture(id,0),"cached_frame":0,"airborne_start":not event.has("uid") and release_charge_phase=="airborne","results":event.get("results",{}).duplicate(true)})
 	var burst:Dictionary=combat_bursts[-1]
 	burst["impact_waves"]=cast_impact_waves(burst.results)
 	burst["impact_times"]=reaction_times(float(burst.duration),float(profile.impact),burst.impact_waves.size())
@@ -15545,13 +15560,15 @@ func combat_fx_update(dt:float)->void:
 	var used:int=0
 	fx_lights_used=0;fx_halos_used=0;fx_light_scores.clear()
 	fx_trail_vertices=0;fx_trail_started=false
-	if is_instance_valid(fx_trail_mesh):fx_trail_mesh.clear_surfaces()
+	if fx_trail_had_geometry and is_instance_valid(fx_trail_mesh):fx_trail_mesh.clear_surfaces()
+	fx_trail_had_geometry=false
 	update_combat_reactions(dt)
 	fx_ground_shake=maxf(0.0,fx_ground_shake-dt*3.0)
 	fx_contact_camera_age=minf(1.0,fx_contact_camera_age+dt)
 	latest_hit=update_retired_impacts(dt)
 	fx_arc_segments=0
-	if is_instance_valid(fx_arc_mesh):fx_arc_mesh.clear_surfaces()
+	if fx_arc_had_geometry and is_instance_valid(fx_arc_mesh):fx_arc_mesh.clear_surfaces()
+	fx_arc_had_geometry=false
 	var arcs_started:bool=false
 	var remaining_casts:int=0
 	for pending in combat_bursts:
@@ -16046,13 +16063,13 @@ func combat_fx_update(dt:float)->void:
 		queue_ultra_reaction(pet.global_position+Vector3.UP*.54,latest_hit.direction,false,float(latest_hit.age))
 	used=ultra_reaction_particles(dt,used)
 	used=ultra_update_residues(dt,used)
-	if fx_trail_started:fx_trail_mesh.surface_end()
+	if fx_trail_started:fx_trail_mesh.surface_end();fx_trail_had_geometry=true
 	living_status_fx()
 	if not latest_hit.is_empty():
 		# The player clock advances once after this method, so compensate for that frame.
 		hit_time=.24+dt-float(latest_hit.age)
 		player_hit_direction=latest_hit.direction
-	if arcs_started:fx_arc_mesh.surface_end()
+	if arcs_started:fx_arc_mesh.surface_end();fx_arc_had_geometry=true
 	for j in range(used,mini(FX_PARTICLE_CAP,combat_particles.size())):combat_particles[j].hide()
 	for j in range(fx_lights_used,fx_lights.size()):
 		if fx_lights[j].visible:fx_lights[j].hide()
@@ -16072,7 +16089,7 @@ func environment_particle(index:int,position:Vector3,mode:String,light:Color,dar
 	if particle.texture!=texture:particle.texture=texture
 	particle.scale=Vector3.ONE*scale_value
 	particle.modulate=Color(1,1,1,clampf(alpha,0.0,1.0))
-	particle.show()
+	if not particle.visible:particle.show()
 	return index+1
 
 # Persistent ailments are driven by rule state, never by a cast's remaining lifetime.
