@@ -5424,17 +5424,48 @@ func response_cast_available_at()->float:
 		cursor=maxf(cursor,float(pending.delay)+duration+.04)
 	return cursor
 
-func response_fx_plan(events:Array,start:float,body_available:float=0.0,cast_budget:int=DELAYED_COMBAT_FX_CAP)->Array[Dictionary]:
+# Reserve deferred counter slots in simulation serial order, independent of actor traversal.
+func global_counter_slots(responses:Dictionary,immediate_serial:int,start:float,budget:int)->Dictionary:
+	var candidates:Array[Dictionary]=[]
+	for uid in responses:
+		var gap:float=0.0
+		for event in responses[uid].get("events",[]):
+			var serial:int=int(event.get("cast_serial",-1))
+			if str(event.get("source",""))=="sleep_counter" and serial>=0 and event.has("from") and event.has("to") and not str(event.get("move_id","")).is_empty():
+				if serial==immediate_serial:continue
+				candidates.append({"serial":serial,"id":str(event.move_id),"gap":gap})
+				gap=0.0
+			else:gap+=.12
+	candidates.sort_custom(func(a:Dictionary,b:Dictionary)->bool:return int(a.serial)<int(b.serial))
+	var slots:Dictionary={}
+	var cursor:float=maxf(0.0,start)
+	for item in candidates:
+		if slots.has(item.serial):continue
+		if budget<=0:
+			slots[item.serial]=-1.0
+			continue
+		budget-=1
+		cursor+=float(item.gap)
+		slots[item.serial]=cursor
+		cursor+=float(combat_profile(str(item.id)).duration)+.04
+	return slots
+
+var response_slots:Dictionary={}
+
+func response_fx_plan(events:Array,start:float,body_available:float=0.0,cast_budget:int=DELAYED_COMBAT_FX_CAP,slots:Dictionary={})->Array[Dictionary]:
 	var result:Array[Dictionary]=[]
 	var cursor:float=maxf(0.0,start)
 	for event in events:
 		var item:Dictionary={"hit":cursor,"launch":-1.0,"event":{}}
 		var id:String=str(event.get("move_id",""))
-		if cast_budget>0 and str(event.get("source",""))=="sleep_counter" and not id.is_empty() and event.has("from") and event.has("to"):
+		var serial:int=int(event.get("cast_serial",-1))
+		var reserved:bool=slots.has(serial)
+		var slot:float=float(slots.get(serial,-1.0))
+		if (slot>=0.0 if reserved else cast_budget>0) and str(event.get("source",""))=="sleep_counter" and not id.is_empty() and event.has("from") and event.has("to"):
 			cast_budget-=1
 			var profile:=combat_profile(id)
 			var duration:float=float(profile.duration)
-			cursor=maxf(cursor,body_available)
+			cursor=maxf(cursor,slot if reserved else body_available)
 			item.launch=cursor
 			item.hit=cursor+duration*float(profile.impact)
 			item.event={"fx":id,"from":event.from,"to":event.to,"tiles":[event.to],"path":event.get("path",[event.to])}
@@ -5469,7 +5500,7 @@ func queue_observed_enemy_damage(actor:Node3D,uid:int,tile:Vector2i,defeated:boo
 			queue_enemy_reaction(actor,defeated,float(spec.delay),Vector3(spec.direction),float(spec.span),int(spec.count))
 			return
 	var secondary_delay:float=float(spec.delay)+float(spec.span)+.04 if linked else 0.0
-	var plan:Array[Dictionary]=response_fx_plan(events if not events.is_empty() else [{}],secondary_delay,response_cast_available_at(),maxi(0,DELAYED_COMBAT_FX_CAP-delayed_combat_fx.size()))
+	var plan:Array[Dictionary]=response_fx_plan(events if not events.is_empty() else [{}],secondary_delay,response_cast_available_at(),maxi(0,DELAYED_COMBAT_FX_CAP-delayed_combat_fx.size()),response_slots)
 	# Reserve effects in chronological order before enqueuing the reactions in reverse.
 	# Overflow uses reaction-only timing, not an impact scheduled for a nonexistent effect.
 	for item in plan:
@@ -5485,6 +5516,10 @@ func queue_observed_enemy_damage(actor:Node3D,uid:int,tile:Vector2i,defeated:boo
 	if linked:queue_enemy_reaction(actor,false,float(spec.delay),Vector3(spec.direction),float(spec.span),int(spec.count))
 
 func refresh_actors():
+	response_slots.clear()
+	if run.visual_turn_damage_turn==run.turns and (enemy_event_floor!=run.floor_revision or enemy_event_turn!=run.turns):
+		var immediate_serial:int=run.attack_serial if run.attack_serial!=previous_attack and run.visual_response_cast_serial==run.attack_serial else -1
+		response_slots=global_counter_slots(run.visual_turn_damage,immediate_serial,response_cast_available_at()+.04,maxi(0,DELAYED_COMBAT_FX_CAP-delayed_combat_fx.size()))
 	for key in actor_nodes.keys():
 		if not is_instance_valid(actor_nodes[key]) or actor_nodes[key].is_queued_for_deletion():actor_nodes.erase(key)
 	var desired:Dictionary={}
