@@ -936,6 +936,32 @@ func run_checks()->void:
 	if retained==null or not view.fx_audio_cache.has("lru_0") or view.fx_audio_cache.has("lru_1") or view.fx_audio_cache.size()!=Dungeon.FX_AUDIO_CACHE_CAP:failures.append("V20.0 LRU eviction")
 	view.fx_audio_cache.clear()
 	checks+=1
+	# V20.2 sub-frame synchronization across several mobile frame rates.
+	for hz in [15,20,30,60,90,120]:
+		var dt:float=1.0/float(hz)
+		for step in range(101):
+			var age:float=dt*float(step)/100.0
+			var fresh_age:float=view.combat_visual_age(age,dt,true)
+			var next_age:float=view.combat_visual_age(fresh_age,dt,false)
+			if absf(fresh_age-age)>.000001 or absf(next_age-age-dt)>.000001:failures.append("V20.2 visual clock")
+			if absf(view.combat_ground_shake_at_age(age)-maxf(0.0,.22-age*3.0))>.000001:failures.append("V20.2 aged shake")
+			checks+=2
+	var av_origin:=Vector3(0,.5,0)
+	var av_wave:Dictionary={Vector2i.ZERO:{"effects":1},Vector2i(1,0):{"damage":5},Vector2i(2,0):{"damage":3,"crit":1}}
+	if not view.combat_wave_audio_target(av_wave,av_origin).is_equal_approx(Vector3(2.8,.5,0)):failures.append("V20.2 critical audio location")
+	av_wave.erase(Vector2i(2,0))
+	if not view.combat_wave_audio_target(av_wave,av_origin).is_equal_approx(Vector3(1.4,.5,0)):failures.append("V20.2 damaging audio location")
+	av_wave.erase(Vector2i(1,0))
+	if not view.combat_wave_audio_target(av_wave,av_origin).is_equal_approx(av_origin):failures.append("V20.2 status audio location")
+	if not view.combat_wave_audio_target({Vector2i(3,0):{"misses":1}},av_origin).is_equal_approx(av_origin):failures.append("V20.2 miss audio location")
+	checks+=4
+	view.fx_reaction_sparks.clear()
+	view.queue_ultra_reaction(Vector3.ZERO,Vector3.FORWARD,false,.12)
+	if view.fx_reaction_sparks.size()!=1 or absf(float(view.fx_reaction_sparks[0].age)-.12)>.000001 or not bool(view.fx_reaction_sparks[0].fresh):failures.append("V20.2 reaction initial age")
+	view.queue_ultra_reaction(Vector3.ZERO,Vector3.FORWARD,false,.25)
+	if view.fx_reaction_sparks.size()!=1:failures.append("V20.2 expired reaction")
+	view.fx_reaction_sparks.clear()
+	checks+=2
 	# Full catalog: actual frame bytes, audio buffers, and pooled world FX.
 	# A duplicate sequence or sparse animation is a review candidate, not proof
 	# of poor visual quality. Preserve exact IDs in the downloadable CI report.
