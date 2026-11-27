@@ -6,7 +6,17 @@ signal ended(success:bool,completed:int,elapsed:float)
 signal canceled
 var run=Rules.new()
 # Internal combat laboratory. No developer controls are instantiated in public release builds.
-const DEV_PAGE_SIZE:int=6
+const DEV_PAGE_SIZE:int=4
+var dungeon_footer:PanelContainer
+var hold_info:RichTextLabel
+var hold_action:Callable
+var hold_move:Dictionary={}
+var hold_origin:Vector2
+var hold_active:bool=false
+var hold_visible:bool=false
+var hold_age:float=0.0
+var hold_is_dev:bool=false
+var aim_preview:Control
 var dev_settings_panel:PanelContainer
 var dev_panel:PanelContainer
 var dev_bubble:PanelContainer
@@ -282,9 +292,6 @@ func lab_layout()->void:
 	if is_instance_valid(dev_settings_panel):
 		dev_settings_panel.position=Vector2(maxf(4,size.x-220),74)
 		dev_settings_panel.size=Vector2(214,0)
-	if is_instance_valid(dev_panel):
-		dev_panel.size.x=minf(480,maxf(260,size.x-12))
-		dev_panel.position=Vector2(clampf(dev_panel.position.x,4,maxf(4,size.x-dev_panel.size.x-4)),clampf(dev_panel.position.y,4,maxf(4,size.y-dev_panel.size.y-4)))
 	if is_instance_valid(dev_bubble):
 		dev_bubble.position=Vector2(clampf(dev_bubble.position.x,0,maxf(0,size.x-dev_bubble.size.x)),clampf(dev_bubble.position.y,0,maxf(0,size.y-dev_bubble.size.y)))
 
@@ -293,7 +300,7 @@ func lab_open()->void:
 	path.clear()
 	dev_settings_panel.hide()
 	if not is_instance_valid(dev_panel):lab_build_panel()
-	dev_bubble.hide();dev_panel.show()
+	dev_bubble.hide();dungeon_footer.hide();dev_panel.show()
 	lab_layout();update_hud()
 
 func lab_build_catalog()->void:
@@ -314,13 +321,13 @@ func lab_build_panel()->void:
 	lab_build_catalog()
 	dev_panel=PanelContainer.new()
 	dev_panel.add_theme_stylebox_override("panel",style(Color("#10232df5"),Color("#91cbb5"),16))
-	add_child(dev_panel);dev_panel.z_index=24
-	dev_panel.position=Vector2(8,92)
+	hud_base.add_child(dev_panel)
+	hud_base.move_child(dev_panel,dungeon_footer.get_index())
 	var stack:=VBoxContainer.new();stack.add_theme_constant_override("separation",5);dev_panel.add_child(stack)
 	var header:=HBoxContainer.new();stack.add_child(header)
 	var heading:=label(header,"DEV · Combat Lab",20,Color("#aff3ce"));heading.size_flags_horizontal=SIZE_EXPAND_FILL
 	var minimize:=lab_button(header,"−",lab_minimize);minimize.size_flags_horizontal=SIZE_SHRINK_END;minimize.custom_minimum_size.x=48;minimize.tooltip_text="Minimize to floating DEV bubble"
-	var subtitle:=label(stack,"SANDBOX · Endless floors · HP / PP / items ∞",13,Color("#a8c6c9"));subtitle.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART
+	heading.text="DEV · Combat Lab  ∞"
 	dev_search=LineEdit.new();dev_search.placeholder_text="Search move name, reference or ID";dev_search.custom_minimum_size.y=36;stack.add_child(dev_search)
 	dev_search.text_changed.connect(func(_value:String):dev_page=0;lab_refresh())
 	var filters:=HBoxContainer.new();stack.add_child(filters)
@@ -340,14 +347,15 @@ func lab_build_panel()->void:
 	dev_prev=lab_button(pager,"‹ Prev",func():dev_page-=1;lab_refresh())
 	dev_page_label=label(pager,"",14,Color("#d2e8e3"));dev_page_label.size_flags_horizontal=SIZE_EXPAND_FILL;dev_page_label.horizontal_alignment=HORIZONTAL_ALIGNMENT_CENTER;dev_page_label.vertical_alignment=VERTICAL_ALIGNMENT_CENTER
 	dev_next=lab_button(pager,"Next ›",func():dev_page+=1;lab_refresh())
-	dev_detail=RichTextLabel.new();dev_detail.custom_minimum_size.y=112;dev_detail.scroll_active=true;dev_detail.bbcode_enabled=false;dev_detail.add_theme_font_size_override("normal_font_size",14);stack.add_child(dev_detail)
-	dev_detail.text="Tap a move to cast. Details appear here. No legal target? Plays FX preview."
+	dev_detail=RichTextLabel.new();dev_detail.custom_minimum_size.y=72;dev_detail.scroll_active=true;dev_detail.bbcode_enabled=false;dev_detail.add_theme_font_size_override("normal_font_size",14);stack.add_child(dev_detail)
+	dev_detail.text="Hold a move for details and drag to aim.";dev_detail.hide()
 	var controls:=HBoxContainer.new();stack.add_child(controls)
 	dev_aim=lab_button(controls,"Aim ↓",func():rotate_combat_aim();lab_update_aim())
+	lab_button(controls,"Info",func():dev_detail.visible=not dev_detail.visible)
 	lab_button(controls,"Target +",lab_spawn_target)
 	lab_button(controls,"Next floor",func():path.clear();run.dev_next_floor();sync();dev_result.text="Endless floor B%d"%run.floor_number)
-	dev_fx_only=CheckButton.new();dev_fx_only.text="FX only (no combat turns)";stack.add_child(dev_fx_only)
-	dev_result=label(stack,"Ready · tap a move",13,Color("#a7e9bf"));dev_result.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART
+	dev_fx_only=CheckButton.new();dev_fx_only.text="FX only";controls.add_child(dev_fx_only)
+	dev_result=label(stack,"Ready · tap a move",13,Color("#a7e9bf"));dev_result.clip_text=true
 	lab_button(stack,"Exit sandbox · discard rewards",leave)
 	dev_bubble=PanelContainer.new()
 	dev_bubble.add_theme_stylebox_override("panel",style(Color("#1c6359"),Color("#b1f5d7"),32))
@@ -380,11 +388,12 @@ func lab_refresh()->void:
 	for index in range(DEV_PAGE_SIZE):
 		var at:int=dev_page*DEV_PAGE_SIZE+index
 		if at>=ids.size():
-			var spacer:=Control.new();spacer.custom_minimum_size.y=42;spacer.size_flags_horizontal=SIZE_EXPAND_FILL;dev_grid.add_child(spacer);continue
+			var spacer:=Control.new();spacer.custom_minimum_size.y=34;spacer.size_flags_horizontal=SIZE_EXPAND_FILL;dev_grid.add_child(spacer);continue
 		var id:String=ids[at]
 		var move:Dictionary=dev_catalog[id]
-		var b:=lab_button(dev_grid,str(move.name),lab_cast.bind(id))
-		b.custom_minimum_size.y=42;b.clip_text=true;b.tooltip_text=str(move.name)+" · "+str(move.type).capitalize()+" · "+str(move.category).capitalize()
+		var b:=lab_button(dev_grid,str(move.name),func():pass)
+		bind_attack_gesture(b,move,lab_cast.bind(id),true)
+		b.custom_minimum_size.y=34;b.clip_text=true;b.tooltip_text=str(move.name)+" · "+str(move.type).capitalize()+" · "+str(move.category).capitalize()
 	dev_page_label.text="%d/%d · %d moves"%[dev_page+1,pages,ids.size()]
 	dev_prev.disabled=dev_page<=0;dev_next.disabled=dev_page>=pages-1
 
@@ -404,12 +413,12 @@ func lab_move_info(id:String)->String:
 	return text_value.strip_edges()
 
 func lab_update_aim()->void:
-	if is_instance_valid(dev_aim):dev_aim.text="Aim "+["↑","→","↓","←"][maxi(0,Rules.DIR.find(facing))]
+	if is_instance_valid(dev_aim):dev_aim.text="Aim "+["↑","↗","→","↘","↓","↙","←","↖"][maxi(0,Rules.DIR8.find(facing))]
 
 func lab_spawn_target()->void:
-	for direction in [facing,Vector2i.UP,Vector2i.RIGHT,Vector2i.DOWN,Vector2i.LEFT]:
+	for direction in [facing]+Rules.DIR8:
 		var tile:Vector2i=run.player+direction
-		if not run.cells.has(tile) or run.enemy_at(tile)>=0 or run.ally_at(tile)>=0:continue
+		if not run.step_clear(run.player,direction) or run.enemy_at(tile)>=0 or run.ally_at(tile)>=0:continue
 		run.enemies.append(run.make_enemy(tile,100,0,dev_target_uid));dev_target_uid+=1
 		run.reveal();facing=direction;sync();lab_update_aim();dev_result.text="Test target spawned · 100 HP";return
 	dev_result.text="No free adjacent tile"
@@ -449,7 +458,7 @@ func lab_cast(id:String)->void:
 	lab_update_aim()
 
 func lab_minimize()->void:
-	dev_panel.hide();dev_bubble.show();lab_layout()
+	dev_panel.hide();dungeon_footer.show();dev_bubble.show();lab_layout()
 
 func lab_bubble_input(event:InputEvent)->void:
 	if event is InputEventScreenTouch:
@@ -476,8 +485,7 @@ func lab_end_drag()->void:
 	dev_dragging=false;dev_drag_index=-1
 	if not dev_drag_moved:
 		dev_bubble.hide()
-		dev_panel.position=dev_bubble.position+Vector2(0,-80)
-		dev_panel.show();lab_layout()
+		dungeon_footer.hide();dev_panel.show();lab_layout()
 
 func build_ui():
 	var base=VBoxContainer.new();hud_base=base;add_child(base);base.set_anchors_and_offsets_preset(PRESET_FULL_RECT);base.add_theme_constant_override("separation",0)
@@ -519,24 +527,31 @@ func build_ui():
 	area.add_child(map_zoom);map_zoom.position=map.position+Vector2(map.size.x-37,5);map_zoom.pressed.connect(toggle_map)
 	feedback=Label.new();feedback.horizontal_alignment=HORIZONTAL_ALIGNMENT_CENTER;feedback.add_theme_font_size_override("font_size",24);feedback.add_theme_color_override("font_outline_color",Color("#142535"));feedback.add_theme_constant_override("outline_size",7);feedback.mouse_filter=MOUSE_FILTER_IGNORE;area.add_child(feedback);feedback.hide()
 	floor_banner=Label.new();floor_banner.horizontal_alignment=HORIZONTAL_ALIGNMENT_CENTER;floor_banner.add_theme_font_size_override("font_size",25);floor_banner.add_theme_color_override("font_outline_color",Color("#142535"));floor_banner.add_theme_constant_override("outline_size",8);floor_banner.mouse_filter=MOUSE_FILTER_IGNORE;area.add_child(floor_banner);floor_banner.hide()
-	var footer=PanelContainer.new();footer.add_theme_stylebox_override("panel",style(Color("#102739"),Color("#e2c081"),20));base.add_child(footer)
+	var footer=PanelContainer.new();dungeon_footer=footer;footer.add_theme_stylebox_override("panel",style(Color("#102739"),Color("#e2c081"),20));base.add_child(footer)
 	var v=VBoxContainer.new();v.add_theme_constant_override("separation",6);footer.add_child(v)
 	status_text=label(v,"",16,Color("#ffe1a4"));status_text.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART;status_text.custom_minimum_size.y=22;status_text.horizontal_alignment=HORIZONTAL_ALIGNMENT_CENTER
 	var a=HBoxContainer.new();a.add_theme_constant_override("separation",8);v.add_child(a)
-	attack_button=button(a,"Strike",func():path.clear();run.attack(false,facing);sync(),true)
-	power_button=button(a,"Skill",func():path.clear();run.attack(true,facing);sync())
+	attack_button=button(a,"Strike",func():pass,true)
+	bind_attack_gesture(attack_button,{"name":"Strike","type":"normal","category":"physical","pattern":"front","reach":1,"power":6},func():path.clear();run.attack(false,facing);sync())
+	power_button=button(a,"Skill",func():pass)
+	bind_attack_gesture(power_button,{"name":"Skill","type":"variable","category":"special" if run.skill_kind==1 else "physical","pattern":"line" if run.skill_kind==1 else "front","reach":2 if run.skill_kind==1 else 1,"power":10},func():path.clear();run.attack(true,facing);sync())
 	heal_button=button(a,"Berry",func():path.clear();run.heal();sync())
 	var tactical=HBoxContainer.new();tactical.add_theme_constant_override("separation",8);v.add_child(tactical)
 	aim_button=button(tactical,"Aim ↓",func():rotate_combat_aim())
-	special_button=button(tactical,"Leaf Dart",func():path.clear();run.attack(true,facing,1);sync())
+	special_button=button(tactical,"Leaf Dart",func():pass)
+	bind_attack_gesture(special_button,{"name":"Leaf Dart","type":"grass","category":"special","pattern":"line","reach":2,"power":10},func():path.clear();run.attack(true,facing,1);sync())
 	if not run.equipped_moves.is_empty():
 		power_button.hide();special_button.hide()
 		var skills=GridContainer.new();skills.columns=2;v.add_child(skills)
 		for id in run.equipped_moves:
-			var b=button(skills,str(Rules.MOVE_LIBRARY[id].name),func():path.clear();run.cast_move(id,facing);sync())
+			var b=button(skills,str(Rules.MOVE_LIBRARY[id].name),func():pass)
+			bind_attack_gesture(b,Rules.MOVE_LIBRARY[id],func():path.clear();run.cast_move(id,facing);sync())
 			b.size_flags_horizontal=Control.SIZE_EXPAND_FILL
 			move_buttons.append(b)
 	stairs_button=button(v,"Descend",func():path.clear();run.descend();sync(),true)
+	hold_info=RichTextLabel.new();hold_info.custom_minimum_size.y=78;hold_info.add_theme_font_size_override("normal_font_size",14);hold_info.scroll_active=true;hold_info.mouse_filter=MOUSE_FILTER_IGNORE
+	hud_base.add_child(hold_info);hud_base.move_child(hold_info,dungeon_footer.get_index());hold_info.hide()
+	aim_preview=Control.new();area.add_child(aim_preview);aim_preview.set_anchors_and_offsets_preset(PRESET_FULL_RECT);aim_preview.mouse_filter=MOUSE_FILTER_IGNORE;aim_preview.draw.connect(draw_aim_preview)
 	lab_settings_overlay()
 func leave():
 	if notified:return
@@ -6012,9 +6027,62 @@ func draw_map():
 	var player_point=(Vector2(run.player)+Vector2(.5,.5))*unit+offset
 	map.draw_circle(player_point,maxf(4.0,unit*.85),Color("#73e4cc55"))
 	map.draw_circle(player_point,maxf(2.0,unit*.5),Color("#d5fff0"))
+func bind_attack_gesture(b:Button,move:Dictionary,action:Callable,is_dev:bool=false)->void:
+	# Godot emulates mouse from touch on Android. Capture the release globally so a drag may leave the button.
+	b.gui_input.connect(func(event:InputEvent):
+		if event is InputEventMouseButton and event.button_index==MOUSE_BUTTON_LEFT and event.pressed and not b.disabled and not hold_active:
+			hold_active=true;hold_visible=false;hold_age=0.0;hold_origin=get_global_mouse_position();hold_move=move;hold_action=action;hold_is_dev=is_dev;path.clear())
+
+func held_attack_description(m:Dictionary)->String:
+	var pattern:String=str(m.get("pattern","front"));var reach:int=int(m.get("reach",1))
+	var range_name:String="Self" if pattern=="self" else "Entire room" if pattern=="room" else "Entire floor" if pattern=="floor" else "Close / upfront" if reach<=1 else "Mid range" if reach<=3 else "Long range projectile"
+	var details:String="%s · %s / %s\n%s · %s · %d tiles\nPower %s · PP %s · ACC %s/%s"%[m.get("name","Move"),str(m.get("type","normal")).capitalize(),str(m.get("category","physical")).capitalize(),range_name,str(m.get("reference_range",pattern)).replace("_"," "),reach,str(m.get("power","—")),str(m.get("pp","—")),lab_accuracy(m.get("acc1")),lab_accuracy(m.get("acc2"))]
+	for key in ["charge_phase","special_rule","status","boon_kind","shield_kind","reference_strikes"]:
+		if m.has(key):details+=" · "+str(key).replace("_"," ")+": "+str(m[key]).replace("_"," ")
+	return details
+
+func show_held_attack()->void:
+	if hold_visible:return
+	hold_visible=true
+	if hold_is_dev:
+		dev_detail.text=held_attack_description(hold_move);dev_detail.show()
+	else:
+		hold_info.text=held_attack_description(hold_move);hold_info.show()
+
+func _input(event:InputEvent)->void:
+	if not hold_active:return
+	if event is InputEventMouseMotion:
+		var delta:Vector2=get_global_mouse_position()-hold_origin
+		if delta.length()>18.0:
+			show_held_attack();facing=Rules.aim8(delta);update_hud();lab_update_aim()
+		get_viewport().set_input_as_handled()
+	elif event is InputEventMouseButton and event.button_index==MOUSE_BUTTON_LEFT and not event.pressed:
+		var action:=hold_action
+		hold_active=false;hold_visible=false;hold_move={}
+		if is_instance_valid(hold_info):hold_info.hide()
+		if hold_is_dev and is_instance_valid(dev_detail):dev_detail.hide()
+		if is_instance_valid(aim_preview):aim_preview.queue_redraw()
+		get_viewport().set_input_as_handled()
+		if action.is_valid() and not notified and not run.finished:action.call()
+
+func draw_aim_preview()->void:
+	if not hold_active or not hold_visible or not is_instance_valid(camera):return
+	var footprint:Dictionary=run.attack_footprint(run.player,facing,str(hold_move.get("pattern","front")),int(hold_move.get("reach",1)),true)
+	var ratio:=area.size/Vector2(viewport.size)
+	for tile in footprint:
+		var p:=camera.unproject_position(pos(tile)+Vector3(0,.12,0))*ratio
+		aim_preview.draw_circle(p,8.0,Color("#aaffb766"));aim_preview.draw_arc(p,9.0,0,TAU,16,Color("#e2ffbf"),2.0)
+	var start:=camera.unproject_position(pos(run.player)+Vector3(0,.18,0))*ratio
+	var end:=camera.unproject_position(pos(run.player+facing)+Vector3(0,.18,0))*ratio
+	aim_preview.draw_line(start,end,Color("#ffe49a"),3.0,true)
+	var unit:Vector2=(end-start).normalized()
+	aim_preview.draw_line(end,end-unit.rotated(.55)*13.0,Color("#ffe49a"),3.0,true)
+	aim_preview.draw_line(end,end-unit.rotated(-.55)*13.0,Color("#ffe49a"),3.0,true)
+
 func rotate_combat_aim()->void:
 	path.clear()
-	facing=Rules.DIR[posmod(Rules.DIR.find(facing)+1,4)]
+	facing=Rules.DIR8[posmod(Rules.DIR8.find(facing)+1,8)]
+	lab_update_aim()
 	update_hud()
 func touch(event:InputEvent):
 	if notified or run.finished:return
@@ -6031,11 +6099,11 @@ func touch(event:InputEvent):
 	if target==run.player:return
 	if run.enemy_at(target)>=0 and run.revealed.has(target):
 		var delta:Vector2i=target-run.player
-		facing=Vector2i(signi(delta.x),0) if absi(delta.x)>absi(delta.y) else Vector2i(0,signi(delta.y))
+		facing=Rules.aim8(Vector2(delta))
 		path.clear()
-		if run.distance(run.player,target)==1:run.attack(false,facing)
+		if target-run.player in Rules.DIR8:run.attack(false,facing)
 		sync();return
-	path=run.route(run.player,target,true)
+	path=run.route(run.player,target,true,true)
 	tick=0.0
 # Charge presentation is driven by the actual turn state; no extra gameplay delay.
 func charge_visual_sample(phase:String,releasing:bool,progress:float,impact:float)->Dictionary:
@@ -6107,7 +6175,7 @@ func update_hud():
 	if run.stockpile_count>0:status_text.text+=" · Reserve %d/3"%run.stockpile_count
 	if not run.temporary_type.is_empty() or not run.adaptive_type.is_empty():status_text.text+=" · "+str(run.current_player_types()[0]).capitalize()
 	if run.player_slow_turns>0:status_text.text+=" · Slowed"
-	if is_instance_valid(aim_button):aim_button.text="Aim "+["↑","→","↓","←"][maxi(0,Rules.DIR.find(facing))]
+	if is_instance_valid(aim_button):aim_button.text="Aim "+["↑","↗","→","↘","↓","↙","←","↖"][maxi(0,Rules.DIR8.find(facing))]
 	if is_instance_valid(special_button):special_button.disabled=run.energy<2
 	for i in range(move_buttons.size()):
 		var id:String=run.equipped_moves[i]
@@ -6171,6 +6239,10 @@ func advance_player_combat_clock(dt:float)->void:
 func _process(dt:float):
 	if notified or not is_instance_valid(pet):return
 	elapsed+=dt;tick-=dt
+	if hold_active:
+		hold_age+=dt
+		if hold_age>=.28:show_held_attack()
+		if hold_visible and is_instance_valid(aim_preview):aim_preview.queue_redraw()
 	combat_fx_update(dt)
 	# Advance existing clocks before path movement can launch a new action.
 	# A cast created by sync() later in this frame starts at age zero.

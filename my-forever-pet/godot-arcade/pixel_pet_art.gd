@@ -192,6 +192,39 @@ static func direction_for(delta:Vector2,previous:int=0)->int:
 
 # Animation logic is independent from character art. An artist can replace one
 # lossless PNG, without modifying movement, combat, navigation or camera code.
+static func direction8_for(delta:Vector2,previous:int=0)->int:
+	if delta.length_squared()<.00000001:return previous
+	# Preserve the first four editable rows; append SE, SW, NE, NW.
+	return [3,4,0,5,2,7,1,6][posmod(roundi(atan2(delta.y,delta.x)/(PI*.25)),8)]
+
+static func mosskit_diagonal(back:bool,step:int,pose:String,mood:String)->Image:
+	# Original three-quarter artwork: far eye/ear and foot recede; rear view has visible tail.
+	var im:=Image.create(48,48,false,Image.FORMAT_RGBA8)
+	im.fill(Color.TRANSPARENT)
+	var ink:=Color("#25421c");var deep:=Color("#478d27");var leaf:=Color("#76c438");var high:=Color("#a7e657");var pink:=Color("#f49ac2");var eye:=Color("#241c43")
+	var droop:bool=mood in ["sad","weak","sick"]
+	ellipse(im,Vector2(30,40-step),Vector2(7,4),ink);ellipse(im,Vector2(30,39-step),Vector2(5,2),deep)
+	var far_ear:=Vector2(30,14 if droop else 9-step*.5)
+	ellipse(im,far_ear,Vector2(5,7),ink);ellipse(im,far_ear,Vector2(3,5),deep)
+	if not back:ellipse(im,far_ear,Vector2(2,3),pink)
+	ellipse(im,Vector2(22,9),Vector2(4,6),ink);ellipse(im,Vector2(23,8),Vector2(2,4),high)
+	ellipse(im,Vector2(23,26),Vector2(18,16),ink);ellipse(im,Vector2(23,26),Vector2(16,14),deep);ellipse(im,Vector2(24,23),Vector2(15,12),leaf);ellipse(im,Vector2(18,17),Vector2(8,3),high)
+	var near_ear:=Vector2(12,16 if droop else 11+step*.5)
+	ellipse(im,near_ear,Vector2(7,6 if droop else 9),ink);ellipse(im,near_ear,Vector2(5,4 if droop else 7),leaf)
+	if not back:ellipse(im,near_ear+Vector2(1,1),Vector2(3,3 if droop else 5),pink)
+	ellipse(im,Vector2(17,42+step),Vector2(9,4),ink);ellipse(im,Vector2(17,41+step),Vector2(7,3),deep);ellipse(im,Vector2(18,40+step),Vector2(5,2),leaf)
+	if back:
+		ellipse(im,Vector2(13,35),Vector2(6,5),ink);ellipse(im,Vector2(13,34),Vector2(4,3),leaf);ellipse(im,Vector2(12,33),Vector2(2,1),high)
+	else:
+		for p in [Vector2(22,26),Vector2(35,24)]:
+			var far:bool=p.x>30
+			if pose in ["blink","sleep"] or mood in ["weak","sick"]:ellipse(im,p,Vector2(3 if far else 5,1),eye)
+			else:
+				ellipse(im,p,Vector2(3 if far else 5,5 if far else 7),eye);ellipse(im,p+Vector2(-1,-2),Vector2(1 if far else 2,2),Color("#fff3ef"))
+		ellipse(im,Vector2(19,33),Vector2(3,2),pink);ellipse(im,Vector2(37,30),Vector2(2,1),pink)
+		ellipse(im,Vector2(31,34),Vector2(3,4 if pose in ["attack","eat"] else 2),eye);ellipse(im,Vector2(31,35),Vector2(1,1),pink)
+	return im
+
 static func pose_column(pose:String,frame:int)->int:
 	match pose:
 		"walk","burst":return 1+posmod(frame,4)
@@ -207,6 +240,9 @@ static func authored_cell(dir:int,pose:String,frame:int,mood:String="healthy")->
 	elif pose=="attack":stride=2 if frame%2==0 else -2
 	var im:Image
 	match dir:
+		4,5,6,7:
+			im=mosskit_diagonal(dir>=6,stride,pose,mood)
+			if dir in [5,7]:im.flip_x()
 		1:im=mosskit_back(stride,mood)
 		2,3:
 			im=mosskit_side(stride,pose in ["blink","sleep"],pose in ["attack","eat"],mood)
@@ -221,18 +257,18 @@ static func skin_cell(dir:int,pose:String,frame:int)->Image:
 			var tex:=load(SKIN_PATH) as Texture2D
 			if tex!=null:
 				var candidate:=tex.get_image()
-				if candidate!=null and (not candidate.is_compressed() or candidate.decompress()==OK) and candidate.get_size()==Vector2i(CELL*POSE_COLUMNS,CELL*4):
+				if candidate!=null and (not candidate.is_compressed() or candidate.decompress()==OK) and candidate.get_width()==CELL*POSE_COLUMNS and candidate.get_height() in [CELL*4,CELL*8]:
 					skin_image=candidate
-	if skin_image!=null:
-		return skin_image.get_region(Rect2i(pose_column(pose,frame)*CELL,clampi(dir,0,3)*CELL,CELL,CELL))
+	if skin_image!=null and dir>=0 and dir<skin_image.get_height()/CELL:
+		return skin_image.get_region(Rect2i(pose_column(pose,frame)*CELL,dir*CELL,CELL,CELL))
 	return authored_cell(dir,pose,frame)
 
 static func editable_atlas()->Image:
-	var sheet:=Image.create(CELL*POSE_COLUMNS,CELL*4,false,Image.FORMAT_RGBA8)
+	var sheet:=Image.create(CELL*POSE_COLUMNS,CELL*8,false,Image.FORMAT_RGBA8)
 	sheet.fill(Color.TRANSPARENT)
 	var poses=["idle","walk","walk","walk","walk","attack","attack","blink","sleep","eat"]
 	var frames=[0,0,1,2,3,0,1,0,0,0]
-	for dir in range(4):
+	for dir in range(8):
 		for column in range(POSE_COLUMNS):
 			var cell:=skin_cell(dir,poses[column],frames[column])
 			sheet.blit_rect(cell,Rect2i(0,0,CELL,CELL),Vector2i(column*CELL,dir*CELL))
@@ -242,8 +278,8 @@ static func adventure_frame(dir:int,pose:String,frame:int=0,mood:String="healthy
 	var key:="adventure:%d:%s:%d:%s"%[dir,pose,frame,mood]
 	if cache.has(key):return cache[key] as Texture2D
 	var original:=skin_cell(dir,pose,frame)
-	if skin_image==null and mood!="healthy":original=authored_cell(dir,pose,frame,mood)
-	var tex:=ImageTexture.create_from_image(compose_creature_cell("mosky",original,dir,pose,frame,mood))
+	if (skin_image==null or dir>=skin_image.get_height()/CELL) and mood!="healthy":original=authored_cell(dir,pose,frame,mood)
+	var tex:=ImageTexture.create_from_image(compose_creature_cell("mosky",original,dir if dir<4 else (0 if dir<6 else 1),pose,frame,mood))
 	cache[key]=tex
 	return tex
 
@@ -323,7 +359,7 @@ static func animate_world_sprite(actor:Node3D,delta:Vector2,moving:bool,dt:float
 	if not is_instance_valid(actor):return
 	var sprite:=actor.get_node_or_null("PixelCompanion") as Sprite3D
 	if sprite==null:return
-	var dir:int=direction_for(delta,int(sprite.get_meta("facing",0)))
+	var dir:int=direction8_for(delta,int(sprite.get_meta("facing",0))) if actor.get_meta("dungeon_grounded_gait",false) else direction_for(delta,int(sprite.get_meta("facing",0)))
 	var state:String=pose if pose!="idle" else "walk" if moving else "idle"
 	var clock:float=float(sprite.get_meta("anim_clock",0.0))
 	var grounded:bool=bool(actor.get_meta("dungeon_grounded_gait",false))

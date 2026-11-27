@@ -1,6 +1,17 @@
 extends RefCounted
 # Original turn-based mystery dungeon. Seeded rooms, connected corridors, finite loot.
 const DIR=[Vector2i.UP,Vector2i.RIGHT,Vector2i.DOWN,Vector2i.LEFT]
+# Keep the cardinal terrain generator stable; player navigation uses eight directions.
+const DIR8=[Vector2i.UP,Vector2i(1,-1),Vector2i.RIGHT,Vector2i(1,1),Vector2i.DOWN,Vector2i(-1,1),Vector2i.LEFT,Vector2i(-1,-1)]
+static func aim8(delta:Vector2)->Vector2i:
+	if delta.length_squared()<.0001:return Vector2i.ZERO
+	return DIR8[posmod(roundi((atan2(delta.y,delta.x)+PI*.5)/(PI*.25)),8)]
+func step_clear(origin:Vector2i,d:Vector2i,cut_corners:bool=false)->bool:
+	if not d in DIR8 or not cells.has(origin+d):return false
+	if d.x==0 or d.y==0:return true
+	var x:bool=cells.has(origin+Vector2i(d.x,0))
+	var y:bool=cells.has(origin+Vector2i(0,d.y))
+	return (x or y) if cut_corners else (x and y)
 const MINION_ROSTER = [[["bramble_pup","Bramble Pup","quadruped_bound","Briar Pounce",0],["sporeling","Sporeling","mushroom_stem_steps","Spore Puff",1],["thornbeetle","Thornbeetle","six_leg_tripod","Thorn Ram",2],["leafwisp","Leafwisp","leaf_flutter","Leaf Dart",1],["rootgnawer","Rootgnawer","boar_trot","Root Tusk",0],["vinesnap","VineSnap","root_pull","Snap Vine",2],["mossmite","Mossmite","rock_roll","Moss Crash",0],["sylphowl","Sylphowl","owl_flap","Feather Needle",1],["hollow_stag","Hollow Stag","deer_prance","Antler Sweep",2],["grovetitan","Grovetitan","tree_biped_stride","Timber Slam",2],["fungal_monarch","Fungal Monarch","mycelial_tripod","Spore Crown",3]],[["reef_pup","Reef Pup","fish_tail_swim","Reef Bite",0],["jellymancer","Jellymancer","bell_jet_pulse","Sting Pulse",1],["shellguard","Shellguard","turtle_paddle","Shell Bash",2],["bubblewisp","Bubblewisp","bubble_buoyancy","Bubble Shot",1],["eelstrix","Eelstrix","eel_wave_swim","Static Lash",0],["coralcrab","Coralcrab","crab_lateral_steps","Claw Snap",0],["anemoneye","Anemoneye","pedal_disc_creep","Tentacle Snare",2],["marrowray","Marrowray","ray_fin_undulation","Fin Slice",1],["leviathorn","Leviathorn","seahorse_dorsal_pulse","Spiral Thrust",2],["abyss_colossus","Abyss Colossus","octopus_arm_crawl","Abyss Crush",2],["tidal_sovereign","Tidal Sovereign","shark_tail_drive","Tidal Bite",3]],[["starlit_pup","Starlit Pup","six_limbed_comet_skip","Star Kick",0],["lunamoth","Lunamoth","moth_wing_clap","Lunar Dust",1],["crystarok","Crystarok","crystal_knuckle_walk","Prism Smash",2],["nova_wisp","Nova Wisp","orbit_drift","Nova Bolt",1],["orbitserpent","Orbitserpent","ring_coil_advance","Orbit Lash",0],["comet_hare","Comet Hare","hind_leg_leap","Comet Drop",0],["voidspider","Voidspider","eight_leg_wave","Gravity Web",2],["nebulwing","Nebulwing","bat_fold_glide","Void Screech",1],["lunar_prowler","Lunar Prowler","feline_stalk","Moon Claw",2],["astro_golem","Astro Golem","floating_segment_stride","Meteor Fist",2],["celestial_guardian","Celestial Guardian","winged_hover","Celestial Verdict",3]]]
 # Row: stable species ID, display name, anatomy-specific gait, signature move, combat class.
 # Species attack contract: range, telegraph, cooldown, damage modifier, effect, magnitude, VFX identifier.
@@ -330,7 +341,7 @@ func player_wait_if_napping()->bool:
 	enemy_turn();return true
 func confused_direction(aim:Vector2i)->Vector2i:
 	if self_confusion_turns<=0:return aim
-	return DIR[rng.randi_range(0,DIR.size()-1)]
+	return DIR8[rng.randi_range(0,DIR8.size()-1)]
 var wish_fraction:float=0.0
 var aqua_age:int=0
 var last_critical_hits:int=0
@@ -730,6 +741,10 @@ func attack_footprint(origin:Vector2i,forward:Vector2i,pattern:String,reach:int,
 					if q!=origin and room.has_point(q):out[q]=[q]
 				return out
 		return out
+	if pattern=="corner_front" and forward.x!=0 and forward.y!=0:
+		for d in [forward,Vector2i(forward.x,0),Vector2i(0,forward.y)]:
+			if step_clear(origin,d,true):out[origin+d]=[origin+d]
+		return out
 	if pattern=="corner_front":
 		var q:=origin+forward
 		if cells.has(q):out[q]=[q]
@@ -742,7 +757,7 @@ func attack_footprint(origin:Vector2i,forward:Vector2i,pattern:String,reach:int,
 		var path:Array[Vector2i]=[]
 		for distance_index in range(1,reach+1):
 			var q:Vector2i=origin+d*distance_index
-			if not cells.has(q):break
+			if not step_clear(q-d,d):break
 			var occupied:bool=enemy_at(q)>=0
 			if occupied and not player_cast:break
 			path.append(q)
@@ -751,6 +766,7 @@ func attack_footprint(origin:Vector2i,forward:Vector2i,pattern:String,reach:int,
 			if pattern in ["corner","fan","radius"]:
 				for sign_side in [-1,1]:
 					var turn:=Vector2i(-d.y,d.x)*int(sign_side)
+					if d.x!=0 and d.y!=0:turn=Vector2i(-d.y*int(sign_side),0) if d.x*d.y*int(sign_side)>0 else Vector2i(0,d.x*int(sign_side))
 					var branch:Array[Vector2i]=path.duplicate()
 					var limit:int=reach-distance_index if pattern!="fan" else mini(1,reach-distance_index+1)
 					for j in range(1,limit+1):
@@ -1160,7 +1176,7 @@ func enemy_at(p:Vector2i)->int:
 	for i in range(enemies.size()):
 		if enemies[i].pos==p:return i
 	return -1
-func route(a:Vector2i,b:Vector2i,avoid_enemies:bool=false)->Array[Vector2i]:
+func route(a:Vector2i,b:Vector2i,avoid_enemies:bool=false,diagonal:bool=false)->Array[Vector2i]:
 	var result:Array[Vector2i]=[]
 	if not cells.has(a) or not cells.has(b) or a==b:return result
 	var queue:Array[Vector2i]=[a]
@@ -1170,9 +1186,9 @@ func route(a:Vector2i,b:Vector2i,avoid_enemies:bool=false)->Array[Vector2i]:
 	while cursor<queue.size():
 		var p=queue[cursor];cursor+=1
 		if p==b:break
-		for d in DIR:
+		for d in DIR8 if diagonal else DIR:
 			var q:Vector2i=p+d
-			if not cells.has(q) or previous.has(q):continue
+			if not step_clear(p,d) or previous.has(q):continue
 			if avoid_enemies and q!=b and (enemy_at(q)>=0 or ally_at(q)>=0):continue
 			previous[q]=p;queue.append(q)
 	if not previous.has(b):return result
@@ -1539,7 +1555,7 @@ func strike(i:int,power:bool=false,style_override:int=-1,move_id:String="",damag
 	attack_serial+=1;attack_target=enemies[i].pos;attack_power=power
 	player_attack_fx="basic_strike" if not power else ["briar_arc","leaf_dart","jelly_pulse"][attack_style]
 	player_attack_cells=[attack_target]
-	if power and distance(player,attack_target)==2:player_attack_cells.push_front(player+(attack_target-player)/2)
+	if power and maxi(absi(attack_target.x-player.x),absi(attack_target.y-player.y))==2:player_attack_cells.push_front(player+(attack_target-player)/2)
 	player_attack_path=player_attack_cells.duplicate()
 	var move:Dictionary=MOVE_LIBRARY.get(move_id,{})
 	var element:String=str(move.get("type","normal"))
@@ -2157,9 +2173,9 @@ func move(p:Vector2i)->bool:
 	if not finished and player_slow_turns>0 and player_slow_turns%2==0:
 		message="Slowed · wait";enemy_turn();return true
 	if not charged_move_id.is_empty():return release_charge()
-	if finished or distance(player,p)!=1:return false
+	if finished or not (p-player) in DIR8:return false
 	p=player+confused_direction(p-player)
-	if not cells.has(p):
+	if not step_clear(player,p-player):
 		if self_confusion_turns>0:enemy_turn();return true
 		return false
 	var i=enemy_at(p)
@@ -2180,13 +2196,15 @@ func attack(power:bool=false,aim:Vector2i=Vector2i.ZERO,style_override:int=-1)->
 	if self_confusion_turns>0:aim=confused_direction(aim)
 	var attack_style:int=skill_kind if style_override<0 else clampi(style_override,0,2)
 	if finished or (power and energy<2):return false
-	var directions:Array=DIR if aim==Vector2i.ZERO else [aim]
+	var directions:Array=DIR8 if aim==Vector2i.ZERO else [aim]
+	if aim!=Vector2i.ZERO and not aim in DIR8:return false
 	if power and attack_style==1:
 		for d in directions:
-			if not cells.has(player+d) or enemy_at(player+d)>=0:continue
+			if not step_clear(player,d) or not step_clear(player+d,d) or enemy_at(player+d)>=0:continue
 			var ranged=enemy_at(player+d*2)
 			if ranged>=0:energy-=2;strike(ranged,true,attack_style);enemy_turn();return true
 	for d in directions:
+		if not step_clear(player,d):continue
 		var i=enemy_at(player+d)
 		if i>=0:
 			if power:energy-=2
@@ -2226,7 +2244,7 @@ func cast_move(id:String,aim:Vector2i)->bool:
 	if player_wait_if_napping():return true
 	if not charged_move_id.is_empty():return release_charge()
 	if finished or not id in equipped_moves or not MOVE_LIBRARY.has(id) or int(move_pp.get(id,0))<=0:return false
-	if not aim in DIR:return false
+	if not aim in DIR8:return false
 	var move:Dictionary=MOVE_LIBRARY[id]
 	if gravity_blocks(move):message="Gravity blocks "+str(move.name);return false
 	if move.get("sleep_reactive",false):message="Triggers automatically when attacked asleep";return false
@@ -2680,7 +2698,7 @@ func dev_next_floor()->bool:
 	return true
 
 func dev_cast_move(id:String,aim:Vector2i)->bool:
-	if not dev_sandbox or not dev_tools_available() or not MOVE_LIBRARY.has(id) or not aim in DIR:return false
+	if not dev_sandbox or not dev_tools_available() or not MOVE_LIBRARY.has(id) or not aim in DIR8:return false
 	# Bypass equipment/species requirements without changing the saved learnset.
 	clear_charge()
 	dev_refill()
