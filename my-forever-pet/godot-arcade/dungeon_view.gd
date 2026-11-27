@@ -137,6 +137,13 @@ var fx_halos:Array[MeshInstance3D]=[]
 var fx_halo_materials:Array[ShaderMaterial]=[]
 var fx_lights_used:int=0
 var fx_halos_used:int=0
+const FX_TRAIL_VERTEX_CAP:int=960
+const FX_RESIDUE_CAP:int=6
+var fx_trail_mesh:ImmediateMesh
+var fx_trail_material:StandardMaterial3D
+var fx_trail_vertices:int=0
+var fx_trail_started:bool=false
+var fx_residues:Array[Dictionary]=[]
 var combat_warn_mat:StandardMaterial3D
 var enemy_event_turn:int=-1
 var enemy_event_floor:int=-1
@@ -2125,6 +2132,7 @@ func combat_fx_setup(parent:Node3D)->void:
 	combat_particles.clear();combat_warnings.clear();combat_bursts.clear();retired_impacts.clear();delayed_combat_fx.clear();fx_reactions.clear();fx_ground_shake=0.0
 	combat_fx_root=Node3D.new();parent.add_child(combat_fx_root)
 	setup_cinematic_lighting()
+	setup_ultra_combat_layers()
 	cast_text_pool.clear();cast_text_age.clear();cast_text_origin.clear();cast_text_cursor=0;response_text_queue.clear()
 	for i in range(CAST_TEXT_CAP):
 		var tag:=Label3D.new();tag.billboard=BaseMaterial3D.BILLBOARD_ENABLED
@@ -2181,8 +2189,10 @@ void fragment() {
 	float r = length(p);
 	float halo = pow(max(0.0, 1.0-r), 2.7);
 	float radius = mix(0.22, 0.82, phase);
-	float ring = exp(-pow((r-radius)/0.10, 2.0)) * (1.0-smoothstep(0.85, 1.0, r));
-	float echo = exp(-pow((r-radius*0.72)/0.055, 2.0)) * 0.24;
+	float d = (r-radius)/0.10;
+	float e = (r-radius*0.72)/0.055;
+	float ring = exp(-d*d) * (1.0-smoothstep(0.85, 1.0, r));
+	float echo = exp(-e*e) * 0.24;
 	float a = mix(halo, ring*0.68+echo, ring_mix);
 	ALBEDO = tint.rgb;
 	ALPHA = clamp(a * intensity, 0.0, 0.75);
@@ -2201,6 +2211,137 @@ void fragment() {
 		light.shadow_enabled=false;light.omni_range=2.5;light.omni_attenuation=1.5
 		light.light_energy=0.0
 		combat_fx_root.add_child(light);light.hide();fx_lights.append(light)
+
+# One batched ImmediateMesh for all animated ribbons, no new nodes per attack.
+func setup_ultra_combat_layers()->void:
+	fx_residues.clear()
+	fx_trail_vertices=0;fx_trail_started=false
+	fx_trail_mesh=ImmediateMesh.new()
+	fx_trail_material=StandardMaterial3D.new()
+	fx_trail_material.shading_mode=BaseMaterial3D.SHADING_MODE_UNSHADED
+	fx_trail_material.transparency=BaseMaterial3D.TRANSPARENCY_ALPHA
+	fx_trail_material.blend_mode=BaseMaterial3D.BLEND_MODE_ADD
+	fx_trail_material.vertex_color_use_as_albedo=true
+	fx_trail_material.cull_mode=BaseMaterial3D.CULL_DISABLED
+	fx_trail_material.depth_draw_mode=BaseMaterial3D.DEPTH_DRAW_DISABLED
+	var ribbons:=MeshInstance3D.new()
+	ribbons.mesh=fx_trail_mesh
+	ribbons.cast_shadow=GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	combat_fx_root.add_child(ribbons)
+
+func ultra_trail_segment(a:Vector3,b:Vector3,wa:float,wb:float,ca:Color,cb:Color)->void:
+	if not is_instance_valid(fx_trail_mesh) or fx_trail_vertices+6>FX_TRAIL_VERTEX_CAP:return
+	var direction:Vector3=b-a
+	if direction.length_squared()<.000001:return
+	var view:Vector3=camera.global_basis.z if is_instance_valid(camera) else Vector3(0,.8,.6)
+	var side:Vector3=direction.cross(view).normalized()
+	if side.length_squared()<.000001:side=Vector3.RIGHT
+	if not fx_trail_started:
+		fx_trail_mesh.surface_begin(Mesh.PRIMITIVE_TRIANGLES,fx_trail_material)
+		fx_trail_started=true
+	var vertices:Array[Vector3]=[a-side*wa,a+side*wa,b+side*wb,a-side*wa,b+side*wb,b-side*wb]
+	for i in range(6):
+		fx_trail_mesh.surface_set_color(ca if i in [0,1,3] else cb)
+		fx_trail_mesh.surface_add_vertex(vertices[i])
+	fx_trail_vertices+=6
+
+func ultra_attack_ribbons(burst:Dictionary,t:float)->void:
+	var points:Array=burst.points
+	if points.size()<2:return
+	var profile:Dictionary=burst.profile
+	var role:String=str(profile.role)
+	var id:String=str(burst.id)
+	var cue_key:String=id if AUTHORED_STAGE_FX.has(id) else role
+	if not AUTHORED_STAGE_FX.has(cue_key):return
+	var cue:Array=AUTHORED_STAGE_FX[cue_key]
+	var kind:String=str(cue[0])
+	if not kind in ["stream","cone","dash","wave","helix","wheel","arc","whip","drain","sweep","fall","rise","eruption"]:return
+	var peak:float=clampf(float(profile.impact),.01,.99)
+	if kind=="drain" and t<peak:return
+	if kind!="drain" and t>peak+.10:return
+	var progress:float=clampf(t/peak,0.0,1.0)
+	if kind=="drain":progress=clampf((t-peak)/(1.0-peak),0.0,1.0)
+	var envelope:float=sin(progress*PI)
+	if envelope<.02:return
+	var style:Array=combat_style(id)
+	var inner:=Color(str(style[1]))
+	var outer:=Color(str(style[2]))
+	var source:Vector3=points[0]
+	var target:Vector3=points[-1]
+	var forward:=Vector3(target.x-source.x,0,target.z-source.z).normalized()
+	if forward.length_squared()<.0001:forward=Vector3.FORWARD
+	var side:=Vector3(-forward.z,0,forward.x)
+	var spread:float=float(cue[3])
+	var height:float=float(cue[4])
+	var width:float=clampf(.027+spread*.065,.03,.105)
+	var previous:=Vector3.ZERO
+	var last_width:float=0.0
+	var last_alpha:float=0.0
+	for i in range(13):
+		var f:float=float(i)/12.0
+		var p:float=clampf(progress-(1.0-f)*.38,0.0,1.0)
+		var q:Vector3=combat_path_sample(points,1.0-p if kind=="drain" else p)
+		match kind:
+			"arc":q.y+=height*sin(p*PI)
+			"fall":q=target+Vector3.UP*height*(1.0-p)
+			"rise","eruption":q=(source if kind=="rise" else target)+Vector3.UP*height*p
+			"helix","wheel":q+=side*cos(p*TAU*2.0)*spread*.55+Vector3.UP*sin(p*TAU*2.0)*height*.48
+			"whip":q+=side*sin(p*TAU*1.6-progress*3.0)*spread
+			"sweep":q=target+(forward*cos(p*PI)+side*sin(p*PI))*spread+Vector3.UP*height*sin(p*PI)
+			"wave":q+=side*sin(p*TAU*2.0)*spread*.30+Vector3.UP*height*sin(p*PI)
+			"cone":q+=side*sin(p*TAU)*spread*p*.35
+		var w:float=width*sin(f*PI*.85)
+		var alpha:float=envelope*f*.56
+		if i>0:
+			ultra_trail_segment(previous,q,last_width*2.1,w*2.1,Color(outer,last_alpha*.42),Color(outer,alpha*.42))
+			ultra_trail_segment(previous,q,last_width,w,Color(inner,last_alpha),Color(inner,alpha))
+		previous=q;last_width=w;last_alpha=alpha
+
+# Impact residue is independent of the cast lifetime, but only confirmed
+# outcomes get a material trace. Bounded and discarded with the floor.
+func ultra_impact_residue(burst:Dictionary)->void:
+	var profile:Dictionary=burst.profile
+	var element:String=str(profile.element)
+	var id:String=str(burst.id)
+	var record:Dictionary=Rules.MOVE_LIBRARY.get(id,Rules.DEV_NATIVE_MOVES.get(id,{}))
+	if str(record.get("category",""))=="status":return
+	if not element in ["fire","water","ice","ground","rock","poison","electric","grass","dragon","steel"]:return
+	var results:Dictionary=burst.get("results",{})
+	var target:Vector3=burst.points[-1]
+	var tile:=Vector2i(roundi(target.x/1.4),roundi(target.z/1.4))
+	var result:Dictionary=results.get(tile,{})
+	if int(result.get("damage",0))<=0 and int(burst.get("damage",0))<=0:return
+	var style:Array=combat_style(id)
+	var life:float=.65 if element in ["fire","electric","dragon"] else .90
+	if fx_residues.size()>=FX_RESIDUE_CAP:fx_residues.pop_front()
+	fx_residues.append({"at":Vector3(target.x,.065,target.z),"element":element,"color":Color(str(style[1])),"dark":Color(str(style[2])),"age":0.0,"life":life})
+
+func ultra_update_residues(dt:float,used:int)->int:
+	for i in range(fx_residues.size()-1,-1,-1):
+		var mark:Dictionary=fx_residues[i]
+		mark.age+=dt
+		var t:float=float(mark.age)/float(mark.life)
+		if t>=1.0:
+			fx_residues.remove_at(i);continue
+		var fade:float=pow(1.0-t,1.4)
+		var at:Vector3=mark.at
+		var mode:String="shock_ring"
+		match str(mark.element):
+			"poison":mode="venom_splash"
+			"fire","dragon":mode="ember"
+			"ice","steel":mode="crystal"
+			"ground","rock":mode="shards"
+			"grass":mode="leaf"
+			"water":mode="bubble"
+			"electric":mode="lightning"
+		for j in range(4):
+			var angle:float=float(j)*TAU*.25+float(i)*.37
+			var radius:float=.24+t*.32
+			var flat:bool=mode in ["venom_splash","bubble","shock_ring"]
+			var q:Vector3=at+Vector3(cos(angle)*radius,0.0 if flat else .08+sin(t*PI)*.24,sin(angle)*radius)
+			used=environment_particle(used,q,mode,mark.color,mark.dark,.34+float(j%2)*.07,fade*.68,flat)
+		cinematic_halo(at,mark.color,1.3+t*.6,fade*.16,t,true)
+	return used
 
 func cinematic_halo(at:Vector3,color:Color,extent:float,opacity:float,phase:float,ground:bool)->void:
 	if fx_halos_used>=fx_halos.size() or opacity<=.012:return
@@ -5512,6 +5653,8 @@ func combat_fx_update(dt:float)->void:
 	update_delayed_combat_fx(dt)
 	var used:int=0
 	fx_lights_used=0;fx_halos_used=0
+	fx_trail_vertices=0;fx_trail_started=false
+	if is_instance_valid(fx_trail_mesh):fx_trail_mesh.clear_surfaces()
 	update_combat_reactions(dt)
 	fx_ground_shake=maxf(0.0,fx_ground_shake-dt*3.0)
 	latest_hit=update_retired_impacts(dt)
@@ -5526,12 +5669,14 @@ func combat_fx_update(dt:float)->void:
 		if not burst.impacted and t>=float(profile.impact):
 			burst.impacted=true;play_combat_sound(str(burst.id),"impact",burst.points[-1])
 			show_cast_results(burst.get("results",{}))
+			ultra_impact_residue(burst)
 			if str(profile.role) in ["ground","earth_quake","earth_magnitude","earth_fissure"]:fx_ground_shake=.22
 			if burst.get("target_player",false) and int(burst.get("damage",0))>0:
 				latest_hit=latest_player_impact(latest_hit,burst)
 		if t>=1.0:
 			combat_bursts.remove_at(k);continue
 		cinematic_cast_enhancement(burst,t)
+		ultra_attack_ribbons(burst,t)
 		var mode:String=burst.mode
 		var frame:int=clampi(int(t*FX_FRAME_COUNT),0,FX_FRAME_COUNT-1)
 		var animated:=combat_animated_texture(str(burst.id),frame)
@@ -5972,6 +6117,8 @@ func combat_fx_update(dt:float)->void:
 		used=authored_stage_fx(burst,t,used)
 		used=element_finish_fx(burst,t,used)
 	if run!=null and not run.charge_phase.is_empty():used=charge_environment_fx(used)
+	used=ultra_update_residues(dt,used)
+	if fx_trail_started:fx_trail_mesh.surface_end()
 	living_status_fx()
 	if not latest_hit.is_empty():
 		# The player clock advances once after this method, so compensate for that frame.
