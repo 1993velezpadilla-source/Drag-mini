@@ -2543,6 +2543,78 @@ func air_sprite(im:Image,role:String,frame:int)->void:
 				fx_line(im,q-Vector2(3,0),q+Vector2(3,0),1.0,light)
 				fx_line(im,q-Vector2(0,3),q+Vector2(0,3),1.0,light)
 
+# Original poison FX: differentiated silhouettes and trajectories, not ROM sprites.
+func poison_sprite(im:Image,role:String,frame:int)->void:
+	var t:float=float(frame)/11.0
+	var c:=Vector2(24,24)
+	var light:=Color("#d8a2ff");var dark:=Color("#773d9d");var acid:=Color("#b5ee65")
+	match role:
+		"poison_smog","poison_gas","poison_powder":
+			var count:int=7 if role=="poison_smog" else 5 if role=="poison_gas" else 18
+			for i in range(count):
+				var a:float=float(i)*TAU/float(count)+t*2.1
+				var q:=c+Vector2(cos(a),sin(a))*(6.0+t*12.0)
+				if role=="poison_gas":q=Vector2(8+float(i)*7,29-sin(t*PI+float(i)) * 7.0)
+				if role=="poison_powder":q=Vector2(5+float(i%6)*7,5+float(i/6)*11+t*5.0)
+				var r:float=6.0 if role=="poison_smog" else 8.0 if role=="poison_gas" else 1.5
+				fx_disc(im,q,r,Color(dark,.68))
+				fx_disc(im,q-Vector2(1,2),r*.57,Color(light,.8))
+		"poison_toxic":
+			for i in range(3):
+				var r:float=6.0+float(i)*5.0+sin(t*TAU)*2.0
+				fx_disc(im,c,r,Color(dark,.8),r-1.7)
+			fx_line(im,c-Vector2(5,6),c+Vector2(5,6),3.2,acid)
+			fx_line(im,c+Vector2(-5,6),c+Vector2(5,-6),3.2,acid)
+		"poison_fang":
+			var gap:float=10.0-sin(t*PI)*7.0
+			for i in [-1,1]:
+				var q:=c+Vector2(0,gap*float(i))
+				fx_line(im,q+Vector2(-9,0),q+Vector2(-5,-float(i)*7),4.0,light)
+				fx_line(im,q+Vector2(9,0),q+Vector2(5,-float(i)*7),4.0,light)
+			fx_disc(im,c,2.0+t*3.0,acid)
+		"poison_sting","poison_jab":
+			var q:=Vector2(8+30*t,24)
+			var count:int=3 if role=="poison_sting" else 1
+			for i in range(count):
+				var at:=q-Vector2(float(i)*7,float(i-1)*7)
+				fx_line(im,at-Vector2(13,0),at,2.0 if role=="poison_sting" else 7.0,dark)
+				fx_line(im,at-Vector2(6,0),at+Vector2(4,0),1.5 if role=="poison_sting" else 3.0,acid)
+		"poison_armor":
+			for i in range(6):
+				var a:float=float(i)*TAU/6.0+t*TAU
+				var b:float=a+TAU/6.0
+				var r:float=15.0+sin(t*PI)*3.0
+				fx_line(im,c+Vector2(cos(a),sin(a))*r,c+Vector2(cos(b),sin(b))*r,4.0,dark)
+				fx_disc(im,c+Vector2(cos(a),sin(a))*r,2.0,light)
+		"poison_sludge","poison_bomb","poison_gunk":
+			var q:=Vector2(7+32*t,24)
+			if role=="poison_bomb":q.y-=sin(t*PI)*14.0
+			var r:float=6.0 if role=="poison_sludge" else 9.0 if role=="poison_bomb" else 12.0
+			fx_disc(im,q,r,dark)
+			fx_disc(im,q-Vector2(2,3),r*.62,light)
+			for i in range(5 if role=="poison_gunk" else 3):
+				var a:float=float(i)*TAU/5.0+t
+				var at:=q+Vector2(cos(a),sin(a))*r*1.2
+				fx_disc(im,at,2.0 if role!="poison_gunk" else 3.5,acid if role=="poison_bomb" else dark)
+		"poison_tail","poison_cross":
+			fight_arc(im,c,14.0,-PI+t*1.8,PI*1.2,light,dark,4.0)
+			if role=="poison_cross":
+				fx_line(im,c+Vector2(-13,-13),c+Vector2(13,13),3.5,acid)
+				fx_line(im,c+Vector2(-13,13),c+Vector2(13,-13),3.5,light)
+			else:fx_disc(im,c+Vector2(cos(t*TAU),sin(t*TAU))*14.0,3.0,acid)
+		"poison_acid","poison_gastro":
+			for i in range(6):
+				var q:=Vector2(6+float(i)*6+sin(t*TAU+float(i))*3.0,24+sin(float(i)*1.7+t*5.0)*8.0)
+				fx_line(im,q-Vector2(3,4),q+Vector2(2,4),2.5,acid if role=="poison_acid" else light)
+				fx_disc(im,q+Vector2(2,4),2.0,dark)
+			if role=="poison_gastro":fx_disc(im,c,11.0+t*4.0,Color(dark,.8),9.0+t*4.0)
+		"poison_spikes":
+			for i in range(5):
+				var q:=Vector2(6+float(i)*8,32+float(i%2)*5)
+				var h:float=5.0+sin(t*PI)*10.0
+				fx_line(im,q-Vector2(3,0),q-Vector2(0,h),3.0,dark)
+				fx_line(im,q+Vector2(3,0),q-Vector2(0,h),2.0,acid)
+
 func combat_frame_image(id:String,frame:int)->Image:
 	var style:Array=combat_style(id)
 	var mode:String=combat_animation_mode(id,str(style[0]))
@@ -2568,6 +2640,8 @@ func combat_frame_image(id:String,frame:int)->Image:
 		fight_sprite(im,role,frame);return im
 	if role.begins_with("air_"):
 		air_sprite(im,role,frame);return im
+	if role.begins_with("poison_"):
+		poison_sprite(im,role,frame);return im
 	var center:=Vector2(24,24)
 	match mode:
 		"vine":
@@ -2864,6 +2938,22 @@ func combat_profile(id:String)->Dictionary:
 		"eos_509":role="air_roost"
 		"eos_456":role="air_defog"
 		"eos_040":role="air_mirror"
+		"eos_147":role="poison_smog"
+		"eos_196":role="poison_gas"
+		"eos_197":role="poison_toxic"
+		"eos_198":role="poison_fang"
+		"eos_199":role="poison_powder"
+		"eos_200":role="poison_sting"
+		"eos_202":role="poison_armor"
+		"eos_279":role="poison_sludge"
+		"eos_280":role="poison_bomb"
+		"eos_283":role="poison_tail"
+		"eos_332":role="poison_acid"
+		"eos_438":role="poison_gastro"
+		"eos_459":role="poison_cross"
+		"eos_485":role="poison_gunk"
+		"eos_495":role="poison_jab"
+		"eos_496":role="poison_spikes"
 	if role in ["electric_charge","electric_lift"]:mode="lightning"
 	var impact:float=.48 if role in ["contact","electric_contact","electric_short","electric_fist","electric_fang","electric_dash","electric_spark"] else .64 if role in ["projectile","lash","electric_arc","electric_wave","electric_sky","electric_orb","electric_beam"] else .40
 	if role in ["fire_breath","fire_ember","fire_blast","fire_wisp"]:impact=.64
@@ -2880,6 +2970,7 @@ func combat_profile(id:String)->Dictionary:
 	elif role in ["rock_smash","rock_roll","rock_edge"]:impact=.48
 	if role.begins_with("fight_"):impact=.64 if role in ["fight_aura","fight_blast","fight_vacuum"] else .48
 	if role.begins_with("air_"):impact=.64 if role in ["air_blast","air_cutter","air_sky","air_fly","air_bounce"] else .48
+	if role.begins_with("poison_"):impact=.64 if role in ["poison_bomb","poison_gunk","poison_acid","poison_sludge","poison_gastro"] else .48
 	return {"mode":mode,"role":role,"element":element,"pattern":pattern,"range":reach,"duration":float(style[3]),"impact":impact,"socket":"ground" if role in ["ground","fire_plume","fire_magma","water_dive","water_whirlpool","water_surf","grass_frenzy","grass_roots","grass_knot","ice_avalanche","ice_cold","earth_dig","earth_tomb","earth_power","earth_fissure","earth_spikes","earth_quake","earth_magnitude","rock_edge","rock_tomb","rock_trap","rock_roll"] else "head" if role in ["projectile","fire_breath","fire_ember","fire_eruption","water_bubble","water_ink","water_spout","water_cannon","water_pump","water_bubblebeam","water_gun","water_pulse","water_brine","grass_solar","grass_energy","grass_bullet","grass_whistle","ice_aurora","ice_beam","ice_wind","earth_shot","rock_wrecker","rock_blast","rock_gem"] else "center"}
 func electric_sprite(im:Image,id:String,frame:int,role:String)->void:
 	var cyan:=Color("#40cfff")
@@ -3502,6 +3593,21 @@ func combat_fx_update(dt:float)->void:
 						q=points[-1]+Vector3(cos(angle+t*TAU*2.0)*.22,.2,sin(angle+t*TAU*2.0)*.22);size=.55
 					_:
 						q=points[-1]+Vector3(cos(angle)*.25,sin(angle)*.24,sin(angle)*.25);size=.53
+			if str(profile.role).begins_with("poison_"):
+				var poison_role:String=str(profile.role)
+				var progress:float=clampf(t*1.8-f*.30,0,1)
+				match poison_role:
+					"poison_bomb","poison_gunk","poison_sludge","poison_acid","poison_gastro","poison_sting":
+						q=combat_path_sample(points,progress)+Vector3(cos(angle)*.10,sin(progress*PI)*(.75 if poison_role=="poison_bomb" else .18),sin(angle)*.10)
+						size=.84 if poison_role=="poison_gunk" else .48
+					"poison_armor":
+						q=points[0]+Vector3(cos(angle+t*TAU)*.38,.12+f*.62,sin(angle+t*TAU)*.38);size=.52
+					"poison_spikes":
+						q=tiles[j%tiles.size()]+Vector3(cos(angle)*.32,.04+sin(t*PI)*.13,sin(angle)*.32);size=.42
+					"poison_smog","poison_gas","poison_powder","poison_toxic":
+						q=points[-1]+Vector3(cos(angle+t)*(.18+t*.35),.08+f*.56,sin(angle+t)*(.18+t*.35));size=.43
+					_:
+						q=points[-1]+Vector3(cos(angle)*.23,.15+sin(angle)*.18,sin(angle)*.23);size=.54
 			# Drained energy travels from victim back to caster; healing stays on caster.
 			if profile.role=="drain" and t>=.40:
 				var back:float=clampf((t-.40)*2.0-f*.22,0.0,1.0)
