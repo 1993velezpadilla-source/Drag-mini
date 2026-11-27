@@ -158,6 +158,22 @@ func run_checks()->void:
 			if i==0 and q.distance_to(route[0])>.001:failures.append("projectile launch offset")
 			if i==100 and q.distance_to(route[-1])>.001:failures.append("projectile impact offset")
 			checks+=1
+	# Confirmed impacts must override failed primary targets without inventing damage.
+	var impact_points:Array=[Vector3(0,.5,0),Vector3(1.4,.5,0)]
+	var impact_burst:Dictionary={"points":impact_points,"results":{},"damage":0}
+	if view.resolve_element_impact(impact_burst).kind!="terrain":failures.append("empty terrain misclassified")
+	impact_burst.results={Vector2i(1,0):{"damage":0,"misses":1}}
+	if view.resolve_element_impact(impact_burst).kind!="miss":failures.append("miss misclassified")
+	impact_burst.results[Vector2i(2,0)]={"damage":8}
+	var redirected:=view.resolve_element_impact(impact_burst)
+	if redirected.kind!="confirmed" or redirected.tile!=Vector2i(2,0) or int(redirected.damage)!=8:failures.append("secondary hit not redirected")
+	impact_burst.results[Vector2i(1,0)]={"effects":1}
+	if view.resolve_element_impact(impact_burst).tile!=Vector2i(1,0):failures.append("primary status effect ignored")
+	impact_burst.results={};impact_burst.damage=5
+	if view.resolve_element_impact(impact_burst).kind!="confirmed":failures.append("legacy enemy damage ignored")
+	impact_burst.results={Vector2i(1,0):{"damage":0,"misses":1}}
+	if view.resolve_element_impact(impact_burst).kind!="miss":failures.append("explicit miss overridden by aggregate damage")
+	checks+=6
 	var home:=Home.new()
 	home.free()
 	view.free()
