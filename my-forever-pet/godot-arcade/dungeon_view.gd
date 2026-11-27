@@ -156,6 +156,11 @@ var fx_retired_dropped:int=0
 const FX_SECONDARY_TEXTURE_CAP:int=768
 var combat_textures:Dictionary={}
 var fx_secondary_newest:String=""
+var fx_secondary_key_valid:bool=false
+var fx_secondary_last_mode:String=""
+var fx_secondary_last_light:Color
+var fx_secondary_last_dark:Color
+var fx_secondary_last_key:String=""
 # Keep transient animation frames separate from permanent static FX textures.
 const FX_ANIMATED_CACHE_CAP=384
 var fx_animated_cache:Dictionary={}
@@ -163,6 +168,7 @@ var fx_animated_newest:String=""
 var fx_frame_builds:int=0
 const FX_ATLAS_CACHE_CAP:int=32
 var fx_atlas_cache:Dictionary={}
+var fx_atlas_newest:String=""
 var fx_frame_pack:FileAccess
 var fx_frame_pack_entries:Dictionary={}
 var fx_frame_pack_checked:bool=false
@@ -3518,8 +3524,17 @@ func cache_combat_particle(key:String,texture:ImageTexture)->void:
 	combat_textures[key]=texture
 	fx_secondary_newest=key
 
+# Repeated particle styles share the exact legacy string key. Keep this
+# memo separate from LRU state and never pin a texture outside the cache.
+func combat_secondary_key(mode:String,light:Color,dark:Color)->String:
+	if fx_secondary_key_valid and mode==fx_secondary_last_mode and light==fx_secondary_last_light and dark==fx_secondary_last_dark:return fx_secondary_last_key
+	fx_secondary_last_mode=mode;fx_secondary_last_light=light;fx_secondary_last_dark=dark
+	fx_secondary_last_key=mode+str(light)+str(dark)
+	fx_secondary_key_valid=true
+	return fx_secondary_last_key
+
 func combat_pixel_texture(mode:String,light:Color,dark:Color)->ImageTexture:
-	var key:=mode+str(light)+str(dark)
+	var key:=combat_secondary_key(mode,light,dark)
 	if combat_textures.has(key):
 		var cached:ImageTexture=combat_textures[key]
 		if fx_secondary_newest!=key:
@@ -13732,8 +13747,10 @@ func combat_frame_pack_image(id:String)->Image:
 func combat_packed_frame(id:String,normalized:int)->Texture2D:
 	if fx_atlas_cache.has(id):
 		var cached:Array=fx_atlas_cache[id]
-		fx_atlas_cache.erase(id)
-		fx_atlas_cache[id]=cached
+		if fx_atlas_newest!=id:
+			fx_atlas_cache.erase(id)
+			fx_atlas_cache[id]=cached
+			fx_atlas_newest=id
 		fx_frame_pack_hits+=1
 		return cached[normalized]
 	var image:=combat_frame_pack_image(id)
@@ -13748,6 +13765,7 @@ func combat_packed_frame(id:String,normalized:int)->Texture2D:
 		frames.append(frame)
 	if fx_atlas_cache.size()>=FX_ATLAS_CACHE_CAP:evict_oldest_fx_cache_entry(fx_atlas_cache)
 	fx_atlas_cache[id]=frames
+	fx_atlas_newest=id
 	fx_atlas_uploads+=1
 	fx_frame_pack_hits+=1
 	return frames[normalized]
