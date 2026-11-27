@@ -16072,6 +16072,13 @@ func update_particle_batches()->void:
 			fx_particle_batches[i].hide()
 			fx_particle_batches[i].multimesh.visible_instance_count=0
 
+# Exact prefix partition used by the authored particle branches. Electric
+# historically includes roles with or without an underscore.
+func combat_particle_family(role:String)->String:
+	if role.begins_with("electric"):return "electric"
+	var separator:int=role.find("_")
+	return role.substr(0,separator+1) if separator>=0 else ""
+
 func combat_fx_update(dt:float)->void:
 	begin_combat_audio_frame()
 	update_cast_text(dt)
@@ -16139,11 +16146,16 @@ func combat_fx_update(dt:float)->void:
 		elif str(profile.role) in ["lash","ground","grass_vine","grass_whip","grass_needle","earth_quake","earth_magnitude","earth_fissure"] and t>.03:
 			if profile.role in ["lash","grass_vine","grass_whip","grass_needle"]:vine_world_lash(points,t,profile,str(burst.id),path_metrics)
 			else:quake_world_tiles(tiles,t,str(burst.id))
+		var cast_role:String=str(profile.role)
+		var cast_family:String=combat_particle_family(cast_role)
+		var cast_impact:float=float(profile.impact)
+		var particle_mode:String=str(profile.mode)
+		var particle_tint:=Color(1,1,1,clampf((1.0-t)*3.5,0.0,1.0))
 		var count:int=mini(26,6+tiles.size()*2) if mode in ["cloud","wave","fan","web","shards","beam"] else 14
 		if mode in ["flame","whip"]:count=22
-		if str(profile.role).begins_with("electric"):count=4
-		if profile.role=="lash":count=3
-		if profile.role=="ground":count=mini(18,tiles.size()*3)
+		if cast_family=="electric":count=4
+		if cast_role=="lash":count=3
+		if cast_role=="ground":count=mini(18,tiles.size()*3)
 		# Keep elemental contact accents visible when the base spray is large.
 		if crowded:count=mini(count,maxi(1,share*2/3))
 		used=confirmed_contact_icons(burst,t,used)
@@ -16152,34 +16164,35 @@ func combat_fx_update(dt:float)->void:
 		# Reserve the readable projectile head within the same shared cast quota.
 		used=projectile_identity_fx(burst,t,used)
 		used=ultimate_accent_fx(burst,t,used)
+		var particle_denominator:int=maxi(1,count-1)
 		for j in range(count):
 			if used>=fx_cast_particle_limit:break
 			var particle:=combat_particles[used];used+=1
-			var f:float=float(j)/maxi(1,count-1)
+			var f:float=float(j)/particle_denominator
 			var angle:float=f*TAU+float(j)*2.399
 			var q:Vector3
 			var size:float=.55
-			match str(profile.mode):
+			match particle_mode:
 				"vine","whip":
-					q=combat_path_sample(points,combat_travel_progress(t,float(profile.impact)),path_metrics);q.y+=.15*sin(angle);size=.22
+					q=combat_path_sample(points,combat_travel_progress(t,cast_impact),path_metrics);q.y+=.15*sin(angle);size=.22
 				"quake":
 					q=tiles[j%tiles.size()];q+=Vector3(cos(angle)*t*.32,sin(t*PI)*.65,sin(angle)*t*.32);size=.29
 				"lightning","beam","radiant":
-					var reach:float=combat_travel_progress(t,float(profile.impact))
+					var reach:float=combat_travel_progress(t,cast_impact)
 					q=combat_path_sample(points,f*reach,path_metrics)
 					q.y+=sin(f*PI*4.0-t*14.0)*(.10 if mode=="beam" else .24)
 					size=.48 if mode!="beam" else .78
 				"flame","fire_stream":
-					var travel:float=combat_travel_progress(t,float(profile.impact),f*.65)
+					var travel:float=combat_travel_progress(t,cast_impact,f*.65)
 					q=combat_path_sample(points,travel,path_metrics)
 					q+=Vector3(cos(angle)*travel*.20,sin(angle+t*7.0)*travel*.22, sin(angle)*travel*.20)
 					size=.45+travel*.70
 				"dart","bubble","bubble_beam","roll","spiral","meteor","leap":
-					var travel:float=combat_travel_progress(t,float(profile.impact),f*.5)
+					var travel:float=combat_travel_progress(t,cast_impact,f*.5)
 					q=combat_path_sample(points,travel,path_metrics)
 					if mode in ["meteor","leap"]:q.y+=sin(travel*PI)*(.85 if mode=="meteor" else .55)
 					if mode=="spiral":q+=Vector3(cos(angle+t*12.0)*.20,sin(angle+t*12.0)*.30,sin(angle+t*12.0)*.20)
-					if str(profile.mode) in ["bubble","bubble_beam"]:q.y+=f*.3
+					if particle_mode in ["bubble","bubble_beam"]:q.y+=f*.3
 					size=.9 if j==0 else .40+f*.25
 				"slash":
 					q=points[-1]
@@ -16190,25 +16203,25 @@ func combat_fx_update(dt:float)->void:
 					var radius:float=.12+t*.48
 					q+=Vector3(cos(angle)*radius,.18+sin(t*PI)*(.5 if mode=="cloud" else .2),sin(angle)*radius)
 					size=.65 if mode!="web" else .85
-			if profile.role=="electric_sky":
-				q=points[-1]+Vector3(0,lerpf(2.8,.0,combat_travel_progress(t,float(profile.impact))),0);size=.75
-			elif profile.role=="electric_burst":
+			if cast_role=="electric_sky":
+				q=points[-1]+Vector3(0,lerpf(2.8,.0,combat_travel_progress(t,cast_impact)),0);size=.75
+			elif cast_role=="electric_burst":
 				q=tiles[j%tiles.size()]+Vector3(0,.38,0);size=.62
-			elif profile.role=="electric_short":
+			elif cast_role=="electric_short":
 				q=points[-1]+Vector3(cos(angle)*.16,sin(angle)*.15,0);size=.30
-			elif profile.role=="electric_wave":
-				q=combat_path_sample(points,combat_travel_progress(t,float(profile.impact),f*.18),path_metrics);size=.70
-			elif profile.role in ["electric_fist","electric_fang","electric_spark","electric_bind"]:
+			elif cast_role=="electric_wave":
+				q=combat_path_sample(points,combat_travel_progress(t,cast_impact,f*.18),path_metrics);size=.70
+			elif cast_role in ["electric_fist","electric_fang","electric_spark","electric_bind"]:
 				q=points[-1]+Vector3(cos(angle)*.18,sin(angle)*.18,0);size=.45
-			elif profile.role in ["electric_orb","electric_dash","electric_beam"]:
-				q=combat_path_sample(points,combat_travel_progress(t,float(profile.impact),f*.12),path_metrics);size=.82 if profile.role=="electric_orb" else .42
-			elif profile.role=="electric_room":
+			elif cast_role in ["electric_orb","electric_dash","electric_beam"]:
+				q=combat_path_sample(points,combat_travel_progress(t,cast_impact,f*.12),path_metrics);size=.82 if cast_role=="electric_orb" else .42
+			elif cast_role=="electric_room":
 				q=tiles[j%tiles.size()]+Vector3(0,.42,0);size=.48
-			elif profile.role in ["electric_charge","electric_lift"]:
-				q=points[0]+Vector3(cos(angle)*.25,t*.55 if profile.role=="electric_lift" else .12,sin(angle)*.25);size=.48
-			if str(profile.role).begins_with("fire_"):
-				var fire_role:String=str(profile.role)
-				var progress:float=combat_travel_progress(t,float(profile.impact),f*.35)
+			elif cast_role in ["electric_charge","electric_lift"]:
+				q=points[0]+Vector3(cos(angle)*.25,t*.55 if cast_role=="electric_lift" else .12,sin(angle)*.25);size=.48
+			if cast_family=="fire_":
+				var fire_role:String=cast_role
+				var progress:float=combat_travel_progress(t,cast_impact,f*.35)
 				match fire_role:
 					"fire_breath","fire_ember","fire_wisp":
 						q=combat_path_sample(points,progress,path_metrics)+Vector3(cos(angle)*.12,sin(angle)*.14,sin(angle)*.12)
@@ -16233,9 +16246,9 @@ func combat_fx_update(dt:float)->void:
 						q=points[0]+Vector3(cos(angle)*.12,1.6+t*.35,sin(angle)*.12);size=.82
 					_:
 						q=points[-1]+Vector3(cos(angle)*.28,sin(angle)*.3,sin(angle)*.28);size=.62
-			if str(profile.role).begins_with("water_"):
-				var water_role:String=str(profile.role)
-				var progress:float=combat_travel_progress(t,float(profile.impact),f*.35)
+			if cast_family=="water_":
+				var water_role:String=cast_role
+				var progress:float=combat_travel_progress(t,cast_impact,f*.35)
 				match water_role:
 					"water_bubble","water_bubblebeam","water_ink","water_cannon","water_pump","water_gun","water_pulse","water_brine","water_jet":
 						q=combat_path_sample(points,progress,path_metrics)+Vector3(cos(angle)*.12,sin(angle)*.13,sin(angle)*.12)
@@ -16258,9 +16271,9 @@ func combat_fx_update(dt:float)->void:
 						q=points[0]+Vector3(cos(angle)*.7,1.8*(1.0-progress),sin(angle)*.7);size=.28
 					_:
 						q=points[-1]+Vector3(cos(angle)*.32,sin(angle)*.28,sin(angle)*.32);size=.60
-			if str(profile.role).begins_with("grass_"):
-				var grass_role:String=str(profile.role)
-				var progress:float=combat_travel_progress(t,float(profile.impact),f*.35)
+			if cast_family=="grass_":
+				var grass_role:String=cast_role
+				var progress:float=combat_travel_progress(t,cast_impact,f*.35)
 				match grass_role:
 					"grass_absorb","grass_mega","grass_giga":
 						var return_progress:float=clampf((t-.25)*1.55-f*.18,0,1)
@@ -16280,12 +16293,12 @@ func combat_fx_update(dt:float)->void:
 					"grass_roots","grass_aroma","grass_synthesis":
 						q=points[0]+Vector3(cos(angle)*.45,.1+sin(t*PI)*.65,sin(angle)*.45);size=.52
 					"grass_vine","grass_whip","grass_needle":
-						q=combat_path_sample(points,combat_travel_progress(t,float(profile.impact)),path_metrics)+Vector3(0,.12,0);size=.25
+						q=combat_path_sample(points,combat_travel_progress(t,cast_impact),path_metrics)+Vector3(0,.12,0);size=.25
 					_:
 						q=points[-1]+Vector3(cos(angle)*.30,sin(angle)*.25,sin(angle)*.30);size=.55
-			if str(profile.role).begins_with("ice_"):
-				var ice_role:String=str(profile.role)
-				var progress:float=combat_travel_progress(t,float(profile.impact),f*.35)
+			if cast_family=="ice_":
+				var ice_role:String=cast_role
+				var progress:float=combat_travel_progress(t,cast_impact,f*.35)
 				match ice_role:
 					"ice_aurora","ice_beam","ice_wind","ice_shard","ice_spear","ice_ball":
 						q=combat_path_sample(points,progress,path_metrics)+Vector3(cos(angle)*.1,sin(angle)*.13,sin(angle)*.1)
@@ -16302,9 +16315,9 @@ func combat_fx_update(dt:float)->void:
 						q=points[-1]+Vector3(cos(angle)*t*.4,.1+sin(t*PI)*.7,sin(angle)*t*.4);size=.9
 					_:
 						q=points[-1]+Vector3(cos(angle)*.28,sin(angle)*.25,sin(angle)*.28);size=.58
-			if str(profile.role).begins_with("earth_"):
-				var earth_role:String=str(profile.role)
-				var progress:float=combat_travel_progress(t,float(profile.impact),f*.35)
+			if cast_family=="earth_":
+				var earth_role:String=cast_role
+				var progress:float=combat_travel_progress(t,cast_impact,f*.35)
 				match earth_role:
 					"earth_dig":
 						q=points[-1]+Vector3(cos(angle)*t*.45,.08+sin(t*PI)*.55,sin(angle)*t*.45);size=.48
@@ -16322,9 +16335,9 @@ func combat_fx_update(dt:float)->void:
 						q=points[0]+Vector3(cos(angle)*.4,.12+f*.5,sin(angle)*.4);size=.48
 					_:
 						q=points[-1]+Vector3(cos(angle)*.25,sin(angle)*.25,sin(angle)*.25);size=.65
-			if str(profile.role).begins_with("rock_"):
-				var rock_role:String=str(profile.role)
-				var progress:float=combat_travel_progress(t,float(profile.impact),f*.30)
+			if cast_family=="rock_":
+				var rock_role:String=cast_role
+				var progress:float=combat_travel_progress(t,cast_impact,f*.30)
 				match rock_role:
 					"rock_throw","rock_blast","rock_gem","rock_wrecker","rock_ancient":
 						q=combat_path_sample(points,progress,path_metrics)+Vector3(cos(angle)*.12,sin(progress*PI)*(.85 if rock_role=="rock_throw" else .24),sin(angle)*.12)
@@ -16344,9 +16357,9 @@ func combat_fx_update(dt:float)->void:
 						q=points[0]+Vector3(cos(angle+t*TAU*2.0)*.75,.2+f*.8,sin(angle+t*TAU*2.0)*.75);size=.38
 					"rock_trap":
 						q=points[0]+Vector3(cos(angle)*.42,.04+t*.12,sin(angle)*.42);size=.45
-			if str(profile.role).begins_with("fight_"):
-				var fight_role:String=str(profile.role)
-				var progress:float=combat_travel_progress(t,float(profile.impact),f*.30)
+			if cast_family=="fight_":
+				var fight_role:String=cast_role
+				var progress:float=combat_travel_progress(t,cast_impact,f*.30)
 				match fight_role:
 					"fight_blast","fight_aura","fight_vacuum","fight_mach":
 						q=combat_path_sample(points,progress,path_metrics)+Vector3(0,.12,0);size=.85 if fight_role=="fight_blast" else .52
@@ -16366,9 +16379,9 @@ func combat_fx_update(dt:float)->void:
 						q=points[-1]+Vector3(cos(angle+t*TAU)*.38,.15,sin(angle+t*TAU)*.38);size=.58
 					_:
 						q=points[-1]+Vector3(cos(angle)*.27,sin(angle)*.25,sin(angle)*.27);size=.56
-			if str(profile.role).begins_with("air_"):
-				var air_role:String=str(profile.role)
-				var progress:float=combat_travel_progress(t,float(profile.impact),f*.30)
+			if cast_family=="air_":
+				var air_role:String=cast_role
+				var progress:float=combat_travel_progress(t,cast_impact,f*.30)
 				match air_role:
 					"air_cutter","air_gust","air_blast":
 						q=combat_path_sample(points,progress,path_metrics)+Vector3(cos(angle)*.12,.2+sin(angle)*.16,sin(angle)*.12);size=.84 if air_role=="air_blast" else .48
@@ -16386,9 +16399,9 @@ func combat_fx_update(dt:float)->void:
 						q=points[-1]+Vector3(cos(angle+t*TAU*2.0)*.22,.2,sin(angle+t*TAU*2.0)*.22);size=.55
 					_:
 						q=points[-1]+Vector3(cos(angle)*.25,sin(angle)*.24,sin(angle)*.25);size=.53
-			if str(profile.role).begins_with("poison_"):
-				var poison_role:String=str(profile.role)
-				var progress:float=combat_travel_progress(t,float(profile.impact),f*.30)
+			if cast_family=="poison_":
+				var poison_role:String=cast_role
+				var progress:float=combat_travel_progress(t,cast_impact,f*.30)
 				match poison_role:
 					"poison_bomb","poison_gunk","poison_sludge","poison_acid","poison_gastro","poison_sting":
 						q=combat_path_sample(points,progress,path_metrics)+Vector3(cos(angle)*.10,sin(progress*PI)*(.75 if poison_role=="poison_bomb" else .18),sin(angle)*.10)
@@ -16401,9 +16414,9 @@ func combat_fx_update(dt:float)->void:
 						q=points[-1]+Vector3(cos(angle+t)*(.18+t*.35),.08+f*.56,sin(angle+t)*(.18+t*.35));size=.43
 					_:
 						q=points[-1]+Vector3(cos(angle)*.23,.15+sin(angle)*.18,sin(angle)*.23);size=.54
-			if str(profile.role).begins_with("bug_"):
-				var bug_role:String=str(profile.role)
-				var progress:float=combat_travel_progress(t,float(profile.impact),f*.30)
+			if cast_family=="bug_":
+				var bug_role:String=cast_role
+				var progress:float=combat_travel_progress(t,cast_impact,f*.30)
 				match bug_role:
 					"bug_string","bug_signal","bug_twin","bug_pin","bug_horn":
 						q=combat_path_sample(points,progress,path_metrics)+Vector3(cos(angle)*.10,.12+sin(angle)*.12,sin(angle)*.10)
@@ -16420,9 +16433,9 @@ func combat_fx_update(dt:float)->void:
 						q=points[-1]+Vector3(cos(angle)*t*.4,.12+f*.28,sin(angle)*t*.4);size=.58
 					_:
 						q=points[-1]+Vector3(cos(angle)*.22,.15+sin(angle)*.18,sin(angle)*.22);size=.53
-			if str(profile.role).begins_with("psi_"):
-				var psi_role:String=str(profile.role)
-				var progress:float=combat_travel_progress(t,float(profile.impact),f*.30)
+			if cast_family=="psi_":
+				var psi_role:String=cast_role
+				var progress:float=combat_travel_progress(t,cast_impact,f*.30)
 				match psi_role:
 					"psi_beam","psi_wave","psi_mist","psi_luster","psi_cut","psi_zen":
 						q=combat_path_sample(points,progress,path_metrics)+Vector3(cos(angle)*.10,.15+sin(angle)*.12,sin(angle)*.10);size=.58
@@ -16436,9 +16449,9 @@ func combat_fx_update(dt:float)->void:
 						q=points[0]+Vector3(cos(angle+t*TAU)*.40,.12+f*.65,sin(angle+t*TAU)*.40);size=.50
 					_:
 						q=points[-1]+Vector3(cos(angle+t*TAU)*.32,.15+f*.42,sin(angle+t*TAU)*.32);size=.52
-			if str(profile.role).begins_with("ghost_"):
-				var ghost_role:String=str(profile.role)
-				var progress:float=combat_travel_progress(t,float(profile.impact),f*.30)
+			if cast_family=="ghost_":
+				var ghost_role:String=cast_role
+				var progress:float=combat_travel_progress(t,cast_impact,f*.30)
 				match ghost_role:
 					"ghost_ball","ghost_confuse","ghost_punch","ghost_lick":
 						q=combat_path_sample(points,progress,path_metrics)+Vector3(cos(angle)*.11,.14+sin(angle)*.10,sin(angle)*.11);size=.65 if ghost_role=="ghost_ball" else .46
@@ -16454,9 +16467,9 @@ func combat_fx_update(dt:float)->void:
 						q=tiles[j%tiles.size()]+Vector3(cos(angle+t*TAU)*.36,.16+f*.48,sin(angle+t*TAU)*.36);size=.52
 					_:
 						q=points[-1]+Vector3(cos(angle+t*TAU)*.30,.18+f*.42,sin(angle+t*TAU)*.30);size=.51
-			if str(profile.role).begins_with("dragon_"):
-				var dragon_role:String=str(profile.role)
-				var progress:float=combat_travel_progress(t,float(profile.impact),f*.30)
+			if cast_family=="dragon_":
+				var dragon_role:String=cast_role
+				var progress:float=combat_travel_progress(t,cast_impact,f*.30)
 				match dragon_role:
 					"dragon_breath","dragon_flame","dragon_pulse","dragon_rush":
 						q=combat_path_sample(points,progress,path_metrics)+Vector3(cos(angle)*.12,.18+sin(angle)*.12,sin(angle)*.12);size=.76 if dragon_role=="dragon_rush" else .56
@@ -16470,9 +16483,9 @@ func combat_fx_update(dt:float)->void:
 						q=points[0]+Vector3(cos(angle+t*TAU)*.42,.12+f*.62,sin(angle+t*TAU)*.42);size=.46
 					_:
 						q=points[-1]+Vector3(cos(angle)*.28,.18+sin(angle)*.25,sin(angle)*.28);size=.56
-			if str(profile.role).begins_with("dark_"):
-				var dark_role:String=str(profile.role)
-				var progress:float=combat_travel_progress(t,float(profile.impact),f*.30)
+			if cast_family=="dark_":
+				var dark_role:String=cast_role
+				var progress:float=combat_travel_progress(t,cast_impact,f*.30)
 				match dark_role:
 					"dark_faint","dark_sucker","dark_fling":
 						q=combat_path_sample(points,progress,path_metrics)+Vector3(0,sin(progress*PI)*(.8 if dark_role=="dark_fling" else .2),0);size=.55
@@ -16488,9 +16501,9 @@ func combat_fx_update(dt:float)->void:
 						q=points[-1]+Vector3(cos(angle)*.22,.8*(1.0-progress),sin(angle)*.22);size=.35
 					_:
 						q=points[-1]+Vector3(cos(angle+t*TAU)*.26,.16+f*.36,sin(angle+t*TAU)*.26);size=.52
-			if str(profile.role).begins_with("steel_"):
-				var steel_role:String=str(profile.role)
-				var progress:float=combat_travel_progress(t,float(profile.impact),f*.30)
+			if cast_family=="steel_":
+				var steel_role:String=cast_role
+				var progress:float=combat_travel_progress(t,cast_impact,f*.30)
 				match steel_role:
 					"steel_meteor","steel_bullet","steel_flash","steel_mirror","steel_magnet","steel_gyro","steel_sound":
 						q=combat_path_sample(points,progress,path_metrics)+Vector3(cos(angle)*.10,.15+sin(progress*PI)*(.65 if steel_role=="steel_magnet" else .13),sin(angle)*.10);size=.67 if steel_role=="steel_flash" else .49
@@ -16498,9 +16511,9 @@ func combat_fx_update(dt:float)->void:
 						q=points[0]+Vector3(cos(angle+t*TAU)*.38,.12+f*.65,sin(angle+t*TAU)*.38);size=.50
 					"steel_tail","steel_wing","steel_claw","steel_head":
 						q=points[-1]+Vector3(cos(angle+t*TAU)*.28,.16+sin(angle)*.20,sin(angle+t*TAU)*.28);size=.56
-			if str(profile.role).begins_with("normal_"):
-				var normal_role:String=str(profile.role)
-				var progress:float=combat_travel_progress(t,float(profile.impact),f*.30)
+			if cast_family=="normal_":
+				var normal_role:String=cast_role
+				var progress:float=combat_travel_progress(t,cast_impact,f*.30)
 				match normal_role:
 					"normal_extreme","normal_quick","normal_tackle","normal_takedown","normal_edge","normal_giga","normal_headbutt","normal_skull","normal_feint","normal_horn","normal_drill","normal_furyattack":
 						q=combat_path_sample(points,progress,path_metrics)+Vector3(cos(angle)*.10,.16+sin(progress*PI)*.16,sin(angle)*.10);size=.76 if normal_role=="normal_giga" else .53
@@ -16514,9 +16527,9 @@ func combat_fx_update(dt:float)->void:
 						q=points[-1]+Vector3(cos(angle+t*TAU)*.38,.12+f*.55,sin(angle+t*TAU)*.38);size=.48
 					_:
 						q=points[-1]+Vector3(cos(angle+t*TAU)*.26,.16+f*.36,sin(angle+t*TAU)*.26);size=.52
-			if str(profile.role).begins_with("neutral_"):
-				var neutral_role:String=str(profile.role)
-				var progress:float=combat_travel_progress(t,float(profile.impact),f*.30)
+			if cast_family=="neutral_":
+				var neutral_role:String=cast_role
+				var progress:float=combat_travel_progress(t,cast_impact,f*.30)
 				match neutral_role:
 					"neutral_self","neutral_explosion","neutral_vacuum","neutral_wide":
 						q=tiles[j%tiles.size()]+Vector3(cos(angle+t*TAU)*.35,.15+f*.6,sin(angle+t*TAU)*.35);size=.76 if neutral_role=="neutral_explosion" else .55
@@ -16530,9 +16543,9 @@ func combat_fx_update(dt:float)->void:
 						q=points[0]+Vector3(cos(angle+t*TAU)*.4,.15+f*.5,sin(angle+t*TAU)*.4);size=.43
 					_:
 						q=combat_path_sample(points,progress,path_metrics)+Vector3(cos(angle)*.11,.14+sin(angle)*.15,sin(angle)*.11);size=.75 if neutral_role=="neutral_beam" else .48
-			if str(profile.role).begins_with("support_"):
-				var support_role:String=str(profile.role)
-				var progress:float=combat_travel_progress(t,float(profile.impact),f*.30)
+			if cast_family=="support_":
+				var support_role:String=cast_role
+				var progress:float=combat_travel_progress(t,cast_impact,f*.30)
 				match support_role:
 					"support_pain","support_psych":
 						q=combat_path_sample(points,progress if j%2==0 else 1.0-progress,path_metrics)+Vector3(0,.15+sin(progress*PI)*.45,0);size=.43
@@ -16540,9 +16553,9 @@ func combat_fx_update(dt:float)->void:
 						q=tiles[j%tiles.size()]+Vector3(cos(angle+t*TAU)*.32,.12+f*.65,sin(angle+t*TAU)*.32);size=.48
 					_:
 						q=points[0]+Vector3(cos(angle+t*TAU)*.38,.12+f*.6,sin(angle+t*TAU)*.38);size=.46
-			if str(profile.role).begins_with("status_"):
-				var status_role:String=str(profile.role)
-				var progress:float=combat_travel_progress(t,float(profile.impact),f*.30)
+			if cast_family=="status_":
+				var status_role:String=cast_role
+				var progress:float=combat_travel_progress(t,cast_impact,f*.30)
 				match status_role:
 					"status_convert","status_convert2","status_transform","status_camo","status_talk","status_metronome","status_assist","status_nature","status_recycle":
 						q=points[0]+Vector3(cos(angle+t*TAU)*.38,.12+f*.65,sin(angle+t*TAU)*.38);size=.47
@@ -16557,11 +16570,11 @@ func combat_fx_update(dt:float)->void:
 					_:
 						q=points[-1]+Vector3(cos(angle+t*TAU)*.28,.15+f*.5,sin(angle+t*TAU)*.28);size=.46
 			# Drained energy travels from victim back to caster; healing stays on caster.
-			if profile.role=="drain" and t>=.40:
+			if cast_role=="drain" and t>=.40:
 				var back:float=clampf((t-.40)*2.0-f*.22,0.0,1.0)
 				q=combat_path_sample(points,1.0-back,path_metrics)+Vector3(cos(angle)*.10,.15+sin(back*PI)*.35,sin(angle)*.10)
 				size=.32+f*.18
-			elif profile.role=="heal":
+			elif cast_role=="heal":
 				var radius:float=.12+sin(t*PI)*.38
 				q=points[0]+Vector3(cos(angle)*radius,.12+t*.65,sin(angle)*radius)
 				size=.36
@@ -16571,7 +16584,6 @@ func combat_fx_update(dt:float)->void:
 			if particle.texture!=animated:particle.texture=animated
 			var particle_scale:=Vector3.ONE*size*(1.0-t*.38)*.40
 			if particle.scale!=particle_scale:particle.scale=particle_scale
-			var particle_tint:=Color(1,1,1,clampf((1.0-t)*3.5,0.0,1.0))
 			if particle.modulate!=particle_tint:particle.modulate=particle_tint
 			if not particle.visible:particle.show()
 		if crowded and t>=float(profile.impact):
