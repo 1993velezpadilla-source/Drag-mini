@@ -1,0 +1,61 @@
+name: Kindria V20 release gauntlet
+on:
+  push:
+    branches: [feature/my-forever-pet-paradise]
+    paths:
+      - 'my-forever-pet/godot-arcade/**'
+      - '.github/workflows/kindria-v20-release-gauntlet.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: kindria-v20-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  godot-release-gauntlet:
+    runs-on: ubuntu-latest
+    timeout-minutes: 55
+    defaults:
+      run:
+        shell: bash
+        working-directory: my-forever-pet/godot-arcade
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Godot 4.6
+        working-directory: /tmp
+        run: |
+          set -euo pipefail
+          curl --fail --location --retry 3 -o godot.zip https://github.com/godotengine/godot-builds/releases/download/4.6-stable/Godot_v4.6-stable_linux.x86_64.zip
+          unzip -q godot.zip
+          chmod +x Godot_v4.6-stable_linux.x86_64
+          sudo install -m 0755 Godot_v4.6-stable_linux.x86_64 /usr/local/bin/godot
+          godot --version
+      - name: Import and compile project
+        run: |
+          set -euo pipefail
+          godot --headless --editor --path . --import 2>&1 | tee /tmp/kindria-import.log
+          if grep -E 'SCRIPT ERROR|Parse Error|Compile Error|Failed to load script' /tmp/kindria-import.log; then exit 1; fi
+      - name: Run full cinematic gauntlet
+        run: |
+          set -euo pipefail
+          godot --headless --path . --script res://cinematic_gauntlet.gd 2>&1 | tee /tmp/kindria-gauntlet.log
+          grep -E 'CINEMATIC_GAUNTLET checks=[0-9]+ failures=0$' /tmp/kindria-gauntlet.log
+          grep -E 'KINDRIA_FULL_QUALITY moves=589 .*audio=1178 .*runtime_samples=2945' /tmp/kindria-gauntlet.log
+          grep -E 'KINDRIA_AUDIO_QUALITY samples=1178 exact_unique=1178' /tmp/kindria-gauntlet.log
+          if grep -E 'SCRIPT ERROR|Parse Error|Compile Error|Failed to load script' /tmp/kindria-gauntlet.log; then exit 1; fi
+          test -s /tmp/kindria-quality-report.log
+          test -s /tmp/kindria-audio-quality.json
+          test -s /tmp/kindria-visual/index.json
+      - name: Preserve diagnostics even on failure
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: kindria-v20-release-evidence
+          if-no-files-found: warn
+          retention-days: 14
+          path: |
+            /tmp/kindria-import.log
+            /tmp/kindria-gauntlet.log
+            /tmp/kindria-quality-report.log
+            /tmp/kindria-audio-quality.json
+            /tmp/kindria-visual/
