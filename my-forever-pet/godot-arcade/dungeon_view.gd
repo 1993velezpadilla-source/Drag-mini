@@ -5373,14 +5373,18 @@ func queue_observed_enemy_damage(actor:Node3D,uid:int,tile:Vector2i,defeated:boo
 		var old_hp:int=int(actor.get_meta("enemy_hp",response.before))
 		affected=affected and old_hp>int(response.before)
 	var spec:=damage_reaction_spec(combat_profile(run.player_attack_fx),new_cast,hits,affected,(pos(tile)-pos(run.player)).normalized())
-	if response.is_empty() or (hits<=0 and not affected):
+	if response.is_empty():
 		queue_enemy_reaction(actor,defeated,float(spec.delay),Vector3(spec.direction),float(spec.span),int(spec.count))
 		return
-	# A response-turn loss is not another strike of the original move. Play
-	# its neutral reaction after the scheduled direct impacts; death is last.
-	var secondary_delay:float=float(spec.delay)+float(spec.span)+.04
-	queue_enemy_reaction(actor,defeated,secondary_delay,Vector3.ZERO)
-	queue_enemy_reaction(actor,false,float(spec.delay),Vector3(spec.direction),float(spec.span),int(spec.count))
+	var linked:bool=new_cast and (hits>0 or affected)
+	var events:Array=response.get("events",[])
+	var count:int=maxi(1,events.size())
+	var secondary_delay:float=float(spec.delay)+float(spec.span)+.04 if linked else 0.0
+	# Queue terminal callback first: queue_enemy_reaction retires older callbacks
+	# on defeat, so all preceding direct/secondary hits are added afterward.
+	for index in range(count-1,-1,-1):
+		queue_enemy_reaction(actor,defeated and index==count-1,secondary_delay+float(index)*.12,Vector3.ZERO)
+	if linked:queue_enemy_reaction(actor,false,float(spec.delay),Vector3(spec.direction),float(spec.span),int(spec.count))
 
 func refresh_actors():
 	for key in actor_nodes.keys():
@@ -5423,8 +5427,10 @@ func refresh_actors():
 			shape(root,"box",Vector3(0,height,0),Vector3(.75,.09,.12),Color("#212835"))
 			var bar=shape(root,"box",Vector3(0,height+.015,.012),Vector3(.72,.075,.13),Color("#ee7c83"));bar.name="HP"
 			var marker=shape(root,"ring",Vector3(0,.06,0),Vector3(.74,.12,.74),Color("#ffb25d"));marker.name="Warning"
-		if int(enemy.hp)<int(root.get_meta("enemy_hp",enemy.hp)):
-			queue_observed_enemy_damage(root,int(enemy.get("uid",-1)),p,false)
+		var uid:int=int(enemy.get("uid",-1))
+		var fresh_response:bool=run.visual_turn_damage_turn==run.turns and (enemy_event_floor!=run.floor_revision or enemy_event_turn!=run.turns) and run.visual_turn_damage.has(uid)
+		if int(enemy.hp)<int(root.get_meta("enemy_hp",enemy.hp)) or fresh_response:
+			queue_observed_enemy_damage(root,uid,p,false)
 		root.set_meta("enemy_hp",int(enemy.hp))
 		var bar=root.get_node("HP") as Node3D
 		bar.scale.x=.72*clampf(float(enemy.hp)/float(enemy.get("max_hp",enemy.hp)),0,1)

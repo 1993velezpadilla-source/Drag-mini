@@ -663,6 +663,21 @@ var player_visual_hit_serial:int=-1
 # Net HP losses during the response turn, separate from the initiating cast.
 var visual_turn_damage:Dictionary={}
 var visual_turn_damage_turn:int=-1
+var visual_response_events:Dictionary={}
+var visual_response_active:bool=false
+func visual_record_response(enemy:Dictionary,amount:int,source:String)->void:
+	if not visual_response_active:return
+	var uid:int=int(enemy.get("uid",-1))
+	var dealt:int=mini(maxi(0,int(enemy.hp)),maxi(0,amount))
+	if uid<0 or dealt<=0:return
+	if not visual_response_events.has(uid):visual_response_events[uid]=[]
+	visual_response_events[uid].append({"source":source,"amount":dealt})
+
+func visual_record_stage(before:Dictionary,source:String)->void:
+	var losses:Dictionary=visual_hp_losses(before,visual_enemy_hp_snapshot())
+	for uid in losses:
+		if not visual_response_events.has(uid):visual_response_events[uid]=[]
+		visual_response_events[uid].append({"source":source,"amount":int(losses[uid].before)-int(losses[uid].after)})
 func visual_enemy_hp_snapshot()->Dictionary:
 	var snapshot:Dictionary={}
 	for enemy in enemies:
@@ -1637,11 +1652,13 @@ func tick_enemy_statuses()->void:
 			e["wrapped_age"]=int(e.get("wrapped_age",0))+1
 			e["wrapped_turns"]=int(e.wrapped_turns)-1
 			if int(e.wrapped_age)%2==1:
+				visual_record_response(e,6,"wrap")
 				e.hp=int(e.hp)-6
 				if int(e.hp)<=0:remove_defeated_enemy(i);player_boons.erase("wrapping");continue
 		if int(e.get("curse_turns",0))>0:
 			e["curse_turns"]=int(e.curse_turns)-1;e["curse_age"]=int(e.get("curse_age",0))+1
 			if int(e.curse_age)>=2 and (int(e.curse_age)-2)%10==0:
+				visual_record_response(e,maxi(1,int(int(e.get("max_hp",e.hp))/4)),"curse")
 				e.hp=int(e.hp)-maxi(1,int(int(e.get("max_hp",e.hp))/4))
 				if int(e.hp)<=0:remove_defeated_enemy(i);continue
 		for state in ["whiffer","paused","heal_block","infatuated","destiny","encore","taunt","embargo","decoy"]:
@@ -1650,10 +1667,12 @@ func tick_enemy_statuses()->void:
 		if int(e.get("perish_turns",0))>0:
 			e["perish_turns"]=int(e.perish_turns)-1
 			if int(e.perish_turns)==0 and not e.get("perish_immune",false) and int(e.get("kind",0))!=3:
+				visual_record_response(e,int(e.hp),"perish")
 				remove_defeated_enemy(i);continue
 		if int(e.get("nightmare_turns",0))>0:
 			e["nightmare_turns"]=int(e.nightmare_turns)-1
 			if int(e.nightmare_turns)==0:
+				visual_record_response(e,8,"nightmare")
 				e.hp=int(e.hp)-8
 				if int(e.hp)<=0:remove_defeated_enemy(i);continue
 		if int(e.get("stuck_turns",0))>0:e["stuck_turns"]=int(e.stuck_turns)-1
@@ -1662,6 +1681,7 @@ func tick_enemy_statuses()->void:
 			e["leech_age"]=int(e.get("leech_age",0))+1
 			if int(e.leech_age)%2==0:
 				var siphoned:int=mini(10,int(e.hp))
+				visual_record_response(e,siphoned,"leech")
 				e.hp=int(e.hp)-siphoned;hp=mini(max_hp,hp+siphoned)
 				if int(e.hp)<=0:remove_defeated_enemy(i);continue
 		if int(e.get("slow_turns",0))>0:e["slow_turns"]=int(e.slow_turns)-1
@@ -1681,25 +1701,50 @@ func tick_enemy_statuses()->void:
 			var age:int=int(e.get("status_age",0))
 			var interval:int=2 if major=="toxic" else 20
 			if age%interval==0:
+				visual_record_response(e,2 if major=="poison" else 6,major)
 				e.hp=int(e.hp)-(2 if major=="poison" else 6)
 				if int(e.hp)<=0:remove_defeated_enemy(i);continue
 			e["status_age"]=age+1
 func enemy_turn():
 	var visual_before:Dictionary=visual_enemy_hp_snapshot()
 	visual_turn_damage.clear()
+	visual_response_events.clear();visual_response_active=true
 	if player_slow_turns>0:player_slow_turns-=1
 	if charge_power_turns>0:charge_power_turns-=1
 	travel_steps_used=0;travel_refresh=false
 	counter_damage.clear();last_counter_damage=0;pending_throws.clear();sleep_reactions.clear()
 	var old_positions:Dictionary={}
 	for e in enemies:old_positions[e.pos]=true
+	var stage_before:Dictionary=visual_enemy_hp_snapshot()
 	if not finished:ally_turn_actions()
+	visual_record_stage(stage_before,"ally")
+	stage_before=visual_enemy_hp_snapshot()
 	enemy_turn_actions()
+	visual_record_stage(stage_before,"enemy_action")
+	stage_before=visual_enemy_hp_snapshot()
 	flush_linked_damage()
+	visual_record_stage(stage_before,"fate_link")
 	if not finished:
+		stage_before=visual_enemy_hp_snapshot()
 		for i in range(enemies.size()-1,-1,-1):
 			if not old_positions.has(enemies[i].pos):activate_player_trap(i)
-		flush_counters();flush_throws();flush_sleep_reactions();tick_enemy_statuses();tick_player_boons();tick_floor_weather()
+		visual_record_stage(stage_before,"trap")
+		stage_before=visual_enemy_hp_snapshot()
+		flush_counters()
+		visual_record_stage(stage_before,"counter")
+		stage_before=visual_enemy_hp_snapshot()
+		flush_throws()
+		visual_record_stage(stage_before,"throw")
+		stage_before=visual_enemy_hp_snapshot()
+		flush_sleep_reactions()
+		visual_record_stage(stage_before,"sleep_counter")
+		tick_enemy_statuses()
+		stage_before=visual_enemy_hp_snapshot()
+		tick_player_boons()
+		visual_record_stage(stage_before,"boon")
+		stage_before=visual_enemy_hp_snapshot()
+		tick_floor_weather()
+		visual_record_stage(stage_before,"weather")
 		if boon_active("wrapping") and enemy_at(wrap_target)<0:player_boons.erase("wrapping")
 		roost_active=false
 	else:counter_damage.clear()
@@ -1710,6 +1755,12 @@ func enemy_turn():
 		travel_boosts[i]-=1
 		if travel_boosts[i]<=0:travel_boosts.remove_at(i)
 	visual_turn_damage=visual_hp_losses(visual_before,visual_enemy_hp_snapshot())
+	for uid in visual_response_events:
+		if not visual_turn_damage.has(uid):
+			var hp_before:int=int(visual_before.get(uid,0))
+			visual_turn_damage[uid]={"before":hp_before,"after":int(visual_enemy_hp_snapshot().get(uid,0)),"removed":not visual_enemy_hp_snapshot().has(uid)}
+		visual_turn_damage[uid]["events"]=visual_response_events[uid].duplicate(true)
+	visual_response_active=false
 	visual_turn_damage_turn=turns
 func finish_walk_turn()->void:
 	travel_steps_used+=1

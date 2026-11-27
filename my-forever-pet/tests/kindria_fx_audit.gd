@@ -284,6 +284,17 @@ func run()->void:
 	if str(mixed.get_meta("enemy_phase",""))!="defeat":errors.append("mixed reaction terminal phase")
 	mixed.free()
 	print("KINDRIA_RESPONSE_DAMAGE_LEDGER_PASS")
+	# Exact periodic events preserve separate causes and clamp overkill.
+	var ledger=Rules.new()
+	ledger.visual_response_active=true
+	ledger.visual_record_response({"uid":7,"hp":5},2,"poison")
+	ledger.visual_record_response({"uid":7,"hp":3},8,"nightmare")
+	ledger.visual_record_response({"uid":8,"hp":0},8,"burn")
+	ledger.visual_response_active=false
+	ledger.visual_record_response({"uid":7,"hp":5},2,"wrap")
+	var recorded:Array=ledger.visual_response_events.get(7,[])
+	if recorded.size()!=2 or recorded[0].source!="poison" or int(recorded[1].amount)!=3 or ledger.visual_response_events.has(8):errors.append("periodic damage source ledger")
+	print("KINDRIA_PERIODIC_SOURCE_LEDGER_PASS")
 	# Exercise more frames than the cache cap, then verify hot hits and exact normalization.
 	for row in reports.slice(0,40):
 		for frame in range(Field.FX_FRAME_COUNT):field.combat_animated_texture(str(row.id),frame)
