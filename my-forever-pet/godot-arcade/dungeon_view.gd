@@ -2848,6 +2848,89 @@ func psi_sprite(im:Image,role:String,frame:int)->void:
 				for i in range(6):fx_disc(im,Vector2(39-31*t-float(i)*3,24+sin(t*TAU+float(i))*6),2.5,Color("#c6a9ff"))
 				fight_arc(im,c,10.0,-PI+t,PI*1.2,light,dark,3.0)
 
+# Original spectral FX: shadow trails, target-local curses and contact silhouettes.
+func ghost_sprite(im:Image,role:String,frame:int)->void:
+	var t:float=float(frame)/11.0
+	var c:=Vector2(24,24)
+	var light:=Color("#c9b9ff");var dark:=Color("#40305f");var glow:=Color("#91dfd4");var ink:=Color("#242037")
+	match role:
+		"ghost_nightmare":
+			for i in range(5):
+				var a:float=float(i)*TAU/5.0+t*2.0
+				var q:=c+Vector2(cos(a),sin(a))*(7.0+sin(t*PI)*7.0)
+				fx_disc(im,q,7.0,Color(dark,.82))
+				fx_line(im,q+Vector2(-3,-1),q+Vector2(-1,2),1.8,light)
+				fx_line(im,q+Vector2(3,-1),q+Vector2(1,2),1.8,light)
+			fight_arc(im,c,18.0,-PI+t,PI*1.3,light,dark,2.8)
+		"ghost_confuse":
+			var prev:=Vector2(2,24)
+			for j in range(1,18):
+				var f:float=float(j)/17.0
+				var q:=Vector2(2+43*f,24+sin(f*TAU*2.0-t*TAU)*8.0)
+				fx_line(im,prev,q,5.0,dark);fx_line(im,prev,q,1.6,glow);prev=q
+			fx_disc(im,prev,3.0,light)
+		"ghost_spite","ghost_grudge":
+			var count:int=4 if role=="ghost_spite" else 7
+			for i in range(count):
+				var a:float=float(i)*TAU/float(count)+t*2.5
+				var q:=c+Vector2(cos(a),sin(a))*(6.0+11.0*t)
+				fx_line(im,q,q+Vector2(0,-8.0),3.0,dark)
+				fx_disc(im,q+Vector2(0,-8),2.5,glow if role=="ghost_spite" else light)
+			if role=="ghost_grudge":psi_polygon(im,c,12.0+t*3.0,5,t*PI,light,dark)
+			else:fx_line(im,c-Vector2(5,5),c+Vector2(5,5),2.5,ink)
+		"ghost_astonish":
+			var q:=c+Vector2(0,-sin(t*PI)*7.0)
+			fight_burst(im,q,10.0+t*10.0,8,t,light,dark)
+			fx_line(im,q-Vector2(0,9),q+Vector2(0,2),4.0,glow)
+			fx_disc(im,q+Vector2(0,7),2.5,glow)
+		"ghost_lick":
+			var prev:=Vector2(4,26)
+			for i in range(1,13):
+				var f:float=float(i)/12.0
+				var q:=Vector2(4+35*f*sin(t*PI),26+sin(f*PI*1.5+t*TAU)*5.0)
+				fx_line(im,prev,q,6.0,dark);fx_line(im,prev,q,3.5,Color("#d782bc"));prev=q
+			fx_disc(im,prev,3.0,light)
+		"ghost_punch","ghost_ball":
+			var q:=Vector2(6+32*t,24)
+			if role=="ghost_ball":
+				fx_disc(im,q,10.0,ink);fx_disc(im,q,7.0,dark)
+				fight_arc(im,q,12.0,t*TAU,PI*1.5,light,glow,2.0)
+			else:
+				fx_disc(im,q,8.5,dark)
+				for i in range(4):fx_disc(im,q+Vector2(6,float(i-2)*4.0),3.0,light)
+				fx_line(im,q-Vector2(12,0),q-Vector2(5,0),7.0,ink)
+			for i in range(4):fx_disc(im,q-Vector2(float(i+1)*5,sin(t*TAU+float(i))*4.0),3.0,Color(dark,.6))
+		"ghost_shade":
+			for i in range(4):
+				var r:float=5.0+float(i)*5.0+sin(t*PI)*3.0
+				psi_ring(im,c,r,light,ink)
+			fx_disc(im,c,5.0+sin(t*PI)*2.0,dark)
+		"ghost_bond":
+			for i in range(6):
+				var q:=Vector2(5+float(i)*7,24+sin(t*TAU+float(i)*.8)*6.0)
+				psi_polygon(im,q,5.0,6,float(i%2)*PI*.5,glow,dark)
+			fx_disc(im,Vector2(5,24),3.0,light);fx_disc(im,Vector2(43,24),3.0,light)
+		"ghost_wind":
+			for i in range(6):
+				var q:=Vector2(4+float(i)*7,13+sin(t*TAU+float(i))*10.0)
+				fight_arc(im,q,9.0,-PI*.6+t,PI*1.15,glow,dark,3.0)
+				fx_disc(im,q+Vector2(2,11),2.0,light)
+		"ghost_sneak":
+			var q:=Vector2(4+39*t,34)
+			for i in range(6):
+				var at:=q-Vector2(float(i)*5,0)
+				fx_disc(im,at,4.0,Color(ink,1.0-float(i)*.13))
+			fx_line(im,q,q-Vector2(0,sin(t*PI)*19.0),4.0,light)
+		"ghost_claw":
+			for i in range(3):
+				var q:=c+Vector2(float(i-1)*6,float(i-1)*3)
+				fight_arc(im,q,14.0,-PI*.8+t*1.2,PI*1.05,light,dark,3.8)
+		"ghost_force":
+			var r:float=16.0-9.0*sin(t*PI)
+			for i in range(2):fight_arc(im,c,r+float(i)*3.0,t*TAU+float(i)*PI,PI*1.5,light,ink,4.0)
+			var q:=Vector2(24,6+32*t)
+			fx_disc(im,q,7.0,Color(dark,.9));fight_burst(im,q,11.0,6,t,glow,ink)
+
 func combat_frame_image(id:String,frame:int)->Image:
 	var style:Array=combat_style(id)
 	var mode:String=combat_animation_mode(id,str(style[0]))
@@ -2879,6 +2962,8 @@ func combat_frame_image(id:String,frame:int)->Image:
 		bug_sprite(im,role,frame);return im
 	if role.begins_with("psi_"):
 		psi_sprite(im,role,frame);return im
+	if role.begins_with("ghost_"):
+		ghost_sprite(im,role,frame);return im
 	var center:=Vector2(24,24)
 	match mode:
 		"vine":
@@ -3249,6 +3334,20 @@ func combat_profile(id:String)->Dictionary:
 		"eos_514":role="psi_powertrick"
 		"eos_526":role="psi_lunar"
 		"eos_528":role="psi_eye"
+		"eos_005":role="ghost_nightmare"
+		"eos_013":role="ghost_confuse"
+		"eos_035":role="ghost_spite"
+		"eos_046":role="ghost_astonish"
+		"eos_049":role="ghost_grudge"
+		"eos_120":role="ghost_lick"
+		"eos_126":role="ghost_punch"
+		"eos_127":role="ghost_ball"
+		"eos_216":role="ghost_shade"
+		"eos_313":role="ghost_bond"
+		"eos_437":role="ghost_wind"
+		"eos_451":role="ghost_sneak"
+		"eos_476":role="ghost_claw"
+		"eos_477":role="ghost_force"
 	if role in ["electric_charge","electric_lift"]:mode="lightning"
 	var impact:float=.48 if role in ["contact","electric_contact","electric_short","electric_fist","electric_fang","electric_dash","electric_spark"] else .64 if role in ["projectile","lash","electric_arc","electric_wave","electric_sky","electric_orb","electric_beam"] else .40
 	if role in ["fire_breath","fire_ember","fire_blast","fire_wisp"]:impact=.64
@@ -3268,6 +3367,7 @@ func combat_profile(id:String)->Dictionary:
 	if role.begins_with("poison_"):impact=.64 if role in ["poison_bomb","poison_gunk","poison_acid","poison_sludge","poison_gastro"] else .48
 	if role.begins_with("bug_"):impact=.64 if role in ["bug_string","bug_signal","bug_twin","bug_pin","bug_turn"] else .48
 	if role.begins_with("psi_"):impact=.64 if role in ["psi_beam","psi_wave","psi_mist","psi_luster"] else .48
+	if role.begins_with("ghost_"):impact=.64 if role in ["ghost_ball","ghost_confuse","ghost_sneak","ghost_force"] else .48
 	return {"mode":mode,"role":role,"element":element,"pattern":pattern,"range":reach,"duration":float(style[3]),"impact":impact,"socket":"ground" if role in ["ground","fire_plume","fire_magma","water_dive","water_whirlpool","water_surf","grass_frenzy","grass_roots","grass_knot","ice_avalanche","ice_cold","earth_dig","earth_tomb","earth_power","earth_fissure","earth_spikes","earth_quake","earth_magnitude","rock_edge","rock_tomb","rock_trap","rock_roll"] else "head" if role in ["projectile","fire_breath","fire_ember","fire_eruption","water_bubble","water_ink","water_spout","water_cannon","water_pump","water_bubblebeam","water_gun","water_pulse","water_brine","grass_solar","grass_energy","grass_bullet","grass_whistle","ice_aurora","ice_beam","ice_wind","earth_shot","rock_wrecker","rock_blast","rock_gem"] else "center"}
 func electric_sprite(im:Image,id:String,frame:int,role:String)->void:
 	var cyan:=Color("#40cfff")
@@ -3940,6 +4040,24 @@ func combat_fx_update(dt:float)->void:
 						q=points[0]+Vector3(cos(angle+t*TAU)*.40,.12+f*.65,sin(angle+t*TAU)*.40);size=.50
 					_:
 						q=points[-1]+Vector3(cos(angle+t*TAU)*.32,.15+f*.42,sin(angle+t*TAU)*.32);size=.52
+			if str(profile.role).begins_with("ghost_"):
+				var ghost_role:String=str(profile.role)
+				var progress:float=clampf(t*1.8-f*.30,0,1)
+				match ghost_role:
+					"ghost_ball","ghost_confuse","ghost_punch","ghost_lick":
+						q=combat_path_sample(points,progress)+Vector3(cos(angle)*.11,.14+sin(angle)*.10,sin(angle)*.11);size=.65 if ghost_role=="ghost_ball" else .46
+					"ghost_sneak":
+						q=combat_path_sample(points,progress)+Vector3(0,-.24+maxf(0.0,progress-.8)*1.6,0);size=.54
+					"ghost_force":
+						q=points[-1]+Vector3(cos(angle)*.20,1.4*(1.0-progress),sin(angle)*.20);size=.68
+					"ghost_grudge":
+						q=points[0]+Vector3(cos(angle+t*TAU)*.38,.12+f*.65,sin(angle+t*TAU)*.38);size=.49
+					"ghost_bond":
+						q=combat_path_sample(points,f)+Vector3(0,.15+sin(t*TAU+f*TAU)*.15,0);size=.40
+					"ghost_wind","ghost_shade":
+						q=tiles[j%tiles.size()]+Vector3(cos(angle+t*TAU)*.36,.16+f*.48,sin(angle+t*TAU)*.36);size=.52
+					_:
+						q=points[-1]+Vector3(cos(angle+t*TAU)*.30,.18+f*.42,sin(angle+t*TAU)*.30);size=.51
 			# Drained energy travels from victim back to caster; healing stays on caster.
 			if profile.role=="drain" and t>=.40:
 				var back:float=clampf((t-.40)*2.0-f*.22,0.0,1.0)

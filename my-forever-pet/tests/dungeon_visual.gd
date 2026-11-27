@@ -306,6 +306,22 @@ func run():
 				psychic_frames[signature]=true
 				assert(middle.save_png("/tmp/dungeon-real-psychic-"+id+".png")==OK)
 			print("KINDRIA_PSYCHIC_CHOREOGRAPHY_PASS ",psychic_roles.size())
+			var ghost_roles:Dictionary={}
+			var ghost_frames:Dictionary={}
+			for id in ["eos_005","eos_013","eos_035","eos_046","eos_049","eos_120","eos_126","eos_127","eos_216","eos_313","eos_437","eos_451","eos_476","eos_477"]:
+				var profile:Dictionary=dungeon.combat_profile(id)
+				assert(str(profile.role).begins_with("ghost_"),"dedicated ghost role "+id)
+				assert(not ghost_roles.has(profile.role),"unique ghost choreography "+id)
+				ghost_roles[profile.role]=true
+				var first:Image=dungeon.combat_frame_image(id,2)
+				var middle:Image=dungeon.combat_frame_image(id,6)
+				assert(first.get_data()!=middle.get_data(),"ghost animation changes "+id)
+				assert(middle.get_used_rect().has_area(),"nonempty ghost frame "+id)
+				var signature:String=middle.get_data().hex_encode()
+				assert(not ghost_frames.has(signature),"unique ghost sprite "+id)
+				ghost_frames[signature]=true
+				assert(middle.save_png("/tmp/dungeon-real-ghost-"+id+".png")==OK)
+			print("KINDRIA_GHOST_CHOREOGRAPHY_PASS ",ghost_roles.size())
 			# Reproduce the freed-instance registry fault before the real expedition.
 			var retired:Node3D=dungeon.actor_for("retired-test",Vector3.ZERO)
 			retired.free()
