@@ -132,6 +132,7 @@ func build_layout():
 		if i!=exit_index:choices.append(i)
 	relic=center(rooms[choices[rng.randi_range(0,choices.size()-1)]])
 func generate_floor():
+	enemy_actions.clear()
 	rng.seed=seed_value+floor_number*7919
 	cells.clear();rooms.clear();enemies.clear();loot.clear();revealed.clear();traps.clear();explored_rooms.clear()
 	floor_bonus=0;player_rested=false
