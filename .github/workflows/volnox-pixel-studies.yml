@@ -25,6 +25,16 @@ jobs:
           timeout 60 /tmp/godot/Godot_v4.4.1-stable_linux.x86_64 --headless --path /tmp/pixel --script res://volnox_pixel_studies.gd 2>&1 | tee /tmp/volnox-pixel.log
           grep -F 'VOLNOX_2D_PIXEL_PILOT_PASS 3' /tmp/volnox-pixel.log
           ! grep -E 'SCRIPT ERROR|Parse Error|Assertion failed' /tmp/volnox-pixel.log
+      - name: Render real Godot spatial shader on 2D sprite quads
+        run: |
+          set -euo pipefail
+          sudo apt-get update -qq
+          sudo apt-get install -y xvfb libgl1-mesa-dri
+          cp my-forever-pet/godot-arcade/volnox_pixel_life.gdshader my-forever-pet/tests/volnox_shader_review.gd /tmp/pixel/
+          printf '\n[rendering]\nrenderer/rendering_method="gl_compatibility"\n' >>/tmp/pixel/project.godot
+          xvfb-run -a timeout 60 /tmp/godot/Godot_v4.4.1-stable_linux.x86_64 --path /tmp/pixel --audio-driver Dummy --script res://volnox_shader_review.gd 2>&1 | tee /tmp/volnox-shader.log
+          grep -F VOLNOX_PIXEL_SHADER_VIEW_PASS /tmp/volnox-shader.log
+          ! grep -E 'SCRIPT ERROR|Parse Error|SHADER ERROR|Assertion failed' /tmp/volnox-shader.log
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -32,3 +42,5 @@ jobs:
           path: |
             /tmp/*-pixel-atlas.png
             /tmp/volnox-pixel.log
+            /tmp/volnox-shader-preview.png
+            /tmp/volnox-shader.log

@@ -466,9 +466,29 @@ static func enemy_pixel_cell(id:String,dir:int,pose:String,frame:int=0)->Image:
 		fallen.blit_rect(im,Rect2i(0,0,48,24),Vector2i(0,20))
 		return fallen
 	return im
+# External production atlases take priority over unapproved procedural studies.
+static var enemy_atlas_cache:Dictionary={}
+static func enemy_asset_cell(id:String,dir:int,pose:String,frame:int)->Image:
+	if not enemy_atlas_cache.has(id):
+		var path:="res://assets/enemies/%s.png"%id
+		var img:Image=null
+		if ResourceLoader.exists(path):
+			var tex:=load(path) as Texture2D
+			if tex!=null:
+				var candidate:=tex.get_image()
+				if candidate!=null and (not candidate.is_compressed() or candidate.decompress()==OK) and candidate.get_size()==Vector2i(528,192):
+					img=candidate
+		enemy_atlas_cache[id]=img
+	var sheet:Image=enemy_atlas_cache[id]
+	if sheet==null:return enemy_pixel_cell(id,dir,pose,frame) if id in ENEMY_PIXEL_PILOTS else null
+	var col:int=1+posmod(frame,4) if pose=="walk" else 6+posmod(frame,2) if pose=="attack" else ENEMY_POSES.find(pose)
+	return sheet.get_region(Rect2i(maxi(col,0)*48,clampi(dir,0,3)*48,48,48))
 static func enemy_pixel_texture(id:String,dir:int,pose:String,frame:int)->Texture2D:
 	var key:="enemy:%s:%d:%s:%d"%[id,dir,pose,frame]
-	if not cache.has(key):cache[key]=ImageTexture.create_from_image(enemy_pixel_cell(id,dir,pose,frame))
+	if not cache.has(key):
+		var image:=enemy_asset_cell(id,dir,pose,frame)
+		if image==null:return null
+		cache[key]=ImageTexture.create_from_image(image)
 	return cache[key] as Texture2D
 static func enemy_pixel_atlas(id:String)->Image:
 	var im:=Image.create(48*ENEMY_POSES.size(),192,false,Image.FORMAT_RGBA8)
