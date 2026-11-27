@@ -38,6 +38,8 @@ var meshes:Dictionary={}
 var mats:Dictionary={}
 var active_floor=0
 var facing=Vector2i.DOWN
+var aim_button:Button
+var special_button:Button
 var actor_nodes:Dictionary={}
 var enemy_shadow_material:StandardMaterial3D
 var enemy_shadow_mesh:QuadMesh
@@ -236,6 +238,9 @@ func build_ui():
 	attack_button=button(a,"Strike",func():path.clear();run.attack(false,facing);sync(),true)
 	power_button=button(a,"Skill",func():path.clear();run.attack(true,facing);sync())
 	heal_button=button(a,"Berry",func():path.clear();run.heal();sync())
+	var tactical=HBoxContainer.new();tactical.add_theme_constant_override("separation",8);v.add_child(tactical)
+	aim_button=button(tactical,"Aim ↓",func():rotate_combat_aim())
+	special_button=button(tactical,"Leaf Dart",func():path.clear();run.attack(true,facing,1);sync())
 	stairs_button=button(v,"Descend",func():path.clear();run.descend();sync(),true)
 func leave():
 	if notified:return
@@ -1930,6 +1935,10 @@ func draw_map():
 	var player_point=(Vector2(run.player)+Vector2(.5,.5))*unit+offset
 	map.draw_circle(player_point,maxf(4.0,unit*.85),Color("#73e4cc55"))
 	map.draw_circle(player_point,maxf(2.0,unit*.5),Color("#d5fff0"))
+func rotate_combat_aim()->void:
+	path.clear()
+	facing=Rules.DIR[posmod(Rules.DIR.find(facing)+1,4)]
+	update_hud()
 func touch(event:InputEvent):
 	if notified or run.finished:return
 	if map_expanded and (event is InputEventScreenTouch or event is InputEventMouseButton):
@@ -1981,6 +1990,8 @@ func update_hud():
 	relic_text.text="%d/%d"%[1 if run.secured else 0,1]
 	hp_bar.modulate=Color("#ff9b9b") if run.hp*3<run.max_hp else Color.WHITE
 	status_text.text=run.message
+	if is_instance_valid(aim_button):aim_button.text="Aim "+["↑","→","↓","←"][maxi(0,Rules.DIR.find(facing))]
+	if is_instance_valid(special_button):special_button.disabled=run.energy<2
 	power_button.text="%s %d/8"%[["Burst","Bolt","Drain"][run.skill_kind],run.energy];power_button.disabled=run.energy<2
 	heal_button.text="Berry ×%d"%run.potions;heal_button.disabled=run.potions==0 or run.hp==run.max_hp
 	stairs_button.text="Descend ›" if run.floor_number<run.floor_count else "Complete expedition"
@@ -2041,7 +2052,7 @@ func _process(dt:float):
 	if destination_fx.visible:destination_fx.position=pos(path[-1])+Vector3(0,.06,0)
 	attack_time=maxf(0.0,attack_time-dt);hit_time=maxf(0.0,hit_time-dt)
 	var moving:bool=travel.length()>.045
-	var motion:=Vector2(travel.x,travel.z) if moving else Vector2.ZERO
+	var motion:=Vector2(travel.x,travel.z) if moving else Vector2(facing)
 	pet_pose.position=Vector3.ZERO
 	pet_pose.rotation.z=0.0
 	if attack_time>0.0:

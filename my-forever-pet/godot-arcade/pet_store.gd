@@ -291,11 +291,13 @@ func validate_training()->void:
 	s.ev_bank=TrainingRules.normalized_ev(s.ev_bank,1512)
 	for i in range(6):s.ev_bank[i]=mini(int(s.ev_bank[i]),252-int(s.ev_allocated[i]))
 	if int(s.nature_id)<0 or int(s.nature_id)>=TrainingRules.NATURE_NAMES.size():
-		s.nature_id=posmod(int(s.generation)*17+int(s.installation)*7,TrainingRules.NATURE_NAMES.size())
+		if int(s.stage)>0:s.nature_id=randi_range(0,TrainingRules.NATURE_NAMES.size()-1)
+		else:s.nature_id=-1
 func training_profile()->Dictionary:
 	validate_training()
 	var level_value:int=clampi(companion_level(),1,100)
-	return {"nature":int(s.nature_id),"nature_name":TrainingRules.NATURE_NAMES[int(s.nature_id)],"types":["grass"],"level":level_value,"ev":s.ev_allocated.duplicate(),"bank":s.ev_bank.duplicate(),"stats":TrainingRules.make_pet_stats(level_value,s.ev_allocated,int(s.nature_id))}
+	var nature_id:int=int(s.nature_id)
+	return {"nature":nature_id,"nature_name":TrainingRules.NATURE_NAMES[nature_id] if nature_id>=0 else "Not hatched","nature_summary":TrainingRules.nature_summary(nature_id),"nature_pair":TrainingRules.nature_pair(nature_id),"nature_trait":TrainingRules.NATURE_TRAITS[nature_id] if nature_id>=0 else "Unknown","types":["grass"],"level":level_value,"ev":s.ev_allocated.duplicate(),"bank":s.ev_bank.duplicate(),"stats":TrainingRules.make_pet_stats(level_value,s.ev_allocated,int(s.nature_id))}
 func allocate_ev(stat:int,amount:int)->int:
 	if stat<0 or stat>=6 or amount<=0 or not field_session.is_empty():return 0
 	validate_training()
@@ -668,6 +670,7 @@ func action(id:String,i:int=0)->bool:
 		"hatch":
 			if s.stage!=0: return false
 			s.stage=1; s.field=int(s.habitat); s.age=0.0; s.last=at
+			validate_training()
 			if not legacy_catalog:s.collection=1
 			if s.generation==1 and s.coins==0: s.coins=100
 		"field":

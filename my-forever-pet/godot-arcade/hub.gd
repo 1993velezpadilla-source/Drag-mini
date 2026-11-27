@@ -1164,7 +1164,8 @@ func show_training():
 	section_heading(actions,"Combat training","Defeat creatures to earn stat-specific EVs, then invest them here.")
 	var top=panel(actions)
 	label(top,"Mosky · Lv %d · %s"%[profile.level,profile.nature_name],22)
-	label(top,"Grass · Nature bonuses affect combat stats",15)
+	label(top,"Grass · "+str(profile.nature_trait),15)
+	label(top,str(profile.nature_summary),16).autowrap_mode=TextServer.AUTOWRAP_WORD_SMART
 	var total:int=0
 	for n in profile.ev:total+=int(n)
 	label(top,"Allocated %d / 510 · IVs disabled"%total,16)
@@ -1173,7 +1174,9 @@ func show_training():
 		var card=panel(actions)
 		var h=row(card)
 		var copy=VBoxContainer.new();copy.size_flags_horizontal=SIZE_EXPAND_FILL;h.add_child(copy)
-		label(copy,"%s · %d"%[names[i],profile.stats[i]],18)
+		var stat_label=label(copy,"%s · %d"%[names[i],profile.stats[i]],18)
+		if i==int(profile.nature_pair[0]):stat_label.modulate=Color("#a7e9af");stat_label.text+="  ↑10%"
+		elif i==int(profile.nature_pair[1]):stat_label.modulate=Color("#ffac99");stat_label.text+="  ↓10%"
 		label(copy,"EV %d/252 · Available %d"%[profile.ev[i],profile.bank[i]],14)
 		var plus=button(h,"+1",func():store.allocate_ev(i,1);show_training())
 		plus.disabled=int(profile.bank[i])==0 or int(profile.ev[i])>=252 or total>=510

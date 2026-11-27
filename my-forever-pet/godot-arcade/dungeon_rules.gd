@@ -12,13 +12,16 @@ const SECONDARY_SKILLS={"bramble_pup":[1,"fan","Thorn Scratch",-1,"none",0,"slas
 const TYPE_CHART={"normal":[[],["rock","steel"],["ghost"]],"fire":[["grass","ice","bug","steel"],["fire","water","rock","dragon"],[]],"water":[["fire","ground","rock"],["water","grass","dragon"],[]],"electric":[["water","flying"],["electric","grass","dragon"],["ground"]],"grass":[["water","ground","rock"],["fire","grass","poison","flying","bug","dragon","steel"],[]],"ice":[["grass","ground","flying","dragon"],["fire","water","ice","steel"],[]],"fighting":[["normal","ice","rock","dark","steel"],["poison","flying","psychic","bug","fairy"],["ghost"]],"poison":[["grass","fairy"],["poison","ground","rock","ghost"],["steel"]],"ground":[["fire","electric","poison","rock","steel"],["grass","bug"],["flying"]],"flying":[["grass","fighting","bug"],["electric","rock","steel"],[]],"psychic":[["fighting","poison"],["psychic","steel"],["dark"]],"bug":[["grass","psychic","dark"],["fire","fighting","poison","flying","ghost","steel","fairy"],[]],"rock":[["fire","ice","flying","bug"],["fighting","ground","steel"],[]],"ghost":[["psychic","ghost"],["dark"],["normal"]],"dragon":[["dragon"],["steel"],["fairy"]],"dark":[["psychic","ghost"],["fighting","dark","fairy"],[]],"steel":[["ice","rock","fairy"],["fire","water","electric","steel"],[]],"fairy":[["fighting","dragon","dark"],["fire","poison","steel"],[]]}
 const NATURE_NAMES=["Hardy","Lonely","Brave","Adamant","Naughty","Bold","Docile","Relaxed","Impish","Lax","Timid","Hasty","Serious","Jolly","Naive","Modest","Mild","Quiet","Bashful","Rash","Calm","Gentle","Sassy","Careful","Quirky","Lazy"]
 # Stat order: HP, attack, defense, special attack, special defense, speed.
-const NATURE_ORDER=[1,2,5,3,4]
+# Save-compatible IDs, explicit independent stat pairs. Neutral natures have no modifier.
+const NATURE_PAIRS=[[-1,-1],[1,2],[1,5],[1,3],[1,4],[2,1],[-1,-1],[2,5],[2,3],[2,4],[5,1],[5,2],[-1,-1],[5,3],[5,4],[3,1],[3,2],[3,5],[-1,-1],[3,4],[4,1],[4,2],[4,5],[4,3],[-1,-1],[2,5]]
+const NATURE_TRAITS=["Resilient","Independent","Fearless","Determined","Mischievous","Confident","Gentle-tempered","Laid-back","Playfully cunning","Easygoing","Cautious","Impatient","Focused","Cheerful","Curious","Unassuming","Soft-spoken","Reserved","Shy","Impulsive","Peaceful","Tender","Spirited","Watchful","Unpredictable","Sleepy"]
 const STAT_NAMES=["HP","Attack","Defense","Sp. Attack","Sp. Defense","Speed"]
 const ENEMY_TRAINING={"bramble_pup":[["grass","normal"],"grass","normal",1,1,"physical"],"sporeling":[["grass","poison"],"poison","grass",4,1,"special"],"thornbeetle":[["bug","grass"],"bug","bug",2,2,"physical"],"leafwisp":[["grass","flying"],"grass","grass",5,1,"special"],"rootgnawer":[["ground","grass"],"ground","grass",1,1,"physical"],"vinesnap":[["grass","poison"],"grass","grass",1,2,"physical"],"mossmite":[["rock","grass"],"rock","rock",2,1,"physical"],"sylphowl":[["flying","grass"],"flying","flying",5,1,"special"],"hollow_stag":[["grass","ghost"],"grass","grass",1,2,"physical"],"grovetitan":[["grass","ground"],"ground","grass",0,2,"physical"],"fungal_monarch":[["grass","poison"],"poison","poison",4,3,"special"],"reef_pup":[["water"],"water","water",5,1,"physical"],"jellymancer":[["water","electric"],"electric","water",4,1,"special"],"shellguard":[["water","rock"],"rock","rock",2,2,"physical"],"bubblewisp":[["water","fairy"],"water","water",3,1,"special"],"eelstrix":[["water","electric"],"electric","electric",5,1,"special"],"coralcrab":[["water","bug"],"bug","water",1,1,"physical"],"anemoneye":[["water","poison"],"poison","poison",4,2,"physical"],"marrowray":[["water","flying"],"flying","water",5,1,"special"],"leviathorn":[["water","dragon"],"water","water",3,2,"physical"],"abyss_colossus":[["water","dark"],"dark","dark",0,2,"physical"],"tidal_sovereign":[["water","dark"],"water","water",1,3,"physical"],"starlit_pup":[["fairy","normal"],"fairy","fairy",5,1,"physical"],"lunamoth":[["bug","fairy"],"fairy","flying",4,1,"special"],"crystarok":[["rock","ice"],"ice","ice",2,2,"physical"],"nova_wisp":[["fire","ghost"],"fire","fire",3,1,"special"],"orbitserpent":[["dragon","psychic"],"psychic","dragon",3,1,"physical"],"comet_hare":[["normal","fairy"],"fairy","normal",5,1,"physical"],"voidspider":[["bug","dark"],"dark","bug",2,2,"special"],"nebulwing":[["flying","ghost"],"ghost","flying",5,1,"special"],"lunar_prowler":[["dark","ice"],"dark","dark",1,2,"physical"],"astro_golem":[["rock","psychic"],"rock","rock",2,2,"physical"],"celestial_guardian":[["flying","fairy"],"fairy","fairy",3,3,"special"]}
 const EV_STAT_CAP=252
 const EV_TOTAL_CAP=510
 const IV_ENABLED=false
 var trained_profile:Dictionary={}
+var speed_meter:float=0.0
 var earned_ev:Array=[0,0,0,0,0,0]
 var last_type_multiplier:float=1.0
 static func type_multiplier(move_type:String,defender_types:Array,mode:String="explorers")->float:
@@ -33,13 +36,36 @@ static func type_multiplier(move_type:String,defender_types:Array,mode:String="e
 		elif element in matchups[0]:factor*=1.4 if mode=="explorers" else 2.0
 		elif element in matchups[1]:factor*=.7 if mode=="explorers" else .5
 	return factor
+static func nature_pair(nature_id:int)->Array:
+	if nature_id<0 or nature_id>=NATURE_PAIRS.size():return [-1,-1]
+	return NATURE_PAIRS[nature_id].duplicate()
 static func nature_factor(nature_id:int,stat:int)->float:
-	if stat==0 or nature_id<0 or nature_id>=NATURE_NAMES.size():return 1.0
-	if nature_id==25:return 1.1 if stat==2 else .9 if stat==5 else 1.0
-	var plus:int=NATURE_ORDER[int(nature_id/5.0)]
-	var minus:int=NATURE_ORDER[nature_id%5]
-	if plus==minus:return 1.0
-	return 1.1 if stat==plus else .9 if stat==minus else 1.0
+	if stat==0:return 1.0
+	var pair:=nature_pair(nature_id)
+	return 1.1 if stat==int(pair[0]) else .9 if stat==int(pair[1]) else 1.0
+static func nature_summary(nature_id:int)->String:
+	var pair:=nature_pair(nature_id)
+	if int(pair[0])<0:return "Balanced · no stat changes"
+	return "+10% "+STAT_NAMES[pair[0]]+" / −10% "+STAT_NAMES[pair[1]]
+# Unrounded combat values ensure modifiers matter even at early levels.
+static func combat_stat_value(level:int,ev:Array,nature_id:int,stat:int)->float:
+	var base:Array=[45,48,48,54,50,52]
+	var lv:int=clampi(level,1,100)
+	var trained:float=(2.0*float(base[stat])+float(int(int(ev[stat])/4.0)))*lv/100.0
+	return trained+lv+10.0 if stat==0 else (trained+5.0)*nature_factor(nature_id,stat)
+func combat_stat(stat:int)->float:
+	return combat_stat_value(int(trained_profile.get("level",1)),trained_profile.get("ev",[0,0,0,0,0,0]),int(trained_profile.get("nature",0)),stat)
+func neutral_combat_stat(stat:int)->float:
+	return combat_stat_value(int(trained_profile.get("level",1)),[0,0,0,0,0,0],0,stat)
+# Original Kindria speed rule: deterministic evasion meter, no skipped turns.
+func speed_evasion_rate()->float:
+	if trained_profile.is_empty():return 0.0
+	return clampf(.10*combat_stat(5)/neutral_combat_stat(5),.04,.25)
+func speed_evade()->bool:
+	if trained_profile.is_empty():return false
+	speed_meter+=speed_evasion_rate()
+	if speed_meter+.000001<1.0:return false
+	speed_meter=maxf(0.0,speed_meter-1.0);return true
 static func normalized_ev(values:Array,limit:int=EV_TOTAL_CAP)->Array:
 	var result:Array=[0,0,0,0,0,0]
 	var remaining:int=limit
@@ -60,15 +86,16 @@ static func make_pet_stats(level:int,ev:Array,nature_id:int)->Array:
 	return out
 func configure_training(profile:Dictionary)->void:
 	trained_profile=profile.duplicate(true)
+	speed_meter=0.0
 	var stats:Array=trained_profile.get("stats",[])
 	if stats.size()==6:
 		var bonus:int=mini(35,maxi(0,int(stats[0])-int(make_pet_stats(int(profile.get("level",1)),[0,0,0,0,0,0],0)[0])))
 		max_hp+=bonus;hp=max_hp
-func trained_damage(raw:int,move_type:String,attacker_types:Array,defender_types:Array,attack_stat:int,defense_stat:int,_neutral_stat:int)->int:
+func trained_damage(raw:int,move_type:String,attacker_types:Array,defender_types:Array,attack_stat:float,defense_stat:float,_neutral_stat:float)->int:
 	last_type_multiplier=type_multiplier(move_type,defender_types)
 	if last_type_multiplier<=0.0:return 0
 	var stab:float=1.2 if move_type in attacker_types else 1.0
-	var ratio:float=clampf(float(maxi(1,attack_stat))/maxi(1,defense_stat),.60,1.65)
+	var ratio:float=clampf(maxf(1.0,attack_stat)/maxf(1.0,defense_stat),.60,1.65)
 	return maxi(1,roundi(float(raw)*last_type_multiplier*stab*ratio))
 func gain_enemy_ev(enemy:Dictionary)->void:
 	var profile:Array=ENEMY_TRAINING.get(enemy.get("species",""),[])
@@ -366,21 +393,20 @@ func pickup():
 		"spring":hp=mini(max_hp,hp+18);energy=mini(8,energy+3);player_rested=true;message="Restorative spring · HP and skill restored"
 		"relic":secured=true;message="Relic secured! Find the stairs"
 	emit_event(message)
-func strike(i:int,power:bool=false):
+func strike(i:int,power:bool=false,style_override:int=-1):
+	var attack_style:int=skill_kind if style_override<0 else clampi(style_override,0,2)
 	if i<0 or i>=enemies.size():return
 	attack_serial+=1;attack_target=enemies[i].pos;attack_power=power
-	player_attack_fx="basic_strike" if not power else ["briar_arc","nova_bolt","jelly_pulse"][skill_kind]
+	player_attack_fx="basic_strike" if not power else ["briar_arc","leaf_dart","jelly_pulse"][attack_style]
 	player_attack_cells=[attack_target]
 	if power and distance(player,attack_target)==2:player_attack_cells.push_front(player+(attack_target-player)/2)
 	var damage:int=10 if power else 6
 	last_type_multiplier=1.0
 	if not trained_profile.is_empty():
 		var enemy_info:Array=ENEMY_TRAINING.get(enemies[i].get("species",""),[["normal"],"normal","normal",0,0,"physical"])
-		var stat_index:int=3 if power and skill_kind==1 else 1
-		var stats:Array=trained_profile.stats
-		var neutral:Array=make_pet_stats(int(trained_profile.level),[0,0,0,0,0,0],0)
+		var stat_index:int=3 if power and attack_style==1 else 1
 		var move_type:String=str(trained_profile.types[0]) if power else "normal"
-		damage=trained_damage(damage,move_type,trained_profile.types,enemy_info[0],int(stats[stat_index]),int(neutral[stat_index]),int(neutral[stat_index]))
+		damage=trained_damage(damage,move_type,trained_profile.types,enemy_info[0],combat_stat(stat_index),neutral_combat_stat(stat_index),neutral_combat_stat(stat_index))
 	if weakened_strikes>0:
 		damage=maxi(0,damage-1);weakened_strikes-=1
 	var guard:int=int(enemies[i].get("guard",0))
@@ -449,20 +475,22 @@ func enemy_turn():
 				var info:Array=ENEMY_TRAINING.get(enemies[i].get("species",""),[["normal"],"normal","normal",0,0,"physical"])
 				var move_type:String=str(info[2] if alternate else info[1]) if special else "normal"
 				var stat_index:int=4 if str(info[5])=="special" else 2
-				var stats:Array=trained_profile.stats
-				var neutral:Array=make_pet_stats(int(trained_profile.level),[0,0,0,0,0,0],0)
-				damage=trained_damage(damage,move_type,info[0],trained_profile.types,int(neutral[stat_index]),int(stats[stat_index]),int(neutral[stat_index]))
-			hp=maxi(0,hp-damage);hits+=1;combo=0
+				damage=trained_damage(damage,move_type,info[0],trained_profile.types,neutral_combat_stat(stat_index),combat_stat(stat_index),neutral_combat_stat(stat_index))
+			var dodged:bool=damage>0 and speed_evade()
+			if dodged:damage=0
+			else:hp=maxi(0,hp-damage);hits+=1;combo=0
 			var move_name:String=str(enemies[i].get("signature","Strike")) if special else "Quick strike"
 			if alternate:move_name=str(SECONDARY_SKILLS[species][2])
 			var effect:String=str(skill[4]) if special else "none"
 			if special:
 				if alternate:enemies[i]["alt_cooldown"]=maxi(0,int(skill[2])-1)
 				else:enemies[i]["cooldown"]=maxi(0,int(skill[2])-1)
-				apply_signature_effect(i,skill)
-			enemy_actions.append({"uid":enemies[i].get("uid",i),"phase":"attack","from":p,"to":player,"end":enemies[i].pos,"move":move_name,"fx":skill[6] if special else "basic_strike","effect":effect,"damage":damage,"effectiveness":last_type_multiplier,"aim":aim if special else player-p,"pattern":pattern if special else "front","tiles":footprint.keys() if special else [player],"path":footprint.get(player,[player]) if special else [player]})
+				if not dodged:apply_signature_effect(i,skill)
+			if dodged:effect="none"
+			enemy_actions.append({"uid":enemies[i].get("uid",i),"phase":"attack","from":p,"to":player,"end":enemies[i].pos,"move":move_name,"fx":skill[6] if special else "basic_strike","effect":effect,"damage":damage,"dodged":dodged,"effectiveness":last_type_multiplier,"aim":aim if special else player-p,"pattern":pattern if special else "front","tiles":footprint.keys() if special else [player],"path":footprint.get(player,[player]) if special else [player]})
 			message="%s · %s! −%d HP"%[enemies[i].get("name","Enemy"),move_name,damage]
-			if last_type_multiplier>1.01:message+=" · Effective!"
+			if dodged:message+=" · Dodged!"
+			elif last_type_multiplier>1.01:message+=" · Effective!"
 			elif last_type_multiplier<.99:message+=" · Resisted"
 			if effect!="none":message+=" · "+effect.capitalize()
 			emit_event(message)
@@ -484,20 +512,21 @@ func move(p:Vector2i)->bool:
 			traps.erase(player);hp=maxi(1,hp-3);hits+=1;combo=0;message="Trap! −3 HP";emit_event(message)
 	enemy_turn()
 	return true
-func attack(power:bool=false,aim:Vector2i=Vector2i.ZERO)->bool:
+func attack(power:bool=false,aim:Vector2i=Vector2i.ZERO,style_override:int=-1)->bool:
+	var attack_style:int=skill_kind if style_override<0 else clampi(style_override,0,2)
 	if finished or (power and energy<2):return false
 	var directions:Array=DIR if aim==Vector2i.ZERO else [aim]
-	if power and skill_kind==1:
+	if power and attack_style==1:
 		for d in directions:
 			if not cells.has(player+d) or enemy_at(player+d)>=0:continue
 			var ranged=enemy_at(player+d*2)
-			if ranged>=0:energy-=2;strike(ranged,true);enemy_turn();return true
+			if ranged>=0:energy-=2;strike(ranged,true,attack_style);enemy_turn();return true
 	for d in directions:
 		var i=enemy_at(player+d)
 		if i>=0:
 			if power:energy-=2
-			strike(i,power)
-			if power and skill_kind==2:hp=mini(max_hp,hp+4)
+			strike(i,power,attack_style)
+			if power and attack_style==2:hp=mini(max_hp,hp+4)
 			enemy_turn();return true
 	message="No enemy in that direction";return false
 func heal()->bool:

@@ -22,13 +22,14 @@ func next_action(d)->bool:
 		d.stairs_button.pressed.emit();return true
 	for direction in r.DIR:
 		if r.enemy_at(r.player+direction)>=0:
+			d.facing=direction
 			if r.energy>=2:d.power_button.pressed.emit()
 			else:d.attack_button.pressed.emit()
 			fights+=1;return true
 	if r.skill_kind==1 and r.energy>=2:
 		for direction in r.DIR:
 			if r.cells.has(r.player+direction) and r.enemy_at(r.player+direction)<0 and r.enemy_at(r.player+direction*2)>=0:
-				d.power_button.pressed.emit();fights+=1;return true
+				d.facing=direction;d.power_button.pressed.emit();fights+=1;return true
 	var target:Vector2i=r.stairs if r.secured else r.relic
 	var route=r.route(r.player,target)
 	if route.is_empty():return false
