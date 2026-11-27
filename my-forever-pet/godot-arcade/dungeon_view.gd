@@ -2736,6 +2736,35 @@ func combat_pixel_texture(mode:String,light:Color,dark:Color)->ImageTexture:
 			var fill:bool=false
 			var inner:bool=false
 			match mode:
+				"status_plus":
+					fill=(absf(v.x)<2.0 and absf(v.y)<6.5) or (absf(v.y)<2.0 and absf(v.x)<6.5)
+					inner=absf(v.x)<.9 or absf(v.y)<.9
+				"status_shield":
+					var width:float=6.0 if v.y<0.0 else 6.0-v.y*.65
+					fill=absf(v.x)<width and absf(v.y)<6.5
+					inner=fill and absf(v.x)<width-1.5 and absf(v.y)<5.0
+				"status_up","status_down":
+					var yy:float=v.y if mode=="status_up" else -v.y
+					fill=absf(yy+4.0-absf(v.x))<1.5 and absf(v.x)<6.0 or (absf(v.x)<1.5 and yy>=-3.0 and yy<6.5)
+					inner=absf(v.x)<.8 or absf(yy+4.0-absf(v.x))<.7
+				"status_sleep":
+					fill=(absf(v.y+5.0)<1.2 or absf(v.y-5.0)<1.2 or absf(v.x+v.y)<1.4) and absf(v.x)<5.5 and absf(v.y)<6.0
+					inner=fill and absf(v.x+v.y)<.8
+				"status_swirl":
+					fill=absf(r-(3.5+atan2(v.y,v.x)*.8))<1.3 or r<1.5
+					inner=r<3.0
+				"status_curse":
+					fill=r<7.0 and (absf(r-5.5)<1.4 or absf(absf(v.x)-absf(v.y))<1.1)
+					inner=r<3.0
+				"status_heart":
+					fill=(v-Vector2(-3,-2)).length()<3.6 or (v-Vector2(3,-2)).length()<3.6 or (v.y>=-1.0 and absf(v.x)<6.5-v.y*.9 and v.y<7.0)
+					inner=fill and v.x<0.0 and v.y<1.5
+				"status_bind":
+					fill=(absf(v.y+3.0)<1.3 or absf(v.y-3.0)<1.3) and absf(v.x)<7.0 or absf(v.x)<1.0 and absf(v.y)<6.5
+					inner=absf(v.x)<.6 or absf(absf(v.y)-3.0)<.6
+				"status_exchange":
+					fill=absf(v.y+3.0)<1.1 and absf(v.x)<6.5 or absf(v.y-3.0)<1.1 and absf(v.x)<6.5 or absf(v.y+3.0+absf(v.x-5.0))<1.1 and v.x>2.0 or absf(v.y-3.0-absf(v.x+5.0))<1.1 and v.x< -2.0
+					inner=fill and absf(v.x)<4.0
 				"projectile_orb":
 					fill=r<7.0;inner=r<4.5 or (r>5.5 and v.x+v.y<0)
 				"projectile_beam":
@@ -7068,6 +7097,80 @@ func confirmed_contact_icons(burst:Dictionary,t:float,used:int)->int:
 		if shown>=4 or used>=fx_cast_particle_limit:break
 	return used
 
+# Presentation uses actual move mechanics, independent of translated names.
+func status_finish_kind(move:Dictionary)->String:
+	if str(move.get("category",""))!="status":return ""
+	var special:String=str(move.get("special_rule",""))
+	var boon:String=str(move.get("boon_kind",""))
+	var ailment:String=str(move.get("inflict_status",""))
+	if move.has("heal_fraction") or move.has("heal_fixed") or move.has("weather_heal") or special in ["party_heal","party_renew","pain_split"]:return "heal"
+	if move.has("shield_kind") or boon in ["mist","aqua","magic_coat","mirror_veil","magnet"]:return "shield"
+	if boon=="cure":return "cleanse"
+	if special=="transform_form" or str(move.get("stat_transfer","")) in ["conversion","camouflage"]:return "transform"
+	if move.has("weather_set") or move.has("floor_sport"):return "weather"
+	if move.has("trap_kind") or special in ["decoy","leader_decoy"]:return "trap"
+	if ailment in ["sleep","yawn"] or boon=="nap":return "sleep"
+	if ailment=="confusion":return "confusion"
+	if ailment in ["poison","toxic"]:return "poison"
+	if ailment=="burn":return "burn"
+	if ailment=="paralysis":return "paralysis"
+	if ailment in ["nightmare","perish","heal_block"] or move.has("curse_action") or special in ["destiny_link","torment","spite","embargo","taunt"]:return "curse"
+	if special in ["infatuation","captivate"]:return "heart"
+	if ailment in ["stuck","leech","paused"] or special in ["encore","tempo_rift"]:return "bind"
+	if move.has("speed_change"):return "boost" if int(move.speed_change)>0 else "weaken"
+	var changes:Dictionary=move.get("stat_changes",{})
+	var up:bool=false;var down:bool=false
+	for key in changes:
+		up=up or int(changes[key])>0;down=down or int(changes[key])<0
+	if up and down:return "exchange"
+	if up:return "boost"
+	if down or move.has("stat_halves") or move.has("memento"):return "weaken"
+	if move.has("stat_transfer") or move.has("reset_room_stats") or special in ["copy_boost","swap_ability","copy_ability","suppress_ability","swap_item"]:return "exchange"
+	if boon in ["focus","lucky","sure","rage","ingrain","wish"] or special in ["party_boost","party_rally","belly_drum"]:return "boost"
+	if not ailment.is_empty():return "curse"
+	return "ritual"
+
+const STATUS_FINISH_STYLE={
+	"heal":["status_plus","#d6ffe3","#43aa76"],
+	"cleanse":["status_plus","#e1fff9","#60b8d7"],
+	"shield":["status_shield","#bbf3ff","#537bbd"],
+	"boost":["status_up","#ffe69d","#d68943"],
+	"weaken":["status_down","#c3caff","#685aa8"],
+	"exchange":["status_exchange","#ffe4b2","#9578c3"],
+	"sleep":["status_sleep","#dce9ff","#7784bf"],
+	"confusion":["status_swirl","#ffe9a3","#c081da"],
+	"poison":["venom_splash","#d9adff","#8344ac"],
+	"burn":["ember","#ffda94","#d45d36"],
+	"paralysis":["lightning","#fff4a6","#c69a30"],
+	"curse":["status_curse","#e0c5ff","#61407e"],
+	"heart":["status_heart","#ffcae6","#d15b99"],
+	"bind":["status_bind","#bfe8ad","#567f62"],
+	"transform":["status_exchange","#d5f5ff","#9675d5"],
+	"weather":["wave","#c3edff","#6c9bbb"],
+	"trap":["web","#f2d6a2","#8f715e"],
+	"ritual":["status_swirl","#e4d5ff","#7868a8"]
+}
+
+func status_finish_fx(kind:String,target:Vector3,age:float,used:int)->int:
+	var style:Array=STATUS_FINISH_STYLE[kind]
+	var light:=Color(style[1]);var dark:=Color(style[2])
+	var fade:float=1.0-age
+	var rising:bool=kind in ["heal","cleanse","boost","sleep","heart"]
+	var falling:bool=kind in ["weaken","curse"]
+	if age<.58:
+		used=environment_particle(used,target+Vector3.UP*(.20+age*.36 if rising else .34-age*.24 if falling else .25),str(style[0]),light,dark,.56+sin(age*PI)*.15,fade)
+	for i in range(4):
+		if used>=fx_cast_particle_limit:break
+		var a:float=float(i)*TAU/4.0+age*(3.0 if kind in ["confusion","exchange","transform"] else .7)
+		var radius:float=.22+age*.40
+		if kind=="shield" or kind=="bind":radius=.42
+		var y:float=.12+age*.66 if rising else .65*(1.0-age) if falling else .18+sin(age*PI)*.35
+		var q:=Vector3(target.x,.045,target.z)+Vector3(cos(a)*radius,y,sin(a)*radius)
+		used=environment_particle(used,q,str(style[0]),light,dark,.28,fade*.82)
+	if kind in ["shield","bind","trap","weather","transform","heal","cleanse"]:
+		used=environment_particle(used,Vector3(target.x,.045,target.z),"shock_ring",light,dark,.55+age*.85,fade*.62,true)
+	return used
+
 func element_finish_fx(burst:Dictionary,t:float,used:int)->int:
 	var id:String=str(burst.id)
 	var profile:Dictionary=burst.profile
@@ -7097,6 +7200,18 @@ func element_finish_fx(burst:Dictionary,t:float,used:int)->int:
 		var primary_tile:Vector2i=resolved.tile
 		if resolved.kind=="miss":
 			return environment_particle(used,target,"cloud",light,dark,.32+age*.18,fade*.35)
+		if status:
+			var kind:=status_finish_kind(record)
+			if resolved.kind=="confirmed" or kind in ["weather","trap"]:
+				used=status_finish_fx(kind,target,age,used)
+				var extra_status:int=0
+				for tile in results:
+					if tile==primary_tile or extra_status>=3:continue
+					var hit:Dictionary=results[tile]
+					if int(hit.get("effects",0))+int(hit.get("heal",0))<=0:continue
+					used=environment_particle(used,pos(tile)+Vector3.UP*.62,str(STATUS_FINISH_STYLE[kind][0]),Color(STATUS_FINISH_STYLE[kind][1]),Color(STATUS_FINISH_STYLE[kind][2]),.45,fade)
+					extra_status+=1
+			return used
 		if age<.30 and resolved.kind=="confirmed":
 			used=environment_particle(used,target,"bubble" if status else "impact_star",light,dark,.62+age*.55,1.0-age*2.0)
 		# Room-wide attacks show a small localized finish at other confirmed targets.
