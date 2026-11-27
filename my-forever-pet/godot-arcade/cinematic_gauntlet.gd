@@ -80,6 +80,18 @@ func run_checks()->void:
 			failures.append("defeat cleanup missing: "+species)
 		checks+=1
 		# Deferred deletion avoids freeing a queued node twice.
+	# Stress the same quota helper used by the combat renderer.
+	for casts in range(1,11):
+		for capacity in range(145):
+			for demand in [1,4,12,26,80,144]:
+				var used:int=0
+				for i in range(casts):
+					var quota:int=view.cast_particle_quota(used,capacity,casts-i)
+					if quota<0 or used+quota>capacity:failures.append("cast quota overflow")
+					if capacity>=casts and quota<1:failures.append("cast starved")
+					used+=mini(quota,demand)
+					checks+=1
+				if used>capacity:failures.append("cast capacity exceeded")
 	for capacity in range(65):
 		var demands:Array[int]=[1,4,9,16,20,32]
 		var budgets:Array[int]=view.living_particle_budgets(demands,capacity)
