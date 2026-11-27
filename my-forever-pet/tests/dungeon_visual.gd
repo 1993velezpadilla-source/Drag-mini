@@ -624,6 +624,9 @@ func run():
 	assert(lab.run.dev_sandbox and lab.dev_panel.visible and not lab.dev_bubble.visible)
 	assert(lab.dev_catalog.size()>=522 and lab.lab_filtered_ids().size()==lab.dev_catalog.size())
 	assert(lab.dev_grid.get_child_count()==lab.DEV_PAGE_SIZE,"paged catalog")
+	assert(lab.dev_panel.get_parent()==lab.hud_base and not lab.dungeon_footer.visible,"DEV replaces footer rather than covering world")
+	assert(not lab.area.get_global_rect().intersects(lab.dev_panel.get_global_rect()),"combat lab and world never overlap")
+	assert(lab.area.size.y>=lab.size.y*.35,"substantial world view remains")
 	lab.dev_search.text="THUNDER"
 	lab.dev_search.text_changed.emit("THUNDER")
 	assert("eos_064" in lab.lab_filtered_ids())
@@ -634,6 +637,20 @@ func run():
 	lab.lab_cast("eos_064")
 	assert(lab.dev_panel.visible and lab.run.attack_serial==before and lab.player_cast_duration>0.0)
 	assert(lab.dev_result.text.begins_with("FX preview"))
+	var move_button:Button=lab.dev_grid.get_child(0)
+	var down:=InputEventMouseButton.new();down.button_index=MOUSE_BUTTON_LEFT;down.pressed=true;down.position=move_button.size*.5
+	move_button.gui_input.emit(down)
+	assert(lab.hold_active)
+	lab.show_held_attack()
+	assert(lab.dev_detail.visible and "Power" in lab.dev_detail.text)
+	var drag:=InputEventMouseMotion.new();drag.position=lab.hold_origin+Vector2(40,-40)
+	lab._input(drag)
+	assert(lab.facing==Vector2i(1,-1) and lab.hold_active)
+	var up:=InputEventMouseButton.new();up.button_index=MOUSE_BUTTON_LEFT;up.pressed=false;up.position=drag.position
+	lab._input(up)
+	await frames()
+	assert(not lab.hold_active and lab.dev_panel.visible and not lab.dev_detail.visible)
+	print("KINDRA_DEV_HOLD_DRAG_PASS")
 	lab.lab_minimize()
 	assert(lab.dev_bubble.visible and not lab.dev_panel.visible)
 	var bubble_before:Vector2=lab.dev_bubble.position

@@ -741,6 +741,18 @@ func attack_footprint(origin:Vector2i,forward:Vector2i,pattern:String,reach:int,
 					if q!=origin and room.has_point(q):out[q]=[q]
 				return out
 		return out
+	if pattern in ["fan","corner"] and forward.x!=0 and forward.y!=0:
+		# Three octant rays: center and the two neighboring headings. No rotated two-tile jumps.
+		for d in [forward,Vector2i(forward.x,0),Vector2i(0,forward.y)]:
+			var ray:Array[Vector2i]=[]
+			for i in range(1,reach+1):
+				var p:Vector2i=origin+d*i
+				if not step_clear(p-d,d):break
+				var occupied:bool=enemy_at(p)>=0
+				if occupied and not player_cast:break
+				ray.append(p);out[p]=ray.duplicate()
+				if occupied:break
+		return out
 	if pattern=="corner_front" and forward.x!=0 and forward.y!=0:
 		for d in [forward,Vector2i(forward.x,0),Vector2i(0,forward.y)]:
 			if step_clear(origin,d,true):out[origin+d]=[origin+d]
@@ -766,7 +778,6 @@ func attack_footprint(origin:Vector2i,forward:Vector2i,pattern:String,reach:int,
 			if pattern in ["corner","fan","radius"]:
 				for sign_side in [-1,1]:
 					var turn:=Vector2i(-d.y,d.x)*int(sign_side)
-					if d.x!=0 and d.y!=0:turn=Vector2i(-d.y*int(sign_side),0) if d.x*d.y*int(sign_side)>0 else Vector2i(0,d.x*int(sign_side))
 					var branch:Array[Vector2i]=path.duplicate()
 					var limit:int=reach-distance_index if pattern!="fan" else mini(1,reach-distance_index+1)
 					for j in range(1,limit+1):

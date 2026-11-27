@@ -6031,13 +6031,13 @@ func bind_attack_gesture(b:Button,move:Dictionary,action:Callable,is_dev:bool=fa
 	# Godot emulates mouse from touch on Android. Capture the release globally so a drag may leave the button.
 	b.gui_input.connect(func(event:InputEvent):
 		if event is InputEventMouseButton and event.button_index==MOUSE_BUTTON_LEFT and event.pressed and not b.disabled and not hold_active:
-			hold_active=true;hold_visible=false;hold_age=0.0;hold_origin=get_global_mouse_position();hold_move=move;hold_action=action;hold_is_dev=is_dev;path.clear())
+			hold_active=true;hold_visible=false;hold_age=0.0;hold_origin=b.get_global_transform_with_canvas()*event.position;hold_move=move;hold_action=action;hold_is_dev=is_dev;path.clear())
 
 func held_attack_description(m:Dictionary)->String:
 	var pattern:String=str(m.get("pattern","front"));var reach:int=int(m.get("reach",1))
-	var range_name:String="Self" if pattern=="self" else "Entire room" if pattern=="room" else "Entire floor" if pattern=="floor" else "Close / upfront" if reach<=1 else "Mid range" if reach<=3 else "Long range projectile"
+	var range_name:String="Self" if pattern=="self" else "Entire room" if pattern=="room" else "Entire floor" if pattern=="floor" else "Close / upfront" if reach<=1 else "Mid range" if reach<=3 else ("Long range projectile" if pattern=="line" else "Long range")
 	var details:String="%s · %s / %s\n%s · %s · %d tiles\nPower %s · PP %s · ACC %s/%s"%[m.get("name","Move"),str(m.get("type","normal")).capitalize(),str(m.get("category","physical")).capitalize(),range_name,str(m.get("reference_range",pattern)).replace("_"," "),reach,str(m.get("power","—")),str(m.get("pp","—")),lab_accuracy(m.get("acc1")),lab_accuracy(m.get("acc2"))]
-	for key in ["charge_phase","special_rule","status","boon_kind","shield_kind","reference_strikes"]:
+	for key in ["reference_crit","reference_strikes","charge_phase","special_rule","status","secondary_status","boon_kind","shield_kind","recoil","drain","weather_required"]:
 		if m.has(key):details+=" · "+str(key).replace("_"," ")+": "+str(m[key]).replace("_"," ")
 	return details
 
@@ -6052,7 +6052,7 @@ func show_held_attack()->void:
 func _input(event:InputEvent)->void:
 	if not hold_active:return
 	if event is InputEventMouseMotion:
-		var delta:Vector2=get_global_mouse_position()-hold_origin
+		var delta:Vector2=event.position-hold_origin
 		if delta.length()>18.0:
 			show_held_attack();facing=Rules.aim8(delta);update_hud();lab_update_aim()
 		get_viewport().set_input_as_handled()
@@ -6062,11 +6062,11 @@ func _input(event:InputEvent)->void:
 		if is_instance_valid(hold_info):hold_info.hide()
 		if hold_is_dev and is_instance_valid(dev_detail):dev_detail.hide()
 		if is_instance_valid(aim_preview):aim_preview.queue_redraw()
-		get_viewport().set_input_as_handled()
-		if action.is_valid() and not notified and not run.finished:action.call()
+		# Allow the GUI to see release so BaseButton clears its pressed state.
+		if action.is_valid() and not notified and not run.finished:action.call_deferred()
 
 func draw_aim_preview()->void:
-	if not hold_active or not hold_visible or not is_instance_valid(camera):return
+	if not hold_active or not hold_visible or not is_instance_valid(camera) or viewport.size.x<=0 or viewport.size.y<=0:return
 	var footprint:Dictionary=run.attack_footprint(run.player,facing,str(hold_move.get("pattern","front")),int(hold_move.get("reach",1)),true)
 	var ratio:=area.size/Vector2(viewport.size)
 	for tile in footprint:

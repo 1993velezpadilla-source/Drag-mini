@@ -2,6 +2,23 @@ extends SceneTree
 const Rules=preload("res://dungeon_rules.gd")
 func _initialize():call_deferred("run")
 func run():
+	# Explicit eight-way player movement and projectile regression, independent of generated layouts.
+	var octant=Rules.new();octant.setup(0,1,0,false,false,55)
+	octant.cells.clear();octant.enemies.clear();octant.loot.clear();octant.traps.clear();octant.player=Vector2i(3,3)
+	for y in range(1,7):
+		for x in range(1,7):octant.cells[Vector2i(x,y)]=true
+	for i in range(8):assert(Rules.aim8(Vector2(Rules.DIR8[i]))==Rules.DIR8[i])
+	var start:Vector2i=octant.player
+	var diagonal:=Vector2i(1,1)
+	assert(octant.route(start,start+diagonal*2,true,true)==[start+diagonal,start+diagonal*2])
+	assert(octant.attack_footprint(start,diagonal,"line",2,true).get(start+diagonal*2)==[start+diagonal,start+diagonal*2])
+	assert(octant.attack_footprint(start,diagonal,"fan",1,true).size()==3)
+	octant.cells.erase(start+Vector2i.RIGHT)
+	assert(not octant.step_clear(start,diagonal) and not octant.attack_footprint(start,diagonal,"line",2,true).has(start+diagonal))
+	assert(octant.attack_footprint(start,diagonal,"corner_front",1,true).has(start+diagonal))
+	octant.cells[start+Vector2i.RIGHT]=true
+	assert(octant.move(start+diagonal) and octant.player==start+diagonal)
+	print("KINDRA_OCTANT_PASS")
 	var total=0
 	var room_counts:Dictionary={}
 	var signatures:Dictionary={}
