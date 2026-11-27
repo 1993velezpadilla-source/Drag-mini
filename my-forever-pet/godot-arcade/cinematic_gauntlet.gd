@@ -348,6 +348,37 @@ func run_checks()->void:
 	if view.particle_material_pixel(2,Vector2(4,4),false,material_light,material_dark).a>=1.0:failures.append("water not translucent")
 	if view.particle_material_pixel(3,Vector2.ZERO,true,material_light,material_dark).r<=material_light.r:failures.append("electric core not luminous")
 	checks+=2
+	# Audio timing is deterministic and every synthesized PCM buffer has
+	# silent endpoints, bounded peaks and audible energy.
+	for phase in ["launch","impact","miss","status"]:
+		for i in range(101):
+			var envelope:float=view.combat_audio_envelope(float(i)/100.0,phase)
+			if not is_finite(envelope) or envelope<0.0 or envelope>1.001:failures.append("invalid audio envelope")
+			if i in [0,100] and absf(envelope)>.000001:failures.append("audio envelope endpoint")
+			checks+=1
+	var audio_ids:Array=["eos_062","eos_063","eos_065","eos_092","eos_127","eos_155","eos_193","eos_239","eos_280","eos_345","eos_453","eos_483","eos_538","lib_grass_2","lib_water_2","lib_fire_2","lib_fairy_1","lib_steel_2"]
+	var audio_signatures:Dictionary={}
+	for id in audio_ids:
+		var profile:=view.combat_profile(id)
+		var form:=view.combat_audio_form(id,profile)
+		for phase in ["launch","impact","miss","status"]:
+			var audio:=view.combat_sound(id,phase,0)
+			var pcm:PackedByteArray=audio.data
+			if pcm.size()<1000 or audio.mix_rate!=22050 or audio.stereo:failures.append("invalid combat PCM")
+			if pcm.decode_s16(0)!=0 or pcm.decode_s16(pcm.size()-2)!=0:failures.append("nonzero audio endpoint")
+			var peak:int=0
+			for offset in range(0,pcm.size(),2):
+				peak=maxi(peak,absi(pcm.decode_s16(offset)))
+			if peak<100 or peak>31130:failures.append("invalid combat audio level")
+			var signature:=pcm.hex_encode()
+			if audio_signatures.has(signature):failures.append("duplicate combat audio")
+			audio_signatures[signature]=true
+			var expected:float=view.combat_audio_duration(profile,form,phase)
+			if absf(float(pcm.size())/2.0/22050.0-expected)>.0001:failures.append("combat audio duration mismatch")
+			checks+=1
+	if view.combat_audio_form("eos_062",view.combat_profile("eos_062"))!="crunch":failures.append("crunch acoustic identity")
+	if view.combat_audio_form("eos_063",view.combat_profile("eos_063"))!="fang":failures.append("bite acoustic identity")
+	checks+=2
 	var home:=Home.new()
 	home.free()
 	view.free()
