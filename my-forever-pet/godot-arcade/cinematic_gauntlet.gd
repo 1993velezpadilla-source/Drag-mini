@@ -1017,6 +1017,32 @@ func run_checks()->void:
 	for kind in ["normal_tackle","normal_drill","normal_megapunch","normal_furyswipes","normal_bide","normal_wrap"]:
 		if not Dungeon.AUDIO_ROLE_GESTURES.has(kind):failures.append("V20.7 missing authored role "+kind)
 		checks+=1
+	# V21.0 texture reuse: retain hot entries even under full cache pressure.
+	view.fx_animated_cache.clear()
+	view.fx_animated_newest=""
+	var hot_frame:ImageTexture=view.combat_animated_texture("eos_308",0)
+	var cold_frame:ImageTexture=view.combat_animated_texture("eos_308",1)
+	for i in range(Dungeon.FX_ANIMATED_CACHE_CAP-2):
+		view.fx_animated_cache["synthetic_"+str(i)]=cold_frame
+	var initial_builds:int=view.fx_frame_builds
+	if view.combat_animated_texture("eos_308",0)!=hot_frame or view.fx_frame_builds!=initial_builds:failures.append("V21.0 texture hot reuse")
+	view.combat_animated_texture("eos_308",2)
+	if not view.fx_animated_cache.has("animated:eos_308:0") or view.fx_animated_cache.has("animated:eos_308:1") or view.fx_animated_cache.size()!=Dungeon.FX_ANIMATED_CACHE_CAP:failures.append("V21.0 animated LRU")
+	view.fx_animated_cache.clear()
+	view.fx_animated_newest=""
+	view.combat_textures.clear()
+	view.fx_secondary_newest=""
+	var hot_particle:ImageTexture=view.combat_pixel_texture("impact_star",Color.WHITE,Color.BLACK)
+	var cold_particle:ImageTexture=view.combat_pixel_texture("bubble",Color.WHITE,Color.BLACK)
+	for i in range(Dungeon.FX_SECONDARY_TEXTURE_CAP-2):
+		view.combat_textures["synthetic_"+str(i)]=cold_particle
+	var secondary_builds:int=view.fx_secondary_builds
+	if view.combat_pixel_texture("impact_star",Color.WHITE,Color.BLACK)!=hot_particle or view.fx_secondary_builds!=secondary_builds:failures.append("V21.0 secondary hot reuse")
+	view.combat_pixel_texture("cloud",Color.WHITE,Color.BLACK)
+	if not view.combat_textures.has("impact_star"+str(Color.WHITE)+str(Color.BLACK)) or view.combat_textures.has("bubble"+str(Color.WHITE)+str(Color.BLACK)) or view.combat_textures.size()!=Dungeon.FX_SECONDARY_TEXTURE_CAP:failures.append("V21.0 secondary LRU")
+	view.combat_textures.clear()
+	view.fx_secondary_newest=""
+	checks+=4
 	# Full catalog: actual frame bytes, audio buffers, and pooled world FX.
 	# A duplicate sequence or sparse animation is a review candidate, not proof
 	# of poor visual quality. Preserve exact IDs in the downloadable CI report.
