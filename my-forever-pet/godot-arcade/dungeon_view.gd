@@ -125,6 +125,7 @@ var fx_audio_counter:Dictionary={}
 var fx_audio_cursor:int=0
 var fx_arc_segments:int=0
 var player_cast_duration:float=.28
+var player_cast_waves:Array[float]=[]
 var player_cast_mode:String="contact"
 var player_cast_motion:String="contact"
 var player_cast_impact:float=.48
@@ -2126,6 +2127,7 @@ func enemy_pose(actor:Node3D,state:String,seconds:float,direction:Vector2=Vector
 	if not actor.has_meta("species"):return
 	actor.set_meta("enemy_phase",state)
 	actor.remove_meta("enemy_tile_cast")
+	actor.remove_meta("enemy_cast_waves")
 	actor.set_meta("enemy_clock",0.0)
 	actor.set_meta("enemy_duration",seconds)
 	actor.set_meta("enemy_facing",PixelArt.direction8_for(direction,int(actor.get_meta("enemy_facing",0))))
@@ -2230,6 +2232,7 @@ func update_enemy_pixel(actor:Node3D,dt:float,motion:Vector3,body_dt:float=-1.0)
 	var hit_flash:float=0.0
 	var defeat_fade:float=1.0
 	# Same continuous body clock as the companion; preserve the authored ground anchor.
+	var cast_body_progress:float=caster_wave_progress(clock,duration,float(actor.get_meta("enemy_cast_impact",.48)),actor.get_meta("enemy_cast_waves",[])) if state=="attack" else 0.0
 	sprite.scale=Vector3.ONE
 	if state=="idle":
 		sprite.scale=Vector3(1.0/idle_sample.x,idle_sample.x,1.0)
@@ -2237,13 +2240,13 @@ func update_enemy_pixel(actor:Node3D,dt:float,motion:Vector3,body_dt:float=-1.0)
 		body_offset.x=idle_sample.y*size_multiplier
 		sprite.position.x+=body_offset.x
 	if state=="attack":
-		var body:Dictionary=PixelArt.attack_body_sample(clock/maxf(.01,duration),float(actor.get_meta("enemy_cast_impact",.48)),str(actor.get_meta("enemy_cast_motion","contact")),species)
+		var body:Dictionary=PixelArt.attack_body_sample(cast_body_progress,float(actor.get_meta("enemy_cast_impact",.48)),str(actor.get_meta("enemy_cast_motion","contact")),species)
 		var stretch:float=float(body.stretch)
 		sprite.scale=Vector3(1.0/stretch,stretch,1.0)
 		sprite.position.y+=.54*size_multiplier*(stretch-1.0)+float(body.lift)
 	if state=="attack" and not actor.get_meta("companion_disguise",false):
 		var cast_dir:Vector3=actor.get_meta("enemy_cast_direction",Vector3(0,0,1))
-		var offset:=cast_motion_offset(str(actor.get_meta("enemy_cast_motion","contact")),clock/maxf(.01,duration),float(actor.get_meta("enemy_cast_impact",.48)))
+		var offset:=cast_motion_offset(str(actor.get_meta("enemy_cast_motion","contact")),cast_body_progress,float(actor.get_meta("enemy_cast_impact",.48)))
 		body_offset=actor.basis.inverse()*cast_offset_world(PixelArt.creature_cast_offset(offset,species),cast_dir)
 		if actor.has_meta("enemy_tile_cast"):
 			var route:Dictionary=actor.get_meta("enemy_tile_cast")
@@ -2290,7 +2293,7 @@ func update_enemy_pixel(actor:Node3D,dt:float,motion:Vector3,body_dt:float=-1.0)
 		var locomotion:Dictionary=PixelArt.enemy_locomotion_sample(species,state,locomotion_clock if PixelArt.NATIVE_HOVER_CYCLES.has(species) else clock)
 		visual_state=str(locomotion.pose);frame=int(locomotion.frame)
 	if state=="attack":
-		var sample:Dictionary=PixelArt.attack_pose_sample(clock/maxf(.01,duration),float(actor.get_meta("enemy_cast_impact",.48)))
+		var sample:Dictionary=PixelArt.attack_pose_sample(cast_body_progress,float(actor.get_meta("enemy_cast_impact",.48)))
 		visual_state="windup" if sample.phase=="windup" else "recover" if sample.phase=="recover" else "attack"
 		frame=int(sample.frame)
 		actor.set_meta("enemy_visual_phase",sample.phase)
@@ -2339,7 +2342,7 @@ func update_enemy_pixel(actor:Node3D,dt:float,motion:Vector3,body_dt:float=-1.0)
 	var anatomy:String="all"
 	if state=="attack" and visual_state=="attack" and species in PixelArt.ENEMY_COMBAT_APPENDAGES:
 		anatomy=PixelArt.combat_anatomy_slot(species,str(actor.get_meta("enemy_cast_motion","contact")))
-		if not anatomy.is_empty():appendage=PixelArt.combat_appendage_stage(clock/maxf(.01,duration),float(actor.get_meta("enemy_cast_impact",.48)))
+		if not anatomy.is_empty():appendage=PixelArt.combat_appendage_stage(cast_body_progress,float(actor.get_meta("enemy_cast_impact",.48)))
 	if appendage==0 or visual_state!="attack":anatomy="all"
 	# Most rendered frames keep the same authored cell. Avoid repeated string
 	# formatting and texture-cache queries until one of its discrete inputs changes.
@@ -6723,6 +6726,7 @@ func begin_player_cast_pose(event:Dictionary,age:float=0.0)->void:
 	player_cast_duration=float(sample.duration);player_cast_mode=str(sample.role)
 	attack_time=float(sample.remaining);player_cast_motion=str(sample.motion)
 	player_cast_impact=float(sample.impact);player_impact_delay=float(sample.impact_delay)
+	player_cast_waves=caster_wave_times(event,player_cast_duration,player_cast_impact)
 	attack_direction=sample.direction
 	player_tile_cast.clear()
 	var tile_kind:String=tile_cast_kind(str(event.fx))
@@ -6781,6 +6785,26 @@ func cast_impact_waves(results:Dictionary)->Array[Dictionary]:
 			wave[tile]=attempt
 		waves.append(wave)
 	return waves
+
+# The same attempt ledger drives world FX and caster pose. Split only the
+# cosmetic body clock; movement routes and gameplay remain on global time.
+func caster_wave_times(event:Dictionary,duration:float,impact:float)->Array[float]:
+	var waves:=cast_impact_waves(event.get("results",{}))
+	if waves.size()<2:return []
+	return reaction_times(duration,impact,waves.size())
+
+func caster_wave_progress(age:float,duration:float,impact:float,times:Array)->float:
+	var t:float=clampf(age,0.0,maxf(.001,duration))
+	var peak:float=clampf(impact,.12,.88)
+	if times.size()<2:return clampf(t/maxf(.001,duration),0.0,1.0)
+	var index:int=0
+	while index+1<times.size() and t>(float(times[index])+float(times[index+1]))*.5:
+		index+=1
+	var contact:float=float(times[index])
+	var start:float=0.0 if index==0 else (float(times[index-1])+contact)*.5
+	var finish:float=duration if index==times.size()-1 else (contact+float(times[index+1]))*.5
+	if t<=contact:return peak*clampf((t-start)/maxf(.000001,contact-start),0.0,1.0)
+	return peak+(1.0-peak)*clampf((t-contact)/maxf(.000001,finish-contact),0.0,1.0)
 
 func confirmed_wave_times(results:Dictionary,tile:Vector2i,duration:float,impact:float)->Array[float]:
 	var waves:=cast_impact_waves(results)
@@ -8924,6 +8948,7 @@ func consume_enemy_actions()->void:
 					actor.set_meta("enemy_tile_cast",{"kind":kind,"points":tile_cast_route(event)})
 				actor.set_meta("enemy_cast_motion",cast_motion_kind(str(event.get("fx","basic_strike")),profile))
 				actor.set_meta("enemy_cast_impact",float(profile.impact))
+				actor.set_meta("enemy_cast_waves",caster_wave_times(event,float(profile.duration),float(profile.impact)))
 				event["target_player"]=event.get("to",Vector2i(-999,-999))==run.player
 				combat_fx_spawn(event)
 			"windup":enemy_pose(actor,"windup",.18,direction)
@@ -9438,6 +9463,7 @@ func sync_disguise_pose(actor:Node3D,pose:String,motion:Vector2)->bool:
 		actor.set_meta("enemy_duration",player_cast_duration)
 		actor.set_meta("enemy_clock",clampf(player_cast_duration-attack_time,0.0,player_cast_duration))
 		actor.set_meta("enemy_cast_impact",player_cast_impact)
+		actor.set_meta("enemy_cast_waves",player_cast_waves)
 		actor.set_meta("enemy_cast_motion",player_cast_motion)
 		return true
 	if pose=="hurt":
@@ -9632,7 +9658,8 @@ func _process(dt:float):
 	if attack_time>0.0:
 		var phase=sin(PI*attack_time/maxf(.01,player_cast_duration))
 		var progress:float=1.0-attack_time/maxf(.01,player_cast_duration)
-		var cast_offset:=PixelArt.creature_cast_offset(cast_motion_offset(player_cast_motion,progress,player_cast_impact),run.transformed_species)
+		var body_progress:float=caster_wave_progress(progress*player_cast_duration,player_cast_duration,player_cast_impact,player_cast_waves)
+		var cast_offset:=PixelArt.creature_cast_offset(cast_motion_offset(player_cast_motion,body_progress,player_cast_impact),run.transformed_species)
 		if releasing and release_charge_phase=="airborne":cast_offset.y=0.0
 		pet_pose.position+=pet.basis.inverse()*cast_offset_world(cast_offset,attack_direction)
 		attack_fx.visible=player_impact_delay<=0.0;attack_fx.scale=Vector3(1.1-phase*.42,.13,1.1-phase*.42)
@@ -9664,7 +9691,7 @@ func _process(dt:float):
 	pet_pose.set_meta("dungeon_grounded_gait",true)
 	pet_pose.set_meta("dungeon_cast_motion",player_cast_motion)
 	pet_pose.set_meta("dungeon_cast_species",run.transformed_species)
-	PixelArt.animate_world_sprite(pet_pose,motion,moving,dt,pose,region==1,1.0-attack_time/maxf(.01,player_cast_duration) if attack_time>0.0 else -1.0,player_cast_impact)
+	PixelArt.animate_world_sprite(pet_pose,motion,moving,dt,pose,region==1,caster_wave_progress(player_cast_duration-attack_time,player_cast_duration,player_cast_impact,player_cast_waves) if attack_time>0.0 else -1.0,player_cast_impact)
 	if pose=="hurt":
 		var companion_sprite:=pet_pose.get_node_or_null("PixelCompanion") as Sprite3D
 		if companion_sprite!=null:
