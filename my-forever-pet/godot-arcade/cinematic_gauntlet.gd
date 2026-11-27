@@ -36,6 +36,14 @@ func run_checks()->void:
 	var checks:int=0
 	var failures:Array[String]=[]
 	var view:=Dungeon.new()
+	# V23.9: the shared particle peak must give exactly the direct trajectory.
+	for render_impact in [-.1,0.0,.001,.12,.5,.88,.999,1.0,1.1]:
+		var render_peak:float=clampf(render_impact,.001,.999)
+		for render_time in [-.1,0.0,.001,.15,.5,.999,1.0,1.1]:
+			for render_trail in [-.1,0.0,.18,.30,.35,.5,.65,.9,1.0]:
+				if view.combat_travel_progress_from_peak(render_time,render_peak,render_trail)!=view.combat_travel_progress(render_time,render_impact,render_trail):
+					failures.append("V23.9 trajectory parity "+str([render_time,render_impact,render_trail]))
+				checks+=1
 	# V23.8: count-only path must preserve the full impact ledger's wave count.
 	for wave_count_probe in [0,1,2,5,12,16]:
 		var wave_probe_attempts:Array=[]
