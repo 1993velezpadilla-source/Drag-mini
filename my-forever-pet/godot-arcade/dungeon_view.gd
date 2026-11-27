@@ -2384,6 +2384,24 @@ func combat_fx_setup(parent:Node3D)->void:
 		combat_fx_root.add_child(particle);particle.hide();combat_particles.append(particle)
 # Native spatial shader works in the existing GL Compatibility renderer.
 # Additive light is a separate world-space layer; pixel sprites stay nearest-filtered.
+# Material IDs are shared by a single pooled shader, not a shader per move.
+const ELEMENT_MATERIAL={"normal":0,"fire":1,"water":2,"electric":3,"grass":4,"ice":5,"ground":6,"rock":6,"fighting":0,"flying":7,"poison":8,"bug":4,"psychic":9,"ghost":10,"dragon":1,"dark":10,"steel":11,"fairy":9}
+func elemental_material_profile(element:String)->Vector3:
+	var family:int=int(ELEMENT_MATERIAL.get(element,0))
+	match family:
+		1:return Vector3(family,.88,1.12)
+		2:return Vector3(family,.66,.44)
+		3:return Vector3(family,.95,1.20)
+		4:return Vector3(family,.60,.28)
+		5:return Vector3(family,.84,.74)
+		6:return Vector3(family,.42,.10)
+		7:return Vector3(family,.55,.22)
+		8:return Vector3(family,.68,.34)
+		9:return Vector3(family,.83,.90)
+		10:return Vector3(family,.75,.52)
+		11:return Vector3(family,.80,.64)
+		_:return Vector3(0,.68,.42)
+
 func setup_cinematic_lighting()->void:
 	fx_lights.clear();fx_halos.clear();fx_halo_materials.clear()
 	fx_lights_used=0;fx_halos_used=0
@@ -2396,6 +2414,8 @@ uniform vec4 tint : source_color = vec4(1.0);
 uniform float intensity : hint_range(0.0, 1.0) = 0.0;
 uniform float ring_mix : hint_range(0.0, 1.0) = 0.0;
 uniform float phase = 0.0;
+uniform int material_family = 0;
+uniform float material_opacity = 1.0;
 void fragment() {
 	vec2 p = UV * 2.0 - 1.0;
 	float r = length(p);
@@ -2406,8 +2426,43 @@ void fragment() {
 	float ring = exp(-d*d) * (1.0-smoothstep(0.85, 1.0, r));
 	float echo = exp(-e*e) * 0.24;
 	float a = mix(halo, ring*0.68+echo, ring_mix);
-	ALBEDO = tint.rgb;
-	ALPHA = clamp(a * intensity, 0.0, 0.75);
+	// Every family changes the light distribution as well as the hue.
+	float angle = atan(p.y, p.x);
+	float envelope = 1.0-smoothstep(0.82,1.0,r);
+	float bands = 0.5+0.5*cos(r*28.0-phase*9.0);
+	float detail = 1.0;
+	float core = 0.0;
+	if (material_family == 1) {
+		detail = 0.55+0.45*sin(angle*5.0+r*12.0-phase*7.0);
+		core = pow(max(0.0,1.0-r),5.0);
+	} else if (material_family == 2) {
+		detail = 0.36+0.64*pow(bands,3.0);
+		core = pow(bands,7.0)*0.32;
+	} else if (material_family == 3) {
+		detail = 0.42+0.58*pow(abs(cos(angle*5.0+r*8.0+phase*15.0)),5.0);
+		core = pow(max(0.0,1.0-r),3.0);
+	} else if (material_family == 4) {
+		detail = 0.48+0.52*pow(abs(cos(angle*3.0-phase*2.0)),2.0);
+	} else if (material_family == 5) {
+		detail = 0.34+0.66*pow(abs(cos(angle*3.0)),8.0);
+		core = pow(abs(cos(angle*3.0)),16.0)*0.55;
+	} else if (material_family == 6) {
+		detail = 0.52+0.48*sin(angle*7.0+r*17.0);
+	} else if (material_family == 7) {
+		detail = 0.25+0.75*pow(abs(sin(angle*2.0+r*9.0-phase*5.0)),4.0);
+	} else if (material_family == 8) {
+		detail = 0.48+0.52*sin(angle*5.0+r*8.0+phase*3.0);
+	} else if (material_family == 9) {
+		detail = 0.40+0.60*pow(abs(cos(angle*4.0+phase*2.0)),4.0);
+		core = pow(max(0.0,1.0-r),4.0)*0.7;
+	} else if (material_family == 10) {
+		detail = 0.24+0.76*pow(abs(sin(angle*2.0-r*10.0+phase*7.0)),2.0);
+	} else if (material_family == 11) {
+		detail = 0.40+0.60*pow(abs(cos(angle*2.0-phase*3.0)),8.0);
+		core = detail*0.42;
+	}
+	ALBEDO = mix(tint.rgb, vec3(1.0), clamp(core,0.0,0.75));
+	ALPHA = clamp(a * intensity * detail * envelope * material_opacity, 0.0, 0.75);
 }
 """
 	var quad:=QuadMesh.new();quad.size=Vector2(1.0,1.0)
@@ -2702,7 +2757,7 @@ func ultra_update_residues(dt:float,used:int)->int:
 			used=environment_particle(used,at+rise,plume,ink[0],ink[1],.38+t*.36,sample.z*.68*strength)
 		# Reflect elemental light on the actual floor and nearby geometry.
 		if fx_performance_tier==0 or (fx_performance_tier==1 and t<.55):
-			cinematic_halo(at,mark.color,.85+t*.55,fade*.18*strength,t,true)
+			cinematic_halo(at,mark.color,.85+t*.55,fade*.18*strength,t,true,element)
 		if t<.28 and not terrain_only and element in ["fire","electric","dragon","fairy"] and fx_performance_tier==0:
 			cinematic_light(at+Vector3.UP*.28,mark.color,fade*.28,1.5)
 	return used
@@ -2715,7 +2770,7 @@ func set_fx_uniform(material:ShaderMaterial,parameter:StringName,value:Variant)-
 	material.set_shader_parameter(parameter,value)
 	material.set_meta(key,value)
 
-func cinematic_halo(at:Vector3,color:Color,extent:float,opacity:float,phase:float,ground:bool)->void:
+func cinematic_halo(at:Vector3,color:Color,extent:float,opacity:float,phase:float,ground:bool,element:String="normal")->void:
 	if fx_halos_used>=fx_halos.size() or opacity<=.012:return
 	var index:int=fx_halos_used;fx_halos_used+=1
 	var halo:MeshInstance3D=fx_halos[index]
@@ -2728,6 +2783,9 @@ func cinematic_halo(at:Vector3,color:Color,extent:float,opacity:float,phase:floa
 	mat.set_shader_parameter("intensity",opacity)
 	mat.set_shader_parameter("phase",phase)
 	set_fx_uniform(mat,"ring_mix",1.0 if ground else 0.0)
+	var material:=elemental_material_profile(element)
+	set_fx_uniform(mat,"material_family",int(material.x) if fx_performance_tier<2 else 0)
+	set_fx_uniform(mat,"material_opacity",material.y)
 	if not halo.visible:halo.show()
 
 func cinematic_light(at:Vector3,color:Color,energy:float,extent:float)->void:
@@ -2833,17 +2891,17 @@ func cinematic_cast_enhancement(burst:Dictionary,t:float)->void:
 		var at:=combat_path_sample(points,progress)
 		if status:at=source.lerp(target,progress*.6)
 		var envelope:float=sin(progress*PI)
-		cinematic_halo(at,color,.95 if luminous else .65,strength*envelope*.52,progress,false)
-		if luminous:cinematic_light(at+Vector3.UP*.25,color,envelope*strength*.7,2.05)
+		cinematic_halo(at,color,.95 if luminous else .65,strength*envelope*.52,progress,false,element)
+		if luminous:cinematic_light(at+Vector3.UP*.25,color,envelope*strength*.7*elemental_material_profile(element).z,2.05)
 	elif not miss:
 		target=resolved.target
 		var after:float=impact_visual_phase(burst,t)
 		var fade:float=pow(1.0-after,2.0)
 		var extent:float=(2.0 if wide else 1.25)*(1.18 if ultimate else 1.0)
-		cinematic_halo(target,color,extent*(.82+after*.5),strength*fade*.8,after,false)
+		cinematic_halo(target,color,extent*(.82+after*.5),strength*fade*.8,after,false,element)
 		if not status and (fx_performance_tier<2 or after<.55):
-			cinematic_halo(Vector3(target.x,.06,target.z),color,extent*(.84+after*.9),strength*fade*.62,after,true)
-		cinematic_light(target+Vector3.UP*.4,color,strength*fade*(1.35 if wide else 1.0),2.9 if wide else 2.2)
+			cinematic_halo(Vector3(target.x,.06,target.z),color,extent*(.84+after*.9),strength*fade*.62,after,true,element)
+		cinematic_light(target+Vector3.UP*.4,color,strength*fade*(1.35 if wide else 1.0)*elemental_material_profile(element).z,2.9 if wide else 2.2)
 
 # Contact silhouette is independent of the elemental animation and is only
 # drawn on a confirmed damaging tile. IDs are explicit, not translated names.
@@ -2941,6 +2999,48 @@ func contact_icon_image(kind:String,stage:int,light:Color,dark:Color)->Image:
 					fx_line(im,center+speed_line,center+speed_line+Vector2(10,0).rotated(angle),1.0,light)
 	return im
 
+# Static micro-material shading is baked into cached particle textures.
+# Keep contact glyphs and status icons untouched for readability.
+func particle_material_family(mode:String)->int:
+	if mode in ["flame","ember","projectile_flame_stream","projectile_flame_burst","projectile_dragon_stream","projectile_ember_dart","impact_combustion","impact_flare"]:return 1
+	if mode in ["bubble","drop","wave","projectile_bubble","projectile_bubble_train","projectile_water_jet","projectile_water_pulse","impact_splash","impact_surge","impact_bubble_pop"]:return 2
+	if mode in ["lightning","projectile_charged_orb","projectile_charged_pulse","projectile_arc_beam","impact_discharge"]:return 3
+	if mode in ["leaf","web","projectile_leaf_blade","projectile_seed_orb","projectile_seed_train","projectile_seed_bomb","impact_bloom"]:return 4
+	if mode in ["crystal","projectile_ice_needle","projectile_frost_beam","impact_frost","impact_shatter"]:return 5
+	if mode in ["shards","earth_hole","projectile_earth_bomb","projectile_rock_bomb","projectile_rock_dart","projectile_mud_dart","impact_fracture","impact_eruption"]:return 6
+	if mode in ["slash","projectile_wind_blade","impact_shear"]:return 7
+	if mode in ["venom_splash","projectile_venom_blob","projectile_venom_bomb","projectile_ink_blob","impact_splatter"]:return 8
+	if mode in ["spiral","projectile_prism_beam","projectile_prism_pulse","projectile_star_dart","impact_radiance"]:return 9
+	if mode in ["cloud","smoke","projectile_spectral_orb","projectile_mist_orb","projectile_shadow_pulse","impact_wisp","impact_implosion"]:return 10
+	if mode in ["projectile_metal_beam","projectile_metal_needle","projectile_metal_dart","projectile_magnet_orb"]:return 11
+	return 0
+
+func particle_material_pixel(family:int,v:Vector2,inner:bool,light:Color,dark:Color)->Color:
+	var base:Color=light if inner else dark
+	var r:float=v.length()
+	var specular:float=clampf(1.0-absf(v.x+v.y+2.0)*.36,0.0,1.0)
+	match family:
+		1:
+			base=base.lerp(Color.WHITE,.34 if inner else .05)
+			base.a*=clampf(1.05-v.y*.025,.72,1.0)
+		2:
+			base=base.lerp(Color.WHITE,specular*.48)
+			base.a*=.85 if inner else .52+specular*.33
+		3:base=base.lerp(Color.WHITE,.58 if inner else .12)
+		4:base=base.lerp(light,.28 if v.y<0.0 else .04)
+		5:
+			base=base.lerp(Color.WHITE,specular*.65)
+			base.a*=.78+specular*.22
+		6:base=base.darkened(.18 if posmod(roundi(v.x)+roundi(v.y)*3,5)==0 else .0)
+		7:base.a*=.82 if inner else .48
+		8:
+			base=base.lerp(light,specular*.28)
+			base.a*=.88
+		9:base=base.lerp(Color.WHITE,specular*.52)
+		10:base.a*=clampf(.91-r*.055,.40,.91)
+		11:base=base.lerp(Color.WHITE,specular*.76)
+	return base
+
 func combat_pixel_texture(mode:String,light:Color,dark:Color)->ImageTexture:
 	var key:=mode+str(light)+str(dark)
 	if combat_textures.has(key):return combat_textures[key]
@@ -2950,6 +3050,7 @@ func combat_pixel_texture(mode:String,light:Color,dark:Color)->ImageTexture:
 		combat_textures[key]=icon
 		return icon
 	var im:=Image.create(16,16,false,Image.FORMAT_RGBA8);im.fill(Color.TRANSPARENT)
+	var material_family:int=particle_material_family(mode)
 	for y in range(16):
 		for x in range(16):
 			var v:=Vector2(x-7.5,y-7.5)
@@ -3172,7 +3273,7 @@ func combat_pixel_texture(mode:String,light:Color,dark:Color)->ImageTexture:
 				_:
 					fill=absf(v.x)+absf(v.y)<7.5
 					inner=absf(v.x+1.0)+absf(v.y+1.0)<4.0
-			if fill:im.set_pixel(x,y,light if inner else dark)
+			if fill:im.set_pixel(x,y,particle_material_pixel(material_family,v,inner,light,dark))
 	var texture:=ImageTexture.create_from_image(im)
 	combat_textures[key]=texture
 	return texture
