@@ -660,6 +660,23 @@ var player_attack_cells:Array[Vector2i]=[]
 # Presentation-only strike counts for the most recent resolved reference move.
 var player_visual_hits:Dictionary={}
 var player_visual_hit_serial:int=-1
+# Net HP losses during the response turn, separate from the initiating cast.
+var visual_turn_damage:Dictionary={}
+var visual_turn_damage_turn:int=-1
+func visual_enemy_hp_snapshot()->Dictionary:
+	var snapshot:Dictionary={}
+	for enemy in enemies:
+		var uid:int=int(enemy.get("uid",-1))
+		if uid>=0:snapshot[uid]=maxi(0,int(enemy.hp))
+	return snapshot
+
+static func visual_hp_losses(before:Dictionary,after:Dictionary)->Dictionary:
+	var result:Dictionary={}
+	for uid in before:
+		var start:int=int(before[uid])
+		var end:int=int(after.get(uid,0))
+		if end<start:result[uid]={"before":start,"after":end,"removed":not after.has(uid)}
+	return result
 # A footprint maps each legal target to its exact unobstructed travel path.
 func attack_footprint(origin:Vector2i,forward:Vector2i,pattern:String,reach:int,player_cast:bool=false)->Dictionary:
 	var out:Dictionary={}
@@ -1668,6 +1685,8 @@ func tick_enemy_statuses()->void:
 				if int(e.hp)<=0:remove_defeated_enemy(i);continue
 			e["status_age"]=age+1
 func enemy_turn():
+	var visual_before:Dictionary=visual_enemy_hp_snapshot()
+	visual_turn_damage.clear()
 	if player_slow_turns>0:player_slow_turns-=1
 	if charge_power_turns>0:charge_power_turns-=1
 	travel_steps_used=0;travel_refresh=false
@@ -1690,6 +1709,8 @@ func enemy_turn():
 	for i in range(travel_boosts.size()-1,-1,-1):
 		travel_boosts[i]-=1
 		if travel_boosts[i]<=0:travel_boosts.remove_at(i)
+	visual_turn_damage=visual_hp_losses(visual_before,visual_enemy_hp_snapshot())
+	visual_turn_damage_turn=turns
 func finish_walk_turn()->void:
 	travel_steps_used+=1
 	if travel_steps_used>=travel_speed():enemy_turn()

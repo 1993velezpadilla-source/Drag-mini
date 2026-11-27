@@ -5364,8 +5364,23 @@ func queue_observed_enemy_damage(actor:Node3D,uid:int,tile:Vector2i,defeated:boo
 	var new_cast:bool=run.attack_serial!=previous_attack
 	var hits:int=int(run.player_visual_hits.get(uid,0)) if new_cast and run.player_visual_hit_serial==run.attack_serial else 0
 	var affected:bool=tile in run.player_attack_cells
+	var response:Dictionary={}
+	if run.visual_turn_damage_turn==run.turns and (enemy_event_floor!=run.floor_revision or enemy_event_turn!=run.turns):
+		response=run.visual_turn_damage.get(uid,{})
+	# The observed pre-turn HP identifies whether damage already occurred in
+	# the initiating action, even when the same target also loses HP later.
+	if not response.is_empty():
+		var old_hp:int=int(actor.get_meta("enemy_hp",response.before))
+		affected=affected and old_hp>int(response.before)
 	var spec:=damage_reaction_spec(combat_profile(run.player_attack_fx),new_cast,hits,affected,(pos(tile)-pos(run.player)).normalized())
-	queue_enemy_reaction(actor,defeated,float(spec.delay),Vector3(spec.direction),float(spec.span),int(spec.count))
+	if response.is_empty() or (hits<=0 and not affected):
+		queue_enemy_reaction(actor,defeated,float(spec.delay),Vector3(spec.direction),float(spec.span),int(spec.count))
+		return
+	# A response-turn loss is not another strike of the original move. Play
+	# its neutral reaction after the scheduled direct impacts; death is last.
+	var secondary_delay:float=float(spec.delay)+float(spec.span)+.04
+	queue_enemy_reaction(actor,defeated,secondary_delay,Vector3.ZERO)
+	queue_enemy_reaction(actor,false,float(spec.delay),Vector3(spec.direction),float(spec.span),int(spec.count))
 
 func refresh_actors():
 	for key in actor_nodes.keys():

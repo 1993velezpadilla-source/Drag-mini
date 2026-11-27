@@ -271,6 +271,19 @@ func run()->void:
 	for spec in [unrelated,old_cast]:
 		if float(spec.delay)!=0.0 or float(spec.span)!=0.0 or int(spec.count)!=1 or spec.direction!=Vector3.ZERO:errors.append("stale reaction timing")
 	print("KINDRIA_TARGET_REACTION_PASS")
+	# Response-turn snapshots distinguish removed, damaged and healed UIDs.
+	var losses:Dictionary=Rules.visual_hp_losses({1:10,2:8,3:4,4:2},{1:7,3:5,4:2,5:9})
+	if losses.size()!=2 or int(losses[1].before)!=10 or int(losses[1].after)!=7 or bool(losses[1].removed) or not bool(losses[2].removed):errors.append("response turn damage ledger")
+	var mixed:=Node3D.new()
+	field.queue_enemy_reaction(mixed,true,.84,Vector3.ZERO)
+	field.queue_enemy_reaction(mixed,false,.4,Vector3.RIGHT,.4,3)
+	if field.fx_reactions.size()!=4:errors.append("mixed reaction queue count")
+	field.update_combat_reactions(.75)
+	if str(mixed.get_meta("enemy_phase",""))!="hurt" or not mixed.get_meta("pending_defeat",false):errors.append("mixed reaction direct phase")
+	field.update_combat_reactions(.12)
+	if str(mixed.get_meta("enemy_phase",""))!="defeat":errors.append("mixed reaction terminal phase")
+	mixed.free()
+	print("KINDRIA_RESPONSE_DAMAGE_LEDGER_PASS")
 	# Exercise more frames than the cache cap, then verify hot hits and exact normalization.
 	for row in reports.slice(0,40):
 		for frame in range(Field.FX_FRAME_COUNT):field.combat_animated_texture(str(row.id),frame)
