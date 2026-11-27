@@ -92,6 +92,8 @@ jobs:
           grep -F 'KINDRIA_V15_PSYCHIC_SOLAR_CONTACT_PASS 5' /tmp/effekseer-review/dungeon-probe.log
           grep -F 'KINDRIA_V15_QUICK_ROUTE_PASS' /tmp/effekseer-review/dungeon-probe.log
           grep -F 'KINDRIA_V15_SAND_STATUS_PASS' /tmp/effekseer-review/dungeon-probe.log
+          grep -F 'KINDRIA_V15_MULTI_TARGET_PASS' /tmp/effekseer-review/dungeon-probe.log
+          python3 my-forever-pet/research/rtdx/measure_capture.py --self-test
           ! grep -E 'SCRIPT ERROR|Shader compilation failed' /tmp/effekseer-review/dungeon-probe.log
       - uses: actions/upload-artifact@v4
         if: always()

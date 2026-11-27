@@ -266,6 +266,16 @@
       "title": "All bosses and legendaries compilation, 1080p60 listing",
       "url": "https://www.youtube.com/watch?v=SC7LXCColFA",
       "status": "indexed_unreviewed"
+    },
+    {
+      "title": "Japanese gameplay preview report",
+      "url": "https://nintendoeverything.com/new-japanese-pokemon-mystery-dungeon-rescue-team-dx-gameplay-video/",
+      "status": "indexed_unreviewed"
+    },
+    {
+      "title": "Gameplay trailer report",
+      "url": "https://www.gamespot.com/articles/pokemon-mystery-dungeon-rescue-team-dx-shows-off-d/1100-6473858/",
+      "status": "indexed_unreviewed"
     }
   ],
   "mechanics_sources": [
@@ -284,6 +294,14 @@
     {
       "url": "https://github.com/theCapypara/SkyEditor.RomEditor.Rtdx",
       "use": "ROM editor project; not a verified reconstruction of battle animation renderer."
+    },
+    {
+      "url": "https://bulbapedia.bulbagarden.net/wiki/Hyper_Beam_(move)",
+      "use": "Normal Hyper Beam has 4-tile reach and 3x3 explosion; gigantic variant pierces up to 10 tiles without normal area explosion. Mechanics evidence, not visual evidence."
+    },
+    {
+      "url": "https://wikiwiki.jp/pokemysdundx/わざ一覧",
+      "use": "Japanese corroboration of gigantic Hyper Beam special range and removal of blast; no animation timing."
     }
   ],
   "implementation": [
@@ -371,8 +389,14 @@
         "dx_pp": 10,
         "kindria_pp": 8,
         "dx_range": "4 tiles",
-        "kindria_range": "line up to 10 tiles"
+        "kindria_range": "line up to 10 tiles",
+        "dx_gigantic_exception": "10 tiles, piercing, no normal 3x3 explosion; recharge retained"
       }
     ]
+  },
+  "temporal_measurement": {
+    "tool": "measure_capture.py",
+    "status": "synthetic_test_only_pending_real_video",
+    "rules": "Use local lawful footage and actual decoded PTS, manually identify stages. No inferred durations. No source video committed."
   }
 }

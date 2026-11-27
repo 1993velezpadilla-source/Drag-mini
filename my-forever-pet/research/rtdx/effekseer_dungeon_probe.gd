@@ -1029,6 +1029,20 @@ func run()->void:
 	assert(field.rtdx_observed_stage_fx(sand_burst,sand_phase,Field.FX_PARTICLE_CAP)==Field.FX_PARTICLE_CAP)
 	for particle in field.combat_particles:particle.hide()
 	print("KINDRIA_V15_SAND_STATUS_PASS")
+	# V15.4: preserve the source-centered rings while displaying each
+	# confirmed victim independently; a missed primary has no damage star.
+	var buzz_profile:Dictionary=field.combat_profile("eos_530")
+	var buzz_peak:float=float(buzz_profile.impact)
+	var buzz_burst:Dictionary={"id":"eos_530","profile":buzz_profile,"points":[special_source,bite_position],"results":{target:{"misses":1},secondary_tile:{"damage":8},origin:{"damage":4}}}
+	var buzz_phase:float=lerpf(buzz_peak,1.0,.2)
+	assert(field.rtdx_observed_stage_fx(buzz_burst,buzz_phase,0)==7)
+	var hit_positions:Array=[field.combat_particles[5].position,field.combat_particles[6].position]
+	assert(hit_positions.has(field.pos(secondary_tile)+Vector3.UP*.55))
+	assert(hit_positions.has(field.pos(origin)+Vector3.UP*.55))
+	assert(not hit_positions.has(bite_position))
+	assert(field.rtdx_observed_stage_fx(buzz_burst,buzz_phase,Field.FX_PARTICLE_CAP)==Field.FX_PARTICLE_CAP)
+	for particle in field.combat_particles:particle.hide()
+	print("KINDRIA_V15_MULTI_TARGET_PASS")
 	var plan:Array=[
 		{"stage":"ally_invoke","anchor":"source","start":0.0,"end":.15,"enabled":true},
 		{"stage":"enemy_invoke","anchor":"source","start":0.0,"end":.15,"enabled":true},

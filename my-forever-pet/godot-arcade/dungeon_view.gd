@@ -8712,9 +8712,24 @@ func rtdx_observed_stage_fx(burst:Dictionary,t:float,used:int)->int:
 					used=rtdx_directional_stamp(used,at+offset,"rtdx_peck",Color("#ffe653"),Color("#e2a02c"),1.12,fade,source,at)
 		return used
 	if t>=peak and after<.48:
-		var confirmed:Variant=confirmed_stage_target(burst,true)
-		if confirmed!=null:
-			used=environment_particle(used,confirmed,"impact_star",Color("#fff8d7") if id=="eos_530" else Color.WHITE,Color("#ffb535") if id=="eos_530" else Color("#7abaff"),.49,(1.0-after/.48)*.85)
+		# One localized reaction per confirmed damaged tile, never an impact
+		# on a missed primary or an arbitrary empty tile.
+		var results:Dictionary=burst.get("results",{})
+		var primary:=Vector2i(roundi(target.x/1.4),roundi(target.z/1.4))
+		var cells:Array[Vector2i]=[]
+		for cell in results:
+			if cell is Vector2i and int(results[cell].get("damage",0))>0:cells.append(cell)
+		cells.sort_custom(func(a:Vector2i,b:Vector2i)->bool:
+			var da:int=(a-primary).length_squared()
+			var db:int=(b-primary).length_squared()
+			if da!=db:return da<db
+			if a.x!=b.x:return a.x<b.x
+			return a.y<b.y)
+		for i in range(mini(5,cells.size())):
+			var at:Vector3=target if cells[i]==primary else pos(cells[i])+Vector3.UP*.55
+			var light:=Color("#fff8d7") if id=="eos_530" else Color("#9ef6ff") if id=="eos_149" else Color("#fff087") if id=="eos_262" else Color.WHITE
+			var dark:=Color("#ffb535") if id=="eos_530" else Color("#286bff") if id=="eos_149" else Color("#ff5d0c") if id=="eos_262" else Color("#7abaff")
+			used=environment_particle(used,at,"impact_star",light,dark,.49,(1.0-after/.48)*.85)
 	return used
 
 func element_finish_fx(burst:Dictionary,t:float,used:int,contacts_reserved:bool=false)->int:
