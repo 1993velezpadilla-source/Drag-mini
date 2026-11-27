@@ -161,7 +161,7 @@ func run()->void:
 	print("KINDRIA_EFFEKSEER_CONCURRENT_PASS")
 	# V9: verify the real authored track metadata and native trajectory samples.
 	var motion_path:Array=[Vector3(0,.55,0),Vector3(4,.55,0)]
-	var motion_cases:Dictionary={"electric_sky":"fall","water_spout":"eruption","water_surf":"wave","fire_wisp":"helix","ice_beam":"stream","rock_throw":"arc","fire_sacred":"rise"}
+	var motion_cases:Dictionary={"eos_064":"fall","eos_113":"eruption","eos_219":"wave","eos_047":"helix","eos_345":"stream","eos_028":"arc","eos_149":"rise"}
 	for move_id in motion_cases:
 		var move_tracks:Array=field.elemental_track_plan(move_id,field.combat_profile(move_id))
 		var moving:Dictionary=move_tracks[3]
@@ -182,7 +182,7 @@ func run()->void:
 			"stream":
 				assert(mid.distance_to(Vector3(1,.55,0))<.001)
 	# Launch itself must honor the aerial origin before the first frame.
-	var sky:Dictionary=field.elemental_track_plan("electric_sky",field.combat_profile("electric_sky"))[3]
+	var sky:Dictionary=field.elemental_track_plan("eos_064",field.combat_profile("eos_064"))[3]
 	var sky_slot:int=backend.launch(sky,effect,motion_path,[],.2,1.0)
 	assert(sky_slot>=0 and backend.slots[sky_slot].node.position.y>2.0)
 	backend.advance(.5)
@@ -206,6 +206,36 @@ func run()->void:
 		assert(field.combat_particles.size()==particle_count)
 	assert(field.move_finish_art("eos_149",field.combat_profile("eos_149"))[2]!=field.move_finish_art("eos_053",field.combat_profile("eos_053"))[2])
 	print("KINDRIA_MOVE_FINISH_ART_PASS 33")
+	# V11 phase 1: physical jaw geometry, closing motion and elemental overlay.
+	var bite_cases:Dictionary={"eos_063":"bite","eos_062":"crunch","eos_198":"fang","eos_261":"fang","eos_020":"fang","eos_452":"fang","eos_461":"fang","eos_522":"fang","eos_529":"bite","lib_electric_1":"fang","lib_dragon_3":"fang","lib_dark_1":"fang","reef_bite":"bite"}
+	var bite_position:Vector3=field.pos(target)+Vector3.UP*.55
+	for move_id in bite_cases:
+		var art:Array=field.bite_contact_art(move_id)
+		assert(art[0]==bite_cases[move_id])
+		var count_open:int=field.bite_contact_fx(move_id,bite_position,0.0,0,Color.WHITE,Color.BLACK)
+		assert(count_open==2)
+		var upper:Sprite3D=field.combat_particles[0]
+		var lower:Sprite3D=field.combat_particles[1]
+		assert(upper.texture!=lower.texture)
+		assert(upper.texture.get_image().get_used_rect().size.x>0)
+		var open_gap:float=upper.position.distance_to(lower.position)
+		var count_closed:int=field.bite_contact_fx(move_id,bite_position,.35,0,Color.WHITE,Color.BLACK)
+		assert(count_closed>=3 and upper.position.distance_to(lower.position)<open_gap*.25)
+		assert(field.combat_particles[2].texture==field.combat_pixel_texture(str(art[5]),Color.WHITE,Color.BLACK))
+		assert(field.combat_particles.size()==particle_count)
+		assert(field.bite_contact_fx(move_id,bite_position,0.0,Field.FX_PARTICLE_CAP-1,Color.WHITE,Color.BLACK)==Field.FX_PARTICLE_CAP-1,"jaw pair atomic at cap")
+	var normal_bite:Array=field.bite_contact_art("eos_063")
+	var heavy_bite:Array=field.bite_contact_art("eos_062")
+	assert(float(heavy_bite[1])>float(normal_bite[1])*1.5)
+	assert(field.bite_contact_fx("eos_063",bite_position,.75,0,Color.WHITE,Color.BLACK)==0)
+	assert(field.bite_contact_fx("eos_062",bite_position,.75,0,Color.WHITE,Color.BLACK)>0)
+	var bite_profile:Dictionary=field.combat_profile("eos_063")
+	var bite_burst:Dictionary={"id":"eos_063","profile":bite_profile,"points":[field.pos(origin),bite_position],"results":{target:{"misses":1}}}
+	assert(field.element_finish_fx(bite_burst,float(bite_profile.impact),0)==1,"miss gets dissipating cloud only")
+	bite_burst.results={target:{"damage":7}}
+	assert(field.element_finish_fx(bite_burst,float(bite_profile.impact),0)>2)
+	assert(field.combat_particles[0].texture==field.combat_pixel_texture("bite_upper",Color(str(normal_bite[3])),Color(str(normal_bite[4]))))
+	print("KINDRIA_CONTACT_BITE_PASS 13")
 	var plan:Array=[
 		{"stage":"ally_invoke","anchor":"source","start":0.0,"end":.15,"enabled":true},
 		{"stage":"enemy_invoke","anchor":"source","start":0.0,"end":.15,"enabled":true},
