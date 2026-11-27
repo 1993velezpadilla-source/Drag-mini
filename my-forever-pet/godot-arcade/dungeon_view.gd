@@ -2066,6 +2066,16 @@ func creature_idle_sample(species:String,seconds:float,seed:float,weight:float,h
 	var w:float=clampf(weight,0.0,1.0)
 	return Vector3(1.0+sin(phase)*p.y*w,sin(phase*.63+seed)*p.z*w,sin(phase*.72)*p.w*w if hovering else 0.0)
 
+# Independent blink cadence, including a rare second blink. Absolute phase
+# prevents locomotion changes or an interrupted attack resetting the clock.
+func creature_blink_sample(seconds:float,seed:int,species:String)->bool:
+	var period:float=3.1+float(posmod(seed,17))*.13
+	if species in ["grovetitan","astro_golem","crystarok","shellguard","abyss_colossus"]:period+=1.3
+	if species in ["comet_hare","bramble_pup","starlit_pup"]:period-=.45
+	var phase:float=fposmod(seconds+float(posmod(seed,97))*.127,period)
+	var cycle:int=floori((seconds+float(posmod(seed,97))*.127)/period)
+	return phase<.135 or (posmod(cycle+seed,5)==0 and phase>.255 and phase<.365)
+
 func update_enemy_pixel(actor:Node3D,dt:float,motion:Vector3,body_dt:float=-1.0)->void:
 	var sprite:=actor.get_node_or_null("EnemyPixel") as Sprite3D
 	if sprite==null:return
@@ -2169,7 +2179,9 @@ func update_enemy_pixel(actor:Node3D,dt:float,motion:Vector3,body_dt:float=-1.0)
 			shadow.position.x=sprite.position.x
 			shadow.scale.x*=1.0+float(living.sleep)*.24
 			shadow.scale.y*=1.0+float(living.sleep)*.13
-	var tex:=PixelArt.enemy_pixel_texture(species,facing_index,visual_state,frame)
+	var can_blink:bool=state in ["idle","walk"] and visual_state in ["idle","walk"] and float(living.sleep)<.1 and not ("freeze" in statuses or "sleep" in statuses or "nightmare" in statuses)
+	var blink:bool=can_blink and creature_blink_sample(elapsed,actor.get_instance_id(),species)
+	var tex:=PixelArt.enemy_pixel_texture(species,facing_index,visual_state,frame,blink)
 	if tex!=null and sprite.texture!=tex:sprite.texture=tex
 	if sprite.material_override is ShaderMaterial:
 		var material:=sprite.material_override as ShaderMaterial
