@@ -36,6 +36,29 @@ func run_checks()->void:
 	var checks:int=0
 	var failures:Array[String]=[]
 	var view:=Dungeon.new()
+	# V24.2: reuse independent audio records without dropping overflow cues.
+	var audio_pool_probe:=Dungeon.new()
+	for audio_round in range(3):
+		audio_pool_probe.begin_combat_audio_frame()
+		for cue_index in range(80):
+			audio_pool_probe.play_combat_sound("probe_"+str(cue_index),"impact" if cue_index%2==0 else "miss",Vector3(cue_index,audio_round,0),cue_index%3==0,float(cue_index)*.001)
+		if audio_pool_probe.fx_frame_audio.size()!=80 or audio_pool_probe.fx_audio_cue_pool.size()!=64:failures.append("V24.2 bounded retained storage")
+		checks+=1
+		for cue_index in range(80):
+			var cue_probe:Dictionary=audio_pool_probe.fx_frame_audio[cue_index]
+			if cue_probe.id!="probe_"+str(cue_index) or cue_probe.at!=Vector3(cue_index,audio_round,0) or not is_equal_approx(float(cue_probe.age),float(cue_index)*.001):failures.append("V24.2 cue aliasing")
+			checks+=1
+		audio_pool_probe.fx_frame_audio.sort_custom(audio_pool_probe.combat_audio_event_before)
+		if audio_pool_probe.fx_frame_audio[0].id!="probe_79":failures.append("V24.2 chronological order")
+		audio_pool_probe.flush_combat_audio_frame()
+		if not audio_pool_probe.fx_frame_audio.is_empty() or audio_pool_probe.fx_collect_audio:failures.append("V24.2 stale cues")
+		checks+=2
+	for audio_power in [-1,0,40,120,250]:
+		for audio_critical in [false,true]:
+			if audio_pool_probe.combat_audio_mix(audio_power,"miss",audio_critical)!=Vector3(-19,1,0):failures.append("V24.2 miss mix parity")
+			if audio_pool_probe.combat_audio_mix(audio_power,"status",audio_critical)!=Vector3(-16,1,1):failures.append("V24.2 status mix parity")
+			checks+=2
+	audio_pool_probe.free()
 	# V24.1: retain bounded request storage while committing only active winners.
 	var lighting_probe:=Dungeon.new()
 	for i in range(2):lighting_probe.fx_lights.append(OmniLight3D.new())
