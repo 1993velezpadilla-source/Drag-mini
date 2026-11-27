@@ -130,6 +130,13 @@ var fx_geometry_count:int=0
 const FX_FRAME_COUNT=12
 const FX_FRAME_SIZE=48
 var combat_fx_root:Node3D
+const FX_LIGHT_CAP:int=2
+const FX_HALO_CAP:int=8
+var fx_lights:Array[OmniLight3D]=[]
+var fx_halos:Array[MeshInstance3D]=[]
+var fx_halo_materials:Array[ShaderMaterial]=[]
+var fx_lights_used:int=0
+var fx_halos_used:int=0
 var combat_warn_mat:StandardMaterial3D
 var enemy_event_turn:int=-1
 var enemy_event_floor:int=-1
@@ -2117,6 +2124,7 @@ func combat_fx_setup(parent:Node3D)->void:
 	response_slots.clear()
 	combat_particles.clear();combat_warnings.clear();combat_bursts.clear();retired_impacts.clear();delayed_combat_fx.clear();fx_reactions.clear();fx_ground_shake=0.0
 	combat_fx_root=Node3D.new();parent.add_child(combat_fx_root)
+	setup_cinematic_lighting()
 	cast_text_pool.clear();cast_text_age.clear();cast_text_origin.clear();cast_text_cursor=0;response_text_queue.clear()
 	for i in range(CAST_TEXT_CAP):
 		var tag:=Label3D.new();tag.billboard=BaseMaterial3D.BILLBOARD_ENABLED
@@ -2155,6 +2163,103 @@ func combat_fx_setup(parent:Node3D)->void:
 		particle.shaded=false;particle.pixel_size=.032
 		particle.cast_shadow=GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		combat_fx_root.add_child(particle);particle.hide();combat_particles.append(particle)
+# Native spatial shader works in the existing GL Compatibility renderer.
+# Additive light is a separate world-space layer; pixel sprites stay nearest-filtered.
+func setup_cinematic_lighting()->void:
+	fx_lights.clear();fx_halos.clear();fx_halo_materials.clear()
+	fx_lights_used=0;fx_halos_used=0
+	var shader:=Shader.new()
+	shader.code="""
+shader_type spatial;
+render_mode unshaded, blend_add, depth_draw_never, cull_disabled;
+uniform vec4 tint : source_color = vec4(1.0);
+uniform float intensity : hint_range(0.0, 1.0) = 0.0;
+uniform float ring_mix : hint_range(0.0, 1.0) = 0.0;
+uniform float phase = 0.0;
+void fragment() {
+	vec2 p = UV * 2.0 - 1.0;
+	float r = length(p);
+	float halo = pow(max(0.0, 1.0-r), 2.7);
+	float radius = mix(0.22, 0.82, phase);
+	float ring = exp(-pow((r-radius)/0.10, 2.0)) * (1.0-smoothstep(0.85, 1.0, r));
+	float echo = exp(-pow((r-radius*0.72)/0.055, 2.0)) * 0.24;
+	float a = mix(halo, ring*0.68+echo, ring_mix);
+	ALBEDO = tint.rgb;
+	ALPHA = clamp(a * intensity, 0.0, 0.75);
+}
+"""
+	var quad:=QuadMesh.new();quad.size=Vector2(1.0,1.0)
+	for i in range(FX_HALO_CAP):
+		var halo:=MeshInstance3D.new()
+		var mat:=ShaderMaterial.new();mat.shader=shader
+		halo.mesh=quad;halo.material_override=mat
+		halo.cast_shadow=GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		combat_fx_root.add_child(halo);halo.hide()
+		fx_halos.append(halo);fx_halo_materials.append(mat)
+	for i in range(FX_LIGHT_CAP):
+		var light:=OmniLight3D.new()
+		light.shadow_enabled=false;light.omni_range=2.5;light.omni_attenuation=1.5
+		light.light_energy=0.0
+		combat_fx_root.add_child(light);light.hide();fx_lights.append(light)
+
+func cinematic_halo(at:Vector3,color:Color,extent:float,opacity:float,phase:float,ground:bool)->void:
+	if fx_halos_used>=fx_halos.size() or opacity<=.012:return
+	var index:int=fx_halos_used;fx_halos_used+=1
+	var halo:MeshInstance3D=fx_halos[index]
+	var mat:ShaderMaterial=fx_halo_materials[index]
+	halo.position=at
+	halo.rotation=Vector3(-PI*.5,0,0) if ground else Vector3.ZERO
+	if not ground and is_instance_valid(camera):halo.global_basis=camera.global_basis.orthonormalized()
+	halo.scale=Vector3.ONE*extent
+	mat.set_shader_parameter("tint",color)
+	mat.set_shader_parameter("intensity",opacity)
+	mat.set_shader_parameter("phase",phase)
+	mat.set_shader_parameter("ring_mix",1.0 if ground else 0.0)
+	halo.show()
+
+func cinematic_light(at:Vector3,color:Color,energy:float,extent:float)->void:
+	if fx_lights_used>=fx_lights.size() or energy<=.02:return
+	var light:OmniLight3D=fx_lights[fx_lights_used];fx_lights_used+=1
+	light.position=at;light.light_color=color
+	light.omni_range=extent;light.light_energy=energy
+	light.show()
+
+func cinematic_cast_enhancement(burst:Dictionary,t:float)->void:
+	var points:Array=burst.points
+	if points.is_empty():return
+	var profile:Dictionary=burst.profile
+	var style:Array=combat_style(str(burst.id))
+	var color:=Color(str(style[1])).lerp(Color(str(style[2])),.34)
+	var element:String=str(profile.element)
+	var record:Dictionary=Rules.MOVE_LIBRARY.get(str(burst.id),Rules.DEV_NATIVE_MOVES.get(str(burst.id),{}))
+	var status:bool=str(record.get("category",""))=="status"
+	var luminous:bool=element in ["electric","fire","ice","psychic","ghost","dragon","fairy","steel"]
+	var peak:float=clampf(float(profile.impact),.01,.99)
+	var target:Vector3=points[-1]
+	var source:Vector3=points[0]
+	var results:Dictionary=burst.get("results",{})
+	var tile:=Vector2i(roundi(target.x/1.4),roundi(target.z/1.4))
+	var result:Dictionary=results.get(tile,{})
+	var miss:bool=not result.is_empty() and int(result.get("damage",0))+int(result.get("effects",0))+int(result.get("heal",0))<=0
+	var wide:bool=profile.pattern in ["room","floor","radius","cross","fan"]
+	var strength:float=.7 if luminous else .40
+	if status:strength*=.62
+	if t<peak:
+		var progress:float=t/peak
+		var at:=combat_path_sample(points,progress)
+		if status:at=source.lerp(target,progress*.6)
+		var envelope:float=sin(progress*PI)
+		cinematic_halo(at,color,.95 if luminous else .65,strength*envelope*.52,progress,false)
+		if luminous:cinematic_light(at+Vector3.UP*.25,color,envelope*strength*.7,2.05)
+	elif not miss:
+		var after:float=clampf((t-peak)/(1.0-peak),0.0,1.0)
+		var fade:float=pow(1.0-after,2.0)
+		var extent:float=2.0 if wide else 1.25
+		cinematic_halo(target,color,extent*(.82+after*.5),strength*fade*.8,after,false)
+		if not status:
+			cinematic_halo(Vector3(target.x,.06,target.z),color,extent*(.84+after*.9),strength*fade*.62,after,true)
+		cinematic_light(target+Vector3.UP*.4,color,strength*fade*(1.35 if wide else 1.0),2.9 if wide else 2.2)
+
 func combat_pixel_texture(mode:String,light:Color,dark:Color)->ImageTexture:
 	var key:=mode+str(light)+str(dark)
 	if combat_textures.has(key):return combat_textures[key]
@@ -5406,6 +5511,7 @@ func combat_fx_update(dt:float)->void:
 	var latest_hit:Dictionary={}
 	update_delayed_combat_fx(dt)
 	var used:int=0
+	fx_lights_used=0;fx_halos_used=0
 	update_combat_reactions(dt)
 	fx_ground_shake=maxf(0.0,fx_ground_shake-dt*3.0)
 	latest_hit=update_retired_impacts(dt)
@@ -5425,6 +5531,7 @@ func combat_fx_update(dt:float)->void:
 				latest_hit=latest_player_impact(latest_hit,burst)
 		if t>=1.0:
 			combat_bursts.remove_at(k);continue
+		cinematic_cast_enhancement(burst,t)
 		var mode:String=burst.mode
 		var frame:int=clampi(int(t*FX_FRAME_COUNT),0,FX_FRAME_COUNT-1)
 		var animated:=combat_animated_texture(str(burst.id),frame)
@@ -5872,6 +5979,8 @@ func combat_fx_update(dt:float)->void:
 		player_hit_direction=latest_hit.direction
 	if arcs_started:fx_arc_mesh.surface_end()
 	for j in range(used,mini(FX_PARTICLE_CAP,combat_particles.size())):combat_particles[j].hide()
+	for j in range(fx_lights_used,fx_lights.size()):fx_lights[j].hide()
+	for j in range(fx_halos_used,fx_halos.size()):fx_halos[j].hide()
 # Secondary environmental layers use the existing bounded pool, not new nodes
 # per cast. Ground rings remain aligned to the floor while debris billboards.
 func environment_particle(index:int,position:Vector3,mode:String,light:Color,dark:Color,scale_value:float,alpha:float,flat:bool=false,status_layer:bool=false)->int:
@@ -7559,4 +7668,6 @@ func _process(dt:float):
 	PixelArt.animate_world_sprite(pet_pose,motion,moving,dt,pose,region==1,1.0-attack_time/maxf(.01,player_cast_duration) if attack_time>0.0 else -1.0,player_cast_impact)
 	update_disguise(dt,motion,moving,pose)
 	var focus=pet.position+Vector3(0,.18,-.48)
-	camera.position=focus+DUNGEON_CAMERA_OFFSET;camera.look_at(focus)
+	# The prior floor-build-only shake never reached the actual render loop.
+	var shake:float=minf(fx_ground_shake,.10)
+	camera.position=focus+DUNGEON_CAMERA_OFFSET+Vector3(sin(elapsed*61.0)*shake,0,cos(elapsed*73.0)*shake*.45);camera.look_at(focus)
