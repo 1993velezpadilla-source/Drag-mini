@@ -146,6 +146,20 @@ func run():
 				electric_frames[signature]=true
 				assert(middle.save_png("/tmp/dungeon-real-electric-"+id+".png")==OK)
 			print("KINDRIA_ELECTRIC_CHOREOGRAPHY_PASS ",electric_roles.size())
+			var fire_roles:Dictionary={}
+			var fire_frames:Dictionary={}
+			for id in ["eos_041","eos_052","eos_053","eos_149","eos_157","eos_230","eos_262","eos_272","eos_276","eos_278","eos_291","eos_292","eos_517","eos_519","eos_522","eos_524","eos_047","eos_223"]:
+				var profile:Dictionary=dungeon.combat_profile(id)
+				assert(not fire_roles.has(profile.role),"unique fire choreography "+id)
+				fire_roles[profile.role]=true
+				var first:Image=dungeon.combat_frame_image(id,2)
+				var middle:Image=dungeon.combat_frame_image(id,6)
+				assert(first.get_data()!=middle.get_data(),"fire animation changes "+id)
+				var signature:String=middle.get_data().hex_encode()
+				assert(not fire_frames.has(signature),"unique fire sprite "+id)
+				fire_frames[signature]=true
+				assert(middle.save_png("/tmp/dungeon-real-fire-"+id+".png")==OK)
+			print("KINDRIA_FIRE_CHOREOGRAPHY_PASS ",fire_roles.size())
 		var test_center:Vector3=dungeon.pos(dungeon.run.player)
 		var near_vista=AABB(test_center+Vector3(2,0,-2),Vector3(1.4,2,1.4))
 		var cropped_vista=AABB(test_center+Vector3(8,0,-2),Vector3(1.4,2,1.4))
