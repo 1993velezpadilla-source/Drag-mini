@@ -316,6 +316,23 @@ func run()->void:
 	if not cast_sample.direction.is_equal_approx(Vector3.LEFT) or absf(float(cast_sample.remaining)-(float(pose_profile.duration)-.1))>.001 or absf(float(cast_sample.impact_delay)-maxf(0.0,float(pose_profile.duration)*float(pose_profile.impact)-.1))>.001:errors.append("counter body clock")
 	if cast_sample.motion!=field.cast_motion_kind("eos_025",pose_profile):errors.append("counter body motion")
 	print("KINDRIA_COUNTER_BODY_CLOCK_PASS")
+	# A second target must wait for the already reserved body animation.
+	var first_event:Dictionary={"source":"sleep_counter","move_id":"eos_025","from":Vector2i.ZERO,"to":Vector2i(2,0)}
+	var other_event:Dictionary={"source":"sleep_counter","move_id":"eos_025","from":Vector2i.ZERO,"to":Vector2i(0,2)}
+	field.delayed_combat_fx.clear()
+	field.attack_time=.2
+	var first_plan:Array[Dictionary]=field.response_fx_plan([first_event],0.0,field.response_cast_available_at())
+	field.delayed_combat_fx.append({"delay":float(first_plan[0].launch),"event":first_plan[0].event})
+	var second_plan:Array[Dictionary]=field.response_fx_plan([other_event,{"source":"poison"}],0.0,field.response_cast_available_at())
+	var first_end:float=float(first_plan[0].launch)+float(pose_profile.duration)
+	if float(first_plan[0].launch)<.199 or float(second_plan[0].launch)<first_end+.039:errors.append("cross-target body overlap")
+	if second_plan[0].event.to!=Vector2i(0,2) or absf(float(second_plan[0].hit)-float(second_plan[0].launch)-float(pose_profile.duration)*float(pose_profile.impact))>.001:errors.append("cross-target impact timing")
+	if float(second_plan[1].hit)<=float(second_plan[0].hit):errors.append("cross-target periodic ordering")
+	var poison_only:Array[Dictionary]=field.response_fx_plan([{"source":"poison"}],0.0,field.response_cast_available_at())
+	if float(poison_only[0].hit)!=0.0:errors.append("unrelated periodic damage delayed")
+	field.delayed_combat_fx.clear()
+	field.attack_time=0.0
+	print("KINDRIA_CROSS_TARGET_BODY_TIMELINE_PASS")
 	# Exercise more frames than the cache cap, then verify hot hits and exact normalization.
 	for row in reports.slice(0,40):
 		for frame in range(Field.FX_FRAME_COUNT):field.combat_animated_texture(str(row.id),frame)
