@@ -36,6 +36,24 @@ func run_checks()->void:
 	var checks:int=0
 	var failures:Array[String]=[]
 	var view:=Dungeon.new()
+	# V25.6: stage diagnostics use exactly the same accepted intervals.
+	var frame_probe:=Dungeon.new()
+	frame_probe.fx_diag_sample(1000000,100,true,200,300,650)
+	frame_probe.fx_diag_sample(1016667,110,true,220,330,710)
+	if frame_probe.fx_diag_intervals!=PackedInt64Array([16667]):failures.append("V25.6 interval")
+	if frame_probe.fx_diag_cpu!=PackedInt64Array([110]):failures.append("V25.6 combat CPU")
+	if frame_probe.fx_diag_world!=PackedInt64Array([220]):failures.append("V25.6 world CPU")
+	if frame_probe.fx_diag_actor!=PackedInt64Array([330]):failures.append("V25.6 actor CPU")
+	if frame_probe.fx_diag_full!=PackedInt64Array([710]):failures.append("V25.6 full CPU")
+	frame_probe.fx_diag_sample(1500000,120,true,240,360,750)
+	if frame_probe.fx_diag_gaps!=1 or frame_probe.fx_diag_full.size()!=1:failures.append("V25.6 suspended interval excluded")
+	frame_probe.fx_diag_sample(1516667,130,false,260,390,800)
+	frame_probe.fx_diag_sample(1533334,140,false,280,420,850)
+	if frame_probe.fx_diag_full!=PackedInt64Array([710,800]):failures.append("V25.6 inactive interval excluded")
+	var frame_stats:Dictionary=frame_probe.fx_diag_stats(frame_probe.fx_diag_full)
+	if int(frame_stats.get("samples",0))!=2 or int(frame_stats.get("max_usec",0))!=800:failures.append("V25.6 summary")
+	checks+=8
+	frame_probe.free()
 	# V25.5: compare prebuilt quad topology against the original append order.
 	var quad_probe:=Dungeon.new()
 	quad_probe.warm_fx_quad_indices()
