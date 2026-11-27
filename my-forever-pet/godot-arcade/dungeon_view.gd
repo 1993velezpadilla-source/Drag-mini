@@ -2200,6 +2200,11 @@ uniform vec4 tint : source_color = vec4(1.0);
 uniform float intensity : hint_range(0.0, 1.0) = 0.0;
 uniform float ring_mix : hint_range(0.0, 1.0) = 0.0;
 uniform float phase = 0.0;
+uniform int element_mode = 0;
+uniform float variation = 0.0;
+float grain(vec2 p) { return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453); }
+float noise2(vec2 p) { vec2 i=floor(p); vec2 f=fract(p); f=f*f*(3.0-2.0*f); return mix(mix(grain(i),grain(i+vec2(1.0,0.0)),f.x),mix(grain(i+vec2(0.0,1.0)),grain(i+vec2(1.0)),f.x),f.y); }
+float ribbon(float x,float w) { return 1.0-smoothstep(w*0.35,w,abs(x)); }
 void fragment() {
 	vec2 p = UV * 2.0 - 1.0;
 	float r = length(p);
@@ -2210,8 +2215,83 @@ void fragment() {
 	float ring = exp(-d*d) * (1.0-smoothstep(0.85, 1.0, r));
 	float echo = exp(-e*e) * 0.24;
 	float a = mix(halo, ring*0.68+echo, ring_mix);
-	ALBEDO = tint.rgb;
-	ALPHA = clamp(a * intensity, 0.0, 0.75);
+	vec3 col=tint.rgb;
+	float ang=atan(p.y,p.x);
+	float n=noise2(p*5.0+vec2(variation*3.0,-phase*5.0));
+	float core=0.0;
+	float edge=1.0-smoothstep(0.75,0.99,r);
+	if (element_mode==1) { // Fire: tapering turbulent tongues, hot core, cooler outer flame.
+		float y=clamp((p.y+0.86)/1.7,0.0,1.0);
+		float w=0.64*pow(y,0.65)*(1.0-0.12*y);
+		float sway=0.17*sin(p.y*8.0+phase*9.0+variation);
+		float flame=1.0-smoothstep(w*0.48,w+0.06,abs(p.x-sway-(n-0.5)*0.34));
+		a=flame*smoothstep(0.0,0.18,y)*(1.0-smoothstep(0.85,1.0,y))*(0.65+0.35*n);
+		core=flame*smoothstep(0.3,0.9,y)*(1.0-smoothstep(0.12,0.45,abs(p.x-sway)));
+		col=mix(vec3(1.0,0.12,0.015),vec3(1.0,0.83,0.32),core);
+	} else if (element_mode==2) { // Water: curved crest, transparent body and moving foam.
+		float crest=0.22*sin(p.x*5.0-phase*8.0)+0.14*p.x*p.x;
+		float body=ribbon(p.y-crest,0.38);
+		float foam=ribbon(p.y-crest+0.23+0.04*sin(p.x*22.0),0.075);
+		a=(body*0.58+foam*0.5)*(1.0-smoothstep(0.72,0.98,abs(p.x)));
+		col=mix(vec3(0.015,0.35,0.8),vec3(0.69,1.0,1.0),clamp(foam+body*n*0.32,0.0,1.0));
+	} else if (element_mode==3) { // Electricity: discontinuous angular discharge and forks.
+		float step_x=floor((p.x+1.0)*7.0);
+		float f=fract((p.x+1.0)*7.0);
+		float h0=(grain(vec2(step_x,floor(phase*12.0)+variation))-0.5)*0.8;
+		float h1=(grain(vec2(step_x+1.0,floor(phase*12.0)+variation))-0.5)*0.8;
+		float bolt=ribbon(p.y-mix(h0,h1,f),0.065);
+		float fork=ribbon(p.y-mix(h0,h1,f)-max(0.0,p.x)*0.85,0.035)*smoothstep(0.0,0.25,p.x);
+		a=bolt+fork*0.65;col=mix(vec3(1.0,0.58,0.04),vec3(1.0,1.0,0.83),bolt);
+	} else if (element_mode==4) { // Poison: thick asymmetric globules and dripping edges.
+		float blobs=length(p*vec2(1.1,0.85)+vec2(0.11*sin(phase*6.0),0.03));
+		float viscous=1.0-smoothstep(0.42,0.69,blobs+(n-0.5)*0.42);
+		float drip=ribbon(p.x-0.28*sin(p.y*5.0+variation),0.13)*(1.0-smoothstep(0.6,0.95,p.y))*smoothstep(0.05,0.35,p.y);
+		a=viscous*0.73+drip*0.65;col=mix(vec3(0.38,0.06,0.65),vec3(0.83,0.39,0.97),n);
+	} else if (element_mode==5) { // Grass: organic leaf-vein fans.
+		float leaf=ribbon(p.y-0.36*sin(p.x*3.4+phase*5.0),0.28*(1.0-abs(p.x)));
+		float vein=ribbon(p.y-0.36*sin(p.x*3.4+phase*5.0),0.035);
+		a=leaf*0.8+vein*0.2;col=mix(vec3(0.12,0.54,0.05),vec3(0.72,1.0,0.32),vein+n*0.28);
+	} else if (element_mode==6) { // Ice: sharp six-fold facets.
+		float facet=abs(cos(ang*3.0+variation))*0.28+0.47;
+		float frost=1.0-smoothstep(facet-0.04,facet+0.02,r);
+		float cut=ribbon(sin(ang*3.0+variation),0.11)*frost;
+		a=frost*0.55+cut*0.45;col=mix(vec3(0.24,0.61,0.95),vec3(0.83,1.0,1.0),cut+0.24*n);
+	} else if (element_mode==7 || element_mode==8) { // Ground: cracked dust; rock: angular ejecta.
+		float crack=ribbon(sin(ang*(element_mode==7 ? 4.0:6.0)+r*10.0+n),0.17);
+		float chip=(1.0-smoothstep(0.5,0.86,r+n*0.31))*smoothstep(0.25,0.66,n);
+		a=chip*0.62+crack*edge*0.4;
+		col=mix(element_mode==7 ? vec3(0.46,0.23,0.08):vec3(0.39,0.36,0.31),vec3(0.94,0.78,0.48),n);
+	} else if (element_mode==9) { // Flying: separated curved air blades.
+		float shear=ribbon(sin(ang*2.0-r*8.0+phase*9.0),0.19);
+		a=shear*smoothstep(0.15,0.35,r)*edge;col=mix(vec3(0.52,0.81,0.93),vec3(0.95,1.0,1.0),shear);
+	} else if (element_mode==10) { // Fighting: short directional impact burst.
+		float rays=pow(abs(cos(ang*5.0+variation)),9.0);
+		a=(rays*0.7+halo)*edge;col=mix(vec3(0.92,0.26,0.08),vec3(1.0,0.89,0.47),halo);
+	} else if (element_mode==11) { // Bug: segmented chitin and silk.
+		float silk=ribbon(sin(ang*5.0+variation),0.12)+ribbon(sin(r*22.0-phase*5.0),0.17)*0.48;
+		a=silk*edge;col=mix(vec3(0.42,0.57,0.08),vec3(0.94,0.99,0.56),n);
+	} else if (element_mode==12) { // Psychic: concentric bent interference waves.
+		float pulse=ribbon(sin(r*21.0-phase*9.0+sin(ang*3.0)),0.22);
+		a=pulse*edge;col=mix(vec3(0.6,0.08,0.74),vec3(1.0,0.55,0.92),pulse);
+	} else if (element_mode==13 || element_mode==15) { // Ghost: drifting wisps; dark: contracting shadow cuts.
+		float wisp=ribbon(sin(ang*3.0-r*8.0+phase*(element_mode==13 ? 4.0:-6.0)),0.32);
+		a=wisp*edge*(0.48+0.5*n);
+		col=mix(element_mode==13 ? vec3(0.3,0.17,0.71):vec3(0.24,0.08,0.38),vec3(0.69,0.43,0.96),n);
+	} else if (element_mode==14) { // Dragon: flame-like twin twisting energy streams.
+		float twin=ribbon(abs(p.y-0.22*sin(p.x*8.0-phase*8.0))-0.27,0.19);
+		a=twin*edge;col=mix(vec3(0.18,0.21,0.91),vec3(0.91,0.63,1.0),n);
+	} else if (element_mode==16) { // Steel: intersecting hard reflective facets.
+		float metal=ribbon(p.y-p.x*0.58,0.17)+ribbon(p.y+p.x*0.58,0.12);
+		a=metal*edge;col=mix(vec3(0.29,0.44,0.56),vec3(0.91,0.98,1.0),metal);
+	} else if (element_mode==17) { // Fairy: star-shaped light.
+		float star=pow(abs(cos(ang*2.5+phase)),12.0);
+		a=(star*0.76+halo)*edge;col=mix(vec3(0.92,0.22,0.65),vec3(1.0,0.94,0.89),halo);
+	} else if (element_mode==18) { // Normal: neutral speed/impact streak.
+		float streak=ribbon(p.y,0.16)*(1.0-smoothstep(0.35,0.99,abs(p.x)));
+		a=streak+halo*0.5;col=mix(vec3(0.62,0.65,0.68),vec3(1.0,0.97,0.89),streak);
+	}
+	ALBEDO = col;
+	ALPHA = clamp(a * intensity * (element_mode==0 ? 1.0:edge), 0.0, 0.85);
 }
 """
 	var quad:=QuadMesh.new();quad.size=Vector2(1.0,1.0)
@@ -2397,7 +2477,7 @@ func ultra_update_residues(dt:float,used:int)->int:
 		cinematic_halo(at,mark.color,1.3+t*.6,fade*.16,t,true)
 	return used
 
-func cinematic_halo(at:Vector3,color:Color,extent:float,opacity:float,phase:float,ground:bool)->void:
+func cinematic_halo(at:Vector3,color:Color,extent:float,opacity:float,phase:float,ground:bool,element_mode:int=0,variation:float=0.0)->void:
 	if fx_halos_used>=fx_halos.size() or opacity<=.012:return
 	var index:int=fx_halos_used;fx_halos_used+=1
 	var halo:MeshInstance3D=fx_halos[index]
@@ -2410,6 +2490,8 @@ func cinematic_halo(at:Vector3,color:Color,extent:float,opacity:float,phase:floa
 	mat.set_shader_parameter("intensity",opacity)
 	mat.set_shader_parameter("phase",phase)
 	mat.set_shader_parameter("ring_mix",1.0 if ground else 0.0)
+	mat.set_shader_parameter("element_mode",element_mode)
+	mat.set_shader_parameter("variation",variation)
 	halo.show()
 
 func cinematic_light(at:Vector3,color:Color,energy:float,extent:float)->void:
@@ -2418,6 +2500,50 @@ func cinematic_light(at:Vector3,color:Color,energy:float,extent:float)->void:
 	light.position=at;light.light_color=color
 	light.omni_range=extent;light.light_energy=energy
 	light.show()
+
+const ELEMENT_SHADER_MODES={"fire":1,"water":2,"electric":3,"poison":4,"grass":5,"ice":6,"ground":7,"rock":8,"flying":9,"fighting":10,"bug":11,"psychic":12,"ghost":13,"dragon":14,"dark":15,"steel":16,"fairy":17,"normal":18}
+
+# A continuous shaded material is composited behind the existing authored pixels.
+# Reserve only one pooled quad per cast; never allocate effects during combat.
+func cinematic_element_surface(burst:Dictionary,t:float)->void:
+	var points:Array=burst.points
+	if points.is_empty():return
+	var id:String=str(burst.id)
+	var profile:Dictionary=burst.profile
+	var element:String=str(profile.element)
+	var shader_mode:int=int(ELEMENT_SHADER_MODES.get(element,18))
+	var record:Dictionary=Rules.MOVE_LIBRARY.get(id,Rules.DEV_NATIVE_MOVES.get(id,{}))
+	var status:bool=str(record.get("category",""))=="status"
+	var peak:float=clampf(float(profile.impact),.01,.99)
+	var role:String=str(profile.role)
+	var cue_key:String=id if AUTHORED_STAGE_FX.has(id) else role
+	var cue:Array=AUTHORED_STAGE_FX.get(cue_key,["contact","impact_star",4,.35,.4])
+	var kind:String=str(cue[0])
+	var spread:float=float(cue[3])
+	var height:float=float(cue[4])
+	var before:bool=t<peak
+	var progress:float=clampf(t/peak,0.0,1.0)
+	var after:float=clampf((t-peak)/(1.0-peak),0.0,1.0)
+	var source:Vector3=points[0];var target:Vector3=points[-1]
+	var tile:=Vector2i(roundi(target.x/1.4),roundi(target.z/1.4))
+	var results:Dictionary=burst.get("results",{})
+	var row:Dictionary=results.get(tile,{})
+	if not before and not row.is_empty() and int(row.get("damage",0))+int(row.get("effects",0))+int(row.get("heal",0))<=0:return
+	var anchor:Vector3=combat_path_sample(points,progress) if before else target
+	var ground:bool=kind=="ground" or (not before and element in ["ground","rock","poison"])
+	if kind=="fall" and before:anchor=target+Vector3.UP*height*(1.0-progress)
+	elif kind=="rise" and before:anchor=source+Vector3.UP*height*progress
+	elif kind=="eruption" and before:anchor=target+Vector3.UP*height*progress
+	elif kind=="arc" and before:anchor.y+=height*sin(progress*PI)
+	elif kind in ["gather","shield"] and before:anchor=source
+	elif kind=="drain" and not before:anchor=combat_path_sample(points,1.0-after)
+	if ground:anchor.y=.065
+	var envelope:float=sin(progress*PI) if before else pow(1.0-after,1.35)
+	var extent:float=clampf(.62+spread*.76+height*.18,.72,1.8)*(1.0+after*.25)
+	var opacity:float=envelope*(.43 if status else .76)
+	if kind in ["burst","contact","pincer"] and before:opacity*=smoothstep(.5,1.0,progress)
+	var style:Array=combat_style(id)
+	cinematic_halo(anchor,Color(str(style[1])),extent,opacity,t,ground,shader_mode,float(posmod(id.hash(),97))/13.0)
 
 func cinematic_cast_enhancement(burst:Dictionary,t:float)->void:
 	var points:Array=burst.points
@@ -4740,6 +4866,7 @@ func combat_profile(id:String)->Dictionary:
 				reach=int(Rules.SECONDARY_SKILLS[species][0] if alt else skill[0])
 				pattern=str(Rules.SECONDARY_SKILLS[species][1] if alt else Rules.ATTACK_PATTERNS[species])
 				element=str(info[2] if alt else info[1]);break
+	if Rules.DEV_NATIVE_MOVES.has(id):element=str(Rules.DEV_NATIVE_MOVES[id].type)
 	var role:String="contact" if mode in ["slash","leap","roll"] else "ground" if mode=="quake" else "cast" if mode in ["cloud","web","silk","wave","spiral"] else "projectile"
 	if mode in ["vine","whip"]:role="lash"
 	if mode=="lightning":role="electric_area" if pattern in ["cross","radius","fan","room"] else "electric_contact" if reach==1 else "electric_arc"
@@ -5908,6 +6035,7 @@ func combat_fx_update(dt:float)->void:
 				latest_hit=latest_player_impact(latest_hit,burst)
 		if t>=1.0:
 			combat_bursts.remove_at(k);continue
+		cinematic_element_surface(burst,t)
 		cinematic_cast_enhancement(burst,t)
 		ultra_attack_ribbons(burst,t)
 		var mode:String=burst.mode
