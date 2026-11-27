@@ -24,7 +24,7 @@ jobs:
           cp my-forever-pet/godot-arcade/{pixel_pet_art,pet_part_rig,pet_external_fx}.gd my-forever-pet/tests/volnox_pixel_studies.gd /tmp/pixel/
           set -o pipefail
           timeout 60 /tmp/godot/Godot_v4.4.1-stable_linux.x86_64 --headless --path /tmp/pixel --script res://volnox_pixel_studies.gd 2>&1 | tee /tmp/volnox-pixel.log
-          grep -F 'VOLNOX_2D_PIXEL_PILOT_PASS 18' /tmp/volnox-pixel.log
+          grep -F 'VOLNOX_2D_PIXEL_PILOT_PASS 21' /tmp/volnox-pixel.log
           ! grep -E 'SCRIPT ERROR|Parse Error|Assertion failed' /tmp/volnox-pixel.log
       - name: Check all 33 art contracts
         run: |
