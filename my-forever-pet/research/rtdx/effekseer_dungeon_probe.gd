@@ -453,6 +453,37 @@ func run()->void:
 		assert(tex.get_width()==32 and tex.get_image().get_used_rect().size.x>0)
 	for particle in field.combat_particles:particle.hide()
 	print("KINDRIA_SPECIAL_CONTACT_PASS 41")
+	# V11.7: all actual projectile IDs, distinct motion and confirmed finish.
+	var projectile_cases:Dictionary={"lib_fire_1":"dart","lib_fire_2":"beam","lib_water_2":"beam","lib_ice_1":"dart","lib_flying_1":"dart","lib_psychic_2":"pulse","lib_rock_1":"dart","lib_dark_3":"pulse","lib_fairy_1":"dart","eos_028":"lob","eos_031":"orb","eos_042":"beam","eos_053":"beam","eos_107":"beam","eos_114":"beam","eos_127":"orb","eos_145":"volley","eos_151":"beam","eos_166":"lob","eos_193":"orb","eos_213":"dart","eos_239":"beam","eos_240":"beam","eos_242":"beam","eos_251":"volley","eos_255":"beam","eos_262":"dart","eos_279":"lob","eos_280":"lob","eos_299":"dart","eos_308":"beam","eos_309":"orb","eos_310":"pulse","eos_345":"beam","eos_436":"pulse","eos_443":"orb","eos_454":"orb","eos_462":"dart","eos_468":"lob","eos_485":"lob","eos_486":"lob","eos_489":"beam","eos_501":"lob","eos_508":"orb","eos_523":"lob","eos_527":"dart","eos_536":"beam","eos_538":"meteor","eos_539":"pulse","eos_163":"volley","eos_164":"volley","eos_201":"volley","eos_306":"volley","eos_350":"volley","eos_002":"roll","eos_108":"pulse","eos_341":"beam","eos_504":"dart"}
+	for move_id in projectile_cases:
+		var art:Array=field.projectile_contact_art(move_id)
+		assert(art.size()==5 and art[0]==projectile_cases[move_id])
+		var p:Dictionary=field.combat_profile(move_id)
+		var burst:Dictionary={"id":move_id,"profile":p,"points":[special_source,bite_position],"results":{target:{"damage":8,"hits":2}}}
+		var peak:float=float(p.impact)
+		for particle in field.combat_particles:particle.hide()
+		var used_shots:int=field.projectile_contact_fx(burst,peak*.5,0,Color.WHITE,Color.BLACK)
+		assert(used_shots>0 and used_shots<=6)
+		var shot:Sprite3D=field.combat_particles[0]
+		assert(shot.texture==field.combat_pixel_texture(str(art[1]),Color.WHITE,Color.BLACK))
+		if art[0]=="lob":assert(shot.position.y>maxf(special_source.y,bite_position.y))
+		if art[0]=="meteor":assert(shot.position.y>bite_position.y+1.0)
+		if art[0]=="beam":assert(used_shots==6 and shot.position.distance_to(field.combat_particles[5].position)>.1)
+		if art[0]=="roll":assert(is_equal_approx(shot.position.y,.18))
+		await frames()
+		assert(root.get_texture().get_image().save_png("/tmp/effekseer-review/projectile-"+move_id+".png")==OK)
+		var tick:float=lerpf(peak,1.0,.25)
+		assert(field.projectile_contact_fx(burst,tick,0,Color.WHITE,Color.BLACK)>0)
+		assert(field.combat_particles[0].texture==field.combat_pixel_texture(str(art[2]),Color.WHITE,Color.BLACK))
+		burst.results={target:{"misses":1}}
+		assert(field.projectile_contact_fx(burst,tick,0,Color.WHITE,Color.BLACK)==0)
+		assert(field.projectile_contact_fx(burst,peak*.5,Field.FX_PARTICLE_CAP,Color.WHITE,Color.BLACK)==Field.FX_PARTICLE_CAP)
+		assert(field.combat_particles.size()==particle_count)
+	for mode in ["projectile_seed","projectile_needle","projectile_stone","projectile_orb","projectile_ray"]:
+		var tex:Texture2D=field.combat_pixel_texture(mode,Color.WHITE,Color.BLACK)
+		assert(tex.get_width()==32 and tex.get_image().get_used_rect().size.x>0)
+	for particle in field.combat_particles:particle.hide()
+	print("KINDRIA_PROJECTILE_CONTACT_PASS 58")
 	var plan:Array=[
 		{"stage":"ally_invoke","anchor":"source","start":0.0,"end":.15,"enabled":true},
 		{"stage":"enemy_invoke","anchor":"source","start":0.0,"end":.15,"enabled":true},
