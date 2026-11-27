@@ -2930,6 +2930,17 @@ func projectile_contact_stamp(mode:String,light:Color,dark:Color)->Image:
 					if u>=0.0 and u<=1.0:d=absf(p.y+3.0*u*u)-(4.8*(1.0-u)+.5)
 				"projectile_spore":
 					d=minf(p.distance_to(Vector2(-5,-3))-4.3,minf(p.distance_to(Vector2(5,3))-4.7,p.distance_to(Vector2(3,-6))-3.5))
+				"projectile_crescent":
+					d=maxf(p.length()-12.0,10.4-p.distance_to(Vector2(5,-4)))
+				"projectile_comet":
+					d=minf(p.distance_to(Vector2(5,0))-6.5,maxf(absf(p.y)-(5.0*(p.x+14.0)/18.0+.4),maxf(-14.0-p.x,p.x-4.0)))
+				"projectile_eye":
+					var eye:float=absf(p.y)-(7.5*maxf(0.0,1.0-absf(p.x)/13.0))
+					d=absf(eye)-.9
+					if absf(p.x)>13.0:d=99.0
+					d=minf(d,p.length()-3.2)
+				"projectile_prism":
+					d=maxf(absf(p.x)*.82+absf(p.y)*.66-9.8,absf(p.x)-11.0)
 				"projectile_seed":
 					d=Vector2((p.x-p.y*.25)*.85,p.y*1.35).length()-8.0
 				"projectile_needle":
@@ -7392,7 +7403,8 @@ const BITE_CONTACT_ART={
 	"tidal_jaws":["bite",0.92,0.46,"#e5fbff","#437a9c","wave"],
 	"alt_eelstrix":["fang",0.7,0.4,"#fff6b3","#d8a22e","lightning"],
 	"alt_thornbeetle":["bite",0.78,0.4,"#e4f4bb","#66864a","leaf"],
-	"alt_vinesnap":["bite",0.85,0.43,"#e7ffc7","#60904d","leaf"]
+	"alt_vinesnap":["bite",0.85,0.43,"#e7ffc7","#60904d","leaf"],
+	"alt_orbitserpent":["fang",0.95,0.45,"#f4dcff","#7752b3","spiral"]
 }
 
 func bite_contact_art(id:String)->Array:
@@ -7506,7 +7518,9 @@ const KICK_CONTACT_ART={
 	"eos_303":[.86,.73,.58,.35,"spin","kick_side","#ffefd3","#ab7146","shock_ring"],
 	"eos_321":[1.08,.77,.64,.38,"heavy","kick_heel","#fff1d8","#986947","shock_ring"],
 	"eos_222":[.72,.84,.45,.27,"multi","kick_side","#ffedd4","#ac7549","impact_star"],
-	"eos_210":[.73,.90,.48,.34,"multi","kick_raised","#fff0d5","#b67a48","slash"]}
+	"eos_210":[.73,.90,.48,.34,"multi","kick_raised","#fff0d5","#b67a48","slash"],
+	"star_kick":[0.81,0.7,0.49,0.3,"sweep","kick_side","#fff1df","#ba87dc","impact_star"]
+}
 
 func kick_contact_art(id:String)->Array:
 	return KICK_CONTACT_ART.get(id,[])
@@ -7584,7 +7598,8 @@ const CLAW_CONTACT_ART={
 	"eos_312":[.75,.90,.35,"claw_talon","#fff3db","#a27c5e","impact_star","multi"],
 	"eos_346":[.80,.85,.39,"claw_blade","#defba4","#6e9342","leaf","multi"],
 	"eos_360":[1.16,.72,.50,"claw_crescent","#fff6d9","#b58e65","slash","wide"],
-	"eos_336":[0.98,0.72,0.46,"claw_crescent","#d8ffa9","#528936","leaf","sweep"]
+	"eos_336":[0.98,0.72,0.46,"claw_crescent","#d8ffa9","#528936","leaf","sweep"],
+	"moon_claw":[0.95,0.74,0.4,"claw_crescent","#e8dfff","#624d91","smoke","dark"]
 }
 
 func claw_contact_art(id:String)->Array:
@@ -7648,7 +7663,8 @@ const BODY_CONTACT_ART={"lib_normal_1":[0.85,0.55,0.48,"body_dash","#fff1d6","#a
 	"lib_rock_2":[1.08,0.72,0.62,"body_armor","#e5d8c7","#846e59","shards","dash"],
 	"rolling_moss":[0.85,0.62,0.48,"body_armor","#c9e4a1","#658447","leaf","dash"],
 	"shell_impact":[0.87,0.63,0.46,"body_armor","#f1debf","#8e7555","shards","head"],
-	"tusk_sweep":[0.94,0.69,0.51,"body_horn","#f8ebc5","#9d8059","shards","tail"]
+	"tusk_sweep":[0.94,0.69,0.51,"body_horn","#f8ebc5","#9d8059","shards","tail"],
+	"eos_091":[1.15,0.88,0.6,"body_dash","#e3c9ff","#8653b9","flame","flurry"]
 }
 
 func body_contact_art(id:String)->Array:
@@ -7700,7 +7716,11 @@ const SPECIAL_CONTACT_ART={"eos_123":["burst",0.95,"flame","smoke"],"eos_155":["
 	"electric_lash":["lash",0.86,"lightning","shock_ring"],
 	"eos_458":["coil",0.88,"special_vine","leaf"],
 	"lib_bug_1":["silk",0.82,"web","special_thread"],
-	"lib_bug_3":["sound",0.72,"special_wave","projectile_spore"]
+	"lib_bug_3":["sound",0.72,"special_wave","projectile_spore"],
+	"eos_331":["drain",0.92,"spiral","smoke"],
+	"lib_ghost_2":["lash",0.88,"special_thread","smoke"],
+	"orbit_lash":["lash",0.85,"special_coil","spiral"],
+	"sonic_cone":["sound",0.86,"special_wave","smoke"]
 }
 func special_contact_art(id:String)->Array:
 	return SPECIAL_CONTACT_ART.get(id,[])
@@ -7814,7 +7834,18 @@ const PROJECTILE_CONTACT_ART={"lib_fire_1":["dart","ember","ember",0.52,0.1],"li
 	"lib_grass_2":["dart","projectile_thorn","leaf",0.66,0.1],
 	"lib_ground_3":["dart","projectile_thorn","shards",0.76,0.1],
 	"lib_poison_1":["dart","drop","venom_splash",0.55,0.1],
-	"lib_poison_2":["lob","drop","venom_splash",0.8,0.55]
+	"lib_poison_2":["lob","drop","venom_splash",0.8,0.55],
+	"alt_celestial_guardian":["volley","projectile_crescent","impact_star",0.84,0.1],
+	"alt_starlit_pup":["dart","projectile_comet","impact_star",0.71,0.1],
+	"eos_109":["pulse","projectile_eye","spiral",1.03,0.1],
+	"eos_110":["orb","projectile_orb","spiral",1.35,0.1],
+	"eos_133":["pulse","projectile_eye","wave",0.84,0.1],
+	"eos_234":["pulse","spiral","impact_star",0.69,0.1],
+	"eos_335":["beam","projectile_prism","impact_star",0.99,0.1],
+	"eos_342":["beam","flame","ember",0.83,0.1],
+	"lib_dragon_2":["beam","flame","flame",0.9,0.1],
+	"lib_fairy_3":["beam","projectile_prism","impact_star",1.05,0.1],
+	"lib_psychic_1":["dart","projectile_needle","spiral",0.85,0.1]
 }
 func projectile_contact_art(id:String)->Array:
 	return PROJECTILE_CONTACT_ART.get(id,[])
@@ -7914,7 +7945,16 @@ const TERRAIN_CONTACT_ART={"lib_ground_1":["quake","shards",1.1],"lib_rock_3":["
 	"lib_poison_3":["vortex","venom_splash",0.95],
 	"royal_spores":["wind","projectile_spore",1.08],
 	"spore_cloud":["wind","projectile_spore",0.65],
-	"timber_shock":["quake","shards",1.12]
+	"timber_shock":["quake","shards",1.12],
+	"alt_abyss_colossus":["wind","smoke",1.18],
+	"celestial_verdict":["fall","impact_star",1.4],
+	"comet_drop":["fall","projectile_comet",1.03],
+	"eos_216":["wind","smoke",0.95],
+	"lib_dark_2":["rift","smoke",1.04],
+	"lib_fairy_2":["vortex","impact_star",0.85],
+	"lib_ghost_3":["vortex","smoke",1],
+	"lib_psychic_3":["rise","projectile_prism",1.3],
+	"lunar_dust":["wind","impact_star",0.74]
 }
 const TERRAIN_TILE_CAP:int=6
 
@@ -8009,7 +8049,20 @@ func terrain_contact_fx(burst:Dictionary,t:float,used:int,light:Color,dark:Color
 
 # Cast-time status art is outcome driven; the persistent layer reads live rules.
 const SUPPORT_CONTACT_ART={"eos_117":"heal","eos_218":"heal","eos_006":"heal","eos_094":"heal","eos_173":"heal","eos_449":"heal","eos_165":"heal","eos_318":"heal","eos_509":"heal","eos_236":"heal","eos_439":"heal","eos_526":"heal","eos_015":"cleanse","eos_026":"cleanse","eos_339":"cleanse","eos_456":"cleanse","eos_088":"cleanse","eos_301":"shield","eos_305":"shield","eos_104":"shield","eos_338":"shield","eos_259":"shield","eos_134":"shield","eos_130":"shield","eos_258":"shield","eos_186":"shield","eos_058":"shield","eos_070":"shield","eos_202":"shield","eos_520":"shield","eos_302":"shield","eos_298":"shield","eos_003":"sleep","eos_004":"sleep","eos_034":"sleep","eos_079":"sleep","eos_111":"sleep","eos_231":"sleep","eos_483":"sleep","eos_084":"sleep","eos_232":"sleep","eos_013":"confuse","eos_171":"confuse","eos_191":"confuse","eos_274":"confuse","eos_196":"poison","eos_197":"poison","eos_199":"poison","eos_124":"paralysis","eos_192":"paralysis","eos_281":"paralysis","eos_047":"burn","eos_183":"transform","eos_184":"transform","eos_286":"transform","eos_282":"transform","eos_304":"transform","eos_169":"transform","eos_148":"transform","eos_056":"transform","eos_055":"boost","eos_099":"boost","eos_181":"boost","eos_195":"boost","eos_215":"boost","eos_265":"boost","eos_288":"boost","eos_319":"boost","eos_333":"boost","eos_542":"boost","eos_095":"boost","eos_343":"boost","eos_444":"boost","eos_540":"boost","eos_074":"boost","eos_492":"boost","eos_257":"boost","eos_128":"boost","eos_160":"boost","eos_019":"boost","eos_010":"weaken","eos_011":"weaken","eos_027":"weaken","eos_033":"weaken","eos_083":"weaken","eos_085":"weaken","eos_122":"weaken","eos_142":"weaken","eos_146":"weaken","eos_217":"weaken","eos_224":"weaken","eos_273":"weaken","eos_106":"weaken","eos_351":"weaken","eos_267":"weaken","eos_534":"weaken","eos_266":"seal","eos_450":"seal","eos_059":"seal","eos_017":"seal","eos_022":"seal","eos_172":"seal","eos_466":"seal","eos_089":"seal","eos_194":"seal","eos_225":"regen","eos_434":"regen","eos_233":"regen","eos_021":"link","eos_313":"link","eos_464":"link","eos_448":"link","eos_506":"link","eos_513":"link","eos_137":"link","eos_209":"link","eos_482":"link","eos_187":"phase","eos_478":"phase","eos_493":"phase","eos_499":"phase",
-	"eos_438":"seal"
+	"eos_438":"seal",
+	"eos_005":"nightmare",
+	"eos_035":"seal",
+	"eos_043":"weaken",
+	"eos_045":"confuse",
+	"eos_049":"nightmare",
+	"eos_220":"transform",
+	"eos_269":"link",
+	"eos_316":"shield",
+	"eos_317":"omen",
+	"eos_334":"link",
+	"eos_503":"phase",
+	"eos_514":"transform",
+	"eos_528":"reveal"
 }
 const SUPPORT_VISUALS={
 	"heal":["support_cross","impact_star","#c4ffe0","#329c72"],
@@ -8026,7 +8079,10 @@ const SUPPORT_VISUALS={
 	"seal":["support_seal","web","#dbb9ff","#79559f"],
 	"regen":["support_cross","bubble","#c0ffea","#45b6a1"],
 	"link":["support_change","spiral","#f8caff","#ac66bf"],
-	"phase":["support_change","impact_star","#e6ddff","#8b73c9"]}
+	"phase":["support_change","impact_star","#e6ddff","#8b73c9"],
+	"nightmare":["support_moon","smoke","#d7a9ed","#513469"],
+	"omen":["support_seal","spiral","#f3c5ff","#9b4dc5"],
+	"reveal":["projectile_eye","impact_star","#ffe4a9","#9b74c6"]}
 
 func support_contact_kind(id:String)->String:
 	return str(SUPPORT_CONTACT_ART.get(id,""))
@@ -8081,7 +8137,16 @@ const MOTION_CONTACT_ART={"eos_100":["wing","dive",1.12,"slash"],"eos_153":["win
 	"eos_289":["bone","down",0.91,"shards"],
 	"eos_459":["cross","down",0.95,"venom_splash"],
 	"eos_470":["cross","sweep",1.12,"leaf"],
-	"eos_495":["thorn","jab",0.83,"venom_splash"]
+	"eos_495":["thorn","jab",0.83,"venom_splash"],
+	"alt_lunar_prowler":["crest","vanish",0.88,"smoke"],
+	"eos_038":["crest","rush",0.78,"smoke"],
+	"eos_046":["palm","vanish",0.73,"smoke"],
+	"eos_167":["crest","vanish",0.83,"smoke"],
+	"eos_214":["palm","sweep",0.77,"smoke"],
+	"eos_249":["palm","down",0.95,"impact_star"],
+	"eos_445":["chop","down",1.08,"smoke"],
+	"eos_472":["crest","rush",1,"shock_ring"],
+	"eos_488":["palm","jab",0.88,"smoke"]
 }
 
 func motion_contact_art(id:String)->Array:
