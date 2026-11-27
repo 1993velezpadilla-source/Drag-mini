@@ -236,6 +236,37 @@ func run()->void:
 	assert(field.element_finish_fx(bite_burst,float(bite_profile.impact),0)>2)
 	assert(field.combat_particles[0].texture==field.combat_pixel_texture("bite_upper",Color(str(normal_bite[3])),Color(str(normal_bite[4]))))
 	print("KINDRIA_CONTACT_BITE_PASS 13")
+	# V11.2: physical fist and independent elemental accents on actual move IDs.
+	var punch_cases:Dictionary={"lib_fighting_3":"impact_star","eos_065":"lightning","eos_075":"shock_ring","eos_103":"shards","eos_126":"smoke","eos_136":"impact_star","eos_246":"shock_ring","eos_264":"spiral","eos_292":"flame","eos_300":"slash","eos_322":"shock_ring","eos_344":"crystal","eos_430":"impact_star","eos_500":"spiral","eos_510":"shards","eos_515":"smoke","eos_347":"impact_star"}
+	var punch_source:Vector3=bite_position-Vector3.RIGHT*1.4
+	for move_id in punch_cases:
+		var art:Array=field.punch_contact_art(move_id)
+		assert(art.size()==8 and art[7]==punch_cases[move_id])
+		assert(field.punch_contact_fx(move_id,punch_source,bite_position,0.0,0,Color.WHITE,Color.BLACK)==1)
+		var fist:Sprite3D=field.combat_particles[0]
+		var initial:Vector3=fist.position
+		assert(fist.texture.get_image().get_used_rect().size.x>0)
+		assert(fist.texture==field.combat_pixel_texture(str(art[4]),Color(str(art[5])),Color(str(art[6]))))
+		var hit_age:float=float(art[2])*.28
+		assert(field.punch_contact_fx(move_id,punch_source,bite_position,hit_age,0,Color.WHITE,Color.BLACK)>=2)
+		assert(fist.position.distance_to(initial)>.05)
+		assert(field.combat_particles[1].texture==field.combat_pixel_texture(str(art[7]),Color.WHITE,Color.BLACK))
+		assert(field.combat_particles.size()==particle_count)
+		assert(field.punch_contact_fx(move_id,punch_source,bite_position,float(art[2]),0,Color.WHITE,Color.BLACK)==0)
+		assert(field.punch_contact_fx(move_id,punch_source,bite_position,0.0,Field.FX_PARTICLE_CAP,Color.WHITE,Color.BLACK)==Field.FX_PARTICLE_CAP)
+	var flurry:Array=field.punch_contact_art("eos_347")
+	field.punch_contact_fx("eos_347",punch_source,bite_position,float(flurry[2])*.10,0,Color.WHITE,Color.BLACK,3)
+	var first_fist:Vector3=field.combat_particles[0].position
+	field.punch_contact_fx("eos_347",punch_source,bite_position,float(flurry[2])*(.10+1.0/3.0),0,Color.WHITE,Color.BLACK,3)
+	assert(field.combat_particles[0].position.distance_to(first_fist)>.30,"confirmed flurry alternates fists")
+	var punch_profile:Dictionary=field.combat_profile("eos_292")
+	var punch_burst:Dictionary={"id":"eos_292","profile":punch_profile,"points":[field.pos(origin),bite_position],"results":{target:{"misses":1}}}
+	assert(field.element_finish_fx(punch_burst,float(punch_profile.impact),0)==1)
+	punch_burst.results={target:{"damage":8,"hits":1}}
+	assert(field.element_finish_fx(punch_burst,float(punch_profile.impact),0)>1)
+	var fire_art:Array=field.punch_contact_art("eos_292")
+	assert(field.combat_particles[0].texture==field.combat_pixel_texture("fist_front",Color(str(fire_art[5])),Color(str(fire_art[6]))))
+	print("KINDRIA_CONTACT_PUNCH_PASS 17")
 	var plan:Array=[
 		{"stage":"ally_invoke","anchor":"source","start":0.0,"end":.15,"enabled":true},
 		{"stage":"enemy_invoke","anchor":"source","start":0.0,"end":.15,"enabled":true},
