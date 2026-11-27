@@ -371,7 +371,50 @@ static func attack_pose_sample(progress:float,impact:float)->Dictionary:
 
 # Continuous body deformation avoids a scale jump at the exact impact frame.
 # Motion families reuse the authored companion cells without altering its silhouette atlas.
-static func attack_body_sample(progress:float,impact:float,motion:String)->Dictionary:
+# Forward reach, vertical lift, lateral sweep, elastic deformation.
+# Values are authored per creature; the standard companion stays neutral.
+const CREATURE_CAST_PROFILES={
+	"sporeling":Vector4(1.0,1.0,1.0,1.0),
+	"coralcrab":Vector4(.78,.55,1.16,.56),
+	"nova_wisp":Vector4(.91,1.20,1.12,1.18),
+	"vinesnap":Vector4(1.05,.72,1.30,.93),
+	"eelstrix":Vector4(1.16,.73,1.33,.90),
+	"comet_hare":Vector4(1.12,1.25,.93,1.08),
+	"thornbeetle":Vector4(.96,.58,.95,.64),
+	"marrowray":Vector4(.95,1.17,1.24,.85),
+	"voidspider":Vector4(.88,.76,1.28,.72),
+	"rootgnawer":Vector4(1.03,.82,.90,.91),
+	"jellymancer":Vector4(.83,1.12,1.06,1.25),
+	"lunamoth":Vector4(.84,1.25,1.32,.80),
+	"leafwisp":Vector4(.86,1.21,1.26,1.15),
+	"shellguard":Vector4(.70,.52,.74,.48),
+	"crystarok":Vector4(.76,.52,.68,.45),
+	"bramble_pup":Vector4(1.10,.92,.96,1.00),
+	"anemoneye":Vector4(.80,.84,1.24,1.10),
+	"nebulwing":Vector4(1.02,1.25,1.20,.82),
+	"mossmite":Vector4(.91,.92,1.08,1.11),
+	"reef_pup":Vector4(1.08,1.04,1.11,.96),
+	"orbitserpent":Vector4(1.13,.84,1.36,.92),
+	"sylphowl":Vector4(.98,1.23,1.29,.88),
+	"bubblewisp":Vector4(.80,1.20,1.13,1.25),
+	"starlit_pup":Vector4(1.10,1.08,1.02,1.02),
+	"hollow_stag":Vector4(1.18,.91,.81,.76),
+	"leviathorn":Vector4(1.02,.90,1.31,.78),
+	"lunar_prowler":Vector4(1.16,.96,1.13,.94),
+	"grovetitan":Vector4(.74,.52,.69,.56),
+	"abyss_colossus":Vector4(.67,.48,.65,.53),
+	"astro_golem":Vector4(.72,.70,.75,.44),
+	"fungal_monarch":Vector4(.68,.57,.82,.75),
+	"tidal_sovereign":Vector4(.88,1.03,1.18,.73),
+	"celestial_guardian":Vector4(.90,1.18,1.15,.72)}
+static func creature_cast_profile(species:String)->Vector4:
+	return CREATURE_CAST_PROFILES.get(species,Vector4.ONE)
+
+static func creature_cast_offset(offset:Vector3,species:String)->Vector3:
+	var profile:=creature_cast_profile(species)
+	return offset*Vector3(profile.x,profile.y,profile.z)
+
+static func attack_body_sample(progress:float,impact:float,motion:String,species:String="")->Dictionary:
 	var t:float=clampf(progress,0.0,1.0)
 	var peak:float=clampf(impact,.12,.88)
 	# Compression begins with anticipation, then releases into the authored
@@ -405,7 +448,8 @@ static func attack_body_sample(progress:float,impact:float,motion:String)->Dicti
 		"focus":compression=.025;extension=.04
 		"gesture":compression=.025;extension=.055
 		_:compression=.055;extension=.08
-	return {"stretch":1.0-compression*prepare+extension*strike,"lift":lift*envelope}
+	var creature:=creature_cast_profile(species)
+	return {"stretch":1.0+(-compression*prepare+extension*strike)*creature.w,"lift":lift*envelope*creature.y}
 
 # Dungeon gait uses the existing four directional native walk cells. Lift and
 # squash follow foot cadence, rather than a second unrelated hopping oscillator.
@@ -468,7 +512,7 @@ static func animate_world_sprite(actor:Node3D,delta:Vector2,moving:bool,dt:float
 	if state=="reward":lift+=absf(sin(clock*TAU*2.0))*.15
 	if state=="attack":
 		if timed_attack:
-			var body:=attack_body_sample(attack_progress,attack_impact,str(actor.get_meta("dungeon_cast_motion","cast")))
+			var body:=attack_body_sample(attack_progress,attack_impact,str(actor.get_meta("dungeon_cast_motion","cast")),str(actor.get_meta("dungeon_cast_species","")))
 			stretch=float(body.stretch);lift=float(body.lift)
 		else:stretch=1.0+.11*sin(clock*TAU*3.0)
 	if state=="hurt":stretch=.88+.06*sin(clock*35.0)
