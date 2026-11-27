@@ -5215,7 +5215,77 @@ func fairy_sprite(im:Image,role:String,frame:int)->void:
 			fairy_star(im,q,7.0,gold)
 		_:fairy_star(im,c,8.0,pearl)
 
+# These sixty native casts were identified by the V15.0 exact-frame audit.
+# Recompose the shared base artwork with the native move's authored stage.
+const NATIVE_IDENTITY_CASTS=["lib_electric_2","lib_steel_3","lib_ground_3","lib_water_3","lib_steel_2","lib_bug_2","lib_ground_2","lib_water_1","lib_ghost_3","lib_fighting_2","lib_poison_1","lib_ice_1","lib_fairy_1","lib_rock_2","lib_dragon_1","lib_ghost_1","lib_psychic_3","lib_psychic_2","lib_water_2","lib_steel_1","lib_dragon_3","lib_dark_1","lib_fire_3","lib_electric_3","lib_normal_1","lib_bug_1","lib_dark_3","lib_dragon_2","alt_sylphowl","lib_electric_1","alt_leviathorn","alt_astro_golem","lib_poison_3","lib_flying_2","lib_flying_1","alt_tidal_sovereign","lib_ground_1","lib_fighting_3","alt_mossmite","lib_ghost_2","alt_voidspider","lib_psychic_1","lib_bug_3","lib_grass_3","lib_grass_2","lib_fire_2","alt_bubblewisp","alt_fungal_monarch","lib_dark_2","lib_ice_2","lib_poison_2","lib_rock_3","lib_rock_1","lib_grass_1","lib_ice_3","alt_crystarok","lib_flying_3","lib_fighting_1","lib_fire_1","lib_normal_3"]
+func native_identity_frame(id:String,frame:int,base:Image)->Image:
+	var im:=Image.create(FX_FRAME_SIZE,FX_FRAME_SIZE,false,Image.FORMAT_RGBA8)
+	im.fill(Color.TRANSPARENT)
+	var cue:Array=AUTHORED_STAGE_FX[id]
+	var style:Array=combat_style(id)
+	var light:=Color(style[1]);var dark:=Color(style[2])
+	var mode:String=str(cue[0])
+	var material:String=str(cue[1])
+	var t:float=float(posmod(frame,FX_FRAME_COUNT))/float(FX_FRAME_COUNT-1)
+	var peak:float=clampf(float(combat_profile(id).impact),.12,.88)
+	var drive:float=clampf(t/peak,0.0,1.0)
+	var release:float=clampf((t-peak)/(1.0-peak),0.0,1.0)
+	var envelope:float=sin(t*PI)
+	var c:=Vector2(24,24)
+	var extent:float=clampf(float(cue[3])*12.0,3.0,13.0)
+	var height:float=clampf(float(cue[4])*8.0,1.0,12.0)
+	var size_px:int=clampi(roundi(36.0+6.0*envelope),36,42)
+	base.resize(size_px,size_px,Image.INTERPOLATE_NEAREST)
+	var center:=c
+	match mode:
+		"stream","cone","dash","wave":center.x+=lerpf(-3.0,3.0,drive)
+		"fall":center.y-=height*.30*(1.0-drive)
+		"eruption","rise":center.y-=height*.30*envelope
+		"ground":center.y+=3.0
+		"arc":center.y-=height*.45*sin(drive*PI)
+		"sweep":center.x+=sin(t*TAU)*2.0
+	var offset:=Vector2i(center-Vector2.ONE*float(size_px)*.5)
+	im.blit_rect(base,Rect2i(Vector2i.ZERO,base.get_size()),offset)
+	# Semantic material silhouettes: these remain tiny compared with the main art.
+	var amount:int=clampi(int(cue[2])-2,3,8)
+	for i in range(amount):
+		var f:float=float(i)/maxi(1,amount-1)
+		var angle:float=f*TAU
+		var p:=c
+		var direction:=Vector2(cos(angle),sin(angle))
+		match mode:
+			"stream","dash":p=Vector2(4.0+39.0*f,24.0+sin(f*TAU-t*TAU)*height*.34)
+			"cone":p=Vector2(6.0+35.0*f,24.0+(-1.0 if i%2==0 else 1.0)*extent*f)
+			"wave":p=c+Vector2((f-.5)*38.0,sin(f*TAU-t*TAU)*height)
+			"fall":p=c+Vector2((f-.5)*30.0,-20.0+drive*35.0-f*4.0)
+			"rise","eruption":p=c+Vector2(direction.x*extent,14.0-drive*25.0+f*4.0)
+			"ground":p=c+Vector2(direction.x*(7.0+extent*drive),9.0+direction.y*extent*.35)
+			"pincer":p=c+Vector2((-1.0 if i%2==0 else 1.0)*(19.0-extent*drive),-11.0+22.0*f)
+			"whip":p=c+Vector2((f-.5)*38.0,sin(f*TAU*1.5-t*5.0)*extent)
+			"arc":p=c+Vector2((f-.5)*32.0,-sin(f*PI)*height-4.0*envelope)
+			"sweep":p=c+Vector2(cos(angle*.7+t*2.0),sin(angle*.7+t*2.0))*(12.0+extent*.5)
+			"coil","wheel","helix":p=c+direction.rotated(t*TAU)*(12.0+extent*.5)
+			"burst","contact":p=c+direction*(5.0+extent*(.4+release))
+			_:p=c+direction*(12.0+extent*.45)
+		p.x=clampf(p.x,3.0,44.0);p.y=clampf(p.y,3.0,44.0)
+		var r:float=1.0+.65*envelope
+		match material:
+			"bubble","drop","venom_splash":fx_disc(im,p,r+1.0,dark,r);fx_disc(im,p-Vector2(.7,.7),.75,light)
+			"crystal","shards","dart":fx_line(im,p-Vector2(0,2),p+Vector2(2,1),1.25,dark);fx_line(im,p-Vector2(0,2),p+Vector2(1,0),.65,light)
+			"leaf","whip","web":fx_line(im,p-Vector2(2,1),p+Vector2(2,-1),1.15,dark);fx_line(im,p-Vector2(1,0),p+Vector2(1,-1),.65,light)
+			"lightning":fx_line(im,p-Vector2(2,1),p,1.0,dark);fx_line(im,p,p+Vector2(1,2),.8,light)
+			"ember","flame","smoke","cloud":fx_disc(im,p,r+1.0,dark);fx_disc(im,p-Vector2(0,1),r*.65,light)
+			"slash","shock_ring":fx_line(im,p-direction*2.4,p+direction*2.4,.9,light)
+			"earth_hole":fx_line(im,p-Vector2(2,0),p+Vector2(2,0),1.0,dark)
+			_:fx_disc(im,p,r,dark);fx_disc(im,p,.7,light)
+	return im
+
 func combat_frame_image(id:String,frame:int)->Image:
+	var base:=combat_base_frame_image(id,frame)
+	if id in NATIVE_IDENTITY_CASTS:return native_identity_frame(id,frame,base)
+	return base
+
+func combat_base_frame_image(id:String,frame:int)->Image:
 	var style:Array=combat_style(id)
 	var mode:String=combat_animation_mode(id,str(style[0]))
 	var light:=Color(style[1]);var dark:=Color(style[2]);var edge:=dark.darkened(.52)
