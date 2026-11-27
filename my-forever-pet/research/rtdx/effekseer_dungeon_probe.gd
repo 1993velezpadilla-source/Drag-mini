@@ -617,6 +617,44 @@ func run()->void:
 		assert(root.get_texture().get_image().save_png("/tmp/effekseer-review/v12-element-"+move_id+".png")==OK)
 	for particle in field.combat_particles:particle.hide()
 	print("KINDRIA_ELEMENTAL_AUDIT_PASS 40")
+	# V12.3: all remaining grass, poison, bug, ground and rock records.
+	var nature_cases:Dictionary={"alt_anemoneye":"TERRAIN","alt_astro_golem":"TERRAIN","alt_fungal_monarch":"PROJECTILE","alt_grovetitan":"BODY","alt_hollow_stag":"PROJECTILE","alt_leafwisp":"PROJECTILE","alt_mossmite":"TERRAIN","alt_rootgnawer":"PROJECTILE","alt_shellguard":"BODY","alt_sporeling":"BODY","alt_thornbeetle":"BITE","alt_vinesnap":"BITE","alt_voidspider":"PROJECTILE","antler_arc":"BODY","briar_arc":"BODY","double_pincer":"MOTION","eos_093":"PROJECTILE","eos_105":"PROJECTILE","eos_143":"TERRAIN","eos_147":"TERRAIN","eos_200":"PROJECTILE","eos_212":"TERRAIN","eos_221":"MOTION","eos_238":"TERRAIN","eos_253":"TERRAIN","eos_285":"PROJECTILE","eos_289":"MOTION","eos_290":"PROJECTILE","eos_295":"TERRAIN","eos_297":"PROJECTILE","eos_332":"PROJECTILE","eos_336":"CLAW","eos_438":"SUPPORT","eos_441":"BODY","eos_453":"PROJECTILE","eos_458":"SPECIAL","eos_459":"MOTION","eos_470":"MOTION","eos_480":"TERRAIN","eos_495":"MOTION","eos_496":"TERRAIN","eos_512":"PROJECTILE","eos_537":"PROJECTILE","horn_ram":"BODY","leaf_dart":"PROJECTILE","lib_bug_1":"SPECIAL","lib_bug_3":"SPECIAL","lib_grass_2":"PROJECTILE","lib_grass_3":"TERRAIN","lib_ground_2":"BODY","lib_ground_3":"PROJECTILE","lib_poison_1":"PROJECTILE","lib_poison_2":"PROJECTILE","lib_poison_3":"TERRAIN","lib_rock_2":"BODY","meteor_fist":"PUNCH","rolling_moss":"BODY","royal_spores":"TERRAIN","shell_impact":"BODY","spore_cloud":"TERRAIN","timber_shock":"TERRAIN","tusk_sweep":"BODY"}
+	for move_id in nature_cases:
+		var group:String=nature_cases[move_id]
+		var p:Dictionary=field.combat_profile(move_id)
+		var style:Array=field.combat_style(move_id)
+		var light:=Color(str(style[1]));var dark:=Color(str(style[2]))
+		var peak:float=clampf(float(p.impact),.01,.99)
+		var burst:Dictionary={"id":move_id,"profile":p,"points":[special_source,bite_position],"tiles":[field.pos(target)],"results":{target:{"damage":8,"hits":2,"effects":1}}}
+		var n:int=0
+		for particle in field.combat_particles:particle.hide()
+		match group:
+			"PROJECTILE":n=field.projectile_contact_fx(burst,peak*.55,0,light,dark)
+			"TERRAIN":n=field.terrain_contact_fx(burst,peak*.55,0,light,dark)
+			"BODY":n=field.body_contact_fx(move_id,special_source,bite_position,.25,0,light,dark,2)
+			"SPECIAL":
+				var tick:float=lerpf(peak,1.0,.25) if move_id=="eos_458" else peak*.55
+				n=field.special_contact_fx(burst,tick,0,light,dark)
+			"BITE":n=field.bite_contact_fx(move_id,bite_position,.20,0,light,dark)
+			"MOTION":n=field.motion_contact_fx(move_id,special_source,bite_position,.25,0,light,dark,2)
+			"CLAW":n=field.claw_contact_fx(move_id,special_source,bite_position,.25,0,light,dark,2)
+			"PUNCH":n=field.punch_contact_fx(move_id,special_source,bite_position,.25,0,light,dark,2)
+			"SUPPORT":n=field.support_contact_fx(burst,lerpf(peak,1.0,.25),0)
+		assert(n>0 and n<=12,"missing nature presentation "+move_id)
+		assert(field.combat_particles.size()==particle_count)
+		assert(field.combat_particles[0].texture.get_image().get_used_rect().size.x>0)
+		if move_id in ["eos_290","eos_295","eos_480","eos_496","eos_238","eos_495","eos_470","eos_336","eos_289","eos_453","eos_253","royal_spores"]:
+			await frames()
+			assert(root.get_texture().get_image().save_png("/tmp/effekseer-review/v12-nature-"+move_id+".png")==OK)
+	var return_profile:Dictionary=field.combat_profile("eos_290")
+	var returning:Dictionary={"id":"eos_290","profile":return_profile,"points":[special_source,bite_position],"results":{}}
+	var return_peak:float=clampf(float(return_profile.impact),.01,.99)
+	assert(field.projectile_contact_fx(returning,lerpf(return_peak,1.0,.25),0,Color.WHITE,Color.BLACK)==1)
+	var return_start:float=field.combat_particles[0].position.distance_to(special_source)
+	assert(field.projectile_contact_fx(returning,lerpf(return_peak,1.0,.8),0,Color.WHITE,Color.BLACK)==1)
+	assert(field.combat_particles[0].position.distance_to(special_source)<return_start)
+	for particle in field.combat_particles:particle.hide()
+	print("KINDRIA_NATURE_AUDIT_PASS 62")
 	var plan:Array=[
 		{"stage":"ally_invoke","anchor":"source","start":0.0,"end":.15,"enabled":true},
 		{"stage":"enemy_invoke","anchor":"source","start":0.0,"end":.15,"enabled":true},
