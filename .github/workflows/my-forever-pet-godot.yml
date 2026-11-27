@@ -142,6 +142,10 @@ jobs:
         with:
           distribution: temurin
           java-version: '17'
+      - name: Cache Gradle dependencies across Android builds
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          cache-read-only: false
       - name: Export isolated Android ARM64 test APK
         run: |
           set -euo pipefail
@@ -181,7 +185,21 @@ jobs:
           for file in generated_combat_audio/index.json generated_combat_audio/audio.pcm generated_combat_frames/index.json generated_combat_frames/frames.bin generated_combat_frames/particles.json generated_combat_frames/particles.bin; do
             test -s "my-forever-pet/godot-arcade/$file"
           done
-          "$G" --verbose --headless --path my-forever-pet/godot-arcade --export-debug "Android Lab" /tmp/My-Forever-Pet-Godot-arm64.apk
+          # Retry only Maven rate limiting, never compiler or validation errors.
+          export_ok=0
+          for attempt in 1 2 3; do
+            rm -f /tmp/My-Forever-Pet-Godot-arm64.apk
+            log="/tmp/kindria-apk-export-$attempt.log"
+            if "$G" --verbose --headless --path my-forever-pet/godot-arcade --export-debug "Android Lab" /tmp/My-Forever-Pet-Godot-arm64.apk 2>&1 | tee "$log"; then
+              export_ok=1
+              break
+            fi
+            if ! grep -Ei 'status code 429|HTTP[^0-9]*429|Too Many Requests' "$log"; then exit 1; fi
+            if [ "$attempt" -eq 3 ]; then break; fi
+            echo "Maven rate limit detected; retrying after backoff"
+            sleep "$((attempt * 60))"
+          done
+          test "$export_ok" -eq 1
           test -s /tmp/My-Forever-Pet-Godot-arm64.apk
           python3 my-forever-pet/godot-arcade/verify_apk_combat_packs.py /tmp/My-Forever-Pet-Godot-arm64.apk my-forever-pet/godot-arcade /tmp/kindria-apk-pack-verification.json
           "$SDK/build-tools/34.0.0/apksigner" verify /tmp/My-Forever-Pet-Godot-arm64.apk
@@ -225,6 +243,7 @@ jobs:
           name: Kindria-APK-combat-pack-evidence
           if-no-files-found: warn
           path: |
+            /tmp/kindria-apk-export-*.log
             /tmp/kindria-apk-engine.log
             /tmp/kindria-apk-gauntlet.log
             /tmp/kindria-apk-provenance.json
