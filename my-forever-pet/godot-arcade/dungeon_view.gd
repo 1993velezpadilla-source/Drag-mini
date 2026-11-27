@@ -107,6 +107,9 @@ var fx_performance_grace:float=1.5
 const LIVING_PARTICLE_CAP=64
 const FX_WARNING_CAP=80
 var combat_particles:Array[Sprite3D]=[]
+# Each frame writes contiguous prefixes of the two independent particle pools.
+var fx_cast_particles_used:int=0
+var fx_living_particles_used:int=0
 # Opt-in until rendered equivalence and device timing are established.
 var fx_particle_batch_enabled:bool="--particle-batching" in OS.get_cmdline_user_args()
 const FX_PARTICLE_BATCH_CAP:int=8
@@ -2524,6 +2527,7 @@ func combat_fx_setup(parent:Node3D)->void:
 	response_slots.clear()
 	fx_particle_batches.clear();fx_particle_batch_materials.clear();fx_particle_batch_used=0;fx_particle_batched_count=0
 	fx_particle_no_gain_frames=0;fx_particle_cooldown=0
+	fx_cast_particles_used=0;fx_living_particles_used=0
 	combat_particles.clear();combat_warning_positions.clear();combat_bursts.clear();retired_impacts.clear();delayed_combat_fx.clear();fx_reactions.clear();fx_ground_shake=0.0;fx_contact_camera=Vector3.ZERO;fx_contact_camera_age=1.0
 	combat_fx_root=Node3D.new();parent.add_child(combat_fx_root)
 	setup_cinematic_lighting()
@@ -16102,6 +16106,18 @@ func ensure_particle_batch(slot:int)->MultiMeshInstance3D:
 		fx_particle_batch_materials.append(material)
 	return fx_particle_batches[slot]
 
+# Hide only the retired suffix of a previously submitted prefix. Pooled
+# sprites start hidden, and optional batching only hides submitted sprites.
+func finish_particle_range(base:int,used:int,previous:int,capacity:int)->int:
+	var available:int=maxi(0,mini(capacity,combat_particles.size()-base))
+	var current:int=clampi(used,0,available)
+	for index in range(base+current,base+clampi(previous,0,available)):
+		if combat_particles[index].visible:combat_particles[index].hide()
+	return current
+
+func active_particle_pool_index(index:int)->int:
+	return index if index<fx_cast_particles_used else FX_PARTICLE_CAP+index-fx_cast_particles_used
+
 func update_particle_batches()->void:
 	fx_particle_batch_used=0
 	fx_particle_batched_count=0
@@ -16115,7 +16131,8 @@ func update_particle_batches()->void:
 		var visible:Array[Sprite3D]=[]
 		var rects:Array[Rect2]=[]
 		var keys:Array[int]=[]
-		for particle in combat_particles:
+		for index in range(fx_cast_particles_used+fx_living_particles_used):
+			var particle:Sprite3D=combat_particles[active_particle_pool_index(index)]
 			if not particle.visible or particle.texture==null:continue
 			visible.append(particle)
 			var eligible:bool=particle.billboard==BaseMaterial3D.BILLBOARD_DISABLED and particle.texture is ImageTexture and particle.centered and particle.offset==Vector2.ZERO and not camera.is_position_behind(particle.global_position)
@@ -16693,8 +16710,7 @@ func combat_fx_update(dt:float)->void:
 		hit_time=.24+dt-float(latest_hit.age)
 		player_hit_direction=latest_hit.direction
 	if not fx_arc_positions.is_empty():fx_arc_had_geometry=commit_fx_geometry(fx_arc_mesh,fx_arc_material,fx_arc_positions,fx_arc_colors,fx_arc_indices)
-	for j in range(used,mini(FX_PARTICLE_CAP,combat_particles.size())):
-		if combat_particles[j].visible:combat_particles[j].hide()
+	fx_cast_particles_used=finish_particle_range(0,used,fx_cast_particles_used,FX_PARTICLE_CAP)
 	update_particle_batches()
 	commit_cinematic_lights()
 	for j in range(fx_lights_used,fx_lights.size()):
@@ -16935,7 +16951,9 @@ func living_particle_budgets(demands:Array[int],capacity:int)->Array[int]:
 	return budgets
 
 func living_status_fx()->void:
-	if run==null:return
+	if run==null:
+		fx_living_particles_used=finish_particle_range(FX_PARTICLE_CAP,0,fx_living_particles_used,LIVING_PARTICLE_CAP)
+		return
 	var used:int=FX_PARTICLE_CAP
 	var entries:Array[Dictionary]=[]
 	if is_instance_valid(pet):
@@ -16953,8 +16971,7 @@ func living_status_fx()->void:
 			continue
 		entries.append({"actor":actor,"statuses":statuses,"height":1.12*float(actor.get_meta("enemy_size_multiplier",1.0))})
 	if entries.is_empty():
-		for j in range(used,combat_particles.size()):
-			if combat_particles[j].visible:combat_particles[j].hide()
+		fx_living_particles_used=finish_particle_range(FX_PARTICLE_CAP,0,fx_living_particles_used,LIVING_PARTICLE_CAP)
 		return
 	var demands:Array[int]=[]
 	for entry in entries:
@@ -16968,8 +16985,7 @@ func living_status_fx()->void:
 		var entry:Dictionary=entries[i]
 		# Even a zero-budget actor updates its independent sleep glyphs.
 		used=living_actor_particles(entry.actor,entry.statuses,used,float(entry.height),budgets[i])
-	for j in range(used,combat_particles.size()):
-		if combat_particles[j].visible:combat_particles[j].hide()
+	fx_living_particles_used=finish_particle_range(FX_PARTICLE_CAP,used-FX_PARTICLE_CAP,fx_living_particles_used,LIVING_PARTICLE_CAP)
 
 func travel_environment_fx(burst:Dictionary,t:float,used:int)->int:
 	var id:String=str(burst.id)
@@ -19115,8 +19131,8 @@ func fx_diag_sample(now:int,submit_usec:int,active:bool)->void:
 	fx_diag_peak_casts=maxi(fx_diag_peak_casts,combat_bursts.size())
 	fx_diag_peak_tier=maxi(fx_diag_peak_tier,fx_performance_tier)
 	var visible_count:int=fx_particle_batched_count
-	for particle in combat_particles:
-		if particle.visible:visible_count+=1
+	for index in range(fx_cast_particles_used+fx_living_particles_used):
+		if combat_particles[active_particle_pool_index(index)].visible:visible_count+=1
 	fx_diag_peak_particles=maxi(fx_diag_peak_particles,visible_count)
 	if fx_diag_intervals.size()<FX_DIAG_WINDOW:return
 	# One bounded summary every 300 combat intervals. No per-frame disk writes.
