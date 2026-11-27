@@ -203,6 +203,21 @@ func run_checks()->void:
 			if not envelope.is_finite() or envelope.x<-.0001 or envelope.x>1.001 or envelope.y<0.0 or envelope.y>1.001:failures.append("invalid cinematic envelope")
 			if i==100 and envelope.length()>.001:failures.append("ultimate effect never expires")
 			checks+=1
+	# Outbound and return legs use exactly the original tile route.
+	var movement_route:Array=[Vector3.ZERO,Vector3(1.4,0,0),Vector3(1.4,0,2.8)]
+	for kind in ["air","ground","burrow","dive","vanish"]:
+		for peak in [.4,.48,.64]:
+			var launch:=view.tile_cast_sample(movement_route,kind,0.0,peak)
+			var contact:=view.tile_cast_sample(movement_route,kind,peak,peak)
+			var landing:=view.tile_cast_sample(movement_route,kind,1.0,peak)
+			if Vector3(contact.position).distance_to(movement_route[-1])>.001 or not bool(contact.visible):failures.append("tile cast contact failed")
+			if Vector3(landing.position).distance_to(movement_route[0])>.001 or not bool(landing.visible):failures.append("tile cast return failed")
+			if kind in ["burrow","dive","vanish"] and bool(launch.visible):failures.append("concealed cast visible at launch")
+			for i in range(101):
+				var t:float=float(i)/100.0
+				var motion_sample:=view.tile_cast_sample(movement_route,kind,t,peak)
+				if not Vector3(motion_sample.position).is_finite() or float(motion_sample.path_progress)<0.0 or float(motion_sample.path_progress)>1.0:failures.append("invalid tile cast trajectory")
+				checks+=1
 	var home:=Home.new()
 	home.free()
 	view.free()
