@@ -75,6 +75,16 @@ func bake()->void:
 			if region!=Rect2(frame*size,0,size,size) or atlas_frame.atlas!=first.atlas or not atlas_frame.filter_clip:failures+=1
 		if reader.fx_atlas_uploads!=before+1 or reader.combat_animated_texture(str(id),0)!=first or reader.fx_atlas_cache.size()>Dungeon.FX_ATLAS_CACHE_CAP:failures+=1
 	if reader.fx_frame_builds!=0 or reader.fx_atlas_uploads!=ids.size():failures+=1
+	# Force an eviction while an animation still owns all original frames.
+	var pinned_id:String=str(ids[0])
+	var pinned:Array=reader.combat_cast_frames(pinned_id)
+	var pinned_uploads:int=reader.fx_atlas_uploads
+	reader.fx_atlas_cache.clear()
+	for frame in range(count):
+		if pinned.size()!=count or reader.combat_cast_frame(pinned_id,pinned,frame)!=pinned[frame]:failures+=1
+	if reader.fx_atlas_uploads!=pinned_uploads or reader.fx_frame_builds!=0:failures+=1
+	var warm_ids:=reader.combat_floor_warm_ids(["eos_308","eos_308","eos_135"],[])
+	if warm_ids.count("eos_308")!=1 or not warm_ids.has("eos_135") or not warm_ids.has("basic_strike") or warm_ids.size()>Dungeon.FX_ATLAS_CACHE_CAP:failures+=1
 	print("KINDRIA_FRAME_PACK moves=",ids.size()," frames=",ids.size()*count," bytes=",total," atlas_uploads=",reader.fx_atlas_uploads," procedural_builds=",reader.fx_frame_builds," failures=",failures)
 	reader.free()
 	quit(0 if failures==0 else 1)

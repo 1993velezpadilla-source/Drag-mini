@@ -125,6 +125,9 @@ var fx_frame_pack_entries:Dictionary={}
 var fx_frame_pack_checked:bool=false
 var fx_atlas_uploads:int=0
 var fx_frame_pack_hits:int=0
+var fx_floor_warm_count:int=0
+var fx_floor_warm_usec:int=0
+var fx_atlas_uploads_in_cast:int=0
 var fx_secondary_builds:int=0
 var fx_arc_had_geometry:bool=false
 var fx_trail_had_geometry:bool=false
@@ -2030,6 +2033,7 @@ func build_floor():
 	camera.position=focus+DUNGEON_CAMERA_OFFSET+Vector3(sin(elapsed*61.0)*fx_ground_shake,0,cos(elapsed*73.0)*fx_ground_shake*.45);camera.look_at(focus)
 	PixelArt.animate_world_sprite(pet_pose,Vector2(facing),false,0.0,"idle",region==1)
 	refresh_actors()
+	combat_warm_floor()
 	floor_build_usec=Time.get_ticks_usec()-start_usec
 	print("DUNGEON_FLOOR_BUILD region=",region," floor=",run.floor_number," usec=",floor_build_usec," rocks=",rock_modules," cached_rock_sets=",rock_mesh_cache.size()," landmarks=",landmark_count," details=",detail_count," paired_spans=",span_count," corners=",corner_count," terraces=",terrace_count," floor_details=",floor_detail_count," thresholds=",threshold_count," exterior_vertices=",exterior_vertex_count," exterior_groups=",exterior_groups.size()," exterior_static_batches=",exterior_static_batches," exterior_life=",exterior_life_centers.size())
 func actor_for(key:String,at:Vector3)->Node3D:
@@ -13560,6 +13564,45 @@ func combat_packed_frame(id:String,normalized:int)->Texture2D:
 	fx_frame_pack_hits+=1
 	return frames[normalized]
 
+# Prioritize equipped moves, then each unique enemy species. No catalog-wide
+# upload or generation in the frame loop; floor construction is the warm boundary.
+func combat_floor_warm_ids(equipped:Array,enemies:Array)->Array[String]:
+	var ids:Array[String]=["basic_strike","leaf_dart","lib_grass_1","lib_grass_2","lib_grass_3"]
+	for id in equipped:
+		if not ids.has(str(id)):ids.append(str(id))
+	for enemy in enemies:
+		var species:String=str(enemy.get("species",""))
+		if Rules.SIGNATURE_SKILLS.has(species):
+			var primary:String=str(Rules.SIGNATURE_SKILLS[species][6])
+			if not ids.has(primary):ids.append(primary)
+		if Rules.SECONDARY_SKILLS.has(species):
+			var secondary:String="alt_"+species
+			if not ids.has(secondary):ids.append(secondary)
+	return ids.slice(0,FX_ATLAS_CACHE_CAP)
+
+func combat_warm_floor()->void:
+	var started:int=Time.get_ticks_usec()
+	fx_floor_warm_count=0
+	combat_frame_pack_init()
+	if fx_frame_pack!=null:
+		for id in combat_floor_warm_ids(run.equipped_moves,run.enemies):
+			if combat_packed_frame(id,0)!=null:fx_floor_warm_count+=1
+	fx_floor_warm_usec=Time.get_ticks_usec()-started
+	print("KINDRIA_FLOOR_ATLAS warmed=",fx_floor_warm_count," usec=",fx_floor_warm_usec)
+
+# Active casts pin their own immutable frame array. LRU pressure may evict
+# the shared entry but cannot force a second upload halfway through a cast.
+func combat_cast_frames(id:String)->Array:
+	var before:int=fx_atlas_uploads
+	if combat_packed_frame(id,0)==null:return []
+	fx_atlas_uploads_in_cast+=fx_atlas_uploads-before
+	return fx_atlas_cache[id]
+
+func combat_cast_frame(id:String,frames:Array,frame:int)->Texture2D:
+	var normalized:int=posmod(frame,FX_FRAME_COUNT)
+	if frames.size()==FX_FRAME_COUNT:return frames[normalized]
+	return combat_animated_texture(id,normalized)
+
 func combat_animated_texture(id:String,frame:int)->Texture2D:
 	var normalized:int=posmod(frame,FX_FRAME_COUNT)
 	var packed:=combat_packed_frame(id,normalized)
@@ -15166,7 +15209,8 @@ func combat_fx_spawn(event:Dictionary,launch_age:float=0.0)->void:
 	if tiles.is_empty():tiles.append(pos(target)+Vector3(0,.12,0))
 	if combat_bursts.size()>=COMBAT_BURST_CAP:
 		retire_combat_burst(combat_bursts.pop_front())
-	combat_bursts.append({"id":id,"mode":style[0],"profile":profile,"target_player":event.get("target_player",false),"damage":event.get("damage",0),"impacted":false,"age":0.0,"duration":float(style[3]),"points":waypoints,"tiles":tiles,"texture":combat_animated_texture(id,0),"cached_frame":0,"airborne_start":not event.has("uid") and release_charge_phase=="airborne","results":event.get("results",{}).duplicate(true)})
+	var cast_frames:Array=combat_cast_frames(id)
+	combat_bursts.append({"frames":cast_frames,"id":id,"mode":style[0],"profile":profile,"target_player":event.get("target_player",false),"damage":event.get("damage",0),"impacted":false,"age":0.0,"duration":float(style[3]),"points":waypoints,"tiles":tiles,"texture":combat_cast_frame(id,cast_frames,0),"cached_frame":0,"airborne_start":not event.has("uid") and release_charge_phase=="airborne","results":event.get("results",{}).duplicate(true)})
 	var burst:Dictionary=combat_bursts[-1]
 	burst["impact_waves"]=cast_impact_waves(burst.results)
 	burst["impact_times"]=reaction_times(float(burst.duration),float(profile.impact),burst.impact_waves.size())
@@ -15676,7 +15720,7 @@ func combat_fx_update(dt:float)->void:
 		# shared cache evicts it during a simultaneous multi-target attack.
 		if int(burst.get("cached_frame",-1))!=frame:
 			burst["cached_frame"]=frame
-			burst["texture"]=combat_animated_texture(str(burst.id),frame)
+			burst["texture"]=combat_cast_frame(str(burst.id),burst.frames,frame)
 		var animated:Texture2D=burst.texture
 		var points:Array=burst.points
 		var tiles:Array=burst.tiles
@@ -16140,7 +16184,8 @@ func combat_fx_update(dt:float)->void:
 		hit_time=.24+dt-float(latest_hit.age)
 		player_hit_direction=latest_hit.direction
 	if arcs_started:fx_arc_mesh.surface_end();fx_arc_had_geometry=true
-	for j in range(used,mini(FX_PARTICLE_CAP,combat_particles.size())):combat_particles[j].hide()
+	for j in range(used,mini(FX_PARTICLE_CAP,combat_particles.size())):
+		if combat_particles[j].visible:combat_particles[j].hide()
 	for j in range(fx_lights_used,fx_lights.size()):
 		if fx_lights[j].visible:fx_lights[j].hide()
 	for j in range(fx_halos_used,fx_halos.size()):
