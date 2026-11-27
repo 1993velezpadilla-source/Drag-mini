@@ -14328,6 +14328,90 @@ func combat_audio_duration(profile:Dictionary,form:String,phase:String)->float:
 	var tail:float=.25 if form in ["detonation","rumble","roar","implosion","shockwave"] else .16
 	return clampf(minf(tail,maxf(.085,duration*(1.0-peak))),.085,.30)
 
+# V19.7: acoustic gesture is chosen from authored motion, not random pitch.
+# Vector4: center Hz, signed sweep Hz, pulse count, transient weight.
+const AUDIO_ROLE_GESTURES={
+	"fire_ember":Vector4(920,-540,1,.82),
+	"fire_breath":Vector4(185,120,3,.22),
+	"fire_vortex":Vector4(260,180,5,.34),
+	"fire_blast":Vector4(120,-65,2,.92),
+	"fire_wheel":Vector4(360,-140,4,.52),
+	"fire_sacred":Vector4(730,330,2,.25),
+	"fire_heatwave":Vector4(135,45,2,.20),
+	"fire_overheat":Vector4(175,-95,3,.72),
+	"fire_blastburn":Vector4(80,-30,1,.96),
+	"fire_eruption":Vector4(100,170,4,.65),
+	"fire_wisp":Vector4(590,-220,3,.24),
+	"fire_plume":Vector4(155,210,4,.45),
+	"fire_magma":Vector4(110,65,3,.58),
+	"water_gun":Vector4(520,-210,1,.62),
+	"water_pump":Vector4(150,95,3,.46),
+	"water_cannon":Vector4(220,-95,1,.86),
+	"water_bubble":Vector4(850,-430,2,.68),
+	"water_bubblebeam":Vector4(680,-340,6,.55),
+	"water_whirlpool":Vector4(280,150,5,.28),
+	"water_surf":Vector4(120,-45,2,.44),
+	"water_pulse":Vector4(430,-160,3,.48),
+	"water_spout":Vector4(260,310,4,.35),
+	"water_rain":Vector4(1350,-260,7,.40),
+	"water_jet":Vector4(760,-360,1,.74),
+	"electric_sky":Vector4(1700,-900,2,.90),
+	"electric_arc":Vector4(1050,750,4,.55),
+	"electric_beam":Vector4(860,300,3,.32),
+	"electric_orb":Vector4(460,210,5,.38),
+	"electric_charge":Vector4(280,850,4,.20),
+	"electric_room":Vector4(1250,-500,6,.65),
+	"ice_shard":Vector4(1800,-850,1,.86),
+	"ice_beam":Vector4(1450,280,2,.32),
+	"ice_blizzard":Vector4(950,-300,7,.42),
+	"ice_avalanche":Vector4(210,-125,5,.78),
+	"earth_dig":Vector4(120,-65,5,.65),
+	"earth_quake":Vector4(85,-30,4,.64),
+	"earth_fissure":Vector4(140,110,3,.80),
+	"air_fly":Vector4(330,370,2,.28),
+	"air_bounce":Vector4(220,530,2,.45),
+	"psi_teleport":Vector4(640,750,1,.30),
+	"ghost_force":Vector4(170,410,2,.28),
+	"ghost_ball":Vector4(390,-190,3,.55),
+	"dark_void":Vector4(100,480,2,.30),
+	"dragon_breath":Vector4(135,170,4,.40),
+	"dragon_meteor":Vector4(90,-45,3,.92),
+	"grass_absorb":Vector4(380,310,3,.20),
+	"grass_solar":Vector4(540,650,2,.24),
+	"grass_bullet":Vector4(1150,-600,5,.77)
+}
+func combat_audio_gesture(id:String,profile:Dictionary)->Vector4:
+	var role:String=str(profile.role)
+	if AUDIO_ROLE_GESTURES.has(role):return AUDIO_ROLE_GESTURES[role]
+	var form:String=combat_audio_form(id,profile)
+	match form:
+		"fang":return Vector4(240,-120,1,.86)
+		"crunch":return Vector4(125,-55,2,.92)
+		"pincer":return Vector4(1250,-440,2,.72)
+		"punch","thump":return Vector4(145,-65,1,.84)
+		"kick":return Vector4(105,-45,1,.78)
+		"claw":return Vector4(1150,-700,3,.68)
+		"slice":return Vector4(1500,-850,1,.80)
+		"detonation","shockwave":return Vector4(90,-40,2,.88)
+		"implosion":return Vector4(160,510,1,.30)
+		"beam":return Vector4(680,220,2,.25)
+		"bubble":return Vector4(740,-380,3,.55)
+	if role.begins_with("support_") or role.begins_with("status_") or role in ["heal","drain"]:
+		return Vector4(520,260,2,.18)
+	var mode:String=str(profile.mode)
+	if mode in ["spiral","roll","wave"]:return Vector4(340,130,4,.42)
+	if mode in ["cloud","web","silk"]:return Vector4(410,-90,5,.24)
+	if mode in ["leap","slash","whip","vine"]:return Vector4(780,-430,1,.60)
+	if str(profile.socket)=="ground":return Vector4(130,-50,3,.58)
+	if int(profile.range)>1:return Vector4(560,-240,2,.55)
+	return Vector4(330,-130,1,.48)
+
+func combat_audio_gesture_sample(gesture:Vector4,t:float,p:float,pitch:float,noise:float,body:float)->float:
+	var rhythm:float=.45+.55*pow(absf(sin(p*PI*gesture.z)),2.0)
+	var transient:float=lerpf(sin(p*PI),pow(1.0-p,2.0),gesture.w)
+	var tone:float=sin(TAU*pitch*(gesture.x*t+.5*gesture.y*t*p))
+	return (tone*.42+noise*.30*gesture.w+body*.23)*rhythm*transient
+
 func combat_sound(id:String,phase:String,variant:int)->AudioStreamWAV:
 	var key:=id+":"+phase+":"+str(variant)
 	if fx_audio_cache.has(key):return fx_audio_cache[key]
@@ -14343,7 +14427,10 @@ func combat_sound(id:String,phase:String,variant:int)->AudioStreamWAV:
 	var data:=PackedByteArray();data.resize(samples*2)
 	var last_noise:float=0.0
 	var slow_noise:float=0.0
-	var pitch:float=1.0+float(seed_value%23-11)*.012+float(variant-1)*.06
+	# Keep the same tonal identity across variants and playback phases.
+	var identity_seed:int=posmod(hash(id),2147483647)
+	var pitch:float=1.0+float(identity_seed%23-11)*.008+float(variant-1)*.025
+	var gesture:Vector4=combat_audio_gesture(id,profile)
 	for i in range(samples):
 		var t:float=float(i)/rate;var p:float=float(i)/samples
 		var noise:float=rng.randf_range(-1.0,1.0)
@@ -14428,6 +14515,7 @@ func combat_sound(id:String,phase:String,variant:int)->AudioStreamWAV:
 			"rustle","chitin":accent=(noise-last_noise)*.38*absf(sin(p*TAU*4.0))
 			"viscous":accent=sin(TAU*pitch*(180.0*t-70.0*t*p)+sin(p*TAU*4.0)*2.6)*.34
 		wave=wave*.60+accent*(.85 if strike else .62)
+		if phase!="miss":wave=wave*.82+combat_audio_gesture_sample(gesture,t,p,pitch,noise-last_noise,slow_noise)*(.52 if strike else .40)
 		if strike:wave+=sin(TAU*95.0*t*pitch)*.17*pow(1.0-p,2.0)
 		elif phase=="miss":wave=(noise-last_noise)*.34+sweep*.12
 		elif phase=="status":wave=sin(TAU*520.0*t*pitch)*.20+sin(TAU*780.0*t*pitch)*.14+wave*.55
