@@ -963,9 +963,18 @@ func build_layout():
 	for i in range(1,rooms.size()):
 		if i!=exit_index:choices.append(i)
 	relic=center(rooms[choices[rng.randi_range(0,choices.size()-1)]])
+func reset_floor_combat_presentation()->void:
+	# Enemy UIDs are local to the floor. Never reuse a previous floor's visual ledger.
+	visual_turn_damage.clear();visual_turn_damage_turn=-1
+	visual_response_events.clear();visual_response_active=false
+	visual_response_cast_serial=-1;visual_response_cast_uid=-1
+	player_visual_hits.clear();player_visual_hit_serial=-1
+	enemy_actions.clear()
+	player_attack_cells.clear();player_attack_path.clear()
+
 func generate_floor():
 	clear_combat_effects()
-	enemy_actions.clear()
+	reset_floor_combat_presentation()
 	rng.seed=seed_value+floor_number*7919
 	initialize_hidden_power(seed_value)
 	cells.clear();rooms.clear();enemies.clear();loot.clear();revealed.clear();traps.clear();player_traps.clear();revealed_player_traps.clear();explored_rooms.clear()
