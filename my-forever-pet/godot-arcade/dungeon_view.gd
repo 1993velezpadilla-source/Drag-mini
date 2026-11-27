@@ -86,6 +86,7 @@ var enemy_shadow_material:StandardMaterial3D
 var enemy_shadow_mesh:QuadMesh
 const COMBAT_FX_STYLES={"basic_strike":["slash","#fff3c9","#e8a25c",0.26],"briar_arc":["leap","#b4e579","#4c8d48",0.42],"spore_cloud":["cloud","#f4d68a","#879b49",0.72],"horn_ram":["leap","#f0d2a0","#a77c44",0.35],"leaf_dart":["dart","#b7ed7b","#438b45",0.42],"tusk_sweep":["slash","#f9e0ba","#aa744e",0.35],"vine_snap":["whip","#bfe874","#3f8e4b",0.54],"rolling_moss":["roll","#bdcb82","#536b45",0.5],"feather_fan":["fan","#fff1c3","#b5a773",0.48],"antler_arc":["slash","#e4c89e","#a58454",0.4],"timber_shock":["wave","#ecba69","#8d6842",0.62],"royal_spores":["cloud","#ffdca5","#ca79a3",0.78],"reef_bite":["slash","#d2f5ef","#5ba8b2",0.3],"jelly_pulse":["wave","#b8f8ff","#9c7ce0",0.48],"shell_impact":["wave","#d1e8a4","#739a77",0.44],"bubble_burst":["bubble","#c7fbff","#50b7dc",0.64],"electric_lash":["lightning","#e8fbff","#4b9af8",0.42],"double_pincer":["slash","#ffe2a5","#ef826f",0.36],"tentacle_snare":["whip","#ffd3ea","#bd648c",0.6],"fin_slice":["dart","#dbf4f5","#6ca9db",0.43],"spiral_current":["spiral","#d8fff0","#56b6b8",0.52],"abyss_grasp":["whip","#f9b9ee","#8458b3",0.62],"tidal_jaws":["wave","#e9f7ff","#4287bb",0.55],"star_kick":["slash","#f5e8ff","#a29cf0",0.3],"lunar_dust":["cloud","#eee8ff","#b7a2ed",0.64],"prism_shatter":["shards","#effaff","#7cb9ff",0.55],"nova_bolt":["flame","#fff2a0","#ff784a",0.62],"orbit_lash":["spiral","#dfd0ff","#9663ee",0.52],"comet_drop":["leap","#fff1bb","#e1a3ff",0.48],"gravity_web":["web","#e4d7ff","#9f71e8",0.64],"sonic_cone":["fan","#f9d7ff","#a66be6",0.48],"moon_claw":["slash","#eee5ff","#a58bdc",0.38],"meteor_fist":["meteor","#fff0ba","#ff8d55",0.62],"celestial_verdict":["beam","#fff6d0","#d99bff",0.66]}
 const FX_PARTICLE_CAP=144
+const LIVING_PARTICLE_CAP=64
 const FX_WARNING_CAP=80
 var combat_particles:Array[Sprite3D]=[]
 var combat_warnings:Array[MeshInstance3D]=[]
@@ -2147,7 +2148,7 @@ func combat_fx_setup(parent:Node3D)->void:
 		var q:=MeshInstance3D.new();q.mesh=quad;q.material_override=combat_warn_mat
 		q.rotation.x=-PI*.5;q.cast_shadow=GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		combat_fx_root.add_child(q);q.hide();combat_warnings.append(q)
-	for i in range(FX_PARTICLE_CAP):
+	for i in range(FX_PARTICLE_CAP+LIVING_PARTICLE_CAP):
 		var particle:=Sprite3D.new()
 		particle.texture_filter=BaseMaterial3D.TEXTURE_FILTER_NEAREST
 		particle.billboard=BaseMaterial3D.BILLBOARD_ENABLED
@@ -2165,6 +2166,18 @@ func combat_pixel_texture(mode:String,light:Color,dark:Color)->ImageTexture:
 			var fill:bool=false
 			var inner:bool=false
 			match mode:
+				"venom_splash":
+					fill=(r<4.0 or (r<7.2 and sin(atan2(v.y,v.x)*5.0)>.40) or (r>5.8 and posmod(x*3+y*7,13)==0))
+					inner=r<2.8 or (fill and v.x+v.y<-2.5)
+				"crystal":
+					fill=absf(v.x-v.y*.22)*1.5+absf(v.y)*.60<5.2
+					inner=fill and v.x<v.y*.22 and absf(v.y)<4.8
+				"shock_ring":
+					fill=(r>5.0 and r<7.3) or (r>3.4 and r<4.1)
+					inner=fill and (r>6.1 or v.y<0.0)
+				"smoke":
+					fill=(v-Vector2(-2,1)).length()<4.6 or (v-Vector2(2,-2)).length()<4.0 or (v-Vector2(3,2)).length()<3.0
+					inner=fill and (v-Vector2(-2,-1)).length()<2.8
 				"earth_hole":
 					fill=r<7.0
 					inner=r>4.5 and r<6.4
@@ -5430,7 +5443,7 @@ func combat_fx_update(dt:float)->void:
 		if profile.role=="lash":count=3
 		if profile.role=="ground":count=mini(18,tiles.size()*3)
 		for j in range(count):
-			if used>=combat_particles.size():break
+			if used>=FX_PARTICLE_CAP:break
 			var particle:=combat_particles[used];used+=1
 			var f:float=float(j)/maxi(1,count-1)
 			var angle:float=f*TAU+float(j)*2.399
@@ -5851,17 +5864,17 @@ func combat_fx_update(dt:float)->void:
 		used=travel_environment_fx(burst,t,used)
 		used=element_finish_fx(burst,t,used)
 	if run!=null and not run.charge_phase.is_empty():used=charge_environment_fx(used)
-	used=living_status_fx(used)
+	living_status_fx()
 	if not latest_hit.is_empty():
 		# The player clock advances once after this method, so compensate for that frame.
 		hit_time=.24+dt-float(latest_hit.age)
 		player_hit_direction=latest_hit.direction
 	if arcs_started:fx_arc_mesh.surface_end()
-	for j in range(used,combat_particles.size()):combat_particles[j].hide()
+	for j in range(used,mini(FX_PARTICLE_CAP,combat_particles.size())):combat_particles[j].hide()
 # Secondary environmental layers use the existing bounded pool, not new nodes
 # per cast. Ground rings remain aligned to the floor while debris billboards.
-func environment_particle(index:int,position:Vector3,mode:String,light:Color,dark:Color,scale_value:float,alpha:float,flat:bool=false)->int:
-	if index>=combat_particles.size():return index
+func environment_particle(index:int,position:Vector3,mode:String,light:Color,dark:Color,scale_value:float,alpha:float,flat:bool=false,status_layer:bool=false)->int:
+	if index>=mini(combat_particles.size(),FX_PARTICLE_CAP+LIVING_PARTICLE_CAP if status_layer else FX_PARTICLE_CAP):return index
 	var particle:Sprite3D=combat_particles[index]
 	particle.billboard=BaseMaterial3D.BILLBOARD_DISABLED if flat else BaseMaterial3D.BILLBOARD_ENABLED
 	particle.rotation=Vector3(-PI*.5,0,0) if flat else Vector3.ZERO
@@ -5980,11 +5993,16 @@ func living_actor_particles(actor:Node3D,statuses:Array,used:int,height:float)->
 					y=.08+f*height*.95
 					radius=.24+.13*sin(f*PI)
 			var q:=origin+Vector3(cos(angle)*radius,y,sin(angle)*radius)
-			used=environment_particle(used,q,str(style[0]),light,dark,size,sin(f*PI)*.9,flat)
+			var texture_mode:String=str(style[0])
+			if kind in ["poison","toxic","bad_poison","badly_poisoned"]:texture_mode="venom_splash" if flat else "drop" if i%2==0 else "bubble"
+			if kind=="freeze":texture_mode="crystal"
+			if kind=="burn" and i%3==0:texture_mode="smoke"
+			used=environment_particle(used,q,texture_mode,light,dark,size,sin(f*PI)*.9,flat,true)
 	return used
 
-func living_status_fx(used:int)->int:
-	if run==null:return used
+func living_status_fx()->void:
+	if run==null:return
+	var used:int=FX_PARTICLE_CAP
 	if is_instance_valid(pet):used=living_actor_particles(pet,living_player_statuses(),used,1.08)
 	for key in actor_nodes.keys():
 		if not str(key).begins_with("enemy:"):continue
@@ -5993,7 +6011,7 @@ func living_status_fx(used:int)->int:
 		var statuses:Array=actor.get_meta("living_statuses",[])
 		if str(actor.get_meta("enemy_phase",""))=="defeat":statuses=[]
 		used=living_actor_particles(actor,statuses,used,1.12*float(actor.get_meta("enemy_size_multiplier",1.0)))
-	return used
+	for j in range(used,combat_particles.size()):combat_particles[j].hide()
 
 func travel_environment_fx(burst:Dictionary,t:float,used:int)->int:
 	var id:String=str(burst.id)
@@ -6139,9 +6157,73 @@ func element_finish_fx(burst:Dictionary,t:float,used:int)->int:
 			var angle:float=float(j)*TAU/float(count)
 			var q:=target+Vector3(cos(angle)*radius,.04+sin(age*PI)*(.55 if status else .33),sin(angle)*radius)
 			used=environment_particle(used,q,mode,light,dark,.34*(1.0-age*.5),fade)
+		used=cinematic_impact_layers(id,profile,from,target,age,used,light,dark,status)
 		if str(profile.element) in ["water","ground","rock","ice","poison","fire","electric"] or profile.pattern in ["room","radius","cross","floor"]:
 			var ground:=Vector3(target.x,.045,target.z)
 			used=environment_particle(used,ground,"bubble",light,dark,.65+age*1.1,fade*.70,true)
+	return used
+
+# Secondary choreography: material-specific trajectories, with a stable move
+# signature so two attacks sharing a material need not scatter identically.
+func cinematic_impact_layers(id:String,profile:Dictionary,source:Vector3,target:Vector3,age:float,used:int,light:Color,dark:Color,status:bool)->int:
+	var element:String=str(profile.element)
+	var role:String=str(profile.role)
+	var forward:=Vector3(target.x-source.x,0,target.z-source.z)
+	if forward.length_squared()<.0001:forward=Vector3.FORWARD
+	forward=forward.normalized()
+	var side:=Vector3(-forward.z,0,forward.x)
+	var signature:int=int(id.hash() & 0xffff)
+	var heavy:bool=profile.pattern in ["room","floor","radius","cross"] or "blast" in role or "quake" in role or "meteor" in role
+	var count:int=10 if heavy else 6
+	if status:count=4
+	var fade:float=pow(1.0-age,1.25)
+	var ground:=Vector3(target.x,.045,target.z)
+	for i in range(count):
+		var angle:float=TAU*float(i)/float(count)+float(signature%31)*.12
+		var speed:float=.72+float((signature+i*19)%11)*.045
+		var travel:float=age*speed*(1.15 if heavy else .8)
+		var radial:Vector3=forward*cos(angle)+side*sin(angle)
+		var arc:float=sin(age*PI)
+		var q:Vector3=ground+radial*(.08+travel)+Vector3.UP*(.12+arc*.48)
+		var mode:String="impact_star"
+		var size:float=.18+.16*fade
+		var flat:bool=false
+		match element:
+			"fire","dragon":
+				mode="ember" if i%3!=0 else "smoke"
+				q.y=.10+age*(.9+speed*.45)
+				q+=forward*age*.25
+				size=.24+age*.28 if mode=="smoke" else .22*fade
+			"water":
+				mode="drop" if age<.76 else "shock_ring"
+				q.y=.05+arc*(.65+speed*.30)
+				flat=age>=.76
+				if flat:q.y=.045
+			"poison":
+				mode="drop" if age<.63 else "venom_splash"
+				q.y=.05+arc*.48
+				flat=age>=.63
+				if flat:q.y=.047
+				size=.26+age*.20
+			"ground","rock","steel","ice":
+				mode="crystal" if element=="ice" or element=="steel" else "shards"
+				q.y=.04+arc*(.45+speed*.55)
+				size=.20+speed*.13
+			"electric":
+				mode="lightning" if i%2==0 else "impact_star"
+				q=target+radial*travel+Vector3.UP*(arc*.36+sin(angle*3.0+age*20.0)*.14)
+			"grass","bug":
+				mode="leaf"
+				q=ground+radial.rotated(Vector3.UP,age*1.8)*travel+Vector3.UP*(.10+arc*.72)
+			"flying","fighting","normal","dark":
+				mode="slash" if i%2==0 else "impact_star"
+				q=target+forward*(age*speed*.7)+side*sin(angle)*travel+Vector3.UP*(arc*.25)
+			"psychic","ghost","fairy":
+				mode="spiral" if i%2==0 else "impact_star"
+				q=target+radial.rotated(Vector3.UP,age*3.6)*travel+Vector3.UP*(age*.44)
+		used=environment_particle(used,q,mode,light,dark,size,fade*.92,flat)
+	if heavy and not status:
+		used=environment_particle(used,ground,"shock_ring",light,dark,.35+age*2.25,fade*.68,true)
 	return used
 
 func charge_environment_fx(used:int)->int:
