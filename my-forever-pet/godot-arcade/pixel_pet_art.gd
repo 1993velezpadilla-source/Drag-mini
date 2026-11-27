@@ -285,7 +285,7 @@ static func animate_world_sprite(actor:Node3D,delta:Vector2,moving:bool,dt:float
 	sprite.modulate=Color("#ff9b9b") if state=="hurt" and int(clock*22.0)%2==0 else Color("#d3fff1") if state=="burst" else Color.WHITE
 
 # Volnox enemies are authored 2D pixels, never rendered 3D creature meshes.
-const ENEMY_PIXEL_PILOTS=["sporeling","coralcrab","nova_wisp","vinesnap","eelstrix","comet_hare","thornbeetle","marrowray","voidspider","rootgnawer","jellymancer","lunamoth","leafwisp","shellguard","crystarok","bramble_pup","anemoneye","nebulwing","mossmite","reef_pup","orbitserpent","sylphowl","bubblewisp","starlit_pup","hollow_stag","leviathorn","lunar_prowler"]
+const ENEMY_PIXEL_PILOTS=["sporeling","coralcrab","nova_wisp","vinesnap","eelstrix","comet_hare","thornbeetle","marrowray","voidspider","rootgnawer","jellymancer","lunamoth","leafwisp","shellguard","crystarok","bramble_pup","anemoneye","nebulwing","mossmite","reef_pup","orbitserpent","sylphowl","bubblewisp","starlit_pup","hollow_stag","leviathorn","lunar_prowler","grovetitan","abyss_colossus","astro_golem"]
 const ENEMY_POSES=["idle","walk","walk","walk","walk","windup","attack","attack","recover","hurt","defeat"]
 static func enemy_dot(im:Image,p:Vector2i,r:Vector2i,c:Color)->void:
 	ellipse(im,Vector2(p),Vector2(r),c)
@@ -1520,6 +1520,120 @@ static func enemy_pixel_cell(id:String,dir:int,pose:String,frame:int=0)->Image:
 			if attack:
 				var q:=h+Vector2i(8,7) if side else h+Vector2i(0, -8 if back else 9)
 				for i in range(3):enemy_line(im,q+Vector2i(-3+i*3,-3),q+Vector2i(-1+i*3,3+frame),1,pale)
+		"grovetitan":
+			# Ancient living stump, separate branch arms, heavy root feet and leafy crown.
+			var bark:=Color("#493d2a")
+			var wood:=Color("#96734c")
+			var leaf:=Color("#7c8f48")
+			var pale:=Color("#b4bd78")
+			var c:=Vector2i(24,26)
+			var slam:int=5 if attack else -5 if wind else 0
+			for k in [-1,1]:
+				var n:int=int(k)
+				var foot:=c+Vector2i(n*8,14+step*n)
+				if side:foot=c+Vector2i(n*4,14+step*n)
+				enemy_line(im,c+Vector2i(n*5,7),foot,4,ink)
+				enemy_line(im,c+Vector2i(n*5,7),foot,3,bark)
+				enemy_line(im,foot+Vector2i(-3,1),foot+Vector2i(3,1),2,wood)
+				enemy_line(im,foot+Vector2i(-2,0),foot+Vector2i(1,-1),1,pale)
+			enemy_cluster(im,c,[Vector2i(-12,-12),Vector2i(9,-13),Vector2i(13,-3),Vector2i(11,12),Vector2i(-10,13),Vector2i(-13,3)],[Vector2i(-10,-11),Vector2i(7,-11),Vector2i(11,-3),Vector2i(9,10),Vector2i(-8,11),Vector2i(-11,3)],[Vector2i(-8,-9),Vector2i(-3,-10),Vector2i(-1,9),Vector2i(-5,9)],ink,bark,wood)
+			for i in range(3):
+				var q:=c+Vector2i(-6+i*6,-7)
+				enemy_line(im,q,q+Vector2i(i%2*2,15),1,wood)
+			for k in [-1,1]:
+				var n:int=int(k)
+				var shoulder:=c+Vector2i(n*10,-5)
+				var elbow:=c+Vector2i(n*15,1+step*n)
+				var hand:=c+Vector2i(n*17,7+slam)
+				if side:
+					shoulder=c+Vector2i(n*3,-6)
+					elbow=c+Vector2i(8+n*3,1+step*n)
+					hand=c+Vector2i(13+n*3,7+slam)
+				enemy_line(im,shoulder,elbow,4,ink);enemy_line(im,elbow,hand,4,ink)
+				enemy_line(im,shoulder,elbow,2,bark);enemy_line(im,elbow,hand,2,wood)
+				enemy_dot(im,hand,Vector2i(4,5),ink);enemy_dot(im,hand,Vector2i(3,3),wood)
+				enemy_line(im,elbow,elbow+Vector2i(n*3,-4),1,pale)
+			var crown:=c+Vector2i(2 if side else 0,-13)
+			for i in range(5):
+				var q:=crown+Vector2i(-12+i*6,-3-abs(2-i)*-1)
+				enemy_dot(im,q,Vector2i(6,5),ink);enemy_dot(im,q,Vector2i(5,4),leaf)
+				enemy_dot(im,q+Vector2i(-1,-2),Vector2i(3,2),pale)
+			if not back:
+				for x in ([5] if side else [-5,5]):
+					var eye:=c+Vector2i(int(x),-3)
+					enemy_dot(im,eye,Vector2i(3,3),ink);enemy_dot(im,eye,Vector2i(1,2),pink)
+				enemy_line(im,c+Vector2i(-4,4),c+Vector2i(4,4),1,ink)
+			else:enemy_line(im,c+Vector2i(0,-7),c+Vector2i(0,8),1,pale)
+			enemy_dot(im,c+Vector2i(0,7),Vector2i(2,2),gold)
+			if attack:
+				enemy_line(im,Vector2i(9,43),Vector2i(38,43-frame),1,pale)
+		"abyss_colossus":
+			# Eight independent flexible arms, broad mantle and rows of pale suckers.
+			var deep:=Color("#56406c")
+			var mid:=Color("#b27eaa")
+			var pale:=Color("#edb6ba")
+			var dark:=Color("#372a4d")
+			var c:=Vector2i(24,21)
+			var reach:int=4 if attack else -3 if wind else 0
+			for i in range(8):
+				var n:int=-1 if i<4 else 1
+				var j:int=i%4
+				var wobble:int=step*(-1 if i%2==0 else 1)
+				var a:=c+Vector2i(n*(3+j*2),5)
+				var b:=c+Vector2i(n*(8+j*3),12+wobble)
+				var t:=c+Vector2i(n*(7+j*3)+reach*(1 if side else 0),18-j*2+wobble)
+				if side:
+					a=c+Vector2i(-6+j*4,5+n)
+					b=c+Vector2i(-12+j*7,10+wobble+n*2)
+					t=c+Vector2i(-15+j*8+reach,17-j+wobble)
+				enemy_line(im,a,b,3,ink);enemy_line(im,b,t,3,ink)
+				enemy_line(im,a,b,2,deep);enemy_line(im,b,t,2,mid)
+				enemy_dot(im,b,Vector2i(1,1),pale)
+				enemy_dot(im,Vector2i(Vector2(b).lerp(Vector2(t),.5)),Vector2i(1,1),pale)
+				enemy_dot(im,t,Vector2i(2,2),mid)
+			enemy_cluster(im,c,[Vector2i(-13,1),Vector2i(-11,-10),Vector2i(-5,-15),Vector2i(7,-15),Vector2i(13,-6),Vector2i(14,3),Vector2i(9,9),Vector2i(-8,10)],[Vector2i(-11,1),Vector2i(-9,-9),Vector2i(-4,-13),Vector2i(6,-13),Vector2i(11,-5),Vector2i(12,3),Vector2i(8,7),Vector2i(-7,8)],[Vector2i(-9,-4),Vector2i(-5,-11),Vector2i(4,-12),Vector2i(7,-7),Vector2i(1,-3),Vector2i(-6,-2)],ink,deep,mid)
+			for i in range(3):
+				enemy_dot(im,c+Vector2i(-6+i*5,-6-i%2*3),Vector2i(1,1),pale)
+			if not back:
+				for x in ([6] if side else [-5,5]):enemy_eye(im,c+Vector2i(int(x),1),ink,pink,white,attack)
+				enemy_dot(im,c+Vector2i(4 if side else 0,7),Vector2i(3,2),dark)
+			else:enemy_line(im,c+Vector2i(-5,1),c+Vector2i(5,1),1,mid)
+			enemy_line(im,c+Vector2i(-5,-13),c+Vector2i(5,-13),1,gold)
+			if attack:
+				var q:=Vector2i(40,29) if side else Vector2i(24,5 if back else 43)
+				enemy_dot(im,q,Vector2i(3+frame,2+frame),pale)
+		"astro_golem":
+			# Floating moonrock fragments orbit a faceted core; fists detach during a strike.
+			var rock:=Color("#3c4665")
+			var mid:=Color("#8e9fc3")
+			var pale:=Color("#e4e7fa")
+			var shade:=Color("#586685")
+			var c:=Vector2i(24,25)
+			var swing:int=5 if attack else -4 if wind else 0
+			for k in [-1,1]:
+				var n:int=int(k)
+				var q:=c+Vector2i(n*8,15+step*n)
+				if side:q=c+Vector2i(n*4,15+step*n)
+				enemy_cluster(im,q,[Vector2i(-5,-4),Vector2i(4,-5),Vector2i(6,1),Vector2i(2,5),Vector2i(-5,3)],[Vector2i(-4,-3),Vector2i(3,-3),Vector2i(4,1),Vector2i(1,3),Vector2i(-3,2)],[Vector2i(-3,-2),Vector2i(2,-2),Vector2i(0,0)],ink,rock,mid)
+			enemy_cluster(im,c,[Vector2i(-11,-11),Vector2i(6,-13),Vector2i(13,-4),Vector2i(11,10),Vector2i(0,15),Vector2i(-11,8)],[Vector2i(-9,-10),Vector2i(5,-11),Vector2i(11,-4),Vector2i(9,9),Vector2i(0,12),Vector2i(-9,7)],[Vector2i(-8,-8),Vector2i(4,-10),Vector2i(7,-4),Vector2i(0,1),Vector2i(-7,-1)],ink,rock,mid)
+			enemy_poly(im,[c+Vector2i(-5,1),c+Vector2i(0,-4),c+Vector2i(5,1),c+Vector2i(0,8)],ink)
+			enemy_poly(im,[c+Vector2i(-3,1),c+Vector2i(0,-2),c+Vector2i(3,1),c+Vector2i(0,5)],purple if back else pink)
+			for k in [-1,1]:
+				var n:int=int(k)
+				var fist:=c+Vector2i(n*16,1+step*n+swing)
+				if side:fist=c+Vector2i(9+n*4+swing,n*4+3+step*n)
+				enemy_cluster(im,fist,[Vector2i(-6,-5),Vector2i(3,-7),Vector2i(7,-2),Vector2i(6,5),Vector2i(-3,7),Vector2i(-7,2)],[Vector2i(-5,-4),Vector2i(3,-5),Vector2i(5,-2),Vector2i(4,4),Vector2i(-3,5),Vector2i(-5,1)],[Vector2i(-4,-3),Vector2i(2,-4),Vector2i(3,0),Vector2i(-3,1)],ink,shade,mid)
+				enemy_line(im,fist+Vector2i(-3,-3),fist+Vector2i(1,-4),1,pale)
+			var h:=c+Vector2i(4 if side else 0,-14)
+			enemy_cluster(im,h,[Vector2i(-8,-5),Vector2i(2,-8),Vector2i(8,-3),Vector2i(7,5),Vector2i(-5,6)],[Vector2i(-6,-4),Vector2i(2,-6),Vector2i(6,-3),Vector2i(5,3),Vector2i(-4,4)],[Vector2i(-5,-3),Vector2i(1,-5),Vector2i(4,-2),Vector2i(-2,0)],ink,rock,mid)
+			if not back:
+				for x in ([3] if side else [-3,3]):
+					enemy_line(im,h+Vector2i(int(x)-1,1),h+Vector2i(int(x)+1,1),1,pink)
+			else:enemy_line(im,h+Vector2i(-3,1),h+Vector2i(3,1),1,shade)
+			enemy_dot(im,h+Vector2i(0,-5),Vector2i(2,1),gold)
+			if attack:
+				var q:=Vector2i(42,29) if side else Vector2i(24,5 if back else 43)
+				enemy_line(im,q+Vector2i(-3,-3),q+Vector2i(3,3+frame),1,pale)
 	if dir==2:im.flip_x()
 	if recoil:
 		for y in range(48):
