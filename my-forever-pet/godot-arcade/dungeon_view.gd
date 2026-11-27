@@ -185,6 +185,8 @@ var fx_audio_pack_checked:bool=false
 var fx_audio_pack_hits:int=0
 var fx_audio_counter:Dictionary={}
 var fx_audio_cursor:int=0
+var fx_collect_audio:bool=false
+var fx_frame_audio:Array[Dictionary]=[]
 var fx_arc_segments:int=0
 var player_cast_duration:float=.28
 var player_cast_waves:Array[float]=[]
@@ -15212,7 +15214,36 @@ func combat_audio_voice_slot(priorities:Array[int],cursor:int,priority:int)->int
 			if priorities[candidate]==priority:return candidate
 	return slot
 
+# All cues due in the same visual update share a chronological admission pass.
+# Age is elapsed time since the authored cue, so greater age means earlier.
+func combat_audio_event_before(a:Dictionary,b:Dictionary)->bool:
+	if float(a.age)!=float(b.age):return float(a.age)>float(b.age)
+	if int(a.priority)!=int(b.priority):return int(a.priority)>int(b.priority)
+	if str(a.id)!=str(b.id):return str(a.id)<str(b.id)
+	if str(a.phase)!=str(b.phase):return str(a.phase)<str(b.phase)
+	var p:Vector3=a.at
+	var q:Vector3=b.at
+	if p.x!=q.x:return p.x<q.x
+	if p.y!=q.y:return p.y<q.y
+	return p.z<q.z
+
+func begin_combat_audio_frame()->void:
+	fx_frame_audio.clear()
+	fx_collect_audio=true
+
+func flush_combat_audio_frame()->void:
+	fx_collect_audio=false
+	if fx_frame_audio.size()>1:fx_frame_audio.sort_custom(combat_audio_event_before)
+	for cue in fx_frame_audio:
+		play_combat_sound(str(cue.id),str(cue.phase),cue.at,bool(cue.critical),float(cue.age))
+	fx_frame_audio.clear()
+
 func play_combat_sound(id:String,phase:String,at:Vector3,critical:bool=false,age:float=0.0)->void:
+	if fx_collect_audio:
+		var move:Dictionary=Rules.MOVE_LIBRARY.get(id,Rules.DEV_NATIVE_MOVES.get(id,{}))
+		var priority:int=int(combat_audio_mix(int(move.get("power",0)),phase,critical).z)
+		fx_frame_audio.append({"id":id,"phase":phase,"at":at,"critical":critical,"age":maxf(0.0,age),"priority":priority})
+		return
 	if fx_audio.is_empty():return
 	var record:Dictionary=Rules.MOVE_LIBRARY.get(id,Rules.DEV_NATIVE_MOVES.get(id,{}))
 	var mix:=combat_audio_mix(int(record.get("power",0)),phase,critical)
@@ -16011,6 +16042,7 @@ func update_particle_batches()->void:
 			fx_particle_batches[i].multimesh.visible_instance_count=0
 
 func combat_fx_update(dt:float)->void:
+	begin_combat_audio_frame()
 	update_cast_text(dt)
 	var latest_hit:Dictionary={}
 	update_delayed_combat_fx(dt)
@@ -16519,6 +16551,7 @@ func combat_fx_update(dt:float)->void:
 			used=travel_environment_fx(burst,t,used)
 			used=authored_stage_fx(burst,t,used)
 			used=element_finish_fx(burst,t,used)
+	flush_combat_audio_frame()
 	fx_cast_particle_limit=FX_PARTICLE_CAP
 	if run!=null and not run.charge_phase.is_empty():used=charge_environment_fx(used)
 	if not latest_hit.is_empty() and is_instance_valid(pet):
