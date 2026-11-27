@@ -36,6 +36,21 @@ func run_checks()->void:
 	var checks:int=0
 	var failures:Array[String]=[]
 	var view:=Dungeon.new()
+	# V24.5: final-state writes must preserve transform/visibility and detect external changes.
+	var pose_probe:=Dungeon.new()
+	for pose_node in [Sprite3D.new(),MeshInstance3D.new()]:
+		for pose_target in [Vector3.ZERO,Vector3(.2,.54,-.3),Vector3(1.5,.02,2.0)]:
+			for pose_scale in [Vector3.ONE,Vector3(.8,1.25,1.0),Vector3(.32,.12,1.0)]:
+				for pose_visibility in [true,false]:
+					pose_probe.apply_enemy_body_transform(pose_node,pose_target,pose_scale,pose_visibility)
+					if not pose_node.position.is_equal_approx(pose_target) or not pose_node.scale.is_equal_approx(pose_scale) or pose_node.visible!=pose_visibility:failures.append("V24.5 final pose parity")
+					var pose_repeat:int=pose_probe.apply_enemy_body_transform(pose_node,pose_target,pose_scale,pose_visibility)
+					if pose_repeat!=0:failures.append("V24.5 redundant pose writes")
+					pose_node.position+=Vector3.RIGHT
+					if pose_probe.apply_enemy_body_transform(pose_node,pose_target,pose_scale,pose_visibility)!=1 or not pose_node.position.is_equal_approx(pose_target):failures.append("V24.5 external position writer")
+					checks+=3
+		pose_node.free()
+	pose_probe.free()
 	# V24.4: memoized keys retain the exact legacy pack/cache identity.
 	var texture_probe:=Dungeon.new()
 	for texture_mode in ["impact_star","bubble","contact:critical:1"]:
