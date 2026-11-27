@@ -71,9 +71,9 @@ func _initialize():
 		if not str(id).begins_with("eos_"):continue
 		var move:Dictionary=Rules.MOVE_LIBRARY[id]
 		assert(int(str(id).trim_prefix("eos_"))==int(move.reference_id))
-		assert(move.pp>0 and (move.power>0 or move.has("heal_fraction") or move.has("inflict_status") or move.has("stat_changes") or move.has("shield_kind") or move.has("boon_kind") or move.has("weather_set") or move.has("floor_sport") or move.has("weather_heal") or move.has("special_rule")))
+		assert(move.pp>0 and (move.power>0 or move.has("heal_fraction") or move.has("inflict_status") or move.has("stat_changes") or move.has("shield_kind") or move.has("boon_kind") or move.has("weather_set") or move.has("floor_sport") or move.has("weather_heal") or move.has("special_rule") or move.has("trap_kind") or move.has("blast_radius")))
 		assert(move.reference_strikes==1 or (move.has("hit_min") and move.hit_min>=2 and move.hit_max<=5))
-		assert(move.category in ["physical","special"] or (move.category=="status" and (move.has("heal_fraction") or move.has("inflict_status") or move.has("stat_changes") or move.has("shield_kind") or move.has("boon_kind") or move.has("weather_set") or move.has("floor_sport") or move.has("weather_heal") or move.has("special_rule"))))
+		assert(move.category in ["physical","special"] or (move.category=="status" and (move.has("heal_fraction") or move.has("inflict_status") or move.has("stat_changes") or move.has("shield_kind") or move.has("boon_kind") or move.has("weather_set") or move.has("floor_sport") or move.has("weather_heal") or move.has("special_rule") or move.has("trap_kind") or move.has("blast_radius"))))
 		assert(id in Rules.available_moves([move.type],100))
 		assert(not id in Rules.available_moves([move.type],15))
 		assert(Rules.reference_accuracy(move)>=0.0 and Rules.reference_accuracy(move)<=100.0)
@@ -386,6 +386,34 @@ func _initialize():
 	assert(advanced.apply_player_boon(Rules.MOVE_LIBRARY.eos_074))
 	assert(not advanced.boon_active("sure"))
 	print("KINDRIA_ADVANCED_STATUS_PASS")
+	var hazard=Rules.new()
+	hazard.player=Vector2i(1,1);hazard.stairs=Vector2i(9,9)
+	hazard.rooms.append(Rect2i(0,0,5,5))
+	for x in range(5):
+		for y in range(5):hazard.cells[Vector2i(x,y)]=true
+	assert(hazard.lay_player_trap("spikes") and not hazard.lay_player_trap("toxic"))
+	hazard.player=Vector2i(0,1)
+	hazard.enemies.append({"pos":Vector2i(1,1),"hp":100,"max_hp":100,"kind":0,"species":"reef_pup"})
+	assert(hazard.activate_player_trap(0)==20 and hazard.enemies[0].hp==80)
+	assert(hazard.player_traps.has(Vector2i(1,1)))
+	hazard.player=Vector2i(2,2)
+	assert(hazard.lay_player_trap("rock") and not hazard.revealed_player_traps.has(Vector2i(2,2)))
+	hazard.player=Vector2i(0,1)
+	hazard.enemies[0].pos=Vector2i(2,2)
+	assert(hazard.activate_player_trap(0)==12 and hazard.revealed_player_traps.has(Vector2i(2,2)))
+	assert(hazard.apply_enemy_status(0,"paused"))
+	var duration:int=hazard.enemies[0].paused_turns
+	assert(duration>=5 and duration<=12)
+	assert(hazard.apply_enemy_status(0,"perish"))
+	for i in range(4):hazard.tick_enemy_statuses()
+	assert(hazard.enemies.is_empty())
+	hazard.player=Vector2i(1,1);hazard.hp=36
+	hazard.enemies.append({"pos":Vector2i(2,2),"hp":100,"kind":0,"species":"reef_pup"})
+	assert(hazard.blast_move(Rules.MOVE_LIBRARY.eos_123))
+	assert(hazard.hp==18 and hazard.enemies[0].hp==60)
+	hazard.floor_weather="rain"
+	assert(not hazard.blast_move(Rules.MOVE_LIBRARY.eos_155) and hazard.hp==18)
+	print("KINDRIA_TRAP_BLAST_PASS")
 	assert(Rules.EOS_IDENTIFIED_COUNT==468)
 	print("KINDRIA_EOS_PROTOTYPES_PASS ",eos_count)
 	print("KINDRIA_LEARNSET_PP_PASS")

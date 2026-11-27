@@ -2312,6 +2312,12 @@ func refresh_actors():
 			status_label.font_size=28;status_label.outline_size=6;status_label.pixel_size=.006
 			status_label.position=Vector3(0,2.15 if kind==3 else 1.68,0);root.add_child(status_label)
 		status_label.text=run.enemy_status_text(enemy);status_label.visible=not status_label.text.is_empty()
+	for p in run.player_traps:
+		if not run.revealed.has(p) or not run.revealed_player_traps.has(p):continue
+		var key="owntrap:"+str(p);desired[key]=true
+		if not actor_nodes.has(key):
+			var color:=Color("#af72df") if run.player_traps[p]=="toxic" else Color("#d5b16c") if run.player_traps[p]=="rock" else Color("#6accc0")
+			shape(actor_for(key,pos(p)),"ring",Vector3(0,.05,0),Vector3(.55,.07,.55),color)
 	for p in run.traps:
 		if not run.revealed.has(p):continue
 		var key="trap:"+str(p);desired[key]=true
