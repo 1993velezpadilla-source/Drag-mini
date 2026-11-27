@@ -189,6 +189,23 @@ func run()->void:
 	assert(backend.slots[sky_slot].node.position.y<2.0)
 	backend.reset()
 	print("KINDRIA_NATIVE_CHOREOGRAPHY_PASS 7")
+	# V10: real move IDs resolve their authored finish, and actual pooled
+	# Godot impact particles use the selected textures without extra nodes.
+	var art_cases:Dictionary={"eos_262":"ember","eos_053":"flame","eos_149":"flame","eos_047":"flame","eos_230":"wave","eos_157":"flame","eos_041":"smoke","eos_278":"flame","eos_016":"bubble","eos_255":"bubble","eos_308":"drop","eos_240":"drop","eos_219":"wave","eos_032":"spiral","eos_044":"smoke","eos_113":"drop","eos_064":"lightning","eos_188":"lightning","eos_129":"shock_ring","eos_489":"lightning","eos_193":"impact_star","eos_189":"shock_ring","eos_521":"lightning","eos_345":"crystal","eos_462":"shards","eos_270":"crystal","eos_101":"cloud","eos_535":"shards","eos_036":"slash","eos_057":"wave","eos_100":"slash","eos_211":"spiral","eos_353":"beam"}
+	var particle_count:int=field.combat_particles.size()
+	for move_id in art_cases:
+		var p:Dictionary=field.combat_profile(move_id)
+		var art:Array=field.move_finish_art(move_id,p)
+		assert(art.size()==5 and art[0]==art_cases[move_id],move_id+" finish material")
+		var tracks:Array=field.elemental_track_plan(move_id,p)
+		assert(tracks[5].material==art[0],move_id+" track finish")
+		var used:int=field.cinematic_impact_layers(move_id,p,motion_path[0],motion_path[1],.25,0,Color.WHITE,Color.BLACK,false)
+		assert(used>1 and used<=11)
+		var sprite:Sprite3D=field.combat_particles[1]
+		assert(sprite.texture==field.combat_pixel_texture(str(art[0]),Color(str(art[2])),Color.BLACK),move_id+" actual particle texture")
+		assert(field.combat_particles.size()==particle_count)
+	assert(field.move_finish_art("eos_149",field.combat_profile("eos_149"))[2]!=field.move_finish_art("eos_053",field.combat_profile("eos_053"))[2])
+	print("KINDRIA_MOVE_FINISH_ART_PASS 33")
 	var plan:Array=[
 		{"stage":"ally_invoke","anchor":"source","start":0.0,"end":.15,"enabled":true},
 		{"stage":"enemy_invoke","anchor":"source","start":0.0,"end":.15,"enabled":true},
