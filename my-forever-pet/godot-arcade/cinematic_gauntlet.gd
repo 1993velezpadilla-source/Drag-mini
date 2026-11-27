@@ -11,6 +11,26 @@ func run_checks()->void:
 	var checks:int=0
 	var failures:Array[String]=[]
 	var view:=Dungeon.new()
+	# V19.5: volume/pitch remain bounded and critical voices retain priority.
+	for power in range(61):
+		var normal_mix:=view.combat_audio_mix(power,"impact",false)
+		var critical_mix:=view.combat_audio_mix(power,"impact",true)
+		var launch_mix:=view.combat_audio_mix(power,"launch")
+		var miss_mix:=view.combat_audio_mix(power,"miss")
+		var status_mix:=view.combat_audio_mix(power,"status")
+		if not normal_mix.is_finite() or normal_mix.x> -8.0 or normal_mix.x< -14.00001 or normal_mix.y<.91999 or normal_mix.y>1.04001:failures.append("impact audio bounds")
+		if critical_mix.x<normal_mix.x or critical_mix.z!=3.0 or normal_mix.z!=2.0:failures.append("critical audio priority")
+		if launch_mix.x>=normal_mix.x or launch_mix.z!=1.0 or miss_mix.z!=0.0 or status_mix.z!=1.0:failures.append("audio phase mix")
+		checks+=3
+	var voices:Array[int]=[3,2,1,0]
+	if view.combat_audio_voice_slot(voices,0,0)!=-1:failures.append("miss voice eviction")
+	if view.combat_audio_voice_slot(voices,0,2)!=3:failures.append("weakest voice selection")
+	var critical_voices:Array[int]=[3,3,3]
+	if view.combat_audio_voice_slot(critical_voices,1,2)!=-1:failures.append("protect critical voice")
+	if view.combat_audio_voice_slot(critical_voices,1,3)!=1:failures.append("critical round robin")
+	var idle_voices:Array[int]=[0,1,-1,3]
+	if view.combat_audio_voice_slot(idle_voices,0,2)!=2:failures.append("prefer idle audio voice")
+	checks+=5
 	# V19.3: bounded optical profiles, distinct material identity and quality fallback.
 	var optical_profiles:Dictionary={}
 	for element in ["normal","fire","water","electric","grass","ice","fighting","poison","ground","flying","psychic","bug","rock","ghost","dragon","dark","steel","fairy"]:
