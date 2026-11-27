@@ -6301,19 +6301,22 @@ func living_status_palette(kind:String)->Array:
 		"aqua","mist","mirror_veil","magic_coat","magnet":return ["wave","#b3fff6","#4ca6d0",6]
 		_:return ["impact_star","#d9c6fa","#766b9e",4]
 
-func living_actor_particles(actor:Node3D,statuses:Array,used:int,height:float)->int:
+func living_actor_particles(actor:Node3D,statuses:Array,used:int,height:float,budget:int)->int:
 	var sleep_blend:float=float(actor.get_meta("living_sleep_blend",0.0))
 	living_sleep_glyphs(actor,"sleep" in statuses or "nightmare" in statuses,height*(1.0-.22*sleep_blend))
-	if statuses.is_empty():return used
+	if statuses.is_empty() or budget<=0:return used
+	var limit:int=mini(used+budget,combat_particles.size())
 	var origin:Vector3=actor.global_position
-	for k in range(mini(statuses.size(),3)):
+	var status_count:int=mini(statuses.size(),3)
+	for k in range(status_count):
 		var kind:String=str(statuses[k])
 		var style:Array=living_status_palette(kind)
 		var light:=Color(str(style[1]))
 		var dark:=Color(str(style[2]))
-		var count:int=int(style[3])
+		# Reserve a share for each simultaneous ailment, not just the first.
+		var count:int=mini(int(style[3]),ceili(float(limit-used)/float(status_count-k)))
 		for i in range(count):
-			if used>=combat_particles.size():return used
+			if used>=limit:return used
 			var f:float=fposmod(elapsed*(.7 if kind=="sleep" else 1.15)+float(i)/float(count)+k*.19,1.0)
 			var angle:float=float(i)*TAU/float(count)+elapsed*(2.4 if kind=="confusion" else .8)
 			var radius:float=.24+.16*sin(f*PI)
@@ -6355,17 +6358,49 @@ func living_actor_particles(actor:Node3D,statuses:Array,used:int,height:float)->
 			used=environment_particle(used,q,texture_mode,light,dark,size,opacity,flat,true)
 	return used
 
+# Bounded max-min allocation: each affected creature gets a share before
+# any creature gets its next particle. Unused demand is redistributed.
+func living_particle_budgets(demands:Array[int],capacity:int)->Array[int]:
+	var budgets:Array[int]=[]
+	budgets.resize(demands.size())
+	budgets.fill(0)
+	var remaining:int=maxi(0,capacity)
+	while remaining>0:
+		var progressed:bool=false
+		for i in range(demands.size()):
+			if budgets[i]>=demands[i]:continue
+			budgets[i]+=1
+			remaining-=1
+			progressed=true
+			if remaining==0:break
+		if not progressed:break
+	return budgets
+
 func living_status_fx()->void:
 	if run==null:return
 	var used:int=FX_PARTICLE_CAP
-	if is_instance_valid(pet):used=living_actor_particles(pet,living_player_statuses(),used,1.08)
+	var entries:Array[Dictionary]=[]
+	if is_instance_valid(pet):
+		entries.append({"actor":pet,"statuses":living_player_statuses(),"height":1.08})
 	for key in actor_nodes.keys():
 		if not str(key).begins_with("enemy:"):continue
 		var actor:=actor_nodes[key] as Node3D
-		if not is_instance_valid(actor) or actor.is_queued_for_deletion() or not actor.visible:continue
+		if not is_instance_valid(actor) or actor.is_queued_for_deletion():continue
 		var statuses:Array=actor.get_meta("living_statuses",[])
-		if str(actor.get_meta("enemy_phase",""))=="defeat":statuses=[]
-		used=living_actor_particles(actor,statuses,used,1.12*float(actor.get_meta("enemy_size_multiplier",1.0)))
+		if not actor.visible or str(actor.get_meta("enemy_phase",""))=="defeat":statuses=[]
+		entries.append({"actor":actor,"statuses":statuses,"height":1.12*float(actor.get_meta("enemy_size_multiplier",1.0))})
+	var demands:Array[int]=[]
+	for entry in entries:
+		var demand:int=0
+		var statuses:Array=entry.statuses
+		for k in range(mini(statuses.size(),3)):
+			demand+=int(living_status_palette(str(statuses[k]))[3])
+		demands.append(demand)
+	var budgets:=living_particle_budgets(demands,mini(LIVING_PARTICLE_CAP,maxi(0,combat_particles.size()-used)))
+	for i in range(entries.size()):
+		var entry:Dictionary=entries[i]
+		# Even a zero-budget actor updates its independent sleep glyphs.
+		used=living_actor_particles(entry.actor,entry.statuses,used,float(entry.height),budgets[i])
 	for j in range(used,combat_particles.size()):combat_particles[j].hide()
 
 func travel_environment_fx(burst:Dictionary,t:float,used:int)->int:
