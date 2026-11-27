@@ -657,6 +657,9 @@ func gain_enemy_ev(enemy:Dictionary)->void:
 var enemy_actions:Array[Dictionary]=[]
 var player_attack_fx:String="basic_strike"
 var player_attack_cells:Array[Vector2i]=[]
+# Presentation-only strike counts for the most recent resolved reference move.
+var player_visual_hits:Dictionary={}
+var player_visual_hit_serial:int=-1
 # A footprint maps each legal target to its exact unobstructed travel path.
 func attack_footprint(origin:Vector2i,forward:Vector2i,pattern:String,reach:int,player_cast:bool=false)->Dictionary:
 	var out:Dictionary={}
@@ -2428,6 +2431,7 @@ func execute_move(id:String,aim:Vector2i,releasing:bool,invocation_id:String="",
 			message=str(move.name)+" · No stored power";enemy_turn();return true
 	if str(move.get("special_rule",""))=="magnitude":magnitude_damage=choose_magnitude()
 	var missed:int=0
+	player_visual_hits.clear()
 	last_move_hits=0
 	last_move_attempts=0
 	# One action and one PP, with a separate accuracy check per strike.
@@ -2439,6 +2443,8 @@ func execute_move(id:String,aim:Vector2i,releasing:bool,invocation_id:String="",
 			var current:int=enemy_at(target)
 			if current<0:break
 			last_move_attempts+=1
+			var visual_uid:int=int(enemies[current].get("uid",-1))
+			var damage_start:int=last_move_damage.size()
 			if roll_reference_hit(move,enemies[current]):
 				if move.has("special_rule"):
 					if move.special_rule=="push":
@@ -2516,9 +2522,13 @@ func execute_move(id:String,aim:Vector2i,releasing:bool,invocation_id:String="",
 			else:
 				missed+=1
 				if move.get("stop_on_miss",false):break
+			if visual_uid>=0:
+				for amount in last_move_damage.slice(damage_start):
+					if int(amount)>0:player_visual_hits[visual_uid]=int(player_visual_hits.get(visual_uid,0))+1
 	if last_move_hits==0 or move.category=="status" or move.has("special_rule"):attack_serial+=1
 	attack_target=primary;player_attack_fx=id;player_attack_path=travel
 	player_attack_cells=hit_tiles
+	player_visual_hit_serial=attack_serial
 	message=(str(MOVE_LIBRARY[pp_id].name)+" → " if pp_id!=id else "")+str(move.name)+" · PP %d/%d"%[move_pp[pp_id],MOVE_LIBRARY[pp_id].pp]
 	if move.category=="status":message+=" · %d affected"%last_move_hits;emit_event(message)
 	if count>1:message+=" · %d/%d hits"%[last_move_hits,last_move_attempts]

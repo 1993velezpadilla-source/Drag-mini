@@ -103,6 +103,24 @@ func run()->void:
 	if field.cast_offset_world(Vector3(1,0,0),Vector3(-1,0,0))!=Vector3(-1,0,0):errors.append("west facing")
 	if motion_counts.size()<6:errors.append("too few actor motion families")
 	print("KINDRIA_ACTOR_MOTION_AUDIT ",motion_counts)
+	# Multi-hit presentation must preserve timing order and remain within the cast.
+	for row in reports:
+		for count in [1,2,5,10]:
+			var times:Array[float]=field.reaction_times(float(row.duration_seconds),float(row.impact_fraction),count)
+			if times.size()!=count or absf(times[0]-float(row.duration_seconds)*float(row.impact_fraction))>.001:errors.append("reaction timing "+str(row.id))
+			for i in range(1,times.size()):
+				if times[i]<times[i-1] or times[i]>float(row.duration_seconds)+.001:errors.append("reaction order "+str(row.id))
+	var actor:=Node3D.new()
+	actor.set_meta("species","sporeling")
+	field.queue_enemy_reaction(actor,false,.1,Vector3.RIGHT,.2,3)
+	field.queue_enemy_reaction(actor,true,.1,Vector3.RIGHT,.2,3)
+	if field.fx_reactions.size()!=3 or not actor.get_meta("pending_defeat",false):errors.append("defeat promotion")
+	field.update_combat_reactions(.15)
+	if str(actor.get_meta("enemy_phase"))!="hurt" or not actor.get_meta("pending_impact",false):errors.append("first hit phase")
+	field.update_combat_reactions(.4)
+	if str(actor.get_meta("enemy_phase"))!="defeat" or actor.get_meta("pending_impact",true):errors.append("final defeat phase")
+	actor.free()
+	print("KINDRIA_REACTION_TIMING_AUDIT 468")
 	# Exercise more frames than the cache cap, then verify hot hits and exact normalization.
 	for row in reports.slice(0,40):
 		for frame in range(Field.FX_FRAME_COUNT):field.combat_animated_texture(str(row.id),frame)

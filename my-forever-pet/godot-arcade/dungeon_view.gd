@@ -87,6 +87,7 @@ var attack_fx:MeshInstance3D
 var destination_fx:MeshInstance3D
 var hp_previous=0
 var hit_time=0.0
+var player_hit_direction:=Vector3.ZERO
 var pet_pose:Node3D
 var disguise_actor:Node3D
 var disguise_species:String=""
@@ -1730,6 +1731,9 @@ func update_enemy_pixel(actor:Node3D,dt:float,motion:Vector3)->void:
 		var cast_dir:Vector3=actor.get_meta("enemy_cast_direction",Vector3(0,0,1))
 		var offset:=cast_motion_offset(str(actor.get_meta("enemy_cast_motion","contact")),clock/maxf(.01,duration),float(actor.get_meta("enemy_cast_impact",.48)))
 		sprite.position+=actor.basis.inverse()*cast_offset_world(offset,cast_dir)
+	if state=="hurt":
+		var hit_dir:Vector3=actor.get_meta("enemy_hit_direction",Vector3.ZERO)
+		sprite.position+=actor.basis.inverse()*hit_dir.normalized()*.16*sin(PI*clampf(clock/maxf(.01,duration),0.0,1.0))
 	var shadow:=actor.get_node_or_null("EnemyContactShadow") as MeshInstance3D
 	if shadow!=null:
 		var footprint:float=size_multiplier*(1.0-rise*.65)
@@ -4708,22 +4712,52 @@ func quake_world_tiles(tiles:Array,t:float,id:String)->void:
 			arc_segment(center,bend,.047,dark.darkened(.65))
 			arc_segment(bend,tip,.035,dark.darkened(.65))
 			arc_segment(bend+Vector3.UP*.009,tip+Vector3.UP*.009,.011,light)
-func queue_enemy_reaction(actor:Node3D,defeated:bool,delay:float)->void:
+func reaction_times(duration:float,impact:float,count:int)->Array[float]:
+	var times:Array[float]=[]
+	var first:float=maxf(0.0,duration*clampf(impact,0.0,1.0))
+	var span:float=maxf(0.0,duration-first)
+	for i in range(clampi(count,1,12)):
+		times.append(first+span*.85*float(i)/maxi(1,clampi(count,1,12)-1))
+	return times
+
+func queue_enemy_reaction(actor:Node3D,defeated:bool,delay:float,direction:Vector3=Vector3.ZERO,span:float=0.0,count:int=1)->void:
 	if not is_instance_valid(actor):return
+	# If a new action kills an actor before its earlier hit resolves, retire the
+	# older nonterminal callbacks so they cannot overwrite its defeat pose.
+	if defeated:
+		for i in range(fx_reactions.size()-1,-1,-1):
+			if fx_reactions[i].actor==actor:fx_reactions.remove_at(i)
 	actor.set_meta("pending_impact",true)
-	fx_reactions.append({"actor":actor,"delay":delay,"defeated":defeated})
+	if defeated:actor.set_meta("pending_defeat",true)
+	var times:Array[float]=reaction_times(delay+span,delay/maxf(.001,delay+span),count)
+	for i in range(times.size()):
+		fx_reactions.append({"actor":actor,"delay":times[i],"defeated":defeated and i==times.size()-1,"direction":direction})
+
 func update_combat_reactions(dt:float)->void:
+	# Process chronological order even if a slow frame crosses several impacts.
+	var due:Array[Dictionary]=[]
 	for i in range(fx_reactions.size()-1,-1,-1):
 		var reaction:Dictionary=fx_reactions[i]
 		reaction.delay-=dt
 		if float(reaction.delay)>0.0:continue
+		due.append(reaction);fx_reactions.remove_at(i)
+	due.sort_custom(func(a:Dictionary,b:Dictionary)->bool:return float(a.delay)<float(b.delay))
+	for reaction in due:
 		var actor=reaction.actor
-		if is_instance_valid(actor) and not actor.is_queued_for_deletion():
-			actor.set_meta("pending_impact",false)
-			enemy_pose(actor,"defeat" if reaction.defeated else "hurt",.32 if reaction.defeated else .20)
-			if reaction.defeated:
-				actor.get_node("HP").hide();actor.get_node("Warning").hide()
-		fx_reactions.remove_at(i)
+		if not is_instance_valid(actor) or actor.is_queued_for_deletion():continue
+		if str(actor.get_meta("enemy_phase",""))=="defeat":continue
+		var pending:bool=false
+		for next in fx_reactions:
+			if next.actor==actor:pending=true;break
+		actor.set_meta("pending_impact",pending)
+		actor.set_meta("enemy_hit_direction",reaction.direction)
+		enemy_pose(actor,"defeat" if reaction.defeated else "hurt",.32 if reaction.defeated else .20)
+		if reaction.defeated:
+			actor.set_meta("pending_defeat",false)
+			var bar=actor.get_node_or_null("HP")
+			var warning=actor.get_node_or_null("Warning")
+			if bar!=null:bar.hide()
+			if warning!=null:warning.hide()
 func combat_fx_update(dt:float)->void:
 	var used:int=0
 	update_combat_reactions(dt)
@@ -4739,7 +4773,10 @@ func combat_fx_update(dt:float)->void:
 		if not burst.impacted and t>=float(profile.impact):
 			burst.impacted=true;play_combat_sound(str(burst.id),"impact",burst.points[-1])
 			if str(profile.role) in ["ground","earth_quake","earth_magnitude","earth_fissure"]:fx_ground_shake=.22
-			if burst.get("target_player",false) and int(burst.get("damage",0))>0:hit_time=.24
+			if burst.get("target_player",false) and int(burst.get("damage",0))>0:
+				hit_time=.24
+				player_hit_direction=(burst.points[-1]-burst.points[0]).normalized()
+				player_hit_direction.y=0.0
 		if t>=1.0:
 			combat_bursts.remove_at(k);continue
 		var mode:String=burst.mode
@@ -5253,7 +5290,9 @@ func refresh_actors():
 			var marker=shape(root,"ring",Vector3(0,.06,0),Vector3(.74,.12,.74),Color("#ffb25d"));marker.name="Warning"
 		if int(enemy.hp)<int(root.get_meta("enemy_hp",enemy.hp)):
 			var profile:=combat_profile(run.player_attack_fx)
-			queue_enemy_reaction(root,false,float(profile.duration)*float(profile.impact))
+			var count:int=int(run.player_visual_hits.get(int(enemy.get("uid",-1)),1)) if run.player_visual_hit_serial==run.attack_serial and run.attack_serial!=previous_attack else 1
+			var delay:float=float(profile.duration)*float(profile.impact)
+			queue_enemy_reaction(root,false,delay,(pos(p)-pos(run.player)).normalized(),float(profile.duration)-delay,count)
 		root.set_meta("enemy_hp",int(enemy.hp))
 		var bar=root.get_node("HP") as Node3D
 		bar.scale.x=.72*clampf(float(enemy.hp)/float(enemy.get("max_hp",enemy.hp)),0,1)
@@ -5302,9 +5341,12 @@ func refresh_actors():
 				for enemy in run.enemies:
 					if key=="enemy:"+str(enemy.get("uid",-1)):still_alive=true;break
 				if not still_alive:
-					if str(n.get_meta("enemy_phase"))!="defeat" and not n.get_meta("pending_impact",false):
+					if str(n.get_meta("enemy_phase"))!="defeat" and not n.get_meta("pending_defeat",false):
 						var profile:=combat_profile(run.player_attack_fx)
-						queue_enemy_reaction(n,true,float(profile.duration)*float(profile.impact))
+						var uid:int=int(key.trim_prefix("enemy:"))
+						var count:int=int(run.player_visual_hits.get(uid,1)) if run.player_visual_hit_serial==run.attack_serial and run.attack_serial!=previous_attack else 1
+						var delay:float=float(profile.duration)*float(profile.impact)
+						queue_enemy_reaction(n,true,delay,(n.position-pos(run.player)).normalized(),float(profile.duration)-delay,count)
 					continue
 			n.hide();n.queue_free();actor_nodes.erase(key)
 	consume_enemy_actions()
@@ -5508,7 +5550,9 @@ func _process(dt:float):
 		pet_pose.position+=pet.basis.inverse()*cast_offset_world(cast_offset,attack_direction)
 		attack_fx.visible=player_impact_delay<=0.0;attack_fx.scale=Vector3(1.1-phase*.42,.13,1.1-phase*.42)
 	else:attack_fx.hide()
-	if hit_time>0.0:pet_pose.rotation.z+=sin(hit_time*45.0)*.10
+	if hit_time>0.0:
+		pet_pose.rotation.z+=sin(hit_time*45.0)*.10
+		pet_pose.position+=pet.basis.inverse()*player_hit_direction*.14*sin(PI*clampf(hit_time/.24,0.0,1.0))
 	if attack_time>0.0:motion=Vector2(attack_direction.x,attack_direction.z)
 	var pose:String="hurt" if hit_time>0.0 else "attack" if attack_time>0.0 else "reward" if reward_age>0.0 and not moving else "idle"
 	pet_pose.set_meta("pet_mood","weak" if run.hp*3<run.max_hp else "healthy")
