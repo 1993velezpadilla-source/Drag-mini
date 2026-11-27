@@ -5,6 +5,31 @@ const Data=preload("res://research_data.gd")
 signal ended(success:bool,completed:int,elapsed:float)
 signal canceled
 var run=Rules.new()
+# Internal combat laboratory. No developer controls are instantiated in public release builds.
+const DEV_PAGE_SIZE:int=6
+var dev_settings_panel:PanelContainer
+var dev_panel:PanelContainer
+var dev_bubble:PanelContainer
+var dev_search:LineEdit
+var dev_element:OptionButton
+var dev_category:OptionButton
+var dev_grid:GridContainer
+var dev_page_label:Label
+var dev_prev:Button
+var dev_next:Button
+var dev_detail:RichTextLabel
+var dev_result:Label
+var dev_aim:Button
+var dev_fx_only:CheckButton
+var dev_page:int=0
+var dev_catalog:Dictionary={}
+var dev_selected:String=""
+var dev_dragging:bool=false
+var dev_drag_moved:bool=false
+var dev_drag_distance:float=0.0
+var dev_drag_index:int=-1
+var dev_target_uid:int=10000
+
 var viewport:SubViewport
 var camera:Camera3D
 var world:Node3D
@@ -224,6 +249,236 @@ func button(parent:Node,value:String,action:Callable,accent:bool=false)->Button:
 	b.add_theme_stylebox_override("disabled",style(Color("#202b36"),Color("#34404e")))
 	b.add_theme_color_override("font_disabled_color",Color("#8393a3"))
 	b.pressed.connect(action);parent.add_child(b);return b
+func lab_button(parent:Node,title:String,action:Callable)->Button:
+	var b:=Button.new()
+	b.text=title;b.custom_minimum_size.y=38;b.size_flags_horizontal=SIZE_EXPAND_FILL
+	b.add_theme_font_size_override("font_size",14)
+	b.add_theme_stylebox_override("normal",style(Color("#213647"),Color("#456478"),9))
+	b.add_theme_stylebox_override("pressed",style(Color("#365e68"),Color("#95e8cc"),9))
+	b.pressed.connect(action);parent.add_child(b)
+	return b
+
+func lab_build_settings(parent:Node)->void:
+	var gear:=lab_button(parent,"⚙",func():
+		if is_instance_valid(dev_settings_panel):
+			dev_settings_panel.visible=not dev_settings_panel.visible
+			lab_layout())
+	gear.tooltip_text="Dungeon settings";gear.custom_minimum_size.x=42;gear.size_flags_horizontal=SIZE_SHRINK_END
+
+func lab_settings_overlay()->void:
+	dev_settings_panel=PanelContainer.new()
+	dev_settings_panel.add_theme_stylebox_override("panel",style(Color("#102739"),Color("#8baeb6"),12))
+	add_child(dev_settings_panel);dev_settings_panel.z_index=20
+	var stack:=VBoxContainer.new();dev_settings_panel.add_child(stack)
+	label(stack,"Dungeon settings",16,Color("#c6e8dd"))
+	lab_button(stack,"Map size",func():toggle_map();dev_settings_panel.hide())
+	if Rules.dev_tools_available():
+		lab_button(stack,"DEV · Combat Lab",lab_open)
+	lab_button(stack,"Close",func():dev_settings_panel.hide())
+	dev_settings_panel.hide()
+	resized.connect(lab_layout)
+
+func lab_layout()->void:
+	if is_instance_valid(dev_settings_panel):
+		dev_settings_panel.position=Vector2(maxf(4,size.x-220),74)
+		dev_settings_panel.size=Vector2(214,0)
+	if is_instance_valid(dev_panel):
+		dev_panel.size.x=minf(480,maxf(260,size.x-12))
+		dev_panel.position=Vector2(clampf(dev_panel.position.x,4,maxf(4,size.x-dev_panel.size.x-4)),clampf(dev_panel.position.y,4,maxf(4,size.y-dev_panel.size.y-4)))
+	if is_instance_valid(dev_bubble):
+		dev_bubble.position=Vector2(clampf(dev_bubble.position.x,0,maxf(0,size.x-dev_bubble.size.x)),clampf(dev_bubble.position.y,0,maxf(0,size.y-dev_bubble.size.y)))
+
+func lab_open()->void:
+	if not run.dev_sandbox and not run.enable_dev_sandbox():return
+	path.clear()
+	dev_settings_panel.hide()
+	if not is_instance_valid(dev_panel):lab_build_panel()
+	dev_bubble.hide();dev_panel.show()
+	lab_layout();update_hud()
+
+func lab_build_catalog()->void:
+	dev_catalog=Rules.MOVE_LIBRARY.duplicate(true)
+	for species in Rules.SIGNATURE_SKILLS:
+		var signature:Array=Rules.SIGNATURE_SKILLS[species]
+		var secondary:Array=Rules.SECONDARY_SKILLS[species]
+		for id in [str(signature[6]),"alt_"+str(species)]:
+			if dev_catalog.has(id):continue
+			var profile:=combat_profile(id)
+			dev_catalog[id]={"name":str(secondary[2]) if id.begins_with("alt_") else id.replace("_"," ").capitalize(),"type":profile.element,"category":"enemy FX","pattern":profile.pattern,"reach":profile.range,"duration":profile.duration,"preview_only":true}
+	for id in COMBAT_FX_STYLES:
+		if dev_catalog.has(id):continue
+		var profile:=combat_profile(id)
+		dev_catalog[id]={"name":id.replace("_"," ").capitalize(),"type":profile.element,"category":"legacy FX","pattern":profile.pattern,"reach":profile.range,"duration":profile.duration,"preview_only":true}
+
+func lab_build_panel()->void:
+	lab_build_catalog()
+	dev_panel=PanelContainer.new()
+	dev_panel.add_theme_stylebox_override("panel",style(Color("#10232df5"),Color("#91cbb5"),16))
+	add_child(dev_panel);dev_panel.z_index=24
+	dev_panel.position=Vector2(8,92)
+	var stack:=VBoxContainer.new();stack.add_theme_constant_override("separation",5);dev_panel.add_child(stack)
+	var header:=HBoxContainer.new();stack.add_child(header)
+	var heading:=label(header,"DEV · Combat Lab",20,Color("#aff3ce"));heading.size_flags_horizontal=SIZE_EXPAND_FILL
+	var minimize:=lab_button(header,"−",lab_minimize);minimize.size_flags_horizontal=SIZE_SHRINK_END;minimize.custom_minimum_size.x=48;minimize.tooltip_text="Minimize to floating DEV bubble"
+	var subtitle:=label(stack,"SANDBOX · Endless floors · HP / PP / items ∞",13,Color("#a8c6c9"));subtitle.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART
+	dev_search=LineEdit.new();dev_search.placeholder_text="Search move name, reference or ID";dev_search.custom_minimum_size.y=36;stack.add_child(dev_search)
+	dev_search.text_changed.connect(func(_value:String):dev_page=0;lab_refresh())
+	var filters:=HBoxContainer.new();stack.add_child(filters)
+	dev_element=OptionButton.new();dev_element.size_flags_horizontal=SIZE_EXPAND_FILL;filters.add_child(dev_element);dev_element.add_item("All elements")
+	var elements:Array=[]
+	for id in dev_catalog:
+		var element:String=str(dev_catalog[id].type)
+		if not element in elements:elements.append(element)
+	elements.sort()
+	for element in elements:dev_element.add_item(str(element).capitalize())
+	dev_category=OptionButton.new();dev_category.size_flags_horizontal=SIZE_EXPAND_FILL;filters.add_child(dev_category)
+	for category in ["All categories","Physical","Special","Status","Enemy FX","Legacy FX"]:dev_category.add_item(category)
+	dev_element.item_selected.connect(func(_index:int):dev_page=0;lab_refresh())
+	dev_category.item_selected.connect(func(_index:int):dev_page=0;lab_refresh())
+	dev_grid=GridContainer.new();dev_grid.columns=2;dev_grid.add_theme_constant_override("h_separation",5);dev_grid.add_theme_constant_override("v_separation",4);stack.add_child(dev_grid)
+	var pager:=HBoxContainer.new();stack.add_child(pager)
+	dev_prev=lab_button(pager,"‹ Prev",func():dev_page-=1;lab_refresh())
+	dev_page_label=label(pager,"",14,Color("#d2e8e3"));dev_page_label.size_flags_horizontal=SIZE_EXPAND_FILL;dev_page_label.horizontal_alignment=HORIZONTAL_ALIGNMENT_CENTER;dev_page_label.vertical_alignment=VERTICAL_ALIGNMENT_CENTER
+	dev_next=lab_button(pager,"Next ›",func():dev_page+=1;lab_refresh())
+	dev_detail=RichTextLabel.new();dev_detail.custom_minimum_size.y=112;dev_detail.scroll_active=true;dev_detail.bbcode_enabled=false;dev_detail.add_theme_font_size_override("normal_font_size",14);stack.add_child(dev_detail)
+	dev_detail.text="Tap a move to cast. Details appear here. No legal target? Plays FX preview."
+	var controls:=HBoxContainer.new();stack.add_child(controls)
+	dev_aim=lab_button(controls,"Aim ↓",func():rotate_combat_aim();lab_update_aim())
+	lab_button(controls,"Target +",lab_spawn_target)
+	lab_button(controls,"Next floor",func():path.clear();run.dev_next_floor();sync();dev_result.text="Endless floor B%d"%run.floor_number)
+	dev_fx_only=CheckButton.new();dev_fx_only.text="FX only (no combat turns)";stack.add_child(dev_fx_only)
+	dev_result=label(stack,"Ready · tap a move",13,Color("#a7e9bf"));dev_result.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART
+	lab_button(stack,"Exit sandbox · discard rewards",leave)
+	dev_bubble=PanelContainer.new()
+	dev_bubble.add_theme_stylebox_override("panel",style(Color("#1c6359"),Color("#b1f5d7"),32))
+	dev_bubble.custom_minimum_size=Vector2(64,64);dev_bubble.size=Vector2(64,64)
+	add_child(dev_bubble);dev_bubble.z_index=25;dev_bubble.position=Vector2(maxf(0,size.x-76),maxf(0,size.y*.43))
+	var bubble_label:=label(dev_bubble,"DEV",18,Color.WHITE);bubble_label.horizontal_alignment=HORIZONTAL_ALIGNMENT_CENTER;bubble_label.vertical_alignment=VERTICAL_ALIGNMENT_CENTER;bubble_label.mouse_filter=MOUSE_FILTER_IGNORE
+	dev_bubble.gui_input.connect(lab_bubble_input);dev_bubble.hide()
+	lab_update_aim();lab_refresh()
+
+func lab_filtered_ids()->Array[String]:
+	var ids:Array[String]=[]
+	var query:String=dev_search.text.strip_edges().to_lower() if is_instance_valid(dev_search) else ""
+	var element:String=dev_element.get_item_text(dev_element.selected).to_lower() if is_instance_valid(dev_element) and dev_element.selected>0 else ""
+	var category:String=dev_category.get_item_text(dev_category.selected).to_lower() if is_instance_valid(dev_category) and dev_category.selected>0 else ""
+	for id in dev_catalog:
+		var move:Dictionary=dev_catalog[id]
+		if not element.is_empty() and str(move.type)!=element:continue
+		if not category.is_empty() and str(move.category)!=category:continue
+		if not query.is_empty() and not query in (str(move.name)+" "+str(move.get("reference_key","")).replace("_"," ")+" "+str(id)).to_lower():continue
+		ids.append(str(id))
+	ids.sort_custom(func(a:String,b:String)->bool:return str(dev_catalog[a].name).naturalnocasecmp_to(str(dev_catalog[b].name))<0)
+	return ids
+
+func lab_refresh()->void:
+	var ids:=lab_filtered_ids()
+	var pages:int=maxi(1,ceili(float(ids.size())/DEV_PAGE_SIZE))
+	dev_page=clampi(dev_page,0,pages-1)
+	for child in dev_grid.get_children():
+		dev_grid.remove_child(child);child.queue_free()
+	for index in range(DEV_PAGE_SIZE):
+		var at:int=dev_page*DEV_PAGE_SIZE+index
+		if at>=ids.size():
+			var spacer:=Control.new();spacer.custom_minimum_size.y=42;spacer.size_flags_horizontal=SIZE_EXPAND_FILL;dev_grid.add_child(spacer);continue
+		var id:String=ids[at]
+		var move:Dictionary=dev_catalog[id]
+		var b:=lab_button(dev_grid,str(move.name),lab_cast.bind(id))
+		b.custom_minimum_size.y=42;b.clip_text=true;b.tooltip_text=str(move.name)+" · "+str(move.type).capitalize()+" · "+str(move.category).capitalize()
+	dev_page_label.text="%d/%d · %d moves"%[dev_page+1,pages,ids.size()]
+	dev_prev.disabled=dev_page<=0;dev_next.disabled=dev_page>=pages-1
+
+func lab_accuracy(value:Variant)->String:
+	if value==null:return "Not recorded"
+	return "Bypass (%s)"%str(value) if int(value)>100 else "%d%%"%int(value)
+
+func lab_move_info(id:String)->String:
+	var m:Dictionary=dev_catalog[id]
+	var text_value:String="%s  •  %s / %s\nPower %s   PP %s   Crit %s\nACC 1: %s   ACC 2: %s\nRange: %s · Reach %s · Hits %s\n"%[m.name,str(m.type).capitalize(),str(m.category).capitalize(),str(m.get("power","—")),str(m.get("pp","—")),str(m.get("reference_crit","—")),lab_accuracy(m.get("acc1")),lab_accuracy(m.get("acc2")),str(m.get("reference_range",m.pattern)),str(m.get("reach","—")),str(m.get("reference_strikes","—"))]
+	if m.has("reference_key"):text_value+="Reference: %s (#%s)\n"%[str(m.reference_key).replace("_"," "),str(m.reference_id)]
+	if m.has("learn_level"):text_value+="Normal learn level: %s · Bypassed in DEV\n"%str(m.learn_level)
+	if m.get("preview_only",false):text_value+="Enemy/legacy effect: no player move stats recorded. FX preview only.\n"
+	var omitted:Array=["name","type","category","power","pp","reference_crit","acc1","acc2","reference_range","reach","reference_strikes","reference_key","reference_id","learn_level","light","dark","prototype","preview_only","frame_count","frame_size"]
+	for key in m:
+		if not key in omitted:text_value+=str(key).replace("_"," ").capitalize()+": "+str(m[key])+"\n"
+	return text_value.strip_edges()
+
+func lab_update_aim()->void:
+	if is_instance_valid(dev_aim):dev_aim.text="Aim "+["↑","→","↓","←"][maxi(0,Rules.DIR.find(facing))]
+
+func lab_spawn_target()->void:
+	for direction in [facing,Vector2i.UP,Vector2i.RIGHT,Vector2i.DOWN,Vector2i.LEFT]:
+		var tile:Vector2i=run.player+direction
+		if not run.cells.has(tile) or run.enemy_at(tile)>=0 or run.ally_at(tile)>=0:continue
+		run.enemies.append(run.make_enemy(tile,100,0,dev_target_uid));dev_target_uid+=1
+		run.reveal();facing=direction;sync();lab_update_aim();dev_result.text="Test target spawned · 100 HP";return
+	dev_result.text="No free adjacent tile"
+
+func lab_preview(id:String)->void:
+	var profile:=combat_profile(id)
+	var origin:Vector2i=run.player
+	var footprint:Dictionary=run.attack_footprint(origin,facing,str(profile.pattern),int(profile.range),true)
+	var target:Vector2i=origin
+	var target_path:Array=[origin]
+	if str(profile.pattern)!="self":
+		var farthest:int=-1
+		for tile in footprint:
+			if run.distance(origin,tile)>farthest:
+				farthest=run.distance(origin,tile);target=tile;target_path=footprint[tile]
+		if target==origin:target=origin+facing;target_path=[target]
+		for enemy in run.enemies:
+			if footprint.has(enemy.pos):
+				target=enemy.pos;target_path=footprint[target];break
+	var tiles:Array=footprint.keys() if str(profile.pattern) in ["fan","radius","cross","room","floor"] else [target]
+	var event:Dictionary={"fx":id,"from":origin,"to":target,"path":target_path,"tiles":tiles}
+	release_charge_phase="";begin_player_cast_pose(event);combat_fx_spawn(event)
+
+func lab_cast(id:String)->void:
+	if not run.dev_sandbox or not dev_catalog.has(id):return
+	path.clear();dev_selected=id;dev_detail.text=lab_move_info(id)
+	var before:int=run.attack_serial
+	var used:bool=false
+	if not dev_fx_only.button_pressed and Rules.MOVE_LIBRARY.has(id):
+		used=run.dev_cast_move(id,facing)
+		sync()
+	if not used or run.attack_serial==before:
+		lab_preview(id)
+		dev_result.text="FX preview · "+str(dev_catalog[id].name)
+	else:
+		dev_result.text="Cast · "+str(dev_catalog[id].name)+" · "+run.message
+	lab_update_aim()
+
+func lab_minimize()->void:
+	dev_panel.hide();dev_bubble.show();lab_layout()
+
+func lab_bubble_input(event:InputEvent)->void:
+	if event is InputEventScreenTouch:
+		if event.pressed and not dev_dragging:
+			dev_dragging=true;dev_drag_index=event.index;dev_drag_moved=false;dev_drag_distance=0.0
+		elif not event.pressed and dev_dragging and dev_drag_index==event.index:
+			lab_end_drag()
+	elif event is InputEventScreenDrag and dev_dragging and event.index==dev_drag_index:
+		lab_drag(event.relative)
+	elif event is InputEventMouseButton and event.button_index==MOUSE_BUTTON_LEFT and event.device!=-1:
+		if event.pressed:
+			dev_dragging=true;dev_drag_index=-1;dev_drag_moved=false;dev_drag_distance=0.0
+		elif dev_dragging and dev_drag_index==-1:lab_end_drag()
+	elif event is InputEventMouseMotion and dev_dragging and dev_drag_index==-1:
+		lab_drag(event.relative)
+	dev_bubble.accept_event()
+
+func lab_drag(relative:Vector2)->void:
+	dev_drag_distance+=relative.length()
+	if dev_drag_distance>6.0:dev_drag_moved=true
+	if dev_drag_moved:dev_bubble.position+=relative;lab_layout()
+
+func lab_end_drag()->void:
+	dev_dragging=false;dev_drag_index=-1
+	if not dev_drag_moved:
+		dev_bubble.hide()
+		dev_panel.position=dev_bubble.position+Vector2(0,-80)
+		dev_panel.show();lab_layout()
+
 func build_ui():
 	var base=VBoxContainer.new();hud_base=base;add_child(base);base.set_anchors_and_offsets_preset(PRESET_FULL_RECT);base.add_theme_constant_override("separation",0)
 	var header=PanelContainer.new();header.add_theme_stylebox_override("panel",style(Color("#102739"),Color("#e2c081"),20));base.add_child(header)
@@ -247,6 +502,7 @@ func build_ui():
 	hud_icon(resources,"Coin",17);stats=label(resources,"",14,Color("#f6e3bc"))
 	hud_icon(resources,"Relic",17);relic_text=label(resources,"",14,Color("#f1dcff"))
 	hud_icon(resources,"Rooms",17);floor_label=label(resources,"",14,Color("#cce9ec"))
+	lab_build_settings(h)
 	area=Control.new();area.size_flags_vertical=SIZE_EXPAND_FILL;area.clip_contents=true;base.add_child(area)
 	var holder=SubViewportContainer.new();holder.stretch=true;holder.stretch_shrink=1;holder.mouse_filter=MOUSE_FILTER_IGNORE;area.add_child(holder);holder.set_anchors_and_offsets_preset(PRESET_FULL_RECT)
 	viewport=SubViewport.new();viewport.own_world_3d=true;viewport.render_target_update_mode=SubViewport.UPDATE_ALWAYS;holder.add_child(viewport)
@@ -281,6 +537,7 @@ func build_ui():
 			b.size_flags_horizontal=Control.SIZE_EXPAND_FILL
 			move_buttons.append(b)
 	stairs_button=button(v,"Descend",func():path.clear();run.descend();sync(),true)
+	lab_settings_overlay()
 func leave():
 	if notified:return
 	notified=true
@@ -5800,6 +6057,7 @@ func charge_visual_sample(phase:String,releasing:bool,progress:float,impact:floa
 	return {"visible":visible,"height":y}
 
 func sync():
+	run.dev_refill()
 	if run.floor_revision!=active_floor:build_floor()
 	else:refresh_actors()
 	update_hud()
@@ -5827,11 +6085,12 @@ func sync():
 		# Deferred settlement prevents destroying/rebuilding the UI inside a button callback.
 		call_deferred("emit_result")
 func emit_result():
+	if run.dev_sandbox:canceled.emit();return
 	ended.emit(run.success,run.floor_count if run.success else run.floor_number-1,maxf(2.0,elapsed))
 func update_hud():
-	title_text.text="%s  ·  B%d/%d"%[Data.REGIONS[region],run.floor_number,run.floor_count]
+	title_text.text="%s · B%d / ∞"%[Data.REGIONS[region],run.floor_number] if run.dev_sandbox else "%s  ·  B%d/%d"%[Data.REGIONS[region],run.floor_number,run.floor_count]
 	hp_bar.value=run.hp
-	hp_text.text="HP %d/%d"%[run.hp,run.max_hp]
+	hp_text.text="HP ∞ · DEV" if run.dev_sandbox else "HP %d/%d"%[run.hp,run.max_hp]
 	floor_label.text="%d/%d rooms"%[run.explored_rooms.size(),run.rooms.size()]
 	stats.text=str(run.coins)
 	relic_text.text="%d/%d"%[1 if run.secured else 0,1]
@@ -5857,8 +6116,8 @@ func update_hud():
 		if id==run.charged_move_id:move_buttons[i].text="Release "+str(move.name)
 		move_buttons[i].disabled=not run.charged_move_id.is_empty() and id!=run.charged_move_id or (run.charged_move_id.is_empty() and int(run.move_pp[id])<=0)
 	power_button.text="%s %d/8"%[["Burst","Bolt","Drain"][run.skill_kind],run.energy];power_button.disabled=run.energy<2
-	heal_button.text="Berry ×%d"%run.potions;heal_button.disabled=run.potions==0 or run.hp==run.max_hp
-	stairs_button.text="Descend ›" if run.floor_number<run.floor_count else "Complete expedition"
+	heal_button.text="Berry ∞" if run.dev_sandbox else "Berry ×%d"%run.potions;heal_button.disabled=run.potions==0 or run.hp==run.max_hp
+	stairs_button.text="Descend ›" if run.dev_sandbox or run.floor_number<run.floor_count else "Complete expedition"
 	stairs_button.disabled=not run.secured or run.player!=run.stairs
 	stairs_button.visible=run.secured and run.player==run.stairs
 	map.queue_redraw()
