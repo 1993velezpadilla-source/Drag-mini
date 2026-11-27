@@ -51,6 +51,7 @@ jobs:
           grep -F 'KINDRIA_EFFEKSEER_DUNGEON_PASS 5' /tmp/effekseer-review/dungeon-probe.log
           grep -F 'KINDRIA_NATIVE_MIXED_OUTCOMES_PASS' /tmp/effekseer-review/dungeon-probe.log
           grep -F 'KINDRIA_NATIVE_SHARED_AREA_PASS' /tmp/effekseer-review/dungeon-probe.log
+          grep -F 'KINDRIA_NATIVE_CHOREOGRAPHY_PASS 7' /tmp/effekseer-review/dungeon-probe.log
           ! grep -E 'SCRIPT ERROR|Shader compilation failed' /tmp/effekseer-review/dungeon-probe.log
       - uses: actions/upload-artifact@v4
         if: always()
