@@ -2251,6 +2251,94 @@ func earth_sprite(im:Image,role:String,frame:int)->void:
 				earth_rock(im,q-Vector2(0,sin(t*PI)*float(3+i%3*3)),3.0,light,dark)
 			if role=="earth_magnitude":fx_disc(im,center,4.0+t*9.0,light,3.0+t*9.0)
 
+# Rock silhouettes use angular mineral facets instead of the softer earth palette.
+func mineral(im:Image,q:Vector2,r:float,a:float,light:Color,dark:Color)->void:
+	var corners:Array[Vector2]=[]
+	for i in range(6):
+		var theta:float=float(i)*TAU/6.0+a
+		var length:float=r*(.82+float(i%3)*.09)
+		corners.append(q+Vector2(cos(theta),sin(theta))*length)
+	for i in range(6):
+		var v:Vector2=corners[i]
+		var w:Vector2=corners[(i+1)%6]
+		for k in range(1,6):
+			var f:float=float(k)/6.0
+			fx_line(im,q,v.lerp(w,f),r*.28,dark.lightened(.08*float(i%3)))
+		fx_line(im,v,w,1.3,dark.darkened(.38))
+	fx_line(im,corners[3],corners[4],1.4,light)
+	fx_line(im,corners[4],q-Vector2(1,1),1.0,light)
+
+func rock_sprite(im:Image,role:String,frame:int)->void:
+	var t:float=float(frame)/11.0
+	var center:=Vector2(24,24)
+	var light:=Color("#c3b5a3");var dark:=Color("#655d60")
+	match role:
+		"rock_throw":
+			var q:=Vector2(9+28*t,29-sin(t*PI)*16.0)
+			mineral(im,q,8.0,t*TAU,light,dark)
+		"rock_slide":
+			for i in range(7):
+				var q:=Vector2(6+float(i)*6,4+fposmod(float(i)*8+t*38,39))
+				mineral(im,q,4.0+float(i%3),t*3.0+float(i),light,dark)
+		"rock_tomb":
+			for i in range(5):
+				var a:float=float(i)*TAU/5.0
+				var q:=center+Vector2(cos(a)*14,sin(a)*8)+Vector2(0,-(1.0-t)*14.0)
+				mineral(im,q,6.0,0.3+float(i),light,dark)
+		"rock_ancient":
+			for i in range(5):
+				var a:float=float(i)*TAU/5.0+t*TAU
+				var q:=center+Vector2(cos(a)*14,sin(a)*14)
+				mineral(im,q,5.0,a,Color("#e9d7a6"),Color("#806852"))
+			fx_disc(im,center,4.0+t*3.0,Color("#f4dca1"))
+		"rock_wrecker":
+			var q:=Vector2(10+27*t,24)
+			mineral(im,q,13.0,t*2.0,light,dark)
+			for i in range(4):fx_line(im,q-Vector2(18,float(i-2)*4),q-Vector2(10,float(i-2)*4),1.0,light)
+		"rock_edge":
+			for i in range(5):
+				var x:float=7.0+float(i)*8.0
+				ice_crystal(im,Vector2(x,37-sin(t*PI)*8.0),-PI*.5,8.0+float(i%3)*3,light,dark)
+		"rock_gem":
+			for i in range(3):
+				var q:=Vector2(8+fposmod(float(i)*13+t*33,33),24+sin(float(i)*2+t*TAU)*6)
+				mineral(im,q,7.0,PI*.25,Color("#e9faff"),Color("#55a8bb"))
+				fx_line(im,q-Vector2(8,0),q+Vector2(8,0),1.0,Color.WHITE)
+				fx_line(im,q-Vector2(0,8),q+Vector2(0,8),1.0,Color.WHITE)
+		"rock_smash":
+			var q:=Vector2(12+sin(t*PI)*20,24)
+			mineral(im,q,11.0,-.5+t,light,dark)
+			for i in range(5):
+				var a:float=float(i)*TAU/5.0
+				fx_line(im,q+Vector2(cos(a),sin(a))*12,q+Vector2(cos(a),sin(a))*(14+t*7),2.0,light)
+		"rock_blast":
+			for i in range(5):
+				var q:=Vector2(5+fposmod(float(i)*9+t*33,38),24+sin(float(i)*2+t*TAU)*8)
+				mineral(im,q,4.0,float(i)+t*TAU,light,dark)
+		"rock_roll":
+			var q:=Vector2(10+28*t,29)
+			mineral(im,q,10.0,t*TAU*2.0,light,dark)
+			for i in range(4):fx_disc(im,q-Vector2(10+float(i)*4,-3),2.0,Color("#9f8a77",.65))
+		"rock_polish":
+			mineral(im,center,12.0,t*.6,Color("#f7f2db"),Color("#8d8d95"))
+			for i in range(4):
+				var a:float=float(i)*TAU/4.0+t*TAU
+				var q:=center+Vector2(cos(a),sin(a))*15.0
+				fx_line(im,q-Vector2(3,0),q+Vector2(3,0),1.5,Color.WHITE)
+				fx_line(im,q-Vector2(0,3),q+Vector2(0,3),1.5,Color.WHITE)
+		"rock_storm":
+			for i in range(22):
+				var x:float=3.0+fposmod(float(i)*11+t*42,42)
+				var y:float=6.0+float(posmod(i*13,35))
+				fx_line(im,Vector2(x-5,y+2),Vector2(x,y),1.3,Color("#d3b77a"))
+				if i%4==0:mineral(im,Vector2(x,y),2.5,t,light,dark)
+		"rock_trap":
+			for i in range(6):
+				var a:float=float(i)*TAU/6.0
+				var q:=center+Vector2(cos(a)*13,sin(a)*7)+Vector2(0,8*(1.0-t))
+				mineral(im,q,5.0,a,light,dark)
+			fx_disc(im,center,11.0,Color("#998e7a",.65),10.0)
+
 func combat_frame_image(id:String,frame:int)->Image:
 	var style:Array=combat_style(id)
 	var mode:String=combat_animation_mode(id,str(style[0]))
@@ -2270,6 +2358,8 @@ func combat_frame_image(id:String,frame:int)->Image:
 		ice_sprite(im,role,frame);return im
 	if role.begins_with("earth_"):
 		earth_sprite(im,role,frame);return im
+	if role.begins_with("rock_"):
+		rock_sprite(im,role,frame);return im
 	var center:=Vector2(24,24)
 	match mode:
 		"vine":
@@ -2502,6 +2592,19 @@ func combat_profile(id:String)->Dictionary:
 		"eos_295":role="earth_spikes"
 		"eos_118":role="earth_quake"
 		"eos_296":role="earth_magnitude"
+		"eos_028":role="rock_throw"
+		"eos_030":role="rock_slide"
+		"eos_073":role="rock_tomb"
+		"eos_093":role="rock_ancient"
+		"eos_453":role="rock_wrecker"
+		"eos_481":role="rock_edge"
+		"eos_512":role="rock_gem"
+		"eos_533":role="rock_smash"
+		"eos_350":role="rock_blast"
+		"eos_105":role="rock_roll"
+		"eos_540":role="rock_polish"
+		"eos_141":role="rock_storm"
+		"eos_480":role="rock_trap"
 	if role in ["electric_charge","electric_lift"]:mode="lightning"
 	var impact:float=.48 if role in ["contact","electric_contact","electric_short","electric_fist","electric_fang","electric_dash","electric_spark"] else .64 if role in ["projectile","lash","electric_arc","electric_wave","electric_sky","electric_orb","electric_beam"] else .40
 	if role in ["fire_breath","fire_ember","fire_blast","fire_wisp"]:impact=.64
@@ -2514,7 +2617,9 @@ func combat_profile(id:String)->Dictionary:
 	elif role in ["ice_punch","ice_fang","ice_ball"]:impact=.48
 	if role in ["earth_shot","earth_bomb","earth_return"]:impact=.64
 	elif role in ["earth_club","earth_rush","earth_dig"]:impact=.48
-	return {"mode":mode,"role":role,"element":element,"pattern":pattern,"range":reach,"duration":float(style[3]),"impact":impact,"socket":"ground" if role in ["ground","fire_plume","fire_magma","water_dive","water_whirlpool","water_surf","grass_frenzy","grass_roots","grass_knot","ice_avalanche","ice_cold","earth_dig","earth_tomb","earth_power","earth_fissure","earth_spikes","earth_quake","earth_magnitude"] else "head" if role in ["projectile","fire_breath","fire_ember","fire_eruption","water_bubble","water_ink","water_spout","water_cannon","water_pump","water_bubblebeam","water_gun","water_pulse","water_brine","grass_solar","grass_energy","grass_bullet","grass_whistle","ice_aurora","ice_beam","ice_wind","earth_shot"] else "center"}
+	if role in ["rock_throw","rock_wrecker","rock_blast","rock_gem","rock_ancient"]:impact=.64
+	elif role in ["rock_smash","rock_roll","rock_edge"]:impact=.48
+	return {"mode":mode,"role":role,"element":element,"pattern":pattern,"range":reach,"duration":float(style[3]),"impact":impact,"socket":"ground" if role in ["ground","fire_plume","fire_magma","water_dive","water_whirlpool","water_surf","grass_frenzy","grass_roots","grass_knot","ice_avalanche","ice_cold","earth_dig","earth_tomb","earth_power","earth_fissure","earth_spikes","earth_quake","earth_magnitude","rock_edge","rock_tomb","rock_trap","rock_roll"] else "head" if role in ["projectile","fire_breath","fire_ember","fire_eruption","water_bubble","water_ink","water_spout","water_cannon","water_pump","water_bubblebeam","water_gun","water_pulse","water_brine","grass_solar","grass_energy","grass_bullet","grass_whistle","ice_aurora","ice_beam","ice_wind","earth_shot","rock_wrecker","rock_blast","rock_gem"] else "center"}
 func electric_sprite(im:Image,id:String,frame:int,role:String)->void:
 	var cyan:=Color("#40cfff")
 	var violet:=Color("#5969ed")
@@ -3072,6 +3177,28 @@ func combat_fx_update(dt:float)->void:
 						q=points[0]+Vector3(cos(angle)*.4,.12+f*.5,sin(angle)*.4);size=.48
 					_:
 						q=points[-1]+Vector3(cos(angle)*.25,sin(angle)*.25,sin(angle)*.25);size=.65
+			if str(profile.role).begins_with("rock_"):
+				var rock_role:String=str(profile.role)
+				var progress:float=clampf(t*1.8-f*.30,0,1)
+				match rock_role:
+					"rock_throw","rock_blast","rock_gem","rock_wrecker","rock_ancient":
+						q=combat_path_sample(points,progress)+Vector3(cos(angle)*.12,sin(progress*PI)*(.85 if rock_role=="rock_throw" else .24),sin(angle)*.12)
+						size=.95 if rock_role=="rock_wrecker" else .65 if rock_role=="rock_throw" else .45
+					"rock_slide","rock_tomb":
+						q=points[-1]+Vector3(cos(angle)*.45,1.8*(1.0-progress),sin(angle)*.45)
+						size=.64
+					"rock_edge":
+						q=points[-1]+Vector3(cos(angle)*.28,.05+sin(t*PI)*.75,sin(angle)*.28);size=.70
+					"rock_roll":
+						q=combat_path_sample(points,progress)+Vector3(0,.12,0);size=.72
+					"rock_smash":
+						q=points[-1]+Vector3(cos(angle)*t*.45,sin(angle)*.27,sin(angle)*t*.45);size=.70
+					"rock_polish":
+						q=points[0]+Vector3(cos(angle+t*TAU)*.4,.2+f*.55,sin(angle+t*TAU)*.4);size=.46
+					"rock_storm":
+						q=points[0]+Vector3(cos(angle+t*TAU*2.0)*.75,.2+f*.8,sin(angle+t*TAU*2.0)*.75);size=.38
+					"rock_trap":
+						q=points[0]+Vector3(cos(angle)*.42,.04+t*.12,sin(angle)*.42);size=.45
 			# Drained energy travels from victim back to caster; healing stays on caster.
 			if profile.role=="drain" and t>=.40:
 				var back:float=clampf((t-.40)*2.0-f*.22,0.0,1.0)
@@ -3408,7 +3535,7 @@ func _process(dt:float):
 	elif run.charge_phase=="gather":pet_pose.position.y=.03+.04*sin(elapsed*12.0)
 	if attack_time>0.0:
 		var phase=sin(PI*attack_time/maxf(.01,player_cast_duration))
-		var lunge:float=.40 if player_cast_mode in ["contact","electric_contact","electric_fist","electric_fang","electric_spark","electric_dash","fire_wheel","fire_blitz","fire_kick","fire_punch","fire_fang","water_clamp","water_hammer","water_dive","water_fall","water_jet","water_tail","grass_blade","grass_wood","grass_needle","ice_punch","ice_fang","ice_ball","earth_club","earth_rush","earth_dig"] else .13 if player_cast_mode=="lash" else -.08
+		var lunge:float=.40 if player_cast_mode in ["contact","electric_contact","electric_fist","electric_fang","electric_spark","electric_dash","fire_wheel","fire_blitz","fire_kick","fire_punch","fire_fang","water_clamp","water_hammer","water_dive","water_fall","water_jet","water_tail","grass_blade","grass_wood","grass_needle","ice_punch","ice_fang","ice_ball","earth_club","earth_rush","earth_dig","rock_smash","rock_roll"] else .13 if player_cast_mode=="lash" else -.08
 		pet_pose.position+=pet.basis.inverse()*attack_direction*phase*lunge
 		attack_fx.visible=player_impact_delay<=0.0;attack_fx.scale=Vector3(1.1-phase*.42,.13,1.1-phase*.42)
 	else:attack_fx.hide()
