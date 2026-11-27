@@ -16621,17 +16621,34 @@ func combat_fx_update(dt:float)->void:
 func environment_particle(index:int,position:Vector3,mode:String,light:Color,dark:Color,scale_value:float,alpha:float,flat:bool=false,status_layer:bool=false)->int:
 	if index>=mini(combat_particles.size(),FX_PARTICLE_CAP+LIVING_PARTICLE_CAP if status_layer else fx_cast_particle_limit):return index
 	var particle:Sprite3D=combat_particles[index]
-	var billboard_mode:int=BaseMaterial3D.BILLBOARD_DISABLED if flat else BaseMaterial3D.BILLBOARD_ENABLED
-	if particle.billboard!=billboard_mode:particle.billboard=billboard_mode
-	var orientation:=Vector3(-PI*.5,0,0) if flat else Vector3.ZERO
-	if particle.rotation!=orientation:particle.rotation=orientation
-	particle.position=position
 	var texture:=combat_pixel_texture(mode,light,dark)
-	if particle.texture!=texture:particle.texture=texture
-	particle.scale=Vector3.ONE*scale_value
-	particle.modulate=Color(1,1,1,clampf(alpha,0.0,1.0))
-	if not particle.visible:particle.show()
+	apply_environment_particle_state(particle,position,texture,scale_value,alpha,flat)
 	return index+1
+
+# Pooled secondary effects keep their exact state across repeated submissions.
+# Compare real node properties, not a shadow cache: the base cast and batching
+# paths may have reused or hidden this sprite since its last secondary effect.
+func apply_environment_particle_state(particle:Sprite3D,position:Vector3,texture:Texture2D,scale_value:float,alpha:float,flat:bool)->int:
+	var writes:int=0
+	var billboard_mode:int=BaseMaterial3D.BILLBOARD_DISABLED if flat else BaseMaterial3D.BILLBOARD_ENABLED
+	if particle.billboard!=billboard_mode:
+		particle.billboard=billboard_mode;writes+=1
+	var orientation:=Vector3(-PI*.5,0,0) if flat else Vector3.ZERO
+	if particle.rotation!=orientation:
+		particle.rotation=orientation;writes+=1
+	if particle.position!=position:
+		particle.position=position;writes+=1
+	if particle.texture!=texture:
+		particle.texture=texture;writes+=1
+	var desired_scale:=Vector3.ONE*scale_value
+	if particle.scale!=desired_scale:
+		particle.scale=desired_scale;writes+=1
+	var desired_tint:=Color(1,1,1,clampf(alpha,0.0,1.0))
+	if particle.modulate!=desired_tint:
+		particle.modulate=desired_tint;writes+=1
+	if not particle.visible:
+		particle.show();writes+=1
+	return writes
 
 # Persistent ailments are driven by rule state, never by a cast's remaining lifetime.
 # Reversible real-time ailment envelope. Combat pose timing stays authoritative.
