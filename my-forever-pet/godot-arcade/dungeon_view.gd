@@ -2493,6 +2493,9 @@ uniform float material_opacity = 1.0;
 uniform int distortion_family = 0;
 uniform float distortion_strength = 0.0;
 uniform float distortion_frequency = 1.0;
+// Reused quad: local depth impression, warm/cool core separation and soft edge.
+uniform vec4 atmosphere_color : source_color = vec4(1.0);
+uniform vec3 atmosphere = vec3(0.0);
 void fragment() {
 	vec2 p = UV * 2.0 - 1.0;
 	float original_radius = length(p);
@@ -2560,8 +2563,18 @@ void fragment() {
 		detail = 0.40+0.60*pow(abs(cos(angle*2.0-phase*3.0)),8.0);
 		core = detail*0.42;
 	}
-	ALBEDO = mix(tint.rgb, vec3(1.0), clamp(core,0.0,0.75));
-	ALPHA = clamp(a * intensity * detail * envelope * material_opacity * (1.0-smoothstep(0.90,1.0,original_radius)), 0.0, 0.75);
+	// A bounded local optical field, never a full-screen distortion pass.
+	float thickness = sqrt(max(0.0,1.0-r*r));
+	float hot_center = pow(max(0.0,1.0-r),3.0);
+	float limb = smoothstep(0.25,0.65,r)*(1.0-smoothstep(0.65,0.98,r));
+	float volume = mix(thickness,limb,ring_mix);
+	float volume_weight = atmosphere.x;
+	float spectral_edge = atmosphere.y*limb;
+	float bloom_core = atmosphere.z*hot_center*(1.0-ring_mix);
+	vec3 ink = mix(tint.rgb,atmosphere_color.rgb,clamp(spectral_edge+bloom_core,0.0,0.85));
+	ALBEDO = mix(ink, vec3(1.0), clamp(core+bloom_core*0.30,0.0,0.75));
+	float optical = a*(1.0+volume_weight*volume)+bloom_core*0.10;
+	ALPHA = clamp(optical * intensity * detail * envelope * material_opacity * (1.0-smoothstep(0.90,1.0,original_radius)), 0.0, 0.75);
 }
 """
 	var quad:=QuadMesh.new();quad.size=Vector2(1.0,1.0)
@@ -2891,6 +2904,37 @@ func elemental_distortion_sample(element:String,phase:float,stage:String,tier:in
 	var strength:float=cue.y*maxf(0.0,envelope)*(.55 if tier==1 else 1.0)
 	return Vector3(cue.x,strength,cue.z)
 
+# Element-specific optical profiles: volume, spectral fringe, luminous core.
+# The secondary color is independent of the sprite palette, not a second light.
+const ELEMENT_ATMOSPHERE={
+	"normal":[Vector3(.12,.08,.12),"#fff1d1"],
+	"fire":[Vector3(.34,.58,.68),"#ffd18c"],
+	"water":[Vector3(.32,.62,.18),"#b9fcff"],
+	"electric":[Vector3(.12,.36,.78),"#ffffb0"],
+	"grass":[Vector3(.24,.34,.20),"#d6f4a5"],
+	"ice":[Vector3(.24,.68,.43),"#f2ffff"],
+	"fighting":[Vector3(.16,.14,.30),"#ffe0a8"],
+	"poison":[Vector3(.55,.48,.16),"#c8e6a2"],
+	"ground":[Vector3(.42,.12,.04),"#e3bd89"],
+	"flying":[Vector3(.18,.42,.10),"#e2f4ff"],
+	"psychic":[Vector3(.40,.62,.48),"#f7c4ff"],
+	"bug":[Vector3(.22,.22,.14),"#f6e9a6"],
+	"rock":[Vector3(.25,.10,.06),"#e9d3b2"],
+	"ghost":[Vector3(.58,.67,.22),"#b8f1e0"],
+	"dragon":[Vector3(.48,.45,.66),"#e7c8ff"],
+	"dark":[Vector3(.38,.55,.10),"#b878b7"],
+	"steel":[Vector3(.10,.58,.40),"#f0faff"],
+	"fairy":[Vector3(.35,.64,.54),"#ffe1f5"]}
+
+func elemental_atmosphere_sample(element:String,phase:float,ground:bool,tier:int)->Vector3:
+	if tier>=2:return Vector3.ZERO
+	var cue:Array=ELEMENT_ATMOSPHERE.get(element,ELEMENT_ATMOSPHERE.normal)
+	var t:float=clampf(phase,0.0,1.0)
+	var fade:float=pow(1.0-t,.7)
+	var p:Vector3=cue[0]
+	var quality:float=.55 if tier==1 else 1.0
+	return Vector3(p.x*(.70 if ground else 1.0),p.y,p.z*(.0 if ground else 1.0))*fade*quality
+
 func cinematic_halo(at:Vector3,color:Color,extent:float,opacity:float,phase:float,ground:bool,element:String="normal",distortion_stage:String="none")->void:
 	if fx_halos_used>=fx_halos.size() or opacity<=.012:return
 	var index:int=fx_halos_used;fx_halos_used+=1
@@ -2911,6 +2955,9 @@ func cinematic_halo(at:Vector3,color:Color,extent:float,opacity:float,phase:floa
 	set_fx_uniform(mat,"distortion_family",int(distortion.x))
 	set_fx_uniform(mat,"distortion_strength",distortion.y)
 	set_fx_uniform(mat,"distortion_frequency",distortion.z)
+	var atmosphere_cue:Array=ELEMENT_ATMOSPHERE.get(element,ELEMENT_ATMOSPHERE.normal)
+	set_fx_uniform(mat,"atmosphere_color",Color(str(atmosphere_cue[1])))
+	set_fx_uniform(mat,"atmosphere",elemental_atmosphere_sample(element,phase,ground,fx_performance_tier))
 	if not halo.visible:halo.show()
 
 # Per-element response: energy, reach, falloff, temporal modulation.
