@@ -5484,7 +5484,7 @@ func native_identity_frame(id:String,frame:int,base:Image)->Image:
 	return im
 
 # V16.7: individually remastered after reviewing actual Godot PNG strips.
-const VISUAL_REMASTER_MOVES=["eos_504","eos_308","eos_135","eos_142","eos_047","eos_250","eos_299","eos_329","eos_262","eos_279","eos_101","eos_199","eos_251","eos_486","eos_462","eos_018","eos_507","eos_175","eos_254","eos_097","eos_163","eos_320","eos_033","eos_166","eos_228","eos_004","eos_252","eos_330","eos_465","eos_138","eos_021","eos_501","eos_053","eos_157","eos_064","eos_188","eos_240","eos_255","eos_342","eos_539","eos_041","eos_278","eos_538","eos_239","eos_193","eos_272","eos_519","eos_494","eos_292","eos_065","eos_276","eos_208","eos_522","eos_452","eos_433","eos_087","eos_063","eos_062","eos_476","eos_127","eos_451","eos_436","eos_491","eos_046","eos_109","eos_234","eos_107","eos_463","eos_133","eos_317","eos_111","eos_331","eos_345","eos_270","eos_042","eos_344","eos_461","eos_180","eos_535","eos_150","eos_118","eos_484","eos_008","eos_131","eos_030","eos_481","eos_028","eos_073","lib_ground_1","eos_057","eos_036","eos_442","eos_153","eos_205","eos_100","eos_518","eos_178"]
+const VISUAL_REMASTER_MOVES=["eos_504","eos_308","eos_135","eos_142","eos_047","eos_250","eos_299","eos_329","eos_262","eos_279","eos_101","eos_199","eos_251","eos_486","eos_462","eos_018","eos_507","eos_175","eos_254","eos_097","eos_163","eos_320","eos_033","eos_166","eos_228","eos_004","eos_252","eos_330","eos_465","eos_138","eos_021","eos_501","eos_053","eos_157","eos_064","eos_188","eos_240","eos_255","eos_342","eos_539","eos_041","eos_278","eos_538","eos_239","eos_193","eos_272","eos_519","eos_494","eos_292","eos_065","eos_276","eos_208","eos_522","eos_452","eos_433","eos_087","eos_063","eos_062","eos_476","eos_127","eos_451","eos_436","eos_491","eos_046","eos_109","eos_234","eos_107","eos_463","eos_133","eos_317","eos_111","eos_331","eos_345","eos_270","eos_042","eos_344","eos_461","eos_180","eos_535","eos_150","eos_118","eos_484","eos_008","eos_131","eos_030","eos_481","eos_028","eos_073","lib_ground_1","eos_057","eos_036","eos_442","eos_153","eos_205","eos_100","eos_518","eos_178","eos_200","eos_495","eos_280","eos_197","eos_332","eos_147","eos_485","eos_459"]
 func visual_remaster_frame(id:String,frame:int)->Image:
 	var im:=Image.create(48,48,false,Image.FORMAT_RGBA8)
 	im.fill(Color.TRANSPARENT)
@@ -6988,6 +6988,132 @@ func visual_remaster_frame(id:String,frame:int)->Image:
 				fx_line(im,c+normal*2,c+axis*13+normal*2,1.0,Color("#f1ffff",fade))
 			if t>=peak:
 				fight_arc(im,c,17.5,-1.1,2.2,Color("#e9faff",fade),Color("#8bb5c9",fade),2.7)
+		"eos_200":
+			# Poison Sting: three slender venom needles, each with a distinct tip.
+			for j in range(3):
+				var f:float=clampf(drive*1.25-float(j)*.16,0.0,1.0)
+				var q:=Vector2(8+29*f,17+float(j)*7.0)
+				fx_line(im,q-Vector2(10*fade,0),q,1.1,Color("#9863bf",fade))
+				fx_line(im,q-Vector2(5,0),q+Vector2(3,0),2.3,Color("#542d76",fade))
+				fx_line(im,q-Vector2(3,-1),q+Vector2(6,0),1.2,Color("#e5b5ff",fade))
+				fx_disc(im,q+Vector2(2,1),1.6,Color("#b6ed76",fade))
+				if t>=peak:
+					fx_disc(im,q+Vector2(5,-4-3*(1.0-fade)),1.1,Color("#c3f690",fade))
+		"eos_495":
+			# Poison Jab: muscular thrust ending in a single barbed venom spike.
+			var q:=Vector2(10+23*drive,24)
+			fx_line(im,q-Vector2(15*fade,0),q,4.5,Color("#67377e",fade))
+			fx_line(im,q-Vector2(10,0),q-Vector2(1,0),5.5,Color("#532c69",fade))
+			for j in range(-4,5):
+				fx_line(im,q+Vector2(-2,float(j)),q+Vector2(9,0),1.2,Color("#a866cf",fade))
+			fx_line(im,q+Vector2(-2,-3),q+Vector2(9,0),1.6,Color("#f2c8ff",fade))
+			fx_line(im,q-Vector2(3,0),q+Vector2(2,0),2.0,Color("#b8ef73",fade))
+			if t>=peak:
+				for j in range(6):
+					var a:float=float(j)*TAU/6.0
+					var axis:=Vector2(cos(a),sin(a))
+					var v:=q+Vector2(5,0)+axis*(5+9*(1.0-fade))
+					water_drop(im,v,1.7,Color("#dcf9a5",fade),Color("#7c9f42",fade))
+		"eos_280":
+			# Sludge Bomb: arcing pressurized toxic glob, bursting into viscous droplets.
+			var q:=Vector2(10+24*drive,28-14*sin(drive*PI))
+			var radius:float=6.2+2.0*pulse
+			fx_disc(im,q,radius,Color("#572369",fade))
+			fx_disc(im,q-Vector2(1,1),radius-1.7,Color("#ad5bc1",fade))
+			fx_disc(im,q-Vector2(2,3),2.1,Color("#edb6ef",fade))
+			for j in range(3):
+				var a:float=float(j)*TAU/3.0+t*TAU
+				var v:=q+Vector2(cos(a),sin(a))*radius*.66
+				fx_disc(im,v,1.4,Color("#b9e875",fade))
+			if t>=peak:
+				for j in range(8):
+					var a:float=float(j)*TAU/8.0
+					var axis:=Vector2(cos(a),sin(a))
+					var v:=q+axis*(radius+9*(1.0-fade))
+					fx_line(im,q+axis*radius*.75,v,1.7,Color("#9350a9",fade))
+					water_drop(im,v,2.0+float(j%2),Color("#cf8bd5",fade),Color("#652c79",fade))
+		"eos_197":
+			# Virulent Hex: escalating poison bubbles rise around a skull-shaped warning sigil.
+			var c:=Vector2(24,24)
+			var radius:float=5+11*drive
+			for j in range(7):
+				var a:float=float(j)*TAU/7.0+t*2.0
+				var q:=c+Vector2(cos(a)*radius,sin(a)*radius)
+				var r:float=2.2+float(j%3)*.7
+				fx_disc(im,q,r,Color("#713c90",fade),maxf(0.0,r-1.2))
+				fx_disc(im,q-Vector2(1,1),1.0,Color("#d9b4f1",fade))
+			fx_disc(im,c-Vector2(0,2),6.5,Color("#5e357d",fade))
+			fx_disc(im,c-Vector2(0,3),5.0,Color("#d3adee",fade))
+			for side in [-1,1]:
+				fx_disc(im,c+Vector2(float(side)*2.5,-3),1.5,Color("#402650",fade))
+			fx_line(im,c+Vector2(-3,3),c+Vector2(3,3),2.8,Color("#d3adee",fade))
+			for j in range(3):
+				fx_line(im,c+Vector2(float(j-1)*2.2,3),c+Vector2(float(j-1)*2.2,5),.8,Color("#603675",fade))
+		"eos_332":
+			# Acid: corrosive lime-green liquid sheet with falling drips and small bubbles.
+			var head:=Vector2(10+25*drive,24)
+			var tail:=Vector2(maxf(4.0,head.x-24*fade),23)
+			for j in range(1,12):
+				var f:float=float(j)/11.0
+				var g:float=float(j-1)/11.0
+				var a:=tail.lerp(head,g)+Vector2(0,sin(g*TAU-t*7.0)*2)
+				var q:=tail.lerp(head,f)+Vector2(0,sin(f*TAU-t*7.0)*2)
+				fx_line(im,a,q,3.0+3.5*f,Color("#507f35",fade))
+				fx_line(im,a,q,1.8+2.6*f,Color("#b5e65c",fade))
+				fx_line(im,a-Vector2(0,1),q-Vector2(0,1),.8,Color("#efffc1",fade))
+			for j in range(5):
+				var q:=head+Vector2(-float(j)*4,4+sin(t*PI)*float(j%3)*3)
+				water_drop(im,q,2.3,Color("#e3ffa0",fade),Color("#729c3f",fade))
+				fx_disc(im,q+Vector2(2,4),1.0,Color("#c9f48d",fade))
+		"eos_147":
+			# Smog: layered soot-grey and violet clouds with curling turbulent edges.
+			for j in range(12):
+				var f:float=float(j)/11.0
+				var q:=Vector2(8+30*f*drive,24+sin(float(j)*2.4+t*3.0)*(4+7*f))
+				var radius:float=3.0+4.0*f+1.4*pulse
+				fx_disc(im,q,radius,Color("#393446",(.32+.42*f)*fade))
+				fx_disc(im,q-Vector2(1,2),radius*.68,Color("#74647e",(.30+.40*f)*fade))
+				if j%3==0:
+					fight_arc(im,q,radius+1.2,t*TAU+float(j),PI*.7,Color("#a299ae",fade*.7),Color("#554760",fade*.7),1.1)
+			for j in range(5):
+				var q:=Vector2(10+float(j)*6,12+sin(t*TAU+float(j))*6)
+				fx_disc(im,q,1.0,Color("#b59ac8",fade*.6))
+		"eos_485":
+			# Gunk Shot: dense irregular waste clump, opaque lobes and heavy splash.
+			var q:=Vector2(12+22*drive,25-5*sin(drive*PI))
+			var radius:float=8.0+2.0*pulse
+			fx_line(im,q-Vector2(14*fade,1),q,5.0,Color("#4b294a",fade))
+			fx_disc(im,q,radius,Color("#44233f",fade))
+			for j in range(6):
+				var a:float=float(j)*TAU/6.0+t
+				var v:=q+Vector2(cos(a),sin(a))*radius*.65
+				fx_disc(im,v,3.4+float(j%2),Color("#82517e",fade))
+				fx_disc(im,v-Vector2(1,1),1.7,Color("#c394b3",fade))
+			fx_disc(im,q-Vector2(2,2),2.0,Color("#aaa05d",fade))
+			if t>=peak:
+				for j in range(9):
+					var a:float=float(j)*TAU/9.0
+					var axis:=Vector2(cos(a),sin(a))
+					var v:=q+axis*(radius+9*(1.0-fade))
+					fx_line(im,q+axis*radius*.7,v,2.2,Color("#79506f",fade))
+					fx_disc(im,v,2.0+float(j%2),Color("#9f7198",fade))
+		"eos_459":
+			# Cross Poison: two separately swept toxic blades intersect at contact.
+			var c:=Vector2(24,24)
+			for side in [-1,1]:
+				var sy:float=float(side)
+				var u:float=clampf(drive*1.35-(.15 if side>0 else 0.0),0.0,1.0)
+				var origin:=c+Vector2(-13,sy*13)
+				var tip:=origin.lerp(c+Vector2(13,-sy*13),u)
+				fx_line(im,origin,tip,5.0,Color("#5b3376",fade))
+				fx_line(im,origin,tip,2.8,Color("#c187ed",fade))
+				fx_line(im,origin+Vector2(0,-sy),tip+Vector2(0,-sy),1.0,Color("#ddff9d",fade))
+				if t>=peak:
+					for j in range(3):
+						var v:=c+Vector2(float(j-1)*6,sy*(4+8*(1.0-fade)))
+						fx_disc(im,v,1.5,Color("#b9ed80",fade))
+			if t>=peak:
+				fairy_star(im,c,3.0+3.0*pulse,Color("#f0ffcb",fade))
 	return im
 
 func combat_frame_image(id:String,frame:int)->Image:
