@@ -2491,25 +2491,57 @@ func combat_pixel_texture(mode:String,light:Color,dark:Color)->ImageTexture:
 				"drop":
 					fill=r<3.9 or (v.y<0 and absf(v.x)<(7.0+v.y)*.46)
 					inner=r<2.0 and v.x<0
-				"bubble","wave","spiral":
-					fill=r>=4.5 and r<=7.0
-					inner=fill and v.x+v.y<0
-				"slash","fan":
-					fill=absf(v.y-v.x*.65)<2.0 and absf(v.x)<7.0
-					inner=fill and absf(v.y-v.x*.65)<.85
-				"dart","shards":
-					fill=absf(v.x)+absf(v.y)*.55<5.5
-					inner=absf(v.x+1.0)+absf(v.y)*.65<2.5
-				"whip","lightning":
+				"bubble":
+					fill=(r>=5.1 and r<=7.0) or (v-Vector2(-2.6,-3.1)).length()<1.45
+					inner=fill and (v.x+v.y<-3.0 or r<5.1)
+				"wave":
+					var crest:float=sin(v.x*.43)*2.3
+					fill=absf(v.x)<7.0 and (absf(v.y-crest)<1.3 or absf(v.y-crest-3.2)<.7)
+					inner=fill and absf(v.y-crest)<.65
+				"spiral":
+					var angle:float=atan2(v.y,v.x)
+					var arm:float=absf(sin(angle-r*.85))
+					fill=r<7.1 and (arm<.25 or r<1.5)
+					inner=fill and (arm<.11 or r<1.5)
+				"slash":
+					var cut:float=v.y-v.x*.65+.065*v.x*v.x
+					fill=absf(cut)<maxf(.5,2.2-absf(v.x)*.21) and absf(v.x)<7.0
+					inner=fill and absf(cut)<.7
+				"fan":
+					var angle:float=atan2(v.y,v.x+3.5)
+					fill=v.x>-4.0 and r<7.5 and absf(angle)<.78 and absf(sin(angle*9.0))<.48
+					inner=fill and v.x<1.0
+				"dart":
+					fill=absf(v.y)<maxf(.55,(v.x+7.0)*.20) and v.x<7.0 and v.x>-7.0
+					inner=fill and absf(v.y)<.65
+				"shards":
+					fill=absf(v.x+v.y*.35)*1.45+absf(v.y)*.70<5.7
+					inner=fill and v.x+v.y*.35<.4 and absf(v.y)<4.5
+				"whip":
 					var center:float=sin(v.x*.65)*2.3
-					fill=absf(v.y-center)<2.0 and absf(v.x)<7.0
-					inner=fill and absf(v.y-center)<.9
+					fill=absf(v.y-center)<maxf(.8,1.7-v.x*.07) and absf(v.x)<7.0
+					inner=fill and absf(v.y-center)<.65
+				"lightning":
+					var zig:float=(absf(fposmod(v.x+7.0,6.0)-3.0)-1.5)*1.8
+					var fork:float=v.y-((v.x-1.0)*.9+2.0)
+					fill=(absf(v.y-zig)<1.25 and absf(v.x)<7.0) or (v.x>1.0 and absf(fork)<.7)
+					inner=fill and absf(v.y-zig)<.55
 				"web":
 					fill=r<7.0 and (absf(v.x)<1.0 or absf(v.y)<1.0 or absf(absf(v.x)-absf(v.y))<1.0 or absf(r-5.0)<.7)
 					inner=r<2.0
-				"flame","meteor","beam":
-					fill=absf(v.x)<(7.0-absf(v.y)*.65) and absf(v.y)<7.0
-					inner=fill and absf(v.x+1.0)<3.0 and absf(v.y+1.0)<4.0
+				"flame":
+					var w:float=4.8*(1.0-clampf((-v.y+1.0)/9.0,0.0,1.0))
+					var curl:float=sin(v.y*.48)*1.3
+					fill=absf(v.x-curl)<maxf(.65,w) and v.y>-7.0 and v.y<6.5
+					inner=fill and absf(v.x-curl+.7)<w*.50 and v.y>-.8
+				"meteor":
+					var core:float=(v-Vector2(2.0,2.0)).length()
+					var tail:float=absf(v.y-v.x)
+					fill=core<4.6 or (v.x<2.0 and v.y<2.0 and tail<maxf(.65,2.5+v.x*.20))
+					inner=fill and (core<2.7 or (tail<.7 and v.x<2.0))
+				"beam":
+					fill=absf(v.x)<7.5 and (absf(v.y)<2.6 or (absf(v.y)<4.3 and posmod(x+y,5)==0))
+					inner=fill and absf(v.y)<1.2
 				"cloud":
 					fill=r<6.8 and posmod(x*7+y*11,7)!=0
 					inner=r<3.0
