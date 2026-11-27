@@ -800,6 +800,49 @@ func run_checks()->void:
 			if seen_gestures.has(str(gesture)):failures.append("V19.7 same-nature gesture collision "+id)
 			seen_gestures[str(gesture)]=true
 			checks+=1
+	# V19.8 environmental cues are bounded, ordered and subordinate to contact.
+	for id in catalog:
+		var profile:Dictionary=view.combat_profile(id)
+		var cues:Array=view.combat_environment_audio_plan(id,profile)
+		var last_fraction:float=-1.0
+		if cues.size()>2:failures.append("V19.8 excessive environmental cues "+str(id))
+		for cue in cues:
+			var fraction:float=float(cue.fraction)
+			if not is_finite(fraction) or fraction<last_fraction or fraction<0.0 or fraction>=1.0:failures.append("V19.8 environment timing "+str(id))
+			last_fraction=fraction
+			if not str(cue.phase).begins_with("env_") or str(cue.anchor) not in ["travel","terrain","surface"]:failures.append("V19.8 environment phase "+str(id))
+			checks+=2
+		checks+=1
+	var env_ids:Array=["eos_008","eos_156","eos_153","eos_477"]
+	var env_phases:Array=["env_dig","env_dive","env_wind","env_vanish"]
+	for i in range(env_ids.size()):
+		var id:String=env_ids[i]
+		var cues:Array=view.combat_environment_audio_plan(id,view.combat_profile(id))
+		if cues.size()!=2 or str(cues[0].phase)!=env_phases[i] or str(cues[1].anchor)!="terrain":failures.append("V19.8 travel identity "+id)
+		checks+=1
+	var env_cell:=Vector2i(3,4)
+	if view.combat_environment_surface_allowed({env_cell:{"damage":0}},env_cell,0,"fire"):failures.append("V19.8 false surface contact")
+	if not view.combat_environment_surface_allowed({env_cell:{"damage":1}},env_cell,1,"fire"):failures.append("V19.8 missing confirmed surface")
+	if not view.combat_environment_surface_allowed({},env_cell,0,"water"):failures.append("V19.8 empty terrain water")
+	if view.combat_environment_surface_allowed({},env_cell,0,"ghost"):failures.append("V19.8 false spectral surface")
+	checks+=4
+	var env_signatures:Dictionary={}
+	for kind in ["ember","splash","crystal","gravel","dig","dive","drip","static","leaves","metal","wind","land","vanish"]:
+		var phase:String="env_"+kind
+		var mix:Vector3=view.combat_audio_mix(60,phase,true)
+		if mix.z!=0.0 or mix.x> -20.0:failures.append("V19.8 environment mix priority")
+		checks+=1
+		for variant in range(3):
+			var audio:AudioStreamWAV=view.combat_environment_sound(phase,variant)
+			var pcm:PackedByteArray=audio.data
+			var peak:int=0
+			for offset in range(0,pcm.size(),2):peak=maxi(peak,absi(pcm.decode_s16(offset)))
+			if pcm.size()<1000 or audio.mix_rate!=22050 or audio.stereo or peak<100 or peak>31130 or pcm.decode_s16(0)!=0 or pcm.decode_s16(pcm.size()-2)!=0:failures.append("V19.8 environmental PCM "+kind)
+			var signature:String=pcm.hex_encode()
+			if env_signatures.has(signature):failures.append("V19.8 duplicate environmental sample "+kind)
+			env_signatures[signature]=true
+			if view.combat_environment_sound(phase,variant)!=audio:failures.append("V19.8 environment cache")
+			checks+=3
 	# Full catalog: actual frame bytes, audio buffers, and pooled world FX.
 	# A duplicate sequence or sparse animation is a review candidate, not proof
 	# of poor visual quality. Preserve exact IDs in the downloadable CI report.
