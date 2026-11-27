@@ -3,7 +3,39 @@ extends RefCounted
 const DIR=[Vector2i.UP,Vector2i.RIGHT,Vector2i.DOWN,Vector2i.LEFT]
 const MINION_ROSTER = [[["bramble_pup","Bramble Pup","quadruped_bound","Briar Pounce",0],["sporeling","Sporeling","mushroom_stem_steps","Spore Puff",1],["thornbeetle","Thornbeetle","six_leg_tripod","Thorn Ram",2],["leafwisp","Leafwisp","leaf_flutter","Leaf Dart",1],["rootgnawer","Rootgnawer","boar_trot","Root Tusk",0],["vinesnap","VineSnap","root_pull","Snap Vine",2],["mossmite","Mossmite","rock_roll","Moss Crash",0],["sylphowl","Sylphowl","owl_flap","Feather Needle",1],["hollow_stag","Hollow Stag","deer_prance","Antler Sweep",2],["grovetitan","Grovetitan","tree_biped_stride","Timber Slam",2],["fungal_monarch","Fungal Monarch","mycelial_tripod","Spore Crown",3]],[["reef_pup","Reef Pup","fish_tail_swim","Reef Bite",0],["jellymancer","Jellymancer","bell_jet_pulse","Sting Pulse",1],["shellguard","Shellguard","turtle_paddle","Shell Bash",2],["bubblewisp","Bubblewisp","bubble_buoyancy","Bubble Shot",1],["eelstrix","Eelstrix","eel_wave_swim","Static Lash",0],["coralcrab","Coralcrab","crab_lateral_steps","Claw Snap",0],["anemoneye","Anemoneye","pedal_disc_creep","Tentacle Snare",2],["marrowray","Marrowray","ray_fin_undulation","Fin Slice",1],["leviathorn","Leviathorn","seahorse_dorsal_pulse","Spiral Thrust",2],["abyss_colossus","Abyss Colossus","octopus_arm_crawl","Abyss Crush",2],["tidal_sovereign","Tidal Sovereign","shark_tail_drive","Tidal Bite",3]],[["starlit_pup","Starlit Pup","six_limbed_comet_skip","Star Kick",0],["lunamoth","Lunamoth","moth_wing_clap","Lunar Dust",1],["crystarok","Crystarok","crystal_knuckle_walk","Prism Smash",2],["nova_wisp","Nova Wisp","orbit_drift","Nova Bolt",1],["orbitserpent","Orbitserpent","ring_coil_advance","Orbit Lash",0],["comet_hare","Comet Hare","hind_leg_leap","Comet Drop",0],["voidspider","Voidspider","eight_leg_wave","Gravity Web",2],["nebulwing","Nebulwing","bat_fold_glide","Void Screech",1],["lunar_prowler","Lunar Prowler","feline_stalk","Moon Claw",2],["astro_golem","Astro Golem","floating_segment_stride","Meteor Fist",2],["celestial_guardian","Celestial Guardian","winged_hover","Celestial Verdict",3]]]
 # Row: stable species ID, display name, anatomy-specific gait, signature move, combat class.
+# Species attack contract: range, telegraph, cooldown, damage modifier, effect, magnitude, VFX identifier.
+const SIGNATURE_SKILLS={"bramble_pup":[2,false,2,0,"pounce",1,"briar_arc"],"sporeling":[2,false,3,-1,"poison",2,"spore_cloud"],"thornbeetle":[2,true,2,1,"pounce",1,"horn_ram"],"leafwisp":[3,false,2,-1,"none",0,"leaf_dart"],"rootgnawer":[1,false,2,1,"mark",1,"tusk_sweep"],"vinesnap":[2,true,2,0,"weaken",1,"vine_snap"],"mossmite":[2,false,3,0,"guard",1,"rolling_moss"],"sylphowl":[3,false,3,0,"none",0,"feather_fan"],"hollow_stag":[1,true,2,2,"mark",1,"antler_arc"],"grovetitan":[1,true,3,2,"guard",2,"timber_shock"],"fungal_monarch":[2,true,3,1,"poison",3,"royal_spores"],"reef_pup":[1,false,1,0,"none",0,"reef_bite"],"jellymancer":[2,false,3,-1,"drain",1,"jelly_pulse"],"shellguard":[1,true,2,0,"guard",3,"shell_impact"],"bubblewisp":[3,false,3,-1,"weaken",1,"bubble_burst"],"eelstrix":[2,false,2,0,"drain",1,"electric_lash"],"coralcrab":[1,false,2,1,"guard",1,"double_pincer"],"anemoneye":[2,true,3,0,"weaken",2,"tentacle_snare"],"marrowray":[3,false,2,0,"mark",1,"fin_slice"],"leviathorn":[2,true,2,1,"pounce",1,"spiral_current"],"abyss_colossus":[2,true,3,2,"weaken",1,"abyss_grasp"],"tidal_sovereign":[2,true,2,3,"mark",1,"tidal_jaws"],"starlit_pup":[1,false,2,1,"none",0,"star_kick"],"lunamoth":[2,false,3,-1,"weaken",2,"lunar_dust"],"crystarok":[1,true,2,1,"guard",2,"prism_shatter"],"nova_wisp":[3,false,3,0,"drain",1,"nova_bolt"],"orbitserpent":[2,false,2,0,"mark",1,"orbit_lash"],"comet_hare":[2,false,2,1,"pounce",1,"comet_drop"],"voidspider":[2,true,3,0,"mark",2,"gravity_web"],"nebulwing":[3,false,3,-1,"drain",2,"sonic_cone"],"lunar_prowler":[1,true,2,2,"none",0,"moon_claw"],"astro_golem":[3,true,3,1,"none",0,"meteor_fist"],"celestial_guardian":[3,true,3,2,"drain",2,"celestial_verdict"]}
 var enemy_actions:Array[Dictionary]=[]
+var poison_turns:int=0
+var weakened_strikes:int=0
+var marked_damage:int=0
+func signature_skill(enemy:Dictionary)->Array:
+	var kind:int=int(enemy.get("kind",0))
+	return SIGNATURE_SKILLS.get(str(enemy.get("species","")),[2 if kind==1 else 1,kind>=2,1,0,"none",0,"basic_strike"])
+func clear_combat_effects()->void:
+	poison_turns=0;weakened_strikes=0;marked_damage=0
+func line_of_attack(from:Vector2i,to:Vector2i,reach:int)->bool:
+	var gap:=distance(from,to)
+	if gap<1 or gap>reach or (from.x!=to.x and from.y!=to.y):return false
+	var direction:=Vector2i(signi(to.x-from.x),signi(to.y-from.y))
+	for i in range(1,gap):
+		var q:=from+direction*i
+		if not cells.has(q) or enemy_at(q)>=0:return false
+	return cells.has(to)
+func apply_signature_effect(i:int,skill:Array)->void:
+	var amount:int=int(skill[5])
+	match str(skill[4]):
+		"poison":poison_turns=maxi(poison_turns,amount)
+		"weaken":weakened_strikes=maxi(weakened_strikes,amount)
+		"mark":marked_damage=maxi(marked_damage,amount)
+		"drain":energy=maxi(0,energy-amount)
+		"guard":enemies[i]["guard"]=amount
+		"pounce":
+			var from:Vector2i=enemies[i].pos
+			if distance(from,player)==2:
+				var q:=from+Vector2i(signi(player.x-from.x),signi(player.y-from.y))
+				if cells.has(q) and enemy_at(q)<0 and q!=player:enemies[i].pos=q
+
 func enemy_profile(kind:int,uid:int)->Array:
 	var pool:Array=[]
 	for row in MINION_ROSTER[clampi(region,0,2)]:
@@ -132,6 +164,7 @@ func build_layout():
 		if i!=exit_index:choices.append(i)
 	relic=center(rooms[choices[rng.randi_range(0,choices.size()-1)]])
 func generate_floor():
+	clear_combat_effects()
 	enemy_actions.clear()
 	rng.seed=seed_value+floor_number*7919
 	cells.clear();rooms.clear();enemies.clear();loot.clear();revealed.clear();traps.clear();explored_rooms.clear()
@@ -227,7 +260,12 @@ func pickup():
 func strike(i:int,power:bool=false):
 	if i<0 or i>=enemies.size():return
 	attack_serial+=1;attack_target=enemies[i].pos;attack_power=power
-	var damage=10 if power else 6
+	var damage:int=10 if power else 6
+	if weakened_strikes>0:
+		damage=maxi(1,damage-1);weakened_strikes-=1
+	var guard:int=int(enemies[i].get("guard",0))
+	if guard>0:
+		damage=maxi(1,damage-guard);enemies[i]["guard"]=0
 	enemies[i].hp=int(enemies[i].hp)-damage
 	message="-%d HP · strike!"%damage
 	emit_event("−%d HP"%damage)
@@ -240,28 +278,46 @@ func strike(i:int,power:bool=false):
 func enemy_turn():
 	enemy_actions.clear()
 	turns+=1
+	if poison_turns>0:
+		poison_turns-=1;hp=maxi(0,hp-1)
+		if hp==0:
+			finished=true;success=false;message="Poison · rescue needed";emit_event(message);return
 	for i in range(enemies.size()):
 		var p:Vector2i=enemies[i].pos
-		var gap=distance(p,player)
-		var kind:int=enemies[i].kind
-		var straight=p.x==player.x or p.y==player.y
-		var ranged=kind==1 and gap==2 and straight and cells.has(p+(player-p)/2) and enemy_at(p+(player-p)/2)<0
-		var heavy=kind>=2
+		var gap:=distance(p,player)
+		var kind:int=int(enemies[i].kind)
+		var skill:=signature_skill(enemies[i])
 		var charged:bool=enemies[i].get("windup",false)
-		if charged and gap!=1:
+		var cooldown:int=int(enemies[i].get("cooldown",0))
+		var ready:bool=cooldown<=0
+		if cooldown>0:enemies[i]["cooldown"]=cooldown-1
+		var in_range:=line_of_attack(p,player,int(skill[0]))
+		if charged and not in_range:
 			enemies[i].windup=false
+			enemy_actions.append({"uid":enemies[i].get("uid",i),"phase":"cancel","from":p,"to":player,"move":enemies[i].get("signature","Strike")})
 			continue
-		if gap==1 and heavy and not charged:
+		if ready and in_range and bool(skill[1]) and not charged:
 			enemies[i].windup=true
-			enemy_actions.append({"uid":enemies[i].get("uid",i),"phase":"windup","from":p,"to":player,"move":enemies[i].get("signature","Heavy attack")})
-			message="Guardian charging!" if kind==3 else "Heavy attack incoming!"
+			enemy_actions.append({"uid":enemies[i].get("uid",i),"phase":"windup","from":p,"to":player,"move":enemies[i].get("signature","Heavy attack"),"fx":skill[6]})
+			message="%s charging %s!"%[enemies[i].get("name","Enemy"),enemies[i].get("signature","Heavy attack")]
 			continue
-		if gap==1 or ranged:
+		if (ready and in_range) or (gap==1 and not ready):
 			enemies[i].windup=false
-			var damage=2+tier+int(floor_number/3)+(2 if heavy else 0)
+			var special:bool=ready and in_range
+			var damage:int=2+tier+int(floor_number/3)+(2 if kind>=2 else 0)
+			if special:damage=maxi(1,damage+int(skill[3]))
+			else:damage=maxi(1,damage-1)
+			if marked_damage>0:damage+=marked_damage;marked_damage=0
 			hp=maxi(0,hp-damage);hits+=1;combo=0
-			enemy_actions.append({"uid":enemies[i].get("uid",i),"phase":"attack","from":p,"to":player,"move":enemies[i].get("signature","Strike")})
-			message="%s · %s! −%d HP"%[enemies[i].get("name","Enemy"),enemies[i].get("signature","Strike"),damage];emit_event(message)
+			var move_name:String=str(enemies[i].get("signature","Strike")) if special else "Quick strike"
+			var effect:String=str(skill[4]) if special else "none"
+			if special:
+				enemies[i]["cooldown"]=maxi(0,int(skill[2])-1)
+				apply_signature_effect(i,skill)
+			enemy_actions.append({"uid":enemies[i].get("uid",i),"phase":"attack","from":p,"to":player,"end":enemies[i].pos,"move":move_name,"fx":skill[6] if special else "basic_strike","effect":effect,"damage":damage})
+			message="%s · %s! −%d HP"%[enemies[i].get("name","Enemy"),move_name,damage]
+			if effect!="none":message+=" · "+effect.capitalize()
+			emit_event(message)
 			if hp==0:
 				finished=true;success=false;message="Rescue needed · expedition lost";return
 		elif gap<=6 and kind!=3:

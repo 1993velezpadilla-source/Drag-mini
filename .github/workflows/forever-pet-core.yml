@@ -69,6 +69,7 @@ jobs:
           cp my-forever-pet/tests/volnox_roster.gd /tmp/pet-core/
           timeout 30 /tmp/godot/Godot_v4.4.1-stable_linux.x86_64 --headless --path /tmp/pet-core --script res://volnox_roster.gd 2>&1 | tee /tmp/volnox-roster.log
           grep -F 'VOLNOX_ROSTER_PASS 33' /tmp/volnox-roster.log
+          grep -F 'VOLNOX_SIGNATURE_COMBAT_PASS 33' /tmp/volnox-roster.log
           ! grep -E 'SCRIPT ERROR|Parse Error|Assertion failed' /tmp/volnox-roster.log
       - name: Simulate full combat expeditions without removing enemies
         run: |

@@ -44,7 +44,7 @@ func step(d,policy:Dictionary)->bool:
 func combat_state(d,policy:Dictionary)->String:
 	# Exclude counters and feedback strings: they do not change future choices.
 	# The policy is deterministic, and enemy turns do not use RNG on a floor.
-	return str([d.floor_number,d.player,d.hp,d.energy,d.potions,d.secured,d.guardian_defeated,d.enemies,d.loot,d.traps,policy.get("detour",Vector2i(-999,-999))])
+	return str([d.floor_number,d.player,d.hp,d.energy,d.potions,d.secured,d.guardian_defeated,d.enemies,d.loot,d.traps,d.poison_turns,d.weakened_strikes,d.marked_damage,policy.get("detour",Vector2i(-999,-999))])
 func run():
 	var victories=0;var defeats=0;var stalls=0;var actions=0;var guardians=0;var cycles=0
 	for region in range(3):
