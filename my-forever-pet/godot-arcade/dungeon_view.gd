@@ -15439,7 +15439,9 @@ func combat_fx_spawn(event:Dictionary,launch_age:float=0.0)->void:
 # Leading projectile reaches its destination on the exact impact fraction.
 # Trailing particles are delayed within the remaining lifetime, never beyond it.
 func combat_travel_progress(t:float,impact:float,trail:float=0.0)->float:
-	return combat_travel_progress_from_peak(t,clampf(impact,.001,.999),trail)
+	var peak:float=clampf(impact,.001,.999)
+	var delay:float=clampf(trail,0.0,.9)*(1.0-peak)
+	return clampf((t-delay)/peak,0.0,1.0)
 
 # A cast's clamped peak is invariant across all of its particles.
 func combat_travel_progress_from_peak(t:float,peak:float,trail:float=0.0)->float:
