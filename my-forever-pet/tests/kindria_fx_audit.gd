@@ -333,6 +333,23 @@ func run()->void:
 	field.delayed_combat_fx.clear()
 	field.attack_time=0.0
 	print("KINDRIA_CROSS_TARGET_BODY_TIMELINE_PASS")
+	# Exhaustion preserves earlier effects and never reserves phantom animations.
+	var crowded_events:Array=[]
+	for i in range(Field.DELAYED_COMBAT_FX_CAP+3):
+		crowded_events.append({"source":"sleep_counter","move_id":"eos_025","from":Vector2i.ZERO,"to":Vector2i(i+1,0)})
+	var crowded_plan:Array[Dictionary]=field.response_fx_plan(crowded_events,.2,.5,2)
+	var reserved:int=0
+	for i in range(crowded_plan.size()):
+		var item:Dictionary=crowded_plan[i]
+		if not item.event.is_empty():
+			reserved+=1
+			if i>=2 or item.event.to!=Vector2i(i+1,0):errors.append("counter queue priority")
+		elif float(item.launch)!=-1.0:errors.append("phantom counter launch")
+		if i>0 and float(item.hit)<float(crowded_plan[i-1].hit):errors.append("counter overflow reaction order")
+	if reserved!=2 or crowded_plan.size()!=crowded_events.size():errors.append("counter saturation accounting")
+	var full_plan:Array[Dictionary]=field.response_fx_plan([first_event],.2,99.0,0)
+	if not full_plan[0].event.is_empty() or absf(float(full_plan[0].hit)-.2)>.001:errors.append("saturated counter phantom delay")
+	print("KINDRIA_COUNTER_QUEUE_SATURATION_PASS")
 	# Exercise more frames than the cache cap, then verify hot hits and exact normalization.
 	for row in reports.slice(0,40):
 		for frame in range(Field.FX_FRAME_COUNT):field.combat_animated_texture(str(row.id),frame)
