@@ -2315,6 +2315,17 @@ func refresh_actors():
 			status_label.font_size=28;status_label.outline_size=6;status_label.pixel_size=.006
 			status_label.position=Vector3(0,2.15 if kind==3 else 1.68,0);root.add_child(status_label)
 		status_label.text=run.enemy_status_text(enemy);status_label.visible=not status_label.text.is_empty()
+	for a in run.allies:
+		if int(a.hp)<=0 or not run.revealed.has(a.pos):continue
+		var key="ally:"+str(a.uid);desired[key]=true
+		var root=actor_for(key,pos(a.pos))
+		root.set_meta("target",pos(a.pos))
+		if root.get_child_count()==0:
+			attach_enemy_pixel(root,str(a.species))
+			shape(root,"ring",Vector3(0,.06,0),Vector3(.72,.08,.72),Color("#76ffdc"))
+			var label:=Label3D.new();label.name="AllyHP";label.billboard=BaseMaterial3D.BILLBOARD_ENABLED;label.font_size=28;label.pixel_size=.006;label.position=Vector3(0,1.65,0);root.add_child(label)
+		var label:=root.get_node("AllyHP") as Label3D
+		label.text="%d/%d"%[a.hp,a.max_hp]
 	for p in run.player_traps:
 		if not run.revealed.has(p) or not run.revealed_player_traps.has(p):continue
 		var key="owntrap:"+str(p);desired[key]=true
