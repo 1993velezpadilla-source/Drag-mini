@@ -2643,9 +2643,69 @@ func cinematic_cast_enhancement(burst:Dictionary,t:float)->void:
 			cinematic_halo(Vector3(target.x,.06,target.z),color,extent*(.84+after*.9),strength*fade*.62,after,true)
 		cinematic_light(target+Vector3.UP*.4,color,strength*fade*(1.35 if wide else 1.0),2.9 if wide else 2.2)
 
+# Contact silhouette is independent of the elemental animation and is only
+# drawn on a confirmed damaging tile. IDs are explicit, not translated names.
+const CONTACT_ICON_KIND={"lib_electric_1":"fang","lib_dragon_3":"fang","lib_dark_1":"fang","eos_063":"fang","eos_198":"fang","eos_452":"fang","eos_461":"fang","eos_522":"fang","eos_529":"fang","eos_020":"fang","alt_vinesnap":"fang","reef_bite":"fang","alt_eelstrix":"fang","alt_orbitserpent":"fang","eos_062":"crunch","eos_261":"crunch","tidal_jaws":"crunch","lib_ghost_1":"claw","lib_dragon_1":"claw","eos_208":"claw","eos_260":"claw","eos_275":"claw","eos_325":"claw","eos_476":"claw","alt_bramble_pup":"claw","alt_sylphowl":"claw","moon_claw":"claw","alt_thornbeetle":"pincer","double_pincer":"pincer","lib_fighting_3":"fist","eos_065":"fist","eos_075":"fist","eos_126":"fist","eos_136":"fist","eos_246":"fist","eos_264":"fist","eos_292":"fist","eos_300":"fist","eos_322":"fist","eos_344":"fist","eos_500":"fist","eos_510":"fist","eos_515":"fist","meteor_fist":"fist","lib_fighting_2":"kick","eos_092":"kick","eos_204":"kick","eos_206":"kick","eos_276":"kick","eos_303":"kick","eos_321":"kick","eos_222":"kick","eos_210":"kick","star_kick":"kick","alt_comet_hare":"kick"}
+
+func contact_icon_image(kind:String,stage:int,light:Color,dark:Color)->Image:
+	var im:=Image.create(48,48,false,Image.FORMAT_RGBA8);im.fill(Color.TRANSPARENT)
+	var ink:=dark.darkened(.55)
+	var bright:=light.lerp(Color.WHITE,.45)
+	var c:=Vector2(24,24)
+	match kind:
+		"fang","crunch":
+			var heavy:bool=kind=="crunch"
+			var gap:float=[9.0,3.0,6.0][clampi(stage,0,2)]
+			var width:float=19.0 if heavy else 15.0
+			var teeth:int=7 if heavy else 5
+			for side in [-1,1]:
+				var sign_value:float=float(side)
+				var last:=c+Vector2(-width,sign_value*(gap+5.0))
+				for i in range(teeth):
+					var x:float=lerpf(-width,width,float(i)/float(teeth-1))
+					var y:float=sign_value*(gap+absf(x/width)*5.0)
+					var p:=c+Vector2(x,y)
+					fx_line(im,last,p,3.4,ink);fx_line(im,last,p,1.8,dark)
+					var length:float=6.0 if i in [0,teeth-1] else 4.0 if heavy else 3.0
+					fx_line(im,p,p-Vector2(0,sign_value*length),2.0,ink)
+					fx_line(im,p,p-Vector2(0,sign_value*length),1.1,bright)
+					last=p
+		"claw":
+			for i in range(3):
+				var p:=c+Vector2(float(i-1)*9,0)
+				var end:=p+Vector2(9,14)
+				fx_line(im,p-Vector2(8,14),end,2.6,ink)
+				fx_line(im,p-Vector2(8,14),end,1.4,light)
+				fx_line(im,p-Vector2(6,11),end-Vector2(1,2),.7,bright)
+		"pincer":
+			for side in [-1,1]:
+				var p:=c+Vector2(float(side)*(11.0+float(stage)*2.0),0)
+				fight_arc(im,p,10.0,PI*.55 if side>0 else -PI*.45,PI*1.1,bright,ink,3.0)
+		"fist":
+			# Existing authored fist has separate thumb and knuckles.
+			fight_fist(im,c,0.0,13.0,bright,ink)
+			for i in range(3):
+				fx_line(im,Vector2(2,13+float(i)*10),Vector2(10,13+float(i)*10),1.1,light)
+		"kick":
+			# Bent shin and horizontal boot silhouette, not a generic slash.
+			var knee:=Vector2(15,17);var ankle:=Vector2(25,30)
+			fx_line(im,Vector2(5,9),knee,4.4,ink)
+			fx_line(im,knee,ankle,4.4,ink)
+			fx_line(im,ankle,Vector2(40,30),5.0,ink)
+			fx_line(im,Vector2(5,9),knee,2.8,light)
+			fx_line(im,knee,ankle,2.8,light)
+			fx_line(im,ankle,Vector2(40,30),3.1,bright)
+			fx_line(im,Vector2(25,34),Vector2(40,34),.9,dark)
+	return im
+
 func combat_pixel_texture(mode:String,light:Color,dark:Color)->ImageTexture:
 	var key:=mode+str(light)+str(dark)
 	if combat_textures.has(key):return combat_textures[key]
+	if mode.begins_with("contact:"):
+		var parts:=mode.split(":")
+		var icon:=ImageTexture.create_from_image(contact_icon_image(parts[1],int(parts[2]),light,dark))
+		combat_textures[key]=icon
+		return icon
 	var im:=Image.create(16,16,false,Image.FORMAT_RGBA8);im.fill(Color.TRANSPARENT)
 	for y in range(16):
 		for x in range(16):
@@ -6113,6 +6173,7 @@ func combat_fx_update(dt:float)->void:
 		if profile.role=="ground":count=mini(18,tiles.size()*3)
 		# Keep elemental contact accents visible when the base spray is large.
 		if crowded:count=mini(count,maxi(1,share*2/3))
+		used=confirmed_contact_icons(burst,t,used)
 		for j in range(count):
 			if used>=fx_cast_particle_limit:break
 			var particle:=combat_particles[used];used+=1
@@ -6910,6 +6971,29 @@ func schedule_response_text(tile:Vector2i,event:Dictionary,delay:float)->void:
 	var row:Dictionary={"damage":amount,"hits":1,"crit":0,"status":caption}
 	if response_text_queue.size()>=RESPONSE_TEXT_CAP:response_text_queue.pop_front()
 	response_text_queue.append({"tile":tile,"delay":maxf(0.0,delay),"row":row})
+
+func confirmed_contact_icons(burst:Dictionary,t:float,used:int)->int:
+	var id:String=str(burst.id)
+	if not CONTACT_ICON_KIND.has(id):return used
+	var peak:float=float(burst.profile.impact)
+	var age:float=(t-peak)/maxf(.01,1.0-peak)
+	if age<0.0 or age>=.52:return used
+	var kind:String=str(CONTACT_ICON_KIND[id])
+	var style:Array=combat_style(id)
+	var stage:int=0 if age<.09 else 1 if age<.30 else 2
+	var results:Dictionary=burst.get("results",{})
+	var shown:int=0
+	for tile in results:
+		var row:Dictionary=results[tile]
+		if int(row.get("damage",0))<=0:continue
+		var q:Vector3=pos(tile)+Vector3(0,.63,0)
+		var extent:float=(1.22 if kind=="crunch" else .86)*(1.0+.12*sin(age*PI))
+		# 48px art uses the same sprite pool as 16px environment stamps;
+		# normalize its world-space extent accordingly.
+		used=environment_particle(used,q,"contact:"+kind+":"+str(stage),Color(style[1]),Color(style[2]),extent/3.0,clampf(1.0-age/.52,0.0,1.0))
+		shown+=1
+		if shown>=4 or used>=fx_cast_particle_limit:break
+	return used
 
 func element_finish_fx(burst:Dictionary,t:float,used:int)->int:
 	var id:String=str(burst.id)
