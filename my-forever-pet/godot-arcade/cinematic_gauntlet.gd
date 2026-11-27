@@ -536,24 +536,17 @@ func run_checks()->void:
 		checks+=1
 	if distortion_families.size()!=6:failures.append("distortion family coverage")
 	checks+=1
-	# Targeted visual remasters selected from actual Godot art inspection.
-	if Dungeon.VISUAL_REMASTER_MOVES.size()!=8:failures.append("visual remaster coverage")
+	# V17: exact catalog membership, not the obsolete eight-move pilot count.
+	var remastered:Dictionary={}
 	for id in Dungeon.VISUAL_REMASTER_MOVES:
-		var peak_pixels:int=0
-		var signatures:Dictionary={}
-		for frame in range(Dungeon.FX_FRAME_COUNT):
-			var remaster:=view.combat_frame_image(id,frame)
-			var occupied:int=0
-			for y in range(remaster.get_height()):
-				for x in range(remaster.get_width()):
-					if remaster.get_pixel(x,y).a>32.0/255.0:occupied+=1
-			peak_pixels=maxi(peak_pixels,occupied)
-			signatures[remaster.get_data().hex_encode().sha256_text()]=true
-			if occupied==0:failures.append("empty remastered frame "+id)
-			checks+=1
-		if peak_pixels<170 or signatures.size()<6:failures.append("insufficient remaster silhouette "+id)
-		print("KINDRIA_REMASTER ",id," peak_pixels=",peak_pixels," distinct_frames=",signatures.size())
+		if remastered.has(id):failures.append("duplicate remaster registration "+str(id))
+		if not catalog.has(id):failures.append("unknown remaster registration "+str(id))
+		remastered[id]=true
 		checks+=1
+	for id in catalog:
+		if not remastered.has(id):failures.append("missing remaster registration "+str(id))
+		checks+=1
+	if remastered.size()!=catalog.size():failures.append("visual remaster coverage")
 	# Directed contact art is independently visible and kick poses are animated.
 	for id in Dungeon.CONTACT_ICON_KIND:
 		var kind:String=view.directed_contact_kind(id,str(view.combat_profile(id).role))
@@ -703,9 +696,24 @@ func run_checks()->void:
 		strip.fill(Color.TRANSPARENT)
 		var frame_areas:Array[int]=[]
 		var edge_frames:Array[int]=[]
+		var visible_pixels:Array[int]=[]
+		var border_pixels:Array[int]=[]
+		var peak_visible:int=0
+		var impact_frame:int=clampi(roundi(float(profile.impact)*float(Dungeon.FX_FRAME_COUNT-1)),0,Dungeon.FX_FRAME_COUNT-1)
 		for frame in range(Dungeon.FX_FRAME_COUNT):
 			var image:Image=view.combat_frame_image(id,frame)
 			var bytes:PackedByteArray=image.get_data()
+			var occupied:int=0
+			var border:int=0
+			# Alpha threshold excludes nearly transparent dissipation from silhouette metrics.
+			for y in range(48):
+				for x in range(48):
+					if bytes[(y*48+x)*4+3]<=32:continue
+					occupied+=1
+					if x==0 or x==47 or y==0 or y==47:border+=1
+			visible_pixels.append(occupied)
+			border_pixels.append(border)
+			peak_visible=maxi(peak_visible,occupied)
 			strip.blit_rect(image,Rect2i(0,0,48,48),Vector2i(frame*48,0))
 			var bounds:=image.get_used_rect()
 			frame_areas.append(bounds.get_area())
@@ -715,7 +723,7 @@ func run_checks()->void:
 			frame_hashes[frame_hash]=true
 			if frame_hash==previous_hash:repeat_count+=1
 			previous_hash=frame_hash
-			if not image.get_used_rect().has_area():blank_frames.append(frame)
+			if occupied==0:blank_frames.append(frame)
 			if image.get_size()!=Vector2i(48,48):failures.append("full catalog frame size "+str(id))
 			frame_total+=1;checks+=1
 		var signature:String=sequence.finish().hex_encode()
@@ -724,13 +732,28 @@ func run_checks()->void:
 		if DirAccess.make_dir_recursive_absolute(folder)!=OK:failures.append("visual element directory "+element)
 		if strip.save_png(folder+"/"+str(id)+".png")!=OK:failures.append("visual strip export "+str(id))
 		if not visual_rows.has(element):visual_rows[element]=[]
-		visual_rows[element].append({"id":id,"name":str(move.get("name",id)),"impact_frame":clampi(int(float(profile.impact)*Dungeon.FX_FRAME_COUNT),0,Dungeon.FX_FRAME_COUNT-1),"frame_areas":frame_areas,"edge_frames":edge_frames})
+		visual_rows[element].append({"id":id,"name":str(move.get("name",id)),"impact_frame":impact_frame,"frame_areas":frame_areas,"edge_frames":edge_frames,"visible_pixels":visible_pixels,"border_pixels":border_pixels})
 		if sequence_owners.has(signature):
 			if not duplicate_groups.has(signature):duplicate_groups[signature]=[sequence_owners[signature]]
 			duplicate_groups[signature].append(id)
 		else:sequence_owners[signature]=id
-		if frame_hashes.size()<3 or blank_frames.size()>3 or repeat_count>5:review_candidates.append(id)
-		if blank_frames.size()==Dungeon.FX_FRAME_COUNT:failures.append("empty full sequence "+str(id))
+		var reasons:Array[String]=[]
+		if frame_hashes.size()<6:reasons.append("low_temporal_variation")
+		if blank_frames.size()>3:reasons.append("many_low_alpha_frames")
+		if repeat_count>5:reasons.append("adjacent_repeats")
+		if peak_visible<170:reasons.append("small_peak_silhouette")
+		var impact_visible:int=visible_pixels[impact_frame]
+		if impact_visible<30:reasons.append("weak_impact_silhouette")
+		var max_border_ratio:float=0.0
+		for frame in range(Dungeon.FX_FRAME_COUNT):
+			if visible_pixels[frame]<30:continue
+			max_border_ratio=maxf(max_border_ratio,float(border_pixels[frame])/float(visible_pixels[frame]))
+		if max_border_ratio>.10:reasons.append("possible_frame_clipping")
+		if not reasons.is_empty():review_candidates.append(id)
+		if peak_visible==0:failures.append("empty full sequence "+str(id))
+		if frame_hashes.size()==1:failures.append("static full sequence "+str(id))
+		# A transparent final frame can be intentional. A weak impact is a review
+		# candidate, not a hard failure for thin beams or subtle status moves.
 		var audio_form:=view.combat_audio_form(id,profile)
 		var audio_peaks:Dictionary={}
 		for phase in ["launch","impact"]:
@@ -763,7 +786,7 @@ func run_checks()->void:
 			if visible>Dungeon.FX_PARTICLE_CAP or view.fx_trail_vertices>Dungeon.FX_TRAIL_VERTEX_CAP or view.fx_halos_used>Dungeon.FX_HALO_CAP or view.fx_lights_used>Dungeon.FX_LIGHT_CAP:failures.append("world pool overflow "+str(id))
 			runtime_samples+=1;checks+=1
 		if not view.combat_bursts.is_empty() or max_visible==0:failures.append("world cast lifetime "+str(id))
-		quality_rows.append({"id":id,"element":profile.element,"role":profile.role,"category":category,"distinct_frames":frame_hashes.size(),"blank_frames":blank_frames,"adjacent_repeats":repeat_count,"sequence_sha256":signature,"audio_form":audio_form,"audio_peaks":audio_peaks,"max_visible_particles":max_visible})
+		quality_rows.append({"id":id,"element":profile.element,"role":profile.role,"category":category,"distinct_frames":frame_hashes.size(),"blank_frames":blank_frames,"adjacent_repeats":repeat_count,"peak_visible_pixels":peak_visible,"impact_frame":impact_frame,"impact_visible_pixels":impact_visible,"max_border_ratio":max_border_ratio,"visible_pixels":visible_pixels,"border_pixels":border_pixels,"review_reasons":reasons,"sequence_sha256":signature,"audio_form":audio_form,"audio_peaks":audio_peaks,"max_visible_particles":max_visible})
 	if frame_total!=589*Dungeon.FX_FRAME_COUNT or audio_total!=1178 or runtime_samples!=2945:failures.append("full catalog sample coverage")
 	# V15.2 promotes the original duplicate report from advisory to a hard gate.
 	if Dungeon.NATIVE_IDENTITY_CASTS.size()!=60:failures.append("native identity coverage")
@@ -776,7 +799,7 @@ func run_checks()->void:
 	var report:=FileAccess.open("/tmp/kindria-quality-report.log",FileAccess.WRITE)
 	if report==null:failures.append("quality report write failed")
 	else:
-		report.store_string(JSON.stringify({"moves":quality_rows,"frame_total":frame_total,"audio_total":audio_total,"runtime_samples":runtime_samples,"duplicate_sequences":duplicate_groups,"review_candidates":review_candidates,"secondary_cache_size":view.combat_textures.size()}, "\t"))
+		report.store_string(JSON.stringify({"moves":quality_rows,"frame_total":frame_total,"audio_total":audio_total,"runtime_samples":runtime_samples,"duplicate_sequences":duplicate_groups,"review_candidates":review_candidates,"remastered_count":remastered.size(),"alpha_threshold":32,"secondary_cache_size":view.combat_textures.size()}, "\t"))
 		report.close()
 	var visual_index:=FileAccess.open(visual_dir+"/index.json",FileAccess.WRITE)
 	if visual_index==null:failures.append("visual index export")
