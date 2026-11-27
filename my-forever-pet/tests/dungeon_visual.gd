@@ -216,6 +216,20 @@ func run():
 				earth_frames[signature]=true
 				assert(middle.save_png("/tmp/dungeon-real-earth-"+id+".png")==OK)
 			print("KINDRIA_EARTH_CHOREOGRAPHY_PASS ",earth_roles.size())
+			var rock_roles:Dictionary={}
+			var rock_frames:Dictionary={}
+			for id in ["eos_028","eos_030","eos_073","eos_093","eos_453","eos_481","eos_512","eos_533","eos_350","eos_105","eos_540","eos_141","eos_480"]:
+				var profile:Dictionary=dungeon.combat_profile(id)
+				assert(not rock_roles.has(profile.role),"unique rock choreography "+id)
+				rock_roles[profile.role]=true
+				var first:Image=dungeon.combat_frame_image(id,2)
+				var middle:Image=dungeon.combat_frame_image(id,6)
+				assert(first.get_data()!=middle.get_data(),"rock animation changes "+id)
+				var signature:String=middle.get_data().hex_encode()
+				assert(not rock_frames.has(signature),"unique rock sprite "+id)
+				rock_frames[signature]=true
+				assert(middle.save_png("/tmp/dungeon-real-rock-"+id+".png")==OK)
+			print("KINDRIA_ROCK_CHOREOGRAPHY_PASS ",rock_roles.size())
 			# Reproduce the freed-instance registry fault before the real expedition.
 			var retired:Node3D=dungeon.actor_for("retired-test",Vector3.ZERO)
 			retired.free()
