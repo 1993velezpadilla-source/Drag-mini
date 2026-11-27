@@ -13854,6 +13854,10 @@ func combat_warm_floor()->void:
 	var started:int=Time.get_ticks_usec()
 	fx_floor_warm_count=0
 	var ids:=combat_floor_warm_ids(run.equipped_moves,run.enemies)
+	# V25.3: prepare immutable cast metadata before accepting input.
+	for id in ids:
+		combat_profile(id)
+		combat_cached_environment_audio_plan(id)
 	combat_frame_pack_init()
 	if fx_frame_pack!=null:
 		for id in ids:
@@ -14941,6 +14945,16 @@ func combat_audio_gesture_sample(gesture:Vector4,t:float,p:float,pitch:float,noi
 
 # V19.8: short, shared environmental samples. These are not damage sounds.
 const ENV_AUDIO_SURFACE={"fire":"ember","water":"splash","ice":"crystal","ground":"gravel","rock":"gravel","poison":"drip","electric":"static","grass":"leaves","dragon":"ember","steel":"metal","flying":"wind"}
+# Canonical profiles are stable; each burst owns its playback cursor, not the cues.
+var combat_environment_audio_cache:Dictionary={}
+func combat_cached_environment_audio_plan(id:String)->Array:
+	if not combat_environment_audio_cache.has(id):
+		var cues:Array=combat_environment_audio_plan(id,combat_profile(id))
+		for cue in cues:cue.make_read_only()
+		cues.make_read_only()
+		combat_environment_audio_cache[id]=cues
+	return combat_environment_audio_cache[id]
+
 func combat_environment_audio_plan(id:String,profile:Dictionary)->Array:
 	var peak:float=clampf(float(profile.impact),.12,.88)
 	var cues:Array=[]
@@ -15563,7 +15577,7 @@ func combat_fx_spawn(event:Dictionary,launch_age:float=0.0)->void:
 	burst["impact_times"]=reaction_times(float(burst.duration),float(profile.impact),burst.impact_waves.size())
 	burst["impact_cursor"]=0
 	prepare_impact_snapshots(burst)
-	burst["environment_audio"]=combat_environment_audio_plan(id,profile)
+	burst["environment_audio"]=combat_cached_environment_audio_plan(id)
 	burst["environment_audio_cursor"]=0
 	if launch_age<.14:play_combat_sound(id,"launch",waypoints[0],false,launch_age)
 # Leading projectile reaches its destination on the exact impact fraction.
@@ -19097,7 +19111,8 @@ func sync():
 	if run.attack_serial!=previous_attack:
 		previous_attack=run.attack_serial
 		var event:Dictionary={"fx":run.player_attack_fx,"from":run.player,"to":run.attack_target,"tiles":run.player_attack_cells,"path":run.player_attack_path}
-		if run.player_cast_result_serial==run.attack_serial:event["results"]=run.player_cast_results.duplicate(true)
+		# The synchronous pose reads the ledger; combat_fx_spawn owns the only deep snapshot.
+		if run.player_cast_result_serial==run.attack_serial:event["results"]=run.player_cast_results
 		begin_player_cast_pose(event)
 		combat_fx_spawn(event)
 	if run.hp<hp_previous and run.enemy_actions.is_empty():hit_time=.24
