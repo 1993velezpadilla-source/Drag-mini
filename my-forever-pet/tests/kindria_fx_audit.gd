@@ -362,6 +362,23 @@ func run()->void:
 	field.fx_reactions.clear()
 	tiny_actor.free()
 	print("KINDRIA_COUNTER_SUBFRAME_CLOCK_PASS")
+	# Simulation serial order wins even when actors are traversed backwards.
+	var early_counter:Dictionary=first_event.duplicate()
+	early_counter["cast_serial"]=70
+	var middle_counter:Dictionary=other_event.duplicate()
+	middle_counter["cast_serial"]=71
+	var late_counter:Dictionary=first_event.duplicate()
+	late_counter["cast_serial"]=72
+	var counter_responses:Dictionary={9:{"events":[middle_counter]},2:{"events":[early_counter,{"source":"poison"},late_counter]}}
+	var slots:Dictionary=field.global_counter_slots(counter_responses,-1,.3,3)
+	var reversed_slots:Dictionary=field.global_counter_slots({2:counter_responses[2],9:counter_responses[9]},-1,.3,3)
+	if slots!=reversed_slots or not (float(slots[70])<float(slots[71]) and float(slots[71])<float(slots[72])):errors.append("global counter serial order")
+	var early_plan:Array[Dictionary]=field.response_fx_plan(counter_responses[2].events,0.0,99.0,3,slots)
+	var middle_plan:Array[Dictionary]=field.response_fx_plan(counter_responses[9].events,0.0,99.0,3,slots)
+	if absf(float(early_plan[0].launch)-float(slots[70]))>.001 or absf(float(early_plan[2].launch)-float(slots[72]))>.001 or absf(float(middle_plan[0].launch)-float(slots[71]))>.001:errors.append("global counter reservation consumed")
+	var scarce_slots:Dictionary=field.global_counter_slots(counter_responses,72,.3,1)
+	if scarce_slots.has(72) or float(scarce_slots[70])<0.0 or float(scarce_slots[71])!=-1.0:errors.append("global counter capacity and immediate exclusion")
+	print("KINDRIA_GLOBAL_COUNTER_ORDER_PASS")
 	# Exercise more frames than the cache cap, then verify hot hits and exact normalization.
 	for row in reports.slice(0,40):
 		for frame in range(Field.FX_FRAME_COUNT):field.combat_animated_texture(str(row.id),frame)
