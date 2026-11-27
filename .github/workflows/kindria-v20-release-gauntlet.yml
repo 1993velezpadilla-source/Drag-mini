@@ -50,21 +50,7 @@ jobs:
         run: |
           set -euo pipefail
           godot --headless --path . --script res://bake_combat_audio.gd 2>&1 | tee /tmp/kindria-audio-pack.log
-          grep -E 'KINDRIA_AUDIO_PACK entries=[0-9]+ bytes=[0-9]+ elapsed_ms=[0-9]+ failures=0
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: kindria-v20-release-evidence
-          if-no-files-found: warn
-          retention-days: 14
-          path: |
-            /tmp/kindria-import.log
-            /tmp/kindria-gauntlet.log
-            /tmp/kindria-quality-report.log
-            /tmp/kindria-audio-quality.json
-            /tmp/kindria-audio-pack.log
-            /tmp/kindria-visual/
- /tmp/kindria-audio-pack.log
+          grep -E 'KINDRIA_AUDIO_PACK entries=[0-9]+ bytes=[0-9]+ elapsed_ms=[0-9]+ failures=0$' /tmp/kindria-audio-pack.log
           if grep -E 'SCRIPT ERROR|Parse Error|Compile Error' /tmp/kindria-audio-pack.log; then exit 1; fi
       - name: Preserve diagnostics even on failure
         if: always()
@@ -78,4 +64,5 @@ jobs:
             /tmp/kindria-gauntlet.log
             /tmp/kindria-quality-report.log
             /tmp/kindria-audio-quality.json
+            /tmp/kindria-audio-pack.log
             /tmp/kindria-visual/
