@@ -2630,6 +2630,50 @@ func resolve_element_impact(burst:Dictionary)->Dictionary:
 		return {"kind":"confirmed","target":target,"tile":tile,"damage":int(burst.damage)}
 	return {"kind":"terrain" if row.is_empty() else "miss","target":target,"tile":tile,"damage":0}
 
+# Explicit cinematic accents are presentation-only; no rule power thresholds
+# or timing changes. Include authored two-turn actions and guardian signatures.
+const ULTIMATE_ACCENTS=["eos_455","eos_075","eos_524","eos_100","eos_149","eos_477","eos_533","eos_064","eos_238","eos_110","eos_468","eos_440","eos_113","eos_511","eos_518","eos_001","eos_278","eos_470","eos_498","eos_157","eos_239","eos_242","eos_272","eos_453","eos_537","eos_151","eos_041","eos_270","eos_435","eos_494","eos_538","eos_060","eos_348","eos_008","eos_153","eos_205","royal_spores","tidal_jaws","celestial_verdict","abyss_grasp","timber_shock"]
+
+func ultimate_envelope(progress:float)->Vector2:
+	var p:float=clampf(progress,0.0,1.0)
+	return Vector2(sin(p*PI),pow(1.0-p,2.0))
+
+func ultimate_accent_fx(burst:Dictionary,t:float,used:int)->int:
+	var id:String=str(burst.id)
+	if not id in ULTIMATE_ACCENTS:return used
+	var profile:Dictionary=burst.profile
+	var points:Array=burst.points
+	if points.is_empty():return used
+	var peak:float=clampf(float(profile.impact),.01,.99)
+	var style:Array=combat_style(id)
+	var light:=Color(style[1]);var dark:=Color(style[2])
+	var element:String=str(profile.element)
+	var material:String=str(ELEMENT_FINISH_MODE.get(element,"impact_star"))
+	if t<peak:
+		var p:float=t/peak
+		var envelope:=ultimate_envelope(p)
+		var source:Vector3=points[0]
+		# Inward spiral converges at the caster, not on an unhit enemy.
+		for i in range(3):
+			var a:float=float(i)*TAU/3.0+p*TAU
+			var radius:float=.70*(1.0-p)+.12
+			var q:=source+Vector3(cos(a)*radius,.08+p*.34,sin(a)*radius)
+			used=environment_particle(used,q,material,light,dark,.30,envelope.x*.9)
+		return used
+	var resolved:=resolve_element_impact(burst)
+	if resolved.kind!="confirmed" or int(resolved.damage)<=0:return used
+	var age:float=clampf((t-peak)/(1.0-peak),0.0,1.0)
+	var sample:=ultimate_envelope(age)
+	var target:Vector3=resolved.target
+	# Different ground materials; no extra fullscreen flash or camera seizure.
+	var ground_mode:String="earth_hole" if element=="ground" else "venom_splash" if element=="poison" else "shock_ring"
+	used=environment_particle(used,Vector3(target.x,.055,target.z),ground_mode,light,dark,.72+age*1.45,sample.y*.85,true)
+	for i in range(3):
+		var a:float=float(i)*TAU/3.0+age*1.5
+		var q:=target+Vector3(cos(a)*age*.72,sample.x*.48,sin(a)*age*.72)
+		used=environment_particle(used,q,material,light,dark,.30+sample.y*.18,sample.y)
+	return used
+
 func cinematic_cast_enhancement(burst:Dictionary,t:float)->void:
 	var points:Array=burst.points
 	if points.is_empty():return
@@ -2648,6 +2692,8 @@ func cinematic_cast_enhancement(burst:Dictionary,t:float)->void:
 	var wide:bool=profile.pattern in ["room","floor","radius","cross","fan"]
 	var strength:float=.7 if luminous else .40
 	if status:strength*=.62
+	var ultimate:bool=str(burst.id) in ULTIMATE_ACCENTS
+	if ultimate:strength=minf(.95,strength*1.3)
 	if t<peak:
 		var progress:float=t/peak
 		var at:=combat_path_sample(points,progress)
@@ -2659,7 +2705,7 @@ func cinematic_cast_enhancement(burst:Dictionary,t:float)->void:
 		target=resolved.target
 		var after:float=clampf((t-peak)/(1.0-peak),0.0,1.0)
 		var fade:float=pow(1.0-after,2.0)
-		var extent:float=2.0 if wide else 1.25
+		var extent:float=(2.0 if wide else 1.25)*(1.18 if ultimate else 1.0)
 		cinematic_halo(target,color,extent*(.82+after*.5),strength*fade*.8,after,false)
 		if not status and (fx_performance_tier<2 or after<.55):
 			cinematic_halo(Vector3(target.x,.06,target.z),color,extent*(.84+after*.9),strength*fade*.62,after,true)
@@ -6243,6 +6289,7 @@ func combat_fx_update(dt:float)->void:
 		used=confirmed_contact_icons(burst,t,used)
 		# Reserve the readable projectile head within the same shared cast quota.
 		used=projectile_identity_fx(burst,t,used)
+		used=ultimate_accent_fx(burst,t,used)
 		for j in range(count):
 			if used>=fx_cast_particle_limit:break
 			var particle:=combat_particles[used];used+=1
@@ -8002,6 +8049,18 @@ func charge_environment_fx(used:int)->int:
 	var origin:Vector3=pos(run.player)+Vector3(0,.04,0)
 	var pulse:float=.8+.12*sin(elapsed*7.0)
 	match run.charge_phase:
+		"gather","vanish":
+			var style:Array=combat_style(run.charged_move_id)
+			var profile:=combat_profile(run.charged_move_id)
+			var light:=Color(style[1]);var dark:=Color(style[2])
+			var material:String=str(ELEMENT_FINISH_MODE.get(str(profile.element),"impact_star"))
+			used=environment_particle(used,origin,"shock_ring",light,dark,pulse,.62,true)
+			for j in range(4):
+				var f:float=fposmod(elapsed*.85+float(j)/4.0,1.0)
+				var angle:float=float(j)*TAU/4.0+elapsed*2.4
+				var radius:float=.62*(1.0-f)+.10
+				var q:=origin+Vector3(cos(angle)*radius,.15+f*.65,sin(angle)*radius)
+				used=environment_particle(used,q,material,light,dark,.28,sin(f*PI)*.9)
 		"underground":
 			used=environment_particle(used,origin,"earth_hole",Color("#c7a777"),Color("#795638"),pulse, .85,true)
 			for j in range(4):
