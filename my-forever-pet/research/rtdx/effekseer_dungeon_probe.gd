@@ -112,6 +112,36 @@ func run()->void:
 	field.configure_native_fx({})
 	field.combat_bursts.clear()
 	print("KINDRIA_NATIVE_MIXED_OUTCOMES_PASS")
+	# V8: one shared area layer, deterministic nearest four secondary hits,
+	# and no impact/area emitter when every target misses.
+	var area_binding:Dictionary={"effect":hit_effect,"scale":.4}
+	assert(field.configure_native_fx({mixed_id:{"area":area_binding,"impact":area_binding,"projectile_impact":area_binding}}))
+	var area_tracks:Array=[
+		{"stage":"area","anchor":"tiles","start":.5,"end":.9,"enabled":true},
+		{"stage":"impact","anchor":"target","start":.5,"end":1.0,"enabled":true},
+		{"stage":"projectile_impact","anchor":"target","start":.5,"end":.9,"enabled":true}]
+	var crowded:Dictionary={target:{"misses":1}}
+	for offset in [Vector2i(5,0),Vector2i(4,0),Vector2i(3,0),Vector2i(2,0),Vector2i(1,0),Vector2i(0,1)]:
+		crowded[target+offset]={"damage":1}
+	var synthetic:Dictionary={"id":mixed_id,"points":points,"duration":1.0,"presentation_tracks":area_tracks,"results":crowded}
+	field.schedule_native_cast(synthetic,false,target)
+	var area_count:int=0
+	var impact_count:int=0
+	for item in field.native_fx_backend.pending:
+		if item.track.stage=="area":
+			area_count+=1
+			assert(Vector3(item.tiles[0]).distance_to(field.pos(target+Vector2i.DOWN)+Vector3.UP*.12)<.001)
+		elif item.track.stage=="impact":
+			impact_count+=1
+			assert(Vector3(item.points[-1]).distance_to(field.pos(target+Vector2i(5,0)))>1.0)
+		else:assert(false,"primary miss must not emit projectile impact")
+	assert(area_count==1 and impact_count==4,"shared area and capped secondary impacts")
+	field.native_fx_backend.reset()
+	synthetic.results={target:{"misses":1},other:{"misses":1}}
+	field.schedule_native_cast(synthetic,false,target)
+	assert(field.native_fx_backend.pending.is_empty(),"all miss suppresses confirmed hit layers")
+	field.configure_native_fx({})
+	print("KINDRIA_NATIVE_SHARED_AREA_PASS")
 	# Independent clocks, uneven segment distances, capacity and reuse.
 	var effect:Resource=load("res://effects/sample-material3/ef_fire01_projectile.efkefc")
 	var track:Dictionary={"enabled":true,"anchor":"path"}
