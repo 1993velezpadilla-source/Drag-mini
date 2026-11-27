@@ -244,6 +244,20 @@ func run():
 				fight_frames[signature]=true
 				assert(middle.save_png("/tmp/dungeon-real-fight-"+id+".png")==OK)
 			print("KINDRIA_FIGHT_CHOREOGRAPHY_PASS ",fight_roles.size())
+			var air_roles:Dictionary={}
+			var air_frames:Dictionary={}
+			for id in ["eos_036","eos_057","eos_100","eos_153","eos_174","eos_178","eos_179","eos_205","eos_211","eos_353","eos_442","eos_446","eos_490","eos_518","eos_444","eos_267","eos_509","eos_456","eos_040"]:
+				var profile:Dictionary=dungeon.combat_profile(id)
+				assert(not air_roles.has(profile.role),"unique air choreography "+id)
+				air_roles[profile.role]=true
+				var first:Image=dungeon.combat_frame_image(id,2)
+				var middle:Image=dungeon.combat_frame_image(id,6)
+				assert(first.get_data()!=middle.get_data(),"air animation changes "+id)
+				var signature:String=middle.get_data().hex_encode()
+				assert(not air_frames.has(signature),"unique air sprite "+id)
+				air_frames[signature]=true
+				assert(middle.save_png("/tmp/dungeon-real-air-"+id+".png")==OK)
+			print("KINDRIA_AIR_CHOREOGRAPHY_PASS ",air_roles.size())
 			# Reproduce the freed-instance registry fault before the real expedition.
 			var retired:Node3D=dungeon.actor_for("retired-test",Vector3.ZERO)
 			retired.free()
