@@ -5484,7 +5484,7 @@ func native_identity_frame(id:String,frame:int,base:Image)->Image:
 	return im
 
 # V16.7: individually remastered after reviewing actual Godot PNG strips.
-const VISUAL_REMASTER_MOVES=["eos_504","eos_308","eos_135","eos_142","eos_047","eos_250","eos_299","eos_329","eos_262","eos_279","eos_101","eos_199","eos_251","eos_486","eos_462","eos_018","eos_507","eos_175","eos_254","eos_097","eos_163","eos_320","eos_033","eos_166","eos_228","eos_004","eos_252","eos_330","eos_465","eos_138","eos_021","eos_501","eos_053","eos_157","eos_064","eos_188","eos_240","eos_255","eos_342","eos_539","eos_041","eos_278","eos_538","eos_239","eos_193","eos_272","eos_519","eos_494","eos_292","eos_065","eos_276","eos_208","eos_522","eos_452","eos_433","eos_087","eos_063","eos_062","eos_476","eos_127","eos_451","eos_436","eos_491","eos_046","eos_109","eos_234","eos_107","eos_463","eos_133","eos_317","eos_111","eos_331","eos_345","eos_270","eos_042","eos_344","eos_461","eos_180","eos_535","eos_150","eos_118","eos_484","eos_008","eos_131","eos_030","eos_481","eos_028","eos_073","lib_ground_1","eos_057","eos_036","eos_442","eos_153","eos_205","eos_100","eos_518","eos_178","eos_200","eos_495","eos_280","eos_197","eos_332","eos_147","eos_485","eos_459","eos_151","eos_537","eos_443","eos_336","eos_182","eos_253","eos_441","eos_076","lib_grass_1","eos_001","eos_325","eos_103","eos_536","eos_510","eos_431","eos_475","eos_523","eos_080","eos_082","eos_114","eos_323","eos_470","eos_502","eos_529","eos_530","eos_460","eos_520","eos_449","eos_288","eos_164","eos_306","eos_023","eos_086","eos_346","lib_fairy_1","lib_fairy_2","lib_fairy_3","eos_341","eos_498","eos_343","eos_091","eos_162","eos_435","lib_dragon_1","lib_dragon_2","lib_dragon_3","eos_092","eos_204","eos_206","eos_303","eos_222","eos_210","lib_fighting_2","eos_136","eos_075","eos_300","eos_246","eos_430","eos_440","eos_500","eos_508","eos_454","eos_479","eos_243","eos_068","eos_090","lib_fighting_1","lib_fighting_3","eos_072","eos_077","eos_116","eos_531","eos_265","eos_305","eos_051","eos_170","eos_340","eos_007","eos_029","lib_electric_1","lib_electric_2","lib_electric_3","eos_129","eos_144","eos_189","eos_354","eos_489","eos_521","eos_192","eos_128","eos_493","lib_fire_1","lib_fire_2","lib_fire_3","eos_052","eos_149","eos_230","eos_291","eos_517","eos_524","eos_223"]
+const VISUAL_REMASTER_MOVES=["eos_504","eos_308","eos_135","eos_142","eos_047","eos_250","eos_299","eos_329","eos_262","eos_279","eos_101","eos_199","eos_251","eos_486","eos_462","eos_018","eos_507","eos_175","eos_254","eos_097","eos_163","eos_320","eos_033","eos_166","eos_228","eos_004","eos_252","eos_330","eos_465","eos_138","eos_021","eos_501","eos_053","eos_157","eos_064","eos_188","eos_240","eos_255","eos_342","eos_539","eos_041","eos_278","eos_538","eos_239","eos_193","eos_272","eos_519","eos_494","eos_292","eos_065","eos_276","eos_208","eos_522","eos_452","eos_433","eos_087","eos_063","eos_062","eos_476","eos_127","eos_451","eos_436","eos_491","eos_046","eos_109","eos_234","eos_107","eos_463","eos_133","eos_317","eos_111","eos_331","eos_345","eos_270","eos_042","eos_344","eos_461","eos_180","eos_535","eos_150","eos_118","eos_484","eos_008","eos_131","eos_030","eos_481","eos_028","eos_073","lib_ground_1","eos_057","eos_036","eos_442","eos_153","eos_205","eos_100","eos_518","eos_178","eos_200","eos_495","eos_280","eos_197","eos_332","eos_147","eos_485","eos_459","eos_151","eos_537","eos_443","eos_336","eos_182","eos_253","eos_441","eos_076","lib_grass_1","eos_001","eos_325","eos_103","eos_536","eos_510","eos_431","eos_475","eos_523","eos_080","eos_082","eos_114","eos_323","eos_470","eos_502","eos_529","eos_530","eos_460","eos_520","eos_449","eos_288","eos_164","eos_306","eos_023","eos_086","eos_346","lib_fairy_1","lib_fairy_2","lib_fairy_3","eos_341","eos_498","eos_343","eos_091","eos_162","eos_435","lib_dragon_1","lib_dragon_2","lib_dragon_3","eos_092","eos_204","eos_206","eos_303","eos_222","eos_210","lib_fighting_2","eos_136","eos_075","eos_300","eos_246","eos_430","eos_440","eos_500","eos_508","eos_454","eos_479","eos_243","eos_068","eos_090","lib_fighting_1","lib_fighting_3","eos_072","eos_077","eos_116","eos_531","eos_265","eos_305","eos_051","eos_170","eos_340","eos_007","eos_029","lib_electric_1","lib_electric_2","lib_electric_3","eos_129","eos_144","eos_189","eos_354","eos_489","eos_521","eos_192","eos_128","eos_493","lib_fire_1","lib_fire_2","lib_fire_3","eos_052","eos_149","eos_230","eos_291","eos_517","eos_524","eos_223","lib_water_1","lib_water_2","lib_water_3","eos_016","eos_032","eos_044","eos_069","eos_113","eos_156","eos_158","eos_159","eos_219","eos_310","eos_432","eos_469","eos_070","eos_012","eos_307","eos_434"]
 func visual_remaster_frame(id:String,frame:int)->Image:
 	var im:=Image.create(48,48,false,Image.FORMAT_RGBA8)
 	im.fill(Color.TRANSPARENT)
@@ -8498,6 +8498,227 @@ func visual_remaster_frame(id:String,frame:int)->Image:
 			for j in range(5):
 				var a:float=float(j)*TAU/5.0-t*2
 				fairy_star(im,c+Vector2(cos(a),sin(a))*(radius+5),1.3,Color("#fff2b8",fade))
+		"lib_water_1":
+			# Foam Shot: compact frothy projectile, then expanding foam.
+			var q:=Vector2(8+27*drive,24)
+			for j in range(9):
+				var a:float=float(j)*TAU/9.0
+				var p:=q+Vector2(cos(a),sin(a))*(3+8*(1.0-fade))
+				fx_disc(im,p,2.5+float(j%3)*.6,Color("#278fb8",fade))
+				fx_disc(im,p-Vector2(0,1),1.8+float(j%3)*.5,Color("#e8ffff",fade))
+			fx_line(im,q-Vector2(10*fade,0),q,2.0,Color("#7dd9ed",fade))
+		"lib_water_2":
+			# Pearl Torrent: connected stream of luminous pearl-like globes.
+			for j in range(7):
+				var f:float=float(j)/6.0
+				var q:=Vector2(5+33*f*drive,24+sin(f*TAU-t*TAU)*3)
+				var rad:float=2.1+2.8*f
+				fx_disc(im,q,rad+1,Color("#2585bd",fade))
+				fx_disc(im,q,rad,Color("#a3eefa",fade))
+				fx_disc(im,q-Vector2(1,1),rad*.48,Color("#fff9ed",fade))
+				if j>0:fx_line(im,q-Vector2(4*drive,0),q,1.1,Color("#b8f5ff",fade))
+		"lib_water_3":
+			# Surge Wall: upright curling sheet advancing toward the target.
+			var x:float=7+27*drive
+			for j in range(17):
+				var f:float=float(j)/16.0
+				var q:=Vector2(x+sin(f*PI)*5,40-30*f)
+				fx_line(im,q-Vector2(5+3*f,0),q,3.2,Color("#1c6fa9",fade))
+				fx_line(im,q-Vector2(2,0),q,1.9,Color("#65d8f4",fade))
+				if j%3==0:fx_disc(im,q+Vector2(2,-2),2.1,Color("#e2ffff",fade))
+			fx_disc(im,Vector2(x,39),9+6*pulse,Color("#a8edff",fade*.7),7+6*pulse)
+		"eos_016":
+			# Bubble: loose cluster of buoyant translucent bubbles.
+			for j in range(6):
+				var f:float=float(j)/5.0
+				var q:=Vector2(8+28*drive-11*f,24+sin(float(j)*2.4+t*TAU)*8-4*t)
+				var rad:float=3.2+float(j%3)
+				fx_disc(im,q,rad,Color("#397fae",fade*.8))
+				fx_disc(im,q,rad-.6,Color("#a1e8ff",fade),rad-1.8)
+				fx_disc(im,q-Vector2(1.4,1.6),1.1,Color("#ffffff",fade))
+				if t>=peak:fx_disc(im,q+Vector2(4,3),1.0,Color("#d5ffff",fade))
+		"eos_032":
+			# Whirlpool: inward spiraling water with an open dark eye.
+			var c:=Vector2(24,29)
+			for arm in range(3):
+				var prev:=c
+				for j in range(1,29):
+					var f:float=float(j)/28.0
+					var a:float=f*TAU*1.4+t*TAU*1.5+float(arm)*TAU/3.0
+					var rad:float=3+f*(12+5*drive)
+					var q:=c+Vector2(cos(a)*rad,sin(a)*rad*.55)
+					if j>1:
+						fx_line(im,prev,q,2.8,Color("#175f99",fade))
+						fx_line(im,prev,q,1.2,Color("#8ce7fa",fade))
+					if j%7==0:fx_disc(im,q,1.4,Color("#f0ffff",fade))
+					prev=q
+		"eos_044":
+			# Octazooka: opaque indigo ink glob, then irregular splatter.
+			var q:=Vector2(9+26*drive,24)
+			fx_line(im,q-Vector2(13*fade,0),q,4.1,Color("#34354e",fade))
+			fx_disc(im,q,6+2*pulse,Color("#24243b",fade))
+			fx_disc(im,q-Vector2(1,2),3.4,Color("#8788ac",fade))
+			if t>=peak:
+				for j in range(10):
+					var a:float=float(j)*TAU/10.0
+					var d:=Vector2(cos(a),sin(a))
+					var p:=q+d*(5+10*(1.0-fade))
+					fx_line(im,q+d*3,p,1.4+float(j%3)*.6,Color("#3f3f61",fade))
+					fx_disc(im,p,2.1,Color("#656b8a",fade))
+		"eos_069":
+			# Clamp: opposed shell jaws snap shut around a wet central impact.
+			var c:=Vector2(24,24)
+			var opening:float=11-8*drive
+			for side in [-1.0,1.0]:
+				var q:=c+Vector2(0,side*opening)
+				fight_arc(im,q,10.0,0.0 if side<0 else PI,PI,Color("#d0ffff",fade),Color("#2a82ab",fade),3.1)
+				for j in range(5):
+					var x:float=-7+float(j)*3.5
+					fx_line(im,q+Vector2(x,0),q+Vector2(x,side*-3),1.4,Color("#a1dbe8",fade))
+			if t>=peak:
+				for j in range(6):
+					var a:float=float(j)*TAU/6.0
+					fx_disc(im,c+Vector2(cos(a),sin(a))*(5+10*(1.0-fade)),1.5,Color("#b9f9ff",fade))
+		"eos_113":
+			# Water Spout: tall expanding fountain and ballistic spray.
+			var c:=Vector2(24,39)
+			for j in range(12):
+				var f:float=float(j)/11.0
+				var q:=c+Vector2(sin(f*TAU-t*TAU)*3,-29*f*drive)
+				fx_disc(im,q,4+4*f,Color("#237eb7",fade))
+				fx_disc(im,q-Vector2(1,0),2.2+3*f,Color("#7eddf7",fade))
+			for j in range(10):
+				var a:float=-PI+float(j)*PI/9.0
+				var p:=c+Vector2(cos(a)*17*drive,-25*drive+sin(a)*5+9*(1.0-fade))
+				fx_disc(im,p,1.4+float(j%2),Color("#e2ffff",fade))
+		"eos_156":
+			# Dive: collapsing surface rings, descending bubbles, resurfacing splash.
+			var c:=Vector2(24,30)
+			var r:float=6+13*drive
+			for j in range(3):
+				var rr:float=maxf(2.0,r-float(j)*5)
+				fx_disc(im,c,rr,Color("#3188bd",fade*.8),maxf(0.0,rr-1.8))
+			for j in range(7):
+				var f:float=float(j)/6.0
+				var p:=c+Vector2(sin(float(j)*2.4)*9,(-13*f if t>=peak else 8*f)*drive)
+				fx_disc(im,p,2+float(j%2),Color("#b5f5ff",fade),1.0)
+			if t>=peak:
+				for j in range(5):
+					fx_line(im,c,c+Vector2(-12+float(j)*6,-14*fade),1.3,Color("#d8ffff",fade))
+		"eos_158":
+			# Waterfall: vertical cascade with turbulent whitewater at its base.
+			var c:=Vector2(24,37)
+			for j in range(7):
+				var x:float=14+float(j)*3.2
+				var q:=Vector2(x,5+12*(1.0-drive))
+				fx_line(im,q,Vector2(x+sin(t*TAU+float(j))*2,37),3.1,Color("#267daf",fade))
+				fx_line(im,q+Vector2(1,0),Vector2(x+1,34),1.3,Color("#9bedff",fade))
+			for j in range(9):
+				var a:float=float(j)*TAU/9.0
+				var p:=c+Vector2(cos(a)*15,sin(a)*5)*(0.4+.6*drive)
+				fx_disc(im,p,2.2+float(j%2),Color("#ebffff",fade))
+		"eos_159":
+			# Muddy Water: sediment-heavy brown breaker with turbid foam.
+			for j in range(18):
+				var f:float=float(j)/17.0
+				var x:float=5+36*f*drive
+				var y:float=28-7*sin(f*PI)+sin(f*TAU-t*TAU)*3
+				fx_line(im,Vector2(x,35),Vector2(x,y),3.8,Color("#75523b",fade))
+				fx_disc(im,Vector2(x,y),3.4,Color("#ba9565",fade))
+				if j%3==0:fx_disc(im,Vector2(x,y-2),1.5,Color("#e9d7a8",fade))
+			for j in range(7):
+				fx_disc(im,Vector2(8+float(j)*5,33+sin(float(j)*2.4+t*TAU)*4),1.2,Color("#d0b88b",fade))
+		"eos_219":
+			# Surf: rolling wave with a curling crest and foam lip.
+			var x:float=8+23*drive
+			for j in range(14):
+				var f:float=float(j)/13.0
+				var q:=Vector2(x-12+f*23,34-15*sin(f*PI))
+				fx_line(im,Vector2(q.x,38),q,3.5,Color("#246ba9",fade))
+				fx_disc(im,q,3.1,Color("#58c9ea",fade))
+				if j%2==0:fx_disc(im,q-Vector2(0,2),2.0,Color("#d6ffff",fade))
+			fight_arc(im,Vector2(x+5,26),8.0,PI,PI*1.35,Color("#e9ffff",fade),Color("#2c91bb",fade),2.5)
+			for j in range(5):fx_disc(im,Vector2(x+float(j)*2,15+float(j%2)*3),1.4,Color("#c5f9ff",fade))
+		"eos_310":
+			# Water Pulse: concentric pressure rings traveling forward.
+			var q:=Vector2(8+28*drive,24)
+			for j in range(3):
+				var rad:float=3+float(j)*3.2+3*pulse
+				fx_disc(im,q-Vector2(float(j)*3,0),rad,Color("#2478b5",fade*.9),rad-1.7)
+				fx_disc(im,q-Vector2(float(j)*3,0),rad-.5,Color("#a9f2ff",fade),rad-1.2)
+			fx_disc(im,q,2.4,Color("#e2ffff",fade))
+			if t>=peak:fx_disc(im,q,10+9*(1.0-fade),Color("#6ed6ef",fade),8.5+9*(1.0-fade))
+		"eos_432":
+			# Aqua Jet: streamlined water mantle around the forward rush.
+			var q:=Vector2(10+25*drive,24)
+			for j in range(8):
+				var f:float=float(j)/7.0
+				var p:=q-Vector2(f*23*fade,0)
+				fx_disc(im,p,5.5-3.8*f,Color("#186da5",fade))
+				fx_disc(im,p,4.1-2.6*f,Color("#67dafa",fade))
+			for j in range(4):
+				var side:float=-1.0 if j%2==0 else 1.0
+				fx_line(im,q-Vector2(2,side*2),q-Vector2(15+float(j)*2,side*(5+float(j))),1.2,Color("#deffff",fade))
+			fx_disc(im,q+Vector2(2,-1),2.3,Color("#f3ffff",fade))
+		"eos_469":
+			# Brine: dense salty water glob with crystalline white flecks.
+			var q:=Vector2(9+25*drive,24)
+			fx_disc(im,q,6+2*pulse,Color("#347d99",fade))
+			fx_disc(im,q,4.8+2*pulse,Color("#98cfd8",fade))
+			for j in range(8):
+				var a:float=float(j)*TAU/8.0+t*2
+				var p:=q+Vector2(cos(a),sin(a))*(3+6*(1.0-fade))
+				fx_line(im,p-Vector2(1.4,0),p+Vector2(1.4,0),.8,Color("#fcfff1",fade))
+				fx_line(im,p-Vector2(0,1.4),p+Vector2(0,1.4),.8,Color("#fcfff1",fade))
+			if t>=peak:fx_disc(im,q,9+7*(1.0-fade),Color("#c6e6e1",fade),7.5+7*(1.0-fade))
+		"eos_070":
+			# Shell Retreat: protective segmented shell closes over the caster.
+			var c:=Vector2(24,27)
+			var rad:float=7+8*drive
+			fight_arc(im,c,rad,PI,PI,Color("#bde8ef",fade),Color("#347695",fade),4.0)
+			fx_line(im,c-Vector2(rad,0),c+Vector2(rad,0),2.5,Color("#71b2c4",fade))
+			for j in range(5):
+				var a:float=PI+float(j)*PI/4.0
+				var d:=Vector2(cos(a),sin(a))
+				fx_line(im,c+d*3,c+d*(rad-1),1.1,Color("#b3ecf1",fade))
+			fx_disc(im,c,rad+3,Color("#82cbdc",fade*.6),rad+1.5)
+		"eos_012":
+			# Rain Ritual: overhead rain cloud and descending rain streaks.
+			for j in range(6):
+				var q:=Vector2(12+float(j)*4.8,11+sin(float(j)*1.8)*2)
+				fx_disc(im,q,5.8,Color("#527b9f",fade))
+				fx_disc(im,q-Vector2(0,2),4.0,Color("#9ab9ce",fade))
+			for j in range(12):
+				var f:float=fposmod(t*1.6+float(j)*.17,1.0)
+				var q:=Vector2(7+float(j%6)*6.5,15+25*f)
+				fx_line(im,q,q+Vector2(-2,5),1.1,Color("#a6eaff",fade*drive))
+				if f>.8:fx_disc(im,Vector2(q.x,42),3.4,Color("#b9e9f3",fade),2.2)
+		"eos_307":
+			# Dampening Mist: low drifting translucent banks with dew motes.
+			for j in range(12):
+				var f:float=float(j)/11.0
+				var q:=Vector2(8+32*f,27+sin(f*TAU*1.4-t*TAU)*5)
+				fx_disc(im,q,4.5+3*drive,Color("#8abacb",fade*.38))
+				fx_disc(im,q-Vector2(1,2),3.0+2*drive,Color("#d9eef0",fade*.55))
+			for j in range(7):
+				var q:=Vector2(7+float(j)*5.5,19+sin(t*TAU+float(j)*2.4)*4)
+				fx_disc(im,q,1.0,Color("#efffff",fade*.8))
+		"eos_434":
+			# Tidal Halo: protective flowing orbital ring with rising droplets.
+			var c:=Vector2(24,27)
+			var rad:float=8+7*drive
+			var prev:=c+Vector2(rad,0)
+			for j in range(1,33):
+				var a:float=float(j)*TAU/32.0
+				var q:=c+Vector2(cos(a)*rad,sin(a)*rad*.52)
+				fx_line(im,prev,q,2.8,Color("#2b8db5",fade))
+				fx_line(im,prev,q,1.1,Color("#b5f6ff",fade))
+				prev=q
+			for j in range(6):
+				var a:float=float(j)*TAU/6.0+t*TAU
+				var q:=c+Vector2(cos(a)*rad,sin(a)*rad*.52-7*pulse)
+				fx_disc(im,q,2.5,Color("#58c9e9",fade))
+				fx_disc(im,q-Vector2(1,1),1.2,Color("#edffff",fade))
 	return im
 
 func combat_frame_image(id:String,frame:int)->Image:
