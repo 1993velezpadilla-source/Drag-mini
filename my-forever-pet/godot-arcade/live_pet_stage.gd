@@ -52,6 +52,10 @@ const ExternalFx=preload("res://pet_external_fx.gd")
 var fx_root:Node3D
 var fx_nodes:Array[Node3D]=[]
 var light_key:DirectionalLight3D
+var growth_age:float=0.0
+var growth_root:Node3D
+var growth_sparks:Array[MeshInstance3D]=[]
+var growth_light:OmniLight3D
 func _ready():
 	# Do not pixelate the room, furniture, lighting or effects.
 	stretch=true
@@ -66,6 +70,11 @@ func _ready():
 	world=Node3D.new()
 	view.add_child(world)
 	fx_root=Node3D.new(); world.add_child(fx_root)
+	growth_root=Node3D.new();world.add_child(growth_root);growth_root.hide()
+	for i in range(16):
+		var spark:=crop_shape(growth_root,Vector3.ZERO,Vector3.ONE*.10,Color("#c1e8a0") if i%2==0 else Color("#ffe4a0"))
+		growth_sparks.append(spark)
+	growth_light=OmniLight3D.new();growth_light.light_color=Color("#d3f9bd");growth_light.omni_range=3.0;growth_light.light_energy=0.0;growth_root.add_child(growth_light)
 	var env=WorldEnvironment.new()
 	env.environment=Environment.new()
 	environment=env.environment
@@ -226,7 +235,10 @@ func set_crop(ready_at:float,now:float):
 func set_pet(species:int,stage:int):
 	species=0 # One visible companion; never instantiate retired species.
 	if species==active_species and stage==active_stage: return
+	# Initial load and stage reset are not an evolution event.
+	var grew:bool=active_stage>=1 and stage>active_stage
 	active_species=species; active_stage=stage
+	growth_age=1.8 if grew else 0.0
 	framing_key=""
 	if is_instance_valid(avatar):
 		world.remove_child(avatar); avatar.queue_free()
@@ -439,6 +451,27 @@ func screen_point(world_point:Vector3)->Vector2:
 	if view.size.x<=1 or view.size.y<=1: return size*0.5
 	var p=camera.unproject_position(world_point)
 	return p*size/Vector2(view.size)
+func update_growth_cinematic(dt:float)->void:
+	if not is_instance_valid(growth_root):return
+	growth_age=maxf(0.0,growth_age-dt)
+	growth_root.visible=growth_age>0.0
+	if growth_age<=0.0:
+		growth_light.light_energy=0.0
+		if is_instance_valid(pixel_pet):pixel_pet.modulate=Color.WHITE
+		return
+	var t:float=1.0-growth_age/1.8
+	var pulse:float=sin(t*PI)
+	var radius:float=lerpf(1.1,.24,smoothstep(0.0,.43,t)) if t<.43 else lerpf(.24,1.25,smoothstep(.43,1.0,t))
+	growth_root.position=ground
+	growth_light.position.y=1.2;growth_light.light_energy=pulse*.8
+	for i in range(growth_sparks.size()):
+		var a:float=float(i)*TAU/growth_sparks.size()+t*TAU
+		var spark:=growth_sparks[i]
+		spark.position=Vector3(cos(a)*radius,.25+float(i%4)*.35+t*.85,sin(a)*radius)
+		spark.scale=Vector3.ONE*.10*pulse
+		spark.rotation.y=a
+	if is_instance_valid(pixel_pet):pixel_pet.modulate=Color.WHITE.lerp(Color("#e5ffbd"),pulse*.75)
+
 func _process(dt:float):
 	if not is_instance_valid(avatar) or not is_visible_in_tree(): return
 	elapsed+=dt
@@ -478,6 +511,7 @@ func _process(dt:float):
 	if bath: avatar.rotation.y+=sin(progress*TAU*3)*.06*envelope
 	avatar.scale=Vector3(base/breathe*(1+chew),base*breathe*(0.85 if sleeping else 1.0)*(1-chew),base/breathe)
 	avatar.position=ground+Vector3(0,bounce-sole_offset*avatar.scale.y,0)
+	update_growth_cinematic(dt)
 	if is_instance_valid(reaction_prop):
 		if reaction_time<=0: reaction_prop.queue_free(); reaction_prop=null
 		elif feeding:
