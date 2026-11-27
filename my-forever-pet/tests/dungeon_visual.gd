@@ -624,6 +624,16 @@ func run():
 	var sprite:Sprite3D=actor.get_node("PixelCompanion")
 	actor.set_meta("dungeon_grounded_gait",true)
 	var directions:Array=[Vector2i(1,1),Vector2i(-1,1),Vector2i(1,-1),Vector2i(-1,-1)]
+	assert(preview.run.enable_dev_sandbox())
+	preview.run.enemies.clear()
+	var anchor:Vector2i=preview.run.player
+	for candidate in preview.run.cells:
+		var open:bool=true
+		for direction in directions:
+			if not preview.run.step_clear(candidate,direction):open=false;break
+		if open:anchor=candidate;break
+	preview.run.player=anchor;preview.sync();preview.pet.position=preview.pos(anchor)
+	preview._process(.016)
 	var names:Array=["SE","SW","NE","NW"]
 	for i in range(4):
 		var direction:Vector2i=directions[i]
@@ -632,12 +642,20 @@ func run():
 		assert(sprite.get_meta("facing")==i+4)
 		await frames()
 		assert(root.get_texture().get_image().save_png("/tmp/dungeon-real-ponoko-"+str(names[i])+"-idle.png")==OK)
-		art.animate_world_sprite(actor,Vector2(direction),true,.15,"walk")
-		assert(sprite.get_meta("facing")==i+4 and sprite.get_meta("anim_state")=="walk")
+		# Move a real tile rather than manually setting an animation label.
+		preview.run.player=anchor;preview.pet.position=preview.pos(anchor)
+		assert(preview.run.step_clear(anchor,direction))
+		preview.path.clear();preview.path.append(anchor+direction);preview.tick=0.0
+		preview._process(.10)
+		assert(preview.run.player==anchor+direction and sprite.get_meta("facing")==i+4 and sprite.get_meta("anim_state")=="walk")
 		await frames()
 		assert(root.get_texture().get_image().save_png("/tmp/dungeon-real-ponoko-"+str(names[i])+"-walk.png")==OK)
-		actor.set_meta("dungeon_cast_motion","cast")
-		art.animate_world_sprite(actor,Vector2(direction),false,.016,"attack",false,.52,.48)
+		preview.run.player=anchor;preview.pet.position=preview.pos(anchor);preview.facing=direction;preview.sync()
+		# Real combat-lab directional projectile, with the same FX path used in play.
+		preview.lab_preview("eos_064")
+		preview.attack_direction=Vector3(direction.x,0,direction.y).normalized()
+		preview.attack_time=preview.player_cast_duration*(1.0-preview.player_cast_impact-.05)
+		preview._process(.001)
 		assert(sprite.get_meta("facing")==i+4 and sprite.get_meta("attack_phase")=="strike")
 		await frames()
 		assert(root.get_texture().get_image().save_png("/tmp/dungeon-real-ponoko-"+str(names[i])+"-cast.png")==OK)
@@ -645,6 +663,7 @@ func run():
 		assert(sprite.get_meta("anim_state")=="hurt")
 		await frames()
 		assert(root.get_texture().get_image().save_png("/tmp/dungeon-real-ponoko-"+str(names[i])+"-hurt.png")==OK)
+		preview.attack_time=0.0;preview.hit_time=0.0;preview.run.player=anchor;preview.pet.position=preview.pos(anchor);preview.sync()
 	print("PONOKO_DUNGEON_DIAGONAL_PASS 16")
 	preview.queue_free();await process_frame
 	# Test the lab on a separate expedition; the normal completion tests above remain unchanged.

@@ -24,6 +24,11 @@ func _initialize():
 			var frame:=Art.authored_cell(dir,pose,1 if pose=="attack" else 0)
 			assert(frame.get_used_rect().has_area() and frame.get_data()!=idle.get_data(),"distinct diagonal "+pose)
 		assert(Art.authored_cell(dir,"attack",0).get_data()!=Art.authored_cell(dir,"attack",1).get_data())
+	# Rear and front diagonals must not be a shifted cardinal or one another.
+	for dir in range(4,8):
+		var cell:=Art.authored_cell(dir,"idle",0)
+		for other in range(8):
+			if other!=dir:assert(cell.get_data()!=Art.authored_cell(other,"idle",0).get_data())
 	print("PONOKO_DIAGONAL_POSES_PASS 4")
 	for id in ["spirit-flame","fire-breath","heart-pickup","bubbles","heal"]:
 		var clip:=Fx.clip(id)
