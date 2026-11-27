@@ -36,6 +36,20 @@ func run_checks()->void:
 	var checks:int=0
 	var failures:Array[String]=[]
 	var view:=Dungeon.new()
+	# V25.7: stationary footprints only submit on spawn, overwrite or expiry.
+	var trail_probe:=Dungeon.new()
+	for trail_biome in range(3):
+		for trail_dirty in [false,true]:
+			for trail_expired in [false,true]:
+				var trail_expected:bool=trail_biome==1 or trail_dirty or trail_expired
+				if trail_probe.trail_needs_transform(trail_biome,trail_dirty,trail_expired)!=trail_expected:failures.append("V25.7 footprint transition")
+				checks+=1
+		var trail_writes:int=0
+		for trail_frame in range(60):
+			if trail_probe.trail_needs_transform(trail_biome,trail_frame==0,trail_frame==59):trail_writes+=1
+		if trail_writes!=(60 if trail_biome==1 else 2):failures.append("V25.7 footprint writes")
+		checks+=1
+	trail_probe.free()
 	# V25.6: stage diagnostics use exactly the same accepted intervals.
 	var frame_probe:=Dungeon.new()
 	frame_probe.fx_diag_sample(1000000,100,true,200,300,650)
