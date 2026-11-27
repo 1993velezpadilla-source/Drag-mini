@@ -2299,7 +2299,8 @@ func update_enemy_pixel(actor:Node3D,dt:float,motion:Vector3,body_dt:float=-1.0)
 	if state=="hurt":
 		var reaction:=creature_hit_sample(clock/maxf(.01,duration),species)
 		hit_flash=float(reaction.flash)
-		var squash:float=float(reaction.squash)
+		var impact_weight:float=clampf(float(actor.get_meta("enemy_hit_weight",1.0)),.78,1.48)
+		var squash:float=clampf(1.0+(float(reaction.squash)-1.0)*impact_weight,.65,1.35)
 		sprite.scale=Vector3(1.0/squash,squash,1.0)
 		sprite.position.y+=.54*size_multiplier*(squash-1.0)
 		# A transformed companion already receives displacement and lift on its root.
@@ -2307,7 +2308,7 @@ func update_enemy_pixel(actor:Node3D,dt:float,motion:Vector3,body_dt:float=-1.0)
 			var hit_dir:Vector3=actor.get_meta("enemy_hit_direction",Vector3.ZERO)
 			var forward:Vector3=hit_dir.normalized()
 			var lateral:=Vector3(-forward.z,0.0,forward.x)
-			body_offset=actor.basis.inverse()*(forward*.32*float(reaction.recoil)+lateral*float(reaction.sway)+Vector3.UP*float(reaction.lift))
+			body_offset=actor.basis.inverse()*(forward*.32*float(reaction.recoil)+lateral*float(reaction.sway)+Vector3.UP*float(reaction.lift))*impact_weight
 			sprite.position+=body_offset
 	if state=="defeat":
 		# Use the existing terminal cell, then collapse towards the ground.
@@ -14529,7 +14530,7 @@ func reaction_times(duration:float,impact:float,count:int)->Array[float]:
 		times.append(first+span*.85*float(i)/maxi(1,clampi(count,1,12)-1))
 	return times
 
-func queue_enemy_reaction(actor:Node3D,defeated:bool,delay:float,direction:Vector3=Vector3.ZERO,span:float=0.0,count:int=1,explicit_times:Array[float]=[])->void:
+func queue_enemy_reaction(actor:Node3D,defeated:bool,delay:float,direction:Vector3=Vector3.ZERO,span:float=0.0,count:int=1,explicit_times:Array[float]=[],impact_weight:float=1.0)->void:
 	if not is_instance_valid(actor):return
 	# If a new action kills an actor before its earlier hit resolves, retire the
 	# older nonterminal callbacks so they cannot overwrite its defeat pose.
@@ -14540,7 +14541,7 @@ func queue_enemy_reaction(actor:Node3D,defeated:bool,delay:float,direction:Vecto
 	if defeated:actor.set_meta("pending_defeat",true)
 	var times:Array[float]=explicit_times if not explicit_times.is_empty() else reaction_times(delay+span,delay/(delay+span) if delay+span>0.0 else 0.0,count)
 	for i in range(times.size()):
-		fx_reactions.append({"actor":actor,"delay":times[i],"defeated":defeated and i==times.size()-1,"direction":direction})
+		fx_reactions.append({"actor":actor,"delay":times[i],"defeated":defeated and i==times.size()-1,"direction":direction,"weight":clampf(impact_weight,.78,1.48)})
 
 func update_combat_reactions(dt:float)->void:
 	# Process chronological order even if a slow frame crosses several impacts.
@@ -14562,6 +14563,7 @@ func update_combat_reactions(dt:float)->void:
 			if next.actor==actor:pending=true;break
 		actor.set_meta("pending_impact",pending)
 		actor.set_meta("enemy_hit_direction",reaction.direction)
+		actor.set_meta("enemy_hit_weight",float(reaction.get("weight",1.0)))
 		enemy_pose(actor,"defeat" if reaction.defeated else "hurt",.32 if reaction.defeated else .20)
 		queue_ultra_reaction(actor.global_position+Vector3.UP*.54,reaction.direction,bool(reaction.defeated))
 		# The actor renderer advances dt later in this frame. Subtract the
@@ -17121,17 +17123,19 @@ func queue_observed_enemy_damage(actor:Node3D,uid:int,tile:Vector2i,defeated:boo
 		hits=maxi(1,hits);affected=true
 	var cast_profile:=combat_profile(run.player_attack_fx)
 	var spec:=damage_reaction_spec(cast_profile,new_cast,hits,affected,(pos(tile)-pos(run.player)).normalized())
+	var record:Dictionary=Rules.MOVE_LIBRARY.get(run.player_attack_fx,Rules.DEV_NATIVE_MOVES.get(run.player_attack_fx,{}))
+	var hit_weight:float=cinematic_power_sample(int(record.get("power",0))).x if new_cast and (hits>0 or affected) else 1.0
 	var actual_times:Array[float]=[]
 	if new_cast and run.player_cast_result_serial==run.attack_serial:
 		actual_times=confirmed_wave_times(run.player_cast_results,tile,float(cast_profile.duration),float(cast_profile.impact))
 	if response.is_empty():
-		queue_enemy_reaction(actor,defeated,float(spec.delay),Vector3(spec.direction),float(spec.span),int(spec.count),actual_times)
+		queue_enemy_reaction(actor,defeated,float(spec.delay),Vector3(spec.direction),float(spec.span),int(spec.count),actual_times,hit_weight)
 		return
 	var linked:bool=new_cast and (hits>0 or affected)
 	var events:Array=remaining_response_events(response.get("events",[]),run.attack_serial if response_cast else -1)
 	if response_cast:
 		if events.is_empty():
-			queue_enemy_reaction(actor,defeated,float(spec.delay),Vector3(spec.direction),float(spec.span),int(spec.count),actual_times)
+			queue_enemy_reaction(actor,defeated,float(spec.delay),Vector3(spec.direction),float(spec.span),int(spec.count),actual_times,hit_weight)
 			return
 	var secondary_delay:float=float(spec.delay)+float(spec.span)+.04 if linked else 0.0
 	var plan:Array[Dictionary]=response_fx_plan(events if not events.is_empty() else [{}],secondary_delay,response_cast_available_at(),maxi(0,DELAYED_COMBAT_FX_CAP-delayed_combat_fx.size()),response_slots)
@@ -17150,8 +17154,13 @@ func queue_observed_enemy_damage(actor:Node3D,uid:int,tile:Vector2i,defeated:boo
 		var direction:Vector3=Vector3.ZERO
 		if not item.event.is_empty():
 			direction=(pos(item.event.to)-pos(item.event.from)).normalized()
-		queue_enemy_reaction(actor,defeated and index==plan.size()-1,float(item.hit),direction)
-	if linked:queue_enemy_reaction(actor,false,float(spec.delay),Vector3(spec.direction),float(spec.span),int(spec.count),actual_times)
+		var counter_weight:float=1.0
+		if not item.event.is_empty():
+			var counter_id:String=str(item.event.get("fx",""))
+			var counter_record:Dictionary=Rules.MOVE_LIBRARY.get(counter_id,Rules.DEV_NATIVE_MOVES.get(counter_id,{}))
+			counter_weight=cinematic_power_sample(int(counter_record.get("power",0))).x
+		queue_enemy_reaction(actor,defeated and index==plan.size()-1,float(item.hit),direction,0.0,1,[],counter_weight)
+	if linked:queue_enemy_reaction(actor,false,float(spec.delay),Vector3(spec.direction),float(spec.span),int(spec.count),actual_times,hit_weight)
 
 func refresh_actors():
 	response_slots.clear()
