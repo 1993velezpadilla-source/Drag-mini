@@ -71,9 +71,9 @@ func _initialize():
 		if not str(id).begins_with("eos_"):continue
 		var move:Dictionary=Rules.MOVE_LIBRARY[id]
 		assert(int(str(id).trim_prefix("eos_"))==int(move.reference_id))
-		assert(move.pp>0 and (move.power>0 or move.has("heal_fraction") or move.has("inflict_status") or move.has("stat_changes") or move.has("shield_kind") or move.has("boon_kind") or move.has("weather_set") or move.has("floor_sport") or move.has("weather_heal") or move.has("special_rule") or move.has("trap_kind") or move.has("blast_radius") or move.has("stat_transfer") or move.has("random_cast") or move.has("reserve_action")))
+		assert(move.pp>0 and (move.power>0 or move.has("heal_fraction") or move.has("inflict_status") or move.has("stat_changes") or move.has("shield_kind") or move.has("boon_kind") or move.has("weather_set") or move.has("floor_sport") or move.has("weather_heal") or move.has("special_rule") or move.has("trap_kind") or move.has("blast_radius") or move.has("stat_transfer") or move.has("random_cast") or move.has("reserve_action") or move.has("curse_action")))
 		assert(move.reference_strikes==1 or (move.has("hit_min") and move.hit_min>=2 and move.hit_max<=5))
-		assert(move.category in ["physical","special"] or (move.category=="status" and (move.has("heal_fraction") or move.has("inflict_status") or move.has("stat_changes") or move.has("shield_kind") or move.has("boon_kind") or move.has("weather_set") or move.has("floor_sport") or move.has("weather_heal") or move.has("special_rule") or move.has("trap_kind") or move.has("blast_radius") or move.has("stat_transfer") or move.has("random_cast") or move.has("reserve_action"))))
+		assert(move.category in ["physical","special"] or (move.category=="status" and (move.has("heal_fraction") or move.has("inflict_status") or move.has("stat_changes") or move.has("shield_kind") or move.has("boon_kind") or move.has("weather_set") or move.has("floor_sport") or move.has("weather_heal") or move.has("special_rule") or move.has("trap_kind") or move.has("blast_radius") or move.has("stat_transfer") or move.has("random_cast") or move.has("reserve_action") or move.has("curse_action"))))
 		assert(id in Rules.available_moves([move.type],100))
 		assert(not id in Rules.available_moves([move.type],15))
 		assert(Rules.reference_accuracy(move)>=0.0 and Rules.reference_accuracy(move)<=100.0)
@@ -541,6 +541,31 @@ func _initialize():
 	reactive.clear_combat_effects()
 	assert(reactive.bide_damage==0 and reactive.pending_throws.is_empty())
 	print("KINDRIA_REACTIVE_PASS")
+	var adaptive=Rules.new()
+	adaptive.trained_profile={"types":["grass","poison"]}
+	adaptive.equipped_moves=["eos_064"]
+	assert(adaptive.convert_element() and adaptive.current_player_types()==["electric"])
+	assert(adaptive.trained_profile.types==["grass","poison"])
+	assert(adaptive.apply_player_boon(Rules.MOVE_LIBRARY.eos_184))
+	assert(adaptive.adapt_after_hit("fire"))
+	assert(Rules.type_multiplier("fire",adaptive.current_player_types())<1.0)
+	for i in range(11):adaptive.tick_player_boons()
+	assert(adaptive.adaptive_type.is_empty() and adaptive.current_player_types()==["electric"])
+	adaptive.initialize_hidden_power(42)
+	var hidden_type:String=adaptive.hidden_element
+	var hidden_power:int=adaptive.hidden_base_power
+	adaptive.initialize_hidden_power(42)
+	assert(adaptive.hidden_element==hidden_type and adaptive.hidden_base_power==hidden_power)
+	assert(hidden_power>=2 and hidden_power<=15)
+	adaptive.enemies.append({"pos":Vector2i(2,1),"hp":40,"max_hp":100,"kind":0,"species":"reef_pup"})
+	assert(adaptive.apply_enemy_status(0,"heal_block"))
+	assert(adaptive.heal_enemy(adaptive.enemies[0],20)==0)
+	assert(adaptive.apply_enemy_status(0,"curse"))
+	adaptive.tick_enemy_statuses();adaptive.tick_enemy_statuses()
+	assert(adaptive.enemies[0].hp==15)
+	adaptive.clear_combat_effects()
+	assert(adaptive.current_player_types()==["grass","poison"])
+	print("KINDRIA_ADAPTIVE_PASS")
 	assert(Rules.EOS_IDENTIFIED_COUNT==468)
 	print("KINDRIA_EOS_PROTOTYPES_PASS ",eos_count)
 	print("KINDRIA_LEARNSET_PP_PASS")

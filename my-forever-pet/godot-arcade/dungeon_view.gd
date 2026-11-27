@@ -2439,6 +2439,8 @@ func update_hud():
 	var weather_text:String=run.weather_summary()
 	if not weather_text.is_empty():status_text.text+=" · "+weather_text
 	if run.stockpile_count>0:status_text.text+=" · Reserve %d/3"%run.stockpile_count
+	if not run.temporary_type.is_empty() or not run.adaptive_type.is_empty():status_text.text+=" · "+str(run.current_player_types()[0]).capitalize()
+	if run.player_slow_turns>0:status_text.text+=" · Slowed"
 	if is_instance_valid(aim_button):aim_button.text="Aim "+["↑","→","↓","←"][maxi(0,Rules.DIR.find(facing))]
 	if is_instance_valid(special_button):special_button.disabled=run.energy<2
 	for i in range(move_buttons.size()):
