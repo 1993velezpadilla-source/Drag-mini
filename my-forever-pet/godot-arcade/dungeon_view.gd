@@ -1727,11 +1727,11 @@ func update_enemy_pixel(actor:Node3D,dt:float,motion:Vector3)->void:
 	var rise:float=.13+.04*sin(elapsed*3.0+float(actor.get_instance_id()%11)) if hovering and state!="defeat" else 0.0
 	var size_multiplier:float=float(actor.get_meta("enemy_size_multiplier",1.0))
 	sprite.position=Vector3(0,.54*size_multiplier+rise,0)
-	if state=="attack":
+	if state=="attack" and not actor.get_meta("companion_disguise",false):
 		var cast_dir:Vector3=actor.get_meta("enemy_cast_direction",Vector3(0,0,1))
 		var offset:=cast_motion_offset(str(actor.get_meta("enemy_cast_motion","contact")),clock/maxf(.01,duration),float(actor.get_meta("enemy_cast_impact",.48)))
 		sprite.position+=actor.basis.inverse()*cast_offset_world(offset,cast_dir)
-	if state=="hurt":
+	if state=="hurt" and not actor.get_meta("companion_disguise",false):
 		var hit_dir:Vector3=actor.get_meta("enemy_hit_direction",Vector3.ZERO)
 		sprite.position+=actor.basis.inverse()*hit_dir.normalized()*.16*sin(PI*clampf(clock/maxf(.01,duration),0.0,1.0))
 	var shadow:=actor.get_node_or_null("EnemyContactShadow") as MeshInstance3D
@@ -5469,6 +5469,26 @@ func update_hud():
 	stairs_button.disabled=not run.secured or run.player!=run.stairs
 	stairs_button.visible=run.secured and run.player==run.stairs
 	map.queue_redraw()
+# The disguise inherits the companion's movement and impact clock. The
+# enemy sprite renderer supplies appearance only, never a second lunge.
+func sync_disguise_pose(actor:Node3D,pose:String,motion:Vector2)->bool:
+	actor.set_meta("companion_disguise",true)
+	actor.set_meta("enemy_facing",PixelArt.direction_for(motion,int(actor.get_meta("enemy_facing",0))))
+	if pose=="attack":
+		actor.set_meta("enemy_phase","attack")
+		actor.set_meta("enemy_duration",player_cast_duration)
+		actor.set_meta("enemy_clock",clampf(player_cast_duration-attack_time,0.0,player_cast_duration))
+		actor.set_meta("enemy_cast_impact",player_cast_impact)
+		return true
+	if pose=="hurt":
+		actor.set_meta("enemy_phase","hurt")
+		actor.set_meta("enemy_duration",.24)
+		actor.set_meta("enemy_clock",clampf(.24-hit_time,0.0,.24))
+		return true
+	if str(actor.get_meta("enemy_phase","idle")) not in ["idle","walk"]:
+		enemy_pose(actor,"idle",0.0,motion)
+	return false
+
 func update_disguise(dt:float,motion:Vector2,moving:bool,pose:String)->void:
 	var desired:String=run.transformed_species
 	if desired!=disguise_species:
@@ -5478,16 +5498,17 @@ func update_disguise(dt:float,motion:Vector2,moving:bool,pose:String)->void:
 		if not desired.is_empty():
 			var actor:=Node3D.new()
 			pet.add_child(actor)
-			if attach_enemy_pixel(actor,desired):disguise_actor=actor
+			if attach_enemy_pixel(actor,desired):
+				disguise_actor=actor
+				actor.set_meta("companion_disguise",true)
 			else:actor.queue_free()
 	if not is_instance_valid(disguise_actor):return
 	disguise_actor.visible=pet_pose.visible
 	pet_pose.hide()
 	disguise_actor.position=pet_pose.position
 	disguise_actor.set_meta("enemy_facing",PixelArt.direction_for(motion,int(disguise_actor.get_meta("enemy_facing",0))))
-	if pose in ["hurt","attack"]:
-		if str(disguise_actor.get_meta("enemy_phase","idle"))!=pose:enemy_pose(disguise_actor,pose,.22,motion)
-	update_enemy_pixel(disguise_actor,dt,Vector3(motion.x,0,motion.y) if moving else Vector3.ZERO)
+	var synchronized:bool=sync_disguise_pose(disguise_actor,pose,motion)
+	update_enemy_pixel(disguise_actor,0.0 if synchronized else dt,Vector3(motion.x,0,motion.y) if moving else Vector3.ZERO)
 
 func _process(dt:float):
 	if notified or not is_instance_valid(pet):return

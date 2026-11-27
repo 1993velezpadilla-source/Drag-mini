@@ -198,6 +198,22 @@ func run()->void:
 	if float(sprite.get_meta("anim_clock"))<=before or int(sprite.get_meta("facing"))!=1:errors.append("companion corner gait reset")
 	companion.free()
 	print("KINDRIA_GROUNDED_GAIT_PASS")
+	# Transformed companions use the same exact clock across short/long casts.
+	var disguise:=Node3D.new()
+	disguise.set_meta("species","nebulwing")
+	for duration in [.18,.44,1.2]:
+		field.player_cast_duration=duration
+		field.player_cast_impact=.56
+		for progress in [.1,.56,.9]:
+			field.attack_time=duration*(1.0-progress)
+			if not field.sync_disguise_pose(disguise,"attack",Vector2.LEFT):errors.append("disguise attack clock")
+			if absf(float(disguise.get_meta("enemy_clock"))/duration-progress)>.001 or int(disguise.get_meta("enemy_facing"))!=2:errors.append("disguise phase direction")
+			if absf(float(disguise.get_meta("enemy_cast_impact"))-.56)>.001:errors.append("disguise impact fraction")
+	field.hit_time=.12
+	if not field.sync_disguise_pose(disguise,"hurt",Vector2.DOWN) or absf(float(disguise.get_meta("enemy_clock"))-.12)>.001:errors.append("disguise hurt clock")
+	if field.sync_disguise_pose(disguise,"idle",Vector2.DOWN) or disguise.get_meta("enemy_phase")!="idle":errors.append("disguise recovery")
+	disguise.free()
+	print("KINDRIA_DISGUISE_CLOCK_PASS")
 	# Exercise more frames than the cache cap, then verify hot hits and exact normalization.
 	for row in reports.slice(0,40):
 		for frame in range(Field.FX_FRAME_COUNT):field.combat_animated_texture(str(row.id),frame)
