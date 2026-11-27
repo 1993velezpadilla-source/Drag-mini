@@ -38,6 +38,34 @@ jobs:
           Godot_v4.5.1-stable_linux.x86_64 --headless --path . --script res://cinematic_gauntlet.gd 2>&1 | tee /tmp/kindria-test.log
           if grep -E 'SCRIPT ERROR:|Failed to load script|Invalid call|Invalid assignment|Invalid access' /tmp/kindria-test.log; then exit 1; fi
           grep -E 'CINEMATIC_GAUNTLET checks=[0-9]+ failures=0' /tmp/kindria-test.log
+      - name: Verify visual exports
+        run: |
+          python3 - <<'PY'
+          import json, pathlib, struct
+          root = pathlib.Path("/tmp/kindria-visual")
+          index = json.loads((root / "index.json").read_text())
+          assert len(index) == 18, len(index)
+          seen = set()
+          for element, rows in index.items():
+              for row in rows:
+                  move = row["id"]
+                  assert move not in seen, move
+                  seen.add(move)
+                  data = (root / element / (move + ".png")).read_bytes()
+                  assert data[:8] == b"\x89PNG\r\n\x1a\n", move
+                  assert struct.unpack(">II", data[16:24]) == (576, 48), move
+                  assert len(row["frame_areas"]) == 12, move
+          assert len(seen) == 589, len(seen)
+          assert len(list(root.rglob("*.png"))) == 589
+          print("KINDRIA_VISUAL_ARTIFACT validated=589 frames=7068 elements=18")
+          PY
+      - name: Preserve actual attack frame strips
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: kindria-visual-review
+          path: /tmp/kindria-visual/
+          if-no-files-found: warn
       - name: Preserve test logs
         if: always()
         uses: actions/upload-artifact@v4
