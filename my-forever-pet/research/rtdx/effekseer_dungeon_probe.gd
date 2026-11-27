@@ -69,22 +69,31 @@ func run()->void:
 			field.combat_bursts.clear()
 			field.fx_residues.clear()
 			field.fx_reaction_sparks.clear()
+			field.configure_native_fx({})
 			field.combat_fx_update(0.0)
+			if hybrid:
+				var binding:Dictionary={}
+				binding[str(travel.stage)]={"effect":projectile,"scale":float(row[3])}
+				binding[str(impact.stage)]={"effect":hit,"scale":float(row[4])}
+				assert(field.configure_native_fx({id:binding}))
 			field.combat_fx_spawn({"fx":id,"from":origin,"to":target,"path":[target],"tiles":[target],"results":{target:{"damage":8,"effects":0,"heal":0}}})
 			if hybrid:
-				assert(backend.launch(travel,projectile,points,[points[-1]],float(row[3]),duration*peak)>=0)
+				assert(field.native_fx_backend.pending.size()>=1,"actual combat event schedules native tracks")
 			var frame_dt:float=duration/24.0
-			var did_impact:bool=false
+			var saw_native:bool=false
 			for frame in range(24):
 				field.combat_fx_update(frame_dt)
-				backend.advance(frame_dt)
-				if hybrid and not did_impact and float(frame+1)/24.0>=peak:
-					did_impact=true
-					assert(backend.launch(impact,hit,points,[points[-1]],float(row[4]),maxf(duration*(1.0-peak),.32))>=0)
+				if hybrid:
+					for slot in field.native_fx_backend.slots:
+						if slot.busy:saw_native=true
 				await frames()
 				if frame in [int(peak*24.0*.75),mini(22,int(peak*24.0)+3)]:
 					var suffix:String="hybrid" if hybrid else "native"
 					assert(root.get_texture().get_image().save_png("/tmp/effekseer-review/compare-"+id+"-"+suffix+"-"+str(frame)+".png")==OK)
+			if hybrid:
+				assert(saw_native,"real combat update dispatched native track")
+				assert(field.native_fx_backend.pending.is_empty())
+				field.configure_native_fx({})
 			backend.reset()
 		print("KINDRIA_HYBRID_COMPARISON ",id)
 	print("KINDRIA_HYBRID_COMPARISON_PASS 5")

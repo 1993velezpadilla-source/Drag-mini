@@ -132,6 +132,8 @@ var fx_geometry_count:int=0
 const FX_FRAME_COUNT=12
 const FX_FRAME_SIZE=48
 var combat_fx_root:Node3D
+var native_fx_backend:Node3D
+var native_fx_bindings:Dictionary={}
 const FX_LIGHT_CAP:int=2
 const FX_HALO_CAP:int=8
 var fx_lights:Array[OmniLight3D]=[]
@@ -2149,6 +2151,8 @@ func combat_fx_setup(parent:Node3D)->void:
 	response_slots.clear()
 	combat_particles.clear();combat_warnings.clear();combat_bursts.clear();retired_impacts.clear();delayed_combat_fx.clear();fx_reactions.clear();fx_ground_shake=0.0
 	combat_fx_root=Node3D.new();parent.add_child(combat_fx_root)
+	native_fx_backend=null
+	if not native_fx_bindings.is_empty():configure_native_fx(native_fx_bindings)
 	setup_cinematic_lighting()
 	setup_ultra_combat_layers()
 	cast_text_pool.clear();cast_text_age.clear();cast_text_origin.clear();cast_text_cursor=0;response_text_queue.clear()
@@ -5862,6 +5866,39 @@ func snapshot_counter_geometry(event:Dictionary,source_actor:Node3D,target_actor
 	result["target_height"]=combat_actor_socket(target_actor,"center")
 	return result
 
+# Optional opt-in: the base game needs neither the extension nor demo assets.
+# Bindings are authored per move and stage, never a blanket element replacement.
+func configure_native_fx(bindings:Dictionary)->bool:
+	native_fx_bindings=bindings.duplicate(true)
+	if is_instance_valid(native_fx_backend):
+		native_fx_backend.call("reset")
+		native_fx_backend.queue_free()
+		native_fx_backend=null
+	if bindings.is_empty() or not is_instance_valid(combat_fx_root):return false
+	if not ClassDB.class_exists("EffekseerEmitter3D"):return false
+	var script_path:String="res://dungeon_effekseer_backend.gd"
+	if not ResourceLoader.exists(script_path):return false
+	var script:Script=load(script_path)
+	var backend:Node3D=script.new()
+	combat_fx_root.add_child(backend)
+	if not bool(backend.call("prepare")):
+		backend.queue_free()
+		return false
+	native_fx_backend=backend
+	return true
+
+func schedule_native_cast(burst:Dictionary,enemy:bool,target:Vector2i)->void:
+	if not is_instance_valid(native_fx_backend):return
+	var id:String=str(burst.id)
+	if not native_fx_bindings.has(id):return
+	var bindings:Dictionary=native_fx_bindings[id]
+	var results:Dictionary=burst.get("results",{})
+	var row:Dictionary=results.get(target,{})
+	var hit:bool=int(row.get("damage",0))+int(row.get("effects",0))+int(row.get("heal",0))>0
+	# Only explicit confirmed primary outcomes enable impact layers. The
+	# established renderer still handles all secondary/mixed-target outcomes.
+	native_fx_backend.call("schedule_cast",burst.presentation_tracks,bindings,burst.points,burst.tiles,float(burst.duration),enemy,hit)
+
 func combat_fx_spawn(event:Dictionary)->void:
 	if not is_instance_valid(combat_fx_root):return
 	var id:String=str(event.get("fx","basic_strike"))
@@ -5885,6 +5922,7 @@ func combat_fx_spawn(event:Dictionary)->void:
 	if combat_bursts.size()>=COMBAT_BURST_CAP:
 		retire_combat_burst(combat_bursts.pop_front())
 	combat_bursts.append({"id":id,"mode":style[0],"profile":profile,"target_player":event.get("target_player",false),"damage":event.get("damage",0),"impacted":false,"age":0.0,"duration":float(style[3]),"points":waypoints,"tiles":tiles,"presentation_tracks":elemental_track_plan(id,profile),"texture":combat_animated_texture(id,0),"results":event.get("results",{}).duplicate(true)})
+	schedule_native_cast(combat_bursts[-1],event.has("uid"),target)
 	play_combat_sound(id,"launch",waypoints[0])
 # Leading projectile reaches its destination on the exact impact fraction.
 # Trailing particles are delayed within the remaining lifetime, never beyond it.
@@ -6149,6 +6187,7 @@ func latest_player_impact(current:Dictionary,burst:Dictionary)->Dictionary:
 	return {"age":age,"direction":direction}
 
 func combat_fx_update(dt:float)->void:
+	if is_instance_valid(native_fx_backend):native_fx_backend.call("advance",dt)
 	update_cast_text(dt)
 	var latest_hit:Dictionary={}
 	update_delayed_combat_fx(dt)
