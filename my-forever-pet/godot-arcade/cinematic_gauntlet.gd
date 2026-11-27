@@ -106,6 +106,19 @@ func run_checks()->void:
 		if form.x<.129 or form.x>1.051 or form.y<-.001 or form.y>1.001:
 			failures.append("form envelope")
 		checks+=1
+	# Exercise real controller hysteresis and loading-spike rejection.
+	view.fx_performance_grace=0.0
+	for i in range(120):view.update_fx_performance(1.0/60.0)
+	if view.fx_performance_tier!=0:failures.append("healthy frame budget degraded")
+	view.update_fx_performance(.8)
+	if view.fx_performance_tier!=0:failures.append("isolated loading spike degraded")
+	for i in range(100):view.update_fx_performance(.04)
+	if view.fx_performance_tier!=2 or view.residue_particle_count()!=2:failures.append("sustained pressure not detected")
+	for i in range(60):view.update_fx_performance(1.0/60.0)
+	if view.fx_performance_tier!=2:failures.append("premature recovery")
+	for i in range(600):view.update_fx_performance(1.0/60.0)
+	if view.fx_performance_tier!=0 or view.residue_particle_count()!=4:failures.append("full quality did not recover")
+	checks+=5
 	var home:=Home.new()
 	home.free()
 	view.free()
