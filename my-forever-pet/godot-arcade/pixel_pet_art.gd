@@ -492,14 +492,16 @@ static func animate_world_sprite(actor:Node3D,delta:Vector2,moving:bool,dt:float
 	sprite.set_meta("anim_clock",clock)
 	sprite.set_meta("anim_state",state)
 	var mood:String=str(actor.get_meta("pet_mood","healthy"))
-	var tex:=frame_for(dir,state,clock,mood)
+	# Resolve the final authored cell before fetching a texture. The old
+	# generic cell was discarded for grounded gait and timed attacks.
+	var tex:Texture2D
 	var gait:Dictionary={}
+	var timed_attack:bool=state=="attack" and attack_progress>=0.0
+	var sample:Dictionary={}
 	if grounded and state in ["walk","burst"]:
 		gait=grounded_gait_sample(clock,mood,state=="burst")
 		tex=adventure_frame(dir,state,int(gait.frame),mood)
-	var timed_attack:bool=state=="attack" and attack_progress>=0.0
-	var sample:Dictionary={}
-	if timed_attack:
+	elif timed_attack:
 		sample=attack_pose_sample(attack_progress,attack_impact)
 		# The existing ten-column companion atlas has two authored attack cells.
 		# Keep the strike cell only during the strike window; recover to idle.
@@ -509,7 +511,9 @@ static func animate_world_sprite(actor:Node3D,delta:Vector2,moving:bool,dt:float
 			elif sample.phase=="strike" and str(actor.get_meta("dungeon_cast_motion","cast")) in ["cast","focus","gesture","lash"]:attack_pose="cast"
 		tex=adventure_frame(dir,attack_pose,int(sample.frame),mood)
 		sprite.set_meta("attack_phase",sample.phase)
-	else:sprite.set_meta("attack_phase","")
+	else:
+		tex=frame_for(dir,state,clock,mood)
+	if not timed_attack:sprite.set_meta("attack_phase","")
 	ExternalFx.world_effect(actor,"heart-pickup",clock,state=="reward",float(sprite.get_meta("world_height"))*.75)
 	if sprite.texture!=tex:sprite.texture=tex
 	# Grounded squash/stretch with continuous, not teleporting, motion.
@@ -527,9 +531,13 @@ static func animate_world_sprite(actor:Node3D,delta:Vector2,moving:bool,dt:float
 		else:stretch=1.0+.11*sin(clock*TAU*3.0)
 	if state=="hurt":stretch=.88+.06*sin(clock*35.0)
 	var height:float=float(sprite.get_meta("world_height"))
-	sprite.scale=Vector3(1.0/stretch,stretch,1.0)
-	sprite.position.y=height*.5*stretch+lift
-	sprite.modulate=Color("#ff9b9b") if state=="hurt" and int(clock*22.0)%2==0 else Color("#d3fff1") if state=="burst" else Color.WHITE
+	var desired_scale:=Vector3(1.0/stretch,stretch,1.0)
+	var desired_position:=sprite.position
+	desired_position.y=height*.5*stretch+lift
+	var desired_tint:Color=Color("#ff9b9b") if state=="hurt" and int(clock*22.0)%2==0 else Color("#d3fff1") if state=="burst" else Color.WHITE
+	if sprite.scale!=desired_scale:sprite.scale=desired_scale
+	if sprite.position!=desired_position:sprite.position=desired_position
+	if sprite.modulate!=desired_tint:sprite.modulate=desired_tint
 
 # Volnox enemies are authored 2D pixels, never rendered 3D creature meshes.
 const ENEMY_PIXEL_PILOTS=["sporeling","coralcrab","nova_wisp","vinesnap","eelstrix","comet_hare","thornbeetle","marrowray","voidspider","rootgnawer","jellymancer","lunamoth","leafwisp","shellguard","crystarok","bramble_pup","anemoneye","nebulwing","mossmite","reef_pup","orbitserpent","sylphowl","bubblewisp","starlit_pup","hollow_stag","leviathorn","lunar_prowler","grovetitan","abyss_colossus","astro_golem","fungal_monarch","tidal_sovereign","celestial_guardian"]
