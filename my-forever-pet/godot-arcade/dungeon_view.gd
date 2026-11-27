@@ -9212,6 +9212,91 @@ func authored_stage_fx(burst:Dictionary,t:float,used:int)->int:
 		used=environment_particle(used,q,str(cue[1]),light,dark,size,opacity*.85,flat)
 	return used
 
+# V14.1: hand-directed geometry, spread, lift, tempo and spin. Art
+# direction is semantic, not a randomized color or cosmetic ID offset.
+const V14_ATTACK_DIRECTION={
+	"fire_ember":["scatter",0.55,0.52,1.45,0.2],
+	"fire_breath":["jet",1.05,0.85,1.05,0.2],
+	"fire_blast":["star",1.35,1.08,0.9,0.1],
+	"fire_overheat":["collapse",1.48,1.15,0.8,0.3],
+	"fire_heatwave":["front",1.6,0.48,0.85,0.1],
+	"fire_wheel":["orbit",0.9,0.78,1.2,1],
+	"fire_eruption":["column",0.92,1.65,0.92,0.2],
+	"fire_vortex":["spiral",1.15,1.25,0.83,1.4],
+	"fire_sacred":["petal",0.88,1.28,0.85,0.5],
+	"fire_wisp":["float",0.55,0.92,0.72,0.4],
+	"fire_blastburn":["star",1.62,1.32,0.72,0.35],
+	"fire_blitz":["jet",1.35,0.92,1.3,0.1],
+	"fire_plume":["column",1.15,1.32,0.78,0.4],
+	"fire_magma":["collapse",0.95,0.65,0.72,0.7],
+	"fire_sun":["orbit",1.18,1.12,0.7,0.7],
+	"fire_fang":["pincer",0.64,0.52,1.35,0.1],
+	"fire_punch":["jet",0.75,0.62,1.4,0.1],
+	"fire_kick":["sweep",0.82,0.56,1.24,0.3],
+	"water_gun":["jet",0.62,0.56,1.3,0.1],
+	"water_pump":["jet",1.38,0.92,0.86,0.45],
+	"water_cannon":["column",1.42,1.12,0.77,0.25],
+	"water_bubble":["float",0.65,0.72,0.7,0.3],
+	"water_bubblebeam":["chain",0.8,0.8,1,0.2],
+	"water_surf":["front",1.7,0.72,0.78,0.1],
+	"water_whirlpool":["spiral",1.12,0.57,0.8,1.8],
+	"water_spout":["column",1.03,1.75,0.83,0.4],
+	"water_fall":["column",0.82,1.38,1.15,0.1],
+	"water_ink":["collapse",0.96,0.48,0.85,0.6],
+	"water_pulse":["orbit",0.92,0.72,1.15,0.6],
+	"water_jet":["jet",0.8,0.44,1.5,0.1],
+	"water_brine":["scatter",0.8,0.8,0.9,0.5],
+	"water_dive":["rise",0.85,0.75,1.1,0.3],
+	"water_mud":["front",1,0.28,1.04,0.2],
+	"water_clamp":["pincer",0.68,0.55,1.15,0.2],
+	"water_hammer":["rise",0.95,0.85,1.28,0.1],
+	"water_tail":["sweep",1.1,0.52,1.1,0.3],
+	"electric_sky":["column",0.8,1.75,1.2,0.2],
+	"electric_short":["zigzag",0.48,0.52,1.45,0.2],
+	"electric_wave":["front",1.2,0.35,1.08,0.1],
+	"electric_burst":["star",1.25,0.76,1.12,0.1],
+	"electric_orb":["orbit",0.94,0.9,1.1,1.1],
+	"electric_beam":["chain",1.15,0.55,1.32,0.15],
+	"electric_room":["zigzag",1.6,1.1,0.9,0.5],
+	"electric_fist":["jet",0.72,0.58,1.45,0.15],
+	"electric_fang":["pincer",0.65,0.64,1.32,0.25],
+	"electric_spark":["scatter",0.7,0.6,1.35,0.3],
+	"electric_dash":["jet",1.04,0.5,1.5,0.1],
+	"electric_bind":["spiral",0.68,1.04,0.82,1.5],
+}
+func attack_visual_intensity(id:String)->float:
+	var row:Dictionary=Rules.MOVE_LIBRARY.get(id,Rules.DEV_NATIVE_MOVES.get(id,{}))
+	if row.is_empty():return 1.0
+	if str(row.get("category",""))=="status":return .78
+	# The reference catalog uses low numerical base powers (typically 1–60).
+	return lerpf(.66,1.34,sqrt(clampf(float(row.get("power",6))/45.0,0.0,1.0)))
+
+func attack_direction_sample(art:Array,age:float,index:int,count:int,forward:Vector3,side:Vector3)->Vector3:
+	var phase:float=pow(clampf(age,0.0,1.0),float(art[3]))
+	var arc:float=sin(phase*PI)
+	var f:float=float(index)/float(maxi(1,count-1))
+	var angle:float=TAU*float(index)/float(maxi(1,count))
+	var radial:Vector3=forward*cos(angle)+side*sin(angle)
+	var spin:float=float(art[4])
+	var q:=Vector3.ZERO
+	match str(art[0]):
+		"scatter":q=radial*(.08+phase*.70)+Vector3.UP*(arc*(.24+f*.44))
+		"jet":q=forward*(phase*(.45+f*.7))+side*sin(angle)*(.08+phase*.17)+Vector3.UP*(arc*.22)
+		"star":q=radial*(.12+phase*(.60+.38*absf(cos(angle*2.5))))+Vector3.UP*(arc*.38)
+		"collapse":q=radial*(.12+(1.0-phase)*.72)+Vector3.UP*(arc*.65+phase*.20)
+		"front":q=forward*(phase*.78)+side*(f-.5)*1.6+Vector3.UP*(arc*.34)
+		"orbit":q=radial.rotated(Vector3.UP,phase*TAU*spin)*(.24+phase*.34)+Vector3.UP*(arc*.36)
+		"column":q=radial*(.10+phase*.22)+Vector3.UP*(arc*(.48+f*.8))
+		"spiral":q=radial.rotated(Vector3.UP,phase*TAU*spin)*(.1+phase*.58)+Vector3.UP*(phase*.66+f*.16)
+		"petal":q=radial*(.15+phase*(.32+.45*absf(sin(angle*3.0))))+Vector3.UP*(arc*.58)
+		"float":q=radial*(.10+phase*.44)+side*sin(phase*TAU+angle)*.12+Vector3.UP*(phase*(.45+f*.65))
+		"pincer":q=side*(1.0 if index%2==0 else -1.0)*(.08+(1.0-phase)*.55)+forward*(f-.5)*.28+Vector3.UP*(arc*.34)
+		"sweep":q=forward*cos(angle+phase*PI)*phase*.7+side*sin(angle+phase*PI)*.65+Vector3.UP*(arc*.28)
+		"chain":q=forward*(f*.72+phase*.38)+side*sin(float(index)*1.8)*.18+Vector3.UP*(arc*.24)
+		"rise":q=radial*(.10+phase*.38)+Vector3.UP*(arc*(.45+f*.58))
+		"zigzag":q=forward*(f-.5)*.95+side*(1.0 if index%2==0 else -1.0)*(.12+phase*.48)+Vector3.UP*(arc*(.3+f*.5))
+	return Vector3(q.x*float(art[1]),q.y*float(art[2]),q.z*float(art[1]))
+
 func cinematic_impact_layers(id:String,profile:Dictionary,source:Vector3,target:Vector3,age:float,used:int,light:Color,dark:Color,status:bool)->int:
 	var element:String=str(profile.element)
 	var role:String=str(profile.role)
@@ -9224,6 +9309,8 @@ func cinematic_impact_layers(id:String,profile:Dictionary,source:Vector3,target:
 	var count:int=10 if heavy else 6
 	if status:count=4
 	var art:Array=move_finish_art(id,profile)
+	var direction:Array=V14_ATTACK_DIRECTION.get(id,V14_ATTACK_DIRECTION.get(role,[]))
+	var intensity:float=attack_visual_intensity(id)
 	var fade:float=pow(1.0-age,1.25)
 	var ground:=Vector3(target.x,.045,target.z)
 	for i in range(count):
@@ -9313,10 +9400,18 @@ func cinematic_impact_layers(id:String,profile:Dictionary,source:Vector3,target:
 				flat=true;q.y=.055
 			else:flat=false
 			if mode=="cloud" or mode=="smoke":size*=1.25
+		if not direction.is_empty() and not status:
+			var authored_offset:Vector3=attack_direction_sample(direction,age,i,count,forward,side)
+			q=ground+authored_offset*intensity
+			if flat:q.y=.055
+		else:
+			q=ground+(q-ground)*intensity
+			if flat:q.y=.055
+		size*=intensity
 		var finish_light:Color=light if art.is_empty() or status else Color(str(art[2]))
 		used=environment_particle(used,q,mode,finish_light,dark,size,fade*.92,flat)
 	if heavy and not status:
-		used=environment_particle(used,ground,"shock_ring",light,dark,.35+age*2.25,fade*.68,true)
+		used=environment_particle(used,ground,"shock_ring",light,dark,(.35+age*2.25)*intensity,fade*.68,true)
 	return used
 
 func charge_environment_fx(used:int)->int:

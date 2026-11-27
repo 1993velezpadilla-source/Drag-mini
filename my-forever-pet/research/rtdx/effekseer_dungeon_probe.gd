@@ -861,6 +861,27 @@ func run()->void:
 	drain_burst.results={target:{"blocked":1},secondary_tile:{"damage":8},origin:{"heal":4}}
 	assert(field.confirmed_stage_target(drain_burst,true)==field.pos(secondary_tile)+Vector3.UP*.55)
 	print("KINDRIA_V13_LEGACY_STAGE_PASS 589")
+	# V14.1: unique authored motion fingerprints, not merely color changes.
+	var motion_fingerprints:Dictionary={}
+	for role in Field.V14_ATTACK_DIRECTION:
+		var design:Array=Field.V14_ATTACK_DIRECTION[role]
+		var fingerprint:Array=[]
+		for moment in [.18,.48,.76]:
+			for index in range(6):
+				var q:Vector3=field.attack_direction_sample(design,float(moment),index,6,Vector3.FORWARD,Vector3.RIGHT)
+				assert(q.is_finite() and q.length()<4.0,role)
+				fingerprint.append(q.snapped(Vector3.ONE*.001))
+		var key:String=str(fingerprint)
+		assert(not motion_fingerprints.has(key),"duplicate geometry "+role)
+		motion_fingerprints[key]=role
+	assert(motion_fingerprints.size()==48)
+	for move_id in catalog:
+		var intensity:float=field.attack_visual_intensity(move_id)
+		assert(intensity>=.66 and intensity<=1.34,move_id)
+	assert(field.attack_visual_intensity("eos_188")<field.attack_visual_intensity("eos_064"))
+	assert(field.attack_visual_intensity("eos_308")<field.attack_visual_intensity("eos_240"))
+	assert(field.attack_visual_intensity("eos_262")<field.attack_visual_intensity("eos_157"))
+	print("KINDRIA_V14_DIRECTION_PASS 48")
 	var plan:Array=[
 		{"stage":"ally_invoke","anchor":"source","start":0.0,"end":.15,"enabled":true},
 		{"stage":"enemy_invoke","anchor":"source","start":0.0,"end":.15,"enabled":true},
