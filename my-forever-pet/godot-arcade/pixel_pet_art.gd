@@ -336,6 +336,43 @@ static func adventure_frame(dir:int,pose:String,frame:int=0,mood:String="healthy
 	cache[key]=tex
 	return tex
 
+# Bounded floor-start preparation of the exact timed companion cells.
+# Never substitute a different mood, direction or authored frame.
+static func companion_attack_warm_plan()->Array[Vector3i]:
+	var plan:Array[Vector3i]=[]
+	for dir in range(8):
+		plan.append(Vector3i(dir,0,0)) # attack windup
+		plan.append(Vector3i(dir,0,1)) # attack strike
+		plan.append(Vector3i(dir,1,0)) # idle/recover
+		if dir>=4:plan.append(Vector3i(dir,2,1)) # ranged cast strike
+	return plan
+
+static func warm_companion_attack_cells(mood:String)->void:
+	for cell in companion_attack_warm_plan():
+		var pose:String="attack" if cell.y==0 else ("idle" if cell.x<4 else "recover") if cell.y==1 else "cast"
+		adventure_frame(cell.x,pose,cell.z,mood)
+
+# Prioritize the four base combat poses for each visible species, interleaving
+# species so a large floor never spends the full budget on one enemy.
+static func enemy_attack_warm_plan(species_ids:Array,cap:int=32)->Array[Dictionary]:
+	var plan:Array[Dictionary]=[]
+	if cap<=0:return plan
+	var seen:Dictionary={}
+	var species:Array[String]=[]
+	for value in species_ids:
+		var id:String=str(value)
+		if not id in ENEMY_PIXEL_PILOTS or seen.has(id):continue
+		seen[id]=true;species.append(id)
+	for pose in ["windup","attack","recover","hurt","defeat"]:
+		for id in species:
+			plan.append({"id":id,"dir":0,"pose":pose,"frame":1 if pose=="attack" else 0})
+			if plan.size()>=cap:return plan
+	return plan
+
+static func warm_enemy_attack_cells(species_ids:Array,cap:int=32)->void:
+	for cell in enemy_attack_warm_plan(species_ids,cap):
+		enemy_pixel_texture(cell.id,cell.dir,cell.pose,cell.frame)
+
 static func frame_for(dir:int,pose:String,clock:float,mood:String="healthy")->Texture2D:
 	var frame:int=posmod(int(floor(clock*(14.0 if pose=="burst" else 10.0))),4) if pose in ["walk","burst"] else posmod(int(floor(clock*14.0)),2) if pose=="attack" else 0
 	var actual:String="blink" if pose=="idle" and fposmod(clock,3.8)>3.62 else pose
