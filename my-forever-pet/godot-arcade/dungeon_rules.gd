@@ -6,6 +6,8 @@ const MINION_ROSTER = [[["bramble_pup","Bramble Pup","quadruped_bound","Briar Po
 # Species attack contract: range, telegraph, cooldown, damage modifier, effect, magnitude, VFX identifier.
 const SIGNATURE_SKILLS={"bramble_pup":[2,false,2,0,"pounce",1,"briar_arc"],"sporeling":[2,false,3,-1,"poison",2,"spore_cloud"],"thornbeetle":[2,true,2,1,"pounce",1,"horn_ram"],"leafwisp":[3,false,2,-1,"none",0,"leaf_dart"],"rootgnawer":[1,false,2,1,"mark",1,"tusk_sweep"],"vinesnap":[2,true,2,0,"weaken",1,"vine_snap"],"mossmite":[2,false,3,0,"guard",1,"rolling_moss"],"sylphowl":[3,false,3,0,"none",0,"feather_fan"],"hollow_stag":[1,true,2,2,"mark",1,"antler_arc"],"grovetitan":[1,true,3,2,"guard",2,"timber_shock"],"fungal_monarch":[2,true,3,1,"poison",3,"royal_spores"],"reef_pup":[1,false,1,0,"none",0,"reef_bite"],"jellymancer":[2,false,3,-1,"drain",1,"jelly_pulse"],"shellguard":[1,true,2,0,"guard",3,"shell_impact"],"bubblewisp":[3,false,3,-1,"weaken",1,"bubble_burst"],"eelstrix":[2,false,2,0,"drain",1,"electric_lash"],"coralcrab":[1,false,2,1,"guard",1,"double_pincer"],"anemoneye":[2,true,3,0,"weaken",2,"tentacle_snare"],"marrowray":[3,false,2,0,"mark",1,"fin_slice"],"leviathorn":[2,true,2,1,"pounce",1,"spiral_current"],"abyss_colossus":[2,true,3,2,"weaken",1,"abyss_grasp"],"tidal_sovereign":[2,true,2,3,"mark",1,"tidal_jaws"],"starlit_pup":[1,false,2,1,"none",0,"star_kick"],"lunamoth":[2,false,3,-1,"weaken",2,"lunar_dust"],"crystarok":[1,true,2,1,"guard",2,"prism_shatter"],"nova_wisp":[3,false,3,0,"drain",1,"nova_bolt"],"orbitserpent":[2,false,2,0,"mark",1,"orbit_lash"],"comet_hare":[2,false,2,1,"pounce",1,"comet_drop"],"voidspider":[2,true,3,0,"mark",2,"gravity_web"],"nebulwing":[3,false,3,-1,"drain",2,"sonic_cone"],"lunar_prowler":[1,true,2,2,"none",0,"moon_claw"],"astro_golem":[3,true,3,1,"none",0,"meteor_fist"],"celestial_guardian":[3,true,3,2,"drain",2,"celestial_verdict"]}
 const ATTACK_PATTERNS={"bramble_pup":"line","sporeling":"radius","thornbeetle":"line","leafwisp":"line","rootgnawer":"front","vinesnap":"corner","mossmite":"line","sylphowl":"fan","hollow_stag":"fan","grovetitan":"radius","fungal_monarch":"radius","reef_pup":"front","jellymancer":"radius","shellguard":"front","bubblewisp":"corner","eelstrix":"line","coralcrab":"fan","anemoneye":"corner","marrowray":"line","leviathorn":"line","abyss_colossus":"radius","tidal_sovereign":"fan","starlit_pup":"front","lunamoth":"fan","crystarok":"radius","nova_wisp":"line","orbitserpent":"corner","comet_hare":"line","voidspider":"corner","nebulwing":"fan","lunar_prowler":"front","astro_golem":"corner","celestial_guardian":"cross"}
+# Secondary moves have independent geometry and recovery. They do not stack status effects.
+const SECONDARY_SKILLS={"bramble_pup":[1,"fan","Thorn Scratch",-1,"none",0,"slash"],"sporeling":[1,"front","Cap Bonk",-1,"none",0,"roll"],"thornbeetle":[1,"front","Mandible Cut",-1,"none",0,"slash"],"leafwisp":[1,"fan","Razor Leaves",-1,"none",0,"fan"],"rootgnawer":[2,"line","Root Needle",-2,"none",0,"dart"],"vinesnap":[1,"front","Petal Chomp",-1,"none",0,"slash"],"mossmite":[1,"radius","Pebble Scatter",-2,"none",0,"shards"],"sylphowl":[1,"fan","Talon Rake",-1,"none",0,"slash"],"hollow_stag":[2,"line","Bark Spear",-2,"none",0,"dart"],"grovetitan":[2,"corner","Root Hook",-2,"none",0,"whip"],"fungal_monarch":[3,"line","Royal Spore Jet",-2,"none",0,"cloud"],"reef_pup":[2,"line","Water Needle",-2,"none",0,"dart"],"jellymancer":[1,"front","Tentacle Flick",-1,"none",0,"whip"],"shellguard":[2,"line","Shell Disc",-2,"none",0,"roll"],"bubblewisp":[1,"radius","Foam Ring",-2,"none",0,"bubble"],"eelstrix":[1,"fan","Static Fang",-1,"none",0,"lightning"],"coralcrab":[2,"line","Brine Jet",-2,"none",0,"beam"],"anemoneye":[1,"radius","Nettle Bloom",-2,"none",0,"cloud"],"marrowray":[1,"fan","Tail Barb",-1,"none",0,"slash"],"leviathorn":[3,"line","Brackish Lance",-2,"none",0,"spiral"],"abyss_colossus":[1,"radius","Ink Veil",-2,"none",0,"cloud"],"tidal_sovereign":[3,"line","Riptide Rush",-2,"none",0,"wave"],"starlit_pup":[2,"line","Comet Spark",-2,"none",0,"dart"],"lunamoth":[1,"fan","Moon Wing",-1,"none",0,"fan"],"crystarok":[2,"line","Crystal Needle",-2,"none",0,"shards"],"nova_wisp":[1,"radius","Cinder Halo",-2,"none",0,"flame"],"orbitserpent":[1,"front","Ring Fang",-1,"none",0,"slash"],"comet_hare":[1,"fan","Lunar Kick",-1,"none",0,"slash"],"voidspider":[3,"line","Silk Dart",-2,"none",0,"web"],"nebulwing":[1,"radius","Echo Burst",-2,"none",0,"wave"],"lunar_prowler":[2,"line","Shadow Pounce",-2,"none",0,"leap"],"astro_golem":[1,"radius","Gravel Nova",-2,"none",0,"shards"],"celestial_guardian":[2,"fan","Halo Blade",-2,"none",0,"slash"]}
 var enemy_actions:Array[Dictionary]=[]
 var player_attack_fx:String="basic_strike"
 var player_attack_cells:Array[Vector2i]=[]
@@ -338,6 +340,18 @@ func enemy_turn():
 		var aim:Vector2i=enemies[i].get("aim",Vector2i.ZERO) if charged else attack_aim(p,player,pattern,int(skill[0]))
 		var footprint:Dictionary=attack_footprint(p,aim,pattern,int(skill[0])) if aim!=Vector2i.ZERO else {}
 		var in_range:bool=footprint.has(player)
+		var alternate:bool=false
+		var species:String=str(enemies[i].get("species",""))
+		var alt_cooldown:int=int(enemies[i].get("alt_cooldown",0))
+		if alt_cooldown>0:enemies[i]["alt_cooldown"]=alt_cooldown-1
+		if not charged and (not ready or not in_range) and alt_cooldown<=0 and SECONDARY_SKILLS.has(species):
+			var alt:Array=SECONDARY_SKILLS[species]
+			var alt_aim:=attack_aim(p,player,str(alt[1]),int(alt[0]))
+			if alt_aim!=Vector2i.ZERO:
+				alternate=true;aim=alt_aim;pattern=str(alt[1])
+				footprint=attack_footprint(p,aim,pattern,int(alt[0]))
+				in_range=true;ready=true
+				skill=[alt[0],false,3,alt[3],alt[4],alt[5],"alt_"+species]
 		if charged and not in_range:
 			enemies[i].windup=false
 			enemy_actions.append({"uid":enemies[i].get("uid",i),"phase":"cancel","from":p,"to":p+aim,"move":enemies[i].get("signature","Strike")})
@@ -356,9 +370,11 @@ func enemy_turn():
 			if marked_damage>0:damage+=marked_damage;marked_damage=0
 			hp=maxi(0,hp-damage);hits+=1;combo=0
 			var move_name:String=str(enemies[i].get("signature","Strike")) if special else "Quick strike"
+			if alternate:move_name=str(SECONDARY_SKILLS[species][2])
 			var effect:String=str(skill[4]) if special else "none"
 			if special:
-				enemies[i]["cooldown"]=maxi(0,int(skill[2])-1)
+				if alternate:enemies[i]["alt_cooldown"]=maxi(0,int(skill[2])-1)
+				else:enemies[i]["cooldown"]=maxi(0,int(skill[2])-1)
 				apply_signature_effect(i,skill)
 			enemy_actions.append({"uid":enemies[i].get("uid",i),"phase":"attack","from":p,"to":player,"end":enemies[i].pos,"move":move_name,"fx":skill[6] if special else "basic_strike","effect":effect,"damage":damage,"aim":aim if special else player-p,"pattern":pattern if special else "front","tiles":footprint.keys() if special else [player],"path":footprint.get(player,[player]) if special else [player]})
 			message="%s · %s! −%d HP"%[enemies[i].get("name","Enemy"),move_name,damage]

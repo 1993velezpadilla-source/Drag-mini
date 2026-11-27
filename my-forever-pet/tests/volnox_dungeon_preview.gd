@@ -58,6 +58,13 @@ func run():
 		assert(dungeon.combat_particles[0].visible)
 		dungeon.combat_fx_update(1.0)
 		assert(dungeon.combat_bursts.is_empty() and not dungeon.combat_particles[0].visible)
+	for species in RulesForFX.SECONDARY_SKILLS:
+		var style:Array=dungeon.combat_style("alt_"+species)
+		assert(style[0]==RulesForFX.SECONDARY_SKILLS[species][6])
+		dungeon.combat_fx_spawn({"fx":"alt_"+species,"from":Vector2i.ZERO,"to":Vector2i.RIGHT})
+		dungeon.combat_fx_update(.12)
+		assert(dungeon.combat_particles[0].visible)
+		dungeon.combat_fx_update(1.0)
 	assert(modes.size()>=13)
 	for j in range(3):
 		dungeon.combat_fx_spawn({"fx":["vine_snap","nova_bolt","gravity_web"][j],"from":Vector2i(-2,j-1),"to":Vector2i(2,j-1),"path":[Vector2i(-1,j-1),Vector2i(0,j-1),Vector2i(1,j-1),Vector2i(2,j-1)],"tiles":[Vector2i(2,j-1)]})
@@ -65,7 +72,7 @@ func run():
 	await process_frame
 	await RenderingServer.frame_post_draw
 	assert(viewport.get_texture().get_image().save_png("/tmp/volnox-combat-fx.png")==OK)
-	print("VOLNOX_COMBAT_VFX_PASS ",modes.size()," modes / 33 skills")
+	print("VOLNOX_COMBAT_VFX_PASS ",modes.size()," modes / 66 skills")
 	dungeon.free()
 	print("VOLNOX_RUNTIME_PIXEL_PASS ",i)
 	quit()

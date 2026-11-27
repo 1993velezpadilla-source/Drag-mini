@@ -71,6 +71,7 @@ jobs:
           grep -F 'VOLNOX_ROSTER_PASS 33' /tmp/volnox-roster.log
           grep -F 'VOLNOX_SIGNATURE_COMBAT_PASS 33' /tmp/volnox-roster.log
           grep -F 'VOLNOX_GRID_PATTERN_PASS 6' /tmp/volnox-roster.log
+          grep -F 'VOLNOX_SECONDARY_SKILL_PASS 33' /tmp/volnox-roster.log
           ! grep -E 'SCRIPT ERROR|Parse Error|Assertion failed' /tmp/volnox-roster.log
       - name: Simulate full combat expeditions without removing enemies
         run: |

@@ -1723,10 +1723,19 @@ func combat_pixel_texture(mode:String,light:Color,dark:Color)->ImageTexture:
 	var texture:=ImageTexture.create_from_image(im)
 	combat_textures[key]=texture
 	return texture
+func combat_style(id:String)->Array:
+	if id.begins_with("alt_"):
+		var species:=id.trim_prefix("alt_")
+		if Rules.SECONDARY_SKILLS.has(species):
+			var main:Array=Rules.SIGNATURE_SKILLS[species]
+			var original:Array=COMBAT_FX_STYLES[main[6]]
+			var alt:Array=Rules.SECONDARY_SKILLS[species]
+			return [alt[6],original[1],original[2],.34]
+	return COMBAT_FX_STYLES.get(id,COMBAT_FX_STYLES.basic_strike)
 func combat_fx_spawn(event:Dictionary)->void:
 	if not is_instance_valid(combat_fx_root):return
 	var id:String=str(event.get("fx","basic_strike"))
-	var style:Array=COMBAT_FX_STYLES.get(id,COMBAT_FX_STYLES.basic_strike)
+	var style:Array=combat_style(id)
 	var source:Vector2i=event.get("from",Vector2i.ZERO)
 	var target:Vector2i=event.get("to",source)
 	var waypoints:Array=[pos(source)+Vector3(0,.45,0)]

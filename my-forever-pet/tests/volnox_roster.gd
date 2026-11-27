@@ -55,6 +55,20 @@ func _initialize():
 			d.cells.erase(d.player-Vector2i(1,0))
 			assert(not d.line_of_attack(d.player-Vector2i(2,0),d.player,3))
 	assert(fx.size()==33 and effects.size()==7 and patterns.size()==6)
+	var second_names:Dictionary={}
+	for species in Rules.SECONDARY_SKILLS:
+		var alt:Array=Rules.SECONDARY_SKILLS[species]
+		assert(not second_names.has(alt[2]));second_names[alt[2]]=true
+		var encounter=Rules.new()
+		encounter.hp=100;encounter.max_hp=100;encounter.player=Vector2i(4,4)
+		for x in range(9):
+			for y in range(9):encounter.cells[Vector2i(x,y)]=true
+		encounter.enemies.append({"pos":encounter.player-Vector2i(int(alt[0]),0),"uid":0,"hp":30,"kind":0,"species":species,"windup":false,"cooldown":2})
+		encounter.enemy_turn()
+		assert(encounter.hp<100 and encounter.enemy_actions[0].fx=="alt_"+species,species+" secondary")
+		assert(encounter.enemy_actions[0].move==alt[2])
+	assert(second_names.size()==33)
+	print("VOLNOX_SECONDARY_SKILL_PASS 33")
 	var grid=Rules.new()
 	for x in range(7):
 		for y in range(7):grid.cells[Vector2i(x,y)]=true
