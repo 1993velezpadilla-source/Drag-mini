@@ -159,6 +159,29 @@ func run()->void:
 	var mood_offsets:Dictionary=Parts.parse_offsets({"weak":[0,3],"unknown":[0,0],"happy":[1]},false)
 	if mood_offsets.size()!=1 or mood_offsets.get("weak")!=Vector2i(0,3):errors.append("mood manifest offsets")
 	print("KINDRIA_PART_RUNTIME_ROUTE_PASS")
+	# Reuse actual native anatomical cells, not synthetic external overlays.
+	var native_checks:int=0
+	for species in PixelArt.NATIVE_HOVER_CYCLES:
+		var hz:float=float(PixelArt.NATIVE_HOVER_CYCLES[species])
+		for dir in range(4):
+			var sheet:=Image.create(192,48,false,Image.FORMAT_RGBA8)
+			sheet.fill(Color.TRANSPARENT)
+			var distinct:Dictionary={}
+			for frame in range(4):
+				var time:float=(float(frame)+.25)/hz
+				var idle:Dictionary=PixelArt.enemy_locomotion_sample(species,"idle",time)
+				var moving:Dictionary=PixelArt.enemy_locomotion_sample(species,"walk",time)
+				if idle!=moving or idle.pose!="walk" or int(idle.frame)!=frame:errors.append("native hover phase "+species)
+				var native:Image=PixelArt.enemy_asset_cell(species,dir,"walk",frame)
+				distinct[digest(native.get_data())]=true
+				sheet.blit_rect(native,Rect2i(0,0,48,48),Vector2i(frame*48,0))
+				native_checks+=1
+			if distinct.size()<2:errors.append("static native hover "+species+" "+str(dir))
+			if sheet.save_png(OUT+"/native-hover-"+species+"-"+str(dir)+".png")!=OK:errors.append("native hover PNG")
+		for state in ["windup","attack","recover","hurt","defeat"]:
+			if PixelArt.enemy_locomotion_sample(species,state,.5).pose!=state:errors.append("native hover overrides combat "+species)
+	if PixelArt.enemy_locomotion_sample("bramble_pup","idle",.6).pose!="idle":errors.append("grounded creature idle changed")
+	print("KINDRIA_NATIVE_HOVER_AUDIT species=",PixelArt.NATIVE_HOVER_CYCLES.size()," frames=",native_checks)
 	# Exercise more frames than the cache cap, then verify hot hits and exact normalization.
 	for row in reports.slice(0,40):
 		for frame in range(Field.FX_FRAME_COUNT):field.combat_animated_texture(str(row.id),frame)

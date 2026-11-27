@@ -326,6 +326,14 @@ static func animate_world_sprite(actor:Node3D,delta:Vector2,moving:bool,dt:float
 # Volnox enemies are authored 2D pixels, never rendered 3D creature meshes.
 const ENEMY_PIXEL_PILOTS=["sporeling","coralcrab","nova_wisp","vinesnap","eelstrix","comet_hare","thornbeetle","marrowray","voidspider","rootgnawer","jellymancer","lunamoth","leafwisp","shellguard","crystarok","bramble_pup","anemoneye","nebulwing","mossmite","reef_pup","orbitserpent","sylphowl","bubblewisp","starlit_pup","hollow_stag","leviathorn","lunar_prowler","grovetitan","abyss_colossus","astro_golem","fungal_monarch","tidal_sovereign","celestial_guardian"]
 const ENEMY_POSES=["idle","walk","walk","walk","walk","windup","attack","attack","recover","hurt","defeat"]
+# These existing native locomotion cells already animate wings, fins, tentacles
+# or energy. Reuse them in stationary flight; no new geometry or LPC overlays.
+const NATIVE_HOVER_CYCLES={"nebulwing":10.0,"sylphowl":7.0,"lunamoth":8.0,"marrowray":6.0,"leafwisp":8.0,"nova_wisp":6.0,"bubblewisp":5.0,"leviathorn":6.0,"jellymancer":6.0}
+static func enemy_locomotion_sample(id:String,state:String,clock:float)->Dictionary:
+	if state in ["idle","walk"] and NATIVE_HOVER_CYCLES.has(id):
+		return {"pose":"walk","frame":posmod(floori(maxf(0.0,clock)*float(NATIVE_HOVER_CYCLES[id])),4)}
+	return {"pose":state,"frame":posmod(floori(maxf(0.0,clock)*12.0),4) if state=="walk" else 0}
+
 static func enemy_dot(im:Image,p:Vector2i,r:Vector2i,c:Color)->void:
 	ellipse(im,Vector2(p),Vector2(r),c)
 static func enemy_line(im:Image,a:Vector2i,b:Vector2i,width:int,c:Color)->void:

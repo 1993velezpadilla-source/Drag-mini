@@ -1739,6 +1739,13 @@ func update_enemy_pixel(actor:Node3D,dt:float,motion:Vector3)->void:
 		var footprint:float=size_multiplier*(1.0-rise*.65)
 		shadow.scale=Vector3(footprint*(1.15 if species in ["eelstrix","marrowray","coralcrab","shellguard"] else 1.0),footprint*.8,1.0)
 	var visual_state:String=state
+	# Separate continuous locomotion phase prevents an idle/move transition
+	# from resetting a wingbeat. Combat pose timing always takes precedence.
+	if state in ["idle","walk"]:
+		var locomotion_clock:float=fposmod(float(actor.get_meta("native_locomotion_clock",0.0))+maxf(0.0,dt),4.0)
+		actor.set_meta("native_locomotion_clock",locomotion_clock)
+		var locomotion:Dictionary=PixelArt.enemy_locomotion_sample(species,state,locomotion_clock if PixelArt.NATIVE_HOVER_CYCLES.has(species) else clock)
+		visual_state=str(locomotion.pose);frame=int(locomotion.frame)
 	if state=="attack":
 		var sample:Dictionary=PixelArt.attack_pose_sample(clock/maxf(.01,duration),float(actor.get_meta("enemy_cast_impact",.48)))
 		visual_state="windup" if sample.phase=="windup" else "recover" if sample.phase=="recover" else "attack"
