@@ -36,6 +36,39 @@ func run_checks()->void:
 	var checks:int=0
 	var failures:Array[String]=[]
 	var view:=Dungeon.new()
+	# V24.1: retain bounded request storage while committing only active winners.
+	var lighting_probe:=Dungeon.new()
+	for i in range(2):lighting_probe.fx_lights.append(OmniLight3D.new())
+	lighting_probe.cinematic_light(Vector3.ONE,Color.RED,.5,2.0,1.5,1)
+	lighting_probe.cinematic_light(Vector3.ZERO,Color.BLUE,.4,1.5,2.0,0)
+	var saved_request:Dictionary=lighting_probe.fx_light_requests[1]
+	lighting_probe.cinematic_light(Vector3(2,0,0),Color.GREEN,.9,3.0,1.2,2)
+	if saved_request.color!=Color.GREEN or lighting_probe.fx_light_requests.size()!=2:failures.append("V24.1 winning request reuse")
+	lighting_probe.commit_cinematic_lights()
+	if lighting_probe.fx_lights[1].light_color!=Color.GREEN or not is_equal_approx(lighting_probe.fx_lights[1].light_energy,.9):failures.append("V24.1 winning light parity")
+	lighting_probe.fx_lights_used=0;lighting_probe.fx_light_scores.clear()
+	lighting_probe.fx_lights[1].light_color=Color.WHITE
+	lighting_probe.cinematic_light(Vector3.ZERO,Color.YELLOW,.6,2.0,1.5,1)
+	lighting_probe.commit_cinematic_lights()
+	if lighting_probe.fx_light_requests.size()!=2 or lighting_probe.fx_lights_used!=1:failures.append("V24.1 bounded storage across frames")
+	if lighting_probe.fx_lights[0].light_color!=Color.YELLOW or lighting_probe.fx_lights[1].light_color!=Color.WHITE:failures.append("V24.1 stale request committed")
+	lighting_probe.fx_lights_used=0;lighting_probe.fx_light_scores.clear()
+	lighting_probe.commit_cinematic_lights()
+	if lighting_probe.fx_lights[0].light_color!=Color.YELLOW:failures.append("V24.1 idle commit")
+	for probe_light in lighting_probe.fx_lights:probe_light.free()
+	lighting_probe.fx_lights.clear()
+	var halo_cache_material:=ShaderMaterial.new()
+	var halo_cache_shader:=Shader.new()
+	halo_cache_shader.code="shader_type spatial; uniform float phase = 0.0; uniform float intensity = 0.0; void fragment(){ALBEDO=vec3(phase); ALPHA=intensity;}"
+	halo_cache_material.shader=halo_cache_shader
+	var halo_cache_probe:Dictionary=lighting_probe.fx_uniform_cache(halo_cache_material)
+	if not lighting_probe.set_fx_uniform_cached(halo_cache_material,halo_cache_probe,&"phase",.4):failures.append("V24.1 initial cached write")
+	if lighting_probe.set_fx_uniform(halo_cache_material,&"phase",.4):failures.append("V24.1 shared cache duplicate")
+	if not lighting_probe.set_fx_uniform(halo_cache_material,&"phase",.7):failures.append("V24.1 updated shared value")
+	if lighting_probe.set_fx_uniform_cached(halo_cache_material,halo_cache_probe,&"phase",.7):failures.append("V24.1 reverse cache consistency")
+	if not lighting_probe.set_fx_uniform_cached(halo_cache_material,halo_cache_probe,&"intensity",.3) or not is_equal_approx(float(halo_cache_material.get_shader_parameter(&"intensity")),.3):failures.append("V24.1 independent parameter")
+	lighting_probe.free()
+	checks+=10
 	# V24.0: compare prefix cleanup with a full scan across growth, shrink,
 	# independent persistent status particles and optional batching hides.
 	var pool_probe:=Dungeon.new()
