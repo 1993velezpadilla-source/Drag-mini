@@ -2349,6 +2349,17 @@ func creature_condition_sample(actor:Node3D,hp_ratio:float,dt:float,enabled:bool
 	var phase:float=elapsed*TAU*1.05+float(actor.get_instance_id()%31)*.31
 	return Vector3(1.0-fatigue*(.075+.023*sin(phase)),fatigue*.014*sin(phase*.5),fatigue)
 
+# Compare actual pooled node state so external writers remain authoritative.
+func apply_enemy_body_transform(node:Node3D,position_value:Vector3,scale_value:Vector3,visible_value:bool)->int:
+	var writes:int=0
+	if node.position!=position_value:
+		node.position=position_value;writes+=1
+	if node.scale!=scale_value:
+		node.scale=scale_value;writes+=1
+	if node.visible!=visible_value:
+		node.visible=visible_value;writes+=1
+	return writes
+
 func update_enemy_pixel(actor:Node3D,dt:float,motion:Vector3,body_dt:float=-1.0)->void:
 	var sprite:=actor.get_node_or_null("EnemyPixel") as Sprite3D
 	if sprite==null:return
@@ -2373,7 +2384,7 @@ func update_enemy_pixel(actor:Node3D,dt:float,motion:Vector3,body_dt:float=-1.0)
 	var frame:int=posmod(int(clock*12.0),4) if state=="walk" else mini(1,int(clock*9.0)) if state=="attack" else 0
 	var species:String=str(actor.get_meta("species"))
 	var facing_index:int=int(actor.get_meta("enemy_facing",0))
-	sprite.visible=true
+	var body_visible:bool=true
 	var hovering:bool=species in ["nova_wisp","leafwisp","lunamoth","jellymancer","marrowray","nebulwing","bubblewisp","sylphowl","leviathorn","astro_golem","celestial_guardian","tidal_sovereign"]
 	var real_dt:float=maxf(0.0,dt if body_dt<0.0 else body_dt)
 	var idle_weight:float=float(actor.get_meta("native_idle_weight",0.0))
@@ -2386,23 +2397,23 @@ func update_enemy_pixel(actor:Node3D,dt:float,motion:Vector3,body_dt:float=-1.0)
 	var rise:float=.13+.04*sin(elapsed*3.0+float(actor.get_instance_id()%11)) if hovering and state!="defeat" else 0.0
 	rise+=idle_sample.z
 	var size_multiplier:float=float(actor.get_meta("enemy_size_multiplier",1.0))
-	sprite.position=Vector3(0,.54*size_multiplier+rise,0)
+	var body_position:=Vector3(0,.54*size_multiplier+rise,0)
 	var body_offset:=Vector3.ZERO
 	var hit_flash:float=0.0
 	var defeat_fade:float=1.0
 	# Same continuous body clock as the companion; preserve the authored ground anchor.
 	var cast_body_progress:float=caster_wave_progress(clock,duration,float(actor.get_meta("enemy_cast_impact",.48)),actor.get_meta("enemy_cast_waves",[])) if state=="attack" else 0.0
-	sprite.scale=Vector3.ONE
+	var body_scale:=Vector3.ONE
 	if state=="idle":
-		sprite.scale=Vector3(1.0/idle_sample.x,idle_sample.x,1.0)
-		sprite.position.y+=.54*size_multiplier*(idle_sample.x-1.0)
+		body_scale=Vector3(1.0/idle_sample.x,idle_sample.x,1.0)
+		body_position.y+=.54*size_multiplier*(idle_sample.x-1.0)
 		body_offset.x=idle_sample.y*size_multiplier
-		sprite.position.x+=body_offset.x
+		body_position.x+=body_offset.x
 	if state=="attack":
 		var body:Dictionary=PixelArt.attack_body_sample(cast_body_progress,float(actor.get_meta("enemy_cast_impact",.48)),str(actor.get_meta("enemy_cast_motion","contact")),species)
 		var stretch:float=float(body.stretch)
-		sprite.scale=Vector3(1.0/stretch,stretch,1.0)
-		sprite.position.y+=.54*size_multiplier*(stretch-1.0)+float(body.lift)
+		body_scale=Vector3(1.0/stretch,stretch,1.0)
+		body_position.y+=.54*size_multiplier*(stretch-1.0)+float(body.lift)
 	if state=="attack" and not actor.get_meta("companion_disguise",false):
 		var cast_dir:Vector3=actor.get_meta("enemy_cast_direction",Vector3(0,0,1))
 		var offset:=cast_motion_offset(str(actor.get_meta("enemy_cast_motion","contact")),cast_body_progress,float(actor.get_meta("enemy_cast_impact",.48)))
@@ -2411,39 +2422,42 @@ func update_enemy_pixel(actor:Node3D,dt:float,motion:Vector3,body_dt:float=-1.0)
 			var route:Dictionary=actor.get_meta("enemy_tile_cast")
 			var sample:=tile_cast_sample(route.points,str(route.kind),clock/maxf(.01,duration),float(actor.get_meta("enemy_cast_impact",.48)))
 			body_offset=actor.global_basis.inverse()*(Vector3(sample.position)-actor.global_position)
-			sprite.visible=bool(sample.visible)
+			body_visible=bool(sample.visible)
 			var heading:Vector3=sample.motion
 			facing_index=PixelArt.direction8_for(Vector2(heading.x,heading.z),facing_index)
-		sprite.position+=body_offset
+		body_position+=body_offset
 	if state=="hurt":
 		var reaction:=creature_hit_sample(clock/maxf(.01,duration),species)
 		hit_flash=float(reaction.flash)
 		var impact_weight:float=clampf(float(actor.get_meta("enemy_hit_weight",1.0)),.78,1.48)
 		var squash:float=clampf(1.0+(float(reaction.squash)-1.0)*impact_weight,.65,1.35)
-		sprite.scale=Vector3(1.0/squash,squash,1.0)
-		sprite.position.y+=.54*size_multiplier*(squash-1.0)
+		body_scale=Vector3(1.0/squash,squash,1.0)
+		body_position.y+=.54*size_multiplier*(squash-1.0)
 		# A transformed companion already receives displacement and lift on its root.
 		if not actor.get_meta("companion_disguise",false):
 			var hit_dir:Vector3=actor.get_meta("enemy_hit_direction",Vector3.ZERO)
 			var forward:Vector3=hit_dir.normalized()
 			var lateral:=Vector3(-forward.z,0.0,forward.x)
 			body_offset=actor.basis.inverse()*(forward*.32*float(reaction.recoil)+lateral*float(reaction.sway)+Vector3.UP*float(reaction.lift))*impact_weight
-			sprite.position+=body_offset
+			body_position+=body_offset
 	if state=="defeat":
 		# Use the existing terminal cell, then collapse towards the ground.
 		# Keep a short readable hold before shrinking out of the scene.
 		var fall:float=smoothstep(.24,1.0,clampf(clock/maxf(.01,duration),0.0,1.0))
 		var collapse:float=lerpf(1.0,.12,fall)
-		sprite.scale=Vector3(lerpf(1.0,.32,fall),collapse,1.0)
-		sprite.position.y=.54*size_multiplier*collapse
+		body_scale=Vector3(lerpf(1.0,.32,fall),collapse,1.0)
+		body_position.y=.54*size_multiplier*collapse
 		defeat_fade=1.0-fall
 	var shadow:=actor.get_node_or_null("EnemyContactShadow") as MeshInstance3D
+	var shadow_position:=Vector3.ZERO
+	var shadow_scale:=Vector3.ONE
+	var shadow_visible:bool=body_visible
 	if shadow!=null:
 		var parent_lift:float=actor.position.y if actor.get_meta("companion_disguise",false) else 0.0
 		var shadow_sample:=enemy_shadow_sample(body_offset,rise,parent_lift,size_multiplier,species in ["eelstrix","marrowray","coralcrab","shellguard"])
-		shadow.position=shadow_sample.position
-		shadow.scale=shadow_sample.scale*defeat_fade
-		shadow.visible=sprite.visible
+		shadow_position=shadow_sample.position
+		shadow_scale=shadow_sample.scale*defeat_fade
+		shadow_visible=body_visible
 	var visual_state:String=state
 	# The phase continues through combat even when the strike sprite takes priority.
 	# This avoids freezing the wing/fin cycle every time an enemy attacks.
@@ -2465,31 +2479,34 @@ func update_enemy_pixel(actor:Node3D,dt:float,motion:Vector3,body_dt:float=-1.0)
 		visual_state="sleep";frame=0
 	if state in ["idle","walk","recover"] and bool(living.active):
 		var stretch:float=float(living.stretch)
-		sprite.scale=Vector3(float(living.width),stretch,1.0)
-		sprite.position.y=lerpf(.54*size_multiplier+rise,.54*size_multiplier*stretch,float(living.sleep))+.54*size_multiplier*(stretch-1.0)*(1.0-float(living.sleep))
+		body_scale=Vector3(float(living.width),stretch,1.0)
+		body_position.y=lerpf(.54*size_multiplier+rise,.54*size_multiplier*stretch,float(living.sleep))+.54*size_multiplier*(stretch-1.0)*(1.0-float(living.sleep))
 		# Ailments own the silhouette; do not add healthy idle drift to a sleeping body.
-		sprite.position.x=float(living.sway)*size_multiplier
+		body_position.x=float(living.sway)*size_multiplier
 		if shadow!=null:
-			shadow.position.x=sprite.position.x
-			shadow.scale.x*=1.0+float(living.sleep)*.24
-			shadow.scale.y*=1.0+float(living.sleep)*.13
+			shadow_position.x=body_position.x
+			shadow_scale.x*=1.0+float(living.sleep)*.24
+			shadow_scale.y*=1.0+float(living.sleep)*.13
 	# Persistent alert posture follows the real windup flag, even after the
 	# short anticipatory event has expired. Never override attacks or ailments.
 	var alert:bool=state in ["idle","windup"] and bool(actor.get_meta("native_alert",false)) and not bool(living.active)
 	if alert:
 		visual_state="windup";frame=0
 		var ready:float=1.0-.055*(.6+.4*sin(elapsed*TAU*2.0))
-		sprite.scale=Vector3(1.0/ready,ready,1.0)
-		sprite.position.y=.54*size_multiplier*ready+rise
+		body_scale=Vector3(1.0/ready,ready,1.0)
+		body_position.y=.54*size_multiplier*ready+rise
 	elif state in ["idle","walk"] and not bool(living.active) and not bool(actor.get_meta("pending_impact",false)):
 		# Multiply the existing gait/breathing scale, rather than replacing it.
 		var body_height:float=.54*size_multiplier
-		var previous_y:float=sprite.scale.y
-		sprite.scale.x/=fatigue.x
-		sprite.scale.y*=fatigue.x
-		sprite.position.y+=body_height*(sprite.scale.y-previous_y)
-		sprite.position.x+=fatigue.y*size_multiplier
-		if shadow!=null:shadow.position.x=sprite.position.x
+		var previous_y:float=body_scale.y
+		body_scale.x/=fatigue.x
+		body_scale.y*=fatigue.x
+		body_position.y+=body_height*(body_scale.y-previous_y)
+		body_position.x+=fatigue.y*size_multiplier
+		if shadow!=null:shadow_position.x=body_position.x
+	# Commit final local transforms once; intermediate pose math never touches nodes.
+	apply_enemy_body_transform(sprite,body_position,body_scale,body_visible)
+	if shadow!=null:apply_enemy_body_transform(shadow,shadow_position,shadow_scale,shadow_visible)
 	var can_blink:bool=not alert and not bool(actor.get_meta("pending_defeat",false)) and state in ["idle","walk"] and visual_state in ["idle","walk"] and float(living.sleep)<.1 and not ("freeze" in statuses or "sleep" in statuses or "nightmare" in statuses)
 	var blink:bool=can_blink and (creature_blink_sample(elapsed,actor.get_instance_id(),species) or (fatigue.z>.75 and fposmod(elapsed+idle_seed,1.7)<.22))
 	# Short asynchronous gestures for land creatures; aquatic appendages cycle.
