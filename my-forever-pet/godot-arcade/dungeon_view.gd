@@ -5484,7 +5484,7 @@ func native_identity_frame(id:String,frame:int,base:Image)->Image:
 	return im
 
 # V16.7: individually remastered after reviewing actual Godot PNG strips.
-const VISUAL_REMASTER_MOVES=["eos_504","eos_308","eos_135","eos_142","eos_047","eos_250","eos_299","eos_329","eos_262","eos_279","eos_101","eos_199","eos_251","eos_486","eos_462","eos_018"]
+const VISUAL_REMASTER_MOVES=["eos_504","eos_308","eos_135","eos_142","eos_047","eos_250","eos_299","eos_329","eos_262","eos_279","eos_101","eos_199","eos_251","eos_486","eos_462","eos_018","eos_507","eos_175","eos_254","eos_097","eos_163","eos_320","eos_033","eos_166"]
 func visual_remaster_frame(id:String,frame:int)->Image:
 	var im:=Image.create(48,48,false,Image.FORMAT_RGBA8)
 	im.fill(Color.TRANSPARENT)
@@ -5678,6 +5678,125 @@ func visual_remaster_frame(id:String,frame:int)->Image:
 				for j in range(3):
 					var axis:=Vector2(cos(sweep+float(j-1)*.65),sin(sweep+float(j-1)*.65))
 					fx_line(im,q,q+axis*(4+4*(1.0-fade)),1.3,Color("#fff3d1",fade))
+		"eos_507":
+			# Force Palm: open hand silhouette, concentrated aura, outward shock ring.
+			var q:=Vector2(10+22*drive,24)
+			fx_line(im,q-Vector2(12*fade,0),q,3.5,Color("#da593b",.75*fade+.1))
+			fx_line(im,q-Vector2(5,0),q+Vector2(2,0),6.5,Color("#763c2d"))
+			fx_line(im,q-Vector2(4,0),q+Vector2(2,0),5.2,Color("#ffc083"))
+			for j in range(4):
+				var y:float=-5.4+float(j)*3.0
+				fx_line(im,q+Vector2(0,y),q+Vector2(6.5-float(j%2),y-.4),2.3,Color("#fff1cb"))
+			fx_line(im,q+Vector2(-2,3),q+Vector2(1,8),2.6,Color("#ffdcaa"))
+			if t>=peak:
+				var radius:float=7.0+10.0*(1.0-fade)
+				fx_disc(im,q+Vector2(3,0),radius,Color("#ffc36c",fade),radius-1.7)
+				for j in range(6):
+					var a:float=float(j)*TAU/6.0
+					var axis:=Vector2(cos(a),sin(a))
+					fx_line(im,q+axis*radius,q+axis*(radius+4.0),1.2,Color("#fff4bc",fade))
+		"eos_175":
+			# Rapid Palms: staggered hand strikes rather than one static fist.
+			for j in range(3):
+				var f:float=clampf(drive*1.2-float(j)*.13,0.0,1.0)
+				var q:=Vector2(8+24*f,24+float(j-1)*7.0)
+				var opacity:float=(.48+.24*float(j))*fade+.12
+				fx_line(im,q-Vector2(9*fade,0),q,2.0,Color("#dc5f46",opacity))
+				fx_line(im,q-Vector2(3,0),q+Vector2(1,0),4.8,Color("#a75239",opacity))
+				for k in range(4):
+					var y:float=-3.6+float(k)*2.3
+					fx_line(im,q+Vector2(0,y),q+Vector2(4.5,y),1.5,Color("#ffe0ab",opacity))
+				fx_line(im,q+Vector2(-1,2),q+Vector2(1,5),1.8,Color("#ffc68d",opacity))
+				if t>=peak:
+					fx_line(im,q+Vector2(6,-3),q+Vector2(10,-6),1.2,Color("#fff2c3",fade))
+					fx_line(im,q+Vector2(6,3),q+Vector2(10,6),1.2,Color("#fff2c3",fade))
+		"eos_254":
+			# Bouncing Step: ground compression, airborne arc, harmless landing dust.
+			var bounce:float=absf(sin(t*PI*2.0))
+			var q:=Vector2(24,33-22*bounce)
+			fx_line(im,Vector2(16-4*bounce,37),Vector2(32+4*bounce,37),1.3,Color("#c8ae85",.35+.35*(1.0-bounce)))
+			fx_disc(im,q,4.7,Color("#c4935a"))
+			fx_disc(im,q-Vector2(1,2),3.4,Color("#fff1cc"))
+			for j in range(4):
+				var x:float=float(j-2)*4.0
+				fx_line(im,q+Vector2(x,6),q+Vector2(x,9+5*bounce),1.0,Color("#b3e9ec",.35+.55*bounce))
+			for j in range(6):
+				var a:float=PI+float(j)*PI/5.0
+				var mote:=Vector2(24,36)+Vector2(cos(a)*12,sin(a)*5)*(1.0-bounce)
+				fx_disc(im,mote,1.6,Color("#dec3a1",.8*(1.0-bounce)))
+		"eos_097":
+			# Icy Wind: layered curved gusts carrying snow and sharp ice crystals.
+			for j in range(3):
+				for k in range(1,11):
+					var f:float=float(k)/10.0
+					var g:float=float(k-1)/10.0
+					var base_y:float=14.0+float(j)*10.0
+					var a:=Vector2(5+36*g*drive,base_y+sin(g*TAU+t*5.0+float(j))*3.2)
+					var v:=Vector2(5+36*f*drive,base_y+sin(f*TAU+t*5.0+float(j))*3.2)
+					fx_line(im,a,v,1.8,Color("#4c9dcb",.45+.4*fade))
+					fx_line(im,a-Vector2(0,1),v-Vector2(0,1),.85,Color("#dcfaff",.5+.5*fade))
+			for j in range(7):
+				var f:float=float(j)/6.0
+				var q:=Vector2(8+32*f*drive,24+sin(float(j)*2.4+t*5.0)*12.0)
+				ice_crystal(im,q,t+float(j),2.5+float(j%2),Color("#f1fcff"),Color("#86c9ee"))
+		"eos_163":
+			# Seed Volley: discrete striped seed projectiles in a timed burst.
+			for j in range(5):
+				var f:float=clampf(drive*1.3-float(j)*.14,0.0,1.0)
+				var q:=Vector2(7+33*f,24+sin(float(j)*2.1)*5.0)
+				fx_line(im,q-Vector2(7*fade,0),q,1.6,Color("#619b3b",.55*fade+.12))
+				fx_line(im,q-Vector2(2,1),q+Vector2(2,1),3.4,Color("#365b29"))
+				fx_line(im,q-Vector2(1,1),q+Vector2(1,0),2.1,Color("#c6e66c"))
+				fx_disc(im,q+Vector2(1,-1),1.0,Color("#f2ffb9"))
+				if t>=peak:
+					fx_disc(im,q+Vector2(4,3),1.2,Color("#d7f39a",fade))
+		"eos_320":
+			# Mega Drain: two braided return streams and a growing caster-side aura.
+			var travel:float=smoothstep(peak,1.0,t)
+			for j in range(2):
+				for k in range(1,13):
+					var a:float=float(k-1)/12.0
+					var f:float=float(k)/12.0
+					var u:=Vector2(39-30*a,24+sin(a*TAU+t*TAU+float(j)*PI)*(6+2*travel))
+					var v:=Vector2(39-30*f,24+sin(f*TAU+t*TAU+float(j)*PI)*(6+2*travel))
+					fx_line(im,u,v,2.2,Color("#34874d",.35+.5*pulse))
+					fx_line(im,u,v,1.0,Color("#b4ff87",.55+.4*pulse))
+			for j in range(5):
+				var f:float=fposmod(travel+float(j)*.2,1.0)
+				var q:=Vector2(39-30*f,24+sin(f*TAU+t*TAU)*7.0)
+				fx_disc(im,q,2.8,Color("#77dd51"))
+				fx_disc(im,q-Vector2(1,1),1.5,Color("#ebffad"))
+			var radius:float=4.0+7.0*travel
+			fx_disc(im,Vector2(9,24),radius,Color("#affd78",.75*pulse),maxf(0.0,radius-1.6))
+		"eos_033":
+			# Sorrow Veil: falling teardrops with a dark violet emotional aura.
+			var q:=Vector2(25,17)
+			for j in range(7):
+				var a:float=float(j)*TAU/7.0+t
+				var mote:=q+Vector2(cos(a)*13,sin(a)*9)
+				fx_disc(im,mote,2.0,Color("#634e94",.25+.45*pulse))
+			for j in range(4):
+				var f:float=fposmod(t+float(j)*.23,1.0)
+				var d:=Vector2(13+float(j)*7.0,10+27*f)
+				fx_line(im,d-Vector2(0,4),d,1.4,Color("#548cb4",.75))
+				water_drop(im,d,2.8,Color("#d3f2ff"),Color("#527baf"))
+				fx_disc(im,d-Vector2(1,1),1.0,Color("#ffffff",.85))
+		"eos_166":
+			# Egg Bomb: ivory egg, cracking shell and a radial burst.
+			var q:=Vector2(10+25*drive,28-13*sin(drive*PI))
+			fx_line(im,q-Vector2(0,3),q+Vector2(0,3),6.7,Color("#a98a70"))
+			fx_line(im,q-Vector2(0,3),q+Vector2(0,2),5.2,Color("#fff0cf"))
+			fx_disc(im,q-Vector2(2,3),2.1,Color("#fffbed"))
+			if t>=peak:
+				fx_line(im,q-Vector2(2,5),q+Vector2(1,-1),1.0,Color("#826d61"))
+				fx_line(im,q+Vector2(1,-1),q-Vector2(2,1),1.0,Color("#826d61"))
+				fx_line(im,q-Vector2(2,1),q+Vector2(2,5),1.0,Color("#826d61"))
+				for j in range(7):
+					var a:float=float(j)*TAU/7.0
+					var axis:=Vector2(cos(a),sin(a))
+					var mote:=q+axis*(6+9*(1.0-fade))
+					fx_line(im,mote,mote+axis*3.0,2.0,Color("#fff0cf",fade))
+					fx_disc(im,mote,1.2,Color("#ffd17e",fade))
 	return im
 
 func combat_frame_image(id:String,frame:int)->Image:
