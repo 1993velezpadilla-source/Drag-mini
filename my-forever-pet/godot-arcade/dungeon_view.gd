@@ -2803,6 +2803,36 @@ func classic_kick_stamp(mode:String,light:Color,dark:Color)->Image:
 			im.set_pixel(x,y,ink)
 	return im
 
+# Original 32px contact marks: separated tapered talon cuts or a single blade.
+# No source game sprite is copied. The palette supplies the elemental identity.
+func claw_contact_stamp(mode:String,light:Color,dark:Color)->Image:
+	var im:=Image.create(32,32,false,Image.FORMAT_RGBA8)
+	im.fill(Color.TRANSPARENT)
+	var lanes:int=3
+	if mode in ["claw_blade","claw_crescent"]:lanes=1
+	elif mode=="claw_scratch":lanes=2
+	elif mode=="claw_crush":lanes=4
+	var width:float=1.9 if mode=="claw_crush" else 1.25
+	if lanes==1:width=2.5
+	for y in range(32):
+		for x in range(32):
+			var p:=Vector2(float(x)-15.5,float(y)-15.5).rotated(-.65)
+			if mode=="claw_crescent":p=Vector2(float(x)-15.5,float(y)-15.5).rotated(.20)
+			var u:float=(p.y+12.5)/25.0
+			if u<=0.0 or u>=1.0:continue
+			var taper:float=pow(sin(u*PI),.65)
+			for lane in range(lanes):
+				var offset:float=(float(lane)-float(lanes-1)*.5)*5.4
+				var curve:float=(u-.5)*(u-.5)*12.0-2.0
+				if mode=="claw_crescent":curve=(u-.5)*(u-.5)*27.0-3.0
+				var distance:float=absf(p.x-offset-curve)
+				if distance>width*taper+1.05:continue
+				var ink:Color=dark
+				if distance<width*taper:ink=light
+				if mode=="claw_spectral" and u>.78 and posmod(x+y,4)==0:ink.a*=.38
+				im.set_pixel(x,y,ink)
+	return im
+
 func combat_pixel_texture(mode:String,light:Color,dark:Color)->ImageTexture:
 	var key:=mode+":"+str(light)+":"+str(dark)
 	if combat_textures.has(key):return combat_textures[key]
@@ -2810,6 +2840,11 @@ func combat_pixel_texture(mode:String,light:Color,dark:Color)->ImageTexture:
 	# of resident material variants even in an endless developer dungeon.
 	if combat_texture_order.size()>=FX_MATERIAL_CACHE_CAP:
 		combat_textures.erase(combat_texture_order.pop_front())
+	if mode.begins_with("claw_"):
+		var claw_stamp:=ImageTexture.create_from_image(claw_contact_stamp(mode,light,dark))
+		combat_textures[key]=claw_stamp
+		combat_texture_order.append(key)
+		return claw_stamp
 	if mode.begins_with("kick_"):
 		var stamp:=ImageTexture.create_from_image(classic_kick_stamp(mode,light,dark))
 		combat_textures[key]=stamp
@@ -6827,7 +6862,7 @@ func environment_particle(index:int,position:Vector3,mode:String,light:Color,dar
 	particle.rotation=Vector3(-PI*.5,0,0) if flat else Vector3.ZERO
 	particle.position=position
 	particle.texture=combat_pixel_texture(mode,light,dark)
-	particle.pixel_size=.016 if mode.begins_with("kick_") else .032
+	particle.pixel_size=.016 if mode.begins_with("kick_") or mode.begins_with("claw_") else .032
 	particle.scale=Vector3.ONE*scale_value
 	particle.modulate=Color(1,1,1,clampf(alpha,0.0,1.0))
 	particle.show()
@@ -7290,6 +7325,67 @@ func kick_contact_fx(id:String,source:Vector3,target:Vector3,age:float,used:int,
 			used=environment_particle(used,q-side*.18,"slash",element_light,element_dark,size*.68,alpha*.45)
 	return used
 
+# size, normalized life, approach, silhouette, core, outline, accent,
+# motion. Distinct claw family vs single edged weapon/slash.
+const CLAW_CONTACT_ART={
+	"lib_ghost_1":[1.00,.82,.40,"claw_spectral","#e6caff","#67368f","smoke","ghost"],
+	"lib_dragon_1":[1.00,.74,.48,"claw_talon","#aaf5dd","#436cbd","flame","dragon"],
+	"eos_018":[.76,.50,.36,"claw_blade","#fff5d8","#9b805e","impact_star","quick"],
+	"eos_081":[.91,.64,.42,"claw_talon","#fff4dc","#a77e60","slash","sweep"],
+	"eos_208":[1.12,.78,.52,"claw_talon","#b4fff1","#5357c8","flame","dragon"],
+	"eos_260":[.70,.48,.28,"claw_scratch","#fff3e1","#a38570","impact_star","quick"],
+	"eos_275":[1.20,.83,.55,"claw_crush","#fff2cf","#96644c","shock_ring","heavy"],
+	"eos_325":[1.02,.70,.42,"claw_talon","#e6f5ff","#627c9e","shards","metal"],
+	"eos_463":[1.04,.72,.46,"claw_crescent","#ffdcfa","#a449b3","spiral","psychic"],
+	"eos_476":[1.15,.90,.47,"claw_spectral","#e6c6ff","#592583","smoke","ghost"],
+	"eos_491":[1.10,.75,.46,"claw_crescent","#e5d2ff","#453058","smoke","dark"],
+	"eos_312":[.75,.90,.35,"claw_talon","#fff3db","#a27c5e","impact_star","multi"],
+	"eos_346":[.80,.85,.39,"claw_blade","#defba4","#6e9342","leaf","multi"],
+	"eos_360":[1.16,.72,.50,"claw_crescent","#fff6d9","#b58e65","slash","wide"]}
+
+func claw_contact_art(id:String)->Array:
+	return CLAW_CONTACT_ART.get(id,[])
+
+func claw_contact_fx(id:String,source:Vector3,target:Vector3,age:float,used:int,element_light:Color,element_dark:Color,hits:int=1)->int:
+	var art:Array=claw_contact_art(id)
+	if art.is_empty() or age<0.0 or age>=float(art[1]):return used
+	var t:float=age/float(art[1])
+	var motion:String=str(art[7])
+	var repeats:int=clampi(hits,1,5) if motion=="multi" else 1
+	var cycle:float=t*float(repeats)
+	var p:float=fposmod(cycle,1.0)
+	var forward:Vector3=target-source
+	forward.y=0.0
+	if forward.length_squared()<.0001:forward=Vector3.FORWARD
+	forward=forward.normalized()
+	var side:Vector3=forward.cross(Vector3.UP)
+	var sign_value:float=1.0 if int(cycle)%2==0 else -1.0
+	var sweep:float=smoothstep(0.0,.40,p)
+	var center:Vector3=target+Vector3.UP*.12
+	var q:Vector3=center-forward*float(art[2])*(1.0-sweep)+side*sign_value*(sweep-.5)*.38
+	if motion=="heavy":q.y+=.45*(1.0-sweep)
+	if motion=="wide":q+=side*(sweep-.5)*.45
+	if motion=="multi":q+=side*sign_value*.18
+	var alpha:float=1.0-smoothstep(.58,1.0,t)
+	if motion=="multi":alpha*=1.0-smoothstep(.80,1.0,p)
+	var size:float=float(art[0])*(.88+.28*sin(p*PI))
+	var light:=Color(str(art[4]));var dark:=Color(str(art[5]))
+	var mode:String=str(art[3])
+	if used>=mini(FX_PARTICLE_CAP,combat_particles.size()):return used
+	used=environment_particle(used,q,mode,light,dark,size,alpha)
+	if p>=.18:
+		var accent:Vector3=center+side*sign_value*(.15+p*.32)+Vector3.UP*p*.30
+		var flat:bool=motion=="heavy"
+		if flat:accent.y=.065
+		used=environment_particle(used,accent,str(art[6]),element_light,element_dark,size*.68,alpha*.86,flat)
+		if motion=="ghost":
+			# Ectoplasm and offset ghostly talons are distinct from the core cuts.
+			used=environment_particle(used,q-side*.18-forward*.18,"claw_spectral",light,dark,size*1.12,alpha*.30)
+			used=environment_particle(used,center-side*.30+Vector3.UP*(.18+p*.45),"spiral",light,dark,size*.52,alpha*.60)
+		elif motion in ["dragon","metal","psychic","dark"]:
+			used=environment_particle(used,center-side*.25+Vector3.UP*.24,str(art[6]),light,dark,size*.45,alpha*.55)
+	return used
+
 func element_finish_fx(burst:Dictionary,t:float,used:int)->int:
 	var id:String=str(burst.id)
 	var profile:Dictionary=burst.profile
@@ -7323,6 +7419,7 @@ func element_finish_fx(burst:Dictionary,t:float,used:int)->int:
 			used=bite_contact_fx(id,target,age,used,light,dark)
 			used=punch_contact_fx(id,from,target,age,used,light,dark,int(row.get("hits",1)))
 			used=kick_contact_fx(id,from,target,age,used,light,dark,int(row.get("hits",1)))
+			used=claw_contact_fx(id,from,target,age,used,light,dark,int(row.get("hits",1)))
 		if primary_miss:
 			used=environment_particle(used,target,"cloud",light,dark,.32+age*.18,fade*.35)
 		elif age<.30:
@@ -7337,6 +7434,7 @@ func element_finish_fx(burst:Dictionary,t:float,used:int)->int:
 			if not status:used=bite_contact_fx(id,q,age,used,light,dark)
 			if not status:used=punch_contact_fx(id,from,q,age,used,light,dark,int(other.get("hits",1)))
 			if not status:used=kick_contact_fx(id,from,q,age,used,light,dark,int(other.get("hits",1)))
+			if not status:used=claw_contact_fx(id,from,q,age,used,light,dark,int(other.get("hits",1)))
 			used=environment_particle(used,q,"bubble" if status else "impact_star",light,dark,.45+age*.38,fade)
 			extra+=1
 		# A miss at the selected tile must not hide hits on other tiles.
