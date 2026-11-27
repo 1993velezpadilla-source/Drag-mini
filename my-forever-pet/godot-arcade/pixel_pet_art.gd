@@ -522,11 +522,11 @@ static func enemy_pincer(im:Image,shoulder:Vector2i,palm:Vector2i,forward:Vector
 		enemy_line(im,bend,tip,2,ink)
 		enemy_line(im,start,bend,1,brass_dark)
 		enemy_line(im,bend,tip,1,gold)
-static func enemy_pixel_cell(id:String,dir:int,pose:String,frame:int=0)->Image:
+static func enemy_pixel_cell(id:String,dir:int,pose:String,frame:int=0,eyelids:bool=false)->Image:
 	# Eight-way provisional three-quarter studies retain each species' own anatomy.
 	if dir>=4:
-		var profile:=enemy_pixel_cell(id,3,pose,frame)
-		var broadside:=enemy_pixel_cell(id,1 if dir>=6 else 0,pose,frame)
+		var profile:=enemy_pixel_cell(id,3,pose,frame,eyelids)
+		var broadside:=enemy_pixel_cell(id,1 if dir>=6 else 0,pose,frame,eyelids)
 		var diagonal:=enemy_three_quarter_cell(profile,broadside,dir>=6)
 		if dir in [5,7]:diagonal.flip_x()
 		return diagonal
@@ -540,7 +540,7 @@ static func enemy_pixel_cell(id:String,dir:int,pose:String,frame:int=0)->Image:
 	var white:=Color("#ffe5f7")
 	var phase:=posmod(frame,4)
 	var step:int=[0,2,0,-2][phase] if pose=="walk" else 0
-	var sleeping:=pose=="sleep"
+	var sleeping:=pose=="sleep" or eyelids
 	var wind:=pose=="windup"
 	var attack:=pose=="attack"
 	var recoil:=pose=="hurt"
@@ -667,8 +667,10 @@ static func enemy_pixel_cell(id:String,dir:int,pose:String,frame:int=0)->Image:
 			if side:
 				# The head and BOTH claws point right; left mirrors the full anatomy.
 				enemy_dot(im,Vector2i(28,27),Vector2i(5,5),ink)
-				enemy_dot(im,Vector2i(30,26),Vector2i(2,2),pink)
-				im.set_pixel(31,25,white)
+				if sleeping:enemy_line(im,Vector2i(28,26),Vector2i(32,26),1,shade)
+				else:
+					enemy_dot(im,Vector2i(30,26),Vector2i(2,2),pink)
+					im.set_pixel(31,25,white)
 				for i in range(3):
 					var hip:=Vector2i(12+i*7,31)
 					var knee:=Vector2i(9+i*8,37+step*(-1 if i%2==0 else 1))
@@ -681,7 +683,7 @@ static func enemy_pixel_cell(id:String,dir:int,pose:String,frame:int=0)->Image:
 			elif not back:
 				for x in [19,29]:
 					enemy_dot(im,Vector2i(x,30),Vector2i(4,4),ink)
-					enemy_line(im,Vector2i(x-1,29),Vector2i(x+1,30),1,pink)
+					enemy_line(im,Vector2i(x-1,29),Vector2i(x+1,30),1,shade if sleeping else pink)
 				# Foreground claws overlay the shell and occupy the forward half.
 				for k in [-1,1]:
 					enemy_pincer(im,Vector2i(24+int(k)*9,30),Vector2i(24+int(k)*14,36+(2 if attack else 0)),Vector2i(0,1),pinch,ink,shade,coral,brass_dark,gold)
@@ -1230,7 +1232,7 @@ static func enemy_pixel_cell(id:String,dir:int,pose:String,frame:int=0)->Image:
 				enemy_dot(im,head,Vector2i(7,5),ink)
 				for x in ([2] if side else [-3,3]):
 					var eye:=head+Vector2i(int(x),0)
-					enemy_line(im,eye-Vector2i(1,-1),eye+Vector2i(1,0),1,pink)
+					enemy_line(im,eye-Vector2i(1,-1),eye+Vector2i(1,0),1,dark if sleeping else pink)
 				enemy_dot(im,head+Vector2i(0,4),Vector2i(2,1),gold)
 			else:
 				enemy_line(im,c+Vector2i(-4,3),c+Vector2i(4,3),1,gold)
@@ -1387,8 +1389,10 @@ static func enemy_pixel_cell(id:String,dir:int,pose:String,frame:int=0)->Image:
 				enemy_dot(im,face,Vector2i(8,5),ink)
 				for x in ([2] if side else [-3,3]):
 					var q:=face+Vector2i(int(x),0)
-					enemy_dot(im,q,Vector2i(2,3),purple)
-					im.set_pixelv(q-Vector2i(0,1),pink)
+					if sleeping:enemy_line(im,q-Vector2i(1,0),q+Vector2i(1,0),1,stone)
+					else:
+						enemy_dot(im,q,Vector2i(2,3),purple)
+						im.set_pixelv(q-Vector2i(0,1),pink)
 			else:
 				enemy_line(im,c+Vector2i(-6,5),c+Vector2i(4,8),1,stone)
 			enemy_dot(im,c+Vector2i(3,-4),Vector2i(2,2),gold)
@@ -1850,7 +1854,7 @@ static func enemy_pixel_cell(id:String,dir:int,pose:String,frame:int=0)->Image:
 			enemy_cluster(im,h,[Vector2i(-8,-5),Vector2i(2,-8),Vector2i(8,-3),Vector2i(7,5),Vector2i(-5,6)],[Vector2i(-6,-4),Vector2i(2,-6),Vector2i(6,-3),Vector2i(5,3),Vector2i(-4,4)],[Vector2i(-5,-3),Vector2i(1,-5),Vector2i(4,-2),Vector2i(-2,0)],ink,rock,mid)
 			if not back:
 				for x in ([3] if side else [-3,3]):
-					enemy_line(im,h+Vector2i(int(x)-1,1),h+Vector2i(int(x)+1,1),1,pink)
+					enemy_line(im,h+Vector2i(int(x)-1,1),h+Vector2i(int(x)+1,1),1,shade if sleeping else pink)
 			else:enemy_line(im,h+Vector2i(-3,1),h+Vector2i(3,1),1,shade)
 			enemy_dot(im,h+Vector2i(0,-5),Vector2i(2,1),gold)
 			if attack:
@@ -1975,7 +1979,7 @@ static func enemy_pixel_cell(id:String,dir:int,pose:String,frame:int=0)->Image:
 			enemy_line(im,h+Vector2i(-7,-8),h+Vector2i(7,-8),1,gold)
 			enemy_line(im,h+Vector2i(-5,-10),h+Vector2i(5,-10),1,pale)
 			if not back:
-				for x in ([3] if side else [-3,3]):enemy_line(im,h+Vector2i(int(x)-1,1),h+Vector2i(int(x)+1,1),1,pink)
+				for x in ([3] if side else [-3,3]):enemy_line(im,h+Vector2i(int(x)-1,1),h+Vector2i(int(x)+1,1),1,deep if sleeping else pink)
 			else:enemy_line(im,h+Vector2i(0,-4),h+Vector2i(0,4),1,deep)
 			enemy_poly(im,[c+Vector2i(0,-5),c+Vector2i(4,0),c+Vector2i(0,5),c+Vector2i(-4,0)],gold)
 			enemy_dot(im,c,Vector2i(1,2),pink)
@@ -2053,11 +2057,31 @@ static func enemy_asset_cell(id:String,dir:int,pose:String,frame:int)->Image:
 		if dir in [5,7]:diagonal.flip_x()
 		return diagonal
 	return sheet.get_region(Rect2i(maxi(col,0)*48,clampi(dir,0,sheet.get_height()/48-1)*48,48,48))
-static func enemy_pixel_texture(id:String,dir:int,pose:String,frame:int)->Texture2D:
+# Only transfer authored eyelid differences when the production art matches
+# the original pixels exactly in that region. Never replace the whole atlas.
+static func enemy_blink_cell(id:String,dir:int,pose:String,frame:int,production:Image)->Image:
+	var open:=enemy_pixel_cell(id,dir,pose,frame,false)
+	var shut:=enemy_pixel_cell(id,dir,pose,frame,true)
+	var changes:Array[Vector2i]=[]
+	for y in range(48):
+		for x in range(48):
+			var q:=Vector2i(x,y)
+			if open.get_pixelv(q)==shut.get_pixelv(q):continue
+			if production.get_pixelv(q)!=open.get_pixelv(q):return production
+			changes.append(q)
+	if changes.is_empty():return production
+	var out:=production.duplicate() as Image
+	for q in changes:out.set_pixelv(q,shut.get_pixelv(q))
+	return out
+
+static func enemy_pixel_texture(id:String,dir:int,pose:String,frame:int,blink:bool=false)->Texture2D:
+	blink=blink and id in ENEMY_PIXEL_PILOTS and pose in ["idle","walk"] and dir not in [1,6,7]
 	var key:="enemy:%s:%d:%s:%d"%[id,dir,pose,frame]
+	if blink:key+=":blink"
 	if not cache.has(key):
 		var image:=enemy_asset_cell(id,dir,pose,frame)
 		if image==null:return null
+		if blink:image=enemy_blink_cell(id,dir,pose,frame,image)
 		cache[key]=ImageTexture.create_from_image(compose_creature_cell(id,image,dir if dir<4 else (0 if dir<6 else 1),pose,frame))
 	return cache[key] as Texture2D
 static func enemy_pixel_atlas(id:String,directions:int=4)->Image:
