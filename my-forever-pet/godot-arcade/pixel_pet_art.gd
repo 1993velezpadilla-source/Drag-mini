@@ -496,7 +496,13 @@ static func enemy_cluster(im:Image,o:Vector2i,outline:Array,body:Array,highlight
 	enemy_patch(im,o,outline,ink)
 	enemy_patch(im,o,body,base)
 	enemy_patch(im,o,highlight,lit)
-static func enemy_eye(im:Image,o:Vector2i,ink:Color,iris:Color,shine:Color,angry:bool=false)->void:
+static func enemy_closed_eye(im:Image,o:Vector2i,ink:Color,width:int=2)->void:
+	enemy_line(im,o+Vector2i(-width,-1),o+Vector2i(0,1),1,ink)
+	enemy_line(im,o+Vector2i(0,1),o+Vector2i(width,-1),1,ink)
+static func enemy_eye(im:Image,o:Vector2i,ink:Color,iris:Color,shine:Color,angry:bool=false,sleeping:bool=false)->void:
+	if sleeping:
+		enemy_closed_eye(im,o,ink)
+		return
 	enemy_dot(im,o,Vector2i(3,4),ink)
 	enemy_dot(im,o+Vector2i(0,1),Vector2i(2,2),iris)
 	im.set_pixelv(o+Vector2i(-1,-1),shine)
@@ -534,6 +540,7 @@ static func enemy_pixel_cell(id:String,dir:int,pose:String,frame:int=0)->Image:
 	var white:=Color("#ffe5f7")
 	var phase:=posmod(frame,4)
 	var step:int=[0,2,0,-2][phase] if pose=="walk" else 0
+	var sleeping:=pose=="sleep"
 	var wind:=pose=="windup"
 	var attack:=pose=="attack"
 	var recoil:=pose=="hurt"
@@ -590,6 +597,9 @@ static func enemy_pixel_cell(id:String,dir:int,pose:String,frame:int=0)->Image:
 			if not back and not fallen:
 				for x in ([5] if side else [-5,5]):
 					var eye:=body+Vector2i(int(x),-1)
+					if sleeping:
+						enemy_closed_eye(im,eye,ink,3)
+						continue
 					enemy_dot(im,eye,Vector2i(4,5),ink)
 					if wind:
 						enemy_line(im,eye+Vector2i(-2,0),eye+Vector2i(2,0),1,pink)
@@ -700,8 +710,10 @@ static func enemy_pixel_cell(id:String,dir:int,pose:String,frame:int=0)->Image:
 				im.set_pixel(q.x,q.y,white)
 			if not back:
 				for x in ([28] if side else [20,28]):
-					enemy_dot(im,Vector2i(x,cy),Vector2i(3,4),ink)
-					enemy_dot(im,Vector2i(x,cy-1),Vector2i(2,2),white)
+					if sleeping:enemy_closed_eye(im,Vector2i(x,cy),ink)
+					else:
+						enemy_dot(im,Vector2i(x,cy),Vector2i(3,4),ink)
+						enemy_dot(im,Vector2i(x,cy-1),Vector2i(2,2),white)
 		"vinesnap":
 			# A squat carnivorous bloom, leafy collar and root tendrils; no stick figure.
 			var deep:=Color("#263b29")
@@ -741,14 +753,14 @@ static func enemy_pixel_cell(id:String,dir:int,pose:String,frame:int=0)->Image:
 					for i in range(3):
 						var t:=mouth+Vector2i(i*4-1,-gape+2)
 						enemy_patch(im,t,[Vector2i(-1,0),Vector2i(2,0),Vector2i(0,3)],white)
-					enemy_eye(im,c+Vector2i(0,-6),ink,pink,white,attack)
+					enemy_eye(im,c+Vector2i(0,-6),ink,pink,white,attack,sleeping)
 				else:
 					enemy_dot(im,mouth,Vector2i(12,gape+2),ink)
 					enemy_dot(im,mouth+Vector2i(0,1),Vector2i(9,maxi(1,gape-1)),throat)
 					for i in range(5):
 						var t:=mouth+Vector2i(-8+i*4,-gape+1)
 						enemy_patch(im,t,[Vector2i(-1,0),Vector2i(2,0),Vector2i(0,3)],white)
-					for k in [-1,1]:enemy_eye(im,c+Vector2i(int(k)*8,-6),ink,pink,white,attack)
+					for k in [-1,1]:enemy_eye(im,c+Vector2i(int(k)*8,-6),ink,pink,white,attack,sleeping)
 				enemy_line(im,c+Vector2i(-5,-14),c+Vector2i(5,-14),1,gold)
 		"eelstrix":
 			var deep:=Color("#21495f")
@@ -779,8 +791,10 @@ static func enemy_pixel_cell(id:String,dir:int,pose:String,frame:int=0)->Image:
 			enemy_line(im,head+Vector2i(-3,-3),head+Vector2i(2,-3),1,shine)
 			if not back:
 				for x in ([2] if side else [-3,3]):
-					enemy_dot(im,head+Vector2i(int(x),-1),Vector2i(2,2),ink)
-					im.set_pixel(head.x+int(x),head.y-2,pink)
+					if sleeping:enemy_closed_eye(im,head+Vector2i(int(x),-1),ink,1)
+					else:
+						enemy_dot(im,head+Vector2i(int(x),-1),Vector2i(2,2),ink)
+						im.set_pixel(head.x+int(x),head.y-2,pink)
 				if side:
 					enemy_line(im,head+Vector2i(1,3),head+Vector2i(6,2 if not attack else 4),1,ink)
 					if attack:im.set_pixel(head.x+4,head.y+2,white)
@@ -831,7 +845,7 @@ static func enemy_pixel_cell(id:String,dir:int,pose:String,frame:int=0)->Image:
 			if not back:
 				for x in ([4] if side else [-5,5]):
 					var q:=head+Vector2i(int(x),1)
-					enemy_eye(im,q,ink,Color("#b36cb7"),white,attack)
+					enemy_eye(im,q,ink,Color("#b36cb7"),white,attack,sleeping)
 					enemy_line(im,q+Vector2i(-2,4),q+Vector2i(1,4),1,Color("#d9a0cf"))
 				var nose:=head+Vector2i(9,4) if side else head+Vector2i(0,5)
 				enemy_dot(im,nose,Vector2i(2,1),deep)
@@ -875,7 +889,7 @@ static func enemy_pixel_cell(id:String,dir:int,pose:String,frame:int=0)->Image:
 			enemy_line(im,horn,tip,2,ivory)
 			enemy_line(im,horn+Vector2i(-1,-1),tip,1,white)
 			if not back:
-				for x in ([1] if side else [-5,5]):enemy_eye(im,head+Vector2i(int(x),-2),ink,pink,white,attack)
+				for x in ([1] if side else [-5,5]):enemy_eye(im,head+Vector2i(int(x),-2),ink,pink,white,attack,sleeping)
 			enemy_line(im,c+Vector2i(-7,5),c+Vector2i(7,5),1,gold)
 		"marrowray":
 			# Broad manta with a continuous diamond mantle and visible near fin in profile.
@@ -897,7 +911,7 @@ static func enemy_pixel_cell(id:String,dir:int,pose:String,frame:int=0)->Image:
 				var near:=Vector2i(-2,16+flap)
 				enemy_cluster(im,c,[Vector2i(-9,2),Vector2i(5,2),Vector2i(8,7),near,Vector2i(-9,10)],[Vector2i(-7,3),Vector2i(4,3),Vector2i(6,7),near-Vector2i(0,2),Vector2i(-7,9)],[Vector2i(-4,4),Vector2i(4,5),near-Vector2i(0,5),Vector2i(-4,9)],ink,sea,skin)
 				enemy_line(im,c+Vector2i(2,4),c+near-Vector2i(0,3),1,ivory)
-				enemy_eye(im,c+Vector2i(10,0),ink,pink,white,attack)
+				enemy_eye(im,c+Vector2i(10,0),ink,pink,white,attack,sleeping)
 				enemy_line(im,c+Vector2i(12,4),c+Vector2i(15,3),1,ink)
 			else:
 				var nose:int=-10 if back else 11
@@ -909,7 +923,7 @@ static func enemy_pixel_cell(id:String,dir:int,pose:String,frame:int=0)->Image:
 				enemy_cluster(im,c,[Vector2i(-7,-10),Vector2i(7,-10),Vector2i(9,5),Vector2i(5,12),Vector2i(-5,12),Vector2i(-9,5)],[Vector2i(-5,-8),Vector2i(5,-8),Vector2i(7,5),Vector2i(4,10),Vector2i(-4,10),Vector2i(-7,5)],[Vector2i(-4,-7),Vector2i(3,-7),Vector2i(4,0),Vector2i(-3,2)],ink,sea,skin)
 				if not back:
 					for k in [-1,1]:
-						enemy_eye(im,c+Vector2i(int(k)*5,6),ink,pink,white,attack)
+						enemy_eye(im,c+Vector2i(int(k)*5,6),ink,pink,white,attack,sleeping)
 						enemy_line(im,c+Vector2i(int(k)*6,10),c+Vector2i(int(k)*9,13),2,deep)
 						enemy_line(im,c+Vector2i(int(k)*6,10),c+Vector2i(int(k)*8,12),1,skin)
 				else:enemy_line(im,c+Vector2i(0,nose),c+Vector2i(0,6),1,deep)
@@ -946,7 +960,8 @@ static func enemy_pixel_cell(id:String,dir:int,pose:String,frame:int=0)->Image:
 			if not back:
 				for x in ([-2,1] if side else [-3,3]):
 					var eye:=head+Vector2i(int(x),-1)
-					enemy_dot(im,eye,Vector2i(2,1),pink)
+					if sleeping:enemy_closed_eye(im,eye,ink,1)
+					else:enemy_dot(im,eye,Vector2i(2,1),pink)
 			var reach:int=3 if attack else -1 if wind else 0
 			for k in [-1,1]:
 				var fang:=head+Vector2i(int(k)*4,2)
@@ -1001,8 +1016,10 @@ static func enemy_pixel_cell(id:String,dir:int,pose:String,frame:int=0)->Image:
 					enemy_patch(im,tusk,[Vector2i(-2,0),Vector2i(3,1),Vector2i(4,-5),Vector2i(1,-2)],ivory)
 				for x in ([1] if side else [-5,5]):
 					var eye:=head+Vector2i(int(x),-2)
-					enemy_line(im,eye-Vector2i(2,1),eye+Vector2i(2,1),1,ink)
-					im.set_pixel(eye.x,eye.y,pink)
+					if sleeping:enemy_closed_eye(im,eye,ink)
+					else:
+						enemy_line(im,eye-Vector2i(2,1),eye+Vector2i(2,1),1,ink)
+						im.set_pixel(eye.x,eye.y,pink)
 		"jellymancer":
 			# Bell propulsion, curved trailing tentacles and articulated contraction.
 			var deep:=Color("#437e96")
@@ -1034,8 +1051,10 @@ static func enemy_pixel_cell(id:String,dir:int,pose:String,frame:int=0)->Image:
 			if not back:
 				for x in ([6] if side else [-5,5]):
 					var eye:=center+Vector2i(int(x),1)
-					enemy_dot(im,eye,Vector2i(3,3),ink)
-					enemy_line(im,eye-Vector2i(1,0),eye+Vector2i(1,-1),1,pink)
+					if sleeping:enemy_closed_eye(im,eye,ink)
+					else:
+						enemy_dot(im,eye,Vector2i(3,3),ink)
+						enemy_line(im,eye-Vector2i(1,0),eye+Vector2i(1,-1),1,pink)
 			else:
 				enemy_line(im,center+Vector2i(0,-6),center+Vector2i(0,3),1,frost)
 			if attack:
@@ -1079,8 +1098,10 @@ static func enemy_pixel_cell(id:String,dir:int,pose:String,frame:int=0)->Image:
 			if not back:
 				for x in ([2] if side else [-2,2]):
 					var eye:=head+Vector2i(int(x),0)
-					enemy_dot(im,eye,Vector2i(1,2),ink)
-					im.set_pixel(eye.x,eye.y,pink)
+					if sleeping:enemy_closed_eye(im,eye,ink,1)
+					else:
+						enemy_dot(im,eye,Vector2i(1,2),ink)
+						im.set_pixel(eye.x,eye.y,pink)
 			if attack:
 				for i in range(5):
 					var dust:=Vector2i(8+i*8,39-frame*3-i%2*3)
@@ -1116,9 +1137,11 @@ static func enemy_pixel_cell(id:String,dir:int,pose:String,frame:int=0)->Image:
 			if not back:
 				for x in ([2] if side else [-4,4]):
 					var eye:=head+Vector2i(int(x),0)
-					enemy_dot(im,eye,Vector2i(3,4),ink)
-					enemy_dot(im,eye,Vector2i(2,3),pink)
-					im.set_pixel(eye.x-1,eye.y-1,white)
+					if sleeping:enemy_closed_eye(im,eye,ink)
+					else:
+						enemy_dot(im,eye,Vector2i(3,4),ink)
+						enemy_dot(im,eye,Vector2i(2,3),pink)
+						im.set_pixel(eye.x-1,eye.y-1,white)
 				enemy_line(im,head+Vector2i(-1,5),head+Vector2i(1,5),1,ink)
 			else:
 				enemy_line(im,c+Vector2i(0,-7),c+Vector2i(0,8),1,light)
@@ -1166,8 +1189,10 @@ static func enemy_pixel_cell(id:String,dir:int,pose:String,frame:int=0)->Image:
 			if not back and not wind:
 				for x in ([2] if side else [-3,3]):
 					var eye:=head+Vector2i(int(x),0)
-					enemy_dot(im,eye,Vector2i(2,2),ink)
-					im.set_pixel(eye.x,eye.y-1,pink)
+					if sleeping:enemy_closed_eye(im,eye,ink,1)
+					else:
+						enemy_dot(im,eye,Vector2i(2,2),ink)
+						im.set_pixel(eye.x,eye.y-1,pink)
 				enemy_line(im,head+Vector2i(-2,3),head+Vector2i(2,3),1,ink)
 		"crystarok":
 			# A stubborn crystal animal, carried by two huge knuckles and short rear legs.
@@ -1249,7 +1274,7 @@ static func enemy_pixel_cell(id:String,dir:int,pose:String,frame:int=0)->Image:
 				var muzzle:=head+Vector2i(8,4) if side else head+Vector2i(0,5)
 				enemy_dot(im,muzzle,Vector2i(4,3),cream)
 				enemy_dot(im,muzzle+Vector2i(2 if side else 0,0),Vector2i(1,1),ink)
-				for x in ([3] if side else [-4,4]):enemy_eye(im,head+Vector2i(int(x),0),ink,pink,white,attack)
+				for x in ([3] if side else [-4,4]):enemy_eye(im,head+Vector2i(int(x),0),ink,pink,white,attack,sleeping)
 			else:enemy_line(im,head+Vector2i(-4,-1),head+Vector2i(4,-1),1,bark)
 			enemy_dot(im,c+Vector2i(0,6),Vector2i(2,2),gold)
 		"anemoneye":
@@ -1279,9 +1304,11 @@ static func enemy_pixel_cell(id:String,dir:int,pose:String,frame:int=0)->Image:
 				var eye:=c+Vector2i(4,1) if side else c+Vector2i(0,1)
 				enemy_dot(im,eye,Vector2i(8,7),ink)
 				enemy_dot(im,eye,Vector2i(6,5),pale)
-				enemy_dot(im,eye+Vector2i(1 if side else 0,0),Vector2i(3,4),aqua)
-				enemy_dot(im,eye+Vector2i(1 if side else 0,0),Vector2i(2,3),ink)
-				im.set_pixelv(eye+Vector2i(-1,-2),white)
+				if sleeping:enemy_closed_eye(im,eye,ink,4)
+				else:
+					enemy_dot(im,eye+Vector2i(1 if side else 0,0),Vector2i(3,4),aqua)
+					enemy_dot(im,eye+Vector2i(1 if side else 0,0),Vector2i(2,3),ink)
+					im.set_pixelv(eye+Vector2i(-1,-2),white)
 			else:
 				enemy_dot(im,c,Vector2i(5,6),coral)
 				enemy_line(im,c+Vector2i(0,-4),c+Vector2i(0,4),1,pale)
@@ -1324,7 +1351,7 @@ static func enemy_pixel_cell(id:String,dir:int,pose:String,frame:int=0)->Image:
 			enemy_dot(im,head-Vector2i(0,1),Vector2i(6,5),mid)
 			enemy_line(im,head+Vector2i(-4,-3),head+Vector2i(1,-4),1,pale)
 			if not back:
-				for x in ([3] if side else [-3,3]):enemy_eye(im,head+Vector2i(int(x),0),ink,pink,white,attack)
+				for x in ([3] if side else [-3,3]):enemy_eye(im,head+Vector2i(int(x),0),ink,pink,white,attack,sleeping)
 				var mouth:=head+Vector2i(4 if side else 0,5)
 				enemy_dot(im,mouth,Vector2i(2,2),ink)
 				im.set_pixelv(mouth+Vector2i(-1,0),white)
@@ -1390,7 +1417,7 @@ static func enemy_pixel_cell(id:String,dir:int,pose:String,frame:int=0)->Image:
 				enemy_poly(im,[q,fin-Vector2i(0,1),q+Vector2i(2,2)],coral)
 			if not back:
 				for x in ([3] if side else [-5,5]):
-					enemy_eye(im,head+Vector2i(int(x),-1),ink,Color("#ad739f"),white,attack)
+					enemy_eye(im,head+Vector2i(int(x),-1),ink,Color("#ad739f"),white,attack,sleeping)
 				var mouth:=head+Vector2i(7,5) if side else head+Vector2i(0,7)
 				enemy_dot(im,mouth,Vector2i(2,2) if attack else Vector2i(2,1),ink)
 			else:
@@ -1431,7 +1458,7 @@ static func enemy_pixel_cell(id:String,dir:int,pose:String,frame:int=0)->Image:
 				enemy_line(im,horn,horn+Vector2i(int(k)*3,-4),1,gold)
 			if not back:
 				for x in ([3] if side else [-4,4]):
-					enemy_eye(im,h+Vector2i(int(x),0),ink,pink,white,attack)
+					enemy_eye(im,h+Vector2i(int(x),0),ink,pink,white,attack,sleeping)
 				enemy_line(im,h+Vector2i(-2,4),h+Vector2i(6,4+frame if attack else 4),1,dark)
 			else:
 				enemy_line(im,h+Vector2i(-4,-1),h+Vector2i(4,-1),1,pale)
@@ -1483,7 +1510,7 @@ static func enemy_pixel_cell(id:String,dir:int,pose:String,frame:int=0)->Image:
 				for x in ([4] if side else [-5,5]):
 					var eye:=h+Vector2i(int(x),0)
 					enemy_dot(im,eye,Vector2i(5,5),cream)
-					enemy_eye(im,eye,ink,Color("#c99457"),white,attack)
+					enemy_eye(im,eye,ink,Color("#c99457"),white,attack,sleeping)
 				var beak:=h+Vector2i(10,3) if side else h+Vector2i(0,5)
 				enemy_poly(im,[beak+Vector2i(-3,-2),beak+Vector2i(3,-2),beak+Vector2i(1,4)],gold)
 			else:enemy_line(im,h+Vector2i(-5,-5),h+Vector2i(4,-5),1,feather)
@@ -1516,7 +1543,7 @@ static func enemy_pixel_cell(id:String,dir:int,pose:String,frame:int=0)->Image:
 			enemy_line(im,c+Vector2i(-6,-5),c+Vector2i(-3,-8),1,shine)
 			enemy_line(im,c+Vector2i(5,6),c+Vector2i(7,3),1,aqua)
 			if not back:
-				for x in ([5] if side else [-4,4]):enemy_eye(im,c+Vector2i(int(x),1),ink,pink,shine,attack)
+				for x in ([5] if side else [-4,4]):enemy_eye(im,c+Vector2i(int(x),1),ink,pink,shine,attack,sleeping)
 				enemy_dot(im,c+Vector2i(4 if side else 0,7),Vector2i(2,1),ink)
 			else:
 				enemy_dot(im,c+Vector2i(0,2),Vector2i(3,3),sea)
@@ -1567,7 +1594,7 @@ static func enemy_pixel_cell(id:String,dir:int,pose:String,frame:int=0)->Image:
 				enemy_poly(im,[q+Vector2i(-3,2),point,q+Vector2i(3,2)],ink)
 				enemy_line(im,q,point,1,mid)
 			if not back:
-				for x in ([3] if side else [-4,4]):enemy_eye(im,h+Vector2i(int(x),0),ink,pink,white,attack)
+				for x in ([3] if side else [-4,4]):enemy_eye(im,h+Vector2i(int(x),0),ink,pink,white,attack,sleeping)
 				enemy_dot(im,h+Vector2i(6 if side else 0,5),Vector2i(2,1),deep)
 			else:enemy_line(im,h+Vector2i(-3,-3),h+Vector2i(3,-4),1,twilight)
 			enemy_dot(im,c+Vector2i(0,4),Vector2i(2,2),gold)
@@ -1621,7 +1648,7 @@ static func enemy_pixel_cell(id:String,dir:int,pose:String,frame:int=0)->Image:
 			enemy_cluster(im,h,[Vector2i(-7,-5),Vector2i(5,-6),Vector2i(9,0),Vector2i(7,7),Vector2i(-3,8),Vector2i(-7,2)],[Vector2i(-5,-4),Vector2i(4,-4),Vector2i(7,0),Vector2i(5,5),Vector2i(-2,6),Vector2i(-5,1)],[Vector2i(-4,-3),Vector2i(3,-3),Vector2i(5,1),Vector2i(1,5),Vector2i(-3,2)],ink,bark,mid)
 			if not back:
 				for x in ([4] if side else [-3,3]):
-					enemy_eye(im,h+Vector2i(int(x),0),ink,pink,white,attack)
+					enemy_eye(im,h+Vector2i(int(x),0),ink,pink,white,attack,sleeping)
 				enemy_dot(im,h+Vector2i(6 if side else 0,5),Vector2i(2,1),dark)
 			else:enemy_line(im,h+Vector2i(-3,-2),h+Vector2i(3,-2),1,moss)
 			enemy_dot(im,h+Vector2i(0,-5),Vector2i(2,1),gold)
@@ -1662,7 +1689,7 @@ static func enemy_pixel_cell(id:String,dir:int,pose:String,frame:int=0)->Image:
 				enemy_poly(im,[q+Vector2i(-2,2),q+Vector2i(0,-5),q+Vector2i(2,2)],gold if i==1 else pale)
 			if not back:
 				for x in ([3] if side else [-3,3]):
-					enemy_eye(im,h+Vector2i(int(x),0),ink,pink,white,attack)
+					enemy_eye(im,h+Vector2i(int(x),0),ink,pink,white,attack,sleeping)
 				enemy_dot(im,snout,Vector2i(1,1),shade)
 			else:enemy_line(im,h+Vector2i(-3,-1),h+Vector2i(3,-1),1,mid)
 			enemy_dot(im,c+Vector2i(2,4),Vector2i(2,2),gold)
@@ -1704,7 +1731,7 @@ static func enemy_pixel_cell(id:String,dir:int,pose:String,frame:int=0)->Image:
 			if not back:
 				for x in ([4] if side else [-5,5]):
 					var q:=h+Vector2i(int(x),0)
-					enemy_eye(im,q,ink,Color("#e4a2d9"),white,true)
+					enemy_eye(im,q,ink,Color("#e4a2d9"),white,true,sleeping)
 					enemy_line(im,q+Vector2i(-3,4),q+Vector2i(1,4),1,pale)
 				var nose:=h+Vector2i(7,5) if side else h+Vector2i(0,5)
 				enemy_dot(im,nose,Vector2i(2,1),ink)
@@ -1754,7 +1781,9 @@ static func enemy_pixel_cell(id:String,dir:int,pose:String,frame:int=0)->Image:
 			if not back:
 				for x in ([5] if side else [-5,5]):
 					var eye:=c+Vector2i(int(x),-3)
-					enemy_dot(im,eye,Vector2i(3,3),ink);enemy_dot(im,eye,Vector2i(1,2),pink)
+					if sleeping:enemy_closed_eye(im,eye,ink)
+					else:
+						enemy_dot(im,eye,Vector2i(3,3),ink);enemy_dot(im,eye,Vector2i(1,2),pink)
 				enemy_line(im,c+Vector2i(-4,4),c+Vector2i(4,4),1,ink)
 			else:enemy_line(im,c+Vector2i(0,-7),c+Vector2i(0,8),1,pale)
 			enemy_dot(im,c+Vector2i(0,7),Vector2i(2,2),gold)
@@ -1788,7 +1817,7 @@ static func enemy_pixel_cell(id:String,dir:int,pose:String,frame:int=0)->Image:
 			for i in range(3):
 				enemy_dot(im,c+Vector2i(-6+i*5,-6-i%2*3),Vector2i(1,1),pale)
 			if not back:
-				for x in ([6] if side else [-5,5]):enemy_eye(im,c+Vector2i(int(x),1),ink,pink,white,attack)
+				for x in ([6] if side else [-5,5]):enemy_eye(im,c+Vector2i(int(x),1),ink,pink,white,attack,sleeping)
 				enemy_dot(im,c+Vector2i(4 if side else 0,7),Vector2i(3,2),dark)
 			else:enemy_line(im,c+Vector2i(-5,1),c+Vector2i(5,1),1,mid)
 			enemy_line(im,c+Vector2i(-5,-13),c+Vector2i(5,-13),1,gold)
@@ -1866,7 +1895,7 @@ static func enemy_pixel_cell(id:String,dir:int,pose:String,frame:int=0)->Image:
 				enemy_poly(im,[q+Vector2i(-3,2),q+Vector2i(0,-5),q+Vector2i(3,2)],ink)
 				enemy_line(im,q,q+Vector2i(0,-3),1,gold)
 			if not back:
-				for x in ([5] if side else [-5,5]):enemy_eye(im,c+Vector2i(int(x),5),ink,pink,white,attack)
+				for x in ([5] if side else [-5,5]):enemy_eye(im,c+Vector2i(int(x),5),ink,pink,white,attack,sleeping)
 				enemy_line(im,c+Vector2i(-3,11),c+Vector2i(3,11),1,bark)
 			else:enemy_line(im,c+Vector2i(0,2),c+Vector2i(0,13),1,pale)
 			if attack:
@@ -1903,7 +1932,7 @@ static func enemy_pixel_cell(id:String,dir:int,pose:String,frame:int=0)->Image:
 				enemy_cluster(im,c,[Vector2i(-12,-8),Vector2i(10,-9),Vector2i(14,1),Vector2i(10,13),Vector2i(-10,13),Vector2i(-14,1)],[Vector2i(-10,-7),Vector2i(8,-7),Vector2i(12,1),Vector2i(8,11),Vector2i(-8,11),Vector2i(-12,1)],[Vector2i(-8,-5),Vector2i(7,-5),Vector2i(8,1),Vector2i(-6,3)],ink,blue,mid)
 			var h:=c+Vector2i(10,0) if side else c+Vector2i(0,-7 if back else 7)
 			if not back:
-				for x in ([1] if side else [-6,6]):enemy_eye(im,h+Vector2i(int(x),-3),ink,pink,white,attack)
+				for x in ([1] if side else [-6,6]):enemy_eye(im,h+Vector2i(int(x),-3),ink,pink,white,attack,sleeping)
 				var jaw:=h+Vector2i(4,5) if side else h+Vector2i(0,5)
 				enemy_dot(im,jaw,Vector2i(6,3+int(wind)*2),deep)
 				for i in range(3):
@@ -2002,6 +2031,8 @@ static func enemy_three_quarter_cell(profile:Image,broadside:Image,rear:bool)->I
 # External production atlases take priority over unapproved procedural studies.
 static var enemy_atlas_cache:Dictionary={}
 static func enemy_asset_cell(id:String,dir:int,pose:String,frame:int)->Image:
+	# A separate resting pose keeps the enemy alive; do not reuse defeat art.
+	if pose=="sleep" and id in ENEMY_PIXEL_PILOTS:return enemy_pixel_cell(id,dir,pose,frame)
 	if not enemy_atlas_cache.has(id):
 		var path:="res://assets/enemies/%s.png"%id
 		var img:Image=null
