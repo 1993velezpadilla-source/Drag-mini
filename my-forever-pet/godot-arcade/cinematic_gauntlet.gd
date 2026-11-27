@@ -508,6 +508,34 @@ func run_checks()->void:
 	old_mark.age=1.0;live_mark.age=1.0
 	if not view.exterior_response_pick([live_mark,old_mark]).is_empty():failures.append("expired exterior impulse")
 	checks+=2
+	# Local shader warps must have distinct authored profiles, bounded amplitudes,
+	# exact neutral endpoints, and a deterministic low-tier fallback.
+	var distortion_signatures:Dictionary={}
+	var distortion_families:Dictionary={}
+	if Dungeon.ELEMENT_DISTORTION.size()!=18:failures.append("elemental distortion coverage")
+	for element in Dungeon.ELEMENT_FINISH_MODE:
+		if not Dungeon.ELEMENT_DISTORTION.has(element):
+			failures.append("missing distortion "+element)
+			continue
+		var cue:Vector3=Dungeon.ELEMENT_DISTORTION[element]
+		if distortion_signatures.has(str(cue)):failures.append("duplicate distortion profile "+element)
+		distortion_signatures[str(cue)]=true
+		distortion_families[int(cue.x)]=true
+		for stage in ["launch","impact"]:
+			for step in range(101):
+				var phase:float=float(step)/100.0
+				var high_sample:=view.elemental_distortion_sample(element,phase,stage,0)
+				var medium_sample:=view.elemental_distortion_sample(element,phase,stage,1)
+				var low_sample:=view.elemental_distortion_sample(element,phase,stage,2)
+				if not high_sample.is_finite() or high_sample.x<1.0 or high_sample.x>6.0 or high_sample.y<0.0 or high_sample.y>.141 or high_sample.z<4.0 or high_sample.z>23.0:failures.append("distortion bounds "+element)
+				if absf(medium_sample.y-high_sample.y*.55)>.0001 or low_sample!=Vector3.ZERO:failures.append("distortion tier fallback "+element)
+				if step==100 and high_sample.y>.0001:failures.append("distortion did not expire "+element)
+				if stage=="launch" and step==0 and high_sample.y>.0001:failures.append("distortion launch discontinuity "+element)
+				checks+=1
+		if view.elemental_distortion_sample(element,.5,"none",0)!=Vector3.ZERO:failures.append("distortion on disabled stage "+element)
+		checks+=1
+	if distortion_families.size()!=6:failures.append("distortion family coverage")
+	checks+=1
 	# Directed contact art is independently visible and kick poses are animated.
 	for id in Dungeon.CONTACT_ICON_KIND:
 		var kind:String=view.directed_contact_kind(id,str(view.combat_profile(id).role))
