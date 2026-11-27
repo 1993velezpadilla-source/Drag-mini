@@ -36,6 +36,23 @@ func run_checks()->void:
 	var checks:int=0
 	var failures:Array[String]=[]
 	var view:=Dungeon.new()
+	# V25.3: identical cue values, shared immutable storage and local playback state.
+	var launch_probe:=Dungeon.new()
+	for launch_id in ["basic_strike","eos_008","eos_156","eos_477","leaf_dart"]:
+		var launch_expected:Array=launch_probe.combat_environment_audio_plan(launch_id,launch_probe.combat_profile(launch_id))
+		var launch_cached:Array=launch_probe.combat_cached_environment_audio_plan(launch_id)
+		if launch_cached!=launch_expected:failures.append("V25.3 cue equivalence "+launch_id)
+		if not is_same(launch_cached,launch_probe.combat_cached_environment_audio_plan(launch_id)):failures.append("V25.3 cue reuse "+launch_id)
+		if not launch_cached.is_read_only():failures.append("V25.3 mutable cue array "+launch_id)
+		for launch_cue in launch_cached:
+			if not launch_cue.is_read_only():failures.append("V25.3 mutable cue record "+launch_id)
+			checks+=1
+		var launch_a:Dictionary={"environment_audio":launch_cached,"environment_audio_cursor":0}
+		var launch_b:Dictionary={"environment_audio":launch_cached,"environment_audio_cursor":0}
+		launch_a.environment_audio_cursor=1
+		if launch_b.environment_audio_cursor!=0:failures.append("V25.3 shared cursor "+launch_id)
+		checks+=4
+	launch_probe.free()
 	# V25.2: warming predicts playback keys without advancing variant counters.
 	var audio_warm_probe:=Dungeon.new()
 	audio_warm_probe.fx_audio_counter["probe_a:launch"]=2
