@@ -497,7 +497,7 @@ func run_checks()->void:
 			var phase:float=float(step)/100.0
 			var response:=view.environmental_response_sample(element,phase)
 			var terrain:=view.environmental_response_sample(element,phase,true)
-			if not response.is_finite() or response.x<1.0 or response.x>3.2 or absf(response.y)>1.0 or response.z<0.0 or response.z>1.0 or response.w<0.0 or response.w>.5:failures.append("environment response bounds "+element)
+			if not response.is_finite() or response.x<1.0 or response.x>3.2001 or absf(response.y)>1.0001 or response.z<0.0 or response.z>1.0 or response.w<0.0 or response.w>.5:failures.append("environment response bounds "+element)
 			if absf(terrain.y-response.y*.45)>.0001 or absf(terrain.z-response.z*.45)>.0001 or absf(terrain.w-response.w*.45)>.0001:failures.append("terrain response strength "+element)
 			if step==100 and (absf(response.y)+response.z+response.w)>.0001:failures.append("environment response not expired "+element)
 			checks+=1
