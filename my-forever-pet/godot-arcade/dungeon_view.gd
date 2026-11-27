@@ -203,6 +203,8 @@ var fx_collect_audio:bool=false
 var fx_flushing_audio:bool=false
 var fx_frame_voice_mask:int=0
 var fx_frame_audio:Array[Dictionary]=[]
+const FX_AUDIO_CUE_POOL_CAP:int=64
+var fx_audio_cue_pool:Array[Dictionary]=[]
 var fx_voice_priorities:Array[int]=[]
 var fx_arc_segments:int=0
 var player_cast_duration:float=.28
@@ -2546,7 +2548,7 @@ func combat_fx_setup(parent:Node3D)->void:
 	var arc_node:=MeshInstance3D.new();arc_node.mesh=fx_arc_mesh;arc_node.cast_shadow=GeometryInstance3D.SHADOW_CASTING_SETTING_OFF;combat_fx_root.add_child(arc_node)
 	fx_arc_had_geometry=false;fx_trail_had_geometry=false
 	fx_audio.clear();fx_audio_cursor=0
-	fx_voice_priorities.clear();fx_frame_audio.clear();fx_collect_audio=false;fx_flushing_audio=false;fx_frame_voice_mask=0
+	fx_voice_priorities.clear();fx_frame_audio.clear();fx_audio_cue_pool.clear();fx_collect_audio=false;fx_flushing_audio=false;fx_frame_voice_mask=0
 	combat_audio_pack_init()
 	for i in range(12):
 		var sound:=AudioStreamPlayer3D.new();sound.unit_size=4.0;sound.max_distance=24.0;sound.volume_db=-12.0
@@ -15256,12 +15258,11 @@ func combat_sound(id:String,phase:String,variant:int)->AudioStreamWAV:
 func combat_audio_mix(power:int,phase:String,critical:bool=false)->Vector3:
 	if phase.begins_with("env_"):return Vector3(-23.0,1.0,0.0)
 	if phase=="status_blocked":return Vector3(-22.0,1.0,0.0)
-	if phase.begins_with("status_"):return Vector3(-16.0,1.0,1.0)
-	var weight:float=cinematic_power_sample(power,phase=="status").x
+	if phase.begins_with("status_") or phase=="status":return Vector3(-16.0,1.0,1.0)
+	if phase=="miss":return Vector3(-19.0,1.0,0.0)
+	var weight:float=cinematic_power_sample(power,false).x
 	var gain:float=clampf(20.0*log(maxf(.01,weight))/log(10.0),-2.0,3.0)
 	match phase:
-		"miss":return Vector3(-19.0,1.0,0.0)
-		"status":return Vector3(-16.0,1.0,1.0)
 		"launch":return Vector3(-15.0+gain*.45,clampf(1.0-(weight-1.0)*.09,.94,1.04),1.0)
 		_:return Vector3(minf(-8.0,-12.0+gain+(1.5 if critical else 0.0)),clampf(1.0-(weight-1.0)*.15,.92,1.04),3.0 if critical else 2.0)
 
@@ -15317,20 +15318,31 @@ func flush_combat_audio_frame()->void:
 	fx_flushing_audio=false
 	fx_frame_voice_mask=0
 
+# Keep the queue unbounded as before; only retained reusable storage is capped.
+func queue_combat_audio_cue(id:String,phase:String,at:Vector3,critical:bool,age:float)->void:
+	var index:int=fx_frame_audio.size()
+	var cue:Dictionary
+	if index<FX_AUDIO_CUE_POOL_CAP:
+		if index==fx_audio_cue_pool.size():fx_audio_cue_pool.append({})
+		cue=fx_audio_cue_pool[index]
+	else:cue={}
+	cue["id"]=id;cue["phase"]=phase;cue["at"]=at
+	cue["critical"]=critical;cue["age"]=maxf(0.0,age)
+	cue["priority"]=combat_audio_phase_priority(phase,critical)
+	fx_frame_audio.append(cue)
+
 func play_combat_sound(id:String,phase:String,at:Vector3,critical:bool=false,age:float=0.0)->void:
 	if fx_collect_audio:
-		var priority:int=combat_audio_phase_priority(phase,critical)
-		fx_frame_audio.append({"id":id,"phase":phase,"at":at,"critical":critical,"age":maxf(0.0,age),"priority":priority})
+		queue_combat_audio_cue(id,phase,at,critical,age)
 		return
 	if fx_audio.is_empty():return
-	var record:Dictionary=Rules.MOVE_LIBRARY.get(id,Rules.DEV_NATIVE_MOVES.get(id,{}))
-	var mix:=combat_audio_mix(int(record.get("power",0)),phase,critical)
+	var priority:int=combat_audio_phase_priority(phase,critical)
 	# Refresh live voice state for every admission, but reuse the typed storage.
 	if fx_voice_priorities.size()!=fx_audio.size():fx_voice_priorities.resize(fx_audio.size())
 	for i in range(fx_audio.size()):
 		var voice:AudioStreamPlayer3D=fx_audio[i]
 		fx_voice_priorities[i]=int(voice.get_meta("combat_audio_priority",0)) if voice.playing else -1
-	var slot:int=combat_audio_voice_slot(fx_voice_priorities,fx_audio_cursor,int(mix.z),fx_frame_voice_mask if fx_flushing_audio else 0)
+	var slot:int=combat_audio_voice_slot(fx_voice_priorities,fx_audio_cursor,priority,fx_frame_voice_mask if fx_flushing_audio else 0)
 	if slot<0:return
 	var occupied:float=0.0
 	for i in range(fx_audio.size()):
@@ -15338,7 +15350,13 @@ func play_combat_sound(id:String,phase:String,at:Vector3,critical:bool=false,age
 		var other:AudioStreamPlayer3D=fx_audio[i]
 		var other_peak:float=float(other.get_meta("combat_pcm_peak",FX_AUDIO_PEAK_LIMIT))
 		occupied+=other_peak*db_to_linear(other.volume_db)
-	if not combat_audio_can_admit(occupied,int(mix.z)):return
+	if not combat_audio_can_admit(occupied,priority):return
+	# Fixed-gain motifs never need a move record or power envelope.
+	var power:int=0
+	if phase=="launch" or priority>=2:
+		var record:Dictionary=Rules.MOVE_LIBRARY[id] if Rules.MOVE_LIBRARY.has(id) else Rules.DEV_NATIVE_MOVES.get(id,{})
+		power=int(record.get("power",0))
+	var mix:=combat_audio_mix(power,phase,critical)
 	# Shared motifs use a shared rotation; avoid one counter per move and motif.
 	var key:String=phase if phase.begins_with("env_") or phase.begins_with("status_") else id+":"+phase
 	var variant:int=posmod(int(fx_audio_counter.get(key,-1))+1,3)
