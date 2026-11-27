@@ -135,6 +135,7 @@ const FX_HALO_CAP:int=8
 var fx_lights:Array[OmniLight3D]=[]
 var fx_halos:Array[MeshInstance3D]=[]
 var fx_halo_materials:Array[ShaderMaterial]=[]
+var cinematic_halo_shader:Shader
 var fx_lights_used:int=0
 var fx_halos_used:int=0
 const FX_TRAIL_VERTEX_CAP:int=960
@@ -1704,6 +1705,10 @@ func build_living_ambient():
 	trail_origins.clear();trail_ages.clear();trail_angles.clear();trail_cursor=0;trail_emitted=0
 	trail_origins.resize(TRAIL_COUNT);trail_ages.resize(TRAIL_COUNT);trail_angles.resize(TRAIL_COUNT)
 	trail_ages.fill(99.0)
+	# Initialize invisible trail slots once, rather than rewriting them forever.
+	for i in range(TRAIL_COUNT):
+		trail_batch.multimesh.set_instance_transform(i,Transform3D(Basis.from_scale(Vector3.ONE*.001),Vector3.ZERO))
+		trail_batch.multimesh.set_instance_color(i,Color(1,1,1,0))
 	build_biome_light()
 	update_living_ambient(0.0)
 func light_overlay(shader_source:String)->MeshInstance3D:
@@ -1805,11 +1810,12 @@ func update_living_ambient(dt:float):
 	var delta=clampf(dt,0.0,.25)
 	ambient_clock+=delta
 	for material in biome_light_materials:material.set_shader_parameter("scene_time",ambient_clock)
+	var player_center:=pos(run.player)
 	for i in range(ambient_origins.size()):
 		ambient_ages[i]+=delta
 		var mote=i>=AMBIENT_COUNT
 		var duration=5.5+float(i%5)*.37
-		if ambient_ages[i]>=duration or ambient_origins[i].distance_to(pos(run.player))>9.0:ambient_spawn(i)
+		if ambient_ages[i]>=duration or ambient_origins[i].distance_squared_to(player_center)>81.0:ambient_spawn(i)
 		var age=ambient_ages[i];var phase=age/duration;var seed=float(i)*2.399
 		var fade=minf(1.0,minf(phase*7.0,(1.0-phase)*6.0))
 		var offset=Vector3(sin(age*.71+seed)*.46,0,cos(age*.57+seed)*.36)
@@ -1835,6 +1841,7 @@ func update_living_ambient(dt:float):
 		mm.set_instance_color(index,Color(1,1,1,fade*(.82 if region==0 and not mote else .70)))
 	var life=1.7 if region==1 else 3.2
 	for i in range(TRAIL_COUNT):
+		if trail_ages[i]>=life:continue
 		trail_ages[i]=minf(99.0,trail_ages[i]+delta)
 		var fade=clampf(1.0-trail_ages[i]/life,0.0,1.0)
 		var scale_value=(.55+trail_ages[i]*.28) if region==1 else .78
@@ -2261,11 +2268,12 @@ func update_enemy_pixel(actor:Node3D,dt:float,motion:Vector3,body_dt:float=-1.0)
 	if sprite.material_override is ShaderMaterial:
 		var material:=sprite.material_override as ShaderMaterial
 		if texture_changed:material.set_shader_parameter("sprite_tex",sprite.texture)
-		material.set_shader_parameter("hit_flash",hit_flash)
-		material.set_shader_parameter("world_phase",elapsed)
+		set_fx_uniform(material,"hit_flash",hit_flash)
+		# Forest shader does not read world_phase; reef and astral remain animated.
+		if region!=0:material.set_shader_parameter("world_phase",elapsed)
 		var biome:Color=[Color("#d5e6b5"),Color("#9be3e8"),Color("#c3c5ff")][region]
-		material.set_shader_parameter("biome_tint",biome.lerp(living.tint,float(living.tint_weight)))
-		material.set_shader_parameter("ambient_strength",.15+.38*float(living.tint_weight))
+		set_fx_uniform(material,"biome_tint",biome.lerp(living.tint,float(living.tint_weight)))
+		set_fx_uniform(material,"ambient_strength",.15+.38*float(living.tint_weight))
 	else:
 		var base_tint:Color=Color.WHITE.lerp(living.tint,float(living.tint_weight))
 		sprite.modulate=base_tint.lerp(Color("#ffb5c6"),hit_flash) if state=="hurt" else base_tint
@@ -2321,8 +2329,9 @@ func combat_fx_setup(parent:Node3D)->void:
 func setup_cinematic_lighting()->void:
 	fx_lights.clear();fx_halos.clear();fx_halo_materials.clear()
 	fx_lights_used=0;fx_halos_used=0
-	var shader:=Shader.new()
-	shader.code="""
+	if cinematic_halo_shader==null:
+		cinematic_halo_shader=Shader.new()
+		cinematic_halo_shader.code="""
 shader_type spatial;
 render_mode unshaded, blend_add, depth_draw_never, cull_disabled;
 uniform vec4 tint : source_color = vec4(1.0);
@@ -2346,7 +2355,7 @@ void fragment() {
 	var quad:=QuadMesh.new();quad.size=Vector2(1.0,1.0)
 	for i in range(FX_HALO_CAP):
 		var halo:=MeshInstance3D.new()
-		var mat:=ShaderMaterial.new();mat.shader=shader
+		var mat:=ShaderMaterial.new();mat.shader=cinematic_halo_shader
 		halo.mesh=quad;halo.material_override=mat
 		halo.cast_shadow=GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		combat_fx_root.add_child(halo);halo.hide()
@@ -2555,6 +2564,14 @@ func ultra_update_residues(dt:float,used:int)->int:
 		cinematic_halo(at,mark.color,1.3+t*.6,fade*.16,t,true)
 	return used
 
+# Exact value caching only: no quantization, no temporal stepping.
+# Shared by body and transformation writers so the last GPU value is authoritative.
+func set_fx_uniform(material:ShaderMaterial,parameter:StringName,value:Variant)->void:
+	var key:StringName=StringName("fx_uniform_"+str(parameter))
+	if material.has_meta(key) and material.get_meta(key)==value:return
+	material.set_shader_parameter(parameter,value)
+	material.set_meta(key,value)
+
 func cinematic_halo(at:Vector3,color:Color,extent:float,opacity:float,phase:float,ground:bool)->void:
 	if fx_halos_used>=fx_halos.size() or opacity<=.012:return
 	var index:int=fx_halos_used;fx_halos_used+=1
@@ -2564,18 +2581,20 @@ func cinematic_halo(at:Vector3,color:Color,extent:float,opacity:float,phase:floa
 	halo.rotation=Vector3(-PI*.5,0,0) if ground else Vector3.ZERO
 	if not ground and is_instance_valid(camera):halo.global_basis=camera.global_basis.orthonormalized()
 	halo.scale=Vector3.ONE*extent
-	mat.set_shader_parameter("tint",color)
+	set_fx_uniform(mat,"tint",color)
 	mat.set_shader_parameter("intensity",opacity)
 	mat.set_shader_parameter("phase",phase)
-	mat.set_shader_parameter("ring_mix",1.0 if ground else 0.0)
-	halo.show()
+	set_fx_uniform(mat,"ring_mix",1.0 if ground else 0.0)
+	if not halo.visible:halo.show()
 
 func cinematic_light(at:Vector3,color:Color,energy:float,extent:float)->void:
 	if fx_lights_used>=fx_lights.size() or energy<=.02:return
 	var light:OmniLight3D=fx_lights[fx_lights_used];fx_lights_used+=1
-	light.position=at;light.light_color=color
-	light.omni_range=extent;light.light_energy=energy
-	light.show()
+	light.position=at
+	if light.light_color!=color:light.light_color=color
+	if light.omni_range!=extent:light.omni_range=extent
+	light.light_energy=energy
+	if not light.visible:light.show()
 
 func cinematic_cast_enhancement(burst:Dictionary,t:float)->void:
 	var points:Array=burst.points
@@ -6357,8 +6376,10 @@ func combat_fx_update(dt:float)->void:
 		player_hit_direction=latest_hit.direction
 	if arcs_started:fx_arc_mesh.surface_end()
 	for j in range(used,mini(FX_PARTICLE_CAP,combat_particles.size())):combat_particles[j].hide()
-	for j in range(fx_lights_used,fx_lights.size()):fx_lights[j].hide()
-	for j in range(fx_halos_used,fx_halos.size()):fx_halos[j].hide()
+	for j in range(fx_lights_used,fx_lights.size()):
+		if fx_lights[j].visible:fx_lights[j].hide()
+	for j in range(fx_halos_used,fx_halos.size()):
+		if fx_halos[j].visible:fx_halos[j].hide()
 # Secondary environmental layers use the existing bounded pool, not new nodes
 # per cast. Ground rings remain aligned to the floor while debris billboards.
 func environment_particle(index:int,position:Vector3,mode:String,light:Color,dark:Color,scale_value:float,alpha:float,flat:bool=false,status_layer:bool=false)->int:
@@ -8120,7 +8141,7 @@ func update_form_effect(dt:float,pose:String)->void:
 		if active!=null:
 			if active.material_override is ShaderMaterial:
 				var shader:=active.material_override as ShaderMaterial
-				shader.set_shader_parameter("hit_flash",sample.y*.80)
+				set_fx_uniform(shader,"hit_flash",sample.y*.80)
 			else:active.modulate=active.modulate.lerp(Color("#e1edff"),sample.y*.70)
 
 func update_disguise(dt:float,motion:Vector2,moving:bool,pose:String)->void:
