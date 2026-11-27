@@ -942,6 +942,8 @@ var specimen=0
 var guardian_defeated=false
 var event_serial=0
 var last_event=""
+# Bounded presentation-only queue; multiple events in a turn retain their identity.
+var visual_interactions:Array[Dictionary]=[]
 var attack_serial=0
 var attack_target=Vector2i.ZERO
 var attack_power=false
@@ -1046,6 +1048,7 @@ func generate_floor():
 	floor_style=posmod(seed_value+floor_number,3)
 	floor_kind=0 if floor_number==1 else posmod(seed_value*3+floor_number*7,5)
 	secured=false;guardian_defeated=not (rescue_finale and floor_number==floor_count);floor_revision+=1
+	visual_interactions.clear()
 	build_layout()
 
 	var spots:Array= cells.keys()
@@ -1259,6 +1262,9 @@ func reveal():
 				if room.has_point(p):revealed[p]=true
 func emit_event(value:String):
 	last_event=value;event_serial+=1
+func visual_interaction(kind:String,cell:Vector2i)->void:
+	visual_interactions.append({"kind":kind,"cell":cell,"floor":floor_revision})
+	if visual_interactions.size()>16:visual_interactions.pop_front()
 func held_item_damage(amount:int,attacker_item:String,defender_item:String)->int:
 	if amount<=0:return 0
 	return maxi(1,amount+(1 if attacker_item=="force_band" else 0)-(1 if defender_item=="ward_band" else 0))
@@ -1364,7 +1370,9 @@ func pickup():
 	loot.erase(player)
 	if kind.begins_with("manual:"):
 		var id:String=kind.trim_prefix("manual:")
-		if add_technique_manual(id):message="Technique manual found · "+str(MOVE_LIBRARY[id].name);emit_event(message)
+		if add_technique_manual(id):
+			message="Technique manual found · "+str(MOVE_LIBRARY[id].name);emit_event(message)
+			visual_interaction("manual",player)
 		return
 	match kind:
 		"coin":coins+=3;message="+3 coins"
@@ -1377,6 +1385,7 @@ func pickup():
 		"spring":hp=mini(max_hp,hp+18);energy=mini(8,energy+3);player_rested=true;message="Restorative spring · HP and skill restored"
 		"relic":secured=true;message="Relic secured! Find the stairs"
 	emit_event(message)
+	if kind in ["coin","potion","trail_fruit","ward_band","force_band","material","spring","relic"]:visual_interaction(kind,player)
 static func reserve_multiplier(remaining:int,maximum:int)->float:
 	var fraction:float=float(remaining)/maxi(1,maximum)
 	return 2.5 if fraction<=.2 else 2.0 if fraction<=.5 else 1.5 if fraction<=.7 else 1.0
@@ -1669,6 +1678,7 @@ func remove_defeated_enemy(i:int)->void:
 		drop_held_item(enemies[i])
 		enemies.remove_at(i);defeated+=1;combo+=1;best_combo=maxi(best_combo,combo)
 		if guardian:guardian_defeated=true
+		visual_interaction("guardian_win" if guardian else "enemy_win",player)
 		var reward=(12 if guardian else 2)+mini(3,combo-1);coins+=reward;message="Guardian defeated! +%d coins"%reward if guardian else "Enemy defeated! +%d coins · Combo %d"%[reward,combo]
 		emit_event(message)
 func apply_enemy_status(i:int,status:String)->bool:
@@ -2960,7 +2970,7 @@ func heal()->bool:
 	if player_wait_if_napping():return true
 	if not charged_move_id.is_empty():return release_charge()
 	if finished or potions<=0 or hp==max_hp or boon_active("embargo"):return false
-	potions-=1;hp=mini(max_hp,hp+20);message="Recovered HP";emit_event(message);enemy_turn();return true
+	potions-=1;hp=mini(max_hp,hp+20);message="Recovered HP";emit_event(message);visual_interaction("eat",player);enemy_turn();return true
 func descend()->bool:
 	if player_wait_if_napping():return true
 	if not charged_move_id.is_empty():return release_charge()
