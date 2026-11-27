@@ -749,7 +749,9 @@ func run_checks()->void:
 			if visible_pixels[frame]<30:continue
 			max_border_ratio=maxf(max_border_ratio,float(border_pixels[frame])/float(visible_pixels[frame]))
 		if max_border_ratio>.10:reasons.append("possible_frame_clipping")
-		if not reasons.is_empty():review_candidates.append(id)
+		if not reasons.is_empty():
+			review_candidates.append(id)
+			print("KINDRIA_VISUAL_REVIEW ",JSON.stringify({"id":id,"name":str(move.get("name",id)),"element":element,"reasons":reasons,"peak_visible":peak_visible,"impact_visible":impact_visible,"distinct_frames":frame_hashes.size(),"blank_frames":blank_frames,"max_border_ratio":max_border_ratio}))
 		if peak_visible==0:failures.append("empty full sequence "+str(id))
 		if frame_hashes.size()==1:failures.append("static full sequence "+str(id))
 		# A transparent final frame can be intentional. A weak impact is a review
