@@ -5484,7 +5484,7 @@ func native_identity_frame(id:String,frame:int,base:Image)->Image:
 	return im
 
 # V16.7: individually remastered after reviewing actual Godot PNG strips.
-const VISUAL_REMASTER_MOVES=["eos_504","eos_308","eos_135","eos_142","eos_047","eos_250","eos_299","eos_329"]
+const VISUAL_REMASTER_MOVES=["eos_504","eos_308","eos_135","eos_142","eos_047","eos_250","eos_299","eos_329","eos_262","eos_279","eos_101","eos_199","eos_251","eos_486","eos_462","eos_018"]
 func visual_remaster_frame(id:String,frame:int)->Image:
 	var im:=Image.create(48,48,false,Image.FORMAT_RGBA8)
 	im.fill(Color.TRANSPARENT)
@@ -5579,6 +5579,105 @@ func visual_remaster_frame(id:String,frame:int)->Image:
 				fx_line(im,q+Vector2(0,2),q+Vector2(0,8+5*drive),1.4,Color("#468a39"))
 				fx_line(im,q+Vector2(0,7),q+Vector2(-4,12),1.0,Color("#70ab44"))
 				grass_leaf(im,q+Vector2(0,-3),-1.4+float(j)*.3,6.0,light,dark)
+		"eos_262":
+			# Ember: separate incandescent cinders with flickering flame tails.
+			for j in range(4):
+				var f:float=clampf(drive*.85+float(j)*.08,0.0,1.0)
+				var q:=Vector2(8+30*f,24+sin(float(j)*2.4+t*TAU)*6.0)
+				var r:float=2.4+1.8*pulse+float(j%2)
+				fx_line(im,q-Vector2(5.0+4.0*fade,2),q,2.1,Color("#9d3218",.8*fade+.12))
+				fire_lobe(im,q,r,t+float(j)*.19,Color("#fff2a4"),Color("#f05a24"))
+				fx_disc(im,q+Vector2(-5,-5),1.3,Color("#ffc35b",.25+.65*fade))
+		"eos_279":
+			# Sludge: heavy toxic mass, uneven lobes and a splattering impact.
+			var q:=Vector2(10+24*drive,25-5*sin(drive*PI))
+			fx_line(im,q-Vector2(9*fade,0),q,3.0,Color("#51215e",.8))
+			for j in range(5):
+				var a:float=float(j)*TAU/5.0+t*2.0
+				var axis:=Vector2(cos(a),sin(a))
+				fx_disc(im,q+axis*(3.6+5.0*(1.0-fade)),4.1,Color("#51215e",.35+.65*fade))
+				fx_disc(im,q+axis*(3.0+5.0*(1.0-fade))-Vector2(1,1),2.6,Color("#ad57bf",.35+.65*fade))
+			fx_disc(im,q-Vector2(2,3),2.5,Color("#e9a8ee",.7))
+			if t>=peak:
+				for j in range(7):
+					var a:float=float(j)*TAU/7.0
+					fx_disc(im,q+Vector2(cos(a),sin(a))*(8+8*(1.0-fade)),1.7,Color("#a96bca",fade))
+		"eos_101":
+			# Powder Snow: turbulent cloud of fine flakes with crystalline silhouettes.
+			for j in range(14):
+				var f:float=float(j)/13.0
+				var q:=Vector2(7+34*f*drive,24+sin(float(j)*2.7+t*5.0)*(4.0+9.0*f))
+				fx_disc(im,q,3.0+2.1*f,Color("#659fc6",.23+.28*fade))
+				if j%3==0:
+					ice_crystal(im,q,t*2.0+float(j),3.4+f,Color("#e6fbff",.4+.6*fade),Color("#8ed3f6",.35+.6*fade))
+				else:
+					fx_disc(im,q-Vector2(1,1),1.3,Color("#eafaff",.5+.5*fade))
+		"eos_199":
+			# Poison Powder: expanding violet cloud with irregular drifting granules.
+			for j in range(18):
+				var f:float=float(j)/17.0
+				var q:=Vector2(7+33*f*drive,24+sin(float(j)*2.33+t*4.0)*(3.0+12.0*f))
+				fx_disc(im,q,2.8+f*2.1,Color("#6b347e",.18+.32*fade))
+				fx_disc(im,q-Vector2(1,1),1.3+float(j%3)*.45,Color("#d389db",.25+.65*fade))
+				if j%4==0:fx_disc(im,q+Vector2(1,-3),1.0,Color("#f9c9f0",.75*fade))
+		"eos_251":
+			# Razor Leaf: sharp, individually tumbling blades with cutting wakes.
+			for j in range(4):
+				var f:float=clampf(drive*.78+float(j)*.12,0.0,1.0)
+				var q:=Vector2(8+30*f,24+sin(float(j)*2.3+t*4.0)*9.0)
+				var a:float=-.55+sin(t*TAU+float(j))*1.1
+				fx_line(im,q-Vector2(7*fade,2),q,1.4,Color("#3c8d49",.7*fade+.1))
+				grass_leaf(im,q,a,10.0+2*pulse,Color("#a8ec65"),Color("#286e42"))
+				fx_line(im,q,q+Vector2(cos(a),sin(a))*5.0,1.0,Color("#e6ffc2",.85))
+		"eos_486":
+			# Seed Bomb: solid striped seed, arcing flight and explosive husk fragments.
+			var q:=Vector2(10+25*drive,27-10*sin(drive*PI))
+			fx_disc(im,q,7.0,Color("#35502b"))
+			fx_disc(im,q-Vector2(1,1),5.3,Color("#90b94b"))
+			for j in range(3):
+				fx_line(im,q+Vector2(-4+float(j)*3,-4),q+Vector2(-2+float(j)*3,4),1.1,Color("#496e37"))
+			fx_disc(im,q-Vector2(2,3),2.0,Color("#d6f395"))
+			if t>=peak:
+				for j in range(8):
+					var a:float=float(j)*TAU/8.0
+					var axis:=Vector2(cos(a),sin(a))
+					var mote:=q+axis*(7+8*(1.0-fade))
+					grass_leaf(im,mote,a,4.5,Color("#cae88a",fade),Color("#567c36",fade))
+					fx_line(im,q+axis*6,mote,1.1,Color("#d9f28d",fade))
+		"eos_462":
+			# Ice Shard: pointed faceted ice projectile with sharp fracture streaks.
+			var q:=Vector2(11+25*drive,24)
+			fx_line(im,q-Vector2(12*fade,0),q+Vector2(5,0),2.2,Color("#4d9bd4",.75))
+			for j in range(7):
+				var x:float=float(j)-4.0
+				var w:float=3.7*(1.0-absf(x)/5.0)
+				fx_line(im,q+Vector2(x,-w),q+Vector2(x,w),1.2,Color("#4096c8"))
+				fx_line(im,q+Vector2(x,-w*.65),q+Vector2(x,0),1.0,Color("#d5f7ff"))
+			fx_line(im,q+Vector2(-2,0),q+Vector2(8,0),1.2,Color("#efffff"))
+			if t>=peak:
+				for j in range(5):
+					var a:float=float(j)*TAU/5.0
+					var axis:=Vector2(cos(a),sin(a))
+					var mote:=q+axis*(7+5*(1.0-fade))
+					fx_line(im,mote,mote+axis*4,1.4,Color("#bcefff",fade))
+		"eos_018":
+			# Cut: sweeping crescent edge with a bright leading bevel.
+			var center:=Vector2(24,25)
+			var sweep:float=-1.3+2.4*drive
+			for j in range(1,14):
+				var f:float=float(j)/13.0
+				var a:float=sweep-1.5+f*1.5
+				var prev:float=a-1.5/13.0
+				var radius:float=15.0+2.0*pulse
+				var u:=center+Vector2(cos(prev),sin(prev))*radius
+				var v:=center+Vector2(cos(a),sin(a))*radius
+				fx_line(im,u,v,2.0+3.0*f,Color("#8c775e",.45+.55*fade))
+				fx_line(im,u,v,1.0+1.4*f,Color("#fff2d7",.5+.5*fade))
+			if t>=peak:
+				var q:=center+Vector2(cos(sweep),sin(sweep))*16.0
+				for j in range(3):
+					var axis:=Vector2(cos(sweep+float(j-1)*.65),sin(sweep+float(j-1)*.65))
+					fx_line(im,q,q+axis*(4+4*(1.0-fade)),1.3,Color("#fff3d1",fade))
 	return im
 
 func combat_frame_image(id:String,frame:int)->Image:
