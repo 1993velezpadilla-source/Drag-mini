@@ -15824,13 +15824,27 @@ func latest_player_impact(current:Dictionary,burst:Dictionary,previous_cursor:in
 	var tile:=Vector2i(roundi(target.x/1.4),roundi(target.z/1.4))
 	for index in range(cursor-1,maxi(0,previous_cursor)-1,-1):
 		var wave:Dictionary=waves[index]
-		var amount:int=int(wave.get(tile,{}).get("damage",0))
+		var row:Dictionary=wave.get(tile,{})
+		var amount:int=int(row.get("damage",0))
 		if wave.is_empty() and index==0:amount=int(burst.get("damage",0))
 		if amount<=0:continue
 		var age:float=maxf(0.0,float(burst.age)-float(times[index]))
-		if age>=.24 or (not current.is_empty() and age>=float(current.age)):return current
+		if age>=.24 or (not current.is_empty() and age>float(current.age)):return current
 		var direction:=Vector3(target.x-burst.points[0].x,0.0,target.z-burst.points[0].z).normalized()
-		return {"age":age,"direction":direction}
+		var critical:bool=int(row.get("crit",0))>0
+		# Same-time hits share one body reaction: critical, damage, direction.
+		# Do not let reverse visual traversal decide which hit the player sees.
+		if not current.is_empty() and age==float(current.age):
+			var old_critical:bool=bool(current.get("critical",false))
+			var old_damage:int=int(current.get("damage",0))
+			var old_direction:Vector3=current.direction
+			if critical!=old_critical:
+				if not critical:continue
+			elif amount!=old_damage:
+				if amount<old_damage:continue
+			elif direction.x<old_direction.x or (direction.x==old_direction.x and direction.z<=old_direction.z):continue
+		current={"age":age,"direction":direction,"critical":critical,"damage":amount}
+		# Inspect equal-time attempts as well; older attempts cannot replace it.
 	return current
 
 # Fair streaming allocation: unused slots flow to the remaining casts.
