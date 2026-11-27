@@ -315,8 +315,8 @@ static func enemy_pixel_cell(id:String,dir:int,pose:String,frame:int=0)->Image:
 		"sporeling":
 			var cap_y:=18+(2 if wind else -2 if attack else 0)
 			for k in [-1,1]:
-				var x:=24+k*6
-				var foot_y:=40+(step*k if pose=="walk" else 0)
+				var x:int=24+int(k)*6
+				var foot_y:int=40+(step*int(k) if pose=="walk" else 0)
 				enemy_dot(im,Vector2i(x,foot_y),Vector2i(5,4),ink)
 				enemy_dot(im,Vector2i(x,foot_y-1),Vector2i(3,2),Color("#a08c78"))
 			enemy_dot(im,Vector2i(24,31),Vector2i(11,12),ink)
