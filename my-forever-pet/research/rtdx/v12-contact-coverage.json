@@ -1,0 +1,6726 @@
+{
+  "scope": "Dedicated V11-V12 complementary visual profiles only. Uncovered moves may have base/native/authored FX; coverage is not visual approval.",
+  "library": 522,
+  "native": 67,
+  "total": 589,
+  "covered_unique": 363,
+  "pending": 226,
+  "profile_entries": 374,
+  "by_element": {
+    "dark": {
+      "total": 32,
+      "covered": 16
+    },
+    "poison": {
+      "total": 24,
+      "covered": 10
+    },
+    "rock": {
+      "total": 22,
+      "covered": 10
+    },
+    "normal": {
+      "total": 160,
+      "covered": 106
+    },
+    "water": {
+      "total": 36,
+      "covered": 19
+    },
+    "fairy": {
+      "total": 9,
+      "covered": 1
+    },
+    "ice": {
+      "total": 20,
+      "covered": 14
+    },
+    "electric": {
+      "total": 20,
+      "covered": 12
+    },
+    "grass": {
+      "total": 42,
+      "covered": 23
+    },
+    "flying": {
+      "total": 27,
+      "covered": 19
+    },
+    "fire": {
+      "total": 23,
+      "covered": 14
+    },
+    "dragon": {
+      "total": 15,
+      "covered": 11
+    },
+    "bug": {
+      "total": 24,
+      "covered": 17
+    },
+    "steel": {
+      "total": 17,
+      "covered": 11
+    },
+    "ghost": {
+      "total": 18,
+      "covered": 10
+    },
+    "fighting": {
+      "total": 35,
+      "covered": 29
+    },
+    "ground": {
+      "total": 20,
+      "covered": 10
+    },
+    "psychic": {
+      "total": 45,
+      "covered": 31
+    }
+  },
+  "known_review_items": [
+    {
+      "id": "lib_electric_1",
+      "issue": "Name Static Fang and reference THUNDERPUNCH differ; confirm intended mechanics before changing art."
+    },
+    {
+      "id": "eos_029",
+      "issue": "ROCK_SMASH is catalogued as status; verify special rule rather than assume damage."
+    },
+    {
+      "id": "eos_503",
+      "issue": "FLING is catalogued as status; verify special item-based rule."
+    }
+  ],
+  "moves": [
+    {
+      "id": "abyss_grasp",
+      "name": "Abyss Crush",
+      "reference": null,
+      "element": "dark",
+      "category": "physical",
+      "pattern": "radius",
+      "profiles": [
+        "SPECIAL"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "alt_abyss_colossus",
+      "name": "Ink Veil",
+      "reference": null,
+      "element": "dark",
+      "category": "physical",
+      "pattern": "radius",
+      "profiles": [],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "alt_anemoneye",
+      "name": "Nettle Bloom",
+      "reference": null,
+      "element": "poison",
+      "category": "physical",
+      "pattern": "radius",
+      "profiles": [],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "alt_astro_golem",
+      "name": "Gravel Nova",
+      "reference": null,
+      "element": "rock",
+      "category": "physical",
+      "pattern": "radius",
+      "profiles": [],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "alt_bramble_pup",
+      "name": "Thorn Scratch",
+      "reference": null,
+      "element": "normal",
+      "category": "physical",
+      "pattern": "fan",
+      "profiles": [],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "alt_bubblewisp",
+      "name": "Foam Ring",
+      "reference": null,
+      "element": "water",
+      "category": "special",
+      "pattern": "radius",
+      "profiles": [],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "alt_celestial_guardian",
+      "name": "Halo Blade",
+      "reference": null,
+      "element": "fairy",
+      "category": "special",
+      "pattern": "fan",
+      "profiles": [],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "alt_comet_hare",
+      "name": "Lunar Kick",
+      "reference": null,
+      "element": "normal",
+      "category": "physical",
+      "pattern": "fan",
+      "profiles": [],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "alt_coralcrab",
+      "name": "Brine Jet",
+      "reference": null,
+      "element": "water",
+      "category": "physical",
+      "pattern": "line",
+      "profiles": [],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "alt_crystarok",
+      "name": "Crystal Needle",
+      "reference": null,
+      "element": "ice",
+      "category": "physical",
+      "pattern": "line",
+      "profiles": [],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "alt_eelstrix",
+      "name": "Static Fang",
+      "reference": null,
+      "element": "electric",
+      "category": "special",
+      "pattern": "fan",
+      "profiles": [],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "alt_fungal_monarch",
+      "name": "Royal Spore Jet",
+      "reference": null,
+      "element": "poison",
+      "category": "special",
+      "pattern": "line",
+      "profiles": [],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "alt_grovetitan",
+      "name": "Root Hook",
+      "reference": null,
+      "element": "grass",
+      "category": "physical",
+      "pattern": "corner",
+      "profiles": [],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "alt_hollow_stag",
+      "name": "Bark Spear",
+      "reference": null,
+      "element": "grass",
+      "category": "physical",
+      "pattern": "line",
+      "profiles": [],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "alt_jellymancer",
+      "name": "Tentacle Flick",
+      "reference": null,
+      "element": "water",
+      "category": "special",
+      "pattern": "front",
+      "profiles": [],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "alt_leafwisp",
+      "name": "Razor Leaves",
+      "reference": null,
+      "element": "grass",
+      "category": "special",
+      "pattern": "fan",
+      "profiles": [],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "alt_leviathorn",
+      "name": "Brackish Lance",
+      "reference": null,
+      "element": "water",
+      "category": "physical",
+      "pattern": "line",
+      "profiles": [],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "alt_lunamoth",
+      "name": "Moon Wing",
+      "reference": null,
+      "element": "flying",
+      "category": "special",
+      "pattern": "fan",
+      "profiles": [
+        "MOTION"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "alt_lunar_prowler",
+      "name": "Shadow Pounce",
+      "reference": null,
+      "element": "dark",
+      "category": "physical",
+      "pattern": "line",
+      "profiles": [],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "alt_marrowray",
+      "name": "Tail Barb",
+      "reference": null,
+      "element": "water",
+      "category": "special",
+      "pattern": "fan",
+      "profiles": [],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "alt_mossmite",
+      "name": "Pebble Scatter",
+      "reference": null,
+      "element": "rock",
+      "category": "physical",
+      "pattern": "radius",
+      "profiles": [],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "alt_nebulwing",
+      "name": "Echo Burst",
+      "reference": null,
+      "element": "flying",
+      "category": "special",
+      "pattern": "radius",
+      "profiles": [],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "alt_nova_wisp",
+      "name": "Cinder Halo",
+      "reference": null,
+      "element": "fire",
+      "category": "special",
+      "pattern": "radius",
+      "profiles": [],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "alt_orbitserpent",
+      "name": "Ring Fang",
+      "reference": null,
+      "element": "dragon",
+      "category": "physical",
+      "pattern": "front",
+      "profiles": [],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "alt_reef_pup",
+      "name": "Water Needle",
+      "reference": null,
+      "element": "water",
+      "category": "physical",
+      "pattern": "line",
+      "profiles": [],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "alt_rootgnawer",
+      "name": "Root Needle",
+      "reference": null,
+      "element": "grass",
+      "category": "physical",
+      "pattern": "line",
+      "profiles": [],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "alt_shellguard",
+      "name": "Shell Disc",
+      "reference": null,
+      "element": "rock",
+      "category": "physical",
+      "pattern": "line",
+      "profiles": [],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "alt_sporeling",
+      "name": "Cap Bonk",
+      "reference": null,
+      "element": "grass",
+      "category": "special",
+      "pattern": "front",
+      "profiles": [],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "alt_starlit_pup",
+      "name": "Comet Spark",
+      "reference": null,
+      "element": "fairy",
+      "category": "physical",
+      "pattern": "line",
+      "profiles": [],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "alt_sylphowl",
+      "name": "Talon Rake",
+      "reference": null,
+      "element": "flying",
+      "category": "special",
+      "pattern": "fan",
+      "profiles": [
+        "MOTION"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "alt_thornbeetle",
+      "name": "Mandible Cut",
+      "reference": null,
+      "element": "bug",
+      "category": "physical",
+      "pattern": "front",
+      "profiles": [],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "alt_tidal_sovereign",
+      "name": "Riptide Rush",
+      "reference": null,
+      "element": "water",
+      "category": "physical",
+      "pattern": "line",
+      "profiles": [],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "alt_vinesnap",
+      "name": "Petal Chomp",
+      "reference": null,
+      "element": "grass",
+      "category": "physical",
+      "pattern": "front",
+      "profiles": [],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "alt_voidspider",
+      "name": "Silk Dart",
+      "reference": null,
+      "element": "bug",
+      "category": "special",
+      "pattern": "line",
+      "profiles": [],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "antler_arc",
+      "name": "Antler Sweep",
+      "reference": null,
+      "element": "grass",
+      "category": "physical",
+      "pattern": "fan",
+      "profiles": [],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "basic_strike",
+      "name": "Basic Strike",
+      "reference": null,
+      "element": "normal",
+      "category": "physical",
+      "pattern": "front",
+      "profiles": [],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "briar_arc",
+      "name": "Briar Pounce",
+      "reference": null,
+      "element": "grass",
+      "category": "physical",
+      "pattern": "line",
+      "profiles": [],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "bubble_burst",
+      "name": "Bubble Shot",
+      "reference": null,
+      "element": "water",
+      "category": "special",
+      "pattern": "corner",
+      "profiles": [],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "celestial_verdict",
+      "name": "Celestial Verdict",
+      "reference": null,
+      "element": "fairy",
+      "category": "special",
+      "pattern": "cross",
+      "profiles": [],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "comet_drop",
+      "name": "Comet Drop",
+      "reference": null,
+      "element": "fairy",
+      "category": "physical",
+      "pattern": "line",
+      "profiles": [],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "double_pincer",
+      "name": "Claw Snap",
+      "reference": null,
+      "element": "bug",
+      "category": "physical",
+      "pattern": "fan",
+      "profiles": [],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "electric_lash",
+      "name": "Static Lash",
+      "reference": null,
+      "element": "electric",
+      "category": "special",
+      "pattern": "line",
+      "profiles": [],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_001",
+      "name": "Iron Tail",
+      "reference": "IRON_TAIL",
+      "element": "steel",
+      "category": "physical",
+      "pattern": "front",
+      "profiles": [
+        "BODY"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_002",
+      "name": "Frost Tumble",
+      "reference": "ICE_BALL",
+      "element": "ice",
+      "category": "physical",
+      "pattern": "corner_front",
+      "profiles": [
+        "PROJECTILE"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_003",
+      "name": "Drowsy Hex",
+      "reference": "YAWN",
+      "element": "normal",
+      "category": "status",
+      "pattern": "front",
+      "profiles": [
+        "SUPPORT"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_004",
+      "name": "Dream Charm",
+      "reference": "LOVELY_KISS",
+      "element": "normal",
+      "category": "status",
+      "pattern": "radius",
+      "profiles": [
+        "SUPPORT"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_005",
+      "name": "Dread Dream",
+      "reference": "NIGHTMARE",
+      "element": "ghost",
+      "category": "status",
+      "pattern": "front",
+      "profiles": [],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_006",
+      "name": "Dawn Renewal",
+      "reference": "MORNING_SUN",
+      "element": "normal",
+      "category": "status",
+      "pattern": "self",
+      "profiles": [
+        "SUPPORT"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_007",
+      "name": "Redirecting Grip",
+      "reference": "VITAL_THROW",
+      "element": "fighting",
+      "category": "physical",
+      "pattern": "self",
+      "profiles": [],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_008",
+      "name": "Burrow Strike",
+      "reference": "DIG",
+      "element": "ground",
+      "category": "physical",
+      "pattern": "front",
+      "profiles": [
+        "TERRAIN"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_009",
+      "name": "Wild Flurry",
+      "reference": "THRASH",
+      "element": "normal",
+      "category": "physical",
+      "pattern": "radius",
+      "profiles": [
+        "BODY"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_010",
+      "name": "Scent Trace",
+      "reference": "SWEET_SCENT",
+      "element": "normal",
+      "category": "status",
+      "pattern": "room",
+      "profiles": [
+        "SUPPORT"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_011",
+      "name": "Gentle Hex",
+      "reference": "CHARM",
+      "element": "normal",
+      "category": "status",
+      "pattern": "front",
+      "profiles": [
+        "SUPPORT"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_012",
+      "name": "Rain Ritual",
+      "reference": "RAIN_DANCE",
+      "element": "water",
+      "category": "status",
+      "pattern": "self",
+      "profiles": [
+        "TERRAIN"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_013",
+      "name": "Mirage Ray",
+      "reference": "CONFUSE_RAY",
+      "element": "ghost",
+      "category": "status",
+      "pattern": "front",
+      "profiles": [
+        "SUPPORT"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_014",
+      "name": "Frostfall",
+      "reference": "HAIL",
+      "element": "ice",
+      "category": "status",
+      "pattern": "self",
+      "profiles": [
+        "TERRAIN"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_015",
+      "name": "Herbal Purge",
+      "reference": "AROMATHERAPY",
+      "element": "grass",
+      "category": "status",
+      "pattern": "self",
+      "profiles": [
+        "SUPPORT"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_016",
+      "name": "Bubble",
+      "reference": "BUBBLE",
+      "element": "water",
+      "category": "special",
+      "pattern": "line",
+      "profiles": [],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_017",
+      "name": "Echo Lock",
+      "reference": "ENCORE",
+      "element": "normal",
+      "category": "status",
+      "pattern": "front",
+      "profiles": [
+        "SUPPORT"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_018",
+      "name": "Cut",
+      "reference": "CUT",
+      "element": "normal",
+      "category": "physical",
+      "pattern": "radius",
+      "profiles": [
+        "CLAW"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_019",
+      "name": "Fury Stance",
+      "reference": "RAGE",
+      "element": "normal",
+      "category": "status",
+      "pattern": "self",
+      "profiles": [
+        "SUPPORT"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_020",
+      "name": "Crescent Fang",
+      "reference": "SUPER_FANG",
+      "element": "normal",
+      "category": "physical",
+      "pattern": "front",
+      "profiles": [
+        "BITE"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_021",
+      "name": "Shared Vitality",
+      "reference": "PAIN_SPLIT",
+      "element": "normal",
+      "category": "status",
+      "pattern": "front",
+      "profiles": [
+        "SUPPORT"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_022",
+      "name": "Silencing Seal",
+      "reference": "TORMENT",
+      "element": "dark",
+      "category": "status",
+      "pattern": "front",
+      "profiles": [
+        "SUPPORT"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_023",
+      "name": "Silk Drag",
+      "reference": "STRING_SHOT",
+      "element": "bug",
+      "category": "status",
+      "pattern": "line",
+      "profiles": [
+        "SPECIAL"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_024",
+      "name": "Provocation",
+      "reference": "SWAGGER",
+      "element": "normal",
+      "category": "status",
+      "pattern": "front",
+      "profiles": [],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_025",
+      "name": "Dream Echo",
+      "reference": "SNORE",
+      "element": "normal",
+      "category": "special",
+      "pattern": "front",
+      "profiles": [
+        "SPECIAL"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_026",
+      "name": "Pure Chime",
+      "reference": "HEAL_BELL",
+      "element": "normal",
+      "category": "status",
+      "pattern": "self",
+      "profiles": [
+        "SPECIAL",
+        "SUPPORT"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_027",
+      "name": "Shatter Cry",
+      "reference": "SCREECH",
+      "element": "normal",
+      "category": "status",
+      "pattern": "corner_front",
+      "profiles": [
+        "SPECIAL",
+        "SUPPORT"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_028",
+      "name": "Rock Throw",
+      "reference": "ROCK_THROW",
+      "element": "rock",
+      "category": "physical",
+      "pattern": "front",
+      "profiles": [
+        "PROJECTILE"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_029",
+      "name": "Stonebreaker",
+      "reference": "ROCK_SMASH",
+      "element": "fighting",
+      "category": "status",
+      "pattern": "front",
+      "profiles": [],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_030",
+      "name": "Rock Slide",
+      "reference": "ROCK_SLIDE",
+      "element": "rock",
+      "category": "physical",
+      "pattern": "front",
+      "profiles": [
+        "TERRAIN"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_031",
+      "name": "Weather Ball",
+      "reference": "WEATHER_BALL",
+      "element": "normal",
+      "category": "special",
+      "pattern": "line",
+      "profiles": [
+        "PROJECTILE"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_032",
+      "name": "Whirlpool",
+      "reference": "WHIRLPOOL",
+      "element": "water",
+      "category": "special",
+      "pattern": "front",
+      "profiles": [
+        "TERRAIN"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_033",
+      "name": "Sorrow Veil",
+      "reference": "FAKE_TEARS",
+      "element": "dark",
+      "category": "status",
+      "pattern": "front",
+      "profiles": [
+        "SUPPORT"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_034",
+      "name": "Lullaby Note",
+      "reference": "SING",
+      "element": "normal",
+      "category": "status",
+      "pattern": "corner_front",
+      "profiles": [
+        "SPECIAL",
+        "SUPPORT"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_035",
+      "name": "Essence Drain",
+      "reference": "SPITE",
+      "element": "ghost",
+      "category": "status",
+      "pattern": "front",
+      "profiles": [],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_036",
+      "name": "Air Cutter",
+      "reference": "AIR_CUTTER",
+      "element": "flying",
+      "category": "special",
+      "pattern": "corner_front",
+      "profiles": [
+        "TERRAIN"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_037",
+      "name": "Smoke Shroud",
+      "reference": "SMOKESCREEN",
+      "element": "normal",
+      "category": "status",
+      "pattern": "corner_front",
+      "profiles": [],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_038",
+      "name": "Pursuer Stance",
+      "reference": "PURSUIT",
+      "element": "dark",
+      "category": "physical",
+      "pattern": "self",
+      "profiles": [],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_039",
+      "name": "Palm Flurry",
+      "reference": "DOUBLESLAP",
+      "element": "normal",
+      "category": "physical",
+      "pattern": "front",
+      "profiles": [
+        "MOTION"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_040",
+      "name": "Mirror Veil",
+      "reference": "MIRROR_MOVE",
+      "element": "flying",
+      "category": "status",
+      "pattern": "self",
+      "profiles": [],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_041",
+      "name": "Overheat",
+      "reference": "OVERHEAT",
+      "element": "fire",
+      "category": "special",
+      "pattern": "radius",
+      "profiles": [],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_042",
+      "name": "Aurora Beam",
+      "reference": "AURORA_BEAM",
+      "element": "ice",
+      "category": "special",
+      "pattern": "line",
+      "profiles": [
+        "PROJECTILE"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_043",
+      "name": "Last Eclipse",
+      "reference": "MEMENTO",
+      "element": "dark",
+      "category": "status",
+      "pattern": "room",
+      "profiles": [],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_044",
+      "name": "Octazooka",
+      "reference": "OCTAZOOKA",
+      "element": "water",
+      "category": "special",
+      "pattern": "line",
+      "profiles": [],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_045",
+      "name": "False Praise",
+      "reference": "FLATTER",
+      "element": "dark",
+      "category": "status",
+      "pattern": "front",
+      "profiles": [],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_046",
+      "name": "Astonish",
+      "reference": "ASTONISH",
+      "element": "ghost",
+      "category": "physical",
+      "pattern": "front",
+      "profiles": [],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_047",
+      "name": "Cinder Curse",
+      "reference": "WILL_O_WISP",
+      "element": "fire",
+      "category": "status",
+      "pattern": "corner_front",
+      "profiles": [
+        "SUPPORT"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_048",
+      "name": "Trust Strike",
+      "reference": "RETURN",
+      "element": "normal",
+      "category": "physical",
+      "pattern": "front",
+      "profiles": [],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_049",
+      "name": "Final Grudge",
+      "reference": "GRUDGE",
+      "element": "ghost",
+      "category": "status",
+      "pattern": "self",
+      "profiles": [],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_050",
+      "name": "Titan Toss",
+      "reference": "STRENGTH",
+      "element": "normal",
+      "category": "physical",
+      "pattern": "front",
+      "profiles": [],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_051",
+      "name": "Retaliation",
+      "reference": "COUNTER",
+      "element": "fighting",
+      "category": "physical",
+      "pattern": "self",
+      "profiles": [],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_052",
+      "name": "Flame Wheel",
+      "reference": "FLAME_WHEEL",
+      "element": "fire",
+      "category": "physical",
+      "pattern": "corner_front",
+      "profiles": [],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_053",
+      "name": "Flamethrower",
+      "reference": "FLAMETHROWER",
+      "element": "fire",
+      "category": "special",
+      "pattern": "line",
+      "profiles": [
+        "PROJECTILE"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_054",
+      "name": "Scent Reveal",
+      "reference": "ODOR_SLEUTH",
+      "element": "normal",
+      "category": "status",
+      "pattern": "room",
+      "profiles": [],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_055",
+      "name": "Hone Edge",
+      "reference": "SHARPEN",
+      "element": "normal",
+      "category": "status",
+      "pattern": "self",
+      "profiles": [
+        "SUPPORT"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_056",
+      "name": "Echo Image",
+      "reference": "DOUBLE_TEAM",
+      "element": "normal",
+      "category": "status",
+      "pattern": "self",
+      "profiles": [
+        "SUPPORT"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_057",
+      "name": "Gust",
+      "reference": "GUST",
+      "element": "flying",
+      "category": "special",
+      "pattern": "front",
+      "profiles": [
+        "TERRAIN"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_058",
+      "name": "Firm Shell",
+      "reference": "HARDEN",
+      "element": "normal",
+      "category": "status",
+      "pattern": "self",
+      "profiles": [
+        "SUPPORT"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_059",
+      "name": "Nerve Seal",
+      "reference": "DISABLE",
+      "element": "normal",
+      "category": "status",
+      "pattern": "front",
+      "profiles": [
+        "SUPPORT"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_060",
+      "name": "Razor Gale",
+      "reference": "RAZOR_WIND",
+      "element": "normal",
+      "category": "special",
+      "pattern": "corner_front",
+      "profiles": [
+        "TERRAIN"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_061",
+      "name": "Stored Retort",
+      "reference": "BIDE",
+      "element": "normal",
+      "category": "physical",
+      "pattern": "self",
+      "profiles": [],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_062",
+      "name": "Crunch",
+      "reference": "CRUNCH",
+      "element": "dark",
+      "category": "physical",
+      "pattern": "front",
+      "profiles": [
+        "BITE"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_063",
+      "name": "Bite",
+      "reference": "BITE",
+      "element": "dark",
+      "category": "physical",
+      "pattern": "front",
+      "profiles": [
+        "BITE"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_064",
+      "name": "Thunder",
+      "reference": "THUNDER",
+      "element": "electric",
+      "category": "special",
+      "pattern": "front",
+      "profiles": [
+        "TERRAIN"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_065",
+      "name": "Thunderpunch",
+      "reference": "THUNDERPUNCH",
+      "element": "electric",
+      "category": "physical",
+      "pattern": "front",
+      "profiles": [
+        "PUNCH"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_066",
+      "name": "Equalizer",
+      "reference": "ENDEAVOR",
+      "element": "normal",
+      "category": "physical",
+      "pattern": "front",
+      "profiles": [],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_067",
+      "name": "Facade",
+      "reference": "FACADE",
+      "element": "normal",
+      "category": "physical",
+      "pattern": "front",
+      "profiles": [],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_068",
+      "name": "Karate Chop",
+      "reference": "KARATE_CHOP",
+      "element": "fighting",
+      "category": "physical",
+      "pattern": "front",
+      "profiles": [
+        "MOTION"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_069",
+      "name": "Clamp",
+      "reference": "CLAMP",
+      "element": "water",
+      "category": "physical",
+      "pattern": "front",
+      "profiles": [
+        "SPECIAL"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_070",
+      "name": "Shell Retreat",
+      "reference": "WITHDRAW",
+      "element": "water",
+      "category": "status",
+      "pattern": "self",
+      "profiles": [
+        "SUPPORT"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_071",
+      "name": "Constrict",
+      "reference": "CONSTRICT",
+      "element": "normal",
+      "category": "physical",
+      "pattern": "front",
+      "profiles": [
+        "SPECIAL"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_072",
+      "name": "Brick Break",
+      "reference": "BRICK_BREAK",
+      "element": "fighting",
+      "category": "physical",
+      "pattern": "front",
+      "profiles": [
+        "MOTION"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_073",
+      "name": "Rock Tomb",
+      "reference": "ROCK_TOMB",
+      "element": "rock",
+      "category": "physical",
+      "pattern": "front",
+      "profiles": [
+        "TERRAIN"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_074",
+      "name": "Battle Focus",
+      "reference": "FOCUS_ENERGY",
+      "element": "normal",
+      "category": "status",
+      "pattern": "self",
+      "profiles": [
+        "SUPPORT"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_075",
+      "name": "Focused Fist",
+      "reference": "FOCUS_PUNCH",
+      "element": "fighting",
+      "category": "physical",
+      "pattern": "front",
+      "profiles": [
+        "PUNCH"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_076",
+      "name": "Giga Drain",
+      "reference": "GIGA_DRAIN",
+      "element": "grass",
+      "category": "special",
+      "pattern": "front",
+      "profiles": [
+        "SPECIAL"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_077",
+      "name": "Reversal",
+      "reference": "REVERSAL",
+      "element": "fighting",
+      "category": "physical",
+      "pattern": "front",
+      "profiles": [],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_078",
+      "name": "Smellingsalt",
+      "reference": "SMELLINGSALT",
+      "element": "normal",
+      "category": "physical",
+      "pattern": "front",
+      "profiles": [],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_079",
+      "name": "Slumber Spores",
+      "reference": "SPORE",
+      "element": "grass",
+      "category": "status",
+      "pattern": "room",
+      "profiles": [
+        "SUPPORT"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_080",
+      "name": "Leech Life",
+      "reference": "LEECH_LIFE",
+      "element": "bug",
+      "category": "physical",
+      "pattern": "front",
+      "profiles": [
+        "SPECIAL"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_081",
+      "name": "Slash",
+      "reference": "SLASH",
+      "element": "normal",
+      "category": "physical",
+      "pattern": "front",
+      "profiles": [
+        "CLAW"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_082",
+      "name": "Silver Wind",
+      "reference": "SILVER_WIND",
+      "element": "bug",
+      "category": "special",
+      "pattern": "room",
+      "profiles": [
+        "TERRAIN"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_083",
+      "name": "Resonant Metal",
+      "reference": "METAL_SOUND",
+      "element": "steel",
+      "category": "status",
+      "pattern": "corner_front",
+      "profiles": [
+        "SPECIAL",
+        "SUPPORT"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_084",
+      "name": "Reed Lullaby",
+      "reference": "GRASSWHISTLE",
+      "element": "grass",
+      "category": "status",
+      "pattern": "corner_front",
+      "profiles": [
+        "SUPPORT"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_085",
+      "name": "Distracting Touch",
+      "reference": "TICKLE",
+      "element": "normal",
+      "category": "status",
+      "pattern": "front",
+      "profiles": [
+        "SUPPORT"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_086",
+      "name": "Silken Anchor",
+      "reference": "SPIDER_WEB",
+      "element": "bug",
+      "category": "status",
+      "pattern": "corner_front",
+      "profiles": [
+        "SPECIAL"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_087",
+      "name": "Crabhammer",
+      "reference": "CRABHAMMER",
+      "element": "water",
+      "category": "physical",
+      "pattern": "front",
+      "profiles": [],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_088",
+      "name": "Null Mist",
+      "reference": "HAZE",
+      "element": "ice",
+      "category": "status",
+      "pattern": "self",
+      "profiles": [
+        "SUPPORT"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_089",
+      "name": "Shadow Anchor",
+      "reference": "MEAN_LOOK",
+      "element": "normal",
+      "category": "status",
+      "pattern": "front",
+      "profiles": [
+        "SUPPORT"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_090",
+      "name": "Cross Chop",
+      "reference": "CROSS_CHOP",
+      "element": "fighting",
+      "category": "physical",
+      "pattern": "front",
+      "profiles": [
+        "MOTION"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_091",
+      "name": "Draconic Frenzy",
+      "reference": "OUTRAGE",
+      "element": "dragon",
+      "category": "physical",
+      "pattern": "front",
+      "profiles": [],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_092",
+      "name": "Low Kick",
+      "reference": "LOW_KICK",
+      "element": "fighting",
+      "category": "physical",
+      "pattern": "front",
+      "profiles": [
+        "KICK"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_093",
+      "name": "Ancientpower",
+      "reference": "ANCIENTPOWER",
+      "element": "rock",
+      "category": "special",
+      "pattern": "corner_front",
+      "profiles": [],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_094",
+      "name": "Verdant Renewal",
+      "reference": "SYNTHESIS",
+      "element": "grass",
+      "category": "status",
+      "pattern": "self",
+      "profiles": [
+        "SUPPORT"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_095",
+      "name": "Fleet Mind",
+      "reference": "AGILITY",
+      "element": "psychic",
+      "category": "status",
+      "pattern": "self",
+      "profiles": [
+        "SUPPORT"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_096",
+      "name": "Rapid Spin",
+      "reference": "RAPID_SPIN",
+      "element": "normal",
+      "category": "physical",
+      "pattern": "front",
+      "profiles": [],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_097",
+      "name": "Icy Wind",
+      "reference": "ICY_WIND",
+      "element": "ice",
+      "category": "special",
+      "pattern": "line",
+      "profiles": [
+        "TERRAIN"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_098",
+      "name": "True Sight",
+      "reference": "MIND_READER",
+      "element": "normal",
+      "category": "status",
+      "pattern": "self",
+      "profiles": [],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_099",
+      "name": "Astral Ward",
+      "reference": "COSMIC_POWER",
+      "element": "psychic",
+      "category": "status",
+      "pattern": "self",
+      "profiles": [
+        "SUPPORT"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_100",
+      "name": "Skyfall Charge",
+      "reference": "SKY_ATTACK",
+      "element": "flying",
+      "category": "physical",
+      "pattern": "corner_front",
+      "profiles": [
+        "MOTION"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_101",
+      "name": "Powder Snow",
+      "reference": "POWDER_SNOW",
+      "element": "ice",
+      "category": "special",
+      "pattern": "room",
+      "profiles": [
+        "TERRAIN"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_102",
+      "name": "Gathering Cry",
+      "reference": "FOLLOW_ME",
+      "element": "normal",
+      "category": "status",
+      "pattern": "self",
+      "profiles": [],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_103",
+      "name": "Meteor Mash",
+      "reference": "METEOR_MASH",
+      "element": "steel",
+      "category": "physical",
+      "pattern": "line",
+      "profiles": [
+        "PUNCH"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_104",
+      "name": "Last Stand",
+      "reference": "ENDURE",
+      "element": "normal",
+      "category": "status",
+      "pattern": "self",
+      "profiles": [
+        "SUPPORT"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_105",
+      "name": "Boulder Tumble",
+      "reference": "ROLLOUT",
+      "element": "rock",
+      "category": "physical",
+      "pattern": "front",
+      "profiles": [],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_106",
+      "name": "Dread Glance",
+      "reference": "SCARY_FACE",
+      "element": "normal",
+      "category": "status",
+      "pattern": "front",
+      "profiles": [
+        "SUPPORT"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_107",
+      "name": "Psybeam",
+      "reference": "PSYBEAM",
+      "element": "psychic",
+      "category": "special",
+      "pattern": "line",
+      "profiles": [
+        "PROJECTILE"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_108",
+      "name": "Mind Ripple",
+      "reference": "PSYWAVE",
+      "element": "psychic",
+      "category": "special",
+      "pattern": "line",
+      "profiles": [
+        "PROJECTILE"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_109",
+      "name": "Psychic",
+      "reference": "PSYCHIC",
+      "element": "psychic",
+      "category": "special",
+      "pattern": "front",
+      "profiles": [],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_110",
+      "name": "Psycho Boost",
+      "reference": "PSYCHO_BOOST",
+      "element": "psychic",
+      "category": "special",
+      "pattern": "front",
+      "profiles": [],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_111",
+      "name": "Dream Gaze",
+      "reference": "HYPNOSIS",
+      "element": "psychic",
+      "category": "status",
+      "pattern": "corner_front",
+      "profiles": [
+        "SUPPORT"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_112",
+      "name": "Wake Chorus",
+      "reference": "UPROAR",
+      "element": "normal",
+      "category": "status",
+      "pattern": "self",
+      "profiles": [
+        "SPECIAL"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_113",
+      "name": "Water Spout",
+      "reference": "WATER_SPOUT",
+      "element": "water",
+      "category": "special",
+      "pattern": "front",
+      "profiles": [
+        "TERRAIN"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_114",
+      "name": "Signal Beam",
+      "reference": "SIGNAL_BEAM",
+      "element": "bug",
+      "category": "special",
+      "pattern": "line",
+      "profiles": [
+        "PROJECTILE"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_115",
+      "name": "Echo Mind",
+      "reference": "PSYCH_UP",
+      "element": "normal",
+      "category": "status",
+      "pattern": "front",
+      "profiles": [],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_116",
+      "name": "Submission",
+      "reference": "SUBMISSION",
+      "element": "fighting",
+      "category": "physical",
+      "pattern": "front",
+      "profiles": [
+        "SPECIAL"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_117",
+      "name": "Renewal",
+      "reference": "RECOVER",
+      "element": "normal",
+      "category": "status",
+      "pattern": "self",
+      "profiles": [
+        "SUPPORT"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_118",
+      "name": "Tectonic Pulse",
+      "reference": "EARTHQUAKE",
+      "element": "ground",
+      "category": "physical",
+      "pattern": "room",
+      "profiles": [
+        "TERRAIN"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_119",
+      "name": "Terrain Invocation",
+      "reference": "NATURE_POWER",
+      "element": "normal",
+      "category": "status",
+      "pattern": "self",
+      "profiles": [],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_120",
+      "name": "Lick",
+      "reference": "LICK",
+      "element": "ghost",
+      "category": "physical",
+      "pattern": "front",
+      "profiles": [
+        "SPECIAL"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_121",
+      "name": "Flail",
+      "reference": "FLAIL",
+      "element": "normal",
+      "category": "physical",
+      "pattern": "front",
+      "profiles": [
+        "BODY"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_122",
+      "name": "Tail Feint",
+      "reference": "TAIL_WHIP",
+      "element": "normal",
+      "category": "status",
+      "pattern": "front",
+      "profiles": [
+        "SUPPORT"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_123",
+      "name": "Burst Core",
+      "reference": "SELFDESTRUCT",
+      "element": "normal",
+      "category": "physical",
+      "pattern": "self",
+      "profiles": [
+        "SPECIAL"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_124",
+      "name": "Numbing Pollen",
+      "reference": "STUN_SPORE",
+      "element": "grass",
+      "category": "status",
+      "pattern": "radius",
+      "profiles": [
+        "SUPPORT"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_125",
+      "name": "Bind",
+      "reference": "BIND",
+      "element": "normal",
+      "category": "physical",
+      "pattern": "front",
+      "profiles": [
+        "SPECIAL"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_126",
+      "name": "Shadow Punch",
+      "reference": "SHADOW_PUNCH",
+      "element": "ghost",
+      "category": "physical",
+      "pattern": "front",
+      "profiles": [
+        "PUNCH"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_127",
+      "name": "Shadow Ball",
+      "reference": "SHADOW_BALL",
+      "element": "ghost",
+      "category": "special",
+      "pattern": "line",
+      "profiles": [
+        "PROJECTILE"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_128",
+      "name": "Static Reservoir",
+      "reference": "CHARGE",
+      "element": "electric",
+      "category": "status",
+      "pattern": "self",
+      "profiles": [
+        "SUPPORT"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_129",
+      "name": "Thunderbolt",
+      "reference": "THUNDERBOLT",
+      "element": "electric",
+      "category": "special",
+      "pattern": "radius",
+      "profiles": [
+        "TERRAIN"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_130",
+      "name": "Clear Veil",
+      "reference": "MIST",
+      "element": "ice",
+      "category": "status",
+      "pattern": "self",
+      "profiles": [
+        "SUPPORT"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_131",
+      "name": "Fault Rift",
+      "reference": "FISSURE",
+      "element": "ground",
+      "category": "physical",
+      "pattern": "front",
+      "profiles": [
+        "TERRAIN"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_132",
+      "name": "Extremespeed",
+      "reference": "EXTREMESPEED",
+      "element": "normal",
+      "category": "physical",
+      "pattern": "line",
+      "profiles": [
+        "MOTION"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_133",
+      "name": "Extrasensory",
+      "reference": "EXTRASENSORY",
+      "element": "psychic",
+      "category": "special",
+      "pattern": "front",
+      "profiles": [],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_134",
+      "name": "Purity Ward",
+      "reference": "SAFEGUARD",
+      "element": "normal",
+      "category": "status",
+      "pattern": "self",
+      "profiles": [
+        "SUPPORT"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_135",
+      "name": "Absorb",
+      "reference": "ABSORB",
+      "element": "grass",
+      "category": "special",
+      "pattern": "front",
+      "profiles": [
+        "SPECIAL"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_136",
+      "name": "Sky Uppercut",
+      "reference": "SKY_UPPERCUT",
+      "element": "fighting",
+      "category": "physical",
+      "pattern": "front",
+      "profiles": [
+        "PUNCH"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_137",
+      "name": "Talent Exchange",
+      "reference": "SKILL_SWAP",
+      "element": "psychic",
+      "category": "status",
+      "pattern": "corner_front",
+      "profiles": [
+        "SUPPORT"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_138",
+      "name": "Living Inscription",
+      "reference": "SKETCH",
+      "element": "normal",
+      "category": "status",
+      "pattern": "front",
+      "profiles": [],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_139",
+      "name": "Headbutt",
+      "reference": "HEADBUTT",
+      "element": "normal",
+      "category": "physical",
+      "pattern": "front",
+      "profiles": [
+        "BODY"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_140",
+      "name": "Double Edge",
+      "reference": "DOUBLE_EDGE",
+      "element": "normal",
+      "category": "physical",
+      "pattern": "front",
+      "profiles": [
+        "BODY"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_141",
+      "name": "Dune Storm",
+      "reference": "SANDSTORM",
+      "element": "rock",
+      "category": "status",
+      "pattern": "self",
+      "profiles": [
+        "TERRAIN"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_142",
+      "name": "Dust Flick",
+      "reference": "SAND_ATTACK",
+      "element": "ground",
+      "category": "status",
+      "pattern": "corner_front",
+      "profiles": [
+        "SUPPORT"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_143",
+      "name": "Sand Tomb",
+      "reference": "SAND_TOMB",
+      "element": "ground",
+      "category": "physical",
+      "pattern": "front",
+      "profiles": [],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_144",
+      "name": "Spark",
+      "reference": "SPARK",
+      "element": "electric",
+      "category": "physical",
+      "pattern": "front",
+      "profiles": [],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_145",
+      "name": "Swift",
+      "reference": "SWIFT",
+      "element": "normal",
+      "category": "special",
+      "pattern": "corner_front",
+      "profiles": [
+        "PROJECTILE"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_146",
+      "name": "Mind Distortion",
+      "reference": "KINESIS",
+      "element": "psychic",
+      "category": "status",
+      "pattern": "front",
+      "profiles": [
+        "SUPPORT"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_147",
+      "name": "Smog",
+      "reference": "SMOG",
+      "element": "poison",
+      "category": "special",
+      "pattern": "front",
+      "profiles": [],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_148",
+      "name": "Bloom Focus",
+      "reference": "GROWTH",
+      "element": "normal",
+      "category": "status",
+      "pattern": "self",
+      "profiles": [
+        "SUPPORT"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_149",
+      "name": "Sacred Fire",
+      "reference": "SACRED_FIRE",
+      "element": "fire",
+      "category": "physical",
+      "pattern": "front",
+      "profiles": [],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_150",
+      "name": "Absolute Frost",
+      "reference": "SHEER_COLD",
+      "element": "ice",
+      "category": "special",
+      "pattern": "front",
+      "profiles": [],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_151",
+      "name": "Sunlance",
+      "reference": "SOLARBEAM",
+      "element": "grass",
+      "category": "special",
+      "pattern": "corner_front",
+      "profiles": [
+        "PROJECTILE"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_152",
+      "name": "Sonic Pulse",
+      "reference": "SONICBOOM",
+      "element": "normal",
+      "category": "special",
+      "pattern": "line",
+      "profiles": [
+        "SPECIAL"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_153",
+      "name": "Aerial Dive",
+      "reference": "FLY",
+      "element": "flying",
+      "category": "physical",
+      "pattern": "front",
+      "profiles": [
+        "MOTION"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_154",
+      "name": "Tackle",
+      "reference": "TACKLE",
+      "element": "normal",
+      "category": "physical",
+      "pattern": "front",
+      "profiles": [
+        "BODY"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_155",
+      "name": "Nova Rupture",
+      "reference": "EXPLOSION",
+      "element": "normal",
+      "category": "physical",
+      "pattern": "self",
+      "profiles": [
+        "SPECIAL"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_156",
+      "name": "Dive",
+      "reference": "DIVE",
+      "element": "water",
+      "category": "physical",
+      "pattern": "front",
+      "profiles": [
+        "TERRAIN"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_157",
+      "name": "Fire Blast",
+      "reference": "FIRE_BLAST",
+      "element": "fire",
+      "category": "special",
+      "pattern": "corner_front",
+      "profiles": [],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_158",
+      "name": "Waterfall",
+      "reference": "WATERFALL",
+      "element": "water",
+      "category": "physical",
+      "pattern": "front",
+      "profiles": [
+        "TERRAIN"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_159",
+      "name": "Muddy Water",
+      "reference": "MUDDY_WATER",
+      "element": "water",
+      "category": "special",
+      "pattern": "front",
+      "profiles": [
+        "TERRAIN"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_160",
+      "name": "Store Vitality",
+      "reference": "STOCKPILE",
+      "element": "normal",
+      "category": "status",
+      "pattern": "self",
+      "profiles": [
+        "SUPPORT"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_161",
+      "name": "Slam",
+      "reference": "SLAM",
+      "element": "normal",
+      "category": "physical",
+      "pattern": "front",
+      "profiles": [
+        "BODY"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_162",
+      "name": "Twister",
+      "reference": "TWISTER",
+      "element": "dragon",
+      "category": "special",
+      "pattern": "front",
+      "profiles": [
+        "TERRAIN"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_163",
+      "name": "Seed Volley",
+      "reference": "BULLET_SEED",
+      "element": "grass",
+      "category": "physical",
+      "pattern": "line",
+      "profiles": [
+        "PROJECTILE"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_164",
+      "name": "Twin Needles",
+      "reference": "TWINEEDLE",
+      "element": "bug",
+      "category": "physical",
+      "pattern": "line",
+      "profiles": [
+        "PROJECTILE"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_165",
+      "name": "Vital Share",
+      "reference": "SOFTBOILED",
+      "element": "normal",
+      "category": "status",
+      "pattern": "self",
+      "profiles": [
+        "SUPPORT"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_166",
+      "name": "Egg Bomb",
+      "reference": "EGG_BOMB",
+      "element": "normal",
+      "category": "physical",
+      "pattern": "corner_front",
+      "profiles": [
+        "PROJECTILE"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_167",
+      "name": "Faint Attack",
+      "reference": "FAINT_ATTACK",
+      "element": "dark",
+      "category": "physical",
+      "pattern": "front",
+      "profiles": [],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_168",
+      "name": "Pebble Barrage",
+      "reference": "BARRAGE",
+      "element": "normal",
+      "category": "physical",
+      "pattern": "corner_front",
+      "profiles": [],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_169",
+      "name": "Tiny Form",
+      "reference": "MINIMIZE",
+      "element": "normal",
+      "category": "status",
+      "pattern": "self",
+      "profiles": [
+        "SUPPORT"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_170",
+      "name": "Seismic Grip",
+      "reference": "SEISMIC_TOSS",
+      "element": "fighting",
+      "category": "physical",
+      "pattern": "front",
+      "profiles": [
+        "MOTION"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_171",
+      "name": "Discord Pulse",
+      "reference": "SUPERSONIC",
+      "element": "normal",
+      "category": "status",
+      "pattern": "corner_front",
+      "profiles": [
+        "SPECIAL",
+        "SUPPORT"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_172",
+      "name": "Defiant Call",
+      "reference": "TAUNT",
+      "element": "dark",
+      "category": "status",
+      "pattern": "front",
+      "profiles": [
+        "SUPPORT"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_173",
+      "name": "Lunar Renewal",
+      "reference": "MOONLIGHT",
+      "element": "normal",
+      "category": "status",
+      "pattern": "self",
+      "profiles": [
+        "SUPPORT"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_174",
+      "name": "Peck",
+      "reference": "PECK",
+      "element": "flying",
+      "category": "physical",
+      "pattern": "front",
+      "profiles": [
+        "MOTION"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_175",
+      "name": "Rapid Palms",
+      "reference": "ARM_THRUST",
+      "element": "fighting",
+      "category": "physical",
+      "pattern": "front",
+      "profiles": [
+        "MOTION"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_176",
+      "name": "Horn Attack",
+      "reference": "HORN_ATTACK",
+      "element": "normal",
+      "category": "physical",
+      "pattern": "front",
+      "profiles": [
+        "BODY"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_177",
+      "name": "Piercing Horn",
+      "reference": "HORN_DRILL",
+      "element": "normal",
+      "category": "physical",
+      "pattern": "front",
+      "profiles": [
+        "BODY"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_178",
+      "name": "Wing Attack",
+      "reference": "WING_ATTACK",
+      "element": "flying",
+      "category": "physical",
+      "pattern": "front",
+      "profiles": [
+        "MOTION"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_179",
+      "name": "Aerial Ace",
+      "reference": "AERIAL_ACE",
+      "element": "flying",
+      "category": "physical",
+      "pattern": "front",
+      "profiles": [
+        "MOTION"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_180",
+      "name": "Icicle Volley",
+      "reference": "ICICLE_SPEAR",
+      "element": "ice",
+      "category": "physical",
+      "pattern": "corner_front",
+      "profiles": [],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_181",
+      "name": "Blade Ritual",
+      "reference": "SWORDS_DANCE",
+      "element": "normal",
+      "category": "status",
+      "pattern": "self",
+      "profiles": [
+        "SUPPORT"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_182",
+      "name": "Vine Whip",
+      "reference": "VINE_WHIP",
+      "element": "grass",
+      "category": "physical",
+      "pattern": "front",
+      "profiles": [
+        "SPECIAL"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_183",
+      "name": "Element Shift",
+      "reference": "CONVERSION",
+      "element": "normal",
+      "category": "status",
+      "pattern": "self",
+      "profiles": [
+        "SUPPORT"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_184",
+      "name": "Adaptive Shell",
+      "reference": "CONVERSION_2",
+      "element": "normal",
+      "category": "status",
+      "pattern": "self",
+      "profiles": [
+        "SUPPORT"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_185",
+      "name": "United Spirit",
+      "reference": "HELPING_HAND",
+      "element": "normal",
+      "category": "status",
+      "pattern": "self",
+      "profiles": [],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_186",
+      "name": "Iron Shell",
+      "reference": "IRON_DEFENSE",
+      "element": "steel",
+      "category": "status",
+      "pattern": "self",
+      "profiles": [
+        "SUPPORT"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_187",
+      "name": "Phase Step",
+      "reference": "TELEPORT",
+      "element": "psychic",
+      "category": "status",
+      "pattern": "self",
+      "profiles": [
+        "SUPPORT"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_188",
+      "name": "Thundershock",
+      "reference": "THUNDERSHOCK",
+      "element": "electric",
+      "category": "special",
+      "pattern": "front",
+      "profiles": [],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_189",
+      "name": "Shock Wave",
+      "reference": "SHOCK_WAVE",
+      "element": "electric",
+      "category": "special",
+      "pattern": "line",
+      "profiles": [],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_190",
+      "name": "Quick Attack",
+      "reference": "QUICK_ATTACK",
+      "element": "normal",
+      "category": "physical",
+      "pattern": "line",
+      "profiles": [
+        "MOTION"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_191",
+      "name": "Bewilder Charm",
+      "reference": "SWEET_KISS",
+      "element": "normal",
+      "category": "status",
+      "pattern": "front",
+      "profiles": [
+        "SUPPORT"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_192",
+      "name": "Static Lock",
+      "reference": "THUNDER_WAVE",
+      "element": "electric",
+      "category": "status",
+      "pattern": "front",
+      "profiles": [
+        "SPECIAL",
+        "SUPPORT"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_193",
+      "name": "Zap Cannon",
+      "reference": "ZAP_CANNON",
+      "element": "electric",
+      "category": "special",
+      "pattern": "line",
+      "profiles": [
+        "PROJECTILE"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_194",
+      "name": "Stone Anchor",
+      "reference": "BLOCK",
+      "element": "normal",
+      "category": "status",
+      "pattern": "front",
+      "profiles": [
+        "SUPPORT"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_195",
+      "name": "Rally Howl",
+      "reference": "HOWL",
+      "element": "normal",
+      "category": "status",
+      "pattern": "self",
+      "profiles": [
+        "SPECIAL",
+        "SUPPORT"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_196",
+      "name": "Venom Mist",
+      "reference": "POISON_GAS",
+      "element": "poison",
+      "category": "status",
+      "pattern": "front",
+      "profiles": [
+        "SUPPORT"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_197",
+      "name": "Virulent Hex",
+      "reference": "TOXIC",
+      "element": "poison",
+      "category": "status",
+      "pattern": "front",
+      "profiles": [
+        "SUPPORT"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_198",
+      "name": "Poison Fang",
+      "reference": "POISON_FANG",
+      "element": "poison",
+      "category": "physical",
+      "pattern": "front",
+      "profiles": [
+        "BITE"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_199",
+      "name": "Venom Pollen",
+      "reference": "POISONPOWDER",
+      "element": "poison",
+      "category": "status",
+      "pattern": "front",
+      "profiles": [
+        "SUPPORT"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_200",
+      "name": "Poison Sting",
+      "reference": "POISON_STING",
+      "element": "poison",
+      "category": "physical",
+      "pattern": "corner_front",
+      "profiles": [],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_201",
+      "name": "Spike Volley",
+      "reference": "SPIKE_CANNON",
+      "element": "normal",
+      "category": "physical",
+      "pattern": "line",
+      "profiles": [
+        "PROJECTILE"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_202",
+      "name": "Acid Shell",
+      "reference": "ACID_ARMOR",
+      "element": "poison",
+      "category": "status",
+      "pattern": "self",
+      "profiles": [
+        "SUPPORT"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_203",
+      "name": "Take Down",
+      "reference": "TAKE_DOWN",
+      "element": "normal",
+      "category": "physical",
+      "pattern": "front",
+      "profiles": [
+        "BODY"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_204",
+      "name": "Jump Kick",
+      "reference": "JUMP_KICK",
+      "element": "fighting",
+      "category": "physical",
+      "pattern": "front",
+      "profiles": [
+        "KICK"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_205",
+      "name": "Vault Crash",
+      "reference": "BOUNCE",
+      "element": "flying",
+      "category": "physical",
+      "pattern": "front",
+      "profiles": [
+        "MOTION"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_206",
+      "name": "Hi Jump Kick",
+      "reference": "HI_JUMP_KICK",
+      "element": "fighting",
+      "category": "physical",
+      "pattern": "front",
+      "profiles": [
+        "KICK"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_207",
+      "name": "Tri Attack",
+      "reference": "TRI_ATTACK",
+      "element": "normal",
+      "category": "special",
+      "pattern": "corner_front",
+      "profiles": [],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_208",
+      "name": "Dragon Claw",
+      "reference": "DRAGON_CLAW",
+      "element": "dragon",
+      "category": "physical",
+      "pattern": "front",
+      "profiles": [
+        "CLAW"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_209",
+      "name": "Relic Exchange",
+      "reference": "TRICK",
+      "element": "psychic",
+      "category": "status",
+      "pattern": "front",
+      "profiles": [
+        "SUPPORT"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_210",
+      "name": "Triple Talon",
+      "reference": "TRIPLE_KICK",
+      "element": "fighting",
+      "category": "physical",
+      "pattern": "front",
+      "profiles": [
+        "KICK"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_211",
+      "name": "Drill Peck",
+      "reference": "DRILL_PECK",
+      "element": "flying",
+      "category": "physical",
+      "pattern": "front",
+      "profiles": [
+        "MOTION"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_212",
+      "name": "Grounding Mist",
+      "reference": "MUD_SPORT",
+      "element": "ground",
+      "category": "status",
+      "pattern": "self",
+      "profiles": [],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_213",
+      "name": "Mud Slap",
+      "reference": "MUD_SLAP",
+      "element": "ground",
+      "category": "special",
+      "pattern": "corner_front",
+      "profiles": [
+        "PROJECTILE"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_214",
+      "name": "Thief",
+      "reference": "THIEF",
+      "element": "dark",
+      "category": "physical",
+      "pattern": "front",
+      "profiles": [],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_215",
+      "name": "Blank Mind",
+      "reference": "AMNESIA",
+      "element": "psychic",
+      "category": "status",
+      "pattern": "self",
+      "profiles": [
+        "SUPPORT"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_216",
+      "name": "Night Echo",
+      "reference": "NIGHT_SHADE",
+      "element": "ghost",
+      "category": "special",
+      "pattern": "radius",
+      "profiles": [],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_217",
+      "name": "Dread Growl",
+      "reference": "GROWL",
+      "element": "normal",
+      "category": "status",
+      "pattern": "room",
+      "profiles": [
+        "SPECIAL",
+        "SUPPORT"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_218",
+      "name": "Quiet Recovery",
+      "reference": "SLACK_OFF",
+      "element": "normal",
+      "category": "status",
+      "pattern": "self",
+      "profiles": [
+        "SUPPORT"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_219",
+      "name": "Surf",
+      "reference": "SURF",
+      "element": "water",
+      "category": "special",
+      "pattern": "front",
+      "profiles": [
+        "TERRAIN"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_220",
+      "name": "Talent Mimic",
+      "reference": "ROLE_PLAY",
+      "element": "psychic",
+      "category": "status",
+      "pattern": "front",
+      "profiles": [],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_221",
+      "name": "Needle Arm",
+      "reference": "NEEDLE_ARM",
+      "element": "grass",
+      "category": "physical",
+      "pattern": "front",
+      "profiles": [],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_222",
+      "name": "Twin Kick",
+      "reference": "DOUBLE_KICK",
+      "element": "fighting",
+      "category": "physical",
+      "pattern": "front",
+      "profiles": [
+        "KICK"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_223",
+      "name": "Sun Ritual",
+      "reference": "SUNNY_DAY",
+      "element": "fire",
+      "category": "status",
+      "pattern": "self",
+      "profiles": [
+        "TERRAIN"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_224",
+      "name": "Intense Gaze",
+      "reference": "LEER",
+      "element": "normal",
+      "category": "status",
+      "pattern": "front",
+      "profiles": [
+        "SUPPORT"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_225",
+      "name": "Renewing Wish",
+      "reference": "WISH",
+      "element": "normal",
+      "category": "status",
+      "pattern": "self",
+      "profiles": [
+        "SUPPORT"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_226",
+      "name": "Fake Out",
+      "reference": "FAKE_OUT",
+      "element": "normal",
+      "category": "physical",
+      "pattern": "line",
+      "profiles": [
+        "MOTION"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_227",
+      "name": "Dream Invocation",
+      "reference": "SLEEP_TALK",
+      "element": "normal",
+      "category": "status",
+      "pattern": "self",
+      "profiles": [],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_228",
+      "name": "Pay Day",
+      "reference": "PAY_DAY",
+      "element": "normal",
+      "category": "physical",
+      "pattern": "front",
+      "profiles": [],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_229",
+      "name": "Borrowed Echo",
+      "reference": "ASSIST",
+      "element": "normal",
+      "category": "status",
+      "pattern": "self",
+      "profiles": [],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_230",
+      "name": "Heat Wave",
+      "reference": "HEAT_WAVE",
+      "element": "fire",
+      "category": "special",
+      "pattern": "room",
+      "profiles": [
+        "TERRAIN"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_231",
+      "name": "Drowse Pollen",
+      "reference": "SLEEP_POWDER",
+      "element": "grass",
+      "category": "status",
+      "pattern": "radius",
+      "profiles": [
+        "SUPPORT"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_232",
+      "name": "Deep Rest",
+      "reference": "REST",
+      "element": "psychic",
+      "category": "status",
+      "pattern": "self",
+      "profiles": [
+        "SUPPORT"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_233",
+      "name": "Rooted Renewal",
+      "reference": "INGRAIN",
+      "element": "grass",
+      "category": "status",
+      "pattern": "self",
+      "profiles": [
+        "SUPPORT"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_234",
+      "name": "Confusion",
+      "reference": "CONFUSION",
+      "element": "psychic",
+      "category": "special",
+      "pattern": "front",
+      "profiles": [],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_235",
+      "name": "Body Slam",
+      "reference": "BODY_SLAM",
+      "element": "normal",
+      "category": "physical",
+      "pattern": "front",
+      "profiles": [
+        "BODY"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_236",
+      "name": "Consume Vitality",
+      "reference": "SWALLOW",
+      "element": "normal",
+      "category": "status",
+      "pattern": "self",
+      "profiles": [
+        "SUPPORT"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_237",
+      "name": "Hex Pact",
+      "reference": "CURSE",
+      "element": "normal",
+      "category": "status",
+      "pattern": "self",
+      "profiles": [],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_238",
+      "name": "Frenzy Plant",
+      "reference": "FRENZY_PLANT",
+      "element": "grass",
+      "category": "special",
+      "pattern": "corner_front",
+      "profiles": [],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_239",
+      "name": "Hydro Cannon",
+      "reference": "HYDRO_CANNON",
+      "element": "water",
+      "category": "special",
+      "pattern": "line",
+      "profiles": [
+        "PROJECTILE"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_240",
+      "name": "Hydro Pump",
+      "reference": "HYDRO_PUMP",
+      "element": "water",
+      "category": "special",
+      "pattern": "line",
+      "profiles": [
+        "PROJECTILE"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_241",
+      "name": "Hyper Voice",
+      "reference": "HYPER_VOICE",
+      "element": "normal",
+      "category": "special",
+      "pattern": "corner_front",
+      "profiles": [
+        "SPECIAL"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_242",
+      "name": "Hyper Beam",
+      "reference": "HYPER_BEAM",
+      "element": "normal",
+      "category": "special",
+      "pattern": "line",
+      "profiles": [
+        "PROJECTILE"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_243",
+      "name": "Superpower",
+      "reference": "SUPERPOWER",
+      "element": "fighting",
+      "category": "physical",
+      "pattern": "front",
+      "profiles": [
+        "MOTION"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_244",
+      "name": "Steel Wing",
+      "reference": "STEEL_WING",
+      "element": "steel",
+      "category": "physical",
+      "pattern": "front",
+      "profiles": [
+        "MOTION"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_245",
+      "name": "Spit Up",
+      "reference": "SPIT_UP",
+      "element": "normal",
+      "category": "special",
+      "pattern": "front",
+      "profiles": [],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_246",
+      "name": "Dynamicpunch",
+      "reference": "DYNAMICPUNCH",
+      "element": "fighting",
+      "category": "physical",
+      "pattern": "front",
+      "profiles": [
+        "PUNCH"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_247",
+      "name": "Final Shear",
+      "reference": "GUILLOTINE",
+      "element": "normal",
+      "category": "physical",
+      "pattern": "front",
+      "profiles": [],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_248",
+      "name": "Vicegrip",
+      "reference": "VICEGRIP",
+      "element": "normal",
+      "category": "physical",
+      "pattern": "front",
+      "profiles": [],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_249",
+      "name": "Disarming Swipe",
+      "reference": "KNOCK_OFF",
+      "element": "dark",
+      "category": "physical",
+      "pattern": "front",
+      "profiles": [],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_250",
+      "name": "Pound",
+      "reference": "POUND",
+      "element": "normal",
+      "category": "physical",
+      "pattern": "front",
+      "profiles": [
+        "MOTION"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_251",
+      "name": "Razor Leaf",
+      "reference": "RAZOR_LEAF",
+      "element": "grass",
+      "category": "physical",
+      "pattern": "line",
+      "profiles": [
+        "PROJECTILE"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_252",
+      "name": "Relay Step",
+      "reference": "BATON_PASS",
+      "element": "normal",
+      "category": "status",
+      "pattern": "self",
+      "profiles": [],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_253",
+      "name": "Petal Frenzy",
+      "reference": "PETAL_DANCE",
+      "element": "grass",
+      "category": "special",
+      "pattern": "front",
+      "profiles": [],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_254",
+      "name": "Bouncing Step",
+      "reference": "SPLASH",
+      "element": "normal",
+      "category": "status",
+      "pattern": "self",
+      "profiles": [],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_255",
+      "name": "Bubblebeam",
+      "reference": "BUBBLEBEAM",
+      "element": "water",
+      "category": "special",
+      "pattern": "line",
+      "profiles": [
+        "PROJECTILE"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_256",
+      "name": "Fate Seal",
+      "reference": "DOOM_DESIRE",
+      "element": "steel",
+      "category": "status",
+      "pattern": "self",
+      "profiles": [],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_257",
+      "name": "Feral Crescendo",
+      "reference": "BELLY_DRUM",
+      "element": "normal",
+      "category": "status",
+      "pattern": "self",
+      "profiles": [
+        "SUPPORT"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_258",
+      "name": "Mind Barrier",
+      "reference": "BARRIER",
+      "element": "psychic",
+      "category": "status",
+      "pattern": "self",
+      "profiles": [
+        "SUPPORT"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_259",
+      "name": "Arcane Ward",
+      "reference": "LIGHT_SCREEN",
+      "element": "psychic",
+      "category": "status",
+      "pattern": "self",
+      "profiles": [
+        "SUPPORT"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_260",
+      "name": "Scratch",
+      "reference": "SCRATCH",
+      "element": "normal",
+      "category": "physical",
+      "pattern": "front",
+      "profiles": [
+        "CLAW"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_261",
+      "name": "Hyper Fang",
+      "reference": "HYPER_FANG",
+      "element": "normal",
+      "category": "physical",
+      "pattern": "front",
+      "profiles": [
+        "BITE"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_262",
+      "name": "Ember",
+      "reference": "EMBER",
+      "element": "fire",
+      "category": "special",
+      "pattern": "corner_front",
+      "profiles": [
+        "PROJECTILE"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_263",
+      "name": "Secret Power",
+      "reference": "SECRET_POWER",
+      "element": "normal",
+      "category": "physical",
+      "pattern": "front",
+      "profiles": [],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_264",
+      "name": "Dizzy Punch",
+      "reference": "DIZZY_PUNCH",
+      "element": "normal",
+      "category": "physical",
+      "pattern": "front",
+      "profiles": [
+        "PUNCH"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_265",
+      "name": "Mighty Stance",
+      "reference": "BULK_UP",
+      "element": "fighting",
+      "category": "status",
+      "pattern": "self",
+      "profiles": [
+        "SUPPORT"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_266",
+      "name": "Stasis Seal",
+      "reference": "IMPRISON",
+      "element": "psychic",
+      "category": "status",
+      "pattern": "front",
+      "profiles": [
+        "SUPPORT"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_267",
+      "name": "Feather Veil",
+      "reference": "FEATHERDANCE",
+      "element": "flying",
+      "category": "status",
+      "pattern": "front",
+      "profiles": [
+        "SUPPORT"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_268",
+      "name": "Gale Thrust",
+      "reference": "WHIRLWIND",
+      "element": "normal",
+      "category": "status",
+      "pattern": "front",
+      "profiles": [],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_269",
+      "name": "Rally Warp",
+      "reference": "BEAT_UP",
+      "element": "dark",
+      "category": "status",
+      "pattern": "self",
+      "profiles": [],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_270",
+      "name": "Blizzard",
+      "reference": "BLIZZARD",
+      "element": "ice",
+      "category": "special",
+      "pattern": "room",
+      "profiles": [
+        "TERRAIN"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_271",
+      "name": "Stomp",
+      "reference": "STOMP",
+      "element": "normal",
+      "category": "physical",
+      "pattern": "front",
+      "profiles": [
+        "KICK"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_272",
+      "name": "Blast Burn",
+      "reference": "BLAST_BURN",
+      "element": "fire",
+      "category": "special",
+      "pattern": "radius",
+      "profiles": [
+        "SPECIAL",
+        "TERRAIN"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_273",
+      "name": "Dazzle",
+      "reference": "FLASH",
+      "element": "normal",
+      "category": "status",
+      "pattern": "front",
+      "profiles": [
+        "SUPPORT"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_274",
+      "name": "Dizzy Waltz",
+      "reference": "TEETER_DANCE",
+      "element": "normal",
+      "category": "status",
+      "pattern": "room",
+      "profiles": [
+        "SUPPORT"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_275",
+      "name": "Crush Claw",
+      "reference": "CRUSH_CLAW",
+      "element": "normal",
+      "category": "physical",
+      "pattern": "front",
+      "profiles": [
+        "CLAW"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_276",
+      "name": "Blaze Kick",
+      "reference": "BLAZE_KICK",
+      "element": "fire",
+      "category": "physical",
+      "pattern": "front",
+      "profiles": [
+        "KICK"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_277",
+      "name": "Mystery Parcel",
+      "reference": "PRESENT",
+      "element": "normal",
+      "category": "physical",
+      "pattern": "corner_front",
+      "profiles": [],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_278",
+      "name": "Eruption",
+      "reference": "ERUPTION",
+      "element": "fire",
+      "category": "special",
+      "pattern": "corner_front",
+      "profiles": [
+        "TERRAIN"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_279",
+      "name": "Sludge",
+      "reference": "SLUDGE",
+      "element": "poison",
+      "category": "special",
+      "pattern": "corner_front",
+      "profiles": [
+        "PROJECTILE"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_280",
+      "name": "Sludge Bomb",
+      "reference": "SLUDGE_BOMB",
+      "element": "poison",
+      "category": "special",
+      "pattern": "line",
+      "profiles": [
+        "PROJECTILE"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_281",
+      "name": "Petrifying Gaze",
+      "reference": "GLARE",
+      "element": "normal",
+      "category": "status",
+      "pattern": "front",
+      "profiles": [
+        "SUPPORT"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_282",
+      "name": "Wild Guise",
+      "reference": "TRANSFORM",
+      "element": "normal",
+      "category": "status",
+      "pattern": "self",
+      "profiles": [
+        "SUPPORT"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_283",
+      "name": "Poison Tail",
+      "reference": "POISON_TAIL",
+      "element": "poison",
+      "category": "physical",
+      "pattern": "front",
+      "profiles": [
+        "BODY"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_284",
+      "name": "Thunderous Roar",
+      "reference": "ROAR",
+      "element": "normal",
+      "category": "status",
+      "pattern": "front",
+      "profiles": [
+        "SPECIAL"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_285",
+      "name": "Bone Flurry",
+      "reference": "BONE_RUSH",
+      "element": "ground",
+      "category": "physical",
+      "pattern": "corner_front",
+      "profiles": [],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_286",
+      "name": "Terrain Mantle",
+      "reference": "CAMOUFLAGE",
+      "element": "normal",
+      "category": "status",
+      "pattern": "self",
+      "profiles": [
+        "SUPPORT"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_287",
+      "name": "Covet",
+      "reference": "COVET",
+      "element": "normal",
+      "category": "physical",
+      "pattern": "front",
+      "profiles": [],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_288",
+      "name": "Glow Focus",
+      "reference": "TAIL_GLOW",
+      "element": "bug",
+      "category": "status",
+      "pattern": "self",
+      "profiles": [
+        "SUPPORT"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_289",
+      "name": "Bone Club",
+      "reference": "BONE_CLUB",
+      "element": "ground",
+      "category": "physical",
+      "pattern": "front",
+      "profiles": [],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_290",
+      "name": "Returning Bone",
+      "reference": "BONEMERANG",
+      "element": "ground",
+      "category": "physical",
+      "pattern": "line",
+      "profiles": [],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_291",
+      "name": "Fire Spin",
+      "reference": "FIRE_SPIN",
+      "element": "fire",
+      "category": "special",
+      "pattern": "front",
+      "profiles": [],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_292",
+      "name": "Fire Punch",
+      "reference": "FIRE_PUNCH",
+      "element": "fire",
+      "category": "physical",
+      "pattern": "front",
+      "profiles": [
+        "PUNCH"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_293",
+      "name": "Final Refrain",
+      "reference": "PERISH_SONG",
+      "element": "normal",
+      "category": "status",
+      "pattern": "floor",
+      "profiles": [
+        "SPECIAL"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_294",
+      "name": "Binding Coil",
+      "reference": "WRAP",
+      "element": "normal",
+      "category": "physical",
+      "pattern": "front",
+      "profiles": [
+        "SPECIAL"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_295",
+      "name": "Thorn Tile",
+      "reference": "SPIKES",
+      "element": "ground",
+      "category": "status",
+      "pattern": "self",
+      "profiles": [],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_296",
+      "name": "Seismic Surge",
+      "reference": "MAGNITUDE",
+      "element": "ground",
+      "category": "physical",
+      "pattern": "room",
+      "profiles": [
+        "TERRAIN"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_297",
+      "name": "Magical Leaf",
+      "reference": "MAGICAL_LEAF",
+      "element": "grass",
+      "category": "special",
+      "pattern": "corner_front",
+      "profiles": [],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_298",
+      "name": "Arcane Reflection",
+      "reference": "MAGIC_COAT",
+      "element": "psychic",
+      "category": "status",
+      "pattern": "self",
+      "profiles": [
+        "SUPPORT"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_299",
+      "name": "Mud Shot",
+      "reference": "MUD_SHOT",
+      "element": "ground",
+      "category": "special",
+      "pattern": "corner_front",
+      "profiles": [
+        "PROJECTILE"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_300",
+      "name": "Mach Punch",
+      "reference": "MACH_PUNCH",
+      "element": "fighting",
+      "category": "physical",
+      "pattern": "line",
+      "profiles": [
+        "PUNCH"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_301",
+      "name": "Aegis",
+      "reference": "PROTECT",
+      "element": "normal",
+      "category": "status",
+      "pattern": "self",
+      "profiles": [
+        "SUPPORT"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_302",
+      "name": "Curl Guard",
+      "reference": "DEFENSE_CURL",
+      "element": "normal",
+      "category": "status",
+      "pattern": "self",
+      "profiles": [
+        "SUPPORT"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_303",
+      "name": "Rolling Kick",
+      "reference": "ROLLING_KICK",
+      "element": "fighting",
+      "category": "physical",
+      "pattern": "front",
+      "profiles": [
+        "KICK"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_304",
+      "name": "False Target",
+      "reference": "SUBSTITUTE",
+      "element": "normal",
+      "category": "status",
+      "pattern": "front",
+      "profiles": [
+        "SUPPORT"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_305",
+      "name": "Deflect",
+      "reference": "DETECT",
+      "element": "fighting",
+      "category": "status",
+      "pattern": "self",
+      "profiles": [
+        "SUPPORT"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_306",
+      "name": "Pin Volley",
+      "reference": "PIN_MISSILE",
+      "element": "bug",
+      "category": "physical",
+      "pattern": "line",
+      "profiles": [
+        "PROJECTILE"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_307",
+      "name": "Dampening Mist",
+      "reference": "WATER_SPORT",
+      "element": "water",
+      "category": "status",
+      "pattern": "self",
+      "profiles": [],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_308",
+      "name": "Water Gun",
+      "reference": "WATER_GUN",
+      "element": "water",
+      "category": "special",
+      "pattern": "corner_front",
+      "profiles": [
+        "PROJECTILE"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_309",
+      "name": "Mist Ball",
+      "reference": "MIST_BALL",
+      "element": "psychic",
+      "category": "special",
+      "pattern": "corner_front",
+      "profiles": [
+        "PROJECTILE"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_310",
+      "name": "Water Pulse",
+      "reference": "WATER_PULSE",
+      "element": "water",
+      "category": "special",
+      "pattern": "line",
+      "profiles": [
+        "PROJECTILE"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_311",
+      "name": "Frenzy Thrust",
+      "reference": "FURY_ATTACK",
+      "element": "normal",
+      "category": "physical",
+      "pattern": "front",
+      "profiles": [
+        "MOTION"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_312",
+      "name": "Raking Flurry",
+      "reference": "FURY_SWIPES",
+      "element": "normal",
+      "category": "physical",
+      "pattern": "front",
+      "profiles": [
+        "CLAW"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_313",
+      "name": "Fate Link",
+      "reference": "DESTINY_BOND",
+      "element": "ghost",
+      "category": "status",
+      "pattern": "corner_front",
+      "profiles": [
+        "SUPPORT"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_314",
+      "name": "False Swipe",
+      "reference": "FALSE_SWIPE",
+      "element": "normal",
+      "category": "physical",
+      "pattern": "front",
+      "profiles": [],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_315",
+      "name": "Spirit Reveal",
+      "reference": "FORESIGHT",
+      "element": "normal",
+      "category": "status",
+      "pattern": "front",
+      "profiles": [],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_316",
+      "name": "Arcane Reversal",
+      "reference": "MIRROR_COAT",
+      "element": "psychic",
+      "category": "special",
+      "pattern": "self",
+      "profiles": [],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_317",
+      "name": "Foresight Pulse",
+      "reference": "FUTURE_SIGHT",
+      "element": "psychic",
+      "category": "status",
+      "pattern": "self",
+      "profiles": [],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_318",
+      "name": "Nourishing Wave",
+      "reference": "MILK_DRINK",
+      "element": "normal",
+      "category": "status",
+      "pattern": "self",
+      "profiles": [
+        "SUPPORT"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_319",
+      "name": "Tranquil Focus",
+      "reference": "CALM_MIND",
+      "element": "psychic",
+      "category": "status",
+      "pattern": "self",
+      "profiles": [
+        "SUPPORT"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_320",
+      "name": "Mega Drain",
+      "reference": "MEGA_DRAIN",
+      "element": "grass",
+      "category": "special",
+      "pattern": "front",
+      "profiles": [
+        "SPECIAL"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_321",
+      "name": "Mega Kick",
+      "reference": "MEGA_KICK",
+      "element": "normal",
+      "category": "physical",
+      "pattern": "front",
+      "profiles": [
+        "KICK"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_322",
+      "name": "Mega Punch",
+      "reference": "MEGA_PUNCH",
+      "element": "normal",
+      "category": "physical",
+      "pattern": "front",
+      "profiles": [
+        "PUNCH"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_323",
+      "name": "Megahorn",
+      "reference": "MEGAHORN",
+      "element": "bug",
+      "category": "physical",
+      "pattern": "corner_front",
+      "profiles": [
+        "BODY"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_324",
+      "name": "Hidden Spark",
+      "reference": "HIDDEN_POWER",
+      "element": "normal",
+      "category": "special",
+      "pattern": "corner_front",
+      "profiles": [],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_325",
+      "name": "Metal Claw",
+      "reference": "METAL_CLAW",
+      "element": "steel",
+      "category": "physical",
+      "pattern": "front",
+      "profiles": [
+        "CLAW"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_326",
+      "name": "Heart Glance",
+      "reference": "ATTRACT",
+      "element": "normal",
+      "category": "status",
+      "pattern": "corner_front",
+      "profiles": [],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_327",
+      "name": "Echo Strike",
+      "reference": "MIMIC",
+      "element": "normal",
+      "category": "status",
+      "pattern": "front",
+      "profiles": [],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_328",
+      "name": "Rebel Strike",
+      "reference": "FRUSTRATION",
+      "element": "normal",
+      "category": "physical",
+      "pattern": "front",
+      "profiles": [],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_329",
+      "name": "Siphon Seed",
+      "reference": "LEECH_SEED",
+      "element": "grass",
+      "category": "status",
+      "pattern": "corner_front",
+      "profiles": [
+        "SPECIAL"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_330",
+      "name": "Chance Invocation",
+      "reference": "METRONOME",
+      "element": "normal",
+      "category": "status",
+      "pattern": "self",
+      "profiles": [],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_331",
+      "name": "Dream Eater",
+      "reference": "DREAM_EATER",
+      "element": "psychic",
+      "category": "special",
+      "pattern": "front",
+      "profiles": [],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_332",
+      "name": "Acid",
+      "reference": "ACID",
+      "element": "poison",
+      "category": "special",
+      "pattern": "corner_front",
+      "profiles": [],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_333",
+      "name": "Inner Focus",
+      "reference": "MEDITATE",
+      "element": "psychic",
+      "category": "status",
+      "pattern": "self",
+      "profiles": [
+        "SUPPORT"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_334",
+      "name": "Stolen Blessing",
+      "reference": "SNATCH",
+      "element": "dark",
+      "category": "status",
+      "pattern": "self",
+      "profiles": [],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_335",
+      "name": "Luster Purge",
+      "reference": "LUSTER_PURGE",
+      "element": "psychic",
+      "category": "special",
+      "pattern": "front",
+      "profiles": [],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_336",
+      "name": "Leaf Blade",
+      "reference": "LEAF_BLADE",
+      "element": "grass",
+      "category": "physical",
+      "pattern": "front",
+      "profiles": [],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_337",
+      "name": "Script Renewal",
+      "reference": "RECYCLE",
+      "element": "normal",
+      "category": "status",
+      "pattern": "self",
+      "profiles": [],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_338",
+      "name": "Physical Ward",
+      "reference": "REFLECT",
+      "element": "psychic",
+      "category": "status",
+      "pattern": "self",
+      "profiles": [
+        "SUPPORT"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_339",
+      "name": "Cleanse",
+      "reference": "REFRESH",
+      "element": "normal",
+      "category": "status",
+      "pattern": "self",
+      "profiles": [
+        "SUPPORT"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_340",
+      "name": "Vengeance",
+      "reference": "REVENGE",
+      "element": "fighting",
+      "category": "physical",
+      "pattern": "self",
+      "profiles": [],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_341",
+      "name": "Drake Wrath",
+      "reference": "DRAGON_RAGE",
+      "element": "dragon",
+      "category": "special",
+      "pattern": "corner_front",
+      "profiles": [
+        "PROJECTILE"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_342",
+      "name": "Dragonbreath",
+      "reference": "DRAGONBREATH",
+      "element": "dragon",
+      "category": "special",
+      "pattern": "line",
+      "profiles": [],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_343",
+      "name": "Drake Rhythm",
+      "reference": "DRAGON_DANCE",
+      "element": "dragon",
+      "category": "status",
+      "pattern": "self",
+      "profiles": [
+        "SUPPORT"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_344",
+      "name": "Ice Punch",
+      "reference": "ICE_PUNCH",
+      "element": "ice",
+      "category": "physical",
+      "pattern": "front",
+      "profiles": [
+        "PUNCH"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_345",
+      "name": "Ice Beam",
+      "reference": "ICE_BEAM",
+      "element": "ice",
+      "category": "special",
+      "pattern": "line",
+      "profiles": [
+        "PROJECTILE"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_346",
+      "name": "Double Rake",
+      "reference": "FURY_CUTTER",
+      "element": "bug",
+      "category": "physical",
+      "pattern": "front",
+      "profiles": [
+        "CLAW"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_347",
+      "name": "Comet Flurry",
+      "reference": "COMET_PUNCH",
+      "element": "normal",
+      "category": "physical",
+      "pattern": "front",
+      "profiles": [
+        "PUNCH"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_348",
+      "name": "Armored Charge",
+      "reference": "SKULL_BASH",
+      "element": "normal",
+      "category": "physical",
+      "pattern": "front",
+      "profiles": [
+        "BODY"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_349",
+      "name": "Target Lock",
+      "reference": "LOCK_ON",
+      "element": "normal",
+      "category": "status",
+      "pattern": "self",
+      "profiles": [],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_350",
+      "name": "Stone Volley",
+      "reference": "ROCK_BLAST",
+      "element": "rock",
+      "category": "physical",
+      "pattern": "corner_front",
+      "profiles": [
+        "PROJECTILE"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_351",
+      "name": "Cotton Snare",
+      "reference": "COTTON_SPORE",
+      "element": "grass",
+      "category": "status",
+      "pattern": "front",
+      "profiles": [
+        "SUPPORT"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_352",
+      "name": "Struggle",
+      "reference": "STRUGGLE",
+      "element": "normal",
+      "category": "physical",
+      "pattern": "front",
+      "profiles": [],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_353",
+      "name": "Aeroblast",
+      "reference": "AEROBLAST",
+      "element": "flying",
+      "category": "special",
+      "pattern": "line",
+      "profiles": [],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_354",
+      "name": "Volt Tackle",
+      "reference": "VOLT_TACKLE",
+      "element": "electric",
+      "category": "physical",
+      "pattern": "line",
+      "profiles": [
+        "BODY"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_360",
+      "name": "Crescent Sweep",
+      "reference": "WIDE_SLASH",
+      "element": "normal",
+      "category": "physical",
+      "pattern": "corner_front",
+      "profiles": [
+        "CLAW"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_394",
+      "name": "Vacuum Arc",
+      "reference": "VACUUM_CUT",
+      "element": "normal",
+      "category": "special",
+      "pattern": "room",
+      "profiles": [
+        "TERRAIN"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_430",
+      "name": "Hammer Arm",
+      "reference": "HAMMER_ARM",
+      "element": "fighting",
+      "category": "physical",
+      "pattern": "front",
+      "profiles": [
+        "PUNCH"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_431",
+      "name": "Iron Head",
+      "reference": "IRON_HEAD",
+      "element": "steel",
+      "category": "physical",
+      "pattern": "front",
+      "profiles": [
+        "BODY"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_432",
+      "name": "Aqua Jet",
+      "reference": "AQUA_JET",
+      "element": "water",
+      "category": "physical",
+      "pattern": "line",
+      "profiles": [
+        "MOTION"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_433",
+      "name": "Aqua Tail",
+      "reference": "AQUA_TAIL",
+      "element": "water",
+      "category": "physical",
+      "pattern": "corner_front",
+      "profiles": [
+        "BODY"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_434",
+      "name": "Tidal Halo",
+      "reference": "AQUA_RING",
+      "element": "water",
+      "category": "status",
+      "pattern": "self",
+      "profiles": [
+        "SUPPORT"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_435",
+      "name": "Spacial Rend",
+      "reference": "SPACIAL_REND",
+      "element": "dragon",
+      "category": "special",
+      "pattern": "room",
+      "profiles": [
+        "TERRAIN"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_436",
+      "name": "Dark Pulse",
+      "reference": "DARK_PULSE",
+      "element": "dark",
+      "category": "special",
+      "pattern": "radius",
+      "profiles": [
+        "PROJECTILE"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_437",
+      "name": "Ominous Wind",
+      "reference": "OMINOUS_WIND",
+      "element": "ghost",
+      "category": "special",
+      "pattern": "room",
+      "profiles": [
+        "TERRAIN"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_438",
+      "name": "Nullifying Venom",
+      "reference": "GASTRO_ACID",
+      "element": "poison",
+      "category": "status",
+      "pattern": "corner_front",
+      "profiles": [],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_439",
+      "name": "Life Offering",
+      "reference": "HEALING_WISH",
+      "element": "psychic",
+      "category": "status",
+      "pattern": "self",
+      "profiles": [
+        "SUPPORT"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_440",
+      "name": "Close Combat",
+      "reference": "CLOSE_COMBAT",
+      "element": "fighting",
+      "category": "physical",
+      "pattern": "front",
+      "profiles": [
+        "MOTION"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_441",
+      "name": "Wood Hammer",
+      "reference": "WOOD_HAMMER",
+      "element": "grass",
+      "category": "physical",
+      "pattern": "corner_front",
+      "profiles": [],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_442",
+      "name": "Air Slash",
+      "reference": "AIR_SLASH",
+      "element": "flying",
+      "category": "special",
+      "pattern": "front",
+      "profiles": [],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_443",
+      "name": "Energy Ball",
+      "reference": "ENERGY_BALL",
+      "element": "grass",
+      "category": "special",
+      "pattern": "line",
+      "profiles": [
+        "PROJECTILE"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_444",
+      "name": "Wind Escort",
+      "reference": "TAILWIND",
+      "element": "flying",
+      "category": "status",
+      "pattern": "self",
+      "profiles": [
+        "SUPPORT"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_445",
+      "name": "Punishment",
+      "reference": "PUNISHMENT",
+      "element": "dark",
+      "category": "physical",
+      "pattern": "front",
+      "profiles": [],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_446",
+      "name": "Chatter",
+      "reference": "CHATTER",
+      "element": "flying",
+      "category": "special",
+      "pattern": "radius",
+      "profiles": [
+        "SPECIAL"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_447",
+      "name": "Fortune Chant",
+      "reference": "LUCKY_CHANT",
+      "element": "normal",
+      "category": "status",
+      "pattern": "self",
+      "profiles": [],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_448",
+      "name": "Ward Exchange",
+      "reference": "GUARD_SWAP",
+      "element": "psychic",
+      "category": "status",
+      "pattern": "corner_front",
+      "profiles": [
+        "SUPPORT"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_449",
+      "name": "Hive Renewal",
+      "reference": "HEAL_ORDER",
+      "element": "bug",
+      "category": "status",
+      "pattern": "self",
+      "profiles": [
+        "SUPPORT"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_450",
+      "name": "Recovery Seal",
+      "reference": "HEAL_BLOCK",
+      "element": "psychic",
+      "category": "status",
+      "pattern": "room",
+      "profiles": [
+        "SUPPORT"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_451",
+      "name": "Shadow Sneak",
+      "reference": "SHADOW_SNEAK",
+      "element": "ghost",
+      "category": "physical",
+      "pattern": "line",
+      "profiles": [
+        "MOTION"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_452",
+      "name": "Thunder Fang",
+      "reference": "THUNDER_FANG",
+      "element": "electric",
+      "category": "physical",
+      "pattern": "front",
+      "profiles": [
+        "BITE"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_453",
+      "name": "Rock Wrecker",
+      "reference": "ROCK_WRECKER",
+      "element": "rock",
+      "category": "physical",
+      "pattern": "line",
+      "profiles": [],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_454",
+      "name": "Focus Blast",
+      "reference": "FOCUS_BLAST",
+      "element": "fighting",
+      "category": "special",
+      "pattern": "line",
+      "profiles": [
+        "PROJECTILE"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_455",
+      "name": "Giga Impact",
+      "reference": "GIGA_IMPACT",
+      "element": "normal",
+      "category": "physical",
+      "pattern": "front",
+      "profiles": [
+        "BODY"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_456",
+      "name": "Clear Gust",
+      "reference": "DEFOG",
+      "element": "flying",
+      "category": "status",
+      "pattern": "room",
+      "profiles": [
+        "SUPPORT"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_457",
+      "name": "Last Reserve",
+      "reference": "TRUMP_CARD",
+      "element": "normal",
+      "category": "special",
+      "pattern": "front",
+      "profiles": [],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_458",
+      "name": "Grass Knot",
+      "reference": "GRASS_KNOT",
+      "element": "grass",
+      "category": "special",
+      "pattern": "front",
+      "profiles": [],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_459",
+      "name": "Cross Poison",
+      "reference": "CROSS_POISON",
+      "element": "poison",
+      "category": "physical",
+      "pattern": "front",
+      "profiles": [],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_460",
+      "name": "Attack Order",
+      "reference": "ATTACK_ORDER",
+      "element": "bug",
+      "category": "physical",
+      "pattern": "room",
+      "profiles": [
+        "TERRAIN"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_461",
+      "name": "Ice Fang",
+      "reference": "ICE_FANG",
+      "element": "ice",
+      "category": "physical",
+      "pattern": "front",
+      "profiles": [
+        "BITE"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_462",
+      "name": "Ice Shard",
+      "reference": "ICE_SHARD",
+      "element": "ice",
+      "category": "physical",
+      "pattern": "line",
+      "profiles": [
+        "PROJECTILE"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_463",
+      "name": "Psycho Cut",
+      "reference": "PSYCHO_CUT",
+      "element": "psychic",
+      "category": "physical",
+      "pattern": "corner_front",
+      "profiles": [
+        "CLAW"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_464",
+      "name": "Burden Transfer",
+      "reference": "PSYCHO_SHIFT",
+      "element": "psychic",
+      "category": "status",
+      "pattern": "front",
+      "profiles": [
+        "SUPPORT"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_465",
+      "name": "First Echo",
+      "reference": "ME_FIRST",
+      "element": "normal",
+      "category": "status",
+      "pattern": "front",
+      "profiles": [],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_466",
+      "name": "Supply Seal",
+      "reference": "EMBARGO",
+      "element": "dark",
+      "category": "status",
+      "pattern": "front",
+      "profiles": [
+        "SUPPORT"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_468",
+      "name": "Seed Flare",
+      "reference": "SEED_FLARE",
+      "element": "grass",
+      "category": "special",
+      "pattern": "radius",
+      "profiles": [
+        "PROJECTILE"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_469",
+      "name": "Brine",
+      "reference": "BRINE",
+      "element": "water",
+      "category": "special",
+      "pattern": "front",
+      "profiles": [],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_470",
+      "name": "X Scissor",
+      "reference": "X_SCISSOR",
+      "element": "bug",
+      "category": "physical",
+      "pattern": "front",
+      "profiles": [],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_471",
+      "name": "Natural Gift",
+      "reference": "NATURAL_GIFT",
+      "element": "normal",
+      "category": "physical",
+      "pattern": "front",
+      "profiles": [],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_472",
+      "name": "Reprisal",
+      "reference": "PAYBACK",
+      "element": "dark",
+      "category": "physical",
+      "pattern": "self",
+      "profiles": [],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_473",
+      "name": "Zen Headbutt",
+      "reference": "ZEN_HEADBUTT",
+      "element": "psychic",
+      "category": "physical",
+      "pattern": "front",
+      "profiles": [
+        "BODY"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_474",
+      "name": "Wring Out",
+      "reference": "WRING_OUT",
+      "element": "normal",
+      "category": "special",
+      "pattern": "front",
+      "profiles": [],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_475",
+      "name": "Gyro Ball",
+      "reference": "GYRO_BALL",
+      "element": "steel",
+      "category": "physical",
+      "pattern": "front",
+      "profiles": [],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_476",
+      "name": "Shadow Claw",
+      "reference": "SHADOW_CLAW",
+      "element": "ghost",
+      "category": "physical",
+      "pattern": "front",
+      "profiles": [
+        "CLAW"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_477",
+      "name": "Shade Rift",
+      "reference": "SHADOW_FORCE",
+      "element": "ghost",
+      "category": "physical",
+      "pattern": "front",
+      "profiles": [
+        "MOTION"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_478",
+      "name": "Gravity Field",
+      "reference": "GRAVITY",
+      "element": "psychic",
+      "category": "status",
+      "pattern": "self",
+      "profiles": [
+        "SUPPORT"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_479",
+      "name": "Vacuum Wave",
+      "reference": "VACUUM_WAVE",
+      "element": "fighting",
+      "category": "special",
+      "pattern": "line",
+      "profiles": [],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_480",
+      "name": "Hidden Crags",
+      "reference": "STEALTH_ROCK",
+      "element": "rock",
+      "category": "status",
+      "pattern": "self",
+      "profiles": [],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_481",
+      "name": "Stone Edge",
+      "reference": "STONE_EDGE",
+      "element": "rock",
+      "category": "physical",
+      "pattern": "front",
+      "profiles": [
+        "TERRAIN"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_482",
+      "name": "Shadow Exchange",
+      "reference": "SWITCHEROO",
+      "element": "dark",
+      "category": "status",
+      "pattern": "corner_front",
+      "profiles": [
+        "SUPPORT"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_483",
+      "name": "Night Veil",
+      "reference": "DARK_VOID",
+      "element": "dark",
+      "category": "status",
+      "pattern": "room",
+      "profiles": [
+        "SUPPORT"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_484",
+      "name": "Earth Power",
+      "reference": "EARTH_POWER",
+      "element": "ground",
+      "category": "special",
+      "pattern": "room",
+      "profiles": [
+        "TERRAIN"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_485",
+      "name": "Gunk Shot",
+      "reference": "GUNK_SHOT",
+      "element": "poison",
+      "category": "physical",
+      "pattern": "line",
+      "profiles": [
+        "PROJECTILE"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_486",
+      "name": "Seed Bomb",
+      "reference": "SEED_BOMB",
+      "element": "grass",
+      "category": "physical",
+      "pattern": "corner_front",
+      "profiles": [
+        "PROJECTILE"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_487",
+      "name": "Twin Strike",
+      "reference": "DOUBLE_HIT",
+      "element": "normal",
+      "category": "physical",
+      "pattern": "front",
+      "profiles": [
+        "MOTION"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_488",
+      "name": "Assurance",
+      "reference": "ASSURANCE",
+      "element": "dark",
+      "category": "physical",
+      "pattern": "front",
+      "profiles": [],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_489",
+      "name": "Charge Beam",
+      "reference": "CHARGE_BEAM",
+      "element": "electric",
+      "category": "special",
+      "pattern": "corner_front",
+      "profiles": [
+        "PROJECTILE"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_490",
+      "name": "Pluck",
+      "reference": "PLUCK",
+      "element": "flying",
+      "category": "physical",
+      "pattern": "front",
+      "profiles": [
+        "MOTION"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_491",
+      "name": "Night Slash",
+      "reference": "NIGHT_SLASH",
+      "element": "dark",
+      "category": "physical",
+      "pattern": "front",
+      "profiles": [
+        "CLAW"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_492",
+      "name": "Pressure Point",
+      "reference": "ACUPRESSURE",
+      "element": "normal",
+      "category": "status",
+      "pattern": "self",
+      "profiles": [
+        "SUPPORT"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_493",
+      "name": "Magnetic Lift",
+      "reference": "MAGNET_RISE",
+      "element": "electric",
+      "category": "status",
+      "pattern": "self",
+      "profiles": [
+        "SUPPORT"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_494",
+      "name": "Roar Of Time",
+      "reference": "ROAR_OF_TIME",
+      "element": "dragon",
+      "category": "special",
+      "pattern": "room",
+      "profiles": [
+        "TERRAIN"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_495",
+      "name": "Poison Jab",
+      "reference": "POISON_JAB",
+      "element": "poison",
+      "category": "physical",
+      "pattern": "front",
+      "profiles": [],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_496",
+      "name": "Venom Tile",
+      "reference": "TOXIC_SPIKES",
+      "element": "poison",
+      "category": "status",
+      "pattern": "self",
+      "profiles": [],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_497",
+      "name": "Last Resort",
+      "reference": "LAST_RESORT",
+      "element": "normal",
+      "category": "physical",
+      "pattern": "front",
+      "profiles": [],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_498",
+      "name": "Dragon Rush",
+      "reference": "DRAGON_RUSH",
+      "element": "dragon",
+      "category": "physical",
+      "pattern": "front",
+      "profiles": [
+        "MOTION"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_499",
+      "name": "Tempo Rift",
+      "reference": "TRICK_ROOM",
+      "element": "psychic",
+      "category": "status",
+      "pattern": "self",
+      "profiles": [
+        "SUPPORT"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_500",
+      "name": "Drain Punch",
+      "reference": "DRAIN_PUNCH",
+      "element": "fighting",
+      "category": "physical",
+      "pattern": "corner_front",
+      "profiles": [
+        "PUNCH",
+        "SPECIAL"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_501",
+      "name": "Mud Bomb",
+      "reference": "MUD_BOMB",
+      "element": "ground",
+      "category": "special",
+      "pattern": "corner_front",
+      "profiles": [
+        "PROJECTILE"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_502",
+      "name": "U Turn",
+      "reference": "U_TURN",
+      "element": "bug",
+      "category": "physical",
+      "pattern": "line",
+      "profiles": [
+        "MOTION"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_503",
+      "name": "Shadow Toss",
+      "reference": "FLING",
+      "element": "dark",
+      "category": "status",
+      "pattern": "front",
+      "profiles": [],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_504",
+      "name": "Awake Seed",
+      "reference": "WORRY_SEED",
+      "element": "grass",
+      "category": "status",
+      "pattern": "line",
+      "profiles": [
+        "PROJECTILE"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_505",
+      "name": "Crush Grip",
+      "reference": "CRUSH_GRIP",
+      "element": "normal",
+      "category": "physical",
+      "pattern": "front",
+      "profiles": [],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_506",
+      "name": "Balance Exchange",
+      "reference": "HEART_SWAP",
+      "element": "psychic",
+      "category": "status",
+      "pattern": "corner_front",
+      "profiles": [
+        "SUPPORT"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_507",
+      "name": "Force Palm",
+      "reference": "FORCE_PALM",
+      "element": "fighting",
+      "category": "physical",
+      "pattern": "front",
+      "profiles": [
+        "MOTION"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_508",
+      "name": "Aura Sphere",
+      "reference": "AURA_SPHERE",
+      "element": "fighting",
+      "category": "special",
+      "pattern": "line",
+      "profiles": [
+        "PROJECTILE"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_509",
+      "name": "Feather Rest",
+      "reference": "ROOST",
+      "element": "flying",
+      "category": "status",
+      "pattern": "self",
+      "profiles": [
+        "SUPPORT"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_510",
+      "name": "Bullet Punch",
+      "reference": "BULLET_PUNCH",
+      "element": "steel",
+      "category": "physical",
+      "pattern": "line",
+      "profiles": [
+        "PUNCH"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_511",
+      "name": "Power Whip",
+      "reference": "POWER_WHIP",
+      "element": "grass",
+      "category": "physical",
+      "pattern": "front",
+      "profiles": [
+        "SPECIAL"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_512",
+      "name": "Power Gem",
+      "reference": "POWER_GEM",
+      "element": "rock",
+      "category": "special",
+      "pattern": "corner_front",
+      "profiles": [],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_513",
+      "name": "Force Exchange",
+      "reference": "POWER_SWAP",
+      "element": "psychic",
+      "category": "status",
+      "pattern": "corner_front",
+      "profiles": [
+        "SUPPORT"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_514",
+      "name": "Inverted Stance",
+      "reference": "POWER_TRICK",
+      "element": "psychic",
+      "category": "status",
+      "pattern": "self",
+      "profiles": [],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_515",
+      "name": "Sucker Punch",
+      "reference": "SUCKER_PUNCH",
+      "element": "dark",
+      "category": "physical",
+      "pattern": "line",
+      "profiles": [
+        "PUNCH"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_516",
+      "name": "Feint",
+      "reference": "FEINT",
+      "element": "normal",
+      "category": "physical",
+      "pattern": "front",
+      "profiles": [],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_517",
+      "name": "Flare Blitz",
+      "reference": "FLARE_BLITZ",
+      "element": "fire",
+      "category": "physical",
+      "pattern": "front",
+      "profiles": [
+        "BODY"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_518",
+      "name": "Brave Bird",
+      "reference": "BRAVE_BIRD",
+      "element": "flying",
+      "category": "physical",
+      "pattern": "corner_front",
+      "profiles": [
+        "MOTION"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_519",
+      "name": "Lava Plume",
+      "reference": "LAVA_PLUME",
+      "element": "fire",
+      "category": "special",
+      "pattern": "radius",
+      "profiles": [
+        "TERRAIN"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_520",
+      "name": "Swarm Ward",
+      "reference": "DEFEND_ORDER",
+      "element": "bug",
+      "category": "status",
+      "pattern": "self",
+      "profiles": [
+        "SUPPORT"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_521",
+      "name": "Discharge",
+      "reference": "DISCHARGE",
+      "element": "electric",
+      "category": "special",
+      "pattern": "room",
+      "profiles": [
+        "TERRAIN"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_522",
+      "name": "Fire Fang",
+      "reference": "FIRE_FANG",
+      "element": "fire",
+      "category": "physical",
+      "pattern": "front",
+      "profiles": [
+        "BITE"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_523",
+      "name": "Magnet Bomb",
+      "reference": "MAGNET_BOMB",
+      "element": "steel",
+      "category": "physical",
+      "pattern": "front",
+      "profiles": [
+        "PROJECTILE"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_524",
+      "name": "Magma Storm",
+      "reference": "MAGMA_STORM",
+      "element": "fire",
+      "category": "special",
+      "pattern": "front",
+      "profiles": [],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_525",
+      "name": "Echo Casting",
+      "reference": "COPYCAT",
+      "element": "normal",
+      "category": "status",
+      "pattern": "corner_front",
+      "profiles": [],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_526",
+      "name": "Moon Renewal",
+      "reference": "LUNAR_DANCE",
+      "element": "psychic",
+      "category": "status",
+      "pattern": "self",
+      "profiles": [
+        "SUPPORT"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_527",
+      "name": "Mirror Shot",
+      "reference": "MIRROR_SHOT",
+      "element": "steel",
+      "category": "special",
+      "pattern": "corner_front",
+      "profiles": [
+        "PROJECTILE"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_528",
+      "name": "Mind Reveal",
+      "reference": "MIRACLE_EYE",
+      "element": "psychic",
+      "category": "status",
+      "pattern": "front",
+      "profiles": [],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_529",
+      "name": "Bug Bite",
+      "reference": "BUG_BITE",
+      "element": "bug",
+      "category": "physical",
+      "pattern": "front",
+      "profiles": [
+        "BITE"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_530",
+      "name": "Bug Buzz",
+      "reference": "BUG_BUZZ",
+      "element": "bug",
+      "category": "special",
+      "pattern": "radius",
+      "profiles": [
+        "SPECIAL"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_531",
+      "name": "Wake Up Slap",
+      "reference": "WAKE_UP_SLAP",
+      "element": "fighting",
+      "category": "physical",
+      "pattern": "front",
+      "profiles": [
+        "MOTION"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_532",
+      "name": "Metal Rebound",
+      "reference": "METAL_BURST",
+      "element": "steel",
+      "category": "physical",
+      "pattern": "self",
+      "profiles": [],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_533",
+      "name": "Head Smash",
+      "reference": "HEAD_SMASH",
+      "element": "rock",
+      "category": "physical",
+      "pattern": "front",
+      "profiles": [
+        "BODY"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_534",
+      "name": "Charming Gaze",
+      "reference": "CAPTIVATE",
+      "element": "normal",
+      "category": "status",
+      "pattern": "front",
+      "profiles": [
+        "SUPPORT"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_535",
+      "name": "Frozen Retort",
+      "reference": "AVALANCHE",
+      "element": "ice",
+      "category": "physical",
+      "pattern": "self",
+      "profiles": [
+        "TERRAIN"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_536",
+      "name": "Flash Cannon",
+      "reference": "FLASH_CANNON",
+      "element": "steel",
+      "category": "special",
+      "pattern": "corner_front",
+      "profiles": [
+        "PROJECTILE"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_537",
+      "name": "Leaf Storm",
+      "reference": "LEAF_STORM",
+      "element": "grass",
+      "category": "special",
+      "pattern": "line",
+      "profiles": [],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_538",
+      "name": "Draco Meteor",
+      "reference": "DRACO_METEOR",
+      "element": "dragon",
+      "category": "special",
+      "pattern": "room",
+      "profiles": [
+        "PROJECTILE",
+        "TERRAIN"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_539",
+      "name": "Dragon Pulse",
+      "reference": "DRAGON_PULSE",
+      "element": "dragon",
+      "category": "special",
+      "pattern": "corner_front",
+      "profiles": [
+        "PROJECTILE"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_540",
+      "name": "Polished Stone",
+      "reference": "ROCK_POLISH",
+      "element": "rock",
+      "category": "status",
+      "pattern": "self",
+      "profiles": [
+        "SUPPORT"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_541",
+      "name": "Rock Climb",
+      "reference": "ROCK_CLIMB",
+      "element": "normal",
+      "category": "physical",
+      "pattern": "front",
+      "profiles": [],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "eos_542",
+      "name": "Schemer's Focus",
+      "reference": "NASTY_PLOT",
+      "element": "dark",
+      "category": "status",
+      "pattern": "self",
+      "profiles": [
+        "SUPPORT"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "feather_fan",
+      "name": "Feather Needle",
+      "reference": null,
+      "element": "flying",
+      "category": "special",
+      "pattern": "fan",
+      "profiles": [],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "fin_slice",
+      "name": "Fin Slice",
+      "reference": null,
+      "element": "flying",
+      "category": "special",
+      "pattern": "line",
+      "profiles": [],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "gravity_web",
+      "name": "Gravity Web",
+      "reference": null,
+      "element": "dark",
+      "category": "special",
+      "pattern": "corner",
+      "profiles": [
+        "SPECIAL"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "horn_ram",
+      "name": "Thorn Ram",
+      "reference": null,
+      "element": "bug",
+      "category": "physical",
+      "pattern": "line",
+      "profiles": [],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "jelly_pulse",
+      "name": "Sting Pulse",
+      "reference": null,
+      "element": "electric",
+      "category": "special",
+      "pattern": "radius",
+      "profiles": [],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "leaf_dart",
+      "name": "Leaf Dart",
+      "reference": null,
+      "element": "grass",
+      "category": "special",
+      "pattern": "line",
+      "profiles": [],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "lib_bug_1",
+      "name": "Silk Snare",
+      "reference": null,
+      "element": "bug",
+      "category": "special",
+      "pattern": "corner",
+      "profiles": [],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "lib_bug_2",
+      "name": "Carapace Charge",
+      "reference": null,
+      "element": "bug",
+      "category": "physical",
+      "pattern": "line",
+      "profiles": [
+        "BODY"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "lib_bug_3",
+      "name": "Wing Scales",
+      "reference": null,
+      "element": "bug",
+      "category": "special",
+      "pattern": "fan",
+      "profiles": [],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "lib_dark_1",
+      "name": "Shadow Fang",
+      "reference": null,
+      "element": "dark",
+      "category": "physical",
+      "pattern": "front",
+      "profiles": [
+        "BITE"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "lib_dark_2",
+      "name": "Night Rift",
+      "reference": null,
+      "element": "dark",
+      "category": "special",
+      "pattern": "corner",
+      "profiles": [],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "lib_dark_3",
+      "name": "Void Pulse",
+      "reference": null,
+      "element": "dark",
+      "category": "special",
+      "pattern": "cross",
+      "profiles": [
+        "PROJECTILE"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "lib_dragon_1",
+      "name": "Drake Claw",
+      "reference": null,
+      "element": "dragon",
+      "category": "physical",
+      "pattern": "fan",
+      "profiles": [
+        "CLAW"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "lib_dragon_2",
+      "name": "Drake Breath",
+      "reference": null,
+      "element": "dragon",
+      "category": "special",
+      "pattern": "line",
+      "profiles": [],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "lib_dragon_3",
+      "name": "Orbit Fang",
+      "reference": null,
+      "element": "dragon",
+      "category": "physical",
+      "pattern": "corner",
+      "profiles": [
+        "BITE"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "lib_electric_1",
+      "name": "Static Fang",
+      "reference": "THUNDERPUNCH",
+      "element": "electric",
+      "category": "physical",
+      "pattern": "front",
+      "profiles": [
+        "BITE"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "lib_electric_2",
+      "name": "Arc Current",
+      "reference": "SHOCK_WAVE",
+      "element": "electric",
+      "category": "special",
+      "pattern": "line",
+      "profiles": [],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "lib_electric_3",
+      "name": "Storm Cross",
+      "reference": "THUNDERBOLT",
+      "element": "electric",
+      "category": "special",
+      "pattern": "radius",
+      "profiles": [],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "lib_fairy_1",
+      "name": "Glimmer Shot",
+      "reference": null,
+      "element": "fairy",
+      "category": "special",
+      "pattern": "line",
+      "profiles": [
+        "PROJECTILE"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "lib_fairy_2",
+      "name": "Pixie Halo",
+      "reference": null,
+      "element": "fairy",
+      "category": "special",
+      "pattern": "radius",
+      "profiles": [],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "lib_fairy_3",
+      "name": "Moon Prism",
+      "reference": null,
+      "element": "fairy",
+      "category": "special",
+      "pattern": "cross",
+      "profiles": [],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "lib_fighting_1",
+      "name": "Palm Burst",
+      "reference": null,
+      "element": "fighting",
+      "category": "physical",
+      "pattern": "front",
+      "profiles": [
+        "MOTION"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "lib_fighting_2",
+      "name": "Crescent Kick",
+      "reference": null,
+      "element": "fighting",
+      "category": "physical",
+      "pattern": "fan",
+      "profiles": [
+        "KICK"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "lib_fighting_3",
+      "name": "Spirit Fist",
+      "reference": null,
+      "element": "fighting",
+      "category": "physical",
+      "pattern": "line",
+      "profiles": [
+        "PUNCH"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "lib_fire_1",
+      "name": "Ember Dart",
+      "reference": "EMBER",
+      "element": "fire",
+      "category": "special",
+      "pattern": "corner_front",
+      "profiles": [
+        "PROJECTILE"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "lib_fire_2",
+      "name": "Blazing Torrent",
+      "reference": "FLAMETHROWER",
+      "element": "fire",
+      "category": "special",
+      "pattern": "line",
+      "profiles": [
+        "PROJECTILE"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "lib_fire_3",
+      "name": "Cinder Vortex",
+      "reference": null,
+      "element": "fire",
+      "category": "special",
+      "pattern": "radius",
+      "profiles": [],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "lib_flying_1",
+      "name": "Feather Needle",
+      "reference": null,
+      "element": "flying",
+      "category": "special",
+      "pattern": "line",
+      "profiles": [
+        "PROJECTILE"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "lib_flying_2",
+      "name": "Gale Scythe",
+      "reference": null,
+      "element": "flying",
+      "category": "special",
+      "pattern": "fan",
+      "profiles": [],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "lib_flying_3",
+      "name": "Cyclone Ring",
+      "reference": null,
+      "element": "flying",
+      "category": "special",
+      "pattern": "radius",
+      "profiles": [],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "lib_ghost_1",
+      "name": "Shade Claw",
+      "reference": null,
+      "element": "ghost",
+      "category": "physical",
+      "pattern": "front",
+      "profiles": [
+        "CLAW"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "lib_ghost_2",
+      "name": "Phantom Thread",
+      "reference": null,
+      "element": "ghost",
+      "category": "special",
+      "pattern": "corner",
+      "profiles": [],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "lib_ghost_3",
+      "name": "Spectral Bloom",
+      "reference": null,
+      "element": "ghost",
+      "category": "special",
+      "pattern": "radius",
+      "profiles": [],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "lib_grass_1",
+      "name": "Briar Whip",
+      "reference": "VINE_WHIP",
+      "element": "grass",
+      "category": "physical",
+      "pattern": "front",
+      "profiles": [
+        "SPECIAL"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "lib_grass_2",
+      "name": "Razor Sprout",
+      "reference": null,
+      "element": "grass",
+      "category": "special",
+      "pattern": "line",
+      "profiles": [],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "lib_grass_3",
+      "name": "Root Quake",
+      "reference": null,
+      "element": "grass",
+      "category": "physical",
+      "pattern": "radius",
+      "profiles": [],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "lib_ground_1",
+      "name": "Fissure Slam",
+      "reference": "EARTHQUAKE",
+      "element": "ground",
+      "category": "physical",
+      "pattern": "room",
+      "profiles": [
+        "TERRAIN"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "lib_ground_2",
+      "name": "Sand Drill",
+      "reference": null,
+      "element": "ground",
+      "category": "physical",
+      "pattern": "line",
+      "profiles": [],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "lib_ground_3",
+      "name": "Mud Lance",
+      "reference": null,
+      "element": "ground",
+      "category": "special",
+      "pattern": "line",
+      "profiles": [],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "lib_ice_1",
+      "name": "Frost Needle",
+      "reference": null,
+      "element": "ice",
+      "category": "special",
+      "pattern": "line",
+      "profiles": [
+        "PROJECTILE"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "lib_ice_2",
+      "name": "Glacier Ray",
+      "reference": null,
+      "element": "ice",
+      "category": "special",
+      "pattern": "line",
+      "profiles": [],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "lib_ice_3",
+      "name": "Snow Spiral",
+      "reference": null,
+      "element": "ice",
+      "category": "special",
+      "pattern": "radius",
+      "profiles": [],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "lib_normal_1",
+      "name": "Tackle Rush",
+      "reference": null,
+      "element": "normal",
+      "category": "physical",
+      "pattern": "front",
+      "profiles": [
+        "BODY"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "lib_normal_2",
+      "name": "Echo Slam",
+      "reference": null,
+      "element": "normal",
+      "category": "physical",
+      "pattern": "radius",
+      "profiles": [
+        "BODY"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "lib_normal_3",
+      "name": "Sonic Ray",
+      "reference": null,
+      "element": "normal",
+      "category": "special",
+      "pattern": "line",
+      "profiles": [
+        "SPECIAL"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "lib_poison_1",
+      "name": "Venom Flick",
+      "reference": null,
+      "element": "poison",
+      "category": "physical",
+      "pattern": "front",
+      "profiles": [],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "lib_poison_2",
+      "name": "Acid Arc",
+      "reference": null,
+      "element": "poison",
+      "category": "special",
+      "pattern": "corner",
+      "profiles": [],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "lib_poison_3",
+      "name": "Toxic Bloom",
+      "reference": null,
+      "element": "poison",
+      "category": "special",
+      "pattern": "radius",
+      "profiles": [],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "lib_psychic_1",
+      "name": "Mind Spear",
+      "reference": null,
+      "element": "psychic",
+      "category": "special",
+      "pattern": "line",
+      "profiles": [],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "lib_psychic_2",
+      "name": "Mirage Pulse",
+      "reference": null,
+      "element": "psychic",
+      "category": "special",
+      "pattern": "corner",
+      "profiles": [
+        "PROJECTILE"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "lib_psychic_3",
+      "name": "Astral Crush",
+      "reference": null,
+      "element": "psychic",
+      "category": "special",
+      "pattern": "cross",
+      "profiles": [],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "lib_rock_1",
+      "name": "Pebble Shot",
+      "reference": null,
+      "element": "rock",
+      "category": "physical",
+      "pattern": "line",
+      "profiles": [
+        "PROJECTILE"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "lib_rock_2",
+      "name": "Boulder Rush",
+      "reference": null,
+      "element": "rock",
+      "category": "physical",
+      "pattern": "line",
+      "profiles": [],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "lib_rock_3",
+      "name": "Crystal Avalanche",
+      "reference": null,
+      "element": "rock",
+      "category": "physical",
+      "pattern": "fan",
+      "profiles": [
+        "TERRAIN"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "lib_steel_1",
+      "name": "Iron Edge",
+      "reference": null,
+      "element": "steel",
+      "category": "physical",
+      "pattern": "front",
+      "profiles": [],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "lib_steel_2",
+      "name": "Alloy Spear",
+      "reference": null,
+      "element": "steel",
+      "category": "physical",
+      "pattern": "line",
+      "profiles": [],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "lib_steel_3",
+      "name": "Metal Storm",
+      "reference": null,
+      "element": "steel",
+      "category": "physical",
+      "pattern": "fan",
+      "profiles": [],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "lib_water_1",
+      "name": "Foam Shot",
+      "reference": "BUBBLE",
+      "element": "water",
+      "category": "special",
+      "pattern": "line",
+      "profiles": [],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "lib_water_2",
+      "name": "Pearl Torrent",
+      "reference": "BUBBLEBEAM",
+      "element": "water",
+      "category": "special",
+      "pattern": "line",
+      "profiles": [
+        "PROJECTILE"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "lib_water_3",
+      "name": "Surge Wall",
+      "reference": null,
+      "element": "water",
+      "category": "special",
+      "pattern": "fan",
+      "profiles": [],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "lunar_dust",
+      "name": "Lunar Dust",
+      "reference": null,
+      "element": "fairy",
+      "category": "special",
+      "pattern": "fan",
+      "profiles": [],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "meteor_fist",
+      "name": "Meteor Fist",
+      "reference": null,
+      "element": "rock",
+      "category": "physical",
+      "pattern": "corner",
+      "profiles": [],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "moon_claw",
+      "name": "Moon Claw",
+      "reference": null,
+      "element": "dark",
+      "category": "physical",
+      "pattern": "front",
+      "profiles": [],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "nova_bolt",
+      "name": "Nova Bolt",
+      "reference": null,
+      "element": "fire",
+      "category": "special",
+      "pattern": "line",
+      "profiles": [],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "orbit_lash",
+      "name": "Orbit Lash",
+      "reference": null,
+      "element": "psychic",
+      "category": "physical",
+      "pattern": "corner",
+      "profiles": [],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "prism_shatter",
+      "name": "Prism Smash",
+      "reference": null,
+      "element": "ice",
+      "category": "physical",
+      "pattern": "radius",
+      "profiles": [],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "reef_bite",
+      "name": "Reef Bite",
+      "reference": null,
+      "element": "water",
+      "category": "physical",
+      "pattern": "front",
+      "profiles": [
+        "BITE"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "rolling_moss",
+      "name": "Moss Crash",
+      "reference": null,
+      "element": "rock",
+      "category": "physical",
+      "pattern": "line",
+      "profiles": [],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "royal_spores",
+      "name": "Spore Crown",
+      "reference": null,
+      "element": "poison",
+      "category": "special",
+      "pattern": "radius",
+      "profiles": [],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "shell_impact",
+      "name": "Shell Bash",
+      "reference": null,
+      "element": "rock",
+      "category": "physical",
+      "pattern": "front",
+      "profiles": [],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "sonic_cone",
+      "name": "Void Screech",
+      "reference": null,
+      "element": "ghost",
+      "category": "special",
+      "pattern": "fan",
+      "profiles": [],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "spiral_current",
+      "name": "Spiral Thrust",
+      "reference": null,
+      "element": "water",
+      "category": "physical",
+      "pattern": "line",
+      "profiles": [],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "spore_cloud",
+      "name": "Spore Puff",
+      "reference": null,
+      "element": "poison",
+      "category": "special",
+      "pattern": "radius",
+      "profiles": [],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "star_kick",
+      "name": "Star Kick",
+      "reference": null,
+      "element": "fairy",
+      "category": "physical",
+      "pattern": "front",
+      "profiles": [],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "tentacle_snare",
+      "name": "Tentacle Snare",
+      "reference": null,
+      "element": "poison",
+      "category": "physical",
+      "pattern": "corner",
+      "profiles": [
+        "SPECIAL"
+      ],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "tidal_jaws",
+      "name": "Tidal Bite",
+      "reference": null,
+      "element": "water",
+      "category": "physical",
+      "pattern": "fan",
+      "profiles": [],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "timber_shock",
+      "name": "Timber Slam",
+      "reference": null,
+      "element": "ground",
+      "category": "physical",
+      "pattern": "radius",
+      "profiles": [],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "tusk_sweep",
+      "name": "Root Tusk",
+      "reference": null,
+      "element": "ground",
+      "category": "physical",
+      "pattern": "front",
+      "profiles": [],
+      "validation": "runtime_unverified"
+    },
+    {
+      "id": "vine_snap",
+      "name": "Snap Vine",
+      "reference": null,
+      "element": "grass",
+      "category": "physical",
+      "pattern": "corner",
+      "profiles": [
+        "SPECIAL"
+      ],
+      "validation": "runtime_unverified"
+    }
+  ]
+}
