@@ -625,6 +625,32 @@ func _initialize():
 	assert(iq_rules.last_invoked_move=="eos_207" and iq_rules.move_pp.eos_119==23)
 	assert(not iq_rules.move_pp.has("eos_207") and iq_rules.turns==1)
 	print("KINDRIA_IQ_TERRAIN_PASS")
+	var bonds=Rules.new()
+	bonds.trained_profile={"gender":"male"}
+	bonds.player=Vector2i(1,1);bonds.cells[bonds.player]=true
+	bonds.cells[Vector2i(2,1)]=true
+	bonds.enemies.append({"pos":Vector2i(2,1),"hp":100,"kind":0,"species":"reef_pup","gender":"male"})
+	assert(not bonds.apply_bond_control(0,"infatuation"))
+	assert(not bonds.apply_bond_control(0,"captivate"))
+	bonds.enemies[0].gender="unknown"
+	assert(not bonds.apply_bond_control(0,"captivate"))
+	bonds.enemies[0].gender="female"
+	assert(bonds.apply_bond_control(0,"captivate"))
+	assert(bonds.enemies[0].stages.sp_attack==-2)
+	assert(bonds.apply_bond_control(0,"infatuation"))
+	assert(bonds.enemies[0].infatuated_turns in [5,6])
+	var bond_hp:int=bonds.hp
+	bonds.enemy_turn_actions()
+	assert(bonds.hp==bond_hp and bonds.enemy_actions.is_empty())
+	assert(bonds.apply_bond_control(0,"destiny_link"))
+	assert(not bonds.apply_bond_control(0,"destiny_link"))
+	bonds.queue_linked_damage(7);bonds.flush_linked_damage()
+	assert(bonds.enemies[0].hp==93 and bonds.linked_damage==0)
+	for i in range(11):bonds.tick_enemy_statuses()
+	assert(bonds.enemies[0].destiny_turns==0 and bonds.enemies[0].infatuated_turns==0)
+	bonds.queue_linked_damage(7);bonds.flush_linked_damage()
+	assert(bonds.enemies[0].hp==93)
+	print("KINDRIA_BOND_CONTROL_PASS")
 	assert(Rules.EOS_IDENTIFIED_COUNT==468)
 	print("KINDRIA_EOS_PROTOTYPES_PASS ",eos_count)
 	print("KINDRIA_LEARNSET_PP_PASS")
