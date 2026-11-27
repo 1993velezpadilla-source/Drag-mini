@@ -461,6 +461,39 @@ func run_checks()->void:
 	view.queue_contact_camera(Vector3.ZERO,Vector3.RIGHT,true,.18)
 	if view.fx_contact_camera!=Vector3.ZERO:failures.append("V22.0 expired impulse replay")
 	checks+=1
+	# V22.2: active and retired hits at the same instant choose one body
+	# reaction, regardless of the order in which the bursts were visited.
+	var simultaneous_target:=Vector2i.ZERO
+	var simultaneous_a:Dictionary={"target_player":true,"points":[Vector3.LEFT,Vector3.ZERO],"age":.54,"impact_times":[.5],"impact_cursor":1,"impact_waves":[{simultaneous_target:{"damage":30}}]}
+	var simultaneous_b:Dictionary={"target_player":true,"points":[Vector3.BACK,Vector3.ZERO],"age":.54,"impact_times":[.5],"impact_cursor":1,"impact_waves":[{simultaneous_target:{"damage":8,"crit":1}}]}
+	for order in [false,true]:
+		var first:Dictionary=simultaneous_b if order else simultaneous_a
+		var second:Dictionary=simultaneous_a if order else simultaneous_b
+		var winner:=view.latest_player_impact(view.latest_player_impact({},first),second)
+		if not bool(winner.get("critical",false)) or winner.get("direction",Vector3.ZERO)!=Vector3.FORWARD:failures.append("V22.2 simultaneous critical hurt")
+		checks+=1
+	simultaneous_b.impact_waves=[{simultaneous_target:{"damage":8}}]
+	for order in [false,true]:
+		var first:Dictionary=simultaneous_b if order else simultaneous_a
+		var second:Dictionary=simultaneous_a if order else simultaneous_b
+		var winner:=view.latest_player_impact(view.latest_player_impact({},first),second)
+		if int(winner.get("damage",0))!=30 or winner.get("direction",Vector3.ZERO)!=Vector3.RIGHT:failures.append("V22.2 simultaneous damage hurt")
+		checks+=1
+	simultaneous_b.impact_waves=[{simultaneous_target:{"damage":30}}]
+	for order in [false,true]:
+		var first:Dictionary=simultaneous_b if order else simultaneous_a
+		var second:Dictionary=simultaneous_a if order else simultaneous_b
+		var winner:=view.latest_player_impact(view.latest_player_impact({},first),second)
+		if winner.get("direction",Vector3.ZERO)!=Vector3.RIGHT:failures.append("V22.2 simultaneous directional hurt")
+		checks+=1
+	simultaneous_b.age=.52
+	var newest:=view.latest_player_impact(view.latest_player_impact({},simultaneous_a),simultaneous_b)
+	if newest.get("direction",Vector3.ZERO)!=Vector3.FORWARD:failures.append("V22.2 latest hurt priority")
+	checks+=1
+	simultaneous_b.impact_waves=[{simultaneous_target:{"damage":0,"crit":1}}]
+	var confirmed:=view.latest_player_impact(view.latest_player_impact({},simultaneous_a),simultaneous_b)
+	if confirmed.get("direction",Vector3.ZERO)!=Vector3.RIGHT:failures.append("V22.2 unconfirmed hurt override")
+	checks+=1
 	# Body deformation must peak on the same frame as the directional drive,
 	# including very short anticipation windows and downward strikes.
 	for peak in [.12,.34,.48,.64,.88]:
