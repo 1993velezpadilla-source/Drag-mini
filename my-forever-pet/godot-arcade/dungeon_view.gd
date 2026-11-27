@@ -2204,11 +2204,17 @@ uniform float ring_mix : hint_range(0.0, 1.0) = 0.0;
 uniform float phase = 0.0;
 uniform int element_mode = 0;
 uniform float variation = 0.0;
+uniform int silhouette = 0;
+uniform float heading = 0.0;
+uniform float material_phase = 0.0;
 float grain(vec2 p) { return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453); }
 float noise2(vec2 p) { vec2 i=floor(p); vec2 f=fract(p); f=f*f*(3.0-2.0*f); return mix(mix(grain(i),grain(i+vec2(1.0,0.0)),f.x),mix(grain(i+vec2(0.0,1.0)),grain(i+vec2(1.0)),f.x),f.y); }
 float ribbon(float x,float w) { float width=max(w,0.001); return 1.0-smoothstep(width*0.35,width,abs(x)); }
 void fragment() {
 	vec2 p = UV * 2.0 - 1.0;
+	vec2 original = p;
+	float cs=cos(heading); float sn=sin(heading);
+	p=vec2(p.x*cs-p.y*sn,p.x*sn+p.y*cs);
 	float r = length(p);
 	float halo = pow(max(0.0, 1.0-r), 2.7);
 	float radius = mix(0.22, 0.82, phase);
@@ -2292,8 +2298,47 @@ void fragment() {
 		float streak=ribbon(p.y,0.16)*(1.0-smoothstep(0.35,0.99,abs(p.x)));
 		a=streak+halo*0.5;col=mix(vec3(0.62,0.65,0.68),vec3(1.0,0.97,0.89),streak);
 	}
+	// Distinct silhouettes control actual material coverage, not just hue.
+	float shape=1.0;
+	if (silhouette==1) { // compact projectile and tapered trailing plume
+		float w=0.18+0.40*smoothstep(-0.85,0.65,original.x);
+		shape=(1.0-smoothstep(w*0.6,w,abs(original.y)))*(1.0-smoothstep(0.7,0.97,original.x));
+	} else if (silhouette==2) { // widening jet
+		float w=0.12+0.68*clamp((original.x+1.0)*0.5,0.0,1.0);
+		shape=1.0-smoothstep(w*0.65,w,abs(original.y));
+	} else if (silhouette==3) { // upright falling/rising column
+		shape=1.0-smoothstep(0.32,0.8,abs(original.x));
+	} else if (silhouette==4) { // expanding shockfront
+		shape=ribbon(r-(0.3+0.46*material_phase),0.25);
+		a=max(a*shape,shape*0.38);
+	} else if (silhouette==5) { // orbit / containment
+		shape=ribbon(r-0.62,0.24)*(0.6+0.4*sin(ang*3.0-phase*6.0));
+		a=max(a*shape,shape*0.32);
+	} else if (silhouette==6) { // crossing contact cuts
+		shape=max(ribbon(original.y-original.x*0.56,0.30),ribbon(original.y+original.x*0.56,0.24));
+	} else if (silhouette==7) { // broad ground front
+		shape=1.0-smoothstep(0.4,0.94,length(original*vec2(0.75,1.25)));
+	} else if (silhouette==8) { // two converging jaws
+		float jaw=0.64-0.32*material_phase;
+		shape=ribbon(abs(original.x)-jaw+original.y*original.y*0.24,0.23);
+	} else if (silhouette==9) { // multiple independent falling/rising lobes
+		shape=0.55+0.45*noise2(original*4.0+vec2(0.0,phase*4.0));
+	} else if (silhouette==10) { // blue sacred flame rather than ordinary orange fire
+		col=mix(vec3(0.02,0.16,0.88),vec3(0.35,0.95,1.0),core);
+		shape=0.8+0.2*n;
+	} else if (silhouette==11) { // spherical water bubbles
+		float rim=ribbon(r-0.60,0.12);
+		a=rim*0.9+(1.0-smoothstep(0.45,0.62,r))*0.28+ribbon(length(p+vec2(0.18,0.18))-0.15,0.06)*0.55;
+		col=mix(vec3(0.035,0.40,0.84),vec3(0.83,1.0,1.0),rim);
+	} else if (silhouette==12) { // compact electrical field around body
+		float radial=ribbon(sin(ang*5.0+r*9.0+phase*9.0),0.16);
+		a=radial*edge;col=mix(vec3(1.0,0.55,0.04),vec3(1.0,1.0,0.87),radial);
+	} else if (silhouette==13) { // short-range psychic rings surround target
+		a=ribbon(r-0.64,0.075)+ribbon(length(p*vec2(1.35,0.8))-0.48,0.065);
+		col=mix(tint.rgb,vec3(1.0,0.48,0.94),0.55);
+	}
 	ALBEDO = col;
-	ALPHA = clamp(a * intensity * (element_mode==0 ? 1.0:edge), 0.0, 0.85);
+	ALPHA = clamp(a * shape * intensity * (element_mode==0 ? 1.0:edge), 0.0, 0.9);
 }
 """
 	fx_halo_additive=shader
@@ -2484,7 +2529,7 @@ func ultra_update_residues(dt:float,used:int)->int:
 		cinematic_halo(at,mark.color,1.3+t*.6,fade*.16,t,true)
 	return used
 
-func cinematic_halo(at:Vector3,color:Color,extent:float,opacity:float,phase:float,ground:bool,element_mode:int=0,variation:float=0.0)->void:
+func cinematic_halo(at:Vector3,color:Color,extent:float,opacity:float,phase:float,ground:bool,element_mode:int=0,variation:float=0.0,silhouette:int=0,heading:float=0.0,shape_phase:float=0.0,aspect:Vector2=Vector2.ONE)->void:
 	if fx_halos_used>=fx_halos.size() or opacity<=.012:return
 	var index:int=fx_halos_used;fx_halos_used+=1
 	var halo:MeshInstance3D=fx_halos[index]
@@ -2494,13 +2539,16 @@ func cinematic_halo(at:Vector3,color:Color,extent:float,opacity:float,phase:floa
 	halo.position=at
 	halo.rotation=Vector3(-PI*.5,0,0) if ground else Vector3.ZERO
 	if not ground and is_instance_valid(camera):halo.global_basis=camera.global_basis.orthonormalized()
-	halo.scale=Vector3.ONE*extent
+	halo.scale=Vector3(extent*aspect.x,extent*aspect.y,extent)
 	mat.set_shader_parameter("tint",color)
 	mat.set_shader_parameter("intensity",opacity)
 	mat.set_shader_parameter("phase",phase)
 	mat.set_shader_parameter("ring_mix",1.0 if ground else 0.0)
 	mat.set_shader_parameter("element_mode",element_mode)
 	mat.set_shader_parameter("variation",variation)
+	mat.set_shader_parameter("silhouette",silhouette)
+	mat.set_shader_parameter("heading",heading)
+	mat.set_shader_parameter("material_phase",shape_phase)
 	halo.show()
 
 func cinematic_light(at:Vector3,color:Color,energy:float,extent:float)->void:
@@ -2514,6 +2562,33 @@ const ELEMENT_SHADER_MODES={"fire":1,"water":2,"electric":3,"poison":4,"grass":5
 
 # A continuous shaded material is composited behind the existing authored pixels.
 # Reserve only one pooled quad per cast; never allocate effects during combat.
+# Per-move material choreography, shared only where behavior is actually related.
+# DX visual references: Ember compact orange plume, Sacred Fire blue clouds,
+# Psywave target rings. Remaining forms are original authored approximations.
+func elemental_silhouette(role:String,kind:String)->int:
+	match role:
+		"fire_sacred":return 10
+		"water_bubble","water_bubblebeam":return 11
+		"electric_burst","electric_charge","electric_room":return 12
+		"psi_wave":return 13
+		"electric_sky","water_fall","water_spout","fire_eruption","fire_plume":return 3
+		"fire_breath","water_pump","water_cannon","electric_beam":return 2
+		"fire_ember","water_gun","electric_orb":return 1
+		"fire_heatwave","water_surf":return 7
+		"fire_vortex","water_whirlpool","fire_wheel":return 5
+		"fire_blastburn","fire_overheat":return 9
+	match kind:
+		"stream","arc","dash","dart":return 1
+		"cone":return 2
+		"fall","rise","eruption":return 3
+		"burst","wave":return 4
+		"coil","wheel","helix","shield","gather":return 5
+		"contact","sweep","whip":return 6
+		"ground":return 7
+		"pincer":return 8
+		"drain":return 1
+	return 9
+
 func cinematic_element_surface(burst:Dictionary,t:float)->void:
 	var points:Array=burst.points
 	if points.is_empty():return
@@ -2552,7 +2627,30 @@ func cinematic_element_surface(burst:Dictionary,t:float)->void:
 	var opacity:float=envelope*(.50 if status else .94)
 	if kind in ["burst","contact","pincer"] and before:opacity*=smoothstep(.5,1.0,progress)
 	var style:Array=combat_style(id)
-	cinematic_halo(anchor,Color(str(style[1])),extent,opacity,t,ground,shader_mode,float(posmod(id.hash(),97))/13.0)
+	var silhouette:int=elemental_silhouette(role,kind)
+	var shape_phase:float=progress if before else after
+	var aspect:=Vector2.ONE
+	var heading:float=0.0
+	if silhouette in [1,2]:
+		aspect=Vector2(1.48,.70) if silhouette==1 else Vector2(1.75,.90)
+		if is_instance_valid(camera):
+			var a:Vector2=camera.unproject_position(source)
+			var b:Vector2=camera.unproject_position(target)
+			if a.distance_squared_to(b)>.001:heading=-(b-a).angle()
+	elif silhouette==3:aspect=Vector2(.82,1.55)
+	elif silhouette==7:aspect=Vector2(1.5,.92)
+	if silhouette==10:extent*=1.20
+	if silhouette==13:anchor=target;aspect=Vector2(.88,1.25)
+	# Rotate the plane itself for directional masks; preserve world ground plane.
+	var previous_count:int=fx_halos_used
+	cinematic_halo(anchor,Color(str(style[1])),extent,opacity,t,ground,shader_mode,float(posmod(id.hash(),97))/13.0,silhouette,0.0,shape_phase,aspect)
+	if not ground and fx_halos_used>previous_count and silhouette in [1,2]:
+		var mesh:MeshInstance3D=fx_halos[previous_count]
+		mesh.rotate_object_local(Vector3.BACK,heading)
+	# Tall or broad effects get a second lobe only while there is room in the pool.
+	if silhouette in [9,10] and fx_halos_used<FX_HALO_CAP-2:
+		var offset:=Vector3(sin(t*5.0)*spread*.56,height*.32,cos(t*5.0)*spread*.43)
+		cinematic_halo(anchor+offset,Color(str(style[1])),extent*.76,opacity*.72,t,ground,shader_mode,float(posmod(id.hash(),97))/13.0+1.7,silhouette,0.0,shape_phase)
 
 func cinematic_cast_enhancement(burst:Dictionary,t:float)->void:
 	var points:Array=burst.points
