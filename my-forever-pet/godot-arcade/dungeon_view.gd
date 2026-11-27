@@ -2068,6 +2068,18 @@ func creature_idle_sample(species:String,seconds:float,seed:float,weight:float,h
 
 # Independent blink cadence, including a rare second blink. Absolute phase
 # prevents locomotion changes or an interrupted attack resetting the clock.
+func creature_appendage_sample(species:String,seconds:float,seed:int)->int:
+	var phase_offset:float=float(posmod(seed,97))*.173
+	var clock:float=maxf(0.0,seconds)+phase_offset
+	if species in ["reef_pup","tidal_sovereign","anemoneye","abyss_colossus","jellymancer","celestial_guardian"]:
+		var frequency:float=1.4 if species=="celestial_guardian" else .85
+		return [0,1,0,2][posmod(floori(clock*frequency*4.0),4)]
+	var period:float=2.2+float(posmod(seed,11))*.19
+	var phase:float=fposmod(clock,period)
+	if phase<.18:return 1
+	if phase<.36:return 2
+	return 0
+
 func creature_blink_sample(seconds:float,seed:int,species:String)->bool:
 	var period:float=3.1+float(posmod(seed,17))*.13
 	if species in ["grovetitan","astro_golem","crystarok","shellguard","abyss_colossus"]:period+=1.3
@@ -2181,7 +2193,11 @@ func update_enemy_pixel(actor:Node3D,dt:float,motion:Vector3,body_dt:float=-1.0)
 			shadow.scale.y*=1.0+float(living.sleep)*.13
 	var can_blink:bool=state in ["idle","walk"] and visual_state in ["idle","walk"] and float(living.sleep)<.1 and not ("freeze" in statuses or "sleep" in statuses or "nightmare" in statuses)
 	var blink:bool=can_blink and creature_blink_sample(elapsed,actor.get_instance_id(),species)
-	var tex:=PixelArt.enemy_pixel_texture(species,facing_index,visual_state,frame,blink)
+	# Short asynchronous gestures for land creatures; aquatic appendages cycle.
+	var appendage:int=0
+	if state=="idle" and can_blink and species in PixelArt.ENEMY_IDLE_APPENDAGES:
+		appendage=creature_appendage_sample(species,elapsed,actor.get_instance_id())
+	var tex:=PixelArt.enemy_pixel_texture(species,facing_index,visual_state,frame,blink,appendage)
 	if tex!=null and sprite.texture!=tex:sprite.texture=tex
 	if sprite.material_override is ShaderMaterial:
 		var material:=sprite.material_override as ShaderMaterial
