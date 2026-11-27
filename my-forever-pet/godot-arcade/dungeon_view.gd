@@ -2784,6 +2784,20 @@ func combat_pixel_texture(mode:String,light:Color,dark:Color)->ImageTexture:
 			var fill:bool=false
 			var inner:bool=false
 			match mode:
+				"bite_upper","bite_lower","crunch_upper","crunch_lower","fang_upper","fang_lower":
+					var upper:bool=mode.ends_with("_upper")
+					var heavy:bool=mode.begins_with("crunch")
+					var fang:bool=mode.begins_with("fang")
+					var jaw_y:float=v.y if upper else -v.y
+					var half_width:float=7.0 if heavy else 5.8
+					var rim:float=-2.0+absf(v.x)*.34
+					var band:bool=absf(v.x)<half_width and jaw_y>=rim-2.0 and jaw_y<=rim+.5
+					var tooth_dist:float=absf(absf(v.x)-4.0) if fang else absf(fposmod(v.x+1.5,3.0)-1.5)
+					var tooth_length:float=5.6 if heavy else 4.5 if fang else 3.2
+					var depth:float=jaw_y-rim
+					var tooth:bool=absf(v.x)<half_width and depth>=0.0 and depth<tooth_length and tooth_dist<1.45*(1.0-depth/tooth_length)
+					fill=band or tooth
+					inner=tooth and depth>.35 and tooth_dist<maxf(.35,.85*(1.0-depth/tooth_length))
 				"venom_splash":
 					fill=(r<4.0 or (r<7.2 and sin(atan2(v.y,v.x)*5.0)>.40) or (r>5.8 and posmod(x*3+y*7,13)==0))
 					inner=r<2.8 or (fill and v.x+v.y<-2.5)
@@ -7038,6 +7052,56 @@ func schedule_response_text(tile:Vector2i,event:Dictionary,delay:float)->void:
 	if response_text_queue.size()>=RESPONSE_TEXT_CAP:response_text_queue.pop_front()
 	response_text_queue.append({"tile":tile,"delay":maxf(0.0,delay),"row":row})
 
+# Contact silhouettes are independent from elemental particles. Exact move IDs
+# avoid confusing a physical bite with an unrelated attack or status effect.
+const BITE_CONTACT_ART={
+	"eos_063":["bite",.66,.42,"#fff3dc","#805e50","smoke"],
+	"eos_062":["crunch",1.12,.55,"#fff1d1","#43263e","smoke"],
+	"eos_198":["fang",.82,.43,"#e4ffd4","#7947a0","venom_splash"],
+	"eos_261":["fang",.88,.45,"#fff2db","#a17b63","impact_star"],
+	"eos_020":["fang",.91,.45,"#fff5e4","#ad8266","impact_star"],
+	"eos_452":["fang",.82,.43,"#fff9b0","#db9522","lightning"],
+	"eos_461":["fang",.82,.43,"#e0fcff","#438fb9","crystal"],
+	"eos_522":["fang",.82,.43,"#fff0b3","#e45c2e","flame"],
+	"eos_529":["bite",.62,.40,"#ecffc5","#628247","leaf"],
+	"lib_electric_1":["fang",.78,.42,"#fff9b0","#db9522","lightning"],
+	"lib_dragon_3":["fang",.84,.43,"#f5ddff","#7552b3","flame"],
+	"lib_dark_1":["fang",.83,.43,"#eadcff","#553568","smoke"],
+	"reef_bite":["bite",.70,.42,"#e5f8ff","#4e819e","drop"]}
+
+func bite_contact_art(id:String)->Array:
+	return BITE_CONTACT_ART.get(id,[])
+
+# A pair of screen-facing sprites closes over the actual target. Crunch uses
+# larger, denser teeth, longer hold and heavier dark pressure particles.
+func bite_contact_fx(id:String,target:Vector3,age:float,used:int,element_light:Color,element_dark:Color)->int:
+	var art:Array=bite_contact_art(id)
+	if art.is_empty():return used
+	var family:String=str(art[0])
+	var heavy:bool=family=="crunch"
+	var life:float=.86 if heavy else .65
+	if age<0.0 or age>=life:return used
+	var t:float=age/life
+	var close:float=smoothstep(0.0,.32,t)
+	var separation:float=lerpf(float(art[2]),float(art[2])*.12,close)
+	var size:float=float(art[1])*(1.0+.08*sin(t*PI))
+	var alpha:float=1.0-smoothstep(.55,1.0,t)
+	var up:Vector3=Vector3.UP
+	if is_instance_valid(camera):up=camera.global_basis.y.normalized()
+	var center:Vector3=target+up*.10
+	var light:=Color(str(art[3]))
+	var dark:=Color(str(art[4]))
+	if used+2>mini(FX_PARTICLE_CAP,combat_particles.size()):return used
+	used=environment_particle(used,center+up*separation,family+"_upper",light,dark,size,alpha)
+	used=environment_particle(used,center-up*separation,family+"_lower",light,dark,size,alpha)
+	if t>=.25:
+		var mode:String=str(art[5])
+		var spread:float=.40 if heavy else .24
+		for i in range(2 if heavy else 1):
+			var side:float=-1.0 if i==0 else 1.0
+			used=environment_particle(used,center+Vector3(side*spread*t,.12+t*.15,0),mode,element_light,element_dark,(.60 if heavy else .34)*(1.0+t*.35),alpha*.82)
+	return used
+
 func element_finish_fx(burst:Dictionary,t:float,used:int)->int:
 	var id:String=str(burst.id)
 	var profile:Dictionary=burst.profile
@@ -7066,6 +7130,9 @@ func element_finish_fx(burst:Dictionary,t:float,used:int)->int:
 		var primary_tile:=Vector2i(roundi(target.x/1.4),roundi(target.z/1.4))
 		var row:Dictionary=results.get(primary_tile,{})
 		var primary_miss:bool=not row.is_empty() and int(row.get("damage",0))+int(row.get("effects",0))+int(row.get("heal",0))<=0
+		# Contact icons only on explicitly confirmed results; reserve before generic particles.
+		if not status and int(row.get("damage",0))+int(row.get("effects",0))+int(row.get("heal",0))>0:
+			used=bite_contact_fx(id,target,age,used,light,dark)
 		if primary_miss:
 			used=environment_particle(used,target,"cloud",light,dark,.32+age*.18,fade*.35)
 		elif age<.30:
@@ -7077,6 +7144,7 @@ func element_finish_fx(burst:Dictionary,t:float,used:int)->int:
 			var other:Dictionary=results[tile]
 			if int(other.get("damage",0))+int(other.get("effects",0))+int(other.get("heal",0))<=0:continue
 			var q:Vector3=pos(tile)+Vector3(0,.45,0)
+			if not status:used=bite_contact_fx(id,q,age,used,light,dark)
 			used=environment_particle(used,q,"bubble" if status else "impact_star",light,dark,.45+age*.38,fade)
 			extra+=1
 		# A miss at the selected tile must not hide hits on other tiles.
