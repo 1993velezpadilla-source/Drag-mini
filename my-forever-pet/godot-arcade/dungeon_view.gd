@@ -50,6 +50,7 @@ const FX_WARNING_CAP=80
 var combat_particles:Array[Sprite3D]=[]
 var combat_warnings:Array[MeshInstance3D]=[]
 var combat_bursts:Array[Dictionary]=[]
+var delayed_combat_fx:Array[Dictionary]=[]
 var combat_textures:Dictionary={}
 # Keep transient animation frames separate from permanent static FX textures.
 const FX_ANIMATED_CACHE_CAP=384
@@ -1766,7 +1767,7 @@ func update_enemy_pixel(actor:Node3D,dt:float,motion:Vector3)->void:
 	else:sprite.modulate=Color("#ffb5c6") if state=="hurt" else Color.WHITE
 # Lightweight reusable pixel VFX: no per-frame node allocation, no camera-facing 3D creatures.
 func combat_fx_setup(parent:Node3D)->void:
-	combat_particles.clear();combat_warnings.clear();combat_bursts.clear();fx_reactions.clear();fx_ground_shake=0.0
+	combat_particles.clear();combat_warnings.clear();combat_bursts.clear();delayed_combat_fx.clear();fx_reactions.clear();fx_ground_shake=0.0
 	combat_fx_root=Node3D.new();parent.add_child(combat_fx_root)
 	fx_arc_mesh=ImmediateMesh.new()
 	fx_arc_material=StandardMaterial3D.new()
@@ -4862,7 +4863,21 @@ func update_combat_reactions(dt:float)->void:
 			var warning=actor.get_node_or_null("Warning")
 			if bar!=null:bar.hide()
 			if warning!=null:warning.hide()
+func update_delayed_combat_fx(dt:float)->void:
+	var due:Array[Dictionary]=[]
+	for i in range(delayed_combat_fx.size()-1,-1,-1):
+		var item:Dictionary=delayed_combat_fx[i]
+		item.delay-=dt
+		if float(item.delay)<=0.0:
+			due.append(item);delayed_combat_fx.remove_at(i)
+	due.sort_custom(func(a:Dictionary,b:Dictionary)->bool:return float(a.delay)<float(b.delay))
+	for item in due:
+		# This frame's elapsed fraction is applied once, not twice.
+		combat_fx_spawn(item.event)
+		if not combat_bursts.is_empty():combat_bursts[-1].age=maxf(0.0,-float(item.delay))-dt
+
 func combat_fx_update(dt:float)->void:
+	update_delayed_combat_fx(dt)
 	var used:int=0
 	update_combat_reactions(dt)
 	fx_ground_shake=maxf(0.0,fx_ground_shake-dt*3.0)
@@ -5369,6 +5384,23 @@ func remaining_response_events(events:Array,cast_serial:int)->Array:
 		result.append(event)
 	return result
 
+func response_fx_plan(events:Array,start:float)->Array[Dictionary]:
+	var result:Array[Dictionary]=[]
+	var cursor:float=maxf(0.0,start)
+	for event in events:
+		var item:Dictionary={"hit":cursor,"launch":-1.0,"event":{}}
+		var id:String=str(event.get("move_id",""))
+		if str(event.get("source",""))=="sleep_counter" and not id.is_empty() and event.has("from") and event.has("to"):
+			var profile:=combat_profile(id)
+			var duration:float=float(profile.duration)
+			item.launch=cursor
+			item.hit=cursor+duration*float(profile.impact)
+			item.event={"fx":id,"from":event.from,"to":event.to,"tiles":[event.to],"path":event.get("path",[event.to])}
+			cursor+=duration+.04
+		else:cursor+=.12
+		result.append(item)
+	return result
+
 func queue_observed_enemy_damage(actor:Node3D,uid:int,tile:Vector2i,defeated:bool)->void:
 	var new_cast:bool=run.attack_serial!=previous_attack
 	var hits:int=int(run.player_visual_hits.get(uid,0)) if new_cast and run.player_visual_hit_serial==run.attack_serial else 0
@@ -5394,12 +5426,17 @@ func queue_observed_enemy_damage(actor:Node3D,uid:int,tile:Vector2i,defeated:boo
 		if events.is_empty():
 			queue_enemy_reaction(actor,defeated,float(spec.delay),Vector3(spec.direction),float(spec.span),int(spec.count))
 			return
-	var count:int=maxi(1,events.size())
 	var secondary_delay:float=float(spec.delay)+float(spec.span)+.04 if linked else 0.0
-	# Queue terminal callback first: queue_enemy_reaction retires older callbacks
-	# on defeat, so all preceding direct/secondary hits are added afterward.
-	for index in range(count-1,-1,-1):
-		queue_enemy_reaction(actor,defeated and index==count-1,secondary_delay+float(index)*.12,Vector3.ZERO)
+	var plan:Array[Dictionary]=response_fx_plan(events if not events.is_empty() else [{}],secondary_delay)
+	# Queue terminal callback first; subsequent calls preserve that final pose.
+	for index in range(plan.size()-1,-1,-1):
+		var item:Dictionary=plan[index]
+		var direction:Vector3=Vector3.ZERO
+		if not item.event.is_empty():
+			direction=(pos(item.event.to)-pos(item.event.from)).normalized()
+			if delayed_combat_fx.size()<24:
+				delayed_combat_fx.append({"delay":float(item.launch),"event":item.event})
+		queue_enemy_reaction(actor,defeated and index==plan.size()-1,float(item.hit),direction)
 	if linked:queue_enemy_reaction(actor,false,float(spec.delay),Vector3(spec.direction),float(spec.span),int(spec.count))
 
 func refresh_actors():

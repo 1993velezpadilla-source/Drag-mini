@@ -257,15 +257,22 @@ func flush_sleep_reactions()->void:
 			chosen=candidates[rng.randi_range(0,candidates.size()-1)]
 		var move:Dictionary=MOVE_LIBRARY[chosen]
 		var target:int=enemy_at(p)
-		if target<0 or not attack_footprint(player,aim,str(move.pattern),int(move.reach),true).has(p):continue
+		var response_footprint:Dictionary=attack_footprint(player,aim,str(move.pattern),int(move.reach),true)
+		if target<0 or not response_footprint.has(p):continue
 		if not roll_reference_hit(move,enemies[target]):continue
 		var response_enemy:Dictionary=enemies[target].duplicate()
 		var response_uid:int=int(response_enemy.get("uid",-1))
 		var damage_index:int=last_move_damage.size()
 		strike(target,true,-1,chosen)
 		player_attack_fx=chosen
+		player_attack_path=response_footprint[p].duplicate()
 		if last_move_damage.size()>damage_index:
 			visual_record_response(response_enemy,int(last_move_damage[damage_index]),"sleep_counter",attack_serial,chosen)
+			var recorded:Array=visual_response_events.get(response_uid,[])
+			if not recorded.is_empty() and int(recorded[-1].get("cast_serial",-1))==attack_serial:
+				recorded[-1]["from"]=player
+				recorded[-1]["to"]=p
+				recorded[-1]["path"]=player_attack_path.duplicate()
 		visual_response_cast_serial=attack_serial
 		visual_response_cast_uid=response_uid
 		if chosen=="eos_025" and enemy_at(p)>=0 and rng.randi_range(1,100)<=20:

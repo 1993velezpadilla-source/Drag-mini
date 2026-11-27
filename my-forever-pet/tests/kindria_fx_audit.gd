@@ -305,6 +305,11 @@ func run()->void:
 	if sleep_events.size()!=3 or remaining.size()!=2 or int(remaining[0].cast_serial)!=40 or remaining[1].source!="poison":errors.append("counter serial event attribution")
 	if field.remaining_response_events(sleep_events,-1).size()!=3:errors.append("counter event preservation")
 	print("KINDRIA_COUNTER_SERIAL_PASS")
+	# Counter visuals use their own profile and true recorded route.
+	var counter_plan:Array[Dictionary]=field.response_fx_plan([{"source":"sleep_counter","move_id":"eos_025","from":Vector2i.ZERO,"to":Vector2i(2,0),"path":[Vector2i(1,0),Vector2i(2,0)]},{"source":"poison"}],.3)
+	var counter_profile:Dictionary=field.combat_profile("eos_025")
+	if counter_plan.size()!=2 or absf(float(counter_plan[0].hit)-(.3+float(counter_profile.duration)*float(counter_profile.impact)))>.001 or counter_plan[0].event.path.size()!=2 or float(counter_plan[1].hit)<=float(counter_plan[0].hit):errors.append("counter effect plan")
+	print("KINDRIA_COUNTER_FX_PLAN_PASS")
 	# Exercise more frames than the cache cap, then verify hot hits and exact normalization.
 	for row in reports.slice(0,40):
 		for frame in range(Field.FX_FRAME_COUNT):field.combat_animated_texture(str(row.id),frame)
