@@ -2136,6 +2136,7 @@ func update_enemy_pixel(actor:Node3D,dt:float,motion:Vector3,body_dt:float=-1.0)
 	sprite.position=Vector3(0,.54*size_multiplier+rise,0)
 	var body_offset:=Vector3.ZERO
 	var hit_flash:float=0.0
+	var defeat_fade:float=1.0
 	# Same continuous body clock as the companion; preserve the authored ground anchor.
 	sprite.scale=Vector3.ONE
 	if state=="idle":
@@ -2166,12 +2167,20 @@ func update_enemy_pixel(actor:Node3D,dt:float,motion:Vector3,body_dt:float=-1.0)
 			var lateral:=Vector3(-forward.z,0.0,forward.x)
 			body_offset=actor.basis.inverse()*(forward*.32*float(reaction.recoil)+lateral*float(reaction.sway)+Vector3.UP*float(reaction.lift))
 			sprite.position+=body_offset
+	if state=="defeat":
+		# Use the existing terminal cell, then collapse towards the ground.
+		# Keep a short readable hold before shrinking out of the scene.
+		var fall:float=smoothstep(.24,1.0,clampf(clock/maxf(.01,duration),0.0,1.0))
+		var collapse:float=lerpf(1.0,.12,fall)
+		sprite.scale=Vector3(lerpf(1.0,.32,fall),collapse,1.0)
+		sprite.position.y=.54*size_multiplier*collapse
+		defeat_fade=1.0-fall
 	var shadow:=actor.get_node_or_null("EnemyContactShadow") as MeshInstance3D
 	if shadow!=null:
 		var parent_lift:float=actor.position.y if actor.get_meta("companion_disguise",false) else 0.0
 		var shadow_sample:=enemy_shadow_sample(body_offset,rise,parent_lift,size_multiplier,species in ["eelstrix","marrowray","coralcrab","shellguard"])
 		shadow.position=shadow_sample.position
-		shadow.scale=shadow_sample.scale
+		shadow.scale=shadow_sample.scale*defeat_fade
 	var visual_state:String=state
 	# The phase continues through combat even when the strike sprite takes priority.
 	# This avoids freezing the wing/fin cycle every time an enemy attacks.
@@ -7984,6 +7993,10 @@ func update_disguise(dt:float,motion:Vector2,moving:bool,pose:String)->void:
 	disguise_actor.visible=pet_pose.visible
 	pet_pose.hide()
 	disguise_actor.position=pet_pose.position
+	if pose=="reward" and not moving:
+		# Transformed companions share the celebration, not a second attack pose.
+		var celebration:float=clampf(1.0-reward_age/.65,0.0,1.0)
+		disguise_actor.position.y+=absf(sin(celebration*TAU))*sin(celebration*PI)*.20
 	disguise_actor.rotation.z=pet_pose.rotation.z
 	disguise_actor.set_meta("living_statuses",living_player_statuses())
 	disguise_actor.set_meta("native_hp_ratio",clampf(float(run.hp)/maxf(1.0,float(run.max_hp)),0.0,1.0))
