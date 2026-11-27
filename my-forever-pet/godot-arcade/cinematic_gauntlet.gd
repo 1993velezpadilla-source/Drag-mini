@@ -36,6 +36,27 @@ func run_checks()->void:
 	var checks:int=0
 	var failures:Array[String]=[]
 	var view:=Dungeon.new()
+	# V23.8: count-only path must preserve the full impact ledger's wave count.
+	for wave_count_probe in [0,1,2,5,12,16]:
+		var wave_probe_attempts:Array=[]
+		for i in range(wave_count_probe):wave_probe_attempts.append({"damage":i+1})
+		var wave_probe_results:Dictionary={Vector2i.ZERO:{"attempts":wave_probe_attempts},Vector2i.ONE:{"damage":1}}
+		var wave_probe_expected:int=clampi(wave_count_probe,1,12)
+		if view.cast_impact_wave_count(wave_probe_results)!=wave_probe_expected or view.cast_impact_waves(wave_probe_results).size()!=wave_probe_expected:failures.append("V23.8 wave count parity "+str(wave_count_probe))
+		var wave_probe_times:Array[float]=view.caster_wave_times({"results":wave_probe_results},1.0,.5)
+		if wave_probe_times.size()!=(wave_probe_expected if wave_probe_expected>1 else 0):failures.append("V23.8 caster timeline parity "+str(wave_count_probe))
+		checks+=2
+	if view.cast_impact_wave_count({})!=1:failures.append("V23.8 empty ledger")
+	var idle_wave_probe:Dictionary={"impact_times":[.5],"age":.25}
+	var idle_wave_counter:int=view.fx_dispatched_waves
+	view.dispatch_cast_waves(idle_wave_probe)
+	if int(idle_wave_probe.get("impact_cursor",-1))!=0 or view.fx_dispatched_waves!=idle_wave_counter:failures.append("V23.8 future impact mutated")
+	var completed_wave_probe:Dictionary={"impact_times":[.5],"impact_cursor":1,"age":1.0}
+	view.dispatch_cast_waves(completed_wave_probe)
+	if int(completed_wave_probe.impact_cursor)!=1 or view.fx_dispatched_waves!=idle_wave_counter:failures.append("V23.8 completed impact replay")
+	var prior_reaction_probe:Dictionary={"age":.1,"damage":7}
+	if view.latest_player_impact(prior_reaction_probe,{"target_player":true,"impact_cursor":1,"impact_waves":[{}],"impact_times":[.5]},1)!=prior_reaction_probe:failures.append("V23.8 unchanged reaction")
+	checks+=4
 	# V23.7: queue compaction preserves retained order and chronological FIFO.
 	view.delayed_combat_fx.assign([{"delay":.5,"event":{"id":"a"}},{"delay":.125,"event":{"id":"b"}},{"delay":.0625,"event":{"id":"c"}},{"delay":.5,"event":{"id":"d"}},{"delay":.125,"event":{"id":"e"}}])
 	view.collect_due_combat_casts(.125)
