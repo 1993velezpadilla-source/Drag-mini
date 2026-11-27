@@ -110,7 +110,9 @@ var combat_bursts:Array[Dictionary]=[]
 var retired_impacts:Array[Dictionary]=[]
 const DELAYED_COMBAT_FX_CAP:int=24
 var delayed_combat_fx:Array[Dictionary]=[]
+const FX_SECONDARY_TEXTURE_CAP:int=768
 var combat_textures:Dictionary={}
+var combat_texture_order:Array[String]=[]
 # Keep transient animation frames separate from permanent static FX textures.
 const FX_ANIMATED_CACHE_CAP=384
 var fx_animated_cache:Dictionary={}
@@ -3041,13 +3043,22 @@ func particle_material_pixel(family:int,v:Vector2,inner:bool,light:Color,dark:Co
 		11:base=base.lerp(Color.WHITE,specular*.76)
 	return base
 
+# Secondary textures retain a fixed working set during long Combat Lab sessions.
+# Visible Sprite3D nodes retain references even when a cache key is evicted.
+func cache_combat_particle(key:String,texture:ImageTexture)->void:
+	if combat_textures.has(key):return
+	if combat_texture_order.size()>=FX_SECONDARY_TEXTURE_CAP:
+		combat_textures.erase(combat_texture_order.pop_front())
+	combat_textures[key]=texture
+	combat_texture_order.append(key)
+
 func combat_pixel_texture(mode:String,light:Color,dark:Color)->ImageTexture:
 	var key:=mode+str(light)+str(dark)
 	if combat_textures.has(key):return combat_textures[key]
 	if mode.begins_with("contact:"):
 		var parts:=mode.split(":")
 		var icon:=ImageTexture.create_from_image(contact_icon_image(parts[1],int(parts[2]),light,dark))
-		combat_textures[key]=icon
+		cache_combat_particle(key,icon)
 		return icon
 	var im:=Image.create(16,16,false,Image.FORMAT_RGBA8);im.fill(Color.TRANSPARENT)
 	var material_family:int=particle_material_family(mode)
@@ -3275,7 +3286,7 @@ func combat_pixel_texture(mode:String,light:Color,dark:Color)->ImageTexture:
 					inner=absf(v.x+1.0)+absf(v.y+1.0)<4.0
 			if fill:im.set_pixel(x,y,particle_material_pixel(material_family,v,inner,light,dark))
 	var texture:=ImageTexture.create_from_image(im)
-	combat_textures[key]=texture
+	cache_combat_particle(key,texture)
 	return texture
 var combat_style_cache:Dictionary={}
 func combat_style(id:String)->Array:
