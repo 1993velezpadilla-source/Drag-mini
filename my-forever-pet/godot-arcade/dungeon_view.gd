@@ -5484,7 +5484,7 @@ func native_identity_frame(id:String,frame:int,base:Image)->Image:
 	return im
 
 # V16.7: individually remastered after reviewing actual Godot PNG strips.
-const VISUAL_REMASTER_MOVES=["eos_504","eos_308","eos_135","eos_142","eos_047","eos_250","eos_299","eos_329","eos_262","eos_279","eos_101","eos_199","eos_251","eos_486","eos_462","eos_018","eos_507","eos_175","eos_254","eos_097","eos_163","eos_320","eos_033","eos_166","eos_228","eos_004","eos_252","eos_330","eos_465","eos_138","eos_021","eos_501","eos_053","eos_157","eos_064","eos_188","eos_240","eos_255","eos_342","eos_539","eos_041","eos_278","eos_538","eos_239","eos_193","eos_272","eos_519","eos_494","eos_292","eos_065","eos_276","eos_208","eos_522","eos_452","eos_433","eos_087","eos_063","eos_062","eos_476","eos_127","eos_451","eos_436","eos_491","eos_046","eos_109","eos_234","eos_107","eos_463","eos_133","eos_317","eos_111","eos_331","eos_345","eos_270","eos_042","eos_344","eos_461","eos_180","eos_535","eos_150","eos_118","eos_484","eos_008","eos_131","eos_030","eos_481","eos_028","eos_073","lib_ground_1","eos_057","eos_036","eos_442","eos_153","eos_205","eos_100","eos_518","eos_178","eos_200","eos_495","eos_280","eos_197","eos_332","eos_147","eos_485","eos_459"]
+const VISUAL_REMASTER_MOVES=["eos_504","eos_308","eos_135","eos_142","eos_047","eos_250","eos_299","eos_329","eos_262","eos_279","eos_101","eos_199","eos_251","eos_486","eos_462","eos_018","eos_507","eos_175","eos_254","eos_097","eos_163","eos_320","eos_033","eos_166","eos_228","eos_004","eos_252","eos_330","eos_465","eos_138","eos_021","eos_501","eos_053","eos_157","eos_064","eos_188","eos_240","eos_255","eos_342","eos_539","eos_041","eos_278","eos_538","eos_239","eos_193","eos_272","eos_519","eos_494","eos_292","eos_065","eos_276","eos_208","eos_522","eos_452","eos_433","eos_087","eos_063","eos_062","eos_476","eos_127","eos_451","eos_436","eos_491","eos_046","eos_109","eos_234","eos_107","eos_463","eos_133","eos_317","eos_111","eos_331","eos_345","eos_270","eos_042","eos_344","eos_461","eos_180","eos_535","eos_150","eos_118","eos_484","eos_008","eos_131","eos_030","eos_481","eos_028","eos_073","lib_ground_1","eos_057","eos_036","eos_442","eos_153","eos_205","eos_100","eos_518","eos_178","eos_200","eos_495","eos_280","eos_197","eos_332","eos_147","eos_485","eos_459","eos_151","eos_537","eos_443","eos_336","eos_182","eos_253","eos_441","eos_076","lib_grass_1"]
 func visual_remaster_frame(id:String,frame:int)->Image:
 	var im:=Image.create(48,48,false,Image.FORMAT_RGBA8)
 	im.fill(Color.TRANSPARENT)
@@ -7114,6 +7114,144 @@ func visual_remaster_frame(id:String,frame:int)->Image:
 						fx_disc(im,v,1.5,Color("#b9ed80",fade))
 			if t>=peak:
 				fairy_star(im,c,3.0+3.0*pulse,Color("#f0ffcb",fade))
+		"eos_151":
+			# Sunlance: solar collection followed by a brilliant focused beam.
+			var c:=Vector2(9,24)
+			var charge:float=clampf(t/maxf(peak,.01),0.0,1.0)
+			for j in range(8):
+				var a:float=float(j)*TAU/8.0+t*1.6
+				var axis:=Vector2(cos(a),sin(a))
+				var q:=c+axis*(13-8*charge)
+				fx_line(im,q,q+axis*3.0,1.5,Color("#ffdf76",fade))
+			fx_disc(im,c,3.0+5.0*charge,Color("#e9ad31",fade))
+			fx_disc(im,c,2.0+3.0*charge,Color("#ffffc8",fade))
+			if t>=peak:
+				var head:=Vector2(9+34*clampf((t-peak)/maxf(1.0-peak,.01)*2.5,0.0,1.0),24)
+				fx_line(im,c,head,8.0*fade+1,Color("#e7b52c",fade))
+				fx_line(im,c,head,5.0*fade+1,Color("#fff27a",fade))
+				fx_line(im,c,head,2.0,Color("#ffffed",fade))
+				for j in range(6):
+					var q:=c.lerp(head,float(j)/5.0)+Vector2(0,sin(float(j)*2.2+t*TAU)*7)
+					fairy_star(im,q,1.6,Color("#fff2a7",fade))
+		"eos_537":
+			# Leaf Storm: a widening vortex of spinning leaves and curved wind bands.
+			var c:=Vector2(24,25)
+			for j in range(3):
+				var a:float=t*TAU*1.5+float(j)*TAU/3.0
+				fight_arc(im,c,6.0+12.0*drive+float(j)*2,a,PI*.85,Color("#c6f1a0",fade),Color("#4d9b67",fade),1.8)
+			for j in range(13):
+				var f:float=float(j)/12.0
+				var a:float=float(j)*2.4+t*TAU*1.5
+				var r:float=(5+16*drive)*(.45+f*.55)
+				var q:=c+Vector2(cos(a)*r,sin(a)*r*.88)
+				grass_leaf(im,q,a+PI*.5,5.5+float(j%3)*1.5,Color("#c6ed71",fade),Color("#31794a",fade))
+		"eos_443":
+			# Energy Ball: a translucent green core with orbiting chlorophyll motes.
+			var q:=Vector2(10+24*drive,24)
+			var r:float=5.5+3.0*pulse
+			fx_line(im,q-Vector2(10*fade,0),q,3.4,Color("#589a45",fade))
+			fx_disc(im,q,r,Color("#286447",fade))
+			fx_disc(im,q,r-1.6,Color("#70bd54",fade))
+			fx_disc(im,q-Vector2(1,1),r*.48,Color("#dcff9a",fade))
+			for j in range(5):
+				var a:float=float(j)*TAU/5.0+t*TAU
+				var v:=q+Vector2(cos(a),sin(a))*(r+3)
+				fx_disc(im,v,1.5,Color("#c2f785",fade))
+				fight_arc(im,q,r+2.0,a,.5,Color("#d8ffac",fade),Color("#408f5a",fade),1.2)
+			if t>=peak:
+				for j in range(6):
+					var a:float=float(j)*TAU/6.0
+					var v:=q+Vector2(cos(a),sin(a))*(r+8*(1.0-fade))
+					grass_leaf(im,v,a,4.5,Color("#d3ff8a",fade),Color("#428650",fade))
+		"eos_336":
+			# Leaf Blade: one enlarged leaf-shaped cutting edge with a central vein.
+			var c:=Vector2(18+10*drive,24)
+			var angle:float=-1.9+2.0*drive
+			grass_leaf(im,c,angle,17.0,Color("#b8f078",fade),Color("#286c40",fade))
+			var axis:=Vector2(cos(angle),sin(angle))
+			fx_line(im,c,c+axis*16,1.4,Color("#efffc3",fade))
+			fight_arc(im,c,15.5,angle-1.2,1.65,Color("#e5ffac",fade),Color("#4b9d4d",fade),3.2)
+			if t>=peak:
+				for j in range(4):
+					var a:float=angle+float(j-2)*.45
+					var v:=c+Vector2(cos(a),sin(a))*(16+5*(1.0-fade))
+					fx_disc(im,v,1.3,Color("#d2f990",fade))
+		"eos_182","lib_grass_1":
+			# Vine Whip is a single flexible lash; Briar Whip has two thorned strands.
+			var briar:bool=id=="lib_grass_1"
+			var count:int=2 if briar else 1
+			for j in range(count):
+				var prev:=Vector2(4,24+float(j)*5)
+				for k in range(1,20):
+					var f:float=float(k)/19.0
+					var reach:float=9+31*drive
+					var q:=Vector2(4+reach*f,24+float(j)*5+sin(f*TAU*1.15-t*TAU+float(j)*PI*.6)*7.0*f)
+					var width:float=3.8-1.8*f
+					fx_line(im,prev,q,width,Color("#286341",fade))
+					fx_line(im,prev,q,width*.54,Color("#a0da63",fade))
+					if k%4==0:
+						if briar:
+							fx_line(im,q,q+Vector2(-3,-4 if k%8==0 else 4),1.6,Color("#d3e89d",fade))
+						else:
+							grass_leaf(im,q,-1.8 if k%8==0 else 1.8,5.0,Color("#b4ec77",fade),Color("#32784b",fade))
+					prev=q
+				if t>=peak:
+					fight_arc(im,prev,5.0+5*(1.0-fade),-1.0,1.9,Color("#d9ffa4",fade),Color("#5a9c50",fade),1.8)
+		"eos_253":
+			# Petal Frenzy: pink flower petals tumble through a graceful double spiral.
+			var c:=Vector2(24,24)
+			for j in range(12):
+				var f:float=float(j)/11.0
+				var a:float=float(j)*2.4+t*TAU*1.4
+				var r:float=(4+16*drive)*(.35+f*.65)
+				var q:=c+Vector2(cos(a)*r,sin(a)*r)
+				var axis:=Vector2(cos(a+.7),sin(a+.7))
+				fx_line(im,q-axis*2,q+axis*2,3.4,Color("#b65b88",fade))
+				fx_line(im,q-axis*1.5-Vector2(0,1),q+axis*1.5-Vector2(0,1),2.3,Color("#ffd0e4",fade))
+				fx_disc(im,q+axis*2,1.0,Color("#fff0f5",fade))
+			fight_arc(im,c,10+7*drive,t*TAU,PI*1.2,Color("#ffe3ef",fade*.8),Color("#c17da0",fade*.65),1.4)
+		"eos_441":
+			# Wood Hammer: solid bark-covered mallet with a downward swing and splinters.
+			var pivot:=Vector2(12,36)
+			var a:float=-2.1+1.95*drive
+			var axis:=Vector2(cos(a),sin(a))
+			var normal:=Vector2(-axis.y,axis.x)
+			var q:=pivot+axis*23
+			fx_line(im,pivot,q,4.6,Color("#54382d",fade))
+			fx_line(im,pivot,q,2.7,Color("#aa7948",fade))
+			for j in range(-3,4):
+				var v:=q+axis*float(j)
+				fx_line(im,v-normal*8,v+normal*8,1.6,Color("#795035",fade))
+			fx_line(im,q-axis*3-normal*7,q-axis*3+normal*7,1.4,Color("#d1a371",fade))
+			for j in range(3):
+				var v:=q+normal*float(j-1)*5
+				fx_line(im,v-axis*2,v+axis*3,1.0,Color("#4e362c",fade))
+			if t>=peak:
+				for j in range(7):
+					var angle:float=float(j)*TAU/7.0
+					var d:=Vector2(cos(angle),sin(angle))
+					var v:=q+d*(7+10*(1.0-fade))
+					fx_line(im,v-d*3,v+d*2,1.8,Color("#caa16a",fade))
+					fx_disc(im,v+Vector2(0,3),1.6,Color("#a58a5e",fade*.7))
+		"eos_076":
+			# Giga Drain: multiple bright streams return from the target to the caster.
+			var from:=Vector2(39,24)
+			var dest:=Vector2(9,24)
+			for j in range(3):
+				var prev:=from
+				for k in range(1,18):
+					var f:float=float(k)/17.0
+					var q:=from.lerp(dest,f)+Vector2(0,sin(f*TAU+t*TAU+float(j)*TAU/3.0)*6.0*sin(f*PI))
+					fx_line(im,prev,q,2.5,Color("#428c50",fade*.75))
+					fx_line(im,prev,q,1.2,Color("#b3ed76",fade))
+					prev=q
+			for j in range(6):
+				var f:float=fposmod(t*1.6+float(j)*.16,1.0)
+				var q:=from.lerp(dest,f)+Vector2(0,sin(f*TAU+float(j))*4)
+				fx_disc(im,q,2.1,Color("#e2ffa4",fade))
+				grass_leaf(im,q,PI+float(j)*.2,4.5,Color("#a2e86e",fade),Color("#397f4d",fade))
+			fx_disc(im,dest,4.5+4.0*drive,Color("#74ba57",fade))
+			fx_disc(im,dest,2.7+2.0*drive,Color("#d9ffab",fade))
 	return im
 
 func combat_frame_image(id:String,frame:int)->Image:
