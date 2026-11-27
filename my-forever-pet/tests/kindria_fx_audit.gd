@@ -2,6 +2,7 @@ extends SceneTree
 const Field=preload("res://dungeon_view.gd")
 const Rules=preload("res://dungeon_rules.gd")
 const PixelArt=preload("res://pixel_pet_art.gd")
+const Parts=preload("res://pet_part_rig.gd")
 const OUT="/tmp/kindria-full-fx"
 func _initialize():
 	call_deferred("run")
@@ -121,6 +122,26 @@ func run()->void:
 	if str(actor.get_meta("enemy_phase"))!="defeat" or actor.get_meta("pending_impact",true):errors.append("final defeat phase")
 	actor.free()
 	print("KINDRIA_REACTION_TIMING_AUDIT 468")
+	# Synthetic colored fixtures validate the layer contract, not production artwork.
+	var body:=Image.create(64,64,false,Image.FORMAT_RGBA8)
+	body.fill(Color.TRANSPARENT)
+	body.fill_rect(Rect2i(28,28,8,8),Color.WHITE)
+	var strip:=Image.create(128,256,false,Image.FORMAT_RGBA8)
+	for dir in range(4):
+		for frame in range(2):
+			strip.fill_rect(Rect2i(frame*64,dir*64,64,64),Color(float(dir+1)/5.0,float(frame+1)/3.0,.25,1.0))
+	var hurt:=Image.create(64,64,false,Image.FORMAT_RGBA8)
+	hurt.fill(Color.BLUE)
+	var part:Dictionary={"slot":"tail","back":strip,"size":64,"clips":{"attack:weak":{"back":hurt}}}
+	for dir in range(4):
+		var first:Image=Parts.composite_pose(body,[part],dir,"attack","healthy",0.0)
+		var last:Image=Parts.composite_pose(body,[part],dir,"attack","healthy",1.0)
+		var weak:Image=Parts.composite_pose(body,[part],dir,"attack","weak",.5)
+		if first.get_data()==last.get_data() or weak.get_pixel(1,1)!=Color.BLUE or weak.get_pixel(32,32)!=Color.WHITE:errors.append("anatomy layer contract "+str(dir))
+		var expected:Image=Parts.lpc_frame(strip,dir,0)
+		if first.get_pixel(1,1)!=expected.get_pixel(1,1):errors.append("anatomy direction "+str(dir))
+	if Parts.clip_index(strip,1.0,true)!=0 or Parts.clip_index(strip,1.0,false)!=1:errors.append("anatomy loop vs one-shot")
+	print("KINDRIA_PART_RIG_CONTRACT_PASS")
 	# Exercise more frames than the cache cap, then verify hot hits and exact normalization.
 	for row in reports.slice(0,40):
 		for frame in range(Field.FX_FRAME_COUNT):field.combat_animated_texture(str(row.id),frame)
