@@ -285,6 +285,28 @@ func run_checks()->void:
 				var near_landing:=view.cast_motion_offset(kind,peak-.0001,peak)
 				if absf(landed.y)>.0001 or absf(near_landing.y)>.0001:failures.append("abrupt landing")
 			checks+=1
+	# Anatomical casts retain bounded continuous geometry, with a unique
+	# contact position/deformation signature per motion family.
+	var anatomy_kinds:Array=["fang","crunch","claw","pincer","punch","uppercut","kick","lowkick","wing","tail","horn"]
+	var anatomy_signatures:Dictionary={}
+	for kind in anatomy_kinds:
+		var at_contact:=view.cast_motion_offset(kind,.48,.48)
+		var body_contact:=Art.attack_body_sample(.48,.48,kind)
+		var signature:=str(at_contact)+str(body_contact)
+		if anatomy_signatures.has(signature):failures.append("duplicate anatomy "+kind)
+		anatomy_signatures[signature]=true
+		for peak in [.12,.34,.48,.64,.88]:
+			for step in range(101):
+				var phase:float=float(step)/100.0
+				var motion:=view.cast_motion_offset(kind,phase,peak)
+				var body:=Art.attack_body_sample(phase,peak,kind)
+				if not motion.is_finite() or motion.length()>1.0 or float(body.stretch)<.84 or float(body.stretch)>1.16:failures.append("anatomical motion bounds "+kind)
+				if step in [0,100] and (motion.length()>.001 or absf(float(body.stretch)-1.0)>.001):failures.append("anatomical motion rest "+kind)
+				checks+=1
+	var anatomy_expected:Dictionary={"eos_063":"fang","eos_062":"crunch","eos_065":"punch","eos_092":"lowkick","eos_136":"uppercut","eos_008":"contact","eos_153":"aerial","eos_205":"aerial"}
+	for id in anatomy_expected:
+		if view.cast_motion_kind(id,view.combat_profile(id))!=anatomy_expected[id]:failures.append("incorrect anatomical cast "+id)
+		checks+=1
 	# Directed contact art is independently visible and kick poses are animated.
 	for id in Dungeon.CONTACT_ICON_KIND:
 		var kind:String=view.directed_contact_kind(id,str(view.combat_profile(id).role))
