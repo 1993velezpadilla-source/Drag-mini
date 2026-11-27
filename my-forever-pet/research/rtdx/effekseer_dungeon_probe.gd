@@ -97,6 +97,21 @@ func run()->void:
 			backend.reset()
 		print("KINDRIA_HYBRID_COMPARISON ",id)
 	print("KINDRIA_HYBRID_COMPARISON_PASS 5")
+	# Mixed results must preserve secondary hit FX without a false primary hit.
+	var hit_effect:Resource=load("res://effects/sample-material3/ef_fire01.efkefc")
+	var mixed_id:String="lib_fire_2"
+	var other:Vector2i=origin+Vector2i.DOWN
+	assert(field.configure_native_fx({mixed_id:{"impact":{"effect":hit_effect,"scale":.4},"projectile_impact":{"effect":hit_effect,"scale":.4}}}))
+	field.combat_fx_spawn({"fx":mixed_id,"from":origin,"to":target,"path":[target],"tiles":[target,other],"results":{target:{"damage":0,"effects":0,"heal":0,"misses":1},other:{"damage":7,"effects":0,"heal":0}}})
+	assert(field.native_fx_backend.pending.size()==1,"one confirmed secondary impact")
+	var pending_hit:Dictionary=field.native_fx_backend.pending[0]
+	assert(pending_hit.track.stage=="impact")
+	var expected:Vector3=field.pos(other)
+	var actual:Vector3=pending_hit.points[-1]
+	assert(Vector2(actual.x,actual.z).distance_to(Vector2(expected.x,expected.z))<.001)
+	field.configure_native_fx({})
+	field.combat_bursts.clear()
+	print("KINDRIA_NATIVE_MIXED_OUTCOMES_PASS")
 	# Independent clocks, uneven segment distances, capacity and reuse.
 	var effect:Resource=load("res://effects/sample-material3/ef_fire01_projectile.efkefc")
 	var track:Dictionary={"enabled":true,"anchor":"path"}

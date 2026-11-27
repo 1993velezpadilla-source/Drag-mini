@@ -5895,9 +5895,26 @@ func schedule_native_cast(burst:Dictionary,enemy:bool,target:Vector2i)->void:
 	var results:Dictionary=burst.get("results",{})
 	var row:Dictionary=results.get(target,{})
 	var hit:bool=int(row.get("damage",0))+int(row.get("effects",0))+int(row.get("heal",0))>0
-	# Only explicit confirmed primary outcomes enable impact layers. The
-	# established renderer still handles all secondary/mixed-target outcomes.
-	native_fx_backend.call("schedule_cast",burst.presentation_tracks,bindings,burst.points,burst.tiles,float(burst.duration),enemy,hit)
+	# Resolve effects at each confirmed tile independently. A primary miss
+	# must not hide successful hits on other targets of a room-wide attack.
+	var primary_tiles:Array=[pos(target)+Vector3.UP*.12] if hit else []
+	native_fx_backend.call("schedule_cast",burst.presentation_tracks,bindings,burst.points,primary_tiles,float(burst.duration),enemy,hit)
+	var secondary_plan:Array=[]
+	for track in burst.presentation_tracks:
+		if str(track.stage) in ["impact","area"] and bool(track.enabled) and bindings.has(track.stage):
+			secondary_plan.append(track)
+	# Prefer localized impacts over duplicating a large area effect.
+	if secondary_plan.size()>1:
+		secondary_plan=secondary_plan.filter(func(track):return str(track.stage)=="impact")
+	if secondary_plan.is_empty():return
+	var extra:int=0
+	for tile in results:
+		if tile==target or extra>=4:continue
+		var other:Dictionary=results[tile]
+		if int(other.get("damage",0))+int(other.get("effects",0))+int(other.get("heal",0))<=0:continue
+		var secondary:Vector3=pos(tile)+Vector3.UP*combat_actor_socket(combat_target_actor(tile),"center")
+		native_fx_backend.call("schedule_cast",secondary_plan,bindings,[burst.points[0],secondary],[pos(tile)+Vector3.UP*.12],float(burst.duration),enemy,true)
+		extra+=1
 
 func combat_fx_spawn(event:Dictionary)->void:
 	if not is_instance_valid(combat_fx_root):return
