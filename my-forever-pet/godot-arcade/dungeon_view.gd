@@ -2045,7 +2045,7 @@ func enemy_shadow_sample(body_offset:Vector3,hover:float,parent_lift:float,size_
 	var footprint:float=size_multiplier*clampf(1.0-altitude*.65,.42,1.0)
 	return {"position":Vector3(body_offset.x,.035-parent_lift,body_offset.z),"scale":Vector3(footprint*(1.15 if wide else 1.0),footprint*.8,1.0)}
 
-func update_enemy_pixel(actor:Node3D,dt:float,motion:Vector3)->void:
+func update_enemy_pixel(actor:Node3D,dt:float,motion:Vector3,body_dt:float=-1.0)->void:
 	var sprite:=actor.get_node_or_null("EnemyPixel") as Sprite3D
 	if sprite==null:return
 	var state:String=actor.get_meta("enemy_phase","idle")
@@ -2086,14 +2086,17 @@ func update_enemy_pixel(actor:Node3D,dt:float,motion:Vector3)->void:
 		var offset:=cast_motion_offset(str(actor.get_meta("enemy_cast_motion","contact")),clock/maxf(.01,duration),float(actor.get_meta("enemy_cast_impact",.48)))
 		body_offset=actor.basis.inverse()*cast_offset_world(offset,cast_dir)
 		sprite.position+=body_offset
-	if state=="hurt" and not actor.get_meta("companion_disguise",false):
-		var hit_dir:Vector3=actor.get_meta("enemy_hit_direction",Vector3.ZERO)
+	if state=="hurt":
 		var reaction:=premium_hit_sample(clock/maxf(.01,duration))
-		body_offset=actor.basis.inverse()*hit_dir.normalized()*.32*float(reaction.recoil)
 		var squash:float=float(reaction.squash)
 		sprite.scale=Vector3(1.0/squash,squash,1.0)
-		sprite.position.y+=.54*size_multiplier*(squash-1.0)+float(reaction.lift)
-		sprite.position+=body_offset
+		sprite.position.y+=.54*size_multiplier*(squash-1.0)
+		# A transformed companion already receives displacement and lift on its root.
+		if not actor.get_meta("companion_disguise",false):
+			var hit_dir:Vector3=actor.get_meta("enemy_hit_direction",Vector3.ZERO)
+			body_offset=actor.basis.inverse()*hit_dir.normalized()*.32*float(reaction.recoil)
+			sprite.position.y+=float(reaction.lift)
+			sprite.position+=body_offset
 	var shadow:=actor.get_node_or_null("EnemyContactShadow") as MeshInstance3D
 	if shadow!=null:
 		var parent_lift:float=actor.position.y if actor.get_meta("companion_disguise",false) else 0.0
@@ -2115,11 +2118,11 @@ func update_enemy_pixel(actor:Node3D,dt:float,motion:Vector3)->void:
 		actor.set_meta("enemy_visual_phase",sample.phase)
 	else:actor.set_meta("enemy_visual_phase",state)
 	var statuses:Array=actor.get_meta("living_statuses",[])
-	var living:=living_body_sample(actor,statuses,dt,state in ["idle","walk","recover"])
+	var living:=living_body_sample(actor,statuses,dt if body_dt<0.0 else body_dt,state in ["idle","walk","recover"])
 	if float(living.sleep)>.66 and state in ["idle","walk","recover"]:
 		# Dedicated living sleep cell, never the terminal defeat silhouette.
 		visual_state="sleep";frame=0
-	if state in ["idle","walk","recover"] and (not statuses.is_empty() or float(living.sleep)>.001):
+	if state in ["idle","walk","recover"] and bool(living.active):
 		var stretch:float=float(living.stretch)
 		sprite.scale=Vector3(float(living.width),stretch,1.0)
 		sprite.position.y=lerpf(.54*size_multiplier+rise,.54*size_multiplier*stretch,float(living.sleep))+.54*size_multiplier*(stretch-1.0)*(1.0-float(living.sleep))
@@ -2137,7 +2140,9 @@ func update_enemy_pixel(actor:Node3D,dt:float,motion:Vector3)->void:
 		var biome:Color=[Color("#d5e6b5"),Color("#9be3e8"),Color("#c3c5ff")][region]
 		material.set_shader_parameter("biome_tint",biome.lerp(living.tint,float(living.tint_weight)))
 		material.set_shader_parameter("ambient_strength",.15+.38*float(living.tint_weight))
-	else:sprite.modulate=Color("#ffb5c6") if state=="hurt" else Color.WHITE.lerp(living.tint,float(living.tint_weight))
+	else:
+		var base_tint:Color=Color.WHITE.lerp(living.tint,float(living.tint_weight))
+		sprite.modulate=base_tint.lerp(Color("#ffb5c6"),float(premium_hit_sample(clock/maxf(.01,duration)).flash)) if state=="hurt" else base_tint
 # Lightweight reusable pixel VFX: no per-frame node allocation, no camera-facing 3D creatures.
 func combat_fx_setup(parent:Node3D)->void:
 	for sound in fx_audio:
@@ -2363,10 +2368,12 @@ func ultra_reaction_particles(dt:float,used:int)->int:
 # movement or damage values are modified.
 func premium_hit_sample(progress:float)->Dictionary:
 	var t:float=clampf(progress,0.0,1.0)
+	# Fast contact, then damped elastic recovery; exact neutral endpoints.
+	var envelope:float=sin(t*PI)*sin(t*PI)
 	var recoil:float=sin(t*PI)*pow(1.0-t,.65)
 	var squash:float=1.0-.21*sin(t*PI*1.7)*pow(1.0-t,1.4)
 	var flash:float=.66*pow(1.0-t,3.0)
-	return {"recoil":recoil,"squash":squash,"flash":flash,"lift":sin(t*PI)*.09}
+	return {"recoil":recoil,"squash":squash,"flash":flash,"lift":envelope*.09,"tilt":sin(t*TAU*2.0)*envelope*.09}
 
 func ultra_update_residues(dt:float,used:int)->int:
 	for i in range(fx_residues.size()-1,-1,-1):
@@ -6235,7 +6242,23 @@ func living_body_sample(actor:Node3D,statuses:Array,dt:float,resting:bool)->Dict
 	if "nightmare" in statuses:
 		tint=Color("#a28ac8");weight=.48
 		if resting:sway+=.035*sin(phase*5.0)
-	return {"sleep":sleep,"stretch":stretch,"width":width,"sway":sway,"tint":tint,"tint_weight":weight}
+	# Fade the body and color independently from the discrete turn status.
+	# A cure must not snap a compressed or tinted creature back to neutral.
+	var blend:float=1.0-exp(-maxf(dt,0.0)*18.0)
+	var old:Dictionary=actor.get_meta("living_body_envelope",{"stretch":1.0,"width":1.0,"sway":0.0,"color":Color.WHITE})
+	var target_color:Color=Color.WHITE.lerp(tint,weight)
+	var smooth_stretch:float=lerpf(float(old.stretch),stretch,blend)
+	var smooth_width:float=lerpf(float(old.width),width,blend)
+	var smooth_sway:float=lerpf(float(old.sway),sway,blend)
+	var smooth_color:Color=Color(old.color).lerp(target_color,blend)
+	var active:bool=not statuses.is_empty() or sleep>.001 or absf(smooth_stretch-1.0)>.001 or absf(smooth_width-1.0)>.001 or absf(smooth_sway)>.001 or not smooth_color.is_equal_approx(Color.WHITE)
+	if statuses.is_empty() and sleep<=.001 and absf(smooth_stretch-1.0)<.001 and absf(smooth_width-1.0)<.001 and absf(smooth_sway)<.001 and absf(smooth_color.r-1.0)<.002 and absf(smooth_color.g-1.0)<.002 and absf(smooth_color.b-1.0)<.002:
+		smooth_stretch=1.0;smooth_width=1.0;smooth_sway=0.0;smooth_color=Color.WHITE;active=false
+	actor.set_meta("living_body_envelope",{"stretch":smooth_stretch,"width":smooth_width,"sway":smooth_sway,"color":smooth_color})
+	var color_weight:float=maxf(1.0-smooth_color.r,maxf(1.0-smooth_color.g,1.0-smooth_color.b))
+	# Preserve the existing tint/weight API: reconstruct the equivalent color.
+	var normalized_tint:Color=Color.WHITE if color_weight<.00001 else Color.WHITE.lerp(smooth_color,1.0/color_weight)
+	return {"sleep":sleep,"stretch":smooth_stretch,"width":smooth_width,"sway":smooth_sway,"tint":normalized_tint,"tint_weight":color_weight,"active":active}
 
 func living_enemy_statuses(e:Dictionary)->Array:
 	var result:Array=[]
@@ -7836,10 +7859,11 @@ func update_disguise(dt:float,motion:Vector2,moving:bool,pose:String)->void:
 	disguise_actor.visible=pet_pose.visible
 	pet_pose.hide()
 	disguise_actor.position=pet_pose.position
+	disguise_actor.rotation.z=pet_pose.rotation.z
 	disguise_actor.set_meta("living_statuses",living_player_statuses())
 	disguise_actor.set_meta("enemy_facing",PixelArt.direction8_for(motion,int(disguise_actor.get_meta("enemy_facing",0))))
 	var synchronized:bool=sync_disguise_pose(disguise_actor,pose,motion)
-	update_enemy_pixel(disguise_actor,0.0 if synchronized else dt,Vector3(motion.x,0,motion.y) if moving else Vector3.ZERO)
+	update_enemy_pixel(disguise_actor,0.0 if synchronized else dt,Vector3(motion.x,0,motion.y) if moving else Vector3.ZERO,dt)
 
 func advance_player_combat_clock(dt:float)->void:
 	attack_time=maxf(0.0,attack_time-dt)
@@ -7931,7 +7955,7 @@ func _process(dt:float):
 	else:attack_fx.hide()
 	if hit_time>0.0:
 		var reaction:=premium_hit_sample(1.0-hit_time/.24)
-		pet_pose.rotation.z+=sin(hit_time*45.0)*.07
+		pet_pose.rotation.z+=float(reaction.tilt)
 		pet_pose.position+=pet.basis.inverse()*player_hit_direction*.32*float(reaction.recoil)
 		pet_pose.position.y+=float(reaction.lift)
 	if attack_time>0.0:motion=Vector2(attack_direction.x,attack_direction.z)
@@ -7959,7 +7983,7 @@ func _process(dt:float):
 			companion_sprite.scale=Vector3(1.0/squash,squash,1.0)
 			companion_sprite.position.y=float(companion_sprite.get_meta("world_height"))*.5*squash
 			companion_sprite.modulate=Color.WHITE.lerp(Color("#ffc5bc"),float(sample.flash))
-	if pose in ["idle","sleep"] and not moving and (not player_statuses.is_empty() or float(player_living.sleep)>.001):
+	if pose in ["idle","sleep"] and not moving and bool(player_living.active):
 		var resting_sprite:=pet_pose.get_node_or_null("PixelCompanion") as Sprite3D
 		if resting_sprite!=null:
 			var stretch:float=float(player_living.stretch)
