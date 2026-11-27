@@ -2247,9 +2247,17 @@ func update_enemy_pixel(actor:Node3D,dt:float,motion:Vector3,body_dt:float=-1.0)
 	# Return to a neutral cell before allowing an independent idle gesture.
 	if state=="idle" and idle_weight>=.8 and can_blink and fatigue.z<.65 and not bool(living.active) and species in PixelArt.ENEMY_IDLE_APPENDAGES:
 		appendage=creature_appendage_sample(species,elapsed,actor.get_instance_id())
-	var tex:=PixelArt.enemy_pixel_texture(species,facing_index,visual_state,frame,blink,appendage)
-	var texture_changed:bool=tex!=null and sprite.texture!=tex
-	if texture_changed:sprite.texture=tex
+	# Most rendered frames keep the same authored cell. Avoid repeated string
+	# formatting and texture-cache queries until one of its discrete inputs changes.
+	var cell_signature:=Vector4i(facing_index,frame,int(blink),appendage)
+	var texture_changed:bool=false
+	if str(actor.get_meta("native_cell_pose",""))!=visual_state or actor.get_meta("native_cell_signature",Vector4i(-1,-1,-1,-1))!=cell_signature:
+		var tex:=PixelArt.enemy_pixel_texture(species,facing_index,visual_state,frame,blink,appendage)
+		if tex!=null:
+			texture_changed=sprite.texture!=tex
+			if texture_changed:sprite.texture=tex
+			actor.set_meta("native_cell_pose",visual_state)
+			actor.set_meta("native_cell_signature",cell_signature)
 	if sprite.material_override is ShaderMaterial:
 		var material:=sprite.material_override as ShaderMaterial
 		if texture_changed:material.set_shader_parameter("sprite_tex",sprite.texture)
@@ -6341,10 +6349,13 @@ func combat_fx_update(dt:float)->void:
 func environment_particle(index:int,position:Vector3,mode:String,light:Color,dark:Color,scale_value:float,alpha:float,flat:bool=false,status_layer:bool=false)->int:
 	if index>=mini(combat_particles.size(),FX_PARTICLE_CAP+LIVING_PARTICLE_CAP if status_layer else FX_PARTICLE_CAP):return index
 	var particle:Sprite3D=combat_particles[index]
-	particle.billboard=BaseMaterial3D.BILLBOARD_DISABLED if flat else BaseMaterial3D.BILLBOARD_ENABLED
-	particle.rotation=Vector3(-PI*.5,0,0) if flat else Vector3.ZERO
+	var billboard_mode:int=BaseMaterial3D.BILLBOARD_DISABLED if flat else BaseMaterial3D.BILLBOARD_ENABLED
+	if particle.billboard!=billboard_mode:particle.billboard=billboard_mode
+	var orientation:=Vector3(-PI*.5,0,0) if flat else Vector3.ZERO
+	if particle.rotation!=orientation:particle.rotation=orientation
 	particle.position=position
-	particle.texture=combat_pixel_texture(mode,light,dark)
+	var texture:=combat_pixel_texture(mode,light,dark)
+	if particle.texture!=texture:particle.texture=texture
 	particle.scale=Vector3.ONE*scale_value
 	particle.modulate=Color(1,1,1,clampf(alpha,0.0,1.0))
 	particle.show()
@@ -6453,7 +6464,12 @@ func living_sleep_glyphs(actor:Node3D,sleeping:bool,height:float)->void:
 		glyph.scale=Vector3.ONE*(.55+t*.7)
 		glyph.modulate=Color(.68,.86,1.0,sin(t*PI))
 
+var living_palette_cache:Dictionary={}
 func living_status_palette(kind:String)->Array:
+	if not living_palette_cache.has(kind):living_palette_cache[kind]=build_living_status_palette(kind)
+	return living_palette_cache[kind]
+
+func build_living_status_palette(kind:String)->Array:
 	match kind:
 		"poison","badly_poisoned","toxic","bad_poison":return ["bubble","#c59bf7","#6838a9",8]
 		"burn":return ["flame","#ffd489","#bd492d",7]
@@ -6549,14 +6565,23 @@ func living_status_fx()->void:
 	var used:int=FX_PARTICLE_CAP
 	var entries:Array[Dictionary]=[]
 	if is_instance_valid(pet):
-		entries.append({"actor":pet,"statuses":living_player_statuses(),"height":1.08})
+		var player_states:Array=living_player_statuses()
+		if not player_states.is_empty():entries.append({"actor":pet,"statuses":player_states,"height":1.08})
+		else:living_sleep_glyphs(pet,false,1.08)
 	for key in actor_nodes.keys():
 		if not str(key).begins_with("enemy:"):continue
 		var actor:=actor_nodes[key] as Node3D
 		if not is_instance_valid(actor) or actor.is_queued_for_deletion():continue
 		var statuses:Array=actor.get_meta("living_statuses",[])
 		if not actor.visible or str(actor.get_meta("enemy_phase",""))=="defeat":statuses=[]
+		if statuses.is_empty():
+			living_sleep_glyphs(actor,false,1.12)
+			continue
 		entries.append({"actor":actor,"statuses":statuses,"height":1.12*float(actor.get_meta("enemy_size_multiplier",1.0))})
+	if entries.is_empty():
+		for j in range(used,combat_particles.size()):
+			if combat_particles[j].visible:combat_particles[j].hide()
+		return
 	var demands:Array[int]=[]
 	for entry in entries:
 		var demand:int=0
@@ -6569,7 +6594,8 @@ func living_status_fx()->void:
 		var entry:Dictionary=entries[i]
 		# Even a zero-budget actor updates its independent sleep glyphs.
 		used=living_actor_particles(entry.actor,entry.statuses,used,float(entry.height),budgets[i])
-	for j in range(used,combat_particles.size()):combat_particles[j].hide()
+	for j in range(used,combat_particles.size()):
+		if combat_particles[j].visible:combat_particles[j].hide()
 
 func travel_environment_fx(burst:Dictionary,t:float,used:int)->int:
 	var id:String=str(burst.id)
