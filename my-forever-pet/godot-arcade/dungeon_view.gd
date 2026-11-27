@@ -2071,10 +2071,11 @@ func creature_idle_sample(species:String,seconds:float,seed:float,weight:float,h
 func creature_appendage_sample(species:String,seconds:float,seed:int)->int:
 	var phase_offset:float=float(posmod(seed,97))*.173
 	var clock:float=maxf(0.0,seconds)+phase_offset
-	if species in ["reef_pup","tidal_sovereign","anemoneye","abyss_colossus","jellymancer","celestial_guardian"]:
-		var frequency:float=1.4 if species=="celestial_guardian" else .85
+	if species in ["reef_pup","tidal_sovereign","anemoneye","abyss_colossus","jellymancer","celestial_guardian","eelstrix","marrowray","orbitserpent","leviathorn","nova_wisp","leafwisp","bubblewisp","astro_golem"]:
+		var frequency:float=1.4 if species=="celestial_guardian" else .55 if species in ["astro_golem","orbitserpent"] else .85
 		return [0,1,0,2][posmod(floori(clock*frequency*4.0),4)]
 	var period:float=2.2+float(posmod(seed,11))*.19
+	if species in ["grovetitan","crystarok","shellguard","fungal_monarch"]:period+=1.5
 	var phase:float=fposmod(clock,period)
 	if phase<.18:return 1
 	if phase<.36:return 2
@@ -2195,7 +2196,8 @@ func update_enemy_pixel(actor:Node3D,dt:float,motion:Vector3,body_dt:float=-1.0)
 	var blink:bool=can_blink and creature_blink_sample(elapsed,actor.get_instance_id(),species)
 	# Short asynchronous gestures for land creatures; aquatic appendages cycle.
 	var appendage:int=0
-	if state=="idle" and can_blink and species in PixelArt.ENEMY_IDLE_APPENDAGES:
+	# Return to a neutral cell before allowing an independent idle gesture.
+	if state=="idle" and idle_weight>=.8 and can_blink and not bool(living.active) and species in PixelArt.ENEMY_IDLE_APPENDAGES:
 		appendage=creature_appendage_sample(species,elapsed,actor.get_instance_id())
 	var tex:=PixelArt.enemy_pixel_texture(species,facing_index,visual_state,frame,blink,appendage)
 	if tex!=null and sprite.texture!=tex:sprite.texture=tex
