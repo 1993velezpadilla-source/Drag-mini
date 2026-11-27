@@ -2963,6 +2963,48 @@ func support_contact_stamp(mode:String,light:Color,dark:Color)->Image:
 			if d<=0.0:im.set_pixel(x,y,light if d<-.8 else dark)
 	return im
 
+# Creature wings, pointed beaks, open palms and chop marks. These are not
+# human-leg sprites, and differ from the closed fist or claw silhouettes.
+func motion_contact_stamp(mode:String,light:Color,dark:Color)->Image:
+	var im:=Image.create(32,32,false,Image.FORMAT_RGBA8)
+	im.fill(Color.TRANSPARENT)
+	var shape:String=mode.trim_prefix("motion_").trim_suffix("_mirror")
+	for y in range(32):
+		for x in range(32):
+			var p:=Vector2(float(x)-15.5,float(y)-15.5)
+			if mode.ends_with("_mirror"):p.x=-p.x
+			var d:float=99.0
+			match shape:
+				"wing":
+					var u:float=(p.x+12.0)/25.0
+					var axis:float=-5.0*sin(clampf(u,0.0,1.0)*PI)
+					if u>=0.0 and u<=1.0:
+						d=absf(p.y-axis)-maxf(.9,8.0*sin(u*PI))
+						if p.y>axis and absf(fposmod(p.x+p.y*.30,5.0)-2.5)<.65:d=maxf(d,.25)
+				"beak":
+					var u:float=(p.x+11.0)/24.0
+					if u>=0.0 and u<=1.0:
+						d=absf(p.y+2.0*u)-(6.0*(1.0-u)+.4)
+						if absf(p.y+2.0*u)<.65:d=maxf(d,.2)
+				"palm":
+					d=Vector2(p.x*.85,(p.y-3.0)*1.1).length()-6.5
+					for j in range(4):
+						var finger_x:float=-5.7+float(j)*3.8
+						var finger_top:float=-10.0+absf(float(j)-1.5)*1.8
+						var finger:float=maxf(absf(p.x-finger_x)-1.45,maxf(finger_top-p.y,p.y-1.0))
+						d=minf(d,finger)
+					d=minf(d,Vector2(p.x+7.8,(p.y-2.0)*.70).length()-2.5)
+				"chop":
+					var a:Vector2=p.rotated(.75)
+					d=maxf(absf(a.x)-2.1,absf(a.y)-11.0)
+				"cross":
+					d=minf(maxf(absf(p.x-p.y)-2.0,absf(p.x+p.y)-16.0),maxf(absf(p.x+p.y)-2.0,absf(p.x-p.y)-16.0))
+				_:
+					d=absf(p.x-(8.0-absf(p.y)*.78))-2.6
+					if absf(p.y)>12.0:d=99.0
+			if d<=0.0:im.set_pixel(x,y,light if d<-.8 else dark)
+	return im
+
 func combat_pixel_texture(mode:String,light:Color,dark:Color)->ImageTexture:
 	var key:=mode+":"+str(light)+":"+str(dark)
 	if combat_textures.has(key):return combat_textures[key]
@@ -2970,6 +3012,11 @@ func combat_pixel_texture(mode:String,light:Color,dark:Color)->ImageTexture:
 	# of resident material variants even in an endless developer dungeon.
 	if combat_texture_order.size()>=FX_MATERIAL_CACHE_CAP:
 		combat_textures.erase(combat_texture_order.pop_front())
+	if mode.begins_with("motion_"):
+		var motion_stamp:=ImageTexture.create_from_image(motion_contact_stamp(mode,light,dark))
+		combat_textures[key]=motion_stamp
+		combat_texture_order.append(key)
+		return motion_stamp
 	if mode.begins_with("support_"):
 		var support_stamp:=ImageTexture.create_from_image(support_contact_stamp(mode,light,dark))
 		combat_textures[key]=support_stamp
@@ -7013,7 +7060,7 @@ func environment_particle(index:int,position:Vector3,mode:String,light:Color,dar
 	particle.rotation=Vector3(-PI*.5,0,0) if flat else Vector3.ZERO
 	particle.position=position
 	particle.texture=combat_pixel_texture(mode,light,dark)
-	particle.pixel_size=.016 if mode.begins_with("kick_") or mode.begins_with("claw_") or mode.begins_with("body_") or mode.begins_with("special_") or mode.begins_with("projectile_") or mode.begins_with("support_") else .032
+	particle.pixel_size=.016 if mode.begins_with("kick_") or mode.begins_with("claw_") or mode.begins_with("body_") or mode.begins_with("special_") or mode.begins_with("projectile_") or mode.begins_with("support_") or mode.begins_with("motion_") else .032
 	particle.scale=Vector3.ONE*scale_value
 	particle.modulate=Color(1,1,1,clampf(alpha,0.0,1.0))
 	particle.show()
@@ -7883,6 +7930,51 @@ func support_contact_fx(burst:Dictionary,t:float,used:int)->int:
 			used=environment_particle(used,accent,str(art[1]),light,dark,.34,(1.0-age)*.8)
 	return used
 
+# V12 audit follow-up: uncovered aerial and open-hand impacts.
+const MOTION_CONTACT_ART={"eos_100":["wing","dive",1.12,"slash"],"eos_153":["wing","dive",0.91,"cloud"],"eos_205":["crest","bounce",1,"shock_ring"],"eos_179":["wing","sweep",0.83,"slash"],"eos_518":["wing","dive",1.2,"flame"],"eos_211":["beak","drill",1.02,"shards"],"eos_174":["beak","jab",0.65,"impact_star"],"eos_490":["beak","jab",0.75,"leaf"],"eos_178":["wing","sweep",0.88,"cloud"],"eos_244":["wing","sweep",1,"shards"],"eos_477":["crest","vanish",1.1,"smoke"],"eos_132":["crest","rush",1.05,"slash"],"eos_190":["crest","rush",0.68,"slash"],"eos_226":["palm","jab",0.65,"impact_star"],"eos_039":["palm","multi",0.72,"impact_star"],"eos_175":["palm","multi",0.82,"shock_ring"],"eos_531":["palm","sweep",0.85,"impact_star"],"eos_507":["palm","jab",1,"shock_ring"],"eos_068":["chop","down",0.8,"slash"],"eos_072":["chop","down",1.05,"shards"],"eos_090":["cross","down",1.05,"slash"],"eos_243":["crest","rush",1.18,"shock_ring"],"eos_440":["palm","rush",1.08,"impact_star"],"eos_170":["crest","toss",1.1,"shock_ring"],"eos_311":["beak","multi",0.74,"impact_star"],"eos_487":["palm","multi",0.83,"impact_star"],"eos_250":["palm","down",0.78,"impact_star"],"eos_432":["crest","rush",0.85,"drop"],"eos_451":["crest","vanish",0.78,"smoke"],"eos_498":["crest","rush",1.15,"flame"],"eos_502":["wing","sweep",0.8,"leaf"],"lib_fighting_1":["palm","jab",0.83,"shock_ring"],"alt_sylphowl":["wing","sweep",0.78,"slash"],"alt_lunamoth":["wing","sweep",0.9,"impact_star"]}
+
+func motion_contact_art(id:String)->Array:
+	return MOTION_CONTACT_ART.get(id,[])
+
+func motion_contact_fx(id:String,source:Vector3,target:Vector3,age:float,used:int,light:Color,dark:Color,hits:int=1)->int:
+	var art:Array=motion_contact_art(id)
+	if art.is_empty() or age<0.0 or age>=.82:return used
+	var t:float=age/.82
+	var kind:String=str(art[1])
+	var repetitions:int=clampi(hits,1,5) if kind=="multi" else 1
+	var cycle:float=t*float(repetitions)
+	var p:float=fposmod(cycle,1.0)
+	var side_sign:float=1.0 if int(cycle)%2==0 else -1.0
+	var forward:Vector3=target-source
+	forward.y=0.0
+	if forward.length_squared()<.0001:forward=Vector3.FORWARD
+	forward=forward.normalized()
+	var side:Vector3=forward.cross(Vector3.UP)
+	var contact:float=smoothstep(0.0,.30,p)
+	var center:Vector3=target+Vector3.UP*.08
+	var q:Vector3=center-forward*.40*(1.0-contact)
+	match kind:
+		"dive","down":q.y+=.65*(1.0-contact)
+		"bounce","toss":q.y+=.75*(1.0-contact)+sin(p*PI)*.12
+		"sweep":q+=side*(contact-.5)*.55
+		"rush":q-=forward*.28*(1.0-contact)
+		"multi":q+=side*side_sign*.21
+		"drill":q+=side*sin(p*TAU*3.0)*.11
+		"vanish":q+=side*.22*(1.0-contact)
+	var mode:String="motion_"+str(art[0])
+	if is_instance_valid(camera) and forward.dot(camera.global_basis.x)<0.0:mode+="_mirror"
+	var size:float=float(art[2])*(.88+.26*sin(p*PI))
+	var alpha:float=1.0-smoothstep(.60,1.0,t)
+	if kind=="multi":alpha*=1.0-smoothstep(.82,1.0,p)
+	if used>=mini(FX_PARTICLE_CAP,combat_particles.size()):return used
+	used=environment_particle(used,q,mode,light,dark,size,alpha)
+	if p>=.18:
+		var accent:Vector3=center+side*side_sign*.22+Vector3.UP*p*.16
+		used=environment_particle(used,accent,str(art[3]),light,dark,size*.62,alpha*.84)
+		if kind in ["vanish","drill","rush","dive"]:
+			used=environment_particle(used,q-forward*.21,mode,light,dark,size*.72,alpha*.30)
+	return used
+
 func element_finish_fx(burst:Dictionary,t:float,used:int)->int:
 	var id:String=str(burst.id)
 	var profile:Dictionary=burst.profile
@@ -7922,6 +8014,7 @@ func element_finish_fx(burst:Dictionary,t:float,used:int)->int:
 			used=kick_contact_fx(id,from,target,age,used,light,dark,int(row.get("hits",1)))
 			used=claw_contact_fx(id,from,target,age,used,light,dark,int(row.get("hits",1)))
 			used=body_contact_fx(id,from,target,age,used,light,dark,int(row.get("hits",1)))
+			used=motion_contact_fx(id,from,target,age,used,light,dark,int(row.get("hits",1)))
 		if primary_miss:
 			used=environment_particle(used,target,"cloud",light,dark,.32+age*.18,fade*.35)
 		elif age<.30:
@@ -7938,6 +8031,7 @@ func element_finish_fx(burst:Dictionary,t:float,used:int)->int:
 			if not status:used=kick_contact_fx(id,from,q,age,used,light,dark,int(other.get("hits",1)))
 			if not status:used=claw_contact_fx(id,from,q,age,used,light,dark,int(other.get("hits",1)))
 			if not status:used=body_contact_fx(id,from,q,age,used,light,dark,int(other.get("hits",1)))
+			if not status:used=motion_contact_fx(id,from,q,age,used,light,dark,int(other.get("hits",1)))
 			used=environment_particle(used,q,"bubble" if status else "impact_star",light,dark,.45+age*.38,fade)
 			extra+=1
 		# A miss at the selected tile must not hide hits on other tiles.
