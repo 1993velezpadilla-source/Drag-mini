@@ -9,77 +9,209 @@
           "name": "Bramble Pup",
           "gait": "quadruped_bound",
           "attack": "Briar Pounce",
-          "combat_class": 0
+          "combat_class": 0,
+          "palette": {
+            "dark": "#635638",
+            "mid": "#83934d",
+            "light": "#b8cf73",
+            "accent_gold": "#e0a34c",
+            "faction_purple": "#69329b",
+            "magic_magenta": "#f78dda"
+          },
+          "material": "bark, thorn and leaf",
+          "silhouette": "low four-legged stalker",
+          "personality": "sniffs, then lunges",
+          "art_status": "unapproved"
         },
         {
           "id": "sporeling",
           "name": "Sporeling",
           "gait": "mushroom_stem_steps",
           "attack": "Spore Puff",
-          "combat_class": 1
+          "combat_class": 1,
+          "palette": {
+            "dark": "#53602f",
+            "mid": "#97b65a",
+            "light": "#f2d6a0",
+            "accent_gold": "#e0a34c",
+            "faction_purple": "#69329b",
+            "magic_magenta": "#f78dda"
+          },
+          "material": "moss cap and gills",
+          "silhouette": "wide cap, two stubby roots",
+          "personality": "nervous spore sneeze",
+          "art_status": "unapproved"
         },
         {
           "id": "thornbeetle",
           "name": "Thornbeetle",
           "gait": "six_leg_tripod",
           "attack": "Thorn Ram",
-          "combat_class": 2
+          "combat_class": 2,
+          "palette": {
+            "dark": "#53422d",
+            "mid": "#ab9255",
+            "light": "#799647",
+            "accent_gold": "#e0a34c",
+            "faction_purple": "#69329b",
+            "magic_magenta": "#f78dda"
+          },
+          "material": "chitin, bark",
+          "silhouette": "low six-legged beetle",
+          "personality": "stubborn head ram",
+          "art_status": "unapproved"
         },
         {
           "id": "leafwisp",
           "name": "Leafwisp",
           "gait": "leaf_flutter",
           "attack": "Leaf Dart",
-          "combat_class": 1
+          "combat_class": 1,
+          "palette": {
+            "dark": "#527e42",
+            "mid": "#a9d36c",
+            "light": "#dbe88e",
+            "accent_gold": "#e0a34c",
+            "faction_purple": "#69329b",
+            "magic_magenta": "#f78dda"
+          },
+          "material": "leaves and sap",
+          "silhouette": "three asymmetric leaves",
+          "personality": "curious flutter",
+          "art_status": "unapproved"
         },
         {
           "id": "rootgnawer",
           "name": "Rootgnawer",
           "gait": "boar_trot",
           "attack": "Root Tusk",
-          "combat_class": 0
+          "combat_class": 0,
+          "palette": {
+            "dark": "#5b4835",
+            "mid": "#a18a60",
+            "light": "#d0b77c",
+            "accent_gold": "#e0a34c",
+            "faction_purple": "#69329b",
+            "magic_magenta": "#f78dda"
+          },
+          "material": "bristles, tusks, mud",
+          "silhouette": "stocky boar, short legs",
+          "personality": "impatient hoof scrape",
+          "art_status": "unapproved"
         },
         {
           "id": "vinesnap",
           "name": "VineSnap",
           "gait": "root_pull",
           "attack": "Snap Vine",
-          "combat_class": 2
+          "combat_class": 2,
+          "palette": {
+            "dark": "#38502c",
+            "mid": "#759343",
+            "light": "#d8a366",
+            "accent_gold": "#e0a34c",
+            "faction_purple": "#69329b",
+            "magic_magenta": "#f78dda"
+          },
+          "material": "vine and pitcher petals",
+          "silhouette": "rooted pitcher with open jaws",
+          "personality": "snaps at movement",
+          "art_status": "unapproved"
         },
         {
           "id": "mossmite",
           "name": "Mossmite",
           "gait": "rock_roll",
           "attack": "Moss Crash",
-          "combat_class": 0
+          "combat_class": 0,
+          "palette": {
+            "dark": "#505646",
+            "mid": "#929c70",
+            "light": "#c5c4a5",
+            "accent_gold": "#e0a34c",
+            "faction_purple": "#69329b",
+            "magic_magenta": "#f78dda"
+          },
+          "material": "moss on stone",
+          "silhouette": "rolling uneven boulder",
+          "personality": "shy curls into ball",
+          "art_status": "unapproved"
         },
         {
           "id": "sylphowl",
           "name": "Sylphowl",
           "gait": "owl_flap",
           "attack": "Feather Needle",
-          "combat_class": 1
+          "combat_class": 1,
+          "palette": {
+            "dark": "#514635",
+            "mid": "#b9a77c",
+            "light": "#dcd7a9",
+            "accent_gold": "#e0a34c",
+            "faction_purple": "#69329b",
+            "magic_magenta": "#f78dda"
+          },
+          "material": "feathers, leaf tips",
+          "silhouette": "wide owl wings and upright head",
+          "personality": "suspicious head tilt",
+          "art_status": "unapproved"
         },
         {
           "id": "hollow_stag",
           "name": "Hollow Stag",
           "gait": "deer_prance",
           "attack": "Antler Sweep",
-          "combat_class": 2
+          "combat_class": 2,
+          "palette": {
+            "dark": "#634e3b",
+            "mid": "#b2a07d",
+            "light": "#dcce9a",
+            "accent_gold": "#e0a34c",
+            "faction_purple": "#69329b",
+            "magic_magenta": "#f78dda"
+          },
+          "material": "wood and antlers",
+          "silhouette": "tall slender stag",
+          "personality": "proud antler display",
+          "art_status": "unapproved"
         },
         {
           "id": "grovetitan",
           "name": "Grovetitan",
           "gait": "tree_biped_stride",
           "attack": "Timber Slam",
-          "combat_class": 2
+          "combat_class": 2,
+          "palette": {
+            "dark": "#493d2a",
+            "mid": "#7c8f48",
+            "light": "#b4bd78",
+            "accent_gold": "#e0a34c",
+            "faction_purple": "#69329b",
+            "magic_magenta": "#f78dda"
+          },
+          "material": "old bark and canopy",
+          "silhouette": "trunk with articulated arms",
+          "personality": "slow protective stomp",
+          "art_status": "unapproved"
         },
         {
           "id": "fungal_monarch",
           "name": "Fungal Monarch",
           "gait": "mycelial_tripod",
           "attack": "Spore Crown",
-          "combat_class": 3
+          "combat_class": 3,
+          "palette": {
+            "dark": "#61452d",
+            "mid": "#c09a60",
+            "light": "#e3d4a1",
+            "accent_gold": "#e0a34c",
+            "faction_purple": "#69329b",
+            "magic_magenta": "#f78dda"
+          },
+          "material": "layered fungi and mycelium",
+          "silhouette": "three root legs and broad crown",
+          "personality": "ceremonial spore cloud",
+          "art_status": "unapproved"
         }
       ]
     },
@@ -91,77 +223,209 @@
           "name": "Reef Pup",
           "gait": "fish_tail_swim",
           "attack": "Reef Bite",
-          "combat_class": 0
+          "combat_class": 0,
+          "palette": {
+            "dark": "#275b78",
+            "mid": "#54a7b4",
+            "light": "#b6e8d9",
+            "accent_gold": "#e0a34c",
+            "faction_purple": "#69329b",
+            "magic_magenta": "#f78dda"
+          },
+          "material": "scales and translucent fins",
+          "silhouette": "small fish, no feet",
+          "personality": "quick dart and bite",
+          "art_status": "unapproved"
         },
         {
           "id": "jellymancer",
           "name": "Jellymancer",
           "gait": "bell_jet_pulse",
           "attack": "Sting Pulse",
-          "combat_class": 1
+          "combat_class": 1,
+          "palette": {
+            "dark": "#437e96",
+            "mid": "#83c8d3",
+            "light": "#e0f9f1",
+            "accent_gold": "#e0a34c",
+            "faction_purple": "#69329b",
+            "magic_magenta": "#f78dda"
+          },
+          "material": "gel and tentacles",
+          "silhouette": "bell and trailing tendrils",
+          "personality": "rhythmic sting pulse",
+          "art_status": "unapproved"
         },
         {
           "id": "shellguard",
           "name": "Shellguard",
           "gait": "turtle_paddle",
           "attack": "Shell Bash",
-          "combat_class": 2
+          "combat_class": 2,
+          "palette": {
+            "dark": "#416b69",
+            "mid": "#a4b792",
+            "light": "#e4ddbd",
+            "accent_gold": "#e0a34c",
+            "faction_purple": "#69329b",
+            "magic_magenta": "#f78dda"
+          },
+          "material": "shell and flippers",
+          "silhouette": "flat shelled swimmer",
+          "personality": "withdraws before bash",
+          "art_status": "unapproved"
         },
         {
           "id": "bubblewisp",
           "name": "Bubblewisp",
           "gait": "bubble_buoyancy",
           "attack": "Bubble Shot",
-          "combat_class": 1
+          "combat_class": 1,
+          "palette": {
+            "dark": "#28738e",
+            "mid": "#65cdd9",
+            "light": "#e3ffff",
+            "accent_gold": "#e0a34c",
+            "faction_purple": "#69329b",
+            "magic_magenta": "#f78dda"
+          },
+          "material": "bubble membranes",
+          "silhouette": "cluster of three bubbles",
+          "personality": "playful burst",
+          "art_status": "unapproved"
         },
         {
           "id": "eelstrix",
           "name": "Eelstrix",
           "gait": "eel_wave_swim",
           "attack": "Static Lash",
-          "combat_class": 0
+          "combat_class": 0,
+          "palette": {
+            "dark": "#21495f",
+            "mid": "#4ba5ad",
+            "light": "#c4e0bd",
+            "accent_gold": "#e0a34c",
+            "faction_purple": "#69329b",
+            "magic_magenta": "#f78dda"
+          },
+          "material": "smooth scales and gills",
+          "silhouette": "long tapered eel",
+          "personality": "coils before tail lash",
+          "art_status": "unapproved"
         },
         {
           "id": "coralcrab",
           "name": "Coralcrab",
           "gait": "crab_lateral_steps",
           "attack": "Claw Snap",
-          "combat_class": 0
+          "combat_class": 0,
+          "palette": {
+            "dark": "#193e50",
+            "mid": "#30888c",
+            "light": "#ffc49b",
+            "accent_gold": "#e0a34c",
+            "faction_purple": "#69329b",
+            "magic_magenta": "#f78dda"
+          },
+          "material": "coral, shell and claws",
+          "silhouette": "broad crab with forward pinchers",
+          "personality": "snaps claws when annoyed",
+          "art_status": "unapproved"
         },
         {
           "id": "anemoneye",
           "name": "Anemoneye",
           "gait": "pedal_disc_creep",
           "attack": "Tentacle Snare",
-          "combat_class": 2
+          "combat_class": 2,
+          "palette": {
+            "dark": "#7d4160",
+            "mid": "#db8094",
+            "light": "#ffccaf",
+            "accent_gold": "#e0a34c",
+            "faction_purple": "#69329b",
+            "magic_magenta": "#f78dda"
+          },
+          "material": "anemone and pearl",
+          "silhouette": "radial tentacles on creeping base",
+          "personality": "waits then snares",
+          "art_status": "unapproved"
         },
         {
           "id": "marrowray",
           "name": "Marrowray",
           "gait": "ray_fin_undulation",
           "attack": "Fin Slice",
-          "combat_class": 1
+          "combat_class": 1,
+          "palette": {
+            "dark": "#294b70",
+            "mid": "#7598ad",
+            "light": "#d3dfd9",
+            "accent_gold": "#e0a34c",
+            "faction_purple": "#69329b",
+            "magic_magenta": "#f78dda"
+          },
+          "material": "ray fins and cartilage",
+          "silhouette": "wide kite silhouette",
+          "personality": "silent gliding slice",
+          "art_status": "unapproved"
         },
         {
           "id": "leviathorn",
           "name": "Leviathorn",
           "gait": "seahorse_dorsal_pulse",
           "attack": "Spiral Thrust",
-          "combat_class": 2
+          "combat_class": 2,
+          "palette": {
+            "dark": "#376d76",
+            "mid": "#a6bc89",
+            "light": "#ead4a8",
+            "accent_gold": "#e0a34c",
+            "faction_purple": "#69329b",
+            "magic_magenta": "#f78dda"
+          },
+          "material": "seahorse plates and kelp",
+          "silhouette": "upright curled tail",
+          "personality": "winds up spiral thrust",
+          "art_status": "unapproved"
         },
         {
           "id": "abyss_colossus",
           "name": "Abyss Colossus",
           "gait": "octopus_arm_crawl",
           "attack": "Abyss Crush",
-          "combat_class": 2
+          "combat_class": 2,
+          "palette": {
+            "dark": "#56406c",
+            "mid": "#b27eaa",
+            "light": "#edb6ba",
+            "accent_gold": "#e0a34c",
+            "faction_purple": "#69329b",
+            "magic_magenta": "#f78dda"
+          },
+          "material": "octopus skin and suckers",
+          "silhouette": "eight flexible arms",
+          "personality": "patient arm grab",
+          "art_status": "unapproved"
         },
         {
           "id": "tidal_sovereign",
           "name": "Tidal Sovereign",
           "gait": "shark_tail_drive",
           "attack": "Tidal Bite",
-          "combat_class": 3
+          "combat_class": 3,
+          "palette": {
+            "dark": "#243c61",
+            "mid": "#7895b4",
+            "light": "#e6e1d3",
+            "accent_gold": "#e0a34c",
+            "faction_purple": "#69329b",
+            "magic_magenta": "#f78dda"
+          },
+          "material": "shark skin and teeth",
+          "silhouette": "long torpedo body",
+          "personality": "aggressive tail drive",
+          "art_status": "unapproved"
         }
       ]
     },
@@ -173,77 +437,209 @@
           "name": "Starlit Pup",
           "gait": "six_limbed_comet_skip",
           "attack": "Star Kick",
-          "combat_class": 0
+          "combat_class": 0,
+          "palette": {
+            "dark": "#34315b",
+            "mid": "#8c9add",
+            "light": "#dde7ff",
+            "accent_gold": "#e0a34c",
+            "faction_purple": "#69329b",
+            "magic_magenta": "#f78dda"
+          },
+          "material": "comet dust and prism",
+          "silhouette": "six-legged angular alien scout",
+          "personality": "restless star kicks",
+          "art_status": "unapproved"
         },
         {
           "id": "lunamoth",
           "name": "Lunamoth",
           "gait": "moth_wing_clap",
           "attack": "Lunar Dust",
-          "combat_class": 1
+          "combat_class": 1,
+          "palette": {
+            "dark": "#43375e",
+            "mid": "#a894e5",
+            "light": "#f1dbf7",
+            "accent_gold": "#e0a34c",
+            "faction_purple": "#69329b",
+            "magic_magenta": "#f78dda"
+          },
+          "material": "lunar dust and wing scales",
+          "silhouette": "broad crescent moth",
+          "personality": "dreamy wing clap",
+          "art_status": "unapproved"
         },
         {
           "id": "crystarok",
           "name": "Crystarok",
           "gait": "crystal_knuckle_walk",
           "attack": "Prism Smash",
-          "combat_class": 2
+          "combat_class": 2,
+          "palette": {
+            "dark": "#343d68",
+            "mid": "#8e9ed0",
+            "light": "#d7e5ff",
+            "accent_gold": "#e0a34c",
+            "faction_purple": "#69329b",
+            "magic_magenta": "#f78dda"
+          },
+          "material": "faceted crystal",
+          "silhouette": "low knuckle walking cluster",
+          "personality": "slow prism smash",
+          "art_status": "unapproved"
         },
         {
           "id": "nova_wisp",
           "name": "Nova Wisp",
           "gait": "orbit_drift",
           "attack": "Nova Bolt",
-          "combat_class": 1
+          "combat_class": 1,
+          "palette": {
+            "dark": "#34376e",
+            "mid": "#8997e8",
+            "light": "#c5d8ff",
+            "accent_gold": "#e0a34c",
+            "faction_purple": "#69329b",
+            "magic_magenta": "#f78dda"
+          },
+          "material": "starlight and orbit shards",
+          "silhouette": "floating faceted core",
+          "personality": "mischievous orbital flare",
+          "art_status": "unapproved"
         },
         {
           "id": "orbitserpent",
           "name": "Orbitserpent",
           "gait": "ring_coil_advance",
           "attack": "Orbit Lash",
-          "combat_class": 0
+          "combat_class": 0,
+          "palette": {
+            "dark": "#303464",
+            "mid": "#8585c7",
+            "light": "#cddaff",
+            "accent_gold": "#e0a34c",
+            "faction_purple": "#69329b",
+            "magic_magenta": "#f78dda"
+          },
+          "material": "segmented rings",
+          "silhouette": "floating broken-ring serpent",
+          "personality": "winds ring lash",
+          "art_status": "unapproved"
         },
         {
           "id": "comet_hare",
           "name": "Comet Hare",
           "gait": "hind_leg_leap",
           "attack": "Comet Drop",
-          "combat_class": 0
+          "combat_class": 0,
+          "palette": {
+            "dark": "#514b8c",
+            "mid": "#b3a5e8",
+            "light": "#ecf0ff",
+            "accent_gold": "#e0a34c",
+            "faction_purple": "#69329b",
+            "magic_magenta": "#f78dda"
+          },
+          "material": "star fur and comet streak",
+          "silhouette": "tall ears and powerful hind legs",
+          "personality": "impatient leap",
+          "art_status": "unapproved"
         },
         {
           "id": "voidspider",
           "name": "Voidspider",
           "gait": "eight_leg_wave",
           "attack": "Gravity Web",
-          "combat_class": 2
+          "combat_class": 2,
+          "palette": {
+            "dark": "#292848",
+            "mid": "#6d79ae",
+            "light": "#d2c8ff",
+            "accent_gold": "#e0a34c",
+            "faction_purple": "#69329b",
+            "magic_magenta": "#f78dda"
+          },
+          "material": "void silk and moonstone",
+          "silhouette": "eight long angular legs",
+          "personality": "calculating web traps",
+          "art_status": "unapproved"
         },
         {
           "id": "nebulwing",
           "name": "Nebulwing",
           "gait": "bat_fold_glide",
           "attack": "Void Screech",
-          "combat_class": 1
+          "combat_class": 1,
+          "palette": {
+            "dark": "#2c315d",
+            "mid": "#7868ad",
+            "light": "#d0c8ef",
+            "accent_gold": "#e0a34c",
+            "faction_purple": "#69329b",
+            "magic_magenta": "#f78dda"
+          },
+          "material": "nebula membranes",
+          "silhouette": "wide bat wings",
+          "personality": "shrill dive",
+          "art_status": "unapproved"
         },
         {
           "id": "lunar_prowler",
           "name": "Lunar Prowler",
           "gait": "feline_stalk",
           "attack": "Moon Claw",
-          "combat_class": 2
+          "combat_class": 2,
+          "palette": {
+            "dark": "#393353",
+            "mid": "#8278ba",
+            "light": "#d5d8f5",
+            "accent_gold": "#e0a34c",
+            "faction_purple": "#69329b",
+            "magic_magenta": "#f78dda"
+          },
+          "material": "moonstone and night fur",
+          "silhouette": "elongated feline stalker",
+          "personality": "aloof claw swipe",
+          "art_status": "unapproved"
         },
         {
           "id": "astro_golem",
           "name": "Astro Golem",
           "gait": "floating_segment_stride",
           "attack": "Meteor Fist",
-          "combat_class": 2
+          "combat_class": 2,
+          "palette": {
+            "dark": "#3c4665",
+            "mid": "#8e9fc3",
+            "light": "#e4e7fa",
+            "accent_gold": "#e0a34c",
+            "faction_purple": "#69329b",
+            "magic_magenta": "#f78dda"
+          },
+          "material": "floating stone segments",
+          "silhouette": "detached fists around core",
+          "personality": "deliberate meteor strike",
+          "art_status": "unapproved"
         },
         {
           "id": "celestial_guardian",
           "name": "Celestial Guardian",
           "gait": "winged_hover",
           "attack": "Celestial Verdict",
-          "combat_class": 3
+          "combat_class": 3,
+          "palette": {
+            "dark": "#4b416e",
+            "mid": "#b6a5ea",
+            "light": "#f5e7fd",
+            "accent_gold": "#e0a34c",
+            "faction_purple": "#69329b",
+            "magic_magenta": "#f78dda"
+          },
+          "material": "celestial plates and feathers",
+          "silhouette": "winged radiant guardian",
+          "personality": "solemn verdict",
+          "art_status": "unapproved"
         }
       ]
     }

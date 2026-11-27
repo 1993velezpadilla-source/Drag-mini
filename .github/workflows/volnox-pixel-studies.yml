@@ -4,6 +4,7 @@ on:
     branches: [feature/my-forever-pet-paradise]
     paths:
       - 'my-forever-pet/godot-arcade/pixel_pet_art.gd'
+      - 'my-forever-pet/art/volnox_roster.json'
       - 'my-forever-pet/tests/volnox_pixel_studies.gd'
       - '.github/workflows/volnox-pixel-studies.yml'
   workflow_dispatch:
@@ -25,6 +26,19 @@ jobs:
           timeout 60 /tmp/godot/Godot_v4.4.1-stable_linux.x86_64 --headless --path /tmp/pixel --script res://volnox_pixel_studies.gd 2>&1 | tee /tmp/volnox-pixel.log
           grep -F 'VOLNOX_2D_PIXEL_PILOT_PASS 3' /tmp/volnox-pixel.log
           ! grep -E 'SCRIPT ERROR|Parse Error|Assertion failed' /tmp/volnox-pixel.log
+      - name: Check all 33 art contracts
+        run: |
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          r=json.loads(Path('my-forever-pet/art/volnox_roster.json').read_text())
+          enemies=[e for b in r['regions'] for e in b['enemies']]
+          assert len(enemies)==33
+          for field in ('id','gait','attack','silhouette','personality','material'):
+              assert len({e[field] for e in enemies})==33, field
+          assert all(len({e['palette'][k] for k in ('dark','mid','light')})==3 for e in enemies)
+          print('VOLNOX_ART_CONTRACT_PASS 33')
+          PY
       - name: Render real Godot spatial shader on 2D sprite quads
         run: |
           set -euo pipefail
