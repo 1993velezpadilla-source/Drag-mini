@@ -6682,6 +6682,7 @@ func combat_fx_update(dt:float)->void:
 	update_combat_reactions(dt)
 	fx_ground_shake=maxf(0.0,fx_ground_shake-dt*3.0)
 	latest_hit=update_retired_impacts(dt)
+	used=reserve_confirmed_contacts(dt,used)
 	fx_arc_segments=0
 	if is_instance_valid(fx_arc_mesh):fx_arc_mesh.clear_surfaces()
 	var arcs_started:bool=false
@@ -7141,7 +7142,7 @@ func combat_fx_update(dt:float)->void:
 			particle.show()
 		used=travel_environment_fx(burst,t,used)
 		used=authored_stage_fx(burst,t,used)
-		used=element_finish_fx(burst,t,used)
+		used=element_finish_fx(burst,t,used,true)
 	if run!=null and not run.charge_phase.is_empty():used=charge_environment_fx(used)
 	if not latest_hit.is_empty() and is_instance_valid(pet):
 		queue_ultra_reaction(pet.global_position+Vector3.UP*.54,latest_hit.direction,false)
@@ -8348,7 +8349,61 @@ func motion_contact_fx(id:String,source:Vector3,target:Vector3,age:float,used:in
 			used=environment_particle(used,q-forward*.21,mode,light,dark,size*.72,alpha*.30)
 	return used
 
-func element_finish_fx(burst:Dictionary,t:float,used:int)->int:
+# Contact emblems use a dedicated first pass over active casts. Primary
+# contacts from all casts have priority over secondary contacts and filler.
+func confirmed_contact_at(id:String,source:Vector3,target:Vector3,age:float,used:int,light:Color,dark:Color,hits:int)->int:
+	used=bite_contact_fx(id,target,age,used,light,dark)
+	used=punch_contact_fx(id,source,target,age,used,light,dark,hits)
+	used=kick_contact_fx(id,source,target,age,used,light,dark,hits)
+	used=claw_contact_fx(id,source,target,age,used,light,dark,hits)
+	used=body_contact_fx(id,source,target,age,used,light,dark,hits)
+	return motion_contact_fx(id,source,target,age,used,light,dark,hits)
+
+func priority_contact_fx(burst:Dictionary,t:float,used:int,secondary:bool=false)->int:
+	var peak:float=float(burst.profile.impact)
+	var points:Array=burst.points
+	if t<peak or t>=1.0 or points.is_empty():return used
+	var id:String=str(burst.id)
+	var record:Dictionary=Rules.MOVE_LIBRARY.get(id,Rules.DEV_NATIVE_MOVES.get(id,{}))
+	if str(record.get("category",""))=="status":return used
+	var source:Vector3=points[0]
+	var target:Vector3=points[-1]
+	var age:float=clampf((t-peak)/maxf(.01,1.0-peak),0.0,1.0)
+	var style:Array=combat_style(id)
+	var light:=Color(str(style[1]));var dark:=Color(str(style[2]))
+	var primary:=Vector2i(roundi(target.x/1.4),roundi(target.z/1.4))
+	var results:Dictionary=burst.get("results",{})
+	if not secondary:
+		var row:Dictionary=results.get(primary,{})
+		if int(row.get("damage",0))+int(row.get("effects",0))+int(row.get("heal",0))<=0:return used
+		return confirmed_contact_at(id,source,target,age,used,light,dark,int(row.get("hits",1)))
+	var cells:Array[Vector2i]=[]
+	for tile in results:
+		if not tile is Vector2i or tile==primary:continue
+		var row:Dictionary=results[tile]
+		if int(row.get("damage",0))+int(row.get("effects",0))+int(row.get("heal",0))>0:cells.append(tile)
+	cells.sort_custom(func(a:Vector2i,b:Vector2i)->bool:
+		var da:int=(a-primary).length_squared()
+		var db:int=(b-primary).length_squared()
+		if da!=db:return da<db
+		if a.x!=b.x:return a.x<b.x
+		return a.y<b.y)
+	for i in range(mini(4,cells.size())):
+		var tile:Vector2i=cells[i]
+		var row:Dictionary=results[tile]
+		used=confirmed_contact_at(id,source,pos(tile)+Vector3.UP*.45,age,used,light,dark,int(row.get("hits",1)))
+	return used
+
+func reserve_confirmed_contacts(dt:float,used:int)->int:
+	# Same projected timeline as combat_fx_update; never advances state twice.
+	for secondary in [false,true]:
+		for k in range(combat_bursts.size()-1,-1,-1):
+			var burst:Dictionary=combat_bursts[k]
+			var t:float=(float(burst.age)+dt)/maxf(.001,float(burst.duration))
+			used=priority_contact_fx(burst,t,used,secondary)
+	return used
+
+func element_finish_fx(burst:Dictionary,t:float,used:int,contacts_reserved:bool=false)->int:
 	var id:String=str(burst.id)
 	var profile:Dictionary=burst.profile
 	var style:Array=combat_style(id)
@@ -8380,18 +8435,12 @@ func element_finish_fx(burst:Dictionary,t:float,used:int)->int:
 		var primary_tile:=Vector2i(roundi(target.x/1.4),roundi(target.z/1.4))
 		var row:Dictionary=results.get(primary_tile,{})
 		var primary_miss:bool=not row.is_empty() and int(row.get("damage",0))+int(row.get("effects",0))+int(row.get("heal",0))<=0
-		# Contact icons only on explicitly confirmed results; reserve before generic particles.
-		if not status and int(row.get("damage",0))+int(row.get("effects",0))+int(row.get("heal",0))>0:
-			used=bite_contact_fx(id,target,age,used,light,dark)
-			used=punch_contact_fx(id,from,target,age,used,light,dark,int(row.get("hits",1)))
-			used=kick_contact_fx(id,from,target,age,used,light,dark,int(row.get("hits",1)))
-			used=claw_contact_fx(id,from,target,age,used,light,dark,int(row.get("hits",1)))
-			used=body_contact_fx(id,from,target,age,used,light,dark,int(row.get("hits",1)))
-			used=motion_contact_fx(id,from,target,age,used,light,dark,int(row.get("hits",1)))
+		if not contacts_reserved:used=priority_contact_fx(burst,t,used)
 		if primary_miss:
 			used=environment_particle(used,target,"cloud",light,dark,.32+age*.18,fade*.35)
 		elif age<.30:
 			used=environment_particle(used,target,"bubble" if status else "impact_star",light,dark,.62+age*.55,1.0-age*2.0)
+		if not contacts_reserved:used=priority_contact_fx(burst,t,used,true)
 		# Room-wide attacks show a small localized finish at other confirmed targets.
 		var extra:int=0
 		for tile in results:
@@ -8399,12 +8448,6 @@ func element_finish_fx(burst:Dictionary,t:float,used:int)->int:
 			var other:Dictionary=results[tile]
 			if int(other.get("damage",0))+int(other.get("effects",0))+int(other.get("heal",0))<=0:continue
 			var q:Vector3=pos(tile)+Vector3(0,.45,0)
-			if not status:used=bite_contact_fx(id,q,age,used,light,dark)
-			if not status:used=punch_contact_fx(id,from,q,age,used,light,dark,int(other.get("hits",1)))
-			if not status:used=kick_contact_fx(id,from,q,age,used,light,dark,int(other.get("hits",1)))
-			if not status:used=claw_contact_fx(id,from,q,age,used,light,dark,int(other.get("hits",1)))
-			if not status:used=body_contact_fx(id,from,q,age,used,light,dark,int(other.get("hits",1)))
-			if not status:used=motion_contact_fx(id,from,q,age,used,light,dark,int(other.get("hits",1)))
 			used=environment_particle(used,q,"bubble" if status else "impact_star",light,dark,.45+age*.38,fade)
 			extra+=1
 		# A miss at the selected tile must not hide hits on other tiles.
