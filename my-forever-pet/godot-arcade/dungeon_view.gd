@@ -956,6 +956,7 @@ func exterior_motion_material(original:Material)->ShaderMaterial:
 render_mode cull_disabled;
 uniform float scene_time=0.0;
 uniform vec4 base_color:source_color=vec4(0.1,0.35,0.2,1.0);
+uniform vec4 combat_pulse=vec4(0.0);
 varying float leaf_height;
 void vertex(){
  leaf_height=clamp((VERTEX.y-0.26)/1.7,0.0,1.0);
@@ -963,6 +964,11 @@ void vertex(){
  float sway=leaf_height*leaf_height;
  VERTEX.x+=sin(scene_time*1.45+world_pos.z*0.85)*0.10*sway;
  VERTEX.z+=cos(scene_time*1.1+world_pos.x*0.73)*0.065*sway;
+ vec2 delta=world_pos.xz-combat_pulse.xy;
+ float push=combat_pulse.w*(1.0-smoothstep(0.0,3.2,length(delta)))*sway;
+ // Convert the world-space impulse back into each instance's local axes.
+ vec3 local_push=inverse(mat3(MODEL_MATRIX))*vec3(delta.x,0.0,delta.y);
+ VERTEX+=local_push*(push*0.30/max(length(delta),0.2));
 }
 void fragment(){
  ALBEDO=base_color.rgb*(0.85+leaf_height*0.55);
@@ -974,13 +980,18 @@ render_mode cull_disabled;
 uniform float scene_time=0.0;
 uniform vec4 base_color:source_color=vec4(0.1,0.6,0.7,1.0);
 uniform bool is_foam=false;
+uniform vec4 combat_pulse=vec4(0.0);
 varying vec3 local_p;
-void vertex(){local_p=VERTEX;}
+varying vec2 world_xz;
+void vertex(){local_p=VERTEX;world_xz=(MODEL_MATRIX*vec4(VERTEX,1.0)).xz;}
 void fragment(){
  float flow=local_p.z*20.0-local_p.y*7.0-scene_time*5.2;
  float ripple=0.5+0.5*sin(flow+0.65*sin(local_p.x*34.0));
  float filaments=pow(0.5+0.5*sin(local_p.x*37.0+sin(flow*0.36)),5.0);
  float shimmer=0.30*ripple+0.70*filaments;
+ float distance_to_hit=length(world_xz-combat_pulse.xy);
+ float ring=1.0-smoothstep(0.07,0.26,abs(distance_to_hit-combat_pulse.z*2.8));
+ shimmer+=ring*combat_pulse.w*(1.0-smoothstep(2.5,3.2,distance_to_hit))*0.6;
  ALBEDO=base_color.rgb*(0.76+shimmer*0.37);
  ROUGHNESS=0.24+0.20*(1.0-ripple);
  EMISSION=base_color.rgb*shimmer*(is_foam?0.28:0.12);
@@ -1279,7 +1290,18 @@ func exterior_clearance(q:Vector2i)->bool:
 	return true
 func update_exterior_world(dt:float):
 	exterior_clock+=clampf(dt,0.0,.25)
-	for material in exterior_motion_materials.values():material.set_shader_parameter("scene_time",exterior_clock)
+	var pulse:=Vector4.ZERO
+	# A single recent local impulse keeps the exterior shader cost constant.
+	for i in range(fx_residues.size()-1,-1,-1):
+		var mark:Dictionary=fx_residues[i]
+		var phase:float=clampf(float(mark.age)/float(mark.life),0.0,1.0)
+		if phase>=1.0 or not str(mark.element) in ["water","flying","ground","rock","electric","fighting","dragon","fire"]:continue
+		var at:Vector3=mark.at
+		pulse=Vector4(at.x,at.z,phase,(1.0-phase)*(.45 if bool(mark.terrain_only) else 1.0))
+		break
+	for material in exterior_motion_materials.values():
+		material.set_shader_parameter("scene_time",exterior_clock)
+		set_fx_uniform(material,"combat_pulse",pulse)
 	if exterior_life.is_empty():return
 	for i in range(exterior_life_centers.size()):
 		var phase=exterior_clock*(.70 if region==1 else .46)+float(i)*2.399
@@ -2475,6 +2497,39 @@ func ultra_attack_ribbons(burst:Dictionary,t:float)->void:
 # Material response uses the recorded wave and the actual walkable cell.
 # Reef is seabed sandstone, not a new water collision type.
 const SURFACE_REACTION_MODES={"fire":"ember","water":"bubble","ice":"crystal","ground":"shards","rock":"shards","poison":"venom_splash","electric":"lightning","grass":"leaf","dragon":"ember","steel":"crystal","normal":"smoke","fighting":"smoke","flying":"slash","bug":"leaf","psychic":"status_swirl","ghost":"smoke","dark":"slash","fairy":"impact_star"}
+# Dedicated ground silhouettes, independent of the airborne move particles.
+const SURFACE_STAMP={"fire":"scorch","dragon":"scorch","water":"ripple","ice":"frost","ground":"crack","rock":"crack","poison":"puddle","electric":"static","grass":"sprout","steel":"scratch","normal":"dust","fighting":"crack","flying":"wind","bug":"sprout","psychic":"sigil","ghost":"wisp","dark":"scratch","fairy":"sigil"}
+func surface_stamp_sample(element:String,progress:float)->Vector3:
+	var t:float=clampf(progress,0.0,1.0)
+	var expand:float=.65+t*.55
+	var opacity:float=pow(1.0-t,1.2)
+	var accent:float=sin(t*PI)*(1.0-t)
+	match element:
+		"fire","dragon","ground","rock","steel","fighting","dark":
+			expand=.95+.20*smoothstep(0.0,.22,t)
+		"ice","grass","bug":
+			expand=.48+.70*smoothstep(0.0,.60,t)
+		"water","flying":
+			expand=.40+t*1.35
+		"electric":
+			opacity=pow(1.0-t,2.0)*(.7+.3*cos(t*TAU*3.0))
+	return Vector3(expand,opacity,accent)
+
+# Constant palette per element: avoid generating unique texture variants per move.
+func surface_stamp_palette(element:String)->Array[Color]:
+	match element:
+		"fire","dragon":return [Color("#9b512e"),Color("#342823")]
+		"water":return [Color("#d5ffff"),Color("#429bad")]
+		"ice":return [Color("#ebffff"),Color("#8cbdeb")]
+		"ground","rock","fighting":return [Color("#9a7e62"),Color("#4b3e38")]
+		"steel","dark":return [Color("#a5a9b8"),Color("#444451")]
+		"poison":return [Color("#ca86ef"),Color("#703680")]
+		"electric":return [Color("#fff8b5"),Color("#d8a54f")]
+		"grass","bug":return [Color("#b4df80"),Color("#527c45")]
+		"ghost":return [Color("#d6b6fa"),Color("#67527f")]
+		"psychic","fairy":return [Color("#f5c7ef"),Color("#a16bc6")]
+		_:return [Color("#e7e4d4"),Color("#9e9c8f")]
+
 const SURFACE_TERRAIN_ELEMENTS=["fire","water","ice","ground","rock","poison","electric","grass","dragon","steel","flying"]
 func impact_surface_palette()->Array[Color]:
 	match region:
@@ -2485,6 +2540,7 @@ func impact_surface_palette()->Array[Color]:
 func queue_surface_residue(tile:Vector2i,element:String,style:Array,terrain_only:bool,age:float)->void:
 	if run==null or not run.cells.has(tile):return
 	var life:float=.65 if element in ["fire","electric","dragon","normal","fighting","flying"] else .90
+	if element in ["fire","dragon","ice","ground","rock","poison","steel"]:life=1.25
 	if terrain_only:life*=.72
 	if age>=life:return
 	var at:Vector3=pos(tile)+Vector3.UP*.065
@@ -2601,6 +2657,10 @@ func ultra_update_residues(dt:float,used:int)->int:
 		var terrain_only:bool=bool(mark.terrain_only)
 		var strength:float=.55 if terrain_only else 1.0
 		var surface:Array[Color]=impact_surface_palette()
+		# A ground stamp is drawn before secondary debris; stays inside its tile.
+		var sample:=surface_stamp_sample(element,t)
+		var ink:=surface_stamp_palette(element)
+		used=environment_particle(used,at,"surface_"+str(SURFACE_STAMP.get(element,"dust")),ink[0],ink[1],sample.x,sample.y*.82*strength,true)
 		var count:int=residue_particle_count()
 		for j in range(count):
 			var angle:float=float(j)*TAU/float(count)+float(i)*.37
@@ -2619,6 +2679,10 @@ func ultra_update_residues(dt:float,used:int)->int:
 		if edge!=Vector2i.ZERO and element in ["ground","rock","fighting","steel","water","flying"] and fx_performance_tier<2:
 			var side:=Vector3(edge.x,0,edge.y)
 			used=environment_particle(used,at+side*.55+Vector3.UP*(.12+sin(t*PI)*.24),dust_mode,surface[0],surface[1],.32,fade*.55*strength)
+		if fx_performance_tier==0 and element in ["fire","dragon","ice","water","poison"] and t>.10:
+			var plume:String="smoke" if element in ["fire","dragon","ice"] else "drop" if element=="water" else "cloud"
+			var rise:Vector3=Vector3(.14*t,.12+t*.65,-.10*t)
+			used=environment_particle(used,at+rise,plume,ink[0],ink[1],.38+t*.36,sample.z*.68*strength)
 		# Reflect elemental light on the actual floor and nearby geometry.
 		if fx_performance_tier==0 or (fx_performance_tier==1 and t<.55):
 			cinematic_halo(at,mark.color,.85+t*.55,fade*.18*strength,t,true)
@@ -2880,6 +2944,46 @@ func combat_pixel_texture(mode:String,light:Color,dark:Color)->ImageTexture:
 					fill=absf(r-6.1)<1.0 or absf(r-3.4)<.8;inner=v.x+v.y<0
 				"projectile_dart":
 					fill=absf(v.y)<(7.5-absf(v.x))*.48+.5;inner=absf(v.y)<1.2 and v.x> -3.0
+				"surface_scorch":
+					var a:float=atan2(v.y,v.x)
+					fill=r<5.5+sin(a*5.0)*.8+cos(a*9.0)*.55
+					inner=fill and r>3.2 and posmod(x*3+y*7,5)==0
+				"surface_ripple":
+					fill=absf(r-6.0)<.8 or absf(r-3.4)<.65
+					inner=fill and v.x+v.y<1.0
+				"surface_frost":
+					var a:float=atan2(v.y,v.x)
+					var spoke:float=absf(sin(a*3.0))
+					fill=r<6.9 and (spoke*r<.75 or (r>2.8 and absf(sin(a*6.0))*r<.55))
+					inner=fill and r<4.7
+				"surface_crack":
+					var a:float=atan2(v.y,v.x)+.22*sin(r*1.4)
+					fill=r<7.0 and (absf(sin(a*3.0))*r<.8 or (r>3.8 and absf(cos(a*5.0))*r<.45))
+					inner=fill and r>4.0
+				"surface_puddle":
+					fill=r<4.8+sin(atan2(v.y,v.x)*5.0)*1.05 or (r<7.1 and posmod(x*7+y*3,23)==0)
+					inner=fill and v.x+v.y< -1.0
+				"surface_static":
+					fill=r<6.9 and (absf(v.y-sin(v.x*1.7)*2.1)<.85 or absf(v.x+sin(v.y*1.5)*2.0)<.75)
+					inner=fill and r<4.0
+				"surface_sprout":
+					fill=r<6.8 and (absf(v.x)<.75 or (absf(absf(v.x)-2.8)+absf(v.y+absf(v.x)*.65)<2.4))
+					inner=fill and v.y<.5
+				"surface_scratch":
+					fill=r<7.0 and (absf(v.y-v.x*.55+2.4)<.75 or absf(v.y-v.x*.55-2.4)<.75)
+					inner=fill and v.x<1.0
+				"surface_wind":
+					fill=r<7.2 and r>2.0 and absf(r-(4.8+atan2(v.y,v.x)*.55))<.8
+					inner=fill and v.y<0.0
+				"surface_sigil":
+					fill=r<7.0 and (absf(r-6.1)<.7 or absf(absf(v.x)+absf(v.y)-5.2)<.7)
+					inner=fill and r<4.5
+				"surface_wisp":
+					fill=r<6.8 and absf(r-(3.3+atan2(v.y,v.x)*.9))<1.0
+					inner=fill and r<3.5
+				"surface_dust":
+					fill=r<6.8 and posmod(x*7+y*11,7)<2
+					inner=fill and r<3.5
 				"venom_splash":
 					fill=(r<4.0 or (r<7.2 and sin(atan2(v.y,v.x)*5.0)>.40) or (r>5.8 and posmod(x*3+y*7,13)==0))
 					inner=r<2.8 or (fill and v.x+v.y<-2.5)
@@ -6349,6 +6453,7 @@ func combat_fx_update(dt:float)->void:
 	var reserve:int=24 if crowded else 0
 	if run!=null and not run.charge_phase.is_empty():reserve=maxi(reserve,12)
 	if not fx_reaction_sparks.is_empty():reserve=maxi(reserve,16)
+	if not fx_residues.is_empty():reserve=maxi(reserve,12)
 	var cast_capacity:int=FX_PARTICLE_CAP-reserve
 	fx_cast_particle_limit=FX_PARTICLE_CAP
 	for k in range(combat_bursts.size()-1,-1,-1):
