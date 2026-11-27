@@ -5484,7 +5484,7 @@ func native_identity_frame(id:String,frame:int,base:Image)->Image:
 	return im
 
 # V16.7: individually remastered after reviewing actual Godot PNG strips.
-const VISUAL_REMASTER_MOVES=["eos_504","eos_308","eos_135","eos_142","eos_047","eos_250","eos_299","eos_329","eos_262","eos_279","eos_101","eos_199","eos_251","eos_486","eos_462","eos_018","eos_507","eos_175","eos_254","eos_097","eos_163","eos_320","eos_033","eos_166","eos_228","eos_004","eos_252","eos_330","eos_465","eos_138","eos_021","eos_501","eos_053","eos_157","eos_064","eos_188","eos_240","eos_255","eos_342","eos_539","eos_041","eos_278","eos_538","eos_239","eos_193","eos_272","eos_519","eos_494","eos_292","eos_065","eos_276","eos_208","eos_522","eos_452","eos_433","eos_087","eos_063","eos_062","eos_476","eos_127","eos_451","eos_436","eos_491","eos_046","eos_109","eos_234","eos_107","eos_463","eos_133","eos_317","eos_111","eos_331","eos_345","eos_270","eos_042","eos_344","eos_461","eos_180","eos_535","eos_150","eos_118","eos_484","eos_008","eos_131","eos_030","eos_481","eos_028","eos_073","lib_ground_1","eos_057","eos_036","eos_442","eos_153","eos_205","eos_100","eos_518","eos_178","eos_200","eos_495","eos_280","eos_197","eos_332","eos_147","eos_485","eos_459","eos_151","eos_537","eos_443","eos_336","eos_182","eos_253","eos_441","eos_076","lib_grass_1","eos_001","eos_325","eos_103","eos_536","eos_510","eos_431","eos_475","eos_523","eos_080","eos_082","eos_114","eos_323","eos_470","eos_502","eos_529","eos_530","eos_460","eos_520","eos_449","eos_288","eos_164","eos_306","eos_023","eos_086","eos_346","lib_fairy_1","lib_fairy_2","lib_fairy_3","eos_341","eos_498","eos_343","eos_091","eos_162","eos_435","lib_dragon_1","lib_dragon_2","lib_dragon_3","eos_092","eos_204","eos_206","eos_303","eos_222","eos_210","lib_fighting_2","eos_136","eos_075","eos_300","eos_246","eos_430","eos_440","eos_500","eos_508","eos_454","eos_479","eos_243","eos_068","eos_090","lib_fighting_1","lib_fighting_3","eos_072","eos_077","eos_116","eos_531","eos_265","eos_305","eos_051","eos_170","eos_340","eos_007","eos_029","lib_electric_1","lib_electric_2","lib_electric_3","eos_129","eos_144","eos_189","eos_354","eos_489","eos_521","eos_192","eos_128","eos_493","lib_fire_1","lib_fire_2","lib_fire_3","eos_052","eos_149","eos_230","eos_291","eos_517","eos_524","eos_223","lib_water_1","lib_water_2","lib_water_3","eos_016","eos_032","eos_044","eos_069","eos_113","eos_156","eos_158","eos_159","eos_219","eos_310","eos_432","eos_469","eos_070","eos_012","eos_307","eos_434","lib_grass_2","lib_grass_3","eos_221","eos_238","eos_297","eos_458","eos_468","eos_511","eos_079","eos_231","eos_124","eos_351","eos_015","eos_094","eos_084","eos_233","lib_ice_1","lib_ice_2","lib_ice_3","eos_002","eos_088","eos_130","eos_014","lib_poison_1","lib_poison_2","lib_poison_3","eos_198","eos_283","eos_196","eos_202","eos_496","eos_438","lib_ground_2","lib_ground_3","eos_143","eos_213","eos_289","eos_285","eos_290","eos_212","eos_295","eos_296","lib_rock_1","lib_rock_2","lib_rock_3","eos_093","eos_453","eos_512","eos_533","eos_350","eos_105","eos_540","eos_141","eos_480","lib_flying_1","lib_flying_2","lib_flying_3","eos_174","eos_179","eos_211","eos_353","eos_446","eos_490","eos_444","eos_267","eos_509","eos_456","eos_040","lib_bug_1","lib_bug_2","lib_bug_3","lib_psychic_1","lib_psychic_2","lib_psychic_3","eos_110","eos_309","eos_335","eos_473","eos_099","eos_146","eos_215","eos_258","eos_319","eos_333","eos_095","eos_316","eos_338","eos_259","eos_108","eos_187","eos_266","eos_448","eos_506","eos_513","eos_514","eos_232","eos_464","eos_478","eos_528","eos_450","eos_298","eos_499","eos_209","eos_137","eos_220","eos_439","eos_526","lib_ghost_1","lib_ghost_2","lib_ghost_3","eos_120","eos_126","eos_437","eos_477","eos_013","eos_216","eos_005","eos_313","eos_035","eos_049","lib_dark_1","lib_dark_2","lib_dark_3","eos_167","eos_214","eos_445","eos_488","eos_515","eos_483","eos_542","eos_038","eos_472","eos_045","eos_043","eos_503","eos_022","eos_172","eos_334","eos_482","eos_249","eos_466","eos_269","lib_steel_1","lib_steel_2","lib_steel_3","eos_244","eos_527","eos_083","eos_186","eos_532","eos_256"]
+const VISUAL_REMASTER_MOVES=["eos_504","eos_308","eos_135","eos_142","eos_047","eos_250","eos_299","eos_329","eos_262","eos_279","eos_101","eos_199","eos_251","eos_486","eos_462","eos_018","eos_507","eos_175","eos_254","eos_097","eos_163","eos_320","eos_033","eos_166","eos_228","eos_004","eos_252","eos_330","eos_465","eos_138","eos_021","eos_501","eos_053","eos_157","eos_064","eos_188","eos_240","eos_255","eos_342","eos_539","eos_041","eos_278","eos_538","eos_239","eos_193","eos_272","eos_519","eos_494","eos_292","eos_065","eos_276","eos_208","eos_522","eos_452","eos_433","eos_087","eos_063","eos_062","eos_476","eos_127","eos_451","eos_436","eos_491","eos_046","eos_109","eos_234","eos_107","eos_463","eos_133","eos_317","eos_111","eos_331","eos_345","eos_270","eos_042","eos_344","eos_461","eos_180","eos_535","eos_150","eos_118","eos_484","eos_008","eos_131","eos_030","eos_481","eos_028","eos_073","lib_ground_1","eos_057","eos_036","eos_442","eos_153","eos_205","eos_100","eos_518","eos_178","eos_200","eos_495","eos_280","eos_197","eos_332","eos_147","eos_485","eos_459","eos_151","eos_537","eos_443","eos_336","eos_182","eos_253","eos_441","eos_076","lib_grass_1","eos_001","eos_325","eos_103","eos_536","eos_510","eos_431","eos_475","eos_523","eos_080","eos_082","eos_114","eos_323","eos_470","eos_502","eos_529","eos_530","eos_460","eos_520","eos_449","eos_288","eos_164","eos_306","eos_023","eos_086","eos_346","lib_fairy_1","lib_fairy_2","lib_fairy_3","eos_341","eos_498","eos_343","eos_091","eos_162","eos_435","lib_dragon_1","lib_dragon_2","lib_dragon_3","eos_092","eos_204","eos_206","eos_303","eos_222","eos_210","lib_fighting_2","eos_136","eos_075","eos_300","eos_246","eos_430","eos_440","eos_500","eos_508","eos_454","eos_479","eos_243","eos_068","eos_090","lib_fighting_1","lib_fighting_3","eos_072","eos_077","eos_116","eos_531","eos_265","eos_305","eos_051","eos_170","eos_340","eos_007","eos_029","lib_electric_1","lib_electric_2","lib_electric_3","eos_129","eos_144","eos_189","eos_354","eos_489","eos_521","eos_192","eos_128","eos_493","lib_fire_1","lib_fire_2","lib_fire_3","eos_052","eos_149","eos_230","eos_291","eos_517","eos_524","eos_223","lib_water_1","lib_water_2","lib_water_3","eos_016","eos_032","eos_044","eos_069","eos_113","eos_156","eos_158","eos_159","eos_219","eos_310","eos_432","eos_469","eos_070","eos_012","eos_307","eos_434","lib_grass_2","lib_grass_3","eos_221","eos_238","eos_297","eos_458","eos_468","eos_511","eos_079","eos_231","eos_124","eos_351","eos_015","eos_094","eos_084","eos_233","lib_ice_1","lib_ice_2","lib_ice_3","eos_002","eos_088","eos_130","eos_014","lib_poison_1","lib_poison_2","lib_poison_3","eos_198","eos_283","eos_196","eos_202","eos_496","eos_438","lib_ground_2","lib_ground_3","eos_143","eos_213","eos_289","eos_285","eos_290","eos_212","eos_295","eos_296","lib_rock_1","lib_rock_2","lib_rock_3","eos_093","eos_453","eos_512","eos_533","eos_350","eos_105","eos_540","eos_141","eos_480","lib_flying_1","lib_flying_2","lib_flying_3","eos_174","eos_179","eos_211","eos_353","eos_446","eos_490","eos_444","eos_267","eos_509","eos_456","eos_040","lib_bug_1","lib_bug_2","lib_bug_3","lib_psychic_1","lib_psychic_2","lib_psychic_3","eos_110","eos_309","eos_335","eos_473","eos_099","eos_146","eos_215","eos_258","eos_319","eos_333","eos_095","eos_316","eos_338","eos_259","eos_108","eos_187","eos_266","eos_448","eos_506","eos_513","eos_514","eos_232","eos_464","eos_478","eos_528","eos_450","eos_298","eos_499","eos_209","eos_137","eos_220","eos_439","eos_526","lib_ghost_1","lib_ghost_2","lib_ghost_3","eos_120","eos_126","eos_437","eos_477","eos_013","eos_216","eos_005","eos_313","eos_035","eos_049","lib_dark_1","lib_dark_2","lib_dark_3","eos_167","eos_214","eos_445","eos_488","eos_515","eos_483","eos_542","eos_038","eos_472","eos_045","eos_043","eos_503","eos_022","eos_172","eos_334","eos_482","eos_249","eos_466","eos_269","lib_steel_1","lib_steel_2","lib_steel_3","eos_244","eos_527","eos_083","eos_186","eos_532","eos_256","eos_081","eos_260","eos_275","eos_312","eos_314","eos_261","eos_020","eos_248","eos_505","eos_247","eos_071","eos_125","eos_294","eos_264","eos_322","eos_321","eos_271","eos_039","eos_347","eos_487","eos_176","eos_177","eos_311"]
 func visual_remaster_frame(id:String,frame:int)->Image:
 	var im:=Image.create(48,48,false,Image.FORMAT_RGBA8)
 	im.fill(Color.TRANSPARENT)
@@ -10647,6 +10647,213 @@ func visual_remaster_frame(id:String,frame:int)->Image:
 			fx_line(im,c+Vector2(4,-h),c-Vector2(4,h),2.1,Color("#f3ca8a",fade))
 			fx_line(im,c-Vector2(4,h),c+Vector2(4,-h),1.0,Color("#fff0c0",fade))
 			fx_line(im,c-Vector2(4,-h),c+Vector2(4,h),1.0,Color("#fff0c0",fade))
+		"eos_081":
+			# Slash: a long clean diagonal cut followed by a narrow glint.
+			var c:=Vector2(24,24)
+			fight_arc(im,c,16.0,-PI*.85+drive*.9,PI*1.15,Color("#fff4dc",fade),Color("#9a7864",fade),3.6)
+			if t>=peak:fx_line(im,c-Vector2(12,10),c+Vector2(12,10),1.1,Color("#ffffff",fade))
+		"eos_260":
+			# Scratch: three short hooked claw marks with staggered lengths.
+			for j in range(3):
+				var q:=Vector2(19+float(j)*5,19+float(j)*4)
+				var a:float=-PI*.8+drive*.7
+				fight_arc(im,q,8+float(j),a,PI*.94,Color("#ffe5ca",fade),Color("#a17b65",fade),2.0)
+				if t>=peak:fx_disc(im,q+Vector2(5,5),1.0,Color("#f3ba91",fade))
+		"eos_275":
+			# Crush Claw: four heavy talons converge into a broad crushing impact.
+			var c:=Vector2(24,24)
+			for j in range(4):
+				var q:=c+Vector2(float(j-1)*5, -7+10*drive)
+				fight_arc(im,q,12.0,-PI*.9+drive*.8,PI*1.05,Color("#fff1c8",fade),Color("#905f50",fade),3.4)
+			if t>=peak:fight_burst(im,c,15.0,7,t,Color("#ffd6a0",fade),Color("#ad7358",fade))
+		"eos_312":
+			# Raking Flurry: alternating rakes appear in three separated lanes.
+			for j in range(3):
+				var f:float=fposmod(t*1.5+float(j)*.33,1.0)
+				var q:=Vector2(14+19*f,16+float(j)*7)
+				for k in range(2):
+					fight_arc(im,q+Vector2(float(k)*4,0),7.5,-PI*.7+f,PI*.9,Color("#fff3d5",fade),Color("#a18772",fade),1.9)
+				if f>.7:fx_disc(im,q+Vector2(5,2),1.4,Color("#f8d7a7",fade))
+		"eos_314":
+			# False Swipe: shallow controlled strike with a trailing golden fine edge.
+			var c:=Vector2(24,24)
+			fight_arc(im,c,14.0,-PI*.7+drive*.9,PI*.72,Color("#fff4cc",fade),Color("#b69b70",fade),2.4)
+			fight_arc(im,c,11.0,-PI*.6+drive*.9,PI*.55,Color("#dfd6ad",fade*.65),Color("#9f8a6e",fade*.55),.9)
+			if t>=peak:fairy_star(im,c+Vector2(10,3),2.0,Color("#fff5d9",fade))
+		"eos_261":
+			# Hyper Fang: broad jaws with four deep incisors and a powerful snap.
+			var c:=Vector2(24,24)
+			var gap:float=13-9*drive
+			for side in [-1.0,1.0]:
+				var q:=c+Vector2(0,side*gap)
+				fight_arc(im,q,12.0,PI if side<0.0 else 0.0,PI,Color("#c6a48d",fade),Color("#765744",fade),3.4)
+				for j in range(4):
+					var p:=q+Vector2(-8+float(j)*5,0)
+					fx_line(im,p,p-Vector2(0,side*(7.0 if j==1 or j==2 else 4.0)),3.0,Color("#fff0d3",fade))
+			if t>=peak:fight_burst(im,c,13.0,7,t,Color("#ffd28d",fade),Color("#af765d",fade))
+		"eos_020":
+			# Crescent Fang: two large inward curving incisors close like crescents.
+			var c:=Vector2(24,24)
+			var gap:float=12-8*drive
+			for side in [-1.0,1.0]:
+				var q:=c+Vector2(side*gap,0)
+				fight_arc(im,q,10.0,-PI*.5 if side<0.0 else PI*.5,PI,Color("#fff2d2",fade),Color("#8b6d58",fade),3.7)
+				fx_line(im,q+Vector2(0,-6),q+Vector2(-side*6,1),1.6,Color("#fff9e7",fade))
+			if t>=peak:fairy_star(im,c,4.8,Color("#ffe3ae",fade))
+		"eos_248":
+			# Vicegrip: paired rigid pincers clamp from left and right.
+			var c:=Vector2(24,24)
+			for side in [-1.0,1.0]:
+				var q:=c+Vector2(side*(18-12*drive),0)
+				fx_line(im,q+Vector2(side*6,0),q,5.0,Color("#8c7761",fade))
+				for k in [-1.0,1.0]:
+					fx_line(im,q,q+Vector2(-side*6,k*8),4.0,Color("#b9a38b",fade))
+					fx_line(im,q+Vector2(-side*6,k*8),q+Vector2(-side*9,k*3),2.1,Color("#eee1cb",fade))
+			if t>=peak:fx_disc(im,c,5.0,Color("#ffe0a9",fade),3.2)
+		"eos_505":
+			# Crush Grip: two heavy hand shapes press inward with compression lines.
+			var c:=Vector2(24,24)
+			for side in [-1.0,1.0]:
+				var q:=c+Vector2(side*(17-9*drive),0)
+				fight_fist(im,q,PI if side>0.0 else 0.0,7.0,Color("#e6c5a2",fade),Color("#94725b",fade))
+				for j in range(3):
+					fx_line(im,q+Vector2(side*9,float(j-1)*5),q+Vector2(side*13,float(j-1)*5),1.0,Color("#ccb698",fade))
+			if t>=peak:fx_disc(im,c,6+3*pulse,Color("#ffdb9d",fade),4+3*pulse)
+		"eos_247":
+			# Final Shear: two long scissor blades close in a clean decisive cut.
+			var c:=Vector2(24,24)
+			for side in [-1.0,1.0]:
+				var a:float=side*(.65*(1.0-drive)+.05)
+				var d:=Vector2(cos(a),sin(a))
+				fx_line(im,c-d*15,c+d*16,4.0,Color("#766b66",fade))
+				fx_line(im,c-d*12-Vector2(0,1),c+d*16,1.5,Color("#f6e9d4",fade))
+				fx_disc(im,c-d*15,3.0,Color("#a9927b",fade),1.4)
+			if t>=peak:fx_line(im,c-Vector2(0,14),c+Vector2(0,14),1.4,Color("#fff4d8",fade))
+		"eos_071":
+			# Constrict: narrow cord coils tightly around a central target.
+			var c:=Vector2(24,24)
+			for j in range(3):
+				var rad:float=13-7*drive
+				var q:=c+Vector2(0,float(j-1)*7)
+				fight_arc(im,q,rad,t*TAU+float(j)*.7,PI*1.8,Color("#e0c8a3",fade),Color("#947f64",fade),1.8)
+		"eos_125":
+			# Bind: two broad bands cross diagonally and tighten.
+			var c:=Vector2(24,24)
+			for j in range(2):
+				var prev:=c+Vector2(-15,0)
+				for k in range(1,25):
+					var f:float=float(k)/24.0
+					var a:float=f*TAU+t*2+float(j)*PI
+					var q:=c+Vector2(cos(a)*(15-7*drive),sin(a)*8+float(j*2-1)*5)
+					if k>1:
+						fx_line(im,prev,q,4.2,Color("#9e8266",fade))
+						fx_line(im,prev,q,2.2,Color("#edcfaa",fade))
+					prev=q
+		"eos_294":
+			# Binding Coil: tall spiral winds from ground to top before tightening.
+			var c:=Vector2(24,34)
+			var prev:=c+Vector2(14,0)
+			for j in range(1,40):
+				var f:float=float(j)/39.0
+				var a:float=f*TAU*2.5+t*TAU
+				var q:=c+Vector2(cos(a)*(14-6*drive),-23*f+sin(a)*3)
+				fx_line(im,prev,q,3.2,Color("#98795b",fade))
+				fx_line(im,prev,q,1.3,Color("#f2d5a8",fade))
+				prev=q
+		"eos_264":
+			# Dizzy Punch: off-axis fist followed by orbiting dizziness stars.
+			var q:=Vector2(10+25*drive,24+3*sin(t*TAU))
+			fight_fist(im,q,.35,6.7,Color("#f4d9ae",fade),Color("#a57b5c",fade))
+			if t>=peak:
+				for j in range(4):
+					var a:float=float(j)*TAU/4.0+t*TAU
+					fairy_star(im,q+Vector2(cos(a)*9,sin(a)*7-5),1.8,Color("#ffdb83",fade))
+		"eos_322":
+			# Mega Punch: oversized fist charges forward and creates a heavy flash.
+			var q:=Vector2(11+23*drive,24)
+			fight_fist(im,q,0.0,10.0,Color("#ffe2b5",fade),Color("#a16d50",fade))
+			for j in range(3):
+				var y:float=15+float(j)*9
+				fx_line(im,Vector2(q.x-21,y),Vector2(q.x-12,y),1.7,Color("#c8a183",fade))
+			if t>=peak:fight_burst(im,q,18.0,8,t,Color("#fff0b9",fade),Color("#c58c61",fade))
+		"eos_321":
+			# Mega Kick: recognizable foot and shin silhouette with large sweeping motion.
+			var q:=Vector2(10+24*drive,24)
+			var a:float=-.8+.8*drive
+			var d:=Vector2(cos(a),sin(a))
+			var n:=Vector2(-d.y,d.x)
+			fx_line(im,q-d*18+n*5,q-d*5,6.2,Color("#957356",fade))
+			fx_line(im,q-d*18+n*4,q-d*5,3.1,Color("#e7bc96",fade))
+			fx_line(im,q-d*5,q+d*9+n*2,6.0,Color("#977357",fade))
+			fx_line(im,q-d*4-n,q+d*8+n,3.4,Color("#f3d3ae",fade))
+			for j in range(3):fx_disc(im,q+d*8+n*float(j-1)*2,1.6,Color("#ffe6bf",fade))
+			if t>=peak:fight_burst(im,q+d*6,16.0,7,t,Color("#fff1bb",fade),Color("#c18e6c",fade))
+		"eos_271":
+			# Stomp: sole-shaped descending impact with ground compression.
+			var q:=Vector2(24,8+23*drive)
+			fx_line(im,q-Vector2(4,8),q+Vector2(4,5),9.0,Color("#92745d",fade))
+			fx_line(im,q-Vector2(4,7),q+Vector2(4,4),5.2,Color("#e7c8a5",fade))
+			for j in range(3):fx_line(im,q+Vector2(-5+float(j)*4,2),q+Vector2(-3+float(j)*4,5),1.0,Color("#b09378",fade))
+			if t>=peak:
+				for j in range(7):
+					var a:float=PI+float(j)*PI/6.0
+					var p:=Vector2(24,35)+Vector2(cos(a)*18,sin(a)*7)*(1.0-fade)
+					fx_line(im,Vector2(24,35),p,1.2,Color("#e5bd8a",fade))
+					fx_disc(im,p,1.4,Color("#bd9873",fade))
+		"eos_039":
+			# Palm Flurry: open palms in alternating lanes with visible fingers.
+			for j in range(3):
+				var f:float=fposmod(t*1.4+float(j)*.33,1.0)
+				var q:=Vector2(8+28*f,17+float(j)*6)
+				fx_disc(im,q,4.1,Color("#a77f62",fade))
+				fx_disc(im,q-Vector2(0,1),3.0,Color("#efd1ac",fade))
+				for k in range(4):fx_line(im,q+Vector2(2,float(k-1)*1.8),q+Vector2(6,float(k-1)*2.1),1.7,Color("#f9debb",fade))
+				fx_line(im,q-Vector2(1,2),q+Vector2(0,-6),1.8,Color("#f9debb",fade))
+				if f>.75:fairy_star(im,q+Vector2(6,0),2.8,Color("#fff1c7",fade))
+		"eos_347":
+			# Comet Flurry: small fists streak with elongated comet-like tails.
+			for j in range(4):
+				var f:float=fposmod(t*1.7+float(j)*.25,1.0)
+				var q:=Vector2(7+29*f,17+float(j%3)*7)
+				fx_line(im,q-Vector2(13,4),q,2.8,Color("#cf9c68",fade))
+				fx_line(im,q-Vector2(8,3),q,1.1,Color("#ffe3a0",fade))
+				fight_fist(im,q,0.0,3.6,Color("#fce4b9",fade),Color("#a17b5a",fade))
+				if f>.8:fairy_star(im,q+Vector2(4,0),2.5,Color("#fff3c8",fade))
+		"eos_487":
+			# Twin Strike: two distinct blunt impacts in opposite vertical lanes.
+			for j in range(2):
+				var f:float=clampf(drive*1.6-float(j)*.45,0.0,1.0)
+				var q:=Vector2(9+25*f,18+float(j)*12)
+				fx_line(im,q-Vector2(11,float(j*2-1)*4),q,3.3,Color("#c6a181",fade))
+				fx_disc(im,q,4.2,Color("#94715a",fade))
+				fx_disc(im,q-Vector2(0,1),2.8,Color("#f6d5a6",fade))
+				if f>.8:fairy_star(im,q+Vector2(4,0),4.0,Color("#fff1c4",fade))
+		"eos_176":
+			# Horn Attack: one broad curved horn with an ivory tip.
+			var q:=Vector2(10+24*drive,24)
+			fx_line(im,q-Vector2(12,6),q+Vector2(8,-1),5.2,Color("#a28a70",fade))
+			fx_line(im,q-Vector2(12,-3),q+Vector2(8,-1),3.4,Color("#ead9b9",fade))
+			fx_line(im,q-Vector2(7,-4),q+Vector2(8,-1),1.1,Color("#fff4dc",fade))
+			if t>=peak:fairy_star(im,q+Vector2(8,-1),4.0,Color("#fce1ad",fade))
+		"eos_177":
+			# Piercing Horn: long straight horn spins through tight concentric drill traces.
+			var q:=Vector2(9+25*drive,24)
+			fx_line(im,q-Vector2(14,0),q+Vector2(9,0),4.0,Color("#a28c72",fade))
+			fx_line(im,q-Vector2(14,-2),q+Vector2(9,0),1.7,Color("#fff1d0",fade))
+			for j in range(12):
+				var f:float=float(j)/11.0
+				var p:=q+Vector2(-14+21*f,sin(f*TAU*2-t*TAU*2)*(5-3*f))
+				fx_disc(im,p,1.1,Color("#d3b58e",fade))
+			if t>=peak:fairy_star(im,q+Vector2(8,0),3.5,Color("#fff0bf",fade))
+		"eos_311":
+			# Frenzy Thrust: rapid alternating horn thrusts leave short sharp motion streaks.
+			for j in range(4):
+				var f:float=fposmod(t*1.6+float(j)*.25,1.0)
+				var q:=Vector2(8+29*f,17+float(j%3)*7)
+				fx_line(im,q-Vector2(9,3),q+Vector2(4,0),2.7,Color("#b09578",fade))
+				fx_line(im,q-Vector2(9,-2),q+Vector2(4,0),1.5,Color("#f8e4bf",fade))
+				fx_line(im,q-Vector2(15,0),q-Vector2(9,0),.9,Color("#d6ba91",fade))
+				if f>.8:fx_disc(im,q+Vector2(4,0),1.8,Color("#ffe8b1",fade))
 	return im
 
 func combat_frame_image(id:String,frame:int)->Image:
