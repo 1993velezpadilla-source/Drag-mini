@@ -191,6 +191,10 @@ const TILE_CAST_AIR=["eos_100","eos_153","eos_205","eos_204","eos_206","eos_235"
 const TILE_CAST_GROUND=["eos_052","eos_132","eos_139","eos_140","eos_154","eos_190","eos_203","eos_300","eos_348","eos_354","eos_432","eos_451","eos_455","eos_498","eos_502","eos_510","eos_517","eos_533","eos_002","eos_105"]
 var player_impact_delay:float=0.0
 var fx_reactions:Array[Dictionary]=[]
+var fx_due_reactions:Array[Dictionary]=[]
+var fx_impact_snapshot_builds:int=0
+var fx_impact_snapshot_hits:int=0
+var fx_contact_sample_hits:int=0
 var fx_ground_shake:float=0.0
 var fx_contact_camera:Vector3=Vector3.ZERO
 var fx_contact_camera_age:float=1.0
@@ -3129,6 +3133,9 @@ func commit_cinematic_lights()->void:
 # A single impact resolver shared by halos, residues and finish choreography.
 # Empty terrain may still receive environmental effects, never a damage flash.
 func resolve_element_impact(burst:Dictionary)->Dictionary:
+	if burst.has("resolved_impact"):
+		fx_impact_snapshot_hits+=1
+		return burst.resolved_impact
 	var points:Array=burst.points
 	var target:Vector3=points[-1]
 	var tile:=Vector2i(roundi(target.x/1.4),roundi(target.z/1.4))
@@ -15319,6 +15326,7 @@ func combat_fx_spawn(event:Dictionary,launch_age:float=0.0)->void:
 	burst["impact_waves"]=cast_impact_waves(burst.results)
 	burst["impact_times"]=reaction_times(float(burst.duration),float(profile.impact),burst.impact_waves.size())
 	burst["impact_cursor"]=0
+	prepare_impact_snapshots(burst)
 	burst["environment_audio"]=combat_environment_audio_plan(id,profile)
 	burst["environment_audio_cursor"]=0
 	if launch_age<.14:play_combat_sound(id,"launch",waypoints[0],false,launch_age)
@@ -15431,7 +15439,9 @@ func queue_enemy_reaction(actor:Node3D,defeated:bool,delay:float,direction:Vecto
 
 func update_combat_reactions(dt:float)->void:
 	# Process chronological order even if a slow frame crosses several impacts.
-	var due:Array[Dictionary]=[]
+	if fx_reactions.is_empty():return
+	fx_due_reactions.clear()
+	var due:Array[Dictionary]=fx_due_reactions
 	for i in range(fx_reactions.size()-1,-1,-1):
 		var reaction:Dictionary=fx_reactions[i]
 		reaction.delay-=dt
@@ -15461,6 +15471,7 @@ func update_combat_reactions(dt:float)->void:
 			var warning=actor.get_node_or_null("Warning")
 			if bar!=null:bar.hide()
 			if warning!=null:warning.hide()
+	fx_due_reactions.clear()
 # Both immediate and delayed casts use the same body presentation contract.
 func player_cast_sample(id:String,source:Vector2i,target:Vector2i,age:float=0.0)->Dictionary:
 	var profile:=combat_profile(id)
@@ -16954,10 +16965,48 @@ func directed_impact_sample(form:String,progress:float)->Vector3:
 	return Vector3(radius,height,fade)
 
 # Multi-hit presentation must not leak damage from a future attempt.
+# Real casts own immutable copies of the result ledger. Snapshot only
+# presentation data, preserving the exact wave cursor and original target order.
+func make_impact_snapshot(points:Array,results:Dictionary,damage:int)->Dictionary:
+	var snapshot:Dictionary={"points":points,"results":results,"damage":damage}
+	var resolved:=resolve_element_impact(snapshot)
+	var targets:Array[Vector3]=[]
+	var critical:Array[Vector2i]=[]
+	for tile in results:
+		var row:Dictionary=results[tile]
+		if int(row.get("damage",0))<=0:continue
+		if targets.size()<4:targets.append(pos(tile)+Vector3.UP*.60)
+		if int(row.get("crit",0))>0 and critical.size()<4:critical.append(tile)
+	if targets.is_empty() and results.is_empty() and damage>0:targets.append(points[-1])
+	snapshot["resolved_impact"]=resolved
+	snapshot["damage_targets"]=targets
+	snapshot["critical_tiles"]=critical
+	fx_impact_snapshot_builds+=1
+	return snapshot
+
+func prepare_impact_snapshots(burst:Dictionary)->void:
+	var points:Array=burst.points
+	var aggregate:=make_impact_snapshot(points,burst.get("results",{}),int(burst.get("damage",0)))
+	burst["resolved_impact"]=aggregate.resolved_impact
+	burst["damage_targets"]=aggregate.damage_targets
+	var waves:Array=burst.get("impact_waves",[])
+	var snapshots:Array[Dictionary]=[]
+	for wave in waves:
+		if waves.size()==1:
+			# Critical tiles are ledger-only, even for fallback aggregate damage.
+			snapshots.append(aggregate)
+		else:snapshots.append(make_impact_snapshot(points,wave,0))
+	burst["wave_snapshots"]=snapshots
+	burst["preimpact_snapshot"]=make_impact_snapshot(points,{},0) if waves.size()>1 else aggregate
+	burst["contact_cache"]={}
+
 func impact_visual_view(burst:Dictionary)->Dictionary:
 	var waves:Array=burst.get("impact_waves",[])
 	if waves.size()<2:return burst
 	var index:int=int(burst.get("impact_cursor",0))-1
+	if burst.has("wave_snapshots"):
+		fx_impact_snapshot_hits+=1
+		return burst.wave_snapshots[index] if index>=0 and index<waves.size() else burst.preimpact_snapshot
 	var active:Dictionary={}
 	if index>=0 and index<waves.size():active=waves[index]
 	return {"points":burst.points,"results":active,"damage":0}
@@ -16975,6 +17024,9 @@ func critical_impact_tiles(burst:Dictionary)->Array[Vector2i]:
 	var targets:Array[Vector2i]=[]
 	var wave:=contact_wave_sample(burst)
 	if wave.is_empty():return targets
+	if burst.has("wave_snapshots"):
+		fx_impact_snapshot_hits+=1
+		return burst.wave_snapshots[int(wave.index)].critical_tiles
 	var results:Dictionary=wave.results
 	for tile in results:
 		var row:Dictionary=results[tile]
@@ -17028,9 +17080,13 @@ func directed_impact_fx(burst:Dictionary,t:float,used:int)->int:
 	var view:=impact_visual_view(burst)
 	var results:Dictionary=view.get("results",{})
 	var targets:Array[Vector3]=[]
-	for tile in results:
-		if int(results[tile].get("damage",0))>0:targets.append(pos(tile)+Vector3.UP*.60)
-	if targets.is_empty() and results.is_empty() and int(view.get("damage",0))>0:targets.append(burst.points[-1])
+	if view.has("damage_targets"):
+		targets=view.damage_targets
+		fx_impact_snapshot_hits+=1
+	else:
+		for tile in results:
+			if int(results[tile].get("damage",0))>0:targets.append(pos(tile)+Vector3.UP*.60)
+		if targets.is_empty() and results.is_empty() and int(view.get("damage",0))>0:targets.append(burst.points[-1])
 	if targets.is_empty():return used
 	var form:=directed_impact_form(profile)
 	var sample:=directed_impact_sample(form,phase)
@@ -17062,6 +17118,19 @@ func directed_impact_fx(burst:Dictionary,t:float,used:int)->int:
 
 # Pick the most recent dispatched wave, never aggregate damage from later hits.
 func contact_wave_sample(burst:Dictionary)->Dictionary:
+	if burst.has("contact_cache"):
+		var cache:Dictionary=burst.contact_cache
+		if cache.get("age",-1.0)==burst.age and cache.get("cursor",-1)==burst.get("impact_cursor",0):
+			fx_contact_sample_hits+=1
+			return cache.sample
+		var sample:=compute_contact_wave_sample(burst)
+		cache["age"]=burst.age
+		cache["cursor"]=burst.get("impact_cursor",0)
+		cache["sample"]=sample
+		return sample
+	return compute_contact_wave_sample(burst)
+
+func compute_contact_wave_sample(burst:Dictionary)->Dictionary:
 	var waves:Array=burst.get("impact_waves",[])
 	var times:Array=burst.get("impact_times",[])
 	var index:int=int(burst.get("impact_cursor",0))-1

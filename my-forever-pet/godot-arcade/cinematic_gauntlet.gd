@@ -267,6 +267,30 @@ func run_checks()->void:
 		for k in range(33):view.combat_path_sample(route_points,float(k)/32.0,metrics)
 		if view.fx_path_metrics_builds!=builds:failures.append("V21.8 cached path rebuild")
 		checks+=2
+	# Snapshot parity for confirmed, missed, and redirected multi-hit results.
+	var snapshot_tile:=Vector2i(1,0)
+	var snapshot_other:=Vector2i(2,0)
+	var snapshot_points:Array=[Vector3.ZERO,Vector3(1.4,.6,0)]
+	var snapshot_waves:Array[Dictionary]=[{snapshot_tile:{"damage":0}},{snapshot_other:{"damage":7,"crit":1}}]
+	var snapshot_burst:Dictionary={"points":snapshot_points,"results":{snapshot_other:{"damage":7,"crit":1}},"damage":7,"impact_waves":snapshot_waves,"impact_times":[.2,.4],"impact_cursor":0,"age":0.0,"duration":.8}
+	var legacy_snapshot:Dictionary=snapshot_burst.duplicate(true)
+	view.prepare_impact_snapshots(snapshot_burst)
+	var snapshot_builds:int=view.fx_impact_snapshot_builds
+	for cursor in range(3):
+		snapshot_burst.impact_cursor=cursor
+		legacy_snapshot.impact_cursor=cursor
+		snapshot_burst.age=.01+float(cursor)*.2
+		legacy_snapshot.age=snapshot_burst.age
+		var expected:=view.resolve_element_impact(view.impact_visual_view(legacy_snapshot))
+		if view.resolve_element_impact(view.impact_visual_view(snapshot_burst))!=expected:failures.append("V21.9 impact snapshot parity")
+		if view.critical_impact_tiles(snapshot_burst)!=view.critical_impact_tiles(legacy_snapshot):failures.append("V21.9 critical snapshot parity")
+		if view.contact_wave_sample(snapshot_burst)!=view.contact_wave_sample(legacy_snapshot):failures.append("V21.9 contact clock parity")
+		var hits:int=view.fx_contact_sample_hits
+		view.contact_wave_sample(snapshot_burst)
+		if view.fx_contact_sample_hits!=hits+1:failures.append("V21.9 contact reuse")
+		checks+=4
+	if view.fx_impact_snapshot_builds!=snapshot_builds:failures.append("V21.9 repeated snapshot build")
+	checks+=1
 	var route:Array=[Vector3(0,.5,0),Vector3(1.4,.5,0),Vector3(1.4,.5,2.8)]
 	for id in Dungeon.PROJECTILE_IDENTITY:
 		if not catalog.has(id):failures.append("unknown projectile: "+str(id))

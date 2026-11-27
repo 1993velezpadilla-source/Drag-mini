@@ -492,16 +492,16 @@ func run()->void:
 	if frozen_points.size()!=3 or absf(float(frozen_points[-1].y)-.45*1.45)>.001:errors.append("historical counter endpoint")
 	print("KINDRIA_FROZEN_COUNTER_GEOMETRY_PASS")
 	# Reverse render order must not replace a later impact with an earlier hit.
-	var older_hit:Dictionary={"age":.65,"duration":1.0,"profile":{"impact":.5},"points":[Vector3.ZERO,Vector3.RIGHT]}
-	var newer_hit:Dictionary={"age":.53,"duration":1.0,"profile":{"impact":.5},"points":[Vector3.ZERO,Vector3.FORWARD]}
+	var older_hit:Dictionary={"age":.65,"duration":1.0,"profile":{"impact":.5},"points":[Vector3.ZERO,Vector3.RIGHT],"target_player":true,"damage":1,"impact_waves":[{}],"impact_times":[.5],"impact_cursor":1}
+	var newer_hit:Dictionary={"age":.53,"duration":1.0,"profile":{"impact":.5},"points":[Vector3.ZERO,Vector3.FORWARD],"target_player":true,"damage":1,"impact_waves":[{}],"impact_times":[.5],"impact_cursor":1}
 	var latest:Dictionary=field.latest_player_impact({},newer_hit)
 	latest=field.latest_player_impact(latest,older_hit)
-	if absf(float(latest.age)-.03)>.001 or latest.direction!=Vector3.FORWARD:errors.append("player impact reverse iteration")
+	if latest.is_empty() or absf(float(latest.get("age",-1.0))-.03)>.001 or latest.get("direction",Vector3.ZERO)!=Vector3.FORWARD:errors.append("player impact reverse iteration")
 	var reversed:Dictionary=field.latest_player_impact(field.latest_player_impact({},older_hit),newer_hit)
 	if reversed!=latest:errors.append("player impact iteration dependence")
 	older_hit.age=.9
 	if not field.latest_player_impact({},older_hit).is_empty():errors.append("expired player hurt resurrected")
-	field.hit_time=.24+.1-float(latest.age)
+	field.hit_time=.24+.1-float(latest.get("age",0.0))
 	field.advance_player_combat_clock(.1)
 	if absf(field.hit_time-.21)>.001:errors.append("player hit subframe duration")
 	print("KINDRIA_LATEST_PLAYER_IMPACT_PASS")
