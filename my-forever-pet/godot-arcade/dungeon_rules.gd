@@ -845,7 +845,10 @@ var rooms:Array[Rect2i]=[]
 var enemies:Array[Dictionary]=[]
 var loot:Dictionary={}
 var revealed:Dictionary={}
-var hp=36
+var dev_sandbox:bool=false
+var hp=36:
+	set(value):
+		hp=maxi(1,int(value)) if dev_sandbox else value
 var max_hp=36
 var potions=2
 var held_item:String=""
@@ -993,11 +996,11 @@ func generate_floor():
 	for p in spots:
 		if p==player or p==stairs or p==relic or distance(p,player)<4:continue
 		if enemies.size()<count:
-			var life=8+floor_number*2+tier*2
+			var life=8+(mini(floor_number,30) if dev_sandbox else floor_number)*2+tier*2
 			enemies.append(make_enemy(p,life,rng.randi_range(0,2),enemies.size()))
 		elif loot.size()<(14 if floor_kind==1 else 9):
 			loot[p]="trail_fruit" if loot.size()==2 else "manual:eos_154" if loot.size()==5 else "potion" if loot.size()%4==0 else "material" if loot.size()%3==0 else "coin"
-		elif traps.size()<floor_number-1:traps[p]=true
+		elif traps.size()<(mini(12,floor_number-1) if dev_sandbox else floor_number-1):traps[p]=true
 		else:break
 	loot[relic]="relic"
 	if floor_kind==3:
@@ -1235,6 +1238,7 @@ func belly_value()->int:
 	return ceili(float(belly_tenths)/10.0)
 
 func spend_belly()->bool:
+	if dev_sandbox:belly_tenths=1000;return true
 	if belly_tenths>0:
 		belly_tenths-=1
 		if belly_tenths==200:emit_event("Getting hungry")
@@ -2648,6 +2652,45 @@ func execute_move(id:String,aim:Vector2i,releasing:bool,invocation_id:String="",
 			finished=true;success=false;turns+=1;enemy_actions.clear();return true
 	enemy_turn()
 	return true
+# Internal sandbox only. Lab actions cannot be used by a production export.
+static func dev_tools_available()->bool:
+	return OS.is_debug_build() or OS.has_feature("kindria_dev")
+
+func enable_dev_sandbox()->bool:
+	if not dev_tools_available():return false
+	dev_sandbox=true
+	rescue_finale=false
+	guardian_defeated=true
+	dev_refill()
+	return true
+
+func dev_refill()->void:
+	if not dev_sandbox:return
+	hp=max_hp;belly_tenths=1000;energy=8
+	potions=maxi(potions,99);coins=maxi(coins,9999);materials=maxi(materials,9999)
+	for id in equipped_moves:
+		if MOVE_LIBRARY.has(id):move_pp[id]=int(MOVE_LIBRARY[id].pp)
+
+func dev_next_floor()->bool:
+	if not dev_sandbox or not dev_tools_available():return false
+	finished=false;success=false
+	floor_number+=1
+	generate_floor()
+	dev_refill()
+	return true
+
+func dev_cast_move(id:String,aim:Vector2i)->bool:
+	if not dev_sandbox or not dev_tools_available() or not MOVE_LIBRARY.has(id) or not aim in DIR:return false
+	# Bypass equipment/species requirements without changing the saved learnset.
+	clear_charge()
+	dev_refill()
+	var move:Dictionary=MOVE_LIBRARY[id]
+	move_pp[id]=int(move.pp)
+	var used:bool=execute_move(id,aim,move.has("charge_phase"))
+	if MOVE_LIBRARY.has(id):move_pp[id]=int(move.pp)
+	dev_refill()
+	return used
+
 func heal()->bool:
 	if player_wait_if_napping():return true
 	if not charged_move_id.is_empty():return release_charge()
@@ -2658,6 +2701,6 @@ func descend()->bool:
 	if not charged_move_id.is_empty():return release_charge()
 	if finished or player!=stairs or not secured:return false
 	floor_bonus=mini(6,maxi(0,explored_rooms.size()-2)*2);coins+=floor_bonus;total_bonus+=floor_bonus
-	if floor_number>=floor_count:
+	if floor_number>=floor_count and not dev_sandbox:
 		finished=true;success=true;message="Expedition complete!";return true
 	floor_number+=1;hp=mini(max_hp,hp+10);generate_floor();return true
