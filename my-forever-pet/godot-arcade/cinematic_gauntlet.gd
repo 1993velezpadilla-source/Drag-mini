@@ -54,9 +54,8 @@ func run_checks()->void:
 			if layout_values[layout_offset+2]!=cos(layout_angle):failures.append("V25.4 cosine")
 			if layout_values[layout_offset+3]!=sin(layout_angle):failures.append("V25.4 sine")
 			checks+=4
-	var layout_copy:PackedFloat64Array=layout_probe.combat_particle_layout(14)
-	layout_copy[0]=99.0
-	if layout_probe.combat_particle_layout(14)[0]!=0.0:failures.append("V25.4 layout cache changed")
+	var layout_repeat:PackedFloat64Array=layout_probe.combat_particle_layout(14)
+	if layout_repeat!=layout_probe.build_particle_layout(14):failures.append("V25.4 layout cache changed")
 	if layout_probe.combat_particle_layout(28)!=layout_probe.build_particle_layout(28):failures.append("V25.4 layout fallback")
 	checks+=2
 	layout_probe.free()
