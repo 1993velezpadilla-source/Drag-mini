@@ -11,6 +11,21 @@ func run_checks()->void:
 	var checks:int=0
 	var failures:Array[String]=[]
 	var view:=Dungeon.new()
+	# V19 power scaling is monotonic, bounded and neutral for variable-power moves.
+	var previous_power:=Vector3.ZERO
+	for power in range(1,61):
+		var sample:=view.cinematic_power_sample(power)
+		if not sample.is_finite() or sample.x<.78 or sample.x>1.48 or sample.y<.80 or sample.y>1.40 or sample.z<.85 or sample.z>1.30:
+			failures.append("cinematic power bounds "+str(power))
+		if sample.x<previous_power.x or sample.y<previous_power.y or sample.z<previous_power.z:
+			failures.append("cinematic power monotonicity "+str(power))
+		previous_power=sample
+		checks+=2
+	if view.cinematic_power_sample(0)!=Vector3.ONE:failures.append("variable power visual neutrality")
+	if view.cinematic_power_sample(8).distance_to(Vector3.ONE)>.0001:failures.append("baseline power visual scale")
+	if view.cinematic_power_sample(60,true)!=view.cinematic_power_sample(0,true):failures.append("status power must not amplify lighting")
+	if view.cinematic_power_sample(44).x<=view.cinematic_power_sample(6).x:failures.append("strong attack visual differentiation")
+	checks+=4
 	for species in Art.ENEMY_PIXEL_PILOTS:
 		for dir in range(8):
 			var idle:=Art.enemy_pixel_texture(species,dir,"idle",0)
