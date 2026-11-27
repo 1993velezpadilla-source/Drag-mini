@@ -1803,14 +1803,112 @@ func combat_animation_mode(id:String,mode:String)->String:
 		"gravity_web","alt_voidspider":return "silk"
 		"celestial_verdict":return "radiant"
 	return mode
+# Original pixel flame silhouettes. Each choreography has its own shape and motion.
+func fire_lobe(im:Image,p:Vector2,r:float,t:float,hot:Color,outer:Color)->void:
+	var tip:=p+Vector2(sin(t*TAU)*r*.45,-r*1.65)
+	fx_line(im,p,tip,r*.9,outer.darkened(.35))
+	fx_disc(im,p,r,outer.darkened(.35))
+	fx_disc(im,p-Vector2(0,1),r*.76,outer)
+	fx_line(im,p,tip,r*.42,outer)
+	fx_disc(im,p-Vector2(0,1),r*.40,hot)
+
+func fire_sprite(im:Image,role:String,frame:int)->void:
+	var t:float=float(frame)/11.0
+	var hot:=Color("#fff0a1");var outer:=Color("#f66a24")
+	var center:=Vector2(24,26)
+	if role=="fire_sacred":hot=Color("#fff9dc");outer=Color("#f9c65a")
+	if role=="fire_wisp":hot=Color("#f0c9ff");outer=Color("#a464df")
+	match role:
+		"fire_overheat","fire_blastburn":
+			var rings:int=2 if role=="fire_overheat" else 3
+			for ring in range(rings):
+				var radius:float=4.0+t*float(7+ring*5)
+				for i in range(7):
+					var a:float=float(i)*TAU/7.0+float(ring)*.36+t*.8
+					fire_lobe(im,center+Vector2(cos(a),sin(a)*.65)*radius,3.0+float(ring),t+float(i)*.1,hot,outer)
+		"fire_wheel":
+			for i in range(10):
+				var a:float=float(i)*TAU/10.0+t*TAU
+				fire_lobe(im,center+Vector2(cos(a),sin(a))*14.0,3.0,t+float(i)*.1,hot,outer)
+			fx_disc(im,center,8.0,hot,6.0)
+		"fire_breath":
+			for i in range(8):
+				var f:float=float(i)/7.0
+				fire_lobe(im,Vector2(5+f*37,27+sin(f*9-t*TAU)*2.8),2.0+f*5.0,t+f,hot,outer)
+		"fire_sacred":
+			for i in range(6):
+				var a:float=float(i)*TAU/6.0+t
+				fire_lobe(im,center+Vector2(cos(a),sin(a))*11.0,4.0,t,hot,outer)
+			fx_disc(im,center,6.0+sin(t*PI)*3.0,hot)
+		"fire_blast":
+			for i in range(5):
+				var a:float=float(i)*TAU/5.0-PI*.5+t*.35
+				var d:=Vector2(cos(a),sin(a))
+				fx_line(im,center,center+d*(10.0+t*10.0),7.0,outer)
+				fire_lobe(im,center+d*(10.0+t*10.0),4.0,t,hot,outer)
+			fx_disc(im,center,7.0,hot)
+		"fire_heatwave":
+			for i in range(4):
+				var y:float=14.0+float(i)*7.0
+				for j in range(1,10):
+					var x:float=4.0+float(j)*4.0
+					fx_line(im,Vector2(x-4.0,y+sin(float(j-1)*.8+t*TAU)*3.0),Vector2(x,y+sin(float(j)*.8+t*TAU)*3.0),2.0,outer if i%2==0 else hot)
+		"fire_ember","fire_wisp":
+			var count:int=4 if role=="fire_ember" else 3
+			for i in range(count):
+				var q:=Vector2(9+float(i)*9.0+sin(t*TAU)*2.0,24+sin(float(i)*2.1+t*TAU)*5.0)
+				fire_lobe(im,q,2.0+float(i%2),t,hot,outer)
+		"fire_kick","fire_punch","fire_fang":
+			if role=="fire_fang":
+				for i in range(3):
+					var x:float=13.0+float(i)*11.0
+					var bite:float=sin(t*PI)*7.0
+					fx_line(im,Vector2(x,8+bite),Vector2(x+3,21+bite),3.5,outer)
+					fx_line(im,Vector2(x,40-bite),Vector2(x+3,27-bite),3.5,hot)
+			elif role=="fire_kick":
+				for i in range(7):
+					var a:float=-PI*.8+float(i)*.38+t*.6
+					fire_lobe(im,center+Vector2(cos(a),sin(a))*15.0,3.0,t,hot,outer)
+			else:
+				fx_line(im,Vector2(3,25),Vector2(28,25),8.0,outer)
+				fire_lobe(im,Vector2(31+sin(t*PI)*4.0,25),9.0,t,hot,outer)
+		"fire_eruption","fire_plume":
+			var count:int=7 if role=="fire_eruption" else 4
+			for i in range(count):
+				var f:float=float(i)/maxi(1,count-1)
+				var q:=Vector2(8+f*32,36-sin(t*PI)*float(10+i%3*6))
+				fire_lobe(im,q,3.0+float(i%3),t+f,hot,outer)
+		"fire_vortex","fire_magma":
+			var count:int=12 if role=="fire_magma" else 8
+			for i in range(count):
+				var f:float=float(i)/float(count)
+				var a:float=f*TAU*1.4+t*TAU
+				var radius:float=7.0+f*12.0
+				fire_lobe(im,center+Vector2(cos(a)*radius,sin(a)*radius*.55-f*9.0),3.0 if role=="fire_vortex" else 5.0,t+f,hot,outer)
+		"fire_blitz":
+			for i in range(7):
+				var f:float=float(i)/6.0
+				fire_lobe(im,Vector2(5+f*33,26+sin(f*8+t*TAU)*4.0),2.0+f*7.0,t+f,hot,outer)
+			fx_disc(im,Vector2(35,26),6.0,hot)
+		"fire_sun":
+			var r:float=7.0+t*6.0
+			fx_disc(im,Vector2(24,19),r,outer);fx_disc(im,Vector2(24,19),r-2.0,hot)
+			for i in range(8):
+				var a:float=float(i)*TAU/8.0+t*.25
+				var d:=Vector2(cos(a),sin(a))
+				fx_line(im,Vector2(24,19)+d*(r+2),Vector2(24,19)+d*(r+6),2.0,outer)
+
 func combat_frame_image(id:String,frame:int)->Image:
 	var style:Array=combat_style(id)
 	var mode:String=combat_animation_mode(id,str(style[0]))
 	var light:=Color(style[1]);var dark:=Color(style[2]);var edge:=dark.darkened(.52)
 	var im:=Image.create(FX_FRAME_SIZE,FX_FRAME_SIZE,false,Image.FORMAT_RGBA8);im.fill(Color.TRANSPARENT)
 	var t:float=float(posmod(frame,FX_FRAME_COUNT))/float(FX_FRAME_COUNT-1)
-	if str(combat_profile(id).role).begins_with("electric"):
-		electric_sprite(im,id,frame,str(combat_profile(id).role));return im
+	var role:String=str(combat_profile(id).role)
+	if role.begins_with("electric"):
+		electric_sprite(im,id,frame,role);return im
+	if role.begins_with("fire_"):
+		fire_sprite(im,role,frame);return im
 	var center:=Vector2(24,24)
 	match mode:
 		"vine":
@@ -1944,9 +2042,29 @@ func combat_profile(id:String)->Dictionary:
 		"eos_192":role="electric_bind"
 		"eos_128":role="electric_charge"
 		"eos_493":role="electric_lift"
+		"eos_041":role="fire_overheat"
+		"eos_052":role="fire_wheel"
+		"eos_053":role="fire_breath"
+		"eos_149":role="fire_sacred"
+		"eos_157":role="fire_blast"
+		"eos_230":role="fire_heatwave"
+		"eos_262":role="fire_ember"
+		"eos_272":role="fire_blastburn"
+		"eos_276":role="fire_kick"
+		"eos_278":role="fire_eruption"
+		"eos_291":role="fire_vortex"
+		"eos_292":role="fire_punch"
+		"eos_517":role="fire_blitz"
+		"eos_519":role="fire_plume"
+		"eos_522":role="fire_fang"
+		"eos_524":role="fire_magma"
+		"eos_047":role="fire_wisp"
+		"eos_223":role="fire_sun"
 	if role in ["electric_charge","electric_lift"]:mode="lightning"
 	var impact:float=.48 if role in ["contact","electric_contact","electric_short","electric_fist","electric_fang","electric_dash","electric_spark"] else .64 if role in ["projectile","lash","electric_arc","electric_wave","electric_sky","electric_orb","electric_beam"] else .40
-	return {"mode":mode,"role":role,"element":element,"pattern":pattern,"range":reach,"duration":float(style[3]),"impact":impact,"socket":"ground" if role=="ground" else "head" if role=="projectile" else "center"}
+	if role in ["fire_breath","fire_ember","fire_blast","fire_wisp"]:impact=.64
+	elif role in ["fire_wheel","fire_kick","fire_punch","fire_fang","fire_blitz"]:impact=.48
+	return {"mode":mode,"role":role,"element":element,"pattern":pattern,"range":reach,"duration":float(style[3]),"impact":impact,"socket":"ground" if role in ["ground","fire_plume","fire_magma"] else "head" if role in ["projectile","fire_breath","fire_ember","fire_eruption"] else "center"}
 func electric_sprite(im:Image,id:String,frame:int,role:String)->void:
 	var cyan:=Color("#40cfff")
 	var violet:=Color("#5969ed")
@@ -2388,6 +2506,33 @@ func combat_fx_update(dt:float)->void:
 				q=tiles[j%tiles.size()]+Vector3(0,.42,0);size=.48
 			elif profile.role in ["electric_charge","electric_lift"]:
 				q=points[0]+Vector3(cos(angle)*.25,t*.55 if profile.role=="electric_lift" else .12,sin(angle)*.25);size=.48
+			if str(profile.role).begins_with("fire_"):
+				var fire_role:String=str(profile.role)
+				var progress:float=clampf(t*1.8-f*.35,0.0,1.0)
+				match fire_role:
+					"fire_breath","fire_ember","fire_wisp":
+						q=combat_path_sample(points,progress)+Vector3(cos(angle)*.12,sin(angle)*.14,sin(angle)*.12)
+						size=.24 if fire_role=="fire_ember" else .38 if fire_role=="fire_wisp" else .35+progress*.65
+					"fire_blast":
+						q=combat_path_sample(points,progress)
+						if t>.55:q+=Vector3(cos(angle),.3*sin(angle),sin(angle))*(t-.55)*.85
+						size=.8
+					"fire_overheat","fire_blastburn","fire_heatwave","fire_plume":
+						q=tiles[j%tiles.size()]+Vector3(cos(angle)*t*.38,.15+sin(t*PI)*(.8 if fire_role=="fire_plume" else .35),sin(angle)*t*.38)
+						size=.85 if fire_role=="fire_blastburn" else .58
+					"fire_wheel","fire_blitz":
+						q=combat_path_sample(points,progress)+Vector3(cos(angle+t*TAU)*.18,.1+absf(sin(angle+t*TAU))*.4,sin(angle+t*TAU)*.18)
+						size=.72 if fire_role=="fire_blitz" else .46
+					"fire_eruption":
+						q=points[0].lerp(points[-1],progress)+Vector3(cos(angle)*.35,sin(progress*PI)*1.1,sin(angle)*.35)
+						size=.62
+					"fire_vortex","fire_magma":
+						q=points[-1]+Vector3(cos(angle+t*TAU*2.0)*.45,f*.75,sin(angle+t*TAU*2.0)*.45)
+						size=.9 if fire_role=="fire_magma" else .5
+					"fire_sun":
+						q=points[0]+Vector3(cos(angle)*.12,1.6+t*.35,sin(angle)*.12);size=.82
+					_:
+						q=points[-1]+Vector3(cos(angle)*.28,sin(angle)*.3,sin(angle)*.28);size=.62
 			# Drained energy travels from victim back to caster; healing stays on caster.
 			if profile.role=="drain" and t>=.40:
 				var back:float=clampf((t-.40)*2.0-f*.22,0.0,1.0)
@@ -2721,7 +2866,7 @@ func _process(dt:float):
 	elif run.charge_phase=="gather":pet_pose.position.y=.03+.04*sin(elapsed*12.0)
 	if attack_time>0.0:
 		var phase=sin(PI*attack_time/maxf(.01,player_cast_duration))
-		var lunge:float=.40 if player_cast_mode in ["contact","electric_contact","electric_fist","electric_fang","electric_spark","electric_dash"] else .13 if player_cast_mode=="lash" else -.08
+		var lunge:float=.40 if player_cast_mode in ["contact","electric_contact","electric_fist","electric_fang","electric_spark","electric_dash","fire_wheel","fire_blitz","fire_kick","fire_punch","fire_fang"] else .13 if player_cast_mode=="lash" else -.08
 		pet_pose.position+=pet.basis.inverse()*attack_direction*phase*lunge
 		attack_fx.visible=player_impact_delay<=0.0;attack_fx.scale=Vector3(1.1-phase*.42,.13,1.1-phase*.42)
 	else:attack_fx.hide()
