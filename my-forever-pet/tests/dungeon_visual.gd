@@ -812,6 +812,34 @@ func run():
 		assert(count>=4 and count<=preview.combat_particles.size())
 		assert(preview.element_finish_fx(burst,.8,preview.combat_particles.size())==preview.combat_particles.size())
 	print("KINDRA_ELEMENT_FINISH_PASS 8")
+	# Render actual elemental shader + original sprite + world particle composition.
+	var elemental_modes:Dictionary={}
+	for element in preview.ELEMENT_SHADER_MODES:
+		var id:String="lib_"+str(element)+"_2"
+		var target:Vector2i=anchor+Vector2i.RIGHT
+		preview.combat_bursts.clear()
+		preview.combat_fx_update(0.0)
+		preview.combat_fx_spawn({"fx":id,"from":anchor,"to":target,"path":[target],"tiles":[target],"results":{target:{"damage":8,"effects":0,"heal":0}}})
+		var burst:Dictionary=preview.combat_bursts[-1]
+		assert(str(burst.profile.element)==str(element),"element material mismatch "+id)
+		preview.combat_fx_update(float(burst.duration)*float(burst.profile.impact)*.76)
+		var mode:int=int(preview.ELEMENT_SHADER_MODES[element])
+		assert(not elemental_modes.has(mode))
+		elemental_modes[mode]=true
+		assert(preview.fx_halos_used>0 and int(preview.fx_halo_materials[0].get_shader_parameter("element_mode"))==mode,"missing Godot elemental layer "+id)
+		await process_frame
+		await RenderingServer.frame_post_draw
+		assert(root.get_texture().get_image().save_png("/tmp/dungeon-real-element-"+str(element)+"-travel.png")==OK)
+		preview.combat_fx_update(float(burst.duration)*(float(burst.profile.impact)*.24+.06))
+		assert(preview.fx_halos_used>0 and int(preview.fx_halo_materials[0].get_shader_parameter("element_mode"))==mode)
+		await process_frame
+		await RenderingServer.frame_post_draw
+		assert(root.get_texture().get_image().save_png("/tmp/dungeon-real-element-"+str(element)+"-impact.png")==OK)
+	assert(elemental_modes.size()==18)
+	preview.combat_bursts.clear()
+	preview.combat_fx_update(0.0)
+	assert(preview.fx_halos_used==0,"shader layer survives cast clear")
+	print("KINDRIA_ELEMENT_SHADER_CAPTURE_PASS 18")
 	var result_tile:Vector2i=anchor+Vector2i.RIGHT
 	var miss:Dictionary={"damage":0,"hits":0,"misses":1,"effects":0,"blocked":0,"crit":0}
 	var critical:Dictionary={"damage":25,"hits":1,"misses":0,"effects":0,"blocked":0,"crit":1}

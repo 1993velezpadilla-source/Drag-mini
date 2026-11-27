@@ -2204,7 +2204,7 @@ uniform int element_mode = 0;
 uniform float variation = 0.0;
 float grain(vec2 p) { return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453); }
 float noise2(vec2 p) { vec2 i=floor(p); vec2 f=fract(p); f=f*f*(3.0-2.0*f); return mix(mix(grain(i),grain(i+vec2(1.0,0.0)),f.x),mix(grain(i+vec2(0.0,1.0)),grain(i+vec2(1.0)),f.x),f.y); }
-float ribbon(float x,float w) { return 1.0-smoothstep(w*0.35,w,abs(x)); }
+float ribbon(float x,float w) { float width=max(w,0.001); return 1.0-smoothstep(width*0.35,width,abs(x)); }
 void fragment() {
 	vec2 p = UV * 2.0 - 1.0;
 	float r = length(p);
