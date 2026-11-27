@@ -5484,7 +5484,7 @@ func native_identity_frame(id:String,frame:int,base:Image)->Image:
 	return im
 
 # V16.7: individually remastered after reviewing actual Godot PNG strips.
-const VISUAL_REMASTER_MOVES=["eos_504","eos_308","eos_135","eos_142","eos_047","eos_250","eos_299","eos_329","eos_262","eos_279","eos_101","eos_199","eos_251","eos_486","eos_462","eos_018","eos_507","eos_175","eos_254","eos_097","eos_163","eos_320","eos_033","eos_166","eos_228","eos_004","eos_252","eos_330","eos_465","eos_138","eos_021","eos_501","eos_053","eos_157","eos_064","eos_188","eos_240","eos_255","eos_342","eos_539","eos_041","eos_278","eos_538","eos_239","eos_193","eos_272","eos_519","eos_494","eos_292","eos_065","eos_276","eos_208","eos_522","eos_452","eos_433","eos_087","eos_063","eos_062","eos_476","eos_127","eos_451","eos_436","eos_491","eos_046","eos_109","eos_234","eos_107","eos_463","eos_133","eos_317","eos_111","eos_331","eos_345","eos_270","eos_042","eos_344","eos_461","eos_180","eos_535","eos_150","eos_118","eos_484","eos_008","eos_131","eos_030","eos_481","eos_028","eos_073","lib_ground_1","eos_057","eos_036","eos_442","eos_153","eos_205","eos_100","eos_518","eos_178","eos_200","eos_495","eos_280","eos_197","eos_332","eos_147","eos_485","eos_459","eos_151","eos_537","eos_443","eos_336","eos_182","eos_253","eos_441","eos_076","lib_grass_1","eos_001","eos_325","eos_103","eos_536","eos_510","eos_431","eos_475","eos_523","eos_080","eos_082","eos_114","eos_323","eos_470","eos_502","eos_529","eos_530","eos_460","eos_520","eos_449","eos_288","eos_164","eos_306","eos_023","eos_086","eos_346","lib_fairy_1","lib_fairy_2","lib_fairy_3","eos_341","eos_498","eos_343","eos_091","eos_162","eos_435","lib_dragon_1","lib_dragon_2","lib_dragon_3","eos_092","eos_204","eos_206","eos_303","eos_222","eos_210","lib_fighting_2","eos_136","eos_075","eos_300","eos_246","eos_430","eos_440","eos_500","eos_508","eos_454","eos_479","eos_243","eos_068","eos_090","lib_fighting_1","lib_fighting_3","eos_072","eos_077","eos_116","eos_531","eos_265","eos_305","eos_051","eos_170","eos_340","eos_007","eos_029","lib_electric_1","lib_electric_2","lib_electric_3","eos_129","eos_144","eos_189","eos_354","eos_489","eos_521","eos_192","eos_128","eos_493","lib_fire_1","lib_fire_2","lib_fire_3","eos_052","eos_149","eos_230","eos_291","eos_517","eos_524","eos_223","lib_water_1","lib_water_2","lib_water_3","eos_016","eos_032","eos_044","eos_069","eos_113","eos_156","eos_158","eos_159","eos_219","eos_310","eos_432","eos_469","eos_070","eos_012","eos_307","eos_434","lib_grass_2","lib_grass_3","eos_221","eos_238","eos_297","eos_458","eos_468","eos_511","eos_079","eos_231","eos_124","eos_351","eos_015","eos_094","eos_084","eos_233","lib_ice_1","lib_ice_2","lib_ice_3","eos_002","eos_088","eos_130","eos_014","lib_poison_1","lib_poison_2","lib_poison_3","eos_198","eos_283","eos_196","eos_202","eos_496","eos_438","lib_ground_2","lib_ground_3","eos_143","eos_213","eos_289","eos_285","eos_290","eos_212","eos_295","eos_296"]
+const VISUAL_REMASTER_MOVES=["eos_504","eos_308","eos_135","eos_142","eos_047","eos_250","eos_299","eos_329","eos_262","eos_279","eos_101","eos_199","eos_251","eos_486","eos_462","eos_018","eos_507","eos_175","eos_254","eos_097","eos_163","eos_320","eos_033","eos_166","eos_228","eos_004","eos_252","eos_330","eos_465","eos_138","eos_021","eos_501","eos_053","eos_157","eos_064","eos_188","eos_240","eos_255","eos_342","eos_539","eos_041","eos_278","eos_538","eos_239","eos_193","eos_272","eos_519","eos_494","eos_292","eos_065","eos_276","eos_208","eos_522","eos_452","eos_433","eos_087","eos_063","eos_062","eos_476","eos_127","eos_451","eos_436","eos_491","eos_046","eos_109","eos_234","eos_107","eos_463","eos_133","eos_317","eos_111","eos_331","eos_345","eos_270","eos_042","eos_344","eos_461","eos_180","eos_535","eos_150","eos_118","eos_484","eos_008","eos_131","eos_030","eos_481","eos_028","eos_073","lib_ground_1","eos_057","eos_036","eos_442","eos_153","eos_205","eos_100","eos_518","eos_178","eos_200","eos_495","eos_280","eos_197","eos_332","eos_147","eos_485","eos_459","eos_151","eos_537","eos_443","eos_336","eos_182","eos_253","eos_441","eos_076","lib_grass_1","eos_001","eos_325","eos_103","eos_536","eos_510","eos_431","eos_475","eos_523","eos_080","eos_082","eos_114","eos_323","eos_470","eos_502","eos_529","eos_530","eos_460","eos_520","eos_449","eos_288","eos_164","eos_306","eos_023","eos_086","eos_346","lib_fairy_1","lib_fairy_2","lib_fairy_3","eos_341","eos_498","eos_343","eos_091","eos_162","eos_435","lib_dragon_1","lib_dragon_2","lib_dragon_3","eos_092","eos_204","eos_206","eos_303","eos_222","eos_210","lib_fighting_2","eos_136","eos_075","eos_300","eos_246","eos_430","eos_440","eos_500","eos_508","eos_454","eos_479","eos_243","eos_068","eos_090","lib_fighting_1","lib_fighting_3","eos_072","eos_077","eos_116","eos_531","eos_265","eos_305","eos_051","eos_170","eos_340","eos_007","eos_029","lib_electric_1","lib_electric_2","lib_electric_3","eos_129","eos_144","eos_189","eos_354","eos_489","eos_521","eos_192","eos_128","eos_493","lib_fire_1","lib_fire_2","lib_fire_3","eos_052","eos_149","eos_230","eos_291","eos_517","eos_524","eos_223","lib_water_1","lib_water_2","lib_water_3","eos_016","eos_032","eos_044","eos_069","eos_113","eos_156","eos_158","eos_159","eos_219","eos_310","eos_432","eos_469","eos_070","eos_012","eos_307","eos_434","lib_grass_2","lib_grass_3","eos_221","eos_238","eos_297","eos_458","eos_468","eos_511","eos_079","eos_231","eos_124","eos_351","eos_015","eos_094","eos_084","eos_233","lib_ice_1","lib_ice_2","lib_ice_3","eos_002","eos_088","eos_130","eos_014","lib_poison_1","lib_poison_2","lib_poison_3","eos_198","eos_283","eos_196","eos_202","eos_496","eos_438","lib_ground_2","lib_ground_3","eos_143","eos_213","eos_289","eos_285","eos_290","eos_212","eos_295","eos_296","lib_rock_1","lib_rock_2","lib_rock_3","eos_093","eos_453","eos_512","eos_533","eos_350","eos_105","eos_540","eos_141","eos_480"]
 func visual_remaster_frame(id:String,frame:int)->Image:
 	var im:=Image.create(48,48,false,Image.FORMAT_RGBA8)
 	im.fill(Color.TRANSPARENT)
@@ -9345,6 +9345,176 @@ func visual_remaster_frame(id:String,frame:int)->Image:
 				var q:=c+Vector2(cos(a)*18*drive,sin(a)*7*drive-11*pulse)
 				earth_rock(im,q,2.0+float(j%3)*.7,Color("#c7a578",fade),Color("#785b43",fade))
 				fx_disc(im,q+Vector2(0,8),1.5,Color("#b79870",fade*.6))
+		"lib_rock_1":
+			# Pebble Shot: compact irregular stone with a sparse gravel trail.
+			var q:=Vector2(8+28*drive,23-4*sin(drive*PI))
+			earth_rock(im,q,4.0,Color("#c3b7a5",fade),Color("#655e57",fade))
+			fx_line(im,q-Vector2(11*fade,0),q-Vector2(4,0),1.2,Color("#c5b59e",fade))
+			for j in range(4):
+				var p:=q+Vector2(-7-float(j)*3,3+float(j%2)*3)
+				fx_disc(im,p,1.0,Color("#9d9485",fade))
+			if t>=peak:
+				for j in range(5):
+					var a:float=float(j)*TAU/5.0
+					var p:=q+Vector2(cos(a),sin(a))*(4+9*(1.0-fade))
+					earth_rock(im,p,1.8,Color("#d2c7b6",fade),Color("#746b62",fade))
+		"lib_rock_2":
+			# Boulder Rush: huge faceted boulder pushes forward with a compressed gravel wake.
+			var q:=Vector2(12+21*drive,26)
+			earth_rock(im,q,9+2*pulse,Color("#a69b8d",fade),Color("#514b47",fade))
+			var a:float=t*TAU
+			for j in range(3):
+				var b:float=a+float(j)*TAU/3.0
+				var d:=Vector2(cos(b),sin(b))
+				fx_line(im,q,q+d*7,1.3,Color("#d1c4af",fade))
+			for j in range(6):
+				var p:=q+Vector2(-10-float(j)*2,5+sin(float(j)*2.4+t*TAU)*5)
+				earth_rock(im,p,2.0+float(j%2),Color("#b8a68c",fade),Color("#766b5e",fade))
+			if t>=peak:
+				fight_arc(im,q,12+5*(1.0-fade),-PI*.65,PI*1.3,Color("#e6d7be",fade),Color("#978675",fade),2.4)
+		"lib_rock_3":
+			# Crystal Avalanche: angular crystal columns tumble down in a staggered cascade.
+			for j in range(6):
+				var f:float=clampf(drive*1.5-float(j)*.10,0.0,1.0)
+				var q:=Vector2(8+float(j)*6,5+29*f)
+				var a:float=PI*.5+sin(float(j)*2.4+t*TAU)*.4
+				var d:=Vector2(cos(a),sin(a))
+				var n:=Vector2(-d.y,d.x)
+				var tip:=q+d*7
+				fx_line(im,q-d*4,tip,4.2,Color("#596e83",fade))
+				fx_line(im,q+n*2,tip,2.2,Color("#a1c6d4",fade))
+				fx_line(im,q-n*2,tip,1.2,Color("#e4f3ed",fade))
+				if f>.85:
+					for k in range(3):
+						var p:=q+Vector2(float(k-1)*5,6+float(k%2)*2)
+						earth_rock(im,p,1.8,Color("#c7d9da",fade),Color("#61717c",fade))
+		"eos_093":
+			# Ancientpower: levitating ancient stones orbit an amber energy core.
+			var c:=Vector2(24,24)
+			var rad:float=6+10*drive
+			fx_disc(im,c,5+2*pulse,Color("#a78046",fade))
+			fx_disc(im,c,3.4+2*pulse,Color("#f4d99c",fade))
+			for j in range(6):
+				var a:float=float(j)*TAU/6.0+t*TAU
+				var d:=Vector2(cos(a),sin(a)*.82)
+				var q:=c+d*rad
+				fx_line(im,c+d*5,q,1.0,Color("#d3ae72",fade*.65))
+				earth_rock(im,q,3.6+float(j%2),Color("#bb9e76",fade),Color("#685643",fade))
+				fairy_star(im,q-Vector2(2,3),1.3,Color("#ffe8a9",fade))
+		"eos_453":
+			# Rock Wrecker: giant dense stone projectile fractures violently upon contact.
+			var c:=Vector2(11+23*drive,24)
+			if t<peak:
+				earth_rock(im,c,11.0,Color("#b7aea2",fade),Color("#49484a",fade))
+				fx_line(im,c-Vector2(6,4),c+Vector2(5,4),1.8,Color("#666466",fade))
+				fx_line(im,c+Vector2(0,-7),c+Vector2(0,1),1.3,Color("#d9d4c6",fade))
+				for j in range(3):
+					fx_line(im,c-Vector2(11,5-float(j)*5),c-Vector2(19,5-float(j)*5),1.4,Color("#aaa094",fade))
+			else:
+				for j in range(10):
+					var a:float=float(j)*TAU/10.0
+					var d:=Vector2(cos(a),sin(a))
+					var q:=c+d*(4+14*(1.0-fade))
+					earth_rock(im,q,2.5+float(j%3)*.7,Color("#c2b9ab",fade),Color("#615d5b",fade))
+					fx_line(im,c+d*3,q,1.2,Color("#e8d9bd",fade))
+				fx_disc(im,c,5+4*fade,Color("#fff0d4",fade))
+		"eos_512":
+			# Power Gem: rotating jewel facets refract a luminous mineral beam.
+			var c:=Vector2(10,24)
+			var h:float=5+2*pulse
+			var w:float=3+3*absf(cos(t*TAU))
+			fx_line(im,c-Vector2(w,0),c+Vector2(w,0),5.2,Color("#665783",fade))
+			fx_line(im,c-Vector2(0,h),c+Vector2(0,h),3.3,Color("#bba9e0",fade))
+			fx_line(im,c-Vector2(w,0),c-Vector2(0,h),1.6,Color("#e3d8ff",fade))
+			fx_line(im,c+Vector2(w,0),c+Vector2(0,h),1.6,Color("#8b83b8",fade))
+			var q:=Vector2(12+28*drive,24)
+			fx_line(im,c+Vector2(4,0),q,4.6,Color("#947ab7",fade))
+			fx_line(im,c+Vector2(4,0),q,2.3,Color("#f2dcf5",fade))
+			for j in range(5):
+				var p:=Vector2(14+float(j)*5*drive,24+sin(float(j)*2.4+t*TAU)*5)
+				fairy_star(im,p,1.5,Color("#f9f2cf",fade))
+		"eos_533":
+			# Head Smash: angular stone ram silhouette and compressed impact shock.
+			var q:=Vector2(9+25*drive,23)
+			earth_rock(im,q,7.5,Color("#b7ac9a",fade),Color("#554e48",fade))
+			fx_line(im,q-Vector2(3,4),q+Vector2(10,0),4.4,Color("#766d63",fade))
+			fx_line(im,q-Vector2(3,5),q+Vector2(10,-1),1.6,Color("#d8cbb7",fade))
+			for j in range(4):
+				var y:float=16+float(j)*5
+				fx_line(im,Vector2(q.x-19,y),Vector2(q.x-7,y),1.5,Color("#ab9d8b",fade))
+			if t>=peak:
+				for j in range(8):
+					var a:float=float(j)*TAU/8.0
+					var d:=Vector2(cos(a),sin(a))
+					fx_line(im,q+d*5,q+d*(10+8*(1.0-fade)),2.0,Color("#f2dfbf",fade))
+					if j%2==0:earth_rock(im,q+d*12,2.5,Color("#b9ae9c",fade),Color("#6c6258",fade))
+		"eos_350":
+			# Stone Volley: sequential small angular stones in separate flight lanes.
+			for j in range(4):
+				var f:float=fposmod(t*1.6+float(j)*.25,1.0)
+				var q:=Vector2(7+32*f,17+float(j)*4-3*sin(f*PI))
+				earth_rock(im,q,3.0+float(j%2)*.7,Color("#c0b4a4",fade),Color("#696159",fade))
+				fx_line(im,q-Vector2(8,0),q-Vector2(3,0),1.1,Color("#bdab94",fade))
+				if f>.8:
+					for k in range(3):
+						var p:=q+Vector2(float(k)*2,float(k-1)*5)
+						fx_disc(im,p,1.3,Color("#e1d2bb",fade))
+		"eos_105":
+			# Boulder Tumble: rolling ring of rotating facets and ground-contact chips.
+			var c:=Vector2(10+24*drive,28)
+			var rad:float=5+4*drive
+			fx_disc(im,c,rad,Color("#645b54",fade))
+			for j in range(8):
+				var a:float=float(j)*TAU/8.0+t*TAU*2
+				var d:=Vector2(cos(a),sin(a))
+				var q:=c+d*(rad-2)
+				earth_rock(im,q,2.7,Color("#b7a894",fade),Color("#76695c",fade))
+				fx_line(im,c,q,1.1,Color("#968775",fade))
+			fx_disc(im,c,2.4,Color("#c7b7a0",fade))
+			for j in range(5):
+				var q:=c+Vector2(-9-float(j)*3,8+sin(float(j)*2.4)*3)
+				fx_disc(im,q,1.6,Color("#d2bb9a",fade))
+		"eos_540":
+			# Polished Stone: stationary stone gains a reflective surface through sweeping highlights.
+			var c:=Vector2(24,26)
+			earth_rock(im,c,10.0,Color("#a6a5a6",fade),Color("#53565d",fade))
+			var x:float=-8+16*drive
+			fx_line(im,c+Vector2(x,-8),c+Vector2(x+5,6),2.6,Color("#cfd4d6",fade))
+			fx_line(im,c+Vector2(x+1,-7),c+Vector2(x+4,4),1.1,Color("#ffffff",fade))
+			for j in range(5):
+				var a:float=float(j)*TAU/5.0+t*TAU
+				var q:=c+Vector2(cos(a),sin(a))*(11+4*pulse)
+				fairy_star(im,q,2.2,Color("#f0f3ef",fade))
+			fx_disc(im,c,13+3*drive,Color("#b0c4cd",fade*.5),12+3*drive)
+		"eos_141":
+			# Dune Storm: windborne sand sheets and mineral grit moving diagonally.
+			for j in range(5):
+				var prev:=Vector2(3,9+float(j)*7)
+				for k in range(1,16):
+					var f:float=float(k)/15.0
+					var q:=Vector2(3+40*f,9+float(j)*7-5*f+sin(f*TAU-t*TAU+float(j))*2.4)
+					fx_line(im,prev,q,2.0,Color("#b2a083",fade*.46))
+					fx_line(im,prev,q,.8,Color("#e5d0a5",fade*.66))
+					prev=q
+			for j in range(20):
+				var x:float=4+fposmod(float(j)*11+t*40,40.0)
+				var y:float=5+float(posmod(j*13,38))
+				fx_disc(im,Vector2(x,y),1.0+float(j%3)*.35,Color("#d3b98d",fade*.85))
+		"eos_480":
+			# Hidden Crags: angular floating stone shards settle into a concealed perimeter.
+			var c:=Vector2(24,30)
+			for j in range(8):
+				var a:float=float(j)*TAU/8.0
+				var d:=Vector2(cos(a),sin(a)*.48)
+				var q:=c+d*(6+12*drive)-Vector2(0,9*sin(drive*PI))
+				var tip:=q+Vector2(sin(a)*2,-7)
+				fx_line(im,q-Vector2(3,0),tip,2.7,Color("#645c56",fade))
+				fx_line(im,q+Vector2(3,0),tip,2.2,Color("#b0a391",fade))
+				fx_line(im,q,tip,1.0,Color("#d8cbb9",fade))
+				if t>=peak:fx_disc(im,q+Vector2(0,4),4.0,Color("#a09482",fade*.55),3.0)
+			for j in range(5):
+				var a:float=float(j)*TAU/5.0+t
+				fx_disc(im,c+Vector2(cos(a)*17,sin(a)*8),1.1,Color("#d2c3ad",fade))
 	return im
 
 func combat_frame_image(id:String,frame:int)->Image:
