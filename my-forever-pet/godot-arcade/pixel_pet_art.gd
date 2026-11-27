@@ -280,6 +280,29 @@ static func attack_pose_sample(progress:float,impact:float)->Dictionary:
 	var pulse:float=smoothstep(0.0,peak,t) if t<peak else 1.0-smoothstep(peak,1.0,t)
 	return {"phase":phase,"frame":1 if phase=="strike" else 0,"pulse":pulse}
 
+# Continuous body deformation avoids a scale jump at the exact impact frame.
+# Motion families reuse the authored companion cells without altering its silhouette atlas.
+static func attack_body_sample(progress:float,impact:float,motion:String)->Dictionary:
+	var t:float=clampf(progress,0.0,1.0)
+	var peak:float=clampf(impact,.12,.88)
+	var prepare:float=sin(PI*clampf(t/peak,0.0,1.0)) if t<peak else 0.0
+	var strike:float=sin(PI*clampf((t-peak)/(1.0-peak),0.0,1.0)) if t>=peak else 0.0
+	var envelope:float=sin(PI*t)
+	var compression:float=.07
+	var extension:float=.10
+	var lift:float=.018
+	match motion:
+		"rush":compression=.12;extension=.14
+		"contact":compression=.09;extension=.12
+		"aerial":compression=.10;extension=.08;lift=.025
+		"down":compression=.04;extension=-.09
+		"lash":compression=.035;extension=.07
+		"spin":compression=.03;extension=.04
+		"focus":compression=.025;extension=.04
+		"gesture":compression=.025;extension=.055
+		_:compression=.055;extension=.08
+	return {"stretch":1.0-compression*prepare+extension*strike,"lift":lift*envelope}
+
 # Dungeon gait uses the existing four directional native walk cells. Lift and
 # squash follow foot cadence, rather than a second unrelated hopping oscillator.
 static func grounded_gait_sample(clock:float,mood:String,burst:bool=false)->Dictionary:
@@ -337,9 +360,8 @@ static func animate_world_sprite(actor:Node3D,delta:Vector2,moving:bool,dt:float
 	if state=="reward":lift+=absf(sin(clock*TAU*2.0))*.15
 	if state=="attack":
 		if timed_attack:
-			var pulse:float=float(sample.pulse)
-			stretch=1.0-.07*pulse if sample.phase=="windup" else 1.0+.10*pulse if sample.phase=="strike" else 1.0+.025*pulse
-			lift=.018*pulse
+			var body:=attack_body_sample(attack_progress,attack_impact,str(actor.get_meta("dungeon_cast_motion","cast")))
+			stretch=float(body.stretch);lift=float(body.lift)
 		else:stretch=1.0+.11*sin(clock*TAU*3.0)
 	if state=="hurt":stretch=.88+.06*sin(clock*35.0)
 	var height:float=float(sprite.get_meta("world_height"))
