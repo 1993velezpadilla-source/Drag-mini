@@ -387,6 +387,34 @@ func run_checks()->void:
 	checks+=4
 	print("KINDRIA_ATTACK_ANATOMY routes=",slot_routes," multislot_species=",targeted_cases.size())
 
+	# Body timing shares the actual attempts ledger (including misses), not
+	# a guessed nominal hit count. Each segment returns to neutral.
+	var wave_event:Dictionary={"results":{Vector2i(1,0):{"damage":9,"attempts":[{"damage":3},{"damage":0,"misses":1},{"damage":6}]}}}
+	for duration in [.18,.44,.8,1.2]:
+		for peak in [.12,.34,.48,.64,.88]:
+			var times:=view.caster_wave_times(wave_event,duration,peak)
+			if times!=view.reaction_times(duration,peak,3):failures.append("caster attempt timing mismatch")
+			for time in times:
+				var progress:float=view.caster_wave_progress(time,duration,peak,times)
+				if absf(progress-peak)>.0001:failures.append("caster wave contact mismatch")
+				var body:=Art.attack_body_sample(progress,peak,"punch")
+				var expected:=Art.attack_body_sample(peak,peak,"punch")
+				if absf(float(body.stretch)-float(expected.stretch))>.0001:failures.append("caster deformation not at impact")
+				checks+=1
+			for i in range(times.size()-1):
+				var midpoint:float=(times[i]+times[i+1])*.5
+				var before:=view.cast_motion_offset("punch",view.caster_wave_progress(midpoint-.000001,duration,peak,times),peak)
+				var after:=view.cast_motion_offset("punch",view.caster_wave_progress(midpoint+.000001,duration,peak,times),peak)
+				if before.distance_to(after)>.001:failures.append("multi-hit body boundary discontinuity")
+				checks+=1
+			for step in range(101):
+				var time:float=duration*float(step)/100.0
+				var progress:float=view.caster_wave_progress(time,duration,peak,times)
+				if not is_finite(progress) or progress<0.0 or progress>1.0:failures.append("invalid caster wave clock")
+				if absf(view.caster_wave_progress(time,duration,peak,[])-float(step)/100.0)>.0001:failures.append("single-hit body clock changed")
+				checks+=1
+			if view.caster_wave_progress(0.0,duration,peak,times)!=0.0 or view.caster_wave_progress(duration,duration,peak,times)!=1.0:failures.append("caster wave endpoints")
+			checks+=1
 	# Directed contact art is independently visible and kick poses are animated.
 	for id in Dungeon.CONTACT_ICON_KIND:
 		var kind:String=view.directed_contact_kind(id,str(view.combat_profile(id).role))
