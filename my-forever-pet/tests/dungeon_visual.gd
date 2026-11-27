@@ -160,6 +160,26 @@ func run():
 				fire_frames[signature]=true
 				assert(middle.save_png("/tmp/dungeon-real-fire-"+id+".png")==OK)
 			print("KINDRIA_FIRE_CHOREOGRAPHY_PASS ",fire_roles.size())
+			var water_roles:Dictionary={}
+			var water_frames:Dictionary={}
+			for id in ["eos_016","eos_032","eos_044","eos_069","eos_087","eos_113","eos_156","eos_158","eos_159","eos_219","eos_239","eos_240","eos_255","eos_308","eos_310","eos_432","eos_433","eos_469","eos_070","eos_012","eos_307","eos_434"]:
+				var profile:Dictionary=dungeon.combat_profile(id)
+				assert(not water_roles.has(profile.role),"unique water choreography "+id)
+				water_roles[profile.role]=true
+				var first:Image=dungeon.combat_frame_image(id,2)
+				var middle:Image=dungeon.combat_frame_image(id,6)
+				assert(first.get_data()!=middle.get_data(),"water animation changes "+id)
+				var signature:String=middle.get_data().hex_encode()
+				assert(not water_frames.has(signature),"unique water sprite "+id)
+				water_frames[signature]=true
+				assert(middle.save_png("/tmp/dungeon-real-water-"+id+".png")==OK)
+			print("KINDRIA_WATER_CHOREOGRAPHY_PASS ",water_roles.size())
+			# Reproduce the freed-instance registry fault before the real expedition.
+			var retired:Node3D=dungeon.actor_for("retired-test",Vector3.ZERO)
+			retired.free()
+			dungeon.refresh_actors()
+			assert(not dungeon.actor_nodes.has("retired-test"))
+			print("KINDRIA_ACTOR_LIFETIME_PASS")
 		var test_center:Vector3=dungeon.pos(dungeon.run.player)
 		var near_vista=AABB(test_center+Vector3(2,0,-2),Vector3(1.4,2,1.4))
 		var cropped_vista=AABB(test_center+Vector3(8,0,-2),Vector3(1.4,2,1.4))
