@@ -5351,6 +5351,22 @@ func consume_enemy_actions()->void:
 			"move":
 				if actor.has_meta("species"):
 					actor.set_meta("enemy_facing",PixelArt.direction_for(direction,int(actor.get_meta("enemy_facing",0))))
+# Periodic damage, traps and allied actions must not inherit the previous
+# player's attack duration, direction, or multi-hit count.
+func damage_reaction_spec(profile:Dictionary,new_cast:bool,tracked_hits:int,affected_tile:bool,direction:Vector3)->Dictionary:
+	var linked:bool=new_cast and (tracked_hits>0 or affected_tile)
+	if not linked:return {"delay":0.0,"span":0.0,"count":1,"direction":Vector3.ZERO}
+	var duration:float=float(profile.duration)
+	var delay:float=duration*float(profile.impact)
+	return {"delay":delay,"span":maxf(0.0,duration-delay),"count":maxi(1,tracked_hits),"direction":direction}
+
+func queue_observed_enemy_damage(actor:Node3D,uid:int,tile:Vector2i,defeated:bool)->void:
+	var new_cast:bool=run.attack_serial!=previous_attack
+	var hits:int=int(run.player_visual_hits.get(uid,0)) if new_cast and run.player_visual_hit_serial==run.attack_serial else 0
+	var affected:bool=tile in run.player_attack_cells
+	var spec:=damage_reaction_spec(combat_profile(run.player_attack_fx),new_cast,hits,affected,(pos(tile)-pos(run.player)).normalized())
+	queue_enemy_reaction(actor,defeated,float(spec.delay),Vector3(spec.direction),float(spec.span),int(spec.count))
+
 func refresh_actors():
 	for key in actor_nodes.keys():
 		if not is_instance_valid(actor_nodes[key]) or actor_nodes[key].is_queued_for_deletion():actor_nodes.erase(key)
@@ -5393,10 +5409,7 @@ func refresh_actors():
 			var bar=shape(root,"box",Vector3(0,height+.015,.012),Vector3(.72,.075,.13),Color("#ee7c83"));bar.name="HP"
 			var marker=shape(root,"ring",Vector3(0,.06,0),Vector3(.74,.12,.74),Color("#ffb25d"));marker.name="Warning"
 		if int(enemy.hp)<int(root.get_meta("enemy_hp",enemy.hp)):
-			var profile:=combat_profile(run.player_attack_fx)
-			var count:int=int(run.player_visual_hits.get(int(enemy.get("uid",-1)),1)) if run.player_visual_hit_serial==run.attack_serial and run.attack_serial!=previous_attack else 1
-			var delay:float=float(profile.duration)*float(profile.impact)
-			queue_enemy_reaction(root,false,delay,(pos(p)-pos(run.player)).normalized(),float(profile.duration)-delay,count)
+			queue_observed_enemy_damage(root,int(enemy.get("uid",-1)),p,false)
 		root.set_meta("enemy_hp",int(enemy.hp))
 		var bar=root.get_node("HP") as Node3D
 		bar.scale.x=.72*clampf(float(enemy.hp)/float(enemy.get("max_hp",enemy.hp)),0,1)
@@ -5446,11 +5459,10 @@ func refresh_actors():
 					if key=="enemy:"+str(enemy.get("uid",-1)):still_alive=true;break
 				if not still_alive:
 					if str(n.get_meta("enemy_phase"))!="defeat" and not n.get_meta("pending_defeat",false):
-						var profile:=combat_profile(run.player_attack_fx)
 						var uid:int=int(key.trim_prefix("enemy:"))
-						var count:int=int(run.player_visual_hits.get(uid,1)) if run.player_visual_hit_serial==run.attack_serial and run.attack_serial!=previous_attack else 1
-						var delay:float=float(profile.duration)*float(profile.impact)
-						queue_enemy_reaction(n,true,delay,(n.position-pos(run.player)).normalized(),float(profile.duration)-delay,count)
+						var last_target:Vector3=n.get_meta("target",n.position)
+						var cell:=Vector2i(roundi(last_target.x/1.4),roundi(last_target.z/1.4))
+						queue_observed_enemy_damage(n,uid,cell,true)
 					continue
 			n.hide();n.queue_free();actor_nodes.erase(key)
 	consume_enemy_actions()

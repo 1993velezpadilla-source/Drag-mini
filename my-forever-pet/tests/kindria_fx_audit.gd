@@ -258,6 +258,19 @@ func run()->void:
 	var full:Array=field.combat_path_prefix(corner,1.0)
 	if full!=corner:errors.append("beam final endpoint")
 	print("KINDRIA_ELECTRIC_PATH_PASS")
+	# No stale attack timing for unrelated damage; tracked targets keep their
+	# own hit counts, including targets moved away from the original tile.
+	var reaction_profile:Dictionary={"duration":.8,"impact":.5}
+	var direct:Dictionary=field.damage_reaction_spec(reaction_profile,true,3,true,Vector3.RIGHT)
+	var displaced:Dictionary=field.damage_reaction_spec(reaction_profile,true,2,false,Vector3.LEFT)
+	var unrelated:Dictionary=field.damage_reaction_spec(reaction_profile,true,0,false,Vector3.RIGHT)
+	var old_cast:Dictionary=field.damage_reaction_spec(reaction_profile,false,4,true,Vector3.RIGHT)
+	for spec in [direct,displaced]:
+		if absf(float(spec.delay)-.4)>.001 or absf(float(spec.span)-.4)>.001:errors.append("linked reaction timing")
+	if int(direct.count)!=3 or int(displaced.count)!=2:errors.append("per target reaction count")
+	for spec in [unrelated,old_cast]:
+		if float(spec.delay)!=0.0 or float(spec.span)!=0.0 or int(spec.count)!=1 or spec.direction!=Vector3.ZERO:errors.append("stale reaction timing")
+	print("KINDRIA_TARGET_REACTION_PASS")
 	# Exercise more frames than the cache cap, then verify hot hits and exact normalization.
 	for row in reports.slice(0,40):
 		for frame in range(Field.FX_FRAME_COUNT):field.combat_animated_texture(str(row.id),frame)
