@@ -339,42 +339,69 @@ static func enemy_pixel_cell(id:String,dir:int,pose:String,frame:int=0)->Image:
 	var fx:=3 if side else 0
 	match id:
 		"sporeling":
+			# A timid fungal courier: short root feet, scalloped cap, gill scarf and expressive eyes.
 			var bark:=Color("#493b27")
 			var moss:=Color("#64783a")
-			var cap_y:=18+(2 if wind else -2 if attack else 0)
+			var shadow:=Color("#46532f")
+			var leaf:=Color("#97b65a")
+			var shine:=Color("#c3d38a")
+			var flesh:=Color("#c2a38b")
+			var cream:=Color("#f2d6a0")
+			var cx:int=22 if side else 24
+			var cap_y:int=18+(3 if wind else -2 if attack else 1 if recoil else 0)
+			var tilt:int=2 if side else 0
+			var fallen:bool=pose=="defeat"
+			if fallen:cap_y=28
 			for k in [-1,1]:
-				var x:int=24+int(k)*6
-				var foot_y:int=40+(step*int(k) if pose=="walk" else 0)
-				enemy_dot(im,Vector2i(x,foot_y),Vector2i(5,4),ink)
-				enemy_dot(im,Vector2i(x,foot_y-1),Vector2i(3,2),Color("#79804a"))
-			enemy_dot(im,Vector2i(24,31),Vector2i(11,12),ink)
-			enemy_dot(im,Vector2i(24,30),Vector2i(9,10),Color("#c2a38b"))
-			enemy_dot(im,Vector2i(24,cap_y+5),Vector2i(20,9),ink)
-			enemy_dot(im,Vector2i(24,cap_y+3),Vector2i(18,7),Color("#51442d"))
-			enemy_dot(im,Vector2i(24,cap_y-3),Vector2i(19,13),ink)
-			enemy_dot(im,Vector2i(24,cap_y-4),Vector2i(17,11),moss)
-			enemy_dot(im,Vector2i(30,cap_y-1),Vector2i(8,6),Color("#53602f"))
-			enemy_line(im,Vector2i(9,cap_y+1),Vector2i(14,cap_y+3),1,Color("#a8c56c"))
-			enemy_line(im,Vector2i(34,cap_y+2),Vector2i(39,cap_y),1,Color("#53602f"))
-			enemy_dot(im,Vector2i(19,cap_y-8),Vector2i(11,5),Color("#97b65a"))
-			for spot in [Vector2i(13,-5),Vector2i(25,-10),Vector2i(34,-3)]:
-				enemy_dot(im,Vector2i(spot.x,cap_y+spot.y),Vector2i(3,2),Color("#f2d6a0"))
-			enemy_line(im,Vector2i(8,cap_y+5),Vector2i(39,cap_y+5),1,gold)
-			for x in [11,18,25,32,37]:
-				enemy_line(im,Vector2i(x,cap_y+7),Vector2i(x,cap_y+9),1,bark)
-			if not back:
-				enemy_line(im,Vector2i(20,cap_y+2),Vector2i(24,cap_y+5),1,gold)
-				enemy_line(im,Vector2i(24,cap_y+5),Vector2i(28,cap_y+2),1,gold)
-				im.set_pixel(24,cap_y+1,white)
-			if not back:
-				for x in ([29] if side else [19,29]):
-					enemy_dot(im,Vector2i(x,31),Vector2i(4,5),ink)
-					enemy_dot(im,Vector2i(x+1,30),Vector2i(2,2),pink)
-			enemy_line(im,Vector2i(14,37),Vector2i(18,40),1,purple)
-			enemy_line(im,Vector2i(30,40),Vector2i(34,37),1,purple)
+				var x:int=cx+int(k)*6+(2 if side else 0)
+				var y:int=40+step*int(k)
+				var foot:=Vector2i(x,y)
+				enemy_patch(im,foot,[Vector2i(-5,-2),Vector2i(-3,-5),Vector2i(3,-5),Vector2i(5,0),Vector2i(3,3),Vector2i(-4,3)],ink)
+				enemy_patch(im,foot,[Vector2i(-3,-2),Vector2i(2,-3),Vector2i(3,1),Vector2i(-3,1)],shadow)
+				enemy_line(im,foot+Vector2i(-2,-2),foot+Vector2i(1,-2),1,moss)
+			var body:=Vector2i(cx,32)
+			enemy_patch(im,body,[Vector2i(-10,-6),Vector2i(-7,-12),Vector2i(7,-12),Vector2i(10,-5),Vector2i(9,7),Vector2i(4,10),Vector2i(-6,10),Vector2i(-10,5)],ink)
+			enemy_patch(im,body,[Vector2i(-8,-5),Vector2i(-5,-10),Vector2i(5,-10),Vector2i(8,-4),Vector2i(7,6),Vector2i(3,8),Vector2i(-5,8),Vector2i(-8,4)],flesh)
+			enemy_patch(im,body,[Vector2i(-7,-3),Vector2i(-3,-7),Vector2i(0,5),Vector2i(-4,7),Vector2i(-7,3)],cream)
+			for k in [-1,1]:
+				var arm:=body+Vector2i(int(k)*9,2+step*int(k))
+				enemy_line(im,body+Vector2i(int(k)*6,-1),arm,2,ink)
+				enemy_dot(im,arm,Vector2i(2,3),shadow)
+				enemy_line(im,arm+Vector2i(-1,-1),arm+Vector2i(1,-1),1,leaf)
+			var cap:=Vector2i(cx+tilt,cap_y)
+			enemy_patch(im,cap,[Vector2i(-20,5),Vector2i(-19,-2),Vector2i(-15,-10),Vector2i(-8,-14),Vector2i(5,-14),Vector2i(13,-11),Vector2i(18,-5),Vector2i(20,3),Vector2i(17,9),Vector2i(8,11),Vector2i(-9,10),Vector2i(-17,8)],ink)
+			enemy_patch(im,cap,[Vector2i(-18,4),Vector2i(-17,-2),Vector2i(-13,-9),Vector2i(-7,-12),Vector2i(5,-12),Vector2i(12,-9),Vector2i(16,-4),Vector2i(18,3),Vector2i(15,7),Vector2i(7,9),Vector2i(-9,8),Vector2i(-15,6)],moss)
+			enemy_patch(im,cap,[Vector2i(-16,-1),Vector2i(-12,-8),Vector2i(-6,-11),Vector2i(4,-11),Vector2i(11,-8),Vector2i(8,-4),Vector2i(-4,-2),Vector2i(-12,2)],leaf)
+			enemy_patch(im,cap,[Vector2i(8,-4),Vector2i(13,-8),Vector2i(16,-2),Vector2i(18,3),Vector2i(14,6),Vector2i(5,6)],shadow)
+			enemy_line(im,cap+Vector2i(-10,-8),cap+Vector2i(-4,-10),1,shine)
+			for spot in [Vector2i(-11,-4),Vector2i(1,-8),Vector2i(11,0)]:
+				var q:Vector2i=cap+spot
+				enemy_patch(im,q,[Vector2i(-3,0),Vector2i(-1,-3),Vector2i(2,-2),Vector2i(3,1),Vector2i(0,2)],cream)
+				im.set_pixel(q.x,q.y-1,white)
+			enemy_patch(im,cap,[Vector2i(-18,5),Vector2i(-9,7),Vector2i(0,8),Vector2i(9,7),Vector2i(18,4),Vector2i(15,8),Vector2i(7,11),Vector2i(-9,10),Vector2i(-16,8)],bark)
+			for i in range(7):
+				var q:=cap+Vector2i(-14+i*4,7)
+				enemy_line(im,q,q+Vector2i(1,2),1,flesh)
+			enemy_line(im,cap+Vector2i(-14,5),cap+Vector2i(0,7),1,gold)
+			enemy_line(im,cap+Vector2i(0,7),cap+Vector2i(14,5),1,gold)
+			if not back and not fallen:
+				for x in ([5] if side else [-5,5]):
+					var eye:=body+Vector2i(int(x),-1)
+					enemy_dot(im,eye,Vector2i(4,5),ink)
+					if wind:
+						enemy_line(im,eye+Vector2i(-2,0),eye+Vector2i(2,0),1,pink)
+					else:
+						enemy_dot(im,eye,Vector2i(2,3),Color("#ab6fd0"))
+						im.set_pixel(eye.x-1,eye.y-2,white)
+						im.set_pixel(eye.x+1,eye.y+1,pink)
+				enemy_dot(im,body+Vector2i(3 if side else 0,6),Vector2i(2,2) if attack else Vector2i(2,1),bark)
+			elif back and not fallen:
+				enemy_line(im,body+Vector2i(0,-3),body+Vector2i(0,7),1,bark)
 			if attack:
+				var out:=Vector2i(40,28) if side else Vector2i(24,8 if back else 44)
 				for i in range(3):
-					enemy_dot(im,Vector2i(24+fx+i*4-4,8-i*2+frame),Vector2i(1,1),pink)
+					var q:=out+Vector2i(-3+i*3,-2+i%2*3-frame)
+					enemy_dot(im,q,Vector2i(1,1),cream)
 		"coralcrab":
 			# Four projected anatomies, not a face pasted on the front silhouette.
 			var coral:=Color("#bf655f")
@@ -968,11 +995,26 @@ static func enemy_pixel_cell(id:String,dir:int,pose:String,frame:int=0)->Image:
 			for x in range(48):
 				var c:=im.get_pixel(x,y)
 				if c.a>0:im.set_pixel(x,y,c.lerp(Color("#ff839f"),.35))
-	if pose=="defeat":
+	if pose=="defeat" and id!="sporeling":
+		# Keep source proportions. Floating creatures disperse, swimmers bank,
+		# ground animals fall onto their side. These are prototype key poses.
 		var fallen:=Image.create(48,48,false,Image.FORMAT_RGBA8)
 		fallen.fill(Color.TRANSPARENT)
-		im.resize(48,24,Image.INTERPOLATE_NEAREST)
-		fallen.blit_rect(im,Rect2i(0,0,48,24),Vector2i(0,20))
+		if id in ["nova_wisp","leafwisp","jellymancer"]:
+			for y in range(48):
+				for x in range(48):
+					var pixel:=im.get_pixel(x,y)
+					if pixel.a>0.0 and posmod(x*11+y*7,5)<2:
+						var q:=Vector2i(clampi(x+signi(x-24)*3,0,47),clampi(y+6,0,47))
+						fallen.set_pixelv(q,pixel)
+		else:
+			var bounds:=im.get_used_rect()
+			var cropped:=im.get_region(bounds)
+			if id in ["shellguard","coralcrab","thornbeetle","voidspider"]:
+				cropped.flip_y()
+			else:
+				cropped.rotate_90(CLOCKWISE if dir!=2 else COUNTERCLOCKWISE)
+			fallen.blit_rect(cropped,Rect2i(Vector2i.ZERO,cropped.get_size()),Vector2i(int((48-cropped.get_width())/2.0),maxi(0,44-cropped.get_height())))
 		return fallen
 	return im
 # External production atlases take priority over unapproved procedural studies.
