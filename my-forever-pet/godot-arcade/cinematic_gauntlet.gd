@@ -144,6 +144,20 @@ func run_checks()->void:
 			if icon==null or icon.get_size()!=Vector2i(48,48) or not icon.get_used_rect().has_area():
 				failures.append("empty physical contact icon: "+str(id))
 			checks+=1
+	# Each projectile reaches the actual path endpoint, even on bent routes.
+	var route:Array=[Vector3(0,.5,0),Vector3(1.4,.5,0),Vector3(1.4,.5,2.8)]
+	for id in Dungeon.PROJECTILE_IDENTITY:
+		if not catalog.has(id):failures.append("unknown projectile: "+str(id))
+		var kind:String=str(Dungeon.PROJECTILE_IDENTITY[id])
+		var texture:=view.combat_pixel_texture("projectile_"+kind,Color("#ffe5ab"),Color("#946ac1"))
+		if texture==null or not texture.get_image().get_used_rect().has_area():failures.append("empty projectile: "+str(id))
+		for i in range(101):
+			var t:float=float(i)/100.0
+			var q:=view.projectile_identity_sample(kind,route,t,0.0)
+			if not q.is_finite():failures.append("nonfinite projectile path")
+			if i==0 and q.distance_to(route[0])>.001:failures.append("projectile launch offset")
+			if i==100 and q.distance_to(route[-1])>.001:failures.append("projectile impact offset")
+			checks+=1
 	var home:=Home.new()
 	home.free()
 	view.free()
