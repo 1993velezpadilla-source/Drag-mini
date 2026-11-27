@@ -505,6 +505,24 @@ func run()->void:
 	field.advance_player_combat_clock(.1)
 	if absf(field.hit_time-.21)>.001:errors.append("player hit subframe duration")
 	print("KINDRIA_LATEST_PLAYER_IMPACT_PASS")
+	# An impact near the end of a slow frame starts its reaction at the correct age.
+	var subframe_actor:=Node3D.new()
+	subframe_actor.set_meta("species","sporeling")
+	var subframe_sprite:=Sprite3D.new()
+	subframe_sprite.name="EnemyPixel"
+	subframe_actor.add_child(subframe_sprite)
+	field.fx_reactions.clear()
+	field.queue_enemy_reaction(subframe_actor,false,.09,Vector3.RIGHT)
+	field.update_combat_reactions(.1)
+	field.update_enemy_pixel(subframe_actor,.1,Vector3.ZERO)
+	if absf(float(subframe_actor.get_meta("enemy_clock"))-.01)>.001 or subframe_actor.get_meta("enemy_phase")!="hurt":errors.append("enemy subframe hurt age")
+	field.enemy_pose(subframe_actor,"attack",.2,Vector2.RIGHT)
+	field.update_enemy_pixel(subframe_actor,.25,Vector3.ZERO)
+	if subframe_actor.get_meta("enemy_phase")!="recover" or absf(float(subframe_actor.get_meta("enemy_clock"))-.05)>.001:errors.append("enemy recovery overshoot")
+	field.update_enemy_pixel(subframe_actor,.10,Vector3.ZERO)
+	if subframe_actor.get_meta("enemy_phase")!="idle" or absf(float(subframe_actor.get_meta("enemy_clock"))-.03)>.001:errors.append("enemy idle overshoot")
+	subframe_actor.free()
+	print("KINDRIA_ENEMY_SUBFRAME_REACTION_PASS")
 	# A cast created by path movement after the frame clock must start at zero age.
 	field.attack_time=.4
 	field.player_impact_delay=.2
