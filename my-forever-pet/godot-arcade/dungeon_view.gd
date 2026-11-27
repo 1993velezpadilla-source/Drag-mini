@@ -14854,20 +14854,34 @@ func update_retired_impacts(dt:float)->Dictionary:
 	for i in range(retired_impacts.size()-1,-1,-1):
 		var record:Dictionary=retired_impacts[i]
 		record.age+=dt
+		var previous_cursor:int=int(record.get("impact_cursor",0))
 		dispatch_cast_waves(record)
+		latest=latest_player_impact(latest,record,previous_cursor)
 		if not bool(record.impacted) and float(record.age)>=float(record.duration)*float(record.profile.impact):
 			record.impacted=true
 			if str(record.profile.role) in ["ground","earth_quake","earth_magnitude","earth_fissure"]:fx_ground_shake=.22
-			if record.target_player and int(record.damage)>0:latest=latest_player_impact(latest,record)
 		if int(record.impact_cursor)>=record.impact_times.size():retired_impacts.remove_at(i)
 	return latest
 
-func latest_player_impact(current:Dictionary,burst:Dictionary)->Dictionary:
-	var age:float=maxf(0.0,float(burst.age)-float(burst.duration)*float(burst.profile.impact))
-	if age>=.24 or (not current.is_empty() and age>=float(current.age)):return current
-	var direction:Vector3=(burst.points[-1]-burst.points[0]).normalized()
-	direction.y=0.0
-	return {"age":age,"direction":direction}
+# A player reaction belongs to the newest newly dispatched damaging attempt,
+# never the aggregate cast damage or an earlier missed attempt.
+func latest_player_impact(current:Dictionary,burst:Dictionary,previous_cursor:int=0)->Dictionary:
+	if not bool(burst.get("target_player",false)):return current
+	var waves:Array=burst.get("impact_waves",[])
+	var times:Array=burst.get("impact_times",[])
+	var cursor:int=mini(int(burst.get("impact_cursor",0)),mini(waves.size(),times.size()))
+	var target:Vector3=burst.points[-1]
+	var tile:=Vector2i(roundi(target.x/1.4),roundi(target.z/1.4))
+	for index in range(cursor-1,maxi(0,previous_cursor)-1,-1):
+		var wave:Dictionary=waves[index]
+		var amount:int=int(wave.get(tile,{}).get("damage",0))
+		if wave.is_empty() and index==0:amount=int(burst.get("damage",0))
+		if amount<=0:continue
+		var age:float=maxf(0.0,float(burst.age)-float(times[index]))
+		if age>=.24 or (not current.is_empty() and age>=float(current.age)):return current
+		var direction:=Vector3(target.x-burst.points[0].x,0.0,target.z-burst.points[0].z).normalized()
+		return {"age":age,"direction":direction}
+	return current
 
 # Fair streaming allocation: unused slots flow to the remaining casts.
 # Only the visual pool is shared; damage, impacts and sound never wait.
@@ -14931,12 +14945,12 @@ func combat_fx_update(dt:float)->void:
 		burst.age+=dt
 		var t:float=float(burst.age)/float(burst.duration)
 		var profile:Dictionary=burst.profile
+		var previous_cursor:int=int(burst.get("impact_cursor",0))
 		dispatch_cast_waves(burst)
+		latest_hit=latest_player_impact(latest_hit,burst,previous_cursor)
 		if not burst.impacted and t>=float(profile.impact):
 			burst.impacted=true
 			if str(profile.role) in ["ground","earth_quake","earth_magnitude","earth_fissure"]:fx_ground_shake=.22
-			if burst.get("target_player",false) and int(burst.get("damage",0))>0:
-				latest_hit=latest_player_impact(latest_hit,burst)
 		if t>=1.0:
 			combat_bursts.remove_at(k);continue
 		var share:int=cast_particle_quota(used,cast_capacity,remaining_casts)
