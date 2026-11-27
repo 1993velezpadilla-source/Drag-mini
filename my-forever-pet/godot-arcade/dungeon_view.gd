@@ -6188,6 +6188,39 @@ func electric_world_arc(points:Array,t:float,role:String,tiles:Array,impact:floa
 				last=q
 # Original synthesis; no game audio is copied. Each move ID, phase and variant
 # determines a distinct waveform. A 12-voice positional pool avoids allocations.
+# Original procedural SFX. Anatomy and trajectory determine the acoustic
+# gesture; elemental synthesis supplies the underlying material.
+const AUDIO_ELEMENT_FORM={"normal":"thump","fire":"flame","water":"liquid","electric":"arc","grass":"rustle","ice":"glass","ground":"rumble","rock":"stone","fighting":"thump","flying":"wind","poison":"viscous","bug":"chitin","psychic":"resonance","ghost":"spectral","dark":"void","dragon":"roar","steel":"metal","fairy":"chime"}
+func combat_audio_form(id:String,profile:Dictionary)->String:
+	var role:String=str(profile.role)
+	var contact:=directed_contact_kind(id,role)
+	if contact.begins_with("kick"):return "kick"
+	if contact.begins_with("fist"):return "punch"
+	if contact in ["fang","crunch"]:return contact
+	if contact in ["claw","pincer"]:return contact
+	var impact:=directed_impact_form(profile)
+	if impact in ["detonation","implosion","shockwave"]:return impact
+	var projectile:=directed_projectile_form(id,role)
+	if projectile in ["beam","aurora_beam","frost_beam","prism_beam","signal_beam","arc_beam","metal_beam"]:return "beam"
+	if projectile in ["bubble","bubble_train"]:return "bubble"
+	if projectile in ["needle","ice_needle","metal_needle","thorn_needle","twin_needle","wind_blade","leaf_blade"]:return "slice"
+	return str(AUDIO_ELEMENT_FORM.get(str(profile.element),"thump"))
+
+func combat_audio_envelope(progress:float,phase:String)->float:
+	var p:float=clampf(progress,0.0,1.0)
+	var attack:float=.045 if phase in ["impact","miss"] else .12
+	var release:float=.14 if phase=="impact" else .22
+	return smoothstep(0.0,attack,p)*(1.0-smoothstep(1.0-release,1.0,p))*pow(1.0-p,.85)
+
+func combat_audio_duration(profile:Dictionary,form:String,phase:String)->float:
+	var peak:float=clampf(float(profile.impact),.01,.99)
+	var duration:float=float(profile.duration)
+	if phase=="launch":return clampf(duration*peak,.045,.42)
+	if phase=="miss":return .095
+	if phase=="status":return .20
+	var tail:float=.25 if form in ["detonation","rumble","roar","implosion","shockwave"] else .16
+	return clampf(minf(tail,maxf(.085,duration*(1.0-peak))),.085,.30)
+
 func combat_sound(id:String,phase:String,variant:int)->AudioStreamWAV:
 	var key:=id+":"+phase+":"+str(variant)
 	if fx_audio_cache.has(key):return fx_audio_cache[key]
@@ -6196,18 +6229,20 @@ func combat_sound(id:String,phase:String,variant:int)->AudioStreamWAV:
 	var role:String=profile.role
 	var seed_value:int=posmod(hash(key),2147483647)
 	var rng:=RandomNumberGenerator.new();rng.seed=seed_value
-	var duration:float=.19 if phase=="impact" else minf(.42,float(profile.duration)*.62)
-	if role=="ground":duration+=.11
+	var form:=combat_audio_form(id,profile)
+	var duration:=combat_audio_duration(profile,form,phase)
 	var rate:int=22050
 	var samples:int=int(duration*rate)
 	var data:=PackedByteArray();data.resize(samples*2)
 	var last_noise:float=0.0
+	var slow_noise:float=0.0
 	var pitch:float=1.0+float(seed_value%23-11)*.012+float(variant-1)*.06
 	for i in range(samples):
 		var t:float=float(i)/rate;var p:float=float(i)/samples
 		var noise:float=rng.randf_range(-1.0,1.0)
 		last_noise=lerpf(last_noise,noise,.18)
-		var envelope:float=minf(1.0,p*22.0)*pow(1.0-p,1.7)
+		slow_noise=lerpf(slow_noise,noise,.045)
+		var envelope:float=combat_audio_envelope(float(i)/maxi(1,samples-1),phase)
 		var wave:float=0.0
 		match element:
 			"electric":
@@ -6232,8 +6267,36 @@ func combat_sound(id:String,phase:String,variant:int)->AudioStreamWAV:
 				wave=sin(TAU*pitch*(170.0*t+300.0*t*t)+sin(TAU*33.0*t)*3.0)*.42+last_noise*.33
 			_:
 				wave=last_noise*.53+sin(TAU*pitch*(185.0*t-155.0*t*t))*.43
-		if phase=="impact":wave=wave*.68+sin(TAU*95.0*t*pitch)*.24+noise*.15
-		var pcm:int=roundi(clampf(wave*envelope*.72,-.95,.95)*32767.0)
+		# A second, authored acoustic layer separates attacks within each nature.
+		var accent:float=0.0
+		var strike:bool=phase=="impact"
+		var sweep:float=sin(TAU*pitch*(780.0*t-560.0*t*p))
+		match form:
+			"punch","kick","thump":
+				accent=sin(TAU*pitch*(125.0*t-65.0*t*p))*pow(1.0-p,2.0)*.64+(noise-last_noise)*.22
+				if form=="kick":accent+=last_noise*.30*sin(p*PI)
+			"fang","crunch","pincer":
+				var snap:float=pow(maxf(0.0,cos(p*TAU*(2.0 if form=="crunch" else 1.0))),5.0)
+				accent=(noise-last_noise)*snap*.66+sin(TAU*170.0*t*pitch)*snap*.28
+			"claw","slice","wind":accent=(noise-last_noise)*(.35+.25*sin(p*PI))+sweep*.20
+			"detonation","shockwave","rumble","stone":
+				accent=slow_noise*.85+sin(TAU*pitch*(72.0*t-32.0*t*p))*.55*pow(1.0-p,1.8)
+			"implosion","void":accent=sin(TAU*pitch*(180.0*t+640.0*t*p))*.42+slow_noise*.35
+			"bubble","liquid":accent=sin(TAU*pitch*(580.0*t-380.0*t*p)+sin(p*TAU*3.0)*1.6)*.44
+			"glass","metal":accent=sin(TAU*1760.0*t*pitch)*.26+sin(TAU*2630.0*t*pitch)*.16
+			"chime","resonance","beam":accent=sin(TAU*pitch*(520.0*t+180.0*t*p))*.32+sin(TAU*1040.0*t*pitch)*.18
+			"spectral":accent=sin(TAU*pitch*(310.0*t-140.0*t*p)+sin(t*TAU*15.0)*2.2)*.38
+			"flame","roar":accent=slow_noise*.65+last_noise*.45
+			"arc":accent=(noise-last_noise)*.38*(.55+.45*sin(p*TAU*7.0))
+			"rustle","chitin":accent=(noise-last_noise)*.38*absf(sin(p*TAU*4.0))
+			"viscous":accent=sin(TAU*pitch*(180.0*t-70.0*t*p)+sin(p*TAU*4.0)*2.6)*.34
+		wave=wave*.60+accent*(.85 if strike else .62)
+		if strike:wave+=sin(TAU*95.0*t*pitch)*.17*pow(1.0-p,2.0)
+		elif phase=="miss":wave=(noise-last_noise)*.34+sweep*.12
+		elif phase=="status":wave=sin(TAU*520.0*t*pitch)*.32+sin(TAU*780.0*t*pitch)*.24+wave*.22
+		# Smooth saturation, with exact silent endpoints to avoid PCM clicks.
+		var signal_value:float=wave*envelope*.85
+		var pcm:int=roundi(clampf(signal_value/(1.0+absf(signal_value)*.35),-.95,.95)*32767.0)
 		data.encode_s16(i*2,pcm)
 	var audio:=AudioStreamWAV.new();audio.format=AudioStreamWAV.FORMAT_16_BITS;audio.mix_rate=rate;audio.stereo=false;audio.data=data
 	if fx_audio_cache.size()>=192:fx_audio_cache.erase(fx_audio_cache.keys()[0])
@@ -6244,8 +6307,16 @@ func play_combat_sound(id:String,phase:String,at:Vector3)->void:
 	var key:=id+":"+phase
 	var variant:int=posmod(int(fx_audio_counter.get(key,-1))+1,3)
 	fx_audio_counter[key]=variant
-	var player_audio:=fx_audio[fx_audio_cursor];fx_audio_cursor=posmod(fx_audio_cursor+1,fx_audio.size())
-	player_audio.stop();player_audio.position=at;player_audio.stream=combat_sound(id,phase,variant);player_audio.play()
+	var slot:int=fx_audio_cursor
+	# Prefer an idle voice instead of cutting an unrelated attack.
+	for i in range(fx_audio.size()):
+		var candidate:int=posmod(fx_audio_cursor+i,fx_audio.size())
+		if not fx_audio[candidate].playing:slot=candidate;break
+	var player_audio:=fx_audio[slot];fx_audio_cursor=posmod(slot+1,fx_audio.size())
+	if player_audio.playing and phase in ["miss","status"]:return
+	player_audio.stop();player_audio.position=at;player_audio.stream=combat_sound(id,phase,variant)
+	player_audio.volume_db=-18.0 if phase=="miss" else -14.0 if phase=="status" else -12.0
+	player_audio.play()
 # Tile anchors remain deterministic; sprite scale and hover offset locate the
 # launch/impact socket without moving logical combat or collision tiles.
 func combat_socket_height(socket:String,scale:float=1.0,rise:float=0.0)->float:
@@ -6609,7 +6680,13 @@ func dispatch_cast_waves(burst:Dictionary)->void:
 				var point:Vector3=pos(tile)+Vector3.UP*target.y
 				var distance:float=point.distance_squared_to(burst.points[-1])
 				if distance<nearest:nearest=distance;target=point
-		if audible:play_combat_sound(str(burst.id),"impact",target)
+		# Do not emit a damage thump for a status effect or an explicit miss.
+		var audio_age:float=maxf(0.0,float(burst.age)-float(times[cursor]))
+		if audio_age<.14:
+			if strongest>0 or (wave.is_empty() and int(burst.get("damage",0))>0):
+				play_combat_sound(str(burst.id),"impact",target)
+			elif audible:play_combat_sound(str(burst.id),"status" if not wave.is_empty() else "impact",target)
+			elif not wave.is_empty():play_combat_sound(str(burst.id),"miss",target)
 		if strongest>0 or (wave.is_empty() and cursor==0 and int(burst.get("damage",0))>0):
 			var age:float=maxf(0.0,float(burst.age)-float(times[cursor]))
 			queue_contact_camera(burst.points[0],target,critical,age)
