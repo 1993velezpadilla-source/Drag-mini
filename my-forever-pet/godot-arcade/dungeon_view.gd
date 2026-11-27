@@ -2767,12 +2767,13 @@ func ultra_update_residues(dt:float,used:int)->int:
 		var ink:=surface_stamp_palette(element)
 		used=environment_particle(used,at,"surface_"+str(SURFACE_STAMP.get(element,"dust")),ink[0],ink[1],sample.x,sample.y*.82*strength,true)
 		var count:int=residue_particle_count()
+		var terminal_cue:Array=ELEMENT_DISSIPATION.get(element,ELEMENT_DISSIPATION.normal)
 		for j in range(count):
-			var angle:float=float(j)*TAU/float(count)+float(i)*.37
-			var radius:float=.18+t*.34
-			var flat:bool=mode in ["venom_splash","bubble","shock_ring","status_swirl"]
-			var q:Vector3=at+Vector3(cos(angle)*radius,0.0 if flat else .08+sin(t*PI)*.24,sin(angle)*radius)
-			used=environment_particle(used,q,mode,mark.color,mark.dark,.34+float(j%2)*.07,fade*.68*strength,flat)
+			var terminal:=elemental_dissipation_sample(element,t,j)
+			var offset:=elemental_dissipation_offset(element,t,j,count)
+			offset=offset.rotated(Vector3.UP,float(i)*.37)*.58
+			offset.y=maxf(.035,offset.y+.08)
+			used=environment_particle(used,at+offset,str(terminal_cue[0]),mark.color,mark.dark,(.34+float(j%2)*.07)*terminal.z,terminal.w*.68*strength)
 		# Surface material accent: moss litter, seabed sediment or mineral dust.
 		# All positions stay within the 1.4-unit walkable tile.
 		var biome:int=int(mark.biome)
@@ -8117,6 +8118,71 @@ func status_finish_fx(kind:String,target:Vector3,age:float,used:int)->int:
 		used=environment_particle(used,Vector3(target.x,.045,target.z),"shock_ring",light,dark,.55+age*.85,fade*.62,true)
 	return used
 
+# Element-specific terminal choreography reuses the existing particle pool.
+# Profiles: material, trajectory, spread, height, fade power, spin.
+const ELEMENT_DISSIPATION={
+	"normal":["smoke","scatter",.65,.12,1.8,.10],
+	"fire":["ember","rise",.40,.65,1.3,.45],
+	"water":["drop","fall",.72,.32,1.1,.15],
+	"electric":["lightning","static",.54,.20,2.4,.20],
+	"grass":["leaf","flutter",.58,.40,1.15,1.6],
+	"ice":["crystal","fall",.69,.36,1.55,.40],
+	"fighting":["impact_star","scatter",.84,.17,2.1,.05],
+	"poison":["cloud","diffuse",.52,.52,.85,.55],
+	"ground":["smoke","settle",.75,.25,1.2,.12],
+	"flying":["slash","stream",.95,.44,1.75,.7],
+	"psychic":["spiral","collapse",.60,.35,1.35,2.4],
+	"bug":["web","flutter",.50,.27,1.65,1.2],
+	"rock":["shards","settle",.63,.32,1.45,.25],
+	"ghost":["cloud","rise",.31,.62,1.05,1.2],
+	"dragon":["flame","coil",.64,.57,1.4,2.0],
+	"dark":["slash","collapse",.54,.15,1.7,1.4],
+	"steel":["shards","fall",.43,.21,2.0,.32],
+	"fairy":["impact_star","flutter",.57,.53,1.0,1.8]}
+# x: radial reach; y: vertical travel; z: scale; w: opacity.
+func elemental_dissipation_sample(element:String,progress:float,index:int=0)->Vector4:
+	var cue:Array=ELEMENT_DISSIPATION.get(element,ELEMENT_DISSIPATION.normal)
+	var t:float=clampf(progress,0.0,1.0)
+	var spread:float=float(cue[2])
+	var height:float=float(cue[3])
+	var radial:float=.12+spread*smoothstep(0.0,1.0,t)
+	var lift:float=height*sin(t*PI)
+	var size:float=1.0-.65*t
+	var alpha:float=pow(1.0-t,float(cue[4]))
+	match str(cue[1]):
+		"rise":
+			lift=height*t;radial=.12+spread*t*.65
+		"fall":
+			lift=height*(sin(t*PI)-.75*t);radial=.12+spread*t
+		"static":
+			radial=.12+spread*t*.65
+			alpha*=.65+.35*cos((t*3.0+float(index)*.25)*TAU)
+		"flutter":
+			lift=height*(sin(t*PI)+.25*sin(t*TAU+float(index)*.8)*sin(t*PI))
+			radial*=.88+.12*cos(t*TAU+float(index))
+		"diffuse":
+			lift=height*t;size=.65+.75*t
+		"settle":
+			lift=height*sin(t*PI)*pow(1.0-t,.65)
+		"stream":
+			lift=height*t;radial=.12+spread*t
+		"collapse":
+			radial=.12+spread*(1.0-t);lift=height*sin(t*PI)*.7
+		"coil":
+			lift=height*t;radial=.12+spread*sin(t*PI)
+	return Vector4(radial,lift,size,alpha)
+
+func elemental_dissipation_offset(element:String,progress:float,index:int,count:int,forward:Vector3=Vector3.FORWARD)->Vector3:
+	var cue:Array=ELEMENT_DISSIPATION.get(element,ELEMENT_DISSIPATION.normal)
+	var t:float=clampf(progress,0.0,1.0)
+	var sample:=elemental_dissipation_sample(element,t,index)
+	var angle:float=float(index)*TAU/maxi(1,count)+float(cue[5])*t
+	var offset:=Vector3(cos(angle)*sample.x,sample.y,sin(angle)*sample.x)
+	if str(cue[1])=="stream":
+		var side:=Vector3(-forward.z,0,forward.x)
+		offset=forward*sample.x+side*sin(angle)*sample.x*.4+Vector3.UP*sample.y
+	return offset
+
 func element_finish_fx(burst:Dictionary,t:float,used:int)->int:
 	var id:String=str(burst.id)
 	var profile:Dictionary=burst.profile
@@ -8139,7 +8205,6 @@ func element_finish_fx(burst:Dictionary,t:float,used:int)->int:
 		var age:float=impact_visual_phase(burst,t)
 		if age>=1.0:return used
 		var fade:float=1.0-age
-		var radius:float=.12+age*.60
 		var count:int=5 if not status else 3
 		var view:=impact_visual_view(burst)
 		var results:Dictionary=view.get("results",{})
@@ -8170,10 +8235,15 @@ func element_finish_fx(burst:Dictionary,t:float,used:int)->int:
 			var q:Vector3=pos(tile)+Vector3(0,.45,0)
 			used=environment_particle(used,q,"bubble" if status else "impact_star",light,dark,.45+age*.38,fade)
 			extra+=1
+		var element:String=str(profile.element)
+		var dissipate:Array=ELEMENT_DISSIPATION.get(element,ELEMENT_DISSIPATION.normal)
+		var forward:=Vector3(target.x-from.x,0,target.z-from.z).normalized()
+		if forward.length_squared()<.0001:forward=Vector3.FORWARD
 		for j in range(count):
-			var angle:float=float(j)*TAU/float(count)
-			var q:=target+Vector3(cos(angle)*radius,.04+sin(age*PI)*(.55 if status else .33),sin(angle)*radius)
-			used=environment_particle(used,q,mode,light,dark,.34*(1.0-age*.5),fade)
+			var terminal:=elemental_dissipation_sample(element,age,j)
+			var q:=target+elemental_dissipation_offset(element,age,j,count,forward)
+			q.y=maxf(.08,q.y)
+			used=environment_particle(used,q,str(dissipate[0]),light,dark,.36*terminal.z,terminal.w)
 		if resolved.kind=="confirmed":used=cinematic_impact_layers(id,profile,from,target,age,used,light,dark,status)
 		if str(profile.element) in ["water","ground","rock","ice","poison","fire","electric"] or profile.pattern in ["room","radius","cross","floor"]:
 			var ground:=Vector3(target.x,.045,target.z)
