@@ -13,6 +13,9 @@ func run():
 	var camera:=Camera3D.new();world.add_child(camera)
 	camera.position=Vector3(0,5,10);camera.look_at(Vector3(0,.5,0));camera.projection=Camera3D.PROJECTION_ORTHOGONAL;camera.size=10.0;camera.current=true
 	var env:=WorldEnvironment.new();env.environment=Environment.new();env.environment.background_mode=Environment.BG_COLOR;env.environment.background_color=Color("#243345");world.add_child(env)
+	var floor:=MeshInstance3D.new();world.add_child(floor)
+	var floor_mesh:=PlaneMesh.new();floor_mesh.size=Vector2(18,18);floor.mesh=floor_mesh
+	var floor_mat:=StandardMaterial3D.new();floor_mat.albedo_color=Color("#46505b");floor_mat.shading_mode=BaseMaterial3D.SHADING_MODE_UNSHADED;floor.material_override=floor_mat
 	var i:int=0
 	for id in Art.ENEMY_PIXEL_PILOTS:
 		var actor:=Node3D.new();world.add_child(actor)
@@ -21,6 +24,8 @@ func run():
 		assert(dungeon.attach_enemy_pixel(actor,id))
 		var sprite:=actor.get_node("EnemyPixel") as Sprite3D
 		assert(sprite.texture_filter==BaseMaterial3D.TEXTURE_FILTER_NEAREST)
+		assert(actor.has_node("EnemyContactShadow"))
+		assert(sprite.material_override is ShaderMaterial)
 		var idle:=sprite.texture
 		dungeon.enemy_pose(actor,"attack",.28,Vector2.RIGHT)
 		dungeon.update_enemy_pixel(actor,.14,Vector3.ZERO)

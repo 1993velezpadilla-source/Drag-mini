@@ -39,6 +39,8 @@ var mats:Dictionary={}
 var active_floor=0
 var facing=Vector2i.DOWN
 var actor_nodes:Dictionary={}
+var enemy_shadow_material:StandardMaterial3D
+var enemy_shadow_mesh:QuadMesh
 var enemy_event_turn:int=-1
 var enemy_event_floor:int=-1
 var feedback:Label
@@ -1540,6 +1542,32 @@ func actor_for(key:String,at:Vector3)->Node3D:
 	return n
 # Preview species use the same nearest-filtered 2.5D billboards as Mosky.
 # Missing/unapproved species keep their legacy construct until replacement art exists.
+func add_enemy_contact_shadow(actor:Node3D,species:String)->void:
+	if enemy_shadow_material==null:
+		var image:=Image.create(32,32,false,Image.FORMAT_RGBA8)
+		image.fill(Color.TRANSPARENT)
+		for y in range(32):
+			for x in range(32):
+				var distance:=Vector2((x-15.5)/15.0,(y-15.5)/15.0).length()
+				var opacity:float=.38*(1.0-smoothstep(.28,1.0,distance))
+				image.set_pixel(x,y,Color(.025,.018,.055,opacity))
+		enemy_shadow_material=StandardMaterial3D.new()
+		enemy_shadow_material.albedo_texture=ImageTexture.create_from_image(image)
+		enemy_shadow_material.transparency=BaseMaterial3D.TRANSPARENCY_ALPHA
+		enemy_shadow_material.shading_mode=BaseMaterial3D.SHADING_MODE_UNSHADED
+		enemy_shadow_material.texture_filter=BaseMaterial3D.TEXTURE_FILTER_LINEAR
+		enemy_shadow_material.cull_mode=BaseMaterial3D.CULL_DISABLED
+		enemy_shadow_mesh=QuadMesh.new()
+		enemy_shadow_mesh.size=Vector2(1.1,.85)
+	var shadow:=MeshInstance3D.new()
+	shadow.name="EnemyContactShadow"
+	shadow.mesh=enemy_shadow_mesh
+	shadow.material_override=enemy_shadow_material
+	shadow.cast_shadow=GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	shadow.rotation.x=-PI*.5
+	shadow.position.y=.035
+	if species in ["eelstrix","marrowray","coralcrab","shellguard"]:shadow.scale=Vector3(1.15,.8,1.0)
+	actor.add_child(shadow)
 func attach_enemy_pixel(actor:Node3D,species:String)->bool:
 	var tex:=PixelArt.enemy_pixel_texture(species,0,"idle",0)
 	if tex==null:return false
@@ -1552,7 +1580,8 @@ func attach_enemy_pixel(actor:Node3D,species:String)->bool:
 	sprite.shaded=false
 	sprite.cast_shadow=GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	sprite.pixel_size=1.25/48.0
-	sprite.position.y=.625
+	sprite.position.y=.54
+	add_enemy_contact_shadow(actor,species)
 	actor.add_child(sprite)
 	actor.set_meta("species",species)
 	actor.set_meta("enemy_facing",0)
@@ -1567,6 +1596,7 @@ func attach_enemy_pixel(actor:Node3D,species:String)->bool:
 		material.set_shader_parameter("sprite_tex",tex)
 		material.set_shader_parameter("biome_tint",[Color("#d5e6b5"),Color("#9be3e8"),Color("#c3c5ff")][region])
 		material.set_shader_parameter("pulse_offset",float(actor.get_instance_id()%17)*.3)
+		material.set_shader_parameter("region",region)
 		sprite.material_override=material
 	return true
 func enemy_pose(actor:Node3D,state:String,seconds:float,direction:Vector2=Vector2.ZERO)->void:
@@ -1596,12 +1626,22 @@ func update_enemy_pixel(actor:Node3D,dt:float,motion:Vector3)->void:
 		if state=="walk":actor.set_meta("enemy_facing",PixelArt.direction_for(Vector2(motion.x,motion.z),int(actor.get_meta("enemy_facing",0))))
 	actor.set_meta("enemy_phase",state);actor.set_meta("enemy_clock",clock);actor.set_meta("enemy_duration",duration)
 	var frame:int=posmod(int(clock*12.0),4) if state=="walk" else mini(1,int(clock*9.0)) if state=="attack" else 0
-	var tex:=PixelArt.enemy_pixel_texture(str(actor.get_meta("species")),int(actor.get_meta("enemy_facing",0)),state,frame)
+	var species:String=str(actor.get_meta("species"))
+	var facing_index:int=int(actor.get_meta("enemy_facing",0))
+	var hovering:bool=species in ["nova_wisp","leafwisp","lunamoth","jellymancer","marrowray"]
+	var rise:float=.13+.04*sin(elapsed*3.0+float(actor.get_instance_id()%11)) if hovering and state!="defeat" else 0.0
+	sprite.position.y=.54+rise
+	var shadow:=actor.get_node_or_null("EnemyContactShadow") as MeshInstance3D
+	if shadow!=null:
+		var footprint:float=1.0-rise*.65
+		shadow.scale=Vector3(footprint*(1.15 if species in ["eelstrix","marrowray","coralcrab","shellguard"] else 1.0),footprint*.8,1.0)
+	var tex:=PixelArt.enemy_pixel_texture(species,facing_index,state,frame)
 	if tex!=null and sprite.texture!=tex:sprite.texture=tex
 	if sprite.material_override is ShaderMaterial:
 		var material:=sprite.material_override as ShaderMaterial
 		material.set_shader_parameter("sprite_tex",sprite.texture)
 		material.set_shader_parameter("hit_flash",.32 if state=="hurt" else 0.0)
+		material.set_shader_parameter("world_phase",elapsed)
 	else:sprite.modulate=Color("#ffb5c6") if state=="hurt" else Color.WHITE
 func consume_enemy_actions()->void:
 	if enemy_event_floor==run.floor_revision and enemy_event_turn==run.turns:return

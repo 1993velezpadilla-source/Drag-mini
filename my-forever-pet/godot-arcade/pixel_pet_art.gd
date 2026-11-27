@@ -871,7 +871,7 @@ static func enemy_pixel_cell(id:String,dir:int,pose:String,frame:int=0)->Image:
 			var leaf:=Color("#527e42")
 			var light:=Color("#a9d36c")
 			var cream:=Color("#dbe88e")
-			var flutter:int=[-3,0,3,0][phase] if pose=="walk" else 3 if wind else -4 if attack else 0
+			var flutter:int=[0,-3,0,3][phase] if pose=="walk" else 3 if wind else -4 if attack else 0
 			var c:=Vector2i(24,26)
 			var head:=c+Vector2i(4,-1) if side else c
 			var top:=c+Vector2i(-3+flutter,-19)
