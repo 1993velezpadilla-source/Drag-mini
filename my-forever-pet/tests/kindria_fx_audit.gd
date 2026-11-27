@@ -556,6 +556,17 @@ func run()->void:
 	var probe:String=str(reports[39].id)
 	if field.combat_animated_texture(probe,-1)!=field.combat_animated_texture(probe,Field.FX_FRAME_COUNT-1):errors.append("frame wrap or cache hit")
 	if field.combat_animated_texture(probe,-1).get_image().get_data()!=field.combat_frame_image(probe,Field.FX_FRAME_COUNT-1).get_data():errors.append("normalized texture differs from frame")
+	# Stress unique material palettes beyond the cap; an in-flight sprite keeps its texture.
+	var retained:Texture2D=field.combat_pixel_texture("flame",Color.WHITE,Color.BLACK)
+	var retained_bytes:PackedByteArray=retained.get_image().get_data()
+	for i in range(Field.FX_MATERIAL_CACHE_CAP+32):
+		var c:=Color(float(i)/float(Field.FX_MATERIAL_CACHE_CAP+32),.35,.8)
+		field.combat_pixel_texture("crystal",c,Color.BLACK)
+	if field.combat_textures.size()!=Field.FX_MATERIAL_CACHE_CAP or field.combat_texture_order.size()!=Field.FX_MATERIAL_CACHE_CAP:errors.append("material cache cap")
+	if retained.get_image().get_data()!=retained_bytes:errors.append("evicted live texture corrupted")
+	var hot:Texture2D=field.combat_pixel_texture("shock_ring",Color.WHITE,Color.BLACK)
+	if hot!=field.combat_pixel_texture("shock_ring",Color.WHITE,Color.BLACK):errors.append("material cache hit")
+	print("KINDRIA_MATERIAL_CACHE_AUDIT entries=",field.combat_textures.size()," raw_bytes_cap=",Field.FX_MATERIAL_CACHE_CAP*16*16*4)
 	# The original reference audit retains its strict 468-move contract.
 	# Independently capture every native/library move at all twelve frames.
 	var native_ids:Array=[]

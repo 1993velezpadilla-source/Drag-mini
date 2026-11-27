@@ -103,7 +103,9 @@ var combat_bursts:Array[Dictionary]=[]
 var retired_impacts:Array[Dictionary]=[]
 const DELAYED_COMBAT_FX_CAP:int=24
 var delayed_combat_fx:Array[Dictionary]=[]
+const FX_MATERIAL_CACHE_CAP:int=256
 var combat_textures:Dictionary={}
+var combat_texture_order:Array[String]=[]
 # Keep transient animation frames separate from permanent static FX textures.
 const FX_ANIMATED_CACHE_CAP=384
 var fx_animated_cache:Dictionary={}
@@ -2454,8 +2456,12 @@ func cinematic_cast_enhancement(burst:Dictionary,t:float)->void:
 		cinematic_light(target+Vector3.UP*.4,color,strength*fade*(1.35 if wide else 1.0),2.9 if wide else 2.2)
 
 func combat_pixel_texture(mode:String,light:Color,dark:Color)->ImageTexture:
-	var key:=mode+str(light)+str(dark)
+	var key:=mode+":"+str(light)+":"+str(dark)
 	if combat_textures.has(key):return combat_textures[key]
+	# Existing sprites retain references after cache eviction. Bound the number
+	# of resident material variants even in an endless developer dungeon.
+	if combat_texture_order.size()>=FX_MATERIAL_CACHE_CAP:
+		combat_textures.erase(combat_texture_order.pop_front())
 	var im:=Image.create(16,16,false,Image.FORMAT_RGBA8);im.fill(Color.TRANSPARENT)
 	for y in range(16):
 		for x in range(16):
@@ -2551,6 +2557,7 @@ func combat_pixel_texture(mode:String,light:Color,dark:Color)->ImageTexture:
 			if fill:im.set_pixel(x,y,light if inner else dark)
 	var texture:=ImageTexture.create_from_image(im)
 	combat_textures[key]=texture
+	combat_texture_order.append(key)
 	return texture
 func combat_style(id:String)->Array:
 	if Rules.MOVE_LIBRARY.has(id):
