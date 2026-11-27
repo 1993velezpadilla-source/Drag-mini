@@ -66,6 +66,23 @@ func run():
 		assert(dungeon.combat_particles[0].visible)
 		dungeon.combat_fx_update(1.0)
 	assert(modes.size()>=13)
+	var ids:Array=RulesForFX.SIGNATURE_SKILLS.values().map(func(skill):return skill[6])
+	for species in RulesForFX.SECONDARY_SKILLS:ids.append("alt_"+species)
+	var distinct:int=0
+	for id in ids:
+		var atlas:=Image.create(48*12,48,false,Image.FORMAT_RGBA8)
+		atlas.fill(Color.TRANSPARENT)
+		var frames:Dictionary={}
+		for frame in range(12):
+			var im:=dungeon.combat_frame_image(id,frame)
+			assert(im.get_used_rect().has_area(),id)
+			frames[im.get_data().hex_encode()]=true
+			atlas.blit_rect(im,Rect2i(0,0,48,48),Vector2i(frame*48,0))
+		assert(frames.size()>=3,id+" animation must change")
+		assert(atlas.save_png("/tmp/kindria-fx-"+id+".png")==OK)
+		distinct+=1
+	assert(distinct==66)
+	print("KINDRIA_FX_ATLAS_PASS 66 animated atlases / 792 frames")
 	for j in range(3):
 		dungeon.combat_fx_spawn({"fx":["vine_snap","nova_bolt","gravity_web"][j],"from":Vector2i(-2,j-1),"to":Vector2i(2,j-1),"path":[Vector2i(-1,j-1),Vector2i(0,j-1),Vector2i(1,j-1),Vector2i(2,j-1)],"tiles":[Vector2i(2,j-1)]})
 	dungeon.combat_fx_update(.24)

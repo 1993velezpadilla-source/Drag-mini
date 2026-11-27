@@ -50,6 +50,8 @@ var combat_particles:Array[Sprite3D]=[]
 var combat_warnings:Array[MeshInstance3D]=[]
 var combat_bursts:Array[Dictionary]=[]
 var combat_textures:Dictionary={}
+const FX_FRAME_COUNT=12
+const FX_FRAME_SIZE=48
 var combat_fx_root:Node3D
 var combat_warn_mat:StandardMaterial3D
 var enemy_event_turn:int=-1
@@ -1738,6 +1740,129 @@ func combat_style(id:String)->Array:
 			var alt:Array=Rules.SECONDARY_SKILLS[species]
 			return [alt[6],original[1],original[2],.34]
 	return COMBAT_FX_STYLES.get(id,COMBAT_FX_STYLES.basic_strike)
+# Original hand-keyed pixel geometry. Every frame is a separate texture and is
+# cached by attack ID, rather than changing only the scale of one static stamp.
+func fx_line(im:Image,a:Vector2,b:Vector2,width:float,color:Color)->void:
+	var steps:int=maxi(1,ceili(a.distance_to(b)*2.0))
+	for i in range(steps+1):
+		var p:=a.lerp(b,float(i)/steps)
+		for y in range(maxi(0,floori(p.y-width)),mini(im.get_height(),ceili(p.y+width+1))):
+			for x in range(maxi(0,floori(p.x-width)),mini(im.get_width(),ceili(p.x+width+1))):
+				if Vector2(x,y).distance_to(p)<=width:im.set_pixel(x,y,color)
+func fx_disc(im:Image,center:Vector2,radius:float,color:Color,inner:float=0.0)->void:
+	for y in range(maxi(0,floori(center.y-radius)),mini(im.get_height(),ceili(center.y+radius+1))):
+		for x in range(maxi(0,floori(center.x-radius)),mini(im.get_width(),ceili(center.x+radius+1))):
+			var d:=Vector2(x,y).distance_to(center)
+			if d<=radius and d>=inner:im.set_pixel(x,y,color)
+func combat_animation_mode(id:String,mode:String)->String:
+	match id:
+		"vine_snap","alt_grovetitan":return "vine"
+		"bubble_burst":return "bubble_beam"
+		"alt_bubblewisp":return "foam"
+		"timber_shock","shell_impact","alt_nebulwing":return "quake"
+		"nova_bolt":return "fire_stream"
+		"alt_nova_wisp":return "fire_ring"
+		"gravity_web","alt_voidspider":return "silk"
+		"celestial_verdict":return "radiant"
+	return mode
+func combat_frame_image(id:String,frame:int)->Image:
+	var style:Array=combat_style(id)
+	var mode:String=combat_animation_mode(id,str(style[0]))
+	var light:=Color(style[1]);var dark:=Color(style[2]);var edge:=dark.darkened(.52)
+	var im:=Image.create(FX_FRAME_SIZE,FX_FRAME_SIZE,false,Image.FORMAT_RGBA8);im.fill(Color.TRANSPARENT)
+	var t:float=float(posmod(frame,FX_FRAME_COUNT))/float(FX_FRAME_COUNT-1)
+	var center:=Vector2(24,24)
+	match mode:
+		"vine":
+			var reach:float=sin(t*PI*.9)*.75+.25
+			var last:=Vector2(4,25)
+			for i in range(1,19):
+				var f:float=float(i)/18.0
+				var q:=Vector2(4+39*f*reach,24+sin(f*TAU*1.25-t*5.0)*7.0*f)
+				fx_line(im,last,q,3.0,edge);fx_line(im,last,q,2.0,dark);fx_line(im,last-Vector2(0,1),q-Vector2(0,1),.8,light)
+				if i%5==0:
+					var leaf:=q+Vector2(-3,-6 if i%2==0 else 6)
+					fx_line(im,q,leaf,2.0,dark);fx_line(im,q,leaf,1.0,light)
+				last=q
+			if frame>=6:fx_disc(im,last,2.0,light)
+		"bubble_beam","foam","bubble":
+			for i in range(5):
+				var p:=Vector2(8+fposmod(float(i)*9.0+t*28.0,33.0),24+sin(float(i)*2.4+t*4.0)*8.0)
+				var radius:float=3.0+float(i%3)
+				fx_disc(im,p,radius,edge);fx_disc(im,p,radius-1.0,dark);fx_disc(im,p,radius-2.0,Color(.17,.54,.72,.65))
+				fx_disc(im,p-Vector2(1,2),1.3,light);fx_disc(im,p+Vector2(1,2),.8,Color.WHITE)
+				if frame>=8 and i%2==0:
+					fx_disc(im,p,radius+2.0,light,radius+1.0)
+		"quake":
+			var spread:float=5.0+t*16.0
+			for i in range(8):
+				var angle:float=float(i)*TAU/8.0
+				var p:=center+Vector2(cos(angle),sin(angle)*.7)*spread
+				var q:=center+Vector2(cos(angle+.18),sin(angle+.18)*.7)*spread*.48
+				fx_line(im,center,q,1.3,edge);fx_line(im,q,p,1.6,dark)
+				fx_line(im,q-Vector2(0,1),p-Vector2(0,1),.7,light)
+				var rock:=p-Vector2(0,sin(t*PI)*float(4+i%4))
+				fx_disc(im,rock,2.0+float(i%2),edge);fx_disc(im,rock-Vector2(0,1),1.5,light)
+		"fire_stream","fire_ring","flame":
+			for i in range(8):
+				var f:float=float(i)/7.0
+				var p:=Vector2(6+f*35,24+sin(f*9.0-t*TAU)*3.5)
+				if mode=="fire_ring":p=center+Vector2(cos(f*TAU+t*2.0),sin(f*TAU+t*2.0))*(8.0+t*10.0)
+				var radius:float=2.0+f*5.0
+				fx_disc(im,p,radius,edge);fx_disc(im,p-Vector2(0,1),radius-1.0,dark)
+				fx_disc(im,p-Vector2(1,1),radius*.60,light)
+				fx_line(im,p,p-Vector2(3+f*4,5+sin(t*TAU+f*5)*3),radius*.42,dark)
+				if i%2==0:fx_disc(im,p-Vector2(0,8),1.0,light)
+		"silk","web":
+			var radius:float=4.0+t*17.0
+			for i in range(8):
+				var angle:float=float(i)*TAU/8.0
+				var next_angle:float=float(i+1)*TAU/8.0
+				var p:=center+Vector2(cos(angle),sin(angle))*radius
+				fx_line(im,center,p,1.0,light)
+				for ring in [0.38,0.72,1.0]:
+					var q:=center+Vector2(cos(next_angle),sin(next_angle))*radius*float(ring)
+					fx_line(im,center.lerp(p,float(ring)),q,.8,dark if i%2==0 else light)
+		"lightning":
+			var last:=Vector2(3,24)
+			for i in range(1,9):
+				var q:=Vector2(3+i*5,24+float(posmod(i*17+frame*7,15)-7))
+				fx_line(im,last,q,2.5,dark);fx_line(im,last,q,1.0,light)
+				if i%3==0:fx_line(im,q,q+Vector2(-4,8),.7,light)
+				last=q
+		"radiant","beam":
+			var w:float=2.0+sin(t*PI)*6.0
+			fx_line(im,Vector2(4,24),Vector2(43,24),w,dark);fx_line(im,Vector2(4,24),Vector2(43,24),w*.45,light)
+			for i in range(4):
+				var p:=Vector2(8+fposmod(float(i)*11+t*30,34.0),24)
+				fx_line(im,p-Vector2(0,w+3),p+Vector2(0,w+3),.9,light)
+		"cloud":
+			for i in range(7):
+				var angle:float=float(i)*2.399+t
+				var p:=center+Vector2(cos(angle),sin(angle))*(5.0+t*13.0)
+				fx_disc(im,p,4.0+sin(t*PI)*3.0,dark);fx_disc(im,p-Vector2(1,2),2.0,light)
+		"slash","fan":
+			for i in range(3):
+				var last:=center+Vector2(-14,10-i*6)
+				for j in range(1,10):
+					var f:float=float(j)/9.0
+					var q:=center+Vector2(-14+28*f,10-i*6-sin(f*PI)*12-t*3)
+					fx_line(im,last,q,2.0,dark);fx_line(im,last,q,.8,light);last=q
+		"wave","spiral":
+			for i in range(3):
+				var radius:float=3.0+fposmod(t*16.0+i*5.0,17.0)
+				fx_disc(im,center,radius,dark,maxf(0.0,radius-2.0));fx_disc(im,center,radius-1.0,light,maxf(0.0,radius-2.0))
+		_:
+			# Projectile families retain distinct palettes and frame-dependent tails.
+			var p:=center+Vector2(sin(t*TAU)*3.0,cos(t*TAU)*2.0)
+			for i in range(4):
+				var q:=p-Vector2(float(i)*4.0, sin(t*TAU+i)*3.0)
+				fx_disc(im,q,5.0-float(i),dark);fx_disc(im,q-Vector2(1,1),maxf(1.0,3.0-float(i)*.5),light)
+	return im
+func combat_animated_texture(id:String,frame:int)->ImageTexture:
+	var key:="animated:"+id+":"+str(posmod(frame,FX_FRAME_COUNT))
+	if not combat_textures.has(key):combat_textures[key]=ImageTexture.create_from_image(combat_frame_image(id,frame))
+	return combat_textures[key] as ImageTexture
 func combat_fx_spawn(event:Dictionary)->void:
 	if not is_instance_valid(combat_fx_root):return
 	var id:String=str(event.get("fx","basic_strike"))
@@ -1751,7 +1876,7 @@ func combat_fx_spawn(event:Dictionary)->void:
 	for cell in event.get("tiles",[target]):tiles.append(pos(cell)+Vector3(0,.12,0))
 	if tiles.is_empty():tiles.append(pos(target)+Vector3(0,.12,0))
 	if combat_bursts.size()>=10:combat_bursts.pop_front()
-	combat_bursts.append({"id":id,"mode":style[0],"age":0.0,"duration":float(style[3]),"points":waypoints,"tiles":tiles,"texture":combat_pixel_texture(str(style[0]),Color(style[1]),Color(style[2]))})
+	combat_bursts.append({"id":id,"mode":style[0],"age":0.0,"duration":float(style[3]),"points":waypoints,"tiles":tiles,"texture":combat_animated_texture(id,0)})
 func combat_path_sample(points:Array,t:float)->Vector3:
 	var index:float=clampf(t,0.0,.9999)*float(points.size()-1)
 	var a:int=floori(index)
@@ -1766,6 +1891,8 @@ func combat_fx_update(dt:float)->void:
 		if t>=1.0:
 			combat_bursts.remove_at(k);continue
 		var mode:String=burst.mode
+		var frame:int=clampi(int(t*FX_FRAME_COUNT),0,FX_FRAME_COUNT-1)
+		var animated:=combat_animated_texture(str(burst.id),frame)
 		var points:Array=burst.points
 		var tiles:Array=burst.tiles
 		var count:int=mini(26,6+tiles.size()*2) if mode in ["cloud","wave","fan","web","shards","beam"] else 14
@@ -1805,8 +1932,8 @@ func combat_fx_update(dt:float)->void:
 					q+=Vector3(cos(angle)*radius,.18+sin(t*PI)*(.5 if mode=="cloud" else .2),sin(angle)*radius)
 					size=.65 if mode!="web" else .85
 			particle.position=q
-			particle.texture=burst.texture
-			particle.scale=Vector3.ONE*size*(1.0-t*.38)
+			particle.texture=animated
+			particle.scale=Vector3.ONE*size*(1.0-t*.38)*.40
 			particle.modulate=Color(1,1,1,clampf((1.0-t)*3.5,0.0,1.0))
 			particle.show()
 	for j in range(used,combat_particles.size()):combat_particles[j].hide()

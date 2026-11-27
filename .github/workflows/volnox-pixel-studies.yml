@@ -63,6 +63,7 @@ jobs:
           xvfb-run -a timeout 60 /tmp/godot/Godot_v4.4.1-stable_linux.x86_64 --path /tmp/pixel --audio-driver Dummy --script res://volnox_dungeon_preview.gd 2>&1 | tee /tmp/volnox-runtime.log
           grep -F 'VOLNOX_RUNTIME_PIXEL_PASS 33' /tmp/volnox-runtime.log
           grep -F VOLNOX_COMBAT_VFX_PASS /tmp/volnox-runtime.log
+          grep -F KINDRIA_FX_ATLAS_PASS /tmp/volnox-runtime.log
           ! grep -E 'SCRIPT ERROR|Parse Error|SHADER ERROR|Assertion failed' /tmp/volnox-runtime.log
       - uses: actions/upload-artifact@v4
         if: always()
@@ -76,3 +77,4 @@ jobs:
             /tmp/volnox-runtime.log
             /tmp/volnox-runtime-preview.png
             /tmp/volnox-combat-fx.png
+            /tmp/kindria-fx-*.png
