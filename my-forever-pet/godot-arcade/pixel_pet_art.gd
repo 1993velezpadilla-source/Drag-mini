@@ -2078,16 +2078,27 @@ static func enemy_expression_cell(id:String,dir:int,pose:String,frame:int,produc
 	return out
 
 static func enemy_pixel_texture(id:String,dir:int,pose:String,frame:int,blink:bool=false,appendage:int=0)->Texture2D:
+	# Canonical keys: irrelevant frame/gesture indices must never allocate textures.
+	frame=posmod(frame,4) if pose=="walk" else posmod(frame,2) if pose=="attack" else 0
+	dir=clampi(dir,0,7)
 	blink=blink and id in ENEMY_PIXEL_PILOTS and pose in ["idle","walk"] and dir not in [1,6,7]
-	var key:="enemy:%s:%d:%s:%d"%[id,dir,pose,frame]
-	if blink:key+=":blink"
 	appendage=clampi(appendage,0,2) if id in ENEMY_IDLE_APPENDAGES and pose in ["idle","walk"] else 0
+	var base_key:="enemy:%s:%d:%s:%d"%[id,dir,pose,frame]
+	var key:String=base_key
+	if blink:key+=":blink"
 	if appendage>0:key+=":part%d"%appendage
-	if not cache.has(key):
-		var image:=enemy_asset_cell(id,dir,pose,frame)
-		if image==null:return null
-		if blink or appendage>0:image=enemy_expression_cell(id,dir,pose,frame,image,blink,appendage)
-		cache[key]=ImageTexture.create_from_image(compose_creature_cell(id,image,dir if dir<4 else (0 if dir<6 else 1),pose,frame))
+	if cache.has(key):return cache[key] as Texture2D
+	var image:=enemy_asset_cell(id,dir,pose,frame)
+	if image==null:return null
+	if blink or appendage>0:
+		var expression:=enemy_expression_cell(id,dir,pose,frame,image,blink,appendage)
+		# Incompatible production art or unchanged rear poses reuse the base GPU texture.
+		if expression==image:
+			var base_tex:=enemy_pixel_texture(id,dir,pose,frame)
+			cache[key]=base_tex
+			return base_tex
+		image=expression
+	cache[key]=ImageTexture.create_from_image(compose_creature_cell(id,image,dir if dir<4 else (0 if dir<6 else 1),pose,frame))
 	return cache[key] as Texture2D
 static func enemy_pixel_atlas(id:String,directions:int=4)->Image:
 	var rows:int=8 if directions==8 else 4
