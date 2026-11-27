@@ -386,6 +386,22 @@ func run():
 				neutral_contact_frames[signature]=true
 				assert(middle.save_png("/tmp/dungeon-real-neutral-contact-"+id+".png")==OK)
 			print("KINDRIA_NEUTRAL_CONTACT_CHOREOGRAPHY_PASS ",neutral_contact_roles.size())
+			var neutral_special_roles:Dictionary={}
+			var neutral_special_frames:Dictionary={}
+			for id in ["eos_025","eos_031","eos_060","eos_123","eos_145","eos_152","eos_155","eos_166","eos_168","eos_201","eos_207","eos_228","eos_241","eos_242","eos_245","eos_263","eos_277","eos_287","eos_324","eos_360","eos_394","eos_457","eos_471","eos_474"]:
+				var profile:Dictionary=dungeon.combat_profile(id)
+				assert(str(profile.role).begins_with("neutral_"),"dedicated neutral special role "+id)
+				assert(not neutral_special_roles.has(profile.role),"unique neutral special choreography "+id)
+				neutral_special_roles[profile.role]=true
+				var first:Image=dungeon.combat_frame_image(id,2)
+				var middle:Image=dungeon.combat_frame_image(id,6)
+				assert(first.get_data()!=middle.get_data(),"neutral special animation changes "+id)
+				assert(middle.get_used_rect().has_area(),"nonempty neutral special frame "+id)
+				var signature:String=middle.get_data().hex_encode()
+				assert(not neutral_special_frames.has(signature),"unique neutral special sprite "+id)
+				neutral_special_frames[signature]=true
+				assert(middle.save_png("/tmp/dungeon-real-neutral-special-"+id+".png")==OK)
+			print("KINDRIA_NEUTRAL_SPECIAL_CHOREOGRAPHY_PASS ",neutral_special_roles.size())
 			# Reproduce the freed-instance registry fault before the real expedition.
 			var retired:Node3D=dungeon.actor_for("retired-test",Vector3.ZERO)
 			retired.free()

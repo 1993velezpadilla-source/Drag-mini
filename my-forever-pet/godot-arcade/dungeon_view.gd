@@ -3283,6 +3283,104 @@ func normal_contact_sprite(im:Image,role:String,frame:int)->void:
 			elif v==6:fx_line(im,q-Vector2(8,7),q+Vector2(8,7),4.0,light)
 			else:psi_polygon(im,q,11.0,5,t*TAU,light,gold)
 
+# Original neutral special FX and the three typeless reference moves.
+func neutral_special_sprite(im:Image,role:String,frame:int)->void:
+	var t:float=float(frame)/11.0
+	var c:=Vector2(24,24)
+	var light:=Color("#fff2cf");var dark:=Color("#8e7787");var cyan:=Color("#a8dfed");var gold:=Color("#ffd178");var red:=Color("#ed8763")
+	match role:
+		"neutral_snore","neutral_sonic","neutral_voice":
+			var v:int=["neutral_snore","neutral_sonic","neutral_voice"].find(role)
+			for i in range(3+v*2):
+				var q:=Vector2(5+float(i)*6.0+3.0*t,24+sin(t*TAU+float(i))*float(v==0)*5.0)
+				fight_arc(im,q,5.0+float(i)*1.8,-PI*.5,PI,cyan if v==1 else light,dark,2.0+float(v))
+			if v==0:fx_disc(im,Vector2(12+7*t,14),3.0,cyan)
+		"neutral_razor","neutral_wide","neutral_vacuum":
+			var v:int=["neutral_razor","neutral_wide","neutral_vacuum"].find(role)
+			for i in range(2+v):
+				var q:=c+Vector2(float(i)*6.0-float(1+v)*3.0,0)
+				fight_arc(im,q,13.0+float(v)*2.0,-PI*.8+t*1.4+float(i)*.25,PI*(1.0+float(v)*.2),cyan, dark,3.0+float(v))
+			if v==2:psi_ring(im,c,18.0+sin(t*PI)*2.0,light,dark)
+		"neutral_self","neutral_explosion":
+			var big:bool=role=="neutral_explosion"
+			var r:float=4.0+sin(t*PI*.85)*(19.0 if big else 13.0)
+			for i in range(10 if big else 6):
+				var a:float=float(i)*TAU/float(10 if big else 6)+t
+				var q:=c+Vector2(cos(a),sin(a))*r
+				fx_disc(im,q,6.0 if big else 4.0,red)
+				fx_disc(im,q,3.5 if big else 2.5,gold)
+			fight_burst(im,c,r,12 if big else 6,t,light,red)
+		"neutral_weather","neutral_hidden","neutral_secret","neutral_gift":
+			var v:int=["neutral_weather","neutral_hidden","neutral_secret","neutral_gift"].find(role)
+			var q:=Vector2(7+32*t,24)
+			var palette:Array[Color]=[cyan,red,gold,Color("#a4de8a")]
+			if v==0:
+				fx_disc(im,q,9.0,dark)
+				for i in range(4):
+					var a:float=float(i)*TAU/4.0+t*TAU
+					fx_disc(im,q+Vector2(cos(a),sin(a))*5.0,3.0,palette[i])
+			elif v==1:
+				for i in range(5):
+					var a:float=float(i)*TAU/5.0+t*TAU
+					psi_polygon(im,q+Vector2(cos(a),sin(a))*9.0,4.0,3,a,palette[i%4],dark)
+			elif v==2:
+				psi_polygon(im,q,10.0,6,t*PI,gold,dark);fight_burst(im,q,15.0,6,t,light,cyan)
+			else:
+				psi_polygon(im,q,8.0,5,t*PI,palette[3],dark)
+				for i in range(4):fx_disc(im,q+Vector2(float(i-2)*5,sin(t*TAU+float(i))*6),2.0,palette[i])
+		"neutral_swift","neutral_barrage","neutral_spike":
+			var v:int=["neutral_swift","neutral_barrage","neutral_spike"].find(role)
+			for i in range(5):
+				var q:=Vector2(5+36*clampf(t*1.4-float(i)*.10,0.0,1.0),24+float(i-2)*6.0)
+				if v==0:fight_burst(im,q,5.0,5,t,gold,dark)
+				elif v==1:
+					fx_disc(im,q,5.0,dark);fx_disc(im,q+Vector2(1,-1),3.0,light)
+				else:
+					fx_line(im,q-Vector2(9,3),q+Vector2(5,0),3.2,dark);fx_line(im,q-Vector2(9,-3),q+Vector2(5,0),1.8,cyan)
+		"neutral_egg","neutral_present","neutral_trump","neutral_pay":
+			var v:int=["neutral_egg","neutral_present","neutral_trump","neutral_pay"].find(role)
+			var q:=Vector2(7+32*t,28-sin(t*PI)*(14.0 if v<2 else 7.0))
+			if v==0:
+				fx_disc(im,q,7.0,dark);fx_disc(im,q+Vector2(0,-3),5.0,light)
+			elif v==1:
+				psi_polygon(im,q,8.0,4,PI*.25,red,dark)
+				fx_line(im,q-Vector2(6,0),q+Vector2(6,0),2.5,gold)
+				fx_line(im,q-Vector2(0,6),q+Vector2(0,6),2.5,gold)
+			elif v==2:
+				for i in range(3):
+					var p:=q+Vector2(float(i-1)*6.0,sin(t*PI+float(i))*5.0)
+					psi_polygon(im,p,6.0,4,t*PI+float(i)*.3,light,dark)
+			else:
+				for i in range(4):
+					var p:=q+Vector2(float(i-1)*5.0,sin(t*TAU+float(i))*6.0)
+					psi_ring(im,p,4.5,gold,dark)
+		"neutral_tri":
+			for i in range(3):
+				var a:float=float(i)*TAU/3.0+t*TAU
+				var q:=c+Vector2(cos(a),sin(a))*(8.0+sin(t*PI)*6.0)
+				fx_disc(im,q,6.0,[red,cyan,gold][i])
+				fx_line(im,c,q,2.0,light)
+		"neutral_beam":
+			var q:=Vector2(3+42*t,24)
+			fx_line(im,Vector2(2,24),q,13.0,dark)
+			fx_line(im,Vector2(2,24),q,8.0,gold)
+			fx_line(im,Vector2(2,24),q,3.0,light)
+			fight_burst(im,q,12.0,8,t,red,dark)
+		"neutral_spit":
+			for i in range(6):
+				var q:=Vector2(5+33*clampf(t*1.4-float(i)*.10,0.0,1.0),24+sin(t*TAU+float(i))*6.0)
+				fx_disc(im,q,3.0+float(i%3),cyan);fx_disc(im,q+Vector2(1,-1),1.5,light)
+		"neutral_covet":
+			var q:=Vector2(36-24*t,24-sin(t*PI)*9.0)
+			fx_disc(im,q+Vector2(-3,-3),4.0,red);fx_disc(im,q+Vector2(3,-3),4.0,red)
+			fx_line(im,q-Vector2(6,0),q+Vector2(0,7),4.0,red);fx_line(im,q+Vector2(6,0),q+Vector2(0,7),4.0,red)
+			psi_polygon(im,q+Vector2(9,5),4.0,4,t*PI,gold,dark)
+		"neutral_wring":
+			for i in range(5):
+				var q:=c+Vector2(0,float(i-2)*6.0)
+				fight_arc(im,q,15.0-sin(t*PI)*7.0,t*TAU+float(i)*.9,PI*1.5,light,dark,3.8)
+			fight_burst(im,c,6.0+sin(t*PI)*6.0,4,t,red,dark)
+
 func combat_frame_image(id:String,frame:int)->Image:
 	var style:Array=combat_style(id)
 	var mode:String=combat_animation_mode(id,str(style[0]))
@@ -3324,6 +3422,8 @@ func combat_frame_image(id:String,frame:int)->Image:
 		steel_sprite(im,role,frame);return im
 	if role.begins_with("normal_"):
 		normal_contact_sprite(im,role,frame);return im
+	if role.begins_with("neutral_"):
+		neutral_special_sprite(im,role,frame);return im
 	var center:=Vector2(24,24)
 	match mode:
 		"vine":
@@ -3807,6 +3907,30 @@ func combat_profile(id:String)->Dictionary:
 		"eos_505":role="normal_grip"
 		"eos_516":role="normal_feint"
 		"eos_541":role="normal_climb"
+		"eos_025":role="neutral_snore"
+		"eos_031":role="neutral_weather"
+		"eos_060":role="neutral_razor"
+		"eos_123":role="neutral_self"
+		"eos_145":role="neutral_swift"
+		"eos_152":role="neutral_sonic"
+		"eos_155":role="neutral_explosion"
+		"eos_166":role="neutral_egg"
+		"eos_168":role="neutral_barrage"
+		"eos_201":role="neutral_spike"
+		"eos_207":role="neutral_tri"
+		"eos_228":role="neutral_pay"
+		"eos_241":role="neutral_voice"
+		"eos_242":role="neutral_beam"
+		"eos_245":role="neutral_spit"
+		"eos_263":role="neutral_secret"
+		"eos_277":role="neutral_present"
+		"eos_287":role="neutral_covet"
+		"eos_324":role="neutral_hidden"
+		"eos_360":role="neutral_wide"
+		"eos_394":role="neutral_vacuum"
+		"eos_457":role="neutral_trump"
+		"eos_471":role="neutral_gift"
+		"eos_474":role="neutral_wring"
 	if role in ["electric_charge","electric_lift"]:mode="lightning"
 	var impact:float=.48 if role in ["contact","electric_contact","electric_short","electric_fist","electric_fang","electric_dash","electric_spark"] else .64 if role in ["projectile","lash","electric_arc","electric_wave","electric_sky","electric_orb","electric_beam"] else .40
 	if role in ["fire_breath","fire_ember","fire_blast","fire_wisp"]:impact=.64
@@ -3831,6 +3955,7 @@ func combat_profile(id:String)->Dictionary:
 	if role.begins_with("dark_"):impact=.64 if role in ["dark_faint","dark_fling","dark_sucker","dark_pulse","dark_void"] else .48
 	if role.begins_with("steel_"):impact=.64 if role in ["steel_meteor","steel_bullet","steel_flash","steel_mirror","steel_magnet"] else .48
 	if role.begins_with("normal_"):impact=.64 if role in ["normal_extreme","normal_quick","normal_giga","normal_climb"] else .48
+	if role.begins_with("neutral_"):impact=.64 if role in ["neutral_beam","neutral_weather","neutral_swift","neutral_egg","neutral_barrage","neutral_spike","neutral_present","neutral_trump","neutral_pay","neutral_hidden","neutral_gift"] else .48
 	return {"mode":mode,"role":role,"element":element,"pattern":pattern,"range":reach,"duration":float(style[3]),"impact":impact,"socket":"ground" if role in ["ground","fire_plume","fire_magma","water_dive","water_whirlpool","water_surf","grass_frenzy","grass_roots","grass_knot","ice_avalanche","ice_cold","earth_dig","earth_tomb","earth_power","earth_fissure","earth_spikes","earth_quake","earth_magnitude","rock_edge","rock_tomb","rock_trap","rock_roll"] else "head" if role in ["projectile","fire_breath","fire_ember","fire_eruption","water_bubble","water_ink","water_spout","water_cannon","water_pump","water_bubblebeam","water_gun","water_pulse","water_brine","grass_solar","grass_energy","grass_bullet","grass_whistle","ice_aurora","ice_beam","ice_wind","earth_shot","rock_wrecker","rock_blast","rock_gem"] else "center"}
 func electric_sprite(im:Image,id:String,frame:int,role:String)->void:
 	var cyan:=Color("#40cfff")
@@ -4581,6 +4706,22 @@ func combat_fx_update(dt:float)->void:
 						q=points[-1]+Vector3(cos(angle+t*TAU)*.38,.12+f*.55,sin(angle+t*TAU)*.38);size=.48
 					_:
 						q=points[-1]+Vector3(cos(angle+t*TAU)*.26,.16+f*.36,sin(angle+t*TAU)*.26);size=.52
+			if str(profile.role).begins_with("neutral_"):
+				var neutral_role:String=str(profile.role)
+				var progress:float=clampf(t*1.8-f*.30,0,1)
+				match neutral_role:
+					"neutral_self","neutral_explosion","neutral_vacuum","neutral_wide":
+						q=tiles[j%tiles.size()]+Vector3(cos(angle+t*TAU)*.35,.15+f*.6,sin(angle+t*TAU)*.35);size=.76 if neutral_role=="neutral_explosion" else .55
+					"neutral_egg","neutral_present","neutral_trump","neutral_pay":
+						q=combat_path_sample(points,progress)+Vector3(0,sin(progress*PI)*.75,0);size=.50
+					"neutral_covet":
+						q=combat_path_sample(points,1.0-progress)+Vector3(0,.15+sin(progress*PI)*.4,0);size=.43
+					"neutral_wring":
+						q=points[-1]+Vector3(cos(angle+t*TAU)*.3,.12+f*.6,sin(angle+t*TAU)*.3);size=.53
+					"neutral_snore":
+						q=points[0]+Vector3(cos(angle+t*TAU)*.4,.15+f*.5,sin(angle+t*TAU)*.4);size=.43
+					_:
+						q=combat_path_sample(points,progress)+Vector3(cos(angle)*.11,.14+sin(angle)*.15,sin(angle)*.11);size=.75 if neutral_role=="neutral_beam" else .48
 			# Drained energy travels from victim back to caster; healing stays on caster.
 			if profile.role=="drain" and t>=.40:
 				var back:float=clampf((t-.40)*2.0-f*.22,0.0,1.0)
