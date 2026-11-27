@@ -166,6 +166,12 @@ var player_hit_direction:=Vector3.ZERO
 var pet_pose:Node3D
 var disguise_actor:Node3D
 var disguise_species:String=""
+var form_age:float=0.0
+var form_root:Node3D
+var form_sparks:Array[MeshInstance3D]=[]
+var form_ring:MeshInstance3D
+var form_light:OmniLight3D
+var form_material:StandardMaterial3D
 var floor_ornaments:Array[Vector3]=[]
 var wall_decorations=0
 var floor_banner:Label
@@ -1902,7 +1908,8 @@ func build_floor():
 			shape(geometry,"box",p+Vector3(0,.11,0),Vector3(.62,.18,.62),palette[2])
 	pet=Node3D.new();geometry.add_child(pet);pet.position=pos(run.player)
 	pet_pose=model(pet,companion_id);pet_pose.scale*=1.28
-	disguise_actor=null;disguise_species=""
+	disguise_actor=null;disguise_species="";form_age=0.0
+	setup_form_effects()
 	visual_charge_phase="";release_charge_phase=""
 	player_tile_cast.clear()
 	attack_time=0.0;hit_time=0.0;player_impact_delay=0.0
@@ -8020,9 +8027,64 @@ func sync_disguise_pose(actor:Node3D,pose:String,motion:Vector2)->bool:
 		enemy_pose(actor,"idle",0.0,motion)
 	return false
 
+# Dedicated pooled form-change effect; independent from reward and attack FX.
+func setup_form_effects()->void:
+	form_sparks.clear()
+	form_root=Node3D.new();pet.add_child(form_root);form_root.hide()
+	form_material=StandardMaterial3D.new()
+	form_material.shading_mode=BaseMaterial3D.SHADING_MODE_UNSHADED
+	form_material.albedo_color=Color("#c6c4ff")
+	form_material.emission_enabled=true;form_material.emission=Color("#a3baff");form_material.emission_energy_multiplier=.6
+	for i in range(16):
+		var spark:=shape(form_root,"gem",Vector3.ZERO,Vector3.ONE*.06,Color("#c6c4ff"))
+		spark.material_override=form_material;spark.cast_shadow=GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		form_sparks.append(spark)
+	form_ring=shape(form_root,"ring",Vector3(0,.065,0),Vector3.ONE,Color("#c6c4ff"))
+	form_ring.material_override=form_material;form_ring.cast_shadow=GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	form_light=OmniLight3D.new();form_light.light_color=Color("#b6c8ff");form_light.omni_range=2.5;form_light.shadow_enabled=false
+	form_root.add_child(form_light);form_light.position.y=.8;form_light.light_energy=0.0
+
+func form_effect_sample(t:float)->Vector3:
+	var progress:float=clampf(t,0.0,1.0)
+	var peak:float=sin(progress*PI)
+	var radius:float=lerpf(.85,.13,smoothstep(0.0,.42,progress)) if progress<.42 else lerpf(.13,1.05,smoothstep(.42,1.0,progress))
+	return Vector3(radius,peak,sin(progress*TAU))
+
+func update_form_effect(dt:float,pose:String)->void:
+	if not is_instance_valid(form_root):return
+	form_age=maxf(0.0,form_age-dt)
+	var visible_now:bool=form_age>0.0 and not tile_cast_active() and run.charge_phase!="underground" and (pet_pose.visible or (is_instance_valid(disguise_actor) and disguise_actor.visible))
+	form_root.visible=visible_now
+	if not visible_now:
+		form_light.light_energy=0.0
+		return
+	var t:float=1.0-form_age/.72
+	var sample:=form_effect_sample(t)
+	var at:Vector3=disguise_actor.position if is_instance_valid(disguise_actor) else pet_pose.position
+	form_root.position=at
+	var ring_radius:float=.35+sample.x
+	form_ring.scale=Vector3(ring_radius,.055,ring_radius)
+	form_light.light_energy=sample.y*.65
+	for i in range(form_sparks.size()):
+		var a:float=float(i)*TAU/form_sparks.size()+t*TAU*1.25
+		var h:float=.22+float(i%4)*.21+sample.y*.38
+		var spark:=form_sparks[i]
+		spark.position=Vector3(cos(a)*sample.x,h,sin(a)*sample.x)
+		spark.scale=Vector3(.055,.12,.055)*sample.y
+		spark.rotation.y=a
+	# Strike and hurt silhouettes retain priority. Only the glow is shared.
+	if pose in ["idle","reward","eat"] and not tile_cast_active():
+		var active:=disguise_actor.get_node_or_null("EnemyPixel") as Sprite3D if is_instance_valid(disguise_actor) else pet_pose.get_node_or_null("PixelCompanion") as Sprite3D
+		if active!=null:
+			if active.material_override is ShaderMaterial:
+				var shader:=active.material_override as ShaderMaterial
+				shader.set_shader_parameter("hit_flash",sample.y*.80)
+			else:active.modulate=active.modulate.lerp(Color("#e1edff"),sample.y*.70)
+
 func update_disguise(dt:float,motion:Vector2,moving:bool,pose:String)->void:
 	var desired:String=run.transformed_species
 	if desired!=disguise_species:
+		form_age=.72
 		if is_instance_valid(disguise_actor):
 			disguise_actor.hide();disguise_actor.queue_free()
 		disguise_actor=null;disguise_species=desired
@@ -8203,6 +8265,7 @@ func _process(dt:float):
 			healthy_sprite.position.y+=float(healthy_sprite.get_meta("world_height"))*.5*(healthy_sprite.scale.y-prior_scale)
 			healthy_sprite.position.x+=condition.y
 	update_disguise(dt,motion,moving,pose)
+	update_form_effect(dt,pose)
 	var focus=pet.position+Vector3(0,.18,-.48)
 	# The prior floor-build-only shake never reached the actual render loop.
 	var shake:float=minf(fx_ground_shake,.10)
