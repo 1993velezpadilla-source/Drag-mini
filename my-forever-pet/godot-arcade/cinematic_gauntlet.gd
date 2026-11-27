@@ -36,6 +36,30 @@ func run_checks()->void:
 	var checks:int=0
 	var failures:Array[String]=[]
 	var view:=Dungeon.new()
+	# V25.4: every fixed particle layout must reproduce the old scalar math.
+	var layout_probe:=Dungeon.new()
+	layout_probe.warm_particle_layouts()
+	if layout_probe.fx_particle_layouts.size()!=27:failures.append("V25.4 layout table size")
+	checks+=1
+	for layout_count in range(27):
+		var layout_values:PackedFloat64Array=layout_probe.combat_particle_layout(layout_count)
+		if layout_values.size()!=layout_count*4:failures.append("V25.4 layout length")
+		checks+=1
+		for layout_i in range(layout_count):
+			var layout_fraction:float=float(layout_i)/maxi(1,layout_count-1)
+			var layout_angle:float=layout_fraction*TAU+float(layout_i)*2.399
+			var layout_offset:int=layout_i*4
+			if layout_values[layout_offset]!=layout_fraction:failures.append("V25.4 fraction")
+			if layout_values[layout_offset+1]!=layout_angle:failures.append("V25.4 angle")
+			if layout_values[layout_offset+2]!=cos(layout_angle):failures.append("V25.4 cosine")
+			if layout_values[layout_offset+3]!=sin(layout_angle):failures.append("V25.4 sine")
+			checks+=4
+	var layout_copy:PackedFloat64Array=layout_probe.combat_particle_layout(14)
+	layout_copy[0]=99.0
+	if layout_probe.combat_particle_layout(14)[0]!=0.0:failures.append("V25.4 layout cache changed")
+	if layout_probe.combat_particle_layout(28)!=layout_probe.build_particle_layout(28):failures.append("V25.4 layout fallback")
+	checks+=2
+	layout_probe.free()
 	# V25.3: identical cue values, shared immutable storage and local playback state.
 	var launch_probe:=Dungeon.new()
 	for launch_id in ["basic_strike","eos_008","eos_156","eos_477","leaf_dart"]:
