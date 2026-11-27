@@ -36,6 +36,7 @@ jobs:
         run: |
           set -o pipefail
           Godot_v4.5.1-stable_linux.x86_64 --headless --path . --script res://cinematic_gauntlet.gd 2>&1 | tee /tmp/kindria-test.log
+          if grep -E 'SCRIPT ERROR:|Failed to load script|Invalid call|Invalid assignment|Invalid access' /tmp/kindria-test.log; then exit 1; fi
           grep -E 'CINEMATIC_GAUNTLET checks=[0-9]+ failures=0' /tmp/kindria-test.log
       - name: Preserve test logs
         if: always()
