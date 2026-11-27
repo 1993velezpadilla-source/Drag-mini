@@ -36,6 +36,25 @@ func run_checks()->void:
 	var checks:int=0
 	var failures:Array[String]=[]
 	var view:=Dungeon.new()
+	# V22.5: actual sprite properties remain authoritative across pool reuse.
+	var probe:=Sprite3D.new()
+	var probe_texture:=ImageTexture.create_from_image(Image.create(2,2,false,Image.FORMAT_RGBA8))
+	var probe_at:=Vector3(2.0,.5,3.0)
+	probe.hide()
+	view.apply_environment_particle_state(probe,probe_at,probe_texture,.5,.75,false)
+	if probe.position!=probe_at or probe.texture!=probe_texture or probe.scale!=Vector3.ONE*.5 or probe.modulate!=Color(1,1,1,.75) or not probe.visible:failures.append("V22.5 initial particle state")
+	if view.apply_environment_particle_state(probe,probe_at,probe_texture,.5,.75,false)!=0:failures.append("V22.5 redundant particle writes")
+	probe.hide()
+	if view.apply_environment_particle_state(probe,probe_at,probe_texture,.5,.75,false)!=1 or not probe.visible:failures.append("V22.5 hidden pooled sprite")
+	probe.position=Vector3.ZERO
+	probe.modulate=Color.WHITE
+	if view.apply_environment_particle_state(probe,probe_at,probe_texture,.5,.75,false)!=2:failures.append("V22.5 external pool mutation")
+	view.apply_environment_particle_state(probe,probe_at,probe_texture,.5,2.0,true)
+	if probe.billboard!=BaseMaterial3D.BILLBOARD_DISABLED or not probe.rotation.is_equal_approx(Vector3(-PI*.5,0,0)) or probe.modulate!=Color.WHITE:failures.append("V22.5 flat particle transition")
+	view.apply_environment_particle_state(probe,probe_at,probe_texture,.5,-1.0,false)
+	if probe.billboard!=BaseMaterial3D.BILLBOARD_ENABLED or not probe.rotation.is_equal_approx(Vector3.ZERO) or probe.modulate.a!=0.0:failures.append("V22.5 billboard transition")
+	probe.free()
+	checks+=6
 	# V22.1: delayed launch, retired contact and active environmental cues
 	# share one chronology even when collected in reversed traversal order.
 	var audio_events:Array[Dictionary]=[
