@@ -700,6 +700,10 @@ var player_cast_results:Dictionary={}
 var player_cast_result_serial:int=-1
 func record_cast_result(tile:Vector2i,damage:int,landed:bool,changed:bool,critical:bool)->void:
 	var row:Dictionary=player_cast_results.get(tile,{"damage":0,"hits":0,"misses":0,"effects":0,"blocked":0,"crit":0})
+	# Preserve the real attempt order, including misses and blocked hits.
+	var attempts:Array=row.get("attempts",[])
+	attempts.append({"damage":maxi(0,damage),"hits":1 if landed and damage>0 else 0,"misses":0 if landed else 1,"effects":1 if landed and changed and damage<=0 else 0,"blocked":1 if landed and damage<=0 and not changed else 0,"crit":1 if critical and damage>0 else 0})
+	row["attempts"]=attempts
 	row.damage=int(row.damage)+maxi(0,damage)
 	if not landed:row.misses=int(row.misses)+1
 	elif damage>0:row.hits=int(row.hits)+1
