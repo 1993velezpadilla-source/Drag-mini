@@ -61,14 +61,18 @@ func bake()->void:
 			failures+=1
 			continue
 		var before:int=reader.fx_atlas_uploads
-		var first:Texture2D=reader.combat_animated_texture(str(id),0)
+		var first:=reader.combat_animated_texture(str(id),0) as AtlasTexture
+		if first==null:
+			failures+=1
+			continue
 		for frame in range(count):
 			var texture:Texture2D=reader.combat_animated_texture(str(id),frame)
 			if not texture is AtlasTexture:
 				failures+=1
 				continue
-			var region:Rect2=texture.region
-			if region!=Rect2(frame*size,0,size,size) or texture.atlas!=first.atlas or not texture.filter_clip:failures+=1
+			var atlas_frame:=texture as AtlasTexture
+			var region:Rect2=atlas_frame.region
+			if region!=Rect2(frame*size,0,size,size) or atlas_frame.atlas!=first.atlas or not atlas_frame.filter_clip:failures+=1
 		if reader.fx_atlas_uploads!=before+1 or reader.combat_animated_texture(str(id),0)!=first or reader.fx_atlas_cache.size()>Dungeon.FX_ATLAS_CACHE_CAP:failures+=1
 	if reader.fx_frame_builds!=0 or reader.fx_atlas_uploads!=ids.size():failures+=1
 	print("KINDRIA_FRAME_PACK moves=",ids.size()," frames=",ids.size()*count," bytes=",total," atlas_uploads=",reader.fx_atlas_uploads," procedural_builds=",reader.fx_frame_builds," failures=",failures)

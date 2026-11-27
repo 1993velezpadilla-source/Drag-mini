@@ -57,29 +57,7 @@ jobs:
         run: |
           set -euo pipefail
           godot --headless --path . --script res://bake_combat_frames.gd 2>&1 | tee /tmp/kindria-frame-pack.log
-          grep -E 'KINDRIA_FRAME_PACK moves=[0-9]+ frames=[0-9]+ bytes=[0-9]+ atlas_uploads=[0-9]+ procedural_builds=0 failures=0
-        uses: actions/upload-artifact@v4
-        with:
-          name: kindria-combat-audio-pack
-          if-no-files-found: error
-          retention-days: 14
-          path: my-forever-pet/godot-arcade/generated_combat_audio/
-      - name: Preserve diagnostics even on failure
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: kindria-v20-release-evidence
-          if-no-files-found: warn
-          retention-days: 14
-          path: |
-            /tmp/kindria-import.log
-            /tmp/kindria-gauntlet.log
-            /tmp/kindria-quality-report.log
-            /tmp/kindria-audio-quality.json
-            /tmp/kindria-audio-pack.log
-            /tmp/kindria-frame-pack.log
-            /tmp/kindria-visual/
- /tmp/kindria-frame-pack.log
+          grep -E 'KINDRIA_FRAME_PACK moves=[0-9]+ frames=[0-9]+ bytes=[0-9]+ atlas_uploads=[0-9]+ procedural_builds=0 failures=0$' /tmp/kindria-frame-pack.log
           if grep -E 'SCRIPT ERROR|Parse Error|Compile Error' /tmp/kindria-frame-pack.log; then exit 1; fi
       - name: Preserve verified animation pack
         uses: actions/upload-artifact@v4
@@ -107,4 +85,5 @@ jobs:
             /tmp/kindria-quality-report.log
             /tmp/kindria-audio-quality.json
             /tmp/kindria-audio-pack.log
+            /tmp/kindria-frame-pack.log
             /tmp/kindria-visual/
