@@ -18,6 +18,23 @@ func run()->void:
 	var origin:Vector2i=field.run.player
 	var target:Vector2i=origin+Vector2i.RIGHT
 	var points:Array=[field.pos(origin)+Vector3.UP*.55,field.pos(target)+Vector3.UP*.55]
+	# Run ownership checks early, before the expensive cumulative render suite.
+	var owner_effect:Resource=load("res://effects/sample-material3/ef_fire01.efkefc")
+	assert(owner_effect!=null)
+	var owner_binding:Dictionary={"effect":owner_effect,"scale":.4}
+	var owner_bindings:Dictionary={}
+	for move_id in Field.RTDX_OBSERVED_MOVES:
+		owner_bindings[move_id]={"impact":owner_binding}
+	assert(field.configure_native_fx(owner_bindings))
+	for move_id in Field.RTDX_OBSERVED_MOVES:
+		var p:Dictionary=field.combat_profile(move_id)
+		var owner_burst:Dictionary={"id":move_id,"profile":p,"points":points,"duration":float(p.duration),"presentation_tracks":[{"stage":"impact","anchor":"target","start":.5,"end":1.0,"enabled":true}],"results":{target:{"damage":8}}}
+		field.schedule_native_cast(owner_burst,false,target)
+		assert(field.native_fx_backend.pending.is_empty(),"duplicate native effect "+move_id)
+		field.ultra_impact_residue(owner_burst)
+		assert(field.fx_residues.is_empty(),"unexpected generic residue "+move_id)
+	field.configure_native_fx({})
+	print("KINDRIA_V15_RENDER_OWNERSHIP_PASS 12")
 	var cases:Array=[
 		["lib_fire_2","sample-material3/ef_fire01_projectile.efkefc","sample-material3/ef_fire01.efkefc",.62,.78],
 		["lib_ice_2","sample-material3/ef_ice02.efkefc","sample-material3/ef_ice01.efkefc",.30,.35],

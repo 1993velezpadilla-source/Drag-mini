@@ -62,7 +62,8 @@
       "v15_3_source_status": "Archive page opened; image fetch failed again. No visual design inferred.",
       "v15_5_source_status": "File page confirmed; image fetch failed again.",
       "v15_6_source_status": "Archive file page accessible; image retrieval failed again.",
-      "v15_7_source_status": "Archive file page reachable, image fetch failed again."
+      "v15_7_source_status": "Archive file page reachable, image fetch failed again.",
+      "v15_9_source_status": "Preview retrieval failed"
     },
     {
       "name": "Hyper Beam",
@@ -76,7 +77,8 @@
       "source_variant": "Rayquaza according to file description; do not infer normal-size animation.",
       "image": "https://archives.bulbagarden.net/media/upload/d/d1/Hyper_Beam_PMD_RTDX.png",
       "v15_6_source_status": "Archive file page accessible; image retrieval failed again.",
-      "v15_7_source_status": "Archive file page reachable, image fetch failed again."
+      "v15_7_source_status": "Archive file page reachable, image fetch failed again.",
+      "v15_9_source_status": "Full image retrieval failed; archive explicitly requests direct capture and labels Rayquaza"
     },
     {
       "name": "Laser Focus",
@@ -95,7 +97,8 @@
       "status": "indexed_uninspected",
       "timing_verified": false,
       "v15_7_source_status": "Archive file page retrieval failed.",
-      "v15_8_source_status": "File page failed."
+      "v15_8_source_status": "File page failed.",
+      "v15_9_source_status": "File page retrieval failed"
     },
     {
       "name": "Low Kick",
@@ -257,7 +260,8 @@
       "page": "https://archives.bulbagarden.net/wiki/File:Throat_Chop_PMD_RTDX.png",
       "status": "indexed_uninspected",
       "timing_verified": false,
-      "v15_8_source_status": "File page opened; preview failed."
+      "v15_8_source_status": "File page opened; preview failed.",
+      "v15_9_source_status": "Preview retrieval failed"
     },
     {
       "name": "Toxic Thread",

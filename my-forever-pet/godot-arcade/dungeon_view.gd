@@ -2471,6 +2471,9 @@ func ultra_impact_residue(burst:Dictionary)->void:
 	var profile:Dictionary=burst.profile
 	var element:String=str(profile.element)
 	var id:String=str(burst.id)
+	# Still-grounded choreography owns its finish. Do not append an
+	# undocumented lingering elemental residue (e.g. orange Sacred Fire).
+	if id in RTDX_OBSERVED_MOVES:return
 	var record:Dictionary=Rules.MOVE_LIBRARY.get(id,Rules.DEV_NATIVE_MOVES.get(id,{}))
 	if str(record.get("category",""))=="status":return
 	if not element in ["fire","water","ice","ground","rock","poison","electric","grass","dragon","steel"]:return
@@ -6473,6 +6476,9 @@ func configure_native_fx(bindings:Dictionary)->bool:
 func schedule_native_cast(burst:Dictionary,enemy:bool,target:Vector2i)->void:
 	if not is_instance_valid(native_fx_backend):return
 	var id:String=str(burst.id)
+	# Evidence-driven moves use their authored procedural renderer exclusively
+	# until an individual native binding has itself been visually audited.
+	if id in RTDX_OBSERVED_MOVES:return
 	if not native_fx_bindings.has(id):return
 	var bindings:Dictionary=native_fx_bindings[id]
 	var results:Dictionary=burst.get("results",{})
@@ -6839,7 +6845,7 @@ func combat_fx_update(dt:float)->void:
 		if t>=1.0:
 			combat_bursts.remove_at(k);continue
 		# Evidence-backed stages replace (rather than stack over) unrelated
-		# legacy sprite/ribbon/halo families for these two researched moves.
+		# legacy sprite/ribbon/halo families for the researched moves.
 		if str(burst.id) in RTDX_OBSERVED_MOVES:
 			used=rtdx_observed_stage_fx(burst,t,used)
 			continue
