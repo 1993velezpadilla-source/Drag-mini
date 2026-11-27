@@ -2723,7 +2723,7 @@ func cinematic_element_surface(burst:Dictionary,t:float)->void:
 	var tile:=Vector2i(roundi(target.x/1.4),roundi(target.z/1.4))
 	var results:Dictionary=burst.get("results",{})
 	var row:Dictionary=results.get(tile,{})
-	if not before and not row.is_empty() and int(row.get("damage",0))+int(row.get("effects",0))+int(row.get("heal",0))<=0:
+	if not before and int(row.get("damage",0))+int(row.get("effects",0))+int(row.get("heal",0))<=0:
 		var alternative:Variant=secondary_material_target(results,tile)
 		if alternative==null:return
 		target=alternative
@@ -2784,7 +2784,7 @@ func cinematic_cast_enhancement(burst:Dictionary,t:float)->void:
 	var results:Dictionary=burst.get("results",{})
 	var tile:=Vector2i(roundi(target.x/1.4),roundi(target.z/1.4))
 	var result:Dictionary=results.get(tile,{})
-	var miss:bool=not result.is_empty() and int(result.get("damage",0))+int(result.get("effects",0))+int(result.get("heal",0))<=0
+	var miss:bool=int(result.get("damage",0))+int(result.get("effects",0))+int(result.get("heal",0))<=0
 	if miss and t>=peak:
 		var alternative:Variant=secondary_material_target(results,tile)
 		if alternative!=null:
@@ -8434,7 +8434,8 @@ func element_finish_fx(burst:Dictionary,t:float,used:int,contacts_reserved:bool=
 		# Known misses/blocked hits get a subdued dissipating trail, not a damage flash.
 		var primary_tile:=Vector2i(roundi(target.x/1.4),roundi(target.z/1.4))
 		var row:Dictionary=results.get(primary_tile,{})
-		var primary_miss:bool=not row.is_empty() and int(row.get("damage",0))+int(row.get("effects",0))+int(row.get("heal",0))<=0
+		var primary_confirmed:bool=int(row.get("damage",0))+int(row.get("effects",0))+int(row.get("heal",0))>0
+		var primary_miss:bool=not primary_confirmed
 		if not contacts_reserved:used=priority_contact_fx(burst,t,used)
 		if primary_miss:
 			used=environment_particle(used,target,"cloud",light,dark,.32+age*.18,fade*.35)
@@ -8444,14 +8445,19 @@ func element_finish_fx(burst:Dictionary,t:float,used:int,contacts_reserved:bool=
 		# Room-wide attacks show a small localized finish at other confirmed targets.
 		var extra:int=0
 		for tile in results:
-			if tile==primary_tile or extra>=4:continue
+			if not tile is Vector2i or tile==primary_tile or extra>=4:continue
 			var other:Dictionary=results[tile]
 			if int(other.get("damage",0))+int(other.get("effects",0))+int(other.get("heal",0))<=0:continue
 			var q:Vector3=pos(tile)+Vector3(0,.45,0)
 			used=environment_particle(used,q,"bubble" if status else "impact_star",light,dark,.45+age*.38,fade)
 			extra+=1
-		# A miss at the selected tile must not hide hits on other tiles.
-		if primary_miss:return used
+		# Redirect the full elemental finish to a confirmed secondary rather
+		# than place it on an empty/missed primary tile. Ambient terrain and
+		# projectile travel were already rendered independently above.
+		if primary_miss:
+			var alternative:Variant=secondary_material_target(results,primary_tile)
+			if alternative==null:return used
+			target=alternative
 		for j in range(count):
 			var angle:float=float(j)*TAU/float(count)
 			var q:=target+Vector3(cos(angle)*radius,.04+sin(age*PI)*(.55 if status else .33),sin(angle)*radius)
