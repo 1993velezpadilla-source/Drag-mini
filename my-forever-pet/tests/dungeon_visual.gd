@@ -837,8 +837,17 @@ func run():
 		assert(root.get_texture().get_image().save_png("/tmp/dungeon-real-element-"+str(element)+"-impact.png")==OK)
 	assert(elemental_modes.size()==18)
 	preview.combat_bursts.clear()
+	preview.delayed_combat_fx.clear()
 	preview.combat_fx_update(0.0)
-	assert(preview.fx_halos_used==0,"shader layer survives cast clear")
+	# Residues deliberately survive their cast. They may retain a generic ground
+	# ring but must never retain an active elemental material.
+	for index in range(preview.fx_halos_used):
+		assert(int(preview.fx_halo_materials[index].get_shader_parameter("element_mode"))==0,"elemental material survives cast clear")
+	preview.fx_residues.clear()
+	preview.fx_reaction_sparks.clear()
+	preview.combat_fx_update(0.0)
+	assert(preview.fx_halos_used==0,"halo pool survives complete effect reset")
+	for halo in preview.fx_halos:assert(not halo.visible)
 	print("KINDRIA_ELEMENT_SHADER_CAPTURE_PASS 18")
 	var result_tile:Vector2i=anchor+Vector2i.RIGHT
 	var miss:Dictionary={"damage":0,"hits":0,"misses":1,"effects":0,"blocked":0,"crit":0}
