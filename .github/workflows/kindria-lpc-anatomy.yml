@@ -4,6 +4,8 @@ on:
     branches: [feature/my-forever-pet-paradise]
     paths:
       - 'my-forever-pet/art/import_lpc_anatomy.py'
+      - 'my-forever-pet/tests/kindria_anatomy_fit.gd'
+      - 'my-forever-pet/godot-arcade/pet_part_rig.gd'
       - '.github/workflows/kindria-lpc-anatomy.yml'
   workflow_dispatch:
 permissions:
@@ -19,6 +21,17 @@ jobs:
           python-version: '3.12'
       - run: pip install Pillow==11.3.0
       - run: python my-forever-pet/art/import_lpc_anatomy.py /tmp/kindria-lpc
+      - name: Fit actual imported layers to existing creature art in Godot
+        run: |
+          set -euo pipefail
+          curl -fL --retry 3 -o /tmp/godot.zip https://github.com/godotengine/godot/releases/download/4.4.1-stable/Godot_v4.4.1-stable_linux.x86_64.zip
+          unzip -q /tmp/godot.zip -d /tmp/godot
+          mkdir -p /tmp/kindria-fit-project
+          printf 'config_version=5\n[application]\nconfig/name="Kindria anatomy fitting"\n' >/tmp/kindria-fit-project/project.godot
+          cp my-forever-pet/godot-arcade/{pixel_pet_art,pet_part_rig,pet_external_fx}.gd my-forever-pet/tests/kindria_anatomy_fit.gd /tmp/kindria-fit-project/
+          timeout 120 /tmp/godot/Godot_v4.4.1-stable_linux.x86_64 --headless --path /tmp/kindria-fit-project --script res://kindria_anatomy_fit.gd 2>&1 | tee /tmp/kindria-lpc/fitting.log
+          grep -F KINDRIA_LPC_FIT_PASS /tmp/kindria-lpc/fitting.log
+          ! grep -E 'SCRIPT ERROR|Parse Error|Assertion failed' /tmp/kindria-lpc/fitting.log
       - uses: actions/upload-artifact@v4
         if: always()
         with:
