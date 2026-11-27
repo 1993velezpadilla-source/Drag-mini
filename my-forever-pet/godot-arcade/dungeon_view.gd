@@ -5484,7 +5484,7 @@ func native_identity_frame(id:String,frame:int,base:Image)->Image:
 	return im
 
 # V16.7: individually remastered after reviewing actual Godot PNG strips.
-const VISUAL_REMASTER_MOVES=["eos_504","eos_308","eos_135","eos_142","eos_047","eos_250","eos_299","eos_329","eos_262","eos_279","eos_101","eos_199","eos_251","eos_486","eos_462","eos_018","eos_507","eos_175","eos_254","eos_097","eos_163","eos_320","eos_033","eos_166","eos_228","eos_004","eos_252","eos_330","eos_465","eos_138","eos_021","eos_501","eos_053","eos_157","eos_064","eos_188","eos_240","eos_255","eos_342","eos_539","eos_041","eos_278","eos_538","eos_239","eos_193","eos_272","eos_519","eos_494"]
+const VISUAL_REMASTER_MOVES=["eos_504","eos_308","eos_135","eos_142","eos_047","eos_250","eos_299","eos_329","eos_262","eos_279","eos_101","eos_199","eos_251","eos_486","eos_462","eos_018","eos_507","eos_175","eos_254","eos_097","eos_163","eos_320","eos_033","eos_166","eos_228","eos_004","eos_252","eos_330","eos_465","eos_138","eos_021","eos_501","eos_053","eos_157","eos_064","eos_188","eos_240","eos_255","eos_342","eos_539","eos_041","eos_278","eos_538","eos_239","eos_193","eos_272","eos_519","eos_494","eos_292","eos_065","eos_276","eos_208","eos_522","eos_452","eos_433","eos_087"]
 func visual_remaster_frame(id:String,frame:int)->Image:
 	var im:=Image.create(48,48,false,Image.FORMAT_RGBA8)
 	im.fill(Color.TRANSPARENT)
@@ -6228,6 +6228,138 @@ func visual_remaster_frame(id:String,frame:int)->Image:
 					var v:=Vector2(cos(angle),sin(angle))
 					var q:=c+v*(radius*.8)
 					fx_line(im,q,q+v*(5+4*(1.0-fade)),1.3,Color("#d8c7ff",fade))
+		"eos_292":
+			# Fire Punch: readable four-knuckle fist surrounded by a trailing flame.
+			var q:=Vector2(11+22*drive,24)
+			for j in range(4):
+				var v:=q+Vector2(-4-float(j)*3.5,sin(t*TAU+float(j)*2.0)*4.0)
+				fire_lobe(im,v,3.2+1.6*pulse,t+float(j)*.2,Color("#ffe7a1",fade),Color("#e8471b",fade))
+			fight_fist(im,q,0.0,6.6,Color("#ffdc96"),Color("#9b3a23"))
+			if t>=peak:
+				for j in range(7):
+					var a:float=float(j)*TAU/7.0
+					var axis:=Vector2(cos(a),sin(a))
+					fx_line(im,q+axis*7,q+axis*(10+7*(1.0-fade)),1.5,Color("#ffcb65",fade))
+		"eos_065":
+			# Thunderpunch: a charged fist, distinct branching arcs and knuckle flash.
+			var q:=Vector2(11+22*drive,24)
+			for j in range(5):
+				var a:float=float(j)*TAU/5.0+t*2.1
+				var axis:=Vector2(cos(a),sin(a))
+				var u:=q+axis*6.0
+				var v:=q+axis*10.0+Vector2(-axis.y,axis.x)*sin(t*19+float(j))*3
+				var w:=q+axis*(12+4*pulse)
+				fx_line(im,u,v,2.0,Color("#478fe8",fade))
+				fx_line(im,v,w,1.2,Color("#fff4a1",fade))
+			fx_line(im,q-Vector2(12*fade,0),q,2.2,Color("#86d9ff",fade))
+			fight_fist(im,q,0.0,6.2,Color("#fff1a4"),Color("#927834"))
+			if t>=peak:
+				var radius:float=7+9*(1.0-fade)
+				fx_disc(im,q,radius,Color("#c4f6ff",fade),radius-1.2)
+		"eos_276":
+			# Blaze Kick: bent leg unfolds into a recognizable extended foot.
+			var hip:=Vector2(13+8*drive,28)
+			var knee:=hip+Vector2(4+5*drive,-8+6*drive)
+			var heel:=knee+Vector2(3+6*drive,7-8*drive)
+			var toe:=heel+Vector2(5,-3)
+			fx_line(im,hip,knee,6.2,Color("#813b28"))
+			fx_line(im,knee,heel,5.4,Color("#813b28"))
+			fx_line(im,heel,toe,5.4,Color("#813b28"))
+			fx_line(im,hip,knee,4.1,Color("#ffba74"))
+			fx_line(im,knee,heel,3.6,Color("#ffe0a1"))
+			fx_line(im,heel,toe,3.4,Color("#fff2bf"))
+			for j in range(3):
+				var q:=heel-Vector2(float(j)*4,3*sin(t*TAU+float(j)))
+				fire_lobe(im,q,3.0+1.7*pulse,t+float(j)*.2,Color("#fff3a0",fade),Color("#e94a21",fade))
+			fight_arc(im,hip,17.0,-1.7,1.7*drive+.2,Color("#ffe4a1",fade),Color("#f05b20",fade),2.6)
+		"eos_208":
+			# Dragon Claw: three long hooked claw slashes with violet energy and teal edges.
+			for j in range(3):
+				var c:=Vector2(16+10*drive+float(j)*3,15+float(j)*7)
+				var prev:=c-Vector2(9,-6)
+				for k in range(1,9):
+					var f:float=float(k)/8.0
+					var q:=c+Vector2(-9+22*f,6-13*sin(f*PI*.65))
+					fx_line(im,prev,q,3.6*(1.0-f)+1.0,Color("#60419d",fade))
+					fx_line(im,prev,q,2.0*(1.0-f)+.6,Color("#b8ffe9",fade))
+					prev=q
+				if t>=peak:
+					fx_disc(im,prev+Vector2(3,2),1.6,Color("#dbc3ff",fade))
+		"eos_522","eos_452":
+			# Elemental fangs: opposing jaws physically close; elemental accents differ.
+			var fire:bool=id=="eos_522"
+			var c:=Vector2(16+15*drive,24)
+			var opening:float=10.0-7.5*drive+4.5*(1.0-fade)
+			var outer:=Color("#b73b20") if fire else Color("#336fc6")
+			var tooth:=Color("#fff1c2") if fire else Color("#fff9bd")
+			for side in [-1,1]:
+				var sy:float=float(side)
+				var left:=c+Vector2(-10,sy*(opening-2))
+				var mid:=c+Vector2(0,sy*(opening+2))
+				var right:=c+Vector2(10,sy*(opening-2))
+				fx_line(im,left,mid,4.3,outer)
+				fx_line(im,mid,right,4.3,outer)
+				for j in range(4):
+					var x:float=-7+float(j)*4.6
+					var base:=c+Vector2(x,sy*(opening+1-absf(x)*.24))
+					var tip:=base-Vector2(0,sy*(5.0 if j==0 or j==3 else 3.6))
+					fx_line(im,base,tip,2.4,outer)
+					fx_line(im,base,tip,1.5,tooth)
+				for j in range(3):
+					var q:=c+Vector2(-8+float(j)*8,sy*(opening+5))
+					if fire:
+						fire_lobe(im,q,2.3+1.1*pulse,t+float(j)*.15,Color("#ffec9d",fade),Color("#f34c20",fade))
+					else:
+						fx_line(im,q,q+Vector2(3,sy*4),1.4,Color("#9eeaff",fade))
+						fx_line(im,q+Vector2(3,sy*4),q+Vector2(6,sy*2),1.1,Color("#fff9a1",fade))
+			if t>=peak:
+				var radius:float=5+10*(1.0-fade)
+				fx_disc(im,c,radius,Color("#ffba65",fade) if fire else Color("#b9f5ff",fade),radius-1.2)
+		"eos_433":
+			# Aqua Tail: curved tapering tail with a broad water fin and splash.
+			var c:=Vector2(17,25)
+			var sweep:float=-2.0+2.7*drive
+			var prev:=c
+			for j in range(1,12):
+				var f:float=float(j)/11.0
+				var a:float=sweep+f*1.25
+				var q:=c+Vector2(cos(a),sin(a))*(20*f)
+				fx_line(im,prev,q,5.8*(1.0-f)+1.7,Color("#216fa7"))
+				fx_line(im,prev,q,3.4*(1.0-f)+1.2,Color("#73e3f8"))
+				prev=q
+			var axis:=Vector2(cos(sweep+1.25),sin(sweep+1.25))
+			var normal:=Vector2(-axis.y,axis.x)
+			fx_line(im,prev,prev-axis*5+normal*5,3.7,Color("#a7edff"))
+			fx_line(im,prev,prev-axis*5-normal*5,3.7,Color("#a7edff"))
+			fight_arc(im,c,20.0,sweep-.5,1.4,Color("#c9f8ff",fade),Color("#238dbd",fade),2.2)
+			for j in range(6):
+				var a:float=sweep+float(j)*.32
+				var q:=c+Vector2(cos(a),sin(a))*(19+5*pulse)
+				fx_disc(im,q,1.5,Color("#d4faff",fade))
+		"eos_087":
+			# Crabhammer: heavy crab pincer swings downward into a water splash.
+			var q:=Vector2(12+19*drive,12+17*drive)
+			var arm:=q-Vector2(8,8)
+			fx_line(im,arm,q,6.0,Color("#91482e"))
+			fx_line(im,arm,q,4.0,Color("#e88a56"))
+			fx_disc(im,q,7.2,Color("#953d2d"))
+			fx_disc(im,q-Vector2(1,1),5.7,Color("#f6a471"))
+			var opening:float=5.8-3.0*drive
+			for side in [-1,1]:
+				var sy:float=float(side)
+				var base:=q+Vector2(3,sy*3)
+				var bend:=q+Vector2(9,sy*opening)
+				var tip:=q+Vector2(12,sy*2)
+				fx_line(im,base,bend,4.3,Color("#963e2b"))
+				fx_line(im,bend,tip,3.6,Color("#963e2b"))
+				fx_line(im,base,bend,2.8,Color("#ffd0a2"))
+				fx_line(im,bend,tip,2.1,Color("#fca775"))
+			if t>=peak:
+				for j in range(7):
+					var a:float=PI+float(j)*PI/6.0
+					var axis:=Vector2(cos(a),sin(a))
+					var v:=q+Vector2(1,8)+axis*(6+10*(1.0-fade))
+					water_drop(im,v,2.0,Color("#d8faff",fade),Color("#298bcd",fade))
 	return im
 
 func combat_frame_image(id:String,frame:int)->Image:
