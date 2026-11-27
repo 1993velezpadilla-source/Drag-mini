@@ -305,6 +305,29 @@ func run_checks()->void:
 			if i==0 and head.distance_to(route[0])>.001:failures.append("directed launch mismatch")
 			if i==100 and head.distance_to(route[-1])>.001:failures.append("directed impact mismatch")
 			checks+=1
+	# Directed impact shapes and envelopes must be valid across every nature.
+	var impact_forms:Dictionary={}
+	for element in Dungeon.IMPACT_ELEMENT_FORM:
+		impact_forms[Dungeon.IMPACT_ELEMENT_FORM[element]]=true
+	for role in Dungeon.IMPACT_ROLE_FORM:
+		impact_forms[Dungeon.IMPACT_ROLE_FORM[role]]=true
+	if Dungeon.IMPACT_ELEMENT_FORM.size()!=18 or impact_forms.size()!=21:failures.append("impact form coverage")
+	for form in impact_forms:
+		var texture:=view.combat_pixel_texture("impact_"+str(form),Color("#ffe5ab"),Color("#946ac1"))
+		if texture==null or not texture.get_image().get_used_rect().has_area():failures.append("empty directed impact: "+str(form))
+		for i in range(101):
+			var phase:float=float(i)/100.0
+			var sample:=view.directed_impact_sample(form,phase)
+			if not sample.is_finite() or sample.x<0.0 or sample.y<-.0001 or sample.z<0.0 or sample.z>1.001:failures.append("invalid impact envelope")
+			if i==100 and absf(sample.z)>.0001:failures.append("impact failed to expire")
+			checks+=1
+	if view.directed_impact_sample("implosion",.8).x>=view.directed_impact_sample("implosion",.2).x:failures.append("implosion does not contract")
+	if view.directed_impact_sample("detonation",.8).x<=view.directed_impact_sample("detonation",.2).x:failures.append("detonation does not expand")
+	var impact_test:Dictionary={"points":[Vector3.ZERO,Vector3(1.4,.6,0)],"damage":16,"results":{Vector2i(1,0):{"damage":16}},"impact_waves":[{Vector2i(1,0):{"damage":0,"misses":1}},{Vector2i(1,0):{"damage":16}}],"impact_cursor":1}
+	if view.resolve_element_impact(view.impact_visual_view(impact_test)).kind!="miss":failures.append("future hit leaked into miss")
+	impact_test.impact_cursor=2
+	if view.resolve_element_impact(view.impact_visual_view(impact_test)).kind!="confirmed":failures.append("confirmed wave lost")
+	checks+=4
 	var home:=Home.new()
 	home.free()
 	view.free()
