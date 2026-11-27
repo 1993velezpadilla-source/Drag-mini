@@ -2,7 +2,7 @@ name: Kindria EoS move reference audit
 on:
   push:
     branches: [feature/my-forever-pet-paradise]
-    paths: ['my-forever-pet/art/eos_move_audit.json', 'my-forever-pet/art/audit_eos_ranges.py', '.github/workflows/kindria-eos-audit.yml']
+    paths: ['my-forever-pet/art/eos_move_audit.json', 'my-forever-pet/art/audit_eos_ranges.py', 'my-forever-pet/art/eos_runtime_catalog.json', 'my-forever-pet/godot-arcade/dungeon_rules.gd', '.github/workflows/kindria-eos-audit.yml']
   workflow_dispatch:
 permissions:
   contents: read
