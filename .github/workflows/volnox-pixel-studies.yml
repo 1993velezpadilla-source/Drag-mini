@@ -50,8 +50,10 @@ jobs:
       - name: Render real Godot spatial shader on 2D sprite quads
         run: |
           set -euo pipefail
-          sudo apt-get update -qq
-          sudo apt-get install -y xvfb libgl1-mesa-dri
+          # These dependencies are all in Ubuntu's signed archive. Avoid unrelated
+          # preinstalled third-party repositories (which can return HTTP 403).
+          sudo apt-get -o Dir::Etc::sourcelist=/etc/apt/sources.list.d/ubuntu.sources -o Dir::Etc::sourceparts=- update -qq
+          sudo apt-get -o Dir::Etc::sourcelist=/etc/apt/sources.list.d/ubuntu.sources -o Dir::Etc::sourceparts=- install -y xvfb libgl1-mesa-dri
           cp my-forever-pet/godot-arcade/volnox_pixel_life.gdshader my-forever-pet/tests/volnox_shader_review.gd /tmp/pixel/
           printf '\n[rendering]\nrenderer/rendering_method="gl_compatibility"\n' >>/tmp/pixel/project.godot
           xvfb-run -a timeout 60 /tmp/godot/Godot_v4.4.1-stable_linux.x86_64 --path /tmp/pixel --audio-driver Dummy --script res://volnox_shader_review.gd 2>&1 | tee /tmp/volnox-shader.log
