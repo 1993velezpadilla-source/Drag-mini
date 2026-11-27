@@ -2769,6 +2769,40 @@ func cinematic_cast_enhancement(burst:Dictionary,t:float)->void:
 			cinematic_halo(Vector3(target.x,.06,target.z),color,extent*(.84+after*.9),strength*fade*.62,after,true)
 		cinematic_light(target+Vector3.UP*.4,color,strength*fade*(1.35 if wide else 1.0),2.9 if wide else 2.2)
 
+# Original GBA-inspired impact emblem: detached toes and compact sole pad.
+# Drawn analytically at 32px; no external game graphics are bundled.
+func kick_pad_distance(p:Vector2,center:Vector2,radii:Vector2,rotation:float=0.0)->float:
+	var q:Vector2=(p-center).rotated(rotation)
+	return Vector2(q.x/radii.x,q.y/radii.y).length()
+
+func classic_kick_stamp(mode:String,light:Color,dark:Color)->Image:
+	var im:=Image.create(32,32,false,Image.FORMAT_RGBA8)
+	im.fill(Color.TRANSPARENT)
+	var angle:float=0.0
+	if mode.begins_with("kick_side"):angle=-.64
+	elif mode.begins_with("kick_raised"):angle=-.24
+	elif mode=="kick_heel":angle=.48
+	var edge:=Color("#fff3db").lerp(light,.35)
+	var body:=dark.lerp(light,.42)
+	var shadow:=dark.darkened(.28)
+	for y in range(32):
+		for x in range(32):
+			var p:=Vector2(float(x)-15.5,float(y)-15.5).rotated(-angle)
+			if mode.ends_with("_mirror"):p.x=-p.x
+			# The three individual toe pads read instantly as a creature kick.
+			var left:float=kick_pad_distance(p,Vector2(-8.2,-5.2),Vector2(3.3,4.4),-.48)
+			var middle:float=kick_pad_distance(p,Vector2(-.6,-9.1),Vector2(3.7,4.5),.05)
+			var right:float=kick_pad_distance(p,Vector2(7.6,-5.9),Vector2(3.4,4.2),.46)
+			var pad:float=minf(kick_pad_distance(p,Vector2(.2,3.1),Vector2(6.2,5.6)),kick_pad_distance(p,Vector2(-.1,7.6),Vector2(3.5,4.6)))
+			var d:float=minf(minf(left,middle),minf(right,pad))
+			if d>1.0:continue
+			var ink:Color=body
+			if d>.81:ink=edge
+			elif d>.63 or p.y>8.0:ink=shadow
+			elif p.y<0.0:ink=body.lerp(light,.30)
+			im.set_pixel(x,y,ink)
+	return im
+
 func combat_pixel_texture(mode:String,light:Color,dark:Color)->ImageTexture:
 	var key:=mode+":"+str(light)+":"+str(dark)
 	if combat_textures.has(key):return combat_textures[key]
@@ -2776,6 +2810,11 @@ func combat_pixel_texture(mode:String,light:Color,dark:Color)->ImageTexture:
 	# of resident material variants even in an endless developer dungeon.
 	if combat_texture_order.size()>=FX_MATERIAL_CACHE_CAP:
 		combat_textures.erase(combat_texture_order.pop_front())
+	if mode.begins_with("kick_"):
+		var stamp:=ImageTexture.create_from_image(classic_kick_stamp(mode,light,dark))
+		combat_textures[key]=stamp
+		combat_texture_order.append(key)
+		return stamp
 	var im:=Image.create(16,16,false,Image.FORMAT_RGBA8);im.fill(Color.TRANSPARENT)
 	for y in range(16):
 		for x in range(16):
@@ -2784,22 +2823,6 @@ func combat_pixel_texture(mode:String,light:Color,dark:Color)->ImageTexture:
 			var fill:bool=false
 			var inner:bool=false
 			match mode:
-				"kick_side","kick_raised","kick_heel","kick_sole","kick_side_mirror","kick_raised_mirror":
-					# Profile of shin, ankle, heel and toes, not a generic slash.
-					var p:Vector2=v
-					if mode.ends_with("_mirror"):p.x=-p.x
-					if mode.begins_with("kick_raised"):p=p.rotated(-PI*.28)
-					elif mode=="kick_heel":p=p.rotated(PI*.28)
-					if mode=="kick_sole":
-						var sole:float=Vector2(p.x*.75,p.y).length()
-						fill=sole<6.5 and absf(p.x)<5.7
-						inner=fill and sole<5.4 and absf(fposmod(p.y+1.4,2.8)-1.4)>.45
-					else:
-						var shin:bool=p.x>=-6.7 and p.x<-.4 and absf(p.y+2.0+p.x*.15)<2.2
-						var ankle:bool=(p-Vector2(-.5,-.5)).length()<2.8
-						var toes:bool=Vector2((p.x-2.1)*.68,(p.y-1.6)*1.15).length()<3.5 and p.x<7.1
-						fill=shin or ankle or toes
-						inner=fill and ((shin and p.y<-1.9) or (toes and p.y<1.4 and absf(fposmod(p.x+1.0,2.0)-1.0)>.25))
 				"fist_front","fist_steel","fist_ghost":
 					# Four rounded knuckles, curled thumb and a narrow wrist.
 					var knuckle:float=absf(fposmod(v.x+1.5,3.0)-1.5)
@@ -6804,6 +6827,7 @@ func environment_particle(index:int,position:Vector3,mode:String,light:Color,dar
 	particle.rotation=Vector3(-PI*.5,0,0) if flat else Vector3.ZERO
 	particle.position=position
 	particle.texture=combat_pixel_texture(mode,light,dark)
+	particle.pixel_size=.016 if mode.begins_with("kick_") else .032
 	particle.scale=Vector3.ONE*scale_value
 	particle.modulate=Color(1,1,1,clampf(alpha,0.0,1.0))
 	particle.show()
@@ -7226,7 +7250,7 @@ func kick_contact_fx(id:String,source:Vector3,target:Vector3,age:float,used:int,
 	var side:Vector3=forward.cross(Vector3.UP)
 	var reach:float=float(art[2])
 	var lift:float=float(art[3])
-	var strike:float=smoothstep(0.0,.30,p)
+	var strike:float=smoothstep(0.0,.25,p)
 	var retract:float=smoothstep(.40,1.0,p)
 	var center:Vector3=target+Vector3.UP*.12
 	var q:Vector3=center-forward*reach*(1.0-strike+.25*retract)
@@ -7244,10 +7268,12 @@ func kick_contact_fx(id:String,source:Vector3,target:Vector3,age:float,used:int,
 			q+=side*leg_sign*.22+Vector3.UP*lift*sin(p*PI)
 		"heavy":
 			q+=Vector3.UP*lift*(1.0-strike)
-	var size:float=float(art[0])*(.88+.19*sin(p*PI))
-	var alpha:float=1.0-smoothstep(.65,1.0,t)
+	var size:float=float(art[0])*(1.18+.32*sin(p*PI))
+	if motion=="heavy":size*=1.15
+	var alpha:float=1.0-smoothstep(.62,1.0,t)
 	if motion=="multi":alpha*=1.0-smoothstep(.82,1.0,p)
 	var texture_mode:String=str(art[5])
+	if motion=="multi" and int(cycle)==2:texture_mode="kick_sole"
 	# Choose screen-facing foot direction, then alternate successive kicks.
 	var mirror:bool=leg_sign<0.0
 	if is_instance_valid(camera):
