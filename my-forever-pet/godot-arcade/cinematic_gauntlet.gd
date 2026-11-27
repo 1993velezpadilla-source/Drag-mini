@@ -88,6 +88,20 @@ func run_checks()->void:
 	var idle_voices:Array[int]=[0,1,-1,3]
 	if view.combat_audio_voice_slot(idle_voices,0,2)!=2:failures.append("prefer idle audio voice")
 	checks+=5
+	# V22.3: simultaneous equal-priority sounds must not restart a voice
+	# before the mixer has rendered the earlier admission.
+	if view.combat_audio_voice_slot(critical_voices,1,3,7)!=-1:failures.append("V22.3 same-frame critical restart")
+	if view.combat_audio_voice_slot(critical_voices,1,3,2)!=2:failures.append("V22.3 old critical voice available")
+	if view.combat_audio_voice_slot(voices,0,3,15)!=3:failures.append("V22.3 critical cannot replace weak cue")
+	if view.combat_audio_voice_slot(idle_voices,0,2,3)!=2:failures.append("V22.3 idle voice admission")
+	var crowded_impacts:Array[int]=[2,2,2]
+	if view.combat_audio_voice_slot(crowded_impacts,0,2,7)!=-1:failures.append("V22.3 same-frame normal restart")
+	if view.combat_audio_voice_slot(crowded_impacts,0,2,0)!=0:failures.append("V22.3 next-frame reuse")
+	view.begin_combat_audio_frame()
+	view.fx_frame_voice_mask=7
+	view.flush_combat_audio_frame()
+	if view.fx_flushing_audio or view.fx_frame_voice_mask!=0:failures.append("V22.3 flush state leak")
+	checks+=7
 	# V19.3: bounded optical profiles, distinct material identity and quality fallback.
 	var optical_profiles:Dictionary={}
 	for element in ["normal","fire","water","electric","grass","ice","fighting","poison","ground","flying","psychic","bug","rock","ghost","dragon","dark","steel","fairy"]:
