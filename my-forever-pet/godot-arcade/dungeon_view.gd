@@ -2849,6 +2849,15 @@ func cinematic_cast_enhancement(burst:Dictionary,t:float)->void:
 # drawn on a confirmed damaging tile. IDs are explicit, not translated names.
 const CONTACT_ICON_KIND={"lib_electric_1":"fang","lib_dragon_3":"fang","lib_dark_1":"fang","eos_063":"fang","eos_198":"fang","eos_452":"fang","eos_461":"fang","eos_522":"fang","eos_529":"fang","eos_020":"fang","alt_vinesnap":"fang","reef_bite":"fang","alt_eelstrix":"fang","alt_orbitserpent":"fang","eos_062":"crunch","eos_261":"crunch","tidal_jaws":"crunch","lib_ghost_1":"claw","lib_dragon_1":"claw","eos_208":"claw","eos_260":"claw","eos_275":"claw","eos_325":"claw","eos_476":"claw","alt_bramble_pup":"claw","alt_sylphowl":"claw","moon_claw":"claw","alt_thornbeetle":"pincer","double_pincer":"pincer","lib_fighting_3":"fist","eos_065":"fist","eos_075":"fist","eos_126":"fist","eos_136":"fist","eos_246":"fist","eos_264":"fist","eos_292":"fist","eos_300":"fist","eos_322":"fist","eos_344":"fist","eos_500":"fist","eos_510":"fist","eos_515":"fist","meteor_fist":"fist","lib_fighting_2":"kick","eos_092":"kick","eos_204":"kick","eos_206":"kick","eos_276":"kick","eos_303":"kick","eos_321":"kick","eos_222":"kick","eos_210":"kick","star_kick":"kick","alt_comet_hare":"kick"}
 
+# Authored anatomical variants; not a hash or recoloring of a single boot.
+const CONTACT_KICK_ROLES={"fight_lowkick":"kick_low","fight_jumpkick":"kick_jump","fight_highkick":"kick_high","fight_roundkick":"kick_round","fight_double":"kick_double","fight_triple":"kick_triple","fire_kick":"kick_blaze","normal_megakick":"kick_heavy"}
+const CONTACT_PUNCH_ROLES={"fight_uppercut":"fist_upper","fight_dynamic":"fist_heavy","fight_mach":"fist_fast","fire_punch":"fist_blaze","ice_punch":"fist_ice","electric_fist":"fist_electric","ghost_punch":"fist_ghost","normal_megapunch":"fist_heavy"}
+func directed_contact_kind(id:String,role:String)->String:
+	var kind:String=str(CONTACT_ICON_KIND.get(id,""))
+	if kind=="kick":return str(CONTACT_KICK_ROLES.get(role,"kick"))
+	if kind=="fist":return str(CONTACT_PUNCH_ROLES.get(role,"fist"))
+	return kind
+
 func contact_icon_image(kind:String,stage:int,light:Color,dark:Color)->Image:
 	var im:=Image.create(48,48,false,Image.FORMAT_RGBA8);im.fill(Color.TRANSPARENT)
 	var ink:=dark.darkened(.55)
@@ -2883,21 +2892,53 @@ func contact_icon_image(kind:String,stage:int,light:Color,dark:Color)->Image:
 			for side in [-1,1]:
 				var p:=c+Vector2(float(side)*(11.0+float(stage)*2.0),0)
 				fight_arc(im,p,10.0,PI*.55 if side>0 else -PI*.45,PI*1.1,bright,ink,3.0)
-		"fist":
-			# Existing authored fist has separate thumb and knuckles.
-			fight_fist(im,c,0.0,13.0,bright,ink)
+		"fist","fist_upper","fist_heavy","fist_fast","fist_blaze","fist_ice","fist_electric","fist_ghost":
+			var angle:float=0.0
+			var center:=c
+			var radius:float=13.0
+			match kind:
+				"fist_upper":angle=-PI*.5;center.y+=5.0-float(stage)*5.0
+				"fist_heavy":radius=16.0
+				"fist_fast":center.x+=float(stage)*3.0-3.0;radius=11.0
+				"fist_blaze":angle=-.23
+				"fist_ice":angle=.22
+				"fist_electric":angle=-.10;center.x+=2.0
+				"fist_ghost":angle=.45
+			fight_fist(im,center,angle,radius,bright,ink)
 			for i in range(3):
-				fx_line(im,Vector2(2,13+float(i)*10),Vector2(10,13+float(i)*10),1.1,light)
-		"kick":
-			# Bent shin and horizontal boot silhouette, not a generic slash.
-			var knee:=Vector2(15,17);var ankle:=Vector2(25,30)
-			fx_line(im,Vector2(5,9),knee,4.4,ink)
-			fx_line(im,knee,ankle,4.4,ink)
-			fx_line(im,ankle,Vector2(40,30),5.0,ink)
-			fx_line(im,Vector2(5,9),knee,2.8,light)
-			fx_line(im,knee,ankle,2.8,light)
-			fx_line(im,ankle,Vector2(40,30),3.1,bright)
-			fx_line(im,Vector2(25,34),Vector2(40,34),.9,dark)
+				var q:=center+Vector2(-20.0,float(i-1)*8.0).rotated(angle)
+				fx_line(im,q,q+Vector2(6+stage,0).rotated(angle),1.1,light)
+		"kick","kick_low","kick_jump","kick_high","kick_round","kick_double","kick_triple","kick_blaze","kick_heavy":
+			# Side-view leg and boot, with separate bent, extended and recoil poses.
+			var angle:float=0.0
+			var center:=c
+			var weight:float=1.0
+			match kind:
+				"kick_low":angle=.32;center.y+=7.0
+				"kick_jump":angle=-.38;center.y-=3.0
+				"kick_high":angle=-.85;center.y-=4.0
+				"kick_round":angle=-.28+float(stage)*.25
+				"kick_double":angle=-.18;center.y-=1.0
+				"kick_triple":angle=.16;center.y+=2.0
+				"kick_blaze":angle=-.48;weight=1.10
+				"kick_heavy":weight=1.20
+			var bend:float=[.62,1.0,.78][clampi(stage,0,2)]
+			var hip:=center+Vector2(-16,-11).rotated(angle)
+			var knee:=center+Vector2(-7,-6).rotated(angle)
+			var ankle:=center+Vector2(6*bend,6).rotated(angle)
+			var toe:=center+Vector2(17*bend,6).rotated(angle)
+			fx_line(im,hip,knee,6.0*weight,ink)
+			fx_line(im,knee,ankle,6.0*weight,ink)
+			fx_line(im,ankle,toe,7.0*weight,ink)
+			fx_line(im,hip,knee,3.6*weight,dark)
+			fx_line(im,knee,ankle,3.6*weight,light)
+			fx_line(im,ankle,toe,4.0*weight,bright)
+			var sole:=Vector2(0,2.8*weight).rotated(angle)
+			fx_line(im,ankle+sole,toe+sole,1.1,dark)
+			if stage==1:
+				for j in range(2):
+					var speed_line:=Vector2(-5,10+float(j)*3.0).rotated(angle)
+					fx_line(im,center+speed_line,center+speed_line+Vector2(10,0).rotated(angle),1.0,light)
 	return im
 
 func combat_pixel_texture(mode:String,light:Color,dark:Color)->ImageTexture:
@@ -7399,25 +7440,40 @@ func multi_hit_accents(burst:Dictionary,t:float,used:int)->int:
 		if used>=fx_cast_particle_limit:break
 	return used
 
-func confirmed_contact_icons(burst:Dictionary,t:float,used:int)->int:
+# Pick the most recent dispatched wave, never aggregate damage from later hits.
+func contact_wave_sample(burst:Dictionary)->Dictionary:
+	var waves:Array=burst.get("impact_waves",[])
+	var times:Array=burst.get("impact_times",[])
+	var index:int=int(burst.get("impact_cursor",0))-1
+	if index<0 or index>=waves.size() or index>=times.size():return {}
+	var gap:float=maxf(.01,float(burst.duration)-float(times[index]))
+	if index+1<times.size():gap=maxf(.01,float(times[index+1])-float(times[index]))
+	var life:float=minf(.18,gap)
+	var age:float=(float(burst.age)-float(times[index]))/life
+	if age<0.0 or age>=1.0:return {}
+	return {"results":waves[index],"age":age,"index":index}
+
+func confirmed_contact_icons(burst:Dictionary,_t:float,used:int)->int:
 	var id:String=str(burst.id)
-	if not CONTACT_ICON_KIND.has(id):return used
-	var peak:float=float(burst.profile.impact)
-	var age:float=(t-peak)/maxf(.01,1.0-peak)
-	if age<0.0 or age>=.52:return used
-	var kind:String=str(CONTACT_ICON_KIND[id])
+	var kind:=directed_contact_kind(id,str(burst.profile.role))
+	if kind.is_empty():return used
+	var wave:=contact_wave_sample(burst)
+	if wave.is_empty():return used
+	var age:float=float(wave.age)
 	var style:Array=combat_style(id)
-	var stage:int=0 if age<.09 else 1 if age<.30 else 2
-	var results:Dictionary=burst.get("results",{})
+	var stage:int=0 if age<.18 else 1 if age<.62 else 2
+	var results:Dictionary=wave.results
 	var shown:int=0
 	for tile in results:
 		var row:Dictionary=results[tile]
 		if int(row.get("damage",0))<=0:continue
-		var q:Vector3=pos(tile)+Vector3(0,.63,0)
-		var extent:float=(1.22 if kind=="crunch" else .86)*(1.0+.12*sin(age*PI))
-		# 48px art uses the same sprite pool as 16px environment stamps;
-		# normalize its world-space extent accordingly.
-		used=environment_particle(used,q,"contact:"+kind+":"+str(stage),Color(style[1]),Color(style[2]),extent/3.0,clampf(1.0-age/.52,0.0,1.0))
+		var height:float=.63
+		if kind=="kick_low":height=.32
+		elif kind in ["kick_high","fist_upper"]:height=.88
+		elif kind in ["kick_double","kick_triple"]:height=.43+float(int(wave.index)%3)*.19
+		var q:Vector3=pos(tile)+Vector3(0,height,0)
+		var extent:float=(1.22 if kind in ["crunch","kick_heavy","fist_heavy"] else .86)*(1.0+.12*sin(age*PI))
+		used=environment_particle(used,q,"contact:"+kind+":"+str(stage),Color(style[1]),Color(style[2]),extent/3.0,1.0-age)
 		shown+=1
 		if shown>=4 or used>=fx_cast_particle_limit:break
 	return used
@@ -8170,7 +8226,10 @@ func authored_stage_fx(burst:Dictionary,t:float,used:int)->int:
 	var row:Dictionary=results.get(primary_tile,{})
 	var miss:bool=not row.is_empty() and int(row.get("damage",0))+int(row.get("effects",0))+int(row.get("heal",0))<=0
 	var peak:float=float(profile.impact)
-	if miss and t>=peak:return used
+	if t>=peak and miss:
+		var resolved:=resolve_element_impact(burst)
+		if resolved.kind!="confirmed":return used
+		target=resolved.target
 	var forward:=Vector3(target.x-source.x,0,target.z-source.z)
 	if forward.length_squared()<.0001:forward=Vector3.FORWARD
 	forward=forward.normalized()
