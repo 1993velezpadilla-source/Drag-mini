@@ -36,6 +36,36 @@ func run_checks()->void:
 	var checks:int=0
 	var failures:Array[String]=[]
 	var view:=Dungeon.new()
+	# V24.4: memoized keys retain the exact legacy pack/cache identity.
+	var texture_probe:=Dungeon.new()
+	for texture_mode in ["impact_star","bubble","contact:critical:1"]:
+		for texture_light in [Color.WHITE,Color.BLACK,Color(.125,.25,.5,.75),Color(.125,.25,.5,1.0)]:
+			for texture_dark in [Color.BLACK,Color.WHITE,Color(.2,.3,.4,.5)]:
+				var texture_expected:String=texture_mode+str(texture_light)+str(texture_dark)
+				for texture_repeat in range(3):
+					if texture_probe.combat_secondary_key(texture_mode,texture_light,texture_dark)!=texture_expected:failures.append("V24.4 exact key parity")
+					checks+=1
+	var atlas_image:=Image.create(2,2,false,Image.FORMAT_RGBA8)
+	atlas_image.fill(Color.WHITE)
+	var atlas_probe_a:=ImageTexture.create_from_image(atlas_image)
+	atlas_image.fill(Color.BLACK)
+	var atlas_probe_b:=ImageTexture.create_from_image(atlas_image)
+	var atlas_probe_frames_a:Array[Texture2D]=[]
+	var atlas_probe_frames_b:Array[Texture2D]=[]
+	for atlas_frame in range(12):
+		atlas_probe_frames_a.append(atlas_probe_a)
+		atlas_probe_frames_b.append(atlas_probe_b)
+	texture_probe.fx_atlas_cache["probe_a"]=atlas_probe_frames_a
+	texture_probe.fx_atlas_cache["probe_b"]=atlas_probe_frames_b
+	texture_probe.fx_atlas_newest="probe_b"
+	var atlas_expected_order:Array=["probe_a","probe_b"]
+	for atlas_id in ["probe_b","probe_b","probe_a","probe_a","probe_b","probe_a"]:
+		var atlas_expected:Texture2D=atlas_probe_a if atlas_id=="probe_a" else atlas_probe_b
+		atlas_expected_order.erase(atlas_id);atlas_expected_order.append(atlas_id)
+		if texture_probe.combat_packed_frame(atlas_id,5)!=atlas_expected:failures.append("V24.4 atlas reference parity")
+		if texture_probe.fx_atlas_cache.keys()!=atlas_expected_order:failures.append("V24.4 atlas LRU order")
+		checks+=2
+	texture_probe.free()
 	# V24.3: exact geometry parity for three-layer electrical segments.
 	var geometry_probe:=Dungeon.new()
 	for geometry_start in [Vector3.ZERO,Vector3(1.5,-.2,3.0)]:
