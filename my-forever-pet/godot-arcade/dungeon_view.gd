@@ -2074,6 +2074,7 @@ func update_enemy_pixel(actor:Node3D,dt:float,motion:Vector3,body_dt:float=-1.0)
 	var size_multiplier:float=float(actor.get_meta("enemy_size_multiplier",1.0))
 	sprite.position=Vector3(0,.54*size_multiplier+rise,0)
 	var body_offset:=Vector3.ZERO
+	var hit_flash:float=0.0
 	# Same continuous body clock as the companion; preserve the authored ground anchor.
 	sprite.scale=Vector3.ONE
 	if state=="attack":
@@ -2087,15 +2088,17 @@ func update_enemy_pixel(actor:Node3D,dt:float,motion:Vector3,body_dt:float=-1.0)
 		body_offset=actor.basis.inverse()*cast_offset_world(offset,cast_dir)
 		sprite.position+=body_offset
 	if state=="hurt":
-		var reaction:=premium_hit_sample(clock/maxf(.01,duration))
+		var reaction:=creature_hit_sample(clock/maxf(.01,duration),species)
+		hit_flash=float(reaction.flash)
 		var squash:float=float(reaction.squash)
 		sprite.scale=Vector3(1.0/squash,squash,1.0)
 		sprite.position.y+=.54*size_multiplier*(squash-1.0)
 		# A transformed companion already receives displacement and lift on its root.
 		if not actor.get_meta("companion_disguise",false):
 			var hit_dir:Vector3=actor.get_meta("enemy_hit_direction",Vector3.ZERO)
-			body_offset=actor.basis.inverse()*hit_dir.normalized()*.32*float(reaction.recoil)
-			sprite.position.y+=float(reaction.lift)
+			var forward:Vector3=hit_dir.normalized()
+			var lateral:=Vector3(-forward.z,0.0,forward.x)
+			body_offset=actor.basis.inverse()*(forward*.32*float(reaction.recoil)+lateral*float(reaction.sway)+Vector3.UP*float(reaction.lift))
 			sprite.position+=body_offset
 	var shadow:=actor.get_node_or_null("EnemyContactShadow") as MeshInstance3D
 	if shadow!=null:
@@ -2135,14 +2138,14 @@ func update_enemy_pixel(actor:Node3D,dt:float,motion:Vector3,body_dt:float=-1.0)
 	if sprite.material_override is ShaderMaterial:
 		var material:=sprite.material_override as ShaderMaterial
 		material.set_shader_parameter("sprite_tex",sprite.texture)
-		material.set_shader_parameter("hit_flash",float(premium_hit_sample(clock/maxf(.01,duration)).flash) if state=="hurt" else 0.0)
+		material.set_shader_parameter("hit_flash",hit_flash)
 		material.set_shader_parameter("world_phase",elapsed)
 		var biome:Color=[Color("#d5e6b5"),Color("#9be3e8"),Color("#c3c5ff")][region]
 		material.set_shader_parameter("biome_tint",biome.lerp(living.tint,float(living.tint_weight)))
 		material.set_shader_parameter("ambient_strength",.15+.38*float(living.tint_weight))
 	else:
 		var base_tint:Color=Color.WHITE.lerp(living.tint,float(living.tint_weight))
-		sprite.modulate=base_tint.lerp(Color("#ffb5c6"),float(premium_hit_sample(clock/maxf(.01,duration)).flash)) if state=="hurt" else base_tint
+		sprite.modulate=base_tint.lerp(Color("#ffb5c6"),hit_flash) if state=="hurt" else base_tint
 # Lightweight reusable pixel VFX: no per-frame node allocation, no camera-facing 3D creatures.
 func combat_fx_setup(parent:Node3D)->void:
 	for sound in fx_audio:
@@ -2366,6 +2369,33 @@ func ultra_reaction_particles(dt:float,used:int)->int:
 
 # Impact body motion is normalized by the actual reaction clock. No logical
 # movement or damage values are modified.
+# Anatomy groups follow the authored creature silhouettes, not their elements.
+# Parameters: recoil, compression, vertical motion, lateral sway/tilt.
+func creature_hit_profile(species:String)->Vector4:
+	match species:
+		"coralcrab","thornbeetle","shellguard","crystarok":return Vector4(.48,.38,.20,.30)
+		"grovetitan","abyss_colossus","astro_golem","fungal_monarch":return Vector4(.34,.55,.12,.22)
+		"lunamoth","nebulwing","sylphowl","celestial_guardian":return Vector4(1.08,.55,1.65,1.15)
+		"eelstrix","orbitserpent","leviathorn","vinesnap":return Vector4(.88,.70,.42,1.50)
+		"marrowray","tidal_sovereign","reef_pup","anemoneye":return Vector4(.84,.74,.82,.88)
+		"nova_wisp","leafwisp","bubblewisp","jellymancer":return Vector4(1.15,1.32,1.28,.95)
+		"bramble_pup","starlit_pup","hollow_stag","lunar_prowler","rootgnawer","voidspider","mossmite":return Vector4(.86,.84,.50,.50)
+		"comet_hare":return Vector4(1.12,1.12,1.40,.65)
+		"sporeling":return Vector4(.95,1.25,.80,.68)
+		_:return Vector4(1.0,1.0,1.0,.65)
+
+func creature_hit_sample(progress:float,species:String)->Dictionary:
+	var base:=premium_hit_sample(progress)
+	var p:=creature_hit_profile(species)
+	var t:float=clampf(progress,0.0,1.0)
+	var envelope:float=sin(t*PI)*sin(t*PI)
+	base.recoil=float(base.recoil)*p.x
+	base.squash=1.0+(float(base.squash)-1.0)*p.y
+	base.lift=float(base.lift)*p.z
+	base.tilt=float(base.tilt)*p.w
+	base["sway"]=sin(t*TAU)*envelope*.065*p.w
+	return base
+
 func premium_hit_sample(progress:float)->Dictionary:
 	var t:float=clampf(progress,0.0,1.0)
 	# Fast contact, then damped elastic recovery; exact neutral endpoints.
@@ -7954,9 +7984,10 @@ func _process(dt:float):
 		attack_fx.visible=player_impact_delay<=0.0;attack_fx.scale=Vector3(1.1-phase*.42,.13,1.1-phase*.42)
 	else:attack_fx.hide()
 	if hit_time>0.0:
-		var reaction:=premium_hit_sample(1.0-hit_time/.24)
+		var reaction:=creature_hit_sample(1.0-hit_time/.24,run.transformed_species)
+		var side:=Vector3(-player_hit_direction.z,0.0,player_hit_direction.x)
 		pet_pose.rotation.z+=float(reaction.tilt)
-		pet_pose.position+=pet.basis.inverse()*player_hit_direction*.32*float(reaction.recoil)
+		pet_pose.position+=pet.basis.inverse()*(player_hit_direction*.32*float(reaction.recoil)+side*float(reaction.sway))
 		pet_pose.position.y+=float(reaction.lift)
 	if attack_time>0.0:motion=Vector2(attack_direction.x,attack_direction.z)
 	if tile_cast_active():
@@ -7978,7 +8009,7 @@ func _process(dt:float):
 	if pose=="hurt":
 		var companion_sprite:=pet_pose.get_node_or_null("PixelCompanion") as Sprite3D
 		if companion_sprite!=null:
-			var sample:=premium_hit_sample(1.0-hit_time/.24)
+			var sample:=creature_hit_sample(1.0-hit_time/.24,run.transformed_species)
 			var squash:float=float(sample.squash)
 			companion_sprite.scale=Vector3(1.0/squash,squash,1.0)
 			companion_sprite.position.y=float(companion_sprite.get_meta("world_height"))*.5*squash
