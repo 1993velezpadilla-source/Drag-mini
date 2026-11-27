@@ -122,7 +122,9 @@ public final class ForeverWallpaperService extends WallpaperService {
                 if(prefs!=null&&WallpaperRules.validRequest(prefs.getString("request",""),System.currentTimeMillis()-prefs.getLong("request_at",0),prefs.getInt("request_generation",-1),state.optInt("generation",1)))msg="Care queued • open game";
                 paint.setTextSize(u*.032f);paint.setTextAlign(Paint.Align.CENTER);paint.setColor(0xfff3e6ff);
                 paint.setShadowLayer(4,0,2,0xff120b25);float labelX=WallpaperRules.clamp(petX,w*.23f,w*.77f);
-                c.drawText(state.optString("name","My Forever Pet"),labelX,placement[3],paint);
+                String companionName=state.optString("name","Ponoko");
+                if(companionName.trim().isEmpty()||"Mosky".equals(companionName)||"Mosskit".equals(companionName))companionName="Ponoko";
+                c.drawText(companionName,labelX,placement[3],paint);
                 paint.setTextSize(u*.026f);c.drawText(msg,labelX,placement[3]+u*.038f,paint);paint.clearShadowLayer();paint.setTextAlign(Paint.Align.LEFT);
             }
         }
