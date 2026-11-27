@@ -1724,11 +1724,12 @@ func update_enemy_pixel(actor:Node3D,dt:float,motion:Vector3)->void:
 	if state=="defeat" and clock>=duration:
 		actor.hide();actor.queue_free();return
 	if state in ["attack","hurt","windup"] and clock>=duration:
+		clock=maxf(0.0,clock-duration)
 		state="recover" if state=="attack" else "idle"
 		duration=.12 if state=="recover" else 0.0
-		clock=0.0
-	elif state=="recover" and clock>=duration:
-		state="idle";clock=0.0
+	if state=="recover" and clock>=duration:
+		clock=maxf(0.0,clock-duration)
+		state="idle";duration=0.0
 	if state in ["idle","walk"]:
 		var next_state:="walk" if motion.length_squared()>.002 else "idle"
 		if next_state!=state:clock=0.0
@@ -4894,6 +4895,9 @@ func update_combat_reactions(dt:float)->void:
 		actor.set_meta("pending_impact",pending)
 		actor.set_meta("enemy_hit_direction",reaction.direction)
 		enemy_pose(actor,"defeat" if reaction.defeated else "hurt",.32 if reaction.defeated else .20)
+		# The actor renderer advances dt later in this frame. Subtract the
+		# pre-impact portion now so only the actual post-impact age is applied.
+		actor.set_meta("enemy_clock",-clampf(dt+float(reaction.delay),0.0,dt))
 		if reaction.defeated:
 			actor.set_meta("pending_defeat",false)
 			var bar=actor.get_node_or_null("HP")
