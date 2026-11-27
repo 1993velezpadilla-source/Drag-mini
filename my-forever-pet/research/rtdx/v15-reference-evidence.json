@@ -45,7 +45,8 @@
       "kindria_id": "eos_262",
       "image": "https://archives.bulbagarden.net/media/upload/7/79/Ember_PMD_RTDX.png",
       "observation": "Dense orange flame cluster between caster and target, bright inner flame and softer orange edge; not only isolated sparks.",
-      "timing_verified": false
+      "timing_verified": false,
+      "rechecked": "2026-11-27"
     },
     {
       "name": "Growl",
@@ -87,7 +88,8 @@
       "kindria_id": "eos_174",
       "image": "https://archives.bulbagarden.net/media/upload/7/7c/Peck_PMD_RTDX.png",
       "observation": "Compact yellow angular wedge pointing into the target, visible between caster and victim.",
-      "timing_verified": false
+      "timing_verified": false,
+      "rechecked": "2026-11-27"
     },
     {
       "name": "Precipice Blades",
@@ -129,7 +131,9 @@
       "kindria_id": "eos_149",
       "image": "https://archives.bulbagarden.net/media/upload/0/05/Sacred_Fire_PMD_RTDX.png",
       "observation": "Large saturated blue/cyan soft flame clouds, blue floor glow and very dark background. Not yellow-orange fire.",
-      "timing_verified": false
+      "timing_verified": false,
+      "rechecked": "2026-11-27",
+      "source_quality": "Archive flags screenshot as indirect capture; palette evidence only; exact exposure unverified."
     },
     {
       "name": "Sand Attack",
@@ -147,7 +151,8 @@
       "kindria_id": "eos_260",
       "image": "https://archives.bulbagarden.net/media/upload/e/e2/Scratch_PMD_RTDX.png",
       "observation": "Thin curved white contact slash and small white sparkles; damage number above victim.",
-      "timing_verified": false
+      "timing_verified": false,
+      "rechecked": "2026-11-27"
     },
     {
       "name": "Signal Beam",
@@ -244,6 +249,11 @@
       "title": "Japanese Nintendo trailer article",
       "url": "https://www.nintendo.com/jp/topics/article/260de7ce-b970-4d57-ba99-2f3d5f675ca2",
       "status": "indexed_unreviewed"
+    },
+    {
+      "title": "All bosses and legendaries compilation, 1080p60 listing",
+      "url": "https://www.youtube.com/watch?v=SC7LXCColFA",
+      "status": "indexed_unreviewed"
     }
   ],
   "mechanics_sources": [
@@ -273,6 +283,26 @@
     {
       "id": "eos_114",
       "basis": "Signal Beam still",
+      "status": "original approximate implementation, timing and rendered comparison pending"
+    },
+    {
+      "id": "eos_262",
+      "basis": "Ember still rechecked",
+      "status": "original approximate implementation, timing and rendered comparison pending"
+    },
+    {
+      "id": "eos_149",
+      "basis": "Sacred Fire still rechecked",
+      "status": "original approximate implementation, timing and rendered comparison pending"
+    },
+    {
+      "id": "eos_260",
+      "basis": "Scratch still rechecked",
+      "status": "original approximate implementation, timing and rendered comparison pending"
+    },
+    {
+      "id": "eos_174",
+      "basis": "Peck still rechecked",
       "status": "original approximate implementation, timing and rendered comparison pending"
     }
   ]

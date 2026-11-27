@@ -961,6 +961,28 @@ func run()->void:
 		assert(field.rtdx_observed_stage_fx(observed_burst,observed_peak*.55,Field.FX_PARTICLE_CAP)==Field.FX_PARTICLE_CAP)
 	for particle in field.combat_particles:particle.hide()
 	print("KINDRIA_V15_OBSERVED_GEOMETRY_PASS 2")
+	# V15.1: the original procedural stamp is nonempty and uses soft alpha.
+	for mode in ["rtdx_flame","rtdx_bluefire","rtdx_scratch","rtdx_peck","rtdx_glint"]:
+		var im:Image=field.rtdx_material_stamp(mode,Color.WHITE,Color.BLUE)
+		assert(im.get_size()==Vector2i(64,64) and im.get_used_rect().size.x>0,mode)
+	for move_id in ["eos_262","eos_149","eos_260","eos_174"]:
+		var p:Dictionary=field.combat_profile(move_id)
+		var peak:float=float(p.impact)
+		var burst:Dictionary={"id":move_id,"profile":p,"points":[special_source,bite_position],"tiles":[field.pos(target)],"results":{target:{"damage":8}}}
+		var phase:float=peak*.65 if move_id in ["eos_262","eos_149"] else lerpf(peak,1.0,.22)
+		for particle in field.combat_particles:particle.hide()
+		var n:int=field.rtdx_observed_stage_fx(burst,phase,0)
+		assert(n>0 and n<=Field.FX_PARTICLE_CAP,move_id)
+		assert(field.combat_particles[0].texture.get_width()==64,move_id)
+		assert(field.combat_particles[0].texture_filter==BaseMaterial3D.TEXTURE_FILTER_LINEAR,move_id)
+		await frames()
+		assert(root.get_texture().get_image().save_png("/tmp/effekseer-review/v15-observed-"+move_id+".png")==OK)
+		burst.results={target:{"misses":1}}
+		if move_id in ["eos_260","eos_174"]:
+			assert(field.rtdx_observed_stage_fx(burst,phase,0)==0,move_id)
+		assert(field.rtdx_observed_stage_fx(burst,phase,Field.FX_PARTICLE_CAP)==Field.FX_PARTICLE_CAP,move_id)
+	for particle in field.combat_particles:particle.hide()
+	print("KINDRIA_V15_CONTACT_FIRE_PASS 4")
 	var plan:Array=[
 		{"stage":"ally_invoke","anchor":"source","start":0.0,"end":.15,"enabled":true},
 		{"stage":"enemy_invoke","anchor":"source","start":0.0,"end":.15,"enabled":true},

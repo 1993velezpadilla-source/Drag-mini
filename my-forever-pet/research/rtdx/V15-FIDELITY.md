@@ -11,3 +11,7 @@ For each reference move, identify original name and actual Kindria ID, isolate a
 ## Initial correction
 
 Bug Buzz: replace generic insect swarm presentation with warm caster-centered acoustic rings and side sound flashes. Signal Beam: replace multicolor strands with a narrow blue tapered path and white leading sparkle. Use original procedural particles and existing pool. Preserve current gameplay and animation duration until video timing is measured. No claim of 1:1 fidelity is made. Existing V14 finish profiles remain available for other moves. Review real dungeon captures and Android frame pacing before accepting each move.
+
+## V15.1 — contact and fire
+
+Rechecked original Ember, Scratch, Peck and Sacred Fire stills. Sacred Fire is flagged as indirect capture by the archive. Use original 64px soft-alpha masks, compact orange Ember, blue Sacred Fire clouds, a white curved Scratch mark and a small directional golden Peck wedge. No exact timing claims; no global exposure alteration. The 1080p60 boss compilation is indexed, not frame-inspected. New runtime probes capture four actual dungeon phases and assert contact misses do not emit actor marks. The previous V15 Godot, Android plugin and dungeon probe workflows completed successfully.

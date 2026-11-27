@@ -3155,6 +3155,43 @@ func motion_contact_stamp(mode:String,light:Color,dark:Color)->Image:
 			if d<=0.0:im.set_pixel(x,y,light if d<-.8 else dark)
 	return im
 
+# Original high-resolution soft flame/contact masks. Only the visible
+# shape and palette are reference-grounded; no captured pixels are sampled.
+func rtdx_material_stamp(mode:String,light:Color,dark:Color)->Image:
+	var im:=Image.create(64,64,false,Image.FORMAT_RGBA8)
+	im.fill(Color.TRANSPARENT)
+	for y in range(64):
+		for x in range(64):
+			var p:=Vector2((float(x)-31.5)/30.0,(float(y)-31.5)/30.0)
+			var alpha:float=0.0
+			var tint:Color=light
+			match mode:
+				"rtdx_flame","rtdx_bluefire":
+					var body:float=(p/Vector2(.72,.83)).length()
+					var lobe:float=((p-Vector2(.18,-.42))/Vector2(.42,.49)).length()
+					var rim:float=minf(body,lobe)+sin(p.x*18.0+p.y*11.0)*.07+sin(p.y*24.0-p.x*7.0)*.05
+					alpha=1.0-smoothstep(.38,1.10,rim)
+					tint=dark.lerp(light,1.0-smoothstep(.05,.81,rim))
+				"rtdx_scratch":
+					var center:=Vector2(-.24,-.25)
+					var q:Vector2=p-center
+					var angle:float=q.angle()
+					if angle>-.15 and angle<1.74:
+						var thickness:float=.018+.082*sin((angle+.15)/1.89*PI)
+						alpha=1.0-smoothstep(thickness,thickness+.045,absf(q.length()-.88))
+				"rtdx_peck":
+					# Compact right-facing tapered golden wedge, not a full beak icon.
+					var width:float=.40*clampf((.78-p.x)/1.53,0.0,1.0)
+					var distance:float=maxf(absf(p.y)-width,maxf(-.76-p.x,p.x-.80))
+					alpha=1.0-smoothstep(-.015,.045,distance)
+					tint=dark.lerp(light,clampf(.70+(.18-absf(p.y))*.65,0.0,1.0))
+				"rtdx_glint":
+					var beam:float=minf(absf(p.x)*4.8+absf(p.y)*.65,absf(p.y)*4.8+absf(p.x)*.65)
+					alpha=1.0-smoothstep(.15,.65,beam)
+			tint.a=alpha
+			im.set_pixel(x,y,tint)
+	return im
+
 func combat_pixel_texture(mode:String,light:Color,dark:Color)->ImageTexture:
 	var key:=mode+":"+str(light)+":"+str(dark)
 	if combat_textures.has(key):return combat_textures[key]
@@ -3162,6 +3199,11 @@ func combat_pixel_texture(mode:String,light:Color,dark:Color)->ImageTexture:
 	# of resident material variants even in an endless developer dungeon.
 	if combat_texture_order.size()>=FX_MATERIAL_CACHE_CAP:
 		combat_textures.erase(combat_texture_order.pop_front())
+	if mode.begins_with("rtdx_"):
+		var stamp:=ImageTexture.create_from_image(rtdx_material_stamp(mode,light,dark))
+		combat_textures[key]=stamp
+		combat_texture_order.append(key)
+		return stamp
 	if mode.begins_with("motion_"):
 		var motion_stamp:=ImageTexture.create_from_image(motion_contact_stamp(mode,light,dark))
 		combat_textures[key]=motion_stamp
@@ -6764,7 +6806,7 @@ func combat_fx_update(dt:float)->void:
 			combat_bursts.remove_at(k);continue
 		# Evidence-backed stages replace (rather than stack over) unrelated
 		# legacy sprite/ribbon/halo families for these two researched moves.
-		if str(burst.id) in ["eos_530","eos_114"]:
+		if str(burst.id) in RTDX_OBSERVED_MOVES:
 			used=rtdx_observed_stage_fx(burst,t,used)
 			continue
 		cinematic_element_surface(burst,t)
@@ -7204,6 +7246,7 @@ func combat_fx_update(dt:float)->void:
 			particle.billboard=BaseMaterial3D.BILLBOARD_ENABLED;particle.rotation=Vector3.ZERO
 			particle.position=q
 			particle.texture=animated
+			particle.texture_filter=BaseMaterial3D.TEXTURE_FILTER_NEAREST
 			particle.pixel_size=.032
 			particle.scale=Vector3.ONE*size*(1.0-t*.38)*.40
 			particle.modulate=Color(1,1,1,clampf((1.0-t)*3.5,0.0,1.0))
@@ -7235,7 +7278,8 @@ func environment_particle(index:int,position:Vector3,mode:String,light:Color,dar
 	particle.rotation=Vector3(-PI*.5,0,0) if flat else Vector3.ZERO
 	particle.position=position
 	particle.texture=combat_pixel_texture(mode,light,dark)
-	particle.pixel_size=.016 if mode.begins_with("kick_") or mode.begins_with("claw_") or mode.begins_with("body_") or mode.begins_with("special_") or mode.begins_with("projectile_") or mode.begins_with("support_") or mode.begins_with("motion_") else .032
+	particle.texture_filter=BaseMaterial3D.TEXTURE_FILTER_LINEAR if mode.begins_with("rtdx_") else BaseMaterial3D.TEXTURE_FILTER_NEAREST
+	particle.pixel_size=.008 if mode.begins_with("rtdx_") else .016 if mode.begins_with("kick_") or mode.begins_with("claw_") or mode.begins_with("body_") or mode.begins_with("special_") or mode.begins_with("projectile_") or mode.begins_with("support_") or mode.begins_with("motion_") else .032
 	particle.scale=Vector3.ONE*scale_value
 	particle.modulate=Color(1,1,1,clampf(alpha,0.0,1.0))
 	particle.show()
@@ -8467,9 +8511,24 @@ func reserve_confirmed_contacts(dt:float,used:int)->int:
 	for secondary in [false,true]:
 		for k in range(combat_bursts.size()-1,-1,-1):
 			var burst:Dictionary=combat_bursts[k]
+			# Observed presentation owns its contact marks, without duplicates.
+			if str(burst.id) in RTDX_OBSERVED_MOVES:continue
 			var t:float=(float(burst.age)+dt)/maxf(.001,float(burst.duration))
 			used=priority_contact_fx(burst,t,used,secondary)
 	return used
+
+const RTDX_OBSERVED_MOVES=["eos_530","eos_114","eos_262","eos_149","eos_260","eos_174"]
+
+# Orient the wedge in screen space, without changing the combat path.
+func rtdx_directional_stamp(used:int,at:Vector3,mode:String,light:Color,dark:Color,size_value:float,alpha:float,source:Vector3,target:Vector3)->int:
+	var next:int=environment_particle(used,at,mode,light,dark,size_value,alpha)
+	if next>used and is_instance_valid(camera):
+		var direction:Vector2=camera.unproject_position(target)-camera.unproject_position(source)
+		if direction.length_squared()>.001:
+			var particle:Sprite3D=combat_particles[used]
+			particle.billboard=BaseMaterial3D.BILLBOARD_DISABLED
+			particle.global_transform=Transform3D(camera.global_transform.basis*Basis(Vector3.BACK,-direction.angle()).scaled(Vector3.ONE*size_value),particle.global_position)
+	return next
 
 # V15: visible shapes grounded in linked DX stills. Animation timing and
 # exact particle count are Kindria approximations pending temporal evidence.
@@ -8503,6 +8562,42 @@ func rtdx_observed_stage_fx(burst:Dictionary,t:float,used:int)->int:
 			var width:float=lerpf(.32,.08,f)
 			used=environment_particle(used,q,"drop",Color("#6ad9ff"),Color("#2568ec"),width,1.0-f*.45)
 		used=environment_particle(used,head,"impact_star",Color.WHITE,Color("#75baff"),.54,minf(1.0,t*20.0))
+	elif id=="eos_262" and t<peak:
+		# Dense compact orange flame mass between caster and target.
+		for i in range(7):
+			var f:float=float(i)/6.0
+			var p:float=clampf(progress-f*.27,0.0,1.0)
+			var q:Vector3=combat_path_sample(points,p)+Vector3.UP*(.08+f*.20)
+			used=environment_particle(used,q,"rtdx_flame",Color("#fff087"),Color("#ff5d0c"),.64-f*.24,minf(1.0,progress*8.0))
+	elif id=="eos_149":
+		# Indirect reference capture: blue flame clouds and blue floor glow.
+		# Keep light local rather than changing global scene exposure.
+		var fade:float=(1.0-after)*minf(1.0,t*12.0)
+		var tiles:Array=burst.get("tiles",[])
+		var anchors:Array=[source]
+		for i in range(mini(5,tiles.size())):
+			var anchor:Vector3=tiles[i]
+			anchors.append(anchor+Vector3.UP*.45)
+		for i in range(anchors.size()):
+			var q:Vector3=anchors[i]
+			used=environment_particle(used,q+Vector3.UP*(.26+sin(progress*PI)*.50),"rtdx_bluefire",Color("#45d8ff"),Color("#1647ec"),1.65,fade*.86)
+			if i==0:
+				cinematic_halo(Vector3(q.x,.065,q.z),Color("#247aff"),2.1,fade*.65,t,true)
+	elif id in ["eos_260","eos_174"]:
+		if t>=peak and after<.68:
+			var confirmed:Variant=confirmed_stage_target(burst,true)
+			if confirmed!=null:
+				var at:Vector3=confirmed
+				var fade:float=1.0-after/.68
+				if id=="eos_260":
+					used=environment_particle(used,at,"rtdx_scratch",Color.WHITE,Color("#bcdfff"),1.22,fade)
+					for i in range(3):
+						var q:Vector3=at+Vector3(cos(float(i)*2.4)*.30,.14+float(i)*.12,sin(float(i)*2.4)*.24)
+						used=environment_particle(used,q,"rtdx_glint",Color.WHITE,Color("#ecfaff"),.29,fade*.9)
+				else:
+					var offset:Vector3=(source-at).normalized()*.20
+					used=rtdx_directional_stamp(used,at+offset,"rtdx_peck",Color("#ffe653"),Color("#e2a02c"),1.12,fade,source,at)
+		return used
 	if t>=peak and after<.48:
 		var confirmed:Variant=confirmed_stage_target(burst,true)
 		if confirmed!=null:
@@ -8511,7 +8606,7 @@ func rtdx_observed_stage_fx(burst:Dictionary,t:float,used:int)->int:
 
 func element_finish_fx(burst:Dictionary,t:float,used:int,contacts_reserved:bool=false)->int:
 	var id:String=str(burst.id)
-	if id in ["eos_530","eos_114"]:return rtdx_observed_stage_fx(burst,t,used)
+	if id in RTDX_OBSERVED_MOVES:return rtdx_observed_stage_fx(burst,t,used)
 	var profile:Dictionary=burst.profile
 	var style:Array=combat_style(id)
 	var light:=Color(str(style[1]));var dark:=Color(str(style[2]))
