@@ -2994,11 +2994,20 @@ func ultra_update_residues(dt:float,used:int)->int:
 
 # Exact value caching only: no quantization, no temporal stepping.
 # Shared by body and transformation writers so the last GPU value is authoritative.
-func set_fx_uniform(material:ShaderMaterial,parameter:StringName,value:Variant)->void:
-	var key:StringName=StringName("fx_uniform_"+str(parameter))
-	if material.has_meta(key) and material.get_meta(key)==value:return
+# One cache per material. StringName parameters are already interned, so
+# avoid constructing and looking up a separate metadata key on every call.
+# All animated combat shader writes use this helper.
+func set_fx_uniform(material:ShaderMaterial,parameter:StringName,value:Variant)->bool:
+	var cache:Dictionary
+	if material.has_meta(&"fx_uniform_values"):
+		cache=material.get_meta(&"fx_uniform_values")
+	else:
+		cache={}
+		material.set_meta(&"fx_uniform_values",cache)
+	if cache.has(parameter) and cache[parameter]==value:return false
 	material.set_shader_parameter(parameter,value)
-	material.set_meta(key,value)
+	cache[parameter]=value
+	return true
 
 # family: 1 heat shimmer, 2 pressure/ripple, 3 vortex, 4 crystalline
 # facets, 5 directional shear, 6 inward dimensional contraction.
@@ -3051,15 +3060,32 @@ func elemental_atmosphere_sample(element:String,phase:float,ground:bool,tier:int
 	var quality:float=.55 if tier==1 else 1.0
 	return Vector3(p.x*(.70 if ground else 1.0),p.y,p.z*(.0 if ground else 1.0))*fade*quality
 
+# Floor-aligned halos do not depend on the camera. Avoid resubmitting
+# identical local transforms; camera-facing halos keep the original basis
+# assignment order (including under a transformed parent).
+func apply_cinematic_halo_transform(halo:MeshInstance3D,at:Vector3,extent:float,ground:bool)->int:
+	var writes:int=0
+	if halo.position!=at:
+		halo.position=at;writes+=1
+	var orientation:=Vector3(-PI*.5,0,0) if ground else Vector3.ZERO
+	var desired_scale:=Vector3.ONE*extent
+	if not ground and is_instance_valid(camera):
+		halo.rotation=orientation
+		halo.global_basis=camera.global_basis.orthonormalized()
+		halo.scale=desired_scale
+		return writes+3
+	if halo.rotation!=orientation:
+		halo.rotation=orientation;writes+=1
+	if halo.scale!=desired_scale:
+		halo.scale=desired_scale;writes+=1
+	return writes
+
 func cinematic_halo(at:Vector3,color:Color,extent:float,opacity:float,phase:float,ground:bool,element:String="normal",distortion_stage:String="none")->void:
 	if fx_halos_used>=fx_halos.size() or opacity<=.012:return
 	var index:int=fx_halos_used;fx_halos_used+=1
 	var halo:MeshInstance3D=fx_halos[index]
 	var mat:ShaderMaterial=fx_halo_materials[index]
-	halo.position=at
-	halo.rotation=Vector3(-PI*.5,0,0) if ground else Vector3.ZERO
-	if not ground and is_instance_valid(camera):halo.global_basis=camera.global_basis.orthonormalized()
-	halo.scale=Vector3.ONE*extent
+	apply_cinematic_halo_transform(halo,at,extent,ground)
 	set_fx_uniform(mat,"tint",color)
 	set_fx_uniform(mat,"intensity",opacity)
 	set_fx_uniform(mat,"phase",phase)
