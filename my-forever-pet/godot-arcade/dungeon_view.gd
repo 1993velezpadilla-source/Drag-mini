@@ -49,7 +49,10 @@ const FX_PARTICLE_CAP=144
 const FX_WARNING_CAP=80
 var combat_particles:Array[Sprite3D]=[]
 var combat_warnings:Array[MeshInstance3D]=[]
+const COMBAT_BURST_CAP:int=10
+const RETIRED_IMPACT_CAP:int=128
 var combat_bursts:Array[Dictionary]=[]
+var retired_impacts:Array[Dictionary]=[]
 const DELAYED_COMBAT_FX_CAP:int=24
 var delayed_combat_fx:Array[Dictionary]=[]
 var combat_textures:Dictionary={}
@@ -1793,7 +1796,7 @@ func combat_fx_setup(parent:Node3D)->void:
 	for sound in fx_audio:
 		if is_instance_valid(sound):sound.stop()
 	response_slots.clear()
-	combat_particles.clear();combat_warnings.clear();combat_bursts.clear();delayed_combat_fx.clear();fx_reactions.clear();fx_ground_shake=0.0
+	combat_particles.clear();combat_warnings.clear();combat_bursts.clear();retired_impacts.clear();delayed_combat_fx.clear();fx_reactions.clear();fx_ground_shake=0.0
 	combat_fx_root=Node3D.new();parent.add_child(combat_fx_root)
 	fx_arc_mesh=ImmediateMesh.new()
 	fx_arc_material=StandardMaterial3D.new()
@@ -4782,7 +4785,8 @@ func combat_fx_spawn(event:Dictionary)->void:
 	var tiles:Array=[]
 	for cell in event.get("tiles",[target]):tiles.append(pos(cell)+Vector3(0,.12,0))
 	if tiles.is_empty():tiles.append(pos(target)+Vector3(0,.12,0))
-	if combat_bursts.size()>=10:combat_bursts.pop_front()
+	if combat_bursts.size()>=COMBAT_BURST_CAP:
+		retire_combat_burst(combat_bursts.pop_front())
 	combat_bursts.append({"id":id,"mode":style[0],"profile":profile,"target_player":event.get("target_player",false),"damage":event.get("damage",0),"impacted":false,"age":0.0,"duration":float(style[3]),"points":waypoints,"tiles":tiles,"texture":combat_animated_texture(id,0)})
 	play_combat_sound(id,"launch",waypoints[0])
 # Leading projectile reaches its destination on the exact impact fraction.
@@ -4947,6 +4951,33 @@ func update_delayed_combat_fx(dt:float)->void:
 			begin_player_cast_pose(item.event,age-dt)
 
 # Rendering visits newer bursts first, but the last actual impact wins the hurt pose.
+# A visual budget eviction must not silently cancel a pending hit or sound.
+func retire_combat_burst(burst:Dictionary)->void:
+	if burst.get("impacted",false):return
+	var record:Dictionary={"id":burst.id,"age":burst.age,"duration":burst.duration,"profile":burst.profile,"points":[burst.points[0],burst.points[-1]],"target_player":burst.get("target_player",false),"damage":burst.get("damage",0)}
+	if retired_impacts.size()>=RETIRED_IMPACT_CAP:
+		var replace_index:int=-1
+		for i in range(retired_impacts.size()):
+			if not retired_impacts[i].target_player or int(retired_impacts[i].damage)<=0:
+				replace_index=i;break
+		if replace_index<0:
+			if not record.target_player or int(record.damage)<=0:return
+			replace_index=0
+		retired_impacts.remove_at(replace_index)
+	retired_impacts.append(record)
+
+func update_retired_impacts(dt:float)->Dictionary:
+	var latest:Dictionary={}
+	for i in range(retired_impacts.size()-1,-1,-1):
+		var record:Dictionary=retired_impacts[i]
+		record.age+=dt
+		if float(record.age)<float(record.duration)*float(record.profile.impact):continue
+		play_combat_sound(str(record.id),"impact",record.points[-1])
+		if str(record.profile.role) in ["ground","earth_quake","earth_magnitude","earth_fissure"]:fx_ground_shake=.22
+		if record.target_player and int(record.damage)>0:latest=latest_player_impact(latest,record)
+		retired_impacts.remove_at(i)
+	return latest
+
 func latest_player_impact(current:Dictionary,burst:Dictionary)->Dictionary:
 	var age:float=maxf(0.0,float(burst.age)-float(burst.duration)*float(burst.profile.impact))
 	if age>=.24 or (not current.is_empty() and age>=float(current.age)):return current
@@ -4960,6 +4991,7 @@ func combat_fx_update(dt:float)->void:
 	var used:int=0
 	update_combat_reactions(dt)
 	fx_ground_shake=maxf(0.0,fx_ground_shake-dt*3.0)
+	latest_hit=update_retired_impacts(dt)
 	fx_arc_segments=0
 	if is_instance_valid(fx_arc_mesh):fx_arc_mesh.clear_surfaces()
 	var arcs_started:bool=false
