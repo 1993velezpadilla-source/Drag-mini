@@ -3471,10 +3471,21 @@ func secondary_generated_texture(key:String,image:Image)->ImageTexture:
 	cache_combat_particle(key,texture)
 	return texture
 
+# Godot Dictionaries preserve insertion order. Read only the first key,
+# then erase after the iterator ends; never allocate a complete keys Array.
+# LRU promotion and FIFO atlas ordering remain exactly as before.
+func evict_oldest_fx_cache_entry(cache:Dictionary)->bool:
+	if cache.is_empty():return false
+	var oldest:Variant
+	for key in cache:
+		oldest=key
+		break
+	return cache.erase(oldest)
+
 func cache_combat_particle(key:String,texture:ImageTexture)->void:
 	if combat_textures.has(key):return
 	if combat_textures.size()>=FX_SECONDARY_TEXTURE_CAP:
-		combat_textures.erase(combat_textures.keys()[0])
+		evict_oldest_fx_cache_entry(combat_textures)
 	combat_textures[key]=texture
 	fx_secondary_newest=key
 
@@ -13706,7 +13717,7 @@ func combat_packed_frame(id:String,normalized:int)->Texture2D:
 		frame.region=Rect2(i*FX_FRAME_SIZE,0,FX_FRAME_SIZE,FX_FRAME_SIZE)
 		frame.filter_clip=true
 		frames.append(frame)
-	if fx_atlas_cache.size()>=FX_ATLAS_CACHE_CAP:fx_atlas_cache.erase(fx_atlas_cache.keys()[0])
+	if fx_atlas_cache.size()>=FX_ATLAS_CACHE_CAP:evict_oldest_fx_cache_entry(fx_atlas_cache)
 	fx_atlas_cache[id]=frames
 	fx_atlas_uploads+=1
 	fx_frame_pack_hits+=1
@@ -13765,7 +13776,7 @@ func combat_animated_texture(id:String,frame:int)->Texture2D:
 		return cached
 	# LRU eviction; active casts retain their own exact frame reference.
 	if fx_animated_cache.size()>=FX_ANIMATED_CACHE_CAP:
-		fx_animated_cache.erase(fx_animated_cache.keys()[0])
+		evict_oldest_fx_cache_entry(fx_animated_cache)
 	fx_frame_builds+=1
 	var texture:=ImageTexture.create_from_image(combat_frame_image(id,normalized))
 	fx_animated_cache[key]=texture
@@ -14911,7 +14922,7 @@ func combat_audio_pack_load(key:String)->AudioStreamWAV:
 	audio.stereo=false
 	audio.data=bytes
 	audio.set_meta("combat_pcm_peak",peak)
-	if fx_audio_cache.size()>=FX_AUDIO_CACHE_CAP:fx_audio_cache.erase(fx_audio_cache.keys()[0])
+	if fx_audio_cache.size()>=FX_AUDIO_CACHE_CAP:evict_oldest_fx_cache_entry(fx_audio_cache)
 	fx_audio_cache[key]=audio
 	fx_audio_pack_hits+=1
 	return audio
@@ -14932,7 +14943,7 @@ func combat_audio_store(key:String,bytes:PackedByteArray,rate:int)->AudioStreamW
 	audio.stereo=false
 	audio.data=bytes
 	audio.set_meta("combat_pcm_peak",peak)
-	if fx_audio_cache.size()>=FX_AUDIO_CACHE_CAP:fx_audio_cache.erase(fx_audio_cache.keys()[0])
+	if fx_audio_cache.size()>=FX_AUDIO_CACHE_CAP:evict_oldest_fx_cache_entry(fx_audio_cache)
 	fx_audio_cache[key]=audio
 	return audio
 
