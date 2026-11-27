@@ -134,6 +134,16 @@ func run_checks()->void:
 			failures.append("missing midpoint art: "+str(id))
 		checks+=1
 	if catalog.size()!=589 or elements.size()!=18:failures.append("catalog coverage changed")
+	# Verify every explicit physical symbol resolves to a real catalog move
+	# and all three stages contain nonempty 48px art.
+	for id in Dungeon.CONTACT_ICON_KIND:
+		if not catalog.has(id):failures.append("unknown contact icon move: "+str(id))
+		var kind:String=str(Dungeon.CONTACT_ICON_KIND[id])
+		for stage in range(3):
+			var icon:Image=view.contact_icon_image(kind,stage,Color("#fff1bc"),Color("#926185"))
+			if icon==null or icon.get_size()!=Vector2i(48,48) or not icon.get_used_rect().has_area():
+				failures.append("empty physical contact icon: "+str(id))
+			checks+=1
 	var home:=Home.new()
 	home.free()
 	view.free()
