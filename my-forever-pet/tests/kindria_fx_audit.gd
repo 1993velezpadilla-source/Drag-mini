@@ -434,6 +434,20 @@ func run()->void:
 			if apex.y<.29 or absf(landing.y)>.001 or absf(recovery.y)>.001:errors.append("airborne landing timing "+motion)
 			if landing.x<.19 or recovery.x>=landing.x:errors.append("landing forward recovery "+motion)
 	print("KINDRIA_AERIAL_LANDING_PASS")
+	# A cast created by path movement after the frame clock must start at zero age.
+	field.attack_time=.4
+	field.player_impact_delay=.2
+	field.advance_player_combat_clock(.016)
+	if absf(field.attack_time-.384)>.001 or absf(field.player_impact_delay-.184)>.001:errors.append("existing cast clock step")
+	var fresh_event:Dictionary={"fx":"eos_025","from":Vector2i.ZERO,"to":Vector2i.RIGHT}
+	field.begin_player_cast_pose(fresh_event)
+	var fresh_profile:Dictionary=field.combat_profile("eos_025")
+	if absf(field.attack_time-float(fresh_profile.duration))>.001 or absf(field.player_impact_delay-float(fresh_profile.duration)*float(fresh_profile.impact))>.001:errors.append("fresh movement cast clock")
+	field.advance_player_combat_clock(.016)
+	if absf(field.attack_time-float(fresh_profile.duration)+.016)>.001:errors.append("next movement cast clock")
+	field.attack_time=0.0
+	field.player_impact_delay=0.0
+	print("KINDRIA_MOVEMENT_CAST_CLOCK_PASS")
 	# Exercise more frames than the cache cap, then verify hot hits and exact normalization.
 	for row in reports.slice(0,40):
 		for frame in range(Field.FX_FRAME_COUNT):field.combat_animated_texture(str(row.id),frame)
