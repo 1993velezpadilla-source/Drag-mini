@@ -30,6 +30,7 @@ func launch(track:Dictionary,effect:Resource,points:Array,tiles:Array,scale_fact
 		var anchor:String=str(track.anchor)
 		slot.follows=anchor=="path"
 		slot.points=points.duplicate()
+		slot.motion=track.duplicate(true)
 		slot.life=maxf(seconds,.02)
 		slot.elapsed=0.0
 		slot.duration=slot.life
@@ -37,6 +38,7 @@ func launch(track:Dictionary,effect:Resource,points:Array,tiles:Array,scale_fact
 		for k in range(1,points.size()):slot.distance+=Vector3(points[k-1]).distance_to(Vector3(points[k]))
 		slot.busy=true
 		node.position=points[-1] if anchor=="target" else tiles[0] if anchor=="tiles" and not tiles.is_empty() else points[0]
+		if slot.follows:node.position=sample_motion(slot.points,float(slot.distance),0.0,slot.motion)
 		node.set("target_position",to_global(Vector3(points[-1])))
 		node.call("play")
 		return i
@@ -81,7 +83,7 @@ func dispatch_due(dt:float)->void:
 		var slot:Dictionary=slots[index]
 		slot.elapsed=late
 		slot.life=remaining
-		if slot.follows:slot.node.position=sample_path(slot.points,float(slot.distance),late/float(slot.duration))
+		if slot.follows:slot.node.position=sample_motion(slot.points,float(slot.distance),late/float(slot.duration),slot.motion)
 	pending=next
 
 # Each emitter owns its clock. A later cast cannot change an earlier trajectory.
@@ -97,6 +99,37 @@ func sample_path(points:Array,distance:float,progress:float)->Vector3:
 		remaining-=segment
 	return points[-1]
 
+# Native emitter motion follows authored choreography rather than a universal
+# straight projectile. All moving tracks terminate at the confirmed target.
+func sample_motion(points:Array,distance:float,progress:float,track:Dictionary)->Vector3:
+	if points.is_empty():return Vector3.ZERO
+	var t:float=clampf(progress,0.0,1.0)
+	var source:Vector3=points[0]
+	var target:Vector3=points[-1]
+	var center:Vector3=sample_path(points,distance,t)
+	var height:float=clampf(float(track.get("height",0.0)),0.0,3.0)
+	var spread:float=clampf(float(track.get("spread",0.0)),0.0,1.5)
+	var envelope:float=sin(t*PI)
+	var direction:Vector3=target-source
+	direction.y=0.0
+	var side:Vector3=Vector3.RIGHT if direction.length_squared()<.0001 else direction.normalized().cross(Vector3.UP)
+	match str(track.get("motion","stream")):
+		"fall":
+			return target+Vector3.UP*height*(1.0-t)
+		"eruption":
+			return target.lerp(Vector3(target.x,.12,target.z),1.0-t)
+		"arc":
+			return center+Vector3.UP*height*envelope
+		"rise":
+			return center+Vector3.UP*height*envelope*(1.0-t)
+		"helix":
+			return center+side*sin(t*TAU*2.0)*spread*envelope+Vector3.UP*cos(t*TAU*2.0)*height*.45*envelope
+		"whip":
+			return center+side*sin(t*TAU)*spread*envelope
+		"wave":
+			return center+Vector3.UP*absf(sin(t*TAU))*height*.55*envelope
+	return center
+
 func advance(dt:float)->void:
 	if not is_finite(dt) or dt<0.0:return
 	for slot in slots:
@@ -105,7 +138,7 @@ func advance(dt:float)->void:
 		slot.elapsed=minf(float(slot.duration),float(slot.elapsed)+dt)
 		slot.life=float(slot.duration)-float(slot.elapsed)
 		if slot.follows:
-			node.position=sample_path(slot.points,float(slot.distance),float(slot.elapsed)/float(slot.duration))
+			node.position=sample_motion(slot.points,float(slot.distance),float(slot.elapsed)/float(slot.duration),slot.motion)
 		if slot.life<=0.0:
 			node.call("stop")
 			slot.busy=false
