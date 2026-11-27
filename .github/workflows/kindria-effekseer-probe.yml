@@ -1,6 +1,12 @@
 name: Kindria Effekseer compatibility probe
 on:
   workflow_dispatch:
+  pull_request:
+    branches: [feature/my-forever-pet-paradise]
+    paths:
+      - 'my-forever-pet/godot-arcade/**'
+      - 'my-forever-pet/research/rtdx/**'
+      - '.github/workflows/kindria-effekseer-probe.yml'
   push:
     branches: [feature/my-forever-pet-combat-audit, feature/kindria-hybrid-combat-v8]
     paths:
@@ -69,6 +75,9 @@ jobs:
           grep -F 'KINDRIA_MYSTIC_AUDIT_PASS 50' /tmp/effekseer-review/dungeon-probe.log
           grep -F 'KINDRIA_FINAL_AUDIT_PASS 74' /tmp/effekseer-review/dungeon-probe.log
           grep -F 'KINDRIA_FULL_COVERAGE_PASS 589' /tmp/effekseer-review/dungeon-probe.log
+          grep -F 'KINDRIA_V13_ALL_ELEMENTS_PASS 18' /tmp/effekseer-review/dungeon-probe.log
+          grep -F 'KINDRIA_V13_AUTHORED_FINISH_PASS 147' /tmp/effekseer-review/dungeon-probe.log
+          grep -F 'KINDRIA_V13_FULL_COMPOSITOR_PASS 589' /tmp/effekseer-review/dungeon-probe.log
           ! grep -E 'SCRIPT ERROR|Shader compilation failed' /tmp/effekseer-review/dungeon-probe.log
       - uses: actions/upload-artifact@v4
         if: always()
