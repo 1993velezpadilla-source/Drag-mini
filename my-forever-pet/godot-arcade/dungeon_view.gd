@@ -50,6 +50,7 @@ const FX_WARNING_CAP=80
 var combat_particles:Array[Sprite3D]=[]
 var combat_warnings:Array[MeshInstance3D]=[]
 var combat_bursts:Array[Dictionary]=[]
+const DELAYED_COMBAT_FX_CAP:int=24
 var delayed_combat_fx:Array[Dictionary]=[]
 var combat_textures:Dictionary={}
 # Keep transient animation frames separate from permanent static FX textures.
@@ -4897,7 +4898,7 @@ func update_delayed_combat_fx(dt:float)->void:
 		if not combat_bursts.is_empty():combat_bursts[-1].age=age-dt
 		# Do not turn a moved companion toward a historical origin, or interrupt
 		# a newer attack/charge. The independently recorded world FX still plays.
-		if run!=null and run.player==item.event.from and run.charge_phase.is_empty() and attack_time<=dt:
+		if age<float(combat_profile(str(item.event.fx)).duration) and run!=null and run.player==item.event.from and run.charge_phase.is_empty() and attack_time<=dt:
 			release_charge_phase=""
 			begin_player_cast_pose(item.event,age-dt)
 
@@ -5419,13 +5420,14 @@ func response_cast_available_at()->float:
 		cursor=maxf(cursor,float(pending.delay)+duration+.04)
 	return cursor
 
-func response_fx_plan(events:Array,start:float,body_available:float=0.0)->Array[Dictionary]:
+func response_fx_plan(events:Array,start:float,body_available:float=0.0,cast_budget:int=DELAYED_COMBAT_FX_CAP)->Array[Dictionary]:
 	var result:Array[Dictionary]=[]
 	var cursor:float=maxf(0.0,start)
 	for event in events:
 		var item:Dictionary={"hit":cursor,"launch":-1.0,"event":{}}
 		var id:String=str(event.get("move_id",""))
-		if str(event.get("source",""))=="sleep_counter" and not id.is_empty() and event.has("from") and event.has("to"):
+		if cast_budget>0 and str(event.get("source",""))=="sleep_counter" and not id.is_empty() and event.has("from") and event.has("to"):
+			cast_budget-=1
 			var profile:=combat_profile(id)
 			var duration:float=float(profile.duration)
 			cursor=maxf(cursor,body_available)
@@ -5463,15 +5465,18 @@ func queue_observed_enemy_damage(actor:Node3D,uid:int,tile:Vector2i,defeated:boo
 			queue_enemy_reaction(actor,defeated,float(spec.delay),Vector3(spec.direction),float(spec.span),int(spec.count))
 			return
 	var secondary_delay:float=float(spec.delay)+float(spec.span)+.04 if linked else 0.0
-	var plan:Array[Dictionary]=response_fx_plan(events if not events.is_empty() else [{}],secondary_delay,response_cast_available_at())
+	var plan:Array[Dictionary]=response_fx_plan(events if not events.is_empty() else [{}],secondary_delay,response_cast_available_at(),maxi(0,DELAYED_COMBAT_FX_CAP-delayed_combat_fx.size()))
+	# Reserve effects in chronological order before enqueuing the reactions in reverse.
+	# Overflow uses reaction-only timing, not an impact scheduled for a nonexistent effect.
+	for item in plan:
+		if not item.event.is_empty():
+			delayed_combat_fx.append({"delay":float(item.launch),"event":item.event})
 	# Queue terminal callback first; subsequent calls preserve that final pose.
 	for index in range(plan.size()-1,-1,-1):
 		var item:Dictionary=plan[index]
 		var direction:Vector3=Vector3.ZERO
 		if not item.event.is_empty():
 			direction=(pos(item.event.to)-pos(item.event.from)).normalized()
-			if delayed_combat_fx.size()<24:
-				delayed_combat_fx.append({"delay":float(item.launch),"event":item.event})
 		queue_enemy_reaction(actor,defeated and index==plan.size()-1,float(item.hit),direction)
 	if linked:queue_enemy_reaction(actor,false,float(spec.delay),Vector3(spec.direction),float(spec.span),int(spec.count))
 
