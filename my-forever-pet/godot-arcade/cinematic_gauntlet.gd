@@ -699,6 +699,7 @@ func run_checks()->void:
 		var visible_pixels:Array[int]=[]
 		var border_pixels:Array[int]=[]
 		var peak_visible:int=0
+		var visual_signature:Array=[]
 		var impact_frame:int=clampi(roundi(float(profile.impact)*float(Dungeon.FX_FRAME_COUNT-1)),0,Dungeon.FX_FRAME_COUNT-1)
 		for frame in range(Dungeon.FX_FRAME_COUNT):
 			var image:Image=view.combat_frame_image(id,frame)
@@ -714,6 +715,19 @@ func run_checks()->void:
 			visible_pixels.append(occupied)
 			border_pixels.append(border)
 			peak_visible=maxi(peak_visible,occupied)
+			# Sample the actual pixels at fixed animation phases. Premultiply color
+			# so invisible RGB does not make two silhouettes appear different.
+			if frame in [1,4,7,10]:
+				var phase_features:Array=[]
+				for gy in range(6):
+					for gx in range(6):
+						var sums:=Vector4.ZERO
+						for y in range(gy*8,gy*8+8):
+							for x in range(gx*8,gx*8+8):
+								var pixel:=image.get_pixel(x,y)
+								sums+=Vector4(pixel.a,pixel.r*pixel.a,pixel.g*pixel.a,pixel.b*pixel.a)
+						phase_features.append([roundi(sums.x*255.0/64.0),roundi(sums.y*255.0/64.0),roundi(sums.z*255.0/64.0),roundi(sums.w*255.0/64.0)])
+				visual_signature.append(phase_features)
 			strip.blit_rect(image,Rect2i(0,0,48,48),Vector2i(frame*48,0))
 			var bounds:=image.get_used_rect()
 			frame_areas.append(bounds.get_area())
@@ -732,7 +746,7 @@ func run_checks()->void:
 		if DirAccess.make_dir_recursive_absolute(folder)!=OK:failures.append("visual element directory "+element)
 		if strip.save_png(folder+"/"+str(id)+".png")!=OK:failures.append("visual strip export "+str(id))
 		if not visual_rows.has(element):visual_rows[element]=[]
-		visual_rows[element].append({"id":id,"name":str(move.get("name",id)),"impact_frame":impact_frame,"frame_areas":frame_areas,"edge_frames":edge_frames,"visible_pixels":visible_pixels,"border_pixels":border_pixels})
+		visual_rows[element].append({"id":id,"name":str(move.get("name",id)),"impact_frame":impact_frame,"frame_areas":frame_areas,"edge_frames":edge_frames,"visible_pixels":visible_pixels,"border_pixels":border_pixels,"visual_signature":visual_signature})
 		if sequence_owners.has(signature):
 			if not duplicate_groups.has(signature):duplicate_groups[signature]=[sequence_owners[signature]]
 			duplicate_groups[signature].append(id)
