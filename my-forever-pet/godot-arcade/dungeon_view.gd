@@ -3037,6 +3037,15 @@ func ultimate_accent_fx(burst:Dictionary,t:float,used:int)->int:
 		used=environment_particle(used,q,material,light,dark,.30+sample.y*.18,sample.y)
 	return used
 
+# V19: visual intensity follows catalog power, not damage rolls or translated
+# names. Zero-power variable-damage attacks keep a neutral visual scale.
+# No extra lights, meshes or particles are allocated for a stronger attack.
+func cinematic_power_sample(power:int,status:bool=false)->Vector3:
+	if status:return Vector3(.82,.74,.78)
+	if power<=0:return Vector3.ONE
+	var weight:float=sqrt(clampf(float(power)/8.0,.125,7.5))
+	return Vector3(clampf(.68+.32*weight,.78,1.48),clampf(.72+.28*weight,.80,1.40),clampf(.80+.20*weight,.85,1.30))
+
 func cinematic_cast_enhancement(burst:Dictionary,t:float)->void:
 	var points:Array=burst.points
 	if points.is_empty():return
@@ -3053,7 +3062,8 @@ func cinematic_cast_enhancement(burst:Dictionary,t:float)->void:
 	var resolved:=resolve_element_impact(impact_visual_view(burst))
 	var miss:bool=resolved.kind!="confirmed"
 	var wide:bool=profile.pattern in ["room","floor","radius","cross","fan"]
-	var strength:float=.7 if luminous else .40
+	var weight:=cinematic_power_sample(int(record.get("power",0)),status)
+	var strength:float=(.7 if luminous else .40)*weight.y
 	if status:strength*=.62
 	var ultimate:bool=str(burst.id) in ULTIMATE_ACCENTS
 	if ultimate:strength=minf(.95,strength*1.3)
@@ -3062,22 +3072,22 @@ func cinematic_cast_enhancement(burst:Dictionary,t:float)->void:
 		var at:=combat_path_sample(points,progress)
 		if status:at=source.lerp(target,progress*.6)
 		var envelope:float=sin(progress*PI)
-		cinematic_halo(at,color,.95 if luminous else .65,strength*envelope*.52,progress,false,element,"none" if status else "launch")
+		cinematic_halo(at,color,(.95 if luminous else .65)*lerpf(1.0,weight.x,.45),strength*envelope*.52,progress,false,element,"none" if status else "launch")
 		if luminous:
 			var lighting:=elemental_light_sample(element,progress,"launch")
-			cinematic_light(at+Vector3.UP*.25,color,lighting.x*(.62 if status else 1.0),lighting.y,lighting.z,1)
+			cinematic_light(at+Vector3.UP*.25,color,minf(1.2,lighting.x*lerpf(1.0,weight.y,.45)*(.62 if status else 1.0)),lighting.y,lighting.z,1)
 	elif not miss:
 		target=resolved.target
 		var after:float=impact_visual_phase(burst,t)
 		var fade:float=pow(1.0-after,2.0)
-		var extent:float=(2.0 if wide else 1.25)*(1.18 if ultimate else 1.0)
+		var extent:float=(2.0 if wide else 1.25)*(1.18 if ultimate else 1.0)*weight.x
 		cinematic_halo(target,color,extent*(.82+after*.5),strength*fade*.8,after,false,element,"none" if status else "impact")
 		if not status and (fx_performance_tier<2 or after<.55):
 			cinematic_halo(Vector3(target.x,.06,target.z),color,extent*(.84+after*.9),strength*fade*.62,after,true,element,"impact")
 		var lighting:=elemental_light_sample(element,after,"impact",wide)
 		var critical:bool=not critical_impact_tiles(burst).is_empty()
-		var energy:float=minf(1.2,lighting.x*(1.12 if ultimate else 1.0)*(1.12 if critical else 1.0)*(.62 if status else 1.0))
-		cinematic_light(target+Vector3.UP*.4,color,energy,lighting.y,lighting.z,3 if critical else 2)
+		var energy:float=minf(1.2,lighting.x*weight.y*(1.12 if ultimate else 1.0)*(1.12 if critical else 1.0)*(.62 if status else 1.0))
+		cinematic_light(target+Vector3.UP*.4,color,energy,lighting.y*weight.z,lighting.z,3 if critical else 2)
 
 # Contact silhouette is independent of the elemental animation and is only
 # drawn on a confirmed damaging tile. IDs are explicit, not translated names.
@@ -16853,6 +16863,8 @@ func cinematic_impact_layers(id:String,profile:Dictionary,source:Vector3,target:
 	var side:=Vector3(-forward.z,0,forward.x)
 	var signature:int=int(id.hash() & 0xffff)
 	var heavy:bool=profile.pattern in ["room","floor","radius","cross"] or "blast" in role or "quake" in role or "meteor" in role
+	var record:Dictionary=Rules.MOVE_LIBRARY.get(id,Rules.DEV_NATIVE_MOVES.get(id,{}))
+	var weight:=cinematic_power_sample(int(record.get("power",0)),status)
 	var count:int=10 if heavy else 6
 	if status:count=4
 	var fade:float=pow(1.0-age,1.25)
@@ -16919,9 +16931,12 @@ func cinematic_impact_layers(id:String,profile:Dictionary,source:Vector3,target:
 				mode="impact_star";q=target+radial.rotated(Vector3.UP,age*2.6)*travel+Vector3.UP*(arc*.54)
 			"dragon":
 				mode="flame" if i%2==0 else "lightning";q=target+radial.rotated(Vector3.UP,age*3.2)*travel+Vector3.UP*(arc*.65)
-		used=environment_particle(used,q,mode,light,dark,size,fade*.92,flat)
+		# Scale dispersal and volume, while preserving material-specific motion.
+		var offset:=q-ground
+		q=ground+Vector3(offset.x*weight.x,offset.y*weight.z,offset.z*weight.x)
+		used=environment_particle(used,q,mode,light,dark,size*weight.z,minf(1.0,fade*.92*weight.y),flat)
 	if heavy and not status:
-		used=environment_particle(used,ground,"shock_ring",light,dark,.35+age*2.25,fade*.68,true)
+		used=environment_particle(used,ground,"shock_ring",light,dark,(.35+age*2.25)*weight.x,minf(1.0,fade*.68*weight.y),true)
 	return used
 
 func charge_environment_fx(used:int)->int:
