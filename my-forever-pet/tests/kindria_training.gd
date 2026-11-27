@@ -583,6 +583,27 @@ func _initialize():
 	assert(binding.move_pp.eos_025==15 and binding.move_pp.eos_227==17 and binding.turns==0)
 	assert(binding.sleep_reactions.is_empty())
 	print("KINDRIA_SLEEP_BINDING_PASS")
+	var terrain=Rules.new()
+	terrain.player=Vector2i(2,2);terrain.cells[terrain.player]=true
+	terrain.floor_bounds=Rect2i(1,1,5,5)
+	assert(terrain.break_wall(Vector2i.RIGHT))
+	assert(terrain.cells.has(Vector2i(3,2)) and terrain.floor_revision==1)
+	assert(not terrain.break_wall(Vector2i.RIGHT))
+	terrain.player=Vector2i(1,1);terrain.cells[terrain.player]=true
+	assert(not terrain.break_wall(Vector2i.LEFT))
+	var toss=Rules.new()
+	toss.player=Vector2i(1,2)
+	toss.rooms.append(Rect2i(1,1,5,5))
+	for x in range(1,6):
+		for y in range(1,6):toss.cells[Vector2i(x,y)]=true
+	toss.enemies.append({"pos":Vector2i(2,2),"hp":30,"kind":0,"species":"reef_pup"})
+	toss.enemies.append({"pos":Vector2i(4,2),"hp":30,"kind":0,"species":"reef_pup"})
+	assert(toss.hurl_enemy(0))
+	assert(toss.enemies[0].hp==20 and toss.enemies[1].hp==20)
+	assert(toss.enemies[0].pos!=toss.enemies[1].pos and toss.enemies[0].pos!=toss.player)
+	toss.enemies.remove_at(1)
+	assert(toss.hurl_enemy(0) and toss.enemies[0].hp==20)
+	print("KINDRIA_TERRAIN_HURL_PASS")
 	assert(Rules.EOS_IDENTIFIED_COUNT==468)
 	print("KINDRIA_EOS_PROTOTYPES_PASS ",eos_count)
 	print("KINDRIA_LEARNSET_PP_PASS")
