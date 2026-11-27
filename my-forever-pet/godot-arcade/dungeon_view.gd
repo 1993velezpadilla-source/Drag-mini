@@ -2011,6 +2011,7 @@ func update_living_ambient(dt:float):
 func build_floor():
 	var start_usec=Time.get_ticks_usec()
 	fx_performance_grace=1.5;fx_pressure_age=0.0;fx_recovery_age=0.0
+	fx_frame_average=1.0/60.0
 	if is_instance_valid(geometry):geometry.hide();geometry.queue_free()
 	if is_instance_valid(actors):actors.hide();actors.queue_free()
 	geometry=Node3D.new();world.add_child(geometry);actors=Node3D.new();world.add_child(actors);actor_nodes.clear()
@@ -15920,9 +15921,11 @@ func cast_particle_quota(used:int,capacity:int,remaining:int)->int:
 
 # A sustained frame-time threshold with asymmetric recovery prevents flicker.
 # Resume/loading spikes are ignored; the effect tier is not a gameplay setting.
-func update_fx_performance(dt:float)->void:
-	if dt<=0.0 or dt>.25:
+func update_fx_performance(dt:float,combat_active:bool=false)->void:
+	if not is_finite(dt) or dt<=0.0 or dt>.25:
 		fx_pressure_age=0.0;fx_recovery_age=0.0
+		# Old frame pressure cannot be carried across a suspension/loading gap.
+		if dt>.25:fx_frame_average=1.0/60.0
 		return
 	if fx_performance_grace>0.0:
 		fx_performance_grace=maxf(0.0,fx_performance_grace-dt)
@@ -15936,7 +15939,9 @@ func update_fx_performance(dt:float)->void:
 			fx_performance_tier+=1;fx_pressure_age=0.0
 	elif fx_performance_tier>0 and fx_frame_average<recovery_threshold:
 		fx_recovery_age+=dt;fx_pressure_age=0.0
-		if fx_recovery_age>=4.0:
+		# Restore at a quiet boundary when possible, but never hold a healthy
+		# device in a reduced tier more than one extra second per recovery.
+		if fx_recovery_age>=4.0 and (not combat_active or fx_recovery_age>=5.0):
 			fx_performance_tier-=1;fx_recovery_age=0.0
 	else:
 		fx_pressure_age=0.0;fx_recovery_age=0.0
@@ -19090,7 +19095,9 @@ func fx_diag_sample(now:int,submit_usec:int,active:bool)->void:
 
 func _process(dt:float):
 	if notified or not is_instance_valid(pet):return
-	if OS.has_feature("mobile"):update_fx_performance(dt)
+	if OS.has_feature("mobile"):
+		var active_fx:bool=not combat_bursts.is_empty() or not retired_impacts.is_empty() or not delayed_combat_fx.is_empty() or attack_time>0.0
+		update_fx_performance(dt,active_fx)
 	elapsed+=dt;tick-=dt
 	if hold_active:
 		hold_age+=dt
