@@ -2596,6 +2596,45 @@ func elemental_silhouette(role:String,kind:String)->int:
 # RTDX-inspired independent presentation tracks. All resources here refer
 # to Kindria's own cue families; no original game binaries or FX are used.
 # A backend may resolve the same track into a native emitter, sprite or mesh.
+# Authored finishing materials: primary, secondary, emission, spread, lift.
+# No extra nodes or emitters are allocated for these move-specific layers.
+const MOVE_FINISH_ART={
+	"fire_ember":["ember","smoke","#ff9b46",.55,.45],
+	"fire_breath":["flame","ember","#ffb04c",.82,.75],
+	"fire_sacred":["flame","cloud","#bcecff",.70,1.25],
+	"fire_wisp":["flame","smoke","#bb8cff",.45,.85],
+	"fire_heatwave":["wave","ember","#ff823a",1.30,.35],
+	"fire_blast":["flame","impact_star","#ffbd58",1.25,.90],
+	"fire_overheat":["smoke","ember","#ff5733",1.35,1.25],
+	"fire_eruption":["flame","shards","#ff9a37",.85,1.75],
+	"water_bubble":["bubble","drop","#8befff",.48,.80],
+	"water_bubblebeam":["bubble","bubble","#b2f5ff",.60,.55],
+	"water_gun":["drop","drop","#72cfff",.44,.40],
+	"water_pump":["drop","wave","#55c4ff",.95,.85],
+	"water_surf":["wave","drop","#7ceeff",1.45,.55],
+	"water_whirlpool":["spiral","bubble","#5dd9eb",.90,.70],
+	"water_ink":["smoke","drop","#5066b3",.65,.30],
+	"water_spout":["drop","bubble","#b6f6ff",.85,1.65],
+	"electric_sky":["lightning","impact_star","#fff3a0",.55,1.65],
+	"electric_short":["lightning","lightning","#ffe76a",.30,.35],
+	"electric_burst":["shock_ring","lightning","#fff279",1.15,.48],
+	"electric_beam":["lightning","beam","#fff8bd",.42,.50],
+	"electric_orb":["impact_star","lightning","#f5ff9c",.72,.72],
+	"electric_wave":["shock_ring","lightning","#a8eaff",.95,.22],
+	"electric_room":["lightning","shock_ring","#fef2a6",1.40,1.10],
+	"ice_beam":["crystal","beam","#c1f5ff",.48,.40],
+	"ice_shard":["shards","crystal","#d9faff",.30,.35],
+	"ice_blizzard":["crystal","cloud","#d2edff",1.30,1.05],
+	"ice_powder":["cloud","crystal","#f0fbff",.80,.55],
+	"ice_avalanche":["shards","cloud","#b2def8",1.20,.85],
+	"air_cutter":["slash","slash","#e2fff2",.70,.45],
+	"air_gust":["wave","cloud","#c0ecdf",.90,.35],
+	"air_sky":["slash","shock_ring","#e8faff",.65,1.15],
+	"air_drill":["spiral","slash","#c8f4ff",.52,.60],
+	"air_blast":["beam","slash","#e1ffff",1.05,.70]}
+func move_finish_art(id:String,profile:Dictionary)->Array:
+	return MOVE_FINISH_ART.get(id,MOVE_FINISH_ART.get(str(profile.role),[]))
+
 func elemental_track_plan(id:String,profile:Dictionary)->Array:
 	var role:String=str(profile.role)
 	var cue:Array=AUTHORED_STAGE_FX.get(id,AUTHORED_STAGE_FX.get(role,["contact","impact_star",4,.35,.4]))
@@ -2617,6 +2656,8 @@ func elemental_track_plan(id:String,profile:Dictionary)->Array:
 		"rock","ground":impact_material="shards"
 		"grass":impact_material="leaf"
 		"ghost","dark":impact_material="smoke"
+	var finish_art:Array=move_finish_art(id,profile)
+	if not finish_art.is_empty():impact_material=str(finish_art[0])
 	var plan:Array=[
 		{"stage":"ally_invoke","anchor":"source","start":0.0,"end":peak*.24,"material":material,"enabled":true},
 		{"stage":"enemy_invoke","anchor":"source","start":0.0,"end":peak*.24,"material":material,"enabled":true},
@@ -2696,6 +2737,8 @@ func cinematic_cast_enhancement(burst:Dictionary,t:float)->void:
 	var profile:Dictionary=burst.profile
 	var style:Array=combat_style(str(burst.id))
 	var color:=Color(str(style[1])).lerp(Color(str(style[2])),.34)
+	var art:Array=move_finish_art(str(burst.id),profile)
+	if not art.is_empty():color=Color(str(art[2]))
 	var element:String=str(profile.element)
 	var record:Dictionary=Rules.MOVE_LIBRARY.get(str(burst.id),Rules.DEV_NATIVE_MOVES.get(str(burst.id),{}))
 	var status:bool=str(record.get("category",""))=="status"
@@ -7744,6 +7787,7 @@ func cinematic_impact_layers(id:String,profile:Dictionary,source:Vector3,target:
 	var heavy:bool=profile.pattern in ["room","floor","radius","cross"] or "blast" in role or "quake" in role or "meteor" in role
 	var count:int=10 if heavy else 6
 	if status:count=4
+	var art:Array=move_finish_art(id,profile)
 	var fade:float=pow(1.0-age,1.25)
 	var ground:=Vector3(target.x,.045,target.z)
 	for i in range(count):
@@ -7789,7 +7833,16 @@ func cinematic_impact_layers(id:String,profile:Dictionary,source:Vector3,target:
 			"psychic","ghost","fairy":
 				mode="spiral" if i%2==0 else "impact_star"
 				q=target+radial.rotated(Vector3.UP,age*3.6)*travel+Vector3.UP*(age*.44)
-		used=environment_particle(used,q,mode,light,dark,size,fade*.92,flat)
+		if not art.is_empty() and not status:
+			mode=str(art[1] if i%3==0 else art[0])
+			var spread:float=float(art[3])
+			q=ground+Vector3((q.x-ground.x)*spread,(q.y-ground.y)*float(art[4]),(q.z-ground.z)*spread)
+			if mode=="shock_ring" or (mode=="wave" and role in ["water_surf","fire_heatwave","air_gust"]):
+				flat=true;q.y=.055
+			else:flat=false
+			if mode=="cloud" or mode=="smoke":size*=1.25
+		var finish_light:Color=light if art.is_empty() or status else Color(str(art[2]))
+		used=environment_particle(used,q,mode,finish_light,dark,size,fade*.92,flat)
 	if heavy and not status:
 		used=environment_particle(used,ground,"shock_ring",light,dark,.35+age*2.25,fade*.68,true)
 	return used
