@@ -2928,6 +2928,11 @@ func projectile_contact_stamp(mode:String,light:Color,dark:Color)->Image:
 					d=maxf(absf(p.x+p.y*.22)*.75,absf(p.y)*.85)+absf(p.x-p.y)*.18-9.0
 				"projectile_orb":
 					d=p.length()-10.0
+				"projectile_flare":
+					# Five-point flame emblem, an authored Fire Blast silhouette.
+					var r:float=p.length()
+					var a:float=atan2(p.y,p.x)
+					d=r-(6.3+5.0*pow(maxf(0.0,cos(a*5.0)),2.0))
 				"projectile_ray":
 					if absf(p.x)<14.0:d=absf(p.y)-maxf(1.2,3.6-absf(p.x)*.11)
 			if d>0.0:continue
@@ -2986,6 +2991,11 @@ func motion_contact_stamp(mode:String,light:Color,dark:Color)->Image:
 					if u>=0.0 and u<=1.0:
 						d=absf(p.y+2.0*u)-(6.0*(1.0-u)+.4)
 						if absf(p.y+2.0*u)<.65:d=maxf(d,.2)
+				"pincer":
+					var base:float=Vector2(p.x+6.0,p.y*1.2).length()-6.4
+					var jaw:float=absf(Vector2(p.x-1.0,p.y*.88).length()-9.0)-2.8
+					if p.x>7.0 and absf(p.y)<3.5:jaw=99.0
+					d=minf(base,jaw)
 				"palm":
 					d=Vector2(p.x*.85,(p.y-3.0)*1.1).length()-6.5
 					for j in range(4):
@@ -7360,7 +7370,10 @@ const BITE_CONTACT_ART={
 	"lib_electric_1":["fang",.78,.42,"#fff9b0","#db9522","lightning"],
 	"lib_dragon_3":["fang",.84,.43,"#f5ddff","#7552b3","flame"],
 	"lib_dark_1":["fang",.83,.43,"#eadcff","#553568","smoke"],
-	"reef_bite":["bite",.70,.42,"#e5f8ff","#4e819e","drop"]}
+	"reef_bite":["bite",.70,.42,"#e5f8ff","#4e819e","drop"],
+	"tidal_jaws":["bite",0.92,0.46,"#e5fbff","#437a9c","wave"],
+	"alt_eelstrix":["fang",0.7,0.4,"#fff6b3","#d8a22e","lightning"]
+}
 
 func bite_contact_art(id:String)->Array:
 	return BITE_CONTACT_ART.get(id,[])
@@ -7594,7 +7607,13 @@ func claw_contact_fx(id:String,source:Vector3,target:Vector3,age:float,used:int,
 	return used
 
 # size, lifetime, reach, silhouette, highlight, outline, element accent, motion.
-const BODY_CONTACT_ART={"lib_normal_1":[0.85,0.55,0.48,"body_dash","#fff1d6","#a78b68","impact_star","dash"],"lib_normal_2":[1,0.68,0.4,"body_slam","#fff0cd","#a78358","shock_ring","slam"],"lib_bug_2":[0.9,0.62,0.5,"body_armor","#e4f6b1","#708d42","shards","dash"],"eos_001":[1,0.72,0.55,"body_tail_blade","#e4f5ff","#627d9f","shards","tail"],"eos_121":[0.78,0.65,0.36,"body_dash","#fff0d5","#b48b68","impact_star","flurry"],"eos_139":[0.86,0.55,0.42,"body_head","#fff0d7","#a17e65","impact_star","head"],"eos_140":[1.15,0.78,0.6,"body_dash","#fff4c6","#d17a45","shock_ring","dash"],"eos_154":[0.72,0.48,0.4,"body_dash","#fff2d8","#a68866","impact_star","dash"],"eos_161":[0.93,0.65,0.42,"body_slam","#fff0cf","#ad835c","shards","slam"],"eos_176":[0.88,0.58,0.48,"body_horn","#fff1d1","#96734e","impact_star","pierce"],"eos_203":[0.94,0.67,0.55,"body_dash","#fff1d1","#b47950","shock_ring","dash"],"eos_235":[1.1,0.75,0.48,"body_slam","#ffe9cd","#b27d51","shock_ring","slam"],"eos_283":[0.95,0.7,0.5,"body_tail_blade","#e5b6ff","#663782","venom_splash","tail"],"eos_323":[1.15,0.76,0.65,"body_horn","#ecffb8","#688340","leaf","pierce"],"eos_348":[1.08,0.78,0.58,"body_armor","#fff4db","#91765e","shock_ring","head"],"eos_354":[1.04,0.7,0.62,"body_dash","#fff6a1","#c3911e","lightning","dash"],"eos_431":[1.03,0.68,0.5,"body_armor","#e8f7ff","#7186a2","shards","head"],"eos_433":[1.05,0.75,0.55,"body_tail","#c0f4ff","#388bb9","wave","tail"],"eos_455":[1.35,0.88,0.7,"body_dash","#fff4d1","#cf8c46","shock_ring","dash"],"eos_473":[1.02,0.72,0.45,"body_head","#f5c8ff","#9862bf","spiral","head"],"eos_517":[1.13,0.76,0.62,"body_dash","#fff0ad","#e44b20","flame","dash"],"eos_533":[1.22,0.82,0.5,"body_armor","#f7d8ad","#926a49","shards","head"],"eos_177":[1.03,0.78,0.6,"body_drill","#fff5dc","#a28769","shards","pierce"],"eos_009":[0.91,0.88,0.42,"body_dash","#fff0d0","#b68055","impact_star","flurry"]}
+const BODY_CONTACT_ART={"lib_normal_1":[0.85,0.55,0.48,"body_dash","#fff1d6","#a78b68","impact_star","dash"],"lib_normal_2":[1,0.68,0.4,"body_slam","#fff0cd","#a78358","shock_ring","slam"],"lib_bug_2":[0.9,0.62,0.5,"body_armor","#e4f6b1","#708d42","shards","dash"],"eos_001":[1,0.72,0.55,"body_tail_blade","#e4f5ff","#627d9f","shards","tail"],"eos_121":[0.78,0.65,0.36,"body_dash","#fff0d5","#b48b68","impact_star","flurry"],"eos_139":[0.86,0.55,0.42,"body_head","#fff0d7","#a17e65","impact_star","head"],"eos_140":[1.15,0.78,0.6,"body_dash","#fff4c6","#d17a45","shock_ring","dash"],"eos_154":[0.72,0.48,0.4,"body_dash","#fff2d8","#a68866","impact_star","dash"],"eos_161":[0.93,0.65,0.42,"body_slam","#fff0cf","#ad835c","shards","slam"],"eos_176":[0.88,0.58,0.48,"body_horn","#fff1d1","#96734e","impact_star","pierce"],"eos_203":[0.94,0.67,0.55,"body_dash","#fff1d1","#b47950","shock_ring","dash"],"eos_235":[1.1,0.75,0.48,"body_slam","#ffe9cd","#b27d51","shock_ring","slam"],"eos_283":[0.95,0.7,0.5,"body_tail_blade","#e5b6ff","#663782","venom_splash","tail"],"eos_323":[1.15,0.76,0.65,"body_horn","#ecffb8","#688340","leaf","pierce"],"eos_348":[1.08,0.78,0.58,"body_armor","#fff4db","#91765e","shock_ring","head"],"eos_354":[1.04,0.7,0.62,"body_dash","#fff6a1","#c3911e","lightning","dash"],"eos_431":[1.03,0.68,0.5,"body_armor","#e8f7ff","#7186a2","shards","head"],"eos_433":[1.05,0.75,0.55,"body_tail","#c0f4ff","#388bb9","wave","tail"],"eos_455":[1.35,0.88,0.7,"body_dash","#fff4d1","#cf8c46","shock_ring","dash"],"eos_473":[1.02,0.72,0.45,"body_head","#f5c8ff","#9862bf","spiral","head"],"eos_517":[1.13,0.76,0.62,"body_dash","#fff0ad","#e44b20","flame","dash"],"eos_533":[1.22,0.82,0.5,"body_armor","#f7d8ad","#926a49","shards","head"],"eos_177":[1.03,0.78,0.6,"body_drill","#fff5dc","#a28769","shards","pierce"],"eos_009":[0.91,0.88,0.42,"body_dash","#fff0d0","#b68055","impact_star","flurry"],
+	"alt_tidal_sovereign":[1.13,0.78,0.66,"body_dash","#d5f8ff","#377aab","wave","dash"],
+	"eos_052":[0.86,0.69,0.46,"body_dash","#ffe0a1","#e75a27","flame","dash"],
+	"eos_144":[0.72,0.5,0.42,"body_dash","#fff4a1","#d0a121","lightning","dash"],
+	"eos_149":[1.1,0.8,0.55,"body_dash","#fff5c8","#f07136","flame","dash"],
+	"spiral_current":[0.87,0.63,0.52,"body_drill","#d1f7ff","#458bb3","wave","pierce"]
+}
 
 func body_contact_art(id:String)->Array:
 	return BODY_CONTACT_ART.get(id,[])
@@ -7640,7 +7659,10 @@ func body_contact_fx(id:String,source:Vector3,target:Vector3,age:float,used:int,
 
 # Special choreography runs once per cast, not once per hit. Status effects
 # have a visible launch but a restrained finish only for confirmed outcomes.
-const SPECIAL_CONTACT_ART={"eos_123":["burst",0.95,"flame","smoke"],"eos_155":["burst",1.65,"flame","smoke"],"eos_272":["burst",1.3,"flame","ember"],"eos_120":["lash",0.62,"special_tongue","smoke"],"lib_grass_1":["lash",0.75,"special_vine","leaf"],"eos_182":["lash",0.78,"special_vine","leaf"],"eos_511":["lash",1.15,"special_vine","leaf"],"eos_023":["silk",0.65,"special_thread","web"],"eos_086":["silk",0.95,"web","special_thread"],"eos_294":["coil",0.85,"special_coil","impact_star"],"eos_125":["coil",0.72,"special_coil","shock_ring"],"eos_071":["coil",0.55,"special_coil","impact_star"],"eos_069":["clamp",0.85,"special_clamp","drop"],"eos_116":["clamp",1.05,"special_clamp","impact_star"],"eos_076":["drain",1.15,"leaf","impact_star"],"eos_135":["drain",0.55,"leaf","impact_star"],"eos_320":["drain",0.84,"leaf","impact_star"],"eos_080":["drain",0.68,"special_thread","leaf"],"eos_500":["drain",0.72,"spiral","impact_star"],"eos_329":["seed",0.68,"leaf","special_vine"],"lib_normal_3":["sound",0.75,"special_wave","shock_ring"],"eos_152":["sound",0.65,"special_wave","slash"],"eos_241":["sound",1.25,"special_wave","shock_ring"],"eos_530":["sound",0.95,"special_wave","leaf"],"eos_446":["sound",0.8,"special_note","slash"],"eos_034":["sound",0.68,"special_note","bubble"],"eos_171":["sound",0.73,"special_wave","spiral"],"eos_027":["sound",1.02,"special_wave","shards"],"eos_083":["sound",0.88,"special_wave","shards"],"eos_284":["sound",1.05,"special_wave","shock_ring"],"eos_293":["sound",1.3,"special_note","smoke"],"eos_112":["sound",1,"special_wave","impact_star"],"eos_025":["sound",0.65,"special_note","cloud"],"eos_217":["sound",0.5,"special_wave","cloud"],"eos_195":["sound",0.85,"special_wave","impact_star"],"eos_026":["sound",0.8,"special_note","impact_star"],"tentacle_snare":["lash",0.92,"special_tongue","drop"],"vine_snap":["lash",0.75,"special_vine","leaf"],"gravity_web":["silk",1.1,"web","special_thread"],"abyss_grasp":["clamp",1.18,"special_clamp","smoke"],"eos_192":["coil",0.74,"special_coil","lightning"]}
+const SPECIAL_CONTACT_ART={"eos_123":["burst",0.95,"flame","smoke"],"eos_155":["burst",1.65,"flame","smoke"],"eos_272":["burst",1.3,"flame","ember"],"eos_120":["lash",0.62,"special_tongue","smoke"],"lib_grass_1":["lash",0.75,"special_vine","leaf"],"eos_182":["lash",0.78,"special_vine","leaf"],"eos_511":["lash",1.15,"special_vine","leaf"],"eos_023":["silk",0.65,"special_thread","web"],"eos_086":["silk",0.95,"web","special_thread"],"eos_294":["coil",0.85,"special_coil","impact_star"],"eos_125":["coil",0.72,"special_coil","shock_ring"],"eos_071":["coil",0.55,"special_coil","impact_star"],"eos_069":["clamp",0.85,"special_clamp","drop"],"eos_116":["clamp",1.05,"special_clamp","impact_star"],"eos_076":["drain",1.15,"leaf","impact_star"],"eos_135":["drain",0.55,"leaf","impact_star"],"eos_320":["drain",0.84,"leaf","impact_star"],"eos_080":["drain",0.68,"special_thread","leaf"],"eos_500":["drain",0.72,"spiral","impact_star"],"eos_329":["seed",0.68,"leaf","special_vine"],"lib_normal_3":["sound",0.75,"special_wave","shock_ring"],"eos_152":["sound",0.65,"special_wave","slash"],"eos_241":["sound",1.25,"special_wave","shock_ring"],"eos_530":["sound",0.95,"special_wave","leaf"],"eos_446":["sound",0.8,"special_note","slash"],"eos_034":["sound",0.68,"special_note","bubble"],"eos_171":["sound",0.73,"special_wave","spiral"],"eos_027":["sound",1.02,"special_wave","shards"],"eos_083":["sound",0.88,"special_wave","shards"],"eos_284":["sound",1.05,"special_wave","shock_ring"],"eos_293":["sound",1.3,"special_note","smoke"],"eos_112":["sound",1,"special_wave","impact_star"],"eos_025":["sound",0.65,"special_note","cloud"],"eos_217":["sound",0.5,"special_wave","cloud"],"eos_195":["sound",0.85,"special_wave","impact_star"],"eos_026":["sound",0.8,"special_note","impact_star"],"tentacle_snare":["lash",0.92,"special_tongue","drop"],"vine_snap":["lash",0.75,"special_vine","leaf"],"gravity_web":["silk",1.1,"web","special_thread"],"abyss_grasp":["clamp",1.18,"special_clamp","smoke"],"eos_192":["coil",0.74,"special_coil","lightning"],
+	"alt_jellymancer":["lash",0.63,"special_tongue","drop"],
+	"electric_lash":["lash",0.86,"lightning","shock_ring"]
+}
 func special_contact_art(id:String)->Array:
 	return SPECIAL_CONTACT_ART.get(id,[])
 
@@ -7716,7 +7738,25 @@ func special_contact_fx(burst:Dictionary,t:float,used:int,light:Color,dark:Color
 	return used
 
 # Motion, material, impact accent, size, arc height. Per-move authored values.
-const PROJECTILE_CONTACT_ART={"lib_fire_1":["dart","ember","ember",0.52,0.1],"lib_fire_2":["beam","flame","ember",0.85,0.1],"lib_water_2":["beam","bubble","drop",0.65,0.1],"lib_ice_1":["dart","projectile_needle","crystal",0.52,0.1],"lib_flying_1":["dart","projectile_needle","slash",0.56,0.1],"lib_psychic_2":["pulse","spiral","spiral",0.72,0.1],"lib_rock_1":["dart","projectile_stone","shards",0.55,0.1],"lib_dark_3":["pulse","spiral","smoke",0.84,0.1],"lib_fairy_1":["dart","impact_star","impact_star",0.58,0.1],"eos_028":["lob","projectile_stone","shards",0.76,0.88],"eos_031":["orb","projectile_orb","impact_star",0.83,0.1],"eos_042":["beam","projectile_ray","crystal",0.72,0.1],"eos_053":["beam","flame","ember",0.92,0.1],"eos_107":["beam","projectile_ray","spiral",0.72,0.1],"eos_114":["beam","projectile_ray","leaf",0.65,0.1],"eos_127":["orb","projectile_orb","smoke",1.02,0.1],"eos_145":["volley","impact_star","impact_star",0.52,0.1],"eos_151":["beam","projectile_ray","leaf",1.08,0.1],"eos_166":["lob","projectile_seed","shock_ring",0.85,1.05],"eos_193":["orb","projectile_orb","lightning",1.05,0.1],"eos_213":["dart","projectile_stone","smoke",0.48,0.1],"eos_239":["beam","projectile_ray","drop",1.25,0.1],"eos_240":["beam","drop","wave",1.04,0.1],"eos_242":["beam","projectile_ray","shock_ring",1.35,0.1],"eos_251":["volley","leaf","leaf",0.55,0.1],"eos_255":["beam","bubble","drop",0.73,0.1],"eos_262":["dart","ember","flame",0.58,0.1],"eos_279":["lob","projectile_orb","venom_splash",0.64,0.45],"eos_280":["lob","projectile_orb","venom_splash",1.02,0.85],"eos_299":["dart","projectile_stone","drop",0.62,0.1],"eos_308":["beam","drop","drop",0.52,0.1],"eos_309":["orb","projectile_orb","cloud",0.78,0.1],"eos_310":["pulse","bubble","wave",0.81,0.1],"eos_345":["beam","projectile_ray","crystal",0.8,0.1],"eos_436":["pulse","spiral","smoke",1.05,0.1],"eos_443":["orb","projectile_orb","leaf",0.87,0.1],"eos_454":["orb","projectile_orb","shock_ring",1.15,0.1],"eos_462":["dart","projectile_needle","crystal",0.52,0.1],"eos_468":["lob","projectile_seed","leaf",1.03,0.65],"eos_485":["lob","projectile_orb","venom_splash",1.15,0.8],"eos_486":["lob","projectile_seed","leaf",0.88,0.9],"eos_489":["beam","lightning","lightning",0.65,0.1],"eos_501":["lob","projectile_stone","drop",0.89,0.8],"eos_508":["orb","projectile_orb","spiral",0.9,0.1],"eos_523":["lob","projectile_stone","shards",0.92,0.7],"eos_527":["dart","crystal","shards",0.75,0.1],"eos_536":["beam","projectile_ray","shards",0.92,0.1],"eos_538":["meteor","meteor","flame",1.2,2.6],"eos_539":["pulse","projectile_orb","flame",0.98,0.1],"eos_163":["volley","projectile_seed","leaf",0.45,0.1],"eos_164":["volley","projectile_needle","shards",0.5,0.1],"eos_201":["volley","projectile_needle","impact_star",0.48,0.1],"eos_306":["volley","projectile_needle","leaf",0.52,0.1],"eos_350":["volley","projectile_stone","shards",0.65,0.1],"eos_002":["roll","projectile_orb","crystal",0.83,0.1],"eos_108":["pulse","spiral","spiral",0.65,0.1],"eos_341":["beam","flame","ember",0.9,0.1],"eos_504":["dart","projectile_seed","leaf",0.58,0.1]}
+const PROJECTILE_CONTACT_ART={"lib_fire_1":["dart","ember","ember",0.52,0.1],"lib_fire_2":["beam","flame","ember",0.85,0.1],"lib_water_2":["beam","bubble","drop",0.65,0.1],"lib_ice_1":["dart","projectile_needle","crystal",0.52,0.1],"lib_flying_1":["dart","projectile_needle","slash",0.56,0.1],"lib_psychic_2":["pulse","spiral","spiral",0.72,0.1],"lib_rock_1":["dart","projectile_stone","shards",0.55,0.1],"lib_dark_3":["pulse","spiral","smoke",0.84,0.1],"lib_fairy_1":["dart","impact_star","impact_star",0.58,0.1],"eos_028":["lob","projectile_stone","shards",0.76,0.88],"eos_031":["orb","projectile_orb","impact_star",0.83,0.1],"eos_042":["beam","projectile_ray","crystal",0.72,0.1],"eos_053":["beam","flame","ember",0.92,0.1],"eos_107":["beam","projectile_ray","spiral",0.72,0.1],"eos_114":["beam","projectile_ray","leaf",0.65,0.1],"eos_127":["orb","projectile_orb","smoke",1.02,0.1],"eos_145":["volley","impact_star","impact_star",0.52,0.1],"eos_151":["beam","projectile_ray","leaf",1.08,0.1],"eos_166":["lob","projectile_seed","shock_ring",0.85,1.05],"eos_193":["orb","projectile_orb","lightning",1.05,0.1],"eos_213":["dart","projectile_stone","smoke",0.48,0.1],"eos_239":["beam","projectile_ray","drop",1.25,0.1],"eos_240":["beam","drop","wave",1.04,0.1],"eos_242":["beam","projectile_ray","shock_ring",1.35,0.1],"eos_251":["volley","leaf","leaf",0.55,0.1],"eos_255":["beam","bubble","drop",0.73,0.1],"eos_262":["dart","ember","flame",0.58,0.1],"eos_279":["lob","projectile_orb","venom_splash",0.64,0.45],"eos_280":["lob","projectile_orb","venom_splash",1.02,0.85],"eos_299":["dart","projectile_stone","drop",0.62,0.1],"eos_308":["beam","drop","drop",0.52,0.1],"eos_309":["orb","projectile_orb","cloud",0.78,0.1],"eos_310":["pulse","bubble","wave",0.81,0.1],"eos_345":["beam","projectile_ray","crystal",0.8,0.1],"eos_436":["pulse","spiral","smoke",1.05,0.1],"eos_443":["orb","projectile_orb","leaf",0.87,0.1],"eos_454":["orb","projectile_orb","shock_ring",1.15,0.1],"eos_462":["dart","projectile_needle","crystal",0.52,0.1],"eos_468":["lob","projectile_seed","leaf",1.03,0.65],"eos_485":["lob","projectile_orb","venom_splash",1.15,0.8],"eos_486":["lob","projectile_seed","leaf",0.88,0.9],"eos_489":["beam","lightning","lightning",0.65,0.1],"eos_501":["lob","projectile_stone","drop",0.89,0.8],"eos_508":["orb","projectile_orb","spiral",0.9,0.1],"eos_523":["lob","projectile_stone","shards",0.92,0.7],"eos_527":["dart","crystal","shards",0.75,0.1],"eos_536":["beam","projectile_ray","shards",0.92,0.1],"eos_538":["meteor","meteor","flame",1.2,2.6],"eos_539":["pulse","projectile_orb","flame",0.98,0.1],"eos_163":["volley","projectile_seed","leaf",0.45,0.1],"eos_164":["volley","projectile_needle","shards",0.5,0.1],"eos_201":["volley","projectile_needle","impact_star",0.48,0.1],"eos_306":["volley","projectile_needle","leaf",0.52,0.1],"eos_350":["volley","projectile_stone","shards",0.65,0.1],"eos_002":["roll","projectile_orb","crystal",0.83,0.1],"eos_108":["pulse","spiral","spiral",0.65,0.1],"eos_341":["beam","flame","ember",0.9,0.1],"eos_504":["dart","projectile_seed","leaf",0.58,0.1],
+	"alt_coralcrab":["beam","drop","wave",0.78,0.1],
+	"alt_crystarok":["dart","projectile_needle","crystal",0.68,0.1],
+	"alt_leviathorn":["dart","projectile_needle","drop",0.92,0.1],
+	"alt_marrowray":["volley","projectile_needle","drop",0.58,0.1],
+	"alt_reef_pup":["dart","projectile_needle","drop",0.48,0.1],
+	"bubble_burst":["orb","bubble","drop",0.69,0.1],
+	"eos_016":["volley","bubble","drop",0.51,0.1],
+	"eos_044":["lob","projectile_orb","smoke",0.93,0.48],
+	"eos_157":["beam","projectile_flare","ember",1.25,0.1],
+	"eos_180":["volley","projectile_needle","crystal",0.67,0.1],
+	"eos_188":["dart","lightning","impact_star",0.55,0.1],
+	"eos_189":["pulse","lightning","shock_ring",0.84,0.1],
+	"eos_469":["beam","drop","wave",0.86,0.1],
+	"lib_electric_2":["beam","lightning","shock_ring",0.76,0.1],
+	"lib_ice_2":["beam","projectile_ray","crystal",1,0.1],
+	"lib_water_1":["volley","bubble","drop",0.49,0.1],
+	"nova_bolt":["orb","projectile_orb","flame",0.87,0.1]
+}
 func projectile_contact_art(id:String)->Array:
 	return PROJECTILE_CONTACT_ART.get(id,[])
 
@@ -7782,7 +7822,21 @@ func projectile_contact_fx(burst:Dictionary,t:float,used:int,light:Color,dark:Co
 
 # Terrain effects are attached to cast tiles, not to damage events. An empty
 # tile can still show water, a fissure or weather without a false hit marker.
-const TERRAIN_CONTACT_ART={"lib_ground_1":["quake","shards",1.1],"lib_rock_3":["fall","crystal",1],"eos_008":["burrow","shards",0.8],"eos_030":["fall","shards",0.95],"eos_032":["vortex","drop",0.8],"eos_036":["wind","slash",0.65],"eos_057":["wind","cloud",0.75],"eos_060":["wind","slash",1],"eos_064":["storm","lightning",1.1],"eos_073":["rise","shards",0.9],"eos_082":["wind","leaf",0.9],"eos_097":["wind","crystal",0.7],"eos_101":["fall","crystal",0.7],"eos_113":["rise","drop",1.1],"eos_129":["storm","lightning",0.85],"eos_156":["dive","drop",0.8],"eos_158":["fall","drop",1.1],"eos_159":["wave","drop",0.85],"eos_162":["vortex","flame",0.95],"eos_219":["wave","drop",1.25],"eos_230":["wave","ember",1.15],"eos_270":["wind","crystal",1.25],"eos_272":["rise","flame",1.2],"eos_278":["rise","flame",1.3],"eos_437":["wind","smoke",1],"eos_481":["rise","shards",1.1],"eos_484":["rise","shards",1.25],"eos_519":["rise","flame",1.1],"eos_521":["storm","lightning",1.2],"eos_012":["weather","drop",0.85],"eos_014":["weather","crystal",0.9],"eos_141":["weather","shards",0.85],"eos_223":["sun","ember",1],"eos_131":["rift","earth_hole",1],"eos_118":["quake","shards",1.3],"eos_296":["quake","shards",0.85],"eos_535":["fall","crystal",1.2],"eos_435":["rift","spiral",1.2],"eos_460":["wind","leaf",0.8],"eos_494":["wave","spiral",1.25],"eos_538":["fall","meteor",1.15],"eos_394":["wind","slash",0.95]}
+const TERRAIN_CONTACT_ART={"lib_ground_1":["quake","shards",1.1],"lib_rock_3":["fall","crystal",1],"eos_008":["burrow","shards",0.8],"eos_030":["fall","shards",0.95],"eos_032":["vortex","drop",0.8],"eos_036":["wind","slash",0.65],"eos_057":["wind","cloud",0.75],"eos_060":["wind","slash",1],"eos_064":["storm","lightning",1.1],"eos_073":["rise","shards",0.9],"eos_082":["wind","leaf",0.9],"eos_097":["wind","crystal",0.7],"eos_101":["fall","crystal",0.7],"eos_113":["rise","drop",1.1],"eos_129":["storm","lightning",0.85],"eos_156":["dive","drop",0.8],"eos_158":["fall","drop",1.1],"eos_159":["wave","drop",0.85],"eos_162":["vortex","flame",0.95],"eos_219":["wave","drop",1.25],"eos_230":["wave","ember",1.15],"eos_270":["wind","crystal",1.25],"eos_272":["rise","flame",1.2],"eos_278":["rise","flame",1.3],"eos_437":["wind","smoke",1],"eos_481":["rise","shards",1.1],"eos_484":["rise","shards",1.25],"eos_519":["rise","flame",1.1],"eos_521":["storm","lightning",1.2],"eos_012":["weather","drop",0.85],"eos_014":["weather","crystal",0.9],"eos_141":["weather","shards",0.85],"eos_223":["sun","ember",1],"eos_131":["rift","earth_hole",1],"eos_118":["quake","shards",1.3],"eos_296":["quake","shards",0.85],"eos_535":["fall","crystal",1.2],"eos_435":["rift","spiral",1.2],"eos_460":["wind","leaf",0.8],"eos_494":["wave","spiral",1.25],"eos_538":["fall","meteor",1.15],"eos_394":["wind","slash",0.95],
+	"alt_bubblewisp":["wave","bubble",0.73],
+	"alt_nova_wisp":["vortex","ember",0.77],
+	"eos_041":["rise","flame",1.52],
+	"eos_150":["freeze","crystal",1.35],
+	"eos_291":["vortex","flame",0.93],
+	"eos_307":["weather","drop",0.62],
+	"eos_524":["vortex","flame",1.45],
+	"jelly_pulse":["storm","lightning",0.67],
+	"lib_electric_3":["storm","lightning",1.02],
+	"lib_fire_3":["vortex","flame",0.91],
+	"lib_ice_3":["wind","crystal",0.91],
+	"lib_water_3":["wave","drop",1.04],
+	"prism_shatter":["rise","crystal",0.88]
+}
 const TERRAIN_TILE_CAP:int=6
 
 func terrain_contact_art(id:String)->Array:
@@ -7859,6 +7913,10 @@ func terrain_contact_fx(burst:Dictionary,t:float,used:int,light:Color,dark:Color
 				var angle:float=phase+t*TAU*2.0
 				q=center+(forward*cos(angle)+side*sin(angle))*.42*strength+Vector3.UP*(.20+fposmod(t+float(i)*.17,1.0)*.85)
 				if kind=="vortex":used=environment_particle(used,center,"spiral",light,dark,.85*strength,opacity*.7,true)
+			"freeze":
+				used=environment_particle(used,center,"shock_ring",light,dark,1.15*strength,opacity,true)
+				q=center+radial*.35+Vector3.UP*(.20+progress*.62)
+				size=.90*strength
 			"sun":
 				q=center+Vector3.UP*(1.4+sin(t*PI)*.35)
 				mode="impact_star"
@@ -7931,7 +7989,9 @@ func support_contact_fx(burst:Dictionary,t:float,used:int)->int:
 	return used
 
 # V12 audit follow-up: uncovered aerial and open-hand impacts.
-const MOTION_CONTACT_ART={"eos_100":["wing","dive",1.12,"slash"],"eos_153":["wing","dive",0.91,"cloud"],"eos_205":["crest","bounce",1,"shock_ring"],"eos_179":["wing","sweep",0.83,"slash"],"eos_518":["wing","dive",1.2,"flame"],"eos_211":["beak","drill",1.02,"shards"],"eos_174":["beak","jab",0.65,"impact_star"],"eos_490":["beak","jab",0.75,"leaf"],"eos_178":["wing","sweep",0.88,"cloud"],"eos_244":["wing","sweep",1,"shards"],"eos_477":["crest","vanish",1.1,"smoke"],"eos_132":["crest","rush",1.05,"slash"],"eos_190":["crest","rush",0.68,"slash"],"eos_226":["palm","jab",0.65,"impact_star"],"eos_039":["palm","multi",0.72,"impact_star"],"eos_175":["palm","multi",0.82,"shock_ring"],"eos_531":["palm","sweep",0.85,"impact_star"],"eos_507":["palm","jab",1,"shock_ring"],"eos_068":["chop","down",0.8,"slash"],"eos_072":["chop","down",1.05,"shards"],"eos_090":["cross","down",1.05,"slash"],"eos_243":["crest","rush",1.18,"shock_ring"],"eos_440":["palm","rush",1.08,"impact_star"],"eos_170":["crest","toss",1.1,"shock_ring"],"eos_311":["beak","multi",0.74,"impact_star"],"eos_487":["palm","multi",0.83,"impact_star"],"eos_250":["palm","down",0.78,"impact_star"],"eos_432":["crest","rush",0.85,"drop"],"eos_451":["crest","vanish",0.78,"smoke"],"eos_498":["crest","rush",1.15,"flame"],"eos_502":["wing","sweep",0.8,"leaf"],"lib_fighting_1":["palm","jab",0.83,"shock_ring"],"alt_sylphowl":["wing","sweep",0.78,"slash"],"alt_lunamoth":["wing","sweep",0.9,"impact_star"]}
+const MOTION_CONTACT_ART={"eos_100":["wing","dive",1.12,"slash"],"eos_153":["wing","dive",0.91,"cloud"],"eos_205":["crest","bounce",1,"shock_ring"],"eos_179":["wing","sweep",0.83,"slash"],"eos_518":["wing","dive",1.2,"flame"],"eos_211":["beak","drill",1.02,"shards"],"eos_174":["beak","jab",0.65,"impact_star"],"eos_490":["beak","jab",0.75,"leaf"],"eos_178":["wing","sweep",0.88,"cloud"],"eos_244":["wing","sweep",1,"shards"],"eos_477":["crest","vanish",1.1,"smoke"],"eos_132":["crest","rush",1.05,"slash"],"eos_190":["crest","rush",0.68,"slash"],"eos_226":["palm","jab",0.65,"impact_star"],"eos_039":["palm","multi",0.72,"impact_star"],"eos_175":["palm","multi",0.82,"shock_ring"],"eos_531":["palm","sweep",0.85,"impact_star"],"eos_507":["palm","jab",1,"shock_ring"],"eos_068":["chop","down",0.8,"slash"],"eos_072":["chop","down",1.05,"shards"],"eos_090":["cross","down",1.05,"slash"],"eos_243":["crest","rush",1.18,"shock_ring"],"eos_440":["palm","rush",1.08,"impact_star"],"eos_170":["crest","toss",1.1,"shock_ring"],"eos_311":["beak","multi",0.74,"impact_star"],"eos_487":["palm","multi",0.83,"impact_star"],"eos_250":["palm","down",0.78,"impact_star"],"eos_432":["crest","rush",0.85,"drop"],"eos_451":["crest","vanish",0.78,"smoke"],"eos_498":["crest","rush",1.15,"flame"],"eos_502":["wing","sweep",0.8,"leaf"],"lib_fighting_1":["palm","jab",0.83,"shock_ring"],"alt_sylphowl":["wing","sweep",0.78,"slash"],"alt_lunamoth":["wing","sweep",0.9,"impact_star"],
+	"eos_087":["pincer","down",1.06,"drop"]
+}
 
 func motion_contact_art(id:String)->Array:
 	return MOTION_CONTACT_ART.get(id,[])
