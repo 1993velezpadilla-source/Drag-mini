@@ -71,9 +71,9 @@ func _initialize():
 		if not str(id).begins_with("eos_"):continue
 		var move:Dictionary=Rules.MOVE_LIBRARY[id]
 		assert(int(str(id).trim_prefix("eos_"))==int(move.reference_id))
-		assert(move.pp>0 and (move.power>0 or move.has("heal_fraction") or move.has("inflict_status") or move.has("stat_changes") or move.has("shield_kind") or move.has("boon_kind") or move.has("weather_set") or move.has("floor_sport") or move.has("weather_heal") or move.has("special_rule") or move.has("trap_kind") or move.has("blast_radius") or move.has("stat_transfer") or move.has("random_cast")))
+		assert(move.pp>0 and (move.power>0 or move.has("heal_fraction") or move.has("inflict_status") or move.has("stat_changes") or move.has("shield_kind") or move.has("boon_kind") or move.has("weather_set") or move.has("floor_sport") or move.has("weather_heal") or move.has("special_rule") or move.has("trap_kind") or move.has("blast_radius") or move.has("stat_transfer") or move.has("random_cast") or move.has("reserve_action")))
 		assert(move.reference_strikes==1 or (move.has("hit_min") and move.hit_min>=2 and move.hit_max<=5))
-		assert(move.category in ["physical","special"] or (move.category=="status" and (move.has("heal_fraction") or move.has("inflict_status") or move.has("stat_changes") or move.has("shield_kind") or move.has("boon_kind") or move.has("weather_set") or move.has("floor_sport") or move.has("weather_heal") or move.has("special_rule") or move.has("trap_kind") or move.has("blast_radius") or move.has("stat_transfer") or move.has("random_cast"))))
+		assert(move.category in ["physical","special"] or (move.category=="status" and (move.has("heal_fraction") or move.has("inflict_status") or move.has("stat_changes") or move.has("shield_kind") or move.has("boon_kind") or move.has("weather_set") or move.has("floor_sport") or move.has("weather_heal") or move.has("special_rule") or move.has("trap_kind") or move.has("blast_radius") or move.has("stat_transfer") or move.has("random_cast") or move.has("reserve_action"))))
 		assert(id in Rules.available_moves([move.type],100))
 		assert(not id in Rules.available_moves([move.type],15))
 		assert(Rules.reference_accuracy(move)>=0.0 and Rules.reference_accuracy(move)<=100.0)
@@ -441,6 +441,29 @@ func _initialize():
 	assert(invoke.cast_move("eos_330",Vector2i.RIGHT))
 	assert(invoke.move_pp.eos_330==21 and invoke.move_pp.size()==1 and invoke.turns==1)
 	print("KINDRIA_TRANSFER_PASS")
+	var reserve=Rules.new()
+	reserve.max_hp=100;reserve.hp=10
+	assert(reserve.store_vitality() and reserve.store_vitality() and reserve.store_vitality())
+	assert(not reserve.store_vitality())
+	assert(reserve.stockpile_count==3 and reserve.player_stages.defense==3 and reserve.player_stages.sp_defense==3)
+	assert(reserve.consume_vitality()==80 and reserve.hp==90 and reserve.stockpile_count==0)
+	assert(reserve.player_stages.defense==3 and reserve.player_stages.sp_defense==3)
+	assert(reserve.store_vitality())
+	reserve.player=Vector2i(1,1)
+	reserve.cells[reserve.player]=true;reserve.cells[Vector2i(2,1)]=true
+	reserve.enemies.append({"pos":Vector2i(2,1),"hp":1000,"kind":0,"species":"reef_pup"})
+	reserve.equipped_moves=["eos_245"];reserve.move_pp={"eos_245":12}
+	assert(reserve.cast_move("eos_245",Vector2i.RIGHT))
+	assert(reserve.stockpile_count==0 and reserve.move_pp.eos_245==11)
+	var values:Array=[5,10,15,25,30,35,40]
+	for i in range(50):assert(reserve.choose_magnitude() in values)
+	reserve.trained_profile={"types":["flying","fire"]}
+	reserve.roost_active=true
+	assert(reserve.current_player_types()==["fire"])
+	assert(reserve.trained_profile.types==["flying","fire"])
+	reserve.clear_combat_effects()
+	assert(not reserve.roost_active and reserve.stockpile_count==0)
+	print("KINDRIA_RESERVE_AREA_PASS")
 	assert(Rules.EOS_IDENTIFIED_COUNT==468)
 	print("KINDRIA_EOS_PROTOTYPES_PASS ",eos_count)
 	print("KINDRIA_LEARNSET_PP_PASS")
