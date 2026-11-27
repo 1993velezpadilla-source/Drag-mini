@@ -284,6 +284,27 @@ func run_checks()->void:
 	contact_burst.age=.60
 	if not view.contact_wave_sample(contact_burst).is_empty():failures.append("contact did not expire")
 	checks+=4
+	# Validate actual authored projectile forms on the same bent route as the
+	# existing family tests, including finite lagged samples and budget limits.
+	var directed_forms:Dictionary={}
+	for id in Dungeon.PROJECTILE_IDENTITY:
+		var form:=view.directed_projectile_form(id,str(view.combat_profile(id).role))
+		directed_forms[form]=true
+	for role in Dungeon.PROJECTILE_ROLE_FORM:
+		directed_forms[Dungeon.PROJECTILE_ROLE_FORM[role]]=true
+	for form in directed_forms:
+		var texture:=view.combat_pixel_texture("projectile_"+str(form),Color("#ffe5ab"),Color("#946ac1"))
+		if texture==null or not texture.get_image().get_used_rect().has_area():failures.append("empty directed projectile: "+str(form))
+		var budget:=view.projectile_form_profile(form)
+		if not budget.is_finite() or budget.x<=0.0 or budget.y<=0.0 or budget.z<1.0 or budget.z>5.0:failures.append("invalid projectile budget")
+		for i in range(101):
+			var phase:float=float(i)/100.0
+			var head:=view.projectile_identity_sample(form,route,phase,0.0)
+			var tail:=view.projectile_identity_sample(form,route,phase,budget.y)
+			if not head.is_finite() or not tail.is_finite():failures.append("nonfinite directed projectile")
+			if i==0 and head.distance_to(route[0])>.001:failures.append("directed launch mismatch")
+			if i==100 and head.distance_to(route[-1])>.001:failures.append("directed impact mismatch")
+			checks+=1
 	var home:=Home.new()
 	home.free()
 	view.free()
