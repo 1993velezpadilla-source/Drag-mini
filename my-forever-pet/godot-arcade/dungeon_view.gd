@@ -2941,6 +2941,18 @@ func projectile_contact_stamp(mode:String,light:Color,dark:Color)->Image:
 					d=minf(d,p.length()-3.2)
 				"projectile_prism":
 					d=maxf(absf(p.x)*.82+absf(p.y)*.66-9.8,absf(p.x)-11.0)
+				"projectile_coin":
+					d=absf(Vector2(p.x*.92,p.y*1.3).length()-8.5)-2.2
+					d=minf(d,maxf(absf(p.x)-1.1,absf(p.y)-5.0))
+				"projectile_parcel":
+					d=maxf(absf(p.x)-8.5,absf(p.y-2.0)-8.0)
+					d=minf(d,absf(Vector2(absf(p.x)-4.0,p.y+9.0).length()-3.4)-1.0)
+				"projectile_card":
+					var q:Vector2=p.rotated(.32)
+					d=maxf(absf(q.x)-6.3,absf(q.y)-10.6)
+				"projectile_feather":
+					var u:float=(p.x+12.0)/25.0
+					if u>=0.0 and u<=1.0:d=absf(p.y+2.0*sin(u*PI))-(4.4*sin(u*PI)+.5)
 				"projectile_seed":
 					d=Vector2((p.x-p.y*.25)*.85,p.y*1.35).length()-8.0
 				"projectile_needle":
@@ -2972,6 +2984,10 @@ func support_contact_stamp(mode:String,light:Color,dark:Color)->Image:
 			var p:=Vector2(float(x)-15.5,float(y)-15.5)
 			var d:float=99.0
 			match mode:
+				"support_heart":
+					var lobes:float=minf(p.distance_to(Vector2(-4.5,-3.8)),p.distance_to(Vector2(4.5,-3.8)))-5.6
+					var tip:float=maxf(absf(p.x)*1.05+p.y-9.0,-p.y-4.0)
+					d=minf(lobes,tip)
 				"support_cross":
 					d=minf(maxf(absf(p.x)-2.4,absf(p.y)-9.5),maxf(absf(p.y)-2.4,absf(p.x)-9.5))
 				"support_ward":
@@ -7519,7 +7535,8 @@ const KICK_CONTACT_ART={
 	"eos_321":[1.08,.77,.64,.38,"heavy","kick_heel","#fff1d8","#986947","shock_ring"],
 	"eos_222":[.72,.84,.45,.27,"multi","kick_side","#ffedd4","#ac7549","impact_star"],
 	"eos_210":[.73,.90,.48,.34,"multi","kick_raised","#fff0d5","#b67a48","slash"],
-	"star_kick":[0.81,0.7,0.49,0.3,"sweep","kick_side","#fff1df","#ba87dc","impact_star"]
+	"star_kick":[0.81,0.7,0.49,0.3,"sweep","kick_side","#fff1df","#ba87dc","impact_star"],
+	"alt_comet_hare":[0.86,0.7,0.52,0.42,"sweep","kick_raised","#fff0e0","#a889bd","impact_star"]
 }
 
 func kick_contact_art(id:String)->Array:
@@ -7599,7 +7616,10 @@ const CLAW_CONTACT_ART={
 	"eos_346":[.80,.85,.39,"claw_blade","#defba4","#6e9342","leaf","multi"],
 	"eos_360":[1.16,.72,.50,"claw_crescent","#fff6d9","#b58e65","slash","wide"],
 	"eos_336":[0.98,0.72,0.46,"claw_crescent","#d8ffa9","#528936","leaf","sweep"],
-	"moon_claw":[0.95,0.74,0.4,"claw_crescent","#e8dfff","#624d91","smoke","dark"]
+	"moon_claw":[0.95,0.74,0.4,"claw_crescent","#e8dfff","#624d91","smoke","dark"],
+	"alt_bramble_pup":[0.67,0.58,0.32,"claw_scratch","#fff0d4","#9a8064","impact_star","quick"],
+	"eos_314":[0.78,0.59,0.36,"claw_blade","#fff5db","#a78b66","slash","quick"],
+	"lib_steel_1":[1.02,0.72,0.47,"claw_crescent","#eff8ff","#6d8399","shards","sweep"]
 }
 
 func claw_contact_art(id:String)->Array:
@@ -7720,7 +7740,17 @@ const SPECIAL_CONTACT_ART={"eos_123":["burst",0.95,"flame","smoke"],"eos_155":["
 	"eos_331":["drain",0.92,"spiral","smoke"],
 	"lib_ghost_2":["lash",0.88,"special_thread","smoke"],
 	"orbit_lash":["lash",0.85,"special_coil","spiral"],
-	"sonic_cone":["sound",0.86,"special_wave","smoke"]
+	"sonic_cone":["sound",0.86,"special_wave","smoke"],
+	"eos_007":["counter",0.85,"special_clamp","shock_ring"],
+	"eos_051":["counter",0.92,"support_ward","impact_star"],
+	"eos_061":["counter",1.12,"spiral","shock_ring"],
+	"eos_248":["clamp",0.89,"special_clamp","impact_star"],
+	"eos_254":["splash",0.68,"drop","cloud"],
+	"eos_268":["sound",0.93,"special_wave","cloud"],
+	"eos_340":["counter",1.03,"fist_front","impact_star"],
+	"eos_474":["coil",0.85,"special_coil","shock_ring"],
+	"eos_505":["clamp",1.18,"special_clamp","shock_ring"],
+	"eos_532":["counter",1.1,"crystal","shards"]
 }
 func special_contact_art(id:String)->Array:
 	return SPECIAL_CONTACT_ART.get(id,[])
@@ -7744,6 +7774,12 @@ func special_contact_fx(burst:Dictionary,t:float,used:int,light:Color,dark:Color
 	var side:Vector3=forward.cross(Vector3.UP)
 	var progress:float=clampf(t/peak,0.0,1.0)
 	var age:float=clampf((t-peak)/(1.0-peak),0.0,1.0)
+	if kind=="splash":
+		# Harmless action: show a hop trace, never a hit or damage flash.
+		var q:Vector3=source+Vector3.UP*(.1+sin(t*PI)*.40)
+		return environment_particle(used,q,mode,light,dark,.5*strength,sin(t*PI)*.8)
+	if kind=="counter" and t<peak:
+		return environment_particle(used,source,"support_ward",light,dark,strength,sin(progress*PI)*.8)
 	if kind=="burst":
 		# Self-centered explosion must occur even if no enemy is hit.
 		var center:Vector3=source if str(burst.id) in ["eos_123","eos_155"] else target
@@ -7845,7 +7881,22 @@ const PROJECTILE_CONTACT_ART={"lib_fire_1":["dart","ember","ember",0.52,0.1],"li
 	"eos_342":["beam","flame","ember",0.83,0.1],
 	"lib_dragon_2":["beam","flame","flame",0.9,0.1],
 	"lib_fairy_3":["beam","projectile_prism","impact_star",1.05,0.1],
-	"lib_psychic_1":["dart","projectile_needle","spiral",0.85,0.1]
+	"lib_psychic_1":["dart","projectile_needle","spiral",0.85,0.1],
+	"eos_168":["volley","projectile_stone","shards",0.56,0.1],
+	"eos_207":["triad","projectile_orb","impact_star",0.83,0.1],
+	"eos_228":["volley","projectile_coin","impact_star",0.59,0.1],
+	"eos_245":["orb","projectile_orb","shock_ring",0.92,0.1],
+	"eos_277":["lob","projectile_parcel","impact_star",0.78,0.85],
+	"eos_324":["orb","projectile_orb","spiral",0.78,0.1],
+	"eos_353":["beam","projectile_ray","slash",1.13,0.1],
+	"eos_442":["dart","projectile_crescent","slash",0.86,0.1],
+	"eos_457":["volley","projectile_card","impact_star",0.77,0.1],
+	"eos_475":["roll","projectile_orb","shards",0.94,0.1],
+	"eos_479":["pulse","special_wave","shock_ring",0.79,0.1],
+	"feather_fan":["volley","projectile_feather","slash",0.62,0.1],
+	"lib_flying_2":["volley","projectile_crescent","slash",0.89,0.1],
+	"lib_steel_2":["dart","projectile_needle","shards",0.82,0.1],
+	"lib_steel_3":["volley","crystal","shards",0.88,0.1]
 }
 func projectile_contact_art(id:String)->Array:
 	return PROJECTILE_CONTACT_ART.get(id,[])
@@ -7869,7 +7920,7 @@ func projectile_contact_fx(burst:Dictionary,t:float,used:int,light:Color,dark:Co
 		match kind:
 			"beam":count=6
 			"volley":count=3 if str(burst.id)=="eos_145" else 2 if str(burst.id)=="eos_164" else 4
-			"pulse":count=3
+			"pulse","triad":count=3
 			"meteor":count=4
 		for i in range(count):
 			var p:float=clampf(progress-float(i)*.13,0.0,1.0)
@@ -7883,7 +7934,13 @@ func projectile_contact_fx(burst:Dictionary,t:float,used:int,light:Color,dark:Co
 			var scale_value:float=size*(.74+.26*p)
 			if kind=="beam":scale_value=size*(.65+.35*progress)
 			if kind=="pulse":scale_value=size*(.65+.70*p)
-			used=environment_particle(used,q,mode,light,dark,scale_value,minf(1.0,progress*8.0))
+			var shot_light:Color=light
+			var shot_dark:Color=dark
+			if kind=="triad":
+				var colors:Array=[Color("#ffad63"),Color("#e3f58d"),Color("#9eeaff")]
+				shot_light=colors[i];shot_dark=shot_light.darkened(.48)
+				q+=Vector3.UP*(.17*float(i-1))
+			used=environment_particle(used,q,mode,shot_light,shot_dark,scale_value,minf(1.0,progress*8.0))
 			if i==0 and kind in ["lob","orb","meteor"]:
 				used=environment_particle(used,q+Vector3.UP*.12,accent,light,dark,scale_value*.52,.60)
 		return used
@@ -7954,7 +8011,10 @@ const TERRAIN_CONTACT_ART={"lib_ground_1":["quake","shards",1.1],"lib_rock_3":["
 	"lib_fairy_2":["vortex","impact_star",0.85],
 	"lib_ghost_3":["vortex","smoke",1],
 	"lib_psychic_3":["rise","projectile_prism",1.3],
-	"lunar_dust":["wind","impact_star",0.74]
+	"lunar_dust":["wind","impact_star",0.74],
+	"alt_nebulwing":["wind","impact_star",0.82],
+	"eos_029":["rise","shards",0.77],
+	"lib_flying_3":["vortex","cloud",0.94]
 }
 const TERRAIN_TILE_CAP:int=6
 
@@ -8062,7 +8122,33 @@ const SUPPORT_CONTACT_ART={"eos_117":"heal","eos_218":"heal","eos_006":"heal","e
 	"eos_334":"link",
 	"eos_503":"phase",
 	"eos_514":"transform",
-	"eos_528":"reveal"
+	"eos_528":"reveal",
+	"eos_024":"confuse",
+	"eos_037":"smoke",
+	"eos_040":"copy",
+	"eos_054":"reveal",
+	"eos_098":"reveal",
+	"eos_102":"link",
+	"eos_115":"copy",
+	"eos_119":"omen",
+	"eos_138":"copy",
+	"eos_185":"boost",
+	"eos_227":"sleep",
+	"eos_229":"copy",
+	"eos_237":"nightmare",
+	"eos_252":"link",
+	"eos_256":"omen",
+	"eos_263":"omen",
+	"eos_315":"reveal",
+	"eos_326":"heart",
+	"eos_327":"copy",
+	"eos_330":"omen",
+	"eos_337":"regen",
+	"eos_349":"reveal",
+	"eos_447":"shield",
+	"eos_465":"copy",
+	"eos_471":"omen",
+	"eos_525":"copy"
 }
 const SUPPORT_VISUALS={
 	"heal":["support_cross","impact_star","#c4ffe0","#329c72"],
@@ -8082,7 +8168,10 @@ const SUPPORT_VISUALS={
 	"phase":["support_change","impact_star","#e6ddff","#8b73c9"],
 	"nightmare":["support_moon","smoke","#d7a9ed","#513469"],
 	"omen":["support_seal","spiral","#f3c5ff","#9b4dc5"],
-	"reveal":["projectile_eye","impact_star","#ffe4a9","#9b74c6"]}
+	"reveal":["projectile_eye","impact_star","#ffe4a9","#9b74c6"],
+	"smoke":["cloud","smoke","#c2bdc8","#61576b"],
+	"copy":["projectile_card","spiral","#e4dbff","#8478c6"],
+	"heart":["support_heart","bubble","#ffb8df","#d268a5"]}
 
 func support_contact_kind(id:String)->String:
 	return str(SUPPORT_CONTACT_ART.get(id,""))
@@ -8108,7 +8197,8 @@ func support_contact_fx(burst:Dictionary,t:float,used:int)->int:
 		var row:Dictionary=results[tile]
 		var changed:bool=int(row.get("effects",0))>0
 		var healed:bool=int(row.get("heal",0))>0
-		if (healed if kind=="heal" else changed or healed):confirmed.append(tile)
+		var damage_effect:bool=str(burst.id) in ["eos_263","eos_471"] and int(row.get("damage",0))>0
+		if (healed if kind=="heal" else changed or healed or damage_effect):confirmed.append(tile)
 	var primary:=Vector2i(roundi(target.x/1.4),roundi(target.z/1.4))
 	confirmed.sort_custom(func(a:Vector2i,b:Vector2i)->bool:
 		var da:int=(a-primary).length_squared()
@@ -8146,7 +8236,23 @@ const MOTION_CONTACT_ART={"eos_100":["wing","dive",1.12,"slash"],"eos_153":["win
 	"eos_249":["palm","down",0.95,"impact_star"],
 	"eos_445":["chop","down",1.08,"smoke"],
 	"eos_472":["crest","rush",1,"shock_ring"],
-	"eos_488":["palm","jab",0.88,"smoke"]
+	"eos_488":["palm","jab",0.88,"smoke"],
+	"basic_strike":["palm","jab",0.54,"impact_star"],
+	"eos_048":["crest","rush",0.92,"impact_star"],
+	"eos_050":["palm","toss",1.13,"shock_ring"],
+	"eos_066":["palm","jab",0.88,"shock_ring"],
+	"eos_067":["crest","rush",0.89,"impact_star"],
+	"eos_077":["palm","rush",1.02,"shock_ring"],
+	"eos_078":["palm","sweep",0.74,"impact_star"],
+	"eos_096":["crest","sweep",0.78,"spiral"],
+	"eos_247":["pincer","down",1.22,"impact_star"],
+	"eos_287":["palm","sweep",0.72,"impact_star"],
+	"eos_328":["crest","rush",1.07,"shock_ring"],
+	"eos_352":["palm","multi",0.75,"impact_star"],
+	"eos_497":["crest","rush",1.26,"shock_ring"],
+	"eos_516":["palm","jab",0.65,"slash"],
+	"eos_541":["crest","bounce",0.95,"shards"],
+	"fin_slice":["wing","sweep",0.77,"slash"]
 }
 
 func motion_contact_art(id:String)->Array:
