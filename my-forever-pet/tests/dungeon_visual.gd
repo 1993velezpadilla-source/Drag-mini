@@ -678,6 +678,43 @@ func run():
 		assert(root.get_texture().get_image().save_png("/tmp/dungeon-real-ponoko-"+str(names[i])+"-hurt.png")==OK)
 		preview.attack_time=0.0;preview.hit_time=0.0;preview.run.player=anchor;preview.pet.position=preview.pos(anchor);preview.sync()
 	print("PONOKO_DUNGEON_DIAGONAL_PASS 16")
+	# Actual world-space travel, not a fractional-tile body offset. Eight headings,
+	# four named travel families, plus two-tile routes and stationary projectiles.
+	var checked:int=0
+	for id in ["eos_153","eos_205","eos_008","eos_190"]:
+		for direction in preview.run.DIR8:
+			var target:Vector2i=anchor+direction*(2 if id=="eos_190" else 1)
+			var route:Array=[anchor+direction,target] if id=="eos_190" else [target]
+			preview.run.player=anchor;preview.pet.position=preview.pos(anchor);preview.facing=direction
+			preview.begin_player_cast_pose({"fx":id,"from":anchor,"to":target,"path":route,"tiles":[target]})
+			assert(preview.tile_cast_active())
+			var points:Array=preview.player_tile_cast.points
+			var peak:float=preview.player_cast_impact
+			var impact:Dictionary=preview.tile_cast_sample(points,str(preview.player_tile_cast.kind),peak,peak)
+			assert(Vector3(impact.position).distance_to(preview.pos(target))<.001,"caster reaches actual enemy tile")
+			var returning:Dictionary=preview.tile_cast_sample(points,str(preview.player_tile_cast.kind),peak+(1.0-peak)*.5,peak)
+			var back:Vector3=returning.motion
+			assert(Vector2(back.x,back.z).dot(Vector2(direction))<0.0,"return sprite faces original tile")
+			preview.attack_time=preview.player_cast_duration*(1.0-peak)
+			preview._process(0.0)
+			assert(preview.pet_pose.global_position.distance_to(preview.pos(target))<.01,"real rendered actor at target tile")
+			if direction==Vector2i(1,1):
+				await frames()
+				assert(root.get_texture().get_image().save_png("/tmp/dungeon-real-ponoko-travel-"+id+"-impact.png")==OK)
+			preview.attack_time=preview.player_cast_duration*(1.0-peak)*.5
+			preview._process(0.0)
+			assert(sprite.get_meta("facing")==art.direction8_for(-Vector2(direction)))
+			if direction==Vector2i(1,1):
+				await frames()
+				assert(root.get_texture().get_image().save_png("/tmp/dungeon-real-ponoko-travel-"+id+"-return.png")==OK)
+			preview.advance_player_combat_clock(preview.player_cast_duration)
+			preview._process(0.0)
+			assert(preview.run.player==anchor and preview.pet_pose.global_position.distance_to(preview.pos(anchor))<.01)
+			assert(preview.facing==-direction and preview.player_tile_cast.is_empty())
+			checked+=1
+	preview.begin_player_cast_pose({"fx":"eos_064","from":anchor,"to":anchor+Vector2i.RIGHT,"path":[anchor+Vector2i.RIGHT]})
+	assert(not preview.tile_cast_active(),"Thunder stays at origin")
+	print("PONOKO_TILE_TRAVEL_PASS ",checked)
 	preview.queue_free();await process_frame
 	# Test the lab on a separate expedition; the normal completion tests above remain unchanged.
 	var lab=Field.new();root.add_child(lab)

@@ -111,6 +111,10 @@ var player_cast_duration:float=.28
 var player_cast_mode:String="contact"
 var player_cast_motion:String="contact"
 var player_cast_impact:float=.48
+var player_tile_cast:Dictionary={}
+# Full tile movement is reserved for body-travel attacks, not ranged projectiles.
+const TILE_CAST_AIR=["eos_100","eos_153","eos_205","eos_204","eos_206","eos_235","eos_158","eos_541","eos_518"]
+const TILE_CAST_GROUND=["eos_052","eos_132","eos_139","eos_140","eos_154","eos_190","eos_203","eos_300","eos_348","eos_354","eos_432","eos_451","eos_455","eos_498","eos_502","eos_510","eos_517","eos_533","eos_002","eos_105"]
 var player_impact_delay:float=0.0
 var fx_reactions:Array[Dictionary]=[]
 var fx_ground_shake:float=0.0
@@ -461,6 +465,8 @@ func lab_preview(id:String)->void:
 
 func lab_cast(id:String)->void:
 	if not run.dev_sandbox or not dev_catalog.has(id):return
+	# Starting another explicit FX preview is allowed; real casts finish their return first.
+	if tile_cast_active() and not dev_fx_only.button_pressed:dev_result.text="Returning to origin · wait for landing";return
 	path.clear();dev_selected=id;dev_detail.text=lab_move_info(id)
 	dev_selected_label.text=str(dev_catalog[id].name)+" · "+str(dev_catalog[id].category).capitalize()+" · "+str(dev_catalog[id].type).capitalize()
 	if dev_fx_only.button_pressed:
@@ -1866,6 +1872,7 @@ func build_floor():
 	pet_pose=model(pet,companion_id);pet_pose.scale*=1.28
 	disguise_actor=null;disguise_species=""
 	visual_charge_phase="";release_charge_phase=""
+	player_tile_cast.clear()
 	attack_time=0.0;hit_time=0.0;player_impact_delay=0.0
 	# Sprite orientation is driven by actual movement, not the GLB basis.
 	pet_pose.rotation.y=0.0
@@ -5209,12 +5216,76 @@ func player_cast_sample(id:String,source:Vector2i,target:Vector2i,age:float=0.0)
 	if direction.length_squared()<.0001:direction=Vector3(facing.x,0,facing.y).normalized()
 	return {"duration":duration,"remaining":maxf(0.0,duration-age),"impact":float(profile.impact),"impact_delay":maxf(0.0,duration*float(profile.impact)-age),"role":str(profile.role),"motion":cast_motion_kind(id,profile),"direction":direction}
 
+func tile_cast_kind(id:String)->String:
+	if id=="eos_008":return "burrow"
+	if id=="eos_477":return "vanish"
+	if id=="eos_156":return "dive"
+	if id in TILE_CAST_AIR:return "air"
+	if id in TILE_CAST_GROUND:return "ground"
+	return ""
+
+func tile_cast_route(event:Dictionary)->Array:
+	var source:Vector2i=event.from
+	var target:Vector2i=event.to
+	var points:Array=[pos(source)]
+	for cell in event.get("path",[]):
+		if cell is Vector2i and pos(cell)!=points[-1]:points.append(pos(cell))
+		if cell==target:break
+	if points[-1]!=pos(target):points.append(pos(target))
+	return points
+
+# Full path from origin to target at the same impact clock as the FX, then
+# reverse the path. Travel is visual: it never picks up loot or consumes turns.
+func tile_cast_sample(points:Array,kind:String,progress:float,impact:float)->Dictionary:
+	var p:float=clampf(progress,0.0,1.0)
+	var peak:float=clampf(impact,.12,.88)
+	var returning:bool=p>peak
+	var u:float=clampf(p/peak if not returning else (1.0-p)/(1.0-peak),0.0,1.0)
+	var location:Vector3=combat_path_sample(points,u)
+	var lo:Vector3=combat_path_sample(points,maxf(0.0,u-.015))
+	var hi:Vector3=combat_path_sample(points,minf(1.0,u+.015))
+	var motion:Vector3=(hi-lo).normalized()
+	if returning:motion=-motion
+	var arc:float=sin(PI*u)
+	var height:float=0.0
+	var visible:bool=true
+	match kind:
+		"air":
+			height=1.25*arc
+			if not returning and release_charge_phase=="airborne":height+=.95*(1.0-u)
+		"burrow","dive":
+			# Travel below ground, surface on the target, hop back visibly.
+			visible=returning or u>=.76
+			height=.45*arc if returning else -.38*(1.0-u)
+		"vanish":
+			visible=returning or u>=.76
+			height=.35*arc if returning else 0.0
+		_:height=.12*arc
+	return {"position":location+Vector3.UP*height,"motion":motion,"visible":visible,"returning":returning}
+
+func tile_cast_active()->bool:
+	return attack_time>0.0 and not player_tile_cast.is_empty()
+
+func finish_tile_cast()->void:
+	if player_tile_cast.is_empty():return
+	var points:Array=player_tile_cast.points
+	if points.size()>1:
+		var direction:Vector3=points[0]-points[1]
+		facing=Rules.aim8(Vector2(direction.x,direction.z))
+		lab_update_aim()
+		if is_instance_valid(aim_button):aim_button.text="Aim "+["↑","↗","→","↘","↓","↙","←","↖"][maxi(0,Rules.DIR8.find(facing))]
+	player_tile_cast.clear()
+
 func begin_player_cast_pose(event:Dictionary,age:float=0.0)->void:
 	var sample:=player_cast_sample(str(event.fx),event.from,event.to,age)
 	player_cast_duration=float(sample.duration);player_cast_mode=str(sample.role)
 	attack_time=float(sample.remaining);player_cast_motion=str(sample.motion)
 	player_cast_impact=float(sample.impact);player_impact_delay=float(sample.impact_delay)
 	attack_direction=sample.direction
+	player_tile_cast.clear()
+	var tile_kind:String=tile_cast_kind(str(event.fx))
+	if not tile_kind.is_empty() and event.from!=event.to:
+		player_tile_cast={"kind":tile_kind,"points":tile_cast_route(event)}
 	if is_instance_valid(attack_fx):
 		attack_fx.position=pos(event.to)+Vector3(0,.24,0)
 		attack_fx.visible=player_impact_delay<=0.0 and attack_time>0.0
@@ -6055,7 +6126,7 @@ func bind_attack_gesture(b:Button,move:Dictionary,action:Callable,is_dev:bool=fa
 		if not hold_active and not hold_release_pending and not notified and not run.finished:action.call())
 	# Godot emulates mouse from touch on Android. Capture the release globally so a drag may leave the button.
 	b.gui_input.connect(func(event:InputEvent):
-		if event is InputEventMouseButton and event.button_index==MOUSE_BUTTON_LEFT and event.pressed and not b.disabled and not hold_active and not hold_release_pending:
+		if event is InputEventMouseButton and event.button_index==MOUSE_BUTTON_LEFT and event.pressed and not b.disabled and not hold_active and not hold_release_pending and not tile_cast_active():
 			hold_active=true;hold_visible=false;hold_age=0.0;hold_origin=b.get_global_transform_with_canvas()*event.position;hold_move=move;hold_action=action;hold_is_dev=is_dev;path.clear())
 
 func held_attack_description(m:Dictionary)->String:
@@ -6093,7 +6164,7 @@ func _input(event:InputEvent)->void:
 func finish_attack_release(action:Callable)->void:
 	if not hold_release_pending:return
 	hold_release_pending=false
-	if action.is_valid() and not notified and not run.finished:action.call()
+	if action.is_valid() and not notified and not run.finished and not tile_cast_active():action.call()
 
 func draw_aim_preview()->void:
 	if not hold_active or not hold_visible or not is_instance_valid(camera) or viewport.size.x<=0 or viewport.size.y<=0:return
@@ -6115,7 +6186,7 @@ func rotate_combat_aim()->void:
 	lab_update_aim()
 	update_hud()
 func touch(event:InputEvent):
-	if notified or run.finished:return
+	if notified or run.finished or tile_cast_active():return
 	if map_expanded and (event is InputEventScreenTouch or event is InputEventMouseButton):
 		if Rect2(map.position,map.size).has_point(event.position):return
 	if event is InputEventScreenTouch and event.index!=0:return
@@ -6165,7 +6236,7 @@ func sync():
 		visual_charge_phase=next_charge
 		if not next_charge.is_empty():
 			# Cancel any older visible swing when a fresh charge starts.
-			attack_time=0.0;player_impact_delay=0.0
+			attack_time=0.0;player_impact_delay=0.0;player_tile_cast.clear()
 	if run.attack_serial!=previous_attack:
 		previous_attack=run.attack_serial
 		var event:Dictionary={"fx":run.player_attack_fx,"from":run.player,"to":run.attack_target,"tiles":run.player_attack_cells,"path":run.player_attack_path}
@@ -6263,6 +6334,7 @@ func update_disguise(dt:float,motion:Vector2,moving:bool,pose:String)->void:
 
 func advance_player_combat_clock(dt:float)->void:
 	attack_time=maxf(0.0,attack_time-dt)
+	if attack_time<=0.0 and not player_tile_cast.is_empty():finish_tile_cast()
 	hit_time=maxf(0.0,hit_time-dt)
 	player_impact_delay=maxf(0.0,player_impact_delay-dt)
 
@@ -6307,7 +6379,7 @@ func _process(dt:float):
 			update_enemy_pixel(n,dt,delta_position)
 		elif n.has_meta("float_item"):
 			n.position.y=.12+.07*sin(elapsed*4.0+n.position.x);n.rotation.y=elapsed*1.8
-	if tick<=0 and not path.is_empty() and not run.finished:
+	if tick<=0 and not path.is_empty() and not run.finished and not tile_cast_active():
 		var next:Vector2i=path.pop_front()
 		facing=next-run.player
 		var before=run.player
@@ -6352,7 +6424,15 @@ func _process(dt:float):
 		pet_pose.rotation.z+=sin(hit_time*45.0)*.10
 		pet_pose.position+=pet.basis.inverse()*player_hit_direction*.14*sin(PI*clampf(hit_time/.24,0.0,1.0))
 	if attack_time>0.0:motion=Vector2(attack_direction.x,attack_direction.z)
+	if tile_cast_active():
+		var travel_pose:=tile_cast_sample(player_tile_cast.points,str(player_tile_cast.kind),charge_progress,player_cast_impact)
+		pet_pose.position=pet.basis.inverse()*(Vector3(travel_pose.position)-pet.position)
+		pet_pose.visible=bool(travel_pose.visible)
+		var heading:Vector3=travel_pose.motion
+		motion=Vector2(heading.x,heading.z)
+		moving=bool(travel_pose.returning)
 	var pose:String="hurt" if hit_time>0.0 else "attack" if attack_time>0.0 else "reward" if reward_age>0.0 and not moving else "idle"
+	if tile_cast_active() and charge_progress>player_cast_impact+.08:pose="walk"
 	pet_pose.set_meta("pet_mood",PixelArt.dungeon_mood(run.hp,run.max_hp,run.poison_turns>0,reward_age>0.0))
 	pet_pose.set_meta("dungeon_grounded_gait",true)
 	pet_pose.set_meta("dungeon_cast_motion",player_cast_motion)
