@@ -2937,6 +2937,32 @@ func projectile_contact_stamp(mode:String,light:Color,dark:Color)->Image:
 			im.set_pixel(x,y,ink)
 	return im
 
+# Original status symbols: crosses, ward facets, arrows and crescent sleep.
+func support_contact_stamp(mode:String,light:Color,dark:Color)->Image:
+	var im:=Image.create(32,32,false,Image.FORMAT_RGBA8)
+	im.fill(Color.TRANSPARENT)
+	for y in range(32):
+		for x in range(32):
+			var p:=Vector2(float(x)-15.5,float(y)-15.5)
+			var d:float=99.0
+			match mode:
+				"support_cross":
+					d=minf(maxf(absf(p.x)-2.4,absf(p.y)-9.5),maxf(absf(p.y)-2.4,absf(p.x)-9.5))
+				"support_ward":
+					var shape:float=maxf(absf(p.x)*.95+maxf(0.0,p.y)*.45,absf(p.y)*.88)
+					d=absf(shape-10.0)-1.5
+				"support_up","support_down":
+					if mode=="support_down":p.y=-p.y
+					d=minf(maxf(absf(p.x)-1.6,absf(p.y)-9.5),maxf(absf(p.y+7.0-absf(p.x))-.9,absf(p.x)-7.0))
+				"support_moon":
+					d=maxf(p.length()-10.0,8.5-p.distance_to(Vector2(5,-4)))
+				"support_seal":
+					d=minf(absf(p.length()-10.0)-1.3,absf(p.y-p.x)-1.1 if p.length()<9.0 else 99.0)
+				"support_change":
+					d=minf(absf(p.length()-10.0)-1.25,absf(absf(p.x)+absf(p.y)-7.0)-1.2)
+			if d<=0.0:im.set_pixel(x,y,light if d<-.8 else dark)
+	return im
+
 func combat_pixel_texture(mode:String,light:Color,dark:Color)->ImageTexture:
 	var key:=mode+":"+str(light)+":"+str(dark)
 	if combat_textures.has(key):return combat_textures[key]
@@ -2944,6 +2970,11 @@ func combat_pixel_texture(mode:String,light:Color,dark:Color)->ImageTexture:
 	# of resident material variants even in an endless developer dungeon.
 	if combat_texture_order.size()>=FX_MATERIAL_CACHE_CAP:
 		combat_textures.erase(combat_texture_order.pop_front())
+	if mode.begins_with("support_"):
+		var support_stamp:=ImageTexture.create_from_image(support_contact_stamp(mode,light,dark))
+		combat_textures[key]=support_stamp
+		combat_texture_order.append(key)
+		return support_stamp
 	if mode.begins_with("projectile_"):
 		var shot_stamp:=ImageTexture.create_from_image(projectile_contact_stamp(mode,light,dark))
 		combat_textures[key]=shot_stamp
@@ -6982,7 +7013,7 @@ func environment_particle(index:int,position:Vector3,mode:String,light:Color,dar
 	particle.rotation=Vector3(-PI*.5,0,0) if flat else Vector3.ZERO
 	particle.position=position
 	particle.texture=combat_pixel_texture(mode,light,dark)
-	particle.pixel_size=.016 if mode.begins_with("kick_") or mode.begins_with("claw_") or mode.begins_with("body_") or mode.begins_with("special_") or mode.begins_with("projectile_") else .032
+	particle.pixel_size=.016 if mode.begins_with("kick_") or mode.begins_with("claw_") or mode.begins_with("body_") or mode.begins_with("special_") or mode.begins_with("projectile_") or mode.begins_with("support_") else .032
 	particle.scale=Vector3.ONE*scale_value
 	particle.modulate=Color(1,1,1,clampf(alpha,0.0,1.0))
 	particle.show()
@@ -7038,6 +7069,7 @@ func living_enemy_statuses(e:Dictionary)->Array:
 
 func living_player_statuses()->Array:
 	var result:Array=[]
+	if run.shield_turns>0 and not run.shield_kind.is_empty():result.append("ward_"+run.shield_kind)
 	if run.boon_active("nap") or run.boon_active("hostile_sleep"):result.append("sleep")
 	if run.poison_turns>0:result.append("poison")
 	if run.self_confusion_turns>0:result.append("confusion")
@@ -7076,6 +7108,12 @@ func living_sleep_glyphs(actor:Node3D,sleeping:bool,height:float)->void:
 		glyph.modulate=Color(.68,.86,1.0,sin(t*PI))
 
 func living_status_palette(kind:String)->Array:
+	if kind.begins_with("ward_"):
+		match kind:
+			"ward_reflect":return ["support_ward","#d7f6ff","#488fbe",3]
+			"ward_screen":return ["support_ward","#f5d5ff","#9961bf",3]
+			"ward_safeguard":return ["support_ward","#d4ffe1","#4ca47b",3]
+			_:return ["support_ward","#fff2bb","#b69c50",3]
 	match kind:
 		"poison","badly_poisoned","toxic","bad_poison":return ["bubble","#c59bf7","#6838a9",8]
 		"burn":return ["flame","#ffd489","#bd492d",7]
@@ -7136,6 +7174,8 @@ func living_actor_particles(actor:Node3D,statuses:Array,used:int,height:float)->
 				"burn":
 					y=.08+f*height*.95
 					radius=.24+.13*sin(f*PI)
+			if kind.begins_with("ward_"):
+				radius=.48;y=height*.45;size=.56
 			var q:=origin+Vector3(cos(angle)*radius,y,sin(angle)*radius)
 			var texture_mode:String=str(style[0])
 			if kind in ["poison","toxic","bad_poison","badly_poisoned"]:texture_mode="venom_splash" if flat else "drop" if i%2==0 else "bubble"
@@ -7779,6 +7819,70 @@ func terrain_contact_fx(burst:Dictionary,t:float,used:int,light:Color,dark:Color
 		used=environment_particle(used,q,mode,light,dark,size,opacity,flat)
 	return used
 
+# Cast-time status art is outcome driven; the persistent layer reads live rules.
+const SUPPORT_CONTACT_ART={"eos_117":"heal","eos_218":"heal","eos_006":"heal","eos_094":"heal","eos_173":"heal","eos_449":"heal","eos_165":"heal","eos_318":"heal","eos_509":"heal","eos_236":"heal","eos_439":"heal","eos_526":"heal","eos_015":"cleanse","eos_026":"cleanse","eos_339":"cleanse","eos_456":"cleanse","eos_088":"cleanse","eos_301":"shield","eos_305":"shield","eos_104":"shield","eos_338":"shield","eos_259":"shield","eos_134":"shield","eos_130":"shield","eos_258":"shield","eos_186":"shield","eos_058":"shield","eos_070":"shield","eos_202":"shield","eos_520":"shield","eos_302":"shield","eos_298":"shield","eos_003":"sleep","eos_004":"sleep","eos_034":"sleep","eos_079":"sleep","eos_111":"sleep","eos_231":"sleep","eos_483":"sleep","eos_084":"sleep","eos_232":"sleep","eos_013":"confuse","eos_171":"confuse","eos_191":"confuse","eos_274":"confuse","eos_196":"poison","eos_197":"poison","eos_199":"poison","eos_124":"paralysis","eos_192":"paralysis","eos_281":"paralysis","eos_047":"burn","eos_183":"transform","eos_184":"transform","eos_286":"transform","eos_282":"transform","eos_304":"transform","eos_169":"transform","eos_148":"transform","eos_056":"transform","eos_055":"boost","eos_099":"boost","eos_181":"boost","eos_195":"boost","eos_215":"boost","eos_265":"boost","eos_288":"boost","eos_319":"boost","eos_333":"boost","eos_542":"boost","eos_095":"boost","eos_343":"boost","eos_444":"boost","eos_540":"boost","eos_074":"boost","eos_492":"boost","eos_257":"boost","eos_128":"boost","eos_160":"boost","eos_019":"boost","eos_010":"weaken","eos_011":"weaken","eos_027":"weaken","eos_033":"weaken","eos_083":"weaken","eos_085":"weaken","eos_122":"weaken","eos_142":"weaken","eos_146":"weaken","eos_217":"weaken","eos_224":"weaken","eos_273":"weaken","eos_106":"weaken","eos_351":"weaken","eos_267":"weaken","eos_534":"weaken","eos_266":"seal","eos_450":"seal","eos_059":"seal","eos_017":"seal","eos_022":"seal","eos_172":"seal","eos_466":"seal","eos_089":"seal","eos_194":"seal","eos_225":"regen","eos_434":"regen","eos_233":"regen","eos_021":"link","eos_313":"link","eos_464":"link","eos_448":"link","eos_506":"link","eos_513":"link","eos_137":"link","eos_209":"link","eos_482":"link","eos_187":"phase","eos_478":"phase","eos_493":"phase","eos_499":"phase"}
+const SUPPORT_VISUALS={
+	"heal":["support_cross","impact_star","#c4ffe0","#329c72"],
+	"cleanse":["support_cross","leaf","#e6fff4","#6cc7a6"],
+	"shield":["support_ward","crystal","#e5f7ff","#658fc7"],
+	"sleep":["support_moon","cloud","#d5e4ff","#7775c4"],
+	"confuse":["spiral","impact_star","#fff1a2","#a66cc8"],
+	"poison":["venom_splash","bubble","#d9a6ff","#7839aa"],
+	"paralysis":["lightning","impact_star","#fff2a3","#c79527"],
+	"burn":["flame","ember","#ffd68b","#e05a26"],
+	"transform":["support_change","spiral","#e7d5ff","#9064bd"],
+	"boost":["support_up","impact_star","#ffe7a6","#c08d38"],
+	"weaken":["support_down","cloud","#c3c8f4","#776eaa"],
+	"seal":["support_seal","web","#dbb9ff","#79559f"],
+	"regen":["support_cross","bubble","#c0ffea","#45b6a1"],
+	"link":["support_change","spiral","#f8caff","#ac66bf"],
+	"phase":["support_change","impact_star","#e6ddff","#8b73c9"]}
+
+func support_contact_kind(id:String)->String:
+	return str(SUPPORT_CONTACT_ART.get(id,""))
+
+func support_contact_fx(burst:Dictionary,t:float,used:int)->int:
+	var kind:String=support_contact_kind(str(burst.id))
+	var points:Array=burst.points
+	if kind.is_empty() or points.is_empty() or t<0.0 or t>=1.0:return used
+	var art:Array=SUPPORT_VISUALS[kind]
+	var light:=Color(str(art[2]));var dark:=Color(str(art[3]))
+	var peak:float=clampf(float(burst.profile.impact),.01,.99)
+	var source:Vector3=points[0]
+	var target:Vector3=points[-1]
+	var progress:float=clampf(t/peak,0.0,1.0)
+	if t<peak:
+		var q:Vector3=combat_path_sample(points,progress)
+		return environment_particle(used,q,str(art[1]),light,dark,.40+.18*progress,sin(progress*PI)*.7)
+	var age:float=clampf((t-peak)/(1.0-peak),0.0,1.0)
+	var results:Dictionary=burst.get("results",{})
+	var confirmed:Array[Vector2i]=[]
+	for tile in results:
+		if not tile is Vector2i:continue
+		var row:Dictionary=results[tile]
+		var changed:bool=int(row.get("effects",0))>0
+		var healed:bool=int(row.get("heal",0))>0
+		if (healed if kind=="heal" else changed or healed):confirmed.append(tile)
+	var primary:=Vector2i(roundi(target.x/1.4),roundi(target.z/1.4))
+	confirmed.sort_custom(func(a:Vector2i,b:Vector2i)->bool:
+		var da:int=(a-primary).length_squared()
+		var db:int=(b-primary).length_squared()
+		if da!=db:return da<db
+		if a.x!=b.x:return a.x<b.x
+		return a.y<b.y)
+	for i in range(mini(4,confirmed.size())):
+		var q:Vector3=pos(confirmed[i])+Vector3.UP*.65
+		var motion:float=age*.42
+		if kind=="weaken":motion=-motion
+		if kind in ["heal","regen","boost","weaken","sleep"]:q.y+=motion
+		var size:float=.76+.24*sin(age*PI)
+		used=environment_particle(used,q,str(art[0]),light,dark,size,1.0-age)
+		for j in range(2):
+			var angle:float=age*TAU+float(j)*PI
+			var accent:Vector3=q+Vector3(cos(angle)*.28,.16,sin(angle)*.28)
+			used=environment_particle(used,accent,str(art[1]),light,dark,.34,(1.0-age)*.8)
+	return used
+
 func element_finish_fx(burst:Dictionary,t:float,used:int)->int:
 	var id:String=str(burst.id)
 	var profile:Dictionary=burst.profile
@@ -7794,6 +7898,7 @@ func element_finish_fx(burst:Dictionary,t:float,used:int)->int:
 	used=special_contact_fx(burst,t,used,light,dark)
 	used=projectile_contact_fx(burst,t,used,light,dark)
 	used=terrain_contact_fx(burst,t,used,light,dark)
+	used=support_contact_fx(burst,t,used)
 	if t<peak*.48:
 		var startup:float=clampf(t/(peak*.48),0.0,1.0)
 		for j in range(3):
