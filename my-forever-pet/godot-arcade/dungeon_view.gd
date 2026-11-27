@@ -39,6 +39,8 @@ var mats:Dictionary={}
 var active_floor=0
 var facing=Vector2i.DOWN
 var actor_nodes:Dictionary={}
+var enemy_event_turn:int=-1
+var enemy_event_floor:int=-1
 var feedback:Label
 var feedback_time=0.0
 var previous_event=0
@@ -1536,6 +1538,85 @@ func actor_for(key:String,at:Vector3)->Node3D:
 	if actor_nodes.has(key):return actor_nodes[key]
 	var n=Node3D.new();actors.add_child(n);n.position=at;actor_nodes[key]=n;actor_created+=1
 	return n
+# Preview species use the same nearest-filtered 2.5D billboards as Mosky.
+# Missing/unapproved species keep their legacy construct until replacement art exists.
+func attach_enemy_pixel(actor:Node3D,species:String)->bool:
+	var tex:=PixelArt.enemy_pixel_texture(species,0,"idle",0)
+	if tex==null:return false
+	var sprite:=Sprite3D.new()
+	sprite.name="EnemyPixel"
+	sprite.texture=tex
+	sprite.texture_filter=BaseMaterial3D.TEXTURE_FILTER_NEAREST
+	sprite.alpha_cut=SpriteBase3D.ALPHA_CUT_DISCARD
+	sprite.billboard=BaseMaterial3D.BILLBOARD_ENABLED
+	sprite.shaded=false
+	sprite.cast_shadow=GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	sprite.pixel_size=1.25/48.0
+	sprite.position.y=.625
+	actor.add_child(sprite)
+	actor.set_meta("species",species)
+	actor.set_meta("enemy_facing",0)
+	actor.set_meta("enemy_phase","idle")
+	actor.set_meta("enemy_clock",0.0)
+	actor.set_meta("enemy_duration",0.0)
+	# In standalone terrain tests the shader file may not be copied.
+	var shader_path:="res://volnox_pixel_life.gdshader"
+	if ResourceLoader.exists(shader_path):
+		var material:=ShaderMaterial.new()
+		material.shader=load(shader_path) as Shader
+		material.set_shader_parameter("sprite_tex",tex)
+		material.set_shader_parameter("biome_tint",[Color("#d5e6b5"),Color("#9be3e8"),Color("#c3c5ff")][region])
+		material.set_shader_parameter("pulse_offset",float(actor.get_instance_id()%17)*.3)
+		sprite.material_override=material
+	return true
+func enemy_pose(actor:Node3D,state:String,seconds:float,direction:Vector2=Vector2.ZERO)->void:
+	if not actor.has_meta("species"):return
+	actor.set_meta("enemy_phase",state)
+	actor.set_meta("enemy_clock",0.0)
+	actor.set_meta("enemy_duration",seconds)
+	actor.set_meta("enemy_facing",PixelArt.direction_for(direction,int(actor.get_meta("enemy_facing",0))))
+func update_enemy_pixel(actor:Node3D,dt:float,motion:Vector3)->void:
+	var sprite:=actor.get_node_or_null("EnemyPixel") as Sprite3D
+	if sprite==null:return
+	var state:String=actor.get_meta("enemy_phase","idle")
+	var clock:float=float(actor.get_meta("enemy_clock",0.0))+dt
+	var duration:float=float(actor.get_meta("enemy_duration",0.0))
+	if state=="defeat" and clock>=duration:
+		actor.hide();actor.queue_free();return
+	if state in ["attack","hurt","windup"] and clock>=duration:
+		state="recover" if state=="attack" else "idle"
+		duration=.12 if state=="recover" else 0.0
+		clock=0.0
+	elif state=="recover" and clock>=duration:
+		state="idle";clock=0.0
+	if state in ["idle","walk"]:
+		var next_state:="walk" if motion.length_squared()>.002 else "idle"
+		if next_state!=state:clock=0.0
+		state=next_state
+		if state=="walk":actor.set_meta("enemy_facing",PixelArt.direction_for(Vector2(motion.x,motion.z),int(actor.get_meta("enemy_facing",0))))
+	actor.set_meta("enemy_phase",state);actor.set_meta("enemy_clock",clock);actor.set_meta("enemy_duration",duration)
+	var frame:int=posmod(int(clock*12.0),4) if state=="walk" else mini(1,int(clock*9.0)) if state=="attack" else 0
+	var tex:=PixelArt.enemy_pixel_texture(str(actor.get_meta("species")),int(actor.get_meta("enemy_facing",0)),state,frame)
+	if tex!=null and sprite.texture!=tex:sprite.texture=tex
+	if sprite.material_override is ShaderMaterial:
+		var material:=sprite.material_override as ShaderMaterial
+		material.set_shader_parameter("sprite_tex",sprite.texture)
+		material.set_shader_parameter("hit_flash",.32 if state=="hurt" else 0.0)
+	else:sprite.modulate=Color("#ffb5c6") if state=="hurt" else Color.WHITE
+func consume_enemy_actions()->void:
+	if enemy_event_floor==run.floor_revision and enemy_event_turn==run.turns:return
+	enemy_event_floor=run.floor_revision;enemy_event_turn=run.turns
+	for event in run.enemy_actions:
+		var key:="enemy:"+str(event.uid)
+		if not actor_nodes.has(key):continue
+		var actor:Node3D=actor_nodes[key]
+		var direction:=Vector2(event.to-event.from)
+		match str(event.phase):
+			"attack":enemy_pose(actor,"attack",.28,direction)
+			"windup":enemy_pose(actor,"windup",.18,direction)
+			"move":
+				if actor.has_meta("species"):
+					actor.set_meta("enemy_facing",PixelArt.direction_for(direction,int(actor.get_meta("enemy_facing",0))))
 func refresh_actors():
 	var desired:Dictionary={}
 	for p in run.loot:
@@ -1566,15 +1647,18 @@ func refresh_actors():
 		var root=actor_for(key,pos(p))
 		root.set_meta("target",pos(p))
 		if root.get_child_count()==0:
-			var id:int=run.specimen if kind==3 else Data.POOLS[region][(kind+run.floor_number)%Data.POOLS[region].size()]
-			# Hostile dungeon constructs are not adoptable pets.
-			var ob=shape(root,"gem",Vector3(0,.6,0),Vector3(.62,1.15,.62),Data.TINTS[region].darkened(.25));ob.rotation.y=PI*.25
-			shape(root,"orb",Vector3(0,.83,.36),Vector3(.18,.18,.12),Color("#ffb776"))
-			if kind==3:ob.scale*=1.45
+			if not attach_enemy_pixel(root,str(enemy.get("species",""))):
+				# Explicit fallback for species that have not been authored yet.
+				var ob=shape(root,"gem",Vector3(0,.6,0),Vector3(.62,1.15,.62),Data.TINTS[region].darkened(.25));ob.rotation.y=PI*.25
+				shape(root,"orb",Vector3(0,.83,.36),Vector3(.18,.18,.12),Color("#ffb776"))
+				if kind==3:ob.scale*=1.45
 			var height=1.9 if kind==3 else 1.42
 			shape(root,"box",Vector3(0,height,0),Vector3(.75,.09,.12),Color("#212835"))
 			var bar=shape(root,"box",Vector3(0,height+.015,.012),Vector3(.72,.075,.13),Color("#ee7c83"));bar.name="HP"
 			var marker=shape(root,"ring",Vector3(0,.06,0),Vector3(.74,.12,.74),Color("#ffb25d"));marker.name="Warning"
+		if int(enemy.hp)<int(root.get_meta("enemy_hp",enemy.hp)):
+			enemy_pose(root,"hurt",.16)
+		root.set_meta("enemy_hp",int(enemy.hp))
 		var bar=root.get_node("HP") as Node3D
 		bar.scale.x=.72*clampf(float(enemy.hp)/float(enemy.get("max_hp",enemy.hp)),0,1)
 		root.get_node("Warning").visible=enemy.get("windup",false)
@@ -1593,7 +1677,19 @@ func refresh_actors():
 	for key in actor_nodes.keys():
 		if not desired.has(key):
 			var n:Node3D=actor_nodes[key]
+			if n.has_meta("species") and key.begins_with("enemy:"):
+				# Only retain an actual defeated enemy, not an actor leaving visibility.
+				var still_alive:=false
+				for enemy in run.enemies:
+					if key=="enemy:"+str(enemy.get("uid",-1)):still_alive=true;break
+				if not still_alive:
+					if str(n.get_meta("enemy_phase"))!="defeat":
+						enemy_pose(n,"defeat",.32)
+						n.get_node("HP").hide()
+						n.get_node("Warning").hide()
+					continue
 			n.hide();n.queue_free();actor_nodes.erase(key)
+	consume_enemy_actions()
 func toggle_map():
 	map_expanded=not map_expanded
 	var width=minf(area.size.x-20,300) if map_expanded else 146.0
@@ -1691,8 +1787,15 @@ func _process(dt:float):
 	feedback.visible=feedback_time>0.0
 	if feedback.visible:
 		feedback.size=Vector2(area.size.x,42);feedback.position=Vector2(0,area.size.y*.29-(1.0-feedback_time)*24.0);feedback.modulate.a=minf(1.0,feedback_time*4.0)
-	for n in actor_nodes.values():
-		if n.has_meta("target"):n.position=n.position.lerp(n.get_meta("target"),1.0-exp(-dt*15.0))
+	for key in actor_nodes.keys():
+		var n:Node3D=actor_nodes[key]
+		if not is_instance_valid(n) or n.is_queued_for_deletion():
+			actor_nodes.erase(key);continue
+		if n.has_meta("target"):
+			var target_position:Vector3=n.get_meta("target")
+			var delta_position:=target_position-n.position
+			n.position=n.position.lerp(target_position,1.0-exp(-dt*15.0))
+			update_enemy_pixel(n,dt,delta_position)
 		elif n.has_meta("float_item"):
 			n.position.y=.12+.07*sin(elapsed*4.0+n.position.x);n.rotation.y=elapsed*1.8
 	if tick<=0 and not path.is_empty() and not run.finished:
