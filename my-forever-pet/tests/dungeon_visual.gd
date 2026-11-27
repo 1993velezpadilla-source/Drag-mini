@@ -131,6 +131,21 @@ func run():
 		dungeon.set_process(false)
 		await frames()
 		check_exterior_chunks(dungeon)
+		if region==0:
+			var electric_roles:Dictionary={}
+			var electric_frames:Dictionary={}
+			for id in ["eos_064","eos_129","eos_188","eos_189","eos_065","eos_144","eos_193","eos_354","eos_452","eos_489","eos_521","eos_192","eos_128","eos_493"]:
+				var profile:Dictionary=dungeon.combat_profile(id)
+				assert(not electric_roles.has(profile.role),"unique electric choreography "+id)
+				electric_roles[profile.role]=true
+				var first:Image=dungeon.combat_frame_image(id,2)
+				var middle:Image=dungeon.combat_frame_image(id,6)
+				assert(first.get_data()!=middle.get_data(),"electric animation changes "+id)
+				var signature:String=middle.get_data().hex_encode()
+				assert(not electric_frames.has(signature),"unique electric sprite "+id)
+				electric_frames[signature]=true
+				assert(middle.save_png("/tmp/dungeon-real-electric-"+id+".png")==OK)
+			print("KINDRIA_ELECTRIC_CHOREOGRAPHY_PASS ",electric_roles.size())
 		var test_center:Vector3=dungeon.pos(dungeon.run.player)
 		var near_vista=AABB(test_center+Vector3(2,0,-2),Vector3(1.4,2,1.4))
 		var cropped_vista=AABB(test_center+Vector3(8,0,-2),Vector3(1.4,2,1.4))
