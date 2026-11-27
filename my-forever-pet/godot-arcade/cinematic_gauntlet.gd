@@ -73,6 +73,12 @@ func run_checks()->void:
 		if critical_mix.x<normal_mix.x or critical_mix.z!=3.0 or normal_mix.z!=2.0:failures.append("critical audio priority")
 		if launch_mix.x>=normal_mix.x or launch_mix.z!=1.0 or miss_mix.z!=0.0 or status_mix.z!=1.0:failures.append("audio phase mix")
 		checks+=3
+	# V22.2: the cheap admission key must match the full authored mixer.
+	for power in [0,1,40,80,120,250]:
+		for phase in ["env_water","env_ground","status_blocked","status_poison","status","miss","launch","impact","other"]:
+			for critical in [false,true]:
+				if view.combat_audio_phase_priority(phase,critical)!=int(view.combat_audio_mix(power,phase,critical).z):failures.append("V22.2 audio priority parity "+phase)
+				checks+=1
 	var voices:Array[int]=[3,2,1,0]
 	if view.combat_audio_voice_slot(voices,0,0)!=-1:failures.append("miss voice eviction")
 	if view.combat_audio_voice_slot(voices,0,2)!=3:failures.append("weakest voice selection")
