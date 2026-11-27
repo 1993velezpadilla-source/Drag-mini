@@ -69,6 +69,21 @@ func _initialize():
 		assert(encounter.enemy_actions[0].move==alt[2])
 	assert(second_names.size()==33)
 	print("VOLNOX_SECONDARY_SKILL_PASS 33")
+	# A standalone support action is only selected when no offensive slot can execute.
+	var ward=Rules.new()
+	ward.player=Vector2i(4,4);ward.hp=100;ward.max_hp=100
+	for x in range(9):
+		for y in range(9):ward.cells[Vector2i(x,y)]=true
+	ward.enemies.append({"pos":Vector2i(3,4),"uid":0,"hp":30,"max_hp":30,"kind":2,"species":"shellguard","cooldown":2,"alt_cooldown":2})
+	ward.enemy_turn()
+	assert(ward.hp==100 and ward.enemies[0].stages.defense==1)
+	assert(ward.enemies[0].pp_support==9 and ward.enemy_actions[0].move=="Ward")
+	ward.enemies[0].support_cooldown=0
+	ward.enemies[0].cooldown=2;ward.enemies[0].alt_cooldown=2
+	assert(ward.apply_taunt(0))
+	ward.enemy_turn()
+	assert(ward.enemies[0].pp_support==9 and ward.enemy_actions[0].move=="Quick strike")
+	print("VOLNOX_SUPPORT_PRIORITY_PASS")
 	var grid=Rules.new()
 	for x in range(7):
 		for y in range(7):grid.cells[Vector2i(x,y)]=true
