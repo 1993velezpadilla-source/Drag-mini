@@ -5484,7 +5484,7 @@ func native_identity_frame(id:String,frame:int,base:Image)->Image:
 	return im
 
 # V16.7: individually remastered after reviewing actual Godot PNG strips.
-const VISUAL_REMASTER_MOVES=["eos_504","eos_308","eos_135","eos_142","eos_047","eos_250","eos_299","eos_329","eos_262","eos_279","eos_101","eos_199","eos_251","eos_486","eos_462","eos_018","eos_507","eos_175","eos_254","eos_097","eos_163","eos_320","eos_033","eos_166","eos_228","eos_004","eos_252","eos_330","eos_465","eos_138","eos_021","eos_501","eos_053","eos_157","eos_064","eos_188","eos_240","eos_255","eos_342","eos_539","eos_041","eos_278","eos_538","eos_239","eos_193","eos_272","eos_519","eos_494","eos_292","eos_065","eos_276","eos_208","eos_522","eos_452","eos_433","eos_087","eos_063","eos_062","eos_476","eos_127","eos_451","eos_436","eos_491","eos_046"]
+const VISUAL_REMASTER_MOVES=["eos_504","eos_308","eos_135","eos_142","eos_047","eos_250","eos_299","eos_329","eos_262","eos_279","eos_101","eos_199","eos_251","eos_486","eos_462","eos_018","eos_507","eos_175","eos_254","eos_097","eos_163","eos_320","eos_033","eos_166","eos_228","eos_004","eos_252","eos_330","eos_465","eos_138","eos_021","eos_501","eos_053","eos_157","eos_064","eos_188","eos_240","eos_255","eos_342","eos_539","eos_041","eos_278","eos_538","eos_239","eos_193","eos_272","eos_519","eos_494","eos_292","eos_065","eos_276","eos_208","eos_522","eos_452","eos_433","eos_087","eos_063","eos_062","eos_476","eos_127","eos_451","eos_436","eos_491","eos_046","eos_109","eos_234","eos_107","eos_463","eos_133","eos_317","eos_111","eos_331"]
 func visual_remaster_frame(id:String,frame:int)->Image:
 	var im:=Image.create(48,48,false,Image.FORMAT_RGBA8)
 	im.fill(Color.TRANSPARENT)
@@ -6483,6 +6483,121 @@ func visual_remaster_frame(id:String,frame:int)->Image:
 					var a:float=float(j)*TAU/8.0
 					var axis:=Vector2(cos(a),sin(a))
 					fx_line(im,c+axis*(radius+2),c+axis*(radius+6+4*(1.0-fade)),1.7,Color("#d4befd",fade))
+		"eos_109":
+			# Psychic: enclosing telekinetic field compresses around a luminous core.
+			var c:=Vector2(24,24)
+			var radius:float=18.0-10.0*drive+7.0*(1.0-fade)
+			for j in range(3):
+				var a:float=t*TAU+float(j)*TAU/3.0
+				fight_arc(im,c,radius+float(j)*2,a,PI*1.45,Color("#f6baff",fade),Color("#7149b1",fade),2.6)
+				var q:=c+Vector2(cos(a),sin(a))*radius
+				fairy_star(im,q,2.2+1.5*pulse,Color("#baf6ff",fade))
+			fx_disc(im,c,3.0+5.0*drive,Color("#6a42b0",fade))
+			fx_disc(im,c,2.0+3.0*drive,Color("#fce0ff",fade))
+			if t>=peak:
+				for j in range(6):
+					var a:float=float(j)*TAU/6.0
+					var axis:=Vector2(cos(a),sin(a))
+					fx_line(im,c+axis*radius,c+axis*(radius+5),1.4,Color("#e4b6ff",fade))
+		"eos_234":
+			# Confusion: eccentric spirals wobble in opposite directions.
+			var c:=Vector2(24,24)
+			for j in range(2):
+				var prev:=c+Vector2(float(j*2-1)*2,0)
+				for k in range(1,25):
+					var f:float=float(k)/24.0
+					var a:float=f*TAU*1.8*(1.0 if j==0 else -1.0)+t*TAU+float(j)*PI
+					var radius:float=2.0+16.0*f*drive
+					var q:=c+Vector2(cos(a)*radius,sin(a)*radius*.82)
+					fx_line(im,prev,q,2.6,Color("#6e418f",fade))
+					fx_line(im,prev,q,1.1,Color("#ffd58d" if j==0 else "#f0a1ff",fade))
+					prev=q
+				fairy_star(im,prev,2.5,Color("#fff1bd",fade))
+		"eos_107":
+			# Psybeam: connected prismatic beam with a white core and traveling wave bands.
+			var head:=Vector2(8+31*drive,24)
+			var tail:=Vector2(maxf(4.0,head.x-30.0*fade),24)
+			fx_line(im,tail,head,5.0,Color("#7f46c2",fade))
+			fx_line(im,tail,head,2.5,Color("#fff5ff",fade))
+			var colors:Array[Color]=[Color("#ff9cc8"),Color("#8feaff"),Color("#ffe59d")]
+			for j in range(3):
+				var prev:=tail
+				for k in range(1,15):
+					var f:float=float(k)/14.0
+					var q:=tail.lerp(head,f)+Vector2(0,sin(f*TAU*1.7-t*TAU+float(j)*TAU/3.0)*(3+3*pulse))
+					fx_line(im,prev,q,1.8,Color(colors[j],fade))
+					prev=q
+			fairy_star(im,head,3.0+2.0*pulse,Color("#fff8ff",fade))
+		"eos_463":
+			# Psycho Cut: curved psychic blade with a thin brilliant cutting edge.
+			var c:=Vector2(13+17*drive,24)
+			var sweep:float=-2.0+1.25*drive
+			fight_arc(im,c,14.5,sweep,PI*1.15,Color("#ffb1fa",fade),Color("#6740a8",fade),6.0)
+			fight_arc(im,c,16.5,sweep+.2,PI*.96,Color("#fff4ff",fade),Color("#b37feb",fade),1.7)
+			for j in range(5):
+				var a:float=sweep+float(j)*.7
+				var q:=c+Vector2(cos(a),sin(a))*(17+4*(1.0-fade))
+				fx_disc(im,q,1.2,Color("#f1baff",fade))
+		"eos_133":
+			# Extrasensory: shifting concentric triangular sensory prisms converge.
+			var c:=Vector2(24,24)
+			for j in range(3):
+				var radius:float=17.0-float(j)*5.0+3.0*pulse
+				var a:float=t*TAU*(1.0 if j%2==0 else -1.0)+float(j)*.6
+				psi_polygon(im,c,radius,3,a,Color("#b6f5ff",fade),Color("#7958c0",fade))
+				var q:=c+Vector2(cos(a),sin(a))*radius
+				fairy_star(im,q,2.2,Color("#ffe9c0",fade))
+			fx_disc(im,c,3.5+2*pulse,Color("#e8d7ff",fade))
+		"eos_317":
+			# Foresight Pulse: prophetic eye opens inside a segmented celestial dial.
+			var c:=Vector2(24,24)
+			var radius:float=13.0+4.0*pulse
+			for j in range(8):
+				var a:float=float(j)*TAU/8.0+t*.5
+				fight_arc(im,c,radius,a,.47,Color("#c6a7fa",fade),Color("#60449c",fade),1.9)
+			var aperture:float=2.0+5.5*drive
+			for j in range(2):
+				var sy:float=-1.0 if j==0 else 1.0
+				var prev:=c-Vector2(10,0)
+				for k in range(1,15):
+					var f:float=float(k)/14.0
+					var q:=c+Vector2(-10+20*f,sy*sin(f*PI)*aperture)
+					fx_line(im,prev,q,1.8,Color("#e8d7ff",fade))
+					prev=q
+			fx_disc(im,c,3.4,Color("#8edaf7",fade))
+			fx_disc(im,c,1.4,Color("#392657",fade))
+			for j in range(4):
+				var a:float=float(j)*TAU/4.0+t
+				fairy_star(im,c+Vector2(cos(a),sin(a))*(radius+4),2.0,Color("#fff0b3",fade))
+		"eos_111":
+			# Dream Gaze: slow hypnotic eye with an expanding continuous spiral.
+			var c:=Vector2(24,24)
+			var prev:=c
+			for j in range(1,45):
+				var f:float=float(j)/44.0
+				var a:float=f*TAU*2.7-t*TAU
+				var radius:float=1.0+18.0*f*drive
+				var q:=c+Vector2(cos(a),sin(a))*radius
+				fx_line(im,prev,q,2.7,Color("#7650a4",fade))
+				fx_line(im,prev,q,1.1,Color("#f5b9e8",fade))
+				prev=q
+			if t>=peak:
+				for j in range(3):
+					var z:=Vector2(11+float(j)*10,16-8*(1.0-fade)-float(j)*3)
+					fx_line(im,z,z+Vector2(4,0),1.0,Color("#c4ecff",fade))
+					fx_line(im,z+Vector2(4,0),z+Vector2(0,4),1.0,Color("#c4ecff",fade))
+					fx_line(im,z+Vector2(0,4),z+Vector2(4,4),1.0,Color("#c4ecff",fade))
+		"eos_331":
+			# Dream Eater: dream wisps flow from victim to caster and form a lunar aura.
+			var travel:float=smoothstep(peak,1.0,t)
+			for j in range(5):
+				var f:float=clampf(drive*.30+travel*.70+float(j)*.13,0.0,1.0)
+				var q:=Vector2(39-29*f,24+sin(f*TAU+float(j)*1.7)*7.0)
+				fx_line(im,q,q+Vector2(5,-2),2.1,Color("#7952a8",fade))
+				fire_lobe(im,q,2.6+1.1*pulse,t+float(j)*.15,Color("#e8cfff",fade),Color("#a386db",fade))
+				fairy_star(im,q+Vector2(2,-4),1.7,Color("#aef2f8",fade))
+			var c:=Vector2(10,24)
+			fight_arc(im,c,5.0+6.0*travel,-PI*.7,PI*1.4,Color("#e7d0ff",fade),Color("#7a59b9",fade),3.0)
 	return im
 
 func combat_frame_image(id:String,frame:int)->Image:
