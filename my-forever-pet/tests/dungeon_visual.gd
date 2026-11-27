@@ -188,6 +188,20 @@ func run():
 				grass_frames[signature]=true
 				assert(middle.save_png("/tmp/dungeon-real-grass-"+id+".png")==OK)
 			print("KINDRIA_GRASS_CHOREOGRAPHY_PASS ",grass_roles.size())
+			var ice_roles:Dictionary={}
+			var ice_frames:Dictionary={}
+			for id in ["eos_042","eos_097","eos_101","eos_270","eos_344","eos_345","eos_461","eos_462","eos_180","eos_002","eos_088","eos_130","eos_014","eos_150","eos_535"]:
+				var profile:Dictionary=dungeon.combat_profile(id)
+				assert(not ice_roles.has(profile.role),"unique ice choreography "+id)
+				ice_roles[profile.role]=true
+				var first:Image=dungeon.combat_frame_image(id,2)
+				var middle:Image=dungeon.combat_frame_image(id,6)
+				assert(first.get_data()!=middle.get_data(),"ice animation changes "+id)
+				var signature:String=middle.get_data().hex_encode()
+				assert(not ice_frames.has(signature),"unique ice sprite "+id)
+				ice_frames[signature]=true
+				assert(middle.save_png("/tmp/dungeon-real-ice-"+id+".png")==OK)
+			print("KINDRIA_ICE_CHOREOGRAPHY_PASS ",ice_roles.size())
 			# Reproduce the freed-instance registry fault before the real expedition.
 			var retired:Node3D=dungeon.actor_for("retired-test",Vector3.ZERO)
 			retired.free()
