@@ -5893,27 +5893,49 @@ func schedule_native_cast(burst:Dictionary,enemy:bool,target:Vector2i)->void:
 	if not native_fx_bindings.has(id):return
 	var bindings:Dictionary=native_fx_bindings[id]
 	var results:Dictionary=burst.get("results",{})
-	var row:Dictionary=results.get(target,{})
-	var hit:bool=int(row.get("damage",0))+int(row.get("effects",0))+int(row.get("heal",0))>0
-	# Resolve effects at each confirmed tile independently. A primary miss
-	# must not hide successful hits on other targets of a room-wide attack.
-	var primary_tiles:Array=[pos(target)+Vector3.UP*.12] if hit else []
-	native_fx_backend.call("schedule_cast",burst.presentation_tracks,bindings,burst.points,primary_tiles,float(burst.duration),enemy,hit)
+	var confirmed:Array[Vector2i]=[]
+	for tile in results:
+		if not tile is Vector2i:continue
+		var row:Dictionary=results[tile]
+		if int(row.get("damage",0))+int(row.get("effects",0))+int(row.get("heal",0))>0:
+			confirmed.append(tile)
+	var hit:bool=confirmed.has(target)
+	# A room-scale layer plays once per cast, not once per victim.
+	# Localized hits retain their own target socket, never a missed tile.
+	var primary_plan:Array=[]
+	var area_plan:Array=[]
 	var secondary_plan:Array=[]
 	for track in burst.presentation_tracks:
-		if str(track.stage) in ["impact","area"] and bool(track.enabled) and bindings.has(track.stage):
+		var stage:String=str(track.stage)
+		if not bool(track.enabled) or not bindings.has(stage):continue
+		if stage=="area":
+			area_plan.append(track)
+		else:
+			primary_plan.append(track)
+		if stage=="impact":
 			secondary_plan.append(track)
-	# Prefer localized impacts over duplicating a large area effect.
-	if secondary_plan.size()>1:
-		secondary_plan=secondary_plan.filter(func(track):return str(track.stage)=="impact")
+	var duration:float=float(burst.duration)
+	var primary_tiles:Array=[pos(target)+Vector3.UP*.12] if hit else []
+	native_fx_backend.call("schedule_cast",primary_plan,bindings,burst.points,primary_tiles,duration,enemy,hit)
+	if confirmed.is_empty():return
+	# Stable nearest-first selection keeps the cast readable under the mobile cap.
+	confirmed.sort_custom(func(a:Vector2i,b:Vector2i)->bool:
+		var da:int=(a-target).length_squared()
+		var db:int=(b-target).length_squared()
+		if da!=db:return da<db
+		if a.x!=b.x:return a.x<b.x
+		return a.y<b.y)
+	if not area_plan.is_empty():
+		var center:Vector2i=target if hit else confirmed[0]
+		var center_ground:Vector3=pos(center)+Vector3.UP*.12
+		native_fx_backend.call("schedule_cast",area_plan,bindings,[burst.points[0],center_ground],[center_ground],duration,enemy,true)
 	if secondary_plan.is_empty():return
 	var extra:int=0
-	for tile in results:
-		if tile==target or extra>=4:continue
-		var other:Dictionary=results[tile]
-		if int(other.get("damage",0))+int(other.get("effects",0))+int(other.get("heal",0))<=0:continue
+	for tile in confirmed:
+		if tile==target:continue
+		if extra>=4:break
 		var secondary:Vector3=pos(tile)+Vector3.UP*combat_actor_socket(combat_target_actor(tile),"center")
-		native_fx_backend.call("schedule_cast",secondary_plan,bindings,[burst.points[0],secondary],[pos(tile)+Vector3.UP*.12],float(burst.duration),enemy,true)
+		native_fx_backend.call("schedule_cast",secondary_plan,bindings,[burst.points[0],secondary],[pos(tile)+Vector3.UP*.12],duration,enemy,true)
 		extra+=1
 
 func combat_fx_spawn(event:Dictionary)->void:
