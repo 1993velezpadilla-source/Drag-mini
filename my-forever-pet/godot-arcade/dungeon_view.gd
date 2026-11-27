@@ -4847,7 +4847,9 @@ func update_combat_reactions(dt:float)->void:
 		reaction.delay-=dt
 		if float(reaction.delay)>0.0:continue
 		due.append(reaction);fx_reactions.remove_at(i)
-	due.sort_custom(func(a:Dictionary,b:Dictionary)->bool:return float(a.delay)<float(b.delay))
+	due.sort_custom(func(a:Dictionary,b:Dictionary)->bool:
+		if float(a.delay)==float(b.delay):return not bool(a.defeated) and bool(b.defeated)
+		return float(a.delay)<float(b.delay))
 	for reaction in due:
 		var actor=reaction.actor
 		if not is_instance_valid(actor) or actor.is_queued_for_deletion():continue
@@ -5425,6 +5427,30 @@ func response_cast_available_at()->float:
 	return cursor
 
 # Reserve deferred counter slots in simulation serial order, independent of actor traversal.
+func eligible_counter_responses(responses:Dictionary,eligible:Dictionary)->Dictionary:
+	var result:Dictionary={}
+	for uid in responses:
+		if eligible.has(uid):result[uid]=responses[uid]
+	return result
+
+func visible_counter_responses()->Dictionary:
+	var living:Dictionary={}
+	var eligible:Dictionary={}
+	for enemy in run.enemies:
+		var uid:int=int(enemy.get("uid",-1))
+		living[uid]=true
+		if run.revealed.has(enemy.pos):eligible[uid]=true
+	# Defeated actors are still rendered until their terminal reaction finishes.
+	for key in actor_nodes:
+		if not str(key).begins_with("enemy:"):continue
+		var uid:int=int(str(key).trim_prefix("enemy:"))
+		if living.has(uid):continue
+		var actor=actor_nodes[key]
+		if not is_instance_valid(actor) or actor.is_queued_for_deletion():continue
+		if actor.has_meta("species") and str(actor.get_meta("enemy_phase",""))!="defeat" and not actor.get_meta("pending_defeat",false):
+			eligible[uid]=true
+	return eligible_counter_responses(run.visual_turn_damage,eligible)
+
 func global_counter_slots(responses:Dictionary,immediate_serial:int,start:float,budget:int)->Dictionary:
 	var candidates:Array[Dictionary]=[]
 	for uid in responses:
@@ -5519,7 +5545,7 @@ func refresh_actors():
 	response_slots.clear()
 	if run.visual_turn_damage_turn==run.turns and (enemy_event_floor!=run.floor_revision or enemy_event_turn!=run.turns):
 		var immediate_serial:int=run.attack_serial if run.attack_serial!=previous_attack and run.visual_response_cast_serial==run.attack_serial else -1
-		response_slots=global_counter_slots(run.visual_turn_damage,immediate_serial,response_cast_available_at()+.04,maxi(0,DELAYED_COMBAT_FX_CAP-delayed_combat_fx.size()))
+		response_slots=global_counter_slots(visible_counter_responses(),immediate_serial,response_cast_available_at()+.04,maxi(0,DELAYED_COMBAT_FX_CAP-delayed_combat_fx.size()))
 	for key in actor_nodes.keys():
 		if not is_instance_valid(actor_nodes[key]) or actor_nodes[key].is_queued_for_deletion():actor_nodes.erase(key)
 	var desired:Dictionary={}
