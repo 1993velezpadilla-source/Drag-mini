@@ -5862,6 +5862,7 @@ func combat_fx_update(dt:float)->void:
 			particle.modulate=Color(1,1,1,clampf((1.0-t)*3.5,0.0,1.0))
 			particle.show()
 		used=travel_environment_fx(burst,t,used)
+		used=authored_stage_fx(burst,t,used)
 		used=element_finish_fx(burst,t,used)
 	if run!=null and not run.charge_phase.is_empty():used=charge_environment_fx(used)
 	living_status_fx()
@@ -6165,6 +6166,178 @@ func element_finish_fx(burst:Dictionary,t:float,used:int)->int:
 
 # Secondary choreography: material-specific trajectories, with a stable move
 # signature so two attacks sharing a material need not scatter identically.
+# Individually directed secondary choreography: mode, material, count, spread, height.
+const AUTHORED_STAGE_FX={
+	"electric_sky":["fall","lightning",7,0.22,2.7],
+	"electric_burst":["burst","impact_star",10,0.94,0.42],
+	"electric_short":["contact","lightning",4,0.17,0.16],
+	"electric_wave":["wave","lightning",6,0.72,0.22],
+	"electric_fist":["contact","impact_star",5,0.31,0.34],
+	"electric_spark":["dash","lightning",5,0.19,0.27],
+	"electric_orb":["helix","impact_star",7,0.34,0.39],
+	"electric_dash":["dash","slash",8,0.33,0.18],
+	"electric_fang":["pincer","lightning",4,0.31,0.43],
+	"electric_beam":["stream","lightning",9,0.1,0.12],
+	"electric_room":["fall","lightning",9,0.85,2.1],
+	"electric_bind":["coil","lightning",8,0.31,0.82],
+	"electric_charge":["gather","impact_star",7,0.55,0.55],
+	"electric_lift":["rise","lightning",6,0.42,1.25],
+	"fire_overheat":["burst","smoke",10,1.15,1.2],
+	"fire_wheel":["wheel","ember",8,0.43,0.6],
+	"fire_breath":["cone","flame",8,0.65,0.35],
+	"fire_sacred":["rise","flame",7,0.41,1.5],
+	"fire_blast":["burst","flame",5,1.12,0.67],
+	"fire_heatwave":["wave","ember",9,1.1,0.45],
+	"fire_ember":["stream","ember",4,0.16,0.23],
+	"fire_blastburn":["eruption","flame",10,1.24,1.6],
+	"fire_kick":["sweep","ember",6,0.6,0.55],
+	"fire_eruption":["eruption","ember",9,0.78,1.95],
+	"fire_vortex":["coil","flame",9,0.49,1.23],
+	"fire_punch":["contact","ember",6,0.36,0.29],
+	"fire_blitz":["dash","flame",9,0.46,0.38],
+	"fire_plume":["rise","smoke",10,0.82,1.68],
+	"fire_fang":["pincer","flame",4,0.3,0.41],
+	"fire_magma":["coil","ember",8,0.7,0.48],
+	"fire_wisp":["helix","flame",3,0.22,0.48],
+	"fire_sun":["gather","ember",8,0.81,1.85],
+	"water_bubble":["helix","bubble",5,0.34,0.52],
+	"water_whirlpool":["coil","drop",9,0.63,0.6],
+	"water_ink":["cone","smoke",7,0.55,0.26],
+	"water_clamp":["pincer","drop",6,0.38,0.34],
+	"water_hammer":["fall","drop",8,0.45,1.2],
+	"water_spout":["eruption","drop",10,0.59,1.95],
+	"water_dive":["ground","shock_ring",6,0.65,0.09],
+	"water_fall":["fall","drop",9,0.42,2.2],
+	"water_mud":["wave","drop",8,0.91,0.2],
+	"water_surf":["wave","shock_ring",10,1.3,0.55],
+	"water_cannon":["stream","drop",10,0.27,0.36],
+	"water_pump":["cone","drop",9,0.48,0.45],
+	"water_bubblebeam":["stream","bubble",9,0.17,0.33],
+	"water_gun":["stream","drop",5,0.12,0.13],
+	"water_pulse":["wave","bubble",6,0.58,0.37],
+	"water_jet":["dash","drop",7,0.2,0.14],
+	"water_tail":["sweep","drop",8,0.7,0.42],
+	"water_brine":["cone","drop",6,0.37,0.58],
+	"water_shell":["shield","bubble",8,0.49,0.84],
+	"water_rain":["fall","drop",10,1.25,2.45],
+	"water_mist":["shield","smoke",7,0.79,0.61],
+	"water_ring":["coil","bubble",7,0.51,0.53],
+	"air_cutter":["cone","slash",5,0.62,0.32],
+	"air_gust":["wave","slash",7,0.68,0.2],
+	"air_sky":["fall","slash",8,0.36,2.4],
+	"air_fly":["arc","slash",7,0.23,2.1],
+	"air_peck":["contact","impact_star",3,0.15,0.25],
+	"air_wing":["sweep","slash",6,0.81,0.49],
+	"air_ace":["dash","slash",6,0.24,0.38],
+	"air_bounce":["arc","shock_ring",5,0.46,1.45],
+	"air_drill":["helix","slash",7,0.24,0.31],
+	"air_blast":["stream","slash",10,0.5,0.5],
+	"air_slash":["sweep","slash",5,0.54,0.71],
+	"air_chatter":["wave","impact_star",5,0.41,0.62],
+	"air_pluck":["pincer","leaf",4,0.21,0.33],
+	"air_brave":["arc","slash",9,0.63,1.2],
+	"air_tailwind":["dash","leaf",8,0.83,0.38],
+	"air_feather":["fall","leaf",8,0.79,1.12],
+	"air_roost":["gather","leaf",6,0.53,0.26],
+	"air_defog":["burst","smoke",8,1.15,0.29],
+	"air_mirror":["shield","slash",5,0.45,0.73],
+	"poison_smog":["cone","smoke",8,0.72,0.5],
+	"poison_gas":["burst","smoke",10,1.1,0.39],
+	"poison_toxic":["ground","venom_splash",7,0.55,0.08],
+	"poison_fang":["pincer","drop",4,0.29,0.42],
+	"poison_powder":["fall","drop",8,0.82,1.1],
+	"poison_sting":["stream","dart",4,0.09,0.18],
+	"poison_armor":["shield","drop",7,0.47,0.8],
+	"poison_sludge":["arc","drop",6,0.37,0.65],
+	"poison_bomb":["arc","venom_splash",9,0.69,0.91],
+	"poison_tail":["sweep","drop",6,0.61,0.32],
+	"poison_acid":["cone","drop",7,0.48,0.25],
+	"poison_gastro":["helix","drop",6,0.33,0.45],
+	"poison_cross":["sweep","slash",8,0.51,0.51],
+	"poison_gunk":["arc","drop",10,0.83,1.16],
+	"poison_jab":["contact","dart",5,0.25,0.28],
+	"poison_spikes":["ground","dart",9,1.03,0.1],
+	"earth_dig":["ground","shards",8,0.56,0.14],
+}
+
+func authored_stage_fx(burst:Dictionary,t:float,used:int)->int:
+	var profile:Dictionary=burst.profile
+	var role:String=str(profile.role)
+	if not AUTHORED_STAGE_FX.has(role):return used
+	var cue:Array=AUTHORED_STAGE_FX[role]
+	var style:Array=combat_style(str(burst.id))
+	var light:=Color(str(style[1]));var dark:=Color(str(style[2]))
+	var points:Array=burst.points
+	if points.is_empty():return used
+	var source:Vector3=points[0]
+	var target:Vector3=points[-1]
+	var results:Dictionary=burst.get("results",{})
+	var primary_tile:=Vector2i(roundi(target.x/1.4),roundi(target.z/1.4))
+	var row:Dictionary=results.get(primary_tile,{})
+	var miss:bool=not row.is_empty() and int(row.get("damage",0))+int(row.get("effects",0))+int(row.get("heal",0))<=0
+	var peak:float=float(profile.impact)
+	if miss and t>=peak:return used
+	var forward:=Vector3(target.x-source.x,0,target.z-source.z)
+	if forward.length_squared()<.0001:forward=Vector3.FORWARD
+	forward=forward.normalized()
+	var side:=Vector3(-forward.z,0,forward.x)
+	var spread:float=float(cue[3])
+	var height:float=float(cue[4])
+	var count:int=int(cue[2])
+	var mode:String=str(cue[0])
+	var progress:float=clampf(t/maxf(.01,peak),0.0,1.0)
+	var after:float=clampf((t-peak)/maxf(.01,1.0-peak),0.0,1.0)
+	var opacity:float=minf(t*12.0,1.0-after)
+	for i in range(count):
+		if used>=FX_PARTICLE_CAP:break
+		var f:float=float(i)/maxi(1,count-1)
+		var angle:float=f*TAU
+		var p:float=clampf(progress-f*.23,0.0,1.0)
+		var radial:Vector3=forward*cos(angle)+side*sin(angle)
+		var q:Vector3=combat_path_sample(points,p)
+		var flat:bool=false
+		var size:float=.24+.10*sin(f*PI)
+		match mode:
+			"fall":
+				q=target+radial*spread*(.25+f*.75)
+				q.y+=height*(1.0-p)*(1.0-p)
+			"rise","eruption":
+				var anchor:Vector3=source if mode=="rise" else target
+				q=anchor+radial*spread*(.2+.8*p)+Vector3.UP*height*sin(p*PI*.75)
+			"burst":
+				q=target+radial*spread*(.1+.9*after)+Vector3.UP*height*sin(after*PI)
+				if t<peak:continue
+			"contact":
+				q=target+radial*spread*sin(after*PI)+Vector3.UP*height*sin(angle)
+				if t<peak*.82:continue
+			"pincer":
+				var sign_value:float=-1.0 if i%2==0 else 1.0
+				q=target+side*sign_value*spread*(1.0-p)+Vector3.UP*height*(.4+.6*f)
+			"stream","cone","dash":
+				q+=side*(f-.5)*spread*(p if mode=="cone" else 1.0)
+				q.y+=height*sin(p*PI+angle)*.65
+				if mode=="dash":q-=forward*f*.42
+			"wave":
+				q+=side*(f-.5)*spread+Vector3.UP*height*absf(sin(angle+p*PI))
+			"helix","wheel":
+				var turn:float=angle+p*TAU*1.6
+				q+=side*cos(turn)*spread+Vector3.UP*sin(turn)*height
+			"coil","shield":
+				var turn:float=angle+t*TAU*1.4
+				q=(source if mode=="shield" else target)+Vector3(cos(turn)*spread,height*f,sin(turn)*spread)
+			"gather":
+				q=source+radial*spread*(1.0-progress)+Vector3.UP*height*(.2+.8*progress)
+			"sweep":
+				var turn:float=lerpf(-PI*.75,PI*.75,p)+f*.6
+				q=target+(forward*cos(turn)+side*sin(turn))*spread+Vector3.UP*height*sin(p*PI)
+			"arc":
+				q+=Vector3.UP*height*sin(p*PI)+side*(f-.5)*spread
+			"ground":
+				q=Vector3(target.x,.048,target.z)+radial*spread*(.15+.85*progress)
+				flat=true
+		used=environment_particle(used,q,str(cue[1]),light,dark,size,opacity*.85,flat)
+	return used
+
 func cinematic_impact_layers(id:String,profile:Dictionary,source:Vector3,target:Vector3,age:float,used:int,light:Color,dark:Color,status:bool)->int:
 	var element:String=str(profile.element)
 	var role:String=str(profile.role)
