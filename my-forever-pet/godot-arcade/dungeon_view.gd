@@ -5484,7 +5484,7 @@ func native_identity_frame(id:String,frame:int,base:Image)->Image:
 	return im
 
 # V16.7: individually remastered after reviewing actual Godot PNG strips.
-const VISUAL_REMASTER_MOVES=["eos_504","eos_308","eos_135","eos_142","eos_047","eos_250","eos_299","eos_329","eos_262","eos_279","eos_101","eos_199","eos_251","eos_486","eos_462","eos_018","eos_507","eos_175","eos_254","eos_097","eos_163","eos_320","eos_033","eos_166"]
+const VISUAL_REMASTER_MOVES=["eos_504","eos_308","eos_135","eos_142","eos_047","eos_250","eos_299","eos_329","eos_262","eos_279","eos_101","eos_199","eos_251","eos_486","eos_462","eos_018","eos_507","eos_175","eos_254","eos_097","eos_163","eos_320","eos_033","eos_166","eos_228","eos_004","eos_252","eos_330","eos_465","eos_138","eos_021","eos_501"]
 func visual_remaster_frame(id:String,frame:int)->Image:
 	var im:=Image.create(48,48,false,Image.FORMAT_RGBA8)
 	im.fill(Color.TRANSPARENT)
@@ -5797,6 +5797,148 @@ func visual_remaster_frame(id:String,frame:int)->Image:
 					var mote:=q+axis*(6+9*(1.0-fade))
 					fx_line(im,mote,mote+axis*3.0,2.0,Color("#fff0cf",fade))
 					fx_disc(im,mote,1.2,Color("#ffd17e",fade))
+		"eos_228":
+			# Pay Day: minted coins turn edge-on in flight, then scatter.
+			for j in range(5):
+				var f:float=clampf(drive*1.25-float(j)*.12,0.0,1.0)
+				var q:=Vector2(7+31*f,26-9*sin(f*PI)+float(j%2)*6.0)
+				var w:float=1.2+3.0*absf(cos(t*TAU*1.5+float(j)))
+				fx_line(im,q-Vector2(0,3),q+Vector2(0,3),w,Color("#966021"))
+				fx_line(im,q-Vector2(0,3),q+Vector2(0,3),maxf(1.0,w-1.0),Color("#f9cb55"))
+				fx_line(im,q-Vector2(0,2),q+Vector2(0,1),.85,Color("#fff6bb"))
+				if t>=peak:
+					var a:float=float(j)*TAU/5.0
+					var mote:=q+Vector2(cos(a),sin(a))*(5+7*(1.0-fade))
+					fairy_star(im,mote,2.2,Color("#ffe6a2",fade))
+		"eos_004":
+			# Dream Charm: distinct lip-print, floating pink hearts and sleep motes.
+			var q:=Vector2(13+20*drive,24)
+			fx_line(im,q-Vector2(7,0),q-Vector2(2,3),2.4,Color("#d64b79"))
+			fx_line(im,q-Vector2(2,3),q+Vector2(0,-1),2.4,Color("#ff8bad"))
+			fx_line(im,q+Vector2(0,-1),q+Vector2(3,-3),2.4,Color("#ff8bad"))
+			fx_line(im,q+Vector2(3,-3),q+Vector2(7,0),2.4,Color("#d64b79"))
+			fx_line(im,q-Vector2(7,0),q+Vector2(0,4),2.8,Color("#e95c8b"))
+			fx_line(im,q+Vector2(0,4),q+Vector2(7,0),2.8,Color("#ff9fb9"))
+			fx_line(im,q-Vector2(4,0),q+Vector2(4,0),.8,Color("#722d56"))
+			for j in range(4):
+				var a:float=float(j)*TAU/4.0+t*2.0
+				var h:=q+Vector2(cos(a),sin(a))*(8+6*pulse)
+				fx_disc(im,h-Vector2(1.4,1),1.8,Color("#ffb7d6",.35+.6*pulse))
+				fx_disc(im,h+Vector2(1.4,-1),1.8,Color("#ffb7d6",.35+.6*pulse))
+				fx_line(im,h-Vector2(2,0),h+Vector2(0,3),1.6,Color("#f07ca8",.35+.6*pulse))
+				fx_line(im,h+Vector2(2,0),h+Vector2(0,3),1.6,Color("#f07ca8",.35+.6*pulse))
+			if t>=peak:
+				for j in range(2):
+					var z:=Vector2(28+float(j)*7,15-8*(1.0-fade)-float(j)*3)
+					fx_line(im,z,z+Vector2(4,0),1.0,Color("#e6c9ff",fade))
+					fx_line(im,z+Vector2(4,0),z+Vector2(0,4),1.0,Color("#e6c9ff",fade))
+					fx_line(im,z+Vector2(0,4),z+Vector2(4,4),1.0,Color("#e6c9ff",fade))
+		"eos_252":
+			# Relay Step: luminous baton transfers between two swap gates.
+			for j in range(2):
+				var gate:=Vector2(10+28*float(j),24)
+				for k in range(1,15):
+					var a:float=float(k-1)*TAU/14.0
+					var v:float=float(k)*TAU/14.0
+					fx_line(im,gate+Vector2(cos(a)*5,sin(a)*11),gate+Vector2(cos(v)*5,sin(v)*11),1.3,Color("#c6eaff",.25+.65*pulse))
+			var q:=Vector2(10+28*drive,24-8*sin(drive*PI))
+			fx_line(im,q-Vector2(4,4),q+Vector2(4,4),3.8,Color("#9c683a"))
+			fx_line(im,q-Vector2(4,4),q+Vector2(4,4),2.6,Color("#ffd477"))
+			fx_disc(im,q-Vector2(4,4),2.6,Color("#fff8c7"))
+			for j in range(3):
+				var x:float=13+float(j)*9
+				var y:float=30+2*sin(t*TAU+float(j))
+				fx_line(im,Vector2(x,y),Vector2(x-3,y-3),1.1,Color("#93dffc",.35+.55*pulse))
+				fx_line(im,Vector2(x,y),Vector2(x-3,y+3),1.1,Color("#93dffc",.35+.55*pulse))
+		"eos_330":
+			# Chance Invocation: pendulum gestures above a colorful random-cast halo.
+			var pivot:=Vector2(24,30)
+			var angle:float=sin(t*TAU*2.0)*.85
+			var axis:=Vector2(sin(angle),-cos(angle))
+			fx_line(im,pivot,pivot+axis*14.0,4.0,Color("#946638"))
+			fx_line(im,pivot,pivot+axis*14.0,2.8,Color("#ffd87d"))
+			fx_disc(im,pivot+axis*15.0,2.8,Color("#fff3cb"))
+			var colors:Array[Color]=[Color("#ef805f"),Color("#80d7ed"),Color("#c1ed7d"),Color("#cda1ff")]
+			for j in range(4):
+				var a:float=float(j)*TAU/4.0+t*TAU
+				var q:=Vector2(24,20)+Vector2(cos(a)*15,sin(a)*12)
+				fairy_star(im,q,2.4+1.1*pulse,Color(colors[j],.4+.6*pulse))
+			if t>=peak:
+				var radius:float=8+11*(1.0-fade)
+				fx_disc(im,Vector2(24,24),radius,Color("#fff1bc",.8*fade),radius-1.1)
+		"eos_465":
+			# First Echo (Me First): mirrored echo travels ahead of the caster's mark.
+			for j in range(2):
+				var q:=Vector2(12+24*drive-float(j)*9,24+float(j)*5)
+				var tint:=Color("#ffe4a6",.9 if j==0 else .42)
+				fx_line(im,q+Vector2(-4,-5),q+Vector2(3,0),2.0,tint)
+				fx_line(im,q+Vector2(3,0),q+Vector2(-4,5),2.0,tint)
+				fx_line(im,q-Vector2(8,0),q-Vector2(1,0),1.2,tint)
+			var a_center:=Vector2(9,14)
+			var b_center:=Vector2(35,14)
+			fx_disc(im,a_center,4.0,Color("#a0c8ee",.5+.5*pulse),2.6)
+			fx_disc(im,b_center,4.0,Color("#fcd286",.5+.5*pulse),2.6)
+			fx_line(im,b_center,a_center,1.0,Color("#e2dcff",.4+.5*pulse))
+			var q:=b_center.lerp(a_center,drive)
+			fairy_star(im,q,3.0,Color("#ffffff",.9))
+		"eos_138":
+			# Living Inscription: a luminous stylus draws a rune onto an unfolding page.
+			var page:=Vector2(26,26)
+			var w:float=5+9*drive
+			for j in range(-8,9):
+				fx_line(im,page+Vector2(-w,float(j)),page+Vector2(w,float(j)),.8,Color("#c6ad78",.65+.25*pulse))
+				fx_line(im,page+Vector2(-w+1,float(j)),page+Vector2(w-1,float(j)),.8,Color("#fff1cd",.85))
+			var points:Array[Vector2]=[Vector2(17,29),Vector2(22,21),Vector2(26,28),Vector2(31,20),Vector2(35,27)]
+			var count:float=drive*4.0
+			for j in range(4):
+				var portion:float=clampf(count-float(j),0.0,1.0)
+				if portion>0.0:
+					fx_line(im,points[j],points[j].lerp(points[j+1],portion),1.6,Color("#795da2"))
+			var index:int=mini(3,int(count))
+			var tip:=points[index].lerp(points[index+1],clampf(count-float(index),0.0,1.0))
+			fx_line(im,tip,tip+Vector2(5,-10),3.0,Color("#9e6d42"))
+			fx_line(im,tip,tip+Vector2(5,-10),1.6,Color("#ffd18a"))
+			fairy_star(im,tip,2.3,Color("#f3baff"))
+		"eos_021":
+			# Shared Vitality: paired health orbs equalize through a bidirectional link.
+			var left:=Vector2(10,24)
+			var right:=Vector2(38,24)
+			var balance:float=smoothstep(peak,1.0,t)
+			var l_radius:float=7.0-2.0*balance
+			var r_radius:float=3.0+2.0*balance
+			fx_disc(im,left,l_radius,Color("#ca627d"))
+			fx_disc(im,left-Vector2(1,1),l_radius-1.5,Color("#ffd0d8"))
+			fx_disc(im,right,r_radius,Color("#5b9c79"))
+			fx_disc(im,right-Vector2(1,1),maxf(1.0,r_radius-1.5),Color("#b9f8ce"))
+			for j in range(3):
+				var f:float=fposmod(t+float(j)/3.0,1.0)
+				var q:=left.lerp(right,f)
+				q.y-=5*sin(f*PI)
+				fx_disc(im,q,1.8,Color("#ffc2ce",.85))
+				var v:=right.lerp(left,f)
+				v.y+=5*sin(f*PI)
+				fx_disc(im,v,1.8,Color("#a4f2ba",.85))
+			fx_line(im,Vector2(15,24),Vector2(33,24),1.0,Color("#eae5b8",.4+.5*pulse))
+		"eos_501":
+			# Mud Bomb: oversized clay mass with coarse ridges and erupting ground splatter.
+			var q:=Vector2(11+23*drive,28-12*sin(drive*PI))
+			fx_line(im,q-Vector2(9*fade,1),q,3.6,Color("#65432e",.65*fade+.15))
+			var radius:float=6.4+1.5*pulse
+			fx_disc(im,q,radius,Color("#63412d"))
+			fx_disc(im,q-Vector2(1,1),radius-1.5,Color("#a97646"))
+			fx_line(im,q-Vector2(4,1),q+Vector2(1,-4),1.4,Color("#dfb37a"))
+			for j in range(6):
+				var a:float=float(j)*TAU/6.0+t*2.0
+				var mote:=q+Vector2(cos(a),sin(a))*(radius-1.0)
+				fx_disc(im,mote,1.7,Color("#805333"))
+			if t>=peak:
+				for j in range(9):
+					var a:float=PI+float(j)*PI/8.0
+					var axis:=Vector2(cos(a),sin(a))
+					var mote:=q+Vector2(0,4)+axis*(8+9*(1.0-fade))
+					fx_disc(im,mote,2.3,Color("#ae7848",fade))
+					fx_line(im,q+Vector2(0,3),mote,1.1,Color("#805335",.65*fade))
+				fx_line(im,q+Vector2(-11,7),q+Vector2(11,7),2.0,Color("#b98a59",fade))
 	return im
 
 func combat_frame_image(id:String,frame:int)->Image:
