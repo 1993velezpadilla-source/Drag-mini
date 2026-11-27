@@ -2880,6 +2880,37 @@ func body_contact_stamp(mode:String,light:Color,dark:Color)->Image:
 			if fill:im.set_pixel(x,y,light if inner else dark)
 	return im
 
+# Small readable pixel emblems for tether, sound and restraint effects.
+func special_contact_stamp(mode:String,light:Color,dark:Color)->Image:
+	var im:=Image.create(32,32,false,Image.FORMAT_RGBA8)
+	im.fill(Color.TRANSPARENT)
+	for y in range(32):
+		for x in range(32):
+			var p:=Vector2(float(x)-15.5,float(y)-15.5)
+			var distance:float=99.0
+			match mode:
+				"special_tongue","special_vine","special_thread":
+					var axis:float=sin(p.x*.23)*4.1
+					var width:float=3.5 if mode=="special_tongue" else 1.9 if mode=="special_vine" else .65
+					if absf(p.x)<13.0:distance=absf(p.y-axis)-width
+					if mode=="special_vine" and absf(p.x+4.0)<3.5:distance=minf(distance,Vector2(p.x+4.0,(p.y-axis-3.0)*1.7).length()-3.0)
+				"special_coil":
+					var rr:float=Vector2(p.x*.76,p.y*1.25).length()
+					distance=minf(absf(rr-8.8),absf(rr-5.4))-1.2
+				"special_clamp":
+					var jaw:float=Vector2(p.x*.84,p.y*1.15).length()
+					if absf(p.y)>2.0:distance=absf(jaw-9.0)-2.2
+				"special_note":
+					var stem:float=maxf(absf(p.x-2.0)-1.2,absf(p.y+3.0)-8.2)
+					var head:float=Vector2((p.x+2.0)*.7,p.y-7.0).length()-3.0
+					var flag:float=Vector2(p.x-5.0,p.y+8.0).length()-2.8
+					distance=minf(stem,minf(head,flag))
+				"special_wave":
+					var rr:float=Vector2(p.x*.85,p.y).length()
+					if p.x>0.0:distance=minf(absf(rr-5.0),minf(absf(rr-9.0),absf(rr-13.0)))-.9
+			if distance<=0.0:im.set_pixel(x,y,light if distance<-.8 else dark)
+	return im
+
 func combat_pixel_texture(mode:String,light:Color,dark:Color)->ImageTexture:
 	var key:=mode+":"+str(light)+":"+str(dark)
 	if combat_textures.has(key):return combat_textures[key]
@@ -2887,6 +2918,11 @@ func combat_pixel_texture(mode:String,light:Color,dark:Color)->ImageTexture:
 	# of resident material variants even in an endless developer dungeon.
 	if combat_texture_order.size()>=FX_MATERIAL_CACHE_CAP:
 		combat_textures.erase(combat_texture_order.pop_front())
+	if mode.begins_with("special_"):
+		var special_stamp:=ImageTexture.create_from_image(special_contact_stamp(mode,light,dark))
+		combat_textures[key]=special_stamp
+		combat_texture_order.append(key)
+		return special_stamp
 	if mode.begins_with("body_"):
 		var body_stamp:=ImageTexture.create_from_image(body_contact_stamp(mode,light,dark))
 		combat_textures[key]=body_stamp
@@ -6884,6 +6920,7 @@ func combat_fx_update(dt:float)->void:
 			particle.billboard=BaseMaterial3D.BILLBOARD_ENABLED;particle.rotation=Vector3.ZERO
 			particle.position=q
 			particle.texture=animated
+			particle.pixel_size=.032
 			particle.scale=Vector3.ONE*size*(1.0-t*.38)*.40
 			particle.modulate=Color(1,1,1,clampf((1.0-t)*3.5,0.0,1.0))
 			particle.show()
@@ -6914,7 +6951,7 @@ func environment_particle(index:int,position:Vector3,mode:String,light:Color,dar
 	particle.rotation=Vector3(-PI*.5,0,0) if flat else Vector3.ZERO
 	particle.position=position
 	particle.texture=combat_pixel_texture(mode,light,dark)
-	particle.pixel_size=.016 if mode.begins_with("kick_") or mode.begins_with("claw_") or mode.begins_with("body_") else .032
+	particle.pixel_size=.016 if mode.begins_with("kick_") or mode.begins_with("claw_") or mode.begins_with("body_") or mode.begins_with("special_") else .032
 	particle.scale=Vector3.ONE*scale_value
 	particle.modulate=Color(1,1,1,clampf(alpha,0.0,1.0))
 	particle.show()
@@ -7483,6 +7520,83 @@ func body_contact_fx(id:String,source:Vector3,target:Vector3,age:float,used:int,
 			used=environment_particle(used,q-forward*.20,str(art[6]),element_light,element_dark,size*.48,alpha*.48)
 	return used
 
+# Special choreography runs once per cast, not once per hit. Status effects
+# have a visible launch but a restrained finish only for confirmed outcomes.
+const SPECIAL_CONTACT_ART={"eos_123":["burst",0.95,"flame","smoke"],"eos_155":["burst",1.65,"flame","smoke"],"eos_272":["burst",1.3,"flame","ember"],"eos_120":["lash",0.62,"special_tongue","smoke"],"lib_grass_1":["lash",0.75,"special_vine","leaf"],"eos_182":["lash",0.78,"special_vine","leaf"],"eos_511":["lash",1.15,"special_vine","leaf"],"eos_023":["silk",0.65,"special_thread","web"],"eos_086":["silk",0.95,"web","special_thread"],"eos_294":["coil",0.85,"special_coil","impact_star"],"eos_125":["coil",0.72,"special_coil","shock_ring"],"eos_071":["coil",0.55,"special_coil","impact_star"],"eos_069":["clamp",0.85,"special_clamp","drop"],"eos_116":["clamp",1.05,"special_clamp","impact_star"],"eos_076":["drain",1.15,"leaf","impact_star"],"eos_135":["drain",0.55,"leaf","impact_star"],"eos_320":["drain",0.84,"leaf","impact_star"],"eos_080":["drain",0.68,"special_thread","leaf"],"eos_500":["drain",0.72,"spiral","impact_star"],"eos_329":["seed",0.68,"leaf","special_vine"],"lib_normal_3":["sound",0.75,"special_wave","shock_ring"],"eos_152":["sound",0.65,"special_wave","slash"],"eos_241":["sound",1.25,"special_wave","shock_ring"],"eos_530":["sound",0.95,"special_wave","leaf"],"eos_446":["sound",0.8,"special_note","slash"],"eos_034":["sound",0.68,"special_note","bubble"],"eos_171":["sound",0.73,"special_wave","spiral"],"eos_027":["sound",1.02,"special_wave","shards"],"eos_083":["sound",0.88,"special_wave","shards"],"eos_284":["sound",1.05,"special_wave","shock_ring"],"eos_293":["sound",1.3,"special_note","smoke"],"eos_112":["sound",1,"special_wave","impact_star"],"eos_025":["sound",0.65,"special_note","cloud"],"eos_217":["sound",0.5,"special_wave","cloud"],"eos_195":["sound",0.85,"special_wave","impact_star"],"eos_026":["sound",0.8,"special_note","impact_star"],"tentacle_snare":["lash",0.92,"special_tongue","drop"],"vine_snap":["lash",0.75,"special_vine","leaf"],"gravity_web":["silk",1.1,"web","special_thread"],"abyss_grasp":["clamp",1.18,"special_clamp","smoke"],"eos_192":["coil",0.74,"special_coil","lightning"]}
+func special_contact_art(id:String)->Array:
+	return SPECIAL_CONTACT_ART.get(id,[])
+
+func special_contact_fx(burst:Dictionary,t:float,used:int,light:Color,dark:Color)->int:
+	var art:Array=special_contact_art(str(burst.id))
+	var points:Array=burst.points
+	if art.is_empty() or points.is_empty():return used
+	var kind:String=str(art[0])
+	var strength:float=float(art[1])
+	var mode:String=str(art[2])
+	var accent:String=str(art[3])
+	var peak:float=clampf(float(burst.profile.impact),.01,.99)
+	var source:Vector3=points[0]
+	var target:Vector3=points[-1]
+	var results:Dictionary=burst.get("results",{})
+	var forward:Vector3=target-source
+	forward.y=0.0
+	if forward.length_squared()<.0001:forward=Vector3.FORWARD
+	forward=forward.normalized()
+	var side:Vector3=forward.cross(Vector3.UP)
+	var progress:float=clampf(t/peak,0.0,1.0)
+	var age:float=clampf((t-peak)/(1.0-peak),0.0,1.0)
+	if kind=="burst":
+		# Self-centered explosion must occur even if no enemy is hit.
+		var center:Vector3=source if str(burst.id) in ["eos_123","eos_155"] else target
+		if t<peak:
+			return environment_particle(used,center,"impact_star",light,dark,.28+progress*.65*strength,sin(progress*PI)*.8)
+		used=environment_particle(used,center,"shock_ring",light,dark,(.65+age*2.4)*strength,1.0-age,true)
+		for i in range(5):
+			var angle:float=float(i)*TAU/5.0
+			var q:Vector3=center+Vector3(cos(angle),0,sin(angle))*strength*(.18+age)+Vector3.UP*age*.75
+			used=environment_particle(used,q,mode if age<.48 else accent,light,dark,(.36+age*.42)*strength,1.0-age)
+		return used
+	if t<peak:
+		if kind in ["lash","silk","sound","seed"]:
+			var count:int=4 if kind=="sound" else 3
+			for i in range(count):
+				var along:float=clampf(progress-float(i)*.17,0.0,1.0)
+				var q:Vector3=combat_path_sample(points,along)
+				if kind=="lash":q+=side*sin(along*PI)*strength*.25
+				if kind=="sound":q+=Vector3.UP*.10*sin(along*TAU)
+				var size:float=(.45+along*.40)*strength if kind=="sound" else .65*strength
+				used=environment_particle(used,q,mode,light,dark,size,sin(progress*PI)*.92)
+		return used
+	var confirmed:Array[Vector2i]=[]
+	for tile in results:
+		if not tile is Vector2i:continue
+		var row:Dictionary=results[tile]
+		if int(row.get("damage",0))+int(row.get("effects",0))>0:confirmed.append(tile)
+	var primary:=Vector2i(roundi(target.x/1.4),roundi(target.z/1.4))
+	confirmed.sort_custom(func(a:Vector2i,b:Vector2i)->bool:
+		var da:int=(a-primary).length_squared()
+		var db:int=(b-primary).length_squared()
+		if da!=db:return da<db
+		if a.x!=b.x:return a.x<b.x
+		return a.y<b.y)
+	var source_tile:=Vector2i(roundi(source.x/1.4),roundi(source.z/1.4))
+	for i in range(mini(4,confirmed.size())):
+		var tile:Vector2i=confirmed[i]
+		var q:Vector3=pos(tile)+Vector3.UP*.55
+		if kind=="drain":
+			if tile==source_tile or int(results[tile].get("damage",0))<=0:continue
+			for j in range(3):
+				var back:float=clampf(age*1.5-float(j)*.15,0.0,1.0)
+				var orb:Vector3=q.lerp(source,back)+Vector3.UP*sin(back*PI)*.35
+				used=environment_particle(used,orb,mode,light,dark,.44*strength,(1.0-age)*.95)
+		elif kind in ["coil","clamp","silk","seed"]:
+			var scale_value:float=strength*(1.12-.30*smoothstep(0.0,.45,age))
+			used=environment_particle(used,q,mode,light,dark,scale_value,1.0-age)
+			used=environment_particle(used,q+Vector3.UP*.24,accent,light,dark,.44*strength,1.0-age)
+		else:
+			used=environment_particle(used,q,accent,light,dark,(.45+age*.40)*strength,1.0-age)
+	return used
+
 func element_finish_fx(burst:Dictionary,t:float,used:int)->int:
 	var id:String=str(burst.id)
 	var profile:Dictionary=burst.profile
@@ -7495,6 +7609,7 @@ func element_finish_fx(burst:Dictionary,t:float,used:int)->int:
 	var record:Dictionary=Rules.MOVE_LIBRARY.get(id,Rules.DEV_NATIVE_MOVES.get(id,{}))
 	var status:bool=str(record.get("category",""))=="status"
 	var mode:String=str(ELEMENT_FINISH_MODE.get(str(profile.element),"impact_star"))
+	used=special_contact_fx(burst,t,used,light,dark)
 	if t<peak*.48:
 		var startup:float=clampf(t/(peak*.48),0.0,1.0)
 		for j in range(3):
