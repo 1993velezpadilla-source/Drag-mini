@@ -426,10 +426,11 @@ func lab_move_info(id:String)->String:
 	if m.has("description"):text_value+=str(m.description)+"\n"
 	if m.has("balance"):text_value+=str(m.balance)+"\n"
 	if int(m.power)>0:text_value+="Damage: calculated per target; actual HP loss appears after cast.\n"
+	else:text_value+="Damage: no ordinary base power; see effect or fixed-damage rule below.\n"
 	if m.has("heal_fraction"):text_value+="Healing: %s%% max HP\n"%str(float(m.heal_fraction)*100.0)
 	if m.has("charge_phase"):text_value+="Two turns: "+str(m.charge_phase)+"; tap again to release.\n"
-	if m.get("sleep_reactive",false):text_value+="Condition: triggers when attacked asleep.\n"
-	for key in ["special_rule","inflict_status","status_chance","stat_changes","stat_transfer","boon_kind","shield_kind","drain_fraction","recoil_fraction","hit_min","hit_max","weather","trap_kind","reserve_action","native_effect","effect_amount"]:
+	if m.get("sleep_reactive",false):text_value+="Condition: triggers when attacked asleep. DEV stages a sleep + incoming-hit test with an adjacent target.\n"
+	for key in ["special_rule","inflict_status","status_chance","stat_changes","stat_transfer","boon_kind","shield_kind","drain_fraction","recoil_fraction","hit_min","hit_max","weather","trap_kind","reserve_action","native_effect","effect_amount","fixed_damage","heal_fixed","weather_heal","release_multiplier","blast_radius","speed_change","reserve_attack","random_cast","charge_defense","self_confuse","memento","typeless"]:
 		if m.has(key):text_value+=str(key).replace("_"," ").capitalize()+": "+str(m[key])+"\n"
 	return text_value.strip_edges()
 
@@ -474,7 +475,7 @@ func lab_cast(id:String)->void:
 		dev_result.text="FX preview · "+str(dev_catalog[id].name)
 	else:
 		var used:bool=run.dev_cast_move(id,facing)
-		var outcome:String=run.message
+		var outcome:String=run.dev_cast_outcome
 		if used:
 			var total:int=0
 			for amount in run.last_move_damage:total+=int(amount)
@@ -5801,17 +5802,94 @@ func combat_fx_update(dt:float)->void:
 				var radius:float=.12+sin(t*PI)*.38
 				q=points[0]+Vector3(cos(angle)*radius,.12+t*.65,sin(angle)*radius)
 				size=.36
+			particle.billboard=BaseMaterial3D.BILLBOARD_ENABLED;particle.rotation=Vector3.ZERO
 			particle.position=q
 			particle.texture=animated
 			particle.scale=Vector3.ONE*size*(1.0-t*.38)*.40
 			particle.modulate=Color(1,1,1,clampf((1.0-t)*3.5,0.0,1.0))
 			particle.show()
+		used=travel_environment_fx(burst,t,used)
+	if run!=null and not run.charge_phase.is_empty():used=charge_environment_fx(used)
 	if not latest_hit.is_empty():
 		# The player clock advances once after this method, so compensate for that frame.
 		hit_time=.24+dt-float(latest_hit.age)
 		player_hit_direction=latest_hit.direction
 	if arcs_started:fx_arc_mesh.surface_end()
 	for j in range(used,combat_particles.size()):combat_particles[j].hide()
+# Secondary environmental layers use the existing bounded pool, not new nodes
+# per cast. Ground rings remain aligned to the floor while debris billboards.
+func environment_particle(index:int,position:Vector3,mode:String,light:Color,dark:Color,scale_value:float,alpha:float,flat:bool=false)->int:
+	if index>=combat_particles.size():return index
+	var particle:Sprite3D=combat_particles[index]
+	particle.billboard=BaseMaterial3D.BILLBOARD_DISABLED if flat else BaseMaterial3D.BILLBOARD_ENABLED
+	particle.rotation=Vector3(-PI*.5,0,0) if flat else Vector3.ZERO
+	particle.position=position
+	particle.texture=combat_pixel_texture(mode,light,dark)
+	particle.scale=Vector3.ONE*scale_value
+	particle.modulate=Color(1,1,1,clampf(alpha,0.0,1.0))
+	particle.show()
+	return index+1
+
+func travel_environment_fx(burst:Dictionary,t:float,used:int)->int:
+	var id:String=str(burst.id)
+	var kind:String=tile_cast_kind(id)
+	if kind.is_empty():return used
+	var peak:float=float(burst.profile.impact)
+	var progress:float=clampf(t/peak,0.0,1.0)
+	var after:float=clampf((t-peak)/(1.0-peak),0.0,1.0)
+	var points:Array=burst.points
+	var source:Vector3=points[0];source.y=.035
+	var target:Vector3=points[-1];target.y=.035
+	var dust_light:=Color("#c8ad78");var dust_dark:=Color("#705338")
+	if kind=="burrow":
+		# Origin hole, moving trail of displaced soil, then eruption at contact.
+		used=environment_particle(used,source,"bubble",dust_dark,dust_light,.85,1.0-t,true)
+		var ground:Vector3=combat_path_sample(points,progress);ground.y=.045
+		used=environment_particle(used,ground,"bubble",dust_light,dust_dark,.65,1.0-after,true)
+		for j in range(8):
+			var angle:float=float(j)*TAU/8.0
+			var spread:float=.10+.56*after
+			var q:=ground+Vector3(cos(angle)*spread,.08+sin(PI*maxf(.12,after))*.70,sin(angle)*spread)
+			used=environment_particle(used,q,"shards",dust_light,dust_dark,.40,1.0-after)
+	elif kind=="air" or kind=="dive":
+		var wind_light:=Color("#dff8ff") if kind=="air" else Color("#9ce7f5")
+		var wind_dark:=Color("#729db5") if kind=="air" else Color("#326f9e")
+		var height:float=1.25 if id!="eos_205" else .80
+		if t<peak:
+			for j in range(6):
+				var p:float=maxf(0.0,progress-float(j)*.075)
+				var q:Vector3=combat_path_sample(points,p)
+				q.y=.18+sin(p*PI)*height
+				used=environment_particle(used,q,"slash" if kind=="air" else "bubble",wind_light,wind_dark,.60-float(j)*.055,1.0-float(j)*.12)
+		else:
+			used=environment_particle(used,target,"bubble",wind_light,wind_dark,.5+after*1.6,1.0-after,true)
+			for j in range(8):
+				var angle:float=float(j)*TAU/8.0
+				var q:=target+Vector3(cos(angle)*after*.85,.1+sin(after*PI)*.40,sin(angle)*after*.85)
+				used=environment_particle(used,q,"slash",wind_light,wind_dark,.36,1.0-after)
+	elif kind=="ground":
+		var ground:Vector3=combat_path_sample(points,progress);ground.y=.06
+		for j in range(5):
+			var angle:float=float(j)*TAU/5.0
+			used=environment_particle(used,ground+Vector3(cos(angle)*.24,.1+sin(t*PI)*.15,sin(angle)*.24),"cloud",dust_light,dust_dark,.34,1.0-after)
+	return used
+
+func charge_environment_fx(used:int)->int:
+	var origin:Vector3=pos(run.player)+Vector3(0,.04,0)
+	var pulse:float=.8+.12*sin(elapsed*7.0)
+	match run.charge_phase:
+		"underground":
+			used=environment_particle(used,origin,"bubble",Color("#795638"),Color("#c7a777"),pulse, .85,true)
+			for j in range(4):
+				var angle:float=float(j)*TAU/4.0+elapsed*2.0
+				used=environment_particle(used,origin+Vector3(cos(angle)*.35,.12+absf(sin(elapsed*4.0+j))*.3,sin(angle)*.35),"shards",Color("#c8ad78"),Color("#705338"),.28,.85)
+		"airborne":
+			used=environment_particle(used,origin,"bubble",Color("#a2c6d5"),Color("#536f85"),pulse,.50,true)
+			for j in range(4):
+				var angle:float=float(j)*TAU/4.0+elapsed*3.0
+				used=environment_particle(used,origin+Vector3(cos(angle)*.42,1.05+.16*sin(angle),sin(angle)*.42),"slash",Color("#ecfaff"),Color("#82b6cf"),.40,.85)
+	return used
+
 func combat_update_warnings()->void:
 	var used:int=0
 	for enemy in run.enemies:

@@ -8,3 +8,6 @@
 
 ## Body-travel presentation
 Fly, Bounce, Dig and other explicitly classified body-travel attacks follow their resolved tile path to the target at impact, then retrace it while facing the original tile. This is a presentation-only displacement; no extra turns, loot or permanent player relocation. Underground/vanish moves hide during approach and reappear at impact; aerial moves have vertical arcs. Ranged projectiles stay at the caster. New visual regression covers 32 direction/move combinations and captures impact/return. This is an original presentation decision; exact EoS animation parity is not yet verified.
+
+## Execution audit follow-up
+Actual run 46009724821: 589 entries attempted, 587 accepted, 2 sleep-reactive prerequisites rejected, 67 native damage paths exercised. A single seed produced 64 zero-damage positive-power cases (misses/conditions not yet differentiated). This pass stages the two sleep-reactive prerequisites through the actual reactive dispatcher in DEV only, snapshots the player outcome before enemy turns overwrite it, and retries zero-damage entries under seven additional seeds. It adds pooled floor-aligned Dig holes, soil debris, Fly/Bounce air trails/landing rings, and charge-phase particles. No claim of exact EoS parity or final visual approval.

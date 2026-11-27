@@ -90,6 +90,8 @@ var equipped_moves:Array=[]
 var move_pp:Dictionary={}
 var player_attack_path:Array=[]
 var last_move_hits:int=0
+var dev_cast_outcome:String=""
+var dev_capture_outcome:bool=false
 var last_move_attempts:int=0
 var last_move_healed:int=0
 var last_move_recoil:int=0
@@ -1762,6 +1764,7 @@ func tick_enemy_statuses()->void:
 				if int(e.hp)<=0:remove_defeated_enemy(i);continue
 			e["status_age"]=age+1
 func enemy_turn():
+	if dev_capture_outcome and dev_cast_outcome.is_empty():dev_cast_outcome=message
 	var visual_before:Dictionary=visual_enemy_hp_snapshot()
 	visual_turn_damage.clear()
 	visual_response_events.clear();visual_response_active=true
@@ -2773,6 +2776,13 @@ func dev_cast_native(id:String,aim:Vector2i)->bool:
 	return true
 
 func dev_cast_move(id:String,aim:Vector2i)->bool:
+	dev_cast_outcome="";dev_capture_outcome=true
+	var result:bool=dev_cast_move_impl(id,aim)
+	dev_capture_outcome=false
+	if not result or dev_cast_outcome.is_empty():dev_cast_outcome=message
+	return result
+
+func dev_cast_move_impl(id:String,aim:Vector2i)->bool:
 	if DEV_NATIVE_MOVES.has(id):return dev_cast_native(id,aim)
 	if not dev_sandbox or not dev_tools_available() or not MOVE_LIBRARY.has(id) or not aim in DIR8:return false
 	# Bypass equipment/species requirements without changing the saved learnset.
@@ -2783,7 +2793,25 @@ func dev_cast_move(id:String,aim:Vector2i)->bool:
 			move_pp[id]=int(move.pp);dev_refill();return used
 		clear_charge()
 	if gravity_blocks(move):message="Gravity blocks "+str(move.name);return false
-	if move.get("sleep_reactive",false):message="Reactive move: triggers when attacked asleep";return false
+	if move.get("sleep_reactive",false):
+		# DEV explicitly stages the prerequisite (sleep + incoming hit) using
+		# the actual reactive dispatcher. Never turn this into a normal cast.
+		var target:Vector2i=player+aim
+		if enemy_at(target)<0:message="Sleep reaction requires adjacent enemy";return false
+		var old_equipped:Array=equipped_moves.duplicate()
+		var old_pp:Dictionary=move_pp.duplicate()
+		var old_nap:int=int(player_boons.get("nap",0))
+		equipped_moves.assign([id,"eos_154"])
+		move_pp[id]=int(move.pp)
+		player_boons["nap"]=maxi(2,old_nap)
+		last_move_damage.clear();last_move_healed=0;last_move_recoil=0;last_move_hits=0;last_move_attempts=1
+		sleep_reactions.clear();record_reactive_hit(target,1);flush_sleep_reactions()
+		last_move_hits=1 if not last_move_damage.is_empty() else 0
+		equipped_moves.assign(old_equipped);move_pp=old_pp
+		if old_nap>0:player_boons["nap"]=old_nap
+		else:player_boons.erase("nap")
+		message=str(move.name)+" · DEV sleep + incoming hit fixture · "+("Triggered" if last_move_hits>0 else "Missed")
+		return true
 	move_pp[id]=int(move.pp)
 	if move.has("charge_phase") and not (int(move.get("reference_id",-1))==151 and floor_weather=="sun"):
 		charged_move_id=id;charged_aim=aim;charge_phase=str(move.charge_phase)

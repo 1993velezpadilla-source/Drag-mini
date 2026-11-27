@@ -715,6 +715,18 @@ func run():
 	preview.begin_player_cast_pose({"fx":"eos_064","from":anchor,"to":anchor+Vector2i.RIGHT,"path":[anchor+Vector2i.RIGHT]})
 	assert(not preview.tile_cast_active(),"Thunder stays at origin")
 	print("PONOKO_TILE_TRAVEL_PASS ",checked)
+	# Verify ground-plane layer and distinct aerial trails actually enter the pooled renderer.
+	for id in ["eos_008","eos_153","eos_205"]:
+		preview.combat_bursts.clear()
+		preview.combat_fx_spawn({"fx":id,"from":anchor,"to":anchor+Vector2i.RIGHT,"path":[anchor+Vector2i.RIGHT],"tiles":[anchor+Vector2i.RIGHT]})
+		var burst:Dictionary=preview.combat_bursts[-1]
+		var used:int=preview.travel_environment_fx(burst,.2,0)
+		assert(used>=6 and used<=preview.combat_particles.size())
+		if id=="eos_008":assert(preview.combat_particles[0].billboard==BaseMaterial3D.BILLBOARD_DISABLED)
+		preview.combat_fx_update(float(burst.duration)*.2)
+		await frames()
+		assert(root.get_texture().get_image().save_png("/tmp/dungeon-real-ponoko-environment-"+id+".png")==OK)
+	print("KINDRA_TRAVEL_ENVIRONMENT_PASS 3")
 	preview.queue_free();await process_frame
 	# Test the lab on a separate expedition; the normal completion tests above remain unchanged.
 	var lab=Field.new();root.add_child(lab)
