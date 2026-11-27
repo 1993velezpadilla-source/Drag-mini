@@ -2117,9 +2117,9 @@ func update_enemy_pixel(actor:Node3D,dt:float,motion:Vector3)->void:
 	var statuses:Array=actor.get_meta("living_statuses",[])
 	var living:=living_body_sample(actor,statuses,dt,state in ["idle","walk","recover"])
 	if float(living.sleep)>.66 and state in ["idle","walk","recover"]:
-		# Existing enemy resting silhouette is a provisional atlas fallback.
-		visual_state="defeat";frame=0
-	if state in ["idle","walk","recover"]:
+		# Dedicated living sleep cell, never the terminal defeat silhouette.
+		visual_state="sleep";frame=0
+	if state in ["idle","walk","recover"] and (not statuses.is_empty() or float(living.sleep)>.001):
 		var stretch:float=float(living.stretch)
 		sprite.scale=Vector3(float(living.width),stretch,1.0)
 		sprite.position.y=lerpf(.54*size_multiplier+rise,.54*size_multiplier*stretch,float(living.sleep))+.54*size_multiplier*(stretch-1.0)*(1.0-float(living.sleep))
@@ -7924,7 +7924,7 @@ func _process(dt:float):
 			companion_sprite.scale=Vector3(1.0/squash,squash,1.0)
 			companion_sprite.position.y=float(companion_sprite.get_meta("world_height"))*.5*squash
 			companion_sprite.modulate=Color.WHITE.lerp(Color("#ffc5bc"),float(sample.flash))
-	if pose in ["idle","sleep"] and not moving:
+	if pose in ["idle","sleep"] and not moving and (not player_statuses.is_empty() or float(player_living.sleep)>.001):
 		var resting_sprite:=pet_pose.get_node_or_null("PixelCompanion") as Sprite3D
 		if resting_sprite!=null:
 			var stretch:float=float(player_living.stretch)
