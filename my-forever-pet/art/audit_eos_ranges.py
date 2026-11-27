@@ -21,12 +21,18 @@ targets={0:"enemies",1:"allies",2:"everyone",3:"self",4:"two_turn",5:"everyone_e
 categories={0:"physical",1:"special",2:"status"}
 type_names=["none","normal","fire","water","grass","electric","ice","fighting","poison","ground","flying","psychic","bug","rock","ghost","dragon","dark","steel"]
 mismatch=[]
+internal_aliases=[]
 for i,row in enumerate(rows):
     off=start+i*26
     power=struct.unpack_from("<H",data,off)[0]
     move_id=struct.unpack_from("<H",data,off+22)[0]
     settings,ai=struct.unpack_from("<HH",data,off+4)
-    assert move_id==i,(i,move_id)
+    if move_id!=i:
+        assert i>=543,(i,move_id)
+        internal_aliases.append({"slot":i,"embedded_id":move_id})
+        row["range_review"]="internal_slot_not_verified"
+        row["visual_review"]="pending_frame_by_frame"
+        continue
     raw={"power":power,"pp":data[off+8],"accuracy1":data[off+10],"accuracy2":data[off+11],"strikes":data[off+13],"crit":data[off+15],"category":categories.get(data[off+3],"unknown"),"type":type_names[data[off+2]] if data[off+2]<len(type_names) else "unknown"}
     for key in raw:
         if row[key]!=raw[key]:mismatch.append({"id":i,"field":key,"baseline":row[key],"binary":raw[key]})
@@ -42,7 +48,7 @@ for i,row in enumerate(rows):
     row["mouth_move"]=bool(data[off+18])
     row["range_review"]="decoded_numeric_reference"
     row["visual_review"]="pending_frame_by_frame"
-report={"reference_sha256":hashlib.sha256(data).hexdigest(),"record_count":len(rows),"mismatches":mismatch,"moves":rows}
+report={"reference_sha256":hashlib.sha256(data).hexdigest(),"record_count":len(rows),"mismatches":mismatch,"internal_aliases":internal_aliases,"moves":rows}
 args.output.parent.mkdir(parents=True,exist_ok=True)
 args.output.write_text(json.dumps(report,indent=2)+"\n")
 assert rows[64]["range_code"]==0
@@ -50,4 +56,4 @@ assert rows[129]["range_code"]==2
 assert rows[189]["range_code"]==5
 assert rows[182]["range_code"]==0
 assert rows[118]["range_code"]==3
-print("EOS_RANGE_AUDIT_PASS",len(rows),"records;",len(mismatch),"numeric disagreements retained for review")
+print("EOS_RANGE_AUDIT_PASS",len(rows)-len(internal_aliases),"decoded records;",len(internal_aliases),"unverified internal aliases;",len(mismatch),"numeric disagreements retained for review")

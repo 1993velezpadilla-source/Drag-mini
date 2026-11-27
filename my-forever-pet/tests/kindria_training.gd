@@ -71,13 +71,32 @@ func _initialize():
 		if not str(id).begins_with("eos_"):continue
 		var move:Dictionary=Rules.MOVE_LIBRARY[id]
 		assert(int(str(id).trim_prefix("eos_"))==int(move.reference_id))
-		assert(move.pp>0 and move.power>0 and move.reference_strikes==1)
+		assert(move.pp>0 and move.power>0)
+		assert(move.reference_strikes==1 or (move.has("hit_min") and move.hit_min>=2 and move.hit_max<=5))
 		assert(move.category in ["physical","special"])
 		assert(id in Rules.available_moves([move.type],100))
 		assert(not id in Rules.available_moves([move.type],15))
 		assert(Rules.reference_accuracy(move)>=0.0 and Rules.reference_accuracy(move)<=100.0)
 		eos_count+=1
 	assert(eos_count==Rules.EOS_PROTOTYPE_COUNT)
+	var multi_count:int=0
+	for id in Rules.MOVE_LIBRARY:
+		var entry:Dictionary=Rules.MOVE_LIBRARY[id]
+		if entry.has("hit_min"):multi_count+=1
+	assert(multi_count==Rules.EOS_MULTIHIT_COUNT)
+	var observed_double:bool=false
+	for seed_id in range(32):
+		var burst=Rules.new()
+		burst.rng.seed=seed_id
+		burst.player=Vector2i(1,1)
+		for x in range(12):burst.cells[Vector2i(x,1)]=true
+		burst.configure_training({"types":["fighting"],"level":100,"moves":["eos_222"]})
+		burst.enemies.append({"pos":Vector2i(2,1),"hp":1000,"kind":0,"species":"reef_pup"})
+		assert(burst.cast_move("eos_222",Vector2i.RIGHT))
+		assert(burst.last_move_attempts==2 and burst.move_pp.eos_222==13 and burst.turns==1)
+		if burst.last_move_hits==2:observed_double=true
+	assert(observed_double)
+	print("KINDRIA_MULTIHIT_PASS ",multi_count)
 	assert(Rules.EOS_IDENTIFIED_COUNT==468)
 	print("KINDRIA_EOS_PROTOTYPES_PASS ",eos_count)
 	print("KINDRIA_LEARNSET_PP_PASS")
