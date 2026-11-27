@@ -137,6 +137,8 @@ const FX_HALO_CAP:int=8
 var fx_lights:Array[OmniLight3D]=[]
 var fx_halos:Array[MeshInstance3D]=[]
 var fx_halo_materials:Array[ShaderMaterial]=[]
+var fx_halo_additive:Shader
+var fx_halo_body:Shader
 var fx_lights_used:int=0
 var fx_halos_used:int=0
 const FX_TRAIL_VERTEX_CAP:int=960
@@ -2222,7 +2224,7 @@ void fragment() {
 	float edge=1.0-smoothstep(0.75,0.99,r);
 	if (element_mode==1) { // Fire: tapering turbulent tongues, hot core, cooler outer flame.
 		float y=clamp((p.y+0.86)/1.7,0.0,1.0);
-		float w=0.64*pow(y,0.65)*(1.0-0.12*y);
+		float w=0.78*pow(y,0.65)*(1.0-0.12*y);
 		float sway=0.17*sin(p.y*8.0+phase*9.0+variation);
 		float flame=1.0-smoothstep(w*0.48,w+0.06,abs(p.x-sway-(n-0.5)*0.34));
 		a=flame*smoothstep(0.0,0.18,y)*(1.0-smoothstep(0.85,1.0,y))*(0.65+0.35*n);
@@ -2246,7 +2248,7 @@ void fragment() {
 		float blobs=length(p*vec2(1.1,0.85)+vec2(0.11*sin(phase*6.0),0.03));
 		float viscous=1.0-smoothstep(0.42,0.69,blobs+(n-0.5)*0.42);
 		float drip=ribbon(p.x-0.28*sin(p.y*5.0+variation),0.13)*(1.0-smoothstep(0.6,0.95,p.y))*smoothstep(0.05,0.35,p.y);
-		a=viscous*0.73+drip*0.65;col=mix(vec3(0.38,0.06,0.65),vec3(0.83,0.39,0.97),n);
+		a=viscous*0.95+drip*0.65;col=mix(vec3(0.19,0.025,0.30),vec3(0.78,0.24,0.88),n);
 	} else if (element_mode==5) { // Grass: organic leaf-vein fans.
 		float leaf=ribbon(p.y-0.36*sin(p.x*3.4+phase*5.0),0.28*(1.0-abs(p.x)));
 		float vein=ribbon(p.y-0.36*sin(p.x*3.4+phase*5.0),0.035);
@@ -2259,8 +2261,8 @@ void fragment() {
 	} else if (element_mode==7 || element_mode==8) { // Ground: cracked dust; rock: angular ejecta.
 		float crack=ribbon(sin(ang*(element_mode==7 ? 4.0:6.0)+r*10.0+n),0.17);
 		float chip=(1.0-smoothstep(0.5,0.86,r+n*0.31))*smoothstep(0.25,0.66,n);
-		a=chip*0.62+crack*edge*0.4;
-		col=mix(element_mode==7 ? vec3(0.46,0.23,0.08):vec3(0.39,0.36,0.31),vec3(0.94,0.78,0.48),n);
+		a=chip*0.95+crack*edge*0.52;
+		col=mix(element_mode==7 ? vec3(0.25,0.105,0.035):vec3(0.24,0.25,0.29),element_mode==7 ? vec3(0.79,0.53,0.24):vec3(0.74,0.75,0.77),n);
 	} else if (element_mode==9) { // Flying: separated curved air blades.
 		float shear=ribbon(sin(ang*2.0-r*8.0+phase*9.0),0.19);
 		a=shear*smoothstep(0.15,0.35,r)*edge;col=mix(vec3(0.52,0.81,0.93),vec3(0.95,1.0,1.0),shear);
@@ -2294,6 +2296,11 @@ void fragment() {
 	ALPHA = clamp(a * intensity * (element_mode==0 ? 1.0:edge), 0.0, 0.85);
 }
 """
+	fx_halo_additive=shader
+	fx_halo_body=Shader.new()
+	# Physical materials must be able to darken the background: additive-only
+	# rendering turns dirt, rock and toxic liquid into tiny yellow glimmers.
+	fx_halo_body.code=shader.code.replace("blend_add","blend_mix")
 	var quad:=QuadMesh.new();quad.size=Vector2(1.0,1.0)
 	for i in range(FX_HALO_CAP):
 		var halo:=MeshInstance3D.new()
@@ -2482,6 +2489,8 @@ func cinematic_halo(at:Vector3,color:Color,extent:float,opacity:float,phase:floa
 	var index:int=fx_halos_used;fx_halos_used+=1
 	var halo:MeshInstance3D=fx_halos[index]
 	var mat:ShaderMaterial=fx_halo_materials[index]
+	var material_shader:Shader=fx_halo_body if element_mode in [1,2,4,5,6,7,8,11,13,15,16] else fx_halo_additive
+	if mat.shader!=material_shader:mat.shader=material_shader
 	halo.position=at
 	halo.rotation=Vector3(-PI*.5,0,0) if ground else Vector3.ZERO
 	if not ground and is_instance_valid(camera):halo.global_basis=camera.global_basis.orthonormalized()
@@ -2539,8 +2548,8 @@ func cinematic_element_surface(burst:Dictionary,t:float)->void:
 	elif kind=="drain" and not before:anchor=combat_path_sample(points,1.0-after)
 	if ground:anchor.y=.065
 	var envelope:float=sin(progress*PI) if before else pow(1.0-after,1.35)
-	var extent:float=clampf(.62+spread*.76+height*.18,.72,1.8)*(1.0+after*.25)
-	var opacity:float=envelope*(.43 if status else .76)
+	var extent:float=clampf(.96+spread*1.10+height*.30,1.15,2.55)*(1.0+after*.28)
+	var opacity:float=envelope*(.50 if status else .94)
 	if kind in ["burst","contact","pincer"] and before:opacity*=smoothstep(.5,1.0,progress)
 	var style:Array=combat_style(id)
 	cinematic_halo(anchor,Color(str(style[1])),extent,opacity,t,ground,shader_mode,float(posmod(id.hash(),97))/13.0)
@@ -2576,7 +2585,7 @@ func cinematic_cast_enhancement(burst:Dictionary,t:float)->void:
 		var after:float=clampf((t-peak)/(1.0-peak),0.0,1.0)
 		var fade:float=pow(1.0-after,2.0)
 		var extent:float=2.0 if wide else 1.25
-		cinematic_halo(target,color,extent*(.82+after*.5),strength*fade*.8,after,false)
+		cinematic_halo(target,color,extent*(.82+after*.5),strength*fade*.42,after,false)
 		if not status:
 			cinematic_halo(Vector3(target.x,.06,target.z),color,extent*(.84+after*.9),strength*fade*.62,after,true)
 		cinematic_light(target+Vector3.UP*.4,color,strength*fade*(1.35 if wide else 1.0),2.9 if wide else 2.2)
