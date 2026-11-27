@@ -157,6 +157,29 @@ func _initialize():
 			assert(risk.hp==35 and risk.last_move_recoil==5);recoil_success=true
 	assert(recoil_success and recoil_fatal)
 	print("KINDRIA_ESCALATING_RECOIL_PASS")
+	var charge_count:int=0
+	for id in Rules.MOVE_LIBRARY:
+		if Rules.MOVE_LIBRARY[id].has("charge_phase"):charge_count+=1
+	assert(charge_count==Rules.EOS_TWO_TURN_COUNT)
+	var charged=Rules.new()
+	charged.player=Vector2i(1,1)
+	charged.cells[charged.player]=true;charged.cells[Vector2i(2,1)]=true
+	charged.equipped_moves=["eos_008"];charged.move_pp={"eos_008":1}
+	charged.enemies.append({"pos":Vector2i(2,1),"hp":1000,"kind":0,"species":"reef_pup"})
+	assert(charged.cast_move("eos_008",Vector2i.RIGHT))
+	assert(charged.charged_move_id=="eos_008" and charged.charge_phase=="underground")
+	assert(charged.hp==36 and charged.turns==1 and charged.move_pp.eos_008==0 and charged.enemies[0].hp==1000)
+	assert(charged.cast_move("eos_008",Vector2i.LEFT))
+	assert(charged.charged_move_id.is_empty() and charged.turns==2 and charged.move_pp.eos_008==0)
+	assert(charged.last_move_damage==[24])
+	var empty_charge=Rules.new()
+	empty_charge.player=Vector2i(1,1)
+	empty_charge.cells[empty_charge.player]=true;empty_charge.cells[Vector2i(2,1)]=true
+	empty_charge.equipped_moves=["eos_151"];empty_charge.move_pp={"eos_151":9}
+	assert(empty_charge.cast_move("eos_151",Vector2i.RIGHT))
+	assert(empty_charge.move(Vector2i(2,1)))
+	assert(empty_charge.player==Vector2i(1,1) and empty_charge.turns==2 and empty_charge.move_pp.eos_151==8 and empty_charge.charged_move_id.is_empty())
+	print("KINDRIA_TWO_TURN_PASS ",charge_count)
 	assert(Rules.EOS_IDENTIFIED_COUNT==468)
 	print("KINDRIA_EOS_PROTOTYPES_PASS ",eos_count)
 	print("KINDRIA_LEARNSET_PP_PASS")

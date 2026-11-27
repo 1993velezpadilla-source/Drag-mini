@@ -2417,14 +2417,15 @@ func update_hud():
 	stats.text=str(run.coins)
 	relic_text.text="%d/%d"%[1 if run.secured else 0,1]
 	hp_bar.modulate=Color("#ff9b9b") if run.hp*3<run.max_hp else Color.WHITE
-	status_text.text=run.message
+	status_text.text=run.message if run.charged_move_id.is_empty() else str(Rules.MOVE_LIBRARY[run.charged_move_id].name)+" · Ready to release"
 	if is_instance_valid(aim_button):aim_button.text="Aim "+["↑","→","↓","←"][maxi(0,Rules.DIR.find(facing))]
 	if is_instance_valid(special_button):special_button.disabled=run.energy<2
 	for i in range(move_buttons.size()):
 		var id:String=run.equipped_moves[i]
 		var move:Dictionary=Rules.MOVE_LIBRARY[id]
 		move_buttons[i].text="%s · %d/%d"%[move.name,run.move_pp[id],move.pp]
-		move_buttons[i].disabled=int(run.move_pp[id])<=0
+		if id==run.charged_move_id:move_buttons[i].text="Release "+str(move.name)
+		move_buttons[i].disabled=not run.charged_move_id.is_empty() and id!=run.charged_move_id or (run.charged_move_id.is_empty() and int(run.move_pp[id])<=0)
 	power_button.text="%s %d/8"%[["Burst","Bolt","Drain"][run.skill_kind],run.energy];power_button.disabled=run.energy<2
 	heal_button.text="Berry ×%d"%run.potions;heal_button.disabled=run.potions==0 or run.hp==run.max_hp
 	stairs_button.text="Descend ›" if run.floor_number<run.floor_count else "Complete expedition"
@@ -2489,6 +2490,9 @@ func _process(dt:float):
 	var motion:=Vector2(travel.x,travel.z) if moving else Vector2(facing)
 	pet_pose.position=Vector3.ZERO
 	pet_pose.rotation.z=0.0
+	pet_pose.visible=not run.charge_phase in ["underground","vanish"]
+	if run.charge_phase=="airborne":pet_pose.position.y=.95+sin(elapsed*8.0)*.06
+	elif run.charge_phase=="gather":pet_pose.position.y=.03+.04*sin(elapsed*12.0)
 	if attack_time>0.0:
 		var phase=sin(PI*attack_time/maxf(.01,player_cast_duration))
 		var lunge:float=.40 if player_cast_mode in ["contact","electric_contact"] else .13 if player_cast_mode=="lash" else -.08
