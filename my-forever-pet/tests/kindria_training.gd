@@ -495,6 +495,28 @@ func _initialize():
 	assert(wild.cast_move("eos_009",Vector2i.RIGHT))
 	assert(wild.last_move_attempts==3 and wild.move_pp.eos_009==11 and wild.self_confusion_turns>=6)
 	print("KINDRIA_RAMPAGE_SLEEP_PASS")
+	var field=Rules.new()
+	field.player=Vector2i(1,1);field.hp=36
+	field.cells[field.player]=true;field.cells[Vector2i(2,1)]=true;field.cells[Vector2i(5,1)]=true
+	field.enemies.append({"pos":Vector2i(2,1),"hp":100,"kind":0,"species":"reef_pup","guard":5})
+	field.poison_turns=4;field.self_confusion_turns=5
+	assert(field.shift_conditions(0))
+	assert(field.poison_turns==0 and field.self_confusion_turns==0 and field.enemies[0].major_status=="poison")
+	assert(field.present_outcome(20)==-1 and field.present_outcome(21)==25 and field.present_outcome(61)==50 and field.present_outcome(91)==75)
+	field.clear_enemy_wards(field.enemies[0])
+	assert(not field.enemies[0].has("guard"))
+	assert(field.apply_player_boon(Rules.MOVE_LIBRARY.eos_493))
+	assert(field.activate_gravity() and not field.boon_active("magnet"))
+	assert(field.gravity_blocks(Rules.MOVE_LIBRARY.eos_153) and field.gravity_blocks(Rules.MOVE_LIBRARY.eos_493))
+	assert(not field.apply_player_boon(Rules.MOVE_LIBRARY.eos_493))
+	field.rooms.append(Rect2i(0,0,3,3))
+	field.equipped_moves=["eos_043"];field.move_pp={"eos_043":15}
+	assert(field.cast_move("eos_043",Vector2i.RIGHT))
+	assert(field.player==Vector2i(5,1) and field.hp==1 and field.move_pp.eos_043==14)
+	assert(field.enemies[0].stat_halves.attack==2 and field.enemies[0].stat_halves.sp_attack==2)
+	field.clear_combat_effects()
+	assert(not field.gravity_active)
+	print("KINDRIA_FIELD_SACRIFICE_PASS")
 	assert(Rules.EOS_IDENTIFIED_COUNT==468)
 	print("KINDRIA_EOS_PROTOTYPES_PASS ",eos_count)
 	print("KINDRIA_LEARNSET_PP_PASS")
