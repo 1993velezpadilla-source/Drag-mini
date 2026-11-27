@@ -79,5 +79,51 @@ class PackVerification(unittest.TestCase):
             read_pck(packed)
 
 
+    def test_conflicting_loose_and_pck(self):
+        bad = dict(self.payloads)
+        bad[FILES[0]] = b"stale index"
+        with zipfile.ZipFile(self.apk, "w") as archive:
+            archive.writestr("assets/game.pck", build_pck(bad))
+            for name, payload in self.payloads.items():
+                archive.writestr("assets/" + name, payload)
+        with self.assertRaisesRegex(ValueError, "conflicting APK"):
+            verify(self.apk, self.root)
+
+    def test_identical_loose_and_pck(self):
+        with zipfile.ZipFile(self.apk, "w") as archive:
+            archive.writestr("assets/game.pck", build_pck(self.payloads))
+            for name, payload in self.payloads.items():
+                archive.writestr("assets/" + name, payload)
+        self.assertEqual(set(verify(self.apk, self.root)), set(FILES))
+
+    def test_duplicate_zip_resource(self):
+        import warnings
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", UserWarning)
+            with zipfile.ZipFile(self.apk, "w") as archive:
+                archive.writestr("assets/" + FILES[0], b"stale")
+                for name, payload in self.payloads.items():
+                    archive.writestr("assets/" + name, payload)
+        with self.assertRaisesRegex(ValueError, "conflicting APK"):
+            verify(self.apk, self.root)
+
+    def test_malformed_directory(self):
+        original = build_pck(self.payloads)
+        variants = [original[:40]]
+        bad = bytearray(original)
+        struct.pack_into("<Q", bad, 24, 99)
+        variants.append(bad)
+        bad = bytearray(original)
+        struct.pack_into("<I", bad, 96, 2**31)
+        variants.append(bad)
+        bad = bytearray(original)
+        struct.pack_into("<I", bad, 100, 2**31)
+        variants.append(bad)
+        for variant in variants:
+            with self.subTest(size=len(variant)):
+                with self.assertRaises(ValueError):
+                    read_pck(variant)
+
+
 if __name__ == "__main__":
     unittest.main()
