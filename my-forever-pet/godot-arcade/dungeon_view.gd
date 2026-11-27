@@ -963,7 +963,10 @@ render_mode cull_disabled;
 uniform float scene_time=0.0;
 uniform vec4 base_color:source_color=vec4(0.1,0.35,0.2,1.0);
 uniform vec4 combat_pulse=vec4(0.0);
+uniform vec4 combat_response=vec4(0.0);
+uniform vec4 combat_tint:source_color=vec4(1.0);
 varying float leaf_height;
+varying float local_reaction;
 void vertex(){
  leaf_height=clamp((VERTEX.y-0.26)/1.7,0.0,1.0);
  vec3 world_pos=(MODEL_MATRIX*vec4(VERTEX,1.0)).xyz;
@@ -971,13 +974,15 @@ void vertex(){
  VERTEX.x+=sin(scene_time*1.45+world_pos.z*0.85)*0.10*sway;
  VERTEX.z+=cos(scene_time*1.1+world_pos.x*0.73)*0.065*sway;
  vec2 delta=world_pos.xz-combat_pulse.xy;
- float push=combat_pulse.w*(1.0-smoothstep(0.0,3.2,length(delta)))*sway;
+ float falloff=1.0-smoothstep(0.0,max(combat_response.x,0.01),length(delta));
+ local_reaction=falloff*combat_pulse.w;
+ float push=local_reaction*combat_response.y*sway;
  // Convert the world-space impulse back into each instance's local axes.
  vec3 local_push=inverse(mat3(MODEL_MATRIX))*vec3(delta.x,0.0,delta.y);
  VERTEX+=local_push*(push*0.30/max(length(delta),0.2));
 }
 void fragment(){
- ALBEDO=base_color.rgb*(0.85+leaf_height*0.55);
+ ALBEDO=mix(base_color.rgb*(0.85+leaf_height*0.55),combat_tint.rgb,clamp(local_reaction*combat_response.w*0.55,0.0,0.35));
  ROUGHNESS=0.73;
 }"""
 	else:
@@ -987,6 +992,8 @@ uniform float scene_time=0.0;
 uniform vec4 base_color:source_color=vec4(0.1,0.6,0.7,1.0);
 uniform bool is_foam=false;
 uniform vec4 combat_pulse=vec4(0.0);
+uniform vec4 combat_response=vec4(0.0);
+uniform vec4 combat_tint:source_color=vec4(1.0);
 varying vec3 local_p;
 varying vec2 world_xz;
 void vertex(){local_p=VERTEX;world_xz=(MODEL_MATRIX*vec4(VERTEX,1.0)).xz;}
@@ -996,9 +1003,11 @@ void fragment(){
  float filaments=pow(0.5+0.5*sin(local_p.x*37.0+sin(flow*0.36)),5.0);
  float shimmer=0.30*ripple+0.70*filaments;
  float distance_to_hit=length(world_xz-combat_pulse.xy);
- float ring=1.0-smoothstep(0.07,0.26,abs(distance_to_hit-combat_pulse.z*2.8));
- shimmer+=ring*combat_pulse.w*(1.0-smoothstep(2.5,3.2,distance_to_hit))*0.6;
- ALBEDO=base_color.rgb*(0.76+shimmer*0.37);
+ float reach=max(combat_response.x,0.01);
+ float local_hit=combat_pulse.w*(1.0-smoothstep(reach*0.72,reach,distance_to_hit));
+ float ring=1.0-smoothstep(0.07,0.26,abs(distance_to_hit-combat_pulse.z*reach));
+ shimmer+=ring*local_hit*combat_response.z*0.6;
+ ALBEDO=mix(base_color.rgb*(0.76+shimmer*0.37),combat_tint.rgb,clamp(local_hit*combat_response.w*0.60,0.0,0.40));
  ROUGHNESS=0.24+0.20*(1.0-ripple);
  EMISSION=base_color.rgb*shimmer*(is_foam?0.28:0.12);
 }"""
@@ -1294,20 +1303,50 @@ func exterior_clearance(q:Vector2i)->bool:
 	for old in landmark_cells:
 		if Vector2(old-q).length_squared()<4.0:return false
 	return true
+# Radius, vegetation displacement, water ripple, surface tint strength.
+# Local reactions are visual and never modify dungeon terrain or collisions.
+const ELEMENT_ENVIRONMENT_RESPONSE={
+	"normal":Vector4(1.8,.42,.45,.06),"fire":Vector4(2.5,.55,.36,.45),
+	"water":Vector4(3.2,.70,1.0,.16),"electric":Vector4(2.4,.28,.70,.38),
+	"grass":Vector4(2.0,-.22,.16,.30),"ice":Vector4(2.3,.12,.22,.46),
+	"fighting":Vector4(2.4,.90,.68,.10),"poison":Vector4(2.0,.10,.18,.48),
+	"ground":Vector4(2.8,.83,.72,.24),"flying":Vector4(3.2,1.0,.72,.10),
+	"psychic":Vector4(2.4,-.40,.45,.35),"bug":Vector4(1.6,.24,.12,.18),
+	"rock":Vector4(2.6,.75,.78,.18),"ghost":Vector4(2.1,-.28,.22,.36),
+	"dragon":Vector4(3.0,.80,.65,.40),"dark":Vector4(2.0,-.32,.28,.32),
+	"steel":Vector4(1.9,.48,.50,.14),"fairy":Vector4(2.2,-.16,.30,.32)}
+func environmental_response_sample(element:String,phase:float,terrain_only:bool=false)->Vector4:
+	var profile:Vector4=ELEMENT_ENVIRONMENT_RESPONSE.get(element,ELEMENT_ENVIRONMENT_RESPONSE.normal)
+	var t:float=clampf(phase,0.0,1.0)
+	var strength:float=pow(1.0-t,1.5)*(.45 if terrain_only else 1.0)
+	return Vector4(profile.x,profile.y*strength,profile.z*strength,profile.w*strength)
+
+func exterior_response_pick(residues:Array)->Dictionary:
+	var best:Dictionary={}
+	var score:float=0.0
+	for mark in residues:
+		var phase:float=clampf(float(mark.age)/maxf(.001,float(mark.life)),0.0,1.0)
+		if phase>=1.0:continue
+		var response:=environmental_response_sample(str(mark.element),phase,bool(mark.terrain_only))
+		var weight:float=maxf(absf(response.y),maxf(response.z,response.w))
+		if weight<=score:continue
+		score=weight
+		var at:Vector3=mark.at
+		best={"pulse":Vector4(at.x,at.z,phase,1.0),"response":response,"tint":Color(mark.color)}
+	return best
+
 func update_exterior_world(dt:float):
 	exterior_clock+=clampf(dt,0.0,.25)
-	var pulse:=Vector4.ZERO
-	# A single recent local impulse keeps the exterior shader cost constant.
-	for i in range(fx_residues.size()-1,-1,-1):
-		var mark:Dictionary=fx_residues[i]
-		var phase:float=clampf(float(mark.age)/float(mark.life),0.0,1.0)
-		if phase>=1.0 or not str(mark.element) in ["water","flying","ground","rock","electric","fighting","dragon","fire"]:continue
-		var at:Vector3=mark.at
-		pulse=Vector4(at.x,at.z,phase,(1.0-phase)*(.45 if bool(mark.terrain_only) else 1.0))
-		break
+	# Select the strongest live local reaction, not the last visited tile.
+	var reaction:=exterior_response_pick(fx_residues)
+	var pulse:Vector4=reaction.get("pulse",Vector4.ZERO)
+	var response:Vector4=reaction.get("response",Vector4.ZERO)
+	var tint:Color=reaction.get("tint",Color.WHITE)
 	for material in exterior_motion_materials.values():
 		material.set_shader_parameter("scene_time",exterior_clock)
 		set_fx_uniform(material,"combat_pulse",pulse)
+		set_fx_uniform(material,"combat_response",response)
+		set_fx_uniform(material,"combat_tint",tint)
 	if exterior_life.is_empty():return
 	for i in range(exterior_life_centers.size()):
 		var phase=exterior_clock*(.70 if region==1 else .46)+float(i)*2.399
