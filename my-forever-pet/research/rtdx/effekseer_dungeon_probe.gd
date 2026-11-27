@@ -732,6 +732,55 @@ func run()->void:
 	for particle in field.combat_particles:particle.hide()
 	print("KINDRIA_FINAL_AUDIT_PASS 74")
 	print("KINDRIA_FULL_COVERAGE_PASS 589")
+	# V13: validate all element materials and every actual catalog profile.
+	var v13_elements:Dictionary={}
+	var v13_authored:Dictionary={}
+	var v13_styles:Dictionary={}
+	for move_id in catalog:
+		var record:Dictionary=catalog[move_id]
+		var profile:Dictionary=field.combat_profile(move_id)
+		assert(str(profile.element)==str(record.type),"incorrect element "+move_id)
+		assert(str(profile.pattern)==str(record.pattern),"incorrect pattern "+move_id)
+		var material:Array=field.move_finish_art(move_id,profile)
+		assert(material.size()==5,"missing finish "+move_id)
+		assert(float(material[3])>0.0 and float(material[4])>0.0)
+		var style:Array=field.combat_style(move_id)
+		var light:=Color(str(style[1]));var dark:=Color(str(style[2]))
+		for texture_mode in [material[0],material[1]]:
+			var tex:Texture2D=field.combat_pixel_texture(str(texture_mode),Color(str(material[2])),dark)
+			assert(tex.get_image().get_used_rect().size.x>0,"empty material "+move_id+" "+str(texture_mode))
+		var tracks:Array=field.elemental_track_plan(move_id,profile)
+		assert(tracks[5].material==material[0])
+		var peak:float=clampf(float(profile.impact),.01,.99)
+		var outcome:Dictionary={"effects":1} if record.category=="status" else {"damage":8,"hits":2}
+		var burst:Dictionary={"id":move_id,"profile":profile,"points":[special_source,bite_position],"tiles":[field.pos(target)],"results":{target:outcome}}
+		for sample in [peak*.35,peak,lerpf(peak,1.0,.30),.98]:
+			var used:int=field.element_finish_fx(burst,float(sample),0)
+			assert(used>=0 and used<=Field.FX_PARTICLE_CAP,"pool overflow "+move_id)
+		assert(field.combat_particles.size()==particle_count)
+		v13_elements[str(record.type)]=true
+		if Field.V13_FINISH_ART.has(move_id):v13_authored[move_id]=true
+		elif Field.V13_FINISH_ART.has(str(profile.role)):v13_authored[str(profile.role)]=true
+		v13_styles[move_id]=style
+	assert(v13_elements.size()==18 and v13_authored.size()==147)
+	for element in Field.ELEMENT_MATERIAL_ART:
+		var material:Array=Field.ELEMENT_MATERIAL_ART[element]
+		var fake_profile:Dictionary={"element":element,"role":"v13_reference","pattern":"front"}
+		assert(field.move_finish_art("v13_reference",fake_profile)==material)
+		for particle in field.combat_particles:particle.hide()
+		var used:int=field.cinematic_impact_layers("v13_reference",fake_profile,special_source,bite_position,.30,0,Color.WHITE,Color.BLACK,false)
+		assert(used==6)
+		assert(field.combat_particles[1].texture==field.combat_pixel_texture(str(material[0]),Color(str(material[2])),Color.BLACK))
+		await frames()
+		assert(root.get_texture().get_image().save_png("/tmp/effekseer-review/v13-material-"+element+".png")==OK)
+	var secondary_tile:Vector2i=target+Vector2i.DOWN
+	var outcome:Dictionary={target:{"misses":1},secondary_tile:{"damage":8,"hits":1}}
+	assert(field.secondary_material_target(outcome,target)==field.pos(secondary_tile)+Vector3.UP*.55)
+	assert(field.secondary_material_target({target:{"misses":1}},target)==null)
+	for particle in field.combat_particles:particle.hide()
+	print("KINDRIA_V13_ALL_ELEMENTS_PASS 18")
+	print("KINDRIA_V13_AUTHORED_FINISH_PASS 147")
+	print("KINDRIA_V13_FULL_COMPOSITOR_PASS 589")
 	var plan:Array=[
 		{"stage":"ally_invoke","anchor":"source","start":0.0,"end":.15,"enabled":true},
 		{"stage":"enemy_invoke","anchor":"source","start":0.0,"end":.15,"enabled":true},
