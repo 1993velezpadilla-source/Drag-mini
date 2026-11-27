@@ -2386,9 +2386,12 @@ func creature_blink_sample(seconds:float,seed:int,species:String)->bool:
 
 # Presentation-only health envelope. The gameplay HP remains authoritative.
 func creature_condition_sample(actor:Node3D,hp_ratio:float,dt:float,enabled:bool)->Vector3:
-	var target:float=clampf((.45-hp_ratio)/.30,0.0,1.0) if enabled else float(actor.get_meta("native_fatigue",0.0))
-	var fatigue:float=move_toward(float(actor.get_meta("native_fatigue",0.0)),target,maxf(0.0,dt)*3.0)
-	actor.set_meta("native_fatigue",fatigue)
+	var previous:float=float(actor.get_meta("native_fatigue",0.0))
+	var target:float=clampf((.45-hp_ratio)/.30,0.0,1.0) if enabled else previous
+	var fatigue:float=move_toward(previous,target,maxf(0.0,dt)*3.0)
+	if fatigue!=previous or not actor.has_meta("native_fatigue"):actor.set_meta("native_fatigue",fatigue)
+	# A neutral health envelope has no phase-dependent displacement.
+	if fatigue==0.0:return Vector3(1.0,0.0,0.0)
 	var phase:float=elapsed*TAU*1.05+float(actor.get_instance_id()%31)*.31
 	return Vector3(1.0-fatigue*(.075+.023*sin(phase)),fatigue*.014*sin(phase*.5),fatigue)
 
@@ -19458,7 +19461,8 @@ func _process(dt:float):
 		if n.has_meta("target"):
 			var target_position:Vector3=n.get_meta("target")
 			var delta_position:Vector3=target_position-n.position
-			n.position=n.position.lerp(target_position,enemy_smoothing)
+			var next_position:Vector3=n.position.lerp(target_position,enemy_smoothing)
+			if n.position!=next_position:n.position=next_position
 			update_enemy_pixel(n,dt,delta_position)
 		elif n.has_meta("float_item"):
 			n.position.y=.12+.07*sin(elapsed*4.0+n.position.x);n.rotation.y=elapsed*1.8
@@ -19477,9 +19481,13 @@ func _process(dt:float):
 		tick=.16
 	var target=pos(run.player)
 	var travel:Vector3=target-pet.position
-	pet.position=pet.position.lerp(target,1.0-exp(-dt*18.0))
-	destination_fx.visible=not path.is_empty()
-	if destination_fx.visible:destination_fx.position=pos(path[-1])+Vector3(0,.06,0)
+	var next_pet_position:Vector3=pet.position.lerp(target,1.0-exp(-dt*18.0))
+	if pet.position!=next_pet_position:pet.position=next_pet_position
+	var destination_visible:bool=not path.is_empty()
+	if destination_fx.visible!=destination_visible:destination_fx.visible=destination_visible
+	if destination_visible:
+		var destination_position:Vector3=pos(path[-1])+Vector3(0,.06,0)
+		if destination_fx.position!=destination_position:destination_fx.position=destination_position
 	var moving:bool=travel.length()>.045
 	# Logical movement direction takes priority over residual smoothing from a
 	# previous turn, avoiding backwards-facing sprites at corridor corners.
@@ -19564,9 +19572,7 @@ func _process(dt:float):
 	var companion_shadow:=pet.get_node_or_null("EnemyContactShadow") as MeshInstance3D
 	if companion_shadow!=null:
 		var shadow_sample:=enemy_shadow_sample(pet_pose.position,0.0,0.0,1.0,false)
-		companion_shadow.position=shadow_sample.position
-		companion_shadow.scale=shadow_sample.scale
-		companion_shadow.visible=pet_pose.visible and not is_instance_valid(disguise_actor)
+		apply_enemy_body_transform(companion_shadow,shadow_sample.position,shadow_sample.scale,pet_pose.visible and not is_instance_valid(disguise_actor))
 	update_form_effect(dt,pose)
 	var focus=pet.position+Vector3(0,.18,-.48)
 	# The prior floor-build-only shake never reached the actual render loop.
