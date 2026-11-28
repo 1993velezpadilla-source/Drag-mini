@@ -1728,6 +1728,50 @@ func run_checks()->void:
 	if not foresight_fixture.enemy_foresight_plan(foresight_actor,foresight_fixture.player).is_empty():failures.append("foresight cooling kit rejected")
 	checks+=1
 	print("KINDRIA_ENEMY_FORESIGHT checks=9")
+
+	# Counterplay supports an actually announced charge, never a guessed attack.
+	var cp_fixture=Rules.new()
+	for y in range(1,11):
+		for x in range(1,11):cp_fixture.cells[Vector2i(x,y)]=true
+	cp_fixture.player=Vector2i(5,5);cp_fixture.stairs=Vector2i(10,10);cp_fixture.relic=Vector2i(10,9);cp_fixture.turns=20;cp_fixture.hp=30
+	var cp_charger:Dictionary={"uid":260,"pos":Vector2i(5,3),"hp":30,"max_hp":30,"kind":2,"species":"thornbeetle","ecology_role":"hunter","ecology_search_enabled":true,"personality_enabled":true,"pp_primary":12,"pp_secondary":0,"windup":true,"aim":Vector2i.DOWN}
+	var cp_guard:Dictionary={"uid":261,"pos":Vector2i(3,5),"hp":30,"max_hp":30,"kind":0,"species":"bramble_pup","ecology_role":"hunter","ecology_search_enabled":true,"personality_enabled":true,"pp_primary":0,"pp_secondary":0}
+	cp_fixture.enemies.append(cp_charger);cp_fixture.enemies.append(cp_guard)
+	if not cp_fixture.enemy_counterplay_charge_tiles(cp_guard,cp_fixture.player).is_empty():failures.append("counterplay requires actual announcement")
+	checks+=1
+	cp_fixture.enemy_actions.append({"uid":260,"phase":"windup"})
+	var cp_tiles:Dictionary=cp_fixture.enemy_counterplay_charge_tiles(cp_guard,cp_fixture.player)
+	if not cp_tiles.has(cp_fixture.player) or cp_tiles.has(Vector2i(4,5)):failures.append("counterplay fixed real charge footprint")
+	checks+=1
+	if cp_fixture.enemy_counterplay_escape_step(cp_guard,cp_fixture.player)!=Vector2i(4,5):failures.append("counterplay legal uncovered escape post")
+	checks+=1
+	if cp_guard.pos!=Vector2i(3,5) or cp_guard.pp_primary!=0 or cp_charger.pp_primary!=12 or cp_fixture.enemy_actions.size()!=1:failures.append("counterplay pure scoring")
+	checks+=1
+	cp_fixture.traps[Vector2i(4,5)]="snare"
+	if cp_fixture.enemy_counterplay_escape_step(cp_guard,cp_fixture.player)!=cp_guard.pos:failures.append("counterplay avoids hazard")
+	cp_fixture.traps.clear()
+	checks+=1
+	cp_guard.hp=10
+	if cp_fixture.enemy_counterplay_escape_step(cp_guard,cp_fixture.player)!=cp_guard.pos:failures.append("counterplay wounded actor excluded")
+	cp_guard.hp=30
+	checks+=1
+	cp_charger.aim=Vector2i.UP
+	if cp_fixture.enemy_counterplay_escape_step(cp_guard,cp_fixture.player)!=cp_guard.pos:failures.append("counterplay stale direction not used")
+	cp_charger.aim=Vector2i.DOWN
+	checks+=1
+	cp_fixture.enemies.reverse()
+	if cp_fixture.enemy_counterplay_escape_step(cp_guard,cp_fixture.player)!=cp_guard.pos:failures.append("counterplay only earlier actor")
+	cp_fixture.enemies.reverse()
+	checks+=1
+	cp_guard.pp_primary=12
+	if cp_fixture.enemy_counterplay_escape_step(cp_guard,cp_fixture.player)!=cp_guard.pos:failures.append("counterplay retains immediate attack")
+	cp_guard.pp_primary=0
+	checks+=1
+	cp_fixture.charge_phase="vanish"
+	if cp_fixture.enemy_counterplay_escape_step(cp_guard,cp_fixture.player)!=cp_guard.pos:failures.append("counterplay hidden player rejected")
+	cp_fixture.charge_phase=""
+	checks+=1
+	print("KINDRIA_ENEMY_COUNTERPLAY checks=10")
 	# A direct witness may report a tile, but a listener cannot relay it.
 	var comm=Rules.new()
 	for x in range(1,4):comm.cells[Vector2i(x,3)]=true
