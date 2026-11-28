@@ -321,6 +321,46 @@ func run_checks()->void:
 	if patrol_fixture.enemy_awareness({"monster_house":true})<100:failures.append("house pursuit isolation")
 	checks+=3
 	print("KINDRIA_ENEMY_ECOLOGY ",role_coverage," patrol_steps=",steps)
+	# Real corridor congestion: a blocked route may still have a useful prefix.
+	var navigation=Rules.new()
+	navigation.cells.clear()
+	for x in range(1,10):navigation.cells[Vector2i(x,3)]=true
+	navigation.player=Vector2i(9,3)
+	var origin:=Vector2i(1,3)
+	navigation.enemies.append({"uid":0,"pos":origin,"hp":20,"kind":0})
+	navigation.enemies.append({"uid":1,"pos":Vector2i(5,3),"hp":20,"kind":0})
+	if not navigation.route(origin,navigation.player,true).is_empty():failures.append("blocked corridor direct route")
+	var partial:Array[Vector2i]=navigation.enemy_approach_route(origin,navigation.player)
+	if partial!=[Vector2i(2,3),Vector2i(3,3),Vector2i(4,3)]:failures.append("blocked corridor partial approach")
+	if not navigation.enemy_approach_route(Vector2i(4,3),navigation.player).is_empty():failures.append("blocked corridor wait")
+	checks+=3
+	# A detour is preferred when an unobstructed full route exists.
+	for x in range(4,7):navigation.cells[Vector2i(x,2)]=true
+	var detour:Array[Vector2i]=navigation.enemy_approach_route(origin,navigation.player)
+	if detour.is_empty() or detour.back()!=navigation.player or Vector2i(5,3) in detour or Vector2i(5,2) not in detour:failures.append("congestion detour")
+	checks+=1
+	# Live allies block traversal; defeated allies do not.
+	navigation.allies.append({"pos":Vector2i(5,2),"hp":5})
+	var blocked_detour:Array[Vector2i]=navigation.enemy_approach_route(origin,navigation.player)
+	if blocked_detour.is_empty() or blocked_detour.back()==navigation.player or Vector2i(5,2) in blocked_detour:failures.append("ally occupancy")
+	navigation.allies[0].hp=0
+	if navigation.enemy_approach_route(origin,navigation.player)!=detour:failures.append("defeated ally occupancy")
+	checks+=2
+	# Seeded routes must retain valid adjacency, determinism and target semantics.
+	for seed_id in range(128):
+		var walker=Rules.new()
+		walker.setup(seed_id%3,24,0,false,false,290003+seed_id,0,false)
+		for e in walker.enemies:
+			var p:Vector2i=e.pos
+			var route_a:Array[Vector2i]=walker.enemy_approach_route(p,walker.player)
+			var route_b:Array[Vector2i]=walker.enemy_approach_route(p,walker.player)
+			var direct_route:Array[Vector2i]=walker.route(p,walker.player,true)
+			if route_a!=route_b or (not direct_route.is_empty() and route_a!=direct_route):failures.append("navigation determinism")
+			for q in route_a:
+				if walker.distance(p,q)!=1 or not walker.cells.has(q) or walker.enemy_at(q)>=0 or walker.ally_at(q)>=0:failures.append("navigation path integrity")
+				p=q
+		checks+=2
+	print("KINDRIA_NAVIGATION congestion=3 detour=1 occupancy=2 seeded_floors=128")
 	# Actual disk I/O, legacy migration, corruption recovery, and resumed writes.
 	var test_path:String="user://kindria_procedural_test_"+str(OS.get_process_id())+".cfg"
 	var exact:Array[String]=["legacy exact".sha256_text()]
