@@ -1381,6 +1381,11 @@ func run_checks()->void:
 	control_fixture.enemies.pop_back()
 	var exit_shooter:Dictionary={"uid":95,"pos":Vector2i(6,3),"hp":30,"kind":1,"species":"leafwisp","ecology_search_enabled":true,"pp_primary":12,"pp_secondary":0}
 	exit_fixture.enemies.append(exit_shooter)
+	# The side doorway initially hides the shooter behind a solid corner.
+	# Open the observation tile without changing the doorway degree or ray.
+	exit_fixture.cells[Vector2i(5,2)]=true
+	if not exit_fixture.enemy_squad_partner(exit_actor,exit_shooter):failures.append("exit interception visible shooter fixture")
+	checks+=1
 	if not exit_fixture.enemy_relief_blocks_lane(exit_shooter,Vector2i(4,3),exit_fixture.player) or exit_fixture.enemy_exit_block_step(exit_actor,exit_fixture.player)!=exit_actor.pos:failures.append("exit interception preserves friendly ray")
 	checks+=1
 	exit_shooter["cooldown"]=1
