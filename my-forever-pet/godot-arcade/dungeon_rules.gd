@@ -2229,6 +2229,29 @@ func enemy_expire_frontline_holds(e:Dictionary)->void:
 		if age<0 or age>2:
 			e.erase(key+"_turn");e.erase(key+"_target")
 
+# A nearby free attack post is an immediate opportunity, not a long detour.
+# This fallback runs only after normal pursuit and deliberate holds are resolved.
+func enemy_immediate_recovery_step(e:Dictionary,target:Vector2i)->Vector2i:
+	var origin:Vector2i=e.pos
+	if not enemy_opportunity_eligible(e) or not enemy_live_contact(e,target) or int(e.get("stuck_turns",0))>0:return origin
+	if shield_turns>0 and shield_kind=="protect":return origin
+	if distance(origin,target)!=2 or enemy_strategy_attack_tile(e,origin,target):return origin
+	var reserved:Dictionary=enemy_pack_reserved_posts(e,target)
+	var peers:Array[Dictionary]=[]
+	for other in enemies:
+		if enemy_squad_partner(e,other):peers.append(other)
+	var memo:Dictionary={}
+	var best:Vector2i=origin
+	var best_score:int=-2147483647
+	for d in DIR:
+		var q:Vector2i=origin+d
+		if distance(q,target)!=1 or not enemy_ambush_safe_tile(q) or reserved.has(q) or not enemy_line_of_sight(q,target):continue
+		if enemy_recovery_lane_blocked(peers,q,target,memo):continue
+		var score:int=enemy_terrain_position_bonus(e,q,target)
+		if enemy_strategy_reversal(e,q,target):score-=4
+		if score>best_score:best=q;best_score=score
+	return best
+
 func enemy_unstall_step(e:Dictionary,target:Vector2i)->Vector2i:
 	var origin:Vector2i=e.pos
 	if not enemy_opportunity_eligible(e) or not enemy_live_contact(e,target) or int(e.get("stuck_turns",0))>0:return origin
@@ -5849,7 +5872,8 @@ func enemy_turn_actions_impl():
 							enemies[i]["crowd_target"]=player;enemies[i]["crowd_partner"]=p-heading
 							path.clear();path.append(yield_tile)
 			if path.is_empty() and not charged and not intentional_hold and pursuit_target==player:
-				var recovery:Vector2i=enemy_unstall_step(enemies[i],player)
+				var recovery:Vector2i=enemy_immediate_recovery_step(enemies[i],player)
+				if recovery==p:recovery=enemy_unstall_step(enemies[i],player)
 				if recovery==p:recovery=enemy_unstall_party_step(enemies[i],player)
 				if recovery!=p:
 					path.append(recovery);enemies[i]["unstall_turn"]=turns
