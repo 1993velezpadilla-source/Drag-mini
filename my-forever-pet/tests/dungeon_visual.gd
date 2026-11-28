@@ -470,7 +470,7 @@ func run():
 		assert(dungeon.area.size.x>200 and dungeon.area.size.y>200)
 		assert(dungeon.floor_label.text.contains("rooms"))
 		assert(dungeon.hp_text.text=="HP %d/%d"%[dungeon.run.hp,dungeon.run.max_hp])
-		assert(dungeon.relic_text.text=="0/1" and dungeon.stats.text==str(dungeon.run.coins))
+		assert(dungeon.relic_text.text==("Exit found" if dungeon.run.revealed.has(dungeon.run.stairs) else "Find exit") and dungeon.stats.text==str(dungeon.run.coins))
 		var small_map:Vector2=dungeon.map.size
 		dungeon.map_zoom.pressed.emit()
 		assert(dungeon.map_expanded and dungeon.map.size.x>small_map.x)
