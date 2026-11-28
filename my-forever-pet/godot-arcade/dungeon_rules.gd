@@ -952,6 +952,8 @@ var attack_serial=0
 var attack_target=Vector2i.ZERO
 var attack_power=false
 var explored_rooms:Dictionary={}
+var explored_side_chambers:Dictionary={}
+var last_completed_floor_material:int=0
 var floor_bonus=0
 var last_completed_floor_bonus:int=0
 var total_bonus=0
@@ -1628,7 +1630,7 @@ func generate_floor():
 	encounter_rng.seed=seed_value+floor_number*262147+region*32771+521
 	treasure_rng.seed=seed_value+floor_number*32452843+region*65537+617
 	initialize_hidden_power(seed_value)
-	cells.clear();rooms.clear();enemies.clear();loot.clear();revealed.clear();traps.clear();player_traps.clear();revealed_player_traps.clear();explored_rooms.clear()
+	cells.clear();rooms.clear();enemies.clear();loot.clear();revealed.clear();traps.clear();player_traps.clear();revealed_player_traps.clear();explored_rooms.clear();explored_side_chambers.clear()
 	floor_bonus=0;player_rested=false
 	floor_style=posmod(seed_value+floor_number,3)
 	floor_kind=0 if starter_woods or floor_number==1 else posmod(seed_value*3+floor_number*7,5)
@@ -1942,7 +1944,22 @@ func route(a:Vector2i,b:Vector2i,avoid_enemies:bool=false,diagonal:bool=false)->
 	while p!=a:
 		result.push_front(p);p=previous[p]
 	return result
+func exploration_count()->int:
+	return explored_rooms.size()+explored_side_chambers.size()
+
+func exploration_total()->int:
+	return rooms.size()+side_chambers.size()
+
+func exploration_coin_bonus()->int:
+	return mini(6,maxi(0,exploration_count()-2)*2)
+
+func exploration_material_bonus()->int:
+	if starter_woods or not guardian_defeated or rooms.is_empty():return 0
+	return 1 if exploration_count()==exploration_total() else 0
+
 func reveal():
+	for i in range(side_chambers.size()):
+		if side_chambers[i].has_point(player):explored_side_chambers[i]=true
 	for i in range(rooms.size()):
 		if rooms[i].has_point(player) and not explored_rooms.has(i):
 			explored_rooms[i]=true
@@ -3698,8 +3715,9 @@ func descend()->bool:
 	if player_wait_if_napping():return true
 	if not charged_move_id.is_empty():return release_charge()
 	if finished or player!=stairs or not stairs_available():return false
-	floor_bonus=mini(6,maxi(0,explored_rooms.size()-2)*2);coins+=floor_bonus;total_bonus+=floor_bonus
+	floor_bonus=exploration_coin_bonus();coins+=floor_bonus;total_bonus+=floor_bonus
 	last_completed_floor_bonus=floor_bonus
+	last_completed_floor_material=exploration_material_bonus();materials+=last_completed_floor_material
 	if floor_number>=floor_count and not dev_sandbox:
 		finished=true;success=true;message="Expedition complete!";return true
 	floor_number+=1;hp=mini(max_hp,hp+10);generate_floor();return true
