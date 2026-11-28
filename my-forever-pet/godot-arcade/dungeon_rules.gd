@@ -1995,9 +1995,18 @@ func enemy_at(p:Vector2i)->int:
 	for i in range(enemies.size()):
 		if enemies[i].pos==p:return i
 	return -1
+# Snapshot occupancy once per search, preserving enemy_at/ally_at semantics.
+func navigation_occupancy()->Dictionary:
+	var blocked:Dictionary={}
+	for e in enemies:blocked[e.pos]=true
+	for a in allies:
+		if int(a.hp)>0:blocked[a.pos]=true
+	return blocked
+
 func route(a:Vector2i,b:Vector2i,avoid_enemies:bool=false,diagonal:bool=false)->Array[Vector2i]:
 	var result:Array[Vector2i]=[]
 	if not cells.has(a) or not cells.has(b) or a==b:return result
+	var blocked:Dictionary=navigation_occupancy() if avoid_enemies else {}
 	var queue:Array[Vector2i]=[a]
 	var previous:Dictionary={}
 	previous[a]=a
@@ -2008,13 +2017,53 @@ func route(a:Vector2i,b:Vector2i,avoid_enemies:bool=false,diagonal:bool=false)->
 		for d in DIR8 if diagonal else DIR:
 			var q:Vector2i=p+d
 			if not step_clear(p,d) or previous.has(q):continue
-			if avoid_enemies and q!=b and (enemy_at(q)>=0 or ally_at(q)>=0):continue
+			if avoid_enemies and q!=b and blocked.has(q):continue
 			previous[q]=p;queue.append(q)
 	if not previous.has(b):return result
 	var p=b
 	while p!=a:
-		result.push_front(p);p=previous[p]
+		result.append(p);p=previous[p]
+	result.reverse()
 	return result
+
+# When a corridor is blocked, approach the nearest reachable point measured
+# by real terrain distance, not Manhattan distance through walls.
+func enemy_approach_route(origin:Vector2i,target:Vector2i)->Array[Vector2i]:
+	var direct:Array[Vector2i]=route(origin,target,true)
+	if not direct.is_empty() or origin==target:return direct
+	if not cells.has(origin) or not cells.has(target):return direct
+	var distances:Dictionary={target:0}
+	var terrain_queue:Array[Vector2i]=[target]
+	var cursor:int=0
+	while cursor<terrain_queue.size():
+		var p:Vector2i=terrain_queue[cursor];cursor+=1
+		for d in DIR:
+			var q:Vector2i=p+d
+			if not cells.has(q) or distances.has(q):continue
+			distances[q]=int(distances[p])+1;terrain_queue.append(q)
+	if not distances.has(origin):return direct
+	var blocked:Dictionary=navigation_occupancy()
+	var previous:Dictionary={origin:origin}
+	var queue:Array[Vector2i]=[origin]
+	var best:Vector2i=origin
+	var best_distance:int=int(distances[origin])
+	cursor=0
+	while cursor<queue.size():
+		var p:Vector2i=queue[cursor];cursor+=1
+		var remaining:int=int(distances.get(p,2147483647))
+		if remaining<best_distance:
+			best_distance=remaining;best=p
+			if remaining==1:break
+		for d in DIR:
+			var q:Vector2i=p+d
+			if not cells.has(q) or previous.has(q) or blocked.has(q) or q==player:continue
+			previous[q]=p;queue.append(q)
+	var p:Vector2i=best
+	while p!=origin:
+		direct.append(p);p=previous[p]
+	direct.reverse()
+	return direct
+
 func exploration_count()->int:
 	return explored_rooms.size()+explored_side_chambers.size()
 
@@ -3022,7 +3071,7 @@ func enemy_turn_actions():
 				apply_fatal_grudge(enemies[i])
 				finished=true;success=false;message="Rescue needed · expedition lost";return
 		elif (gap<=enemy_awareness(enemies[i]) or bool(enemies[i].get("monster_house",false))) and kind!=3 and int(enemies[i].get("stuck_turns",0))<=0:
-			var path=route(p,player,true)
+			var path:Array[Vector2i]=enemy_approach_route(p,player) if enemies[i].has("ecology_role") else route(p,player,true)
 			if not path.is_empty() and path[0]!=player and enemy_at(path[0])<0:
 				var steps:int=1+int(enemies[i].get("haste_stage",0)) if int(enemies[i].get("haste_turns",0))>0 else 1
 				var destination:Vector2i=p
