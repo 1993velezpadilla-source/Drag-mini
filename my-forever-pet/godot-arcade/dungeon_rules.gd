@@ -4028,6 +4028,7 @@ func push_enemy(i:int)->bool:
 	var delta:Vector2i=origin-player
 	var direction:=Vector2i(signi(delta.x),signi(delta.y))
 	if direction==Vector2i.ZERO:return false
+	enemy_record_push_pressure(e)
 	e["windup"]=false;e.erase("stuck_turns")
 	for step in range(1,cells.size()+1):
 		var q:Vector2i=origin+direction*step
@@ -4706,6 +4707,58 @@ func enemy_remember_incoming(e:Dictionary,damage:int,element:String)->void:
 	e["counter_hit_streak"]=mini(3,streak+1) if turns-previous<=3 and turns>previous and str(e.get("counter_hit_mode",""))==mode else 1
 	e["counter_hit_turn"]=turns;e["counter_hit_mode"]=mode
 
+# Remember only actual successful player push attempts on this creature.
+# Multi-hit effects on the same turn count once, and never grant immunity.
+func enemy_record_push_pressure(e:Dictionary)->void:
+	if not bool(e.get("personality_enabled",false)) or not bool(e.get("ecology_search_enabled",false)):return
+	if distance(e.pos,player)>enemy_awareness(e) or not enemy_line_of_sight(e.pos,player):return
+	var last:int=int(e.get("push_pressure_turn",-9999))
+	if last==turns:return
+	e["push_pressure_count"]=mini(3,int(e.get("push_pressure_count",0))+1) if turns>last and turns-last<=4 else 1
+	e["push_pressure_turn"]=turns
+
+func enemy_repeated_push(e:Dictionary)->bool:
+	var age:int=turns-int(e.get("push_pressure_turn",-9999))
+	return bool(e.get("personality_enabled",false)) and int(e.get("push_pressure_count",0))>=2 and age>=0 and age<=4
+
+# Compare local displacement exposure, not a prediction of the next cast.
+# Cardinal lanes are easier to repeat; nearby visible companions increase
+# collision risk. Geometry is sampled only within four tiles.
+func enemy_push_exposure(e:Dictionary,post:Vector2i,target:Vector2i)->int:
+	var delta:Vector2i=post-target
+	var heading:=Vector2i(signi(delta.x),signi(delta.y))
+	if heading==Vector2i.ZERO:return 999
+	var risk:int=3 if delta.x==0 or delta.y==0 else 0
+	for n in range(1,5):
+		var q:Vector2i=post+heading*n
+		if not cells.has(q):break
+		if not enemy_line_of_sight(e.pos,q):break
+		var index:int=enemy_at(q)
+		if index>=0 and q!=e.pos:
+			risk+=5;break
+		risk+=1
+	return risk
+
+func enemy_push_adaptation_step(e:Dictionary,target:Vector2i)->Vector2i:
+	var origin:Vector2i=e.pos
+	if not enemy_repeated_push(e) or not enemy_opportunity_eligible(e) or target!=player or charge_phase in ["underground","airborne","vanish"] or int(e.get("stuck_turns",0))>0:return origin
+	if bool(e.get("monster_house",false)) or turns<=int(e.get("push_adapt_turn",-9999))+2:return origin
+	var gap:int=distance(origin,target)
+	if gap<2 or gap>4 or enemy_push_attack_coverage(e,target)>0:return origin
+	var initial:int=enemy_push_exposure(e,origin,target)
+	var best:Vector2i=origin
+	var best_score:int=0
+	for d in DIR:
+		var q:Vector2i=origin+d
+		if not enemy_ambush_safe_tile(q) or not enemy_line_of_sight(q,target) or distance(q,target)>gap:continue
+		var blocked:bool=false
+		for other in enemies:
+			if enemy_squad_partner(e,other) and enemy_line_of_sight(other.pos,target) and enemy_relief_blocks_lane(other,q,target):blocked=true;break
+		if blocked:continue
+		var score:int=(initial-enemy_push_exposure(e,q,target))*2+gap-distance(q,target)
+		if score>best_score and enemy_push_exposure(e,q,target)<initial:best_score=score;best=q
+	return best
+
 func enemy_counter_pattern(e:Dictionary,mode:String)->bool:
 	var age:int=turns-int(e.get("counter_hit_turn",-9999))
 	return bool(e.get("ecology_search_enabled",false)) and int(e.get("counter_hit_streak",0))>=2 and str(e.get("counter_hit_mode",""))==mode and age>=0 and age<=3
@@ -5175,6 +5228,12 @@ func enemy_turn_actions_impl():
 			enemies[i].pos=spacing;enemies[i]["spacing_count"]=int(enemies[i].get("spacing_count",0))+1
 			enemy_tick_all_cooldowns(enemies[i])
 			enemy_actions.append({"uid":enemies[i].get("uid",i),"phase":"move","from":p,"to":spacing,"gait":enemies[i].get("gait","walk")})
+			continue
+		var push_adapt:Vector2i=p if finish_priority else enemy_push_adaptation_step(enemies[i],player)
+		if push_adapt!=p:
+			enemies[i].pos=push_adapt;enemies[i]["push_adapt_turn"]=turns
+			enemy_tick_all_cooldowns(enemies[i])
+			enemy_actions.append({"uid":enemies[i].get("uid",i),"phase":"move","from":p,"to":push_adapt,"gait":enemies[i].get("gait","walk")})
 			continue
 		var cover_step:Vector2i=p if finish_priority else enemy_counter_cover_step(enemies[i],player)
 		if cover_step!=p:
