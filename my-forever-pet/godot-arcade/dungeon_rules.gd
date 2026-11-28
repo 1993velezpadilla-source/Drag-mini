@@ -3777,12 +3777,18 @@ func enemy_relief_blocks_lane(friend:Dictionary,q:Vector2i,target:Vector2i)->boo
 	# A completed ordinary action cannot claim another shot this phase.
 	# An already telegraphed windup remains a deliberate tactical commitment.
 	if enemy_phase_spent.has(int(friend.get("uid",-1))) and not bool(friend.get("windup",false)):return false
+	# A committed line attack protects its announced footprint, not the
+	# current location of a player who may have moved or disappeared.
+	if bool(friend.get("windup",false)):
+		var committed_aim:Vector2i=friend.get("aim",Vector2i.ZERO)
+		if committed_aim==Vector2i.ZERO or not enemy_move_allowed(friend,"primary") or str(ATTACK_PATTERNS.get(str(friend.get("species","")),"line"))!="line":return false
+		return attack_footprint(origin,committed_aim,"line",int(signature_skill(friend)[0])).has(q)
 	# Ordinary low-confidence shots do not justify exclusive squad access.
 	# A committed telegraph remains protected, even when accuracy is impaired.
-	if int(friend.get("whiffer_turns",0))>0 and not bool(friend.get("windup",false)):return false
+	if int(friend.get("whiffer_turns",0))>0:return false
 	# Ordinary reservations require firsthand contact with the player; only
 	# a committed telegraph can retain its previously announced geometry.
-	if target==player and not bool(friend.get("windup",false)) and not enemy_live_contact(friend,target):return false
+	if target==player and not enemy_live_contact(friend,target):return false
 	# A cardinal firing lane must stay clear if it currently reaches the target.
 	if origin.x!=target.x and origin.y!=target.y:return false
 	var heading:Vector2i=Vector2i(signi(target.x-origin.x),signi(target.y-origin.y))
@@ -3790,10 +3796,9 @@ func enemy_relief_blocks_lane(friend:Dictionary,q:Vector2i,target:Vector2i)->boo
 	if distance(origin,q)+distance(q,target)!=gap or q==origin or q==target:return false
 	var species:String=str(friend.get("species",""))
 	var skill:Array=signature_skill(friend)
-	if enemy_move_allowed(friend,"primary") and (bool(friend.get("windup",false)) or int(friend.get("cooldown",0))<=0) and str(ATTACK_PATTERNS.get(species,"line"))=="line":
-		var aim:Vector2i=friend.get("aim",Vector2i.ZERO) if bool(friend.get("windup",false)) else heading
-		if aim==heading and attack_footprint(origin,aim,"line",int(skill[0])).has(target):return true
-	if not bool(friend.get("windup",false)) and enemy_move_allowed(friend,"secondary") and int(friend.get("alt_cooldown",0))<=0 and SECONDARY_SKILLS.has(species):
+	if enemy_move_allowed(friend,"primary") and int(friend.get("cooldown",0))<=0 and str(ATTACK_PATTERNS.get(species,"line"))=="line":
+		if attack_footprint(origin,heading,"line",int(skill[0])).has(target):return true
+	if enemy_move_allowed(friend,"secondary") and int(friend.get("alt_cooldown",0))<=0 and SECONDARY_SKILLS.has(species):
 		var alt:Array=SECONDARY_SKILLS[species]
 		if str(alt[1])=="line" and attack_footprint(origin,heading,"line",int(alt[0])).has(target):return true
 	return false
