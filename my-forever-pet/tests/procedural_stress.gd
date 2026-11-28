@@ -3730,6 +3730,21 @@ func run_checks()->void:
 	pack_fixture_hunt.enemy_pack_commit(pack_peer,pack_fixture_hunt.player,pack_post)
 	if not pack_fixture_hunt.enemy_pack_reserved_posts(pack_actor_hunt,pack_fixture_hunt.player).has(pack_post):failures.append("pack visible peer intention")
 	checks+=1
+	# Claims are advisory and must not use a concealed target's actual tile.
+	for hidden_phase in ["underground","airborne","vanish"]:
+		pack_fixture_hunt.charge_phase=hidden_phase
+		if not pack_fixture_hunt.enemy_pack_reserved_posts(pack_actor_hunt,pack_fixture_hunt.player).is_empty():failures.append("pack concealed claim ignored "+hidden_phase)
+	pack_fixture_hunt.charge_phase=""
+	checks+=1
+	pack_peer["slow_turns"]=2
+	if pack_fixture_hunt.enemy_pack_reserved_posts(pack_actor_hunt,pack_fixture_hunt.player).has(pack_post):failures.append("pack skipped slow phase releases claim")
+	checks+=1
+	pack_peer["slow_turns"]=3
+	if not pack_fixture_hunt.enemy_pack_reserved_posts(pack_actor_hunt,pack_fixture_hunt.player).has(pack_post):failures.append("pack executable slow phase preserves claim")
+	pack_peer.erase("slow_turns")
+	checks+=1
+	if not pack_fixture_hunt.enemy_pack_reserved_posts(pack_actor_hunt,pack_fixture_hunt.player).has(pack_post) or pack_peer.pos!=Vector2i(6,5) or pack_actor_hunt.pos!=Vector2i(5,6) or not pack_fixture_hunt.enemy_actions.is_empty():failures.append("pack restored claim and planning purity")
+	checks+=1
 	var pack_alternative:Dictionary=pack_fixture_hunt.enemy_pack_intercept_plan(pack_actor_hunt,pack_fixture_hunt.player)
 	if pack_alternative.is_empty() or pack_alternative.get("post",Vector2i.ZERO)==pack_post or pack_alternative.get("step",Vector2i.ZERO)==pack_post:failures.append("pack distinct flank allocation")
 	checks+=1
@@ -3758,7 +3773,7 @@ func run_checks()->void:
 		if int(action.get("uid",-1))==0 and str(action.phase)=="move":pack_moves_hunt+=1
 	if pack_moves_hunt!=1 or int(pack_actor_hunt.get("pack_turn",-1))!=23 or pack_actor_hunt.pp_primary!=0:failures.append("pack real dispatcher commits once")
 	checks+=1
-	print("KINDRIA_ENEMY_PACK_HUNTING checks=10")
+	print("KINDRIA_ENEMY_PACK_HUNTING checks=14")
 	# Dynamic relief is selected from visible healthy teammates, never new abilities.
 	var relief_fixture=Rules.new()
 	for y in range(1,9):
