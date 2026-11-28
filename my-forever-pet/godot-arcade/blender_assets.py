@@ -1569,6 +1569,8 @@ clear()
 # Mossy brook with a sculpted cascade, layered rock ledges and flowering banks.
 stream=mat('woodland turquoise stream',(.055,.44,.48),.12,.27)
 foam=mat('cascade pale highlights',(.56,.87,.90),.05,.32)
+fall_stream=mat('woodland falling sheet',(.07,.48,.51),.12,.24)
+fall_foam=mat('woodland falling foam',(.69,.91,.91),.02,.30)
 natural_rock((0,.16,.08),(2.72,.32,2.38),foreststone,2800)
 # Tall fractured escarpment, connected ledges and a moss-covered upper lip.
 natural_rock((-.59,1.12,-.50),(1.30,2.25,1.25),forestedge,2801)
@@ -1589,7 +1591,9 @@ def cascade_point(t,u):
  y=.34+1.88*(1-t**1.24)
  z=-.52+.46*(1-math.exp(-9*t))+.70*t**4
  width=.45+.32*t**3
- return (u*width+.035*math.sin(t*pi),y+.012*math.sin(u*17+t*11),z+.014*math.cos(u*9+t*4))
+ # Broad curved sheet with asymmetric channels and a flared impact apron.
+ scallop=.012*math.sin(u*19+t*11)*math.sin(t*pi)
+ return (u*width+.035*math.sin(t*pi),y+.012*math.sin(u*17+t*11),z+.014*math.cos(u*9+t*4)+scallop)
 verts=[];faces=[];rows=19;cols=13
 for j in range(rows):
  t=j/(rows-1)
@@ -1599,7 +1603,7 @@ for j in range(rows):
 for j in range(rows-1):
  for i in range(cols-1):
   a=j*cols+i;faces.append((a,a+1,a+cols+1,a+cols))
-waterfall=architectural_mesh('continuous cascade sheet',verts,faces,stream)
+waterfall=architectural_mesh('continuous cascade sheet',verts,faces,fall_stream)
 waterfall.modifiers.new('water sheet depth','SOLIDIFY').thickness=.012
 # Long narrow foamy streaks conform to the falling sheet.
 for k in range(5):
@@ -1608,7 +1612,7 @@ for k in range(5):
  for j in range(7):
   t=.04+j*.146
   x,y,z=cascade_point(t,u);points.append((x,y+.006,z+.024))
- tube(points,[.012,.014,.012,.013,.011,.010,.007],foam,6)
+ tube(points,[.012,.014,.012,.013,.011,.010,.007],fall_foam,6)
 for k in range(12):
  a=k*2*pi/12
  ball((.66*math.cos(a),.39,.64+.22*math.sin(a)),(.14+.035*(k%3),.045,.10),foam)
