@@ -31,6 +31,20 @@ jobs:
           if grep -E 'SCRIPT ERROR|Parse Error|Compile Error|Failed to load script' /tmp/kindria-ai-integration.log; then exit 1; fi
           grep -E 'KINDRIA_AI_INTEGRATION_RESULT checks=[1-9][0-9]* failures=0$' /tmp/kindria-ai-integration.log
           grep -E 'KINDRIA_LIVING_GAUNTLET turns=[1-9][0-9]* checks=' /tmp/kindria-ai-integration.log
+      - name: Run full procedural and targeted tactical regressions
+        run: |
+          set -o pipefail
+          /tmp/kindria-godot/Godot_v4.6-stable_linux.x86_64 --headless --path /tmp/kindria-integration --script res://procedural_stress.gd 2>&1 | tee /tmp/kindria-full-regression.log
+          if grep -E 'SCRIPT ERROR|Parse Error|Compile Error|Failed to load script' /tmp/kindria-full-regression.log; then exit 1; fi
+          grep -E 'KINDRIA_PROCEDURAL_RESULT floors=1024 unique=1024 .* failures=0
+        if: always()
+        with:
+          name: kindria-v27-1-integration-log
+          path: |
+            /tmp/kindria-ai-integration.log
+            /tmp/kindria-full-regression.log
+          if-no-files-found: warn
+ /tmp/kindria-full-regression.log
       - uses: actions/upload-artifact@v4
         if: always()
         with:
