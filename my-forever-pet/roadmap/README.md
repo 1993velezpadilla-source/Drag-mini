@@ -39,6 +39,13 @@ See [COMMUNITY_INTELLIGENCE.md](COMMUNITY_INTELLIGENCE.md) for the audit of all 
 - [ ] Verify V26.21 CI and actual rendered waterfall mist/foam placement, audio balance and mobile frame time. F002 remains open until real Android validation.
 - [ ] Next: floor-specific forest props and silhouettes, reactive undergrowth, contact shadows, then portrait GUI playtest.
 
+### Dungeon 001 — V26.22 Living Forest Remastered
+- [x] Source implemented: three floor-specific terrain pigments, canopy color/wind profiles, height variation; starter-only player proximity foliage response, unchanged navigation. Commit 173b63d971e0e5afeb836cb8acd63cb05a492780.
+- [x] Blender generator updated: hanging leaf silhouettes, animated central oak crown, curved-stem fungi. Commit c0337422899ffb9e4180d24783ec0f96a5fcfa01.
+- [x] 11 new profile/material regression checks authored (5161a8cbe700b82d26ac73bceb80c8fbad4fb1ba).
+- [ ] Verify V26.21/V26.22 CI, Blender export geometry and actual rendered Android foliage, contact shadows, readability, and frame-time. F002/F003/F008 remain open.
+- [ ] Next: portrait GUI input usability and objective feedback, plus contact-shadow polish. No new dungeon until first-map gates pass.
+
 ## P1 | dungeon simulation
 - [x] Existing procedural layout, turn logic, movement, four moves, PP, regular attack, 18 types, status, traps, Monster House: audit individually, not certified.
 - [ ] Room graph, variants, dead ends, corridors, visibility/fog of war, room/terrain restrictions, diagonals and corner rules, water/lava/chasm/walls, spawn safety, enemy pathfinding, ally AI tactics, turn scheduling, speed, waiting, auto-explore optional.
