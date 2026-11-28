@@ -4674,6 +4674,55 @@ func run_checks()->void:
 	if forecast_moves!=1 or forecaster.pos!=Vector2i(6,4) or int(forecaster.get("prediction_turn",-1))!=41:failures.append("forecast actual single movement")
 	checks+=1
 	print("KINDRIA_PREDICTIVE_COMBAT checks=11")
+	# Every diagonal must be learned from a witnessed legal voluntary step.
+	for diag in [Vector2i(1,-1),Vector2i(1,1),Vector2i(-1,1),Vector2i(-1,-1)]:
+		var d8:Vector2i=diag
+		var oct_forecast=Rules.new()
+		for yy in range(1,10):
+			for xx in range(1,10):oct_forecast.cells[Vector2i(xx,yy)]=true
+		var center8:=Vector2i(5,5)
+		var before8:Vector2i=center8-d8
+		var ahead8:Vector2i=center8+d8
+		oct_forecast.player=center8;oct_forecast.stairs=Vector2i(9,9);oct_forecast.relic=Vector2i(9,8)
+		oct_forecast.turns=20
+		var watcher8:Dictionary={"uid":0,"pos":before8-d8,"hp":30,"kind":0,"species":"rootgnawer","ecology_role":"hunter","ecology_search_enabled":true,"adaptive_seen":before8,"adaptive_seen_turn":19,"adaptive_heading":d8,"adaptive_streak":1,"pp_primary":0,"pp_secondary":0}
+		oct_forecast.enemies.append(watcher8)
+		oct_forecast.adaptive_walk_from=before8;oct_forecast.adaptive_walk_to=center8;oct_forecast.adaptive_walk_turn=19
+		oct_forecast.enemy_observe_movement(watcher8,center8)
+		if watcher8.get("adaptive_streak",0)!=2 or watcher8.get("search_heading",Vector2i.ZERO)!=d8:failures.append("octant forecast witnessed retreat "+str(d8))
+		checks+=1
+		watcher8.pos=ahead8+d8
+		if oct_forecast.enemy_retreat_prediction(watcher8,center8)!=ahead8:failures.append("octant forecast projected tile "+str(d8))
+		checks+=1
+		var saved8:Dictionary=watcher8.duplicate(true)
+		var rng8:int=oct_forecast.rng.state
+		if oct_forecast.enemy_adaptive_intercept_step(watcher8,center8)!=ahead8:failures.append("octant forecast diagonal intercept "+str(d8))
+		checks+=1
+		if watcher8!=saved8 or oct_forecast.rng.state!=rng8 or not oct_forecast.enemy_actions.is_empty():failures.append("octant forecast pure planning "+str(d8))
+		checks+=1
+		var corner8:Vector2i=watcher8.pos-Vector2i(d8.x,0)
+		oct_forecast.cells.erase(corner8)
+		if oct_forecast.enemy_adaptive_intercept_step(watcher8,center8)!=watcher8.pos:failures.append("octant forecast strict corner "+str(d8))
+		oct_forecast.cells[corner8]=true
+		checks+=1
+		oct_forecast.player_traps[ahead8]="snare"
+		if oct_forecast.enemy_adaptive_intercept_step(watcher8,center8)!=watcher8.pos:failures.append("octant forecast trap avoidance "+str(d8))
+		oct_forecast.player_traps.clear()
+		checks+=1
+		oct_forecast.charge_phase="vanish"
+		if oct_forecast.enemy_retreat_prediction(watcher8,center8)!=center8:failures.append("octant forecast hidden player "+str(d8))
+		oct_forecast.charge_phase=""
+		checks+=1
+		oct_forecast.ai_legacy_cardinal_replay=true
+		if oct_forecast.enemy_retreat_prediction(watcher8,center8)!=center8:failures.append("octant forecast historical replay "+str(d8))
+		oct_forecast.ai_legacy_cardinal_replay=false
+		checks+=1
+		watcher8.pos=before8-d8;watcher8["adaptive_seen"]=before8;watcher8["adaptive_seen_turn"]=19;watcher8["adaptive_heading"]=d8;watcher8["adaptive_streak"]=1
+		oct_forecast.adaptive_walk_turn=18
+		oct_forecast.enemy_observe_movement(watcher8,center8)
+		if watcher8.has("adaptive_streak") or watcher8.has("adaptive_heading"):failures.append("octant forecast forced movement "+str(d8))
+		checks+=1
+	print("KINDRIA_OCTANT_PREDICTION checks=36")
 	# Manipulation rewards improved real attack coverage, not arbitrary distance.
 	var battlefield=Rules.new()
 	for y in range(1,7):

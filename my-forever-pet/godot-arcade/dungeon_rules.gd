@@ -1949,7 +1949,7 @@ func enemy_hunter_search_step(e:Dictionary,anchor:Vector2i,visited:Dictionary,ra
 		var depth:int=int(depths[here])
 		if depth>0 and not visited.has(here) and not claims.has(here):
 			var score:int=12-depth*4
-			if heading in DIR:
+			if heading in (DIR if ai_legacy_cardinal_replay else COMBAT_DIR):
 				var offset:Vector2i=here-anchor
 				score+=clampi(offset.x*heading.x+offset.y*heading.y,-2,2)*2
 			if enemy_combat_personality(e)=="territorial" and distance(here,e.get("ecology_home",anchor))>radius:score-=4
@@ -2004,7 +2004,7 @@ func enemy_observe_movement(e:Dictionary,observed:Vector2i)->void:
 	var delta:Vector2i=observed-previous
 	var voluntary:bool=adaptive_walk_turn==turns-1 and adaptive_walk_from==previous and adaptive_walk_to==observed
 	var retreat:bool=false
-	if consecutive and voluntary and delta in DIR:
+	if consecutive and voluntary and delta in (DIR if ai_legacy_cardinal_replay else COMBAT_DIR) and (ai_legacy_cardinal_replay or step_clear(previous,delta)):
 		e["search_heading"]=delta;e["search_heading_turn"]=turns;e["search_heading_anchor"]=observed
 		retreat=distance(origin,observed)>distance(origin,previous)
 		# A flanker may be ahead of the player, while the player is fleeing
@@ -2030,7 +2030,7 @@ func enemy_retreat_prediction(e:Dictionary,target:Vector2i)->Vector2i:
 	if int(e.get("adaptive_seen_turn",-9999))!=turns or e.get("adaptive_seen",Vector2i.ZERO)!=target or int(e.get("adaptive_streak",0))<threshold:return target
 	if enemy_survival_profile(e) not in ["aggressive","defensive"] or distance(e.pos,target)>enemy_awareness(e) or not enemy_line_of_sight(e.pos,target):return target
 	var heading:Vector2i=e.get("adaptive_heading",Vector2i.ZERO)
-	if heading not in DIR:return target
+	if heading not in (DIR if ai_legacy_cardinal_replay else COMBAT_DIR):return target
 	var predicted:Vector2i=target+heading
 	if not step_clear(target,heading) or not enemy_line_of_sight(e.pos,predicted) or predicted==stairs or predicted==relic or predicted in side_rewards or traps.has(predicted) or player_traps.has(predicted) or enemy_at(predicted)>=0 or ally_at(predicted)>=0:return target
 	return predicted
@@ -2041,10 +2041,11 @@ func enemy_adaptive_intercept_step(e:Dictionary,target:Vector2i)->Vector2i:
 	var origin:Vector2i=e.pos
 	if bool(e.get("windup",false)) or int(e.get("stuck_turns",0))>0:return origin
 	var predicted:Vector2i=enemy_retreat_prediction(e,target)
-	if predicted==target or distance(origin,predicted)!=1:return origin
+	if predicted==target or enemy_step_distance(origin,predicted)!=1 or not step_clear(origin,predicted-origin):return origin
 	return predicted
 
 # A second projected tile is useful only at a visible real bottleneck.
+# A narrow cardinal corridor is a topology test, not a diagonal movement lane.
 # Search at most two cardinal movements; never reserve tiles or move twice.
 func enemy_prediction_safe_tile(q:Vector2i,target:Vector2i)->bool:
 	return cells.has(q) and q!=target and q!=player and q!=stairs and q!=relic and q not in side_rewards and not traps.has(q) and not player_traps.has(q) and enemy_at(q)<0 and ally_at(q)<0
@@ -2055,6 +2056,7 @@ func enemy_predictive_cutoff_step(e:Dictionary,target:Vector2i)->Vector2i:
 	var predicted:Vector2i=enemy_retreat_prediction(e,target)
 	if predicted==target:return origin
 	var heading:Vector2i=predicted-target
+	if heading not in DIR:return origin # A strict diagonal continuation is not a two-opening bottleneck.
 	var post:Vector2i=predicted+heading
 	if not enemy_prediction_safe_tile(post,target) or not enemy_line_of_sight(origin,post) or distance(origin,post)>2:return origin
 	if not cells.has(post+heading):return origin
