@@ -2935,6 +2935,54 @@ func enemy_execute_control(i:int)->bool:
 
 # Occupy a real narrow exit adjacent to the player rather than standing in
 # another attacker's way. The player can still fight through or choose another exit.
+# A visible peer that has already started charging this round can be
+# supported by occupying a plausible escape tile outside its fixed footprint.
+# The player remains free to move, attack, wait or use an item.
+func enemy_counterplay_charge_tiles(e:Dictionary,target:Vector2i)->Dictionary:
+	var covered:Dictionary={}
+	for other in enemies:
+		if other.pos==e.pos:break
+		if not enemy_squad_partner(e,other) or not bool(other.get("windup",false)) or not enemy_move_allowed(other,"primary"):continue
+		if int(other.get("whiffer_turns",0))>0 or int(other.get("slow_turns",0))>0:continue
+		if distance(other.pos,target)>enemy_awareness(other) or not enemy_line_of_sight(other.pos,target):continue
+		var skill:Array=signature_skill(other)
+		var aim:Vector2i=other.get("aim",Vector2i.ZERO)
+		if not bool(skill[1]) or aim==Vector2i.ZERO or enemy_attack_score(other,skill,false)<=0.0:continue
+		var footprint:Dictionary=attack_footprint(other.pos,aim,str(ATTACK_PATTERNS.get(other.get("species",""),"line")),int(skill[0]))
+		if not footprint.has(target):continue
+		for tile in footprint:
+			if enemy_line_of_sight(e.pos,tile):covered[tile]=true
+	return covered
+
+func enemy_counterplay_escape_step(e:Dictionary,target:Vector2i)->Vector2i:
+	var origin:Vector2i=e.pos
+	if target!=player or not enemy_opportunity_eligible(e) or int(e.get("stuck_turns",0))>0 or bool(e.get("monster_house",false)):return origin
+	if charge_phase in ["underground","airborne","vanish"] or (shield_turns>0 and shield_kind=="protect"):return origin
+	if enemy_survival_profile(e) not in ["aggressive","defensive"] or int(e.hp)*2<=maxi(1,int(e.get("max_hp",e.hp))):return origin
+	if distance(origin,target)<2 or distance(origin,target)>3 or enemy_decision_attack_value(e,origin,target)>0.0:return origin
+	var covered:Dictionary=enemy_counterplay_charge_tiles(e,target)
+	if covered.is_empty():return origin
+	var reserved:Dictionary=enemy_pack_reserved_posts(e,target)
+	var best:Vector2i=origin
+	var best_score:int=-2147483647
+	var phase:int=posmod(int(e.get("uid",0))+turns,4)
+	for j in range(4):
+		var q:Vector2i=origin+DIR[(phase+j)%4]
+		var delta:Vector2i=q-target
+		if delta not in DIR8 or not step_clear(target,delta) or covered.has(q) or reserved.has(q) or not enemy_ambush_safe_tile(q):continue
+		if not enemy_line_of_sight(origin,q) or not enemy_line_of_sight(q,target):continue
+		var blocked:bool=false
+		for other in enemies:
+			if enemy_squad_partner(e,other) and enemy_line_of_sight(other.pos,target) and enemy_relief_blocks_lane(other,q,target):blocked=true;break
+		if blocked:continue
+		var score:int=enemy_terrain_position_bonus(e,q,target)+4*int(distance(q,target)==1)
+		for d in DIR:
+			var onward:Vector2i=q+d
+			if onward!=target and not covered.has(onward) and enemy_ambush_safe_tile(onward):score+=1
+		if enemy_strategy_reversal(e,q,target):score-=3
+		if score>best_score:best_score=score;best=q
+	return best
+
 func enemy_exit_block_step(e:Dictionary,target:Vector2i)->Vector2i:
 	var origin:Vector2i=e.pos
 	if not bool(e.get("ecology_search_enabled",false)) or (bool(e.get("monster_house",false)) and not bool(e.get("house_tactical",false))) or int(e.get("kind",0))==3 or int(e.get("stuck_turns",0))>0:return origin
@@ -5527,6 +5575,8 @@ func enemy_turn_actions_impl():
 				tactical=enemy_adaptive_intercept_step(enemies[i],player)
 				if tactical==p:tactical=enemy_predictive_cutoff_step(enemies[i],player)
 				predictive_move=tactical!=p
+			if tactical==p and not charged and pursuit_target==player:
+				tactical=enemy_counterplay_escape_step(enemies[i],player)
 			if tactical==p and not charged and pursuit_target==player:
 				tactical=enemy_exit_block_step(enemies[i],player)
 			var environment_guard:bool=false
