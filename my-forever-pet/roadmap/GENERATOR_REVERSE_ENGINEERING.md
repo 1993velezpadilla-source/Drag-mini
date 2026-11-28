@@ -267,3 +267,10 @@ Independent biome/terrain and room-event profiles, optional treasure branches, M
 ## V26.71 — Intelligent Combat Memory
 - Ecology actors record their own resolved learned damaging attacks by target UID and primary/secondary slot. Up to eight observations, six-turn expiry; resisted or immune outcomes reduce future preference and super-effective outcomes modestly increase it. Misses and temporary shield blocks do not establish type observations. Incoming visible player strikes record recent damage and element; cautious creatures can use a recent substantial hit (at least one quarter of maximum HP, within three turns) to trigger existing bounded safe spacing. No changes to damage, PP costs, action budget or RNG. Implementation 45a3374d2edea78e8abaac51f3ab6fe75442af11.
 - Ten regression assertions cover slot and target isolation, misses and protection, expiry, bounded eviction, incoming threat threshold, spacing, hidden attackers and actual learned attack recording (e728d4aa0d3740cd459f82491c8e2e9bf9609736). CI and Android execution remain unverified. Memory limits, score weights and threat threshold are provisional balance decisions; this augments existing type-aware scoring rather than replacing it with a full learned opponent model.
+
+### V26.72 — Intelligent Attack Combinations
+- Status setup evaluates the best usable follow-up from the actor and up to two visible, active squad partners. Existing attack slots, reach, line of sight, PP, cooldown, locks, attack category and observed effectiveness constrain the estimate.
+- Defense reductions only receive a follow-up bonus when the attack category matches; capped defense reductions remain redundant.
+- Sleep/paralysis windows reduce the charged-attack scoring penalty from 0.70 to 0.90 while sufficient duration remains. Actual windup, damage, PP and turn rules are unchanged.
+- Bonuses are bounded to 4.5; self contribution capped at 1.5. These are provisional balance values, not a guaranteed combo or a new attack mechanic.
+- Ten procedural checks authored; CI/device validation pending. Existing status fixture now uses an actual eligible attacking partner.
