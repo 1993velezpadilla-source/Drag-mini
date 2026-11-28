@@ -1685,6 +1685,49 @@ func run_checks()->void:
 	if not decision_fixture.enemy_decision_position_plan(decision_actor,decision_fixture.player).is_empty():failures.append("decision no unseen target")
 	checks+=1
 	print("KINDRIA_ENEMY_DECISION_ENGINE checks=9")
+
+	# Lookahead finds a firing position beyond the immediate neighborhood.
+	var foresight_fixture=Rules.new()
+	for y in range(1,11):
+		for x in range(1,11):foresight_fixture.cells[Vector2i(x,y)]=true
+	foresight_fixture.player=Vector2i(6,4);foresight_fixture.stairs=Vector2i(10,10);foresight_fixture.relic=Vector2i(10,9);foresight_fixture.turns=20;foresight_fixture.hp=30
+	var foresight_actor:Dictionary={"uid":240,"pos":Vector2i(3,6),"hp":30,"max_hp":30,"kind":0,"species":"leafwisp","ecology_role":"hunter","ecology_search_enabled":true,"personality_enabled":true,"pp_primary":12,"pp_secondary":0}
+	foresight_fixture.enemies.append(foresight_actor)
+	var fs_plan:Dictionary=foresight_fixture.enemy_foresight_plan(foresight_actor,foresight_fixture.player)
+	if fs_plan.is_empty() or int(fs_plan.get("depth",0))!=2 or fs_plan.get("step")!=Vector2i(3,5) or fs_plan.get("post")!=Vector2i(3,4):failures.append("foresight two step firing post")
+	checks+=1
+	if int(fs_plan.get("nodes",999))>25 or foresight_actor.pos!=Vector2i(3,6) or foresight_actor.pp_primary!=12 or not foresight_fixture.enemy_actions.is_empty():failures.append("foresight bounded pure planning")
+	checks+=1
+	foresight_fixture.traps[Vector2i(3,5)]="snare"
+	var fs_detour:Dictionary=foresight_fixture.enemy_foresight_plan(foresight_actor,foresight_fixture.player)
+	if not fs_detour.is_empty() and fs_detour.get("step")==Vector2i(3,5):failures.append("foresight trap invalidates route")
+	foresight_fixture.traps.clear()
+	checks+=1
+	foresight_actor.pos=Vector2i(3,5)
+	if not foresight_fixture.enemy_foresight_plan(foresight_actor,foresight_fixture.player).is_empty():failures.append("foresight defers to immediate position")
+	foresight_actor.pos=Vector2i(3,6)
+	checks+=1
+	foresight_actor.pp_primary=0
+	if not foresight_fixture.enemy_foresight_plan(foresight_actor,foresight_fixture.player).is_empty():failures.append("foresight exhausted kit")
+	foresight_actor.pp_primary=12
+	checks+=1
+	foresight_actor.species="thornbeetle"
+	var fs_kits:Array[Dictionary]=foresight_fixture.enemy_foresight_kits(foresight_actor)
+	if fs_kits.is_empty() or not bool(fs_kits[0].get("charged",false)):failures.append("foresight learned charge candidate")
+	foresight_actor.species="leafwisp"
+	checks+=1
+	foresight_actor["windup"]=true
+	if not foresight_fixture.enemy_foresight_plan(foresight_actor,foresight_fixture.player).is_empty():failures.append("foresight preserves committed charge")
+	foresight_actor.erase("windup")
+	checks+=1
+	foresight_fixture.charge_phase="vanish"
+	if not foresight_fixture.enemy_foresight_plan(foresight_actor,foresight_fixture.player).is_empty():failures.append("foresight hidden player rejected")
+	foresight_fixture.charge_phase=""
+	checks+=1
+	foresight_actor["cooldown"]=2
+	if not foresight_fixture.enemy_foresight_plan(foresight_actor,foresight_fixture.player).is_empty():failures.append("foresight cooling kit rejected")
+	checks+=1
+	print("KINDRIA_ENEMY_FORESIGHT checks=9")
 	# A direct witness may report a tile, but a listener cannot relay it.
 	var comm=Rules.new()
 	for x in range(1,4):comm.cells[Vector2i(x,3)]=true
