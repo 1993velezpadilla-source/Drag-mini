@@ -2676,6 +2676,17 @@ func run_checks()->void:
 	lane_ranged.erase("windup");lane_ranged.erase("aim");lane_ranged.erase("whiffer_turns")
 	if not lane_fixture.enemy_relief_blocks_lane(lane_ranged,Vector2i(5,4),lane_fixture.player) or lane_actor.pos!=Vector2i(5,5) or lane_ranged.pp_primary!=12 or not lane_fixture.enemy_actions.is_empty():failures.append("lane restores ordinary reservation and planning purity")
 	checks+=1
+	# Ordinary firing reservations cannot be based on a concealed player.
+	for hidden_phase in ["underground","airborne","vanish"]:
+		lane_fixture.charge_phase=hidden_phase
+		if lane_fixture.enemy_relief_blocks_lane(lane_ranged,Vector2i(5,4),lane_fixture.player):failures.append("lane rejects hidden ordinary target "+hidden_phase)
+	checks+=1
+	lane_ranged["windup"]=true;lane_ranged["aim"]=Vector2i.LEFT
+	if not lane_fixture.enemy_relief_blocks_lane(lane_ranged,Vector2i(5,4),lane_fixture.player):failures.append("lane preserves announced geometry during concealment")
+	checks+=1
+	lane_ranged.erase("windup");lane_ranged.erase("aim");lane_fixture.charge_phase=""
+	if not lane_fixture.enemy_relief_blocks_lane(lane_ranged,Vector2i(5,4),lane_fixture.player):failures.append("lane restores reservation after visible return")
+	checks+=1
 	lane_ranged["cooldown"]=1
 	if lane_fixture.enemy_firing_lane_frontline(lane_actor,lane_fixture.player) or lane_fixture.enemy_unstall_step(lane_actor,lane_fixture.player)!=Vector2i(5,4):failures.append("lane hold reenters after ray cooldown")
 	checks+=1
@@ -3147,7 +3158,7 @@ func run_checks()->void:
 	stage_fixture.enemy_expire_frontline_holds(stage_actor)
 	if stage_actor.has("stage_position") or stage_actor.has("stage_turn"):failures.append("staging expiry rejects missing target even with valid age and position")
 	checks+=1
-	print("KINDRIA_ANTI_STALL checks=232")
+	print("KINDRIA_ANTI_STALL checks=235")
 	# A direct witness may report a tile, but a listener cannot relay it.
 	var comm=Rules.new()
 	for x in range(1,4):comm.cells[Vector2i(x,3)]=true
