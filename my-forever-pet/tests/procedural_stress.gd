@@ -2077,7 +2077,26 @@ func run_checks()->void:
 	stall_fixture.turns=24
 	if stall_fixture.enemy_unstall_step(stall_actor,stall_fixture.player)!=stall_actor.pos:failures.append("unstall stale observations rejected")
 	checks+=1
-	print("KINDRIA_ANTI_STALL checks=7")
+	# Three-step detour around a friendly frontline; no learned move is available.
+	var detour_fixture=Rules.new()
+	for y in range(2,7):
+		for x in range(1,7):detour_fixture.cells[Vector2i(x,y)]=true
+	detour_fixture.player=Vector2i(4,4);detour_fixture.stairs=Vector2i(6,6);detour_fixture.relic=Vector2i(6,5);detour_fixture.turns=22
+	var detour_actor:Dictionary={"uid":311,"pos":Vector2i(2,4),"hp":30,"kind":0,"species":"rootgnawer","ecology_role":"hunter","ecology_search_enabled":true,"personality_enabled":true,"pp_primary":0,"pp_secondary":0,"stall_count":2,"stall_turn":21,"stall_target":Vector2i(4,4)}
+	detour_fixture.enemies.append(detour_actor)
+	detour_fixture.enemies.append({"uid":312,"pos":Vector2i(3,4),"hp":30,"kind":0,"species":"rootgnawer","pp_primary":0,"pp_secondary":0})
+	detour_fixture.enemies.append({"uid":313,"pos":Vector2i(4,3),"hp":30,"kind":0,"species":"rootgnawer","pp_primary":0,"pp_secondary":0})
+	var detour_result:Vector2i=detour_fixture.enemy_unstall_step(detour_actor,detour_fixture.player)
+	if detour_result!=Vector2i(2,5):failures.append("unstall extended friendly frontline detour")
+	checks+=1
+	if detour_actor.pos!=Vector2i(2,4) or detour_actor.pp_primary!=0 or not detour_fixture.enemy_actions.is_empty():failures.append("unstall extended plan purity")
+	checks+=1
+	detour_fixture.traps[Vector2i(2,5)]="snare"
+	detour_fixture.traps[Vector2i(2,3)]="snare"
+	detour_fixture.traps[Vector2i(1,4)]="snare"
+	if detour_fixture.enemy_unstall_step(detour_actor,detour_fixture.player)!=detour_actor.pos:failures.append("unstall extended no safe exits")
+	checks+=1
+	print("KINDRIA_ANTI_STALL checks=10")
 	# A direct witness may report a tile, but a listener cannot relay it.
 	var comm=Rules.new()
 	for x in range(1,4):comm.cells[Vector2i(x,3)]=true
