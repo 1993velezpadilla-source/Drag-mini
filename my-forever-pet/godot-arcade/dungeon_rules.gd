@@ -3280,7 +3280,8 @@ func enemy_charge_push_bonus(e:Dictionary,plan:Dictionary)->int:
 	return 3 if not shifted.has(e.pos) else 0
 
 func enemy_status_utility(e:Dictionary,move:Dictionary)->float:
-	if int(e.get("whiffer_turns",0))>0:return 0.0
+	# Status-only control follows the same live-contact contract as knockback.
+	if not enemy_live_contact(e,player) or int(e.get("whiffer_turns",0))>0:return 0.0
 	var origin:Vector2i=e.pos
 	var gap:int=distance(origin,player)
 	if gap<1 or gap>enemy_awareness(e) or not enemy_line_of_sight(origin,player):return 0.0

@@ -1493,7 +1493,22 @@ func run_checks()->void:
 	status_fixture.tier=5
 	if status_fixture.enemy_execute_control(0):failures.append("status stronger attack priority")
 	checks+=1
-	print("KINDRIA_STATUS_TACTICS utility=2 gates=5 action=1 redundancy=1 priority=1")
+	# A decoy must not permit real-target status control or consume PP/RNG.
+	status_actor["pp_primary"]=0;status_actor["pp_secondary"]=0
+	var status_contact_rng:int=status_fixture.rng.state
+	var status_contact_actions:int=status_fixture.enemy_actions.size()
+	status_fixture.player_boons["decoy"]=2
+	if status_fixture.enemy_status_utility(status_actor,debuff_move)!=0.0 or status_fixture.enemy_execute_control(0):failures.append("status decoy denies real target")
+	checks+=1
+	status_fixture.player_boons.erase("decoy")
+	var status_contact_hp:int=status_fixture.hp
+	status_fixture.hp=0
+	if status_fixture.enemy_status_utility(status_actor,debuff_move)!=0.0 or status_fixture.enemy_execute_control(0):failures.append("status defeated target denied")
+	checks+=1
+	status_fixture.hp=status_contact_hp
+	if status_fixture.enemy_status_utility(status_actor,debuff_move)<=0.0 or status_actor.pp_control!=4 or status_fixture.rng.state!=status_contact_rng or status_fixture.enemy_actions.size()!=status_contact_actions or not status_fixture.player_stages.is_empty():failures.append("status contact restoration and purity")
+	checks+=1
+	print("KINDRIA_STATUS_TACTICS utility=2 gates=7 action=1 redundancy=1 priority=1 contact_purity=1")
 	# Area attacks hit each party member once, without sharing the player's shield.
 	var area_fixture=Rules.new()
 	for y in range(1,8):
