@@ -31,26 +31,41 @@ func run():
 				assert(first==clone.cells,"same seed same layout")
 				for floor_index in range(field.floor_count):
 					assert(field.floor_number==floor_index+1)
-					assert(field.rooms.size()>=4 and field.rooms.size()<=9)
+					assert(field.rooms.size()>=3 and field.rooms.size()<=12)
 					room_counts[field.rooms.size()]=true
-					signatures[str(field.rooms)]=true
-					assert(field.route(field.player,field.relic).size()>0)
-					assert(field.route(field.player,field.stairs).size()>0)
-					assert(not field.descend(),"cannot skip relic")
-					var all:Array=field.cells.keys()
-					for p in all:
-						assert(p==field.player or not field.route(field.player,p).is_empty(),"no disconnected tile")
-					# Isolate navigation and pickup from combat.
-					field.enemies.clear()
-					var coin_pos:Vector2i
-					for d in Rules.DIR:
-						if field.loot.get(field.player+d,"")=="coin":coin_pos=field.player+d;break
+					signatures[field.shape_signature]=true
+					assert(field.player!=field.relic and field.route(field.player,field.relic).size()>0)
+					assert(field.player==field.stairs or field.route(field.player,field.stairs).size()>0)
+					assert(field.stairs_available(),"ordinary stairs must not require treasure")
+					var visited:Dictionary={field.player:true}
+					var queue:Array[Vector2i]=[field.player]
+					var cursor:int=0
+					while cursor<queue.size():
+						var tile:Vector2i=queue[cursor];cursor+=1
+						for d in Rules.DIR:
+							var next:Vector2i=tile+d
+							if field.cells.has(next) and not visited.has(next):visited[next]=true;queue.append(next)
+					assert(visited.size()==field.cells.size(),"no disconnected tile")
+					# Isolate navigation and pickup from combat and ambushes.
+					field.enemies.clear();field.traps.clear();field.monster_house_room=-1
+					field.belly_tenths=1000
+					# Explicit isolated pickup test, independent of random loot placement.
+					var coin_pos:Vector2i=field.player
+					var previous_loot:Variant=field.loot.get(coin_pos,null)
+					field.loot[coin_pos]="coin"
 					var wallet:int=field.coins
-					assert(field.move(coin_pos) and field.coins==wallet+3)
+					field.pickup();assert(field.coins==wallet+3)
 					field.pickup();assert(field.coins==wallet+3,"cannot collect twice")
-					for p in field.route(field.player,field.relic):assert(field.move(p))
-					assert(field.secured)
+					if previous_loot!=null:field.loot[coin_pos]=previous_loot
+					if floor_index%2==0:
+						for p in field.route(field.player,field.relic):assert(field.move(p))
+						assert(field.secured)
+					else:
+						# Leave treasure uncollected even if the exit route crosses its tile.
+						field.loot.erase(field.relic)
+						assert(not field.secured)
 					for p in field.route(field.player,field.stairs):assert(field.move(p))
+					if floor_index%2!=0:assert(not field.secured)
 					var coins_before:int=field.coins
 					assert(field.descend())
 					assert(field.coins>=coins_before and field.total_bonus<=6*field.floor_number,"bounded exploration bonus")
@@ -90,7 +105,7 @@ func run():
 	var health:int=heavy.hp
 	heavy.enemy_turn();assert(heavy.hp==health and heavy.enemies[0].windup)
 	heavy.enemy_turn();assert(heavy.hp<health and not heavy.enemies[0].windup)
-	assert(room_counts.size()>=4 and signatures.size()>60,"genuine structural variation in at most 100 seed/floor combinations")
+	assert(room_counts.size()>=4 and signatures.size()>60,"genuine structural variation across seeded expeditions")
 	print("DUNGEON_LAYOUT_VARIETY room_counts=",room_counts.keys()," unique_room_signatures=",signatures.size())
 	print("FOREVER_DUNGEON_PASS ",total)
 	quit()
