@@ -1330,6 +1330,30 @@ func run_checks()->void:
 	control_fixture.hp=saved_control_hp
 	controller.erase("personality_enabled")
 	checks+=1
+	# Nonlethal attack vs control uses a shared tactical score and respects PP.
+	var choice_push=Rules.new()
+	for y in range(1,7):
+		for x in range(1,8):choice_push.cells[Vector2i(x,y)]=true
+	choice_push.player=Vector2i(3,3);choice_push.hp=100;choice_push.max_hp=100
+	choice_push.tier=5;choice_push.traps[Vector2i(5,3)]="snare"
+	var choice_controller:Dictionary={"uid":51,"pos":Vector2i(2,3),"hp":30,"max_hp":30,"kind":1,"species":"sylphowl","ecology_search_enabled":true,"personality_enabled":true,"control_move":"eos_268","pp_control":5,"pp_primary":12,"pp_secondary":0,"stages":{"accuracy":10,"sp_attack":10}}
+	choice_push.enemies.append(choice_controller)
+	var choice_plan:Dictionary=choice_push.enemy_push_plan(choice_controller,choice_push.player)
+	if int(choice_plan.get("score",0))!=8 or choice_push.enemy_decision_attack_value(choice_controller,choice_controller.pos,choice_push.player)<=8.0 or choice_push.enemy_push_preferred(choice_controller,choice_plan):failures.append("control stronger nonlethal attack preferred")
+	checks+=1
+	var choice_rng:int=choice_push.rng.state
+	if choice_push.enemy_execute_control(0) or choice_controller.pp_control!=5 or choice_push.rng.state!=choice_rng or not choice_push.enemy_actions.is_empty():failures.append("control rejected choice preserves action and PP")
+	checks+=1
+	choice_controller.pp_primary=0
+	if not choice_push.enemy_push_preferred(choice_controller,choice_plan):failures.append("control strong hazard when learned attack exhausted")
+	checks+=1
+	choice_controller.pp_control=1
+	var borderline:Dictionary={"score":choice_push.enemy_decision_attack_value(choice_controller,choice_controller.pos,choice_push.player)+.5}
+	if choice_push.enemy_push_preferred(choice_controller,borderline):failures.append("control scarce PP near tie")
+	checks+=1
+	choice_controller.pp_control=5
+	if not choice_push.enemy_execute_control(0) or choice_controller.pp_control!=4 or choice_push.player!=Vector2i(5,3) or choice_push.enemy_actions.size()!=1:failures.append("control actual favorable hazard choice")
+	checks+=1
 	# Setup is also unnecessary when its learned control move cannot connect.
 	controller.pos=Vector2i(2,2);controller["whiffer_turns"]=2
 	if control_fixture.enemy_control_setup_step(controller,control_fixture.player)!=controller.pos or controller.pp_control!=5:failures.append("control setup rejects guaranteed whiff")

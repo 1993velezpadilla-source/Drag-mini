@@ -3356,6 +3356,20 @@ func enemy_execute_status_control(i:int,move:Dictionary)->bool:
 	emit_event(str(move.name)+(" · Missed" if miss else " · Tactical control"))
 	return true
 
+# Compare the existing knockback tactical score with the best immediate
+# attack estimate. This is a decision heuristic, not predicted exact HP loss.
+# Preserve a credible response to a telegraphed attack and legacy non-tactical AI.
+func enemy_push_preferred(e:Dictionary,plan:Dictionary)->bool:
+	if plan.is_empty():return false
+	var escape_bonus:int=enemy_charge_push_bonus(e,plan)
+	var utility:float=float(plan.get("score",0))+float(escape_bonus)
+	if utility<5.0:return false
+	if escape_bonus>0 or not bool(e.get("personality_enabled",false)):return true
+	var direct:float=enemy_decision_attack_value(e,e.pos,player)
+	# Conserve scarce control PP when a comparable direct action exists.
+	if enemy_move_pp(e,"control")<=2:utility-=.5
+	return utility>direct+.25
+
 func enemy_execute_control(i:int)->bool:
 	var e:Dictionary=enemies[i]
 	var id:String=str(e.get("control_move",""))
@@ -3371,7 +3385,7 @@ func enemy_execute_control(i:int)->bool:
 	if not enemy_live_contact(e,player) or int(e.get("whiffer_turns",0))>0:return false
 	if enemy_risk_has_finisher(e):return false
 	var plan:Dictionary=enemy_push_plan(e,player)
-	if int(plan.get("score",0))+enemy_charge_push_bonus(e,plan)<5:return false
+	if not enemy_push_preferred(e,plan):return false
 	var origin:Vector2i=player
 	record_enemy_move(e,"control")
 	e["control_cooldown"]=3
