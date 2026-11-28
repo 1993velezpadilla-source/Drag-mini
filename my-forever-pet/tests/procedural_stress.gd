@@ -1471,6 +1471,51 @@ func run_checks()->void:
 	if listener.pos!=Vector2i(2,3) or listener_moves!=1 or listener.pp_primary!=0:failures.append("communication real single investigation movement")
 	checks+=1
 	print("KINDRIA_ENEMY_COMMUNICATION checks=10")
+	# Temperament influences ordinary choices, not actual damage or PP.
+	var personality=Rules.new()
+	for y in range(1,9):
+		for x in range(1,9):personality.cells[Vector2i(x,y)]=true
+	personality.player=Vector2i(4,4);personality.stairs=Vector2i(8,8);personality.relic=Vector2i(8,7)
+	var cautious:Dictionary={"uid":0,"pos":Vector2i(3,4),"hp":20,"max_hp":20,"kind":0,"species":"leafwisp","ecology_role":"hunter","ecology_search_enabled":true,"personality_enabled":true,"pp_primary":12,"pp_secondary":0}
+	personality.enemies.append(cautious)
+	if personality.enemy_combat_personality(cautious)!="cautious" or personality.enemy_combat_personality({"species":"rootgnawer"})!="territorial" or personality.enemy_combat_personality({"species":"bramble_pup"})!="hunter" or personality.enemy_combat_personality({"species":"mossmite"})!="defender" or personality.enemy_combat_personality({"species":"eelstrix"})!="opportunist":failures.append("personality mapping")
+	checks+=1
+	if personality.enemy_cautious_spacing_step(cautious,personality.player)!=cautious.pos:failures.append("personality no spacing without threat")
+	checks+=1
+	personality.player_stages["attack"]=2
+	var spacing:Vector2i=personality.enemy_cautious_spacing_step(cautious,personality.player)
+	if spacing!=Vector2i(2,4) or cautious.pos!=Vector2i(3,4) or cautious.pp_primary!=12:failures.append("personality cautious spacing purity")
+	checks+=1
+	personality.traps[spacing]="snare"
+	if personality.enemy_cautious_spacing_step(cautious,personality.player)==spacing:failures.append("personality hazard avoidance")
+	personality.traps.clear()
+	checks+=1
+	cautious["spacing_count"]=2
+	if personality.enemy_cautious_spacing_step(cautious,personality.player)!=cautious.pos:failures.append("personality spacing cap")
+	cautious.erase("spacing_count")
+	checks+=1
+	cautious["windup"]=true
+	if personality.enemy_cautious_spacing_step(cautious,personality.player)!=cautious.pos:failures.append("personality preserves charged attack")
+	cautious.erase("windup")
+	checks+=1
+	personality.enemy_turn_actions()
+	if cautious.pos!=spacing or cautious.pp_primary!=12 or cautious.get("spacing_count",0)!=1 or personality.enemy_actions.size()!=1 or personality.enemy_actions[0].get("phase","")!="move":failures.append("personality actual movement budget")
+	checks+=1
+	var hunter:Dictionary={"species":"bramble_pup","ecology_role":"hunter","personality_enabled":true}
+	if personality.enemy_memory_duration(hunter)!=5 or personality.enemy_memory_duration({"species":"bramble_pup","ecology_role":"hunter"})!=4:failures.append("personality hunter memory")
+	checks+=1
+	var opportunist:Dictionary={"species":"eelstrix","personality_enabled":true}
+	var opportunist_skill:Array=personality.signature_skill(opportunist)
+	if personality.enemy_personality_bonus(opportunist,opportunist_skill,1.0)<=0.0 or personality.enemy_personality_bonus(opportunist,opportunist_skill,0.0)!=0.0 or personality.enemy_personality_control_bonus(opportunist)<=0.0:failures.append("personality useful effect only")
+	checks+=1
+	var territorial:Dictionary={"uid":1,"pos":Vector2i(2,2),"hp":20,"kind":0,"species":"rootgnawer","ecology_home":Vector2i(4,2),"personality_enabled":true}
+	personality.enemies.clear();personality.enemies.append(territorial)
+	if personality.enemy_territorial_idle_step(territorial)!=Vector2i(3,2):failures.append("personality territorial home return")
+	checks+=1
+	territorial["monster_house"]=true
+	if personality.enemy_territorial_idle_step(territorial)!=territorial.pos:failures.append("personality house territory exception")
+	checks+=1
+	print("KINDRIA_COMBAT_PERSONALITY checks=11")
 	# Actual disk I/O, legacy migration, corruption recovery, and resumed writes.
 	var test_path:String="user://kindria_procedural_test_"+str(OS.get_process_id())+".cfg"
 	var exact:Array[String]=["legacy exact".sha256_text()]
