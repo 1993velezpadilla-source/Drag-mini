@@ -769,6 +769,7 @@ var ai_cache_active:bool=false
 var ai_actor_cache_active:bool=false
 var ai_los_cache:Dictionary={}
 var ai_terrain_cache:Dictionary={}
+var ai_topology_cache:Dictionary={}
 var ai_footprint_cache:Dictionary={}
 var ai_occupancy_cache:Dictionary={}
 var ai_occupancy_ready:bool=false
@@ -777,6 +778,7 @@ var ai_cache_misses:int=0
 const AI_LOS_CAP:int=1024
 const AI_FOOTPRINT_CAP:int=128
 const AI_TERRAIN_CAP:int=4
+const AI_TOPOLOGY_CAP:int=256
 
 func ai_begin_turn_cache()->void:
 	ai_end_turn_cache()
@@ -795,7 +797,7 @@ func ai_begin_actor_cache()->void:
 func ai_end_turn_cache()->void:
 	ai_end_actor_cache()
 	ai_cache_active=false
-	ai_los_cache.clear();ai_terrain_cache.clear()
+	ai_los_cache.clear();ai_terrain_cache.clear();ai_topology_cache.clear()
 
 func attack_footprint(origin:Vector2i,forward:Vector2i,pattern:String,reach:int,player_cast:bool=false)->Dictionary:
 	if not ai_actor_cache_active or player_cast or pattern=="floor":
@@ -1751,7 +1753,9 @@ func enemy_memory_duration(e:Dictionary)->int:
 # both orthogonal neighbors must be open, matching strict diagonal movement.
 func enemy_line_of_sight(origin:Vector2i,target:Vector2i)->bool:
 	if not ai_cache_active:return compute_enemy_line_of_sight(origin,target)
-	var key:=Vector4i(origin.x,origin.y,target.x,target.y)
+	# Supercover LOS is symmetric; use one canonical key for either direction.
+	var reversed:bool=origin.x>target.x or (origin.x==target.x and origin.y>target.y)
+	var key:=Vector4i(target.x,target.y,origin.x,origin.y) if reversed else Vector4i(origin.x,origin.y,target.x,target.y)
 	if ai_los_cache.has(key):
 		ai_cache_hits+=1;return bool(ai_los_cache[key])
 	var visible:bool=compute_enemy_line_of_sight(origin,target)
@@ -1977,6 +1981,15 @@ func enemy_pursuit_target(e:Dictionary,observed:Vector2i)->Vector2i:
 # or movement turns are granted. Only actors that can see the target may flank.
 # Local floor topology, independent of the dungeon theme and current occupants.
 func enemy_terrain_kind(tile:Vector2i)->String:
+	if not ai_cache_active:return compute_enemy_terrain_kind(tile)
+	if ai_topology_cache.has(tile):
+		ai_cache_hits+=1;return str(ai_topology_cache[tile])
+	var result:String=compute_enemy_terrain_kind(tile)
+	ai_cache_misses+=1
+	if ai_topology_cache.size()<AI_TOPOLOGY_CAP:ai_topology_cache[tile]=result
+	return result
+
+func compute_enemy_terrain_kind(tile:Vector2i)->String:
 	if not cells.has(tile):return "wall"
 	var openings:Array[Vector2i]=[]
 	for d in DIR:
@@ -4223,12 +4236,13 @@ func enemy_squad_focus_bonus(e:Dictionary,target_uid:int,tile:Vector2i)->float:
 		if index<0 or int(allies[index].get("uid",1000+index))!=target_uid:return 0.0
 	var count:int=0
 	for other in enemies:
-		if not enemy_squad_partner(e,other):continue
 		var age:int=turns-int(other.get("squad_focus_turn",-9999))
 		if age<0 or age>2 or int(other.get("squad_focus_uid",-9999))!=target_uid:continue
+		if not enemy_squad_partner(e,other):continue
 		if distance(other.pos,tile)>enemy_awareness(other) or not enemy_line_of_sight(other.pos,tile):continue
 		count+=1
-	return float(mini(count,2))*1.25
+		if count>=2:break
+	return float(count)*1.25
 
 # Local interception: reserve a free adjacent escape tile on the opposite side
 # of an engaged partner. At most three cardinal steps are considered.
@@ -4237,11 +4251,12 @@ func enemy_squad_focus_bonus(e:Dictionary,target_uid:int,tile:Vector2i)->float:
 func enemy_pack_reserved_posts(e:Dictionary,target:Vector2i)->Dictionary:
 	var out:Dictionary={}
 	for other in enemies:
-		if not enemy_squad_partner(e,other) or not other.has("pack_post"):continue
+		if not other.has("pack_post"):continue
 		var age:int=turns-int(other.get("pack_turn",-9999))
 		var post:Vector2i=other.pack_post
 		if age<0 or age>1 or other.get("pack_target",Vector2i.ZERO)!=target or bool(other.get("windup",false)) or int(other.get("stuck_turns",0))>0:continue
 		if distance(other.pos,post)>2 or distance(post,target)!=1 or not enemy_ambush_safe_tile(post):continue
+		if not enemy_squad_partner(e,other):continue
 		if not enemy_line_of_sight(other.pos,target) or not enemy_line_of_sight(e.pos,post):continue
 		out[post]=true
 	return out
