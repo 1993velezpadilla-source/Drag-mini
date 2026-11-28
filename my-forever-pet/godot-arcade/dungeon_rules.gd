@@ -342,7 +342,8 @@ func reveal_defender_types(element:String,types:Array,target:Dictionary)->Array:
 var ingrain_age:int=0
 var self_confusion_turns:int=0
 func clear_negative_conditions()->void:
-	poison_turns=0;weakened_strikes=0;marked_damage=0;self_confusion_turns=0
+	poison_turns=0;weakened_strikes=0;marked_damage=0;self_confusion_turns=0;player_slow_turns=0
+	for status in ["hostile_sleep","hostile_drowse","hostile_paralysis"]:player_boons.erase(status)
 func player_wait_if_napping()->bool:
 	if not finished and boon_active("hostile_paralysis") and int(player_boons.hostile_paralysis)%2==0:
 		message="Paralyzed";enemy_turn();return true
@@ -363,13 +364,14 @@ func boon_active(id:String)->bool:
 func apply_player_boon(move:Dictionary)->bool:
 	var id:String=str(move.boon_kind)
 	if id=="cure":
-		var changed:bool=poison_turns>0 or weakened_strikes>0 or marked_damage>0 or self_confusion_turns>0
+		var changed:bool=poison_turns>0 or weakened_strikes>0 or marked_damage>0 or self_confusion_turns>0 or player_slow_turns>0 or boon_active("hostile_sleep") or boon_active("hostile_drowse") or boon_active("hostile_paralysis")
 		clear_negative_conditions()
 		return changed
 	if boon_active(id) or (id=="nap" and boon_active("sleepless")) or (id=="magnet" and gravity_active):return false
 	if id in ["sure","focus","set_damage"]:
 		for state in ["sure","focus","set_damage"]:player_boons.erase(state)
-	if id=="sleepless":player_boons.erase("nap")
+	if id=="sleepless":
+		for status in ["nap","hostile_sleep","hostile_drowse"]:player_boons.erase(status)
 	player_boons[id]=rng.randi_range(int(move.boon_min),int(move.boon_max))
 	if id=="wish":wish_fraction=0.0
 	if id=="aqua":aqua_age=0
@@ -883,7 +885,7 @@ func apply_signature_effect(i:int,skill:Array)->void:
 			var from:Vector2i=enemies[i].pos
 			if int(enemies[i].get("stuck_turns",0))<=0 and distance(from,player)==2 and (from.x==player.x or from.y==player.y):
 				var q:=from+Vector2i(signi(player.x-from.x),signi(player.y-from.y))
-				if cells.has(q) and enemy_at(q)<0 and q!=player:enemies[i].pos=q
+				if cells.has(q) and enemy_at(q)<0 and ally_at(q)<0 and q!=player:enemies[i].pos=q
 
 func enemy_profile(kind:int,uid:int)->Array:
 	var pool:Array=[]
@@ -2501,12 +2503,12 @@ func enemy_target_ally(i:int)->bool:
 		enemy_record_squad_focus(e,int(a.get("uid",1000+nearest)),damage)
 		enemy_actions.append({"uid":e.get("uid",i),"phase":"attack","from":origin,"to":a.pos,"move":"Ally strike","fx":"basic_strike","damage":damage,"tiles":[a.pos],"path":[a.pos]})
 		emit_event("Ally struck −%d HP"%damage)
-		return true
+		enemy_tick_all_cooldowns(e);return true
 	var path:Array[Vector2i]=route(origin,a.pos,true)
 	if not path.is_empty() and free_party_tile(path[0]) and int(e.get("stuck_turns",0))<=0:
 		e.pos=path[0]
 		enemy_actions.append({"uid":e.get("uid",i),"phase":"move","from":origin,"to":e.pos,"gait":e.get("gait","walk")})
-		return true
+		enemy_tick_all_cooldowns(e);return true
 	return false
 
 func enemy_at(p:Vector2i)->int:
@@ -3698,7 +3700,7 @@ func decoy_action(i:int)->bool:
 	var p:Vector2i=actor.pos
 	if int(actor.get("decoy_turns",0))>0:
 		var q:Vector2i=p+DIR[rng.randi_range(0,DIR.size()-1)]
-		if cells.has(q) and q!=player and enemy_at(q)<0 and int(actor.get("stuck_turns",0))<=0:
+		if cells.has(q) and q!=player and enemy_at(q)<0 and ally_at(q)<0 and int(actor.get("stuck_turns",0))<=0:
 			actor.pos=q
 			enemy_actions.append({"uid":actor.get("uid",i),"phase":"move","from":p,"to":q,"gait":actor.get("gait","walk")})
 		return true
@@ -3717,7 +3719,7 @@ func decoy_action(i:int)->bool:
 		emit_event("Decoy struck −%d HP"%damage)
 		return true
 	var path:Array[Vector2i]=route(p,dest,true)
-	if not path.is_empty() and path[0]!=player and path[0]!=dest and enemy_at(path[0])<0 and int(actor.get("stuck_turns",0))<=0:
+	if not path.is_empty() and path[0]!=player and path[0]!=dest and enemy_at(path[0])<0 and ally_at(path[0])<0 and int(actor.get("stuck_turns",0))<=0:
 		actor.pos=path[0]
 		enemy_actions.append({"uid":actor.get("uid",i),"phase":"move","from":p,"to":path[0],"gait":actor.get("gait","walk")})
 		return true
@@ -3795,6 +3797,10 @@ func boss_reposition_step(e:Dictionary,target:Vector2i)->Vector2i:
 		if score>best_score:best_score=score;best=q
 	return best
 
+func enemy_tick_all_cooldowns(e:Dictionary)->void:
+	for key in ["cooldown","alt_cooldown","support_cooldown","control_cooldown"]:
+		if int(e.get(key,0))>0:e[key]=int(e[key])-1
+
 func enemy_turn_actions():
 	enemy_actions.clear()
 	turns+=1
@@ -3816,7 +3822,7 @@ func enemy_turn_actions():
 				var route_to_player:=route(p,player,true)
 				if turns%2==0 and not route_to_player.is_empty():q=route_to_player[0]
 				else:continue
-			if cells.has(q) and q!=player and enemy_at(q)<0 and int(enemies[i].get("stuck_turns",0))<=0:
+			if cells.has(q) and q!=player and enemy_at(q)<0 and ally_at(q)<0 and int(enemies[i].get("stuck_turns",0))<=0:
 				enemies[i].pos=q
 				enemy_actions.append({"uid":enemies[i].get("uid",i),"phase":"move","from":p,"to":q,"gait":enemies[i].get("gait","walk")})
 			elif q==player and major!="paralysis" and charge_phase not in ["underground","airborne","vanish"]:
@@ -3827,7 +3833,8 @@ func enemy_turn_actions():
 				enemy_actions.append({"uid":enemies[i].get("uid",i),"phase":"attack","from":p,"to":player,"move":"Confused strike","fx":"basic_strike","damage":confused_damage,"tiles":[player],"path":[player]})
 				if hp==0:apply_fatal_grudge(enemies[i]);finished=true;success=false;return
 			continue
-		if not boon_active("decoy") and decoy_action(i):continue
+		if not boon_active("decoy") and decoy_action(i):
+			enemy_tick_all_cooldowns(enemies[i]);continue
 		enemy_observe_movement(enemies[i],player)
 		boss_observe_phase(enemies[i])
 		if not bool(enemies[i].get("boss_tactical",false)) and not enemy_has_party_area_attack(enemies[i]) and enemy_target_ally(i):continue
@@ -3836,7 +3843,7 @@ func enemy_turn_actions():
 		if gap<=3 and not enemies[i].get("windup",false) and enemy_use_potion(i):
 			enemy_actions.append({"uid":enemies[i].get("uid",i),"phase":"attack","from":p,"to":p,"move":"Healing berry","fx":"basic_strike","damage":0,"tiles":[p],"path":[p]})
 			emit_event("Enemy recovered HP")
-			continue
+			enemy_tick_all_cooldowns(enemies[i]);continue
 		var survival_cap:int=int(enemies[i].get("max_hp",0))
 		if survival_cap>0 and int(enemies[i].hp)*2>survival_cap:enemies[i].erase("retreat_steps")
 		var retreat:Vector2i=enemy_retreat_step(enemies[i],player)
@@ -3866,7 +3873,7 @@ func enemy_turn_actions():
 		var pattern:String=ATTACK_PATTERNS.get(enemies[i].get("species",""),"line")
 		var aim:Vector2i=enemies[i].get("aim",Vector2i.ZERO) if charged else enemy_area_aim(enemies[i],pattern,int(skill[0]))
 		var footprint:Dictionary=attack_footprint(p,aim,pattern,int(skill[0])) if aim!=Vector2i.ZERO else {}
-		var house_visible:bool=not (bool(enemies[i].get("house_tactical",false)) or bool(enemies[i].get("boss_tactical",false))) or (gap<=enemy_awareness(enemies[i]) and enemy_line_of_sight(p,player))
+		var house_visible:bool=not bool(enemies[i].get("ecology_search_enabled",false)) or (gap<=enemy_awareness(enemies[i]) and enemy_line_of_sight(p,player))
 		var in_range:bool=footprint.has(player) and (charged or house_visible)
 		var alternate:bool=false
 		var species:String=str(enemies[i].get("species",""))
@@ -3884,7 +3891,7 @@ func enemy_turn_actions():
 				skill=alt_skill
 		var support_kind:String=str(ENEMY_SUPPORT.get(enemies[i].get("species",""),""))
 		if not charged and not (ready and in_range) and support_cd<=0 and gap<=2 and not enemies[i].get("windup",false) and not support_kind.is_empty() and enemy_move_allowed(enemies[i],"support"):
-			var use_support:bool=(support_kind=="guard" and int(enemies[i].get("stages",{}).get("defense",0))<2) or (support_kind=="drowse" and not boon_active("hostile_drowse") and not boon_active("hostile_sleep") and not boon_active("hostile_control_recovery") and not boon_active("sleepless") and not player_has_ability("wakeful") and not (shield_turns>0 and shield_kind in ["protect","safeguard"]) and not boon_active("magic_coat") and enemy_line_of_sight(p,player))
+			var use_support:bool=(support_kind=="guard" and int(enemies[i].get("stages",{}).get("defense",0))<2) or (support_kind=="drowse" and not boon_active("hostile_drowse") and not boon_active("hostile_sleep") and not boon_active("hostile_paralysis") and self_confusion_turns<=0 and not boon_active("hostile_control_recovery") and not boon_active("sleepless") and not player_has_ability("wakeful") and not (shield_turns>0 and shield_kind in ["protect","safeguard"]) and not boon_active("magic_coat") and enemy_line_of_sight(p,player))
 			if use_support and execute_enemy_support(i,support_kind):
 				enemy_actions.append({"uid":enemies[i].get("uid",i),"phase":"attack","from":p,"to":p if support_kind=="guard" else player,"move":"Ward" if support_kind=="guard" else "Drowsy Hex","fx":"basic_strike","damage":0,"tiles":[p if support_kind=="guard" else player],"path":[p if support_kind=="guard" else player]})
 				continue
@@ -3903,7 +3910,7 @@ func enemy_turn_actions():
 			enemy_actions.append({"uid":enemies[i].get("uid",i),"phase":"windup","from":p,"to":p+aim,"move":enemies[i].get("signature","Heavy attack"),"fx":skill[6],"tiles":footprint.keys()})
 			message="%s charging %s!"%[enemies[i].get("name","Enemy"),enemies[i].get("signature","Heavy attack")]
 			continue
-		if (ready and in_range) or (gap==1 and not ready):
+		if (ready and in_range) or (gap==1 and not (ready and in_range)):
 			enemies[i].windup=false
 			var special:bool=ready and in_range
 			var damage:int=2+tier+int(floor_number/3)+(2 if kind>=2 else 0)
@@ -4001,8 +4008,9 @@ func enemy_turn_actions():
 				for step in range(mini(steps,path.size())):
 					if path[step]==player or enemy_at(path[step])>=0 or ally_at(path[step])>=0:break
 					destination=path[step]
-				enemies[i].pos=destination
-				enemy_actions.append({"uid":enemies[i].get("uid",i),"phase":"move","from":p,"to":destination,"gait":enemies[i].get("gait","walk")})
+				if destination!=p:
+					enemies[i].pos=destination
+					enemy_actions.append({"uid":enemies[i].get("uid",i),"phase":"move","from":p,"to":destination,"gait":enemies[i].get("gait","walk")})
 		elif not charged and kind!=3 and not boon_active("decoy"):
 			var patrol:Vector2i=enemy_patrol_destination(enemies[i])
 			if patrol!=p:
