@@ -353,3 +353,9 @@ Independent biome/terrain and room-event profiles, optional treasure branches, M
 - When exactly one available learned attack is immediately lethal by the existing estimate, prefer that slot over the other learned attack; preserve eligible PP-free Quick strike. No actual damage, PP budget or RNG rules changed.
 - Added two authored assertions for an injured cautious leafwisp with a basic finishing opportunity, including full dispatcher execution. Commits 2aa3886ac91d9719e3103f54ea5f50b3512524bb, 6f2a43a9adc4f911eb5a7068462755da9cf0f4e2 and e10706c1e69364756941985bd0d093e758680bc3.
 - Local executable check found no Godot binary; CI and Android verification remain unconfirmed. No new PR or workflow dispatch. These are targeted priority corrections rather than proven results of a completed gauntlet.
+
+## V26.87 — Intelligent Attack Interruption
+- React to visible gathering phases using the actual catalog front/corner-front footprint. Cautious/defensive enemies may spend one normal turn stepping outside the threatened area, respecting traps, occupied cells, reserved flanks and existing finish priority. Hidden charge phases do not disclose their aim.
+- Try existing legal learned control before evasion. Add a bounded push utility bonus when the projected release origin no longer threatens the actor; sleep gains utility because the existing wait gate delays release. Neither effect forcibly cancels a charge or refunds/removes PP. Existing accuracy, immunities, cooldowns and turn limits still apply.
+- Ten authored checks cover footprint, hidden aim, legal escape, root, traps, push prediction, control PP, and actual dispatcher evasion. Implementation 4312593ee6d79bdf8fd99452a967cadd3f5831bf; tests f29e8e8d2b99ae6a80f68349c563ad71a35ea6ac.
+- Local Godot execution and CI/Android validation remain unverified. The +3 control bonus is provisional; this is visible charge counterplay, not universal cancellation or full area-attack prediction.
