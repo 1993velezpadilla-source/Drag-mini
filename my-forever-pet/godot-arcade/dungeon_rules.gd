@@ -3932,38 +3932,60 @@ func enemy_squad_focus_bonus(e:Dictionary,target_uid:int,tile:Vector2i)->float:
 
 # Local interception: reserve a free adjacent escape tile on the opposite side
 # of an engaged partner. At most three cardinal steps are considered.
+# Short-lived, local intentions prevent multiple hunters choosing the same flank.
+# Claims are advisory, never physical blockers or promises of extra movement.
+func enemy_pack_reserved_posts(e:Dictionary,target:Vector2i)->Dictionary:
+	var out:Dictionary={}
+	for other in enemies:
+		if not enemy_squad_partner(e,other) or not other.has("pack_post"):continue
+		var age:int=turns-int(other.get("pack_turn",-9999))
+		var post:Vector2i=other.pack_post
+		if age<0 or age>1 or other.get("pack_target",Vector2i.ZERO)!=target or bool(other.get("windup",false)) or int(other.get("stuck_turns",0))>0:continue
+		if distance(other.pos,post)>2 or distance(post,target)!=1 or not enemy_ambush_safe_tile(post):continue
+		if not enemy_line_of_sight(other.pos,target) or not enemy_line_of_sight(e.pos,post):continue
+		out[post]=true
+	return out
+
+func enemy_pack_commit(e:Dictionary,target:Vector2i,post:Vector2i)->void:
+	e["pack_post"]=post;e["pack_target"]=target;e["pack_turn"]=turns
+
 func enemy_squad_intercept_step(e:Dictionary,target:Vector2i)->Vector2i:
+	return enemy_pack_intercept_plan(e,target).get("step",e.pos)
+
+func enemy_pack_intercept_plan(e:Dictionary,target:Vector2i)->Dictionary:
 	var origin:Vector2i=e.pos
-	if not bool(e.get("ecology_search_enabled",false)) or (bool(e.get("monster_house",false)) and not bool(e.get("house_tactical",false))) or int(e.get("kind",0))==3 or int(e.get("stuck_turns",0))>0 or bool(e.get("windup",false)):return origin
-	if enemy_survival_profile(e) not in ["aggressive","defensive"] or distance(origin,target)>mini(5,enemy_awareness(e)) or not enemy_line_of_sight(origin,target):return origin
+	if not bool(e.get("ecology_search_enabled",false)) or (bool(e.get("monster_house",false)) and not bool(e.get("house_tactical",false))) or int(e.get("kind",0))==3 or int(e.get("stuck_turns",0))>0 or bool(e.get("windup",false)):return {}
+	if enemy_survival_profile(e) not in ["aggressive","defensive"] or distance(origin,target)>mini(5,enemy_awareness(e)) or not enemy_line_of_sight(origin,target):return {}
 	var engaged:Array[Vector2i]=[]
 	for other in enemies:
 		if enemy_squad_partner(e,other) and distance(other.pos,target)==1 and enemy_line_of_sight(other.pos,target):engaged.append(other.pos)
-	if engaged.is_empty():return origin
+	if engaged.is_empty() or target!=player or charge_phase in ["underground","airborne","vanish"] or boon_active("decoy"):return {}
+	var reserved:Dictionary=enemy_pack_reserved_posts(e,target)
 	var occupied:Dictionary=navigation_occupancy()
 	var queue:Array[Vector2i]=[origin]
 	var depth:Dictionary={origin:0}
 	var first:Dictionary={origin:origin}
 	var best:Vector2i=origin
+	var best_post:Vector2i=origin
 	var best_score:int=-2147483647
 	var cursor:int=0
 	while cursor<queue.size():
 		var here:Vector2i=queue[cursor];cursor+=1
 		var steps:int=int(depth[here])
-		if steps>0 and distance(here,target)==1 and enemy_line_of_sight(here,target):
+		if steps>0 and distance(here,target)==1 and not reserved.has(here) and enemy_line_of_sight(here,target):
 			var separation:int=8
 			for op in engaged:separation=mini(separation,distance(here,op))
 			var onward:Vector2i=here+(here-target)
 			var score:int=separation*6-steps*4+(5 if cells.has(onward) and not occupied.has(onward) else 0)
 			for a in allies:
 				if int(a.hp)>0 and distance(target,a.pos)<=3 and enemy_line_of_sight(origin,a.pos) and distance(here,a.pos)<distance(target,a.pos):score+=2
-			if score>best_score:best_score=score;best=first[here]
+			if score>best_score:best_score=score;best=first[here];best_post=here
 		if steps>=3:continue
 		for d in DIR:
 			var q:Vector2i=here+d
-			if depth.has(q) or not cells.has(q) or occupied.has(q) or q==target or q==player or q==stairs or q==relic or q in side_rewards or traps.has(q) or player_traps.has(q):continue
+			if depth.has(q) or not cells.has(q) or occupied.has(q) or reserved.has(q) or q==target or q==player or q==stairs or q==relic or q in side_rewards or traps.has(q) or player_traps.has(q):continue
 			depth[q]=steps+1;first[q]=q if steps==0 else first[here];queue.append(q)
-	return best
+	return {} if best==origin else {"step":best,"post":best_post}
 
 func enemy_party_attack_plan(e:Dictionary)->Dictionary:
 	var origin:Vector2i=e.pos
@@ -4661,8 +4683,10 @@ func enemy_turn_actions_impl():
 				if tactical==p and alt_cooldown<=0 and SECONDARY_SKILLS.has(species) and enemy_move_allowed(enemies[i],"secondary"):
 					var flank_alt:Array=SECONDARY_SKILLS[species]
 					tactical=enemy_cooperative_step(enemies[i],pursuit_target,str(flank_alt[1]),int(flank_alt[0]))
+			var pack_plan:Dictionary={}
 			if tactical==p and not charged and pursuit_target==player:
-				tactical=enemy_squad_intercept_step(enemies[i],player)
+				pack_plan=enemy_pack_intercept_plan(enemies[i],player)
+				tactical=pack_plan.get("step",p)
 			if tactical!=p:path.append(tactical)
 			else:
 				path=enemy_approach_route(p,pursuit_target) if enemies[i].has("ecology_role") else route(p,pursuit_target,true)
@@ -4684,6 +4708,7 @@ func enemy_turn_actions_impl():
 					destination=path[step]
 				if destination!=p:
 					if predictive_move:enemy_record_prediction(enemies[i],player)
+					if not pack_plan.is_empty():enemy_pack_commit(enemies[i],player,pack_plan.post)
 					enemies[i].pos=destination
 					enemy_actions.append({"uid":enemies[i].get("uid",i),"phase":"move","from":p,"to":destination,"gait":enemies[i].get("gait","walk")})
 		elif not charged and kind!=3 and not boon_active("decoy"):
