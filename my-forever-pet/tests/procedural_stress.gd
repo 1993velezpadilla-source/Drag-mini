@@ -1608,6 +1608,54 @@ func run_checks()->void:
 	if setup_actor.pp_control!=5 or follow_actor.pp_primary!=10 or not combo_fixture.enemy_actions.is_empty():failures.append("combo scoring pure")
 	checks+=1
 	print("KINDRIA_ATTACK_COMBINATIONS checks=10")
+	# Forecast only witnessed retreats, and commit only a safe ordinary step.
+	var forecast=Rules.new()
+	for y in range(1,9):
+		for x in range(1,9):forecast.cells[Vector2i(x,y)]=true
+	forecast.player=Vector2i(3,4);forecast.stairs=Vector2i(8,8);forecast.relic=Vector2i(8,7)
+	forecast.cells.erase(Vector2i(5,3));forecast.cells.erase(Vector2i(5,5))
+	var forecaster:Dictionary={"uid":0,"pos":Vector2i(7,4),"hp":30,"kind":0,"species":"rootgnawer","ecology_role":"hunter","ecology_search_enabled":true,"adaptive_seen":Vector2i(3,4),"adaptive_seen_turn":30,"adaptive_heading":Vector2i.RIGHT,"adaptive_streak":2,"pp_primary":0,"pp_secondary":0}
+	forecast.enemies.append(forecaster);forecast.turns=30
+	if forecast.enemy_predictive_cutoff_step(forecaster,forecast.player)!=Vector2i(6,4):failures.append("forecast two-step corridor intercept")
+	checks+=1
+	if forecaster.pos!=Vector2i(7,4) or forecaster.has("prediction_turn") or not forecast.enemy_actions.is_empty():failures.append("forecast evaluation purity")
+	checks+=1
+	forecast.cells[Vector2i(5,3)]=true
+	if forecast.enemy_predictive_cutoff_step(forecaster,forecast.player)!=forecaster.pos:failures.append("forecast no open room detour")
+	forecast.cells.erase(Vector2i(5,3))
+	checks+=1
+	forecast.traps[Vector2i(5,4)]="snare"
+	if forecast.enemy_predictive_cutoff_step(forecaster,forecast.player)!=forecaster.pos:failures.append("forecast hazardous post")
+	forecast.traps.clear()
+	checks+=1
+	forecast.player_traps[Vector2i(6,4)]="snare"
+	if forecast.enemy_predictive_cutoff_step(forecaster,forecast.player)!=forecaster.pos:failures.append("forecast hazardous first step")
+	forecast.player_traps.clear()
+	checks+=1
+	forecaster["windup"]=true
+	if forecast.enemy_predictive_cutoff_step(forecaster,forecast.player)!=forecaster.pos:failures.append("forecast preserves windup")
+	forecaster.erase("windup")
+	checks+=1
+	forecast.charge_phase="airborne"
+	if forecast.enemy_predictive_cutoff_step(forecaster,forecast.player)!=forecaster.pos:failures.append("forecast hidden player")
+	forecast.charge_phase=""
+	checks+=1
+	forecast.enemy_record_prediction(forecaster,forecast.player)
+	forecast.cells[Vector2i(5,3)]=true
+	forecast.turns=31;forecast.player=Vector2i(3,3);forecast.adaptive_walk_from=Vector2i(3,4);forecast.adaptive_walk_to=forecast.player;forecast.adaptive_walk_turn=30
+	forecast.enemy_review_prediction(forecaster,forecast.player)
+	if int(forecaster.get("prediction_retry",0))!=33 or forecaster.has("prediction_turn"):failures.append("forecast witnessed deviation recovery")
+	checks+=1
+	forecaster["adaptive_seen"]=forecast.player;forecaster["adaptive_seen_turn"]=31;forecaster["adaptive_heading"]=Vector2i.UP;forecaster["adaptive_streak"]=2
+	if forecast.enemy_retreat_prediction(forecaster,forecast.player)!=forecast.player:failures.append("forecast retry gate")
+	checks+=1
+	forecaster.erase("prediction_retry")
+	forecast.enemy_record_prediction(forecaster,forecast.player)
+	forecast.turns=32;forecast.player=Vector2i(3,2);forecast.adaptive_walk_turn=29
+	forecast.enemy_review_prediction(forecaster,forecast.player)
+	if forecaster.has("prediction_retry") or forecaster.has("prediction_turn"):failures.append("forecast forced displacement is not failed prediction")
+	checks+=1
+	print("KINDRIA_PREDICTIVE_COMBAT checks=10")
 	# Actual disk I/O, legacy migration, corruption recovery, and resumed writes.
 	var test_path:String="user://kindria_procedural_test_"+str(OS.get_process_id())+".cfg"
 	var exact:Array[String]=["legacy exact".sha256_text()]
