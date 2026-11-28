@@ -813,7 +813,7 @@ func attack_footprint(origin:Vector2i,forward:Vector2i,pattern:String,reach:int,
 	if ai_footprint_cache.size()<AI_FOOTPRINT_CAP:ai_footprint_cache[key]=result
 	return result
 
-func compute_attack_footprint(origin:Vector2i,forward:Vector2i,pattern:String,reach:int,player_cast:bool=false)->Dictionary:
+func compute_attack_footprint(origin:Vector2i,forward:Vector2i,pattern:String,reach:int,player_cast:bool=false,vacated:Vector2i=Vector2i(-99999,-99999))->Dictionary:
 	var out:Dictionary={}
 	var directions:Array=[forward]
 	if pattern in ["radius","cross"]:directions=DIR
@@ -841,7 +841,7 @@ func compute_attack_footprint(origin:Vector2i,forward:Vector2i,pattern:String,re
 			for i in range(1,reach+1):
 				var p:Vector2i=origin+d*i
 				if not step_clear(p-d,d):break
-				var occupied:bool=enemy_at(p)>=0
+				var occupied:bool=p!=vacated and enemy_at(p)>=0
 				if occupied and not player_cast:break
 				ray.append(p);out[p]=ray.duplicate()
 				if occupied:break
@@ -863,7 +863,7 @@ func compute_attack_footprint(origin:Vector2i,forward:Vector2i,pattern:String,re
 		for distance_index in range(1,reach+1):
 			var q:Vector2i=origin+d*distance_index
 			if not step_clear(q-d,d):break
-			var occupied:bool=enemy_at(q)>=0
+			var occupied:bool=q!=vacated and enemy_at(q)>=0
 			if occupied and not player_cast:break
 			path.append(q)
 			out[q]=path.duplicate()
@@ -876,7 +876,7 @@ func compute_attack_footprint(origin:Vector2i,forward:Vector2i,pattern:String,re
 					for j in range(1,limit+1):
 						var target:=q+turn*j
 						if not cells.has(target):break
-						var branch_occupied:bool=enemy_at(target)>=0
+						var branch_occupied:bool=target!=vacated and enemy_at(target)>=0
 						if branch_occupied and not player_cast:break
 						# Fan can hit front diagonals, but not through two blocked orthogonal cells.
 						branch.append(target)
@@ -890,6 +890,14 @@ func attack_aim(origin:Vector2i,target:Vector2i,pattern:String,reach:int)->Vecto
 	for d in DIR:
 		if attack_footprint(origin,d,pattern,reach).has(target):return d
 	return Vector2i.ZERO
+# Hypothetical movement vacates exactly the moving actor's old tile.
+# Bypass normal footprint cache: the projected occupancy is not the live board.
+func enemy_projected_attack_aim(e:Dictionary,post:Vector2i,target:Vector2i,pattern:String,reach:int)->Vector2i:
+	if post==e.pos:return attack_aim(post,target,pattern,reach)
+	for d in DIR:
+		if compute_attack_footprint(post,d,pattern,reach,false,e.pos).has(target):return d
+	return Vector2i.ZERO
+
 func warning_tiles(enemy:Dictionary)->Array:
 	if not enemy.get("windup",false):return []
 	var skill:=signature_skill(enemy)
@@ -1960,7 +1968,7 @@ const ENEMY_ALERT_RANGE:int=4
 const ENEMY_ALERT_TTL:int=2
 
 func enemy_alert_eligible(e:Dictionary)->bool:
-	if not bool(e.get("ecology_search_enabled",false)) or int(e.get("kind",0))==3 or int(e.hp)<=0 or int(e.get("decoy_turns",0))>0:return false
+	if not bool(e.get("ecology_search_enabled",false)) or int(e.get("kind",0))==3 or int(e.get("hp",0))<=0 or int(e.get("decoy_turns",0))>0:return false
 	if int(e.get("sleep_turns",0))>0 or int(e.get("nightmare_turns",0))>0 or int(e.get("paused_turns",0))>0 or int(e.get("wrapped_turns",0))>0 or int(e.get("infatuated_turns",0))>0 or int(e.get("confusion_turns",0))>0 or str(e.get("major_status","")) in ["freeze","paralysis"]:return false
 	return true
 
@@ -2457,7 +2465,7 @@ func enemy_cautious_spacing_step(e:Dictionary,target:Vector2i)->Vector2i:
 	for d in DIR:
 		var q:Vector2i=origin+d
 		if distance(q,target)!=2 or not enemy_ambush_safe_tile(q) or not enemy_line_of_sight(q,target):continue
-		if attack_aim(q,target,pattern,int(skill[0]))==Vector2i.ZERO:continue
+		if enemy_projected_attack_aim(e,q,target,pattern,int(skill[0]))==Vector2i.ZERO:continue
 		for onward in DIR:
 			var next:Vector2i=q+onward
 			if next!=origin and enemy_ambush_safe_tile(next):return q
