@@ -1811,7 +1811,7 @@ func enemy_observe_movement(e:Dictionary,observed:Vector2i)->void:
 	if not bool(e.get("ecology_search_enabled",false)):return
 	var origin:Vector2i=e.pos
 	enemy_review_prediction(e,observed)
-	if distance(origin,observed)>enemy_awareness(e) or not enemy_line_of_sight(origin,observed):
+	if charge_phase in ["underground","airborne","vanish"] or boon_active("decoy") or distance(origin,observed)>enemy_awareness(e) or not enemy_line_of_sight(origin,observed):
 		e.erase("adaptive_heading");e.erase("adaptive_streak");e.erase("adaptive_seen_turn")
 		return
 	if int(e.get("adaptive_seen_turn",-9999))==turns:return
@@ -1951,7 +1951,7 @@ func enemy_pursuit_target(e:Dictionary,observed:Vector2i)->Vector2i:
 	var origin:Vector2i=e.pos
 	if not e.has("ecology_role") or (bool(e.get("monster_house",false)) and not bool(e.get("house_tactical",false))):
 		return observed if distance(origin,observed)<=enemy_awareness(e) else origin
-	if distance(origin,observed)<=enemy_awareness(e) and enemy_line_of_sight(origin,observed):
+	if charge_phase not in ["underground","airborne","vanish"] and not boon_active("decoy") and distance(origin,observed)<=enemy_awareness(e) and enemy_line_of_sight(origin,observed):
 		clear_enemy_search(e)
 		enemy_clear_alert(e)
 		e["last_seen_turn"]=turns
@@ -4151,7 +4151,7 @@ func enemy_has_party_area_attack(e:Dictionary)->bool:
 	var skill:Array=signature_skill(e)
 	var pattern:String=str(ATTACK_PATTERNS.get(e.get("species",""),"line"))
 	var charged:bool=bool(e.get("windup",false))
-	if enemy_move_allowed(e,"primary") and (charged or int(e.get("cooldown",0))<=0):
+	if enemy_move_allowed(e,"primary") and (charged or (int(e.get("cooldown",0))<=0 and not bool(skill[1]))):
 		var aim:Vector2i=e.get("aim",Vector2i.ZERO) if charged else enemy_area_aim(e,pattern,int(skill[0]))
 		if enemy_area_bonus(e,pattern,int(skill[0]),aim)>0.0 and attack_footprint(e.pos,aim,pattern,int(skill[0])).has(player):return true
 	if charged:return false
@@ -4209,7 +4209,7 @@ func enemy_record_squad_focus(e:Dictionary,target_uid:int,damage:int)->void:
 	e["squad_focus_turn"]=turns
 
 func enemy_squad_partner(e:Dictionary,other:Dictionary)->bool:
-	if e.pos==other.pos or int(other.hp)<=0 or not bool(other.get("ecology_search_enabled",false)):return false
+	if e.pos==other.pos or int(other.hp)<=0 or int(other.get("decoy_turns",0))>0 or not bool(other.get("ecology_search_enabled",false)):return false
 	if distance(e.pos,other.pos)>mini(4,enemy_awareness(e)) or not enemy_line_of_sight(e.pos,other.pos):return false
 	if int(other.get("sleep_turns",0))>0 or int(other.get("nightmare_turns",0))>0 or int(other.get("paused_turns",0))>0 or int(other.get("wrapped_turns",0))>0 or int(other.get("infatuated_turns",0))>0 or int(other.get("confusion_turns",0))>0 or str(other.get("major_status","")) in ["freeze","paralysis"]:return false
 	return true
