@@ -47,20 +47,25 @@ func run_checks()->void:
 	if layout_a.layout_signature==layout_b.layout_signature or layout_b.layout_retries<1:failures.append("V26.25 duplicate rejected")
 	checks+=1
 	var lucky:int=0
+	var on_stairs:int=0
 	var signatures:Dictionary={}
-	for trial in range(128):
+	for trial in range(512):
 		var layout_run:=preload("res://dungeon_rules.gd").new()
 		layout_run.setup(trial%3,0,0,false,false,trial+517,0,trial%3==0)
 		if not layout_run.stairs_available() or layout_run.secured:failures.append("V26.25 stairs open without treasure")
-		if layout_run.player==layout_run.stairs or layout_run.route(layout_run.player,layout_run.stairs).is_empty():failures.append("V26.25 reachable distinct stairs")
+		if layout_run.player!=layout_run.stairs and layout_run.route(layout_run.player,layout_run.stairs).is_empty():failures.append("V26.26 reachable stairs")
+		if layout_run.player==layout_run.stairs:on_stairs+=1
+		var spawn_tiles:Array[Vector2i]=layout_run.room_spawn_tiles()
+		if not layout_run.player in spawn_tiles or not layout_run.stairs in spawn_tiles:failures.append("V26.26 interior spawn eligibility")
 		if layout_run.distance(layout_run.player,layout_run.stairs)==1:lucky+=1
 		signatures[layout_run.layout_signature]=true
 		layout_run.player=layout_run.stairs
 		if not layout_run.descend() or layout_run.floor_number!=2:failures.append("V26.25 no relic required")
-		checks+=3
+		checks+=4
 	if lucky==0:failures.append("V26.25 adjacent stairs possible")
-	if signatures.size()<120:failures.append("V26.25 layout diversity")
-	checks+=2
+	if on_stairs==0:failures.append("V26.26 same tile stairs possible")
+	if signatures.size()<490:failures.append("V26.25 layout diversity")
+	checks+=3
 	# V26.24: reward captions, four cached audio families, and actual floor bonus carryover.
 	for reward_kind in ["coin","potion","material","manual","trail_fruit","spring","eat","ward_band","force_band","relic"]:
 		if view.reward_caption(reward_kind).is_empty():failures.append("V26.24 missing reward caption")
@@ -164,7 +169,7 @@ func run_checks()->void:
 			if woods.enemies.size()!=woods_floor+1:failures.append("Dungeon001 enemy density")
 			if not woods.traps.is_empty():failures.append("Dungeon001 natural traps")
 			if woods.monster_house_room>=0 or woods.prepare_monster_house(true):failures.append("Dungeon001 ambush isolation")
-			if woods.route(woods.player,woods.stairs).is_empty() or woods.route(woods.player,woods.relic).is_empty():failures.append("Dungeon001 reachable objectives")
+			if (woods.player!=woods.stairs and woods.route(woods.player,woods.stairs).is_empty()) or woods.route(woods.player,woods.relic).is_empty():failures.append("Dungeon001 reachable objectives")
 			if woods.rooms.size()!=(3 if woods_floor==1 else 4):failures.append("V26.20 floor room profile")
 			if woods.starter_floor_title()!=["Fernlight Clearing","Silverbrook Falls","Ancientroot Grove"][woods_floor-1]:failures.append("V26.20 distinct title")
 			if not ["potion","trail_fruit","manual:eos_154"][woods_floor-1] in woods.loot.values():failures.append("V26.20 teaching reward")
