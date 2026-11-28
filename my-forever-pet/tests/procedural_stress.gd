@@ -2658,7 +2658,35 @@ func run_checks()->void:
 		if int(action.get("uid",-1))==420 and str(action.phase)=="move":flank_moves+=1
 	if flank_moves!=1 or flank_actor.pos!=flank_step or flank_actor.pp_primary!=0 or flank_actor.pp_secondary!=0 or protect_flank.hp!=10000:failures.append("protect flank dispatch consumes exactly one movement")
 	checks+=1
-	print("KINDRIA_ANTI_STALL checks=126")
+	# Ordinary party targeting must use a safe alternative around a trapped lane.
+	var party_detour=Rules.new()
+	for y in range(1,8):
+		for x in range(1,8):party_detour.cells[Vector2i(x,y)]=true
+	party_detour.player=Vector2i(6,6);party_detour.stairs=Vector2i(7,7);party_detour.relic=Vector2i(7,6)
+	var party_hunter:Dictionary={"uid":430,"pos":Vector2i(2,4),"hp":30,"kind":0,"species":"rootgnawer","ecology_role":"hunter","ecology_search_enabled":true,"personality_enabled":true,"pp_primary":0,"pp_secondary":0}
+	party_detour.enemies.append(party_hunter)
+	party_detour.allies.append({"uid":1000,"pos":Vector2i(4,4),"hp":30,"max_hp":30})
+	if party_detour.enemy_safe_party_approach(party_hunter,Vector2i(4,4))!=Vector2i(3,4):failures.append("party direct safe shortest approach")
+	checks+=1
+	party_detour.traps[Vector2i(3,4)]="snare"
+	var party_step:Vector2i=party_detour.enemy_safe_party_approach(party_hunter,Vector2i(4,4))
+	if party_step not in [Vector2i(2,3),Vector2i(2,5)] or party_hunter.pos!=Vector2i(2,4) or not party_detour.enemy_actions.is_empty():failures.append("party trapped direct lane safe detour")
+	checks+=1
+	party_detour.traps[Vector2i(2,3)]="snare";party_detour.traps[Vector2i(2,5)]="snare";party_detour.traps[Vector2i(1,4)]="snare"
+	if party_detour.enemy_safe_party_approach(party_hunter,Vector2i(4,4))!=party_hunter.pos:failures.append("party no legal detour")
+	checks+=1
+	party_detour.traps.clear();party_detour.traps[Vector2i(3,4)]="snare"
+	party_detour.cells.erase(Vector2i(3,4))
+	if party_detour.enemy_safe_party_approach(party_hunter,Vector2i(4,4))!=party_hunter.pos:failures.append("party detour rejects hidden ally")
+	checks+=1
+	party_detour.cells[Vector2i(3,4)]=true
+	party_hunter["stuck_turns"]=1
+	if party_detour.enemy_safe_party_approach(party_hunter,Vector2i(4,4))!=party_hunter.pos:failures.append("party detour respects immobilization")
+	checks+=1
+	party_hunter.erase("stuck_turns")
+	if not party_detour.enemy_target_ally(0) or party_hunter.pos!=party_step or party_detour.enemy_actions.size()!=1 or str(party_detour.enemy_actions[0].phase)!="move" or party_hunter.pp_primary!=0 or party_detour.allies[0].hp!=30:failures.append("party ordinary dispatch commits one safe movement")
+	checks+=1
+	print("KINDRIA_ANTI_STALL checks=132")
 	# A direct witness may report a tile, but a listener cannot relay it.
 	var comm=Rules.new()
 	for x in range(1,4):comm.cells[Vector2i(x,3)]=true
