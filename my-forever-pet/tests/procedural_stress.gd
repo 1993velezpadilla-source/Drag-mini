@@ -42,6 +42,9 @@ func run_checks()->void:
 	var lucky:int=0
 	var optional_chambers:int=0
 	var encounter_profiles:Dictionary={}
+	var treasure_seen:Dictionary={}
+	var treasure_ranks:Dictionary={}
+	var treasure_floors:int=0
 	var encounter_moves:Dictionary={}
 	var expedition_count:int=1152 if "--long" in OS.get_cmdline_user_args() else 256
 	var expected_floors:int=expedition_count*4
@@ -114,12 +117,34 @@ func run_checks()->void:
 					if encounter_bounds.has_point(p):local_traps+=1
 				if local_enemies<moved.x or local_loot<moved.y or local_traps<moved.z:failures.append("encounter relocation integrity "+context)
 			if (floor_id==1 or run.floor_kind==3) and encounter!=0:failures.append("protected floor encounter "+context)
-			checks+=10
+			var treasure_ok:bool=run.treasure_tiles.size()==run.treasure_kinds.size() and run.treasure_tiles.size()<=(2 if floor_id>=3 else 1)
+			if not run.treasure_tiles.is_empty():treasure_floors+=1
+			var found:Dictionary={}
+			for i in range(run.treasure_tiles.size()):
+				var tile:Vector2i=run.treasure_tiles[i]
+				var item:String=run.treasure_kinds[i]
+				if found.has(tile) or run.loot.get(tile,"")!=item or tile==run.player or tile==run.stairs or tile==run.relic or tile in run.side_rewards or run.enemy_at(tile)>=0 or run.traps.has(tile):treasure_ok=false
+				found[tile]=true
+				treasure_seen[item]=int(treasure_seen.get(item,0))+1
+				if item.begins_with("manual:"):
+					var id:String=item.trim_prefix("manual:")
+					if not Rules.MOVE_LIBRARY.has(id):treasure_ok=false;continue
+					var move:Dictionary=Rules.MOVE_LIBRARY[id]
+					var level:int=int(move.learn_level)
+					treasure_ranks[level]=true
+					if move.type not in Rules.TREASURE_TYPES[run.region] or (level>=8 and floor_id<3) or (level>=15 and floor_id<4):treasure_ok=false
+				elif item not in ["ward_band","force_band"]:treasure_ok=false
+			if (floor_id==1 or run.floor_kind==3) and not found.is_empty():treasure_ok=false
+			if not treasure_ok:failures.append("treasure integrity "+context)
+			checks+=11
 		if history.size()+4>run.SHAPE_HISTORY_CAP:
 			var dropped:int=history.size()+4-run.SHAPE_HISTORY_CAP
 			if run.recent_shapes.size()!=run.SHAPE_HISTORY_CAP or run.recent_shapes.front()!=history[dropped]:failures.append("history rollover ordering")
 			rollover_checks+=1;checks+=1
 		history.assign(run.recent_shapes)
+	if treasure_floors==0 or treasure_seen.size()<18 or treasure_ranks.size()!=3 or not treasure_seen.has("ward_band") or not treasure_seen.has("force_band"):failures.append("treasure coverage")
+	checks+=1
+	print("KINDRIA_TREASURES floors=",treasure_floors," distinct=",treasure_seen.size()," ranks=",treasure_ranks.keys()," items=",treasure_seen)
 	if encounter_profiles.size()!=Rules.ENCOUNTER_PROFILES.size():failures.append("encounter profile coverage")
 	for profile in range(1,Rules.ENCOUNTER_PROFILES.size()):
 		if encounter_moves.get(profile,Vector3i.ZERO)==Vector3i.ZERO:failures.append("encounter realization "+str(profile))
