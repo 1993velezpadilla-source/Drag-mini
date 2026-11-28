@@ -1655,7 +1655,17 @@ func run_checks()->void:
 	forecast.enemy_review_prediction(forecaster,forecast.player)
 	if forecaster.has("prediction_retry") or forecaster.has("prediction_turn"):failures.append("forecast forced displacement is not failed prediction")
 	checks+=1
-	print("KINDRIA_PREDICTIVE_COMBAT checks=10")
+	forecast.cells.erase(Vector2i(5,3))
+	forecast.player=Vector2i(3,4);forecast.turns=40
+	# Seed a current witnessed forecast to exercise the actual movement dispatcher.
+	forecaster.pos=Vector2i(7,4);forecaster["adaptive_seen"]=forecast.player;forecaster["adaptive_seen_turn"]=41;forecaster["adaptive_heading"]=Vector2i.RIGHT;forecaster["adaptive_streak"]=2
+	forecast.enemy_turn_actions()
+	var forecast_moves:int=0
+	for action in forecast.enemy_actions:
+		if int(action.get("uid",-1))==0 and str(action.phase)=="move":forecast_moves+=1
+	if forecast_moves!=1 or forecaster.pos!=Vector2i(6,4) or int(forecaster.get("prediction_turn",-1))!=41:failures.append("forecast actual single movement")
+	checks+=1
+	print("KINDRIA_PREDICTIVE_COMBAT checks=11")
 	# Actual disk I/O, legacy migration, corruption recovery, and resumed writes.
 	var test_path:String="user://kindria_procedural_test_"+str(OS.get_process_id())+".cfg"
 	var exact:Array[String]=["legacy exact".sha256_text()]
