@@ -1760,6 +1760,43 @@ func run_checks()->void:
 	if setup_actor.pp_control!=5 or follow_actor.pp_primary!=10 or not combo_fixture.enemy_actions.is_empty():failures.append("combo scoring pure")
 	checks+=1
 	print("KINDRIA_ATTACK_COMBINATIONS checks=10")
+	# A setup must benefit actors who still have a turn, not spent actions.
+	var sequencing=Rules.new()
+	for y in range(1,8):
+		for x in range(1,8):sequencing.cells[Vector2i(x,y)]=true
+	sequencing.player=Vector2i(4,4)
+	sequencing.hp=100;sequencing.max_hp=100
+	var sequence_setup:Dictionary={"uid":1,"pos":Vector2i(3,4),"hp":30,"kind":0,"species":"coralcrab","ecology_search_enabled":true,"pp_primary":0,"pp_secondary":0,"pp_control":5}
+	var sequence_partner:Dictionary={"uid":2,"pos":Vector2i(4,3),"hp":30,"kind":0,"species":"bramble_pup","ecology_search_enabled":true,"pp_primary":10,"pp_secondary":0}
+	sequencing.enemies.append(sequence_setup);sequencing.enemies.append(sequence_partner)
+	var sequence_debuff:Dictionary={"stat_changes":{"defense":-1}}
+	if sequencing.enemy_combo_setup_bonus(sequence_setup,sequence_debuff)<=0.0:failures.append("sequence later ready partner")
+	checks+=1
+	sequencing.enemies.reverse()
+	if sequencing.enemy_combo_setup_bonus(sequence_setup,sequence_debuff)!=0.0:failures.append("sequence earlier spent partner excluded")
+	sequencing.enemies.reverse()
+	checks+=1
+	sequence_partner.species="thornbeetle"
+	if sequencing.enemy_combo_setup_bonus(sequence_setup,sequence_debuff)!=0.0:failures.append("sequence unstarted charge not immediate")
+	checks+=1
+	sequence_partner["windup"]=true;sequence_partner["aim"]=Vector2i.DOWN
+	if sequencing.enemy_combo_setup_bonus(sequence_setup,sequence_debuff)<=0.0:failures.append("sequence committed charge can follow")
+	checks+=1
+	sequence_partner["aim"]=Vector2i.UP
+	if sequencing.enemy_combo_setup_bonus(sequence_setup,sequence_debuff)!=0.0:failures.append("sequence fixed charge cannot reaim")
+	checks+=1
+	sequence_partner.erase("windup");sequence_partner.erase("aim");sequence_partner.species="bramble_pup"
+	sequence_partner["sleep_turns"]=2
+	if sequencing.enemy_combo_followup(sequence_partner,sequence_debuff,0)!=0.0:failures.append("sequence incapacitated followup")
+	sequence_partner.erase("sleep_turns")
+	checks+=1
+	sequence_setup["whiffer_turns"]=2
+	if sequencing.enemy_status_utility(sequence_setup,Rules.MOVE_LIBRARY["eos_192"])!=0.0:failures.append("sequence guaranteed status miss rejected")
+	sequence_setup.erase("whiffer_turns")
+	checks+=1
+	if sequence_setup.pp_control!=5 or sequence_partner.pp_primary!=10 or not sequencing.enemy_actions.is_empty():failures.append("sequence scoring purity")
+	checks+=1
+	print("KINDRIA_ATTACK_SEQUENCING checks=8")
 	# Forecast only witnessed retreats, and commit only a safe ordinary step.
 	var forecast=Rules.new()
 	for y in range(1,9):
