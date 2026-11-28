@@ -3779,6 +3779,10 @@ func boss_reposition_step(e:Dictionary,target:Vector2i)->Vector2i:
 	var pattern:String=str(ATTACK_PATTERNS.get(species,"line"))
 	var best:Vector2i=origin
 	var best_score:int=-absi(distance(origin,target)-preferred)*3
+	if enemy_move_allowed(e,"primary") and attack_aim(origin,target,pattern,int(skill[0]))!=Vector2i.ZERO:best_score+=5
+	if enemy_move_allowed(e,"secondary") and SECONDARY_SKILLS.has(species):
+		var current_alt:Array=SECONDARY_SKILLS[species]
+		if attack_aim(origin,target,str(current_alt[1]),int(current_alt[0]))!=Vector2i.ZERO:best_score+=3
 	for d in DIR:
 		var q:Vector2i=origin+d
 		if not cells.has(q) or q==target or q==player or q==stairs or (q==relic and q!=home) or q in side_rewards or traps.has(q) or player_traps.has(q) or enemy_at(q)>=0 or ally_at(q)>=0 or distance(q,home)>4:continue
