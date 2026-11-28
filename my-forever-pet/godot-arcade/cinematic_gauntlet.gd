@@ -36,6 +36,25 @@ func run_checks()->void:
 	var checks:int=0
 	var failures:Array[String]=[]
 	var view:=Dungeon.new()
+	# V26.16: HUD icon textures are authored once and shared by each move type.
+	var hud_elements:Array[String]=["normal","fire","water","electric","grass","ice","fighting","poison","ground","flying","psychic","bug","rock","ghost","dragon","dark","steel","fairy"]
+	for hud_element in hud_elements:
+		var icon_texture:Texture2D=view.move_icon(hud_element)
+		if icon_texture==null or icon_texture.get_size()!=Vector2(40,40):failures.append("V26.16 element icon "+hud_element)
+		if icon_texture!=view.move_icon(hud_element):failures.append("V26.16 icon cache "+hud_element)
+		checks+=2
+	for hud_action in ["Strike","Aim","Bag","Berry"]:
+		var action_texture:Texture2D=view.action_icon(hud_action)
+		if action_texture==null or action_texture.get_size()!=Vector2(32,32):failures.append("V26.16 utility icon "+hud_action)
+		if action_texture!=view.action_icon(hud_action):failures.append("V26.16 utility cache "+hud_action)
+		checks+=2
+	for biome_index in range(3):
+		view.region=biome_index
+		var hud_frame:StyleBoxFlat=view.ornamental_frame()
+		if hud_frame.border_width_top!=2 or hud_frame.corner_radius_top_left!=18:failures.append("V26.16 frame geometry")
+		if hud_frame.border_color!=view.hud_gold():failures.append("V26.16 biome frame")
+		checks+=2
+	view.region=0
 	# V26.15: presentation-only landing clock and finite mobile FX bounds.
 	var landing_start:Vector3=view.house_landing_sample(0.0)
 	var landing_contact:Vector3=view.house_landing_sample(.36)
