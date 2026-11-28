@@ -1367,6 +1367,53 @@ func run_checks()->void:
 	checks+=1
 	print("KINDRIA_CROWD_NAVIGATION checks=10")
 
+	# Idle watch posts are selected from nearby geometry, never a hidden target.
+	var ambush=Rules.new()
+	for y in range(2,7):
+		for x in range(3,8):ambush.cells[Vector2i(x,y)]=true
+	for x in range(1,3):ambush.cells[Vector2i(x,4)]=true
+	ambush.rooms.append(Rect2i(3,2,5,5))
+	ambush.cells[Vector2i(9,9)]=true
+	ambush.cells[Vector2i(9,8)]=true
+	ambush.player=Vector2i(9,9);ambush.stairs=Vector2i(10,9);ambush.relic=Vector2i(10,8)
+	var ambush_actor:Dictionary={"uid":0,"pos":Vector2i(5,3),"hp":20,"max_hp":20,"kind":0,"species":"rootgnawer","ecology_role":"sentry","ecology_home":Vector2i(5,3),"ecology_search_enabled":true,"ambush_enabled":true,"pp_primary":12,"pp_secondary":0}
+	ambush.enemies.append(ambush_actor)
+	var ambush_plan:Dictionary=ambush.enemy_ambush_plan(ambush_actor)
+	if ambush_plan.is_empty() or ambush_plan.get("gate")!=Vector2i(2,4) or ambush_plan.get("entry")!=Vector2i(3,4) or ambush.distance(ambush_plan.get("post",Vector2i.ZERO),Vector2i(3,4))!=1 or ambush_actor.has("ambush_post"):failures.append("ambush valid melee watch post and pure plan")
+	checks+=1
+	ambush.player=Vector2i(9,8)
+	if ambush.enemy_ambush_plan(ambush_actor)!=ambush_plan:failures.append("ambush hidden target independence")
+	checks+=1
+	ambush_actor["ambush_enabled"]=false
+	if not ambush.enemy_ambush_plan(ambush_actor).is_empty():failures.append("ambush opt-in ecology")
+	ambush_actor["ambush_enabled"]=true
+	checks+=1
+	ambush_actor["stuck_turns"]=2
+	if not ambush.enemy_ambush_plan(ambush_actor).is_empty():failures.append("ambush rooted actor")
+	ambush_actor.erase("stuck_turns")
+	checks+=1
+	ambush_actor["windup"]=true
+	if not ambush.enemy_ambush_plan(ambush_actor).is_empty():failures.append("ambush charged actor")
+	ambush_actor.erase("windup")
+	checks+=1
+	var ambush_step:Vector2i=ambush_plan.get("step",ambush_actor.pos)
+	ambush.traps[ambush_step]="snare"
+	if ambush.enemy_ambush_plan(ambush_actor).get("step",Vector2i.ZERO)==ambush_step:failures.append("ambush avoids trapped approach")
+	ambush.traps.clear()
+	checks+=1
+	ambush.enemy_turn_actions()
+	if ambush_actor.pos!=ambush_step or ambush_actor.pp_primary!=12 or ambush.enemy_actions.size()!=1 or ambush.enemy_actions[0].get("phase","")!="move":failures.append("ambush actual single action")
+	checks+=1
+	for tick in range(3):ambush.enemy_turn_actions()
+	if ambush_actor.pos!=ambush_plan.get("post") or not ambush_actor.has("ambush_post") or not ambush.enemy_actions.is_empty():failures.append("ambush holds chosen post")
+	checks+=1
+	ambush.player=Vector2i(3,4)
+	if ambush.enemy_pursuit_target(ambush_actor,ambush.player)!=ambush.player or ambush_actor.has("ambush_post"):failures.append("ambush visible target cancels post")
+	checks+=1
+	ambush.enemy_turn_actions()
+	if ambush.enemy_actions.size()!=1 or ambush.enemy_actions[0].get("phase","")!="attack" or ambush_actor.pp_primary!=11:failures.append("ambush normal learned attack after contact")
+	checks+=1
+	print("KINDRIA_AMBUSH_TACTICS checks=10")
 	# Actual disk I/O, legacy migration, corruption recovery, and resumed writes.
 	var test_path:String="user://kindria_procedural_test_"+str(OS.get_process_id())+".cfg"
 	var exact:Array[String]=["legacy exact".sha256_text()]
