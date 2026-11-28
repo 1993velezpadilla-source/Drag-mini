@@ -78,9 +78,14 @@ func run():
 		if fight.cells.has(fight.player+d):neighbor=fight.player+d;break
 	fight.enemies.append({"pos":neighbor,"hp":12,"kind":0})
 	var hp:int=fight.hp
+	var initial_energy:int=fight.energy
 	assert(fight.attack() and fight.hp<hp and fight.enemies.size()==1)
-	assert(fight.attack(true) and fight.enemies.is_empty() and fight.energy==6)
-	assert(fight.heal() and fight.hp==hp and fight.potions==1)
+	assert(fight.energy==initial_energy,"free regular strike")
+	# Regular Strike is a weak, accuracy-gated action; do not assume old fixed damage.
+	fight.enemies[0].hp=1
+	assert(fight.attack(true) and fight.enemies.is_empty() and fight.energy==initial_energy-2)
+	var potions_before:int=fight.potions
+	assert(fight.heal() and fight.hp==hp and fight.potions==potions_before-1)
 	var ranged=Rules.new();ranged.setup(0,1,0,false,false,99,1)
 	ranged.enemies.clear()
 	var direction=Vector2i.ZERO
@@ -94,7 +99,7 @@ func run():
 	assert(not boss.guardian_defeated and boss.enemy_at(boss.relic)>=0)
 	boss.player=boss.relic;boss.pickup();assert(not boss.secured)
 	var idx:int=boss.enemy_at(boss.relic)
-	boss.enemies[idx].hp=1;boss.strike(idx)
+	boss.enemies[idx].hp=1;boss.strike(idx,true)
 	assert(boss.guardian_defeated);boss.pickup();assert(boss.secured)
 	var heavy=Rules.new();heavy.setup(0,1,0,false,false,19)
 	heavy.enemies.clear()
