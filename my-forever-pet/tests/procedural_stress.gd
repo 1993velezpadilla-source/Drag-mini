@@ -284,6 +284,7 @@ func enemy_integration_gauntlet(failures:Array[String])->int:
 			# Capture occupancy before the enemy phase; later actors and end-of-turn
 			# removals may open a lane after an earlier actor has already decided.
 			var phase_start_player:Vector2i=cached.player
+			var phase_start_protect:bool=cached.shield_turns>0 and cached.shield_kind=="protect"
 			var phase_start_posts:Dictionary={}
 			for direction in [Vector2i.UP,Vector2i.RIGHT,Vector2i.DOWN,Vector2i.LEFT]:
 				var q:Vector2i=phase_start_player+direction
@@ -355,7 +356,7 @@ func enemy_integration_gauntlet(failures:Array[String])->int:
 							for q in phase_start_posts:
 								if not bool(phase_start_posts[q].safe) and cached.enemy_ambush_safe_tile(q):opened.append(q)
 						var vacancy:Vector2i=cached.enemy_witnessed_vacancy_step(e,cached.player)
-						history.append({"round":round_index,"turn":cached.turns,"uid":uid,"position":e.pos,"player_before":phase_start_player,"player_after":cached.player,"posts_before":phase_start_posts.duplicate(true),"opened_during_phase":opened,"loss_turn":int(e.get("squad_loss_turn",-1)),"loss_tile":e.get("squad_loss_tile",Vector2i.ZERO),"vacancy_now":vacancy!=e.pos,"stall_count":int(e.get("stall_count",0)),"stall_turn":int(e.get("stall_turn",-1)),"reserve_hold_turn":int(e.get("reserve_hold_turn",-1)),"congestion_hold_turn":int(e.get("congestion_hold_turn",-1))})
+						history.append({"round":round_index,"turn":cached.turns,"uid":uid,"position":e.pos,"player_before":phase_start_player,"player_after":cached.player,"protect_before":phase_start_protect,"posts_before":phase_start_posts.duplicate(true),"opened_during_phase":opened,"loss_turn":int(e.get("squad_loss_turn",-1)),"loss_tile":e.get("squad_loss_tile",Vector2i.ZERO),"vacancy_now":vacancy!=e.pos,"stall_count":int(e.get("stall_count",0)),"stall_turn":int(e.get("stall_turn",-1)),"reserve_hold_turn":int(e.get("reserve_hold_turn",-1)),"congestion_hold_turn":int(e.get("congestion_hold_turn",-1))})
 						if history.size()>8:history.pop_front()
 						residual_history[uid]=history
 					else:residual_history.erase(uid)
@@ -2230,7 +2231,17 @@ func run_checks()->void:
 	ring_fixture.enemies.insert(1,{"uid":331,"pos":Vector2i(3,4),"hp":30,"kind":0,"species":"rootgnawer","ecology_search_enabled":true,"pp_primary":0,"pp_secondary":0,"pp_support":0,"pp_control":0})
 	for peer in ring_fixture.enemies:
 		peer["pp_support"]=0;peer["pp_control"]=0
-	for tick in range(3):ring_fixture.enemy_turn_actions()
+	ring_fixture.enemy_turn_actions()
+	if int(ring_actor.get("reserve_hold_turn",-1))!=ring_fixture.turns or int(ring_actor.get("stall_count",0))!=1 or ring_actor.pos!=Vector2i(2,4):failures.append("reserve records verified first blocked turn")
+	checks+=1
+	# A shielded turn must not become new evidence of blocked pursuit.
+	ring_fixture.shield_kind="protect";ring_fixture.shield_turns=1
+	var first_hold:int=ring_fixture.turns
+	ring_fixture.enemy_turn_actions()
+	if int(ring_actor.get("reserve_hold_turn",-1))!=first_hold or int(ring_actor.get("stall_turn",-1))!=first_hold:failures.append("reserve protect wait does not refresh pursuit evidence")
+	checks+=1
+	ring_fixture.shield_kind="";ring_fixture.shield_turns=0
+	ring_fixture.enemy_turn_actions()
 	if int(ring_actor.get("reserve_hold_turn",-1))!=ring_fixture.turns or ring_actor.pos!=Vector2i(2,4):failures.append("reserve live dispatcher holds closed ring")
 	checks+=1
 	ring_fixture.enemies.remove_at(1)
@@ -2534,7 +2545,7 @@ func run_checks()->void:
 		if int(action.get("uid",-1))==400 and str(action.get("phase",""))=="attack":replacement_attacks+=1
 	if replacement_attacks!=1:failures.append("live vacancy attack on following turn")
 	checks+=1
-	print("KINDRIA_ANTI_STALL checks=106")
+	print("KINDRIA_ANTI_STALL checks=108")
 	# A direct witness may report a tile, but a listener cannot relay it.
 	var comm=Rules.new()
 	for x in range(1,4):comm.cells[Vector2i(x,3)]=true
