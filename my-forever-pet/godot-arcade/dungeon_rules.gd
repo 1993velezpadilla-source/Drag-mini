@@ -955,6 +955,15 @@ var explored_rooms:Dictionary={}
 var floor_bonus=0
 var total_bonus=0
 var floor_kind=0
+# Independent Kindria implementation, informed by pmdsky-debug's room/trigger contracts.
+var monster_house_room:int=-1
+var monster_house_triggered:bool=false
+var monster_house_cleared:bool=false
+var monster_house_serial:int=0
+var monster_house_spawn_count:int=0
+var monster_house_rng:=RandomNumberGenerator.new()
+const MONSTER_HOUSE_UID_BASE:int=200
+const MONSTER_HOUSE_CAP:int=10
 var player_rested=false
 func setup(r:int,id:int,step:int,finale:bool,patrol:bool,seed_id:int,companion:int=0):
 	region=r;seed_value=seed_id;skill_kind=posmod(companion,3);rescue_finale=finale;specimen=id
@@ -1054,6 +1063,8 @@ func generate_floor():
 	secured=false;guardian_defeated=not (rescue_finale and floor_number==floor_count);floor_revision+=1
 	visual_interactions.clear()
 	build_layout()
+	monster_house_room=-1;monster_house_triggered=false;monster_house_cleared=false;monster_house_spawn_count=0
+	monster_house_rng.seed=seed_value+floor_number*104729+region*8191+3011
 
 	var spots:Array= cells.keys()
 	for i in range(spots.size()-1,0,-1):
@@ -1089,8 +1100,85 @@ func generate_floor():
 			loot[p]="coin";break
 	energy=mini(8,energy+2)
 	place_allies()
+	prepare_monster_house()
 	reveal()
 	message="Guardian chamber · Rescue the creature" if not guardian_defeated else "B%d · Find the relic and stairs"%floor_number
+func monster_house_chance()->int:
+	# Kindria expeditions are shorter than EOS dungeons: tune per tier.
+	if floor_number<2 or not guardian_defeated or floor_kind==3:return 0
+	return mini(22,8+tier*4+mini(6,(floor_number-2)*2))
+
+func monster_house_candidates()->Array[int]:
+	var valid:Array[int]=[]
+	for i in range(rooms.size()):
+		var room:Rect2i=rooms[i]
+		if room.has_point(player) or room.has_point(relic):continue
+		var free_count:int=0
+		for y in range(room.position.y,room.end.y):
+			for x in range(room.position.x,room.end.x):
+				var p:=Vector2i(x,y)
+				if cells.has(p) and p!=stairs and enemy_at(p)<0 and ally_at(p)<0:free_count+=1
+		if free_count>=12:valid.append(i)
+	return valid
+
+func prepare_monster_house(force:bool=false)->bool:
+	if monster_house_room>=0:return false
+	if not force and monster_house_rng.randi_range(1,100)>monster_house_chance():return false
+	var candidates:=monster_house_candidates()
+	if candidates.is_empty():return false
+	monster_house_room=candidates[monster_house_rng.randi_range(0,candidates.size()-1)]
+	var room:Rect2i=rooms[monster_house_room]
+	var spots:Array[Vector2i]=[]
+	for y in range(room.position.y,room.end.y):
+		for x in range(room.position.x,room.end.x):
+			var p:=Vector2i(x,y)
+			if cells.has(p) and p!=stairs and p!=relic and enemy_at(p)<0 and not loot.has(p) and not traps.has(p):spots.append(p)
+	for i in range(spots.size()-1,0,-1):
+		var j:int=monster_house_rng.randi_range(0,i);var swap:Vector2i=spots[i];spots[i]=spots[j];spots[j]=swap
+	var rewards:Array[String]=["coin","material","potion","trail_fruit","manual:eos_154"]
+	for i in range(mini(5,spots.size())):loot[spots[i]]=rewards[i]
+	for i in range(5,mini(8,spots.size())):traps[spots[i]]=true
+	return true
+
+func monster_house_remaining()->int:
+	var count:int=0
+	for e in enemies:
+		if bool(e.get("monster_house",false)) and int(e.hp)>0:count+=1
+	return count
+
+func trigger_monster_house()->bool:
+	if finished or monster_house_triggered or monster_house_room<0 or monster_house_room>=rooms.size():return false
+	var room:Rect2i=rooms[monster_house_room]
+	if not room.has_point(player):return false
+	var spots:Array[Vector2i]=[]
+	for y in range(room.position.y,room.end.y):
+		for x in range(room.position.x,room.end.x):
+			var p:=Vector2i(x,y)
+			var delta:Vector2i=p-player
+			if maxi(absi(delta.x),absi(delta.y))>4 or not cells.has(p) or p==player or p==stairs or p==relic or enemy_at(p)>=0 or ally_at(p)>=0:continue
+			spots.append(p)
+	for i in range(spots.size()-1,0,-1):
+		var j:int=monster_house_rng.randi_range(0,i);var swap:Vector2i=spots[i];spots[i]=spots[j];spots[j]=swap
+	var count:int=mini(spots.size(),mini(MONSTER_HOUSE_CAP,5+tier+mini(3,floor_number/2)))
+	monster_house_triggered=true;monster_house_spawn_count=count;monster_house_serial+=1
+	for i in range(count):
+		var life:int=8+mini(floor_number,30)*2+tier*2
+		var e:=make_enemy(spots[i],life,monster_house_rng.randi_range(0,2),MONSTER_HOUSE_UID_BASE+i)
+		e["monster_house"]=true;e["monster_house_spawn_serial"]=monster_house_serial
+		enemies.append(e);revealed[spots[i]]=true
+	message="Monster House! · %d enemies"%count
+	emit_event(message);visual_interaction("monster_house",player)
+	return true
+
+func update_monster_house()->void:
+	if not monster_house_triggered:
+		trigger_monster_house()
+	elif not monster_house_cleared and monster_house_remaining()==0:
+		monster_house_cleared=true
+		if not finished:
+			message="Monster House cleared!"
+			emit_event(message);visual_interaction("monster_house_clear",player)
+
 func ally_at(p:Vector2i)->int:
 	for i in range(allies.size()):
 		if int(allies[i].hp)>0 and allies[i].pos==p:return i
@@ -1895,6 +1983,7 @@ func enemy_turn():
 		visual_turn_damage[uid]["events"]=visual_response_events[uid].duplicate(true)
 	visual_response_active=false
 	visual_turn_damage_turn=turns
+	update_monster_house()
 func finish_walk_turn()->void:
 	travel_steps_used+=1
 	if travel_steps_used>=travel_speed():enemy_turn()
@@ -1902,6 +1991,7 @@ func finish_walk_turn()->void:
 		enemy_actions.clear();reveal()
 		if not spend_belly():return
 		message="Movement ×%d · %d steps left"%[travel_speed(),travel_speed()-travel_steps_used]
+		update_monster_house()
 # Enemy kits have independent PP; basic attacks never consume a move slot.
 func mirror_veil_blocks(origin:Vector2i,special:bool,pattern:String)->bool:
 	return boon_active("mirror_veil") and special and distance(origin,player)==1 and pattern!="corner_front"
@@ -2243,7 +2333,7 @@ func enemy_turn_actions():
 			if hp==0:
 				apply_fatal_grudge(enemies[i])
 				finished=true;success=false;message="Rescue needed · expedition lost";return
-		elif gap<=6 and kind!=3 and int(enemies[i].get("stuck_turns",0))<=0:
+		elif (gap<=6 or bool(enemies[i].get("monster_house",false))) and kind!=3 and int(enemies[i].get("stuck_turns",0))<=0:
 			var path=route(p,player,true)
 			if not path.is_empty() and path[0]!=player and enemy_at(path[0])<0:
 				var steps:int=1+int(enemies[i].get("haste_stage",0)) if int(enemies[i].get("haste_turns",0))>0 else 1
