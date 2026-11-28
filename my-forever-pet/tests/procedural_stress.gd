@@ -1077,7 +1077,8 @@ func run_checks()->void:
 	if tactics_fixture.enemy_tactical_step(ranged_actor,tactics_fixture.player,"line",3)!=firing_tile:failures.append("tactical firing lane")
 	checks+=1
 	tactics_fixture.traps[firing_tile]="spike"
-	if tactics_fixture.enemy_tactical_step(ranged_actor,tactics_fixture.player,"line",3)!=firing_origin:failures.append("tactical trap avoidance")
+	var trap_alternative:Vector2i=tactics_fixture.enemy_tactical_step(ranged_actor,tactics_fixture.player,"line",3)
+	if trap_alternative==firing_tile or (trap_alternative!=firing_origin and (not tactics_fixture.step_clear(firing_origin,trap_alternative-firing_origin) or not tactics_fixture.enemy_ambush_safe_tile(trap_alternative) or tactics_fixture.enemy_projected_attack_aim(ranged_actor,trap_alternative,tactics_fixture.player,"line",3)==Vector2i.ZERO)):failures.append("tactical trap avoidance")
 	tactics_fixture.traps.clear()
 	tactics_fixture.cells.erase(Vector2i(3,4))
 	if tactics_fixture.enemy_tactical_step(ranged_actor,tactics_fixture.player,"line",3)!=firing_origin:failures.append("tactical occlusion")
@@ -1086,7 +1087,8 @@ func run_checks()->void:
 	# A tactical sidestep must not enter a teammate's committed attack.
 	var tactical_shooter:Dictionary={"uid":2,"pos":Vector2i(2,5),"hp":20,"kind":1,"species":"leafwisp","ecology_search_enabled":true,"pp_primary":12,"pp_secondary":0,"windup":true,"aim":Vector2i.UP}
 	tactics_fixture.enemies.append(tactical_shooter)
-	if not tactics_fixture.enemy_relief_blocks_lane(tactical_shooter,firing_tile,tactics_fixture.player) or tactics_fixture.enemy_tactical_step(ranged_actor,tactics_fixture.player,"line",3)!=firing_origin:failures.append("tactical respects committed friendly ray")
+	var lane_alternative:Vector2i=tactics_fixture.enemy_tactical_step(ranged_actor,tactics_fixture.player,"line",3)
+	if not tactics_fixture.enemy_relief_blocks_lane(tactical_shooter,firing_tile,tactics_fixture.player) or (lane_alternative!=firing_origin and (tactics_fixture.enemy_relief_blocks_lane(tactical_shooter,lane_alternative,tactics_fixture.player) or not tactics_fixture.step_clear(firing_origin,lane_alternative-firing_origin) or not tactics_fixture.enemy_ambush_safe_tile(lane_alternative) or tactics_fixture.enemy_projected_attack_aim(ranged_actor,lane_alternative,tactics_fixture.player,"line",3)==Vector2i.ZERO)):failures.append("tactical respects committed friendly ray")
 	checks+=1
 	tactical_shooter["windup"]=false;tactical_shooter.erase("aim")
 	if tactics_fixture.enemy_tactical_step(ranged_actor,tactics_fixture.player,"line",3)!=firing_tile:failures.append("tactical uses released lane")
@@ -4908,16 +4910,18 @@ func run_checks()->void:
 	for diag_y in range(1,8):
 		for diag_x in range(1,8):diagonal_post_fixture.cells[Vector2i(diag_x,diag_y)]=true
 	diagonal_post_fixture.player=Vector2i(5,4)
+	diagonal_post_fixture.hp=30;diagonal_post_fixture.max_hp=30
 	diagonal_post_fixture.stairs=Vector2i(7,7)
 	diagonal_post_fixture.relic=Vector2i(7,6)
 	var diagonal_post_actor:Dictionary={"uid":980,"pos":Vector2i(3,3),"hp":30,"kind":1,"species":"leafwisp","ecology_role":"hunter","ecology_search_enabled":true,"personality_enabled":true,"pp_primary":12,"pp_secondary":0}
 	diagonal_post_fixture.enemies.append(diagonal_post_actor)
-	for diag_dir in Rules.DIR:diagonal_post_fixture.traps[diagonal_post_actor.pos+diag_dir]="snare"
+	for diag_dir in Rules.DIR8:
+		if diag_dir!=Vector2i(1,1):diagonal_post_fixture.traps[diagonal_post_actor.pos+diag_dir]="snare"
 	var diag_post:Vector2i=diagonal_post_fixture.enemy_tactical_step(diagonal_post_actor,diagonal_post_fixture.player,"line",2)
 	if diag_post!=Vector2i(4,4):failures.append("tactical diagonal firing post")
 	checks+=1
 	var diag_plan:Dictionary=diagonal_post_fixture.enemy_decision_position_plan(diagonal_post_actor,diagonal_post_fixture.player)
-	if diag_plan.get("step",Vector2i.ZERO)!=Vector2i(4,4):failures.append("decision diagonal firing post")
+	if diag_plan.get("step",Vector2i.ZERO)!=Vector2i(4,4):failures.append("decision diagonal firing post "+str(diag_plan))
 	checks+=1
 	diagonal_post_fixture.cells.erase(Vector2i(4,3))
 	if diagonal_post_fixture.enemy_tactical_step(diagonal_post_actor,diagonal_post_fixture.player,"line",2)==Vector2i(4,4) or diagonal_post_fixture.enemy_decision_position_plan(diagonal_post_actor,diagonal_post_fixture.player).get("step",Vector2i.ZERO)==Vector2i(4,4):failures.append("diagonal firing post blocked corner")
@@ -4925,6 +4929,23 @@ func run_checks()->void:
 	if diagonal_post_actor.pos!=Vector2i(3,3) or diagonal_post_actor.pp_primary!=12 or not diagonal_post_fixture.enemy_actions.is_empty():failures.append("diagonal post planning purity")
 	checks+=1
 	print("KINDRIA_DIAGONAL_POSTS checks=4")
+	var diagonal_retreat=Rules.new()
+	for retreat_y in range(1,8):
+		for retreat_x in range(1,8):diagonal_retreat.cells[Vector2i(retreat_x,retreat_y)]=true
+	diagonal_retreat.player=Vector2i(5,4)
+	diagonal_retreat.hp=100
+	diagonal_retreat.stairs=Vector2i(7,7)
+	diagonal_retreat.relic=Vector2i(7,6)
+	var retreat_actor:Dictionary={"uid":981,"pos":Vector2i(4,4),"hp":5,"max_hp":30,"kind":1,"species":"leafwisp","ecology_role":"hunter","ecology_search_enabled":true,"personality_enabled":true,"pp_primary":12}
+	diagonal_retreat.enemies.append(retreat_actor)
+	for retreat_dir in Rules.DIR8:
+		if retreat_dir!=Vector2i(-1,-1):diagonal_retreat.traps[retreat_actor.pos+retreat_dir]="snare"
+	if diagonal_retreat.enemy_retreat_step(retreat_actor,diagonal_retreat.player)!=Vector2i(3,3):failures.append("retreat safe diagonal escape")
+	checks+=1
+	diagonal_retreat.cells.erase(Vector2i(3,4))
+	if diagonal_retreat.enemy_retreat_step(retreat_actor,diagonal_retreat.player)!=retreat_actor.pos:failures.append("retreat diagonal blocked corner")
+	checks+=1
+	print("KINDRIA_DIAGONAL_RETREAT checks=2")
 	var formation_fixture=Rules.new()
 	for y in range(1,8):
 		for x in range(1,8):formation_fixture.cells[Vector2i(x,y)]=true

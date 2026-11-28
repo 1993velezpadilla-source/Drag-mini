@@ -3130,7 +3130,9 @@ func enemy_risk_step(e:Dictionary,target:Vector2i)->Vector2i:
 	if int(report.get("risk",0))<(4 if profile=="cautious" else 6) or enemy_risk_has_finisher(e) or enemy_has_party_area_attack(e):return origin
 	var best:Vector2i=origin
 	var best_score:int=-2147483647
-	for d in DIR:
+	for d in (DIR if ai_legacy_cardinal_replay else COMBAT_DIR):
+		if d==COMBAT_DIR[4] and best!=origin:break
+		if not step_clear(origin,d):continue
 		var q:Vector2i=origin+d
 		if not enemy_ambush_safe_tile(q) or distance(q,target)<=gap:continue
 		var exits:int=0
@@ -3160,8 +3162,11 @@ func enemy_retreat_step(e:Dictionary,target:Vector2i)->Vector2i:
 	var best:Vector2i=origin
 	var best_score:int=-2147483647
 	var phase:int=posmod(int(e.get("uid",0))+turns,4)
-	for j in range(4):
-		var q:Vector2i=origin+DIR[(phase+j)%4]
+	for j in range(4 if ai_legacy_cardinal_replay else 8):
+		if j==4 and best!=origin:break
+		var direction:Vector2i=DIR[(phase+j)%4] if j<4 else COMBAT_DIR[4+(phase+j-4)%4]
+		if not step_clear(origin,direction):continue
+		var q:Vector2i=origin+direction
 		if not cells.has(q) or q==player or q==target or q==stairs or q==relic or q in side_rewards or traps.has(q) or player_traps.has(q) or enemy_at(q)>=0 or ally_at(q)>=0:continue
 		if distance(q,target)<=gap:continue
 		# Prefer a tile with a safe onward exit, rather than backing into a dead end.
