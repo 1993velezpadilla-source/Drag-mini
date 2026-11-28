@@ -1678,7 +1678,7 @@ func assign_enemy_ecology()->void:
 		e["ecology_search_enabled"]=true
 
 func enemy_awareness(e:Dictionary)->int:
-	if bool(e.get("monster_house",false)):return 9999
+	if bool(e.get("monster_house",false)):return 8 if bool(e.get("house_tactical",false)) else 9999
 	match str(e.get("ecology_role","hunter")):
 		"scout":return 8
 		"sentry":return 4
@@ -1791,7 +1791,7 @@ func enemy_adaptive_intercept_step(e:Dictionary,target:Vector2i)->Vector2i:
 
 func enemy_pursuit_target(e:Dictionary,observed:Vector2i)->Vector2i:
 	var origin:Vector2i=e.pos
-	if not e.has("ecology_role") or bool(e.get("monster_house",false)):
+	if not e.has("ecology_role") or (bool(e.get("monster_house",false)) and not bool(e.get("house_tactical",false))):
 		return observed if distance(origin,observed)<=enemy_awareness(e) else origin
 	if distance(origin,observed)<=enemy_awareness(e) and enemy_line_of_sight(origin,observed):
 		clear_enemy_search(e)
@@ -1968,7 +1968,7 @@ func enemy_push_plan(e:Dictionary,target:Vector2i)->Dictionary:
 func enemy_control_setup_step(e:Dictionary,target:Vector2i)->Vector2i:
 	var origin:Vector2i=e.pos
 	var id:String=str(e.get("control_move",""))
-	if not bool(e.get("ecology_search_enabled",false)) or bool(e.get("monster_house",false)) or bool(e.get("windup",false)) or int(e.get("stuck_turns",0))>0:return origin
+	if not bool(e.get("ecology_search_enabled",false)) or (bool(e.get("monster_house",false)) and not bool(e.get("house_tactical",false))) or bool(e.get("windup",false)) or int(e.get("stuck_turns",0))>0:return origin
 	if int(e.get("control_cooldown",0))>0 or not MOVE_LIBRARY.has(id) or str(MOVE_LIBRARY[id].get("special_rule",""))!="push" or not enemy_move_allowed(e,"control"):return origin
 	if player_has_ability("anchored") or boon_active("ingrain") or charge_phase in ["underground","airborne","vanish"]:return origin
 	if not enemy_line_of_sight(origin,target) or distance(origin,target)!=2:return origin
@@ -2067,7 +2067,7 @@ func enemy_execute_status_control(i:int,move:Dictionary)->bool:
 func enemy_execute_control(i:int)->bool:
 	var e:Dictionary=enemies[i]
 	var id:String=str(e.get("control_move",""))
-	if not bool(e.get("ecology_search_enabled",false)) or bool(e.get("windup",false)) or bool(e.get("monster_house",false)):return false
+	if not bool(e.get("ecology_search_enabled",false)) or bool(e.get("windup",false)) or (bool(e.get("monster_house",false)) and not bool(e.get("house_tactical",false))):return false
 	if int(e.get("control_cooldown",0))>0 or not MOVE_LIBRARY.has(id) or not enemy_move_allowed(e,"control"):return false
 	var learned:Dictionary=MOVE_LIBRARY[id]
 	if str(learned.get("special_rule",""))!="push":
@@ -2105,7 +2105,7 @@ func enemy_execute_control(i:int)->bool:
 # another attacker's way. The player can still fight through or choose another exit.
 func enemy_exit_block_step(e:Dictionary,target:Vector2i)->Vector2i:
 	var origin:Vector2i=e.pos
-	if not bool(e.get("ecology_search_enabled",false)) or bool(e.get("monster_house",false)) or int(e.get("kind",0))==3 or int(e.get("stuck_turns",0))>0:return origin
+	if not bool(e.get("ecology_search_enabled",false)) or (bool(e.get("monster_house",false)) and not bool(e.get("house_tactical",false))) or int(e.get("kind",0))==3 or int(e.get("stuck_turns",0))>0:return origin
 	if enemy_survival_profile(e) not in ["aggressive","defensive"] or bool(e.get("windup",false)) or distance(origin,target)>3 or not enemy_line_of_sight(origin,target):return origin
 	for d in DIR:
 		var q:Vector2i=origin+d
@@ -2264,6 +2264,64 @@ func monster_house_remaining()->int:
 		if bool(e.get("monster_house",false)) and int(e.hp)>0:count+=1
 	return count
 
+# House formations use actual species kits, not new artificial attacks.
+func house_tactical_role(e:Dictionary)->String:
+	var skill:Array=signature_skill(e)
+	var profile:String=enemy_survival_profile(e)
+	if profile=="defensive":return "guard"
+	if int(skill[0])>=3:return "ranged"
+	if not str(e.get("control_move","")).is_empty() or ENEMY_SUPPORT.get(e.get("species",""),"")=="drowse":return "controller"
+	return "vanguard"
+
+func house_spawn_tile(e:Dictionary,spots:Array[Vector2i],room:Rect2i)->Vector2i:
+	var role:String=house_tactical_role(e)
+	var best:Vector2i=spots[0]
+	var best_score:int=-2147483647
+	for q in spots:
+		var gap:int=distance(q,player)
+		var score:int=-absi(gap-(3 if role in ["ranged","controller"] else 2))*4
+		if traps.has(q) or player_traps.has(q):score-=30
+		if enemy_line_of_sight(q,player):score+=3
+		# Preserve a little breathing room at the trigger tile.
+		if gap==1:score-=8
+		if role=="guard":
+			for d in DIR:
+				if cells.has(q+d) and not room.has_point(q+d):score+=5
+		if role=="ranged":
+			var pattern:String=str(ATTACK_PATTERNS.get(e.get("species",""),"line"))
+			if attack_aim(q,player,pattern,int(signature_skill(e)[0]))!=Vector2i.ZERO:score+=5
+		if score>best_score:best_score=score;best=q
+	return best
+
+func house_formation_step(e:Dictionary,target:Vector2i)->Vector2i:
+	var origin:Vector2i=e.pos
+	if not bool(e.get("house_tactical",false)) or int(e.get("stuck_turns",0))>0 or bool(e.get("windup",false)):return origin
+	if not enemy_line_of_sight(origin,target) or distance(origin,target)>enemy_awareness(e):return origin
+	var role:String=str(e.get("house_role",""))
+	if role in ["vanguard","controller"]:return origin
+	var best:Vector2i=origin
+	var best_score:int=0
+	for d in DIR:
+		var q:Vector2i=origin+d
+		if not cells.has(q) or q==target or q==player or q==stairs or q==relic or q in side_rewards or traps.has(q) or player_traps.has(q) or enemy_at(q)>=0 or ally_at(q)>=0:continue
+		if not enemy_line_of_sight(q,target):continue
+		var score:int=0
+		if role=="ranged":
+			var skill:Array=signature_skill(e)
+			var pattern:String=str(ATTACK_PATTERNS.get(e.get("species",""),"line"))
+			if attack_aim(q,target,pattern,int(skill[0]))==Vector2i.ZERO:continue
+			score=6+distance(q,target)-absi(distance(q,target)-int(skill[0]))*3
+		elif role=="guard":
+			for other in enemies:
+				if not enemy_squad_partner(e,other) or str(other.get("house_role",""))!="ranged" or int(other.get("monster_house_spawn_serial",-1))!=int(e.get("monster_house_spawn_serial",-2)):continue
+				var op:Vector2i=other.pos
+				if distance(q,op)!=1 or distance(q,target)>=distance(op,target) or distance(q,target)>3:continue
+				# Stand beside the ranged creature without plugging its own line.
+				if (q.x==target.x and q.x==op.x) or (q.y==target.y and q.y==op.y):continue
+				score=maxi(score,10-distance(q,target))
+		if score>best_score:best_score=score;best=q
+	return best
+
 func trigger_monster_house()->bool:
 	if finished or monster_house_triggered or monster_house_room<0 or monster_house_room>=rooms.size():return false
 	var room:Rect2i=rooms[monster_house_room]
@@ -2283,9 +2341,15 @@ func trigger_monster_house()->bool:
 	for i in range(count):
 		var life:int=8+mini(floor_number,30)*2+tier*2
 		var kind:int=house_enemy_kind(monster_house_profile,i)
-		var e:=make_enemy(spots[i],life,kind,MONSTER_HOUSE_UID_BASE+i)
+		var e:=make_enemy(spots[0],life,kind,MONSTER_HOUSE_UID_BASE+i)
+		var tile:Vector2i=house_spawn_tile(e,spots,room) if monster_house_profile in [2,3] else spots[0]
+		spots.erase(tile)
+		e.pos=tile
 		e["monster_house"]=true;e["monster_house_spawn_serial"]=monster_house_serial
-		enemies.append(e);revealed[spots[i]]=true
+		e["house_tactical"]=true;e["house_role"]=house_tactical_role(e)
+		e["ecology_search_enabled"]=true;e["ecology_role"]="hunter"
+		e["last_seen_player"]=player;e["last_seen_until"]=turns+3
+		enemies.append(e);revealed[tile]=true
 	message="Monster House! · %d enemies"%count
 	emit_event(message);visual_interaction("monster_house",player)
 	return true
@@ -3333,7 +3397,7 @@ func enemy_squad_focus_bonus(e:Dictionary,target_uid:int,tile:Vector2i)->float:
 # of an engaged partner. At most three cardinal steps are considered.
 func enemy_squad_intercept_step(e:Dictionary,target:Vector2i)->Vector2i:
 	var origin:Vector2i=e.pos
-	if not bool(e.get("ecology_search_enabled",false)) or bool(e.get("monster_house",false)) or int(e.get("kind",0))==3 or int(e.get("stuck_turns",0))>0 or bool(e.get("windup",false)):return origin
+	if not bool(e.get("ecology_search_enabled",false)) or (bool(e.get("monster_house",false)) and not bool(e.get("house_tactical",false))) or int(e.get("kind",0))==3 or int(e.get("stuck_turns",0))>0 or bool(e.get("windup",false)):return origin
 	if enemy_survival_profile(e) not in ["aggressive","defensive"] or distance(origin,target)>mini(5,enemy_awareness(e)) or not enemy_line_of_sight(origin,target):return origin
 	var engaged:Array[Vector2i]=[]
 	for other in enemies:
@@ -3728,7 +3792,8 @@ func enemy_turn_actions():
 		var pattern:String=ATTACK_PATTERNS.get(enemies[i].get("species",""),"line")
 		var aim:Vector2i=enemies[i].get("aim",Vector2i.ZERO) if charged else enemy_area_aim(enemies[i],pattern,int(skill[0]))
 		var footprint:Dictionary=attack_footprint(p,aim,pattern,int(skill[0])) if aim!=Vector2i.ZERO else {}
-		var in_range:bool=footprint.has(player)
+		var house_visible:bool=not bool(enemies[i].get("house_tactical",false)) or (gap<=enemy_awareness(enemies[i]) and enemy_line_of_sight(p,player))
+		var in_range:bool=footprint.has(player) and (charged or house_visible)
 		var alternate:bool=false
 		var species:String=str(enemies[i].get("species",""))
 		var alt_cooldown:int=int(enemies[i].get("alt_cooldown",0))
@@ -3738,7 +3803,7 @@ func enemy_turn_actions():
 			var alt_aim:=enemy_area_aim(enemies[i],str(alt[1]),int(alt[0]))
 			var alt_skill:Array=[alt[0],false,3,alt[3],alt[4],alt[5],"alt_"+species]
 			var prefer_alt:bool=not ready or not in_range or enemy_attack_score(enemies[i],alt_skill,true)+enemy_area_bonus(enemies[i],str(alt[1]),int(alt[0]),alt_aim)>enemy_attack_score(enemies[i],skill,false)+enemy_area_bonus(enemies[i],pattern,int(skill[0]),aim)+.25
-			if alt_aim!=Vector2i.ZERO and prefer_alt:
+			if alt_aim!=Vector2i.ZERO and prefer_alt and house_visible:
 				alternate=true;aim=alt_aim;pattern=str(alt[1])
 				footprint=attack_footprint(p,aim,pattern,int(alt[0]))
 				in_range=true;ready=true
@@ -3832,6 +3897,8 @@ func enemy_turn_actions():
 			var tactical:Vector2i=enemy_protector_step(enemies[i],pursuit_target) if not charged and pursuit_target==player else p
 			if tactical==p and not charged and pursuit_target==player:
 				tactical=enemy_control_setup_step(enemies[i],player)
+			if tactical==p and not charged and pursuit_target==player:
+				tactical=house_formation_step(enemies[i],player)
 			if tactical==p and not charged and pursuit_target==player:
 				tactical=enemy_adaptive_intercept_step(enemies[i],player)
 			if tactical==p and not charged and pursuit_target==player:
