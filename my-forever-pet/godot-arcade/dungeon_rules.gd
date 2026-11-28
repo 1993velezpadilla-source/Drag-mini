@@ -993,6 +993,17 @@ func connect_cells(a:Vector2i,b:Vector2i):
 			p.y+=signi(b.y-p.y);cells[p]=true
 		while p.x!=b.x:
 			p.x+=signi(b.x-p.x);cells[p]=true
+# Starter-floor identity is authored, layout remains seeded and procedural.
+func starter_floor_title()->String:
+	return ["Fernlight Clearing","Silverbrook Falls","Ancientroot Grove"][clampi(floor_number-1,0,2)]
+
+func starter_objective()->String:
+	if secured:return "Reach the stairs" if floor_number<floor_count else "Reach the exit"
+	return "Find the woodland relic"
+
+func starter_room_count()->int:
+	return 3 if floor_number==1 else 4
+
 func build_layout():
 	# Independent implementation: variable sector occupancy, random room sizes,
 	# connected spanning tree, extra loops and imperfect corner cuts.
@@ -1004,10 +1015,15 @@ func build_layout():
 		for x in range(grid.x):slots.append(Vector2i(x,y))
 	for i in range(slots.size()-1,0,-1):
 		var j=rng.randi_range(0,i);var swap=slots[i];slots[i]=slots[j];slots[j]=swap
-	var room_count=rng.randi_range(3,slots.size()) if starter_woods else rng.randi_range(4,slots.size())
+	var room_count=starter_room_count() if starter_woods else rng.randi_range(4,slots.size())
 	for i in range(room_count):
 		var slot=slots[i]
 		var width=rng.randi_range(5,7);var height=rng.randi_range(5,7)
+		if starter_woods:
+			# Open tutorial clearing, elongated stream-side room, broad final grove.
+			if floor_number==1 and i==0:width=7;height=7
+			elif floor_number==2 and i==1:width=5;height=7
+			elif floor_number==3 and i==room_count-1:width=7;height=7
 		var origin=slot*9+Vector2i(rng.randi_range(1,9-width-1),rng.randi_range(1,9-height-1))
 		var room=Rect2i(origin,Vector2i(width,height));rooms.append(room)
 		var cut=rng.randi_range(0,3)
@@ -1030,6 +1046,7 @@ func build_layout():
 		links[Vector2i(mini(source,destination),maxi(source,destination))]=true
 		reached.append(destination)
 	var extra=rng.randi_range(0,mini(4,room_count-2))
+	if starter_woods and floor_number==1:extra=0
 	for n in range(extra):
 		var i=rng.randi_range(0,room_count-1);var j=rng.randi_range(0,room_count-1)
 		var key=Vector2i(mini(i,j),maxi(i,j))
@@ -1085,6 +1102,13 @@ func generate_floor():
 		elif not starter_woods and traps.size()<(mini(12,floor_number-1) if dev_sandbox else floor_number-1):traps[p]=true
 		else:break
 	loot[relic]="relic"
+	if starter_woods:
+		# Replace (not add to) an ordinary pickup with the floor's teaching reward.
+		var tutorial_reward:String=["potion","trail_fruit","manual:eos_154"][clampi(floor_number-1,0,2)]
+		for q in spots:
+			if q!=relic and loot.get(q,"")=="coin":
+				loot[q]=tutorial_reward
+				break
 	if floor_kind==3:
 		var spring=center(rooms[1])
 		if enemy_at(spring)>=0 or spring==relic or spring==stairs:
@@ -1105,7 +1129,7 @@ func generate_floor():
 	place_allies()
 	prepare_monster_house()
 	reveal()
-	message="Guardian chamber · Rescue the creature" if not guardian_defeated else "B%d · Find the relic and stairs"%floor_number
+	message=starter_objective() if starter_woods else ("Guardian chamber · Rescue the creature" if not guardian_defeated else "B%d · Find the relic and stairs"%floor_number)
 func monster_house_chance()->int:
 	# Kindria expeditions are shorter than EOS dungeons: tune per tier.
 	if starter_woods or floor_number<2 or not guardian_defeated or floor_kind==3:return 0
