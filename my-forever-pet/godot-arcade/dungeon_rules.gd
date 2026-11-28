@@ -770,6 +770,9 @@ var ai_cache_enabled:bool=true
 # Opt-in test telemetry; never enabled by normal gameplay.
 var ai_recovery_trace_uid:int=-1
 var ai_recovery_trace:Dictionary={}
+# Optional per-phase decision evidence; never used as an AI input.
+var ai_wait_audit_enabled:bool=false
+var ai_wait_audit:Dictionary={}
 var ai_cache_active:bool=false
 var ai_actor_cache_active:bool=false
 var ai_los_cache:Dictionary={}
@@ -2350,6 +2353,38 @@ func enemy_firing_lane_frontline(e:Dictionary,target:Vector2i)->bool:
 
 # A recent lane hold may be invalidated by visible movement or a broken
 # formation. Do not require the old crowd to still exist before retrying.
+# Capture the actual actor-time occupancy, not the end-of-phase board.
+# This is evidence only: a guarded frontline is not automatically proof
+# that every possible alternative action was exhausted.
+func enemy_audit_frontline_wait(e:Dictionary,target:Vector2i)->void:
+	if not ai_wait_audit_enabled or not enemy_live_contact(e,target):return
+	var occupied:int=0
+	var guards:int=0
+	var free:int=0
+	var lane:int=0
+	var unknown:int=0
+	var peers:Array[Dictionary]=[]
+	for other in enemies:
+		if enemy_squad_partner(e,other):peers.append(other)
+	var memo:Dictionary={}
+	for d in DIR:
+		var q:Vector2i=target+d
+		if not cells.has(q):continue
+		if not enemy_line_of_sight(e.pos,q):unknown+=1;continue
+		var index:int=enemy_at(q)
+		if index>=0 and int(enemies[index].get("hp",0))>0:occupied+=1
+		elif ally_at(q)>=0:guards+=1
+		elif enemy_ambush_safe_tile(q):
+			if enemy_recovery_lane_blocked(peers,q,target,memo):lane+=1
+			else:free+=1
+		else:unknown+=1
+	var reason:String="unresolved"
+	if unknown==0 and free==0:
+		if lane>0 and occupied>=2 and guards==0:reason="friendly_lane"
+		elif guards>0 and occupied+guards>=2:reason="opposing_guard"
+		elif occupied>=2 and lane==0:reason="occupied_frontline"
+	ai_wait_audit[int(e.get("uid",-1))]={"turn":turns,"position":e.pos,"target":target,"reason":reason,"occupied":occupied,"guards":guards,"free":free,"lanes":lane,"unknown":unknown}
+
 func enemy_released_firing_post(e:Dictionary,target:Vector2i)->bool:
 	if not enemy_opportunity_eligible(e) or not enemy_live_contact(e,target) or int(e.get("stuck_turns",0))>0:return false
 	if shield_turns>0 and shield_kind=="protect":return false
@@ -5938,6 +5973,7 @@ func enemy_clear_acted_frontline_holds()->void:
 			e.erase("stage_turn");e.erase("stage_target");e.erase("stage_position")
 
 func enemy_turn_actions():
+	if ai_wait_audit_enabled or not ai_wait_audit.is_empty():ai_wait_audit.clear()
 	if ai_recovery_trace_uid>=0:ai_recovery_trace.clear()
 	enemy_phase_spent.clear()
 	ai_begin_turn_cache()
@@ -6062,6 +6098,7 @@ func enemy_turn_actions_impl():
 		if enemy_counter_protected(enemies[i],player) and not enemy_has_party_area_attack(enemies[i]):
 			var protected_step:Vector2i=enemy_counter_protected_step(enemies[i],player)
 			if ai_recovery_trace_uid>=0:enemy_trace_recovery(enemies[i],"protect",protected_step)
+			if ai_wait_audit_enabled and protected_step==p:ai_wait_audit[int(enemies[i].get("uid",-1))]={"turn":turns,"target":player,"reason":"protect","position":p}
 			enemy_tick_all_cooldowns(enemies[i])
 			if protected_step!=p:
 				enemies[i].pos=protected_step
@@ -6263,6 +6300,7 @@ func enemy_turn_actions_impl():
 					path.append(recovery)
 				else:
 					enemy_record_stall(enemies[i],player)
+					if ai_wait_audit_enabled:enemy_audit_frontline_wait(enemies[i],player)
 					# A verified closed frontline is actionable evidence on the first
 					# failed pursuit. Only speculative detours need repeated stalls.
 					if int(enemies[i].get("stall_turn",-1))==turns and enemy_encircled_frontline(enemies[i],player):
