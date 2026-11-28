@@ -4197,12 +4197,17 @@ func enemy_relief_step(e:Dictionary,target:Vector2i)->Vector2i:
 
 # Dynamic reserve role: a healthy melee or defensive actor may replace a
 # lost front line. Only viable candidates compete; a blocked peer cannot veto.
+# Lower bound on movement turns, independent of walls and occupancy.
+func enemy_step_distance(a:Vector2i,b:Vector2i)->int:
+	if ai_legacy_cardinal_replay:return distance(a,b)
+	return maxi(absi(a.x-b.x),absi(a.y-b.y))
+
 func enemy_reserve_candidate(e:Dictionary,target:Vector2i)->bool:
 	if enemy_phase_spent.has(int(e.get("uid",-1))) or (int(e.get("slow_turns",0))>0 and int(e.slow_turns)%2==0):return false
 	if target!=player or charge_phase in ["underground","airborne","vanish"] or not enemy_opportunity_eligible(e) or int(e.get("stuck_turns",0))>0:return false
 	if bool(e.get("monster_house",false)) and not bool(e.get("house_tactical",false)):return false
 	var gap:int=distance(e.pos,target)
-	if gap<2 or gap>4 or int(e.hp)*2<=maxi(1,int(e.get("max_hp",e.hp))):return false
+	if enemy_melee_adjacent(e.pos,target) or gap<2 or gap>4 or int(e.hp)*2<=maxi(1,int(e.get("max_hp",e.hp))):return false
 	if enemy_survival_profile(e) not in ["aggressive","defensive"]:return false
 	# A creature with an immediate ranged attack should keep its firing role.
 	return enemy_push_attack_coverage(e,target)==0
@@ -4210,7 +4215,7 @@ func enemy_reserve_candidate(e:Dictionary,target:Vector2i)->bool:
 func enemy_reserve_route(e:Dictionary,target:Vector2i,memoize_lanes:bool=true,max_cost:int=3,work:Dictionary={})->Dictionary:
 	var origin:Vector2i=e.pos
 	var cost_limit:int=clampi(max_cost,0,3)
-	if cost_limit==0 or (memoize_lanes and distance(origin,target)-1>cost_limit):return {}
+	if cost_limit==0 or (memoize_lanes and enemy_step_distance(origin,target)-1>cost_limit):return {}
 	var backup:Array[Dictionary]=[]
 	var committed_lanes:Array[Dictionary]=[]
 	var vacancy:bool=enemy_recent_squad_loss(e)
@@ -4219,7 +4224,7 @@ func enemy_reserve_route(e:Dictionary,target:Vector2i,memoize_lanes:bool=true,ma
 		if bool(other.get("windup",false)):committed_lanes.append(other)
 		if not enemy_line_of_sight(other.pos,target):continue
 		if bool(e.get("monster_house",false)) and int(e.get("monster_house_spawn_serial",-1))!=int(other.get("monster_house_spawn_serial",-2)):continue
-		if distance(other.pos,target)==1:
+		if enemy_melee_adjacent(other.pos,target):
 			if int(other.hp)*2>maxi(1,int(other.get("max_hp",other.hp))):return {}
 			vacancy=true
 		elif enemy_relief_ranged_ready(other,target) and enemy_push_attack_coverage(other,target)>0:
@@ -4238,13 +4243,15 @@ func enemy_reserve_route(e:Dictionary,target:Vector2i,memoize_lanes:bool=true,ma
 	while cursor<queue.size():
 		var here:Vector2i=queue[cursor];cursor+=1
 		var depth:int=int(depths[here])
-		if depth>0 and distance(here,target)==1:return {"step":first[here],"post":here,"cost":depth}
+		if depth>0 and enemy_melee_adjacent(here,target):return {"step":first[here],"post":here,"cost":depth}
 		if depth>=cost_limit:continue
-		for d in DIR:
+		for d in (DIR if ai_legacy_cardinal_replay else COMBAT_DIR):
+			# Edge-specific corner legality must never poison the tile memo.
+			if not step_clear(here,d):continue
 			var q:Vector2i=here+d
 			if depths.has(q) or (memoize_lanes and rejected.has(q)):continue
 			# This bound depends on path depth: do not put it in rejected.
-			if memoize_lanes and depth+1+maxi(0,distance(q,target)-1)>cost_limit:continue
+			if memoize_lanes and depth+1+maxi(0,enemy_step_distance(q,target)-1)>cost_limit:continue
 			if work.has("tile_checks"):work["tile_checks"]+=1
 			var blocked:bool=reserved.has(q) or not enemy_ambush_safe_tile(q) or not enemy_line_of_sight(q,target)
 			if not blocked:
@@ -4263,9 +4270,9 @@ func enemy_dynamic_reserve_plan(e:Dictionary,target:Vector2i,prune_competitors:b
 	for other in enemies:
 		if not enemy_squad_partner(e,other) or not enemy_reserve_candidate(other,target):continue
 		if bool(e.get("monster_house",false)) and int(e.get("monster_house_spawn_serial",-1))!=int(other.get("monster_house_spawn_serial",-2)):continue
-		# Cardinal steps can reduce Manhattan distance by at most one.
+		# One legal step reduces the appropriate movement metric by at most one.
 		# A rival whose optimistic cost cannot win need not search a route.
-		var lower_bound:int=distance(other.pos,target)-1
+		var lower_bound:int=maxi(0,enemy_step_distance(other.pos,target)-1)
 		if prune_competitors and (lower_bound>int(plan.cost) or (lower_bound==int(plan.cost) and int(other.get("uid",0))>=int(e.get("uid",0)))):continue
 		var winning_limit:int=int(plan.cost)-(1 if int(other.get("uid",0))>=int(e.get("uid",0)) else 0)
 		var alternative:Dictionary=enemy_reserve_route(other,target,prune_competitors,winning_limit if prune_competitors else 3)
@@ -5568,7 +5575,7 @@ func enemy_pack_reserved_posts(e:Dictionary,target:Vector2i)->Dictionary:
 		var age:int=turns-int(other.get("pack_turn",-9999))
 		var post:Vector2i=other.pack_post
 		if age<0 or age>1 or other.get("pack_target",Vector2i.ZERO)!=target or bool(other.get("windup",false)) or int(other.get("stuck_turns",0))>0:continue
-		if distance(other.pos,post)>2 or distance(post,target)!=1 or not enemy_ambush_safe_tile(post):continue
+		if enemy_step_distance(other.pos,post)>2 or not enemy_melee_adjacent(post,target) or not enemy_ambush_safe_tile(post):continue
 		if not enemy_squad_partner(e,other):continue
 		# A skipped slow phase cannot justify holding an otherwise useful post.
 		if int(other.get("slow_turns",0))>0 and int(other.slow_turns)%2==0:continue

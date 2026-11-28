@@ -4431,6 +4431,7 @@ func run_checks()->void:
 
 	# Dynamic reserve election must use actual routes and preserve immediate fire.
 	var reserve_fixture=Rules.new()
+	reserve_fixture.ai_legacy_cardinal_replay=true # Historical exact election paths.
 	for y in range(1,10):
 		for x in range(1,10):reserve_fixture.cells[Vector2i(x,y)]=true
 	reserve_fixture.player=Vector2i(4,4);reserve_fixture.stairs=Vector2i(9,9);reserve_fixture.relic=Vector2i(9,8);reserve_fixture.turns=30
@@ -4533,6 +4534,47 @@ func run_checks()->void:
 	if not reserve_fixture.enemy_dynamic_reserve_plan(reserve_actor,reserve_fixture.player).is_empty():failures.append("reserve no target sight through wall")
 	checks+=1
 	print("KINDRIA_DYNAMIC_SQUAD_ROLES checks=111")
+	# A diagonal reserve must be judged by movement turns, not Manhattan
+	# distance. Compare bounded and unbounded search with varied obstacles.
+	var reserve8=Rules.new()
+	for r8y in range(1,10):
+		for r8x in range(1,10):reserve8.cells[Vector2i(r8x,r8y)]=true
+	reserve8.player=Vector2i(4,4);reserve8.hp=100;reserve8.max_hp=100;reserve8.turns=30
+	reserve8.stairs=Vector2i(9,9);reserve8.relic=Vector2i(9,8)
+	var r8actor:Dictionary={"uid":20,"pos":Vector2i(6,6),"hp":30,"max_hp":30,"kind":0,"species":"bramble_pup","ecology_role":"hunter","ecology_search_enabled":true,"personality_enabled":true,"pp_primary":0,"pp_secondary":0,"squad_loss_turn":29}
+	var r8peer:Dictionary={"uid":10,"pos":Vector2i(4,7),"hp":30,"max_hp":30,"kind":0,"species":"shellguard","ecology_role":"hunter","ecology_search_enabled":true,"personality_enabled":true,"pp_primary":0,"pp_secondary":0,"squad_loss_turn":29}
+	reserve8.enemies.append(r8actor);reserve8.enemies.append(r8peer)
+	var r8winner:Dictionary=reserve8.enemy_dynamic_reserve_plan(r8actor,reserve8.player)
+	if r8winner.get("step")!=Vector2i(5,5) or int(r8winner.get("cost",0))!=1 or not reserve8.enemy_dynamic_reserve_plan(r8peer,reserve8.player).is_empty():failures.append("reserve octant shortest election")
+	checks+=1
+	var r8cases:int=0
+	var r8rng:int=reserve8.rng.state
+	for r8pos in [Vector2i(6,6),Vector2i(2,2),Vector2i(2,6),Vector2i(6,2),Vector2i(4,6),Vector2i(7,7)]:
+		r8actor.pos=r8pos
+		for r8trap in [Vector2i.ZERO,Vector2i(5,5),Vector2i(3,3),Vector2i(4,5)]:
+			if r8trap!=Vector2i.ZERO:reserve8.traps[r8trap]="snare"
+			for r8subject in [r8actor,r8peer]:
+				var r8ref:Dictionary=reserve8.enemy_reserve_route(r8subject,reserve8.player,false,3)
+				for r8budget in range(4):
+					var r8expected:Dictionary=r8ref if not r8ref.is_empty() and int(r8ref.cost)<=r8budget else {}
+					var r8actual:Dictionary=reserve8.enemy_reserve_route(r8subject,reserve8.player,true,r8budget)
+					if r8actual!=r8expected:failures.append("reserve octant bounded route parity")
+					if not r8actual.is_empty() and not reserve8.step_clear(r8subject.pos,r8actual.step-r8subject.pos):failures.append("reserve octant legal first edge")
+					checks+=1;r8cases+=1
+				if reserve8.enemy_dynamic_reserve_plan(r8subject,reserve8.player)!=reserve8.enemy_dynamic_reserve_plan(r8subject,reserve8.player,false):failures.append("reserve octant election parity")
+				checks+=1;r8cases+=1
+			reserve8.traps.erase(r8trap)
+	r8actor.pos=Vector2i(6,6);reserve8.cells.erase(Vector2i(5,6))
+	var r8blocked:Dictionary=reserve8.enemy_reserve_route(r8actor,reserve8.player)
+	if r8blocked.get("step")==Vector2i(5,5) or r8blocked!=reserve8.enemy_reserve_route(r8actor,reserve8.player,false):failures.append("reserve octant corner constraint")
+	checks+=1
+	reserve8.cells[Vector2i(5,6)]=true
+	r8peer["pack_post"]=Vector2i(5,5);r8peer["pack_target"]=reserve8.player;r8peer["pack_turn"]=30
+	if not reserve8.enemy_pack_reserved_posts(r8actor,reserve8.player).has(Vector2i(5,5)):failures.append("reserve diagonal claim recognized")
+	checks+=1
+	if reserve8.rng.state!=r8rng or not reserve8.enemy_actions.is_empty() or r8actor.pp_primary!=0:failures.append("reserve octant planning purity")
+	checks+=1
+	print("KINDRIA_OCTANT_RESERVE checks=",r8cases+4)
 	# Forecast only witnessed retreats, and commit only a safe ordinary step.
 	var forecast=Rules.new()
 	for y in range(1,9):
