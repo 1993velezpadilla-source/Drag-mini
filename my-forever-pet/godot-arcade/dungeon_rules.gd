@@ -4030,7 +4030,10 @@ func enemy_safe_party_approach(e:Dictionary,target:Vector2i)->Vector2i:
 # party order for deterministic behavior and existing priority semantics.
 func enemy_party_approach_plan(e:Dictionary)->Dictionary:
 	var origin:Vector2i=e.pos
-	var max_gap:int=mini(6,mini(enemy_awareness(e),distance(origin,player)-1))
+	# Compare distances only against a personally observed player. A hidden
+	# player's actual coordinates must not alter the choice of a visible ally.
+	var max_gap:int=mini(6,enemy_awareness(e))
+	if enemy_live_contact(e,player):max_gap=mini(max_gap,distance(origin,player)-1)
 	for gap in range(1,max_gap+1):
 		for j in range(allies.size()):
 			var a:Dictionary=allies[j]
