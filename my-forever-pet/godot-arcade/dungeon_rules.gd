@@ -2144,7 +2144,7 @@ func enemy_terrain_position_bonus(e:Dictionary,q:Vector2i,target:Vector2i)->int:
 		if next!=origin and next!=target and enemy_ambush_safe_tile(next):exits+=1
 	score+=mini(exits,3)
 	for other in enemies:
-		if enemy_squad_partner(e,other) and enemy_line_of_sight(other.pos,target) and enemy_relief_blocks_lane(other,q,target):return score-12
+		if enemy_squad_lane_peer(e,other,target) and enemy_relief_blocks_lane(other,q,target):return score-12
 	return score
 
 # A defensive actor can cover an approach two tiles from the player, but
@@ -2598,7 +2598,7 @@ func enemy_strategy_alternative(e:Dictionary,proposed:Vector2i,target:Vector2i)-
 		if distance(q,target)>=distance(origin,target):continue
 		var blocked:bool=false
 		for other in enemies:
-			if enemy_squad_partner(e,other) and enemy_line_of_sight(other.pos,target) and enemy_relief_blocks_lane(other,q,target):blocked=true;break
+			if enemy_squad_lane_peer(e,other,target) and enemy_relief_blocks_lane(other,q,target):blocked=true;break
 		if blocked:continue
 		var score:int=enemy_terrain_position_bonus(e,q,target)+8*int(enemy_strategy_attack_tile(e,q,target))
 		if score>best_score:best_score=score;best=q
@@ -2645,7 +2645,7 @@ func enemy_decision_position_plan(e:Dictionary,target:Vector2i)->Dictionary:
 		if distance(q,target)>enemy_awareness(e):continue
 		var blocked:bool=false
 		for other in enemies:
-			if enemy_squad_partner(e,other) and enemy_line_of_sight(other.pos,target) and enemy_relief_blocks_lane(other,q,target):blocked=true;break
+			if enemy_squad_lane_peer(e,other,target) and enemy_relief_blocks_lane(other,q,target):blocked=true;break
 		if blocked:continue
 		var value:float=enemy_decision_attack_value(e,q,target)
 		if value<=0.0:continue
@@ -2700,7 +2700,7 @@ func enemy_foresight_plan(e:Dictionary,target:Vector2i,prune_deeper:bool=true)->
 	var reserved:Dictionary=enemy_pack_reserved_posts(e,target)
 	var peers:Array[Dictionary]=[]
 	for other in enemies:
-		if enemy_squad_partner(e,other) and enemy_line_of_sight(other.pos,target):peers.append(other)
+		if enemy_squad_lane_peer(e,other,target):peers.append(other)
 	var queue:Array[Vector2i]=[origin]
 	var depths:Dictionary={origin:0}
 	var first:Dictionary={origin:origin}
@@ -3527,7 +3527,7 @@ func enemy_counterplay_escape_step(e:Dictionary,target:Vector2i)->Vector2i:
 		if not enemy_line_of_sight(origin,q) or not enemy_line_of_sight(q,target):continue
 		var blocked:bool=false
 		for other in enemies:
-			if enemy_squad_partner(e,other) and enemy_line_of_sight(other.pos,target) and enemy_relief_blocks_lane(other,q,target):blocked=true;break
+			if enemy_squad_lane_peer(e,other,target) and enemy_relief_blocks_lane(other,q,target):blocked=true;break
 		if blocked:continue
 		var score:int=enemy_terrain_position_bonus(e,q,target)+4*int(distance(q,target)==1)
 		for d in DIR:
@@ -3948,6 +3948,11 @@ func enemy_relief_ranged_ready(e:Dictionary,target:Vector2i)->bool:
 		var alt:Array=SECONDARY_SKILLS[species]
 		return int(alt[0])>=2 and attack_aim(e.pos,target,str(alt[1]),int(alt[0]))!=Vector2i.ZERO
 	return false
+
+# A nearby visible squadmate may own an announced ray even after losing
+# sight of the player. The lane validator still checks actual execution.
+func enemy_squad_lane_peer(e:Dictionary,other:Dictionary,target:Vector2i)->bool:
+	return enemy_squad_partner(e,other) and (bool(other.get("windup",false)) or enemy_line_of_sight(other.pos,target))
 
 func enemy_relief_blocks_lane(friend:Dictionary,q:Vector2i,target:Vector2i)->bool:
 	var origin:Vector2i=friend.pos
@@ -5664,7 +5669,7 @@ func enemy_push_adaptation_step(e:Dictionary,target:Vector2i)->Vector2i:
 		if not enemy_ambush_safe_tile(q) or not enemy_line_of_sight(q,target) or distance(q,target)>gap+1:continue
 		var blocked:bool=false
 		for other in enemies:
-			if enemy_squad_partner(e,other) and enemy_line_of_sight(other.pos,target) and enemy_relief_blocks_lane(other,q,target):blocked=true;break
+			if enemy_squad_lane_peer(e,other,target) and enemy_relief_blocks_lane(other,q,target):blocked=true;break
 		if blocked:continue
 		var exposure:int=enemy_push_exposure(e,q,target)
 		var score:int=(initial-exposure)*2+gap-distance(q,target)

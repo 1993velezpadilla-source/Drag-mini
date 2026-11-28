@@ -2172,6 +2172,18 @@ func run_checks()->void:
 	checks+=1
 	if decision_actor.pos!=Vector2i(4,5) or decision_actor.pp_primary!=12 or not decision_fixture.enemy_actions.is_empty():failures.append("decision pure evaluation")
 	checks+=1
+	# A visible squadmate can retain its announced ray without target LOS.
+	var decision_shooter:Dictionary={"uid":221,"pos":Vector2i(4,3),"hp":20,"kind":1,"species":"leafwisp","ecology_search_enabled":true,"pp_primary":12,"pp_secondary":0,"windup":true,"aim":Vector2i.DOWN}
+	decision_fixture.enemies.append(decision_shooter)
+	decision_fixture.cells.erase(Vector2i(5,3))
+	if decision_fixture.enemy_line_of_sight(decision_shooter.pos,decision_fixture.player) or not decision_fixture.enemy_squad_lane_peer(decision_actor,decision_shooter,decision_fixture.player) or not decision_fixture.enemy_relief_blocks_lane(decision_shooter,Vector2i(4,4),decision_fixture.player):failures.append("decision retains occluded committed peer")
+	checks+=1
+	if not decision_fixture.enemy_decision_position_plan(decision_actor,decision_fixture.player).is_empty():failures.append("decision avoids occluded committed ray")
+	checks+=1
+	decision_shooter["windup"]=false;decision_shooter.erase("aim")
+	if decision_fixture.enemy_squad_lane_peer(decision_actor,decision_shooter,decision_fixture.player) or decision_fixture.enemy_decision_position_plan(decision_actor,decision_fixture.player).get("step")!=Vector2i(4,4):failures.append("decision releases uncommitted occluded ray")
+	checks+=1
+	decision_fixture.cells[Vector2i(5,3)]=true;decision_fixture.enemies.pop_back()
 	decision_fixture.traps[Vector2i(4,4)]="snare"
 	if not decision_fixture.enemy_decision_position_plan(decision_actor,decision_fixture.player).is_empty():failures.append("decision excludes trapped post")
 	decision_fixture.traps.clear()
