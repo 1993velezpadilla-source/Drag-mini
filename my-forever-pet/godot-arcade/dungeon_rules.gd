@@ -1786,7 +1786,51 @@ func compute_enemy_line_of_sight(origin:Vector2i,target:Vector2i)->bool:
 	return true
 
 func clear_enemy_search(e:Dictionary)->void:
-	e.erase("search_anchor");e.erase("search_until");e.erase("search_visited")
+	e.erase("search_anchor");e.erase("search_until");e.erase("search_visited");e.erase("search_claim");e.erase("search_claim_turn")
+
+# Search intent is local and expires; only use visible peers with the same
+# remembered anchor. Claims are advisory and never affect physical movement.
+func enemy_hunter_search_claims(e:Dictionary,anchor:Vector2i)->Dictionary:
+	var claims:Dictionary={}
+	for other in enemies:
+		if other.get("search_anchor",Vector2i(-9999,-9999))!=anchor or not other.has("search_claim"):continue
+		var age:int=turns-int(other.get("search_claim_turn",-9999))
+		if age<0 or age>1 or turns>int(other.get("search_until",-1)) or not enemy_squad_partner(e,other):continue
+		var q:Vector2i=other.search_claim
+		if cells.has(q) and enemy_line_of_sight(e.pos,q):claims[q]=true
+	return claims
+
+func enemy_hunter_search_step(e:Dictionary,anchor:Vector2i,visited:Dictionary,radius:int)->Vector2i:
+	var origin:Vector2i=e.pos
+	var claims:Dictionary=enemy_hunter_search_claims(e,anchor)
+	var phase:int=posmod(int(e.get("uid",0))+turns,4)
+	var budget:int=maxi(0,int(e.get("search_until",turns))-turns+1)
+	var queue:Array[Vector2i]=[origin]
+	var depths:Dictionary={origin:0}
+	var first:Dictionary={origin:origin}
+	var best:Vector2i=origin
+	var destination:Vector2i=origin
+	var best_score:int=-2147483647
+	var cursor:int=0
+	var heading:Vector2i=e.get("search_heading",Vector2i.ZERO) if turns-int(e.get("search_heading_turn",-9999))<=3 and e.get("search_heading_anchor",Vector2i.ZERO)==anchor else Vector2i.ZERO
+	while cursor<queue.size():
+		var here:Vector2i=queue[cursor];cursor+=1
+		var depth:int=int(depths[here])
+		if depth>0 and not visited.has(here) and not claims.has(here):
+			var score:int=12-depth*4
+			if heading in DIR:score+=clampi((here-anchor).dot(heading),-2,2)*2
+			if enemy_combat_personality(e)=="territorial" and distance(here,e.get("ecology_home",anchor))>radius:score-=4
+			if enemy_terrain_kind(here)=="dead_end":score-=2
+			if score>best_score:best_score=score;best=first[here];destination=here
+		if depth>=mini(3,budget):continue
+		for i in range(4):
+			var q:Vector2i=here+DIR[(phase+i)%4]
+			if depths.has(q) or distance(q,anchor)>radius or claims.has(q) or not enemy_ambush_safe_tile(q):continue
+			depths[q]=depth+1;first[q]=q if depth==0 else first[here];queue.append(q)
+	if best==origin:
+		clear_enemy_search(e);return origin
+	e["search_claim"]=destination;e["search_claim_turn"]=turns
+	return best
 
 func enemy_search_target(e:Dictionary)->Vector2i:
 	var origin:Vector2i=e.pos
@@ -1797,6 +1841,9 @@ func enemy_search_target(e:Dictionary)->Vector2i:
 	var visited:Dictionary=e.get("search_visited",{})
 	visited[origin]=true;e["search_visited"]=visited
 	var radius:int=3 if e.get("ecology_role","")=="scout" else 2
+	if bool(e.get("personality_enabled",false)):
+		if enemy_combat_personality(e)=="hunter":radius=3
+		return enemy_hunter_search_step(e,anchor,visited,radius)
 	var phase:int=posmod(int(e.get("uid",0))+turns,4)
 	for i in range(4):
 		var q:Vector2i=origin+DIR[(phase+i)%4]
@@ -1825,6 +1872,7 @@ func enemy_observe_movement(e:Dictionary,observed:Vector2i)->void:
 	var voluntary:bool=adaptive_walk_turn==turns-1 and adaptive_walk_from==previous and adaptive_walk_to==observed
 	var retreat:bool=false
 	if consecutive and voluntary and delta in DIR:
+		e["search_heading"]=delta;e["search_heading_turn"]=turns;e["search_heading_anchor"]=observed
 		retreat=distance(origin,observed)>distance(origin,previous)
 		# A flanker may be ahead of the player, while the player is fleeing
 		# another visible nearby attacker. Both positions must be observable.
@@ -1971,6 +2019,7 @@ func enemy_pursuit_target(e:Dictionary,observed:Vector2i)->Vector2i:
 	var remembered:Vector2i=e.get("last_seen_player",origin)
 	if e.has("last_seen_player") and remembered==origin and turns<=int(e.get("last_seen_until",-1)) and bool(e.get("ecology_search_enabled",false)):
 		var budget:int=3 if e.get("ecology_role","")=="scout" else 1 if e.get("ecology_role","")=="sentry" else 2
+		if bool(e.get("personality_enabled",false)) and enemy_combat_personality(e)=="hunter" and e.get("ecology_role","")!="sentry":budget=mini(4,budget+1)
 		e["search_anchor"]=origin;e["search_until"]=turns+budget-1;e["search_visited"]={}
 	if turns>int(e.get("last_seen_until",-1)) or remembered==origin or not cells.has(remembered):
 		e.erase("last_seen_player");e.erase("last_seen_until")
