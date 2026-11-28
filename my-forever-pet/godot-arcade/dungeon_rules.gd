@@ -2316,9 +2316,12 @@ func enemy_trace_recovery(e:Dictionary,stage:String,step:Vector2i)->void:
 			if distance(origin,q)>3 or not cells.has(q):continue
 			var index:int=enemy_at(q)
 			var lane_owners:Array[int]=[]
+			var lane_evidence:Array[Dictionary]=[]
 			for peer in peers:
-				if enemy_relief_blocks_lane(peer,q,player):lane_owners.append(int(peer.get("uid",-1)))
-			posts.append({"tile":q,"enemy":int(enemies[index].get("uid",-1)) if index>=0 else -1,"ally":ally_at(q),"safe":enemy_ambush_safe_tile(q),"reserved":reserved.has(q),"lane_blocked":enemy_recovery_lane_blocked(peers,q,player,memo),"lane_owners":lane_owners,"sees_target":enemy_line_of_sight(q,player),"attack_post":enemy_recovery_attack_tile(e,q,player,{})})
+				if enemy_relief_blocks_lane(peer,q,player):
+					lane_owners.append(int(peer.get("uid",-1)))
+					lane_evidence.append({"uid":int(peer.get("uid",-1)),"pos":peer.pos,"species":peer.get("species",""),"windup":bool(peer.get("windup",false)),"aim":peer.get("aim",Vector2i.ZERO),"spent":enemy_phase_spent.has(int(peer.get("uid",-1))),"cooldown":int(peer.get("cooldown",0)),"alt_cooldown":int(peer.get("alt_cooldown",0)),"pp_primary":enemy_move_pp(peer,"primary"),"pp_secondary":enemy_move_pp(peer,"secondary")})
+			posts.append({"tile":q,"enemy":int(enemies[index].get("uid",-1)) if index>=0 else -1,"ally":ally_at(q),"safe":enemy_ambush_safe_tile(q),"reserved":reserved.has(q),"lane_blocked":enemy_recovery_lane_blocked(peers,q,player,memo),"lane_owners":lane_owners,"lane_evidence":lane_evidence,"sees_target":enemy_line_of_sight(q,player),"attack_post":enemy_recovery_attack_tile(e,q,player,{})})
 	ai_recovery_trace={"turn":turns,"uid":ai_recovery_trace_uid,"stage":stage,"origin":origin,"player":player,"step":step,"stall_count":int(e.get("stall_count",0)),"stall_turn":int(e.get("stall_turn",-1)),"open_frontline":enemy_open_frontline_detour(e,player),"protect":shield_turns>0 and shield_kind=="protect","posts":posts}
 
 # A free tile is not a useful melee opening if occupying it interrupts a
@@ -3771,6 +3774,12 @@ func enemy_relief_ranged_ready(e:Dictionary,target:Vector2i)->bool:
 
 func enemy_relief_blocks_lane(friend:Dictionary,q:Vector2i,target:Vector2i)->bool:
 	var origin:Vector2i=friend.pos
+	# A firing reservation is only valid for an actor capable of a deliberate
+	# attack. Keep this guard local so direct and indirect callers agree.
+	if int(friend.get("hp",0))<=0 or int(friend.get("decoy_turns",0))>0:return false
+	for status in ["sleep_turns","nightmare_turns","paused_turns","wrapped_turns","infatuated_turns","confusion_turns"]:
+		if int(friend.get(status,0))>0:return false
+	if str(friend.get("major_status","")) in ["freeze","paralysis"]:return false
 	# A slowed actor skips even remaining-duration turns in the real dispatcher.
 	# Do not reserve a firing lane for an attack that cannot execute this phase.
 	if int(friend.get("slow_turns",0))>0 and int(friend.slow_turns)%2==0:return false
