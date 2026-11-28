@@ -508,6 +508,37 @@ func run_checks()->void:
 	if not acquired_attack:failures.append("tactical next turn attack")
 	checks+=1
 	print("KINDRIA_TACTICAL_AI lane=1 forbidden=2 turn_actions=3")
+	# Elemental choice must use legal moves and never consume PP while evaluating.
+	var choice_fixture=Rules.new()
+	for y in range(1,7):
+		for x in range(1,7):choice_fixture.cells[Vector2i(x,y)]=true
+	choice_fixture.player=Vector2i(4,3)
+	choice_fixture.trained_profile={"types":["ground"],"level":24,"nature":0,"ev":[0,0,0,0,0,0]}
+	var choice_actor:Dictionary={"uid":0,"pos":Vector2i(3,3),"hp":30,"kind":1,"species":"jellymancer","ecology_role":"hunter","ecology_search_enabled":true,"pp_primary":12,"pp_secondary":10}
+	choice_fixture.enemies.append(choice_actor)
+	var primary_skill:Array=choice_fixture.signature_skill(choice_actor)
+	var secondary_skill:Array=[1,false,3,-1,"none",0,"alt_jellymancer"]
+	var score_primary:float=choice_fixture.enemy_attack_score(choice_actor,primary_skill,false)
+	var score_secondary:float=choice_fixture.enemy_attack_score(choice_actor,secondary_skill,true)
+	if score_secondary<=score_primary+.25:failures.append("combat elemental ranking")
+	if choice_actor.pp_primary!=12 or choice_actor.pp_secondary!=10:failures.append("combat scoring PP purity")
+	checks+=2
+	choice_fixture.enemy_turn_actions()
+	if choice_actor.get("last_move_slot","")!="secondary" or choice_actor.pp_secondary!=9 or choice_actor.pp_primary!=12:failures.append("combat actual secondary choice")
+	checks+=1
+	choice_actor["alt_cooldown"]=0;choice_actor["pp_secondary"]=0
+	choice_fixture.enemy_turn_actions()
+	if choice_actor.get("last_move_slot","")!="primary" or choice_actor.pp_primary!=11 or choice_actor.pp_secondary!=0:failures.append("combat depleted PP fallback")
+	checks+=1
+	choice_fixture.trained_profile["types"]=["water"]
+	if choice_fixture.enemy_attack_score(choice_actor,primary_skill,false)<=choice_fixture.enemy_attack_score(choice_actor,secondary_skill,true):failures.append("combat matchup reversal")
+	checks+=1
+	choice_actor["pp_secondary"]=10
+	var abundant_score:float=choice_fixture.enemy_attack_score(choice_actor,secondary_skill,true)
+	choice_actor["pp_secondary"]=1
+	if choice_fixture.enemy_attack_score(choice_actor,secondary_skill,true)>=abundant_score:failures.append("combat scarce PP conservation")
+	checks+=1
+	print("KINDRIA_COMBAT_CHOICE elemental=2 pp=3 action=1")
 	# Actual disk I/O, legacy migration, corruption recovery, and resumed writes.
 	var test_path:String="user://kindria_procedural_test_"+str(OS.get_process_id())+".cfg"
 	var exact:Array[String]=["legacy exact".sha256_text()]
