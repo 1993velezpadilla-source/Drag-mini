@@ -52,6 +52,13 @@ See [COMMUNITY_INTELLIGENCE.md](COMMUNITY_INTELLIGENCE.md) for the audit of all 
 - [ ] Verify CI, real Android readability for long move names, one-handed reach, aim/strike gesture conflicts and viewport fit with joystick enabled. F004 remains open.
 - [ ] Next: contextual objective/reward feedback, compact action bar and portrait touch playtest. No new dungeon until first-map gates pass.
 
+### Dungeon 001 — V26.24 Reward & Interaction Experience
+- [x] Source implemented: dedicated reward captions, color-coded feedback and four cached original audio cues, floor-cleared banner, persisted completed floor bonus. Commits d0e81125c6e5f1f5a4891d199d43d958403a6801, eeddb68ede0e6c1ea8d514ab29d2c0e2a5722536, ca0175726bdbe2e0dc4a1c51e9642ef296ec6b02.
+- [x] Prior gauntlet 46095896245: 319182 checks, 1 failure (V26.22 safe initial center); explicit shader uniform initialization added in d0e81125. V26.23 smoke run 46095907377 passed. New run required before declaring correction verified.
+- [x] 21 new checks authored for reward messages, audio cache and floor bonus carryover (b557b5c4bae45017a217c0b1e355aad259243e8d).
+- [ ] Verify latest CI, Android reward readability, audio balance, timing, and final expedition result screen. No gameplay reward amounts changed. F006 remains open.
+- [ ] Next: expedition result screen and companion continuity, then Android first-map playtest.
+
 ## P1 | dungeon simulation
 - [x] Existing procedural layout, turn logic, movement, four moves, PP, regular attack, 18 types, status, traps, Monster House: audit individually, not certified.
 - [ ] Room graph, variants, dead ends, corridors, visibility/fog of war, room/terrain restrictions, diagonals and corner rules, water/lava/chasm/walls, spawn safety, enemy pathfinding, ally AI tactics, turn scheduling, speed, waiting, auto-explore optional.
