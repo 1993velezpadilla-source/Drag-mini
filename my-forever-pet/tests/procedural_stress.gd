@@ -3015,7 +3015,32 @@ func run_checks()->void:
 	recovery_sight.enemies.pop_back();sight_actor.pos=projection_origin
 	if sight_actor.pp_primary!=12 or not recovery_sight.enemy_actions.is_empty():failures.append("projected symmetric planning purity")
 	checks+=1
-	print("KINDRIA_ANTI_STALL checks=200")
+	# A rear actor may prepare a staging tile, but never claim the live ray.
+	var stage_fixture=Rules.new()
+	for y in range(1,9):
+		for x in range(1,9):stage_fixture.cells[Vector2i(x,y)]=true
+	stage_fixture.player=Vector2i(4,4);stage_fixture.stairs=Vector2i(8,8);stage_fixture.relic=Vector2i(8,7);stage_fixture.turns=22
+	var stage_actor:Dictionary={"uid":701,"pos":Vector2i(6,6),"hp":30,"kind":0,"species":"rootgnawer","ecology_role":"hunter","ecology_search_enabled":true,"personality_enabled":true,"pp_primary":0,"pp_secondary":0,"stall_count":1,"stall_turn":21,"stall_target":Vector2i(4,4)}
+	var stage_ranged:Dictionary={"uid":702,"pos":Vector2i(6,4),"hp":30,"kind":1,"species":"leafwisp","ecology_search_enabled":true,"pp_primary":12,"pp_secondary":0}
+	stage_fixture.enemies.append(stage_actor);stage_fixture.enemies.append(stage_ranged)
+	for d in [Vector2i.LEFT,Vector2i.UP,Vector2i.DOWN]:
+		stage_fixture.enemies.append({"uid":710+stage_fixture.enemies.size(),"pos":stage_fixture.player+d,"hp":30,"kind":0,"species":"rootgnawer","ecology_search_enabled":true,"pp_primary":0,"pp_secondary":0})
+	var stage_step:Vector2i=stage_fixture.enemy_firing_lane_stage_step(stage_actor,stage_fixture.player)
+	if stage_step not in [Vector2i(5,6),Vector2i(6,5)] or stage_fixture.enemy_unstall_step(stage_actor,stage_fixture.player)!=stage_step:failures.append("lane staging fallback moves toward reserved post")
+	checks+=1
+	if stage_actor.pos!=Vector2i(6,6) or stage_ranged.pp_primary!=12 or not stage_fixture.enemy_actions.is_empty():failures.append("lane staging planning purity")
+	checks+=1
+	stage_actor.pos=stage_step
+	if stage_fixture.enemy_firing_lane_stage_step(stage_actor,stage_fixture.player)!=stage_step:failures.append("lane staging stops instead of orbiting")
+	checks+=1
+	stage_actor.pos=Vector2i(6,6)
+	stage_fixture.traps[Vector2i(5,6)]="snare";stage_fixture.traps[Vector2i(6,5)]="snare"
+	if stage_fixture.enemy_firing_lane_stage_step(stage_actor,stage_fixture.player)!=stage_actor.pos:failures.append("lane staging rejects unsafe steps")
+	checks+=1
+	stage_fixture.traps.clear();stage_ranged["cooldown"]=1
+	if stage_fixture.enemy_firing_lane_stage_step(stage_actor,stage_fixture.player)!=stage_actor.pos:failures.append("lane staging requires active firing reservation")
+	checks+=1
+	print("KINDRIA_ANTI_STALL checks=205")
 	# A direct witness may report a tile, but a listener cannot relay it.
 	var comm=Rules.new()
 	for x in range(1,4):comm.cells[Vector2i(x,3)]=true
