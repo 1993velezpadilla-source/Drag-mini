@@ -46,6 +46,12 @@ See [COMMUNITY_INTELLIGENCE.md](COMMUNITY_INTELLIGENCE.md) for the audit of all 
 - [ ] Verify V26.21/V26.22 CI, Blender export geometry and actual rendered Android foliage, contact shadows, readability, and frame-time. F002/F003/F008 remain open.
 - [ ] Next: portrait GUI input usability and objective feedback, plus contact-shadow polish. No new dungeon until first-map gates pass.
 
+### Dungeon 001 — V26.23 Premium Mobile Experience
+- [x] Source implemented: 56-unit move cards, numeric and color-coded PP gauges, ready-to-release border, 66-unit floating free Strike, retained aim gestures and saved layout. Commit c70d2f5c8a8c2af46f8c020191b624cde0fed194.
+- [x] 15 checks added for PP gauge bounds, thresholds, charged release, depleted PP and pointer pass-through (caa0ed188fc0d67bc796f615140fbd2f8b325ecf).
+- [ ] Verify CI, real Android readability for long move names, one-handed reach, aim/strike gesture conflicts and viewport fit with joystick enabled. F004 remains open.
+- [ ] Next: contextual objective/reward feedback, compact action bar and portrait touch playtest. No new dungeon until first-map gates pass.
+
 ## P1 | dungeon simulation
 - [x] Existing procedural layout, turn logic, movement, four moves, PP, regular attack, 18 types, status, traps, Monster House: audit individually, not certified.
 - [ ] Room graph, variants, dead ends, corridors, visibility/fog of war, room/terrain restrictions, diagonals and corner rules, water/lava/chasm/walls, spawn safety, enemy pathfinding, ally AI tactics, turn scheduling, speed, waiting, auto-explore optional.
