@@ -2056,6 +2056,20 @@ func run_checks()->void:
 	if opportunity.hp!=0 or finisher.pp_primary!=12 or finisher.pp_secondary!=10 or opportunity.enemy_actions.size()!=1 or str(opportunity.enemy_actions[0].move)!="Quick strike":failures.append("opportunity real basic finisher no PP")
 	checks+=1
 	print("KINDRIA_OPPORTUNITY_EXPLOITATION checks=10")
+	# A cautious wounded enemy must not retreat from an available basic KO.
+	var finish_conflict=Rules.new()
+	for y in range(1,7):
+		for x in range(1,7):finish_conflict.cells[Vector2i(x,y)]=true
+	finish_conflict.player=Vector2i(3,3);finish_conflict.stairs=Vector2i(6,6);finish_conflict.relic=Vector2i(6,5)
+	finish_conflict.hp=1;finish_conflict.max_hp=30;finish_conflict.turns=20
+	var finish_cautious:Dictionary={"uid":0,"pos":Vector2i(2,3),"hp":3,"max_hp":30,"kind":0,"species":"leafwisp","ecology_role":"hunter","ecology_search_enabled":true,"personality_enabled":true,"pp_primary":12,"pp_secondary":10,"stages":{"accuracy":10},"incoming_turn":20,"incoming_damage":10}
+	finish_conflict.enemies.append(finish_cautious)
+	if not finish_conflict.enemy_basic_finish(finish_cautious) or not finish_conflict.enemy_risk_has_finisher(finish_cautious):failures.append("tactical polish credible finisher")
+	checks+=1
+	finish_conflict.enemy_turn_actions()
+	if finish_conflict.hp!=0 or finish_cautious.pos!=Vector2i(2,3) or finish_cautious.pp_primary!=12 or finish_cautious.pp_secondary!=10 or finish_conflict.enemy_actions.size()!=1 or str(finish_conflict.enemy_actions[0].get("move",""))!="Quick strike":failures.append("tactical polish finisher overrides retreat")
+	checks+=1
+	print("KINDRIA_TACTICAL_POLISH checks=2")
 	# Risk counts visible healthy support and actual recent damage, not hidden actors.
 	var risk_fixture=Rules.new()
 	for y in range(1,9):
