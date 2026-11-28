@@ -247,6 +247,8 @@ func enemy_integration_gauntlet(failures:Array[String])->int:
 	var idle_peak:int=0
 	var reversal_count:int=0
 	var idle_open_peak:int=0
+	var reserve_idle_observations:int=0
+	var unexplained_open_peak:int=0
 	var idle_observations:Dictionary={}
 	var idle_peak_context:Dictionary={}
 	var reversal_species:Dictionary={}
@@ -265,6 +267,7 @@ func enemy_integration_gauntlet(failures:Array[String])->int:
 				personalities[arena.enemy_combat_personality(e)]=true
 		var idle:Dictionary={}
 		var idle_open:Dictionary={}
+		var unexplained_open:Dictionary={}
 		var previous_moves:Dictionary={}
 		for round_index in range(32):
 			if cached.finished or reference.finished:break
@@ -318,7 +321,13 @@ func enemy_integration_gauntlet(failures:Array[String])->int:
 					idle_open_peak=maxi(idle_open_peak,int(idle_open[uid]))
 					if int(idle[uid])>idle_peak:
 						idle_peak_context={"sample":sample,"round":round_index,"uid":uid,"species":e.get("species",""),"position":e.pos,"player":cached.player,"exits":exits,"observation":observation}
-				else:idle_open[uid]=0
+					# Preserve original open-idle metric for apples-to-apples comparison.
+					var verified_reserve:bool=observation=="open" and int(e.get("reserve_hold_turn",-1))==cached.turns and e.get("reserve_hold_target",Vector2i.ZERO)==cached.player and cached.enemy_encircled_frontline(e,cached.player)
+					if verified_reserve:reserve_idle_observations+=1
+					unexplained_open[uid]=int(unexplained_open.get(uid,0))+1 if observation=="open" and not verified_reserve else 0
+					unexplained_open_peak=maxi(unexplained_open_peak,int(unexplained_open[uid]))
+				else:
+					idle_open[uid]=0;unexplained_open[uid]=0
 				idle_peak=maxi(idle_peak,int(idle[uid]))
 			samples+=1
 	for personality in expected:
@@ -329,6 +338,7 @@ func enemy_integration_gauntlet(failures:Array[String])->int:
 		var percentile:int=int((cached_times.size()-1)*.95)
 		print("KINDRIA_AI_INTEGRATION turns=",samples," personalities=",personalities.size()," checks=",checks_local," cached_p95_usec=",cached_times[percentile]," reference_p95_usec=",reference_times[percentile]," max_visible_idle=",idle_peak," reversals=",reversal_count)
 		print("KINDRIA_AI_STALL_DIAGNOSTICS open_idle_peak=",idle_open_peak," observations=",idle_observations," peak_context=",idle_peak_context," reversal_species=",reversal_species)
+		print("KINDRIA_RESERVE_DIAGNOSTICS verified_open_reserve=",reserve_idle_observations," unexplained_open_peak=",unexplained_open_peak)
 	return checks_local
 
 # V27.1: ordinary ecology actors, not just Monster House actors, in constrained
@@ -2149,7 +2159,27 @@ func run_checks()->void:
 	ring_fixture.turns=24
 	if ring_fixture.enemy_unstall_step(ring_actor,ring_fixture.player)!=ring_actor.pos:failures.append("reserve stale reentry rejected")
 	checks+=1
-	print("KINDRIA_ANTI_STALL checks=15")
+	# Real dispatch, not a synthetic call to the reserve planner.
+	ring_fixture.turns=30;ring_fixture.hp=10000;ring_fixture.max_hp=10000;ring_fixture.belly_tenths=1000
+	ring_actor.erase("reserve_hold_turn");ring_actor.erase("reserve_hold_target");ring_actor.erase("unstall_turn")
+	ring_actor["pp_support"]=0;ring_actor["pp_control"]=0
+	ring_fixture.enemies.insert(1,{"uid":331,"pos":Vector2i(3,4),"hp":30,"kind":0,"species":"rootgnawer","ecology_search_enabled":true,"pp_primary":0,"pp_secondary":0,"pp_support":0,"pp_control":0})
+	for peer in ring_fixture.enemies:
+		peer["pp_support"]=0;peer["pp_control"]=0
+	for tick in range(3):ring_fixture.enemy_turn_actions()
+	if int(ring_actor.get("reserve_hold_turn",-1))!=ring_fixture.turns or ring_actor.pos!=Vector2i(2,4):failures.append("reserve live dispatcher holds closed ring")
+	checks+=1
+	ring_fixture.enemies.remove_at(1)
+	var previous_turn:int=ring_fixture.turns
+	ring_fixture.enemy_turn_actions()
+	var reserve_actions:int=0
+	for action in ring_fixture.enemy_actions:
+		if int(action.get("uid",-1))==330:reserve_actions+=1
+	if ring_actor.pos!=Vector2i(3,4) or reserve_actions!=1 or ring_fixture.turns!=previous_turn+1:failures.append("reserve live dispatcher reenters on next turn")
+	checks+=1
+	if ring_actor.has("reserve_hold_turn") or ring_actor.pp_primary!=0:failures.append("reserve live dispatcher clears hold without spending PP")
+	checks+=1
+	print("KINDRIA_ANTI_STALL checks=18")
 	# A direct witness may report a tile, but a listener cannot relay it.
 	var comm=Rules.new()
 	for x in range(1,4):comm.cells[Vector2i(x,3)]=true
