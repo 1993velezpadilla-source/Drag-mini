@@ -1889,6 +1889,9 @@ func enemy_observe_movement(e:Dictionary,observed:Vector2i)->void:
 
 func enemy_retreat_prediction(e:Dictionary,target:Vector2i)->Vector2i:
 	var threshold:int=1 if int(e.get("kind",0))==2 else 2
+	# A personally observed ranged-hit pattern plus a witnessed retreat is
+	# stronger evidence of kiting than a retreat alone.
+	if bool(e.get("personality_enabled",false)) and enemy_counter_pattern(e,"ranged"):threshold=1
 	if not bool(e.get("ecology_search_enabled",false)) or int(e.get("kind",0))==3 or bool(e.get("monster_house",false)):return target
 	if turns<=int(e.get("prediction_retry",-9999)) or charge_phase in ["underground","airborne","vanish"] or boon_active("decoy"):return target
 	if int(e.get("adaptive_seen_turn",-9999))!=turns or e.get("adaptive_seen",Vector2i.ZERO)!=target or int(e.get("adaptive_streak",0))<threshold:return target
@@ -4750,13 +4753,14 @@ func enemy_push_adaptation_step(e:Dictionary,target:Vector2i)->Vector2i:
 	var best_score:int=0
 	for d in DIR:
 		var q:Vector2i=origin+d
-		if not enemy_ambush_safe_tile(q) or not enemy_line_of_sight(q,target) or distance(q,target)>gap:continue
+		if not enemy_ambush_safe_tile(q) or not enemy_line_of_sight(q,target) or distance(q,target)>gap+1:continue
 		var blocked:bool=false
 		for other in enemies:
 			if enemy_squad_partner(e,other) and enemy_line_of_sight(other.pos,target) and enemy_relief_blocks_lane(other,q,target):blocked=true;break
 		if blocked:continue
-		var score:int=(initial-enemy_push_exposure(e,q,target))*2+gap-distance(q,target)
-		if score>best_score and enemy_push_exposure(e,q,target)<initial:best_score=score;best=q
+		var exposure:int=enemy_push_exposure(e,q,target)
+		var score:int=(initial-exposure)*2+gap-distance(q,target)
+		if score>best_score and exposure<initial:best_score=score;best=q
 	return best
 
 func enemy_counter_pattern(e:Dictionary,mode:String)->bool:
