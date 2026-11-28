@@ -963,6 +963,46 @@ func build_ui():
 	build_bag()
 	lab_settings_overlay()
 	apply_control_preferences()
+# PP is communicated by text AND a small gauge; color alone is never required.
+func move_pp_fraction(current:int,maximum:int)->float:
+	return clampf(float(current)/float(maxi(1,maximum)),0.0,1.0)
+
+func move_pp_tint(current:int,maximum:int)->Color:
+	var ratio:float=move_pp_fraction(current,maximum)
+	return Color("#77848b") if current<=0 else Color("#ffac82") if ratio<=.25 else Color("#f3cf87") if ratio<=.5 else Color("#a0e1b1")
+
+func move_card_meter(button_control:Button)->void:
+	var gauge:=Control.new()
+	gauge.mouse_filter=MOUSE_FILTER_IGNORE
+	button_control.add_child(gauge)
+	gauge.set_anchors_and_offsets_preset(PRESET_FULL_RECT)
+	button_control.set_meta("pp_gauge",gauge)
+	gauge.draw.connect(func():
+		var width:float=maxf(0.0,gauge.size.x-16.0)
+		if width<=0.0:return
+		var current:int=int(button_control.get_meta("pp_current",0))
+		var maximum:int=int(button_control.get_meta("pp_max",1))
+		var bounds:=Rect2(8.0,gauge.size.y-7.0,width,3.0)
+		gauge.draw_rect(bounds,Color("#091d23"))
+		var fraction:float=move_pp_fraction(current,maximum)
+		if fraction>0.0:gauge.draw_rect(Rect2(bounds.position,Vector2(width*fraction,3.0)),move_pp_tint(current,maximum))
+		if bool(button_control.get_meta("pp_charged",false)):
+			gauge.draw_rect(Rect2(2.0,2.0,gauge.size.x-4.0,gauge.size.y-4.0),Color("#ffe2a0"),false,1.0))
+	gauge.resized.connect(gauge.queue_redraw)
+
+func update_move_card(button_control:Button,move:Dictionary,current:int,charged:bool,locked:bool)->void:
+	var maximum:int=int(move.pp)
+	var caption:String="%s\n%d/%d PP"%[move.name,current,maximum]
+	if charged:caption="Release "+str(move.name)+"\nREADY"
+	if button_control.text!=caption:button_control.text=caption
+	button_control.disabled=locked
+	if int(button_control.get_meta("pp_current",-1))==current and int(button_control.get_meta("pp_max",-1))==maximum and bool(button_control.get_meta("pp_charged",false))==charged:return
+	button_control.set_meta("pp_current",current)
+	button_control.set_meta("pp_max",maximum)
+	button_control.set_meta("pp_charged",charged)
+	var gauge:Control=button_control.get_meta("pp_gauge",null)
+	if is_instance_valid(gauge):gauge.queue_redraw()
+
 func refresh_move_dock()->void:
 	if not is_instance_valid(move_dock):return
 	dock_move_ids=run.equipped_moves.duplicate()
@@ -972,31 +1012,35 @@ func refresh_move_dock()->void:
 	for slot in range(4):
 		if slot>=dock_move_ids.size():
 			var empty:=button(move_dock,"—",func():pass)
-			empty.disabled=true;empty.custom_minimum_size.y=48
+			empty.disabled=true;empty.custom_minimum_size.y=56
 			empty.tooltip_text="Empty move slot · learn a technique from Bag"
 			continue
 		var id:String=str(dock_move_ids[slot])
 		var move:Dictionary=Rules.MOVE_LIBRARY[id]
 		var b:=button(move_dock,str(move.name),func():pass)
-		b.custom_minimum_size.y=48;b.clip_text=true
+		b.custom_minimum_size.y=56;b.clip_text=true
 		b.icon=move_icon(str(move.get("type","normal")));b.expand_icon=true;b.add_theme_constant_override("icon_max_width",22)
 		b.add_theme_constant_override("h_separation",5)
 		b.add_theme_font_size_override("font_size",13)
 		var tint:=Color(str(move.get("light","#e8e0ce")))
 		var move_bg:=hud_tile_color().lerp(tint.darkened(.82),.24)
-		b.add_theme_stylebox_override("normal",compact_style(move_bg,tint.darkened(.32),10))
-		b.add_theme_stylebox_override("hover",compact_style(move_bg.lightened(.12),tint,10))
-		b.add_theme_stylebox_override("pressed",compact_style(move_bg.lightened(.25),tint,10))
+		for state in ["normal","hover","pressed","disabled"]:
+			var fill:Color=move_bg if state=="normal" else move_bg.lightened(.12) if state=="hover" else move_bg.lightened(.25) if state=="pressed" else hud_base_color().darkened(.18)
+			var edge:Color=tint.darkened(.32) if state=="normal" else hud_accent_color().darkened(.65) if state=="disabled" else tint
+			var card:=compact_style(fill,edge,10)
+			card.content_margin_bottom=9.0
+			b.add_theme_stylebox_override(state,card)
+		move_card_meter(b)
 		bind_attack_gesture(b,move,func():strike_pending=false;path.clear();run.cast_move(id,facing);sync())
 		move_buttons.append(b)
 
 func build_strike_bubble()->void:
-	attack_button=Button.new();attack_button.text="Strike";attack_button.icon=action_icon("Strike")
+	attack_button=Button.new();attack_button.text="Strike\nFREE";attack_button.icon=action_icon("Strike")
 	attack_button.expand_icon=true;attack_button.add_theme_constant_override("icon_max_width",22)
 	attack_button.add_theme_font_size_override("font_size",10)
 	attack_button.icon_alignment=HORIZONTAL_ALIGNMENT_CENTER
 	attack_button.vertical_icon_alignment=VERTICAL_ALIGNMENT_TOP
-	attack_button.custom_minimum_size=Vector2(52,52);attack_button.size=Vector2(52,52)
+	attack_button.custom_minimum_size=Vector2(66,66);attack_button.size=Vector2(66,66)
 	attack_button.focus_mode=Control.FOCUS_NONE
 	style_strike_bubble()
 	attack_button.mouse_filter=MOUSE_FILTER_STOP
@@ -1061,11 +1105,12 @@ func apply_control_preferences()->void:
 func style_strike_bubble()->void:
 	var bg:=hud_base_color().lerp(Color("#176b46"),.32);bg.a=strike_opacity
 	var edge:=hud_gold();edge.a=.90
-	var frame:=compact_style(bg,edge,26);frame.set_border_width_all(2)
+	var frame:=compact_style(bg,edge,33);frame.set_border_width_all(2);frame.shadow_color=Color(0,0,0,.28);frame.shadow_size=3
 	var pressed_bg:=bg.lightened(.22);pressed_bg.a=minf(1.0,strike_opacity+.25)
 	attack_button.add_theme_stylebox_override("normal",frame)
 	attack_button.add_theme_stylebox_override("hover",frame)
-	attack_button.add_theme_stylebox_override("pressed",compact_style(pressed_bg,edge,26))
+	attack_button.add_theme_stylebox_override("pressed",compact_style(pressed_bg,edge,33))
+	attack_button.add_theme_stylebox_override("disabled",compact_style(Color(hud_base_color(),.45),edge.darkened(.55),33))
 
 func draw_joystick()->void:
 	var center:=joystick.size*.5
@@ -20304,9 +20349,9 @@ func update_hud():
 	for i in range(move_buttons.size()):
 		var id:String=run.equipped_moves[i]
 		var move:Dictionary=Rules.MOVE_LIBRARY[id]
-		move_buttons[i].text="%s\n%d/%d PP"%[move.name,run.move_pp[id],move.pp]
-		if id==run.charged_move_id:move_buttons[i].text="Release "+str(move.name)
-		move_buttons[i].disabled=not run.charged_move_id.is_empty() and id!=run.charged_move_id or (run.charged_move_id.is_empty() and int(run.move_pp[id])<=0)
+		var charged:bool=id==run.charged_move_id
+		var locked:bool=not run.charged_move_id.is_empty() and not charged or (run.charged_move_id.is_empty() and int(run.move_pp[id])<=0)
+		update_move_card(move_buttons[i],move,int(run.move_pp[id]),charged,locked)
 	power_button.text="%s %d/8"%[["Burst","Bolt","Drain"][run.skill_kind],run.energy];power_button.disabled=run.energy<2
 	heal_button.text="Berry ∞" if run.dev_sandbox else "Berry ×%d"%run.potions;heal_button.disabled=run.potions==0 or run.hp==run.max_hp
 	stairs_button.text="Descend ›" if run.dev_sandbox or run.floor_number<run.floor_count else "Complete expedition"
