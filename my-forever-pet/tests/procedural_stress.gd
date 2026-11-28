@@ -237,6 +237,47 @@ func run_checks()->void:
 	if not skip.descend() or skip.materials!=skip_materials or skip.explored_side_chambers.size()!=0 or skip.exploration_count()!=1:failures.append("optional exploration and next floor reset")
 	checks+=1
 	print("KINDRIA_EXPLORATION full=",full_discoveries," side_chambers=",side_discoveries)
+	# Verify all trap effects, single-use settlement and protection.
+	var trap_coverage:Dictionary={}
+	for seed_id in range(128):
+		var trap_run=Rules.new()
+		trap_run.setup(seed_id%3,24,0,false,false,230003+seed_id,0,false)
+		trap_run.floor_number=4;trap_run.generate_floor()
+		for p in trap_run.traps:
+			var kind:String=str(trap_run.traps[p])
+			trap_coverage[kind]=int(trap_coverage.get(kind,0))+1
+			if kind not in Rules.FLOOR_TRAP_KINDS or not trap_run.cells.has(p) or p==trap_run.player or p==trap_run.stairs or p==trap_run.relic or p in trap_run.side_rewards:failures.append("trap placement")
+		checks+=1
+	if trap_coverage.size()!=Rules.FLOOR_TRAP_KINDS.size():failures.append("trap coverage")
+	checks+=1
+	var fixture=Rules.new()
+	var tile:=Vector2i(2,2)
+	for kind in Rules.FLOOR_TRAP_KINDS+["legacy"]:
+		fixture.hp=20;fixture.energy=5;fixture.belly_tenths=1000
+		fixture.player_slow_turns=0;fixture.weakened_strikes=0
+		fixture.traps[tile]=true if kind=="legacy" else kind
+		if not fixture.trigger_floor_trap(tile) or fixture.trigger_floor_trap(tile):failures.append("trap single use "+kind)
+		var valid:bool=true
+		match kind:
+			"snare":valid=fixture.player_slow_turns==4 and fixture.hp==20
+			"drain":valid=fixture.energy==3 and fixture.hp==20
+			"hunger":valid=fixture.belly_tenths==920 and fixture.hp==20
+			"weaken":valid=fixture.weakened_strikes==2 and fixture.hp==20
+			_:valid=fixture.hp==17
+		if not valid:failures.append("trap effect "+kind)
+		checks+=2
+	fixture.shield_kind="safeguard";fixture.shield_turns=3
+	fixture.player_slow_turns=0;fixture.weakened_strikes=0
+	for kind in ["snare","weaken"]:
+		fixture.traps[tile]=kind;fixture.trigger_floor_trap(tile)
+	if fixture.player_slow_turns!=0 or fixture.weakened_strikes!=0:failures.append("trap safeguard")
+	checks+=1
+	fixture.hp=1;fixture.energy=0;fixture.belly_tenths=10
+	for kind in ["spike","drain","hunger"]:
+		fixture.traps[tile]=kind;fixture.trigger_floor_trap(tile)
+	if fixture.hp!=1 or fixture.energy!=0 or fixture.belly_tenths!=10:failures.append("trap resource bounds")
+	checks+=1
+	print("KINDRIA_FLOOR_TRAPS ",trap_coverage)
 	# Actual disk I/O, legacy migration, corruption recovery, and resumed writes.
 	var test_path:String="user://kindria_procedural_test_"+str(OS.get_process_id())+".cfg"
 	var exact:Array[String]=["legacy exact".sha256_text()]
