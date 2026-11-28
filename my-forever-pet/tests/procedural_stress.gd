@@ -4379,6 +4379,22 @@ func run_checks()->void:
 	if relief_fixture.enemy_relief_ranged_ready(relief_ranged,relief_fixture.player):failures.append("relief rejects spent backup")
 	relief_fixture.enemy_phase_spent.clear()
 	checks+=1
+	# Slow status alternates skipped and executable phases, including backup.
+	for relief_slow in [1,2,3,4]:
+		relief_ranged["slow_turns"]=relief_slow
+		var relief_can_fire:bool=relief_slow%2==1
+		if relief_fixture.enemy_relief_ranged_ready(relief_ranged,relief_fixture.player)!=relief_can_fire:failures.append("relief slow phase backup readiness")
+		var relief_expected:Vector2i=Vector2i(4,5) if relief_can_fire else relief_guard.pos
+		if relief_fixture.enemy_relief_step(relief_guard,relief_fixture.player)!=relief_expected:failures.append("relief slow phase replacement")
+		checks+=2
+	relief_ranged["windup"]=true;relief_ranged["aim"]=Vector2i.LEFT
+	relief_ranged["slow_turns"]=2
+	if relief_fixture.enemy_relief_ranged_ready(relief_ranged,relief_fixture.player):failures.append("relief skipped committed backup")
+	checks+=1
+	relief_ranged["slow_turns"]=3
+	if not relief_fixture.enemy_relief_ranged_ready(relief_ranged,relief_fixture.player):failures.append("relief executable committed backup")
+	checks+=1
+	relief_ranged.erase("slow_turns")
 	relief_ranged["windup"]=true;relief_ranged["aim"]=Vector2i.UP
 	if relief_fixture.enemy_relief_ranged_ready(relief_ranged,relief_fixture.player):failures.append("relief rejects misdirected windup")
 	relief_ranged["aim"]=Vector2i.LEFT

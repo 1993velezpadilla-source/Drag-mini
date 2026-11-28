@@ -3937,8 +3937,9 @@ func enemy_relief_ranged_ready(e:Dictionary,target:Vector2i)->bool:
 	# A ranged kit is not evidence of actual backup. The attack must reach
 	# the observed target through the current geometry and be executable.
 	if not enemy_alert_eligible(e) or not enemy_live_contact(e,target):return false
-	if distance(e.pos,target)<2 or int(e.get("whiffer_turns",0))>0 or int(e.get("slow_turns",0))>0:return false
-	if enemy_phase_spent.has(int(e.get("uid",-1))):return false
+	if distance(e.pos,target)<2 or int(e.get("whiffer_turns",0))>0:return false
+	# Match the real dispatcher: only even remaining slow turns skip.
+	if enemy_phase_spent.has(int(e.get("uid",-1))) or (int(e.get("slow_turns",0))>0 and int(e.slow_turns)%2==0):return false
 	var species:String=str(e.get("species",""))
 	var skill:Array=signature_skill(e)
 	var pattern:String=str(ATTACK_PATTERNS.get(species,"line"))
