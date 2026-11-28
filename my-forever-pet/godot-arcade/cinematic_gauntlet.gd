@@ -36,6 +36,27 @@ func run_checks()->void:
 	var checks:int=0
 	var failures:Array[String]=[]
 	var view:=Dungeon.new()
+	# V26.21: original cascade sound, transformed pool anchors and fixed FX budget.
+	for cascade_count in range(-1,8):
+		if view.cascade_slot_count(cascade_count)!=clampi(cascade_count,0,3)*10:failures.append("V26.21 cascade particle cap")
+		checks+=1
+	var cascade_transform:=Transform3D(Basis(Vector3.UP,PI*.5).scaled(Vector3(1.4,1.5,1.3)),Vector3(8,-.42,12))
+	if not view.cascade_landing(cascade_transform).is_equal_approx(cascade_transform*Vector3(0,.40,.64)):failures.append("V26.21 transformed impact anchor")
+	checks+=1
+	var waterfall_audio:AudioStreamWAV=view.cascade_sound_loop()
+	if waterfall_audio==null or waterfall_audio.mix_rate!=22050 or waterfall_audio.data.size()!=88200:failures.append("V26.21 audio format")
+	else:
+		if waterfall_audio.loop_mode!=AudioStreamWAV.LOOP_FORWARD or waterfall_audio.loop_end!=44100:failures.append("V26.21 audio loop")
+		if absi(waterfall_audio.data.decode_s16(0)-waterfall_audio.data.decode_s16(waterfall_audio.data.size()-2))>8000:failures.append("V26.21 loop seam")
+		var peak:int=0
+		for sample_index in range(0,waterfall_audio.data.size(),2):
+			peak=maxi(peak,absi(waterfall_audio.data.decode_s16(sample_index)))
+		if peak<100 or peak>13763:failures.append("V26.21 bounded audio level")
+	if waterfall_audio!=view.cascade_sound_loop():failures.append("V26.21 audio cache")
+	checks+=5
+	view.clear_cascade_ambience()
+	if not view.cascade_sounds.is_empty() or view.cascade_fx!=null or view.cascade_fx_material!=null:failures.append("V26.21 floor cleanup")
+	checks+=1
 	# Dungeon 001: profile is opt-in and remains deterministic across all three floors.
 	for woods_seed in range(12):
 		var woods:=preload("res://dungeon_rules.gd").new()
