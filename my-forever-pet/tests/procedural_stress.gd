@@ -1054,6 +1054,22 @@ func run_checks()->void:
 	if tactics_fixture.enemy_tactical_step(ranged_actor,tactics_fixture.player,"line",3)!=firing_origin:failures.append("tactical occlusion")
 	tactics_fixture.cells[Vector2i(3,4)]=true
 	checks+=2
+	# A tactical sidestep must not enter a teammate's committed attack.
+	var tactical_shooter:Dictionary={"uid":2,"pos":Vector2i(2,5),"hp":20,"kind":1,"species":"leafwisp","ecology_search_enabled":true,"pp_primary":12,"pp_secondary":0,"windup":true,"aim":Vector2i.UP}
+	tactics_fixture.enemies.append(tactical_shooter)
+	if not tactics_fixture.enemy_relief_blocks_lane(tactical_shooter,firing_tile,tactics_fixture.player) or tactics_fixture.enemy_tactical_step(ranged_actor,tactics_fixture.player,"line",3)!=firing_origin:failures.append("tactical respects committed friendly ray")
+	checks+=1
+	tactical_shooter["windup"]=false;tactical_shooter.erase("aim")
+	if tactics_fixture.enemy_tactical_step(ranged_actor,tactics_fixture.player,"line",3)!=firing_tile:failures.append("tactical uses released lane")
+	checks+=1
+	tactics_fixture.enemies.pop_back()
+	for hidden_phase in ["underground","airborne","vanish"]:
+		tactics_fixture.charge_phase=hidden_phase
+		if tactics_fixture.enemy_tactical_step(ranged_actor,tactics_fixture.player,"line",3)!=firing_origin:failures.append("tactical rejects concealed player "+hidden_phase)
+	tactics_fixture.charge_phase=""
+	checks+=1
+	if ranged_actor.pos!=firing_origin or not tactics_fixture.enemy_actions.is_empty():failures.append("tactical projected planning purity")
+	checks+=1
 	tactics_fixture.enemy_turn_actions()
 	if ranged_actor.pos!=firing_tile:failures.append("tactical real turn movement")
 	var tactical_moves:int=0
