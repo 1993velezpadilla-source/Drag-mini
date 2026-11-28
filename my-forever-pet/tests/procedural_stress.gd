@@ -251,6 +251,7 @@ func enemy_integration_gauntlet(failures:Array[String])->int:
 	var congestion_observations:int=0
 	var unresolved_after_congestion_peak:int=0
 	var remaining_context:Dictionary={}
+	var recovery_modes:Dictionary={}
 	var unexplained_open_peak:int=0
 	var unexplained_context:Dictionary={}
 	var idle_observations:Dictionary={}
@@ -281,6 +282,10 @@ func enemy_integration_gauntlet(failures:Array[String])->int:
 			var start:int=Time.get_ticks_usec()
 			cached.enemy_turn_actions()
 			cached_times.append(Time.get_ticks_usec()-start)
+			for actor in cached.enemies:
+				if int(actor.get("recovery_turn",-1))==cached.turns:
+					var recovery_mode:String=str(actor.get("recovery_mode","unknown"))
+					recovery_modes[recovery_mode]=int(recovery_modes.get(recovery_mode,0))+1
 			start=Time.get_ticks_usec()
 			reference.enemy_turn_actions()
 			reference_times.append(Time.get_ticks_usec()-start)
@@ -367,6 +372,7 @@ func enemy_integration_gauntlet(failures:Array[String])->int:
 		print("KINDRIA_CONGESTION_DIAGNOSTICS verified_physical_congestion=",congestion_observations)
 		print("KINDRIA_RESERVE_DIAGNOSTICS verified_open_reserve=",reserve_idle_observations," unexplained_open_peak=",unexplained_open_peak," context=",unexplained_context)
 		print("KINDRIA_REMAINING_IDLE unresolved_after_congestion_peak=",unresolved_after_congestion_peak," context=",remaining_context)
+		print("KINDRIA_RECOVERY_MODES committed=",recovery_modes)
 	return checks_local
 
 # V27.1: ordinary ecology actors, not just Monster House actors, in constrained
@@ -2378,7 +2384,24 @@ func run_checks()->void:
 	immediate.shield_kind="";immediate.shield_turns=0;immediate.charge_phase="vanish"
 	if immediate.enemy_immediate_recovery_step(near_actor,immediate.player)!=near_actor.pos:failures.append("immediate recovery no hidden target")
 	checks+=1
-	print("KINDRIA_ANTI_STALL checks=81")
+	# Distinguish committed movement from a proposed or cancelled route.
+	immediate.turns=30
+	near_actor["unstall_turn"]=21
+	immediate.enemy_commit_recovery(near_actor,near_actor.pos,near_actor.pos,"detour")
+	if int(near_actor.unstall_turn)!=21 or near_actor.has("recovery_turn"):failures.append("cancelled recovery does not consume cooldown")
+	checks+=1
+	immediate.enemy_commit_recovery(near_actor,near_actor.pos,Vector2i(4,5),"immediate")
+	if int(near_actor.unstall_turn)!=21 or int(near_actor.recovery_turn)!=30 or near_actor.recovery_mode!="immediate":failures.append("immediate recovery preserves detour cooldown")
+	checks+=1
+	immediate.turns=31
+	immediate.enemy_commit_recovery(near_actor,near_actor.pos,Vector2i(4,5),"detour")
+	if int(near_actor.unstall_turn)!=31 or near_actor.recovery_mode!="detour":failures.append("committed detour consumes cooldown")
+	checks+=1
+	immediate.turns=32
+	immediate.enemy_commit_recovery(near_actor,near_actor.pos,Vector2i(4,5),"party")
+	if int(near_actor.unstall_turn)!=32 or near_actor.recovery_mode!="party":failures.append("committed party recovery consumes cooldown")
+	checks+=1
+	print("KINDRIA_ANTI_STALL checks=85")
 	# A direct witness may report a tile, but a listener cannot relay it.
 	var comm=Rules.new()
 	for x in range(1,4):comm.cells[Vector2i(x,3)]=true
