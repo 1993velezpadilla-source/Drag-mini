@@ -4,7 +4,33 @@ const Rules=preload("res://dungeon_rules.gd")
 func _initialize()->void:
 	call_deferred("run_checks")
 
+func restart_check(mode:String)->void:
+	var path:String="user://kindria_restart_fixture.cfg"
+	var run=Rules.new()
+	if mode=="--history-write":
+		for suffix in ["",".bak",".tmp"]:
+			if FileAccess.file_exists(path+suffix):DirAccess.remove_absolute(ProjectSettings.globalize_path(path+suffix))
+		run.setup(0,24,0,false,false,994321,0,false)
+		if Rules.write_layout_history(path,run.recent_layouts,run.recent_shapes)!=OK:
+			push_error("restart fixture write failed");quit(1);return
+		print("KINDRIA_HISTORY_WRITE shape=",run.shape_signature)
+		quit(0);return
+	var config:ConfigFile=Rules.read_layout_history(path)
+	var shapes:Variant=config.get_value("dungeons","canonical_shapes_v1",[])
+	if shapes.size()!=1:
+		push_error("restart fixture missing");quit(1);return
+	run.recent_shapes.assign(shapes)
+	run.setup(0,24,0,false,false,994321,0,false)
+	if run.shape_history_hits<1 or run.shape_signature==shapes[0]:
+		push_error("restart repeat not rejected");quit(1);return
+	print("KINDRIA_HISTORY_RESTART_PASS previous=",shapes[0]," replacement=",run.shape_signature," retries=",run.layout_retries)
+	for suffix in ["",".bak",".tmp"]:
+		if FileAccess.file_exists(path+suffix):DirAccess.remove_absolute(ProjectSettings.globalize_path(path+suffix))
+	quit(0)
+
 func run_checks()->void:
+	for mode in ["--history-write","--history-read"]:
+		if mode in OS.get_cmdline_user_args():restart_check(mode);return
 	var failures:Array[String]=[]
 	var signatures:Dictionary={}
 	var families:Dictionary={}
