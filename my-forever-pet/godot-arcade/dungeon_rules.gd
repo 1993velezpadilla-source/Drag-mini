@@ -3228,7 +3228,11 @@ func enemy_combo_followup(e:Dictionary,move:Dictionary,wait:int)->float:
 # current defensive state makes its actual damage zero.
 func enemy_combo_damage_score(e:Dictionary,skill:Array,secondary:bool)->float:
 	if enemy_opportunity_damage(e,skill,secondary)<=0:return 0.0
-	return enemy_attack_score(e,skill,secondary)
+	# Discount damage forecasts by the same stage accuracy roll used in combat.
+	# Do not predict the player's deterministic speed meter across squad turns.
+	var accuracy:float=clampf(enemy_stat_effect(e,"accuracy")*player_stat_effect("evasion")/(263.0/256.0),0.0,1.0)
+	if int(e.get("whiffer_turns",0))>0:return 0.0
+	return enemy_attack_score(e,skill,secondary)*accuracy
 
 func enemy_combo_setup_bonus(e:Dictionary,move:Dictionary)->float:
 	if not enemy_alert_eligible(e) or not enemy_live_contact(e,player):return 0.0

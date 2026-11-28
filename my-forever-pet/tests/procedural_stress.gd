@@ -3681,7 +3681,25 @@ func run_checks()->void:
 	sequencing.gravity_active=false;sequencing.player_boons.clear();sequence_partner.species="bramble_pup"
 	if sequence_partner.pp_primary!=10 or sequence_partner.pp_secondary!=0 or sequence_setup.pp_control!=5 or sequencing.rng.state!=sequence_damage_rng or not sequencing.enemy_actions.is_empty():failures.append("sequence damage gates preserve state")
 	checks+=1
-	print("KINDRIA_ATTACK_SEQUENCING checks=25")
+	# Follow-up estimates reflect staged accuracy instead of nominal attack power.
+	sequence_partner["stages"]={"accuracy":10}
+	var sequence_skill:Array=sequencing.signature_skill(sequence_partner)
+	var sequence_high_score:float=sequencing.enemy_combo_damage_score(sequence_partner,sequence_skill,false)
+	var sequence_high_followup:float=sequencing.enemy_combo_followup(sequence_partner,sequence_debuff,0)
+	sequence_partner.stages["accuracy"]=-10
+	var sequence_low_score:float=sequencing.enemy_combo_damage_score(sequence_partner,sequence_skill,false)
+	if sequence_high_score<=0.0 or sequence_low_score>=sequence_high_score or sequencing.enemy_combo_followup(sequence_partner,sequence_debuff,0)>sequence_high_followup:failures.append("sequence lower accuracy discounts forecast")
+	checks+=1
+	sequencing.player_stages["evasion"]=10
+	if sequencing.enemy_combo_damage_score(sequence_partner,sequence_skill,false)>=sequence_low_score:failures.append("sequence player evasion discounts forecast")
+	checks+=1
+	sequence_partner["whiffer_turns"]=2
+	if sequencing.enemy_combo_damage_score(sequence_partner,sequence_skill,false)!=0.0 or sequencing.enemy_combo_followup(sequence_partner,sequence_debuff,0)!=0.0:failures.append("sequence whiffer conservatively rejected")
+	checks+=1
+	sequence_partner.erase("whiffer_turns");sequence_partner.erase("stages");sequencing.player_stages.clear()
+	if sequencing.rng.state!=sequence_damage_rng or sequence_partner.pp_primary!=10 or not sequencing.enemy_actions.is_empty():failures.append("sequence hit forecast purity")
+	checks+=1
+	print("KINDRIA_ATTACK_SEQUENCING checks=29")
 	# Bounded search follows actual witnessed headings and explores alternatives.
 	var hunter_search=Rules.new()
 	for y in range(1,10):
