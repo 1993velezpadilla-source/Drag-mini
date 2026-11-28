@@ -2739,7 +2739,33 @@ func run_checks()->void:
 	party_lane.turns+=2
 	if party_lane.enemy_safe_party_approach(party_flanker,Vector2i(5,3))!=Vector2i(5,4):failures.append("party pursuit ignores expired reservation")
 	checks+=1
-	print("KINDRIA_ANTI_STALL checks=142")
+	# Concealed player distance must not veto pursuit of a visible opponent.
+	var blind_party=Rules.new()
+	for y in range(1,9):
+		for x in range(1,9):blind_party.cells[Vector2i(x,y)]=true
+	blind_party.player=Vector2i(7,7);blind_party.stairs=Vector2i(8,8);blind_party.relic=Vector2i(8,7)
+	var blind_hunter:Dictionary={"uid":460,"pos":Vector2i(2,4),"hp":30,"kind":0,"species":"rootgnawer","ecology_role":"hunter","ecology_search_enabled":true,"personality_enabled":true,"pp_primary":0,"pp_secondary":0}
+	blind_party.enemies.append(blind_hunter)
+	blind_party.allies.append({"uid":1000,"pos":Vector2i(5,4),"hp":30,"max_hp":30})
+	blind_party.charge_phase="vanish"
+	var hidden_far:Dictionary=blind_party.enemy_party_approach_plan(blind_hunter)
+	blind_party.player=Vector2i(2,3)
+	var hidden_near:Dictionary=blind_party.enemy_party_approach_plan(blind_hunter)
+	if hidden_far.is_empty() or hidden_near!=hidden_far or hidden_near.get("step",Vector2i.ZERO)!=Vector2i(3,4):failures.append("party choice independent of concealed player distance")
+	checks+=1
+	blind_party.charge_phase=""
+	if not blind_party.enemy_party_approach_plan(blind_hunter).is_empty():failures.append("party choice preserves visible closer player priority")
+	checks+=1
+	blind_party.player=Vector2i(2,2);blind_party.cells.erase(Vector2i(2,3))
+	if blind_party.enemy_live_contact(blind_hunter,blind_party.player) or blind_party.enemy_party_approach_plan(blind_hunter)!=hidden_far:failures.append("party choice independent of occluded player distance")
+	checks+=1
+	blind_party.allies[0].hp=0
+	if not blind_party.enemy_party_approach_plan(blind_hunter).is_empty():failures.append("party concealed pursuit excludes defeated ally")
+	checks+=1
+	blind_party.allies[0].hp=30
+	if not blind_party.enemy_target_ally(0) or blind_hunter.pos!=Vector2i(3,4) or blind_party.enemy_actions.size()!=1 or blind_hunter.pp_primary!=0:failures.append("party concealed player live dispatch pursues visible ally")
+	checks+=1
+	print("KINDRIA_ANTI_STALL checks=147")
 	# A direct witness may report a tile, but a listener cannot relay it.
 	var comm=Rules.new()
 	for x in range(1,4):comm.cells[Vector2i(x,3)]=true
