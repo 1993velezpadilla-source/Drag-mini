@@ -1227,6 +1227,39 @@ func add_corridor_anchors(slots:Array[Vector2i],occupied:Dictionary)->void:
 		corridor_anchors.append(target)
 
 
+# Layout history is independent of the active save and recoverable from a previous snapshot.
+static func history_config_valid(config:ConfigFile)->bool:
+	if not config.has_section_key("dungeons","geometry"):return false
+	for key in ["geometry","canonical_shapes_v1"]:
+		var entries:Variant=config.get_value("dungeons",key,[])
+		if not (entries is Array or entries is PackedStringArray):return false
+		for signature in entries:
+			if not signature is String or signature.length()!=64 or not signature.is_valid_hex_number():return false
+	return true
+
+static func read_layout_history(path:String)->ConfigFile:
+	for candidate in [path,path+".bak"]:
+		var config:=ConfigFile.new()
+		if config.load(candidate)==OK and history_config_valid(config):return config
+	return ConfigFile.new()
+
+static func write_layout_history(path:String,exact:Array[String],shapes:Array[String])->int:
+	var config:=ConfigFile.new()
+	config.set_value("dungeons","geometry",exact)
+	config.set_value("dungeons","canonical_shapes_v1",shapes)
+	var temp:String=path+".tmp"
+	var error:int=config.save(temp)
+	if error!=OK:return error
+	var check:=ConfigFile.new()
+	if check.load(temp)!=OK or not history_config_valid(check):return ERR_FILE_CORRUPT
+	# Only back up a valid primary; never replace a healthy backup with a corrupt file.
+	var previous:=ConfigFile.new()
+	if previous.load(path)==OK and history_config_valid(previous):
+		error=DirAccess.copy_absolute(ProjectSettings.globalize_path(path),ProjectSettings.globalize_path(path+".bak"))
+		if error!=OK:return error
+	# A completed temporary snapshot replaces the primary on the same filesystem.
+	return DirAccess.rename_absolute(ProjectSettings.globalize_path(temp),ProjectSettings.globalize_path(path))
+
 func remember_layout(signature:String)->void:
 	if signature.is_empty():return
 	recent_layouts.erase(signature)
