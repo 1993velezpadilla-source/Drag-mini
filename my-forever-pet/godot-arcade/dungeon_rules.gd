@@ -965,10 +965,13 @@ var monster_house_rng:=RandomNumberGenerator.new()
 const MONSTER_HOUSE_UID_BASE:int=200
 const MONSTER_HOUSE_CAP:int=10
 var player_rested=false
-func setup(r:int,id:int,step:int,finale:bool,patrol:bool,seed_id:int,companion:int=0):
+var starter_woods:bool=false
+func setup(r:int,id:int,step:int,finale:bool,patrol:bool,seed_id:int,companion:int=0,intro_woods:bool=false):
+	starter_woods=intro_woods and r==0 and not patrol and not finale
+	floor_number=1
 	region=r;seed_value=seed_id;skill_kind=posmod(companion,3);rescue_finale=finale;specimen=id
 	tier=0 if patrol or id<12 else 1 if id<24 else 2
-	floor_count=2 if patrol else 3+tier+(1 if finale else 0)
+	floor_count=3 if starter_woods else (2 if patrol else 3+tier+(1 if finale else 0))
 	max_hp=42+4*tier;hp=max_hp
 	allies.clear()
 	held_item="ward_band";spare_equipment.clear()
@@ -994,14 +997,14 @@ func build_layout():
 	# Independent implementation: variable sector occupancy, random room sizes,
 	# connected spanning tree, extra loops and imperfect corner cuts.
 	var grids=[Vector2i(3,2),Vector2i(2,3),Vector2i(3,3),Vector2i(4,2)]
-	var grid:Vector2i=grids[rng.randi_range(0,grids.size()-1)]
+	var grid:Vector2i=Vector2i(2,2) if starter_woods else grids[rng.randi_range(0,grids.size()-1)]
 	floor_bounds=Rect2i(Vector2i.ONE,grid*9-Vector2i(2,2))
 	var slots:Array[Vector2i]=[]
 	for y in range(grid.y):
 		for x in range(grid.x):slots.append(Vector2i(x,y))
 	for i in range(slots.size()-1,0,-1):
 		var j=rng.randi_range(0,i);var swap=slots[i];slots[i]=slots[j];slots[j]=swap
-	var room_count=rng.randi_range(4,slots.size())
+	var room_count=rng.randi_range(3,slots.size()) if starter_woods else rng.randi_range(4,slots.size())
 	for i in range(room_count):
 		var slot=slots[i]
 		var width=rng.randi_range(5,7);var height=rng.randi_range(5,7)
@@ -1059,7 +1062,7 @@ func generate_floor():
 	cells.clear();rooms.clear();enemies.clear();loot.clear();revealed.clear();traps.clear();player_traps.clear();revealed_player_traps.clear();explored_rooms.clear()
 	floor_bonus=0;player_rested=false
 	floor_style=posmod(seed_value+floor_number,3)
-	floor_kind=0 if floor_number==1 else posmod(seed_value*3+floor_number*7,5)
+	floor_kind=0 if starter_woods or floor_number==1 else posmod(seed_value*3+floor_number*7,5)
 	secured=false;guardian_defeated=not (rescue_finale and floor_number==floor_count);floor_revision+=1
 	visual_interactions.clear()
 	build_layout()
@@ -1069,7 +1072,7 @@ func generate_floor():
 	var spots:Array= cells.keys()
 	for i in range(spots.size()-1,0,-1):
 		var j=rng.randi_range(0,i);var temp=spots[i];spots[i]=spots[j];spots[j]=temp
-	var count=mini(7,2+floor_number+tier)
+	var count=1+floor_number if starter_woods else mini(7,2+floor_number+tier)
 	if floor_kind==1:count=maxi(2,count-2)
 	if floor_kind==2:count=mini(8,count+1)
 	for p in spots:
@@ -1079,7 +1082,7 @@ func generate_floor():
 			enemies.append(make_enemy(p,life,rng.randi_range(0,2),enemies.size()))
 		elif loot.size()<(14 if floor_kind==1 else 9):
 			loot[p]="trail_fruit" if loot.size()==2 else "manual:eos_154" if loot.size()==5 else "potion" if loot.size()%4==0 else "material" if loot.size()%3==0 else "coin"
-		elif traps.size()<(mini(12,floor_number-1) if dev_sandbox else floor_number-1):traps[p]=true
+		elif not starter_woods and traps.size()<(mini(12,floor_number-1) if dev_sandbox else floor_number-1):traps[p]=true
 		else:break
 	loot[relic]="relic"
 	if floor_kind==3:
@@ -1105,7 +1108,7 @@ func generate_floor():
 	message="Guardian chamber · Rescue the creature" if not guardian_defeated else "B%d · Find the relic and stairs"%floor_number
 func monster_house_chance()->int:
 	# Kindria expeditions are shorter than EOS dungeons: tune per tier.
-	if floor_number<2 or not guardian_defeated or floor_kind==3:return 0
+	if starter_woods or floor_number<2 or not guardian_defeated or floor_kind==3:return 0
 	return mini(22,8+tier*4+mini(6,(floor_number-2)*2))
 
 func monster_house_candidates()->Array[int]:
@@ -1122,7 +1125,7 @@ func monster_house_candidates()->Array[int]:
 	return valid
 
 func prepare_monster_house(force:bool=false)->bool:
-	if monster_house_room>=0:return false
+	if monster_house_room>=0 or starter_woods:return false
 	if not force and monster_house_rng.randi_range(1,100)>monster_house_chance():return false
 	var candidates:=monster_house_candidates()
 	if candidates.is_empty():return false
