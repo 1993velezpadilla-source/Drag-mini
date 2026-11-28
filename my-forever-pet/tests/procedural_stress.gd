@@ -401,6 +401,43 @@ func run_checks()->void:
 	if memory_fixture.enemies[0].pos!=Vector2i(7,3) or memory_fixture.enemies[0].has("last_seen_player"):failures.append("memory stop after search")
 	checks+=2
 	print("KINDRIA_ENEMY_MEMORY roles=4 pursuit_steps=5 expiry=4")
+	# Visibility must be reciprocal, reject walls and strict diagonal corners.
+	var sight=Rules.new()
+	for y in range(1,10):
+		for x in range(1,10):sight.cells[Vector2i(x,y)]=true
+	var eye:=Vector2i(2,3)
+	var visible:=Vector2i(5,3)
+	var sight_hidden:=Vector2i(5,5)
+	if not sight.enemy_line_of_sight(eye,visible) or not sight.enemy_line_of_sight(visible,eye):failures.append("open sight")
+	sight.cells.erase(Vector2i(4,3))
+	if sight.enemy_line_of_sight(eye,visible) or sight.enemy_line_of_sight(visible,eye):failures.append("wall sight")
+	sight.cells[Vector2i(4,3)]=true
+	sight.cells.erase(Vector2i(3,3))
+	if sight.enemy_line_of_sight(eye,Vector2i(3,4)) or sight.enemy_line_of_sight(Vector2i(3,4),eye):failures.append("corner sight")
+	sight.cells[Vector2i(3,3)]=true
+	if not sight.enemy_line_of_sight(eye,Vector2i(3,4)):failures.append("open diagonal sight")
+	checks+=4
+	var watcher:Dictionary={"pos":eye,"ecology_role":"scout"}
+	sight.turns=1
+	if sight.enemy_pursuit_target(watcher,visible)!=visible:failures.append("sight acquisition")
+	sight.cells.erase(Vector2i(3,4))
+	sight.turns=2
+	if sight.enemy_line_of_sight(eye,sight_hidden) or sight.enemy_pursuit_target(watcher,sight_hidden)!=visible or int(watcher.get("last_seen_until",0))!=7:failures.append("wall memory")
+	sight.cells[Vector2i(3,4)]=true
+	if sight.enemy_pursuit_target(watcher,sight_hidden)!=sight_hidden or watcher.get("last_seen_player")!=sight_hidden:failures.append("sight reacquisition")
+	checks+=3
+	var sight_pairs:int=0
+	for seed_id in range(128):
+		var layout=Rules.new()
+		layout.setup(seed_id%3,24,0,false,false,310003+seed_id,0,false)
+		for e in layout.enemies:
+			var p:Vector2i=e.pos
+			for d in [Vector2i(1,1),Vector2i(3,2),Vector2i(-2,3),Vector2i(0,-3),Vector2i(-3,-2)]:
+				var q:Vector2i=p+d
+				if layout.enemy_line_of_sight(p,q)!=layout.enemy_line_of_sight(q,p):failures.append("asymmetric sight")
+				sight_pairs+=1
+		checks+=1
+	print("KINDRIA_ENEMY_SIGHT seeded_pairs=",sight_pairs," fixtures=7")
 	# Actual disk I/O, legacy migration, corruption recovery, and resumed writes.
 	var test_path:String="user://kindria_procedural_test_"+str(OS.get_process_id())+".cfg"
 	var exact:Array[String]=["legacy exact".sha256_text()]
