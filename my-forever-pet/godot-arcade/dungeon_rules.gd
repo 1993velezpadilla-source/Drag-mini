@@ -2690,7 +2690,7 @@ func enemy_foresight_post_value(e:Dictionary,kits:Array[Dictionary],post:Vector2
 		value=maxf(value,float(kit.value))
 	return value
 
-func enemy_foresight_plan(e:Dictionary,target:Vector2i)->Dictionary:
+func enemy_foresight_plan(e:Dictionary,target:Vector2i,prune_deeper:bool=true)->Dictionary:
 	var origin:Vector2i=e.pos
 	if target!=player or not enemy_opportunity_eligible(e) or int(e.get("kind",0))==3 or int(e.get("stuck_turns",0))>0:return {}
 	if bool(e.get("monster_house",false)) or charge_phase in ["underground","airborne","vanish"] or (shield_turns>0 and shield_kind=="protect"):return {}
@@ -2710,8 +2710,12 @@ func enemy_foresight_plan(e:Dictionary,target:Vector2i)->Dictionary:
 	var phase:int=posmod(int(e.get("uid",0))+turns,4)
 	var gap:int=distance(origin,target)
 	while cursor<queue.size():
-		var here:Vector2i=queue[cursor];cursor+=1
+		var here:Vector2i=queue[cursor]
 		var depth:int=int(depths[here])
+		# BFS visits depths in order. Finish all equally short candidates,
+		# but no deeper candidate can replace an accepted shorter route.
+		if prune_deeper and not best.is_empty() and depth>int(best.depth):break
+		cursor+=1
 		if depth>0:
 			var value:float=enemy_foresight_post_value(e,kits,here,target,true)
 			if value>0.0:
@@ -2723,7 +2727,7 @@ func enemy_foresight_plan(e:Dictionary,target:Vector2i)->Dictionary:
 				# Prefer the shortest useful firing route; score breaks ties.
 				if score>0.0 and (best.is_empty() or depth<int(best.depth) or (depth==int(best.depth) and score>best_score)):
 					best_score=score;best={"step":first[here],"post":here,"depth":depth,"score":score}
-		if depth>=ENEMY_FORESIGHT_DEPTH:continue
+		if depth>=ENEMY_FORESIGHT_DEPTH or (prune_deeper and not best.is_empty() and depth>=int(best.depth)):continue
 		for j in range(4):
 			if queue.size()>=ENEMY_FORESIGHT_NODE_CAP:break
 			var q:Vector2i=here+DIR[(phase+j)%4]

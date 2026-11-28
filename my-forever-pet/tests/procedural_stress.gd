@@ -2210,6 +2210,26 @@ func run_checks()->void:
 	checks+=1
 	if int(fs_plan.get("nodes",999))>25 or foresight_actor.pos!=Vector2i(3,6) or foresight_actor.pp_primary!=12 or not foresight_fixture.enemy_actions.is_empty():failures.append("foresight bounded pure planning")
 	checks+=1
+	# Compare the pruned BFS to its exhaustive bounded reference. Retain
+	# same-depth scoring, including when terrain changes which route wins.
+	var fs_exhaustive:Dictionary=foresight_fixture.enemy_foresight_plan(foresight_actor,foresight_fixture.player,false)
+	var fs_fast_nodes:int=int(fs_plan.get("nodes",0))
+	var fs_full_nodes:int=int(fs_exhaustive.get("nodes",0))
+	var fs_fast_choice:Dictionary=fs_plan.duplicate()
+	fs_fast_choice.erase("nodes");fs_exhaustive.erase("nodes")
+	if fs_fast_choice!=fs_exhaustive or fs_fast_nodes>=fs_full_nodes:failures.append("foresight shortest layer pruning equivalence")
+	checks+=1
+	var fs_parity:bool=true
+	for fs_trap in [Vector2i(3,5),Vector2i(4,6),Vector2i(4,5),Vector2i(5,6)]:
+		foresight_fixture.traps[fs_trap]="snare"
+		var fs_fast:Dictionary=foresight_fixture.enemy_foresight_plan(foresight_actor,foresight_fixture.player)
+		var fs_full:Dictionary=foresight_fixture.enemy_foresight_plan(foresight_actor,foresight_fixture.player,false)
+		if int(fs_fast.get("nodes",0))>int(fs_full.get("nodes",0)):fs_parity=false
+		fs_fast.erase("nodes");fs_full.erase("nodes")
+		if fs_fast!=fs_full:fs_parity=false
+		foresight_fixture.traps.erase(fs_trap)
+	if not fs_parity:failures.append("foresight shortest layer trap parity")
+	checks+=1
 	foresight_fixture.traps[Vector2i(3,5)]="snare"
 	var fs_detour:Dictionary=foresight_fixture.enemy_foresight_plan(foresight_actor,foresight_fixture.player)
 	if not fs_detour.is_empty() and fs_detour.get("step")==Vector2i(3,5):failures.append("foresight trap invalidates route")
