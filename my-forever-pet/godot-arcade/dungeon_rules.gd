@@ -1736,6 +1736,51 @@ func enemy_search_target(e:Dictionary)->Vector2i:
 	clear_enemy_search(e)
 	return origin
 
+# Only a witnessed voluntary cardinal step can contribute to a retreat pattern.
+# Consecutive samples must agree on heading; forced displacement is not evidence.
+var adaptive_walk_from:Vector2i=Vector2i.ZERO
+var adaptive_walk_to:Vector2i=Vector2i.ZERO
+var adaptive_walk_turn:int=-9999
+
+func enemy_observe_movement(e:Dictionary,observed:Vector2i)->void:
+	if not bool(e.get("ecology_search_enabled",false)):return
+	var origin:Vector2i=e.pos
+	if distance(origin,observed)>enemy_awareness(e) or not enemy_line_of_sight(origin,observed):
+		e.erase("adaptive_heading");e.erase("adaptive_streak");e.erase("adaptive_seen_turn")
+		return
+	if int(e.get("adaptive_seen_turn",-9999))==turns:return
+	var previous:Vector2i=e.get("adaptive_seen",observed)
+	var consecutive:bool=int(e.get("adaptive_seen_turn",-9999))==turns-1
+	var delta:Vector2i=observed-previous
+	var voluntary:bool=adaptive_walk_turn==turns-1 and adaptive_walk_from==previous and adaptive_walk_to==observed
+	var retreat:bool=consecutive and voluntary and delta in DIR and distance(origin,observed)>distance(origin,previous)
+	if retreat:
+		e["adaptive_streak"]=mini(3,int(e.get("adaptive_streak",0))+1) if e.get("adaptive_heading",Vector2i.ZERO)==delta else 1
+		e["adaptive_heading"]=delta
+	else:
+		e.erase("adaptive_heading");e.erase("adaptive_streak")
+	e["adaptive_seen"]=observed;e["adaptive_seen_turn"]=turns
+
+func enemy_retreat_prediction(e:Dictionary,target:Vector2i)->Vector2i:
+	var threshold:int=1 if int(e.get("kind",0))==2 else 2
+	if not bool(e.get("ecology_search_enabled",false)) or int(e.get("kind",0))==3 or bool(e.get("monster_house",false)):return target
+	if int(e.get("adaptive_seen_turn",-9999))!=turns or e.get("adaptive_seen",Vector2i.ZERO)!=target or int(e.get("adaptive_streak",0))<threshold:return target
+	if enemy_survival_profile(e) not in ["aggressive","defensive"] or distance(e.pos,target)>enemy_awareness(e) or not enemy_line_of_sight(e.pos,target):return target
+	var heading:Vector2i=e.get("adaptive_heading",Vector2i.ZERO)
+	if heading not in DIR:return target
+	var predicted:Vector2i=target+heading
+	if not step_clear(target,heading) or not enemy_line_of_sight(e.pos,predicted) or predicted==stairs or predicted==relic or predicted in side_rewards or traps.has(predicted) or player_traps.has(predicted) or enemy_at(predicted)>=0 or ally_at(predicted)>=0:return target
+	return predicted
+
+# A prediction is a preference for one legal movement, never a guaranteed hit.
+# Do not abandon pursuit unless the projected tile can be occupied this turn.
+func enemy_adaptive_intercept_step(e:Dictionary,target:Vector2i)->Vector2i:
+	var origin:Vector2i=e.pos
+	if bool(e.get("windup",false)) or int(e.get("stuck_turns",0))>0:return origin
+	var predicted:Vector2i=enemy_retreat_prediction(e,target)
+	if predicted==target or distance(origin,predicted)!=1:return origin
+	return predicted
+
 func enemy_pursuit_target(e:Dictionary,observed:Vector2i)->Vector2i:
 	var origin:Vector2i=e.pos
 	if not e.has("ecology_role") or bool(e.get("monster_house",false)):
@@ -2084,6 +2129,7 @@ func enemy_patrol_destination(e:Dictionary)->Vector2i:
 	return origin
 
 func generate_floor():
+	adaptive_walk_turn=-9999
 	clear_combat_effects()
 	reset_floor_combat_presentation()
 	rng.seed=seed_value+floor_number*7919
@@ -3426,6 +3472,12 @@ func enemy_attack_score(e:Dictionary,skill:Array,secondary:bool)->float:
 		"guard":
 			if int(e.get("guard",0))<=0:utility=.6
 	var slot:String="secondary" if secondary else "primary"
+	if bool(e.get("ecology_search_enabled",false)):
+		var attack_key:String="sp_attack" if str(info[5])=="special" else "attack"
+		var defense_key:String="sp_defense" if str(info[5])=="special" else "defense"
+		raw*=enemy_stat_effect(e,attack_key)/maxf(.001,player_stat_effect(defense_key))
+		if str(e.get("major_status",""))=="burn":raw*=.8
+		if (shield_turns>0 and shield_kind=="protect") or charge_phase in ["underground","airborne","vanish"]:raw=0.0;utility=0.0
 	var score:float=raw+utility
 	if bool(skill[1]):score*=.70
 	if enemy_move_pp(e,slot)<=2:score*=.85
@@ -3631,6 +3683,7 @@ func enemy_turn_actions():
 				if hp==0:apply_fatal_grudge(enemies[i]);finished=true;success=false;return
 			continue
 		if not boon_active("decoy") and decoy_action(i):continue
+		enemy_observe_movement(enemies[i],player)
 		if not enemy_has_party_area_attack(enemies[i]) and enemy_target_ally(i):continue
 		var gap:=distance(p,player)
 		var pursuit_target:Vector2i=enemy_pursuit_target(enemies[i],player)
@@ -3772,6 +3825,8 @@ func enemy_turn_actions():
 			if tactical==p and not charged and pursuit_target==player:
 				tactical=enemy_control_setup_step(enemies[i],player)
 			if tactical==p and not charged and pursuit_target==player:
+				tactical=enemy_adaptive_intercept_step(enemies[i],player)
+			if tactical==p and not charged and pursuit_target==player:
 				tactical=enemy_exit_block_step(enemies[i],player)
 			if tactical==p and ready and not charged and not in_range and pursuit_target==player:
 				tactical=enemy_tactical_step(enemies[i],pursuit_target,pattern,int(skill[0]))
@@ -3817,6 +3872,7 @@ func move(p:Vector2i)->bool:
 		message="Rooted · cannot walk";enemy_turn();return true
 	if i>=0:strike(i)
 	else:
+		adaptive_walk_from=player;adaptive_walk_to=p;adaptive_walk_turn=turns
 		player=p;pickup()
 		trigger_floor_trap(player)
 	if i>=0:enemy_turn()
