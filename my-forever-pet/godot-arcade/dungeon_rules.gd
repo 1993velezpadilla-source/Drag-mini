@@ -2232,7 +2232,7 @@ func enemy_recovery_attack_tile(e:Dictionary,q:Vector2i,target:Vector2i,memo:Dic
 # Hold states are short-lived evidence, not persistent orders. Expire them
 # before dispatch even if the actor is sleeping or chooses another action.
 func enemy_expire_frontline_holds(e:Dictionary)->void:
-	for key in ["reserve_hold","congestion_hold"]:
+	for key in ["reserve_hold","congestion_hold","lane_hold"]:
 		var age:int=turns-int(e.get(key+"_turn",-9999))
 		if age<0 or age>2:
 			e.erase(key+"_turn");e.erase(key+"_target")
@@ -2302,6 +2302,30 @@ func enemy_trace_recovery(e:Dictionary,stage:String,step:Vector2i)->void:
 			posts.append({"tile":q,"enemy":int(enemies[index].get("uid",-1)) if index>=0 else -1,"ally":ally_at(q),"safe":enemy_ambush_safe_tile(q),"reserved":reserved.has(q),"lane_blocked":enemy_recovery_lane_blocked(peers,q,player,memo),"sees_target":enemy_line_of_sight(q,player),"attack_post":enemy_strategy_attack_tile(e,q,player)})
 	ai_recovery_trace={"turn":turns,"uid":ai_recovery_trace_uid,"stage":stage,"origin":origin,"player":player,"step":step,"stall_count":int(e.get("stall_count",0)),"stall_turn":int(e.get("stall_turn",-1)),"open_frontline":enemy_open_frontline_detour(e,player),"protect":shield_turns>0 and shield_kind=="protect","posts":posts}
 
+# A free tile is not a useful melee opening if occupying it interrupts a
+# currently usable friendly firing lane. Require actual visible evidence.
+func enemy_firing_lane_frontline(e:Dictionary,target:Vector2i)->bool:
+	if not enemy_opportunity_eligible(e) or not enemy_live_contact(e,target) or int(e.get("stuck_turns",0))>0 or distance(e.pos,target)<=1:return false
+	if shield_turns>0 and shield_kind=="protect":return false
+	if enemy_strategy_attack_tile(e,e.pos,target):return false
+	var peers:Array[Dictionary]=[]
+	for other in enemies:
+		if enemy_squad_partner(e,other):peers.append(other)
+	var memo:Dictionary={}
+	var occupied:int=0
+	var lanes:int=0
+	for d in DIR:
+		var q:Vector2i=target+d
+		if not cells.has(q):continue
+		if not enemy_line_of_sight(e.pos,q):return false
+		var index:int=enemy_at(q)
+		if index>=0 and int(enemies[index].get("hp",0))>0:
+			occupied+=1
+		elif enemy_ambush_safe_tile(q) and enemy_recovery_lane_blocked(peers,q,target,memo):
+			lanes+=1
+		else:return false
+	return occupied>=2 and lanes>0
+
 func enemy_open_frontline_detour(e:Dictionary,target:Vector2i)->bool:
 	if not enemy_opportunity_eligible(e) or not enemy_live_contact(e,target) or int(e.get("stuck_turns",0))>0:return false
 	if shield_turns>0 and shield_kind=="protect":return false
@@ -2327,12 +2351,15 @@ func enemy_unstall_step(e:Dictionary,target:Vector2i)->Vector2i:
 	var old_congestion_target:Vector2i=e.get("congestion_hold_target",target)
 	var reserve_reentry:bool=distance(old_reserve_target,target)<=2 and turns-int(e.get("reserve_hold_turn",-9999)) in [1,2] and not enemy_encircled_frontline(e,target)
 	var congestion_reentry:bool=distance(old_congestion_target,target)<=2 and turns-int(e.get("congestion_hold_turn",-9999)) in [1,2] and not enemy_occupied_frontline(e,target)
+	var lane_reentry:bool=false
+	if turns-int(e.get("lane_hold_turn",-9999)) in [1,2] and e.get("lane_hold_target",Vector2i.ZERO)==target:
+		lane_reentry=not enemy_firing_lane_frontline(e,target) and enemy_open_frontline_detour(e,target)
 	# A witnessed casualty can open a new route before the normal stall
 	# threshold. Only retry once per recent loss after a committed detour.
 	var loss_turn:int=int(e.get("squad_loss_turn",-9999))
 	var loss_reentry:bool=turns-loss_turn in [0,1] and int(e.get("unstall_turn",-9999))<loss_turn and int(e.get("stall_count",0))>=1 and e.get("stall_target",Vector2i.ZERO)==target and int(e.get("stall_turn",-9999))==turns-1 and not enemy_occupied_frontline(e,target)
 	var early_detour:bool=false
-	if not reserve_reentry and not congestion_reentry and not loss_reentry:
+	if not reserve_reentry and not congestion_reentry and not loss_reentry and not lane_reentry:
 		if int(e.get("stall_count",0))<1 or e.get("stall_target",Vector2i.ZERO)!=target or int(e.get("stall_turn",-9999))!=turns-1:return origin
 		if turns<=int(e.get("unstall_turn",-9999))+3:return origin
 		if int(e.get("stall_count",0))<2:
@@ -5632,6 +5659,7 @@ func enemy_clear_acted_frontline_holds()->void:
 		if not acted.has(int(e.get("uid",-2))):continue
 		e.erase("reserve_hold_turn");e.erase("reserve_hold_target")
 		e.erase("congestion_hold_turn");e.erase("congestion_hold_target")
+		e.erase("lane_hold_turn");e.erase("lane_hold_target")
 
 func enemy_turn_actions():
 	if ai_recovery_trace_uid>=0:ai_recovery_trace.clear()
@@ -5653,7 +5681,7 @@ func enemy_turn_actions_impl():
 		ai_begin_actor_cache()
 		if int(enemies[i].hp)<=0:continue
 		var p:Vector2i=enemies[i].pos
-		if enemies[i].has("reserve_hold_turn") or enemies[i].has("congestion_hold_turn"):enemy_expire_frontline_holds(enemies[i])
+		if enemies[i].has("reserve_hold_turn") or enemies[i].has("congestion_hold_turn") or enemies[i].has("lane_hold_turn"):enemy_expire_frontline_holds(enemies[i])
 		if int(enemies[i].get("slow_turns",0))>0 and int(enemies[i].slow_turns)%2==0:
 			enemy_tick_all_cooldowns(enemies[i]);continue
 		var major:String=str(enemies[i].get("major_status",""))
@@ -5973,10 +6001,16 @@ func enemy_turn_actions_impl():
 						enemies[i]["reserve_hold_turn"]=turns
 						enemies[i]["reserve_hold_target"]=player
 						enemies[i].erase("congestion_hold_turn");enemies[i].erase("congestion_hold_target")
+						enemies[i].erase("lane_hold_turn");enemies[i].erase("lane_hold_target")
 					elif int(enemies[i].get("stall_turn",-1))==turns and enemy_occupied_frontline(enemies[i],player):
 						enemies[i]["congestion_hold_turn"]=turns
 						enemies[i]["congestion_hold_target"]=player
 						enemies[i].erase("reserve_hold_turn");enemies[i].erase("reserve_hold_target")
+						enemies[i].erase("lane_hold_turn");enemies[i].erase("lane_hold_target")
+					elif int(enemies[i].get("stall_turn",-1))==turns and enemy_firing_lane_frontline(enemies[i],player):
+						enemies[i]["lane_hold_turn"]=turns;enemies[i]["lane_hold_target"]=player
+						enemies[i].erase("reserve_hold_turn");enemies[i].erase("reserve_hold_target")
+						enemies[i].erase("congestion_hold_turn");enemies[i].erase("congestion_hold_target")
 			if not path.is_empty() and not charged and pursuit_target==player and int(enemies[i].get("crowd_turn",-9999))<turns-1:
 				var strategy_step:Vector2i=enemy_strategy_alternative(enemies[i],path[0],player)
 				if strategy_step!=path[0]:
@@ -5997,6 +6031,7 @@ func enemy_turn_actions_impl():
 					if not charged:enemy_strategy_record_step(enemies[i],p,destination,pursuit_target)
 					enemies[i].erase("reserve_hold_turn");enemies[i].erase("reserve_hold_target")
 					enemies[i].erase("congestion_hold_turn");enemies[i].erase("congestion_hold_target")
+					enemies[i].erase("lane_hold_turn");enemies[i].erase("lane_hold_target")
 					enemies[i].pos=destination
 					enemy_actions.append({"uid":enemies[i].get("uid",i),"phase":"move","from":p,"to":destination,"gait":enemies[i].get("gait","walk")})
 		elif not charged and kind!=3 and not boon_active("decoy"):
