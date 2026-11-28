@@ -425,3 +425,9 @@ Independent biome/terrain and room-event profiles, optional treasure branches, M
 - Visible target exposure contributes bounded priority bonuses based on zero, one or at least two visible living supporting party members within two tiles. Personality-enabled actors weight tactical utility by estimated hit probability. Defeated and hidden targets are excluded from exposure scoring.
 - Learned party attack selection now includes actual whiffer accuracy penalty, expected capped damage, knockout value, individual attack observations and local squad focus. Existing attack execution, PP rules, turn budget and status effects remain unchanged. No extra damage or guaranteed hit is granted.
 - Implementation 203c25b7e53d10f55afe68d026b1d127e94dcaf8; nine authored regression checks 4afb089a37dda351cd904c1b2684173fd72b2485. Exposure weights provisional. CI and Android execution unverified. Player attack baseline and legacy basic pursuit retained; not a complete unified opportunity planner.
+
+
+## V26.99 — Intelligent Enemy Combat Audit
+- Fix dispatch precedence: credible visible immediate player knockout evaluated before optional ally targeting/pursuit. Hidden or defeated player rejected by finisher evaluation; existing charged attacks preserved.
+- Target opportunity helper rejects unseen or out-of-awareness allies directly. Hidden/decoy player cannot be counted as known supporting party member or exposed player target. Integer dot product in ambush claim scoring expressed explicitly for Godot compatibility.
+- Implementation 0f433258b0326c2dc0ad781ed0c4c131a24f92d0; seven authored regression checks e3be10d02d02b9823a1c342481ad66a8bae26fd0, including actual dispatcher priority and PP assertion. Static function-name scan of dungeon_rules.gd and procedural_stress.gd found no duplicate function names. CI/Android execution unverified; not an exhaustive integration or performance audit.
