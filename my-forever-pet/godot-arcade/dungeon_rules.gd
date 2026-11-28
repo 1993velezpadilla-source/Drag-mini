@@ -782,6 +782,7 @@ func ai_begin_turn_cache()->void:
 	ai_end_turn_cache()
 	ai_cache_active=ai_cache_enabled
 	ai_cache_hits=0;ai_cache_misses=0
+	ai_path_nodes=0;ai_path_fast_routes=0;ai_path_reused_searches=0
 
 func ai_end_actor_cache()->void:
 	ai_actor_cache_active=false
@@ -2585,22 +2586,88 @@ func navigation_occupancy()->Dictionary:
 		ai_occupancy_cache=blocked;ai_occupancy_ready=true;ai_cache_misses+=1
 	return blocked
 
+# A straight cardinal route is the unique shortest route if every tile is
+# legal. Otherwise use the same FIFO neighbor order as the reference BFS.
+var ai_path_nodes:int=0
+var ai_path_fast_routes:int=0
+var ai_path_reused_searches:int=0
+
+func ai_straight_route(a:Vector2i,b:Vector2i,blocked:Dictionary)->Array[Vector2i]:
+	var result:Array[Vector2i]=[]
+	if a.x!=b.x and a.y!=b.y:return result
+	var d:Vector2i=Vector2i(signi(b.x-a.x),signi(b.y-a.y))
+	var gap:int=distance(a,b)
+	for i in range(1,gap+1):
+		var q:Vector2i=a+d*i
+		if not cells.has(q) or (q!=b and blocked.has(q)):
+			result.clear();return result
+		result.append(q)
+	return result
+
+func ai_reconstruct_route(previous:Dictionary,a:Vector2i,b:Vector2i)->Array[Vector2i]:
+	var result:Array[Vector2i]=[]
+	var p:Vector2i=b
+	while p!=a:
+		result.append(p);p=previous[p]
+	result.reverse()
+	return result
+
+# For pursuit of the player, a failed direct search already contains every
+# reachable tile in exactly the order used by the old fallback search.
+func ai_combined_player_route(origin:Vector2i,target:Vector2i)->Array[Vector2i]:
+	var result:Array[Vector2i]=[]
+	if origin==target or not cells.has(origin) or not cells.has(target):return result
+	var blocked:Dictionary=navigation_occupancy()
+	var straight:Array[Vector2i]=ai_straight_route(origin,target,blocked)
+	if not straight.is_empty():
+		ai_path_fast_routes+=1;return straight
+	var previous:Dictionary={origin:origin}
+	var queue:Array[Vector2i]=[origin]
+	var cursor:int=0
+	while cursor<queue.size():
+		var p:Vector2i=queue[cursor];cursor+=1
+		ai_path_nodes+=1
+		for d in DIR:
+			var q:Vector2i=p+d
+			if previous.has(q) or not cells.has(q) or (q!=target and blocked.has(q)):continue
+			previous[q]=p
+			if q==target:return ai_reconstruct_route(previous,origin,target)
+			queue.append(q)
+	var distances:Dictionary=ai_terrain_distances(target)
+	if not distances.has(origin):return result
+	ai_path_reused_searches+=1
+	var best:Vector2i=origin
+	var best_distance:int=int(distances[origin])
+	for p in queue:
+		var remaining:int=int(distances.get(p,2147483647))
+		if remaining<best_distance:
+			best=p;best_distance=remaining
+			if remaining==1:break
+	return ai_reconstruct_route(previous,origin,best)
+
 func route(a:Vector2i,b:Vector2i,avoid_enemies:bool=false,diagonal:bool=false)->Array[Vector2i]:
 	var result:Array[Vector2i]=[]
 	if not cells.has(a) or not cells.has(b) or a==b:return result
 	var blocked:Dictionary=navigation_occupancy() if avoid_enemies else {}
+	if ai_cache_active and not diagonal:
+		var straight:Array[Vector2i]=ai_straight_route(a,b,blocked)
+		if not straight.is_empty():
+			ai_path_fast_routes+=1;return straight
 	var queue:Array[Vector2i]=[a]
 	var previous:Dictionary={}
 	previous[a]=a
 	var cursor=0
 	while cursor<queue.size():
 		var p=queue[cursor];cursor+=1
+		ai_path_nodes+=1
 		if p==b:break
 		for d in DIR8 if diagonal else DIR:
 			var q:Vector2i=p+d
 			if not step_clear(p,d) or previous.has(q):continue
 			if avoid_enemies and q!=b and blocked.has(q):continue
-			previous[q]=p;queue.append(q)
+			previous[q]=p
+			if ai_cache_active and q==b:return ai_reconstruct_route(previous,a,b)
+			queue.append(q)
 	if not previous.has(b):return result
 	var p=b
 	while p!=a:
@@ -2628,6 +2695,7 @@ func ai_terrain_distances(target:Vector2i)->Dictionary:
 	return distances
 
 func enemy_approach_route(origin:Vector2i,target:Vector2i)->Array[Vector2i]:
+	if ai_cache_active and target==player:return ai_combined_player_route(origin,target)
 	var direct:Array[Vector2i]=route(origin,target,true)
 	if not direct.is_empty() or origin==target:return direct
 	if not cells.has(origin) or not cells.has(target):return direct
@@ -2642,6 +2710,7 @@ func enemy_approach_route(origin:Vector2i,target:Vector2i)->Array[Vector2i]:
 	cursor=0
 	while cursor<queue.size():
 		var p:Vector2i=queue[cursor];cursor+=1
+		ai_path_nodes+=1
 		var remaining:int=int(distances.get(p,2147483647))
 		if remaining<best_distance:
 			best_distance=remaining;best=p
