@@ -2227,8 +2227,12 @@ func enemy_unstall_step(e:Dictionary,target:Vector2i)->Vector2i:
 	if shield_turns>0 and shield_kind=="protect":return origin
 	if distance(origin,target)<=1 or enemy_strategy_attack_tile(e,origin,target):return origin
 	# A reserve immediately retries when a previously closed frontline opens.
-	var reserve_reentry:bool=e.get("reserve_hold_target",Vector2i.ZERO)==target and turns-int(e.get("reserve_hold_turn",-9999)) in [1,2] and not enemy_encircled_frontline(e,target)
-	var congestion_reentry:bool=e.get("congestion_hold_target",Vector2i.ZERO)==target and turns-int(e.get("congestion_hold_turn",-9999)) in [1,2] and not enemy_occupied_frontline(e,target)
+	# A recently observed escape of one or two tiles also invalidates the old
+	# formation. Live contact above is mandatory; this does not reveal hidden movement.
+	var old_reserve_target:Vector2i=e.get("reserve_hold_target",target)
+	var old_congestion_target:Vector2i=e.get("congestion_hold_target",target)
+	var reserve_reentry:bool=distance(old_reserve_target,target)<=2 and turns-int(e.get("reserve_hold_turn",-9999)) in [1,2] and not enemy_encircled_frontline(e,target)
+	var congestion_reentry:bool=distance(old_congestion_target,target)<=2 and turns-int(e.get("congestion_hold_turn",-9999)) in [1,2] and not enemy_occupied_frontline(e,target)
 	if not reserve_reentry and not congestion_reentry:
 		if int(e.get("stall_count",0))<2 or e.get("stall_target",Vector2i.ZERO)!=target or int(e.get("stall_turn",-9999))!=turns-1:return origin
 		if turns<=int(e.get("unstall_turn",-9999))+3:return origin
