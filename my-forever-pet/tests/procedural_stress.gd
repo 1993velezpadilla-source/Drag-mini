@@ -2182,7 +2182,31 @@ func run_checks()->void:
 	checks+=1
 	if ring_actor.has("reserve_hold_turn") or ring_actor.pp_primary!=0:failures.append("reserve live dispatcher clears hold without spending PP")
 	checks+=1
-	print("KINDRIA_ANTI_STALL checks=18")
+	# A wall-assisted frontline has fewer walkable cardinal entrances.
+	var wall_ring=Rules.new()
+	for y in range(1,8):
+		for x in range(1,8):wall_ring.cells[Vector2i(x,y)]=true
+	wall_ring.player=Vector2i(1,4);wall_ring.stairs=Vector2i(7,7);wall_ring.relic=Vector2i(7,6);wall_ring.turns=22
+	var wall_reserve:Dictionary={"uid":340,"pos":Vector2i(3,4),"hp":30,"kind":0,"species":"rootgnawer","ecology_role":"hunter","ecology_search_enabled":true,"personality_enabled":true,"pp_primary":0,"pp_secondary":0}
+	wall_ring.enemies.append(wall_reserve)
+	for d in [Vector2i.RIGHT,Vector2i.UP,Vector2i.DOWN]:
+		wall_ring.enemies.append({"uid":340+wall_ring.enemies.size(),"pos":wall_ring.player+d,"hp":30,"kind":0,"species":"rootgnawer","ecology_search_enabled":true,"pp_primary":0,"pp_secondary":0})
+	if not wall_ring.enemy_encircled_frontline(wall_reserve,wall_ring.player):failures.append("reserve wall assisted frontline")
+	checks+=1
+	wall_ring.enemies.remove_at(1)
+	wall_ring.traps[Vector2i(2,4)]="snare"
+	if wall_ring.enemy_encircled_frontline(wall_reserve,wall_ring.player):failures.append("reserve trap not a wall")
+	checks+=1
+	wall_ring.traps.clear()
+	wall_reserve["reserve_hold_turn"]=21;wall_reserve["reserve_hold_target"]=wall_ring.player
+	if wall_ring.enemy_unstall_step(wall_reserve,wall_ring.player)!=Vector2i(2,4):failures.append("reserve wall frontline opening")
+	checks+=1
+	wall_ring.enemies.remove_at(2)
+	wall_ring.cells.erase(Vector2i(1,5))
+	wall_ring.cells.erase(Vector2i(2,4))
+	if wall_ring.enemy_encircled_frontline(wall_reserve,wall_ring.player):failures.append("reserve wall alone insufficient")
+	checks+=1
+	print("KINDRIA_ANTI_STALL checks=22")
 	# A direct witness may report a tile, but a listener cannot relay it.
 	var comm=Rules.new()
 	for x in range(1,4):comm.cells[Vector2i(x,3)]=true

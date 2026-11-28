@@ -2179,11 +2179,16 @@ func enemy_strategy_attack_tile(e:Dictionary,q:Vector2i,target:Vector2i)->bool:
 func enemy_encircled_frontline(e:Dictionary,target:Vector2i)->bool:
 	if not enemy_opportunity_eligible(e) or not enemy_live_contact(e,target) or distance(e.pos,target)<=1:return false
 	if enemy_strategy_attack_tile(e,e.pos,target):return false
+	# Walls close cardinal approach lanes too, but a wall alone is not a squad.
+	# Require at least two active peers and never treat traps as solid walls.
+	var frontline_count:int=0
 	for d in DIR:
 		var q:Vector2i=target+d
+		if not cells.has(q):continue
 		var index:int=enemy_at(q)
 		if index<0 or not enemy_squad_partner(e,enemies[index]):return false
-	return true
+		frontline_count+=1
+	return frontline_count>=2
 
 func enemy_unstall_step(e:Dictionary,target:Vector2i)->Vector2i:
 	var origin:Vector2i=e.pos
