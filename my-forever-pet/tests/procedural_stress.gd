@@ -908,6 +908,65 @@ func run_checks()->void:
 	if not party_only.enemy_party_attack_plan(party_actor).is_empty():failures.append("priority preserve telegraphed attack")
 	checks+=1
 	print("KINDRIA_TARGET_PRIORITY elemental=1 selection=2 gates=3 execution=2 metadata=1")
+	# Local coordination uses observed successful hits and legal escape interception.
+	var squad_fixture=Rules.new()
+	for y in range(1,9):
+		for x in range(1,9):squad_fixture.cells[Vector2i(x,y)]=true
+	squad_fixture.player=Vector2i(4,4)
+	squad_fixture.stairs=Vector2i(8,8)
+	squad_fixture.relic=Vector2i(8,7)
+	var squad_origin:=Vector2i(5,6)
+	var squad_actor:Dictionary={"uid":0,"pos":squad_origin,"hp":30,"kind":0,"species":"rootgnawer","ecology_role":"hunter","ecology_search_enabled":true,"pp_primary":0,"pp_secondary":0}
+	var squad_partner:Dictionary={"uid":1,"pos":Vector2i(3,4),"hp":30,"kind":0,"species":"bramble_pup","ecology_role":"hunter","ecology_search_enabled":true,"pp_primary":12}
+	squad_fixture.enemies.append(squad_actor);squad_fixture.enemies.append(squad_partner)
+	squad_fixture.turns=10
+	squad_fixture.enemy_record_squad_focus(squad_partner,-1,0)
+	if squad_fixture.enemy_squad_focus_bonus(squad_actor,-1,squad_fixture.player)!=0.0:failures.append("squad miss does not signal")
+	checks+=1
+	squad_fixture.enemy_record_squad_focus(squad_partner,-1,3)
+	if squad_fixture.enemy_squad_focus_bonus(squad_actor,-1,squad_fixture.player)<=0.0:failures.append("squad observed focus")
+	checks+=1
+	squad_fixture.turns=13
+	if squad_fixture.enemy_squad_focus_bonus(squad_actor,-1,squad_fixture.player)!=0.0:failures.append("squad focus expiry")
+	squad_fixture.turns=10
+	checks+=1
+	squad_fixture.allies.append({"uid":1000,"pos":Vector2i(6,4),"hp":20,"max_hp":20,"species":"reef_pup"})
+	squad_fixture.enemy_record_squad_focus(squad_partner,1000,2)
+	if squad_fixture.enemy_squad_focus_bonus(squad_actor,1000,Vector2i(6,4))<=0.0 or squad_fixture.enemy_squad_focus_bonus(squad_actor,-1,squad_fixture.player)!=0.0:failures.append("squad target identity")
+	checks+=1
+	squad_fixture.allies[0].hp=0
+	if squad_fixture.enemy_squad_focus_bonus(squad_actor,1000,Vector2i(6,4))!=0.0:failures.append("squad no focus on defeated target")
+	squad_fixture.allies.clear()
+	checks+=1
+	squad_fixture.enemy_record_squad_focus(squad_partner,-1,3)
+	squad_partner["sleep_turns"]=2
+	if squad_fixture.enemy_squad_focus_bonus(squad_actor,-1,squad_fixture.player)!=0.0 or squad_fixture.enemy_squad_intercept_step(squad_actor,squad_fixture.player)!=squad_origin:failures.append("squad incapacitated partner")
+	squad_partner.erase("sleep_turns")
+	checks+=1
+	var squad_step:Vector2i=squad_fixture.enemy_squad_intercept_step(squad_actor,squad_fixture.player)
+	if squad_step==squad_origin or squad_fixture.distance(squad_origin,squad_step)!=1 or squad_actor.pos!=squad_origin or squad_actor.pp_primary!=0:failures.append("squad interception purity and bounded step")
+	checks+=1
+	squad_fixture.traps[squad_step]="snare"
+	if squad_fixture.enemy_squad_intercept_step(squad_actor,squad_fixture.player)==squad_step:failures.append("squad avoid trapped route")
+	squad_fixture.traps.clear()
+	checks+=1
+	squad_actor["stuck_turns"]=2
+	if squad_fixture.enemy_squad_intercept_step(squad_actor,squad_fixture.player)!=squad_origin:failures.append("squad rooted actor")
+	squad_actor.erase("stuck_turns")
+	checks+=1
+	squad_fixture.cells.erase(Vector2i(4,5))
+	if squad_fixture.enemy_squad_focus_bonus(squad_actor,-1,squad_fixture.player)!=0.0 or squad_fixture.enemy_squad_intercept_step(squad_actor,squad_fixture.player)!=squad_origin:failures.append("squad no hidden player coordination")
+	squad_fixture.cells[Vector2i(4,5)]=true
+	checks+=1
+	squad_fixture.enemy_turn_actions()
+	var squad_actions:int=0
+	for action in squad_fixture.enemy_actions:
+		if int(action.get("uid",-1))==0:
+			squad_actions+=1
+			if action.get("phase","")!="move":failures.append("squad intercept no extra attack")
+	if squad_actions!=1 or squad_actor.pos==squad_origin or squad_fixture.distance(squad_actor.pos,squad_origin)!=1:failures.append("squad actual interception turn")
+	checks+=1
+	print("KINDRIA_SQUAD_TACTICS focus=5 gates=3 movement=3")
 	# Actual disk I/O, legacy migration, corruption recovery, and resumed writes.
 	var test_path:String="user://kindria_procedural_test_"+str(OS.get_process_id())+".cfg"
 	var exact:Array[String]=["legacy exact".sha256_text()]
