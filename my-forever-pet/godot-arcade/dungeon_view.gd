@@ -94,7 +94,7 @@ var utility_drag_suppress:bool=false
 var strike_pending:bool=false
 var strike_buffer_direction:Vector2i=Vector2i.ZERO
 var strike_buffer_floor:int=-1
-var strike_on_panel:bool=true
+var strike_on_panel:bool=false
 var movement_joystick:bool=false
 var strike_opacity:float=.48
 var combat_haptics:bool=false
@@ -432,10 +432,10 @@ var astral_sigil_cells:Array[Vector2i]=[]
 var biome_light_materials:Array[ShaderMaterial]=[]
 var exterior_motion_materials:Dictionary={}
 var exterior_motion_batches=0
-func setup(r:int,id:int,step:int,finale:bool,patrol:bool,seed_id:int,companion:int,training:Dictionary={}):
+func setup(r:int,id:int,step:int,finale:bool,patrol:bool,seed_id:int,companion:int,training:Dictionary={},intro_woods:bool=false):
 	fx_diag_enabled="--kindria-diagnostics" in OS.get_cmdline_user_args() or FileAccess.file_exists("user://kindria-diagnostics.enabled")
 	region=r;companion_id=0
-	run.setup(r,id,step,finale,patrol,seed_id,0)
+	run.setup(r,id,step,finale,patrol,seed_id,0,intro_woods)
 	if not training.is_empty():run.configure_training(training)
 	hp_previous=run.hp
 	palette=[ [Color("#37574b"),Color("#58775a"),Color("#17392f"),Color("#f4c77b")], [Color("#244c64"),Color("#39748a"),Color("#123449"),Color("#7ce8e4")], [Color("#414264"),Color("#62678b"),Color("#282c50"),Color("#dbb8ff")] ][r]
@@ -929,6 +929,7 @@ func build_ui():
 	aim_button.gui_input.connect(utility_drag_input.bind("aim"))
 	heal_button=button(utility,"Berry",func():strike_pending=false;path.clear();run.heal();sync())
 	var bag:=button(utility,"Bag",toggle_bag)
+	heal_button.icon=action_icon("Berry");heal_button.expand_icon=true;heal_button.add_theme_constant_override("icon_max_width",16)
 	bag.icon=action_icon("Bag");bag.expand_icon=true;bag.add_theme_constant_override("icon_max_width",16)
 	aim_button.icon=action_icon("Aim");aim_button.expand_icon=true;aim_button.add_theme_constant_override("icon_max_width",14)
 	panel_strike=button(utility,"Strike",request_strike)
@@ -1008,7 +1009,7 @@ func strike_available()->bool:
 func load_control_preferences()->void:
 	var prefs:=ConfigFile.new()
 	if prefs.load("user://kindria_hud.cfg")!=OK:return
-	strike_on_panel=bool(prefs.get_value("combat","strike_on_panel",true))
+	strike_on_panel=bool(prefs.get_value("combat","strike_on_panel",false))
 	movement_joystick=bool(prefs.get_value("combat","movement_joystick",false))
 	field_aim_enabled=bool(prefs.get_value("combat","field_aim",false))
 	combat_haptics=bool(prefs.get_value("combat","haptics",false))
@@ -20094,7 +20095,8 @@ func emit_result():
 	if run.dev_sandbox:canceled.emit();return
 	ended.emit(run.success,run.floor_count if run.success else run.floor_number-1,maxf(2.0,elapsed))
 func update_hud():
-	title_text.text="%s · B%d / ∞"%[Data.REGIONS[region],run.floor_number] if run.dev_sandbox else "%s  ·  B%d/%d"%[Data.REGIONS[region],run.floor_number,run.floor_count]
+	var dungeon_title:String="Enchanted Woods" if run.starter_woods else Data.REGIONS[region]
+	title_text.text="%s · B%d / ∞"%[dungeon_title,run.floor_number] if run.dev_sandbox else "%s  ·  B%d/%d"%[dungeon_title,run.floor_number,run.floor_count]
 	hp_bar.value=run.hp
 	hp_text.text="HP ∞ · DEV" if run.dev_sandbox else "HP %d/%d"%[run.hp,run.max_hp]
 	floor_label.text="%d/%d rooms"%[run.explored_rooms.size(),run.rooms.size()]
