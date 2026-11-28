@@ -51,6 +51,8 @@ func run_checks()->void:
 	var maze_total:int=0
 	var networks_seen:Dictionary={}
 	var network_features:Dictionary={}
+	var bend_total:int=0
+	var canonical_seen:Dictionary={}
 	for seed_id in range(768):
 		var topology_run:=preload("res://dungeon_rules.gd").new()
 		topology_run.setup(seed_id%3,0,0,false,false,seed_id+9301,0,seed_id%6==0)
@@ -63,17 +65,25 @@ func run_checks()->void:
 		interior_seen[topology_run.interior_profile]=true
 		structures_seen[topology_run.structure_profile]=true
 		networks_seen[topology_run.network_profile]=true
+		canonical_seen[topology_run.shape_signature]=true
 		var network_valid:bool=true
 		for feature in topology_run.network_paths:
 			var kind:int=feature.kind
 			network_features[kind]=int(network_features.get(kind,0))+1
 			var previous:Vector2i=feature.entry
+			var previous_direction:=Vector2i.ZERO
+			var bends:int=0
 			if not topology_run.cells.has(previous):network_valid=false
 			for tile in feature.tiles:
 				if not topology_run.cells.has(tile) or topology_run.distance(previous,tile)!=1:network_valid=false
 				for room in topology_run.rooms:
 					if room.has_point(tile):network_valid=false
-				previous=tile
+				var direction:Vector2i=tile-previous
+				if previous_direction!=Vector2i.ZERO and direction!=previous_direction:bends+=1
+				previous_direction=direction;previous=tile
+			if bends!=int(feature.bends) or bends>1:network_valid=false
+			bend_total+=bends
+			if kind==2 and int(feature.previous_length)<=feature.tiles.size()+3:network_valid=false
 			if kind==2 and (not topology_run.cells.has(feature.exit) or topology_run.distance(previous,feature.exit)!=1):network_valid=false
 		if not network_valid or topology_run.network_paths.size()>3:failures.append("V26.32 network geometry")
 		var chamber_valid:bool=topology_run.side_chambers.size()==topology_run.side_rewards.size() and topology_run.side_chambers.size()<=1
@@ -182,6 +192,31 @@ func run_checks()->void:
 	if network_features.size()!=3:failures.append("V26.32 realized feature coverage")
 	print("V26.32 networks: ",networks_seen.size()," realized features: ",network_features)
 	checks+=2
+	if bend_total==0:failures.append("V26.33 curved corridor coverage")
+	if canonical_seen.size()<730:failures.append("V26.33 canonical diversity")
+	checks+=2
+	var shape_a:=preload("res://dungeon_rules.gd").new()
+	var shape_b:=preload("res://dungeon_rules.gd").new()
+	var shape_c:=preload("res://dungeon_rules.gd").new()
+	var sample:Array[Vector2i]=[Vector2i(1,1),Vector2i(2,1),Vector2i(3,1),Vector2i(3,2),Vector2i(3,3),Vector2i(4,3)]
+	for q in sample:
+		shape_a.cells[q]=true
+		shape_b.cells[Vector2i(-q.y,-q.x)+Vector2i(17,23)]=true
+		shape_c.cells[q]=true
+	shape_c.cells[Vector2i(4,4)]=true
+	if shape_a.canonical_shape_signature()!=shape_b.canonical_shape_signature():failures.append("V26.33 reflection rotation translation invariant")
+	if shape_a.canonical_shape_signature()==shape_c.canonical_shape_signature():failures.append("V26.33 distinct geometry")
+	shape_a.remember_shape(shape_b.canonical_shape_signature())
+	shape_a.remember_shape(shape_b.canonical_shape_signature())
+	if shape_a.recent_shapes.size()!=1:failures.append("V26.33 duplicate history entry")
+	var history_run:=preload("res://dungeon_rules.gd").new()
+	history_run.setup(0,0,0,false,false,711,0,true)
+	var prior_shape:String=history_run.shape_signature
+	history_run.recent_layouts.clear()
+	history_run.generate_floor()
+	if history_run.shape_history_hits<1 or history_run.shape_signature==prior_shape:failures.append("V26.33 canonical retry")
+	checks+=4
+	print("V26.33 canonical geometries: ",canonical_seen.size()," curved paths: ",bend_total)
 	# V26.25: independent random stairs, no key gate, and geometry history.
 	var layout_a:=preload("res://dungeon_rules.gd").new()
 	var layout_b:=preload("res://dungeon_rules.gd").new()
