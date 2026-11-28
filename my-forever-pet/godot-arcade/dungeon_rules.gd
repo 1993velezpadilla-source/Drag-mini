@@ -1031,6 +1031,32 @@ func starter_objective()->String:
 func starter_room_count()->int:
 	return 3 if floor_number==1 else 4
 
+# Original implementation of documented room-interior spawn eligibility.
+func room_spawn_tiles()->Array[Vector2i]:
+	var candidates:Array[Vector2i]=[]
+	for room in rooms:
+		for y in range(room.position.y,room.end.y):
+			for x in range(room.position.x,room.end.x):
+				var q:=Vector2i(x,y)
+				if not cells.has(q):continue
+				var junction:bool=false
+				for d in DIR:
+					if cells.has(q+d) and not room.has_point(q+d):
+						junction=true
+						break
+				if not junction:candidates.append(q)
+	return candidates
+
+func layout_component(links:Dictionary)->Array[int]:
+	var reached:Array[int]=[0]
+	var cursor:int=0
+	while cursor<reached.size():
+		var i:int=reached[cursor];cursor+=1
+		for j in range(rooms.size()):
+			if j in reached or i==j:continue
+			if links.has(Vector2i(mini(i,j),maxi(i,j))):reached.append(j)
+	return reached
+
 func build_layout():
 	# Independent implementation: variable sector occupancy, random room sizes,
 	# connected spanning tree, extra loops and imperfect corner cuts.
@@ -1060,8 +1086,29 @@ func build_layout():
 				var corner_y=y==room.position.y or y==room.end.y-1
 				if cut>0 and corner_x and corner_y and rng.randi_range(0,3)<cut:continue
 				cells[Vector2i(x,y)]=true
-	var reached:Array[int]=[0]
+	# Local grid walk with directional persistence, then repair connectivity.
+	# This creates loops naturally instead of imposing a tree on every floor.
 	var links:Dictionary={}
+	var room_slots:Dictionary={}
+	for i in range(room_count):room_slots[slots[i]]=i
+	var cursor_slot:Vector2i=slots[rng.randi_range(0,room_count-1)]
+	var direction:int=rng.randi_range(0,3)
+	var connectivity:int=[5,8,10][clampi(floor_number-1,0,2)] if starter_woods else 15
+	for n in range(connectivity):
+		if rng.randi_range(0,1)==0:direction=rng.randi_range(0,3)
+		for turn in range(4):
+			var candidate:Vector2i=cursor_slot+DIR[direction]
+			if room_slots.has(candidate):
+				var i:int=room_slots[cursor_slot]
+				var j:int=room_slots[candidate]
+				var key:=Vector2i(mini(i,j),maxi(i,j))
+				if not links.has(key):
+					connect_cells(center(rooms[i]),center(rooms[j]))
+					links[key]=true
+				cursor_slot=candidate
+				break
+			direction=(direction+1)%4
+	var reached:Array[int]=layout_component(links)
 	while reached.size()<rooms.size():
 		var best=99999;var source=0;var destination=-1
 		for i in reached:
@@ -1071,7 +1118,7 @@ func build_layout():
 				if score<best:best=score;source=i;destination=j
 		connect_cells(center(rooms[source]),center(rooms[destination]))
 		links[Vector2i(mini(source,destination),maxi(source,destination))]=true
-		reached.append(destination)
+		reached=layout_component(links)
 	var extra=rng.randi_range(0,mini(4,room_count-2))
 	if starter_woods and floor_number==1:extra=0
 	for n in range(extra):
@@ -1079,26 +1126,17 @@ func build_layout():
 		var key=Vector2i(mini(i,j),maxi(i,j))
 		if i!=j and not links.has(key) and distance(center(rooms[i]),center(rooms[j]))<=20:
 			connect_cells(center(rooms[i]),center(rooms[j]));links[key]=true
-	# Entrance and stairs are independent random room tiles, never forced apart.
-	var entrance_tiles:Array[Vector2i]=[]
-	for y in range(rooms[0].position.y,rooms[0].end.y):
-		for x in range(rooms[0].position.x,rooms[0].end.x):
-			var q:=Vector2i(x,y)
-			if cells.has(q):entrance_tiles.append(q)
-	player=entrance_tiles[rng.randi_range(0,entrance_tiles.size()-1)]
-	var exit_tiles:Array[Vector2i]=[]
-	for room in rooms:
-		for y in range(room.position.y,room.end.y):
-			for x in range(room.position.x,room.end.x):
-				var q:=Vector2i(x,y)
-				if q!=player and cells.has(q):exit_tiles.append(q)
-	# A same-room or adjacent stair is a legitimate lucky roll, not an error.
-	stairs=exit_tiles[rng.randi_range(0,exit_tiles.size()-1)]
-	# Optional treasure / explicit guardian anchor, never required for normal stairs.
+	# Stairs and leader are independently sampled from all room interiors.
+	# Normal floors can start directly on the staircase; rescue finales cannot.
+	var spawn_tiles:Array[Vector2i]=room_spawn_tiles()
+	stairs=spawn_tiles[rng.randi_range(0,spawn_tiles.size()-1)]
+	if not guardian_defeated:spawn_tiles.erase(stairs)
+	player=spawn_tiles[rng.randi_range(0,spawn_tiles.size()-1)]
+	# Optional treasure / explicit guardian anchor stays away from player and stairs.
 	var choices:Array[Vector2i]=[]
-	for i in range(1,rooms.size()):
-		var q:Vector2i=center(rooms[i])
-		if q!=stairs:choices.append(q)
+	for room in rooms:
+		var q:Vector2i=center(room)
+		if q!=stairs and q!=player:choices.append(q)
 	relic=choices[rng.randi_range(0,choices.size()-1)]
 func reset_floor_combat_presentation()->void:
 	# Enemy UIDs are local to the floor. Never reuse a previous floor's visual ledger.
