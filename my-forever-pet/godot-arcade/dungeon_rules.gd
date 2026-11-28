@@ -2608,17 +2608,19 @@ func enemy_strategy_alternative(e:Dictionary,proposed:Vector2i,target:Vector2i)-
 # Compare next-turn attack options across the four legal neighboring tiles.
 # Project the actor vacating its original tile without mutating live occupancy.
 func enemy_decision_attack_value(e:Dictionary,post:Vector2i,target:Vector2i)->float:
+	if target!=player:return 0.0
 	var best:float=0.0
-	if distance(post,target)==1:best=float(enemy_opportunity_damage(e,[],false,true))
+	if distance(post,target)==1:best=float(enemy_opportunity_damage_at(e,[],false,true,post))
 	var species:String=str(e.get("species",""))
 	var skill:Array=signature_skill(e)
 	if not bool(skill[1]) and enemy_move_allowed(e,"primary") and int(e.get("cooldown",0))<=0:
 		if enemy_projected_attack_aim(e,post,target,str(ATTACK_PATTERNS.get(species,"line")),int(skill[0]))!=Vector2i.ZERO:
-			best=maxf(best,enemy_attack_score(e,skill,false))
+			if enemy_opportunity_damage_at(e,skill,false,false,post)>0:best=maxf(best,enemy_attack_score(e,skill,false))
 	if SECONDARY_SKILLS.has(species) and enemy_move_allowed(e,"secondary") and int(e.get("alt_cooldown",0))<=0:
 		var alt:Array=SECONDARY_SKILLS[species]
 		if enemy_projected_attack_aim(e,post,target,str(alt[1]),int(alt[0]))!=Vector2i.ZERO:
-			best=maxf(best,enemy_attack_score(e,[alt[0],false,3,alt[3],alt[4],alt[5],"alt_"+species],true))
+			var alt_skill:Array=[alt[0],false,3,alt[3],alt[4],alt[5],"alt_"+species]
+			if enemy_opportunity_damage_at(e,alt_skill,true,false,post)>0:best=maxf(best,enemy_attack_score(e,alt_skill,true))
 	return best
 
 func enemy_decision_position_plan(e:Dictionary,target:Vector2i)->Dictionary:
@@ -5749,7 +5751,10 @@ func enemy_player_damage_base(e:Dictionary,skill:Array,secondary:bool,basic:bool
 	return {"damage":damage,"effectiveness":effectiveness,"element":element,"category":category}
 
 func enemy_opportunity_damage(e:Dictionary,skill:Array,secondary:bool,basic:bool=false)->int:
-	var origin:Vector2i=e.pos
+	return enemy_opportunity_damage_at(e,skill,secondary,basic,e.pos)
+
+# Evaluate defenses at the hypothetical firing post without moving the actor.
+func enemy_opportunity_damage_at(e:Dictionary,skill:Array,secondary:bool,basic:bool,origin:Vector2i)->int:
 	if charge_phase in ["underground","airborne","vanish"] or (shield_turns>0 and shield_kind=="protect"):return 0
 	var species:String=str(e.get("species",""))
 	var pattern:String="front" if basic else str(SECONDARY_SKILLS[species][1]) if secondary and SECONDARY_SKILLS.has(species) else str(ATTACK_PATTERNS.get(species,"line"))

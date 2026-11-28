@@ -3320,6 +3320,25 @@ func run_checks()->void:
 	checks+=1
 	if projection_actor.pos!=Vector2i(5,5) or projection_actor.pp_primary!=12 or projection_fixture.enemies.size()!=2 or not projection_fixture.enemy_actions.is_empty():failures.append("projected scorer purity")
 	checks+=1
+	# Projected defenses must use the future firing position, not the current one.
+	projection_fixture.enemies.pop_back();projection_actor.pos=Vector2i(4,5)
+	var projection_rng:int=projection_fixture.rng.state
+	var projection_skill:Array=projection_fixture.signature_skill(projection_actor)
+	projection_fixture.player_boons["mirror_veil"]=2
+	if projection_fixture.enemy_opportunity_damage(projection_actor,projection_skill,false)!=0 or projection_fixture.enemy_opportunity_damage_at(projection_actor,projection_skill,false,false,projected_post)<=0:failures.append("projected mirror uses firing distance")
+	checks+=1
+	if projection_fixture.enemy_decision_attack_value(projection_actor,projected_post,projection_fixture.player)<=0.0:failures.append("projected ranged escape from mirror")
+	checks+=1
+	projection_fixture.player_boons.clear();projection_actor.species="rootgnawer"
+	projection_fixture.player_boons["magnet"]=3
+	if projection_fixture.enemy_opportunity_damage_at(projection_actor,projection_fixture.signature_skill(projection_actor),false,false,projection_actor.pos)!=0:failures.append("projected magnet blocks ground")
+	checks+=1
+	projection_fixture.gravity_active=true
+	if projection_fixture.enemy_opportunity_damage_at(projection_actor,projection_fixture.signature_skill(projection_actor),false,false,projection_actor.pos)<=0:failures.append("projected gravity restores ground")
+	checks+=1
+	projection_fixture.gravity_active=false;projection_fixture.player_boons.clear();projection_actor.species="leafwisp"
+	if projection_actor.pos!=Vector2i(4,5) or projection_actor.pp_primary!=12 or projection_fixture.rng.state!=projection_rng or not projection_fixture.enemy_actions.is_empty():failures.append("projected defense forecast purity")
+	checks+=1
 	# A rear actor may prepare a staging tile, but never claim the live ray.
 	var stage_fixture=Rules.new()
 	for y in range(1,9):
