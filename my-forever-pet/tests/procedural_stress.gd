@@ -2712,7 +2712,34 @@ func run_checks()->void:
 	party_choice.cells[Vector2i(2,3)]=true
 	if not party_choice.enemy_target_ally(0) or choice_hunter.pos!=Vector2i(2,3) or party_choice.enemy_actions.size()!=1 or choice_hunter.pp_primary!=0:failures.append("party choice dispatch commits alternate legal movement")
 	checks+=1
-	print("KINDRIA_ANTI_STALL checks=137")
+	# Pursuit of an opposing ally should not block a visible friendly firing lane.
+	var party_lane=Rules.new()
+	for y in range(1,9):
+		for x in range(1,9):party_lane.cells[Vector2i(x,y)]=true
+	party_lane.player=Vector2i(4,4);party_lane.stairs=Vector2i(8,8);party_lane.relic=Vector2i(8,7)
+	var party_flanker:Dictionary={"uid":450,"pos":Vector2i(5,5),"hp":30,"kind":0,"species":"rootgnawer","ecology_role":"hunter","ecology_search_enabled":true,"personality_enabled":true,"pp_primary":0,"pp_secondary":0}
+	var party_shooter:Dictionary={"uid":451,"pos":Vector2i(6,4),"hp":30,"kind":1,"species":"leafwisp","ecology_search_enabled":true,"pp_primary":12,"pp_secondary":0}
+	party_lane.enemies.append(party_flanker);party_lane.enemies.append(party_shooter)
+	party_lane.allies.append({"uid":1000,"pos":Vector2i(5,3),"hp":30,"max_hp":30})
+	var around_lane:Vector2i=party_lane.enemy_safe_party_approach(party_flanker,Vector2i(5,3))
+	if around_lane==party_flanker.pos or around_lane==Vector2i(5,4) or not party_lane.enemy_actions.is_empty():failures.append("party pursuit preserves friendly ray with alternate route")
+	checks+=1
+	party_shooter["cooldown"]=1
+	if party_lane.enemy_safe_party_approach(party_flanker,Vector2i(5,3))!=Vector2i(5,4):failures.append("party pursuit released ray becomes usable")
+	checks+=1
+	party_shooter["cooldown"]=0
+	party_lane.charge_phase="vanish"
+	if party_lane.enemy_safe_party_approach(party_flanker,Vector2i(5,3))!=Vector2i(5,4):failures.append("party pursuit does not coordinate around hidden player")
+	checks+=1
+	party_lane.charge_phase=""
+	party_shooter["pp_primary"]=0
+	party_shooter["pack_post"]=Vector2i(5,4);party_shooter["pack_target"]=party_lane.player;party_shooter["pack_turn"]=party_lane.turns
+	if party_lane.enemy_safe_party_approach(party_flanker,Vector2i(5,3))==Vector2i(5,4):failures.append("party pursuit honors recent visible reservation")
+	checks+=1
+	party_lane.turns+=2
+	if party_lane.enemy_safe_party_approach(party_flanker,Vector2i(5,3))!=Vector2i(5,4):failures.append("party pursuit ignores expired reservation")
+	checks+=1
+	print("KINDRIA_ANTI_STALL checks=142")
 	# A direct witness may report a tile, but a listener cannot relay it.
 	var comm=Rules.new()
 	for x in range(1,4):comm.cells[Vector2i(x,3)]=true
