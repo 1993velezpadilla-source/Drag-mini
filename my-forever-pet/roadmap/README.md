@@ -33,6 +33,12 @@ See [COMMUNITY_INTELLIGENCE.md](COMMUNITY_INTELLIGENCE.md) for the audit of all 
 - [ ] Validate V26.20 CI and actual exported forest models; Android rendered capture, HUD sizing and one-handed controls. Earlier V26.19 smoke and cinematic gauntlet passed; this is not proof of the new version.
 - [ ] Next: localized cascade mist and audio, distinct grove props, objective feedback and touch acceptance.
 
+### Dungeon 001 — V26.21 Living Waterfalls
+- [x] Source implemented: localized rising mist and expanding impact foam, one GPU MultiMesh, max 3 vista anchors × 10 particles, transformed Blender pool coordinates, cached original 2-second looping spatial waterfall audio, stop old emitters on floor replacement. Starter woods only. Commit e39b26ab600214adecaf671e56f43e7679c5eff6.
+- [x] Added 16 checks for particle cap, transform, audio format/loop/seam/amplitude/cache and cleanup (86763ad59b86e18a15c63a6bcf228178508e0d0b).
+- [ ] Verify V26.21 CI and actual rendered waterfall mist/foam placement, audio balance and mobile frame time. F002 remains open until real Android validation.
+- [ ] Next: floor-specific forest props and silhouettes, reactive undergrowth, contact shadows, then portrait GUI playtest.
+
 ## P1 | dungeon simulation
 - [x] Existing procedural layout, turn logic, movement, four moves, PP, regular attack, 18 types, status, traps, Monster House: audit individually, not certified.
 - [ ] Room graph, variants, dead ends, corridors, visibility/fog of war, room/terrain restrictions, diagonals and corner rules, water/lava/chasm/walls, spawn safety, enemy pathfinding, ally AI tactics, turn scheduling, speed, waiting, auto-explore optional.
