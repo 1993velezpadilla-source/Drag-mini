@@ -803,30 +803,33 @@ func run():
 	assert("eos_064" in lab.lab_filtered_ids())
 	var info:String=lab.lab_move_info("eos_064")
 	assert("Power 45" in info and "PP 7" in info and "73%" in info and "Range:" in info)
-	lab.dev_fx_only.button_pressed=true
+	# A real button press selects only; the same button's second press previews in an empty room.
+	assert(lab.viewport.audio_listener_enable_3d,"3D audio explicitly enabled for the dungeon viewport")
+	assert(lab.camera.get_child(0) is AudioListener3D and lab.camera.get_child(0).is_current(),"active listener near the tactical focus")
+	lab.run.enemies.clear();lab.sync()
+	lab.dev_fx_only.button_pressed=false
 	var before:int=lab.run.attack_serial
-	lab.lab_cast("eos_064")
-	assert(lab.dev_panel.visible and lab.run.attack_serial==before and lab.player_cast_duration>0.0)
-	assert(lab.dev_result.text.begins_with("FX preview"))
-	var move_button:Button=lab.dev_grid.get_child(0)
-	var down:=InputEventMouseButton.new();down.button_index=MOUSE_BUTTON_LEFT;down.pressed=true;down.position=move_button.size*.5
-	move_button.gui_input.emit(down)
-	assert(lab.hold_active)
-	lab.show_held_attack()
-	assert(lab.dev_detail.visible and "Power" in lab.dev_detail.text)
-	var drag:=InputEventMouseMotion.new();drag.position=lab.hold_origin+Vector2(40,-40)
-	lab._input(drag)
-	assert(lab.facing==Vector2i(1,-1) and lab.hold_active)
-	var up:=InputEventMouseButton.new();up.button_index=MOUSE_BUTTON_LEFT;up.pressed=false;up.position=drag.position
-	lab._input(up)
-	await frames()
-	assert(not lab.hold_active and lab.dev_panel.visible and not lab.dev_detail.visible)
-	# Accessibility / keyboard / test activation still performs exactly one real action.
-	var before_direct:String=lab.dev_result.text
-	lab.dev_result.text="Direct activation pending"
+	var burst_count:int=lab.combat_bursts.size()
+	var move_button:Button
+	for child in lab.dev_grid.get_children():
+		if child is Button and child.get_meta("lab_move_id","")=="eos_064":move_button=child;break
+	# Find the requested item on its actual page if the first page has other Thunder moves.
+	if not is_instance_valid(move_button):
+		lab.dev_page=int(lab.lab_filtered_ids().find("eos_064")/lab.DEV_PAGE_SIZE)
+		lab.lab_refresh()
+		for child in lab.dev_grid.get_children():
+			if child is Button and child.get_meta("lab_move_id","")=="eos_064":move_button=child;break
+	assert(is_instance_valid(move_button))
 	move_button.pressed.emit()
-	assert(lab.dev_result.text!="Direct activation pending","direct action is not swallowed by hold capture")
-	print("KINDRA_DEV_HOLD_DRAG_PASS")
+	assert(lab.dev_selected=="eos_064" and lab.dev_detail.visible and "Power" in lab.dev_detail.text)
+	assert(lab.run.attack_serial==before and lab.combat_bursts.size()==burst_count,"first tap never casts")
+	move_button.pressed.emit()
+	assert(lab.dev_panel.visible and lab.run.attack_serial==before and lab.player_cast_duration>0.0)
+	assert(lab.dev_result.text.begins_with("Preview") and lab.combat_bursts.size()>burst_count)
+	assert(lab.combat_bursts[-1].lab_preview and lab.combat_bursts[-1].results.is_empty(),"preview has no synthetic damage")
+	assert(lab.dev_detail.visible and not lab.hold_active)
+	for i in range(20):lab._process(.1)
+	print("KINDRIA_DEV_TWO_TAP_PREVIEW_PASS")
 	lab.lab_minimize()
 	assert(lab.dev_bubble.visible and not lab.dev_panel.visible)
 	var bubble_before:Vector2=lab.dev_bubble.position
@@ -848,6 +851,7 @@ func run():
 	lab.lab_spawn_target()
 	lab.lab_cast("abyss_grasp")
 	assert(lab.dev_result.text.begins_with("Cast") and not lab.run.last_move_damage.is_empty(),"original signature must execute damage, not fallback FX")
+	for i in range(20):lab._process(.1)
 	lab.lab_cast("eos_064")
 	assert(lab.dev_panel.visible and lab.run.equipped_moves==equipped)
 	assert(lab.run.move_pp["eos_064"]==7)
