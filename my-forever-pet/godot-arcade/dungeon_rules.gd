@@ -3777,6 +3777,9 @@ func enemy_relief_blocks_lane(friend:Dictionary,q:Vector2i,target:Vector2i)->boo
 	# A completed ordinary action cannot claim another shot this phase.
 	# An already telegraphed windup remains a deliberate tactical commitment.
 	if enemy_phase_spent.has(int(friend.get("uid",-1))) and not bool(friend.get("windup",false)):return false
+	# Ordinary low-confidence shots do not justify exclusive squad access.
+	# A committed telegraph remains protected, even when accuracy is impaired.
+	if int(friend.get("whiffer_turns",0))>0 and not bool(friend.get("windup",false)):return false
 	# A cardinal firing lane must stay clear if it currently reaches the target.
 	if origin.x!=target.x and origin.y!=target.y:return false
 	var heading:Vector2i=Vector2i(signi(target.x-origin.x),signi(target.y-origin.y))
