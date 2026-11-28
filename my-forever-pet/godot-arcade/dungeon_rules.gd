@@ -2419,12 +2419,19 @@ func enemy_unstall_step(e:Dictionary,target:Vector2i,allow_staging:bool=true)->V
 	var old_lane_target:Vector2i=e.get("lane_hold_target",target)
 	if turns-int(e.get("lane_hold_turn",-9999)) in [1,2] and distance(old_lane_target,target)<=2:
 		lane_reentry=enemy_released_firing_post(e,target)
+	# A committed staging move consumes a turn, so its old stall timestamp
+	# is no longer consecutive. Retry a newly released post without requiring
+	# another idle turn, but keep the same live-contact and safety checks.
+	var stage_reentry:bool=false
+	var staged_target:Vector2i=e.get("stage_target",target)
+	if turns-int(e.get("stage_turn",-9999)) in [1,2] and distance(staged_target,target)<=2:
+		stage_reentry=enemy_released_firing_post(e,target)
 	# A witnessed casualty can open a new route before the normal stall
 	# threshold. Only retry once per recent loss after a committed detour.
 	var loss_turn:int=int(e.get("squad_loss_turn",-9999))
 	var loss_reentry:bool=turns-loss_turn in [0,1] and int(e.get("unstall_turn",-9999))<loss_turn and int(e.get("stall_count",0))>=1 and e.get("stall_target",Vector2i.ZERO)==target and int(e.get("stall_turn",-9999))==turns-1 and not enemy_occupied_frontline(e,target)
 	var early_detour:bool=false
-	if not reserve_reentry and not congestion_reentry and not loss_reentry and not lane_reentry:
+	if not reserve_reentry and not congestion_reentry and not loss_reentry and not lane_reentry and not stage_reentry:
 		if int(e.get("stall_count",0))<1 or e.get("stall_target",Vector2i.ZERO)!=target or int(e.get("stall_turn",-9999))!=turns-1:return origin
 		if turns<=int(e.get("unstall_turn",-9999))+3:return origin
 		if int(e.get("stall_count",0))<2:
