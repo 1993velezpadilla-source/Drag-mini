@@ -4366,6 +4366,20 @@ func run_checks()->void:
 	# A ranged kit alone cannot provide immediate covering fire.
 	if not relief_fixture.enemy_relief_ranged_ready(relief_ranged,relief_fixture.player):failures.append("relief executable ranged coverage")
 	checks+=1
+	# Geometry alone is not covering fire against active zero-damage defenses.
+	var relief_saved_hp:int=relief_fixture.hp
+	for relief_defense in ["protect","endure"]:
+		relief_fixture.shield_kind=relief_defense;relief_fixture.shield_turns=2
+		relief_fixture.hp=1 if relief_defense=="endure" else relief_saved_hp
+		if relief_fixture.enemy_relief_ranged_ready(relief_ranged,relief_fixture.player) or relief_fixture.enemy_relief_step(relief_guard,relief_fixture.player)!=relief_guard.pos:failures.append("relief rejects zero damage backup "+relief_defense)
+		checks+=1
+		relief_ranged["windup"]=true;relief_ranged["aim"]=Vector2i.LEFT
+		if relief_fixture.enemy_relief_ranged_ready(relief_ranged,relief_fixture.player):failures.append("relief rejects zero damage windup "+relief_defense)
+		checks+=1
+		relief_ranged.erase("windup");relief_ranged.erase("aim")
+	relief_fixture.shield_kind="";relief_fixture.shield_turns=0;relief_fixture.hp=relief_saved_hp
+	if not relief_fixture.enemy_relief_ranged_ready(relief_ranged,relief_fixture.player) or relief_fixture.enemy_relief_step(relief_guard,relief_fixture.player)!=Vector2i(4,5):failures.append("relief restores backup after defense")
+	checks+=1
 	relief_ranged.pos=Vector2i(8,4)
 	if relief_fixture.enemy_relief_ranged_ready(relief_ranged,relief_fixture.player):failures.append("relief rejects out of range backup")
 	checks+=1

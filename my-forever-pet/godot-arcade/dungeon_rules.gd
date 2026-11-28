@@ -3945,11 +3945,12 @@ func enemy_relief_ranged_ready(e:Dictionary,target:Vector2i)->bool:
 	var pattern:String=str(ATTACK_PATTERNS.get(species,"line"))
 	if bool(e.get("windup",false)):
 		var aim:Vector2i=e.get("aim",Vector2i.ZERO)
-		return aim!=Vector2i.ZERO and enemy_move_allowed(e,"primary") and attack_footprint(e.pos,aim,pattern,int(skill[0])).has(target)
-	if int(e.get("cooldown",0))<=0 and not bool(skill[1]) and enemy_move_allowed(e,"primary") and int(skill[0])>=2 and attack_aim(e.pos,target,pattern,int(skill[0]))!=Vector2i.ZERO:return true
+		return aim!=Vector2i.ZERO and enemy_move_allowed(e,"primary") and attack_footprint(e.pos,aim,pattern,int(skill[0])).has(target) and enemy_opportunity_damage(e,skill,false)>0
+	if int(e.get("cooldown",0))<=0 and not bool(skill[1]) and enemy_move_allowed(e,"primary") and int(skill[0])>=2 and attack_aim(e.pos,target,pattern,int(skill[0]))!=Vector2i.ZERO and enemy_opportunity_damage(e,skill,false)>0:return true
 	if int(e.get("alt_cooldown",0))<=0 and enemy_move_allowed(e,"secondary") and SECONDARY_SKILLS.has(species):
 		var alt:Array=SECONDARY_SKILLS[species]
-		return int(alt[0])>=2 and attack_aim(e.pos,target,str(alt[1]),int(alt[0]))!=Vector2i.ZERO
+		var alt_skill:Array=[alt[0],false,3,alt[3],alt[4],alt[5],"alt_"+species]
+		return int(alt[0])>=2 and attack_aim(e.pos,target,str(alt[1]),int(alt[0]))!=Vector2i.ZERO and enemy_opportunity_damage(e,alt_skill,true)>0
 	return false
 
 # A nearby visible squadmate may own an announced ray even after losing
