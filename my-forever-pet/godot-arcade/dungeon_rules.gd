@@ -5848,6 +5848,11 @@ func enemy_turn_actions_impl():
 			var tactical:Vector2i=enemy_protector_step(enemies[i],pursuit_target) if not charged and pursuit_target==player else p
 			if tactical==p and not charged and pursuit_target==player:
 				tactical=enemy_control_setup_step(enemies[i],player)
+			# A concrete witnessed opening takes priority over speculative positioning.
+			var recovery_mode:String=""
+			if tactical==p and not charged and pursuit_target==player:
+				tactical=enemy_witnessed_vacancy_step(enemies[i],player)
+				if tactical!=p:recovery_mode="immediate"
 			var reserve_plan:Dictionary={}
 			if tactical==p and not charged and pursuit_target==player:
 				reserve_plan=enemy_dynamic_reserve_plan(enemies[i],player)
@@ -5899,11 +5904,9 @@ func enemy_turn_actions_impl():
 							enemies[i]["crowd_previous"]=p;enemies[i]["crowd_turn"]=turns
 							enemies[i]["crowd_target"]=player;enemies[i]["crowd_partner"]=p-heading
 							path.clear();path.append(yield_tile)
-			var recovery_mode:String=""
 			if path.is_empty() and not charged and not intentional_hold and pursuit_target==player:
-				var recovery:Vector2i=enemy_witnessed_vacancy_step(enemies[i],player)
+				var recovery:Vector2i=enemy_immediate_recovery_step(enemies[i],player)
 				recovery_mode="immediate"
-				if recovery==p:recovery=enemy_immediate_recovery_step(enemies[i],player)
 				if recovery==p:
 					recovery=enemy_unstall_step(enemies[i],player);recovery_mode="detour"
 				if recovery==p:
