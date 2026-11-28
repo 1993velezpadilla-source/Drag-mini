@@ -36,6 +36,23 @@ func run_checks()->void:
 	var checks:int=0
 	var failures:Array[String]=[]
 	var view:=Dungeon.new()
+	# V26.10: portrait contract and presentation-only regular Strike.
+	if int(ProjectSettings.get_setting("display/window/handheld/orientation"))!=1:failures.append("V26.10 portrait orientation")
+	if int(ProjectSettings.get_setting("display/window/size/viewport_width"))>=int(ProjectSettings.get_setting("display/window/size/viewport_height")):failures.append("V26.10 portrait viewport")
+	checks+=2
+	var control_dirs:Array[Vector2i]=[Vector2i(0,-1),Vector2i(1,-1),Vector2i(1,0),Vector2i(1,1),Vector2i(0,1),Vector2i(-1,1),Vector2i(-1,0),Vector2i(-1,-1)]
+	for control_dir in control_dirs:
+		if view.joystick_direction_for(Vector2(control_dir).normalized()*35.0,40.0)!=control_dir:failures.append("V26.10 joystick eight directions "+str(control_dir))
+		if view.joystick_direction_for(Vector2(control_dir).normalized()*4.0,40.0)!=Vector2i.ZERO:failures.append("V26.10 joystick dead zone")
+		var world_dir:=Vector3(control_dir.x,0,control_dir.y).normalized()
+		var strike_world:Vector3=view.cast_offset_world(view.strike_lunge_offset(.3,.3),world_dir)
+		if not is_equal_approx(strike_world.dot(world_dir),.78):failures.append("V26.10 Strike world direction")
+		checks+=3
+	for strike_peak in [.12,.23,.5,.88]:
+		if not view.strike_lunge_offset(0.0,strike_peak).is_zero_approx() or not view.strike_lunge_offset(1.0,strike_peak).is_zero_approx():failures.append("V26.10 Strike rest and recovery")
+		if view.strike_lunge_offset(strike_peak*.12,strike_peak).x>=0.0:failures.append("V26.10 Strike anticipation")
+		if not is_equal_approx(view.strike_lunge_offset(strike_peak,strike_peak).x,.78):failures.append("V26.10 Strike peak")
+		checks+=3
 	# V25.9: exact bounded warm plans, with no unapproved species.
 	var companion_warm_plan:Array[Vector3i]=Art.companion_attack_warm_plan()
 	if companion_warm_plan.size()!=28:failures.append("V25.9 companion plan count")
