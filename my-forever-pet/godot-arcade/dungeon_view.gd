@@ -409,6 +409,11 @@ var reward_age=0.0
 var interaction_kind:String=""
 var interaction_duration:float=.65
 var interaction_priority:int=0
+var reward_toast:Label
+var reward_toast_age:float=0.0
+var reward_toast_priority:int=0
+var reward_audio:AudioStreamPlayer
+var reward_audio_cache:Dictionary={}
 var seen_creatures:Dictionary={}
 var interaction_material:StandardMaterial3D
 var reward_pool:Array[MeshInstance3D]=[]
@@ -915,6 +920,15 @@ func build_ui():
 	map_zoom.add_theme_stylebox_override("pressed",style(Color("#365364"),Color("#fff0ba"),10))
 	area.add_child(map_zoom);map_zoom.position=map.position+Vector2(map.size.x-37,5);map_zoom.pressed.connect(toggle_map)
 	feedback=Label.new();feedback.horizontal_alignment=HORIZONTAL_ALIGNMENT_CENTER;feedback.add_theme_font_size_override("font_size",24);feedback.add_theme_color_override("font_outline_color",Color("#142535"));feedback.add_theme_constant_override("outline_size",7);feedback.mouse_filter=MOUSE_FILTER_IGNORE;area.add_child(feedback);feedback.hide()
+	reward_toast=Label.new()
+	reward_toast.horizontal_alignment=HORIZONTAL_ALIGNMENT_CENTER
+	reward_toast.add_theme_font_size_override("font_size",20)
+	reward_toast.add_theme_color_override("font_outline_color",Color("#142535"))
+	reward_toast.add_theme_constant_override("outline_size",5)
+	reward_toast.mouse_filter=MOUSE_FILTER_IGNORE
+	area.add_child(reward_toast);reward_toast.hide()
+	reward_audio=AudioStreamPlayer.new()
+	reward_audio.volume_db=-19.0;add_child(reward_audio)
 	floor_banner=Label.new();floor_banner.horizontal_alignment=HORIZONTAL_ALIGNMENT_CENTER;floor_banner.add_theme_font_size_override("font_size",25);floor_banner.add_theme_color_override("font_outline_color",Color("#142535"));floor_banner.add_theme_constant_override("outline_size",8);floor_banner.mouse_filter=MOUSE_FILTER_IGNORE;area.add_child(floor_banner);floor_banner.hide()
 	var footer=PanelContainer.new();dungeon_footer=footer;footer.add_theme_stylebox_override("panel",ornamental_frame());base.add_child(footer)
 	var v=VBoxContainer.new();v.add_theme_constant_override("separation",3);footer.add_child(v)
@@ -1785,6 +1799,7 @@ void fragment(){
 	material.set_shader_parameter("base_color",original.albedo_color)
 	material.set_shader_parameter("leaf_roughness",original.roughness)
 	material.set_shader_parameter("forest_profile",woods_art_profile(run.floor_number) if run.starter_woods else Vector4.ONE)
+	material.set_shader_parameter("player_center",Vector2(-999.0,-999.0))
 	exterior_motion_materials[key]=material
 	return material
 
@@ -3095,6 +3110,9 @@ func build_floor():
 	var fxmat=StandardMaterial3D.new();fxmat.shading_mode=BaseMaterial3D.SHADING_MODE_UNSHADED;fxmat.albedo_color=Color("#ffe6a3");attack_fx.material_override=fxmat
 	destination_fx=shape(geometry,"ring",Vector3.ZERO,Vector3(.68,.08,.68),Color("#a0e6db"));destination_fx.hide();destination_fx.cast_shadow=GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	reward_pool.clear();reward_age=0.0;interaction_kind="";interaction_priority=0;seen_creatures.clear()
+	reward_toast_age=0.0;reward_toast_priority=0
+	if is_instance_valid(reward_toast):reward_toast.hide()
+	if is_instance_valid(reward_audio):reward_audio.stop()
 	reward_fx=Node3D.new();geometry.add_child(reward_fx);reward_fx.hide()
 	var sparkle_mat=StandardMaterial3D.new();sparkle_mat.shading_mode=BaseMaterial3D.SHADING_MODE_UNSHADED;sparkle_mat.albedo_color=Color("#ffe5a0")
 	interaction_material=sparkle_mat
@@ -20254,8 +20272,67 @@ func interaction_profile(kind:String)->Dictionary:
 		"enemy_win":return {"priority":2,"duration":.55,"color":Color("#ffe5a0"),"mode":"victory"}
 		_:return {"priority":1,"duration":.38,"color":Color("#fff0cb"),"mode":"alert"}
 
+# Distinct short reward messages do not overwrite damage or status feedback.
+func reward_caption(kind:String)->String:
+	match kind:
+		"coin":return "+3 coins"
+		"potion":return "+1 healing berry"
+		"material":return "+1 crafting material"
+		"manual":return "Technique discovered"
+		"trail_fruit":return "Fullness restored"
+		"spring","eat":return "HP restored"
+		"ward_band","force_band":return "Equipment acquired"
+		"relic":return "Relic secured · exit unlocked"
+		_:return ""
+
+func reward_tone(kind:String)->String:
+	if kind=="relic":return "relic"
+	if kind in ["eat","spring","trail_fruit"]:return "heal"
+	if kind in ["manual","ward_band","force_band"]:return "rare"
+	return "pickup"
+
+func reward_chime(kind:String)->AudioStreamWAV:
+	var key:String=reward_tone(kind)
+	if reward_audio_cache.has(key):return reward_audio_cache[key]
+	var notes:Array=[660.0,880.0]
+	if key=="relic":notes=[523.25,659.25,783.99,1046.5]
+	elif key=="heal":notes=[440.0,587.33,659.25]
+	elif key=="rare":notes=[587.33,783.99,987.77]
+	const RATE:int=22050
+	var count:int=roundi(float(notes.size())*.085*RATE+.07*RATE)
+	var pcm:=PackedByteArray()
+	pcm.resize(count*2)
+	for i in range(count):
+		var t:float=float(i)/RATE
+		var value:float=0.0
+		for j in range(notes.size()):
+			var age:float=t-float(j)*.085
+			if age<0.0 or age>.155:continue
+			var envelope:float=smoothstep(0.0,.009,age)*(1.0-smoothstep(.035,.155,age))
+			var phase:float=TAU*float(notes[j])*age
+			value+=(sin(phase)+.18*sin(phase*2.0))*envelope*.13
+		pcm.encode_s16(i*2,roundi(clampf(value,-.5,.5)*32767.0))
+	var stream:=AudioStreamWAV.new()
+	stream.format=AudioStreamWAV.FORMAT_16_BITS
+	stream.mix_rate=RATE;stream.data=pcm
+	reward_audio_cache[key]=stream
+	return stream
+
+func show_reward_toast(kind:String,profile:Dictionary)->void:
+	var caption:String=reward_caption(kind)
+	if caption.is_empty() or not is_instance_valid(reward_toast):return
+	if reward_toast_age>0.0 and int(profile.priority)<reward_toast_priority:return
+	reward_toast.text=caption
+	reward_toast.add_theme_color_override("font_color",profile.color)
+	reward_toast_age=1.25;reward_toast_priority=int(profile.priority)
+	reward_toast.show()
+	if is_instance_valid(reward_audio):
+		reward_audio.stream=reward_chime(kind)
+		reward_audio.play()
+
 func begin_interaction(kind:String,cell:Vector2i)->void:
 	var profile:=interaction_profile(kind)
+	show_reward_toast(kind,profile)
 	if reward_age>0.0 and int(profile.priority)<interaction_priority:return
 	interaction_kind=kind;interaction_priority=int(profile.priority)
 	interaction_duration=float(profile.duration);reward_age=interaction_duration
@@ -20281,6 +20358,9 @@ func sync():
 	run.dev_refill()
 	if run.floor_revision!=active_floor:
 		strike_pending=false;path.clear();reset_joystick();build_floor()
+		if run.starter_woods and run.floor_number>1:
+			floor_banner.text="Floor cleared  ·  "+floor_name()
+			if run.floor_bonus>0:floor_banner.text+="  +%d coins"%run.floor_bonus
 	else:refresh_actors()
 	sync_monster_house()
 	update_hud()
@@ -20571,6 +20651,13 @@ func _process(dt:float):
 	if floor_banner.visible:
 		floor_banner.size=Vector2(area.size.x,45);floor_banner.position=Vector2(0,area.size.y*.12)
 		floor_banner.modulate=Color(1.0,.66,.53,minf(1.0,banner_time*3.0)) if house_banner_active else Color(1.0,1.0,1.0,minf(1.0,banner_time*3.0))
+	if reward_toast_age>0.0:
+		reward_toast_age=maxf(0.0,reward_toast_age-dt)
+		reward_toast.visible=reward_toast_age>0.0
+		if reward_toast.visible:
+			reward_toast.size=Vector2(area.size.x,34)
+			reward_toast.position=Vector2(0,area.size.y*.44-(1.25-reward_toast_age)*18.0)
+			reward_toast.modulate.a=minf(1.0,reward_toast_age*4.0)
 	feedback_time=maxf(0.0,feedback_time-dt)
 	feedback.visible=feedback_time>0.0
 	if feedback.visible:
