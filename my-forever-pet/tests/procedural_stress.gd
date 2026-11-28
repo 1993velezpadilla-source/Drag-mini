@@ -1121,6 +1121,23 @@ func run_checks()->void:
 	if safer_step==pack_step or safer_step==pack_origin:failures.append("cooperative alternate safe flank")
 	pack_fixture.traps.clear()
 	checks+=1
+	# A flanking route cannot obstruct a currently executable friendly ray.
+	var pack_shooter:Dictionary={"uid":2,"pos":Vector2i(5,2),"hp":30,"kind":1,"species":"leafwisp","ecology_search_enabled":true,"pp_primary":12,"pp_secondary":0}
+	pack_fixture.enemies.append(pack_shooter)
+	pack_fixture.traps[Vector2i(3,5)]="spike"
+	if not pack_fixture.enemy_relief_blocks_lane(pack_shooter,Vector2i(5,3),pack_fixture.player) or pack_fixture.enemy_cooperative_step(pack_actor,pack_fixture.player,"front",1)!=pack_origin:failures.append("cooperative preserves friendly firing lane")
+	checks+=1
+	pack_shooter["cooldown"]=1
+	if pack_fixture.enemy_cooperative_step(pack_actor,pack_fixture.player,"front",1)!=Vector2i(3,3):failures.append("cooperative uses released friendly lane")
+	checks+=1
+	pack_fixture.traps.clear();pack_fixture.enemies.pop_back()
+	for hidden_phase in ["underground","airborne","vanish"]:
+		pack_fixture.charge_phase=hidden_phase
+		if pack_fixture.enemy_cooperative_step(pack_actor,pack_fixture.player,"front",1)!=pack_origin:failures.append("cooperative hidden target "+hidden_phase)
+	pack_fixture.charge_phase=""
+	checks+=1
+	if pack_actor.pos!=pack_origin or pack_actor.pp_primary!=12 or not pack_fixture.enemy_actions.is_empty():failures.append("cooperative coordinated route purity")
+	checks+=1
 	pack_partner["sleep_turns"]=99
 	if pack_fixture.enemy_cooperative_step(pack_actor,pack_fixture.player,"front",1)!=pack_origin:failures.append("cooperative inactive partner")
 	pack_partner.erase("sleep_turns")
