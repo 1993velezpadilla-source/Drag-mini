@@ -1240,22 +1240,29 @@ func remember_shape(signature:String)->void:
 	while recent_shapes.size()>SHAPE_HISTORY_CAP:recent_shapes.pop_front()
 
 func canonical_shape_signature()->String:
-	# Translation, reflection and 90-degree rotations share a shape identity.
-	# Use bounded integer tile IDs and hash only the lexicographically least encoding.
+	# Same canonical v1 encoding; normalize once and transform integer coordinates.
 	if cells.is_empty():return ""
+	var low:=Vector2i(2147483647,2147483647)
+	var high:=Vector2i(-2147483647,-2147483647)
+	for q in cells:
+		low=Vector2i(mini(low.x,q.x),mini(low.y,q.y))
+		high=Vector2i(maxi(high.x,q.x),maxi(high.y,q.y))
+	var span:Vector2i=high-low
+	var points:Array[Vector2i]=[]
+	for q in cells:points.append(q-low)
 	var best:String=""
+	var ids:=PackedInt32Array()
+	ids.resize(points.size())
 	for orientation in range(8):
-		var points:Array[Vector2i]=[]
-		var low:=Vector2i(2147483647,2147483647)
-		for q in cells:
-			var p:Vector2i=q
-			if orientation>=4:p.x=-p.x
-			for turn in range(orientation%4):p=Vector2i(-p.y,p.x)
-			low=Vector2i(mini(low.x,p.x),mini(low.y,p.y));points.append(p)
-		var ids:=PackedInt32Array()
-		for p in points:
-			var offset:Vector2i=p-low
-			ids.append(offset.y*128+offset.x)
+		var rotation:int=orientation%4
+		for i in range(points.size()):
+			var x:int=points[i].x if orientation<4 else span.x-points[i].x
+			var y:int=points[i].y
+			match rotation:
+				0:ids[i]=y*128+x
+				1:ids[i]=x*128+span.y-y
+				2:ids[i]=(span.y-y)*128+span.x-x
+				3:ids[i]=(span.x-x)*128+y
 		ids.sort()
 		var parts:=PackedStringArray()
 		for tile_id in ids:parts.append(str(tile_id))
