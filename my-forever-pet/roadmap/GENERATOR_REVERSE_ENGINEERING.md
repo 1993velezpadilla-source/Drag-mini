@@ -447,3 +447,8 @@ Independent biome/terrain and room-event profiles, optional treasure branches, M
 ## V27.2 — Gauntlet Corrections
 - V27.1 CI run 46110584036 failed at Godot 4.6 compilation: Vector2i.dot is unavailable in hunter search heading scoring at dungeon_rules.gd:1821. Replaced with explicit integer component dot product, retaining the original clamp and weighting. No remaining .dot calls in rules file.
 - Development commit 6fead234f597eba1378cea8be45124e1ad45f2b4; validation branch commit 984bd8270f3ff49a8f167f318b78328a89d02111. Both rules blobs match. Godot smoke and Android wallpaper plugin smoke from prior PR succeeded, but did not certify the actual tactical rules. Prior failed integration remains recorded; new run must complete before claiming success.
+
+
+## V27.3 — Runtime Array Compatibility
+- CI run 46110693830 compiled Godot 4.6 and reported 2502 checks with zero explicit assertions, but failed correctly because 566 runtime errors aborted portions of enemy turns. Root cause: conditional assignment of untyped empty Array to Array[Dictionary] party_hits on basic attacks (line 5588). Initialize the typed array explicitly, assign the typed area result only for special attacks; preserve the normal action recording path.
+- Development commit 17c67390e212f460d4d62d5c134e33e5b0185765 and validation commit 53fc09533d8c3c57f75a5df301a885d09e78643b share identical rules blob. Prior smoke jobs passed, but integration is not certified until a clean rerun completes. Prior timing and assertion totals are invalid for performance or release claims because script errors interrupted turns.
