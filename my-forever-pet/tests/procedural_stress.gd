@@ -1766,6 +1766,53 @@ func run_checks()->void:
 	if counter_actor.pp_primary!=11 or counterplay.enemy_actions.size()!=1 or str(counterplay.enemy_actions[0].phase)!="attack":failures.append("counterplay resumes after protection")
 	checks+=1
 	print("KINDRIA_INTELLIGENT_COUNTERPLAY checks=10")
+	# Pack intentions are local, advisory and bounded to real movement.
+	var pack_fixture=Rules.new()
+	for y in range(1,9):
+		for x in range(1,9):pack_fixture.cells[Vector2i(x,y)]=true
+	pack_fixture.player=Vector2i(4,4);pack_fixture.stairs=Vector2i(8,8);pack_fixture.relic=Vector2i(8,7);pack_fixture.turns=20
+	var pack_actor:Dictionary={"uid":0,"pos":Vector2i(5,6),"hp":30,"kind":0,"species":"rootgnawer","ecology_role":"hunter","ecology_search_enabled":true,"pp_primary":0,"pp_secondary":0}
+	var pack_anchor:Dictionary={"uid":1,"pos":Vector2i(3,4),"hp":30,"kind":0,"species":"bramble_pup","ecology_role":"hunter","ecology_search_enabled":true,"pp_primary":0,"pp_secondary":0}
+	var pack_peer:Dictionary={"uid":2,"pos":Vector2i(6,5),"hp":30,"kind":0,"species":"rootgnawer","ecology_role":"hunter","ecology_search_enabled":true,"pp_primary":0,"pp_secondary":0}
+	pack_fixture.enemies.append(pack_actor);pack_fixture.enemies.append(pack_anchor);pack_fixture.enemies.append(pack_peer)
+	var pack_first:Dictionary=pack_fixture.enemy_pack_intercept_plan(pack_actor,pack_fixture.player)
+	var pack_post:Vector2i=pack_first.get("post",Vector2i.ZERO)
+	if pack_first.is_empty() or pack_fixture.distance(pack_post,pack_fixture.player)!=1 or pack_fixture.distance(pack_actor.pos,pack_first.get("step",pack_actor.pos))!=1:failures.append("pack valid interception post")
+	checks+=1
+	if pack_actor.has("pack_post") or pack_actor.pos!=Vector2i(5,6) or not pack_fixture.enemy_actions.is_empty():failures.append("pack plan purity")
+	checks+=1
+	pack_fixture.enemy_pack_commit(pack_peer,pack_fixture.player,pack_post)
+	if not pack_fixture.enemy_pack_reserved_posts(pack_actor,pack_fixture.player).has(pack_post):failures.append("pack visible peer intention")
+	checks+=1
+	var pack_alternative:Dictionary=pack_fixture.enemy_pack_intercept_plan(pack_actor,pack_fixture.player)
+	if pack_alternative.is_empty() or pack_alternative.get("post",Vector2i.ZERO)==pack_post or pack_alternative.get("step",Vector2i.ZERO)==pack_post:failures.append("pack distinct flank allocation")
+	checks+=1
+	pack_peer["sleep_turns"]=2
+	if pack_fixture.enemy_pack_reserved_posts(pack_actor,pack_fixture.player).has(pack_post):failures.append("pack incapacitated claim ignored")
+	pack_peer.erase("sleep_turns")
+	checks+=1
+	pack_fixture.turns=22
+	if not pack_fixture.enemy_pack_reserved_posts(pack_actor,pack_fixture.player).is_empty():failures.append("pack stale claim expires")
+	checks+=1
+	pack_fixture.enemy_pack_commit(pack_peer,pack_fixture.player,pack_post)
+	pack_fixture.traps[pack_post]="snare"
+	if pack_fixture.enemy_pack_reserved_posts(pack_actor,pack_fixture.player).has(pack_post):failures.append("pack hazard invalidates claim")
+	pack_fixture.traps.clear()
+	checks+=1
+	if not pack_fixture.enemy_pack_reserved_posts(pack_actor,Vector2i(4,5)).is_empty():failures.append("pack target change invalidates claim")
+	checks+=1
+	pack_fixture.charge_phase="airborne"
+	if not pack_fixture.enemy_pack_intercept_plan(pack_actor,pack_fixture.player).is_empty():failures.append("pack hidden player gate")
+	pack_fixture.charge_phase=""
+	checks+=1
+	pack_peer.erase("pack_post")
+	pack_fixture.enemy_turn_actions()
+	var pack_moves:int=0
+	for action in pack_fixture.enemy_actions:
+		if int(action.get("uid",-1))==0 and str(action.phase)=="move":pack_moves+=1
+	if pack_moves!=1 or int(pack_actor.get("pack_turn",-1))!=23 or pack_actor.pp_primary!=0:failures.append("pack real dispatcher commits once")
+	checks+=1
+	print("KINDRIA_ENEMY_PACK_HUNTING checks=10")
 	# Actual disk I/O, legacy migration, corruption recovery, and resumed writes.
 	var test_path:String="user://kindria_procedural_test_"+str(OS.get_process_id())+".cfg"
 	var exact:Array[String]=["legacy exact".sha256_text()]
