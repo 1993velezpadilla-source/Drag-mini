@@ -365,3 +365,9 @@ Independent biome/terrain and room-event profiles, optional treasure branches, M
 - Pack interception favors opposite or distinct adjacent attack directions and isolated targets; penalizes blocking a visible partner's firing lane. Existing occupancy, hazard, reach and reservation restrictions remain.
 - Visible-charge evasion penalizes clustering next to friendly creatures, while retaining actual threat-footprint and safe-tile checks.
 - Implementation e4845182bbf0983c36b48eb7e0722d163d9ccaf3; eight authored regression checks 97ba2facbab24cce37db41343f6e9847c6fee068. Weights and proximity thresholds are provisional. Support is a geometric estimate, not a guarantee that an ally has a usable attack. No new abilities, extra actions or damage changes. CI and Android execution remain unverified.
+
+## V26.89 — Intelligent Attack Sequencing
+- Setup valuation now considers only partners scheduled after the acting enemy for immediate same-round follow-ups. Earlier actors cannot be credited as if they had another turn.
+- Unstarted charged attacks are excluded from immediate follow-up scoring; committed charges must cover the player with their fixed aim. Own delayed setup can retain a discounted future contribution. Incapacitated actors and guaranteed whiff status casts are rejected.
+- Debuff utility scales with useful remaining stat reduction, capped at the existing hostile control floor of -2. Existing immunities, control recovery, PP, cooldowns and accuracy remain in force.
+- Implementation 86867bfada12b89a7ad04a7bd5026a81fd34560d; eight authored regression checks 2deaaa222238aacbdbe280eee7ec9d01f8912749. CI and Android execution remain unverified. No new combo-specific damage, action, ability or guaranteed hit. Scoring weights are provisional; this is immediate sequencing, not a global multi-turn planner.
