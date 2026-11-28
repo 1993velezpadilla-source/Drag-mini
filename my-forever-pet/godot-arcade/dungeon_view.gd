@@ -81,6 +81,17 @@ var facing=Vector2i.DOWN
 var aim_button:Button
 var special_button:Button
 var move_buttons:Array[Button]=[]
+var move_dock:GridContainer
+var dock_move_ids:Array=[]
+var bag_panel:PanelContainer
+var bag_content:VBoxContainer
+var strike_fraction:Vector2=Vector2(.88,.80)
+var utility_drag_kind:String=""
+var utility_drag_origin:Vector2
+var utility_drag_start:Vector2
+var utility_drag_moved:bool=false
+var utility_drag_suppress:bool=false
+var strike_pending:bool=false
 var actor_nodes:Dictionary={}
 var enemy_shadow_material:StandardMaterial3D
 var enemy_shadow_mesh:QuadMesh
@@ -413,6 +424,12 @@ func hud_icon(parent:Node,kind:String,side:int=18)->TextureRect:
 	var item=TextureRect.new();item.texture=action_icon(kind);item.custom_minimum_size=Vector2(side,side)
 	item.expand_mode=TextureRect.EXPAND_IGNORE_SIZE;item.stretch_mode=TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	item.mouse_filter=MOUSE_FILTER_IGNORE;parent.add_child(item);return item
+func hud_base_color()->Color:
+	return [Color("#122e2b"),Color("#112d3a"),Color("#25233f")][region]
+func hud_accent_color()->Color:
+	return [Color("#b5c389"),Color("#83d0d9"),Color("#c9b2ec")][region]
+func hud_tile_color()->Color:
+	return hud_base_color().lightened(.075)
 func compact_style(bg:Color,border:Color,radius:int=9)->StyleBoxFlat:
 	var frame:=style(bg,border,radius)
 	frame.set_border_width_all(1)
@@ -423,15 +440,16 @@ func compact_style(bg:Color,border:Color,radius:int=9)->StyleBoxFlat:
 func button(parent:Node,value:String,action:Callable,accent:bool=false)->Button:
 	var b=Button.new();b.text=value;b.custom_minimum_size.y=36;b.size_flags_horizontal=SIZE_EXPAND_FILL
 	b.add_theme_font_size_override("font_size",14)
-	var action_color=Color("#28744e") if value=="Strike" else Color("#663d9a") if value=="Skill" else Color("#213d50") if value=="Berry" else Color("#183249")
-	var frame=compact_style(action_color,Color("#a6a17e"))
+	var action_color:Color=hud_tile_color()
+	var frame=compact_style(action_color,hud_accent_color().darkened(.32))
 	b.add_theme_stylebox_override("normal",frame)
-	b.add_theme_stylebox_override("hover",compact_style(action_color.lightened(.14),Color("#ffe4a0")))
+	b.add_theme_stylebox_override("hover",compact_style(action_color.lightened(.14),hud_accent_color()))
 	if value in ["Strike","Skill","Berry"]:
 		b.icon=action_icon(value);b.expand_icon=true;b.add_theme_constant_override("icon_max_width",18)
-	b.add_theme_stylebox_override("pressed",compact_style(Color("#496b81"),Color("#f6e2a6")))
-	b.add_theme_stylebox_override("disabled",compact_style(Color("#202b36"),Color("#34404e")))
+	b.add_theme_stylebox_override("pressed",compact_style(action_color.lightened(.24),hud_accent_color()))
+	b.add_theme_stylebox_override("disabled",compact_style(hud_base_color().darkened(.20),hud_accent_color().darkened(.72)))
 	b.add_theme_color_override("font_disabled_color",Color("#8393a3"))
+	b.focus_mode=Control.FOCUS_NONE
 	b.pressed.connect(action);parent.add_child(b);return b
 func lab_button(parent:Node,title:String,action:Callable)->Button:
 	var b:=Button.new()
@@ -475,6 +493,8 @@ func lab_open()->void:
 	dev_settings_panel.hide()
 	if not is_instance_valid(dev_panel):lab_build_panel()
 	dev_bubble.hide();dungeon_footer.hide();dev_panel.show()
+	if is_instance_valid(bag_panel):bag_panel.hide()
+	if is_instance_valid(attack_button):attack_button.hide()
 	lab_layout();update_hud()
 
 func lab_build_catalog()->void:
@@ -685,6 +705,7 @@ func lab_cast(id:String)->void:
 
 func lab_minimize()->void:
 	dev_panel.hide();dungeon_footer.show();dev_bubble.show();lab_layout()
+	if is_instance_valid(attack_button):attack_button.show()
 
 func lab_bubble_input(event:InputEvent)->void:
 	if event is InputEventScreenTouch:
@@ -715,7 +736,7 @@ func lab_end_drag()->void:
 
 func build_ui():
 	var base=VBoxContainer.new();hud_base=base;add_child(base);base.set_anchors_and_offsets_preset(PRESET_FULL_RECT);base.add_theme_constant_override("separation",0)
-	var header=PanelContainer.new();header.add_theme_stylebox_override("panel",compact_style(Color("#102739"),Color("#ae9c72"),10));base.add_child(header)
+	var header=PanelContainer.new();header.add_theme_stylebox_override("panel",compact_style(hud_base_color(),hud_accent_color().darkened(.22),13));base.add_child(header)
 	var h=HBoxContainer.new();header.add_child(h)
 	var back=button(h,"‹",leave);back.tooltip_text="Leave expedition";back.size_flags_horizontal=SIZE_SHRINK_BEGIN;back.custom_minimum_size.x=34;back.add_theme_font_size_override("font_size",20)
 	var portrait=TextureRect.new();portrait.custom_minimum_size=Vector2(36,42);portrait.expand_mode=TextureRect.EXPAND_IGNORE_SIZE;portrait.stretch_mode=TextureRect.STRETCH_KEEP_ASPECT_CENTERED
@@ -755,7 +776,7 @@ func build_ui():
 	area.add_child(map_zoom);map_zoom.position=map.position+Vector2(map.size.x-37,5);map_zoom.pressed.connect(toggle_map)
 	feedback=Label.new();feedback.horizontal_alignment=HORIZONTAL_ALIGNMENT_CENTER;feedback.add_theme_font_size_override("font_size",24);feedback.add_theme_color_override("font_outline_color",Color("#142535"));feedback.add_theme_constant_override("outline_size",7);feedback.mouse_filter=MOUSE_FILTER_IGNORE;area.add_child(feedback);feedback.hide()
 	floor_banner=Label.new();floor_banner.horizontal_alignment=HORIZONTAL_ALIGNMENT_CENTER;floor_banner.add_theme_font_size_override("font_size",25);floor_banner.add_theme_color_override("font_outline_color",Color("#142535"));floor_banner.add_theme_constant_override("outline_size",8);floor_banner.mouse_filter=MOUSE_FILTER_IGNORE;area.add_child(floor_banner);floor_banner.hide()
-	var footer=PanelContainer.new();dungeon_footer=footer;footer.add_theme_stylebox_override("panel",compact_style(Color("#102739"),Color("#ae9c72"),10));base.add_child(footer)
+	var footer=PanelContainer.new();dungeon_footer=footer;footer.add_theme_stylebox_override("panel",compact_style(hud_base_color(),hud_accent_color().darkened(.22),13));base.add_child(footer)
 	var v=VBoxContainer.new();v.add_theme_constant_override("separation",3);footer.add_child(v)
 	status_text=label(v,"",12,Color("#ffe1a4"));status_text.clip_text=true;status_text.custom_minimum_size.y=16;status_text.horizontal_alignment=HORIZONTAL_ALIGNMENT_CENTER
 	status_text.mouse_filter=MOUSE_FILTER_STOP
@@ -763,33 +784,164 @@ func build_ui():
 		if event is InputEventMouseButton and event.button_index==MOUSE_BUTTON_LEFT and event.pressed:
 			status_text.clip_text=not status_text.clip_text
 			status_text.autowrap_mode=TextServer.AUTOWRAP_OFF if status_text.clip_text else TextServer.AUTOWRAP_WORD_SMART)
-	var a=HBoxContainer.new();a.add_theme_constant_override("separation",4);v.add_child(a)
-	attack_button=button(a,"Strike",func():pass,true)
-	bind_attack_gesture(attack_button,{"name":"Strike","type":"normal","category":"physical","pattern":"front","reach":1,"power":6},func():path.clear();run.attack(false,facing);sync())
-	power_button=button(a,"Skill",func():pass)
-	bind_attack_gesture(power_button,{"name":"Skill","type":"variable","category":"special" if run.skill_kind==1 else "physical","pattern":"line" if run.skill_kind==1 else "front","reach":2 if run.skill_kind==1 else 1,"power":10},func():path.clear();run.attack(true,facing);sync())
-	heal_button=button(a,"Berry",func():path.clear();run.heal();sync())
-	aim_button=button(a,"Aim ↓",func():rotate_combat_aim())
-	special_button=button(a,"Leaf Dart",func():pass)
-	bind_attack_gesture(special_button,{"name":"Leaf Dart","type":"grass","category":"special","pattern":"line","reach":2,"power":10},func():path.clear();run.attack(true,facing,1);sync())
-	if not run.equipped_moves.is_empty():
-		power_button.hide();special_button.hide()
-		var skills=GridContainer.new();skills.columns=2;skills.add_theme_constant_override("h_separation",4);skills.add_theme_constant_override("v_separation",3);v.add_child(skills)
-		if run.equipped_moves.size()>2:
-			var expand_moves:=button(a,"Moves",func():skills.visible=not skills.visible)
-			expand_moves.tooltip_text="Expand or collapse equipped moves"
-			skills.hide()
-		for id in run.equipped_moves:
-			var b=button(skills,str(Rules.MOVE_LIBRARY[id].name),func():pass)
-			b.clip_text=true
-			bind_attack_gesture(b,Rules.MOVE_LIBRARY[id],func():path.clear();run.cast_move(id,facing);sync())
-			b.size_flags_horizontal=Control.SIZE_EXPAND_FILL
-			move_buttons.append(b)
+	var a:=HBoxContainer.new();a.add_theme_constant_override("separation",5);v.add_child(a)
+	move_dock=GridContainer.new();move_dock.columns=2;move_dock.size_flags_horizontal=SIZE_EXPAND_FILL;move_dock.size_flags_stretch_ratio=2.5
+	move_dock.add_theme_constant_override("h_separation",3);move_dock.add_theme_constant_override("v_separation",3);a.add_child(move_dock)
+	var utility:=GridContainer.new();utility.columns=1;utility.size_flags_horizontal=SIZE_EXPAND_FILL;utility.size_flags_stretch_ratio=1.0
+	utility.add_theme_constant_override("v_separation",2);a.add_child(utility)
+	aim_button=button(utility,"Aim ↓",func():
+		if not utility_drag_suppress:rotate_combat_aim())
+	aim_button.tooltip_text="Tap: rotate · drag: aim in any direction"
+	aim_button.gui_input.connect(utility_drag_input.bind("aim"))
+	heal_button=button(utility,"Berry",func():path.clear();run.heal();sync())
+	var bag:=button(utility,"Bag",toggle_bag)
+	for utility_button in [aim_button,heal_button,bag]:
+		utility_button.custom_minimum_size.y=23
+		utility_button.add_theme_font_size_override("font_size",11)
+	# Legacy energy attacks are retained for internal compatibility, not exposed as extra moves.
+	power_button=button(v,"Skill",func():path.clear();run.attack(true,facing);sync());power_button.hide()
+	special_button=button(v,"Leaf Dart",func():path.clear();run.attack(true,facing,1);sync());special_button.hide()
+	refresh_move_dock()
 	stairs_button=button(v,"Descend",func():path.clear();run.descend();sync(),true)
 	hold_info=RichTextLabel.new();hold_info.custom_minimum_size.y=78;hold_info.add_theme_font_size_override("normal_font_size",14);hold_info.scroll_active=true;hold_info.mouse_filter=MOUSE_FILTER_IGNORE
 	hud_base.add_child(hold_info);hud_base.move_child(hold_info,dungeon_footer.get_index());hold_info.hide()
 	aim_preview=Control.new();area.add_child(aim_preview);aim_preview.set_anchors_and_offsets_preset(PRESET_FULL_RECT);aim_preview.mouse_filter=MOUSE_FILTER_IGNORE;aim_preview.draw.connect(draw_aim_preview)
+	build_strike_bubble()
+	build_bag()
 	lab_settings_overlay()
+func refresh_move_dock()->void:
+	if not is_instance_valid(move_dock):return
+	dock_move_ids=run.equipped_moves.duplicate()
+	move_buttons.clear()
+	for child in move_dock.get_children():
+		move_dock.remove_child(child);child.queue_free()
+	for slot in range(4):
+		if slot>=dock_move_ids.size():
+			var empty:=button(move_dock,"—",func():pass)
+			empty.disabled=true;empty.custom_minimum_size.y=35
+			empty.tooltip_text="Empty move slot · learn a technique from Bag"
+			continue
+		var id:String=str(dock_move_ids[slot])
+		var move:Dictionary=Rules.MOVE_LIBRARY[id]
+		var b:=button(move_dock,str(move.name),func():pass)
+		b.custom_minimum_size.y=35;b.clip_text=true
+		b.add_theme_font_size_override("font_size",12)
+		var tint:=Color(str(move.get("light","#e8e0ce")))
+		b.add_theme_stylebox_override("normal",compact_style(hud_tile_color(),tint.darkened(.4),7))
+		b.add_theme_stylebox_override("pressed",compact_style(hud_tile_color().lightened(.22),tint,7))
+		bind_attack_gesture(b,move,func():path.clear();run.cast_move(id,facing);sync())
+		move_buttons.append(b)
+
+func build_strike_bubble()->void:
+	attack_button=Button.new();attack_button.text="Strike";attack_button.icon=action_icon("Strike")
+	attack_button.expand_icon=true;attack_button.add_theme_constant_override("icon_max_width",22)
+	attack_button.add_theme_font_size_override("font_size",10)
+	attack_button.icon_alignment=HORIZONTAL_ALIGNMENT_CENTER
+	attack_button.vertical_icon_alignment=VERTICAL_ALIGNMENT_TOP
+	attack_button.custom_minimum_size=Vector2(58,58);attack_button.size=Vector2(58,58)
+	attack_button.focus_mode=Control.FOCUS_NONE
+	var frame:=compact_style(hud_base_color().lightened(.18),hud_accent_color(),29)
+	frame.set_border_width_all(2);frame.shadow_size=3;frame.shadow_color=Color("#00191399")
+	attack_button.add_theme_stylebox_override("normal",frame)
+	attack_button.add_theme_stylebox_override("hover",frame)
+	attack_button.add_theme_stylebox_override("pressed",compact_style(hud_base_color().lightened(.32),hud_accent_color().lightened(.2),29))
+	attack_button.tooltip_text="Free regular attack · drag to reposition"
+	area.add_child(attack_button);attack_button.z_index=10
+	var prefs:=ConfigFile.new()
+	if prefs.load("user://kindria_hud.cfg")==OK:
+		var saved:Variant=prefs.get_value("combat","strike_position",strike_fraction)
+		if saved is Vector2: strike_fraction=saved.clamp(Vector2.ZERO,Vector2.ONE)
+	area.resized.connect(position_strike_bubble)
+	position_strike_bubble.call_deferred()
+	attack_button.gui_input.connect(utility_drag_input.bind("strike"))
+	attack_button.pressed.connect(func():
+		if utility_drag_suppress or notified or run.finished:return
+		if attack_time>0.0: strike_pending=true;return
+		path.clear();run.attack(false,facing);sync())
+
+func position_strike_bubble()->void:
+	if not is_instance_valid(attack_button):return
+	var travel:Vector2=(area.size-attack_button.size-Vector2(8,8)).max(Vector2.ZERO)
+	attack_button.position=Vector2(4,4)+travel*strike_fraction
+
+func utility_drag_input(event:InputEvent,kind:String)->void:
+	if event is InputEventMouseButton and event.button_index==MOUSE_BUTTON_LEFT and event.pressed and not hold_active:
+		utility_drag_kind=kind;utility_drag_moved=false;utility_drag_suppress=false
+		utility_drag_origin=get_global_mouse_position()
+		utility_drag_start=attack_button.position
+func reset_utility_drag()->void:
+	utility_drag_suppress=false
+func handle_utility_drag(event:InputEvent)->bool:
+	if utility_drag_kind.is_empty():return false
+	if event is InputEventMouseMotion:
+		var delta:Vector2=event.position-utility_drag_origin
+		if delta.length()>9.0:utility_drag_moved=true
+		if utility_drag_moved:
+			utility_drag_suppress=true
+			if utility_drag_kind=="aim":
+				facing=Rules.aim8(delta);path.clear();update_hud();lab_update_aim();aim_preview.queue_redraw()
+			else:
+				var travel:Vector2=(area.size-attack_button.size-Vector2(8,8)).max(Vector2.ZERO)
+				attack_button.position=(utility_drag_start+delta).clamp(Vector2(4,4),Vector2(4,4)+travel)
+			return true
+	elif event is InputEventMouseButton and event.button_index==MOUSE_BUTTON_LEFT and not event.pressed:
+		if utility_drag_moved and utility_drag_kind=="strike":
+			var travel:Vector2=(area.size-attack_button.size-Vector2(8,8)).max(Vector2.ONE)
+			strike_fraction=((attack_button.position-Vector2(4,4))/travel).clamp(Vector2.ZERO,Vector2.ONE)
+			var prefs:=ConfigFile.new();prefs.load("user://kindria_hud.cfg")
+			prefs.set_value("combat","strike_position",strike_fraction);prefs.save("user://kindria_hud.cfg")
+		utility_drag_kind="";utility_drag_moved=false
+		aim_preview.queue_redraw()
+		reset_utility_drag.call_deferred()
+	return false
+
+func build_bag()->void:
+	bag_panel=PanelContainer.new();bag_panel.add_theme_stylebox_override("panel",compact_style(hud_base_color(),hud_accent_color(),12))
+	area.add_child(bag_panel);bag_panel.z_index=30
+	bag_panel.set_anchor(SIDE_LEFT,.08);bag_panel.set_anchor(SIDE_RIGHT,.92)
+	bag_panel.set_anchor(SIDE_TOP,.12);bag_panel.set_anchor(SIDE_BOTTOM,.86)
+	bag_panel.set_offset(SIDE_LEFT,0);bag_panel.set_offset(SIDE_RIGHT,0);bag_panel.set_offset(SIDE_TOP,0);bag_panel.set_offset(SIDE_BOTTOM,0)
+	var stack:=VBoxContainer.new();bag_panel.add_child(stack)
+	var heading:=HBoxContainer.new();stack.add_child(heading)
+	var title:=label(heading,"Bag",16,hud_accent_color());title.size_flags_horizontal=SIZE_EXPAND_FILL
+	var close:=lab_button(heading,"×",func():bag_panel.hide());close.size_flags_horizontal=SIZE_SHRINK_END
+	var scroll:=ScrollContainer.new();scroll.size_flags_vertical=SIZE_EXPAND_FILL;scroll.horizontal_scroll_mode=ScrollContainer.SCROLL_MODE_DISABLED;stack.add_child(scroll)
+	bag_content=VBoxContainer.new();bag_content.size_flags_horizontal=SIZE_EXPAND_FILL;scroll.add_child(bag_content)
+	bag_panel.hide()
+func toggle_bag()->void:
+	if bag_panel.visible:bag_panel.hide();return
+	path.clear();strike_pending=false;refresh_bag();bag_panel.show()
+func clear_bag_content()->void:
+	for child in bag_content.get_children():
+		bag_content.remove_child(child);child.queue_free()
+func refresh_bag()->void:
+	clear_bag_content()
+	label(bag_content,"Supplies",14,hud_accent_color())
+	var berry:=lab_button(bag_content,"Berry ×%d"%run.potions,func():run.heal();sync();refresh_bag())
+	berry.disabled=run.potions<=0 or run.hp>=run.max_hp
+	label(bag_content,"Materials: %d"%run.materials,13)
+	label(bag_content,"Held: "+(run.held_item.replace("_"," ").capitalize() if not run.held_item.is_empty() else "None"),13)
+	label(bag_content,"Technique manuals",14,hud_accent_color())
+	var available:=Rules.available_moves(run.trained_profile.get("types",["normal"]),int(run.trained_profile.get("level",1)))
+	if run.technique_manuals.is_empty():label(bag_content,"No manuals collected",12)
+	for entry in run.technique_manuals:
+		var id:String=str(entry)
+		if not Rules.MOVE_LIBRARY.has(id):continue
+		var teach:=lab_button(bag_content,"%s ×%d"%[Rules.MOVE_LIBRARY[id].name,run.technique_manuals[id]],bag_choose_move.bind(id))
+		teach.disabled=id in run.equipped_moves or not id in available
+func bag_choose_move(id:String)->void:
+	if run.equipped_moves.size()<4:
+		if run.learn_from_manual(id):update_hud()
+		refresh_bag();return
+	clear_bag_content()
+	label(bag_content,"Replace a move with "+str(Rules.MOVE_LIBRARY[id].name),14,hud_accent_color())
+	for entry in run.equipped_moves:
+		var old:String=str(entry)
+		lab_button(bag_content,str(Rules.MOVE_LIBRARY[old].name),bag_replace_move.bind(id,old))
+	lab_button(bag_content,"Cancel",refresh_bag)
+func bag_replace_move(id:String,old:String)->void:
+	if run.learn_from_manual(id,old):update_hud()
+	refresh_bag()
 func leave():
 	if notified:return
 	notified=true
@@ -19083,7 +19235,7 @@ func toggle_map():
 	map_zoom.tooltip_text="Collapse explored map" if map_expanded else "Expand explored map"
 	map.queue_redraw()
 func draw_map():
-	map.draw_style_box(style(Color("#102637ee"),Color("#dfc084"),15),Rect2(Vector2.ZERO,map.size))
+	map.draw_style_box(compact_style(hud_base_color(),hud_accent_color().darkened(.15),10),Rect2(Vector2.ZERO,map.size))
 	var extent=Vector2i.ONE
 	for p in run.cells:extent=Vector2i(maxi(extent.x,p.x+1),maxi(extent.y,p.y+1))
 	var unit=minf((map.size.x-20.0)/extent.x,(map.size.y-44.0)/extent.y)
@@ -19126,6 +19278,8 @@ func show_held_attack()->void:
 		hold_info.text=held_attack_description(hold_move);hold_info.show()
 
 func _input(event:InputEvent)->void:
+	if handle_utility_drag(event):
+		get_viewport().set_input_as_handled();return
 	if not hold_active:return
 	if event is InputEventMouseMotion:
 		var delta:Vector2=event.position-hold_origin
@@ -19147,7 +19301,7 @@ func finish_attack_release(action:Callable)->void:
 	if action.is_valid() and not notified and not run.finished and not tile_cast_active():action.call()
 
 func draw_aim_preview()->void:
-	if not hold_active or not hold_visible or not is_instance_valid(camera) or viewport.size.x<=0 or viewport.size.y<=0:return
+	if not ((hold_active and hold_visible) or (utility_drag_kind=="aim" and utility_drag_moved)) or not is_instance_valid(camera) or viewport.size.x<=0 or viewport.size.y<=0:return
 	var footprint:Dictionary=run.attack_footprint(run.player,facing,str(hold_move.get("pattern","front")),int(hold_move.get("reach",1)),true)
 	var ratio:=area.size/Vector2(viewport.size)
 	for tile in footprint:
@@ -19166,7 +19320,7 @@ func rotate_combat_aim()->void:
 	lab_update_aim()
 	update_hud()
 func touch(event:InputEvent):
-	if notified or run.finished or tile_cast_active():return
+	if notified or run.finished or tile_cast_active() or (is_instance_valid(bag_panel) and bag_panel.visible):return
 	if map_expanded and (event is InputEventScreenTouch or event is InputEventMouseButton):
 		if Rect2(map.position,map.size).has_point(event.position):return
 	if event is InputEventScreenTouch and event.index!=0:return
@@ -19299,10 +19453,11 @@ func update_hud():
 	status_text.tooltip_text=status_text.text
 	if is_instance_valid(aim_button):aim_button.text="Aim "+["↑","↗","→","↘","↓","↙","←","↖"][maxi(0,Rules.DIR8.find(facing))]
 	if is_instance_valid(special_button):special_button.disabled=run.energy<2
+	if dock_move_ids!=run.equipped_moves:refresh_move_dock()
 	for i in range(move_buttons.size()):
 		var id:String=run.equipped_moves[i]
 		var move:Dictionary=Rules.MOVE_LIBRARY[id]
-		move_buttons[i].text="%s · %d/%d"%[move.name,run.move_pp[id],move.pp]
+		move_buttons[i].text="%s\n%d/%d PP"%[move.name,run.move_pp[id],move.pp]
 		if id==run.charged_move_id:move_buttons[i].text="Release "+str(move.name)
 		move_buttons[i].disabled=not run.charged_move_id.is_empty() and id!=run.charged_move_id or (run.charged_move_id.is_empty() and int(run.move_pp[id])<=0)
 	power_button.text="%s %d/8"%[["Burst","Bolt","Drain"][run.skill_kind],run.energy];power_button.disabled=run.energy<2
