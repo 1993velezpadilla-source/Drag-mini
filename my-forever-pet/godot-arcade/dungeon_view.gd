@@ -980,7 +980,9 @@ func set_joystick_point(point:Vector2)->void:
 	var radius:float=maxf(1.0,minf(joystick.size.x,joystick.size.y)*.5)
 	joy_knob=(delta/radius).limit_length(1.0)
 	joy_direction=Rules.aim8(delta) if delta.length()>radius*.20 else Vector2i.ZERO
-	if joy_direction!=Vector2i.ZERO and attack_time<=0.0 and not strike_pending and not hold_active and native_aim_pointer==-2 and not field_aiming:facing=joy_direction
+	if joy_direction!=Vector2i.ZERO and attack_time<=0.0 and not strike_pending and not hold_active and native_aim_pointer==-2 and not field_aiming and facing!=joy_direction:
+		facing=joy_direction
+		update_hud();lab_update_aim()
 	joystick.queue_redraw()
 
 func control_contains(control:Control,point:Vector2)->bool:
@@ -1016,6 +1018,7 @@ func capture_field_aim(event:InputEvent)->bool:
 			facing=Rules.aim8(delta);update_hud();lab_update_aim();aim_preview.queue_redraw()
 		return true
 	if down and field_pointer==-2 and field_control_allowed(point):
+		if is_touch and pointer==0:native_touch_suppressed=true
 		field_pointer=pointer;field_origin=point;field_started=Time.get_ticks_msec();field_aiming=false
 		return true
 	return false
@@ -1086,7 +1089,9 @@ func capture_control_pointer(event:InputEvent)->bool:
 	var point:Vector2=event.position
 	var active:Button=panel_strike if strike_on_panel else attack_button
 	if is_mouse and event.device==-1:
-		return joy_pointer>=0 or strike_pointer>=0 or control_contains(joystick,point) or control_contains(active,point)
+		# Only the primary touch's captured gesture may suppress its emulated mouse.
+		# A second finger on the joystick must not swallow unrelated GUI input.
+		return control_contains(joystick,point) or control_contains(active,point)
 	var pointer:int=event.index if is_touch else -1
 	var down:bool=(event is InputEventScreenTouch and event.pressed) or (event is InputEventMouseButton and event.button_index==MOUSE_BUTTON_LEFT and event.pressed)
 	var up:bool=(event is InputEventScreenTouch and not event.pressed) or (event is InputEventMouseButton and event.button_index==MOUSE_BUTTON_LEFT and not event.pressed)
@@ -1116,10 +1121,12 @@ func capture_control_pointer(event:InputEvent)->bool:
 		return true
 	if controls_modal() or notified or run.finished:return false
 	if down and control_contains(joystick,point):
+		if is_touch and pointer==0:native_touch_suppressed=true
 		if joy_pointer==-2:
 			joy_pointer=pointer;path.clear();strike_pending=false;set_joystick_point(point);tick=0.0
 		return true
 	if down and control_contains(active,point):
+		if is_touch and pointer==0:native_touch_suppressed=true
 		if strike_pointer==-2 and strike_available():
 			strike_pointer=pointer;strike_touch_button=active;strike_touch_origin=point;strike_touch_moved=false;strike_touch_start=active.position
 		return true
@@ -19565,6 +19572,15 @@ func show_held_attack()->void:
 	else:
 		hold_info.text=held_attack_description(hold_move);hold_info.show()
 
+func _notification(what:int)->void:
+	if what==NOTIFICATION_APPLICATION_FOCUS_OUT or what==NOTIFICATION_APPLICATION_PAUSED:
+		path.clear();strike_pending=false;reset_joystick();cancel_native_combat()
+		strike_pointer=-2;field_pointer=-2;field_aiming=false;utility_drag_kind=""
+		utility_drag_suppress=false;native_touch_suppressed=false;hold_release_pending=false
+		hold_active=false;hold_visible=false;hold_move={};hold_action=Callable()
+		if is_instance_valid(hold_info):hold_info.hide()
+		if is_instance_valid(aim_preview):aim_preview.queue_redraw()
+
 func _input(event:InputEvent)->void:
 	if capture_native_combat(event) or capture_control_pointer(event) or capture_field_aim(event):
 		get_viewport().set_input_as_handled();return
@@ -19628,7 +19644,7 @@ func world_tap(point:Vector2)->void:
 	if absf(ray.y)<.001:return
 	var hit=origin+ray*(-origin.y/ray.y)
 	var target=Vector2i(roundi(hit.x/1.4),roundi(hit.z/1.4))
-	if target==run.player:return
+	if target==run.player or not run.cells.has(target):return
 	# Only a valid world interaction supersedes a buffered Strike.
 	strike_pending=false
 	if run.enemy_at(target)>=0 and run.revealed.has(target):
