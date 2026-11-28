@@ -630,6 +630,56 @@ func run_checks()->void:
 	if survivor.has("retreat_steps"):failures.append("survival rearm after recovery")
 	checks+=1
 	print("KINDRIA_SURVIVAL_AI profiles=3 gates=5 turn=1 budget=2 safety=1")
+	# A defensive creature physically occupies the attack lane of an injured partner.
+	var protector_fixture=Rules.new()
+	for y in range(1,8):
+		for x in range(1,8):protector_fixture.cells[Vector2i(x,y)]=true
+	protector_fixture.player=Vector2i(5,4)
+	protector_fixture.stairs=Vector2i(7,7)
+	protector_fixture.relic=Vector2i(7,6)
+	var protector_origin:=Vector2i(3,3)
+	var screen_tile:=Vector2i(3,4)
+	var defender:Dictionary={"uid":0,"pos":protector_origin,"hp":30,"max_hp":30,"kind":2,"species":"shellguard","ecology_role":"sentry","ecology_search_enabled":true,"pp_primary":12,"pp_secondary":10}
+	var wounded_friend:Dictionary={"uid":1,"pos":Vector2i(2,4),"hp":5,"max_hp":30,"kind":1,"species":"leafwisp","major_status":"freeze"}
+	protector_fixture.enemies.append(defender);protector_fixture.enemies.append(wounded_friend)
+	if protector_fixture.enemy_protector_step(defender,protector_fixture.player)!=screen_tile or defender.pos!=protector_origin or defender.pp_primary!=12:failures.append("protector screen selection purity")
+	checks+=1
+	wounded_friend["hp"]=20
+	if protector_fixture.enemy_protector_step(defender,protector_fixture.player)!=protector_origin:failures.append("protector healthy partner")
+	wounded_friend["hp"]=5
+	checks+=1
+	defender["species"]="bramble_pup"
+	if protector_fixture.enemy_protector_step(defender,protector_fixture.player)!=protector_origin:failures.append("protector personality")
+	defender["species"]="shellguard"
+	checks+=1
+	protector_fixture.traps[screen_tile]="spike"
+	if protector_fixture.enemy_protector_step(defender,protector_fixture.player)!=protector_origin:failures.append("protector hazard")
+	protector_fixture.traps.clear()
+	checks+=1
+	protector_fixture.cells.erase(Vector2i(4,4))
+	if protector_fixture.enemy_protector_step(defender,protector_fixture.player)!=protector_origin:failures.append("protector occlusion")
+	protector_fixture.cells[Vector2i(4,4)]=true
+	checks+=1
+	protector_fixture.enemies.append({"uid":2,"pos":Vector2i(4,4),"hp":20,"kind":0})
+	if protector_fixture.enemy_protector_step(defender,protector_fixture.player)!=protector_origin:failures.append("protector existing screen")
+	protector_fixture.enemies.pop_back()
+	checks+=1
+	var before_screen:Dictionary=protector_fixture.attack_footprint(protector_fixture.player,Vector2i.LEFT,"line",4,true)
+	if not before_screen.has(wounded_friend.pos):failures.append("protector initial open attack lane")
+	checks+=1
+	protector_fixture.enemy_turn_actions()
+	var screen_moves:int=0
+	var screen_attacks:int=0
+	for action in protector_fixture.enemy_actions:
+		if int(action.get("uid",-1))!=0:continue
+		if action.get("phase","")=="move":screen_moves+=1
+		if action.get("phase","")=="attack":screen_attacks+=1
+	if defender.pos!=screen_tile or screen_moves!=1 or screen_attacks!=0 or defender.pp_primary!=12 or defender.pp_secondary!=10:failures.append("protector actual movement turn")
+	checks+=1
+	var after_screen:Dictionary=protector_fixture.attack_footprint(protector_fixture.player,Vector2i.LEFT,"line",4,true)
+	if not after_screen.has(screen_tile) or after_screen.has(wounded_friend.pos):failures.append("protector physical attack interception")
+	checks+=1
+	print("KINDRIA_PROTECTOR_AI selection=1 gates=5 lane=2 action=1")
 	# Actual disk I/O, legacy migration, corruption recovery, and resumed writes.
 	var test_path:String="user://kindria_procedural_test_"+str(OS.get_process_id())+".cfg"
 	var exact:Array[String]=["legacy exact".sha256_text()]
