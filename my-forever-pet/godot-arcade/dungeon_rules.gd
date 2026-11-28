@@ -3155,9 +3155,15 @@ func enemy_control_setup_step(e:Dictionary,target:Vector2i)->Vector2i:
 	if not enemy_line_of_sight(origin,target) or distance(origin,target)!=2:return origin
 	var best:Vector2i=origin
 	var best_score:int=4
+	var reserved:Dictionary=enemy_pack_reserved_posts(e,target)
+	var peers:Array[Dictionary]=[]
+	for other in enemies:
+		if enemy_squad_partner(e,other):peers.append(other)
+	var memo:Dictionary={}
 	for d in DIR:
 		var q:Vector2i=origin+d
 		if distance(q,target)!=1 or not cells.has(q) or q==stairs or q==relic or q in side_rewards or traps.has(q) or player_traps.has(q) or enemy_at(q)>=0 or ally_at(q)>=0:continue
+		if reserved.has(q) or enemy_recovery_lane_blocked(peers,q,target,memo):continue
 		if mirror_veil_blocks(q,true,"front"):continue
 		var hypothetical:Dictionary=e.duplicate()
 		hypothetical["pos"]=q
@@ -3434,9 +3440,15 @@ func enemy_exit_block_step(e:Dictionary,target:Vector2i)->Vector2i:
 	if not enemy_live_contact(e,target):return origin
 	if not bool(e.get("ecology_search_enabled",false)) or (bool(e.get("monster_house",false)) and not bool(e.get("house_tactical",false))) or int(e.get("kind",0))==3 or int(e.get("stuck_turns",0))>0:return origin
 	if enemy_survival_profile(e) not in ["aggressive","defensive"] or bool(e.get("windup",false)) or distance(origin,target)>3 or not enemy_line_of_sight(origin,target):return origin
+	var reserved:Dictionary=enemy_pack_reserved_posts(e,target)
+	var peers:Array[Dictionary]=[]
+	for other in enemies:
+		if enemy_squad_partner(e,other):peers.append(other)
+	var memo:Dictionary={}
 	for d in DIR:
 		var q:Vector2i=origin+d
 		if distance(q,target)!=1 or not cells.has(q) or q==stairs or q==relic or q in side_rewards or traps.has(q) or player_traps.has(q) or enemy_at(q)>=0 or ally_at(q)>=0:continue
+		if reserved.has(q) or enemy_recovery_lane_blocked(peers,q,target,memo):continue
 		var openings:int=0
 		for side in DIR:
 			if cells.has(q+side):openings+=1

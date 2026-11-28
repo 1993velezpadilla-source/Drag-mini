@@ -1370,7 +1370,24 @@ func run_checks()->void:
 	exit_actor.pos=Vector2i(4,2)
 	if exit_fixture.enemy_exit_block_step(exit_actor,exit_fixture.player)!=Vector2i(4,3):failures.append("control side doorway intercept")
 	checks+=1
-	print("KINDRIA_TERRAIN_CONTROL push=9 exit=4 setup=2")
+	# Control and exit specialists must not block a ready teammate's attack.
+	var control_shooter:Dictionary={"uid":94,"pos":Vector2i(1,3),"hp":30,"kind":1,"species":"leafwisp","ecology_search_enabled":true,"pp_primary":12,"pp_secondary":0}
+	control_fixture.enemies.append(control_shooter)
+	if not control_fixture.enemy_relief_blocks_lane(control_shooter,setup_tile,control_fixture.player) or control_fixture.enemy_control_setup_step(controller,control_fixture.player)==setup_tile:failures.append("control setup preserves friendly ray")
+	checks+=1
+	control_shooter["cooldown"]=1
+	if control_fixture.enemy_control_setup_step(controller,control_fixture.player)!=setup_tile:failures.append("control setup uses released ray")
+	checks+=1
+	control_fixture.enemies.pop_back()
+	var exit_shooter:Dictionary={"uid":95,"pos":Vector2i(6,3),"hp":30,"kind":1,"species":"leafwisp","ecology_search_enabled":true,"pp_primary":12,"pp_secondary":0}
+	exit_fixture.enemies.append(exit_shooter)
+	if not exit_fixture.enemy_relief_blocks_lane(exit_shooter,Vector2i(4,3),exit_fixture.player) or exit_fixture.enemy_exit_block_step(exit_actor,exit_fixture.player)!=exit_actor.pos:failures.append("exit interception preserves friendly ray")
+	checks+=1
+	exit_shooter["cooldown"]=1
+	if exit_fixture.enemy_exit_block_step(exit_actor,exit_fixture.player)!=Vector2i(4,3):failures.append("exit interception uses released ray")
+	checks+=1
+	exit_fixture.enemies.pop_back()
+	print("KINDRIA_TERRAIN_CONTROL push=9 exit=6 setup=4")
 	# Learned status utility is compared to direct attacks, including shared recovery.
 	var status_fixture=Rules.new()
 	for y in range(1,7):
