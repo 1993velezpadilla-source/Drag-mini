@@ -891,6 +891,10 @@ func enemy_profile(kind:int,uid:int)->Array:
 func make_enemy(p:Vector2i,life:int,kind:int,uid:int)->Dictionary:
 	var profile:=enemy_profile(kind,uid)
 	var e:Dictionary={"uid":uid,"pos":p,"hp":life,"max_hp":life,"kind":kind,"windup":false,"species":profile[0],"name":profile[1],"gait":profile[2],"signature":profile[3]}
+	# Learned terrain-control move, separate from the two signature slots.
+	var control:String=str(ENEMY_CONTROL_KITS.get(str(profile[0]),""))
+	if not control.is_empty():
+		e["control_move"]=control;e["pp_control"]=int(MOVE_LIBRARY[control].pp)
 	# Deterministic allocation: does not perturb the seeded floor RNG.
 	if SPECIES_ABILITIES.has(profile[0]):e["abilities"]=normalized_abilities(SPECIES_ABILITIES[profile[0]])
 	if kind!=3 and posmod(seed_value+floor_number+uid,3)==0:e["held_item"]="force_band" if uid%2==0 else "ward_band"
@@ -1874,6 +1878,86 @@ func enemy_protector_step(e:Dictionary,target:Vector2i)->Vector2i:
 		var score:int=100-int(100.0*float(life)/float(cap))-posmod(rank-phase,4)
 		if score>best_score:best_score=score;best=q
 	return best
+
+# A small learned control kit, never an implicit ability shared by every enemy.
+const ENEMY_CONTROL_KITS={"sylphowl":"eos_268","nebulwing":"eos_268","rootgnawer":"eos_284","hollow_stag":"eos_284","lunar_prowler":"eos_284","leviathorn":"eos_284"}
+
+# Pure prediction of the same trajectory used by execution. A floor trap stops
+# the push and activates immediately; collision never overlaps creatures.
+func enemy_push_plan(e:Dictionary,target:Vector2i)->Dictionary:
+	var origin:Vector2i=e.pos
+	if distance(origin,target)!=1 or not enemy_line_of_sight(origin,target):return {}
+	var direction:Vector2i=target-origin
+	var path:Array[Vector2i]=[]
+	var collision:Vector2i=target
+	var kind:String=""
+	var score:int=0
+	for step in range(1,cells.size()+1):
+		var q:Vector2i=target+direction*step
+		if not cells.has(q):
+			collision=q;kind="wall";score=3;break
+		if ally_at(q)>=0:
+			collision=q;kind="party";score=8;break
+		if enemy_at(q)>=0:
+			collision=q;kind="enemy";score=-3;break
+		path.append(q)
+		if traps.has(q):
+			kind="trap";score=8;break
+	# Score only hazards/targets the actor can actually observe.
+	var destination:Vector2i=target if path.is_empty() else path.back()
+	if distance(origin,destination)>enemy_awareness(e) or not enemy_line_of_sight(origin,destination):score=0
+	if kind in ["party","enemy"] and (distance(origin,collision)>enemy_awareness(e) or not enemy_line_of_sight(origin,collision)):score=0
+	return {"path":path,"destination":destination,"collision":collision,"kind":kind,"score":score}
+
+func enemy_execute_control(i:int)->bool:
+	var e:Dictionary=enemies[i]
+	var id:String=str(e.get("control_move",""))
+	if not bool(e.get("ecology_search_enabled",false)) or bool(e.get("windup",false)) or bool(e.get("monster_house",false)):return false
+	if not MOVE_LIBRARY.has(id) or str(MOVE_LIBRARY[id].get("special_rule",""))!="push" or not enemy_move_allowed(e,"control"):return false
+	if player_has_ability("anchored") or boon_active("ingrain") or charge_phase in ["underground","airborne","vanish"] or (shield_turns>0 and shield_kind=="protect") or mirror_veil_blocks(e.pos,true,"front") or boon_active("magic_coat"):return false
+	var plan:Dictionary=enemy_push_plan(e,player)
+	if int(plan.get("score",0))<5:return false
+	var origin:Vector2i=player
+	record_enemy_move(e,"control")
+	e["control_cooldown"]=3
+	for cd_key in ["support_cooldown","cooldown","alt_cooldown"]:
+		if int(e.get(cd_key,0))>0:e[cd_key]=int(e[cd_key])-1
+	var damage:int=0
+	var miss:bool=int(e.get("whiffer_turns",0))>0 or rng.randf()>clampf(enemy_stat_effect(e,"accuracy")*player_stat_effect("evasion")/(263.0/256.0),0.0,1.0)
+	if not miss:
+		player=plan.destination
+		if plan.kind=="trap":
+			trigger_floor_trap(player)
+		elif plan.kind in ["party","enemy","wall"]:
+			damage=mini(hp,shield_damage(5,"physical"));hp-=damage
+			if damage>0:hits+=1;combo=0
+			if plan.kind=="party":
+				var ai:int=ally_at(plan.collision)
+				if ai>=0:allies[ai].hp=maxi(0,int(allies[ai].hp)-5)
+			elif plan.kind=="enemy":
+				var ei:int=enemy_at(plan.collision)
+				if ei>=0:enemies[ei].hp=maxi(0,int(enemies[ei].hp)-5)
+		reveal()
+	enemy_actions.append({"uid":e.get("uid",i),"phase":"attack","from":e.pos,"to":origin,"move":MOVE_LIBRARY[id].name,"fx":"basic_strike","effect":"push","damage":damage,"dodged":miss,"tiles":[origin],"path":[origin],"player_end":player,"push_path":plan.path if not miss else []})
+	emit_event(str(MOVE_LIBRARY[id].name)+(" · Missed" if miss else " · Knockback"))
+	return true
+
+# Occupy a real narrow exit adjacent to the player rather than standing in
+# another attacker's way. The player can still fight through or choose another exit.
+func enemy_exit_block_step(e:Dictionary,target:Vector2i)->Vector2i:
+	var origin:Vector2i=e.pos
+	if not bool(e.get("ecology_search_enabled",false)) or bool(e.get("monster_house",false)) or int(e.get("kind",0))==3 or int(e.get("stuck_turns",0))>0:return origin
+	if enemy_survival_profile(e) not in ["aggressive","defensive"] or bool(e.get("windup",false)) or distance(origin,target)>3 or not enemy_line_of_sight(origin,target):return origin
+	for d in DIR:
+		var q:Vector2i=origin+d
+		if distance(q,target)!=1 or not cells.has(q) or q==stairs or q==relic or q in side_rewards or traps.has(q) or player_traps.has(q) or enemy_at(q)>=0 or ally_at(q)>=0:continue
+		var openings:int=0
+		for side in DIR:
+			if cells.has(q+side):openings+=1
+		if openings!=2:continue
+		var continuation:Vector2i=q+(q-target)
+		if cells.has(continuation) and enemy_at(continuation)<0 and ally_at(continuation)<0:return q
+	return origin
 
 func enemy_patrol_destination(e:Dictionary)->Vector2i:
 	var origin:Vector2i=e.pos
@@ -2934,7 +3018,7 @@ func mirror_veil_blocks(origin:Vector2i,special:bool,pattern:String)->bool:
 func apply_fatal_grudge(e:Dictionary)->bool:
 	if not boon_active("grudge") or hp>0:return false
 	var slot:String=str(e.get("last_move_slot",""))
-	if slot not in ["primary","secondary","support"]:return false
+	if slot not in ["primary","secondary","support","control"]:return false
 	e["pp_"+slot]=0
 	return true
 
@@ -2959,7 +3043,7 @@ func tempo_rift()->bool:
 	return true
 
 func enemy_move_pp(e:Dictionary,slot:String)->int:
-	return int(e.get("pp_"+slot,12 if slot=="primary" else 10))
+	return int(e.get("pp_"+slot,0 if slot=="control" else 12 if slot=="primary" else 10))
 
 # Estimate the existing damage formula without rolling RNG or mutating combat state.
 func enemy_attack_score(e:Dictionary,skill:Array,secondary:bool)->float:
@@ -2995,12 +3079,13 @@ func enemy_attack_score(e:Dictionary,skill:Array,secondary:bool)->float:
 func enemy_move_allowed(e:Dictionary,slot:String)->bool:
 	if enemy_move_pp(e,slot)<=0 or slot in e.get("sealed_moves",[]):return false
 	if int(e.get("encore_turns",0))>0 and str(e.get("encore_slot",""))!=slot:return false
-	if slot=="support" and int(e.get("taunt_turns",0))>0:return false
+	if slot in ["support","control"] and int(e.get("taunt_turns",0))>0:return false
 	return true
 
 # Catalog equivalents for original Kindria enemy signatures, not a replacement of their tuned AI.
 const ENEMY_COPY_KITS={"bramble_pup":["eos_182","eos_154"],"sporeling":["eos_147","eos_251"],"thornbeetle":["eos_529","eos_080"],"leafwisp":["eos_443","eos_251"],"rootgnawer":["eos_289","eos_251"],"vinesnap":["eos_182","eos_486"],"mossmite":["eos_028","eos_030"],"sylphowl":["eos_057","eos_178"],"hollow_stag":["eos_486","eos_251"],"grovetitan":["eos_289","eos_182"],"fungal_monarch":["eos_280","eos_147"],"reef_pup":["eos_069","eos_308"],"jellymancer":["eos_129","eos_308"],"shellguard":["eos_030","eos_028"],"bubblewisp":["eos_016","eos_308"],"eelstrix":["eos_189","eos_144"],"coralcrab":["eos_529","eos_308"],"anemoneye":["eos_198","eos_283"],"marrowray":["eos_057","eos_308"],"leviathorn":["eos_433","eos_308"],"abyss_colossus":["eos_062","eos_063"],"tidal_sovereign":["eos_158","eos_308"],"starlit_pup":["eos_154","eos_190"],"lunamoth":["eos_145","eos_057"],"crystarok":["eos_344","eos_042"],"nova_wisp":["eos_053","eos_262"],"orbitserpent":["eos_234","eos_208"],"comet_hare":["eos_190","eos_154"],"voidspider":["eos_436","eos_114"],"nebulwing":["eos_127","eos_057"],"lunar_prowler":["eos_063","eos_515"],"astro_golem":["eos_030","eos_028"],"celestial_guardian":["eos_145","eos_207"]}
 func enemy_catalog_move(e:Dictionary,slot:String)->String:
+	if slot=="control":return str(e.get("control_move",""))
 	if slot=="support":
 		return "eos_058" if ENEMY_SUPPORT.get(e.get("species",""),"")=="guard" else "eos_003" if ENEMY_SUPPORT.get(e.get("species",""),"")=="drowse" else ""
 	var kit:Array=ENEMY_COPY_KITS.get(e.get("species",""),[])
@@ -3040,7 +3125,7 @@ func apply_move_lock(i:int,rule:String)->bool:
 	if i<0 or i>=enemies.size():return false
 	var e:Dictionary=enemies[i]
 	var slot:String=str(e.get("last_move_slot",""))
-	if slot not in ["primary","secondary","support"]:return false
+	if slot not in ["primary","secondary","support","control"]:return false
 	if rule=="encore":
 		if int(e.get("encore_turns",0))>0:return false
 		e["encore_slot"]=slot;e["encore_turns"]=rng.randi_range(6,11)
@@ -3203,9 +3288,15 @@ func enemy_turn_actions():
 		if retreat!=p:
 			enemies[i].pos=retreat
 			enemies[i]["retreat_steps"]=int(enemies[i].get("retreat_steps",0))+1
-			for cd_key in ["support_cooldown","cooldown","alt_cooldown"]:
+			for cd_key in ["support_cooldown","cooldown","alt_cooldown","control_cooldown"]:
 				if int(enemies[i].get(cd_key,0))>0:enemies[i][cd_key]=int(enemies[i][cd_key])-1
 			enemy_actions.append({"uid":enemies[i].get("uid",i),"phase":"move","from":p,"to":retreat,"gait":enemies[i].get("gait","walk")})
+			continue
+		var control_cd:int=int(enemies[i].get("control_cooldown",0))
+		if control_cd>0:enemies[i]["control_cooldown"]=control_cd-1
+		if control_cd<=0 and enemy_execute_control(i):
+			if hp<=0:
+				apply_fatal_grudge(enemies[i]);finished=true;success=false;message="Rescue needed · expedition lost";return
 			continue
 		var support_cd:int=int(enemies[i].get("support_cooldown",0))
 		if support_cd>0:enemies[i]["support_cooldown"]=support_cd-1
@@ -3315,6 +3406,8 @@ func enemy_turn_actions():
 		elif pursuit_target!=p and kind!=3 and int(enemies[i].get("stuck_turns",0))<=0:
 			var path:Array[Vector2i]=[]
 			var tactical:Vector2i=enemy_protector_step(enemies[i],pursuit_target) if not charged and pursuit_target==player else p
+			if tactical==p and not charged and pursuit_target==player:
+				tactical=enemy_exit_block_step(enemies[i],player)
 			if tactical==p and ready and not charged and not in_range and pursuit_target==player:
 				tactical=enemy_tactical_step(enemies[i],pursuit_target,pattern,int(skill[0]))
 			if tactical==p and not charged and pursuit_target==player:
