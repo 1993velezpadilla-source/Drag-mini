@@ -5180,6 +5180,11 @@ func enemy_party_player_ko_bonus(e:Dictionary,skill:Array,secondary:bool,basic:b
 	if accuracy<.85 or enemy_opportunity_damage(e,skill,secondary,basic)<hp:return 0.0
 	return 2.5*accuracy
 
+# Party comparisons have their own geometry- and accuracy-checked KO
+# premium. Do not also add the generic positional opportunity premium.
+func enemy_party_player_attack_value(e:Dictionary,skill:Array,secondary:bool)->float:
+	return enemy_attack_score(e,skill,secondary,false)+enemy_party_player_ko_bonus(e,skill,secondary)
+
 func enemy_party_attack_plan(e:Dictionary)->Dictionary:
 	var origin:Vector2i=e.pos
 	if not bool(e.get("ecology_search_enabled",false)) or bool(e.get("windup",false)) or allies.is_empty() or int(e.get("kind",0))==3:return {}
@@ -5192,11 +5197,14 @@ func enemy_party_attack_plan(e:Dictionary)->Dictionary:
 		var alt:Array=SECONDARY_SKILLS[species]
 		kits.append({"slot":"secondary","skill":[alt[0],false,3,alt[3],alt[4],alt[5],"alt_"+species],"pattern":str(alt[1]),"name":str(alt[2])})
 	var player_value:float=0.0
+	# Scores depend on the kit, not on which valid heading reaches the player.
+	var player_kit_values:Dictionary={}
 	var player_visible:bool=enemy_live_contact(e,player)
 	var player_protected:bool=(shield_turns>0 and shield_kind=="protect") or charge_phase in ["underground","airborne","vanish"]
 	if player_visible and not player_protected and distance(origin,player)==1:player_value=float(maxi(1,1+tier))+enemy_party_player_ko_bonus(e,[],false,true)
 	if player_visible and not player_protected and int(e.get("cooldown",0))<=0 and enemy_move_allowed(e,"primary") and attack_aim(origin,player,str(ATTACK_PATTERNS.get(species,"line")),int(primary[0]))!=Vector2i.ZERO:
-		player_value=maxf(player_value,enemy_attack_score(e,primary,false)+enemy_party_player_ko_bonus(e,primary,false))
+		player_kit_values["primary"]=enemy_party_player_attack_value(e,primary,false)
+		player_value=maxf(player_value,float(player_kit_values["primary"]))
 	if player_value>0.0:
 		player_value+=(1.0-float(hp)/float(maxi(1,max_hp)))*1.5+enemy_squad_focus_bonus(e,-1,player)+enemy_target_exposure(e,player,-1)
 	var best:Dictionary={}
@@ -5209,7 +5217,8 @@ func enemy_party_attack_plan(e:Dictionary)->Dictionary:
 			var footprint:Dictionary=attack_footprint(origin,d,pattern,int(skill[0]))
 			if player_visible and footprint.has(player):
 				if not player_protected:
-					var value:float=enemy_attack_score(e,skill,secondary)+enemy_party_player_ko_bonus(e,skill,secondary)
+					if not player_kit_values.has(kit.slot):player_kit_values[kit.slot]=enemy_party_player_attack_value(e,skill,secondary)
+					var value:float=float(player_kit_values[kit.slot])
 					value+=(1.0-float(hp)/float(maxi(1,max_hp)))*1.5+enemy_squad_focus_bonus(e,-1,player)+enemy_target_exposure(e,player,-1)
 					best_score=maxf(best_score,value+.25)
 				continue
@@ -5487,7 +5496,7 @@ func enemy_opportunity_bonus(e:Dictionary,skill:Array,secondary:bool)->float:
 	if int(e.get("whiffer_turns",0))>0:accuracy*=.05
 	return 3.0*accuracy
 
-func enemy_attack_score(e:Dictionary,skill:Array,secondary:bool)->float:
+func enemy_attack_score(e:Dictionary,skill:Array,secondary:bool,include_opportunity:bool=true)->float:
 	var info:Array=ENEMY_TRAINING.get(e.get("species",""),[["normal"],"normal","normal",0,0,"physical"])
 	var element:String=str(info[2] if secondary else info[1])
 	var raw:float=float(maxi(1,2+tier+int(floor_number/3)+(2 if int(e.get("kind",0))>=2 else 0)+int(skill[3])))
@@ -5524,7 +5533,7 @@ func enemy_attack_score(e:Dictionary,skill:Array,secondary:bool)->float:
 		var control_window:bool=bool(e.get("ecology_search_enabled",false)) and (int(player_boons.get("hostile_sleep",0))>=2 or int(player_boons.get("hostile_paralysis",0))>=3)
 		score*=.90 if control_window else .70
 	if enemy_move_pp(e,slot)<=2:score*=.85
-	return score*enemy_observed_attack_weight(e,-1,slot)+enemy_opportunity_bonus(e,skill,secondary)
+	return score*enemy_observed_attack_weight(e,-1,slot)+(enemy_opportunity_bonus(e,skill,secondary) if include_opportunity else 0.0)
 
 func enemy_move_allowed(e:Dictionary,slot:String)->bool:
 	if enemy_move_pp(e,slot)<=0 or slot in e.get("sealed_moves",[]):return false
