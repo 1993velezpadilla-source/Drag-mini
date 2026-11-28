@@ -2386,7 +2386,7 @@ func run_checks()->void:
 			var blocked:bool=false
 			for other in memo_peers:
 				if ring_fixture.enemy_relief_blocks_lane(other,q,ring_fixture.player):blocked=true;break
-			var expected:bool=ring_fixture.enemy_strategy_attack_tile(ring_actor,q,ring_fixture.player)
+			var expected:bool=ring_fixture.distance(q,ring_fixture.player)<=ring_fixture.enemy_awareness(ring_actor) and ring_fixture.enemy_line_of_sight(q,ring_fixture.player) and ring_fixture.enemy_strategy_attack_tile(ring_actor,q,ring_fixture.player)
 			if ring_fixture.enemy_recovery_lane_blocked(memo_peers,q,ring_fixture.player,memo_lanes)!=blocked or ring_fixture.enemy_recovery_lane_blocked(memo_peers,q,ring_fixture.player,memo_lanes)!=blocked:failures.append("recovery memo lane equivalence")
 			checks+=1
 			if ring_fixture.enemy_recovery_attack_tile(ring_actor,q,ring_fixture.player,memo_attacks)!=expected or ring_fixture.enemy_recovery_attack_tile(ring_actor,q,ring_fixture.player,memo_attacks)!=expected:failures.append("recovery memo attack equivalence")
@@ -2928,7 +2928,27 @@ func run_checks()->void:
 			if score_memo.compute_attack_footprint(memo_caster.pos,heading,pattern,2)!=first:symmetric_ok=false
 	if not symmetric_ok:failures.append("heading invariant footprint parity")
 	checks+=1
-	print("KINDRIA_ANTI_STALL checks=179")
+	# A radial footprint may bend around a wall without legal direct perception.
+	var recovery_sight=Rules.new()
+	for y in range(1,8):
+		for x in range(1,8):recovery_sight.cells[Vector2i(x,y)]=true
+	recovery_sight.player=Vector2i(4,4)
+	var sight_actor:Dictionary={"uid":610,"pos":Vector2i(4,5),"hp":30,"kind":1,"species":"sporeling","ecology_role":"hunter","ecology_search_enabled":true,"personality_enabled":true,"pp_primary":12,"pp_secondary":0}
+	recovery_sight.enemies.append(sight_actor)
+	var sight_post:=Vector2i(3,3)
+	recovery_sight.cells.erase(Vector2i(3,4))
+	var sight_memo:Dictionary={}
+	if not recovery_sight.enemy_strategy_attack_tile(sight_actor,sight_post,recovery_sight.player) or recovery_sight.enemy_line_of_sight(sight_post,recovery_sight.player):failures.append("recovery curved footprint fixture")
+	checks+=1
+	if recovery_sight.enemy_recovery_attack_tile(sight_actor,sight_post,recovery_sight.player,sight_memo) or bool(sight_memo.get(sight_post,true)):failures.append("recovery rejects obscured destination")
+	checks+=1
+	recovery_sight.cells[Vector2i(3,4)]=true
+	var fresh_sight:Dictionary={}
+	if not recovery_sight.enemy_recovery_attack_tile(sight_actor,sight_post,recovery_sight.player,fresh_sight):failures.append("recovery accepts newly visible destination")
+	checks+=1
+	if sight_actor.pos!=Vector2i(4,5) or sight_actor.pp_primary!=12 or not recovery_sight.enemy_actions.is_empty():failures.append("recovery projected perception planning purity")
+	checks+=1
+	print("KINDRIA_ANTI_STALL checks=183")
 	# A direct witness may report a tile, but a listener cannot relay it.
 	var comm=Rules.new()
 	for x in range(1,4):comm.cells[Vector2i(x,3)]=true
