@@ -967,6 +967,76 @@ func run_checks()->void:
 	if squad_actions!=1 or squad_actor.pos==squad_origin or squad_fixture.distance(squad_actor.pos,squad_origin)!=1:failures.append("squad actual interception turn")
 	checks+=1
 	print("KINDRIA_SQUAD_TACTICS focus=5 gates=3 movement=3")
+	# Adaptive retreat recognition uses witnessed voluntary steps, not forced motion.
+	var adaptive_fixture=Rules.new()
+	for y in range(1,9):
+		for x in range(1,9):adaptive_fixture.cells[Vector2i(x,y)]=true
+	adaptive_fixture.stairs=Vector2i(8,8)
+	adaptive_fixture.relic=Vector2i(8,7)
+	var adaptive_actor:Dictionary={"uid":0,"pos":Vector2i(6,2),"hp":30,"kind":0,"species":"rootgnawer","ecology_role":"hunter","ecology_search_enabled":true,"pp_primary":0,"pp_secondary":0}
+	var adaptive_partner:Dictionary={"uid":1,"pos":Vector2i(3,2),"hp":30,"kind":0,"species":"bramble_pup","ecology_role":"hunter","ecology_search_enabled":true,"pp_primary":0,"pp_secondary":0}
+	adaptive_fixture.enemies.append(adaptive_actor);adaptive_fixture.enemies.append(adaptive_partner)
+	adaptive_fixture.turns=20
+	adaptive_fixture.player=Vector2i(3,3)
+	adaptive_fixture.enemy_observe_movement(adaptive_actor,adaptive_fixture.player)
+	adaptive_fixture.adaptive_walk_from=Vector2i(3,3);adaptive_fixture.adaptive_walk_to=Vector2i(4,3);adaptive_fixture.adaptive_walk_turn=20
+	adaptive_fixture.player=Vector2i(4,3);adaptive_fixture.turns=21
+	adaptive_fixture.enemy_observe_movement(adaptive_actor,adaptive_fixture.player)
+	if adaptive_actor.get("adaptive_streak",0)!=1 or adaptive_fixture.enemy_retreat_prediction(adaptive_actor,adaptive_fixture.player)!=adaptive_fixture.player:failures.append("adaptive common requires repeat")
+	checks+=1
+	adaptive_actor["kind"]=2
+	if adaptive_fixture.enemy_retreat_prediction(adaptive_actor,adaptive_fixture.player)!=Vector2i(5,3):failures.append("adaptive elite earlier recognition")
+	adaptive_actor["kind"]=0
+	checks+=1
+	adaptive_fixture.adaptive_walk_from=Vector2i(4,3);adaptive_fixture.adaptive_walk_to=Vector2i(5,3);adaptive_fixture.adaptive_walk_turn=21
+	adaptive_fixture.player=Vector2i(5,3);adaptive_fixture.turns=22
+	adaptive_fixture.enemy_observe_movement(adaptive_actor,adaptive_fixture.player)
+	if adaptive_fixture.enemy_retreat_prediction(adaptive_actor,adaptive_fixture.player)!=Vector2i(6,3) or adaptive_fixture.enemy_adaptive_intercept_step(adaptive_actor,adaptive_fixture.player)!=Vector2i(6,3):failures.append("adaptive observed flank intercept")
+	checks+=1
+	adaptive_fixture.traps[Vector2i(6,3)]="snare"
+	if adaptive_fixture.enemy_adaptive_intercept_step(adaptive_actor,adaptive_fixture.player)!=adaptive_actor.pos:failures.append("adaptive hazard gate")
+	adaptive_fixture.traps.clear()
+	checks+=1
+	adaptive_actor["kind"]=3
+	if adaptive_fixture.enemy_retreat_prediction(adaptive_actor,adaptive_fixture.player)!=adaptive_fixture.player:failures.append("adaptive guardian exclusion")
+	adaptive_actor["kind"]=0
+	checks+=1
+	adaptive_actor["windup"]=true
+	if adaptive_fixture.enemy_adaptive_intercept_step(adaptive_actor,adaptive_fixture.player)!=adaptive_actor.pos:failures.append("adaptive preserve telegraph")
+	adaptive_actor.erase("windup")
+	checks+=1
+	adaptive_fixture.turns=23;adaptive_fixture.player=Vector2i(6,3)
+	adaptive_fixture.enemy_observe_movement(adaptive_actor,adaptive_fixture.player)
+	if adaptive_actor.get("adaptive_streak",0)!=0:failures.append("adaptive forced displacement clears streak")
+	checks+=1
+	adaptive_fixture.cells.erase(Vector2i(6,3))
+	adaptive_fixture.turns=24
+	adaptive_fixture.enemy_observe_movement(adaptive_actor,adaptive_fixture.player)
+	if adaptive_actor.has("adaptive_seen_turn"):failures.append("adaptive occlusion forgets observation")
+	adaptive_fixture.cells[Vector2i(6,3)]=true
+	checks+=1
+	# Replay a witnessed two-step retreat through the real enemy turn path.
+	adaptive_actor["adaptive_seen"]=Vector2i(4,3);adaptive_actor["adaptive_seen_turn"]=21
+	adaptive_actor["adaptive_heading"]=Vector2i.RIGHT;adaptive_actor["adaptive_streak"]=1
+	adaptive_fixture.turns=21;adaptive_fixture.player=Vector2i(5,3)
+	adaptive_fixture.adaptive_walk_from=Vector2i(4,3);adaptive_fixture.adaptive_walk_to=Vector2i(5,3);adaptive_fixture.adaptive_walk_turn=21
+	adaptive_fixture.enemy_turn_actions()
+	var adaptive_moves:int=0
+	for action in adaptive_fixture.enemy_actions:
+		if int(action.get("uid",-1))==0:
+			adaptive_moves+=1
+			if action.get("phase","")!="move":failures.append("adaptive no bonus attack")
+	if adaptive_actor.pos!=Vector2i(6,3) or adaptive_moves!=1:failures.append("adaptive real interception")
+	checks+=1
+	var defensive_skill:Array=adaptive_fixture.signature_skill(adaptive_actor)
+	var neutral_score:float=adaptive_fixture.enemy_attack_score(adaptive_actor,defensive_skill,false)
+	adaptive_fixture.player_stages={"defense":-2,"sp_defense":-2}
+	if adaptive_fixture.enemy_attack_score(adaptive_actor,defensive_skill,false)<=neutral_score:failures.append("adaptive exploit defense debuff")
+	checks+=1
+	adaptive_fixture.shield_kind="protect";adaptive_fixture.shield_turns=2
+	if adaptive_fixture.enemy_attack_score(adaptive_actor,defensive_skill,false)!=0.0:failures.append("adaptive active protection score")
+	checks+=1
+	print("KINDRIA_ADAPTIVE_TACTICS observation=3 gates=4 movement=2 scoring=2")
 	# Actual disk I/O, legacy migration, corruption recovery, and resumed writes.
 	var test_path:String="user://kindria_procedural_test_"+str(OS.get_process_id())+".cfg"
 	var exact:Array[String]=["legacy exact".sha256_text()]
