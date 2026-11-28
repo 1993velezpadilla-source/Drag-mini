@@ -2206,7 +2206,30 @@ func run_checks()->void:
 	wall_ring.cells.erase(Vector2i(2,4))
 	if wall_ring.enemy_encircled_frontline(wall_reserve,wall_ring.player):failures.append("reserve wall alone insufficient")
 	checks+=1
-	print("KINDRIA_ANTI_STALL checks=22")
+	# A blocked player route does not make a visible opposing ally irrelevant.
+	var party_recovery=Rules.new()
+	for y in range(1,8):
+		for x in range(1,8):party_recovery.cells[Vector2i(x,y)]=true
+	party_recovery.player=Vector2i(4,4);party_recovery.stairs=Vector2i(7,7);party_recovery.relic=Vector2i(7,6);party_recovery.turns=22
+	var party_reserve:Dictionary={"uid":350,"pos":Vector2i(2,4),"hp":30,"kind":0,"species":"rootgnawer","ecology_role":"hunter","ecology_search_enabled":true,"personality_enabled":true,"pp_primary":0,"pp_secondary":0,"stall_count":2,"stall_turn":21,"stall_target":Vector2i(4,4)}
+	party_recovery.enemies.append(party_reserve)
+	party_recovery.allies.append({"uid":1000,"pos":Vector2i(2,1),"hp":30,"max_hp":30})
+	if party_recovery.enemy_unstall_party_step(party_reserve,party_recovery.player)!=Vector2i(2,3):failures.append("party recovery visible ally shortest post")
+	checks+=1
+	if party_reserve.pos!=Vector2i(2,4) or party_reserve.pp_primary!=0 or not party_recovery.enemy_actions.is_empty():failures.append("party recovery pure planning")
+	checks+=1
+	party_recovery.cells.erase(Vector2i(2,3))
+	if party_recovery.enemy_unstall_party_step(party_reserve,party_recovery.player)!=party_reserve.pos:failures.append("party recovery no hidden ally pursuit")
+	checks+=1
+	party_recovery.cells[Vector2i(2,3)]=true
+	party_recovery.allies[0].hp=0
+	if party_recovery.enemy_unstall_party_step(party_reserve,party_recovery.player)!=party_reserve.pos:failures.append("party recovery ignores defeated ally")
+	checks+=1
+	party_recovery.allies[0].hp=30
+	for d in [Vector2i.UP,Vector2i.RIGHT,Vector2i.DOWN,Vector2i.LEFT]:party_recovery.traps[party_reserve.pos+d]="snare"
+	if party_recovery.enemy_unstall_party_step(party_reserve,party_recovery.player)!=party_reserve.pos:failures.append("party recovery avoids trapped exits")
+	checks+=1
+	print("KINDRIA_ANTI_STALL checks=27")
 	# A direct witness may report a tile, but a listener cannot relay it.
 	var comm=Rules.new()
 	for x in range(1,4):comm.cells[Vector2i(x,3)]=true
