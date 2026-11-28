@@ -1957,6 +1957,40 @@ func run_checks()->void:
 	if living_actor.get("push_pressure_turn")!=20 or living_actor.get("incoming_turn")!=20:failures.append("living dungeon real observation restored")
 	checks+=1
 	print("KINDRIA_LIVING_DUNGEON checks=8")
+
+	var stall_fixture=Rules.new()
+	for y in range(1,9):
+		for x in range(1,9):stall_fixture.cells[Vector2i(x,y)]=true
+	stall_fixture.player=Vector2i(5,4);stall_fixture.stairs=Vector2i(8,8);stall_fixture.relic=Vector2i(8,7);stall_fixture.turns=20
+	var stall_actor:Dictionary={"uid":310,"pos":Vector2i(3,5),"hp":30,"max_hp":30,"kind":0,"species":"bramble_pup","ecology_role":"hunter","ecology_search_enabled":true,"personality_enabled":true,"pp_primary":12,"pp_secondary":0}
+	stall_fixture.enemies.append(stall_actor)
+	stall_fixture.enemy_record_stall(stall_actor,stall_fixture.player)
+	stall_fixture.enemy_record_stall(stall_actor,stall_fixture.player)
+	if stall_actor.get("stall_count")!=1:failures.append("unstall one observation per turn")
+	checks+=1
+	stall_fixture.turns=21;stall_fixture.enemy_record_stall(stall_actor,stall_fixture.player)
+	stall_fixture.turns=22
+	var stall_step:Vector2i=stall_fixture.enemy_unstall_step(stall_actor,stall_fixture.player)
+	if stall_step==stall_actor.pos or not stall_fixture.enemy_ambush_safe_tile(stall_step):failures.append("unstall useful legal detour")
+	checks+=1
+	if stall_actor.pos!=Vector2i(3,5) or stall_actor.pp_primary!=12 or not stall_fixture.enemy_actions.is_empty():failures.append("unstall pure planning")
+	checks+=1
+	stall_actor["unstall_turn"]=21
+	if stall_fixture.enemy_unstall_step(stall_actor,stall_fixture.player)!=stall_actor.pos:failures.append("unstall retry gate")
+	stall_actor.erase("unstall_turn")
+	checks+=1
+	stall_fixture.shield_kind="protect";stall_fixture.shield_turns=1
+	if stall_fixture.enemy_unstall_step(stall_actor,stall_fixture.player)!=stall_actor.pos:failures.append("unstall intentional protection wait")
+	stall_fixture.shield_turns=0
+	checks+=1
+	stall_fixture.charge_phase="vanish"
+	if stall_fixture.enemy_unstall_step(stall_actor,stall_fixture.player)!=stall_actor.pos:failures.append("unstall no hidden pursuit")
+	stall_fixture.charge_phase=""
+	checks+=1
+	stall_fixture.turns=24
+	if stall_fixture.enemy_unstall_step(stall_actor,stall_fixture.player)!=stall_actor.pos:failures.append("unstall stale observations rejected")
+	checks+=1
+	print("KINDRIA_ANTI_STALL checks=7")
 	# A direct witness may report a tile, but a listener cannot relay it.
 	var comm=Rules.new()
 	for x in range(1,4):comm.cells[Vector2i(x,3)]=true
