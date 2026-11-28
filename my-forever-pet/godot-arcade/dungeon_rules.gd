@@ -1956,7 +1956,7 @@ func enemy_exit_block_step(e:Dictionary,target:Vector2i)->Vector2i:
 			if cells.has(q+side):openings+=1
 		if openings!=2:continue
 		var continuation:Vector2i=q+(q-target)
-		if cells.has(continuation) and enemy_at(continuation)<0 and ally_at(continuation)<0:return q
+		if cells.has(continuation) and (continuation==origin or enemy_at(continuation)<0) and ally_at(continuation)<0:return q
 	return origin
 
 func enemy_patrol_destination(e:Dictionary)->Vector2i:
