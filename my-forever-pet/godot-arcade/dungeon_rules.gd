@@ -1753,7 +1753,15 @@ func enemy_observe_movement(e:Dictionary,observed:Vector2i)->void:
 	var consecutive:bool=int(e.get("adaptive_seen_turn",-9999))==turns-1
 	var delta:Vector2i=observed-previous
 	var voluntary:bool=adaptive_walk_turn==turns-1 and adaptive_walk_from==previous and adaptive_walk_to==observed
-	var retreat:bool=consecutive and voluntary and delta in DIR and distance(origin,observed)>distance(origin,previous)
+	var retreat:bool=false
+	if consecutive and voluntary and delta in DIR:
+		retreat=distance(origin,observed)>distance(origin,previous)
+		# A flanker may be ahead of the player, while the player is fleeing
+		# another visible nearby attacker. Both positions must be observable.
+		if not retreat:
+			for other in enemies:
+				if enemy_squad_partner(e,other) and distance(other.pos,previous)<=3 and distance(other.pos,observed)>distance(other.pos,previous) and enemy_line_of_sight(other.pos,observed):
+					retreat=true;break
 	if retreat:
 		e["adaptive_streak"]=mini(3,int(e.get("adaptive_streak",0))+1) if e.get("adaptive_heading",Vector2i.ZERO)==delta else 1
 		e["adaptive_heading"]=delta
