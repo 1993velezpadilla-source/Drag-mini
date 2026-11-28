@@ -1806,6 +1806,43 @@ func enemy_cooperative_step(e:Dictionary,target:Vector2i,pattern:String,reach:in
 			depths[q]=depth+1;first_steps[q]=q if depth==0 else first_steps[here];queue.append(q)
 	return best
 
+# Original species personalities. Courage is not a random per-turn roll.
+func enemy_survival_profile(e:Dictionary)->String:
+	match str(e.get("species","")):
+		"sporeling","leafwisp","sylphowl","bubblewisp","jellymancer","marrowray","lunamoth","nova_wisp","nebulwing":return "cautious"
+		"mossmite","shellguard","crystarok","grovetitan","anemoneye","vinesnap","voidspider","astro_golem":return "defensive"
+		"bramble_pup","thornbeetle","rootgnawer","reef_pup","eelstrix","coralcrab","starlit_pup","orbitserpent","comet_hare","lunar_prowler","hollow_stag","leviathorn":return "aggressive"
+		_:return "steadfast"
+
+# A retreat is a single ordinary movement action, capped per injury episode.
+# Pure evaluation: no healing, attack, PP, RNG or position mutation.
+func enemy_retreat_step(e:Dictionary,target:Vector2i)->Vector2i:
+	var origin:Vector2i=e.pos
+	if not bool(e.get("ecology_search_enabled",false)) or bool(e.get("monster_house",false)) or int(e.get("kind",0))==3:return origin
+	if bool(e.get("windup",false)) or int(e.get("stuck_turns",0))>0 or int(e.get("retreat_steps",0))>=2:return origin
+	if enemy_survival_profile(e)!="cautious":return origin
+	var cap:int=int(e.get("max_hp",0))
+	if cap<=0 or int(e.hp)<=0 or int(e.hp)*3>cap:return origin
+	var gap:int=distance(origin,target)
+	if gap<1 or gap>3 or gap>enemy_awareness(e) or not enemy_line_of_sight(origin,target):return origin
+	var best:Vector2i=origin
+	var best_score:int=-2147483647
+	var phase:int=posmod(int(e.get("uid",0))+turns,4)
+	for j in range(4):
+		var q:Vector2i=origin+DIR[(phase+j)%4]
+		if not cells.has(q) or q==player or q==target or q==stairs or q==relic or q in side_rewards or traps.has(q) or player_traps.has(q) or enemy_at(q)>=0 or ally_at(q)>=0:continue
+		if distance(q,target)<=gap:continue
+		# Prefer a tile with a safe onward exit, rather than backing into a dead end.
+		var exits:int=0
+		for d in DIR:
+			var next:Vector2i=q+d
+			if next==origin or next==player or next==target or next==stairs or next==relic or next in side_rewards or not cells.has(next) or traps.has(next) or player_traps.has(next) or enemy_at(next)>=0 or ally_at(next)>=0:continue
+			exits+=1
+		if exits==0:continue
+		var score:int=exits*3+(0 if enemy_line_of_sight(q,target) else 2)
+		if score>best_score:best_score=score;best=q
+	return best
+
 func enemy_patrol_destination(e:Dictionary)->Vector2i:
 	var origin:Vector2i=e.pos
 	if str(e.get("ecology_role","hunter"))!="roamer" or int(e.get("stuck_turns",0))>0:return origin
@@ -3127,6 +3164,16 @@ func enemy_turn_actions():
 		if gap<=3 and not enemies[i].get("windup",false) and enemy_use_potion(i):
 			enemy_actions.append({"uid":enemies[i].get("uid",i),"phase":"attack","from":p,"to":p,"move":"Healing berry","fx":"basic_strike","damage":0,"tiles":[p],"path":[p]})
 			emit_event("Enemy recovered HP")
+			continue
+		var survival_cap:int=int(enemies[i].get("max_hp",0))
+		if survival_cap>0 and int(enemies[i].hp)*2>survival_cap:enemies[i].erase("retreat_steps")
+		var retreat:Vector2i=enemy_retreat_step(enemies[i],player)
+		if retreat!=p:
+			enemies[i].pos=retreat
+			enemies[i]["retreat_steps"]=int(enemies[i].get("retreat_steps",0))+1
+			for cd_key in ["support_cooldown","cooldown","alt_cooldown"]:
+				if int(enemies[i].get(cd_key,0))>0:enemies[i][cd_key]=int(enemies[i][cd_key])-1
+			enemy_actions.append({"uid":enemies[i].get("uid",i),"phase":"move","from":p,"to":retreat,"gait":enemies[i].get("gait","walk")})
 			continue
 		var support_cd:int=int(enemies[i].get("support_cooldown",0))
 		if support_cd>0:enemies[i]["support_cooldown"]=support_cd-1
