@@ -1584,6 +1584,40 @@ func arrange_floor_encounter()->void:
 		if target.has_point(p):continue
 		traps.erase(p);traps[spots.pop_back()]=true;encounter_trap_count+=1
 
+# Optional discoveries replace ordinary pickups. Keep the teaching manual and side rewards intact.
+const TREASURE_TYPES=[["normal","grass","bug","ground","poison","flying"],["normal","water","electric","ice","rock","steel"],["normal","psychic","ghost","dark","fairy","dragon"]]
+var treasure_rng:=RandomNumberGenerator.new()
+var treasure_tiles:Array[Vector2i]=[]
+var treasure_kinds:Array[String]=[]
+
+func distribute_rare_treasures()->void:
+	treasure_tiles.clear();treasure_kinds.clear()
+	if starter_woods or floor_number<2 or not guardian_defeated or floor_kind==3:return
+	var candidates:Array[Vector2i]=[]
+	for p in loot:
+		if p==player or p==stairs or p==relic or p in side_rewards or distance(p,player)<4:continue
+		if loot[p] in ["coin","material"]:candidates.append(p)
+	if candidates.is_empty():return
+	for i in range(candidates.size()-1,0,-1):
+		var j:int=treasure_rng.randi_range(0,i);var swap:Vector2i=candidates[i];candidates[i]=candidates[j];candidates[j]=swap
+	var count:int=1 if treasure_rng.randi_range(1,100)<=45 else 0
+	if floor_number>=3 and treasure_rng.randi_range(1,100)<=15:count+=1
+	for i in range(mini(count,candidates.size())):
+		var p:Vector2i=candidates[i]
+		var item:String=""
+		if treasure_rng.randi_range(1,100)<=35:
+			item="ward_band" if treasure_rng.randi_range(0,1)==0 else "force_band"
+		else:
+			var types:Array=TREASURE_TYPES[clampi(region,0,2)]
+			var element:String=types[treasure_rng.randi_range(0,types.size()-1)]
+			var rank:int=1
+			if tier>=1 and floor_number>=3 and treasure_rng.randi_range(1,100)<=40:rank=2
+			if tier>=2 and floor_number>=4 and treasure_rng.randi_range(1,100)<=15:rank=3
+			var id:String="lib_%s_%d"%[element,rank]
+			if MOVE_LIBRARY.has(id):item="manual:"+id
+		if item.is_empty():continue
+		loot[p]=item;treasure_tiles.append(p);treasure_kinds.append(item)
+
 func generate_floor():
 	clear_combat_effects()
 	reset_floor_combat_presentation()
@@ -1592,6 +1626,7 @@ func generate_floor():
 	structure_rng.seed=seed_value+floor_number*131071+region*12289+311
 	network_rng.seed=seed_value+floor_number*196613+region*16381+419
 	encounter_rng.seed=seed_value+floor_number*262147+region*32771+521
+	treasure_rng.seed=seed_value+floor_number*32452843+region*65537+617
 	initialize_hidden_power(seed_value)
 	cells.clear();rooms.clear();enemies.clear();loot.clear();revealed.clear();traps.clear();player_traps.clear();revealed_player_traps.clear();explored_rooms.clear()
 	floor_bonus=0;player_rested=false
@@ -1657,6 +1692,7 @@ func generate_floor():
 		if cells.has(p) and not loot.has(p):
 			loot[p]="coin";break
 	arrange_floor_encounter()
+	distribute_rare_treasures()
 	energy=mini(8,energy+2)
 	place_allies()
 	prepare_monster_house()
