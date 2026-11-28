@@ -2343,11 +2343,17 @@ func enemy_unstall_step(e:Dictionary,target:Vector2i)->Vector2i:
 # When the visible player cannot be approached, a stalled actor may seek
 # a legal attack position against a personally visible opposing ally.
 # This is movement planning only; normal party targeting resolves the attack.
+# A recovery route must lead to a target the ordinary dispatcher can use.
+# Preserve boss tactics, area attack priority and credible finishing moves.
+func enemy_party_pursuit_allowed(e:Dictionary,finish_priority:bool)->bool:
+	return not finish_priority and not allies.is_empty() and not boon_active("decoy") and not bool(e.get("boss_tactical",false)) and not enemy_has_party_area_attack(e)
+
 func enemy_unstall_party_step(e:Dictionary,target:Vector2i)->Vector2i:
 	var origin:Vector2i=e.pos
 	if not enemy_opportunity_eligible(e) or not enemy_live_contact(e,target) or int(e.get("stuck_turns",0))>0 or allies.is_empty():return origin
 	if int(e.get("stall_count",0))<2 or e.get("stall_target",Vector2i.ZERO)!=target or int(e.get("stall_turn",-9999))!=turns-1:return origin
 	if turns<=int(e.get("unstall_turn",-9999))+3 or enemy_strategy_attack_tile(e,origin,target):return origin
+	if not enemy_party_pursuit_allowed(e,enemy_risk_has_finisher(e)):return origin
 	var visible:Array[Vector2i]=[]
 	for a in allies:
 		var q:Vector2i=a.pos
@@ -5634,7 +5640,7 @@ func enemy_turn_actions_impl():
 		boss_observe_phase(enemies[i])
 		var finish_priority:bool=enemy_opportunity_eligible(enemies[i]) and enemy_risk_has_finisher(enemies[i])
 		# A credible immediate finish must precede optional party pursuit.
-		if not finish_priority and not allies.is_empty() and not bool(enemies[i].get("boss_tactical",false)) and not enemy_has_party_area_attack(enemies[i]) and enemy_target_ally(i):continue
+		if enemy_party_pursuit_allowed(enemies[i],finish_priority) and enemy_target_ally(i):continue
 		var gap:=distance(p,player)
 		var pursuit_target:Vector2i=enemy_pursuit_target(enemies[i],player)
 		if not finish_priority and gap<=3 and not enemies[i].get("windup",false) and enemy_use_potion(i):

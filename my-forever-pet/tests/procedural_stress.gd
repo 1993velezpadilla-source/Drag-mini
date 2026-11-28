@@ -2265,6 +2265,18 @@ func run_checks()->void:
 	for d in [Vector2i.UP,Vector2i.RIGHT,Vector2i.DOWN,Vector2i.LEFT]:party_recovery.traps[party_reserve.pos+d]="snare"
 	if party_recovery.enemy_unstall_party_step(party_reserve,party_recovery.player)!=party_reserve.pos:failures.append("party recovery avoids trapped exits")
 	checks+=1
+	party_recovery.traps.clear()
+	party_reserve["boss_tactical"]=true
+	if party_recovery.enemy_party_pursuit_allowed(party_reserve,false) or party_recovery.enemy_unstall_party_step(party_reserve,party_recovery.player)!=party_reserve.pos:failures.append("party recovery preserves boss tactics")
+	checks+=1
+	party_reserve.erase("boss_tactical")
+	if party_recovery.enemy_party_pursuit_allowed(party_reserve,true):failures.append("party recovery preserves finishing priority")
+	checks+=1
+	if not party_recovery.enemy_party_pursuit_allowed(party_reserve,false) or party_recovery.enemy_unstall_party_step(party_reserve,party_recovery.player)!=Vector2i(2,3):failures.append("party recovery shared ordinary eligibility")
+	checks+=1
+	party_recovery.allies.clear()
+	if party_recovery.enemy_party_pursuit_allowed(party_reserve,false) or party_recovery.enemy_unstall_party_step(party_reserve,party_recovery.player)!=party_reserve.pos:failures.append("party recovery no opposing allies")
+	checks+=1
 	# Compare memoized geometry against the underlying pure queries.
 	var memo_peers:Array[Dictionary]=[]
 	for other in ring_fixture.enemies:
@@ -2475,7 +2487,7 @@ func run_checks()->void:
 		if int(action.get("uid",-1))==400 and str(action.get("phase",""))=="attack":replacement_attacks+=1
 	if replacement_attacks!=1:failures.append("live vacancy attack on following turn")
 	checks+=1
-	print("KINDRIA_ANTI_STALL checks=98")
+	print("KINDRIA_ANTI_STALL checks=102")
 	# A direct witness may report a tile, but a listener cannot relay it.
 	var comm=Rules.new()
 	for x in range(1,4):comm.cells[Vector2i(x,3)]=true
