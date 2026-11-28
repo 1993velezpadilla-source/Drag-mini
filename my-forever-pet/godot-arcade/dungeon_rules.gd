@@ -2035,7 +2035,7 @@ func enemy_cautious_spacing_step(e:Dictionary,target:Vector2i)->Vector2i:
 	var origin:Vector2i=e.pos
 	if not bool(e.get("personality_enabled",false)) or enemy_combat_personality(e)!="cautious" or bool(e.get("windup",false)) or int(e.get("stuck_turns",0))>0 or int(e.get("spacing_count",0))>=2:return origin
 	if target!=player or distance(origin,target)!=1 or not enemy_line_of_sight(origin,target):return origin
-	if int(player_stages.get("attack",0))<2 and int(player_stages.get("sp_attack",0))<2:return origin
+	if int(player_stages.get("attack",0))<2 and int(player_stages.get("sp_attack",0))<2 and not enemy_recent_threat(e):return origin
 	var skill:Array=signature_skill(e)
 	var pattern:String=str(ATTACK_PATTERNS.get(e.get("species",""),"line"))
 	if int(skill[0])<2 or not enemy_move_allowed(e,"primary") or int(e.get("cooldown",0))>0:return origin
@@ -3433,6 +3433,7 @@ func strike(i:int,power:bool=false,style_override:int=-1,move_id:String="",damag
 	if move_id.is_empty():
 		player_cast_results.clear();record_cast_result(attack_target,dealt,true,false,critical);player_cast_result_serial=attack_serial
 	else:last_move_damage.append(dealt)
+	enemy_remember_incoming(enemies[i],dealt,element)
 	enemies[i].hp=int(enemies[i].hp)-damage
 	if move.has("drain_fraction") and dealt>0:
 		var before_hp:int=hp
@@ -3758,6 +3759,7 @@ func enemy_resolve_party_hit(e:Dictionary,index:int,skill:Array,secondary:bool)-
 	var missed:bool=(factor<1.0 and rng.randf()>=factor) or (int(e.get("whiffer_turns",0))>0 and rng.randi_range(1,100)>5)
 	var damage:int=0 if missed else mini(int(a.hp),int(estimate.damage))
 	a.hp=int(a.hp)-damage
+	enemy_remember_result(e,int(a.get("uid",1000+index)),"secondary" if secondary else "primary",float(estimate.effectiveness),missed,false)
 	return {"uid":a.get("uid",1000+index),"tile":a.pos,"damage":damage,"dodged":missed,"effectiveness":estimate.effectiveness}
 
 func enemy_apply_area_damage(e:Dictionary,origin:Vector2i,footprint:Dictionary,pattern:String,skill:Array,secondary:bool)->Array[Dictionary]:
@@ -3889,7 +3891,7 @@ func enemy_party_attack_plan(e:Dictionary)->Dictionary:
 				var expected:float=float(mini(life,int(estimate.damage)))*float(estimate.accuracy)
 				if expected<=0.0:continue
 				var knockout:float=2.5*float(estimate.accuracy) if int(estimate.damage)>=life else 0.0
-				score+=expected+knockout+(1.0-float(life)/float(cap))*1.5+enemy_squad_focus_bonus(e,int(a.get("uid",1000+index)),a.pos)
+				score+=(expected+knockout)*enemy_observed_attack_weight(e,int(a.get("uid",1000+index)),str(kit.slot))+(1.0-float(life)/float(cap))*1.5+enemy_squad_focus_bonus(e,int(a.get("uid",1000+index)),a.pos)
 				targets.append(index)
 			if enemy_move_pp(e,str(kit.slot))<=2:score*=.85
 			if not targets.is_empty() and score>best_score:
@@ -3923,6 +3925,48 @@ func enemy_execute_party_attack(i:int,plan:Dictionary)->bool:
 	enemy_actions.append({"uid":e.get("uid",i),"phase":"attack","from":origin,"to":target_tile,"move":plan.name,"fx":skill[6],"damage":0,"party_hits":results,"aim":plan.aim,"pattern":plan.pattern,"tiles":footprint.keys(),"path":footprint.get(target_tile,[target_tile])})
 	emit_event(str(plan.name)+" · Party targeted")
 	return true
+
+# Personal combat observations are bounded to recent, resolved attacks.
+# Dodges and temporary protection must never be mistaken for type immunity.
+const ENEMY_MEMORY_CAP:int=8
+const ENEMY_MEMORY_TTL:int=6
+
+func enemy_remember_result(e:Dictionary,target_uid:int,slot:String,effectiveness:float,dodged:bool,blocked:bool)->void:
+	if not bool(e.get("ecology_search_enabled",false)) or dodged or blocked or slot not in ["primary","secondary"]:return
+	var memory:Dictionary=e.get("combat_observations",{})
+	var key:String=str(target_uid)+":"+slot
+	if not memory.has(key) and memory.size()>=ENEMY_MEMORY_CAP:
+		var oldest:String=""
+		var oldest_turn:int=2147483647
+		for id in memory:
+			if int(memory[id].turn)<oldest_turn:
+				oldest=str(id);oldest_turn=int(memory[id].turn)
+		memory.erase(oldest)
+	memory[key]={"turn":turns,"effectiveness":effectiveness}
+	e["combat_observations"]=memory
+
+func enemy_observed_attack_weight(e:Dictionary,target_uid:int,slot:String)->float:
+	if not bool(e.get("ecology_search_enabled",false)):return 1.0
+	var memory:Dictionary=e.get("combat_observations",{})
+	var key:String=str(target_uid)+":"+slot
+	if not memory.has(key):return 1.0
+	var sample:Dictionary=memory[key]
+	var age:int=turns-int(sample.turn)
+	if age<0 or age>ENEMY_MEMORY_TTL:return 1.0
+	var effectiveness:float=float(sample.effectiveness)
+	if effectiveness<=0.0:return .55
+	if effectiveness<.99:return .85
+	if effectiveness>1.01:return 1.10
+	return 1.0
+
+func enemy_remember_incoming(e:Dictionary,damage:int,element:String)->void:
+	if damage<=0 or not bool(e.get("ecology_search_enabled",false)):return
+	if not enemy_line_of_sight(e.pos,player) or distance(e.pos,player)>enemy_awareness(e):return
+	e["incoming_turn"]=turns;e["incoming_damage"]=damage;e["incoming_element"]=element
+
+func enemy_recent_threat(e:Dictionary)->bool:
+	var age:int=turns-int(e.get("incoming_turn",-9999))
+	return age>=0 and age<=3 and int(e.get("incoming_damage",0))*4>=maxi(1,int(e.get("max_hp",e.hp)))
 
 func enemy_attack_score(e:Dictionary,skill:Array,secondary:bool)->float:
 	var info:Array=ENEMY_TRAINING.get(e.get("species",""),[["normal"],"normal","normal",0,0,"physical"])
@@ -3959,7 +4003,7 @@ func enemy_attack_score(e:Dictionary,skill:Array,secondary:bool)->float:
 	if score>0.0:score+=enemy_personality_bonus(e,skill,utility)
 	if bool(skill[1]):score*=.70
 	if enemy_move_pp(e,slot)<=2:score*=.85
-	return score
+	return score*enemy_observed_attack_weight(e,-1,slot)
 
 func enemy_move_allowed(e:Dictionary,slot:String)->bool:
 	if enemy_move_pp(e,slot)<=0 or slot in e.get("sealed_moves",[]):return false
@@ -4374,6 +4418,7 @@ func enemy_turn_actions_impl():
 			if alternate:move_name=str(SECONDARY_SKILLS[species][2])
 			var effect:String=str(skill[4]) if special else "none"
 			if special:
+				enemy_remember_result(enemies[i],-1,"secondary" if alternate else "primary",last_type_multiplier,dodged,shield_block)
 				record_enemy_move(enemies[i],"secondary" if alternate else "primary")
 				if alternate:enemies[i]["alt_cooldown"]=maxi(0,int(skill[2])-1)
 				else:enemies[i]["cooldown"]=maxi(0,int(skill[2])-1)
