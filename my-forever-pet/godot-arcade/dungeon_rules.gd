@@ -2165,6 +2165,45 @@ const ENEMY_CONTROL_KITS={"sylphowl":"eos_268","nebulwing":"eos_268","rootgnawer
 
 # Pure prediction of the same trajectory used by execution. A floor trap stops
 # the push and activates immediately; collision never overlaps creatures.
+# Evaluate actual learned attack coverage at a hypothetical landing tile.
+# Charged attacks retain their fixed telegraph; no state or RNG is changed.
+func enemy_push_attack_coverage(e:Dictionary,tile:Vector2i)->int:
+	var origin:Vector2i=e.pos
+	if distance(origin,tile)>enemy_awareness(e) or not enemy_line_of_sight(origin,tile) or int(e.get("whiffer_turns",0))>0 or int(e.get("slow_turns",0))>0:return 0
+	var species:String=str(e.get("species",""))
+	var skill:Array=signature_skill(e)
+	var pattern:String=str(ATTACK_PATTERNS.get(species,"line"))
+	if bool(e.get("windup",false)):
+		var aim:Vector2i=e.get("aim",Vector2i.ZERO)
+		return 2 if aim!=Vector2i.ZERO and enemy_move_allowed(e,"primary") and attack_footprint(origin,aim,pattern,int(skill[0])).has(tile) and enemy_attack_score(e,skill,false)>0.0 else 0
+	if int(e.get("cooldown",0))<=0 and not bool(skill[1]) and enemy_move_allowed(e,"primary") and attack_aim(origin,tile,pattern,int(skill[0]))!=Vector2i.ZERO and enemy_attack_score(e,skill,false)>0.0:return 2
+	if int(e.get("alt_cooldown",0))<=0 and SECONDARY_SKILLS.has(species) and enemy_move_allowed(e,"secondary"):
+		var alt:Array=SECONDARY_SKILLS[species]
+		if attack_aim(origin,tile,str(alt[1]),int(alt[0]))!=Vector2i.ZERO and enemy_attack_score(e,[alt[0],false,3,alt[3],alt[4],alt[5],"alt_"+species],true)>0.0:return 2
+	return 1 if distance(origin,tile)==1 else 0
+
+func enemy_push_position_bonus(e:Dictionary,target:Vector2i,destination:Vector2i)->int:
+	if not bool(e.get("ecology_search_enabled",false)) or target==destination:return 0
+	var gained:int=0
+	var lost:int=0
+	var after_actor:bool=false
+	for other in enemies:
+		if int(other.get("uid",-1))==int(e.get("uid",-2)) or other.pos==e.pos:
+			after_actor=true;continue
+		if not after_actor or not enemy_squad_partner(e,other):continue
+		var before:int=enemy_push_attack_coverage(other,target)
+		var after:int=enemy_push_attack_coverage(other,destination)
+		gained+=maxi(0,after-before);lost+=maxi(0,before-after)
+	# Only credit a separation from a visible, living, previously nearby ally.
+	var close_before:bool=false
+	var close_after:bool=false
+	for a in allies:
+		if int(a.hp)<=0 or distance(e.pos,a.pos)>enemy_awareness(e) or not enemy_line_of_sight(e.pos,a.pos):continue
+		if distance(target,a.pos)<=2:close_before=true
+		if distance(destination,a.pos)<=2:close_after=true
+	var separation:int=2 if close_before and not close_after else 0
+	return clampi(gained*2-lost*2,-4,4)+separation
+
 func enemy_push_plan(e:Dictionary,target:Vector2i)->Dictionary:
 	var origin:Vector2i=e.pos
 	if distance(origin,target)!=1 or not enemy_line_of_sight(origin,target):return {}
@@ -2186,9 +2225,18 @@ func enemy_push_plan(e:Dictionary,target:Vector2i)->Dictionary:
 			kind="trap";score=8;break
 	# Score only hazards/targets the actor can actually observe.
 	var destination:Vector2i=target if path.is_empty() else path.back()
+	var position_bonus:int=0
 	if distance(origin,destination)>enemy_awareness(e) or not enemy_line_of_sight(origin,destination):score=0
-	if kind in ["party","enemy"] and (distance(origin,collision)>enemy_awareness(e) or not enemy_line_of_sight(origin,collision)):score=0
-	return {"path":path,"destination":destination,"collision":collision,"kind":kind,"score":score}
+	elif kind in ["party","enemy"] and (distance(origin,collision)>enemy_awareness(e) or not enemy_line_of_sight(origin,collision)):score=0
+	elif kind!="enemy":
+		if destination==stairs or destination==relic:score=0
+		else:
+			if kind=="trap":
+				var trap_kind:String=str(traps.get(destination,""))
+				if (shield_turns>0 and shield_kind=="safeguard" and trap_kind in ["snare","weaken"]) or (trap_kind=="weaken" and boon_active("mist")) or (trap_kind=="snare" and player_slow_turns>=4) or (trap_kind=="weaken" and weakened_strikes>=2) or (trap_kind=="drain" and energy<=0) or (trap_kind=="hunger" and belly_tenths<=10):score=1
+			position_bonus=enemy_push_position_bonus(e,target,destination)
+			score+=position_bonus
+	return {"path":path,"destination":destination,"collision":collision,"kind":kind,"score":score,"position_bonus":position_bonus}
 
 # Set up a useful knockback angle on this turn, then cast on a later turn.
 func enemy_control_setup_step(e:Dictionary,target:Vector2i)->Vector2i:
@@ -2196,13 +2244,14 @@ func enemy_control_setup_step(e:Dictionary,target:Vector2i)->Vector2i:
 	var id:String=str(e.get("control_move",""))
 	if not bool(e.get("ecology_search_enabled",false)) or (bool(e.get("monster_house",false)) and not bool(e.get("house_tactical",false))) or bool(e.get("windup",false)) or int(e.get("stuck_turns",0))>0:return origin
 	if int(e.get("control_cooldown",0))>0 or not MOVE_LIBRARY.has(id) or str(MOVE_LIBRARY[id].get("special_rule",""))!="push" or not enemy_move_allowed(e,"control"):return origin
-	if player_has_ability("anchored") or boon_active("ingrain") or charge_phase in ["underground","airborne","vanish"]:return origin
+	if player_has_ability("anchored") or boon_active("ingrain") or charge_phase in ["underground","airborne","vanish"] or (shield_turns>0 and shield_kind=="protect") or boon_active("magic_coat"):return origin
 	if not enemy_line_of_sight(origin,target) or distance(origin,target)!=2:return origin
 	var best:Vector2i=origin
 	var best_score:int=4
 	for d in DIR:
 		var q:Vector2i=origin+d
 		if distance(q,target)!=1 or not cells.has(q) or q==stairs or q==relic or q in side_rewards or traps.has(q) or player_traps.has(q) or enemy_at(q)>=0 or ally_at(q)>=0:continue
+		if mirror_veil_blocks(q,true,"front"):continue
 		var hypothetical:Dictionary=e.duplicate()
 		hypothetical["pos"]=q
 		var score:int=int(enemy_push_plan(hypothetical,target).get("score",0))
