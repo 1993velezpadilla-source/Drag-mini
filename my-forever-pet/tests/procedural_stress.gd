@@ -250,6 +250,7 @@ func enemy_integration_gauntlet(failures:Array[String])->int:
 	var reserve_idle_observations:int=0
 	var congestion_observations:int=0
 	var unresolved_after_congestion_peak:int=0
+	var remaining_context:Dictionary={}
 	var unexplained_open_peak:int=0
 	var unexplained_context:Dictionary={}
 	var idle_observations:Dictionary={}
@@ -331,7 +332,9 @@ func enemy_integration_gauntlet(failures:Array[String])->int:
 					var verified_congestion:bool=observation=="open" and not verified_reserve and int(e.get("congestion_hold_turn",-1))==cached.turns and e.get("congestion_hold_target",Vector2i.ZERO)==cached.player and cached.enemy_occupied_frontline(e,cached.player)
 					if verified_congestion:congestion_observations+=1
 					unresolved_after_congestion[uid]=int(unresolved_after_congestion.get(uid,0))+1 if observation=="open" and not verified_reserve and not verified_congestion else 0
-					unresolved_after_congestion_peak=maxi(unresolved_after_congestion_peak,int(unresolved_after_congestion[uid]))
+					if int(unresolved_after_congestion[uid])>unresolved_after_congestion_peak:
+						unresolved_after_congestion_peak=int(unresolved_after_congestion[uid])
+						remaining_context={"sample":sample,"round":round_index,"uid":uid,"species":e.get("species",""),"actor":e.duplicate(true),"player":cached.player,"shield_kind":cached.shield_kind,"shield_turns":cached.shield_turns,"charge_phase":cached.charge_phase,"visible":cached.enemy_live_contact(e,cached.player),"current_attack":cached.enemy_strategy_attack_tile(e,e.pos,cached.player),"occupied":cached.enemy_occupied_frontline(e,cached.player),"encircled":cached.enemy_encircled_frontline(e,cached.player)}
 					unexplained_open[uid]=int(unexplained_open.get(uid,0))+1 if observation=="open" and not verified_reserve else 0
 					if int(unexplained_open[uid])>unexplained_open_peak:
 						unexplained_open_peak=int(unexplained_open[uid])
@@ -363,7 +366,7 @@ func enemy_integration_gauntlet(failures:Array[String])->int:
 		print("KINDRIA_AI_STALL_DIAGNOSTICS open_idle_peak=",idle_open_peak," observations=",idle_observations," peak_context=",idle_peak_context," reversal_species=",reversal_species)
 		print("KINDRIA_CONGESTION_DIAGNOSTICS verified_physical_congestion=",congestion_observations)
 		print("KINDRIA_RESERVE_DIAGNOSTICS verified_open_reserve=",reserve_idle_observations," unexplained_open_peak=",unexplained_open_peak," context=",unexplained_context)
-		print("KINDRIA_REMAINING_IDLE unresolved_after_congestion_peak=",unresolved_after_congestion_peak)
+		print("KINDRIA_REMAINING_IDLE unresolved_after_congestion_peak=",unresolved_after_congestion_peak," context=",remaining_context)
 	return checks_local
 
 # V27.1: ordinary ecology actors, not just Monster House actors, in constrained
@@ -2331,7 +2334,29 @@ func run_checks()->void:
 	escape_fixture.enemy_expire_frontline_holds(escape_actor)
 	if escape_actor.has("reserve_hold_turn") or escape_actor.has("reserve_hold_target"):failures.append("frontline future timestamp rejected")
 	checks+=1
-	print("KINDRIA_ANTI_STALL checks=72")
+	# Any completed action consumes stale formation evidence, including
+	# branches that bypass the standard pursuit movement dispatcher.
+	escape_fixture.turns=22
+	escape_actor.erase("sleep_turns")
+	escape_actor["reserve_hold_turn"]=21;escape_actor["reserve_hold_target"]=Vector2i(4,4)
+	escape_actor["congestion_hold_turn"]=21;escape_actor["congestion_hold_target"]=Vector2i(4,4)
+	var untouched:Dictionary={"uid":371,"pos":Vector2i(6,4),"hp":30,"reserve_hold_turn":21,"reserve_hold_target":Vector2i(4,4)}
+	escape_fixture.enemies.append(untouched)
+	escape_fixture.enemy_actions.append({"uid":370,"phase":"attack","from":escape_actor.pos,"to":escape_fixture.player})
+	escape_fixture.enemy_clear_acted_frontline_holds()
+	if escape_actor.has("reserve_hold_turn") or escape_actor.has("congestion_hold_turn") or escape_actor.has("reserve_hold_target") or escape_actor.has("congestion_hold_target"):failures.append("frontline action consumes hold state")
+	checks+=1
+	if not untouched.has("reserve_hold_turn"):failures.append("frontline action preserves other reserve")
+	checks+=1
+	escape_fixture.enemy_actions.clear()
+	escape_actor["reserve_hold_turn"]=21;escape_actor["reserve_hold_target"]=Vector2i(4,4)
+	escape_fixture.enemy_actions.append({"uid":370,"phase":"move","from":escape_actor.pos,"to":Vector2i(3,4)})
+	escape_fixture.enemy_clear_acted_frontline_holds()
+	if escape_actor.has("reserve_hold_turn") or escape_actor.has("reserve_hold_target"):failures.append("frontline movement consumes hold")
+	checks+=1
+	if escape_actor.pos!=Vector2i(2,4) or escape_actor.pp_primary!=0 or escape_fixture.enemy_actions.size()!=1:failures.append("frontline cleanup does not execute actions")
+	checks+=1
+	print("KINDRIA_ANTI_STALL checks=76")
 	# A direct witness may report a tile, but a listener cannot relay it.
 	var comm=Rules.new()
 	for x in range(1,4):comm.cells[Vector2i(x,3)]=true
