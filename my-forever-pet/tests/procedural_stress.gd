@@ -875,6 +875,7 @@ func run_checks()->void:
 	control_fixture.enemies.pop_back()
 	control_fixture.player=Vector2i(3,3)
 	controller.pos=Vector2i(2,2);controller["control_cooldown"]=0
+	control_fixture.player_slow_turns=0
 	control_fixture.traps[Vector2i(5,3)]="snare"
 	var setup_tile:Vector2i=control_fixture.enemy_control_setup_step(controller,control_fixture.player)
 	if setup_tile!=Vector2i(2,3) or controller.pos!=Vector2i(2,2) or controller.pp_control!=3:failures.append("control setup angle and purity")
@@ -1666,6 +1667,58 @@ func run_checks()->void:
 	if forecast_moves!=1 or forecaster.pos!=Vector2i(6,4) or int(forecaster.get("prediction_turn",-1))!=41:failures.append("forecast actual single movement")
 	checks+=1
 	print("KINDRIA_PREDICTIVE_COMBAT checks=11")
+	# Manipulation rewards improved real attack coverage, not arbitrary distance.
+	var battlefield=Rules.new()
+	for y in range(1,7):
+		for x in range(1,8):battlefield.cells[Vector2i(x,y)]=true
+	battlefield.cells.erase(Vector2i(6,3))
+	battlefield.player=Vector2i(3,3);battlefield.stairs=Vector2i(7,6);battlefield.relic=Vector2i(7,5)
+	var manipulator:Dictionary={"uid":0,"pos":Vector2i(2,3),"hp":30,"max_hp":30,"kind":1,"species":"sylphowl","ecology_role":"scout","ecology_search_enabled":true,"control_move":"eos_268","pp_control":5,"pp_primary":0,"pp_secondary":0,"stages":{"accuracy":10}}
+	var followup:Dictionary={"uid":1,"pos":Vector2i(5,4),"hp":30,"max_hp":30,"kind":1,"species":"leafwisp","ecology_role":"hunter","ecology_search_enabled":true,"pp_primary":12,"pp_secondary":0,"stages":{"accuracy":10}}
+	battlefield.enemies.append(manipulator);battlefield.enemies.append(followup)
+	var landing:Dictionary=battlefield.enemy_push_plan(manipulator,battlefield.player)
+	if landing.destination!=Vector2i(5,3) or int(landing.position_bonus)!=4 or int(landing.score)<5:failures.append("battlefield opens learned firing lane")
+	checks+=1
+	if manipulator.pp_control!=5 or followup.pp_primary!=12 or battlefield.player!=Vector2i(3,3) or not battlefield.enemy_actions.is_empty():failures.append("battlefield evaluation purity")
+	checks+=1
+	followup.pp_primary=0
+	if battlefield.enemy_push_attack_coverage(followup,Vector2i(5,3))!=1:failures.append("battlefield exhausted learned move only basic coverage")
+	checks+=1
+	followup.pp_primary=12;followup["sleep_turns"]=2
+	if int(battlefield.enemy_push_plan(manipulator,battlefield.player).score)>=5:failures.append("battlefield sleeping followup excluded")
+	checks+=1
+	followup.sleep_turns=0
+	battlefield.enemies.reverse()
+	if int(battlefield.enemy_push_plan(manipulator,battlefield.player).position_bonus)!=0:failures.append("battlefield already acted partner excluded")
+	battlefield.enemies.reverse()
+	checks+=1
+	followup.pos=Vector2i(5,3)
+	if int(battlefield.enemy_push_plan(manipulator,battlefield.player).score)>=5:failures.append("battlefield avoids friendly impact")
+	checks+=1
+	followup.pos=Vector2i(5,4)
+	battlefield.stairs=Vector2i(5,3)
+	if int(battlefield.enemy_push_plan(manipulator,battlefield.player).score)>=5:failures.append("battlefield avoids granting exit")
+	battlefield.stairs=Vector2i(7,6)
+	checks+=1
+	battlefield.allies.append({"pos":Vector2i(2,4),"hp":20})
+	if battlefield.enemy_push_position_bonus(manipulator,battlefield.player,Vector2i(5,3))!=6:failures.append("battlefield visible party separation")
+	battlefield.allies.clear()
+	checks+=1
+	followup.sleep_turns=2; battlefield.traps[Vector2i(5,3)]="snare"
+	battlefield.shield_kind="safeguard";battlefield.shield_turns=2
+	if int(battlefield.enemy_push_plan(manipulator,battlefield.player).score)>=5:failures.append("battlefield protected trap discounted")
+	battlefield.shield_kind="";battlefield.shield_turns=0;battlefield.traps.clear()
+	checks+=1
+	followup.sleep_turns=0
+	battlefield.enemy_turn_actions()
+	var push_count:int=0
+	var follow_count:int=0
+	for action in battlefield.enemy_actions:
+		if int(action.get("uid",-1))==0 and str(action.get("effect",""))=="push":push_count+=1
+		if int(action.get("uid",-1))==1 and str(action.get("phase",""))=="attack":follow_count+=1
+	if push_count!=1 or follow_count!=1 or manipulator.pp_control!=4 or followup.pp_primary!=11 or battlefield.player!=Vector2i(5,3):failures.append("battlefield actual ordered knockback and followup")
+	checks+=1
+	print("KINDRIA_BATTLEFIELD_MANIPULATION checks=10")
 	# Actual disk I/O, legacy migration, corruption recovery, and resumed writes.
 	var test_path:String="user://kindria_procedural_test_"+str(OS.get_process_id())+".cfg"
 	var exact:Array[String]=["legacy exact".sha256_text()]
