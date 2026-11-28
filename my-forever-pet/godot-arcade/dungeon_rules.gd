@@ -2461,6 +2461,7 @@ func enemy_risk_snapshot(e:Dictionary,target:Vector2i)->Dictionary:
 	return {"risk":maxi(0,risk),"friendly":friendly,"hostile":hostile,"support":support,"recent":recent}
 
 func enemy_risk_has_finisher(e:Dictionary)->bool:
+	if hp<=0 or not enemy_opportunity_eligible(e):return false
 	if enemy_basic_finish(e):return true
 	if int(e.get("whiffer_turns",0))>0 or enemy_stat_effect(e,"accuracy")*player_stat_effect("evasion")/(263.0/256.0)<.85:return false
 	var species:String=str(e.get("species",""))
@@ -3071,7 +3072,9 @@ func enemy_ambush_claim_score(e:Dictionary,post:Vector2i,entry:Vector2i,gate:Vec
 		if other_post==post:return -1000
 		if other.get("ambush_gate",Vector2i.ZERO)!=gate:continue
 		# Opposite sides of an entry are complementary; do not stack one lane.
-		if (other_post-entry).dot(post-entry)<0:score+=8
+		var peer_offset:Vector2i=other_post-entry
+		var post_offset:Vector2i=post-entry
+		if peer_offset.x*post_offset.x+peer_offset.y*post_offset.y<0:score+=8
 		elif distance(other_post,post)<=1:score-=8
 		else:score+=2
 	return clampi(score,-16,16)
@@ -4752,7 +4755,8 @@ func enemy_pack_intercept_plan(e:Dictionary,target:Vector2i)->Dictionary:
 func enemy_target_exposure(e:Dictionary,tile:Vector2i,target_uid:int)->float:
 	if not bool(e.get("personality_enabled",false)) or distance(e.pos,tile)>enemy_awareness(e) or not enemy_line_of_sight(e.pos,tile):return 0.0
 	var support:int=0
-	if target_uid!=-1 and hp>0 and distance(player,tile)<=2 and distance(e.pos,player)<=enemy_awareness(e) and enemy_line_of_sight(e.pos,player) and enemy_line_of_sight(tile,player):support+=1
+	if target_uid==-1 and (hp<=0 or tile!=player or charge_phase in ["underground","airborne","vanish"] or boon_active("decoy")):return 0.0
+	if target_uid!=-1 and hp>0 and charge_phase not in ["underground","airborne","vanish"] and not boon_active("decoy") and distance(player,tile)<=2 and distance(e.pos,player)<=enemy_awareness(e) and enemy_line_of_sight(e.pos,player) and enemy_line_of_sight(tile,player):support+=1
 	for index in range(allies.size()):
 		var friend:Dictionary=allies[index]
 		if int(friend.hp)<=0 or int(friend.get("uid",1000+index))==target_uid:continue
@@ -4762,9 +4766,9 @@ func enemy_target_exposure(e:Dictionary,tile:Vector2i,target_uid:int)->float:
 	return 1.25 if support==0 else .5 if support==1 else 0.0
 
 func enemy_party_opportunity_value(e:Dictionary,a:Dictionary,index:int,skill:Array,secondary:bool)->float:
-	var estimate:Dictionary=enemy_party_damage_estimate(e,a,skill,secondary)
 	var life:int=int(a.hp)
-	if life<=0:return 0.0
+	if life<=0 or distance(e.pos,a.pos)>enemy_awareness(e) or not enemy_line_of_sight(e.pos,a.pos):return 0.0
+	var estimate:Dictionary=enemy_party_damage_estimate(e,a,skill,secondary)
 	var chance:float=float(estimate.accuracy)
 	if int(e.get("whiffer_turns",0))>0:chance*=.05
 	var expected:float=float(mini(life,int(estimate.damage)))*chance
@@ -5035,7 +5039,7 @@ func enemy_opportunity_damage(e:Dictionary,skill:Array,secondary:bool,basic:bool
 	return shield_damage(held_item_damage(damage,str(e.get("held_item","")),held_item),category)
 
 func enemy_opportunity_eligible(e:Dictionary)->bool:
-	return bool(e.get("personality_enabled",false)) and enemy_alert_eligible(e) and not bool(e.get("windup",false)) and not boon_active("decoy") and distance(e.pos,player)<=enemy_awareness(e) and enemy_line_of_sight(e.pos,player)
+	return bool(e.get("personality_enabled",false)) and enemy_alert_eligible(e) and not bool(e.get("windup",false)) and not boon_active("decoy") and charge_phase not in ["underground","airborne","vanish"] and distance(e.pos,player)<=enemy_awareness(e) and enemy_line_of_sight(e.pos,player)
 
 func enemy_basic_finish(e:Dictionary)->bool:
 	if not enemy_opportunity_eligible(e) or distance(e.pos,player)!=1 or hp<=0 or hp>enemy_opportunity_damage(e,[],false,true):return false
@@ -5379,10 +5383,11 @@ func enemy_turn_actions_impl():
 			enemy_tick_all_cooldowns(enemies[i]);continue
 		enemy_observe_movement(enemies[i],player)
 		boss_observe_phase(enemies[i])
-		if not allies.is_empty() and not bool(enemies[i].get("boss_tactical",false)) and not enemy_has_party_area_attack(enemies[i]) and enemy_target_ally(i):continue
+		var finish_priority:bool=enemy_opportunity_eligible(enemies[i]) and enemy_risk_has_finisher(enemies[i])
+		# A credible immediate finish must precede optional party pursuit.
+		if not finish_priority and not allies.is_empty() and not bool(enemies[i].get("boss_tactical",false)) and not enemy_has_party_area_attack(enemies[i]) and enemy_target_ally(i):continue
 		var gap:=distance(p,player)
 		var pursuit_target:Vector2i=enemy_pursuit_target(enemies[i],player)
-		var finish_priority:bool=enemy_opportunity_eligible(enemies[i]) and enemy_risk_has_finisher(enemies[i])
 		if not finish_priority and gap<=3 and not enemies[i].get("windup",false) and enemy_use_potion(i):
 			enemy_actions.append({"uid":enemies[i].get("uid",i),"phase":"attack","from":p,"to":p,"move":"Healing berry","fx":"basic_strike","damage":0,"tiles":[p],"path":[p]})
 			emit_event("Enemy recovered HP")
