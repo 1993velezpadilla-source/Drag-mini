@@ -359,3 +359,9 @@ Independent biome/terrain and room-event profiles, optional treasure branches, M
 - Try existing legal learned control before evasion. Add a bounded push utility bonus when the projected release origin no longer threatens the actor; sleep gains utility because the existing wait gate delays release. Neither effect forcibly cancels a charge or refunds/removes PP. Existing accuracy, immunities, cooldowns and turn limits still apply.
 - Ten authored checks cover footprint, hidden aim, legal escape, root, traps, push prediction, control PP, and actual dispatcher evasion. Implementation 4312593ee6d79bdf8fd99452a967cadd3f5831bf; tests f29e8e8d2b99ae6a80f68349c563ad71a35ea6ac.
 - Local Godot execution and CI/Android validation remain unverified. The +3 control bonus is provisional; this is visible charge counterplay, not universal cancellation or full area-attack prediction.
+
+## V26.88 — Intelligent Formation Breaking
+- Count visible living allied support within two tiles and unobstructed geometric LOS. Knockback utility now rewards reducing the number of supporting allies and penalizes pushing the player into stronger support, bounded to +/-4.
+- Pack interception favors opposite or distinct adjacent attack directions and isolated targets; penalizes blocking a visible partner's firing lane. Existing occupancy, hazard, reach and reservation restrictions remain.
+- Visible-charge evasion penalizes clustering next to friendly creatures, while retaining actual threat-footprint and safe-tile checks.
+- Implementation e4845182bbf0983c36b48eb7e0722d163d9ccaf3; eight authored regression checks 97ba2facbab24cce37db41343f6e9847c6fee068. Weights and proximity thresholds are provisional. Support is a geometric estimate, not a guarantee that an ally has a usable attack. No new abilities, extra actions or damage changes. CI and Android execution remain unverified.
