@@ -1772,6 +1772,51 @@ func run_checks()->void:
 	cp_fixture.charge_phase=""
 	checks+=1
 	print("KINDRIA_ENEMY_COUNTERPLAY checks=10")
+
+	# Relative opportunities depend on visible support and realistic accuracy.
+	var opp_fixture=Rules.new()
+	for y in range(1,11):
+		for x in range(1,11):opp_fixture.cells[Vector2i(x,y)]=true
+	opp_fixture.player=Vector2i(9,9);opp_fixture.stairs=Vector2i(10,10);opp_fixture.relic=Vector2i(10,9);opp_fixture.turns=20;opp_fixture.hp=30
+	var opp_actor:Dictionary={"uid":280,"pos":Vector2i(3,4),"hp":30,"max_hp":30,"kind":0,"species":"eelstrix","ecology_role":"scout","ecology_search_enabled":true,"personality_enabled":true,"pp_primary":12,"pp_secondary":0}
+	var opp_target:Dictionary={"uid":1280,"pos":Vector2i(5,4),"hp":4,"max_hp":30,"species":"reef_pup"}
+	var opp_support:Dictionary={"uid":1281,"pos":Vector2i(5,5),"hp":30,"max_hp":30,"species":"reef_pup"}
+	opp_fixture.enemies.append(opp_actor);opp_fixture.allies.append(opp_target)
+	var opp_isolated:float=opp_fixture.enemy_target_exposure(opp_actor,opp_target.pos,1280)
+	if opp_isolated!=1.25:failures.append("opportunity isolated visible target")
+	checks+=1
+	opp_fixture.allies.append(opp_support)
+	if opp_fixture.enemy_target_exposure(opp_actor,opp_target.pos,1280)>=opp_isolated:failures.append("opportunity visible support reduces exposure")
+	checks+=1
+	opp_support.hp=0
+	if opp_fixture.enemy_target_exposure(opp_actor,opp_target.pos,1280)!=opp_isolated:failures.append("opportunity defeated support excluded")
+	opp_support.hp=30
+	checks+=1
+	opp_fixture.cells.erase(Vector2i(4,4))
+	if opp_fixture.enemy_target_exposure(opp_actor,opp_target.pos,1280)!=0.0:failures.append("opportunity hidden target rejected")
+	opp_fixture.cells[Vector2i(4,4)]=true
+	checks+=1
+	var opp_skill:Array=opp_fixture.signature_skill(opp_actor)
+	var opp_value:float=opp_fixture.enemy_party_opportunity_value(opp_actor,opp_target,0,opp_skill,false)
+	opp_actor["whiffer_turns"]=2
+	var opp_low_accuracy:float=opp_fixture.enemy_party_opportunity_value(opp_actor,opp_target,0,opp_skill,false)
+	if opp_value<=0.0 or opp_low_accuracy>opp_value*.051:failures.append("opportunity accuracy weights expected and tactical value")
+	opp_actor.erase("whiffer_turns")
+	checks+=1
+	if opp_actor.pp_primary!=12 or int(opp_target.hp)!=4 or not opp_fixture.enemy_actions.is_empty():failures.append("opportunity pure scoring")
+	checks+=1
+	opp_actor["personality_enabled"]=false
+	if opp_fixture.enemy_target_exposure(opp_actor,opp_target.pos,1280)!=0.0:failures.append("opportunity legacy exposure gate")
+	opp_actor["personality_enabled"]=true
+	checks+=1
+	opp_target.hp=0
+	if opp_fixture.enemy_party_opportunity_value(opp_actor,opp_target,0,opp_skill,false)!=0.0:failures.append("opportunity defeated target excluded")
+	opp_target.hp=4
+	checks+=1
+	opp_fixture.player=Vector2i(6,4)
+	if opp_fixture.enemy_target_exposure(opp_actor,opp_target.pos,1280)!=0.0:failures.append("opportunity player and ally provide support")
+	checks+=1
+	print("KINDRIA_ENEMY_OPPORTUNITY_ENGINE checks=9")
 	# A direct witness may report a tile, but a listener cannot relay it.
 	var comm=Rules.new()
 	for x in range(1,4):comm.cells[Vector2i(x,3)]=true
