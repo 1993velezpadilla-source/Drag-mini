@@ -4240,6 +4240,49 @@ func enemy_recent_threat(e:Dictionary)->bool:
 	var age:int=turns-int(e.get("incoming_turn",-9999))
 	return age>=0 and age<=3 and int(e.get("incoming_damage",0))*4>=maxi(1,int(e.get("max_hp",e.hp)))
 
+# Pure non-critical damage estimate mirrors the player-facing resolution order.
+# Do not count status utility, critical rolls or learned-memory multipliers as HP.
+func enemy_opportunity_damage(e:Dictionary,skill:Array,secondary:bool,basic:bool=false)->int:
+	var origin:Vector2i=e.pos
+	var info:Array=ENEMY_TRAINING.get(e.get("species",""),[["normal"],"normal","normal",0,0,"physical"])
+	var element:String="normal" if basic else str(info[2] if secondary else info[1])
+	var category:String="physical" if basic else str(info[5])
+	if charge_phase in ["underground","airborne","vanish"] or (shield_turns>0 and shield_kind=="protect") or (boon_active("magnet") and not gravity_active and element=="ground"):return 0
+	var species:String=str(e.get("species",""))
+	var pattern:String="front" if basic else str(SECONDARY_SKILLS[species][1]) if secondary and SECONDARY_SKILLS.has(species) else str(ATTACK_PATTERNS.get(species,"line"))
+	if mirror_veil_blocks(origin,not basic,pattern):return 0
+	var damage:int=maxi(1,2+tier+int(floor_number/3)+(2 if int(e.get("kind",0))>=2 else 0)+(-1 if basic else int(skill[3])))+maxi(0,marked_damage)
+	if not trained_profile.is_empty():
+		var types:Array=current_player_types()
+		if gravity_active and element=="ground":types.erase("flying")
+		var effectiveness:float=type_multiplier(element,types)
+		if effectiveness<=0.0:return 0
+		var stat:int=4 if str(info[5])=="special" else 2
+		damage=maxi(1,roundi(float(damage)*effectiveness*(1.2 if element in info[0] else 1.0)*clampf(neutral_combat_stat(stat)/maxf(1.0,combat_stat(stat)),.60,1.65)))
+	var attack_key:String="sp_attack" if category=="special" else "attack"
+	var defense_key:String="sp_defense" if category=="special" else "defense"
+	damage=maxi(1,roundi(float(damage)*enemy_stat_effect(e,attack_key)/maxf(.001,player_stat_effect(defense_key))))
+	damage=maxi(0,roundi(float(damage)*weather_factor(element)))
+	if str(e.get("major_status",""))=="burn":damage=roundi(float(damage)*.8)
+	return shield_damage(held_item_damage(damage,str(e.get("held_item","")),held_item),category)
+
+func enemy_opportunity_eligible(e:Dictionary)->bool:
+	return bool(e.get("personality_enabled",false)) and enemy_alert_eligible(e) and not bool(e.get("windup",false)) and not boon_active("decoy") and distance(e.pos,player)<=enemy_awareness(e) and enemy_line_of_sight(e.pos,player)
+
+func enemy_basic_finish(e:Dictionary)->bool:
+	if not enemy_opportunity_eligible(e) or distance(e.pos,player)!=1 or hp<=0 or hp>enemy_opportunity_damage(e,[],false,true):return false
+	if int(e.get("whiffer_turns",0))>0 or enemy_stat_effect(e,"accuracy")*player_stat_effect("evasion")/(263.0/256.0)<1.0:return false
+	# Keep valuable multi-target opportunities instead of blindly conserving PP.
+	return not enemy_has_party_area_attack(e)
+
+func enemy_opportunity_bonus(e:Dictionary,skill:Array,secondary:bool)->float:
+	if not enemy_opportunity_eligible(e) or bool(skill[1]) or hp<=0:return 0.0
+	var damage:int=enemy_opportunity_damage(e,skill,secondary)
+	if damage<hp:return 0.0
+	var accuracy:float=clampf(enemy_stat_effect(e,"accuracy")*player_stat_effect("evasion")/(263.0/256.0),0.0,1.0)
+	if int(e.get("whiffer_turns",0))>0:accuracy*=.05
+	return 3.0*accuracy
+
 func enemy_attack_score(e:Dictionary,skill:Array,secondary:bool)->float:
 	var info:Array=ENEMY_TRAINING.get(e.get("species",""),[["normal"],"normal","normal",0,0,"physical"])
 	var element:String=str(info[2] if secondary else info[1])
@@ -4277,7 +4320,7 @@ func enemy_attack_score(e:Dictionary,skill:Array,secondary:bool)->float:
 		var control_window:bool=bool(e.get("ecology_search_enabled",false)) and (int(player_boons.get("hostile_sleep",0))>=2 or int(player_boons.get("hostile_paralysis",0))>=3)
 		score*=.90 if control_window else .70
 	if enemy_move_pp(e,slot)<=2:score*=.85
-	return score*enemy_observed_attack_weight(e,-1,slot)
+	return score*enemy_observed_attack_weight(e,-1,slot)+enemy_opportunity_bonus(e,skill,secondary)
 
 func enemy_move_allowed(e:Dictionary,slot:String)->bool:
 	if enemy_move_pp(e,slot)<=0 or slot in e.get("sealed_moves",[]):return false
@@ -4605,9 +4648,10 @@ func enemy_turn_actions_impl():
 				enemies[i].pos=protected_step
 				enemy_actions.append({"uid":enemies[i].get("uid",i),"phase":"move","from":p,"to":protected_step,"gait":enemies[i].get("gait","walk")})
 			continue
+		var basic_finish:bool=enemy_basic_finish(enemies[i])
 		var control_cd:int=int(enemies[i].get("control_cooldown",0))
 		if control_cd>0:enemies[i]["control_cooldown"]=control_cd-1
-		if control_cd<=0 and enemy_execute_control(i):
+		if not basic_finish and control_cd<=0 and enemy_execute_control(i):
 			if hp<=0:
 				apply_fatal_grudge(enemies[i]);finished=true;success=false;message="Rescue needed · expedition lost";return
 			continue
@@ -4640,8 +4684,10 @@ func enemy_turn_actions_impl():
 				footprint=attack_footprint(p,aim,pattern,int(alt[0]))
 				in_range=true;ready=true
 				skill=alt_skill
+		if basic_finish:
+			ready=false;in_range=false;alternate=false
 		var support_kind:String=str(ENEMY_SUPPORT.get(enemies[i].get("species",""),""))
-		if not charged and not (ready and in_range) and support_cd<=0 and gap<=2 and not enemies[i].get("windup",false) and not support_kind.is_empty() and enemy_move_allowed(enemies[i],"support"):
+		if not basic_finish and not charged and not (ready and in_range) and support_cd<=0 and gap<=2 and not enemies[i].get("windup",false) and not support_kind.is_empty() and enemy_move_allowed(enemies[i],"support"):
 			var use_support:bool=(support_kind=="guard" and int(enemies[i].get("stages",{}).get("defense",0))<2) or (support_kind=="drowse" and not boon_active("hostile_drowse") and not boon_active("hostile_sleep") and not boon_active("hostile_paralysis") and self_confusion_turns<=0 and not boon_active("hostile_control_recovery") and not boon_active("sleepless") and not player_has_ability("wakeful") and not (shield_turns>0 and shield_kind in ["protect","safeguard"]) and not boon_active("magic_coat") and enemy_line_of_sight(p,player))
 			if use_support and execute_enemy_support(i,support_kind):
 				enemy_actions.append({"uid":enemies[i].get("uid",i),"phase":"attack","from":p,"to":p if support_kind=="guard" else player,"move":"Ward" if support_kind=="guard" else "Drowsy Hex","fx":"basic_strike","damage":0,"tiles":[p if support_kind=="guard" else player],"path":[p if support_kind=="guard" else player]})
