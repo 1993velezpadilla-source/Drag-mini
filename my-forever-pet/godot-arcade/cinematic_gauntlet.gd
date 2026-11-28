@@ -32,10 +32,96 @@ func audio_quality_metrics(pcm:PackedByteArray)->Dictionary:
 	var rms:float=sqrt(energy/maxi(1,count))
 	return {"rms":rms,"dc":mean/maxi(1,count),"peak":peak,"max_step":max_step,"crossings_per_second":float(crossings)*22050.0/maxi(1,count),"descriptor":str(descriptor)+":"+str(roundi(float(crossings)*22050.0/maxi(1,count)/100.0))+":"+str(roundi(float(count)/22050.0*20.0)),"pcm_sha256":pcm.hex_encode().sha256_text()}
 
+# V26.34 reference encoding retained only in the test harness.
+func legacy_shape_signature(cells:Dictionary)->String:
+	if cells.is_empty():return ""
+	var best:String=""
+	for orientation in range(8):
+		var points:Array[Vector2i]=[]
+		var low:=Vector2i(2147483647,2147483647)
+		for q in cells:
+			var p:Vector2i=q
+			if orientation>=4:p.x=-p.x
+			for turn in range(orientation%4):p=Vector2i(-p.y,p.x)
+			low=Vector2i(mini(low.x,p.x),mini(low.y,p.y));points.append(p)
+		var ids:=PackedInt32Array()
+		for p in points:
+			var offset:Vector2i=p-low
+			ids.append(offset.y*128+offset.x)
+		ids.sort()
+		var parts:=PackedStringArray()
+		for tile_id in ids:parts.append(str(tile_id))
+		var encoded:String=",".join(parts)
+		if best.is_empty() or encoded<best:best=encoded
+	return best.sha256_text()
+
+func run_procedural_stress(failures:Array[String])->int:
+	var checks:int=0
+	var history:Array[String]=[]
+	var distinct:Dictionary={}
+	var timings:Array[int]=[]
+	var retries:int=0
+	var legacy_usec:int=0
+	var optimized_usec:int=0
+	var max_tiles:int=0
+	var RulesClass=preload("res://dungeon_rules.gd")
+	for expedition in range(128):
+		var run=RulesClass.new()
+		run.recent_shapes.assign(history)
+		var started:int=Time.get_ticks_usec()
+		run.setup(expedition%3,(expedition%3)*12,0,false,false,32011+expedition*53,0,false)
+		for floor_id in range(1,5):
+			if floor_id>1:
+				run.floor_number=floor_id
+				started=Time.get_ticks_usec()
+				run.generate_floor()
+			timings.append(Time.get_ticks_usec()-started)
+			retries+=run.layout_retries
+			max_tiles=maxi(max_tiles,run.cells.size())
+			if distinct.has(run.shape_signature):failures.append("V26.34 repeated canonical floor %d/%d"%[expedition,floor_id])
+			distinct[run.shape_signature]=true
+			if not run.stairs_available() or not run.cells.has(run.player) or not run.cells.has(run.stairs):failures.append("V26.34 invalid normal floor")
+			var visited:Dictionary={run.player:true}
+			var queue:Array[Vector2i]=[run.player]
+			var cursor:int=0
+			while cursor<queue.size():
+				var tile:Vector2i=queue[cursor];cursor+=1
+				for d in run.DIR:
+					var q:Vector2i=tile+d
+					if run.cells.has(q) and not visited.has(q):visited[q]=true;queue.append(q)
+			if visited.size()!=run.cells.size() or not visited.has(run.stairs):failures.append("V26.34 disconnected expedition")
+			if run.rooms.size()>12 or run.cells.size()>run.floor_bounds.get_area():failures.append("V26.34 geometry budget")
+			checks+=4
+			if expedition<16:
+				started=Time.get_ticks_usec()
+				var legacy:String=legacy_shape_signature(run.cells)
+				legacy_usec+=Time.get_ticks_usec()-started
+				started=Time.get_ticks_usec()
+				var optimized:String=run.canonical_shape_signature()
+				optimized_usec+=Time.get_ticks_usec()-started
+				if legacy!=optimized or optimized!=run.shape_signature:failures.append("V26.34 persisted signature compatibility")
+				checks+=1
+		history.assign(run.recent_shapes)
+	if distinct.size()!=512 or history.size()!=512:failures.append("V26.34 stress history coverage")
+	checks+=1
+	var cap_run=RulesClass.new()
+	for i in range(cap_run.SHAPE_HISTORY_CAP+8):cap_run.remember_shape(str(i).sha256_text())
+	if cap_run.recent_shapes.size()!=cap_run.SHAPE_HISTORY_CAP or cap_run.recent_shapes.front()!=str(8).sha256_text():failures.append("V26.34 history rollover")
+	checks+=1
+	var config:=ConfigFile.new()
+	config.set_value("dungeons","canonical_shapes_v1",cap_run.recent_shapes)
+	var roundtrip:=ConfigFile.new()
+	if roundtrip.parse(config.encode_to_text())!=OK or roundtrip.get_value("dungeons","canonical_shapes_v1",[])!=cap_run.recent_shapes:failures.append("V26.34 history serialization")
+	checks+=1
+	timings.sort()
+	print("KINDRIA_PROCEDURAL_STRESS floors=",timings.size()," unique_shapes=",distinct.size()," retries=",retries," max_tiles=",max_tiles," median_usec=",timings[int(timings.size()/2)]," p95_usec=",timings[int((timings.size()-1)*.95)]," max_usec=",timings.back()," legacy_hash_usec=",legacy_usec," optimized_hash_usec=",optimized_usec)
+	return checks
+
 func run_checks()->void:
 	var checks:int=0
 	var failures:Array[String]=[]
 	var view:=Dungeon.new()
+	checks+=run_procedural_stress(failures)
 	# V26.28: composable topology and room/link profiles, walkable anchors and connectivity.
 	var topology_seen:Dictionary={}
 	var topology_anchor_count:int=0
