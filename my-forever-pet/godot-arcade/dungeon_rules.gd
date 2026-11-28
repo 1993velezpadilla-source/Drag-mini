@@ -5433,29 +5433,37 @@ func enemy_recent_threat(e:Dictionary)->bool:
 
 # Pure non-critical damage estimate mirrors the player-facing resolution order.
 # Do not count status utility, critical rolls or learned-memory multipliers as HP.
-func enemy_opportunity_damage(e:Dictionary,skill:Array,secondary:bool,basic:bool=false)->int:
-	var origin:Vector2i=e.pos
+# Shared pure damage calculation. Resolution owns RNG, mark consumption,
+# criticals and hit side effects; planning can never mutate those states.
+func enemy_player_damage_base(e:Dictionary,skill:Array,secondary:bool,basic:bool,mark:int)->Dictionary:
 	var info:Array=ENEMY_TRAINING.get(e.get("species",""),[["normal"],"normal","normal",0,0,"physical"])
 	var element:String="normal" if basic else str(info[2] if secondary else info[1])
 	var category:String="physical" if basic else str(info[5])
-	if charge_phase in ["underground","airborne","vanish"] or (shield_turns>0 and shield_kind=="protect") or (boon_active("magnet") and not gravity_active and element=="ground"):return 0
-	var species:String=str(e.get("species",""))
-	var pattern:String="front" if basic else str(SECONDARY_SKILLS[species][1]) if secondary and SECONDARY_SKILLS.has(species) else str(ATTACK_PATTERNS.get(species,"line"))
-	if mirror_veil_blocks(origin,not basic,pattern):return 0
-	var damage:int=maxi(1,2+tier+int(floor_number/3)+(2 if int(e.get("kind",0))>=2 else 0)+(-1 if basic else int(skill[3])))+maxi(0,marked_damage)
+	var damage:int=maxi(1,2+tier+int(floor_number/3)+(2 if int(e.get("kind",0))>=2 else 0)+(-1 if basic else int(skill[3])))+maxi(0,mark)
+	var effectiveness:float=1.0
 	if not trained_profile.is_empty():
 		var types:Array=current_player_types()
 		if gravity_active and element=="ground":types.erase("flying")
-		var effectiveness:float=type_multiplier(element,types)
-		if effectiveness<=0.0:return 0
+		effectiveness=type_multiplier(element,types)
 		var stat:int=4 if str(info[5])=="special" else 2
-		damage=maxi(1,roundi(float(damage)*effectiveness*(1.2 if element in info[0] else 1.0)*clampf(neutral_combat_stat(stat)/maxf(1.0,combat_stat(stat)),.60,1.65)))
+		damage=maxi(1,roundi(float(damage)*effectiveness*(1.2 if element in info[0] else 1.0)*clampf(maxf(1.0,neutral_combat_stat(stat))/maxf(1.0,combat_stat(stat)),.60,1.65))) if effectiveness>0.0 else 0
 	var attack_key:String="sp_attack" if category=="special" else "attack"
 	var defense_key:String="sp_defense" if category=="special" else "defense"
-	damage=maxi(1,roundi(float(damage)*enemy_stat_effect(e,attack_key)/maxf(.001,player_stat_effect(defense_key))))
+	if damage>0:damage=maxi(1,roundi(float(damage)*enemy_stat_effect(e,attack_key)/maxf(.001,player_stat_effect(defense_key))))
 	damage=maxi(0,roundi(float(damage)*weather_factor(element)))
 	if str(e.get("major_status",""))=="burn":damage=roundi(float(damage)*.8)
-	return shield_damage(held_item_damage(damage,str(e.get("held_item","")),held_item),category)
+	damage=held_item_damage(damage,str(e.get("held_item","")),held_item)
+	return {"damage":damage,"effectiveness":effectiveness,"element":element,"category":category}
+
+func enemy_opportunity_damage(e:Dictionary,skill:Array,secondary:bool,basic:bool=false)->int:
+	var origin:Vector2i=e.pos
+	if charge_phase in ["underground","airborne","vanish"] or (shield_turns>0 and shield_kind=="protect"):return 0
+	var species:String=str(e.get("species",""))
+	var pattern:String="front" if basic else str(SECONDARY_SKILLS[species][1]) if secondary and SECONDARY_SKILLS.has(species) else str(ATTACK_PATTERNS.get(species,"line"))
+	if mirror_veil_blocks(origin,not basic,pattern):return 0
+	var estimate:Dictionary=enemy_player_damage_base(e,skill,secondary,basic,marked_damage)
+	if boon_active("magnet") and not gravity_active and str(estimate.element)=="ground":return 0
+	return shield_damage(int(estimate.damage),str(estimate.category))
 
 # Shared live-contact contract for optional tactical decisions. Remembered
 # targets remain available to pursuit/search, not real-time counterplay.
@@ -5966,28 +5974,13 @@ func enemy_turn_actions_impl():
 		if (ready and in_range) or (gap==1 and not (ready and in_range)):
 			enemies[i].windup=false
 			var special:bool=ready and in_range
-			var damage:int=2+tier+int(floor_number/3)+(2 if kind>=2 else 0)
-			if special:damage=maxi(1,damage+int(skill[3]))
-			else:damage=maxi(1,damage-1)
 			var protected_charge:bool=charge_phase in ["underground","airborne","vanish"]
-			if marked_damage>0 and not protected_charge:damage+=marked_damage;marked_damage=0
-			last_type_multiplier=1.0
-			if not trained_profile.is_empty():
-				var info:Array=ENEMY_TRAINING.get(enemies[i].get("species",""),[["normal"],"normal","normal",0,0,"physical"])
-				var move_type:String=str(info[2] if alternate else info[1]) if special else "normal"
-				var stat_index:int=4 if str(info[5])=="special" else 2
-				var defender_types:Array=current_player_types()
-				if gravity_active and move_type=="ground":defender_types.erase("flying")
-				damage=trained_damage(damage,move_type,info[0],defender_types,neutral_combat_stat(stat_index),combat_stat(stat_index),neutral_combat_stat(stat_index))
-			var category:String=str(ENEMY_TRAINING.get(enemies[i].get("species",""),[[], "", "", 0, 0, "physical"])[5]) if special else "physical"
-			var attack_key:String="sp_attack" if category=="special" else "attack"
-			var defense_key:String="sp_defense" if category=="special" else "defense"
-			if damage>0:damage=maxi(1,roundi(float(damage)*enemy_stat_effect(enemies[i],attack_key)/maxf(.001,player_stat_effect(defense_key))))
-			var weather_info:Array=ENEMY_TRAINING.get(enemies[i].get("species",""),[["normal"],"normal","normal",0,0,"physical"])
-			var enemy_element:String=str(weather_info[2] if alternate else weather_info[1]) if special else "normal"
-			damage=maxi(0,roundi(float(damage)*weather_factor(enemy_element)))
-			if major=="burn":damage=roundi(float(damage)*.8)
-			damage=held_item_damage(damage,str(enemies[i].get("held_item","")),held_item)
+			var hit_base:Dictionary=enemy_player_damage_base(enemies[i],skill,alternate,not special,0 if protected_charge else marked_damage)
+			if marked_damage>0 and not protected_charge:marked_damage=0
+			var damage:int=int(hit_base.damage)
+			last_type_multiplier=float(hit_base.effectiveness)
+			var category:String=str(hit_base.category)
+			var enemy_element:String=str(hit_base.element)
 			var aim_factor:float=enemy_stat_effect(enemies[i],"accuracy")*player_stat_effect("evasion")/(263.0/256.0)
 			var stage_miss:bool=aim_factor<1.0 and rng.randf()>=aim_factor
 			var whiff:bool=int(enemies[i].get("whiffer_turns",0))>0 and rng.randi_range(1,100)>5
