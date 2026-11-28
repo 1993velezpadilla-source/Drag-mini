@@ -92,6 +92,21 @@ var utility_drag_start:Vector2
 var utility_drag_moved:bool=false
 var utility_drag_suppress:bool=false
 var strike_pending:bool=false
+var strike_on_panel:bool=true
+var movement_joystick:bool=false
+var strike_opacity:float=.48
+var panel_strike:Button
+var joystick:Control
+var joy_direction:Vector2i=Vector2i.ZERO
+var joy_knob:Vector2=Vector2.ZERO
+var joy_pointer:int=-2
+var strike_pointer:int=-2
+var strike_touch_origin:Vector2
+var strike_touch_start:Vector2
+var strike_touch_moved:bool=false
+var strike_touch_button:Button
+var regular_strike_pose:bool=false
+var empty_strike_pose:bool=false
 var actor_nodes:Dictionary={}
 var enemy_shadow_material:StandardMaterial3D
 var enemy_shadow_mesh:QuadMesh
@@ -464,6 +479,8 @@ func lab_build_settings(parent:Node)->void:
 	var gear:=lab_button(parent,"⚙",func():
 		if is_instance_valid(dev_settings_panel):
 			dev_settings_panel.visible=not dev_settings_panel.visible
+			if dev_settings_panel.visible:
+				path.clear();strike_pending=false;reset_joystick()
 			lab_layout())
 	gear.tooltip_text="Dungeon settings";gear.custom_minimum_size.x=42;gear.size_flags_horizontal=SIZE_SHRINK_END
 
@@ -473,6 +490,23 @@ func lab_settings_overlay()->void:
 	add_child(dev_settings_panel);dev_settings_panel.z_index=20
 	var stack:=VBoxContainer.new();dev_settings_panel.add_child(stack)
 	label(stack,"Dungeon settings",16,Color("#c6e8dd"))
+	label(stack,"Moxie controls",14,hud_accent_color())
+	var strike_choice:=OptionButton.new();stack.add_child(strike_choice)
+	strike_choice.add_item("Strike · On panel",0);strike_choice.add_item("Strike · Floating bubble",1)
+	strike_choice.select(0 if strike_on_panel else 1)
+	strike_choice.item_selected.connect(func(index:int):
+		strike_on_panel=index==0;apply_control_preferences();save_control_preferences())
+	var movement_choice:=OptionButton.new();stack.add_child(movement_choice)
+	movement_choice.add_item("Tap to move",0);movement_choice.add_item("Joystick · 8 directions",1)
+	movement_choice.select(1 if movement_joystick else 0)
+	movement_choice.item_selected.connect(func(index:int):
+		movement_joystick=index==1;apply_control_preferences();save_control_preferences())
+	label(stack,"Floating Strike opacity",12,hud_accent_color())
+	var opacity:=HSlider.new();opacity.min_value=.25;opacity.max_value=.85;opacity.step=.05;opacity.value=strike_opacity;stack.add_child(opacity)
+	opacity.value_changed.connect(func(value:float):
+		strike_opacity=value;style_strike_bubble();save_control_preferences())
+	lab_button(stack,"Reset bubble position",func():
+		strike_fraction=Vector2(.98,.95);position_strike_bubble();save_control_preferences())
 	lab_button(stack,"Map size",func():toggle_map();dev_settings_panel.hide())
 	if Rules.dev_tools_available():
 		lab_button(stack,"DEV · Combat Lab",lab_open)
@@ -482,8 +516,8 @@ func lab_settings_overlay()->void:
 
 func lab_layout()->void:
 	if is_instance_valid(dev_settings_panel):
-		dev_settings_panel.position=Vector2(maxf(4,size.x-220),74)
-		dev_settings_panel.size=Vector2(214,0)
+		dev_settings_panel.position=Vector2(maxf(4,size.x-258),74)
+		dev_settings_panel.size=Vector2(minf(250,size.x-8),0)
 	if is_instance_valid(dev_bubble):
 		dev_bubble.position=Vector2(clampf(dev_bubble.position.x,0,maxf(0,size.x-dev_bubble.size.x)),clampf(dev_bubble.position.y,0,maxf(0,size.y-dev_bubble.size.y)))
 
@@ -706,7 +740,7 @@ func lab_cast(id:String)->void:
 
 func lab_minimize()->void:
 	dev_panel.hide();dungeon_footer.show();dev_bubble.show();lab_layout()
-	if is_instance_valid(attack_button):attack_button.show()
+	apply_control_preferences()
 
 func lab_bubble_input(event:InputEvent)->void:
 	if event is InputEventScreenTouch:
@@ -738,6 +772,7 @@ func lab_end_drag()->void:
 		if is_instance_valid(attack_button):attack_button.hide()
 
 func build_ui():
+	load_control_preferences()
 	var base=VBoxContainer.new();hud_base=base;add_child(base);base.set_anchors_and_offsets_preset(PRESET_FULL_RECT);base.add_theme_constant_override("separation",0)
 	var header=PanelContainer.new();header.add_theme_stylebox_override("panel",compact_style(hud_base_color(),hud_accent_color().darkened(.22),13));base.add_child(header)
 	var h=HBoxContainer.new();header.add_child(h)
@@ -787,10 +822,12 @@ func build_ui():
 		if event is InputEventMouseButton and event.button_index==MOUSE_BUTTON_LEFT and event.pressed:
 			status_text.clip_text=not status_text.clip_text
 			status_text.autowrap_mode=TextServer.AUTOWRAP_OFF if status_text.clip_text else TextServer.AUTOWRAP_WORD_SMART)
-	var a:=HBoxContainer.new();a.add_theme_constant_override("separation",5);v.add_child(a)
+	var a:=HBoxContainer.new();a.add_theme_constant_override("separation",6);v.add_child(a)
+	joystick=Control.new();joystick.custom_minimum_size=Vector2(86,76);joystick.mouse_filter=MOUSE_FILTER_STOP
+	a.add_child(joystick);joystick.draw.connect(draw_joystick)
 	move_dock=GridContainer.new();move_dock.columns=2;move_dock.size_flags_horizontal=SIZE_EXPAND_FILL;move_dock.size_flags_stretch_ratio=2.5
 	move_dock.add_theme_constant_override("h_separation",3);move_dock.add_theme_constant_override("v_separation",3);a.add_child(move_dock)
-	var utility:=GridContainer.new();utility.columns=1;utility.size_flags_horizontal=SIZE_EXPAND_FILL;utility.size_flags_stretch_ratio=1.0
+	var utility:=GridContainer.new();utility.columns=1;utility.custom_minimum_size.x=72;utility.size_flags_horizontal=SIZE_SHRINK_END
 	utility.add_theme_constant_override("v_separation",2);a.add_child(utility)
 	aim_button=button(utility,"Aim ↓",func():
 		if not utility_drag_suppress:rotate_combat_aim())
@@ -798,9 +835,14 @@ func build_ui():
 	aim_button.gui_input.connect(utility_drag_input.bind("aim"))
 	heal_button=button(utility,"Berry",func():strike_pending=false;path.clear();run.heal();sync())
 	var bag:=button(utility,"Bag",toggle_bag)
-	for utility_button in [aim_button,heal_button,bag]:
-		utility_button.custom_minimum_size.y=23
+	panel_strike=button(utility,"Strike",request_strike)
+	panel_strike.tooltip_text="Regular attack · no PP"
+	for utility_button in [aim_button,heal_button,bag,panel_strike]:
+		utility_button.custom_minimum_size.y=24
 		utility_button.add_theme_font_size_override("font_size",11)
+		var tile:=compact_style(hud_tile_color(),hud_accent_color().darkened(.38),6)
+		tile.content_margin_top=1;tile.content_margin_bottom=1
+		utility_button.add_theme_stylebox_override("normal",tile)
 	# Legacy energy attacks are retained for internal compatibility, not exposed as extra moves.
 	power_button=button(v,"Skill",func():path.clear();run.attack(true,facing);sync());power_button.hide()
 	special_button=button(v,"Leaf Dart",func():path.clear();run.attack(true,facing,1);sync());special_button.hide()
@@ -812,6 +854,7 @@ func build_ui():
 	build_strike_bubble()
 	build_bag()
 	lab_settings_overlay()
+	apply_control_preferences()
 func refresh_move_dock()->void:
 	if not is_instance_valid(move_dock):return
 	dock_move_ids=run.equipped_moves.duplicate()
@@ -821,13 +864,13 @@ func refresh_move_dock()->void:
 	for slot in range(4):
 		if slot>=dock_move_ids.size():
 			var empty:=button(move_dock,"—",func():pass)
-			empty.disabled=true;empty.custom_minimum_size.y=35
+			empty.disabled=true;empty.custom_minimum_size.y=32
 			empty.tooltip_text="Empty move slot · learn a technique from Bag"
 			continue
 		var id:String=str(dock_move_ids[slot])
 		var move:Dictionary=Rules.MOVE_LIBRARY[id]
 		var b:=button(move_dock,str(move.name),func():pass)
-		b.custom_minimum_size.y=35;b.clip_text=true
+		b.custom_minimum_size.y=32;b.clip_text=true
 		b.add_theme_font_size_override("font_size",12)
 		var tint:=Color(str(move.get("light","#e8e0ce")))
 		b.add_theme_stylebox_override("normal",compact_style(hud_tile_color(),tint.darkened(.4),7))
@@ -841,26 +884,131 @@ func build_strike_bubble()->void:
 	attack_button.add_theme_font_size_override("font_size",10)
 	attack_button.icon_alignment=HORIZONTAL_ALIGNMENT_CENTER
 	attack_button.vertical_icon_alignment=VERTICAL_ALIGNMENT_TOP
-	attack_button.custom_minimum_size=Vector2(58,58);attack_button.size=Vector2(58,58)
+	attack_button.custom_minimum_size=Vector2(52,52);attack_button.size=Vector2(52,52)
 	attack_button.focus_mode=Control.FOCUS_NONE
-	var frame:=compact_style(hud_base_color().lightened(.18),hud_accent_color(),29)
-	frame.set_border_width_all(2);frame.shadow_size=3;frame.shadow_color=Color("#00191399")
-	attack_button.add_theme_stylebox_override("normal",frame)
-	attack_button.add_theme_stylebox_override("hover",frame)
-	attack_button.add_theme_stylebox_override("pressed",compact_style(hud_base_color().lightened(.32),hud_accent_color().lightened(.2),29))
+	style_strike_bubble()
+	attack_button.mouse_filter=MOUSE_FILTER_STOP
 	attack_button.tooltip_text="Free regular attack · drag to reposition"
 	area.add_child(attack_button);attack_button.z_index=10
-	var prefs:=ConfigFile.new()
-	if prefs.load("user://kindria_hud.cfg")==OK:
-		var saved:Variant=prefs.get_value("combat","strike_position",strike_fraction)
-		if saved is Vector2: strike_fraction=saved.clamp(Vector2.ZERO,Vector2.ONE)
 	area.resized.connect(position_strike_bubble)
 	position_strike_bubble.call_deferred()
 	attack_button.gui_input.connect(utility_drag_input.bind("strike"))
 	attack_button.pressed.connect(request_strike)
 
+func controls_modal()->bool:
+	return (is_instance_valid(bag_panel) and bag_panel.visible) or (is_instance_valid(dev_settings_panel) and dev_settings_panel.visible) or (is_instance_valid(dev_panel) and dev_panel.visible)
+
 func strike_available()->bool:
-	return not notified and not run.finished and is_instance_valid(attack_button) and attack_button.is_visible_in_tree() and not attack_button.disabled and run.charged_move_id.is_empty() and is_instance_valid(bag_panel) and not bag_panel.visible
+	var active:Button=panel_strike if strike_on_panel else attack_button
+	return not notified and not run.finished and is_instance_valid(active) and active.is_visible_in_tree() and not active.disabled and run.charged_move_id.is_empty() and not controls_modal()
+
+func load_control_preferences()->void:
+	var prefs:=ConfigFile.new()
+	if prefs.load("user://kindria_hud.cfg")!=OK:return
+	strike_on_panel=bool(prefs.get_value("combat","strike_on_panel",true))
+	movement_joystick=bool(prefs.get_value("combat","movement_joystick",false))
+	strike_opacity=clampf(float(prefs.get_value("combat","strike_opacity",.48)),.25,.85)
+	var saved:Variant=prefs.get_value("combat","strike_position",Vector2(.98,.95))
+	if saved is Vector2:strike_fraction=saved.clamp(Vector2.ZERO,Vector2.ONE)
+
+func save_control_preferences()->void:
+	var prefs:=ConfigFile.new();prefs.load("user://kindria_hud.cfg")
+	prefs.set_value("combat","strike_on_panel",strike_on_panel)
+	prefs.set_value("combat","movement_joystick",movement_joystick)
+	prefs.set_value("combat","strike_opacity",strike_opacity)
+	prefs.set_value("combat","strike_position",strike_fraction)
+	prefs.save("user://kindria_hud.cfg")
+
+func apply_control_preferences()->void:
+	path.clear();strike_pending=false;reset_joystick()
+	strike_pointer=-2;utility_drag_kind=""
+	if is_instance_valid(panel_strike):panel_strike.visible=strike_on_panel
+	if is_instance_valid(attack_button):attack_button.visible=not strike_on_panel and dungeon_footer.visible
+	if is_instance_valid(joystick):joystick.visible=movement_joystick
+	position_strike_bubble()
+
+func style_strike_bubble()->void:
+	var bg:=hud_base_color().lightened(.18);bg.a=strike_opacity
+	var edge:=hud_accent_color();edge.a=.82
+	var frame:=compact_style(bg,edge,26);frame.set_border_width_all(1)
+	var pressed_bg:=bg.lightened(.22);pressed_bg.a=minf(1.0,strike_opacity+.25)
+	attack_button.add_theme_stylebox_override("normal",frame)
+	attack_button.add_theme_stylebox_override("hover",frame)
+	attack_button.add_theme_stylebox_override("pressed",compact_style(pressed_bg,edge,26))
+
+func draw_joystick()->void:
+	var center:=joystick.size*.5
+	var radius:float=minf(center.x,center.y)-5.0
+	if radius<=0:return
+	var tint:=hud_accent_color()
+	joystick.draw_circle(center,radius,Color(hud_base_color(),.75))
+	joystick.draw_arc(center,radius,0,TAU,48,Color(tint,.65),1.5,true)
+	for i in range(8):
+		var d:=Vector2.from_angle(float(i)*TAU/8.0)
+		joystick.draw_circle(center+d*(radius-5.0),2.0,Color(tint,.6))
+	joystick.draw_circle(center+joy_knob*radius*.57,radius*.36,Color(tint,.75))
+
+func reset_joystick()->void:
+	joy_pointer=-2;joy_direction=Vector2i.ZERO;joy_knob=Vector2.ZERO
+	if is_instance_valid(joystick):joystick.queue_redraw()
+
+func set_joystick_point(point:Vector2)->void:
+	var local:=joystick.get_global_transform_with_canvas().affine_inverse()*point
+	var delta:=local-joystick.size*.5
+	var radius:float=maxf(1.0,minf(joystick.size.x,joystick.size.y)*.5)
+	joy_knob=(delta/radius).limit_length(1.0)
+	joy_direction=Rules.aim8(delta) if delta.length()>radius*.20 else Vector2i.ZERO
+	if joy_direction!=Vector2i.ZERO and attack_time<=0.0 and not strike_pending:facing=joy_direction
+	joystick.queue_redraw()
+
+func control_contains(control:Control,point:Vector2)->bool:
+	return is_instance_valid(control) and control.is_visible_in_tree() and Rect2(Vector2.ZERO,control.size).has_point(control.get_global_transform_with_canvas().affine_inverse()*point)
+
+func capture_control_pointer(event:InputEvent)->bool:
+	var is_touch:bool=event is InputEventScreenTouch or event is InputEventScreenDrag
+	var is_mouse:bool=event is InputEventMouseButton or event is InputEventMouseMotion
+	if not is_touch and not is_mouse:return false
+	var point:Vector2=event.position
+	var active:Button=panel_strike if strike_on_panel else attack_button
+	if is_mouse and event.device==-1:
+		return joy_pointer>=0 or strike_pointer>=0 or control_contains(joystick,point) or control_contains(active,point)
+	var pointer:int=event.index if is_touch else -1
+	var down:bool=(event is InputEventScreenTouch and event.pressed) or (event is InputEventMouseButton and event.button_index==MOUSE_BUTTON_LEFT and event.pressed)
+	var up:bool=(event is InputEventScreenTouch and not event.pressed) or (event is InputEventMouseButton and event.button_index==MOUSE_BUTTON_LEFT and not event.pressed)
+	var drag:bool=event is InputEventScreenDrag or event is InputEventMouseMotion
+	if pointer==joy_pointer:
+		if up:reset_joystick()
+		elif drag:set_joystick_point(point)
+		return true
+	if pointer==strike_pointer:
+		if drag and strike_touch_button==attack_button:
+			var delta:=point-strike_touch_origin
+			if delta.length()>9.0:strike_touch_moved=true
+			if strike_touch_moved:
+				strike_pending=false
+				var transform:=area.get_global_transform_with_canvas().affine_inverse()
+				var local_delta:Vector2=transform*point-transform*strike_touch_origin
+				var travel:Vector2=(area.size-attack_button.size-Vector2(8,8)).max(Vector2.ZERO)
+				attack_button.position=(strike_touch_start+local_delta).clamp(Vector2(4,4),Vector2(4,4)+travel)
+		if up:
+			strike_pointer=-2
+			if strike_touch_moved:
+				var travel:Vector2=(attack_button.size*-1+area.size-Vector2(8,8)).max(Vector2.ONE)
+				strike_fraction=((attack_button.position-Vector2(4,4))/travel).clamp(Vector2.ZERO,Vector2.ONE)
+				save_control_preferences()
+			elif not (event is InputEventScreenTouch and event.canceled) and control_contains(strike_touch_button,point):
+				request_strike()
+		return true
+	if controls_modal() or notified or run.finished:return false
+	if down and control_contains(joystick,point):
+		if joy_pointer==-2:
+			joy_pointer=pointer;path.clear();strike_pending=false;set_joystick_point(point);tick=0.0
+		return true
+	if down and control_contains(active,point):
+		if strike_pointer==-2 and strike_available():
+			strike_pointer=pointer;strike_touch_button=active;strike_touch_origin=point;strike_touch_moved=false;strike_touch_start=active.position
+		return true
+	return false
 
 func request_strike()->void:
 	if utility_drag_suppress or not strike_available():return
@@ -869,7 +1017,13 @@ func request_strike()->void:
 		strike_pending=true
 		return
 	strike_pending=false
-	run.attack(false,facing);sync()
+	var acted:bool=run.attack(false,facing)
+	sync()
+	# A whiff swings without inventing damage, PP use or a turn.
+	if not acted and not run.finished:
+		begin_player_cast_pose({"fx":"basic_strike","from":run.player,"to":run.player+facing})
+		empty_strike_pose=true
+		if is_instance_valid(attack_fx):attack_fx.hide()
 
 func position_strike_bubble()->void:
 	if not is_instance_valid(attack_button):return
@@ -16064,6 +16218,7 @@ func finish_tile_cast()->void:
 
 func begin_player_cast_pose(event:Dictionary,age:float=0.0)->void:
 	var sample:=player_cast_sample(str(event.fx),event.from,event.to,age)
+	regular_strike_pose=str(event.fx)=="basic_strike";empty_strike_pose=false
 	player_cast_duration=float(sample.duration);player_cast_mode=str(sample.role)
 	attack_time=float(sample.remaining);player_cast_motion=str(sample.motion)
 	player_cast_impact=float(sample.impact);player_impact_delay=float(sample.impact_delay)
@@ -19294,6 +19449,8 @@ func show_held_attack()->void:
 		hold_info.text=held_attack_description(hold_move);hold_info.show()
 
 func _input(event:InputEvent)->void:
+	if capture_control_pointer(event):
+		get_viewport().set_input_as_handled();return
 	if handle_utility_drag(event):
 		get_viewport().set_input_as_handled();return
 	if not hold_active:return
@@ -19336,7 +19493,10 @@ func rotate_combat_aim()->void:
 	lab_update_aim()
 	update_hud()
 func touch(event:InputEvent):
-	if notified or run.finished or tile_cast_active() or (is_instance_valid(bag_panel) and bag_panel.visible):return
+	if notified or run.finished or tile_cast_active() or controls_modal() or movement_joystick:return
+	if event is InputEventScreenTouch or event is InputEventScreenDrag or event is InputEventMouseButton or event is InputEventMouseMotion:
+		var global_point:Vector2=area.get_global_transform_with_canvas()*event.position
+		if control_contains(attack_button,global_point) or strike_pointer!=-2:return
 	if map_expanded and (event is InputEventScreenTouch or event is InputEventMouseButton):
 		if Rect2(map.position,map.size).has_point(event.position):return
 	if event is InputEventScreenTouch and event.index!=0:return
@@ -19472,6 +19632,7 @@ func update_hud():
 	if is_instance_valid(aim_button):aim_button.text="Aim "+["↑","↗","→","↘","↓","↙","←","↖"][maxi(0,Rules.DIR8.find(facing))]
 	if is_instance_valid(special_button):special_button.disabled=run.energy<2
 	if is_instance_valid(attack_button):attack_button.disabled=not run.charged_move_id.is_empty()
+	if is_instance_valid(panel_strike):panel_strike.disabled=not run.charged_move_id.is_empty()
 	if dock_move_ids!=run.equipped_moves:refresh_move_dock()
 	for i in range(move_buttons.size()):
 		var id:String=run.equipped_moves[i]
@@ -19712,6 +19873,11 @@ func _process(dt:float):
 			update_enemy_pixel(n,dt,delta_position)
 		elif n.has_meta("float_item"):
 			n.position.y=.12+.07*sin(elapsed*4.0+n.position.x);n.rotation.y=elapsed*1.8
+	if controls_modal() and joy_pointer!=-2:reset_joystick()
+	if movement_joystick and joy_direction!=Vector2i.ZERO and tick<=0.0 and attack_time<=0.0 and not strike_pending and not hold_active and not hold_release_pending and strike_pointer==-2 and not controls_modal() and not run.finished:
+		if run.charged_move_id.is_empty() and run.step_clear(run.player,joy_direction):
+			path.clear();path.append(run.player+joy_direction)
+		else:tick=.16
 	if tick<=0 and not path.is_empty() and not run.finished and not tile_cast_active():
 		var next:Vector2i=path.pop_front()
 		facing=next-run.player
@@ -19754,9 +19920,12 @@ func _process(dt:float):
 		var progress:float=1.0-attack_time/maxf(.01,player_cast_duration)
 		var body_progress:float=caster_wave_progress(progress*player_cast_duration,player_cast_duration,player_cast_impact,player_cast_waves)
 		var cast_offset:=PixelArt.creature_cast_offset(cast_motion_offset(player_cast_motion,body_progress,player_cast_impact),run.transformed_species)
+		if regular_strike_pose:
+			var cue:=attack_direction_sample(body_progress,player_cast_impact,"rush")
+			cast_offset=Vector3(.78*cue.y-.13*cue.x,.045*cue.y,0.0)
 		if releasing and release_charge_phase=="airborne":cast_offset.y=0.0
 		pet_pose.position+=pet.basis.inverse()*cast_offset_world(cast_offset,attack_direction)
-		attack_fx.visible=player_impact_delay<=0.0;attack_fx.scale=Vector3(1.1-phase*.42,.13,1.1-phase*.42)
+		attack_fx.visible=not empty_strike_pose and player_impact_delay<=0.0;attack_fx.scale=Vector3(1.1-phase*.42,.13,1.1-phase*.42)
 	else:attack_fx.hide()
 	if hit_time>0.0:
 		var reaction:=creature_hit_sample(1.0-hit_time/.24,run.transformed_species)
