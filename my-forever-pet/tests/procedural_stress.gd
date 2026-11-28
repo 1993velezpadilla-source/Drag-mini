@@ -1719,6 +1719,53 @@ func run_checks()->void:
 	if push_count!=1 or follow_count!=1 or manipulator.pp_control!=4 or followup.pp_primary!=11 or battlefield.player!=Vector2i(5,3):failures.append("battlefield actual ordered knockback and followup")
 	checks+=1
 	print("KINDRIA_BATTLEFIELD_MANIPULATION checks=10")
+	# Counterplay derives from personally observed hits on distinct turns.
+	var counterplay=Rules.new()
+	for y in range(1,9):
+		for x in range(1,9):counterplay.cells[Vector2i(x,y)]=true
+	counterplay.stairs=Vector2i(8,8);counterplay.relic=Vector2i(8,7)
+	counterplay.player=Vector2i(5,4);counterplay.turns=20
+	var counter_actor:Dictionary={"uid":0,"pos":Vector2i(2,2),"hp":40,"max_hp":40,"kind":0,"species":"rootgnawer","ecology_role":"hunter","ecology_search_enabled":true,"personality_enabled":true,"pp_primary":0,"pp_secondary":0}
+	counterplay.enemies.append(counter_actor)
+	counterplay.enemy_remember_incoming(counter_actor,4,"normal")
+	counterplay.enemy_remember_incoming(counter_actor,4,"normal")
+	if counterplay.enemy_counter_pattern(counter_actor,"ranged") or int(counter_actor.counter_hit_streak)!=1:failures.append("counterplay no multihit overcount")
+	checks+=1
+	counterplay.turns=21;counterplay.enemy_remember_incoming(counter_actor,4,"normal")
+	if not counterplay.enemy_counter_pattern(counter_actor,"ranged") or counterplay.enemy_counter_pattern(counter_actor,"close"):failures.append("counterplay distinct ranged hits")
+	checks+=1
+	counterplay.cells.erase(Vector2i(3,4))
+	if counterplay.enemy_counter_cover_step(counter_actor,counterplay.player)!=Vector2i(2,3):failures.append("counterplay cover approach")
+	checks+=1
+	counterplay.traps[Vector2i(2,3)]="snare"
+	if counterplay.enemy_counter_cover_step(counter_actor,counterplay.player)!=counter_actor.pos:failures.append("counterplay unsafe cover excluded")
+	counterplay.traps.clear()
+	checks+=1
+	counter_actor["windup"]=true
+	if counterplay.enemy_counter_cover_step(counter_actor,counterplay.player)!=counter_actor.pos:failures.append("counterplay windup preserved")
+	counter_actor.erase("windup")
+	checks+=1
+	counterplay.enemy_turn_actions()
+	if counter_actor.pos!=Vector2i(2,3) or counterplay.enemy_actions.size()!=1 or int(counter_actor.get("counter_cover_turn",-1))!=22:failures.append("counterplay real cover movement")
+	checks+=1
+	counterplay.turns=25
+	if counterplay.enemy_counter_pattern(counter_actor,"ranged"):failures.append("counterplay pattern expiry")
+	checks+=1
+	counter_actor.pos=Vector2i(2,2);counterplay.player=Vector2i(3,2)
+	counterplay.turns=30;counterplay.enemy_remember_incoming(counter_actor,3,"normal")
+	counterplay.turns=31;counterplay.enemy_remember_incoming(counter_actor,3,"normal")
+	if not counterplay.enemy_counter_pattern(counter_actor,"close") or counterplay.enemy_counter_pattern(counter_actor,"ranged"):failures.append("counterplay pattern switches")
+	checks+=1
+	counter_actor.pp_primary=12
+	counterplay.shield_kind="protect";counterplay.shield_turns=2
+	counterplay.enemy_turn_actions()
+	if counter_actor.pp_primary!=12 or not counterplay.enemy_actions.is_empty():failures.append("counterplay protected hold no PP")
+	checks+=1
+	counterplay.shield_kind="";counterplay.shield_turns=0;counter_actor["stages"]={"accuracy":10}
+	counterplay.enemy_turn_actions()
+	if counter_actor.pp_primary!=11 or counterplay.enemy_actions.size()!=1 or str(counterplay.enemy_actions[0].phase)!="attack":failures.append("counterplay resumes after protection")
+	checks+=1
+	print("KINDRIA_INTELLIGENT_COUNTERPLAY checks=10")
 	# Actual disk I/O, legacy migration, corruption recovery, and resumed writes.
 	var test_path:String="user://kindria_procedural_test_"+str(OS.get_process_id())+".cfg"
 	var exact:Array[String]=["legacy exact".sha256_text()]
