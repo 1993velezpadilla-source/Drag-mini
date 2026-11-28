@@ -1685,11 +1685,35 @@ func enemy_memory_duration(e:Dictionary)->int:
 		"roamer":return 3
 		_:return 4
 
+# Integer supercover traversal between tile centers. At an exact corner,
+# both orthogonal neighbors must be open, matching strict diagonal movement.
+func enemy_line_of_sight(origin:Vector2i,target:Vector2i)->bool:
+	if not cells.has(origin) or not cells.has(target):return false
+	var delta:Vector2i=target-origin
+	var nx:int=absi(delta.x)
+	var ny:int=absi(delta.y)
+	var sx:int=signi(delta.x)
+	var sy:int=signi(delta.y)
+	var ix:int=0
+	var iy:int=0
+	var p:Vector2i=origin
+	while ix<nx or iy<ny:
+		var decision:int=(1+2*ix)*ny-(1+2*iy)*nx
+		if decision==0:
+			if not cells.has(p+Vector2i(sx,0)) or not cells.has(p+Vector2i(0,sy)):return false
+			p+=Vector2i(sx,sy);ix+=1;iy+=1
+		elif decision<0:
+			p.x+=sx;ix+=1
+		else:
+			p.y+=sy;iy+=1
+		if not cells.has(p):return false
+	return true
+
 func enemy_pursuit_target(e:Dictionary,observed:Vector2i)->Vector2i:
 	var origin:Vector2i=e.pos
 	if not e.has("ecology_role") or bool(e.get("monster_house",false)):
 		return observed if distance(origin,observed)<=enemy_awareness(e) else origin
-	if distance(origin,observed)<=enemy_awareness(e):
+	if distance(origin,observed)<=enemy_awareness(e) and enemy_line_of_sight(origin,observed):
 		e["last_seen_player"]=observed
 		e["last_seen_until"]=turns+enemy_memory_duration(e)
 		return observed
