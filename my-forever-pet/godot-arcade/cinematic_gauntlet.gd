@@ -36,6 +36,26 @@ func run_checks()->void:
 	var checks:int=0
 	var failures:Array[String]=[]
 	var view:=Dungeon.new()
+	# V26.24: reward captions, four cached audio families, and actual floor bonus carryover.
+	for reward_kind in ["coin","potion","material","manual","trail_fruit","spring","eat","ward_band","force_band","relic"]:
+		if view.reward_caption(reward_kind).is_empty():failures.append("V26.24 missing reward caption")
+		checks+=1
+	if not view.reward_caption("enemy_seen").is_empty():failures.append("V26.24 enemy discovery is not loot")
+	checks+=1
+	for cue in ["coin","relic","eat","manual"]:
+		var chime:AudioStreamWAV=view.reward_chime(cue)
+		if chime==null or chime.mix_rate!=22050 or chime.data.is_empty():failures.append("V26.24 reward audio format")
+		if chime!=view.reward_chime(cue):failures.append("V26.24 reward audio cache")
+		checks+=2
+	if view.reward_audio_cache.size()!=4:failures.append("V26.24 audio cache cap")
+	checks+=1
+	var bonus_run:=preload("res://dungeon_rules.gd").new()
+	bonus_run.setup(0,0,0,false,false,7,0,true)
+	bonus_run.player=bonus_run.stairs
+	bonus_run.secured=true
+	for room_id in range(3):bonus_run.explored_rooms[room_id]=true
+	if not bonus_run.descend() or bonus_run.floor_number!=2 or bonus_run.last_completed_floor_bonus!=2:failures.append("V26.24 floor bonus carryover")
+	checks+=1
 	# V26.23: PP gauge bounds, warning thresholds and charged move presentation.
 	for sample in [[-2,10,0.0],[0,10,0.0],[1,4,.25],[5,10,.5],[7,10,.7],[15,10,1.0],[0,0,0.0]]:
 		if not is_equal_approx(view.move_pp_fraction(int(sample[0]),int(sample[1])),float(sample[2])):failures.append("V26.23 PP gauge bounds")
