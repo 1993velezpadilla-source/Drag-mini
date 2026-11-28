@@ -204,6 +204,39 @@ func run_checks()->void:
 	if house_profiles.size()!=Rules.HOUSE_PROFILES.size():failures.append("house profile coverage")
 	checks+=1
 	print("KINDRIA_HOUSE_PROFILES ",house_profiles)
+	# Exploration bookkeeping uses visits, not the minimap's reveal radius.
+	var full_discoveries:int=0
+	var side_discoveries:int=0
+	for seed_id in range(128):
+		var explorer=Rules.new()
+		explorer.setup(seed_id%3,24,0,false,false,180003+seed_id,0,false)
+		explorer.floor_number=explorer.floor_count
+		explorer.generate_floor()
+		if explorer.exploration_count()!=1 or explorer.exploration_coin_bonus()!=0 or explorer.exploration_material_bonus()!=0:failures.append("exploration initial progress")
+		for room in explorer.rooms:
+			explorer.player=explorer.center(room);explorer.reveal();explorer.reveal()
+		if explorer.exploration_count()!=explorer.rooms.size():failures.append("exploration unique room visits")
+		if not explorer.side_chambers.is_empty() and explorer.exploration_material_bonus()!=0:failures.append("side chamber required for full discovery")
+		for room in explorer.side_chambers:
+			explorer.player=explorer.center(room);explorer.reveal();explorer.reveal()
+			side_discoveries+=1
+		if explorer.exploration_count()!=explorer.exploration_total() or explorer.exploration_material_bonus()!=1:failures.append("full discovery payout eligibility")
+		var coins_before:int=explorer.coins
+		var materials_before:int=explorer.materials
+		var expected_coins:int=explorer.exploration_coin_bonus()
+		explorer.player=explorer.stairs
+		if not explorer.descend() or not explorer.finished or explorer.coins!=coins_before+expected_coins or explorer.materials!=materials_before+1 or expected_coins>6:failures.append("exploration settlement")
+		if explorer.descend() or explorer.coins!=coins_before+expected_coins or explorer.materials!=materials_before+1:failures.append("duplicate exploration settlement")
+		full_discoveries+=1;checks+=6
+	if side_discoveries==0:failures.append("side discovery coverage")
+	checks+=1
+	var skip=Rules.new()
+	skip.setup(0,24,0,false,false,192021,0,false)
+	var skip_materials:int=skip.materials
+	skip.player=skip.stairs
+	if not skip.descend() or skip.materials!=skip_materials or skip.explored_side_chambers.size()!=0 or skip.exploration_count()!=1:failures.append("optional exploration and next floor reset")
+	checks+=1
+	print("KINDRIA_EXPLORATION full=",full_discoveries," side_chambers=",side_discoveries)
 	# Actual disk I/O, legacy migration, corruption recovery, and resumed writes.
 	var test_path:String="user://kindria_procedural_test_"+str(OS.get_process_id())+".cfg"
 	var exact:Array[String]=["legacy exact".sha256_text()]
