@@ -3211,6 +3211,62 @@ func enemy_relief_step(e:Dictionary,target:Vector2i)->Vector2i:
 		if score>best_score:best_score=score;best=q
 	return best
 
+# Dynamic reserve role: a healthy melee or defensive actor may replace a
+# lost front line. Only viable candidates compete; a blocked peer cannot veto.
+func enemy_reserve_candidate(e:Dictionary,target:Vector2i)->bool:
+	if target!=player or charge_phase in ["underground","airborne","vanish"] or not enemy_opportunity_eligible(e) or int(e.get("stuck_turns",0))>0:return false
+	if bool(e.get("monster_house",false)) and not bool(e.get("house_tactical",false)):return false
+	var gap:int=distance(e.pos,target)
+	if gap<2 or gap>4 or int(e.hp)*2<=maxi(1,int(e.get("max_hp",e.hp))):return false
+	if enemy_survival_profile(e) not in ["aggressive","defensive"]:return false
+	# A creature with an immediate ranged attack should keep its firing role.
+	return enemy_push_attack_coverage(e,target)==0
+
+func enemy_reserve_route(e:Dictionary,target:Vector2i)->Dictionary:
+	var origin:Vector2i=e.pos
+	var backup:Array[Dictionary]=[]
+	var vacancy:bool=enemy_recent_squad_loss(e)
+	for other in enemies:
+		if not enemy_squad_partner(e,other) or not enemy_line_of_sight(other.pos,target):continue
+		if bool(e.get("monster_house",false)) and int(e.get("monster_house_spawn_serial",-1))!=int(other.get("monster_house_spawn_serial",-2)):continue
+		if distance(other.pos,target)==1:
+			if int(other.hp)*2>maxi(1,int(other.get("max_hp",other.hp))):return {}
+			vacancy=true
+		elif enemy_relief_ranged_ready(other,target) and enemy_push_attack_coverage(other,target)>0:
+			backup.append(other);vacancy=true
+	if not vacancy:return {}
+	var reserved:Dictionary=enemy_pack_reserved_posts(e,target)
+	var queue:Array[Vector2i]=[origin]
+	var depths:Dictionary={origin:0}
+	var first:Dictionary={origin:origin}
+	var cursor:int=0
+	while cursor<queue.size():
+		var here:Vector2i=queue[cursor];cursor+=1
+		var depth:int=int(depths[here])
+		if depth>0 and distance(here,target)==1:return {"step":first[here],"post":here,"cost":depth}
+		if depth>=3:continue
+		for d in DIR:
+			var q:Vector2i=here+d
+			if depths.has(q) or reserved.has(q) or not enemy_ambush_safe_tile(q) or not enemy_line_of_sight(q,target):continue
+			var blocked:bool=false
+			for friend in backup:
+				if enemy_relief_blocks_lane(friend,q,target):blocked=true;break
+			if blocked:continue
+			depths[q]=depth+1;first[q]=q if depth==0 else first[here];queue.append(q)
+	return {}
+
+func enemy_dynamic_reserve_plan(e:Dictionary,target:Vector2i)->Dictionary:
+	if not enemy_reserve_candidate(e,target):return {}
+	var plan:Dictionary=enemy_reserve_route(e,target)
+	if plan.is_empty():return {}
+	for other in enemies:
+		if not enemy_squad_partner(e,other) or not enemy_reserve_candidate(other,target):continue
+		if bool(e.get("monster_house",false)) and int(e.get("monster_house_spawn_serial",-1))!=int(other.get("monster_house_spawn_serial",-2)):continue
+		var alternative:Dictionary=enemy_reserve_route(other,target)
+		if alternative.is_empty():continue
+		if int(alternative.cost)<int(plan.cost) or (int(alternative.cost)==int(plan.cost) and int(other.get("uid",0))<int(e.get("uid",0))):return {}
+	return plan
+
 func house_formation_step(e:Dictionary,target:Vector2i)->Vector2i:
 	var origin:Vector2i=e.pos
 	if not bool(e.get("house_tactical",false)) or int(e.get("stuck_turns",0))>0 or bool(e.get("windup",false)):return origin
@@ -5235,6 +5291,10 @@ func enemy_turn_actions_impl():
 			var tactical:Vector2i=enemy_protector_step(enemies[i],pursuit_target) if not charged and pursuit_target==player else p
 			if tactical==p and not charged and pursuit_target==player:
 				tactical=enemy_control_setup_step(enemies[i],player)
+			var reserve_plan:Dictionary={}
+			if tactical==p and not charged and pursuit_target==player:
+				reserve_plan=enemy_dynamic_reserve_plan(enemies[i],player)
+				tactical=reserve_plan.get("step",p)
 			if tactical==p and not charged and pursuit_target==player:
 				tactical=enemy_relief_step(enemies[i],player)
 			if tactical==p and not charged and pursuit_target==player:
@@ -5279,7 +5339,7 @@ func enemy_turn_actions_impl():
 				var strategy_step:Vector2i=enemy_strategy_alternative(enemies[i],path[0],player)
 				if strategy_step!=path[0]:
 					path.clear();path.append(strategy_step)
-					predictive_move=false;environment_guard=false;pack_plan.clear()
+					predictive_move=false;environment_guard=false;pack_plan.clear();reserve_plan.clear()
 			if not path.is_empty() and path[0]!=player and enemy_at(path[0])<0:
 				var steps:int=1+int(enemies[i].get("haste_stage",0)) if int(enemies[i].get("haste_turns",0))>0 else 1
 				var destination:Vector2i=p
@@ -5290,6 +5350,7 @@ func enemy_turn_actions_impl():
 					if predictive_move:enemy_record_prediction(enemies[i],player)
 					if environment_guard:enemies[i]["environment_guard_turn"]=turns
 					if not pack_plan.is_empty():enemy_pack_commit(enemies[i],player,pack_plan.post)
+					if not reserve_plan.is_empty():enemy_pack_commit(enemies[i],player,reserve_plan.post)
 					if not charged:enemy_strategy_record_step(enemies[i],p,destination,pursuit_target)
 					enemies[i].pos=destination
 					enemy_actions.append({"uid":enemies[i].get("uid",i),"phase":"move","from":p,"to":destination,"gait":enemies[i].get("gait","walk")})
