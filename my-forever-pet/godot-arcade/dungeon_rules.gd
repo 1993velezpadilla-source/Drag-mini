@@ -972,6 +972,41 @@ const LAYOUT_RETRY_CAP:int=32
 var recent_layouts:Array[String]=[]
 var layout_signature:String=""
 var layout_retries:int=0
+# Family labels are Kindria-specific; the geometry is generated, never a fixed map.
+const TOPOLOGY_NAMES=["Compact","Horizontal","Vertical","Ring","Branching","Connected"]
+var topology_family:int=0
+var corridor_anchors:Array[Vector2i]=[]
+
+func topology_grid(family:int)->Vector2i:
+	return [Vector2i(2,2),Vector2i(4,2),Vector2i(2,4),Vector2i(3,3),Vector2i(3,3),Vector2i(3,2)][clampi(family,0,5)]
+
+func topology_branch_budget(family:int)->int:
+	return [1,1,1,0,3,1][clampi(family,0,5)]
+
+func add_corridor_anchors(slots:Array[Vector2i],occupied:Dictionary)->void:
+	# Non-room anchors provide genuine corridor-only exploration. No entities
+	# are spawned here by room-interior placement and no new room is declared.
+	var budget:int=topology_branch_budget(topology_family)
+	if starter_woods and floor_number==1:return
+	for slot in slots:
+		if corridor_anchors.size()>=budget:break
+		if occupied.has(slot):continue
+		var target:Vector2i=slot*9+Vector2i(4,4)
+		if cells.has(target):continue
+		var nearest:int=-1
+		for d in DIR:
+			if occupied.has(slot+d):
+				nearest=int(occupied[slot+d])
+				break
+		if nearest<0:continue
+		# Reserve empty space at the terminal so it is not an accidental junction.
+		var clear_terminal:bool=true
+		for d in DIR:
+			if cells.has(target+d):clear_terminal=false
+		if not clear_terminal:continue
+		connect_cells(center(rooms[nearest]),target)
+		corridor_anchors.append(target)
+
 
 func remember_layout(signature:String)->void:
 	if signature.is_empty():return
@@ -1058,17 +1093,21 @@ func layout_component(links:Dictionary)->Array[int]:
 	return reached
 
 func build_layout():
-	# Independent implementation: variable sector occupancy, random room sizes,
-	# connected spanning tree, extra loops and imperfect corner cuts.
-	var grids=[Vector2i(3,2),Vector2i(2,3),Vector2i(3,3),Vector2i(4,2)]
-	var grid:Vector2i=Vector2i(2,2) if starter_woods else grids[rng.randi_range(0,grids.size()-1)]
+	# Select a layout family first, then draw actual rooms and connections.
+	topology_family=0 if starter_woods else rng.randi_range(1,5)
+	corridor_anchors.clear()
+	var grid:Vector2i=topology_grid(topology_family)
 	floor_bounds=Rect2i(Vector2i.ONE,grid*9-Vector2i(2,2))
 	var slots:Array[Vector2i]=[]
 	for y in range(grid.y):
-		for x in range(grid.x):slots.append(Vector2i(x,y))
+		for x in range(grid.x):
+			if topology_family==3 and Vector2i(x,y)==Vector2i(1,1):continue
+			slots.append(Vector2i(x,y))
 	for i in range(slots.size()-1,0,-1):
 		var j=rng.randi_range(0,i);var swap=slots[i];slots[i]=slots[j];slots[j]=swap
 	var room_count=starter_room_count() if starter_woods else rng.randi_range(4,slots.size())
+	if topology_family==3:room_count=slots.size()
+	elif topology_family==4:room_count= rng.randi_range(4,6)
 	for i in range(room_count):
 		var slot=slots[i]
 		var width=rng.randi_range(5,7);var height=rng.randi_range(5,7)
@@ -1093,7 +1132,7 @@ func build_layout():
 	for i in range(room_count):room_slots[slots[i]]=i
 	var cursor_slot:Vector2i=slots[rng.randi_range(0,room_count-1)]
 	var direction:int=rng.randi_range(0,3)
-	var connectivity:int=[5,8,10][clampi(floor_number-1,0,2)] if starter_woods else 15
+	var connectivity:int=[5,8,10][clampi(floor_number-1,0,2)] if starter_woods else [0,12,12,24,8,20][topology_family]
 	for n in range(connectivity):
 		if rng.randi_range(0,1)==0:direction=rng.randi_range(0,3)
 		for turn in range(4):
@@ -1119,13 +1158,25 @@ func build_layout():
 		connect_cells(center(rooms[source]),center(rooms[destination]))
 		links[Vector2i(mini(source,destination),maxi(source,destination))]=true
 		reached=layout_component(links)
+	# Ring family explicitly joins neighboring outer sectors, giving alternate routes.
+	if topology_family==3:
+		for slot in room_slots:
+			for d in [Vector2i.RIGHT,Vector2i.DOWN]:
+				if not room_slots.has(slot+d):continue
+				var i:int=room_slots[slot]
+				var j:int=room_slots[slot+d]
+				var key:=Vector2i(mini(i,j),maxi(i,j))
+				if not links.has(key):
+					connect_cells(center(rooms[i]),center(rooms[j]));links[key]=true
 	var extra=rng.randi_range(0,mini(4,room_count-2))
+	if topology_family==3 or topology_family==4:extra=0
 	if starter_woods and floor_number==1:extra=0
 	for n in range(extra):
 		var i=rng.randi_range(0,room_count-1);var j=rng.randi_range(0,room_count-1)
 		var key=Vector2i(mini(i,j),maxi(i,j))
 		if i!=j and not links.has(key) and distance(center(rooms[i]),center(rooms[j]))<=20:
 			connect_cells(center(rooms[i]),center(rooms[j]));links[key]=true
+	add_corridor_anchors(slots,room_slots)
 	# Stairs and leader are independently sampled from all room interiors.
 	# Normal floors can start directly on the staircase; rescue finales cannot.
 	var spawn_tiles:Array[Vector2i]=room_spawn_tiles()
