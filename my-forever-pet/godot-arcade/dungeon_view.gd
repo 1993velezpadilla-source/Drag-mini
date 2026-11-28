@@ -338,6 +338,10 @@ var floor_ornaments:Array[Vector3]=[]
 var wall_decorations=0
 var floor_banner:Label
 var banner_time=0.0
+var house_seen_serial:int=-1
+var house_banner_active:bool=false
+var house_music:AudioStreamPlayer
+var house_music_stream:AudioStreamWAV
 var floor_label:Label
 var last_floor_seen=0
 var terrain_texture:ImageTexture
@@ -881,6 +885,8 @@ func build_ui():
 	area.add_child(hold_info);hold_info.set_anchors_and_offsets_preset(PRESET_BOTTOM_WIDE);hold_info.offset_top=-82;hold_info.offset_left=6;hold_info.offset_right=-6;hold_info.offset_bottom=-4;hold_info.add_theme_stylebox_override("normal",compact_style(hud_base_color(),hud_accent_color(),8));hold_info.hide()
 	aim_preview=Control.new();area.add_child(aim_preview);aim_preview.set_anchors_and_offsets_preset(PRESET_FULL_RECT);aim_preview.mouse_filter=MOUSE_FILTER_IGNORE;aim_preview.draw.connect(draw_aim_preview)
 	build_strike_bubble()
+	house_music=AudioStreamPlayer.new();house_music.volume_db=-22.0;add_child(house_music)
+	house_music_stream=build_house_music()
 	build_bag()
 	lab_settings_overlay()
 	apply_control_preferences()
@@ -2692,6 +2698,7 @@ func build_floor():
 	for i in range(12):
 		var spark=shape(reward_fx,"gem",Vector3.ZERO,Vector3(.065,.15,.065),Color("#ffe5a0"));spark.material_override=sparkle_mat;spark.cast_shadow=GeometryInstance3D.SHADOW_CASTING_SETTING_OFF;reward_pool.append(spark)
 	active_floor=run.floor_revision
+	house_banner_active=false
 	banner_time=1.65;floor_banner.text="B%d  ·  %s"%[run.floor_number,floor_name()];floor_banner.show()
 	floor_banner.size=Vector2(area.size.x,45);floor_banner.position=Vector2(0,area.size.y*.12)
 	var focus=pet.position+Vector3(0,.18,-.48)
@@ -19498,6 +19505,8 @@ func refresh_actors():
 		var root=actor_for(key,pos(p))
 		root.set_meta("target",pos(p))
 		if root.get_child_count()==0:
+			if bool(enemy.get("monster_house",false)) and house_seen_serial!=run.monster_house_serial:
+				root.set_meta("house_drop_remaining",.36)
 			if not attach_enemy_pixel(root,str(enemy.get("species",""))):
 				# Explicit fallback for species that have not been authored yet.
 				var ob=shape(root,"gem",Vector3(0,.6,0),Vector3(.62,1.15,.62),Data.TINTS[region].darkened(.25));ob.rotation.y=PI*.25
@@ -19588,7 +19597,9 @@ func draw_map():
 	var unit=minf((map.size.x-20.0)/extent.x,(map.size.y-44.0)/extent.y)
 	var offset=(map.size-Vector2(extent)*unit)*.5+Vector2(0,10)
 	for p in run.revealed:
-		map.draw_rect(Rect2(Vector2(p)*unit+offset,Vector2.ONE*maxf(1.0,unit-.7)),Color("#759b9f"))
+		var tint:=Color("#759b9f")
+		if run.monster_house_triggered and not run.monster_house_cleared and run.monster_house_room>=0 and run.rooms[run.monster_house_room].has_point(p):tint=Color("#c07c72")
+		map.draw_rect(Rect2(Vector2(p)*unit+offset,Vector2.ONE*maxf(1.0,unit-.7)),tint)
 	for p in run.loot:
 		if run.revealed.has(p):map.draw_circle((Vector2(p)+Vector2(.5,.5))*unit+offset,maxf(1.0,unit*.24),Color("#ffcf72"))
 	for enemy in run.enemies:
@@ -19731,8 +19742,44 @@ func charge_visual_sample(phase:String,releasing:bool,progress:float,impact:floa
 	return {"visible":visible,"height":y}
 
 # Presentation priority only; no logical turns, pauses or RNG calls.
+# Original short tactical percussion loop; no Nintendo audio or melody.
+func build_house_music()->AudioStreamWAV:
+	var rate:int=16000
+	var duration:float=2.4
+	var samples:int=roundi(duration*rate)
+	var pcm:=PackedByteArray();pcm.resize(samples*2)
+	var notes:Array[float]=[110.0,110.0,130.81,98.0,110.0,146.83,130.81,98.0]
+	for i in range(samples):
+		var t:float=float(i)/rate
+		var beat:int=mini(7,int(t/.3))
+		var phase:float=fmod(t,.3)
+		var env:float=minf(1.0,phase/.008)*exp(-phase*14.0)
+		var bass:float=sin(TAU*notes[beat]*phase)*env*.35
+		var drum:float=sin(TAU*(54.0*phase+2.8*(1.0-exp(-phase*35.0))))*exp(-phase*28.0)*minf(1.0,phase/.004)*.32
+		var tick_sound:float=sin(TAU*410.0*phase)*sin(TAU*711.0*phase)*exp(-phase*65.0)*minf(1.0,phase/.003)*.11
+		pcm.encode_s16(i*2,roundi(clampf(bass+drum+tick_sound,-1.0,1.0)*32767.0))
+	var stream:=AudioStreamWAV.new();stream.format=AudioStreamWAV.FORMAT_16_BITS
+	stream.mix_rate=rate;stream.data=pcm;stream.loop_mode=AudioStreamWAV.LOOP_FORWARD
+	stream.loop_begin=0;stream.loop_end=samples
+	return stream
+
+func sync_monster_house()->void:
+	if not run.monster_house_triggered:
+		if is_instance_valid(house_music):house_music.stop()
+		return
+	if house_seen_serial!=run.monster_house_serial:
+		house_seen_serial=run.monster_house_serial
+		path.clear();strike_pending=false;reset_joystick();tick=maxf(tick,.36)
+		banner_time=1.65;house_banner_active=true;floor_banner.text="MONSTER HOUSE!";floor_banner.show()
+		if is_instance_valid(house_music) and not run.monster_house_cleared:
+			house_music.stream=house_music_stream;house_music.play()
+	if run.monster_house_cleared or run.finished:
+		if is_instance_valid(house_music):house_music.stop()
+
 func interaction_profile(kind:String)->Dictionary:
 	match kind:
+		"monster_house":return {"priority":8,"duration":.85,"color":Color("#ff8271"),"mode":"alert"}
+		"monster_house_clear":return {"priority":7,"duration":.85,"color":Color("#ffe09b"),"mode":"victory"}
 		"guardian_seen":return {"priority":5,"duration":.85,"color":Color("#ffad73"),"mode":"alert"}
 		"guardian_win","relic":return {"priority":6,"duration":.85,"color":Color("#ffe09b"),"mode":"victory"}
 		"eat","spring","trail_fruit":return {"priority":4,"duration":.72,"color":Color("#9af2a3"),"mode":"eat" if kind!="spring" else "heal"}
@@ -19770,6 +19817,7 @@ func sync():
 	if run.floor_revision!=active_floor:
 		strike_pending=false;path.clear();reset_joystick();build_floor()
 	else:refresh_actors()
+	sync_monster_house()
 	update_hud()
 	var next_charge:String=run.charge_phase
 	if next_charge!=visual_charge_phase:
@@ -19822,6 +19870,8 @@ func update_hud():
 	if run.stockpile_count>0:status_text.text+=" · Reserve %d/3"%run.stockpile_count
 	if not run.temporary_type.is_empty() or not run.adaptive_type.is_empty():status_text.text+=" · "+str(run.current_player_types()[0]).capitalize()
 	if run.player_slow_turns>0:status_text.text+=" · Slowed"
+	if run.monster_house_triggered and not run.monster_house_cleared:
+		status_text.text="Monster House · %d remaining · "%run.monster_house_remaining()+status_text.text
 	status_text.tooltip_text=status_text.text
 	lab_update_aim()
 	if is_instance_valid(special_button):special_button.disabled=run.energy<2
@@ -20050,7 +20100,8 @@ func _process(dt:float):
 	banner_time=maxf(0.0,banner_time-dt)
 	floor_banner.visible=banner_time>0.0
 	if floor_banner.visible:
-		floor_banner.size=Vector2(area.size.x,45);floor_banner.position=Vector2(0,area.size.y*.12);floor_banner.modulate.a=minf(1.0,banner_time*3.0)
+		floor_banner.size=Vector2(area.size.x,45);floor_banner.position=Vector2(0,area.size.y*.12)
+		floor_banner.modulate=Color(1.0,.66,.53,minf(1.0,banner_time*3.0)) if house_banner_active else Color(1.0,1.0,1.0,minf(1.0,banner_time*3.0))
 	feedback_time=maxf(0.0,feedback_time-dt)
 	feedback.visible=feedback_time>0.0
 	if feedback.visible:
@@ -20064,6 +20115,12 @@ func _process(dt:float):
 			var target_position:Vector3=n.get_meta("target")
 			var delta_position:Vector3=target_position-n.position
 			var next_position:Vector3=n.position.lerp(target_position,enemy_smoothing)
+			if n.has_meta("house_drop_remaining"):
+				var left:float=maxf(0.0,float(n.get_meta("house_drop_remaining"))-dt)
+				next_position.y=target_position.y+2.0*pow(left/.36,2.0)
+				delta_position.y=0.0
+				if left<=0.0:n.remove_meta("house_drop_remaining")
+				else:n.set_meta("house_drop_remaining",left)
 			if n.position!=next_position:n.position=next_position
 			update_enemy_pixel(n,dt,delta_position)
 		elif n.has_meta("float_item"):
