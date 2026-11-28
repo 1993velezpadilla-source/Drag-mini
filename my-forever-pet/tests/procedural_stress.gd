@@ -1773,6 +1773,25 @@ func run_checks()->void:
 	if crowd.enemy_crowd_yield_step(crowd_front,crowd.player)!=crowd_front.pos:failures.append("crowd sleeping partner")
 	crowd_rear.erase("sleep_turns")
 	checks+=1
+	crowd.enemy_phase_spent[1]=true
+	if crowd.enemy_crowd_yield_step(crowd_front,crowd.player)!=crowd_front.pos:failures.append("crowd rejects spent rear actor")
+	crowd.enemy_phase_spent.clear()
+	checks+=1
+	crowd_rear["whiffer_turns"]=3
+	if crowd.enemy_crowd_yield_step(crowd_front,crowd.player)!=crowd_front.pos:failures.append("crowd rejects inaccurate rear actor")
+	crowd_rear.erase("whiffer_turns")
+	checks+=1
+	crowd_rear["slow_turns"]=2
+	if crowd.enemy_crowd_yield_step(crowd_front,crowd.player)!=crowd_front.pos:failures.append("crowd rejects skipped slow phase")
+	crowd_rear["slow_turns"]=3
+	if crowd.enemy_crowd_yield_step(crowd_front,crowd.player)!=crowd_step:failures.append("crowd allows executable slow phase")
+	crowd_rear.erase("slow_turns")
+	checks+=1
+	for hidden_phase in ["underground","airborne","vanish"]:
+		crowd.charge_phase=hidden_phase
+		if crowd.enemy_crowd_yield_step(crowd_front,crowd.player)!=crowd_front.pos:failures.append("crowd rejects hidden target "+hidden_phase)
+	crowd.charge_phase=""
+	checks+=1
 	crowd_front["stuck_turns"]=2
 	if crowd.enemy_crowd_yield_step(crowd_front,crowd.player)!=crowd_front.pos:failures.append("crowd rooted front")
 	crowd_front.erase("stuck_turns")
@@ -1796,13 +1815,17 @@ func run_checks()->void:
 	if crowd_front.pos!=crowd_step or crowd_front_actions!=1 or crowd_rear_attacks!=1 or crowd_rear.pp_primary!=11:failures.append("crowd actual lane handoff")
 	checks+=1
 	crowd.turns+=1
+	crowd_rear["cooldown"]=1
+	if crowd.enemy_crowd_hold(crowd_front,Vector2i(3,3),crowd.player):failures.append("crowd releases unavailable firing lane")
+	checks+=1
+	crowd_rear["cooldown"]=0
 	if not crowd.enemy_crowd_hold(crowd_front,Vector2i(3,3),crowd.player):failures.append("crowd one-turn anti-reversal")
 	if crowd.enemy_crowd_hold(crowd_front,Vector2i(3,3),Vector2i(6,3)):failures.append("crowd changed target breaks hold")
 	checks+=2
 	crowd.turns+=1
 	if crowd.enemy_crowd_hold(crowd_front,Vector2i(3,3),crowd.player):failures.append("crowd hold expiry")
 	checks+=1
-	print("KINDRIA_CROWD_NAVIGATION checks=10")
+	print("KINDRIA_CROWD_NAVIGATION checks=15")
 
 	# Idle watch posts are selected from nearby geometry, never a hidden target.
 	var ambush=Rules.new()
