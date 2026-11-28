@@ -41,17 +41,11 @@ jobs:
           set -o pipefail
           /tmp/kindria-godot/Godot_v4.6-stable_linux.x86_64 --headless --path /tmp/kindria-procedural --script res://procedural_stress.gd -- --long 2>&1 | tee /tmp/kindria-procedural-endurance.log
           if grep -E 'SCRIPT ERROR|Parse Error|Compile Error|Failed to load script' /tmp/kindria-procedural-endurance.log; then exit 1; fi
-          grep -E 'KINDRIA_PROCEDURAL_RESULT floors=4608 unique=4608 .* failures=0        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: kindria-procedural-log
-          path: /tmp/kindria-procedural*.log
-          if-no-files-found: warn
- /tmp/kindria-procedural-endurance.log
+          grep -E 'KINDRIA_PROCEDURAL_RESULT floors=4608 unique=4608 .* failures=0$' /tmp/kindria-procedural-endurance.log
       - name: Preserve procedural evidence
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: kindria-procedural-log
-          path: /tmp/kindria-procedural.log
+          path: /tmp/kindria-procedural*.log
           if-no-files-found: warn
