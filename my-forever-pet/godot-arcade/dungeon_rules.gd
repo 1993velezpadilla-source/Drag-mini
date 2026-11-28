@@ -1768,6 +1768,44 @@ func enemy_tactical_step(e:Dictionary,target:Vector2i,pattern:String,reach:int)-
 		if score>best_score:best_score=score;best=q
 	return best
 
+# Bounded local formation search: a second attacker finds a separate firing lane
+# instead of queuing behind a nearby enemy. Search never spends PP or rolls RNG.
+func enemy_cooperative_step(e:Dictionary,target:Vector2i,pattern:String,reach:int)->Vector2i:
+	var origin:Vector2i=e.pos
+	if not bool(e.get("ecology_search_enabled",false)) or int(e.get("kind",0))==3 or int(e.get("stuck_turns",0))>0:return origin
+	if distance(origin,target)>enemy_awareness(e) or not enemy_line_of_sight(origin,target):return origin
+	if attack_aim(origin,target,pattern,reach)!=Vector2i.ZERO:return origin
+	var partners:Array[Vector2i]=[]
+	for other in enemies:
+		var op:Vector2i=other.pos
+		if op==origin or int(other.hp)<=0 or distance(op,target)>2 or distance(origin,op)>4:continue
+		if int(other.get("sleep_turns",0))>0 or int(other.get("nightmare_turns",0))>0 or str(other.get("major_status",""))=="freeze":continue
+		if enemy_line_of_sight(origin,op) and enemy_line_of_sight(op,target):partners.append(op)
+	if partners.is_empty():return origin
+	var occupied:Dictionary=navigation_occupancy()
+	var queue:Array[Vector2i]=[origin]
+	var depths:Dictionary={origin:0}
+	var first_steps:Dictionary={origin:origin}
+	var best:Vector2i=origin
+	var best_score:int=-2147483647
+	var cursor:int=0
+	var phase:int=posmod(int(e.get("uid",0))+turns,4)
+	while cursor<queue.size():
+		var here:Vector2i=queue[cursor];cursor+=1
+		var depth:int=int(depths[here])
+		if depth>0 and enemy_line_of_sight(here,target) and attack_aim(here,target,pattern,reach)!=Vector2i.ZERO:
+			var separation:int=8
+			for op in partners:separation=mini(separation,distance(here,op))
+			# Shortest usable lane first; prefer separation only among equal-length routes.
+			var score:int=100-depth*16+mini(separation,4)*2- absi(distance(here,target)-reach)
+			if score>best_score:best_score=score;best=first_steps[here]
+		if depth>=3:continue
+		for j in range(4):
+			var q:Vector2i=here+DIR[(phase+j)%4]
+			if depths.has(q) or not cells.has(q) or occupied.has(q) or q==player or q==target or q==stairs or q==relic or q in side_rewards or traps.has(q) or player_traps.has(q):continue
+			depths[q]=depth+1;first_steps[q]=q if depth==0 else first_steps[here];queue.append(q)
+	return best
+
 func enemy_patrol_destination(e:Dictionary)->Vector2i:
 	var origin:Vector2i=e.pos
 	if str(e.get("ecology_role","hunter"))!="roamer" or int(e.get("stuck_turns",0))>0:return origin
@@ -3200,6 +3238,12 @@ func enemy_turn_actions():
 			var tactical:Vector2i=p
 			if ready and not charged and not in_range and pursuit_target==player:
 				tactical=enemy_tactical_step(enemies[i],pursuit_target,pattern,int(skill[0]))
+			if tactical==p and not charged and pursuit_target==player:
+				if ready:
+					tactical=enemy_cooperative_step(enemies[i],pursuit_target,pattern,int(skill[0]))
+				if tactical==p and alt_cooldown<=0 and SECONDARY_SKILLS.has(species) and enemy_move_allowed(enemies[i],"secondary"):
+					var flank_alt:Array=SECONDARY_SKILLS[species]
+					tactical=enemy_cooperative_step(enemies[i],pursuit_target,str(flank_alt[1]),int(flank_alt[0]))
 			if tactical!=p:path.append(tactical)
 			else:path=enemy_approach_route(p,pursuit_target) if enemies[i].has("ecology_role") else route(p,pursuit_target,true)
 			if not path.is_empty() and path[0]!=player and enemy_at(path[0])<0:
