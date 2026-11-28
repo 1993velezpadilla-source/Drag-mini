@@ -1727,7 +1727,10 @@ void fragment(){
  float flow=local_p.z*20.0-local_p.y*7.0-scene_time*5.2;
  float ripple=0.5+0.5*sin(flow+0.65*sin(local_p.x*34.0));
  float filaments=pow(0.5+0.5*sin(local_p.x*37.0+sin(flow*0.36)),5.0);
- float shimmer=0.30*ripple+0.70*filaments;
+ // Waterfall highlights descend in local space, with broad flow and narrow foam ribbons.
+ float ribbon=0.5+0.5*sin(local_p.x*15.0+sin(local_p.y*3.1+scene_time*0.63));
+ float cascade=smoothstep(0.55,0.94,ribbon)*smoothstep(0.28,0.85,ripple);
+ float shimmer=0.30*ripple+0.55*filaments+0.15*cascade;
  float distance_to_hit=length(world_xz-combat_pulse.xy);
  float reach=max(combat_response.x,0.01);
  float local_hit=combat_pulse.w*(1.0-smoothstep(reach*0.72,reach,distance_to_hit));
@@ -1735,7 +1738,8 @@ void fragment(){
  shimmer+=ring*local_hit*combat_response.z*0.6;
  ALBEDO=mix(base_color.rgb*(0.76+shimmer*0.37),combat_tint.rgb,clamp(local_hit*combat_response.w*0.60,0.0,0.40));
  ROUGHNESS=0.24+0.20*(1.0-ripple);
- EMISSION=base_color.rgb*shimmer*(is_foam?0.28:0.12);
+ vec3 glint=mix(base_color.rgb,vec3(0.88,0.98,0.91),is_foam?0.52:0.23);
+ EMISSION=glint*clamp(shimmer,0.0,1.5)*(is_foam?0.36:0.16);
 }"""
 	var material=ShaderMaterial.new();material.shader=shader
 	material.set_shader_parameter("base_color",original.albedo_color)
@@ -2590,13 +2594,16 @@ uniform float scene_time=0.0;
 varying vec2 p;
 void vertex(){p=(MODEL_MATRIX*vec4(VERTEX,1.0)).xz;}
 void fragment(){
- vec2 q=p+vec2(sin(scene_time*0.24),cos(scene_time*0.19))*0.18;
+ // Two slow wind bands break up synchronized canopy motion without extra geometry.
+ float wind=sin(p.y*0.36+scene_time*0.39);
+ vec2 q=p+vec2(sin(scene_time*0.24)+wind*0.55,cos(scene_time*0.19))*0.22;
  float n=sin(q.x*1.57+q.y*0.71)+sin(q.y*2.13-q.x*0.84)+0.48*sin(q.x*4.12+q.y*3.41);
  float shafts=smoothstep(0.15,1.25,sin(q.x*0.46+q.y*0.81)+0.32*sin(q.x*1.24-q.y*0.6));
  float sun=smoothstep(0.36,1.37,n)*shafts;
- float shadow=(1.0-smoothstep(-1.36,-0.13,n))*0.21;
- ALBEDO=mix(vec3(0.09,0.20,0.12),vec3(1.0,0.88,0.46),sun);
- ALPHA=max(shadow,sun*0.32);
+ float shadow=(1.0-smoothstep(-1.36,-0.13,n))*0.24;
+ float penumbra=smoothstep(0.15,1.0,n)*shafts;
+ ALBEDO=mix(vec3(0.08,0.17,0.12),vec3(1.0,0.91,0.57),max(sun,penumbra*0.42));
+ ALPHA=max(shadow,min(0.34,sun*0.27+penumbra*0.07));
 }""")
 	elif region==1:
 		# Animated nearest/second-nearest cellular edges. A single bounded 3x3
@@ -2700,7 +2707,10 @@ func update_living_ambient(dt:float):
 			basis=Basis.from_scale(Vector3.ONE*size)
 		elif region==0:
 			offset.y=3.3-phase*3.15
-			basis=Basis.from_euler(Vector3(age*.8+seed,age*.6,seed+sin(age)*.6)).scaled(Vector3.ONE*size*1.7)
+			# Individual leaves drift with spatially coherent wind, not a shared rotation.
+			var breeze:float=sin(ambient_clock*.39+ambient_origins[i].z*.36)
+			offset.x+=breeze*phase*.55
+			basis=Basis.from_euler(Vector3(age*.8+seed,age*.6,seed+sin(age)*.6+breeze*.22)).scaled(Vector3.ONE*size*1.7)
 		elif region==1:
 			offset.y=.10+phase*3.0
 			basis=reef_basis.scaled(Vector3.ONE*size*(.75+phase*.6))
