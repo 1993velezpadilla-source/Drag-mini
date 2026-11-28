@@ -300,10 +300,78 @@ func enemy_integration_gauntlet(failures:Array[String])->int:
 		print("KINDRIA_AI_INTEGRATION turns=",samples," personalities=",personalities.size()," checks=",checks_local," cached_p95_usec=",cached_times[percentile]," reference_p95_usec=",reference_times[percentile]," max_visible_idle=",idle_peak," reversals=",reversal_count)
 	return checks_local
 
+# V27.1: ordinary ecology actors, not just Monster House actors, in constrained
+# topology. Run identical inputs with and without caches and compare outcomes.
+func living_dungeon_gauntlet(failures:Array[String])->int:
+	var checks_local:int=0
+	var rounds:int=0
+	var timings:Array[int]=[]
+	for sample in range(12):
+		var variants:Array=[]
+		for enabled in [true,false]:
+			var arena=Rules.new()
+			arena.ai_cache_enabled=enabled
+			arena.rng.seed=927100+sample
+			arena.hp=10000;arena.max_hp=10000;arena.belly_tenths=1000
+			arena.player=Vector2i(6,4);arena.stairs=Vector2i(9,7);arena.relic=Vector2i(9,6)
+			for y in range(1,8):
+				for x in range(1,10):
+					if x!=5 or y==4 or (sample%2==0 and y==2):arena.cells[Vector2i(x,y)]=true
+			arena.rooms.append(Rect2i(1,1,4,7));arena.rooms.append(Rect2i(6,1,4,7))
+			var species:Array=["bramble_pup","leafwisp","thornbeetle","mossmite","rootgnawer","eelstrix"]
+			var posts:Array=[Vector2i(3,4),Vector2i(4,3),Vector2i(7,4),Vector2i(8,5),Vector2i(4,5),Vector2i(7,2)]
+			for index in range(species.size()):
+				arena.enemies.append({"uid":400+index,"pos":posts[index],"hp":30,"max_hp":30,"kind":0,"species":species[(index+sample)%species.size()],"ecology_role":"hunter","ecology_search_enabled":true,"personality_enabled":true,"pp_primary":12,"pp_secondary":10})
+			arena.traps[Vector2i(5,4)]="snare" if sample%3==0 else "spike"
+			variants.append(arena)
+		var cached=variants[0];var reference=variants[1]
+		for tick in range(16):
+			if cached.finished or reference.finished:break
+			for arena in variants:
+				arena.charge_phase="vanish" if tick%5==2 else ""
+				arena.shield_kind="protect" if tick%5==3 else ""
+				arena.shield_turns=1 if tick%5==3 else 0
+				if tick%4==0:
+					for d in [Vector2i.UP,Vector2i.DOWN,Vector2i.RIGHT,Vector2i.LEFT]:
+						var q:Vector2i=arena.player+d
+						if arena.cells.has(q) and arena.enemy_at(q)<0 and arena.ally_at(q)<0:
+							arena.adaptive_walk_from=arena.player;arena.adaptive_walk_to=q;arena.adaptive_walk_turn=arena.turns;arena.player=q;break
+				if tick==4 and not arena.enemies.is_empty():
+					arena.enemies[0]["hp"]=6
+				if tick==8 and arena.enemies.size()>1:
+					arena.enemies[1]["pp_primary"]=0;arena.enemies[1]["pp_secondary"]=0
+			var start:int=Time.get_ticks_usec()
+			cached.enemy_turn_actions()
+			timings.append(Time.get_ticks_usec()-start)
+			reference.enemy_turn_actions()
+			if cached.enemies!=reference.enemies or cached.player!=reference.player or cached.hp!=reference.hp or cached.enemy_actions!=reference.enemy_actions or cached.rng.state!=reference.rng.state or cached.finished!=reference.finished:failures.append("living gauntlet differential %d:%d"%[sample,tick])
+			checks_local+=1
+			var occupied:Dictionary={}
+			var valid:bool=true
+			for e in cached.enemies:
+				if int(e.hp)<=0:continue
+				if not cached.cells.has(e.pos) or occupied.has(e.pos) or e.pos==cached.player:valid=false
+				occupied[e.pos]=true
+			if not valid:failures.append("living gauntlet occupancy %d:%d"%[sample,tick])
+			checks_local+=1
+			var acted:Dictionary={}
+			for action in cached.enemy_actions:
+				var uid:int=int(action.get("uid",-1))
+				if acted.has(uid):valid=false
+				acted[uid]=true
+			if not valid:failures.append("living gauntlet duplicate action %d:%d"%[sample,tick])
+			checks_local+=1
+			if cached.ai_actor_cache_active or cached.ai_cache_active or not cached.ai_footprint_cache.is_empty():failures.append("living gauntlet cache leak %d:%d"%[sample,tick])
+			checks_local+=1;rounds+=1
+	if not timings.is_empty():
+		timings.sort()
+		print("KINDRIA_LIVING_GAUNTLET turns=",rounds," checks=",checks_local," p95_usec=",timings[int((timings.size()-1)*.95)])
+	return checks_local
+
 func run_checks()->void:
 	if "--ai-integration" in OS.get_cmdline_user_args():
 		var integration_failures:Array[String]=[]
-		var integration_checks:int=enemy_adversarial_gauntlet(integration_failures)+enemy_integration_gauntlet(integration_failures)
+		var integration_checks:int=enemy_adversarial_gauntlet(integration_failures)+enemy_integration_gauntlet(integration_failures)+living_dungeon_gauntlet(integration_failures)
 		print("KINDRIA_AI_INTEGRATION_RESULT checks=",integration_checks," failures=",integration_failures.size())
 		for failure in integration_failures:push_error(failure)
 		quit(0 if integration_failures.is_empty() else 1);return
@@ -2855,6 +2923,7 @@ func run_checks()->void:
 	if not visibility_audit.enemy_squad_partner(audit_actor,audit_peer) or visibility_audit.enemy_pursuit_target(audit_actor,visibility_audit.player)!=visibility_audit.player:failures.append("audit visibility restored")
 	checks+=1
 	checks+=enemy_adversarial_gauntlet(failures)
+	checks+=living_dungeon_gauntlet(failures)
 	# Geometry-only cache must be symmetric, bounded and cleared between turns.
 	var geometry_audit=Rules.new()
 	for y in range(1,19):
