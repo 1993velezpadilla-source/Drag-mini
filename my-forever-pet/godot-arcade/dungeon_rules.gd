@@ -380,7 +380,7 @@ func apply_player_boon(move:Dictionary)->bool:
 	return true
 func tick_player_boons()->void:
 	if int(player_boons.get("hostile_drowse",0))==1:
-		if not boon_active("sleepless") and not player_has_ability("wakeful"):player_boons["hostile_sleep"]=rng.randi_range(3,6)+1
+		if not boon_active("sleepless") and not player_has_ability("wakeful") and not (shield_kind=="safeguard" and shield_turns>0):player_boons["hostile_sleep"]=rng.randi_range(3,6)+1
 	if boon_active("bide") and int(player_boons.bide)==1:finish_bide()
 	if self_confusion_turns>0:self_confusion_turns-=1
 	if boon_active("ingrain"):
@@ -3812,10 +3812,13 @@ func enemy_turn_actions():
 	for i in range(enemies.size()):
 		if int(enemies[i].hp)<=0:continue
 		var p:Vector2i=enemies[i].pos
-		if int(enemies[i].get("slow_turns",0))>0 and int(enemies[i].slow_turns)%2==0:continue
+		if int(enemies[i].get("slow_turns",0))>0 and int(enemies[i].slow_turns)%2==0:
+			enemy_tick_all_cooldowns(enemies[i]);continue
 		var major:String=str(enemies[i].get("major_status",""))
-		if int(enemies[i].get("sleep_turns",0))>0 or int(enemies[i].get("nightmare_turns",0))>0 or int(enemies[i].get("paused_turns",0))>0 or int(enemies[i].get("wrapped_turns",0))>0 or int(enemies[i].get("infatuated_turns",0))>0 or major=="freeze":continue
+		if int(enemies[i].get("sleep_turns",0))>0 or int(enemies[i].get("nightmare_turns",0))>0 or int(enemies[i].get("paused_turns",0))>0 or int(enemies[i].get("wrapped_turns",0))>0 or int(enemies[i].get("infatuated_turns",0))>0 or major=="freeze":
+			enemy_tick_all_cooldowns(enemies[i]);continue
 		if int(enemies[i].get("confusion_turns",0))>0 or major=="paralysis":
+			enemy_tick_all_cooldowns(enemies[i])
 			var dir:Vector2i=DIR[rng.randi_range(0,DIR.size()-1)] if int(enemies[i].get("confusion_turns",0))>0 else Vector2i.ZERO
 			var q:Vector2i=p+dir
 			if major=="paralysis":
@@ -3837,7 +3840,7 @@ func enemy_turn_actions():
 			enemy_tick_all_cooldowns(enemies[i]);continue
 		enemy_observe_movement(enemies[i],player)
 		boss_observe_phase(enemies[i])
-		if not bool(enemies[i].get("boss_tactical",false)) and not enemy_has_party_area_attack(enemies[i]) and enemy_target_ally(i):continue
+		if not allies.is_empty() and not bool(enemies[i].get("boss_tactical",false)) and not enemy_has_party_area_attack(enemies[i]) and enemy_target_ally(i):continue
 		var gap:=distance(p,player)
 		var pursuit_target:Vector2i=enemy_pursuit_target(enemies[i],player)
 		if gap<=3 and not enemies[i].get("windup",false) and enemy_use_potion(i):
