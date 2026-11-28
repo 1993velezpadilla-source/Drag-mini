@@ -5321,12 +5321,34 @@ func enemy_counter_protected(e:Dictionary,target:Vector2i)->bool:
 func enemy_counter_protected_step(e:Dictionary,target:Vector2i)->Vector2i:
 	var origin:Vector2i=e.pos
 	if not enemy_counter_protected(e,target) or int(e.get("stuck_turns",0))>0:return origin
+	var reserved:Dictionary=enemy_pack_reserved_posts(e,target)
+	var peers:Array[Dictionary]=[]
+	for other in enemies:
+		if enemy_squad_partner(e,other):peers.append(other)
+	var lane_memo:Dictionary={}
 	var step:Vector2i=enemy_exit_block_step(e,target)
-	if step!=origin:return step
+	if step!=origin and not reserved.has(step) and not enemy_recovery_lane_blocked(peers,step,target,lane_memo):return step
 	if distance(origin,target)<=1:return origin
 	for d in DIR:
 		var q:Vector2i=origin+d
-		if distance(q,target)<distance(origin,target) and enemy_ambush_safe_tile(q) and enemy_line_of_sight(q,target):return q
+		if distance(q,target)<distance(origin,target) and enemy_ambush_safe_tile(q) and not reserved.has(q) and enemy_line_of_sight(q,target) and not enemy_recovery_lane_blocked(peers,q,target,lane_memo):return q
+	# Protect does not prevent positioning. If direct approach is blocked,
+	# prepare a safe adjacent post without attacking or spending learned PP.
+	if distance(origin,target)>3 or enemy_strategy_attack_tile(e,origin,target):return origin
+	var queue:Array[Vector2i]=[origin]
+	var depth:Dictionary={origin:0}
+	var first:Dictionary={}
+	var cursor:int=0
+	while cursor<queue.size() and cursor<32:
+		var tile:Vector2i=queue[cursor];cursor+=1
+		if tile!=origin and distance(tile,target)==1:return first[tile]
+		if int(depth[tile])>=3:continue
+		for d in DIR:
+			var q:Vector2i=tile+d
+			if depth.has(q) or not enemy_ambush_safe_tile(q) or reserved.has(q) or not enemy_line_of_sight(q,target):continue
+			if tile==origin and enemy_strategy_reversal(e,q,target):continue
+			if enemy_recovery_lane_blocked(peers,q,target,lane_memo):continue
+			depth[q]=int(depth[tile])+1;first[q]=q if tile==origin else first[tile];queue.append(q)
 	return origin
 
 func enemy_recent_threat(e:Dictionary)->bool:
