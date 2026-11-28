@@ -1726,6 +1726,8 @@ func exterior_motion_material(original:Material)->ShaderMaterial:
 	var kind=""
 	if name.contains("woodland turquoise stream"):kind="stream"
 	elif name.contains("cascade pale highlights"):kind="foam"
+	elif name.contains("woodland falling sheet"):kind="cascade"
+	elif name.contains("woodland falling foam"):kind="cascade_foam"
 	elif name.contains("sea grass"):kind="kelp"
 	if kind.is_empty():return forest_wind_material(original)
 	if exterior_motion_materials.has(kind):return exterior_motion_materials[kind]
@@ -1764,6 +1766,7 @@ render_mode cull_disabled;
 uniform float scene_time=0.0;
 uniform vec4 base_color:source_color=vec4(0.1,0.6,0.7,1.0);
 uniform bool is_foam=false;
+uniform bool is_falling=false;
 uniform vec4 combat_pulse=vec4(0.0);
 uniform vec4 combat_response=vec4(0.0);
 uniform vec4 combat_tint:source_color=vec4(1.0);
@@ -1771,13 +1774,20 @@ varying vec3 local_p;
 varying vec2 world_xz;
 void vertex(){local_p=VERTEX;world_xz=(MODEL_MATRIX*vec4(VERTEX,1.0)).xz;}
 void fragment(){
- float flow=local_p.z*20.0-local_p.y*7.0-scene_time*5.2;
+ float flow=is_falling?(-local_p.y*18.0-scene_time*8.0):(local_p.z*17.0-scene_time*3.0);
  float ripple=0.5+0.5*sin(flow+0.65*sin(local_p.x*34.0));
  float filaments=pow(0.5+0.5*sin(local_p.x*37.0+sin(flow*0.36)),5.0);
  // Waterfall highlights descend in local space, with broad flow and narrow foam ribbons.
  float ribbon=0.5+0.5*sin(local_p.x*15.0+sin(local_p.y*3.1+scene_time*0.63));
  float cascade=smoothstep(0.55,0.94,ribbon)*smoothstep(0.28,0.85,ripple);
  float shimmer=0.30*ripple+0.55*filaments+0.15*cascade;
+ // Pool-only expanding, broken ripples around the cascade landing point.
+ if(!is_falling){
+  vec2 pool_delta=vec2(local_p.x,local_p.z-0.64);
+  float radial=length(pool_delta);
+  float rings=pow(0.5+0.5*sin(radial*24.0-scene_time*4.6),9.0);
+  shimmer=mix(shimmer,rings,0.40*(1.0-smoothstep(0.15,1.05,radial)));
+ }
  float distance_to_hit=length(world_xz-combat_pulse.xy);
  float reach=max(combat_response.x,0.01);
  float local_hit=combat_pulse.w*(1.0-smoothstep(reach*0.72,reach,distance_to_hit));
@@ -1790,7 +1800,9 @@ void fragment(){
 }"""
 	var material=ShaderMaterial.new();material.shader=shader
 	material.set_shader_parameter("base_color",original.albedo_color)
-	if kind!="kelp":material.set_shader_parameter("is_foam",kind=="foam")
+	if kind!="kelp":
+		material.set_shader_parameter("is_foam",kind=="foam" or kind=="cascade_foam")
+		material.set_shader_parameter("is_falling",kind=="cascade" or kind=="cascade_foam")
 	exterior_motion_materials[kind]=material
 	return material
 func batch_exterior_parts(parts:Array,placements:Array[Transform3D]):
