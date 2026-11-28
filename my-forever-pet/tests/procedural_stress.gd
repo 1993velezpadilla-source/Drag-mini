@@ -1414,6 +1414,63 @@ func run_checks()->void:
 	if ambush.enemy_actions.size()!=1 or ambush.enemy_actions[0].get("phase","")!="attack" or ambush_actor.pp_primary!=11:failures.append("ambush normal learned attack after contact")
 	checks+=1
 	print("KINDRIA_AMBUSH_TACTICS checks=10")
+	# A direct witness may report a tile, but a listener cannot relay it.
+	var comm=Rules.new()
+	for x in range(1,4):comm.cells[Vector2i(x,3)]=true
+	for y in range(1,4):comm.cells[Vector2i(1,y)]=true
+	for y in range(3,6):comm.cells[Vector2i(3,y)]=true
+	comm.cells[Vector2i(8,8)]=true
+	comm.player=Vector2i(3,5);comm.stairs=Vector2i(9,9);comm.relic=Vector2i(9,8)
+	var listener:Dictionary={"uid":0,"pos":Vector2i(1,3),"hp":20,"max_hp":20,"kind":0,"species":"rootgnawer","ecology_role":"hunter","ecology_search_enabled":true,"pp_primary":0,"pp_secondary":0}
+	var witness:Dictionary={"uid":1,"pos":Vector2i(3,3),"hp":20,"max_hp":20,"kind":0,"species":"rootgnawer","ecology_role":"hunter","ecology_search_enabled":true,"pp_primary":0,"pp_secondary":0}
+	var remote:Dictionary={"uid":2,"pos":Vector2i(1,1),"hp":20,"max_hp":20,"kind":0,"species":"rootgnawer","ecology_role":"hunter","ecology_search_enabled":true,"pp_primary":0,"pp_secondary":0}
+	comm.enemies.append(listener);comm.enemies.append(witness);comm.enemies.append(remote)
+	comm.turns=10
+	comm.enemy_share_alerts(comm.player)
+	if listener.get("alert_tile")!=comm.player or listener.get("alert_source")!=1 or listener.get("alert_until")!=12 or witness.has("alert_tile"):failures.append("communication first-hand local report")
+	checks+=1
+	if remote.has("alert_tile"):failures.append("communication no relay or wall crossing")
+	checks+=1
+	comm.player=Vector2i(8,8)
+	comm.turns=11;comm.enemy_share_alerts(comm.player)
+	if comm.enemy_pursuit_target(listener,comm.player)!=Vector2i(3,5) or listener.get("alert_until")!=12:failures.append("communication stale report not refreshed")
+	checks+=1
+	listener["last_seen_player"]=Vector2i(2,3);listener["last_seen_turn"]=11;listener["last_seen_until"]=15
+	if comm.enemy_pursuit_target(listener,comm.player)!=Vector2i(2,3):failures.append("communication firsthand memory precedence")
+	checks+=1
+	listener.erase("last_seen_player");listener.erase("last_seen_turn");listener.erase("last_seen_until")
+	comm.turns=13
+	if comm.enemy_alert_target(listener)!=listener.pos or listener.has("alert_tile"):failures.append("communication report expiry")
+	checks+=1
+	comm.player=Vector2i(3,5)
+	witness["sleep_turns"]=2
+	comm.enemy_share_alerts(comm.player)
+	if listener.has("alert_tile"):failures.append("communication sleeping witness")
+	witness.erase("sleep_turns")
+	checks+=1
+	listener["confusion_turns"]=2
+	comm.enemy_share_alerts(comm.player)
+	if listener.has("alert_tile"):failures.append("communication confused listener")
+	listener.erase("confusion_turns")
+	checks+=1
+	comm.charge_phase="vanish"
+	comm.enemy_share_alerts(comm.player)
+	if listener.has("alert_tile"):failures.append("communication hidden charge")
+	comm.charge_phase=""
+	checks+=1
+	comm.enemy_share_alerts(comm.player)
+	comm.player_boons["decoy"]=2
+	comm.enemy_share_alerts(comm.player)
+	if listener.has("alert_tile"):failures.append("communication decoy invalidates reports")
+	comm.player_boons.clear()
+	checks+=1
+	comm.enemy_turn_actions()
+	var listener_moves:int=0
+	for action in comm.enemy_actions:
+		if int(action.get("uid",-1))==0 and action.get("phase","")=="move":listener_moves+=1
+	if listener.pos!=Vector2i(2,3) or listener_moves!=1 or listener.pp_primary!=0:failures.append("communication real single investigation movement")
+	checks+=1
+	print("KINDRIA_ENEMY_COMMUNICATION checks=10")
 	# Actual disk I/O, legacy migration, corruption recovery, and resumed writes.
 	var test_path:String="user://kindria_procedural_test_"+str(OS.get_process_id())+".cfg"
 	var exact:Array[String]=["legacy exact".sha256_text()]
