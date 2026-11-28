@@ -2181,6 +2181,50 @@ func enemy_strategy_alternative(e:Dictionary,proposed:Vector2i,target:Vector2i)-
 	# If no better route exists, allow the reversal rather than freeze.
 	return best
 
+# Compare next-turn attack options across the four legal neighboring tiles.
+# The original actor stays in place during scoring: a ray through its current
+# tile is conservatively rejected, rather than altering occupancy or caches.
+func enemy_decision_attack_value(e:Dictionary,post:Vector2i,target:Vector2i)->float:
+	var best:float=0.0
+	if distance(post,target)==1:best=float(enemy_opportunity_damage(e,[],false,true))
+	var species:String=str(e.get("species",""))
+	var skill:Array=signature_skill(e)
+	if not bool(skill[1]) and enemy_move_allowed(e,"primary") and int(e.get("cooldown",0))<=0:
+		if attack_aim(post,target,str(ATTACK_PATTERNS.get(species,"line")),int(skill[0]))!=Vector2i.ZERO:
+			best=maxf(best,enemy_attack_score(e,skill,false))
+	if SECONDARY_SKILLS.has(species) and enemy_move_allowed(e,"secondary") and int(e.get("alt_cooldown",0))<=0:
+		var alt:Array=SECONDARY_SKILLS[species]
+		if attack_aim(post,target,str(alt[1]),int(alt[0]))!=Vector2i.ZERO:
+			best=maxf(best,enemy_attack_score(e,[alt[0],false,3,alt[3],alt[4],alt[5],"alt_"+species],true))
+	return best
+
+func enemy_decision_position_plan(e:Dictionary,target:Vector2i)->Dictionary:
+	var origin:Vector2i=e.pos
+	if target!=player or not enemy_opportunity_eligible(e) or int(e.get("kind",0))==3 or int(e.get("stuck_turns",0))>0:return {}
+	if charge_phase in ["underground","airborne","vanish"] or (shield_turns>0 and shield_kind=="protect") or bool(e.get("monster_house",false)):return {}
+	if enemy_decision_attack_value(e,origin,target)>0.0:return {}
+	var reserved:Dictionary=enemy_pack_reserved_posts(e,target)
+	var best:Dictionary={}
+	var best_score:float=0.0
+	var gap:int=distance(origin,target)
+	var phase:int=posmod(int(e.get("uid",0))+turns,4)
+	for j in range(4):
+		var q:Vector2i=origin+DIR[(phase+j)%4]
+		if not enemy_ambush_safe_tile(q) or reserved.has(q) or not enemy_line_of_sight(q,target):continue
+		if distance(q,target)>enemy_awareness(e):continue
+		var blocked:bool=false
+		for other in enemies:
+			if enemy_squad_partner(e,other) and enemy_line_of_sight(other.pos,target) and enemy_relief_blocks_lane(other,q,target):blocked=true;break
+		if blocked:continue
+		var value:float=enemy_decision_attack_value(e,q,target)
+		if value<=0.0:continue
+		var score:float=value*3.0+float(gap-distance(q,target))*1.5+float(enemy_terrain_position_bonus(e,q,target))*.5
+		if enemy_combat_personality(e)=="cautious" and distance(q,target)==1 and gap>1:score-=3.0
+		if enemy_strategy_reversal(e,q,target):score-=2.0
+		if enemy_repeated_push(e):score-=float(enemy_push_exposure(e,q,target))*.5
+		if score>best_score:best_score=score;best={"step":q,"value":value,"score":score}
+	return best
+
 func enemy_tactical_step(e:Dictionary,target:Vector2i,pattern:String,reach:int)->Vector2i:
 	var origin:Vector2i=e.pos
 	if not bool(e.get("ecology_search_enabled",false)) or reach<2 or not enemy_line_of_sight(origin,target):return origin
@@ -5411,6 +5455,8 @@ func enemy_turn_actions_impl():
 			if tactical==p and not charged and pursuit_target==player:
 				tactical=enemy_environment_guard_step(enemies[i],player)
 				environment_guard=tactical!=p
+			if tactical==p and not charged and pursuit_target==player:
+				tactical=enemy_decision_position_plan(enemies[i],player).get("step",p)
 			if tactical==p and ready and not charged and not in_range and pursuit_target==player:
 				tactical=enemy_tactical_step(enemies[i],pursuit_target,pattern,int(skill[0]))
 			if tactical==p and not charged and pursuit_target==player:
