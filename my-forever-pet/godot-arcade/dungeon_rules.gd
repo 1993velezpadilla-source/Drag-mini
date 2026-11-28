@@ -2755,7 +2755,10 @@ func enemy_relief_candidate(e:Dictionary,target:Vector2i)->bool:
 	if gap<2 or gap>4 or not enemy_line_of_sight(e.pos,target):return false
 	var role:String=str(e.get("house_role",""))
 	if role=="guard" or enemy_survival_profile(e)=="defensive":return true
-	return role in ["controller","ranged"] and not enemy_move_allowed(e,"primary") and not enemy_move_allowed(e,"secondary") and not enemy_move_allowed(e,"control") and not enemy_move_allowed(e,"support")
+	var species:String=str(e.get("species",""))
+	var has_control:bool=MOVE_LIBRARY.has(str(e.get("control_move",""))) and enemy_move_allowed(e,"control")
+	var has_support:bool=not str(ENEMY_SUPPORT.get(species,"")).is_empty() and enemy_move_allowed(e,"support")
+	return role in ["controller","ranged"] and not enemy_move_allowed(e,"primary") and (not SECONDARY_SKILLS.has(species) or not enemy_move_allowed(e,"secondary")) and not has_control and not has_support
 
 func enemy_relief_ranged_ready(e:Dictionary,target:Vector2i)->bool:
 	if distance(e.pos,target)<2 or int(e.get("whiffer_turns",0))>0 or int(e.get("slow_turns",0))>0:return false
