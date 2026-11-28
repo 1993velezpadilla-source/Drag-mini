@@ -2164,6 +2164,46 @@ func enemy_strategy_attack_tile(e:Dictionary,q:Vector2i,target:Vector2i)->bool:
 		return attack_aim(q,target,str(alt[1]),int(alt[0]))!=Vector2i.ZERO
 	return false
 
+# A stalled pursuit may take a short lateral detour, but only if it opens
+# a genuinely useful attack position. Never override intentional waits.
+func enemy_unstall_step(e:Dictionary,target:Vector2i)->Vector2i:
+	var origin:Vector2i=e.pos
+	if not enemy_opportunity_eligible(e) or not enemy_live_contact(e,target) or int(e.get("stuck_turns",0))>0:return origin
+	if shield_turns>0 and shield_kind=="protect":return origin
+	if distance(origin,target)<=1 or enemy_strategy_attack_tile(e,origin,target):return origin
+	if int(e.get("stall_count",0))<2 or e.get("stall_target",Vector2i.ZERO)!=target or int(e.get("stall_turn",-9999))!=turns-1:return origin
+	if turns<=int(e.get("unstall_turn",-9999))+3:return origin
+	var reserved:Dictionary=enemy_pack_reserved_posts(e,target)
+	var best:Vector2i=origin
+	var best_score:int=-2147483647
+	for d in DIR:
+		var q:Vector2i=origin+d
+		if not enemy_ambush_safe_tile(q) or reserved.has(q) or not enemy_line_of_sight(q,target) or enemy_strategy_reversal(e,q,target):continue
+		var blocked:bool=false
+		for other in enemies:
+			if enemy_squad_partner(e,other) and enemy_relief_blocks_lane(other,q,target):blocked=true;break
+		if blocked:continue
+		var value:int=0
+		if enemy_strategy_attack_tile(e,q,target):value=20
+		else:
+			for next_dir in DIR:
+				var post:Vector2i=q+next_dir
+				if post==origin or reserved.has(post) or not enemy_ambush_safe_tile(post) or not enemy_line_of_sight(post,target):continue
+				var lane_blocked:bool=false
+				for other in enemies:
+					if enemy_squad_partner(e,other) and enemy_relief_blocks_lane(other,post,target):lane_blocked=true;break
+				if not lane_blocked and enemy_strategy_attack_tile(e,post,target):value=10;break
+		if value==0:continue
+		var score:int=value+enemy_terrain_position_bonus(e,q,target)+distance(origin,target)-distance(q,target)
+		if score>best_score:best_score=score;best=q
+	return best
+
+func enemy_record_stall(e:Dictionary,target:Vector2i)->void:
+	if not enemy_opportunity_eligible(e) or not enemy_live_contact(e,target) or int(e.get("stuck_turns",0))>0 or (shield_turns>0 and shield_kind=="protect"):return
+	if int(e.get("stall_turn",-9999))==turns:return
+	e["stall_count"]=mini(3,int(e.get("stall_count",0))+1) if e.get("stall_target",Vector2i.ZERO)==target and int(e.get("stall_turn",-9999))==turns-1 else 1
+	e["stall_target"]=target;e["stall_turn"]=turns
+
 func enemy_strategy_alternative(e:Dictionary,proposed:Vector2i,target:Vector2i)->Vector2i:
 	var origin:Vector2i=e.pos
 	if not enemy_strategy_reversal(e,proposed,target) or enemy_strategy_attack_tile(e,proposed,target):return proposed
@@ -5648,11 +5688,12 @@ func enemy_turn_actions_impl():
 				tactical=pack_plan.get("step",p)
 			if tactical==p and not charged and pursuit_target==player:
 				tactical=enemy_foresight_plan(enemies[i],player).get("step",p)
+			var intentional_hold:bool=false
 			if tactical!=p:path.append(tactical)
 			else:
 				path=enemy_approach_route(p,pursuit_target) if enemies[i].has("ecology_role") else route(p,pursuit_target,true)
 				if not path.is_empty() and enemy_crowd_hold(enemies[i],path[0],pursuit_target):
-					path.clear()
+					path.clear();intentional_hold=true
 				elif not charged and pursuit_target==player:
 					var heading:Vector2i=Vector2i(signi(player.x-p.x),signi(player.y-p.y))
 					if path.is_empty() or path[0]==p+heading or distance(path[0],player)>=distance(p,player):
@@ -5661,6 +5702,11 @@ func enemy_turn_actions_impl():
 							enemies[i]["crowd_previous"]=p;enemies[i]["crowd_turn"]=turns
 							enemies[i]["crowd_target"]=player;enemies[i]["crowd_partner"]=p-heading
 							path.clear();path.append(yield_tile)
+			if path.is_empty() and not charged and not intentional_hold and pursuit_target==player:
+				var recovery:Vector2i=enemy_unstall_step(enemies[i],player)
+				if recovery!=p:
+					path.append(recovery);enemies[i]["unstall_turn"]=turns
+				else:enemy_record_stall(enemies[i],player)
 			if not path.is_empty() and not charged and pursuit_target==player and int(enemies[i].get("crowd_turn",-9999))<turns-1:
 				var strategy_step:Vector2i=enemy_strategy_alternative(enemies[i],path[0],player)
 				if strategy_step!=path[0]:
