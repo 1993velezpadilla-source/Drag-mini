@@ -836,12 +836,12 @@ func build_ui():
 			status_text.clip_text=not status_text.clip_text
 			status_text.autowrap_mode=TextServer.AUTOWRAP_OFF if status_text.clip_text else TextServer.AUTOWRAP_WORD_SMART)
 	var a:=HBoxContainer.new();a.add_theme_constant_override("separation",6);v.add_child(a)
-	joystick=Control.new();joystick.custom_minimum_size=Vector2(86,76);joystick.mouse_filter=MOUSE_FILTER_STOP
-	a.add_child(joystick);joystick.draw.connect(draw_joystick)
+	joystick=Control.new();joystick.custom_minimum_size=Vector2(92,100);joystick.mouse_filter=MOUSE_FILTER_STOP
+	a.add_child(joystick);joystick.draw.connect(draw_joystick);joystick.resized.connect(joystick.queue_redraw)
 	move_dock=GridContainer.new();move_dock.columns=2;move_dock.size_flags_horizontal=SIZE_EXPAND_FILL;move_dock.size_flags_stretch_ratio=2.5
 	move_dock.add_theme_constant_override("h_separation",3);move_dock.add_theme_constant_override("v_separation",3);a.add_child(move_dock)
-	var utility:=GridContainer.new();utility_dock=utility;utility.columns=2;utility.custom_minimum_size.x=72;utility.size_flags_horizontal=SIZE_SHRINK_END
-	utility.add_theme_constant_override("v_separation",2);a.add_child(utility)
+	var utility:=GridContainer.new();utility_dock=utility;utility.columns=2;utility.custom_minimum_size.x=114;utility.size_flags_horizontal=SIZE_SHRINK_END
+	utility.add_theme_constant_override("v_separation",3);utility.add_theme_constant_override("h_separation",3);a.add_child(utility)
 	aim_button=button(utility,"Aim ↓",func():
 		if not utility_drag_suppress:rotate_combat_aim())
 	aim_button.tooltip_text="Tap: rotate · drag: aim in any direction"
@@ -851,7 +851,7 @@ func build_ui():
 	panel_strike=button(utility,"Strike",request_strike)
 	panel_strike.tooltip_text="Regular attack · no PP"
 	for utility_button in [aim_button,heal_button,bag,panel_strike]:
-		utility_button.custom_minimum_size.y=24
+		utility_button.custom_minimum_size.y=48
 		utility_button.add_theme_font_size_override("font_size",11)
 		var tile:=compact_style(hud_tile_color(),hud_accent_color().darkened(.38),6)
 		tile.content_margin_top=1;tile.content_margin_bottom=1
@@ -877,13 +877,13 @@ func refresh_move_dock()->void:
 	for slot in range(4):
 		if slot>=dock_move_ids.size():
 			var empty:=button(move_dock,"—",func():pass)
-			empty.disabled=true;empty.custom_minimum_size.y=32
+			empty.disabled=true;empty.custom_minimum_size.y=48
 			empty.tooltip_text="Empty move slot · learn a technique from Bag"
 			continue
 		var id:String=str(dock_move_ids[slot])
 		var move:Dictionary=Rules.MOVE_LIBRARY[id]
 		var b:=button(move_dock,str(move.name),func():pass)
-		b.custom_minimum_size.y=32;b.clip_text=true
+		b.custom_minimum_size.y=48;b.clip_text=true
 		b.add_theme_font_size_override("font_size",12)
 		var tint:=Color(str(move.get("light","#e8e0ce")))
 		b.add_theme_stylebox_override("normal",compact_style(hud_tile_color(),tint.darkened(.4),7))
@@ -937,7 +937,10 @@ func save_control_preferences()->void:
 func apply_control_preferences()->void:
 	path.clear();strike_pending=false;reset_joystick()
 	strike_pointer=-2;field_pointer=-2;field_aiming=false;utility_drag_kind=""
-	if is_instance_valid(utility_dock):utility_dock.columns=2 if strike_on_panel else 1
+	if is_instance_valid(utility_dock):
+		# Keep two compact rows in portrait; floating Strike frees width, not another row.
+		utility_dock.columns=2
+		utility_dock.custom_minimum_size.x=114 if strike_on_panel else 100
 	if is_instance_valid(panel_strike):panel_strike.visible=strike_on_panel
 	if is_instance_valid(attack_button):attack_button.visible=not strike_on_panel and dungeon_footer.visible
 	if is_instance_valid(joystick):joystick.visible=movement_joystick
