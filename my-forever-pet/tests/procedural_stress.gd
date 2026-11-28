@@ -2144,6 +2144,7 @@ func run_checks()->void:
 
 	# Idle watch posts are selected from nearby geometry, never a hidden target.
 	var ambush=Rules.new()
+	ambush.ai_legacy_cardinal_replay=true # Preserve archived cardinal expectations.
 	for y in range(2,7):
 		for x in range(3,8):ambush.cells[Vector2i(x,y)]=true
 	for x in range(1,3):ambush.cells[Vector2i(x,4)]=true
@@ -2192,6 +2193,7 @@ func run_checks()->void:
 
 	# Coordination claims depend on visible live peers and expire.
 	var ambush_coord=Rules.new()
+	ambush_coord.ai_legacy_cardinal_replay=true # Preserve archived cardinal expectations.
 	for y in range(2,7):
 		for x in range(3,8):ambush_coord.cells[Vector2i(x,y)]=true
 	for x in range(1,3):ambush_coord.cells[Vector2i(x,4)]=true
@@ -2229,6 +2231,56 @@ func run_checks()->void:
 	if ambush_coord.enemy_pursuit_target(ac_actor,ac_entry)!=ac_entry or ac_actor.has("ambush_plan_turn"):failures.append("ambush direct sight clears coordinated plan")
 	checks+=1
 	print("KINDRIA_COORDINATED_AMBUSH checks=8")
+	# Reflected diagonal ambush and party pursuit fixtures.
+	for diag in [Vector2i(1,-1),Vector2i(1,1),Vector2i(-1,1),Vector2i(-1,-1)]:
+		var ad:Vector2i=diag
+		var a8=Rules.new()
+		for yy in range(1,10):
+			for xx in range(1,10):a8.cells[Vector2i(xx,yy)]=true
+		var a8entry:=Vector2i(5,5)
+		var a8post:Vector2i=a8entry+ad
+		var a8origin:Vector2i=a8post+ad
+		a8.player=Vector2i(1,9);a8.stairs=Vector2i(9,9);a8.relic=Vector2i(9,8);a8.turns=20
+		var a8guard:Dictionary={"uid":80,"pos":a8origin,"hp":30,"kind":0,"species":"rootgnawer","ecology_role":"sentry","ecology_home":a8origin,"ambush_enabled":true,"ecology_search_enabled":true,"personality_enabled":true,"pp_primary":0,"pp_secondary":0,"ambush_post":a8post,"ambush_entry":a8entry,"ambush_gate":a8entry-Vector2i(ad.x,0),"ambush_plan_turn":20}
+		a8.enemies.append(a8guard)
+		if not a8.enemy_ambush_attack_ready(a8guard,a8post,a8entry):failures.append("octant ambush basic diagonal ready "+str(ad))
+		checks+=1
+		var a8corner:Vector2i=a8post-Vector2i(ad.x,0)
+		a8.cells.erase(a8corner)
+		if a8.enemy_ambush_attack_ready(a8guard,a8post,a8entry):failures.append("octant ambush corner blocks attack "+str(ad))
+		a8.cells[a8corner]=true
+		checks+=1
+		if a8.enemy_ambush_step(a8guard)!=a8post or a8guard.pos!=a8origin or not a8.enemy_actions.is_empty():failures.append("octant ambush diagonal approach purity "+str(ad))
+		checks+=1
+		var a8approach_corner:Vector2i=a8origin-Vector2i(ad.x,0)
+		a8.cells.erase(a8approach_corner)
+		if a8.enemy_ambush_step(a8guard)==a8post:failures.append("octant ambush strict approach corner "+str(ad))
+		a8.cells[a8approach_corner]=true
+		checks+=1
+		a8.player_traps[a8post]="snare"
+		if a8.enemy_ambush_step(a8guard)!=a8origin:failures.append("octant ambush rejects hazardous post "+str(ad))
+		checks+=1
+		var p8=Rules.new()
+		for yy in range(1,10):
+			for xx in range(1,10):p8.cells[Vector2i(xx,yy)]=true
+		p8.player=Vector2i(1,9);p8.charge_phase="vanish";p8.stairs=Vector2i(9,9);p8.relic=Vector2i(9,8)
+		var p8actor:Dictionary={"uid":81,"pos":a8origin,"hp":30,"kind":0,"species":"rootgnawer","ecology_role":"hunter","ecology_search_enabled":true,"pp_primary":0,"pp_secondary":0}
+		p8.enemies.append(p8actor)
+		p8.allies.append({"uid":1000,"pos":a8entry,"hp":30,"max_hp":30})
+		var p8plan:Dictionary=p8.enemy_party_approach_plan(p8actor)
+		if p8plan.get("step",Vector2i.ZERO)!=a8post or int(p8plan.get("gap",0))!=2:failures.append("octant party diagonal shortest approach "+str(ad))
+		checks+=1
+		p8.traps[a8post]="snare"
+		var p8detour:Vector2i=p8.enemy_safe_party_approach(p8actor,a8entry)
+		if p8detour==a8post or p8detour==a8origin or not p8.step_clear(a8origin,p8detour-a8origin):failures.append("octant party trap detour "+str(ad))
+		p8.traps.clear()
+		checks+=1
+		if not p8.enemy_target_ally(0) or p8actor.pos!=a8post or p8.enemy_actions.size()!=1 or str(p8.enemy_actions[0].phase)!="move" or p8.allies[0].hp!=30:failures.append("octant party single diagonal move "+str(ad))
+		checks+=1
+		p8.enemy_actions.clear()
+		if not p8.enemy_target_ally(0) or p8actor.pos!=a8post or p8.enemy_actions.size()!=1 or str(p8.enemy_actions[0].phase)!="attack" or p8.allies[0].hp>=30 or p8actor.pp_primary!=0:failures.append("octant party single basic diagonal attack "+str(ad))
+		checks+=1
+	print("KINDRIA_OCTANT_AMBUSH_PARTY checks=36")
 
 	# Push pressure is individual, bounded and never creates a new ability.
 	var adapt_push=Rules.new()
@@ -3188,6 +3240,7 @@ func run_checks()->void:
 	checks+=1
 	# Ordinary party targeting must use a safe alternative around a trapped lane.
 	var party_detour=Rules.new()
+	party_detour.ai_legacy_cardinal_replay=true # Preserve archived cardinal expectations.
 	for y in range(1,8):
 		for x in range(1,8):party_detour.cells[Vector2i(x,y)]=true
 	party_detour.player=Vector2i(6,6);party_detour.stairs=Vector2i(7,7);party_detour.relic=Vector2i(7,6)
@@ -3216,6 +3269,7 @@ func run_checks()->void:
 	checks+=1
 	# The closest visible ally may be unreachable while another is accessible.
 	var party_choice=Rules.new()
+	party_choice.ai_legacy_cardinal_replay=true # Preserve archived cardinal expectations.
 	for y in range(1,8):
 		for x in range(1,8):party_choice.cells[Vector2i(x,y)]=true
 	party_choice.player=Vector2i(6,6);party_choice.stairs=Vector2i(7,7);party_choice.relic=Vector2i(7,6)
@@ -3242,6 +3296,7 @@ func run_checks()->void:
 	checks+=1
 	# Pursuit of an opposing ally should not block a visible friendly firing lane.
 	var party_lane=Rules.new()
+	party_lane.ai_legacy_cardinal_replay=true # Preserve archived cardinal expectations.
 	for y in range(1,9):
 		for x in range(1,9):party_lane.cells[Vector2i(x,y)]=true
 	party_lane.player=Vector2i(4,4);party_lane.stairs=Vector2i(8,8);party_lane.relic=Vector2i(8,7)
@@ -3269,6 +3324,7 @@ func run_checks()->void:
 	checks+=1
 	# Concealed player distance must not veto pursuit of a visible opponent.
 	var blind_party=Rules.new()
+	blind_party.ai_legacy_cardinal_replay=true # Preserve archived cardinal expectations.
 	for y in range(1,9):
 		for x in range(1,9):blind_party.cells[Vector2i(x,y)]=true
 	blind_party.player=Vector2i(7,7);blind_party.stairs=Vector2i(8,8);blind_party.relic=Vector2i(8,7)

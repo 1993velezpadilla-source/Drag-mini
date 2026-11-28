@@ -3797,7 +3797,7 @@ func enemy_ambush_claim_score(e:Dictionary,post:Vector2i,entry:Vector2i,gate:Vec
 	return clampi(score,-16,16)
 
 func enemy_ambush_attack_ready(e:Dictionary,post:Vector2i,entry:Vector2i)->bool:
-	if distance(post,entry)==1:return true
+	if enemy_melee_adjacent(post,entry):return true
 	var skill:Array=signature_skill(e)
 	var species:String=str(e.get("species",""))
 	if enemy_move_allowed(e,"primary") and int(e.get("cooldown",0))<=0 and attack_aim(post,entry,str(ATTACK_PATTERNS.get(species,"line")),int(skill[0]))!=Vector2i.ZERO:return true
@@ -3818,7 +3818,8 @@ func enemy_ambush_plan(e:Dictionary)->Dictionary:
 		var here:Vector2i=queue[cursor];cursor+=1
 		var depth:int=int(depths[here])
 		if depth>=3:continue
-		for d in DIR:
+		for d in (DIR if ai_legacy_cardinal_replay else COMBAT_DIR):
+			if not step_clear(here,d):continue
 			var q:Vector2i=here+d
 			if depths.has(q) or distance(home,q)>3 or not enemy_ambush_safe_tile(q):continue
 			depths[q]=depth+1;first[q]=q if depth==0 else first[here];queue.append(q)
@@ -3843,7 +3844,7 @@ func enemy_ambush_plan(e:Dictionary)->Dictionary:
 					if q==entry or not room.has_point(q) or distance(q,entry)>3 or not enemy_line_of_sight(q,entry):continue
 					if q==origin and (q==stairs or q==relic or q in side_rewards or traps.has(q) or player_traps.has(q)):continue
 					var range_to_entry:int=distance(q,entry)
-					var legal_attack:bool=attack_aim(q,entry,pattern,int(skill[0]))!=Vector2i.ZERO if ranged else range_to_entry==1
+					var legal_attack:bool=attack_aim(q,entry,pattern,int(skill[0]))!=Vector2i.ZERO if ranged else enemy_melee_adjacent(q,entry)
 					var coordinated:bool=bool(e.get("personality_enabled",false))
 					if coordinated:legal_attack=enemy_ambush_attack_ready(e,q,entry)
 					if not legal_attack:continue
@@ -3886,7 +3887,8 @@ func enemy_ambush_step(e:Dictionary)->Vector2i:
 				var here:Vector2i=queue[cursor];cursor+=1
 				var depth:int=int(depths[here])
 				if depth>=3:continue
-				for d in DIR:
+				for d in (DIR if ai_legacy_cardinal_replay else COMBAT_DIR):
+					if not step_clear(here,d):continue
 					var q:Vector2i=here+d
 					if depths.has(q) or distance(home,q)>3 or not enemy_ambush_safe_tile(q):continue
 					depths[q]=depth+1;first[q]=q if depth==0 else first[here]
@@ -4483,7 +4485,7 @@ func enemy_safe_party_approach(e:Dictionary,target:Vector2i)->Vector2i:
 		reserved=enemy_pack_reserved_posts(e,player)
 		for other in enemies:
 			if enemy_squad_partner(e,other):peers.append(other)
-	var direct:Array[Vector2i]=route(origin,target,true)
+	var direct:Array[Vector2i]=route(origin,target,true,not ai_legacy_cardinal_replay,true)
 	if direct.size()>1:
 		var safe:bool=true
 		for k in range(direct.size()-1):
@@ -4495,9 +4497,10 @@ func enemy_safe_party_approach(e:Dictionary,target:Vector2i)->Vector2i:
 	var cursor:int=0
 	while cursor<queue.size() and cursor<128:
 		var tile:Vector2i=queue[cursor];cursor+=1
-		if tile!=origin and distance(tile,target)==1:return first[tile]
+		if tile!=origin and enemy_melee_adjacent(tile,target):return first[tile]
 		if int(depths[tile])>=8:continue
-		for d in DIR:
+		for d in (DIR if ai_legacy_cardinal_replay else COMBAT_DIR):
+			if not step_clear(tile,d):continue
 			var q:Vector2i=tile+d
 			if depths.has(q) or not free_party_tile(q) or player_traps.has(q) or reserved.has(q):continue
 			if coordinate and enemy_recovery_lane_blocked(peers,q,player,lane_memo):continue
@@ -4512,12 +4515,14 @@ func enemy_party_approach_plan(e:Dictionary)->Dictionary:
 	# Compare distances only against a personally observed player. A hidden
 	# player's actual coordinates must not alter the choice of a visible ally.
 	var max_gap:int=mini(6,enemy_awareness(e))
-	if enemy_live_contact(e,player):max_gap=mini(max_gap,distance(origin,player)-1)
+	if enemy_live_contact(e,player):max_gap=mini(max_gap,enemy_step_distance(origin,player)-1)
 	for gap in range(1,max_gap+1):
 		for j in range(allies.size()):
 			var a:Dictionary=allies[j]
-			if int(a.hp)<=0 or distance(origin,a.pos)!=gap or not enemy_line_of_sight(origin,a.pos):continue
-			if gap==1:return {"index":j,"gap":gap,"step":origin}
+			if int(a.hp)<=0 or enemy_step_distance(origin,a.pos)!=gap or distance(origin,a.pos)>enemy_awareness(e) or not enemy_line_of_sight(origin,a.pos):continue
+			if gap==1:
+				if enemy_melee_adjacent(origin,a.pos):return {"index":j,"gap":gap,"step":origin}
+				continue
 			var step:Vector2i=enemy_safe_party_approach(e,a.pos)
 			if step!=origin:return {"index":j,"gap":gap,"step":step}
 	return {}
