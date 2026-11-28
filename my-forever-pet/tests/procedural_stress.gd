@@ -1176,8 +1176,8 @@ func run_checks()->void:
 	party_only.enemies.append(party_actor)
 	party_only.allies.append({"uid":1000,"pos":Vector2i(3,2),"hp":20,"max_hp":20,"species":"reef_pup"})
 	party_only.allies.append({"uid":1001,"pos":Vector2i(4,3),"hp":20,"max_hp":20,"species":"reef_pup"})
-	var party_plan:Dictionary=party_only.enemy_party_attack_plan(party_actor)
-	if party_plan.get("targets",[]).size()!=2:failures.append("priority ally-only area selection")
+	var party_plan_later:Dictionary=party_only.enemy_party_attack_plan(party_actor)
+	if party_plan_later.get("targets",[]).size()!=2:failures.append("priority ally-only area selection")
 	checks+=1
 	var party_player_hp:int=party_only.hp
 	party_only.enemy_turn_actions()
@@ -1566,6 +1566,46 @@ func run_checks()->void:
 	if ambush.enemy_actions.size()!=1 or ambush.enemy_actions[0].get("phase","")!="attack" or ambush_actor.pp_primary!=11:failures.append("ambush normal learned attack after contact")
 	checks+=1
 	print("KINDRIA_AMBUSH_TACTICS checks=10")
+
+	# Coordination claims depend on visible live peers and expire.
+	var ambush_coord=Rules.new()
+	for y in range(2,7):
+		for x in range(3,8):ambush_coord.cells[Vector2i(x,y)]=true
+	for x in range(1,3):ambush_coord.cells[Vector2i(x,4)]=true
+	ambush_coord.rooms.append(Rect2i(3,2,5,5))
+	ambush_coord.player=Vector2i(9,9);ambush_coord.cells[ambush_coord.player]=true
+	ambush_coord.stairs=Vector2i(10,9);ambush_coord.relic=Vector2i(10,8);ambush_coord.turns=20
+	var ac_entry:=Vector2i(3,4)
+	var ac_gate:=Vector2i(2,4)
+	var ac_actor:Dictionary={"uid":60,"pos":Vector2i(4,4),"hp":20,"kind":0,"species":"rootgnawer","ecology_search_enabled":true,"ecology_role":"sentry","ambush_enabled":true,"personality_enabled":true,"ecology_home":Vector2i(4,4),"pp_primary":12,"pp_secondary":0}
+	var ac_peer:Dictionary={"uid":61,"pos":Vector2i(4,3),"hp":20,"kind":0,"species":"rootgnawer","ecology_search_enabled":true,"ambush_enabled":true,"ambush_post":Vector2i(3,3),"ambush_entry":ac_entry,"ambush_gate":ac_gate,"ambush_plan_turn":19}
+	ambush_coord.enemies.append(ac_actor);ambush_coord.enemies.append(ac_peer)
+	if ambush_coord.enemy_ambush_claim_score(ac_actor,Vector2i(3,3),ac_entry,ac_gate)!=-1000:failures.append("ambush claim excludes duplicate post")
+	checks+=1
+	if ambush_coord.enemy_ambush_claim_score(ac_actor,Vector2i(3,5),ac_entry,ac_gate)<=0:failures.append("ambush opposite entry support")
+	checks+=1
+	ac_peer["sleep_turns"]=2
+	if ambush_coord.enemy_ambush_claim_score(ac_actor,Vector2i(3,3),ac_entry,ac_gate)!=0:failures.append("ambush sleeping peer ignored")
+	ac_peer.erase("sleep_turns")
+	checks+=1
+	ambush_coord.turns=25
+	if ambush_coord.enemy_ambush_claim_score(ac_actor,Vector2i(3,3),ac_entry,ac_gate)!=0:failures.append("ambush expired peer claim")
+	checks+=1
+	ambush_coord.turns=20
+	var ac_plan:Dictionary=ambush_coord.enemy_ambush_plan(ac_actor)
+	if ac_plan.is_empty() or ac_plan.get("post")==Vector2i(3,3) or ac_actor.has("ambush_post"):failures.append("ambush coordinated pure plan")
+	checks+=1
+	ac_actor["ambush_post"]=ac_actor.pos;ac_actor["ambush_entry"]=ac_entry;ac_actor["ambush_gate"]=ac_gate;ac_actor["ambush_plan_turn"]=14
+	if ambush_coord.enemy_ambush_step(ac_actor)!=ac_actor.pos or ac_actor.has("ambush_post") or int(ac_actor.get("ambush_retry",-1))!=23:failures.append("ambush wait expires and retries")
+	checks+=1
+	ac_actor["pp_primary"]=0;ac_actor["pp_secondary"]=0
+	if ambush_coord.enemy_ambush_attack_ready(ac_actor,Vector2i(5,4),ac_entry) or not ambush_coord.enemy_ambush_attack_ready(ac_actor,Vector2i(4,4),ac_entry):failures.append("ambush no imaginary learned attack")
+	checks+=1
+	ac_actor["ambush_post"]=ac_actor.pos;ac_actor["ambush_entry"]=ac_entry;ac_actor["ambush_gate"]=ac_gate;ac_actor["ambush_plan_turn"]=20
+	ambush_coord.player=ac_entry
+	if ambush_coord.enemy_pursuit_target(ac_actor,ac_entry)!=ac_entry or ac_actor.has("ambush_plan_turn"):failures.append("ambush direct sight clears coordinated plan")
+	checks+=1
+	print("KINDRIA_COORDINATED_AMBUSH checks=8")
 	# A direct witness may report a tile, but a listener cannot relay it.
 	var comm=Rules.new()
 	for x in range(1,4):comm.cells[Vector2i(x,3)]=true
@@ -1836,54 +1876,54 @@ func run_checks()->void:
 	print("KINDRIA_DUNGEON_HUNTERS checks=8")
 
 	# Firsthand contact cannot be refreshed by repetition or relayed by listeners.
-	var comm=Rules.new()
+	var comm_v2691=Rules.new()
 	for y in range(1,9):
-		for x in range(1,20):comm.cells[Vector2i(x,y)]=true
-	comm.turns=40
-	comm.player=Vector2i(19,8)
+		for x in range(1,20):comm_v2691.cells[Vector2i(x,y)]=true
+	comm_v2691.turns=40
+	comm_v2691.player=Vector2i(19,8)
 	var contact_tile:=Vector2i(6,4)
 	var comm_witness:Dictionary={"uid":101,"pos":Vector2i(4,4),"hp":30,"kind":0,"species":"bramble_pup","ecology_role":"hunter","ecology_search_enabled":true,"personality_enabled":true,"contact_tile":contact_tile,"contact_turn":39}
 	var comm_listener:Dictionary={"uid":102,"pos":Vector2i(5,4),"hp":30,"kind":0,"species":"leafwisp","ecology_role":"hunter","ecology_search_enabled":true,"personality_enabled":true}
 	var comm_remote:Dictionary={"uid":103,"pos":Vector2i(5,5),"hp":30,"kind":0,"species":"leafwisp","ecology_role":"hunter","ecology_search_enabled":true,"personality_enabled":true}
-	comm.enemies.append(comm_witness);comm.enemies.append(comm_listener)
-	comm.enemy_share_remembered_contact(comm_listener)
+	comm_v2691.enemies.append(comm_witness);comm_v2691.enemies.append(comm_listener)
+	comm_v2691.enemy_share_remembered_contact(comm_listener)
 	if comm_listener.get("alert_tile")!=contact_tile or int(comm_listener.get("alert_until",-1))!=41 or int(comm_listener.get("alert_source",-1))!=101:failures.append("communication firsthand report")
 	checks+=1
-	comm.turns=41
-	comm.enemy_share_remembered_contact(comm_listener)
+	comm_v2691.turns=41
+	comm_v2691.enemy_share_remembered_contact(comm_listener)
 	if int(comm_listener.get("alert_turn",-1))!=39 or int(comm_listener.get("alert_until",-1))!=41:failures.append("communication cannot refresh timestamp")
 	checks+=1
-	comm.enemies.erase(comm_witness);comm.enemies.append(comm_remote)
-	comm.enemy_share_remembered_contact(comm_remote)
+	comm_v2691.enemies.erase(comm_witness);comm_v2691.enemies.append(comm_remote)
+	comm_v2691.enemy_share_remembered_contact(comm_remote)
 	if comm_remote.has("alert_tile") or comm_listener.has("contact_tile"):failures.append("communication no secondhand relay")
 	checks+=1
-	comm.enemies.append(comm_witness)
-	comm.turns=42
-	comm.enemy_share_remembered_contact(comm_remote)
+	comm_v2691.enemies.append(comm_witness)
+	comm_v2691.turns=42
+	comm_v2691.enemy_share_remembered_contact(comm_remote)
 	if comm_remote.has("alert_tile"):failures.append("communication expired contact")
 	checks+=1
-	comm.turns=40
+	comm_v2691.turns=40
 	comm_witness["sleep_turns"]=2
-	comm.enemy_share_remembered_contact(comm_remote)
+	comm_v2691.enemy_share_remembered_contact(comm_remote)
 	if comm_remote.has("alert_tile"):failures.append("communication sleeping witness")
 	checks+=1
 	comm_witness.erase("sleep_turns")
 	comm_remote["last_seen_turn"]=40
-	comm.enemy_share_remembered_contact(comm_remote)
+	comm_v2691.enemy_share_remembered_contact(comm_remote)
 	if comm_remote.has("alert_tile"):failures.append("communication newer firsthand observation")
 	checks+=1
 	comm_remote.erase("last_seen_turn")
-	comm.cells.erase(Vector2i(4,5))
-	comm.enemy_share_remembered_contact(comm_remote)
+	comm_v2691.cells.erase(Vector2i(4,5))
+	comm_v2691.enemy_share_remembered_contact(comm_remote)
 	if comm_remote.has("alert_tile"):failures.append("communication blocked witness")
-	comm.cells[Vector2i(4,5)]=true
+	comm_v2691.cells[Vector2i(4,5)]=true
 	checks+=1
 	comm_remote.pos=Vector2i(18,7)
-	comm.enemy_record_witnessed_loss(comm_witness)
-	if not comm.enemy_recent_squad_loss(comm_listener) or comm.enemy_recent_squad_loss(comm_remote):failures.append("communication visible loss only")
+	comm_v2691.enemy_record_witnessed_loss(comm_witness)
+	if not comm_v2691.enemy_recent_squad_loss(comm_listener) or comm_v2691.enemy_recent_squad_loss(comm_remote):failures.append("communication visible loss only")
 	checks+=1
-	comm.turns=44
-	if comm.enemy_recent_squad_loss(comm_listener):failures.append("communication loss expires")
+	comm_v2691.turns=44
+	if comm_v2691.enemy_recent_squad_loss(comm_listener):failures.append("communication loss expires")
 	checks+=1
 	print("KINDRIA_ENEMY_COMMUNICATION checks=9")
 
@@ -2084,50 +2124,50 @@ func run_checks()->void:
 	checks+=1
 	print("KINDRIA_INTELLIGENT_COUNTERPLAY checks=10")
 	# Pack intentions are local, advisory and bounded to real movement.
-	var pack_fixture=Rules.new()
+	var pack_fixture_hunt=Rules.new()
 	for y in range(1,9):
-		for x in range(1,9):pack_fixture.cells[Vector2i(x,y)]=true
-	pack_fixture.player=Vector2i(4,4);pack_fixture.stairs=Vector2i(8,8);pack_fixture.relic=Vector2i(8,7);pack_fixture.turns=20
-	var pack_actor:Dictionary={"uid":0,"pos":Vector2i(5,6),"hp":30,"kind":0,"species":"rootgnawer","ecology_role":"hunter","ecology_search_enabled":true,"pp_primary":0,"pp_secondary":0}
+		for x in range(1,9):pack_fixture_hunt.cells[Vector2i(x,y)]=true
+	pack_fixture_hunt.player=Vector2i(4,4);pack_fixture_hunt.stairs=Vector2i(8,8);pack_fixture_hunt.relic=Vector2i(8,7);pack_fixture_hunt.turns=20
+	var pack_actor_hunt:Dictionary={"uid":0,"pos":Vector2i(5,6),"hp":30,"kind":0,"species":"rootgnawer","ecology_role":"hunter","ecology_search_enabled":true,"pp_primary":0,"pp_secondary":0}
 	var pack_anchor:Dictionary={"uid":1,"pos":Vector2i(3,4),"hp":30,"kind":0,"species":"bramble_pup","ecology_role":"hunter","ecology_search_enabled":true,"pp_primary":0,"pp_secondary":0}
 	var pack_peer:Dictionary={"uid":2,"pos":Vector2i(6,5),"hp":30,"kind":0,"species":"rootgnawer","ecology_role":"hunter","ecology_search_enabled":true,"pp_primary":0,"pp_secondary":0}
-	pack_fixture.enemies.append(pack_actor);pack_fixture.enemies.append(pack_anchor);pack_fixture.enemies.append(pack_peer)
-	var pack_first:Dictionary=pack_fixture.enemy_pack_intercept_plan(pack_actor,pack_fixture.player)
+	pack_fixture_hunt.enemies.append(pack_actor_hunt);pack_fixture_hunt.enemies.append(pack_anchor);pack_fixture_hunt.enemies.append(pack_peer)
+	var pack_first:Dictionary=pack_fixture_hunt.enemy_pack_intercept_plan(pack_actor_hunt,pack_fixture_hunt.player)
 	var pack_post:Vector2i=pack_first.get("post",Vector2i.ZERO)
-	if pack_first.is_empty() or pack_fixture.distance(pack_post,pack_fixture.player)!=1 or pack_fixture.distance(pack_actor.pos,pack_first.get("step",pack_actor.pos))!=1:failures.append("pack valid interception post")
+	if pack_first.is_empty() or pack_fixture_hunt.distance(pack_post,pack_fixture_hunt.player)!=1 or pack_fixture_hunt.distance(pack_actor_hunt.pos,pack_first.get("step",pack_actor_hunt.pos))!=1:failures.append("pack valid interception post")
 	checks+=1
-	if pack_actor.has("pack_post") or pack_actor.pos!=Vector2i(5,6) or not pack_fixture.enemy_actions.is_empty():failures.append("pack plan purity")
+	if pack_actor_hunt.has("pack_post") or pack_actor_hunt.pos!=Vector2i(5,6) or not pack_fixture_hunt.enemy_actions.is_empty():failures.append("pack plan purity")
 	checks+=1
-	pack_fixture.enemy_pack_commit(pack_peer,pack_fixture.player,pack_post)
-	if not pack_fixture.enemy_pack_reserved_posts(pack_actor,pack_fixture.player).has(pack_post):failures.append("pack visible peer intention")
+	pack_fixture_hunt.enemy_pack_commit(pack_peer,pack_fixture_hunt.player,pack_post)
+	if not pack_fixture_hunt.enemy_pack_reserved_posts(pack_actor_hunt,pack_fixture_hunt.player).has(pack_post):failures.append("pack visible peer intention")
 	checks+=1
-	var pack_alternative:Dictionary=pack_fixture.enemy_pack_intercept_plan(pack_actor,pack_fixture.player)
+	var pack_alternative:Dictionary=pack_fixture_hunt.enemy_pack_intercept_plan(pack_actor_hunt,pack_fixture_hunt.player)
 	if pack_alternative.is_empty() or pack_alternative.get("post",Vector2i.ZERO)==pack_post or pack_alternative.get("step",Vector2i.ZERO)==pack_post:failures.append("pack distinct flank allocation")
 	checks+=1
 	pack_peer["sleep_turns"]=2
-	if pack_fixture.enemy_pack_reserved_posts(pack_actor,pack_fixture.player).has(pack_post):failures.append("pack incapacitated claim ignored")
+	if pack_fixture_hunt.enemy_pack_reserved_posts(pack_actor_hunt,pack_fixture_hunt.player).has(pack_post):failures.append("pack incapacitated claim ignored")
 	pack_peer.erase("sleep_turns")
 	checks+=1
-	pack_fixture.turns=22
-	if not pack_fixture.enemy_pack_reserved_posts(pack_actor,pack_fixture.player).is_empty():failures.append("pack stale claim expires")
+	pack_fixture_hunt.turns=22
+	if not pack_fixture_hunt.enemy_pack_reserved_posts(pack_actor_hunt,pack_fixture_hunt.player).is_empty():failures.append("pack stale claim expires")
 	checks+=1
-	pack_fixture.enemy_pack_commit(pack_peer,pack_fixture.player,pack_post)
-	pack_fixture.traps[pack_post]="snare"
-	if pack_fixture.enemy_pack_reserved_posts(pack_actor,pack_fixture.player).has(pack_post):failures.append("pack hazard invalidates claim")
-	pack_fixture.traps.clear()
+	pack_fixture_hunt.enemy_pack_commit(pack_peer,pack_fixture_hunt.player,pack_post)
+	pack_fixture_hunt.traps[pack_post]="snare"
+	if pack_fixture_hunt.enemy_pack_reserved_posts(pack_actor_hunt,pack_fixture_hunt.player).has(pack_post):failures.append("pack hazard invalidates claim")
+	pack_fixture_hunt.traps.clear()
 	checks+=1
-	if not pack_fixture.enemy_pack_reserved_posts(pack_actor,Vector2i(4,5)).is_empty():failures.append("pack target change invalidates claim")
+	if not pack_fixture_hunt.enemy_pack_reserved_posts(pack_actor_hunt,Vector2i(4,5)).is_empty():failures.append("pack target change invalidates claim")
 	checks+=1
-	pack_fixture.charge_phase="airborne"
-	if not pack_fixture.enemy_pack_intercept_plan(pack_actor,pack_fixture.player).is_empty():failures.append("pack hidden player gate")
-	pack_fixture.charge_phase=""
+	pack_fixture_hunt.charge_phase="airborne"
+	if not pack_fixture_hunt.enemy_pack_intercept_plan(pack_actor_hunt,pack_fixture_hunt.player).is_empty():failures.append("pack hidden player gate")
+	pack_fixture_hunt.charge_phase=""
 	checks+=1
 	pack_peer.erase("pack_post")
-	pack_fixture.enemy_turn_actions()
-	var pack_moves:int=0
-	for action in pack_fixture.enemy_actions:
-		if int(action.get("uid",-1))==0 and str(action.phase)=="move":pack_moves+=1
-	if pack_moves!=1 or int(pack_actor.get("pack_turn",-1))!=23 or pack_actor.pp_primary!=0:failures.append("pack real dispatcher commits once")
+	pack_fixture_hunt.enemy_turn_actions()
+	var pack_moves_hunt:int=0
+	for action in pack_fixture_hunt.enemy_actions:
+		if int(action.get("uid",-1))==0 and str(action.phase)=="move":pack_moves_hunt+=1
+	if pack_moves_hunt!=1 or int(pack_actor_hunt.get("pack_turn",-1))!=23 or pack_actor_hunt.pp_primary!=0:failures.append("pack real dispatcher commits once")
 	checks+=1
 	print("KINDRIA_ENEMY_PACK_HUNTING checks=10")
 	# Dynamic relief is selected from visible healthy teammates, never new abilities.
