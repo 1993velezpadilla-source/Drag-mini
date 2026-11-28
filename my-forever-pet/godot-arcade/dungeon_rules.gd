@@ -1964,7 +1964,9 @@ func enemy_clear_alert(e:Dictionary)->void:
 
 func enemy_share_alerts(observed:Vector2i)->void:
 	if boon_active("decoy"):
-		for e in enemies:enemy_clear_alert(e)
+		for e in enemies:
+			enemy_clear_alert(e)
+			e.erase("contact_tile");e.erase("contact_turn")
 		return
 	if charge_phase in ["underground","airborne","vanish"]:return
 	var witnesses:Array[Dictionary]=[]
@@ -1974,6 +1976,8 @@ func enemy_share_alerts(observed:Vector2i)->void:
 		if not enemy_alert_eligible(e):continue
 		if distance(e.pos,observed)<=enemy_awareness(e) and enemy_line_of_sight(e.pos,observed):
 			witnesses.append(e)
+			if bool(e.get("personality_enabled",false)):
+				e["contact_tile"]=observed;e["contact_turn"]=turns
 			enemy_clear_alert(e)
 		else:listeners.append(e)
 	for listener in listeners:
@@ -1985,9 +1989,46 @@ func enemy_share_alerts(observed:Vector2i)->void:
 			if not enemy_line_of_sight(listener.pos,witness.pos):continue
 			if gap==best_gap and not best.is_empty() and int(witness.get("uid",0))>=int(best.get("uid",0)):continue
 			best=witness;best_gap=gap
-		if best.is_empty():continue
+		if best.is_empty():
+			enemy_share_remembered_contact(listener)
+			continue
 		listener["alert_tile"]=observed;listener["alert_turn"]=turns
 		listener["alert_until"]=turns+ENEMY_ALERT_TTL;listener["alert_source"]=int(best.get("uid",-1))
+
+# Only a first-hand snapshot may be reported. Reports never renew the
+# original observation timestamp or populate another actor's contact memory.
+func enemy_share_remembered_contact(listener:Dictionary)->void:
+	if not bool(listener.get("personality_enabled",false)) or not enemy_alert_eligible(listener):return
+	var best:Dictionary={}
+	var best_turn:int=maxi(int(listener.get("last_seen_turn",-9999)),int(listener.get("alert_turn",-9999)))
+	var best_gap:int=ENEMY_ALERT_RANGE+1
+	for other in enemies:
+		if not other.has("contact_tile") or not enemy_alert_eligible(other) or not enemy_squad_partner(listener,other):continue
+		var seen:int=int(other.get("contact_turn",-9999))
+		var age:int=turns-seen
+		var tile:Vector2i=other.contact_tile
+		if age<1 or age>ENEMY_ALERT_TTL or seen<=int(listener.get("last_seen_turn",-9999)) or seen<=int(listener.get("alert_turn",-9999)):continue
+		if not cells.has(tile) or tile==listener.pos or distance(listener.pos,tile)>enemy_awareness(listener)+2:continue
+		var gap:int=distance(listener.pos,other.pos)
+		if seen<best_turn or (seen==best_turn and gap>best_gap):continue
+		if seen==best_turn and gap==best_gap and not best.is_empty() and int(other.get("uid",0))>=int(best.get("uid",0)):continue
+		best=other;best_turn=seen;best_gap=gap
+	if best.is_empty():return
+	listener["alert_tile"]=best.contact_tile;listener["alert_turn"]=best_turn
+	listener["alert_until"]=best_turn+ENEMY_ALERT_TTL;listener["alert_source"]=int(best.get("uid",-1))
+
+# Witness the loss itself, not its attacker. No hidden target coordinates
+# or damage attribution are inferred from an ally disappearing.
+func enemy_record_witnessed_loss(fallen:Dictionary)->void:
+	if int(fallen.get("decoy_turns",0))>0:return
+	for observer in enemies:
+		if not bool(observer.get("personality_enabled",false)) or not enemy_alert_eligible(observer) or observer.pos==fallen.pos:continue
+		if distance(observer.pos,fallen.pos)>mini(ENEMY_ALERT_RANGE,enemy_awareness(observer)) or not enemy_line_of_sight(observer.pos,fallen.pos):continue
+		observer["squad_loss_turn"]=turns
+
+func enemy_recent_squad_loss(e:Dictionary)->bool:
+	var age:int=turns-int(e.get("squad_loss_turn",-9999))
+	return age>=0 and age<=3 and bool(e.get("personality_enabled",false))
 
 func enemy_alert_target(e:Dictionary)->Vector2i:
 	var origin:Vector2i=e.pos
@@ -2289,6 +2330,7 @@ func enemy_risk_snapshot(e:Dictionary,target:Vector2i)->Dictionary:
 	if recent>=life:risk+=3
 	elif recent*4>=cap:risk+=1
 	risk+=clampi(hostile-friendly,0,2)*2
+	if enemy_recent_squad_loss(e):risk+=2
 	if not support.is_empty():risk-=1
 	if friendly>hostile:risk-=1
 	return {"risk":maxi(0,risk),"friendly":friendly,"hostile":hostile,"support":support,"recent":recent}
@@ -3999,6 +4041,7 @@ func strike(i:int,power:bool=false,style_override:int=-1,move_id:String="",damag
 func remove_defeated_enemy(i:int)->void:
 	if i>=0 and i<enemies.size():
 		var guardian=int(enemies[i].kind)==3
+		enemy_record_witnessed_loss(enemies[i])
 		gain_enemy_ev(enemies[i])
 		drop_held_item(enemies[i])
 		enemies.remove_at(i);defeated+=1;combo+=1;best_combo=maxi(best_combo,combo)
