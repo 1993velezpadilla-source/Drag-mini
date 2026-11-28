@@ -924,6 +924,23 @@ func attack_cardinal_contains(origin:Vector2i,target:Vector2i,d:Vector2i,pattern
 		if not cells.has(tile) or (tile!=vacated and enemy_at(tile)>=0):return false
 	return true
 
+# Symmetric target membership does not depend on the chosen heading.
+# Radius one has a distinct eight-neighbor contract with no actor blocking.
+func attack_symmetric_contains(origin:Vector2i,target:Vector2i,pattern:String,reach:int,vacated:Vector2i=Vector2i(-99999,-99999))->bool:
+	if target==origin or not cells.has(target):return false
+	if pattern=="room":
+		for room in rooms:
+			if room.has_point(origin):return room.has_point(target)
+		return false
+	var delta:Vector2i=target-origin
+	if pattern=="radius" and reach==1:return maxi(absi(delta.x),absi(delta.y))==1
+	if absi(delta.x)+absi(delta.y)>reach:return false
+	if delta.x==0 or delta.y==0:
+		return attack_cardinal_contains(origin,target,Vector2i(signi(delta.x),signi(delta.y)),"line",reach,vacated)
+	if pattern=="cross":return false
+	# Radius permits either of the two cardinal-first L-shaped paths.
+	return attack_cardinal_contains(origin,target,Vector2i(signi(delta.x),0),"corner",reach,vacated) or attack_cardinal_contains(origin,target,Vector2i(0,signi(delta.y)),"corner",reach,vacated)
+
 func attack_aim_contains(origin:Vector2i,target:Vector2i,d:Vector2i,pattern:String,reach:int,prune:bool,work:Dictionary)->bool:
 	if prune and pattern in ["line","front","fan","corner","corner_front"]:
 		if work.has("targeted"):work["targeted"]+=1
@@ -937,7 +954,8 @@ func attack_aim(origin:Vector2i,target:Vector2i,pattern:String,reach:int,prune:b
 	if prune and pattern in ["radius","cross","room"]:
 		var heading:Vector2i=preferred if preferred!=Vector2i.ZERO else DIR[0]
 		if work.has("footprints"):work["footprints"]+=1
-		return heading if attack_footprint(origin,heading,pattern,reach).has(target) else Vector2i.ZERO
+		if work.has("targeted"):work["targeted"]+=1
+		return heading if attack_symmetric_contains(origin,target,pattern,reach) else Vector2i.ZERO
 	if preferred!=Vector2i.ZERO and (not prune or attack_heading_possible(delta,preferred,pattern,reach)):
 		if work.has("footprints"):work["footprints"]+=1
 		if attack_aim_contains(origin,target,preferred,pattern,reach,prune,work):return preferred
@@ -962,7 +980,11 @@ func enemy_projected_attack_aim(e:Dictionary,post:Vector2i,target:Vector2i,patte
 		return heading if attack_cardinal_contains(post,target,heading,pattern,reach,e.pos) else Vector2i.ZERO
 	# These footprints are independent of heading even with projected vacancy.
 	# Keep the first cardinal heading and never reuse live occupancy geometry.
-	var headings:Array=[DIR[0]] if prune_symmetric and pattern in ["radius","cross","room"] else DIR
+	if prune_symmetric and pattern in ["radius","cross","room"]:
+		if work.has("footprints"):work["footprints"]+=1
+		if work.has("targeted"):work["targeted"]+=1
+		return DIR[0] if attack_symmetric_contains(post,target,pattern,reach,e.pos) else Vector2i.ZERO
+	var headings:Array=DIR
 	for d in headings:
 		# Branching attacks can only reach tiles in their forward half-plane.
 		# Retain DIR order for ties and use the full footprint for obstructions.

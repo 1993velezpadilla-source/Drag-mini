@@ -3442,6 +3442,23 @@ func run_checks()->void:
 								targeted_checks+=1
 	checks+=targeted_checks
 	print("KINDRIA_TARGET_ONLY_GEOMETRY checks=%d"%targeted_checks)
+	# Overlapping rooms preserve first-room semantics; blocked radial bends
+	# must accept either legal route, but never pass through a peer.
+	targeted_board.rooms.append(Rect2i(2,2,4,4))
+	targeted_board.rooms.append(Rect2i(4,4,4,4))
+	var symmetric_target_checks:int=0
+	for symmetric_origin in [Vector2i(4,4),Vector2i(5,5),Vector2i(1,1),Vector2i(7,7)]:
+		for symmetric_pattern in ["radius","cross","room"]:
+			for symmetric_reach in [0,1,2,3,6]:
+				for symmetric_vacancy in [Vector2i(-99999,-99999),Vector2i(4,3),Vector2i(5,4)]:
+					var symmetric_reference:Dictionary=targeted_board.compute_attack_footprint(symmetric_origin,Vector2i.UP,symmetric_pattern,symmetric_reach,false,symmetric_vacancy)
+					for symmetric_y in range(1,8):
+						for symmetric_x in range(1,8):
+							var symmetric_tile:=Vector2i(symmetric_x,symmetric_y)
+							if targeted_board.attack_symmetric_contains(symmetric_origin,symmetric_tile,symmetric_pattern,symmetric_reach,symmetric_vacancy)!=symmetric_reference.has(symmetric_tile):failures.append("symmetric target-only membership parity")
+							symmetric_target_checks+=1
+	checks+=symmetric_target_checks
+	print("KINDRIA_SYMMETRIC_TARGET_ONLY checks=%d"%symmetric_target_checks)
 	if recovery_sight.enemy_projected_attack_aim(sight_actor,Vector2i(1,1),recovery_sight.player,"radius",1)!=Vector2i.ZERO:failures.append("projected symmetric unreachable target")
 	checks+=1
 	recovery_sight.enemies.pop_back();sight_actor.pos=projection_origin
