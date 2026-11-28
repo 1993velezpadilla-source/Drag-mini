@@ -2184,6 +2184,53 @@ func enemy_exit_block_step(e:Dictionary,target:Vector2i)->Vector2i:
 		if cells.has(continuation) and (continuation==origin or enemy_at(continuation)<0) and ally_at(continuation)<0:return q
 	return origin
 
+# Congestion recovery is deliberately a fallback, not a new movement budget.
+# A blocked actor can yield a firing lane to a visible ranged partner.
+func enemy_crowd_yield_step(e:Dictionary,target:Vector2i)->Vector2i:
+	var origin:Vector2i=e.pos
+	if not bool(e.get("ecology_search_enabled",false)) or int(e.get("kind",0))==3 or int(e.get("stuck_turns",0))>0 or bool(e.get("windup",false)):return origin
+	if target!=player or distance(origin,target)>enemy_awareness(e) or not enemy_line_of_sight(origin,target):return origin
+	if origin.x!=target.x and origin.y!=target.y:return origin
+	var heading:Vector2i=Vector2i(signi(target.x-origin.x),signi(target.y-origin.y))
+	var partner:Vector2i=origin-heading
+	var index:int=enemy_at(partner)
+	if index<0:return origin
+	var rear:Dictionary=enemies[index]
+	if not enemy_squad_partner(e,rear) or not enemy_line_of_sight(partner,target):return origin
+	var gap:int=distance(partner,target)
+	var species:String=str(rear.get("species",""))
+	var primary:Array=signature_skill(rear)
+	var can_fire:bool=not bool(rear.get("windup",false)) and int(rear.get("cooldown",0))<=0 and enemy_move_allowed(rear,"primary") and str(ATTACK_PATTERNS.get(species,"line"))=="line" and int(primary[0])>=gap
+	if not can_fire and not bool(rear.get("windup",false)) and int(rear.get("alt_cooldown",0))<=0 and enemy_move_allowed(rear,"secondary") and SECONDARY_SKILLS.has(species):
+		var alt:Array=SECONDARY_SKILLS[species]
+		can_fire=str(alt[1])=="line" and int(alt[0])>=gap
+	if not can_fire:return origin
+	# Verify the yielding actor is the only creature obstructing the ray.
+	for step in range(2,gap):
+		var tile:Vector2i=partner+heading*step
+		if not cells.has(tile) or enemy_at(tile)>=0 or ally_at(tile)>=0:return origin
+	var lateral:Vector2i=Vector2i(-heading.y,heading.x)
+	var best:Vector2i=origin
+	var best_score:int=-1
+	for d in [lateral,-lateral]:
+		var q:Vector2i=origin+d
+		if not cells.has(q) or q==stairs or q==relic or q in side_rewards or traps.has(q) or player_traps.has(q) or enemy_at(q)>=0 or ally_at(q)>=0:continue
+		if e.get("crowd_previous",origin)==q and turns-int(e.get("crowd_turn",-9999))<=2:continue
+		var exits:int=0
+		for onward in DIR:
+			var next:Vector2i=q+onward
+			if next!=origin and next!=target and cells.has(next) and enemy_at(next)<0 and ally_at(next)<0 and not traps.has(next) and not player_traps.has(next):exits+=1
+		if exits>best_score:best=q;best_score=exits
+	return best
+
+func enemy_crowd_hold(e:Dictionary,next:Vector2i,target:Vector2i)->bool:
+	# Hold the yielded lane for one subsequent turn, then normal pursuit resumes.
+	if not bool(e.get("ecology_search_enabled",false)) or target!=e.get("crowd_target",Vector2i.ZERO) or turns-int(e.get("crowd_turn",-9999))!=1:return false
+	if next!=e.get("crowd_previous",e.pos):return false
+	var rear_tile:Vector2i=e.get("crowd_partner",e.pos)
+	var index:int=enemy_at(rear_tile)
+	return index>=0 and enemy_squad_partner(e,enemies[index]) and enemy_line_of_sight(rear_tile,target)
+
 func enemy_patrol_destination(e:Dictionary)->Vector2i:
 	var origin:Vector2i=e.pos
 	if str(e.get("ecology_role","hunter"))!="roamer" or int(e.get("stuck_turns",0))>0:return origin
@@ -4153,7 +4200,17 @@ func enemy_turn_actions_impl():
 			if tactical==p and not charged and pursuit_target==player:
 				tactical=enemy_squad_intercept_step(enemies[i],player)
 			if tactical!=p:path.append(tactical)
-			else:path=enemy_approach_route(p,pursuit_target) if enemies[i].has("ecology_role") else route(p,pursuit_target,true)
+			else:
+				path=enemy_approach_route(p,pursuit_target) if enemies[i].has("ecology_role") else route(p,pursuit_target,true)
+				if (path.is_empty() or distance(path[0],player)>=distance(p,player)) and not charged and pursuit_target==player:
+					var yield_tile:Vector2i=enemy_crowd_yield_step(enemies[i],player)
+					if yield_tile!=p:
+						var heading:Vector2i=Vector2i(signi(player.x-p.x),signi(player.y-p.y))
+						enemies[i]["crowd_previous"]=p;enemies[i]["crowd_turn"]=turns
+						enemies[i]["crowd_target"]=player;enemies[i]["crowd_partner"]=p-heading
+						path.clear();path.append(yield_tile)
+				elif not path.is_empty() and enemy_crowd_hold(enemies[i],path[0],pursuit_target):
+					path.clear()
 			if not path.is_empty() and path[0]!=player and enemy_at(path[0])<0:
 				var steps:int=1+int(enemies[i].get("haste_stage",0)) if int(enemies[i].get("haste_turns",0))>0 else 1
 				var destination:Vector2i=p
