@@ -2686,7 +2686,33 @@ func run_checks()->void:
 	party_hunter.erase("stuck_turns")
 	if not party_detour.enemy_target_ally(0) or party_hunter.pos!=party_step or party_detour.enemy_actions.size()!=1 or str(party_detour.enemy_actions[0].phase)!="move" or party_hunter.pp_primary!=0 or party_detour.allies[0].hp!=30:failures.append("party ordinary dispatch commits one safe movement")
 	checks+=1
-	print("KINDRIA_ANTI_STALL checks=132")
+	# The closest visible ally may be unreachable while another is accessible.
+	var party_choice=Rules.new()
+	for y in range(1,8):
+		for x in range(1,8):party_choice.cells[Vector2i(x,y)]=true
+	party_choice.player=Vector2i(6,6);party_choice.stairs=Vector2i(7,7);party_choice.relic=Vector2i(7,6)
+	var choice_hunter:Dictionary={"uid":440,"pos":Vector2i(2,4),"hp":30,"kind":0,"species":"rootgnawer","ecology_role":"hunter","ecology_search_enabled":true,"personality_enabled":true,"pp_primary":0,"pp_secondary":0}
+	party_choice.enemies.append(choice_hunter)
+	party_choice.allies.append({"uid":1000,"pos":Vector2i(4,4),"hp":30,"max_hp":30})
+	party_choice.allies.append({"uid":1001,"pos":Vector2i(2,1),"hp":30,"max_hp":30})
+	var first_choice:Dictionary=party_choice.enemy_party_approach_plan(choice_hunter)
+	if int(first_choice.get("index",-1))!=0 or first_choice.get("step",Vector2i.ZERO)!=Vector2i(3,4):failures.append("party choice nearest reachable target")
+	checks+=1
+	for d in [Vector2i.UP,Vector2i.RIGHT,Vector2i.DOWN,Vector2i.LEFT]:party_choice.traps[Vector2i(4,4)+d]="snare"
+	var second_choice:Dictionary=party_choice.enemy_party_approach_plan(choice_hunter)
+	if int(second_choice.get("index",-1))!=1 or second_choice.get("step",Vector2i.ZERO)!=Vector2i(2,3) or choice_hunter.pos!=Vector2i(2,4) or not party_choice.enemy_actions.is_empty():failures.append("party choice bypasses inaccessible nearest target")
+	checks+=1
+	party_choice.allies[1].hp=0
+	if not party_choice.enemy_party_approach_plan(choice_hunter).is_empty():failures.append("party choice rejects defeated alternative")
+	checks+=1
+	party_choice.allies[1].hp=30
+	party_choice.cells.erase(Vector2i(2,3))
+	if not party_choice.enemy_party_approach_plan(choice_hunter).is_empty():failures.append("party choice rejects concealed alternative")
+	checks+=1
+	party_choice.cells[Vector2i(2,3)]=true
+	if not party_choice.enemy_target_ally(0) or choice_hunter.pos!=Vector2i(2,3) or party_choice.enemy_actions.size()!=1 or choice_hunter.pp_primary!=0:failures.append("party choice dispatch commits alternate legal movement")
+	checks+=1
+	print("KINDRIA_ANTI_STALL checks=137")
 	# A direct witness may report a tile, but a listener cannot relay it.
 	var comm=Rules.new()
 	for x in range(1,4):comm.cells[Vector2i(x,3)]=true
