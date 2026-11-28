@@ -2511,7 +2511,7 @@ func enemy_control_setup_step(e:Dictionary,target:Vector2i)->Vector2i:
 # No new action, PP, damage or RNG is consumed by this evaluation.
 func enemy_combo_followup(e:Dictionary,move:Dictionary,wait:int)->float:
 	var origin:Vector2i=e.pos
-	if int(e.hp)<=0 or distance(origin,player)>enemy_awareness(e) or not enemy_line_of_sight(origin,player):return 0.0
+	if not enemy_alert_eligible(e) or distance(origin,player)>enemy_awareness(e) or not enemy_line_of_sight(origin,player):return 0.0
 	if int(e.get("whiffer_turns",0))>0 or int(e.get("slow_turns",0))>0:return 0.0
 	var status:String=str(move.get("inflict_status",""))
 	var info:Array=ENEMY_TRAINING.get(e.get("species",""),[["normal"],"normal","normal",0,0,"physical"])
@@ -2528,8 +2528,16 @@ func enemy_combo_followup(e:Dictionary,move:Dictionary,wait:int)->float:
 	var best:float=0.0
 	var species:String=str(e.get("species",""))
 	var skill:Array=signature_skill(e)
-	if int(e.get("cooldown",0))<=wait and enemy_move_allowed(e,"primary") and enemy_area_aim(e,str(ATTACK_PATTERNS.get(species,"line")),int(skill[0]))!=Vector2i.ZERO:
-		best=maxf(best,enemy_attack_score(e,skill,false)*(1.0 if not bool(skill[1]) or bool(e.get("windup",false)) else .65))
+	var pattern:String=str(ATTACK_PATTERNS.get(species,"line"))
+	if bool(e.get("windup",false)):
+		var fixed_aim:Vector2i=e.get("aim",Vector2i.ZERO)
+		if fixed_aim!=Vector2i.ZERO and enemy_move_allowed(e,"primary") and attack_footprint(origin,fixed_aim,pattern,int(skill[0])).has(player):
+			return minf(3.0,maxf(0.0,enemy_attack_score(e,skill,false))*gain)
+		return 0.0
+	if int(e.get("cooldown",0))<=wait and enemy_move_allowed(e,"primary") and enemy_area_aim(e,pattern,int(skill[0]))!=Vector2i.ZERO:
+		# An unstarted windup cannot deliver same-round damage.
+		if not bool(skill[1]):best=maxf(best,enemy_attack_score(e,skill,false))
+		elif wait>0:best=maxf(best,enemy_attack_score(e,skill,false)*.35)
 	if int(e.get("alt_cooldown",0))<=wait and not bool(e.get("windup",false)) and SECONDARY_SKILLS.has(species) and enemy_move_allowed(e,"secondary"):
 		var alt:Array=SECONDARY_SKILLS[species]
 		if enemy_area_aim(e,str(alt[1]),int(alt[0]))!=Vector2i.ZERO:
@@ -2541,8 +2549,12 @@ func enemy_combo_setup_bonus(e:Dictionary,move:Dictionary)->float:
 	var own:float=minf(1.5,enemy_combo_followup(e,move,1)*.5)
 	var first:float=0.0
 	var second:float=0.0
+	var after_actor:bool=false
 	for other in enemies:
-		if not enemy_squad_partner(e,other):continue
+		if other.pos==e.pos:
+			after_actor=true;continue
+		# Earlier actors have already spent their action this round.
+		if not after_actor or not enemy_squad_partner(e,other):continue
 		var value:float=enemy_combo_followup(other,move,0)
 		if value>first:second=first;first=value
 		elif value>second:second=value
@@ -2588,6 +2600,7 @@ func enemy_charge_push_bonus(e:Dictionary,plan:Dictionary)->int:
 	return 3 if not shifted.has(e.pos) else 0
 
 func enemy_status_utility(e:Dictionary,move:Dictionary)->float:
+	if int(e.get("whiffer_turns",0))>0:return 0.0
 	var origin:Vector2i=e.pos
 	var gap:int=distance(origin,player)
 	if gap<1 or gap>enemy_awareness(e) or not enemy_line_of_sight(origin,player):return 0.0
@@ -2608,7 +2621,9 @@ func enemy_status_utility(e:Dictionary,move:Dictionary)->float:
 		if boon_active("mist"):return 0.0
 		var deltas:Dictionary=move.get("stat_changes",{})
 		for stat in deltas:
-			if int(deltas[stat])<0 and int(player_stages.get(stat,0))>-2:utility+=2.0
+			var current:int=int(player_stages.get(stat,0))
+			var reduction:int=mini(maxi(0,current+2),maxi(0,-int(deltas[stat])))
+			if reduction>0:utility+=minf(2.5,float(reduction)*1.5)
 		if utility<=0.0:return 0.0
 	# Sleep uses the existing player wait gate; it delays release, never erases PP or charge.
 	if status=="sleep" and enemy_visible_charge_threat(e).has(origin):utility+=3.0
