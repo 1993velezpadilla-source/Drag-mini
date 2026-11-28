@@ -413,26 +413,32 @@ func hud_icon(parent:Node,kind:String,side:int=18)->TextureRect:
 	var item=TextureRect.new();item.texture=action_icon(kind);item.custom_minimum_size=Vector2(side,side)
 	item.expand_mode=TextureRect.EXPAND_IGNORE_SIZE;item.stretch_mode=TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	item.mouse_filter=MOUSE_FILTER_IGNORE;parent.add_child(item);return item
+func compact_style(bg:Color,border:Color,radius:int=9)->StyleBoxFlat:
+	var frame:=style(bg,border,radius)
+	frame.set_border_width_all(1)
+	frame.content_margin_left=7;frame.content_margin_right=7
+	frame.content_margin_top=3;frame.content_margin_bottom=3
+	return frame
+
 func button(parent:Node,value:String,action:Callable,accent:bool=false)->Button:
-	var b=Button.new();b.text=value;b.custom_minimum_size.y=62;b.size_flags_horizontal=SIZE_EXPAND_FILL
-	b.add_theme_font_size_override("font_size",17)
+	var b=Button.new();b.text=value;b.custom_minimum_size.y=36;b.size_flags_horizontal=SIZE_EXPAND_FILL
+	b.add_theme_font_size_override("font_size",14)
 	var action_color=Color("#28744e") if value=="Strike" else Color("#663d9a") if value=="Skill" else Color("#213d50") if value=="Berry" else Color("#183249")
-	var frame=style(action_color,Color("#d6b877"),18);frame.shadow_color=Color("#090f18bb");frame.shadow_size=4;frame.shadow_offset=Vector2(0,3)
-	frame.border_width_bottom=3
+	var frame=compact_style(action_color,Color("#a6a17e"))
 	b.add_theme_stylebox_override("normal",frame)
-	b.add_theme_stylebox_override("hover",style(action_color.lightened(.14),Color("#ffe4a0"),18))
+	b.add_theme_stylebox_override("hover",compact_style(action_color.lightened(.14),Color("#ffe4a0")))
 	if value in ["Strike","Skill","Berry"]:
-		b.icon=action_icon(value);b.expand_icon=true;b.add_theme_constant_override("icon_max_width",27)
-	b.add_theme_stylebox_override("pressed",style(Color("#496b81"),Color("#f6e2a6")))
-	b.add_theme_stylebox_override("disabled",style(Color("#202b36"),Color("#34404e")))
+		b.icon=action_icon(value);b.expand_icon=true;b.add_theme_constant_override("icon_max_width",18)
+	b.add_theme_stylebox_override("pressed",compact_style(Color("#496b81"),Color("#f6e2a6")))
+	b.add_theme_stylebox_override("disabled",compact_style(Color("#202b36"),Color("#34404e")))
 	b.add_theme_color_override("font_disabled_color",Color("#8393a3"))
 	b.pressed.connect(action);parent.add_child(b);return b
 func lab_button(parent:Node,title:String,action:Callable)->Button:
 	var b:=Button.new()
-	b.text=title;b.custom_minimum_size.y=38;b.size_flags_horizontal=SIZE_EXPAND_FILL
+	b.text=title;b.custom_minimum_size.y=30;b.size_flags_horizontal=SIZE_EXPAND_FILL
 	b.add_theme_font_size_override("font_size",14)
-	b.add_theme_stylebox_override("normal",style(Color("#213647"),Color("#456478"),9))
-	b.add_theme_stylebox_override("pressed",style(Color("#365e68"),Color("#95e8cc"),9))
+	b.add_theme_stylebox_override("normal",compact_style(Color("#213647"),Color("#456478")))
+	b.add_theme_stylebox_override("pressed",compact_style(Color("#365e68"),Color("#95e8cc")))
 	b.pressed.connect(action);parent.add_child(b)
 	return b
 
@@ -479,19 +485,19 @@ func lab_build_catalog()->void:
 func lab_build_panel()->void:
 	lab_build_catalog()
 	dev_panel=PanelContainer.new()
-	dev_panel.add_theme_stylebox_override("panel",style(Color("#10232df5"),Color("#91cbb5"),16))
+	dev_panel.add_theme_stylebox_override("panel",compact_style(Color("#10232df5"),Color("#91cbb5"),10))
 	hud_base.add_child(dev_panel)
 	hud_base.move_child(dev_panel,dungeon_footer.get_index())
-	var stack:=VBoxContainer.new();stack.add_theme_constant_override("separation",5);dev_panel.add_child(stack)
+	var stack:=VBoxContainer.new();stack.add_theme_constant_override("separation",3);dev_panel.add_child(stack)
 	var header:=HBoxContainer.new();stack.add_child(header)
-	var heading:=label(header,"DEV · Combat Lab",20,Color("#aff3ce"));heading.size_flags_horizontal=SIZE_EXPAND_FILL
-	var minimize:=lab_button(header,"−",lab_minimize);minimize.size_flags_horizontal=SIZE_SHRINK_END;minimize.custom_minimum_size.x=48;minimize.tooltip_text="Minimize to floating DEV bubble"
+	var heading:=label(header,"DEV · Combat Lab",15,Color("#aff3ce"));heading.size_flags_horizontal=SIZE_EXPAND_FILL
+	var minimize:=lab_button(header,"−",lab_minimize);minimize.size_flags_horizontal=SIZE_SHRINK_END;minimize.custom_minimum_size.x=34;minimize.tooltip_text="Minimize to floating DEV bubble"
 	heading.text="DEV · Combat Lab  ∞"
 	dev_browser=VBoxContainer.new();dev_browser.add_theme_constant_override("separation",4);stack.add_child(dev_browser)
-	dev_search=LineEdit.new();dev_search.placeholder_text="Search name, reference or ID";dev_search.custom_minimum_size.y=36;dev_browser.add_child(dev_search)
+	dev_search=LineEdit.new();dev_search.placeholder_text="Search moves";dev_search.custom_minimum_size.y=30;dev_browser.add_child(dev_search)
 	dev_search.text_changed.connect(func(_value:String):dev_page=0;lab_refresh())
 	var filters:=HBoxContainer.new();dev_browser.add_child(filters)
-	dev_element=OptionButton.new();dev_element.size_flags_horizontal=SIZE_EXPAND_FILL;filters.add_child(dev_element);dev_element.add_item("All elements")
+	dev_element=OptionButton.new();dev_element.size_flags_horizontal=SIZE_EXPAND_FILL;filters.add_child(dev_element);dev_element.add_item("Element")
 	var elements:Array=[]
 	for id in dev_catalog:
 		var element:String=str(dev_catalog[id].type)
@@ -499,9 +505,9 @@ func lab_build_panel()->void:
 	elements.sort()
 	for element in elements:dev_element.add_item(str(element).capitalize())
 	dev_category=OptionButton.new();dev_category.size_flags_horizontal=SIZE_EXPAND_FILL;filters.add_child(dev_category)
-	for category in ["All categories","Physical","Special","Status"]:dev_category.add_item(category)
+	for category in ["Category","Physical","Special","Status"]:dev_category.add_item(category)
 	dev_source=OptionButton.new();dev_source.size_flags_horizontal=SIZE_EXPAND_FILL;filters.add_child(dev_source)
-	for source in ["All sources","EoS","Kindra"]:dev_source.add_item(source)
+	for source in ["Source","EoS","Kindra"]:dev_source.add_item(source)
 	dev_source.item_selected.connect(func(_index:int):dev_page=0;lab_refresh())
 	dev_element.item_selected.connect(func(_index:int):dev_page=0;lab_refresh())
 	dev_category.item_selected.connect(func(_index:int):dev_page=0;lab_refresh())
@@ -510,20 +516,22 @@ func lab_build_panel()->void:
 	dev_prev=lab_button(pager,"‹ Prev",func():dev_page-=1;lab_refresh())
 	dev_page_label=label(pager,"",14,Color("#d2e8e3"));dev_page_label.size_flags_horizontal=SIZE_EXPAND_FILL;dev_page_label.horizontal_alignment=HORIZONTAL_ALIGNMENT_CENTER;dev_page_label.vertical_alignment=VERTICAL_ALIGNMENT_CENTER
 	dev_next=lab_button(pager,"Next ›",func():dev_page+=1;lab_refresh())
-	dev_detail=RichTextLabel.new();dev_detail.custom_minimum_size.y=96;dev_detail.scroll_active=true;dev_detail.bbcode_enabled=false;dev_detail.add_theme_font_size_override("normal_font_size",14);stack.add_child(dev_detail)
-	dev_detail.text="Select a move. Hold and drag to aim.";dev_detail.hide()
-	dev_selected_label=label(stack,"Select a move · tap to cast",13,Color("#c6e8dd"));dev_selected_label.clip_text=true
+	dev_detail=RichTextLabel.new();dev_detail.custom_minimum_size.y=56;dev_detail.scroll_active=true;dev_detail.bbcode_enabled=false;dev_detail.add_theme_font_size_override("normal_font_size",14);stack.add_child(dev_detail)
+	dev_detail.text="Tap a move for details. Tap it again to cast.";dev_detail.hide()
+	dev_selected_label=label(stack,"Tap to select · tap again to cast",12,Color("#c6e8dd"));dev_selected_label.clip_text=true
 	var controls:=HBoxContainer.new();stack.add_child(controls)
 	dev_aim=lab_button(controls,"Aim ↓",func():rotate_combat_aim();lab_update_aim())
-	lab_button(controls,"Moves / Info",lab_toggle_info)
+	var tools:=VBoxContainer.new()
 	lab_button(controls,"Target +",lab_spawn_target)
-	lab_button(controls,"Next floor",func():path.clear();run.dev_next_floor();sync();dev_result.text="Endless floor B%d"%run.floor_number)
-	var tools_row:=HBoxContainer.new();stack.add_child(tools_row)
+	lab_button(controls,"More …",func():tools.visible=not tools.visible)
+	lab_button(controls,"Exit",leave)
+	stack.add_child(tools);tools.hide()
+	var tools_row:=HBoxContainer.new();tools.add_child(tools_row)
 	dev_fx_only=CheckButton.new();dev_fx_only.text="FX only";tools_row.add_child(dev_fx_only)
 	lab_button(tools_row,"Injure",func():run.hp=maxi(1,run.max_hp/2);update_hud();dev_result.text="Healing fixture: HP at 50%")
-	lab_button(tools_row,"Clear targets",func():run.enemies.clear();sync();dev_result.text="Targets cleared")
+	lab_button(tools_row,"Clear",func():run.enemies.clear();sync();dev_result.text="Targets cleared")
+	lab_button(tools,"Next floor",func():path.clear();run.dev_next_floor();sync();dev_result.text="Endless floor B%d"%run.floor_number)
 	dev_result=label(stack,"Ready · tap a move",13,Color("#a7e9bf"));dev_result.clip_text=true
-	lab_button(stack,"Exit sandbox · discard rewards",leave)
 	dev_bubble=PanelContainer.new()
 	dev_bubble.add_theme_stylebox_override("panel",style(Color("#1c6359"),Color("#b1f5d7"),32))
 	dev_bubble.custom_minimum_size=Vector2(64,64);dev_bubble.size=Vector2(64,64)
@@ -557,12 +565,13 @@ func lab_refresh()->void:
 	for index in range(DEV_PAGE_SIZE):
 		var at:int=dev_page*DEV_PAGE_SIZE+index
 		if at>=ids.size():
-			var spacer:=Control.new();spacer.custom_minimum_size.y=34;spacer.size_flags_horizontal=SIZE_EXPAND_FILL;dev_grid.add_child(spacer);continue
+			var spacer:=Control.new();spacer.custom_minimum_size.y=30;spacer.size_flags_horizontal=SIZE_EXPAND_FILL;dev_grid.add_child(spacer);continue
 		var id:String=ids[at]
 		var move:Dictionary=dev_catalog[id]
-		var b:=lab_button(dev_grid,str(move.name),func():pass)
-		bind_attack_gesture(b,move,lab_cast.bind(id),true)
-		b.custom_minimum_size.y=34;b.clip_text=true;b.tooltip_text=str(move.name)+" · "+str(move.type).capitalize()+" · "+str(move.category).capitalize()
+		var b:=lab_button(dev_grid,str(move.name),lab_select_or_cast.bind(id))
+		b.custom_minimum_size.y=30;b.clip_text=true;b.tooltip_text=lab_move_info(id)
+		b.set_meta("lab_move_id",id)
+		if id==dev_selected:b.add_theme_stylebox_override("normal",compact_style(Color("#30564d"),Color("#a4e9c3")))
 	dev_page_label.text="%d/%d · %d moves"%[dev_page+1,pages,ids.size()]
 	dev_prev.disabled=dev_page<=0;dev_next.disabled=dev_page>=pages-1
 
@@ -625,15 +634,39 @@ func lab_preview(id:String)->void:
 	var event:Dictionary={"fx":id,"from":origin,"to":target,"path":target_path,"tiles":tiles}
 	release_charge_phase="";begin_player_cast_pose(event);combat_fx_spawn(event)
 
+func lab_select_or_cast(id:String)->void:
+	if not run.dev_sandbox or not dev_catalog.has(id):return
+	if dev_selected==id:
+		lab_cast(id)
+		return
+	dev_selected=id;path.clear()
+	var m:Dictionary=dev_catalog[id]
+	dev_selected_label.text=str(m.name)+" · "+str(m.type).capitalize()+" · "+str(m.category).capitalize()+" · tap again"
+	dev_detail.text=str(m.what_it_does)+"\n"+lab_move_info(id)
+	dev_detail.show();dev_detail.scroll_to_line(0)
+	dev_result.text="Selected · tap again to cast"
+	for child in dev_grid.get_children():
+		if child is Button:
+			var selected:bool=child.get_meta("lab_move_id","")==id
+			child.add_theme_stylebox_override("normal",compact_style(Color("#30564d") if selected else Color("#213647"),Color("#a4e9c3") if selected else Color("#456478")))
+
+func lab_has_attack_target(id:String)->bool:
+	var profile:=combat_profile(id)
+	if str(profile.pattern)=="self":return true
+	var footprint:Dictionary=run.attack_footprint(run.player,facing,str(profile.pattern),int(profile.range),true)
+	for enemy in run.enemies:
+		if footprint.has(enemy.pos):return true
+	return false
+
 func lab_cast(id:String)->void:
 	if not run.dev_sandbox or not dev_catalog.has(id):return
 	# Starting another explicit FX preview is allowed; real casts finish their return first.
-	if tile_cast_active() and not dev_fx_only.button_pressed:dev_result.text="Returning to origin · wait for landing";return
+	if tile_cast_active():dev_result.text="Returning · tap again after landing";return
 	path.clear();dev_selected=id;dev_detail.text=lab_move_info(id)
 	dev_selected_label.text=str(dev_catalog[id].name)+" · "+str(dev_catalog[id].category).capitalize()+" · "+str(dev_catalog[id].type).capitalize()
-	if dev_fx_only.button_pressed:
+	if dev_fx_only.button_pressed or not lab_has_attack_target(id):
 		lab_preview(id)
-		dev_result.text="FX preview · "+str(dev_catalog[id].name)
+		dev_result.text="Preview · "+str(dev_catalog[id].name)
 	else:
 		var used:bool=run.dev_cast_move(id,facing)
 		var outcome:String=run.dev_cast_outcome
@@ -642,8 +675,11 @@ func lab_cast(id:String)->void:
 			for amount in run.last_move_damage:total+=int(amount)
 			outcome+=" · Damage %d · Heal %d · Hits %d/%d"%[total,run.last_move_healed,run.last_move_hits,run.last_move_attempts]
 		sync()
-		dev_result.text=("Cast · " if used else "Blocked · ")+outcome
-		dev_detail.text=lab_move_info(id)+"\n\nLAST TEST\n"+dev_result.text
+		if not used:
+			lab_preview(id)
+		dev_result.text=("Cast · " if used else "Preview · ")+outcome
+		dev_detail.text=str(dev_catalog[id].what_it_does)+"\n"+lab_move_info(id)+"\n\nLAST TEST\n"+dev_result.text
+		dev_detail.scroll_to_line(0)
 	lab_update_aim()
 
 func lab_minimize()->void:
@@ -678,23 +714,23 @@ func lab_end_drag()->void:
 
 func build_ui():
 	var base=VBoxContainer.new();hud_base=base;add_child(base);base.set_anchors_and_offsets_preset(PRESET_FULL_RECT);base.add_theme_constant_override("separation",0)
-	var header=PanelContainer.new();header.add_theme_stylebox_override("panel",style(Color("#102739"),Color("#e2c081"),20));base.add_child(header)
+	var header=PanelContainer.new();header.add_theme_stylebox_override("panel",compact_style(Color("#102739"),Color("#ae9c72"),10));base.add_child(header)
 	var h=HBoxContainer.new();header.add_child(h)
-	var back=button(h,"‹",leave);back.tooltip_text="Leave expedition";back.size_flags_horizontal=SIZE_SHRINK_BEGIN;back.custom_minimum_size.x=45;back.add_theme_font_size_override("font_size",28)
-	var portrait=TextureRect.new();portrait.custom_minimum_size=Vector2(56,64);portrait.expand_mode=TextureRect.EXPAND_IGNORE_SIZE;portrait.stretch_mode=TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	var back=button(h,"‹",leave);back.tooltip_text="Leave expedition";back.size_flags_horizontal=SIZE_SHRINK_BEGIN;back.custom_minimum_size.x=34;back.add_theme_font_size_override("font_size",20)
+	var portrait=TextureRect.new();portrait.custom_minimum_size=Vector2(36,42);portrait.expand_mode=TextureRect.EXPAND_IGNORE_SIZE;portrait.stretch_mode=TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	var portrait_path="res://assets/pet_%d.png"%companion_id
 	portrait.texture=PixelArt.portrait(portrait_path);portrait.texture_filter=CanvasItem.TEXTURE_FILTER_NEAREST
 	h.add_child(portrait)
-	var info=VBoxContainer.new();info.size_flags_horizontal=SIZE_EXPAND_FILL;h.add_child(info)
+	var info=VBoxContainer.new();info.add_theme_constant_override("separation",1);info.size_flags_horizontal=SIZE_EXPAND_FILL;h.add_child(info)
 	var heading=HBoxContainer.new();heading.add_theme_constant_override("separation",5);info.add_child(heading)
-	hud_icon(heading,["Forest","Reef","Star"][region],22)
-	title_text=label(heading,"",20,Color("#ffe9bd"));title_text.size_flags_horizontal=SIZE_EXPAND_FILL;title_text.clip_text=true
-	hp_bar=ProgressBar.new();hp_bar.max_value=run.max_hp;hp_bar.custom_minimum_size.y=25;hp_bar.show_percentage=false;info.add_child(hp_bar)
-	var life_fill=style(Color("#36b77e"),Color("#a5f5bf"),12);life_fill.set_border_width_all(1)
+	hud_icon(heading,["Forest","Reef","Star"][region],16)
+	title_text=label(heading,"",16,Color("#ffe9bd"));title_text.size_flags_horizontal=SIZE_EXPAND_FILL;title_text.clip_text=true
+	hp_bar=ProgressBar.new();hp_bar.max_value=run.max_hp;hp_bar.custom_minimum_size.y=15;hp_bar.show_percentage=false;info.add_child(hp_bar)
+	var life_fill=compact_style(Color("#36b77e"),Color("#a5f5bf"),7);life_fill.set_border_width_all(1)
 	hp_bar.add_theme_stylebox_override("fill",life_fill)
-	hp_bar.add_theme_stylebox_override("background",style(Color("#0b1825"),Color("#638d86"),12))
-	hp_text=label(hp_bar,"",16,Color.WHITE);hp_text.set_anchors_and_offsets_preset(PRESET_FULL_RECT);hp_text.horizontal_alignment=HORIZONTAL_ALIGNMENT_CENTER;hp_text.vertical_alignment=VERTICAL_ALIGNMENT_CENTER;hp_text.mouse_filter=MOUSE_FILTER_IGNORE
-	hp_text.add_theme_color_override("font_outline_color",Color("#143d30"));hp_text.add_theme_constant_override("outline_size",3)
+	hp_bar.add_theme_stylebox_override("background",compact_style(Color("#0b1825"),Color("#638d86"),7))
+	hp_text=label(hp_bar,"",12,Color.WHITE);hp_text.set_anchors_and_offsets_preset(PRESET_FULL_RECT);hp_text.horizontal_alignment=HORIZONTAL_ALIGNMENT_CENTER;hp_text.vertical_alignment=VERTICAL_ALIGNMENT_CENTER;hp_text.mouse_filter=MOUSE_FILTER_IGNORE
+	hp_text.add_theme_color_override("font_outline_color",Color("#143d30"));hp_text.add_theme_constant_override("outline_size",1)
 	var resources=HBoxContainer.new();resources.add_theme_constant_override("separation",5);info.add_child(resources)
 	hud_icon(resources,"Coin",17);stats=label(resources,"",14,Color("#f6e3bc"))
 	hud_icon(resources,"Relic",17);relic_text=label(resources,"",14,Color("#f1dcff"))
@@ -702,12 +738,14 @@ func build_ui():
 	lab_build_settings(h)
 	area=Control.new();area.size_flags_vertical=SIZE_EXPAND_FILL;area.clip_contents=true;base.add_child(area)
 	var holder=SubViewportContainer.new();holder.stretch=true;holder.stretch_shrink=1;holder.mouse_filter=MOUSE_FILTER_IGNORE;area.add_child(holder);holder.set_anchors_and_offsets_preset(PRESET_FULL_RECT)
-	viewport=SubViewport.new();viewport.own_world_3d=true;viewport.render_target_update_mode=SubViewport.UPDATE_ALWAYS;holder.add_child(viewport)
+	viewport=SubViewport.new();viewport.own_world_3d=true;viewport.audio_listener_enable_3d=true;viewport.render_target_update_mode=SubViewport.UPDATE_ALWAYS;holder.add_child(viewport)
 	world=Node3D.new();viewport.add_child(world)
 	var env=WorldEnvironment.new();env.environment=Environment.new();env.environment.background_mode=Environment.BG_COLOR;env.environment.background_color=palette[2].darkened(.55);env.environment.ambient_light_source=Environment.AMBIENT_SOURCE_COLOR;env.environment.ambient_light_color=[Color("#c7d4bc"),Color("#a0cbdc"),Color("#b4afd9")][region];env.environment.ambient_light_energy=[.29,.36,.32][region];world.add_child(env)
 	var sun=DirectionalLight3D.new();sun.rotation_degrees=Vector3(-48,-35,0);sun.light_color=[Color("#fff0bd"),Color("#a6e5ff"),Color("#dccbff")][region];sun.light_energy=[1.02,.90,.95][region];sun.shadow_enabled=true;world.add_child(sun)
 	var fill=DirectionalLight3D.new();fill.rotation_degrees=Vector3(-35,145,0);fill.light_color=palette[3];fill.light_energy=.23;fill.shadow_enabled=false;world.add_child(fill)
 	camera=Camera3D.new();camera.projection=Camera3D.PROJECTION_ORTHOGONAL;camera.keep_aspect=Camera3D.KEEP_WIDTH;camera.size=DUNGEON_CAMERA_WIDTH;world.add_child(camera);camera.current=true
+	# SubViewport audio is disabled by default. Listen near the tactical focus, not the distant camera.
+	var listener:=AudioListener3D.new();camera.add_child(listener);listener.position=Vector3(0,0,-10.0);listener.make_current()
 	var input=Control.new();area.add_child(input);input.set_anchors_and_offsets_preset(PRESET_FULL_RECT);input.mouse_filter=MOUSE_FILTER_STOP;input.gui_input.connect(touch)
 	map=Control.new();map.mouse_filter=MOUSE_FILTER_IGNORE;area.add_child(map);map.position=Vector2(10,10);map.size=Vector2(146,112);map.draw.connect(draw_map)
 	map_zoom=Button.new();map_zoom.text="+";map_zoom.tooltip_text="Expand explored map";map_zoom.custom_minimum_size=Vector2(32,32);map_zoom.size=Vector2(32,32)
@@ -716,24 +754,28 @@ func build_ui():
 	area.add_child(map_zoom);map_zoom.position=map.position+Vector2(map.size.x-37,5);map_zoom.pressed.connect(toggle_map)
 	feedback=Label.new();feedback.horizontal_alignment=HORIZONTAL_ALIGNMENT_CENTER;feedback.add_theme_font_size_override("font_size",24);feedback.add_theme_color_override("font_outline_color",Color("#142535"));feedback.add_theme_constant_override("outline_size",7);feedback.mouse_filter=MOUSE_FILTER_IGNORE;area.add_child(feedback);feedback.hide()
 	floor_banner=Label.new();floor_banner.horizontal_alignment=HORIZONTAL_ALIGNMENT_CENTER;floor_banner.add_theme_font_size_override("font_size",25);floor_banner.add_theme_color_override("font_outline_color",Color("#142535"));floor_banner.add_theme_constant_override("outline_size",8);floor_banner.mouse_filter=MOUSE_FILTER_IGNORE;area.add_child(floor_banner);floor_banner.hide()
-	var footer=PanelContainer.new();dungeon_footer=footer;footer.add_theme_stylebox_override("panel",style(Color("#102739"),Color("#e2c081"),20));base.add_child(footer)
-	var v=VBoxContainer.new();v.add_theme_constant_override("separation",6);footer.add_child(v)
-	status_text=label(v,"",16,Color("#ffe1a4"));status_text.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART;status_text.custom_minimum_size.y=22;status_text.horizontal_alignment=HORIZONTAL_ALIGNMENT_CENTER
-	var a=HBoxContainer.new();a.add_theme_constant_override("separation",8);v.add_child(a)
+	var footer=PanelContainer.new();dungeon_footer=footer;footer.add_theme_stylebox_override("panel",compact_style(Color("#102739"),Color("#ae9c72"),10));base.add_child(footer)
+	var v=VBoxContainer.new();v.add_theme_constant_override("separation",3);footer.add_child(v)
+	status_text=label(v,"",12,Color("#ffe1a4"));status_text.clip_text=true;status_text.custom_minimum_size.y=16;status_text.horizontal_alignment=HORIZONTAL_ALIGNMENT_CENTER
+	var a=HBoxContainer.new();a.add_theme_constant_override("separation",4);v.add_child(a)
 	attack_button=button(a,"Strike",func():pass,true)
 	bind_attack_gesture(attack_button,{"name":"Strike","type":"normal","category":"physical","pattern":"front","reach":1,"power":6},func():path.clear();run.attack(false,facing);sync())
 	power_button=button(a,"Skill",func():pass)
 	bind_attack_gesture(power_button,{"name":"Skill","type":"variable","category":"special" if run.skill_kind==1 else "physical","pattern":"line" if run.skill_kind==1 else "front","reach":2 if run.skill_kind==1 else 1,"power":10},func():path.clear();run.attack(true,facing);sync())
 	heal_button=button(a,"Berry",func():path.clear();run.heal();sync())
-	var tactical=HBoxContainer.new();tactical.add_theme_constant_override("separation",8);v.add_child(tactical)
-	aim_button=button(tactical,"Aim ↓",func():rotate_combat_aim())
-	special_button=button(tactical,"Leaf Dart",func():pass)
+	aim_button=button(a,"Aim ↓",func():rotate_combat_aim())
+	special_button=button(a,"Leaf Dart",func():pass)
 	bind_attack_gesture(special_button,{"name":"Leaf Dart","type":"grass","category":"special","pattern":"line","reach":2,"power":10},func():path.clear();run.attack(true,facing,1);sync())
 	if not run.equipped_moves.is_empty():
 		power_button.hide();special_button.hide()
-		var skills=GridContainer.new();skills.columns=2;v.add_child(skills)
+		var skills=GridContainer.new();skills.columns=2;skills.add_theme_constant_override("h_separation",4);skills.add_theme_constant_override("v_separation",3);v.add_child(skills)
+		if run.equipped_moves.size()>2:
+			var expand_moves:=button(a,"Moves",func():skills.visible=not skills.visible)
+			expand_moves.tooltip_text="Expand or collapse equipped moves"
+			skills.hide()
 		for id in run.equipped_moves:
 			var b=button(skills,str(Rules.MOVE_LIBRARY[id].name),func():pass)
+			b.clip_text=true
 			bind_attack_gesture(b,Rules.MOVE_LIBRARY[id],func():path.clear();run.cast_move(id,facing);sync())
 			b.size_flags_horizontal=Control.SIZE_EXPAND_FILL
 			move_buttons.append(b)
@@ -19244,6 +19286,7 @@ func update_hud():
 	if run.stockpile_count>0:status_text.text+=" · Reserve %d/3"%run.stockpile_count
 	if not run.temporary_type.is_empty() or not run.adaptive_type.is_empty():status_text.text+=" · "+str(run.current_player_types()[0]).capitalize()
 	if run.player_slow_turns>0:status_text.text+=" · Slowed"
+	status_text.tooltip_text=status_text.text
 	if is_instance_valid(aim_button):aim_button.text="Aim "+["↑","↗","→","↘","↓","↙","←","↖"][maxi(0,Rules.DIR8.find(facing))]
 	if is_instance_valid(special_button):special_button.disabled=run.energy<2
 	for i in range(move_buttons.size()):
