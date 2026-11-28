@@ -580,6 +580,56 @@ func run_checks()->void:
 	if pack_fixture.enemy_cooperative_step(pack_actor,pack_fixture.player,"front",1)!=pack_actor.pos:failures.append("cooperative preserve valid attack")
 	checks+=1
 	print("KINDRIA_COOPERATIVE_AI flank=2 gates=2 turn=1 preserve=1")
+	# Injured cautious species retreat briefly; aggressive and boss species stand their ground.
+	var survival_fixture=Rules.new()
+	for y in range(1,8):
+		for x in range(1,8):survival_fixture.cells[Vector2i(x,y)]=true
+	survival_fixture.player=Vector2i(4,4)
+	survival_fixture.stairs=Vector2i(7,7)
+	survival_fixture.relic=Vector2i(7,6)
+	var survival_origin:=Vector2i(3,4)
+	var survivor:Dictionary={"uid":0,"pos":survival_origin,"hp":6,"max_hp":30,"kind":1,"species":"leafwisp","ecology_role":"scout","ecology_search_enabled":true,"pp_primary":12,"pp_secondary":10,"cooldown":2}
+	survival_fixture.enemies.append(survivor)
+	var retreat_step:Vector2i=survival_fixture.enemy_retreat_step(survivor,survival_fixture.player)
+	if survival_fixture.distance(retreat_step,survival_fixture.player)!=2 or survivor.pos!=survival_origin or survivor.hp!=6 or survivor.pp_primary!=12:failures.append("survival cautious retreat purity")
+	checks+=1
+	survivor["species"]="bramble_pup"
+	if survival_fixture.enemy_retreat_step(survivor,survival_fixture.player)!=survival_origin:failures.append("survival aggressive courage")
+	survivor["species"]="shellguard"
+	if survival_fixture.enemy_survival_profile(survivor)!="defensive" or survival_fixture.enemy_retreat_step(survivor,survival_fixture.player)!=survival_origin:failures.append("survival defensive hold")
+	survivor["species"]="leafwisp"
+	checks+=2
+	for gate in ["windup","monster_house","stuck_turns","retreat_steps"]:
+		survivor[gate]=2 if gate=="retreat_steps" else 1 if gate=="stuck_turns" else true
+		if survival_fixture.enemy_retreat_step(survivor,survival_fixture.player)!=survival_origin:failures.append("survival gate "+gate)
+		survivor.erase(gate)
+		checks+=1
+	survivor["hp"]=15
+	if survival_fixture.enemy_retreat_step(survivor,survival_fixture.player)!=survival_origin:failures.append("survival healthy hold")
+	survivor["hp"]=6
+	checks+=1
+	survival_fixture.traps[retreat_step]="spike"
+	var alternative_retreat:Vector2i=survival_fixture.enemy_retreat_step(survivor,survival_fixture.player)
+	if alternative_retreat==retreat_step or alternative_retreat==survival_origin:failures.append("survival trap avoidance")
+	survival_fixture.traps.clear()
+	checks+=1
+	survival_fixture.enemy_turn_actions()
+	var survival_moves:int=0
+	var survival_attacks:int=0
+	for action in survival_fixture.enemy_actions:
+		if int(action.get("uid",-1))!=0:continue
+		if action.get("phase","")=="move":survival_moves+=1
+		if action.get("phase","")=="attack":survival_attacks+=1
+	if survival_moves!=1 or survival_attacks!=0 or survivor.get("retreat_steps",0)!=1 or survivor.pp_primary!=12 or survivor.cooldown!=1:failures.append("survival actual retreat turn")
+	checks+=1
+	survival_fixture.enemy_turn_actions()
+	if survivor.get("retreat_steps",0)!=2 or survival_fixture.enemy_retreat_step(survivor,survival_fixture.player)!=survivor.pos:failures.append("survival bounded retreat")
+	checks+=1
+	survivor["hp"]=20
+	survival_fixture.enemy_turn_actions()
+	if survivor.has("retreat_steps"):failures.append("survival rearm after recovery")
+	checks+=1
+	print("KINDRIA_SURVIVAL_AI profiles=3 gates=5 turn=1 budget=2 safety=1")
 	# Actual disk I/O, legacy migration, corruption recovery, and resumed writes.
 	var test_path:String="user://kindria_procedural_test_"+str(OS.get_process_id())+".cfg"
 	var exact:Array[String]=["legacy exact".sha256_text()]
