@@ -419,18 +419,29 @@ func replay_recovery_case(failures:Array[String])->int:
 			actor["personality_enabled"]=true
 			actor["house_role"]=arena.house_tactical_role(actor)
 	traced.ai_recovery_trace_uid=201
+	traced.ai_wait_audit_enabled=true
+	var wait_evidence:Dictionary={}
 	var trace_count:int=0
 	for round_index in range(8):
 		enemy_integration_input(traced,round_index,2)
 		enemy_integration_input(plain,round_index,2)
 		traced.enemy_turn_actions();plain.enemy_turn_actions()
+		if round_index in [3,4,5]:wait_evidence[round_index]=traced.ai_wait_audit.get(201,{}).duplicate(true)
+		if not plain.ai_wait_audit.is_empty():failures.append("disabled wait audit captured data")
 		if traced.enemies!=plain.enemies or traced.allies!=plain.allies or traced.player!=plain.player or traced.hp!=plain.hp or traced.enemy_actions!=plain.enemy_actions or traced.rng.state!=plain.rng.state or traced.player_boons!=plain.player_boons or traced.traps!=plain.traps or traced.finished!=plain.finished or not plain.ai_recovery_trace.is_empty():failures.append("recovery trace alters game state %d"%round_index)
 		if not traced.ai_recovery_trace.is_empty():
 			trace_count+=1
 			print("KINDRIA_RECOVERY_DECISION round=",round_index," trace=",traced.ai_recovery_trace)
 	if trace_count==0:failures.append("recovery replay captured no decision")
+	var protected_wait:Dictionary=wait_evidence.get(3,{})
+	var guarded_wait:Dictionary=wait_evidence.get(4,{})
+	var firing_wait:Dictionary=wait_evidence.get(5,{})
+	if protected_wait.get("reason","")!="protect":failures.append("wait replay missing actual protect evidence")
+	if guarded_wait.get("reason","")!="opposing_guard" or int(guarded_wait.get("guards",0))<1:failures.append("wait replay missing opposing guard evidence")
+	if firing_wait.get("reason","")!="friendly_lane" or int(firing_wait.get("lanes",0))<1:failures.append("wait replay missing live firing lane evidence")
+	print("KINDRIA_WAIT_REPLAY evidence=",wait_evidence)
 	print("KINDRIA_RECOVERY_REPLAY turns=8 traces=",trace_count)
-	return 9
+	return 12
 
 # V27.1: ordinary ecology actors, not just Monster House actors, in constrained
 # topology. Run identical inputs with and without caches and compare outcomes.
