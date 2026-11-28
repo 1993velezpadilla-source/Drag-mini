@@ -96,6 +96,65 @@ func ai_cache_regressions(failures:Array[String])->int:
 	print("KINDRIA_AI_CACHE comparisons=",count," hits=",total_hits," misses=",total_misses," cached_usec=",cached_usec," uncached_usec=",reference_usec)
 	return count
 
+# Differential paths include disconnected terrain, crowding and tie cases.
+func ai_path_regressions(failures:Array[String])->int:
+	var checks_local:int=0
+	var expanded_reference:int=0
+	var expanded_optimized:int=0
+	var fast_count:int=0
+	var reuse_count:int=0
+	var path_rng:=RandomNumberGenerator.new()
+	path_rng.seed=663001
+	for sample in range(128):
+		var arena=Rules.new()
+		for y in range(1,10):
+			for x in range(1,10):
+				if path_rng.randi_range(0,99)>=23:arena.cells[Vector2i(x,y)]=true
+		var origin:=Vector2i(1+sample%3,1+sample%7)
+		var target:=Vector2i(7+sample%3,7+sample%3)
+		if sample%4==0:target=Vector2i(9,origin.y)
+		arena.cells[origin]=true;arena.cells[target]=true
+		arena.player=target
+		for j in range(5):
+			var tile:=Vector2i(path_rng.randi_range(1,9),path_rng.randi_range(1,9))
+			if tile!=origin and tile!=target and arena.cells.has(tile) and arena.enemy_at(tile)<0:
+				arena.enemies.append({"uid":j,"pos":tile,"hp":20})
+		arena.ai_cache_enabled=false;arena.ai_begin_turn_cache();arena.ai_begin_actor_cache()
+		var reference:Array[Vector2i]=arena.enemy_approach_route(origin,target)
+		var diagonal_reference:Array[Vector2i]=arena.route(origin,target,true,true)
+		expanded_reference+=arena.ai_path_nodes
+		arena.ai_end_turn_cache()
+		arena.ai_cache_enabled=true;arena.ai_begin_turn_cache();arena.ai_begin_actor_cache()
+		var optimized:Array[Vector2i]=arena.enemy_approach_route(origin,target)
+		var diagonal_optimized:Array[Vector2i]=arena.route(origin,target,true,true)
+		expanded_optimized+=arena.ai_path_nodes
+		fast_count+=arena.ai_path_fast_routes;reuse_count+=arena.ai_path_reused_searches
+		if optimized!=reference:failures.append("path cardinal equivalence %d"%sample)
+		if diagonal_optimized!=diagonal_reference:failures.append("path diagonal tie equivalence %d"%sample)
+		arena.ai_end_turn_cache()
+		checks_local+=2
+	# Guaranteed straight and blocked-corridor cases exercise both fast paths.
+	var corridor=Rules.new()
+	for x in range(1,9):corridor.cells[Vector2i(x,3)]=true
+	corridor.player=Vector2i(8,3)
+	corridor.ai_begin_turn_cache();corridor.ai_begin_actor_cache()
+	var straight:Array[Vector2i]=corridor.enemy_approach_route(Vector2i(1,3),corridor.player)
+	if straight.size()!=7 or corridor.ai_path_fast_routes!=1 or corridor.ai_path_nodes!=0:failures.append("path straight unique shortest")
+	corridor.ai_end_turn_cache()
+	checks_local+=1
+	corridor.enemies.append({"pos":Vector2i(5,3),"hp":20})
+	corridor.ai_cache_enabled=false;corridor.ai_begin_turn_cache();corridor.ai_begin_actor_cache()
+	var blocked_reference:Array[Vector2i]=corridor.enemy_approach_route(Vector2i(1,3),corridor.player)
+	var blocked_nodes:int=corridor.ai_path_nodes
+	corridor.ai_end_turn_cache()
+	corridor.ai_cache_enabled=true;corridor.ai_begin_turn_cache();corridor.ai_begin_actor_cache()
+	var blocked_optimized:Array[Vector2i]=corridor.enemy_approach_route(Vector2i(1,3),corridor.player)
+	if blocked_optimized!=blocked_reference or blocked_optimized.size()!=3 or corridor.ai_path_reused_searches!=1 or corridor.ai_path_nodes>=blocked_nodes:failures.append("path blocked search reuse")
+	corridor.ai_end_turn_cache()
+	checks_local+=1
+	print("KINDRIA_PATH_OPTIMIZATION checks=",checks_local," reference_nodes=",expanded_reference," optimized_nodes=",expanded_optimized," fast=",fast_count," reused=",reuse_count)
+	return checks_local
+
 func run_checks()->void:
 	for mode in ["--history-write","--history-read"]:
 		if mode in OS.get_cmdline_user_args():restart_check(mode);return
@@ -1256,6 +1315,7 @@ func run_checks()->void:
 			checks+=1
 	print("KINDRIA_AI_STABILITY turns=",stability_turns," scenarios=32")
 	checks+=ai_cache_regressions(failures)
+	checks+=ai_path_regressions(failures)
 	# Actual disk I/O, legacy migration, corruption recovery, and resumed writes.
 	var test_path:String="user://kindria_procedural_test_"+str(OS.get_process_id())+".cfg"
 	var exact:Array[String]=["legacy exact".sha256_text()]
