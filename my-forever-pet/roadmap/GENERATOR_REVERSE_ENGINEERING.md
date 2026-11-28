@@ -377,3 +377,9 @@ Independent biome/terrain and room-event profiles, optional treasure branches, M
 - A witnessed consecutive voluntary cardinal movement supplies a short-lived heading preference tied to that observed location. No current hidden player coordinate is used as a search objective. Existing occupancy rules still prevent moving into occupied cells.
 - Visible active peers sharing the same search anchor can reserve local search destinations for up to one turn after publication. Expired or incapacitated peers' claims are ignored. Direct reacquisition clears the search and its claims.
 - Implementation f9bbd916a03197d76ed118a25fac5b6424bcc2d9; eight authored regression checks b5b6bfb2b0c3d08e4e372e61093ab8959cd7e4d1. Search depth, radius and weights are provisional. No omniscient path to hidden players, additional actions or permanent tracking. CI and Android execution remain unverified.
+
+
+## V26.91 — Intelligent Enemy Communication 2.0
+- Personality-enabled direct witnesses retain a timestamped contact snapshot. Nearby active visible peers can receive a remembered sighting up to two turns from the original observation, never from a secondhand recipient. Newer personal knowledge wins; reporting does not refresh expiry. Decoy clears contact snapshots.
+- Visible nearby witnesses of a defeated non-decoy creature retain a local loss marker for three turns and gain two points of risk in the existing risk assessment. No inferred attacker or hidden target, extra action, damage or movement. Existing finisher priority, safe terrain and profile restrictions remain in place.
+- Implementation b8bbe2fa15268e532435bb568dd6a736ba0cd7fc; nine authored regression checks 174e9081a7811b0bdaf05c559a3fc5ab709f7137. Range, TTL and risk weighting are provisional. CI and Android execution not yet verified.
