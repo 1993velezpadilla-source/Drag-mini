@@ -1532,6 +1532,58 @@ func reset_floor_combat_presentation()->void:
 	enemy_actions.clear()
 	player_attack_cells.clear();player_attack_path.clear()
 
+# Room encounters redistribute existing floor budgets instead of adding paid power.
+const ENCOUNTER_PROFILES=["Classic","Patrol","Supply cache","Guarded cache","Hazard pocket"]
+var encounter_profile:int=0
+var encounter_room:int=-1
+var encounter_enemy_count:int=0
+var encounter_loot_count:int=0
+var encounter_trap_count:int=0
+var encounter_rng:=RandomNumberGenerator.new()
+
+func encounter_free_tile(p:Vector2i)->bool:
+	return cells.has(p) and p!=player and p!=stairs and p!=relic and p not in side_rewards and distance(p,player)>=4 and enemy_at(p)<0 and ally_at(p)<0 and not loot.has(p) and not traps.has(p)
+
+func arrange_floor_encounter()->void:
+	encounter_profile=0;encounter_room=-1;encounter_enemy_count=0;encounter_loot_count=0;encounter_trap_count=0
+	if starter_woods or floor_number<2 or not guardian_defeated or floor_kind==3:return
+	encounter_profile=encounter_rng.randi_range(0,ENCOUNTER_PROFILES.size()-1)
+	if encounter_profile==0:return
+	var candidates:Array[int]=[]
+	for i in range(rooms.size()):
+		var room:Rect2i=rooms[i]
+		if room.has_point(player) or room.has_point(stairs) or room.has_point(relic):continue
+		var free:int=0
+		for y in range(room.position.y,room.end.y):
+			for x in range(room.position.x,room.end.x):
+				if encounter_free_tile(Vector2i(x,y)):free+=1
+		if free>=6:candidates.append(i)
+	if candidates.is_empty():encounter_profile=0;return
+	encounter_room=candidates[encounter_rng.randi_range(0,candidates.size()-1)]
+	var target:Rect2i=rooms[encounter_room]
+	var spots:Array[Vector2i]=[]
+	for y in range(target.position.y,target.end.y):
+		for x in range(target.position.x,target.end.x):
+			var p:=Vector2i(x,y)
+			if encounter_free_tile(p):spots.append(p)
+	for i in range(spots.size()-1,0,-1):
+		var j:int=encounter_rng.randi_range(0,i);var swap:Vector2i=spots[i];spots[i]=spots[j];spots[j]=swap
+	var recipe:Vector3i=[Vector3i.ZERO,Vector3i(3,0,0),Vector3i(0,4,0),Vector3i(2,3,0),Vector3i(0,1,3)][encounter_profile]
+	for e in enemies:
+		if encounter_enemy_count>=recipe.x or spots.is_empty():break
+		if target.has_point(e.pos):continue
+		e.pos=spots.pop_back();encounter_enemy_count+=1
+	for p in loot.keys():
+		if encounter_loot_count>=recipe.y or spots.is_empty():break
+		if target.has_point(p) or p==relic or p in side_rewards or distance(p,player)<4:continue
+		if loot[p] not in ["coin","material","potion","trail_fruit"]:continue
+		var kind:String=loot[p]
+		loot.erase(p);loot[spots.pop_back()]=kind;encounter_loot_count+=1
+	for p in traps.keys():
+		if encounter_trap_count>=recipe.z or spots.is_empty():break
+		if target.has_point(p):continue
+		traps.erase(p);traps[spots.pop_back()]=true;encounter_trap_count+=1
+
 func generate_floor():
 	clear_combat_effects()
 	reset_floor_combat_presentation()
@@ -1539,6 +1591,7 @@ func generate_floor():
 	ecology_rng.seed=seed_value+floor_number*65537+region*4099+197
 	structure_rng.seed=seed_value+floor_number*131071+region*12289+311
 	network_rng.seed=seed_value+floor_number*196613+region*16381+419
+	encounter_rng.seed=seed_value+floor_number*262147+region*32771+521
 	initialize_hidden_power(seed_value)
 	cells.clear();rooms.clear();enemies.clear();loot.clear();revealed.clear();traps.clear();player_traps.clear();revealed_player_traps.clear();explored_rooms.clear()
 	floor_bonus=0;player_rested=false
@@ -1603,6 +1656,7 @@ func generate_floor():
 		var p:Vector2i=player+d
 		if cells.has(p) and not loot.has(p):
 			loot[p]="coin";break
+	arrange_floor_encounter()
 	energy=mini(8,energy+2)
 	place_allies()
 	prepare_monster_house()
@@ -1617,7 +1671,7 @@ func monster_house_candidates()->Array[int]:
 	var valid:Array[int]=[]
 	for i in range(rooms.size()):
 		var room:Rect2i=rooms[i]
-		if room.has_point(player) or room.has_point(relic):continue
+		if i==encounter_room or room.has_point(player) or room.has_point(relic):continue
 		var free_count:int=0
 		for y in range(room.position.y,room.end.y):
 			for x in range(room.position.x,room.end.x):
