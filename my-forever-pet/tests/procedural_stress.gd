@@ -3459,6 +3459,24 @@ func run_checks()->void:
 							symmetric_target_checks+=1
 	checks+=symmetric_target_checks
 	print("KINDRIA_SYMMETRIC_TARGET_ONLY checks=%d"%symmetric_target_checks)
+	# Fixed headings include all eight directions, and must not silently rotate.
+	var fixed_target_checks:int=0
+	for fixed_board in range(2):
+		if fixed_board==1:
+			targeted_board.cells[Vector2i(3,4)]=true
+			targeted_board.cells.erase(Vector2i(4,5))
+		for fixed_origin in [Vector2i(4,4),Vector2i(3,3),Vector2i(5,5)]:
+			for fixed_direction in Rules.DIR8:
+				for fixed_pattern in ["line","front","fan","corner","corner_front","radius","cross","room"]:
+					for fixed_reach in [0,1,2,3,6]:
+						var fixed_reference:Dictionary=targeted_board.compute_attack_footprint(fixed_origin,fixed_direction,fixed_pattern,fixed_reach)
+						for fixed_y in range(1,8):
+							for fixed_x in range(1,8):
+								var fixed_tile:=Vector2i(fixed_x,fixed_y)
+								if targeted_board.attack_fixed_contains(fixed_origin,fixed_tile,fixed_direction,fixed_pattern,fixed_reach)!=fixed_reference.has(fixed_tile):failures.append("fixed heading eight-way membership parity")
+								fixed_target_checks+=1
+	checks+=fixed_target_checks
+	print("KINDRIA_FIXED_HEADING_GEOMETRY checks=%d"%fixed_target_checks)
 	if recovery_sight.enemy_projected_attack_aim(sight_actor,Vector2i(1,1),recovery_sight.player,"radius",1)!=Vector2i.ZERO:failures.append("projected symmetric unreachable target")
 	checks+=1
 	recovery_sight.enemies.pop_back();sight_actor.pos=projection_origin

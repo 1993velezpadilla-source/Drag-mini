@@ -941,6 +941,34 @@ func attack_symmetric_contains(origin:Vector2i,target:Vector2i,pattern:String,re
 	# Radius permits either of the two cardinal-first L-shaped paths.
 	return attack_cardinal_contains(origin,target,Vector2i(signi(delta.x),0),"corner",reach,vacated) or attack_cardinal_contains(origin,target,Vector2i(0,signi(delta.y)),"corner",reach,vacated)
 
+# Check one ray with the same strict corner and peer obstruction as footprints.
+func attack_ray_contains(origin:Vector2i,target:Vector2i,d:Vector2i,reach:int)->bool:
+	var delta:Vector2i=target-origin
+	var steps:int=maxi(absi(delta.x),absi(delta.y))
+	if steps<1 or steps>reach or delta!=d*steps:return false
+	for i in range(1,steps+1):
+		var tile:Vector2i=origin+d*i
+		if not step_clear(tile-d,d) or enemy_at(tile)>=0:return false
+	return true
+
+# Fixed-heading checks cannot rotate a committed telegraph. Diagonal fan and
+# corner use three independent rays, unlike their cardinal branching geometry.
+func attack_fixed_contains(origin:Vector2i,target:Vector2i,d:Vector2i,pattern:String,reach:int,prune:bool=true)->bool:
+	if not prune:return attack_footprint(origin,d,pattern,reach).has(target)
+	if pattern in ["radius","cross","room"]:return attack_symmetric_contains(origin,target,pattern,reach)
+	if d in DIR and pattern in ["line","front","fan","corner","corner_front"]:
+		return attack_cardinal_contains(origin,target,d,pattern,reach)
+	if d in DIR8 and d.x!=0 and d.y!=0:
+		if pattern in ["line","front"]:
+			return attack_ray_contains(origin,target,d,1 if pattern=="front" else reach)
+		if pattern in ["fan","corner","corner_front"]:
+			for ray in [d,Vector2i(d.x,0),Vector2i(0,d.y)]:
+				if pattern=="corner_front":
+					if target==origin+ray and step_clear(origin,ray,true):return true
+				elif attack_ray_contains(origin,target,ray,reach):return true
+			return false
+	return attack_footprint(origin,d,pattern,reach).has(target)
+
 func attack_aim_contains(origin:Vector2i,target:Vector2i,d:Vector2i,pattern:String,reach:int,prune:bool,work:Dictionary)->bool:
 	if prune and pattern in ["line","front","fan","corner","corner_front"]:
 		if work.has("targeted"):work["targeted"]+=1
@@ -3194,7 +3222,7 @@ func enemy_push_attack_coverage(e:Dictionary,tile:Vector2i)->int:
 	var pattern:String=str(ATTACK_PATTERNS.get(species,"line"))
 	if bool(e.get("windup",false)):
 		var aim:Vector2i=e.get("aim",Vector2i.ZERO)
-		return 2 if aim!=Vector2i.ZERO and enemy_move_allowed(e,"primary") and attack_footprint(origin,aim,pattern,int(skill[0])).has(tile) and enemy_attack_score(e,skill,false)>0.0 else 0
+		return 2 if aim!=Vector2i.ZERO and enemy_move_allowed(e,"primary") and attack_fixed_contains(origin,tile,aim,pattern,int(skill[0])) and enemy_attack_score(e,skill,false)>0.0 else 0
 	if int(e.get("cooldown",0))<=0 and not bool(skill[1]) and enemy_move_allowed(e,"primary") and attack_aim(origin,tile,pattern,int(skill[0]))!=Vector2i.ZERO and enemy_attack_score(e,skill,false)>0.0:return 2
 	if int(e.get("alt_cooldown",0))<=0 and SECONDARY_SKILLS.has(species) and enemy_move_allowed(e,"secondary"):
 		var alt:Array=SECONDARY_SKILLS[species]
@@ -3348,7 +3376,7 @@ func enemy_combo_followup(e:Dictionary,move:Dictionary,wait:int)->float:
 	var pattern:String=str(ATTACK_PATTERNS.get(species,"line"))
 	if bool(e.get("windup",false)):
 		var fixed_aim:Vector2i=e.get("aim",Vector2i.ZERO)
-		if fixed_aim!=Vector2i.ZERO and enemy_move_allowed(e,"primary",wait) and attack_footprint(origin,fixed_aim,pattern,int(skill[0])).has(player):
+		if fixed_aim!=Vector2i.ZERO and enemy_move_allowed(e,"primary",wait) and attack_fixed_contains(origin,player,fixed_aim,pattern,int(skill[0])):
 			return minf(3.0,maxf(0.0,enemy_combo_damage_score(e,skill,false))*gain)
 		return 0.0
 	# The forecast is for the indicated action phase, not a multi-turn rollout.
@@ -3477,7 +3505,7 @@ func enemy_status_aim(origin:Vector2i,move:Dictionary)->Vector2i:
 	var reach:int=int(move.reach)
 	if pattern in ["corner_front","fan","corner"]:
 		for d in DIR8:
-			if attack_footprint(origin,d,pattern,reach).has(player):return d
+			if attack_fixed_contains(origin,player,d,pattern,reach):return d
 	return attack_aim(origin,player,pattern,reach)
 
 func enemy_execute_status_control(i:int,move:Dictionary)->bool:
@@ -4046,7 +4074,7 @@ func enemy_relief_ranged_ready(e:Dictionary,target:Vector2i)->bool:
 	var pattern:String=str(ATTACK_PATTERNS.get(species,"line"))
 	if bool(e.get("windup",false)):
 		var aim:Vector2i=e.get("aim",Vector2i.ZERO)
-		return aim!=Vector2i.ZERO and enemy_move_allowed(e,"primary") and attack_footprint(e.pos,aim,pattern,int(skill[0])).has(target) and enemy_opportunity_damage(e,skill,false)>0
+		return aim!=Vector2i.ZERO and enemy_move_allowed(e,"primary") and attack_fixed_contains(e.pos,target,aim,pattern,int(skill[0])) and enemy_opportunity_damage(e,skill,false)>0
 	if int(e.get("cooldown",0))<=0 and not bool(skill[1]) and enemy_move_allowed(e,"primary") and int(skill[0])>=2 and attack_aim(e.pos,target,pattern,int(skill[0]))!=Vector2i.ZERO and enemy_opportunity_damage(e,skill,false)>0:return true
 	if int(e.get("alt_cooldown",0))<=0 and enemy_move_allowed(e,"secondary") and SECONDARY_SKILLS.has(species):
 		var alt:Array=SECONDARY_SKILLS[species]
@@ -4078,7 +4106,7 @@ func enemy_relief_blocks_lane(friend:Dictionary,q:Vector2i,target:Vector2i)->boo
 	if bool(friend.get("windup",false)):
 		var committed_aim:Vector2i=friend.get("aim",Vector2i.ZERO)
 		if committed_aim==Vector2i.ZERO or not enemy_move_allowed(friend,"primary") or str(ATTACK_PATTERNS.get(str(friend.get("species","")),"line"))!="line":return false
-		return attack_footprint(origin,committed_aim,"line",int(signature_skill(friend)[0])).has(q)
+		return attack_fixed_contains(origin,q,committed_aim,"line",int(signature_skill(friend)[0]))
 	# Ordinary low-confidence shots do not justify exclusive squad access.
 	# A committed telegraph remains protected, even when accuracy is impaired.
 	if int(friend.get("whiffer_turns",0))>0:return false
@@ -4093,11 +4121,11 @@ func enemy_relief_blocks_lane(friend:Dictionary,q:Vector2i,target:Vector2i)->boo
 	var species:String=str(friend.get("species",""))
 	var skill:Array=signature_skill(friend)
 	if enemy_move_allowed(friend,"primary") and int(friend.get("cooldown",0))<=0 and str(ATTACK_PATTERNS.get(species,"line"))=="line":
-		if attack_footprint(origin,heading,"line",int(skill[0])).has(target) and (target!=player or enemy_opportunity_damage(friend,skill,false)>0):return true
+		if attack_fixed_contains(origin,target,heading,"line",int(skill[0])) and (target!=player or enemy_opportunity_damage(friend,skill,false)>0):return true
 	if enemy_move_allowed(friend,"secondary") and int(friend.get("alt_cooldown",0))<=0 and SECONDARY_SKILLS.has(species):
 		var alt:Array=SECONDARY_SKILLS[species]
 		var alt_skill:Array=[alt[0],false,3,alt[3],alt[4],alt[5],"alt_"+species]
-		if str(alt[1])=="line" and attack_footprint(origin,heading,"line",int(alt[0])).has(target) and (target!=player or enemy_opportunity_damage(friend,alt_skill,true)>0):return true
+		if str(alt[1])=="line" and attack_fixed_contains(origin,target,heading,"line",int(alt[0])) and (target!=player or enemy_opportunity_damage(friend,alt_skill,true)>0):return true
 	return false
 
 func enemy_relief_step(e:Dictionary,target:Vector2i)->Vector2i:
