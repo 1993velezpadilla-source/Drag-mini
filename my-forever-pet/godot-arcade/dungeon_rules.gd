@@ -2231,6 +2231,78 @@ func enemy_decision_position_plan(e:Dictionary,target:Vector2i)->Dictionary:
 		if score>best_score:best_score=score;best={"step":q,"value":value,"score":score}
 	return best
 
+# A bounded lookahead compares firing posts two or three ordinary steps away.
+# The target is the currently observed tile, not a guaranteed future position.
+# Recompute next turn; never execute the forecast or spend its PP in advance.
+const ENEMY_FORESIGHT_DEPTH:int=3
+const ENEMY_FORESIGHT_NODE_CAP:int=25
+
+func enemy_foresight_kits(e:Dictionary)->Array[Dictionary]:
+	var kits:Array[Dictionary]=[]
+	var species:String=str(e.get("species",""))
+	var primary:Array=signature_skill(e)
+	if enemy_move_allowed(e,"primary") and int(e.get("cooldown",0))<=0 and int(primary[0])>=2:
+		var value:float=enemy_attack_score(e,primary,false)
+		if bool(primary[1]):value*=.65
+		if value>0.0:kits.append({"pattern":str(ATTACK_PATTERNS.get(species,"line")),"reach":int(primary[0]),"value":value,"charged":bool(primary[1]),"slot":"primary"})
+	if SECONDARY_SKILLS.has(species) and enemy_move_allowed(e,"secondary") and int(e.get("alt_cooldown",0))<=0:
+		var alt:Array=SECONDARY_SKILLS[species]
+		var value:float=enemy_attack_score(e,[alt[0],false,3,alt[3],alt[4],alt[5],"alt_"+species],true)
+		if int(alt[0])>=2 and value>0.0:kits.append({"pattern":str(alt[1]),"reach":int(alt[0]),"value":value,"charged":false,"slot":"secondary"})
+	return kits
+
+func enemy_foresight_post_value(kits:Array[Dictionary],post:Vector2i,target:Vector2i)->float:
+	var value:float=0.0
+	for kit in kits:
+		if attack_aim(post,target,str(kit.pattern),int(kit.reach))!=Vector2i.ZERO:value=maxf(value,float(kit.value))
+	return value
+
+func enemy_foresight_plan(e:Dictionary,target:Vector2i)->Dictionary:
+	var origin:Vector2i=e.pos
+	if target!=player or not enemy_opportunity_eligible(e) or int(e.get("kind",0))==3 or int(e.get("stuck_turns",0))>0:return {}
+	if bool(e.get("monster_house",false)) or charge_phase in ["underground","airborne","vanish"] or (shield_turns>0 and shield_kind=="protect"):return {}
+	if distance(origin,target)<=1:return {}
+	var kits:Array[Dictionary]=enemy_foresight_kits(e)
+	if kits.is_empty() or enemy_foresight_post_value(kits,origin,target)>0.0:return {}
+	var reserved:Dictionary=enemy_pack_reserved_posts(e,target)
+	var peers:Array[Dictionary]=[]
+	for other in enemies:
+		if enemy_squad_partner(e,other) and enemy_line_of_sight(other.pos,target):peers.append(other)
+	var queue:Array[Vector2i]=[origin]
+	var depths:Dictionary={origin:0}
+	var first:Dictionary={origin:origin}
+	var cursor:int=0
+	var best:Dictionary={}
+	var best_score:float=0.0
+	var phase:int=posmod(int(e.get("uid",0))+turns,4)
+	var gap:int=distance(origin,target)
+	while cursor<queue.size():
+		var here:Vector2i=queue[cursor];cursor+=1
+		var depth:int=int(depths[here])
+		if depth>0:
+			var value:float=enemy_foresight_post_value(kits,here,target)
+			if value>0.0:
+				# A direct firing post is handled by the one-step planner.
+				if depth==1:return {}
+				var score:float=value*3.0/float(depth)+float(gap-distance(here,target))+float(enemy_terrain_position_bonus(e,here,target))*.25
+				if enemy_strategy_reversal(e,first[here],target):score-=2.0
+				if enemy_combat_personality(e)=="cautious" and distance(here,target)==1:score-=3.0
+				if score>best_score:
+					best_score=score;best={"step":first[here],"post":here,"depth":depth,"score":score}
+		if depth>=ENEMY_FORESIGHT_DEPTH:continue
+		for j in range(4):
+			if queue.size()>=ENEMY_FORESIGHT_NODE_CAP:break
+			var q:Vector2i=here+DIR[(phase+j)%4]
+			if depths.has(q) or reserved.has(q) or not enemy_ambush_safe_tile(q) or not enemy_line_of_sight(q,target):continue
+			if distance(q,target)>enemy_awareness(e):continue
+			var blocked:bool=false
+			for other in peers:
+				if enemy_relief_blocks_lane(other,q,target):blocked=true;break
+			if blocked:continue
+			depths[q]=depth+1;first[q]=q if depth==0 else first[here];queue.append(q)
+	if not best.is_empty():best["nodes"]=cursor
+	return best
+
 func enemy_tactical_step(e:Dictionary,target:Vector2i,pattern:String,reach:int)->Vector2i:
 	var origin:Vector2i=e.pos
 	if not bool(e.get("ecology_search_enabled",false)) or reach<2 or not enemy_line_of_sight(origin,target):return origin
@@ -5475,6 +5547,8 @@ func enemy_turn_actions_impl():
 			if tactical==p and not charged and pursuit_target==player:
 				pack_plan=enemy_pack_intercept_plan(enemies[i],player)
 				tactical=pack_plan.get("step",p)
+			if tactical==p and not charged and pursuit_target==player:
+				tactical=enemy_foresight_plan(enemies[i],player).get("step",p)
 			if tactical!=p:path.append(tactical)
 			else:
 				path=enemy_approach_route(p,pursuit_target) if enemies[i].has("ecology_role") else route(p,pursuit_target,true)
