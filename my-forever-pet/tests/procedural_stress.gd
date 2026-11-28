@@ -1516,6 +1516,54 @@ func run_checks()->void:
 	if personality.enemy_territorial_idle_step(territorial)!=territorial.pos:failures.append("personality house territory exception")
 	checks+=1
 	print("KINDRIA_COMBAT_PERSONALITY checks=11")
+	# Actual resolved outcomes inform future preferences, not damage formulas.
+	var combat_memory=Rules.new()
+	for y in range(1,8):
+		for x in range(1,8):combat_memory.cells[Vector2i(x,y)]=true
+	combat_memory.player=Vector2i(4,4);combat_memory.stairs=Vector2i(7,7);combat_memory.relic=Vector2i(7,6)
+	var memory_actor:Dictionary={"uid":0,"pos":Vector2i(3,4),"hp":40,"max_hp":40,"kind":0,"species":"leafwisp","ecology_role":"hunter","ecology_search_enabled":true,"personality_enabled":true,"pp_primary":12,"pp_secondary":10}
+	combat_memory.enemies.append(memory_actor)
+	combat_memory.turns=20
+	var memory_skill:Array=combat_memory.signature_skill(memory_actor)
+	var original_score:float=combat_memory.enemy_attack_score(memory_actor,memory_skill,false)
+	combat_memory.enemy_remember_result(memory_actor,-1,"primary",.5,false,false)
+	if combat_memory.enemy_attack_score(memory_actor,memory_skill,false)>=original_score or combat_memory.enemy_observed_attack_weight(memory_actor,-1,"secondary")!=1.0:failures.append("combat memory slot-specific resistance")
+	checks+=1
+	combat_memory.enemy_remember_result(memory_actor,-1,"primary",0.0,true,false)
+	combat_memory.enemy_remember_result(memory_actor,-1,"primary",0.0,false,true)
+	if combat_memory.enemy_observed_attack_weight(memory_actor,-1,"primary")!=.85:failures.append("combat memory ignores miss and protection")
+	checks+=1
+	combat_memory.enemy_remember_result(memory_actor,1000,"primary",2.0,false,false)
+	if combat_memory.enemy_observed_attack_weight(memory_actor,1000,"primary")<=1.0 or combat_memory.enemy_observed_attack_weight(memory_actor,-1,"primary")!=.85:failures.append("combat memory target isolation")
+	checks+=1
+	combat_memory.turns=27
+	if combat_memory.enemy_observed_attack_weight(memory_actor,-1,"primary")!=1.0:failures.append("combat memory expiry")
+	checks+=1
+	for target_uid in range(1010,1022):
+		combat_memory.turns+=1
+		combat_memory.enemy_remember_result(memory_actor,target_uid,"primary",.5,false,false)
+	if memory_actor.combat_observations.size()!=Rules.ENEMY_MEMORY_CAP or memory_actor.combat_observations.has("-1:primary"):failures.append("combat memory bounded eviction")
+	checks+=1
+	combat_memory.enemy_remember_incoming(memory_actor,9,"fire")
+	if combat_memory.enemy_recent_threat(memory_actor):failures.append("combat memory trivial damage threshold")
+	checks+=1
+	combat_memory.enemy_remember_incoming(memory_actor,12,"fire")
+	if not combat_memory.enemy_recent_threat(memory_actor) or combat_memory.enemy_cautious_spacing_step(memory_actor,combat_memory.player)!=Vector2i(2,4):failures.append("combat memory observed threat spacing")
+	checks+=1
+	combat_memory.turns+=4
+	if combat_memory.enemy_recent_threat(memory_actor):failures.append("combat memory threat expiry")
+	checks+=1
+	combat_memory.player=Vector2i(6,4);combat_memory.cells.erase(Vector2i(5,4))
+	combat_memory.enemy_remember_incoming(memory_actor,20,"fire")
+	if combat_memory.enemy_recent_threat(memory_actor):failures.append("combat memory no unseen attacker inference")
+	combat_memory.cells[Vector2i(5,4)]=true
+	checks+=1
+	combat_memory.player=Vector2i(4,4)
+	memory_actor["pp_secondary"]=0
+	combat_memory.enemy_turn_actions()
+	if combat_memory.enemy_actions.size()!=1 or not memory_actor.combat_observations.has("-1:primary") or memory_actor.pp_primary!=11:failures.append("combat memory real attack records once")
+	checks+=1
+	print("KINDRIA_COMBAT_MEMORY checks=10")
 	# Actual disk I/O, legacy migration, corruption recovery, and resumed writes.
 	var test_path:String="user://kindria_procedural_test_"+str(OS.get_process_id())+".cfg"
 	var exact:Array[String]=["legacy exact".sha256_text()]
