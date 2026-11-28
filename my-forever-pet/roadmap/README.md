@@ -9,6 +9,15 @@ Status legend: [x] source reviewed or existing implementation explicitly identif
 - [ ] Audit licenses before reuse; clean original code and art. No third-party Pokémon assets in shipping game.
 - [ ] Every task: evidence -> original spec -> implementation -> deterministic tests -> Blender export audit -> actual Godot render -> Android touch/FPS/thermal capture -> acceptance. Do not mark complete from source-only checks.
 
+
+## Community evidence (2026-11-27)
+See [COMMUNITY_INTELLIGENCE.md](COMMUNITY_INTELLIGENCE.md) for the audit of all 11 core releases and 35 public sources, including surveys, community critiques, disagreements and acceptance gates F001–F010. This is qualitative evidence, not representative polling.
+- [ ] P0: preserve manual zero-PP Strike, optional assistance, persistent companion and saved team selection; avoid forced autoplay and arbitrary party locks.
+- [ ] P0: make floors feel different through landmarks, objectives, terrain and enemy behavior; no padding through mandatory repeated missions.
+- [ ] P0: adjustable dialogue speed, skip seen dialogue, fast retry, clear controls and meaningful early rewards.
+- [ ] P1: visitable habitats, mission batching, transparent recruitment and difficulty options; keep original story and soundtrack central.
+- [ ] Playtest first dungeon with consenting players before promotion to Dungeon 002; record qualitative feedback and actual Android frame/touch metrics.
+
 ## P0 | first map only
 - [ ] Three short floors; connected random rooms/corridors, readable exit and rescue objective, safe start, deterministic seeded tests.
 - [ ] Gentle encounter density, original creatures, berry/coin pickups, heal/PP tutorial, no early natural traps or ambushes; advanced expeditions retain their rules.
