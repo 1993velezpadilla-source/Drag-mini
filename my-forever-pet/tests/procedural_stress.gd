@@ -2891,7 +2891,26 @@ func run_checks()->void:
 	score_memo.allies[0].hp=2;score_memo.player=Vector2i(3,4);score_memo.charge_phase="vanish"
 	if score_memo.enemy_party_attack_plan(memo_caster)!=score_memo.enemy_party_attack_plan(memo_caster,false) or score_memo.rng.state!=memo_rng or not score_memo.enemy_actions.is_empty() or memo_caster.pp_primary!=1:failures.append("party memo concealment and planning purity")
 	checks+=1
-	print("KINDRIA_ANTI_STALL checks=171")
+	# Symmetric headings must match the exhaustive planner, including the
+	# chosen heading and footprint, while directional kits still scan all four.
+	score_memo.charge_phase="";score_memo.player=Vector2i(3,4);memo_caster.pp_primary=12
+	if score_memo.enemy_party_attack_plan(memo_caster)!=score_memo.enemy_party_attack_plan(memo_caster,false):failures.append("symmetric player threshold parity")
+	checks+=1
+	score_memo.player=Vector2i(7,7);score_memo.cells.erase(Vector2i(3,2))
+	if score_memo.enemy_party_attack_plan(memo_caster)!=score_memo.enemy_party_attack_plan(memo_caster,false):failures.append("symmetric blocked tile parity")
+	checks+=1
+	score_memo.cells[Vector2i(3,2)]=true
+	memo_caster.species="sylphowl"
+	if score_memo.enemy_party_attack_plan(memo_caster)!=score_memo.enemy_party_attack_plan(memo_caster,false):failures.append("directional fan exhaustive parity")
+	checks+=1
+	var symmetric_ok:bool=true
+	for pattern in ["radius","cross","room"]:
+		var first:Dictionary=score_memo.compute_attack_footprint(memo_caster.pos,Vector2i.UP,pattern,2)
+		for heading in [Vector2i.RIGHT,Vector2i.DOWN,Vector2i.LEFT]:
+			if score_memo.compute_attack_footprint(memo_caster.pos,heading,pattern,2)!=first:symmetric_ok=false
+	if not symmetric_ok:failures.append("heading invariant footprint parity")
+	checks+=1
+	print("KINDRIA_ANTI_STALL checks=175")
 	# A direct witness may report a tile, but a listener cannot relay it.
 	var comm=Rules.new()
 	for x in range(1,4):comm.cells[Vector2i(x,3)]=true
