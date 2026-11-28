@@ -4055,10 +4055,10 @@ func enemy_reserve_candidate(e:Dictionary,target:Vector2i)->bool:
 	# A creature with an immediate ranged attack should keep its firing role.
 	return enemy_push_attack_coverage(e,target)==0
 
-func enemy_reserve_route(e:Dictionary,target:Vector2i,memoize_lanes:bool=true,max_cost:int=3)->Dictionary:
+func enemy_reserve_route(e:Dictionary,target:Vector2i,memoize_lanes:bool=true,max_cost:int=3,work:Dictionary={})->Dictionary:
 	var origin:Vector2i=e.pos
 	var cost_limit:int=clampi(max_cost,0,3)
-	if distance(origin,target)-1>cost_limit or cost_limit==0:return {}
+	if cost_limit==0 or (memoize_lanes and distance(origin,target)-1>cost_limit):return {}
 	var backup:Array[Dictionary]=[]
 	var committed_lanes:Array[Dictionary]=[]
 	var vacancy:bool=enemy_recent_squad_loss(e)
@@ -4092,7 +4092,8 @@ func enemy_reserve_route(e:Dictionary,target:Vector2i,memoize_lanes:bool=true,ma
 			var q:Vector2i=here+d
 			if depths.has(q) or (memoize_lanes and rejected.has(q)):continue
 			# This bound depends on path depth: do not put it in rejected.
-			if depth+1+maxi(0,distance(q,target)-1)>cost_limit:continue
+			if memoize_lanes and depth+1+maxi(0,distance(q,target)-1)>cost_limit:continue
+			if work.has("tile_checks"):work["tile_checks"]+=1
 			var blocked:bool=reserved.has(q) or not enemy_ambush_safe_tile(q) or not enemy_line_of_sight(q,target)
 			if not blocked:
 				for friend in lane_peers:
@@ -4105,7 +4106,7 @@ func enemy_reserve_route(e:Dictionary,target:Vector2i,memoize_lanes:bool=true,ma
 
 func enemy_dynamic_reserve_plan(e:Dictionary,target:Vector2i,prune_competitors:bool=true)->Dictionary:
 	if not enemy_reserve_candidate(e,target):return {}
-	var plan:Dictionary=enemy_reserve_route(e,target)
+	var plan:Dictionary=enemy_reserve_route(e,target,prune_competitors)
 	if plan.is_empty():return {}
 	for other in enemies:
 		if not enemy_squad_partner(e,other) or not enemy_reserve_candidate(other,target):continue
@@ -4115,7 +4116,7 @@ func enemy_dynamic_reserve_plan(e:Dictionary,target:Vector2i,prune_competitors:b
 		var lower_bound:int=distance(other.pos,target)-1
 		if prune_competitors and (lower_bound>int(plan.cost) or (lower_bound==int(plan.cost) and int(other.get("uid",0))>=int(e.get("uid",0)))):continue
 		var winning_limit:int=int(plan.cost)-(1 if int(other.get("uid",0))>=int(e.get("uid",0)) else 0)
-		var alternative:Dictionary=enemy_reserve_route(other,target,true,winning_limit if prune_competitors else 3)
+		var alternative:Dictionary=enemy_reserve_route(other,target,prune_competitors,winning_limit if prune_competitors else 3)
 		if alternative.is_empty():continue
 		if int(alternative.cost)<int(plan.cost) or (int(alternative.cost)==int(plan.cost) and int(other.get("uid",0))<int(e.get("uid",0))):return {}
 	return plan

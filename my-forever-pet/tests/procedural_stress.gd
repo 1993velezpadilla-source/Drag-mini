@@ -4076,17 +4076,24 @@ func run_checks()->void:
 	reserve_peer.pos=Vector2i(6,4);reserve_peer.uid=10
 	# A bounded route must return the same shortest path if it fits,
 	# and no path when the winner's cost cannot be matched.
+	var reserve_reference_work:Dictionary={"tile_checks":0}
+	var reserve_optimized_work:Dictionary={"tile_checks":0}
 	for reserve_budget_pos in [Vector2i(4,6),Vector2i(5,6),Vector2i(6,6)]:
 		reserve_actor.pos=reserve_budget_pos
 		for reserve_budget_trap in [Vector2i.ZERO,Vector2i(4,5),Vector2i(5,5)]:
 			if reserve_budget_trap!=Vector2i.ZERO:reserve_fixture.traps[reserve_budget_trap]="snare"
-			var reserve_full_route:Dictionary=reserve_fixture.enemy_reserve_route(reserve_actor,reserve_fixture.player,false)
+			var reserve_full_route:Dictionary=reserve_fixture.enemy_reserve_route(reserve_actor,reserve_fixture.player,false,3,reserve_reference_work)
+			if reserve_fixture.enemy_reserve_route(reserve_actor,reserve_fixture.player,true,3,reserve_optimized_work)!=reserve_full_route:failures.append("reserve independent full search parity")
+			checks+=1
 			for reserve_budget in range(4):
 				var reserve_limited:Dictionary=reserve_fixture.enemy_reserve_route(reserve_actor,reserve_fixture.player,true,reserve_budget)
 				var reserve_expected:Dictionary=reserve_full_route if not reserve_full_route.is_empty() and int(reserve_full_route.cost)<=reserve_budget else {}
 				if reserve_limited!=reserve_expected:failures.append("reserve winning budget route parity")
 				checks+=1
 			reserve_fixture.traps.erase(reserve_budget_trap)
+	if int(reserve_optimized_work.tile_checks)>=int(reserve_reference_work.tile_checks):failures.append("reserve optimized search reduces tile checks")
+	checks+=1
+	print("KINDRIA_RESERVE_SEARCH_WORK optimized=%d reference=%d"%[int(reserve_optimized_work.tile_checks),int(reserve_reference_work.tile_checks)])
 	reserve_actor.pos=Vector2i(4,6)
 	# An already processed peer cannot win a new frontline election.
 	reserve_fixture.enemy_phase_spent[10]=true
@@ -4147,7 +4154,7 @@ func run_checks()->void:
 	reserve_fixture.cells.erase(Vector2i(4,5))
 	if not reserve_fixture.enemy_dynamic_reserve_plan(reserve_actor,reserve_fixture.player).is_empty():failures.append("reserve no target sight through wall")
 	checks+=1
-	print("KINDRIA_DYNAMIC_SQUAD_ROLES checks=101")
+	print("KINDRIA_DYNAMIC_SQUAD_ROLES checks=111")
 	# Forecast only witnessed retreats, and commit only a safe ordinary step.
 	var forecast=Rules.new()
 	for y in range(1,9):
