@@ -2326,6 +2326,21 @@ func enemy_firing_lane_frontline(e:Dictionary,target:Vector2i)->bool:
 		else:return false
 	return occupied>=2 and lanes>0
 
+# A recent lane hold may be invalidated by visible movement or a broken
+# formation. Do not require the old crowd to still exist before retrying.
+func enemy_released_firing_post(e:Dictionary,target:Vector2i)->bool:
+	if not enemy_opportunity_eligible(e) or not enemy_live_contact(e,target) or int(e.get("stuck_turns",0))>0:return false
+	if shield_turns>0 and shield_kind=="protect":return false
+	var peers:Array[Dictionary]=[]
+	for other in enemies:
+		if enemy_squad_partner(e,other):peers.append(other)
+	var reserved:Dictionary=enemy_pack_reserved_posts(e,target)
+	var memo:Dictionary={}
+	for d in DIR:
+		var q:Vector2i=target+d
+		if enemy_ambush_safe_tile(q) and not reserved.has(q) and enemy_line_of_sight(e.pos,q) and not enemy_recovery_lane_blocked(peers,q,target,memo):return true
+	return false
+
 func enemy_open_frontline_detour(e:Dictionary,target:Vector2i)->bool:
 	if not enemy_opportunity_eligible(e) or not enemy_live_contact(e,target) or int(e.get("stuck_turns",0))>0:return false
 	if shield_turns>0 and shield_kind=="protect":return false
@@ -2352,8 +2367,9 @@ func enemy_unstall_step(e:Dictionary,target:Vector2i)->Vector2i:
 	var reserve_reentry:bool=distance(old_reserve_target,target)<=2 and turns-int(e.get("reserve_hold_turn",-9999)) in [1,2] and not enemy_encircled_frontline(e,target)
 	var congestion_reentry:bool=distance(old_congestion_target,target)<=2 and turns-int(e.get("congestion_hold_turn",-9999)) in [1,2] and not enemy_occupied_frontline(e,target)
 	var lane_reentry:bool=false
-	if turns-int(e.get("lane_hold_turn",-9999)) in [1,2] and e.get("lane_hold_target",Vector2i.ZERO)==target:
-		lane_reentry=not enemy_firing_lane_frontline(e,target) and enemy_open_frontline_detour(e,target)
+	var old_lane_target:Vector2i=e.get("lane_hold_target",target)
+	if turns-int(e.get("lane_hold_turn",-9999)) in [1,2] and distance(old_lane_target,target)<=2:
+		lane_reentry=enemy_released_firing_post(e,target)
 	# A witnessed casualty can open a new route before the normal stall
 	# threshold. Only retry once per recent loss after a committed detour.
 	var loss_turn:int=int(e.get("squad_loss_turn",-9999))
