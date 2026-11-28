@@ -284,8 +284,8 @@ func run_checks()->void:
 	var shape_a:=preload("res://dungeon_rules.gd").new()
 	var shape_b:=preload("res://dungeon_rules.gd").new()
 	var shape_c:=preload("res://dungeon_rules.gd").new()
-	var sample:Array[Vector2i]=[Vector2i(1,1),Vector2i(2,1),Vector2i(3,1),Vector2i(3,2),Vector2i(3,3),Vector2i(4,3)]
-	for q in sample:
+	var canonical_sample_tiles:Array[Vector2i]=[Vector2i(1,1),Vector2i(2,1),Vector2i(3,1),Vector2i(3,2),Vector2i(3,3),Vector2i(4,3)]
+	for q in canonical_sample_tiles:
 		shape_a.cells[q]=true
 		shape_b.cells[Vector2i(-q.y,-q.x)+Vector2i(17,23)]=true
 		shape_c.cells[q]=true
