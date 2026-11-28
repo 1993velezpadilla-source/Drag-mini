@@ -3477,6 +3477,46 @@ func run_checks()->void:
 								fixed_target_checks+=1
 	checks+=fixed_target_checks
 	print("KINDRIA_FIXED_HEADING_GEOMETRY checks=%d"%fixed_target_checks)
+	# Scoring must preserve exact heading ties, visible living ally counts,
+	# and the large-party fallback while leaving actor state unchanged.
+	var area_opt=Rules.new()
+	for area_y in range(1,8):
+		for area_x in range(1,8):area_opt.cells[Vector2i(area_x,area_y)]=true
+	area_opt.rooms.append(Rect2i(1,1,7,7))
+	var area_opt_actor:Dictionary={"uid":910,"pos":Vector2i(4,4),"hp":30,"ecology_search_enabled":true}
+	area_opt.enemies.append(area_opt_actor)
+	area_opt.allies.append({"uid":911,"pos":Vector2i(3,3),"hp":20})
+	area_opt.allies.append({"uid":912,"pos":Vector2i(5,3),"hp":20})
+	area_opt.allies.append({"uid":913,"pos":Vector2i(4,6),"hp":20})
+	var area_opt_fast:Dictionary={"full":0,"targeted":0}
+	var area_opt_full:Dictionary={"full":0,"targeted":0}
+	var area_opt_rng:int=area_opt.rng.state
+	for area_board in range(4):
+		if area_board==1:
+			area_opt.cells.erase(Vector2i(3,4))
+			area_opt.enemies.append({"uid":914,"pos":Vector2i(4,3),"hp":20})
+			area_opt.allies[1]["hp"]=0
+		if area_board==2:
+			area_opt.allies.append({"uid":915,"pos":Vector2i(6,4),"hp":20})
+		if area_board==3:
+			area_opt.allies.clear()
+		for area_y in range(1,8):
+			for area_x in range(1,8):
+				area_opt.player=Vector2i(area_x,area_y)
+				for area_pattern in ["fan","corner","corner_front","radius","cross","room","line"]:
+					for area_reach in [0,1,2,3,6]:
+						var area_fast_aim:Vector2i=area_opt.enemy_area_aim(area_opt_actor,area_pattern,area_reach,true,area_opt_fast)
+						var area_full_aim:Vector2i=area_opt.enemy_area_aim(area_opt_actor,area_pattern,area_reach,false,area_opt_full)
+						if area_fast_aim!=area_full_aim:failures.append("area optimization exact heading parity")
+						checks+=1
+						for area_heading in Rules.DIR:
+							if area_opt.enemy_area_bonus(area_opt_actor,area_pattern,area_reach,area_heading,true,area_opt_fast)!=area_opt.enemy_area_bonus(area_opt_actor,area_pattern,area_reach,area_heading,false,area_opt_full):failures.append("area optimization exact bonus parity")
+							checks+=1
+	if area_opt.rng.state!=area_opt_rng or not area_opt.enemy_actions.is_empty() or area_opt_actor.pos!=Vector2i(4,4):failures.append("area optimization planning purity")
+	checks+=1
+	if int(area_opt_fast.full)>=int(area_opt_full.full) or int(area_opt_fast.targeted)<=0:failures.append("area optimization reduces footprint queries")
+	checks+=1
+	print("KINDRIA_AREA_SCORING_WORK optimized=%d reference=%d targeted=%d"%[int(area_opt_fast.full),int(area_opt_full.full),int(area_opt_fast.targeted)])
 	if recovery_sight.enemy_projected_attack_aim(sight_actor,Vector2i(1,1),recovery_sight.player,"radius",1)!=Vector2i.ZERO:failures.append("projected symmetric unreachable target")
 	checks+=1
 	recovery_sight.enemies.pop_back();sight_actor.pos=projection_origin

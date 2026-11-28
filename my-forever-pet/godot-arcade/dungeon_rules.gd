@@ -5401,22 +5401,46 @@ func enemy_area_allies(origin:Vector2i,footprint:Dictionary)->Array[int]:
 		if int(a.hp)>0 and footprint.has(a.pos) and enemy_line_of_sight(origin,a.pos):targets.append(i)
 	return targets
 
-func enemy_area_aim(e:Dictionary,pattern:String,reach:int)->Vector2i:
+# Scoring needs only a count, not an impact-path dictionary. Retain the
+# full footprint for actual damage and for large parties where reuse is cheaper.
+func enemy_area_count(origin:Vector2i,d:Vector2i,pattern:String,reach:int,prune:bool=true,work:Dictionary={})->int:
+	if not prune or allies.size()>3:
+		if work.has("full"):work["full"]+=1
+		return enemy_area_allies(origin,attack_footprint(origin,d,pattern,reach)).size()
+	var count:int=0
+	for a in allies:
+		if int(a.hp)<=0 or not enemy_line_of_sight(origin,a.pos):continue
+		if work.has("targeted"):work["targeted"]+=1
+		if attack_fixed_contains(origin,a.pos,d,pattern,reach):count+=1
+	return count
+
+func enemy_area_aim(e:Dictionary,pattern:String,reach:int,prune:bool=true,work:Dictionary={})->Vector2i:
 	var origin:Vector2i=e.pos
-	var best:Vector2i=attack_aim(origin,player,pattern,reach)
+	var best:Vector2i=attack_aim(origin,player,pattern,reach,prune)
 	if not bool(e.get("ecology_search_enabled",false)) or not enemy_area_pattern(pattern) or not enemy_line_of_sight(origin,player) or allies.is_empty():return best
+	# All headings have identical membership for symmetric patterns.
+	if prune and pattern in ["radius","cross","room"]:return best
+	var initial:Vector2i=best
 	var best_count:int=-1
-	if best!=Vector2i.ZERO:best_count=enemy_area_allies(origin,attack_footprint(origin,best,pattern,reach)).size()
+	if best!=Vector2i.ZERO:best_count=enemy_area_count(origin,best,pattern,reach,prune,work)
 	for d in DIR:
-		var footprint:Dictionary=attack_footprint(origin,d,pattern,reach)
-		if not footprint.has(player):continue
-		var count:int=enemy_area_allies(origin,footprint).size()
+		if prune and d==initial:continue
+		var count:int=0
+		if prune and allies.size()<=3:
+			if work.has("targeted"):work["targeted"]+=1
+			if not attack_fixed_contains(origin,player,d,pattern,reach):continue
+			count=enemy_area_count(origin,d,pattern,reach,true,work)
+		else:
+			if work.has("full"):work["full"]+=1
+			var footprint:Dictionary=attack_footprint(origin,d,pattern,reach)
+			if not footprint.has(player):continue
+			count=enemy_area_allies(origin,footprint).size()
 		if count>best_count:best=d;best_count=count
 	return best
 
-func enemy_area_bonus(e:Dictionary,pattern:String,reach:int,aim:Vector2i)->float:
+func enemy_area_bonus(e:Dictionary,pattern:String,reach:int,aim:Vector2i,prune:bool=true,work:Dictionary={})->float:
 	if aim==Vector2i.ZERO or not bool(e.get("ecology_search_enabled",false)) or not enemy_area_pattern(pattern):return 0.0
-	return 1.5*float(enemy_area_allies(e.pos,attack_footprint(e.pos,aim,pattern,reach)).size())
+	return 1.5*float(enemy_area_count(e.pos,aim,pattern,reach,prune,work))
 
 func enemy_has_party_area_attack(e:Dictionary)->bool:
 	if not bool(e.get("ecology_search_enabled",false)) or allies.is_empty() or not enemy_live_contact(e,player):return false
@@ -5425,7 +5449,7 @@ func enemy_has_party_area_attack(e:Dictionary)->bool:
 	var charged:bool=bool(e.get("windup",false))
 	if enemy_move_allowed(e,"primary") and (charged or int(e.get("cooldown",0))<=0):
 		var aim:Vector2i=e.get("aim",Vector2i.ZERO) if charged else enemy_area_aim(e,pattern,int(skill[0]))
-		if enemy_area_bonus(e,pattern,int(skill[0]),aim)>0.0 and attack_footprint(e.pos,aim,pattern,int(skill[0])).has(player):return true
+		if enemy_area_bonus(e,pattern,int(skill[0]),aim)>0.0 and attack_fixed_contains(e.pos,player,aim,pattern,int(skill[0])):return true
 	if charged:return false
 	var species:String=str(e.get("species",""))
 	if int(e.get("alt_cooldown",0))<=0 and SECONDARY_SKILLS.has(species) and enemy_move_allowed(e,"secondary"):
