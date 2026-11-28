@@ -1543,7 +1543,23 @@ func run_checks()->void:
 	status_fixture.gravity_active=false
 	if not status_fixture.enemy_execute_control(0) or status_actor.pp_control!=3 or status_actor.pp_primary!=12 or status_fixture.enemy_actions.size()!=status_contact_actions+1 or int(status_fixture.player_stages.get("defense",0))!=-1:failures.append("status viable debuff replaces immune attack")
 	checks+=1
-	print("KINDRIA_STATUS_TACTICS utility=2 gates=7 action=1 redundancy=1 priority=1 contact_purity=1 accuracy=6 alternatives=3")
+	# A tactical actor with no ready signature can still choose a free basic hit.
+	var basic_status=Rules.new()
+	for y in range(1,6):
+		for x in range(1,6):basic_status.cells[Vector2i(x,y)]=true
+	basic_status.player=Vector2i(3,3);basic_status.hp=100;basic_status.max_hp=100;basic_status.tier=5
+	var basic_status_actor:Dictionary={"uid":91,"pos":Vector2i(2,3),"hp":30,"max_hp":30,"kind":0,"species":"bramble_pup","ecology_search_enabled":true,"personality_enabled":true,"control_move":"eos_085","pp_control":5,"pp_primary":0,"pp_secondary":0,"stages":{"accuracy":10}}
+	basic_status.enemies.append(basic_status_actor)
+	var basic_status_rng:int=basic_status.rng.state
+	if basic_status.enemy_execute_control(0) or basic_status_actor.pp_control!=5 or basic_status.rng.state!=basic_status_rng or not basic_status.enemy_actions.is_empty():failures.append("status strong free basic preferred")
+	checks+=1
+	basic_status_actor.pp_primary=10;basic_status_actor["cooldown"]=2
+	if basic_status.enemy_execute_control(0) or basic_status_actor.pp_primary!=10 or basic_status_actor.pp_control!=5 or basic_status_actor.cooldown!=2:failures.append("status cooldown fallback basic preferred")
+	checks+=1
+	basic_status_actor.pp_primary=0;basic_status_actor.erase("cooldown");basic_status.tier=0
+	if not basic_status.enemy_execute_control(0) or basic_status_actor.pp_control!=4 or basic_status.enemy_actions.size()!=1 or int(basic_status.player_stages.get("defense",0))!=-1:failures.append("status useful debuff beats weak basic")
+	checks+=1
+	print("KINDRIA_STATUS_TACTICS utility=2 gates=7 action=1 redundancy=1 priority=1 contact_purity=1 accuracy=6 alternatives=3 basic=3")
 	# Area attacks hit each party member once, without sharing the player's shield.
 	var area_fixture=Rules.new()
 	for y in range(1,8):

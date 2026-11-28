@@ -3350,14 +3350,22 @@ func enemy_execute_status_control(i:int,move:Dictionary)->bool:
 	var aim:Vector2i=enemy_status_aim(origin,move)
 	if aim==Vector2i.ZERO:return false
 	var best_damage:float=0.0
+	var signature_ready:bool=false
 	var skill:Array=signature_skill(e)
 	if int(e.get("cooldown",0))<=0 and enemy_move_allowed(e,"primary") and attack_aim(origin,player,str(ATTACK_PATTERNS.get(e.get("species",""),"line")),int(skill[0]))!=Vector2i.ZERO:
+		signature_ready=true
 		best_damage=enemy_combo_damage_score(e,skill,false)
 	var species:String=str(e.get("species",""))
 	if int(e.get("alt_cooldown",0))<=0 and SECONDARY_SKILLS.has(species) and enemy_move_allowed(e,"secondary"):
 		var alt:Array=SECONDARY_SKILLS[species]
 		if attack_aim(origin,player,str(alt[1]),int(alt[0]))!=Vector2i.ZERO:
+			signature_ready=true
 			best_damage=maxf(best_damage,enemy_combo_damage_score(e,[alt[0],false,3,alt[3],alt[4],alt[5],"alt_"+species],true))
+	# Quick strike is the dispatcher fallback only when no signature is ready.
+	# Preserve legacy status behavior and the existing multi-target priority.
+	if bool(e.get("personality_enabled",false)) and not signature_ready and distance(origin,player)==1:
+		var accuracy:float=clampf(enemy_stat_effect(e,"accuracy")*player_stat_effect("evasion")/(263.0/256.0),0.0,1.0)
+		best_damage=maxf(best_damage,float(enemy_opportunity_damage(e,[],false,true))*accuracy)
 	if utility<=best_damage+.25:return false
 	record_enemy_move(e,"control")
 	e["control_cooldown"]=5
