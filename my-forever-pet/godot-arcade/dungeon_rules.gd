@@ -994,6 +994,69 @@ var structure_profile:int=0
 var merged_room_count:int=0
 var structural_walls:Array[Vector2i]=[]
 var structure_rng:=RandomNumberGenerator.new()
+# Extra graph grammar; no new art, locks or purchase-dependent inputs.
+const NETWORK_PROFILES=["Classic","Branches","Shortcuts","Side chambers","Mixed"]
+var network_profile:int=0
+var network_paths:Array[Dictionary]=[]
+var side_chambers:Array[Rect2i]=[]
+var side_rewards:Array[Vector2i]=[]
+var network_rng:=RandomNumberGenerator.new()
+
+func network_patch_clear(patch:Dictionary,entry:Vector2i,exit:Vector2i,loop:bool)->bool:
+	for q in patch:
+		if not floor_bounds.has_point(q) or cells.has(q):return false
+		for room in rooms:
+			if room.has_point(q):return false
+		for d in DIR:
+			var near:Vector2i=q+d
+			if cells.has(near) and near!=entry and (not loop or near!=exit):return false
+	return true
+
+func extend_network()->void:
+	network_paths.clear();side_chambers.clear();side_rewards.clear()
+	network_profile=0 if starter_woods or topology_family==3 or not guardian_defeated else network_rng.randi_range(0,NETWORK_PROFILES.size()-1)
+	if network_profile==0:return
+	var origins:Array= cells.keys()
+	for i in range(origins.size()-1,0,-1):
+		var j:int=network_rng.randi_range(0,i);var swap:Vector2i=origins[i];origins[i]=origins[j];origins[j]=swap
+	var kinds:Array[int]=[]
+	match network_profile:
+		1:kinds.assign([1,1])
+		2:kinds.assign([2,2])
+		3:kinds.assign([3])
+		4:kinds.assign([1,2,3])
+	for kind in kinds:
+		var placed:bool=false
+		# Bounded search; gracefully skip a feature when this layout has no space.
+		for index in range(mini(160,origins.size())):
+			if placed:break
+			var entry:Vector2i=origins[index]
+			var first:int=network_rng.randi_range(0,3)
+			for turn in range(4):
+				var d:Vector2i=DIR[(first+turn)%4]
+				var length:int=network_rng.randi_range(2,4)
+				var patch:Dictionary={}
+				var trail:Array[Vector2i]=[]
+				for step in range(1,length+1):
+					var q:Vector2i=entry+d*step
+					patch[q]=true;trail.append(q)
+				var end:Vector2i=entry+d*(length+1)
+				var chamber:=Rect2i()
+				if kind==2 and not cells.has(end):continue
+				if kind==3:
+					chamber=Rect2i(end+d-Vector2i.ONE,Vector2i(3,3))
+					for y in range(chamber.position.y,chamber.end.y):
+						for x in range(chamber.position.x,chamber.end.x):patch[Vector2i(x,y)]=true
+				if not network_patch_clear(patch,entry,end,kind==2):continue
+				if kind==2:
+					var old_route:Array[Vector2i]=route(entry,end)
+					if old_route.is_empty() or old_route.size()<=length+3:continue
+				for q in patch:cells[q]=true
+				network_paths.append({"kind":kind,"entry":entry,"exit":end if kind==2 else trail.back(),"tiles":trail})
+				if kind==3:
+					side_chambers.append(chamber);side_rewards.append(center(chamber))
+				placed=true;break
+
 
 func carve_maze_wall(room:Rect2i)->void:
 	if structure_profile!=3:return
@@ -1335,6 +1398,7 @@ func build_layout():
 			connect_cells(center(rooms[i]),center(rooms[j]));links[key]=true
 	add_corridor_anchors(slots,room_slots)
 	merge_adjacent_rooms(slots,room_slots)
+	extend_network()
 	for i in range(structural_walls.size()-1,-1,-1):
 		if cells.has(structural_walls[i]):structural_walls.remove_at(i)
 	# Corridor carving can reopen an obstacle; retain only final solid tiles.
@@ -1367,6 +1431,7 @@ func generate_floor():
 	rng.seed=seed_value+floor_number*7919
 	ecology_rng.seed=seed_value+floor_number*65537+region*4099+197
 	structure_rng.seed=seed_value+floor_number*131071+region*12289+311
+	network_rng.seed=seed_value+floor_number*196613+region*16381+419
 	initialize_hidden_power(seed_value)
 	cells.clear();rooms.clear();enemies.clear();loot.clear();revealed.clear();traps.clear();player_traps.clear();revealed_player_traps.clear();explored_rooms.clear()
 	floor_bonus=0;player_rested=false
@@ -1394,7 +1459,7 @@ func generate_floor():
 	var budgets:Vector3i=ecology_budgets(count,14 if floor_kind==1 else 9,0 if starter_woods else (mini(12,floor_number-1) if dev_sandbox else floor_number-1))
 	count=budgets.x
 	for p in spots:
-		if p==player or p==stairs or p==relic or distance(p,player)<4:continue
+		if p==player or p==stairs or p==relic or p in side_rewards or distance(p,player)<4:continue
 		if enemies.size()<count:
 			var life=8+(mini(floor_number,30) if dev_sandbox else floor_number)*2+tier*2
 			enemies.append(make_enemy(p,life,rng.randi_range(0,2),enemies.size()))
@@ -1403,6 +1468,7 @@ func generate_floor():
 		elif traps.size()<budgets.z:traps[p]=true
 		else:break
 	loot[relic]="relic"
+	for reward in side_rewards:loot[reward]="material"
 	if starter_woods:
 		# Replace (not add to) an ordinary pickup with the floor's teaching reward.
 		var tutorial_reward:String=["potion","trail_fruit","manual:eos_154"][clampi(floor_number-1,0,2)]
@@ -1676,7 +1742,7 @@ func reveal():
 			explored_rooms[i]=true
 	for p in cells:
 		if distance(p,player)<=5:revealed[p]=true
-	for room in rooms:
+	for room in rooms+side_chambers:
 		if room.has_point(player):
 			for p in cells:
 				if room.has_point(p):revealed[p]=true
