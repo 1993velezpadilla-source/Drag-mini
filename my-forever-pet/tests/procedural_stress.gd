@@ -404,7 +404,33 @@ func enemy_integration_gauntlet(failures:Array[String])->int:
 		print("KINDRIA_REMAINING_IDLE unresolved_after_congestion_peak=",unresolved_after_congestion_peak," context=",remaining_context)
 		print("KINDRIA_RESIDUAL_IDLE_TRACE peak_history=",residual_trace)
 		print("KINDRIA_RECOVERY_MODES committed=",recovery_modes)
+	checks_local+=replay_recovery_case(failures)
 	return checks_local
+
+func replay_recovery_case(failures:Array[String])->int:
+	var traced=ai_cache_fixture(2,true)
+	var plain=ai_cache_fixture(2,true)
+	var species:Array=["rootgnawer","bramble_pup","mossmite","sporeling","leafwisp","fungal_monarch"]
+	for arena in [traced,plain]:
+		arena.belly_tenths=1000
+		for index in range(mini(species.size(),arena.enemies.size())):
+			var actor:Dictionary=arena.enemies[index]
+			actor.species=species[index]
+			actor["personality_enabled"]=true
+			actor["house_role"]=arena.house_tactical_role(actor)
+	traced.ai_recovery_trace_uid=201
+	var trace_count:int=0
+	for round_index in range(8):
+		enemy_integration_input(traced,round_index,2)
+		enemy_integration_input(plain,round_index,2)
+		traced.enemy_turn_actions();plain.enemy_turn_actions()
+		if traced.enemies!=plain.enemies or traced.allies!=plain.allies or traced.player!=plain.player or traced.hp!=plain.hp or traced.enemy_actions!=plain.enemy_actions or traced.rng.state!=plain.rng.state or traced.player_boons!=plain.player_boons or traced.traps!=plain.traps or traced.finished!=plain.finished or not plain.ai_recovery_trace.is_empty():failures.append("recovery trace alters game state %d"%round_index)
+		if not traced.ai_recovery_trace.is_empty():
+			trace_count+=1
+			print("KINDRIA_RECOVERY_DECISION round=",round_index," trace=",traced.ai_recovery_trace)
+	if trace_count==0:failures.append("recovery replay captured no decision")
+	print("KINDRIA_RECOVERY_REPLAY turns=8 traces=",trace_count)
+	return 9
 
 # V27.1: ordinary ecology actors, not just Monster House actors, in constrained
 # topology. Run identical inputs with and without caches and compare outcomes.
