@@ -2401,7 +2401,31 @@ func run_checks()->void:
 	immediate.enemy_commit_recovery(near_actor,near_actor.pos,Vector2i(4,5),"party")
 	if int(near_actor.unstall_turn)!=32 or near_actor.recovery_mode!="party":failures.append("committed party recovery consumes cooldown")
 	checks+=1
-	print("KINDRIA_ANTI_STALL checks=85")
+	# A recently witnessed casualty may invalidate the long detour cooldown.
+	var loss_fixture=Rules.new()
+	for y in range(1,8):
+		for x in range(1,8):loss_fixture.cells[Vector2i(x,y)]=true
+	loss_fixture.player=Vector2i(4,4);loss_fixture.stairs=Vector2i(7,7);loss_fixture.relic=Vector2i(7,6);loss_fixture.turns=22
+	var loss_actor:Dictionary={"uid":390,"pos":Vector2i(2,4),"hp":30,"kind":0,"species":"rootgnawer","ecology_role":"hunter","ecology_search_enabled":true,"personality_enabled":true,"pp_primary":0,"pp_secondary":0,"stall_count":1,"stall_turn":21,"stall_target":Vector2i(4,4),"unstall_turn":20}
+	loss_fixture.enemies.append(loss_actor)
+	var fallen_peer:Dictionary={"uid":391,"pos":Vector2i(3,4),"hp":0,"kind":0,"species":"rootgnawer"}
+	loss_fixture.enemies.append(fallen_peer)
+	if loss_fixture.enemy_unstall_step(loss_actor,loss_fixture.player)!=loss_actor.pos:failures.append("loss recovery no unwitnessed shortcut")
+	checks+=1
+	loss_fixture.enemy_record_witnessed_loss(fallen_peer)
+	loss_fixture.enemies.remove_at(1)
+	if int(loss_actor.get("squad_loss_turn",-1))!=22 or loss_fixture.enemy_unstall_step(loss_actor,loss_fixture.player)!=Vector2i(3,4):failures.append("loss recovery exploits witnessed vacancy")
+	checks+=1
+	loss_fixture.enemy_commit_recovery(loss_actor,loss_actor.pos,Vector2i(3,4),"detour")
+	if loss_fixture.enemy_unstall_step(loss_actor,loss_fixture.player)!=loss_actor.pos:failures.append("loss recovery once per committed detour")
+	checks+=1
+	loss_actor["unstall_turn"]=20;loss_fixture.turns=24;loss_actor["stall_turn"]=23
+	if loss_fixture.enemy_unstall_step(loss_actor,loss_fixture.player)!=loss_actor.pos:failures.append("loss recovery stale casualty rejected")
+	checks+=1
+	loss_fixture.turns=22;loss_actor["stall_turn"]=21;loss_fixture.charge_phase="vanish"
+	if loss_fixture.enemy_unstall_step(loss_actor,loss_fixture.player)!=loss_actor.pos:failures.append("loss recovery no hidden target")
+	checks+=1
+	print("KINDRIA_ANTI_STALL checks=90")
 	# A direct witness may report a tile, but a listener cannot relay it.
 	var comm=Rules.new()
 	for x in range(1,4):comm.cells[Vector2i(x,3)]=true
