@@ -46,6 +46,9 @@ func run_checks()->void:
 	var interior_seen:Dictionary={}
 	var ecology_seen:Dictionary={}
 	var obstacle_count:int=0
+	var structures_seen:Dictionary={}
+	var merged_total:int=0
+	var maze_total:int=0
 	for seed_id in range(768):
 		var topology_run:=preload("res://dungeon_rules.gd").new()
 		topology_run.setup(seed_id%3,0,0,false,false,seed_id+9301,0,seed_id%6==0)
@@ -56,6 +59,35 @@ func run_checks()->void:
 		recipes_seen[Vector3i(family,topology_run.room_profile,topology_run.link_profile)]=true
 		topology_signatures[topology_run.layout_signature]=true
 		interior_seen[topology_run.interior_profile]=true
+		structures_seen[topology_run.structure_profile]=true
+		merged_total+=topology_run.merged_room_count
+		maze_total+=topology_run.structural_walls.size()
+		var structure_valid:bool=true
+		var large_rooms:int=0
+		for i in range(topology_run.rooms.size()):
+			var room:Rect2i=topology_run.rooms[i]
+			if not topology_run.cells.has(topology_run.center(room)) or not topology_run.floor_bounds.encloses(room):structure_valid=false
+			if room.size.x>16 or room.size.y>16:structure_valid=false
+			if room.size.x>7 or room.size.y>7:
+				large_rooms+=1
+				for y in range(room.position.y,room.end.y):
+					for x in range(room.position.x,room.end.x):
+						if not topology_run.cells.has(Vector2i(x,y)):structure_valid=false
+			for j in range(i+1,topology_run.rooms.size()):
+				if room.intersects(topology_run.rooms[j]):structure_valid=false
+		if large_rooms!=topology_run.merged_room_count or topology_run.rooms.size()<3:structure_valid=false
+		if not structure_valid:failures.append("V26.31 merged room integrity")
+		var maze_valid:bool=true
+		for wall in topology_run.structural_walls:
+			if topology_run.cells.has(wall):maze_valid=false
+			var inside:bool=false
+			for room in topology_run.rooms:
+				if room.grow(-1).has_point(wall) and wall!=topology_run.center(room):inside=true
+			if not inside:maze_valid=false
+		if not maze_valid:failures.append("V26.31 maze wall integrity")
+		if (topology_run.starter_woods or family==3) and (topology_run.structure_profile!=0 or topology_run.merged_room_count!=0 or not topology_run.structural_walls.is_empty()):failures.append("V26.31 protected layouts")
+		if topology_run.merged_room_count>2 or (topology_run.structure_profile==1 and topology_run.merged_room_count>1):failures.append("V26.31 merge budget")
+		checks+=4
 		ecology_seen[topology_run.ecology_profile]=true
 		var obstacles_valid:bool=true
 		for obstacle in topology_run.interior_obstacles:
@@ -111,6 +143,11 @@ func run_checks()->void:
 	if ecology_seen.size()!=6:failures.append("V26.29 ecology coverage")
 	if obstacle_count==0:failures.append("V26.29 obstacles generated")
 	print("V26.29 interiors: ",interior_seen.size()," ecologies: ",ecology_seen.size()," solid interior tiles: ",obstacle_count)
+	checks+=3
+	if structures_seen.size()!=4:failures.append("V26.31 structural profile coverage")
+	if merged_total==0:failures.append("V26.31 actual room mergers")
+	if maze_total==0:failures.append("V26.31 actual maze walls")
+	print("V26.31 structures: ",structures_seen.size()," merges: ",merged_total," maze tiles: ",maze_total)
 	checks+=3
 	# V26.25: independent random stairs, no key gate, and geometry history.
 	var layout_a:=preload("res://dungeon_rules.gd").new()
