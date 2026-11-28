@@ -2441,12 +2441,18 @@ func enemy_party_pursuit_allowed(e:Dictionary,finish_priority:bool)->bool:
 func enemy_unstall_party_step(e:Dictionary,target:Vector2i)->Vector2i:
 	var origin:Vector2i=e.pos
 	if not enemy_opportunity_eligible(e) or not enemy_live_contact(e,target) or int(e.get("stuck_turns",0))>0 or allies.is_empty():return origin
-	if int(e.get("stall_count",0))<2 or e.get("stall_target",Vector2i.ZERO)!=target or int(e.get("stall_turn",-9999))!=turns-1:return origin
+	var stalls:int=int(e.get("stall_count",0))
+	if stalls<1 or e.get("stall_target",Vector2i.ZERO)!=target or int(e.get("stall_turn",-9999))!=turns-1:return origin
+	# A visible opposing creature guarding an adjacent player post is concrete
+	# evidence for early recovery. Unrelated allies retain the two-stall gate.
+	var early:bool=stalls==1
+	if early and shield_turns>0 and shield_kind=="protect":return origin
 	if turns<=int(e.get("unstall_turn",-9999))+3 or enemy_strategy_attack_tile(e,origin,target):return origin
 	if not enemy_party_pursuit_allowed(e,enemy_risk_has_finisher(e)):return origin
 	var visible:Array[Vector2i]=[]
 	for a in allies:
 		var q:Vector2i=a.pos
+		if early and distance(q,target)!=1:continue
 		if int(a.hp)>0 and distance(origin,q)<=enemy_awareness(e) and enemy_line_of_sight(origin,q):visible.append(q)
 	if visible.is_empty():return origin
 	var reserved:Dictionary=enemy_pack_reserved_posts(e,target)
