@@ -106,6 +106,8 @@ var native_move_pointer:int=-2
 var native_aim_pointer:int=-2
 var native_aim_origin:Vector2
 var native_aim_dragged:bool=false
+var native_move_button:Button
+var native_touch_suppressed:bool=false
 var joystick:Control
 var joy_direction:Vector2i=Vector2i.ZERO
 var joy_knob:Vector2=Vector2.ZERO
@@ -937,6 +939,7 @@ func save_control_preferences()->void:
 func apply_control_preferences()->void:
 	path.clear();strike_pending=false;reset_joystick()
 	strike_pointer=-2;field_pointer=-2;field_aiming=false;utility_drag_kind=""
+	cancel_native_combat()
 	if is_instance_valid(utility_dock):
 		# Keep two compact rows in portrait; floating Strike frees width, not another row.
 		utility_dock.columns=2
@@ -977,7 +980,7 @@ func set_joystick_point(point:Vector2)->void:
 	var radius:float=maxf(1.0,minf(joystick.size.x,joystick.size.y)*.5)
 	joy_knob=(delta/radius).limit_length(1.0)
 	joy_direction=Rules.aim8(delta) if delta.length()>radius*.20 else Vector2i.ZERO
-	if joy_direction!=Vector2i.ZERO and attack_time<=0.0 and not strike_pending:facing=joy_direction
+	if joy_direction!=Vector2i.ZERO and attack_time<=0.0 and not strike_pending and not hold_active and native_aim_pointer==-2 and not field_aiming:facing=joy_direction
 	joystick.queue_redraw()
 
 func control_contains(control:Control,point:Vector2)->bool:
@@ -1014,6 +1017,65 @@ func capture_field_aim(event:InputEvent)->bool:
 		return true
 	if down and field_pointer==-2 and field_control_allowed(point):
 		field_pointer=pointer;field_origin=point;field_started=Time.get_ticks_msec();field_aiming=false
+		return true
+	return false
+
+func cancel_native_combat()->void:
+	if native_move_pointer!=-2:
+		hold_active=false;hold_visible=false;hold_move={};hold_action=Callable()
+		if is_instance_valid(hold_info):hold_info.hide()
+	native_move_pointer=-2;native_aim_pointer=-2;native_move_button=null
+	native_aim_dragged=false
+	if is_instance_valid(aim_preview):aim_preview.queue_redraw()
+
+func capture_native_combat(event:InputEvent)->bool:
+	if event is InputEventMouseButton or event is InputEventMouseMotion:
+		if event.device!=-1:return false
+		if native_touch_suppressed:
+			if event is InputEventMouseButton and not event.pressed:native_touch_suppressed=false
+			return true
+		return false
+	if not (event is InputEventScreenTouch or event is InputEventScreenDrag):return false
+	var point:Vector2=event.position
+	var pointer:int=event.index
+	var down:bool=event is InputEventScreenTouch and event.pressed
+	var up:bool=event is InputEventScreenTouch and not event.pressed
+	if pointer==native_move_pointer:
+		if event is InputEventScreenDrag:
+			var delta:=point-hold_origin
+			if delta.length()>18.0:
+				show_held_attack();facing=Rules.aim8(delta);update_hud();lab_update_aim();aim_preview.queue_redraw()
+		elif up:
+			var action:=hold_action
+			var valid:bool=not event.canceled and is_instance_valid(native_move_button) and not native_move_button.disabled and native_move_button.is_visible_in_tree() and not controls_modal()
+			cancel_native_combat()
+			if valid and not notified and not run.finished and not tile_cast_active() and action.is_valid():action.call()
+		return true
+	if pointer==native_aim_pointer:
+		if event is InputEventScreenDrag:
+			var delta:=point-native_aim_origin
+			if delta.length()>9.0:
+				native_aim_dragged=true;facing=Rules.aim8(delta);update_hud();lab_update_aim();aim_preview.queue_redraw()
+		elif up:
+			var rotate:bool=not native_aim_dragged and not event.canceled and control_contains(aim_button,point)
+			native_aim_pointer=-2;native_aim_dragged=false;aim_preview.queue_redraw()
+			if rotate and not controls_modal():rotate_combat_aim()
+		return true
+	if down and pointer==0:native_touch_suppressed=false
+	if not down or controls_modal() or notified or run.finished:return false
+	if control_contains(aim_button,point):
+		if pointer==0:native_touch_suppressed=true
+		if native_aim_pointer==-2 and not hold_active and not tile_cast_active():
+			native_aim_pointer=pointer;native_aim_origin=point;native_aim_dragged=false;path.clear();strike_pending=false
+		return true
+	for b in move_buttons:
+		if not control_contains(b,point):continue
+		if pointer==0:native_touch_suppressed=true
+		if not b.disabled and not hold_active and not hold_release_pending and native_aim_pointer==-2 and not tile_cast_active():
+			native_move_pointer=pointer;native_move_button=b
+			strike_pending=false;path.clear()
+			hold_active=true;hold_visible=false;hold_age=0.0;hold_origin=point
+			hold_move=b.get_meta("native_move");hold_action=b.get_meta("native_action");hold_is_dev=false
 		return true
 	return false
 
@@ -1064,7 +1126,7 @@ func capture_control_pointer(event:InputEvent)->bool:
 	return false
 
 func request_strike()->void:
-	if utility_drag_suppress or not strike_available():return
+	if utility_drag_suppress or hold_active or hold_release_pending or native_aim_pointer!=-2 or not strike_available():return
 	path.clear()
 	if attack_time>0.0:
 		strike_pending=true
@@ -19474,6 +19536,8 @@ func draw_map():
 	map.draw_circle(player_point,maxf(4.0,unit*.85),Color("#73e4cc55"))
 	map.draw_circle(player_point,maxf(2.0,unit*.5),Color("#d5fff0"))
 func bind_attack_gesture(b:Button,move:Dictionary,action:Callable,is_dev:bool=false)->void:
+	if not is_dev:
+		b.set_meta("native_move",move);b.set_meta("native_action",action)
 	# Native button activation (keyboard/accessibility or programmatic press) remains valid.
 	# A captured pointer release is dispatched separately and must not cast twice.
 	b.pressed.connect(func():
@@ -19502,17 +19566,18 @@ func show_held_attack()->void:
 		hold_info.text=held_attack_description(hold_move);hold_info.show()
 
 func _input(event:InputEvent)->void:
-	if capture_control_pointer(event) or capture_field_aim(event):
+	if capture_native_combat(event) or capture_control_pointer(event) or capture_field_aim(event):
 		get_viewport().set_input_as_handled();return
 	if handle_utility_drag(event):
 		get_viewport().set_input_as_handled();return
-	if not hold_active:return
+	if not hold_active or native_move_pointer!=-2:return
 	if event is InputEventMouseMotion:
 		var delta:Vector2=event.position-hold_origin
 		if delta.length()>18.0:
 			show_held_attack();facing=Rules.aim8(delta);update_hud();lab_update_aim()
 		get_viewport().set_input_as_handled()
 	elif event is InputEventMouseButton and event.button_index==MOUSE_BUTTON_LEFT and not event.pressed:
+		if native_move_pointer!=-2:return
 		var action:=hold_action
 		hold_active=false;hold_visible=false;hold_move={};hold_release_pending=true
 		if is_instance_valid(hold_info):hold_info.hide()
@@ -19527,7 +19592,7 @@ func finish_attack_release(action:Callable)->void:
 	if action.is_valid() and not notified and not run.finished and not tile_cast_active():action.call()
 
 func draw_aim_preview()->void:
-	if not ((hold_active and hold_visible) or (utility_drag_kind=="aim" and utility_drag_moved) or field_aiming) or not is_instance_valid(camera) or viewport.size.x<=0 or viewport.size.y<=0:return
+	if not ((hold_active and hold_visible) or (utility_drag_kind=="aim" and utility_drag_moved) or (native_aim_pointer!=-2 and native_aim_dragged) or field_aiming) or not is_instance_valid(camera) or viewport.size.x<=0 or viewport.size.y<=0:return
 	var footprint:Dictionary=run.attack_footprint(run.player,facing,str(hold_move.get("pattern","front")),int(hold_move.get("reach",1)),true)
 	var ratio:=area.size/Vector2(viewport.size)
 	for tile in footprint:
@@ -19930,10 +19995,11 @@ func _process(dt:float):
 		elif n.has_meta("float_item"):
 			n.position.y=.12+.07*sin(elapsed*4.0+n.position.x);n.rotation.y=elapsed*1.8
 	if controls_modal():
+		if native_move_pointer!=-2 or native_aim_pointer!=-2:cancel_native_combat()
 		if joy_pointer!=-2:reset_joystick()
 		if field_pointer!=-2:
 			field_pointer=-2;field_aiming=false;aim_preview.queue_redraw()
-	if movement_joystick and joy_direction!=Vector2i.ZERO and tick<=0.0 and attack_time<=0.0 and not strike_pending and not hold_active and not hold_release_pending and strike_pointer==-2 and field_pointer==-2 and not controls_modal() and not run.finished:
+	if movement_joystick and joy_direction!=Vector2i.ZERO and tick<=0.0 and attack_time<=0.0 and not strike_pending and not hold_active and not hold_release_pending and strike_pointer==-2 and field_pointer==-2 and native_aim_pointer==-2 and not controls_modal() and not run.finished:
 		if run.charged_move_id.is_empty() and run.step_clear(run.player,joy_direction):
 			path.clear();path.append(run.player+joy_direction)
 		else:tick=.16
