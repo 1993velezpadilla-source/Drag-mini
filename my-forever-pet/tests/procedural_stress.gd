@@ -1905,6 +1905,53 @@ func run_checks()->void:
 	if opportunity.hp!=0 or finisher.pp_primary!=12 or finisher.pp_secondary!=10 or opportunity.enemy_actions.size()!=1 or str(opportunity.enemy_actions[0].move)!="Quick strike":failures.append("opportunity real basic finisher no PP")
 	checks+=1
 	print("KINDRIA_OPPORTUNITY_EXPLOITATION checks=10")
+	# Risk counts visible healthy support and actual recent damage, not hidden actors.
+	var risk_fixture=Rules.new()
+	for y in range(1,9):
+		for x in range(1,9):risk_fixture.cells[Vector2i(x,y)]=true
+	risk_fixture.player=Vector2i(4,3);risk_fixture.stairs=Vector2i(8,8);risk_fixture.relic=Vector2i(8,7)
+	risk_fixture.hp=30;risk_fixture.max_hp=30;risk_fixture.turns=20
+	var risk_actor:Dictionary={"uid":0,"pos":Vector2i(3,3),"hp":12,"max_hp":30,"kind":0,"species":"leafwisp","ecology_role":"hunter","ecology_search_enabled":true,"personality_enabled":true,"pp_primary":12,"pp_secondary":0,"incoming_turn":20,"incoming_damage":14}
+	risk_fixture.enemies.append(risk_actor)
+	var risk_report:Dictionary=risk_fixture.enemy_risk_snapshot(risk_actor,risk_fixture.player)
+	if int(risk_report.get("risk",0))!=5 or int(risk_report.get("friendly",0))!=1 or int(risk_report.get("hostile",0))!=1:failures.append("risk recent lethal threat")
+	checks+=1
+	risk_fixture.traps[Vector2i(3,2)]="snare";risk_fixture.traps[Vector2i(3,4)]="snare"
+	if risk_fixture.enemy_risk_step(risk_actor,risk_fixture.player)!=Vector2i(2,3) or risk_actor.pos!=Vector2i(3,3) or risk_actor.pp_primary!=12:failures.append("risk safe withdrawal and purity")
+	checks+=1
+	var risk_backup:Dictionary={"uid":1,"pos":Vector2i(4,5),"hp":30,"max_hp":30,"kind":1,"species":"leafwisp","ecology_role":"hunter","ecology_search_enabled":true,"pp_primary":12,"pp_secondary":0}
+	risk_fixture.enemies.append(risk_backup)
+	if int(risk_fixture.enemy_risk_snapshot(risk_actor,risk_fixture.player).risk)!=3 or risk_fixture.enemy_risk_step(risk_actor,risk_fixture.player)!=risk_actor.pos:failures.append("risk visible ready reinforcement")
+	checks+=1
+	risk_backup["sleep_turns"]=2
+	if int(risk_fixture.enemy_risk_snapshot(risk_actor,risk_fixture.player).friendly)!=1:failures.append("risk sleeping reinforcement excluded")
+	risk_backup.erase("sleep_turns")
+	checks+=1
+	risk_fixture.allies.append({"uid":1000,"pos":Vector2i(4,2),"hp":20})
+	if int(risk_fixture.enemy_risk_snapshot(risk_actor,risk_fixture.player).hostile)!=2 or int(risk_fixture.enemy_risk_snapshot(risk_actor,risk_fixture.player).risk)!=4:failures.append("risk visible hostile numbers")
+	risk_fixture.allies.clear()
+	checks+=1
+	risk_fixture.enemies.pop_back()
+	risk_actor["risk_move_turn"]=19
+	if risk_fixture.enemy_risk_step(risk_actor,risk_fixture.player)!=risk_actor.pos:failures.append("risk bounded retry")
+	risk_actor.erase("risk_move_turn")
+	checks+=1
+	risk_actor.species="rootgnawer"
+	if risk_fixture.enemy_risk_step(risk_actor,risk_fixture.player)!=risk_actor.pos:failures.append("risk aggressive personality")
+	risk_actor.species="leafwisp"
+	checks+=1
+	risk_fixture.hp=1;risk_actor["stages"]={"accuracy":10}
+	if not risk_fixture.enemy_risk_has_finisher(risk_actor) or risk_fixture.enemy_risk_step(risk_actor,risk_fixture.player)!=risk_actor.pos:failures.append("risk immediate finisher outweighs retreat")
+	risk_fixture.hp=30
+	checks+=1
+	risk_fixture.turns=24
+	if int(risk_fixture.enemy_risk_snapshot(risk_actor,risk_fixture.player).recent)!=0 or risk_fixture.enemy_risk_step(risk_actor,risk_fixture.player)!=risk_actor.pos:failures.append("risk old damage expires")
+	checks+=1
+	risk_fixture.turns=20
+	risk_fixture.enemy_turn_actions()
+	if risk_actor.pos!=Vector2i(2,3) or int(risk_actor.get("risk_move_turn",-1))!=21 or risk_actor.pp_primary!=12 or risk_fixture.enemy_actions.size()!=1:failures.append("risk actual single movement")
+	checks+=1
+	print("KINDRIA_ENEMY_RISK_ASSESSMENT checks=10")
 	# Actual disk I/O, legacy migration, corruption recovery, and resumed writes.
 	var test_path:String="user://kindria_procedural_test_"+str(OS.get_process_id())+".cfg"
 	var exact:Array[String]=["legacy exact".sha256_text()]
