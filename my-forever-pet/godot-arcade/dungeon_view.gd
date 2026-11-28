@@ -20388,9 +20388,10 @@ func sync():
 	run.dev_refill()
 	if run.floor_revision!=active_floor:
 		strike_pending=false;path.clear();reset_joystick();build_floor()
-		if run.starter_woods and run.floor_number>1:
+		if run.floor_number>1 and not run.dev_sandbox:
 			floor_banner.text="Floor cleared  ·  "+floor_name()
 			if run.last_completed_floor_bonus>0:floor_banner.text+="  +%d coins"%run.last_completed_floor_bonus
+			if run.last_completed_floor_material>0:floor_banner.text+="  +%d material"%run.last_completed_floor_material
 	else:refresh_actors()
 	sync_monster_house()
 	update_hud()
@@ -20430,7 +20431,9 @@ func update_hud():
 	title_text.text="%s · B%d / ∞"%[dungeon_title,run.floor_number] if run.dev_sandbox else "%s  ·  B%d/%d"%[dungeon_title,run.floor_number,run.floor_count]
 	hp_bar.value=run.hp
 	hp_text.text="HP ∞ · DEV" if run.dev_sandbox else "HP %d/%d"%[run.hp,run.max_hp]
-	floor_label.text="%d/%d rooms"%[run.explored_rooms.size(),run.rooms.size()]
+	floor_label.text="%d/%d rooms"%[run.exploration_count(),run.exploration_total()]
+	floor_label.tooltip_text="Explore rooms and side chambers · +%d coins"%run.exploration_coin_bonus()
+	if run.exploration_material_bonus()>0:floor_label.tooltip_text+=" · +1 material for full exploration"
 	stats.text=str(run.coins)
 	relic_text.text="Exit found" if run.revealed.has(run.stairs) else "Find exit"
 	relic_text.tooltip_text="Find the stairs · treasure is optional" if run.stairs_available() else "Defeat the guardian"
