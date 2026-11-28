@@ -915,6 +915,15 @@ func enemy_projected_attack_aim(e:Dictionary,post:Vector2i,target:Vector2i,patte
 	# Keep the first cardinal heading and never reuse live occupancy geometry.
 	var headings:Array=[DIR[0]] if prune_symmetric and pattern in ["radius","cross","room"] else DIR
 	for d in headings:
+		# Branching attacks can only reach tiles in their forward half-plane.
+		# Retain DIR order for ties and use the full footprint for obstructions.
+		if prune_symmetric and pattern in ["fan","corner","corner_front"]:
+			var offset:Vector2i=target-post
+			var along:int=offset.x*d.x+offset.y*d.y
+			var across:int=absi(offset.x*d.y-offset.y*d.x)
+			var forward_limit:int=1 if pattern=="corner_front" else reach
+			if along<1 or along>forward_limit:continue
+			if across>(reach-along if pattern=="corner" else 1):continue
 		if work.has("footprints"):work["footprints"]+=1
 		if compute_attack_footprint(post,d,pattern,reach,false,e.pos).has(target):return d
 	return Vector2i.ZERO

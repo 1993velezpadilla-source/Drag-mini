@@ -3370,6 +3370,21 @@ func run_checks()->void:
 	if int(ray_work_fast.footprints)>=int(ray_work_full.footprints):failures.append("projected cardinal rays reduce footprint work")
 	checks+=1
 	print("KINDRIA_CARDINAL_RAY_WORK optimized=%d reference=%d"%[int(ray_work_fast.footprints),int(ray_work_full.footprints)])
+	var branch_work_fast:Dictionary={"footprints":0}
+	var branch_work_full:Dictionary={"footprints":0}
+	for branch_board in range(2):
+		for branch_y in range(1,8):
+			for branch_x in range(1,8):
+				var branch_post:=Vector2i(branch_x,branch_y)
+				for branch_pattern in ["fan","corner","corner_front"]:
+					for branch_reach in [0,1,2,3]:
+						if recovery_sight.enemy_projected_attack_aim(sight_actor,branch_post,recovery_sight.player,branch_pattern,branch_reach,true,branch_work_fast)!=recovery_sight.enemy_projected_attack_aim(sight_actor,branch_post,recovery_sight.player,branch_pattern,branch_reach,false,branch_work_full):failures.append("projected branching heading exhaustive parity")
+						checks+=1
+		if branch_board==0:recovery_sight.enemies.back()["hp"]=0
+		else:recovery_sight.enemies.back()["hp"]=30
+	if int(branch_work_fast.footprints)>=int(branch_work_full.footprints):failures.append("projected branching headings reduce footprint work")
+	checks+=1
+	print("KINDRIA_BRANCH_RAY_WORK optimized=%d reference=%d"%[int(branch_work_fast.footprints),int(branch_work_full.footprints)])
 	if recovery_sight.enemy_projected_attack_aim(sight_actor,Vector2i(1,1),recovery_sight.player,"radius",1)!=Vector2i.ZERO:failures.append("projected symmetric unreachable target")
 	checks+=1
 	recovery_sight.enemies.pop_back();sight_actor.pos=projection_origin
