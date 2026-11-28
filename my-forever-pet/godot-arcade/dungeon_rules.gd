@@ -2203,6 +2203,12 @@ func enemy_decision_position_plan(e:Dictionary,target:Vector2i)->Dictionary:
 	if target!=player or not enemy_opportunity_eligible(e) or int(e.get("kind",0))==3 or int(e.get("stuck_turns",0))>0:return {}
 	if charge_phase in ["underground","airborne","vanish"] or (shield_turns>0 and shield_kind=="protect") or bool(e.get("monster_house",false)):return {}
 	if enemy_decision_attack_value(e,origin,target)>0.0:return {}
+	# Leave PP-exhausted melee actors to the existing pack and crowd planners.
+	var species:String=str(e.get("species",""))
+	var primary:Array=signature_skill(e)
+	var primary_ready:bool=not bool(primary[1]) and enemy_move_allowed(e,"primary") and int(e.get("cooldown",0))<=0
+	var secondary_ready:bool=SECONDARY_SKILLS.has(species) and enemy_move_allowed(e,"secondary") and int(e.get("alt_cooldown",0))<=0
+	if not primary_ready and not secondary_ready:return {}
 	var reserved:Dictionary=enemy_pack_reserved_posts(e,target)
 	var best:Dictionary={}
 	var best_score:float=0.0
