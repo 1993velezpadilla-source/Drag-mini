@@ -996,7 +996,7 @@ func open_active_field(r:int,patrol:bool,legacy:bool=false):
 	var field=preload("res://wild_field.gd").new() if legacy else preload("res://dungeon_view.gd").new()
 	add_child(field);field.set_anchors_and_offsets_preset(PRESET_FULL_RECT)
 	if legacy:field.setup(r,int(session.id),int(session.step),bool(session.finale),patrol,int(session.seed),store.species())
-	else:field.setup(r,int(session.id),int(session.step),bool(session.finale),patrol,int(session.seed),store.species(),session.get("training",{}))
+	else:field.setup(r,int(session.id),int(session.step),bool(session.finale),patrol,int(session.seed),store.species(),session.get("training",{}),bool(session.get("intro_woods",false)))
 	# Stop rendering the home pet while the full-screen field is active.
 	live_stage.hide()
 	field.canceled.connect(func():store.field_cancel();field.hide();field.queue_free();live_stage.show();select.call_deferred("Habitat"))
