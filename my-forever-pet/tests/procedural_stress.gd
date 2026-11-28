@@ -2383,10 +2383,10 @@ func run_checks()->void:
 	if party_recovery.enemy_unstall_party_step(party_reserve,party_recovery.player)!=party_reserve.pos:failures.append("party early rejects unrelated ally")
 	checks+=1
 	party_recovery.allies[0].pos=Vector2i(4,3)
-	party_recovery.cells.erase(Vector2i(3,4))
-	if party_recovery.enemy_unstall_party_step(party_reserve,party_recovery.player)!=party_reserve.pos:failures.append("party early rejects unseen guard")
+	party_recovery.cells.erase(Vector2i(3,3))
+	if not party_recovery.enemy_live_contact(party_reserve,party_recovery.player) or party_recovery.enemy_line_of_sight(party_reserve.pos,party_recovery.allies[0].pos) or party_recovery.enemy_unstall_party_step(party_reserve,party_recovery.player)!=party_reserve.pos:failures.append("party early rejects unseen guard while player stays visible")
 	checks+=1
-	party_recovery.cells[Vector2i(3,4)]=true
+	party_recovery.cells[Vector2i(3,3)]=true
 	party_recovery.shield_kind="protect";party_recovery.shield_turns=1
 	if party_recovery.enemy_unstall_party_step(party_reserve,party_recovery.player)!=party_reserve.pos:failures.append("party early preserves protect hold")
 	checks+=1
