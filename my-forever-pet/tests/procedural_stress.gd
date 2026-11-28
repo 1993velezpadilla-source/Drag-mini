@@ -92,6 +92,30 @@ func run_checks()->void:
 		forced_retries+=replay.layout_retries;checks+=1
 	if expedition_count>256 and rollover_checks==0:failures.append("missing history rollover")
 	checks+=1
+	# Actual disk I/O, legacy migration, corruption recovery, and resumed writes.
+	var test_path:String="user://kindria_procedural_test_"+str(OS.get_process_id())+".cfg"
+	var exact:Array[String]=["legacy exact".sha256_text()]
+	var shapes:Array[String]=["first shape".sha256_text()]
+	var legacy:=ConfigFile.new()
+	legacy.set_value("dungeons","geometry",exact)
+	if legacy.save(test_path)!=OK or Rules.read_layout_history(test_path).get_value("dungeons","geometry",[])!=exact:failures.append("legacy history disk load")
+	if Rules.write_layout_history(test_path,exact,shapes)!=OK:failures.append("first snapshot write")
+	var loaded:ConfigFile=Rules.read_layout_history(test_path)
+	if loaded.get_value("dungeons","canonical_shapes_v1",[])!=shapes:failures.append("snapshot roundtrip")
+	var latest:Array[String]=shapes.duplicate()
+	latest.append("second shape".sha256_text())
+	if Rules.write_layout_history(test_path,exact,latest)!=OK:failures.append("second snapshot write")
+	if Rules.read_layout_history(test_path).get_value("dungeons","canonical_shapes_v1",[])!=latest:failures.append("replacement snapshot read")
+	var damaged:=ConfigFile.new()
+	damaged.set_value("dungeons","geometry",["invalid"])
+	damaged.save(test_path)
+	if Rules.read_layout_history(test_path).get_value("dungeons","canonical_shapes_v1",[])!=shapes:failures.append("corrupt primary backup recovery")
+	if Rules.write_layout_history(test_path,exact,latest)!=OK or Rules.read_layout_history(test_path).get_value("dungeons","canonical_shapes_v1",[])!=latest:failures.append("resumed snapshot write")
+	var backup:=ConfigFile.new()
+	if backup.load(test_path+".bak")!=OK or backup.get_value("dungeons","canonical_shapes_v1",[])!=shapes:failures.append("valid backup preservation")
+	for suffix in ["",".bak",".tmp"]:
+		if FileAccess.file_exists(test_path+suffix):DirAccess.remove_absolute(ProjectSettings.globalize_path(test_path+suffix))
+	checks+=8
 	timings.sort()
 	print("KINDRIA_PROCEDURAL_RESULT floors=",timings.size()," unique=",signatures.size()," families=",families.size()," profile_pairs=",profiles.size()," retries=",retries," same_tile=",lucky," side_chambers=",optional_chambers," median_usec=",timings[int(timings.size()/2)]," p95_usec=",timings[int((timings.size()-1)*.95)]," max_usec=",timings.back()," rollover_checks=",rollover_checks," forced_retries=",forced_retries," checks=",checks," failures=",failures.size())
 	for failure in failures:push_error(failure)
