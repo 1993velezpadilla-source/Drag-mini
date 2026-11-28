@@ -3179,7 +3179,11 @@ func enemy_combo_followup(e:Dictionary,move:Dictionary,wait:int)->float:
 	# Same-phase support requires an action that has not already been spent.
 	# A future-turn self follow-up is still a valid forecast.
 	if wait<=0 and enemy_phase_spent.has(int(e.get("uid",-1))):return 0.0
-	if int(e.get("whiffer_turns",0))>0 or int(e.get("slow_turns",0))>0:return 0.0
+	# Slow skips even positive countdown phases, not every slowed turn.
+	# Forecast the next ordinary phase with the same countdown convention.
+	var projected_slow:int=maxi(0,int(e.get("slow_turns",0))-maxi(0,wait))
+	if projected_slow>0 and projected_slow%2==0:return 0.0
+	if int(e.get("whiffer_turns",0))>0:return 0.0
 	var status:String=str(move.get("inflict_status",""))
 	var info:Array=ENEMY_TRAINING.get(e.get("species",""),[["normal"],"normal","normal",0,0,"physical"])
 	var defense:String="sp_defense" if str(info[5])=="special" else "defense"

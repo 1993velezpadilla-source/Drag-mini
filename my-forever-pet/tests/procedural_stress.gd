@@ -3551,7 +3551,21 @@ func run_checks()->void:
 	checks+=1
 	if sequencing.enemy_combo_setup_bonus(sequence_setup,sequence_debuff)<=0.0 or sequence_setup.pp_control!=5 or sequence_partner.pp_primary!=10 or not sequencing.enemy_actions.is_empty():failures.append("sequence restored contact and purity")
 	checks+=1
-	print("KINDRIA_ATTACK_SEQUENCING checks=13")
+	sequence_partner["slow_turns"]=2
+	if sequencing.enemy_combo_followup(sequence_partner,sequence_debuff,0)!=0.0 or sequencing.enemy_combo_setup_bonus(sequence_setup,sequence_debuff)!=0.0:failures.append("sequence slow skipped phase")
+	checks+=1
+	if sequencing.enemy_combo_followup(sequence_partner,sequence_debuff,1)<=0.0:failures.append("sequence slow next active phase")
+	checks+=1
+	sequence_partner["slow_turns"]=3
+	if sequencing.enemy_combo_followup(sequence_partner,sequence_debuff,0)<=0.0 or sequencing.enemy_combo_setup_bonus(sequence_setup,sequence_debuff)<=0.0:failures.append("sequence slow active phase")
+	checks+=1
+	if sequencing.enemy_combo_followup(sequence_partner,sequence_debuff,1)!=0.0:failures.append("sequence slow next skipped phase")
+	checks+=1
+	sequence_partner["slow_turns"]=1
+	if sequencing.enemy_combo_followup(sequence_partner,sequence_debuff,1)<=0.0 or sequence_partner.slow_turns!=1 or sequence_partner.pp_primary!=10 or not sequencing.enemy_actions.is_empty():failures.append("sequence slow expiry and forecast purity")
+	sequence_partner.erase("slow_turns")
+	checks+=1
+	print("KINDRIA_ATTACK_SEQUENCING checks=18")
 	# Bounded search follows actual witnessed headings and explores alternatives.
 	var hunter_search=Rules.new()
 	for y in range(1,10):
