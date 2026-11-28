@@ -1852,16 +1852,70 @@ func enemy_adaptive_intercept_step(e:Dictionary,target:Vector2i)->Vector2i:
 	if predicted==target or distance(origin,predicted)!=1:return origin
 	return predicted
 
+# Snapshot first-hand sightings before anyone moves. Only direct witnesses
+# may alert nearby peers; recipients cannot retransmit reported coordinates.
+const ENEMY_ALERT_RANGE:int=4
+const ENEMY_ALERT_TTL:int=2
+
+func enemy_alert_eligible(e:Dictionary)->bool:
+	if not bool(e.get("ecology_search_enabled",false)) or int(e.get("kind",0))==3 or int(e.hp)<=0 or int(e.get("decoy_turns",0))>0:return false
+	if int(e.get("sleep_turns",0))>0 or int(e.get("nightmare_turns",0))>0 or int(e.get("paused_turns",0))>0 or int(e.get("wrapped_turns",0))>0 or int(e.get("infatuated_turns",0))>0 or int(e.get("confusion_turns",0))>0 or str(e.get("major_status","")) in ["freeze","paralysis"]:return false
+	return true
+
+func enemy_clear_alert(e:Dictionary)->void:
+	for key in ["alert_tile","alert_turn","alert_until","alert_source"]:e.erase(key)
+
+func enemy_share_alerts(observed:Vector2i)->void:
+	var witnesses:Array[Dictionary]=[]
+	var listeners:Array[Dictionary]=[]
+	for e in enemies:
+		if int(e.get("alert_until",-1))<turns:enemy_clear_alert(e)
+		if not enemy_alert_eligible(e):continue
+		if distance(e.pos,observed)<=enemy_awareness(e) and enemy_line_of_sight(e.pos,observed):
+			witnesses.append(e)
+			enemy_clear_alert(e)
+		else:listeners.append(e)
+	if boon_active("decoy"):return
+	for listener in listeners:
+		var best:Dictionary={}
+		var best_gap:int=ENEMY_ALERT_RANGE+1
+		for witness in witnesses:
+			var gap:int=distance(listener.pos,witness.pos)
+			if gap>mini(ENEMY_ALERT_RANGE,enemy_awareness(listener)) or gap>best_gap or distance(listener.pos,observed)>enemy_awareness(listener)+2:continue
+			if not enemy_line_of_sight(listener.pos,witness.pos):continue
+			if gap==best_gap and not best.is_empty() and int(witness.get("uid",0))>=int(best.get("uid",0)):continue
+			best=witness;best_gap=gap
+		if best.is_empty():continue
+		listener["alert_tile"]=observed;listener["alert_turn"]=turns
+		listener["alert_until"]=turns+ENEMY_ALERT_TTL;listener["alert_source"]=int(best.get("uid",-1))
+
+func enemy_alert_target(e:Dictionary)->Vector2i:
+	var origin:Vector2i=e.pos
+	if not enemy_alert_eligible(e) or not e.has("alert_tile"):return origin
+	var reported:Vector2i=e.alert_tile
+	if turns>int(e.get("alert_until",-1)) or not cells.has(reported) or reported==origin:
+		enemy_clear_alert(e);return origin
+	# Prefer equally recent or newer firsthand observations.
+	if int(e.get("last_seen_turn",-9999))>=int(e.get("alert_turn",-1)) and turns<=int(e.get("last_seen_until",-1)):return origin
+	return reported
+
 func enemy_pursuit_target(e:Dictionary,observed:Vector2i)->Vector2i:
 	var origin:Vector2i=e.pos
 	if not e.has("ecology_role") or (bool(e.get("monster_house",false)) and not bool(e.get("house_tactical",false))):
 		return observed if distance(origin,observed)<=enemy_awareness(e) else origin
 	if distance(origin,observed)<=enemy_awareness(e) and enemy_line_of_sight(origin,observed):
 		clear_enemy_search(e)
+		enemy_clear_alert(e)
+		e["last_seen_turn"]=turns
 		if e.has("ambush_post"):enemy_clear_ambush(e);e["ambush_retry"]=turns+3
 		e["last_seen_player"]=observed
 		e["last_seen_until"]=turns+enemy_memory_duration(e)
 		return observed
+	var reported:Vector2i=enemy_alert_target(e)
+	if reported!=origin:
+		clear_enemy_search(e)
+		if e.has("ambush_post"):enemy_clear_ambush(e);e["ambush_retry"]=turns+3
+		return reported
 	var remembered:Vector2i=e.get("last_seen_player",origin)
 	if e.has("last_seen_player") and remembered==origin and turns<=int(e.get("last_seen_until",-1)) and bool(e.get("ecology_search_enabled",false)):
 		var budget:int=3 if e.get("ecology_role","")=="scout" else 1 if e.get("ecology_role","")=="sentry" else 2
@@ -4096,6 +4150,7 @@ func enemy_turn_actions_impl():
 		poison_turns-=1;hp=maxi(0,hp-1)
 		if hp==0:
 			finished=true;success=false;message="Poison · rescue needed";emit_event(message);return
+	enemy_share_alerts(player)
 	for i in range(enemies.size()):
 		ai_begin_actor_cache()
 		if int(enemies[i].hp)<=0:continue
