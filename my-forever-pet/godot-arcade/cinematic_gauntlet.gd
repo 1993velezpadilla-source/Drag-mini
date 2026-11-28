@@ -36,6 +36,35 @@ func run_checks()->void:
 	var checks:int=0
 	var failures:Array[String]=[]
 	var view:=Dungeon.new()
+	# V26.22: three art profiles and their material isolation.
+	var forest_profiles:Array[Vector4]=[]
+	var forest_ground:Array[Color]=[]
+	for forest_floor in range(1,4):
+		var profile:Vector4=view.woods_art_profile(forest_floor)
+		var pigment:Color=view.woods_ground_pigment(forest_floor)
+		if not profile.is_finite() or profile.w<.5 or profile.w>1.5:failures.append("V26.22 finite wind profile")
+		if profile in forest_profiles or pigment in forest_ground:failures.append("V26.22 distinct floor art")
+		forest_profiles.append(profile);forest_ground.append(pigment)
+		checks+=2
+	if view.woods_art_profile(0)!=forest_profiles[0] or view.woods_art_profile(4)!=forest_profiles[2]:failures.append("V26.22 profile bounds")
+	checks+=1
+	var responsive_leaf:=StandardMaterial3D.new()
+	responsive_leaf.resource_name="fern lime"
+	view.run.starter_woods=true
+	view.run.floor_number=2
+	var responsive_shader:ShaderMaterial=view.forest_wind_material(responsive_leaf)
+	if responsive_shader==null:failures.append("V26.22 reactive foliage")
+	else:
+		if responsive_shader.get_shader_parameter("forest_profile")!=forest_profiles[1]:failures.append("V26.22 floor profile uniform")
+		if responsive_shader.get_shader_parameter("player_center")!=Vector2(-999.0,-999.0):failures.append("V26.22 safe initial center")
+	checks+=3
+	view.exterior_motion_materials.clear()
+	view.run.starter_woods=false
+	view.run.floor_number=1
+	var neutral_leaf:ShaderMaterial=view.forest_wind_material(responsive_leaf)
+	if neutral_leaf==null or neutral_leaf.get_shader_parameter("forest_profile")!=Vector4.ONE:failures.append("V26.22 advanced profile isolation")
+	checks+=1
+	view.exterior_motion_materials.clear()
 	# V26.21: original cascade sound, transformed pool anchors and fixed FX budget.
 	for cascade_count in range(-1,8):
 		if view.cascade_slot_count(cascade_count)!=clampi(cascade_count,0,3)*10:failures.append("V26.21 cascade particle cap")
