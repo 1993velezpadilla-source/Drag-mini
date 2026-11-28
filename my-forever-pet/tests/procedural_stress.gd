@@ -2684,6 +2684,21 @@ func run_checks()->void:
 	lane_ranged["windup"]=true;lane_ranged["aim"]=Vector2i.LEFT
 	if not lane_fixture.enemy_relief_blocks_lane(lane_ranged,Vector2i(5,4),lane_fixture.player):failures.append("lane preserves announced geometry during concealment")
 	checks+=1
+	# Hidden displacement must neither erase nor redirect an announced line.
+	var old_lane_player:Vector2i=lane_fixture.player
+	for hidden_position in [Vector2i(6,2),Vector2i(8,4),Vector2i(7,7)]:
+		lane_fixture.player=hidden_position
+		if not lane_fixture.enemy_relief_blocks_lane(lane_ranged,Vector2i(5,4),lane_fixture.player):failures.append("lane committed ray survives hidden displacement")
+	checks+=1
+	lane_fixture.player=Vector2i(6,2)
+	if lane_fixture.enemy_relief_blocks_lane(lane_ranged,Vector2i(6,3),lane_fixture.player):failures.append("lane committed ray does not redirect to concealed target")
+	checks+=1
+	lane_ranged["aim"]=Vector2i.ZERO
+	if lane_fixture.enemy_relief_blocks_lane(lane_ranged,Vector2i(5,4),lane_fixture.player):failures.append("lane invalid committed heading cannot reserve tiles")
+	checks+=1
+	lane_ranged["aim"]=Vector2i.LEFT;lane_fixture.player=old_lane_player
+	if lane_actor.pos!=Vector2i(5,5) or lane_ranged.pp_primary!=12 or not lane_fixture.enemy_actions.is_empty():failures.append("lane hidden displacement planning purity")
+	checks+=1
 	lane_ranged.erase("windup");lane_ranged.erase("aim");lane_fixture.charge_phase=""
 	if not lane_fixture.enemy_relief_blocks_lane(lane_ranged,Vector2i(5,4),lane_fixture.player):failures.append("lane restores reservation after visible return")
 	checks+=1
@@ -3158,7 +3173,7 @@ func run_checks()->void:
 	stage_fixture.enemy_expire_frontline_holds(stage_actor)
 	if stage_actor.has("stage_position") or stage_actor.has("stage_turn"):failures.append("staging expiry rejects missing target even with valid age and position")
 	checks+=1
-	print("KINDRIA_ANTI_STALL checks=235")
+	print("KINDRIA_ANTI_STALL checks=239")
 	# A direct witness may report a tile, but a listener cannot relay it.
 	var comm=Rules.new()
 	for x in range(1,4):comm.cells[Vector2i(x,3)]=true
