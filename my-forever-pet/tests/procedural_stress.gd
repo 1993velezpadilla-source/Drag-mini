@@ -1647,6 +1647,44 @@ func run_checks()->void:
 	ap_actor.erase("push_immune")
 	checks+=1
 	print("KINDRIA_ENEMY_ADAPTATION checks=9")
+
+	# Decision scoring compares usable learned moves without consuming a turn.
+	var decision_fixture=Rules.new()
+	for y in range(1,10):
+		for x in range(1,10):decision_fixture.cells[Vector2i(x,y)]=true
+	decision_fixture.player=Vector2i(6,4);decision_fixture.stairs=Vector2i(9,9);decision_fixture.relic=Vector2i(9,8);decision_fixture.turns=20;decision_fixture.hp=30
+	var decision_actor:Dictionary={"uid":220,"pos":Vector2i(4,5),"hp":30,"max_hp":30,"kind":0,"species":"leafwisp","ecology_role":"hunter","ecology_search_enabled":true,"personality_enabled":true,"pp_primary":12,"pp_secondary":0}
+	decision_fixture.enemies.append(decision_actor)
+	var decision_position:Dictionary=decision_fixture.enemy_decision_position_plan(decision_actor,decision_fixture.player)
+	if decision_position.get("step")!=Vector2i(4,4) or float(decision_position.get("value",0))<=0.0:failures.append("decision opens real primary firing lane")
+	checks+=1
+	if decision_actor.pos!=Vector2i(4,5) or decision_actor.pp_primary!=12 or not decision_fixture.enemy_actions.is_empty():failures.append("decision pure evaluation")
+	checks+=1
+	decision_fixture.traps[Vector2i(4,4)]="snare"
+	if not decision_fixture.enemy_decision_position_plan(decision_actor,decision_fixture.player).is_empty():failures.append("decision excludes trapped post")
+	decision_fixture.traps.clear()
+	checks+=1
+	decision_actor["cooldown"]=2
+	if not decision_fixture.enemy_decision_position_plan(decision_actor,decision_fixture.player).is_empty():failures.append("decision cooling move unavailable")
+	decision_actor.erase("cooldown")
+	checks+=1
+	decision_actor.species="rootgnawer";decision_actor.pp_primary=0;decision_actor.pp_secondary=12
+	if decision_fixture.enemy_decision_position_plan(decision_actor,decision_fixture.player).get("step")!=Vector2i(4,4):failures.append("decision considers learned secondary")
+	checks+=1
+	decision_actor.pp_secondary=0
+	if not decision_fixture.enemy_decision_position_plan(decision_actor,decision_fixture.player).is_empty():failures.append("decision exhausted kit preserves fallback")
+	checks+=1
+	decision_actor.pp_secondary=12;decision_actor.pos=Vector2i(4,4)
+	if not decision_fixture.enemy_decision_position_plan(decision_actor,decision_fixture.player).is_empty():failures.append("decision retains immediate attack")
+	checks+=1
+	decision_actor.pos=Vector2i(4,5);decision_fixture.shield_kind="protect";decision_fixture.shield_turns=2
+	if not decision_fixture.enemy_decision_position_plan(decision_actor,decision_fixture.player).is_empty():failures.append("decision respects protected target")
+	decision_fixture.shield_turns=0
+	checks+=1
+	decision_fixture.cells.erase(Vector2i(5,5));decision_fixture.cells.erase(Vector2i(5,4))
+	if not decision_fixture.enemy_decision_position_plan(decision_actor,decision_fixture.player).is_empty():failures.append("decision no unseen target")
+	checks+=1
+	print("KINDRIA_ENEMY_DECISION_ENGINE checks=9")
 	# A direct witness may report a tile, but a listener cannot relay it.
 	var comm=Rules.new()
 	for x in range(1,4):comm.cells[Vector2i(x,3)]=true
