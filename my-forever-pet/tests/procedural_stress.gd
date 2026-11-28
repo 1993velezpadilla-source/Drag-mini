@@ -900,7 +900,7 @@ func run_checks()->void:
 	status_fixture.enemies.append(status_actor)
 	var debuff_move:Dictionary=Rules.MOVE_LIBRARY["eos_085"]
 	var solo_utility:float=status_fixture.enemy_status_utility(status_actor,debuff_move)
-	status_fixture.enemies.append({"uid":1,"pos":Vector2i(4,4),"hp":20,"kind":0})
+	status_fixture.enemies.append({"uid":1,"pos":Vector2i(4,4),"hp":20,"kind":0,"ecology_search_enabled":true,"pp_primary":10,"pp_secondary":0})
 	if solo_utility<=0.0 or status_fixture.enemy_status_utility(status_actor,debuff_move)<=solo_utility or status_actor.pp_control!=5 or not status_fixture.player_stages.is_empty():failures.append("status utility team benefit and purity")
 	checks+=1
 	status_fixture.enemies.pop_back()
@@ -1564,6 +1564,50 @@ func run_checks()->void:
 	if combat_memory.enemy_actions.size()!=1 or not memory_actor.combat_observations.has("-1:primary") or memory_actor.pp_primary!=11:failures.append("combat memory real attack records once")
 	checks+=1
 	print("KINDRIA_COMBAT_MEMORY checks=10")
+	# Setup evaluates usable, visible follow-ups, not mere enemy proximity.
+	var combo_fixture=Rules.new()
+	for y in range(1,8):
+		for x in range(1,8):combo_fixture.cells[Vector2i(x,y)]=true
+	combo_fixture.player=Vector2i(4,4)
+	var setup_actor:Dictionary={"uid":0,"pos":Vector2i(3,4),"hp":30,"kind":0,"species":"coralcrab","ecology_search_enabled":true,"pp_primary":0,"pp_secondary":0,"pp_control":5}
+	var follow_actor:Dictionary={"uid":1,"pos":Vector2i(4,3),"hp":30,"kind":0,"species":"bramble_pup","ecology_search_enabled":true,"pp_primary":10,"pp_secondary":0}
+	combo_fixture.enemies.append(setup_actor);combo_fixture.enemies.append(follow_actor)
+	var combo_move:Dictionary=Rules.MOVE_LIBRARY["eos_192"]
+	var combo_debuff:Dictionary={"stat_changes":{"defense":-1}}
+	var available:float=combo_fixture.enemy_combo_setup_bonus(setup_actor,combo_move)
+	if available<=0.0 or combo_fixture.enemy_combo_followup(follow_actor,combo_debuff,0)<=0.0:failures.append("combo available physical followup")
+	checks+=1
+	follow_actor.pp_primary=0
+	if combo_fixture.enemy_combo_setup_bonus(setup_actor,combo_move)!=0.0:failures.append("combo exhausted partner")
+	checks+=1
+	follow_actor.pp_primary=10;follow_actor["cooldown"]=2
+	if combo_fixture.enemy_combo_setup_bonus(setup_actor,combo_move)!=0.0:failures.append("combo cooldown partner")
+	checks+=1
+	follow_actor.cooldown=0;follow_actor["sleep_turns"]=2
+	if combo_fixture.enemy_combo_setup_bonus(setup_actor,combo_move)!=0.0:failures.append("combo incapacitated partner")
+	checks+=1
+	follow_actor.sleep_turns=0;follow_actor["sealed_moves"]=["primary"]
+	if combo_fixture.enemy_combo_setup_bonus(setup_actor,combo_move)!=0.0:failures.append("combo sealed attack")
+	checks+=1
+	follow_actor.sealed_moves=[];follow_actor.pos=Vector2i(6,6)
+	if combo_fixture.enemy_combo_setup_bonus(setup_actor,combo_move)!=0.0:failures.append("combo unreachable followup")
+	checks+=1
+	follow_actor.pos=Vector2i(4,3)
+	if combo_fixture.enemy_combo_followup(follow_actor,{"stat_changes":{"sp_defense":-1}},0)!=0.0:failures.append("combo irrelevant defense")
+	checks+=1
+	combo_fixture.player_stages["defense"]=-2
+	if combo_fixture.enemy_combo_followup(follow_actor,combo_debuff,0)!=0.0:failures.append("combo redundant defense")
+	checks+=1
+	combo_fixture.player_stages.clear()
+	var charged_skill:Array=combo_fixture.signature_skill(follow_actor).duplicate()
+	charged_skill[1]=true
+	var idle_charge_score:float=combo_fixture.enemy_attack_score(follow_actor,charged_skill,false)
+	combo_fixture.player_boons["hostile_paralysis"]=5
+	if combo_fixture.enemy_attack_score(follow_actor,charged_skill,false)<=idle_charge_score or combo_fixture.enemy_status_utility(setup_actor,combo_move)!=0.0:failures.append("combo charged window and no repeat paralysis")
+	checks+=1
+	if setup_actor.pp_control!=5 or follow_actor.pp_primary!=10 or not combo_fixture.enemy_actions.is_empty():failures.append("combo scoring pure")
+	checks+=1
+	print("KINDRIA_ATTACK_COMBINATIONS checks=10")
 	# Actual disk I/O, legacy migration, corruption recovery, and resumed writes.
 	var test_path:String="user://kindria_procedural_test_"+str(OS.get_process_id())+".cfg"
 	var exact:Array[String]=["legacy exact".sha256_text()]
