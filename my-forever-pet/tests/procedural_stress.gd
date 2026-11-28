@@ -2457,17 +2457,39 @@ func run_checks()->void:
 	loss_fixture.turns=24
 	if loss_fixture.enemy_witnessed_vacancy_step(loss_actor,loss_fixture.player)!=loss_actor.pos:failures.append("witnessed vacancy expires")
 	checks+=1
+	# Same-turn losses cannot erase a safe immediate replacement post.
+	loss_fixture.turns=25
+	loss_fixture.enemy_record_witnessed_loss(fallen_peer)
+	var distant_loss:Dictionary={"uid":393,"pos":Vector2i(2,3),"hp":0,"kind":0,"species":"rootgnawer"}
+	loss_fixture.enemy_record_witnessed_loss(distant_loss)
+	if loss_actor.get("squad_loss_tile",Vector2i.ZERO)!=Vector2i(3,4) or loss_fixture.enemy_witnessed_vacancy_step(loss_actor,loss_fixture.player)!=Vector2i(3,4):failures.append("simultaneous losses preserve useful opening")
+	checks+=1
+	loss_fixture.traps[Vector2i(3,4)]="snare"
+	loss_fixture.enemy_record_witnessed_loss(distant_loss)
+	if loss_actor.get("squad_loss_tile",Vector2i.ZERO)!=distant_loss.pos or loss_fixture.enemy_witnessed_vacancy_step(loss_actor,loss_fixture.player)!=loss_actor.pos:failures.append("simultaneous losses do not preserve unsafe post")
+	checks+=1
+	loss_fixture.traps.clear()
+	loss_fixture.turns=26
+	loss_fixture.enemy_record_witnessed_loss(fallen_peer)
+	loss_fixture.turns=27
+	loss_fixture.enemy_record_witnessed_loss(distant_loss)
+	if loss_actor.get("squad_loss_tile",Vector2i.ZERO)!=distant_loss.pos:failures.append("later loss replaces prior turn record")
+	checks+=1
 	# Exercise end-of-turn removal and next-turn replacement through the live dispatcher.
 	var live_vacancy=Rules.new()
-	for vacancy_cell in [Vector2i(1,5),Vector2i(1,6),Vector2i(2,6),Vector2i(1,7),Vector2i(2,7),Vector2i(9,8),Vector2i(9,9)]:live_vacancy.cells[vacancy_cell]=true
+	for vacancy_cell in [Vector2i(1,5),Vector2i(1,6),Vector2i(2,6),Vector2i(1,7),Vector2i(2,7),Vector2i(3,7),Vector2i(9,8),Vector2i(9,9)]:live_vacancy.cells[vacancy_cell]=true
 	live_vacancy.player=Vector2i(1,6);live_vacancy.stairs=Vector2i(9,9);live_vacancy.relic=Vector2i(9,8)
 	live_vacancy.hp=10000;live_vacancy.max_hp=10000;live_vacancy.belly_tenths=1000
 	var replacement:Dictionary={"uid":400,"pos":Vector2i(2,7),"hp":30,"max_hp":30,"kind":0,"species":"rootgnawer","ecology_role":"hunter","ecology_search_enabled":true,"personality_enabled":true,"pp_primary":0,"pp_secondary":0,"pp_support":0,"pp_control":0}
 	live_vacancy.enemies.append(replacement)
 	live_vacancy.enemies.append({"uid":401,"pos":Vector2i(2,6),"hp":30,"kind":0,"species":"rootgnawer","sleep_turns":10,"ecology_search_enabled":true})
+	# Reverse removal order: the useful post is removed before the distant loss.
+	live_vacancy.enemies.append({"uid":403,"pos":Vector2i(3,7),"hp":0,"kind":0,"species":"rootgnawer"})
 	live_vacancy.enemies.append({"uid":402,"pos":Vector2i(1,7),"hp":0,"kind":0,"species":"rootgnawer"})
 	live_vacancy.enemy_turn_actions()
 	if replacement.pos!=Vector2i(2,7) or live_vacancy.enemy_at(Vector2i(1,7))>=0 or int(replacement.get("squad_loss_turn",-1))!=live_vacancy.turns:failures.append("live vacancy recorded after actor decision")
+	checks+=1
+	if replacement.get("squad_loss_tile",Vector2i.ZERO)!=Vector2i(1,7) or live_vacancy.enemy_at(Vector2i(3,7))>=0:failures.append("live simultaneous losses preserve frontline post")
 	checks+=1
 	var vacancy_tick:int=live_vacancy.turns
 	live_vacancy.enemy_turn_actions()
@@ -2487,7 +2509,7 @@ func run_checks()->void:
 		if int(action.get("uid",-1))==400 and str(action.get("phase",""))=="attack":replacement_attacks+=1
 	if replacement_attacks!=1:failures.append("live vacancy attack on following turn")
 	checks+=1
-	print("KINDRIA_ANTI_STALL checks=102")
+	print("KINDRIA_ANTI_STALL checks=106")
 	# A direct witness may report a tile, but a listener cannot relay it.
 	var comm=Rules.new()
 	for x in range(1,4):comm.cells[Vector2i(x,3)]=true
