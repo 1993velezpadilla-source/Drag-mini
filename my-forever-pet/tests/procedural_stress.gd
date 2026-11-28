@@ -129,7 +129,7 @@ func ai_path_regressions(failures:Array[String])->int:
 		var diagonal_optimized:Array[Vector2i]=arena.route(origin,target,true,true)
 		expanded_optimized+=arena.ai_path_nodes
 		fast_count+=arena.ai_path_fast_routes;reuse_count+=arena.ai_path_reused_searches
-		if optimized!=reference:failures.append("path cardinal equivalence %d"%sample)
+		if optimized!=reference:failures.append("path eight direction pursuit equivalence %d"%sample)
 		if diagonal_optimized!=diagonal_reference:failures.append("path diagonal tie equivalence %d"%sample)
 		arena.ai_end_turn_cache()
 		checks_local+=2
@@ -946,13 +946,35 @@ func run_checks()->void:
 			var p:Vector2i=e.pos
 			var route_a:Array[Vector2i]=walker.enemy_approach_route(p,walker.player)
 			var route_b:Array[Vector2i]=walker.enemy_approach_route(p,walker.player)
-			var direct_route:Array[Vector2i]=walker.route(p,walker.player,true)
+			var direct_route:Array[Vector2i]=walker.route(p,walker.player,true,true,true)
 			if route_a!=route_b or (not direct_route.is_empty() and route_a!=direct_route):failures.append("navigation determinism")
 			for q in route_a:
-				if walker.distance(p,q)!=1 or not walker.cells.has(q) or walker.enemy_at(q)>=0 or walker.ally_at(q)>=0:failures.append("navigation path integrity")
+				if not walker.step_clear(p,q-p) or walker.enemy_at(q)>=0 or walker.ally_at(q)>=0:failures.append("navigation path integrity")
 				p=q
 		checks+=2
 	print("KINDRIA_NAVIGATION congestion=3 detour=1 occupancy=2 seeded_floors=128")
+	# The shortest legal pursuit now uses diagonals in open terrain; a wall
+	# on either orthogonal side prohibits the corresponding corner crossing.
+	var octant_route=Rules.new()
+	for oct_y in range(1,8):
+		for oct_x in range(1,8):octant_route.cells[Vector2i(oct_x,oct_y)]=true
+	var oct_start:=Vector2i(4,4)
+	for oct_dir in [Vector2i(1,-1),Vector2i(1,1),Vector2i(-1,1),Vector2i(-1,-1)]:
+		octant_route.player=oct_start+oct_dir*2
+		var oct_path:Array[Vector2i]=octant_route.enemy_approach_route(oct_start,octant_route.player)
+		if oct_path!=[oct_start+oct_dir,octant_route.player]:failures.append("pursuit shortest diagonal direction")
+		checks+=1
+		var oct_wall:Vector2i=oct_start+Vector2i(oct_dir.x,0)
+		octant_route.cells.erase(oct_wall)
+		var oct_blocked:Array[Vector2i]=octant_route.enemy_approach_route(oct_start,octant_route.player)
+		if oct_blocked.is_empty() or oct_blocked[0]==oct_start+oct_dir or oct_blocked.back()!=octant_route.player:failures.append("pursuit blocked diagonal corner")
+		var oct_previous:Vector2i=oct_start
+		for oct_tile in oct_blocked:
+			if not octant_route.step_clear(oct_previous,oct_tile-oct_previous):failures.append("pursuit blocked corner path integrity")
+			oct_previous=oct_tile
+		checks+=1
+		octant_route.cells[oct_wall]=true
+	print("KINDRIA_OCTANT_PURSUIT checks=8")
 	# Memory follows only the last observed position and expires by global turn.
 	var memory_fixture=Rules.new()
 	for x in range(1,18):memory_fixture.cells[Vector2i(x,3)]=true

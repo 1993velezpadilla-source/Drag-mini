@@ -4597,9 +4597,9 @@ func ai_combined_player_route(origin:Vector2i,target:Vector2i)->Array[Vector2i]:
 	while cursor<queue.size():
 		var p:Vector2i=queue[cursor];cursor+=1
 		ai_path_nodes+=1
-		for d in DIR:
+		for d in (DIR if ai_legacy_cardinal_replay else COMBAT_DIR):
 			var q:Vector2i=p+d
-			if previous.has(q) or not cells.has(q) or (q!=target and blocked.has(q)):continue
+			if previous.has(q) or not step_clear(p,d) or (q!=target and blocked.has(q)):continue
 			previous[q]=p
 			if q==target:return ai_reconstruct_route(previous,origin,target)
 			queue.append(q)
@@ -4615,11 +4615,11 @@ func ai_combined_player_route(origin:Vector2i,target:Vector2i)->Array[Vector2i]:
 			if remaining==1:break
 	return ai_reconstruct_route(previous,origin,best)
 
-func route(a:Vector2i,b:Vector2i,avoid_enemies:bool=false,diagonal:bool=false)->Array[Vector2i]:
+func route(a:Vector2i,b:Vector2i,avoid_enemies:bool=false,diagonal:bool=false,combat_order:bool=false)->Array[Vector2i]:
 	var result:Array[Vector2i]=[]
 	if not cells.has(a) or not cells.has(b) or a==b:return result
 	var blocked:Dictionary=navigation_occupancy() if avoid_enemies else {}
-	if ai_cache_active and not diagonal:
+	if ai_cache_active and (not diagonal or combat_order):
 		var straight:Array[Vector2i]=ai_straight_route(a,b,blocked)
 		if not straight.is_empty():
 			ai_path_fast_routes+=1;return straight
@@ -4631,7 +4631,7 @@ func route(a:Vector2i,b:Vector2i,avoid_enemies:bool=false,diagonal:bool=false)->
 		var p=queue[cursor];cursor+=1
 		ai_path_nodes+=1
 		if p==b:break
-		for d in DIR8 if diagonal else DIR:
+		for d in (COMBAT_DIR if combat_order else DIR8) if diagonal else DIR:
 			var q:Vector2i=p+d
 			if not step_clear(p,d) or previous.has(q):continue
 			if avoid_enemies and q!=b and blocked.has(q):continue
@@ -4648,16 +4648,17 @@ func route(a:Vector2i,b:Vector2i,avoid_enemies:bool=false,diagonal:bool=false)->
 # When a corridor is blocked, approach the nearest reachable point measured
 # by real terrain distance, not Manhattan distance through walls.
 func ai_terrain_distances(target:Vector2i)->Dictionary:
-	if ai_cache_active and ai_terrain_cache.has(target):
-		ai_cache_hits+=1;return ai_terrain_cache[target]
+	var cache_key:=Vector3i(target.x,target.y,0 if ai_legacy_cardinal_replay else 1)
+	if ai_cache_active and ai_terrain_cache.has(cache_key):
+		ai_cache_hits+=1;return ai_terrain_cache[cache_key]
 	var distances:Dictionary={target:0}
 	var terrain_queue:Array[Vector2i]=[target]
 	var cursor:int=0
 	while cursor<terrain_queue.size():
 		var p:Vector2i=terrain_queue[cursor];cursor+=1
-		for d in DIR:
+		for d in (DIR if ai_legacy_cardinal_replay else COMBAT_DIR):
 			var q:Vector2i=p+d
-			if not cells.has(q) or distances.has(q):continue
+			if not step_clear(p,d) or distances.has(q):continue
 			distances[q]=int(distances[p])+1;terrain_queue.append(q)
 	if ai_cache_active:
 		ai_cache_misses+=1
@@ -4666,7 +4667,7 @@ func ai_terrain_distances(target:Vector2i)->Dictionary:
 
 func enemy_approach_route(origin:Vector2i,target:Vector2i)->Array[Vector2i]:
 	if ai_cache_active and target==player:return ai_combined_player_route(origin,target)
-	var direct:Array[Vector2i]=route(origin,target,true)
+	var direct:Array[Vector2i]=route(origin,target,true,not ai_legacy_cardinal_replay,true)
 	if not direct.is_empty() or origin==target:return direct
 	if not cells.has(origin) or not cells.has(target):return direct
 	var distances:Dictionary=ai_terrain_distances(target)
@@ -4685,9 +4686,9 @@ func enemy_approach_route(origin:Vector2i,target:Vector2i)->Array[Vector2i]:
 		if remaining<best_distance:
 			best_distance=remaining;best=p
 			if remaining==1:break
-		for d in DIR:
+		for d in (DIR if ai_legacy_cardinal_replay else COMBAT_DIR):
 			var q:Vector2i=p+d
-			if not cells.has(q) or previous.has(q) or blocked.has(q) or q==player:continue
+			if not step_clear(p,d) or previous.has(q) or blocked.has(q) or q==player:continue
 			previous[q]=p;queue.append(q)
 	var p:Vector2i=best
 	while p!=origin:
