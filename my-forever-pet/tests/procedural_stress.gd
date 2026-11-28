@@ -1606,6 +1606,47 @@ func run_checks()->void:
 	if ambush_coord.enemy_pursuit_target(ac_actor,ac_entry)!=ac_entry or ac_actor.has("ambush_plan_turn"):failures.append("ambush direct sight clears coordinated plan")
 	checks+=1
 	print("KINDRIA_COORDINATED_AMBUSH checks=8")
+
+	# Push pressure is individual, bounded and never creates a new ability.
+	var adapt_push=Rules.new()
+	for y in range(1,12):
+		for x in range(1,12):adapt_push.cells[Vector2i(x,y)]=true
+	adapt_push.player=Vector2i(3,5);adapt_push.stairs=Vector2i(11,11);adapt_push.relic=Vector2i(11,10);adapt_push.turns=20
+	var ap_actor:Dictionary={"uid":200,"pos":Vector2i(6,5),"hp":30,"max_hp":30,"kind":0,"species":"bramble_pup","ecology_role":"hunter","ecology_search_enabled":true,"personality_enabled":true,"pp_primary":0,"pp_secondary":0}
+	adapt_push.enemies.append(ap_actor)
+	adapt_push.enemy_record_push_pressure(ap_actor);adapt_push.enemy_record_push_pressure(ap_actor)
+	if adapt_push.enemy_repeated_push(ap_actor) or int(ap_actor.get("push_pressure_count",0))!=1:failures.append("adapt push one sample per turn")
+	checks+=1
+	adapt_push.turns=21
+	adapt_push.enemy_record_push_pressure(ap_actor)
+	if not adapt_push.enemy_repeated_push(ap_actor):failures.append("adapt push repeated observation")
+	checks+=1
+	var ap_step:Vector2i=adapt_push.enemy_push_adaptation_step(ap_actor,adapt_push.player)
+	if ap_step==ap_actor.pos or adapt_push.distance(ap_step,ap_actor.pos)!=1 or adapt_push.enemy_push_exposure(ap_actor,ap_step,adapt_push.player)>=adapt_push.enemy_push_exposure(ap_actor,ap_actor.pos,adapt_push.player):failures.append("adapt push lower exposure legal step")
+	checks+=1
+	if ap_actor.pos!=Vector2i(6,5) or ap_actor.pp_primary!=0 or not adapt_push.enemy_actions.is_empty():failures.append("adapt push planning purity")
+	checks+=1
+	adapt_push.traps[ap_step]="snare"
+	if adapt_push.enemy_push_adaptation_step(ap_actor,adapt_push.player)==ap_step:failures.append("adapt push avoid trap")
+	adapt_push.traps.clear()
+	checks+=1
+	ap_actor["push_adapt_turn"]=21
+	if adapt_push.enemy_push_adaptation_step(ap_actor,adapt_push.player)!=ap_actor.pos:failures.append("adapt push retry interval")
+	ap_actor.erase("push_adapt_turn")
+	checks+=1
+	adapt_push.cells.erase(Vector2i(5,5))
+	if adapt_push.enemy_push_adaptation_step(ap_actor,adapt_push.player)!=ap_actor.pos:failures.append("adapt push no hidden target")
+	adapt_push.cells[Vector2i(5,5)]=true
+	checks+=1
+	adapt_push.turns=26
+	if adapt_push.enemy_repeated_push(ap_actor) or adapt_push.enemy_push_adaptation_step(ap_actor,adapt_push.player)!=ap_actor.pos:failures.append("adapt push expiry")
+	checks+=1
+	adapt_push.turns=27
+	ap_actor["push_immune"]=true
+	if adapt_push.push_enemy(0) or int(ap_actor.get("push_pressure_turn",-1))!=21:failures.append("adapt push immune attempt not learned")
+	ap_actor.erase("push_immune")
+	checks+=1
+	print("KINDRIA_ENEMY_ADAPTATION checks=9")
 	# A direct witness may report a tile, but a listener cannot relay it.
 	var comm=Rules.new()
 	for x in range(1,4):comm.cells[Vector2i(x,3)]=true
