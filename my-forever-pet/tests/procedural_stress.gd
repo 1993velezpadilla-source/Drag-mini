@@ -2788,7 +2788,39 @@ func run_checks()->void:
 	var blind_hp:int=blind_area.hp
 	if not blind_area.enemy_target_ally(0) or blind_caster.pp_primary!=11 or blind_area.enemy_actions.size()!=1 or blind_area.allies[0].hp>=30 or blind_area.hp!=blind_hp:failures.append("party area dispatch spends one cast on visible ally")
 	checks+=1
-	print("KINDRIA_ANTI_STALL checks=151")
+	# Tactical utility is never itself proof of a lethal attack.
+	var party_ko=Rules.new()
+	for y in range(1,8):
+		for x in range(1,8):party_ko.cells[Vector2i(x,y)]=true
+	party_ko.player=Vector2i(4,3);party_ko.stairs=Vector2i(7,7);party_ko.relic=Vector2i(7,6)
+	var ko_actor:Dictionary={"uid":480,"pos":Vector2i(3,3),"hp":30,"kind":0,"species":"rootgnawer","ecology_role":"hunter","ecology_search_enabled":true,"personality_enabled":true,"pp_primary":12,"pp_secondary":0,"stages":{"accuracy":10}}
+	party_ko.enemies.append(ko_actor)
+	var ko_skill:Array=party_ko.signature_skill(ko_actor)
+	party_ko.hp=1
+	if party_ko.enemy_party_player_ko_bonus(ko_actor,ko_skill,false)<=0.0 or party_ko.enemy_party_player_ko_bonus(ko_actor,[],false,true)<=0.0:failures.append("party comparison rewards credible immediate KO")
+	checks+=1
+	party_ko.hp=party_ko.enemy_opportunity_damage(ko_actor,ko_skill,false)+1
+	if party_ko.enemy_party_player_ko_bonus(ko_actor,ko_skill,false)!=0.0:failures.append("party comparison rejects nonlethal utility")
+	checks+=1
+	party_ko.hp=1
+	party_ko.shield_kind="endure";party_ko.shield_turns=1
+	if party_ko.enemy_party_player_ko_bonus(ko_actor,ko_skill,false)!=0.0 or party_ko.enemy_party_player_ko_bonus(ko_actor,[],false,true)!=0.0:failures.append("party comparison respects endure")
+	checks+=1
+	party_ko.shield_kind="";party_ko.shield_turns=0
+	var delayed_ko:Array=ko_skill.duplicate();delayed_ko[1]=true
+	if party_ko.enemy_party_player_ko_bonus(ko_actor,delayed_ko,false)!=0.0:failures.append("party comparison rejects delayed lethal claim")
+	checks+=1
+	ko_actor["cooldown"]=1
+	if party_ko.enemy_party_player_ko_bonus(ko_actor,ko_skill,false)!=0.0:failures.append("party comparison respects cooldown")
+	checks+=1
+	ko_actor["cooldown"]=0;ko_actor["whiffer_turns"]=2
+	if party_ko.enemy_party_player_ko_bonus(ko_actor,ko_skill,false)!=0.0:failures.append("party comparison rejects unreliable lethal claim")
+	checks+=1
+	ko_actor.erase("whiffer_turns")
+	party_ko.charge_phase="vanish"
+	if party_ko.enemy_party_player_ko_bonus(ko_actor,ko_skill,false)!=0.0 or ko_actor.pp_primary!=12 or not party_ko.enemy_actions.is_empty() or party_ko.hp!=1:failures.append("party comparison concealment and purity")
+	checks+=1
+	print("KINDRIA_ANTI_STALL checks=158")
 	# A direct witness may report a tile, but a listener cannot relay it.
 	var comm=Rules.new()
 	for x in range(1,4):comm.cells[Vector2i(x,3)]=true
