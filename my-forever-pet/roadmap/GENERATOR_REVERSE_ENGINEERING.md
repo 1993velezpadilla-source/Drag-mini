@@ -48,3 +48,11 @@ Independent biome/terrain and room-event profiles, optional treasure branches, M
 - Expanded the existing 768-seed gauntlet with obstacle integrity, profile coverage, tutorial isolation and first-floor budget checks. CI and real Android verification pending.
 - Next: true merged rooms, passable secondary terrain with batched visual rendering, secret optional areas, biome-specific ecologies, encounter composition and long-run repetition measurement. Do not describe these as implemented yet.
 - Free-to-play, never pay-to-win: optional ad removal/cosmetics only; no paid progression, drop-rate, damage, or experience advantages.
+
+
+## V26.30 — Persistent dungeon landscape identity (user-directed correction)
+- User clarified that the visual landscape/theme must remain consistent within each dungeon, as in Mystery Dungeon; procedural variation is the map structure, not random biome swapping. This supersedes V26.29's proposed random microbiomes.
+- Runtime visual landscape seed, terrain pigment, forest wind palette, scenic budget and coordinate decoration salts are independent of floor number and expedition RNG. Existing region asset families remain intact. Decoration placement still conforms to generated room boundaries, safe exterior space and mobile budgets; identical prop coordinates are neither required nor guaranteed.
+- Starter Woods keeps one consistent visual profile across its three floors; authored floor names, teaching rewards and gameplay progression remain unchanged. Authored palette library retained for future distinct dungeons. Current identity keys are region plus starter distinction; future named dungeons may each select a fixed art profile.
+- 25 additional regression assertions across four identities and six floor/seed pairs; updated prior shader uniform expectation. CI and Android visual/performance verification pending. No claim of exact reference-game parity.
+- Next: actual connected room mergers, optional branches, dungeon-specific fixed art profiles, structural novelty audits and encounter variety without random biome changes. Free-to-play, never pay-to-win; portrait only.
