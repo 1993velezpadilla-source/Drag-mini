@@ -1718,12 +1718,13 @@ for i in range(6):
  a=i*2*pi/6+.23;dx=math.cos(a);dz=math.sin(a)
  tube([(0,.39,0),(.31*dx,.23,.31*dz),(.59*dx,.09,.59*dz),(.99*dx,.02,.99*dz)],[.15,.12,.075,.018],bark,8)
  # Different branch elevations create open windows through the canopy.
- h=1.65+.14*(i%3)+.09*math.sin(i*2.2)
- x=.62*dx;z=.62*dz
+ h=1.59+.19*(i%3)+.13*math.sin(i*2.2)
+ reach=.58+.10*math.sin(i*1.73)
+ x=reach*dx;z=reach*dz
  tube([(-.06,1.10,0),(.32*dx,h-.19,.30*dz),(x,h+.26,z)],[.12,.076,.024],bark,9)
  tube([(.32*dx,h-.19,.30*dz),(x-.18*dz,h+.04,z+.18*dx),(x-.27*dz,h+.13,z+.27*dx)],[.075,.045,.017],bark,7)
- woodland_crown((x,h+.30,z),(.96,.48,.90),3000+i,leafdark if i%2 else moss)
- woodland_crown((x-.25*dz,h+.13,z+.25*dx),(.58,.34,.54),3040+i,spring_leaf)
+ woodland_crown((x,h+.30,z),(.86+.09*(i%3),.40+.07*(i%3),.83+.07*((i+1)%3)),3000+i,leafdark if i%2 else moss)
+ woodland_crown((x-.25*dz,h+.13,z+.25*dx),(.54+.06*(i%2),.31+.06*(i%3),.50+.07*(i%2)),3040+i,spring_leaf)
  for j in range(11):
   ang=j*2*pi/11+i*.5
   reach=.31+.035*math.sin(j*3.1)
@@ -1751,14 +1752,15 @@ clear()
 # Woodland ground cover: no pedestal or raised square. Leaf litter and
 # low flowering plants join the spaces between mature trees.
 for i in range(5):
- a=i*2*pi/5;x=.43*math.cos(a);z=.40*math.sin(a)
- leaf_rosette((x,.035,z),3100+i,leafdark,leafbright,.32+.07*(i%2),fronds=4,pairs=3)
+ a=i*2*pi/5+.13*math.sin(i*1.7);x=(.39+.06*(i%2))*math.cos(a);z=(.36+.04*(i%3))*math.sin(a)
+ leaf_rosette((x,.035,z),3100+i,leafdark,leafbright,.29+.07*(i%3),fronds=4,pairs=3)
  for j in range(3):
   ang=a+j*1.7;crown_leaf((x+.20*math.cos(ang),.022,z+.20*math.sin(ang)),ang,.17,.055,autumn)
-for x,z in [(-.29,.19),(.32,-.12)]:
+for k,(x,z) in enumerate([(-.29,.19),(.32,-.12)]):
+ y=.18+.04*k
  for j in range(5):
-  a=j*2*pi/5;crown_leaf((x,.20,z),a,.11,.044,white)
- ball((x,.22,z),(.08,.035,.08),gold)
+  a=j*2*pi/5+k*.3;crown_leaf((x,y,z),a,.10+.015*k,.044,white if k==0 else gold_leaf)
+ ball((x,y+.02,z),(.08,.035,.08),gold)
 tube([(-.59,.04,-.33),(-.16,.07,-.21),(.18,.05,-.36)],[.053,.039,.012],bark,6)
 export('dungeon_forest_understory',2600)
 clear()
