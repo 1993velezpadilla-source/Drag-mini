@@ -36,6 +36,39 @@ func run_checks()->void:
 	var checks:int=0
 	var failures:Array[String]=[]
 	var view:=Dungeon.new()
+	# V26.27: six topology families, walkable anchors and complete tile connectivity.
+	var topology_seen:Dictionary={}
+	var topology_anchor_count:int=0
+	for seed_id in range(180):
+		var topology_run:=preload("res://dungeon_rules.gd").new()
+		topology_run.setup(seed_id%3,0,0,false,false,seed_id+9301,0,seed_id%6==0)
+		var family:int=topology_run.topology_family
+		topology_seen[family]=true
+		var visited:Dictionary={topology_run.player:true}
+		var pending:Array[Vector2i]=[topology_run.player]
+		var cursor:int=0
+		while cursor<pending.size():
+			var tile:Vector2i=pending[cursor];cursor+=1
+			for direction in topology_run.DIR:
+				var next:Vector2i=tile+direction
+				if topology_run.cells.has(next) and not visited.has(next):
+					visited[next]=true
+					pending.append(next)
+		if visited.size()!=topology_run.cells.size():failures.append("V26.27 disconnected geometry")
+		if not visited.has(topology_run.stairs):failures.append("V26.27 unreachable stairs")
+		if topology_run.corridor_anchors.size()>topology_run.topology_branch_budget(family):failures.append("V26.27 anchor cap")
+		var valid_anchors:bool=true
+		for anchor in topology_run.corridor_anchors:
+			topology_anchor_count+=1
+			if not visited.has(anchor):valid_anchors=false
+			for room in topology_run.rooms:
+				if room.has_point(anchor):valid_anchors=false
+		if not valid_anchors:failures.append("V26.27 non-room anchor")
+		if family==3 and (topology_run.rooms.size()!=8 or topology_run.cells.has(Vector2i(13,13))):failures.append("V26.27 ring center reserved")
+		checks+=5
+	if topology_seen.size()!=6:failures.append("V26.27 family coverage")
+	if topology_anchor_count==0:failures.append("V26.27 anchors generated")
+	checks+=2
 	# V26.25: independent random stairs, no key gate, and geometry history.
 	var layout_a:=preload("res://dungeon_rules.gd").new()
 	var layout_b:=preload("res://dungeon_rules.gd").new()
