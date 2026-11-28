@@ -2404,6 +2404,7 @@ func enemy_territorial_idle_step(e:Dictionary)->Vector2i:
 # spacing against a visible, currently empowered opponent, at most twice.
 func enemy_cautious_spacing_step(e:Dictionary,target:Vector2i)->Vector2i:
 	var origin:Vector2i=e.pos
+	if not enemy_live_contact(e,target):return origin
 	if not bool(e.get("personality_enabled",false)) or enemy_combat_personality(e)!="cautious" or bool(e.get("windup",false)) or int(e.get("stuck_turns",0))>0 or int(e.get("spacing_count",0))>=2:return origin
 	if target!=player or distance(origin,target)!=1 or not enemy_line_of_sight(origin,target):return origin
 	if int(player_stages.get("attack",0))<2 and int(player_stages.get("sp_attack",0))<2 and not enemy_recent_threat(e) and not enemy_counter_pattern(e,"close"):return origin
@@ -2561,6 +2562,7 @@ func enemy_risk_step(e:Dictionary,target:Vector2i)->Vector2i:
 
 func enemy_retreat_step(e:Dictionary,target:Vector2i)->Vector2i:
 	var origin:Vector2i=e.pos
+	if not enemy_live_contact(e,target):return origin
 	if not bool(e.get("ecology_search_enabled",false)) or bool(e.get("monster_house",false)) or int(e.get("kind",0))==3:return origin
 	if bool(e.get("windup",false)) or int(e.get("stuck_turns",0))>0 or int(e.get("retreat_steps",0))>=2:return origin
 	if enemy_survival_profile(e)!="cautious":return origin
@@ -2707,6 +2709,7 @@ func enemy_push_plan(e:Dictionary,target:Vector2i)->Dictionary:
 # Set up a useful knockback angle on this turn, then cast on a later turn.
 func enemy_control_setup_step(e:Dictionary,target:Vector2i)->Vector2i:
 	var origin:Vector2i=e.pos
+	if not enemy_live_contact(e,target):return origin
 	var id:String=str(e.get("control_move",""))
 	if not bool(e.get("ecology_search_enabled",false)) or (bool(e.get("monster_house",false)) and not bool(e.get("house_tactical",false))) or bool(e.get("windup",false)) or int(e.get("stuck_turns",0))>0:return origin
 	if int(e.get("control_cooldown",0))>0 or not MOVE_LIBRARY.has(id) or str(MOVE_LIBRARY[id].get("special_rule",""))!="push" or not enemy_move_allowed(e,"control"):return origin
@@ -2990,6 +2993,7 @@ func enemy_counterplay_escape_step(e:Dictionary,target:Vector2i)->Vector2i:
 
 func enemy_exit_block_step(e:Dictionary,target:Vector2i)->Vector2i:
 	var origin:Vector2i=e.pos
+	if not enemy_live_contact(e,target):return origin
 	if not bool(e.get("ecology_search_enabled",false)) or (bool(e.get("monster_house",false)) and not bool(e.get("house_tactical",false))) or int(e.get("kind",0))==3 or int(e.get("stuck_turns",0))>0:return origin
 	if enemy_survival_profile(e) not in ["aggressive","defensive"] or bool(e.get("windup",false)) or distance(origin,target)>3 or not enemy_line_of_sight(origin,target):return origin
 	for d in DIR:
@@ -4904,7 +4908,7 @@ func enemy_observed_attack_weight(e:Dictionary,target_uid:int,slot:String)->floa
 
 func enemy_remember_incoming(e:Dictionary,damage:int,element:String)->void:
 	if damage<=0 or not bool(e.get("ecology_search_enabled",false)):return
-	if not enemy_line_of_sight(e.pos,player) or distance(e.pos,player)>enemy_awareness(e):return
+	if not enemy_live_contact(e,player):return
 	e["incoming_turn"]=turns;e["incoming_damage"]=damage;e["incoming_element"]=element
 	# A multi-hit cast is one observation, not several independent decisions.
 	var gap:int=distance(e.pos,player)
@@ -4919,7 +4923,7 @@ func enemy_remember_incoming(e:Dictionary,damage:int,element:String)->void:
 # Multi-hit effects on the same turn count once, and never grant immunity.
 func enemy_record_push_pressure(e:Dictionary)->void:
 	if not bool(e.get("personality_enabled",false)) or not bool(e.get("ecology_search_enabled",false)):return
-	if distance(e.pos,player)>enemy_awareness(e) or not enemy_line_of_sight(e.pos,player):return
+	if not enemy_live_contact(e,player):return
 	var last:int=int(e.get("push_pressure_turn",-9999))
 	if last==turns:return
 	e["push_pressure_count"]=mini(3,int(e.get("push_pressure_count",0))+1) if turns>last and turns-last<=4 else 1
@@ -4976,6 +4980,7 @@ func enemy_counter_pattern(e:Dictionary,mode:String)->bool:
 # lane for one turn while approaching, rather than walking straight at it.
 func enemy_counter_cover_step(e:Dictionary,target:Vector2i)->Vector2i:
 	var origin:Vector2i=e.pos
+	if not enemy_live_contact(e,target):return origin
 	if not bool(e.get("personality_enabled",false)) or enemy_survival_profile(e)!="aggressive" or not enemy_counter_pattern(e,"ranged") or bool(e.get("windup",false)) or int(e.get("stuck_turns",0))>0:return origin
 	if int(e.get("kind",0))==3 or bool(e.get("monster_house",false)) or target!=player or distance(origin,target)<3 or distance(origin,target)>enemy_awareness(e) or not enemy_line_of_sight(origin,target):return origin
 	if turns<=int(e.get("counter_cover_turn",-9999))+2:return origin
@@ -4995,7 +5000,7 @@ func enemy_counter_cover_step(e:Dictionary,target:Vector2i)->Vector2i:
 # A visible full shield is a reason to spend the turn on positioning or
 # holding, not repeatedly burn learned PP. Existing windups are respected.
 func enemy_counter_protected(e:Dictionary,target:Vector2i)->bool:
-	return bool(e.get("personality_enabled",false)) and bool(e.get("ecology_search_enabled",false)) and int(e.get("kind",0))!=3 and not bool(e.get("windup",false)) and target==player and shield_turns>0 and shield_kind=="protect" and distance(e.pos,target)<=enemy_awareness(e) and enemy_line_of_sight(e.pos,target)
+	return enemy_opportunity_eligible(e) and enemy_live_contact(e,target) and shield_turns>0 and shield_kind=="protect"
 
 func enemy_counter_protected_step(e:Dictionary,target:Vector2i)->Vector2i:
 	var origin:Vector2i=e.pos
@@ -5038,8 +5043,13 @@ func enemy_opportunity_damage(e:Dictionary,skill:Array,secondary:bool,basic:bool
 	if str(e.get("major_status",""))=="burn":damage=roundi(float(damage)*.8)
 	return shield_damage(held_item_damage(damage,str(e.get("held_item","")),held_item),category)
 
+# Shared live-contact contract for optional tactical decisions. Remembered
+# targets remain available to pursuit/search, not real-time counterplay.
+func enemy_live_contact(e:Dictionary,target:Vector2i)->bool:
+	return target==player and hp>0 and not boon_active("decoy") and charge_phase not in ["underground","airborne","vanish"] and distance(e.pos,target)<=enemy_awareness(e) and enemy_line_of_sight(e.pos,target)
+
 func enemy_opportunity_eligible(e:Dictionary)->bool:
-	return bool(e.get("personality_enabled",false)) and enemy_alert_eligible(e) and not bool(e.get("windup",false)) and not boon_active("decoy") and charge_phase not in ["underground","airborne","vanish"] and distance(e.pos,player)<=enemy_awareness(e) and enemy_line_of_sight(e.pos,player)
+	return bool(e.get("personality_enabled",false)) and enemy_alert_eligible(e) and not bool(e.get("windup",false)) and enemy_live_contact(e,player)
 
 func enemy_basic_finish(e:Dictionary)->bool:
 	if not enemy_opportunity_eligible(e) or distance(e.pos,player)!=1 or hp<=0 or hp>enemy_opportunity_damage(e,[],false,true):return false
