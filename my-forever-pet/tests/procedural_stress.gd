@@ -744,7 +744,24 @@ func run_checks()->void:
 	exit_fixture.enemy_turn_actions()
 	if exit_actor.pos!=Vector2i(4,3) or exit_fixture.enemy_actions.size()!=1 or exit_fixture.enemy_actions[0].get("phase","")!="move":failures.append("control actual exit block")
 	checks+=1
-	print("KINDRIA_TERRAIN_CONTROL push=9 exit=3")
+	# Prepare a knockback angle without executing the move in the same turn.
+	control_fixture.enemies.pop_back()
+	control_fixture.player=Vector2i(3,3)
+	controller.pos=Vector2i(2,2);controller["control_cooldown"]=0
+	control_fixture.traps[Vector2i(5,3)]="snare"
+	var setup_tile:Vector2i=control_fixture.enemy_control_setup_step(controller,control_fixture.player)
+	if setup_tile!=Vector2i(2,3) or controller.pos!=Vector2i(2,2) or controller.pp_control!=3:failures.append("control setup angle and purity")
+	checks+=1
+	controller["control_cooldown"]=1
+	if control_fixture.enemy_control_setup_step(controller,control_fixture.player)!=controller.pos:failures.append("control setup cooldown")
+	controller["control_cooldown"]=0
+	checks+=1
+	exit_fixture.rooms.append(Rect2i(1,2,3,3))
+	exit_fixture.cells[Vector2i(4,2)]=true
+	exit_actor.pos=Vector2i(4,2)
+	if exit_fixture.enemy_exit_block_step(exit_actor,exit_fixture.player)!=Vector2i(4,3):failures.append("control side doorway intercept")
+	checks+=1
+	print("KINDRIA_TERRAIN_CONTROL push=9 exit=4 setup=2")
 	# Actual disk I/O, legacy migration, corruption recovery, and resumed writes.
 	var test_path:String="user://kindria_procedural_test_"+str(OS.get_process_id())+".cfg"
 	var exact:Array[String]=["legacy exact".sha256_text()]
