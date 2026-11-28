@@ -438,6 +438,38 @@ func run_checks()->void:
 				sight_pairs+=1
 		checks+=1
 	print("KINDRIA_ENEMY_SIGHT seeded_pairs=",sight_pairs," fixtures=7")
+	# Local search explores only the remembered neighborhood with a finite turn budget.
+	var search_fixture=Rules.new()
+	for y in range(1,10):
+		for x in range(1,20):search_fixture.cells[Vector2i(x,y)]=true
+	var search_anchor:=Vector2i(4,4)
+	var remote_player:=Vector2i(19,9)
+	search_fixture.player=remote_player
+	search_fixture.stairs=Vector2i(5,4)
+	search_fixture.relic=Vector2i(4,5)
+	search_fixture.traps[Vector2i(3,4)]="spike"
+	var search_steps:int=0
+	for role in Rules.ENEMY_ECOLOGY_ROLES:
+		var search_actor:Dictionary={"uid":0,"pos":search_anchor,"ecology_role":role,"ecology_search_enabled":true,"last_seen_player":search_anchor,"last_seen_until":20}
+		search_fixture.turns=10
+		var budget:int=3 if role=="scout" else 1 if role=="sentry" else 2
+		var visited_search:Dictionary={search_anchor:true}
+		for tick in range(budget):
+			var from:Vector2i=search_actor.pos
+			var candidate:Vector2i=search_fixture.enemy_pursuit_target(search_actor,remote_player)
+			if candidate==from or visited_search.has(candidate) or search_fixture.distance(from,candidate)!=1 or search_fixture.distance(search_anchor,candidate)>(3 if role=="scout" else 2) or candidate==search_fixture.stairs or candidate==search_fixture.relic or search_fixture.traps.has(candidate):failures.append("local search step "+role)
+			visited_search[candidate]=true;search_actor.pos=candidate
+			search_fixture.turns+=1;search_steps+=1
+			checks+=1
+		if search_fixture.enemy_pursuit_target(search_actor,remote_player)!=search_actor.pos or search_actor.has("search_anchor"):failures.append("local search expiry "+role)
+		checks+=1
+	var reacquire_actor:Dictionary={"uid":0,"pos":search_anchor,"ecology_role":"scout","ecology_search_enabled":true,"last_seen_player":search_anchor,"last_seen_until":20}
+	search_fixture.turns=10
+	search_fixture.enemy_pursuit_target(reacquire_actor,remote_player)
+	var new_target:=Vector2i(4,2)
+	if not reacquire_actor.has("search_anchor") or search_fixture.enemy_pursuit_target(reacquire_actor,new_target)!=new_target or reacquire_actor.has("search_anchor") or reacquire_actor.get("last_seen_player")!=new_target:failures.append("local search reacquisition")
+	checks+=1
+	print("KINDRIA_ENEMY_SEARCH roles=4 steps=",search_steps)
 	# Actual disk I/O, legacy migration, corruption recovery, and resumed writes.
 	var test_path:String="user://kindria_procedural_test_"+str(OS.get_process_id())+".cfg"
 	var exact:Array[String]=["legacy exact".sha256_text()]
