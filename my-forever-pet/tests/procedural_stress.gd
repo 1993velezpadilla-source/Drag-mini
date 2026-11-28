@@ -2968,7 +2968,29 @@ func run_checks()->void:
 	checks+=1
 	if sight_actor.pos!=Vector2i(4,5) or sight_actor.pp_primary!=12 or not recovery_sight.enemy_actions.is_empty():failures.append("recovery projected perception planning purity")
 	checks+=1
-	print("KINDRIA_ANTI_STALL checks=188")
+	# Projected symmetric pruning must preserve the chosen heading with live
+	# self-vacancy, peer obstruction and unreachable targets.
+	var projection_equal:bool=true
+	var projection_origin:Vector2i=sight_actor.pos
+	for pattern in ["radius","cross","room","fan","line"]:
+		for post in [Vector2i(3,3),Vector2i(4,6),Vector2i(2,2)]:
+			for reach in [1,2,3]:
+				if recovery_sight.enemy_projected_attack_aim(sight_actor,post,recovery_sight.player,pattern,reach)!=recovery_sight.enemy_projected_attack_aim(sight_actor,post,recovery_sight.player,pattern,reach,false):projection_equal=false
+	if not projection_equal:failures.append("projected symmetric exhaustive heading parity")
+	checks+=1
+	recovery_sight.enemies.append({"uid":611,"pos":Vector2i(4,5),"hp":30})
+	sight_actor.pos=Vector2i(5,5)
+	var obstructed_equal:bool=true
+	for pattern in ["radius","cross","fan","line"]:
+		if recovery_sight.enemy_projected_attack_aim(sight_actor,Vector2i(4,6),recovery_sight.player,pattern,3)!=recovery_sight.enemy_projected_attack_aim(sight_actor,Vector2i(4,6),recovery_sight.player,pattern,3,false):obstructed_equal=false
+	if not obstructed_equal:failures.append("projected symmetric peer obstruction parity")
+	checks+=1
+	if recovery_sight.enemy_projected_attack_aim(sight_actor,Vector2i(1,1),recovery_sight.player,"radius",1)!=Vector2i.ZERO:failures.append("projected symmetric unreachable target")
+	checks+=1
+	recovery_sight.enemies.pop_back();sight_actor.pos=projection_origin
+	if sight_actor.pp_primary!=12 or not recovery_sight.enemy_actions.is_empty():failures.append("projected symmetric planning purity")
+	checks+=1
+	print("KINDRIA_ANTI_STALL checks=192")
 	# A direct witness may report a tile, but a listener cannot relay it.
 	var comm=Rules.new()
 	for x in range(1,4):comm.cells[Vector2i(x,3)]=true
