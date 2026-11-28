@@ -2252,6 +2252,47 @@ func enemy_unstall_step(e:Dictionary,target:Vector2i)->Vector2i:
 			queue.append(q)
 	return origin
 
+# When the visible player cannot be approached, a stalled actor may seek
+# a legal attack position against a personally visible opposing ally.
+# This is movement planning only; normal party targeting resolves the attack.
+func enemy_unstall_party_step(e:Dictionary,target:Vector2i)->Vector2i:
+	var origin:Vector2i=e.pos
+	if not enemy_opportunity_eligible(e) or not enemy_live_contact(e,target) or int(e.get("stuck_turns",0))>0 or allies.is_empty():return origin
+	if int(e.get("stall_count",0))<2 or e.get("stall_target",Vector2i.ZERO)!=target or int(e.get("stall_turn",-9999))!=turns-1:return origin
+	if turns<=int(e.get("unstall_turn",-9999))+3 or enemy_strategy_attack_tile(e,origin,target):return origin
+	var visible:Array[Vector2i]=[]
+	for a in allies:
+		var q:Vector2i=a.pos
+		if int(a.hp)>0 and distance(origin,q)<=enemy_awareness(e) and enemy_line_of_sight(origin,q):visible.append(q)
+	if visible.is_empty():return origin
+	var reserved:Dictionary=enemy_pack_reserved_posts(e,target)
+	var peers:Array[Dictionary]=[]
+	for other in enemies:
+		if enemy_squad_partner(e,other):peers.append(other)
+	var queue:Array[Vector2i]=[origin]
+	var depth:Dictionary={origin:0}
+	var first:Dictionary={}
+	var cursor:int=0
+	while cursor<queue.size() and cursor<48:
+		var tile:Vector2i=queue[cursor];cursor+=1
+		if tile!=origin:
+			for a in visible:
+				# A basic attack is guaranteed available in melee; keep the
+				# projected opponent strictly nearer than the player so normal
+				# party dispatch can also execute it when learned PP is empty.
+				if distance(tile,a)==1 and distance(tile,target)>1 and enemy_line_of_sight(tile,a):return first[tile]
+		if int(depth[tile])>=3:continue
+		for d in DIR:
+			var q:Vector2i=tile+d
+			if depth.has(q) or reserved.has(q) or not enemy_ambush_safe_tile(q):continue
+			if tile==origin and enemy_strategy_reversal(e,q,target):continue
+			var blocked:bool=false
+			for other in peers:
+				if enemy_relief_blocks_lane(other,q,target):blocked=true;break
+			if blocked:continue
+			depth[q]=int(depth[tile])+1;first[q]=q if tile==origin else first[tile];queue.append(q)
+	return origin
+
 func enemy_record_stall(e:Dictionary,target:Vector2i)->void:
 	if not enemy_opportunity_eligible(e) or not enemy_live_contact(e,target) or int(e.get("stuck_turns",0))>0 or (shield_turns>0 and shield_kind=="protect"):return
 	if int(e.get("stall_turn",-9999))==turns:return
@@ -5759,6 +5800,7 @@ func enemy_turn_actions_impl():
 							path.clear();path.append(yield_tile)
 			if path.is_empty() and not charged and not intentional_hold and pursuit_target==player:
 				var recovery:Vector2i=enemy_unstall_step(enemies[i],player)
+				if recovery==p:recovery=enemy_unstall_party_step(enemies[i],player)
 				if recovery!=p:
 					path.append(recovery);enemies[i]["unstall_turn"]=turns
 				else:
