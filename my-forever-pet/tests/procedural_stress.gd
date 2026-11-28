@@ -1952,6 +1952,59 @@ func run_checks()->void:
 	if risk_actor.pos!=Vector2i(2,3) or int(risk_actor.get("risk_move_turn",-1))!=21 or risk_actor.pp_primary!=12 or risk_fixture.enemy_actions.size()!=1:failures.append("risk actual single movement")
 	checks+=1
 	print("KINDRIA_ENEMY_RISK_ASSESSMENT checks=10")
+	# Reinforcement holds spend one ordinary turn, with no forced pursuit.
+	var reinforcement=Rules.new()
+	for y in range(1,9):
+		for x in range(1,9):reinforcement.cells[Vector2i(x,y)]=true
+	reinforcement.player=Vector2i(5,3);reinforcement.stairs=Vector2i(8,8);reinforcement.relic=Vector2i(8,7);reinforcement.turns=20
+	reinforcement.hp=30;reinforcement.max_hp=30
+	var waiting_actor:Dictionary={"uid":0,"pos":Vector2i(2,3),"hp":30,"max_hp":30,"kind":0,"species":"leafwisp","ecology_role":"hunter","ecology_search_enabled":true,"personality_enabled":true,"pp_primary":0,"pp_secondary":0,"cooldown":2}
+	var arriving_actor:Dictionary={"uid":1,"pos":Vector2i(4,4),"hp":30,"max_hp":30,"kind":0,"species":"rootgnawer","ecology_role":"hunter","ecology_search_enabled":true,"pp_primary":0,"pp_secondary":0}
+	reinforcement.enemies.append(waiting_actor);reinforcement.enemies.append(arriving_actor)
+	if not reinforcement.enemy_reinforcement_wait(waiting_actor,reinforcement.player) or waiting_actor.has("reinforcement_turn"):failures.append("reinforcement eligible pure hold")
+	checks+=1
+	arriving_actor["sleep_turns"]=2
+	if reinforcement.enemy_reinforcement_wait(waiting_actor,reinforcement.player):failures.append("reinforcement incapacitated partner")
+	arriving_actor.erase("sleep_turns")
+	checks+=1
+	reinforcement.enemies.reverse()
+	if reinforcement.enemy_reinforcement_wait(waiting_actor,reinforcement.player):failures.append("reinforcement already acted partner")
+	reinforcement.enemies.reverse()
+	checks+=1
+	reinforcement.traps[Vector2i(4,3)]="snare";reinforcement.traps[Vector2i(5,4)]="snare"
+	if reinforcement.enemy_reinforcement_wait(waiting_actor,reinforcement.player):failures.append("reinforcement unsafe approach")
+	reinforcement.traps.clear()
+	checks+=1
+	reinforcement.enemy_turn_actions()
+	var waiting_actions:int=0
+	for action in reinforcement.enemy_actions:
+		if int(action.get("uid",-1))==0:waiting_actions+=1
+	if waiting_actions!=0 or waiting_actor.pos!=Vector2i(2,3) or int(waiting_actor.get("reinforcement_turn",-1))!=21 or int(waiting_actor.cooldown)!=1:failures.append("reinforcement actual spent hold")
+	checks+=1
+	arriving_actor.pos=Vector2i(4,4)
+	if reinforcement.enemy_reinforcement_wait(waiting_actor,reinforcement.player):failures.append("reinforcement no indefinite holding")
+	reinforcement.turns=26
+	if not reinforcement.enemy_reinforcement_wait(waiting_actor,reinforcement.player):failures.append("reinforcement retry expires")
+	checks+=1
+	waiting_actor.pos=Vector2i(3,3);waiting_actor.hp=12;waiting_actor["incoming_turn"]=26;waiting_actor["incoming_damage"]=10
+	arriving_actor.pos=Vector2i(4,5);arriving_actor.species="leafwisp";arriving_actor.pp_primary=12
+	if reinforcement.enemy_lure_step(waiting_actor,reinforcement.player)!=Vector2i(3,4) or reinforcement.player!=Vector2i(5,3):failures.append("reinforcement lure toward real firing lane")
+	checks+=1
+	arriving_actor.pp_primary=0
+	if reinforcement.enemy_lure_step(waiting_actor,reinforcement.player)!=waiting_actor.pos:failures.append("reinforcement no unlearned followup")
+	arriving_actor.pp_primary=12
+	checks+=1
+	reinforcement.traps[Vector2i(3,4)]="snare"
+	if reinforcement.enemy_lure_step(waiting_actor,reinforcement.player)!=waiting_actor.pos:failures.append("reinforcement lure avoids hazard")
+	reinforcement.traps.clear()
+	checks+=1
+	reinforcement.enemy_turn_actions()
+	var lure_actions:int=0
+	for action in reinforcement.enemy_actions:
+		if int(action.get("uid",-1))==0 and str(action.phase)=="move":lure_actions+=1
+	if lure_actions!=1 or waiting_actor.pos!=Vector2i(3,4) or int(waiting_actor.get("lure_turn",-1))!=27 or reinforcement.player!=Vector2i(5,3):failures.append("reinforcement actual lure no forced movement")
+	checks+=1
+	print("KINDRIA_REINFORCEMENT_AMBUSH checks=10")
 	# Actual disk I/O, legacy migration, corruption recovery, and resumed writes.
 	var test_path:String="user://kindria_procedural_test_"+str(OS.get_process_id())+".cfg"
 	var exact:Array[String]=["legacy exact".sha256_text()]
