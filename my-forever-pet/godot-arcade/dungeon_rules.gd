@@ -2204,7 +2204,30 @@ func enemy_unstall_step(e:Dictionary,target:Vector2i)->Vector2i:
 		if value==0:continue
 		var score:int=value+enemy_terrain_position_bonus(e,q,target)+distance(origin,target)-distance(q,target)
 		if score>best_score:best_score=score;best=q
-	return best
+	if best!=origin:return best
+	# Local two-step options failed. Search a bounded safe detour around the
+	# occupied frontline, keeping the observed target fixed for this decision.
+	# Only the first step is executed; no teleport, extra turn or hidden tracking.
+	var queue:Array[Vector2i]=[origin]
+	var depth:Dictionary={origin:0}
+	var first:Dictionary={}
+	var cursor:int=0
+	while cursor<queue.size() and cursor<96:
+		var tile:Vector2i=queue[cursor];cursor+=1
+		if tile!=origin and enemy_strategy_attack_tile(e,tile,target):return first[tile]
+		if int(depth[tile])>=6:continue
+		for d in DIR:
+			var q:Vector2i=tile+d
+			if depth.has(q) or not enemy_ambush_safe_tile(q) or reserved.has(q):continue
+			if tile==origin and enemy_strategy_reversal(e,q,target):continue
+			var lane_blocked:bool=false
+			for other in enemies:
+				if enemy_squad_partner(e,other) and enemy_relief_blocks_lane(other,q,target):lane_blocked=true;break
+			if lane_blocked:continue
+			depth[q]=int(depth[tile])+1
+			first[q]=q if tile==origin else first[tile]
+			queue.append(q)
+	return origin
 
 func enemy_record_stall(e:Dictionary,target:Vector2i)->void:
 	if not enemy_opportunity_eligible(e) or not enemy_live_contact(e,target) or int(e.get("stuck_turns",0))>0 or (shield_turns>0 and shield_kind=="protect"):return
