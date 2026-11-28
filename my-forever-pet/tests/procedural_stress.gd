@@ -680,6 +680,71 @@ func run_checks()->void:
 	if not after_screen.has(screen_tile) or after_screen.has(wounded_friend.pos):failures.append("protector physical attack interception")
 	checks+=1
 	print("KINDRIA_PROTECTOR_AI selection=1 gates=5 lane=2 action=1")
+	# Terrain control is a learned, PP-limited move, not a universal enemy power.
+	var control_fixture=Rules.new()
+	for y in range(1,6):
+		for x in range(1,9):control_fixture.cells[Vector2i(x,y)]=true
+	control_fixture.player=Vector2i(3,3)
+	control_fixture.stairs=Vector2i(8,5)
+	control_fixture.relic=Vector2i(8,4)
+	var controller:Dictionary={"uid":0,"pos":Vector2i(2,3),"hp":30,"max_hp":30,"kind":1,"species":"sylphowl","ecology_role":"scout","ecology_search_enabled":true,"control_move":"eos_268","pp_control":5}
+	control_fixture.enemies.append(controller)
+	control_fixture.traps[Vector2i(5,3)]="snare"
+	var push_plan:Dictionary=control_fixture.enemy_push_plan(controller,control_fixture.player)
+	if push_plan.get("kind","")!="trap" or push_plan.get("destination")!=Vector2i(5,3) or controller.pp_control!=5 or control_fixture.player!=Vector2i(3,3):failures.append("control prediction and purity")
+	checks+=1
+	controller.erase("control_move")
+	if control_fixture.enemy_execute_control(0):failures.append("control unlearned move")
+	controller["control_move"]="eos_268"
+	checks+=1
+	controller["pp_control"]=0
+	if control_fixture.enemy_execute_control(0):failures.append("control no PP")
+	controller["pp_control"]=5
+	checks+=1
+	controller["sealed_moves"]=["control"]
+	if control_fixture.enemy_execute_control(0):failures.append("control sealed move")
+	controller.erase("sealed_moves")
+	checks+=1
+	control_fixture.shield_kind="protect";control_fixture.shield_turns=2
+	if control_fixture.enemy_execute_control(0):failures.append("control protected player")
+	control_fixture.shield_kind="";control_fixture.shield_turns=0
+	checks+=1
+	# Use an accuracy stage to make the fixture deterministic independently of seed.
+	controller["stages"]={"accuracy":10}
+	control_fixture.enemy_turn_actions()
+	var control_actions:int=0
+	for action in control_fixture.enemy_actions:
+		if int(action.get("uid",-1))==0:control_actions+=1
+	if control_actions!=1 or controller.pp_control!=4 or controller.get("control_cooldown",0)!=3 or control_fixture.player!=Vector2i(5,3) or control_fixture.traps.has(Vector2i(5,3)) or control_fixture.player_slow_turns<=0:failures.append("control actual trap push")
+	checks+=1
+	control_fixture.player=Vector2i(3,3)
+	controller["control_cooldown"]=0
+	control_fixture.allies.append({"pos":Vector2i(5,3),"hp":20,"max_hp":20})
+	var party_plan:Dictionary=control_fixture.enemy_push_plan(controller,control_fixture.player)
+	if party_plan.get("kind","")!="party" or party_plan.get("destination")!=Vector2i(4,3):failures.append("control party collision prediction")
+	checks+=1
+	if not control_fixture.enemy_execute_control(0) or control_fixture.player!=Vector2i(4,3) or int(control_fixture.allies[0].hp)!=15 or controller.pp_control!=3:failures.append("control party collision execution")
+	checks+=1
+	control_fixture.allies.clear()
+	control_fixture.player=Vector2i(3,3)
+	control_fixture.enemies.append({"uid":1,"pos":Vector2i(5,3),"hp":20,"kind":0})
+	if int(control_fixture.enemy_push_plan(controller,control_fixture.player).get("score",0))>=5:failures.append("control avoid friendly collision")
+	checks+=1
+	var exit_fixture=Rules.new()
+	for x in range(1,7):exit_fixture.cells[Vector2i(x,3)]=true
+	exit_fixture.player=Vector2i(3,3)
+	var exit_actor:Dictionary={"uid":0,"pos":Vector2i(5,3),"hp":20,"kind":0,"species":"rootgnawer","ecology_role":"hunter","ecology_search_enabled":true,"pp_primary":12,"pp_secondary":0}
+	exit_fixture.enemies.append(exit_actor)
+	if exit_fixture.enemy_exit_block_step(exit_actor,exit_fixture.player)!=Vector2i(4,3):failures.append("control exit interception")
+	checks+=1
+	exit_fixture.traps[Vector2i(4,3)]="snare"
+	if exit_fixture.enemy_exit_block_step(exit_actor,exit_fixture.player)!=exit_actor.pos:failures.append("control exit hazard")
+	exit_fixture.traps.clear()
+	checks+=1
+	exit_fixture.enemy_turn_actions()
+	if exit_actor.pos!=Vector2i(4,3) or exit_fixture.enemy_actions.size()!=1 or exit_fixture.enemy_actions[0].get("phase","")!="move":failures.append("control actual exit block")
+	checks+=1
+	print("KINDRIA_TERRAIN_CONTROL push=9 exit=3")
 	# Actual disk I/O, legacy migration, corruption recovery, and resumed writes.
 	var test_path:String="user://kindria_procedural_test_"+str(OS.get_process_id())+".cfg"
 	var exact:Array[String]=["legacy exact".sha256_text()]
