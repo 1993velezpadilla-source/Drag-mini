@@ -3175,7 +3175,10 @@ func enemy_control_setup_step(e:Dictionary,target:Vector2i)->Vector2i:
 # No new action, PP, damage or RNG is consumed by this evaluation.
 func enemy_combo_followup(e:Dictionary,move:Dictionary,wait:int)->float:
 	var origin:Vector2i=e.pos
-	if not enemy_alert_eligible(e) or distance(origin,player)>enemy_awareness(e) or not enemy_line_of_sight(origin,player):return 0.0
+	if not enemy_alert_eligible(e) or not enemy_live_contact(e,player):return 0.0
+	# Same-phase support requires an action that has not already been spent.
+	# A future-turn self follow-up is still a valid forecast.
+	if wait<=0 and enemy_phase_spent.has(int(e.get("uid",-1))):return 0.0
 	if int(e.get("whiffer_turns",0))>0 or int(e.get("slow_turns",0))>0:return 0.0
 	var status:String=str(move.get("inflict_status",""))
 	var info:Array=ENEMY_TRAINING.get(e.get("species",""),[["normal"],"normal","normal",0,0,"physical"])
@@ -3209,7 +3212,7 @@ func enemy_combo_followup(e:Dictionary,move:Dictionary,wait:int)->float:
 	return minf(3.0,maxf(0.0,best)*gain)
 
 func enemy_combo_setup_bonus(e:Dictionary,move:Dictionary)->float:
-	if not bool(e.get("ecology_search_enabled",false)):return 0.0
+	if not enemy_alert_eligible(e) or not enemy_live_contact(e,player):return 0.0
 	var own:float=minf(1.5,enemy_combo_followup(e,move,1)*.5)
 	var first:float=0.0
 	var second:float=0.0

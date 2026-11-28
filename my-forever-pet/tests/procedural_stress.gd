@@ -3533,7 +3533,25 @@ func run_checks()->void:
 	checks+=1
 	if sequence_setup.pp_control!=5 or sequence_partner.pp_primary!=10 or not sequencing.enemy_actions.is_empty():failures.append("sequence scoring purity")
 	checks+=1
-	print("KINDRIA_ATTACK_SEQUENCING checks=8")
+	# The setup actor and follow-up actor must both have genuine contact.
+	sequencing.enemy_phase_spent[2]=true
+	if sequencing.enemy_combo_setup_bonus(sequence_setup,sequence_debuff)!=0.0 or sequencing.enemy_combo_followup(sequence_partner,sequence_debuff,0)!=0.0:failures.append("sequence spent followup cannot contribute")
+	checks+=1
+	if sequencing.enemy_combo_followup(sequence_partner,sequence_debuff,1)<=0.0:failures.append("sequence future followup remains possible")
+	checks+=1
+	sequencing.enemy_phase_spent.clear()
+	for hidden_phase in ["underground","airborne","vanish"]:
+		sequencing.charge_phase=hidden_phase
+		if sequencing.enemy_combo_setup_bonus(sequence_setup,sequence_debuff)!=0.0 or sequencing.enemy_combo_followup(sequence_partner,sequence_debuff,0)!=0.0:failures.append("sequence concealed target "+hidden_phase)
+	sequencing.charge_phase=""
+	checks+=1
+	sequence_setup["sleep_turns"]=2
+	if sequencing.enemy_combo_setup_bonus(sequence_setup,sequence_debuff)!=0.0:failures.append("sequence incapacitated setup rejected")
+	sequence_setup.erase("sleep_turns")
+	checks+=1
+	if sequencing.enemy_combo_setup_bonus(sequence_setup,sequence_debuff)<=0.0 or sequence_setup.pp_control!=5 or sequence_partner.pp_primary!=10 or not sequencing.enemy_actions.is_empty():failures.append("sequence restored contact and purity")
+	checks+=1
+	print("KINDRIA_ATTACK_SEQUENCING checks=13")
 	# Bounded search follows actual witnessed headings and explores alternatives.
 	var hunter_search=Rules.new()
 	for y in range(1,10):
