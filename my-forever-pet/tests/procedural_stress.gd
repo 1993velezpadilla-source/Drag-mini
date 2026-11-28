@@ -1797,6 +1797,43 @@ func run_checks()->void:
 	if sequence_setup.pp_control!=5 or sequence_partner.pp_primary!=10 or not sequencing.enemy_actions.is_empty():failures.append("sequence scoring purity")
 	checks+=1
 	print("KINDRIA_ATTACK_SEQUENCING checks=8")
+	# Bounded search follows actual witnessed headings and explores alternatives.
+	var hunter_search=Rules.new()
+	for y in range(1,10):
+		for x in range(1,20):hunter_search.cells[Vector2i(x,y)]=true
+	hunter_search.player=Vector2i(19,9);hunter_search.stairs=Vector2i(18,9);hunter_search.relic=Vector2i(18,8);hunter_search.turns=20
+	var search_origin:=Vector2i(4,4)
+	var hunter_actor:Dictionary={"uid":0,"pos":search_origin,"hp":30,"kind":0,"species":"bramble_pup","ecology_role":"hunter","ecology_search_enabled":true,"personality_enabled":true,"last_seen_player":search_origin,"last_seen_until":22,"search_heading":Vector2i.RIGHT,"search_heading_turn":19,"search_heading_anchor":search_origin}
+	hunter_search.enemies.append(hunter_actor)
+	if hunter_search.enemy_pursuit_target(hunter_actor,hunter_search.player)!=Vector2i(5,4) or int(hunter_actor.search_until)!=22:failures.append("hunter witnessed direction and bounded budget")
+	checks+=1
+	hunter_search.traps[Vector2i(5,4)]="snare"
+	if hunter_search.enemy_search_target(hunter_actor)==Vector2i(5,4):failures.append("hunter avoids trap")
+	hunter_search.traps.clear()
+	checks+=1
+	var peer_search:Dictionary={"uid":1,"pos":Vector2i(4,3),"hp":30,"kind":0,"species":"leafwisp","ecology_search_enabled":true,"search_anchor":search_origin,"search_until":22,"search_claim":Vector2i(5,4),"search_claim_turn":20}
+	hunter_search.enemies.append(peer_search)
+	if not hunter_search.enemy_hunter_search_claims(hunter_actor,search_origin).has(Vector2i(5,4)) or hunter_search.enemy_search_target(hunter_actor)==Vector2i(5,4):failures.append("hunter respects local shared claim")
+	checks+=1
+	peer_search["sleep_turns"]=2
+	if not hunter_search.enemy_hunter_search_claims(hunter_actor,search_origin).is_empty():failures.append("hunter sleeping peer ignored")
+	peer_search.erase("sleep_turns")
+	checks+=1
+	hunter_search.turns=22
+	if not hunter_search.enemy_hunter_search_claims(hunter_actor,search_origin).is_empty():failures.append("hunter expired claim ignored")
+	checks+=1
+	hunter_search.turns=20
+	hunter_search.enemies.pop_back()
+	hunter_actor.search_visited={search_origin:true,Vector2i(5,4):true,Vector2i(4,3):true,Vector2i(4,5):true,Vector2i(3,4):true}
+	if hunter_search.enemy_search_target(hunter_actor)==search_origin:failures.append("hunter backtracks to unvisited branch")
+	checks+=1
+	hunter_search.turns=23
+	if hunter_search.enemy_search_target(hunter_actor)!=search_origin or hunter_actor.has("search_claim"):failures.append("hunter search expires")
+	checks+=1
+	hunter_search.player=Vector2i(6,4)
+	if hunter_search.enemy_pursuit_target(hunter_actor,hunter_search.player)!=hunter_search.player or hunter_actor.has("search_anchor"):failures.append("hunter direct reacquisition clears search")
+	checks+=1
+	print("KINDRIA_DUNGEON_HUNTERS checks=8")
 	# Forecast only witnessed retreats, and commit only a safe ordinary step.
 	var forecast=Rules.new()
 	for y in range(1,9):
