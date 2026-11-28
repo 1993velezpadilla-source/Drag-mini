@@ -2374,6 +2374,26 @@ func run_checks()->void:
 	party_recovery.allies.clear()
 	if party_recovery.enemy_party_pursuit_allowed(party_reserve,false) or party_recovery.enemy_unstall_party_step(party_reserve,party_recovery.player)!=party_reserve.pos:failures.append("party recovery no opposing allies")
 	checks+=1
+	# Early party recovery requires a visible opposing frontline guard.
+	party_reserve["stall_count"]=1
+	party_recovery.allies.append({"uid":1001,"pos":Vector2i(4,3),"hp":30,"max_hp":30})
+	if party_recovery.enemy_unstall_party_step(party_reserve,party_recovery.player)!=Vector2i(2,3):failures.append("party early visible frontline guard")
+	checks+=1
+	party_recovery.allies[0].pos=Vector2i(2,1)
+	if party_recovery.enemy_unstall_party_step(party_reserve,party_recovery.player)!=party_reserve.pos:failures.append("party early rejects unrelated ally")
+	checks+=1
+	party_recovery.allies[0].pos=Vector2i(4,3)
+	party_recovery.cells.erase(Vector2i(3,4))
+	if party_recovery.enemy_unstall_party_step(party_reserve,party_recovery.player)!=party_reserve.pos:failures.append("party early rejects unseen guard")
+	checks+=1
+	party_recovery.cells[Vector2i(3,4)]=true
+	party_recovery.shield_kind="protect";party_recovery.shield_turns=1
+	if party_recovery.enemy_unstall_party_step(party_reserve,party_recovery.player)!=party_reserve.pos:failures.append("party early preserves protect hold")
+	checks+=1
+	party_recovery.shield_kind="";party_recovery.shield_turns=0
+	if party_reserve.pos!=Vector2i(2,4) or party_reserve.pp_primary!=0 or not party_recovery.enemy_actions.is_empty():failures.append("party early recovery planning purity")
+	checks+=1
+	party_recovery.allies.clear()
 	# Compare memoized geometry against the underlying pure queries.
 	var memo_peers:Array[Dictionary]=[]
 	for other in ring_fixture.enemies:
@@ -2948,7 +2968,7 @@ func run_checks()->void:
 	checks+=1
 	if sight_actor.pos!=Vector2i(4,5) or sight_actor.pp_primary!=12 or not recovery_sight.enemy_actions.is_empty():failures.append("recovery projected perception planning purity")
 	checks+=1
-	print("KINDRIA_ANTI_STALL checks=183")
+	print("KINDRIA_ANTI_STALL checks=188")
 	# A direct witness may report a tile, but a listener cannot relay it.
 	var comm=Rules.new()
 	for x in range(1,4):comm.cells[Vector2i(x,3)]=true
