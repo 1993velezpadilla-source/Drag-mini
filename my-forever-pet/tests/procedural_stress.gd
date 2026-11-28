@@ -2676,6 +2676,27 @@ func run_checks()->void:
 	lane_ranged.erase("windup");lane_ranged.erase("aim");lane_ranged.erase("whiffer_turns")
 	if not lane_fixture.enemy_relief_blocks_lane(lane_ranged,Vector2i(5,4),lane_fixture.player) or lane_actor.pos!=Vector2i(5,5) or lane_ranged.pp_primary!=12 or not lane_fixture.enemy_actions.is_empty():failures.append("lane restores ordinary reservation and planning purity")
 	checks+=1
+	# Incapacitated actors cannot monopolize a useful attack post.
+	for status in ["sleep_turns","nightmare_turns","paused_turns","wrapped_turns","infatuated_turns","confusion_turns","decoy_turns"]:
+		lane_ranged[status]=2
+		if lane_fixture.enemy_relief_blocks_lane(lane_ranged,Vector2i(5,4),lane_fixture.player):failures.append("lane rejects incapacitated owner "+status)
+		lane_ranged.erase(status)
+	checks+=1
+	for status in ["freeze","paralysis"]:
+		lane_ranged["major_status"]=status
+		if lane_fixture.enemy_relief_blocks_lane(lane_ranged,Vector2i(5,4),lane_fixture.player):failures.append("lane rejects disabled owner "+status)
+	lane_ranged.erase("major_status")
+	checks+=1
+	lane_ranged["hp"]=0
+	if lane_fixture.enemy_relief_blocks_lane(lane_ranged,Vector2i(5,4),lane_fixture.player):failures.append("lane rejects defeated owner")
+	lane_ranged["hp"]=30
+	checks+=1
+	lane_ranged["windup"]=true;lane_ranged["aim"]=Vector2i.LEFT;lane_ranged["sleep_turns"]=2
+	if lane_fixture.enemy_relief_blocks_lane(lane_ranged,Vector2i(5,4),lane_fixture.player):failures.append("lane rejects sleeping committed owner")
+	lane_ranged.erase("sleep_turns")
+	if not lane_fixture.enemy_relief_blocks_lane(lane_ranged,Vector2i(5,4),lane_fixture.player):failures.append("lane restores capable committed owner")
+	lane_ranged.erase("windup");lane_ranged.erase("aim")
+	checks+=1
 	# Ordinary firing reservations cannot be based on a concealed player.
 	for hidden_phase in ["underground","airborne","vanish"]:
 		lane_fixture.charge_phase=hidden_phase
@@ -3173,7 +3194,7 @@ func run_checks()->void:
 	stage_fixture.enemy_expire_frontline_holds(stage_actor)
 	if stage_actor.has("stage_position") or stage_actor.has("stage_turn"):failures.append("staging expiry rejects missing target even with valid age and position")
 	checks+=1
-	print("KINDRIA_ANTI_STALL checks=239")
+	print("KINDRIA_ANTI_STALL checks=243")
 	# A direct witness may report a tile, but a listener cannot relay it.
 	var comm=Rules.new()
 	for x in range(1,4):comm.cells[Vector2i(x,3)]=true
