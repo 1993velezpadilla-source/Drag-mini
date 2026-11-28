@@ -796,7 +796,7 @@ func build_ui():
 		if not utility_drag_suppress:rotate_combat_aim())
 	aim_button.tooltip_text="Tap: rotate · drag: aim in any direction"
 	aim_button.gui_input.connect(utility_drag_input.bind("aim"))
-	heal_button=button(utility,"Berry",func():path.clear();run.heal();sync())
+	heal_button=button(utility,"Berry",func():strike_pending=false;path.clear();run.heal();sync())
 	var bag:=button(utility,"Bag",toggle_bag)
 	for utility_button in [aim_button,heal_button,bag]:
 		utility_button.custom_minimum_size.y=23
@@ -805,7 +805,7 @@ func build_ui():
 	power_button=button(v,"Skill",func():path.clear();run.attack(true,facing);sync());power_button.hide()
 	special_button=button(v,"Leaf Dart",func():path.clear();run.attack(true,facing,1);sync());special_button.hide()
 	refresh_move_dock()
-	stairs_button=button(v,"Descend",func():path.clear();run.descend();sync(),true)
+	stairs_button=button(v,"Descend",func():strike_pending=false;path.clear();run.descend();sync(),true)
 	hold_info=RichTextLabel.new();hold_info.custom_minimum_size.y=78;hold_info.add_theme_font_size_override("normal_font_size",14);hold_info.scroll_active=true;hold_info.mouse_filter=MOUSE_FILTER_IGNORE
 	area.add_child(hold_info);hold_info.set_anchors_and_offsets_preset(PRESET_BOTTOM_WIDE);hold_info.offset_top=-82;hold_info.offset_left=6;hold_info.offset_right=-6;hold_info.offset_bottom=-4;hold_info.add_theme_stylebox_override("normal",compact_style(hud_base_color(),hud_accent_color(),8));hold_info.hide()
 	aim_preview=Control.new();area.add_child(aim_preview);aim_preview.set_anchors_and_offsets_preset(PRESET_FULL_RECT);aim_preview.mouse_filter=MOUSE_FILTER_IGNORE;aim_preview.draw.connect(draw_aim_preview)
@@ -832,7 +832,7 @@ func refresh_move_dock()->void:
 		var tint:=Color(str(move.get("light","#e8e0ce")))
 		b.add_theme_stylebox_override("normal",compact_style(hud_tile_color(),tint.darkened(.4),7))
 		b.add_theme_stylebox_override("pressed",compact_style(hud_tile_color().lightened(.22),tint,7))
-		bind_attack_gesture(b,move,func():path.clear();run.cast_move(id,facing);sync())
+		bind_attack_gesture(b,move,func():strike_pending=false;path.clear();run.cast_move(id,facing);sync())
 		move_buttons.append(b)
 
 func build_strike_bubble()->void:
@@ -857,10 +857,19 @@ func build_strike_bubble()->void:
 	area.resized.connect(position_strike_bubble)
 	position_strike_bubble.call_deferred()
 	attack_button.gui_input.connect(utility_drag_input.bind("strike"))
-	attack_button.pressed.connect(func():
-		if utility_drag_suppress or notified or run.finished:return
-		if attack_time>0.0: strike_pending=true;return
-		path.clear();run.attack(false,facing);sync())
+	attack_button.pressed.connect(request_strike)
+
+func strike_available()->bool:
+	return not notified and not run.finished and is_instance_valid(attack_button) and attack_button.is_visible_in_tree() and not attack_button.disabled and run.charged_move_id.is_empty() and is_instance_valid(bag_panel) and not bag_panel.visible
+
+func request_strike()->void:
+	if utility_drag_suppress or not strike_available():return
+	path.clear()
+	if attack_time>0.0:
+		strike_pending=true
+		return
+	strike_pending=false
+	run.attack(false,facing);sync()
 
 func position_strike_bubble()->void:
 	if not is_instance_valid(attack_button):return
@@ -882,6 +891,7 @@ func handle_utility_drag(event:InputEvent)->bool:
 		if delta.length()>9.0:utility_drag_moved=true
 		if utility_drag_moved:
 			utility_drag_suppress=true
+			strike_pending=false
 			if utility_drag_kind=="aim":
 				facing=Rules.aim8(delta);path.clear();update_hud();lab_update_aim();aim_preview.queue_redraw()
 			else:
@@ -948,6 +958,7 @@ func bag_replace_move(id:String,old:String)->void:
 	refresh_bag()
 func leave():
 	if notified:return
+	strike_pending=false
 	notified=true
 	call_deferred("emit_cancel")
 func emit_cancel():
@@ -19262,6 +19273,7 @@ func bind_attack_gesture(b:Button,move:Dictionary,action:Callable,is_dev:bool=fa
 	# Godot emulates mouse from touch on Android. Capture the release globally so a drag may leave the button.
 	b.gui_input.connect(func(event:InputEvent):
 		if event is InputEventMouseButton and event.button_index==MOUSE_BUTTON_LEFT and event.pressed and not b.disabled and not hold_active and not hold_release_pending and not tile_cast_active():
+			strike_pending=false
 			hold_active=true;hold_visible=false;hold_age=0.0;hold_origin=b.get_global_transform_with_canvas()*event.position;hold_move=move;hold_action=action;hold_is_dev=is_dev;path.clear())
 
 func held_attack_description(m:Dictionary)->String:
@@ -19325,7 +19337,6 @@ func rotate_combat_aim()->void:
 	update_hud()
 func touch(event:InputEvent):
 	if notified or run.finished or tile_cast_active() or (is_instance_valid(bag_panel) and bag_panel.visible):return
-	strike_pending=false
 	if map_expanded and (event is InputEventScreenTouch or event is InputEventMouseButton):
 		if Rect2(map.position,map.size).has_point(event.position):return
 	if event is InputEventScreenTouch and event.index!=0:return
@@ -19337,6 +19348,8 @@ func touch(event:InputEvent):
 	var hit=origin+ray*(-origin.y/ray.y)
 	var target=Vector2i(roundi(hit.x/1.4),roundi(hit.z/1.4))
 	if target==run.player:return
+	# Only a valid world interaction supersedes a buffered Strike.
+	strike_pending=false
 	if run.enemy_at(target)>=0 and run.revealed.has(target):
 		var delta:Vector2i=target-run.player
 		facing=Rules.aim8(Vector2(delta))
@@ -19646,10 +19659,11 @@ func _process(dt:float):
 	# Advance existing clocks before path movement can launch a new action.
 	# A cast created by sync() later in this frame starts at age zero.
 	advance_player_combat_clock(dt)
-	if strike_pending and attack_time<=0.0:
-		strike_pending=false
-		if not run.finished and attack_button.visible and not bag_panel.visible:
-			path.clear();run.attack(false,facing);sync()
+	if strike_pending:
+		if not strike_available():
+			strike_pending=false
+		elif attack_time<=0.0 and not hold_active and not hold_release_pending and utility_drag_kind.is_empty():
+			request_strike()
 	update_living_ambient(dt)
 	update_exterior_world(dt)
 	var actor_start:int=Time.get_ticks_usec() if fx_diag_enabled else 0
