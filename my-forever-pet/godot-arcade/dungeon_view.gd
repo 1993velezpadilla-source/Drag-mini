@@ -974,12 +974,15 @@ func reset_joystick()->void:
 	joy_pointer=-2;joy_direction=Vector2i.ZERO;joy_knob=Vector2.ZERO
 	if is_instance_valid(joystick):joystick.queue_redraw()
 
+func joystick_direction_for(delta:Vector2,radius:float)->Vector2i:
+	return Rules.aim8(delta) if delta.length()>maxf(1.0,radius)*.20 else Vector2i.ZERO
+
 func set_joystick_point(point:Vector2)->void:
 	var local:=joystick.get_global_transform_with_canvas().affine_inverse()*point
 	var delta:=local-joystick.size*.5
 	var radius:float=maxf(1.0,minf(joystick.size.x,joystick.size.y)*.5)
 	joy_knob=(delta/radius).limit_length(1.0)
-	joy_direction=Rules.aim8(delta) if delta.length()>radius*.20 else Vector2i.ZERO
+	joy_direction=joystick_direction_for(delta,radius)
 	if joy_direction!=Vector2i.ZERO and attack_time<=0.0 and not strike_pending and not hold_active and native_aim_pointer==-2 and not field_aiming and facing!=joy_direction:
 		facing=joy_direction
 		update_hud();lab_update_aim()
@@ -2794,6 +2797,10 @@ func attack_direction_sample(progress:float,impact:float,kind:String="cast")->Ve
 		drive=1.0-smoothstep(0.0,1.0,pow(recovery,timing.z))
 		follow=pow(sin(recovery*PI),2.0)*(1.0-recovery)*timing.w
 	return Vector3(anticipation,drive,follow)
+
+func strike_lunge_offset(progress:float,impact:float)->Vector3:
+	var cue:=attack_direction_sample(progress,impact,"rush")
+	return Vector3(.78*cue.y-.13*cue.x,.045*cue.y,0.0)
 
 func cast_motion_offset(kind:String,progress:float,impact:float)->Vector3:
 	var t:float=clampf(progress,0.0,1.0)
@@ -20061,9 +20068,7 @@ func _process(dt:float):
 		var progress:float=1.0-attack_time/maxf(.01,player_cast_duration)
 		var body_progress:float=caster_wave_progress(progress*player_cast_duration,player_cast_duration,player_cast_impact,player_cast_waves)
 		var cast_offset:=PixelArt.creature_cast_offset(cast_motion_offset(player_cast_motion,body_progress,player_cast_impact),run.transformed_species)
-		if regular_strike_pose:
-			var cue:=attack_direction_sample(body_progress,player_cast_impact,"rush")
-			cast_offset=Vector3(.78*cue.y-.13*cue.x,.045*cue.y,0.0)
+		if regular_strike_pose:cast_offset=strike_lunge_offset(body_progress,player_cast_impact)
 		if releasing and release_charge_phase=="airborne":cast_offset.y=0.0
 		pet_pose.position+=pet.basis.inverse()*cast_offset_world(cast_offset,attack_direction)
 		attack_fx.visible=not empty_strike_pose and player_impact_delay<=0.0;attack_fx.scale=Vector3(1.1-phase*.42,.13,1.1-phase*.42)
