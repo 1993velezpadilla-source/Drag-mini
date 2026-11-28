@@ -447,6 +447,7 @@ func full_turn_intelligence_gauntlet(failures:Array[String])->int:
 				idle_peak=maxi(idle_peak,int(idle[uid]))
 				if sample==7 and uid==204:
 					if tick in [6,15,31]:
+						print("KINDRIA_LEAFWISP_RESERVE tick=",tick," hold_turn=",e.get("reserve_hold_turn",-1)," current_turn=",cached.turns," target=",e.get("reserve_hold_target",Vector2i.ZERO))
 						var board:Array[String]=[]
 						for y in range(1,10):
 							var line:String=""
@@ -2124,7 +2125,31 @@ func run_checks()->void:
 	detour_fixture.traps[Vector2i(1,4)]="snare"
 	if detour_fixture.enemy_unstall_step(detour_actor,detour_fixture.player)!=detour_actor.pos:failures.append("unstall extended no safe exits")
 	checks+=1
-	print("KINDRIA_ANTI_STALL checks=10")
+	# A reserve is justified only by a complete, live friendly frontline.
+	var ring_fixture=Rules.new()
+	for y in range(1,8):
+		for x in range(1,8):ring_fixture.cells[Vector2i(x,y)]=true
+	ring_fixture.player=Vector2i(4,4);ring_fixture.stairs=Vector2i(7,7);ring_fixture.relic=Vector2i(7,6);ring_fixture.turns=22
+	var ring_actor:Dictionary={"uid":330,"pos":Vector2i(2,4),"hp":30,"kind":0,"species":"rootgnawer","ecology_role":"hunter","ecology_search_enabled":true,"personality_enabled":true,"pp_primary":0,"pp_secondary":0}
+	ring_fixture.enemies.append(ring_actor)
+	for d in [Vector2i.LEFT,Vector2i.RIGHT,Vector2i.UP,Vector2i.DOWN]:
+		ring_fixture.enemies.append({"uid":330+ring_fixture.enemies.size(),"pos":ring_fixture.player+d,"hp":30,"kind":0,"species":"rootgnawer","ecology_search_enabled":true,"pp_primary":0,"pp_secondary":0})
+	if not ring_fixture.enemy_encircled_frontline(ring_actor,ring_fixture.player):failures.append("reserve complete live frontline")
+	checks+=1
+	ring_fixture.enemies[1]["sleep_turns"]=2
+	if ring_fixture.enemy_encircled_frontline(ring_actor,ring_fixture.player):failures.append("reserve sleeping peer cannot justify hold")
+	checks+=1
+	ring_fixture.enemies[1].erase("sleep_turns")
+	ring_actor["reserve_hold_turn"]=21;ring_actor["reserve_hold_target"]=ring_fixture.player;ring_actor["unstall_turn"]=21
+	ring_fixture.enemies.remove_at(1)
+	if ring_fixture.enemy_encircled_frontline(ring_actor,ring_fixture.player) or ring_fixture.enemy_unstall_step(ring_actor,ring_fixture.player)!=Vector2i(3,4):failures.append("reserve immediately exploits opening")
+	checks+=1
+	if ring_actor.pos!=Vector2i(2,4) or ring_actor.pp_primary!=0 or not ring_fixture.enemy_actions.is_empty():failures.append("reserve reentry planning purity")
+	checks+=1
+	ring_fixture.turns=24
+	if ring_fixture.enemy_unstall_step(ring_actor,ring_fixture.player)!=ring_actor.pos:failures.append("reserve stale reentry rejected")
+	checks+=1
+	print("KINDRIA_ANTI_STALL checks=15")
 	# A direct witness may report a tile, but a listener cannot relay it.
 	var comm=Rules.new()
 	for x in range(1,4):comm.cells[Vector2i(x,3)]=true
