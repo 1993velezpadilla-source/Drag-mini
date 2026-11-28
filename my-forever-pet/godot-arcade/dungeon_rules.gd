@@ -3173,7 +3173,11 @@ func enemy_control_setup_step(e:Dictionary,target:Vector2i)->Vector2i:
 		var hypothetical:Dictionary=e.duplicate()
 		hypothetical["pos"]=q
 		var score:int=int(enemy_push_plan(hypothetical,target).get("score",0))
-		if score>best_score:best=q;best_score=score
+		# Do not spend a preparation turn on an angle whose projected
+		# knockback already loses to an ordinary attack from that tile.
+		if score<=best_score:continue
+		if bool(e.get("personality_enabled",false)) and not enemy_push_utility_wins(e,float(score),enemy_decision_attack_value(e,q,target)):continue
+		best=q;best_score=score
 	return best
 
 # Estimate a real follow-up, using only the actor's existing attack kit.
@@ -3365,10 +3369,12 @@ func enemy_push_preferred(e:Dictionary,plan:Dictionary)->bool:
 	var utility:float=float(plan.get("score",0))+float(escape_bonus)
 	if utility<5.0:return false
 	if escape_bonus>0 or not bool(e.get("personality_enabled",false)):return true
-	var direct:float=enemy_decision_attack_value(e,e.pos,player)
+	return enemy_push_utility_wins(e,utility,enemy_decision_attack_value(e,e.pos,player))
+
+func enemy_push_utility_wins(e:Dictionary,utility:float,direct:float)->bool:
 	# Conserve scarce control PP when a comparable direct action exists.
-	if enemy_move_pp(e,"control")<=2:utility-=.5
-	return utility>direct+.25
+	var adjusted:float=utility-(.5 if enemy_move_pp(e,"control")<=2 else 0.0)
+	return utility>=5.0 and adjusted>direct+.25
 
 func enemy_execute_control(i:int)->bool:
 	var e:Dictionary=enemies[i]

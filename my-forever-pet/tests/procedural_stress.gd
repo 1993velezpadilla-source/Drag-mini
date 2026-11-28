@@ -1351,6 +1351,17 @@ func run_checks()->void:
 	var borderline:Dictionary={"score":choice_push.enemy_decision_attack_value(choice_controller,choice_controller.pos,choice_push.player)+.5}
 	if choice_push.enemy_push_preferred(choice_controller,borderline):failures.append("control scarce PP near tie")
 	checks+=1
+	# The preparation decision must agree with the projected execution value.
+	choice_controller.pp_control=5;choice_controller.pp_primary=12
+	choice_controller.pos=Vector2i(2,2)
+	if choice_push.enemy_control_setup_step(choice_controller,choice_push.player)!=choice_controller.pos:failures.append("control preparation avoids inferior future knockback")
+	checks+=1
+	choice_controller.pp_primary=0
+	if choice_push.enemy_control_setup_step(choice_controller,choice_push.player)!=Vector2i(2,3):failures.append("control preparation preserves useful hazard angle")
+	checks+=1
+	if choice_controller.pos!=Vector2i(2,2) or choice_controller.pp_control!=5 or choice_push.rng.state!=choice_rng or not choice_push.enemy_actions.is_empty():failures.append("control preparation comparison purity")
+	checks+=1
+	choice_controller.pos=Vector2i(2,3)
 	choice_controller.pp_control=5
 	if not choice_push.enemy_execute_control(0) or choice_controller.pp_control!=4 or choice_push.player!=Vector2i(5,3) or choice_push.enemy_actions.size()!=1:failures.append("control actual favorable hazard choice")
 	checks+=1
