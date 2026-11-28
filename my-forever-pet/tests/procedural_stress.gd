@@ -539,6 +539,47 @@ func run_checks()->void:
 	if choice_fixture.enemy_attack_score(choice_actor,secondary_skill,true)>=abundant_score:failures.append("combat scarce PP conservation")
 	checks+=1
 	print("KINDRIA_COMBAT_CHOICE elemental=2 pp=3 action=1")
+	# A blocked melee creature must take a separate route, not stack behind its partner.
+	var pack_fixture=Rules.new()
+	for y in range(1,8):
+		for x in range(1,8):pack_fixture.cells[Vector2i(x,y)]=true
+	pack_fixture.player=Vector2i(5,4)
+	pack_fixture.stairs=Vector2i(7,7)
+	pack_fixture.relic=Vector2i(7,6)
+	var pack_origin:=Vector2i(3,4)
+	var pack_actor:Dictionary={"uid":0,"pos":pack_origin,"hp":30,"kind":0,"species":"rootgnawer","ecology_role":"hunter","ecology_search_enabled":true,"pp_primary":12,"pp_secondary":0}
+	var pack_partner:Dictionary={"uid":1,"pos":Vector2i(4,4),"hp":30,"kind":0,"species":"rootgnawer","ecology_role":"hunter","ecology_search_enabled":true}
+	pack_fixture.enemies.append(pack_actor);pack_fixture.enemies.append(pack_partner)
+	var pack_step:Vector2i=pack_fixture.enemy_cooperative_step(pack_actor,pack_fixture.player,"front",1)
+	if pack_step not in [Vector2i(3,3),Vector2i(3,5)] or pack_actor.pos!=pack_origin or pack_actor.pp_primary!=12:failures.append("cooperative flank and purity")
+	checks+=1
+	pack_fixture.traps[pack_step]="spike"
+	var safer_step:Vector2i=pack_fixture.enemy_cooperative_step(pack_actor,pack_fixture.player,"front",1)
+	if safer_step==pack_step or safer_step==pack_origin:failures.append("cooperative alternate safe flank")
+	pack_fixture.traps.clear()
+	checks+=1
+	pack_partner["sleep_turns"]=99
+	if pack_fixture.enemy_cooperative_step(pack_actor,pack_fixture.player,"front",1)!=pack_origin:failures.append("cooperative inactive partner")
+	pack_partner.erase("sleep_turns")
+	checks+=1
+	pack_fixture.cells.erase(Vector2i(3,3));pack_fixture.cells.erase(Vector2i(3,5))
+	if pack_fixture.enemy_cooperative_step(pack_actor,pack_fixture.player,"front",1)!=pack_origin:failures.append("cooperative blocked corridor")
+	pack_fixture.cells[Vector2i(3,3)]=true;pack_fixture.cells[Vector2i(3,5)]=true
+	checks+=1
+	pack_fixture.enemy_turn_actions()
+	var pack_moves:int=0
+	var pack_attacks:int=0
+	for action in pack_fixture.enemy_actions:
+		if int(action.get("uid",-1))!=0:continue
+		if action.get("phase","")=="move":pack_moves+=1
+		if action.get("phase","")=="attack":pack_attacks+=1
+	if pack_moves!=1 or pack_attacks!=0 or pack_actor.pos not in [Vector2i(3,3),Vector2i(3,5)] or pack_actor.pp_primary!=12:failures.append("cooperative actual one turn")
+	checks+=1
+	# Already valid attack lanes must never be abandoned just for formation spacing.
+	pack_actor.pos=Vector2i(5,3)
+	if pack_fixture.enemy_cooperative_step(pack_actor,pack_fixture.player,"front",1)!=pack_actor.pos:failures.append("cooperative preserve valid attack")
+	checks+=1
+	print("KINDRIA_COOPERATIVE_AI flank=2 gates=2 turn=1 preserve=1")
 	# Actual disk I/O, legacy migration, corruption recovery, and resumed writes.
 	var test_path:String="user://kindria_procedural_test_"+str(OS.get_process_id())+".cfg"
 	var exact:Array[String]=["legacy exact".sha256_text()]
