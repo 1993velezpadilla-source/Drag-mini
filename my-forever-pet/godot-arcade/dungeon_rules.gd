@@ -2697,14 +2697,21 @@ func enemy_tactical_step(e:Dictionary,target:Vector2i,pattern:String,reach:int)-
 	var origin:Vector2i=e.pos
 	if not bool(e.get("ecology_search_enabled",false)) or reach<2 or not enemy_line_of_sight(origin,target):return origin
 	if distance(origin,target)>enemy_awareness(e) or int(e.get("stuck_turns",0))>0:return origin
+	if target==player and not enemy_live_contact(e,target):return origin
 	if attack_aim(origin,target,pattern,reach)!=Vector2i.ZERO:return origin
+	var reserved:Dictionary=enemy_pack_reserved_posts(e,target)
+	var peers:Array[Dictionary]=[]
+	for other in enemies:
+		if enemy_squad_partner(e,other):peers.append(other)
+	var lane_memo:Dictionary={}
 	var best:Vector2i=origin
 	var best_score:int=-2147483647
 	var phase:int=posmod(int(e.get("uid",0))+turns,4)
 	for i in range(4):
 		var q:Vector2i=origin+DIR[(phase+i)%4]
 		if not cells.has(q) or q==target or q==player or q==stairs or q==relic or q in side_rewards or traps.has(q) or player_traps.has(q) or enemy_at(q)>=0 or ally_at(q)>=0:continue
-		if not enemy_line_of_sight(q,target) or attack_aim(q,target,pattern,reach)==Vector2i.ZERO:continue
+		if reserved.has(q) or enemy_recovery_lane_blocked(peers,q,target,lane_memo):continue
+		if distance(q,target)>enemy_awareness(e) or not enemy_line_of_sight(q,target) or enemy_projected_attack_aim(e,q,target,pattern,reach)==Vector2i.ZERO:continue
 		# Ranged kits favor useful stand-off positions over clustering at melee range.
 		var gap:int=distance(q,target)
 		var score:int=20-absi(gap-reach)*3+enemy_terrain_position_bonus(e,q,target)
