@@ -988,6 +988,71 @@ var interior_profile:int=0
 var ecology_profile:int=0
 var interior_obstacles:Array[Vector2i]=[]
 var ecology_rng:=RandomNumberGenerator.new()
+# Structure is independent of the dungeon art, ecology, and purchase state.
+const STRUCTURE_PROFILES=["Separate","Merged chambers","Grand halls","Maze passages"]
+var structure_profile:int=0
+var merged_room_count:int=0
+var structural_walls:Array[Vector2i]=[]
+var structure_rng:=RandomNumberGenerator.new()
+
+func carve_maze_wall(room:Rect2i)->void:
+	if structure_profile!=3:return
+	# A two-cell internal wall with an intact perimeter has a walkable detour.
+	var starts:Array[Vector2i]=[]
+	for y in range(room.position.y+1,room.end.y-1):
+		for x in range(room.position.x+1,room.end.x-1):starts.append(Vector2i(x,y))
+	for i in range(starts.size()-1,0,-1):
+		var j:int=structure_rng.randi_range(0,i);var swap:Vector2i=starts[i];starts[i]=starts[j];starts[j]=swap
+	for q in starts:
+		var first:int=structure_rng.randi_range(0,1)
+		for turn in range(2):
+			var d:Vector2i=Vector2i.RIGHT if (first+turn)%2==0 else Vector2i.DOWN
+			var end:Vector2i=q+d
+			if not room.grow(-1).has_point(end) or q==center(room) or end==center(room):continue
+			var halo:Rect2i=Rect2i(q,Vector2i.ONE).merge(Rect2i(end,Vector2i.ONE)).grow(1)
+			var safe:bool=true
+			for y in range(halo.position.y,halo.end.y):
+				for x in range(halo.position.x,halo.end.x):
+					if not cells.has(Vector2i(x,y)):safe=false
+			if not safe:continue
+			cells.erase(q);cells.erase(end);structural_walls.append(q);structural_walls.append(end)
+			return
+
+func merge_adjacent_rooms(slots:Array[Vector2i],room_slots:Dictionary)->void:
+	if structure_profile!=1 and structure_profile!=2:return
+	var budget:int=1 if structure_profile==1 else 2
+	var used:Dictionary={}
+	var replacements:Dictionary={}
+	var removed:Dictionary={}
+	# Merge only neighboring occupied sectors; each original room is used once.
+	# Do this after corridor graph repair so its index-based graph stays intact.
+	for slot in slots:
+		if merged_room_count>=budget or rooms.size()-merged_room_count<=3:break
+		if not room_slots.has(slot):continue
+		var i:int=room_slots[slot]
+		if used.has(i):continue
+		var first:int=structure_rng.randi_range(0,3)
+		for turn in range(4):
+			var neighbor:Vector2i=slot+DIR[(first+turn)%4]
+			if not room_slots.has(neighbor):continue
+			var j:int=room_slots[neighbor]
+			if used.has(j):continue
+			var merged:Rect2i=rooms[i].merge(rooms[j])
+			if merged.size.x>16 or merged.size.y>16:continue
+			var safe:bool=true
+			for k in range(rooms.size()):
+				if k!=i and k!=j and merged.intersects(rooms[k]):safe=false
+			for anchor in corridor_anchors:
+				if merged.has_point(anchor):safe=false
+			if not safe:continue
+			for y in range(merged.position.y,merged.end.y):
+				for x in range(merged.position.x,merged.end.x):cells[Vector2i(x,y)]=true
+			used[i]=true;used[j]=true;replacements[i]=merged;removed[j]=true;merged_room_count+=1
+			break
+	var result:Array[Rect2i]=[]
+	for i in range(rooms.size()):
+		if not removed.has(i):result.append(replacements.get(i,rooms[i]))
+	rooms.assign(result)
 
 func carve_interior_obstacles(room:Rect2i)->void:
 	if interior_profile==0:return
@@ -1172,6 +1237,8 @@ func build_layout():
 	link_profile=0 if starter_woods or topology_family==3 else rng.randi_range(0,LINK_PROFILES.size()-1)
 	corridor_anchors.clear()
 	interior_obstacles.clear()
+	structural_walls.clear();merged_room_count=0
+	structure_profile=0 if starter_woods or topology_family==3 else structure_rng.randi_range(0,STRUCTURE_PROFILES.size()-1)
 	interior_profile=0 if starter_woods else ecology_rng.randi_range(0,INTERIOR_PROFILES.size()-1)
 	ecology_profile=0 if starter_woods else ecology_rng.randi_range(0,ECOLOGY_PROFILES.size()-1)
 	var grid:Vector2i=topology_grid(topology_family)
@@ -1212,6 +1279,7 @@ func build_layout():
 					if nx and ny:continue
 				cells[Vector2i(x,y)]=true
 		carve_interior_obstacles(room)
+		carve_maze_wall(room)
 	# Local grid walk with directional persistence, then repair connectivity.
 	# This creates loops naturally instead of imposing a tree on every floor.
 	var links:Dictionary={}
@@ -1266,6 +1334,9 @@ func build_layout():
 		if i!=j and not links.has(key) and distance(center(rooms[i]),center(rooms[j]))<=20:
 			connect_cells(center(rooms[i]),center(rooms[j]));links[key]=true
 	add_corridor_anchors(slots,room_slots)
+	merge_adjacent_rooms(slots,room_slots)
+	for i in range(structural_walls.size()-1,-1,-1):
+		if cells.has(structural_walls[i]):structural_walls.remove_at(i)
 	# Corridor carving can reopen an obstacle; retain only final solid tiles.
 	for i in range(interior_obstacles.size()-1,-1,-1):
 		if cells.has(interior_obstacles[i]):interior_obstacles.remove_at(i)
@@ -1295,6 +1366,7 @@ func generate_floor():
 	reset_floor_combat_presentation()
 	rng.seed=seed_value+floor_number*7919
 	ecology_rng.seed=seed_value+floor_number*65537+region*4099+197
+	structure_rng.seed=seed_value+floor_number*131071+region*12289+311
 	initialize_hidden_power(seed_value)
 	cells.clear();rooms.clear();enemies.clear();loot.clear();revealed.clear();traps.clear();player_traps.clear();revealed_player_traps.clear();explored_rooms.clear()
 	floor_bonus=0;player_rested=false
