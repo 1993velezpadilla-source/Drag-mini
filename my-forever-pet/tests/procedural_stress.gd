@@ -28,6 +28,74 @@ func restart_check(mode:String)->void:
 		if FileAccess.file_exists(path+suffix):DirAccess.remove_absolute(ProjectSettings.globalize_path(path+suffix))
 	quit(0)
 
+func ai_cache_fixture(sample:int,enabled:bool):
+	var arena=Rules.new()
+	arena.ai_cache_enabled=enabled
+	arena.rng.seed=717000+sample
+	arena.monster_house_rng.seed=818000+sample
+	for y in range(1,10):
+		for x in range(1,10):arena.cells[Vector2i(x,y)]=true
+	arena.rooms.append(Rect2i(1,1,9,9))
+	arena.player=Vector2i(5,5);arena.stairs=Vector2i(9,9);arena.relic=Vector2i(9,8)
+	arena.hp=10000;arena.max_hp=10000
+	arena.region=sample%3;arena.floor_number=3;arena.tier=sample%3
+	arena.monster_house_room=0;arena.monster_house_profile=sample%6
+	if sample%2==0:
+		arena.allies.append({"uid":1000,"pos":Vector2i(4,5),"hp":100,"max_hp":100,"species":"reef_pup","moves":[],"pp":{},"stages":{},"status":{}})
+	arena.trigger_monster_house()
+	return arena
+
+func ai_cache_regressions(failures:Array[String])->int:
+	var count:int=0
+	var total_hits:int=0
+	var total_misses:int=0
+	var cached_usec:int=0
+	var reference_usec:int=0
+	for sample in range(18):
+		var cached=ai_cache_fixture(sample,true)
+		var reference=ai_cache_fixture(sample,false)
+		for turn in range(12):
+			if cached.finished or reference.finished:break
+			var started:int=Time.get_ticks_usec()
+			cached.enemy_turn()
+			cached_usec+=Time.get_ticks_usec()-started
+			started=Time.get_ticks_usec()
+			reference.enemy_turn()
+			reference_usec+=Time.get_ticks_usec()-started
+			total_hits+=cached.ai_cache_hits
+			total_misses+=cached.ai_cache_misses
+			if cached.enemies!=reference.enemies or cached.allies!=reference.allies or cached.player!=reference.player or cached.hp!=reference.hp or cached.enemy_actions!=reference.enemy_actions or cached.player_boons!=reference.player_boons or cached.rng.state!=reference.rng.state or cached.traps!=reference.traps or cached.finished!=reference.finished:failures.append("cache behavior mismatch %d:%d"%[sample,turn])
+			if cached.ai_cache_active or cached.ai_actor_cache_active or not cached.ai_los_cache.is_empty() or not cached.ai_footprint_cache.is_empty() or not cached.ai_terrain_cache.is_empty() or not cached.ai_occupancy_cache.is_empty():failures.append("cache escaped enemy turn")
+			count+=2
+	var scope=Rules.new()
+	for x in range(1,7):scope.cells[Vector2i(x,3)]=true
+	scope.enemies.append({"pos":Vector2i(3,3),"hp":20})
+	scope.ai_begin_turn_cache();scope.ai_begin_actor_cache()
+	var ray:Dictionary=scope.attack_footprint(Vector2i(1,3),Vector2i.RIGHT,"line",5)
+	if ray.has(Vector2i(4,3)) or not scope.navigation_occupancy().has(Vector2i(3,3)):failures.append("cache original occupancy")
+	count+=1
+	scope.enemies[0].pos=Vector2i(5,3)
+	scope.ai_begin_actor_cache()
+	var new_ray:Dictionary=scope.attack_footprint(Vector2i(1,3),Vector2i.RIGHT,"line",5)
+	if not new_ray.has(Vector2i(4,3)) or new_ray.has(Vector2i(5,3)) or scope.navigation_occupancy().has(Vector2i(3,3)) or not scope.navigation_occupancy().has(Vector2i(5,3)):failures.append("cache refreshed after actor movement")
+	count+=1
+	if not scope.enemy_line_of_sight(Vector2i(1,3),Vector2i(6,3)) or not scope.ai_terrain_distances(Vector2i(6,3)).has(Vector2i(1,3)):failures.append("cache terrain initial")
+	count+=1
+	scope.ai_end_turn_cache()
+	scope.cells.erase(Vector2i(3,3))
+	scope.ai_begin_turn_cache()
+	if scope.enemy_line_of_sight(Vector2i(1,3),Vector2i(6,3)) or scope.ai_terrain_distances(Vector2i(6,3)).has(Vector2i(1,3)):failures.append("cache terrain invalidation")
+	scope.ai_end_turn_cache()
+	count+=1
+	scope.hp=1;scope.poison_turns=1
+	scope.enemy_turn_actions()
+	if scope.ai_cache_active or scope.ai_actor_cache_active:failures.append("cache early return cleanup")
+	count+=1
+	if total_hits<=0:failures.append("cache never reused")
+	count+=1
+	print("KINDRIA_AI_CACHE comparisons=",count," hits=",total_hits," misses=",total_misses," cached_usec=",cached_usec," uncached_usec=",reference_usec)
+	return count
+
 func run_checks()->void:
 	for mode in ["--history-write","--history-read"]:
 		if mode in OS.get_cmdline_user_args():restart_check(mode);return
@@ -1187,6 +1255,7 @@ func run_checks()->void:
 				if action.get("phase","")=="move" and (action.get("from")==action.get("to") or not arena.cells.has(action.get("to"))):failures.append("stability invalid movement event")
 			checks+=1
 	print("KINDRIA_AI_STABILITY turns=",stability_turns," scenarios=32")
+	checks+=ai_cache_regressions(failures)
 	# Actual disk I/O, legacy migration, corruption recovery, and resumed writes.
 	var test_path:String="user://kindria_procedural_test_"+str(OS.get_process_id())+".cfg"
 	var exact:Array[String]=["legacy exact".sha256_text()]
