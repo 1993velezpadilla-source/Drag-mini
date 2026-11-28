@@ -1748,6 +1748,26 @@ func enemy_pursuit_target(e:Dictionary,observed:Vector2i)->Vector2i:
 		return enemy_search_target(e)
 	return remembered
 
+# Tactical repositioning uses the actual species attack geometry. No extra attacks
+# or movement turns are granted. Only actors that can see the target may flank.
+func enemy_tactical_step(e:Dictionary,target:Vector2i,pattern:String,reach:int)->Vector2i:
+	var origin:Vector2i=e.pos
+	if not bool(e.get("ecology_search_enabled",false)) or reach<2 or not enemy_line_of_sight(origin,target):return origin
+	if distance(origin,target)>enemy_awareness(e) or int(e.get("stuck_turns",0))>0:return origin
+	if attack_aim(origin,target,pattern,reach)!=Vector2i.ZERO:return origin
+	var best:Vector2i=origin
+	var best_score:int=-2147483647
+	var phase:int=posmod(int(e.get("uid",0))+turns,4)
+	for i in range(4):
+		var q:Vector2i=origin+DIR[(phase+i)%4]
+		if not cells.has(q) or q==target or q==player or q==stairs or q==relic or q in side_rewards or traps.has(q) or player_traps.has(q) or enemy_at(q)>=0 or ally_at(q)>=0:continue
+		if not enemy_line_of_sight(q,target) or attack_aim(q,target,pattern,reach)==Vector2i.ZERO:continue
+		# Ranged kits favor useful stand-off positions over clustering at melee range.
+		var gap:int=distance(q,target)
+		var score:int=20-absi(gap-reach)*3
+		if score>best_score:best_score=score;best=q
+	return best
+
 func enemy_patrol_destination(e:Dictionary)->Vector2i:
 	var origin:Vector2i=e.pos
 	if str(e.get("ecology_role","hunter"))!="roamer" or int(e.get("stuck_turns",0))>0:return origin
@@ -3143,7 +3163,12 @@ func enemy_turn_actions():
 				apply_fatal_grudge(enemies[i])
 				finished=true;success=false;message="Rescue needed · expedition lost";return
 		elif pursuit_target!=p and kind!=3 and int(enemies[i].get("stuck_turns",0))<=0:
-			var path:Array[Vector2i]=enemy_approach_route(p,pursuit_target) if enemies[i].has("ecology_role") else route(p,pursuit_target,true)
+			var path:Array[Vector2i]=[]
+			var tactical:Vector2i=p
+			if ready and not charged and not in_range and pursuit_target==player:
+				tactical=enemy_tactical_step(enemies[i],pursuit_target,pattern,int(skill[0]))
+			if tactical!=p:path.append(tactical)
+			else:path=enemy_approach_route(p,pursuit_target) if enemies[i].has("ecology_role") else route(p,pursuit_target,true)
 			if not path.is_empty() and path[0]!=player and enemy_at(path[0])<0:
 				var steps:int=1+int(enemies[i].get("haste_stage",0)) if int(enemies[i].get("haste_turns",0))>0 else 1
 				var destination:Vector2i=p
