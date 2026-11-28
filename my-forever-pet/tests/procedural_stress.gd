@@ -278,6 +278,49 @@ func run_checks()->void:
 	if fixture.hp!=1 or fixture.energy!=0 or fixture.belly_tenths!=10:failures.append("trap resource bounds")
 	checks+=1
 	print("KINDRIA_FLOOR_TRAPS ",trap_coverage)
+	# Ordinary ecosystem roles must preserve original combat kits and spawn budgets.
+	var role_coverage:Dictionary={}
+	for seed_id in range(128):
+		var ecosystem=Rules.new()
+		ecosystem.setup(seed_id%3,24,0,false,false,270003+seed_id,0,false)
+		for e in ecosystem.enemies:
+			if e.has("ecology_role"):failures.append("first floor ecology isolation")
+		ecosystem.floor_number=4;ecosystem.generate_floor()
+		for e in ecosystem.enemies:
+			if ecosystem.floor_kind==3:
+				if e.has("ecology_role"):failures.append("restorative ecology isolation")
+				continue
+			var role:String=str(e.get("ecology_role",""))
+			role_coverage[role]=int(role_coverage.get(role,0))+1
+			if role not in Rules.ENEMY_ECOLOGY_ROLES or e.get("ecology_home")!=e.pos or not ecosystem.cells.has(e.pos):failures.append("ecology role integrity")
+			if ecosystem.enemy_awareness(e)!=(8 if role=="scout" else 4 if role=="sentry" else 6):failures.append("ecology awareness")
+		checks+=2
+	if role_coverage.size()!=Rules.ENEMY_ECOLOGY_ROLES.size():failures.append("ecology coverage")
+	checks+=1
+	var patrol_fixture=Rules.new()
+	patrol_fixture.player=Vector2i(14,14)
+	patrol_fixture.stairs=Vector2i(5,4)
+	patrol_fixture.relic=Vector2i(4,5)
+	patrol_fixture.cells.clear()
+	for y in range(1,17):
+		for x in range(1,17):patrol_fixture.cells[Vector2i(x,y)]=true
+	var home:=Vector2i(4,4)
+	patrol_fixture.traps[Vector2i(3,4)]="spike"
+	patrol_fixture.enemies.append({"uid":0,"pos":home,"hp":20,"kind":0,"ecology_role":"roamer","ecology_home":home})
+	var steps:int=0
+	for tick in range(16):
+		var old:Vector2i=patrol_fixture.enemies[0].pos
+		patrol_fixture.enemy_turn_actions()
+		var next:Vector2i=patrol_fixture.enemies[0].pos
+		if next!=old:steps+=1
+		if patrol_fixture.distance(next,home)>3 or patrol_fixture.distance(next,old)>1 or next==patrol_fixture.stairs or next==patrol_fixture.relic or patrol_fixture.traps.has(next):failures.append("patrol movement bounds")
+		checks+=1
+	if steps==0:failures.append("patrol realization")
+	patrol_fixture.enemies[0]["stuck_turns"]=3
+	if patrol_fixture.enemy_patrol_destination(patrol_fixture.enemies[0])!=patrol_fixture.enemies[0].pos:failures.append("patrol immobilization")
+	if patrol_fixture.enemy_awareness({"monster_house":true})<100:failures.append("house pursuit isolation")
+	checks+=3
+	print("KINDRIA_ENEMY_ECOLOGY ",role_coverage," patrol_steps=",steps)
 	# Actual disk I/O, legacy migration, corruption recovery, and resumed writes.
 	var test_path:String="user://kindria_procedural_test_"+str(OS.get_process_id())+".cfg"
 	var exact:Array[String]=["legacy exact".sha256_text()]
