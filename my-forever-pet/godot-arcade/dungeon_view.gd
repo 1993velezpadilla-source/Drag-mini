@@ -631,7 +631,7 @@ func lab_preview(id:String)->void:
 			if footprint.has(enemy.pos):
 				target=enemy.pos;target_path=footprint[target];break
 	var tiles:Array=footprint.keys() if str(profile.pattern) in ["fan","radius","cross","room","floor"] else [target]
-	var event:Dictionary={"fx":id,"from":origin,"to":target,"path":target_path,"tiles":tiles}
+	var event:Dictionary={"fx":id,"from":origin,"to":target,"path":target_path,"tiles":tiles,"lab_preview":true}
 	release_charge_phase="";begin_player_cast_pose(event);combat_fx_spawn(event)
 
 func lab_select_or_cast(id:String)->void:
@@ -651,6 +651,7 @@ func lab_select_or_cast(id:String)->void:
 			child.add_theme_stylebox_override("normal",compact_style(Color("#30564d") if selected else Color("#213647"),Color("#a4e9c3") if selected else Color("#456478")))
 
 func lab_has_attack_target(id:String)->bool:
+	if run.enemies.is_empty():return false
 	var profile:=combat_profile(id)
 	if str(profile.pattern)=="self":return true
 	var footprint:Dictionary=run.attack_footprint(run.player,facing,str(profile.pattern),int(profile.range),true)
@@ -660,9 +661,9 @@ func lab_has_attack_target(id:String)->bool:
 
 func lab_cast(id:String)->void:
 	if not run.dev_sandbox or not dev_catalog.has(id):return
-	# Starting another explicit FX preview is allowed; real casts finish their return first.
+	# Finish the current body animation before starting another cast.
 	if tile_cast_active():dev_result.text="Returning · tap again after landing";return
-	path.clear();dev_selected=id;dev_detail.text=lab_move_info(id)
+	path.clear();dev_selected=id;dev_detail.text=str(dev_catalog[id].what_it_does)+"\n"+lab_move_info(id);dev_detail.scroll_to_line(0)
 	dev_selected_label.text=str(dev_catalog[id].name)+" · "+str(dev_catalog[id].category).capitalize()+" · "+str(dev_catalog[id].type).capitalize()
 	if dev_fx_only.button_pressed or not lab_has_attack_target(id):
 		lab_preview(id)
@@ -747,8 +748,8 @@ func build_ui():
 	# SubViewport audio is disabled by default. Listen near the tactical focus, not the distant camera.
 	var listener:=AudioListener3D.new();camera.add_child(listener);listener.position=Vector3(0,0,-10.0);listener.make_current()
 	var input=Control.new();area.add_child(input);input.set_anchors_and_offsets_preset(PRESET_FULL_RECT);input.mouse_filter=MOUSE_FILTER_STOP;input.gui_input.connect(touch)
-	map=Control.new();map.mouse_filter=MOUSE_FILTER_IGNORE;area.add_child(map);map.position=Vector2(10,10);map.size=Vector2(146,112);map.draw.connect(draw_map)
-	map_zoom=Button.new();map_zoom.text="+";map_zoom.tooltip_text="Expand explored map";map_zoom.custom_minimum_size=Vector2(32,32);map_zoom.size=Vector2(32,32)
+	map=Control.new();map.mouse_filter=MOUSE_FILTER_IGNORE;area.add_child(map);map.position=Vector2(10,10);map.size=Vector2(112,86);map.draw.connect(draw_map)
+	map_zoom=Button.new();map_zoom.text="+";map_zoom.tooltip_text="Expand explored map";map_zoom.custom_minimum_size=Vector2(28,28);map_zoom.size=Vector2(28,28)
 	map_zoom.add_theme_font_size_override("font_size",22);map_zoom.add_theme_stylebox_override("normal",style(Color("#142d40"),Color("#e2c081"),10))
 	map_zoom.add_theme_stylebox_override("pressed",style(Color("#365364"),Color("#fff0ba"),10))
 	area.add_child(map_zoom);map_zoom.position=map.position+Vector2(map.size.x-37,5);map_zoom.pressed.connect(toggle_map)
@@ -757,6 +758,11 @@ func build_ui():
 	var footer=PanelContainer.new();dungeon_footer=footer;footer.add_theme_stylebox_override("panel",compact_style(Color("#102739"),Color("#ae9c72"),10));base.add_child(footer)
 	var v=VBoxContainer.new();v.add_theme_constant_override("separation",3);footer.add_child(v)
 	status_text=label(v,"",12,Color("#ffe1a4"));status_text.clip_text=true;status_text.custom_minimum_size.y=16;status_text.horizontal_alignment=HORIZONTAL_ALIGNMENT_CENTER
+	status_text.mouse_filter=MOUSE_FILTER_STOP
+	status_text.gui_input.connect(func(event:InputEvent):
+		if event is InputEventMouseButton and event.button_index==MOUSE_BUTTON_LEFT and event.pressed:
+			status_text.clip_text=not status_text.clip_text
+			status_text.autowrap_mode=TextServer.AUTOWRAP_OFF if status_text.clip_text else TextServer.AUTOWRAP_WORD_SMART)
 	var a=HBoxContainer.new();a.add_theme_constant_override("separation",4);v.add_child(a)
 	attack_button=button(a,"Strike",func():pass,true)
 	bind_attack_gesture(attack_button,{"name":"Strike","type":"normal","category":"physical","pattern":"front","reach":1,"power":6},func():path.clear();run.attack(false,facing);sync())
@@ -15649,6 +15655,7 @@ func combat_fx_spawn(event:Dictionary,launch_age:float=0.0)->void:
 	var cast_frames:Array=combat_cast_frames(id)
 	combat_bursts.append({"frames":cast_frames,"id":id,"mode":style[0],"profile":profile,"target_player":event.get("target_player",false),"damage":event.get("damage",0),"impacted":false,"age":0.0,"duration":float(style[3]),"points":waypoints,"path_metrics":combat_path_metrics(waypoints),"tiles":tiles,"texture":combat_cast_frame(id,cast_frames,0),"cached_frame":0,"airborne_start":not event.has("uid") and release_charge_phase=="airborne","results":event.get("results",{}).duplicate(true)})
 	var burst:Dictionary=combat_bursts[-1]
+	burst["lab_preview"]=event.get("lab_preview",false)
 	burst["impact_waves"]=cast_impact_waves(burst.results)
 	burst["impact_times"]=reaction_times(float(burst.duration),float(profile.impact),burst.impact_waves.size())
 	burst["impact_cursor"]=0
@@ -16061,7 +16068,10 @@ func dispatch_cast_waves(burst:Dictionary)->void:
 		# Do not emit a damage thump for a status effect or an explicit miss.
 		var audio_age:float=wave_age
 		if audio_age<.14:
-			if strongest>0 or (wave.is_empty() and cursor==0 and int(burst.get("damage",0))>0):
+			if wave.is_empty() and cursor==0 and burst.get("lab_preview",false):
+				# Authored contact sound, without fake hit results or damage to gameplay.
+				play_combat_sound(str(burst.id),"status" if str(move.get("category",""))=="status" else "impact",target,false,audio_age)
+			elif strongest>0 or (wave.is_empty() and cursor==0 and int(burst.get("damage",0))>0):
 				play_combat_sound(str(burst.id),"impact",target,critical,audio_age)
 			elif status_cues.is_empty() and audible and not wave.is_empty():play_combat_sound(str(burst.id),"status",target,false,audio_age)
 			elif status_cues.is_empty() and not wave.is_empty():play_combat_sound(str(burst.id),"status_blocked" if blocked else "miss",target,false,audio_age)
@@ -19065,8 +19075,8 @@ func refresh_actors():
 	combat_update_warnings()
 func toggle_map():
 	map_expanded=not map_expanded
-	var width=minf(area.size.x-20,300) if map_expanded else 146.0
-	var height=minf(area.size.y*.46,260) if map_expanded else 112.0
+	var width=minf(area.size.x-20,300) if map_expanded else 112.0
+	var height=minf(area.size.y*.46,260) if map_expanded else 86.0
 	map.size=Vector2(width,height)
 	map_zoom.position=map.position+Vector2(map.size.x-37,5)
 	map_zoom.text="−" if map_expanded else "+"
