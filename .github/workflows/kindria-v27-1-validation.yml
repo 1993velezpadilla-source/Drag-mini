@@ -1,0 +1,41 @@
+name: Kindria V27.1 integration validation
+on:
+  pull_request:
+    branches:
+      - feature/my-forever-pet-paradise
+    paths:
+      - '.github/workflows/kindria-v27-1-validation.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  ai-integration:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - name: Install Godot 4.6
+        run: |
+          curl --fail --location --retry 3 -o /tmp/kindria-godot.zip https://github.com/godotengine/godot/releases/download/4.6-stable/Godot_v4.6-stable_linux.x86_64.zip
+          unzip -q /tmp/kindria-godot.zip -d /tmp/kindria-godot
+          chmod +x /tmp/kindria-godot/Godot_v4.6-stable_linux.x86_64
+      - name: Prepare isolated rules project
+        run: |
+          mkdir -p /tmp/kindria-integration
+          cp my-forever-pet/godot-arcade/dungeon_rules.gd my-forever-pet/tests/procedural_stress.gd /tmp/kindria-integration/
+          printf 'config_version=5\n[application]\nconfig/name="Kindria AI Integration"\n' > /tmp/kindria-integration/project.godot
+      - name: Run adversarial AI integration
+        run: |
+          set -o pipefail
+          /tmp/kindria-godot/Godot_v4.6-stable_linux.x86_64 --headless --path /tmp/kindria-integration --script res://procedural_stress.gd -- --ai-integration 2>&1 | tee /tmp/kindria-ai-integration.log
+          if grep -E 'SCRIPT ERROR|Parse Error|Compile Error|Failed to load script' /tmp/kindria-ai-integration.log; then exit 1; fi
+          grep -E 'KINDRIA_AI_INTEGRATION_RESULT checks=[1-9][0-9]* failures=0$' /tmp/kindria-ai-integration.log
+          grep -E 'KINDRIA_LIVING_GAUNTLET turns=[1-9][0-9]* checks=' /tmp/kindria-ai-integration.log
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: kindria-v27-1-integration-log
+          path: /tmp/kindria-ai-integration.log
+          if-no-files-found: warn
