@@ -248,6 +248,7 @@ func enemy_integration_gauntlet(failures:Array[String])->int:
 	var reversal_count:int=0
 	var idle_open_peak:int=0
 	var reserve_idle_observations:int=0
+	var congestion_observations:int=0
 	var unexplained_open_peak:int=0
 	var unexplained_context:Dictionary={}
 	var idle_observations:Dictionary={}
@@ -325,6 +326,8 @@ func enemy_integration_gauntlet(failures:Array[String])->int:
 					# Preserve original open-idle metric for apples-to-apples comparison.
 					var verified_reserve:bool=observation=="open" and int(e.get("reserve_hold_turn",-1))==cached.turns and e.get("reserve_hold_target",Vector2i.ZERO)==cached.player and cached.enemy_encircled_frontline(e,cached.player)
 					if verified_reserve:reserve_idle_observations+=1
+					var verified_congestion:bool=observation=="open" and not verified_reserve and int(e.get("congestion_hold_turn",-1))==cached.turns and e.get("congestion_hold_target",Vector2i.ZERO)==cached.player and cached.enemy_occupied_frontline(e,cached.player)
+					if verified_congestion:congestion_observations+=1
 					unexplained_open[uid]=int(unexplained_open.get(uid,0))+1 if observation=="open" and not verified_reserve else 0
 					if int(unexplained_open[uid])>unexplained_open_peak:
 						unexplained_open_peak=int(unexplained_open[uid])
@@ -354,6 +357,7 @@ func enemy_integration_gauntlet(failures:Array[String])->int:
 		var percentile:int=int((cached_times.size()-1)*.95)
 		print("KINDRIA_AI_INTEGRATION turns=",samples," personalities=",personalities.size()," checks=",checks_local," cached_p95_usec=",cached_times[percentile]," reference_p95_usec=",reference_times[percentile]," max_visible_idle=",idle_peak," reversals=",reversal_count)
 		print("KINDRIA_AI_STALL_DIAGNOSTICS open_idle_peak=",idle_open_peak," observations=",idle_observations," peak_context=",idle_peak_context," reversal_species=",reversal_species)
+		print("KINDRIA_CONGESTION_DIAGNOSTICS verified_physical_congestion=",congestion_observations)
 		print("KINDRIA_RESERVE_DIAGNOSTICS verified_open_reserve=",reserve_idle_observations," unexplained_open_peak=",unexplained_open_peak," context=",unexplained_context)
 	return checks_local
 
@@ -2261,7 +2265,28 @@ func run_checks()->void:
 			checks+=1
 	if memo_lanes.size()!=16 or memo_attacks.size()!=16:failures.append("recovery memo one entry per tile")
 	checks+=1
-	print("KINDRIA_ANTI_STALL checks=60")
+	# A sleeping peer obstructs movement but does not qualify as an active reserve guard.
+	var congestion=Rules.new()
+	for y in range(1,8):
+		for x in range(1,8):congestion.cells[Vector2i(x,y)]=true
+	congestion.player=Vector2i(4,4);congestion.stairs=Vector2i(7,7);congestion.relic=Vector2i(7,6);congestion.turns=22
+	var waiting:Dictionary={"uid":360,"pos":Vector2i(2,4),"hp":30,"kind":0,"species":"rootgnawer","ecology_role":"hunter","ecology_search_enabled":true,"personality_enabled":true,"pp_primary":0,"pp_secondary":0}
+	congestion.enemies.append(waiting)
+	for d in [Vector2i.LEFT,Vector2i.RIGHT,Vector2i.UP,Vector2i.DOWN]:
+		congestion.enemies.append({"uid":360+congestion.enemies.size(),"pos":congestion.player+d,"hp":30,"kind":0,"species":"rootgnawer","ecology_search_enabled":true,"pp_primary":0,"pp_secondary":0})
+	congestion.enemies[1]["sleep_turns"]=2
+	if not congestion.enemy_occupied_frontline(waiting,congestion.player) or congestion.enemy_encircled_frontline(waiting,congestion.player):failures.append("physical congestion distinct from active ring")
+	checks+=1
+	waiting["congestion_hold_turn"]=21;waiting["congestion_hold_target"]=congestion.player;waiting["unstall_turn"]=21
+	congestion.enemies.remove_at(1)
+	if congestion.enemy_occupied_frontline(waiting,congestion.player) or congestion.enemy_unstall_step(waiting,congestion.player)!=Vector2i(3,4):failures.append("physical congestion vacancy immediate recovery")
+	checks+=1
+	if waiting.pos!=Vector2i(2,4) or waiting.pp_primary!=0 or not congestion.enemy_actions.is_empty():failures.append("physical congestion planning purity")
+	checks+=1
+	congestion.turns=24
+	if congestion.enemy_unstall_step(waiting,congestion.player)!=waiting.pos:failures.append("physical congestion stale hold")
+	checks+=1
+	print("KINDRIA_ANTI_STALL checks=64")
 	# A direct witness may report a tile, but a listener cannot relay it.
 	var comm=Rules.new()
 	for x in range(1,4):comm.cells[Vector2i(x,3)]=true
