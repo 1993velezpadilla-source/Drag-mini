@@ -2143,6 +2143,63 @@ func enemy_risk_has_finisher(e:Dictionary)->bool:
 	return false
 
 # One ordinary safer step, with a retry interval, not indefinite retreat.
+func enemy_reinforcement_eligible(e:Dictionary,target:Vector2i)->bool:
+	return target==player and enemy_opportunity_eligible(e) and charge_phase not in ["underground","airborne","vanish"] and (not bool(e.get("monster_house",false)) or bool(e.get("house_tactical",false)))
+
+# A hold is a normal spent turn, and is only worthwhile if a visible
+# teammate later in the turn order can approach a genuine attack position.
+func enemy_reinforcement_wait(e:Dictionary,target:Vector2i)->bool:
+	if not enemy_reinforcement_eligible(e,target) or int(e.get("stuck_turns",0))>0 or turns<=int(e.get("reinforcement_turn",-9999))+4:return false
+	if enemy_survival_profile(e) not in ["cautious","defensive"]:return false
+	var gap:int=distance(e.pos,target)
+	if gap<3 or gap>4 or enemy_push_attack_coverage(e,target)>0 or enemy_risk_has_finisher(e) or enemy_has_party_area_attack(e):return false
+	var after_actor:bool=false
+	for other in enemies:
+		if other.pos==e.pos:
+			after_actor=true;continue
+		if not after_actor or not enemy_squad_partner(e,other) or int(other.get("stuck_turns",0))>0 or bool(other.get("windup",false)) or int(other.get("slow_turns",0))>0:continue
+		if int(other.hp)*2<=maxi(1,int(other.get("max_hp",other.hp))) or not enemy_line_of_sight(other.pos,target):continue
+		var other_gap:int=distance(other.pos,target)
+		if other_gap!=2 or enemy_push_attack_coverage(other,target)>0:continue
+		for d in DIR:
+			var q:Vector2i=other.pos+d
+			if distance(q,target)==1 and enemy_ambush_safe_tile(q):return true
+	return false
+
+# A wounded cautious creature can retreat toward a teammate with a real
+# attack lane on a plausible next pursuit tile. The player need not follow.
+func enemy_lure_step(e:Dictionary,target:Vector2i)->Vector2i:
+	var origin:Vector2i=e.pos
+	if not enemy_reinforcement_eligible(e,target) or enemy_survival_profile(e)!="cautious" or int(e.get("stuck_turns",0))>0 or turns<=int(e.get("lure_turn",-9999))+4:return origin
+	if int(e.hp)*2>maxi(1,int(e.get("max_hp",e.hp))) or not enemy_recent_threat(e) or distance(origin,target)!=2 or enemy_risk_has_finisher(e) or enemy_has_party_area_attack(e):return origin
+	var pursuit_tiles:Array[Vector2i]=[]
+	for d in DIR:
+		var tile:Vector2i=target+d
+		if distance(tile,origin)==1 and enemy_ambush_safe_tile(tile):pursuit_tiles.append(tile)
+	if pursuit_tiles.is_empty():return origin
+	var best:Vector2i=origin
+	var best_score:int=0
+	for d in DIR:
+		var q:Vector2i=origin+d
+		if not enemy_ambush_safe_tile(q) or distance(q,target)<=2:continue
+		var safe_exit:bool=false
+		for onward in DIR:
+			if q+onward!=origin and enemy_ambush_safe_tile(q+onward):safe_exit=true;break
+		if not safe_exit:continue
+		var exposed:bool=false
+		for a in allies:
+			if int(a.hp)>0 and enemy_line_of_sight(origin,a.pos) and distance(origin,a.pos)<=enemy_awareness(e) and distance(q,a.pos)<distance(origin,a.pos):exposed=true;break
+		if exposed:continue
+		var score:int=0
+		for other in enemies:
+			if not enemy_squad_partner(e,other) or int(other.hp)*2<=maxi(1,int(other.get("max_hp",other.hp))) or distance(q,other.pos)>=distance(origin,other.pos):continue
+			if enemy_relief_blocks_lane(other,q,target):continue
+			for tile in pursuit_tiles:
+				if enemy_push_attack_coverage(other,tile)>=2:
+					score+=2;break
+		if score>best_score:best_score=score;best=q
+	return best
+
 func enemy_risk_step(e:Dictionary,target:Vector2i)->Vector2i:
 	var origin:Vector2i=e.pos
 	if int(e.get("stuck_turns",0))>0 or turns<=int(e.get("risk_move_turn",-9999))+3:return origin
@@ -4691,6 +4748,16 @@ func enemy_turn_actions_impl():
 			enemy_tick_all_cooldowns(enemies[i]);continue
 		var survival_cap:int=int(enemies[i].get("max_hp",0))
 		if survival_cap>0 and int(enemies[i].hp)*2>survival_cap:enemies[i].erase("retreat_steps")
+		var lure_step:Vector2i=enemy_lure_step(enemies[i],player)
+		if lure_step!=p:
+			enemies[i].pos=lure_step;enemies[i]["lure_turn"]=turns
+			enemy_tick_all_cooldowns(enemies[i])
+			enemy_actions.append({"uid":enemies[i].get("uid",i),"phase":"move","from":p,"to":lure_step,"gait":enemies[i].get("gait","walk")})
+			continue
+		if enemy_reinforcement_wait(enemies[i],player):
+			enemies[i]["reinforcement_turn"]=turns
+			enemy_tick_all_cooldowns(enemies[i])
+			continue
 		var risk_step:Vector2i=enemy_risk_step(enemies[i],player)
 		if risk_step!=p:
 			enemies[i].pos=risk_step;enemies[i]["risk_move_turn"]=turns
