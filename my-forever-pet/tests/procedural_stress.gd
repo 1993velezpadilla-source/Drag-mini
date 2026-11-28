@@ -758,6 +758,7 @@ func run_checks()->void:
 	checks+=1
 	exit_fixture.rooms.append(Rect2i(1,2,3,3))
 	exit_fixture.cells[Vector2i(4,2)]=true
+	exit_fixture.cells[Vector2i(3,2)]=true
 	exit_actor.pos=Vector2i(4,2)
 	if exit_fixture.enemy_exit_block_step(exit_actor,exit_fixture.player)!=Vector2i(4,3):failures.append("control side doorway intercept")
 	checks+=1
