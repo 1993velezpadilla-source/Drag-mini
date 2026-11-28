@@ -2187,6 +2187,40 @@ func run_checks()->void:
 	if not visibility_audit.enemy_squad_partner(audit_actor,audit_peer) or visibility_audit.enemy_pursuit_target(audit_actor,visibility_audit.player)!=visibility_audit.player:failures.append("audit visibility restored")
 	checks+=1
 	checks+=enemy_adversarial_gauntlet(failures)
+	# Geometry-only cache must be symmetric, bounded and cleared between turns.
+	var geometry_audit=Rules.new()
+	for y in range(1,19):
+		for x in range(1,19):geometry_audit.cells[Vector2i(x,y)]=true
+	geometry_audit.rooms.append(Rect2i(1,1,18,18))
+	for x in range(3,17,3):geometry_audit.cells.erase(Vector2i(x,9))
+	geometry_audit.ai_begin_turn_cache()
+	for y in range(1,19):
+		for x in range(1,19):
+			var q:=Vector2i(x,y)
+			if geometry_audit.enemy_terrain_kind(q)!=geometry_audit.compute_enemy_terrain_kind(q):failures.append("topology cache parity")
+			checks+=1
+	for y in range(1,19):
+		for x in range(1,19):
+			var q:=Vector2i(x,y)
+			var r:=Vector2i(19-x,19-y)
+			var direct:bool=geometry_audit.compute_enemy_line_of_sight(q,r)
+			if direct!=geometry_audit.compute_enemy_line_of_sight(r,q) or direct!=geometry_audit.enemy_line_of_sight(q,r) or direct!=geometry_audit.enemy_line_of_sight(r,q):failures.append("reciprocal LOS parity")
+			checks+=1
+	if geometry_audit.ai_topology_cache.size()>256 or geometry_audit.ai_cache_hits<=0:failures.append("topology cap or cache reuse")
+	checks+=1
+	geometry_audit.ai_end_turn_cache()
+	if not geometry_audit.ai_topology_cache.is_empty() or not geometry_audit.ai_los_cache.is_empty():failures.append("geometry cache escaped turn")
+	checks+=1
+	geometry_audit.ai_begin_turn_cache()
+	var geometry_point:=Vector2i(2,2)
+	geometry_audit.enemy_terrain_kind(geometry_point)
+	geometry_audit.ai_end_turn_cache()
+	geometry_audit.cells.erase(geometry_point)
+	geometry_audit.ai_begin_turn_cache()
+	if geometry_audit.enemy_terrain_kind(geometry_point)!="wall":failures.append("topology invalidation between turns")
+	geometry_audit.ai_end_turn_cache()
+	checks+=1
+	print("KINDRIA_GEOMETRY_CACHE checks=651")
 	# Actual disk I/O, legacy migration, corruption recovery, and resumed writes.
 	var test_path:String="user://kindria_procedural_test_"+str(OS.get_process_id())+".cfg"
 	var exact:Array[String]=["legacy exact".sha256_text()]
