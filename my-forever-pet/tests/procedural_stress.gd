@@ -4036,6 +4036,18 @@ func run_checks()->void:
 	reserve_fixture.enemies.append(reserve_actor);reserve_fixture.enemies.append(reserve_peer)
 	if not reserve_fixture.enemy_dynamic_reserve_plan(reserve_actor,reserve_fixture.player).is_empty() or reserve_fixture.enemy_dynamic_reserve_plan(reserve_peer,reserve_fixture.player).get("step")!=Vector2i(5,4):failures.append("reserve deterministic election")
 	checks+=1
+	# An already processed peer cannot win a new frontline election.
+	reserve_fixture.enemy_phase_spent[10]=true
+	if reserve_fixture.enemy_reserve_candidate(reserve_peer,reserve_fixture.player) or reserve_fixture.enemy_dynamic_reserve_plan(reserve_actor,reserve_fixture.player).get("step")!=Vector2i(4,5):failures.append("reserve spent peer cannot veto available reinforcement")
+	checks+=1
+	reserve_fixture.enemy_phase_spent.clear()
+	reserve_peer["slow_turns"]=2
+	if reserve_fixture.enemy_reserve_candidate(reserve_peer,reserve_fixture.player) or reserve_fixture.enemy_dynamic_reserve_plan(reserve_actor,reserve_fixture.player).get("step")!=Vector2i(4,5):failures.append("reserve skipped slow peer cannot veto")
+	checks+=1
+	reserve_peer["slow_turns"]=3
+	if not reserve_fixture.enemy_reserve_candidate(reserve_peer,reserve_fixture.player) or not reserve_fixture.enemy_dynamic_reserve_plan(reserve_actor,reserve_fixture.player).is_empty():failures.append("reserve executable slow peer retains election")
+	checks+=1
+	reserve_peer.erase("slow_turns")
 	for q in [Vector2i(5,4),Vector2i(6,3),Vector2i(6,5),Vector2i(7,4)]:reserve_fixture.traps[q]="snare"
 	var reserve_plan:Dictionary=reserve_fixture.enemy_dynamic_reserve_plan(reserve_actor,reserve_fixture.player)
 	if reserve_plan.get("step")!=Vector2i(4,5) or reserve_plan.get("post")!=Vector2i(4,5):failures.append("reserve blocked peer cannot veto")
@@ -4077,7 +4089,7 @@ func run_checks()->void:
 	reserve_fixture.cells.erase(Vector2i(4,5))
 	if not reserve_fixture.enemy_dynamic_reserve_plan(reserve_actor,reserve_fixture.player).is_empty():failures.append("reserve no target sight through wall")
 	checks+=1
-	print("KINDRIA_DYNAMIC_SQUAD_ROLES checks=11")
+	print("KINDRIA_DYNAMIC_SQUAD_ROLES checks=14")
 	# Forecast only witnessed retreats, and commit only a safe ordinary step.
 	var forecast=Rules.new()
 	for y in range(1,9):
@@ -4327,6 +4339,17 @@ func run_checks()->void:
 	checks+=1
 	if relief_guard.pos!=Vector2i(4,6) or relief_guard.pp_primary!=0 or not relief_fixture.enemy_actions.is_empty():failures.append("relief plan purity")
 	checks+=1
+	relief_fixture.enemy_phase_spent[0]=true
+	if relief_fixture.enemy_relief_candidate(relief_guard,relief_fixture.player) or relief_fixture.enemy_relief_step(relief_guard,relief_fixture.player)!=relief_guard.pos:failures.append("relief spent candidate excluded")
+	checks+=1
+	relief_fixture.enemy_phase_spent.clear()
+	relief_guard["slow_turns"]=2
+	if relief_fixture.enemy_relief_candidate(relief_guard,relief_fixture.player) or relief_fixture.enemy_relief_step(relief_guard,relief_fixture.player)!=relief_guard.pos:failures.append("relief skipped slow candidate excluded")
+	checks+=1
+	relief_guard["slow_turns"]=3
+	if not relief_fixture.enemy_relief_candidate(relief_guard,relief_fixture.player) or relief_fixture.enemy_relief_step(relief_guard,relief_fixture.player)!=Vector2i(4,5):failures.append("relief executable slow candidate retained")
+	checks+=1
+	relief_guard.erase("slow_turns")
 	relief_wounded.hp=30
 	if relief_fixture.enemy_relief_step(relief_guard,relief_fixture.player)!=relief_guard.pos:failures.append("relief healthy frontline retained")
 	checks+=1

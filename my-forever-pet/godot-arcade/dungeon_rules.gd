@@ -3919,6 +3919,7 @@ func house_spawn_tile(e:Dictionary,spots:Array[Vector2i],room:Rect2i)->Vector2i:
 
 # Roles are recalculated from living, visible teammates; species kits never change.
 func enemy_relief_candidate(e:Dictionary,target:Vector2i)->bool:
+	if enemy_phase_spent.has(int(e.get("uid",-1))) or (int(e.get("slow_turns",0))>0 and int(e.slow_turns)%2==0):return false
 	if not bool(e.get("personality_enabled",false)) or not enemy_alert_eligible(e) or bool(e.get("windup",false)) or int(e.get("stuck_turns",0))>0:return false
 	if bool(e.get("monster_house",false)) and not bool(e.get("house_tactical",false)):return false
 	var life:int=int(e.hp)
@@ -4038,6 +4039,7 @@ func enemy_relief_step(e:Dictionary,target:Vector2i)->Vector2i:
 # Dynamic reserve role: a healthy melee or defensive actor may replace a
 # lost front line. Only viable candidates compete; a blocked peer cannot veto.
 func enemy_reserve_candidate(e:Dictionary,target:Vector2i)->bool:
+	if enemy_phase_spent.has(int(e.get("uid",-1))) or (int(e.get("slow_turns",0))>0 and int(e.slow_turns)%2==0):return false
 	if target!=player or charge_phase in ["underground","airborne","vanish"] or not enemy_opportunity_eligible(e) or int(e.get("stuck_turns",0))>0:return false
 	if bool(e.get("monster_house",false)) and not bool(e.get("house_tactical",false)):return false
 	var gap:int=distance(e.pos,target)
