@@ -2225,7 +2225,9 @@ func enemy_recovery_lane_blocked(peers:Array[Dictionary],q:Vector2i,target:Vecto
 
 func enemy_recovery_attack_tile(e:Dictionary,q:Vector2i,target:Vector2i,memo:Dictionary)->bool:
 	if memo.has(q):return bool(memo[q])
-	var legal:bool=enemy_strategy_attack_tile(e,q,target)
+	# A footprint may bend around a corner, but a recovery destination must
+	# also satisfy the live dispatcher\'s perception from that projected tile.
+	var legal:bool=distance(q,target)<=enemy_awareness(e) and enemy_line_of_sight(q,target) and enemy_strategy_attack_tile(e,q,target)
 	memo[q]=legal
 	return legal
 
