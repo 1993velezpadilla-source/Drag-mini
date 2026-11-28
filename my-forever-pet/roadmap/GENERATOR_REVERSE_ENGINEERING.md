@@ -431,3 +431,9 @@ Independent biome/terrain and room-event profiles, optional treasure branches, M
 - Fix dispatch precedence: credible visible immediate player knockout evaluated before optional ally targeting/pursuit. Hidden or defeated player rejected by finisher evaluation; existing charged attacks preserved.
 - Target opportunity helper rejects unseen or out-of-awareness allies directly. Hidden/decoy player cannot be counted as known supporting party member or exposed player target. Integer dot product in ambush claim scoring expressed explicitly for Godot compatibility.
 - Implementation 0f433258b0326c2dc0ad781ed0c4c131a24f92d0; seven authored regression checks e3be10d02d02b9823a1c342481ad66a8bae26fd0, including actual dispatcher priority and PP assertion. Static function-name scan of dungeon_rules.gd and procedural_stress.gd found no duplicate function names. CI/Android execution unverified; not an exhaustive integration or performance audit.
+
+
+## V27.0 — The Living Dungeon (integration candidate)
+- Consolidated live-contact contract separates current visible player from remembered pursuit. Retreat, cautious spacing, ranged cover, exit blocking, control setup, shield counter, push observations and incoming-damage observations reject hidden/decoy or defeated player as appropriate. Existing last-known search remains separate; no new damage, movement budget or omniscience.
+- Implementation 4a70e3ef30e084da1f2e75cd8250a963d83dca22; eight authored integration regressions c8b89e068e3b7ecce30752e0bd9575aa2a103988. Existing V26 tactical systems remain; this is a contact-contract consolidation, not a full engine rewrite.
+- Validation blocker: no local Godot executable available; PR #16 targets this branch as its base rather than its head, and connector workflow lookup is PR-only. CI/Godot execution and Android performance not verified. Do not label this release GREEN or distribute APK on this evidence.
