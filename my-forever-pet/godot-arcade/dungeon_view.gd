@@ -929,6 +929,8 @@ func build_ui():
 	area.add_child(reward_toast);reward_toast.hide()
 	reward_audio=AudioStreamPlayer.new()
 	reward_audio.volume_db=-19.0;add_child(reward_audio)
+	# Warm the four short cues once, outside the pickup input path.
+	for cue in ["coin","relic","eat","manual"]:reward_chime(cue)
 	floor_banner=Label.new();floor_banner.horizontal_alignment=HORIZONTAL_ALIGNMENT_CENTER;floor_banner.add_theme_font_size_override("font_size",25);floor_banner.add_theme_color_override("font_outline_color",Color("#142535"));floor_banner.add_theme_constant_override("outline_size",8);floor_banner.mouse_filter=MOUSE_FILTER_IGNORE;area.add_child(floor_banner);floor_banner.hide()
 	var footer=PanelContainer.new();dungeon_footer=footer;footer.add_theme_stylebox_override("panel",ornamental_frame());base.add_child(footer)
 	var v=VBoxContainer.new();v.add_theme_constant_override("separation",3);footer.add_child(v)
@@ -20360,7 +20362,7 @@ func sync():
 		strike_pending=false;path.clear();reset_joystick();build_floor()
 		if run.starter_woods and run.floor_number>1:
 			floor_banner.text="Floor cleared  ·  "+floor_name()
-			if run.floor_bonus>0:floor_banner.text+="  +%d coins"%run.floor_bonus
+			if run.last_completed_floor_bonus>0:floor_banner.text+="  +%d coins"%run.last_completed_floor_bonus
 	else:refresh_actors()
 	sync_monster_house()
 	update_hud()
