@@ -2036,6 +2036,45 @@ func enemy_environment_guard_step(e:Dictionary,target:Vector2i)->Vector2i:
 		if not blocked and support:return q
 	return origin
 
+# Only committed pursuit movements are remembered. A stationary visible target
+# makes an immediate reversal a possible failed flank, not a permanent taboo.
+func enemy_strategy_record_step(e:Dictionary,origin:Vector2i,destination:Vector2i,target:Vector2i)->void:
+	if not bool(e.get("personality_enabled",false)) or target!=player or charge_phase in ["underground","airborne","vanish"] or boon_active("decoy"):return
+	if distance(origin,target)>enemy_awareness(e) or not enemy_line_of_sight(origin,target) or distance(origin,destination)!=1:return
+	e["strategy_from"]=origin;e["strategy_to"]=destination;e["strategy_target"]=target;e["strategy_turn"]=turns
+
+func enemy_strategy_reversal(e:Dictionary,proposed:Vector2i,target:Vector2i)->bool:
+	return bool(e.get("personality_enabled",false)) and enemy_opportunity_eligible(e) and target==player and charge_phase not in ["underground","airborne","vanish"] and int(e.get("strategy_turn",-9999))==turns-1 and e.get("strategy_target",Vector2i.ZERO)==target and e.get("strategy_to",Vector2i.ZERO)==e.pos and e.get("strategy_from",Vector2i.ZERO)==proposed
+
+func enemy_strategy_attack_tile(e:Dictionary,q:Vector2i,target:Vector2i)->bool:
+	if distance(q,target)==1:return true
+	var species:String=str(e.get("species",""))
+	var skill:Array=signature_skill(e)
+	if int(e.get("cooldown",0))<=0 and enemy_move_allowed(e,"primary") and attack_aim(q,target,str(ATTACK_PATTERNS.get(species,"line")),int(skill[0]))!=Vector2i.ZERO:return true
+	if int(e.get("alt_cooldown",0))<=0 and SECONDARY_SKILLS.has(species) and enemy_move_allowed(e,"secondary"):
+		var alt:Array=SECONDARY_SKILLS[species]
+		return attack_aim(q,target,str(alt[1]),int(alt[0]))!=Vector2i.ZERO
+	return false
+
+func enemy_strategy_alternative(e:Dictionary,proposed:Vector2i,target:Vector2i)->Vector2i:
+	var origin:Vector2i=e.pos
+	if not enemy_strategy_reversal(e,proposed,target) or enemy_strategy_attack_tile(e,proposed,target):return proposed
+	var reserved:Dictionary=enemy_pack_reserved_posts(e,target)
+	var best:Vector2i=proposed
+	var best_score:int=-2147483647
+	for d in DIR:
+		var q:Vector2i=origin+d
+		if q==proposed or not enemy_ambush_safe_tile(q) or reserved.has(q) or not enemy_line_of_sight(q,target):continue
+		if distance(q,target)>=distance(origin,target):continue
+		var blocked:bool=false
+		for other in enemies:
+			if enemy_squad_partner(e,other) and enemy_line_of_sight(other.pos,target) and enemy_relief_blocks_lane(other,q,target):blocked=true;break
+		if blocked:continue
+		var score:int=enemy_terrain_position_bonus(e,q,target)+8*int(enemy_strategy_attack_tile(e,q,target))
+		if score>best_score:best_score=score;best=q
+	# If no better route exists, allow the reversal rather than freeze.
+	return best
+
 func enemy_tactical_step(e:Dictionary,target:Vector2i,pattern:String,reach:int)->Vector2i:
 	var origin:Vector2i=e.pos
 	if not bool(e.get("ecology_search_enabled",false)) or reach<2 or not enemy_line_of_sight(origin,target):return origin
@@ -5029,6 +5068,11 @@ func enemy_turn_actions_impl():
 							enemies[i]["crowd_previous"]=p;enemies[i]["crowd_turn"]=turns
 							enemies[i]["crowd_target"]=player;enemies[i]["crowd_partner"]=p-heading
 							path.clear();path.append(yield_tile)
+			if not path.is_empty() and not charged and pursuit_target==player and int(enemies[i].get("crowd_turn",-9999))<turns-1:
+				var strategy_step:Vector2i=enemy_strategy_alternative(enemies[i],path[0],player)
+				if strategy_step!=path[0]:
+					path.clear();path.append(strategy_step)
+					predictive_move=false;environment_guard=false;pack_plan.clear()
 			if not path.is_empty() and path[0]!=player and enemy_at(path[0])<0:
 				var steps:int=1+int(enemies[i].get("haste_stage",0)) if int(enemies[i].get("haste_turns",0))>0 else 1
 				var destination:Vector2i=p
@@ -5039,6 +5083,7 @@ func enemy_turn_actions_impl():
 					if predictive_move:enemy_record_prediction(enemies[i],player)
 					if environment_guard:enemies[i]["environment_guard_turn"]=turns
 					if not pack_plan.is_empty():enemy_pack_commit(enemies[i],player,pack_plan.post)
+					if not charged:enemy_strategy_record_step(enemies[i],p,destination,pursuit_target)
 					enemies[i].pos=destination
 					enemy_actions.append({"uid":enemies[i].get("uid",i),"phase":"move","from":p,"to":destination,"gait":enemies[i].get("gait","walk")})
 		elif not charged and kind!=3 and not boon_active("decoy"):
