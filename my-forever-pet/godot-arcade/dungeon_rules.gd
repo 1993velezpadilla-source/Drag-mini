@@ -2249,9 +2249,11 @@ func enemy_expire_frontline_holds(e:Dictionary)->void:
 # A cheap adjacent opportunity is not a long detour and must not start
 # the detour cooldown. Commit telemetry only after the movement succeeds.
 func enemy_commit_recovery(e:Dictionary,origin:Vector2i,destination:Vector2i,mode:String)->void:
-	if destination==origin or mode not in ["immediate","detour","party"]:return
+	if destination==origin or mode not in ["immediate","detour","party","stage"]:return
 	e["recovery_turn"]=turns;e["recovery_mode"]=mode
-	if mode!="immediate":e["unstall_turn"]=turns
+	if mode in ["detour","party"]:e["unstall_turn"]=turns
+	elif mode=="stage":
+		e["stage_turn"]=turns;e["stage_target"]=player
 
 # A witnessed vacant frontline post is a concrete opportunity. Prefer it
 # only when it is adjacent, still empty, safe, and directly useful.
@@ -2368,6 +2370,8 @@ func enemy_open_frontline_detour(e:Dictionary,target:Vector2i)->bool:
 # attack post. Stop at distance two so a waiting actor cannot orbit the lane.
 func enemy_firing_lane_stage_step(e:Dictionary,target:Vector2i)->Vector2i:
 	var origin:Vector2i=e.pos
+	# Staging has its own short anti-oscillation interval, not a detour cooldown.
+	if e.get("stage_target",Vector2i.ZERO)==target and turns-int(e.get("stage_turn",-9999)) in [0,1,2]:return origin
 	if not enemy_open_frontline_detour(e,target) or enemy_strategy_attack_tile(e,origin,target):return origin
 	if int(e.get("stall_count",0))<1 or int(e.get("stall_turn",-9999))!=turns-1 or e.get("stall_target",Vector2i.ZERO)!=target:return origin
 	var reserved:Dictionary=enemy_pack_reserved_posts(e,target)
@@ -2399,7 +2403,7 @@ func enemy_firing_lane_stage_step(e:Dictionary,target:Vector2i)->Vector2i:
 			if score>best_score:best=q;best_score=score
 	return best
 
-func enemy_unstall_step(e:Dictionary,target:Vector2i)->Vector2i:
+func enemy_unstall_step(e:Dictionary,target:Vector2i,allow_staging:bool=true)->Vector2i:
 	var origin:Vector2i=e.pos
 	if not enemy_opportunity_eligible(e) or not enemy_live_contact(e,target) or int(e.get("stuck_turns",0))>0:return origin
 	if shield_turns>0 and shield_kind=="protect":return origin
@@ -2471,7 +2475,7 @@ func enemy_unstall_step(e:Dictionary,target:Vector2i)->Vector2i:
 			depth[q]=int(depth[tile])+1
 			first[q]=q if tile==origin else first[tile]
 			queue.append(q)
-	return enemy_firing_lane_stage_step(e,target)
+	return enemy_firing_lane_stage_step(e,target) if allow_staging else origin
 
 # When the visible player cannot be approached, a stalled actor may seek
 # a legal attack position against a personally visible opposing ally.
@@ -6179,9 +6183,11 @@ func enemy_turn_actions_impl():
 				var recovery:Vector2i=enemy_immediate_recovery_step(enemies[i],player)
 				recovery_mode="immediate"
 				if recovery==p:
-					recovery=enemy_unstall_step(enemies[i],player);recovery_mode="detour"
+					recovery=enemy_unstall_step(enemies[i],player,false);recovery_mode="detour"
 				if recovery==p:
 					recovery=enemy_unstall_party_step(enemies[i],player);recovery_mode="party"
+				if recovery==p:
+					recovery=enemy_firing_lane_stage_step(enemies[i],player);recovery_mode="stage"
 				if ai_recovery_trace_uid>=0:enemy_trace_recovery(enemies[i],recovery_mode if recovery!=p else "no_recovery",recovery)
 				if recovery!=p:
 					path.append(recovery)
