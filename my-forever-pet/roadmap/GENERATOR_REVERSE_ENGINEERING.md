@@ -383,3 +383,9 @@ Independent biome/terrain and room-event profiles, optional treasure branches, M
 - Personality-enabled direct witnesses retain a timestamped contact snapshot. Nearby active visible peers can receive a remembered sighting up to two turns from the original observation, never from a secondhand recipient. Newer personal knowledge wins; reporting does not refresh expiry. Decoy clears contact snapshots.
 - Visible nearby witnesses of a defeated non-decoy creature retain a local loss marker for three turns and gain two points of risk in the existing risk assessment. No inferred attacker or hidden target, extra action, damage or movement. Existing finisher priority, safe terrain and profile restrictions remain in place.
 - Implementation b8bbe2fa15268e532435bb568dd6a736ba0cd7fc; nine authored regression checks 174e9081a7811b0bdaf05c559a3fc5ab709f7137. Range, TTL and risk weighting are provisional. CI and Android execution not yet verified.
+
+
+## V26.92 — Intelligent Squad Roles
+- Healthy aggressive or defensive actors without immediate attack coverage can assume a local reserve role after a witnessed loss, wounded front line or available ranged backup. Existing healthy frontline actors retain priority.
+- A bounded three-step safe route to an adjacent post is evaluated before election; shortest viable route wins, ties by UID. Blocked competitors cannot veto the new planner. Avoid reserved posts, traps, occupants and visible ready ranged firing lanes. One normal movement action; no new attacks, damage, PP or teleportation. Existing tactical alternatives may override the plan, clearing its reservation.
+- Implementation d5256ddc67e8d5a8235adb36cd8deb574858f895; eight authored regression checks 0483dc484d5f71788d09323d62ec24b177251b99. Legacy relief and tactical fallback remain; this is local reserve assignment, not a complete global role manager. Route depth and HP gates provisional; CI and Android execution unverified.
