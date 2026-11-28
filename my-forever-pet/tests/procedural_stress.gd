@@ -15,7 +15,11 @@ func run_checks()->void:
 	var checks:int=0
 	var lucky:int=0
 	var optional_chambers:int=0
-	for expedition in range(256):
+	var expedition_count:int=1152 if "--long" in OS.get_cmdline_user_args() else 256
+	var expected_floors:int=expedition_count*4
+	var rollover_checks:int=0
+	var forced_retries:int=0
+	for expedition in range(expedition_count):
 		var run=Rules.new()
 		run.recent_shapes.assign(history)
 		for floor_id in range(1,5):
@@ -60,8 +64,12 @@ func run_checks()->void:
 			if not spawns_ok:failures.append("spawn integrity "+context)
 			if not run.recent_shapes.has(run.shape_signature):failures.append("history "+context)
 			checks+=6
+		if history.size()+4>run.SHAPE_HISTORY_CAP:
+			var dropped:int=history.size()+4-run.SHAPE_HISTORY_CAP
+			if run.recent_shapes.size()!=run.SHAPE_HISTORY_CAP or run.recent_shapes.front()!=history[dropped]:failures.append("history rollover ordering")
+			rollover_checks+=1;checks+=1
 		history.assign(run.recent_shapes)
-	if signatures.size()!=1024 or history.size()!=1024:failures.append("unique history coverage")
+	if signatures.size()!=expected_floors or history.size()!=mini(expected_floors,Rules.SHAPE_HISTORY_CAP):failures.append("unique history coverage")
 	if families.size()!=23:failures.append("normal family coverage")
 	if lucky==0:failures.append("same tile stairs not observed")
 	if optional_chambers==0:failures.append("optional chambers not observed")
@@ -73,7 +81,18 @@ func run_checks()->void:
 		final_run.generate_floor()
 		if final_run.stairs_available() or final_run.player==final_run.stairs:failures.append("guardian finale isolation")
 		checks+=1
+	# Re-enter the same seeded floor with only canonical history supplied.
+	for seed_index in range(64):
+		var original=Rules.new()
+		original.setup(seed_index%3,24,0,false,false,840001+seed_index,0,false)
+		var replay=Rules.new()
+		replay.recent_shapes.assign(original.recent_shapes)
+		replay.setup(seed_index%3,24,0,false,false,840001+seed_index,0,false)
+		if replay.shape_history_hits<1 or replay.shape_signature==original.shape_signature or replay.layout_retries<1:failures.append("forced canonical retry "+str(seed_index))
+		forced_retries+=replay.layout_retries;checks+=1
+	if expedition_count>256 and rollover_checks==0:failures.append("missing history rollover")
+	checks+=1
 	timings.sort()
-	print("KINDRIA_PROCEDURAL_RESULT floors=",timings.size()," unique=",signatures.size()," families=",families.size()," profile_pairs=",profiles.size()," retries=",retries," same_tile=",lucky," side_chambers=",optional_chambers," median_usec=",timings[int(timings.size()/2)]," p95_usec=",timings[int((timings.size()-1)*.95)]," max_usec=",timings.back()," checks=",checks," failures=",failures.size())
+	print("KINDRIA_PROCEDURAL_RESULT floors=",timings.size()," unique=",signatures.size()," families=",families.size()," profile_pairs=",profiles.size()," retries=",retries," same_tile=",lucky," side_chambers=",optional_chambers," median_usec=",timings[int(timings.size()/2)]," p95_usec=",timings[int((timings.size()-1)*.95)]," max_usec=",timings.back()," rollover_checks=",rollover_checks," forced_retries=",forced_retries," checks=",checks," failures=",failures.size())
 	for failure in failures:push_error(failure)
 	quit(0 if failures.is_empty() else 1)
