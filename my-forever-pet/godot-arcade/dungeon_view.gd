@@ -92,6 +92,8 @@ var utility_drag_start:Vector2
 var utility_drag_moved:bool=false
 var utility_drag_suppress:bool=false
 var strike_pending:bool=false
+var strike_buffer_direction:Vector2i=Vector2i.ZERO
+var strike_buffer_floor:int=-1
 var strike_on_panel:bool=true
 var movement_joystick:bool=false
 var strike_opacity:float=.48
@@ -680,7 +682,14 @@ func lab_move_info(id:String)->String:
 	return text_value.strip_edges()
 
 func lab_update_aim()->void:
-	if is_instance_valid(dev_aim):dev_aim.text="Aim "+["↑","↗","→","↘","↓","↙","←","↖"][maxi(0,Rules.DIR8.find(facing))]
+	var aim_label:String="Aim "+["↑","↗","→","↘","↓","↙","←","↖"][maxi(0,Rules.DIR8.find(facing))]
+	if is_instance_valid(dev_aim) and dev_aim.text!=aim_label:dev_aim.text=aim_label
+	if is_instance_valid(aim_button) and aim_button.text!=aim_label:aim_button.text=aim_label
+
+func set_combat_facing(direction:Vector2i)->void:
+	if direction==Vector2i.ZERO or direction==facing:return
+	facing=direction;lab_update_aim()
+	if is_instance_valid(aim_preview):aim_preview.queue_redraw()
 
 func lab_spawn_target()->void:
 	for direction in [facing]+Rules.DIR8:
@@ -1011,8 +1020,7 @@ func set_joystick_point(point:Vector2)->void:
 	joy_direction=joystick_stable_direction(delta,radius,previous)
 	if joy_direction!=previous and previous==Vector2i.ZERO and joy_direction!=Vector2i.ZERO:touch_haptic()
 	if joy_direction!=Vector2i.ZERO and attack_time<=0.0 and not strike_pending and not hold_active and native_aim_pointer==-2 and not field_aiming and facing!=joy_direction:
-		facing=joy_direction
-		update_hud();lab_update_aim()
+		set_combat_facing(joy_direction)
 	joystick.queue_redraw()
 
 func control_contains(control:Control,point:Vector2)->bool:
@@ -1045,7 +1053,7 @@ func capture_field_aim(event:InputEvent)->bool:
 				world_tap(area.get_global_transform_with_canvas().affine_inverse()*point)
 		elif (event is InputEventScreenDrag or event is InputEventMouseMotion) and delta.length()>12.0 and Time.get_ticks_msec()-field_started>=220 and field_control_allowed(point):
 			field_aiming=true;path.clear();strike_pending=false
-			facing=Rules.aim8(delta);update_hud();lab_update_aim();aim_preview.queue_redraw()
+			set_combat_facing(Rules.aim8(delta))
 		return true
 	if down and field_pointer==-2 and not hold_active and native_aim_pointer==-2 and strike_pointer==-2 and field_control_allowed(point):
 		if is_touch and pointer==0:native_touch_suppressed=true
@@ -1078,7 +1086,7 @@ func capture_native_combat(event:InputEvent)->bool:
 		if event is InputEventScreenDrag:
 			var delta:=point-hold_origin
 			if delta.length()>18.0:
-				show_held_attack();facing=Rules.aim8(delta);update_hud();lab_update_aim();aim_preview.queue_redraw()
+				show_held_attack();set_combat_facing(Rules.aim8(delta));aim_preview.queue_redraw()
 		elif up:
 			var action:=hold_action
 			var valid:bool=not event.canceled and is_instance_valid(native_move_button) and not native_move_button.disabled and native_move_button.is_visible_in_tree() and not controls_modal()
@@ -1089,7 +1097,7 @@ func capture_native_combat(event:InputEvent)->bool:
 		if event is InputEventScreenDrag:
 			var delta:=point-native_aim_origin
 			if delta.length()>9.0:
-				native_aim_dragged=true;facing=Rules.aim8(delta);update_hud();lab_update_aim();aim_preview.queue_redraw()
+				native_aim_dragged=true;set_combat_facing(Rules.aim8(delta));aim_preview.queue_redraw()
 		elif up:
 			var rotate:bool=not native_aim_dragged and not event.canceled and control_contains(aim_button,point)
 			native_aim_pointer=-2;native_aim_dragged=false;touch_feedback(aim_button,false);aim_preview.queue_redraw()
@@ -1170,13 +1178,16 @@ func capture_control_pointer(event:InputEvent)->bool:
 		return true
 	return false
 
+func strike_buffer_valid(direction:Vector2i,floor_id:int,current_floor:int)->bool:
+	return direction in Rules.DIR8 and floor_id==current_floor
+
 func request_strike()->void:
 	if utility_drag_suppress or hold_active or hold_release_pending or native_aim_pointer!=-2 or field_pointer!=-2 or not strike_available():return
 	path.clear()
 	if attack_time>0.0:
-		strike_pending=true
+		strike_pending=true;strike_buffer_direction=facing;strike_buffer_floor=run.floor_revision
 		return
-	strike_pending=false
+	strike_pending=false;strike_buffer_direction=Vector2i.ZERO;strike_buffer_floor=-1
 	var acted:bool=run.attack(false,facing)
 	sync()
 	# A whiff swings without inventing damage, PP use or a turn.
@@ -1207,7 +1218,7 @@ func handle_utility_drag(event:InputEvent)->bool:
 			utility_drag_suppress=true
 			strike_pending=false
 			if utility_drag_kind=="aim":
-				facing=Rules.aim8(delta);path.clear();update_hud();lab_update_aim();aim_preview.queue_redraw()
+				path.clear();set_combat_facing(Rules.aim8(delta));aim_preview.queue_redraw()
 			else:
 				var travel:Vector2=(area.size-attack_button.size-Vector2(8,8)).max(Vector2.ZERO)
 				attack_button.position=(utility_drag_start+delta).clamp(Vector2(4,4),Vector2(4,4)+travel)
@@ -19635,7 +19646,7 @@ func _input(event:InputEvent)->void:
 	if event is InputEventMouseMotion:
 		var delta:Vector2=event.position-hold_origin
 		if delta.length()>18.0:
-			show_held_attack();facing=Rules.aim8(delta);update_hud();lab_update_aim()
+			show_held_attack();set_combat_facing(Rules.aim8(delta))
 		get_viewport().set_input_as_handled()
 	elif event is InputEventMouseButton and event.button_index==MOUSE_BUTTON_LEFT and not event.pressed:
 		if native_move_pointer!=-2:return
@@ -19668,9 +19679,7 @@ func draw_aim_preview()->void:
 
 func rotate_combat_aim()->void:
 	path.clear();strike_pending=false
-	facing=Rules.DIR8[posmod(Rules.DIR8.find(facing)+1,8)]
-	lab_update_aim()
-	update_hud()
+	set_combat_facing(Rules.DIR8[posmod(Rules.DIR8.find(facing)+1,8)])
 func touch(event:InputEvent):
 	if notified or run.finished or tile_cast_active() or controls_modal() or movement_joystick or field_aim_enabled or hold_active or native_aim_pointer!=-2:return
 	if event is InputEventScreenTouch or event is InputEventScreenDrag or event is InputEventMouseButton or event is InputEventMouseMotion:
@@ -19758,7 +19767,8 @@ func sync_creature_discoveries()->void:
 
 func sync():
 	run.dev_refill()
-	if run.floor_revision!=active_floor:build_floor()
+	if run.floor_revision!=active_floor:
+		strike_pending=false;path.clear();reset_joystick();build_floor()
 	else:refresh_actors()
 	update_hud()
 	var next_charge:String=run.charge_phase
@@ -19813,7 +19823,7 @@ func update_hud():
 	if not run.temporary_type.is_empty() or not run.adaptive_type.is_empty():status_text.text+=" · "+str(run.current_player_types()[0]).capitalize()
 	if run.player_slow_turns>0:status_text.text+=" · Slowed"
 	status_text.tooltip_text=status_text.text
-	if is_instance_valid(aim_button):aim_button.text="Aim "+["↑","↗","→","↘","↓","↙","←","↖"][maxi(0,Rules.DIR8.find(facing))]
+	lab_update_aim()
 	if is_instance_valid(special_button):special_button.disabled=run.energy<2
 	if is_instance_valid(attack_button):attack_button.disabled=not run.charged_move_id.is_empty()
 	if is_instance_valid(panel_strike):panel_strike.disabled=not run.charged_move_id.is_empty()
@@ -20005,9 +20015,10 @@ func _process(dt:float):
 	# A cast created by sync() later in this frame starts at age zero.
 	advance_player_combat_clock(dt)
 	if strike_pending:
-		if not strike_available():
+		if not strike_available() or not strike_buffer_valid(strike_buffer_direction,strike_buffer_floor,run.floor_revision):
 			strike_pending=false
-		elif attack_time<=0.0 and not hold_active and not hold_release_pending and utility_drag_kind.is_empty():
+		elif attack_time<=0.0 and not hold_active and not hold_release_pending and utility_drag_kind.is_empty() and native_aim_pointer==-2 and field_pointer==-2 and strike_pointer==-2:
+			set_combat_facing(strike_buffer_direction)
 			request_strike()
 	update_living_ambient(dt)
 	update_exterior_world(dt)
