@@ -973,15 +973,45 @@ var recent_layouts:Array[String]=[]
 var layout_signature:String=""
 var layout_retries:int=0
 # Family labels are Kindria-specific; the geometry is generated, never a fixed map.
-const TOPOLOGY_NAMES=["Compact","Horizontal","Vertical","Ring","Branching","Connected"]
+const TOPOLOGY_NAMES=["Compact","Horizontal","Vertical","Ring","Branching","Connected","Cross","Tee","Elbow","U-Shaped","Zigzag","Double Wing","Spine","Twin Courtyard","Lattice","Wide Basin","Tall Basin","Corner Clusters","Staggered","Fork","Long Gallery","Deep Gallery","Broken Ring","Mosaic"]
+const TOPOLOGY_GRIDS=[Vector2i(2,2),Vector2i(4,2),Vector2i(2,4),Vector2i(3,3),Vector2i(3,3),Vector2i(3,2),Vector2i(3,3),Vector2i(3,3),Vector2i(3,3),Vector2i(3,3),Vector2i(4,3),Vector2i(4,3),Vector2i(3,4),Vector2i(4,4),Vector2i(4,4),Vector2i(4,3),Vector2i(3,4),Vector2i(4,4),Vector2i(4,4),Vector2i(3,4),Vector2i(4,2),Vector2i(2,4),Vector2i(4,4),Vector2i(4,4)]
+const TOPOLOGY_BRANCHES=[1,1,1,0,3,1,2,2,2,1,2,2,3,1,2,2,2,3,2,3,2,2,2,4]
+# Independent dimensions of the floor recipe, not authored floor layouts.
+const ROOM_PROFILES=["Classic","Wide","Tall","Irregular"]
+const LINK_PROFILES=["Balanced","Sparse","Local loops","Cross links"]
+var room_profile:int=0
+var link_profile:int=0
+
+func topology_slot_allowed(family:int,q:Vector2i,grid:Vector2i)->bool:
+	var edge:bool=q.x==0 or q.y==0 or q.x==grid.x-1 or q.y==grid.y-1
+	match family:
+		3:return q!=Vector2i(1,1)
+		6:return q.x==1 or q.y==1
+		7:return q.y==0 or q.x==1
+		8:return q.x==0 or q.y==grid.y-1
+		9:return q.x==0 or q.x==grid.x-1 or q.y==grid.y-1
+		10:return q.y==0 and q.x<3 or q.y==1 and q.x>=1 or q.y==2 and q.x>=2
+		11:return q.x==0 or q.x==grid.x-1 or q.y==1
+		12:return q.x==1 or q.y%2==0
+		13:return edge or q.x==1
+		14:return true
+		15:return q.y!=1 or q.x==0 or q.x==grid.x-1
+		16:return q.x!=1 or q.y==0 or q.y==grid.y-1
+		17:return (q.x<2 and q.y<2) or (q.x>=2 and q.y>=2) or q==Vector2i(1,2)
+		18:return (q.x+q.y)%3!=0
+		19:return q.y==0 or q.x==1 or (q.y==grid.y-1 and q.x!=1)
+		20:return q.y==0 or q.x%2==0
+		21:return q.x==0 or q.y%2==0
+		22:return edge and q!=Vector2i(1,0) and q!=Vector2i(2,grid.y-1)
+		_:return true
 var topology_family:int=0
 var corridor_anchors:Array[Vector2i]=[]
 
 func topology_grid(family:int)->Vector2i:
-	return [Vector2i(2,2),Vector2i(4,2),Vector2i(2,4),Vector2i(3,3),Vector2i(3,3),Vector2i(3,2)][clampi(family,0,5)]
+	return TOPOLOGY_GRIDS[clampi(family,0,TOPOLOGY_GRIDS.size()-1)]
 
 func topology_branch_budget(family:int)->int:
-	return [1,1,1,0,3,1][clampi(family,0,5)]
+	return TOPOLOGY_BRANCHES[clampi(family,0,TOPOLOGY_BRANCHES.size()-1)]
 
 func add_corridor_anchors(slots:Array[Vector2i],occupied:Dictionary)->void:
 	# Non-room anchors provide corridor-only exploration. They are excluded
@@ -1094,23 +1124,29 @@ func layout_component(links:Dictionary)->Array[int]:
 
 func build_layout():
 	# Select a layout family first, then draw actual rooms and connections.
-	topology_family=0 if starter_woods else rng.randi_range(1,5)
+	topology_family=0 if starter_woods else rng.randi_range(1,TOPOLOGY_NAMES.size()-1)
+	room_profile=0 if starter_woods else rng.randi_range(0,ROOM_PROFILES.size()-1)
+	link_profile=0 if starter_woods or topology_family==3 else rng.randi_range(0,LINK_PROFILES.size()-1)
 	corridor_anchors.clear()
 	var grid:Vector2i=topology_grid(topology_family)
 	floor_bounds=Rect2i(Vector2i.ONE,grid*9-Vector2i(2,2))
 	var slots:Array[Vector2i]=[]
 	for y in range(grid.y):
 		for x in range(grid.x):
-			if topology_family==3 and Vector2i(x,y)==Vector2i(1,1):continue
+			if not topology_slot_allowed(topology_family,Vector2i(x,y),grid):continue
 			slots.append(Vector2i(x,y))
 	for i in range(slots.size()-1,0,-1):
 		var j=rng.randi_range(0,i);var swap=slots[i];slots[i]=slots[j];slots[j]=swap
-	var room_count=starter_room_count() if starter_woods else rng.randi_range(4,slots.size())
+	var room_count=starter_room_count() if starter_woods else rng.randi_range(4,mini(12,slots.size()))
 	if topology_family==3:room_count=slots.size()
 	elif topology_family==4:room_count= rng.randi_range(4,6)
+	elif topology_family in [6,7,8,9,10,11,12,17,19,20,21,22]:room_count=mini(12,slots.size())
 	for i in range(room_count):
 		var slot=slots[i]
 		var width=rng.randi_range(5,7);var height=rng.randi_range(5,7)
+		if room_profile==1:width=rng.randi_range(6,7);height=rng.randi_range(4,6)
+		elif room_profile==2:width=rng.randi_range(4,6);height=rng.randi_range(6,7)
+		var notch:int=rng.randi_range(0,3) if room_profile==3 else -1
 		if starter_woods:
 			# Open tutorial clearing, elongated stream-side room, broad final grove.
 			if floor_number==1 and i==0:width=7;height=7
@@ -1124,6 +1160,10 @@ func build_layout():
 				var corner_x=x==room.position.x or x==room.end.x-1
 				var corner_y=y==room.position.y or y==room.end.y-1
 				if cut>0 and corner_x and corner_y and rng.randi_range(0,3)<cut:continue
+				if notch>=0:
+					var nx:bool=x<room.position.x+2 if notch%2==0 else x>=room.end.x-2
+					var ny:bool=y<room.position.y+2 if notch<2 else y>=room.end.y-2
+					if nx and ny:continue
 				cells[Vector2i(x,y)]=true
 	# Local grid walk with directional persistence, then repair connectivity.
 	# This creates loops naturally instead of imposing a tree on every floor.
@@ -1132,7 +1172,8 @@ func build_layout():
 	for i in range(room_count):room_slots[slots[i]]=i
 	var cursor_slot:Vector2i=slots[rng.randi_range(0,room_count-1)]
 	var direction:int=rng.randi_range(0,3)
-	var connectivity:int=[5,8,10][clampi(floor_number-1,0,2)] if starter_woods else [0,12,12,24,8,20][topology_family]
+	var connectivity:int=[5,8,10][clampi(floor_number-1,0,2)] if starter_woods else (24 if topology_family==3 else (8 if topology_family==4 else 12))
+	if not starter_woods and topology_family!=3:connectivity=[connectivity,0,room_count*5,room_count*2][link_profile]
 	for n in range(connectivity):
 		if rng.randi_range(0,1)==0:direction=rng.randi_range(0,3)
 		for turn in range(4):
@@ -1169,7 +1210,8 @@ func build_layout():
 		links[Vector2i(mini(source,destination),maxi(source,destination))]=true
 		reached=layout_component(links)
 	var extra=rng.randi_range(0,mini(4,room_count-2))
-	if topology_family==3 or topology_family==4:extra=0
+	if not starter_woods and link_profile==3:extra=rng.randi_range(3,mini(8,room_count))
+	if topology_family==3 or topology_family==4 or link_profile==1:extra=0
 	if starter_woods and floor_number==1:extra=0
 	for n in range(extra):
 		var i=rng.randi_range(0,room_count-1);var j=rng.randi_range(0,room_count-1)
