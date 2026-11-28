@@ -2280,6 +2280,21 @@ func enemy_immediate_recovery_step(e:Dictionary,target:Vector2i)->Vector2i:
 		if score>best_score:best=q;best_score=score
 	return best
 
+# A visible opening in a crowded frontline is evidence for a short detour,
+# rather than a reason to wait for a second failed pursuit.
+func enemy_open_frontline_detour(e:Dictionary,target:Vector2i)->bool:
+	if not enemy_opportunity_eligible(e) or not enemy_live_contact(e,target) or int(e.get("stuck_turns",0))>0:return false
+	if shield_turns>0 and shield_kind=="protect":return false
+	var occupied:int=0
+	var open:bool=false
+	for d in DIR:
+		var q:Vector2i=target+d
+		if not cells.has(q) or not enemy_line_of_sight(e.pos,q):continue
+		var index:int=enemy_at(q)
+		if index>=0 and int(enemies[index].get("hp",0))>0:occupied+=1
+		elif enemy_ambush_safe_tile(q):open=true
+	return occupied>=2 and open
+
 func enemy_unstall_step(e:Dictionary,target:Vector2i)->Vector2i:
 	var origin:Vector2i=e.pos
 	if not enemy_opportunity_eligible(e) or not enemy_live_contact(e,target) or int(e.get("stuck_turns",0))>0:return origin
@@ -2296,9 +2311,13 @@ func enemy_unstall_step(e:Dictionary,target:Vector2i)->Vector2i:
 	# threshold. Only retry once per recent loss after a committed detour.
 	var loss_turn:int=int(e.get("squad_loss_turn",-9999))
 	var loss_reentry:bool=turns-loss_turn in [0,1] and int(e.get("unstall_turn",-9999))<loss_turn and int(e.get("stall_count",0))>=1 and e.get("stall_target",Vector2i.ZERO)==target and int(e.get("stall_turn",-9999))==turns-1 and not enemy_occupied_frontline(e,target)
+	var early_detour:bool=false
 	if not reserve_reentry and not congestion_reentry and not loss_reentry:
-		if int(e.get("stall_count",0))<2 or e.get("stall_target",Vector2i.ZERO)!=target or int(e.get("stall_turn",-9999))!=turns-1:return origin
+		if int(e.get("stall_count",0))<1 or e.get("stall_target",Vector2i.ZERO)!=target or int(e.get("stall_turn",-9999))!=turns-1:return origin
 		if turns<=int(e.get("unstall_turn",-9999))+3:return origin
+		if int(e.get("stall_count",0))<2:
+			if not enemy_open_frontline_detour(e,target):return origin
+			early_detour=true
 	var reserved:Dictionary=enemy_pack_reserved_posts(e,target)
 	# Partner eligibility is invariant throughout this pure planning call.
 	var recovery_peers:Array[Dictionary]=[]
@@ -2333,7 +2352,7 @@ func enemy_unstall_step(e:Dictionary,target:Vector2i)->Vector2i:
 	while cursor<queue.size() and cursor<96:
 		var tile:Vector2i=queue[cursor];cursor+=1
 		if tile!=origin and enemy_recovery_attack_tile(e,tile,target,attack_memo):return first[tile]
-		if int(depth[tile])>=6:continue
+		if int(depth[tile])>=(3 if early_detour else 6):continue
 		for d in DIR:
 			var q:Vector2i=tile+d
 			if depth.has(q) or not enemy_ambush_safe_tile(q) or reserved.has(q):continue
