@@ -4971,7 +4971,7 @@ func enemy_area_bonus(e:Dictionary,pattern:String,reach:int,aim:Vector2i)->float
 	return 1.5*float(enemy_area_allies(e.pos,attack_footprint(e.pos,aim,pattern,reach)).size())
 
 func enemy_has_party_area_attack(e:Dictionary)->bool:
-	if not bool(e.get("ecology_search_enabled",false)) or allies.is_empty() or not enemy_line_of_sight(e.pos,player):return false
+	if not bool(e.get("ecology_search_enabled",false)) or allies.is_empty() or not enemy_live_contact(e,player):return false
 	var skill:Array=signature_skill(e)
 	var pattern:String=str(ATTACK_PATTERNS.get(e.get("species",""),"line"))
 	var charged:bool=bool(e.get("windup",false))
@@ -5176,7 +5176,7 @@ func enemy_party_attack_plan(e:Dictionary)->Dictionary:
 		var alt:Array=SECONDARY_SKILLS[species]
 		kits.append({"slot":"secondary","skill":[alt[0],false,3,alt[3],alt[4],alt[5],"alt_"+species],"pattern":str(alt[1]),"name":str(alt[2])})
 	var player_value:float=0.0
-	var player_visible:bool=distance(origin,player)<=enemy_awareness(e) and enemy_line_of_sight(origin,player)
+	var player_visible:bool=enemy_live_contact(e,player)
 	var player_protected:bool=(shield_turns>0 and shield_kind=="protect") or charge_phase in ["underground","airborne","vanish"]
 	if player_visible and not player_protected and distance(origin,player)==1:player_value=float(maxi(1,1+tier))
 	if player_visible and not player_protected and int(e.get("cooldown",0))<=0 and enemy_move_allowed(e,"primary") and attack_aim(origin,player,str(ATTACK_PATTERNS.get(species,"line")),int(primary[0]))!=Vector2i.ZERO:
@@ -5192,8 +5192,8 @@ func enemy_party_attack_plan(e:Dictionary)->Dictionary:
 		var secondary:bool=kit.slot=="secondary"
 		for d in DIR:
 			var footprint:Dictionary=attack_footprint(origin,d,pattern,int(skill[0]))
-			if footprint.has(player):
-				if player_visible and not player_protected:
+			if player_visible and footprint.has(player):
+				if not player_protected:
 					var value:float=enemy_attack_score(e,skill,secondary)
 					if value>=float(hp):value+=2.5
 					value+=(1.0-float(hp)/float(maxi(1,max_hp)))*1.5+enemy_squad_focus_bonus(e,-1,player)+enemy_target_exposure(e,player,-1)
