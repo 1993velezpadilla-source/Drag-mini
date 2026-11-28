@@ -419,3 +419,9 @@ Independent biome/terrain and room-event profiles, optional treasure branches, M
 - Healthy aggressive/defensive personality-enabled actors may occupy a reachable escape tile outside a visible partner's actual same-round announced charge footprint. Earlier actor order, fixed aim, learned PP, line of sight, status and attack value are checked; no assumed future cast or forced player response.
 - Candidate posts use legal cardinal enemy movement and the player's eight-direction movement geometry, avoid traps, occupied cells, reservations and friendly attack lanes. Immediate attacks and higher-priority tactical behaviors retain priority. No new action, damage, immunity or guaranteed capture.
 - Implementation ac0eeda88a54052018ce0bd6d442738dfad7d61b and announcement refinement 6b7c105a1928dec499668fb8fbeefc4ece466c26; ten authored regression checks 83461734d342801d0d5c9cd9444e537614fdc407. Health gate and scoring provisional. CI and Android execution unverified; existing status combinations unchanged.
+
+
+## V26.98 — Intelligent Enemy Opportunity Engine
+- Visible target exposure contributes bounded priority bonuses based on zero, one or at least two visible living supporting party members within two tiles. Personality-enabled actors weight tactical utility by estimated hit probability. Defeated and hidden targets are excluded from exposure scoring.
+- Learned party attack selection now includes actual whiffer accuracy penalty, expected capped damage, knockout value, individual attack observations and local squad focus. Existing attack execution, PP rules, turn budget and status effects remain unchanged. No extra damage or guaranteed hit is granted.
+- Implementation 203c25b7e53d10f55afe68d026b1d127e94dcaf8; nine authored regression checks 4afb089a37dda351cd904c1b2684173fd72b2485. Exposure weights provisional. CI and Android execution unverified. Player attack baseline and legacy basic pursuit retained; not a complete unified opportunity planner.
