@@ -36,6 +36,31 @@ func run_checks()->void:
 	var checks:int=0
 	var failures:Array[String]=[]
 	var view:=Dungeon.new()
+	# V26.25: independent random stairs, no key gate, and geometry history.
+	var layout_a:=preload("res://dungeon_rules.gd").new()
+	var layout_b:=preload("res://dungeon_rules.gd").new()
+	layout_a.setup(0,0,0,false,false,812,0,true)
+	layout_b.setup(0,0,0,false,false,812,0,true)
+	if layout_a.layout_signature!=layout_b.layout_signature:failures.append("V26.25 deterministic first layout")
+	checks+=1
+	layout_b.generate_floor()
+	if layout_a.layout_signature==layout_b.layout_signature or layout_b.layout_retries<1:failures.append("V26.25 duplicate rejected")
+	checks+=1
+	var lucky:int=0
+	var signatures:Dictionary={}
+	for trial in range(128):
+		var layout_run:=preload("res://dungeon_rules.gd").new()
+		layout_run.setup(trial%3,0,0,false,false,trial+517,0,trial%3==0)
+		if not layout_run.stairs_available() or layout_run.secured:failures.append("V26.25 stairs open without treasure")
+		if layout_run.player==layout_run.stairs or layout_run.route(layout_run.player,layout_run.stairs).is_empty():failures.append("V26.25 reachable distinct stairs")
+		if layout_run.distance(layout_run.player,layout_run.stairs)==1:lucky+=1
+		signatures[layout_run.layout_signature]=true
+		layout_run.player=layout_run.stairs
+		if not layout_run.descend() or layout_run.floor_number!=2:failures.append("V26.25 no relic required")
+		checks+=3
+	if lucky==0:failures.append("V26.25 adjacent stairs possible")
+	if signatures.size()<120:failures.append("V26.25 layout diversity")
+	checks+=2
 	# V26.24: reward captions, four cached audio families, and actual floor bonus carryover.
 	for reward_kind in ["coin","potion","material","manual","trail_fruit","spring","eat","ward_band","force_band","relic"]:
 		if view.reward_caption(reward_kind).is_empty():failures.append("V26.24 missing reward caption")
@@ -52,7 +77,7 @@ func run_checks()->void:
 	var bonus_run:=preload("res://dungeon_rules.gd").new()
 	bonus_run.setup(0,0,0,false,false,7,0,true)
 	bonus_run.player=bonus_run.stairs
-	bonus_run.secured=true
+	bonus_run.secured=false
 	for room_id in range(3):bonus_run.explored_rooms[room_id]=true
 	if not bonus_run.descend() or bonus_run.floor_number!=2 or bonus_run.last_completed_floor_bonus!=2:failures.append("V26.24 floor bonus carryover")
 	checks+=1
@@ -143,9 +168,9 @@ func run_checks()->void:
 			if woods.rooms.size()!=(3 if woods_floor==1 else 4):failures.append("V26.20 floor room profile")
 			if woods.starter_floor_title()!=["Fernlight Clearing","Silverbrook Falls","Ancientroot Grove"][woods_floor-1]:failures.append("V26.20 distinct title")
 			if not ["potion","trail_fruit","manual:eos_154"][woods_floor-1] in woods.loot.values():failures.append("V26.20 teaching reward")
-			if woods.starter_objective()!="Find the woodland relic":failures.append("V26.20 initial objective")
+			if woods.starter_objective()!=("Find the stairs" if woods_floor<3 else "Find the exit"):failures.append("V26.25 initial objective")
 			woods.secured=true
-			if woods.starter_objective()!=("Reach the stairs" if woods_floor<3 else "Reach the exit"):failures.append("V26.20 completed objective")
+			if woods.starter_objective()!=("Find the stairs" if woods_floor<3 else "Find the exit") or not woods.stairs_available():failures.append("V26.25 optional treasure objective")
 			woods.secured=false
 			checks+=10
 	var woods_advanced:=preload("res://dungeon_rules.gd").new()
