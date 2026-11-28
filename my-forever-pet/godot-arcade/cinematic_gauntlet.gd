@@ -36,6 +36,43 @@ func run_checks()->void:
 	var checks:int=0
 	var failures:Array[String]=[]
 	var view:=Dungeon.new()
+	# V26.14: deterministic ambush, unique occupancy, bounded spawns and reset.
+	for house_seed in range(12):
+		var house:=preload("res://dungeon_rules.gd").new()
+		house.setup(0,0,0,false,false,house_seed)
+		if house.monster_house_room!=-1:failures.append("V26.14 first floor safety")
+		if not house.prepare_monster_house(true):
+			failures.append("V26.14 forced eligible room");continue
+		var room:Rect2i=house.rooms[house.monster_house_room]
+		if room.has_point(house.player) or room.has_point(house.relic):failures.append("V26.14 protected rooms")
+		if house.trigger_monster_house():failures.append("V26.14 remote activation")
+		house.player=house.center(room)
+		# In a fixture relocate any occupant at the chosen entry tile.
+		var occupant:int=house.enemy_at(house.player)
+		if occupant>=0:house.enemies.remove_at(occupant)
+		var before:int=house.enemies.size()
+		if not house.trigger_monster_house():failures.append("V26.14 trigger")
+		var count:int=house.monster_house_remaining()
+		if count<1 or count>house.MONSTER_HOUSE_CAP or house.enemies.size()!=before+count:failures.append("V26.14 bounded spawn")
+		var used:Dictionary={}
+		for e in house.enemies:
+			if used.has(e.pos):failures.append("V26.14 duplicate occupancy")
+			used[e.pos]=true
+			if bool(e.get("monster_house",false)):
+				var delta:Vector2i=e.pos-house.player
+				if not room.has_point(e.pos) or not house.cells.has(e.pos) or e.pos==house.player or e.pos==house.stairs or maxi(absi(delta.x),absi(delta.y))>4:failures.append("V26.14 spawn geometry")
+		if house.trigger_monster_house():failures.append("V26.14 duplicate trigger")
+		for i in range(house.enemies.size()-1,-1,-1):
+			if bool(house.enemies[i].get("monster_house",false)):house.enemies.remove_at(i)
+		house.update_monster_house()
+		if not house.monster_house_cleared:failures.append("V26.14 clear")
+		var serial:int=house.monster_house_serial
+		house.generate_floor()
+		if house.monster_house_triggered or house.monster_house_cleared or house.monster_house_serial!=serial:failures.append("V26.14 reset")
+		checks+=9
+	var house_audio:AudioStreamWAV=view.build_house_music()
+	if house_audio.data.size()!=76800 or house_audio.loop_mode!=AudioStreamWAV.LOOP_FORWARD or house_audio.loop_end!=38400:failures.append("V26.14 original music loop")
+	checks+=1
 	# V26.10: portrait contract and presentation-only regular Strike.
 	if int(ProjectSettings.get_setting("display/window/handheld/orientation"))!=1:failures.append("V26.10 portrait orientation")
 	if int(ProjectSettings.get_setting("display/window/size/viewport_width"))>=int(ProjectSettings.get_setting("display/window/size/viewport_height")):failures.append("V26.10 portrait viewport")
