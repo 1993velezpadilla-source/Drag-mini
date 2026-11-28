@@ -2423,6 +2423,21 @@ func enemy_push_attack_coverage(e:Dictionary,tile:Vector2i)->int:
 		if attack_aim(origin,tile,str(alt[1]),int(alt[0]))!=Vector2i.ZERO and enemy_attack_score(e,[alt[0],false,3,alt[3],alt[4],alt[5],"alt_"+species],true)>0.0:return 2
 	return 1 if distance(origin,tile)==1 else 0
 
+# Count only living party members visible to this observer and able to cover
+# the indicated tile by proximity and an unobstructed geometric line.
+func enemy_formation_support_count(e:Dictionary,tile:Vector2i)->int:
+	var count:int=0
+	for a in allies:
+		if int(a.hp)<=0 or distance(e.pos,a.pos)>enemy_awareness(e) or not enemy_line_of_sight(e.pos,a.pos):continue
+		if distance(tile,a.pos)<=2 and enemy_line_of_sight(a.pos,tile):count+=1
+	return count
+
+func enemy_formation_separation_bonus(e:Dictionary,target:Vector2i,destination:Vector2i)->int:
+	if target==destination:return 0
+	var before:int=enemy_formation_support_count(e,target)
+	var after:int=enemy_formation_support_count(e,destination)
+	return clampi((before-after)*2,-4,4)
+
 func enemy_push_position_bonus(e:Dictionary,target:Vector2i,destination:Vector2i)->int:
 	if not bool(e.get("ecology_search_enabled",false)) or target==destination:return 0
 	var gained:int=0
@@ -2435,14 +2450,7 @@ func enemy_push_position_bonus(e:Dictionary,target:Vector2i,destination:Vector2i
 		var before:int=enemy_push_attack_coverage(other,target)
 		var after:int=enemy_push_attack_coverage(other,destination)
 		gained+=maxi(0,after-before);lost+=maxi(0,before-after)
-	# Only credit a separation from a visible, living, previously nearby ally.
-	var close_before:bool=false
-	var close_after:bool=false
-	for a in allies:
-		if int(a.hp)<=0 or distance(e.pos,a.pos)>enemy_awareness(e) or not enemy_line_of_sight(e.pos,a.pos):continue
-		if distance(target,a.pos)<=2:close_before=true
-		if distance(destination,a.pos)<=2:close_after=true
-	var separation:int=2 if close_before and not close_after else 0
+	var separation:int=enemy_formation_separation_bonus(e,target,destination)
 	return clampi(gained*2-lost*2,-4,4)+separation
 
 func enemy_push_plan(e:Dictionary,target:Vector2i)->Dictionary:
@@ -2562,6 +2570,11 @@ func enemy_charge_evasion_step(e:Dictionary)->Vector2i:
 		var q:Vector2i=origin+d
 		if threat.has(q) or not enemy_ambush_safe_tile(q) or reserved.has(q):continue
 		var score:int=enemy_terrain_position_bonus(e,q,player)
+		# Do not evade into a tightly packed group if an equally safe tile exists.
+		var nearby:int=0
+		for other in enemies:
+			if enemy_squad_partner(e,other) and distance(q,other.pos)==1:nearby+=1
+		score-=mini(nearby,3)*2
 		if enemy_strategy_attack_tile(e,q,player):score+=4
 		if score>best_score:best_score=score;best=q
 	return best
@@ -4301,6 +4314,25 @@ func enemy_pack_commit(e:Dictionary,target:Vector2i,post:Vector2i)->void:
 func enemy_squad_intercept_step(e:Dictionary,target:Vector2i)->Vector2i:
 	return enemy_pack_intercept_plan(e,target).get("step",e.pos)
 
+# Prefer distinct attack directions and avoid occupying a visible partner's
+# firing line. Positional bonuses do not create collision or attack effects.
+func enemy_formation_post_bonus(e:Dictionary,post:Vector2i,target:Vector2i)->int:
+	if not bool(e.get("personality_enabled",false)) or distance(post,target)!=1:return 0
+	var score:int=0
+	var distinct:bool=false
+	var opposite:bool=false
+	for other in enemies:
+		if not enemy_squad_partner(e,other) or not enemy_line_of_sight(other.pos,target):continue
+		if enemy_relief_blocks_lane(other,post,target):return -12
+		if distance(other.pos,target)!=1:continue
+		if other.pos-target==target-post:opposite=true
+		elif other.pos!=post:distinct=true
+	if opposite:score+=4
+	elif distinct:score+=2
+	# An isolated target is easier to surround, but never ignore real obstacles.
+	if enemy_formation_support_count(e,target)==0:score+=2
+	return score
+
 func enemy_pack_intercept_plan(e:Dictionary,target:Vector2i)->Dictionary:
 	var origin:Vector2i=e.pos
 	if not bool(e.get("ecology_search_enabled",false)) or (bool(e.get("monster_house",false)) and not bool(e.get("house_tactical",false))) or int(e.get("kind",0))==3 or int(e.get("stuck_turns",0))>0 or bool(e.get("windup",false)):return {}
@@ -4325,7 +4357,7 @@ func enemy_pack_intercept_plan(e:Dictionary,target:Vector2i)->Dictionary:
 			var separation:int=8
 			for op in engaged:separation=mini(separation,distance(here,op))
 			var onward:Vector2i=here+(here-target)
-			var score:int=separation*6-steps*4+(5 if cells.has(onward) and not occupied.has(onward) else 0)
+			var score:int=separation*6-steps*4+(5 if cells.has(onward) and not occupied.has(onward) else 0)+enemy_formation_post_bonus(e,here,target)
 			for a in allies:
 				if int(a.hp)>0 and distance(target,a.pos)<=3 and enemy_line_of_sight(origin,a.pos) and distance(here,a.pos)<distance(target,a.pos):score+=2
 			if score>best_score:best_score=score;best=first[here];best_post=here
