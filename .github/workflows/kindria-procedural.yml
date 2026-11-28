@@ -42,6 +42,14 @@ jobs:
           /tmp/kindria-godot/Godot_v4.6-stable_linux.x86_64 --headless --path /tmp/kindria-procedural --script res://procedural_stress.gd -- --long 2>&1 | tee /tmp/kindria-procedural-endurance.log
           if grep -E 'SCRIPT ERROR|Parse Error|Compile Error|Failed to load script' /tmp/kindria-procedural-endurance.log; then exit 1; fi
           grep -E 'KINDRIA_PROCEDURAL_RESULT floors=4608 unique=4608 .* failures=0$' /tmp/kindria-procedural-endurance.log
+      - name: Verify history across independent Godot processes
+        run: |
+          set -o pipefail
+          GODOT=/tmp/kindria-godot/Godot_v4.6-stable_linux.x86_64
+          "$GODOT" --headless --path /tmp/kindria-procedural --script res://procedural_stress.gd -- --history-write 2>&1 | tee /tmp/kindria-procedural-restart.log
+          "$GODOT" --headless --path /tmp/kindria-procedural --script res://procedural_stress.gd -- --history-read 2>&1 | tee -a /tmp/kindria-procedural-restart.log
+          if grep -E 'SCRIPT ERROR|Parse Error|Compile Error|Failed to load script' /tmp/kindria-procedural-restart.log; then exit 1; fi
+          grep -F 'KINDRIA_HISTORY_RESTART_PASS' /tmp/kindria-procedural-restart.log
       - name: Preserve procedural evidence
         if: always()
         uses: actions/upload-artifact@v4
