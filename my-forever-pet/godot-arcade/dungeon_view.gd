@@ -1835,8 +1835,19 @@ func build_exterior_world(wall_cells:Dictionary):
 	# Score each possible scenic anchor in the actual orthographic camera
 	# plane, rather than blindly choosing a side outside the narrow viewport.
 	# The placement remains deterministic and independent of gameplay RNG.
-	for room in run.rooms:
-		if vista_parts.is_empty() or exterior_vistas.size()>=12:break
+	var vista_rooms:Array=run.rooms.duplicate()
+	var vista_limit:int=12
+	if run.starter_woods:
+		# One entrance landmark, then a waterfall-rich middle floor, then a quiet exit grove.
+		var focus_cell:Vector2i=run.player if run.floor_number==1 else run.relic if run.floor_number==2 else run.stairs
+		for i in range(vista_rooms.size()):
+			if vista_rooms[i].has_point(focus_cell):
+				var first_room:Rect2i=vista_rooms[i]
+				vista_rooms.remove_at(i);vista_rooms.push_front(first_room)
+				break
+		vista_limit=[1,3,1][clampi(run.floor_number-1,0,2)]
+	for room in vista_rooms:
+		if vista_parts.is_empty() or exterior_vistas.size()>=vista_limit:break
 		var middle:Vector2i=room.get_center()
 		var choices:Array[Vector2i]=[]
 		for offset in [0,-1,1,-2,2]:
@@ -2278,6 +2289,7 @@ func update_room_lights():
 			var desired_position:Vector3=pos(candidates[i])+Vector3(-1.1,2.6,-1.0)
 			if light.position!=desired_position:light.position=desired_position
 func floor_name()->String:
+	if run.starter_woods:return run.starter_floor_title()
 	return ["Ancient passages","Treasure chamber","Monster den","Restorative grotto","Forgotten ruins"][run.floor_kind]
 func build_landscape_connections():
 	landscape_ridge_weights.clear();landscape_links.clear()
@@ -19806,7 +19818,14 @@ func draw_map():
 		if run.revealed.has(p):map.draw_circle((Vector2(p)+Vector2(.5,.5))*unit+offset,maxf(1.0,unit*.24),Color("#ffcf72"))
 	for enemy in run.enemies:
 		if run.revealed.has(enemy.pos):map.draw_circle((Vector2(enemy.pos)+Vector2(.5,.5))*unit+offset,maxf(1.2,unit*.3),Color("#f58b90"))
-	if run.revealed.has(run.stairs):map.draw_rect(Rect2(Vector2(run.stairs)*unit+offset,Vector2.ONE*unit),Color("#f8d18b"))
+	if run.revealed.has(run.stairs):
+		var exit_rect:=Rect2(Vector2(run.stairs)*unit+offset,Vector2.ONE*unit)
+		map.draw_rect(exit_rect,Color("#9de4a6") if run.secured else Color("#f8d18b"))
+		if run.starter_woods and run.secured:map.draw_rect(exit_rect.grow(1.5),Color("#e1ffe0"),false,1.0)
+	if run.starter_woods and not run.secured and run.revealed.has(run.relic):
+		var relic_point:Vector2=(Vector2(run.relic)+Vector2(.5,.5))*unit+offset
+		var radius:float=maxf(3.0,unit*.65)
+		map.draw_colored_polygon(PackedVector2Array([relic_point+Vector2(0,-radius),relic_point+Vector2(radius,0),relic_point+Vector2(0,radius),relic_point+Vector2(-radius,0)]),Color("#fce4a2"))
 	var player_point=(Vector2(run.player)+Vector2(.5,.5))*unit+offset
 	map.draw_circle(player_point,maxf(4.0,unit*.85),Color("#73e4cc55"))
 	map.draw_circle(player_point,maxf(2.0,unit*.5),Color("#d5fff0"))
@@ -20113,7 +20132,9 @@ func update_hud():
 	hp_text.text="HP ∞ · DEV" if run.dev_sandbox else "HP %d/%d"%[run.hp,run.max_hp]
 	floor_label.text="%d/%d rooms"%[run.explored_rooms.size(),run.rooms.size()]
 	stats.text=str(run.coins)
-	relic_text.text="%d/%d"%[1 if run.secured else 0,1]
+	relic_text.text=("Exit" if run.secured else "Relic") if run.starter_woods else "%d/%d"%[1 if run.secured else 0,1]
+	relic_text.tooltip_text=run.starter_objective() if run.starter_woods else "Relic progress"
+	relic_text.modulate=Color("#b9f4ba") if run.secured else Color.WHITE
 	hp_bar.modulate=Color("#ff9b9b") if run.hp*3<run.max_hp else Color.WHITE
 	status_text.text=run.message if run.charged_move_id.is_empty() else str(Rules.MOVE_LIBRARY[run.charged_move_id].name)+" · Ready to release"
 	var stage_text:String=run.stage_summary(run.player_stages,run.player_halves)
