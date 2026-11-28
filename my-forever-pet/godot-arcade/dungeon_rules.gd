@@ -3407,14 +3407,17 @@ func enemy_exit_block_step(e:Dictionary,target:Vector2i)->Vector2i:
 func enemy_crowd_yield_step(e:Dictionary,target:Vector2i)->Vector2i:
 	var origin:Vector2i=e.pos
 	if not bool(e.get("ecology_search_enabled",false)) or int(e.get("kind",0))==3 or int(e.get("stuck_turns",0))>0 or bool(e.get("windup",false)):return origin
-	if target!=player or distance(origin,target)>enemy_awareness(e) or not enemy_line_of_sight(origin,target):return origin
+	if not enemy_live_contact(e,target):return origin
 	if origin.x!=target.x and origin.y!=target.y:return origin
 	var heading:Vector2i=Vector2i(signi(target.x-origin.x),signi(target.y-origin.y))
 	var partner:Vector2i=origin-heading
 	var index:int=enemy_at(partner)
 	if index<0:return origin
 	var rear:Dictionary=enemies[index]
-	if not enemy_squad_partner(e,rear) or distance(partner,target)>enemy_awareness(rear) or not enemy_line_of_sight(partner,target):return origin
+	if not enemy_squad_partner(e,rear) or not enemy_live_contact(rear,target):return origin
+	# Only yield for an executable shot in the remaining enemy phase.
+	if enemy_phase_spent.has(int(rear.get("uid",-1))) or int(rear.get("whiffer_turns",0))>0:return origin
+	if int(rear.get("slow_turns",0))>0 and int(rear.slow_turns)%2==0:return origin
 	var gap:int=distance(partner,target)
 	var species:String=str(rear.get("species",""))
 	var primary:Array=signature_skill(rear)
@@ -3442,12 +3445,12 @@ func enemy_crowd_yield_step(e:Dictionary,target:Vector2i)->Vector2i:
 	return best
 
 func enemy_crowd_hold(e:Dictionary,next:Vector2i,target:Vector2i)->bool:
-	# Hold the yielded lane for one subsequent turn, then normal pursuit resumes.
+	# Hold for one subsequent turn only while the firing lane remains usable.
 	if not bool(e.get("ecology_search_enabled",false)) or target!=e.get("crowd_target",Vector2i.ZERO) or turns-int(e.get("crowd_turn",-9999))!=1:return false
 	if next!=e.get("crowd_previous",e.pos):return false
 	var rear_tile:Vector2i=e.get("crowd_partner",e.pos)
 	var index:int=enemy_at(rear_tile)
-	return index>=0 and enemy_squad_partner(e,enemies[index]) and enemy_line_of_sight(rear_tile,target)
+	return index>=0 and enemy_live_contact(e,target) and enemy_squad_partner(e,enemies[index]) and enemy_relief_blocks_lane(enemies[index],next,target)
 
 # Idle sentries choose a nearby watch post from room geometry alone.
 # No attack, RNG, hidden player tracking or extra action is granted.
