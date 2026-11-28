@@ -3,6 +3,8 @@ extends RefCounted
 const DIR=[Vector2i.UP,Vector2i.RIGHT,Vector2i.DOWN,Vector2i.LEFT]
 # Keep the cardinal terrain generator stable; player navigation uses eight directions.
 const DIR8=[Vector2i.UP,Vector2i(1,-1),Vector2i.RIGHT,Vector2i(1,1),Vector2i.DOWN,Vector2i(-1,1),Vector2i.LEFT,Vector2i(-1,-1)]
+# Preserve existing cardinal tie priority while admitting all four diagonals.
+const COMBAT_DIR=[Vector2i.UP,Vector2i.RIGHT,Vector2i.DOWN,Vector2i.LEFT,Vector2i(1,-1),Vector2i(1,1),Vector2i(-1,1),Vector2i(-1,-1)]
 static func aim8(delta:Vector2)->Vector2i:
 	if delta.length_squared()<.0001:return Vector2i.ZERO
 	return DIR8[posmod(roundi((atan2(delta.y,delta.x)+PI*.5)/(PI*.25)),8)]
@@ -942,13 +944,13 @@ func attack_symmetric_contains(origin:Vector2i,target:Vector2i,pattern:String,re
 	return attack_cardinal_contains(origin,target,Vector2i(signi(delta.x),0),"corner",reach,vacated) or attack_cardinal_contains(origin,target,Vector2i(0,signi(delta.y)),"corner",reach,vacated)
 
 # Check one ray with the same strict corner and peer obstruction as footprints.
-func attack_ray_contains(origin:Vector2i,target:Vector2i,d:Vector2i,reach:int)->bool:
+func attack_ray_contains(origin:Vector2i,target:Vector2i,d:Vector2i,reach:int,vacated:Vector2i=Vector2i(-99999,-99999))->bool:
 	var delta:Vector2i=target-origin
 	var steps:int=maxi(absi(delta.x),absi(delta.y))
 	if steps<1 or steps>reach or delta!=d*steps:return false
 	for i in range(1,steps+1):
 		var tile:Vector2i=origin+d*i
-		if not step_clear(tile-d,d) or enemy_at(tile)>=0:return false
+		if not step_clear(tile-d,d) or (tile!=vacated and enemy_at(tile)>=0):return false
 	return true
 
 # Fixed-heading checks cannot rotate a committed telegraph. Diagonal fan and
@@ -972,7 +974,7 @@ func attack_fixed_contains(origin:Vector2i,target:Vector2i,d:Vector2i,pattern:St
 func attack_aim_contains(origin:Vector2i,target:Vector2i,d:Vector2i,pattern:String,reach:int,prune:bool,work:Dictionary)->bool:
 	if prune and pattern in ["line","front","fan","corner","corner_front"]:
 		if work.has("targeted"):work["targeted"]+=1
-		return attack_cardinal_contains(origin,target,d,pattern,reach)
+		return attack_fixed_contains(origin,target,d,pattern,reach)
 	return attack_footprint(origin,d,pattern,reach).has(target)
 
 func attack_aim(origin:Vector2i,target:Vector2i,pattern:String,reach:int,prune:bool=true,work:Dictionary={})->Vector2i:
@@ -987,8 +989,8 @@ func attack_aim(origin:Vector2i,target:Vector2i,pattern:String,reach:int,prune:b
 	if preferred!=Vector2i.ZERO and (not prune or attack_heading_possible(delta,preferred,pattern,reach)):
 		if work.has("footprints"):work["footprints"]+=1
 		if attack_aim_contains(origin,target,preferred,pattern,reach,prune,work):return preferred
-	for d in DIR:
-		if prune and (d==preferred or not attack_heading_possible(delta,d,pattern,reach)):continue
+	for d in COMBAT_DIR:
+		if prune and (d==preferred or (d in DIR and not attack_heading_possible(delta,d,pattern,reach))):continue
 		if work.has("footprints"):work["footprints"]+=1
 		if attack_aim_contains(origin,target,d,pattern,reach,prune,work):return d
 	return Vector2i.ZERO
@@ -996,35 +998,22 @@ func attack_aim(origin:Vector2i,target:Vector2i,pattern:String,reach:int,prune:b
 # Bypass normal footprint cache: the projected occupancy is not the live board.
 func enemy_projected_attack_aim(e:Dictionary,post:Vector2i,target:Vector2i,pattern:String,reach:int,prune_symmetric:bool=true,work:Dictionary={})->Vector2i:
 	if post==e.pos:return attack_aim(post,target,pattern,reach,prune_symmetric,work)
-	# Straight cardinal rays can reach a target in exactly one heading.
-	# Keep the normal footprint validator, including projected self vacancy.
 	if prune_symmetric and pattern in ["line","front"]:
 		var delta:Vector2i=target-post
-		if delta==Vector2i.ZERO or (delta.x!=0 and delta.y!=0):return Vector2i.ZERO
-		if absi(delta.x)+absi(delta.y)>(1 if pattern=="front" else reach):return Vector2i.ZERO
+		if delta==Vector2i.ZERO or (delta.x!=0 and delta.y!=0 and absi(delta.x)!=absi(delta.y)):return Vector2i.ZERO
+		if maxi(absi(delta.x),absi(delta.y))>(1 if pattern=="front" else reach):return Vector2i.ZERO
 		var heading:Vector2i=Vector2i(signi(delta.x),signi(delta.y))
 		if work.has("footprints"):work["footprints"]+=1
 		if work.has("targeted"):work["targeted"]+=1
-		return heading if attack_cardinal_contains(post,target,heading,pattern,reach,e.pos) else Vector2i.ZERO
-	# These footprints are independent of heading even with projected vacancy.
-	# Keep the first cardinal heading and never reuse live occupancy geometry.
+		return heading if attack_ray_contains(post,target,heading,1 if pattern=="front" else reach,e.pos) else Vector2i.ZERO
 	if prune_symmetric and pattern in ["radius","cross","room"]:
 		if work.has("footprints"):work["footprints"]+=1
 		if work.has("targeted"):work["targeted"]+=1
 		return DIR[0] if attack_symmetric_contains(post,target,pattern,reach,e.pos) else Vector2i.ZERO
-	var headings:Array=DIR
-	for d in headings:
-		# Branching attacks can only reach tiles in their forward half-plane.
-		# Retain DIR order for ties and use the full footprint for obstructions.
-		if prune_symmetric and pattern in ["fan","corner","corner_front"]:
-			var offset:Vector2i=target-post
-			var along:int=offset.x*d.x+offset.y*d.y
-			var across:int=absi(offset.x*d.y-offset.y*d.x)
-			var forward_limit:int=1 if pattern=="corner_front" else reach
-			if along<1 or along>forward_limit:continue
-			if across>(reach-along if pattern=="corner" else 1):continue
+	for d in COMBAT_DIR:
+		if prune_symmetric and d in DIR and not attack_heading_possible(target-post,d,pattern,reach):continue
 		if work.has("footprints"):work["footprints"]+=1
-		if prune_symmetric and pattern in ["fan","corner","corner_front"]:
+		if prune_symmetric and d in DIR and pattern in ["fan","corner","corner_front"]:
 			if work.has("targeted"):work["targeted"]+=1
 			if attack_cardinal_contains(post,target,d,pattern,reach,e.pos):return d
 		elif compute_attack_footprint(post,d,pattern,reach,false,e.pos).has(target):return d
@@ -5423,7 +5412,7 @@ func enemy_area_aim(e:Dictionary,pattern:String,reach:int,prune:bool=true,work:D
 	var initial:Vector2i=best
 	var best_count:int=-1
 	if best!=Vector2i.ZERO:best_count=enemy_area_count(origin,best,pattern,reach,prune,work)
-	for d in DIR:
+	for d in COMBAT_DIR:
 		if prune and d==initial:continue
 		var count:int=0
 		if prune and allies.size()<=3:
@@ -5698,7 +5687,7 @@ func enemy_party_attack_plan(e:Dictionary,reuse_scores:bool=true,defer_geometry:
 		var scarcity:float=.85 if enemy_move_pp(e,str(kit.slot))<=2 else 1.0
 		# Radial, cross and room footprints are invariant to heading. Preserve
 		# the first heading for deterministic ties and the exhaustive reference.
-		var headings:Array=[DIR[0]] if reuse_scores and pattern in ["radius","cross","room"] else DIR
+		var headings:Array=[DIR[0]] if reuse_scores and pattern in ["radius","cross","room"] else COMBAT_DIR
 		for d in headings:
 			var targeted:bool=defer_geometry and allies.size()<=3
 			var footprint:Dictionary={}

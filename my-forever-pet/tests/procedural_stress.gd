@@ -3509,7 +3509,7 @@ func run_checks()->void:
 						var area_full_aim:Vector2i=area_opt.enemy_area_aim(area_opt_actor,area_pattern,area_reach,false,area_opt_full)
 						if area_fast_aim!=area_full_aim:failures.append("area optimization exact heading parity")
 						checks+=1
-						for area_heading in Rules.DIR:
+						for area_heading in Rules.DIR8:
 							if area_opt.enemy_area_bonus(area_opt_actor,area_pattern,area_reach,area_heading,true,area_opt_fast)!=area_opt.enemy_area_bonus(area_opt_actor,area_pattern,area_reach,area_heading,false,area_opt_full):failures.append("area optimization exact bonus parity")
 							checks+=1
 	if area_opt.rng.state!=area_opt_rng or not area_opt.enemy_actions.is_empty() or area_opt_actor.pos!=Vector2i(4,4):failures.append("area optimization planning purity")
@@ -3560,6 +3560,33 @@ func run_checks()->void:
 	if plan_winners<=0 or int(plan_fast_work.full)>=int(plan_ref_work.full) or int(plan_fast_work.targeted)<=0:failures.append("deferred party plan work coverage")
 	checks+=1
 	print("KINDRIA_DEFERRED_PARTY_WORK cases=%d winners=%d optimized=%d reference=%d targeted=%d"%[plan_cases,plan_winners,int(plan_fast_work.full),int(plan_ref_work.full),int(plan_fast_work.targeted)])
+	# Eight-direction aim is required, not merely diagonal footprint support.
+	var octant_fixture=Rules.new()
+	for octant_y in range(1,8):
+		for octant_x in range(1,8):octant_fixture.cells[Vector2i(octant_x,octant_y)]=true
+	var octant_origin:=Vector2i(4,4)
+	var octant_actor:Dictionary={"uid":960,"pos":Vector2i(1,1),"hp":30,"kind":1,"species":"leafwisp","ecology_search_enabled":true,"pp_primary":12}
+	octant_fixture.enemies.append(octant_actor)
+	var octant_rng:int=octant_fixture.rng.state
+	for octant_heading in Rules.DIR8:
+		for octant_pattern in ["line","front"]:
+			var octant_target:Vector2i=octant_origin+octant_heading
+			if octant_fixture.attack_aim(octant_origin,octant_target,octant_pattern,1)!=octant_heading:failures.append("eight direction live attack selection")
+			checks+=1
+			if octant_fixture.enemy_projected_attack_aim(octant_actor,octant_origin,octant_target,octant_pattern,1)!=octant_heading:failures.append("eight direction projected attack selection")
+			checks+=1
+	for octant_heading in [Vector2i(1,-1),Vector2i(1,1),Vector2i(-1,1),Vector2i(-1,-1)]:
+		var octant_target:Vector2i=octant_origin+octant_heading*2
+		if octant_fixture.attack_aim(octant_origin,octant_target,"line",2)!=octant_heading:failures.append("diagonal long range attack")
+		checks+=1
+		var side_tile:Vector2i=octant_origin+Vector2i(octant_heading.x,0)
+		octant_fixture.cells.erase(side_tile)
+		if octant_fixture.attack_aim(octant_origin,octant_target,"line",2)!=Vector2i.ZERO:failures.append("diagonal attack cannot cut blocked corner")
+		checks+=1
+		octant_fixture.cells[side_tile]=true
+	if octant_fixture.rng.state!=octant_rng or not octant_fixture.enemy_actions.is_empty() or octant_actor.pos!=Vector2i(1,1):failures.append("eight direction planning purity")
+	checks+=1
+	print("KINDRIA_EIGHT_DIRECTION_SELECTION checks=41")
 	if recovery_sight.enemy_projected_attack_aim(sight_actor,Vector2i(1,1),recovery_sight.player,"radius",1)!=Vector2i.ZERO:failures.append("projected symmetric unreachable target")
 	checks+=1
 	recovery_sight.enemies.pop_back();sight_actor.pos=projection_origin
