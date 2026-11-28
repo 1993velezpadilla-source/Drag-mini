@@ -2968,7 +2968,27 @@ func run_checks()->void:
 		if int(action.get("uid",-1))==0 and str(action.phase)=="move":strategy_moves+=1
 	if strategy_moves!=1 or int(strategy_actor.get("strategy_turn",-1))!=22 or strategy_actor.get("strategy_to",Vector2i.ZERO)!=strategy_actor.pos or strategy_actor.pp_primary!=0:failures.append("strategy real movement recorded once")
 	checks+=1
-	print("KINDRIA_ADAPTIVE_STRATEGY checks=10")
+	# A projected retreat must vacate only the actor's original tile, never a teammate.
+	var projected_fixture=Rules.new()
+	for x in range(1,7):projected_fixture.cells[Vector2i(x,4)]=true
+	projected_fixture.player=Vector2i(5,4)
+	var projected_actor:Dictionary={"uid":41,"pos":Vector2i(3,4),"hp":30,"kind":0,"species":"leafwisp","pp_primary":12,"pp_secondary":0}
+	projected_fixture.enemies.append(projected_actor)
+	for enabled in [true,false]:
+		projected_fixture.ai_cache_enabled=enabled
+		projected_fixture.ai_begin_turn_cache();projected_fixture.ai_begin_actor_cache()
+		if not projected_fixture.enemy_strategy_attack_tile(projected_actor,Vector2i(2,4),projected_fixture.player):failures.append("strategy projected self tile must be vacated")
+		checks+=1
+		projected_fixture.ai_end_turn_cache()
+		projected_fixture.enemies.append({"uid":42,"pos":Vector2i(4,4),"hp":20})
+		projected_fixture.ai_begin_turn_cache();projected_fixture.ai_begin_actor_cache()
+		if projected_fixture.enemy_strategy_attack_tile(projected_actor,Vector2i(2,4),projected_fixture.player):failures.append("strategy projected teammate must still block ray")
+		checks+=1
+		projected_fixture.ai_end_turn_cache()
+		projected_fixture.enemies.pop_back()
+	if projected_actor.pos!=Vector2i(3,4) or projected_actor.pp_primary!=12 or not projected_fixture.enemy_actions.is_empty():failures.append("strategy projected planning must not mutate actor")
+	checks+=1
+	print("KINDRIA_ADAPTIVE_STRATEGY checks=15")
 	# Hidden charge and decoy observations must not refresh tactical tracking.
 	var visibility_audit=Rules.new()
 	for y in range(1,7):

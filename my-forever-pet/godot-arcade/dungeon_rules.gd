@@ -2166,10 +2166,10 @@ func enemy_strategy_attack_tile(e:Dictionary,q:Vector2i,target:Vector2i)->bool:
 	if distance(q,target)==1:return true
 	var species:String=str(e.get("species",""))
 	var skill:Array=signature_skill(e)
-	if int(e.get("cooldown",0))<=0 and enemy_move_allowed(e,"primary") and attack_aim(q,target,str(ATTACK_PATTERNS.get(species,"line")),int(skill[0]))!=Vector2i.ZERO:return true
+	if int(e.get("cooldown",0))<=0 and enemy_move_allowed(e,"primary") and enemy_projected_attack_aim(e,q,target,str(ATTACK_PATTERNS.get(species,"line")),int(skill[0]))!=Vector2i.ZERO:return true
 	if int(e.get("alt_cooldown",0))<=0 and SECONDARY_SKILLS.has(species) and enemy_move_allowed(e,"secondary"):
 		var alt:Array=SECONDARY_SKILLS[species]
-		return attack_aim(q,target,str(alt[1]),int(alt[0]))!=Vector2i.ZERO
+		return enemy_projected_attack_aim(e,q,target,str(alt[1]),int(alt[0]))!=Vector2i.ZERO
 	return false
 
 # A stalled pursuit may take a short lateral detour, but only if it opens
