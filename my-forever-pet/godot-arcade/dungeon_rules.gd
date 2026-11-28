@@ -3010,23 +3010,36 @@ func enemy_cautious_spacing_step(e:Dictionary,target:Vector2i)->Vector2i:
 	var origin:Vector2i=e.pos
 	if not enemy_live_contact(e,target):return origin
 	if not bool(e.get("personality_enabled",false)) or enemy_combat_personality(e)!="cautious" or bool(e.get("windup",false)) or int(e.get("stuck_turns",0))>0 or int(e.get("spacing_count",0))>=2:return origin
-	if target!=player or distance(origin,target)!=1 or not enemy_line_of_sight(origin,target):return origin
+	if target!=player or not enemy_melee_adjacent(origin,target) or not enemy_line_of_sight(origin,target):return origin
 	if int(player_stages.get("attack",0))<2 and int(player_stages.get("sp_attack",0))<2 and not enemy_recent_threat(e) and not enemy_counter_pattern(e,"close"):return origin
 	var skill:Array=signature_skill(e)
 	var pattern:String=str(ATTACK_PATTERNS.get(e.get("species",""),"line"))
 	if int(skill[0])<2 or not enemy_move_allowed(e,"primary") or int(e.get("cooldown",0))>0:return origin
 	var best:Vector2i=origin
+	var best_score:int=-2147483647
 	var away:Vector2i=origin-target
-	var directions:Array=[away] if away in DIR else []
-	for cardinal in DIR:
-		if cardinal!=away:directions.append(cardinal)
-	for d in (DIR if ai_legacy_cardinal_replay else directions):
+	var headings:Array=DIR if ai_legacy_cardinal_replay else COMBAT_DIR
+	for d in headings:
+		if not step_clear(origin,d):continue
 		var q:Vector2i=origin+d
-		if (not ai_legacy_cardinal_replay and maxi(absi(q.x-target.x),absi(q.y-target.y))<2) or distance(q,target)!=2 or not enemy_ambush_safe_tile(q) or not enemy_line_of_sight(q,target):continue
+		if enemy_step_distance(q,target)!=2 or not enemy_ambush_safe_tile(q) or not enemy_line_of_sight(q,target):continue
 		if enemy_projected_attack_aim(e,q,target,pattern,int(skill[0]))==Vector2i.ZERO:continue
-		for onward in DIR:
+		var exits:int=0
+		for onward in headings:
 			var next:Vector2i=q+onward
-			if next!=origin and enemy_ambush_safe_tile(next):return q
+			if next!=origin and step_clear(q,onward) and enemy_ambush_safe_tile(next):exits+=1
+		if exits==0:continue
+		if ai_legacy_cardinal_replay:return q
+		# Do not block a visible friendly attack or move closer to another foe.
+		var blocked:bool=false
+		for other in enemies:
+			if enemy_squad_lane_peer(e,other,target) and enemy_relief_blocks_lane(other,q,target):blocked=true;break
+		if blocked:continue
+		for a in allies:
+			if int(a.hp)>0 and distance(origin,a.pos)<=enemy_awareness(e) and enemy_line_of_sight(origin,a.pos) and enemy_step_distance(q,a.pos)<enemy_step_distance(origin,a.pos):blocked=true;break
+		if blocked:continue
+		var score:int=exits*2+3*int(d==away)
+		if score>best_score:best_score=score;best=q
 	return best
 
 func enemy_survival_profile(e:Dictionary)->String:

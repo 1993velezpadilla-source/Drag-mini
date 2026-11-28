@@ -4493,6 +4493,50 @@ func run_checks()->void:
 	if hunter_search.enemy_pursuit_target(hunter_actor,hunter_search.player)!=hunter_search.player or hunter_actor.has("search_anchor"):failures.append("hunter direct reacquisition clears search")
 	checks+=1
 	print("KINDRIA_DUNGEON_HUNTERS checks=8")
+	# Ranged spacing reacts to diagonal melee without spending an attack.
+	for diag in [Vector2i(1,-1),Vector2i(1,1),Vector2i(-1,1),Vector2i(-1,-1)]:
+		var rd:Vector2i=diag
+		var rs8=Rules.new()
+		for yy in range(1,12):
+			for xx in range(1,12):rs8.cells[Vector2i(xx,yy)]=true
+		var rsorigin:=Vector2i(6,6)
+		var rsdest:Vector2i=rsorigin+rd
+		rs8.player=rsorigin-rd;rs8.stairs=Vector2i(11,11);rs8.relic=Vector2i(11,10);rs8.hp=100;rs8.max_hp=100;rs8.turns=20
+		var rsactor:Dictionary={"uid":850,"pos":rsorigin,"hp":30,"max_hp":30,"kind":0,"species":"leafwisp","ecology_role":"hunter","ecology_search_enabled":true,"personality_enabled":true,"pp_primary":12,"pp_secondary":0}
+		rs8.enemies.append(rsactor)
+		if rs8.enemy_cautious_spacing_step(rsactor,rs8.player)!=rsorigin:failures.append("octant ranged no threat "+str(rd))
+		checks+=1
+		rs8.player_stages["attack"]=2
+		var rsrng:int=rs8.rng.state
+		if rs8.enemy_cautious_spacing_step(rsactor,rs8.player)!=rsdest:failures.append("octant ranged diagonal spacing "+str(rd))
+		checks+=1
+		if rsactor.pos!=rsorigin or rsactor.pp_primary!=12 or rs8.rng.state!=rsrng or not rs8.enemy_actions.is_empty():failures.append("octant ranged pure planning "+str(rd))
+		checks+=1
+		rs8.player_traps[rsdest]="snare"
+		if rs8.enemy_cautious_spacing_step(rsactor,rs8.player)==rsdest:failures.append("octant ranged trap rejection "+str(rd))
+		rs8.player_traps.clear()
+		checks+=1
+		var rscorner:Vector2i=rsorigin+Vector2i(rd.x,0)
+		rs8.cells.erase(rscorner)
+		if rs8.enemy_cautious_spacing_step(rsactor,rs8.player)==rsdest:failures.append("octant ranged corner rejection "+str(rd))
+		rs8.cells[rscorner]=true
+		checks+=1
+		rsactor["windup"]=true
+		if rs8.enemy_cautious_spacing_step(rsactor,rs8.player)!=rsorigin:failures.append("octant ranged preserves announced attack "+str(rd))
+		rsactor.erase("windup")
+		checks+=1
+		rsactor["spacing_count"]=2
+		if rs8.enemy_cautious_spacing_step(rsactor,rs8.player)!=rsorigin:failures.append("octant ranged spacing cap "+str(rd))
+		rsactor.erase("spacing_count")
+		checks+=1
+		rs8.charge_phase="vanish"
+		if rs8.enemy_cautious_spacing_step(rsactor,rs8.player)!=rsorigin:failures.append("octant ranged hidden target "+str(rd))
+		rs8.charge_phase=""
+		checks+=1
+		rs8.enemy_turn_actions()
+		if rsactor.pos!=rsdest or rsactor.pp_primary!=12 or int(rsactor.get("spacing_count",0))!=1 or rs8.enemy_actions.size()!=1 or str(rs8.enemy_actions[0].phase)!="move":failures.append("octant ranged real single movement "+str(rd))
+		checks+=1
+	print("KINDRIA_OCTANT_RANGED checks=36")
 	# All four diagonal headings should be preferred when directly witnessed.
 	for diag in [Vector2i(1,-1),Vector2i(1,1),Vector2i(-1,1),Vector2i(-1,-1)]:
 		var hsdir:Vector2i=diag
