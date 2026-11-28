@@ -36,6 +36,25 @@ func run_checks()->void:
 	var checks:int=0
 	var failures:Array[String]=[]
 	var view:=Dungeon.new()
+	# V26.17: cascade material identity, foam separation, and bounded emission source.
+	var cascade_water:=StandardMaterial3D.new()
+	cascade_water.resource_name="woodland turquoise stream"
+	cascade_water.albedo_color=Color("#298c9d")
+	var cascade_foam:=StandardMaterial3D.new()
+	cascade_foam.resource_name="cascade pale highlights"
+	var stream_shader:ShaderMaterial=view.exterior_motion_material(cascade_water)
+	var foam_shader:ShaderMaterial=view.exterior_motion_material(cascade_foam)
+	if stream_shader==null or foam_shader==null:
+		failures.append("V26.17 cascade material creation")
+	else:
+		if stream_shader==foam_shader:failures.append("V26.17 separate foam material")
+		if stream_shader!=view.exterior_motion_material(cascade_water):failures.append("V26.17 stream cache")
+		if foam_shader!=view.exterior_motion_material(cascade_foam):failures.append("V26.17 foam cache")
+		if stream_shader.get_shader_parameter("is_foam")!=false or foam_shader.get_shader_parameter("is_foam")!=true:failures.append("V26.17 foam uniform")
+		if stream_shader.get_shader_parameter("base_color")!=cascade_water.albedo_color:failures.append("V26.17 original pigment")
+		if not stream_shader.shader.code.contains("clamp(shimmer,0.0,1.5)"):failures.append("V26.17 emission bound")
+	checks+=7
+	view.exterior_motion_materials.clear()
 	# V26.16: HUD icon textures are authored once and shared by each move type.
 	var hud_elements:Array[String]=["normal","fire","water","electric","grass","ice","fighting","poison","ground","flying","psychic","bug","rock","ghost","dragon","dark","steel","fairy"]
 	for hud_element in hud_elements:
