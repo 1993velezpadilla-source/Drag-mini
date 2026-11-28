@@ -2070,6 +2070,50 @@ func run_checks()->void:
 	if finish_conflict.hp!=0 or finish_cautious.pos!=Vector2i(2,3) or finish_cautious.pp_primary!=12 or finish_cautious.pp_secondary!=10 or finish_conflict.enemy_actions.size()!=1 or str(finish_conflict.enemy_actions[0].get("move",""))!="Quick strike":failures.append("tactical polish finisher overrides retreat")
 	checks+=1
 	print("KINDRIA_TACTICAL_POLISH checks=2")
+	# Visible player charge responses must use real catalog geometry and legal actions.
+	var charge_counter_fixture=Rules.new()
+	for y in range(1,7):
+		for x in range(1,7):charge_counter_fixture.cells[Vector2i(x,y)]=true
+	charge_counter_fixture.player=Vector2i(3,3);charge_counter_fixture.stairs=Vector2i(6,6);charge_counter_fixture.relic=Vector2i(6,5)
+	charge_counter_fixture.hp=100;charge_counter_fixture.max_hp=100;charge_counter_fixture.turns=20
+	var charge_counter_actor:Dictionary={"uid":0,"pos":Vector2i(2,3),"hp":30,"max_hp":30,"kind":0,"species":"leafwisp","ecology_role":"hunter","ecology_search_enabled":true,"personality_enabled":true,"pp_primary":12,"pp_secondary":0,"pp_control":0}
+	charge_counter_fixture.enemies.append(charge_counter_actor)
+	charge_counter_fixture.charged_move_id="eos_075";charge_counter_fixture.charged_aim=Vector2i.LEFT;charge_counter_fixture.charge_phase="gather"
+	var counter_threat:Dictionary=charge_counter_fixture.enemy_visible_charge_threat(charge_counter_actor)
+	if not counter_threat.has(charge_counter_actor.pos) or counter_threat.has(Vector2i(2,2)):failures.append("charge counter real focused fist footprint")
+	checks+=1
+	var counter_evade:Vector2i=charge_counter_fixture.enemy_charge_evasion_step(charge_counter_actor)
+	if counter_evade==charge_counter_actor.pos or counter_threat.has(counter_evade) or not charge_counter_fixture.enemy_ambush_safe_tile(counter_evade) or charge_counter_actor.pp_primary!=12:failures.append("charge counter pure safe evasion")
+	checks+=1
+	charge_counter_fixture.charged_move_id="eos_060"
+	if not charge_counter_fixture.enemy_visible_charge_threat(charge_counter_actor).has(Vector2i(2,2)):failures.append("charge counter corner-front footprint")
+	checks+=1
+	charge_counter_fixture.charged_move_id="eos_075";charge_counter_fixture.charged_aim=Vector2i.RIGHT
+	if charge_counter_fixture.enemy_charge_evasion_step(charge_counter_actor)!=charge_counter_actor.pos:failures.append("charge counter no response outside threat")
+	charge_counter_fixture.charged_aim=Vector2i.LEFT
+	checks+=1
+	charge_counter_fixture.charged_move_id="eos_153";charge_counter_fixture.charge_phase="airborne"
+	if not charge_counter_fixture.enemy_visible_charge_threat(charge_counter_actor).is_empty():failures.append("charge counter hidden aim excluded")
+	charge_counter_fixture.charged_move_id="eos_075";charge_counter_fixture.charge_phase="gather"
+	checks+=1
+	charge_counter_actor["stuck_turns"]=2
+	if charge_counter_fixture.enemy_charge_evasion_step(charge_counter_actor)!=charge_counter_actor.pos:failures.append("charge counter rooted actor")
+	charge_counter_actor.erase("stuck_turns")
+	checks+=1
+	charge_counter_fixture.traps[Vector2i(2,2)]="snare";charge_counter_fixture.traps[Vector2i(2,4)]="snare";charge_counter_fixture.traps[Vector2i(1,3)]="snare"
+	if charge_counter_fixture.enemy_charge_evasion_step(charge_counter_actor)!=charge_counter_actor.pos:failures.append("charge counter no unsafe escape")
+	charge_counter_fixture.traps.clear()
+	checks+=1
+	var counter_push:Dictionary=charge_counter_fixture.enemy_push_plan(charge_counter_actor,charge_counter_fixture.player)
+	if charge_counter_fixture.enemy_charge_push_bonus(charge_counter_actor,counter_push)!=3 or charge_counter_fixture.player!=Vector2i(3,3):failures.append("charge counter push shifts release origin without mutation")
+	checks+=1
+	charge_counter_actor["control_move"]="eos_284"
+	if charge_counter_fixture.enemy_execute_control(0):failures.append("charge counter no learned PP no control")
+	checks+=1
+	charge_counter_fixture.enemy_turn_actions()
+	if charge_counter_actor.pos==Vector2i(2,3) or counter_threat.has(charge_counter_actor.pos) or charge_counter_fixture.enemy_actions.size()!=1 or str(charge_counter_fixture.enemy_actions[0].phase)!="move" or charge_counter_actor.pp_primary!=12 or charge_counter_fixture.charged_move_id!="eos_075":failures.append("charge counter actual single evasion preserves release")
+	checks+=1
+	print("KINDRIA_CHARGE_COUNTERPLAY checks=10")
 	# Risk counts visible healthy support and actual recent damage, not hidden actors.
 	var risk_fixture=Rules.new()
 	for y in range(1,9):
