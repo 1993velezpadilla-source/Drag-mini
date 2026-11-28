@@ -95,6 +95,8 @@ var strike_pending:bool=false
 var strike_on_panel:bool=true
 var movement_joystick:bool=false
 var strike_opacity:float=.48
+var combat_haptics:bool=false
+var last_haptic_ms:int=-1000
 var panel_strike:Button
 var utility_dock:GridContainer
 var field_aim_enabled:bool=false
@@ -516,6 +518,9 @@ func lab_settings_overlay()->void:
 	var aim_choice:=CheckButton.new();aim_choice.text="Hold field to aim";aim_choice.button_pressed=field_aim_enabled;stack.add_child(aim_choice)
 	aim_choice.toggled.connect(func(enabled:bool):
 		field_aim_enabled=enabled;field_pointer=-2;field_aiming=false;path.clear();aim_preview.queue_redraw();save_control_preferences())
+	var haptic_choice:=CheckButton.new();haptic_choice.text="Touch vibration";haptic_choice.button_pressed=combat_haptics;stack.add_child(haptic_choice)
+	haptic_choice.toggled.connect(func(enabled:bool):
+		combat_haptics=enabled;save_control_preferences())
 	label(stack,"Floating Strike opacity",12,hud_accent_color())
 	var opacity:=HSlider.new();opacity.min_value=.25;opacity.max_value=.85;opacity.step=.05;opacity.value=strike_opacity;stack.add_child(opacity)
 	opacity.value_changed.connect(func(value:float):
@@ -923,6 +928,7 @@ func load_control_preferences()->void:
 	strike_on_panel=bool(prefs.get_value("combat","strike_on_panel",true))
 	movement_joystick=bool(prefs.get_value("combat","movement_joystick",false))
 	field_aim_enabled=bool(prefs.get_value("combat","field_aim",false))
+	combat_haptics=bool(prefs.get_value("combat","haptics",false))
 	strike_opacity=clampf(float(prefs.get_value("combat","strike_opacity",.48)),.25,.85)
 	var saved:Variant=prefs.get_value("combat","strike_position",Vector2(.98,.95))
 	if saved is Vector2:strike_fraction=saved.clamp(Vector2.ZERO,Vector2.ONE)
@@ -932,12 +938,23 @@ func save_control_preferences()->void:
 	prefs.set_value("combat","strike_on_panel",strike_on_panel)
 	prefs.set_value("combat","movement_joystick",movement_joystick)
 	prefs.set_value("combat","field_aim",field_aim_enabled)
+	prefs.set_value("combat","haptics",combat_haptics)
 	prefs.set_value("combat","strike_opacity",strike_opacity)
 	prefs.set_value("combat","strike_position",strike_fraction)
 	prefs.save("user://kindria_hud.cfg")
 
+func touch_feedback(button_control:Button,active:bool)->void:
+	if is_instance_valid(button_control):button_control.self_modulate=Color(1.22,1.22,1.22,1.0) if active else Color.WHITE
+
+func touch_haptic()->void:
+	if not combat_haptics or not OS.has_feature("mobile"):return
+	var now:int=Time.get_ticks_msec()
+	if now-last_haptic_ms<65:return
+	last_haptic_ms=now;Input.vibrate_handheld(12,.35)
+
 func apply_control_preferences()->void:
 	path.clear();strike_pending=false;reset_joystick()
+	touch_feedback(strike_touch_button,false);strike_touch_button=null
 	strike_pointer=-2;field_pointer=-2;field_aiming=false;utility_drag_kind=""
 	cancel_native_combat()
 	if is_instance_valid(utility_dock):
@@ -967,8 +984,9 @@ func draw_joystick()->void:
 	joystick.draw_arc(center,radius,0,TAU,48,Color(tint,.65),1.5,true)
 	for i in range(8):
 		var d:=Vector2.from_angle(float(i)*TAU/8.0)
-		joystick.draw_circle(center+d*(radius-5.0),2.0,Color(tint,.6))
-	joystick.draw_circle(center+joy_knob*radius*.57,radius*.36,Color(tint,.75))
+		var selected:bool=joy_direction!=Vector2i.ZERO and d.dot(Vector2(joy_direction).normalized())>.98
+		joystick.draw_circle(center+d*(radius-5.0),3.5 if selected else 2.0,Color(tint,1.0 if selected else .45))
+	joystick.draw_circle(center+joy_knob*radius*.57,radius*.36,Color(tint,.95 if joy_pointer!=-2 else .65))
 
 func reset_joystick()->void:
 	joy_pointer=-2;joy_direction=Vector2i.ZERO;joy_knob=Vector2.ZERO
@@ -977,12 +995,21 @@ func reset_joystick()->void:
 func joystick_direction_for(delta:Vector2,radius:float)->Vector2i:
 	return Rules.aim8(delta) if delta.length()>maxf(1.0,radius)*.20 else Vector2i.ZERO
 
+func joystick_stable_direction(delta:Vector2,radius:float,previous:Vector2i)->Vector2i:
+	var scaled_radius:float=maxf(1.0,radius)
+	var threshold:float=.15 if previous!=Vector2i.ZERO else .20
+	if delta.length()<=scaled_radius*threshold:return Vector2i.ZERO
+	if previous!=Vector2i.ZERO and delta.normalized().dot(Vector2(previous).normalized())>=cos(deg_to_rad(28.0)):return previous
+	return Rules.aim8(delta)
+
 func set_joystick_point(point:Vector2)->void:
 	var local:=joystick.get_global_transform_with_canvas().affine_inverse()*point
 	var delta:=local-joystick.size*.5
 	var radius:float=maxf(1.0,minf(joystick.size.x,joystick.size.y)*.5)
 	joy_knob=(delta/radius).limit_length(1.0)
-	joy_direction=joystick_direction_for(delta,radius)
+	var previous:Vector2i=joy_direction
+	joy_direction=joystick_stable_direction(delta,radius,previous)
+	if joy_direction!=previous and previous==Vector2i.ZERO and joy_direction!=Vector2i.ZERO:touch_haptic()
 	if joy_direction!=Vector2i.ZERO and attack_time<=0.0 and not strike_pending and not hold_active and native_aim_pointer==-2 and not field_aiming and facing!=joy_direction:
 		facing=joy_direction
 		update_hud();lab_update_aim()
@@ -1027,6 +1054,7 @@ func capture_field_aim(event:InputEvent)->bool:
 	return false
 
 func cancel_native_combat()->void:
+	touch_feedback(native_move_button,false);touch_feedback(aim_button,false)
 	if native_move_pointer!=-2:
 		hold_active=false;hold_visible=false;hold_move={};hold_action=Callable()
 		if is_instance_valid(hold_info):hold_info.hide()
@@ -1064,7 +1092,7 @@ func capture_native_combat(event:InputEvent)->bool:
 				native_aim_dragged=true;facing=Rules.aim8(delta);update_hud();lab_update_aim();aim_preview.queue_redraw()
 		elif up:
 			var rotate:bool=not native_aim_dragged and not event.canceled and control_contains(aim_button,point)
-			native_aim_pointer=-2;native_aim_dragged=false;aim_preview.queue_redraw()
+			native_aim_pointer=-2;native_aim_dragged=false;touch_feedback(aim_button,false);aim_preview.queue_redraw()
 			if rotate and not controls_modal():rotate_combat_aim()
 		return true
 	if down and pointer==0:native_touch_suppressed=false
@@ -1073,12 +1101,14 @@ func capture_native_combat(event:InputEvent)->bool:
 		if pointer==0:native_touch_suppressed=true
 		if native_aim_pointer==-2 and not hold_active and field_pointer==-2 and strike_pointer==-2 and not tile_cast_active():
 			native_aim_pointer=pointer;native_aim_origin=point;native_aim_dragged=false;path.clear();strike_pending=false
+			touch_feedback(aim_button,true);touch_haptic()
 		return true
 	for b in move_buttons:
 		if not control_contains(b,point):continue
 		if pointer==0:native_touch_suppressed=true
 		if not b.disabled and not hold_active and not hold_release_pending and native_aim_pointer==-2 and field_pointer==-2 and strike_pointer==-2 and not tile_cast_active():
 			native_move_pointer=pointer;native_move_button=b
+			touch_feedback(b,true);touch_haptic()
 			strike_pending=false;path.clear()
 			hold_active=true;hold_visible=false;hold_age=0.0;hold_origin=point
 			hold_move=b.get_meta("native_move");hold_action=b.get_meta("native_action");hold_is_dev=false
@@ -1114,7 +1144,7 @@ func capture_control_pointer(event:InputEvent)->bool:
 				var travel:Vector2=(area.size-attack_button.size-Vector2(8,8)).max(Vector2.ZERO)
 				attack_button.position=(strike_touch_start+local_delta).clamp(Vector2(4,4),Vector2(4,4)+travel)
 		if up:
-			strike_pointer=-2
+			strike_pointer=-2;touch_feedback(strike_touch_button,false)
 			if event is InputEventScreenTouch and event.canceled:
 				position_strike_bubble()
 				strike_touch_moved=false;strike_touch_button=null
@@ -1136,6 +1166,7 @@ func capture_control_pointer(event:InputEvent)->bool:
 		if is_touch and pointer==0:native_touch_suppressed=true
 		if strike_pointer==-2 and not hold_active and native_aim_pointer==-2 and field_pointer==-2 and strike_available():
 			strike_pointer=pointer;strike_touch_button=active;strike_touch_origin=point;strike_touch_moved=false;strike_touch_start=active.position
+			touch_feedback(active,true);touch_haptic()
 		return true
 	return false
 
@@ -1207,7 +1238,9 @@ func build_bag()->void:
 	bag_panel.hide()
 func toggle_bag()->void:
 	if bag_panel.visible:bag_panel.hide();return
-	path.clear();strike_pending=false;refresh_bag();bag_panel.show()
+	path.clear();strike_pending=false;reset_joystick();cancel_native_combat()
+	touch_feedback(strike_touch_button,false);strike_touch_button=null;strike_pointer=-2
+	refresh_bag();bag_panel.show()
 func clear_bag_content()->void:
 	for child in bag_content.get_children():
 		bag_content.remove_child(child);child.queue_free()
@@ -19586,6 +19619,7 @@ func show_held_attack()->void:
 func _notification(what:int)->void:
 	if what==NOTIFICATION_APPLICATION_FOCUS_OUT or what==NOTIFICATION_APPLICATION_PAUSED:
 		path.clear();strike_pending=false;reset_joystick();cancel_native_combat()
+		touch_feedback(strike_touch_button,false);strike_touch_button=null
 		strike_pointer=-2;field_pointer=-2;field_aiming=false;utility_drag_kind=""
 		utility_drag_suppress=false;native_touch_suppressed=false;hold_release_pending=false
 		hold_active=false;hold_visible=false;hold_move={};hold_action=Callable()
