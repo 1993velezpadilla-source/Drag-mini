@@ -5585,7 +5585,8 @@ func enemy_turn_actions_impl():
 					ai_end_actor_cache()
 					apply_signature_effect(i,skill)
 			if dodged or shield_block or (shield_kind=="safeguard" and shield_turns>0 and effect in ["poison","weaken","mark"]) or (boon_active("mist") and effect=="weaken"):effect="none"
-			var party_hits:Array[Dictionary]=enemy_apply_area_damage(enemies[i],p,footprint,pattern,skill,alternate) if special else []
+			var party_hits:Array[Dictionary]=[]
+			if special:party_hits=enemy_apply_area_damage(enemies[i],p,footprint,pattern,skill,alternate)
 			if damage>0:enemy_record_squad_focus(enemies[i],-1,damage)
 			else:
 				for hit in party_hits:
