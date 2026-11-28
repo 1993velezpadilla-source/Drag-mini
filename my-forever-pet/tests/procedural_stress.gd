@@ -1886,6 +1886,46 @@ func run_checks()->void:
 	if comm.enemy_recent_squad_loss(comm_listener):failures.append("communication loss expires")
 	checks+=1
 	print("KINDRIA_ENEMY_COMMUNICATION checks=9")
+
+	# Dynamic reserve election must use actual routes and preserve immediate fire.
+	var reserve_fixture=Rules.new()
+	for y in range(1,10):
+		for x in range(1,10):reserve_fixture.cells[Vector2i(x,y)]=true
+	reserve_fixture.player=Vector2i(4,4);reserve_fixture.stairs=Vector2i(9,9);reserve_fixture.relic=Vector2i(9,8);reserve_fixture.turns=30
+	var reserve_actor:Dictionary={"uid":20,"pos":Vector2i(4,6),"hp":30,"max_hp":30,"kind":0,"species":"bramble_pup","ecology_role":"hunter","ecology_search_enabled":true,"personality_enabled":true,"pp_primary":0,"pp_secondary":0,"squad_loss_turn":29}
+	var reserve_peer:Dictionary={"uid":10,"pos":Vector2i(6,4),"hp":30,"max_hp":30,"kind":0,"species":"shellguard","ecology_role":"hunter","ecology_search_enabled":true,"personality_enabled":true,"pp_primary":0,"pp_secondary":0,"squad_loss_turn":29}
+	reserve_fixture.enemies.append(reserve_actor);reserve_fixture.enemies.append(reserve_peer)
+	if not reserve_fixture.enemy_dynamic_reserve_plan(reserve_actor,reserve_fixture.player).is_empty() or reserve_fixture.enemy_dynamic_reserve_plan(reserve_peer,reserve_fixture.player).get("step")!=Vector2i(5,4):failures.append("reserve deterministic election")
+	checks+=1
+	for q in [Vector2i(5,4),Vector2i(6,3),Vector2i(6,5),Vector2i(7,4)]:reserve_fixture.traps[q]="snare"
+	var reserve_plan:Dictionary=reserve_fixture.enemy_dynamic_reserve_plan(reserve_actor,reserve_fixture.player)
+	if reserve_plan.get("step")!=Vector2i(4,5) or reserve_plan.get("post")!=Vector2i(4,5):failures.append("reserve blocked peer cannot veto")
+	checks+=1
+	if reserve_actor.pos!=Vector2i(4,6) or reserve_actor.pp_primary!=0 or not reserve_fixture.enemy_actions.is_empty():failures.append("reserve plan purity")
+	checks+=1
+	reserve_fixture.traps[Vector2i(4,5)]="snare"
+	var reserve_detour:Dictionary=reserve_fixture.enemy_dynamic_reserve_plan(reserve_actor,reserve_fixture.player)
+	if not reserve_detour.is_empty() and (reserve_detour.get("step")==Vector2i(4,5) or int(reserve_detour.cost)>3):failures.append("reserve bounded safe detour")
+	checks+=1
+	reserve_fixture.traps.clear()
+	reserve_fixture.enemies.erase(reserve_peer)
+	var reserve_front:Dictionary={"uid":30,"pos":Vector2i(3,4),"hp":30,"max_hp":30,"kind":0,"species":"bramble_pup","ecology_role":"hunter","ecology_search_enabled":true}
+	reserve_fixture.enemies.append(reserve_front)
+	if not reserve_fixture.enemy_dynamic_reserve_plan(reserve_actor,reserve_fixture.player).is_empty():failures.append("reserve healthy front line retained")
+	checks+=1
+	reserve_fixture.enemies.erase(reserve_front)
+	reserve_actor["sleep_turns"]=2
+	if not reserve_fixture.enemy_dynamic_reserve_plan(reserve_actor,reserve_fixture.player).is_empty():failures.append("reserve incapacitated actor")
+	reserve_actor.erase("sleep_turns")
+	checks+=1
+	reserve_fixture.turns=34
+	if not reserve_fixture.enemy_dynamic_reserve_plan(reserve_actor,reserve_fixture.player).is_empty():failures.append("reserve expired loss without backup")
+	checks+=1
+	reserve_fixture.turns=30
+	reserve_fixture.cells.erase(Vector2i(4,5))
+	if not reserve_fixture.enemy_dynamic_reserve_plan(reserve_actor,reserve_fixture.player).is_empty():failures.append("reserve no target sight through wall")
+	checks+=1
+	print("KINDRIA_DYNAMIC_SQUAD_ROLES checks=8")
 	# Forecast only witnessed retreats, and commit only a safe ordinary step.
 	var forecast=Rules.new()
 	for y in range(1,9):
