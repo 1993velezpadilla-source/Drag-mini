@@ -400,10 +400,65 @@ func living_dungeon_gauntlet(failures:Array[String])->int:
 		print("KINDRIA_LIVING_GAUNTLET turns=",rounds," checks=",checks_local," p95_usec=",timings[int((timings.size()-1)*.95)])
 	return checks_local
 
+# Compare actual gameplay turns separately from the isolated action scheduler.
+func full_turn_intelligence_gauntlet(failures:Array[String])->int:
+	var checks_local:int=0
+	var rounds:int=0
+	var idle_peak:int=0
+	var leaf_trace:Array[String]=[]
+	for sample in [0,1,4,7,11,17]:
+		var cached=ai_cache_fixture(sample,true)
+		var reference=ai_cache_fixture(sample,false)
+		for arena in [cached,reference]:
+			arena.belly_tenths=1000
+			var species:Array=["rootgnawer","bramble_pup","mossmite","sporeling","leafwisp","fungal_monarch"]
+			for index in range(mini(species.size(),arena.enemies.size())):
+				var e:Dictionary=arena.enemies[index]
+				e.species=species[index];e["personality_enabled"]=true
+				e["house_role"]=arena.house_tactical_role(e)
+		var idle:Dictionary={}
+		for tick in range(32):
+			if cached.finished or reference.finished:break
+			enemy_integration_input(cached,tick,sample)
+			enemy_integration_input(reference,tick,sample)
+			var old_turn:int=cached.turns
+			cached.enemy_turn();reference.enemy_turn()
+			if cached.enemies!=reference.enemies or cached.allies!=reference.allies or cached.player!=reference.player or cached.hp!=reference.hp or cached.enemy_actions!=reference.enemy_actions or cached.rng.state!=reference.rng.state or cached.player_boons!=reference.player_boons or cached.traps!=reference.traps or cached.finished!=reference.finished or cached.shield_turns!=reference.shield_turns:failures.append("full turn differential %d:%d"%[sample,tick])
+			checks_local+=1
+			if cached.turns!=old_turn+1 or cached.ai_cache_active or cached.ai_actor_cache_active:failures.append("full turn counter or cache scope %d:%d"%[sample,tick])
+			checks_local+=1
+			var acted:Dictionary={}
+			var duplicate:bool=false
+			for action in cached.enemy_actions:
+				var uid:int=int(action.get("uid",-1))
+				if acted.has(uid):duplicate=true
+				acted[uid]=true
+			if duplicate:failures.append("full turn duplicate action %d:%d"%[sample,tick])
+			checks_local+=1
+			var occupied:Dictionary={}
+			var overlap:bool=false
+			for e in cached.enemies:
+				var uid:int=int(e.uid)
+				if int(e.hp)<=0:continue
+				if not cached.cells.has(e.pos) or e.pos==cached.player or occupied.has(e.pos) or cached.ally_at(e.pos)>=0:overlap=true
+				occupied[e.pos]=true
+				var visible:bool=cached.enemy_alert_eligible(e) and cached.distance(e.pos,cached.player)<=cached.enemy_awareness(e) and cached.enemy_line_of_sight(e.pos,cached.player)
+				idle[uid]=int(idle.get(uid,0))+1 if visible and not acted.has(uid) else 0
+				idle_peak=maxi(idle_peak,int(idle[uid]))
+				if sample==7 and uid==204:
+					leaf_trace.append("%d pos=%s target=%s action=%s pp=%d/%d cd=%d/%d stall=%d stuck=%d slow=%d"%[tick,str(e.pos),str(cached.player),str(acted.has(uid)),cached.enemy_move_pp(e,"primary"),cached.enemy_move_pp(e,"secondary"),int(e.get("cooldown",0)),int(e.get("alt_cooldown",0)),int(e.get("stall_count",0)),int(e.get("stuck_turns",0)),int(e.get("slow_turns",0))])
+			if overlap:failures.append("full turn illegal occupancy %d:%d"%[sample,tick])
+			checks_local+=1;rounds+=1
+	if rounds==0:failures.append("full turn audit executed no turns")
+	checks_local+=1
+	print("KINDRIA_FULL_TURN_GAUNTLET turns=",rounds," checks=",checks_local," max_visible_idle=",idle_peak)
+	for entry in leaf_trace:print("KINDRIA_LEAFWISP_FULL_TURN ",entry)
+	return checks_local
+
 func run_checks()->void:
 	if "--ai-integration" in OS.get_cmdline_user_args():
 		var integration_failures:Array[String]=[]
-		var integration_checks:int=enemy_adversarial_gauntlet(integration_failures)+enemy_integration_gauntlet(integration_failures)+living_dungeon_gauntlet(integration_failures)
+		var integration_checks:int=enemy_adversarial_gauntlet(integration_failures)+enemy_integration_gauntlet(integration_failures)+living_dungeon_gauntlet(integration_failures)+full_turn_intelligence_gauntlet(integration_failures)
 		print("KINDRIA_AI_INTEGRATION_RESULT checks=",integration_checks," failures=",integration_failures.size())
 		for failure in integration_failures:push_error(failure)
 		quit(0 if integration_failures.is_empty() else 1);return
