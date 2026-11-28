@@ -216,6 +216,90 @@ func enemy_adversarial_gauntlet(failures:Array[String])->int:
 		print("KINDRIA_ENEMY_ADVERSARIAL turns=",samples," checks=",checks_local," median_usec=",timings[int(timings.size()/2)]," p95_usec=",timings[int((timings.size()-1)*.95)]," max_usec=",timings.back())
 	return checks_local
 
+# Long-running deterministic integration: identical inputs with and without caches.
+func enemy_integration_input(arena,round_index:int,sample:int)->void:
+	arena.shield_kind="protect" if round_index%7==3 else ""
+	arena.shield_turns=1 if round_index%7==3 else 0
+	if round_index%3==0:
+		var directions:Array=[Vector2i.UP,Vector2i.RIGHT,Vector2i.DOWN,Vector2i.LEFT]
+		for offset in range(4):
+			var q:Vector2i=arena.player+directions[(offset+sample+round_index)%4]
+			if not arena.cells.has(q) or arena.enemy_at(q)>=0 or arena.ally_at(q)>=0:continue
+			arena.adaptive_walk_from=arena.player;arena.adaptive_walk_to=q;arena.adaptive_walk_turn=arena.turns
+			arena.player=q;break
+	# Controlled casualty, PP scarcity and interruption fixtures.
+	if round_index==4 and not arena.enemies.is_empty():
+		var e:Dictionary=arena.enemies[0]
+		e.hp=maxi(1,int(e.hp)/3)
+		e["incoming_turn"]=arena.turns;e["incoming_damage"]=int(e.hp)
+	if round_index==9 and arena.enemies.size()>1:
+		arena.enemies[1]["pp_primary"]=0;arena.enemies[1]["pp_secondary"]=0
+	if round_index==14 and arena.enemies.size()>2:arena.enemies[2]["sleep_turns"]=2
+	if round_index==19 and arena.enemies.size()>3:arena.enemies[3].hp=0
+	if round_index==22 and arena.enemies.size()>2:arena.enemies[2]["sleep_turns"]=0
+
+func enemy_integration_gauntlet(failures:Array[String])->int:
+	var checks_local:int=0
+	var samples:int=0
+	var personalities:Dictionary={}
+	var cached_times:Array[int]=[]
+	var reference_times:Array[int]=[]
+	var idle_peak:int=0
+	var reversal_count:int=0
+	var species:Array=["rootgnawer","bramble_pup","mossmite","sporeling","leafwisp","fungal_monarch"]
+	var expected:Array=["territorial","hunter","defender","opportunist","cautious","steadfast"]
+	for sample in range(18):
+		var cached=ai_cache_fixture(sample,true)
+		var reference=ai_cache_fixture(sample,false)
+		for arena in [cached,reference]:
+			arena.belly_tenths=1000
+			for index in range(mini(species.size(),arena.enemies.size())):
+				var e:Dictionary=arena.enemies[index]
+				e.species=species[index]
+				e["personality_enabled"]=true
+				e["house_role"]=arena.house_tactical_role(e)
+				personalities[arena.enemy_combat_personality(e)]=true
+		var idle:Dictionary={}
+		var previous_moves:Dictionary={}
+		for round_index in range(32):
+			if cached.finished or reference.finished:break
+			enemy_integration_input(cached,round_index,sample)
+			enemy_integration_input(reference,round_index,sample)
+			var start:int=Time.get_ticks_usec()
+			cached.enemy_turn_actions()
+			cached_times.append(Time.get_ticks_usec()-start)
+			start=Time.get_ticks_usec()
+			reference.enemy_turn_actions()
+			reference_times.append(Time.get_ticks_usec()-start)
+			if cached.enemies!=reference.enemies or cached.allies!=reference.allies or cached.player!=reference.player or cached.hp!=reference.hp or cached.enemy_actions!=reference.enemy_actions or cached.rng.state!=reference.rng.state or cached.player_boons!=reference.player_boons or cached.traps!=reference.traps or cached.finished!=reference.finished:
+				failures.append("integration deterministic state mismatch %d:%d"%[sample,round_index])
+			checks_local+=1
+			if cached.ai_cache_active or cached.ai_actor_cache_active or not cached.ai_topology_cache.is_empty() or not cached.ai_los_cache.is_empty() or not cached.ai_footprint_cache.is_empty() or not cached.ai_occupancy_cache.is_empty() or not cached.ai_terrain_cache.is_empty():
+				failures.append("integration escaped cache %d:%d"%[sample,round_index])
+			checks_local+=1
+			var acted:Dictionary={}
+			for action in cached.enemy_actions:
+				var uid:int=int(action.get("uid",-1))
+				acted[uid]=true
+				if str(action.get("phase",""))=="move":
+					var prior:Dictionary=previous_moves.get(uid,{})
+					if int(prior.get("turn",-9999))==cached.turns-1 and prior.get("from",Vector2i.ZERO)==action.to and prior.get("to",Vector2i.ZERO)==action.from and prior.get("target",Vector2i.ZERO)==cached.player:reversal_count+=1
+					previous_moves[uid]={"turn":cached.turns,"from":action.from,"to":action.to,"target":cached.player}
+			for e in cached.enemies:
+				var uid:int=int(e.uid)
+				var visible:bool=cached.enemy_line_of_sight(e.pos,cached.player) and cached.distance(e.pos,cached.player)<=cached.enemy_awareness(e)
+				idle[uid]=int(idle.get(uid,0))+1 if visible and cached.enemy_alert_eligible(e) and not acted.has(uid) else 0
+				idle_peak=maxi(idle_peak,int(idle[uid]))
+			samples+=1
+	for personality in expected:
+		if not personalities.has(personality):failures.append("integration missing personality "+personality)
+		checks_local+=1
+	if not cached_times.is_empty():
+		cached_times.sort();reference_times.sort()
+		var percentile:int=int((cached_times.size()-1)*.95)
+		print("KINDRIA_AI_INTEGRATION turns=",samples," personalities=",personalities.size()," checks=",checks_local," cached_p95_usec=",cached_times[percentile]," reference_p95_usec=",reference_times[percentile]," max_visible_idle=",idle_peak," reversals=",reversal_count)
+	return checks_local
+
 func run_checks()->void:
 	for mode in ["--history-write","--history-read"]:
 		if mode in OS.get_cmdline_user_args():restart_check(mode);return
@@ -2221,6 +2305,7 @@ func run_checks()->void:
 	geometry_audit.ai_end_turn_cache()
 	checks+=1
 	print("KINDRIA_GEOMETRY_CACHE checks=651")
+	checks+=enemy_integration_gauntlet(failures)
 	# Actual disk I/O, legacy migration, corruption recovery, and resumed writes.
 	var test_path:String="user://kindria_procedural_test_"+str(OS.get_process_id())+".cfg"
 	var exact:Array[String]=["legacy exact".sha256_text()]
