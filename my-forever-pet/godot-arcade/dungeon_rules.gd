@@ -3716,6 +3716,9 @@ func enemy_relief_ranged_ready(e:Dictionary,target:Vector2i)->bool:
 
 func enemy_relief_blocks_lane(friend:Dictionary,q:Vector2i,target:Vector2i)->bool:
 	var origin:Vector2i=friend.pos
+	# A slowed actor skips even remaining-duration turns in the real dispatcher.
+	# Do not reserve a firing lane for an attack that cannot execute this phase.
+	if int(friend.get("slow_turns",0))>0 and int(friend.slow_turns)%2==0:return false
 	# A cardinal firing lane must stay clear if it currently reaches the target.
 	if origin.x!=target.x and origin.y!=target.y:return false
 	var heading:Vector2i=Vector2i(signi(target.x-origin.x),signi(target.y-origin.y))
