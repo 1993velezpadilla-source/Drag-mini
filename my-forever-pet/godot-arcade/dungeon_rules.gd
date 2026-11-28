@@ -3067,7 +3067,12 @@ const ENEMY_CONTROL_KITS={"sylphowl":"eos_268","nebulwing":"eos_268","rootgnawer
 # Charged attacks retain their fixed telegraph; no state or RNG is changed.
 func enemy_push_attack_coverage(e:Dictionary,tile:Vector2i)->int:
 	var origin:Vector2i=e.pos
-	if distance(origin,tile)>enemy_awareness(e) or not enemy_line_of_sight(origin,tile) or int(e.get("whiffer_turns",0))>0 or int(e.get("slow_turns",0))>0:return 0
+	# The landing tile is hypothetical; validate the actor and its remaining
+	# action independently of whether the player currently occupies that tile.
+	if not enemy_alert_eligible(e) or enemy_phase_spent.has(int(e.get("uid",-1))):return 0
+	var slow:int=int(e.get("slow_turns",0))
+	if slow>0 and slow%2==0:return 0
+	if distance(origin,tile)>enemy_awareness(e) or not enemy_line_of_sight(origin,tile) or int(e.get("whiffer_turns",0))>0:return 0
 	var species:String=str(e.get("species",""))
 	var skill:Array=signature_skill(e)
 	var pattern:String=str(ATTACK_PATTERNS.get(species,"line"))

@@ -3796,6 +3796,23 @@ func run_checks()->void:
 	battlefield.shield_kind="";battlefield.shield_turns=0;battlefield.traps.clear()
 	checks+=1
 	followup.sleep_turns=0
+	# A projected landing must reward only an actor with a real remaining turn.
+	followup["slow_turns"]=2
+	if battlefield.enemy_push_attack_coverage(followup,Vector2i(5,3))!=0 or int(battlefield.enemy_push_plan(manipulator,battlefield.player).position_bonus)!=0:failures.append("battlefield skipped slow phase")
+	checks+=1
+	followup.slow_turns=3
+	if battlefield.enemy_push_attack_coverage(followup,Vector2i(5,3))!=2 or int(battlefield.enemy_push_plan(manipulator,battlefield.player).position_bonus)!=4:failures.append("battlefield active slow phase")
+	checks+=1
+	battlefield.enemy_phase_spent[1]=true
+	if battlefield.enemy_push_attack_coverage(followup,Vector2i(5,3))!=0 or int(battlefield.enemy_push_plan(manipulator,battlefield.player).position_bonus)!=0:failures.append("battlefield spent actor excluded")
+	checks+=1
+	battlefield.enemy_phase_spent.clear();followup.erase("slow_turns")
+	followup["sleep_turns"]=2
+	if battlefield.enemy_push_attack_coverage(followup,Vector2i(5,3))!=0:failures.append("battlefield direct incapacitated coverage")
+	checks+=1
+	followup.erase("sleep_turns")
+	if battlefield.enemy_push_attack_coverage(followup,Vector2i(5,3))!=2 or manipulator.pp_control!=5 or followup.pp_primary!=12 or battlefield.player!=Vector2i(3,3) or not battlefield.enemy_actions.is_empty():failures.append("battlefield restored coverage and purity")
+	checks+=1
 	battlefield.enemy_turn_actions()
 	var push_count:int=0
 	var follow_count:int=0
@@ -3804,7 +3821,7 @@ func run_checks()->void:
 		if int(action.get("uid",-1))==1 and str(action.get("phase",""))=="attack":follow_count+=1
 	if push_count!=1 or follow_count!=1 or manipulator.pp_control!=4 or followup.pp_primary!=11 or battlefield.player!=Vector2i(5,3):failures.append("battlefield actual ordered knockback and followup")
 	checks+=1
-	print("KINDRIA_BATTLEFIELD_MANIPULATION checks=10")
+	print("KINDRIA_BATTLEFIELD_MANIPULATION checks=15")
 	# Counterplay derives from personally observed hits on distinct turns.
 	var counterplay=Rules.new()
 	for y in range(1,9):
