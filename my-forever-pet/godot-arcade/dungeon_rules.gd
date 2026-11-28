@@ -2190,6 +2190,22 @@ func enemy_encircled_frontline(e:Dictionary,target:Vector2i)->bool:
 		frontline_count+=1
 	return frontline_count>=2
 
+# Local memo tables belong to one pure planning call. No cached occupancy
+# result survives a movement, attack, target change or enemy turn.
+func enemy_recovery_lane_blocked(peers:Array[Dictionary],q:Vector2i,target:Vector2i,memo:Dictionary)->bool:
+	if memo.has(q):return bool(memo[q])
+	var blocked:bool=false
+	for other in peers:
+		if enemy_relief_blocks_lane(other,q,target):blocked=true;break
+	memo[q]=blocked
+	return blocked
+
+func enemy_recovery_attack_tile(e:Dictionary,q:Vector2i,target:Vector2i,memo:Dictionary)->bool:
+	if memo.has(q):return bool(memo[q])
+	var legal:bool=enemy_strategy_attack_tile(e,q,target)
+	memo[q]=legal
+	return legal
+
 func enemy_unstall_step(e:Dictionary,target:Vector2i)->Vector2i:
 	var origin:Vector2i=e.pos
 	if not enemy_opportunity_eligible(e) or not enemy_live_contact(e,target) or int(e.get("stuck_turns",0))>0:return origin
@@ -2205,25 +2221,21 @@ func enemy_unstall_step(e:Dictionary,target:Vector2i)->Vector2i:
 	var recovery_peers:Array[Dictionary]=[]
 	for other in enemies:
 		if enemy_squad_partner(e,other):recovery_peers.append(other)
+	var lane_memo:Dictionary={}
+	var attack_memo:Dictionary={}
 	var best:Vector2i=origin
 	var best_score:int=-2147483647
 	for d in DIR:
 		var q:Vector2i=origin+d
 		if not enemy_ambush_safe_tile(q) or reserved.has(q) or not enemy_line_of_sight(q,target) or enemy_strategy_reversal(e,q,target):continue
-		var blocked:bool=false
-		for other in recovery_peers:
-			if enemy_relief_blocks_lane(other,q,target):blocked=true;break
-		if blocked:continue
+		if enemy_recovery_lane_blocked(recovery_peers,q,target,lane_memo):continue
 		var value:int=0
-		if enemy_strategy_attack_tile(e,q,target):value=20
+		if enemy_recovery_attack_tile(e,q,target,attack_memo):value=20
 		else:
 			for next_dir in DIR:
 				var post:Vector2i=q+next_dir
 				if post==origin or reserved.has(post) or not enemy_ambush_safe_tile(post) or not enemy_line_of_sight(post,target):continue
-				var lane_blocked:bool=false
-				for other in recovery_peers:
-					if enemy_relief_blocks_lane(other,post,target):lane_blocked=true;break
-				if not lane_blocked and enemy_strategy_attack_tile(e,post,target):value=10;break
+				if not enemy_recovery_lane_blocked(recovery_peers,post,target,lane_memo) and enemy_recovery_attack_tile(e,post,target,attack_memo):value=10;break
 		if value==0:continue
 		var score:int=value+enemy_terrain_position_bonus(e,q,target)+distance(origin,target)-distance(q,target)
 		if score>best_score:best_score=score;best=q
@@ -2237,16 +2249,13 @@ func enemy_unstall_step(e:Dictionary,target:Vector2i)->Vector2i:
 	var cursor:int=0
 	while cursor<queue.size() and cursor<96:
 		var tile:Vector2i=queue[cursor];cursor+=1
-		if tile!=origin and enemy_strategy_attack_tile(e,tile,target):return first[tile]
+		if tile!=origin and enemy_recovery_attack_tile(e,tile,target,attack_memo):return first[tile]
 		if int(depth[tile])>=6:continue
 		for d in DIR:
 			var q:Vector2i=tile+d
 			if depth.has(q) or not enemy_ambush_safe_tile(q) or reserved.has(q):continue
 			if tile==origin and enemy_strategy_reversal(e,q,target):continue
-			var lane_blocked:bool=false
-			for other in recovery_peers:
-				if enemy_relief_blocks_lane(other,q,target):lane_blocked=true;break
-			if lane_blocked:continue
+			if enemy_recovery_lane_blocked(recovery_peers,q,target,lane_memo):continue
 			depth[q]=int(depth[tile])+1
 			first[q]=q if tile==origin else first[tile]
 			queue.append(q)
@@ -2269,6 +2278,7 @@ func enemy_unstall_party_step(e:Dictionary,target:Vector2i)->Vector2i:
 	var peers:Array[Dictionary]=[]
 	for other in enemies:
 		if enemy_squad_partner(e,other):peers.append(other)
+	var lane_memo:Dictionary={}
 	var queue:Array[Vector2i]=[origin]
 	var depth:Dictionary={origin:0}
 	var first:Dictionary={}
@@ -2286,10 +2296,7 @@ func enemy_unstall_party_step(e:Dictionary,target:Vector2i)->Vector2i:
 			var q:Vector2i=tile+d
 			if depth.has(q) or reserved.has(q) or not enemy_ambush_safe_tile(q):continue
 			if tile==origin and enemy_strategy_reversal(e,q,target):continue
-			var blocked:bool=false
-			for other in peers:
-				if enemy_relief_blocks_lane(other,q,target):blocked=true;break
-			if blocked:continue
+			if enemy_recovery_lane_blocked(peers,q,target,lane_memo):continue
 			depth[q]=int(depth[tile])+1;first[q]=q if tile==origin else first[tile];queue.append(q)
 	return origin
 
