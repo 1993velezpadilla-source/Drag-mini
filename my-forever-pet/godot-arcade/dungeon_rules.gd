@@ -3258,9 +3258,13 @@ func enemy_party_attack_plan(e:Dictionary)->Dictionary:
 		kits.append({"slot":"secondary","skill":[alt[0],false,3,alt[3],alt[4],alt[5],"alt_"+species],"pattern":str(alt[1]),"name":str(alt[2])})
 	var player_value:float=0.0
 	var player_visible:bool=distance(origin,player)<=enemy_awareness(e) and enemy_line_of_sight(origin,player)
-	if player_visible and distance(origin,player)==1:player_value=float(maxi(1,1+tier))
-	if player_visible and int(e.get("cooldown",0))<=0 and enemy_move_allowed(e,"primary") and attack_aim(origin,player,str(ATTACK_PATTERNS.get(species,"line")),int(primary[0]))!=Vector2i.ZERO:
+	var player_protected:bool=(shield_turns>0 and shield_kind=="protect") or charge_phase in ["underground","airborne","vanish"]
+	if player_visible and not player_protected and distance(origin,player)==1:player_value=float(maxi(1,1+tier))
+	if player_visible and not player_protected and int(e.get("cooldown",0))<=0 and enemy_move_allowed(e,"primary") and attack_aim(origin,player,str(ATTACK_PATTERNS.get(species,"line")),int(primary[0]))!=Vector2i.ZERO:
 		player_value=maxf(player_value,enemy_attack_score(e,primary,false))
+	if player_value>0.0:
+		if player_value>=float(hp):player_value+=2.5
+		player_value+=(1.0-float(hp)/float(maxi(1,max_hp)))*1.5
 	var best:Dictionary={}
 	var best_score:float=player_value+.25
 	for kit in kits:
@@ -3270,7 +3274,11 @@ func enemy_party_attack_plan(e:Dictionary)->Dictionary:
 		for d in DIR:
 			var footprint:Dictionary=attack_footprint(origin,d,pattern,int(skill[0]))
 			if footprint.has(player):
-				best_score=maxf(best_score,enemy_attack_score(e,skill,secondary)+.25)
+				if player_visible and not player_protected:
+					var value:float=enemy_attack_score(e,skill,secondary)
+					if value>=float(hp):value+=2.5
+					value+=(1.0-float(hp)/float(maxi(1,max_hp)))*1.5
+					best_score=maxf(best_score,value+.25)
 				continue
 			var candidates:Array[int]=enemy_area_allies(origin,footprint)
 			if candidates.is_empty():continue
@@ -3281,7 +3289,7 @@ func enemy_party_attack_plan(e:Dictionary)->Dictionary:
 				for index in candidates:
 					var gap:int=distance(origin,allies[index].pos)
 					if gap<nearest_gap:nearest=index;nearest_gap=gap
-				candidates=[nearest]
+				candidates.clear();candidates.append(nearest)
 			var score:float=0.0
 			var targets:Array[int]=[]
 			for index in candidates:
