@@ -2364,6 +2364,31 @@ func enemy_open_frontline_detour(e:Dictionary,target:Vector2i)->bool:
 		elif enemy_ambush_safe_tile(q):open=true
 	return occupied>=2 and open
 
+# Prepare just outside an active firing lane rather than occupy its reserved
+# attack post. Stop at distance two so a waiting actor cannot orbit the lane.
+func enemy_firing_lane_stage_step(e:Dictionary,target:Vector2i)->Vector2i:
+	var origin:Vector2i=e.pos
+	if not enemy_open_frontline_detour(e,target) or enemy_strategy_attack_tile(e,origin,target):return origin
+	if int(e.get("stall_count",0))<1 or int(e.get("stall_turn",-9999))!=turns-1 or e.get("stall_target",Vector2i.ZERO)!=target:return origin
+	var reserved:Dictionary=enemy_pack_reserved_posts(e,target)
+	var peers:Array[Dictionary]=[]
+	for other in enemies:
+		if enemy_squad_partner(e,other):peers.append(other)
+	var memo:Dictionary={}
+	var best:Vector2i=origin
+	var best_score:int=-2147483647
+	for d in DIR:
+		var post:Vector2i=target+d
+		if distance(origin,post)!=3 or not enemy_ambush_safe_tile(post) or reserved.has(post) or not enemy_line_of_sight(origin,post):continue
+		if not enemy_recovery_lane_blocked(peers,post,target,memo):continue
+		for heading in DIR:
+			var q:Vector2i=origin+heading
+			if distance(q,post)!=2 or not enemy_ambush_safe_tile(q) or reserved.has(q) or enemy_strategy_reversal(e,q,target):continue
+			if not enemy_line_of_sight(q,post) or not enemy_line_of_sight(q,target) or enemy_recovery_lane_blocked(peers,q,target,memo):continue
+			var score:int=enemy_terrain_position_bonus(e,q,target)+distance(origin,target)-distance(q,target)
+			if score>best_score:best=q;best_score=score
+	return best
+
 func enemy_unstall_step(e:Dictionary,target:Vector2i)->Vector2i:
 	var origin:Vector2i=e.pos
 	if not enemy_opportunity_eligible(e) or not enemy_live_contact(e,target) or int(e.get("stuck_turns",0))>0:return origin
@@ -2436,7 +2461,7 @@ func enemy_unstall_step(e:Dictionary,target:Vector2i)->Vector2i:
 			depth[q]=int(depth[tile])+1
 			first[q]=q if tile==origin else first[tile]
 			queue.append(q)
-	return origin
+	return enemy_firing_lane_stage_step(e,target)
 
 # When the visible player cannot be approached, a stalled actor may seek
 # a legal attack position against a personally visible opposing ally.
