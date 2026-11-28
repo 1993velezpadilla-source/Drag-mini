@@ -3342,7 +3342,7 @@ func enemy_party_attack_plan(e:Dictionary)->Dictionary:
 				if player_visible and not player_protected:
 					var value:float=enemy_attack_score(e,skill,secondary)
 					if value>=float(hp):value+=2.5
-					value+=(1.0-float(hp)/float(maxi(1,max_hp)))*1.5
+					value+=(1.0-float(hp)/float(maxi(1,max_hp)))*1.5+enemy_squad_focus_bonus(e,-1,player)
 					best_score=maxf(best_score,value+.25)
 				continue
 			var candidates:Array[int]=enemy_area_allies(origin,footprint)
