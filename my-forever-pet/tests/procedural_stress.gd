@@ -2631,7 +2631,34 @@ func run_checks()->void:
 	lane_fixture.shield_kind="protect";lane_fixture.shield_turns=1
 	if lane_fixture.enemy_released_firing_post(lane_actor,lane_fixture.player) or lane_fixture.enemy_unstall_step(lane_actor,lane_fixture.player)!=lane_actor.pos:failures.append("lane reentry respects protect")
 	checks+=1
-	print("KINDRIA_ANTI_STALL checks=122")
+	# Protection is time to prepare a legal flank, not a free attack.
+	var protect_flank=Rules.new()
+	for y in range(1,8):
+		for x in range(1,8):protect_flank.cells[Vector2i(x,y)]=true
+	protect_flank.player=Vector2i(4,4);protect_flank.stairs=Vector2i(7,7);protect_flank.relic=Vector2i(7,6)
+	protect_flank.hp=10000;protect_flank.max_hp=10000;protect_flank.belly_tenths=1000
+	protect_flank.shield_kind="protect";protect_flank.shield_turns=2
+	var flank_actor:Dictionary={"uid":420,"pos":Vector2i(2,4),"hp":30,"kind":0,"species":"rootgnawer","ecology_role":"hunter","ecology_search_enabled":true,"personality_enabled":true,"pp_primary":0,"pp_secondary":0,"pp_support":0,"pp_control":0}
+	protect_flank.enemies.append(flank_actor)
+	protect_flank.enemies.append({"uid":421,"pos":Vector2i(3,4),"hp":30,"kind":0,"species":"rootgnawer","sleep_turns":8})
+	var flank_step:Vector2i=protect_flank.enemy_counter_protected_step(flank_actor,protect_flank.player)
+	if flank_step not in [Vector2i(2,3),Vector2i(2,5)] or not protect_flank.enemy_actions.is_empty() or flank_actor.pos!=Vector2i(2,4):failures.append("protect prepares safe lateral flank purely")
+	checks+=1
+	protect_flank.traps[Vector2i(2,3)]="snare";protect_flank.traps[Vector2i(2,5)]="snare"
+	if protect_flank.enemy_counter_protected_step(flank_actor,protect_flank.player)!=flank_actor.pos:failures.append("protect flank rejects trapped routes")
+	checks+=1
+	protect_flank.traps.clear()
+	protect_flank.charge_phase="vanish"
+	if protect_flank.enemy_counter_protected_step(flank_actor,protect_flank.player)!=flank_actor.pos:failures.append("protect flank rejects hidden target")
+	checks+=1
+	protect_flank.charge_phase=""
+	protect_flank.enemy_turn_actions()
+	var flank_moves:int=0
+	for action in protect_flank.enemy_actions:
+		if int(action.get("uid",-1))==420 and str(action.phase)=="move":flank_moves+=1
+	if flank_moves!=1 or flank_actor.pos!=flank_step or flank_actor.pp_primary!=0 or flank_actor.pp_secondary!=0 or protect_flank.hp!=10000:failures.append("protect flank dispatch consumes exactly one movement")
+	checks+=1
+	print("KINDRIA_ANTI_STALL checks=126")
 	# A direct witness may report a tile, but a listener cannot relay it.
 	var comm=Rules.new()
 	for x in range(1,4):comm.cells[Vector2i(x,3)]=true
