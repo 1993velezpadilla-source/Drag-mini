@@ -1975,6 +1975,67 @@ func enemy_pursuit_target(e:Dictionary,observed:Vector2i)->Vector2i:
 
 # Tactical repositioning uses the actual species attack geometry. No extra attacks
 # or movement turns are granted. Only actors that can see the target may flank.
+# Local floor topology, independent of the dungeon theme and current occupants.
+func enemy_terrain_kind(tile:Vector2i)->String:
+	if not cells.has(tile):return "wall"
+	var openings:Array[Vector2i]=[]
+	for d in DIR:
+		if cells.has(tile+d):openings.append(d)
+	if openings.size()<=1:return "dead_end"
+	if openings.size()==2:return "corridor" if openings[0]+openings[1]==Vector2i.ZERO else "corner"
+	for room in rooms:
+		if room.has_point(tile):
+			for d in openings:
+				var q:Vector2i=tile+d
+				if room.has_point(q):continue
+				var count:int=0
+				for side in DIR:
+					if cells.has(q+side):count+=1
+				if count==2 and cells.has(q+d):return "doorway"
+	return "open"
+
+# Ranged creatures value safe lateral exits and avoid clogging choke points.
+# A real, currently usable friendly firing lane takes priority over terrain.
+func enemy_terrain_position_bonus(e:Dictionary,q:Vector2i,target:Vector2i)->int:
+	if not bool(e.get("personality_enabled",false)):return 0
+	var origin:Vector2i=e.pos
+	var kind:String=enemy_terrain_kind(q)
+	var score:int=0
+	match kind:
+		"dead_end":score=-8
+		"corridor","doorway":score=-4
+		"corner":score=1
+		"open":score=2
+	var exits:int=0
+	for d in DIR:
+		var next:Vector2i=q+d
+		if next!=origin and next!=target and enemy_ambush_safe_tile(next):exits+=1
+	score+=mini(exits,3)
+	for other in enemies:
+		if enemy_squad_partner(e,other) and enemy_line_of_sight(other.pos,target) and enemy_relief_blocks_lane(other,q,target):return score-12
+	return score
+
+# A defensive actor can cover an approach two tiles from the player, but
+# only as a fallback when an ordinary attack is not already executable.
+func enemy_environment_guard_step(e:Dictionary,target:Vector2i)->Vector2i:
+	var origin:Vector2i=e.pos
+	if not enemy_reinforcement_eligible(e,target) or enemy_survival_profile(e)!="defensive" or int(e.get("stuck_turns",0))>0:return origin
+	if distance(origin,target)!=3 or turns<=int(e.get("environment_guard_turn",-9999))+2:return origin
+	if enemy_push_attack_coverage(e,target)>0:return origin
+	var reserved:Dictionary=enemy_pack_reserved_posts(e,target)
+	for d in DIR:
+		var q:Vector2i=origin+d
+		if distance(q,target)!=2 or not enemy_ambush_safe_tile(q) or reserved.has(q) or not enemy_line_of_sight(q,target):continue
+		if enemy_terrain_kind(q) not in ["corridor","doorway"]:continue
+		var support:bool=false
+		var blocked:bool=false
+		for other in enemies:
+			if not enemy_squad_partner(e,other) or not enemy_line_of_sight(other.pos,target):continue
+			if enemy_relief_blocks_lane(other,q,target):blocked=true;break
+			if distance(other.pos,target)==1 and int(other.hp)*2>maxi(1,int(other.get("max_hp",other.hp))):support=true
+		if not blocked and support:return q
+	return origin
+
 func enemy_tactical_step(e:Dictionary,target:Vector2i,pattern:String,reach:int)->Vector2i:
 	var origin:Vector2i=e.pos
 	if not bool(e.get("ecology_search_enabled",false)) or reach<2 or not enemy_line_of_sight(origin,target):return origin
@@ -1989,7 +2050,7 @@ func enemy_tactical_step(e:Dictionary,target:Vector2i,pattern:String,reach:int)-
 		if not enemy_line_of_sight(q,target) or attack_aim(q,target,pattern,reach)==Vector2i.ZERO:continue
 		# Ranged kits favor useful stand-off positions over clustering at melee range.
 		var gap:int=distance(q,target)
-		var score:int=20-absi(gap-reach)*3
+		var score:int=20-absi(gap-reach)*3+enemy_terrain_position_bonus(e,q,target)
 		if score>best_score:best_score=score;best=q
 	return best
 
@@ -4939,6 +5000,10 @@ func enemy_turn_actions_impl():
 				predictive_move=tactical!=p
 			if tactical==p and not charged and pursuit_target==player:
 				tactical=enemy_exit_block_step(enemies[i],player)
+			var environment_guard:bool=false
+			if tactical==p and not charged and pursuit_target==player:
+				tactical=enemy_environment_guard_step(enemies[i],player)
+				environment_guard=tactical!=p
 			if tactical==p and ready and not charged and not in_range and pursuit_target==player:
 				tactical=enemy_tactical_step(enemies[i],pursuit_target,pattern,int(skill[0]))
 			if tactical==p and not charged and pursuit_target==player:
@@ -4972,6 +5037,7 @@ func enemy_turn_actions_impl():
 					destination=path[step]
 				if destination!=p:
 					if predictive_move:enemy_record_prediction(enemies[i],player)
+					if environment_guard:enemies[i]["environment_guard_turn"]=turns
 					if not pack_plan.is_empty():enemy_pack_commit(enemies[i],player,pack_plan.post)
 					enemies[i].pos=destination
 					enemy_actions.append({"uid":enemies[i].get("uid",i),"phase":"move","from":p,"to":destination,"gait":enemies[i].get("gait","walk")})
