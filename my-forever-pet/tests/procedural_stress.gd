@@ -446,6 +446,34 @@ func full_turn_intelligence_gauntlet(failures:Array[String])->int:
 				idle[uid]=int(idle.get(uid,0))+1 if visible and not acted.has(uid) else 0
 				idle_peak=maxi(idle_peak,int(idle[uid]))
 				if sample==7 and uid==204:
+					if tick in [6,15,31]:
+						var board:Array[String]=[]
+						for y in range(1,10):
+							var line:String=""
+							for x in range(1,10):
+								var tile:=Vector2i(x,y)
+								var ch:String="." if cached.cells.has(tile) else "#"
+								if cached.traps.has(tile) or cached.player_traps.has(tile):ch="T"
+								if tile==cached.stairs or tile==cached.relic or tile in cached.side_rewards:ch="R"
+								if cached.ally_at(tile)>=0:ch="A"
+								if cached.enemy_at(tile)>=0:ch="E"
+								if tile==e.pos:ch="L"
+								if tile==cached.player:ch="P"
+								line+=ch
+							board.append(line)
+						var posts:Array[String]=[]
+						var reserved:Dictionary=cached.enemy_pack_reserved_posts(e,cached.player)
+						for tile in cached.cells:
+							if not cached.enemy_ambush_safe_tile(tile) or not cached.enemy_strategy_attack_tile(e,tile,cached.player):continue
+							var blockers:Array[int]=[]
+							for other in cached.enemies:
+								if cached.enemy_squad_partner(e,other) and cached.enemy_relief_blocks_lane(other,tile,cached.player):blockers.append(int(other.uid))
+							posts.append("%s reserved=%s blockers=%s"%[str(tile),str(reserved.has(tile)),str(blockers)])
+						var old_turn_for_probe:int=cached.turns
+						cached.turns+=1
+						var probe:Vector2i=cached.enemy_unstall_step(e,cached.player)
+						cached.turns=old_turn_for_probe
+						print("KINDRIA_LEAFWISP_BOARD tick=",tick," map=",board," actor=",e," eligible=",cached.enemy_opportunity_eligible(e)," current_attack=",cached.enemy_strategy_attack_tile(e,e.pos,cached.player)," recovery_probe=",probe," posts=",posts)
 					leaf_trace.append("%d pos=%s target=%s action=%s pp=%d/%d cd=%d/%d stall=%d stuck=%d slow=%d"%[tick,str(e.pos),str(cached.player),str(acted.has(uid)),cached.enemy_move_pp(e,"primary"),cached.enemy_move_pp(e,"secondary"),int(e.get("cooldown",0)),int(e.get("alt_cooldown",0)),int(e.get("stall_count",0)),int(e.get("stuck_turns",0)),int(e.get("slow_turns",0))])
 			if overlap:failures.append("full turn illegal occupancy %d:%d"%[sample,tick])
 			checks_local+=1;rounds+=1
