@@ -762,7 +762,55 @@ static func visual_hp_losses(before:Dictionary,after:Dictionary)->Dictionary:
 		if end<start:result[uid]={"before":start,"after":end,"removed":not after.has(uid)}
 	return result
 # A footprint maps each legal target to its exact unobstructed travel path.
+# Scoped AI caches: terrain is immutable during enemy_turn_actions. Geometry
+# and occupancy are scoped to one actor's planning, before committing actions.
+var ai_cache_enabled:bool=true
+var ai_cache_active:bool=false
+var ai_actor_cache_active:bool=false
+var ai_los_cache:Dictionary={}
+var ai_terrain_cache:Dictionary={}
+var ai_footprint_cache:Dictionary={}
+var ai_occupancy_cache:Dictionary={}
+var ai_occupancy_ready:bool=false
+var ai_cache_hits:int=0
+var ai_cache_misses:int=0
+const AI_LOS_CAP:int=1024
+const AI_FOOTPRINT_CAP:int=128
+const AI_TERRAIN_CAP:int=4
+
+func ai_begin_turn_cache()->void:
+	ai_end_turn_cache()
+	ai_cache_active=ai_cache_enabled
+	ai_cache_hits=0;ai_cache_misses=0
+
+func ai_end_actor_cache()->void:
+	ai_actor_cache_active=false
+	ai_footprint_cache.clear();ai_occupancy_cache.clear();ai_occupancy_ready=false
+
+func ai_begin_actor_cache()->void:
+	ai_end_actor_cache()
+	ai_actor_cache_active=ai_cache_active
+
+func ai_end_turn_cache()->void:
+	ai_end_actor_cache()
+	ai_cache_active=false
+	ai_los_cache.clear();ai_terrain_cache.clear()
+
 func attack_footprint(origin:Vector2i,forward:Vector2i,pattern:String,reach:int,player_cast:bool=false)->Dictionary:
+	if not ai_actor_cache_active or player_cast or pattern=="floor":
+		return compute_attack_footprint(origin,forward,pattern,reach,player_cast)
+	# Radius and cross are heading-independent, including their special cases.
+	var heading:Vector2i=Vector2i.ZERO if pattern in ["radius","cross","room"] else forward
+	var key:String="%d,%d:%d,%d:%s:%d"%[origin.x,origin.y,heading.x,heading.y,pattern,reach]
+	if ai_footprint_cache.has(key):
+		ai_cache_hits+=1
+		return ai_footprint_cache[key]
+	var result:Dictionary=compute_attack_footprint(origin,forward,pattern,reach,false)
+	ai_cache_misses+=1
+	if ai_footprint_cache.size()<AI_FOOTPRINT_CAP:ai_footprint_cache[key]=result
+	return result
+
+func compute_attack_footprint(origin:Vector2i,forward:Vector2i,pattern:String,reach:int,player_cast:bool=false)->Dictionary:
 	var out:Dictionary={}
 	var directions:Array=[forward]
 	if pattern in ["radius","cross"]:directions=DIR
@@ -1697,6 +1745,16 @@ func enemy_memory_duration(e:Dictionary)->int:
 # Integer supercover traversal between tile centers. At an exact corner,
 # both orthogonal neighbors must be open, matching strict diagonal movement.
 func enemy_line_of_sight(origin:Vector2i,target:Vector2i)->bool:
+	if not ai_cache_active:return compute_enemy_line_of_sight(origin,target)
+	var key:=Vector4i(origin.x,origin.y,target.x,target.y)
+	if ai_los_cache.has(key):
+		ai_cache_hits+=1;return bool(ai_los_cache[key])
+	var visible:bool=compute_enemy_line_of_sight(origin,target)
+	ai_cache_misses+=1
+	if ai_los_cache.size()<AI_LOS_CAP:ai_los_cache[key]=visible
+	return visible
+
+func compute_enemy_line_of_sight(origin:Vector2i,target:Vector2i)->bool:
 	if not cells.has(origin) or not cells.has(target):return false
 	var delta:Vector2i=target-origin
 	var nx:int=absi(delta.x)
@@ -2517,10 +2575,14 @@ func enemy_at(p:Vector2i)->int:
 	return -1
 # Snapshot occupancy once per search, preserving enemy_at/ally_at semantics.
 func navigation_occupancy()->Dictionary:
+	if ai_actor_cache_active and ai_occupancy_ready:
+		ai_cache_hits+=1;return ai_occupancy_cache
 	var blocked:Dictionary={}
 	for e in enemies:blocked[e.pos]=true
 	for a in allies:
 		if int(a.hp)>0:blocked[a.pos]=true
+	if ai_actor_cache_active:
+		ai_occupancy_cache=blocked;ai_occupancy_ready=true;ai_cache_misses+=1
 	return blocked
 
 func route(a:Vector2i,b:Vector2i,avoid_enemies:bool=false,diagonal:bool=false)->Array[Vector2i]:
@@ -2548,10 +2610,9 @@ func route(a:Vector2i,b:Vector2i,avoid_enemies:bool=false,diagonal:bool=false)->
 
 # When a corridor is blocked, approach the nearest reachable point measured
 # by real terrain distance, not Manhattan distance through walls.
-func enemy_approach_route(origin:Vector2i,target:Vector2i)->Array[Vector2i]:
-	var direct:Array[Vector2i]=route(origin,target,true)
-	if not direct.is_empty() or origin==target:return direct
-	if not cells.has(origin) or not cells.has(target):return direct
+func ai_terrain_distances(target:Vector2i)->Dictionary:
+	if ai_cache_active and ai_terrain_cache.has(target):
+		ai_cache_hits+=1;return ai_terrain_cache[target]
 	var distances:Dictionary={target:0}
 	var terrain_queue:Array[Vector2i]=[target]
 	var cursor:int=0
@@ -2561,6 +2622,17 @@ func enemy_approach_route(origin:Vector2i,target:Vector2i)->Array[Vector2i]:
 			var q:Vector2i=p+d
 			if not cells.has(q) or distances.has(q):continue
 			distances[q]=int(distances[p])+1;terrain_queue.append(q)
+	if ai_cache_active:
+		ai_cache_misses+=1
+		if ai_terrain_cache.size()<AI_TERRAIN_CAP:ai_terrain_cache[target]=distances
+	return distances
+
+func enemy_approach_route(origin:Vector2i,target:Vector2i)->Array[Vector2i]:
+	var direct:Array[Vector2i]=route(origin,target,true)
+	if not direct.is_empty() or origin==target:return direct
+	if not cells.has(origin) or not cells.has(target):return direct
+	var distances:Dictionary=ai_terrain_distances(target)
+	var cursor:int=0
 	if not distances.has(origin):return direct
 	var blocked:Dictionary=navigation_occupancy()
 	var previous:Dictionary={origin:origin}
@@ -3802,6 +3874,11 @@ func enemy_tick_all_cooldowns(e:Dictionary)->void:
 		if int(e.get(key,0))>0:e[key]=int(e[key])-1
 
 func enemy_turn_actions():
+	ai_begin_turn_cache()
+	enemy_turn_actions_impl()
+	ai_end_turn_cache()
+
+func enemy_turn_actions_impl():
 	enemy_actions.clear()
 	turns+=1
 	if not spend_belly():return
@@ -3810,6 +3887,7 @@ func enemy_turn_actions():
 		if hp==0:
 			finished=true;success=false;message="Poison · rescue needed";emit_event(message);return
 	for i in range(enemies.size()):
+		ai_begin_actor_cache()
 		if int(enemies[i].hp)<=0:continue
 		var p:Vector2i=enemies[i].pos
 		if int(enemies[i].get("slow_turns",0))>0 and int(enemies[i].slow_turns)%2==0:
@@ -3960,7 +4038,9 @@ func enemy_turn_actions():
 				record_enemy_move(enemies[i],"secondary" if alternate else "primary")
 				if alternate:enemies[i]["alt_cooldown"]=maxi(0,int(skill[2])-1)
 				else:enemies[i]["cooldown"]=maxi(0,int(skill[2])-1)
-				if not dodged and not shield_block:apply_signature_effect(i,skill)
+				if not dodged and not shield_block:
+					ai_end_actor_cache()
+					apply_signature_effect(i,skill)
 			if dodged or shield_block or (shield_kind=="safeguard" and shield_turns>0 and effect in ["poison","weaken","mark"]) or (boon_active("mist") and effect=="weaken"):effect="none"
 			var party_hits:Array[Dictionary]=enemy_apply_area_damage(enemies[i],p,footprint,pattern,skill,alternate) if special else []
 			if damage>0:enemy_record_squad_focus(enemies[i],-1,damage)
@@ -4019,6 +4099,7 @@ func enemy_turn_actions():
 			if patrol!=p:
 				enemies[i].pos=patrol
 				enemy_actions.append({"uid":enemies[i].get("uid",i),"phase":"move","from":p,"to":patrol,"gait":enemies[i].get("gait","walk")})
+	ai_end_actor_cache()
 	for i in range(enemies.size()-1,-1,-1):
 		if int(enemies[i].hp)<=0:remove_defeated_enemy(i)
 	reveal()
