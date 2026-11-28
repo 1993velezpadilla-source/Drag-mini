@@ -2166,6 +2166,47 @@ func enemy_control_setup_step(e:Dictionary,target:Vector2i)->Vector2i:
 		if score>best_score:best=q;best_score=score
 	return best
 
+# Estimate a real follow-up, using only the actor's existing attack kit.
+# No new action, PP, damage or RNG is consumed by this evaluation.
+func enemy_combo_followup(e:Dictionary,move:Dictionary,wait:int)->float:
+	var origin:Vector2i=e.pos
+	if int(e.hp)<=0 or distance(origin,player)>enemy_awareness(e) or not enemy_line_of_sight(origin,player):return 0.0
+	if int(e.get("whiffer_turns",0))>0 or int(e.get("slow_turns",0))>0:return 0.0
+	var status:String=str(move.get("inflict_status",""))
+	var info:Array=ENEMY_TRAINING.get(e.get("species",""),[["normal"],"normal","normal",0,0,"physical"])
+	var defense:String="sp_defense" if str(info[5])=="special" else "defense"
+	var delta:int=int(move.get("stat_changes",{}).get(defense,0))
+	var current:int=int(player_stages.get(defense,0))
+	var gain:float=0.0
+	if status in ["sleep","paralysis"]:gain=.30
+	elif status=="confusion":gain=.15
+	elif delta<0 and current>-2:
+		var next:int=maxi(-2,current+delta)
+		gain=clampf(stage_factor(defense,current)/maxf(.001,stage_factor(defense,next))-1.0,0.0,.60)
+	if gain<=0.0:return 0.0
+	var best:float=0.0
+	var species:String=str(e.get("species",""))
+	var skill:Array=signature_skill(e)
+	if int(e.get("cooldown",0))<=wait and enemy_move_allowed(e,"primary") and enemy_area_aim(e,str(ATTACK_PATTERNS.get(species,"line")),int(skill[0]))!=Vector2i.ZERO:
+		best=maxf(best,enemy_attack_score(e,skill,false)*(1.0 if not bool(skill[1]) or bool(e.get("windup",false)) else .65))
+	if int(e.get("alt_cooldown",0))<=wait and not bool(e.get("windup",false)) and SECONDARY_SKILLS.has(species) and enemy_move_allowed(e,"secondary"):
+		var alt:Array=SECONDARY_SKILLS[species]
+		if enemy_area_aim(e,str(alt[1]),int(alt[0]))!=Vector2i.ZERO:
+			best=maxf(best,enemy_attack_score(e,[alt[0],false,3,alt[3],alt[4],alt[5],"alt_"+species],true))
+	return minf(3.0,maxf(0.0,best)*gain)
+
+func enemy_combo_setup_bonus(e:Dictionary,move:Dictionary)->float:
+	if not bool(e.get("ecology_search_enabled",false)):return 0.0
+	var own:float=minf(1.5,enemy_combo_followup(e,move,1)*.5)
+	var first:float=0.0
+	var second:float=0.0
+	for other in enemies:
+		if not enemy_squad_partner(e,other):continue
+		var value:float=enemy_combo_followup(other,move,0)
+		if value>first:second=first;first=value
+		elif value>second:second=value
+	return minf(4.5,own+first+second*.5)
+
 # Evaluate only the explicitly learned status move. Crowd-control windows
 # are shared across attackers so a pack cannot indefinitely stun-lock the player.
 func enemy_status_utility(e:Dictionary,move:Dictionary)->float:
@@ -2175,9 +2216,6 @@ func enemy_status_utility(e:Dictionary,move:Dictionary)->float:
 	if (shield_turns>0 and shield_kind in ["protect","safeguard"]) or boon_active("magic_coat") or mirror_veil_blocks(origin,true,str(move.pattern)) or charge_phase in ["underground","airborne","vanish"]:return 0.0
 	var status:String=str(move.get("inflict_status",""))
 	var utility:float=0.0
-	var nearby:int=0
-	for other in enemies:
-		if other.pos!=origin and int(other.hp)>0 and distance(other.pos,player)<=3 and enemy_line_of_sight(other.pos,player) and int(other.get("sleep_turns",0))<=0 and str(other.get("major_status",""))!="freeze":nearby+=1
 	if status in ["sleep","paralysis","confusion"]:
 		if boon_active("hostile_control_recovery") or boon_active("hostile_sleep") or boon_active("hostile_drowse") or boon_active("hostile_paralysis") or boon_active("nap") or self_confusion_turns>0:return 0.0
 		match status:
@@ -2194,7 +2232,7 @@ func enemy_status_utility(e:Dictionary,move:Dictionary)->float:
 		for stat in deltas:
 			if int(deltas[stat])<0 and int(player_stages.get(stat,0))>-2:utility+=2.0
 		if utility<=0.0:return 0.0
-	utility+=float(mini(nearby,3))*1.5+enemy_personality_control_bonus(e)
+	utility+=enemy_combo_setup_bonus(e,move)+enemy_personality_control_bonus(e)
 	if enemy_move_pp(e,"control")<=2:utility*=.85
 	return utility*reference_accuracy(move)/100.0
 
@@ -4001,7 +4039,9 @@ func enemy_attack_score(e:Dictionary,skill:Array,secondary:bool)->float:
 		if (shield_turns>0 and shield_kind=="protect") or charge_phase in ["underground","airborne","vanish"]:raw=0.0;utility=0.0
 	var score:float=raw+utility
 	if score>0.0:score+=enemy_personality_bonus(e,skill,utility)
-	if bool(skill[1]):score*=.70
+	if bool(skill[1]):
+		var control_window:bool=bool(e.get("ecology_search_enabled",false)) and (int(player_boons.get("hostile_sleep",0))>=2 or int(player_boons.get("hostile_paralysis",0))>=3)
+		score*=.90 if control_window else .70
 	if enemy_move_pp(e,slot)<=2:score*=.85
 	return score*enemy_observed_attack_weight(e,-1,slot)
 
