@@ -230,7 +230,7 @@ func enemy_integration_input(arena,round_index:int,sample:int)->void:
 	# Controlled casualty, PP scarcity and interruption fixtures.
 	if round_index==4 and not arena.enemies.is_empty():
 		var e:Dictionary=arena.enemies[0]
-		e.hp=maxi(1,int(e.hp)/3)
+		e.hp=maxi(1,int(float(e.hp)/3.0))
 		e["incoming_turn"]=arena.turns;e["incoming_damage"]=int(e.hp)
 	if round_index==9 and arena.enemies.size()>1:
 		arena.enemies[1]["pp_primary"]=0;arena.enemies[1]["pp_secondary"]=0
@@ -301,6 +301,12 @@ func enemy_integration_gauntlet(failures:Array[String])->int:
 	return checks_local
 
 func run_checks()->void:
+	if "--ai-integration" in OS.get_cmdline_user_args():
+		var integration_failures:Array[String]=[]
+		var integration_checks:int=enemy_adversarial_gauntlet(integration_failures)+enemy_integration_gauntlet(integration_failures)
+		print("KINDRIA_AI_INTEGRATION_RESULT checks=",integration_checks," failures=",integration_failures.size())
+		for failure in integration_failures:push_error(failure)
+		quit(0 if integration_failures.is_empty() else 1);return
 	for mode in ["--history-write","--history-read"]:
 		if mode in OS.get_cmdline_user_args():restart_check(mode);return
 	var failures:Array[String]=[]
