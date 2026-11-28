@@ -2853,7 +2853,22 @@ func run_checks()->void:
 	parity.shield_kind="reflect";parity.shield_turns=1
 	if parity.enemy_opportunity_damage(parity_actor,[],false,true)!=parity.shield_damage(int(parity.enemy_player_damage_base(parity_actor,[],false,true,0).damage),"physical"):failures.append("shared enemy damage shield parity")
 	checks+=1
-	print("KINDRIA_ANTI_STALL checks=163")
+	# The party comparison must count a credible KO premium only once.
+	party_ko.charge_phase="";party_ko.hp=1
+	var raw_choice:float=party_ko.enemy_attack_score(ko_actor,ko_skill,false,false)
+	var normal_choice:float=party_ko.enemy_attack_score(ko_actor,ko_skill,false)
+	var ko_choice:float=party_ko.enemy_party_player_ko_bonus(ko_actor,ko_skill,false)
+	if ko_choice<=0.0 or not is_equal_approx(normal_choice-raw_choice,party_ko.enemy_opportunity_bonus(ko_actor,ko_skill,false)):failures.append("party score retains generic opportunity by default")
+	checks+=1
+	if not is_equal_approx(party_ko.enemy_party_player_attack_value(ko_actor,ko_skill,false),raw_choice+ko_choice):failures.append("party score counts KO once")
+	checks+=1
+	ko_actor["cooldown"]=1
+	if not is_equal_approx(party_ko.enemy_party_player_attack_value(ko_actor,ko_skill,false),party_ko.enemy_attack_score(ko_actor,ko_skill,false,false)):failures.append("party score excludes unavailable KO premium")
+	checks+=1
+	ko_actor["cooldown"]=0;party_ko.shield_kind="endure";party_ko.shield_turns=1
+	if not is_equal_approx(party_ko.enemy_party_player_attack_value(ko_actor,ko_skill,false),party_ko.enemy_attack_score(ko_actor,ko_skill,false,false)):failures.append("party score excludes protected KO premium")
+	checks+=1
+	print("KINDRIA_ANTI_STALL checks=167")
 	# A direct witness may report a tile, but a listener cannot relay it.
 	var comm=Rules.new()
 	for x in range(1,4):comm.cells[Vector2i(x,3)]=true
