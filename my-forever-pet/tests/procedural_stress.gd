@@ -3339,6 +3339,19 @@ func run_checks()->void:
 	projection_fixture.gravity_active=false;projection_fixture.player_boons.clear();projection_actor.species="leafwisp"
 	if projection_actor.pos!=Vector2i(4,5) or projection_actor.pp_primary!=12 or projection_fixture.rng.state!=projection_rng or not projection_fixture.enemy_actions.is_empty():failures.append("projected defense forecast purity")
 	checks+=1
+	# Multi-step foresight must use the same projected defense rules.
+	projection_fixture.player_boons["mirror_veil"]=2
+	var projected_real_kits:Array[Dictionary]=projection_fixture.enemy_foresight_kits(projection_actor)
+	if projected_real_kits.is_empty() or projection_fixture.enemy_foresight_post_value(projection_actor,projected_real_kits,projection_actor.pos,projection_fixture.player)!=0.0:failures.append("foresight reflected current post")
+	checks+=1
+	if projection_fixture.enemy_foresight_post_value(projection_actor,projected_real_kits,projected_post,projection_fixture.player)<=0.0:failures.append("foresight ranged post bypasses mirror")
+	checks+=1
+	projection_fixture.player_boons.clear();projection_fixture.shield_kind="protect";projection_fixture.shield_turns=2
+	if projection_fixture.enemy_foresight_post_value(projection_actor,projected_real_kits,projected_post,projection_fixture.player)!=0.0:failures.append("foresight protected post excluded")
+	checks+=1
+	projection_fixture.shield_kind="";projection_fixture.shield_turns=0
+	if projection_fixture.enemy_foresight_post_value(projection_actor,projected_real_kits,projected_post,projection_fixture.player)<=0.0 or projection_actor.pos!=Vector2i(4,5) or projection_actor.pp_primary!=12 or projection_fixture.rng.state!=projection_rng or not projection_fixture.enemy_actions.is_empty():failures.append("foresight defense restoration purity")
+	checks+=1
 	# A rear actor may prepare a staging tile, but never claim the live ray.
 	var stage_fixture=Rules.new()
 	for y in range(1,9):

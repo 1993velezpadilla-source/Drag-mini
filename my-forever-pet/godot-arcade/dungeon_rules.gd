@@ -2669,17 +2669,22 @@ func enemy_foresight_kits(e:Dictionary)->Array[Dictionary]:
 	if enemy_move_allowed(e,"primary") and int(e.get("cooldown",0))<=0 and int(primary[0])>=2:
 		var value:float=enemy_attack_score(e,primary,false)
 		if bool(primary[1]):value*=.65
-		if value>0.0:kits.append({"pattern":str(ATTACK_PATTERNS.get(species,"line")),"reach":int(primary[0]),"value":value,"charged":bool(primary[1]),"slot":"primary"})
+		if value>0.0:kits.append({"pattern":str(ATTACK_PATTERNS.get(species,"line")),"reach":int(primary[0]),"value":value,"charged":bool(primary[1]),"slot":"primary","skill":primary})
 	if SECONDARY_SKILLS.has(species) and enemy_move_allowed(e,"secondary") and int(e.get("alt_cooldown",0))<=0:
 		var alt:Array=SECONDARY_SKILLS[species]
-		var value:float=enemy_attack_score(e,[alt[0],false,3,alt[3],alt[4],alt[5],"alt_"+species],true)
-		if int(alt[0])>=2 and value>0.0:kits.append({"pattern":str(alt[1]),"reach":int(alt[0]),"value":value,"charged":false,"slot":"secondary"})
+		var alt_skill:Array=[alt[0],false,3,alt[3],alt[4],alt[5],"alt_"+species]
+		var value:float=enemy_attack_score(e,alt_skill,true)
+		if int(alt[0])>=2 and value>0.0:kits.append({"pattern":str(alt[1]),"reach":int(alt[0]),"value":value,"charged":false,"slot":"secondary","skill":alt_skill})
 	return kits
 
 func enemy_foresight_post_value(e:Dictionary,kits:Array[Dictionary],post:Vector2i,target:Vector2i)->float:
 	var value:float=0.0
 	for kit in kits:
-		if enemy_projected_attack_aim(e,post,target,str(kit.pattern),int(kit.reach))!=Vector2i.ZERO:value=maxf(value,float(kit.value))
+		if enemy_projected_attack_aim(e,post,target,str(kit.pattern),int(kit.reach))==Vector2i.ZERO:continue
+		# Real learned kits must damage the player from the projected post.
+		# Geometry-only callers can still supply an abstract scored footprint.
+		if kit.has("skill") and target==player and enemy_opportunity_damage_at(e,kit.skill,str(kit.get("slot",""))=="secondary",false,post)<=0:continue
+		value=maxf(value,float(kit.value))
 	return value
 
 func enemy_foresight_plan(e:Dictionary,target:Vector2i)->Dictionary:
