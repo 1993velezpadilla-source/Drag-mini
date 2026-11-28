@@ -2820,7 +2820,40 @@ func run_checks()->void:
 	party_ko.charge_phase="vanish"
 	if party_ko.enemy_party_player_ko_bonus(ko_actor,ko_skill,false)!=0.0 or ko_actor.pp_primary!=12 or not party_ko.enemy_actions.is_empty() or party_ko.hp!=1:failures.append("party comparison concealment and purity")
 	checks+=1
-	print("KINDRIA_ANTI_STALL checks=158")
+	# Shared base must match actual damage while planning stays side-effect free.
+	var parity=Rules.new()
+	for y in range(1,8):
+		for x in range(1,8):parity.cells[Vector2i(x,y)]=true
+	parity.player=Vector2i(4,3);parity.stairs=Vector2i(7,7);parity.relic=Vector2i(7,6)
+	parity.hp=1000;parity.max_hp=1000;parity.belly_tenths=1000
+	var parity_actor:Dictionary={"uid":490,"pos":Vector2i(3,3),"hp":30,"kind":0,"species":"rootgnawer","ecology_role":"hunter","ecology_search_enabled":true,"personality_enabled":true,"pp_primary":12,"pp_secondary":0,"pp_control":0,"pp_support":0,"stages":{"accuracy":10,"attack":2},"held_item":"force_band"}
+	parity.enemies.append(parity_actor)
+	parity.marked_damage=2;parity.held_item="ward_band"
+	var parity_skill:Array=parity.signature_skill(parity_actor)
+	var before_rng:int=parity.rng.state
+	var before_type:float=parity.last_type_multiplier
+	var predicted:int=parity.enemy_opportunity_damage(parity_actor,parity_skill,false)
+	if predicted<=0 or parity.marked_damage!=2 or parity.rng.state!=before_rng or parity.last_type_multiplier!=before_type or parity_actor.pp_primary!=12:failures.append("shared enemy damage planning purity")
+	checks+=1
+	parity.enemy_turn_actions()
+	var resolved:int=parity.critical_damage(predicted,true) if parity.last_enemy_critical else predicted
+	if parity.hp!=1000-resolved or parity_actor.pp_primary!=11 or parity.enemy_actions.size()!=1 or int(parity.enemy_actions[0].get("damage",-1))!=resolved:failures.append("shared enemy damage real primary parity")
+	checks+=1
+	parity.marked_damage=0;parity_actor.pp_primary=0;parity_actor["cooldown"]=0
+	var basic_prediction:int=parity.enemy_opportunity_damage(parity_actor,[],false,true)
+	var basic_hp:int=parity.hp
+	parity.enemy_turn_actions()
+	var basic_resolved:int=parity.critical_damage(basic_prediction,true) if parity.last_enemy_critical else basic_prediction
+	if parity.hp!=basic_hp-basic_resolved or parity.enemy_actions.size()!=1 or str(parity.enemy_actions[0].get("move",""))!="Quick strike":failures.append("shared enemy damage real basic parity")
+	checks+=1
+	parity.trained_profile={"types":["ground"],"level":24,"nature":0,"ev":[0,0,0,0,0,0]}
+	var trained_base:Dictionary=parity.enemy_player_damage_base(parity_actor,parity_skill,false,false,0)
+	if parity.enemy_opportunity_damage(parity_actor,parity_skill,false)!=int(trained_base.damage) or float(trained_base.effectiveness)<=0.0:failures.append("shared enemy damage trained estimate parity")
+	checks+=1
+	parity.shield_kind="reflect";parity.shield_turns=1
+	if parity.enemy_opportunity_damage(parity_actor,[],false,true)!=parity.shield_damage(int(parity.enemy_player_damage_base(parity_actor,[],false,true,0).damage),"physical"):failures.append("shared enemy damage shield parity")
+	checks+=1
+	print("KINDRIA_ANTI_STALL checks=163")
 	# A direct witness may report a tile, but a listener cannot relay it.
 	var comm=Rules.new()
 	for x in range(1,4):comm.cells[Vector2i(x,3)]=true
