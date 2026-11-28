@@ -2982,6 +2982,23 @@ func run_checks()->void:
 	lane_ranged.erase("windup");lane_ranged.erase("aim");lane_fixture.charge_phase=""
 	if not lane_fixture.enemy_relief_blocks_lane(lane_ranged,Vector2i(5,4),lane_fixture.player):failures.append("lane restores reservation after visible return")
 	checks+=1
+	# A speculative firing lane needs effective damage; an already announced
+	# shot still owns its original footprint regardless of target defenses.
+	var lane_saved_hp:int=lane_fixture.hp
+	for lane_defense in ["protect","endure"]:
+		lane_fixture.shield_kind=lane_defense;lane_fixture.shield_turns=2
+		lane_fixture.hp=1 if lane_defense=="endure" else lane_saved_hp
+		if lane_fixture.enemy_relief_blocks_lane(lane_ranged,Vector2i(5,4),lane_fixture.player):failures.append("lane releases zero damage ordinary shot "+lane_defense)
+		checks+=1
+		lane_ranged["windup"]=true;lane_ranged["aim"]=Vector2i.LEFT
+		if not lane_fixture.enemy_relief_blocks_lane(lane_ranged,Vector2i(5,4),lane_fixture.player):failures.append("lane preserves committed shot against defense "+lane_defense)
+		checks+=1
+		lane_ranged.erase("windup");lane_ranged.erase("aim")
+	lane_fixture.shield_kind="";lane_fixture.shield_turns=0;lane_fixture.hp=lane_saved_hp
+	if not lane_fixture.enemy_relief_blocks_lane(lane_ranged,Vector2i(5,4),lane_fixture.player):failures.append("lane restores effective ordinary shot")
+	checks+=1
+	if lane_actor.pos!=Vector2i(5,5) or lane_ranged.pp_primary!=12 or not lane_fixture.enemy_actions.is_empty():failures.append("lane defense planning purity")
+	checks+=1
 	lane_ranged["cooldown"]=1
 	if lane_fixture.enemy_firing_lane_frontline(lane_actor,lane_fixture.player) or lane_fixture.enemy_unstall_step(lane_actor,lane_fixture.player)!=Vector2i(5,4):failures.append("lane hold reenters after ray cooldown")
 	checks+=1

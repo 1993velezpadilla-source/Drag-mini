@@ -3992,10 +3992,11 @@ func enemy_relief_blocks_lane(friend:Dictionary,q:Vector2i,target:Vector2i)->boo
 	var species:String=str(friend.get("species",""))
 	var skill:Array=signature_skill(friend)
 	if enemy_move_allowed(friend,"primary") and int(friend.get("cooldown",0))<=0 and str(ATTACK_PATTERNS.get(species,"line"))=="line":
-		if attack_footprint(origin,heading,"line",int(skill[0])).has(target):return true
+		if attack_footprint(origin,heading,"line",int(skill[0])).has(target) and (target!=player or enemy_opportunity_damage(friend,skill,false)>0):return true
 	if enemy_move_allowed(friend,"secondary") and int(friend.get("alt_cooldown",0))<=0 and SECONDARY_SKILLS.has(species):
 		var alt:Array=SECONDARY_SKILLS[species]
-		if str(alt[1])=="line" and attack_footprint(origin,heading,"line",int(alt[0])).has(target):return true
+		var alt_skill:Array=[alt[0],false,3,alt[3],alt[4],alt[5],"alt_"+species]
+		if str(alt[1])=="line" and attack_footprint(origin,heading,"line",int(alt[0])).has(target) and (target!=player or enemy_opportunity_damage(friend,alt_skill,true)>0):return true
 	return false
 
 func enemy_relief_step(e:Dictionary,target:Vector2i)->Vector2i:
