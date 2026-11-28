@@ -36,6 +36,35 @@ func run_checks()->void:
 	var checks:int=0
 	var failures:Array[String]=[]
 	var view:=Dungeon.new()
+	# Dungeon 001: profile is opt-in and remains deterministic across all three floors.
+	for woods_seed in range(12):
+		var woods:=preload("res://dungeon_rules.gd").new()
+		woods.setup(0,0,0,false,false,woods_seed,0,true)
+		if not woods.starter_woods or woods.floor_count!=3:failures.append("Dungeon001 profile")
+		checks+=1
+		for woods_floor in range(1,4):
+			woods.floor_number=woods_floor
+			woods.generate_floor()
+			if woods.rooms.size()<3 or woods.rooms.size()>4:failures.append("Dungeon001 compact rooms")
+			if woods.enemies.size()!=woods_floor+1:failures.append("Dungeon001 enemy density")
+			if not woods.traps.is_empty():failures.append("Dungeon001 natural traps")
+			if woods.monster_house_room>=0 or woods.prepare_monster_house(true):failures.append("Dungeon001 ambush isolation")
+			if woods.route(woods.player,woods.stairs).is_empty() or woods.route(woods.player,woods.relic).is_empty():failures.append("Dungeon001 reachable objectives")
+			checks+=5
+	var woods_advanced:=preload("res://dungeon_rules.gd").new()
+	woods_advanced.setup(0,0,0,false,true,1,0,true)
+	if woods_advanced.starter_woods or woods_advanced.floor_count!=2:failures.append("Dungeon001 patrol isolation")
+	checks+=1
+	for water_name in ["woodland turquoise stream","cascade pale highlights","woodland falling sheet","woodland falling foam"]:
+		var water_source:=StandardMaterial3D.new()
+		water_source.resource_name=water_name
+		var water_shader:ShaderMaterial=view.exterior_motion_material(water_source)
+		if water_shader==null:failures.append("Dungeon001 water material "+water_name)
+		else:
+			if water_shader.get_shader_parameter("is_falling")!=water_name.begins_with("woodland falling"):failures.append("Dungeon001 falling direction "+water_name)
+			if water_shader.get_shader_parameter("is_foam")!=(water_name.contains("foam") or water_name.contains("highlights")):failures.append("Dungeon001 foam routing "+water_name)
+		checks+=3
+	view.exterior_motion_materials.clear()
 	# V26.18: exact Blender material names, biome isolation and cache/pigment preservation.
 	var forest_materials:Array[String]=["forest leaf shadow","fern lime","amber woodland canopy","woodland spring leaf","woodland golden leaf"]
 	for forest_name in forest_materials:
