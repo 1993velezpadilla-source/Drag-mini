@@ -2356,7 +2356,29 @@ func run_checks()->void:
 	checks+=1
 	if escape_actor.pos!=Vector2i(2,4) or escape_actor.pp_primary!=0 or escape_fixture.enemy_actions.size()!=1:failures.append("frontline cleanup does not execute actions")
 	checks+=1
-	print("KINDRIA_ANTI_STALL checks=76")
+	# Immediate adjacent opportunities must not wait for the long recovery timer.
+	var immediate=Rules.new()
+	for y in range(1,8):
+		for x in range(1,8):immediate.cells[Vector2i(x,y)]=true
+	immediate.player=Vector2i(4,4);immediate.stairs=Vector2i(7,7);immediate.relic=Vector2i(7,6);immediate.turns=22
+	var near_actor:Dictionary={"uid":380,"pos":Vector2i(3,5),"hp":30,"kind":0,"species":"rootgnawer","ecology_role":"hunter","ecology_search_enabled":true,"personality_enabled":true,"pp_primary":0,"pp_secondary":0,"unstall_turn":21}
+	immediate.enemies.append(near_actor)
+	immediate.traps[Vector2i(3,4)]="snare"
+	if immediate.enemy_immediate_recovery_step(near_actor,immediate.player)!=Vector2i(4,5):failures.append("immediate recovery exploits safe adjacent post")
+	checks+=1
+	if near_actor.pos!=Vector2i(3,5) or near_actor.pp_primary!=0 or not immediate.enemy_actions.is_empty():failures.append("immediate recovery pure planning")
+	checks+=1
+	immediate.enemies.append({"uid":381,"pos":Vector2i(4,5),"hp":30,"kind":0,"species":"rootgnawer","ecology_search_enabled":true})
+	if immediate.enemy_immediate_recovery_step(near_actor,immediate.player)!=near_actor.pos:failures.append("immediate recovery respects occupied and trapped posts")
+	checks+=1
+	immediate.enemies.remove_at(1)
+	immediate.shield_kind="protect";immediate.shield_turns=1
+	if immediate.enemy_immediate_recovery_step(near_actor,immediate.player)!=near_actor.pos:failures.append("immediate recovery respects protection")
+	checks+=1
+	immediate.shield_kind="";immediate.shield_turns=0;immediate.charge_phase="vanish"
+	if immediate.enemy_immediate_recovery_step(near_actor,immediate.player)!=near_actor.pos:failures.append("immediate recovery no hidden target")
+	checks+=1
+	print("KINDRIA_ANTI_STALL checks=81")
 	# A direct witness may report a tile, but a listener cannot relay it.
 	var comm=Rules.new()
 	for x in range(1,4):comm.cells[Vector2i(x,3)]=true
