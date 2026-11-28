@@ -1120,6 +1120,7 @@ func run_checks()->void:
 	print("KINDRIA_ENEMY_SIGHT seeded_pairs=",sight_pairs," fixtures=7")
 	# Local search explores only the remembered neighborhood with a finite turn budget.
 	var search_fixture=Rules.new()
+	search_fixture.ai_legacy_cardinal_replay=true # Archived cardinal search behavior.
 	for y in range(1,10):
 		for x in range(1,20):search_fixture.cells[Vector2i(x,y)]=true
 	var search_anchor:=Vector2i(4,4)
@@ -4398,6 +4399,7 @@ func run_checks()->void:
 	print("KINDRIA_ATTACK_SEQUENCING checks=52")
 	# Bounded search follows actual witnessed headings and explores alternatives.
 	var hunter_search=Rules.new()
+	hunter_search.ai_legacy_cardinal_replay=true # Archived cardinal search behavior.
 	for y in range(1,10):
 		for x in range(1,20):hunter_search.cells[Vector2i(x,y)]=true
 	hunter_search.player=Vector2i(19,9);hunter_search.stairs=Vector2i(18,9);hunter_search.relic=Vector2i(18,8);hunter_search.turns=20
@@ -4433,6 +4435,52 @@ func run_checks()->void:
 	if hunter_search.enemy_pursuit_target(hunter_actor,hunter_search.player)!=hunter_search.player or hunter_actor.has("search_anchor"):failures.append("hunter direct reacquisition clears search")
 	checks+=1
 	print("KINDRIA_DUNGEON_HUNTERS checks=8")
+	# All four diagonal headings should be preferred when directly witnessed.
+	for diag in [Vector2i(1,-1),Vector2i(1,1),Vector2i(-1,1),Vector2i(-1,-1)]:
+		var hsdir:Vector2i=diag
+		var hs8=Rules.new()
+		for yy in range(1,12):
+			for xx in range(1,20):hs8.cells[Vector2i(xx,yy)]=true
+		var hsanchor:=Vector2i(5,5)
+		var hspost:Vector2i=hsanchor+hsdir
+		hs8.player=Vector2i(19,10);hs8.stairs=Vector2i(18,10);hs8.relic=Vector2i(18,9);hs8.turns=20
+		var hsactor:Dictionary={"uid":0,"pos":hsanchor,"hp":30,"kind":0,"species":"bramble_pup","ecology_role":"hunter","ecology_search_enabled":true,"personality_enabled":true,"search_anchor":hsanchor,"search_until":22,"search_visited":{},"search_heading":hsdir,"search_heading_turn":19,"search_heading_anchor":hsanchor,"pp_primary":12}
+		hs8.enemies.append(hsactor)
+		var hs_rng:int=hs8.rng.state
+		if hs8.enemy_search_target(hsactor)!=hspost or hsactor.get("search_claim",Vector2i.ZERO)!=hspost:failures.append("octant hunter follows witnessed heading "+str(hsdir))
+		checks+=1
+		if hsactor.pos!=hsanchor or hsactor.pp_primary!=12 or hs8.rng.state!=hs_rng or not hs8.enemy_actions.is_empty():failures.append("octant hunter search no free action "+str(hsdir))
+		checks+=1
+		hs8.player=Vector2i(19,1)
+		if hs8.enemy_search_target(hsactor)!=hspost:failures.append("octant hunter remote player independence "+str(hsdir))
+		checks+=1
+		var hscorner:Vector2i=hsanchor+Vector2i(hsdir.x,0)
+		hs8.cells.erase(hscorner)
+		var hsstep:Vector2i=hs8.enemy_search_target(hsactor)
+		if hsstep==hspost or hsstep==hsanchor or not hs8.step_clear(hsanchor,hsstep-hsanchor):failures.append("octant hunter strict corner "+str(hsdir))
+		hs8.cells[hscorner]=true
+		checks+=1
+		hs8.player_traps[hspost]="snare"
+		if hs8.enemy_search_target(hsactor)==hspost:failures.append("octant hunter avoids player trap "+str(hsdir))
+		hs8.player_traps.clear()
+		checks+=1
+		var hspeer:Dictionary={"uid":1,"pos":hsanchor-hsdir,"hp":30,"kind":0,"species":"leafwisp","ecology_search_enabled":true,"search_anchor":hsanchor,"search_until":22,"search_claim":hspost,"search_claim_turn":20}
+		hs8.enemies.append(hspeer)
+		if not hs8.enemy_hunter_search_claims(hsactor,hsanchor).has(hspost) or hs8.enemy_search_target(hsactor)==hspost:failures.append("octant hunter honors diagonal claim "+str(hsdir))
+		checks+=1
+		hspeer["sleep_turns"]=2
+		if hs8.enemy_search_target(hsactor)!=hspost:failures.append("octant hunter releases sleeping claim "+str(hsdir))
+		checks+=1
+		hs8.enemies.pop_back()
+		hsactor.personality_enabled=false
+		for sd in Rules.DIR8:
+			if sd!=hsdir:hs8.player_traps[hsanchor+sd]="snare"
+		if hs8.enemy_search_target(hsactor)!=hspost:failures.append("octant ordinary scout legal diagonal only "+str(hsdir))
+		checks+=1
+		hs8.turns=23
+		if hs8.enemy_search_target(hsactor)!=hsanchor or hsactor.has("search_anchor") or hsactor.has("search_claim"):failures.append("octant search budget expires "+str(hsdir))
+		checks+=1
+	print("KINDRIA_OCTANT_HUNTERS checks=36")
 
 	# Firsthand contact cannot be refreshed by repetition or relayed by listeners.
 	var comm_v2691=Rules.new()

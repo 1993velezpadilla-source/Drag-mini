@@ -1934,7 +1934,8 @@ func enemy_hunter_search_claims(e:Dictionary,anchor:Vector2i)->Dictionary:
 func enemy_hunter_search_step(e:Dictionary,anchor:Vector2i,visited:Dictionary,radius:int)->Vector2i:
 	var origin:Vector2i=e.pos
 	var claims:Dictionary=enemy_hunter_search_claims(e,anchor)
-	var phase:int=posmod(int(e.get("uid",0))+turns,4)
+	var headings:Array=DIR if ai_legacy_cardinal_replay else DIR8
+	var phase:int=posmod(int(e.get("uid",0))+turns,headings.size())
 	var budget:int=maxi(0,int(e.get("search_until",turns))-turns+1)
 	var queue:Array[Vector2i]=[origin]
 	var depths:Dictionary={origin:0}
@@ -1956,8 +1957,10 @@ func enemy_hunter_search_step(e:Dictionary,anchor:Vector2i,visited:Dictionary,ra
 			if enemy_terrain_kind(here)=="dead_end":score-=2
 			if score>best_score:best_score=score;best=first[here];destination=here
 		if depth>=mini(3,budget):continue
-		for i in range(4):
-			var q:Vector2i=here+DIR[(phase+i)%4]
+		for i in range(headings.size()):
+			var d:Vector2i=headings[(phase+i)%headings.size()]
+			if not step_clear(here,d):continue
+			var q:Vector2i=here+d
 			if depths.has(q) or distance(q,anchor)>radius or claims.has(q) or not enemy_ambush_safe_tile(q):continue
 			depths[q]=depth+1;first[q]=q if depth==0 else first[here];queue.append(q)
 	if best==origin:
@@ -1977,15 +1980,18 @@ func enemy_search_target(e:Dictionary)->Vector2i:
 	if bool(e.get("personality_enabled",false)):
 		if enemy_combat_personality(e)=="hunter":radius=3
 		return enemy_hunter_search_step(e,anchor,visited,radius)
-	var phase:int=posmod(int(e.get("uid",0))+turns,4)
-	for i in range(4):
-		var q:Vector2i=origin+DIR[(phase+i)%4]
-		if not cells.has(q) or visited.has(q) or distance(q,anchor)>radius or q==stairs or q==relic or q in side_rewards or traps.has(q) or enemy_at(q)>=0 or ally_at(q)>=0 or q==player:continue
+	var headings:Array=DIR if ai_legacy_cardinal_replay else DIR8
+	var phase:int=posmod(int(e.get("uid",0))+turns,headings.size())
+	for i in range(headings.size()):
+		var d:Vector2i=headings[(phase+i)%headings.size()]
+		if not step_clear(origin,d):continue
+		var q:Vector2i=origin+d
+		if not cells.has(q) or visited.has(q) or distance(q,anchor)>radius or q==stairs or q==relic or q in side_rewards or traps.has(q) or player_traps.has(q) or enemy_at(q)>=0 or ally_at(q)>=0 or q==player:continue
 		return q
 	clear_enemy_search(e)
 	return origin
 
-# Only a witnessed voluntary cardinal step can contribute to a retreat pattern.
+# Only a witnessed voluntary legal step can contribute to a retreat pattern.
 # Consecutive samples must agree on heading; forced displacement is not evidence.
 var adaptive_walk_from:Vector2i=Vector2i.ZERO
 var adaptive_walk_to:Vector2i=Vector2i.ZERO
