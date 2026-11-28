@@ -2242,7 +2242,7 @@ func enemy_expire_frontline_holds(e:Dictionary)->void:
 	# Staging evidence is local to a committed position and a two-turn window.
 	if e.has("stage_turn") or e.has("stage_target") or e.has("stage_position"):
 		var stage_age:int=turns-int(e.get("stage_turn",-9999))
-		if stage_age<0 or stage_age>2 or e.get("stage_position",Vector2i(-9999,-9999))!=e.pos:
+		if stage_age<0 or stage_age>2 or not e.has("stage_target") or e.get("stage_position",Vector2i(-9999,-9999))!=e.pos:
 			e.erase("stage_turn");e.erase("stage_target");e.erase("stage_position")
 	for key in ["reserve_hold","congestion_hold","lane_hold"]:
 		var age:int=turns-int(e.get(key+"_turn",-9999))
