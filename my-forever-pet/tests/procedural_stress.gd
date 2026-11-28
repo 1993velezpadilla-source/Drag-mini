@@ -1316,6 +1316,57 @@ func run_checks()->void:
 	print("KINDRIA_AI_STABILITY turns=",stability_turns," scenarios=32")
 	checks+=ai_cache_regressions(failures)
 	checks+=ai_path_regressions(failures)
+	# Local lane yielding must open a real learned attack rather than wander.
+	var crowd=Rules.new()
+	for y in range(1,8):
+		for x in range(1,8):crowd.cells[Vector2i(x,y)]=true
+	crowd.player=Vector2i(5,3);crowd.stairs=Vector2i(7,7);crowd.relic=Vector2i(7,6)
+	var crowd_front:Dictionary={"uid":0,"pos":Vector2i(3,3),"hp":20,"max_hp":20,"kind":0,"species":"rootgnawer","ecology_search_enabled":true,"ecology_role":"hunter","pp_primary":0,"pp_secondary":0}
+	var crowd_rear:Dictionary={"uid":1,"pos":Vector2i(2,3),"hp":20,"max_hp":20,"kind":1,"species":"leafwisp","ecology_search_enabled":true,"ecology_role":"hunter","pp_primary":12,"pp_secondary":0}
+	crowd.enemies.append(crowd_front);crowd.enemies.append(crowd_rear)
+	crowd.traps[Vector2i(3,4)]="snare"
+	var crowd_step:Vector2i=crowd.enemy_crowd_yield_step(crowd_front,crowd.player)
+	if crowd_step!=Vector2i(3,2) or crowd_front.pos!=Vector2i(3,3) or crowd_rear.pp_primary!=12:failures.append("crowd safe lane yield purity")
+	checks+=1
+	crowd_rear["pp_primary"]=0
+	if crowd.enemy_crowd_yield_step(crowd_front,crowd.player)!=crowd_front.pos:failures.append("crowd depleted rear kit")
+	crowd_rear["pp_primary"]=12
+	checks+=1
+	crowd_rear["sleep_turns"]=2
+	if crowd.enemy_crowd_yield_step(crowd_front,crowd.player)!=crowd_front.pos:failures.append("crowd sleeping partner")
+	crowd_rear.erase("sleep_turns")
+	checks+=1
+	crowd_front["stuck_turns"]=2
+	if crowd.enemy_crowd_yield_step(crowd_front,crowd.player)!=crowd_front.pos:failures.append("crowd rooted front")
+	crowd_front.erase("stuck_turns")
+	checks+=1
+	crowd.enemies.append({"uid":2,"pos":Vector2i(4,3),"hp":20,"kind":0})
+	if crowd.enemy_crowd_yield_step(crowd_front,crowd.player)!=crowd_front.pos:failures.append("crowd second obstruction")
+	crowd.enemies.pop_back()
+	checks+=1
+	crowd.player_traps[Vector2i(3,2)]="snare"
+	if crowd.enemy_crowd_yield_step(crowd_front,crowd.player)!=crowd_front.pos:failures.append("crowd no safe pocket")
+	crowd.player_traps.clear()
+	checks+=1
+	crowd.enemy_turn_actions()
+	var crowd_front_actions:int=0
+	var crowd_rear_attacks:int=0
+	for action in crowd.enemy_actions:
+		if int(action.get("uid",-1))==0:
+			crowd_front_actions+=1
+			if action.get("phase","")!="move":failures.append("crowd yield grants no attack")
+		if int(action.get("uid",-1))==1 and action.get("phase","")=="attack":crowd_rear_attacks+=1
+	if crowd_front.pos!=crowd_step or crowd_front_actions!=1 or crowd_rear_attacks!=1 or crowd_rear.pp_primary!=11:failures.append("crowd actual lane handoff")
+	checks+=1
+	crowd.turns+=1
+	if not crowd.enemy_crowd_hold(crowd_front,Vector2i(3,3),crowd.player):failures.append("crowd one-turn anti-reversal")
+	if crowd.enemy_crowd_hold(crowd_front,Vector2i(3,3),Vector2i(6,3)):failures.append("crowd changed target breaks hold")
+	checks+=2
+	crowd.turns+=1
+	if crowd.enemy_crowd_hold(crowd_front,Vector2i(3,3),crowd.player):failures.append("crowd hold expiry")
+	checks+=1
+	print("KINDRIA_CROWD_NAVIGATION checks=10")
+
 	# Actual disk I/O, legacy migration, corruption recovery, and resumed writes.
 	var test_path:String="user://kindria_procedural_test_"+str(OS.get_process_id())+".cfg"
 	var exact:Array[String]=["legacy exact".sha256_text()]
