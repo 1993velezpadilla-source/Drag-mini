@@ -1943,7 +1943,7 @@ func enemy_status_utility(e:Dictionary,move:Dictionary)->float:
 	for other in enemies:
 		if other.pos!=origin and int(other.hp)>0 and distance(other.pos,player)<=3 and enemy_line_of_sight(other.pos,player) and int(other.get("sleep_turns",0))<=0 and str(other.get("major_status",""))!="freeze":nearby+=1
 	if status in ["sleep","paralysis","confusion"]:
-		if boon_active("hostile_control_recovery") or boon_active("hostile_sleep") or boon_active("hostile_drowse") or boon_active("hostile_paralysis") or self_confusion_turns>0:return 0.0
+		if boon_active("hostile_control_recovery") or boon_active("hostile_sleep") or boon_active("hostile_drowse") or boon_active("hostile_paralysis") or boon_active("nap") or self_confusion_turns>0:return 0.0
 		match status:
 			"sleep":
 				if boon_active("sleepless") or player_has_ability("wakeful") or boon_active("nap"):return 0.0
@@ -3283,6 +3283,7 @@ func execute_enemy_support(i:int,kind:String)->bool:
 	elif not player_has_ability("wakeful") and not (shield_kind=="safeguard" and shield_turns>0):
 		# Existing player sleep system is Rest-specific; use a separate action-lock.
 		player_boons["hostile_drowse"]=3
+		player_boons["hostile_control_recovery"]=12
 	return true
 
 func transform_form()->bool:
