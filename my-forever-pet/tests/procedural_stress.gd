@@ -162,7 +162,7 @@ func enemy_adversarial_gauntlet(failures:Array[String])->int:
 	var timings:Array[int]=[]
 	for sample in range(18):
 		var arena=ai_cache_fixture(sample,true)
-		arena.belly=100
+		arena.belly_tenths=1000
 		for round_index in range(8):
 			if arena.finished:break
 			var before:Dictionary={}
