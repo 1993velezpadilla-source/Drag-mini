@@ -2196,7 +2196,7 @@ func enemy_crowd_yield_step(e:Dictionary,target:Vector2i)->Vector2i:
 	var index:int=enemy_at(partner)
 	if index<0:return origin
 	var rear:Dictionary=enemies[index]
-	if not enemy_squad_partner(e,rear) or not enemy_line_of_sight(partner,target):return origin
+	if not enemy_squad_partner(e,rear) or distance(partner,target)>enemy_awareness(rear) or not enemy_line_of_sight(partner,target):return origin
 	var gap:int=distance(partner,target)
 	var species:String=str(rear.get("species",""))
 	var primary:Array=signature_skill(rear)
@@ -4202,15 +4202,16 @@ func enemy_turn_actions_impl():
 			if tactical!=p:path.append(tactical)
 			else:
 				path=enemy_approach_route(p,pursuit_target) if enemies[i].has("ecology_role") else route(p,pursuit_target,true)
-				if (path.is_empty() or distance(path[0],player)>=distance(p,player)) and not charged and pursuit_target==player:
-					var yield_tile:Vector2i=enemy_crowd_yield_step(enemies[i],player)
-					if yield_tile!=p:
-						var heading:Vector2i=Vector2i(signi(player.x-p.x),signi(player.y-p.y))
-						enemies[i]["crowd_previous"]=p;enemies[i]["crowd_turn"]=turns
-						enemies[i]["crowd_target"]=player;enemies[i]["crowd_partner"]=p-heading
-						path.clear();path.append(yield_tile)
-				elif not path.is_empty() and enemy_crowd_hold(enemies[i],path[0],pursuit_target):
+				if not path.is_empty() and enemy_crowd_hold(enemies[i],path[0],pursuit_target):
 					path.clear()
+				elif not charged and pursuit_target==player:
+					var heading:Vector2i=Vector2i(signi(player.x-p.x),signi(player.y-p.y))
+					if path.is_empty() or path[0]==p+heading or distance(path[0],player)>=distance(p,player):
+						var yield_tile:Vector2i=enemy_crowd_yield_step(enemies[i],player)
+						if yield_tile!=p:
+							enemies[i]["crowd_previous"]=p;enemies[i]["crowd_turn"]=turns
+							enemies[i]["crowd_target"]=player;enemies[i]["crowd_partner"]=p-heading
+							path.clear();path.append(yield_tile)
 			if not path.is_empty() and path[0]!=player and enemy_at(path[0])<0:
 				var steps:int=1+int(enemies[i].get("haste_stage",0)) if int(enemies[i].get("haste_turns",0))>0 else 1
 				var destination:Vector2i=p
