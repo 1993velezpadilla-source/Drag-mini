@@ -981,6 +981,49 @@ const ROOM_PROFILES=["Classic","Wide","Tall","Irregular"]
 const LINK_PROFILES=["Balanced","Sparse","Local loops","Cross links"]
 var room_profile:int=0
 var link_profile:int=0
+# Independent, bounded microgeometry and encounter recipes; never purchase-dependent.
+const INTERIOR_PROFILES=["Open","Pillars","Offset pillars","Alcoves","Mixed"]
+const ECOLOGY_PROFILES=["Balanced","Foraging","Patrols","Hazards","Quiet","Mixed"]
+var interior_profile:int=0
+var ecology_profile:int=0
+var interior_obstacles:Array[Vector2i]=[]
+var ecology_rng:=RandomNumberGenerator.new()
+
+func carve_interior_obstacles(room:Rect2i)->void:
+	if interior_profile==0:return
+	var candidates:Array[Vector2i]=[]
+	var middle:Vector2i=center(room)
+	for y in range(room.position.y+1,room.end.y-1):
+		for x in range(room.position.x+1,room.end.x-1):
+			var q:=Vector2i(x,y)
+			if q==middle:continue
+			if interior_profile==1 and (x-room.position.x)%2!=1:continue
+			if interior_profile==2 and (x+y)%2!=0:continue
+			if interior_profile==3 and q.x!=room.position.x+1 and q.x!=room.end.x-2:continue
+			candidates.append(q)
+	for i in range(candidates.size()-1,0,-1):
+		var j:int=ecology_rng.randi_range(0,i);var swap:Vector2i=candidates[i];candidates[i]=candidates[j];candidates[j]=swap
+	var budget:int=1 if interior_profile==3 else (3 if interior_profile==4 else 2)
+	for q in candidates:
+		if budget<=0:break
+		# The intact eight-neighbor ring provides a four-connected detour.
+		# Never carve an entrance, room center, or adjacent obstacle.
+		var safe:bool=cells.has(q)
+		for dy in range(-1,2):
+			for dx in range(-1,2):
+				if not cells.has(q+Vector2i(dx,dy)):safe=false
+		if not safe:continue
+		cells.erase(q);interior_obstacles.append(q);budget-=1
+
+func ecology_budgets(base_enemies:int,base_loot:int,base_traps:int)->Vector3i:
+	if starter_woods or not guardian_defeated:return Vector3i(base_enemies,base_loot,base_traps)
+	match ecology_profile:
+		1:return Vector3i(maxi(2,base_enemies-1),mini(16,base_loot+3),base_traps)
+		2:return Vector3i(mini(9,base_enemies+2),base_loot,base_traps)
+		3:return Vector3i(base_enemies,base_loot,mini(12,base_traps+2) if floor_number>1 else base_traps)
+		4:return Vector3i(maxi(2,base_enemies-2),maxi(6,base_loot-1),maxi(0,base_traps-1))
+		5:return Vector3i(mini(9,base_enemies+1),mini(16,base_loot+1),base_traps)
+		_:return Vector3i(base_enemies,base_loot,base_traps)
 
 func topology_slot_allowed(family:int,q:Vector2i,grid:Vector2i)->bool:
 	var edge:bool=q.x==0 or q.y==0 or q.x==grid.x-1 or q.y==grid.y-1
@@ -1128,6 +1171,9 @@ func build_layout():
 	room_profile=0 if starter_woods else rng.randi_range(0,ROOM_PROFILES.size()-1)
 	link_profile=0 if starter_woods or topology_family==3 else rng.randi_range(0,LINK_PROFILES.size()-1)
 	corridor_anchors.clear()
+	interior_obstacles.clear()
+	interior_profile=0 if starter_woods else ecology_rng.randi_range(0,INTERIOR_PROFILES.size()-1)
+	ecology_profile=0 if starter_woods else ecology_rng.randi_range(0,ECOLOGY_PROFILES.size()-1)
 	var grid:Vector2i=topology_grid(topology_family)
 	floor_bounds=Rect2i(Vector2i.ONE,grid*9-Vector2i(2,2))
 	var slots:Array[Vector2i]=[]
@@ -1165,6 +1211,7 @@ func build_layout():
 					var ny:bool=y<room.position.y+2 if notch<2 else y>=room.end.y-2
 					if nx and ny:continue
 				cells[Vector2i(x,y)]=true
+		carve_interior_obstacles(room)
 	# Local grid walk with directional persistence, then repair connectivity.
 	# This creates loops naturally instead of imposing a tree on every floor.
 	var links:Dictionary={}
@@ -1219,6 +1266,9 @@ func build_layout():
 		if i!=j and not links.has(key) and distance(center(rooms[i]),center(rooms[j]))<=20:
 			connect_cells(center(rooms[i]),center(rooms[j]));links[key]=true
 	add_corridor_anchors(slots,room_slots)
+	# Corridor carving can reopen an obstacle; retain only final solid tiles.
+	for i in range(interior_obstacles.size()-1,-1,-1):
+		if cells.has(interior_obstacles[i]):interior_obstacles.remove_at(i)
 	# Stairs and leader are independently sampled from all room interiors.
 	# Normal floors can start directly on the staircase; rescue finales cannot.
 	var spawn_tiles:Array[Vector2i]=room_spawn_tiles()
@@ -1244,6 +1294,7 @@ func generate_floor():
 	clear_combat_effects()
 	reset_floor_combat_presentation()
 	rng.seed=seed_value+floor_number*7919
+	ecology_rng.seed=seed_value+floor_number*65537+region*4099+197
 	initialize_hidden_power(seed_value)
 	cells.clear();rooms.clear();enemies.clear();loot.clear();revealed.clear();traps.clear();player_traps.clear();revealed_player_traps.clear();explored_rooms.clear()
 	floor_bonus=0;player_rested=false
@@ -1268,14 +1319,16 @@ func generate_floor():
 	var count=1+floor_number if starter_woods else mini(7,2+floor_number+tier)
 	if floor_kind==1:count=maxi(2,count-2)
 	if floor_kind==2:count=mini(8,count+1)
+	var budgets:Vector3i=ecology_budgets(count,14 if floor_kind==1 else 9,0 if starter_woods else (mini(12,floor_number-1) if dev_sandbox else floor_number-1))
+	count=budgets.x
 	for p in spots:
 		if p==player or p==stairs or p==relic or distance(p,player)<4:continue
 		if enemies.size()<count:
 			var life=8+(mini(floor_number,30) if dev_sandbox else floor_number)*2+tier*2
 			enemies.append(make_enemy(p,life,rng.randi_range(0,2),enemies.size()))
-		elif loot.size()<(14 if floor_kind==1 else 9):
+		elif loot.size()<budgets.y:
 			loot[p]="trail_fruit" if loot.size()==2 else "manual:eos_154" if loot.size()==5 else "potion" if loot.size()%4==0 else "material" if loot.size()%3==0 else "coin"
-		elif not starter_woods and traps.size()<(mini(12,floor_number-1) if dev_sandbox else floor_number-1):traps[p]=true
+		elif traps.size()<budgets.z:traps[p]=true
 		else:break
 	loot[relic]="relic"
 	if starter_woods:
