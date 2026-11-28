@@ -43,6 +43,9 @@ func run_checks()->void:
 	var link_profiles_seen:Dictionary={}
 	var recipes_seen:Dictionary={}
 	var topology_signatures:Dictionary={}
+	var interior_seen:Dictionary={}
+	var ecology_seen:Dictionary={}
+	var obstacle_count:int=0
 	for seed_id in range(768):
 		var topology_run:=preload("res://dungeon_rules.gd").new()
 		topology_run.setup(seed_id%3,0,0,false,false,seed_id+9301,0,seed_id%6==0)
@@ -52,6 +55,21 @@ func run_checks()->void:
 		link_profiles_seen[topology_run.link_profile]=true
 		recipes_seen[Vector3i(family,topology_run.room_profile,topology_run.link_profile)]=true
 		topology_signatures[topology_run.layout_signature]=true
+		interior_seen[topology_run.interior_profile]=true
+		ecology_seen[topology_run.ecology_profile]=true
+		var obstacles_valid:bool=true
+		for obstacle in topology_run.interior_obstacles:
+			obstacle_count+=1
+			if topology_run.cells.has(obstacle):obstacles_valid=false
+			var inside:bool=false
+			for room in topology_run.rooms:
+				if room.grow(-1).has_point(obstacle) and obstacle!=topology_run.center(room):inside=true
+			if not inside:obstacles_valid=false
+		if not obstacles_valid:failures.append("V26.29 interior obstacle integrity")
+		if topology_run.starter_woods and (topology_run.interior_profile!=0 or topology_run.ecology_profile!=0 or not topology_run.interior_obstacles.is_empty()):failures.append("V26.29 tutorial isolation")
+		var ecology_budget:Vector3i=topology_run.ecology_budgets(5,9,0)
+		if ecology_budget.x<2 or ecology_budget.x>9 or ecology_budget.y<6 or ecology_budget.y>16 or ecology_budget.z!=0:failures.append("V26.29 first floor budget")
+		checks+=3
 		var visited:Dictionary={topology_run.player:true}
 		var pending:Array[Vector2i]=[topology_run.player]
 		var cursor:int=0
@@ -89,6 +107,11 @@ func run_checks()->void:
 	if topology_signatures.size()<730:failures.append("V26.28 geometry diversity")
 	print("V26.28 topology families: ",topology_seen.size()," recipes: ",recipes_seen.size()," unique geometry: ",topology_signatures.size())
 	checks+=6
+	if interior_seen.size()!=5:failures.append("V26.29 interior coverage")
+	if ecology_seen.size()!=6:failures.append("V26.29 ecology coverage")
+	if obstacle_count==0:failures.append("V26.29 obstacles generated")
+	print("V26.29 interiors: ",interior_seen.size()," ecologies: ",ecology_seen.size()," solid interior tiles: ",obstacle_count)
+	checks+=3
 	# V26.25: independent random stairs, no key gate, and geometry history.
 	var layout_a:=preload("res://dungeon_rules.gd").new()
 	var layout_b:=preload("res://dungeon_rules.gd").new()
