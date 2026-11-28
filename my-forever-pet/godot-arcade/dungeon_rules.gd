@@ -2204,7 +2204,8 @@ func generate_floor():
 			loot[spring]="spring";traps.erase(spring)
 	if not guardian_defeated:
 		var life=24+6*tier
-		enemies.append(make_enemy(relic,life,3,99))
+		var boss:Dictionary=make_enemy(relic,life,3,99)
+		boss_initialize(boss);enemies.append(boss)
 	# A guaranteed immediate pickup introduces the loop on every floor.
 	for d in DIR:
 		var p:Vector2i=player+d
@@ -3722,6 +3723,74 @@ func decoy_action(i:int)->bool:
 		return true
 	return false
 
+# Rescue guardians retain their original attacks and telegraphs. Phase changes
+# alter decisions, never damage, HP, PP, immunities or action count.
+const BOSS_CONTROL_KITS={"fungal_monarch":"eos_079","abyss_colossus":"eos_284","tidal_sovereign":"eos_284","celestial_guardian":"eos_033"}
+
+func boss_combat_phase(e:Dictionary)->int:
+	var cap:int=maxi(1,int(e.get("max_hp",e.hp)))
+	var life:int=int(e.hp)
+	return 2 if life*3<=cap else 1 if life*3<=cap*2 else 0
+
+func boss_tactical_style(e:Dictionary)->String:
+	match str(e.get("species","")):
+		"fungal_monarch":return "zone"
+		"abyss_colossus":return "pressure"
+		"tidal_sovereign":return "crossfire"
+		"celestial_guardian":return "sentinel"
+		_:return "pressure"
+
+func boss_initialize(e:Dictionary)->void:
+	e["boss_tactical"]=true;e["boss_home"]=e.pos;e["boss_phase"]=0
+	e["ecology_search_enabled"]=true;e["ecology_role"]="sentry"
+	var id:String=str(BOSS_CONTROL_KITS.get(str(e.get("species","")),""))
+	if MOVE_LIBRARY.has(id):
+		e["control_move"]=id;e["pp_control"]=int(MOVE_LIBRARY[id].pp)
+
+func boss_observe_phase(e:Dictionary)->void:
+	if not bool(e.get("boss_tactical",false)):return
+	var phase:int=boss_combat_phase(e)
+	if phase==int(e.get("boss_phase",0)):return
+	e["boss_phase"]=phase
+	emit_event(str(e.get("name","Guardian"))+" · "+(["Survey","Pressure","Last stand"][phase]))
+
+func boss_attack_preference(e:Dictionary,secondary:bool)->float:
+	if not bool(e.get("boss_tactical",false)):return 0.0
+	var phase:int=boss_combat_phase(e)
+	var style:String=boss_tactical_style(e)
+	# Keep the charged signature attractive early; vary with remaining life.
+	if secondary:
+		if phase==2:return 1.5 if style in ["pressure","crossfire"] else .75
+		if phase==1 and style=="crossfire":return 1.0
+	else:
+		if phase==0 and style in ["zone","sentinel"]:return 1.0
+	return 0.0
+
+func boss_reposition_step(e:Dictionary,target:Vector2i)->Vector2i:
+	var origin:Vector2i=e.pos
+	if not bool(e.get("boss_tactical",false)) or bool(e.get("windup",false)) or int(e.get("stuck_turns",0))>0:return origin
+	if distance(origin,target)>enemy_awareness(e) or not enemy_line_of_sight(origin,target):return origin
+	var home:Vector2i=e.get("boss_home",origin)
+	var style:String=boss_tactical_style(e)
+	var phase:int=boss_combat_phase(e)
+	var preferred:int=1 if style=="pressure" or (phase==2 and style=="crossfire") else 2 if style=="zone" else 3
+	var skill:Array=signature_skill(e)
+	var species:String=str(e.get("species",""))
+	var pattern:String=str(ATTACK_PATTERNS.get(species,"line"))
+	var best:Vector2i=origin
+	var best_score:int=-absi(distance(origin,target)-preferred)*3
+	for d in DIR:
+		var q:Vector2i=origin+d
+		if not cells.has(q) or q==target or q==player or q==stairs or (q==relic and q!=home) or q in side_rewards or traps.has(q) or player_traps.has(q) or enemy_at(q)>=0 or ally_at(q)>=0 or distance(q,home)>4:continue
+		if not enemy_line_of_sight(q,target):continue
+		var score:int=-absi(distance(q,target)-preferred)*3
+		if enemy_move_allowed(e,"primary") and attack_aim(q,target,pattern,int(skill[0]))!=Vector2i.ZERO:score+=5
+		if enemy_move_allowed(e,"secondary") and SECONDARY_SKILLS.has(species):
+			var alt:Array=SECONDARY_SKILLS[species]
+			if attack_aim(q,target,str(alt[1]),int(alt[0]))!=Vector2i.ZERO:score+=3
+		if score>best_score:best_score=score;best=q
+	return best
+
 func enemy_turn_actions():
 	enemy_actions.clear()
 	turns+=1
@@ -3756,7 +3825,8 @@ func enemy_turn_actions():
 			continue
 		if not boon_active("decoy") and decoy_action(i):continue
 		enemy_observe_movement(enemies[i],player)
-		if not enemy_has_party_area_attack(enemies[i]) and enemy_target_ally(i):continue
+		boss_observe_phase(enemies[i])
+		if not bool(enemies[i].get("boss_tactical",false)) and not enemy_has_party_area_attack(enemies[i]) and enemy_target_ally(i):continue
 		var gap:=distance(p,player)
 		var pursuit_target:Vector2i=enemy_pursuit_target(enemies[i],player)
 		if gap<=3 and not enemies[i].get("windup",false) and enemy_use_potion(i):
@@ -3792,7 +3862,7 @@ func enemy_turn_actions():
 		var pattern:String=ATTACK_PATTERNS.get(enemies[i].get("species",""),"line")
 		var aim:Vector2i=enemies[i].get("aim",Vector2i.ZERO) if charged else enemy_area_aim(enemies[i],pattern,int(skill[0]))
 		var footprint:Dictionary=attack_footprint(p,aim,pattern,int(skill[0])) if aim!=Vector2i.ZERO else {}
-		var house_visible:bool=not bool(enemies[i].get("house_tactical",false)) or (gap<=enemy_awareness(enemies[i]) and enemy_line_of_sight(p,player))
+		var house_visible:bool=not (bool(enemies[i].get("house_tactical",false)) or bool(enemies[i].get("boss_tactical",false))) or (gap<=enemy_awareness(enemies[i]) and enemy_line_of_sight(p,player))
 		var in_range:bool=footprint.has(player) and (charged or house_visible)
 		var alternate:bool=false
 		var species:String=str(enemies[i].get("species",""))
@@ -3802,7 +3872,7 @@ func enemy_turn_actions():
 			var alt:Array=SECONDARY_SKILLS[species]
 			var alt_aim:=enemy_area_aim(enemies[i],str(alt[1]),int(alt[0]))
 			var alt_skill:Array=[alt[0],false,3,alt[3],alt[4],alt[5],"alt_"+species]
-			var prefer_alt:bool=not ready or not in_range or enemy_attack_score(enemies[i],alt_skill,true)+enemy_area_bonus(enemies[i],str(alt[1]),int(alt[0]),alt_aim)>enemy_attack_score(enemies[i],skill,false)+enemy_area_bonus(enemies[i],pattern,int(skill[0]),aim)+.25
+			var prefer_alt:bool=not ready or not in_range or enemy_attack_score(enemies[i],alt_skill,true)+enemy_area_bonus(enemies[i],str(alt[1]),int(alt[0]),alt_aim)+boss_attack_preference(enemies[i],true)>enemy_attack_score(enemies[i],skill,false)+enemy_area_bonus(enemies[i],pattern,int(skill[0]),aim)+boss_attack_preference(enemies[i],false)+.25
 			if alt_aim!=Vector2i.ZERO and prefer_alt and house_visible:
 				alternate=true;aim=alt_aim;pattern=str(alt[1])
 				footprint=attack_footprint(p,aim,pattern,int(alt[0]))
@@ -3813,6 +3883,12 @@ func enemy_turn_actions():
 			var use_support:bool=(support_kind=="guard" and int(enemies[i].get("stages",{}).get("defense",0))<2) or (support_kind=="drowse" and not boon_active("hostile_drowse") and not boon_active("hostile_sleep") and not boon_active("hostile_control_recovery") and not boon_active("sleepless") and not player_has_ability("wakeful") and not (shield_turns>0 and shield_kind in ["protect","safeguard"]) and not boon_active("magic_coat") and enemy_line_of_sight(p,player))
 			if use_support and execute_enemy_support(i,support_kind):
 				enemy_actions.append({"uid":enemies[i].get("uid",i),"phase":"attack","from":p,"to":p if support_kind=="guard" else player,"move":"Ward" if support_kind=="guard" else "Drowsy Hex","fx":"basic_strike","damage":0,"tiles":[p if support_kind=="guard" else player],"path":[p if support_kind=="guard" else player]})
+				continue
+		if not charged and bool(enemies[i].get("boss_tactical",false)) and (not (ready and in_range) or (shield_turns>0 and shield_kind=="protect")):
+			var boss_step:Vector2i=boss_reposition_step(enemies[i],player)
+			if boss_step!=p:
+				enemies[i].pos=boss_step
+				enemy_actions.append({"uid":enemies[i].get("uid",i),"phase":"move","from":p,"to":boss_step,"gait":enemies[i].get("gait","walk")})
 				continue
 		if charged and not in_range:
 			enemies[i].windup=false
