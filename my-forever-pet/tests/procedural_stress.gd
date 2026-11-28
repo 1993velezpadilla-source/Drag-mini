@@ -2005,6 +2005,57 @@ func run_checks()->void:
 	if lure_actions!=1 or waiting_actor.pos!=Vector2i(3,4) or int(waiting_actor.get("lure_turn",-1))!=27 or reinforcement.player!=Vector2i(5,3):failures.append("reinforcement actual lure no forced movement")
 	checks+=1
 	print("KINDRIA_REINFORCEMENT_AMBUSH checks=10")
+	# Terrain is classified from real floor geometry, not cosmetic biome.
+	var environment_fixture=Rules.new()
+	for y in range(2,6):
+		for x in range(4,8):environment_fixture.cells[Vector2i(x,y)]=true
+	for x in range(1,4):environment_fixture.cells[Vector2i(x,3)]=true
+	environment_fixture.cells[Vector2i(1,4)]=true
+	environment_fixture.rooms.append(Rect2i(4,2,4,4))
+	environment_fixture.player=Vector2i(6,3);environment_fixture.stairs=Vector2i(7,5);environment_fixture.relic=Vector2i(7,4)
+	environment_fixture.turns=20;environment_fixture.hp=30;environment_fixture.max_hp=30
+	if environment_fixture.enemy_terrain_kind(Vector2i(3,3))!="corridor" or environment_fixture.enemy_terrain_kind(Vector2i(4,3))!="doorway" or environment_fixture.enemy_terrain_kind(Vector2i(1,3))!="corner" or environment_fixture.enemy_terrain_kind(Vector2i(1,4))!="dead_end" or environment_fixture.enemy_terrain_kind(Vector2i(5,3))!="open" or environment_fixture.enemy_terrain_kind(Vector2i(2,2))!="wall":failures.append("environment six terrain classes")
+	checks+=1
+	var terrain_guard:Dictionary={"uid":0,"pos":Vector2i(3,3),"hp":30,"max_hp":30,"kind":0,"species":"shellguard","ecology_role":"hunter","ecology_search_enabled":true,"personality_enabled":true,"pp_primary":0,"pp_secondary":0,"pp_support":0,"pp_control":0}
+	var terrain_front:Dictionary={"uid":1,"pos":Vector2i(6,4),"hp":30,"max_hp":30,"kind":0,"species":"rootgnawer","ecology_role":"hunter","ecology_search_enabled":true,"pp_primary":0,"pp_secondary":0}
+	environment_fixture.enemies.append(terrain_guard);environment_fixture.enemies.append(terrain_front)
+	if environment_fixture.enemy_environment_guard_step(terrain_guard,environment_fixture.player)!=Vector2i(4,3) or terrain_guard.pos!=Vector2i(3,3) or terrain_guard.has("environment_guard_turn"):failures.append("environment pure doorway guard")
+	checks+=1
+	terrain_front.hp=10
+	if environment_fixture.enemy_environment_guard_step(terrain_guard,environment_fixture.player)!=terrain_guard.pos:failures.append("environment no unsupported choke")
+	terrain_front.hp=30
+	checks+=1
+	environment_fixture.traps[Vector2i(4,3)]="snare"
+	if environment_fixture.enemy_environment_guard_step(terrain_guard,environment_fixture.player)!=terrain_guard.pos:failures.append("environment unsafe gate")
+	environment_fixture.traps.clear()
+	checks+=1
+	terrain_guard["environment_guard_turn"]=19
+	if environment_fixture.enemy_environment_guard_step(terrain_guard,environment_fixture.player)!=terrain_guard.pos:failures.append("environment guard retry")
+	terrain_guard.erase("environment_guard_turn")
+	checks+=1
+	terrain_guard["stuck_turns"]=2
+	if environment_fixture.enemy_environment_guard_step(terrain_guard,environment_fixture.player)!=terrain_guard.pos:failures.append("environment rooted guard")
+	terrain_guard.erase("stuck_turns")
+	checks+=1
+	if environment_fixture.enemy_terrain_position_bonus(terrain_guard,Vector2i(5,4),environment_fixture.player)<=environment_fixture.enemy_terrain_position_bonus(terrain_guard,Vector2i(2,3),environment_fixture.player):failures.append("environment ranged prefers lateral space")
+	checks+=1
+	terrain_guard.pos=Vector2i(5,4);terrain_front.pos=Vector2i(4,3);terrain_front.species="leafwisp";terrain_front.pp_primary=12
+	var obstructing_score:int=environment_fixture.enemy_terrain_position_bonus(terrain_guard,Vector2i(5,3),environment_fixture.player)
+	terrain_front.pp_primary=0
+	if environment_fixture.enemy_terrain_position_bonus(terrain_guard,Vector2i(5,3),environment_fixture.player)-obstructing_score!=12:failures.append("environment real friendly ray penalty")
+	checks+=1
+	terrain_guard.personality_enabled=false
+	if environment_fixture.enemy_terrain_position_bonus(terrain_guard,Vector2i(5,3),environment_fixture.player)!=0:failures.append("environment legacy behavior preserved")
+	terrain_guard.personality_enabled=true
+	checks+=1
+	terrain_guard.pos=Vector2i(3,3);terrain_front.pos=Vector2i(6,4);terrain_front.species="rootgnawer"
+	environment_fixture.enemy_turn_actions()
+	var environmental_moves:int=0
+	for action in environment_fixture.enemy_actions:
+		if int(action.get("uid",-1))==0 and str(action.phase)=="move":environmental_moves+=1
+	if environmental_moves!=1 or terrain_guard.pos!=Vector2i(4,3) or int(terrain_guard.get("environment_guard_turn",-1))!=21 or terrain_guard.pp_primary!=0:failures.append("environment actual doorway movement")
+	checks+=1
+	print("KINDRIA_ENVIRONMENTAL_INTELLIGENCE checks=10")
 	# Actual disk I/O, legacy migration, corruption recovery, and resumed writes.
 	var test_path:String="user://kindria_procedural_test_"+str(OS.get_process_id())+".cfg"
 	var exact:Array[String]=["legacy exact".sha256_text()]
