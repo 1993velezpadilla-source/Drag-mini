@@ -953,6 +953,7 @@ var attack_target=Vector2i.ZERO
 var attack_power=false
 var explored_rooms:Dictionary={}
 var floor_bonus=0
+var last_completed_floor_bonus:int=0
 var total_bonus=0
 var floor_kind=0
 # Independent Kindria implementation, informed by pmdsky-debug's room/trigger contracts.
@@ -3126,6 +3127,7 @@ func descend()->bool:
 	if not charged_move_id.is_empty():return release_charge()
 	if finished or player!=stairs or not secured:return false
 	floor_bonus=mini(6,maxi(0,explored_rooms.size()-2)*2);coins+=floor_bonus;total_bonus+=floor_bonus
+	last_completed_floor_bonus=floor_bonus
 	if floor_number>=floor_count and not dev_sandbox:
 		finished=true;success=true;message="Expedition complete!";return true
 	floor_number+=1;hp=mini(max_hp,hp+10);generate_floor();return true
