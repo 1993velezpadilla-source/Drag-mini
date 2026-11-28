@@ -1677,6 +1677,28 @@ func enemy_awareness(e:Dictionary)->int:
 		"sentry":return 4
 		_:return 6
 
+# Ecology actors retain a bounded last-known target, never refresh it outside awareness.
+func enemy_memory_duration(e:Dictionary)->int:
+	match str(e.get("ecology_role","hunter")):
+		"scout":return 6
+		"sentry":return 2
+		"roamer":return 3
+		_:return 4
+
+func enemy_pursuit_target(e:Dictionary,observed:Vector2i)->Vector2i:
+	var origin:Vector2i=e.pos
+	if not e.has("ecology_role") or bool(e.get("monster_house",false)):
+		return observed if distance(origin,observed)<=enemy_awareness(e) else origin
+	if distance(origin,observed)<=enemy_awareness(e):
+		e["last_seen_player"]=observed
+		e["last_seen_until"]=turns+enemy_memory_duration(e)
+		return observed
+	var remembered:Vector2i=e.get("last_seen_player",origin)
+	if turns>int(e.get("last_seen_until",-1)) or remembered==origin or not cells.has(remembered):
+		e.erase("last_seen_player");e.erase("last_seen_until")
+		return origin
+	return remembered
+
 func enemy_patrol_destination(e:Dictionary)->Vector2i:
 	var origin:Vector2i=e.pos
 	if str(e.get("ecology_role","hunter"))!="roamer" or int(e.get("stuck_turns",0))>0:return origin
@@ -2963,6 +2985,7 @@ func enemy_turn_actions():
 		if not boon_active("decoy") and decoy_action(i):continue
 		if enemy_target_ally(i):continue
 		var gap:=distance(p,player)
+		var pursuit_target:Vector2i=enemy_pursuit_target(enemies[i],player)
 		if gap<=3 and not enemies[i].get("windup",false) and enemy_use_potion(i):
 			enemy_actions.append({"uid":enemies[i].get("uid",i),"phase":"attack","from":p,"to":p,"move":"Healing berry","fx":"basic_strike","damage":0,"tiles":[p],"path":[p]})
 			emit_event("Enemy recovered HP")
@@ -3070,8 +3093,8 @@ func enemy_turn_actions():
 			if hp==0:
 				apply_fatal_grudge(enemies[i])
 				finished=true;success=false;message="Rescue needed · expedition lost";return
-		elif (gap<=enemy_awareness(enemies[i]) or bool(enemies[i].get("monster_house",false))) and kind!=3 and int(enemies[i].get("stuck_turns",0))<=0:
-			var path:Array[Vector2i]=enemy_approach_route(p,player) if enemies[i].has("ecology_role") else route(p,player,true)
+		elif pursuit_target!=p and kind!=3 and int(enemies[i].get("stuck_turns",0))<=0:
+			var path:Array[Vector2i]=enemy_approach_route(p,pursuit_target) if enemies[i].has("ecology_role") else route(p,pursuit_target,true)
 			if not path.is_empty() and path[0]!=player and enemy_at(path[0])<0:
 				var steps:int=1+int(enemies[i].get("haste_stage",0)) if int(enemies[i].get("haste_turns",0))>0 else 1
 				var destination:Vector2i=p
