@@ -342,6 +342,15 @@ var house_seen_serial:int=-1
 var house_banner_active:bool=false
 var house_music:AudioStreamPlayer
 var house_music_stream:AudioStreamWAV
+# Original illustrated-world treatment and bounded encounter effects.
+var illustrated_floor_shader:Shader
+var house_landing_rings:MultiMeshInstance3D
+var house_landing_debris:MultiMeshInstance3D
+var house_landing_light:OmniLight3D
+var house_landing_origins:PackedVector3Array=PackedVector3Array()
+var house_landing_age:float=1.0
+const HOUSE_LANDING_CAP:int=10
+const HOUSE_DEBRIS_PER_ENEMY:int=4
 var floor_label:Label
 var last_floor_seen=0
 var terrain_texture:ImageTexture
@@ -2369,6 +2378,48 @@ func floor_vertex_color(point:Vector2)->Color:
 	var factor=smoothstep(0.0,.82,distance)
 	var edge:Color=[Color("#99937b"),Color("#82979f"),Color("#93879f")][region]
 	return edge.lerp(Color.WHITE,.28+.72*factor)
+func illustrated_floor_material(ground:Color)->ShaderMaterial:
+	if illustrated_floor_shader==null:
+		illustrated_floor_shader=Shader.new()
+		illustrated_floor_shader.code="""
+shader_type spatial;
+render_mode diffuse_burley, specular_schlick_ggx;
+uniform sampler2D ground_color : source_color, filter_linear_mipmap, repeat_enable;
+uniform sampler2D ground_normal : hint_normal, filter_linear_mipmap, repeat_enable;
+uniform vec4 pigment : source_color = vec4(1.0);
+uniform vec4 ink : source_color = vec4(0.12,0.17,0.16,1.0);
+uniform float texture_scale = 0.36;
+varying vec2 ground_uv;
+void vertex() {
+	ground_uv = (MODEL_MATRIX * vec4(VERTEX,1.0)).xz;
+}
+void fragment() {
+	vec2 uv = ground_uv * texture_scale;
+	vec3 base = texture(ground_color,uv).rgb * pigment.rgb;
+	// Stable world-space strokes: irregular crosshatching in contact shade.
+	// Filter the strokes analytically to prevent shimmer while the camera scrolls.
+	float warp = sin(ground_uv.y*2.8)*0.075 + sin(ground_uv.x*4.1)*0.04;
+	float stroke = (ground_uv.x + ground_uv.y*0.73 + warp)*5.0;
+	float width = max(fwidth(stroke),0.015);
+	float line = 1.0-smoothstep(0.09,0.09+width,abs(fract(stroke)-0.5));
+	float paper = sin(ground_uv.x*17.0+sin(ground_uv.y*11.0))*sin(ground_uv.y*16.0);
+	float edge = 1.0-clamp(dot(COLOR.rgb,vec3(0.333333)),0.0,1.0);
+	float hatch = line*smoothstep(0.055,0.42,edge)*0.20;
+	ALBEDO = mix(base*COLOR.rgb*(1.0+paper*0.018),ink.rgb,hatch);
+	NORMAL_MAP = texture(ground_normal,uv).rgb;
+	NORMAL_MAP_DEPTH = 0.32;
+	ROUGHNESS = 0.88;
+	SPECULAR = 0.22;
+}
+"""
+	var material:=ShaderMaterial.new();material.shader=illustrated_floor_shader
+	material.set_shader_parameter("ground_color",terrain_texture)
+	material.set_shader_parameter("ground_normal",terrain_normal)
+	material.set_shader_parameter("pigment",ground)
+	material.set_shader_parameter("ink",[Color("#394c40"),Color("#334b62"),Color("#4b395e")][region])
+	material.set_shader_parameter("texture_scale",.26 if region==0 else .32 if region==1 else .43)
+	return material
+
 func build_walkable_surface(ground:Color):
 	# One indexed surface with shared vertices and soft border shading.
 	var surface_tool=SurfaceTool.new();surface_tool.begin(Mesh.PRIMITIVE_TRIANGLES)
@@ -2389,11 +2440,10 @@ func build_walkable_surface(ground:Color):
 						vertices[key]=vertices.size()
 					ids.append(vertices[key])
 				for k in [0,1,2,0,2,3]:surface_tool.add_index(ids[k])
+	surface_tool.generate_tangents()
 	var surface=surface_tool.commit()
 	floor_surface=MeshInstance3D.new();floor_surface.mesh=surface
-	var material=terrain_mat(ground).duplicate() as StandardMaterial3D
-	material.vertex_color_use_as_albedo=true
-	floor_surface.material_override=material;geometry.add_child(floor_surface)
+	floor_surface.material_override=illustrated_floor_material(ground);geometry.add_child(floor_surface)
 func ambient_material(c:Color)->StandardMaterial3D:
 	var m=StandardMaterial3D.new()
 	m.shading_mode=BaseMaterial3D.SHADING_MODE_UNSHADED
@@ -2631,6 +2681,7 @@ func build_floor():
 	var ground:Color=[Color("#8a9274"),Color("#76929a"),Color("#77709a")][region]
 	build_walkable_surface(ground)
 	build_living_ambient()
+	build_house_landing_fx()
 	# Recess foundation below the walkable surface, so squared pedestals do not protrude around authored rocks.
 	var foundation:Array[Vector3]=[]
 	for p in walls:foundation.append(p-Vector3(0,.59,0))
@@ -19507,6 +19558,7 @@ func refresh_actors():
 		if root.get_child_count()==0:
 			if bool(enemy.get("monster_house",false)) and house_seen_serial!=run.monster_house_serial:
 				root.set_meta("house_drop_remaining",.36)
+				root.position.y+=2.0
 			if not attach_enemy_pixel(root,str(enemy.get("species",""))):
 				# Explicit fallback for species that have not been authored yet.
 				var ob=shape(root,"gem",Vector3(0,.6,0),Vector3(.62,1.15,.62),Data.TINTS[region].darkened(.25));ob.rotation.y=PI*.25
@@ -19763,12 +19815,66 @@ func build_house_music()->AudioStreamWAV:
 	stream.loop_begin=0;stream.loop_end=samples
 	return stream
 
+func build_house_landing_fx()->void:
+	house_landing_origins.clear();house_landing_age=1.0
+	var ring:=TorusMesh.new();ring.inner_radius=.44;ring.outer_radius=.50;ring.rings=16;ring.ring_segments=6
+	house_landing_rings=ambient_batch(ring,HOUSE_LANDING_CAP,ambient_material(Color.WHITE))
+	var fragment:=PrismMesh.new()
+	house_landing_debris=ambient_batch(fragment,HOUSE_LANDING_CAP*HOUSE_DEBRIS_PER_ENEMY,ambient_material(Color.WHITE))
+	house_landing_rings.multimesh.visible_instance_count=0
+	house_landing_debris.multimesh.visible_instance_count=0
+	house_landing_light=OmniLight3D.new();house_landing_light.shadow_enabled=false
+	house_landing_light.omni_range=5.5;house_landing_light.omni_attenuation=1.4
+	house_landing_light.light_color=Color("#ffc295");house_landing_light.hide();geometry.add_child(house_landing_light)
+
+func house_landing_sample(age:float)->Vector3:
+	# X: falling height, Y: expanding ground ring, Z: dissipating opacity.
+	var fall:float=clampf(age/.36,0.0,1.0)
+	var impact:float=clampf((age-.36)/.38,0.0,1.0)
+	return Vector3(2.0*pow(1.0-fall,2.0),.4+1.25*impact,0.0 if age<.36 else pow(1.0-impact,1.6))
+
+func begin_house_landing_fx()->void:
+	house_landing_origins.clear()
+	for e in run.enemies:
+		if bool(e.get("monster_house",false)) and house_landing_origins.size()<HOUSE_LANDING_CAP:house_landing_origins.append(pos(e.pos))
+	house_landing_age=0.0
+	if is_instance_valid(house_landing_light):house_landing_light.position=pos(run.player)+Vector3.UP*1.2
+
+func update_house_landing_fx(dt:float)->void:
+	if house_landing_age>=.74 or not is_instance_valid(house_landing_rings):return
+	house_landing_age=minf(.74,house_landing_age+maxf(0.0,dt))
+	var cue:=house_landing_sample(house_landing_age)
+	var count:int=house_landing_origins.size() if cue.z>0.0 else 0
+	var rings:MultiMesh=house_landing_rings.multimesh
+	var debris:MultiMesh=house_landing_debris.multimesh
+	var debris_per:int=HOUSE_DEBRIS_PER_ENEMY if fx_performance_tier<2 else 1
+	rings.visible_instance_count=count
+	debris.visible_instance_count=count*debris_per
+	var tint:Color=[Color("#e6c78c"),Color("#b7e1e7"),Color("#d8bcf0")][region]
+	for i in range(count):
+		var origin:Vector3=house_landing_origins[i]
+		rings.set_instance_transform(i,Transform3D(Basis.from_scale(Vector3(cue.y,.035,cue.y)),origin+Vector3.UP*.055))
+		rings.set_instance_color(i,Color(tint,cue.z*.72))
+		var p:float=clampf((house_landing_age-.36)/.38,0.0,1.0)
+		for j in range(debris_per):
+			var a:float=float(j)*TAU/HOUSE_DEBRIS_PER_ENEMY+float(i)*2.399
+			var q:=origin+Vector3(cos(a)*(.12+p*.62),.06+sin(p*PI)*.38,sin(a)*(.12+p*.62))
+			var index:int=i*debris_per+j
+			var size_value:float=.075*(1.0-p*.7)
+			var basis_value:=Basis(Vector3.UP,a+p*2.0).scaled(Vector3.ONE*size_value)
+			debris.set_instance_transform(index,Transform3D(basis_value,q))
+			debris.set_instance_color(index,Color(tint,cue.z))
+	if is_instance_valid(house_landing_light):
+		house_landing_light.visible=cue.z>0.0 and fx_performance_tier<2 and count>0
+		if house_landing_light.visible:house_landing_light.light_energy=cue.z*.75
+
 func sync_monster_house()->void:
 	if not run.monster_house_triggered:
 		if is_instance_valid(house_music):house_music.stop()
 		return
 	if house_seen_serial!=run.monster_house_serial:
 		house_seen_serial=run.monster_house_serial
+		begin_house_landing_fx()
 		path.clear();strike_pending=false;reset_joystick();tick=maxf(tick,.36)
 		banner_time=1.65;house_banner_active=true;floor_banner.text="MONSTER HOUSE!";floor_banner.show()
 		if is_instance_valid(house_music) and not run.monster_house_cleared:
@@ -20071,6 +20177,7 @@ func _process(dt:float):
 			set_combat_facing(strike_buffer_direction)
 			request_strike()
 	update_living_ambient(dt)
+	update_house_landing_fx(dt)
 	update_exterior_world(dt)
 	var actor_start:int=Time.get_ticks_usec() if fx_diag_enabled else 0
 	if reward_age>0.0:
@@ -20117,7 +20224,7 @@ func _process(dt:float):
 			var next_position:Vector3=n.position.lerp(target_position,enemy_smoothing)
 			if n.has_meta("house_drop_remaining"):
 				var left:float=maxf(0.0,float(n.get_meta("house_drop_remaining"))-dt)
-				next_position.y=target_position.y+2.0*pow(left/.36,2.0)
+				next_position.y=target_position.y+house_landing_sample(.36-left).x
 				delta_position.y=0.0
 				if left<=0.0:n.remove_meta("house_drop_remaining")
 				else:n.set_meta("house_drop_remaining",left)
