@@ -2278,7 +2278,7 @@ func enemy_ambush_plan(e:Dictionary)->Dictionary:
 					var range_to_entry:int=distance(q,entry)
 					var legal_attack:bool=attack_aim(q,entry,pattern,int(skill[0]))!=Vector2i.ZERO if ranged else range_to_entry==1
 					if not legal_attack:continue
-					var side_cover:bool=(q-entry).dot(d)==0
+					var side_cover:bool=(q.x-entry.x)*d.x+(q.y-entry.y)*d.y==0
 					var score:int=12-int(depths[q])*2
 					if ranged:score+=range_to_entry*3
 					elif side_cover:score+=5
@@ -2299,8 +2299,21 @@ func enemy_ambush_step(e:Dictionary)->Vector2i:
 		var gate:Vector2i=e.ambush_gate
 		if cells.has(entry) and cells.has(gate) and cells.has(post) and (post==origin or enemy_ambush_safe_tile(post)):
 			if post==origin:return origin
-			var path:Array[Vector2i]=route(origin,post,true)
-			if not path.is_empty() and path.size()<=3 and enemy_ambush_safe_tile(path[0]):return path[0]
+			var home:Vector2i=e.get("ecology_home",origin)
+			var queue:Array[Vector2i]=[origin]
+			var depths:Dictionary={origin:0}
+			var first:Dictionary={origin:origin}
+			var cursor:int=0
+			while cursor<queue.size():
+				var here:Vector2i=queue[cursor];cursor+=1
+				var depth:int=int(depths[here])
+				if depth>=3:continue
+				for d in DIR:
+					var q:Vector2i=here+d
+					if depths.has(q) or distance(home,q)>3 or not enemy_ambush_safe_tile(q):continue
+					depths[q]=depth+1;first[q]=q if depth==0 else first[here]
+					if q==post:return first[q]
+					queue.append(q)
 		enemy_clear_ambush(e)
 		e["ambush_retry"]=turns+3
 		return origin
