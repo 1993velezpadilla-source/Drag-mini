@@ -67,6 +67,13 @@ See [COMMUNITY_INTELLIGENCE.md](COMMUNITY_INTELLIGENCE.md) for the audit of all 
 - [x] 388 additional checks authored across 128 seeds, three regions, reachable random stairs, lucky adjacency, no relic requirement and deterministic duplicate rejection (bb0863849718f4c5fd2280ea03498f371a55aabb).
 - [ ] Validate CI, Android persistence and touch, staircase distribution and actual playtest; compare reference dungeon generation distribution without claiming exact Nintendo implementation. All earlier roadmap references to mandatory relics are superseded by this rule.
 
+### V26.26 — Reference-backed generator research
+- [x] [GENERATOR_REVERSE_ENGINEERING.md](GENERATOR_REVERSE_ENGINEERING.md) records REA prerequisites, Sky function references, Time/Darkness observations, DX floor metadata and remaining parity gaps.
+- [x] Implemented local direction-persistent grid connections with repair, eligible room-interior stairs and player spawn, possible same-tile stairs on normal floors. Shared across regions; original Godot code.
+- [x] Expanded generator regression coverage to 512 seeds; pending CI. Previous V26.25 cinematic gauntlet and release validation succeeded.
+- [ ] REA binary inspection requires compatible local provider and authorized target copies; no binary analysis in current environment. Exact DX/Time/Darkness/Sky parity not yet established.
+- [ ] Data-driven floor profiles, additional topology families, anchor corridors, secondary terrain and reference-trace comparison.
+
 ## P1 | dungeon simulation
 - [x] Existing procedural layout, turn logic, movement, four moves, PP, regular attack, 18 types, status, traps, Monster House: audit individually, not certified.
 - [ ] Room graph, variants, dead ends, corridors, visibility/fog of war, room/terrain restrictions, diagonals and corner rules, water/lava/chasm/walls, spawn safety, enemy pathfinding, ally AI tactics, turn scheduling, speed, waiting, auto-explore optional.
