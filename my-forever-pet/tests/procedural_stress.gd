@@ -3352,6 +3352,25 @@ func run_checks()->void:
 	projection_fixture.shield_kind="";projection_fixture.shield_turns=0
 	if projection_fixture.enemy_foresight_post_value(projection_actor,projected_real_kits,projected_post,projection_fixture.player)<=0.0 or projection_actor.pos!=Vector2i(4,5) or projection_actor.pp_primary!=12 or projection_fixture.rng.state!=projection_rng or not projection_fixture.enemy_actions.is_empty():failures.append("foresight defense restoration purity")
 	checks+=1
+	# Global immunities must be excluded before the bounded route search.
+	projection_actor.species="eelstrix";projection_actor["personality_enabled"]=true
+	projection_fixture.trained_profile={"types":["ground"],"level":24,"nature":0,"ev":[0,0,0,0,0,0]}
+	if not projection_fixture.enemy_foresight_kits(projection_actor).is_empty():failures.append("foresight global type immunity removes kit")
+	checks+=1
+	projection_fixture.trained_profile["types"]=["water"]
+	if projection_fixture.enemy_foresight_kits(projection_actor).is_empty():failures.append("foresight effective type restores kit")
+	checks+=1
+	projection_fixture.player_boons["mirror_veil"]=2
+	if projection_fixture.enemy_foresight_kits(projection_actor).is_empty():failures.append("foresight local mirror retains ranged kit")
+	checks+=1
+	projection_fixture.player_boons.clear()
+	projection_fixture.shield_kind="protect";projection_fixture.shield_turns=2
+	if not projection_fixture.enemy_foresight_kits(projection_actor).is_empty():failures.append("foresight global protect removes kit")
+	checks+=1
+	projection_fixture.shield_kind="";projection_fixture.shield_turns=0
+	projection_fixture.trained_profile.clear();projection_actor.species="leafwisp";projection_actor.erase("personality_enabled")
+	if projection_actor.pos!=Vector2i(4,5) or projection_actor.pp_primary!=12 or projection_fixture.rng.state!=projection_rng or not projection_fixture.enemy_actions.is_empty():failures.append("foresight global pruning purity")
+	checks+=1
 	# A rear actor may prepare a staging tile, but never claim the live ray.
 	var stage_fixture=Rules.new()
 	for y in range(1,9):

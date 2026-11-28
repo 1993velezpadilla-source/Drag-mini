@@ -2669,12 +2669,12 @@ func enemy_foresight_kits(e:Dictionary)->Array[Dictionary]:
 	if enemy_move_allowed(e,"primary") and int(e.get("cooldown",0))<=0 and int(primary[0])>=2:
 		var value:float=enemy_attack_score(e,primary,false)
 		if bool(primary[1]):value*=.65
-		if value>0.0:kits.append({"pattern":str(ATTACK_PATTERNS.get(species,"line")),"reach":int(primary[0]),"value":value,"charged":bool(primary[1]),"slot":"primary","skill":primary})
+		if value>0.0 and enemy_position_independent_damage(e,primary,false)>0:kits.append({"pattern":str(ATTACK_PATTERNS.get(species,"line")),"reach":int(primary[0]),"value":value,"charged":bool(primary[1]),"slot":"primary","skill":primary})
 	if SECONDARY_SKILLS.has(species) and enemy_move_allowed(e,"secondary") and int(e.get("alt_cooldown",0))<=0:
 		var alt:Array=SECONDARY_SKILLS[species]
 		var alt_skill:Array=[alt[0],false,3,alt[3],alt[4],alt[5],"alt_"+species]
 		var value:float=enemy_attack_score(e,alt_skill,true)
-		if int(alt[0])>=2 and value>0.0:kits.append({"pattern":str(alt[1]),"reach":int(alt[0]),"value":value,"charged":false,"slot":"secondary","skill":alt_skill})
+		if int(alt[0])>=2 and value>0.0 and enemy_position_independent_damage(e,alt_skill,true)>0:kits.append({"pattern":str(alt[1]),"reach":int(alt[0]),"value":value,"charged":false,"slot":"secondary","skill":alt_skill})
 	return kits
 
 func enemy_foresight_post_value(e:Dictionary,kits:Array[Dictionary],post:Vector2i,target:Vector2i)->float:
@@ -5760,10 +5760,14 @@ func enemy_opportunity_damage(e:Dictionary,skill:Array,secondary:bool,basic:bool
 
 # Evaluate defenses at the hypothetical firing post without moving the actor.
 func enemy_opportunity_damage_at(e:Dictionary,skill:Array,secondary:bool,basic:bool,origin:Vector2i)->int:
-	if charge_phase in ["underground","airborne","vanish"] or (shield_turns>0 and shield_kind=="protect"):return 0
 	var species:String=str(e.get("species",""))
 	var pattern:String="front" if basic else str(SECONDARY_SKILLS[species][1]) if secondary and SECONDARY_SKILLS.has(species) else str(ATTACK_PATTERNS.get(species,"line"))
 	if mirror_veil_blocks(origin,not basic,pattern):return 0
+	return enemy_position_independent_damage(e,skill,secondary,basic)
+
+# Global defenses cannot be bypassed simply by choosing another firing tile.
+func enemy_position_independent_damage(e:Dictionary,skill:Array,secondary:bool,basic:bool=false)->int:
+	if charge_phase in ["underground","airborne","vanish"] or (shield_turns>0 and shield_kind=="protect"):return 0
 	var estimate:Dictionary=enemy_player_damage_base(e,skill,secondary,basic,marked_damage)
 	if boon_active("magnet") and not gravity_active and str(estimate.element)=="ground":return 0
 	return shield_damage(int(estimate.damage),str(estimate.category))
