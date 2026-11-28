@@ -1685,6 +1685,13 @@ func exterior_chunks(placements:Array[Transform3D])->Dictionary:
 # Only the original untextured Blender leaf materials are eligible for wind.
 # Keep bark, stone, moss-covered rocks and gameplay geometry static.
 const FOREST_WIND_MATERIALS=["forest leaf shadow","fern lime","amber woodland canopy","woodland spring leaf","woodland golden leaf"]
+# Color and wind profiles distinguish the three starter floors without new textures.
+func woods_art_profile(floor_id:int)->Vector4:
+	return [Vector4(1.04,1.09,.88,1.15),Vector4(.87,1.06,1.13,1.35),Vector4(1.13,.94,.79,.72)][clampi(floor_id-1,0,2)]
+
+func woods_ground_pigment(floor_id:int)->Color:
+	return [Color("#929b77"),Color("#78968a"),Color("#a09470")][clampi(floor_id-1,0,2)]
+
 func forest_wind_material(original:StandardMaterial3D)->ShaderMaterial:
 	var name:String=original.resource_name.to_lower()
 	if region!=0 or name not in FOREST_WIND_MATERIALS or original.albedo_texture!=null:return null
@@ -1696,6 +1703,8 @@ render_mode cull_disabled;
 uniform float scene_time=0.0;
 uniform vec4 base_color:source_color=vec4(0.1,0.3,0.1,1.0);
 uniform float leaf_roughness=0.8;
+uniform vec4 forest_profile=vec4(1.0);
+uniform vec2 player_center=vec2(-999.0);
 uniform vec4 combat_pulse=vec4(0.0);
 uniform vec4 combat_response=vec4(0.0);
 uniform vec4 combat_tint:source_color=vec4(1.0);
@@ -1705,17 +1714,22 @@ varying float response_strength;
 void vertex(){
  leaf_tip=smoothstep(0.04,0.65,VERTEX.y);
  vec3 wp=(MODEL_MATRIX*vec4(VERTEX,1.0)).xyz;
- float breeze=sin(scene_time*1.12+wp.z*0.76+wp.x*0.27);
- float flutter=sin(scene_time*2.1+wp.x*1.13-wp.z*0.42);
+ float breeze=sin(scene_time*1.12*forest_profile.w+wp.z*0.76+wp.x*0.27);
+ float flutter=sin(scene_time*2.1*forest_profile.w+wp.x*1.13-wp.z*0.42);
  vec2 delta=wp.xz-combat_pulse.xy;
  float radius=max(combat_response.x,0.01);
  response_strength=combat_pulse.w*(1.0-smoothstep(0.0,radius,length(delta)));
  VERTEX.x+=leaf_tip*(breeze*0.035+flutter*0.012+response_strength*combat_response.y*0.025);
  VERTEX.z+=leaf_tip*flutter*0.023;
+ // Low foliage bends away from nearby actors, while tall crowns remain unaffected.
+ vec2 away=wp.xz-player_center;
+ float proximity=(1.0-smoothstep(0.20,1.65,length(away)))*(1.0-smoothstep(0.48,0.95,VERTEX.y));
+ vec3 local_away=inverse(mat3(MODEL_MATRIX))*vec3(away.x,0.0,away.y);
+ VERTEX+=local_away*(proximity*leaf_tip*0.12/max(length(away),0.2));
  air_depth=smoothstep(7.0,18.0,length(wp.xz-CAMERA_POSITION_WORLD.xz));
 }
 void fragment(){
- vec3 pigment=base_color.rgb*(0.96+leaf_tip*0.09);
+ vec3 pigment=base_color.rgb*forest_profile.rgb*(0.96+leaf_tip*0.09);
  pigment=mix(pigment,combat_tint.rgb,clamp(response_strength*combat_response.w*0.30,0.0,0.20));
  // A low-opacity atmospheric color grade on distant foliage only.
  ALBEDO=mix(pigment,vec3(0.32,0.42,0.31),air_depth*0.12);
@@ -1725,6 +1739,7 @@ void fragment(){
 	material.shader=shader
 	material.set_shader_parameter("base_color",original.albedo_color)
 	material.set_shader_parameter("leaf_roughness",original.roughness)
+	material.set_shader_parameter("forest_profile",woods_art_profile(run.floor_number) if run.starter_woods else Vector4.ONE)
 	exterior_motion_materials[key]=material
 	return material
 
@@ -1985,6 +2000,8 @@ func build_habitat_layers(prefix:String,queue:Array[Vector2i],wall_cells:Diction
 		var large=habitat_wide_clearance(q)
 		var scale_value=(1.32+.31*float(posmod(q.x*13+q.y*7,9))/8.0) if large else (.87+.17*float(posmod(q.x*13+q.y*7,9))/8.0)
 		var height_factor=1.05+.43*float(posmod(q.x*17+q.y*3,11))/10.0
+		if run.starter_woods:
+			height_factor*= [0.92,1.02,1.14][clampi(run.floor_number-1,0,2)]
 		if not large:height_factor=minf(height_factor,1.28)
 		# A suspended star garden may be elevated only in a wide safe exterior
 		# footprint. Keep the authored model inside the same GLB audit limits.
@@ -2277,6 +2294,9 @@ func update_exterior_world(dt:float):
 		set_fx_uniform_cached(material,uniform_cache,"combat_pulse",pulse)
 		set_fx_uniform_cached(material,uniform_cache,"combat_response",response)
 		set_fx_uniform_cached(material,uniform_cache,"combat_tint",tint)
+		if run.starter_woods and str(kind).begins_with("forest_wind:"):
+			var center:Vector3=pet.position if is_instance_valid(pet) else pos(run.player)
+			set_fx_uniform_cached(material,uniform_cache,&"player_center",Vector2(center.x,center.z))
 	if exterior_life.is_empty():return
 	var life_clock:float=exterior_clock*(.70 if region==1 else .46)
 	var radius:float=.55 if region==0 else .80
@@ -2965,7 +2985,7 @@ func build_floor():
 			var next:Vector2i=q+d
 			if not run.cells.has(next) and not seen.has(next):
 				seen[next]=true;walls.append(pos(next)+Vector3(0,.44,0))
-	var ground:Color=[Color("#8a9274"),Color("#76929a"),Color("#77709a")][region]
+	var ground:Color=woods_ground_pigment(run.floor_number) if run.starter_woods else [Color("#8a9274"),Color("#76929a"),Color("#77709a")][region]
 	build_walkable_surface(ground)
 	build_living_ambient()
 	build_house_landing_fx()
