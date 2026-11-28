@@ -895,9 +895,12 @@ func attack_aim(origin:Vector2i,target:Vector2i,pattern:String,reach:int)->Vecto
 	return Vector2i.ZERO
 # Hypothetical movement vacates exactly the moving actor's old tile.
 # Bypass normal footprint cache: the projected occupancy is not the live board.
-func enemy_projected_attack_aim(e:Dictionary,post:Vector2i,target:Vector2i,pattern:String,reach:int)->Vector2i:
+func enemy_projected_attack_aim(e:Dictionary,post:Vector2i,target:Vector2i,pattern:String,reach:int,prune_symmetric:bool=true)->Vector2i:
 	if post==e.pos:return attack_aim(post,target,pattern,reach)
-	for d in DIR:
+	# These footprints are independent of heading even with projected vacancy.
+	# Keep the first cardinal heading and never reuse live occupancy geometry.
+	var headings:Array=[DIR[0]] if prune_symmetric and pattern in ["radius","cross","room"] else DIR
+	for d in headings:
 		if compute_attack_footprint(post,d,pattern,reach,false,e.pos).has(target):return d
 	return Vector2i.ZERO
 
@@ -2301,7 +2304,10 @@ func enemy_trace_recovery(e:Dictionary,stage:String,step:Vector2i)->void:
 			var q:=Vector2i(x,y)
 			if distance(origin,q)>3 or not cells.has(q):continue
 			var index:int=enemy_at(q)
-			posts.append({"tile":q,"enemy":int(enemies[index].get("uid",-1)) if index>=0 else -1,"ally":ally_at(q),"safe":enemy_ambush_safe_tile(q),"reserved":reserved.has(q),"lane_blocked":enemy_recovery_lane_blocked(peers,q,player,memo),"sees_target":enemy_line_of_sight(q,player),"attack_post":enemy_strategy_attack_tile(e,q,player)})
+			var lane_owners:Array[int]=[]
+			for peer in peers:
+				if enemy_relief_blocks_lane(peer,q,player):lane_owners.append(int(peer.get("uid",-1)))
+			posts.append({"tile":q,"enemy":int(enemies[index].get("uid",-1)) if index>=0 else -1,"ally":ally_at(q),"safe":enemy_ambush_safe_tile(q),"reserved":reserved.has(q),"lane_blocked":enemy_recovery_lane_blocked(peers,q,player,memo),"lane_owners":lane_owners,"sees_target":enemy_line_of_sight(q,player),"attack_post":enemy_recovery_attack_tile(e,q,player,{})})
 	ai_recovery_trace={"turn":turns,"uid":ai_recovery_trace_uid,"stage":stage,"origin":origin,"player":player,"step":step,"stall_count":int(e.get("stall_count",0)),"stall_turn":int(e.get("stall_turn",-1)),"open_frontline":enemy_open_frontline_detour(e,player),"protect":shield_turns>0 and shield_kind=="protect","posts":posts}
 
 # A free tile is not a useful melee opening if occupying it interrupts a
