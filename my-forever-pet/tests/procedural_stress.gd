@@ -3760,7 +3760,26 @@ func run_checks()->void:
 	if sequencing.enemy_move_allowed(sequence_partner,"primary") or not sequencing.enemy_move_allowed(sequence_partner,"primary",1) or sequence_partner.encore_turns!=1 or sequence_partner.pp_primary!=10 or sequencing.rng.state!=sequence_damage_rng or not sequencing.enemy_actions.is_empty():failures.append("sequence temporal lock forecast purity")
 	checks+=1
 	sequence_partner.erase("encore_turns");sequence_partner.erase("encore_slot")
-	print("KINDRIA_ATTACK_SEQUENCING checks=39")
+	# Forecast deterministic next-tick incapacitation without consuming RNG.
+	sequence_partner["yawn_turns"]=1
+	if sequencing.enemy_combo_followup(sequence_partner,sequence_debuff,0)<=0.0 or sequencing.enemy_combo_followup(sequence_partner,sequence_debuff,1)!=0.0:failures.append("sequence yawn prevents future action only")
+	checks+=1
+	sequence_partner.yawn_turns=2
+	if sequencing.enemy_combo_followup(sequence_partner,sequence_debuff,1)<=0.0:failures.append("sequence yawn not yet triggered")
+	checks+=1
+	sequence_partner.erase("yawn_turns");sequence_partner["perish_turns"]=1
+	if sequencing.enemy_combo_followup(sequence_partner,sequence_debuff,0)<=0.0 or sequencing.enemy_combo_followup(sequence_partner,sequence_debuff,1)!=0.0:failures.append("sequence perish prevents future action only")
+	checks+=1
+	sequence_partner["perish_immune"]=true
+	if sequencing.enemy_combo_followup(sequence_partner,sequence_debuff,1)<=0.0:failures.append("sequence perish immunity preserves future action")
+	checks+=1
+	sequence_partner.erase("perish_immune");sequence_partner.perish_turns=2
+	if sequencing.enemy_combo_followup(sequence_partner,sequence_debuff,1)<=0.0:failures.append("sequence perish not yet triggered")
+	checks+=1
+	if sequence_partner.perish_turns!=2 or sequence_partner.pp_primary!=10 or sequencing.rng.state!=sequence_damage_rng or not sequencing.enemy_actions.is_empty():failures.append("sequence pending status forecast purity")
+	checks+=1
+	sequence_partner.erase("perish_turns")
+	print("KINDRIA_ATTACK_SEQUENCING checks=45")
 	# Bounded search follows actual witnessed headings and explores alternatives.
 	var hunter_search=Rules.new()
 	for y in range(1,10):

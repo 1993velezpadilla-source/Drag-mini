@@ -3188,6 +3188,13 @@ func enemy_combo_followup(e:Dictionary,move:Dictionary,wait:int)->float:
 	# Same-phase support requires an action that has not already been spent.
 	# A future-turn self follow-up is still a valid forecast.
 	if wait<=0 and enemy_phase_spent.has(int(e.get("uid",-1))):return 0.0
+	# The next status tick can guarantee sleep or defeat before a future action.
+	# Do not roll sleep duration or mutate the real actor during a forecast.
+	if wait>0:
+		var yawn:int=int(e.get("yawn_turns",0))
+		var perish:int=int(e.get("perish_turns",0))
+		if yawn>0 and yawn<=wait:return 0.0
+		if perish>0 and perish<=wait and not bool(e.get("perish_immune",false)):return 0.0
 	# Slow skips even positive countdown phases, not every slowed turn.
 	# Forecast the next ordinary phase with the same countdown convention.
 	var projected_slow:int=maxi(0,int(e.get("slow_turns",0))-maxi(0,wait))
