@@ -3353,6 +3353,23 @@ func run_checks()->void:
 		if recovery_sight.enemy_projected_attack_aim(sight_actor,Vector2i(4,6),recovery_sight.player,pattern,3)!=recovery_sight.enemy_projected_attack_aim(sight_actor,Vector2i(4,6),recovery_sight.player,pattern,3,false):obstructed_equal=false
 	if not obstructed_equal:failures.append("projected symmetric peer obstruction parity")
 	checks+=1
+	# Cardinal ray pruning must preserve exact headings, including the old
+	# actor tile, blocked rays, diagonals and front's fixed one-tile reach.
+	var ray_work_fast:Dictionary={"footprints":0}
+	var ray_work_full:Dictionary={"footprints":0}
+	for ray_board in range(2):
+		for ray_y in range(1,8):
+			for ray_x in range(1,8):
+				var ray_post:=Vector2i(ray_x,ray_y)
+				for ray_pattern in ["line","front"]:
+					for ray_reach in [0,1,2,3]:
+						if recovery_sight.enemy_projected_attack_aim(sight_actor,ray_post,recovery_sight.player,ray_pattern,ray_reach,true,ray_work_fast)!=recovery_sight.enemy_projected_attack_aim(sight_actor,ray_post,recovery_sight.player,ray_pattern,ray_reach,false,ray_work_full):failures.append("projected cardinal ray exhaustive parity")
+						checks+=1
+		if ray_board==0:recovery_sight.enemies.back()["hp"]=0
+		else:recovery_sight.enemies.back()["hp"]=30
+	if int(ray_work_fast.footprints)>=int(ray_work_full.footprints):failures.append("projected cardinal rays reduce footprint work")
+	checks+=1
+	print("KINDRIA_CARDINAL_RAY_WORK optimized=%d reference=%d"%[int(ray_work_fast.footprints),int(ray_work_full.footprints)])
 	if recovery_sight.enemy_projected_attack_aim(sight_actor,Vector2i(1,1),recovery_sight.player,"radius",1)!=Vector2i.ZERO:failures.append("projected symmetric unreachable target")
 	checks+=1
 	recovery_sight.enemies.pop_back();sight_actor.pos=projection_origin

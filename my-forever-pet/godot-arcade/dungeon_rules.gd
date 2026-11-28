@@ -900,12 +900,22 @@ func attack_aim(origin:Vector2i,target:Vector2i,pattern:String,reach:int)->Vecto
 	return Vector2i.ZERO
 # Hypothetical movement vacates exactly the moving actor's old tile.
 # Bypass normal footprint cache: the projected occupancy is not the live board.
-func enemy_projected_attack_aim(e:Dictionary,post:Vector2i,target:Vector2i,pattern:String,reach:int,prune_symmetric:bool=true)->Vector2i:
+func enemy_projected_attack_aim(e:Dictionary,post:Vector2i,target:Vector2i,pattern:String,reach:int,prune_symmetric:bool=true,work:Dictionary={})->Vector2i:
 	if post==e.pos:return attack_aim(post,target,pattern,reach)
+	# Straight cardinal rays can reach a target in exactly one heading.
+	# Keep the normal footprint validator, including projected self vacancy.
+	if prune_symmetric and pattern in ["line","front"]:
+		var delta:Vector2i=target-post
+		if delta==Vector2i.ZERO or (delta.x!=0 and delta.y!=0):return Vector2i.ZERO
+		if absi(delta.x)+absi(delta.y)>(1 if pattern=="front" else reach):return Vector2i.ZERO
+		var heading:Vector2i=Vector2i(signi(delta.x),signi(delta.y))
+		if work.has("footprints"):work["footprints"]+=1
+		return heading if compute_attack_footprint(post,heading,pattern,reach,false,e.pos).has(target) else Vector2i.ZERO
 	# These footprints are independent of heading even with projected vacancy.
 	# Keep the first cardinal heading and never reuse live occupancy geometry.
 	var headings:Array=[DIR[0]] if prune_symmetric and pattern in ["radius","cross","room"] else DIR
 	for d in headings:
+		if work.has("footprints"):work["footprints"]+=1
 		if compute_attack_footprint(post,d,pattern,reach,false,e.pos).has(target):return d
 	return Vector2i.ZERO
 
