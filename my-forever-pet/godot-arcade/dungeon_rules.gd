@@ -2677,13 +2677,16 @@ func enemy_foresight_kits(e:Dictionary)->Array[Dictionary]:
 		if int(alt[0])>=2 and value>0.0 and enemy_position_independent_damage(e,alt_skill,true)>0:kits.append({"pattern":str(alt[1]),"reach":int(alt[0]),"value":value,"charged":false,"slot":"secondary","skill":alt_skill})
 	return kits
 
-func enemy_foresight_post_value(e:Dictionary,kits:Array[Dictionary],post:Vector2i,target:Vector2i)->float:
+func enemy_foresight_post_value(e:Dictionary,kits:Array[Dictionary],post:Vector2i,target:Vector2i,validated_now:bool=false)->float:
 	var value:float=0.0
 	for kit in kits:
 		if enemy_projected_attack_aim(e,post,target,str(kit.pattern),int(kit.reach))==Vector2i.ZERO:continue
-		# Real learned kits must damage the player from the projected post.
-		# Geometry-only callers can still supply an abstract scored footprint.
-		if kit.has("skill") and target==player and enemy_opportunity_damage_at(e,kit.skill,str(kit.get("slot",""))=="secondary",false,post)<=0:continue
+		# Only the synchronous route search may reuse freshly validated kits.
+		# Other callers recheck global defenses because combat state may change.
+		if kit.has("skill") and target==player:
+			if validated_now:
+				if mirror_veil_blocks(post,true,str(kit.pattern)):continue
+			elif enemy_opportunity_damage_at(e,kit.skill,str(kit.get("slot",""))=="secondary",false,post)<=0:continue
 		value=maxf(value,float(kit.value))
 	return value
 
@@ -2693,7 +2696,7 @@ func enemy_foresight_plan(e:Dictionary,target:Vector2i)->Dictionary:
 	if bool(e.get("monster_house",false)) or charge_phase in ["underground","airborne","vanish"] or (shield_turns>0 and shield_kind=="protect"):return {}
 	if distance(origin,target)<=1:return {}
 	var kits:Array[Dictionary]=enemy_foresight_kits(e)
-	if kits.is_empty() or enemy_foresight_post_value(e,kits,origin,target)>0.0:return {}
+	if kits.is_empty() or enemy_foresight_post_value(e,kits,origin,target,true)>0.0:return {}
 	var reserved:Dictionary=enemy_pack_reserved_posts(e,target)
 	var peers:Array[Dictionary]=[]
 	for other in enemies:
@@ -2710,7 +2713,7 @@ func enemy_foresight_plan(e:Dictionary,target:Vector2i)->Dictionary:
 		var here:Vector2i=queue[cursor];cursor+=1
 		var depth:int=int(depths[here])
 		if depth>0:
-			var value:float=enemy_foresight_post_value(e,kits,here,target)
+			var value:float=enemy_foresight_post_value(e,kits,here,target,true)
 			if value>0.0:
 				# A direct firing post is handled by the one-step planner.
 				if depth==1:return {}

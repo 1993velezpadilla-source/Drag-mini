@@ -3371,6 +3371,27 @@ func run_checks()->void:
 	projection_fixture.trained_profile.clear();projection_actor.species="leafwisp";projection_actor.erase("personality_enabled")
 	if projection_actor.pos!=Vector2i(4,5) or projection_actor.pp_primary!=12 or projection_fixture.rng.state!=projection_rng or not projection_fixture.enemy_actions.is_empty():failures.append("foresight global pruning purity")
 	checks+=1
+	# Freshly validated route kits must match full damage evaluation at every post.
+	var projection_parity:bool=true
+	for defense in ["none","mirror_veil","protect","magnet"]:
+		projection_fixture.player_boons.clear();projection_fixture.shield_kind="";projection_fixture.shield_turns=0
+		if defense=="protect":projection_fixture.shield_kind="protect";projection_fixture.shield_turns=2
+		elif defense!="none":projection_fixture.player_boons[defense]=2
+		var fresh_kits:Array[Dictionary]=projection_fixture.enemy_foresight_kits(projection_actor)
+		for y in range(1,8):
+			for x in range(1,8):
+				var post:=Vector2i(x,y)
+				if projection_fixture.enemy_foresight_post_value(projection_actor,fresh_kits,post,projection_fixture.player,true)!=projection_fixture.enemy_foresight_post_value(projection_actor,fresh_kits,post,projection_fixture.player):projection_parity=false
+	if not projection_parity:failures.append("foresight fresh kit fast path parity")
+	checks+=1
+	projection_fixture.player_boons.clear();projection_fixture.shield_kind="";projection_fixture.shield_turns=0
+	var old_kits:Array[Dictionary]=projection_fixture.enemy_foresight_kits(projection_actor)
+	projection_fixture.shield_kind="protect";projection_fixture.shield_turns=2
+	if projection_fixture.enemy_foresight_post_value(projection_actor,old_kits,projected_post,projection_fixture.player)!=0.0:failures.append("foresight external stale kits revalidated")
+	checks+=1
+	projection_fixture.shield_kind="";projection_fixture.shield_turns=0
+	if projection_actor.pos!=Vector2i(4,5) or projection_actor.pp_primary!=12 or projection_fixture.rng.state!=projection_rng or not projection_fixture.enemy_actions.is_empty():failures.append("foresight fast path purity")
+	checks+=1
 	# A rear actor may prepare a staging tile, but never claim the live ray.
 	var stage_fixture=Rules.new()
 	for y in range(1,9):
