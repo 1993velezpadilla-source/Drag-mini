@@ -5,6 +5,8 @@ on:
       - feature/my-forever-pet-paradise
     paths:
       - '.github/workflows/kindria-v27-1-validation.yml'
+      - 'my-forever-pet/godot-arcade/dungeon_rules.gd'
+      - 'my-forever-pet/tests/procedural_stress.gd'
   workflow_dispatch:
 permissions:
   contents: read
