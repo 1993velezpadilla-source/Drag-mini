@@ -1813,6 +1813,52 @@ func run_checks()->void:
 	if pack_moves!=1 or int(pack_actor.get("pack_turn",-1))!=23 or pack_actor.pp_primary!=0:failures.append("pack real dispatcher commits once")
 	checks+=1
 	print("KINDRIA_ENEMY_PACK_HUNTING checks=10")
+	# Dynamic relief is selected from visible healthy teammates, never new abilities.
+	var relief_fixture=Rules.new()
+	for y in range(1,9):
+		for x in range(1,9):relief_fixture.cells[Vector2i(x,y)]=true
+	relief_fixture.player=Vector2i(4,4);relief_fixture.stairs=Vector2i(8,8);relief_fixture.relic=Vector2i(8,7)
+	var relief_guard:Dictionary={"uid":0,"pos":Vector2i(4,6),"hp":30,"max_hp":30,"kind":0,"species":"coralcrab","ecology_role":"hunter","ecology_search_enabled":true,"personality_enabled":true,"pp_primary":0,"pp_secondary":0}
+	var relief_wounded:Dictionary={"uid":1,"pos":Vector2i(3,4),"hp":5,"max_hp":30,"kind":0,"species":"bramble_pup","ecology_role":"hunter","ecology_search_enabled":true,"pp_primary":0,"pp_secondary":0}
+	var relief_ranged:Dictionary={"uid":2,"pos":Vector2i(6,4),"hp":30,"max_hp":30,"kind":1,"species":"leafwisp","ecology_role":"hunter","ecology_search_enabled":true,"pp_primary":12,"pp_secondary":0}
+	relief_fixture.enemies.append(relief_guard);relief_fixture.enemies.append(relief_wounded);relief_fixture.enemies.append(relief_ranged)
+	if relief_fixture.enemy_relief_step(relief_guard,relief_fixture.player)!=Vector2i(4,5):failures.append("relief wounded frontline replacement")
+	checks+=1
+	if relief_guard.pos!=Vector2i(4,6) or relief_guard.pp_primary!=0 or not relief_fixture.enemy_actions.is_empty():failures.append("relief plan purity")
+	checks+=1
+	relief_wounded.hp=30
+	if relief_fixture.enemy_relief_step(relief_guard,relief_fixture.player)!=relief_guard.pos:failures.append("relief healthy frontline retained")
+	checks+=1
+	relief_wounded.hp=0
+	if relief_fixture.enemy_relief_step(relief_guard,relief_fixture.player)!=Vector2i(4,5):failures.append("relief fallen frontline with ranged backup")
+	checks+=1
+	relief_ranged.pp_primary=0
+	if relief_fixture.enemy_relief_step(relief_guard,relief_fixture.player)!=relief_guard.pos:failures.append("relief exhausted backup")
+	checks+=1
+	relief_ranged.pp_primary=12;relief_ranged["sleep_turns"]=2
+	if relief_fixture.enemy_relief_step(relief_guard,relief_fixture.player)!=relief_guard.pos:failures.append("relief incapacitated backup")
+	relief_ranged.erase("sleep_turns")
+	checks+=1
+	relief_guard.hp=12
+	if relief_fixture.enemy_relief_step(relief_guard,relief_fixture.player)!=relief_guard.pos:failures.append("relief wounded candidate excluded")
+	relief_guard.hp=30
+	checks+=1
+	relief_fixture.traps[Vector2i(4,5)]="snare"
+	if relief_fixture.enemy_relief_step(relief_guard,relief_fixture.player)!=relief_guard.pos:failures.append("relief unsafe approach excluded")
+	relief_fixture.traps.clear()
+	checks+=1
+	relief_guard.pos=Vector2i(5,5);relief_ranged.pos=Vector2i(6,4)
+	if not relief_fixture.enemy_relief_blocks_lane(relief_ranged,Vector2i(5,4),relief_fixture.player) or relief_fixture.enemy_relief_step(relief_guard,relief_fixture.player)!=Vector2i(4,5):failures.append("relief avoids blocking ranged ray")
+	checks+=1
+	relief_guard.pos=Vector2i(4,6)
+	relief_fixture.enemies.remove_at(1)
+	relief_fixture.enemy_turn_actions()
+	var relief_moves:int=0
+	for action in relief_fixture.enemy_actions:
+		if int(action.get("uid",-1))==0 and str(action.phase)=="move":relief_moves+=1
+	if relief_moves!=1 or relief_guard.pos!=Vector2i(4,5) or relief_guard.pp_primary!=0:failures.append("relief real turn dispatch")
+	checks+=1
+	print("KINDRIA_DYNAMIC_COMBAT_ROLES checks=10")
 	# Actual disk I/O, legacy migration, corruption recovery, and resumed writes.
 	var test_path:String="user://kindria_procedural_test_"+str(OS.get_process_id())+".cfg"
 	var exact:Array[String]=["legacy exact".sha256_text()]
