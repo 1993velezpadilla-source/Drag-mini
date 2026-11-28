@@ -389,6 +389,14 @@ var exterior_life:Array[MultiMeshInstance3D]=[]
 var exterior_life_parts:Array=[]
 var exterior_life_centers:Array[Vector3]=[]
 var exterior_clock=0.0
+# V26.21: only accepted forest vista transforms can produce cascade FX.
+const CASCADE_VISTA_CAP:int=3
+const CASCADE_MIST_COUNT:int=6
+const CASCADE_FOAM_COUNT:int=4
+var cascade_fx:MultiMeshInstance3D
+var cascade_fx_material:ShaderMaterial
+var cascade_sounds:Array[AudioStreamPlayer3D]=[]
+var cascade_loop:AudioStreamWAV
 var floor_surface:MeshInstance3D
 var threshold_count=0
 var threshold_cells:Dictionary={}
@@ -1887,6 +1895,7 @@ func build_exterior_world(wall_cells:Dictionary):
 			vista_focus_points.append(best_bounds.position+best_bounds.size*Vector3(.5,.65,.5))
 			if best_large:vista_large.append(best_cell)
 	batch_exterior_parts(vista_parts,vista_placements)
+	build_cascade_ambience(vista_placements)
 	# Reserve the large scenic silhouettes before medium and low vegetation.
 	build_habitat_layers(prefix,queue,wall_cells)
 	# Interleave the sides of each room instead of filling far-away rooms first.
@@ -2139,8 +2148,123 @@ func exterior_response_pick(residues:Array)->Dictionary:
 	if score<=0.0:return {}
 	return {"pulse":best_pulse,"response":best_response,"tint":best_tint}
 
+# Matches the original Blender pool and apron coordinates, including instance yaw/scale.
+func cascade_landing(placement:Transform3D)->Vector3:
+	return placement*Vector3(0.0,.40,.64)
+
+func cascade_slot_count(vistas:int)->int:
+	return clampi(vistas,0,CASCADE_VISTA_CAP)*(CASCADE_MIST_COUNT+CASCADE_FOAM_COUNT)
+
+func cascade_sound_loop()->AudioStreamWAV:
+	if cascade_loop!=null:return cascade_loop
+	const RATE:int=22050
+	const COUNT:int=RATE*2
+	const OVERLAP:int=256
+	var noise_rng:=RandomNumberGenerator.new()
+	noise_rng.seed=263217
+	var samples:=PackedFloat32Array()
+	samples.resize(COUNT+OVERLAP)
+	var slow:float=0.0
+	var fast:float=0.0
+	for i in range(COUNT+OVERLAP):
+		var white:float=noise_rng.randf_range(-1.0,1.0)
+		slow=lerpf(slow,white,.025)
+		fast=lerpf(fast,white,.26)
+		samples[i]=clampf((fast-slow)*.48+slow*.62+white*.035,-.42,.42)
+	var pcm:=PackedByteArray()
+	pcm.resize(COUNT*2)
+	for i in range(COUNT):
+		var value:float=samples[i]
+		if i<OVERLAP:
+			value=lerpf(samples[COUNT+i],value,smoothstep(0.0,1.0,float(i)/float(OVERLAP-1)))
+		pcm.encode_s16(i*2,roundi(value*32767.0))
+	cascade_loop=AudioStreamWAV.new()
+	cascade_loop.format=AudioStreamWAV.FORMAT_16_BITS
+	cascade_loop.mix_rate=RATE
+	cascade_loop.data=pcm
+	cascade_loop.loop_mode=AudioStreamWAV.LOOP_FORWARD
+	cascade_loop.loop_begin=0
+	cascade_loop.loop_end=COUNT
+	return cascade_loop
+
+func clear_cascade_ambience()->void:
+	for sound in cascade_sounds:
+		if is_instance_valid(sound):sound.stop()
+	cascade_sounds.clear()
+	cascade_fx=null
+	cascade_fx_material=null
+
+func build_cascade_ambience(placements:Array[Transform3D])->void:
+	if region!=0 or not run.starter_woods or placements.is_empty():return
+	var count:int=mini(placements.size(),CASCADE_VISTA_CAP)
+	var shader:=Shader.new()
+	shader.code="""shader_type spatial;
+render_mode unshaded, blend_mix, depth_draw_never, cull_disabled;
+uniform float scene_time=0.0;
+varying float phase;
+varying float foam;
+void vertex(){
+ phase=fract(scene_time*mix(0.31,0.70,INSTANCE_CUSTOM.y)+INSTANCE_CUSTOM.x);
+ foam=INSTANCE_CUSTOM.y;
+ VERTEX.xy*=mix(0.55,1.45,phase);
+ if(foam<0.5){
+  VERTEX.x+=sin(phase*3.14+INSTANCE_CUSTOM.x*6.28)*0.16;
+  VERTEX.y+=phase*0.43;
+ }
+}
+void fragment(){
+ vec2 p=UV*2.0-1.0;
+ float r=length(p);
+ float fade=smoothstep(0.0,0.15,phase)*(1.0-smoothstep(0.40,1.0,phase));
+ float edge=1.0-smoothstep(0.18,1.0,r);
+ float detail=0.8+0.2*sin(p.x*9.0+p.y*5.0+phase*5.0);
+ float ring=(1.0-smoothstep(0.04,0.18,abs(r-0.76)))*(0.72+0.28*sin(p.x*8.0+p.y*5.0));
+ ALBEDO=mix(vec3(0.78,0.93,0.91),vec3(0.92,1.0,0.98),foam);
+ ALPHA=fade*mix(edge*detail*0.22,ring*0.40,foam);
+}"""
+	cascade_fx_material=ShaderMaterial.new()
+	cascade_fx_material.shader=shader
+	var quad:=QuadMesh.new()
+	quad.size=Vector2(.85,.85)
+	var mm:=MultiMesh.new()
+	mm.transform_format=MultiMesh.TRANSFORM_3D
+	mm.use_custom_data=true
+	mm.mesh=quad
+	mm.instance_count=cascade_slot_count(count)
+	var camera_basis:=Basis.looking_at(-DUNGEON_CAMERA_OFFSET.normalized(),Vector3.UP)
+	var pool_basis:=Basis(Vector3.RIGHT,-PI*.5)
+	var index:int=0
+	for v in range(count):
+		var placement:Transform3D=placements[v]
+		var landing:=cascade_landing(placement)
+		for i in range(CASCADE_MIST_COUNT):
+			var offset:Vector3=placement.basis*Vector3((float(i%3)-1.0)*.22,.08+float(i/3)*.12,.04)
+			mm.set_instance_transform(index,Transform3D(camera_basis,landing+offset))
+			mm.set_instance_custom_data(index,Color(float(i)/float(CASCADE_MIST_COUNT),0,0,1))
+			index+=1
+		for i in range(CASCADE_FOAM_COUNT):
+			var offset:Vector3=placement.basis*Vector3((float(i%2)-.5)*.30,.015,.05+float(i/2)*.18)
+			mm.set_instance_transform(index,Transform3D(pool_basis,landing+offset))
+			mm.set_instance_custom_data(index,Color(float(i)/float(CASCADE_FOAM_COUNT),1,0,1))
+			index+=1
+		var sound:=AudioStreamPlayer3D.new()
+		sound.stream=cascade_sound_loop()
+		sound.unit_size=2.8;sound.max_distance=11.0;sound.volume_db=-23.0
+		geometry.add_child(sound)
+		sound.position=landing
+		sound.play(float(v)*.41)
+		cascade_sounds.append(sound)
+	cascade_fx=MultiMeshInstance3D.new()
+	cascade_fx.multimesh=mm
+	cascade_fx.material_override=cascade_fx_material
+	cascade_fx.extra_cull_margin=1.0
+	cascade_fx.cast_shadow=GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	geometry.add_child(cascade_fx)
+
 func update_exterior_world(dt:float):
 	exterior_clock+=clampf(dt,0.0,.25)
+	if is_instance_valid(cascade_fx) and cascade_fx_material!=null:
+		set_fx_uniform(cascade_fx_material,&"scene_time",exterior_clock)
 	# Select the strongest live local reaction, not the last visited tile.
 	var reaction:Dictionary=exterior_response_pick(fx_residues) if not exterior_motion_materials.is_empty() and not fx_residues.is_empty() else {}
 	var pulse:Vector4=reaction.get("pulse",Vector4.ZERO)
@@ -2826,6 +2950,7 @@ func build_floor():
 	var start_usec=Time.get_ticks_usec()
 	fx_performance_grace=1.5;fx_pressure_age=0.0;fx_recovery_age=0.0
 	fx_frame_average=1.0/60.0
+	clear_cascade_ambience()
 	if is_instance_valid(geometry):geometry.hide();geometry.queue_free()
 	if is_instance_valid(actors):actors.hide();actors.queue_free()
 	geometry=Node3D.new();world.add_child(geometry);actors=Node3D.new();world.add_child(actors);actor_nodes.clear()
