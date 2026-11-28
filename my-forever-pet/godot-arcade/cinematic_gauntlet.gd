@@ -36,6 +36,26 @@ func run_checks()->void:
 	var checks:int=0
 	var failures:Array[String]=[]
 	var view:=Dungeon.new()
+	# V26.23: PP gauge bounds, warning thresholds and charged move presentation.
+	for sample in [[-2,10,0.0],[0,10,0.0],[1,4,.25],[5,10,.5],[7,10,.7],[15,10,1.0],[0,0,0.0]]:
+		if not is_equal_approx(view.move_pp_fraction(int(sample[0]),int(sample[1])),float(sample[2])):failures.append("V26.23 PP gauge bounds")
+		checks+=1
+	for sample in [[0,10,"#77848b"],[1,4,"#ffac82"],[5,10,"#f3cf87"],[7,10,"#a0e1b1"]]:
+		if view.move_pp_tint(int(sample[0]),int(sample[1]))!=Color(str(sample[2])):failures.append("V26.23 PP gauge tint")
+		checks+=1
+	var test_move_card:=Button.new()
+	view.move_card_meter(test_move_card)
+	var test_move_data:Dictionary={"name":"Test Move","pp":10}
+	view.update_move_card(test_move_card,test_move_data,3,false,false)
+	if test_move_card.text!="Test Move\n3/10 PP" or test_move_card.disabled:failures.append("V26.23 readable PP caption")
+	view.update_move_card(test_move_card,test_move_data,0,false,true)
+	if not test_move_card.disabled or int(test_move_card.get_meta("pp_current"))!=0:failures.append("V26.23 exhausted PP lock")
+	view.update_move_card(test_move_card,test_move_data,0,true,false)
+	if test_move_card.disabled or not test_move_card.text.contains("READY") or not bool(test_move_card.get_meta("pp_charged")):failures.append("V26.23 charged release")
+	var test_gauge:Control=test_move_card.get_meta("pp_gauge")
+	if test_gauge.mouse_filter!=Control.MOUSE_FILTER_IGNORE:failures.append("V26.23 gauge pointer pass-through")
+	test_move_card.free()
+	checks+=4
 	# V26.22: three art profiles and their material isolation.
 	var forest_profiles:Array[Vector4]=[]
 	var forest_ground:Array[Color]=[]
