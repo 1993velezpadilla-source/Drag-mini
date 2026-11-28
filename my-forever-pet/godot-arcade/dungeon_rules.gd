@@ -3780,6 +3780,9 @@ func enemy_relief_blocks_lane(friend:Dictionary,q:Vector2i,target:Vector2i)->boo
 	# Ordinary low-confidence shots do not justify exclusive squad access.
 	# A committed telegraph remains protected, even when accuracy is impaired.
 	if int(friend.get("whiffer_turns",0))>0 and not bool(friend.get("windup",false)):return false
+	# Ordinary reservations require firsthand contact with the player; only
+	# a committed telegraph can retain its previously announced geometry.
+	if target==player and not bool(friend.get("windup",false)) and not enemy_live_contact(friend,target):return false
 	# A cardinal firing lane must stay clear if it currently reaches the target.
 	if origin.x!=target.x and origin.y!=target.y:return false
 	var heading:Vector2i=Vector2i(signi(target.x-origin.x),signi(target.y-origin.y))
