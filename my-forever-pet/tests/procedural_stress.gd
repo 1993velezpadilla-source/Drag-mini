@@ -1508,7 +1508,31 @@ func run_checks()->void:
 	status_fixture.hp=status_contact_hp
 	if status_fixture.enemy_status_utility(status_actor,debuff_move)<=0.0 or status_actor.pp_control!=4 or status_fixture.rng.state!=status_contact_rng or status_fixture.enemy_actions.size()!=status_contact_actions or not status_fixture.player_stages.is_empty():failures.append("status contact restoration and purity")
 	checks+=1
-	print("KINDRIA_STATUS_TACTICS utility=2 gates=7 action=1 redundancy=1 priority=1 contact_purity=1")
+	# Tactical utility must use the same two accuracy rolls as execution.
+	var status_accuracy_move:Dictionary=debuff_move.duplicate()
+	status_accuracy_move["acc1"]=80;status_accuracy_move["acc2"]=75
+	var status_high_chance:float=status_fixture.enemy_status_hit_chance(status_actor,status_accuracy_move)
+	var status_high_utility:float=status_fixture.enemy_status_utility(status_actor,status_accuracy_move)
+	status_actor.stages["accuracy"]=-10
+	var status_low_chance:float=status_fixture.enemy_status_hit_chance(status_actor,status_accuracy_move)
+	if status_low_chance>=status_high_chance or status_fixture.enemy_status_utility(status_actor,status_accuracy_move)>=status_high_utility:failures.append("status tactical accuracy stage")
+	checks+=1
+	status_fixture.player_stages["evasion"]=10
+	if status_fixture.enemy_status_hit_chance(status_actor,status_accuracy_move)>=status_low_chance:failures.append("status tactical evasion stage")
+	checks+=1
+	status_accuracy_move["acc2"]=125
+	if not is_equal_approx(status_fixture.enemy_status_hit_chance(status_actor,status_accuracy_move),.8):failures.append("status second accuracy sentinel")
+	checks+=1
+	status_accuracy_move["acc1"]=125
+	if not is_equal_approx(status_fixture.enemy_status_hit_chance(status_actor,status_accuracy_move),1.0):failures.append("status both accuracy sentinels")
+	checks+=1
+	status_actor["whiffer_turns"]=1
+	if status_fixture.enemy_status_hit_chance(status_actor,status_accuracy_move)!=0.0:failures.append("status guaranteed whiff forecast")
+	checks+=1
+	status_actor.erase("whiffer_turns");status_actor.stages["accuracy"]=10;status_fixture.player_stages.clear()
+	if status_fixture.rng.state!=status_contact_rng or status_actor.pp_control!=4 or status_fixture.enemy_actions.size()!=status_contact_actions:failures.append("status accuracy forecast purity")
+	checks+=1
+	print("KINDRIA_STATUS_TACTICS utility=2 gates=7 action=1 redundancy=1 priority=1 contact_purity=1 accuracy=6")
 	# Area attacks hit each party member once, without sharing the player's shield.
 	var area_fixture=Rules.new()
 	for y in range(1,8):

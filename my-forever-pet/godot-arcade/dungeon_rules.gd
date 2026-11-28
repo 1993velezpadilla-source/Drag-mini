@@ -3316,7 +3316,19 @@ func enemy_status_utility(e:Dictionary,move:Dictionary)->float:
 	if status=="sleep" and enemy_visible_charge_threat(e).has(origin):utility+=3.0
 	utility+=enemy_combo_setup_bonus(e,move)+enemy_personality_control_bonus(e)
 	if enemy_move_pp(e,"control")<=2:utility*=.85
-	return utility*reference_accuracy(move)/100.0
+	return utility*enemy_status_hit_chance(e,move)
+
+# Match the two independent accuracy rolls in status execution, including
+# stage modifiers on the second roll and the catalog's always-hit sentinel.
+func enemy_status_second_accuracy(e:Dictionary,move:Dictionary)->float:
+	var second:int=int(move.get("acc2",125))
+	if second>100:return 100.0
+	var factor:float=enemy_stat_effect(e,"accuracy")*player_stat_effect("evasion")/(263.0/256.0)
+	return clampf(float(second)*factor,0.0,100.0)
+
+func enemy_status_hit_chance(e:Dictionary,move:Dictionary)->float:
+	if int(e.get("whiffer_turns",0))>0:return 0.0
+	return clampf(float(move.get("acc1",125)),0.0,100.0)*enemy_status_second_accuracy(e,move)/10000.0
 
 func enemy_status_aim(origin:Vector2i,move:Dictionary)->Vector2i:
 	var pattern:String=str(move.pattern)
@@ -3349,8 +3361,7 @@ func enemy_execute_status_control(i:int,move:Dictionary)->bool:
 		if int(e.get(cd_key,0))>0:e[cd_key]=int(e[cd_key])-1
 	var first:int=int(move.get("acc1",125))
 	var second:int=int(move.get("acc2",125))
-	var factor:float=enemy_stat_effect(e,"accuracy")*player_stat_effect("evasion")/(263.0/256.0)
-	var miss:bool=int(e.get("whiffer_turns",0))>0 or (first<100 and rng.randi_range(1,100)>first) or (second<=100 and rng.randf()*100.0>=clampf(float(second)*factor,0.0,100.0))
+	var miss:bool=int(e.get("whiffer_turns",0))>0 or (first<100 and rng.randi_range(1,100)>first) or (second<=100 and rng.randf()*100.0>=enemy_status_second_accuracy(e,move))
 	var status:String=str(move.get("inflict_status",""))
 	if not miss:
 		match status:
