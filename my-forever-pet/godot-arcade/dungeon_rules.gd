@@ -1843,6 +1843,38 @@ func enemy_retreat_step(e:Dictionary,target:Vector2i)->Vector2i:
 		if score>best_score:best_score=score;best=q
 	return best
 
+# A defensive creature may interpose on an actual cardinal attack lane.
+# No artificial shield, damage redirection, healing or additional turn.
+func enemy_protector_step(e:Dictionary,target:Vector2i)->Vector2i:
+	var origin:Vector2i=e.pos
+	if not bool(e.get("ecology_search_enabled",false)) or bool(e.get("monster_house",false)) or int(e.get("kind",0))==3:return origin
+	if enemy_survival_profile(e)!="defensive" or bool(e.get("windup",false)) or int(e.get("stuck_turns",0))>0:return origin
+	if distance(origin,target)>enemy_awareness(e) or not enemy_line_of_sight(origin,target):return origin
+	var best:Vector2i=origin
+	var best_score:int=-2147483647
+	var phase:int=posmod(int(e.get("uid",0))+turns,4)
+	for friend in enemies:
+		var wounded:Vector2i=friend.pos
+		var cap:int=int(friend.get("max_hp",0))
+		var life:int=int(friend.hp)
+		if wounded==origin or cap<=0 or life<=0 or life*3>cap or distance(origin,wounded)>3:continue
+		if int(friend.get("decoy_turns",0))>0 or bool(friend.get("monster_house",false)):continue
+		var threat:int=distance(wounded,target)
+		if threat<2 or threat>4 or (wounded.x!=target.x and wounded.y!=target.y):continue
+		if not enemy_line_of_sight(origin,wounded) or not enemy_line_of_sight(wounded,target):continue
+		var toward:Vector2i=Vector2i(signi(target.x-wounded.x),signi(target.y-wounded.y))
+		# Do not duplicate a screen already occupied by another creature.
+		var screened:bool=false
+		for lane_step in range(1,threat):
+			if enemy_at(wounded+toward*lane_step)>=0:screened=true;break
+		if screened:continue
+		var q:Vector2i=wounded+toward
+		if distance(origin,q)!=1 or not cells.has(q) or q==player or q==target or q==stairs or q==relic or q in side_rewards or traps.has(q) or player_traps.has(q) or enemy_at(q)>=0 or ally_at(q)>=0:continue
+		var rank:int=DIR.find(q-origin)
+		var score:int=100-int(100.0*float(life)/float(cap))-posmod(rank-phase,4)
+		if score>best_score:best_score=score;best=q
+	return best
+
 func enemy_patrol_destination(e:Dictionary)->Vector2i:
 	var origin:Vector2i=e.pos
 	if str(e.get("ecology_role","hunter"))!="roamer" or int(e.get("stuck_turns",0))>0:return origin
@@ -3282,8 +3314,8 @@ func enemy_turn_actions():
 				finished=true;success=false;message="Rescue needed · expedition lost";return
 		elif pursuit_target!=p and kind!=3 and int(enemies[i].get("stuck_turns",0))<=0:
 			var path:Array[Vector2i]=[]
-			var tactical:Vector2i=p
-			if ready and not charged and not in_range and pursuit_target==player:
+			var tactical:Vector2i=enemy_protector_step(enemies[i],pursuit_target) if not charged and pursuit_target==player else p
+			if tactical==p and ready and not charged and not in_range and pursuit_target==player:
 				tactical=enemy_tactical_step(enemies[i],pursuit_target,pattern,int(skill[0]))
 			if tactical==p and not charged and pursuit_target==player:
 				if ready:
