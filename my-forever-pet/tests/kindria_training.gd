@@ -222,8 +222,16 @@ func _initialize():
 	for i in range(6):assert(stage_run.cast_move("eos_181",Vector2i.UP))
 	assert(stage_run.player_stages.attack==10 and stage_run.move_pp.eos_181==1 and stage_run.turns==6)
 	stage_run.enemies.append({"pos":Vector2i(2,1),"hp":100,"kind":0,"species":"reef_pup"})
+	# Strike now uses the typeless regular-attack formula, not old fixed power.
+	stage_run.player_boons["sure"]=1
+	var boosted_attack:float=stage_run.combat_stat(1)*stage_run.player_stat_effect("attack")
+	var neutral_defense:float=stage_run.neutral_combat_stat(2)
+	var min_damage:int=Rules.regular_attack_damage(boosted_attack,neutral_defense,1,.875)
+	var max_damage:int=Rules.regular_attack_damage(boosted_attack,neutral_defense,1,1.125)
 	stage_run.strike(0)
-	assert(stage_run.enemies[0].hp==89)
+	var actual_damage:int=100-int(stage_run.enemies[0].hp)
+	assert(actual_damage>=min_damage and actual_damage<=max_damage)
+	stage_run.player_boons.erase("sure")
 	var target_stages:Dictionary={}
 	var target_halves:Dictionary={}
 	for i in range(9):Rules.apply_stat_changes(target_stages,target_halves,Rules.MOVE_LIBRARY.eos_027)
