@@ -376,7 +376,9 @@ func field_begin(region:int,patrol:bool=false,dungeon:bool=false)->Dictionary:
 	field_session={"region":region,"id":id,"step":step,"finale":finale,"patrol":patrol,"seed":seed_id,"required":engine.required,"time_limit":engine.time_left,"minimum_time":float(engine.required)*engine.capture_time}
 	if dungeon:
 		var dungeon_run=preload("res://dungeon_rules.gd").new()
-		dungeon_run.setup(region,id,step,finale,patrol,seed_id,species())
+		var intro_woods:bool=not legacy_catalog and region==0 and not patrol and not finale
+		dungeon_run.setup(region,id,step,finale,patrol,seed_id,species(),intro_woods)
+		field_session.intro_woods=intro_woods
 		field_session.required=dungeon_run.floor_count;field_session.minimum_time=2.0;field_session.time_limit=86400.0;field_session.dungeon=true;field_session.companion=species();field_session.training=training_profile()
 	return field_session.duplicate()
 func field_cancel():
