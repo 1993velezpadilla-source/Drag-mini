@@ -3130,6 +3130,25 @@ func run_checks()->void:
 	recovery_sight.enemies.pop_back();sight_actor.pos=projection_origin
 	if sight_actor.pp_primary!=12 or not recovery_sight.enemy_actions.is_empty():failures.append("projected symmetric planning purity")
 	checks+=1
+	# All attack-position scorers must account for the moving actor's vacancy.
+	var projection_fixture=Rules.new()
+	for y in range(1,8):
+		for x in range(1,8):projection_fixture.cells[Vector2i(x,y)]=true
+	projection_fixture.player=Vector2i(4,4)
+	var projection_actor:Dictionary={"uid":620,"pos":Vector2i(4,5),"hp":30,"kind":1,"species":"leafwisp","ecology_search_enabled":true,"pp_primary":12,"pp_secondary":0}
+	projection_fixture.enemies.append(projection_actor)
+	var projected_post:=Vector2i(4,6)
+	var projected_kits:Array[Dictionary]=[{"pattern":"line","reach":3,"value":5.0}]
+	if projection_fixture.attack_aim(projected_post,projection_fixture.player,"line",3)!=Vector2i.ZERO or projection_fixture.enemy_projected_attack_aim(projection_actor,projected_post,projection_fixture.player,"line",3)==Vector2i.ZERO:failures.append("projected self vacancy fixture")
+	checks+=1
+	if projection_fixture.enemy_decision_attack_value(projection_actor,projected_post,projection_fixture.player)<=0.0 or projection_fixture.enemy_foresight_post_value(projection_actor,projected_kits,projected_post,projection_fixture.player)!=5.0:failures.append("projected decision and foresight agree")
+	checks+=1
+	projection_actor.pos=Vector2i(5,5)
+	projection_fixture.enemies.append({"uid":621,"pos":Vector2i(4,5),"hp":30,"kind":0})
+	if projection_fixture.enemy_decision_attack_value(projection_actor,projected_post,projection_fixture.player)>0.0 or projection_fixture.enemy_foresight_post_value(projection_actor,projected_kits,projected_post,projection_fixture.player)>0.0:failures.append("projected scorers retain other actor obstruction")
+	checks+=1
+	if projection_actor.pos!=Vector2i(5,5) or projection_actor.pp_primary!=12 or projection_fixture.enemies.size()!=2 or not projection_fixture.enemy_actions.is_empty():failures.append("projected scorer purity")
+	checks+=1
 	# A rear actor may prepare a staging tile, but never claim the live ray.
 	var stage_fixture=Rules.new()
 	for y in range(1,9):
@@ -3250,7 +3269,7 @@ func run_checks()->void:
 	stage_fixture.enemy_expire_frontline_holds(stage_actor)
 	if stage_actor.has("stage_position") or stage_actor.has("stage_turn"):failures.append("staging expiry rejects missing target even with valid age and position")
 	checks+=1
-	print("KINDRIA_ANTI_STALL checks=243")
+	print("KINDRIA_ANTI_STALL checks=247")
 	# A direct witness may report a tile, but a listener cannot relay it.
 	var comm=Rules.new()
 	for x in range(1,4):comm.cells[Vector2i(x,3)]=true
