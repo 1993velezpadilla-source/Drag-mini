@@ -26,3 +26,15 @@ Commits b72c20e44474100eb9c03e3c78eaf791b117326a and 8086c52bcc33a2a3a76d796d2ad
 - [x] Added 902 checks across 180 seeds covering full walkable-tile connectivity, exits, family coverage, anchor budgets/eligibility, and ring center. Commits 9d06dc22065c8bd08f5cda8f725875f488bc1878, 02b88cc5690dfe9ed60bb265a4e9af51a93ce707, 81ce2579bd8ce0ebfba40cb0496d01c4ba58cab6.
 - [ ] Validate new CI and portrait rendering of wider/taller layouts; no claim of exact PMD layout probabilities or binary parity. V26.26 cinematic gauntlet 46097159478 and smoke 46097200400 passed.
 - [ ] Next: room merging, maze rooms, true junction metadata and configurable density/spawn tables.
+
+
+## V26.28 — Composable procedural worlds and fair free-to-play
+- 24 topology families including the six existing families; normal floors choose from 23, with Compact reserved for the authored starter tutorial.
+- Four room profiles (Classic, Wide, Tall, Irregular) and four link profiles (Balanced, Sparse, Local loops, Cross links). Ring retains its protected center and fixed link profile. Up to 356 selectable normal-floor recipe tuples, before actual room occupancy, size, positions, corners, connections and spawns are randomized. These are recipe combinations, not a proven count of distinct maps.
+- Mobile guardrails: at most 4x4 sectors and 12 rooms; geometry connectivity is repaired before spawn; stairs remain independently sampled and open on normal floors. Existing recent-geometry history is bounded to 1,024 signatures, with bounded retries; global uniqueness is not guaranteed.
+- Gauntlet expands the topology sweep to 768 seeds; coverage, geometry diversity, walkability, stairs, anchors, tutorial isolation and bounds are explicit assertions. CI/Android device validation pending.
+
+### Product rule: free to play, never pay to win
+All dungeons, procedural families, loot tables, recruitment, combat power, experience and progression must be obtainable without payment. Purchases may remove ads or provide non-stat cosmetic customization; no paid gear, boosted drop rates, extra power, paid-exclusive progression, paid retries or energy shortcuts. Ads should not interrupt combat or determine rewards or access. This is a product constraint, not an implemented billing system.
+### Next replayability work
+Independent biome/terrain and room-event profiles, optional treasure branches, Monster Houses, encounter/loot distributions and dungeon-specific weighted recipes; measure novelty and performance rather than merely adding map labels. Preserve portrait layout, deterministic seed reproduction, and fair grinding. Avoid forced detours or key gates on ordinary floors. Android performance and long-run repetition audits remain release gates.
