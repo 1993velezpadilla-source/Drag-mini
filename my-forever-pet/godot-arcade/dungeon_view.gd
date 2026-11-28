@@ -445,9 +445,25 @@ var astral_sigil_cells:Array[Vector2i]=[]
 var biome_light_materials:Array[ShaderMaterial]=[]
 var exterior_motion_materials:Dictionary={}
 var exterior_motion_batches=0
+const LAYOUT_HISTORY_PATH="user://kindria_layout_history.cfg"
+func load_layout_history()->void:
+	var config:=ConfigFile.new()
+	if config.load(LAYOUT_HISTORY_PATH)!=OK:return
+	var saved:Variant=config.get_value("dungeons","geometry",[])
+	if saved is Array or saved is PackedStringArray:
+		for signature in saved:
+			if signature is String and signature.length()==64:run.remember_layout(signature)
+
+func save_layout_history()->void:
+	if run.dev_sandbox:return
+	var config:=ConfigFile.new()
+	config.set_value("dungeons","geometry",run.recent_layouts)
+	config.save(LAYOUT_HISTORY_PATH)
+
 func setup(r:int,id:int,step:int,finale:bool,patrol:bool,seed_id:int,companion:int,training:Dictionary={},intro_woods:bool=false):
 	fx_diag_enabled="--kindria-diagnostics" in OS.get_cmdline_user_args() or FileAccess.file_exists("user://kindria-diagnostics.enabled")
 	region=r;companion_id=0
+	load_layout_history()
 	run.setup(r,id,step,finale,patrol,seed_id,0,intro_woods)
 	if not training.is_empty():run.configure_training(training)
 	hp_previous=run.hp
@@ -899,7 +915,7 @@ func build_ui():
 	hp_text.add_theme_color_override("font_outline_color",Color("#143d30"));hp_text.add_theme_constant_override("outline_size",1)
 	var resources=HBoxContainer.new();resources.add_theme_constant_override("separation",5);info.add_child(resources)
 	hud_icon(resources,"Coin",17);stats=label(resources,"",14,Color("#f6e3bc"))
-	hud_icon(resources,"Relic",17);relic_text=label(resources,"",14,Color("#f1dcff"))
+	hud_icon(resources,"Rooms",17);relic_text=label(resources,"",14,Color("#f1dcff"))
 	hud_icon(resources,"Rooms",17);floor_label=label(resources,"",14,Color("#cce9ec"))
 	lab_build_settings(h)
 	add_hud_ornament(header)
@@ -3121,6 +3137,7 @@ func build_floor():
 	for i in range(12):
 		var spark=shape(reward_fx,"gem",Vector3.ZERO,Vector3(.065,.15,.065),Color("#ffe5a0"));spark.material_override=sparkle_mat;spark.cast_shadow=GeometryInstance3D.SHADOW_CASTING_SETTING_OFF;reward_pool.append(spark)
 	active_floor=run.floor_revision
+	save_layout_history()
 	house_banner_active=false
 	banner_time=1.65;floor_banner.text="B%d  ·  %s"%[run.floor_number,floor_name()];floor_banner.show()
 	floor_banner.size=Vector2(area.size.x,45);floor_banner.position=Vector2(0,area.size.y*.12)
@@ -19986,7 +20003,7 @@ func refresh_actors():
 			if prop(root,"dungeon_stairs",Vector3.ZERO)==null:
 				for i in range(3):shape(root,"box",Vector3(0,.08+float(i)*.12,float(i)*.20-.2),Vector3(.95,.16,.32),palette[2])
 			var glow=shape(root,"ring",Vector3(0,.08,0),Vector3(.7,.12,.7),Color("#e9d28c"));glow.name="Ready"
-		actor_nodes[key].get_node("Ready").visible=run.secured
+		actor_nodes[key].get_node("Ready").visible=run.stairs_available()
 	for key in actor_nodes.keys():
 		if not desired.has(key):
 			var n:Node3D=actor_nodes[key]
@@ -20030,8 +20047,8 @@ func draw_map():
 		if run.revealed.has(enemy.pos):map.draw_circle((Vector2(enemy.pos)+Vector2(.5,.5))*unit+offset,maxf(1.2,unit*.3),Color("#f58b90"))
 	if run.revealed.has(run.stairs):
 		var exit_rect:=Rect2(Vector2(run.stairs)*unit+offset,Vector2.ONE*unit)
-		map.draw_rect(exit_rect,Color("#9de4a6") if run.secured else Color("#f8d18b"))
-		if run.starter_woods and run.secured:map.draw_rect(exit_rect.grow(1.5),Color("#e1ffe0"),false,1.0)
+		map.draw_rect(exit_rect,Color("#9de4a6") if run.stairs_available() else Color("#f8d18b"))
+		if run.stairs_available():map.draw_rect(exit_rect.grow(1.5),Color("#e1ffe0"),false,1.0)
 	if run.starter_woods and not run.secured and run.revealed.has(run.relic):
 		var relic_point:Vector2=(Vector2(run.relic)+Vector2(.5,.5))*unit+offset
 		var radius:float=maxf(3.0,unit*.65)
@@ -20284,7 +20301,7 @@ func reward_caption(kind:String)->String:
 		"trail_fruit":return "Fullness restored"
 		"spring","eat":return "HP restored"
 		"ward_band","force_band":return "Equipment acquired"
-		"relic":return "Relic secured · exit unlocked"
+		"relic":return "Optional treasure · +5 coins"
 		_:return ""
 
 func reward_tone(kind:String)->String:
@@ -20404,9 +20421,9 @@ func update_hud():
 	hp_text.text="HP ∞ · DEV" if run.dev_sandbox else "HP %d/%d"%[run.hp,run.max_hp]
 	floor_label.text="%d/%d rooms"%[run.explored_rooms.size(),run.rooms.size()]
 	stats.text=str(run.coins)
-	relic_text.text=("Exit" if run.secured else "Relic") if run.starter_woods else "%d/%d"%[1 if run.secured else 0,1]
-	relic_text.tooltip_text=run.starter_objective() if run.starter_woods else "Relic progress"
-	relic_text.modulate=Color("#b9f4ba") if run.secured else Color.WHITE
+	relic_text.text="Exit found" if run.revealed.has(run.stairs) else "Find exit"
+	relic_text.tooltip_text="Find the stairs · treasure is optional" if run.stairs_available() else "Defeat the guardian"
+	relic_text.modulate=Color("#b9f4ba") if run.revealed.has(run.stairs) and run.stairs_available() else Color.WHITE
 	hp_bar.modulate=Color("#ff9b9b") if run.hp*3<run.max_hp else Color.WHITE
 	status_text.text=run.message if run.charged_move_id.is_empty() else str(Rules.MOVE_LIBRARY[run.charged_move_id].name)+" · Ready to release"
 	var stage_text:String=run.stage_summary(run.player_stages,run.player_halves)
@@ -20437,8 +20454,8 @@ func update_hud():
 	power_button.text="%s %d/8"%[["Burst","Bolt","Drain"][run.skill_kind],run.energy];power_button.disabled=run.energy<2
 	heal_button.text="Berry ∞" if run.dev_sandbox else "Berry ×%d"%run.potions;heal_button.disabled=run.potions==0 or run.hp==run.max_hp
 	stairs_button.text="Descend ›" if run.dev_sandbox or run.floor_number<run.floor_count else "Complete expedition"
-	stairs_button.disabled=not run.secured or run.player!=run.stairs
-	stairs_button.visible=run.secured and run.player==run.stairs
+	stairs_button.disabled=not run.stairs_available() or run.player!=run.stairs
+	stairs_button.visible=run.stairs_available() and run.player==run.stairs
 	map.queue_redraw()
 # The disguise inherits the companion's movement and impact clock. The
 # enemy sprite renderer supplies appearance only, never a second lunge.
