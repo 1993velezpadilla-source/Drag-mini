@@ -3063,9 +3063,13 @@ func run_checks()->void:
 	stage_fixture.enemy_commit_recovery(stage_actor,stage_actor.pos,stage_next,"stage")
 	if int(stage_actor.unstall_turn)!=17 or int(stage_actor.stage_turn)!=22 or stage_actor.recovery_mode!="stage":failures.append("staging preserves detour cooldown")
 	checks+=1
-	if stage_fixture.enemy_firing_lane_stage_step(stage_actor,stage_fixture.player)!=stage_actor.pos:failures.append("staging retry guard prevents repeated preparation")
+	# A commit describes the destination; apply the real movement before
+	# checking the guard bound to that position.
+	if stage_fixture.enemy_firing_lane_stage_step(stage_actor,stage_fixture.player)!=stage_next:failures.append("staging guard does not suppress replanning from displaced origin")
 	checks+=1
 	stage_actor.pos=stage_next
+	if stage_fixture.enemy_firing_lane_stage_step(stage_actor,stage_fixture.player)!=stage_actor.pos:failures.append("staging retry guard prevents repeated preparation at committed destination")
+	checks+=1
 	stage_fixture.turns=23;stage_ranged["cooldown"]=1
 	# A staging movement does not record a stall. Preserve the actual previous
 	# timestamp instead of manufacturing consecutive stall evidence.
@@ -3126,7 +3130,12 @@ func run_checks()->void:
 	stage_fixture.enemy_expire_frontline_holds(stage_actor)
 	if stage_actor.has("stage_target"):failures.append("staging expiry clears incomplete evidence")
 	checks+=1
-	print("KINDRIA_ANTI_STALL checks=226")
+	stage_actor["stage_turn"]=stage_fixture.turns
+	stage_actor["stage_position"]=stage_actor.pos
+	stage_fixture.enemy_expire_frontline_holds(stage_actor)
+	if stage_actor.has("stage_position") or stage_actor.has("stage_turn"):failures.append("staging expiry rejects missing target even with valid age and position")
+	checks+=1
+	print("KINDRIA_ANTI_STALL checks=228")
 	# A direct witness may report a tile, but a listener cannot relay it.
 	var comm=Rules.new()
 	for x in range(1,4):comm.cells[Vector2i(x,3)]=true
