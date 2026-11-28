@@ -2221,6 +2221,14 @@ func enemy_recovery_attack_tile(e:Dictionary,q:Vector2i,target:Vector2i,memo:Dic
 	memo[q]=legal
 	return legal
 
+# Hold states are short-lived evidence, not persistent orders. Expire them
+# before dispatch even if the actor is sleeping or chooses another action.
+func enemy_expire_frontline_holds(e:Dictionary)->void:
+	for key in ["reserve_hold","congestion_hold"]:
+		var age:int=turns-int(e.get(key+"_turn",-9999))
+		if age<0 or age>2:
+			e.erase(key+"_turn");e.erase(key+"_target")
+
 func enemy_unstall_step(e:Dictionary,target:Vector2i)->Vector2i:
 	var origin:Vector2i=e.pos
 	if not enemy_opportunity_eligible(e) or not enemy_live_contact(e,target) or int(e.get("stuck_turns",0))>0:return origin
@@ -5530,6 +5538,7 @@ func enemy_turn_actions_impl():
 		ai_begin_actor_cache()
 		if int(enemies[i].hp)<=0:continue
 		var p:Vector2i=enemies[i].pos
+		if enemies[i].has("reserve_hold_turn") or enemies[i].has("congestion_hold_turn"):enemy_expire_frontline_holds(enemies[i])
 		if int(enemies[i].get("slow_turns",0))>0 and int(enemies[i].slow_turns)%2==0:
 			enemy_tick_all_cooldowns(enemies[i]);continue
 		var major:String=str(enemies[i].get("major_status",""))
@@ -5832,12 +5841,14 @@ func enemy_turn_actions_impl():
 					path.append(recovery);enemies[i]["unstall_turn"]=turns
 				else:
 					enemy_record_stall(enemies[i],player)
-					if int(enemies[i].get("stall_count",0))>=2 and enemy_encircled_frontline(enemies[i],player):
+					if int(enemies[i].get("stall_turn",-1))==turns and int(enemies[i].get("stall_count",0))>=2 and enemy_encircled_frontline(enemies[i],player):
 						enemies[i]["reserve_hold_turn"]=turns
 						enemies[i]["reserve_hold_target"]=player
-					elif int(enemies[i].get("stall_count",0))>=2 and enemy_occupied_frontline(enemies[i],player):
+						enemies[i].erase("congestion_hold_turn");enemies[i].erase("congestion_hold_target")
+					elif int(enemies[i].get("stall_turn",-1))==turns and int(enemies[i].get("stall_count",0))>=2 and enemy_occupied_frontline(enemies[i],player):
 						enemies[i]["congestion_hold_turn"]=turns
 						enemies[i]["congestion_hold_target"]=player
+						enemies[i].erase("reserve_hold_turn");enemies[i].erase("reserve_hold_target")
 			if not path.is_empty() and not charged and pursuit_target==player and int(enemies[i].get("crowd_turn",-9999))<turns-1:
 				var strategy_step:Vector2i=enemy_strategy_alternative(enemies[i],path[0],player)
 				if strategy_step!=path[0]:
