@@ -796,7 +796,7 @@ func run_checks()->void:
 	search_fixture.traps[Vector2i(3,4)]="spike"
 	var search_steps:int=0
 	for role in Rules.ENEMY_ECOLOGY_ROLES:
-		var search_actor:Dictionary={"uid":0,"pos":search_anchor,"ecology_role":role,"ecology_search_enabled":true,"last_seen_player":search_anchor,"last_seen_until":20}
+		var search_actor:Dictionary={"uid":0,"pos":search_anchor,"hp":20,"ecology_role":role,"ecology_search_enabled":true,"last_seen_player":search_anchor,"last_seen_until":20}
 		search_fixture.turns=10
 		var budget:int=3 if role=="scout" else 1 if role=="sentry" else 2
 		var visited_search:Dictionary={search_anchor:true}
@@ -809,7 +809,7 @@ func run_checks()->void:
 			checks+=1
 		if search_fixture.enemy_pursuit_target(search_actor,remote_player)!=search_actor.pos or search_actor.has("search_anchor"):failures.append("local search expiry "+role)
 		checks+=1
-	var reacquire_actor:Dictionary={"uid":0,"pos":search_anchor,"ecology_role":"scout","ecology_search_enabled":true,"last_seen_player":search_anchor,"last_seen_until":20}
+	var reacquire_actor:Dictionary={"uid":0,"pos":search_anchor,"hp":20,"ecology_role":"scout","ecology_search_enabled":true,"last_seen_player":search_anchor,"last_seen_until":20}
 	search_fixture.turns=10
 	search_fixture.enemy_pursuit_target(reacquire_actor,remote_player)
 	var new_target:=Vector2i(4,2)
@@ -1391,7 +1391,7 @@ func run_checks()->void:
 	house_tactics.rooms.append(Rect2i(2,2,7,7))
 	house_tactics.player=Vector2i(5,5);house_tactics.stairs=Vector2i(9,9);house_tactics.relic=Vector2i(9,8)
 	house_tactics.monster_house_room=0;house_tactics.monster_house_profile=3
-	house_tactics.floor_number=3
+	house_tactics.floor_number=3;house_tactics.guardian_defeated=true
 	var house_guard:Dictionary={"pos":Vector2i(4,7),"hp":30,"kind":1,"species":"mossmite","house_tactical":true,"house_role":"guard","monster_house":true,"monster_house_spawn_serial":1,"ecology_search_enabled":true}
 	var house_ranged:Dictionary={"pos":Vector2i(5,7),"hp":30,"kind":1,"species":"leafwisp","house_tactical":true,"house_role":"ranged","monster_house":true,"monster_house_spawn_serial":1,"ecology_search_enabled":true}
 	if house_tactics.house_tactical_role(house_guard)!="guard" or house_tactics.house_tactical_role(house_ranged)!="ranged" or house_tactics.house_tactical_role({"species":"sporeling","kind":1})!="controller" or house_tactics.house_tactical_role({"species":"reef_pup","kind":0})!="vanguard":failures.append("house tactical role mapping")
@@ -2593,6 +2593,8 @@ func run_checks()->void:
 	if not relief_fixture.enemy_relief_blocks_lane(relief_ranged,Vector2i(5,4),relief_fixture.player) or relief_fixture.enemy_relief_step(relief_guard,relief_fixture.player)!=Vector2i(4,5):failures.append("relief avoids blocking ranged ray")
 	checks+=1
 	relief_guard.pos=Vector2i(4,6)
+	# Isolate relief dispatch from the guard’s legal support move.
+	relief_guard["pp_support"]=0
 	relief_fixture.enemies.remove_at(1)
 	relief_fixture.enemy_turn_actions()
 	var relief_moves:int=0
