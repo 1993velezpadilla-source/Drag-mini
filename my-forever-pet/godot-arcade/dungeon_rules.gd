@@ -4747,6 +4747,37 @@ func enemy_pack_intercept_plan(e:Dictionary,target:Vector2i)->Dictionary:
 			depth[q]=steps+1;first[q]=q if steps==0 else first[here];queue.append(q)
 	return {} if best==origin else {"step":best,"post":best_post}
 
+# Relative opportunity from observable local formation and actual hit chance.
+# Missing or hidden allies are never counted as known supporting creatures.
+func enemy_target_exposure(e:Dictionary,tile:Vector2i,target_uid:int)->float:
+	if not bool(e.get("personality_enabled",false)) or distance(e.pos,tile)>enemy_awareness(e) or not enemy_line_of_sight(e.pos,tile):return 0.0
+	var support:int=0
+	if target_uid!=-1 and hp>0 and distance(player,tile)<=2 and distance(e.pos,player)<=enemy_awareness(e) and enemy_line_of_sight(e.pos,player) and enemy_line_of_sight(tile,player):support+=1
+	for index in range(allies.size()):
+		var friend:Dictionary=allies[index]
+		if int(friend.hp)<=0 or int(friend.get("uid",1000+index))==target_uid:continue
+		if distance(e.pos,friend.pos)>enemy_awareness(e) or distance(tile,friend.pos)>2 or not enemy_line_of_sight(e.pos,friend.pos) or not enemy_line_of_sight(tile,friend.pos):continue
+		support+=1
+		if support>=2:break
+	return 1.25 if support==0 else .5 if support==1 else 0.0
+
+func enemy_party_opportunity_value(e:Dictionary,a:Dictionary,index:int,skill:Array,secondary:bool)->float:
+	var estimate:Dictionary=enemy_party_damage_estimate(e,a,skill,secondary)
+	var life:int=int(a.hp)
+	if life<=0:return 0.0
+	var chance:float=float(estimate.accuracy)
+	if int(e.get("whiffer_turns",0))>0:chance*=.05
+	var expected:float=float(mini(life,int(estimate.damage)))*chance
+	if expected<=0.0:return 0.0
+	var cap:int=maxi(life,int(a.get("max_hp",life)))
+	var uid:int=int(a.get("uid",1000+index))
+	var slot:String="secondary" if secondary else "primary"
+	var knockout:float=2.5*chance if int(estimate.damage)>=life else 0.0
+	var tactical:float=(1.0-float(life)/float(cap))*1.5+enemy_squad_focus_bonus(e,uid,a.pos)
+	tactical+=enemy_target_exposure(e,a.pos,uid)
+	if bool(e.get("personality_enabled",false)):tactical*=chance
+	return (expected+knockout)*enemy_observed_attack_weight(e,uid,slot)+tactical
+
 func enemy_party_attack_plan(e:Dictionary)->Dictionary:
 	var origin:Vector2i=e.pos
 	if not bool(e.get("ecology_search_enabled",false)) or bool(e.get("windup",false)) or allies.is_empty() or int(e.get("kind",0))==3:return {}
@@ -4766,7 +4797,7 @@ func enemy_party_attack_plan(e:Dictionary)->Dictionary:
 		player_value=maxf(player_value,enemy_attack_score(e,primary,false))
 	if player_value>0.0:
 		if player_value>=float(hp):player_value+=2.5
-		player_value+=(1.0-float(hp)/float(maxi(1,max_hp)))*1.5+enemy_squad_focus_bonus(e,-1,player)
+		player_value+=(1.0-float(hp)/float(maxi(1,max_hp)))*1.5+enemy_squad_focus_bonus(e,-1,player)+enemy_target_exposure(e,player,-1)
 	var best:Dictionary={}
 	var best_score:float=player_value+.25
 	for kit in kits:
@@ -4779,7 +4810,7 @@ func enemy_party_attack_plan(e:Dictionary)->Dictionary:
 				if player_visible and not player_protected:
 					var value:float=enemy_attack_score(e,skill,secondary)
 					if value>=float(hp):value+=2.5
-					value+=(1.0-float(hp)/float(maxi(1,max_hp)))*1.5+enemy_squad_focus_bonus(e,-1,player)
+					value+=(1.0-float(hp)/float(maxi(1,max_hp)))*1.5+enemy_squad_focus_bonus(e,-1,player)+enemy_target_exposure(e,player,-1)
 					best_score=maxf(best_score,value+.25)
 				continue
 			var candidates:Array[int]=enemy_area_allies(origin,footprint)
@@ -4797,13 +4828,9 @@ func enemy_party_attack_plan(e:Dictionary)->Dictionary:
 			for index in candidates:
 				var a:Dictionary=allies[index]
 				if distance(origin,a.pos)>enemy_awareness(e):continue
-				var estimate:Dictionary=enemy_party_damage_estimate(e,a,skill,secondary)
-				var life:int=int(a.hp)
-				var cap:int=maxi(life,int(a.get("max_hp",life)))
-				var expected:float=float(mini(life,int(estimate.damage)))*float(estimate.accuracy)
-				if expected<=0.0:continue
-				var knockout:float=2.5*float(estimate.accuracy) if int(estimate.damage)>=life else 0.0
-				score+=(expected+knockout)*enemy_observed_attack_weight(e,int(a.get("uid",1000+index)),str(kit.slot))+(1.0-float(life)/float(cap))*1.5+enemy_squad_focus_bonus(e,int(a.get("uid",1000+index)),a.pos)
+				var opportunity:float=enemy_party_opportunity_value(e,a,index,skill,secondary)
+				if opportunity<=0.0:continue
+				score+=opportunity
 				targets.append(index)
 			if enemy_move_pp(e,str(kit.slot))<=2:score*=.85
 			if not targets.is_empty() and score>best_score:
