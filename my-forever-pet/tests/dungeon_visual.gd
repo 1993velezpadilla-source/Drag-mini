@@ -492,8 +492,9 @@ func run():
 		if region<2:
 			assert(dungeon.exterior_surface.material_override is StandardMaterial3D)
 			var outside:StandardMaterial3D=dungeon.exterior_surface.material_override
-			var inside:StandardMaterial3D=dungeon.floor_surface.material_override
-			assert(outside.uv1_scale.x<inside.uv1_scale.x,"exterior and room surface use distinct physical scale")
+			assert(dungeon.floor_surface.material_override is ShaderMaterial)
+			var inside:ShaderMaterial=dungeon.floor_surface.material_override
+			assert(outside.uv1_scale.x<float(inside.get_shader_parameter("texture_scale")),"exterior and room surface use distinct physical scale")
 		assert(dungeon.exterior_vertex_count>100 and dungeon.exterior_max_height<-.25,"exterior stays below playable floor")
 		var landscape_bounds:AABB=dungeon.exterior_surface.mesh.get_aabb()
 		for cell in dungeon.run.cells:
