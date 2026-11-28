@@ -2946,8 +2946,10 @@ func enemy_cooperative_step(e:Dictionary,target:Vector2i,pattern:String,reach:in
 			var score:int=100-depth*16+mini(separation,4)*2- absi(distance(here,target)-reach)
 			if score>best_score:best_score=score;best=first_steps[here]
 		if depth>=3:continue
-		for j in range(4):
-			var q:Vector2i=here+DIR[(phase+j)%4]
+		for j in range(4 if ai_legacy_cardinal_replay else 8):
+			var direction:Vector2i=DIR[(phase+j)%4] if j<4 else COMBAT_DIR[4+(phase+j-4)%4]
+			if not step_clear(here,direction):continue
+			var q:Vector2i=here+direction
 			if depths.has(q) or not cells.has(q) or occupied.has(q) or q==player or q==target or q==stairs or q==relic or q in side_rewards or traps.has(q) or player_traps.has(q):continue
 			if reserved.has(q) or enemy_recovery_lane_blocked(firing_peers,q,target,lane_memo):continue
 			depths[q]=depth+1;first_steps[q]=q if depth==0 else first_steps[here];queue.append(q)
@@ -5593,14 +5595,14 @@ func enemy_squad_intercept_step(e:Dictionary,target:Vector2i)->Vector2i:
 # Prefer distinct attack directions and avoid occupying a visible partner's
 # firing line. Positional bonuses do not create collision or attack effects.
 func enemy_formation_post_bonus(e:Dictionary,post:Vector2i,target:Vector2i)->int:
-	if not bool(e.get("personality_enabled",false)) or distance(post,target)!=1:return 0
+	if not bool(e.get("personality_enabled",false)) or not enemy_melee_adjacent(post,target):return 0
 	var score:int=0
 	var distinct:bool=false
 	var opposite:bool=false
 	for other in enemies:
 		if not enemy_squad_lane_peer(e,other,target):continue
 		if enemy_relief_blocks_lane(other,post,target):return -12
-		if not enemy_line_of_sight(other.pos,target) or distance(other.pos,target)!=1:continue
+		if not enemy_line_of_sight(other.pos,target) or not enemy_melee_adjacent(other.pos,target):continue
 		if other.pos-target==target-post:opposite=true
 		elif other.pos!=post:distinct=true
 	if opposite:score+=4
@@ -5615,9 +5617,13 @@ func enemy_pack_intercept_plan(e:Dictionary,target:Vector2i)->Dictionary:
 	if enemy_survival_profile(e) not in ["aggressive","defensive"] or distance(origin,target)>mini(5,enemy_awareness(e)) or not enemy_line_of_sight(origin,target):return {}
 	var engaged:Array[Vector2i]=[]
 	for other in enemies:
-		if enemy_squad_partner(e,other) and distance(other.pos,target)==1 and enemy_line_of_sight(other.pos,target):engaged.append(other.pos)
+		if enemy_squad_partner(e,other) and enemy_melee_adjacent(other.pos,target) and enemy_line_of_sight(other.pos,target):engaged.append(other.pos)
 	if engaged.is_empty() or target!=player or charge_phase in ["underground","airborne","vanish"] or boon_active("decoy"):return {}
 	var reserved:Dictionary=enemy_pack_reserved_posts(e,target)
+	var lane_peers:Array[Dictionary]=[]
+	var lane_memo:Dictionary={}
+	for other in enemies:
+		if enemy_squad_lane_peer(e,other,target):lane_peers.append(other)
 	var occupied:Dictionary=navigation_occupancy()
 	var queue:Array[Vector2i]=[origin]
 	var depth:Dictionary={origin:0}
@@ -5629,7 +5635,7 @@ func enemy_pack_intercept_plan(e:Dictionary,target:Vector2i)->Dictionary:
 	while cursor<queue.size():
 		var here:Vector2i=queue[cursor];cursor+=1
 		var steps:int=int(depth[here])
-		if steps>0 and distance(here,target)==1 and not reserved.has(here) and enemy_line_of_sight(here,target):
+		if steps>0 and enemy_melee_adjacent(here,target) and not reserved.has(here) and enemy_line_of_sight(here,target):
 			var separation:int=8
 			for op in engaged:separation=mini(separation,distance(here,op))
 			var onward:Vector2i=here+(here-target)
@@ -5638,9 +5644,11 @@ func enemy_pack_intercept_plan(e:Dictionary,target:Vector2i)->Dictionary:
 				if int(a.hp)>0 and distance(target,a.pos)<=3 and enemy_line_of_sight(origin,a.pos) and distance(here,a.pos)<distance(target,a.pos):score+=2
 			if score>best_score:best_score=score;best=first[here];best_post=here
 		if steps>=3:continue
-		for d in DIR:
+		for d in (DIR if ai_legacy_cardinal_replay else COMBAT_DIR):
+			if not step_clear(here,d):continue
 			var q:Vector2i=here+d
 			if depth.has(q) or not cells.has(q) or occupied.has(q) or reserved.has(q) or q==target or q==player or q==stairs or q==relic or q in side_rewards or traps.has(q) or player_traps.has(q):continue
+			if not ai_legacy_cardinal_replay and enemy_recovery_lane_blocked(lane_peers,q,target,lane_memo):continue
 			depth[q]=steps+1;first[q]=q if steps==0 else first[here];queue.append(q)
 	return {} if best==origin else {"step":best,"post":best_post}
 

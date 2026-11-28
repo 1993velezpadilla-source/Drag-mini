@@ -1239,6 +1239,7 @@ func run_checks()->void:
 	print("KINDRIA_COMBAT_CHOICE elemental=2 pp=3 action=1")
 	# A blocked melee creature must take a separate route, not stack behind its partner.
 	var pack_fixture=Rules.new()
+	pack_fixture.ai_legacy_cardinal_replay=true # Historical cardinal flank path.
 	for y in range(1,8):
 		for x in range(1,8):pack_fixture.cells[Vector2i(x,y)]=true
 	pack_fixture.player=Vector2i(5,4)
@@ -4575,6 +4576,46 @@ func run_checks()->void:
 	if reserve8.rng.state!=r8rng or not reserve8.enemy_actions.is_empty() or r8actor.pp_primary!=0:failures.append("reserve octant planning purity")
 	checks+=1
 	print("KINDRIA_OCTANT_RESERVE checks=",r8cases+4)
+	# The only safe approach is diagonal; a committed friendly ray must
+	# prevent using it, even when that ray is not aimed at the current player.
+	var flank8=Rules.new()
+	for fy in range(1,9):
+		for fx in range(1,9):flank8.cells[Vector2i(fx,fy)]=true
+	flank8.player=Vector2i(4,4);flank8.hp=100;flank8.max_hp=100;flank8.turns=30
+	flank8.stairs=Vector2i(8,8);flank8.relic=Vector2i(8,7)
+	var f8actor:Dictionary={"uid":100,"pos":Vector2i(2,2),"hp":30,"max_hp":30,"kind":0,"species":"rootgnawer","ecology_role":"hunter","ecology_search_enabled":true,"personality_enabled":true,"pp_primary":0,"pp_secondary":0}
+	var f8peer:Dictionary={"uid":101,"pos":Vector2i(4,3),"hp":30,"kind":0,"species":"bramble_pup","ecology_search_enabled":true,"pp_primary":0,"pp_secondary":0}
+	flank8.enemies.append(f8actor);flank8.enemies.append(f8peer)
+	var f8rng:int=flank8.rng.state
+	for fd in Rules.DIR8:
+		if fd!=Vector2i(1,1):flank8.traps[f8actor.pos+fd]="snare"
+	for fd in Rules.DIR8:
+		var f8post:Vector2i=flank8.player+fd
+		if f8post!=Vector2i(3,3) and f8post!=f8peer.pos:flank8.traps[f8post]="snare"
+	var f8plan:Dictionary=flank8.enemy_pack_intercept_plan(f8actor,flank8.player)
+	if f8plan.get("step")!=Vector2i(3,3) or f8plan.get("post")!=Vector2i(3,3):failures.append("pack diagonal only safe flank")
+	checks+=1
+	if flank8.enemy_cooperative_step(f8actor,flank8.player,"front",1)!=Vector2i(3,3):failures.append("cooperative diagonal only safe flank")
+	checks+=1
+	var f8shooter:Dictionary={"uid":102,"pos":Vector2i(2,3),"hp":30,"kind":1,"species":"leafwisp","ecology_search_enabled":true,"pp_primary":12,"pp_secondary":0,"windup":true,"aim":Vector2i.RIGHT}
+	flank8.enemies.append(f8shooter)
+	if not flank8.enemy_relief_blocks_lane(f8shooter,Vector2i(3,3),flank8.player):failures.append("pack diagonal post intersects committed ray")
+	checks+=1
+	if not flank8.enemy_pack_intercept_plan(f8actor,flank8.player).is_empty() or flank8.enemy_cooperative_step(f8actor,flank8.player,"front",1)!=f8actor.pos:failures.append("pack respects committed ray on diagonal")
+	checks+=1
+	f8shooter.erase("windup");f8shooter.erase("aim")
+	if flank8.enemy_pack_intercept_plan(f8actor,flank8.player).get("step")!=Vector2i(3,3):failures.append("pack reuses cancelled diagonal post")
+	checks+=1
+	flank8.cells.erase(Vector2i(3,2))
+	if not flank8.enemy_pack_intercept_plan(f8actor,flank8.player).is_empty() or flank8.enemy_cooperative_step(f8actor,flank8.player,"front",1)!=f8actor.pos:failures.append("pack rejects diagonal closed corner")
+	checks+=1
+	flank8.cells[Vector2i(3,2)]=true
+	flank8.charge_phase="vanish"
+	if not flank8.enemy_pack_intercept_plan(f8actor,flank8.player).is_empty() or flank8.enemy_cooperative_step(f8actor,flank8.player,"front",1)!=f8actor.pos:failures.append("pack diagonal hidden target gate")
+	checks+=1
+	if f8actor.pos!=Vector2i(2,2) or f8actor.pp_primary!=0 or flank8.rng.state!=f8rng or not flank8.enemy_actions.is_empty():failures.append("pack diagonal planning purity")
+	checks+=1
+	print("KINDRIA_OCTANT_FLANK checks=8")
 	# Forecast only witnessed retreats, and commit only a safe ordinary step.
 	var forecast=Rules.new()
 	for y in range(1,9):
@@ -4751,6 +4792,7 @@ func run_checks()->void:
 	print("KINDRIA_INTELLIGENT_COUNTERPLAY checks=10")
 	# Pack intentions are local, advisory and bounded to real movement.
 	var pack_fixture_hunt=Rules.new()
+	pack_fixture_hunt.ai_legacy_cardinal_replay=true # Historical cardinal flank path.
 	for y in range(1,9):
 		for x in range(1,9):pack_fixture_hunt.cells[Vector2i(x,y)]=true
 	pack_fixture_hunt.player=Vector2i(4,4);pack_fixture_hunt.stairs=Vector2i(8,8);pack_fixture_hunt.relic=Vector2i(8,7);pack_fixture_hunt.turns=20
