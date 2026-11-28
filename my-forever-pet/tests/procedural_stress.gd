@@ -2588,7 +2588,31 @@ func run_checks()->void:
 		if int(action.get("uid",-1))==400 and str(action.get("phase",""))=="attack":replacement_attacks+=1
 	if replacement_attacks!=1:failures.append("live vacancy attack on following turn")
 	checks+=1
-	print("KINDRIA_ANTI_STALL checks=112")
+	# A firing lane can complete a frontline without a physical occupant.
+	var lane_fixture=Rules.new()
+	for y in range(1,9):
+		for x in range(1,9):lane_fixture.cells[Vector2i(x,y)]=true
+	lane_fixture.player=Vector2i(4,4);lane_fixture.stairs=Vector2i(8,8);lane_fixture.relic=Vector2i(8,7);lane_fixture.turns=22
+	var lane_actor:Dictionary={"uid":410,"pos":Vector2i(5,5),"hp":30,"kind":0,"species":"rootgnawer","ecology_role":"hunter","ecology_search_enabled":true,"personality_enabled":true,"pp_primary":0,"pp_secondary":0}
+	var lane_ranged:Dictionary={"uid":411,"pos":Vector2i(6,4),"hp":30,"kind":1,"species":"leafwisp","ecology_search_enabled":true,"pp_primary":12,"pp_secondary":0}
+	lane_fixture.enemies.append(lane_actor);lane_fixture.enemies.append(lane_ranged)
+	for d in [Vector2i.LEFT,Vector2i.UP,Vector2i.DOWN]:
+		lane_fixture.enemies.append({"uid":410+lane_fixture.enemies.size(),"pos":lane_fixture.player+d,"hp":30,"kind":0,"species":"rootgnawer","ecology_search_enabled":true,"pp_primary":0,"pp_secondary":0})
+	if not lane_fixture.enemy_firing_lane_frontline(lane_actor,lane_fixture.player):failures.append("lane hold verifies available friendly ray")
+	checks+=1
+	lane_actor["lane_hold_turn"]=21;lane_actor["lane_hold_target"]=lane_fixture.player;lane_actor["unstall_turn"]=21
+	if lane_fixture.enemy_unstall_step(lane_actor,lane_fixture.player)!=lane_actor.pos:failures.append("lane hold preserves active firing position")
+	checks+=1
+	lane_ranged["cooldown"]=1
+	if lane_fixture.enemy_firing_lane_frontline(lane_actor,lane_fixture.player) or lane_fixture.enemy_unstall_step(lane_actor,lane_fixture.player)!=Vector2i(5,4):failures.append("lane hold reenters after ray cooldown")
+	checks+=1
+	lane_fixture.turns=24;lane_fixture.enemy_expire_frontline_holds(lane_actor)
+	if lane_actor.has("lane_hold_turn") or lane_actor.has("lane_hold_target"):failures.append("lane hold expires")
+	checks+=1
+	lane_ranged["cooldown"]=0;lane_ranged["pp_primary"]=0
+	if lane_fixture.enemy_firing_lane_frontline(lane_actor,lane_fixture.player):failures.append("lane hold rejects exhausted ray")
+	checks+=1
+	print("KINDRIA_ANTI_STALL checks=117")
 	# A direct witness may report a tile, but a listener cannot relay it.
 	var comm=Rules.new()
 	for x in range(1,4):comm.cells[Vector2i(x,3)]=true
