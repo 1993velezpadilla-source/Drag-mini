@@ -3385,6 +3385,37 @@ func run_checks()->void:
 	if int(branch_work_fast.footprints)>=int(branch_work_full.footprints):failures.append("projected branching headings reduce footprint work")
 	checks+=1
 	print("KINDRIA_BRANCH_RAY_WORK optimized=%d reference=%d"%[int(branch_work_fast.footprints),int(branch_work_full.footprints)])
+	# Live aiming uses a different preferred-heading order from projected aiming.
+	# Compare exact directions, not merely hit/miss, across blocked and open boards.
+	var live_aim=Rules.new()
+	for live_y in range(1,8):
+		for live_x in range(1,8):live_aim.cells[Vector2i(live_x,live_y)]=true
+	live_aim.rooms.append(Rect2i(1,1,7,7))
+	var live_target:=Vector2i(4,4)
+	var live_fast:Dictionary={"footprints":0}
+	var live_full:Dictionary={"footprints":0}
+	for live_board in range(3):
+		if live_board==1:
+			live_aim.cells.erase(Vector2i(3,4))
+			live_aim.cells.erase(Vector2i(4,3))
+			live_aim.enemies.append({"uid":901,"pos":Vector2i(5,4),"hp":30})
+		if live_board==2:
+			live_aim.enemies[0]["hp"]=0
+			live_aim.ai_begin_turn_cache()
+			live_aim.ai_begin_actor_cache()
+		for live_y in range(1,8):
+			for live_x in range(1,8):
+				var live_origin:=Vector2i(live_x,live_y)
+				for live_pattern in ["line","front","fan","corner","corner_front","radius","cross","room","floor","self"]:
+					for live_reach in [0,1,2,3]:
+						var live_actual:Vector2i=live_aim.attack_aim(live_origin,live_target,live_pattern,live_reach,true,live_fast)
+						var live_expected:Vector2i=live_aim.attack_aim(live_origin,live_target,live_pattern,live_reach,false,live_full)
+						if live_actual!=live_expected:failures.append("live aim exact heading parity")
+						checks+=1
+	live_aim.ai_end_turn_cache()
+	if int(live_fast.footprints)>=int(live_full.footprints):failures.append("live aim reduces footprint evaluations")
+	checks+=1
+	print("KINDRIA_LIVE_AIM_WORK optimized=%d reference=%d"%[int(live_fast.footprints),int(live_full.footprints)])
 	if recovery_sight.enemy_projected_attack_aim(sight_actor,Vector2i(1,1),recovery_sight.player,"radius",1)!=Vector2i.ZERO:failures.append("projected symmetric unreachable target")
 	checks+=1
 	recovery_sight.enemies.pop_back();sight_actor.pos=projection_origin

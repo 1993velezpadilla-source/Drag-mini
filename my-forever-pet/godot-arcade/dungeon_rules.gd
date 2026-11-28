@@ -891,17 +891,37 @@ func compute_attack_footprint(origin:Vector2i,forward:Vector2i,pattern:String,re
 						if not out.has(target) or branch.size()<out[target].size():out[target]=branch.duplicate()
 						if branch_occupied:break
 	return out
-func attack_aim(origin:Vector2i,target:Vector2i,pattern:String,reach:int)->Vector2i:
+# Cheap cardinal heading bounds; full footprints still decide obstruction.
+func attack_heading_possible(delta:Vector2i,d:Vector2i,pattern:String,reach:int)->bool:
+	var along:int=delta.x*d.x+delta.y*d.y
+	var across:int=absi(delta.x*d.y-delta.y*d.x)
+	match pattern:
+		"line","front":
+			return along>=1 and along<=(1 if pattern=="front" else reach) and across==0
+		"fan","corner","corner_front":
+			return along>=1 and along<=(1 if pattern=="corner_front" else reach) and across<=(reach-along if pattern=="corner" else 1)
+	return true
+
+func attack_aim(origin:Vector2i,target:Vector2i,pattern:String,reach:int,prune:bool=true,work:Dictionary={})->Vector2i:
 	var delta:=target-origin
 	var preferred:=Vector2i(signi(delta.x),0) if absi(delta.x)>absi(delta.y) else Vector2i(0,signi(delta.y))
-	if preferred!=Vector2i.ZERO and attack_footprint(origin,preferred,pattern,reach).has(target):return preferred
+	# Symmetric patterns must retain the original preferred-heading tie break.
+	if prune and pattern in ["radius","cross","room"]:
+		var heading:Vector2i=preferred if preferred!=Vector2i.ZERO else DIR[0]
+		if work.has("footprints"):work["footprints"]+=1
+		return heading if attack_footprint(origin,heading,pattern,reach).has(target) else Vector2i.ZERO
+	if preferred!=Vector2i.ZERO and (not prune or attack_heading_possible(delta,preferred,pattern,reach)):
+		if work.has("footprints"):work["footprints"]+=1
+		if attack_footprint(origin,preferred,pattern,reach).has(target):return preferred
 	for d in DIR:
+		if prune and (d==preferred or not attack_heading_possible(delta,d,pattern,reach)):continue
+		if work.has("footprints"):work["footprints"]+=1
 		if attack_footprint(origin,d,pattern,reach).has(target):return d
 	return Vector2i.ZERO
 # Hypothetical movement vacates exactly the moving actor's old tile.
 # Bypass normal footprint cache: the projected occupancy is not the live board.
 func enemy_projected_attack_aim(e:Dictionary,post:Vector2i,target:Vector2i,pattern:String,reach:int,prune_symmetric:bool=true,work:Dictionary={})->Vector2i:
-	if post==e.pos:return attack_aim(post,target,pattern,reach)
+	if post==e.pos:return attack_aim(post,target,pattern,reach,prune_symmetric,work)
 	# Straight cardinal rays can reach a target in exactly one heading.
 	# Keep the normal footprint validator, including projected self vacancy.
 	if prune_symmetric and pattern in ["line","front"]:
