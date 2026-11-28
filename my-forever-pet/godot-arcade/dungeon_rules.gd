@@ -984,8 +984,8 @@ func topology_branch_budget(family:int)->int:
 	return [1,1,1,0,3,1][clampi(family,0,5)]
 
 func add_corridor_anchors(slots:Array[Vector2i],occupied:Dictionary)->void:
-	# Non-room anchors provide genuine corridor-only exploration. No entities
-	# are spawned here by room-interior placement and no new room is declared.
+	# Non-room anchors provide corridor-only exploration. They are excluded
+	# from player/stair room-interior placement; no new room is declared.
 	var budget:int=topology_branch_budget(topology_family)
 	if starter_woods and floor_number==1:return
 	for slot in slots:
@@ -1147,6 +1147,16 @@ func build_layout():
 				cursor_slot=candidate
 				break
 			direction=(direction+1)%4
+	# Ring family explicitly joins neighboring outer sectors, giving alternate routes.
+	if topology_family==3:
+		for slot in room_slots:
+			for d in [Vector2i.RIGHT,Vector2i.DOWN]:
+				if not room_slots.has(slot+d):continue
+				var i:int=room_slots[slot]
+				var j:int=room_slots[slot+d]
+				var key:=Vector2i(mini(i,j),maxi(i,j))
+				if not links.has(key):
+					connect_cells(center(rooms[i]),center(rooms[j]));links[key]=true
 	var reached:Array[int]=layout_component(links)
 	while reached.size()<rooms.size():
 		var best=99999;var source=0;var destination=-1
@@ -1158,16 +1168,6 @@ func build_layout():
 		connect_cells(center(rooms[source]),center(rooms[destination]))
 		links[Vector2i(mini(source,destination),maxi(source,destination))]=true
 		reached=layout_component(links)
-	# Ring family explicitly joins neighboring outer sectors, giving alternate routes.
-	if topology_family==3:
-		for slot in room_slots:
-			for d in [Vector2i.RIGHT,Vector2i.DOWN]:
-				if not room_slots.has(slot+d):continue
-				var i:int=room_slots[slot]
-				var j:int=room_slots[slot+d]
-				var key:=Vector2i(mini(i,j),maxi(i,j))
-				if not links.has(key):
-					connect_cells(center(rooms[i]),center(rooms[j]));links[key]=true
 	var extra=rng.randi_range(0,mini(4,room_count-2))
 	if topology_family==3 or topology_family==4:extra=0
 	if starter_woods and floor_number==1:extra=0
