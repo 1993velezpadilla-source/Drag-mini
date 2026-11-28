@@ -3157,6 +3157,77 @@ func enemy_move_pp(e:Dictionary,slot:String)->int:
 	return int(e.get("pp_"+slot,0 if slot=="control" else 12 if slot=="primary" else 10))
 
 # Estimate the existing damage formula without rolling RNG or mutating combat state.
+# Area kits choose a legal heading that hits the player and as many visible
+# party members as possible. Single-target moves retain their original behavior.
+func enemy_area_pattern(pattern:String)->bool:
+	return pattern in ["fan","radius","cross","corner","room","corner_front"]
+
+func enemy_area_allies(origin:Vector2i,footprint:Dictionary)->Array[int]:
+	var targets:Array[int]=[]
+	for i in range(allies.size()):
+		var a:Dictionary=allies[i]
+		if int(a.hp)>0 and footprint.has(a.pos) and enemy_line_of_sight(origin,a.pos):targets.append(i)
+	return targets
+
+func enemy_area_aim(e:Dictionary,pattern:String,reach:int)->Vector2i:
+	var origin:Vector2i=e.pos
+	var best:Vector2i=attack_aim(origin,player,pattern,reach)
+	if not bool(e.get("ecology_search_enabled",false)) or not enemy_area_pattern(pattern) or not enemy_line_of_sight(origin,player) or allies.is_empty():return best
+	var best_count:int=-1
+	if best!=Vector2i.ZERO:best_count=enemy_area_allies(origin,attack_footprint(origin,best,pattern,reach)).size()
+	for d in DIR:
+		var footprint:Dictionary=attack_footprint(origin,d,pattern,reach)
+		if not footprint.has(player):continue
+		var count:int=enemy_area_allies(origin,footprint).size()
+		if count>best_count:best=d;best_count=count
+	return best
+
+func enemy_area_bonus(e:Dictionary,pattern:String,reach:int,aim:Vector2i)->float:
+	if aim==Vector2i.ZERO or not bool(e.get("ecology_search_enabled",false)) or not enemy_area_pattern(pattern):return 0.0
+	return 1.5*float(enemy_area_allies(e.pos,attack_footprint(e.pos,aim,pattern,reach)).size())
+
+func enemy_has_party_area_attack(e:Dictionary)->bool:
+	if not bool(e.get("ecology_search_enabled",false)) or allies.is_empty() or not enemy_line_of_sight(e.pos,player):return false
+	var skill:Array=signature_skill(e)
+	var pattern:String=str(ATTACK_PATTERNS.get(e.get("species",""),"line"))
+	var charged:bool=bool(e.get("windup",false))
+	if enemy_move_allowed(e,"primary") and (charged or int(e.get("cooldown",0))<=0):
+		var aim:Vector2i=e.get("aim",Vector2i.ZERO) if charged else enemy_area_aim(e,pattern,int(skill[0]))
+		if enemy_area_bonus(e,pattern,int(skill[0]),aim)>0.0 and attack_footprint(e.pos,aim,pattern,int(skill[0])).has(player):return true
+	if charged:return false
+	var species:String=str(e.get("species",""))
+	if int(e.get("alt_cooldown",0))<=0 and SECONDARY_SKILLS.has(species) and enemy_move_allowed(e,"secondary"):
+		var alt:Array=SECONDARY_SKILLS[species]
+		var aim:Vector2i=enemy_area_aim(e,str(alt[1]),int(alt[0]))
+		return enemy_area_bonus(e,str(alt[1]),int(alt[0]),aim)>0.0
+	return false
+
+# Resolve each living party member once, independently of the player's dodge,
+# shield or critical. Preserve the player-facing effectiveness state.
+func enemy_apply_area_damage(e:Dictionary,origin:Vector2i,footprint:Dictionary,pattern:String,skill:Array,secondary:bool)->Array[Dictionary]:
+	var results:Array[Dictionary]=[]
+	if not bool(e.get("ecology_search_enabled",false)) or not enemy_area_pattern(pattern):return results
+	var info:Array=ENEMY_TRAINING.get(e.get("species",""),[["normal"],"normal","normal",0,0,"physical"])
+	var element:String=str(info[2] if secondary else info[1])
+	var category:String=str(info[5])
+	var attack_key:String="sp_attack" if category=="special" else "attack"
+	var defense_key:String="sp_defense" if category=="special" else "defense"
+	var raw:int=maxi(1,2+tier+int(floor_number/3)+(2 if int(e.get("kind",0))>=2 else 0)+int(skill[3]))
+	for index in enemy_area_allies(origin,footprint):
+		var a:Dictionary=allies[index]
+		var types:Array=ENEMY_TRAINING.get(a.get("species",""),[["normal"]])[0].duplicate()
+		if gravity_active and element=="ground":types.erase("flying")
+		var effectiveness:float=type_multiplier(element,types)
+		var amount:float=float(raw)*effectiveness*(1.2 if element in info[0] else 1.0)*weather_factor(element)
+		amount*=enemy_stat_effect(e,attack_key)/maxf(.001,stat_effect(a.get("stages",{}),a.get("stat_halves",{}),defense_key))
+		if str(e.get("major_status",""))=="burn":amount*=.8
+		var factor:float=enemy_stat_effect(e,"accuracy")*stat_effect(a.get("stages",{}),a.get("stat_halves",{}),"evasion")/(263.0/256.0)
+		var missed:bool=(factor<1.0 and rng.randf()>=factor) or (int(e.get("whiffer_turns",0))>0 and rng.randi_range(1,100)>5)
+		var damage:int=0 if missed else mini(int(a.hp),held_item_damage(maxi(0,roundi(amount)),str(e.get("held_item","")),str(a.get("held_item",""))))
+		a.hp=int(a.hp)-damage
+		results.append({"uid":a.get("uid",1000+index),"tile":a.pos,"damage":damage,"dodged":missed,"effectiveness":effectiveness})
+	return results
+
 func enemy_attack_score(e:Dictionary,skill:Array,secondary:bool)->float:
 	var info:Array=ENEMY_TRAINING.get(e.get("species",""),[["normal"],"normal","normal",0,0,"physical"])
 	var element:String=str(info[2] if secondary else info[1])
@@ -3387,7 +3458,7 @@ func enemy_turn_actions():
 				if hp==0:apply_fatal_grudge(enemies[i]);finished=true;success=false;return
 			continue
 		if not boon_active("decoy") and decoy_action(i):continue
-		if enemy_target_ally(i):continue
+		if not enemy_has_party_area_attack(enemies[i]) and enemy_target_ally(i):continue
 		var gap:=distance(p,player)
 		var pursuit_target:Vector2i=enemy_pursuit_target(enemies[i],player)
 		if gap<=3 and not enemies[i].get("windup",false) and enemy_use_potion(i):
@@ -3421,7 +3492,7 @@ func enemy_turn_actions():
 		var ready:bool=cooldown<=0 and primary_allowed
 		if cooldown>0:enemies[i]["cooldown"]=cooldown-1
 		var pattern:String=ATTACK_PATTERNS.get(enemies[i].get("species",""),"line")
-		var aim:Vector2i=enemies[i].get("aim",Vector2i.ZERO) if charged else attack_aim(p,player,pattern,int(skill[0]))
+		var aim:Vector2i=enemies[i].get("aim",Vector2i.ZERO) if charged else enemy_area_aim(enemies[i],pattern,int(skill[0]))
 		var footprint:Dictionary=attack_footprint(p,aim,pattern,int(skill[0])) if aim!=Vector2i.ZERO else {}
 		var in_range:bool=footprint.has(player)
 		var alternate:bool=false
@@ -3430,9 +3501,9 @@ func enemy_turn_actions():
 		if alt_cooldown>0:enemies[i]["alt_cooldown"]=alt_cooldown-1
 		if not charged and (not ready or not in_range or bool(enemies[i].get("ecology_search_enabled",false))) and alt_cooldown<=0 and SECONDARY_SKILLS.has(species) and enemy_move_allowed(enemies[i],"secondary"):
 			var alt:Array=SECONDARY_SKILLS[species]
-			var alt_aim:=attack_aim(p,player,str(alt[1]),int(alt[0]))
+			var alt_aim:=enemy_area_aim(enemies[i],str(alt[1]),int(alt[0]))
 			var alt_skill:Array=[alt[0],false,3,alt[3],alt[4],alt[5],"alt_"+species]
-			var prefer_alt:bool=not ready or not in_range or enemy_attack_score(enemies[i],alt_skill,true)>enemy_attack_score(enemies[i],skill,false)+.25
+			var prefer_alt:bool=not ready or not in_range or enemy_attack_score(enemies[i],alt_skill,true)+enemy_area_bonus(enemies[i],str(alt[1]),int(alt[0]),alt_aim)>enemy_attack_score(enemies[i],skill,false)+enemy_area_bonus(enemies[i],pattern,int(skill[0]),aim)+.25
 			if alt_aim!=Vector2i.ZERO and prefer_alt:
 				alternate=true;aim=alt_aim;pattern=str(alt[1])
 				footprint=attack_footprint(p,aim,pattern,int(alt[0]))
@@ -3502,7 +3573,8 @@ func enemy_turn_actions():
 				else:enemies[i]["cooldown"]=maxi(0,int(skill[2])-1)
 				if not dodged and not shield_block:apply_signature_effect(i,skill)
 			if dodged or shield_block or (shield_kind=="safeguard" and shield_turns>0 and effect in ["poison","weaken","mark"]) or (boon_active("mist") and effect=="weaken"):effect="none"
-			enemy_actions.append({"uid":enemies[i].get("uid",i),"phase":"attack","from":p,"to":player,"end":enemies[i].pos,"move":move_name,"fx":skill[6] if special else "basic_strike","effect":effect,"damage":damage,"dodged":dodged,"effectiveness":last_type_multiplier,"aim":aim if special else player-p,"pattern":pattern if special else "front","tiles":footprint.keys() if special else [player],"path":footprint.get(player,[player]) if special else [player]})
+			var party_hits:Array[Dictionary]=enemy_apply_area_damage(enemies[i],p,footprint,pattern,skill,alternate) if special else []
+			enemy_actions.append({"party_hits":party_hits,"uid":enemies[i].get("uid",i),"phase":"attack","from":p,"to":player,"end":enemies[i].pos,"move":move_name,"fx":skill[6] if special else "basic_strike","effect":effect,"damage":damage,"dodged":dodged,"effectiveness":last_type_multiplier,"aim":aim if special else player-p,"pattern":pattern if special else "front","tiles":footprint.keys() if special else [player],"path":footprint.get(player,[player]) if special else [player]})
 			message="%s · %s! −%d HP"%[enemies[i].get("name","Enemy"),move_name,damage]
 			if last_enemy_critical:message+=" · Critical!"
 			if reflected:message+=" · Reflected!"
@@ -3511,6 +3583,7 @@ func enemy_turn_actions():
 			elif last_type_multiplier>1.01:message+=" · Effective!"
 			elif last_type_multiplier<.99:message+=" · Resisted"
 			if effect!="none":message+=" · "+effect.capitalize()
+			if not party_hits.is_empty():message+=" · %d party targets"%party_hits.size()
 			emit_event(message)
 			if hp==0:
 				apply_fatal_grudge(enemies[i])
