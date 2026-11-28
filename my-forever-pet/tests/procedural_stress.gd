@@ -246,6 +246,10 @@ func enemy_integration_gauntlet(failures:Array[String])->int:
 	var reference_times:Array[int]=[]
 	var idle_peak:int=0
 	var reversal_count:int=0
+	var idle_open_peak:int=0
+	var idle_observations:Dictionary={}
+	var idle_peak_context:Dictionary={}
+	var reversal_species:Dictionary={}
 	var species:Array=["rootgnawer","bramble_pup","mossmite","sporeling","leafwisp","fungal_monarch"]
 	var expected:Array=["territorial","hunter","defender","opportunist","cautious","steadfast"]
 	for sample in range(18):
@@ -260,6 +264,7 @@ func enemy_integration_gauntlet(failures:Array[String])->int:
 				e["house_role"]=arena.house_tactical_role(e)
 				personalities[arena.enemy_combat_personality(e)]=true
 		var idle:Dictionary={}
+		var idle_open:Dictionary={}
 		var previous_moves:Dictionary={}
 		for round_index in range(32):
 			if cached.finished or reference.finished:break
@@ -283,12 +288,37 @@ func enemy_integration_gauntlet(failures:Array[String])->int:
 				acted[uid]=true
 				if str(action.get("phase",""))=="move":
 					var prior:Dictionary=previous_moves.get(uid,{})
-					if int(prior.get("turn",-9999))==cached.turns-1 and prior.get("from",Vector2i.ZERO)==action.to and prior.get("to",Vector2i.ZERO)==action.from and prior.get("target",Vector2i.ZERO)==cached.player:reversal_count+=1
+					if int(prior.get("turn",-9999))==cached.turns-1 and prior.get("from",Vector2i.ZERO)==action.to and prior.get("to",Vector2i.ZERO)==action.from and prior.get("target",Vector2i.ZERO)==cached.player:
+						reversal_count+=1
+						for actor in cached.enemies:
+							if int(actor.uid)==uid:
+								var label:String=str(actor.get("species","unknown"))
+								reversal_species[label]=int(reversal_species.get(label,0))+1
+								break
 					previous_moves[uid]={"turn":cached.turns,"from":action.from,"to":action.to,"target":cached.player}
 			for e in cached.enemies:
 				var uid:int=int(e.uid)
 				var visible:bool=cached.enemy_line_of_sight(e.pos,cached.player) and cached.distance(e.pos,cached.player)<=cached.enemy_awareness(e)
-				idle[uid]=int(idle.get(uid,0))+1 if visible and cached.enemy_alert_eligible(e) and not acted.has(uid) else 0
+				var inactive:bool=visible and cached.enemy_alert_eligible(e) and not acted.has(uid)
+				idle[uid]=int(idle.get(uid,0))+1 if inactive else 0
+				# Post-turn observations are diagnostic, not proof of a bad decision.
+				# Separate crowded/immobilized actors from actors with open safe cardinal exits.
+				var exits:int=0
+				if inactive:
+					for d in [Vector2i.UP,Vector2i.RIGHT,Vector2i.DOWN,Vector2i.LEFT]:
+						var q:Vector2i=e.pos+d
+						if cached.cells.has(q) and q!=cached.player and cached.enemy_at(q)<0 and cached.ally_at(q)<0 and not cached.traps.has(q):exits+=1
+					var observation:String="open"
+					if int(e.get("stuck_turns",0))>0:observation="immobilized"
+					elif int(e.get("slow_turns",0))>0:observation="slowed"
+					elif int(e.get("reinforcement_turn",-1))==cached.turns:observation="reinforcement_hold"
+					elif exits==0:observation="no_safe_cardinal_exit"
+					idle_observations[observation]=int(idle_observations.get(observation,0))+1
+					idle_open[uid]=int(idle_open.get(uid,0))+1 if observation=="open" else 0
+					idle_open_peak=maxi(idle_open_peak,int(idle_open[uid]))
+					if int(idle[uid])>idle_peak:
+						idle_peak_context={"sample":sample,"round":round_index,"uid":uid,"species":e.get("species",""),"position":e.pos,"player":cached.player,"exits":exits,"observation":observation}
+				else:idle_open[uid]=0
 				idle_peak=maxi(idle_peak,int(idle[uid]))
 			samples+=1
 	for personality in expected:
@@ -298,6 +328,7 @@ func enemy_integration_gauntlet(failures:Array[String])->int:
 		cached_times.sort();reference_times.sort()
 		var percentile:int=int((cached_times.size()-1)*.95)
 		print("KINDRIA_AI_INTEGRATION turns=",samples," personalities=",personalities.size()," checks=",checks_local," cached_p95_usec=",cached_times[percentile]," reference_p95_usec=",reference_times[percentile]," max_visible_idle=",idle_peak," reversals=",reversal_count)
+		print("KINDRIA_AI_STALL_DIAGNOSTICS open_idle_peak=",idle_open_peak," observations=",idle_observations," peak_context=",idle_peak_context," reversal_species=",reversal_species)
 	return checks_local
 
 # V27.1: ordinary ecology actors, not just Monster House actors, in constrained
@@ -355,11 +386,12 @@ func living_dungeon_gauntlet(failures:Array[String])->int:
 			if not valid:failures.append("living gauntlet occupancy %d:%d"%[sample,tick])
 			checks_local+=1
 			var acted:Dictionary={}
+			var duplicate_action:bool=false
 			for action in cached.enemy_actions:
 				var uid:int=int(action.get("uid",-1))
-				if acted.has(uid):valid=false
+				if acted.has(uid):duplicate_action=true
 				acted[uid]=true
-			if not valid:failures.append("living gauntlet duplicate action %d:%d"%[sample,tick])
+			if duplicate_action:failures.append("living gauntlet duplicate action %d:%d"%[sample,tick])
 			checks_local+=1
 			if cached.ai_actor_cache_active or cached.ai_cache_active or not cached.ai_footprint_cache.is_empty():failures.append("living gauntlet cache leak %d:%d"%[sample,tick])
 			checks_local+=1;rounds+=1
