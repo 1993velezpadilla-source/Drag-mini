@@ -2765,7 +2765,30 @@ func run_checks()->void:
 	blind_party.allies[0].hp=30
 	if not blind_party.enemy_target_ally(0) or blind_hunter.pos!=Vector2i(3,4) or blind_party.enemy_actions.size()!=1 or blind_hunter.pp_primary!=0:failures.append("party concealed player live dispatch pursues visible ally")
 	checks+=1
-	print("KINDRIA_ANTI_STALL checks=147")
+	# Concealed player coordinates must not veto an area attack on visible allies.
+	var blind_area=Rules.new()
+	for y in range(1,8):
+		for x in range(1,8):blind_area.cells[Vector2i(x,y)]=true
+	blind_area.player=Vector2i(6,6);blind_area.stairs=Vector2i(7,7);blind_area.relic=Vector2i(7,6)
+	var blind_caster:Dictionary={"uid":470,"pos":Vector2i(3,3),"hp":30,"kind":1,"species":"sporeling","ecology_role":"hunter","ecology_search_enabled":true,"personality_enabled":true,"pp_primary":12,"pp_secondary":0,"stages":{"accuracy":10}}
+	blind_area.enemies.append(blind_caster)
+	blind_area.allies.append({"uid":1000,"pos":Vector2i(3,4),"hp":30,"max_hp":30,"species":"reef_pup","moves":[],"pp":{},"stages":{},"status":{}})
+	blind_area.charge_phase="vanish"
+	var area_far:Dictionary=blind_area.enemy_party_attack_plan(blind_caster)
+	blind_area.player=Vector2i(4,3)
+	var area_near:Dictionary=blind_area.enemy_party_attack_plan(blind_caster)
+	if area_far.is_empty() or area_near!=area_far:failures.append("party area selection independent of concealed player footprint")
+	checks+=1
+	if blind_area.enemy_has_party_area_attack(blind_caster) or not blind_area.enemy_party_pursuit_allowed(blind_caster,false):failures.append("party area priority ignores concealed player")
+	checks+=1
+	blind_area.charge_phase=""
+	if not blind_area.enemy_has_party_area_attack(blind_caster) or blind_area.enemy_party_pursuit_allowed(blind_caster,false):failures.append("party area priority preserves visible combined attack")
+	checks+=1
+	blind_area.charge_phase="vanish"
+	var blind_hp:int=blind_area.hp
+	if not blind_area.enemy_target_ally(0) or blind_caster.pp_primary!=11 or blind_area.enemy_actions.size()!=1 or blind_area.allies[0].hp>=30 or blind_area.hp!=blind_hp:failures.append("party area dispatch spends one cast on visible ally")
+	checks+=1
+	print("KINDRIA_ANTI_STALL checks=151")
 	# A direct witness may report a tile, but a listener cannot relay it.
 	var comm=Rules.new()
 	for x in range(1,4):comm.cells[Vector2i(x,3)]=true
