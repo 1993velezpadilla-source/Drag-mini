@@ -5185,7 +5185,7 @@ func enemy_party_player_ko_bonus(e:Dictionary,skill:Array,secondary:bool,basic:b
 func enemy_party_player_attack_value(e:Dictionary,skill:Array,secondary:bool)->float:
 	return enemy_attack_score(e,skill,secondary,false)+enemy_party_player_ko_bonus(e,skill,secondary)
 
-func enemy_party_attack_plan(e:Dictionary)->Dictionary:
+func enemy_party_attack_plan(e:Dictionary,reuse_scores:bool=true)->Dictionary:
 	var origin:Vector2i=e.pos
 	if not bool(e.get("ecology_search_enabled",false)) or bool(e.get("windup",false)) or allies.is_empty() or int(e.get("kind",0))==3:return {}
 	var primary:Array=signature_skill(e)
@@ -5199,27 +5199,32 @@ func enemy_party_attack_plan(e:Dictionary)->Dictionary:
 	var player_value:float=0.0
 	# Scores depend on the kit, not on which valid heading reaches the player.
 	var player_kit_values:Dictionary={}
+	var player_context:float=0.0
 	var player_visible:bool=enemy_live_contact(e,player)
 	var player_protected:bool=(shield_turns>0 and shield_kind=="protect") or charge_phase in ["underground","airborne","vanish"]
 	if player_visible and not player_protected and distance(origin,player)==1:player_value=float(maxi(1,1+tier))+enemy_party_player_ko_bonus(e,[],false,true)
 	if player_visible and not player_protected and int(e.get("cooldown",0))<=0 and enemy_move_allowed(e,"primary") and attack_aim(origin,player,str(ATTACK_PATTERNS.get(species,"line")),int(primary[0]))!=Vector2i.ZERO:
 		player_kit_values["primary"]=enemy_party_player_attack_value(e,primary,false)
 		player_value=maxf(player_value,float(player_kit_values["primary"]))
-	if player_value>0.0:
-		player_value+=(1.0-float(hp)/float(maxi(1,max_hp)))*1.5+enemy_squad_focus_bonus(e,-1,player)+enemy_target_exposure(e,player,-1)
+	if player_visible and not player_protected:
+		player_context=(1.0-float(hp)/float(maxi(1,max_hp)))*1.5+enemy_squad_focus_bonus(e,-1,player)+enemy_target_exposure(e,player,-1)
+	if player_value>0.0:player_value+=player_context
 	var best:Dictionary={}
 	var best_score:float=player_value+.25
 	for kit in kits:
 		var skill:Array=kit.skill
 		var pattern:String=kit.pattern
 		var secondary:bool=kit.slot=="secondary"
+		# All candidate headings share the same actor, kit and target state.
+		# The memo is local to this pure plan; it cannot survive a real action.
+		var ally_values:Dictionary={}
+		var scarcity:float=.85 if enemy_move_pp(e,str(kit.slot))<=2 else 1.0
 		for d in DIR:
 			var footprint:Dictionary=attack_footprint(origin,d,pattern,int(skill[0]))
 			if player_visible and footprint.has(player):
 				if not player_protected:
 					if not player_kit_values.has(kit.slot):player_kit_values[kit.slot]=enemy_party_player_attack_value(e,skill,secondary)
-					var value:float=float(player_kit_values[kit.slot])
-					value+=(1.0-float(hp)/float(maxi(1,max_hp)))*1.5+enemy_squad_focus_bonus(e,-1,player)+enemy_target_exposure(e,player,-1)
+					var value:float=float(player_kit_values[kit.slot])+player_context
 					best_score=maxf(best_score,value+.25)
 				continue
 			var candidates:Array[int]=enemy_area_allies(origin,footprint)
@@ -5237,11 +5242,15 @@ func enemy_party_attack_plan(e:Dictionary)->Dictionary:
 			for index in candidates:
 				var a:Dictionary=allies[index]
 				if distance(origin,a.pos)>enemy_awareness(e):continue
-				var opportunity:float=enemy_party_opportunity_value(e,a,index,skill,secondary)
+				var opportunity:float=0.0
+				if reuse_scores and ally_values.has(index):opportunity=float(ally_values[index])
+				else:
+					opportunity=enemy_party_opportunity_value(e,a,index,skill,secondary)
+					if reuse_scores:ally_values[index]=opportunity
 				if opportunity<=0.0:continue
 				score+=opportunity
 				targets.append(index)
-			if enemy_move_pp(e,str(kit.slot))<=2:score*=.85
+			score*=scarcity
 			if not targets.is_empty() and score>best_score:
 				best_score=score
 				best={"slot":kit.slot,"skill":skill,"pattern":pattern,"name":kit.name,"aim":d,"footprint":footprint,"targets":targets,"score":score}
