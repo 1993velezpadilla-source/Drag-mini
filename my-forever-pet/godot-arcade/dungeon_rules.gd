@@ -3152,17 +3152,16 @@ func enemy_risk_step(e:Dictionary,target:Vector2i)->Vector2i:
 	var best:Vector2i=origin
 	var best_score:int=-2147483647
 	for d in (DIR if ai_legacy_cardinal_replay else COMBAT_DIR):
-		if d==COMBAT_DIR[4] and best!=origin:break
 		if not step_clear(origin,d):continue
 		var q:Vector2i=origin+d
-		if not enemy_ambush_safe_tile(q) or distance(q,target)<=gap:continue
+		if not enemy_ambush_safe_tile(q) or enemy_step_distance(q,target)<=enemy_step_distance(origin,target):continue
 		var exits:int=0
-		for onward in DIR:
-			if q+onward!=origin and enemy_ambush_safe_tile(q+onward):exits+=1
+		for onward in (DIR if ai_legacy_cardinal_replay else COMBAT_DIR):
+			if step_clear(q,onward) and q+onward!=origin and enemy_ambush_safe_tile(q+onward):exits+=1
 		if exits==0:continue
 		var exposure:int=0
 		for a in allies:
-			if int(a.hp)>0 and distance(origin,a.pos)<=mini(4,enemy_awareness(e)) and enemy_line_of_sight(origin,a.pos) and distance(q,a.pos)<distance(origin,a.pos):exposure+=1
+			if int(a.hp)>0 and distance(origin,a.pos)<=mini(4,enemy_awareness(e)) and enemy_line_of_sight(origin,a.pos) and enemy_step_distance(q,a.pos)<enemy_step_distance(origin,a.pos):exposure+=1
 		if exposure>0:continue
 		var score:int=exits*2+(0 if enemy_line_of_sight(q,target) else 3)
 		for tile in report.get("support",[]):
@@ -3184,15 +3183,15 @@ func enemy_retreat_step(e:Dictionary,target:Vector2i)->Vector2i:
 	var best_score:int=-2147483647
 	var phase:int=posmod(int(e.get("uid",0))+turns,4)
 	for j in range(4 if ai_legacy_cardinal_replay else 8):
-		if j==4 and best!=origin:break
 		var direction:Vector2i=DIR[(phase+j)%4] if j<4 else COMBAT_DIR[4+(phase+j-4)%4]
 		if not step_clear(origin,direction):continue
 		var q:Vector2i=origin+direction
 		if not cells.has(q) or q==player or q==target or q==stairs or q==relic or q in side_rewards or traps.has(q) or player_traps.has(q) or enemy_at(q)>=0 or ally_at(q)>=0:continue
-		if distance(q,target)<=gap:continue
+		if enemy_step_distance(q,target)<=enemy_step_distance(origin,target):continue
 		# Prefer a tile with a safe onward exit, rather than backing into a dead end.
 		var exits:int=0
-		for d in DIR:
+		for d in (DIR if ai_legacy_cardinal_replay else COMBAT_DIR):
+			if not step_clear(q,d):continue
 			var next:Vector2i=q+d
 			if next==origin or next==player or next==target or next==stairs or next==relic or next in side_rewards or not cells.has(next) or traps.has(next) or player_traps.has(next) or enemy_at(next)>=0 or ally_at(next)>=0:continue
 			exits+=1

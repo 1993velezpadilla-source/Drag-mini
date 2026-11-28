@@ -1300,6 +1300,7 @@ func run_checks()->void:
 	print("KINDRIA_COOPERATIVE_AI flank=2 gates=2 turn=1 preserve=1")
 	# Injured cautious species retreat briefly; aggressive and boss species stand their ground.
 	var survival_fixture=Rules.new()
+	survival_fixture.ai_legacy_cardinal_replay=true # Historical cardinal retreat scoring.
 	for y in range(1,8):
 		for x in range(1,8):survival_fixture.cells[Vector2i(x,y)]=true
 	survival_fixture.player=Vector2i(4,4)
@@ -5338,6 +5339,52 @@ func run_checks()->void:
 	if diagonal_retreat.enemy_retreat_step(retreat_actor,diagonal_retreat.player)!=retreat_actor.pos:failures.append("retreat diagonal blocked corner")
 	checks+=1
 	print("KINDRIA_DIAGONAL_RETREAT checks=2")
+	# A diagonal must win on merit even when a legal cardinal escape exists.
+	for diag in [Vector2i(1,-1),Vector2i(1,1),Vector2i(-1,1),Vector2i(-1,-1)]:
+		var ed:Vector2i=diag
+		var ev8=Rules.new()
+		for yy in range(1,11):
+			for xx in range(1,11):ev8.cells[Vector2i(xx,yy)]=true
+		var evorigin:=Vector2i(5,5)
+		var evcard:Vector2i=evorigin+Vector2i(ed.x,0)
+		var evdiag:Vector2i=evorigin+ed
+		ev8.player=evorigin-Vector2i(ed.x,0);ev8.stairs=Vector2i(10,10);ev8.relic=Vector2i(10,9);ev8.hp=100;ev8.max_hp=100;ev8.turns=20
+		var evactor:Dictionary={"uid":810,"pos":evorigin,"hp":5,"max_hp":30,"kind":1,"species":"leafwisp","ecology_role":"hunter","ecology_search_enabled":true,"personality_enabled":true,"pp_primary":0,"pp_secondary":0,"incoming_turn":20,"incoming_damage":14}
+		ev8.enemies.append(evactor)
+		for eo in [Vector2i(2*ed.x,0),Vector2i(2*ed.x,-ed.y),Vector2i(ed.x,-ed.y),Vector2i(0,-ed.y)]:ev8.traps[evorigin+eo]="snare"
+		var evrng:int=ev8.rng.state
+		if ev8.enemy_retreat_step(evactor,ev8.player)!=evdiag:failures.append("octant retreat best diagonal "+str(ed))
+		checks+=1
+		if ev8.enemy_risk_step(evactor,ev8.player)!=evdiag:failures.append("octant risk best diagonal "+str(ed))
+		checks+=1
+		if evactor.pos!=evorigin or evactor.hp!=5 or evactor.pp_primary!=0 or ev8.rng.state!=evrng or not ev8.enemy_actions.is_empty():failures.append("octant evasion pure evaluation "+str(ed))
+		checks+=1
+		ev8.player_traps[evdiag]="snare"
+		if ev8.enemy_retreat_step(evactor,ev8.player)!=evcard or ev8.enemy_risk_step(evactor,ev8.player)!=evcard:failures.append("octant evasion safe cardinal fallback "+str(ed))
+		ev8.player_traps.clear()
+		checks+=1
+		var evcorner:Vector2i=evorigin+Vector2i(0,ed.y)
+		ev8.cells.erase(evcorner)
+		if ev8.enemy_retreat_step(evactor,ev8.player)==evdiag or ev8.enemy_risk_step(evactor,ev8.player)==evdiag:failures.append("octant evasion rejects blocked corner "+str(ed))
+		ev8.cells[evcorner]=true
+		checks+=1
+		ev8.charge_phase="vanish"
+		if ev8.enemy_retreat_step(evactor,ev8.player)!=evorigin or ev8.enemy_risk_step(evactor,ev8.player)!=evorigin:failures.append("octant evasion hidden target "+str(ed))
+		ev8.charge_phase=""
+		checks+=1
+		evactor["windup"]=true
+		if ev8.enemy_retreat_step(evactor,ev8.player)!=evorigin or ev8.enemy_risk_step(evactor,ev8.player)!=evorigin:failures.append("octant evasion preserves windup "+str(ed))
+		evactor.erase("windup")
+		checks+=1
+		evactor["retreat_steps"]=2
+		evactor["risk_move_turn"]=20
+		if ev8.enemy_retreat_step(evactor,ev8.player)!=evorigin or ev8.enemy_risk_step(evactor,ev8.player)!=evorigin:failures.append("octant evasion bounded retries "+str(ed))
+		evactor.erase("retreat_steps");evactor.erase("risk_move_turn")
+		checks+=1
+		ev8.traps[evcard]="snare";ev8.traps[evdiag]="snare"
+		if ev8.enemy_retreat_step(evactor,ev8.player)!=evorigin or ev8.enemy_risk_step(evactor,ev8.player)!=evorigin:failures.append("octant evasion no false adjacent escape "+str(ed))
+		checks+=1
+	print("KINDRIA_OCTANT_EVASION checks=36")
 	var formation_fixture=Rules.new()
 	for y in range(1,8):
 		for x in range(1,8):formation_fixture.cells[Vector2i(x,y)]=true
@@ -5384,6 +5431,7 @@ func run_checks()->void:
 	print("KINDRIA_FORMATION_BREAKING checks=10")
 	# Risk counts visible healthy support and actual recent damage, not hidden actors.
 	var risk_fixture=Rules.new()
+	risk_fixture.ai_legacy_cardinal_replay=true # Historical cardinal retreat scoring.
 	for y in range(1,9):
 		for x in range(1,9):risk_fixture.cells[Vector2i(x,y)]=true
 	risk_fixture.player=Vector2i(4,3);risk_fixture.stairs=Vector2i(8,8);risk_fixture.relic=Vector2i(8,7)
