@@ -495,6 +495,7 @@ func lab_open()->void:
 	dev_bubble.hide();dungeon_footer.hide();dev_panel.show()
 	if is_instance_valid(bag_panel):bag_panel.hide()
 	if is_instance_valid(attack_button):attack_button.hide()
+	strike_pending=false
 	lab_layout();update_hud()
 
 func lab_build_catalog()->void:
@@ -733,6 +734,8 @@ func lab_end_drag()->void:
 	if not dev_drag_moved:
 		dev_bubble.hide()
 		dungeon_footer.hide();dev_panel.show();lab_layout()
+		strike_pending=false
+		if is_instance_valid(attack_button):attack_button.hide()
 
 func build_ui():
 	var base=VBoxContainer.new();hud_base=base;add_child(base);base.set_anchors_and_offsets_preset(PRESET_FULL_RECT);base.add_theme_constant_override("separation",0)
@@ -804,7 +807,7 @@ func build_ui():
 	refresh_move_dock()
 	stairs_button=button(v,"Descend",func():path.clear();run.descend();sync(),true)
 	hold_info=RichTextLabel.new();hold_info.custom_minimum_size.y=78;hold_info.add_theme_font_size_override("normal_font_size",14);hold_info.scroll_active=true;hold_info.mouse_filter=MOUSE_FILTER_IGNORE
-	hud_base.add_child(hold_info);hud_base.move_child(hold_info,dungeon_footer.get_index());hold_info.hide()
+	area.add_child(hold_info);hold_info.set_anchors_and_offsets_preset(PRESET_BOTTOM_WIDE);hold_info.offset_top=-82;hold_info.offset_left=6;hold_info.offset_right=-6;hold_info.offset_bottom=-4;hold_info.add_theme_stylebox_override("normal",compact_style(hud_base_color(),hud_accent_color(),8));hold_info.hide()
 	aim_preview=Control.new();area.add_child(aim_preview);aim_preview.set_anchors_and_offsets_preset(PRESET_FULL_RECT);aim_preview.mouse_filter=MOUSE_FILTER_IGNORE;aim_preview.draw.connect(draw_aim_preview)
 	build_strike_bubble()
 	build_bag()
@@ -867,7 +870,8 @@ func position_strike_bubble()->void:
 func utility_drag_input(event:InputEvent,kind:String)->void:
 	if event is InputEventMouseButton and event.button_index==MOUSE_BUTTON_LEFT and event.pressed and not hold_active:
 		utility_drag_kind=kind;utility_drag_moved=false;utility_drag_suppress=false
-		utility_drag_origin=get_global_mouse_position()
+		var source:Control=aim_button if kind=="aim" else attack_button
+		utility_drag_origin=source.get_global_transform_with_canvas()*event.position
 		utility_drag_start=attack_button.position
 func reset_utility_drag()->void:
 	utility_drag_suppress=false
@@ -19321,6 +19325,7 @@ func rotate_combat_aim()->void:
 	update_hud()
 func touch(event:InputEvent):
 	if notified or run.finished or tile_cast_active() or (is_instance_valid(bag_panel) and bag_panel.visible):return
+	strike_pending=false
 	if map_expanded and (event is InputEventScreenTouch or event is InputEventMouseButton):
 		if Rect2(map.position,map.size).has_point(event.position):return
 	if event is InputEventScreenTouch and event.index!=0:return
@@ -19453,6 +19458,7 @@ func update_hud():
 	status_text.tooltip_text=status_text.text
 	if is_instance_valid(aim_button):aim_button.text="Aim "+["↑","↗","→","↘","↓","↙","←","↖"][maxi(0,Rules.DIR8.find(facing))]
 	if is_instance_valid(special_button):special_button.disabled=run.energy<2
+	if is_instance_valid(attack_button):attack_button.disabled=not run.charged_move_id.is_empty()
 	if dock_move_ids!=run.equipped_moves:refresh_move_dock()
 	for i in range(move_buttons.size()):
 		var id:String=run.equipped_moves[i]
@@ -19640,6 +19646,10 @@ func _process(dt:float):
 	# Advance existing clocks before path movement can launch a new action.
 	# A cast created by sync() later in this frame starts at age zero.
 	advance_player_combat_clock(dt)
+	if strike_pending and attack_time<=0.0:
+		strike_pending=false
+		if not run.finished and attack_button.visible and not bag_panel.visible:
+			path.clear();run.attack(false,facing);sync()
 	update_living_ambient(dt)
 	update_exterior_world(dt)
 	var actor_start:int=Time.get_ticks_usec() if fx_diag_enabled else 0
