@@ -1909,6 +1909,25 @@ func enemy_push_plan(e:Dictionary,target:Vector2i)->Dictionary:
 	if kind in ["party","enemy"] and (distance(origin,collision)>enemy_awareness(e) or not enemy_line_of_sight(origin,collision)):score=0
 	return {"path":path,"destination":destination,"collision":collision,"kind":kind,"score":score}
 
+# Set up a useful knockback angle on this turn, then cast on a later turn.
+func enemy_control_setup_step(e:Dictionary,target:Vector2i)->Vector2i:
+	var origin:Vector2i=e.pos
+	var id:String=str(e.get("control_move",""))
+	if not bool(e.get("ecology_search_enabled",false)) or bool(e.get("monster_house",false)) or bool(e.get("windup",false)) or int(e.get("stuck_turns",0))>0:return origin
+	if int(e.get("control_cooldown",0))>0 or not MOVE_LIBRARY.has(id) or str(MOVE_LIBRARY[id].get("special_rule",""))!="push" or not enemy_move_allowed(e,"control"):return origin
+	if player_has_ability("anchored") or boon_active("ingrain") or charge_phase in ["underground","airborne","vanish"]:return origin
+	if not enemy_line_of_sight(origin,target) or distance(origin,target)!=2:return origin
+	var best:Vector2i=origin
+	var best_score:int=4
+	for d in DIR:
+		var q:Vector2i=origin+d
+		if distance(q,target)!=1 or not cells.has(q) or q==stairs or q==relic or q in side_rewards or traps.has(q) or player_traps.has(q) or enemy_at(q)>=0 or ally_at(q)>=0:continue
+		var hypothetical:Dictionary=e.duplicate()
+		hypothetical["pos"]=q
+		var score:int=int(enemy_push_plan(hypothetical,target).get("score",0))
+		if score>best_score:best=q;best_score=score
+	return best
+
 func enemy_execute_control(i:int)->bool:
 	var e:Dictionary=enemies[i]
 	var id:String=str(e.get("control_move",""))
@@ -3411,6 +3430,8 @@ func enemy_turn_actions():
 		elif pursuit_target!=p and kind!=3 and int(enemies[i].get("stuck_turns",0))<=0:
 			var path:Array[Vector2i]=[]
 			var tactical:Vector2i=enemy_protector_step(enemies[i],pursuit_target) if not charged and pursuit_target==player else p
+			if tactical==p and not charged and pursuit_target==player:
+				tactical=enemy_control_setup_step(enemies[i],player)
 			if tactical==p and not charged and pursuit_target==player:
 				tactical=enemy_exit_block_step(enemies[i],player)
 			if tactical==p and ready and not charged and not in_range and pursuit_target==player:
