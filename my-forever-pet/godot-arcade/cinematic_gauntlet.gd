@@ -53,6 +53,22 @@ func run_checks()->void:
 		if view.strike_lunge_offset(strike_peak*.12,strike_peak).x>=0.0:failures.append("V26.10 Strike anticipation")
 		if not is_equal_approx(view.strike_lunge_offset(strike_peak,strike_peak).x,.78):failures.append("V26.10 Strike peak")
 		checks+=3
+	# V26.12: hysteresis prevents direction chatter and neutral drift.
+	for control_dir in control_dirs:
+		var dir:=Vector2(control_dir).normalized()
+		if view.joystick_stable_direction(dir*7.0,40.0,Vector2i.ZERO)!=Vector2i.ZERO:failures.append("V26.12 neutral enter")
+		if view.joystick_stable_direction(dir*7.0,40.0,control_dir)!=control_dir:failures.append("V26.12 neutral exit")
+		if view.joystick_stable_direction(dir*5.0,40.0,control_dir)!=Vector2i.ZERO:failures.append("V26.12 neutral reset")
+		if view.joystick_stable_direction(dir.rotated(deg_to_rad(25.0))*35.0,40.0,control_dir)!=control_dir:failures.append("V26.12 direction hysteresis")
+		if view.joystick_stable_direction(dir.rotated(deg_to_rad(35.0))*35.0,40.0,control_dir)==control_dir:failures.append("V26.12 intentional direction change")
+		checks+=5
+	var touch_probe:=Button.new()
+	view.touch_feedback(touch_probe,true)
+	if touch_probe.self_modulate==Color.WHITE:failures.append("V26.12 touch highlight")
+	view.touch_feedback(touch_probe,false)
+	if touch_probe.self_modulate!=Color.WHITE:failures.append("V26.12 touch reset")
+	touch_probe.free()
+	checks+=2
 	# V25.9: exact bounded warm plans, with no unapproved species.
 	var companion_warm_plan:Array[Vector3i]=Art.companion_attack_warm_plan()
 	if companion_warm_plan.size()!=28:failures.append("V25.9 companion plan count")
