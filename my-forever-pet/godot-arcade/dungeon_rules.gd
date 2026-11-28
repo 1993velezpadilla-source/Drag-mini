@@ -3316,6 +3316,7 @@ func enemy_status_utility(e:Dictionary,move:Dictionary)->float:
 	var origin:Vector2i=e.pos
 	var gap:int=distance(origin,player)
 	if gap<1 or gap>enemy_awareness(e) or not enemy_line_of_sight(origin,player):return 0.0
+	if enemy_status_aim(origin,move)==Vector2i.ZERO:return 0.0
 	if (shield_turns>0 and shield_kind in ["protect","safeguard"]) or boon_active("magic_coat") or mirror_veil_blocks(origin,true,str(move.pattern)) or charge_phase in ["underground","airborne","vanish"]:return 0.0
 	var status:String=str(move.get("inflict_status",""))
 	var utility:float=0.0
@@ -3373,13 +3374,13 @@ func enemy_execute_status_control(i:int,move:Dictionary)->bool:
 	var best_damage:float=0.0
 	var signature_ready:bool=false
 	var skill:Array=signature_skill(e)
-	if int(e.get("cooldown",0))<=0 and enemy_move_allowed(e,"primary") and attack_aim(origin,player,str(ATTACK_PATTERNS.get(e.get("species",""),"line")),int(skill[0]))!=Vector2i.ZERO:
+	if int(e.get("cooldown",0))<=0 and enemy_move_allowed(e,"primary") and enemy_area_aim(e,str(ATTACK_PATTERNS.get(e.get("species",""),"line")),int(skill[0]))!=Vector2i.ZERO:
 		signature_ready=true
 		best_damage=enemy_combo_damage_score(e,skill,false)
 	var species:String=str(e.get("species",""))
 	if int(e.get("alt_cooldown",0))<=0 and SECONDARY_SKILLS.has(species) and enemy_move_allowed(e,"secondary"):
 		var alt:Array=SECONDARY_SKILLS[species]
-		if attack_aim(origin,player,str(alt[1]),int(alt[0]))!=Vector2i.ZERO:
+		if enemy_area_aim(e,str(alt[1]),int(alt[0]))!=Vector2i.ZERO:
 			signature_ready=true
 			best_damage=maxf(best_damage,enemy_combo_damage_score(e,[alt[0],false,3,alt[3],alt[4],alt[5],"alt_"+species],true))
 	# Quick strike is the dispatcher fallback only when no signature is ready.

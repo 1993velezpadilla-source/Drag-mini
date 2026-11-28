@@ -1559,7 +1559,27 @@ func run_checks()->void:
 	basic_status_actor.pp_primary=0;basic_status_actor.erase("cooldown");basic_status.tier=0
 	if not basic_status.enemy_execute_control(0) or basic_status_actor.pp_control!=4 or basic_status.enemy_actions.size()!=1 or int(basic_status.player_stages.get("defense",0))!=-1:failures.append("status useful debuff beats weak basic")
 	checks+=1
-	print("KINDRIA_STATUS_TACTICS utility=2 gates=7 action=1 redundancy=1 priority=1 contact_purity=1 accuracy=6 alternatives=3 basic=3")
+	# Sight alone does not make a short-range or cardinal-only move legal.
+	var geometry_status=Rules.new()
+	for y in range(1,7):
+		for x in range(1,7):geometry_status.cells[Vector2i(x,y)]=true
+	geometry_status.player=Vector2i(5,3);geometry_status.hp=100
+	var geometry_actor:Dictionary={"uid":92,"pos":Vector2i(3,3),"hp":30,"kind":0,"species":"coralcrab","ecology_search_enabled":true,"control_move":"eos_085","pp_control":5,"pp_primary":0,"pp_secondary":0,"stages":{"accuracy":10}}
+	geometry_status.enemies.append(geometry_actor)
+	var geometry_rng:int=geometry_status.rng.state
+	if not geometry_status.enemy_live_contact(geometry_actor,geometry_status.player) or geometry_status.enemy_status_utility(geometry_actor,debuff_move)!=0.0 or geometry_status.enemy_execute_control(0):failures.append("status visible but out of reach")
+	checks+=1
+	geometry_status.player=Vector2i(4,4)
+	if geometry_status.enemy_status_aim(geometry_actor.pos,debuff_move)!=Vector2i.ZERO or geometry_status.enemy_status_utility(geometry_actor,debuff_move)!=0.0:failures.append("status cardinal geometry rejected")
+	checks+=1
+	var diagonal_status:Dictionary=debuff_move.duplicate()
+	diagonal_status["pattern"]="corner_front"
+	if geometry_status.enemy_status_aim(geometry_actor.pos,diagonal_status)==Vector2i.ZERO or geometry_status.enemy_status_utility(geometry_actor,diagonal_status)<=0.0:failures.append("status legal diagonal geometry")
+	checks+=1
+	geometry_status.player=Vector2i(4,3)
+	if geometry_status.enemy_status_utility(geometry_actor,debuff_move)<=0.0 or geometry_actor.pp_control!=5 or geometry_status.rng.state!=geometry_rng or not geometry_status.enemy_actions.is_empty():failures.append("status geometry restoration purity")
+	checks+=1
+	print("KINDRIA_STATUS_TACTICS utility=2 gates=7 action=1 redundancy=1 priority=1 contact_purity=1 accuracy=6 alternatives=3 basic=3 geometry=4")
 	# Area attacks hit each party member once, without sharing the player's shield.
 	var area_fixture=Rules.new()
 	for y in range(1,8):
