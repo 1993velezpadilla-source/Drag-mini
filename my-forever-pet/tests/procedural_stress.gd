@@ -118,6 +118,37 @@ func run_checks()->void:
 		forced_retries+=replay.layout_retries;checks+=1
 	if expedition_count>256 and rollover_checks==0:failures.append("missing history rollover")
 	checks+=1
+	# Exercise every encounter recipe without relying on the natural event probability.
+	var house_profiles:Dictionary={}
+	for seed_id in range(192):
+		var house=Rules.new()
+		house.setup(seed_id%3,24,0,false,false,120003+seed_id,0,false)
+		if not house.prepare_monster_house(true):continue
+		var profile:int=house.monster_house_profile
+		house_profiles[profile]=int(house_profiles.get(profile,0))+1
+		var room:Rect2i=house.rooms[house.monster_house_room]
+		var entry:Vector2i=room.get_center()
+		if entry==house.stairs or entry==house.relic or house.enemy_at(entry)>=0 or not house.cells.has(entry):
+			for tile in house.cells:
+				if room.has_point(tile) and tile!=house.stairs and tile!=house.relic and house.enemy_at(tile)<0 and house.ally_at(tile)<0:
+					entry=tile;break
+		house.player=entry
+		var before:int=house.enemies.size()
+		if not house.trigger_monster_house():failures.append("house trigger "+str(seed_id))
+		var count:int=house.monster_house_remaining()
+		if count<1 or count>house.MONSTER_HOUSE_CAP or house.enemies.size()!=before+count:failures.append("house budget "+str(seed_id))
+		var occupied:Dictionary={}
+		for e in house.enemies:
+			if occupied.has(e.pos) or not house.cells.has(e.pos) or e.pos==house.player or e.pos==house.stairs:failures.append("house placement "+str(seed_id))
+			occupied[e.pos]=true
+			if bool(e.get("monster_house",false)):
+				var index:int=int(e.uid)-house.MONSTER_HOUSE_UID_BASE
+				if profile in [1,2,3] and int(e.kind)!=house.house_enemy_kind(profile,index):failures.append("house composition "+str(seed_id))
+		if house.trigger_monster_house() or not house.stairs_available():failures.append("house duplicate or stair lock "+str(seed_id))
+		checks+=4
+	if house_profiles.size()!=Rules.HOUSE_PROFILES.size():failures.append("house profile coverage")
+	checks+=1
+	print("KINDRIA_HOUSE_PROFILES ",house_profiles)
 	# Actual disk I/O, legacy migration, corruption recovery, and resumed writes.
 	var test_path:String="user://kindria_procedural_test_"+str(OS.get_process_id())+".cfg"
 	var exact:Array[String]=["legacy exact".sha256_text()]
