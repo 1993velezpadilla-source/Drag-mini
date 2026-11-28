@@ -994,6 +994,53 @@ func run_checks()->void:
 			if melee_arena.enemy_melee_adjacent(melee_origin,melee_arena.player):failures.append("basic strike cannot cross closed corner")
 			checks+=1
 	print("KINDRIA_OCTANT_BASIC_STRIKE checks=20")
+	# Modern recovery: no redundant movement from an already legal diagonal
+	# strike, and a diagonal opening is usable when every other step is unsafe.
+	var recovery8=Rules.new()
+	for ry in range(1,8):
+		for rx in range(1,8):recovery8.cells[Vector2i(rx,ry)]=true
+	recovery8.player=Vector2i(4,4);recovery8.hp=100;recovery8.max_hp=100
+	recovery8.stairs=Vector2i(7,7);recovery8.relic=Vector2i(7,6);recovery8.turns=22
+	var recovery8_actor:Dictionary={"uid":991,"pos":Vector2i(3,3),"hp":30,"kind":0,"species":"rootgnawer","ecology_role":"hunter","ecology_search_enabled":true,"personality_enabled":true,"pp_primary":0,"pp_secondary":0}
+	recovery8.enemies.append(recovery8_actor)
+	if recovery8.enemy_immediate_recovery_step(recovery8_actor,recovery8.player)!=recovery8_actor.pos:failures.append("modern recovery keeps legal diagonal melee")
+	checks+=1
+	recovery8_actor.pos=Vector2i(2,2)
+	for rd in Rules.DIR8:
+		if rd!=Vector2i(1,1):recovery8.traps[recovery8_actor.pos+rd]="snare"
+	if recovery8.enemy_immediate_recovery_step(recovery8_actor,recovery8.player)!=Vector2i(3,3):failures.append("modern recovery uses diagonal opening")
+	checks+=1
+	recovery8_actor["squad_loss_turn"]=21;recovery8_actor["squad_loss_tile"]=Vector2i(3,3)
+	if recovery8.enemy_witnessed_vacancy_step(recovery8_actor,recovery8.player)!=Vector2i(3,3):failures.append("modern casualty diagonal replacement")
+	checks+=1
+	recovery8.cells.erase(Vector2i(3,2))
+	if recovery8.enemy_immediate_recovery_step(recovery8_actor,recovery8.player)!=recovery8_actor.pos or recovery8.enemy_witnessed_vacancy_step(recovery8_actor,recovery8.player)!=recovery8_actor.pos:failures.append("modern recovery rejects closed diagonal corner")
+	checks+=1
+	if recovery8_actor.pos!=Vector2i(2,2) or recovery8_actor.pp_primary!=0 or not recovery8.enemy_actions.is_empty():failures.append("modern recovery planning purity")
+	checks+=1
+	var lane8=Rules.new()
+	for ly in range(1,9):
+		for lx in range(1,9):lane8.cells[Vector2i(lx,ly)]=true
+	lane8.player=Vector2i(4,4);lane8.hp=100;lane8.turns=22;lane8.ai_wait_audit_enabled=true
+	var lane8_actor:Dictionary={"uid":992,"pos":Vector2i(4,6),"hp":30,"kind":0,"species":"rootgnawer","ecology_role":"hunter","ecology_search_enabled":true,"personality_enabled":true,"pp_primary":0,"pp_secondary":0}
+	lane8.enemies.append(lane8_actor)
+	var lane8_shooter:Dictionary={"uid":993,"pos":Vector2i(6,4),"hp":30,"kind":1,"species":"leafwisp","ecology_search_enabled":true,"pp_primary":12,"pp_secondary":0}
+	lane8.enemies.append(lane8_shooter)
+	for ld in Rules.DIR8:
+		if ld!=Vector2i.RIGHT:
+			lane8.enemies.append({"uid":994+lane8.enemies.size(),"pos":lane8.player+ld,"hp":30,"kind":0,"species":"rootgnawer","ecology_search_enabled":true,"pp_primary":0,"pp_secondary":0})
+	if not lane8.enemy_firing_lane_frontline(lane8_actor,lane8.player):failures.append("modern lane hold complete octant formation")
+	checks+=1
+	lane8.enemy_audit_frontline_wait(lane8_actor,lane8.player)
+	if lane8.ai_wait_audit.get(992,{}).get("reason","")!="friendly_lane":failures.append("modern lane audit closed octant formation")
+	checks+=1
+	lane8.enemies.pop_back()
+	if lane8.enemy_firing_lane_frontline(lane8_actor,lane8.player) or not lane8.enemy_released_firing_post(lane8_actor,lane8.player):failures.append("modern lane hold releases open diagonal")
+	checks+=1
+	lane8.enemy_audit_frontline_wait(lane8_actor,lane8.player)
+	if int(lane8.ai_wait_audit.get(992,{}).get("free",0))<1:failures.append("modern lane audit records free diagonal")
+	checks+=1
+	print("KINDRIA_OCTANT_RECOVERY checks=9")
 	# Memory follows only the last observed position and expires by global turn.
 	var memory_fixture=Rules.new()
 	for x in range(1,18):memory_fixture.cells[Vector2i(x,3)]=true
@@ -1799,6 +1846,7 @@ func run_checks()->void:
 	print("KINDRIA_SQUAD_TACTICS focus=5 gates=3 movement=3")
 	# Adaptive retreat recognition uses witnessed voluntary steps, not forced motion.
 	var adaptive_fixture=Rules.new()
+	adaptive_fixture.ai_legacy_cardinal_replay=true # Archived exact cardinal scenario.
 	for y in range(1,9):
 		for x in range(1,9):adaptive_fixture.cells[Vector2i(x,y)]=true
 	adaptive_fixture.stairs=Vector2i(8,8)
@@ -2541,6 +2589,7 @@ func run_checks()->void:
 	checks+=1
 	# Three-step detour around a friendly frontline; no learned move is available.
 	var detour_fixture=Rules.new()
+	detour_fixture.ai_legacy_cardinal_replay=true # Archived exact cardinal scenario.
 	for y in range(2,7):
 		for x in range(1,7):detour_fixture.cells[Vector2i(x,y)]=true
 	detour_fixture.player=Vector2i(4,4);detour_fixture.stairs=Vector2i(6,6);detour_fixture.relic=Vector2i(6,5);detour_fixture.turns=22
@@ -2834,6 +2883,7 @@ func run_checks()->void:
 	checks+=1
 	# Immediate adjacent opportunities must not wait for the long recovery timer.
 	var immediate=Rules.new()
+	immediate.ai_legacy_cardinal_replay=true # Archived exact cardinal scenario.
 	for y in range(1,8):
 		for x in range(1,8):immediate.cells[Vector2i(x,y)]=true
 	immediate.player=Vector2i(4,4);immediate.stairs=Vector2i(7,7);immediate.relic=Vector2i(7,6);immediate.turns=22
@@ -2930,6 +2980,7 @@ func run_checks()->void:
 	checks+=1
 	# Exercise end-of-turn removal and next-turn replacement through the live dispatcher.
 	var live_vacancy=Rules.new()
+	live_vacancy.ai_legacy_cardinal_replay=true # Archived exact cardinal scenario.
 	for vacancy_cell in [Vector2i(1,5),Vector2i(1,6),Vector2i(2,6),Vector2i(1,7),Vector2i(2,7),Vector2i(3,7),Vector2i(9,8),Vector2i(9,9)]:live_vacancy.cells[vacancy_cell]=true
 	live_vacancy.player=Vector2i(1,6);live_vacancy.stairs=Vector2i(9,9);live_vacancy.relic=Vector2i(9,8)
 	live_vacancy.hp=10000;live_vacancy.max_hp=10000;live_vacancy.belly_tenths=1000
@@ -2964,6 +3015,7 @@ func run_checks()->void:
 	checks+=1
 	# A firing lane can complete a frontline without a physical occupant.
 	var lane_fixture=Rules.new()
+	lane_fixture.ai_legacy_cardinal_replay=true # Archived exact cardinal scenario.
 	for y in range(1,9):
 		for x in range(1,9):lane_fixture.cells[Vector2i(x,y)]=true
 	lane_fixture.player=Vector2i(4,4);lane_fixture.stairs=Vector2i(8,8);lane_fixture.relic=Vector2i(8,7);lane_fixture.turns=22
@@ -3785,6 +3837,7 @@ func run_checks()->void:
 	checks+=1
 	# A rear actor may prepare a staging tile, but never claim the live ray.
 	var stage_fixture=Rules.new()
+	stage_fixture.ai_legacy_cardinal_replay=true # Archived exact cardinal scenario.
 	for y in range(1,9):
 		for x in range(1,9):stage_fixture.cells[Vector2i(x,y)]=true
 	stage_fixture.player=Vector2i(4,4);stage_fixture.stairs=Vector2i(8,8);stage_fixture.relic=Vector2i(8,7);stage_fixture.turns=22

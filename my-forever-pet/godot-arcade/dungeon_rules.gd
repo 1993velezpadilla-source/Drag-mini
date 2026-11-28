@@ -2393,7 +2393,7 @@ func enemy_witnessed_vacancy_step(e:Dictionary,target:Vector2i)->Vector2i:
 	if turns-int(e.get("squad_loss_turn",-9999)) not in [0,1] or not e.has("squad_loss_tile"):return origin
 	if enemy_strategy_attack_tile(e,origin,target):return origin
 	var post:Vector2i=e.squad_loss_tile
-	if distance(origin,post)!=1 or distance(post,target)!=1 or not enemy_ambush_safe_tile(post):return origin
+	if not enemy_melee_adjacent(origin,post) or not enemy_melee_adjacent(post,target) or not enemy_ambush_safe_tile(post):return origin
 	if not enemy_line_of_sight(origin,post) or not enemy_line_of_sight(post,target):return origin
 	if enemy_pack_reserved_posts(e,target).has(post):return origin
 	for other in enemies:
@@ -2404,7 +2404,7 @@ func enemy_immediate_recovery_step(e:Dictionary,target:Vector2i)->Vector2i:
 	var origin:Vector2i=e.pos
 	if not enemy_opportunity_eligible(e) or not enemy_live_contact(e,target) or int(e.get("stuck_turns",0))>0:return origin
 	if shield_turns>0 and shield_kind=="protect":return origin
-	if distance(origin,target)!=2 or enemy_strategy_attack_tile(e,origin,target):return origin
+	if (distance(origin,target) if ai_legacy_cardinal_replay else maxi(absi(origin.x-target.x),absi(origin.y-target.y)))!=2 or enemy_strategy_attack_tile(e,origin,target):return origin
 	var reserved:Dictionary=enemy_pack_reserved_posts(e,target)
 	var peers:Array[Dictionary]=[]
 	for other in enemies:
@@ -2412,9 +2412,10 @@ func enemy_immediate_recovery_step(e:Dictionary,target:Vector2i)->Vector2i:
 	var memo:Dictionary={}
 	var best:Vector2i=origin
 	var best_score:int=-2147483647
-	for d in DIR:
+	for d in (DIR if ai_legacy_cardinal_replay else COMBAT_DIR):
+		if not step_clear(origin,d):continue
 		var q:Vector2i=origin+d
-		if distance(q,target)!=1 or not enemy_ambush_safe_tile(q) or reserved.has(q) or not enemy_line_of_sight(q,target):continue
+		if not enemy_melee_adjacent(q,target) or not enemy_ambush_safe_tile(q) or reserved.has(q) or not enemy_line_of_sight(q,target):continue
 		if enemy_recovery_lane_blocked(peers,q,target,memo):continue
 		var score:int=enemy_terrain_position_bonus(e,q,target)
 		if enemy_strategy_reversal(e,q,target):score-=4
@@ -2458,7 +2459,8 @@ func enemy_firing_lane_frontline(e:Dictionary,target:Vector2i)->bool:
 	var memo:Dictionary={}
 	var occupied:int=0
 	var lanes:int=0
-	for d in DIR:
+	for d in (DIR if ai_legacy_cardinal_replay else COMBAT_DIR):
+		if not step_clear(target,d):continue
 		var q:Vector2i=target+d
 		if not cells.has(q):continue
 		if not enemy_line_of_sight(e.pos,q):return false
@@ -2486,7 +2488,8 @@ func enemy_audit_frontline_wait(e:Dictionary,target:Vector2i)->void:
 	for other in enemies:
 		if enemy_squad_partner(e,other):peers.append(other)
 	var memo:Dictionary={}
-	for d in DIR:
+	for d in (DIR if ai_legacy_cardinal_replay else COMBAT_DIR):
+		if not step_clear(target,d):continue
 		var q:Vector2i=target+d
 		if not cells.has(q):continue
 		if not enemy_line_of_sight(e.pos,q):unknown+=1;continue
@@ -2512,7 +2515,8 @@ func enemy_released_firing_post(e:Dictionary,target:Vector2i)->bool:
 		if enemy_squad_partner(e,other):peers.append(other)
 	var reserved:Dictionary=enemy_pack_reserved_posts(e,target)
 	var memo:Dictionary={}
-	for d in DIR:
+	for d in (DIR if ai_legacy_cardinal_replay else COMBAT_DIR):
+		if not step_clear(target,d):continue
 		var q:Vector2i=target+d
 		if enemy_ambush_safe_tile(q) and not reserved.has(q) and enemy_line_of_sight(e.pos,q) and not enemy_recovery_lane_blocked(peers,q,target,memo):return true
 	return false
@@ -2522,7 +2526,8 @@ func enemy_open_frontline_detour(e:Dictionary,target:Vector2i)->bool:
 	if shield_turns>0 and shield_kind=="protect":return false
 	var occupied:int=0
 	var open:bool=false
-	for d in DIR:
+	for d in (DIR if ai_legacy_cardinal_replay else COMBAT_DIR):
+		if not step_clear(target,d):continue
 		var q:Vector2i=target+d
 		if not cells.has(q) or not enemy_line_of_sight(e.pos,q):continue
 		var index:int=enemy_at(q)
