@@ -3726,7 +3726,24 @@ func run_checks()->void:
 	sequence_partner.erase("whiffer_turns");sequence_partner.erase("stages");sequencing.player_stages.clear()
 	if sequencing.rng.state!=sequence_damage_rng or sequence_partner.pp_primary!=10 or not sequencing.enemy_actions.is_empty():failures.append("sequence hit forecast purity")
 	checks+=1
-	print("KINDRIA_ATTACK_SEQUENCING checks=29")
+	# The next-action forecast cannot count a charge that has not begun.
+	sequence_partner.species="thornbeetle"
+	if sequencing.enemy_combo_followup(sequence_partner,sequence_debuff,1)!=0.0:failures.append("sequence future unstarted charge excluded")
+	checks+=1
+	sequence_partner.pp_secondary=10
+	if sequencing.enemy_combo_followup(sequence_partner,sequence_debuff,1)<=0.0:failures.append("sequence future immediate secondary available")
+	checks+=1
+	sequence_partner.pp_secondary=0;sequence_partner["windup"]=true;sequence_partner["aim"]=Vector2i.DOWN
+	if sequencing.enemy_combo_followup(sequence_partner,sequence_debuff,1)<=0.0:failures.append("sequence future committed charge available")
+	checks+=1
+	sequence_partner.erase("windup");sequence_partner.erase("aim");sequence_partner.species="bramble_pup"
+	sequence_partner["cooldown"]=1
+	if sequencing.enemy_combo_followup(sequence_partner,sequence_debuff,0)!=0.0 or sequencing.enemy_combo_followup(sequence_partner,sequence_debuff,1)<=0.0:failures.append("sequence next phase cooldown boundary")
+	checks+=1
+	sequence_partner.erase("cooldown")
+	if sequencing.rng.state!=sequence_damage_rng or sequence_partner.pp_primary!=10 or sequence_partner.pp_secondary!=0 or not sequencing.enemy_actions.is_empty():failures.append("sequence phase forecast purity")
+	checks+=1
+	print("KINDRIA_ATTACK_SEQUENCING checks=34")
 	# Bounded search follows actual witnessed headings and explores alternatives.
 	var hunter_search=Rules.new()
 	for y in range(1,10):

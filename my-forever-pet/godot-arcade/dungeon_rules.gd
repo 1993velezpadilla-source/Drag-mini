@@ -3214,10 +3214,10 @@ func enemy_combo_followup(e:Dictionary,move:Dictionary,wait:int)->float:
 		if fixed_aim!=Vector2i.ZERO and enemy_move_allowed(e,"primary") and attack_footprint(origin,fixed_aim,pattern,int(skill[0])).has(player):
 			return minf(3.0,maxf(0.0,enemy_combo_damage_score(e,skill,false))*gain)
 		return 0.0
-	if int(e.get("cooldown",0))<=wait and enemy_move_allowed(e,"primary") and enemy_area_aim(e,pattern,int(skill[0]))!=Vector2i.ZERO:
-		# An unstarted windup cannot deliver same-round damage.
-		if not bool(skill[1]):best=maxf(best,enemy_combo_damage_score(e,skill,false))
-		elif wait>0:best=maxf(best,enemy_combo_damage_score(e,skill,false)*.35)
+	# The forecast is for the indicated action phase, not a multi-turn rollout.
+	# An unstarted windup would spend that phase charging, never dealing damage.
+	if not bool(skill[1]) and int(e.get("cooldown",0))<=wait and enemy_move_allowed(e,"primary") and enemy_area_aim(e,pattern,int(skill[0]))!=Vector2i.ZERO:
+		best=maxf(best,enemy_combo_damage_score(e,skill,false))
 	if int(e.get("alt_cooldown",0))<=wait and not bool(e.get("windup",false)) and SECONDARY_SKILLS.has(species) and enemy_move_allowed(e,"secondary"):
 		var alt:Array=SECONDARY_SKILLS[species]
 		if enemy_area_aim(e,str(alt[1]),int(alt[0]))!=Vector2i.ZERO:
