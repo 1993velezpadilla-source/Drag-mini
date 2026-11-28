@@ -2162,8 +2162,9 @@ func enemy_environment_guard_step(e:Dictionary,target:Vector2i)->Vector2i:
 		var support:bool=false
 		var blocked:bool=false
 		for other in enemies:
-			if not enemy_squad_partner(e,other) or not enemy_line_of_sight(other.pos,target):continue
+			if not enemy_squad_lane_peer(e,other,target):continue
 			if enemy_relief_blocks_lane(other,q,target):blocked=true;break
+			if not enemy_line_of_sight(other.pos,target):continue
 			if distance(other.pos,target)==1 and int(other.hp)*2>maxi(1,int(other.get("max_hp",other.hp))):support=true
 		if not blocked and support:return q
 	return origin
@@ -5377,9 +5378,9 @@ func enemy_formation_post_bonus(e:Dictionary,post:Vector2i,target:Vector2i)->int
 	var distinct:bool=false
 	var opposite:bool=false
 	for other in enemies:
-		if not enemy_squad_partner(e,other) or not enemy_line_of_sight(other.pos,target):continue
+		if not enemy_squad_lane_peer(e,other,target):continue
 		if enemy_relief_blocks_lane(other,post,target):return -12
-		if distance(other.pos,target)!=1:continue
+		if not enemy_line_of_sight(other.pos,target) or distance(other.pos,target)!=1:continue
 		if other.pos-target==target-post:opposite=true
 		elif other.pos!=post:distinct=true
 	if opposite:score+=4

@@ -4510,7 +4510,20 @@ func run_checks()->void:
 	formation_fixture.allies.append({"uid":12,"pos":Vector2i(4,5),"hp":20})
 	if formation_fixture.enemy_formation_post_bonus(formation_actor,Vector2i(5,4),formation_fixture.player)!=2:failures.append("formation supported target no isolation bonus")
 	checks+=1
-	print("KINDRIA_FORMATION_BREAKING checks=8")
+	# An announced ray can cross an adjacent flanking post without the
+	# shooter having line of sight to the current player.
+	formation_fixture.allies.clear()
+	formation_fixture.player=Vector2i(5,2)
+	formation_actor.pos=Vector2i(3,1);formation_peer.pos=Vector2i(4,1)
+	formation_peer["windup"]=true;formation_peer["aim"]=Vector2i.RIGHT;formation_peer["pp_primary"]=12
+	formation_fixture.cells.erase(Vector2i(4,2))
+	var occluded_flank:=Vector2i(5,1)
+	if formation_fixture.enemy_line_of_sight(formation_peer.pos,formation_fixture.player) or not formation_fixture.enemy_relief_blocks_lane(formation_peer,occluded_flank,formation_fixture.player) or formation_fixture.enemy_formation_post_bonus(formation_actor,occluded_flank,formation_fixture.player)!=-12:failures.append("formation avoids occluded announced ray")
+	checks+=1
+	formation_peer.erase("windup");formation_peer.erase("aim")
+	if formation_fixture.enemy_formation_post_bonus(formation_actor,occluded_flank,formation_fixture.player)!=2:failures.append("formation releases cancelled occluded ray without phantom support")
+	checks+=1
+	print("KINDRIA_FORMATION_BREAKING checks=10")
 	# Risk counts visible healthy support and actual recent damage, not hidden actors.
 	var risk_fixture=Rules.new()
 	for y in range(1,9):
