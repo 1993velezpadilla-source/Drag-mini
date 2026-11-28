@@ -19,7 +19,7 @@ See [COMMUNITY_INTELLIGENCE.md](COMMUNITY_INTELLIGENCE.md) for the audit of all 
 - [ ] Playtest first dungeon with consenting players before promotion to Dungeon 002; record qualitative feedback and actual Android frame/touch metrics.
 
 ## P0 | first map only
-- [ ] Three short floors; connected random rooms/corridors, readable exit and rescue objective, safe start, deterministic seeded tests.
+- [ ] Three short floors; connected random rooms/corridors, readable exit and optional rescue objective, safe start, deterministic seeded tests.
 - [ ] Gentle encounter density, original creatures, berry/coin pickups, heal/PP tutorial, no early natural traps or ambushes; advanced expeditions retain their rules.
 - [ ] Waterfall: separated falling sheet and pool, crest, gravity-aligned flow, foam, ripple rings, mist, depth, water sound attenuated by distance; no water collision on paths.
 - [ ] Forest: unique oak/willow silhouettes, exposed roots, layered crowns, ferns, flowering plants, mushrooms, rocks, log, leaf litter, original materials; bounded instancing and triangle counts.
@@ -58,6 +58,14 @@ See [COMMUNITY_INTELLIGENCE.md](COMMUNITY_INTELLIGENCE.md) for the audit of all 
 - [x] 21 new checks authored for reward messages, audio cache and floor bonus carryover (b557b5c4bae45017a217c0b1e355aad259243e8d).
 - [ ] Verify latest CI, Android reward readability, audio balance, timing, and final expedition result screen. No gameplay reward amounts changed. F006 remains open.
 - [ ] Next: expedition result screen and companion continuity, then Android first-map playtest.
+
+### Dungeon 001 + all normal dungeons — V26.25 Classic Random Stairs
+- [x] User design correction: normal stairs never require relics, keys or clearing enemies. Treasure is optional (+5 coins). Only explicit legacy rescue guardian finales retain their guardian condition; review these separately if needed.
+- [x] Entrance and stairs independently selected from walkable room tiles; different tile, connected layout, no forced farthest exit, legitimate adjacent/same-room lucky stairs. Shared generator applies across all regions.
+- [x] Geometry-only SHA-256 signature of normalized sorted walkable coordinates; reject previously encountered layouts, up to 32 generation attempts, bounded 1024-entry local persistent history across runs. Finite capacity and retry cap mean no mathematical promise of infinite uniqueness; no server-wide tracking.
+- [x] HUD/minimap/exit button use stairs availability instead of relic status; optional treasure remains marked. Commits 3fa1f45efd2b514b4717534f4a118391b606a097, c1403b577b8e29711cace38d4d1b99798079a2ff.
+- [x] 388 additional checks authored across 128 seeds, three regions, reachable random stairs, lucky adjacency, no relic requirement and deterministic duplicate rejection (bb0863849718f4c5fd2280ea03498f371a55aabb).
+- [ ] Validate CI, Android persistence and touch, staircase distribution and actual playtest; compare reference dungeon generation distribution without claiming exact Nintendo implementation. All earlier roadmap references to mandatory relics are superseded by this rule.
 
 ## P1 | dungeon simulation
 - [x] Existing procedural layout, turn logic, movement, four moves, PP, regular attack, 18 types, status, traps, Monster House: audit individually, not certified.
