@@ -2385,6 +2385,16 @@ func enemy_firing_lane_stage_step(e:Dictionary,target:Vector2i)->Vector2i:
 			var q:Vector2i=origin+heading
 			if distance(q,post)!=2 or not enemy_ambush_safe_tile(q) or reserved.has(q) or enemy_strategy_reversal(e,q,target):continue
 			if not enemy_line_of_sight(q,post) or not enemy_line_of_sight(q,target) or enemy_recovery_lane_blocked(peers,q,target,memo):continue
+			# At distance two, require a real intermediate tile that can reach
+			# the post once its firing reservation expires. The final post
+			# remains reserved; no movement into it is authorized here.
+			var has_access:bool=false
+			for access_dir in DIR:
+				var access:Vector2i=q+access_dir
+				if distance(access,post)!=1 or not enemy_ambush_safe_tile(access) or reserved.has(access):continue
+				if not enemy_line_of_sight(access,target) or enemy_recovery_lane_blocked(peers,access,target,memo):continue
+				has_access=true;break
+			if not has_access:continue
 			var score:int=enemy_terrain_position_bonus(e,q,target)+distance(origin,target)-distance(q,target)
 			if score>best_score:best=q;best_score=score
 	return best
