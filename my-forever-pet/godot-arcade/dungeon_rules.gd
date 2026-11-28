@@ -970,6 +970,10 @@ var starter_woods:bool=false
 const LAYOUT_HISTORY_CAP:int=1024
 const LAYOUT_RETRY_CAP:int=32
 var recent_layouts:Array[String]=[]
+const SHAPE_HISTORY_CAP:int=4096
+var recent_shapes:Array[String]=[]
+var shape_signature:String=""
+var shape_history_hits:int=0
 var layout_signature:String=""
 var layout_retries:int=0
 # Family labels are Kindria-specific; the geometry is generated, never a fixed map.
@@ -1040,7 +1044,15 @@ func extend_network()->void:
 				for step in range(1,length+1):
 					var q:Vector2i=entry+d*step
 					patch[q]=true;trail.append(q)
-				var end:Vector2i=entry+d*(length+1)
+				var bends:int=0
+				if kind!=3 and network_rng.randi_range(0,1)==0:
+					d=Vector2i(-d.y,d.x) if network_rng.randi_range(0,1)==0 else Vector2i(d.y,-d.x)
+					var pivot:Vector2i=trail.back()
+					for step in range(1,network_rng.randi_range(1,3)+1):
+						var q:Vector2i=pivot+d*step
+						patch[q]=true;trail.append(q)
+					bends=1
+				var end:Vector2i=trail.back()+d
 				var chamber:=Rect2i()
 				if kind==2 and not cells.has(end):continue
 				if kind==3:
@@ -1048,14 +1060,20 @@ func extend_network()->void:
 					for y in range(chamber.position.y,chamber.end.y):
 						for x in range(chamber.position.x,chamber.end.x):patch[Vector2i(x,y)]=true
 				if not network_patch_clear(patch,entry,end,kind==2):continue
+				var previous_length:int=0
 				if kind==2:
 					var old_route:Array[Vector2i]=route(entry,end)
-					if old_route.is_empty() or old_route.size()<=length+3:continue
+					previous_length=old_route.size()
+					if previous_length<=trail.size()+3:continue
 				for q in patch:cells[q]=true
-				network_paths.append({"kind":kind,"entry":entry,"exit":end if kind==2 else trail.back(),"tiles":trail})
+				network_paths.append({"kind":kind,"entry":entry,"exit":end if kind==2 else trail.back(),"tiles":trail,"bends":bends,"previous_length":previous_length})
 				if kind==3:
 					side_chambers.append(chamber);side_rewards.append(center(chamber))
 				placed=true;break
+		# Allow later features to grow from the preceding branch, not only base rooms.
+		if placed and kind==1:
+			var added:Array=network_paths.back()["tiles"]
+			for q in added:origins.push_front(q)
 
 
 func carve_maze_wall(room:Rect2i)->void:
@@ -1214,6 +1232,36 @@ func remember_layout(signature:String)->void:
 	recent_layouts.erase(signature)
 	recent_layouts.append(signature)
 	while recent_layouts.size()>LAYOUT_HISTORY_CAP:recent_layouts.pop_front()
+
+func remember_shape(signature:String)->void:
+	if signature.length()!=64 or not signature.is_valid_hex_number():return
+	recent_shapes.erase(signature)
+	recent_shapes.append(signature)
+	while recent_shapes.size()>SHAPE_HISTORY_CAP:recent_shapes.pop_front()
+
+func canonical_shape_signature()->String:
+	# Translation, reflection and 90-degree rotations share a shape identity.
+	# Use bounded integer tile IDs and hash only the lexicographically least encoding.
+	if cells.is_empty():return ""
+	var best:String=""
+	for orientation in range(8):
+		var points:Array[Vector2i]=[]
+		var low:=Vector2i(2147483647,2147483647)
+		for q in cells:
+			var p:Vector2i=q
+			if orientation>=4:p.x=-p.x
+			for turn in range(orientation%4):p=Vector2i(-p.y,p.x)
+			low=Vector2i(mini(low.x,p.x),mini(low.y,p.y));points.append(p)
+		var ids:=PackedInt32Array()
+		for p in points:
+			var offset:Vector2i=p-low
+			ids.append(offset.y*128+offset.x)
+		ids.sort()
+		var parts:=PackedStringArray()
+		for tile_id in ids:parts.append(str(tile_id))
+		var encoded:String=",".join(parts)
+		if best.is_empty() or encoded<best:best=encoded
+	return best.sha256_text()
 
 func floor_layout_signature()->String:
 	# Hash only the walkable geometry, not the seed, loot or exit placement.
@@ -1439,14 +1487,18 @@ func generate_floor():
 	floor_kind=0 if starter_woods or floor_number==1 else posmod(seed_value*3+floor_number*7,5)
 	secured=false;guardian_defeated=not (rescue_finale and floor_number==floor_count);floor_revision+=1
 	visual_interactions.clear()
-	layout_retries=0
+	layout_retries=0;shape_history_hits=0
 	for attempt in range(LAYOUT_RETRY_CAP):
 		cells.clear();rooms.clear()
 		build_layout()
 		layout_signature=floor_layout_signature()
-		if not recent_layouts.has(layout_signature):break
+		shape_signature=canonical_shape_signature()
+		var repeated_shape:bool=recent_shapes.has(shape_signature)
+		if repeated_shape:shape_history_hits+=1
+		if not recent_layouts.has(layout_signature) and not repeated_shape:break
 		layout_retries+=1
 	remember_layout(layout_signature)
+	remember_shape(shape_signature)
 	monster_house_room=-1;monster_house_triggered=false;monster_house_cleared=false;monster_house_spawn_count=0
 	monster_house_rng.seed=seed_value+floor_number*104729+region*8191+3011
 
