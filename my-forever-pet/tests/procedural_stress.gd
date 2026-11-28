@@ -3392,7 +3392,7 @@ func run_checks()->void:
 		for live_x in range(1,8):live_aim.cells[Vector2i(live_x,live_y)]=true
 	live_aim.rooms.append(Rect2i(1,1,7,7))
 	var live_target:=Vector2i(4,4)
-	var live_fast:Dictionary={"footprints":0}
+	var live_fast:Dictionary={"footprints":0,"targeted":0}
 	var live_full:Dictionary={"footprints":0}
 	for live_board in range(3):
 		if live_board==1:
@@ -3416,6 +3416,32 @@ func run_checks()->void:
 	if int(live_fast.footprints)>=int(live_full.footprints):failures.append("live aim reduces footprint evaluations")
 	checks+=1
 	print("KINDRIA_LIVE_AIM_WORK optimized=%d reference=%d"%[int(live_fast.footprints),int(live_full.footprints)])
+	if int(live_fast.targeted)<=0:failures.append("live aim target-only path exercised")
+	checks+=1
+	print("KINDRIA_TARGET_ONLY_WORK targeted=%d"%int(live_fast.targeted))
+	# Exhaustively compare the target-only predicate with full footprint membership,
+	# including every heading, blocked cells, dead peers and hypothetical vacancy.
+	var targeted_checks:int=0
+	var targeted_board=Rules.new()
+	for target_y in range(1,8):
+		for target_x in range(1,8):targeted_board.cells[Vector2i(target_x,target_y)]=true
+	targeted_board.cells.erase(Vector2i(3,4))
+	targeted_board.cells.erase(Vector2i(5,5))
+	targeted_board.enemies.append({"uid":902,"pos":Vector2i(4,3),"hp":30})
+	targeted_board.enemies.append({"uid":903,"pos":Vector2i(5,4),"hp":0})
+	for targeted_origin in [Vector2i(4,4),Vector2i(3,3),Vector2i(5,5)]:
+		for targeted_heading in Rules.DIR:
+			for targeted_pattern in ["line","front","fan","corner","corner_front"]:
+				for targeted_reach in [0,1,2,3,6]:
+					for targeted_vacancy in [Vector2i(-99999,-99999),Vector2i(4,3),Vector2i(5,4)]:
+						var targeted_reference:Dictionary=targeted_board.compute_attack_footprint(targeted_origin,targeted_heading,targeted_pattern,targeted_reach,false,targeted_vacancy)
+						for target_y in range(1,8):
+							for target_x in range(1,8):
+								var target_tile:=Vector2i(target_x,target_y)
+								if targeted_board.attack_cardinal_contains(targeted_origin,target_tile,targeted_heading,targeted_pattern,targeted_reach,targeted_vacancy)!=targeted_reference.has(target_tile):failures.append("target-only footprint membership parity")
+								targeted_checks+=1
+	checks+=targeted_checks
+	print("KINDRIA_TARGET_ONLY_GEOMETRY checks=%d"%targeted_checks)
 	if recovery_sight.enemy_projected_attack_aim(sight_actor,Vector2i(1,1),recovery_sight.player,"radius",1)!=Vector2i.ZERO:failures.append("projected symmetric unreachable target")
 	checks+=1
 	recovery_sight.enemies.pop_back();sight_actor.pos=projection_origin

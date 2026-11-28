@@ -902,6 +902,34 @@ func attack_heading_possible(delta:Vector2i,d:Vector2i,pattern:String,reach:int)
 			return along>=1 and along<=(1 if pattern=="corner_front" else reach) and across<=(reach-along if pattern=="corner" else 1)
 	return true
 
+# Aiming asks only whether one target is reachable. For cardinal patterns,
+# validate exactly its unique straight/branch path without constructing arrays.
+# corner_front intentionally ignores occupancy, matching the full footprint.
+func attack_cardinal_contains(origin:Vector2i,target:Vector2i,d:Vector2i,pattern:String,reach:int,vacated:Vector2i=Vector2i(-99999,-99999))->bool:
+	var delta:Vector2i=target-origin
+	if not attack_heading_possible(delta,d,pattern,reach):return false
+	var along:int=delta.x*d.x+delta.y*d.y
+	var base:Vector2i=origin+d*along
+	if pattern=="corner_front":
+		if target==base:return cells.has(target)
+		return cells.has(target) and (cells.has(base) or cells.has(origin+target-base))
+	for i in range(1,along+1):
+		var tile:Vector2i=origin+d*i
+		if not cells.has(tile) or (tile!=vacated and enemy_at(tile)>=0):return false
+	var offset:Vector2i=target-base
+	if offset==Vector2i.ZERO:return true
+	var lateral:Vector2i=Vector2i(signi(offset.x),signi(offset.y))
+	for i in range(1,absi(offset.x)+absi(offset.y)+1):
+		var tile:Vector2i=base+lateral*i
+		if not cells.has(tile) or (tile!=vacated and enemy_at(tile)>=0):return false
+	return true
+
+func attack_aim_contains(origin:Vector2i,target:Vector2i,d:Vector2i,pattern:String,reach:int,prune:bool,work:Dictionary)->bool:
+	if prune and pattern in ["line","front","fan","corner","corner_front"]:
+		if work.has("targeted"):work["targeted"]+=1
+		return attack_cardinal_contains(origin,target,d,pattern,reach)
+	return attack_footprint(origin,d,pattern,reach).has(target)
+
 func attack_aim(origin:Vector2i,target:Vector2i,pattern:String,reach:int,prune:bool=true,work:Dictionary={})->Vector2i:
 	var delta:=target-origin
 	var preferred:=Vector2i(signi(delta.x),0) if absi(delta.x)>absi(delta.y) else Vector2i(0,signi(delta.y))
@@ -912,11 +940,11 @@ func attack_aim(origin:Vector2i,target:Vector2i,pattern:String,reach:int,prune:b
 		return heading if attack_footprint(origin,heading,pattern,reach).has(target) else Vector2i.ZERO
 	if preferred!=Vector2i.ZERO and (not prune or attack_heading_possible(delta,preferred,pattern,reach)):
 		if work.has("footprints"):work["footprints"]+=1
-		if attack_footprint(origin,preferred,pattern,reach).has(target):return preferred
+		if attack_aim_contains(origin,target,preferred,pattern,reach,prune,work):return preferred
 	for d in DIR:
 		if prune and (d==preferred or not attack_heading_possible(delta,d,pattern,reach)):continue
 		if work.has("footprints"):work["footprints"]+=1
-		if attack_footprint(origin,d,pattern,reach).has(target):return d
+		if attack_aim_contains(origin,target,d,pattern,reach,prune,work):return d
 	return Vector2i.ZERO
 # Hypothetical movement vacates exactly the moving actor's old tile.
 # Bypass normal footprint cache: the projected occupancy is not the live board.
@@ -930,7 +958,8 @@ func enemy_projected_attack_aim(e:Dictionary,post:Vector2i,target:Vector2i,patte
 		if absi(delta.x)+absi(delta.y)>(1 if pattern=="front" else reach):return Vector2i.ZERO
 		var heading:Vector2i=Vector2i(signi(delta.x),signi(delta.y))
 		if work.has("footprints"):work["footprints"]+=1
-		return heading if compute_attack_footprint(post,heading,pattern,reach,false,e.pos).has(target) else Vector2i.ZERO
+		if work.has("targeted"):work["targeted"]+=1
+		return heading if attack_cardinal_contains(post,target,heading,pattern,reach,e.pos) else Vector2i.ZERO
 	# These footprints are independent of heading even with projected vacancy.
 	# Keep the first cardinal heading and never reuse live occupancy geometry.
 	var headings:Array=[DIR[0]] if prune_symmetric and pattern in ["radius","cross","room"] else DIR
@@ -945,7 +974,10 @@ func enemy_projected_attack_aim(e:Dictionary,post:Vector2i,target:Vector2i,patte
 			if along<1 or along>forward_limit:continue
 			if across>(reach-along if pattern=="corner" else 1):continue
 		if work.has("footprints"):work["footprints"]+=1
-		if compute_attack_footprint(post,d,pattern,reach,false,e.pos).has(target):return d
+		if prune_symmetric and pattern in ["fan","corner","corner_front"]:
+			if work.has("targeted"):work["targeted"]+=1
+			if attack_cardinal_contains(post,target,d,pattern,reach,e.pos):return d
+		elif compute_attack_footprint(post,d,pattern,reach,false,e.pos).has(target):return d
 	return Vector2i.ZERO
 
 func warning_tiles(enemy:Dictionary)->Array:
