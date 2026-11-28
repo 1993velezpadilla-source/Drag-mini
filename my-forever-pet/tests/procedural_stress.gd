@@ -1129,6 +1129,64 @@ func run_checks()->void:
 	if boss_fixture.boss_reposition_step(boss_actor,boss_fixture.player)==Vector2i(8,3):failures.append("boss home leash")
 	checks+=1
 	print("KINDRIA_BOSS_TACTICS phases=3 styles=1 movement=6")
+	# V26.64: regression fixtures and a mixed-actor simulation.
+	var stability=Rules.new()
+	for y in range(1,10):
+		for x in range(1,10):stability.cells[Vector2i(x,y)]=true
+	stability.player=Vector2i(5,5)
+	var stability_actor:Dictionary={"uid":0,"pos":Vector2i(3,5),"hp":20,"max_hp":20,"kind":0,"species":"bramble_pup","ecology_search_enabled":true,"ecology_role":"hunter","cooldown":3,"alt_cooldown":2,"support_cooldown":1,"control_cooldown":4}
+	stability.enemies.append(stability_actor)
+	stability.allies.append({"uid":1000,"pos":Vector2i(4,5),"hp":20,"max_hp":20})
+	stability.apply_signature_effect(0,stability.signature_skill(stability_actor))
+	if stability_actor.pos!=Vector2i(3,5):failures.append("stability pounce cannot overlap ally")
+	checks+=1
+	stability_actor["sleep_turns"]=2
+	stability.enemy_turn_actions()
+	if stability_actor.cooldown!=2 or stability_actor.alt_cooldown!=1 or stability_actor.support_cooldown!=0 or stability_actor.control_cooldown!=3 or not stability.enemy_actions.is_empty():failures.append("stability asleep cooldown ticking")
+	checks+=1
+	stability.player_boons={"hostile_sleep":3,"hostile_drowse":2,"hostile_paralysis":4,"hostile_control_recovery":8}
+	stability.player_slow_turns=4
+	if not stability.apply_player_boon({"boon_kind":"cure"}) or stability.boon_active("hostile_sleep") or stability.boon_active("hostile_drowse") or stability.boon_active("hostile_paralysis") or stability.player_slow_turns!=0 or not stability.boon_active("hostile_control_recovery"):failures.append("stability cure and recovery preservation")
+	checks+=1
+	stability.player_boons={"hostile_drowse":1}
+	stability.shield_kind="safeguard";stability.shield_turns=2
+	stability.tick_player_boons()
+	if stability.boon_active("hostile_sleep"):failures.append("stability delayed sleep safeguard")
+	checks+=1
+	var stability_turns:int=0
+	for sample in range(32):
+		var arena=Rules.new()
+		arena.rng.seed=21000+sample
+		arena.monster_house_rng.seed=32000+sample
+		for y in range(1,10):
+			for x in range(1,10):arena.cells[Vector2i(x,y)]=true
+		arena.rooms.append(Rect2i(1,1,9,9))
+		arena.player=Vector2i(5,5);arena.stairs=Vector2i(9,9);arena.relic=Vector2i(9,8)
+		arena.hp=10000;arena.max_hp=10000
+		arena.region=sample%3;arena.floor_number=3;arena.tier=sample%3
+		arena.monster_house_room=0;arena.monster_house_profile=sample%6
+		arena.trigger_monster_house()
+		for tick in range(16):
+			if arena.finished:break
+			arena.enemy_turn()
+			stability_turns+=1
+			var occupied_stability:Dictionary={arena.player:true}
+			for actor in arena.enemies:
+				if int(actor.hp)<=0:continue
+				if not arena.cells.has(actor.pos) or occupied_stability.has(actor.pos):failures.append("stability occupied or invalid actor tile %d:%d"%[sample,tick])
+				occupied_stability[actor.pos]=true
+				for slot in ["primary","secondary","support","control"]:
+					if arena.enemy_move_pp(actor,slot)<0:failures.append("stability negative PP")
+				for key in ["cooldown","alt_cooldown","support_cooldown","control_cooldown"]:
+					if int(actor.get(key,0))<0:failures.append("stability negative cooldown")
+			var action_uids:Dictionary={}
+			for action in arena.enemy_actions:
+				var uid:int=int(action.get("uid",-1))
+				if action_uids.has(uid):failures.append("stability duplicate actor action %d:%d"%[sample,tick])
+				action_uids[uid]=true
+				if action.get("phase","")=="move" and (action.get("from")==action.get("to") or not arena.cells.has(action.get("to"))):failures.append("stability invalid movement event")
+			checks+=1
+	print("KINDRIA_AI_STABILITY turns=",stability_turns," scenarios=32")
 	# Actual disk I/O, legacy migration, corruption recovery, and resumed writes.
 	var test_path:String="user://kindria_procedural_test_"+str(OS.get_process_id())+".cfg"
 	var exact:Array[String]=["legacy exact".sha256_text()]
