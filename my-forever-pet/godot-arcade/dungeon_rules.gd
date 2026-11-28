@@ -3211,14 +3211,14 @@ func enemy_combo_followup(e:Dictionary,move:Dictionary,wait:int)->float:
 	var pattern:String=str(ATTACK_PATTERNS.get(species,"line"))
 	if bool(e.get("windup",false)):
 		var fixed_aim:Vector2i=e.get("aim",Vector2i.ZERO)
-		if fixed_aim!=Vector2i.ZERO and enemy_move_allowed(e,"primary") and attack_footprint(origin,fixed_aim,pattern,int(skill[0])).has(player):
+		if fixed_aim!=Vector2i.ZERO and enemy_move_allowed(e,"primary",wait) and attack_footprint(origin,fixed_aim,pattern,int(skill[0])).has(player):
 			return minf(3.0,maxf(0.0,enemy_combo_damage_score(e,skill,false))*gain)
 		return 0.0
 	# The forecast is for the indicated action phase, not a multi-turn rollout.
 	# An unstarted windup would spend that phase charging, never dealing damage.
-	if not bool(skill[1]) and int(e.get("cooldown",0))<=wait and enemy_move_allowed(e,"primary") and enemy_area_aim(e,pattern,int(skill[0]))!=Vector2i.ZERO:
+	if not bool(skill[1]) and int(e.get("cooldown",0))<=wait and enemy_move_allowed(e,"primary",wait) and enemy_area_aim(e,pattern,int(skill[0]))!=Vector2i.ZERO:
 		best=maxf(best,enemy_combo_damage_score(e,skill,false))
-	if int(e.get("alt_cooldown",0))<=wait and not bool(e.get("windup",false)) and SECONDARY_SKILLS.has(species) and enemy_move_allowed(e,"secondary"):
+	if int(e.get("alt_cooldown",0))<=wait and not bool(e.get("windup",false)) and SECONDARY_SKILLS.has(species) and enemy_move_allowed(e,"secondary",wait):
 		var alt:Array=SECONDARY_SKILLS[species]
 		if enemy_area_aim(e,str(alt[1]),int(alt[0]))!=Vector2i.ZERO:
 			best=maxf(best,enemy_combo_damage_score(e,[alt[0],false,3,alt[3],alt[4],alt[5],"alt_"+species],true))
@@ -5790,10 +5790,12 @@ func enemy_attack_score(e:Dictionary,skill:Array,secondary:bool,include_opportun
 	if enemy_move_pp(e,slot)<=2:score*=.85
 	return score*enemy_observed_attack_weight(e,-1,slot)+(enemy_opportunity_bonus(e,skill,secondary) if include_opportunity else 0.0)
 
-func enemy_move_allowed(e:Dictionary,slot:String)->bool:
+func enemy_move_allowed(e:Dictionary,slot:String,wait:int=0)->bool:
 	if enemy_move_pp(e,slot)<=0 or slot in e.get("sealed_moves",[]):return false
-	if int(e.get("encore_turns",0))>0 and str(e.get("encore_slot",""))!=slot:return false
-	if slot in ["support","control"] and int(e.get("taunt_turns",0))>0:return false
+	# Status timers tick between action phases; seals and PP do not.
+	var elapsed:int=maxi(0,wait)
+	if int(e.get("encore_turns",0))>elapsed and str(e.get("encore_slot",""))!=slot:return false
+	if slot in ["support","control"] and int(e.get("taunt_turns",0))>elapsed:return false
 	return true
 
 # Catalog equivalents for original Kindria enemy signatures, not a replacement of their tuned AI.

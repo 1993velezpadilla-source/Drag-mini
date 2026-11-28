@@ -3743,7 +3743,24 @@ func run_checks()->void:
 	sequence_partner.erase("cooldown")
 	if sequencing.rng.state!=sequence_damage_rng or sequence_partner.pp_primary!=10 or sequence_partner.pp_secondary!=0 or not sequencing.enemy_actions.is_empty():failures.append("sequence phase forecast purity")
 	checks+=1
-	print("KINDRIA_ATTACK_SEQUENCING checks=34")
+	# Temporary restrictions expire between phases, unlike PP or a sealed slot.
+	sequence_partner["encore_turns"]=1;sequence_partner["encore_slot"]="secondary"
+	if sequencing.enemy_combo_followup(sequence_partner,sequence_debuff,0)!=0.0 or sequencing.enemy_combo_followup(sequence_partner,sequence_debuff,1)<=0.0:failures.append("sequence encore expires before next phase")
+	checks+=1
+	sequence_partner.encore_turns=2
+	if sequencing.enemy_combo_followup(sequence_partner,sequence_debuff,1)!=0.0:failures.append("sequence encore remains active next phase")
+	checks+=1
+	sequence_partner.encore_turns=1;sequence_partner["sealed_moves"]=["primary"]
+	if sequencing.enemy_combo_followup(sequence_partner,sequence_debuff,1)!=0.0:failures.append("sequence seal persists after encore expiry")
+	checks+=1
+	sequence_partner.erase("sealed_moves");sequence_partner.pp_primary=0
+	if sequencing.enemy_combo_followup(sequence_partner,sequence_debuff,1)!=0.0:failures.append("sequence expired encore does not restore PP")
+	checks+=1
+	sequence_partner.pp_primary=10
+	if sequencing.enemy_move_allowed(sequence_partner,"primary") or not sequencing.enemy_move_allowed(sequence_partner,"primary",1) or sequence_partner.encore_turns!=1 or sequence_partner.pp_primary!=10 or sequencing.rng.state!=sequence_damage_rng or not sequencing.enemy_actions.is_empty():failures.append("sequence temporal lock forecast purity")
+	checks+=1
+	sequence_partner.erase("encore_turns");sequence_partner.erase("encore_slot")
+	print("KINDRIA_ATTACK_SEQUENCING checks=39")
 	# Bounded search follows actual witnessed headings and explores alternatives.
 	var hunter_search=Rules.new()
 	for y in range(1,10):
