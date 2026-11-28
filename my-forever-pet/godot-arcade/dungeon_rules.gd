@@ -2940,9 +2940,13 @@ func enemy_execute_control(i:int)->bool:
 # The player remains free to move, attack, wait or use an item.
 func enemy_counterplay_charge_tiles(e:Dictionary,target:Vector2i)->Dictionary:
 	var covered:Dictionary={}
+	var announced:Dictionary={}
+	for action in enemy_actions:
+		if str(action.get("phase",""))=="windup":announced[int(action.get("uid",-1))]=true
+	if announced.is_empty():return covered
 	for other in enemies:
 		if other.pos==e.pos:break
-		if not enemy_squad_partner(e,other) or not bool(other.get("windup",false)) or not enemy_move_allowed(other,"primary"):continue
+		if not announced.has(int(other.get("uid",-2))) or not enemy_squad_partner(e,other) or not bool(other.get("windup",false)) or not enemy_move_allowed(other,"primary"):continue
 		if int(other.get("whiffer_turns",0))>0 or int(other.get("slow_turns",0))>0:continue
 		if distance(other.pos,target)>enemy_awareness(other) or not enemy_line_of_sight(other.pos,target):continue
 		var skill:Array=signature_skill(other)
