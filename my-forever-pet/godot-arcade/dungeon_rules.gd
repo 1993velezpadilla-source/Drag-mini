@@ -4857,14 +4857,14 @@ func enemy_turn_actions_impl():
 		if not allies.is_empty() and not bool(enemies[i].get("boss_tactical",false)) and not enemy_has_party_area_attack(enemies[i]) and enemy_target_ally(i):continue
 		var gap:=distance(p,player)
 		var pursuit_target:Vector2i=enemy_pursuit_target(enemies[i],player)
-		if gap<=3 and not enemies[i].get("windup",false) and enemy_use_potion(i):
+		var finish_priority:bool=enemy_opportunity_eligible(enemies[i]) and enemy_risk_has_finisher(enemies[i])
+		if not finish_priority and gap<=3 and not enemies[i].get("windup",false) and enemy_use_potion(i):
 			enemy_actions.append({"uid":enemies[i].get("uid",i),"phase":"attack","from":p,"to":p,"move":"Healing berry","fx":"basic_strike","damage":0,"tiles":[p],"path":[p]})
 			emit_event("Enemy recovered HP")
 			enemy_tick_all_cooldowns(enemies[i]);continue
 		var survival_cap:int=int(enemies[i].get("max_hp",0))
 		if survival_cap>0 and int(enemies[i].hp)*2>survival_cap:enemies[i].erase("retreat_steps")
 		# Resolve lethal opportunities before optional positioning and support.
-		var finish_priority:bool=enemy_opportunity_eligible(enemies[i]) and enemy_risk_has_finisher(enemies[i])
 		var lure_step:Vector2i=p if finish_priority else enemy_lure_step(enemies[i],player)
 		if lure_step!=p:
 			enemies[i].pos=lure_step;enemies[i]["lure_turn"]=turns
@@ -4940,6 +4940,10 @@ func enemy_turn_actions_impl():
 			var alt_aim:=enemy_area_aim(enemies[i],str(alt[1]),int(alt[0]))
 			var alt_skill:Array=[alt[0],false,3,alt[3],alt[4],alt[5],"alt_"+species]
 			var prefer_alt:bool=not ready or not in_range or enemy_attack_score(enemies[i],alt_skill,true)+enemy_area_bonus(enemies[i],str(alt[1]),int(alt[0]),alt_aim)+boss_attack_preference(enemies[i],true)>enemy_attack_score(enemies[i],skill,false)+enemy_area_bonus(enemies[i],pattern,int(skill[0]),aim)+boss_attack_preference(enemies[i],false)+.25
+			if finish_priority and not basic_finish:
+				var primary_lethal:bool=ready and in_range and not bool(skill[1]) and enemy_opportunity_damage(enemies[i],skill,false)>=hp
+				var secondary_lethal:bool=alt_aim!=Vector2i.ZERO and enemy_opportunity_damage(enemies[i],alt_skill,true)>=hp
+				if primary_lethal!=secondary_lethal:prefer_alt=secondary_lethal
 			if alt_aim!=Vector2i.ZERO and prefer_alt and house_visible:
 				alternate=true;aim=alt_aim;pattern=str(alt[1])
 				footprint=attack_footprint(p,aim,pattern,int(alt[0]))
