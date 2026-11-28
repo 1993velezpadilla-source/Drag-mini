@@ -2038,6 +2038,7 @@ func enemy_record_witnessed_loss(fallen:Dictionary)->void:
 		if not bool(observer.get("personality_enabled",false)) or not enemy_alert_eligible(observer) or observer.pos==fallen.pos:continue
 		if distance(observer.pos,fallen.pos)>mini(ENEMY_ALERT_RANGE,enemy_awareness(observer)) or not enemy_line_of_sight(observer.pos,fallen.pos):continue
 		observer["squad_loss_turn"]=turns
+		observer["squad_loss_tile"]=fallen.pos
 
 func enemy_recent_squad_loss(e:Dictionary)->bool:
 	var age:int=turns-int(e.get("squad_loss_turn",-9999))
@@ -2237,6 +2238,22 @@ func enemy_commit_recovery(e:Dictionary,origin:Vector2i,destination:Vector2i,mod
 	if destination==origin or mode not in ["immediate","detour","party"]:return
 	e["recovery_turn"]=turns;e["recovery_mode"]=mode
 	if mode!="immediate":e["unstall_turn"]=turns
+
+# A witnessed vacant frontline post is a concrete opportunity. Prefer it
+# only when it is adjacent, still empty, safe, and directly useful.
+func enemy_witnessed_vacancy_step(e:Dictionary,target:Vector2i)->Vector2i:
+	var origin:Vector2i=e.pos
+	if not enemy_opportunity_eligible(e) or not enemy_live_contact(e,target) or int(e.get("stuck_turns",0))>0:return origin
+	if shield_turns>0 and shield_kind=="protect":return origin
+	if turns-int(e.get("squad_loss_turn",-9999)) not in [0,1] or not e.has("squad_loss_tile"):return origin
+	if enemy_strategy_attack_tile(e,origin,target):return origin
+	var post:Vector2i=e.squad_loss_tile
+	if distance(origin,post)!=1 or distance(post,target)!=1 or not enemy_ambush_safe_tile(post):return origin
+	if not enemy_line_of_sight(origin,post) or not enemy_line_of_sight(post,target):return origin
+	if enemy_pack_reserved_posts(e,target).has(post):return origin
+	for other in enemies:
+		if enemy_squad_partner(e,other) and enemy_relief_blocks_lane(other,post,target):return origin
+	return post
 
 func enemy_immediate_recovery_step(e:Dictionary,target:Vector2i)->Vector2i:
 	var origin:Vector2i=e.pos
@@ -5884,8 +5901,9 @@ func enemy_turn_actions_impl():
 							path.clear();path.append(yield_tile)
 			var recovery_mode:String=""
 			if path.is_empty() and not charged and not intentional_hold and pursuit_target==player:
-				var recovery:Vector2i=enemy_immediate_recovery_step(enemies[i],player)
+				var recovery:Vector2i=enemy_witnessed_vacancy_step(enemies[i],player)
 				recovery_mode="immediate"
+				if recovery==p:recovery=enemy_immediate_recovery_step(enemies[i],player)
 				if recovery==p:
 					recovery=enemy_unstall_step(enemies[i],player);recovery_mode="detour"
 				if recovery==p:

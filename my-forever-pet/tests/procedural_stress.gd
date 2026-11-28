@@ -339,7 +339,12 @@ func enemy_integration_gauntlet(failures:Array[String])->int:
 					unresolved_after_congestion[uid]=int(unresolved_after_congestion.get(uid,0))+1 if observation=="open" and not verified_reserve and not verified_congestion else 0
 					if int(unresolved_after_congestion[uid])>unresolved_after_congestion_peak:
 						unresolved_after_congestion_peak=int(unresolved_after_congestion[uid])
-						remaining_context={"sample":sample,"round":round_index,"uid":uid,"species":e.get("species",""),"actor":e.duplicate(true),"player":cached.player,"shield_kind":cached.shield_kind,"shield_turns":cached.shield_turns,"charge_phase":cached.charge_phase,"visible":cached.enemy_live_contact(e,cached.player),"current_attack":cached.enemy_strategy_attack_tile(e,e.pos,cached.player),"occupied":cached.enemy_occupied_frontline(e,cached.player),"encircled":cached.enemy_encircled_frontline(e,cached.player)}
+						var local_posts:Array[Dictionary]=[]
+						for direction in [Vector2i.UP,Vector2i.RIGHT,Vector2i.DOWN,Vector2i.LEFT]:
+							var post:Vector2i=cached.player+direction
+							var occupant:int=cached.enemy_at(post)
+							local_posts.append({"tile":post,"walkable":cached.cells.has(post),"safe":cached.enemy_ambush_safe_tile(post),"enemy":cached.enemies[occupant].duplicate(true) if occupant>=0 else {},"ally_index":cached.ally_at(post)})
+						remaining_context={"posts":local_posts,"sample":sample,"round":round_index,"uid":uid,"species":e.get("species",""),"actor":e.duplicate(true),"player":cached.player,"shield_kind":cached.shield_kind,"shield_turns":cached.shield_turns,"charge_phase":cached.charge_phase,"visible":cached.enemy_live_contact(e,cached.player),"current_attack":cached.enemy_strategy_attack_tile(e,e.pos,cached.player),"occupied":cached.enemy_occupied_frontline(e,cached.player),"encircled":cached.enemy_encircled_frontline(e,cached.player)}
 					unexplained_open[uid]=int(unexplained_open.get(uid,0))+1 if observation=="open" and not verified_reserve else 0
 					if int(unexplained_open[uid])>unexplained_open_peak:
 						unexplained_open_peak=int(unexplained_open[uid])
@@ -2425,7 +2430,22 @@ func run_checks()->void:
 	loss_fixture.turns=22;loss_actor["stall_turn"]=21;loss_fixture.charge_phase="vanish"
 	if loss_fixture.enemy_unstall_step(loss_actor,loss_fixture.player)!=loss_actor.pos:failures.append("loss recovery no hidden target")
 	checks+=1
-	print("KINDRIA_ANTI_STALL checks=90")
+	# A witnessed vacancy is useful only if the actual tile remains safe.
+	loss_fixture.turns=22;loss_fixture.charge_phase=""
+	if loss_actor.get("squad_loss_tile",Vector2i.ZERO)!=Vector2i(3,4) or loss_fixture.enemy_witnessed_vacancy_step(loss_actor,loss_fixture.player)!=Vector2i(3,4):failures.append("witnessed vacancy selects concrete post")
+	checks+=1
+	loss_fixture.traps[Vector2i(3,4)]="snare"
+	if loss_fixture.enemy_witnessed_vacancy_step(loss_actor,loss_fixture.player)!=loss_actor.pos:failures.append("witnessed vacancy rejects trap")
+	checks+=1
+	loss_fixture.traps.clear()
+	loss_fixture.enemies.append({"uid":392,"pos":Vector2i(3,4),"hp":30,"kind":0})
+	if loss_fixture.enemy_witnessed_vacancy_step(loss_actor,loss_fixture.player)!=loss_actor.pos:failures.append("witnessed vacancy rejects reoccupied post")
+	checks+=1
+	loss_fixture.enemies.remove_at(1)
+	loss_fixture.turns=24
+	if loss_fixture.enemy_witnessed_vacancy_step(loss_actor,loss_fixture.player)!=loss_actor.pos:failures.append("witnessed vacancy expires")
+	checks+=1
+	print("KINDRIA_ANTI_STALL checks=94")
 	# A direct witness may report a tile, but a listener cannot relay it.
 	var comm=Rules.new()
 	for x in range(1,4):comm.cells[Vector2i(x,3)]=true
