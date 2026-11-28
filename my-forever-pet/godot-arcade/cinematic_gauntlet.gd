@@ -36,6 +36,34 @@ func run_checks()->void:
 	var checks:int=0
 	var failures:Array[String]=[]
 	var view:=Dungeon.new()
+	# V26.18: exact Blender material names, biome isolation and cache/pigment preservation.
+	var forest_materials:Array[String]=["forest leaf shadow","fern lime","amber woodland canopy","woodland spring leaf","woodland golden leaf"]
+	for forest_name in forest_materials:
+		var leaf_source:=StandardMaterial3D.new()
+		leaf_source.resource_name=forest_name
+		leaf_source.albedo_color=Color("#487b32")
+		leaf_source.roughness=.81
+		var leaf_shader:ShaderMaterial=view.exterior_motion_material(leaf_source)
+		if leaf_shader==null:
+			failures.append("V26.18 missing foliage "+forest_name)
+		else:
+			if leaf_shader!=view.exterior_motion_material(leaf_source):failures.append("V26.18 foliage cache "+forest_name)
+			if leaf_shader.get_shader_parameter("base_color")!=leaf_source.albedo_color:failures.append("V26.18 foliage pigment "+forest_name)
+			if not is_equal_approx(float(leaf_shader.get_shader_parameter("leaf_roughness")),leaf_source.roughness):failures.append("V26.18 foliage roughness "+forest_name)
+		view.region=1
+		if view.exterior_motion_material(leaf_source)!=null:failures.append("V26.18 reef isolation "+forest_name)
+		view.region=2
+		if view.exterior_motion_material(leaf_source)!=null:failures.append("V26.18 astral isolation "+forest_name)
+		view.region=0
+		checks+=6
+	for static_name in ["weathered roots","deep moss","weathered olive limestone"]:
+		var static_source:=StandardMaterial3D.new()
+		static_source.resource_name=static_name
+		if view.exterior_motion_material(static_source)!=null:failures.append("V26.18 static scenery "+static_name)
+		checks+=1
+	if view.exterior_motion_materials.size()!=5:failures.append("V26.18 bounded foliage cache")
+	checks+=1
+	view.exterior_motion_materials.clear()
 	# V26.17: cascade material identity, foam separation, and bounded emission source.
 	var cascade_water:=StandardMaterial3D.new()
 	cascade_water.resource_name="woodland turquoise stream"
