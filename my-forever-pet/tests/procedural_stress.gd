@@ -3083,7 +3083,29 @@ func run_checks()->void:
 	stage_fixture.shield_kind="";stage_fixture.shield_turns=0;stage_fixture.turns=25
 	if stage_fixture.enemy_unstall_step(stage_actor,stage_fixture.player,false)!=stage_actor.pos:failures.append("staging reentry expires")
 	checks+=1
-	print("KINDRIA_ANTI_STALL checks=217")
+	# Staging is evidence about a specific committed position, not a permanent permission.
+	stage_fixture.turns=23
+	stage_actor.pos=Vector2i(6,6)
+	if stage_fixture.enemy_unstall_step(stage_actor,stage_fixture.player,false)!=stage_actor.pos:failures.append("staging reentry rejects displaced actor")
+	checks+=1
+	stage_actor.pos=stage_next
+	if stage_actor.get("stage_position",Vector2i.ZERO)!=stage_next or stage_fixture.enemy_unstall_step(stage_actor,stage_fixture.player,false)==stage_actor.pos:failures.append("staging reentry accepts committed position")
+	checks+=1
+	stage_fixture.enemy_actions.append({"uid":701,"phase":"move","from":stage_actor.pos,"to":Vector2i(6,6)})
+	stage_fixture.enemy_clear_acted_frontline_holds()
+	if stage_actor.has("stage_turn") or stage_actor.has("stage_target") or stage_actor.has("stage_position"):failures.append("ordinary action clears superseded staging memory")
+	checks+=1
+	stage_fixture.enemy_actions.clear()
+	stage_fixture.enemy_commit_recovery(stage_actor,stage_actor.pos,Vector2i(6,6),"stage")
+	stage_actor.pos=Vector2i(6,6)
+	stage_fixture.enemy_actions.append({"uid":701,"phase":"move","from":stage_next,"to":stage_actor.pos})
+	stage_fixture.enemy_clear_acted_frontline_holds()
+	if stage_actor.get("stage_position",Vector2i.ZERO)!=stage_actor.pos:failures.append("phase cleanup preserves freshly committed staging")
+	checks+=1
+	stage_fixture.enemy_commit_recovery(stage_actor,stage_actor.pos,stage_next,"detour")
+	if stage_actor.has("stage_position") or int(stage_actor.unstall_turn)!=stage_fixture.turns:failures.append("successful detour consumes staging memory")
+	checks+=1
+	print("KINDRIA_ANTI_STALL checks=222")
 	# A direct witness may report a tile, but a listener cannot relay it.
 	var comm=Rules.new()
 	for x in range(1,4):comm.cells[Vector2i(x,3)]=true
