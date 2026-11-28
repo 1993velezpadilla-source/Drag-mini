@@ -155,6 +155,67 @@ func ai_path_regressions(failures:Array[String])->int:
 	print("KINDRIA_PATH_OPTIMIZATION checks=",checks_local," reference_nodes=",expanded_reference," optimized_nodes=",expanded_optimized," fast=",fast_count," reused=",reuse_count)
 	return checks_local
 
+# End-to-end adversarial turn checks, with mixed House profiles and terrain.
+func enemy_adversarial_gauntlet(failures:Array[String])->int:
+	var checks_local:int=0
+	var samples:int=0
+	var timings:Array[int]=[]
+	for sample in range(18):
+		var arena=ai_cache_fixture(sample,true)
+		arena.belly=100
+		for round_index in range(8):
+			if arena.finished:break
+			var before:Dictionary={}
+			for e in arena.enemies:
+				before[int(e.uid)]={"pos":e.pos,"primary":arena.enemy_move_pp(e,"primary"),"secondary":arena.enemy_move_pp(e,"secondary"),"support":arena.enemy_move_pp(e,"support"),"control":arena.enemy_move_pp(e,"control")}
+			# Alternate protection, stationary play, and legal voluntary movement.
+			arena.shield_kind="protect" if round_index%4==1 else ""
+			arena.shield_turns=1 if round_index%4==1 else 0
+			if round_index%2==0:
+				for d in [Vector2i.UP,Vector2i.RIGHT,Vector2i.DOWN,Vector2i.LEFT]:
+					var q:Vector2i=arena.player+d
+					if arena.cells.has(q) and arena.enemy_at(q)<0 and arena.ally_at(q)<0:
+						arena.adaptive_walk_from=arena.player;arena.adaptive_walk_to=q;arena.adaptive_walk_turn=arena.turns
+						arena.player=q;break
+			var start:int=Time.get_ticks_usec()
+			arena.enemy_turn_actions()
+			timings.append(Time.get_ticks_usec()-start)
+			var acted:Dictionary={}
+			for action in arena.enemy_actions:
+				var uid:int=int(action.get("uid",-1))
+				acted[uid]=int(acted.get(uid,0))+1
+			var one_action:bool=true
+			for uid in acted:
+				if int(acted[uid])>1:one_action=false
+			if not one_action:failures.append("adversarial duplicate actor action %d:%d"%[sample,round_index])
+			checks_local+=1
+			var positions:Dictionary={}
+			var legal:bool=true
+			var pp_legal:bool=true
+			for e in arena.enemies:
+				if int(e.hp)<=0:continue
+				var uid:int=int(e.uid)
+				if not arena.cells.has(e.pos) or positions.has(e.pos) or e.pos==arena.player or arena.ally_at(e.pos)>=0:legal=false
+				positions[e.pos]=true
+				if not before.has(uid):continue
+				var spent:int=0
+				for slot in ["primary","secondary","support","control"]:
+					var remaining:int=arena.enemy_move_pp(e,slot)
+					if remaining<0 or remaining>int(before[uid][slot]):pp_legal=false
+					spent+=maxi(0,int(before[uid][slot])-remaining)
+				if spent>1:pp_legal=false
+			if not legal:failures.append("adversarial occupied or invalid position %d:%d"%[sample,round_index])
+			checks_local+=1
+			if not pp_legal:failures.append("adversarial invalid PP budget %d:%d"%[sample,round_index])
+			checks_local+=1
+			if arena.ai_cache_active or arena.ai_actor_cache_active or not arena.ai_occupancy_cache.is_empty():failures.append("adversarial cache leak %d:%d"%[sample,round_index])
+			checks_local+=1
+			samples+=1
+	if not timings.is_empty():
+		timings.sort()
+		print("KINDRIA_ENEMY_ADVERSARIAL turns=",samples," checks=",checks_local," median_usec=",timings[int(timings.size()/2)]," p95_usec=",timings[int((timings.size()-1)*.95)]," max_usec=",timings.back())
+	return checks_local
+
 func run_checks()->void:
 	for mode in ["--history-write","--history-read"]:
 		if mode in OS.get_cmdline_user_args():restart_check(mode);return
@@ -2104,6 +2165,28 @@ func run_checks()->void:
 	if strategy_moves!=1 or int(strategy_actor.get("strategy_turn",-1))!=22 or strategy_actor.get("strategy_to",Vector2i.ZERO)!=strategy_actor.pos or strategy_actor.pp_primary!=0:failures.append("strategy real movement recorded once")
 	checks+=1
 	print("KINDRIA_ADAPTIVE_STRATEGY checks=10")
+	# Hidden charge and decoy observations must not refresh tactical tracking.
+	var visibility_audit=Rules.new()
+	for y in range(1,7):
+		for x in range(1,7):visibility_audit.cells[Vector2i(x,y)]=true
+	visibility_audit.player=Vector2i(4,3);visibility_audit.turns=20
+	var audit_actor:Dictionary={"uid":0,"pos":Vector2i(2,3),"hp":30,"kind":0,"species":"rootgnawer","ecology_role":"hunter","ecology_search_enabled":true,"personality_enabled":true}
+	var audit_peer:Dictionary={"uid":1,"pos":Vector2i(2,4),"hp":30,"kind":0,"species":"leafwisp","ecology_search_enabled":true,"decoy_turns":2}
+	visibility_audit.enemies.append(audit_actor);visibility_audit.enemies.append(audit_peer)
+	visibility_audit.enemy_observe_movement(audit_actor,visibility_audit.player)
+	visibility_audit.enemy_pursuit_target(audit_actor,visibility_audit.player)
+	visibility_audit.turns=21;visibility_audit.player=Vector2i(4,4);visibility_audit.charge_phase="airborne"
+	visibility_audit.enemy_observe_movement(audit_actor,visibility_audit.player)
+	if audit_actor.has("adaptive_seen_turn"):failures.append("audit hidden movement memory")
+	checks+=1
+	if visibility_audit.enemy_pursuit_target(audit_actor,visibility_audit.player)!=Vector2i(4,3) or int(audit_actor.get("last_seen_turn",-1))!=20:failures.append("audit hidden location not refreshed")
+	checks+=1
+	if visibility_audit.enemy_squad_partner(audit_actor,audit_peer):failures.append("audit decoy peer excluded")
+	checks+=1
+	audit_peer.erase("decoy_turns");visibility_audit.charge_phase=""
+	if not visibility_audit.enemy_squad_partner(audit_actor,audit_peer) or visibility_audit.enemy_pursuit_target(audit_actor,visibility_audit.player)!=visibility_audit.player:failures.append("audit visibility restored")
+	checks+=1
+	checks+=enemy_adversarial_gauntlet(failures)
 	# Actual disk I/O, legacy migration, corruption recovery, and resumed writes.
 	var test_path:String="user://kindria_procedural_test_"+str(OS.get_process_id())+".cfg"
 	var exact:Array[String]=["legacy exact".sha256_text()]
