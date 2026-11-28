@@ -1669,6 +1669,7 @@ func assign_enemy_ecology()->void:
 		var role:String="hunter" if roll<40 else "scout" if roll<60 else "sentry" if roll<80 else "roamer"
 		e["ecology_role"]=role
 		e["ecology_home"]=e.pos
+		e["ecology_search_enabled"]=true
 
 func enemy_awareness(e:Dictionary)->int:
 	if bool(e.get("monster_house",false)):return 9999
@@ -1709,18 +1710,42 @@ func enemy_line_of_sight(origin:Vector2i,target:Vector2i)->bool:
 		if not cells.has(p):return false
 	return true
 
+func clear_enemy_search(e:Dictionary)->void:
+	e.erase("search_anchor");e.erase("search_until");e.erase("search_visited")
+
+func enemy_search_target(e:Dictionary)->Vector2i:
+	var origin:Vector2i=e.pos
+	if not e.has("search_anchor"):return origin
+	var anchor:Vector2i=e.search_anchor
+	if turns>int(e.get("search_until",-1)):
+		clear_enemy_search(e);return origin
+	var visited:Dictionary=e.get("search_visited",{})
+	visited[origin]=true;e["search_visited"]=visited
+	var radius:int=3 if e.get("ecology_role","")=="scout" else 2
+	var phase:int=posmod(int(e.get("uid",0))+turns,4)
+	for i in range(4):
+		var q:Vector2i=origin+DIR[(phase+i)%4]
+		if not cells.has(q) or visited.has(q) or distance(q,anchor)>radius or q==stairs or q==relic or q in side_rewards or traps.has(q) or enemy_at(q)>=0 or ally_at(q)>=0 or q==player:continue
+		return q
+	clear_enemy_search(e)
+	return origin
+
 func enemy_pursuit_target(e:Dictionary,observed:Vector2i)->Vector2i:
 	var origin:Vector2i=e.pos
 	if not e.has("ecology_role") or bool(e.get("monster_house",false)):
 		return observed if distance(origin,observed)<=enemy_awareness(e) else origin
 	if distance(origin,observed)<=enemy_awareness(e) and enemy_line_of_sight(origin,observed):
+		clear_enemy_search(e)
 		e["last_seen_player"]=observed
 		e["last_seen_until"]=turns+enemy_memory_duration(e)
 		return observed
 	var remembered:Vector2i=e.get("last_seen_player",origin)
+	if e.has("last_seen_player") and remembered==origin and turns<=int(e.get("last_seen_until",-1)) and bool(e.get("ecology_search_enabled",false)):
+		var budget:int=3 if e.get("ecology_role","")=="scout" else 1 if e.get("ecology_role","")=="sentry" else 2
+		e["search_anchor"]=origin;e["search_until"]=turns+budget-1;e["search_visited"]={}
 	if turns>int(e.get("last_seen_until",-1)) or remembered==origin or not cells.has(remembered):
 		e.erase("last_seen_player");e.erase("last_seen_until")
-		return origin
+		return enemy_search_target(e)
 	return remembered
 
 func enemy_patrol_destination(e:Dictionary)->Vector2i:
