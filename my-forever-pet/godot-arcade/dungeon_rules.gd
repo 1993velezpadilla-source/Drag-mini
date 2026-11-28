@@ -4863,23 +4863,25 @@ func enemy_turn_actions_impl():
 			enemy_tick_all_cooldowns(enemies[i]);continue
 		var survival_cap:int=int(enemies[i].get("max_hp",0))
 		if survival_cap>0 and int(enemies[i].hp)*2>survival_cap:enemies[i].erase("retreat_steps")
-		var lure_step:Vector2i=enemy_lure_step(enemies[i],player)
+		# Resolve lethal opportunities before optional positioning and support.
+		var finish_priority:bool=enemy_opportunity_eligible(enemies[i]) and enemy_risk_has_finisher(enemies[i])
+		var lure_step:Vector2i=p if finish_priority else enemy_lure_step(enemies[i],player)
 		if lure_step!=p:
 			enemies[i].pos=lure_step;enemies[i]["lure_turn"]=turns
 			enemy_tick_all_cooldowns(enemies[i])
 			enemy_actions.append({"uid":enemies[i].get("uid",i),"phase":"move","from":p,"to":lure_step,"gait":enemies[i].get("gait","walk")})
 			continue
-		if enemy_reinforcement_wait(enemies[i],player):
+		if not finish_priority and enemy_reinforcement_wait(enemies[i],player):
 			enemies[i]["reinforcement_turn"]=turns
 			enemy_tick_all_cooldowns(enemies[i])
 			continue
-		var risk_step:Vector2i=enemy_risk_step(enemies[i],player)
+		var risk_step:Vector2i=p if finish_priority else enemy_risk_step(enemies[i],player)
 		if risk_step!=p:
 			enemies[i].pos=risk_step;enemies[i]["risk_move_turn"]=turns
 			enemy_tick_all_cooldowns(enemies[i])
 			enemy_actions.append({"uid":enemies[i].get("uid",i),"phase":"move","from":p,"to":risk_step,"gait":enemies[i].get("gait","walk")})
 			continue
-		var retreat:Vector2i=enemy_retreat_step(enemies[i],player)
+		var retreat:Vector2i=p if finish_priority else enemy_retreat_step(enemies[i],player)
 		if retreat!=p:
 			enemies[i].pos=retreat
 			enemies[i]["retreat_steps"]=int(enemies[i].get("retreat_steps",0))+1
@@ -4888,13 +4890,13 @@ func enemy_turn_actions_impl():
 			enemy_actions.append({"uid":enemies[i].get("uid",i),"phase":"move","from":p,"to":retreat,"gait":enemies[i].get("gait","walk")})
 			continue
 		if gap>3 and gap<=enemy_awareness(enemies[i]) and enemy_line_of_sight(p,player):enemies[i].erase("spacing_count")
-		var spacing:Vector2i=enemy_cautious_spacing_step(enemies[i],player)
+		var spacing:Vector2i=p if finish_priority else enemy_cautious_spacing_step(enemies[i],player)
 		if spacing!=p:
 			enemies[i].pos=spacing;enemies[i]["spacing_count"]=int(enemies[i].get("spacing_count",0))+1
 			enemy_tick_all_cooldowns(enemies[i])
 			enemy_actions.append({"uid":enemies[i].get("uid",i),"phase":"move","from":p,"to":spacing,"gait":enemies[i].get("gait","walk")})
 			continue
-		var cover_step:Vector2i=enemy_counter_cover_step(enemies[i],player)
+		var cover_step:Vector2i=p if finish_priority else enemy_counter_cover_step(enemies[i],player)
 		if cover_step!=p:
 			enemies[i].pos=cover_step;enemies[i]["counter_cover_turn"]=turns
 			enemy_tick_all_cooldowns(enemies[i])
@@ -4910,7 +4912,7 @@ func enemy_turn_actions_impl():
 		var basic_finish:bool=enemy_basic_finish(enemies[i])
 		var control_cd:int=int(enemies[i].get("control_cooldown",0))
 		if control_cd>0:enemies[i]["control_cooldown"]=control_cd-1
-		if not basic_finish and control_cd<=0 and enemy_execute_control(i):
+		if not finish_priority and control_cd<=0 and enemy_execute_control(i):
 			if hp<=0:
 				apply_fatal_grudge(enemies[i]);finished=true;success=false;message="Rescue needed · expedition lost";return
 			continue
