@@ -1,5 +1,8 @@
 name: Kindria V27.1 integration validation
 on:
+  push:
+    branches:
+      - feature/kindria-v27-1-validation
   pull_request:
     branches:
       - feature/my-forever-pet-paradise
