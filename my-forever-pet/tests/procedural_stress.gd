@@ -1037,6 +1037,55 @@ func run_checks()->void:
 	if adaptive_fixture.enemy_attack_score(adaptive_actor,defensive_skill,false)!=0.0:failures.append("adaptive active protection score")
 	checks+=1
 	print("KINDRIA_ADAPTIVE_TACTICS observation=3 gates=4 movement=2 scoring=2")
+	# House tactical roles and placement preserve the encounter's original budget.
+	var house_tactics=Rules.new()
+	for y in range(1,10):
+		for x in range(1,10):house_tactics.cells[Vector2i(x,y)]=true
+	house_tactics.rooms.append(Rect2i(2,2,7,7))
+	house_tactics.player=Vector2i(5,5);house_tactics.stairs=Vector2i(9,9);house_tactics.relic=Vector2i(9,8)
+	house_tactics.monster_house_room=0;house_tactics.monster_house_profile=3
+	house_tactics.floor_number=3
+	var house_guard:Dictionary={"pos":Vector2i(4,7),"hp":30,"kind":1,"species":"mossmite","house_tactical":true,"house_role":"guard","monster_house":true,"monster_house_spawn_serial":1,"ecology_search_enabled":true}
+	var house_ranged:Dictionary={"pos":Vector2i(5,7),"hp":30,"kind":1,"species":"leafwisp","house_tactical":true,"house_role":"ranged","monster_house":true,"monster_house_spawn_serial":1,"ecology_search_enabled":true}
+	if house_tactics.house_tactical_role(house_guard)!="guard" or house_tactics.house_tactical_role(house_ranged)!="ranged" or house_tactics.house_tactical_role({"species":"sporeling","kind":1})!="controller" or house_tactics.house_tactical_role({"species":"reef_pup","kind":0})!="vanguard":failures.append("house tactical role mapping")
+	checks+=1
+	var house_spots:Array[Vector2i]=[Vector2i(5,6),Vector2i(5,8),Vector2i(8,5)]
+	house_tactics.traps[Vector2i(5,8)]="snare"
+	if house_tactics.house_spawn_tile(house_ranged,house_spots,house_tactics.rooms[0])!=Vector2i(8,5) or house_spots.size()!=3:failures.append("house tactical safe spawn selection")
+	house_tactics.traps.clear()
+	checks+=1
+	if not house_tactics.trigger_monster_house() or house_tactics.monster_house_remaining()!=house_tactics.monster_house_spawn_count or house_tactics.monster_house_spawn_count>Rules.MONSTER_HOUSE_CAP:failures.append("house tactical actual spawn budget")
+	checks+=1
+	var house_seen_tiles:Dictionary={}
+	for actor in house_tactics.enemies:
+		if not bool(actor.get("house_tactical",false)) or not bool(actor.get("ecology_search_enabled",false)) or not actor.get("house_role","") in ["guard","ranged","controller","vanguard"] or house_seen_tiles.has(actor.pos):failures.append("house tactical spawn metadata")
+		house_seen_tiles[actor.pos]=true
+	checks+=1
+	if not house_tactics.stairs_available() or house_tactics.trigger_monster_house():failures.append("house tactical stair freedom and one trigger")
+	checks+=1
+	house_tactics.enemies.clear()
+	house_tactics.enemies.append(house_guard);house_tactics.enemies.append(house_ranged)
+	house_tactics.player=Vector2i(5,5)
+	house_ranged.pos=Vector2i(5,8);house_guard.pos=Vector2i(4,7)
+	var guard_step:Vector2i=house_tactics.house_formation_step(house_guard,house_tactics.player)
+	if guard_step==Vector2i(5,7) or house_guard.pos!=Vector2i(4,7):failures.append("house tactical guard avoids ranged lane")
+	checks+=1
+	house_ranged.pos=Vector2i(4,8);house_guard.pos=Vector2i(3,7)
+	if house_tactics.house_formation_step(house_guard,house_tactics.player)!=Vector2i(4,7):failures.append("house tactical guard screening step")
+	checks+=1
+	house_guard["stuck_turns"]=2
+	if house_tactics.house_formation_step(house_guard,house_tactics.player)!=house_guard.pos:failures.append("house tactical rooted guard")
+	house_guard.erase("stuck_turns")
+	checks+=1
+	house_guard["ecology_role"]="hunter"
+	house_tactics.turns=20
+	house_guard["last_seen_player"]=Vector2i(5,5);house_guard["last_seen_until"]=21
+	house_tactics.cells.erase(Vector2i(4,7));house_tactics.cells.erase(Vector2i(3,6))
+	if house_tactics.enemy_pursuit_target(house_guard,Vector2i(5,5))!=Vector2i(5,5):failures.append("house tactical last known target")
+	house_tactics.turns=22
+	if house_tactics.enemy_pursuit_target(house_guard,Vector2i(5,5))==Vector2i(5,5):failures.append("house tactical memory expires behind wall")
+	checks+=2
+	print("KINDRIA_HOUSE_TACTICS roles=1 spawn=3 stairs=1 formation=3 memory=2")
 	# Actual disk I/O, legacy migration, corruption recovery, and resumed writes.
 	var test_path:String="user://kindria_procedural_test_"+str(OS.get_process_id())+".cfg"
 	var exact:Array[String]=["legacy exact".sha256_text()]
