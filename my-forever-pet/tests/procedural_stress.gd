@@ -812,6 +812,48 @@ func run_checks()->void:
 	if status_fixture.enemy_execute_control(0):failures.append("status stronger attack priority")
 	checks+=1
 	print("KINDRIA_STATUS_TACTICS utility=2 gates=5 action=1 redundancy=1 priority=1")
+	# Area attacks hit each party member once, without sharing the player's shield.
+	var area_fixture=Rules.new()
+	for y in range(1,8):
+		for x in range(1,8):area_fixture.cells[Vector2i(x,y)]=true
+	area_fixture.player=Vector2i(5,4)
+	var area_actor:Dictionary={"uid":0,"pos":Vector2i(3,4),"hp":30,"kind":1,"species":"sporeling","ecology_role":"hunter","ecology_search_enabled":true,"pp_primary":12,"pp_secondary":0,"stages":{"accuracy":10}}
+	area_fixture.enemies.append(area_actor)
+	area_fixture.allies.append({"uid":1000,"pos":Vector2i(3,3),"hp":20,"species":"reef_pup"})
+	area_fixture.allies.append({"uid":1001,"pos":Vector2i(3,5),"hp":20,"species":"reef_pup"})
+	area_fixture.allies.append({"uid":1002,"pos":Vector2i(7,7),"hp":20,"species":"reef_pup"})
+	var area_aim:Vector2i=area_fixture.enemy_area_aim(area_actor,"radius",2)
+	var area_tiles:Dictionary=area_fixture.attack_footprint(area_actor.pos,area_aim,"radius",2)
+	if not area_tiles.has(area_fixture.player) or area_fixture.enemy_area_allies(area_actor.pos,area_tiles).size()!=2 or not area_fixture.enemy_has_party_area_attack(area_actor):failures.append("area target selection and ally priority")
+	checks+=1
+	if area_fixture.enemy_area_bonus(area_actor,"radius",2,area_aim)<=0.0 or area_fixture.enemy_area_bonus(area_actor,"line",2,area_aim)!=0.0 or area_actor.pp_primary!=12:failures.append("area score and purity")
+	checks+=1
+	var area_hp:int=area_fixture.hp
+	area_fixture.shield_kind="protect";area_fixture.shield_turns=2
+	area_fixture.enemy_turn_actions()
+	if area_fixture.hp!=area_hp or int(area_fixture.allies[0].hp)>=20 or int(area_fixture.allies[1].hp)>=20 or int(area_fixture.allies[2].hp)!=20:failures.append("area independent party damage")
+	checks+=1
+	if area_fixture.enemy_actions.size()!=1 or area_actor.pp_primary!=11 or area_fixture.enemy_actions[0].get("party_hits",[]).size()!=2:failures.append("area single cast and PP")
+	checks+=1
+	var area_ids:Dictionary={}
+	for result in area_fixture.enemy_actions[0].get("party_hits",[]):area_ids[result.uid]=true
+	if area_ids.size()!=2 or not area_ids.has(1000) or not area_ids.has(1001):failures.append("area distinct impact metadata")
+	checks+=1
+	area_fixture.allies[0].hp=0
+	if area_fixture.enemy_area_allies(area_actor.pos,area_tiles).size()!=1:failures.append("area exclude defeated ally")
+	checks+=1
+	area_fixture.cells.erase(Vector2i(3,5))
+	if not area_fixture.enemy_area_allies(area_actor.pos,area_tiles).is_empty():failures.append("area exclude occluded ally")
+	area_fixture.cells[Vector2i(3,5)]=true
+	checks+=1
+	var remaining_ally_hp:int=int(area_fixture.allies[1].hp)
+	var single_hits:Array[Dictionary]=area_fixture.enemy_apply_area_damage(area_actor,area_actor.pos,area_tiles,"line",area_fixture.signature_skill(area_actor),false)
+	if not single_hits.is_empty() or int(area_fixture.allies[1].hp)!=remaining_ally_hp:failures.append("area preserve single target move")
+	checks+=1
+	area_actor["ecology_search_enabled"]=false
+	if area_fixture.enemy_has_party_area_attack(area_actor) or not area_fixture.enemy_apply_area_damage(area_actor,area_actor.pos,area_tiles,"radius",area_fixture.signature_skill(area_actor),false).is_empty():failures.append("area preserve legacy actor")
+	checks+=1
+	print("KINDRIA_AREA_TACTICS selection=2 damage=1 action=1 impacts=1 gates=4")
 	# Actual disk I/O, legacy migration, corruption recovery, and resumed writes.
 	var test_path:String="user://kindria_procedural_test_"+str(OS.get_process_id())+".cfg"
 	var exact:Array[String]=["legacy exact".sha256_text()]
