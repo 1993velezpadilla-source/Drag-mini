@@ -3995,11 +3995,20 @@ func ally_turn_actions()->void:
 func enemy_safe_party_approach(e:Dictionary,target:Vector2i)->Vector2i:
 	var origin:Vector2i=e.pos
 	if int(e.get("stuck_turns",0))>0 or distance(origin,target)>enemy_awareness(e) or not enemy_line_of_sight(origin,target):return origin
+	# Only coordinate against a player position this actor can actually see.
+	var reserved:Dictionary={}
+	var peers:Array[Dictionary]=[]
+	var lane_memo:Dictionary={}
+	var coordinate:bool=enemy_live_contact(e,player)
+	if coordinate:
+		reserved=enemy_pack_reserved_posts(e,player)
+		for other in enemies:
+			if enemy_squad_partner(e,other):peers.append(other)
 	var direct:Array[Vector2i]=route(origin,target,true)
 	if direct.size()>1:
 		var safe:bool=true
 		for k in range(direct.size()-1):
-			if not free_party_tile(direct[k]) or player_traps.has(direct[k]):safe=false;break
+			if not free_party_tile(direct[k]) or player_traps.has(direct[k]) or reserved.has(direct[k]) or (coordinate and enemy_recovery_lane_blocked(peers,direct[k],player,lane_memo)):safe=false;break
 		if safe:return direct[0]
 	var queue:Array[Vector2i]=[origin]
 	var depths:Dictionary={origin:0}
@@ -4011,7 +4020,8 @@ func enemy_safe_party_approach(e:Dictionary,target:Vector2i)->Vector2i:
 		if int(depths[tile])>=8:continue
 		for d in DIR:
 			var q:Vector2i=tile+d
-			if depths.has(q) or not free_party_tile(q) or player_traps.has(q):continue
+			if depths.has(q) or not free_party_tile(q) or player_traps.has(q) or reserved.has(q):continue
+			if coordinate and enemy_recovery_lane_blocked(peers,q,player,lane_memo):continue
 			depths[q]=int(depths[tile])+1;first[q]=q if tile==origin else first[tile];queue.append(q)
 	return origin
 
