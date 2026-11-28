@@ -3052,7 +3052,25 @@ func run_checks()->void:
 	stage_fixture.enemies.pop_back()
 	if stage_fixture.enemy_firing_lane_stage_step(stage_actor,stage_fixture.player) not in [Vector2i(5,6),Vector2i(6,5)]:failures.append("lane staging rechecks newly available intermediate access")
 	checks+=1
-	print("KINDRIA_ANTI_STALL checks=208")
+	# Staging must not start the long detour cooldown or mask attack routes.
+	var stage_next:Vector2i=stage_fixture.enemy_firing_lane_stage_step(stage_actor,stage_fixture.player)
+	if stage_fixture.enemy_unstall_step(stage_actor,stage_fixture.player,false)!=stage_actor.pos or stage_next==stage_actor.pos:failures.append("staging separated from direct attack recovery")
+	checks+=1
+	stage_actor["unstall_turn"]=17
+	stage_fixture.enemy_commit_recovery(stage_actor,stage_actor.pos,stage_actor.pos,"stage")
+	if stage_actor.has("stage_turn"):failures.append("cancelled staging does not commit")
+	checks+=1
+	stage_fixture.enemy_commit_recovery(stage_actor,stage_actor.pos,stage_next,"stage")
+	if int(stage_actor.unstall_turn)!=17 or int(stage_actor.stage_turn)!=22 or stage_actor.recovery_mode!="stage":failures.append("staging preserves detour cooldown")
+	checks+=1
+	if stage_fixture.enemy_firing_lane_stage_step(stage_actor,stage_fixture.player)!=stage_actor.pos:failures.append("staging retry guard prevents repeated preparation")
+	checks+=1
+	stage_actor.pos=stage_next
+	stage_fixture.turns=23;stage_ranged["cooldown"]=1
+	stage_actor["stall_turn"]=22
+	if stage_fixture.enemy_unstall_step(stage_actor,stage_fixture.player,false)==stage_actor.pos:failures.append("staging does not delay newly released attack route")
+	checks+=1
+	print("KINDRIA_ANTI_STALL checks=213")
 	# A direct witness may report a tile, but a listener cannot relay it.
 	var comm=Rules.new()
 	for x in range(1,4):comm.cells[Vector2i(x,3)]=true
