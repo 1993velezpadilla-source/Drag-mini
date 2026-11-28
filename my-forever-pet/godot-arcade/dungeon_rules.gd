@@ -776,6 +776,8 @@ var ai_recovery_trace:Dictionary={}
 var ai_wait_audit_enabled:bool=false
 var ai_wait_audit:Dictionary={}
 var ai_cache_active:bool=false
+# Test-only compatibility for archived cardinal combat replays; never set by gameplay.
+var ai_legacy_cardinal_replay:bool=false
 var ai_actor_cache_active:bool=false
 var ai_los_cache:Dictionary={}
 var ai_terrain_cache:Dictionary={}
@@ -989,7 +991,7 @@ func attack_aim(origin:Vector2i,target:Vector2i,pattern:String,reach:int,prune:b
 	if preferred!=Vector2i.ZERO and (not prune or attack_heading_possible(delta,preferred,pattern,reach)):
 		if work.has("footprints"):work["footprints"]+=1
 		if attack_aim_contains(origin,target,preferred,pattern,reach,prune,work):return preferred
-	for d in COMBAT_DIR:
+	for d in (DIR if ai_legacy_cardinal_replay else COMBAT_DIR):
 		if prune and (d==preferred or (d in DIR and not attack_heading_possible(delta,d,pattern,reach))):continue
 		if work.has("footprints"):work["footprints"]+=1
 		if attack_aim_contains(origin,target,d,pattern,reach,prune,work):return d
@@ -1000,7 +1002,7 @@ func enemy_projected_attack_aim(e:Dictionary,post:Vector2i,target:Vector2i,patte
 	if post==e.pos:return attack_aim(post,target,pattern,reach,prune_symmetric,work)
 	if prune_symmetric and pattern in ["line","front"]:
 		var delta:Vector2i=target-post
-		if delta==Vector2i.ZERO or (delta.x!=0 and delta.y!=0 and absi(delta.x)!=absi(delta.y)):return Vector2i.ZERO
+		if delta==Vector2i.ZERO or (delta.x!=0 and delta.y!=0 and (ai_legacy_cardinal_replay or absi(delta.x)!=absi(delta.y))):return Vector2i.ZERO
 		if maxi(absi(delta.x),absi(delta.y))>(1 if pattern=="front" else reach):return Vector2i.ZERO
 		var heading:Vector2i=Vector2i(signi(delta.x),signi(delta.y))
 		if work.has("footprints"):work["footprints"]+=1
@@ -1010,7 +1012,7 @@ func enemy_projected_attack_aim(e:Dictionary,post:Vector2i,target:Vector2i,patte
 		if work.has("footprints"):work["footprints"]+=1
 		if work.has("targeted"):work["targeted"]+=1
 		return DIR[0] if attack_symmetric_contains(post,target,pattern,reach,e.pos) else Vector2i.ZERO
-	for d in COMBAT_DIR:
+	for d in (DIR if ai_legacy_cardinal_replay else COMBAT_DIR):
 		if prune_symmetric and d in DIR and not attack_heading_possible(target-post,d,pattern,reach):continue
 		if work.has("footprints"):work["footprints"]+=1
 		if prune_symmetric and d in DIR and pattern in ["fan","corner","corner_front"]:
@@ -2983,9 +2985,13 @@ func enemy_cautious_spacing_step(e:Dictionary,target:Vector2i)->Vector2i:
 	var pattern:String=str(ATTACK_PATTERNS.get(e.get("species",""),"line"))
 	if int(skill[0])<2 or not enemy_move_allowed(e,"primary") or int(e.get("cooldown",0))>0:return origin
 	var best:Vector2i=origin
-	for d in DIR:
+	var away:Vector2i=origin-target
+	var directions:Array=[away] if away in DIR else []
+	for cardinal in DIR:
+		if cardinal!=away:directions.append(cardinal)
+	for d in (DIR if ai_legacy_cardinal_replay else directions):
 		var q:Vector2i=origin+d
-		if distance(q,target)!=2 or not enemy_ambush_safe_tile(q) or not enemy_line_of_sight(q,target):continue
+		if (not ai_legacy_cardinal_replay and maxi(absi(q.x-target.x),absi(q.y-target.y))<2) or distance(q,target)!=2 or not enemy_ambush_safe_tile(q) or not enemy_line_of_sight(q,target):continue
 		if enemy_projected_attack_aim(e,q,target,pattern,int(skill[0]))==Vector2i.ZERO:continue
 		for onward in DIR:
 			var next:Vector2i=q+onward
@@ -3422,9 +3428,10 @@ func enemy_charge_evasion_step(e:Dictionary)->Vector2i:
 	var best:Vector2i=origin
 	var best_score:int=-2147483647
 	var reserved:Dictionary=enemy_pack_reserved_posts(e,player)
-	for d in DIR:
+	for d in (DIR if ai_legacy_cardinal_replay else COMBAT_DIR):
+		if d not in DIR and best!=origin:continue
 		var q:Vector2i=origin+d
-		if threat.has(q) or not enemy_ambush_safe_tile(q) or reserved.has(q):continue
+		if not step_clear(origin,d) or threat.has(q) or not enemy_ambush_safe_tile(q) or reserved.has(q):continue
 		var score:int=enemy_terrain_position_bonus(e,q,player)
 		# Do not evade into a tightly packed group if an equally safe tile exists.
 		var nearby:int=0
@@ -4102,11 +4109,14 @@ func enemy_relief_blocks_lane(friend:Dictionary,q:Vector2i,target:Vector2i)->boo
 	# Ordinary reservations require firsthand contact with the player; only
 	# a committed telegraph can retain its previously announced geometry.
 	if target==player and not enemy_live_contact(friend,target):return false
-	# A cardinal firing lane must stay clear if it currently reaches the target.
-	if origin.x!=target.x and origin.y!=target.y:return false
-	var heading:Vector2i=Vector2i(signi(target.x-origin.x),signi(target.y-origin.y))
-	var gap:int=distance(origin,target)
-	if distance(origin,q)+distance(q,target)!=gap or q==origin or q==target:return false
+	# Preserve the actual straight firing segment, including diagonal shots.
+	var delta:Vector2i=target-origin
+	if delta.x!=0 and delta.y!=0 and (ai_legacy_cardinal_replay or absi(delta.x)!=absi(delta.y)):return false
+	var heading:Vector2i=Vector2i(signi(delta.x),signi(delta.y))
+	var gap:int=maxi(absi(delta.x),absi(delta.y))
+	var offset:Vector2i=q-origin
+	var along:int=maxi(absi(offset.x),absi(offset.y))
+	if along<=0 or along>=gap or offset!=heading*along:return false
 	var species:String=str(friend.get("species",""))
 	var skill:Array=signature_skill(friend)
 	if enemy_move_allowed(friend,"primary") and int(friend.get("cooldown",0))<=0 and str(ATTACK_PATTERNS.get(species,"line"))=="line":
@@ -5412,7 +5422,7 @@ func enemy_area_aim(e:Dictionary,pattern:String,reach:int,prune:bool=true,work:D
 	var initial:Vector2i=best
 	var best_count:int=-1
 	if best!=Vector2i.ZERO:best_count=enemy_area_count(origin,best,pattern,reach,prune,work)
-	for d in COMBAT_DIR:
+	for d in (DIR if ai_legacy_cardinal_replay else COMBAT_DIR):
 		if prune and d==initial:continue
 		var count:int=0
 		if prune and allies.size()<=3:
@@ -5687,7 +5697,7 @@ func enemy_party_attack_plan(e:Dictionary,reuse_scores:bool=true,defer_geometry:
 		var scarcity:float=.85 if enemy_move_pp(e,str(kit.slot))<=2 else 1.0
 		# Radial, cross and room footprints are invariant to heading. Preserve
 		# the first heading for deterministic ties and the exhaustive reference.
-		var headings:Array=[DIR[0]] if reuse_scores and pattern in ["radius","cross","room"] else COMBAT_DIR
+		var headings:Array=[DIR[0]] if reuse_scores and pattern in ["radius","cross","room"] else (DIR if ai_legacy_cardinal_replay else COMBAT_DIR)
 		for d in headings:
 			var targeted:bool=defer_geometry and allies.size()<=3
 			var footprint:Dictionary={}

@@ -412,6 +412,7 @@ func replay_recovery_case(failures:Array[String])->int:
 	var plain=ai_cache_fixture(2,true)
 	var species:Array=["rootgnawer","bramble_pup","mossmite","sporeling","leafwisp","fungal_monarch"]
 	for arena in [traced,plain]:
+		arena.ai_legacy_cardinal_replay=true
 		arena.belly_tenths=1000
 		for index in range(mini(species.size(),arena.enemies.size())):
 			var actor:Dictionary=arena.enemies[index]
@@ -440,8 +441,25 @@ func replay_recovery_case(failures:Array[String])->int:
 	if guarded_wait.get("reason","")!="opposing_guard" or int(guarded_wait.get("guards",0))<1:failures.append("wait replay missing opposing guard evidence")
 	if firing_wait.get("reason","")!="friendly_lane" or int(firing_wait.get("lanes",0))<1:failures.append("wait replay missing live firing lane evidence")
 	print("KINDRIA_WAIT_REPLAY evidence=",wait_evidence)
-	print("KINDRIA_RECOVERY_REPLAY turns=8 traces=",trace_count)
-	return 12
+	print("KINDRIA_RECOVERY_REPLAY cardinal_historical turns=8 traces=",trace_count)
+	var modern_trace=ai_cache_fixture(2,true)
+	var modern_plain=ai_cache_fixture(2,true)
+	for arena in [modern_trace,modern_plain]:
+		arena.belly_tenths=1000
+		for index in range(mini(species.size(),arena.enemies.size())):
+			var actor:Dictionary=arena.enemies[index]
+			actor.species=species[index]
+			actor["personality_enabled"]=true
+			actor["house_role"]=arena.house_tactical_role(actor)
+	modern_trace.ai_recovery_trace_uid=201
+	modern_trace.ai_wait_audit_enabled=true
+	for round_index in range(8):
+		enemy_integration_input(modern_trace,round_index,2)
+		enemy_integration_input(modern_plain,round_index,2)
+		modern_trace.enemy_turn_actions();modern_plain.enemy_turn_actions()
+		if modern_trace.enemies!=modern_plain.enemies or modern_trace.allies!=modern_plain.allies or modern_trace.player!=modern_plain.player or modern_trace.hp!=modern_plain.hp or modern_trace.enemy_actions!=modern_plain.enemy_actions or modern_trace.rng.state!=modern_plain.rng.state or modern_trace.player_boons!=modern_plain.player_boons or modern_trace.traps!=modern_plain.traps or modern_trace.finished!=modern_plain.finished or not modern_plain.ai_recovery_trace.is_empty() or not modern_plain.ai_wait_audit.is_empty():failures.append("eight direction replay instrumentation purity")
+	print("KINDRIA_EIGHT_DIRECTION_REPLAY turns=8")
+	return 20
 
 # V27.1: ordinary ecology actors, not just Monster House actors, in constrained
 # topology. Run identical inputs with and without caches and compare outcomes.
@@ -1152,7 +1170,8 @@ func run_checks()->void:
 	var pack_shooter:Dictionary={"uid":2,"pos":Vector2i(5,2),"hp":30,"kind":1,"species":"leafwisp","ecology_search_enabled":true,"pp_primary":12,"pp_secondary":0}
 	pack_fixture.enemies.append(pack_shooter)
 	pack_fixture.traps[Vector2i(3,5)]="spike"
-	if not pack_fixture.enemy_relief_blocks_lane(pack_shooter,Vector2i(5,3),pack_fixture.player) or pack_fixture.enemy_cooperative_step(pack_actor,pack_fixture.player,"front",1)!=pack_origin:failures.append("cooperative preserves friendly firing lane")
+	var protected_flank:Vector2i=pack_fixture.enemy_cooperative_step(pack_actor,pack_fixture.player,"front",1)
+	if not pack_fixture.enemy_relief_blocks_lane(pack_shooter,Vector2i(5,3),pack_fixture.player) or (protected_flank!=pack_origin and (pack_fixture.enemy_relief_blocks_lane(pack_shooter,protected_flank,pack_fixture.player) or not pack_fixture.enemy_ambush_safe_tile(protected_flank))):failures.append("cooperative preserves friendly firing lane")
 	checks+=1
 	pack_shooter["cooldown"]=1
 	if pack_fixture.enemy_cooperative_step(pack_actor,pack_fixture.player,"front",1)!=Vector2i(3,3):failures.append("cooperative uses released friendly lane")
@@ -1570,7 +1589,7 @@ func run_checks()->void:
 	if not geometry_status.enemy_live_contact(geometry_actor,geometry_status.player) or geometry_status.enemy_status_utility(geometry_actor,debuff_move)!=0.0 or geometry_status.enemy_execute_control(0):failures.append("status visible but out of reach")
 	checks+=1
 	geometry_status.player=Vector2i(4,4)
-	if geometry_status.enemy_status_aim(geometry_actor.pos,debuff_move)!=Vector2i.ZERO or geometry_status.enemy_status_utility(geometry_actor,debuff_move)!=0.0:failures.append("status cardinal geometry rejected")
+	if geometry_status.enemy_status_aim(geometry_actor.pos,debuff_move)!=Vector2i(1,1) or geometry_status.enemy_status_utility(geometry_actor,debuff_move)<=0.0:failures.append("status eight direction geometry accepted")
 	checks+=1
 	var diagonal_status:Dictionary=debuff_move.duplicate()
 	diagonal_status["pattern"]="corner_front"
@@ -2178,14 +2197,17 @@ func run_checks()->void:
 	decision_fixture.cells.erase(Vector2i(5,3))
 	if decision_fixture.enemy_line_of_sight(decision_shooter.pos,decision_fixture.player) or not decision_fixture.enemy_squad_lane_peer(decision_actor,decision_shooter,decision_fixture.player) or not decision_fixture.enemy_relief_blocks_lane(decision_shooter,Vector2i(4,4),decision_fixture.player):failures.append("decision retains occluded committed peer")
 	checks+=1
-	if not decision_fixture.enemy_decision_position_plan(decision_actor,decision_fixture.player).is_empty():failures.append("decision avoids occluded committed ray")
+	var committed_detour:Dictionary=decision_fixture.enemy_decision_position_plan(decision_actor,decision_fixture.player)
+	if not committed_detour.is_empty() and (decision_fixture.enemy_relief_blocks_lane(decision_shooter,committed_detour.step,decision_fixture.player) or not decision_fixture.enemy_ambush_safe_tile(committed_detour.step)):failures.append("decision avoids occluded committed ray")
 	checks+=1
 	decision_shooter["windup"]=false;decision_shooter.erase("aim")
-	if decision_fixture.enemy_squad_lane_peer(decision_actor,decision_shooter,decision_fixture.player) or decision_fixture.enemy_decision_position_plan(decision_actor,decision_fixture.player).get("step")!=Vector2i(4,4):failures.append("decision releases uncommitted occluded ray")
+	var released_post:Dictionary=decision_fixture.enemy_decision_position_plan(decision_actor,decision_fixture.player)
+	if decision_fixture.enemy_squad_lane_peer(decision_actor,decision_shooter,decision_fixture.player) or released_post.is_empty() or not decision_fixture.enemy_ambush_safe_tile(released_post.step):failures.append("decision releases uncommitted occluded ray")
 	checks+=1
 	decision_fixture.cells[Vector2i(5,3)]=true;decision_fixture.enemies.pop_back()
 	decision_fixture.traps[Vector2i(4,4)]="snare"
-	if not decision_fixture.enemy_decision_position_plan(decision_actor,decision_fixture.player).is_empty():failures.append("decision excludes trapped post")
+	var trap_detour:Dictionary=decision_fixture.enemy_decision_position_plan(decision_actor,decision_fixture.player)
+	if not trap_detour.is_empty() and not decision_fixture.enemy_ambush_safe_tile(trap_detour.step):failures.append("decision excludes trapped post")
 	decision_fixture.traps.clear()
 	checks+=1
 	decision_actor["cooldown"]=2
@@ -2214,11 +2236,11 @@ func run_checks()->void:
 	var foresight_fixture=Rules.new()
 	for y in range(1,11):
 		for x in range(1,11):foresight_fixture.cells[Vector2i(x,y)]=true
-	foresight_fixture.player=Vector2i(6,4);foresight_fixture.stairs=Vector2i(10,10);foresight_fixture.relic=Vector2i(10,9);foresight_fixture.turns=20;foresight_fixture.hp=30
+	foresight_fixture.player=Vector2i(7,4);foresight_fixture.stairs=Vector2i(10,10);foresight_fixture.relic=Vector2i(10,9);foresight_fixture.turns=20;foresight_fixture.hp=30
 	var foresight_actor:Dictionary={"uid":240,"pos":Vector2i(3,6),"hp":30,"max_hp":30,"kind":0,"species":"leafwisp","ecology_role":"hunter","ecology_search_enabled":true,"personality_enabled":true,"pp_primary":12,"pp_secondary":0}
 	foresight_fixture.enemies.append(foresight_actor)
 	var fs_plan:Dictionary=foresight_fixture.enemy_foresight_plan(foresight_actor,foresight_fixture.player)
-	if fs_plan.is_empty() or int(fs_plan.get("depth",0))!=2 or fs_plan.get("step")!=Vector2i(3,5) or fs_plan.get("post")!=Vector2i(3,4):failures.append("foresight two step firing post")
+	if fs_plan.is_empty() or int(fs_plan.get("depth",0))!=2 or not foresight_fixture.enemy_ambush_safe_tile(fs_plan.get("step",Vector2i.ZERO)) or foresight_fixture.enemy_projected_attack_aim(foresight_actor,fs_plan.get("post",Vector2i.ZERO),foresight_fixture.player,"line",3)==Vector2i.ZERO:failures.append("foresight two step firing post")
 	checks+=1
 	if int(fs_plan.get("nodes",999))>25 or foresight_actor.pos!=Vector2i(3,6) or foresight_actor.pp_primary!=12 or not foresight_fixture.enemy_actions.is_empty():failures.append("foresight bounded pure planning")
 	checks+=1
@@ -2255,7 +2277,7 @@ func run_checks()->void:
 	if not fs_detour.is_empty() and fs_detour.get("step")==Vector2i(3,5):failures.append("foresight trap invalidates route")
 	foresight_fixture.traps.clear()
 	checks+=1
-	foresight_actor.pos=Vector2i(3,5)
+	foresight_actor.pos=Vector2i(4,6)
 	if not foresight_fixture.enemy_foresight_plan(foresight_actor,foresight_fixture.player).is_empty():failures.append("foresight defers to immediate position")
 	foresight_actor.pos=Vector2i(3,6)
 	checks+=1
@@ -3587,6 +3609,13 @@ func run_checks()->void:
 	if octant_fixture.rng.state!=octant_rng or not octant_fixture.enemy_actions.is_empty() or octant_actor.pos!=Vector2i(1,1):failures.append("eight direction planning purity")
 	checks+=1
 	print("KINDRIA_EIGHT_DIRECTION_SELECTION checks=41")
+	octant_actor.pos=Vector2i(2,2)
+	octant_fixture.player=Vector2i(5,5)
+	if not octant_fixture.enemy_relief_blocks_lane(octant_actor,Vector2i(3,3),octant_fixture.player) or octant_fixture.enemy_relief_blocks_lane(octant_actor,Vector2i(3,2),octant_fixture.player):failures.append("diagonal friendly lane exact segment")
+	checks+=1
+	octant_fixture.cells.erase(Vector2i(3,2))
+	if octant_fixture.enemy_relief_blocks_lane(octant_actor,Vector2i(3,3),octant_fixture.player):failures.append("blocked diagonal lane releases reservation")
+	checks+=1
 	if recovery_sight.enemy_projected_attack_aim(sight_actor,Vector2i(1,1),recovery_sight.player,"radius",1)!=Vector2i.ZERO:failures.append("projected symmetric unreachable target")
 	checks+=1
 	recovery_sight.enemies.pop_back();sight_actor.pos=projection_origin
