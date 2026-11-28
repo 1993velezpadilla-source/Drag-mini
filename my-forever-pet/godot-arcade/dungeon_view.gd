@@ -449,7 +449,10 @@ func style(bg:Color,border:Color,radius:int=14)->StyleBoxFlat:
 	return s
 func label(parent:Node,value:String,size_value:int,color:Color=Color.WHITE)->Label:
 	var l=Label.new();l.text=value;l.add_theme_font_size_override("font_size",size_value);l.modulate=color;parent.add_child(l);return l
+var hud_icon_cache:Dictionary={}
+
 func action_icon(kind:String)->Texture2D:
+	if hud_icon_cache.has(kind):return hud_icon_cache[kind]
 	var symbol=""
 	match kind:
 		"Strike":symbol='<path d="M5 4L20 19M4 20L19 5M2 7L7 2M17 22L22 17M2 17L7 22M17 2L22 7" stroke="#ffe7a9" stroke-width="3" stroke-linecap="round"/>'
@@ -461,9 +464,35 @@ func action_icon(kind:String)->Texture2D:
 		"Reef":symbol='<path d="M12 22V5M12 15L5 10V5M12 11L19 6V2M12 18L21 14" fill="none" stroke="#ff9b9b" stroke-width="3" stroke-linecap="round"/>'
 		"Star":symbol='<path d="M12 1L15 9L23 12L15 15L12 23L9 15L1 12L9 9Z" fill="#ffe3a0" stroke="#fff6d2"/>'
 		"Berry":symbol='<circle cx="8" cy="14" r="6" fill="#f66d79"/><circle cx="16" cy="15" r="6" fill="#d83a61"/><path d="M12 10Q6 0 18 2Q19 8 12 10Z" fill="#a1df74"/>'
+		"Bag":symbol='<path d="M5 7Q12 1 19 7L21 20Q12 24 3 20Z" fill="#b5894f" stroke="#ffdfa0" stroke-width="1.5"/><path d="M4 10Q12 16 20 10M10 13H14V17H10Z" fill="none" stroke="#ffe3ad" stroke-width="1.5"/>'
+		"Aim":symbol='<g fill="none" stroke="#ffdfa0" stroke-width="1.7"><circle cx="12" cy="12" r="7"/><path d="M12 1V7M12 17V23M1 12H7M17 12H23"/></g>'
 	var image=Image.new()
 	image.load_svg_from_string('<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24">'+symbol+'</svg>')
-	return ImageTexture.create_from_image(image)
+	var texture:=ImageTexture.create_from_image(image)
+	hud_icon_cache[kind]=texture
+	return texture
+func move_icon(element:String)->Texture2D:
+	var key:String="move:"+element
+	if hud_icon_cache.has(key):return hud_icon_cache[key]
+	var colors:Dictionary={"normal":"#e9d8b9","fire":"#ff9452","water":"#68d7ff","electric":"#ffe65c","grass":"#99e461","ice":"#a0edff","fighting":"#f6af80","poison":"#db85ee","ground":"#d9aa70","flying":"#c4e6ff","psychic":"#ff9dc9","bug":"#c0dd64","rock":"#d9c49b","ghost":"#bba2ef","dragon":"#9eafff","dark":"#ada8d0","steel":"#c3d9de","fairy":"#ffb4df"}
+	var tint:String=str(colors.get(element,"#e9d8b9"))
+	var shape_value:String
+	match element:
+		"grass":shape_value='<path d="M3 20Q2 3 22 2Q20 22 3 20M5 19L17 7" fill="CURRENT" stroke="#d8f6ae" stroke-width="1.2"/>'
+		"fire":shape_value='<path d="M12 2Q20 9 21 16A9 9 0 0 1 3 16Q3 10 9 7L10 13Z" fill="CURRENT"/><path d="M12 12Q18 19 12 22Q6 20 12 12" fill="#ffe0a0"/>'
+		"water":shape_value='<path d="M12 2Q21 13 21 16A9 9 0 0 1 3 16Q3 13 12 2" fill="CURRENT"/><path d="M6 15Q6 20 11 20" stroke="#e6fcff" stroke-width="2" fill="none"/>'
+		"electric":shape_value='<path d="M13 1L3 14H11L9 23L22 9H14Z" fill="CURRENT" stroke="#fff5b5"/>'
+		"ice","rock","steel":shape_value='<path d="M12 1L21 8L19 18L12 23L3 17L3 8Z" fill="CURRENT" stroke="#f7f8dc"/><path d="M12 1L8 9L12 23L17 9Z" fill="#ffffff" opacity=".35"/>'
+		"flying","dragon":shape_value='<path d="M2 21Q2 5 22 2L18 8L22 8L11 17L15 17Z" fill="CURRENT" stroke="#f1f5ff"/>'
+		"psychic","ghost","dark":shape_value='<path d="M2 12Q12 1 22 12Q12 23 2 12Z" fill="none" stroke="CURRENT" stroke-width="2"/><circle cx="12" cy="12" r="4" fill="CURRENT"/>'
+		"fairy":shape_value='<path d="M12 22L2 12Q-1 2 8 4L12 8L16 4Q25 2 22 12Z" fill="CURRENT"/>'
+		"bug","poison":shape_value='<path d="M12 2L21 7V16L12 22L3 16V7Z" fill="none" stroke="CURRENT" stroke-width="2"/><circle cx="12" cy="12" r="5" fill="CURRENT"/>'
+		_:shape_value='<path d="M12 1L15 8L23 12L15 15L12 23L8 15L1 12L8 8Z" fill="CURRENT" stroke="#fff5d8"/>'
+	var image:=Image.new()
+	image.load_svg_from_string('<svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24">'+shape_value.replace("CURRENT",tint)+'</svg>')
+	var texture:=ImageTexture.create_from_image(image)
+	hud_icon_cache[key]=texture
+	return texture
 func hud_icon(parent:Node,kind:String,side:int=18)->TextureRect:
 	var item=TextureRect.new();item.texture=action_icon(kind);item.custom_minimum_size=Vector2(side,side)
 	item.expand_mode=TextureRect.EXPAND_IGNORE_SIZE;item.stretch_mode=TextureRect.STRETCH_KEEP_ASPECT_CENTERED
@@ -474,6 +503,28 @@ func hud_accent_color()->Color:
 	return [Color("#b5c389"),Color("#83d0d9"),Color("#c9b2ec")][region]
 func hud_tile_color()->Color:
 	return hud_base_color().lightened(.075)
+
+func hud_gold()->Color:
+	return [Color("#d9bd7a"),Color("#a6dce2"),Color("#d9b9f4")][region]
+
+func ornamental_frame()->StyleBoxFlat:
+	var frame:=compact_style(hud_base_color().darkened(.10),hud_gold(),18)
+	frame.set_border_width_all(2);frame.shadow_color=Color(0,0,0,.32);frame.shadow_size=3
+	return frame
+
+func add_hud_ornament(panel:Control)->void:
+	var overlay:=Control.new();overlay.mouse_filter=MOUSE_FILTER_IGNORE
+	panel.add_child(overlay);overlay.set_anchors_and_offsets_preset(PRESET_FULL_RECT)
+	overlay.draw.connect(func():
+		var w:float=overlay.size.x;var h:float=overlay.size.y
+		var tint:=hud_gold()
+		if w<48 or h<24:return
+		for corner in [Vector2(9,9),Vector2(w-9,9),Vector2(9,h-9),Vector2(w-9,h-9)]:
+			var dx:float=1.0 if corner.x<w*.5 else -1.0
+			var dy:float=1.0 if corner.y<h*.5 else -1.0
+			overlay.draw_polyline(PackedVector2Array([corner+Vector2(dx*22,dy*1),corner+Vector2(dx*9,dy*1),corner+Vector2(dx*1,dy*8),corner+Vector2(dx*1,dy*15)]),Color(tint,.65),1.1,true)
+			overlay.draw_colored_polygon(PackedVector2Array([corner,corner+Vector2(dx*10,dy*2),corner+Vector2(dx*6,dy*6),corner+Vector2(dx*2,dy*10)]),Color(tint,.80)))
+	overlay.resized.connect(overlay.queue_redraw)
 func compact_style(bg:Color,border:Color,radius:int=9)->StyleBoxFlat:
 	var frame:=style(bg,border,radius)
 	frame.set_border_width_all(1)
@@ -816,7 +867,7 @@ func lab_end_drag()->void:
 func build_ui():
 	load_control_preferences()
 	var base=VBoxContainer.new();hud_base=base;add_child(base);base.set_anchors_and_offsets_preset(PRESET_FULL_RECT);base.add_theme_constant_override("separation",0)
-	var header=PanelContainer.new();header.add_theme_stylebox_override("panel",compact_style(hud_base_color(),hud_accent_color().darkened(.22),13));base.add_child(header)
+	var header=PanelContainer.new();header.add_theme_stylebox_override("panel",ornamental_frame());base.add_child(header)
 	var h=HBoxContainer.new();header.add_child(h)
 	var back=button(h,"‹",leave);back.tooltip_text="Leave expedition";back.size_flags_horizontal=SIZE_SHRINK_BEGIN;back.custom_minimum_size.x=34;back.add_theme_font_size_override("font_size",20)
 	var portrait=TextureRect.new();portrait.custom_minimum_size=Vector2(36,42);portrait.expand_mode=TextureRect.EXPAND_IGNORE_SIZE;portrait.stretch_mode=TextureRect.STRETCH_KEEP_ASPECT_CENTERED
@@ -838,6 +889,7 @@ func build_ui():
 	hud_icon(resources,"Relic",17);relic_text=label(resources,"",14,Color("#f1dcff"))
 	hud_icon(resources,"Rooms",17);floor_label=label(resources,"",14,Color("#cce9ec"))
 	lab_build_settings(h)
+	add_hud_ornament(header)
 	area=Control.new();area.size_flags_vertical=SIZE_EXPAND_FILL;area.clip_contents=true;base.add_child(area)
 	var holder=SubViewportContainer.new();holder.stretch=true;holder.stretch_shrink=1;holder.mouse_filter=MOUSE_FILTER_IGNORE;area.add_child(holder);holder.set_anchors_and_offsets_preset(PRESET_FULL_RECT)
 	viewport=SubViewport.new();viewport.own_world_3d=true;viewport.audio_listener_enable_3d=true;viewport.render_target_update_mode=SubViewport.UPDATE_ALWAYS;holder.add_child(viewport)
@@ -856,7 +908,7 @@ func build_ui():
 	area.add_child(map_zoom);map_zoom.position=map.position+Vector2(map.size.x-37,5);map_zoom.pressed.connect(toggle_map)
 	feedback=Label.new();feedback.horizontal_alignment=HORIZONTAL_ALIGNMENT_CENTER;feedback.add_theme_font_size_override("font_size",24);feedback.add_theme_color_override("font_outline_color",Color("#142535"));feedback.add_theme_constant_override("outline_size",7);feedback.mouse_filter=MOUSE_FILTER_IGNORE;area.add_child(feedback);feedback.hide()
 	floor_banner=Label.new();floor_banner.horizontal_alignment=HORIZONTAL_ALIGNMENT_CENTER;floor_banner.add_theme_font_size_override("font_size",25);floor_banner.add_theme_color_override("font_outline_color",Color("#142535"));floor_banner.add_theme_constant_override("outline_size",8);floor_banner.mouse_filter=MOUSE_FILTER_IGNORE;area.add_child(floor_banner);floor_banner.hide()
-	var footer=PanelContainer.new();dungeon_footer=footer;footer.add_theme_stylebox_override("panel",compact_style(hud_base_color(),hud_accent_color().darkened(.22),13));base.add_child(footer)
+	var footer=PanelContainer.new();dungeon_footer=footer;footer.add_theme_stylebox_override("panel",ornamental_frame());base.add_child(footer)
 	var v=VBoxContainer.new();v.add_theme_constant_override("separation",3);footer.add_child(v)
 	status_text=label(v,"",12,Color("#ffe1a4"));status_text.clip_text=true;status_text.custom_minimum_size.y=16;status_text.horizontal_alignment=HORIZONTAL_ALIGNMENT_CENTER
 	status_text.mouse_filter=MOUSE_FILTER_STOP
@@ -877,6 +929,8 @@ func build_ui():
 	aim_button.gui_input.connect(utility_drag_input.bind("aim"))
 	heal_button=button(utility,"Berry",func():strike_pending=false;path.clear();run.heal();sync())
 	var bag:=button(utility,"Bag",toggle_bag)
+	bag.icon=action_icon("Bag");bag.expand_icon=true;bag.add_theme_constant_override("icon_max_width",16)
+	aim_button.icon=action_icon("Aim");aim_button.expand_icon=true;aim_button.add_theme_constant_override("icon_max_width",14)
 	panel_strike=button(utility,"Strike",request_strike)
 	panel_strike.tooltip_text="Regular attack · no PP"
 	for utility_button in [aim_button,heal_button,bag,panel_strike]:
@@ -890,6 +944,7 @@ func build_ui():
 	special_button=button(v,"Leaf Dart",func():path.clear();run.attack(true,facing,1);sync());special_button.hide()
 	refresh_move_dock()
 	stairs_button=button(v,"Descend",func():strike_pending=false;path.clear();run.descend();sync(),true)
+	add_hud_ornament(footer)
 	hold_info=RichTextLabel.new();hold_info.custom_minimum_size.y=78;hold_info.add_theme_font_size_override("normal_font_size",14);hold_info.scroll_active=true;hold_info.mouse_filter=MOUSE_FILTER_IGNORE
 	area.add_child(hold_info);hold_info.set_anchors_and_offsets_preset(PRESET_BOTTOM_WIDE);hold_info.offset_top=-82;hold_info.offset_left=6;hold_info.offset_right=-6;hold_info.offset_bottom=-4;hold_info.add_theme_stylebox_override("normal",compact_style(hud_base_color(),hud_accent_color(),8));hold_info.hide()
 	aim_preview=Control.new();area.add_child(aim_preview);aim_preview.set_anchors_and_offsets_preset(PRESET_FULL_RECT);aim_preview.mouse_filter=MOUSE_FILTER_IGNORE;aim_preview.draw.connect(draw_aim_preview)
@@ -915,10 +970,14 @@ func refresh_move_dock()->void:
 		var move:Dictionary=Rules.MOVE_LIBRARY[id]
 		var b:=button(move_dock,str(move.name),func():pass)
 		b.custom_minimum_size.y=48;b.clip_text=true
-		b.add_theme_font_size_override("font_size",12)
+		b.icon=move_icon(str(move.get("type","normal")));b.expand_icon=true;b.add_theme_constant_override("icon_max_width",22)
+		b.add_theme_constant_override("h_separation",5)
+		b.add_theme_font_size_override("font_size",13)
 		var tint:=Color(str(move.get("light","#e8e0ce")))
-		b.add_theme_stylebox_override("normal",compact_style(hud_tile_color(),tint.darkened(.4),7))
-		b.add_theme_stylebox_override("pressed",compact_style(hud_tile_color().lightened(.22),tint,7))
+		var move_bg:=hud_tile_color().lerp(tint.darkened(.82),.24)
+		b.add_theme_stylebox_override("normal",compact_style(move_bg,tint.darkened(.32),10))
+		b.add_theme_stylebox_override("hover",compact_style(move_bg.lightened(.12),tint,10))
+		b.add_theme_stylebox_override("pressed",compact_style(move_bg.lightened(.25),tint,10))
 		bind_attack_gesture(b,move,func():strike_pending=false;path.clear();run.cast_move(id,facing);sync())
 		move_buttons.append(b)
 
@@ -991,9 +1050,9 @@ func apply_control_preferences()->void:
 	position_strike_bubble()
 
 func style_strike_bubble()->void:
-	var bg:=hud_base_color().lightened(.18);bg.a=strike_opacity
-	var edge:=hud_accent_color();edge.a=.82
-	var frame:=compact_style(bg,edge,26);frame.set_border_width_all(1)
+	var bg:=hud_base_color().lerp(Color("#176b46"),.32);bg.a=strike_opacity
+	var edge:=hud_gold();edge.a=.90
+	var frame:=compact_style(bg,edge,26);frame.set_border_width_all(2)
 	var pressed_bg:=bg.lightened(.22);pressed_bg.a=minf(1.0,strike_opacity+.25)
 	attack_button.add_theme_stylebox_override("normal",frame)
 	attack_button.add_theme_stylebox_override("hover",frame)
@@ -2389,6 +2448,7 @@ uniform sampler2D ground_normal : hint_normal, filter_linear_mipmap, repeat_enab
 uniform vec4 pigment : source_color = vec4(1.0);
 uniform vec4 ink : source_color = vec4(0.12,0.17,0.16,1.0);
 uniform float texture_scale = 0.36;
+uniform float canopy_strength = 0.0;
 varying vec2 ground_uv;
 void vertex() {
 	ground_uv = (MODEL_MATRIX * vec4(VERTEX,1.0)).xz;
@@ -2403,9 +2463,13 @@ void fragment() {
 	float width = max(fwidth(stroke),0.015);
 	float line = 1.0-smoothstep(0.09,0.09+width,abs(fract(stroke)-0.5));
 	float paper = sin(ground_uv.x*17.0+sin(ground_uv.y*11.0))*sin(ground_uv.y*16.0);
+	// Broad, stable pools of canopy light, painted into the material.
+	float sun_patch = sin(ground_uv.x*1.31+sin(ground_uv.y*0.82))*cos(ground_uv.y*1.17+sin(ground_uv.x*0.67));
+	float dapple = smoothstep(0.24,0.76,sun_patch);
 	float edge = 1.0-clamp(dot(COLOR.rgb,vec3(0.333333)),0.0,1.0);
 	float hatch = line*smoothstep(0.055,0.42,edge)*0.20;
 	ALBEDO = mix(base*COLOR.rgb*(1.0+paper*0.018),ink.rgb,hatch);
+	ALBEDO *= mix(vec3(1.0),vec3(1.17,1.13,0.93),dapple*canopy_strength);
 	NORMAL_MAP = texture(ground_normal,uv).rgb;
 	NORMAL_MAP_DEPTH = 0.32;
 	ROUGHNESS = 0.88;
@@ -2418,6 +2482,7 @@ void fragment() {
 	material.set_shader_parameter("pigment",ground)
 	material.set_shader_parameter("ink",[Color("#394c40"),Color("#334b62"),Color("#4b395e")][region])
 	material.set_shader_parameter("texture_scale",.26 if region==0 else .32 if region==1 else .43)
+	material.set_shader_parameter("canopy_strength",.8 if region==0 else .18 if region==1 else .12)
 	return material
 
 func build_walkable_surface(ground:Color):
