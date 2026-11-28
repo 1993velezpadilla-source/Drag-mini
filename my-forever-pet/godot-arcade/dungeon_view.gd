@@ -85,7 +85,7 @@ var move_dock:GridContainer
 var dock_move_ids:Array=[]
 var bag_panel:PanelContainer
 var bag_content:VBoxContainer
-var strike_fraction:Vector2=Vector2(.88,.80)
+var strike_fraction:Vector2=Vector2(.98,.95)
 var utility_drag_kind:String=""
 var utility_drag_origin:Vector2
 var utility_drag_start:Vector2
@@ -96,6 +96,16 @@ var strike_on_panel:bool=true
 var movement_joystick:bool=false
 var strike_opacity:float=.48
 var panel_strike:Button
+var utility_dock:GridContainer
+var field_aim_enabled:bool=false
+var field_pointer:int=-2
+var field_origin:Vector2
+var field_started:int=0
+var field_aiming:bool=false
+var native_move_pointer:int=-2
+var native_aim_pointer:int=-2
+var native_aim_origin:Vector2
+var native_aim_dragged:bool=false
 var joystick:Control
 var joy_direction:Vector2i=Vector2i.ZERO
 var joy_knob:Vector2=Vector2.ZERO
@@ -501,6 +511,9 @@ func lab_settings_overlay()->void:
 	movement_choice.select(1 if movement_joystick else 0)
 	movement_choice.item_selected.connect(func(index:int):
 		movement_joystick=index==1;apply_control_preferences();save_control_preferences())
+	var aim_choice:=CheckButton.new();aim_choice.text="Hold field to aim";aim_choice.button_pressed=field_aim_enabled;stack.add_child(aim_choice)
+	aim_choice.toggled.connect(func(enabled:bool):
+		field_aim_enabled=enabled;field_pointer=-2;field_aiming=false;path.clear();aim_preview.queue_redraw();save_control_preferences())
 	label(stack,"Floating Strike opacity",12,hud_accent_color())
 	var opacity:=HSlider.new();opacity.min_value=.25;opacity.max_value=.85;opacity.step=.05;opacity.value=strike_opacity;stack.add_child(opacity)
 	opacity.value_changed.connect(func(value:float):
@@ -827,7 +840,7 @@ func build_ui():
 	a.add_child(joystick);joystick.draw.connect(draw_joystick)
 	move_dock=GridContainer.new();move_dock.columns=2;move_dock.size_flags_horizontal=SIZE_EXPAND_FILL;move_dock.size_flags_stretch_ratio=2.5
 	move_dock.add_theme_constant_override("h_separation",3);move_dock.add_theme_constant_override("v_separation",3);a.add_child(move_dock)
-	var utility:=GridContainer.new();utility.columns=1;utility.custom_minimum_size.x=72;utility.size_flags_horizontal=SIZE_SHRINK_END
+	var utility:=GridContainer.new();utility_dock=utility;utility.columns=2;utility.custom_minimum_size.x=72;utility.size_flags_horizontal=SIZE_SHRINK_END
 	utility.add_theme_constant_override("v_separation",2);a.add_child(utility)
 	aim_button=button(utility,"Aim ↓",func():
 		if not utility_drag_suppress:rotate_combat_aim())
@@ -896,7 +909,7 @@ func build_strike_bubble()->void:
 	attack_button.pressed.connect(request_strike)
 
 func controls_modal()->bool:
-	return (is_instance_valid(bag_panel) and bag_panel.visible) or (is_instance_valid(dev_settings_panel) and dev_settings_panel.visible) or (is_instance_valid(dev_panel) and dev_panel.visible)
+	return (is_instance_valid(bag_panel) and bag_panel.visible) or (is_instance_valid(dev_settings_panel) and dev_settings_panel.visible)
 
 func strike_available()->bool:
 	var active:Button=panel_strike if strike_on_panel else attack_button
@@ -907,6 +920,7 @@ func load_control_preferences()->void:
 	if prefs.load("user://kindria_hud.cfg")!=OK:return
 	strike_on_panel=bool(prefs.get_value("combat","strike_on_panel",true))
 	movement_joystick=bool(prefs.get_value("combat","movement_joystick",false))
+	field_aim_enabled=bool(prefs.get_value("combat","field_aim",false))
 	strike_opacity=clampf(float(prefs.get_value("combat","strike_opacity",.48)),.25,.85)
 	var saved:Variant=prefs.get_value("combat","strike_position",Vector2(.98,.95))
 	if saved is Vector2:strike_fraction=saved.clamp(Vector2.ZERO,Vector2.ONE)
@@ -915,13 +929,15 @@ func save_control_preferences()->void:
 	var prefs:=ConfigFile.new();prefs.load("user://kindria_hud.cfg")
 	prefs.set_value("combat","strike_on_panel",strike_on_panel)
 	prefs.set_value("combat","movement_joystick",movement_joystick)
+	prefs.set_value("combat","field_aim",field_aim_enabled)
 	prefs.set_value("combat","strike_opacity",strike_opacity)
 	prefs.set_value("combat","strike_position",strike_fraction)
 	prefs.save("user://kindria_hud.cfg")
 
 func apply_control_preferences()->void:
 	path.clear();strike_pending=false;reset_joystick()
-	strike_pointer=-2;utility_drag_kind=""
+	strike_pointer=-2;field_pointer=-2;field_aiming=false;utility_drag_kind=""
+	if is_instance_valid(utility_dock):utility_dock.columns=2 if strike_on_panel else 1
 	if is_instance_valid(panel_strike):panel_strike.visible=strike_on_panel
 	if is_instance_valid(attack_button):attack_button.visible=not strike_on_panel and dungeon_footer.visible
 	if is_instance_valid(joystick):joystick.visible=movement_joystick
@@ -964,6 +980,40 @@ func set_joystick_point(point:Vector2)->void:
 func control_contains(control:Control,point:Vector2)->bool:
 	return is_instance_valid(control) and control.is_visible_in_tree() and Rect2(Vector2.ZERO,control.size).has_point(control.get_global_transform_with_canvas().affine_inverse()*point)
 
+func field_control_allowed(point:Vector2)->bool:
+	if controls_modal() or notified or run.finished or tile_cast_active() or not control_contains(area,point):return false
+	if control_contains(attack_button,point) or control_contains(map_zoom,point):return false
+	if is_instance_valid(dev_bubble) and control_contains(dev_bubble,point):return false
+	if map_expanded and control_contains(map,point):return false
+	return true
+
+func capture_field_aim(event:InputEvent)->bool:
+	if not field_aim_enabled:return false
+	var is_touch:bool=event is InputEventScreenTouch or event is InputEventScreenDrag
+	var is_mouse:bool=event is InputEventMouseButton or event is InputEventMouseMotion
+	if not is_touch and not is_mouse:return false
+	if is_mouse and event.device==-1:return false
+	var pointer:int=event.index if is_touch else -1
+	var point:Vector2=event.position
+	var down:bool=(event is InputEventScreenTouch and event.pressed) or (event is InputEventMouseButton and event.button_index==MOUSE_BUTTON_LEFT and event.pressed)
+	var up:bool=(event is InputEventScreenTouch and not event.pressed) or (event is InputEventMouseButton and event.button_index==MOUSE_BUTTON_LEFT and not event.pressed)
+	if pointer==field_pointer:
+		var delta:Vector2=point-field_origin
+		if up:
+			field_pointer=-2
+			var quick:bool=not field_aiming and delta.length()<12.0 and Time.get_ticks_msec()-field_started<220
+			field_aiming=false;aim_preview.queue_redraw()
+			if quick and not movement_joystick and field_control_allowed(point) and not (event is InputEventScreenTouch and event.canceled):
+				world_tap(area.get_global_transform_with_canvas().affine_inverse()*point)
+		elif (event is InputEventScreenDrag or event is InputEventMouseMotion) and delta.length()>12.0 and Time.get_ticks_msec()-field_started>=220 and field_control_allowed(point):
+			field_aiming=true;path.clear();strike_pending=false
+			facing=Rules.aim8(delta);update_hud();lab_update_aim();aim_preview.queue_redraw()
+		return true
+	if down and field_pointer==-2 and field_control_allowed(point):
+		field_pointer=pointer;field_origin=point;field_started=Time.get_ticks_msec();field_aiming=false
+		return true
+	return false
+
 func capture_control_pointer(event:InputEvent)->bool:
 	var is_touch:bool=event is InputEventScreenTouch or event is InputEventScreenDrag
 	var is_mouse:bool=event is InputEventMouseButton or event is InputEventMouseMotion
@@ -993,7 +1043,7 @@ func capture_control_pointer(event:InputEvent)->bool:
 		if up:
 			strike_pointer=-2
 			if strike_touch_moved:
-				var travel:Vector2=(attack_button.size*-1+area.size-Vector2(8,8)).max(Vector2.ONE)
+				var travel:Vector2=(area.size-attack_button.size-Vector2(8,8)).max(Vector2.ONE)
 				strike_fraction=((attack_button.position-Vector2(4,4))/travel).clamp(Vector2.ZERO,Vector2.ONE)
 				save_control_preferences()
 			elif not (event is InputEventScreenTouch and event.canceled) and control_contains(strike_touch_button,point):
@@ -19449,7 +19499,7 @@ func show_held_attack()->void:
 		hold_info.text=held_attack_description(hold_move);hold_info.show()
 
 func _input(event:InputEvent)->void:
-	if capture_control_pointer(event):
+	if capture_control_pointer(event) or capture_field_aim(event):
 		get_viewport().set_input_as_handled();return
 	if handle_utility_drag(event):
 		get_viewport().set_input_as_handled();return
@@ -19474,7 +19524,7 @@ func finish_attack_release(action:Callable)->void:
 	if action.is_valid() and not notified and not run.finished and not tile_cast_active():action.call()
 
 func draw_aim_preview()->void:
-	if not ((hold_active and hold_visible) or (utility_drag_kind=="aim" and utility_drag_moved)) or not is_instance_valid(camera) or viewport.size.x<=0 or viewport.size.y<=0:return
+	if not ((hold_active and hold_visible) or (utility_drag_kind=="aim" and utility_drag_moved) or field_aiming) or not is_instance_valid(camera) or viewport.size.x<=0 or viewport.size.y<=0:return
 	var footprint:Dictionary=run.attack_footprint(run.player,facing,str(hold_move.get("pattern","front")),int(hold_move.get("reach",1)),true)
 	var ratio:=area.size/Vector2(viewport.size)
 	for tile in footprint:
@@ -19493,7 +19543,7 @@ func rotate_combat_aim()->void:
 	lab_update_aim()
 	update_hud()
 func touch(event:InputEvent):
-	if notified or run.finished or tile_cast_active() or controls_modal() or movement_joystick:return
+	if notified or run.finished or tile_cast_active() or controls_modal() or movement_joystick or field_aim_enabled:return
 	if event is InputEventScreenTouch or event is InputEventScreenDrag or event is InputEventMouseButton or event is InputEventMouseMotion:
 		var global_point:Vector2=area.get_global_transform_with_canvas()*event.position
 		if control_contains(attack_button,global_point) or strike_pointer!=-2:return
@@ -19501,8 +19551,11 @@ func touch(event:InputEvent):
 		if Rect2(map.position,map.size).has_point(event.position):return
 	if event is InputEventScreenTouch and event.index!=0:return
 	if not ((event is InputEventScreenTouch and event.pressed) or (event is InputEventMouseButton and event.pressed and event.button_index==MOUSE_BUTTON_LEFT and event.device!=-1)):return
+	world_tap(event.position)
+
+func world_tap(point:Vector2)->void:
 	if area.size.x<=0 or viewport.size.x<=0:return
-	var screen=event.position*Vector2(viewport.size)/area.size
+	var screen=point*Vector2(viewport.size)/area.size
 	var origin=camera.project_ray_origin(screen);var ray=camera.project_ray_normal(screen)
 	if absf(ray.y)<.001:return
 	var hit=origin+ray*(-origin.y/ray.y)
@@ -19873,8 +19926,11 @@ func _process(dt:float):
 			update_enemy_pixel(n,dt,delta_position)
 		elif n.has_meta("float_item"):
 			n.position.y=.12+.07*sin(elapsed*4.0+n.position.x);n.rotation.y=elapsed*1.8
-	if controls_modal() and joy_pointer!=-2:reset_joystick()
-	if movement_joystick and joy_direction!=Vector2i.ZERO and tick<=0.0 and attack_time<=0.0 and not strike_pending and not hold_active and not hold_release_pending and strike_pointer==-2 and not controls_modal() and not run.finished:
+	if controls_modal():
+		if joy_pointer!=-2:reset_joystick()
+		if field_pointer!=-2:
+			field_pointer=-2;field_aiming=false;aim_preview.queue_redraw()
+	if movement_joystick and joy_direction!=Vector2i.ZERO and tick<=0.0 and attack_time<=0.0 and not strike_pending and not hold_active and not hold_release_pending and strike_pointer==-2 and field_pointer==-2 and not controls_modal() and not run.finished:
 		if run.charged_move_id.is_empty() and run.step_clear(run.player,joy_direction):
 			path.clear();path.append(run.player+joy_direction)
 		else:tick=.16
