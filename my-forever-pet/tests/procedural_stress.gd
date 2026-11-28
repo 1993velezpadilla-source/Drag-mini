@@ -3355,10 +3355,13 @@ func run_checks()->void:
 	# Global immunities must be excluded before the bounded route search.
 	projection_actor.species="eelstrix";projection_actor["personality_enabled"]=true
 	projection_fixture.trained_profile={"types":["ground"],"level":24,"nature":0,"ev":[0,0,0,0,0,0]}
-	if not projection_fixture.enemy_foresight_kits(projection_actor).is_empty():failures.append("foresight global type immunity removes kit")
+	# Explorers mode converts elemental immunity into half effectiveness.
+	var resistant_kits:Array[Dictionary]=projection_fixture.enemy_foresight_kits(projection_actor)
+	if resistant_kits.is_empty() or not is_equal_approx(Rules.type_multiplier("electric",["ground"]),.5):failures.append("foresight explorers resistance retains kit")
 	checks+=1
 	projection_fixture.trained_profile["types"]=["water"]
-	if projection_fixture.enemy_foresight_kits(projection_actor).is_empty():failures.append("foresight effective type restores kit")
+	var effective_kits:Array[Dictionary]=projection_fixture.enemy_foresight_kits(projection_actor)
+	if effective_kits.is_empty() or resistant_kits.is_empty() or float(effective_kits[0].value)<=float(resistant_kits[0].value):failures.append("foresight effective type improves kit value")
 	checks+=1
 	projection_fixture.player_boons["mirror_veil"]=2
 	if projection_fixture.enemy_foresight_kits(projection_actor).is_empty():failures.append("foresight local mirror retains ranged kit")
@@ -3367,6 +3370,12 @@ func run_checks()->void:
 	projection_fixture.shield_kind="protect";projection_fixture.shield_turns=2
 	if not projection_fixture.enemy_foresight_kits(projection_actor).is_empty():failures.append("foresight global protect removes kit")
 	checks+=1
+	projection_fixture.shield_kind="endure";projection_fixture.shield_turns=2
+	var projection_saved_hp:int=projection_fixture.hp
+	projection_fixture.hp=1
+	if not projection_fixture.enemy_foresight_kits(projection_actor).is_empty():failures.append("foresight zero damage endure removes kit")
+	checks+=1
+	projection_fixture.hp=projection_saved_hp
 	projection_fixture.shield_kind="";projection_fixture.shield_turns=0
 	projection_fixture.trained_profile.clear();projection_actor.species="leafwisp";projection_actor.erase("personality_enabled")
 	if projection_actor.pos!=Vector2i(4,5) or projection_actor.pp_primary!=12 or projection_fixture.rng.state!=projection_rng or not projection_fixture.enemy_actions.is_empty():failures.append("foresight global pruning purity")
