@@ -2445,7 +2445,37 @@ func run_checks()->void:
 	loss_fixture.turns=24
 	if loss_fixture.enemy_witnessed_vacancy_step(loss_actor,loss_fixture.player)!=loss_actor.pos:failures.append("witnessed vacancy expires")
 	checks+=1
-	print("KINDRIA_ANTI_STALL checks=94")
+	# Exercise end-of-turn removal and next-turn replacement through the live dispatcher.
+	var live_vacancy=Rules.new()
+	for tile in [Vector2i(1,5),Vector2i(1,6),Vector2i(2,6),Vector2i(1,7),Vector2i(2,7),Vector2i(9,8),Vector2i(9,9)]:live_vacancy.cells[tile]=true
+	live_vacancy.player=Vector2i(1,6);live_vacancy.stairs=Vector2i(9,9);live_vacancy.relic=Vector2i(9,8)
+	live_vacancy.hp=10000;live_vacancy.max_hp=10000;live_vacancy.belly_tenths=1000
+	var replacement:Dictionary={"uid":400,"pos":Vector2i(2,7),"hp":30,"max_hp":30,"kind":0,"species":"rootgnawer","ecology_role":"hunter","ecology_search_enabled":true,"personality_enabled":true,"pp_primary":0,"pp_secondary":0,"pp_support":0,"pp_control":0}
+	live_vacancy.enemies.append(replacement)
+	live_vacancy.enemies.append({"uid":401,"pos":Vector2i(2,6),"hp":30,"kind":0,"species":"rootgnawer","sleep_turns":10,"ecology_search_enabled":true})
+	live_vacancy.enemies.append({"uid":402,"pos":Vector2i(1,7),"hp":0,"kind":0,"species":"rootgnawer"})
+	live_vacancy.enemy_turn_actions()
+	if replacement.pos!=Vector2i(2,7) or live_vacancy.enemy_at(Vector2i(1,7))>=0 or int(replacement.get("squad_loss_turn",-1))!=live_vacancy.turns:failures.append("live vacancy recorded after actor decision")
+	checks+=1
+	var vacancy_tick:int=live_vacancy.turns
+	live_vacancy.enemy_turn_actions()
+	var replacement_moves:int=0
+	for action in live_vacancy.enemy_actions:
+		if int(action.get("uid",-1))==400 and str(action.get("phase",""))=="move":replacement_moves+=1
+	if replacement.pos!=Vector2i(1,7) or replacement_moves!=1 or int(replacement.get("recovery_turn",-1))!=vacancy_tick+1:failures.append("live vacancy next turn priority replacement")
+	checks+=1
+	var replacement_actions:int=0
+	for action in live_vacancy.enemy_actions:
+		if int(action.get("uid",-1))==400:replacement_actions+=1
+	if replacement_actions!=1 or live_vacancy.turns!=vacancy_tick+1 or replacement.pp_primary!=0 or replacement.pp_secondary!=0:failures.append("live vacancy one action no PP cost")
+	checks+=1
+	live_vacancy.enemy_turn_actions()
+	var replacement_attacks:int=0
+	for action in live_vacancy.enemy_actions:
+		if int(action.get("uid",-1))==400 and str(action.get("phase",""))=="attack":replacement_attacks+=1
+	if replacement_attacks!=1:failures.append("live vacancy attack on following turn")
+	checks+=1
+	print("KINDRIA_ANTI_STALL checks=98")
 	# A direct witness may report a tile, but a listener cannot relay it.
 	var comm=Rules.new()
 	for x in range(1,4):comm.cells[Vector2i(x,3)]=true
