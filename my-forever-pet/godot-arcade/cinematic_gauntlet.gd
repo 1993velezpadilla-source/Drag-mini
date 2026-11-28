@@ -50,7 +50,14 @@ func run_checks()->void:
 			if not woods.traps.is_empty():failures.append("Dungeon001 natural traps")
 			if woods.monster_house_room>=0 or woods.prepare_monster_house(true):failures.append("Dungeon001 ambush isolation")
 			if woods.route(woods.player,woods.stairs).is_empty() or woods.route(woods.player,woods.relic).is_empty():failures.append("Dungeon001 reachable objectives")
-			checks+=5
+			if woods.rooms.size()!=(3 if woods_floor==1 else 4):failures.append("V26.20 floor room profile")
+			if woods.starter_floor_title()!=["Fernlight Clearing","Silverbrook Falls","Ancientroot Grove"][woods_floor-1]:failures.append("V26.20 distinct title")
+			if not ["potion","trail_fruit","manual:eos_154"][woods_floor-1] in woods.loot.values():failures.append("V26.20 teaching reward")
+			if woods.starter_objective()!="Find the woodland relic":failures.append("V26.20 initial objective")
+			woods.secured=true
+			if woods.starter_objective()!=("Reach the stairs" if woods_floor<3 else "Reach the exit"):failures.append("V26.20 completed objective")
+			woods.secured=false
+			checks+=10
 	var woods_advanced:=preload("res://dungeon_rules.gd").new()
 	woods_advanced.setup(0,0,0,false,true,1,0,true)
 	if woods_advanced.starter_woods or woods_advanced.floor_count!=2:failures.append("Dungeon001 patrol isolation")
