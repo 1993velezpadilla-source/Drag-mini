@@ -2078,7 +2078,7 @@ func enemy_cautious_spacing_step(e:Dictionary,target:Vector2i)->Vector2i:
 	var origin:Vector2i=e.pos
 	if not bool(e.get("personality_enabled",false)) or enemy_combat_personality(e)!="cautious" or bool(e.get("windup",false)) or int(e.get("stuck_turns",0))>0 or int(e.get("spacing_count",0))>=2:return origin
 	if target!=player or distance(origin,target)!=1 or not enemy_line_of_sight(origin,target):return origin
-	if int(player_stages.get("attack",0))<2 and int(player_stages.get("sp_attack",0))<2 and not enemy_recent_threat(e):return origin
+	if int(player_stages.get("attack",0))<2 and int(player_stages.get("sp_attack",0))<2 and not enemy_recent_threat(e) and not enemy_counter_pattern(e,"close"):return origin
 	var skill:Array=signature_skill(e)
 	var pattern:String=str(ATTACK_PATTERNS.get(e.get("species",""),"line"))
 	if int(skill[0])<2 or not enemy_move_allowed(e,"primary") or int(e.get("cooldown",0))>0:return origin
@@ -4093,6 +4093,54 @@ func enemy_remember_incoming(e:Dictionary,damage:int,element:String)->void:
 	if damage<=0 or not bool(e.get("ecology_search_enabled",false)):return
 	if not enemy_line_of_sight(e.pos,player) or distance(e.pos,player)>enemy_awareness(e):return
 	e["incoming_turn"]=turns;e["incoming_damage"]=damage;e["incoming_element"]=element
+	# A multi-hit cast is one observation, not several independent decisions.
+	var gap:int=distance(e.pos,player)
+	var mode:String="ranged" if gap>=2 else "close"
+	var previous:int=int(e.get("counter_hit_turn",-9999))
+	if previous==turns:return
+	var streak:int=int(e.get("counter_hit_streak",0))
+	e["counter_hit_streak"]=mini(3,streak+1) if turns-previous<=3 and turns>previous and str(e.get("counter_hit_mode",""))==mode else 1
+	e["counter_hit_turn"]=turns;e["counter_hit_mode"]=mode
+
+func enemy_counter_pattern(e:Dictionary,mode:String)->bool:
+	var age:int=turns-int(e.get("counter_hit_turn",-9999))
+	return bool(e.get("ecology_search_enabled",false)) and int(e.get("counter_hit_streak",0))>=2 and str(e.get("counter_hit_mode",""))==mode and age>=0 and age<=3
+
+# Aggressive melee actors under repeated ranged fire may break the firing
+# lane for one turn while approaching, rather than walking straight at it.
+func enemy_counter_cover_step(e:Dictionary,target:Vector2i)->Vector2i:
+	var origin:Vector2i=e.pos
+	if not bool(e.get("personality_enabled",false)) or enemy_survival_profile(e)!="aggressive" or not enemy_counter_pattern(e,"ranged") or bool(e.get("windup",false)) or int(e.get("stuck_turns",0))>0:return origin
+	if int(e.get("kind",0))==3 or bool(e.get("monster_house",false)) or target!=player or distance(origin,target)<3 or distance(origin,target)>enemy_awareness(e) or not enemy_line_of_sight(origin,target):return origin
+	if turns<=int(e.get("counter_cover_turn",-9999))+2:return origin
+	# Do not trade a ready legal learned attack for cover.
+	var skill:Array=signature_skill(e)
+	var species:String=str(e.get("species",""))
+	if int(e.get("cooldown",0))<=0 and enemy_move_allowed(e,"primary") and attack_aim(origin,target,str(ATTACK_PATTERNS.get(species,"line")),int(skill[0]))!=Vector2i.ZERO:return origin
+	if int(e.get("alt_cooldown",0))<=0 and SECONDARY_SKILLS.has(species) and enemy_move_allowed(e,"secondary"):
+		var alt:Array=SECONDARY_SKILLS[species]
+		if attack_aim(origin,target,str(alt[1]),int(alt[0]))!=Vector2i.ZERO:return origin
+	for d in DIR:
+		var q:Vector2i=origin+d
+		if distance(q,target)>=distance(origin,target) or not enemy_ambush_safe_tile(q) or enemy_line_of_sight(q,target):continue
+		return q
+	return origin
+
+# A visible full shield is a reason to spend the turn on positioning or
+# holding, not repeatedly burn learned PP. Existing windups are respected.
+func enemy_counter_protected(e:Dictionary,target:Vector2i)->bool:
+	return bool(e.get("personality_enabled",false)) and bool(e.get("ecology_search_enabled",false)) and int(e.get("kind",0))!=3 and not bool(e.get("windup",false)) and target==player and shield_turns>0 and shield_kind=="protect" and distance(e.pos,target)<=enemy_awareness(e) and enemy_line_of_sight(e.pos,target)
+
+func enemy_counter_protected_step(e:Dictionary,target:Vector2i)->Vector2i:
+	var origin:Vector2i=e.pos
+	if not enemy_counter_protected(e,target) or int(e.get("stuck_turns",0))>0:return origin
+	var step:Vector2i=enemy_exit_block_step(e,target)
+	if step!=origin:return step
+	if distance(origin,target)<=1:return origin
+	for d in DIR:
+		var q:Vector2i=origin+d
+		if distance(q,target)<distance(origin,target) and enemy_ambush_safe_tile(q) and enemy_line_of_sight(q,target):return q
+	return origin
 
 func enemy_recent_threat(e:Dictionary)->bool:
 	var age:int=turns-int(e.get("incoming_turn",-9999))
@@ -4449,6 +4497,19 @@ func enemy_turn_actions_impl():
 			enemies[i].pos=spacing;enemies[i]["spacing_count"]=int(enemies[i].get("spacing_count",0))+1
 			enemy_tick_all_cooldowns(enemies[i])
 			enemy_actions.append({"uid":enemies[i].get("uid",i),"phase":"move","from":p,"to":spacing,"gait":enemies[i].get("gait","walk")})
+			continue
+		var cover_step:Vector2i=enemy_counter_cover_step(enemies[i],player)
+		if cover_step!=p:
+			enemies[i].pos=cover_step;enemies[i]["counter_cover_turn"]=turns
+			enemy_tick_all_cooldowns(enemies[i])
+			enemy_actions.append({"uid":enemies[i].get("uid",i),"phase":"move","from":p,"to":cover_step,"gait":enemies[i].get("gait","walk")})
+			continue
+		if enemy_counter_protected(enemies[i],player) and not enemy_has_party_area_attack(enemies[i]):
+			var protected_step:Vector2i=enemy_counter_protected_step(enemies[i],player)
+			enemy_tick_all_cooldowns(enemies[i])
+			if protected_step!=p:
+				enemies[i].pos=protected_step
+				enemy_actions.append({"uid":enemies[i].get("uid",i),"phase":"move","from":p,"to":protected_step,"gait":enemies[i].get("gait","walk")})
 			continue
 		var control_cd:int=int(enemies[i].get("control_cooldown",0))
 		if control_cd>0:enemies[i]["control_cooldown"]=control_cd-1
