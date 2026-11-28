@@ -3989,6 +3989,32 @@ func ally_turn_actions()->void:
 			var path:Array[Vector2i]=route(origin,player,true)
 			if not path.is_empty() and free_party_tile(path[0]):a.pos=path[0]
 
+# Ordinary party pursuit must not repeatedly choose a shortest route that
+# its own movement rules reject. Use the fast route when safe; otherwise
+# look for a short legal approach to the personally observed opponent.
+func enemy_safe_party_approach(e:Dictionary,target:Vector2i)->Vector2i:
+	var origin:Vector2i=e.pos
+	if int(e.get("stuck_turns",0))>0 or distance(origin,target)>enemy_awareness(e) or not enemy_line_of_sight(origin,target):return origin
+	var direct:Array[Vector2i]=route(origin,target,true)
+	if direct.size()>1:
+		var safe:bool=true
+		for k in range(direct.size()-1):
+			if not free_party_tile(direct[k]) or player_traps.has(direct[k]):safe=false;break
+		if safe:return direct[0]
+	var queue:Array[Vector2i]=[origin]
+	var depths:Dictionary={origin:0}
+	var first:Dictionary={}
+	var cursor:int=0
+	while cursor<queue.size() and cursor<128:
+		var tile:Vector2i=queue[cursor];cursor+=1
+		if tile!=origin and distance(tile,target)==1:return first[tile]
+		if int(depths[tile])>=8:continue
+		for d in DIR:
+			var q:Vector2i=tile+d
+			if depths.has(q) or not free_party_tile(q) or player_traps.has(q):continue
+			depths[q]=int(depths[tile])+1;first[q]=q if tile==origin else first[tile];queue.append(q)
+	return origin
+
 func enemy_target_ally(i:int)->bool:
 	if boon_active("decoy"):return false
 	var e:Dictionary=enemies[i]
@@ -4014,9 +4040,14 @@ func enemy_target_ally(i:int)->bool:
 		enemy_actions.append({"uid":e.get("uid",i),"phase":"attack","from":origin,"to":a.pos,"move":"Ally strike","fx":"basic_strike","damage":damage,"tiles":[a.pos],"path":[a.pos]})
 		emit_event("Ally struck −%d HP"%damage)
 		enemy_tick_all_cooldowns(e);return true
-	var path:Array[Vector2i]=route(origin,a.pos,true)
-	if not path.is_empty() and free_party_tile(path[0]) and int(e.get("stuck_turns",0))<=0:
-		e.pos=path[0]
+	var step:Vector2i=origin
+	if tactical:
+		step=enemy_safe_party_approach(e,a.pos)
+	else:
+		var path:Array[Vector2i]=route(origin,a.pos,true)
+		if not path.is_empty() and free_party_tile(path[0]):step=path[0]
+	if step!=origin and int(e.get("stuck_turns",0))<=0:
+		e.pos=step
 		enemy_actions.append({"uid":e.get("uid",i),"phase":"move","from":origin,"to":e.pos,"gait":e.get("gait","walk")})
 		enemy_tick_all_cooldowns(e);return true
 	return false
