@@ -2271,7 +2271,11 @@ func enemy_unstall_step(e:Dictionary,target:Vector2i)->Vector2i:
 	var old_congestion_target:Vector2i=e.get("congestion_hold_target",target)
 	var reserve_reentry:bool=distance(old_reserve_target,target)<=2 and turns-int(e.get("reserve_hold_turn",-9999)) in [1,2] and not enemy_encircled_frontline(e,target)
 	var congestion_reentry:bool=distance(old_congestion_target,target)<=2 and turns-int(e.get("congestion_hold_turn",-9999)) in [1,2] and not enemy_occupied_frontline(e,target)
-	if not reserve_reentry and not congestion_reentry:
+	# A witnessed casualty can open a new route before the normal stall
+	# threshold. Only retry once per recent loss after a committed detour.
+	var loss_turn:int=int(e.get("squad_loss_turn",-9999))
+	var loss_reentry:bool=turns-loss_turn in [0,1] and int(e.get("unstall_turn",-9999))<loss_turn and int(e.get("stall_count",0))>=1 and e.get("stall_target",Vector2i.ZERO)==target and int(e.get("stall_turn",-9999))==turns-1 and not enemy_occupied_frontline(e,target)
+	if not reserve_reentry and not congestion_reentry and not loss_reentry:
 		if int(e.get("stall_count",0))<2 or e.get("stall_target",Vector2i.ZERO)!=target or int(e.get("stall_turn",-9999))!=turns-1:return origin
 		if turns<=int(e.get("unstall_turn",-9999))+3:return origin
 	var reserved:Dictionary=enemy_pack_reserved_posts(e,target)
