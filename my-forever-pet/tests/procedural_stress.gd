@@ -3800,6 +3800,33 @@ func run_checks()->void:
 	if relief_fixture.enemy_relief_step(relief_guard,relief_fixture.player)!=relief_guard.pos:failures.append("relief incapacitated backup")
 	relief_ranged.erase("sleep_turns")
 	checks+=1
+	# A ranged kit alone cannot provide immediate covering fire.
+	if not relief_fixture.enemy_relief_ranged_ready(relief_ranged,relief_fixture.player):failures.append("relief executable ranged coverage")
+	checks+=1
+	relief_ranged.pos=Vector2i(8,4)
+	if relief_fixture.enemy_relief_ranged_ready(relief_ranged,relief_fixture.player):failures.append("relief rejects out of range backup")
+	checks+=1
+	relief_ranged.pos=Vector2i(6,4)
+	var relief_blocker:Dictionary={"uid":90,"pos":Vector2i(5,4),"hp":30,"kind":0,"species":"rootgnawer"}
+	relief_fixture.enemies.append(relief_blocker)
+	if relief_fixture.enemy_relief_ranged_ready(relief_ranged,relief_fixture.player):failures.append("relief rejects obstructed backup")
+	relief_fixture.enemies.pop_back()
+	checks+=1
+	relief_fixture.enemy_phase_spent[2]=true
+	if relief_fixture.enemy_relief_ranged_ready(relief_ranged,relief_fixture.player):failures.append("relief rejects spent backup")
+	relief_fixture.enemy_phase_spent.clear()
+	checks+=1
+	relief_ranged["windup"]=true;relief_ranged["aim"]=Vector2i.UP
+	if relief_fixture.enemy_relief_ranged_ready(relief_ranged,relief_fixture.player):failures.append("relief rejects misdirected windup")
+	relief_ranged["aim"]=Vector2i.LEFT
+	if not relief_fixture.enemy_relief_ranged_ready(relief_ranged,relief_fixture.player):failures.append("relief accepts executable windup")
+	relief_ranged.erase("windup");relief_ranged.erase("aim")
+	checks+=1
+	relief_fixture.charge_phase="vanish"
+	if relief_fixture.enemy_relief_ranged_ready(relief_ranged,relief_fixture.player):failures.append("relief rejects hidden target")
+	relief_fixture.charge_phase=""
+	if relief_ranged.pp_primary!=12 or relief_ranged.pos!=Vector2i(6,4) or not relief_fixture.enemy_actions.is_empty():failures.append("relief coverage planning purity")
+	checks+=1
 	relief_guard.hp=12
 	if relief_fixture.enemy_relief_step(relief_guard,relief_fixture.player)!=relief_guard.pos:failures.append("relief wounded candidate excluded")
 	relief_guard.hp=30
@@ -3821,7 +3848,7 @@ func run_checks()->void:
 		if int(action.get("uid",-1))==0 and str(action.phase)=="move":relief_moves+=1
 	if relief_moves!=1 or relief_guard.pos!=Vector2i(4,5) or relief_guard.pp_primary!=0:failures.append("relief real turn dispatch")
 	checks+=1
-	print("KINDRIA_DYNAMIC_COMBAT_ROLES checks=10")
+	print("KINDRIA_DYNAMIC_COMBAT_ROLES checks=16")
 	# Finishers use real non-critical HP estimates, not tactical utility scores.
 	var opportunity=Rules.new()
 	for y in range(1,7):
