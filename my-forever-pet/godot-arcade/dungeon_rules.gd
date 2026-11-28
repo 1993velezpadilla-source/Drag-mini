@@ -2717,7 +2717,13 @@ func enemy_cooperative_step(e:Dictionary,target:Vector2i,pattern:String,reach:in
 	var origin:Vector2i=e.pos
 	if not bool(e.get("ecology_search_enabled",false)) or int(e.get("kind",0))==3 or int(e.get("stuck_turns",0))>0:return origin
 	if distance(origin,target)>enemy_awareness(e) or not enemy_line_of_sight(origin,target):return origin
+	if target==player and not enemy_live_contact(e,target):return origin
 	if attack_aim(origin,target,pattern,reach)!=Vector2i.ZERO:return origin
+	var reserved:Dictionary=enemy_pack_reserved_posts(e,target)
+	var firing_peers:Array[Dictionary]=[]
+	for other in enemies:
+		if enemy_squad_partner(e,other):firing_peers.append(other)
+	var lane_memo:Dictionary={}
 	var partners:Array[Vector2i]=[]
 	for other in enemies:
 		var op:Vector2i=other.pos
@@ -2746,6 +2752,7 @@ func enemy_cooperative_step(e:Dictionary,target:Vector2i,pattern:String,reach:in
 		for j in range(4):
 			var q:Vector2i=here+DIR[(phase+j)%4]
 			if depths.has(q) or not cells.has(q) or occupied.has(q) or q==player or q==target or q==stairs or q==relic or q in side_rewards or traps.has(q) or player_traps.has(q):continue
+			if reserved.has(q) or enemy_recovery_lane_blocked(firing_peers,q,target,lane_memo):continue
 			depths[q]=depth+1;first_steps[q]=q if depth==0 else first_steps[here];queue.append(q)
 	return best
 
