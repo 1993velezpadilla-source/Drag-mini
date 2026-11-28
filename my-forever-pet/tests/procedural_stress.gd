@@ -763,6 +763,55 @@ func run_checks()->void:
 	if exit_fixture.enemy_exit_block_step(exit_actor,exit_fixture.player)!=Vector2i(4,3):failures.append("control side doorway intercept")
 	checks+=1
 	print("KINDRIA_TERRAIN_CONTROL push=9 exit=4 setup=2")
+	# Learned status utility is compared to direct attacks, including shared recovery.
+	var status_fixture=Rules.new()
+	for y in range(1,7):
+		for x in range(1,7):status_fixture.cells[Vector2i(x,y)]=true
+	status_fixture.rooms.append(Rect2i(1,1,6,6))
+	status_fixture.player=Vector2i(4,3)
+	var status_actor:Dictionary={"uid":0,"pos":Vector2i(3,3),"hp":30,"kind":0,"species":"coralcrab","ecology_role":"hunter","ecology_search_enabled":true,"control_move":"eos_085","pp_control":5,"pp_primary":0,"pp_secondary":0,"stages":{"accuracy":10}}
+	status_fixture.enemies.append(status_actor)
+	var debuff_move:Dictionary=Rules.MOVE_LIBRARY["eos_085"]
+	var solo_utility:float=status_fixture.enemy_status_utility(status_actor,debuff_move)
+	status_fixture.enemies.append({"uid":1,"pos":Vector2i(4,4),"hp":20,"kind":0})
+	if solo_utility<=0.0 or status_fixture.enemy_status_utility(status_actor,debuff_move)<=solo_utility or status_actor.pp_control!=5 or not status_fixture.player_stages.is_empty():failures.append("status utility team benefit and purity")
+	checks+=1
+	status_fixture.enemies.pop_back()
+	status_fixture.shield_kind="safeguard";status_fixture.shield_turns=2
+	if status_fixture.enemy_status_utility(status_actor,debuff_move)!=0.0:failures.append("status safeguard gate")
+	status_fixture.shield_kind="";status_fixture.shield_turns=0
+	checks+=1
+	status_fixture.enemy_turn_actions()
+	if status_actor.pp_control!=4 or status_actor.get("last_move_slot","")!="control" or int(status_fixture.player_stages.get("attack",0))!=-1 or int(status_fixture.player_stages.get("defense",0))!=-1 or status_fixture.enemy_actions.size()!=1:failures.append("status actual learned debuff action")
+	checks+=1
+	status_fixture.player_stages={"attack":-2,"defense":-2}
+	if status_fixture.enemy_status_utility(status_actor,debuff_move)!=0.0:failures.append("status redundant debuff")
+	checks+=1
+	var sleep_move:Dictionary=Rules.MOVE_LIBRARY["eos_079"]
+	var paralysis_move:Dictionary=Rules.MOVE_LIBRARY["eos_192"]
+	if status_fixture.enemy_status_utility(status_actor,sleep_move)<=0.0 or status_fixture.enemy_status_utility(status_actor,paralysis_move)<=0.0:failures.append("status available control utility")
+	checks+=1
+	status_fixture.player_boons["hostile_control_recovery"]=8
+	if status_fixture.enemy_status_utility(status_actor,sleep_move)!=0.0 or status_fixture.enemy_status_utility(status_actor,paralysis_move)!=0.0:failures.append("status shared recovery")
+	status_fixture.player_boons.clear()
+	checks+=1
+	status_fixture.player_boons["sleepless"]=1
+	if status_fixture.enemy_status_utility(status_actor,sleep_move)!=0.0:failures.append("status sleep immunity")
+	status_fixture.player_boons.clear()
+	checks+=1
+	status_fixture.cells.erase(Vector2i(4,3))
+	if status_fixture.enemy_status_utility(status_actor,debuff_move)!=0.0:failures.append("status occlusion")
+	status_fixture.cells[Vector2i(4,3)]=true
+	checks+=1
+	status_actor["control_cooldown"]=0;status_actor["pp_control"]=0
+	if status_fixture.enemy_execute_control(0):failures.append("status depleted PP")
+	checks+=1
+	status_fixture.player_stages.clear()
+	status_actor["pp_control"]=4;status_actor["pp_primary"]=12;status_actor["pp_secondary"]=10
+	status_fixture.tier=5
+	if status_fixture.enemy_execute_control(0):failures.append("status stronger attack priority")
+	checks+=1
+	print("KINDRIA_STATUS_TACTICS utility=2 gates=5 action=1 redundancy=1 priority=1")
 	# Actual disk I/O, legacy migration, corruption recovery, and resumed writes.
 	var test_path:String="user://kindria_procedural_test_"+str(OS.get_process_id())+".cfg"
 	var exact:Array[String]=["legacy exact".sha256_text()]
