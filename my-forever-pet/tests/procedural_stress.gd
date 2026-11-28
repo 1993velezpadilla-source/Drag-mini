@@ -2224,7 +2224,15 @@ func run_checks()->void:
 	checks+=1
 	# Compare the pruned BFS to its exhaustive bounded reference. Retain
 	# same-depth scoring, including when terrain changes which route wins.
-	var fs_exhaustive:Dictionary=foresight_fixture.enemy_foresight_plan(foresight_actor,foresight_fixture.player,false)
+	var fs_exhaustive:Dictionary=foresight_fixture.enemy_foresight_plan(foresight_actor,foresight_fixture.player,false,false)
+	var fs_memo_peer:Dictionary={"uid":241,"pos":Vector2i(2,5),"hp":30,"kind":1,"species":"leafwisp","ecology_search_enabled":true,"pp_primary":12,"windup":true,"aim":Vector2i.RIGHT}
+	foresight_fixture.enemies.append(fs_memo_peer)
+	if foresight_fixture.enemy_foresight_plan(foresight_actor,foresight_fixture.player)!=foresight_fixture.enemy_foresight_plan(foresight_actor,foresight_fixture.player,true,false):failures.append("foresight local lane memo parity")
+	checks+=1
+	fs_memo_peer.erase("windup");fs_memo_peer.erase("aim")
+	if foresight_fixture.enemy_foresight_plan(foresight_actor,foresight_fixture.player)!=foresight_fixture.enemy_foresight_plan(foresight_actor,foresight_fixture.player,true,false):failures.append("foresight cancelled lane memo refresh")
+	checks+=1
+	foresight_fixture.enemies.erase(fs_memo_peer)
 	var fs_fast_nodes:int=int(fs_plan.get("nodes",0))
 	var fs_full_nodes:int=int(fs_exhaustive.get("nodes",0))
 	var fs_fast_choice:Dictionary=fs_plan.duplicate()
@@ -4081,6 +4089,8 @@ func run_checks()->void:
 	var reserve_shooter:Dictionary={"uid":31,"pos":Vector2i(3,5),"hp":30,"kind":1,"species":"leafwisp","ecology_search_enabled":true,"pp_primary":12,"windup":true,"aim":Vector2i.RIGHT}
 	reserve_fixture.enemies.append(reserve_shooter);reserve_fixture.cells.erase(Vector2i(3,4))
 	var reserve_occluded:Dictionary=reserve_fixture.enemy_reserve_route(reserve_actor,reserve_fixture.player)
+	if reserve_occluded!=reserve_fixture.enemy_reserve_route(reserve_actor,reserve_fixture.player,false):failures.append("reserve local lane memo parity")
+	checks+=1
 	if reserve_fixture.enemy_line_of_sight(reserve_shooter.pos,reserve_fixture.player) or not reserve_fixture.enemy_relief_blocks_lane(reserve_shooter,Vector2i(4,5),reserve_fixture.player) or reserve_occluded.get("step")==Vector2i(4,5) or reserve_occluded.get("post")==Vector2i(4,5):failures.append("reserve avoids occluded committed ray")
 	checks+=1
 	reserve_actor.erase("squad_loss_turn")
@@ -4088,6 +4098,8 @@ func run_checks()->void:
 	checks+=1
 	reserve_actor["squad_loss_turn"]=29;reserve_shooter.erase("windup");reserve_shooter.erase("aim")
 	if reserve_fixture.enemy_reserve_route(reserve_actor,reserve_fixture.player).get("step")!=Vector2i(4,5):failures.append("reserve cancelled ray releases route")
+	checks+=1
+	if reserve_fixture.enemy_reserve_route(reserve_actor,reserve_fixture.player)!=reserve_fixture.enemy_reserve_route(reserve_actor,reserve_fixture.player,false):failures.append("reserve cancelled lane memo refresh")
 	checks+=1
 	reserve_fixture.enemies.erase(reserve_shooter);reserve_fixture.cells[Vector2i(3,4)]=true
 	var reserve_front:Dictionary={"uid":30,"pos":Vector2i(3,4),"hp":30,"max_hp":30,"kind":0,"species":"bramble_pup","ecology_role":"hunter","ecology_search_enabled":true}
@@ -4106,7 +4118,7 @@ func run_checks()->void:
 	reserve_fixture.cells.erase(Vector2i(4,5))
 	if not reserve_fixture.enemy_dynamic_reserve_plan(reserve_actor,reserve_fixture.player).is_empty():failures.append("reserve no target sight through wall")
 	checks+=1
-	print("KINDRIA_DYNAMIC_SQUAD_ROLES checks=14")
+	print("KINDRIA_DYNAMIC_SQUAD_ROLES checks=16")
 	# Forecast only witnessed retreats, and commit only a safe ordinary step.
 	var forecast=Rules.new()
 	for y in range(1,9):

@@ -2691,7 +2691,7 @@ func enemy_foresight_post_value(e:Dictionary,kits:Array[Dictionary],post:Vector2
 		value=maxf(value,float(kit.value))
 	return value
 
-func enemy_foresight_plan(e:Dictionary,target:Vector2i,prune_deeper:bool=true)->Dictionary:
+func enemy_foresight_plan(e:Dictionary,target:Vector2i,prune_deeper:bool=true,memoize_lanes:bool=true)->Dictionary:
 	var origin:Vector2i=e.pos
 	if target!=player or not enemy_opportunity_eligible(e) or int(e.get("kind",0))==3 or int(e.get("stuck_turns",0))>0:return {}
 	if bool(e.get("monster_house",false)) or charge_phase in ["underground","airborne","vanish"] or (shield_turns>0 and shield_kind=="protect"):return {}
@@ -2702,6 +2702,7 @@ func enemy_foresight_plan(e:Dictionary,target:Vector2i,prune_deeper:bool=true)->
 	var peers:Array[Dictionary]=[]
 	for other in enemies:
 		if enemy_squad_lane_peer(e,other,target):peers.append(other)
+	var lane_memo:Dictionary={}
 	var queue:Array[Vector2i]=[origin]
 	var depths:Dictionary={origin:0}
 	var first:Dictionary={origin:origin}
@@ -2734,10 +2735,8 @@ func enemy_foresight_plan(e:Dictionary,target:Vector2i,prune_deeper:bool=true)->
 			var q:Vector2i=here+DIR[(phase+j)%4]
 			if depths.has(q) or reserved.has(q) or not enemy_ambush_safe_tile(q) or not enemy_line_of_sight(q,target):continue
 			if distance(q,target)>enemy_awareness(e):continue
-			var blocked:bool=false
-			for other in peers:
-				if enemy_relief_blocks_lane(other,q,target):blocked=true;break
-			if blocked:continue
+			if not memoize_lanes:lane_memo.clear()
+			if enemy_recovery_lane_blocked(peers,q,target,lane_memo):continue
 			depths[q]=depth+1;first[q]=q if depth==0 else first[here];queue.append(q)
 	if not best.is_empty():best["nodes"]=cursor
 	return best
@@ -4051,7 +4050,7 @@ func enemy_reserve_candidate(e:Dictionary,target:Vector2i)->bool:
 	# A creature with an immediate ranged attack should keep its firing role.
 	return enemy_push_attack_coverage(e,target)==0
 
-func enemy_reserve_route(e:Dictionary,target:Vector2i)->Dictionary:
+func enemy_reserve_route(e:Dictionary,target:Vector2i,memoize_lanes:bool=true)->Dictionary:
 	var origin:Vector2i=e.pos
 	var backup:Array[Dictionary]=[]
 	var committed_lanes:Array[Dictionary]=[]
@@ -4068,6 +4067,10 @@ func enemy_reserve_route(e:Dictionary,target:Vector2i)->Dictionary:
 			backup.append(other);vacancy=true
 	if not vacancy:return {}
 	var reserved:Dictionary=enemy_pack_reserved_posts(e,target)
+	var lane_peers:Array[Dictionary]=backup.duplicate()
+	for friend in committed_lanes:
+		if not lane_peers.has(friend):lane_peers.append(friend)
+	var lane_memo:Dictionary={}
 	var queue:Array[Vector2i]=[origin]
 	var depths:Dictionary={origin:0}
 	var first:Dictionary={origin:origin}
@@ -4080,13 +4083,8 @@ func enemy_reserve_route(e:Dictionary,target:Vector2i)->Dictionary:
 		for d in DIR:
 			var q:Vector2i=here+d
 			if depths.has(q) or reserved.has(q) or not enemy_ambush_safe_tile(q) or not enemy_line_of_sight(q,target):continue
-			var blocked:bool=false
-			for friend in backup:
-				if enemy_relief_blocks_lane(friend,q,target):blocked=true;break
-			if not blocked:
-				for friend in committed_lanes:
-					if enemy_relief_blocks_lane(friend,q,target):blocked=true;break
-			if blocked:continue
+			if not memoize_lanes:lane_memo.clear()
+			if enemy_recovery_lane_blocked(lane_peers,q,target,lane_memo):continue
 			depths[q]=depth+1;first[q]=q if depth==0 else first[here];queue.append(q)
 	return {}
 
