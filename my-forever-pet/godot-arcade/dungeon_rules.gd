@@ -2752,8 +2752,13 @@ func enemy_decision_position_plan(e:Dictionary,target:Vector2i)->Dictionary:
 	var best_score:float=0.0
 	var gap:int=distance(origin,target)
 	var phase:int=posmod(int(e.get("uid",0))+turns,4)
-	for j in range(4):
-		var q:Vector2i=origin+DIR[(phase+j)%4]
+	for j in range(4 if ai_legacy_cardinal_replay else 8):
+		# Preserve cardinal tie preference; test diagonal posts when cardinal
+		# options cannot establish a useful shot.
+		if j==4 and not best.is_empty():break
+		var direction:Vector2i=DIR[(phase+j)%4] if j<4 else COMBAT_DIR[4+(phase+j-4)%4]
+		if not step_clear(origin,direction):continue
+		var q:Vector2i=origin+direction
 		if not enemy_ambush_safe_tile(q) or reserved.has(q) or not enemy_line_of_sight(q,target):continue
 		if distance(q,target)>enemy_awareness(e):continue
 		var blocked:bool=false
@@ -2876,8 +2881,13 @@ func enemy_tactical_step(e:Dictionary,target:Vector2i,pattern:String,reach:int)-
 	var best:Vector2i=origin
 	var best_score:int=-2147483647
 	var phase:int=posmod(int(e.get("uid",0))+turns,4)
-	for i in range(4):
-		var q:Vector2i=origin+DIR[(phase+i)%4]
+	for i in range(4 if ai_legacy_cardinal_replay else 8):
+		# Preserve cardinal tie preference; test diagonal posts when cardinal
+		# options cannot establish a useful shot.
+		if i==4 and best!=origin:break
+		var direction:Vector2i=DIR[(phase+i)%4] if i<4 else COMBAT_DIR[4+(phase+i-4)%4]
+		if not step_clear(origin,direction):continue
+		var q:Vector2i=origin+direction
 		if not cells.has(q) or q==target or q==player or q==stairs or q==relic or q in side_rewards or traps.has(q) or player_traps.has(q) or enemy_at(q)>=0 or ally_at(q)>=0:continue
 		if reserved.has(q) or enemy_recovery_lane_blocked(peers,q,target,lane_memo):continue
 		if distance(q,target)>enemy_awareness(e) or not enemy_line_of_sight(q,target) or enemy_projected_attack_aim(e,q,target,pattern,reach)==Vector2i.ZERO:continue
@@ -3428,8 +3438,9 @@ func enemy_charge_evasion_step(e:Dictionary)->Vector2i:
 	var best:Vector2i=origin
 	var best_score:int=-2147483647
 	var reserved:Dictionary=enemy_pack_reserved_posts(e,player)
+	var cardinal_safe:bool=false
 	for d in (DIR if ai_legacy_cardinal_replay else COMBAT_DIR):
-		if d not in DIR and best!=origin:continue
+		if d not in DIR and cardinal_safe:continue
 		var q:Vector2i=origin+d
 		if not step_clear(origin,d) or threat.has(q) or not enemy_ambush_safe_tile(q) or reserved.has(q):continue
 		var score:int=enemy_terrain_position_bonus(e,q,player)
@@ -3439,6 +3450,7 @@ func enemy_charge_evasion_step(e:Dictionary)->Vector2i:
 			if enemy_squad_partner(e,other) and distance(q,other.pos)==1:nearby+=1
 		score-=mini(nearby,3)*2
 		if enemy_strategy_attack_tile(e,q,player):score+=4
+		if d in DIR:cardinal_safe=true
 		if score>best_score:best_score=score;best=q
 	return best
 

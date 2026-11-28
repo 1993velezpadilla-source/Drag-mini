@@ -4884,6 +4884,11 @@ func run_checks()->void:
 	charge_counter_actor.erase("stuck_turns")
 	checks+=1
 	charge_counter_fixture.traps[Vector2i(2,2)]="snare";charge_counter_fixture.traps[Vector2i(2,4)]="snare";charge_counter_fixture.traps[Vector2i(1,3)]="snare"
+	var diagonal_evade:Vector2i=charge_counter_fixture.enemy_charge_evasion_step(charge_counter_actor)
+	if diagonal_evade==charge_counter_actor.pos or (diagonal_evade-charge_counter_actor.pos) in Rules.DIR or not charge_counter_fixture.step_clear(charge_counter_actor.pos,diagonal_evade-charge_counter_actor.pos) or counter_threat.has(diagonal_evade) or not charge_counter_fixture.enemy_ambush_safe_tile(diagonal_evade):failures.append("charge counter safe diagonal escape")
+	checks+=1
+	for diagonal_direction in [Vector2i(1,-1),Vector2i(1,1),Vector2i(-1,1),Vector2i(-1,-1)]:
+		charge_counter_fixture.traps[charge_counter_actor.pos+diagonal_direction]="snare"
 	if charge_counter_fixture.enemy_charge_evasion_step(charge_counter_actor)!=charge_counter_actor.pos:failures.append("charge counter no unsafe escape")
 	charge_counter_fixture.traps.clear()
 	checks+=1
@@ -4896,7 +4901,30 @@ func run_checks()->void:
 	charge_counter_fixture.enemy_turn_actions()
 	if charge_counter_actor.pos==Vector2i(2,3) or counter_threat.has(charge_counter_actor.pos) or charge_counter_fixture.enemy_actions.size()!=1 or str(charge_counter_fixture.enemy_actions[0].phase)!="move" or charge_counter_actor.pp_primary!=12 or charge_counter_fixture.charged_move_id!="eos_075":failures.append("charge counter actual single evasion preserves release")
 	checks+=1
-	print("KINDRIA_CHARGE_COUNTERPLAY checks=10")
+	print("KINDRIA_CHARGE_COUNTERPLAY checks=11")
+	# A diagonal firing post must be available even when all cardinal posts
+	# are hazardous, but a blocked corner must invalidate that specific step.
+	var diagonal_post_fixture=Rules.new()
+	for diag_y in range(1,8):
+		for diag_x in range(1,8):diagonal_post_fixture.cells[Vector2i(diag_x,diag_y)]=true
+	diagonal_post_fixture.player=Vector2i(5,4)
+	diagonal_post_fixture.stairs=Vector2i(7,7)
+	diagonal_post_fixture.relic=Vector2i(7,6)
+	var diagonal_post_actor:Dictionary={"uid":980,"pos":Vector2i(3,3),"hp":30,"kind":1,"species":"leafwisp","ecology_role":"hunter","ecology_search_enabled":true,"personality_enabled":true,"pp_primary":12,"pp_secondary":0}
+	diagonal_post_fixture.enemies.append(diagonal_post_actor)
+	for diag_dir in Rules.DIR:diagonal_post_fixture.traps[diagonal_post_actor.pos+diag_dir]="snare"
+	var diag_post:Vector2i=diagonal_post_fixture.enemy_tactical_step(diagonal_post_actor,diagonal_post_fixture.player,"line",2)
+	if diag_post!=Vector2i(4,4):failures.append("tactical diagonal firing post")
+	checks+=1
+	var diag_plan:Dictionary=diagonal_post_fixture.enemy_decision_position_plan(diagonal_post_actor,diagonal_post_fixture.player)
+	if diag_plan.get("step",Vector2i.ZERO)!=Vector2i(4,4):failures.append("decision diagonal firing post")
+	checks+=1
+	diagonal_post_fixture.cells.erase(Vector2i(4,3))
+	if diagonal_post_fixture.enemy_tactical_step(diagonal_post_actor,diagonal_post_fixture.player,"line",2)==Vector2i(4,4) or diagonal_post_fixture.enemy_decision_position_plan(diagonal_post_actor,diagonal_post_fixture.player).get("step",Vector2i.ZERO)==Vector2i(4,4):failures.append("diagonal firing post blocked corner")
+	checks+=1
+	if diagonal_post_actor.pos!=Vector2i(3,3) or diagonal_post_actor.pp_primary!=12 or not diagonal_post_fixture.enemy_actions.is_empty():failures.append("diagonal post planning purity")
+	checks+=1
+	print("KINDRIA_DIAGONAL_POSTS checks=4")
 	var formation_fixture=Rules.new()
 	for y in range(1,8):
 		for x in range(1,8):formation_fixture.cells[Vector2i(x,y)]=true
