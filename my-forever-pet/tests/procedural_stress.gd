@@ -3779,7 +3779,30 @@ func run_checks()->void:
 	if sequence_partner.perish_turns!=2 or sequence_partner.pp_primary!=10 or sequencing.rng.state!=sequence_damage_rng or not sequencing.enemy_actions.is_empty():failures.append("sequence pending status forecast purity")
 	checks+=1
 	sequence_partner.erase("perish_turns")
-	print("KINDRIA_ATTACK_SEQUENCING checks=45")
+	# A partner can act now but not after a lethal deterministic status tick.
+	sequence_partner.hp=2;sequence_partner["major_status"]="poison";sequence_partner["status_age"]=0
+	if sequencing.enemy_combo_followup(sequence_partner,sequence_debuff,0)<=0.0 or sequencing.enemy_combo_followup(sequence_partner,sequence_debuff,1)!=0.0:failures.append("sequence lethal poison tick")
+	checks+=1
+	sequence_partner.status_age=1
+	if sequencing.enemy_combo_followup(sequence_partner,sequence_debuff,1)<=0.0:failures.append("sequence poison interval safe")
+	checks+=1
+	sequence_partner.hp=6;sequence_partner.major_status="burn";sequence_partner.status_age=20
+	if sequencing.enemy_combo_followup(sequence_partner,sequence_debuff,1)!=0.0:failures.append("sequence lethal burn tick")
+	checks+=1
+	sequence_partner.major_status="toxic";sequence_partner.status_age=2;sequence_partner.hp=7
+	if sequencing.enemy_combo_followup(sequence_partner,sequence_debuff,1)<=0.0:failures.append("sequence surviving toxic tick")
+	checks+=1
+	sequence_partner.hp=16;sequence_partner["max_hp"]=40;sequence_partner["curse_turns"]=3;sequence_partner["curse_age"]=1;sequence_partner["leech_turns"]=2;sequence_partner["leech_age"]=1
+	if sequencing.enemy_combo_followup(sequence_partner,sequence_debuff,1)!=0.0:failures.append("sequence cumulative periodic damage lethal")
+	checks+=1
+	sequence_partner.hp=27
+	if sequencing.enemy_combo_followup(sequence_partner,sequence_debuff,1)<=0.0:failures.append("sequence cumulative periodic damage survivable")
+	checks+=1
+	if sequence_partner.hp!=27 or sequence_partner.status_age!=2 or sequence_partner.curse_age!=1 or sequence_partner.leech_age!=1 or sequencing.rng.state!=sequence_damage_rng or sequence_partner.pp_primary!=10 or not sequencing.enemy_actions.is_empty():failures.append("sequence periodic forecast purity")
+	checks+=1
+	for key in ["major_status","status_age","max_hp","curse_turns","curse_age","leech_turns","leech_age"]:sequence_partner.erase(key)
+	sequence_partner.hp=30
+	print("KINDRIA_ATTACK_SEQUENCING checks=52")
 	# Bounded search follows actual witnessed headings and explores alternatives.
 	var hunter_search=Rules.new()
 	for y in range(1,10):

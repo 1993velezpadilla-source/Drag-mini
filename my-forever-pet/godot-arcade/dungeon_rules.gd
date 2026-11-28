@@ -3182,6 +3182,19 @@ func enemy_control_setup_step(e:Dictionary,target:Vector2i)->Vector2i:
 
 # Estimate a real follow-up, using only the actor's existing attack kit.
 # No new action, PP, damage or RNG is consumed by this evaluation.
+# Forecast only the next deterministic periodic tick. No healing, traps,
+# random reactions or later player actions are assumed.
+func enemy_combo_survives_next_tick(e:Dictionary)->bool:
+	var remaining:int=int(e.get("hp",0))
+	if int(e.get("curse_turns",0))>0:
+		var age:int=int(e.get("curse_age",0))+1
+		if age>=2 and (age-2)%10==0:remaining-=maxi(1,int(int(e.get("max_hp",e.hp))/4))
+	if remaining<=0:return false
+	if int(e.get("leech_turns",0))>0 and (int(e.get("leech_age",0))+1)%2==0:remaining-=10
+	if remaining<=0:return false
+	remaining-=enemy_major_periodic_damage(e)
+	return remaining>0
+
 func enemy_combo_followup(e:Dictionary,move:Dictionary,wait:int)->float:
 	var origin:Vector2i=e.pos
 	if not enemy_alert_eligible(e) or not enemy_live_contact(e,player):return 0.0
@@ -3195,6 +3208,7 @@ func enemy_combo_followup(e:Dictionary,move:Dictionary,wait:int)->float:
 		var perish:int=int(e.get("perish_turns",0))
 		if yawn>0 and yawn<=wait:return 0.0
 		if perish>0 and perish<=wait and not bool(e.get("perish_immune",false)):return 0.0
+		if not enemy_combo_survives_next_tick(e):return 0.0
 	# Slow skips even positive countdown phases, not every slowed turn.
 	# Forecast the next ordinary phase with the same countdown convention.
 	var projected_slow:int=maxi(0,int(e.get("slow_turns",0))-maxi(0,wait))
@@ -5023,6 +5037,13 @@ func enemy_status_text(enemy:Dictionary)->String:
 	var stage_text:String=stage_summary(enemy.get("stages",{}),enemy.get("stat_halves",{}))
 	if not stage_text.is_empty():tags.append(stage_text)
 	return " · ".join(tags)
+func enemy_major_periodic_damage(e:Dictionary)->int:
+	var major:String=str(e.get("major_status",""))
+	if major not in ["poison","toxic","burn"]:return 0
+	var interval:int=2 if major=="toxic" else 20
+	if int(e.get("status_age",0))%interval!=0:return 0
+	return 2 if major=="poison" else 6
+
 func tick_enemy_statuses()->void:
 	for i in range(enemies.size()-1,-1,-1):
 		var e:Dictionary=enemies[i]
@@ -5078,10 +5099,10 @@ func tick_enemy_statuses()->void:
 			if int(e.major_turns)<=0:e.erase("major_status")
 		elif major in ["poison","toxic","burn"]:
 			var age:int=int(e.get("status_age",0))
-			var interval:int=2 if major=="toxic" else 20
-			if age%interval==0:
-				visual_record_response(e,2 if major=="poison" else 6,major)
-				e.hp=int(e.hp)-(2 if major=="poison" else 6)
+			var damage:int=enemy_major_periodic_damage(e)
+			if damage>0:
+				visual_record_response(e,damage,major)
+				e.hp=int(e.hp)-damage
 				if int(e.hp)<=0:remove_defeated_enemy(i);continue
 			e["status_age"]=age+1
 func enemy_turn():
