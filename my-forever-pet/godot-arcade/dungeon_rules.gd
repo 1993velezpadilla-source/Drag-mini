@@ -2854,6 +2854,37 @@ func tempo_rift()->bool:
 func enemy_move_pp(e:Dictionary,slot:String)->int:
 	return int(e.get("pp_"+slot,12 if slot=="primary" else 10))
 
+# Estimate the existing damage formula without rolling RNG or mutating combat state.
+func enemy_attack_score(e:Dictionary,skill:Array,secondary:bool)->float:
+	var info:Array=ENEMY_TRAINING.get(e.get("species",""),[["normal"],"normal","normal",0,0,"physical"])
+	var element:String=str(info[2] if secondary else info[1])
+	var raw:float=float(maxi(1,2+tier+int(floor_number/3)+(2 if int(e.get("kind",0))>=2 else 0)+int(skill[3])))
+	if not trained_profile.is_empty():
+		var types:Array=current_player_types().duplicate()
+		if gravity_active and element=="ground":types.erase("flying")
+		var stat:int=4 if str(info[5])=="special" else 2
+		raw*=type_multiplier(element,types)*(1.2 if element in info[0] else 1.0)*clampf(neutral_combat_stat(stat)/maxf(1.0,combat_stat(stat)),.60,1.65)
+	raw*=weather_factor(element)
+	var effect:String=str(skill[4])
+	var protected:bool=shield_kind=="safeguard" and shield_turns>0
+	var utility:float=0.0
+	match effect:
+		"poison":
+			if not protected and poison_turns<=0 and not player_has_ability("clear_blood"):utility=1.5
+		"weaken":
+			if not protected and not boon_active("mist") and weakened_strikes<=0:utility=1.0
+		"mark":
+			if not protected and marked_damage<=0:utility=1.0
+		"drain":
+			if energy>0:utility=.8
+		"guard":
+			if int(e.get("guard",0))<=0:utility=.6
+	var slot:String="secondary" if secondary else "primary"
+	var score:float=raw+utility
+	if bool(skill[1]):score*=.70
+	if enemy_move_pp(e,slot)<=2:score*=.85
+	return score
+
 func enemy_move_allowed(e:Dictionary,slot:String)->bool:
 	if enemy_move_pp(e,slot)<=0 or slot in e.get("sealed_moves",[]):return false
 	if int(e.get("encore_turns",0))>0 and str(e.get("encore_slot",""))!=slot:return false
@@ -3077,14 +3108,16 @@ func enemy_turn_actions():
 		var species:String=str(enemies[i].get("species",""))
 		var alt_cooldown:int=int(enemies[i].get("alt_cooldown",0))
 		if alt_cooldown>0:enemies[i]["alt_cooldown"]=alt_cooldown-1
-		if not charged and (not ready or not in_range) and alt_cooldown<=0 and SECONDARY_SKILLS.has(species) and enemy_move_allowed(enemies[i],"secondary"):
+		if not charged and (not ready or not in_range or bool(enemies[i].get("ecology_search_enabled",false))) and alt_cooldown<=0 and SECONDARY_SKILLS.has(species) and enemy_move_allowed(enemies[i],"secondary"):
 			var alt:Array=SECONDARY_SKILLS[species]
 			var alt_aim:=attack_aim(p,player,str(alt[1]),int(alt[0]))
-			if alt_aim!=Vector2i.ZERO:
+			var alt_skill:Array=[alt[0],false,3,alt[3],alt[4],alt[5],"alt_"+species]
+			var prefer_alt:bool=not ready or not in_range or enemy_attack_score(enemies[i],alt_skill,true)>enemy_attack_score(enemies[i],skill,false)+.25
+			if alt_aim!=Vector2i.ZERO and prefer_alt:
 				alternate=true;aim=alt_aim;pattern=str(alt[1])
 				footprint=attack_footprint(p,aim,pattern,int(alt[0]))
 				in_range=true;ready=true
-				skill=[alt[0],false,3,alt[3],alt[4],alt[5],"alt_"+species]
+				skill=alt_skill
 		var support_kind:String=str(ENEMY_SUPPORT.get(enemies[i].get("species",""),""))
 		if not charged and not (ready and in_range) and support_cd<=0 and gap<=2 and not enemies[i].get("windup",false) and not support_kind.is_empty() and enemy_move_allowed(enemies[i],"support"):
 			var use_support:bool=(support_kind=="guard" and int(enemies[i].get("stages",{}).get("defense",0))<2) or (support_kind=="drowse" and not boon_active("hostile_drowse") and not boon_active("hostile_sleep"))
