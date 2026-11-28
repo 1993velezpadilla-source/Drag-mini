@@ -395,3 +395,9 @@ Independent biome/terrain and room-event profiles, optional treasure branches, M
 - Personality-enabled sentries coordinate visible local ambush claims; occupied or claimed posts are avoided, opposite entry positions receive a bonus, and concealment from the approach gate receives additional weight. Existing idle ambush planner and normal action rules remain.
 - Melee or available primary/secondary attack geometry must cover the entry. A committed plan expires after five elapsed turns, retries after three, and is cleared if its attack coverage or safe standing tile becomes invalid. Direct reacquisition clears the plan. No hidden target lookup for selecting an ambush, extra attacks or forced player movement.
 - Implementation 276b3ebfbb4c4c85e1625bd6c19616cd30ee943f; eight authored regression checks and duplicate fixture-local fixes 56827309ab819ff97341cd17fefeacbce90aff79. Scores and timing provisional; CI and Android execution unverified. Existing lure behavior unchanged.
+
+
+## V26.94 — Intelligent Enemy Adaptation
+- Personality-enabled enemies remember successful visible player push attempts, at most one sample per turn. Two observations within four turns activate bounded positioning adaptation; immune or failed attempts do not teach the pattern.
+- Local candidate steps compare sampled displacement exposure, cardinal alignment and visible collision risk, preserving ready attack coverage, friendly firing lanes and safe tiles. No immunity, extra movement or altered attack damage. Ranged pressure observations also lower the retreat-prediction threshold when combined with witnessed movement.
+- Implementation afb8c9d6ab53b4a3703662f02381635c2946d6ac and refinement 19822d0399d794da43564e302f86364ed018aa97; nine authored regression checks 3c80fc318a663ec740721fca0414c0ffb255eee2. Exposure weights, thresholds and memory timing provisional. CI and Android execution unverified. No separate new formation adaptation subsystem.
