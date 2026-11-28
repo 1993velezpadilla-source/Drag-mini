@@ -3632,7 +3632,32 @@ func run_checks()->void:
 	if sequencing.enemy_combo_followup(sequence_partner,sequence_debuff,1)<=0.0 or sequence_partner.slow_turns!=1 or sequence_partner.pp_primary!=10 or not sequencing.enemy_actions.is_empty():failures.append("sequence slow expiry and forecast purity")
 	sequence_partner.erase("slow_turns")
 	checks+=1
-	print("KINDRIA_ATTACK_SEQUENCING checks=18")
+	# A valid attack footprint alone does not guarantee a damaging follow-up.
+	var sequence_damage_rng:int=sequencing.rng.state
+	sequencing.player_boons["mirror_veil"]=3
+	if sequencing.enemy_combo_followup(sequence_partner,sequence_debuff,0)!=0.0 or sequencing.enemy_combo_setup_bonus(sequence_setup,sequence_debuff)!=0.0:failures.append("sequence reflected primary excluded")
+	checks+=1
+	sequence_partner.pp_primary=0;sequence_partner.pp_secondary=10
+	if sequencing.enemy_combo_followup(sequence_partner,sequence_debuff,0)!=0.0:failures.append("sequence reflected secondary excluded")
+	checks+=1
+	sequence_partner.pp_primary=10;sequence_partner.pp_secondary=0
+	sequence_partner.species="thornbeetle";sequence_partner["windup"]=true;sequence_partner["aim"]=Vector2i.DOWN
+	if sequencing.enemy_combo_followup(sequence_partner,sequence_debuff,0)!=0.0:failures.append("sequence reflected charged followup excluded")
+	checks+=1
+	sequencing.player_boons.erase("mirror_veil")
+	if sequencing.enemy_combo_followup(sequence_partner,sequence_debuff,0)<=0.0:failures.append("sequence charged followup restored")
+	checks+=1
+	sequence_partner.erase("windup");sequence_partner.erase("aim");sequence_partner.species="rootgnawer"
+	sequencing.player_boons["magnet"]=3
+	if sequencing.enemy_combo_followup(sequence_partner,sequence_debuff,0)!=0.0:failures.append("sequence ground immunity excluded")
+	checks+=1
+	sequencing.gravity_active=true
+	if sequencing.enemy_combo_followup(sequence_partner,sequence_debuff,0)<=0.0:failures.append("sequence gravity restores ground followup")
+	checks+=1
+	sequencing.gravity_active=false;sequencing.player_boons.clear();sequence_partner.species="bramble_pup"
+	if sequence_partner.pp_primary!=10 or sequence_partner.pp_secondary!=0 or sequence_setup.pp_control!=5 or sequencing.rng.state!=sequence_damage_rng or not sequencing.enemy_actions.is_empty():failures.append("sequence damage gates preserve state")
+	checks+=1
+	print("KINDRIA_ATTACK_SEQUENCING checks=25")
 	# Bounded search follows actual witnessed headings and explores alternatives.
 	var hunter_search=Rules.new()
 	for y in range(1,10):

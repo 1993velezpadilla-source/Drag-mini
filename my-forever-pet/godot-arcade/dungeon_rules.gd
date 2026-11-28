@@ -3212,17 +3212,23 @@ func enemy_combo_followup(e:Dictionary,move:Dictionary,wait:int)->float:
 	if bool(e.get("windup",false)):
 		var fixed_aim:Vector2i=e.get("aim",Vector2i.ZERO)
 		if fixed_aim!=Vector2i.ZERO and enemy_move_allowed(e,"primary") and attack_footprint(origin,fixed_aim,pattern,int(skill[0])).has(player):
-			return minf(3.0,maxf(0.0,enemy_attack_score(e,skill,false))*gain)
+			return minf(3.0,maxf(0.0,enemy_combo_damage_score(e,skill,false))*gain)
 		return 0.0
 	if int(e.get("cooldown",0))<=wait and enemy_move_allowed(e,"primary") and enemy_area_aim(e,pattern,int(skill[0]))!=Vector2i.ZERO:
 		# An unstarted windup cannot deliver same-round damage.
-		if not bool(skill[1]):best=maxf(best,enemy_attack_score(e,skill,false))
-		elif wait>0:best=maxf(best,enemy_attack_score(e,skill,false)*.35)
+		if not bool(skill[1]):best=maxf(best,enemy_combo_damage_score(e,skill,false))
+		elif wait>0:best=maxf(best,enemy_combo_damage_score(e,skill,false)*.35)
 	if int(e.get("alt_cooldown",0))<=wait and not bool(e.get("windup",false)) and SECONDARY_SKILLS.has(species) and enemy_move_allowed(e,"secondary"):
 		var alt:Array=SECONDARY_SKILLS[species]
 		if enemy_area_aim(e,str(alt[1]),int(alt[0]))!=Vector2i.ZERO:
-			best=maxf(best,enemy_attack_score(e,[alt[0],false,3,alt[3],alt[4],alt[5],"alt_"+species],true))
+			best=maxf(best,enemy_combo_damage_score(e,[alt[0],false,3,alt[3],alt[4],alt[5],"alt_"+species],true))
 	return minf(3.0,maxf(0.0,best)*gain)
+
+# A geometrically valid hit is not a useful damage follow-up if the
+# current defensive state makes its actual damage zero.
+func enemy_combo_damage_score(e:Dictionary,skill:Array,secondary:bool)->float:
+	if enemy_opportunity_damage(e,skill,secondary)<=0:return 0.0
+	return enemy_attack_score(e,skill,secondary)
 
 func enemy_combo_setup_bonus(e:Dictionary,move:Dictionary)->float:
 	if not enemy_alert_eligible(e) or not enemy_live_contact(e,player):return 0.0
