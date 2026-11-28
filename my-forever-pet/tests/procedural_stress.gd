@@ -249,6 +249,7 @@ func enemy_integration_gauntlet(failures:Array[String])->int:
 	var idle_open_peak:int=0
 	var reserve_idle_observations:int=0
 	var unexplained_open_peak:int=0
+	var unexplained_context:Dictionary={}
 	var idle_observations:Dictionary={}
 	var idle_peak_context:Dictionary={}
 	var reversal_species:Dictionary={}
@@ -325,7 +326,9 @@ func enemy_integration_gauntlet(failures:Array[String])->int:
 					var verified_reserve:bool=observation=="open" and int(e.get("reserve_hold_turn",-1))==cached.turns and e.get("reserve_hold_target",Vector2i.ZERO)==cached.player and cached.enemy_encircled_frontline(e,cached.player)
 					if verified_reserve:reserve_idle_observations+=1
 					unexplained_open[uid]=int(unexplained_open.get(uid,0))+1 if observation=="open" and not verified_reserve else 0
-					unexplained_open_peak=maxi(unexplained_open_peak,int(unexplained_open[uid]))
+					if int(unexplained_open[uid])>unexplained_open_peak:
+						unexplained_open_peak=int(unexplained_open[uid])
+						unexplained_context={"sample":sample,"round":round_index,"uid":uid,"species":e.get("species",""),"position":e.pos,"player":cached.player,"actor":e.duplicate(true),"charge_phase":cached.charge_phase,"shield_turns":cached.shield_turns,"shield_kind":cached.shield_kind,"current_attack":cached.enemy_strategy_attack_tile(e,e.pos,cached.player),"encircled":cached.enemy_encircled_frontline(e,cached.player)}
 				else:
 					idle_open[uid]=0;unexplained_open[uid]=0
 				idle_peak=maxi(idle_peak,int(idle[uid]))
@@ -338,7 +341,7 @@ func enemy_integration_gauntlet(failures:Array[String])->int:
 		var percentile:int=int((cached_times.size()-1)*.95)
 		print("KINDRIA_AI_INTEGRATION turns=",samples," personalities=",personalities.size()," checks=",checks_local," cached_p95_usec=",cached_times[percentile]," reference_p95_usec=",reference_times[percentile]," max_visible_idle=",idle_peak," reversals=",reversal_count)
 		print("KINDRIA_AI_STALL_DIAGNOSTICS open_idle_peak=",idle_open_peak," observations=",idle_observations," peak_context=",idle_peak_context," reversal_species=",reversal_species)
-		print("KINDRIA_RESERVE_DIAGNOSTICS verified_open_reserve=",reserve_idle_observations," unexplained_open_peak=",unexplained_open_peak)
+		print("KINDRIA_RESERVE_DIAGNOSTICS verified_open_reserve=",reserve_idle_observations," unexplained_open_peak=",unexplained_open_peak," context=",unexplained_context)
 	return checks_local
 
 # V27.1: ordinary ecology actors, not just Monster House actors, in constrained

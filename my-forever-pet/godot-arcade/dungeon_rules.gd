@@ -2196,14 +2196,18 @@ func enemy_unstall_step(e:Dictionary,target:Vector2i)->Vector2i:
 		if int(e.get("stall_count",0))<2 or e.get("stall_target",Vector2i.ZERO)!=target or int(e.get("stall_turn",-9999))!=turns-1:return origin
 		if turns<=int(e.get("unstall_turn",-9999))+3:return origin
 	var reserved:Dictionary=enemy_pack_reserved_posts(e,target)
+	# Partner eligibility is invariant throughout this pure planning call.
+	var recovery_peers:Array[Dictionary]=[]
+	for other in enemies:
+		if enemy_squad_partner(e,other):recovery_peers.append(other)
 	var best:Vector2i=origin
 	var best_score:int=-2147483647
 	for d in DIR:
 		var q:Vector2i=origin+d
 		if not enemy_ambush_safe_tile(q) or reserved.has(q) or not enemy_line_of_sight(q,target) or enemy_strategy_reversal(e,q,target):continue
 		var blocked:bool=false
-		for other in enemies:
-			if enemy_squad_partner(e,other) and enemy_relief_blocks_lane(other,q,target):blocked=true;break
+		for other in recovery_peers:
+			if enemy_relief_blocks_lane(other,q,target):blocked=true;break
 		if blocked:continue
 		var value:int=0
 		if enemy_strategy_attack_tile(e,q,target):value=20
@@ -2212,8 +2216,8 @@ func enemy_unstall_step(e:Dictionary,target:Vector2i)->Vector2i:
 				var post:Vector2i=q+next_dir
 				if post==origin or reserved.has(post) or not enemy_ambush_safe_tile(post) or not enemy_line_of_sight(post,target):continue
 				var lane_blocked:bool=false
-				for other in enemies:
-					if enemy_squad_partner(e,other) and enemy_relief_blocks_lane(other,post,target):lane_blocked=true;break
+				for other in recovery_peers:
+					if enemy_relief_blocks_lane(other,post,target):lane_blocked=true;break
 				if not lane_blocked and enemy_strategy_attack_tile(e,post,target):value=10;break
 		if value==0:continue
 		var score:int=value+enemy_terrain_position_bonus(e,q,target)+distance(origin,target)-distance(q,target)
@@ -2235,8 +2239,8 @@ func enemy_unstall_step(e:Dictionary,target:Vector2i)->Vector2i:
 			if depth.has(q) or not enemy_ambush_safe_tile(q) or reserved.has(q):continue
 			if tile==origin and enemy_strategy_reversal(e,q,target):continue
 			var lane_blocked:bool=false
-			for other in enemies:
-				if enemy_squad_partner(e,other) and enemy_relief_blocks_lane(other,q,target):lane_blocked=true;break
+			for other in recovery_peers:
+				if enemy_relief_blocks_lane(other,q,target):lane_blocked=true;break
 			if lane_blocked:continue
 			depth[q]=int(depth[tile])+1
 			first[q]=q if tile==origin else first[tile]
