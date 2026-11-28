@@ -2447,7 +2447,7 @@ func run_checks()->void:
 	checks+=1
 	# Exercise end-of-turn removal and next-turn replacement through the live dispatcher.
 	var live_vacancy=Rules.new()
-	for tile in [Vector2i(1,5),Vector2i(1,6),Vector2i(2,6),Vector2i(1,7),Vector2i(2,7),Vector2i(9,8),Vector2i(9,9)]:live_vacancy.cells[tile]=true
+	for vacancy_cell in [Vector2i(1,5),Vector2i(1,6),Vector2i(2,6),Vector2i(1,7),Vector2i(2,7),Vector2i(9,8),Vector2i(9,9)]:live_vacancy.cells[vacancy_cell]=true
 	live_vacancy.player=Vector2i(1,6);live_vacancy.stairs=Vector2i(9,9);live_vacancy.relic=Vector2i(9,8)
 	live_vacancy.hp=10000;live_vacancy.max_hp=10000;live_vacancy.belly_tenths=1000
 	var replacement:Dictionary={"uid":400,"pos":Vector2i(2,7),"hp":30,"max_hp":30,"kind":0,"species":"rootgnawer","ecology_role":"hunter","ecology_search_enabled":true,"personality_enabled":true,"pp_primary":0,"pp_secondary":0,"pp_support":0,"pp_control":0}
