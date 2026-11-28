@@ -2542,6 +2542,38 @@ func enemy_combo_setup_bonus(e:Dictionary,move:Dictionary)->float:
 
 # Evaluate only the explicitly learned status move. Crowd-control windows
 # are shared across attackers so a pack cannot indefinitely stun-lock the player.
+# Visible gathering attacks use the same front/corner-front geometry as release.
+# Hidden charge phases and unrecognized patterns never disclose their aim.
+func enemy_visible_charge_threat(e:Dictionary)->Dictionary:
+	if not enemy_opportunity_eligible(e) or charge_phase!="gather" or not MOVE_LIBRARY.has(charged_move_id) or not charged_aim in DIR8:return {}
+	var move:Dictionary=MOVE_LIBRARY[charged_move_id]
+	if str(move.get("charge_phase",""))!="gather" or str(move.get("pattern","")) not in ["front","corner_front"] or int(move.get("power",0))<=0:return {}
+	return attack_footprint(player,charged_aim,str(move.pattern),int(move.reach),true)
+
+func enemy_charge_evasion_step(e:Dictionary)->Vector2i:
+	var origin:Vector2i=e.pos
+	if enemy_survival_profile(e) not in ["cautious","defensive"] or int(e.get("stuck_turns",0))>0:return origin
+	var threat:Dictionary=enemy_visible_charge_threat(e)
+	if not threat.has(origin) or enemy_risk_has_finisher(e):return origin
+	var best:Vector2i=origin
+	var best_score:int=-2147483647
+	var reserved:Dictionary=enemy_pack_reserved_posts(e,player)
+	for d in DIR:
+		var q:Vector2i=origin+d
+		if threat.has(q) or not enemy_ambush_safe_tile(q) or reserved.has(q):continue
+		var score:int=enemy_terrain_position_bonus(e,q,player)
+		if enemy_strategy_attack_tile(e,q,player):score+=4
+		if score>best_score:best_score=score;best=q
+	return best
+
+func enemy_charge_push_bonus(e:Dictionary,plan:Dictionary)->int:
+	if not enemy_visible_charge_threat(e).has(e.pos) or plan.is_empty():return 0
+	var destination:Vector2i=plan.get("destination",player)
+	if destination==player or destination==stairs or destination==relic or str(plan.get("kind",""))=="enemy" or not enemy_line_of_sight(e.pos,destination) or distance(e.pos,destination)>enemy_awareness(e):return 0
+	var move:Dictionary=MOVE_LIBRARY[charged_move_id]
+	var shifted:Dictionary=attack_footprint(destination,charged_aim,str(move.pattern),int(move.reach),true)
+	return 3 if not shifted.has(e.pos) else 0
+
 func enemy_status_utility(e:Dictionary,move:Dictionary)->float:
 	var origin:Vector2i=e.pos
 	var gap:int=distance(origin,player)
@@ -2565,6 +2597,8 @@ func enemy_status_utility(e:Dictionary,move:Dictionary)->float:
 		for stat in deltas:
 			if int(deltas[stat])<0 and int(player_stages.get(stat,0))>-2:utility+=2.0
 		if utility<=0.0:return 0.0
+	# Sleep uses the existing player wait gate; it delays release, never erases PP or charge.
+	if status=="sleep" and enemy_visible_charge_threat(e).has(origin):utility+=3.0
 	utility+=enemy_combo_setup_bonus(e,move)+enemy_personality_control_bonus(e)
 	if enemy_move_pp(e,"control")<=2:utility*=.85
 	return utility*reference_accuracy(move)/100.0
@@ -2629,7 +2663,7 @@ func enemy_execute_control(i:int)->bool:
 		return enemy_execute_status_control(i,learned)
 	if player_has_ability("anchored") or boon_active("ingrain") or charge_phase in ["underground","airborne","vanish"] or (shield_turns>0 and shield_kind=="protect") or mirror_veil_blocks(e.pos,true,"front") or boon_active("magic_coat"):return false
 	var plan:Dictionary=enemy_push_plan(e,player)
-	if int(plan.get("score",0))<5:return false
+	if int(plan.get("score",0))+enemy_charge_push_bonus(e,plan)<5:return false
 	var origin:Vector2i=player
 	record_enemy_move(e,"control")
 	e["control_cooldown"]=3
@@ -4862,6 +4896,19 @@ func enemy_turn_actions_impl():
 			enemy_actions.append({"uid":enemies[i].get("uid",i),"phase":"attack","from":p,"to":p,"move":"Healing berry","fx":"basic_strike","damage":0,"tiles":[p],"path":[p]})
 			emit_event("Enemy recovered HP")
 			enemy_tick_all_cooldowns(enemies[i]);continue
+		# React to a visible telegraph before ordinary positioning; a successful
+		# learned control or one safe movement consumes the entire enemy turn.
+		if not finish_priority and enemy_visible_charge_threat(enemies[i]).has(p):
+			if enemy_execute_control(i):
+				if hp<=0:
+					apply_fatal_grudge(enemies[i]);finished=true;success=false;message="Rescue needed · expedition lost";return
+				continue
+			var charge_evade:Vector2i=enemy_charge_evasion_step(enemies[i])
+			if charge_evade!=p:
+				enemies[i].pos=charge_evade
+				enemy_tick_all_cooldowns(enemies[i])
+				enemy_actions.append({"uid":enemies[i].get("uid",i),"phase":"move","from":p,"to":charge_evade,"gait":enemies[i].get("gait","walk")})
+				continue
 		var survival_cap:int=int(enemies[i].get("max_hp",0))
 		if survival_cap>0 and int(enemies[i].hp)*2>survival_cap:enemies[i].erase("retreat_steps")
 		# Resolve lethal opportunities before optional positioning and support.
