@@ -963,6 +963,25 @@ var monster_house_cleared:bool=false
 var monster_house_serial:int=0
 var monster_house_spawn_count:int=0
 var monster_house_rng:=RandomNumberGenerator.new()
+const HOUSE_PROFILES=["Classic","Swarm","Vanguard","Crossfire","Treasure lure","Trap nest"]
+var monster_house_profile:int=0
+
+func house_recipe(profile:int)->Vector3i:
+	# Spawn modifier, reward budget, trap budget. No paid modifiers.
+	match profile:
+		1:return Vector3i(2,4,2)
+		2:return Vector3i(-1,5,2)
+		3:return Vector3i(0,5,3)
+		4:return Vector3i(-1,7,1)
+		5:return Vector3i(0,3,5)
+		_:return Vector3i(0,5,3)
+
+func house_enemy_kind(profile:int,index:int)->int:
+	match profile:
+		1:return 0 if index%3!=2 else 1
+		2:return 2 if index%3!=2 else 0
+		3:return 1 if index%3!=2 else 0
+		_:return monster_house_rng.randi_range(0,2)
 const MONSTER_HOUSE_UID_BASE:int=200
 const MONSTER_HOUSE_CAP:int=10
 var player_rested=false
@@ -1539,7 +1558,7 @@ func generate_floor():
 		layout_retries+=1
 	remember_layout(layout_signature)
 	remember_shape(shape_signature)
-	monster_house_room=-1;monster_house_triggered=false;monster_house_cleared=false;monster_house_spawn_count=0
+	monster_house_room=-1;monster_house_triggered=false;monster_house_cleared=false;monster_house_spawn_count=0;monster_house_profile=0
 	monster_house_rng.seed=seed_value+floor_number*104729+region*8191+3011
 
 	var spots:Array= cells.keys()
@@ -1613,17 +1632,20 @@ func prepare_monster_house(force:bool=false)->bool:
 	var candidates:=monster_house_candidates()
 	if candidates.is_empty():return false
 	monster_house_room=candidates[monster_house_rng.randi_range(0,candidates.size()-1)]
+	monster_house_profile=monster_house_rng.randi_range(0,HOUSE_PROFILES.size()-1)
 	var room:Rect2i=rooms[monster_house_room]
 	var spots:Array[Vector2i]=[]
 	for y in range(room.position.y,room.end.y):
 		for x in range(room.position.x,room.end.x):
 			var p:=Vector2i(x,y)
-			if cells.has(p) and p!=stairs and p!=relic and enemy_at(p)<0 and not loot.has(p) and not traps.has(p):spots.append(p)
+			if cells.has(p) and p!=stairs and p!=relic and enemy_at(p)<0 and ally_at(p)<0 and not loot.has(p) and not traps.has(p):spots.append(p)
 	for i in range(spots.size()-1,0,-1):
 		var j:int=monster_house_rng.randi_range(0,i);var swap:Vector2i=spots[i];spots[i]=spots[j];spots[j]=swap
-	var rewards:Array[String]=["coin","material","potion","trail_fruit","manual:eos_154"]
-	for i in range(mini(5,spots.size())):loot[spots[i]]=rewards[i]
-	for i in range(5,mini(8,spots.size())):traps[spots[i]]=true
+	var recipe:Vector3i=house_recipe(monster_house_profile)
+	var rewards:Array[String]=["coin","material","potion","trail_fruit","manual:eos_154","material","coin"]
+	var reward_count:int=mini(recipe.y,spots.size())
+	for i in range(reward_count):loot[spots[i]]=rewards[i]
+	for i in range(reward_count,mini(reward_count+recipe.z,spots.size())):traps[spots[i]]=true
 	return true
 
 func monster_house_remaining()->int:
@@ -1645,11 +1667,13 @@ func trigger_monster_house()->bool:
 			spots.append(p)
 	for i in range(spots.size()-1,0,-1):
 		var j:int=monster_house_rng.randi_range(0,i);var swap:Vector2i=spots[i];spots[i]=spots[j];spots[j]=swap
-	var count:int=mini(spots.size(),mini(MONSTER_HOUSE_CAP,5+tier+mini(3,floor_number/2)))
+	var recipe:Vector3i=house_recipe(monster_house_profile)
+	var count:int=mini(spots.size(),clampi(5+tier+mini(3,floor_number/2)+recipe.x,1,MONSTER_HOUSE_CAP))
 	monster_house_triggered=true;monster_house_spawn_count=count;monster_house_serial+=1
 	for i in range(count):
 		var life:int=8+mini(floor_number,30)*2+tier*2
-		var e:=make_enemy(spots[i],life,monster_house_rng.randi_range(0,2),MONSTER_HOUSE_UID_BASE+i)
+		var kind:int=house_enemy_kind(monster_house_profile,i)
+		var e:=make_enemy(spots[i],life,kind,MONSTER_HOUSE_UID_BASE+i)
 		e["monster_house"]=true;e["monster_house_spawn_serial"]=monster_house_serial
 		enemies.append(e);revealed[spots[i]]=true
 	message="Monster House! · %d enemies"%count
