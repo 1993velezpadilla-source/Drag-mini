@@ -2231,6 +2231,13 @@ func enemy_expire_frontline_holds(e:Dictionary)->void:
 
 # A nearby free attack post is an immediate opportunity, not a long detour.
 # This fallback runs only after normal pursuit and deliberate holds are resolved.
+# A cheap adjacent opportunity is not a long detour and must not start
+# the detour cooldown. Commit telemetry only after the movement succeeds.
+func enemy_commit_recovery(e:Dictionary,origin:Vector2i,destination:Vector2i,mode:String)->void:
+	if destination==origin or mode not in ["immediate","detour","party"]:return
+	e["recovery_turn"]=turns;e["recovery_mode"]=mode
+	if mode!="immediate":e["unstall_turn"]=turns
+
 func enemy_immediate_recovery_step(e:Dictionary,target:Vector2i)->Vector2i:
 	var origin:Vector2i=e.pos
 	if not enemy_opportunity_eligible(e) or not enemy_live_contact(e,target) or int(e.get("stuck_turns",0))>0:return origin
@@ -5871,12 +5878,16 @@ func enemy_turn_actions_impl():
 							enemies[i]["crowd_previous"]=p;enemies[i]["crowd_turn"]=turns
 							enemies[i]["crowd_target"]=player;enemies[i]["crowd_partner"]=p-heading
 							path.clear();path.append(yield_tile)
+			var recovery_mode:String=""
 			if path.is_empty() and not charged and not intentional_hold and pursuit_target==player:
 				var recovery:Vector2i=enemy_immediate_recovery_step(enemies[i],player)
-				if recovery==p:recovery=enemy_unstall_step(enemies[i],player)
-				if recovery==p:recovery=enemy_unstall_party_step(enemies[i],player)
+				recovery_mode="immediate"
+				if recovery==p:
+					recovery=enemy_unstall_step(enemies[i],player);recovery_mode="detour"
+				if recovery==p:
+					recovery=enemy_unstall_party_step(enemies[i],player);recovery_mode="party"
 				if recovery!=p:
-					path.append(recovery);enemies[i]["unstall_turn"]=turns
+					path.append(recovery)
 				else:
 					enemy_record_stall(enemies[i],player)
 					if int(enemies[i].get("stall_turn",-1))==turns and int(enemies[i].get("stall_count",0))>=2 and enemy_encircled_frontline(enemies[i],player):
@@ -5891,7 +5902,7 @@ func enemy_turn_actions_impl():
 				var strategy_step:Vector2i=enemy_strategy_alternative(enemies[i],path[0],player)
 				if strategy_step!=path[0]:
 					path.clear();path.append(strategy_step)
-					predictive_move=false;environment_guard=false;pack_plan.clear();reserve_plan.clear()
+					predictive_move=false;environment_guard=false;pack_plan.clear();reserve_plan.clear();recovery_mode=""
 			if not path.is_empty() and path[0]!=player and enemy_at(path[0])<0:
 				var steps:int=1+int(enemies[i].get("haste_stage",0)) if int(enemies[i].get("haste_turns",0))>0 else 1
 				var destination:Vector2i=p
@@ -5899,6 +5910,7 @@ func enemy_turn_actions_impl():
 					if path[step]==player or enemy_at(path[step])>=0 or ally_at(path[step])>=0:break
 					destination=path[step]
 				if destination!=p:
+					if not recovery_mode.is_empty():enemy_commit_recovery(enemies[i],p,destination,recovery_mode)
 					if predictive_move:enemy_record_prediction(enemies[i],player)
 					if environment_guard:enemies[i]["environment_guard_turn"]=turns
 					if not pack_plan.is_empty():enemy_pack_commit(enemies[i],player,pack_plan.post)
