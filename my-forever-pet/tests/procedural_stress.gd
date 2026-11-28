@@ -1834,6 +1834,58 @@ func run_checks()->void:
 	if hunter_search.enemy_pursuit_target(hunter_actor,hunter_search.player)!=hunter_search.player or hunter_actor.has("search_anchor"):failures.append("hunter direct reacquisition clears search")
 	checks+=1
 	print("KINDRIA_DUNGEON_HUNTERS checks=8")
+
+	# Firsthand contact cannot be refreshed by repetition or relayed by listeners.
+	var comm=Rules.new()
+	for y in range(1,9):
+		for x in range(1,20):comm.cells[Vector2i(x,y)]=true
+	comm.turns=40
+	comm.player=Vector2i(19,8)
+	var contact_tile:=Vector2i(6,4)
+	var comm_witness:Dictionary={"uid":101,"pos":Vector2i(4,4),"hp":30,"kind":0,"species":"bramble_pup","ecology_role":"hunter","ecology_search_enabled":true,"personality_enabled":true,"contact_tile":contact_tile,"contact_turn":39}
+	var comm_listener:Dictionary={"uid":102,"pos":Vector2i(5,4),"hp":30,"kind":0,"species":"leafwisp","ecology_role":"hunter","ecology_search_enabled":true,"personality_enabled":true}
+	var comm_remote:Dictionary={"uid":103,"pos":Vector2i(5,5),"hp":30,"kind":0,"species":"leafwisp","ecology_role":"hunter","ecology_search_enabled":true,"personality_enabled":true}
+	comm.enemies.append(comm_witness);comm.enemies.append(comm_listener)
+	comm.enemy_share_remembered_contact(comm_listener)
+	if comm_listener.get("alert_tile")!=contact_tile or int(comm_listener.get("alert_until",-1))!=41 or int(comm_listener.get("alert_source",-1))!=101:failures.append("communication firsthand report")
+	checks+=1
+	comm.turns=41
+	comm.enemy_share_remembered_contact(comm_listener)
+	if int(comm_listener.get("alert_turn",-1))!=39 or int(comm_listener.get("alert_until",-1))!=41:failures.append("communication cannot refresh timestamp")
+	checks+=1
+	comm.enemies.erase(comm_witness);comm.enemies.append(comm_remote)
+	comm.enemy_share_remembered_contact(comm_remote)
+	if comm_remote.has("alert_tile") or comm_listener.has("contact_tile"):failures.append("communication no secondhand relay")
+	checks+=1
+	comm.enemies.append(comm_witness)
+	comm.turns=42
+	comm.enemy_share_remembered_contact(comm_remote)
+	if comm_remote.has("alert_tile"):failures.append("communication expired contact")
+	checks+=1
+	comm.turns=40
+	comm_witness["sleep_turns"]=2
+	comm.enemy_share_remembered_contact(comm_remote)
+	if comm_remote.has("alert_tile"):failures.append("communication sleeping witness")
+	checks+=1
+	comm_witness.erase("sleep_turns")
+	comm_remote["last_seen_turn"]=40
+	comm.enemy_share_remembered_contact(comm_remote)
+	if comm_remote.has("alert_tile"):failures.append("communication newer firsthand observation")
+	checks+=1
+	comm_remote.erase("last_seen_turn")
+	comm.cells.erase(Vector2i(4,5))
+	comm.enemy_share_remembered_contact(comm_remote)
+	if comm_remote.has("alert_tile"):failures.append("communication blocked witness")
+	comm.cells[Vector2i(4,5)]=true
+	checks+=1
+	comm_remote.pos=Vector2i(18,7)
+	comm.enemy_record_witnessed_loss(comm_witness)
+	if not comm.enemy_recent_squad_loss(comm_listener) or comm.enemy_recent_squad_loss(comm_remote):failures.append("communication visible loss only")
+	checks+=1
+	comm.turns=44
+	if comm.enemy_recent_squad_loss(comm_listener):failures.append("communication loss expires")
+	checks+=1
+	print("KINDRIA_ENEMY_COMMUNICATION checks=9")
 	# Forecast only witnessed retreats, and commit only a safe ordinary step.
 	var forecast=Rules.new()
 	for y in range(1,9):
