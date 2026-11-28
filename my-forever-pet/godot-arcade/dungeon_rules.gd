@@ -344,6 +344,8 @@ var self_confusion_turns:int=0
 func clear_negative_conditions()->void:
 	poison_turns=0;weakened_strikes=0;marked_damage=0;self_confusion_turns=0
 func player_wait_if_napping()->bool:
+	if not finished and boon_active("hostile_paralysis") and int(player_boons.hostile_paralysis)%2==0:
+		message="Paralyzed";enemy_turn();return true
 	if not finished and boon_active("hostile_sleep"):
 		message="Asleep";enemy_turn();return true
 	if finished or not (boon_active("nap") or boon_active("bide") or boon_active("wrapping")):return false
@@ -1880,7 +1882,7 @@ func enemy_protector_step(e:Dictionary,target:Vector2i)->Vector2i:
 	return best
 
 # A small learned control kit, never an implicit ability shared by every enemy.
-const ENEMY_CONTROL_KITS={"sylphowl":"eos_268","nebulwing":"eos_268","rootgnawer":"eos_284","hollow_stag":"eos_284","lunar_prowler":"eos_284","leviathorn":"eos_284"}
+const ENEMY_CONTROL_KITS={"sylphowl":"eos_268","nebulwing":"eos_268","rootgnawer":"eos_284","hollow_stag":"eos_284","lunar_prowler":"eos_284","leviathorn":"eos_284","eelstrix":"eos_192","voidspider":"eos_124","sporeling":"eos_079","lunamoth":"eos_034","anemoneye":"eos_111","coralcrab":"eos_085","orbitserpent":"eos_033","bramble_pup":"eos_122","bubblewisp":"eos_171"}
 
 # Pure prediction of the same trajectory used by execution. A floor trap stops
 # the push and activates immediately; collision never overlaps creatures.
@@ -1928,11 +1930,96 @@ func enemy_control_setup_step(e:Dictionary,target:Vector2i)->Vector2i:
 		if score>best_score:best=q;best_score=score
 	return best
 
+# Evaluate only the explicitly learned status move. Crowd-control windows
+# are shared across attackers so a pack cannot indefinitely stun-lock the player.
+func enemy_status_utility(e:Dictionary,move:Dictionary)->float:
+	var origin:Vector2i=e.pos
+	var gap:int=distance(origin,player)
+	if gap<1 or gap>enemy_awareness(e) or not enemy_line_of_sight(origin,player):return 0.0
+	if (shield_turns>0 and shield_kind in ["protect","safeguard"]) or boon_active("magic_coat") or mirror_veil_blocks(origin,true,str(move.pattern)) or charge_phase in ["underground","airborne","vanish"]:return 0.0
+	var status:String=str(move.get("inflict_status",""))
+	var utility:float=0.0
+	var nearby:int=0
+	for other in enemies:
+		if other.pos!=origin and int(other.hp)>0 and distance(other.pos,player)<=3 and enemy_line_of_sight(other.pos,player) and int(other.get("sleep_turns",0))<=0 and str(other.get("major_status",""))!="freeze":nearby+=1
+	if status in ["sleep","paralysis","confusion"]:
+		if boon_active("hostile_control_recovery") or boon_active("hostile_sleep") or boon_active("hostile_drowse") or boon_active("hostile_paralysis") or self_confusion_turns>0:return 0.0
+		match status:
+			"sleep":
+				if boon_active("sleepless") or player_has_ability("wakeful") or boon_active("nap"):return 0.0
+				utility=3.0
+			"paralysis":
+				utility=2.5
+			"confusion":
+				utility=2.0
+	else:
+		if boon_active("mist"):return 0.0
+		var deltas:Dictionary=move.get("stat_changes",{})
+		for stat in deltas:
+			if int(deltas[stat])<0 and int(player_stages.get(stat,0))>-2:utility+=2.0
+		if utility<=0.0:return 0.0
+	utility+=float(mini(nearby,3))*1.5
+	if enemy_move_pp(e,"control")<=2:utility*=.85
+	return utility*reference_accuracy(move)/100.0
+
+func enemy_status_aim(origin:Vector2i,move:Dictionary)->Vector2i:
+	var pattern:String=str(move.pattern)
+	var reach:int=int(move.reach)
+	if pattern in ["corner_front","fan","corner"]:
+		for d in DIR8:
+			if attack_footprint(origin,d,pattern,reach).has(player):return d
+	return attack_aim(origin,player,pattern,reach)
+
+func enemy_execute_status_control(i:int,move:Dictionary)->bool:
+	var e:Dictionary=enemies[i]
+	var origin:Vector2i=e.pos
+	var utility:float=enemy_status_utility(e,move)
+	if utility<=0.0:return false
+	var aim:Vector2i=enemy_status_aim(origin,move)
+	if aim==Vector2i.ZERO:return false
+	var best_damage:float=0.0
+	var skill:Array=signature_skill(e)
+	if int(e.get("cooldown",0))<=0 and enemy_move_allowed(e,"primary") and attack_aim(origin,player,str(ATTACK_PATTERNS.get(e.get("species",""),"line")),int(skill[0]))!=Vector2i.ZERO:
+		best_damage=enemy_attack_score(e,skill,false)
+	var species:String=str(e.get("species",""))
+	if int(e.get("alt_cooldown",0))<=0 and SECONDARY_SKILLS.has(species) and enemy_move_allowed(e,"secondary"):
+		var alt:Array=SECONDARY_SKILLS[species]
+		if attack_aim(origin,player,str(alt[1]),int(alt[0]))!=Vector2i.ZERO:
+			best_damage=maxf(best_damage,enemy_attack_score(e,[alt[0],false,3,alt[3],alt[4],alt[5],"alt_"+species],true))
+	if utility<=best_damage+.25:return false
+	record_enemy_move(e,"control")
+	e["control_cooldown"]=5
+	for cd_key in ["support_cooldown","cooldown","alt_cooldown"]:
+		if int(e.get(cd_key,0))>0:e[cd_key]=int(e[cd_key])-1
+	var first:int=int(move.get("acc1",125))
+	var second:int=int(move.get("acc2",125))
+	var factor:float=enemy_stat_effect(e,"accuracy")*player_stat_effect("evasion")/(263.0/256.0)
+	var miss:bool=int(e.get("whiffer_turns",0))>0 or (first<100 and rng.randi_range(1,100)>first) or (second<=100 and rng.randf()*100.0>=clampf(float(second)*factor,0.0,100.0))
+	var status:String=str(move.get("inflict_status",""))
+	if not miss:
+		match status:
+			"sleep":player_boons["hostile_sleep"]=3;player_boons["hostile_control_recovery"]=8
+			"paralysis":player_boons["hostile_paralysis"]=5;player_boons["hostile_control_recovery"]=9
+			"confusion":self_confusion_turns=4;player_boons["hostile_control_recovery"]=8
+			_:
+				var changes:Dictionary={}
+				for stat in move.get("stat_changes",{}):
+					if int(move.stat_changes[stat])<0 and int(player_stages.get(stat,0))>-2:changes[stat]=maxi(-2-int(player_stages.get(stat,0)),int(move.stat_changes[stat]))
+				apply_stat_changes(player_stages,player_halves,{"stat_changes":changes})
+	var footprint:Dictionary=attack_footprint(origin,aim,str(move.pattern),int(move.reach))
+	enemy_actions.append({"uid":e.get("uid",i),"phase":"attack","from":origin,"to":player,"move":move.name,"fx":"basic_strike","effect":status if not miss else "none","damage":0,"dodged":miss,"tiles":footprint.keys(),"path":footprint.get(player,[player])})
+	emit_event(str(move.name)+(" · Missed" if miss else " · Tactical control"))
+	return true
+
 func enemy_execute_control(i:int)->bool:
 	var e:Dictionary=enemies[i]
 	var id:String=str(e.get("control_move",""))
 	if not bool(e.get("ecology_search_enabled",false)) or bool(e.get("windup",false)) or bool(e.get("monster_house",false)):return false
-	if int(e.get("control_cooldown",0))>0 or not MOVE_LIBRARY.has(id) or str(MOVE_LIBRARY[id].get("special_rule",""))!="push" or not enemy_move_allowed(e,"control"):return false
+	if int(e.get("control_cooldown",0))>0 or not MOVE_LIBRARY.has(id) or not enemy_move_allowed(e,"control"):return false
+	var learned:Dictionary=MOVE_LIBRARY[id]
+	if str(learned.get("special_rule",""))!="push":
+		if str(learned.get("category",""))!="status":return false
+		return enemy_execute_status_control(i,learned)
 	if player_has_ability("anchored") or boon_active("ingrain") or charge_phase in ["underground","airborne","vanish"] or (shield_turns>0 and shield_kind=="protect") or mirror_veil_blocks(e.pos,true,"front") or boon_active("magic_coat"):return false
 	var plan:Dictionary=enemy_push_plan(e,player)
 	if int(plan.get("score",0))<5:return false
@@ -3352,7 +3439,7 @@ func enemy_turn_actions():
 				skill=alt_skill
 		var support_kind:String=str(ENEMY_SUPPORT.get(enemies[i].get("species",""),""))
 		if not charged and not (ready and in_range) and support_cd<=0 and gap<=2 and not enemies[i].get("windup",false) and not support_kind.is_empty() and enemy_move_allowed(enemies[i],"support"):
-			var use_support:bool=(support_kind=="guard" and int(enemies[i].get("stages",{}).get("defense",0))<2) or (support_kind=="drowse" and not boon_active("hostile_drowse") and not boon_active("hostile_sleep"))
+			var use_support:bool=(support_kind=="guard" and int(enemies[i].get("stages",{}).get("defense",0))<2) or (support_kind=="drowse" and not boon_active("hostile_drowse") and not boon_active("hostile_sleep") and not boon_active("hostile_control_recovery") and not boon_active("sleepless") and not player_has_ability("wakeful") and not (shield_turns>0 and shield_kind in ["protect","safeguard"]) and not boon_active("magic_coat") and enemy_line_of_sight(p,player))
 			if use_support and execute_enemy_support(i,support_kind):
 				enemy_actions.append({"uid":enemies[i].get("uid",i),"phase":"attack","from":p,"to":p if support_kind=="guard" else player,"move":"Ward" if support_kind=="guard" else "Drowsy Hex","fx":"basic_strike","damage":0,"tiles":[p if support_kind=="guard" else player],"path":[p if support_kind=="guard" else player]})
 				continue
