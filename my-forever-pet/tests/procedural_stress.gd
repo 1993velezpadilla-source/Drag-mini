@@ -2243,6 +2243,24 @@ func run_checks()->void:
 	detour_fixture.traps[Vector2i(1,4)]="snare"
 	if detour_fixture.enemy_unstall_step(detour_actor,detour_fixture.player)!=detour_actor.pos:failures.append("unstall extended no safe exits")
 	checks+=1
+	# A visible frontline opening requires a four-step detour, not another idle turn.
+	detour_fixture.traps.clear()
+	detour_actor.pos=Vector2i(1,4);detour_actor["stall_count"]=1
+	detour_fixture.traps[Vector2i(1,3)]="snare"
+	detour_fixture.traps[Vector2i(2,4)]="snare"
+	var four_step:Vector2i=detour_fixture.enemy_unstall_step(detour_actor,detour_fixture.player)
+	if four_step!=Vector2i(1,5):failures.append("early detour four step visible opening")
+	checks+=1
+	if detour_actor.pos!=Vector2i(1,4) or detour_actor.pp_primary!=0 or not detour_fixture.enemy_actions.is_empty():failures.append("early four step detour remains pure")
+	checks+=1
+	detour_fixture.traps[Vector2i(2,5)]="snare"
+	if detour_fixture.enemy_unstall_step(detour_actor,detour_fixture.player)!=detour_actor.pos:failures.append("early four step detour rejects unsafe longer route")
+	checks+=1
+	detour_fixture.traps.erase(Vector2i(2,5))
+	detour_fixture.charge_phase="vanish"
+	if detour_fixture.enemy_unstall_step(detour_actor,detour_fixture.player)!=detour_actor.pos:failures.append("early four step detour rejects hidden player")
+	checks+=1
+	detour_fixture.charge_phase=""
 	# A reserve is justified only by a complete, live friendly frontline.
 	var ring_fixture=Rules.new()
 	for y in range(1,8):
@@ -2910,7 +2928,7 @@ func run_checks()->void:
 			if score_memo.compute_attack_footprint(memo_caster.pos,heading,pattern,2)!=first:symmetric_ok=false
 	if not symmetric_ok:failures.append("heading invariant footprint parity")
 	checks+=1
-	print("KINDRIA_ANTI_STALL checks=175")
+	print("KINDRIA_ANTI_STALL checks=179")
 	# A direct witness may report a tile, but a listener cannot relay it.
 	var comm=Rules.new()
 	for x in range(1,4):comm.cells[Vector2i(x,3)]=true
