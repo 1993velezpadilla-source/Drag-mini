@@ -1730,7 +1730,7 @@ for i in range(6):
   reach=.31+.035*math.sin(j*3.1)
   y=h+.27+.13*math.sin(j*1.6)
   crown_leaf((x+reach*math.cos(ang),y,z+reach*math.sin(ang)),ang,.30+.04*(j%3),.10,leafbright if j%3==0 else spring_leaf)
-woodland_crown((.18,2.63,.02),(1.25,.58,1.15),3010,moss)
+woodland_crown((.18,2.63,.02),(1.25,.58,1.15),3010,spring_leaf)
 for j in range(14):
  a=j*2*pi/14
  crown_leaf((.18+.40*math.cos(a),2.70+.06*math.sin(j*2),.02+.36*math.sin(a)),a,.31,.11,spring_leaf if j%2 else leafbright)
@@ -1740,7 +1740,11 @@ for i in range(4):
  ang=i*2*pi/4+.35;dx=math.cos(ang);dz=math.sin(ang)
  x=-.84+.29*dx;z=.37+.29*dz;y=1.20+.13*i
  tube([(-.92,.78,.39),(x,y-.18,z),(x+.14*dx,y,z+.14*dz)],[.064,.045,.012],bark,7)
- woodland_crown((x,y,z),(.66,.38,.60),3020+i,autumn)
+ woodland_crown((x,y,z),(.60+.05*(i%2),.32+.06*(i%3),.58),3020+i,autumn)
+ # Drooping leaf sprays create a second silhouette rather than a smaller oak.
+ for k in range(3):
+  a=ang+(k-1)*.45
+  crown_leaf((x+.24*math.cos(a),y-.13-.045*k,z+.24*math.sin(a)),a,.27,.07,gold_leaf if k==1 else autumn)
  for j in range(7):
   a=j*2*pi/7+ang
   crown_leaf((x+.20*math.cos(a),y+.04,z+.20*math.sin(a)),a,.22,.075,gold_leaf if j%3 else autumn)
@@ -1762,6 +1766,11 @@ for k,(x,z) in enumerate([(-.29,.19),(.32,-.12)]):
   a=j*2*pi/5+k*.3;crown_leaf((x,y,z),a,.10+.015*k,.044,white if k==0 else gold_leaf)
  ball((x,y+.02,z),(.08,.035,.08),gold)
 tube([(-.59,.04,-.33),(-.16,.07,-.21),(.18,.05,-.36)],[.053,.039,.012],bark,6)
+# Small forest-floor fungi: curved stems, wide caps, distinct heights and colors.
+for j,(x,z) in enumerate([(-.48,-.18),(-.35,-.24),(.39,.20)]):
+ h=.10+.045*j
+ tube([(x,.025,z),(x+.016,h*.65,z),(x+.028,h,z)],[.026,.018,.013],cream,6)
+ ball((x+.028,h,z),(.15+.04*j,.065+.01*j,.14+.035*j),cap if j!=1 else gold_leaf)
 export('dungeon_forest_understory',2600)
 clear()
 # Broad sloping limestone shelves, with coral colonies rooted on real ledges.
