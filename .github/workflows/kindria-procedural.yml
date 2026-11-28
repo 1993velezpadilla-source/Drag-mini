@@ -1,0 +1,45 @@
+name: Kindria procedural reliability
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - feature/my-forever-pet-paradise
+    paths:
+      - 'my-forever-pet/godot-arcade/dungeon_rules.gd'
+      - 'my-forever-pet/tests/procedural_stress.gd'
+      - '.github/workflows/kindria-procedural.yml'
+permissions:
+  contents: read
+concurrency:
+  group: kindria-procedural-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  procedural:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Godot 4.6
+        run: |
+          curl --fail --location --retry 3 -o /tmp/kindria-godot.zip https://github.com/godotengine/godot/releases/download/4.6-stable/Godot_v4.6-stable_linux.x86_64.zip
+          unzip -q /tmp/kindria-godot.zip -d /tmp/kindria-godot
+          chmod +x /tmp/kindria-godot/Godot_v4.6-stable_linux.x86_64
+      - name: Isolate actual gameplay rules from graphics
+        run: |
+          mkdir -p /tmp/kindria-procedural
+          cp my-forever-pet/godot-arcade/dungeon_rules.gd /tmp/kindria-procedural/
+          cp my-forever-pet/tests/procedural_stress.gd /tmp/kindria-procedural/
+          printf 'config_version=5\n[application]\nconfig/name="Kindria Procedural Test"\n' > /tmp/kindria-procedural/project.godot
+      - name: Execute 1024 floor stress test
+        run: |
+          set -o pipefail
+          /tmp/kindria-godot/Godot_v4.6-stable_linux.x86_64 --headless --path /tmp/kindria-procedural --script res://procedural_stress.gd 2>&1 | tee /tmp/kindria-procedural.log
+          if grep -E 'SCRIPT ERROR|Parse Error|Compile Error|Failed to load script' /tmp/kindria-procedural.log; then exit 1; fi
+          grep -E 'KINDRIA_PROCEDURAL_RESULT floors=1024 unique=1024 .* failures=0$' /tmp/kindria-procedural.log
+      - name: Preserve procedural evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: kindria-procedural-log
+          path: /tmp/kindria-procedural.log
+          if-no-files-found: warn
