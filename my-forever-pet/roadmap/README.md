@@ -27,6 +27,12 @@ See [COMMUNITY_INTELLIGENCE.md](COMMUNITY_INTELLIGENCE.md) for the audit of all 
 - [ ] Responsive state feedback: HP/PP, pickup toast, damage/miss/critical, restrained haptic opt-in, floor transition, victory reward; no intrusive UI or manipulative monetization.
 - [ ] 3-floor completion, resume, pause, touch conflicts, no clipping, 30/60 FPS measurement on real Android; preserve 589-move catalog and Monster House system.
 
+### Dungeon 001 — V26.20 implementation ledger
+- [x] Source implemented: three floor identities (Fernlight Clearing, Silverbrook Falls, Ancientroot Grove), 3/4/4 room profiles, distinct teaching pickups, revealed relic/exit markers and floor-specific vista composition.
+- [x] Source tests added for 12 seeds × 3 floors: exact room counts, titles, teaching reward and objective transition (180 extra assertions). Commits 34742ea2d01f5f2dee80a13599c2e5c3aeaff35f, 879742096b2d3cd9fffa551bb1cc1b3bc9a28eb3, ca211d0c3db38f1d5c17a7b50aeadb7194607b39.
+- [ ] Validate V26.20 CI and actual exported forest models; Android rendered capture, HUD sizing and one-handed controls. Earlier V26.19 smoke and cinematic gauntlet passed; this is not proof of the new version.
+- [ ] Next: localized cascade mist and audio, distinct grove props, objective feedback and touch acceptance.
+
 ## P1 | dungeon simulation
 - [x] Existing procedural layout, turn logic, movement, four moves, PP, regular attack, 18 types, status, traps, Monster House: audit individually, not certified.
 - [ ] Room graph, variants, dead ends, corridors, visibility/fog of war, room/terrain restrictions, diagonals and corner rules, water/lava/chasm/walls, spawn safety, enemy pathfinding, ally AI tactics, turn scheduling, speed, waiting, auto-explore optional.
