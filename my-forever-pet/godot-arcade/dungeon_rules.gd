@@ -5158,6 +5158,8 @@ func enemy_squad_focus_bonus(e:Dictionary,target_uid:int,tile:Vector2i)->float:
 # Claims are advisory, never physical blockers or promises of extra movement.
 func enemy_pack_reserved_posts(e:Dictionary,target:Vector2i)->Dictionary:
 	var out:Dictionary={}
+	# An advisory flank claim cannot reveal a concealed or unwitnessed player.
+	if target==player and not enemy_live_contact(e,target):return out
 	for other in enemies:
 		if not other.has("pack_post"):continue
 		var age:int=turns-int(other.get("pack_turn",-9999))
@@ -5165,6 +5167,9 @@ func enemy_pack_reserved_posts(e:Dictionary,target:Vector2i)->Dictionary:
 		if age<0 or age>1 or other.get("pack_target",Vector2i.ZERO)!=target or bool(other.get("windup",false)) or int(other.get("stuck_turns",0))>0:continue
 		if distance(other.pos,post)>2 or distance(post,target)!=1 or not enemy_ambush_safe_tile(post):continue
 		if not enemy_squad_partner(e,other):continue
+		# A skipped slow phase cannot justify holding an otherwise useful post.
+		if int(other.get("slow_turns",0))>0 and int(other.slow_turns)%2==0:continue
+		if target==player and not enemy_live_contact(other,target):continue
 		if not enemy_line_of_sight(other.pos,target) or not enemy_line_of_sight(e.pos,post):continue
 		out[post]=true
 	return out
