@@ -1859,6 +1859,52 @@ func run_checks()->void:
 	if relief_moves!=1 or relief_guard.pos!=Vector2i(4,5) or relief_guard.pp_primary!=0:failures.append("relief real turn dispatch")
 	checks+=1
 	print("KINDRIA_DYNAMIC_COMBAT_ROLES checks=10")
+	# Finishers use real non-critical HP estimates, not tactical utility scores.
+	var opportunity=Rules.new()
+	for y in range(1,7):
+		for x in range(1,7):opportunity.cells[Vector2i(x,y)]=true
+	opportunity.player=Vector2i(3,3);opportunity.stairs=Vector2i(6,6);opportunity.relic=Vector2i(6,5)
+	opportunity.hp=1;opportunity.max_hp=30
+	var finisher:Dictionary={"uid":0,"pos":Vector2i(2,3),"hp":30,"max_hp":30,"kind":0,"species":"rootgnawer","ecology_role":"hunter","ecology_search_enabled":true,"personality_enabled":true,"pp_primary":12,"pp_secondary":10,"stages":{"accuracy":10}}
+	opportunity.enemies.append(finisher)
+	var finish_skill:Array=opportunity.signature_skill(finisher)
+	var finish_damage:int=opportunity.enemy_opportunity_damage(finisher,[],false,true)
+	if finish_damage<1 or not opportunity.enemy_basic_finish(finisher):failures.append("opportunity basic finisher")
+	checks+=1
+	var prior_multiplier:float=opportunity.last_type_multiplier
+	opportunity.enemy_opportunity_damage(finisher,finish_skill,false)
+	if opportunity.hp!=1 or opportunity.last_type_multiplier!=prior_multiplier or finisher.pp_primary!=12 or not opportunity.enemy_actions.is_empty():failures.append("opportunity estimate purity")
+	checks+=1
+	opportunity.hp=finish_damage+1
+	if opportunity.enemy_basic_finish(finisher):failures.append("opportunity no premature basic")
+	checks+=1
+	opportunity.hp=1;opportunity.shield_kind="protect";opportunity.shield_turns=2
+	if opportunity.enemy_basic_finish(finisher) or opportunity.enemy_opportunity_bonus(finisher,finish_skill,false)>0.0:failures.append("opportunity protect gate")
+	checks+=1
+	opportunity.shield_kind="endure"
+	if opportunity.enemy_opportunity_damage(finisher,[],false,true)!=0:failures.append("opportunity endure gate")
+	checks+=1
+	opportunity.shield_kind="";opportunity.shield_turns=0
+	opportunity.charge_phase="airborne"
+	if opportunity.enemy_basic_finish(finisher):failures.append("opportunity hidden charge gate")
+	opportunity.charge_phase=""
+	checks+=1
+	finisher["whiffer_turns"]=2
+	if opportunity.enemy_basic_finish(finisher):failures.append("opportunity inaccurate basic gate")
+	finisher.erase("whiffer_turns")
+	checks+=1
+	finisher["windup"]=true
+	if opportunity.enemy_basic_finish(finisher):failures.append("opportunity existing windup preserved")
+	finisher.erase("windup")
+	checks+=1
+	if opportunity.enemy_opportunity_bonus(finisher,finish_skill,false)<=0.0:failures.append("opportunity immediate lethal bonus")
+	var delayed:Array=finish_skill.duplicate();delayed[1]=true
+	if opportunity.enemy_opportunity_bonus(finisher,delayed,false)!=0.0:failures.append("opportunity delayed attack not immediate KO")
+	checks+=1
+	opportunity.enemy_turn_actions()
+	if opportunity.hp!=0 or finisher.pp_primary!=12 or finisher.pp_secondary!=10 or opportunity.enemy_actions.size()!=1 or str(opportunity.enemy_actions[0].move)!="Quick strike":failures.append("opportunity real basic finisher no PP")
+	checks+=1
+	print("KINDRIA_OPPORTUNITY_EXPLOITATION checks=10")
 	# Actual disk I/O, legacy migration, corruption recovery, and resumed writes.
 	var test_path:String="user://kindria_procedural_test_"+str(OS.get_process_id())+".cfg"
 	var exact:Array[String]=["legacy exact".sha256_text()]
