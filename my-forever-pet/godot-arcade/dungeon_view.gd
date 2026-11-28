@@ -1595,7 +1595,7 @@ func boundary_detail(points:Array[Vector3]):
 	if template==null:return
 	var chosen:Array[Vector3]=[]
 	for i in range(points.size()):
-		if posmod(i*13+run.floor_number*3,5)==0:chosen.append(points[i]-Vector3(0,.44,0))
+		if posmod(i*13+landscape_seed()*3,5)==0:chosen.append(points[i]-Vector3(0,.44,0))
 	if chosen.is_empty():template.free();return
 	geometry.add_child(template)
 	var inverse=template.global_transform.affine_inverse()
@@ -1667,7 +1667,7 @@ func natural_boundary(points:Array[Vector3])->bool:
 	if not spans.is_empty():
 		for q in available:
 			if consumed.has(q):continue
-			if posmod(q.x*31+q.y*17+run.floor_number,9)==0:continue
+			if posmod(q.x*31+q.y*17+landscape_seed(),9)==0:continue
 			for d in [Vector2i.RIGHT,Vector2i.DOWN]:
 				var other:Vector2i=q+d
 				if not available.has(other) or consumed.has(other):continue
@@ -1687,7 +1687,7 @@ func natural_boundary(points:Array[Vector3])->bool:
 		var singles:Array[Transform3D]=[]
 		for q in available:
 			if consumed.has(q):continue
-			if posmod(q.x*19+q.y*7+run.floor_number,3)!=variant:continue
+			if posmod(q.x*19+q.y*7+landscape_seed(),3)!=variant:continue
 			var inward=Vector2i.ZERO
 			for d in Rules.DIR:
 				if run.cells.has(q+d):inward+=d
@@ -1734,7 +1734,7 @@ func room_detail(wall_cells:Dictionary):
 	if parts.is_empty():return
 	var points:Array[Vector3]=[]
 	for q in wall_cells:
-		if posmod(q.x*29+q.y*43+run.floor_number*7,5)!=0:continue
+		if posmod(q.x*29+q.y*43+landscape_seed()*7,5)!=0:continue
 		for d in Rules.DIR:
 			var next:Vector2i=q+d
 			if not run.cells.has(next) or run.loot.has(next) or next==run.player or next==run.stairs:continue
@@ -1762,7 +1762,21 @@ func exterior_chunks(placements:Array[Transform3D])->Dictionary:
 # Only the original untextured Blender leaf materials are eligible for wind.
 # Keep bark, stone, moss-covered rocks and gameplay geometry static.
 const FOREST_WIND_MATERIALS=["forest leaf shadow","fern lime","amber woodland canopy","woodland spring leaf","woodland golden leaf"]
-# Color and wind profiles distinguish the three starter floors without new textures.
+# V26.30: the dungeon owns its visual identity, never the floor RNG.
+# Existing authored palettes remain available for future distinct dungeons.
+func landscape_seed()->int:
+	return 146+clampi(region,0,2)*901
+
+func landscape_ground()->Color:
+	return woods_ground_pigment(1) if run.starter_woods else [Color("#8a9274"),Color("#76929a"),Color("#77709a")][clampi(region,0,2)]
+
+func landscape_wind()->Vector4:
+	return woods_art_profile(1) if run.starter_woods else Vector4.ONE
+
+func landscape_vista_budget()->int:
+	return 3 if run.starter_woods else 12
+
+# Authored palette library; the current dungeon selects one stable profile.
 func woods_art_profile(floor_id:int)->Vector4:
 	return [Vector4(1.04,1.09,.88,1.15),Vector4(.87,1.06,1.13,1.35),Vector4(1.13,.94,.79,.72)][clampi(floor_id-1,0,2)]
 
@@ -1816,7 +1830,7 @@ void fragment(){
 	material.shader=shader
 	material.set_shader_parameter("base_color",original.albedo_color)
 	material.set_shader_parameter("leaf_roughness",original.roughness)
-	material.set_shader_parameter("forest_profile",woods_art_profile(run.floor_number) if run.starter_woods else Vector4.ONE)
+	material.set_shader_parameter("forest_profile",landscape_wind())
 	material.set_shader_parameter("player_center",Vector2(-999.0,-999.0))
 	exterior_motion_materials[key]=material
 	return material
@@ -1937,16 +1951,15 @@ func build_exterior_world(wall_cells:Dictionary):
 	# plane, rather than blindly choosing a side outside the narrow viewport.
 	# The placement remains deterministic and independent of gameplay RNG.
 	var vista_rooms:Array=run.rooms.duplicate()
-	var vista_limit:int=12
+	var vista_limit:int=landscape_vista_budget()
 	if run.starter_woods:
-		# One entrance landmark, then a waterfall-rich middle floor, then a quiet exit grove.
-		var focus_cell:Vector2i=run.player if run.floor_number==1 else run.relic if run.floor_number==2 else run.stairs
+		# Same scenic vocabulary and budget on every forest floor; fit it around the layout.
+		var focus_cell:Vector2i=run.player
 		for i in range(vista_rooms.size()):
 			if vista_rooms[i].has_point(focus_cell):
 				var first_room:Rect2i=vista_rooms[i]
 				vista_rooms.remove_at(i);vista_rooms.push_front(first_room)
 				break
-		vista_limit=[1,3,1][clampi(run.floor_number-1,0,2)]
 	for room in vista_rooms:
 		if vista_parts.is_empty() or exterior_vistas.size()>=vista_limit:break
 		var middle:Vector2i=room.get_center()
@@ -2079,7 +2092,7 @@ func build_habitat_layers(prefix:String,queue:Array[Vector2i],wall_cells:Diction
 		var scale_value=(1.32+.31*float(posmod(q.x*13+q.y*7,9))/8.0) if large else (.87+.17*float(posmod(q.x*13+q.y*7,9))/8.0)
 		var height_factor=1.05+.43*float(posmod(q.x*17+q.y*3,11))/10.0
 		if run.starter_woods:
-			height_factor*= [0.92,1.02,1.14][clampi(run.floor_number-1,0,2)]
+			height_factor*=1.02
 		if not large:height_factor=minf(height_factor,1.28)
 		# A suspended star garden may be elevated only in a wide safe exterior
 		# footprint. Keep the authored model inside the same GLB audit limits.
@@ -2402,7 +2415,7 @@ func landscape_terraces(wall_cells:Dictionary):
 	var placements:Array[Transform3D]=[]
 	for q in candidates:
 		if placements.size()>=24:break
-		if posmod(q.x*13+q.y*11+run.floor_number,5)==0 and not placements.is_empty():continue
+		if posmod(q.x*13+q.y*11+landscape_seed(),5)==0 and not placements.is_empty():continue
 		var safe=true
 		for dy in range(2):
 			for dx in range(2):
@@ -2442,7 +2455,7 @@ func interior_floor_detail():
 				if wall_side:candidates.append(q)
 		# Seeded ranking avoids a left-to-right bias and keeps room centers open.
 		candidates.sort_custom(func(a:Vector2i,b:Vector2i):
-			return posmod(a.x*73+a.y*137+run.floor_number*31,997)<posmod(b.x*73+b.y*137+run.floor_number*31,997))
+			return posmod(a.x*73+a.y*137+landscape_seed()*31,997)<posmod(b.x*73+b.y*137+landscape_seed()*31,997))
 		var used=0
 		var room_cap=2 if region==2 else 5
 		for q in candidates:
@@ -2566,7 +2579,7 @@ func build_exterior_surface():
 	# Extra distant terrain is inexpensive compared with another GLB cluster.
 	low-=Vector2i(12,18);high+=Vector2i(12,12)
 	var width=high.x-low.x+1;var depth=high.y-low.y+1
-	var noise=FastNoiseLite.new();noise.seed=run.seed_value+region*901+run.floor_number*37;noise.frequency=.19;noise.fractal_octaves=3
+	var noise=FastNoiseLite.new();noise.seed=landscape_seed();noise.frequency=.19;noise.fractal_octaves=3
 	var vertices=PackedVector3Array();var normals=PackedVector3Array();var colors=PackedColorArray();var indices=PackedInt32Array();var uvs=PackedVector2Array()
 	var heights=PackedFloat32Array();heights.resize(width*depth)
 	exterior_max_height=-1.0
@@ -2668,7 +2681,7 @@ func build_astral_cloud_banks():
 		for q in exterior_distances:
 			if placements.size()>=ASTRAL_CLOUD_CAP:break
 			if exterior_distances[q]!=distance:continue
-			if posmod(q.x*11+q.y*19+run.floor_number,4)!=0:continue
+			if posmod(q.x*11+q.y*19+landscape_seed(),4)!=0:continue
 			var wide=.93+.42*float(posmod(q.x*17+q.y*7,9))/8.0
 			var y=-1.30-.16*float(distance-3)
 			var placement=Transform3D(Basis(Vector3.UP,float(posmod(q.x*7+q.y*13,12))*TAU/12.0).scaled(Vector3(wide,.72,wide*.92)),pos(q)+Vector3(0,y,0))
@@ -2836,7 +2849,7 @@ func ambient_spawn_at(i:int,center:Vector3,initial:bool=false)->void:
 	ambient_ages[i]=ambient_rng.randf_range(0.0,4.5) if initial else 0.0
 func build_living_ambient():
 	ambient_batches.clear();ambient_origins.clear();ambient_ages.clear();ambient_clock=0.0
-	ambient_rng.seed=run.seed_value+run.floor_number*1709+region*101
+	ambient_rng.seed=landscape_seed()+1709
 	ambient_origins.resize(AMBIENT_COUNT+MOTE_COUNT);ambient_ages.resize(AMBIENT_COUNT+MOTE_COUNT)
 	for i in range(ambient_origins.size()):ambient_spawn(i,true)
 	var primary:Mesh
@@ -3058,12 +3071,12 @@ func build_floor():
 	var seen:Dictionary={}
 	for p in run.cells:
 		var q:Vector2i=p
-		if posmod(q.x*37+q.y*19+run.floor_number*13,11)==0:floor_ornaments.append(pos(q)+Vector3(0,.003,0))
+		if posmod(q.x*37+q.y*19+landscape_seed()*13,11)==0:floor_ornaments.append(pos(q)+Vector3(0,.003,0))
 		for d in Rules.DIR:
 			var next:Vector2i=q+d
 			if not run.cells.has(next) and not seen.has(next):
 				seen[next]=true;walls.append(pos(next)+Vector3(0,.44,0))
-	var ground:Color=woods_ground_pigment(run.floor_number) if run.starter_woods else [Color("#8a9274"),Color("#76929a"),Color("#77709a")][region]
+	var ground:Color=landscape_ground()
 	build_walkable_surface(ground)
 	build_living_ambient()
 	build_house_landing_fx()
@@ -3081,7 +3094,7 @@ func build_floor():
 			scenery_seen[q]=true
 			# Legacy isolated clusters are only a fallback. The full habitat
 			# already supplies distinct low cover and would otherwise overlap.
-			if not ResourceLoader.exists("res://assets/dungeon_"+["forest","reef","star"][region]+"_understory.glb") and posmod(q.x*17+q.y*31+run.floor_number,4)==0:
+			if not ResourceLoader.exists("res://assets/dungeon_"+["forest","reef","star"][region]+"_understory.glb") and posmod(q.x*17+q.y*31+landscape_seed(),4)==0:
 				scenery_points.append(pos(q)+Vector3(0,-.45,0))
 	var cluster_file="res://assets/dungeon_"+["forest","reef","star"][region]+"_cluster.glb"
 	for part in rock_parts(cluster_file):
