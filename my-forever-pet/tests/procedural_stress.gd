@@ -328,7 +328,20 @@ func enemy_integration_gauntlet(failures:Array[String])->int:
 					unexplained_open[uid]=int(unexplained_open.get(uid,0))+1 if observation=="open" and not verified_reserve else 0
 					if int(unexplained_open[uid])>unexplained_open_peak:
 						unexplained_open_peak=int(unexplained_open[uid])
-						unexplained_context={"sample":sample,"round":round_index,"uid":uid,"species":e.get("species",""),"position":e.pos,"player":cached.player,"actor":e.duplicate(true),"charge_phase":cached.charge_phase,"shield_turns":cached.shield_turns,"shield_kind":cached.shield_kind,"current_attack":cached.enemy_strategy_attack_tile(e,e.pos,cached.player),"encircled":cached.enemy_encircled_frontline(e,cached.player)}
+						var residual_board:Array[String]=[]
+						for y in range(1,10):
+							var line:String=""
+							for x in range(1,10):
+								var tile:=Vector2i(x,y)
+								var glyph:String="." if cached.cells.has(tile) else "#"
+								if cached.traps.has(tile) or cached.player_traps.has(tile):glyph="T"
+								if cached.ally_at(tile)>=0:glyph="A"
+								if cached.enemy_at(tile)>=0:glyph="E"
+								if tile==e.pos:glyph="L"
+								if tile==cached.player:glyph="P"
+								line+=glyph
+							residual_board.append(line)
+						unexplained_context={"board":residual_board,"sample":sample,"round":round_index,"uid":uid,"species":e.get("species",""),"position":e.pos,"player":cached.player,"actor":e.duplicate(true),"charge_phase":cached.charge_phase,"shield_turns":cached.shield_turns,"shield_kind":cached.shield_kind,"current_attack":cached.enemy_strategy_attack_tile(e,e.pos,cached.player),"encircled":cached.enemy_encircled_frontline(e,cached.player)}
 				else:
 					idle_open[uid]=0;unexplained_open[uid]=0
 				idle_peak=maxi(idle_peak,int(idle[uid]))
@@ -2229,7 +2242,26 @@ func run_checks()->void:
 	for d in [Vector2i.UP,Vector2i.RIGHT,Vector2i.DOWN,Vector2i.LEFT]:party_recovery.traps[party_reserve.pos+d]="snare"
 	if party_recovery.enemy_unstall_party_step(party_reserve,party_recovery.player)!=party_reserve.pos:failures.append("party recovery avoids trapped exits")
 	checks+=1
-	print("KINDRIA_ANTI_STALL checks=27")
+	# Compare memoized geometry against the underlying pure queries.
+	var memo_peers:Array[Dictionary]=[]
+	for other in ring_fixture.enemies:
+		if ring_fixture.enemy_squad_partner(ring_actor,other):memo_peers.append(other)
+	var memo_lanes:Dictionary={}
+	var memo_attacks:Dictionary={}
+	for y in range(2,6):
+		for x in range(2,6):
+			var q:=Vector2i(x,y)
+			var blocked:bool=false
+			for other in memo_peers:
+				if ring_fixture.enemy_relief_blocks_lane(other,q,ring_fixture.player):blocked=true;break
+			var expected:bool=ring_fixture.enemy_strategy_attack_tile(ring_actor,q,ring_fixture.player)
+			if ring_fixture.enemy_recovery_lane_blocked(memo_peers,q,ring_fixture.player,memo_lanes)!=blocked or ring_fixture.enemy_recovery_lane_blocked(memo_peers,q,ring_fixture.player,memo_lanes)!=blocked:failures.append("recovery memo lane equivalence")
+			checks+=1
+			if ring_fixture.enemy_recovery_attack_tile(ring_actor,q,ring_fixture.player,memo_attacks)!=expected or ring_fixture.enemy_recovery_attack_tile(ring_actor,q,ring_fixture.player,memo_attacks)!=expected:failures.append("recovery memo attack equivalence")
+			checks+=1
+	if memo_lanes.size()!=16 or memo_attacks.size()!=16:failures.append("recovery memo one entry per tile")
+	checks+=1
+	print("KINDRIA_ANTI_STALL checks=60")
 	# A direct witness may report a tile, but a listener cannot relay it.
 	var comm=Rules.new()
 	for x in range(1,4):comm.cells[Vector2i(x,3)]=true
