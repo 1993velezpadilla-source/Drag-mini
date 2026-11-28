@@ -5925,11 +5925,13 @@ func enemy_turn_actions_impl():
 					path.append(recovery)
 				else:
 					enemy_record_stall(enemies[i],player)
-					if int(enemies[i].get("stall_turn",-1))==turns and int(enemies[i].get("stall_count",0))>=2 and enemy_encircled_frontline(enemies[i],player):
+					# A verified closed frontline is actionable evidence on the first
+					# failed pursuit. Only speculative detours need repeated stalls.
+					if int(enemies[i].get("stall_turn",-1))==turns and enemy_encircled_frontline(enemies[i],player):
 						enemies[i]["reserve_hold_turn"]=turns
 						enemies[i]["reserve_hold_target"]=player
 						enemies[i].erase("congestion_hold_turn");enemies[i].erase("congestion_hold_target")
-					elif int(enemies[i].get("stall_turn",-1))==turns and int(enemies[i].get("stall_count",0))>=2 and enemy_occupied_frontline(enemies[i],player):
+					elif int(enemies[i].get("stall_turn",-1))==turns and enemy_occupied_frontline(enemies[i],player):
 						enemies[i]["congestion_hold_turn"]=turns
 						enemies[i]["congestion_hold_target"]=player
 						enemies[i].erase("reserve_hold_turn");enemies[i].erase("reserve_hold_target")
