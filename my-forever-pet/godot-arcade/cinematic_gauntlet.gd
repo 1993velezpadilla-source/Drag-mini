@@ -201,7 +201,7 @@ func run_checks()->void:
 	var responsive_shader:ShaderMaterial=view.forest_wind_material(responsive_leaf)
 	if responsive_shader==null:failures.append("V26.22 reactive foliage")
 	else:
-		if responsive_shader.get_shader_parameter("forest_profile")!=forest_profiles[1]:failures.append("V26.22 floor profile uniform")
+		if responsive_shader.get_shader_parameter("forest_profile")!=forest_profiles[0]:failures.append("V26.30 dungeon profile uniform")
 		if responsive_shader.get_shader_parameter("player_center")!=Vector2(-999.0,-999.0):failures.append("V26.22 safe initial center")
 	checks+=3
 	view.exterior_motion_materials.clear()
@@ -211,6 +211,27 @@ func run_checks()->void:
 	if neutral_leaf==null or neutral_leaf.get_shader_parameter("forest_profile")!=Vector4.ONE:failures.append("V26.22 advanced profile isolation")
 	checks+=1
 	view.exterior_motion_materials.clear()
+	# V26.30: stable biome identity across floor numbers and expedition seeds.
+	var landscape_signatures:Dictionary={}
+	var saved_region:int=view.region
+	for landscape_region in range(3):
+		view.region=landscape_region
+		for starter in [false,true] if landscape_region==0 else [false]:
+			view.run.starter_woods=starter
+			var expected_landscape:Array=[view.landscape_seed(),view.landscape_ground(),view.landscape_wind(),view.landscape_vista_budget()]
+			landscape_signatures[str(expected_landscape)]=true
+			for landscape_floor in range(1,7):
+				view.run.floor_number=landscape_floor
+				view.run.seed_value=landscape_floor*997+landscape_region
+				var actual_landscape:Array=[view.landscape_seed(),view.landscape_ground(),view.landscape_wind(),view.landscape_vista_budget()]
+				if actual_landscape!=expected_landscape:failures.append("V26.30 landscape identity changed across floors")
+				checks+=1
+	if landscape_signatures.size()!=4:failures.append("V26.30 distinct dungeon identities")
+	checks+=1
+	view.region=saved_region
+	view.run.starter_woods=false
+	view.run.floor_number=1
+	view.run.seed_value=0
 	# V26.21: original cascade sound, transformed pool anchors and fixed FX budget.
 	for cascade_count in range(-1,8):
 		if view.cascade_slot_count(cascade_count)!=clampi(cascade_count,0,3)*10:failures.append("V26.21 cascade particle cap")
