@@ -765,6 +765,9 @@ static func visual_hp_losses(before:Dictionary,after:Dictionary)->Dictionary:
 # Scoped AI caches: terrain is immutable during enemy_turn_actions. Geometry
 # and occupancy are scoped to one actor's planning, before committing actions.
 var ai_cache_enabled:bool=true
+# Opt-in test telemetry; never enabled by normal gameplay.
+var ai_recovery_trace_uid:int=-1
+var ai_recovery_trace:Dictionary={}
 var ai_cache_active:bool=false
 var ai_actor_cache_active:bool=false
 var ai_los_cache:Dictionary={}
@@ -2282,6 +2285,23 @@ func enemy_immediate_recovery_step(e:Dictionary,target:Vector2i)->Vector2i:
 
 # A visible opening in a crowded frontline is evidence for a short detour,
 # rather than a reason to wait for a second failed pursuit.
+func enemy_trace_recovery(e:Dictionary,stage:String,step:Vector2i)->void:
+	if ai_recovery_trace_uid<0 or int(e.get("uid",-1))!=ai_recovery_trace_uid:return
+	var origin:Vector2i=e.pos
+	var posts:Array[Dictionary]=[]
+	var reserved:Dictionary=enemy_pack_reserved_posts(e,player)
+	var peers:Array[Dictionary]=[]
+	for other in enemies:
+		if enemy_squad_partner(e,other):peers.append(other)
+	var memo:Dictionary={}
+	for y in range(origin.y-3,origin.y+4):
+		for x in range(origin.x-3,origin.x+4):
+			var q:=Vector2i(x,y)
+			if distance(origin,q)>3 or not cells.has(q):continue
+			var index:int=enemy_at(q)
+			posts.append({"tile":q,"enemy":int(enemies[index].get("uid",-1)) if index>=0 else -1,"ally":ally_at(q),"safe":enemy_ambush_safe_tile(q),"reserved":reserved.has(q),"lane_blocked":enemy_recovery_lane_blocked(peers,q,player,memo),"sees_target":enemy_line_of_sight(q,player),"attack_post":enemy_strategy_attack_tile(e,q,player)})
+	ai_recovery_trace={"turn":turns,"uid":ai_recovery_trace_uid,"stage":stage,"origin":origin,"player":player,"step":step,"stall_count":int(e.get("stall_count",0)),"stall_turn":int(e.get("stall_turn",-1)),"open_frontline":enemy_open_frontline_detour(e,player),"protect":shield_turns>0 and shield_kind=="protect","posts":posts}
+
 func enemy_open_frontline_detour(e:Dictionary,target:Vector2i)->bool:
 	if not enemy_opportunity_eligible(e) or not enemy_live_contact(e,target) or int(e.get("stuck_turns",0))>0:return false
 	if shield_turns>0 and shield_kind=="protect":return false
@@ -5614,6 +5634,7 @@ func enemy_clear_acted_frontline_holds()->void:
 		e.erase("congestion_hold_turn");e.erase("congestion_hold_target")
 
 func enemy_turn_actions():
+	if ai_recovery_trace_uid>=0:ai_recovery_trace.clear()
 	ai_begin_turn_cache()
 	enemy_turn_actions_impl()
 	ai_end_turn_cache()
@@ -5731,6 +5752,7 @@ func enemy_turn_actions_impl():
 			continue
 		if enemy_counter_protected(enemies[i],player) and not enemy_has_party_area_attack(enemies[i]):
 			var protected_step:Vector2i=enemy_counter_protected_step(enemies[i],player)
+			if ai_recovery_trace_uid>=0:enemy_trace_recovery(enemies[i],"protect",protected_step)
 			enemy_tick_all_cooldowns(enemies[i])
 			if protected_step!=p:
 				enemies[i].pos=protected_step
@@ -5940,6 +5962,7 @@ func enemy_turn_actions_impl():
 					recovery=enemy_unstall_step(enemies[i],player);recovery_mode="detour"
 				if recovery==p:
 					recovery=enemy_unstall_party_step(enemies[i],player);recovery_mode="party"
+				if ai_recovery_trace_uid>=0:enemy_trace_recovery(enemies[i],recovery_mode if recovery!=p else "no_recovery",recovery)
 				if recovery!=p:
 					path.append(recovery)
 				else:
