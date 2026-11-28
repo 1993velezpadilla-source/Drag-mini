@@ -3450,6 +3450,21 @@ func run_checks()->void:
 				if projection_fixture.enemy_foresight_post_value(projection_actor,fresh_kits,post,projection_fixture.player,true)!=projection_fixture.enemy_foresight_post_value(projection_actor,fresh_kits,post,projection_fixture.player):projection_parity=false
 	if not projection_parity:failures.append("foresight fresh kit fast path parity")
 	checks+=1
+	# Compare all post values against exhaustive evaluation in both kit orders.
+	var foresight_work_fast:Dictionary={"aim_checks":0}
+	var foresight_work_full:Dictionary={"aim_checks":0}
+	var foresight_test_kits:Array[Dictionary]=[{"pattern":"line","reach":3,"value":5.0},{"pattern":"line","reach":3,"value":2.0},{"pattern":"radius","reach":2,"value":4.0}]
+	projection_fixture.player_boons.clear();projection_fixture.shield_kind="";projection_fixture.shield_turns=0
+	for foresight_order in range(2):
+		for fy in range(1,8):
+			for fx in range(1,8):
+				var test_post:=Vector2i(fx,fy)
+				if projection_fixture.enemy_foresight_post_value(projection_actor,foresight_test_kits,test_post,projection_fixture.player,false,true,foresight_work_fast)!=projection_fixture.enemy_foresight_post_value(projection_actor,foresight_test_kits,test_post,projection_fixture.player,false,false,foresight_work_full):failures.append("foresight dominated kit parity")
+				checks+=1
+		foresight_test_kits.reverse()
+	if int(foresight_work_fast.aim_checks)>=int(foresight_work_full.aim_checks):failures.append("foresight dominated kits reduce aim checks")
+	checks+=1
+	print("KINDRIA_FORESIGHT_KIT_WORK optimized=%d reference=%d"%[int(foresight_work_fast.aim_checks),int(foresight_work_full.aim_checks)])
 	projection_fixture.player_boons.clear();projection_fixture.shield_kind="";projection_fixture.shield_turns=0
 	var old_kits:Array[Dictionary]=projection_fixture.enemy_foresight_kits(projection_actor)
 	projection_fixture.shield_kind="protect";projection_fixture.shield_turns=2

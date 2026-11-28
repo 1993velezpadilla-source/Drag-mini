@@ -2678,9 +2678,13 @@ func enemy_foresight_kits(e:Dictionary)->Array[Dictionary]:
 		if int(alt[0])>=2 and value>0.0 and enemy_position_independent_damage(e,alt_skill,true)>0:kits.append({"pattern":str(alt[1]),"reach":int(alt[0]),"value":value,"charged":false,"slot":"secondary","skill":alt_skill})
 	return kits
 
-func enemy_foresight_post_value(e:Dictionary,kits:Array[Dictionary],post:Vector2i,target:Vector2i,validated_now:bool=false)->float:
+func enemy_foresight_post_value(e:Dictionary,kits:Array[Dictionary],post:Vector2i,target:Vector2i,validated_now:bool=false,prune_dominated:bool=true,work:Dictionary={})->float:
 	var value:float=0.0
 	for kit in kits:
+		# Only an already legal attack establishes the lower bound. A weaker
+		# attack cannot raise this post's maximum, regardless of its geometry.
+		if prune_dominated and float(kit.value)<=value:continue
+		if work.has("aim_checks"):work["aim_checks"]+=1
 		if enemy_projected_attack_aim(e,post,target,str(kit.pattern),int(kit.reach))==Vector2i.ZERO:continue
 		# Only the synchronous route search may reuse freshly validated kits.
 		# Other callers recheck global defenses because combat state may change.
