@@ -361,6 +361,46 @@ func run_checks()->void:
 				p=q
 		checks+=2
 	print("KINDRIA_NAVIGATION congestion=3 detour=1 occupancy=2 seeded_floors=128")
+	# Memory follows only the last observed position and expires by global turn.
+	var memory_fixture=Rules.new()
+	for x in range(1,18):memory_fixture.cells[Vector2i(x,3)]=true
+	var memory_origin:=Vector2i(2,3)
+	var known:=Vector2i(5,3)
+	var hidden:=Vector2i(17,3)
+	for role in Rules.ENEMY_ECOLOGY_ROLES:
+		var actor:Dictionary={"pos":memory_origin,"ecology_role":role}
+		memory_fixture.turns=10
+		var duration:int=memory_fixture.enemy_memory_duration(actor)
+		if memory_fixture.enemy_pursuit_target(actor,known)!=known or actor.get("last_seen_player")!=known:failures.append("memory acquisition "+role)
+		memory_fixture.turns=11
+		if memory_fixture.enemy_pursuit_target(actor,hidden)!=known or int(actor.get("last_seen_until",-1))!=10+duration:failures.append("memory no hidden refresh "+role)
+		memory_fixture.turns=10+duration
+		if memory_fixture.enemy_pursuit_target(actor,hidden)!=known:failures.append("memory last valid turn "+role)
+		memory_fixture.turns+=1
+		if memory_fixture.enemy_pursuit_target(actor,hidden)!=memory_origin or actor.has("last_seen_player"):failures.append("memory expiry "+role)
+		memory_fixture.enemy_pursuit_target(actor,known)
+		actor.pos=known
+		if memory_fixture.enemy_pursuit_target(actor,hidden)!=known or actor.has("last_seen_player"):failures.append("memory reached target "+role)
+		checks+=5
+	var legacy_actor:Dictionary={"pos":memory_origin}
+	if memory_fixture.enemy_pursuit_target(legacy_actor,hidden)!=memory_origin or legacy_actor.has("last_seen_player"):failures.append("legacy memory isolation")
+	if memory_fixture.enemy_pursuit_target({"pos":memory_origin,"monster_house":true},hidden)!=hidden:failures.append("house memory isolation")
+	checks+=2
+	# Exercise the real enemy turn branch: approach old target then stop, not the new location.
+	memory_fixture.turns=0
+	memory_fixture.player=Vector2i(7,3)
+	memory_fixture.enemies.append({"uid":0,"pos":memory_origin,"hp":20,"kind":0,"ecology_role":"hunter","ecology_home":memory_origin})
+	memory_fixture.enemy_turn_actions()
+	if memory_fixture.enemies[0].pos!=Vector2i(3,3):failures.append("memory initial pursuit")
+	memory_fixture.player=hidden
+	for expected_x in range(4,8):
+		memory_fixture.enemy_turn_actions()
+		if memory_fixture.enemies[0].pos!=Vector2i(expected_x,3):failures.append("memory movement")
+		checks+=1
+	memory_fixture.enemy_turn_actions()
+	if memory_fixture.enemies[0].pos!=Vector2i(7,3) or memory_fixture.enemies[0].has("last_seen_player"):failures.append("memory stop after search")
+	checks+=2
+	print("KINDRIA_ENEMY_MEMORY roles=4 pursuit_steps=5 expiry=4")
 	# Actual disk I/O, legacy migration, corruption recovery, and resumed writes.
 	var test_path:String="user://kindria_procedural_test_"+str(OS.get_process_id())+".cfg"
 	var exact:Array[String]=["legacy exact".sha256_text()]
