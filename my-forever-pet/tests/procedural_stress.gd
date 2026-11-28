@@ -1350,6 +1350,7 @@ func run_checks()->void:
 	print("KINDRIA_SURVIVAL_AI profiles=3 gates=5 turn=1 budget=2 safety=1")
 	# A defensive creature physically occupies the attack lane of an injured partner.
 	var protector_fixture=Rules.new()
+	protector_fixture.ai_legacy_cardinal_replay=true # Archived cardinal positioning.
 	for y in range(1,8):
 		for x in range(1,8):protector_fixture.cells[Vector2i(x,y)]=true
 	protector_fixture.player=Vector2i(5,4)
@@ -3212,6 +3213,7 @@ func run_checks()->void:
 	checks+=1
 	# Protection is time to prepare a legal flank, not a free attack.
 	var protect_flank=Rules.new()
+	protect_flank.ai_legacy_cardinal_replay=true # Archived cardinal positioning.
 	for y in range(1,8):
 		for x in range(1,8):protect_flank.cells[Vector2i(x,y)]=true
 	protect_flank.player=Vector2i(4,4);protect_flank.stairs=Vector2i(7,7);protect_flank.relic=Vector2i(7,6)
@@ -3239,6 +3241,61 @@ func run_checks()->void:
 	checks+=1
 	if not protect_flank.enemy_phase_spent.is_empty():failures.append("lane dispatch bookkeeping clears after real enemy phase")
 	checks+=1
+	# Protection and shield counterplay must support each reflected diagonal.
+	for diag in [Vector2i(1,-1),Vector2i(1,1),Vector2i(-1,1),Vector2i(-1,-1)]:
+		var pd:Vector2i=diag
+		var pr8=Rules.new()
+		for yy in range(1,11):
+			for xx in range(1,11):pr8.cells[Vector2i(xx,yy)]=true
+		pr8.player=Vector2i(5,5);pr8.stairs=Vector2i(10,10);pr8.relic=Vector2i(10,9);pr8.hp=100;pr8.max_hp=100
+		var wound8:Vector2i=pr8.player-pd*3
+		var screen8:Vector2i=wound8+pd
+		var guard8origin:Vector2i=screen8+Vector2i(-pd.x,pd.y)
+		var guard8:Dictionary={"uid":800,"pos":guard8origin,"hp":30,"max_hp":30,"kind":2,"species":"shellguard","ecology_role":"hunter","ecology_search_enabled":true,"pp_primary":12,"pp_secondary":10}
+		var friend8:Dictionary={"uid":801,"pos":wound8,"hp":5,"max_hp":30,"kind":1,"species":"leafwisp"}
+		pr8.enemies.append(guard8);pr8.enemies.append(friend8)
+		var pr_rng:int=pr8.rng.state
+		if pr8.enemy_protector_step(guard8,pr8.player)!=screen8:failures.append("octant protector diagonal lane "+str(pd))
+		checks+=1
+		if guard8.pos!=guard8origin or guard8.pp_primary!=12 or pr8.rng.state!=pr_rng or not pr8.enemy_actions.is_empty():failures.append("octant protector no free action "+str(pd))
+		checks+=1
+		var prcorner:Vector2i=guard8origin+Vector2i(pd.x,0)
+		pr8.cells.erase(prcorner)
+		if pr8.enemy_protector_step(guard8,pr8.player)!=guard8origin:failures.append("octant protector strict corner "+str(pd))
+		pr8.cells[prcorner]=true
+		checks+=1
+		pr8.player_traps[screen8]="snare"
+		if pr8.enemy_protector_step(guard8,pr8.player)!=guard8origin:failures.append("octant protector hazardous screen "+str(pd))
+		pr8.player_traps.clear()
+		checks+=1
+		pr8.charge_phase="vanish"
+		if pr8.enemy_protector_step(guard8,pr8.player)!=guard8origin:failures.append("octant protector hidden player "+str(pd))
+		pr8.charge_phase=""
+		checks+=1
+		pr8.enemies.append({"uid":802,"pos":screen8+pd,"hp":20,"max_hp":30,"kind":0})
+		if pr8.enemy_protector_step(guard8,pr8.player)!=guard8origin:failures.append("octant protector existing screen "+str(pd))
+		checks+=1
+		var sh8=Rules.new()
+		for yy in range(1,11):
+			for xx in range(1,11):sh8.cells[Vector2i(xx,yy)]=true
+		sh8.player=Vector2i(5,5);sh8.stairs=Vector2i(10,10);sh8.relic=Vector2i(10,9);sh8.hp=100;sh8.max_hp=100
+		sh8.shield_kind="protect";sh8.shield_turns=2
+		var shorigin:Vector2i=sh8.player-pd*2
+		var shpost:Vector2i=shorigin+pd
+		var shactor:Dictionary={"uid":803,"pos":shorigin,"hp":30,"kind":0,"species":"rootgnawer","ecology_role":"hunter","ecology_search_enabled":true,"personality_enabled":true,"pp_primary":0,"pp_secondary":0}
+		sh8.enemies.append(shactor)
+		for sd in Rules.DIR8:
+			if sd!=pd:sh8.player_traps[shorigin+sd]="snare"
+		if sh8.enemy_counter_protected_step(shactor,sh8.player)!=shpost or shactor.pos!=shorigin or not sh8.enemy_actions.is_empty():failures.append("octant protect legal diagonal flank "+str(pd))
+		checks+=1
+		sh8.player_traps[shpost]="snare"
+		if sh8.enemy_counter_protected_step(shactor,sh8.player)!=shorigin:failures.append("octant protect trapped flank rejected "+str(pd))
+		sh8.player_traps.erase(shpost)
+		checks+=1
+		sh8.cells.erase(shorigin+Vector2i(pd.x,0))
+		if sh8.enemy_counter_protected_step(shactor,sh8.player)!=shorigin:failures.append("octant protect strict corner "+str(pd))
+		checks+=1
+	print("KINDRIA_OCTANT_DEFENSE checks=36")
 	# Ordinary party targeting must use a safe alternative around a trapped lane.
 	var party_detour=Rules.new()
 	party_detour.ai_legacy_cardinal_replay=true # Preserve archived cardinal expectations.

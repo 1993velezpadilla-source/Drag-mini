@@ -3201,15 +3201,16 @@ func enemy_retreat_step(e:Dictionary,target:Vector2i)->Vector2i:
 		if score>best_score:best_score=score;best=q
 	return best
 
-# A defensive creature may interpose on an actual cardinal attack lane.
+# A defensive creature may interpose on a legal straight or diagonal attack lane.
 # No artificial shield, damage redirection, healing or additional turn.
 func enemy_protector_step(e:Dictionary,target:Vector2i)->Vector2i:
 	var origin:Vector2i=e.pos
 	if not bool(e.get("ecology_search_enabled",false)) or bool(e.get("monster_house",false)) or int(e.get("kind",0))==3:return origin
 	if enemy_survival_profile(e)!="defensive" or bool(e.get("windup",false)) or int(e.get("stuck_turns",0))>0:return origin
-	if distance(origin,target)>enemy_awareness(e) or not enemy_line_of_sight(origin,target):return origin
+	if not enemy_live_contact(e,target):return origin
 	var best:Vector2i=origin
 	var best_score:int=-2147483647
+	var headings:Array=DIR if ai_legacy_cardinal_replay else COMBAT_DIR
 	var phase:int=posmod(int(e.get("uid",0))+turns,4)
 	for friend in enemies:
 		var wounded:Vector2i=friend.pos
@@ -3217,8 +3218,10 @@ func enemy_protector_step(e:Dictionary,target:Vector2i)->Vector2i:
 		var life:int=int(friend.hp)
 		if wounded==origin or cap<=0 or life<=0 or life*3>cap or distance(origin,wounded)>3:continue
 		if int(friend.get("decoy_turns",0))>0 or bool(friend.get("monster_house",false)):continue
-		var threat:int=distance(wounded,target)
-		if threat<2 or threat>4 or (wounded.x!=target.x and wounded.y!=target.y):continue
+		var delta:Vector2i=target-wounded
+		var threat:int=enemy_step_distance(wounded,target)
+		if threat<2 or threat>4:continue
+		if delta.x!=0 and delta.y!=0 and (ai_legacy_cardinal_replay or absi(delta.x)!=absi(delta.y)):continue
 		if not enemy_line_of_sight(origin,wounded) or not enemy_line_of_sight(wounded,target):continue
 		var toward:Vector2i=Vector2i(signi(target.x-wounded.x),signi(target.y-wounded.y))
 		# Do not duplicate a screen already occupied by another creature.
@@ -3227,9 +3230,9 @@ func enemy_protector_step(e:Dictionary,target:Vector2i)->Vector2i:
 			if enemy_at(wounded+toward*lane_step)>=0:screened=true;break
 		if screened:continue
 		var q:Vector2i=wounded+toward
-		if distance(origin,q)!=1 or not cells.has(q) or q==player or q==target or q==stairs or q==relic or q in side_rewards or traps.has(q) or player_traps.has(q) or enemy_at(q)>=0 or ally_at(q)>=0:continue
-		var rank:int=DIR.find(q-origin)
-		var score:int=100-int(100.0*float(life)/float(cap))-posmod(rank-phase,4)
+		if q-origin not in headings or not step_clear(origin,q-origin) or q==player or q==target or q==stairs or q==relic or q in side_rewards or traps.has(q) or player_traps.has(q) or enemy_at(q)>=0 or ally_at(q)>=0:continue
+		var rank:int=headings.find(q-origin)
+		var score:int=100-int(100.0*float(life)/float(cap))-posmod(rank-phase,headings.size())
 		if score>best_score:best_score=score;best=q
 	return best
 
@@ -5972,22 +5975,24 @@ func enemy_counter_protected_step(e:Dictionary,target:Vector2i)->Vector2i:
 	var lane_memo:Dictionary={}
 	var step:Vector2i=enemy_exit_block_step(e,target)
 	if step!=origin and not reserved.has(step) and not enemy_recovery_lane_blocked(peers,step,target,lane_memo):return step
-	if distance(origin,target)<=1:return origin
-	for d in DIR:
+	if enemy_melee_adjacent(origin,target):return origin
+	for d in (DIR if ai_legacy_cardinal_replay else COMBAT_DIR):
+		if not step_clear(origin,d):continue
 		var q:Vector2i=origin+d
 		if distance(q,target)<distance(origin,target) and enemy_ambush_safe_tile(q) and not reserved.has(q) and enemy_line_of_sight(q,target) and not enemy_recovery_lane_blocked(peers,q,target,lane_memo):return q
 	# Protect does not prevent positioning. If direct approach is blocked,
 	# prepare a safe adjacent post without attacking or spending learned PP.
-	if distance(origin,target)>3 or enemy_strategy_attack_tile(e,origin,target):return origin
+	if enemy_step_distance(origin,target)>3 or enemy_strategy_attack_tile(e,origin,target):return origin
 	var queue:Array[Vector2i]=[origin]
 	var depth:Dictionary={origin:0}
 	var first:Dictionary={}
 	var cursor:int=0
 	while cursor<queue.size() and cursor<32:
 		var tile:Vector2i=queue[cursor];cursor+=1
-		if tile!=origin and distance(tile,target)==1:return first[tile]
+		if tile!=origin and enemy_melee_adjacent(tile,target):return first[tile]
 		if int(depth[tile])>=3:continue
-		for d in DIR:
+		for d in (DIR if ai_legacy_cardinal_replay else COMBAT_DIR):
+			if not step_clear(tile,d):continue
 			var q:Vector2i=tile+d
 			if depth.has(q) or not enemy_ambush_safe_tile(q) or reserved.has(q) or not enemy_line_of_sight(q,target):continue
 			if tile==origin and enemy_strategy_reversal(e,q,target):continue
