@@ -5520,10 +5520,24 @@ func enemy_tick_all_cooldowns(e:Dictionary)->void:
 	for key in ["cooldown","alt_cooldown","support_cooldown","control_cooldown"]:
 		if int(e.get(key,0))>0:e[key]=int(e[key])-1
 
+# A completed action consumes the reserve's waiting state. This also covers
+# early dispatch branches (party attacks, control, retreat, evasion, etc.).
+func enemy_clear_acted_frontline_holds()->void:
+	var acted:Dictionary={}
+	for action in enemy_actions:
+		if str(action.get("phase","")) in ["move","attack"]:
+			acted[int(action.get("uid",-1))]=true
+	if acted.is_empty():return
+	for e in enemies:
+		if not acted.has(int(e.get("uid",-2))):continue
+		e.erase("reserve_hold_turn");e.erase("reserve_hold_target")
+		e.erase("congestion_hold_turn");e.erase("congestion_hold_target")
+
 func enemy_turn_actions():
 	ai_begin_turn_cache()
 	enemy_turn_actions_impl()
 	ai_end_turn_cache()
+	enemy_clear_acted_frontline_holds()
 
 func enemy_turn_actions_impl():
 	enemy_actions.clear()
