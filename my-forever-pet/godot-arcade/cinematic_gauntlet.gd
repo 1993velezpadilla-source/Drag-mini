@@ -53,6 +53,17 @@ func run_checks()->void:
 		if view.strike_lunge_offset(strike_peak*.12,strike_peak).x>=0.0:failures.append("V26.10 Strike anticipation")
 		if not is_equal_approx(view.strike_lunge_offset(strike_peak,strike_peak).x,.78):failures.append("V26.10 Strike peak")
 		checks+=3
+	# V26.13: aim-only updates preserve non-directional state and buffered inputs cannot cross floors.
+	for control_dir in control_dirs:
+		view.set_combat_facing(control_dir)
+		if view.facing!=control_dir:failures.append("V26.13 directional update")
+		view.set_combat_facing(Vector2i.ZERO)
+		if view.facing!=control_dir:failures.append("V26.13 reject neutral aim")
+		if not view.strike_buffer_valid(control_dir,7,7):failures.append("V26.13 valid buffer")
+		if view.strike_buffer_valid(control_dir,7,8):failures.append("V26.13 stale floor")
+		checks+=4
+	if view.strike_buffer_valid(Vector2i.ZERO,7,7):failures.append("V26.13 neutral buffer")
+	checks+=1
 	# V26.12: hysteresis prevents direction chatter and neutral drift.
 	for control_dir in control_dirs:
 		var dir:=Vector2(control_dir).normalized()
