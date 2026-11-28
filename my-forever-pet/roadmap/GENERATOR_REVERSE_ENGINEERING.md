@@ -442,3 +442,8 @@ Independent biome/terrain and room-event profiles, optional treasure branches, M
 ## V27.1 — Adversarial Intelligence Gauntlet
 - Added 12 ordinary ecology fixtures with constrained rooms, narrow openings, mixed species, hazards, hidden/protected player states, injury and PP exhaustion. Up to 16 rounds per scenario with cached and uncached runs (384 simulated turns, up to 768 checks). Validates differential behavior, legal occupancy, single actor action and cache cleanup. Existing Monster House and AI integration gauntlets retained.
 - Test implementation 99f4554c9f97745e4a374e01ba3cfbd317b09302. Validation-only branch feature/kindria-v27-1-validation and draft PR #17 (head 5e6a66bb71a185fc4396481006a160f0f52a7dea) adds Godot 4.6 CI integration workflow with logs. No merge or release. Counts are planned maxima, not passed checks. Android performance remains unverified.
+
+
+## V27.2 — Gauntlet Corrections
+- V27.1 CI run 46110584036 failed at Godot 4.6 compilation: Vector2i.dot is unavailable in hunter search heading scoring at dungeon_rules.gd:1821. Replaced with explicit integer component dot product, retaining the original clamp and weighting. No remaining .dot calls in rules file.
+- Development commit 6fead234f597eba1378cea8be45124e1ad45f2b4; validation branch commit 984bd8270f3ff49a8f167f318b78328a89d02111. Both rules blobs match. Godot smoke and Android wallpaper plugin smoke from prior PR succeeded, but did not certify the actual tactical rules. Prior failed integration remains recorded; new run must complete before claiming success.
