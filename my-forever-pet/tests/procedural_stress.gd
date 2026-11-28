@@ -1817,6 +1817,42 @@ func run_checks()->void:
 	if opp_fixture.enemy_target_exposure(opp_actor,opp_target.pos,1280)!=0.0:failures.append("opportunity player and ally provide support")
 	checks+=1
 	print("KINDRIA_ENEMY_OPPORTUNITY_ENGINE checks=9")
+
+	# Audit the real dispatch order, not just isolated planner scores.
+	var audit_combat=Rules.new()
+	for y in range(1,10):
+		for x in range(1,10):audit_combat.cells[Vector2i(x,y)]=true
+	audit_combat.player=Vector2i(5,4);audit_combat.stairs=Vector2i(9,9);audit_combat.relic=Vector2i(9,8);audit_combat.turns=20;audit_combat.hp=1
+	var audit_hunter:Dictionary={"uid":290,"pos":Vector2i(3,4),"hp":30,"max_hp":30,"kind":0,"species":"bramble_pup","signature":"Briar Pounce","ecology_role":"hunter","ecology_search_enabled":true,"personality_enabled":true,"pp_primary":12,"pp_secondary":0,"stages":{"accuracy":10}}
+	var audit_friend:Dictionary={"uid":1290,"pos":Vector2i(3,3),"hp":30,"max_hp":30,"species":"reef_pup"}
+	audit_combat.enemies.append(audit_hunter);audit_combat.allies.append(audit_friend)
+	if not audit_combat.enemy_risk_has_finisher(audit_hunter):failures.append("combat audit credible lethal primary")
+	checks+=1
+	audit_combat.charge_phase="vanish"
+	if audit_combat.enemy_opportunity_eligible(audit_hunter) or audit_combat.enemy_risk_has_finisher(audit_hunter):failures.append("combat audit hidden target no finisher")
+	audit_combat.charge_phase=""
+	checks+=1
+	audit_combat.cells.erase(Vector2i(4,4))
+	if audit_combat.enemy_risk_has_finisher(audit_hunter):failures.append("combat audit wall prevents finisher")
+	audit_combat.cells[Vector2i(4,4)]=true
+	checks+=1
+	audit_combat.hp=0
+	if audit_combat.enemy_risk_has_finisher(audit_hunter):failures.append("combat audit defeated player no finisher")
+	audit_combat.hp=1
+	checks+=1
+	audit_combat.enemy_turn_actions()
+	if audit_combat.hp!=0 or int(audit_friend.hp)!=30 or audit_hunter.pp_primary!=11 or audit_combat.enemy_actions.size()!=1:failures.append("combat audit lethal attack precedes ally diversion")
+	checks+=1
+	audit_combat.hp=30;audit_combat.player=Vector2i(4,3)
+	var audit_supported:float=audit_combat.enemy_target_exposure(audit_hunter,audit_friend.pos,1290)
+	audit_combat.charge_phase="vanish"
+	if audit_combat.enemy_target_exposure(audit_hunter,audit_friend.pos,1290)<=audit_supported or audit_combat.enemy_target_exposure(audit_hunter,audit_combat.player,-1)!=0.0:failures.append("combat audit hidden player does not provide known support")
+	audit_combat.charge_phase=""
+	checks+=1
+	audit_friend.pos=Vector2i(5,4);audit_combat.cells.erase(Vector2i(4,4))
+	if audit_combat.enemy_party_opportunity_value(audit_hunter,audit_friend,0,audit_combat.signature_skill(audit_hunter),false)!=0.0:failures.append("combat audit hidden ally direct scoring rejected")
+	checks+=1
+	print("KINDRIA_ENEMY_COMBAT_AUDIT checks=7")
 	# A direct witness may report a tile, but a listener cannot relay it.
 	var comm=Rules.new()
 	for x in range(1,4):comm.cells[Vector2i(x,3)]=true
