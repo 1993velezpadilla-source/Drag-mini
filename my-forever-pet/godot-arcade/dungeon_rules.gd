@@ -5164,6 +5164,22 @@ func enemy_party_opportunity_value(e:Dictionary,a:Dictionary,index:int,skill:Arr
 	if bool(e.get("personality_enabled",false)):tactical*=chance
 	return (expected+knockout)*enemy_observed_attack_weight(e,uid,slot)+tactical
 
+# Utility scores include status and personality benefits; they are not HP
+# damage. Award a finishing preference only for a credible immediate hit.
+func enemy_party_player_ko_bonus(e:Dictionary,skill:Array,secondary:bool,basic:bool=false)->float:
+	if not enemy_live_contact(e,player) or bool(e.get("windup",false)) or int(e.get("whiffer_turns",0))>0:return 0.0
+	if basic:
+		if distance(e.pos,player)!=1:return 0.0
+	else:
+		var slot:String="secondary" if secondary else "primary"
+		if bool(skill[1]) or not enemy_move_allowed(e,slot) or int(e.get("alt_cooldown" if secondary else "cooldown",0))>0:return 0.0
+		var species:String=str(e.get("species",""))
+		var pattern:String=str(SECONDARY_SKILLS[species][1]) if secondary and SECONDARY_SKILLS.has(species) else str(ATTACK_PATTERNS.get(species,"line"))
+		if attack_aim(e.pos,player,pattern,int(skill[0]))==Vector2i.ZERO:return 0.0
+	var accuracy:float=clampf(enemy_stat_effect(e,"accuracy")*player_stat_effect("evasion")/(263.0/256.0),0.0,1.0)
+	if accuracy<.85 or enemy_opportunity_damage(e,skill,secondary,basic)<hp:return 0.0
+	return 2.5*accuracy
+
 func enemy_party_attack_plan(e:Dictionary)->Dictionary:
 	var origin:Vector2i=e.pos
 	if not bool(e.get("ecology_search_enabled",false)) or bool(e.get("windup",false)) or allies.is_empty() or int(e.get("kind",0))==3:return {}
@@ -5178,11 +5194,10 @@ func enemy_party_attack_plan(e:Dictionary)->Dictionary:
 	var player_value:float=0.0
 	var player_visible:bool=enemy_live_contact(e,player)
 	var player_protected:bool=(shield_turns>0 and shield_kind=="protect") or charge_phase in ["underground","airborne","vanish"]
-	if player_visible and not player_protected and distance(origin,player)==1:player_value=float(maxi(1,1+tier))
+	if player_visible and not player_protected and distance(origin,player)==1:player_value=float(maxi(1,1+tier))+enemy_party_player_ko_bonus(e,[],false,true)
 	if player_visible and not player_protected and int(e.get("cooldown",0))<=0 and enemy_move_allowed(e,"primary") and attack_aim(origin,player,str(ATTACK_PATTERNS.get(species,"line")),int(primary[0]))!=Vector2i.ZERO:
-		player_value=maxf(player_value,enemy_attack_score(e,primary,false))
+		player_value=maxf(player_value,enemy_attack_score(e,primary,false)+enemy_party_player_ko_bonus(e,primary,false))
 	if player_value>0.0:
-		if player_value>=float(hp):player_value+=2.5
 		player_value+=(1.0-float(hp)/float(maxi(1,max_hp)))*1.5+enemy_squad_focus_bonus(e,-1,player)+enemy_target_exposure(e,player,-1)
 	var best:Dictionary={}
 	var best_score:float=player_value+.25
@@ -5194,8 +5209,7 @@ func enemy_party_attack_plan(e:Dictionary)->Dictionary:
 			var footprint:Dictionary=attack_footprint(origin,d,pattern,int(skill[0]))
 			if player_visible and footprint.has(player):
 				if not player_protected:
-					var value:float=enemy_attack_score(e,skill,secondary)
-					if value>=float(hp):value+=2.5
+					var value:float=enemy_attack_score(e,skill,secondary)+enemy_party_player_ko_bonus(e,skill,secondary)
 					value+=(1.0-float(hp)/float(maxi(1,max_hp)))*1.5+enemy_squad_focus_bonus(e,-1,player)+enemy_target_exposure(e,player,-1)
 					best_score=maxf(best_score,value+.25)
 				continue
