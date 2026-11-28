@@ -36,6 +36,21 @@ func run_checks()->void:
 	var checks:int=0
 	var failures:Array[String]=[]
 	var view:=Dungeon.new()
+	# V26.15: presentation-only landing clock and finite mobile FX bounds.
+	var landing_start:Vector3=view.house_landing_sample(0.0)
+	var landing_contact:Vector3=view.house_landing_sample(.36)
+	var landing_end:Vector3=view.house_landing_sample(.74)
+	if not is_equal_approx(landing_start.x,2.0) or landing_start.z!=0.0:failures.append("V26.15 fall start")
+	if not is_zero_approx(landing_contact.x) or not is_equal_approx(landing_contact.z,1.0):failures.append("V26.15 synchronized contact")
+	if not is_zero_approx(landing_end.x) or not is_zero_approx(landing_end.z):failures.append("V26.15 landing cleanup")
+	if view.HOUSE_LANDING_CAP*view.HOUSE_DEBRIS_PER_ENEMY>40:failures.append("V26.15 mobile debris cap")
+	checks+=4
+	var prior_height:float=2.0
+	var prior_radius:float=.4
+	for landing_frame in range(75):
+		var sample:Vector3=view.house_landing_sample(float(landing_frame)*.01)
+		if not sample.is_finite() or sample.x>prior_height+.0001 or sample.y<prior_radius-.0001 or sample.z<0.0 or sample.z>1.0:failures.append("V26.15 landing envelope")
+		prior_height=sample.x;prior_radius=sample.y;checks+=1
 	# V26.14: deterministic ambush, unique occupancy, bounded spawns and reset.
 	for house_seed in range(12):
 		var house:=preload("res://dungeon_rules.gd").new()
