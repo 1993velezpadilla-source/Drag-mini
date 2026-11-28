@@ -1657,6 +1657,39 @@ func trigger_floor_trap(p:Vector2i)->bool:
 	emit_event(message)
 	return true
 
+# Ordinary enemy ecology: retain species combat kits and existing population budgets.
+const ENEMY_ECOLOGY_ROLES=["hunter","scout","sentry","roamer"]
+
+func assign_enemy_ecology()->void:
+	if starter_woods or floor_number<2 or not guardian_defeated or floor_kind==3 or dev_sandbox:return
+	for e in enemies:
+		if int(e.kind)==3 or bool(e.get("monster_house",false)):continue
+		var uid:int=int(e.uid)
+		var roll:int=posmod(seed_value*37+floor_number*101+uid*71+region*53,100)
+		var role:String="hunter" if roll<40 else "scout" if roll<60 else "sentry" if roll<80 else "roamer"
+		e["ecology_role"]=role
+		e["ecology_home"]=e.pos
+
+func enemy_awareness(e:Dictionary)->int:
+	if bool(e.get("monster_house",false)):return 9999
+	match str(e.get("ecology_role","hunter")):
+		"scout":return 8
+		"sentry":return 4
+		_:return 6
+
+func enemy_patrol_destination(e:Dictionary)->Vector2i:
+	var origin:Vector2i=e.pos
+	if str(e.get("ecology_role","hunter"))!="roamer" or int(e.get("stuck_turns",0))>0:return origin
+	var home:Vector2i=e.get("ecology_home",origin)
+	var phase:int=posmod(turns+int(e.get("uid",0)),4)
+	for i in range(4):
+		var delta:Vector2i=DIR[(phase+i)%4]
+		var q:Vector2i=origin+delta
+		if not step_clear(origin,delta) or q==player or q==stairs or q==relic or q in side_rewards or enemy_at(q)>=0 or ally_at(q)>=0 or traps.has(q):continue
+		if distance(q,home)>3 and distance(q,home)>=distance(origin,home):continue
+		return q
+	return origin
+
 func generate_floor():
 	clear_combat_effects()
 	reset_floor_combat_presentation()
@@ -1731,6 +1764,7 @@ func generate_floor():
 		if cells.has(p) and not loot.has(p):
 			loot[p]="coin";break
 	arrange_floor_encounter()
+	assign_enemy_ecology()
 	distribute_rare_treasures()
 	energy=mini(8,energy+2)
 	place_allies()
@@ -2987,7 +3021,7 @@ func enemy_turn_actions():
 			if hp==0:
 				apply_fatal_grudge(enemies[i])
 				finished=true;success=false;message="Rescue needed · expedition lost";return
-		elif (gap<=6 or bool(enemies[i].get("monster_house",false))) and kind!=3 and int(enemies[i].get("stuck_turns",0))<=0:
+		elif (gap<=enemy_awareness(enemies[i]) or bool(enemies[i].get("monster_house",false))) and kind!=3 and int(enemies[i].get("stuck_turns",0))<=0:
 			var path=route(p,player,true)
 			if not path.is_empty() and path[0]!=player and enemy_at(path[0])<0:
 				var steps:int=1+int(enemies[i].get("haste_stage",0)) if int(enemies[i].get("haste_turns",0))>0 else 1
@@ -2997,6 +3031,11 @@ func enemy_turn_actions():
 					destination=path[step]
 				enemies[i].pos=destination
 				enemy_actions.append({"uid":enemies[i].get("uid",i),"phase":"move","from":p,"to":destination,"gait":enemies[i].get("gait","walk")})
+		elif not charged and kind!=3 and not boon_active("decoy"):
+			var patrol:Vector2i=enemy_patrol_destination(enemies[i])
+			if patrol!=p:
+				enemies[i].pos=patrol
+				enemy_actions.append({"uid":enemies[i].get("uid",i),"phase":"move","from":p,"to":patrol,"gait":enemies[i].get("gait","walk")})
 	for i in range(enemies.size()-1,-1,-1):
 		if int(enemies[i].hp)<=0:remove_defeated_enemy(i)
 	reveal()
