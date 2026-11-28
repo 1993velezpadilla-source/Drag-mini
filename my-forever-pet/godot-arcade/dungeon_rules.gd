@@ -2415,7 +2415,9 @@ func enemy_unstall_step(e:Dictionary,target:Vector2i)->Vector2i:
 	while cursor<queue.size() and cursor<96:
 		var tile:Vector2i=queue[cursor];cursor+=1
 		if tile!=origin and enemy_recovery_attack_tile(e,tile,target,attack_memo):return first[tile]
-		if int(depth[tile])>=(3 if early_detour else 6):continue
+		# A witnessed opening can be four steps away around two occupied posts.
+		# Retain the node cap, safe tiles and normal one-step action budget.
+		if int(depth[tile])>=(4 if early_detour else 6):continue
 		for d in DIR:
 			var q:Vector2i=tile+d
 			if depth.has(q) or not enemy_ambush_safe_tile(q) or reserved.has(q):continue
