@@ -2571,19 +2571,18 @@ func enemy_strategy_alternative(e:Dictionary,proposed:Vector2i,target:Vector2i)-
 	return best
 
 # Compare next-turn attack options across the four legal neighboring tiles.
-# The original actor stays in place during scoring: a ray through its current
-# tile is conservatively rejected, rather than altering occupancy or caches.
+# Project the actor vacating its original tile without mutating live occupancy.
 func enemy_decision_attack_value(e:Dictionary,post:Vector2i,target:Vector2i)->float:
 	var best:float=0.0
 	if distance(post,target)==1:best=float(enemy_opportunity_damage(e,[],false,true))
 	var species:String=str(e.get("species",""))
 	var skill:Array=signature_skill(e)
 	if not bool(skill[1]) and enemy_move_allowed(e,"primary") and int(e.get("cooldown",0))<=0:
-		if attack_aim(post,target,str(ATTACK_PATTERNS.get(species,"line")),int(skill[0]))!=Vector2i.ZERO:
+		if enemy_projected_attack_aim(e,post,target,str(ATTACK_PATTERNS.get(species,"line")),int(skill[0]))!=Vector2i.ZERO:
 			best=maxf(best,enemy_attack_score(e,skill,false))
 	if SECONDARY_SKILLS.has(species) and enemy_move_allowed(e,"secondary") and int(e.get("alt_cooldown",0))<=0:
 		var alt:Array=SECONDARY_SKILLS[species]
-		if attack_aim(post,target,str(alt[1]),int(alt[0]))!=Vector2i.ZERO:
+		if enemy_projected_attack_aim(e,post,target,str(alt[1]),int(alt[0]))!=Vector2i.ZERO:
 			best=maxf(best,enemy_attack_score(e,[alt[0],false,3,alt[3],alt[4],alt[5],"alt_"+species],true))
 	return best
 
@@ -2640,10 +2639,10 @@ func enemy_foresight_kits(e:Dictionary)->Array[Dictionary]:
 		if int(alt[0])>=2 and value>0.0:kits.append({"pattern":str(alt[1]),"reach":int(alt[0]),"value":value,"charged":false,"slot":"secondary"})
 	return kits
 
-func enemy_foresight_post_value(kits:Array[Dictionary],post:Vector2i,target:Vector2i)->float:
+func enemy_foresight_post_value(e:Dictionary,kits:Array[Dictionary],post:Vector2i,target:Vector2i)->float:
 	var value:float=0.0
 	for kit in kits:
-		if attack_aim(post,target,str(kit.pattern),int(kit.reach))!=Vector2i.ZERO:value=maxf(value,float(kit.value))
+		if enemy_projected_attack_aim(e,post,target,str(kit.pattern),int(kit.reach))!=Vector2i.ZERO:value=maxf(value,float(kit.value))
 	return value
 
 func enemy_foresight_plan(e:Dictionary,target:Vector2i)->Dictionary:
@@ -2652,7 +2651,7 @@ func enemy_foresight_plan(e:Dictionary,target:Vector2i)->Dictionary:
 	if bool(e.get("monster_house",false)) or charge_phase in ["underground","airborne","vanish"] or (shield_turns>0 and shield_kind=="protect"):return {}
 	if distance(origin,target)<=1:return {}
 	var kits:Array[Dictionary]=enemy_foresight_kits(e)
-	if kits.is_empty() or enemy_foresight_post_value(kits,origin,target)>0.0:return {}
+	if kits.is_empty() or enemy_foresight_post_value(e,kits,origin,target)>0.0:return {}
 	var reserved:Dictionary=enemy_pack_reserved_posts(e,target)
 	var peers:Array[Dictionary]=[]
 	for other in enemies:
@@ -2669,7 +2668,7 @@ func enemy_foresight_plan(e:Dictionary,target:Vector2i)->Dictionary:
 		var here:Vector2i=queue[cursor];cursor+=1
 		var depth:int=int(depths[here])
 		if depth>0:
-			var value:float=enemy_foresight_post_value(kits,here,target)
+			var value:float=enemy_foresight_post_value(e,kits,here,target)
 			if value>0.0:
 				# A direct firing post is handled by the one-step planner.
 				if depth==1:return {}
@@ -2749,7 +2748,7 @@ func enemy_cooperative_step(e:Dictionary,target:Vector2i,pattern:String,reach:in
 	while cursor<queue.size():
 		var here:Vector2i=queue[cursor];cursor+=1
 		var depth:int=int(depths[here])
-		if depth>0 and enemy_line_of_sight(here,target) and attack_aim(here,target,pattern,reach)!=Vector2i.ZERO:
+		if depth>0 and distance(here,target)<=enemy_awareness(e) and enemy_line_of_sight(here,target) and enemy_projected_attack_aim(e,here,target,pattern,reach)!=Vector2i.ZERO:
 			var separation:int=8
 			for op in partners:separation=mini(separation,distance(here,op))
 			# Shortest usable lane first; prefer separation only among equal-length routes.
