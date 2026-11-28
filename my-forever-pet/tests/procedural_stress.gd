@@ -2641,6 +2641,18 @@ func run_checks()->void:
 	lane_actor["lane_hold_turn"]=21;lane_actor["lane_hold_target"]=lane_fixture.player;lane_actor["unstall_turn"]=21
 	if lane_fixture.enemy_unstall_step(lane_actor,lane_fixture.player)!=lane_actor.pos:failures.append("lane hold preserves active firing position")
 	checks+=1
+	# A ready move is not executable on a slow-skipped phase.
+	lane_ranged["slow_turns"]=2
+	if lane_fixture.enemy_relief_blocks_lane(lane_ranged,Vector2i(5,4),lane_fixture.player) or lane_fixture.enemy_firing_lane_frontline(lane_actor,lane_fixture.player):failures.append("lane released on skipped slow phase")
+	checks+=1
+	if lane_fixture.enemy_unstall_step(lane_actor,lane_fixture.player)!=Vector2i(5,4):failures.append("lane recovery exploits skipped slow phase")
+	checks+=1
+	lane_ranged["slow_turns"]=3
+	if not lane_fixture.enemy_relief_blocks_lane(lane_ranged,Vector2i(5,4),lane_fixture.player) or lane_fixture.enemy_unstall_step(lane_actor,lane_fixture.player)!=lane_actor.pos:failures.append("lane preserved on executable slow phase")
+	checks+=1
+	lane_ranged.erase("slow_turns")
+	if lane_actor.pos!=Vector2i(5,5) or lane_ranged.pp_primary!=12 or not lane_fixture.enemy_actions.is_empty():failures.append("slow lane recovery planning purity")
+	checks+=1
 	lane_ranged["cooldown"]=1
 	if lane_fixture.enemy_firing_lane_frontline(lane_actor,lane_fixture.player) or lane_fixture.enemy_unstall_step(lane_actor,lane_fixture.player)!=Vector2i(5,4):failures.append("lane hold reenters after ray cooldown")
 	checks+=1
@@ -2990,7 +3002,7 @@ func run_checks()->void:
 	recovery_sight.enemies.pop_back();sight_actor.pos=projection_origin
 	if sight_actor.pp_primary!=12 or not recovery_sight.enemy_actions.is_empty():failures.append("projected symmetric planning purity")
 	checks+=1
-	print("KINDRIA_ANTI_STALL checks=192")
+	print("KINDRIA_ANTI_STALL checks=196")
 	# A direct witness may report a tile, but a listener cannot relay it.
 	var comm=Rules.new()
 	for x in range(1,4):comm.cells[Vector2i(x,3)]=true
