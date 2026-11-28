@@ -4151,7 +4151,7 @@ func enemy_has_party_area_attack(e:Dictionary)->bool:
 	var skill:Array=signature_skill(e)
 	var pattern:String=str(ATTACK_PATTERNS.get(e.get("species",""),"line"))
 	var charged:bool=bool(e.get("windup",false))
-	if enemy_move_allowed(e,"primary") and (charged or (int(e.get("cooldown",0))<=0 and not bool(skill[1]))):
+	if enemy_move_allowed(e,"primary") and (charged or int(e.get("cooldown",0))<=0):
 		var aim:Vector2i=e.get("aim",Vector2i.ZERO) if charged else enemy_area_aim(e,pattern,int(skill[0]))
 		if enemy_area_bonus(e,pattern,int(skill[0]),aim)>0.0 and attack_footprint(e.pos,aim,pattern,int(skill[0])).has(player):return true
 	if charged:return false
