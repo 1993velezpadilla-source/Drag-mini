@@ -18,3 +18,11 @@ When a lawful local copy is available, use a reviewed/pinned REA release and a c
 - [ ] Differentially compare legal reference traces for Sky, Darkness, Time, DX separately. Compare geometry and path distributions, stairs distances, RNG order, junction counts, spawn collisions and event probabilities. Report per-feature measured parity rather than claiming 1:1 without evidence.
 - [ ] DX modern visual effects are a separate art/rendering track; preserve original Kindria models and portrait interface.
 Commits b72c20e44474100eb9c03e3c78eaf791b117326a and 8086c52bcc33a2a3a76d796d2ad4d71e13b2039f.
+
+## V26.27 — Advanced topology implementation
+- [x] Six Kindria topology families: compact (starter), horizontal, vertical, outer ring, branching, connected; seeded layouts rather than fixed maps.
+- [x] Ring reserves center sector and joins adjacent outer sectors before connectivity repair; branching permits up to three non-room corridor anchors; other families have bounded anchor budgets.
+- [x] Existing random room-interior player/stair placement and free stair progression unchanged.
+- [x] Added 902 checks across 180 seeds covering full walkable-tile connectivity, exits, family coverage, anchor budgets/eligibility, and ring center. Commits 9d06dc22065c8bd08f5cda8f725875f488bc1878, 02b88cc5690dfe9ed60bb265a4e9af51a93ce707, 81ce2579bd8ce0ebfba40cb0496d01c4ba58cab6.
+- [ ] Validate new CI and portrait rendering of wider/taller layouts; no claim of exact PMD layout probabilities or binary parity. V26.26 cinematic gauntlet 46097159478 and smoke 46097200400 passed.
+- [ ] Next: room merging, maze rooms, true junction metadata and configurable density/spawn tables.
