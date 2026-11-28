@@ -1818,7 +1818,7 @@ func run_checks()->void:
 	for y in range(1,9):
 		for x in range(1,9):relief_fixture.cells[Vector2i(x,y)]=true
 	relief_fixture.player=Vector2i(4,4);relief_fixture.stairs=Vector2i(8,8);relief_fixture.relic=Vector2i(8,7)
-	var relief_guard:Dictionary={"uid":0,"pos":Vector2i(4,6),"hp":30,"max_hp":30,"kind":0,"species":"coralcrab","ecology_role":"hunter","ecology_search_enabled":true,"personality_enabled":true,"pp_primary":0,"pp_secondary":0}
+	var relief_guard:Dictionary={"uid":0,"pos":Vector2i(4,6),"hp":30,"max_hp":30,"kind":0,"species":"shellguard","ecology_role":"hunter","ecology_search_enabled":true,"personality_enabled":true,"pp_primary":0,"pp_secondary":0}
 	var relief_wounded:Dictionary={"uid":1,"pos":Vector2i(3,4),"hp":5,"max_hp":30,"kind":0,"species":"bramble_pup","ecology_role":"hunter","ecology_search_enabled":true,"pp_primary":0,"pp_secondary":0}
 	var relief_ranged:Dictionary={"uid":2,"pos":Vector2i(6,4),"hp":30,"max_hp":30,"kind":1,"species":"leafwisp","ecology_role":"hunter","ecology_search_enabled":true,"pp_primary":12,"pp_secondary":0}
 	relief_fixture.enemies.append(relief_guard);relief_fixture.enemies.append(relief_wounded);relief_fixture.enemies.append(relief_ranged)
@@ -2056,6 +2056,54 @@ func run_checks()->void:
 	if environmental_moves!=1 or terrain_guard.pos!=Vector2i(4,3) or int(terrain_guard.get("environment_guard_turn",-1))!=21 or terrain_guard.pp_primary!=0:failures.append("environment actual doorway movement")
 	checks+=1
 	print("KINDRIA_ENVIRONMENTAL_INTELLIGENCE checks=10")
+	# An alternate route is only chosen for a consecutive witnessed reversal.
+	var strategy_fixture=Rules.new()
+	for y in range(1,9):
+		for x in range(1,9):strategy_fixture.cells[Vector2i(x,y)]=true
+	strategy_fixture.player=Vector2i(5,4);strategy_fixture.stairs=Vector2i(8,8);strategy_fixture.relic=Vector2i(8,7);strategy_fixture.turns=20
+	var strategy_actor:Dictionary={"uid":0,"pos":Vector2i(2,4),"hp":30,"max_hp":30,"kind":0,"species":"rootgnawer","ecology_role":"hunter","ecology_search_enabled":true,"personality_enabled":true,"pp_primary":0,"pp_secondary":0}
+	strategy_fixture.enemies.append(strategy_actor)
+	strategy_fixture.enemy_strategy_record_step(strategy_actor,Vector2i(2,4),Vector2i(2,5),strategy_fixture.player)
+	strategy_actor.pos=Vector2i(2,5);strategy_fixture.turns=21
+	if not strategy_fixture.enemy_strategy_reversal(strategy_actor,Vector2i(2,4),strategy_fixture.player):failures.append("strategy witnessed reversal")
+	checks+=1
+	if strategy_fixture.enemy_strategy_alternative(strategy_actor,Vector2i(2,4),strategy_fixture.player)!=Vector2i(3,5) or strategy_actor.pos!=Vector2i(2,5) or strategy_actor.pp_primary!=0 or not strategy_fixture.enemy_actions.is_empty():failures.append("strategy safe alternative pure evaluation")
+	checks+=1
+	strategy_fixture.traps[Vector2i(3,5)]="snare"
+	if strategy_fixture.enemy_strategy_alternative(strategy_actor,Vector2i(2,4),strategy_fixture.player)!=Vector2i(2,4):failures.append("strategy no safe alternative allows return")
+	strategy_fixture.traps.clear()
+	checks+=1
+	strategy_fixture.turns=22
+	if strategy_fixture.enemy_strategy_reversal(strategy_actor,Vector2i(2,4),strategy_fixture.player):failures.append("strategy stale movement ignored")
+	strategy_fixture.turns=21
+	checks+=1
+	strategy_fixture.player=Vector2i(5,5)
+	if strategy_fixture.enemy_strategy_reversal(strategy_actor,Vector2i(2,4),strategy_fixture.player):failures.append("strategy target changes reset")
+	strategy_fixture.player=Vector2i(5,4)
+	checks+=1
+	strategy_fixture.charge_phase="airborne"
+	if strategy_fixture.enemy_strategy_reversal(strategy_actor,Vector2i(2,4),strategy_fixture.player):failures.append("strategy hidden player excluded")
+	strategy_fixture.charge_phase=""
+	checks+=1
+	strategy_actor["windup"]=true
+	if strategy_fixture.enemy_strategy_reversal(strategy_actor,Vector2i(2,4),strategy_fixture.player):failures.append("strategy charged attack preserved")
+	strategy_actor.erase("windup")
+	checks+=1
+	strategy_actor.species="leafwisp";strategy_actor.pp_primary=12
+	if not strategy_fixture.enemy_strategy_attack_tile(strategy_actor,Vector2i(2,4),strategy_fixture.player) or strategy_fixture.enemy_strategy_alternative(strategy_actor,Vector2i(2,4),strategy_fixture.player)!=Vector2i(2,4):failures.append("strategy useful return retained")
+	strategy_actor.species="rootgnawer";strategy_actor.pp_primary=0
+	checks+=1
+	strategy_actor.personality_enabled=false
+	if strategy_fixture.enemy_strategy_reversal(strategy_actor,Vector2i(2,4),strategy_fixture.player):failures.append("strategy legacy actor unchanged")
+	strategy_actor.personality_enabled=true
+	checks+=1
+	strategy_fixture.enemy_turn_actions()
+	var strategy_moves:int=0
+	for action in strategy_fixture.enemy_actions:
+		if int(action.get("uid",-1))==0 and str(action.phase)=="move":strategy_moves+=1
+	if strategy_moves!=1 or int(strategy_actor.get("strategy_turn",-1))!=22 or strategy_actor.get("strategy_to",Vector2i.ZERO)!=strategy_actor.pos or strategy_actor.pp_primary!=0:failures.append("strategy real movement recorded once")
+	checks+=1
+	print("KINDRIA_ADAPTIVE_STRATEGY checks=10")
 	# Actual disk I/O, legacy migration, corruption recovery, and resumed writes.
 	var test_path:String="user://kindria_procedural_test_"+str(OS.get_process_id())+".cfg"
 	var exact:Array[String]=["legacy exact".sha256_text()]
