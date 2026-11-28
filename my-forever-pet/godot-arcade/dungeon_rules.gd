@@ -2362,11 +2362,16 @@ func enemy_target_ally(i:int)->bool:
 	if boon_active("decoy"):return false
 	var e:Dictionary=enemies[i]
 	var origin:Vector2i=e.pos
+	var tactical:bool=bool(e.get("ecology_search_enabled",false))
+	if tactical:
+		if bool(e.get("windup",false)):return false
+		if enemy_execute_party_attack(i,enemy_party_attack_plan(e)):return true
 	var nearest:int=-1
 	var best:int=distance(origin,player)
 	for j in range(allies.size()):
 		if int(allies[j].hp)<=0:continue
 		var gap:int=distance(origin,allies[j].pos)
+		if tactical and (gap>enemy_awareness(e) or not enemy_line_of_sight(origin,allies[j].pos)):continue
 		if gap<best and gap<=6:nearest=j;best=gap
 	if nearest<0:return false
 	var a:Dictionary=allies[nearest]
@@ -3204,29 +3209,121 @@ func enemy_has_party_area_attack(e:Dictionary)->bool:
 
 # Resolve each living party member once, independently of the player's dodge,
 # shield or critical. Preserve the player-facing effectiveness state.
-func enemy_apply_area_damage(e:Dictionary,origin:Vector2i,footprint:Dictionary,pattern:String,skill:Array,secondary:bool)->Array[Dictionary]:
-	var results:Array[Dictionary]=[]
-	if not bool(e.get("ecology_search_enabled",false)) or not enemy_area_pattern(pattern):return results
+# Shared party hit estimate used by target choice and actual damage resolution.
+func enemy_party_damage_estimate(e:Dictionary,a:Dictionary,skill:Array,secondary:bool)->Dictionary:
 	var info:Array=ENEMY_TRAINING.get(e.get("species",""),[["normal"],"normal","normal",0,0,"physical"])
 	var element:String=str(info[2] if secondary else info[1])
 	var category:String=str(info[5])
 	var attack_key:String="sp_attack" if category=="special" else "attack"
 	var defense_key:String="sp_defense" if category=="special" else "defense"
 	var raw:int=maxi(1,2+tier+int(floor_number/3)+(2 if int(e.get("kind",0))>=2 else 0)+int(skill[3]))
+	var types:Array=ENEMY_TRAINING.get(a.get("species",""),[["normal"]])[0].duplicate()
+	if gravity_active and element=="ground":types.erase("flying")
+	var effectiveness:float=type_multiplier(element,types)
+	var amount:float=float(raw)*effectiveness*(1.2 if element in info[0] else 1.0)*weather_factor(element)
+	amount*=enemy_stat_effect(e,attack_key)/maxf(.001,stat_effect(a.get("stages",{}),a.get("stat_halves",{}),defense_key))
+	if str(e.get("major_status",""))=="burn":amount*=.8
+	var factor:float=enemy_stat_effect(e,"accuracy")*stat_effect(a.get("stages",{}),a.get("stat_halves",{}),"evasion")/(263.0/256.0)
+	var damage:int=held_item_damage(maxi(0,roundi(amount)),str(e.get("held_item","")),str(a.get("held_item","")))
+	return {"damage":damage,"accuracy":clampf(factor,0.0,1.0),"effectiveness":effectiveness}
+
+func enemy_resolve_party_hit(e:Dictionary,index:int,skill:Array,secondary:bool)->Dictionary:
+	var a:Dictionary=allies[index]
+	var estimate:Dictionary=enemy_party_damage_estimate(e,a,skill,secondary)
+	var factor:float=float(estimate.accuracy)
+	var missed:bool=(factor<1.0 and rng.randf()>=factor) or (int(e.get("whiffer_turns",0))>0 and rng.randi_range(1,100)>5)
+	var damage:int=0 if missed else mini(int(a.hp),int(estimate.damage))
+	a.hp=int(a.hp)-damage
+	return {"uid":a.get("uid",1000+index),"tile":a.pos,"damage":damage,"dodged":missed,"effectiveness":estimate.effectiveness}
+
+func enemy_apply_area_damage(e:Dictionary,origin:Vector2i,footprint:Dictionary,pattern:String,skill:Array,secondary:bool)->Array[Dictionary]:
+	var results:Array[Dictionary]=[]
+	if not bool(e.get("ecology_search_enabled",false)) or not enemy_area_pattern(pattern):return results
 	for index in enemy_area_allies(origin,footprint):
-		var a:Dictionary=allies[index]
-		var types:Array=ENEMY_TRAINING.get(a.get("species",""),[["normal"]])[0].duplicate()
-		if gravity_active and element=="ground":types.erase("flying")
-		var effectiveness:float=type_multiplier(element,types)
-		var amount:float=float(raw)*effectiveness*(1.2 if element in info[0] else 1.0)*weather_factor(element)
-		amount*=enemy_stat_effect(e,attack_key)/maxf(.001,stat_effect(a.get("stages",{}),a.get("stat_halves",{}),defense_key))
-		if str(e.get("major_status",""))=="burn":amount*=.8
-		var factor:float=enemy_stat_effect(e,"accuracy")*stat_effect(a.get("stages",{}),a.get("stat_halves",{}),"evasion")/(263.0/256.0)
-		var missed:bool=(factor<1.0 and rng.randf()>=factor) or (int(e.get("whiffer_turns",0))>0 and rng.randi_range(1,100)>5)
-		var damage:int=0 if missed else mini(int(a.hp),held_item_damage(maxi(0,roundi(amount)),str(e.get("held_item","")),str(a.get("held_item",""))))
-		a.hp=int(a.hp)-damage
-		results.append({"uid":a.get("uid",1000+index),"tile":a.pos,"damage":damage,"dodged":missed,"effectiveness":effectiveness})
+		results.append(enemy_resolve_party_hit(e,index,skill,secondary))
 	return results
+
+# Select immediate learned attacks against vulnerable visible party members.
+# No speculative knowledge of hidden actors and no RNG during scoring.
+func enemy_party_attack_plan(e:Dictionary)->Dictionary:
+	var origin:Vector2i=e.pos
+	if not bool(e.get("ecology_search_enabled",false)) or bool(e.get("windup",false)) or allies.is_empty() or int(e.get("kind",0))==3:return {}
+	var primary:Array=signature_skill(e)
+	var species:String=str(e.get("species",""))
+	var kits:Array=[]
+	if int(e.get("cooldown",0))<=0 and enemy_move_allowed(e,"primary") and not bool(primary[1]):
+		kits.append({"slot":"primary","skill":primary,"pattern":str(ATTACK_PATTERNS.get(species,"line")),"name":str(e.get("signature","Strike"))})
+	if int(e.get("alt_cooldown",0))<=0 and enemy_move_allowed(e,"secondary") and SECONDARY_SKILLS.has(species):
+		var alt:Array=SECONDARY_SKILLS[species]
+		kits.append({"slot":"secondary","skill":[alt[0],false,3,alt[3],alt[4],alt[5],"alt_"+species],"pattern":str(alt[1]),"name":str(alt[2])})
+	var player_value:float=0.0
+	var player_visible:bool=distance(origin,player)<=enemy_awareness(e) and enemy_line_of_sight(origin,player)
+	if player_visible and distance(origin,player)==1:player_value=float(maxi(1,1+tier))
+	if player_visible and int(e.get("cooldown",0))<=0 and enemy_move_allowed(e,"primary") and attack_aim(origin,player,str(ATTACK_PATTERNS.get(species,"line")),int(primary[0]))!=Vector2i.ZERO:
+		player_value=maxf(player_value,enemy_attack_score(e,primary,false))
+	var best:Dictionary={}
+	var best_score:float=player_value+.25
+	for kit in kits:
+		var skill:Array=kit.skill
+		var pattern:String=kit.pattern
+		var secondary:bool=kit.slot=="secondary"
+		for d in DIR:
+			var footprint:Dictionary=attack_footprint(origin,d,pattern,int(skill[0]))
+			if footprint.has(player):
+				best_score=maxf(best_score,enemy_attack_score(e,skill,secondary)+.25)
+				continue
+			var candidates:Array[int]=enemy_area_allies(origin,footprint)
+			if candidates.is_empty():continue
+			if not enemy_area_pattern(pattern):
+				# A line hits the first opposing creature, never shoots through it.
+				var nearest:int=-1
+				var nearest_gap:int=99999
+				for index in candidates:
+					var gap:int=distance(origin,allies[index].pos)
+					if gap<nearest_gap:nearest=index;nearest_gap=gap
+				candidates=[nearest]
+			var score:float=0.0
+			var targets:Array[int]=[]
+			for index in candidates:
+				var a:Dictionary=allies[index]
+				if distance(origin,a.pos)>enemy_awareness(e):continue
+				var estimate:Dictionary=enemy_party_damage_estimate(e,a,skill,secondary)
+				var life:int=int(a.hp)
+				var cap:int=maxi(life,int(a.get("max_hp",life)))
+				var expected:float=float(mini(life,int(estimate.damage)))*float(estimate.accuracy)
+				if expected<=0.0:continue
+				var knockout:float=2.5*float(estimate.accuracy) if int(estimate.damage)>=life else 0.0
+				score+=expected+knockout+(1.0-float(life)/float(cap))*1.5
+				targets.append(index)
+			if enemy_move_pp(e,str(kit.slot))<=2:score*=.85
+			if not targets.is_empty() and score>best_score:
+				best_score=score
+				best={"slot":kit.slot,"skill":skill,"pattern":pattern,"name":kit.name,"aim":d,"footprint":footprint,"targets":targets,"score":score}
+	# A later player-facing heading may have raised the comparison threshold.
+	if not best.is_empty() and float(best.score)<best_score:return {}
+	return best
+
+func enemy_execute_party_attack(i:int,plan:Dictionary)->bool:
+	if plan.is_empty():return false
+	var e:Dictionary=enemies[i]
+	var slot:String=str(plan.slot)
+	if not enemy_move_allowed(e,slot):return false
+	var origin:Vector2i=e.pos
+	var skill:Array=plan.skill
+	var target_tile:Vector2i=allies[int(plan.targets[0])].pos
+	var results:Array[Dictionary]=[]
+	for index in plan.targets:
+		if int(allies[index].hp)>0:results.append(enemy_resolve_party_hit(e,index,skill,slot=="secondary"))
+	if results.is_empty():return false
+	record_enemy_move(e,slot)
+	var cd:String="alt_cooldown" if slot=="secondary" else "cooldown"
+	for key in ["cooldown","alt_cooldown","control_cooldown","support_cooldown"]:
+		if key!=cd and int(e.get(key,0))>0:e[key]=int(e[key])-1
+	e[cd]=maxi(0,int(skill[2])-1)
+	var footprint:Dictionary=plan.footprint
+	enemy_actions.append({"uid":e.get("uid",i),"phase":"attack","from":origin,"to":target_tile,"move":plan.name,"fx":skill[6],"damage":0,"party_hits":results,"aim":plan.aim,"pattern":plan.pattern,"tiles":footprint.keys(),"path":footprint.get(target_tile,[target_tile])})
+	emit_event(str(plan.name)+" · Party targeted")
+	return true
 
 func enemy_attack_score(e:Dictionary,skill:Array,secondary:bool)->float:
 	var info:Array=ENEMY_TRAINING.get(e.get("species",""),[["normal"],"normal","normal",0,0,"physical"])
