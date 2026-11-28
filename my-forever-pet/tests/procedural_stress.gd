@@ -2287,6 +2287,7 @@ func run_checks()->void:
 
 	# Push pressure is individual, bounded and never creates a new ability.
 	var adapt_push=Rules.new()
+	adapt_push.ai_legacy_cardinal_replay=true # Archived cardinal counterplay.
 	for y in range(1,12):
 		for x in range(1,12):adapt_push.cells[Vector2i(x,y)]=true
 	adapt_push.player=Vector2i(3,5);adapt_push.stairs=Vector2i(11,11);adapt_push.relic=Vector2i(11,10);adapt_push.turns=20
@@ -2325,6 +2326,57 @@ func run_checks()->void:
 	ap_actor.erase("push_immune")
 	checks+=1
 	print("KINDRIA_ENEMY_ADAPTATION checks=9")
+	# Reflected cover and knockback adaptation must use genuine diagonal steps.
+	for diag in [Vector2i(1,-1),Vector2i(1,1),Vector2i(-1,1),Vector2i(-1,-1)]:
+		var cd8:Vector2i=diag
+		var cv8=Rules.new()
+		for yy in range(1,12):
+			for xx in range(1,12):cv8.cells[Vector2i(xx,yy)]=true
+		var cvorg:=Vector2i(6,6)
+		var cvpost:Vector2i=cvorg+cd8
+		cv8.player=cvorg+Vector2i(3*cd8.x,0);cv8.stairs=Vector2i(11,11);cv8.relic=Vector2i(11,10);cv8.turns=20;cv8.hp=100;cv8.max_hp=100
+		var cvactor:Dictionary={"uid":860,"pos":cvorg,"hp":40,"max_hp":40,"kind":0,"species":"rootgnawer","ecology_role":"hunter","ecology_search_enabled":true,"personality_enabled":true,"pp_primary":0,"pp_secondary":0,"counter_hit_turn":20,"counter_hit_streak":2,"counter_hit_mode":"ranged"}
+		cv8.enemies.append(cvactor)
+		cv8.cells.erase(cvorg+Vector2i(2*cd8.x,cd8.y))
+		var cv_rng:int=cv8.rng.state
+		if cv8.enemy_counter_cover_step(cvactor,cv8.player)!=cvpost:failures.append("octant counter diagonal cover "+str(cd8))
+		checks+=1
+		if cvactor.pos!=cvorg or cvactor.pp_primary!=0 or cv8.rng.state!=cv_rng or not cv8.enemy_actions.is_empty():failures.append("octant cover planning purity "+str(cd8))
+		checks+=1
+		cv8.player_traps[cvpost]="snare"
+		if cv8.enemy_counter_cover_step(cvactor,cv8.player)==cvpost:failures.append("octant cover rejects trap "+str(cd8))
+		cv8.player_traps.clear()
+		checks+=1
+		var cvcorner:Vector2i=cvorg+Vector2i(0,cd8.y)
+		cv8.cells.erase(cvcorner)
+		if cv8.enemy_counter_cover_step(cvactor,cv8.player)==cvpost:failures.append("octant cover strict corner "+str(cd8))
+		cv8.cells[cvcorner]=true
+		checks+=1
+		cv8.enemy_turn_actions()
+		if cvactor.pos!=cvpost or cv8.enemy_actions.size()!=1 or str(cv8.enemy_actions[0].phase)!="move" or int(cvactor.get("counter_cover_turn",-1))!=21:failures.append("octant cover real single movement "+str(cd8))
+		checks+=1
+		var pa8=Rules.new()
+		for yy in range(1,12):
+			for xx in range(1,12):pa8.cells[Vector2i(xx,yy)]=true
+		pa8.player=cvorg+Vector2i(3*cd8.x,0);pa8.stairs=Vector2i(11,11);pa8.relic=Vector2i(11,10);pa8.turns=20;pa8.hp=100;pa8.max_hp=100
+		var paactor:Dictionary={"uid":861,"pos":cvorg,"hp":30,"max_hp":30,"kind":0,"species":"bramble_pup","ecology_role":"hunter","ecology_search_enabled":true,"personality_enabled":true,"pp_primary":0,"pp_secondary":0,"push_pressure_count":2,"push_pressure_turn":20}
+		pa8.enemies.append(paactor)
+		for sd in Rules.DIR8:
+			if sd!=cd8:pa8.player_traps[cvorg+sd]="snare"
+		if pa8.enemy_push_adaptation_step(paactor,pa8.player)!=cvpost or pa8.enemy_push_exposure(paactor,cvpost,pa8.player)>=pa8.enemy_push_exposure(paactor,cvorg,pa8.player):failures.append("octant push diagonal lower exposure "+str(cd8))
+		checks+=1
+		pa8.cells.erase(cvcorner)
+		if pa8.enemy_push_adaptation_step(paactor,pa8.player)!=cvorg:failures.append("octant push strict corner "+str(cd8))
+		pa8.cells[cvcorner]=true
+		checks+=1
+		pa8.charge_phase="vanish"
+		if pa8.enemy_push_adaptation_step(paactor,pa8.player)!=cvorg:failures.append("octant push hidden target "+str(cd8))
+		pa8.charge_phase=""
+		checks+=1
+		paactor["push_adapt_turn"]=20
+		if pa8.enemy_push_adaptation_step(paactor,pa8.player)!=cvorg:failures.append("octant push bounded retry "+str(cd8))
+		checks+=1
+	print("KINDRIA_OCTANT_COUNTERPLAY checks=36")
 
 	# Decision scoring compares usable learned moves without consuming a turn.
 	var decision_fixture=Rules.new()
@@ -5000,6 +5052,7 @@ func run_checks()->void:
 	print("KINDRIA_BATTLEFIELD_MANIPULATION checks=15")
 	# Counterplay derives from personally observed hits on distinct turns.
 	var counterplay=Rules.new()
+	counterplay.ai_legacy_cardinal_replay=true # Archived cardinal counterplay.
 	for y in range(1,9):
 		for x in range(1,9):counterplay.cells[Vector2i(x,y)]=true
 	counterplay.stairs=Vector2i(8,8);counterplay.relic=Vector2i(8,7)

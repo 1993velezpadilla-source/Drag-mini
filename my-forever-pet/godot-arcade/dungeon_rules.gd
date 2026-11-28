@@ -5930,20 +5930,21 @@ func enemy_push_adaptation_step(e:Dictionary,target:Vector2i)->Vector2i:
 	var origin:Vector2i=e.pos
 	if not enemy_repeated_push(e) or not enemy_opportunity_eligible(e) or target!=player or charge_phase in ["underground","airborne","vanish"] or int(e.get("stuck_turns",0))>0:return origin
 	if bool(e.get("monster_house",false)) or turns<=int(e.get("push_adapt_turn",-9999))+2:return origin
-	var gap:int=distance(origin,target)
+	var gap:int=enemy_step_distance(origin,target)
 	if gap<2 or gap>4 or enemy_push_attack_coverage(e,target)>0:return origin
 	var initial:int=enemy_push_exposure(e,origin,target)
 	var best:Vector2i=origin
 	var best_score:int=0
-	for d in DIR:
+	for d in (DIR if ai_legacy_cardinal_replay else COMBAT_DIR):
+		if not step_clear(origin,d):continue
 		var q:Vector2i=origin+d
-		if not enemy_ambush_safe_tile(q) or not enemy_line_of_sight(q,target) or distance(q,target)>gap+1:continue
+		if not enemy_ambush_safe_tile(q) or not enemy_line_of_sight(q,target) or enemy_step_distance(q,target)>gap+1:continue
 		var blocked:bool=false
 		for other in enemies:
 			if enemy_squad_lane_peer(e,other,target) and enemy_relief_blocks_lane(other,q,target):blocked=true;break
 		if blocked:continue
 		var exposure:int=enemy_push_exposure(e,q,target)
-		var score:int=(initial-exposure)*2+gap-distance(q,target)
+		var score:int=(initial-exposure)*2+gap-enemy_step_distance(q,target)
 		if score>best_score and exposure<initial:best_score=score;best=q
 	return best
 
@@ -5957,7 +5958,7 @@ func enemy_counter_cover_step(e:Dictionary,target:Vector2i)->Vector2i:
 	var origin:Vector2i=e.pos
 	if not enemy_live_contact(e,target):return origin
 	if not bool(e.get("personality_enabled",false)) or enemy_survival_profile(e)!="aggressive" or not enemy_counter_pattern(e,"ranged") or bool(e.get("windup",false)) or int(e.get("stuck_turns",0))>0:return origin
-	if int(e.get("kind",0))==3 or bool(e.get("monster_house",false)) or target!=player or distance(origin,target)<3 or distance(origin,target)>enemy_awareness(e) or not enemy_line_of_sight(origin,target):return origin
+	if int(e.get("kind",0))==3 or bool(e.get("monster_house",false)) or target!=player or enemy_step_distance(origin,target)<3 or distance(origin,target)>enemy_awareness(e) or not enemy_line_of_sight(origin,target):return origin
 	if turns<=int(e.get("counter_cover_turn",-9999))+2:return origin
 	# Do not trade a ready legal learned attack for cover.
 	var skill:Array=signature_skill(e)
@@ -5966,11 +5967,25 @@ func enemy_counter_cover_step(e:Dictionary,target:Vector2i)->Vector2i:
 	if int(e.get("alt_cooldown",0))<=0 and SECONDARY_SKILLS.has(species) and enemy_move_allowed(e,"secondary"):
 		var alt:Array=SECONDARY_SKILLS[species]
 		if attack_aim(origin,target,str(alt[1]),int(alt[0]))!=Vector2i.ZERO:return origin
-	for d in DIR:
+	var best:Vector2i=origin
+	var best_score:int=-2147483647
+	var headings:Array=DIR if ai_legacy_cardinal_replay else COMBAT_DIR
+	for d in headings:
+		if not step_clear(origin,d):continue
 		var q:Vector2i=origin+d
-		if distance(q,target)>=distance(origin,target) or not enemy_ambush_safe_tile(q) or enemy_line_of_sight(q,target):continue
-		return q
-	return origin
+		if enemy_step_distance(q,target)>=enemy_step_distance(origin,target) or not enemy_ambush_safe_tile(q) or enemy_line_of_sight(q,target):continue
+		if ai_legacy_cardinal_replay:return q
+		var blocked:bool=false
+		for other in enemies:
+			if enemy_squad_lane_peer(e,other,target) and enemy_relief_blocks_lane(other,q,target):blocked=true;break
+		if blocked:continue
+		var exits:int=0
+		for onward in headings:
+			if step_clear(q,onward) and q+onward!=origin and enemy_ambush_safe_tile(q+onward):exits+=1
+		if exits==0:continue
+		var score:int=exits*2-enemy_step_distance(q,target)
+		if score>best_score:best_score=score;best=q
+	return best
 
 # A visible full shield is a reason to spend the turn on positioning or
 # holding, not repeatedly burn learned PP. Existing windups are respected.
