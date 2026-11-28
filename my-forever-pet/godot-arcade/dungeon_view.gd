@@ -1673,6 +1673,52 @@ func exterior_chunks(placements:Array[Transform3D])->Dictionary:
 			chunks[key]=group
 		chunks[key].append(placement)
 	return chunks
+# Only the original untextured Blender leaf materials are eligible for wind.
+# Keep bark, stone, moss-covered rocks and gameplay geometry static.
+const FOREST_WIND_MATERIALS=["forest leaf shadow","fern lime","amber woodland canopy","woodland spring leaf","woodland golden leaf"]
+func forest_wind_material(original:StandardMaterial3D)->ShaderMaterial:
+	var name:String=original.resource_name.to_lower()
+	if region!=0 or name not in FOREST_WIND_MATERIALS or original.albedo_texture!=null:return null
+	var key:String="forest_wind:"+name
+	if exterior_motion_materials.has(key):return exterior_motion_materials[key]
+	var shader:=Shader.new()
+	shader.code="""shader_type spatial;
+render_mode cull_disabled;
+uniform float scene_time=0.0;
+uniform vec4 base_color:source_color=vec4(0.1,0.3,0.1,1.0);
+uniform float leaf_roughness=0.8;
+uniform vec4 combat_pulse=vec4(0.0);
+uniform vec4 combat_response=vec4(0.0);
+uniform vec4 combat_tint:source_color=vec4(1.0);
+varying float leaf_tip;
+varying float air_depth;
+varying float response_strength;
+void vertex(){
+ leaf_tip=smoothstep(0.04,0.65,VERTEX.y);
+ vec3 wp=(MODEL_MATRIX*vec4(VERTEX,1.0)).xyz;
+ float breeze=sin(scene_time*1.12+wp.z*0.76+wp.x*0.27);
+ float flutter=sin(scene_time*2.1+wp.x*1.13-wp.z*0.42);
+ vec2 delta=wp.xz-combat_pulse.xy;
+ float radius=max(combat_response.x,0.01);
+ response_strength=combat_pulse.w*(1.0-smoothstep(0.0,radius,length(delta)));
+ VERTEX.x+=leaf_tip*(breeze*0.035+flutter*0.012+response_strength*combat_response.y*0.025);
+ VERTEX.z+=leaf_tip*flutter*0.023;
+ air_depth=smoothstep(7.0,18.0,length(wp.xz-CAMERA_POSITION_WORLD.xz));
+}
+void fragment(){
+ vec3 pigment=base_color.rgb*(0.96+leaf_tip*0.09);
+ pigment=mix(pigment,combat_tint.rgb,clamp(response_strength*combat_response.w*0.30,0.0,0.20));
+ // A low-opacity atmospheric color grade on distant foliage only.
+ ALBEDO=mix(pigment,vec3(0.32,0.42,0.31),air_depth*0.12);
+ ROUGHNESS=leaf_roughness;
+}"""
+	var material:=ShaderMaterial.new()
+	material.shader=shader
+	material.set_shader_parameter("base_color",original.albedo_color)
+	material.set_shader_parameter("leaf_roughness",original.roughness)
+	exterior_motion_materials[key]=material
+	return material
+
 func exterior_motion_material(original:Material)->ShaderMaterial:
 	if not original is StandardMaterial3D:return null
 	var name=original.resource_name.to_lower()
@@ -1680,7 +1726,7 @@ func exterior_motion_material(original:Material)->ShaderMaterial:
 	if name.contains("woodland turquoise stream"):kind="stream"
 	elif name.contains("cascade pale highlights"):kind="foam"
 	elif name.contains("sea grass"):kind="kelp"
-	if kind.is_empty():return null
+	if kind.is_empty():return forest_wind_material(original)
 	if exterior_motion_materials.has(kind):return exterior_motion_materials[kind]
 	var shader=Shader.new()
 	if kind=="kelp":
@@ -2554,8 +2600,19 @@ func build_living_ambient():
 		var crystal=PrismMesh.new();primary=crystal
 	var tint:Color=[Color("#d7b65b"),Color("#b5f3ff"),Color("#d6c4ff")][region]
 	ambient_batches.append(ambient_batch(primary,AMBIENT_COUNT,ambient_material(tint)))
-	var mote=SphereMesh.new();mote.radial_segments=8;mote.rings=4
-	ambient_batches.append(ambient_batch(mote,MOTE_COUNT,ambient_material([Color("#ffe38b"),Color("#a4e9ee"),Color("#e6d7ff")][region])))
+	var mote:Mesh
+	if region==0:
+		# Radial glow painted into one shared billboard, no real lights or extra slots.
+		var glow:=QuadMesh.new();glow.size=Vector2(2.0,2.0);mote=glow
+		var glow_material:=ambient_material(Color("#fff1a1"))
+		glow_material.billboard_mode=BaseMaterial3D.BILLBOARD_ENABLED
+		var glow_image:=Image.new()
+		glow_image.load_svg_from_string('<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32"><defs><radialGradient id="g"><stop offset="0" stop-color="white"/><stop offset=".25" stop-color="white" stop-opacity=".95"/><stop offset=".48" stop-color="white" stop-opacity=".30"/><stop offset="1" stop-color="white" stop-opacity="0"/></radialGradient></defs><circle cx="16" cy="16" r="16" fill="url(#g)"/></svg>')
+		glow_material.albedo_texture=ImageTexture.create_from_image(glow_image)
+		ambient_batches.append(ambient_batch(mote,MOTE_COUNT,glow_material))
+	else:
+		var orb:=SphereMesh.new();orb.radial_segments=8;orb.rings=4;mote=orb
+		ambient_batches.append(ambient_batch(mote,MOTE_COUNT,ambient_material([Color("#ffe38b"),Color("#a4e9ee"),Color("#e6d7ff")][region])))
 	var plane=PlaneMesh.new();plane.size=Vector2(.44,.44)
 	var trace_mat=ambient_material(Color.WHITE)
 	var svg=''
@@ -2704,6 +2761,11 @@ func update_living_ambient(dt:float):
 		if mote:
 			offset.y=.55+.30*sin(age*.8+seed)+phase*.40
 			size=.035+.014*float(i%3);fade*=.48+.52*absf(sin(mote_clock+seed))
+			if region==0:
+				var flash:float=pow(0.5+0.5*sin(ambient_clock*1.7+seed),3.0)
+				fade*=.20+.80*flash
+				offset.x+=sin(age*.9+seed)*.33
+				size*=1.5+flash*.55
 			basis=Basis.from_scale(Vector3.ONE*size)
 		elif region==0:
 			offset.y=3.3-phase*3.15
