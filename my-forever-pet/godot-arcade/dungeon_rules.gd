@@ -967,6 +967,33 @@ const MONSTER_HOUSE_UID_BASE:int=200
 const MONSTER_HOUSE_CAP:int=10
 var player_rested=false
 var starter_woods:bool=false
+const LAYOUT_HISTORY_CAP:int=1024
+const LAYOUT_RETRY_CAP:int=32
+var recent_layouts:Array[String]=[]
+var layout_signature:String=""
+var layout_retries:int=0
+
+func remember_layout(signature:String)->void:
+	if signature.is_empty():return
+	recent_layouts.erase(signature)
+	recent_layouts.append(signature)
+	while recent_layouts.size()>LAYOUT_HISTORY_CAP:recent_layouts.pop_front()
+
+func floor_layout_signature()->String:
+	# Hash only the walkable geometry, not the seed, loot or exit placement.
+	# Normalize translation and sort to make dictionary insertion order irrelevant.
+	var min_x:int=2147483647
+	var min_y:int=2147483647
+	for q in cells:
+		min_x=mini(min_x,q.x);min_y=mini(min_y,q.y)
+	var coordinates:=PackedStringArray()
+	for q in cells:coordinates.append("%d,%d"%[q.x-min_x,q.y-min_y])
+	coordinates.sort()
+	return ";".join(coordinates).sha256_text()
+
+func stairs_available()->bool:
+	# Only explicit legacy rescue boss finales retain the guardian rule.
+	return guardian_defeated
 func setup(r:int,id:int,step:int,finale:bool,patrol:bool,seed_id:int,companion:int=0,intro_woods:bool=false):
 	starter_woods=intro_woods and r==0 and not patrol and not finale
 	floor_number=1
@@ -999,8 +1026,7 @@ func starter_floor_title()->String:
 	return ["Fernlight Clearing","Silverbrook Falls","Ancientroot Grove"][clampi(floor_number-1,0,2)]
 
 func starter_objective()->String:
-	if secured:return "Reach the stairs" if floor_number<floor_count else "Reach the exit"
-	return "Find the woodland relic"
+	return "Find the stairs" if floor_number<floor_count else "Find the exit"
 
 func starter_room_count()->int:
 	return 3 if floor_number==1 else 4
@@ -1053,16 +1079,27 @@ func build_layout():
 		var key=Vector2i(mini(i,j),maxi(i,j))
 		if i!=j and not links.has(key) and distance(center(rooms[i]),center(rooms[j]))<=20:
 			connect_cells(center(rooms[i]),center(rooms[j]));links[key]=true
-	player=center(rooms[0])
-	var farthest=-1;var exit_index=1
+	# Entrance and stairs are independent random room tiles, never forced apart.
+	var entrance_tiles:Array[Vector2i]=[]
+	for y in range(rooms[0].position.y,rooms[0].end.y):
+		for x in range(rooms[0].position.x,rooms[0].end.x):
+			var q:=Vector2i(x,y)
+			if cells.has(q):entrance_tiles.append(q)
+	player=entrance_tiles[rng.randi_range(0,entrance_tiles.size()-1)]
+	var exit_tiles:Array[Vector2i]=[]
+	for room in rooms:
+		for y in range(room.position.y,room.end.y):
+			for x in range(room.position.x,room.end.x):
+				var q:=Vector2i(x,y)
+				if q!=player and cells.has(q):exit_tiles.append(q)
+	# A same-room or adjacent stair is a legitimate lucky roll, not an error.
+	stairs=exit_tiles[rng.randi_range(0,exit_tiles.size()-1)]
+	# Optional treasure / explicit guardian anchor, never required for normal stairs.
+	var choices:Array[Vector2i]=[]
 	for i in range(1,rooms.size()):
-		var steps=route(player,center(rooms[i])).size()
-		if steps>farthest:farthest=steps;exit_index=i
-	stairs=center(rooms[exit_index])
-	var choices:Array[int]=[]
-	for i in range(1,rooms.size()):
-		if i!=exit_index:choices.append(i)
-	relic=center(rooms[choices[rng.randi_range(0,choices.size()-1)]])
+		var q:Vector2i=center(rooms[i])
+		if q!=stairs:choices.append(q)
+	relic=choices[rng.randi_range(0,choices.size()-1)]
 func reset_floor_combat_presentation()->void:
 	# Enemy UIDs are local to the floor. Never reuse a previous floor's visual ledger.
 	visual_turn_damage.clear();visual_turn_damage_turn=-1
@@ -1083,7 +1120,14 @@ func generate_floor():
 	floor_kind=0 if starter_woods or floor_number==1 else posmod(seed_value*3+floor_number*7,5)
 	secured=false;guardian_defeated=not (rescue_finale and floor_number==floor_count);floor_revision+=1
 	visual_interactions.clear()
-	build_layout()
+	layout_retries=0
+	for attempt in range(LAYOUT_RETRY_CAP):
+		cells.clear();rooms.clear()
+		build_layout()
+		layout_signature=floor_layout_signature()
+		if not recent_layouts.has(layout_signature):break
+		layout_retries+=1
+	remember_layout(layout_signature)
 	monster_house_room=-1;monster_house_triggered=false;monster_house_cleared=false;monster_house_spawn_count=0
 	monster_house_rng.seed=seed_value+floor_number*104729+region*8191+3011
 
@@ -1130,7 +1174,7 @@ func generate_floor():
 	place_allies()
 	prepare_monster_house()
 	reveal()
-	message=starter_objective() if starter_woods else ("Guardian chamber · Rescue the creature" if not guardian_defeated else "B%d · Find the relic and stairs"%floor_number)
+	message=starter_objective() if starter_woods else ("Guardian chamber · Rescue the creature" if not guardian_defeated else "B%d · Find the stairs"%floor_number)
 func monster_house_chance()->int:
 	# Kindria expeditions are shorter than EOS dungeons: tune per tier.
 	if starter_woods or floor_number<2 or not guardian_defeated or floor_kind==3:return 0
@@ -1503,7 +1547,7 @@ func pickup():
 			else:spare_equipment.append(kind);message="Collected "+kind.replace("_"," ").capitalize()
 		"material":materials+=1;message="+1 crafting material"
 		"spring":hp=mini(max_hp,hp+18);energy=mini(8,energy+3);player_rested=true;message="Restorative spring · HP and skill restored"
-		"relic":secured=true;message="Relic secured! Find the stairs"
+		"relic":secured=true;coins+=5;message="Optional treasure · +5 coins"
 	emit_event(message)
 	if kind in ["coin","potion","trail_fruit","ward_band","force_band","material","spring","relic"]:visual_interaction(kind,player)
 static func reserve_multiplier(remaining:int,maximum:int)->float:
@@ -3125,7 +3169,7 @@ func heal()->bool:
 func descend()->bool:
 	if player_wait_if_napping():return true
 	if not charged_move_id.is_empty():return release_charge()
-	if finished or player!=stairs or not secured:return false
+	if finished or player!=stairs or not stairs_available():return false
 	floor_bonus=mini(6,maxi(0,explored_rooms.size()-2)*2);coins+=floor_bonus;total_bonus+=floor_bonus
 	last_completed_floor_bonus=floor_bonus
 	if floor_number>=floor_count and not dev_sandbox:
