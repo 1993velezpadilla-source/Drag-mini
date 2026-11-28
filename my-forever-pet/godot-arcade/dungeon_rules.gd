@@ -2702,7 +2702,8 @@ func enemy_foresight_plan(e:Dictionary,target:Vector2i,prune_deeper:bool=true,me
 	var peers:Array[Dictionary]=[]
 	for other in enemies:
 		if enemy_squad_lane_peer(e,other,target):peers.append(other)
-	var lane_memo:Dictionary={}
+	# Rejected tiles stay rejected for this read-only search. No cache escapes it.
+	var rejected:Dictionary={}
 	var queue:Array[Vector2i]=[origin]
 	var depths:Dictionary={origin:0}
 	var first:Dictionary={origin:origin}
@@ -2733,10 +2734,14 @@ func enemy_foresight_plan(e:Dictionary,target:Vector2i,prune_deeper:bool=true,me
 		for j in range(4):
 			if queue.size()>=ENEMY_FORESIGHT_NODE_CAP:break
 			var q:Vector2i=here+DIR[(phase+j)%4]
-			if depths.has(q) or reserved.has(q) or not enemy_ambush_safe_tile(q) or not enemy_line_of_sight(q,target):continue
-			if distance(q,target)>enemy_awareness(e):continue
-			if not memoize_lanes:lane_memo.clear()
-			if enemy_recovery_lane_blocked(peers,q,target,lane_memo):continue
+			if depths.has(q) or (memoize_lanes and rejected.has(q)):continue
+			var blocked:bool=reserved.has(q) or not enemy_ambush_safe_tile(q) or not enemy_line_of_sight(q,target) or distance(q,target)>enemy_awareness(e)
+			if not blocked:
+				for friend in peers:
+					if enemy_relief_blocks_lane(friend,q,target):blocked=true;break
+			if blocked:
+				if memoize_lanes:rejected[q]=true
+				continue
 			depths[q]=depth+1;first[q]=q if depth==0 else first[here];queue.append(q)
 	if not best.is_empty():best["nodes"]=cursor
 	return best
@@ -4070,7 +4075,8 @@ func enemy_reserve_route(e:Dictionary,target:Vector2i,memoize_lanes:bool=true)->
 	var lane_peers:Array[Dictionary]=backup.duplicate()
 	for friend in committed_lanes:
 		if not lane_peers.has(friend):lane_peers.append(friend)
-	var lane_memo:Dictionary={}
+	# Rejected tiles stay rejected for this read-only search. No cache escapes it.
+	var rejected:Dictionary={}
 	var queue:Array[Vector2i]=[origin]
 	var depths:Dictionary={origin:0}
 	var first:Dictionary={origin:origin}
@@ -4082,9 +4088,14 @@ func enemy_reserve_route(e:Dictionary,target:Vector2i,memoize_lanes:bool=true)->
 		if depth>=3:continue
 		for d in DIR:
 			var q:Vector2i=here+d
-			if depths.has(q) or reserved.has(q) or not enemy_ambush_safe_tile(q) or not enemy_line_of_sight(q,target):continue
-			if not memoize_lanes:lane_memo.clear()
-			if enemy_recovery_lane_blocked(lane_peers,q,target,lane_memo):continue
+			if depths.has(q) or (memoize_lanes and rejected.has(q)):continue
+			var blocked:bool=reserved.has(q) or not enemy_ambush_safe_tile(q) or not enemy_line_of_sight(q,target)
+			if not blocked:
+				for friend in lane_peers:
+					if enemy_relief_blocks_lane(friend,q,target):blocked=true;break
+			if blocked:
+				if memoize_lanes:rejected[q]=true
+				continue
 			depths[q]=depth+1;first[q]=q if depth==0 else first[here];queue.append(q)
 	return {}
 

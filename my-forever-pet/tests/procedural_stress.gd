@@ -4080,6 +4080,8 @@ func run_checks()->void:
 	if reserve_actor.pos!=Vector2i(4,6) or reserve_actor.pp_primary!=0 or not reserve_fixture.enemy_actions.is_empty():failures.append("reserve plan purity")
 	checks+=1
 	reserve_fixture.traps[Vector2i(4,5)]="snare"
+	if reserve_fixture.enemy_reserve_route(reserve_actor,reserve_fixture.player)!=reserve_fixture.enemy_reserve_route(reserve_actor,reserve_fixture.player,false):failures.append("reserve rejected tile memo parity with trap")
+	checks+=1
 	var reserve_detour:Dictionary=reserve_fixture.enemy_dynamic_reserve_plan(reserve_actor,reserve_fixture.player)
 	if not reserve_detour.is_empty() and (reserve_detour.get("step")==Vector2i(4,5) or int(reserve_detour.cost)>3):failures.append("reserve bounded safe detour")
 	checks+=1
@@ -4118,7 +4120,7 @@ func run_checks()->void:
 	reserve_fixture.cells.erase(Vector2i(4,5))
 	if not reserve_fixture.enemy_dynamic_reserve_plan(reserve_actor,reserve_fixture.player).is_empty():failures.append("reserve no target sight through wall")
 	checks+=1
-	print("KINDRIA_DYNAMIC_SQUAD_ROLES checks=16")
+	print("KINDRIA_DYNAMIC_SQUAD_ROLES checks=17")
 	# Forecast only witnessed retreats, and commit only a safe ordinary step.
 	var forecast=Rules.new()
 	for y in range(1,9):
