@@ -2114,6 +2114,37 @@ func run_checks()->void:
 	if charge_counter_actor.pos==Vector2i(2,3) or counter_threat.has(charge_counter_actor.pos) or charge_counter_fixture.enemy_actions.size()!=1 or str(charge_counter_fixture.enemy_actions[0].phase)!="move" or charge_counter_actor.pp_primary!=12 or charge_counter_fixture.charged_move_id!="eos_075":failures.append("charge counter actual single evasion preserves release")
 	checks+=1
 	print("KINDRIA_CHARGE_COUNTERPLAY checks=10")
+	var formation_fixture=Rules.new()
+	for y in range(1,8):
+		for x in range(1,8):formation_fixture.cells[Vector2i(x,y)]=true
+	formation_fixture.player=Vector2i(4,4)
+	var formation_actor:Dictionary={"uid":0,"pos":Vector2i(3,4),"hp":30,"kind":0,"species":"rootgnawer","ecology_search_enabled":true,"personality_enabled":true}
+	var formation_peer:Dictionary={"uid":1,"pos":Vector2i(4,3),"hp":30,"kind":0,"species":"leafwisp","ecology_search_enabled":true,"personality_enabled":true}
+	formation_fixture.enemies.append(formation_actor);formation_fixture.enemies.append(formation_peer)
+	formation_fixture.allies.append({"uid":10,"pos":Vector2i(4,5),"hp":20})
+	formation_fixture.allies.append({"uid":11,"pos":Vector2i(3,5),"hp":20})
+	if formation_fixture.enemy_formation_support_count(formation_actor,formation_fixture.player)!=2:failures.append("formation visible support")
+	checks+=1
+	if formation_fixture.enemy_formation_separation_bonus(formation_actor,formation_fixture.player,Vector2i(7,4))!=4:failures.append("formation separating two allies")
+	checks+=1
+	if formation_fixture.enemy_formation_separation_bonus(formation_actor,Vector2i(7,4),formation_fixture.player)!=-4:failures.append("formation avoid restoring support")
+	checks+=1
+	if formation_fixture.enemy_formation_separation_bonus(formation_actor,formation_fixture.player,formation_fixture.player)!=0:failures.append("formation no displacement")
+	checks+=1
+	formation_fixture.allies[0].hp=0
+	if formation_fixture.enemy_formation_support_count(formation_actor,formation_fixture.player)!=1:failures.append("formation defeated ally excluded")
+	checks+=1
+	formation_fixture.allies.clear()
+	if formation_fixture.enemy_formation_post_bonus(formation_actor,Vector2i(4,5),formation_fixture.player)<=formation_fixture.enemy_formation_post_bonus(formation_actor,Vector2i(5,4),formation_fixture.player):failures.append("formation opposite flank priority")
+	checks+=1
+	formation_actor.personality_enabled=false
+	if formation_fixture.enemy_formation_post_bonus(formation_actor,Vector2i(4,5),formation_fixture.player)!=0:failures.append("formation personality gate")
+	formation_actor.personality_enabled=true
+	checks+=1
+	formation_fixture.allies.append({"uid":12,"pos":Vector2i(4,5),"hp":20})
+	if formation_fixture.enemy_formation_post_bonus(formation_actor,Vector2i(5,4),formation_fixture.player)!=2:failures.append("formation supported target no isolation bonus")
+	checks+=1
+	print("KINDRIA_FORMATION_BREAKING checks=8")
 	# Risk counts visible healthy support and actual recent damage, not hidden actors.
 	var risk_fixture=Rules.new()
 	for y in range(1,9):
