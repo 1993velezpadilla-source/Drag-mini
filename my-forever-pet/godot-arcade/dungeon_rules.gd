@@ -2337,7 +2337,8 @@ func enemy_foresight_plan(e:Dictionary,target:Vector2i)->Dictionary:
 				var score:float=value*3.0/float(depth)+float(gap-distance(here,target))+float(enemy_terrain_position_bonus(e,here,target))*.25
 				if enemy_strategy_reversal(e,first[here],target):score-=2.0
 				if enemy_combat_personality(e)=="cautious" and distance(here,target)==1:score-=3.0
-				if score>best_score:
+				# Prefer the shortest useful firing route; score breaks ties.
+				if score>0.0 and (best.is_empty() or depth<int(best.depth) or (depth==int(best.depth) and score>best_score)):
 					best_score=score;best={"step":first[here],"post":here,"depth":depth,"score":score}
 		if depth>=ENEMY_FORESIGHT_DEPTH:continue
 		for j in range(4):
