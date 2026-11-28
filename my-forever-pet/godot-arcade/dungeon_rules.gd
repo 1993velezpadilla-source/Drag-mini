@@ -2037,6 +2037,10 @@ func enemy_record_witnessed_loss(fallen:Dictionary)->void:
 	for observer in enemies:
 		if not bool(observer.get("personality_enabled",false)) or not enemy_alert_eligible(observer) or observer.pos==fallen.pos:continue
 		if distance(observer.pos,fallen.pos)>mini(ENEMY_ALERT_RANGE,enemy_awareness(observer)) or not enemy_line_of_sight(observer.pos,fallen.pos):continue
+		# Several casualties can be removed in the same turn. Do not overwrite
+		# a still usable, witnessed frontline opening with a less useful loss.
+		# Revalidate the prior post against current safety, reservations and sight.
+		if int(observer.get("squad_loss_turn",-9999))==turns and enemy_witnessed_vacancy_step(observer,player)!=observer.pos:continue
 		observer["squad_loss_turn"]=turns
 		observer["squad_loss_tile"]=fallen.pos
 
