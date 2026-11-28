@@ -36,14 +36,22 @@ func run_checks()->void:
 	var checks:int=0
 	var failures:Array[String]=[]
 	var view:=Dungeon.new()
-	# V26.27: six topology families, walkable anchors and complete tile connectivity.
+	# V26.28: composable topology and room/link profiles, walkable anchors and connectivity.
 	var topology_seen:Dictionary={}
 	var topology_anchor_count:int=0
-	for seed_id in range(180):
+	var room_profiles_seen:Dictionary={}
+	var link_profiles_seen:Dictionary={}
+	var recipes_seen:Dictionary={}
+	var topology_signatures:Dictionary={}
+	for seed_id in range(768):
 		var topology_run:=preload("res://dungeon_rules.gd").new()
 		topology_run.setup(seed_id%3,0,0,false,false,seed_id+9301,0,seed_id%6==0)
 		var family:int=topology_run.topology_family
 		topology_seen[family]=true
+		room_profiles_seen[topology_run.room_profile]=true
+		link_profiles_seen[topology_run.link_profile]=true
+		recipes_seen[Vector3i(family,topology_run.room_profile,topology_run.link_profile)]=true
+		topology_signatures[topology_run.layout_signature]=true
 		var visited:Dictionary={topology_run.player:true}
 		var pending:Array[Vector2i]=[topology_run.player]
 		var cursor:int=0
@@ -65,10 +73,22 @@ func run_checks()->void:
 				if room.has_point(anchor):valid_anchors=false
 		if not valid_anchors:failures.append("V26.27 non-room anchor")
 		if family==3 and (topology_run.rooms.size()!=8 or topology_run.cells.has(Vector2i(13,13))):failures.append("V26.27 ring center reserved")
-		checks+=5
-	if topology_seen.size()!=6:failures.append("V26.27 family coverage")
-	if topology_anchor_count==0:failures.append("V26.27 anchors generated")
-	checks+=2
+		var in_bounds:bool=true
+		for tile in topology_run.cells:
+			if not topology_run.floor_bounds.has_point(tile):in_bounds=false
+		if not in_bounds:failures.append("V26.28 geometry out of bounds")
+		if topology_run.rooms.size()>12:failures.append("V26.28 mobile room cap")
+		if topology_run.starter_woods and (family!=0 or topology_run.room_profile!=0 or topology_run.link_profile!=0):failures.append("V26.28 tutorial profile isolation")
+		if not topology_run.stairs_available():failures.append("V26.28 normal stairs locked")
+		checks+=9
+	if topology_seen.size()!=24:failures.append("V26.28 family coverage")
+	if topology_anchor_count==0:failures.append("V26.28 anchors generated")
+	if room_profiles_seen.size()!=4:failures.append("V26.28 room profile coverage")
+	if link_profiles_seen.size()!=4:failures.append("V26.28 link profile coverage")
+	if recipes_seen.size()<200:failures.append("V26.28 recipe diversity")
+	if topology_signatures.size()<730:failures.append("V26.28 geometry diversity")
+	print("V26.28 topology families: ",topology_seen.size()," recipes: ",recipes_seen.size()," unique geometry: ",topology_signatures.size())
+	checks+=6
 	# V26.25: independent random stairs, no key gate, and geometry history.
 	var layout_a:=preload("res://dungeon_rules.gd").new()
 	var layout_b:=preload("res://dungeon_rules.gd").new()
