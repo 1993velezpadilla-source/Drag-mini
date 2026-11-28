@@ -2882,6 +2882,33 @@ func enemy_crowd_hold(e:Dictionary,next:Vector2i,target:Vector2i)->bool:
 func enemy_ambush_safe_tile(q:Vector2i)->bool:
 	return cells.has(q) and q!=player and q!=stairs and q!=relic and not q in side_rewards and not traps.has(q) and not player_traps.has(q) and enemy_at(q)<0 and ally_at(q)<0
 
+# Ambushes coordinate only with visible, awake peers and their local plans.
+func enemy_ambush_claim_score(e:Dictionary,post:Vector2i,entry:Vector2i,gate:Vector2i)->int:
+	var score:int=0
+	for other in enemies:
+		if not enemy_squad_partner(e,other) or not enemy_alert_eligible(other) or not other.has("ambush_post"):continue
+		var age:int=turns-int(other.get("ambush_plan_turn",-9999))
+		if age<0 or age>5:continue
+		var other_post:Vector2i=other.ambush_post
+		if not enemy_line_of_sight(e.pos,other_post):continue
+		if other_post==post:return -1000
+		if other.get("ambush_gate",Vector2i.ZERO)!=gate:continue
+		# Opposite sides of an entry are complementary; do not stack one lane.
+		if (other_post-entry).dot(post-entry)<0:score+=8
+		elif distance(other_post,post)<=1:score-=8
+		else:score+=2
+	return clampi(score,-16,16)
+
+func enemy_ambush_attack_ready(e:Dictionary,post:Vector2i,entry:Vector2i)->bool:
+	if distance(post,entry)==1:return true
+	var skill:Array=signature_skill(e)
+	var species:String=str(e.get("species",""))
+	if enemy_move_allowed(e,"primary") and int(e.get("cooldown",0))<=0 and attack_aim(post,entry,str(ATTACK_PATTERNS.get(species,"line")),int(skill[0]))!=Vector2i.ZERO:return true
+	if SECONDARY_SKILLS.has(species) and enemy_move_allowed(e,"secondary") and int(e.get("alt_cooldown",0))<=0:
+		var alt:Array=SECONDARY_SKILLS[species]
+		if attack_aim(post,entry,str(alt[1]),int(alt[0]))!=Vector2i.ZERO:return true
+	return false
+
 func enemy_ambush_plan(e:Dictionary)->Dictionary:
 	var origin:Vector2i=e.pos
 	if not bool(e.get("ambush_enabled",false)) or int(e.get("kind",0))==3 or bool(e.get("monster_house",false)) or bool(e.get("windup",false)) or int(e.get("stuck_turns",0))>0:return {}
@@ -2920,18 +2947,25 @@ func enemy_ambush_plan(e:Dictionary)->Dictionary:
 					if q==origin and (q==stairs or q==relic or q in side_rewards or traps.has(q) or player_traps.has(q)):continue
 					var range_to_entry:int=distance(q,entry)
 					var legal_attack:bool=attack_aim(q,entry,pattern,int(skill[0]))!=Vector2i.ZERO if ranged else range_to_entry==1
+					var coordinated:bool=bool(e.get("personality_enabled",false))
+					if coordinated:legal_attack=enemy_ambush_attack_ready(e,q,entry)
 					if not legal_attack:continue
 					var side_cover:bool=(q.x-entry.x)*d.x+(q.y-entry.y)*d.y==0
 					var score:int=12-int(depths[q])*2
 					if ranged:score+=range_to_entry*3
 					elif side_cover:score+=5
 					if not enemy_line_of_sight(q,gate+d):score+=4
+					if coordinated:
+						var claim_score:int=enemy_ambush_claim_score(e,q,entry,gate)
+						if claim_score<=-1000:continue
+						score+=claim_score
+						if not enemy_line_of_sight(q,gate):score+=5
 					if score>best_score:
 						best_score=score;best={"post":q,"entry":entry,"gate":gate,"step":first[q]}
 	return best
 
 func enemy_clear_ambush(e:Dictionary)->void:
-	e.erase("ambush_post");e.erase("ambush_entry");e.erase("ambush_gate")
+	e.erase("ambush_post");e.erase("ambush_entry");e.erase("ambush_gate");e.erase("ambush_plan_turn")
 
 func enemy_ambush_step(e:Dictionary)->Vector2i:
 	var origin:Vector2i=e.pos
@@ -2940,6 +2974,10 @@ func enemy_ambush_step(e:Dictionary)->Vector2i:
 		var post:Vector2i=e.ambush_post
 		var entry:Vector2i=e.ambush_entry
 		var gate:Vector2i=e.ambush_gate
+		if bool(e.get("personality_enabled",false)):
+			if turns-int(e.get("ambush_plan_turn",-9999))>5 or not enemy_ambush_attack_ready(e,post,entry) or (post==origin and (traps.has(post) or player_traps.has(post))):
+				enemy_clear_ambush(e);e["ambush_retry"]=turns+3
+				return origin
 		if cells.has(entry) and cells.has(gate) and cells.has(post) and (post==origin or enemy_ambush_safe_tile(post)):
 			if post==origin:return origin
 			var home:Vector2i=e.get("ecology_home",origin)
@@ -2965,7 +3003,7 @@ func enemy_ambush_step(e:Dictionary)->Vector2i:
 	if plan.is_empty():
 		e["ambush_retry"]=turns+3
 		return origin
-	e["ambush_post"]=plan.post;e["ambush_entry"]=plan.entry;e["ambush_gate"]=plan.gate
+	e["ambush_post"]=plan.post;e["ambush_entry"]=plan.entry;e["ambush_gate"]=plan.gate;e["ambush_plan_turn"]=turns
 	return plan.step
 
 func enemy_patrol_destination(e:Dictionary)->Vector2i:
