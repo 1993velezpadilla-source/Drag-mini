@@ -2653,6 +2653,17 @@ func run_checks()->void:
 	lane_ranged.erase("slow_turns")
 	if lane_actor.pos!=Vector2i(5,5) or lane_ranged.pp_primary!=12 or not lane_fixture.enemy_actions.is_empty():failures.append("slow lane recovery planning purity")
 	checks+=1
+	# A completed ordinary action cannot reserve a second shot in this phase.
+	lane_fixture.enemy_phase_spent[411]=true
+	if lane_fixture.enemy_relief_blocks_lane(lane_ranged,Vector2i(5,4),lane_fixture.player) or lane_fixture.enemy_unstall_step(lane_actor,lane_fixture.player)!=Vector2i(5,4):failures.append("lane spent action releases ordinary firing post")
+	checks+=1
+	lane_ranged["windup"]=true;lane_ranged["aim"]=Vector2i.LEFT
+	if not lane_fixture.enemy_relief_blocks_lane(lane_ranged,Vector2i(5,4),lane_fixture.player) or lane_fixture.enemy_unstall_step(lane_actor,lane_fixture.player)!=lane_actor.pos:failures.append("lane spent action preserves telegraphed windup")
+	checks+=1
+	lane_ranged.erase("windup");lane_ranged.erase("aim")
+	lane_fixture.enemy_phase_spent.clear()
+	if not lane_fixture.enemy_relief_blocks_lane(lane_ranged,Vector2i(5,4),lane_fixture.player) or lane_actor.pos!=Vector2i(5,5) or lane_ranged.pp_primary!=12 or not lane_fixture.enemy_actions.is_empty():failures.append("lane phase reset preserves pending attack and planning purity")
+	checks+=1
 	lane_ranged["cooldown"]=1
 	if lane_fixture.enemy_firing_lane_frontline(lane_actor,lane_fixture.player) or lane_fixture.enemy_unstall_step(lane_actor,lane_fixture.player)!=Vector2i(5,4):failures.append("lane hold reenters after ray cooldown")
 	checks+=1
@@ -2707,6 +2718,8 @@ func run_checks()->void:
 	for action in protect_flank.enemy_actions:
 		if int(action.get("uid",-1))==420 and str(action.phase)=="move":flank_moves+=1
 	if flank_moves!=1 or flank_actor.pos!=flank_step or flank_actor.pp_primary!=0 or flank_actor.pp_secondary!=0 or protect_flank.hp!=10000:failures.append("protect flank dispatch consumes exactly one movement")
+	checks+=1
+	if not protect_flank.enemy_phase_spent.is_empty():failures.append("lane dispatch bookkeeping clears after real enemy phase")
 	checks+=1
 	# Ordinary party targeting must use a safe alternative around a trapped lane.
 	var party_detour=Rules.new()
@@ -3002,7 +3015,7 @@ func run_checks()->void:
 	recovery_sight.enemies.pop_back();sight_actor.pos=projection_origin
 	if sight_actor.pp_primary!=12 or not recovery_sight.enemy_actions.is_empty():failures.append("projected symmetric planning purity")
 	checks+=1
-	print("KINDRIA_ANTI_STALL checks=196")
+	print("KINDRIA_ANTI_STALL checks=200")
 	# A direct witness may report a tile, but a listener cannot relay it.
 	var comm=Rules.new()
 	for x in range(1,4):comm.cells[Vector2i(x,3)]=true
