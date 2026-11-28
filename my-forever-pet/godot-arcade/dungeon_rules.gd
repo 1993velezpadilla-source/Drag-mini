@@ -694,6 +694,8 @@ func gain_enemy_ev(enemy:Dictionary)->void:
 	var index:int=int(profile[3]);earned_ev[index]=mini(510,int(earned_ev[index])+int(profile[4]))
 
 var enemy_actions:Array[Dictionary]=[]
+# Transient dispatch bookkeeping, never retained between enemy phases.
+var enemy_phase_spent:Dictionary={}
 var player_attack_fx:String="basic_strike"
 var player_attack_cells:Array[Vector2i]=[]
 # Presentation-only strike counts for the most recent resolved reference move.
@@ -3719,6 +3721,9 @@ func enemy_relief_blocks_lane(friend:Dictionary,q:Vector2i,target:Vector2i)->boo
 	# A slowed actor skips even remaining-duration turns in the real dispatcher.
 	# Do not reserve a firing lane for an attack that cannot execute this phase.
 	if int(friend.get("slow_turns",0))>0 and int(friend.slow_turns)%2==0:return false
+	# A completed ordinary action cannot claim another shot this phase.
+	# An already telegraphed windup remains a deliberate tactical commitment.
+	if enemy_phase_spent.has(int(friend.get("uid",-1))) and not bool(friend.get("windup",false)):return false
 	# A cardinal firing lane must stay clear if it currently reaches the target.
 	if origin.x!=target.x and origin.y!=target.y:return false
 	var heading:Vector2i=Vector2i(signi(target.x-origin.x),signi(target.y-origin.y))
@@ -5825,8 +5830,10 @@ func enemy_clear_acted_frontline_holds()->void:
 
 func enemy_turn_actions():
 	if ai_recovery_trace_uid>=0:ai_recovery_trace.clear()
+	enemy_phase_spent.clear()
 	ai_begin_turn_cache()
 	enemy_turn_actions_impl()
+	enemy_phase_spent.clear()
 	ai_end_turn_cache()
 	enemy_clear_acted_frontline_holds()
 
@@ -5839,7 +5846,10 @@ func enemy_turn_actions_impl():
 		if hp==0:
 			finished=true;success=false;message="Poison · rescue needed";emit_event(message);return
 	enemy_share_alerts(player)
+	var previous_uid:int=-1
 	for i in range(enemies.size()):
+		if previous_uid>=0:enemy_phase_spent[previous_uid]=true
+		previous_uid=int(enemies[i].get("uid",-1))
 		ai_begin_actor_cache()
 		if int(enemies[i].hp)<=0:continue
 		var p:Vector2i=enemies[i].pos
