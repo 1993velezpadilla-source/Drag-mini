@@ -251,6 +251,7 @@ func enemy_integration_gauntlet(failures:Array[String])->int:
 	var congestion_observations:int=0
 	var unresolved_after_congestion_peak:int=0
 	var remaining_context:Dictionary={}
+	var residual_trace:Array=[]
 	var recovery_modes:Dictionary={}
 	var unexplained_open_peak:int=0
 	var unexplained_context:Dictionary={}
@@ -274,11 +275,20 @@ func enemy_integration_gauntlet(failures:Array[String])->int:
 		var idle_open:Dictionary={}
 		var unexplained_open:Dictionary={}
 		var unresolved_after_congestion:Dictionary={}
+		var residual_history:Dictionary={}
 		var previous_moves:Dictionary={}
 		for round_index in range(32):
 			if cached.finished or reference.finished:break
 			enemy_integration_input(cached,round_index,sample)
 			enemy_integration_input(reference,round_index,sample)
+			# Capture occupancy before the enemy phase; later actors and end-of-turn
+			# removals may open a lane after an earlier actor has already decided.
+			var phase_start_player:Vector2i=cached.player
+			var phase_start_posts:Dictionary={}
+			for direction in [Vector2i.UP,Vector2i.RIGHT,Vector2i.DOWN,Vector2i.LEFT]:
+				var q:Vector2i=phase_start_player+direction
+				var index:int=cached.enemy_at(q)
+				phase_start_posts[q]={"safe":cached.enemy_ambush_safe_tile(q),"occupant":int(cached.enemies[index].get("uid",-1)) if index>=0 else -1,"hp":int(cached.enemies[index].get("hp",0)) if index>=0 else 0}
 			var start:int=Time.get_ticks_usec()
 			cached.enemy_turn_actions()
 			cached_times.append(Time.get_ticks_usec()-start)
@@ -337,8 +347,21 @@ func enemy_integration_gauntlet(failures:Array[String])->int:
 					var verified_congestion:bool=observation=="open" and not verified_reserve and int(e.get("congestion_hold_turn",-1))==cached.turns and e.get("congestion_hold_target",Vector2i.ZERO)==cached.player and cached.enemy_occupied_frontline(e,cached.player)
 					if verified_congestion:congestion_observations+=1
 					unresolved_after_congestion[uid]=int(unresolved_after_congestion.get(uid,0))+1 if observation=="open" and not verified_reserve and not verified_congestion else 0
+					# Keep the original unresolved metric intact; this is diagnostic only.
+					if int(unresolved_after_congestion[uid])>0:
+						var history:Array=residual_history.get(uid,[])
+						var opened:Array[Vector2i]=[]
+						if phase_start_player==cached.player:
+							for q in phase_start_posts:
+								if not bool(phase_start_posts[q].safe) and cached.enemy_ambush_safe_tile(q):opened.append(q)
+						var vacancy:Vector2i=cached.enemy_witnessed_vacancy_step(e,cached.player)
+						history.append({"round":round_index,"turn":cached.turns,"uid":uid,"position":e.pos,"player_before":phase_start_player,"player_after":cached.player,"posts_before":phase_start_posts.duplicate(true),"opened_during_phase":opened,"loss_turn":int(e.get("squad_loss_turn",-1)),"loss_tile":e.get("squad_loss_tile",Vector2i.ZERO),"vacancy_now":vacancy!=e.pos,"stall_count":int(e.get("stall_count",0)),"stall_turn":int(e.get("stall_turn",-1)),"reserve_hold_turn":int(e.get("reserve_hold_turn",-1)),"congestion_hold_turn":int(e.get("congestion_hold_turn",-1))})
+						if history.size()>8:history.pop_front()
+						residual_history[uid]=history
+					else:residual_history.erase(uid)
 					if int(unresolved_after_congestion[uid])>unresolved_after_congestion_peak:
 						unresolved_after_congestion_peak=int(unresolved_after_congestion[uid])
+						residual_trace=residual_history.get(uid,[]).duplicate(true)
 						var local_posts:Array[Dictionary]=[]
 						for direction in [Vector2i.UP,Vector2i.RIGHT,Vector2i.DOWN,Vector2i.LEFT]:
 							var post:Vector2i=cached.player+direction
@@ -364,6 +387,7 @@ func enemy_integration_gauntlet(failures:Array[String])->int:
 						unexplained_context={"board":residual_board,"sample":sample,"round":round_index,"uid":uid,"species":e.get("species",""),"position":e.pos,"player":cached.player,"actor":e.duplicate(true),"charge_phase":cached.charge_phase,"shield_turns":cached.shield_turns,"shield_kind":cached.shield_kind,"current_attack":cached.enemy_strategy_attack_tile(e,e.pos,cached.player),"encircled":cached.enemy_encircled_frontline(e,cached.player)}
 				else:
 					idle_open[uid]=0;unexplained_open[uid]=0;unresolved_after_congestion[uid]=0
+					residual_history.erase(uid)
 				idle_peak=maxi(idle_peak,int(idle[uid]))
 			samples+=1
 	for personality in expected:
@@ -377,6 +401,7 @@ func enemy_integration_gauntlet(failures:Array[String])->int:
 		print("KINDRIA_CONGESTION_DIAGNOSTICS verified_physical_congestion=",congestion_observations)
 		print("KINDRIA_RESERVE_DIAGNOSTICS verified_open_reserve=",reserve_idle_observations," unexplained_open_peak=",unexplained_open_peak," context=",unexplained_context)
 		print("KINDRIA_REMAINING_IDLE unresolved_after_congestion_peak=",unresolved_after_congestion_peak," context=",remaining_context)
+		print("KINDRIA_RESIDUAL_IDLE_TRACE peak_history=",residual_trace)
 		print("KINDRIA_RECOVERY_MODES committed=",recovery_modes)
 	return checks_local
 
