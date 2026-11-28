@@ -41,6 +41,8 @@ func run_checks()->void:
 	var checks:int=0
 	var lucky:int=0
 	var optional_chambers:int=0
+	var encounter_profiles:Dictionary={}
+	var encounter_moves:Dictionary={}
 	var expedition_count:int=1152 if "--long" in OS.get_cmdline_user_args() else 256
 	var expected_floors:int=expedition_count*4
 	var rollover_checks:int=0
@@ -89,12 +91,40 @@ func run_checks()->void:
 				if run.loot.get(reward,"")!="material" or occupied.has(reward) or run.traps.has(reward):spawns_ok=false
 			if not spawns_ok:failures.append("spawn integrity "+context)
 			if not run.recent_shapes.has(run.shape_signature):failures.append("history "+context)
-			checks+=6
+			var encounter:int=run.encounter_profile
+			encounter_profiles[encounter]=int(encounter_profiles.get(encounter,0))+1
+			var moved:=Vector3i(run.encounter_enemy_count,run.encounter_loot_count,run.encounter_trap_count)
+			encounter_moves[encounter]=encounter_moves.get(encounter,Vector3i.ZERO)+moved
+			var caps:Vector3i=[Vector3i.ZERO,Vector3i(3,0,0),Vector3i(0,4,0),Vector3i(2,3,0),Vector3i(0,1,3)][encounter]
+			if moved.x<0 or moved.y<0 or moved.z<0 or moved.x>caps.x or moved.y>caps.y or moved.z>caps.z:failures.append("encounter relocation budget "+context)
+			if encounter==0:
+				if run.encounter_room!=-1 or moved!=Vector3i.ZERO:failures.append("classic isolation "+context)
+			elif run.encounter_room<0 or run.encounter_room>=run.rooms.size():failures.append("encounter room index "+context)
+			else:
+				var encounter_bounds:Rect2i=run.rooms[run.encounter_room]
+				if encounter_bounds.has_point(run.player) or encounter_bounds.has_point(run.stairs) or encounter_bounds.has_point(run.relic) or run.encounter_room==run.monster_house_room:failures.append("encounter isolation "+context)
+				var local_enemies:int=0
+				var local_loot:int=0
+				var local_traps:int=0
+				for e in run.enemies:
+					if encounter_bounds.has_point(e.pos):local_enemies+=1
+				for p in run.loot:
+					if encounter_bounds.has_point(p):local_loot+=1
+				for p in run.traps:
+					if encounter_bounds.has_point(p):local_traps+=1
+				if local_enemies<moved.x or local_loot<moved.y or local_traps<moved.z:failures.append("encounter relocation integrity "+context)
+			if (floor_id==1 or run.floor_kind==3) and encounter!=0:failures.append("protected floor encounter "+context)
+			checks+=10
 		if history.size()+4>run.SHAPE_HISTORY_CAP:
 			var dropped:int=history.size()+4-run.SHAPE_HISTORY_CAP
 			if run.recent_shapes.size()!=run.SHAPE_HISTORY_CAP or run.recent_shapes.front()!=history[dropped]:failures.append("history rollover ordering")
 			rollover_checks+=1;checks+=1
 		history.assign(run.recent_shapes)
+	if encounter_profiles.size()!=Rules.ENCOUNTER_PROFILES.size():failures.append("encounter profile coverage")
+	for profile in range(1,Rules.ENCOUNTER_PROFILES.size()):
+		if encounter_moves.get(profile,Vector3i.ZERO)==Vector3i.ZERO:failures.append("encounter realization "+str(profile))
+	checks+=5
+	print("KINDRIA_ROOM_ENCOUNTERS ",encounter_profiles," relocated=",encounter_moves)
 	if signatures.size()!=expected_floors or history.size()!=mini(expected_floors,Rules.SHAPE_HISTORY_CAP):failures.append("unique history coverage")
 	if families.size()!=23:failures.append("normal family coverage")
 	if lucky==0:failures.append("same tile stairs not observed")
