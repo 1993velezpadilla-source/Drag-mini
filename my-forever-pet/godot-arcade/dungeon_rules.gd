@@ -1810,6 +1810,7 @@ var adaptive_walk_turn:int=-9999
 func enemy_observe_movement(e:Dictionary,observed:Vector2i)->void:
 	if not bool(e.get("ecology_search_enabled",false)):return
 	var origin:Vector2i=e.pos
+	enemy_review_prediction(e,observed)
 	if distance(origin,observed)>enemy_awareness(e) or not enemy_line_of_sight(origin,observed):
 		e.erase("adaptive_heading");e.erase("adaptive_streak");e.erase("adaptive_seen_turn")
 		return
@@ -1837,6 +1838,7 @@ func enemy_observe_movement(e:Dictionary,observed:Vector2i)->void:
 func enemy_retreat_prediction(e:Dictionary,target:Vector2i)->Vector2i:
 	var threshold:int=1 if int(e.get("kind",0))==2 else 2
 	if not bool(e.get("ecology_search_enabled",false)) or int(e.get("kind",0))==3 or bool(e.get("monster_house",false)):return target
+	if turns<=int(e.get("prediction_retry",-9999)) or charge_phase in ["underground","airborne","vanish"] or boon_active("decoy"):return target
 	if int(e.get("adaptive_seen_turn",-9999))!=turns or e.get("adaptive_seen",Vector2i.ZERO)!=target or int(e.get("adaptive_streak",0))<threshold:return target
 	if enemy_survival_profile(e) not in ["aggressive","defensive"] or distance(e.pos,target)>enemy_awareness(e) or not enemy_line_of_sight(e.pos,target):return target
 	var heading:Vector2i=e.get("adaptive_heading",Vector2i.ZERO)
@@ -1853,6 +1855,47 @@ func enemy_adaptive_intercept_step(e:Dictionary,target:Vector2i)->Vector2i:
 	var predicted:Vector2i=enemy_retreat_prediction(e,target)
 	if predicted==target or distance(origin,predicted)!=1:return origin
 	return predicted
+
+# A second projected tile is useful only at a visible real bottleneck.
+# Search at most two cardinal movements; never reserve tiles or move twice.
+func enemy_prediction_safe_tile(q:Vector2i,target:Vector2i)->bool:
+	return cells.has(q) and q!=target and q!=player and q!=stairs and q!=relic and q not in side_rewards and not traps.has(q) and not player_traps.has(q) and enemy_at(q)<0 and ally_at(q)<0
+
+func enemy_predictive_cutoff_step(e:Dictionary,target:Vector2i)->Vector2i:
+	var origin:Vector2i=e.pos
+	if bool(e.get("windup",false)) or int(e.get("stuck_turns",0))>0:return origin
+	var predicted:Vector2i=enemy_retreat_prediction(e,target)
+	if predicted==target:return origin
+	var heading:Vector2i=predicted-target
+	var post:Vector2i=predicted+heading
+	if not enemy_prediction_safe_tile(post,target) or not enemy_line_of_sight(origin,post) or distance(origin,post)>2:return origin
+	if not cells.has(post+heading):return origin
+	var openings:int=0
+	for d in DIR:
+		if cells.has(post+d):openings+=1
+	if openings!=2:return origin
+	if distance(origin,post)==1:return post
+	for d in DIR:
+		var q:Vector2i=origin+d
+		if distance(q,post)!=1 or q==predicted or not enemy_prediction_safe_tile(q,target):continue
+		if not enemy_line_of_sight(q,target) or distance(q,target)>distance(origin,target):continue
+		return q
+	return origin
+
+func enemy_record_prediction(e:Dictionary,target:Vector2i)->void:
+	e["prediction_turn"]=turns
+	e["prediction_origin"]=target
+	e["prediction_heading"]=e.get("adaptive_heading",Vector2i.ZERO)
+
+func enemy_review_prediction(e:Dictionary,observed:Vector2i)->void:
+	if not e.has("prediction_turn"):return
+	var age:int=turns-int(e.prediction_turn)
+	if age<=0:return
+	# Only a directly witnessed voluntary deviation disproves the forecast.
+	var origin:Vector2i=e.prediction_origin
+	if age==1 and charge_phase not in ["underground","airborne","vanish"] and not boon_active("decoy") and distance(e.pos,observed)<=enemy_awareness(e) and enemy_line_of_sight(e.pos,observed) and adaptive_walk_turn==turns-1 and adaptive_walk_from==origin and adaptive_walk_to==observed:
+		if observed-origin!=e.prediction_heading:e["prediction_retry"]=turns+2
+	for key in ["prediction_turn","prediction_origin","prediction_heading"]:e.erase(key)
 
 # Snapshot first-hand sightings before anyone moves. Only direct witnesses
 # may alert nearby peers; recipients cannot retransmit reported coordinates.
@@ -4493,8 +4536,11 @@ func enemy_turn_actions_impl():
 				tactical=enemy_control_setup_step(enemies[i],player)
 			if tactical==p and not charged and pursuit_target==player:
 				tactical=house_formation_step(enemies[i],player)
+			var predictive_move:bool=false
 			if tactical==p and not charged and pursuit_target==player:
 				tactical=enemy_adaptive_intercept_step(enemies[i],player)
+				if tactical==p:tactical=enemy_predictive_cutoff_step(enemies[i],player)
+				predictive_move=tactical!=p
 			if tactical==p and not charged and pursuit_target==player:
 				tactical=enemy_exit_block_step(enemies[i],player)
 			if tactical==p and ready and not charged and not in_range and pursuit_target==player:
@@ -4527,6 +4573,7 @@ func enemy_turn_actions_impl():
 					if path[step]==player or enemy_at(path[step])>=0 or ally_at(path[step])>=0:break
 					destination=path[step]
 				if destination!=p:
+					if predictive_move:enemy_record_prediction(enemies[i],player)
 					enemies[i].pos=destination
 					enemy_actions.append({"uid":enemies[i].get("uid",i),"phase":"move","from":p,"to":destination,"gait":enemies[i].get("gait","walk")})
 		elif not charged and kind!=3 and not boon_active("decoy"):
