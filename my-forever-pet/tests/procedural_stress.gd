@@ -2190,6 +2190,23 @@ func run_checks()->void:
 	detour_fixture.enemies.append(detour_actor)
 	detour_fixture.enemies.append({"uid":312,"pos":Vector2i(3,4),"hp":30,"kind":0,"species":"rootgnawer","pp_primary":0,"pp_secondary":0})
 	detour_fixture.enemies.append({"uid":313,"pos":Vector2i(4,3),"hp":30,"kind":0,"species":"rootgnawer","pp_primary":0,"pp_secondary":0})
+	# One recent stall is enough only for a concrete visible opening.
+	detour_actor["stall_count"]=1
+	if not detour_fixture.enemy_open_frontline_detour(detour_actor,detour_fixture.player) or detour_fixture.enemy_unstall_step(detour_actor,detour_fixture.player)!=Vector2i(2,5):failures.append("early detour uses open crowded frontline")
+	checks+=1
+	detour_actor["unstall_turn"]=21
+	if detour_fixture.enemy_unstall_step(detour_actor,detour_fixture.player)!=detour_actor.pos:failures.append("early detour respects cooldown")
+	checks+=1
+	detour_actor.erase("unstall_turn")
+	var held_peer:Dictionary=detour_fixture.enemies.pop_back()
+	if detour_fixture.enemy_open_frontline_detour(detour_actor,detour_fixture.player) or detour_fixture.enemy_unstall_step(detour_actor,detour_fixture.player)!=detour_actor.pos:failures.append("early detour needs crowded frontline")
+	checks+=1
+	detour_fixture.enemies.append(held_peer)
+	detour_fixture.shield_kind="protect";detour_fixture.shield_turns=1
+	if detour_fixture.enemy_open_frontline_detour(detour_actor,detour_fixture.player) or detour_fixture.enemy_unstall_step(detour_actor,detour_fixture.player)!=detour_actor.pos:failures.append("early detour respects protect")
+	checks+=1
+	detour_fixture.shield_kind="";detour_fixture.shield_turns=0
+	detour_actor["stall_count"]=2
 	var detour_result:Vector2i=detour_fixture.enemy_unstall_step(detour_actor,detour_fixture.player)
 	if detour_result!=Vector2i(2,5):failures.append("unstall extended friendly frontline detour")
 	checks+=1
@@ -2545,7 +2562,7 @@ func run_checks()->void:
 		if int(action.get("uid",-1))==400 and str(action.get("phase",""))=="attack":replacement_attacks+=1
 	if replacement_attacks!=1:failures.append("live vacancy attack on following turn")
 	checks+=1
-	print("KINDRIA_ANTI_STALL checks=108")
+	print("KINDRIA_ANTI_STALL checks=112")
 	# A direct witness may report a tile, but a listener cannot relay it.
 	var comm=Rules.new()
 	for x in range(1,4):comm.cells[Vector2i(x,3)]=true
