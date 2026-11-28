@@ -2291,8 +2291,14 @@ func enemy_strategy_record_step(e:Dictionary,origin:Vector2i,destination:Vector2
 func enemy_strategy_reversal(e:Dictionary,proposed:Vector2i,target:Vector2i)->bool:
 	return bool(e.get("personality_enabled",false)) and enemy_opportunity_eligible(e) and target==player and charge_phase not in ["underground","airborne","vanish"] and int(e.get("strategy_turn",-9999))==turns-1 and e.get("strategy_target",Vector2i.ZERO)==target and e.get("strategy_to",Vector2i.ZERO)==e.pos and e.get("strategy_from",Vector2i.ZERO)==proposed
 
+# A basic strike is one legal step away, including a clear diagonal.
+func enemy_melee_adjacent(origin:Vector2i,target:Vector2i)->bool:
+	var direction:Vector2i=target-origin
+	if ai_legacy_cardinal_replay and direction not in DIR:return false
+	return step_clear(origin,direction)
+
 func enemy_strategy_attack_tile(e:Dictionary,q:Vector2i,target:Vector2i)->bool:
-	if distance(q,target)==1:return true
+	if enemy_melee_adjacent(q,target):return true
 	var species:String=str(e.get("species",""))
 	var skill:Array=signature_skill(e)
 	if int(e.get("cooldown",0))<=0 and enemy_move_allowed(e,"primary") and enemy_projected_attack_aim(e,q,target,str(ATTACK_PATTERNS.get(species,"line")),int(skill[0]))!=Vector2i.ZERO:return true
@@ -2311,9 +2317,9 @@ func enemy_occupied_frontline(e:Dictionary,target:Vector2i)->bool:
 	if not enemy_opportunity_eligible(e) or distance(e.pos,target)<=1:return false
 	if enemy_strategy_attack_tile(e,e.pos,target):return false
 	var occupied:int=0
-	for d in DIR:
+	for d in (DIR if ai_legacy_cardinal_replay else COMBAT_DIR):
 		var q:Vector2i=target+d
-		if not cells.has(q):continue
+		if not step_clear(target,d):continue
 		if not enemy_line_of_sight(e.pos,q):return false
 		var index:int=enemy_at(q)
 		if index<0 or int(enemies[index].get("hp",0))<=0:return false
@@ -2326,9 +2332,9 @@ func enemy_encircled_frontline(e:Dictionary,target:Vector2i)->bool:
 	# Walls close cardinal approach lanes too, but a wall alone is not a squad.
 	# Require at least two active peers and never treat traps as solid walls.
 	var frontline_count:int=0
-	for d in DIR:
+	for d in (DIR if ai_legacy_cardinal_replay else COMBAT_DIR):
 		var q:Vector2i=target+d
-		if not cells.has(q):continue
+		if not step_clear(target,d):continue
 		var index:int=enemy_at(q)
 		if index<0 or not enemy_squad_partner(e,enemies[index]):return false
 		frontline_count+=1
@@ -2723,7 +2729,7 @@ func enemy_strategy_alternative(e:Dictionary,proposed:Vector2i,target:Vector2i)-
 func enemy_decision_attack_value(e:Dictionary,post:Vector2i,target:Vector2i)->float:
 	if target!=player:return 0.0
 	var best:float=0.0
-	if distance(post,target)==1:best=float(enemy_opportunity_damage_at(e,[],false,true,post))
+	if enemy_melee_adjacent(post,target):best=float(enemy_opportunity_damage_at(e,[],false,true,post))
 	var species:String=str(e.get("species",""))
 	var skill:Array=signature_skill(e)
 	if not bool(skill[1]) and enemy_move_allowed(e,"primary") and int(e.get("cooldown",0))<=0:
@@ -5696,7 +5702,7 @@ func enemy_party_attack_plan(e:Dictionary,reuse_scores:bool=true,defer_geometry:
 	var player_context:float=0.0
 	var player_visible:bool=enemy_live_contact(e,player)
 	var player_protected:bool=(shield_turns>0 and shield_kind=="protect") or charge_phase in ["underground","airborne","vanish"]
-	if player_visible and not player_protected and distance(origin,player)==1:player_value=float(maxi(1,1+tier))+enemy_party_player_ko_bonus(e,[],false,true)
+	if player_visible and not player_protected and enemy_melee_adjacent(origin,player):player_value=float(maxi(1,1+tier))+enemy_party_player_ko_bonus(e,[],false,true)
 	if player_visible and not player_protected and int(e.get("cooldown",0))<=0 and enemy_move_allowed(e,"primary") and attack_aim(origin,player,str(ATTACK_PATTERNS.get(species,"line")),int(primary[0]))!=Vector2i.ZERO:
 		player_kit_values["primary"]=enemy_party_player_attack_value(e,primary,false)
 		player_value=maxf(player_value,float(player_kit_values["primary"]))
@@ -6010,7 +6016,7 @@ func enemy_opportunity_eligible(e:Dictionary)->bool:
 	return bool(e.get("personality_enabled",false)) and enemy_alert_eligible(e) and not bool(e.get("windup",false)) and enemy_live_contact(e,player)
 
 func enemy_basic_finish(e:Dictionary)->bool:
-	if not enemy_opportunity_eligible(e) or distance(e.pos,player)!=1 or hp<=0 or hp>enemy_opportunity_damage(e,[],false,true):return false
+	if not enemy_opportunity_eligible(e) or not enemy_melee_adjacent(e.pos,player) or hp<=0 or hp>enemy_opportunity_damage(e,[],false,true):return false
 	if int(e.get("whiffer_turns",0))>0 or enemy_stat_effect(e,"accuracy")*player_stat_effect("evasion")/(263.0/256.0)<1.0:return false
 	# Keep valuable multi-target opportunities instead of blindly conserving PP.
 	return not enemy_has_party_area_attack(e)
@@ -6519,7 +6525,7 @@ func enemy_turn_actions_impl():
 			enemy_actions.append({"uid":enemies[i].get("uid",i),"phase":"windup","from":p,"to":p+aim,"move":enemies[i].get("signature","Heavy attack"),"fx":skill[6],"tiles":footprint.keys()})
 			message="%s charging %s!"%[enemies[i].get("name","Enemy"),enemies[i].get("signature","Heavy attack")]
 			continue
-		if (ready and in_range) or (gap==1 and not (ready and in_range)):
+		if (ready and in_range) or (enemy_melee_adjacent(p,player) and not (ready and in_range)):
 			enemies[i].windup=false
 			var special:bool=ready and in_range
 			var protected_charge:bool=charge_phase in ["underground","airborne","vanish"]

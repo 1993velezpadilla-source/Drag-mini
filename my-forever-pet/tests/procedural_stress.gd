@@ -975,6 +975,25 @@ func run_checks()->void:
 		checks+=1
 		octant_route.cells[oct_wall]=true
 	print("KINDRIA_OCTANT_PURSUIT checks=8")
+	# Real zero-PP melee dispatch from each octant, not just geometric aim.
+	for melee_dir in Rules.DIR8:
+		var melee_arena=Rules.new()
+		for melee_y in range(1,8):
+			for melee_x in range(1,8):melee_arena.cells[Vector2i(melee_x,melee_y)]=true
+		melee_arena.player=Vector2i(4,4)
+		melee_arena.hp=100;melee_arena.max_hp=100;melee_arena.belly_tenths=1000
+		var melee_actor:Dictionary={"uid":990,"pos":melee_arena.player-melee_dir,"hp":30,"kind":0,"species":"rootgnawer","ecology_role":"hunter","ecology_search_enabled":true,"personality_enabled":true,"pp_primary":0,"pp_secondary":0,"pp_support":0,"pp_control":0,"stages":{"accuracy":10}}
+		melee_arena.enemies.append(melee_actor)
+		var melee_origin:Vector2i=melee_actor.pos
+		if not melee_arena.enemy_melee_adjacent(melee_origin,melee_arena.player):failures.append("eight direction basic strike geometry")
+		melee_arena.enemy_turn_actions()
+		if melee_arena.enemy_actions.size()!=1 or str(melee_arena.enemy_actions[0].get("phase",""))!="attack" or melee_actor.pos!=melee_origin or melee_actor.pp_primary!=0:failures.append("eight direction zero PP basic strike dispatch")
+		checks+=2
+		if melee_dir.x!=0 and melee_dir.y!=0:
+			melee_arena.cells.erase(melee_origin+Vector2i(melee_dir.x,0))
+			if melee_arena.enemy_melee_adjacent(melee_origin,melee_arena.player):failures.append("basic strike cannot cross closed corner")
+			checks+=1
+	print("KINDRIA_OCTANT_BASIC_STRIKE checks=20")
 	# Memory follows only the last observed position and expires by global turn.
 	var memory_fixture=Rules.new()
 	for x in range(1,18):memory_fixture.cells[Vector2i(x,3)]=true
@@ -2583,6 +2602,10 @@ func run_checks()->void:
 	ring_fixture.enemies.append(ring_actor)
 	for d in [Vector2i.LEFT,Vector2i.RIGHT,Vector2i.UP,Vector2i.DOWN]:
 		ring_fixture.enemies.append({"uid":330+ring_fixture.enemies.size(),"pos":ring_fixture.player+d,"hp":30,"kind":0,"species":"rootgnawer","ecology_search_enabled":true,"pp_primary":0,"pp_secondary":0})
+	if ring_fixture.enemy_encircled_frontline(ring_actor,ring_fixture.player):failures.append("four cardinal guards leave diagonal openings")
+	checks+=1
+	for d in [Vector2i(1,-1),Vector2i(1,1),Vector2i(-1,1),Vector2i(-1,-1)]:
+		ring_fixture.enemies.append({"uid":330+ring_fixture.enemies.size(),"pos":ring_fixture.player+d,"hp":30,"kind":0,"species":"rootgnawer","ecology_search_enabled":true,"pp_primary":0,"pp_secondary":0})
 	if not ring_fixture.enemy_encircled_frontline(ring_actor,ring_fixture.player):failures.append("reserve complete live frontline")
 	checks+=1
 	ring_fixture.enemies[1]["sleep_turns"]=2
@@ -2635,7 +2658,7 @@ func run_checks()->void:
 	wall_ring.player=Vector2i(1,4);wall_ring.stairs=Vector2i(7,7);wall_ring.relic=Vector2i(7,6);wall_ring.turns=22
 	var wall_reserve:Dictionary={"uid":340,"pos":Vector2i(3,4),"hp":30,"kind":0,"species":"rootgnawer","ecology_role":"hunter","ecology_search_enabled":true,"personality_enabled":true,"pp_primary":0,"pp_secondary":0}
 	wall_ring.enemies.append(wall_reserve)
-	for d in [Vector2i.RIGHT,Vector2i.UP,Vector2i.DOWN]:
+	for d in [Vector2i.RIGHT,Vector2i.UP,Vector2i.DOWN,Vector2i(1,-1),Vector2i(1,1)]:
 		wall_ring.enemies.append({"uid":340+wall_ring.enemies.size(),"pos":wall_ring.player+d,"hp":30,"kind":0,"species":"rootgnawer","ecology_search_enabled":true,"pp_primary":0,"pp_secondary":0})
 	if not wall_ring.enemy_encircled_frontline(wall_reserve,wall_ring.player):failures.append("reserve wall assisted frontline")
 	checks+=1
@@ -2733,7 +2756,7 @@ func run_checks()->void:
 	congestion.player=Vector2i(4,4);congestion.stairs=Vector2i(7,7);congestion.relic=Vector2i(7,6);congestion.turns=22
 	var waiting:Dictionary={"uid":360,"pos":Vector2i(2,4),"hp":30,"kind":0,"species":"rootgnawer","ecology_role":"hunter","ecology_search_enabled":true,"personality_enabled":true,"pp_primary":0,"pp_secondary":0}
 	congestion.enemies.append(waiting)
-	for d in [Vector2i.LEFT,Vector2i.RIGHT,Vector2i.UP,Vector2i.DOWN]:
+	for d in [Vector2i.LEFT,Vector2i.RIGHT,Vector2i.UP,Vector2i.DOWN,Vector2i(1,-1),Vector2i(1,1),Vector2i(-1,1),Vector2i(-1,-1)]:
 		congestion.enemies.append({"uid":360+congestion.enemies.size(),"pos":congestion.player+d,"hp":30,"kind":0,"species":"rootgnawer","ecology_search_enabled":true,"pp_primary":0,"pp_secondary":0})
 	congestion.enemies[1]["sleep_turns"]=2
 	if not congestion.enemy_occupied_frontline(waiting,congestion.player) or congestion.enemy_encircled_frontline(waiting,congestion.player):failures.append("physical congestion distinct from active ring")
