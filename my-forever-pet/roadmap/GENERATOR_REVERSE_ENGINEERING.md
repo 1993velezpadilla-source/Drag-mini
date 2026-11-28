@@ -38,3 +38,13 @@ Commits b72c20e44474100eb9c03e3c78eaf791b117326a and 8086c52bcc33a2a3a76d796d2ad
 All dungeons, procedural families, loot tables, recruitment, combat power, experience and progression must be obtainable without payment. Purchases may remove ads or provide non-stat cosmetic customization; no paid gear, boosted drop rates, extra power, paid-exclusive progression, paid retries or energy shortcuts. Ads should not interrupt combat or determine rewards or access. This is a product constraint, not an implemented billing system.
 ### Next replayability work
 Independent biome/terrain and room-event profiles, optional treasure branches, Monster Houses, encounter/loot distributions and dungeon-specific weighted recipes; measure novelty and performance rather than merely adding map labels. Preserve portrait layout, deterministic seed reproduction, and fair grinding. Avoid forced detours or key gates on ordinary floors. Android performance and long-run repetition audits remain release gates.
+
+
+## V26.29 — Procedural Dungeon Ecosystem
+
+- Independent seeded microgeometry profiles: Open, Pillars, Offset pillars, Alcoves, Mixed. Solid interior tiles are only removed from an intact eight-neighbor ring; room centers and entrances are preserved. Final obstacle ledger removes any tile reopened by corridor carving.
+- Six ecology profiles: Balanced, Foraging, Patrols, Hazards, Quiet, Mixed. Bounded spawn budgets preserve the tutorial and explicit rescue guardian finale balance. No changes to normal stairs access; no purchase inputs to generation or rewards.
+- Up to 10,680 theoretical normal recipe tuples (356 topology/room/link combinations × 5 interior × 6 ecology); not a verified unique map count. Existing 1,024 geometry history and mobile room cap retained.
+- Expanded the existing 768-seed gauntlet with obstacle integrity, profile coverage, tutorial isolation and first-floor budget checks. CI and real Android verification pending.
+- Next: true merged rooms, passable secondary terrain with batched visual rendering, secret optional areas, biome-specific ecologies, encounter composition and long-run repetition measurement. Do not describe these as implemented yet.
+- Free-to-play, never pay-to-win: optional ad removal/cosmetics only; no paid progression, drop-rate, damage, or experience advantages.
