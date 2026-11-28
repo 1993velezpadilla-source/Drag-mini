@@ -1866,6 +1866,10 @@ func enemy_clear_alert(e:Dictionary)->void:
 	for key in ["alert_tile","alert_turn","alert_until","alert_source"]:e.erase(key)
 
 func enemy_share_alerts(observed:Vector2i)->void:
+	if boon_active("decoy"):
+		for e in enemies:enemy_clear_alert(e)
+		return
+	if charge_phase in ["underground","airborne","vanish"]:return
 	var witnesses:Array[Dictionary]=[]
 	var listeners:Array[Dictionary]=[]
 	for e in enemies:
@@ -1875,7 +1879,6 @@ func enemy_share_alerts(observed:Vector2i)->void:
 			witnesses.append(e)
 			enemy_clear_alert(e)
 		else:listeners.append(e)
-	if boon_active("decoy"):return
 	for listener in listeners:
 		var best:Dictionary={}
 		var best_gap:int=ENEMY_ALERT_RANGE+1
