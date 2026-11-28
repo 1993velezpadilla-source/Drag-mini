@@ -2101,6 +2101,77 @@ func enemy_survival_profile(e:Dictionary)->String:
 
 # A retreat is a single ordinary movement action, capped per injury episode.
 # Pure evaluation: no healing, attack, PP, RNG or position mutation.
+# Local threat assessment uses recent personally received damage and visible
+# combatants. It cannot inspect player inventory or predict unobserved moves.
+func enemy_risk_snapshot(e:Dictionary,target:Vector2i)->Dictionary:
+	var origin:Vector2i=e.pos
+	if target!=player or not enemy_opportunity_eligible(e) or charge_phase in ["underground","airborne","vanish"]:return {}
+	var friendly:int=1
+	var hostile:int=1
+	var support:Array[Vector2i]=[]
+	for other in enemies:
+		if not enemy_squad_partner(e,other) or int(other.get("decoy_turns",0))>0 or not enemy_line_of_sight(other.pos,target):continue
+		if int(other.hp)*2<=maxi(1,int(other.get("max_hp",other.hp))):continue
+		if distance(other.pos,target)>mini(4,enemy_awareness(other)):continue
+		friendly+=1
+		if enemy_push_attack_coverage(other,target)>0:support.append(other.pos)
+	for a in allies:
+		if int(a.hp)<=0 or distance(origin,a.pos)>mini(4,enemy_awareness(e)) or not enemy_line_of_sight(origin,a.pos) or distance(target,a.pos)>3:continue
+		hostile+=1
+	var life:int=int(e.hp)
+	var cap:int=maxi(1,int(e.get("max_hp",life)))
+	var age:int=turns-int(e.get("incoming_turn",-9999))
+	var recent:int=int(e.get("incoming_damage",0)) if age>=0 and age<=3 else 0
+	var risk:int=0
+	if life*2<=cap:risk+=2
+	if recent>=life:risk+=3
+	elif recent*4>=cap:risk+=1
+	risk+=clampi(hostile-friendly,0,2)*2
+	if not support.is_empty():risk-=1
+	if friendly>hostile:risk-=1
+	return {"risk":maxi(0,risk),"friendly":friendly,"hostile":hostile,"support":support,"recent":recent}
+
+func enemy_risk_has_finisher(e:Dictionary)->bool:
+	if enemy_basic_finish(e):return true
+	if int(e.get("whiffer_turns",0))>0 or enemy_stat_effect(e,"accuracy")*player_stat_effect("evasion")/(263.0/256.0)<.85:return false
+	var species:String=str(e.get("species",""))
+	var skill:Array=signature_skill(e)
+	if not bool(skill[1]) and int(e.get("cooldown",0))<=0 and enemy_move_allowed(e,"primary") and attack_aim(e.pos,player,str(ATTACK_PATTERNS.get(species,"line")),int(skill[0]))!=Vector2i.ZERO and enemy_opportunity_damage(e,skill,false)>=hp:return true
+	if int(e.get("alt_cooldown",0))<=0 and SECONDARY_SKILLS.has(species) and enemy_move_allowed(e,"secondary"):
+		var alt:Array=SECONDARY_SKILLS[species]
+		return attack_aim(e.pos,player,str(alt[1]),int(alt[0]))!=Vector2i.ZERO and enemy_opportunity_damage(e,[alt[0],false,3,alt[3],alt[4],alt[5],"alt_"+species],true)>=hp
+	return false
+
+# One ordinary safer step, with a retry interval, not indefinite retreat.
+func enemy_risk_step(e:Dictionary,target:Vector2i)->Vector2i:
+	var origin:Vector2i=e.pos
+	if int(e.get("stuck_turns",0))>0 or turns<=int(e.get("risk_move_turn",-9999))+3:return origin
+	if bool(e.get("monster_house",false)) and not bool(e.get("house_tactical",false)):return origin
+	var profile:String=enemy_survival_profile(e)
+	if profile not in ["cautious","defensive"]:return origin
+	var gap:int=distance(origin,target)
+	if gap<1 or gap>3:return origin
+	var report:Dictionary=enemy_risk_snapshot(e,target)
+	if int(report.get("risk",0))<(4 if profile=="cautious" else 6) or enemy_risk_has_finisher(e) or enemy_has_party_area_attack(e):return origin
+	var best:Vector2i=origin
+	var best_score:int=-2147483647
+	for d in DIR:
+		var q:Vector2i=origin+d
+		if not enemy_ambush_safe_tile(q) or distance(q,target)<=gap:continue
+		var exits:int=0
+		for onward in DIR:
+			if q+onward!=origin and enemy_ambush_safe_tile(q+onward):exits+=1
+		if exits==0:continue
+		var exposure:int=0
+		for a in allies:
+			if int(a.hp)>0 and distance(origin,a.pos)<=mini(4,enemy_awareness(e)) and enemy_line_of_sight(origin,a.pos) and distance(q,a.pos)<distance(origin,a.pos):exposure+=1
+		if exposure>0:continue
+		var score:int=exits*2+(0 if enemy_line_of_sight(q,target) else 3)
+		for tile in report.get("support",[]):
+			if distance(q,tile)<distance(origin,tile):score+=3
+		if score>best_score:best_score=score;best=q
+	return best
+
 func enemy_retreat_step(e:Dictionary,target:Vector2i)->Vector2i:
 	var origin:Vector2i=e.pos
 	if not bool(e.get("ecology_search_enabled",false)) or bool(e.get("monster_house",false)) or int(e.get("kind",0))==3:return origin
@@ -4620,6 +4691,12 @@ func enemy_turn_actions_impl():
 			enemy_tick_all_cooldowns(enemies[i]);continue
 		var survival_cap:int=int(enemies[i].get("max_hp",0))
 		if survival_cap>0 and int(enemies[i].hp)*2>survival_cap:enemies[i].erase("retreat_steps")
+		var risk_step:Vector2i=enemy_risk_step(enemies[i],player)
+		if risk_step!=p:
+			enemies[i].pos=risk_step;enemies[i]["risk_move_turn"]=turns
+			enemy_tick_all_cooldowns(enemies[i])
+			enemy_actions.append({"uid":enemies[i].get("uid",i),"phase":"move","from":p,"to":risk_step,"gait":enemies[i].get("gait","walk")})
+			continue
 		var retreat:Vector2i=enemy_retreat_step(enemies[i],player)
 		if retreat!=p:
 			enemies[i].pos=retreat
