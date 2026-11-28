@@ -453,12 +453,18 @@ func load_layout_history()->void:
 	if saved is Array or saved is PackedStringArray:
 		for signature in saved:
 			if signature is String and signature.length()==64:run.remember_layout(signature)
+	var shapes:Variant=config.get_value("dungeons","canonical_shapes_v1",[])
+	if shapes is Array or shapes is PackedStringArray:
+		for signature in shapes:
+			if signature is String:run.remember_shape(signature)
 
 func save_layout_history()->void:
 	if run.dev_sandbox:return
 	var config:=ConfigFile.new()
 	config.set_value("dungeons","geometry",run.recent_layouts)
-	config.save(LAYOUT_HISTORY_PATH)
+	config.set_value("dungeons","canonical_shapes_v1",run.recent_shapes)
+	var error:int=config.save(LAYOUT_HISTORY_PATH)
+	if error!=OK:push_warning("Kindria layout history save failed: %d"%error)
 
 func setup(r:int,id:int,step:int,finale:bool,patrol:bool,seed_id:int,companion:int,training:Dictionary={},intro_woods:bool=false):
 	fx_diag_enabled="--kindria-diagnostics" in OS.get_cmdline_user_args() or FileAccess.file_exists("user://kindria-diagnostics.enabled")
