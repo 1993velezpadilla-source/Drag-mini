@@ -3040,7 +3040,19 @@ func run_checks()->void:
 	stage_fixture.traps.clear();stage_ranged["cooldown"]=1
 	if stage_fixture.enemy_firing_lane_stage_step(stage_actor,stage_fixture.player)!=stage_actor.pos:failures.append("lane staging requires active firing reservation")
 	checks+=1
-	print("KINDRIA_ANTI_STALL checks=205")
+	# The staging tile can look closer while all intermediate access is blocked.
+	stage_ranged["cooldown"]=0
+	stage_fixture.traps[Vector2i(5,5)]="snare"
+	if stage_fixture.enemy_firing_lane_stage_step(stage_actor,stage_fixture.player)!=stage_actor.pos:failures.append("lane staging rejects trapped intermediate access")
+	checks+=1
+	stage_fixture.traps.clear()
+	stage_fixture.enemies.append({"uid":799,"pos":Vector2i(5,5),"hp":30,"kind":0,"species":"rootgnawer","pp_primary":0,"pp_secondary":0})
+	if stage_fixture.enemy_firing_lane_stage_step(stage_actor,stage_fixture.player)!=stage_actor.pos:failures.append("lane staging rejects occupied intermediate access")
+	checks+=1
+	stage_fixture.enemies.pop_back()
+	if stage_fixture.enemy_firing_lane_stage_step(stage_actor,stage_fixture.player) not in [Vector2i(5,6),Vector2i(6,5)]:failures.append("lane staging rechecks newly available intermediate access")
+	checks+=1
+	print("KINDRIA_ANTI_STALL checks=208")
 	# A direct witness may report a tile, but a listener cannot relay it.
 	var comm=Rules.new()
 	for x in range(1,4):comm.cells[Vector2i(x,3)]=true
