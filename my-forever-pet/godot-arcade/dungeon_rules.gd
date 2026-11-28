@@ -4015,6 +4015,21 @@ func enemy_safe_party_approach(e:Dictionary,target:Vector2i)->Vector2i:
 			depths[q]=int(depths[tile])+1;first[q]=q if tile==origin else first[tile];queue.append(q)
 	return origin
 
+# Prefer the nearest *reachable* observed opponent. A sealed or trapped
+# opponent must not veto a different legal target. Equal distances retain
+# party order for deterministic behavior and existing priority semantics.
+func enemy_party_approach_plan(e:Dictionary)->Dictionary:
+	var origin:Vector2i=e.pos
+	var max_gap:int=mini(6,mini(enemy_awareness(e),distance(origin,player)-1))
+	for gap in range(1,max_gap+1):
+		for j in range(allies.size()):
+			var a:Dictionary=allies[j]
+			if int(a.hp)<=0 or distance(origin,a.pos)!=gap or not enemy_line_of_sight(origin,a.pos):continue
+			if gap==1:return {"index":j,"gap":gap,"step":origin}
+			var step:Vector2i=enemy_safe_party_approach(e,a.pos)
+			if step!=origin:return {"index":j,"gap":gap,"step":step}
+	return {}
+
 func enemy_target_ally(i:int)->bool:
 	if boon_active("decoy"):return false
 	var e:Dictionary=enemies[i]
@@ -4025,11 +4040,16 @@ func enemy_target_ally(i:int)->bool:
 		if enemy_execute_party_attack(i,enemy_party_attack_plan(e)):return true
 	var nearest:int=-1
 	var best:int=distance(origin,player)
-	for j in range(allies.size()):
-		if int(allies[j].hp)<=0:continue
-		var gap:int=distance(origin,allies[j].pos)
-		if tactical and (gap>enemy_awareness(e) or not enemy_line_of_sight(origin,allies[j].pos)):continue
-		if gap<best and gap<=6:nearest=j;best=gap
+	var planned_step:Vector2i=origin
+	if tactical:
+		var plan:Dictionary=enemy_party_approach_plan(e)
+		if plan.is_empty():return false
+		nearest=int(plan.index);best=int(plan.gap);planned_step=plan.step
+	else:
+		for j in range(allies.size()):
+			if int(allies[j].hp)<=0:continue
+			var gap:int=distance(origin,allies[j].pos)
+			if gap<best and gap<=6:nearest=j;best=gap
 	if nearest<0:return false
 	var a:Dictionary=allies[nearest]
 	e["windup"]=false
@@ -4040,10 +4060,8 @@ func enemy_target_ally(i:int)->bool:
 		enemy_actions.append({"uid":e.get("uid",i),"phase":"attack","from":origin,"to":a.pos,"move":"Ally strike","fx":"basic_strike","damage":damage,"tiles":[a.pos],"path":[a.pos]})
 		emit_event("Ally struck −%d HP"%damage)
 		enemy_tick_all_cooldowns(e);return true
-	var step:Vector2i=origin
-	if tactical:
-		step=enemy_safe_party_approach(e,a.pos)
-	else:
+	var step:Vector2i=planned_step
+	if not tactical:
 		var path:Array[Vector2i]=route(origin,a.pos,true)
 		if not path.is_empty() and free_party_tile(path[0]):step=path[0]
 	if step!=origin and int(e.get("stuck_turns",0))<=0:
