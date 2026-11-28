@@ -1086,6 +1086,49 @@ func run_checks()->void:
 	if house_tactics.enemy_pursuit_target(house_guard,Vector2i(5,5))==Vector2i(5,5):failures.append("house tactical memory expires behind wall")
 	checks+=2
 	print("KINDRIA_HOUSE_TACTICS roles=1 spawn=3 stairs=1 formation=3 memory=2")
+	# Guardian tactics change decisions, not the original combat action budget.
+	var boss_fixture=Rules.new()
+	for y in range(1,10):
+		for x in range(1,10):boss_fixture.cells[Vector2i(x,y)]=true
+	boss_fixture.player=Vector2i(5,3);boss_fixture.stairs=Vector2i(9,9);boss_fixture.relic=Vector2i(3,3)
+	var boss_actor:Dictionary={"uid":99,"pos":Vector2i(3,3),"hp":30,"max_hp":30,"kind":3,"species":"abyss_colossus","name":"Abyss Colossus","pp_primary":0,"pp_secondary":0}
+	boss_fixture.boss_initialize(boss_actor)
+	boss_fixture.enemies.append(boss_actor)
+	if boss_fixture.boss_combat_phase(boss_actor)!=0 or boss_actor.get("control_move","")!="eos_284" or int(boss_actor.get("pp_control",0))<=0:failures.append("boss initial phase and learned control")
+	checks+=1
+	boss_actor.hp=20
+	boss_fixture.boss_observe_phase(boss_actor)
+	if boss_actor.boss_phase!=1 or boss_fixture.boss_attack_preference(boss_actor,true)!=0.0:failures.append("boss pressure phase")
+	checks+=1
+	boss_actor.hp=10
+	boss_fixture.boss_observe_phase(boss_actor)
+	if boss_actor.boss_phase!=2 or boss_fixture.boss_attack_preference(boss_actor,true)<=0.0 or boss_actor.hp!=10 or boss_actor.max_hp!=30:failures.append("boss last stand no stat inflation")
+	checks+=1
+	if boss_fixture.boss_tactical_style({"species":"fungal_monarch"})!="zone" or boss_fixture.boss_tactical_style({"species":"tidal_sovereign"})!="crossfire" or boss_fixture.boss_tactical_style({"species":"celestial_guardian"})!="sentinel":failures.append("boss distinct styles")
+	checks+=1
+	var boss_step:Vector2i=boss_fixture.boss_reposition_step(boss_actor,boss_fixture.player)
+	if boss_step!=Vector2i(4,3) or boss_actor.pos!=Vector2i(3,3):failures.append("boss legal movement purity")
+	checks+=1
+	boss_fixture.traps[boss_step]="snare"
+	if boss_fixture.boss_reposition_step(boss_actor,boss_fixture.player)==boss_step:failures.append("boss avoids trap")
+	boss_fixture.traps.clear()
+	checks+=1
+	boss_actor["windup"]=true
+	if boss_fixture.boss_reposition_step(boss_actor,boss_fixture.player)!=boss_actor.pos:failures.append("boss telegraph not redirected")
+	boss_actor.erase("windup")
+	checks+=1
+	boss_actor["stuck_turns"]=2
+	if boss_fixture.boss_reposition_step(boss_actor,boss_fixture.player)!=boss_actor.pos:failures.append("boss rooted movement gate")
+	boss_actor.erase("stuck_turns")
+	checks+=1
+	boss_actor["pp_control"]=0
+	boss_fixture.enemy_turn_actions()
+	if boss_actor.pos!=boss_step or boss_fixture.enemy_actions.size()!=1 or boss_fixture.enemy_actions[0].get("phase","")!="move":failures.append("boss real turn single movement")
+	checks+=1
+	boss_actor.pos=Vector2i(7,3);boss_fixture.player=Vector2i(9,3)
+	if boss_fixture.boss_reposition_step(boss_actor,boss_fixture.player)==Vector2i(8,3):failures.append("boss home leash")
+	checks+=1
+	print("KINDRIA_BOSS_TACTICS phases=3 styles=1 movement=6")
 	# Actual disk I/O, legacy migration, corruption recovery, and resumed writes.
 	var test_path:String="user://kindria_procedural_test_"+str(OS.get_process_id())+".cfg"
 	var exact:Array[String]=["legacy exact".sha256_text()]
