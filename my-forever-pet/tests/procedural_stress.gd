@@ -4061,6 +4061,19 @@ func run_checks()->void:
 	reserve_fixture.enemies.append(reserve_actor);reserve_fixture.enemies.append(reserve_peer)
 	if not reserve_fixture.enemy_dynamic_reserve_plan(reserve_actor,reserve_fixture.player).is_empty() or reserve_fixture.enemy_dynamic_reserve_plan(reserve_peer,reserve_fixture.player).get("step")!=Vector2i(5,4):failures.append("reserve deterministic election")
 	checks+=1
+	# Compare the lower-bound election with the unpruned reference across
+	# shorter, equal and longer optimistic costs, plus blocked direct routes.
+	for reserve_pos in [Vector2i(6,4),Vector2i(7,4),Vector2i(5,5),Vector2i(5,6)]:
+		reserve_peer.pos=reserve_pos
+		for reserve_uid in [10,30]:
+			reserve_peer.uid=reserve_uid
+			for reserve_trap in [Vector2i.ZERO,Vector2i(4,5),Vector2i(5,4)]:
+				if reserve_trap!=Vector2i.ZERO:reserve_fixture.traps[reserve_trap]="snare"
+				for reserve_subject in [reserve_actor,reserve_peer]:
+					if reserve_fixture.enemy_dynamic_reserve_plan(reserve_subject,reserve_fixture.player)!=reserve_fixture.enemy_dynamic_reserve_plan(reserve_subject,reserve_fixture.player,false):failures.append("reserve lower bound election parity")
+					checks+=1
+				reserve_fixture.traps.erase(reserve_trap)
+	reserve_peer.pos=Vector2i(6,4);reserve_peer.uid=10
 	# An already processed peer cannot win a new frontline election.
 	reserve_fixture.enemy_phase_spent[10]=true
 	if reserve_fixture.enemy_reserve_candidate(reserve_peer,reserve_fixture.player) or reserve_fixture.enemy_dynamic_reserve_plan(reserve_actor,reserve_fixture.player).get("step")!=Vector2i(4,5):failures.append("reserve spent peer cannot veto available reinforcement")
@@ -4120,7 +4133,7 @@ func run_checks()->void:
 	reserve_fixture.cells.erase(Vector2i(4,5))
 	if not reserve_fixture.enemy_dynamic_reserve_plan(reserve_actor,reserve_fixture.player).is_empty():failures.append("reserve no target sight through wall")
 	checks+=1
-	print("KINDRIA_DYNAMIC_SQUAD_ROLES checks=17")
+	print("KINDRIA_DYNAMIC_SQUAD_ROLES checks=65")
 	# Forecast only witnessed retreats, and commit only a safe ordinary step.
 	var forecast=Rules.new()
 	for y in range(1,9):

@@ -4099,13 +4099,17 @@ func enemy_reserve_route(e:Dictionary,target:Vector2i,memoize_lanes:bool=true)->
 			depths[q]=depth+1;first[q]=q if depth==0 else first[here];queue.append(q)
 	return {}
 
-func enemy_dynamic_reserve_plan(e:Dictionary,target:Vector2i)->Dictionary:
+func enemy_dynamic_reserve_plan(e:Dictionary,target:Vector2i,prune_competitors:bool=true)->Dictionary:
 	if not enemy_reserve_candidate(e,target):return {}
 	var plan:Dictionary=enemy_reserve_route(e,target)
 	if plan.is_empty():return {}
 	for other in enemies:
 		if not enemy_squad_partner(e,other) or not enemy_reserve_candidate(other,target):continue
 		if bool(e.get("monster_house",false)) and int(e.get("monster_house_spawn_serial",-1))!=int(other.get("monster_house_spawn_serial",-2)):continue
+		# Cardinal steps can reduce Manhattan distance by at most one.
+		# A rival whose optimistic cost cannot win need not search a route.
+		var lower_bound:int=distance(other.pos,target)-1
+		if prune_competitors and (lower_bound>int(plan.cost) or (lower_bound==int(plan.cost) and int(other.get("uid",0))>=int(e.get("uid",0)))):continue
 		var alternative:Dictionary=enemy_reserve_route(other,target)
 		if alternative.is_empty():continue
 		if int(alternative.cost)<int(plan.cost) or (int(alternative.cost)==int(plan.cost) and int(other.get("uid",0))<int(e.get("uid",0))):return {}
