@@ -1532,7 +1532,18 @@ func run_checks()->void:
 	status_actor.erase("whiffer_turns");status_actor.stages["accuracy"]=10;status_fixture.player_stages.clear()
 	if status_fixture.rng.state!=status_contact_rng or status_actor.pp_control!=4 or status_fixture.enemy_actions.size()!=status_contact_actions:failures.append("status accuracy forecast purity")
 	checks+=1
-	print("KINDRIA_STATUS_TACTICS utility=2 gates=7 action=1 redundancy=1 priority=1 contact_purity=1 accuracy=6")
+	# A blocked direct attack must not crowd out a viable learned status move.
+	status_actor.species="rootgnawer";status_actor.pp_primary=12
+	if status_fixture.enemy_execute_control(0) or status_actor.pp_control!=4 or status_fixture.rng.state!=status_contact_rng:failures.append("status real direct attack remains preferred")
+	checks+=1
+	status_fixture.player_boons["magnet"]=3
+	status_fixture.gravity_active=true
+	if status_fixture.enemy_execute_control(0) or status_actor.pp_control!=4 or status_fixture.rng.state!=status_contact_rng:failures.append("status gravity restores direct competition")
+	checks+=1
+	status_fixture.gravity_active=false
+	if not status_fixture.enemy_execute_control(0) or status_actor.pp_control!=3 or status_actor.pp_primary!=12 or status_fixture.enemy_actions.size()!=status_contact_actions+1 or int(status_fixture.player_stages.get("defense",0))!=-1:failures.append("status viable debuff replaces immune attack")
+	checks+=1
+	print("KINDRIA_STATUS_TACTICS utility=2 gates=7 action=1 redundancy=1 priority=1 contact_purity=1 accuracy=6 alternatives=3")
 	# Area attacks hit each party member once, without sharing the player's shield.
 	var area_fixture=Rules.new()
 	for y in range(1,8):
