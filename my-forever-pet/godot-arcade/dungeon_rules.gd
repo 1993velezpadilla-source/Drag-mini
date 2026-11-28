@@ -2252,8 +2252,10 @@ func enemy_commit_recovery(e:Dictionary,origin:Vector2i,destination:Vector2i,mod
 	if destination==origin or mode not in ["immediate","detour","party","stage"]:return
 	e["recovery_turn"]=turns;e["recovery_mode"]=mode
 	if mode in ["detour","party"]:e["unstall_turn"]=turns
+	if mode!="stage":
+		e.erase("stage_turn");e.erase("stage_target");e.erase("stage_position")
 	elif mode=="stage":
-		e["stage_turn"]=turns;e["stage_target"]=player
+		e["stage_turn"]=turns;e["stage_target"]=player;e["stage_position"]=destination
 
 # A witnessed vacant frontline post is a concrete opportunity. Prefer it
 # only when it is adjacent, still empty, safe, and directly useful.
@@ -2424,7 +2426,7 @@ func enemy_unstall_step(e:Dictionary,target:Vector2i,allow_staging:bool=true)->V
 	# another idle turn, but keep the same live-contact and safety checks.
 	var stage_reentry:bool=false
 	var staged_target:Vector2i=e.get("stage_target",target)
-	if turns-int(e.get("stage_turn",-9999)) in [1,2] and distance(staged_target,target)<=2:
+	if turns-int(e.get("stage_turn",-9999)) in [1,2] and e.get("stage_position",Vector2i(-9999,-9999))==origin and distance(staged_target,target)<=2:
 		stage_reentry=enemy_released_firing_post(e,target)
 	# A witnessed casualty can open a new route before the normal stall
 	# threshold. Only retry once per recent loss after a committed detour.
@@ -5873,6 +5875,9 @@ func enemy_clear_acted_frontline_holds()->void:
 		e.erase("reserve_hold_turn");e.erase("reserve_hold_target")
 		e.erase("congestion_hold_turn");e.erase("congestion_hold_target")
 		e.erase("lane_hold_turn");e.erase("lane_hold_target")
+		# Any subsequent ordinary move or attack supersedes staging evidence.
+		if int(e.get("stage_turn",-9999))!=turns or e.get("stage_position",Vector2i(-9999,-9999))!=e.pos:
+			e.erase("stage_turn");e.erase("stage_target");e.erase("stage_position")
 
 func enemy_turn_actions():
 	if ai_recovery_trace_uid>=0:ai_recovery_trace.clear()
