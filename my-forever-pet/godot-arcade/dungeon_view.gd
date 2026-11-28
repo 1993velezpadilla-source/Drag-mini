@@ -447,23 +447,15 @@ var exterior_motion_materials:Dictionary={}
 var exterior_motion_batches=0
 const LAYOUT_HISTORY_PATH="user://kindria_layout_history.cfg"
 func load_layout_history()->void:
-	var config:=ConfigFile.new()
-	if config.load(LAYOUT_HISTORY_PATH)!=OK:return
+	var config:ConfigFile=Rules.read_layout_history(LAYOUT_HISTORY_PATH)
 	var saved:Variant=config.get_value("dungeons","geometry",[])
-	if saved is Array or saved is PackedStringArray:
-		for signature in saved:
-			if signature is String and signature.length()==64:run.remember_layout(signature)
+	for signature in saved:run.remember_layout(signature)
 	var shapes:Variant=config.get_value("dungeons","canonical_shapes_v1",[])
-	if shapes is Array or shapes is PackedStringArray:
-		for signature in shapes:
-			if signature is String:run.remember_shape(signature)
+	for signature in shapes:run.remember_shape(signature)
 
 func save_layout_history()->void:
 	if run.dev_sandbox:return
-	var config:=ConfigFile.new()
-	config.set_value("dungeons","geometry",run.recent_layouts)
-	config.set_value("dungeons","canonical_shapes_v1",run.recent_shapes)
-	var error:int=config.save(LAYOUT_HISTORY_PATH)
+	var error:int=Rules.write_layout_history(LAYOUT_HISTORY_PATH,run.recent_layouts,run.recent_shapes)
 	if error!=OK:push_warning("Kindria layout history save failed: %d"%error)
 
 func setup(r:int,id:int,step:int,finale:bool,patrol:bool,seed_id:int,companion:int,training:Dictionary={},intro_woods:bool=false):
