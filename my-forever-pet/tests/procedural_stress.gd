@@ -4048,6 +4048,19 @@ func run_checks()->void:
 	checks+=1
 	reserve_fixture.traps.clear()
 	reserve_fixture.enemies.erase(reserve_peer)
+	# An occluded telegraph is a movement constraint, not evidence of backup.
+	var reserve_shooter:Dictionary={"uid":31,"pos":Vector2i(3,5),"hp":30,"kind":1,"species":"leafwisp","ecology_search_enabled":true,"pp_primary":12,"windup":true,"aim":Vector2i.RIGHT}
+	reserve_fixture.enemies.append(reserve_shooter);reserve_fixture.cells.erase(Vector2i(3,4))
+	var reserve_occluded:Dictionary=reserve_fixture.enemy_reserve_route(reserve_actor,reserve_fixture.player)
+	if reserve_fixture.enemy_line_of_sight(reserve_shooter.pos,reserve_fixture.player) or not reserve_fixture.enemy_relief_blocks_lane(reserve_shooter,Vector2i(4,5),reserve_fixture.player) or reserve_occluded.get("step")==Vector2i(4,5) or reserve_occluded.get("post")==Vector2i(4,5):failures.append("reserve avoids occluded committed ray")
+	checks+=1
+	reserve_actor.erase("squad_loss_turn")
+	if not reserve_fixture.enemy_reserve_route(reserve_actor,reserve_fixture.player).is_empty():failures.append("reserve occluded ray does not invent backup")
+	checks+=1
+	reserve_actor["squad_loss_turn"]=29;reserve_shooter.erase("windup");reserve_shooter.erase("aim")
+	if reserve_fixture.enemy_reserve_route(reserve_actor,reserve_fixture.player).get("step")!=Vector2i(4,5):failures.append("reserve cancelled ray releases route")
+	checks+=1
+	reserve_fixture.enemies.erase(reserve_shooter);reserve_fixture.cells[Vector2i(3,4)]=true
 	var reserve_front:Dictionary={"uid":30,"pos":Vector2i(3,4),"hp":30,"max_hp":30,"kind":0,"species":"bramble_pup","ecology_role":"hunter","ecology_search_enabled":true}
 	reserve_fixture.enemies.append(reserve_front)
 	if not reserve_fixture.enemy_dynamic_reserve_plan(reserve_actor,reserve_fixture.player).is_empty():failures.append("reserve healthy front line retained")
@@ -4064,7 +4077,7 @@ func run_checks()->void:
 	reserve_fixture.cells.erase(Vector2i(4,5))
 	if not reserve_fixture.enemy_dynamic_reserve_plan(reserve_actor,reserve_fixture.player).is_empty():failures.append("reserve no target sight through wall")
 	checks+=1
-	print("KINDRIA_DYNAMIC_SQUAD_ROLES checks=8")
+	print("KINDRIA_DYNAMIC_SQUAD_ROLES checks=11")
 	# Forecast only witnessed retreats, and commit only a safe ordinary step.
 	var forecast=Rules.new()
 	for y in range(1,9):
@@ -4366,6 +4379,14 @@ func run_checks()->void:
 	if not relief_fixture.enemy_relief_blocks_lane(relief_ranged,Vector2i(5,4),relief_fixture.player) or relief_fixture.enemy_relief_step(relief_guard,relief_fixture.player)!=Vector2i(4,5):failures.append("relief avoids blocking ranged ray")
 	checks+=1
 	relief_guard.pos=Vector2i(4,6)
+	var relief_shooter:Dictionary={"uid":3,"pos":Vector2i(3,5),"hp":30,"kind":1,"species":"leafwisp","ecology_search_enabled":true,"pp_primary":12,"windup":true,"aim":Vector2i.RIGHT}
+	relief_fixture.enemies.append(relief_shooter);relief_fixture.cells.erase(Vector2i(3,4))
+	if relief_fixture.enemy_line_of_sight(relief_shooter.pos,relief_fixture.player) or not relief_fixture.enemy_relief_blocks_lane(relief_shooter,Vector2i(4,5),relief_fixture.player) or relief_fixture.enemy_relief_step(relief_guard,relief_fixture.player)!=relief_guard.pos:failures.append("relief avoids occluded committed ray")
+	checks+=1
+	relief_shooter.erase("windup");relief_shooter.erase("aim")
+	if relief_fixture.enemy_relief_step(relief_guard,relief_fixture.player)!=Vector2i(4,5):failures.append("relief cancelled ray releases approach")
+	checks+=1
+	relief_fixture.enemies.erase(relief_shooter);relief_fixture.cells[Vector2i(3,4)]=true
 	# Isolate relief dispatch from the guard’s legal support move.
 	relief_guard["pp_support"]=0
 	relief_fixture.enemies.remove_at(1)

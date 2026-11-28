@@ -3999,10 +3999,13 @@ func enemy_relief_step(e:Dictionary,target:Vector2i)->Vector2i:
 	var origin:Vector2i=e.pos
 	if target!=player or charge_phase in ["underground","airborne","vanish"] or boon_active("decoy") or not enemy_relief_candidate(e,target):return origin
 	var backup:Array[Dictionary]=[]
+	var committed_lanes:Array[Dictionary]=[]
 	var wounded:bool=false
 	var gap:int=distance(origin,target)
 	for other in enemies:
-		if not enemy_squad_partner(e,other) or not enemy_line_of_sight(other.pos,target):continue
+		if not enemy_squad_lane_peer(e,other,target):continue
+		if bool(other.get("windup",false)):committed_lanes.append(other)
+		if not enemy_line_of_sight(other.pos,target):continue
 		if bool(e.get("monster_house",false)) and int(e.get("monster_house_spawn_serial",-1))!=int(other.get("monster_house_spawn_serial",-2)):continue
 		var other_gap:int=distance(other.pos,target)
 		var life:int=int(other.hp)
@@ -4023,6 +4026,9 @@ func enemy_relief_step(e:Dictionary,target:Vector2i)->Vector2i:
 		var blocked:bool=false
 		for friend in backup:
 			if enemy_relief_blocks_lane(friend,q,target):blocked=true;break
+		if not blocked:
+			for friend in committed_lanes:
+				if enemy_relief_blocks_lane(friend,q,target):blocked=true;break
 		if blocked:continue
 		var score:int=-distance(q,target)*4
 		for friend in backup:score+=mini(3,distance(q,friend.pos))
@@ -4043,9 +4049,12 @@ func enemy_reserve_candidate(e:Dictionary,target:Vector2i)->bool:
 func enemy_reserve_route(e:Dictionary,target:Vector2i)->Dictionary:
 	var origin:Vector2i=e.pos
 	var backup:Array[Dictionary]=[]
+	var committed_lanes:Array[Dictionary]=[]
 	var vacancy:bool=enemy_recent_squad_loss(e)
 	for other in enemies:
-		if not enemy_squad_partner(e,other) or not enemy_line_of_sight(other.pos,target):continue
+		if not enemy_squad_lane_peer(e,other,target):continue
+		if bool(other.get("windup",false)):committed_lanes.append(other)
+		if not enemy_line_of_sight(other.pos,target):continue
 		if bool(e.get("monster_house",false)) and int(e.get("monster_house_spawn_serial",-1))!=int(other.get("monster_house_spawn_serial",-2)):continue
 		if distance(other.pos,target)==1:
 			if int(other.hp)*2>maxi(1,int(other.get("max_hp",other.hp))):return {}
@@ -4069,6 +4078,9 @@ func enemy_reserve_route(e:Dictionary,target:Vector2i)->Dictionary:
 			var blocked:bool=false
 			for friend in backup:
 				if enemy_relief_blocks_lane(friend,q,target):blocked=true;break
+			if not blocked:
+				for friend in committed_lanes:
+					if enemy_relief_blocks_lane(friend,q,target):blocked=true;break
 			if blocked:continue
 			depths[q]=depth+1;first[q]=q if depth==0 else first[here];queue.append(q)
 	return {}
