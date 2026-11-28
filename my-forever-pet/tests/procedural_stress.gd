@@ -2612,7 +2612,26 @@ func run_checks()->void:
 	lane_ranged["cooldown"]=0;lane_ranged["pp_primary"]=0
 	if lane_fixture.enemy_firing_lane_frontline(lane_actor,lane_fixture.player):failures.append("lane hold rejects exhausted ray")
 	checks+=1
-	print("KINDRIA_ANTI_STALL checks=117")
+	# When the original formation breaks, a recent hold is not a stale order.
+	lane_fixture.turns=25;lane_actor["lane_hold_turn"]=24;lane_actor["lane_hold_target"]=lane_fixture.player;lane_actor["unstall_turn"]=24
+	while lane_fixture.enemies.size()>2:lane_fixture.enemies.pop_back()
+	if lane_fixture.enemy_open_frontline_detour(lane_actor,lane_fixture.player) or not lane_fixture.enemy_released_firing_post(lane_actor,lane_fixture.player) or lane_fixture.enemy_unstall_step(lane_actor,lane_fixture.player)==lane_actor.pos:failures.append("lane reentry after formation breaks")
+	checks+=1
+	lane_fixture.player=Vector2i(4,3)
+	if lane_fixture.enemy_unstall_step(lane_actor,lane_fixture.player)==lane_actor.pos:failures.append("lane reentry follows visible nearby escape")
+	checks+=1
+	lane_actor["lane_hold_target"]=Vector2i(1,1)
+	if lane_fixture.enemy_unstall_step(lane_actor,lane_fixture.player)!=lane_actor.pos:failures.append("lane reentry rejects distant stale target")
+	checks+=1
+	lane_actor["lane_hold_target"]=Vector2i(4,4)
+	lane_fixture.charge_phase="vanish"
+	if lane_fixture.enemy_released_firing_post(lane_actor,lane_fixture.player) or lane_fixture.enemy_unstall_step(lane_actor,lane_fixture.player)!=lane_actor.pos:failures.append("lane reentry rejects hidden escape")
+	checks+=1
+	lane_fixture.charge_phase=""
+	lane_fixture.shield_kind="protect";lane_fixture.shield_turns=1
+	if lane_fixture.enemy_released_firing_post(lane_actor,lane_fixture.player) or lane_fixture.enemy_unstall_step(lane_actor,lane_fixture.player)!=lane_actor.pos:failures.append("lane reentry respects protect")
+	checks+=1
+	print("KINDRIA_ANTI_STALL checks=122")
 	# A direct witness may report a tile, but a listener cannot relay it.
 	var comm=Rules.new()
 	for x in range(1,4):comm.cells[Vector2i(x,3)]=true
