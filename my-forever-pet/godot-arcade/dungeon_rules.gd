@@ -1818,7 +1818,9 @@ func enemy_hunter_search_step(e:Dictionary,anchor:Vector2i,visited:Dictionary,ra
 		var depth:int=int(depths[here])
 		if depth>0 and not visited.has(here) and not claims.has(here):
 			var score:int=12-depth*4
-			if heading in DIR:score+=clampi((here-anchor).dot(heading),-2,2)*2
+			if heading in DIR:
+				var offset:Vector2i=here-anchor
+				score+=clampi(offset.x*heading.x+offset.y*heading.y,-2,2)*2
 			if enemy_combat_personality(e)=="territorial" and distance(here,e.get("ecology_home",anchor))>radius:score-=4
 			if enemy_terrain_kind(here)=="dead_end":score-=2
 			if score>best_score:best_score=score;best=first[here];destination=here
