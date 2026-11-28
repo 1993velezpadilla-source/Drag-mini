@@ -1727,6 +1727,8 @@ func assign_enemy_ecology()->void:
 		e["ecology_role"]=role
 		e["ecology_home"]=e.pos
 		e["ecology_search_enabled"]=true
+		# Deterministic sentries may establish local watch posts on ordinary floors.
+		if role=="sentry":e["ambush_enabled"]=true
 
 func enemy_awareness(e:Dictionary)->int:
 	if bool(e.get("monster_house",false)):return 8 if bool(e.get("house_tactical",false)) else 9999
@@ -1856,6 +1858,7 @@ func enemy_pursuit_target(e:Dictionary,observed:Vector2i)->Vector2i:
 		return observed if distance(origin,observed)<=enemy_awareness(e) else origin
 	if distance(origin,observed)<=enemy_awareness(e) and enemy_line_of_sight(origin,observed):
 		clear_enemy_search(e)
+		if e.has("ambush_post"):enemy_clear_ambush(e);e["ambush_retry"]=turns+3
 		e["last_seen_player"]=observed
 		e["last_seen_until"]=turns+enemy_memory_duration(e)
 		return observed
@@ -2230,6 +2233,84 @@ func enemy_crowd_hold(e:Dictionary,next:Vector2i,target:Vector2i)->bool:
 	var rear_tile:Vector2i=e.get("crowd_partner",e.pos)
 	var index:int=enemy_at(rear_tile)
 	return index>=0 and enemy_squad_partner(e,enemies[index]) and enemy_line_of_sight(rear_tile,target)
+
+# Idle sentries choose a nearby watch post from room geometry alone.
+# No attack, RNG, hidden player tracking or extra action is granted.
+func enemy_ambush_safe_tile(q:Vector2i)->bool:
+	return cells.has(q) and q!=player and q!=stairs and q!=relic and not q in side_rewards and not traps.has(q) and not player_traps.has(q) and enemy_at(q)<0 and ally_at(q)<0
+
+func enemy_ambush_plan(e:Dictionary)->Dictionary:
+	var origin:Vector2i=e.pos
+	if not bool(e.get("ambush_enabled",false)) or int(e.get("kind",0))==3 or bool(e.get("monster_house",false)) or bool(e.get("windup",false)) or int(e.get("stuck_turns",0))>0:return {}
+	var home:Vector2i=e.get("ecology_home",origin)
+	var queue:Array[Vector2i]=[origin]
+	var depths:Dictionary={origin:0}
+	var first:Dictionary={origin:origin}
+	var cursor:int=0
+	while cursor<queue.size():
+		var here:Vector2i=queue[cursor];cursor+=1
+		var depth:int=int(depths[here])
+		if depth>=3:continue
+		for d in DIR:
+			var q:Vector2i=here+d
+			if depths.has(q) or distance(home,q)>3 or not enemy_ambush_safe_tile(q):continue
+			depths[q]=depth+1;first[q]=q if depth==0 else first[here];queue.append(q)
+	var skill:Array=signature_skill(e)
+	var species:String=str(e.get("species",""))
+	var ranged:bool=int(skill[0])>=2 and enemy_move_allowed(e,"primary")
+	var pattern:String=str(ATTACK_PATTERNS.get(species,"line"))
+	var best:Dictionary={}
+	var best_score:int=-2147483647
+	# Examine only nearby entry tiles; outside corridor must continue away.
+	for entry in queue:
+		for room in rooms:
+			if not room.has_point(entry):continue
+			for d in DIR:
+				var gate:Vector2i=entry+d
+				if room.has_point(gate) or not cells.has(gate) or not cells.has(gate+d) or gate==stairs or gate==relic:continue
+				var openings:int=0
+				for side in DIR:
+					if cells.has(gate+side):openings+=1
+				if openings>2:continue
+				for q in queue:
+					if q==entry or not room.has_point(q) or distance(q,entry)>3 or not enemy_line_of_sight(q,entry):continue
+					if q==origin and (q==stairs or q==relic or q in side_rewards or traps.has(q) or player_traps.has(q)):continue
+					var range_to_entry:int=distance(q,entry)
+					var legal_attack:bool=attack_aim(q,entry,pattern,int(skill[0]))!=Vector2i.ZERO if ranged else range_to_entry==1
+					if not legal_attack:continue
+					var side_cover:bool=(q-entry).dot(d)==0
+					var score:int=12-int(depths[q])*2
+					if ranged:score+=range_to_entry*3
+					elif side_cover:score+=5
+					if not enemy_line_of_sight(q,gate+d):score+=4
+					if score>best_score:
+						best_score=score;best={"post":q,"entry":entry,"gate":gate,"step":first[q]}
+	return best
+
+func enemy_clear_ambush(e:Dictionary)->void:
+	e.erase("ambush_post");e.erase("ambush_entry");e.erase("ambush_gate")
+
+func enemy_ambush_step(e:Dictionary)->Vector2i:
+	var origin:Vector2i=e.pos
+	if not bool(e.get("ambush_enabled",false)) or int(e.get("stuck_turns",0))>0 or bool(e.get("windup",false)):return origin
+	if e.has("ambush_post"):
+		var post:Vector2i=e.ambush_post
+		var entry:Vector2i=e.ambush_entry
+		var gate:Vector2i=e.ambush_gate
+		if cells.has(entry) and cells.has(gate) and cells.has(post) and (post==origin or enemy_ambush_safe_tile(post)):
+			if post==origin:return origin
+			var path:Array[Vector2i]=route(origin,post,true)
+			if not path.is_empty() and path.size()<=3 and enemy_ambush_safe_tile(path[0]):return path[0]
+		enemy_clear_ambush(e)
+		e["ambush_retry"]=turns+3
+		return origin
+	if turns<int(e.get("ambush_retry",-9999)):return origin
+	var plan:Dictionary=enemy_ambush_plan(e)
+	if plan.is_empty():
+		e["ambush_retry"]=turns+3
+		return origin
+	e["ambush_post"]=plan.post;e["ambush_entry"]=plan.entry;e["ambush_gate"]=plan.gate
+	return plan.step
 
 func enemy_patrol_destination(e:Dictionary)->Vector2i:
 	var origin:Vector2i=e.pos
@@ -4222,7 +4303,8 @@ func enemy_turn_actions_impl():
 					enemies[i].pos=destination
 					enemy_actions.append({"uid":enemies[i].get("uid",i),"phase":"move","from":p,"to":destination,"gait":enemies[i].get("gait","walk")})
 		elif not charged and kind!=3 and not boon_active("decoy"):
-			var patrol:Vector2i=enemy_patrol_destination(enemies[i])
+			var patrol:Vector2i=enemy_ambush_step(enemies[i])
+			if patrol==p and not enemies[i].has("ambush_post"):patrol=enemy_patrol_destination(enemies[i])
 			if patrol!=p:
 				enemies[i].pos=patrol
 				enemy_actions.append({"uid":enemies[i].get("uid",i),"phase":"move","from":p,"to":patrol,"gait":enemies[i].get("gait","walk")})
