@@ -854,6 +854,60 @@ func run_checks()->void:
 	if area_fixture.enemy_has_party_area_attack(area_actor) or not area_fixture.enemy_apply_area_damage(area_actor,area_actor.pos,area_tiles,"radius",area_fixture.signature_skill(area_actor),false).is_empty():failures.append("area preserve legacy actor")
 	checks+=1
 	print("KINDRIA_AREA_TACTICS selection=2 damage=1 action=1 impacts=1 gates=4")
+	# Learned single-target attacks prioritize an exposed vulnerable companion.
+	var priority_fixture=Rules.new()
+	for y in range(1,9):
+		for x in range(1,9):priority_fixture.cells[Vector2i(x,y)]=true
+	priority_fixture.player=Vector2i(7,7)
+	var priority_actor:Dictionary={"uid":0,"pos":Vector2i(3,3),"hp":30,"kind":0,"species":"eelstrix","signature":"Static Lash","ecology_role":"scout","ecology_search_enabled":true,"pp_primary":12,"pp_secondary":0,"stages":{"accuracy":10}}
+	priority_fixture.enemies.append(priority_actor)
+	priority_fixture.allies.append({"uid":1000,"pos":Vector2i(3,2),"hp":20,"max_hp":20,"species":"rootgnawer"})
+	priority_fixture.allies.append({"uid":1001,"pos":Vector2i(5,3),"hp":2,"max_hp":20,"species":"reef_pup"})
+	var priority_skill:Array=priority_fixture.signature_skill(priority_actor)
+	var resistant:Dictionary=priority_fixture.enemy_party_damage_estimate(priority_actor,priority_fixture.allies[0],priority_skill,false)
+	var vulnerable:Dictionary=priority_fixture.enemy_party_damage_estimate(priority_actor,priority_fixture.allies[1],priority_skill,false)
+	if float(vulnerable.effectiveness)<=float(resistant.effectiveness) or int(vulnerable.damage)<=int(resistant.damage):failures.append("priority elemental damage estimate")
+	checks+=1
+	var priority_plan:Dictionary=priority_fixture.enemy_party_attack_plan(priority_actor)
+	if priority_plan.get("targets",[])!=[1] or priority_actor.pp_primary!=12 or int(priority_fixture.allies[1].hp)!=2:failures.append("priority vulnerable selection purity")
+	checks+=1
+	priority_fixture.cells.erase(Vector2i(4,3))
+	var blocked_plan:Dictionary=priority_fixture.enemy_party_attack_plan(priority_actor)
+	if 1 in blocked_plan.get("targets",[]):failures.append("priority hidden target excluded")
+	priority_fixture.cells[Vector2i(4,3)]=true
+	checks+=1
+	priority_actor["pp_primary"]=0
+	if not priority_fixture.enemy_party_attack_plan(priority_actor).is_empty():failures.append("priority exhausted kit")
+	priority_actor["pp_primary"]=12
+	checks+=1
+	priority_fixture.enemy_turn_actions()
+	if priority_actor.pp_primary!=11 or int(priority_fixture.allies[1].hp)!=0 or int(priority_fixture.allies[0].hp)!=20 or priority_fixture.enemy_actions.size()!=1:failures.append("priority learned actual cast")
+	checks+=1
+	if not priority_fixture.enemy_actions.is_empty():
+		var impact:Array=priority_fixture.enemy_actions[0].get("party_hits",[])
+		if impact.size()!=1 or int(impact[0].get("uid",-1))!=1001:failures.append("priority exact target metadata")
+	else:failures.append("priority missing cast")
+	checks+=1
+	# Area-only targeting can hit multiple allies without hitting the distant player.
+	var party_only=Rules.new()
+	for y in range(1,9):
+		for x in range(1,9):party_only.cells[Vector2i(x,y)]=true
+	party_only.player=Vector2i(7,7)
+	var party_actor:Dictionary={"uid":0,"pos":Vector2i(3,3),"hp":30,"kind":1,"species":"sporeling","ecology_role":"hunter","ecology_search_enabled":true,"pp_primary":12,"pp_secondary":0,"stages":{"accuracy":10}}
+	party_only.enemies.append(party_actor)
+	party_only.allies.append({"uid":1000,"pos":Vector2i(3,2),"hp":20,"max_hp":20,"species":"reef_pup"})
+	party_only.allies.append({"uid":1001,"pos":Vector2i(4,3),"hp":20,"max_hp":20,"species":"reef_pup"})
+	var party_plan:Dictionary=party_only.enemy_party_attack_plan(party_actor)
+	if party_plan.get("targets",[]).size()!=2:failures.append("priority ally-only area selection")
+	checks+=1
+	var party_player_hp:int=party_only.hp
+	party_only.enemy_turn_actions()
+	if party_actor.pp_primary!=11 or party_only.hp!=party_player_hp or int(party_only.allies[0].hp)>=20 or int(party_only.allies[1].hp)>=20 or party_only.enemy_actions.size()!=1:failures.append("priority ally-only area execution")
+	checks+=1
+	party_actor["windup"]=true
+	if not party_only.enemy_party_attack_plan(party_actor).is_empty():failures.append("priority preserve telegraphed attack")
+	checks+=1
+	print("KINDRIA_TARGET_PRIORITY elemental=1 selection=2 gates=3 execution=2 metadata=1")
 	# Actual disk I/O, legacy migration, corruption recovery, and resumed writes.
 	var test_path:String="user://kindria_procedural_test_"+str(OS.get_process_id())+".cfg"
 	var exact:Array[String]=["legacy exact".sha256_text()]
