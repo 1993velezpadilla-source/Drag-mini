@@ -2868,7 +2868,30 @@ func run_checks()->void:
 	ko_actor["cooldown"]=0;party_ko.shield_kind="endure";party_ko.shield_turns=1
 	if not is_equal_approx(party_ko.enemy_party_player_attack_value(ko_actor,ko_skill,false),party_ko.enemy_attack_score(ko_actor,ko_skill,false,false)):failures.append("party score excludes protected KO premium")
 	checks+=1
-	print("KINDRIA_ANTI_STALL checks=167")
+	# Overlapping area headings reuse per-ally scores only within a pure plan.
+	var score_memo=Rules.new()
+	for y in range(1,9):
+		for x in range(1,9):score_memo.cells[Vector2i(x,y)]=true
+	score_memo.player=Vector2i(7,7);score_memo.stairs=Vector2i(8,8);score_memo.relic=Vector2i(8,7)
+	var memo_caster:Dictionary={"uid":500,"pos":Vector2i(3,3),"hp":30,"kind":1,"species":"sporeling","ecology_role":"hunter","ecology_search_enabled":true,"personality_enabled":true,"pp_primary":12,"pp_secondary":3,"stages":{"accuracy":10}}
+	score_memo.enemies.append(memo_caster)
+	score_memo.allies.append({"uid":1000,"pos":Vector2i(3,2),"hp":20,"max_hp":20,"species":"reef_pup"})
+	score_memo.allies.append({"uid":1001,"pos":Vector2i(4,3),"hp":20,"max_hp":20,"species":"reef_pup"})
+	var memo_rng:int=score_memo.rng.state
+	var memo_plan:Dictionary=score_memo.enemy_party_attack_plan(memo_caster)
+	if memo_plan.get("targets",[]).size()!=2 or memo_plan!=score_memo.enemy_party_attack_plan(memo_caster,false):failures.append("party memo overlapping area parity")
+	checks+=1
+	memo_caster.pp_primary=1
+	if score_memo.enemy_party_attack_plan(memo_caster)!=score_memo.enemy_party_attack_plan(memo_caster,false):failures.append("party memo low PP parity")
+	checks+=1
+	score_memo.allies[0].hp=0
+	var one_memo:Dictionary=score_memo.enemy_party_attack_plan(memo_caster)
+	if one_memo!=score_memo.enemy_party_attack_plan(memo_caster,false) or 0 in one_memo.get("targets",[]):failures.append("party memo defeated target invalidation")
+	checks+=1
+	score_memo.allies[0].hp=2;score_memo.player=Vector2i(3,4);score_memo.charge_phase="vanish"
+	if score_memo.enemy_party_attack_plan(memo_caster)!=score_memo.enemy_party_attack_plan(memo_caster,false) or score_memo.rng.state!=memo_rng or not score_memo.enemy_actions.is_empty() or memo_caster.pp_primary!=1:failures.append("party memo concealment and planning purity")
+	checks+=1
+	print("KINDRIA_ANTI_STALL checks=171")
 	# A direct witness may report a tile, but a listener cannot relay it.
 	var comm=Rules.new()
 	for x in range(1,4):comm.cells[Vector2i(x,3)]=true
