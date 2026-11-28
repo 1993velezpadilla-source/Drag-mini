@@ -1584,7 +1584,8 @@ func arrange_floor_encounter()->void:
 	for p in traps.keys():
 		if encounter_trap_count>=recipe.z or spots.is_empty():break
 		if target.has_point(p):continue
-		traps.erase(p);traps[spots.pop_back()]=true;encounter_trap_count+=1
+		var destination:Vector2i=spots.pop_back()
+		traps.erase(p);traps[destination]=floor_trap_kind(destination);encounter_trap_count+=1
 
 # Optional discoveries replace ordinary pickups. Keep the teaching manual and side rewards intact.
 const TREASURE_TYPES=[["normal","grass","bug","ground","poison","flying"],["normal","water","electric","ice","rock","steel"],["normal","psychic","ghost","dark","fairy","dragon"]]
@@ -1619,6 +1620,42 @@ func distribute_rare_treasures()->void:
 			if MOVE_LIBRARY.has(id):item="manual:"+id
 		if item.is_empty():continue
 		loot[p]=item;treasure_tiles.append(p);treasure_kinds.append(item)
+
+# Seeded traps use an independent coordinate roll; no geometry RNG changes.
+const FLOOR_TRAP_KINDS=["spike","snare","drain","hunger","weaken"]
+func floor_trap_kind(p:Vector2i)->String:
+	if starter_woods or floor_number<2 or not guardian_defeated:return "spike"
+	var roll:int=posmod(seed_value*31+floor_number*97+region*53+p.x*71+p.y*113,100)
+	if roll<40:return "spike"
+	if roll<58:return "snare"
+	if roll<75:return "drain"
+	if roll<90:return "hunger"
+	return "weaken"
+
+func trigger_floor_trap(p:Vector2i)->bool:
+	if not traps.has(p):return false
+	var kind:String=str(traps[p])
+	traps.erase(p)
+	hits+=1;combo=0
+	var protected:bool=shield_kind=="safeguard" and shield_turns>0
+	match kind:
+		"snare":
+			if protected:message="Snare · Protected"
+			else:player_slow_turns=maxi(player_slow_turns,4);message="Snare · Slowed"
+		"drain":
+			var lost:int=mini(2,energy)
+			energy-=lost;message="Drain trap · −%d energy"%lost
+		"hunger":
+			var lost:int=mini(80,maxi(0,belly_tenths-10))
+			belly_tenths-=lost;message="Hunger trap · Belly %d"%belly_value()
+		"weaken":
+			if protected or boon_active("mist"):message="Weakening trap · Protected"
+			else:weakened_strikes=maxi(weakened_strikes,2);message="Weakening trap · Attack weakened"
+		_:
+			var lost:int=mini(3,maxi(0,hp-1))
+			hp-=lost;message="Trap! −%d HP"%lost
+	emit_event(message)
+	return true
 
 func generate_floor():
 	clear_combat_effects()
@@ -1666,7 +1703,7 @@ func generate_floor():
 			enemies.append(make_enemy(p,life,rng.randi_range(0,2),enemies.size()))
 		elif loot.size()<budgets.y:
 			loot[p]="trail_fruit" if loot.size()==2 else "manual:eos_154" if loot.size()==5 else "potion" if loot.size()%4==0 else "material" if loot.size()%3==0 else "coin"
-		elif traps.size()<budgets.z:traps[p]=true
+		elif traps.size()<budgets.z:traps[p]=floor_trap_kind(p)
 		else:break
 	loot[relic]="relic"
 	for reward in side_rewards:loot[reward]="material"
@@ -1737,7 +1774,7 @@ func prepare_monster_house(force:bool=false)->bool:
 	var rewards:Array[String]=["coin","material","potion","trail_fruit","manual:eos_154","material","coin"]
 	var reward_count:int=mini(recipe.y,spots.size())
 	for i in range(reward_count):loot[spots[i]]=rewards[i]
-	for i in range(reward_count,mini(reward_count+recipe.z,spots.size())):traps[spots[i]]=true
+	for i in range(reward_count,mini(reward_count+recipe.z,spots.size())):traps[spots[i]]=floor_trap_kind(spots[i])
 	return true
 
 func monster_house_remaining()->int:
@@ -2980,8 +3017,7 @@ func move(p:Vector2i)->bool:
 	if i>=0:strike(i)
 	else:
 		player=p;pickup()
-		if traps.has(player):
-			traps.erase(player);hp=maxi(1,hp-3);hits+=1;combo=0;message="Trap! −3 HP";emit_event(message)
+		trigger_floor_trap(player)
 	if i>=0:enemy_turn()
 	else:finish_walk_turn()
 	return true
