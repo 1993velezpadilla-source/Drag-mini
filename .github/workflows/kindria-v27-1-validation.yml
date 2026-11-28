@@ -3,10 +3,6 @@ on:
   pull_request:
     branches:
       - feature/my-forever-pet-paradise
-    paths:
-      - '.github/workflows/kindria-v27-1-validation.yml'
-      - 'my-forever-pet/godot-arcade/dungeon_rules.gd'
-      - 'my-forever-pet/tests/procedural_stress.gd'
   workflow_dispatch:
 permissions:
   contents: read
@@ -28,7 +24,7 @@ jobs:
           mkdir -p /tmp/kindria-integration
           cp my-forever-pet/godot-arcade/dungeon_rules.gd my-forever-pet/tests/procedural_stress.gd /tmp/kindria-integration/
           printf 'config_version=5\n[application]\nconfig/name="Kindria AI Integration"\n' > /tmp/kindria-integration/project.godot
-      - name: Run adversarial AI integration
+      - name: Run adversarial AI integration (V27.3 runtime validation)
         run: |
           set -o pipefail
           /tmp/kindria-godot/Godot_v4.6-stable_linux.x86_64 --headless --path /tmp/kindria-integration --script res://procedural_stress.gd -- --ai-integration 2>&1 | tee /tmp/kindria-ai-integration.log
