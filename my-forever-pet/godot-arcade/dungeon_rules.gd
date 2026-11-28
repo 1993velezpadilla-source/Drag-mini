@@ -2379,6 +2379,7 @@ func enemy_target_ally(i:int)->bool:
 	if best==1:
 		var damage:int=mini(int(a.hp),maxi(1,2+tier))
 		a.hp=int(a.hp)-damage
+		enemy_record_squad_focus(e,int(a.get("uid",1000+nearest)),damage)
 		enemy_actions.append({"uid":e.get("uid",i),"phase":"attack","from":origin,"to":a.pos,"move":"Ally strike","fx":"basic_strike","damage":damage,"tiles":[a.pos],"path":[a.pos]})
 		emit_event("Ally struck −%d HP"%damage)
 		return true
@@ -3245,6 +3246,70 @@ func enemy_apply_area_damage(e:Dictionary,origin:Vector2i,footprint:Dictionary,p
 
 # Select immediate learned attacks against vulnerable visible party members.
 # No speculative knowledge of hidden actors and no RNG during scoring.
+# A local squad remembers actual successful attacks for two turns. Observers
+# must independently see both the attacking companion and the live target.
+func enemy_record_squad_focus(e:Dictionary,target_uid:int,damage:int)->void:
+	if damage<=0 or not bool(e.get("ecology_search_enabled",false)):return
+	e["squad_focus_uid"]=target_uid
+	e["squad_focus_turn"]=turns
+
+func enemy_squad_partner(e:Dictionary,other:Dictionary)->bool:
+	if e.pos==other.pos or int(other.hp)<=0 or not bool(other.get("ecology_search_enabled",false)):return false
+	if distance(e.pos,other.pos)>mini(4,enemy_awareness(e)) or not enemy_line_of_sight(e.pos,other.pos):return false
+	if int(other.get("sleep_turns",0))>0 or int(other.get("nightmare_turns",0))>0 or int(other.get("paused_turns",0))>0 or int(other.get("wrapped_turns",0))>0 or int(other.get("infatuated_turns",0))>0 or int(other.get("confusion_turns",0))>0 or str(other.get("major_status","")) in ["freeze","paralysis"]:return false
+	return true
+
+func enemy_squad_focus_bonus(e:Dictionary,target_uid:int,tile:Vector2i)->float:
+	if not bool(e.get("ecology_search_enabled",false)) or distance(e.pos,tile)>enemy_awareness(e) or not enemy_line_of_sight(e.pos,tile):return 0.0
+	if target_uid==-1:
+		if tile!=player or hp<=0:return 0.0
+	else:
+		var index:int=ally_at(tile)
+		if index<0 or int(allies[index].get("uid",1000+index))!=target_uid:return 0.0
+	var count:int=0
+	for other in enemies:
+		if not enemy_squad_partner(e,other):continue
+		var age:int=turns-int(other.get("squad_focus_turn",-9999))
+		if age<0 or age>2 or int(other.get("squad_focus_uid",-9999))!=target_uid:continue
+		if distance(other.pos,tile)>enemy_awareness(other) or not enemy_line_of_sight(other.pos,tile):continue
+		count+=1
+	return float(mini(count,2))*1.25
+
+# Local interception: reserve a free adjacent escape tile on the opposite side
+# of an engaged partner. At most three cardinal steps are considered.
+func enemy_squad_intercept_step(e:Dictionary,target:Vector2i)->Vector2i:
+	var origin:Vector2i=e.pos
+	if not bool(e.get("ecology_search_enabled",false)) or bool(e.get("monster_house",false)) or int(e.get("kind",0))==3 or int(e.get("stuck_turns",0))>0 or bool(e.get("windup",false)):return origin
+	if enemy_survival_profile(e) not in ["aggressive","defensive"] or distance(origin,target)>mini(5,enemy_awareness(e)) or not enemy_line_of_sight(origin,target):return origin
+	var engaged:Array[Vector2i]=[]
+	for other in enemies:
+		if enemy_squad_partner(e,other) and distance(other.pos,target)==1 and enemy_line_of_sight(other.pos,target):engaged.append(other.pos)
+	if engaged.is_empty():return origin
+	var occupied:Dictionary=navigation_occupancy()
+	var queue:Array[Vector2i]=[origin]
+	var depth:Dictionary={origin:0}
+	var first:Dictionary={origin:origin}
+	var best:Vector2i=origin
+	var best_score:int=-2147483647
+	var cursor:int=0
+	while cursor<queue.size():
+		var here:Vector2i=queue[cursor];cursor+=1
+		var steps:int=int(depth[here])
+		if steps>0 and distance(here,target)==1 and enemy_line_of_sight(here,target):
+			var separation:int=8
+			for op in engaged:separation=mini(separation,distance(here,op))
+			var onward:Vector2i=here+(here-target)
+			var score:int=separation*6-steps*4+(5 if cells.has(onward) and not occupied.has(onward) else 0)
+			for a in allies:
+				if int(a.hp)>0 and distance(target,a.pos)<=3 and enemy_line_of_sight(origin,a.pos) and distance(here,a.pos)<distance(target,a.pos):score+=2
+			if score>best_score:best_score=score;best=first[here]
+		if steps>=3:continue
+		for d in DIR:
+			var q:Vector2i=here+d
+			if depth.has(q) or not cells.has(q) or occupied.has(q) or q==target or q==player or q==stairs or q==relic or q in side_rewards or traps.has(q) or player_traps.has(q):continue
+			depth[q]=steps+1;first[q]=q if steps==0 else first[here];queue.append(q)
+	return best
+
 func enemy_party_attack_plan(e:Dictionary)->Dictionary:
 	var origin:Vector2i=e.pos
 	if not bool(e.get("ecology_search_enabled",false)) or bool(e.get("windup",false)) or allies.is_empty() or int(e.get("kind",0))==3:return {}
@@ -3264,7 +3329,7 @@ func enemy_party_attack_plan(e:Dictionary)->Dictionary:
 		player_value=maxf(player_value,enemy_attack_score(e,primary,false))
 	if player_value>0.0:
 		if player_value>=float(hp):player_value+=2.5
-		player_value+=(1.0-float(hp)/float(maxi(1,max_hp)))*1.5
+		player_value+=(1.0-float(hp)/float(maxi(1,max_hp)))*1.5+enemy_squad_focus_bonus(e,-1,player)
 	var best:Dictionary={}
 	var best_score:float=player_value+.25
 	for kit in kits:
@@ -3301,7 +3366,7 @@ func enemy_party_attack_plan(e:Dictionary)->Dictionary:
 				var expected:float=float(mini(life,int(estimate.damage)))*float(estimate.accuracy)
 				if expected<=0.0:continue
 				var knockout:float=2.5*float(estimate.accuracy) if int(estimate.damage)>=life else 0.0
-				score+=expected+knockout+(1.0-float(life)/float(cap))*1.5
+				score+=expected+knockout+(1.0-float(life)/float(cap))*1.5+enemy_squad_focus_bonus(e,int(a.get("uid",1000+index)),a.pos)
 				targets.append(index)
 			if enemy_move_pp(e,str(kit.slot))<=2:score*=.85
 			if not targets.is_empty() and score>best_score:
@@ -3323,6 +3388,9 @@ func enemy_execute_party_attack(i:int,plan:Dictionary)->bool:
 	for index in plan.targets:
 		if int(allies[index].hp)>0:results.append(enemy_resolve_party_hit(e,index,skill,slot=="secondary"))
 	if results.is_empty():return false
+	for hit in results:
+		if int(hit.damage)>0:
+			enemy_record_squad_focus(e,int(hit.uid),int(hit.damage));break
 	record_enemy_move(e,slot)
 	var cd:String="alt_cooldown" if slot=="secondary" else "cooldown"
 	for key in ["cooldown","alt_cooldown","control_cooldown","support_cooldown"]:
@@ -3679,6 +3747,11 @@ func enemy_turn_actions():
 				if not dodged and not shield_block:apply_signature_effect(i,skill)
 			if dodged or shield_block or (shield_kind=="safeguard" and shield_turns>0 and effect in ["poison","weaken","mark"]) or (boon_active("mist") and effect=="weaken"):effect="none"
 			var party_hits:Array[Dictionary]=enemy_apply_area_damage(enemies[i],p,footprint,pattern,skill,alternate) if special else []
+			if damage>0:enemy_record_squad_focus(enemies[i],-1,damage)
+			else:
+				for hit in party_hits:
+					if int(hit.damage)>0:
+						enemy_record_squad_focus(enemies[i],int(hit.uid),int(hit.damage));break
 			enemy_actions.append({"party_hits":party_hits,"uid":enemies[i].get("uid",i),"phase":"attack","from":p,"to":player,"end":enemies[i].pos,"move":move_name,"fx":skill[6] if special else "basic_strike","effect":effect,"damage":damage,"dodged":dodged,"effectiveness":last_type_multiplier,"aim":aim if special else player-p,"pattern":pattern if special else "front","tiles":footprint.keys() if special else [player],"path":footprint.get(player,[player]) if special else [player]})
 			message="%s · %s! −%d HP"%[enemies[i].get("name","Enemy"),move_name,damage]
 			if last_enemy_critical:message+=" · Critical!"
@@ -3708,6 +3781,8 @@ func enemy_turn_actions():
 				if tactical==p and alt_cooldown<=0 and SECONDARY_SKILLS.has(species) and enemy_move_allowed(enemies[i],"secondary"):
 					var flank_alt:Array=SECONDARY_SKILLS[species]
 					tactical=enemy_cooperative_step(enemies[i],pursuit_target,str(flank_alt[1]),int(flank_alt[0]))
+			if tactical==p and not charged and pursuit_target==player:
+				tactical=enemy_squad_intercept_step(enemies[i],player)
 			if tactical!=p:path.append(tactical)
 			else:path=enemy_approach_route(p,pursuit_target) if enemies[i].has("ecology_role") else route(p,pursuit_target,true)
 			if not path.is_empty() and path[0]!=player and enemy_at(path[0])<0:
