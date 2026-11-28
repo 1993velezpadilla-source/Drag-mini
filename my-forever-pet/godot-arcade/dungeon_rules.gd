@@ -1614,6 +1614,16 @@ func warp_player()->bool:
 	player_boons.erase("ingrain")
 	reveal()
 	return true
+# Explorers of Sky conventional attack: typeless, physical, base power 1,
+# 93% base accuracy, zero inherent crit, half damage multiplier, no PP.
+# Kindria uses its own creature stat scale and neutral defense fallback.
+const REGULAR_ATTACK={"name":"Strike","type":"typeless","typeless":true,"category":"physical","power":1,"acc1":93,"acc2":125,"reference_crit":0,"pattern":"front","reach":1}
+static func regular_attack_damage(attack_value:float,defense_value:float,level:int,variance:float=1.0)->int:
+	var a:float=clampf(attack_value,1.0,999.0)
+	var d:float=clampf(defense_value,1.0,999.0)
+	var argument:float=clampf(10.0*(clampi(level,1,100)+(a-d)/8.0)+500.0,1.0,4095.0)
+	var raw:float=153.0/256.0*(a+1.0)-d/2.0+50.0*log(argument)-311.0
+	return maxi(0,roundi(clampf(raw,1.0,999.0)*.5*clampf(variance,.875,1.125)))
 func strike(i:int,power:bool=false,style_override:int=-1,move_id:String="",damage_multiplier:float=1.0,override_move:Dictionary={}):
 	var attack_style:int=skill_kind if style_override<0 else clampi(style_override,0,2)
 	if i<0 or i>=enemies.size():return
@@ -1622,15 +1632,24 @@ func strike(i:int,power:bool=false,style_override:int=-1,move_id:String="",damag
 	player_attack_cells=[attack_target]
 	if power and maxi(absi(attack_target.x-player.x),absi(attack_target.y-player.y))==2:player_attack_cells.push_front(player+(attack_target-player)/2)
 	player_attack_path=player_attack_cells.duplicate()
-	var move:Dictionary=override_move if not override_move.is_empty() else MOVE_LIBRARY.get(move_id,{})
+	var regular:bool=not power and move_id.is_empty() and override_move.is_empty()
+	var move:Dictionary=REGULAR_ATTACK if regular else override_move if not override_move.is_empty() else MOVE_LIBRARY.get(move_id,{})
+	if regular and not roll_reference_hit(move,enemies[i]):
+		last_type_multiplier=1.0
+		player_cast_results.clear();record_cast_result(attack_target,0,false,false,false);player_cast_result_serial=attack_serial
+		message="Strike missed";emit_event(message);return
 	var element:String=str(move.get("type","normal"))
 	if move.is_empty() and power and not trained_profile.is_empty():element=str(trained_profile.types[0])
-	if not move.is_empty():element=resolved_move_element(move)
+	if not move.is_empty() and not regular:element=resolved_move_element(move)
 	var damage:int=int(move.power) if not move.is_empty() else 10 if power else 6
 	if move.get("hidden_power",false):damage=hidden_base_power
 	if int(move.get("reference_id",-1))==31 and element!="normal":damage*=2
 	last_type_multiplier=1.0
-	if not trained_profile.is_empty():
+	if regular:
+		var level:int=int(trained_profile.get("level",1))
+		var defense:float=float(enemies[i].get("defense_stat",neutral_combat_stat(2)))
+		damage=regular_attack_damage(combat_stat(1)*player_stat_effect("attack"),defense*enemy_stat_effect(enemies[i],"defense"),level,rng.randf_range(.875,1.125))
+	elif not trained_profile.is_empty():
 		var enemy_info:Array=ENEMY_TRAINING.get(enemies[i].get("species",""),[["normal"],"normal","normal",0,0,"physical"])
 		var stat_index:int=3 if power and attack_style==1 else 1
 		if not move.is_empty():stat_index=3 if move.category=="special" else 1
@@ -1641,7 +1660,7 @@ func strike(i:int,power:bool=false,style_override:int=-1,move_id:String="",damag
 	var special_damage:bool=str(move.get("category","physical"))=="special" if not move.is_empty() else power and attack_style==1
 	var attack_key:String="sp_attack" if special_damage else "attack"
 	var defense_key:String="sp_defense" if special_damage else "defense"
-	if damage>0:
+	if damage>0 and not regular:
 		damage=maxi(1,roundi(float(damage)*player_stat_effect(attack_key)/maxf(.001,enemy_stat_effect(enemies[i],defense_key))))
 	if str(enemies[i].get("major_status",""))=="freeze":
 		if element=="fire":
@@ -2261,7 +2280,9 @@ func move(p:Vector2i)->bool:
 	return true
 func attack(power:bool=false,aim:Vector2i=Vector2i.ZERO,style_override:int=-1)->bool:
 	if player_wait_if_napping():return true
-	if not charged_move_id.is_empty():return release_charge()
+	if not charged_move_id.is_empty():
+		if power:return release_charge()
+		message="Release the charged move first";return false
 	if self_confusion_turns>0:aim=confused_direction(aim)
 	var attack_style:int=skill_kind if style_override<0 else clampi(style_override,0,2)
 	if finished or (power and energy<2):return false
