@@ -5662,7 +5662,7 @@ func enemy_party_player_ko_bonus(e:Dictionary,skill:Array,secondary:bool,basic:b
 func enemy_party_player_attack_value(e:Dictionary,skill:Array,secondary:bool)->float:
 	return enemy_attack_score(e,skill,secondary,false)+enemy_party_player_ko_bonus(e,skill,secondary)
 
-func enemy_party_attack_plan(e:Dictionary,reuse_scores:bool=true)->Dictionary:
+func enemy_party_attack_plan(e:Dictionary,reuse_scores:bool=true,defer_geometry:bool=true,work:Dictionary={})->Dictionary:
 	var origin:Vector2i=e.pos
 	if not bool(e.get("ecology_search_enabled",false)) or bool(e.get("windup",false)) or allies.is_empty() or int(e.get("kind",0))==3:return {}
 	var primary:Array=signature_skill(e)
@@ -5700,14 +5700,25 @@ func enemy_party_attack_plan(e:Dictionary,reuse_scores:bool=true)->Dictionary:
 		# the first heading for deterministic ties and the exhaustive reference.
 		var headings:Array=[DIR[0]] if reuse_scores and pattern in ["radius","cross","room"] else DIR
 		for d in headings:
-			var footprint:Dictionary=attack_footprint(origin,d,pattern,int(skill[0]))
-			if player_visible and footprint.has(player):
+			var targeted:bool=defer_geometry and allies.size()<=3
+			var footprint:Dictionary={}
+			if not targeted:
+				if work.has("full"):work["full"]+=1
+				footprint=attack_footprint(origin,d,pattern,int(skill[0]))
+			if player_visible and (attack_fixed_contains(origin,player,d,pattern,int(skill[0])) if targeted else footprint.has(player)): 
 				if not player_protected:
 					if not player_kit_values.has(kit.slot):player_kit_values[kit.slot]=enemy_party_player_attack_value(e,skill,secondary)
 					var value:float=float(player_kit_values[kit.slot])+player_context
 					best_score=maxf(best_score,value+.25)
 				continue
-			var candidates:Array[int]=enemy_area_allies(origin,footprint)
+			var candidates:Array[int]=[]
+			if targeted:
+				for index in range(allies.size()):
+					var ally:Dictionary=allies[index]
+					if int(ally.hp)<=0 or not enemy_line_of_sight(origin,ally.pos):continue
+					if work.has("targeted"):work["targeted"]+=1
+					if attack_fixed_contains(origin,ally.pos,d,pattern,int(skill[0])):candidates.append(index)
+			else:candidates=enemy_area_allies(origin,footprint)
 			if candidates.is_empty():continue
 			if not enemy_area_pattern(pattern):
 				# A line hits the first opposing creature, never shoots through it.
@@ -5736,6 +5747,9 @@ func enemy_party_attack_plan(e:Dictionary,reuse_scores:bool=true)->Dictionary:
 				best={"slot":kit.slot,"skill":skill,"pattern":pattern,"name":kit.name,"aim":d,"footprint":footprint,"targets":targets,"score":score}
 	# A later player-facing heading may have raised the comparison threshold.
 	if not best.is_empty() and float(best.score)<best_score:return {}
+	if not best.is_empty() and defer_geometry and allies.size()<=3:
+		if work.has("full"):work["full"]+=1
+		best["footprint"]=attack_footprint(origin,best.aim,str(best.pattern),int(best.skill[0]))
 	return best
 
 func enemy_execute_party_attack(i:int,plan:Dictionary)->bool:

@@ -3517,6 +3517,49 @@ func run_checks()->void:
 	if int(area_opt_fast.full)>=int(area_opt_full.full) or int(area_opt_fast.targeted)<=0:failures.append("area optimization reduces footprint queries")
 	checks+=1
 	print("KINDRIA_AREA_SCORING_WORK optimized=%d reference=%d targeted=%d"%[int(area_opt_fast.full),int(area_opt_full.full),int(area_opt_fast.targeted)])
+	# Compare full plans including the winning impact metadata, target ordering,
+	# score and tie resolution. Keep the large-party footprint fallback.
+	var plan_opt=Rules.new()
+	for plan_y in range(1,9):
+		for plan_x in range(1,9):plan_opt.cells[Vector2i(plan_x,plan_y)]=true
+	plan_opt.rooms.append(Rect2i(1,1,8,8))
+	var plan_actor:Dictionary={"uid":950,"pos":Vector2i(4,4),"hp":30,"kind":1,"species":"sporeling","ecology_role":"hunter","ecology_search_enabled":true,"personality_enabled":true,"pp_primary":12,"pp_secondary":3,"stages":{"accuracy":10}}
+	plan_opt.enemies.append(plan_actor)
+	plan_opt.allies.append({"uid":951,"pos":Vector2i(3,4),"hp":2,"max_hp":20,"species":"reef_pup"})
+	plan_opt.allies.append({"uid":952,"pos":Vector2i(4,3),"hp":3,"max_hp":20,"species":"reef_pup"})
+	plan_opt.allies.append({"uid":953,"pos":Vector2i(5,5),"hp":20,"max_hp":20,"species":"reef_pup"})
+	var plan_fast_work:Dictionary={"full":0,"targeted":0}
+	var plan_ref_work:Dictionary={"full":0,"targeted":0}
+	var plan_rng:int=plan_opt.rng.state
+	var plan_winners:int=0
+	var plan_cases:int=0
+	for plan_board in range(4):
+		if plan_board==1:
+			plan_opt.cells.erase(Vector2i(5,4))
+			plan_opt.enemies.append({"uid":954,"pos":Vector2i(4,5),"hp":20})
+			plan_opt.allies[1]["hp"]=0
+		if plan_board==2:
+			plan_opt.allies.append({"uid":955,"pos":Vector2i(2,4),"hp":5,"max_hp":20,"species":"reef_pup"})
+		if plan_board==3:
+			plan_opt.allies.pop_back()
+			plan_actor.pp_primary=1
+			plan_opt.charge_phase="vanish"
+		for plan_species in ["sporeling","sylphowl","bramble_pup","leafwisp","thornbeetle","reef_pup","anemoneye"]:
+			plan_actor.species=plan_species
+			for plan_y in range(1,9):
+				for plan_x in range(1,9):
+					plan_opt.player=Vector2i(plan_x,plan_y)
+					var deferred:Dictionary=plan_opt.enemy_party_attack_plan(plan_actor,true,true,plan_fast_work)
+					var exhaustive:Dictionary=plan_opt.enemy_party_attack_plan(plan_actor,false,false,plan_ref_work)
+					if deferred!=exhaustive:failures.append("deferred party plan exact metadata parity")
+					if not deferred.is_empty():plan_winners+=1
+					plan_cases+=1
+					checks+=1
+	if plan_opt.rng.state!=plan_rng or not plan_opt.enemy_actions.is_empty() or plan_actor.pos!=Vector2i(4,4):failures.append("deferred party plan purity")
+	checks+=1
+	if plan_winners<=0 or int(plan_fast_work.full)>=int(plan_ref_work.full) or int(plan_fast_work.targeted)<=0:failures.append("deferred party plan work coverage")
+	checks+=1
+	print("KINDRIA_DEFERRED_PARTY_WORK cases=%d winners=%d optimized=%d reference=%d targeted=%d"%[plan_cases,plan_winners,int(plan_fast_work.full),int(plan_ref_work.full),int(plan_fast_work.targeted)])
 	if recovery_sight.enemy_projected_attack_aim(sight_actor,Vector2i(1,1),recovery_sight.player,"radius",1)!=Vector2i.ZERO:failures.append("projected symmetric unreachable target")
 	checks+=1
 	recovery_sight.enemies.pop_back();sight_actor.pos=projection_origin
