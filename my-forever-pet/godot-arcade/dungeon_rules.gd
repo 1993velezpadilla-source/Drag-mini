@@ -2174,13 +2174,27 @@ func enemy_strategy_attack_tile(e:Dictionary,q:Vector2i,target:Vector2i)->bool:
 
 # A stalled pursuit may take a short lateral detour, but only if it opens
 # a genuinely useful attack position. Never override intentional waits.
+# A fully occupied cardinal frontline can be a successful encirclement,
+# not a navigation defect. Every occupying actor must be a live visible peer.
+func enemy_encircled_frontline(e:Dictionary,target:Vector2i)->bool:
+	if not enemy_opportunity_eligible(e) or not enemy_live_contact(e,target) or distance(e.pos,target)<=1:return false
+	if enemy_strategy_attack_tile(e,e.pos,target):return false
+	for d in DIR:
+		var q:Vector2i=target+d
+		var index:int=enemy_at(q)
+		if index<0 or not enemy_squad_partner(e,enemies[index]):return false
+	return true
+
 func enemy_unstall_step(e:Dictionary,target:Vector2i)->Vector2i:
 	var origin:Vector2i=e.pos
 	if not enemy_opportunity_eligible(e) or not enemy_live_contact(e,target) or int(e.get("stuck_turns",0))>0:return origin
 	if shield_turns>0 and shield_kind=="protect":return origin
 	if distance(origin,target)<=1 or enemy_strategy_attack_tile(e,origin,target):return origin
-	if int(e.get("stall_count",0))<2 or e.get("stall_target",Vector2i.ZERO)!=target or int(e.get("stall_turn",-9999))!=turns-1:return origin
-	if turns<=int(e.get("unstall_turn",-9999))+3:return origin
+	# A reserve immediately retries when a previously closed frontline opens.
+	var reserve_reentry:bool=e.get("reserve_hold_target",Vector2i.ZERO)==target and turns-int(e.get("reserve_hold_turn",-9999)) in [1,2] and not enemy_encircled_frontline(e,target)
+	if not reserve_reentry:
+		if int(e.get("stall_count",0))<2 or e.get("stall_target",Vector2i.ZERO)!=target or int(e.get("stall_turn",-9999))!=turns-1:return origin
+		if turns<=int(e.get("unstall_turn",-9999))+3:return origin
 	var reserved:Dictionary=enemy_pack_reserved_posts(e,target)
 	var best:Vector2i=origin
 	var best_score:int=-2147483647
@@ -5738,7 +5752,11 @@ func enemy_turn_actions_impl():
 				var recovery:Vector2i=enemy_unstall_step(enemies[i],player)
 				if recovery!=p:
 					path.append(recovery);enemies[i]["unstall_turn"]=turns
-				else:enemy_record_stall(enemies[i],player)
+				else:
+					enemy_record_stall(enemies[i],player)
+					if int(enemies[i].get("stall_count",0))>=2 and enemy_encircled_frontline(enemies[i],player):
+						enemies[i]["reserve_hold_turn"]=turns
+						enemies[i]["reserve_hold_target"]=player
 			if not path.is_empty() and not charged and pursuit_target==player and int(enemies[i].get("crowd_turn",-9999))<turns-1:
 				var strategy_step:Vector2i=enemy_strategy_alternative(enemies[i],path[0],player)
 				if strategy_step!=path[0]:
@@ -5756,6 +5774,7 @@ func enemy_turn_actions_impl():
 					if not pack_plan.is_empty():enemy_pack_commit(enemies[i],player,pack_plan.post)
 					if not reserve_plan.is_empty():enemy_pack_commit(enemies[i],player,reserve_plan.post)
 					if not charged:enemy_strategy_record_step(enemies[i],p,destination,pursuit_target)
+					enemies[i].erase("reserve_hold_turn");enemies[i].erase("reserve_hold_target")
 					enemies[i].pos=destination
 					enemy_actions.append({"uid":enemies[i].get("uid",i),"phase":"move","from":p,"to":destination,"gait":enemies[i].get("gait","walk")})
 		elif not charged and kind!=3 and not boon_active("decoy"):
