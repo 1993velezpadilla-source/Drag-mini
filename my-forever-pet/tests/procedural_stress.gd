@@ -2286,7 +2286,31 @@ func run_checks()->void:
 	congestion.turns=24
 	if congestion.enemy_unstall_step(waiting,congestion.player)!=waiting.pos:failures.append("physical congestion stale hold")
 	checks+=1
-	print("KINDRIA_ANTI_STALL checks=64")
+	# A recently observed escape invalidates the old reserve formation.
+	var escape_fixture=Rules.new()
+	for y in range(1,8):
+		for x in range(1,8):escape_fixture.cells[Vector2i(x,y)]=true
+	escape_fixture.player=Vector2i(4,5);escape_fixture.stairs=Vector2i(7,7);escape_fixture.relic=Vector2i(7,6);escape_fixture.turns=22
+	var escape_actor:Dictionary={"uid":370,"pos":Vector2i(2,4),"hp":30,"kind":0,"species":"rootgnawer","ecology_role":"hunter","ecology_search_enabled":true,"personality_enabled":true,"pp_primary":0,"pp_secondary":0,"reserve_hold_turn":21,"reserve_hold_target":Vector2i(4,4),"unstall_turn":21}
+	escape_fixture.enemies.append(escape_actor)
+	var escape_step:Vector2i=escape_fixture.enemy_unstall_step(escape_actor,escape_fixture.player)
+	if escape_step==escape_actor.pos or not escape_fixture.enemy_ambush_safe_tile(escape_step):failures.append("reserve observed escape reentry")
+	checks+=1
+	escape_actor.erase("reserve_hold_turn");escape_actor.erase("reserve_hold_target")
+	escape_actor["congestion_hold_turn"]=21;escape_actor["congestion_hold_target"]=Vector2i(4,4)
+	if escape_fixture.enemy_unstall_step(escape_actor,escape_fixture.player)!=escape_step:failures.append("congestion observed escape reentry")
+	checks+=1
+	escape_fixture.charge_phase="vanish"
+	if escape_fixture.enemy_unstall_step(escape_actor,escape_fixture.player)!=escape_actor.pos:failures.append("reserve escape no hidden tracking")
+	checks+=1
+	escape_fixture.charge_phase=""
+	escape_fixture.turns=24
+	if escape_fixture.enemy_unstall_step(escape_actor,escape_fixture.player)!=escape_actor.pos:failures.append("reserve escape expired observation")
+	checks+=1
+	escape_fixture.turns=22;escape_actor["congestion_hold_target"]=Vector2i(7,7)
+	if escape_fixture.enemy_unstall_step(escape_actor,escape_fixture.player)!=escape_actor.pos:failures.append("reserve distant escape no stale shortcut")
+	checks+=1
+	print("KINDRIA_ANTI_STALL checks=69")
 	# A direct witness may report a tile, but a listener cannot relay it.
 	var comm=Rules.new()
 	for x in range(1,4):comm.cells[Vector2i(x,3)]=true
