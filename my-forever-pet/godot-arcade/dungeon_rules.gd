@@ -5219,7 +5219,10 @@ func enemy_party_attack_plan(e:Dictionary,reuse_scores:bool=true)->Dictionary:
 		# The memo is local to this pure plan; it cannot survive a real action.
 		var ally_values:Dictionary={}
 		var scarcity:float=.85 if enemy_move_pp(e,str(kit.slot))<=2 else 1.0
-		for d in DIR:
+		# Radial, cross and room footprints are invariant to heading. Preserve
+		# the first heading for deterministic ties and the exhaustive reference.
+		var headings:Array=[DIR[0]] if reuse_scores and pattern in ["radius","cross","room"] else DIR
+		for d in headings:
 			var footprint:Dictionary=attack_footprint(origin,d,pattern,int(skill[0]))
 			if player_visible and footprint.has(player):
 				if not player_protected:
