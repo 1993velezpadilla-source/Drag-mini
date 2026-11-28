@@ -470,6 +470,44 @@ func run_checks()->void:
 	if not reacquire_actor.has("search_anchor") or search_fixture.enemy_pursuit_target(reacquire_actor,new_target)!=new_target or reacquire_actor.has("search_anchor") or reacquire_actor.get("last_seen_player")!=new_target:failures.append("local search reacquisition")
 	checks+=1
 	print("KINDRIA_ENEMY_SEARCH roles=4 steps=",search_steps)
+	# Tactical ranged enemy must sidestep to acquire a real firing lane, not gain an extra action.
+	var tactics_fixture=Rules.new()
+	for y in range(1,8):
+		for x in range(1,9):tactics_fixture.cells[Vector2i(x,y)]=true
+	var firing_origin:=Vector2i(2,3)
+	var firing_tile:=Vector2i(2,4)
+	tactics_fixture.player=Vector2i(5,4)
+	tactics_fixture.stairs=Vector2i(8,7)
+	tactics_fixture.relic=Vector2i(8,6)
+	var ranged_actor:Dictionary={"uid":0,"pos":firing_origin,"hp":20,"kind":1,"species":"leafwisp","ecology_role":"scout","ecology_search_enabled":true}
+	tactics_fixture.enemies.append(ranged_actor)
+	tactics_fixture.enemies.append({"uid":1,"pos":Vector2i(3,3),"hp":20,"kind":0,"sleep_turns":99})
+	if tactics_fixture.enemy_tactical_step(ranged_actor,tactics_fixture.player,"line",3)!=firing_tile:failures.append("tactical firing lane")
+	checks+=1
+	tactics_fixture.traps[firing_tile]="spike"
+	if tactics_fixture.enemy_tactical_step(ranged_actor,tactics_fixture.player,"line",3)!=firing_origin:failures.append("tactical trap avoidance")
+	tactics_fixture.traps.clear()
+	tactics_fixture.cells.erase(Vector2i(3,4))
+	if tactics_fixture.enemy_tactical_step(ranged_actor,tactics_fixture.player,"line",3)!=firing_origin:failures.append("tactical occlusion")
+	tactics_fixture.cells[Vector2i(3,4)]=true
+	checks+=2
+	tactics_fixture.enemy_turn_actions()
+	if ranged_actor.pos!=firing_tile:failures.append("tactical real turn movement")
+	var tactical_moves:int=0
+	var tactical_attacks:int=0
+	for action in tactics_fixture.enemy_actions:
+		if int(action.get("uid",-1))!=0:continue
+		if action.get("phase","")=="move":tactical_moves+=1
+		if action.get("phase","")=="attack":tactical_attacks+=1
+	if tactical_moves!=1 or tactical_attacks!=0:failures.append("tactical one action")
+	checks+=2
+	tactics_fixture.enemy_turn_actions()
+	var acquired_attack:bool=false
+	for action in tactics_fixture.enemy_actions:
+		if int(action.get("uid",-1))==0 and action.get("phase","")=="attack":acquired_attack=true
+	if not acquired_attack:failures.append("tactical next turn attack")
+	checks+=1
+	print("KINDRIA_TACTICAL_AI lane=1 forbidden=2 turn_actions=3")
 	# Actual disk I/O, legacy migration, corruption recovery, and resumed writes.
 	var test_path:String="user://kindria_procedural_test_"+str(OS.get_process_id())+".cfg"
 	var exact:Array[String]=["legacy exact".sha256_text()]
