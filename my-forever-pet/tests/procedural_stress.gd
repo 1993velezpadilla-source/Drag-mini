@@ -3105,7 +3105,28 @@ func run_checks()->void:
 	stage_fixture.enemy_commit_recovery(stage_actor,stage_actor.pos,stage_next,"detour")
 	if stage_actor.has("stage_position") or int(stage_actor.unstall_turn)!=stage_fixture.turns:failures.append("successful detour consumes staging memory")
 	checks+=1
-	print("KINDRIA_ANTI_STALL checks=222")
+	# Expiry must work even when the creature takes no action.
+	stage_actor["stage_turn"]=stage_fixture.turns
+	stage_actor["stage_target"]=stage_fixture.player
+	stage_actor["stage_position"]=stage_actor.pos
+	stage_fixture.enemy_expire_frontline_holds(stage_actor)
+	if not stage_actor.has("stage_position"):failures.append("staging expiry preserves fresh evidence")
+	checks+=1
+	stage_fixture.turns+=3
+	stage_fixture.enemy_expire_frontline_holds(stage_actor)
+	if stage_actor.has("stage_turn") or stage_actor.has("stage_target") or stage_actor.has("stage_position"):failures.append("staging expiry clears stale evidence")
+	checks+=1
+	stage_actor["stage_turn"]=stage_fixture.turns
+	stage_actor["stage_target"]=stage_fixture.player
+	stage_actor["stage_position"]=stage_next
+	stage_fixture.enemy_expire_frontline_holds(stage_actor)
+	if stage_actor.has("stage_position"):failures.append("staging expiry clears displaced evidence")
+	checks+=1
+	stage_actor["stage_target"]=stage_fixture.player
+	stage_fixture.enemy_expire_frontline_holds(stage_actor)
+	if stage_actor.has("stage_target"):failures.append("staging expiry clears incomplete evidence")
+	checks+=1
+	print("KINDRIA_ANTI_STALL checks=226")
 	# A direct witness may report a tile, but a listener cannot relay it.
 	var comm=Rules.new()
 	for x in range(1,4):comm.cells[Vector2i(x,3)]=true
