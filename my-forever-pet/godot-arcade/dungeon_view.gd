@@ -1020,7 +1020,7 @@ func capture_field_aim(event:InputEvent)->bool:
 			field_aiming=true;path.clear();strike_pending=false
 			facing=Rules.aim8(delta);update_hud();lab_update_aim();aim_preview.queue_redraw()
 		return true
-	if down and field_pointer==-2 and field_control_allowed(point):
+	if down and field_pointer==-2 and not hold_active and native_aim_pointer==-2 and strike_pointer==-2 and field_control_allowed(point):
 		if is_touch and pointer==0:native_touch_suppressed=true
 		field_pointer=pointer;field_origin=point;field_started=Time.get_ticks_msec();field_aiming=false
 		return true
@@ -1071,13 +1071,13 @@ func capture_native_combat(event:InputEvent)->bool:
 	if not down or controls_modal() or notified or run.finished:return false
 	if control_contains(aim_button,point):
 		if pointer==0:native_touch_suppressed=true
-		if native_aim_pointer==-2 and not hold_active and not tile_cast_active():
+		if native_aim_pointer==-2 and not hold_active and field_pointer==-2 and strike_pointer==-2 and not tile_cast_active():
 			native_aim_pointer=pointer;native_aim_origin=point;native_aim_dragged=false;path.clear();strike_pending=false
 		return true
 	for b in move_buttons:
 		if not control_contains(b,point):continue
 		if pointer==0:native_touch_suppressed=true
-		if not b.disabled and not hold_active and not hold_release_pending and native_aim_pointer==-2 and not tile_cast_active():
+		if not b.disabled and not hold_active and not hold_release_pending and native_aim_pointer==-2 and field_pointer==-2 and strike_pointer==-2 and not tile_cast_active():
 			native_move_pointer=pointer;native_move_button=b
 			strike_pending=false;path.clear()
 			hold_active=true;hold_visible=false;hold_age=0.0;hold_origin=point
@@ -1115,6 +1115,10 @@ func capture_control_pointer(event:InputEvent)->bool:
 				attack_button.position=(strike_touch_start+local_delta).clamp(Vector2(4,4),Vector2(4,4)+travel)
 		if up:
 			strike_pointer=-2
+			if event is InputEventScreenTouch and event.canceled:
+				position_strike_bubble()
+				strike_touch_moved=false;strike_touch_button=null
+				return true
 			if strike_touch_moved:
 				var travel:Vector2=(area.size-attack_button.size-Vector2(8,8)).max(Vector2.ONE)
 				strike_fraction=((attack_button.position-Vector2(4,4))/travel).clamp(Vector2.ZERO,Vector2.ONE)
@@ -1130,13 +1134,13 @@ func capture_control_pointer(event:InputEvent)->bool:
 		return true
 	if down and control_contains(active,point):
 		if is_touch and pointer==0:native_touch_suppressed=true
-		if strike_pointer==-2 and strike_available():
+		if strike_pointer==-2 and not hold_active and native_aim_pointer==-2 and field_pointer==-2 and strike_available():
 			strike_pointer=pointer;strike_touch_button=active;strike_touch_origin=point;strike_touch_moved=false;strike_touch_start=active.position
 		return true
 	return false
 
 func request_strike()->void:
-	if utility_drag_suppress or hold_active or hold_release_pending or native_aim_pointer!=-2 or not strike_available():return
+	if utility_drag_suppress or hold_active or hold_release_pending or native_aim_pointer!=-2 or field_pointer!=-2 or not strike_available():return
 	path.clear()
 	if attack_time>0.0:
 		strike_pending=true
@@ -19629,12 +19633,12 @@ func draw_aim_preview()->void:
 	aim_preview.draw_line(end,end-unit.rotated(-.55)*13.0,Color("#ffe49a"),3.0,true)
 
 func rotate_combat_aim()->void:
-	path.clear()
+	path.clear();strike_pending=false
 	facing=Rules.DIR8[posmod(Rules.DIR8.find(facing)+1,8)]
 	lab_update_aim()
 	update_hud()
 func touch(event:InputEvent):
-	if notified or run.finished or tile_cast_active() or controls_modal() or movement_joystick or field_aim_enabled:return
+	if notified or run.finished or tile_cast_active() or controls_modal() or movement_joystick or field_aim_enabled or hold_active or native_aim_pointer!=-2:return
 	if event is InputEventScreenTouch or event is InputEventScreenDrag or event is InputEventMouseButton or event is InputEventMouseMotion:
 		var global_point:Vector2=area.get_global_transform_with_canvas()*event.position
 		if control_contains(attack_button,global_point) or strike_pointer!=-2:return
@@ -19658,8 +19662,10 @@ func world_tap(point:Vector2)->void:
 		var delta:Vector2i=target-run.player
 		facing=Rules.aim8(Vector2(delta))
 		path.clear()
-		if target-run.player in Rules.DIR8:run.attack(false,facing)
-		sync();return
+		if target-run.player in Rules.DIR8:
+			request_strike()
+		else:sync()
+		return
 	path=run.route(run.player,target,true,true)
 	tick=0.0
 # Charge presentation is driven by the actual turn state; no extra gameplay delay.
@@ -20026,7 +20032,7 @@ func _process(dt:float):
 		if run.charged_move_id.is_empty() and run.step_clear(run.player,joy_direction):
 			path.clear();path.append(run.player+joy_direction)
 		else:tick=.16
-	if tick<=0 and not path.is_empty() and not run.finished and not tile_cast_active():
+	if tick<=0 and not path.is_empty() and not run.finished and attack_time<=0.0 and not hold_active and native_aim_pointer==-2 and field_pointer==-2 and strike_pointer==-2 and not controls_modal():
 		var next:Vector2i=path.pop_front()
 		facing=next-run.player
 		var before=run.player
