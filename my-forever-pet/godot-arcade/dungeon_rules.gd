@@ -1729,6 +1729,7 @@ func assign_enemy_ecology()->void:
 		e["ecology_search_enabled"]=true
 		# Deterministic sentries may establish local watch posts on ordinary floors.
 		if role=="sentry":e["ambush_enabled"]=true
+		e["personality_enabled"]=true
 
 func enemy_awareness(e:Dictionary)->int:
 	if bool(e.get("monster_house",false)):return 8 if bool(e.get("house_tactical",false)) else 9999
@@ -1739,6 +1740,7 @@ func enemy_awareness(e:Dictionary)->int:
 
 # Ecology actors retain a bounded last-known target, never refresh it outside awareness.
 func enemy_memory_duration(e:Dictionary)->int:
+	if bool(e.get("personality_enabled",false)) and not bool(e.get("monster_house",false)) and enemy_combat_personality(e)=="hunter":return 6 if e.get("ecology_role","")=="scout" else 5
 	match str(e.get("ecology_role","hunter")):
 		"scout":return 6
 		"sentry":return 2
@@ -1987,6 +1989,66 @@ func enemy_cooperative_step(e:Dictionary,target:Vector2i,pattern:String,reach:in
 	return best
 
 # Original species personalities. Courage is not a random per-turn roll.
+# Species temperament is orthogonal to patrol role and survival profile.
+# Decision bonuses are never applied to actual damage or status duration.
+func enemy_combat_personality(e:Dictionary)->String:
+	match str(e.get("species","")):
+		"rootgnawer","hollow_stag","shellguard","crystarok","astro_golem":return "territorial"
+		"bramble_pup","thornbeetle","reef_pup","starlit_pup","comet_hare","lunar_prowler","leviathorn":return "hunter"
+		"mossmite","grovetitan","coralcrab","anemoneye","voidspider":return "defender"
+		"vinesnap","eelstrix","orbitserpent","jellymancer","sporeling":return "opportunist"
+		"leafwisp","sylphowl","bubblewisp","marrowray","lunamoth","nova_wisp","nebulwing":return "cautious"
+		_:return "steadfast"
+
+func enemy_personality_bonus(e:Dictionary,skill:Array,utility:float)->float:
+	if not bool(e.get("personality_enabled",false)) or int(e.get("kind",0))==3:return 0.0
+	var effect:String=str(skill[4])
+	match enemy_combat_personality(e):
+		"hunter":
+			if not bool(skill[1]):return .65
+		"defender":
+			if effect=="guard" and utility>0.0:return .8
+		"opportunist":
+			if effect in ["poison","weaken","mark","drain"] and utility>0.0:return .8
+		"cautious":
+			if not bool(skill[1]) and int(skill[0])>=2:return .55
+		"territorial":
+			if effect in ["mark","guard"] and utility>0.0:return .5
+	return 0.0
+
+func enemy_personality_control_bonus(e:Dictionary)->float:
+	if not bool(e.get("personality_enabled",false)):return 0.0
+	return .65 if enemy_combat_personality(e)=="opportunist" else 0.0
+
+func enemy_territorial_idle_step(e:Dictionary)->Vector2i:
+	var origin:Vector2i=e.pos
+	if not bool(e.get("personality_enabled",false)) or enemy_combat_personality(e)!="territorial" or bool(e.get("monster_house",false)) or bool(e.get("windup",false)) or int(e.get("stuck_turns",0))>0:return origin
+	var home:Vector2i=e.get("ecology_home",origin)
+	if home==origin or not cells.has(home):return origin
+	var path:Array[Vector2i]=route(origin,home,true)
+	if path.is_empty() or not enemy_ambush_safe_tile(path[0]):return origin
+	return path[0]
+
+# Cautious ranged species can spend an ordinary movement action to improve
+# spacing against a visible, currently empowered opponent, at most twice.
+func enemy_cautious_spacing_step(e:Dictionary,target:Vector2i)->Vector2i:
+	var origin:Vector2i=e.pos
+	if not bool(e.get("personality_enabled",false)) or enemy_combat_personality(e)!="cautious" or bool(e.get("windup",false)) or int(e.get("stuck_turns",0))>0 or int(e.get("spacing_count",0))>=2:return origin
+	if target!=player or distance(origin,target)!=1 or not enemy_line_of_sight(origin,target):return origin
+	if int(player_stages.get("attack",0))<2 and int(player_stages.get("sp_attack",0))<2:return origin
+	var skill:Array=signature_skill(e)
+	var pattern:String=str(ATTACK_PATTERNS.get(e.get("species",""),"line"))
+	if int(skill[0])<2 or not enemy_move_allowed(e,"primary") or int(e.get("cooldown",0))>0:return origin
+	var best:Vector2i=origin
+	for d in DIR:
+		var q:Vector2i=origin+d
+		if distance(q,target)!=2 or not enemy_ambush_safe_tile(q) or not enemy_line_of_sight(q,target):continue
+		if attack_aim(q,target,pattern,int(skill[0]))==Vector2i.ZERO:continue
+		for onward in DIR:
+			var next:Vector2i=q+onward
+			if next!=origin and enemy_ambush_safe_tile(next):return q
+	return best
+
 func enemy_survival_profile(e:Dictionary)->String:
 	match str(e.get("species","")):
 		"sporeling","leafwisp","sylphowl","bubblewisp","jellymancer","marrowray","lunamoth","nova_wisp","nebulwing":return "cautious"
@@ -2132,7 +2194,7 @@ func enemy_status_utility(e:Dictionary,move:Dictionary)->float:
 		for stat in deltas:
 			if int(deltas[stat])<0 and int(player_stages.get(stat,0))>-2:utility+=2.0
 		if utility<=0.0:return 0.0
-	utility+=float(mini(nearby,3))*1.5
+	utility+=float(mini(nearby,3))*1.5+enemy_personality_control_bonus(e)
 	if enemy_move_pp(e,"control")<=2:utility*=.85
 	return utility*reference_accuracy(move)/100.0
 
@@ -2607,6 +2669,7 @@ func trigger_monster_house()->bool:
 		e.pos=tile
 		e["monster_house"]=true;e["monster_house_spawn_serial"]=monster_house_serial
 		e["house_tactical"]=true;e["house_role"]=house_tactical_role(e)
+		e["personality_enabled"]=true
 		e["ecology_search_enabled"]=true;e["ecology_role"]="hunter"
 		e["last_seen_player"]=player;e["last_seen_until"]=turns+3
 		enemies.append(e);revealed[tile]=true
@@ -3893,6 +3956,7 @@ func enemy_attack_score(e:Dictionary,skill:Array,secondary:bool)->float:
 		if str(e.get("major_status",""))=="burn":raw*=.8
 		if (shield_turns>0 and shield_kind=="protect") or charge_phase in ["underground","airborne","vanish"]:raw=0.0;utility=0.0
 	var score:float=raw+utility
+	if score>0.0:score+=enemy_personality_bonus(e,skill,utility)
 	if bool(skill[1]):score*=.70
 	if enemy_move_pp(e,slot)<=2:score*=.85
 	return score
@@ -4203,6 +4267,13 @@ func enemy_turn_actions_impl():
 				if int(enemies[i].get(cd_key,0))>0:enemies[i][cd_key]=int(enemies[i][cd_key])-1
 			enemy_actions.append({"uid":enemies[i].get("uid",i),"phase":"move","from":p,"to":retreat,"gait":enemies[i].get("gait","walk")})
 			continue
+		if gap>3 and gap<=enemy_awareness(enemies[i]) and enemy_line_of_sight(p,player):enemies[i].erase("spacing_count")
+		var spacing:Vector2i=enemy_cautious_spacing_step(enemies[i],player)
+		if spacing!=p:
+			enemies[i].pos=spacing;enemies[i]["spacing_count"]=int(enemies[i].get("spacing_count",0))+1
+			enemy_tick_all_cooldowns(enemies[i])
+			enemy_actions.append({"uid":enemies[i].get("uid",i),"phase":"move","from":p,"to":spacing,"gait":enemies[i].get("gait","walk")})
+			continue
 		var control_cd:int=int(enemies[i].get("control_cooldown",0))
 		if control_cd>0:enemies[i]["control_cooldown"]=control_cd-1
 		if control_cd<=0 and enemy_execute_control(i):
@@ -4375,7 +4446,9 @@ func enemy_turn_actions_impl():
 					enemy_actions.append({"uid":enemies[i].get("uid",i),"phase":"move","from":p,"to":destination,"gait":enemies[i].get("gait","walk")})
 		elif not charged and kind!=3 and not boon_active("decoy"):
 			var patrol:Vector2i=enemy_ambush_step(enemies[i])
-			if patrol==p and not enemies[i].has("ambush_post"):patrol=enemy_patrol_destination(enemies[i])
+			if patrol==p and not enemies[i].has("ambush_post"):
+				patrol=enemy_territorial_idle_step(enemies[i])
+				if patrol==p:patrol=enemy_patrol_destination(enemies[i])
 			if patrol!=p:
 				enemies[i].pos=patrol
 				enemy_actions.append({"uid":enemies[i].get("uid",i),"phase":"move","from":p,"to":patrol,"gait":enemies[i].get("gait","walk")})
