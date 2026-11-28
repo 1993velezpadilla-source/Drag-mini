@@ -1853,6 +1853,42 @@ func run_checks()->void:
 	if audit_combat.enemy_party_opportunity_value(audit_hunter,audit_friend,0,audit_combat.signature_skill(audit_hunter),false)!=0.0:failures.append("combat audit hidden ally direct scoring rejected")
 	checks+=1
 	print("KINDRIA_ENEMY_COMBAT_AUDIT checks=7")
+
+	# Shared live contact must not replace last-known target pursuit.
+	var living_fixture=Rules.new()
+	for y in range(1,9):
+		for x in range(1,9):living_fixture.cells[Vector2i(x,y)]=true
+	living_fixture.player=Vector2i(4,4);living_fixture.stairs=Vector2i(8,8);living_fixture.relic=Vector2i(8,7);living_fixture.turns=20
+	var living_actor:Dictionary={"uid":300,"pos":Vector2i(3,4),"hp":5,"max_hp":30,"kind":0,"species":"leafwisp","ecology_role":"hunter","ecology_search_enabled":true,"personality_enabled":true,"pp_primary":12,"pp_secondary":0}
+	living_fixture.enemies.append(living_actor)
+	living_fixture.player_stages["attack"]=2
+	if not living_fixture.enemy_live_contact(living_actor,living_fixture.player) or living_fixture.enemy_retreat_step(living_actor,living_fixture.player)==living_actor.pos:failures.append("living dungeon visible threat")
+	checks+=1
+	living_fixture.enemy_pursuit_target(living_actor,living_fixture.player)
+	living_fixture.charge_phase="vanish";living_fixture.player=Vector2i(4,5)
+	if living_fixture.enemy_live_contact(living_actor,living_fixture.player) or living_fixture.enemy_pursuit_target(living_actor,living_fixture.player)!=Vector2i(4,4):failures.append("living dungeon separates memory and live contact")
+	checks+=1
+	living_fixture.player=Vector2i(4,4)
+	if living_fixture.enemy_retreat_step(living_actor,living_fixture.player)!=living_actor.pos or living_fixture.enemy_cautious_spacing_step(living_actor,living_fixture.player)!=living_actor.pos:failures.append("living dungeon hidden survival tactics rejected")
+	checks+=1
+	living_fixture.shield_turns=2;living_fixture.shield_kind="protect"
+	if living_fixture.enemy_counter_protected(living_actor,living_fixture.player):failures.append("living dungeon hidden shield counter rejected")
+	checks+=1
+	living_fixture.enemy_record_push_pressure(living_actor);living_fixture.enemy_remember_incoming(living_actor,5,"normal")
+	if living_actor.has("push_pressure_turn") or living_actor.has("incoming_turn"):failures.append("living dungeon hidden attack observation rejected")
+	checks+=1
+	living_fixture.charge_phase="";living_fixture.player_boons["decoy"]=2
+	if living_fixture.enemy_live_contact(living_actor,living_fixture.player) or living_fixture.enemy_exit_block_step(living_actor,living_fixture.player)!=living_actor.pos:failures.append("living dungeon decoy contact rejected")
+	living_fixture.player_boons.clear()
+	checks+=1
+	living_fixture.hp=0
+	if living_fixture.enemy_live_contact(living_actor,living_fixture.player):failures.append("living dungeon defeated player rejected")
+	living_fixture.hp=30
+	checks+=1
+	living_fixture.enemy_record_push_pressure(living_actor);living_fixture.enemy_remember_incoming(living_actor,5,"normal")
+	if living_actor.get("push_pressure_turn")!=20 or living_actor.get("incoming_turn")!=20:failures.append("living dungeon real observation restored")
+	checks+=1
+	print("KINDRIA_LIVING_DUNGEON checks=8")
 	# A direct witness may report a tile, but a listener cannot relay it.
 	var comm=Rules.new()
 	for x in range(1,4):comm.cells[Vector2i(x,3)]=true
