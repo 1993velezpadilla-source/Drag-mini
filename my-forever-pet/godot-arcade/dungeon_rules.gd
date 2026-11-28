@@ -2745,6 +2745,75 @@ func house_spawn_tile(e:Dictionary,spots:Array[Vector2i],room:Rect2i)->Vector2i:
 		if score>best_score:best_score=score;best=q
 	return best
 
+# Roles are recalculated from living, visible teammates; species kits never change.
+func enemy_relief_candidate(e:Dictionary,target:Vector2i)->bool:
+	if not bool(e.get("personality_enabled",false)) or not enemy_alert_eligible(e) or bool(e.get("windup",false)) or int(e.get("stuck_turns",0))>0:return false
+	if bool(e.get("monster_house",false)) and not bool(e.get("house_tactical",false)):return false
+	var life:int=int(e.hp)
+	if life*2<=maxi(1,int(e.get("max_hp",life))):return false
+	var gap:int=distance(e.pos,target)
+	if gap<2 or gap>4 or not enemy_line_of_sight(e.pos,target):return false
+	var role:String=str(e.get("house_role",""))
+	if role=="guard" or enemy_survival_profile(e)=="defensive":return true
+	return role in ["controller","ranged"] and not enemy_move_allowed(e,"primary") and not enemy_move_allowed(e,"secondary") and not enemy_move_allowed(e,"control") and not enemy_move_allowed(e,"support")
+
+func enemy_relief_ranged_ready(e:Dictionary,target:Vector2i)->bool:
+	if distance(e.pos,target)<2 or int(e.get("whiffer_turns",0))>0 or int(e.get("slow_turns",0))>0:return false
+	if int(e.get("cooldown",0))<=0 and enemy_move_allowed(e,"primary") and int(signature_skill(e)[0])>=2:return true
+	var species:String=str(e.get("species",""))
+	return int(e.get("alt_cooldown",0))<=0 and enemy_move_allowed(e,"secondary") and SECONDARY_SKILLS.has(species) and int(SECONDARY_SKILLS[species][0])>=2
+
+func enemy_relief_blocks_lane(friend:Dictionary,q:Vector2i,target:Vector2i)->bool:
+	var origin:Vector2i=friend.pos
+	# A cardinal firing lane must stay clear if it currently reaches the target.
+	if origin.x!=target.x and origin.y!=target.y:return false
+	var heading:Vector2i=Vector2i(signi(target.x-origin.x),signi(target.y-origin.y))
+	var gap:int=distance(origin,target)
+	if distance(origin,q)+distance(q,target)!=gap or q==origin or q==target:return false
+	var species:String=str(friend.get("species",""))
+	var skill:Array=signature_skill(friend)
+	if enemy_move_allowed(friend,"primary") and (bool(friend.get("windup",false)) or int(friend.get("cooldown",0))<=0) and str(ATTACK_PATTERNS.get(species,"line"))=="line":
+		var aim:Vector2i=friend.get("aim",Vector2i.ZERO) if bool(friend.get("windup",false)) else heading
+		if aim==heading and attack_footprint(origin,aim,"line",int(skill[0])).has(target):return true
+	if not bool(friend.get("windup",false)) and enemy_move_allowed(friend,"secondary") and int(friend.get("alt_cooldown",0))<=0 and SECONDARY_SKILLS.has(species):
+		var alt:Array=SECONDARY_SKILLS[species]
+		if str(alt[1])=="line" and attack_footprint(origin,heading,"line",int(alt[0])).has(target):return true
+	return false
+
+func enemy_relief_step(e:Dictionary,target:Vector2i)->Vector2i:
+	var origin:Vector2i=e.pos
+	if target!=player or charge_phase in ["underground","airborne","vanish"] or boon_active("decoy") or not enemy_relief_candidate(e,target):return origin
+	var backup:Array[Dictionary]=[]
+	var wounded:bool=false
+	var gap:int=distance(origin,target)
+	for other in enemies:
+		if not enemy_squad_partner(e,other) or not enemy_line_of_sight(other.pos,target):continue
+		if bool(e.get("monster_house",false)) and int(e.get("monster_house_spawn_serial",-1))!=int(other.get("monster_house_spawn_serial",-2)):continue
+		var other_gap:int=distance(other.pos,target)
+		var life:int=int(other.hp)
+		var cap:int=maxi(1,int(other.get("max_hp",life)))
+		if other_gap==1:
+			if life*2>cap:return origin
+			wounded=true
+		elif enemy_relief_ranged_ready(other,target):backup.append(other)
+		if enemy_relief_candidate(other,target):
+			if other_gap<gap or (other_gap==gap and int(other.get("uid",0))<int(e.get("uid",0))):return origin
+	if not wounded and backup.is_empty():return origin
+	var reserved:Dictionary=enemy_pack_reserved_posts(e,target)
+	var best:Vector2i=origin
+	var best_score:int=-2147483647
+	for d in DIR:
+		var q:Vector2i=origin+d
+		if distance(q,target)>=gap or not enemy_ambush_safe_tile(q) or reserved.has(q) or not enemy_line_of_sight(q,target):continue
+		var blocked:bool=false
+		for friend in backup:
+			if enemy_relief_blocks_lane(friend,q,target):blocked=true;break
+		if blocked:continue
+		var score:int=-distance(q,target)*4
+		for friend in backup:score+=mini(3,distance(q,friend.pos))
+		if score>best_score:best_score=score;best=q
+	return best
+
 func house_formation_step(e:Dictionary,target:Vector2i)->Vector2i:
 	var origin:Vector2i=e.pos
 	if not bool(e.get("house_tactical",false)) or int(e.get("stuck_turns",0))>0 or bool(e.get("windup",false)):return origin
@@ -4666,6 +4735,8 @@ func enemy_turn_actions_impl():
 			var tactical:Vector2i=enemy_protector_step(enemies[i],pursuit_target) if not charged and pursuit_target==player else p
 			if tactical==p and not charged and pursuit_target==player:
 				tactical=enemy_control_setup_step(enemies[i],player)
+			if tactical==p and not charged and pursuit_target==player:
+				tactical=enemy_relief_step(enemies[i],player)
 			if tactical==p and not charged and pursuit_target==player:
 				tactical=house_formation_step(enemies[i],player)
 			var predictive_move:bool=false
