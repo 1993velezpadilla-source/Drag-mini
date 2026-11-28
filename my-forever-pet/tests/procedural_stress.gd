@@ -3067,10 +3067,23 @@ func run_checks()->void:
 	checks+=1
 	stage_actor.pos=stage_next
 	stage_fixture.turns=23;stage_ranged["cooldown"]=1
-	stage_actor["stall_turn"]=22
-	if stage_fixture.enemy_unstall_step(stage_actor,stage_fixture.player,false)==stage_actor.pos:failures.append("staging does not delay newly released attack route")
+	# A staging movement does not record a stall. Preserve the actual previous
+	# timestamp instead of manufacturing consecutive stall evidence.
+	if int(stage_actor.stall_turn)!=21 or stage_fixture.enemy_unstall_step(stage_actor,stage_fixture.player,false)==stage_actor.pos:failures.append("staging reentry after committed move without another stall")
 	checks+=1
-	print("KINDRIA_ANTI_STALL checks=213")
+	stage_actor["unstall_turn"]=22
+	if stage_fixture.enemy_unstall_step(stage_actor,stage_fixture.player,false)==stage_actor.pos:failures.append("staging reentry overrides stale detour cooldown after release")
+	checks+=1
+	stage_ranged["cooldown"]=0
+	if stage_fixture.enemy_unstall_step(stage_actor,stage_fixture.player,false)!=stage_actor.pos:failures.append("staging reentry preserves still active ray")
+	checks+=1
+	stage_ranged["cooldown"]=1;stage_fixture.shield_kind="protect";stage_fixture.shield_turns=1
+	if stage_fixture.enemy_unstall_step(stage_actor,stage_fixture.player,false)!=stage_actor.pos:failures.append("staging reentry respects protect")
+	checks+=1
+	stage_fixture.shield_kind="";stage_fixture.shield_turns=0;stage_fixture.turns=25
+	if stage_fixture.enemy_unstall_step(stage_actor,stage_fixture.player,false)!=stage_actor.pos:failures.append("staging reentry expires")
+	checks+=1
+	print("KINDRIA_ANTI_STALL checks=217")
 	# A direct witness may report a tile, but a listener cannot relay it.
 	var comm=Rules.new()
 	for x in range(1,4):comm.cells[Vector2i(x,3)]=true
