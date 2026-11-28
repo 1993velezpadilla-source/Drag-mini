@@ -1316,8 +1316,25 @@ func run_checks()->void:
 	if control_fixture.enemy_execute_control(0):failures.append("control protected player")
 	control_fixture.shield_kind="";control_fixture.shield_turns=0
 	checks+=1
-	# Use an accuracy stage to make the fixture deterministic independently of seed.
+	# Guaranteed misses and credible direct finishes must not spend control PP.
 	controller["stages"]={"accuracy":10}
+	var control_rng:int=control_fixture.rng.state
+	controller["whiffer_turns"]=2
+	if control_fixture.enemy_execute_control(0) or controller.pp_control!=5 or control_fixture.rng.state!=control_rng or not control_fixture.enemy_actions.is_empty():failures.append("control guaranteed whiff preserves resources")
+	controller.erase("whiffer_turns")
+	checks+=1
+	var saved_control_hp:int=control_fixture.hp
+	controller["personality_enabled"]=true
+	control_fixture.hp=1
+	if not control_fixture.enemy_risk_has_finisher(controller) or control_fixture.enemy_execute_control(0) or controller.pp_control!=5 or control_fixture.hp!=1:failures.append("control prefers credible direct finish")
+	control_fixture.hp=saved_control_hp
+	controller.erase("personality_enabled")
+	checks+=1
+	# Setup is also unnecessary when its learned control move cannot connect.
+	controller.pos=Vector2i(2,2);controller["whiffer_turns"]=2
+	if control_fixture.enemy_control_setup_step(controller,control_fixture.player)!=controller.pos or controller.pp_control!=5:failures.append("control setup rejects guaranteed whiff")
+	controller.pos=Vector2i(2,3);controller.erase("whiffer_turns")
+	checks+=1
 	control_fixture.enemy_turn_actions()
 	var control_actions:int=0
 	for action in control_fixture.enemy_actions:

@@ -3152,7 +3152,7 @@ func enemy_push_plan(e:Dictionary,target:Vector2i)->Dictionary:
 # Set up a useful knockback angle on this turn, then cast on a later turn.
 func enemy_control_setup_step(e:Dictionary,target:Vector2i)->Vector2i:
 	var origin:Vector2i=e.pos
-	if not enemy_live_contact(e,target):return origin
+	if not enemy_live_contact(e,target) or int(e.get("whiffer_turns",0))>0:return origin
 	var id:String=str(e.get("control_move",""))
 	if not bool(e.get("ecology_search_enabled",false)) or (bool(e.get("monster_house",false)) and not bool(e.get("house_tactical",false))) or bool(e.get("windup",false)) or int(e.get("stuck_turns",0))>0:return origin
 	if int(e.get("control_cooldown",0))>0 or not MOVE_LIBRARY.has(id) or str(MOVE_LIBRARY[id].get("special_rule",""))!="push" or not enemy_move_allowed(e,"control"):return origin
@@ -3366,6 +3366,10 @@ func enemy_execute_control(i:int)->bool:
 		if str(learned.get("category",""))!="status":return false
 		return enemy_execute_status_control(i,learned)
 	if player_has_ability("anchored") or boon_active("ingrain") or charge_phase in ["underground","airborne","vanish"] or (shield_turns>0 and shield_kind=="protect") or mirror_veil_blocks(e.pos,true,"front") or boon_active("magic_coat"):return false
+	# Unlike ordinary attacks, this control move always misses under Whiffer.
+	# Preserve PP and let the ordinary dispatcher select another action.
+	if not enemy_live_contact(e,player) or int(e.get("whiffer_turns",0))>0:return false
+	if enemy_risk_has_finisher(e):return false
 	var plan:Dictionary=enemy_push_plan(e,player)
 	if int(plan.get("score",0))+enemy_charge_push_bonus(e,plan)<5:return false
 	var origin:Vector2i=player
