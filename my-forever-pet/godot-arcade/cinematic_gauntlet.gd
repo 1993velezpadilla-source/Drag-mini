@@ -49,6 +49,8 @@ func run_checks()->void:
 	var structures_seen:Dictionary={}
 	var merged_total:int=0
 	var maze_total:int=0
+	var networks_seen:Dictionary={}
+	var network_features:Dictionary={}
 	for seed_id in range(768):
 		var topology_run:=preload("res://dungeon_rules.gd").new()
 		topology_run.setup(seed_id%3,0,0,false,false,seed_id+9301,0,seed_id%6==0)
@@ -60,6 +62,33 @@ func run_checks()->void:
 		topology_signatures[topology_run.layout_signature]=true
 		interior_seen[topology_run.interior_profile]=true
 		structures_seen[topology_run.structure_profile]=true
+		networks_seen[topology_run.network_profile]=true
+		var network_valid:bool=true
+		for feature in topology_run.network_paths:
+			var kind:int=feature.kind
+			network_features[kind]=int(network_features.get(kind,0))+1
+			var previous:Vector2i=feature.entry
+			if not topology_run.cells.has(previous):network_valid=false
+			for tile in feature.tiles:
+				if not topology_run.cells.has(tile) or topology_run.distance(previous,tile)!=1:network_valid=false
+				for room in topology_run.rooms:
+					if room.has_point(tile):network_valid=false
+				previous=tile
+			if kind==2 and (not topology_run.cells.has(feature.exit) or topology_run.distance(previous,feature.exit)!=1):network_valid=false
+		if not network_valid or topology_run.network_paths.size()>3:failures.append("V26.32 network geometry")
+		var chamber_valid:bool=topology_run.side_chambers.size()==topology_run.side_rewards.size() and topology_run.side_chambers.size()<=1
+		for chamber in topology_run.side_chambers:
+			if chamber.size!=Vector2i(3,3) or not topology_run.floor_bounds.encloses(chamber):chamber_valid=false
+			for y in range(chamber.position.y,chamber.end.y):
+				for x in range(chamber.position.x,chamber.end.x):
+					if not topology_run.cells.has(Vector2i(x,y)):chamber_valid=false
+			for room in topology_run.rooms:
+				if chamber.intersects(room):chamber_valid=false
+			var reward:Vector2i=topology_run.center(chamber)
+			if reward not in topology_run.side_rewards or topology_run.loot.get(reward,"")!="material" or reward==topology_run.stairs or reward==topology_run.player or topology_run.enemy_at(reward)>=0 or topology_run.traps.has(reward):chamber_valid=false
+		if not chamber_valid:failures.append("V26.32 side chamber integrity")
+		if (topology_run.starter_woods or family==3) and (topology_run.network_profile!=0 or not topology_run.network_paths.is_empty()):failures.append("V26.32 protected layout")
+		checks+=3
 		merged_total+=topology_run.merged_room_count
 		maze_total+=topology_run.structural_walls.size()
 		var structure_valid:bool=true
@@ -149,6 +178,10 @@ func run_checks()->void:
 	if maze_total==0:failures.append("V26.31 actual maze walls")
 	print("V26.31 structures: ",structures_seen.size()," merges: ",merged_total," maze tiles: ",maze_total)
 	checks+=3
+	if networks_seen.size()!=5:failures.append("V26.32 network profile coverage")
+	if network_features.size()!=3:failures.append("V26.32 realized feature coverage")
+	print("V26.32 networks: ",networks_seen.size()," realized features: ",network_features)
+	checks+=2
 	# V26.25: independent random stairs, no key gate, and geometry history.
 	var layout_a:=preload("res://dungeon_rules.gd").new()
 	var layout_b:=preload("res://dungeon_rules.gd").new()
